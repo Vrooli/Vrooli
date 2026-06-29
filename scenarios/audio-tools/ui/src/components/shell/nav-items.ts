@@ -15,7 +15,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { to: "/", labelKey: strings.nav.overview, icon: LayoutDashboard, mobile: true },
   { to: "/diagnostics", labelKey: strings.nav.diagnostics, icon: Mic, mobile: true },
-  { to: "/dictation-studio", labelKey: strings.nav.dictationStudio, icon: Mic2 },
+  { to: "/dictation-studio", labelKey: strings.nav.dictationStudio, icon: Mic2, mobile: true },
   { to: "/status", labelKey: strings.nav.status, icon: Activity, mobile: true },
   { to: "/configuration", labelKey: strings.nav.configure, icon: Sliders, mobile: true },
   { to: "/voices", labelKey: strings.nav.voices, icon: Volume2 },

@@ -122,11 +122,21 @@ type StreamConfig struct {
 // one value while the mic-button ring shows another — see the 2026-05-17
 // regression where VADSilenceMs=700 here vs VadSilenceMs=1200 there caused
 // the ring to fill to ~58% before the server cut.
+//
+// DefaultVADSilenceMs makes that alignment a value instead of a hope: every
+// server default AND the browser/UI fallback derive from this single constant.
+// TestVADSilenceDefaultsSingleSource (handlers/stt) locks the two server sites
+// together, and the audio-integration vad.ts parity test locks the client
+// fallback (VAD_FALLBACK_SILENCE_TIMEOUT_MS) to this number — so a change on
+// either side that is not mirrored fails the build instead of silently
+// desyncing the ring from the cut.
+const DefaultVADSilenceMs = 1200
+
 func Defaults() StreamConfig {
 	return StreamConfig{
 		Mode:                       ModeAuto,
 		StrategyPreference:         PreferenceAuto,
-		VADSilenceMs:               1200,
+		VADSilenceMs:               DefaultVADSilenceMs,
 		OverlapWindowMs:            2000,
 		OverlapCommitRuns:          2,
 		OverlapMaxStallRejects:     3,

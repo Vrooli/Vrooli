@@ -65,12 +65,17 @@ func TestTranscode_DefaultContentType(t *testing.T) {
 	require.Equal(t, "audio/wav", res.Msg.GetContentType())
 }
 
-func TestTranscode_RunnerErrorMapsToInternal(t *testing.T) {
+func TestTranscode_FfmpegRejectionMapsToInvalidArgument(t *testing.T) {
+	// ffmpeg present but exiting non-zero means it rejected the caller's
+	// audio/format — an actionable client error, not a server bug. The
+	// honest-error contract maps this to InvalidArgument and preserves the
+	// underlying ffmpeg failure in the message.
 	withRunner(t, audiomocks.NewFakeRunner(nil, errors.New("boom")))
 	c := newAudioClient(t)
 	_, err := c.Transcode(context.Background(), connect.NewRequest(&audiov1.TranscodeRequest{Audio: []byte("X")}))
 	require.Error(t, err)
-	require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	require.Contains(t, err.Error(), "boom")
 }
 
 func TestTrim_HappyPath(t *testing.T) {

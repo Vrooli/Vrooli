@@ -51,7 +51,6 @@ describe("voice helper copy drift across scenarios", () => {
         // On mismatch, surface a unified-diff-friendly preview so the
         // failure tells the user exactly which scenario drifted.
         if (!equal) {
-          // eslint-disable-next-line no-console
           console.error(
             `DRIFT: ${rel}\n  authoritative: ${reference.abs}\n  drifted:       ${other.abs}\n  fix: copy the authoritative file over the drifted one (or update SYNCED_FILES if the divergence is intentional).`,
           );

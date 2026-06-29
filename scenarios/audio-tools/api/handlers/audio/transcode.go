@@ -66,9 +66,16 @@ func multipartTranscodeHandler() http.Handler {
 			atoiOr(r.FormValue("bitrate"), 0),
 		)
 		if err != nil {
+			// Mirror the Connect-side honest-error mapping: a missing ffmpeg
+			// is an operator-fixable dependency gap (424), ffmpeg rejecting
+			// the upload is a caller-fixable bad input (400), and anything
+			// else is a genuine upstream failure (502).
 			status := http.StatusBadGateway
-			if errors.Is(err, intaudio.ErrFFmpegMissing) {
+			switch {
+			case errors.Is(err, intaudio.ErrFFmpegMissing):
 				status = http.StatusFailedDependency
+			case errors.Is(err, intaudio.ErrFfmpegExec):
+				status = http.StatusBadRequest
 			}
 			http.Error(w, fmt.Sprintf("transcode failed: %v", err), status)
 			return

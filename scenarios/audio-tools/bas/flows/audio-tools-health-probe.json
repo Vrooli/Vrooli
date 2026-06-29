@@ -1,0 +1,83 @@
+{
+  "metadata": {
+    "name": "audio-tools-health-probe",
+    "description": "Smoke probe: boot the audio-tools UI, navigate to the Diagnostics surface, and confirm the capability self-test control renders. Non-media — drives no microphone or audio playback, so it runs deterministically in the BAS Playwright harness. Guards against the class of regression where the app shell or Diagnostics page fails to mount at all.",
+    "labels": {
+      "intent": "functional",
+      "reset": "none"
+    },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-diagnostics",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "audio-tools",
+          "scenario_path": "/diagnostics",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Navigate to /diagnostics" }
+      }
+    },
+    {
+      "id": "wait-suite-run",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='suite-run']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Wait for the capability self-test control to render" }
+      }
+    },
+    {
+      "id": "assert-suite-run",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='suite-run']",
+          "mode": "ASSERTION_MODE_EXISTS"
+        },
+        "metadata": { "label": "Assert the diagnostics suite control exists" }
+      }
+    },
+    {
+      "id": "capture-diagnostics",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": { "full_page": true },
+        "metadata": { "label": "Capture the Diagnostics page" }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-nav-wait",
+      "source": "navigate-diagnostics",
+      "target": "wait-suite-run",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-wait-assert",
+      "source": "wait-suite-run",
+      "target": "assert-suite-run",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-assert-capture",
+      "source": "assert-suite-run",
+      "target": "capture-diagnostics",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

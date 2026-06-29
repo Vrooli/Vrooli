@@ -216,11 +216,11 @@ func ruleHasColorSystem(c *scanContext) (Finding, bool) {
 	if !ok || len(missing) > 0 {
 		return Finding{
 			Severity:               SeverityWarning,
-			Title:                  "Core color system is incomplete",
-			Description:            "The design tokens do not define the core color tokens (background, foreground, primary).",
+			Title:                  "Canonical color-token contract is incomplete",
+			Description:            "The canonical design-token file does not define the core color tokens (background, foreground, primary).",
 			FilePath:               designSystemCSSRel,
-			WhyItMatters:           "A defined color system keeps every surface visually coherent and themeable.",
-			RecommendedRemediation: "Define the core --color-* custom properties in the design tokens.",
+			WhyItMatters:           "A canonical color-token contract keeps every surface visually coherent and themeable.",
+			RecommendedRemediation: "Define the core --color-* custom properties in ui/src/design-tokens.css.",
 			Evidence:               map[string]any{"missing_tokens": missing, "tokens_file_present": ok},
 		}, true
 	}

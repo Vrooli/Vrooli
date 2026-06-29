@@ -16,6 +16,15 @@ import (
 // ErrFFmpegMissing is returned when the ffmpeg binary cannot be found.
 var ErrFFmpegMissing = errors.New("audio: ffmpeg not installed")
 
+// ErrFfmpegExec is returned when ffmpeg is present but exits non-zero —
+// almost always because the caller-supplied audio is unsupported/corrupt
+// or the requested output format is invalid. It lets handlers map the
+// failure to an actionable client-facing code (InvalidArgument) rather
+// than flattening every ffmpeg rejection to a server-side Internal error.
+// The underlying exec error (with ffmpeg's stderr tail) is wrapped so the
+// caller still sees the concrete cause.
+var ErrFfmpegExec = errors.New("audio: ffmpeg execution failed")
+
 var (
 	ffmpegOnce       sync.Once
 	ffmpegAvailable  bool
@@ -108,7 +117,15 @@ func runFfmpeg(ctx context.Context, input []byte, args ...string) ([]byte, error
 		return nil, ErrFFmpegMissing
 	}
 	full := append([]string{"-y", "-loglevel", "error"}, args...)
-	return DefaultRunner.Run(ctx, "ffmpeg", input, full...)
+	out, err := DefaultRunner.Run(ctx, "ffmpeg", input, full...)
+	if err != nil {
+		// ffmpeg is installed but rejected the job. Wrap with the
+		// ErrFfmpegExec sentinel (keeping the underlying cause in the
+		// chain) so handlers can surface an actionable InvalidArgument
+		// instead of a bare Internal error.
+		return nil, fmt.Errorf("%w: %w", ErrFfmpegExec, err)
+	}
+	return out, nil
 }
 
 // Transcode pipes audio through ffmpeg to produce the requested

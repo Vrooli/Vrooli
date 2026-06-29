@@ -17,9 +17,11 @@ import (
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/ai/ttschain"
+	intaudio "audio-tools/internal/audio"
 	"audio-tools/internal/clock"
 	"audio-tools/internal/diagnostics/fixtures"
 	"audio-tools/internal/store"
+	intsumm "audio-tools/internal/summarize"
 	"audio-tools/internal/usagereport"
 
 	"github.com/google/uuid"
@@ -363,6 +365,12 @@ func applyChainErr(res StepResult, err error) StepResult {
 	switch {
 	case errors.Is(err, context.DeadlineExceeded):
 		res.ErrorCode = "deadline_exceeded"
+	// A summarize model role that resolves but is not installed is an
+	// operator-fixable precondition, not an opaque "internal" — surface it
+	// distinctly so the suite tile can show the actionable remedy. Checked
+	// before ErrAllProvidersFailed because the chain wraps both.
+	case errors.Is(err, intsumm.ErrSummarizeModelNotInstalled):
+		res.ErrorCode = "model_not_installed"
 	case errors.Is(err, sttchain.ErrAllProvidersFailed),
 		errors.Is(err, ttschain.ErrAllProvidersFailed),
 		errors.Is(err, summarizechain.ErrAllProvidersFailed):
@@ -380,17 +388,21 @@ func applyChainErr(res StepResult, err error) StepResult {
 func applyTranscodeErr(res StepResult, err error) StepResult {
 	res.OK = false
 	res.ErrorMessage = err.Error()
-	if errors.Is(err, context.DeadlineExceeded) {
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
 		res.ErrorCode = "deadline_exceeded"
-		return res
-	}
-	// internal/audio.ErrFFmpegMissing surfaces as not_configured because
-	// the local transcoder is a substrate dependency rather than a chain.
-	if err != nil && err.Error() == "audio: ffmpeg not installed" {
+	// ffmpeg missing is a substrate dependency gap (operator action), not a
+	// chain failure. Match on the typed sentinel rather than a brittle
+	// string compare so a reworded error can't silently fall through.
+	case errors.Is(err, intaudio.ErrFFmpegMissing):
 		res.ErrorCode = "provider_unavailable"
-		return res
+	// ffmpeg ran but rejected the fixture/input — a real, distinct failure
+	// class the suite should not flatten to "internal".
+	case errors.Is(err, intaudio.ErrFfmpegExec):
+		res.ErrorCode = "invalid_input"
+	default:
+		res.ErrorCode = "internal"
 	}
-	res.ErrorCode = "internal"
 	return res
 }
 

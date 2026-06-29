@@ -514,10 +514,25 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     if (!this.finalReceived) {
       const elapsed = Date.now() - this.recordingStartTime;
       const timeout = computeFinalTimeout(elapsed);
+      const sentBytes = this.totalBytesSent;
       this.finalTimeout = setTimeout(() => {
         if (!this.finalReceived) {
           this.ws?.close();
-          this.onError?.("Streaming transcription timed out");
+          // Classify the timeout honestly instead of a single ambiguous
+          // string. By this point the mic was granted and recording ran, so
+          // this is a backend no-final, not a permission problem (permission
+          // denial surfaces "Microphone access denied" earlier). Distinguish
+          // "audio streamed but no transcript came back" (likely the local
+          // provider declining streaming) from "no audio reached the server".
+          if (sentBytes > 0) {
+            this.onError?.(
+              "No transcript received from the streaming backend — audio streamed but no final result returned (the local provider may have declined streaming).",
+            );
+          } else {
+            this.onError?.(
+              "Streaming transcription timed out — no audio reached the server (check the microphone and the /api/v1/voice/stream connection).",
+            );
+          }
         }
       }, timeout);
     }

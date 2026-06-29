@@ -12,3 +12,9 @@
 # Shared @vrooli/* packages are consumed via file: references (see package.json).
 packages:
   - .
+
+# Supply-chain safety: refuse dependency versions published less than 7 days
+# (10080 minutes) ago, so a freshly-compromised release can't be pulled in
+# before the ecosystem has had time to flag it. Enforced by the dependencies
+# test-genie phase (dependency.release_age.minimum_configured).
+minimumReleaseAge: 10080

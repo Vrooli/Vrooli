@@ -97,6 +97,25 @@ describe("SuiteCard", () => {
     expect(screen.getByText(strings.diagnostics.suite.errorCodeProviderUnavailable)).toBeInTheDocument();
   });
 
+  it("renders actionable labels for the honest-error codes (model_not_installed, invalid_input)", async () => {
+    // Guards the honest-error contract end-to-end: the backend now emits
+    // these distinct codes instead of "internal", and the UI must turn them
+    // into actionable text rather than the bare code string.
+    const r = passRun();
+    r.overall = "partial";
+    r.passCount = 2;
+    r.failCount = 2;
+    r.steps[2] = { ...r.steps[2]!, ok: false, errorCode: "model_not_installed", errorMessage: "model role not installed", providerTier: "", providerId: "" };
+    r.steps[3] = { ...r.steps[3]!, ok: false, errorCode: "invalid_input", errorMessage: "ffmpeg rejected input", providerTier: "", providerId: "" };
+    vi.mocked(runSuite).mockResolvedValue({ ok: true, data: r });
+    const user = userEvent.setup();
+    renderWithProviders(<SuiteCard />);
+    await user.click(screen.getByTestId("suite-run"));
+    await waitFor(() => expect(screen.getByText(strings.diagnostics.suite.overallPartial)).toBeInTheDocument());
+    expect(screen.getByText(strings.diagnostics.suite.errorCodeModelNotInstalled)).toBeInTheDocument();
+    expect(screen.getByText(strings.diagnostics.suite.errorCodeInvalidInput)).toBeInTheDocument();
+  });
+
   it("renders the last run when getLastSuiteRun returns a populated envelope", async () => {
     vi.mocked(getLastSuiteRun).mockResolvedValue({ ok: true, data: passRun() });
     renderWithProviders(<SuiteCard />);

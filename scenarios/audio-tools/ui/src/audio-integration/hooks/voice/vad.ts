@@ -11,17 +11,26 @@ export type VadAction = "stop" | "no-speech" | "segment-boundary";
 
 export const VAD_CALIBRATION_MS = 500;
 /**
- * Fallback silence timeout (ms). Used only for the initial paint before
- * the workspace store has been hydrated from audio-tools' stt_stream_config
- * (`vad_silence_ms`). At runtime, the hydrated `vadSilenceTimeoutMs`
- * always wins — see useHydrateVoiceConfig in the host scenario.
+ * Fallback silence timeout (ms). Used only before the workspace store has been
+ * hydrated from audio-tools' stt_stream_config (`vad_silence_ms`) — the initial
+ * paint, or while audio-tools is briefly unreachable. At runtime the hydrated
+ * `vadSilenceTimeoutMs` always wins — see useHydrateVoiceConfig in the host.
+ *
+ * MUST equal audio-tools `internal/stt.DefaultVADSilenceMs` (1200) so this
+ * fallback fires at the same instant the server cuts the segment — otherwise
+ * the mic-button ring/state disagrees with the server ("button off but still
+ * transcribing"). The audio server is the single source of truth; this is the
+ * only client-side copy and is parity-checked in vad.test.ts and the Go
+ * TestVADSilenceDefaultsSingleSource.
  */
-export const VAD_FALLBACK_SILENCE_TIMEOUT_MS = 2000;
+export const VAD_FALLBACK_SILENCE_TIMEOUT_MS = 1200;
 /**
- * Fallback segment-boundary silence (ms) for persistent mode. Same role
- * as VAD_FALLBACK_SILENCE_TIMEOUT_MS — overridden by hydrated server config.
+ * Fallback segment-boundary silence (ms) for persistent mode. Same role and
+ * same source of truth as VAD_FALLBACK_SILENCE_TIMEOUT_MS: the client collapses
+ * both auto-stop and segment silence onto the one server lever
+ * (`vad_silence_ms`), so this fallback matches it too.
  */
-export const VAD_FALLBACK_SEGMENT_SILENCE_MS = 1500;
+export const VAD_FALLBACK_SEGMENT_SILENCE_MS = 1200;
 export const VAD_NO_SPEECH_TIMEOUT_MS = 15_000;
 export const VAD_MIN_SILENCE_THRESHOLD = 0.02;
 export const VAD_MIN_SPEECH_THRESHOLD = 0.06;

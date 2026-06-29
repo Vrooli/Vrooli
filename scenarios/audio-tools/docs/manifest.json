@@ -1172,7 +1172,10 @@
             "audio-integration-copy-paste"
           ],
           "maturity": "active",
-          "completion": "required"
+          "completion": "required",
+          "requiredBy": [
+            "implemented"
+          ]
         },
         {
           "path": "guides/troubleshooting.md",
@@ -1374,7 +1377,10 @@
             "forbiddenPlaceholders": [
               "[TODO]"
             ]
-          }
+          },
+          "requiredBy": [
+            "validated"
+          ]
         },
         {
           "path": "reference/adoption.md",

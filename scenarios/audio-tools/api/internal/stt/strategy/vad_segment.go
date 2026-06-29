@@ -372,6 +372,10 @@ func (v *VADSegmenter) applyDefaults() {
 		v.SampleRate = 16000
 	}
 	if v.SilenceMs == 0 {
+		// Defensive self-default for direct test construction. In production the
+		// selector always supplies SilenceMs from cfg.VADSilenceMs, which derives
+		// from stt.DefaultVADSilenceMs — keep this literal equal to it. It cannot
+		// import internal/stt here: strategy is imported BY that package (cycle).
 		v.SilenceMs = 1200
 	}
 	if v.SilenceRMS == 0 {

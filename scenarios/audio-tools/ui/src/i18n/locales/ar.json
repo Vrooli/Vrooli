@@ -319,6 +319,8 @@
       "errorCodeNotConfigured": "Not configured on this server",
       "errorCodeDeadlineExceeded": "Timed out",
       "errorCodeInsufficientCredits": "Insufficient credits",
+      "errorCodeModelNotInstalled": "Model role not installed — run resource-ollama ensure",
+      "errorCodeInvalidInput": "Unsupported or invalid input",
       "errorCodeInternal": "Internal error",
       "logToggleOpen": "Show step log",
       "logToggleClose": "Hide step log",

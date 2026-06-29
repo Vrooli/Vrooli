@@ -15,6 +15,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/maturity-go/assessment"
 	repocontract "github.com/vrooli/repo-contract-go"
 	brandingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/validation"
@@ -79,16 +80,19 @@ func (h *Handler) ValidateScenario(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
+	collector := metrics.Start()
 	scan := bscan.ScanScenario(scenario, root)
 	native := scanToProto(scan)
 
 	maturity, err := bscan.BuildMaturityAssessment(scenario, scan.Findings, *spec)
 	if err != nil {
+		collector.Stop()
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build branding assessment: %w", err))
 	}
 	native.Assessment = maturity
 
-	resp, err := assessment.BuildValidationResponse(scenario, maturity, native, nil)
+	execMetrics := collector.Stop()
+	resp, err := assessment.BuildValidationResponse(scenario, maturity, native, execMetrics)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build validation response: %w", err))
 	}

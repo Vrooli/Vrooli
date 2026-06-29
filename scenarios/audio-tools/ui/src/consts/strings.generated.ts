@@ -331,6 +331,8 @@ export const strings = {
       errorCodeNotConfigured: "diagnostics.suite.errorCodeNotConfigured",
       errorCodeDeadlineExceeded: "diagnostics.suite.errorCodeDeadlineExceeded",
       errorCodeInsufficientCredits: "diagnostics.suite.errorCodeInsufficientCredits",
+      errorCodeModelNotInstalled: "diagnostics.suite.errorCodeModelNotInstalled",
+      errorCodeInvalidInput: "diagnostics.suite.errorCodeInvalidInput",
       errorCodeInternal: "diagnostics.suite.errorCodeInternal",
       logToggleOpen: "diagnostics.suite.logToggleOpen",
       logToggleClose: "diagnostics.suite.logToggleClose",

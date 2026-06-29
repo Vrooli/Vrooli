@@ -314,6 +314,8 @@ function errorCodeLabel(t: ReturnType<typeof useTranslation>["t"], code: string)
     case "not_configured": return t(strings.diagnostics.suite.errorCodeNotConfigured);
     case "deadline_exceeded": return t(strings.diagnostics.suite.errorCodeDeadlineExceeded);
     case "insufficient_credits": return t(strings.diagnostics.suite.errorCodeInsufficientCredits);
+    case "model_not_installed": return t(strings.diagnostics.suite.errorCodeModelNotInstalled);
+    case "invalid_input": return t(strings.diagnostics.suite.errorCodeInvalidInput);
     case "internal": return t(strings.diagnostics.suite.errorCodeInternal);
     default: return "";
   }

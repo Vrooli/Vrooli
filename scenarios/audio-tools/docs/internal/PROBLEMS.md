@@ -394,7 +394,7 @@ are caught by the smoke-test phase of `vrooli scenario test`.
 **Owner:** unassigned.
 
 **Refs:** plan [audio-tools-test-architecture-lift §3 Symptom 1];
-streaming-decoupling plan in [`PRD/`](../PRD/).
+streaming-decoupling plan in [`PRD.md`](../../PRD.md).
 
 **Resolved 2026-05-17 (Deepgram only):** The vendor-WS rig at
 `internal/testutil/vendorws/` now drives three new

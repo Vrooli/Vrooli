@@ -3,14 +3,17 @@ package diagnostics_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/ai/ttschain"
+	intaudio "audio-tools/internal/audio"
 	"audio-tools/internal/diagnostics"
 	"audio-tools/internal/diagnostics/mocks"
+	intsumm "audio-tools/internal/summarize"
 )
 
 func okSTT() *mocks.STT {
@@ -145,6 +148,48 @@ func TestRunSuite_NotConfigured(t *testing.T) {
 	}
 	if notConfigured != 3 {
 		t.Fatalf("want 3 not_configured steps, got %d (%+v)", notConfigured, run.Steps)
+	}
+}
+
+// TestRunSuite_HonestErrorCodes locks in the honest per-capability error
+// classification: a summarize model that is not installed and an ffmpeg
+// rejection must surface distinct, actionable codes — not the opaque
+// "internal" the suite used to flatten them to.
+func TestRunSuite_HonestErrorCodes(t *testing.T) {
+	modelMissing := fmt.Errorf("chain failed: %w",
+		fmt.Errorf("%w: model qwen3.5:4b not pulled", intsumm.ErrSummarizeModelNotInstalled))
+	ffmpegRejected := fmt.Errorf("%w: %w", intaudio.ErrFfmpegExec, errors.New("ffmpeg: exit 1"))
+	ffmpegMissing := fmt.Errorf("wrap: %w", intaudio.ErrFFmpegMissing)
+
+	o := newOrch(
+		okSTT(),
+		okTTS(),
+		&mocks.Summ{Err: modelMissing},
+		&mocks.Transcode{Err: ffmpegRejected},
+	)
+	run, err := o.RunSuite(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	codes := map[diagnostics.Capability]string{}
+	for _, s := range run.Steps {
+		codes[s.Capability] = s.ErrorCode
+	}
+	if codes[diagnostics.CapabilitySummarize] != "model_not_installed" {
+		t.Errorf("summarize code = %q, want model_not_installed", codes[diagnostics.CapabilitySummarize])
+	}
+	if codes[diagnostics.CapabilityTranscode] != "invalid_input" {
+		t.Errorf("transcode code = %q, want invalid_input", codes[diagnostics.CapabilityTranscode])
+	}
+
+	// ffmpeg missing is a distinct, operator-fixable class.
+	o2 := newOrch(okSTT(), okTTS(), okSumm(), &mocks.Transcode{Err: ffmpegMissing})
+	run2, err := o2.RunSuite(context.Background(), []diagnostics.Capability{diagnostics.CapabilityTranscode})
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if run2.Steps[0].ErrorCode != "provider_unavailable" {
+		t.Errorf("ffmpeg-missing code = %q, want provider_unavailable", run2.Steps[0].ErrorCode)
 	}
 }
 

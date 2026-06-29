@@ -5,6 +5,7 @@ package stt
 
 import (
 	"audio-tools/internal/protomap"
+	sttpkg "audio-tools/internal/stt"
 	sttpipeline "audio-tools/internal/stt/pipeline"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
@@ -145,7 +146,7 @@ func defaultStreamCfg() streamCfgDoc {
 		StreamingMode:              "auto",
 		StrategyPreference:         "auto",
 		EngineID:                   "whisper-local",
-		VadSilenceMs:               1200,
+		VadSilenceMs:               sttpkg.DefaultVADSilenceMs,
 		OverlapWindowMs:            2000,
 		OverlapCommitRuns:          2,
 		OverlapMaxStallRejects:     int32Ptr(3),
