@@ -177,6 +177,51 @@ func (c *scanContext) uiCSSContains(needle string) bool {
 	return found
 }
 
+// appCSSDirs are the scenario's OWN stylesheet roots. Unlike a bare ui/ walk
+// this excludes built dependencies (ui/node_modules), so a library's animations
+// or @font-face never get attributed to the scenario.
+var appCSSDirs = []string{"ui/src", "ui/public"}
+
+// appCSSMatches scans the scenario's own .css/.scss files once and reports which
+// of needles appears in any of them (case-insensitive substring). It prunes
+// node_modules/dist/build so only authored styles are considered.
+func (c *scanContext) appCSSMatches(needles []string) map[string]bool {
+	lowered := make([]string, len(needles))
+	for i, n := range needles {
+		lowered[i] = strings.ToLower(n)
+	}
+	matched := map[string]bool{}
+	for _, dir := range appCSSDirs {
+		base := filepath.Join(c.root, filepath.FromSlash(dir))
+		_ = filepath.WalkDir(base, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return nil
+			}
+			if d.IsDir() {
+				if skipScanDir(d.Name()) {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			switch strings.ToLower(filepath.Ext(path)) {
+			case ".css", ".scss":
+				b, err := os.ReadFile(path)
+				if err != nil {
+					return nil
+				}
+				s := strings.ToLower(string(b))
+				for i, n := range lowered {
+					if !matched[needles[i]] && strings.Contains(s, n) {
+						matched[needles[i]] = true
+					}
+				}
+			}
+			return nil
+		})
+	}
+	return matched
+}
+
 // --- head document ---------------------------------------------------------
 
 // headDoc is a lightweight structured view of an HTML <head>. The scenarios are

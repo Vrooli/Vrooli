@@ -1,7 +1,7 @@
 {
   "provider": "brand-manager",
   "phase": "branding",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "levels": [
     {
       "id": "L0",
@@ -118,6 +118,43 @@
       "severity_default": "SEVERITY_WARNING",
       "fix_class": "manual",
       "reason": "Flattening/re-encoding an icon or generating an icon set is an image transform left to the brand-projection path.",
+      "recommended_skill_ids": ["branding", "accessibility"]
+    },
+    "referenced-assets-exist": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_WARNING",
+      "fix_class": "manual",
+      "reason": "A dangling reference is fixed by shipping the missing image bytes, which cannot be synthesized deterministically.",
+      "recommended_skill_ids": ["branding"]
+    },
+    "svg-asset-safety": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_WARNING",
+      "fix_class": "manual",
+      "reason": "Stripping nodes from a hand/tool-authored SVG can silently break its rendering, so sanitizing stays a human decision.",
+      "recommended_skill_ids": ["branding", "accessibility"]
+    },
+    "custom-font-loaded": {
+      "local_level_impact": "L6",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_INFO",
+      "fix_class": "manual",
+      "reason": "Fetching/self-hosting a typeface is not a deterministic edit; font selection is a design choice.",
+      "recommended_skill_ids": ["branding", "accessibility"]
+    },
+    "reduced-motion-support": {
+      "local_level_impact": "L6",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_INFO",
+      "fix_class": "auto",
+      "fixer_status": "implemented",
+      "reason": "A uniform prefers-reduced-motion reduce block is appended to the existing design tokens; when no tokens file exists it is guidance-only.",
       "recommended_skill_ids": ["branding", "accessibility"]
     },
     "wcag-aa-contrast": {

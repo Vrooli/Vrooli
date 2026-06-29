@@ -37,7 +37,7 @@
       "prd_ref": "OT-P0-006",
       "category": "validation",
       "criticality": "P0",
-      "description": "ValidateScenario runs the branding rules (has-display-name, has-logo, has-favicon, has-color-system, has-typography, wcag-aa-contrast, brand-markers-applied) and returns severity-gated findings for the scenario under test.",
+      "description": "ValidateScenario runs the branding rule set — identity (has-display-name), visual system (has-color-system, has-typography, custom-font-loaded), assets (has-logo, has-favicon, asset-validity, referenced-assets-exist, svg-asset-safety), accessibility (wcag-aa-contrast, dark-mode-contrast, reduced-motion-support, color-scheme-declared), applied markers (brand-markers-applied), PWA/manifest, cross-surface consistency, social metadata, and CLI/API branding — and returns severity-gated findings for the scenario under test. The registry (api/internal/validation/registry.go) is the single source of truth.",
       "tags": [
         "validation",
         "rules",

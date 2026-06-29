@@ -28,8 +28,8 @@ const defaultDesignSystemCSS = `:root {
   --color-primary: #1d4ed8;
   --color-primary-foreground: #ffffff;
   --color-accent: #0e7490;
-  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", monospace;
   color-scheme: light;
 }
 `

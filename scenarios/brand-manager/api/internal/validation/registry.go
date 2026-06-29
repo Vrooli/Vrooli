@@ -46,6 +46,7 @@ var specs = []ruleSpec{
 	// Phase 1 — accessibility / contrast depth.
 	{id: "dark-mode-contrast", surfaces: []surface{surfaceUI}, eval: ruleDarkModeContrast},
 	{id: "color-scheme-declared", surfaces: []surface{surfaceUI}, eval: ruleColorSchemeDeclared},
+	{id: "reduced-motion-support", surfaces: []surface{surfaceUI}, eval: ruleReducedMotionSupport},
 
 	// Phase 2 — cross-surface consistency + template residue.
 	{id: "name-consistency", surfaces: []surface{surfaceUI}, eval: ruleNameConsistency},
@@ -54,6 +55,9 @@ var specs = []ruleSpec{
 
 	// Phase 3 — brand asset quality (detect-only; image re-encode is non-deterministic here).
 	{id: "asset-validity", surfaces: []surface{surfaceUI}, eval: ruleAssetValidity},
+	{id: "referenced-assets-exist", surfaces: []surface{surfaceUI}, eval: ruleReferencedAssetsExist},
+	{id: "svg-asset-safety", surfaces: []surface{surfaceUI}, eval: ruleSVGAssetSafety},
+	{id: "custom-font-loaded", surfaces: []surface{surfaceUI}, eval: ruleCustomFontLoaded},
 
 	// Phase 4 — PWA / mobile theming.
 	{id: "theme-color-present", surfaces: []surface{surfaceUI}, eval: ruleThemeColorPresent},
@@ -86,6 +90,7 @@ var fixerByID = map[string]fixerFunc{
 	"manifest-completeness":   fixManifestCompleteness,
 	"open-graph":              fixOpenGraph,
 	"twitter-card":            fixTwitterCard,
+	"reduced-motion-support":  fixReducedMotion,
 }
 
 // fixableRuleIDs is the registry-ordered list of rules that have a deterministic

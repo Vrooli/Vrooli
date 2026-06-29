@@ -27,7 +27,7 @@ const compliantTokens = `:root {
   --color-primary: #1d4ed8;
   --color-primary-foreground: #ffffff;
   --color-accent: #0e7490;
-  --font-sans: Inter, sans-serif;
+  --font-sans: system-ui, sans-serif;
   color-scheme: light;
 }`
 
@@ -87,6 +87,10 @@ func fullyBrandedScenario(t *testing.T) string {
 	writeFile(t, root, "ui/public/logo.svg", "<svg/>")
 	writeFile(t, root, "ui/public/favicon.svg", "<svg/>")
 	writeFile(t, root, "ui/public/apple-icon-180.png", "PNGDATAOPAQUE")
+	// The manifest declares these icons; a fully-branded scenario ships the files
+	// (non-decodable stub bytes keep the dimension check best-effort/silent).
+	writeFile(t, root, "ui/public/icon-192.png", "PNGDATA-192")
+	writeFile(t, root, "ui/public/icon-512.png", "PNGDATA-512")
 	writeFile(t, root, "ui/src/app.css", "/* brand-manager:primary */ .a{color:red}")
 	return root
 }
