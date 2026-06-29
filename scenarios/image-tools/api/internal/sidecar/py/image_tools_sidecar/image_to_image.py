@@ -30,6 +30,8 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--guidance", type=float, default=None, help="text guidance scale (cfg_scale)")
     p.add_argument("--seed", type=int, default=0, help="RNG seed (0 = nondeterministic)")
     p.add_argument("--lora", action="append", default=[], help="conditioning LoRA as <path>:<scale> (repeatable)")
+    p.add_argument("--controlnet", action="append", default=[], help="ControlNet as <dir>:<scale>:<image> (repeatable)")
+    p.add_argument("--ip-adapter", dest="ip_adapter", action="append", default=[], help="IP-Adapter as <weightfile>:<scale>:<reference> (repeatable)")
     return p.parse_args()
 
 
@@ -53,6 +55,8 @@ def main() -> None:
         out_path=args.out,
         params=params,
         lora_specs=args.lora,
+        controlnet_specs=args.controlnet,
+        ip_adapter_specs=args.ip_adapter,
     )
 
 

@@ -56,6 +56,11 @@ type Deps struct {
 	// the engine refuses to launch a job for an uninstalled model with an
 	// actionable hint instead of failing opaquely mid-run.
 	ModelInstalled func(modelID string) bool
+	// CustomModels lists the user-imported (add-only) models so a model imported by
+	// `models import` is resolvable for generation right after install. nil ⇒
+	// seed-only registry. Merged over Registry via models.Registry.WithCustom per
+	// request (a best-effort error leaves the seed registry in place).
+	CustomModels func(ctx context.Context) ([]models.Model, error)
 	// ModelsRoot is the absolute directory model weights live under (per model:
 	// <ModelsRoot>/models/<id>). Threaded to providers as Request.ModelDir.
 	ModelsRoot string
@@ -102,9 +107,32 @@ func NewEngine(deps Deps) (*Engine, error) {
 	return &Engine{deps: deps}, nil
 }
 
-// ModelByID returns a registry model by id for submit-edge trace enrichment.
+// ModelByID returns a registry model by id for submit-edge trace enrichment,
+// resolving user-imported custom models as well as the seed catalog.
 func (e *Engine) ModelByID(id string) (models.Model, bool) {
-	return e.deps.Registry.ByID(id)
+	return e.effectiveRegistry(context.Background()).ByID(id)
+}
+
+// effectiveRegistry returns the seed registry merged with the user-imported
+// (add-only) custom models, so an imported model is resolvable for generation
+// right after install. Falls back to the seed registry when no CustomModels seam
+// is wired or the store read / merge fails (logged) — generation of seed models
+// is never blocked by a custom-store hiccup.
+func (e *Engine) effectiveRegistry(ctx context.Context) *models.Registry {
+	if e.deps.CustomModels == nil {
+		return e.deps.Registry
+	}
+	customs, err := e.deps.CustomModels(ctx)
+	if err != nil {
+		e.deps.Logger.Printf("ai: list custom models (using seed registry): %v", err)
+		return e.deps.Registry
+	}
+	merged, err := e.deps.Registry.WithCustom(customs)
+	if err != nil {
+		e.deps.Logger.Printf("ai: merge custom models (using seed registry): %v", err)
+		return e.deps.Registry
+	}
+	return merged
 }
 
 // Payload is the JSON body submitted as a job's Payload. The runner re-reads it
@@ -190,7 +218,7 @@ func (e *Engine) Plan(ctx context.Context, req PlanRequest) (Plan, error) {
 	if err != nil {
 		return Plan{}, err
 	}
-	res, err := resolver.New(e.deps.Registry, e.deps.Backends).Resolve(ctx, resolver.Request{
+	res, err := resolver.New(e.effectiveRegistry(ctx), e.deps.Backends).Resolve(ctx, resolver.Request{
 		Operation:        req.Operation,
 		ModelOverride:    override,
 		Host:             host,
@@ -305,7 +333,7 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	if err := json.Unmarshal(job.Payload, &pl); err != nil {
 		return "", fmt.Errorf("ai: decode payload: %w", err)
 	}
-	model, ok := e.deps.Registry.ByID(pl.ModelID)
+	model, ok := e.effectiveRegistry(ctx).ByID(pl.ModelID)
 	if !ok {
 		return "", fmt.Errorf("ai: model %q not in registry", pl.ModelID)
 	}
@@ -314,10 +342,11 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	}
 
 	bsel, err := e.deps.Backends.SelectProvider(ctx, backends.SelectRequest{
-		Operation:    op,
-		ModelBackend: model.Backend,
-		GPUViable:    pl.GPU,
-		AllowBYOK:    pl.AllowBYOK,
+		Operation:       op,
+		ModelBackend:    model.Backend,
+		GPUViable:       pl.GPU,
+		AllowBYOK:       pl.AllowBYOK,
+		RequireAdapters: len(pl.Adapters) > 0,
 	})
 	if err != nil {
 		return "", err
@@ -341,10 +370,11 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 			if lease.DegradeToCPU {
 				emit(5, "GPU contended — capacity broker degraded this job to CPU")
 				bsel, err = e.deps.Backends.SelectProvider(ctx, backends.SelectRequest{
-					Operation:    op,
-					ModelBackend: model.Backend,
-					GPUViable:    false,
-					AllowBYOK:    pl.AllowBYOK,
+					Operation:       op,
+					ModelBackend:    model.Backend,
+					GPUViable:       false,
+					AllowBYOK:       pl.AllowBYOK,
+					RequireAdapters: len(pl.Adapters) > 0,
 				})
 				if err != nil {
 					return "", err
@@ -361,6 +391,14 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	inputs, err := e.materializeInputs(ctx, tmpDir, pl)
+	if err != nil {
+		return "", err
+	}
+	// Materialize each conditioning adapter's control/reference image (ControlNet /
+	// IP-Adapter) from its blob key to a local file, rewriting the key in place so
+	// the technique arg-builders hand the sidecar concrete paths. LoRAs carry no
+	// image and pass through untouched.
+	pl.Adapters, err = e.materializeAdapterImages(ctx, tmpDir, pl.Adapters)
 	if err != nil {
 		return "", err
 	}
@@ -437,6 +475,31 @@ func (e *Engine) materializeInputs(ctx context.Context, tmpDir string, pl Payloa
 		in.mask = p
 	}
 	return in, nil
+}
+
+// materializeAdapterImages downloads each resolved adapter's conditioning image
+// (ControlNet control map / IP-Adapter reference) to a local file under tmpDir and
+// returns a copy of the stack with ConditioningImageKey rewritten to the local
+// path. Adapters with no image (LoRA, or a ControlNet whose map was already
+// materialized) pass through unchanged. Fails closed on a fetch error so a
+// conditioned job never runs missing a requested control image.
+func (e *Engine) materializeAdapterImages(ctx context.Context, tmpDir string, in []adapters.ResolvedAdapter) ([]adapters.ResolvedAdapter, error) {
+	if len(in) == 0 {
+		return in, nil
+	}
+	out := make([]adapters.ResolvedAdapter, len(in))
+	for i, a := range in {
+		out[i] = a
+		if a.ConditioningImageKey == "" {
+			continue
+		}
+		p, err := e.fetchToFile(ctx, tmpDir, fmt.Sprintf("cond-%d", i), a.ConditioningImageKey)
+		if err != nil {
+			return nil, fmt.Errorf("ai: materialize conditioning image for adapter %q: %w", a.ID, err)
+		}
+		out[i].ConditioningImageKey = p
+	}
+	return out, nil
 }
 
 func (e *Engine) fetchToFile(ctx context.Context, dir, name, key string) (string, error) {

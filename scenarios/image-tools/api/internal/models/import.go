@@ -130,6 +130,7 @@ func assembleEntry(meta hfmeta.Metadata, arch Architecture, id, name string, ops
 		Architecture: arch,
 		Tier:         TierNiceToHave,
 		SizeMBApprox: int(meta.TotalSize() >> 20),
+		Hardware:     importHardwareFor(arch),
 		CapabilityLabels: CapabilityLabels{
 			NSFWCapable:      meta.NSFW,
 			License:          licenseLabel(meta.License),
@@ -139,6 +140,26 @@ func assembleEntry(meta hfmeta.Metadata, arch Architecture, id, name string, ops
 	}
 	applyLayoutSource(&m, meta)
 	return m
+}
+
+// importHardwareFor returns conservative, architecture-keyed hardware bounds for
+// an imported model. It MUST set at least one of CPUCapable/GPURequired so the
+// entry satisfies the registry's runnability invariant (a model with neither is
+// un-runnable). SD1.5 is genuinely CPU-viable; the larger architectures are
+// GPU-required (CPU generation is impractically slow) with a higher VRAM floor.
+func importHardwareFor(arch Architecture) Hardware {
+	switch arch {
+	case ArchSDXL:
+		return Hardware{GPURequired: true, MinVRAMGB: 8, MinRAMGB: 16}
+	case ArchFlux:
+		return Hardware{GPURequired: true, MinVRAMGB: 12, MinRAMGB: 32}
+	case ArchSD15:
+		return Hardware{CPUCapable: true, MinVRAMGB: 2, MinRAMGB: 8}
+	default:
+		// Unknown-but-valid architecture: assume CPU-viable so it is at least
+		// offerable; the operator can refine the entry if needed.
+		return Hardware{CPUCapable: true, MinVRAMGB: 4, MinRAMGB: 8}
+	}
 }
 
 // applyLayoutSource sets the backend + fetch strategy from the detected layout

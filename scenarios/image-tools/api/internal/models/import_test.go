@@ -96,6 +96,57 @@ func TestBuildImportEntry_AttestationFlipsCommercial(t *testing.T) {
 	}
 }
 
+// TestBuildImportEntry_RunnableAndMergeable proves the import-flow gap fix: an
+// imported entry carries runnable hardware bounds (so it passes the registry's
+// "cpu_capable or gpu_required" invariant) and the seed registry accepts it via
+// WithCustom — i.e. an imported model is actually resolvable for generation, not
+// merely registered.
+func TestBuildImportEntry_RunnableAndMergeable(t *testing.T) {
+	for _, tc := range []struct {
+		arch    Architecture
+		gpuOnly bool
+	}{
+		{ArchSD15, false},
+		{ArchSDXL, true},
+		{ArchFlux, true},
+	} {
+		meta := hfmeta.Metadata{Source: "Org/Repo", RepoID: "Org/Repo", Revision: "r1", Layout: hfmeta.LayoutDiffusersRepo, Files: []hfmeta.FileInfo{{Path: "model_index.json"}}}
+		entry, err := BuildImportEntry(meta, ImportConfirm{ID: "imported-" + string(tc.arch), Architecture: tc.arch})
+		if err != nil {
+			t.Fatalf("%s build: %v", tc.arch, err)
+		}
+		if !entry.Hardware.CPUCapable && !entry.Hardware.GPURequired {
+			t.Fatalf("%s: imported entry is neither cpu_capable nor gpu_required (un-runnable)", tc.arch)
+		}
+		if tc.gpuOnly && !entry.Hardware.GPURequired {
+			t.Fatalf("%s: large architecture should be GPU-required", tc.arch)
+		}
+		reg, err := Load()
+		if err != nil {
+			t.Fatalf("load: %v", err)
+		}
+		merged, err := reg.WithCustom([]Model{entry})
+		if err != nil {
+			t.Fatalf("%s: WithCustom rejected a valid imported entry: %v", tc.arch, err)
+		}
+		if _, ok := merged.ByID(entry.ID); !ok {
+			t.Fatalf("%s: imported entry not resolvable by id after merge", tc.arch)
+		}
+		if got := merged.ForOperation("text_to_image"); !containsModelID(got, entry.ID) {
+			t.Fatalf("%s: imported entry not joined to text_to_image candidates", tc.arch)
+		}
+	}
+}
+
+func containsModelID(ms []Model, id string) bool {
+	for _, m := range ms {
+		if m.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 func TestBuildImportEntry_Errors(t *testing.T) {
 	repo := hfmeta.Metadata{Source: "Org/Repo", RepoID: "Org/Repo", Layout: hfmeta.LayoutDiffusersRepo, Files: []hfmeta.FileInfo{{Path: "model_index.json"}}}
 	if _, err := BuildImportEntry(repo, ImportConfirm{}); err == nil {

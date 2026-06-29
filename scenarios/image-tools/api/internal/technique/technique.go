@@ -16,6 +16,7 @@ package technique
 
 import (
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -44,8 +45,21 @@ type Technique struct {
 	// Caveat is the quality note surfaced when this technique is used for a derived
 	// (non-native) operation. Empty for native techniques.
 	Caveat string
+	// Adapters reports whether this technique's Build consumes the conditioning
+	// adapter stack (req.Adapters) — i.e. it can apply LoRA/ControlNet/IP-Adapter.
+	// Provider/backend selection uses this to route a conditioned request to a
+	// backend that can actually honor it (the diffusers sidecar), never to one that
+	// would drop or reject the modifiers (stable-diffusion.cpp).
+	Adapters bool
 	// Build is the pure arg-builder for this technique.
 	Build ArgBuilder
+}
+
+// SupportsAdapters reports whether the technique serving op consumes the
+// conditioning adapter stack. False when no technique serves op.
+func (s Set) SupportsAdapters(op string) bool {
+	t, ok := s[op]
+	return ok && t.Adapters
 }
 
 // Set maps an operation to the technique that serves it for one backend. A
@@ -129,19 +143,123 @@ func LoRAArgs(req backends.Request) ([]string, error) {
 	return args, nil
 }
 
-// adapterWeightFile resolves the single weight file inside an adapter's installed
+// ControlNetArgs returns the repeatable `--controlnet <dir>:<scale>:<image>` flags
+// for the ControlNet adapters in the request's conditioning stack (Phase 5). The
+// dir is the adapter's installed diffusers repo (loaded with
+// ControlNetModel.from_pretrained); the image is the conditioning map — already
+// preprocessed (the auto-preprocess path runs the adapter's declared preprocessor
+// op as a Look step BEFORE the conditioned generate, so by execution time the
+// control image is a concrete map; a pre-made map is accepted the same way). Both
+// the dir and the image are colon-free local paths, so the Python parser
+// (_adapters.parse_controlnet_spec) splits the scale + image off the right with
+// rsplit. It fails closed when a ControlNet has no installed dir or no conditioning
+// image — a structural conditioner with no control map cannot run.
+func ControlNetArgs(req backends.Request) ([]string, error) {
+	var args []string
+	for _, a := range req.Adapters {
+		if a.Kind != adapters.KindControlNet {
+			continue
+		}
+		if a.Dir == "" {
+			return nil, fmt.Errorf("technique: controlnet adapter %q has no installed dir", a.ID)
+		}
+		if a.ConditioningImageKey == "" {
+			return nil, fmt.Errorf("technique: controlnet adapter %q has no conditioning image (preprocess the input first, or pass a pre-made control map)", a.ID)
+		}
+		args = append(args, "--controlnet", a.Dir+":"+strconv.FormatFloat(a.Scale, 'g', -1, 64)+":"+a.ConditioningImageKey)
+	}
+	return args, nil
+}
+
+// IPAdapterArgs returns the repeatable `--ip-adapter <weightfile>:<scale>:<ref>`
+// flags for the IP-Adapter adapters in the request's conditioning stack (Phase 6).
+// The weight file is the single .safetensors inside the adapter dir (loaded with
+// pipe.load_ip_adapter); the reference image is mandatory (it is the adapter's
+// prompt). Like ControlNetArgs the trailing scale + image are colon-free so the
+// Python parser splits them off the right. Fails closed on a missing weight file or
+// reference image.
+func IPAdapterArgs(req backends.Request) ([]string, error) {
+	var args []string
+	for _, a := range req.Adapters {
+		if a.Kind != adapters.KindIPAdapter {
+			continue
+		}
+		path := adapterWeightFile(a.Dir)
+		if path == "" {
+			return nil, fmt.Errorf("technique: ip-adapter %q has no weight file in %q", a.ID, a.Dir)
+		}
+		if a.ConditioningImageKey == "" {
+			return nil, fmt.Errorf("technique: ip-adapter %q requires a reference image", a.ID)
+		}
+		args = append(args, "--ip-adapter", path+":"+strconv.FormatFloat(a.Scale, 'g', -1, 64)+":"+a.ConditioningImageKey)
+	}
+	return args, nil
+}
+
+// conditioningArgs appends LoRA, ControlNet, and IP-Adapter flags in the canonical
+// order (the resolver already sorted the stack LoRA→ControlNet→IP-Adapter; this
+// keeps the argv grouped by kind regardless). Shared by the diffusers generate /
+// transform builders so a conditioned request threads its whole stack through.
+func conditioningArgs(req backends.Request) ([]string, error) {
+	lora, err := LoRAArgs(req)
+	if err != nil {
+		return nil, err
+	}
+	cn, err := ControlNetArgs(req)
+	if err != nil {
+		return nil, err
+	}
+	ip, err := IPAdapterArgs(req)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(lora)+len(cn)+len(ip))
+	out = append(out, lora...)
+	out = append(out, cn...)
+	out = append(out, ip...)
+	return out, nil
+}
+
+// adapterWeightFile resolves the adapter's own weight file inside its installed
 // directory (a LoRA / IP-Adapter ships one .safetensors; some are .bin/.pt/.ckpt).
 // Empty when the dir holds none.
+//
+// Two layouts are supported: a flat single-file install (LoRA) and a repo
+// snapshot that also carries the CLIP image encoder in an image_encoder/ subdir
+// (an IP-Adapter needs the encoder to embed its reference image). The walk skips
+// any image_encoder/ directory — those weights are the encoder, never the
+// adapter — and prefers .safetensors over the other formats, so the IP-Adapter
+// weight is picked rather than the encoder's model.safetensors.
 func adapterWeightFile(dir string) string {
 	if dir == "" {
 		return ""
 	}
+	// Fast path: a flat top-level single-file install.
 	for _, pattern := range []string{"*.safetensors", "*.ckpt", "*.bin", "*.pt"} {
 		if matches, _ := filepath.Glob(filepath.Join(dir, pattern)); len(matches) > 0 {
 			return matches[0]
 		}
 	}
-	return ""
+	// Repo-snapshot layout: walk for the weight, skipping the image encoder.
+	rank := map[string]int{".safetensors": 4, ".ckpt": 3, ".bin": 2, ".pt": 1}
+	var best string
+	bestRank := 0
+	_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if d.Name() == "image_encoder" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if r := rank[strings.ToLower(filepath.Ext(path))]; r > bestRank {
+			best, bestRank = path, r
+		}
+		return nil
+	})
+	return best
 }
 
 // =============================================================================
@@ -330,11 +448,11 @@ func DiffusersText2Image(req backends.Request, modelDir string) ([]string, error
 		"--prompt", StrParam(req, "prompt"),
 		"--out", req.Output.LocalPath,
 	}
-	lora, err := LoRAArgs(req)
+	cond, err := conditioningArgs(req)
 	if err != nil {
 		return nil, err
 	}
-	args = append(args, lora...)
+	args = append(args, cond...)
 	if w := IntParam(req, "width", 0); w > 0 {
 		args = append(args, "--width", strconv.Itoa(w))
 	}
@@ -382,11 +500,11 @@ func DiffusersImg2Img(req backends.Request, modelDir string) ([]string, error) {
 		"--prompt", StrParam(req, "prompt"),
 		"--out", req.Output.LocalPath,
 	}
-	lora, err := LoRAArgs(req)
+	cond, err := conditioningArgs(req)
 	if err != nil {
 		return nil, err
 	}
-	args = append(args, lora...)
+	args = append(args, cond...)
 	if s := StrParam(req, "strength"); s != "" {
 		args = append(args, "--strength", s)
 	}

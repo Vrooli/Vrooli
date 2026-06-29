@@ -122,6 +122,49 @@ func TestLoRASpecParityPython(t *testing.T) {
 	}
 }
 
+// TestConditioningSpecParityPython asserts the Go ControlNet / IP-Adapter arg
+// emitters (technique.ControlNetArgs / IPAdapterArgs, both `<path>:<scale>:<image>`)
+// and the Python parsers (_adapters.parse_controlnet_spec / parse_ip_adapter_spec)
+// agree on the wire contract. Skips where python3 is unavailable.
+func TestConditioningSpecParityPython(t *testing.T) {
+	py := python3(t)
+	root := sidecarPYPath(t)
+	cases := []struct {
+		fn    string // python parser
+		path  string
+		scale string
+		image string
+	}{
+		{"parse_controlnet_spec", "/models/adapters/cn-canny-sd15", "0.9", "/tmp/imgtools-ai-1/cond-0.png"},
+		{"parse_controlnet_spec", "/a/cn", "1", "/b/map.png"},
+		{"parse_ip_adapter_spec", "/models/adapters/ip/ip.safetensors", "0.6", "/tmp/ref.png"},
+		{"parse_ip_adapter_spec", "/x/y.safetensors", "1.25", "/z/r.png"},
+	}
+	for _, tc := range cases {
+		spec := tc.path + ":" + tc.scale + ":" + tc.image
+		cmd := exec.Command(py, "-c",
+			"import json,sys,image_tools_sidecar._adapters as a; s=getattr(a,sys.argv[1])(sys.argv[2]); print(json.dumps([s.path, s.scale, s.image]))",
+			tc.fn, spec)
+		cmd.Env = append(os.Environ(), "PYTHONPATH="+root)
+		cmd.Dir = root
+		out, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("python %s(%q): %v", tc.fn, spec, err)
+		}
+		var got []any
+		if err := json.Unmarshal(out, &got); err != nil {
+			t.Fatalf("decode parse output %q: %v", out, err)
+		}
+		if len(got) != 3 || got[0] != tc.path || got[2] != tc.image {
+			t.Fatalf("spec %q via %s: python = %v, want path=%q image=%q", spec, tc.fn, got, tc.path, tc.image)
+		}
+		wantScale, _ := strconv.ParseFloat(tc.scale, 64)
+		if gotScale, ok := got[1].(float64); !ok || gotScale != wantScale {
+			t.Fatalf("spec %q: python scale = %v, want %v", spec, got[1], wantScale)
+		}
+	}
+}
+
 // TestDiffusersFamilyAdaptersMirrorPython asserts the Go family registry
 // (families.go) and the Python adapter table (_diffusers.FAMILIES) agree on the
 // set of families, their pipeline classes, and ready state — so the registry,

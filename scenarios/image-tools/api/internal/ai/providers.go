@@ -147,6 +147,15 @@ func (p *execProvider) programName() string {
 // stable-diffusion.cpp release with no CUDA/Vulkan backend compiled in runs on
 // the CPU regardless of a GPU on the host, so claiming local-gpu would be a lie
 // (the user sees "Running on your GPU" while the binary reports VRAM 0.00MB).
+// SupportsAdapters reports whether this backend can apply the conditioning
+// adapter stack for op (LoRA/ControlNet/IP-Adapter). It delegates to the op's
+// technique, so only backends whose builder consumes req.Adapters (the diffusers
+// sidecar) advertise support — backend selection routes conditioned requests
+// here. Satisfies the backends.adapterCapableProvider optional capability.
+func (p *execProvider) SupportsAdapters(op string) bool {
+	return p.techniques.SupportsAdapters(op)
+}
+
 func (p *execProvider) GPUCapable() bool {
 	if !p.gpuCapable {
 		return false
@@ -688,6 +697,16 @@ func nativeTechnique(name, op string, build technique.ArgBuilder) technique.Tech
 	return technique.Technique{Name: name, Op: op, Ready: true, Build: build}
 }
 
+// conditioningTechnique is a native technique whose builder consumes the
+// conditioning adapter stack (LoRA/ControlNet/IP-Adapter). Marking it Adapters
+// lets backend selection route a conditioned request to this backend (the
+// diffusers sidecar) rather than the model's default non-conditioning backend.
+func conditioningTechnique(name, op string, build technique.ArgBuilder) technique.Technique {
+	t := nativeTechnique(name, op, build)
+	t.Adapters = true
+	return t
+}
+
 func providerSpecs() []providerSpec {
 	return []providerSpec{
 		{
@@ -700,11 +719,11 @@ func providerSpecs() []providerSpec {
 		{
 			name: "diffusers", program: pythonProgram, gpuCapable: true, hostTool: "uv", imports: []string{"diffusers", "torch", "PIL"},
 			techniques: []technique.Technique{
-				nativeTechnique("diffusers-txt2img", "text_to_image", technique.DiffusersText2Image),
-				nativeTechnique("diffusers-img2img", "image_to_image", technique.DiffusersImg2Img),
-				nativeTechnique("diffusers-inpaint", "inpaint", technique.DiffusersInpaint),
-				nativeTechnique("diffusers-outpaint", "outpaint", technique.DiffusersInpaint),
-				nativeTechnique("diffusers-background-replace", "background_replace", technique.DiffusersInpaint),
+				conditioningTechnique("diffusers-txt2img", "text_to_image", technique.DiffusersText2Image),
+				conditioningTechnique("diffusers-img2img", "image_to_image", technique.DiffusersImg2Img),
+				conditioningTechnique("diffusers-inpaint", "inpaint", technique.DiffusersInpaint),
+				conditioningTechnique("diffusers-outpaint", "outpaint", technique.DiffusersInpaint),
+				conditioningTechnique("diffusers-background-replace", "background_replace", technique.DiffusersInpaint),
 				nativeTechnique("diffusers-edit-instruct", "edit_instruct", technique.DiffusersEditInstruct),
 			},
 		},

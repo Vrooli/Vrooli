@@ -14,7 +14,7 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui coverage-model-lifecycle model-install-e2e headless-ai-e2e gpu-e2e check setup open orient temporal-models endpoints backends-doc
+.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui coverage-model-lifecycle model-install-e2e headless-ai-e2e gpu-e2e gpu-e2e-import gpu-e2e-lora gpu-e2e-controlnet gpu-e2e-ipadapter gpu-e2e-conditioning conditioning-freshness check setup open orient temporal-models endpoints backends-doc
 
 .DEFAULT_GOAL := help
 
@@ -207,6 +207,139 @@ gpu-e2e: ## Attended GPU text-to-image E2E when backend + model are provisioned
 	image-tools ai generate --model "$$model" --prompt "a small red cube on a neutral tabletop" --negative "text, watermark, logo" --width 256 --height 256 --steps 8 --cfg-scale 5 --seed 42 --wait --out "$$out"; \
 	test -s "$$out" || { printf "gpu-e2e failed: %s is empty\n" "$$out"; exit 1; }; \
 	printf "GPU E2E produced %s\n" "$$out"
+
+# =============================================================================
+# Conditioning-adapter attended GPU E2E (plan Phase 7). Each target proves one
+# adapter kind on SD1.5 @ 512 with sequential offload (fits ~7-8 GB). They are
+# NOT part of `make test` / the default `vrooli scenario test` run. They mirror
+# gpu-e2e's skip-gracefully discipline: a missing prerequisite SKIPs (exit 0)
+# with a precise reason rather than failing.
+#
+# Bootstrap note: an adapter ships Ready=false (no vaporware). The resolver
+# refuses a conditioned submit until Ready=true, so these targets SKIP with the
+# proving procedure when the adapter is not yet Ready — the operator proves the
+# sidecar path once (see docs/internal/TESTING.md), flips Ready in
+# api/internal/adapters/adapters.seed.json, then re-runs the target as the
+# durable regression guard.
+# =============================================================================
+GPU_E2E_BASE_MODEL ?= sd-1.5
+GPU_E2E_W ?= 512
+GPU_E2E_H ?= 512
+
+define adapter_e2e_preamble
+	if ! command -v jq >/dev/null 2>&1; then \
+		printf "SKIP %s: jq is required to inspect adapter/select JSON.\n" "$(1)"; \
+		exit 0; \
+	fi; \
+	sel=$$(image-tools models select image_to_image --override "$(GPU_E2E_BASE_MODEL)" --json 2>/dev/null || true); \
+	if ! printf "%s" "$$sel" | jq -e '.gpu_viable == true' >/dev/null 2>&1; then \
+		printf "SKIP %s: base model %s is not GPU-viable on this host.\n" "$(1)" "$(GPU_E2E_BASE_MODEL)"; \
+		exit 0; \
+	fi; \
+	ad=$$(image-tools adapters get "$(2)" --json 2>/dev/null || true); \
+	if [ -z "$$ad" ]; then \
+		printf "SKIP %s: adapter %s not found in the catalog.\n" "$(1)" "$(2)"; \
+		exit 0; \
+	fi; \
+	if ! printf "%s" "$$ad" | jq -e '(.adapter.install.installed // .install.installed // false) == true' >/dev/null 2>&1; then \
+		printf "SKIP %s: adapter %s is not installed (run: image-tools adapters install %s).\n" "$(1)" "$(2)" "$(2)"; \
+		exit 0; \
+	fi; \
+	if ! printf "%s" "$$ad" | jq -e '(.adapter.ready // .ready // false) == true' >/dev/null 2>&1; then \
+		printf "SKIP %s: adapter %s is Ready=false (bootstrap). Prove the sidecar path per docs/internal/TESTING.md, flip Ready in adapters.seed.json, then re-run.\n" "$(1)" "$(2)"; \
+		exit 0; \
+	fi
+endef
+
+gpu-e2e-import: ## Attended GPU E2E: import an HF SDXL/SD1.5 base by repo id, generate, verify derived ops
+	@set -eu; \
+	if ! command -v jq >/dev/null 2>&1; then printf "SKIP gpu-e2e-import: jq required.\n"; exit 0; fi; \
+	if [ -z "$${IMAGE_TOOLS_E2E_IMPORT_REPO:-}" ]; then \
+		printf "SKIP gpu-e2e-import: set IMAGE_TOOLS_E2E_IMPORT_REPO=<hf-repo-id> (e.g. runwayml/stable-diffusion-v1-5) to run.\n"; \
+		exit 0; \
+	fi; \
+	repo="$$IMAGE_TOOLS_E2E_IMPORT_REPO"; \
+	id="$${IMAGE_TOOLS_E2E_IMPORT_ID:-imported-e2e}"; \
+	if image-tools models get "$$id" --json 2>/dev/null | jq -e '.model.install.installed == true' >/dev/null 2>&1; then \
+		printf "Reusing already-imported %s (idempotent regression guard).\n" "$$id"; \
+	else \
+		printf "Inspecting %s...\n" "$$repo"; \
+		insp=$$(image-tools models inspect "$$repo" --json); \
+		arch=$$(printf "%s" "$$insp" | jq -r '.architecture.architecture // .architecture // empty'); \
+		[ -n "$$arch" ] || { printf "gpu-e2e-import failed: could not infer architecture for %s\n" "$$repo"; exit 1; }; \
+		printf "Inferred architecture: %s — importing as %s\n" "$$arch" "$$id"; \
+		image-tools models import "$$repo" --id "$$id" --architecture "$$arch" --json >/dev/null; \
+		image-tools models install "$$id" --wait >/dev/null 2>&1 || true; \
+		for _ in $$(seq 1 120); do \
+			if image-tools models get "$$id" --json 2>/dev/null | jq -e '.model.install.installed == true' >/dev/null 2>&1; then break; fi; \
+			sleep 10; \
+		done; \
+		image-tools models get "$$id" --json | jq -e '.model.install.installed == true' >/dev/null || { printf "gpu-e2e-import failed: %s did not install\n" "$$id"; exit 1; }; \
+	fi; \
+	image-tools models enable "$$id" >/dev/null; \
+	out=$$(mktemp --suffix=.png); \
+	image-tools ai generate --model "$$id" --prompt "a small red cube on a neutral tabletop" --width "$(GPU_E2E_W)" --height "$(GPU_E2E_H)" --steps 8 --seed 42 --wait --out "$$out"; \
+	test -s "$$out" || { printf "gpu-e2e-import failed: output empty\n"; exit 1; }; \
+	image-tools models get "$$id" --json | jq -e '.model.operations | index("image_to_image")' >/dev/null || { printf "gpu-e2e-import failed: derived image_to_image not offered for %s\n" "$$id"; exit 1; }; \
+	printf "gpu-e2e-import produced %s and %s offers derived img2img\n" "$$out" "$$id"
+
+gpu-e2e-lora: ## Attended GPU E2E: SD1.5 + LCM-LoRA @ 512
+	@set -eu; \
+	$(call adapter_e2e_preamble,gpu-e2e-lora,lcm-lora-sdv1-5); \
+	out=$$(mktemp --suffix=.png); \
+	image-tools ai generate --model "$(GPU_E2E_BASE_MODEL)" --prompt "a serene mountain lake at dawn" --width "$(GPU_E2E_W)" --height "$(GPU_E2E_H)" --steps 8 --seed 42 --lora "lcm-lora-sdv1-5:1.0" --wait --out "$$out"; \
+	test -s "$$out" || { printf "gpu-e2e-lora failed: output empty\n"; exit 1; }; \
+	printf "gpu-e2e-lora produced %s\n" "$$out"
+
+gpu-e2e-controlnet: ## Attended GPU E2E: SD1.5 + Canny ControlNet @ 512 (needs a control image blob key)
+	@set -eu; \
+	$(call adapter_e2e_preamble,gpu-e2e-controlnet,controlnet-canny-sd15); \
+	if [ -z "$${IMAGE_TOOLS_E2E_CONTROL_IMAGE_KEY:-}" ]; then \
+		printf "SKIP gpu-e2e-controlnet: set IMAGE_TOOLS_E2E_CONTROL_IMAGE_KEY=<blob-key> (a pre-made canny map, or the output of the canny op) to run.\n"; \
+		exit 0; \
+	fi; \
+	out=$$(mktemp --suffix=.png); \
+	image-tools ai generate --model "$(GPU_E2E_BASE_MODEL)" --prompt "a stone castle on a hill" --width "$(GPU_E2E_W)" --height "$(GPU_E2E_H)" --steps 20 --seed 42 --controlnet "controlnet-canny-sd15:1.0:$$IMAGE_TOOLS_E2E_CONTROL_IMAGE_KEY" --wait --out "$$out"; \
+	test -s "$$out" || { printf "gpu-e2e-controlnet failed: output empty\n"; exit 1; }; \
+	printf "gpu-e2e-controlnet produced %s\n" "$$out"
+
+gpu-e2e-ipadapter: ## Attended GPU E2E: SD1.5 + IP-Adapter @ 512 (needs a reference image blob key)
+	@set -eu; \
+	$(call adapter_e2e_preamble,gpu-e2e-ipadapter,ip-adapter-sd15); \
+	if [ -z "$${IMAGE_TOOLS_E2E_REF_IMAGE_KEY:-}" ]; then \
+		printf "SKIP gpu-e2e-ipadapter: set IMAGE_TOOLS_E2E_REF_IMAGE_KEY=<blob-key> (the reference image) to run.\n"; \
+		exit 0; \
+	fi; \
+	out=$$(mktemp --suffix=.png); \
+	image-tools ai generate --model "$(GPU_E2E_BASE_MODEL)" --prompt "in a sunlit meadow" --width "$(GPU_E2E_W)" --height "$(GPU_E2E_H)" --steps 20 --seed 42 --ip-adapter "ip-adapter-sd15:0.6:$$IMAGE_TOOLS_E2E_REF_IMAGE_KEY" --wait --out "$$out"; \
+	test -s "$$out" || { printf "gpu-e2e-ipadapter failed: output empty\n"; exit 1; }; \
+	printf "gpu-e2e-ipadapter produced %s\n" "$$out"
+
+gpu-e2e-conditioning: gpu-e2e-lora gpu-e2e-controlnet gpu-e2e-ipadapter ## Umbrella: all conditioning-adapter attended GPU E2E targets
+
+conditioning-freshness: ## Check manual GPU-e2e evidence freshness (valid_for_days window) in the conditioning/import requirement modules
+	@set -eu; \
+	if ! command -v jq >/dev/null 2>&1; then printf "SKIP conditioning-freshness: jq required.\n"; exit 0; fi; \
+	now=$$(date +%s); stale=0; pending=0; fresh=0; \
+	tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT; \
+	for mod in requirements/35-conditioning-adapters/module.json requirements/36-byo-import/module.json; do \
+		jq -r '.requirements[] | . as $$r | (.validation // [])[] | select(.type=="manual" and (.valid_for_days != null)) | [$$r.id, (if (.last_validated_at // "") == "" then "-" else .last_validated_at end), (.valid_for_days|tostring)] | join("|")' "$$mod" >> "$$tmp"; \
+	done; \
+	while IFS="|" read -r rid ts days; do \
+		[ -n "$$rid" ] || continue; \
+		if [ "$$ts" = "-" ] || [ -z "$$ts" ] || [ "$$ts" = "null" ]; then \
+			printf "PENDING  %-22s (never proven; adapter stays Ready=false)\n" "$$rid"; pending=$$((pending+1)); continue; \
+		fi; \
+		vts=$$(date -d "$$ts" +%s 2>/dev/null || echo 0); \
+		deadline=$$((vts + days*86400)); \
+		if [ "$$now" -gt "$$deadline" ]; then \
+			printf "STALE    %-22s last=%s window=%sd — re-run the attended GPU e2e\n" "$$rid" "$$ts" "$$days"; stale=$$((stale+1)); \
+		else \
+			printf "FRESH    %-22s last=%s window=%sd\n" "$$rid" "$$ts" "$$days"; fresh=$$((fresh+1)); \
+		fi; \
+	done < "$$tmp"; \
+	printf "conditioning-freshness: %s fresh, %s pending, %s stale\n" "$$fresh" "$$pending" "$$stale"; \
+	if [ "$$stale" -gt 0 ]; then printf "conditioning-freshness FAILED: stale manual evidence.\n"; exit 1; fi
 
 check: fmt lint test ## Run full quality gates
 

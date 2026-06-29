@@ -220,6 +220,60 @@ def test_apply_loras_empty_is_noop():
     assert pipe.activated is None, "empty specs do not activate"
 
 
+def test_parse_controlnet_spec():
+    from ._adapters import parse_controlnet_spec
+
+    s = parse_controlnet_spec("/models/adapters/cn-canny:0.9:/tmp/cond-0.png")
+    _eq(s.path, "/models/adapters/cn-canny", "controlnet dir")
+    _eq(s.scale, 0.9, "controlnet scale")
+    _eq(s.image, "/tmp/cond-0.png", "controlnet image")
+
+
+def test_parse_controlnet_spec_rejects_malformed():
+    from ._adapters import parse_controlnet_spec
+
+    raised = False
+    try:
+        parse_controlnet_spec("/only/path")
+    except ValueError:
+        raised = True
+    assert raised, "a controlnet spec missing scale+image must raise"
+
+
+def test_parse_controlnet_specs_skips_blanks():
+    from ._adapters import parse_controlnet_specs
+
+    specs = parse_controlnet_specs(["/a:1:/i.png", "", "  ", "/b:0.5:/j.png"])
+    _eq(len(specs), 2, "blank controlnet specs skipped")
+    _eq(specs[1].scale, 0.5, "second controlnet scale")
+
+
+def test_parse_ip_adapter_spec():
+    from ._adapters import parse_ip_adapter_spec
+
+    s = parse_ip_adapter_spec("/models/adapters/ip/ip.safetensors:0.6:/tmp/ref.png")
+    _eq(s.path, "/models/adapters/ip/ip.safetensors", "ip-adapter weight file")
+    _eq(s.scale, 0.6, "ip-adapter scale")
+    _eq(s.image, "/tmp/ref.png", "ip-adapter reference image")
+
+
+def test_apply_ip_adapter_rejects_multiple():
+    from ._adapters import apply_ip_adapter
+
+    raised = False
+    try:
+        apply_ip_adapter(_FakePipe(), ["/a.safetensors:0.5:/i.png", "/b.safetensors:0.5:/j.png"])
+    except ValueError:
+        raised = True
+    assert raised, "more than one ip-adapter must raise (one per pipeline)"
+
+
+def test_apply_ip_adapter_empty_is_none():
+    from ._adapters import apply_ip_adapter
+
+    assert apply_ip_adapter(_FakePipe(), []) is None, "no ip-adapter specs → None"
+
+
 def main() -> int:
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for t in tests:

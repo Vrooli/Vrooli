@@ -40,6 +40,58 @@ type cpuOnlyProvider struct{ fakeProvider }
 
 func (cpuOnlyProvider) GPUCapable() bool { return false }
 
+// adapterProvider is a standalone backend that advertises conditioning-adapter
+// support (the diffusers sidecar). It implements the optional SupportsAdapters
+// capability returning true for its ops.
+type adapterProvider struct{ fakeProvider }
+
+func (adapterProvider) SupportsAdapters(string) bool { return true }
+
+// TestSelectRequireAdaptersRoutesToCapableBackend proves a conditioned request
+// (RequireAdapters) skips the model's native backend when it cannot apply
+// adapters (stable-diffusion.cpp) and selects the adapter-capable one (diffusers)
+// with an explanatory warning — rather than letting the request reach a backend
+// that would reject the modifiers.
+func TestSelectRequireAdaptersRoutesToCapableBackend(t *testing.T) {
+	ctx := context.Background()
+	r := New()
+	_ = r.Register(fakeProvider{name: "stable-diffusion.cpp", ops: []string{"text_to_image"}, standalone: true, available: true})
+	_ = r.Register(adapterProvider{fakeProvider{name: "diffusers", ops: []string{"text_to_image"}, standalone: true, available: true}})
+
+	// Without adapters, the native backend is preferred.
+	sel, err := r.SelectProvider(ctx, SelectRequest{Operation: "text_to_image", ModelBackend: "stable-diffusion.cpp", GPUViable: true})
+	if err != nil {
+		t.Fatalf("select (no adapters): %v", err)
+	}
+	if sel.Provider.Name() != "stable-diffusion.cpp" {
+		t.Fatalf("no-adapter select = %q, want stable-diffusion.cpp", sel.Provider.Name())
+	}
+
+	// With adapters required, selection routes to the diffusers backend.
+	sel, err = r.SelectProvider(ctx, SelectRequest{Operation: "text_to_image", ModelBackend: "stable-diffusion.cpp", GPUViable: true, RequireAdapters: true})
+	if err != nil {
+		t.Fatalf("select (adapters): %v", err)
+	}
+	if sel.Provider.Name() != "diffusers" {
+		t.Fatalf("adapter select = %q, want diffusers", sel.Provider.Name())
+	}
+	if !strings.Contains(strings.Join(sel.Warnings, " "), "conditioning adapters require") {
+		t.Fatalf("expected a conditioning-routing warning, got %v", sel.Warnings)
+	}
+}
+
+// TestSelectRequireAdaptersFailsWhenNoneCapable proves a conditioned request
+// fails closed (no silent drop) when no available backend can apply adapters.
+func TestSelectRequireAdaptersFailsWhenNoneCapable(t *testing.T) {
+	ctx := context.Background()
+	r := New()
+	_ = r.Register(fakeProvider{name: "stable-diffusion.cpp", ops: []string{"text_to_image"}, standalone: true, available: true})
+
+	if _, err := r.SelectProvider(ctx, SelectRequest{Operation: "text_to_image", ModelBackend: "stable-diffusion.cpp", GPUViable: true, RequireAdapters: true}); err == nil {
+		t.Fatal("expected an error when no adapter-capable backend is available, got nil")
+	}
+}
+
 // TestSelectCPUOnlyBackendNeverLabelsGPU proves the honest-tier fix: a CPU-only
 // backend reports local-cpu even when the host has a GPU-viable path, with a
 // warning, so the tier label never overstates where the op ran.

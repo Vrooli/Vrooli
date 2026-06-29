@@ -22,6 +22,23 @@ func providerGPUCapable(p Provider) bool {
 	return true
 }
 
+// adapterCapableProvider is an optional Provider capability: a backend that can
+// apply the conditioning adapter stack (LoRA/ControlNet/IP-Adapter) for an op
+// implements it. A backend that does not implement it cannot honor a conditioned
+// request, so selection skips it when adapters are required.
+type adapterCapableProvider interface {
+	SupportsAdapters(op string) bool
+}
+
+// providerSupportsAdapters reports whether p can apply conditioning adapters for
+// op. Defaults to false: a backend must opt in (only the diffusers sidecar does).
+func providerSupportsAdapters(p Provider, op string) bool {
+	if a, ok := p.(adapterCapableProvider); ok {
+		return a.SupportsAdapters(op)
+	}
+	return false
+}
+
 // SelectRequest drives provider selection along the ladder.
 type SelectRequest struct {
 	// Operation is the op to run.
@@ -37,6 +54,13 @@ type SelectRequest struct {
 	// AllowBYOK permits falling back to a cloud provider when no local provider
 	// is available. Off by default — BYOK is opt-in and metered.
 	AllowBYOK bool
+	// RequireAdapters constrains selection to a backend that can apply the
+	// conditioning adapter stack (LoRA/ControlNet/IP-Adapter) for Operation. Set
+	// when the request carries adapters: a model's default backend that cannot
+	// honor them (stable-diffusion.cpp) is skipped in favor of one that can (the
+	// diffusers sidecar), so a conditioned request never silently drops or rejects
+	// its modifiers.
+	RequireAdapters bool
 }
 
 // Selection is the chosen provider plus the ladder decision context.
@@ -89,6 +113,12 @@ func (r *Registry) SelectProvider(ctx context.Context, req SelectRequest) (Selec
 			continue
 		}
 		anyAvailable = true
+		// A conditioned request needs a backend that can apply the adapter stack;
+		// one that cannot (e.g. stable-diffusion.cpp) is not a candidate even when
+		// it is the model's native backend.
+		if req.RequireAdapters && p.Standalone() && !providerSupportsAdapters(p, req.Operation) {
+			continue
+		}
 		switch {
 		case p.IsCloud():
 			if cloud == nil {
@@ -135,7 +165,10 @@ func (r *Registry) SelectProvider(ctx context.Context, req SelectRequest) (Selec
 	case otherLocal != nil:
 		sel := Selection{Provider: otherLocal}
 		applyLocalTier(&sel, otherLocal)
-		if req.ModelBackend != "" {
+		switch {
+		case req.RequireAdapters && req.ModelBackend != "" && req.ModelBackend != otherLocal.Name():
+			sel.Warnings = append(sel.Warnings, fmt.Sprintf("conditioning adapters require the %q backend; the model's native backend %q cannot apply them", otherLocal.Name(), req.ModelBackend))
+		case req.ModelBackend != "":
 			sel.Warnings = append(sel.Warnings, fmt.Sprintf("model's native backend %q unavailable; substituting %q", req.ModelBackend, otherLocal.Name()))
 		}
 		return sel, nil

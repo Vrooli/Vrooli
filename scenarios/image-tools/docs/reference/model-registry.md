@@ -65,6 +65,58 @@ image-tools backends doctor --json
 may stay red for missing host provisioning, but it must identify a registered
 provider and concrete provisioning path rather than a catalog-only gap.
 
+## Self-serve import (bring your own model)
+
+Beyond the seed catalog, operators can import a model they own through a guided
+**inspect → confirm → install** flow over CLI + RPC + UI
+(`api/internal/models/import.go`, `internal/hfmeta`, `architecture.go`). It is
+the model-side twin of the adapter import in
+[`adapter-registry.md`](adapter-registry.md) and reuses the same
+`internal/fetch` download/checksum spine.
+
+1. **Inspect (dry run).** `image-tools models inspect <source>` fetches
+   metadata and previews the proposal without installing anything. `<source>`
+   may be:
+   - a **Hugging Face repo id** (the gold path, e.g.
+     `runwayml/stable-diffusion-v1-5`),
+   - a **direct URL** to a single-file checkpoint, or
+   - a **local path**.
+
+   The layout is auto-detected — a **single-file checkpoint** routes to
+   `source.assets[]` on the `stable-diffusion.cpp` backend (with diffusers as
+   an alt for derived ops); a **diffusers repo** routes to a pinned
+   `source.repo` snapshot on the diffusers backend (decision D3). The
+   architecture is **inferred** (`InferArchitecture`) from pipeline-class / tags
+   and returned with a **confidence + evidence** string — an ambiguous source
+   returns low/none confidence and is never silently guessed.
+
+2. **Confirm.** `image-tools models import <source> --architecture <arch>`
+   registers the entry. The architecture is **required** when inference
+   returned no confidence. `--id` / `--name` / `--operation` override the
+   defaults; base txt2img architectures (sd15/sdxl/flux) declare
+   `text_to_image` + `image_to_image` and **derive** inpaint/outpaint via the
+   architecture table, so the import immediately offers its native + proven-derived
+   ops.
+
+3. **Install.** The entry registers **add-only at local tier** with a
+   `provenance: user-imported` label, then installs via the shared fetch spine
+   with a checksum pinned on first download (`--wait` blocks once on the job).
+
+**Commercial-rights gate (decision D4).** A user-imported model's license is
+read when declared, else marked `unverified`. Without attestation the entry is
+`commercial_use: conditional` and **public/BYOK serving is blocked** until the
+operator passes `--attest-commercial-rights`, which records the attestation and
+flips the entry to `commercial_use: yes`. Local use is unaffected; the gate only
+governs serving an unverified-license import to others.
+
+```bash
+image-tools models inspect runwayml/stable-diffusion-v1-5
+image-tools models import runwayml/stable-diffusion-v1-5 --architecture sd15 --wait
+# serving an unverified-license import publicly requires attestation:
+image-tools models import ./my-finetune.safetensors --architecture sdxl \
+  --attest-commercial-rights --wait
+```
+
 ## Backend engines (what the Go API shells out to)
 
 | Engine | Used for | Notes |

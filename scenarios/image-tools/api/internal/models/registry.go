@@ -432,6 +432,56 @@ func Parse(data []byte) (*Registry, error) {
 	return r, nil
 }
 
+// WithCustom returns a shallow copy of the registry with the given custom
+// (user-imported, add-only) models merged in: each becomes resolvable by id and
+// joins its offerable ops' candidate lists, but NEVER becomes an op's default
+// (the add-only, no-seed-shadow discipline — defaults stay seed-owned). A custom
+// id colliding with an existing id, or a model failing validation, is an error.
+// The receiver is left unchanged.
+//
+// The AI engine builds this per request from the custom-model store so a model
+// imported by `models import` is resolvable for generation immediately after
+// install — the seed registry alone (Load) does not know about runtime imports.
+func (r *Registry) WithCustom(customs []Model) (*Registry, error) {
+	if len(customs) == 0 {
+		return r, nil
+	}
+	clone := &Registry{
+		schemaVersion: r.schemaVersion,
+		models:        append([]Model(nil), r.models...),
+		byID:          make(map[string]Model, len(r.byID)+len(customs)),
+		byOperation:   make(map[string][]Model, len(r.byOperation)),
+		defaultFor:    r.defaultFor,
+		vocab:         r.vocab,
+		vocabOrder:    r.vocabOrder,
+		blocklist:     r.blocklist,
+		blockByID:     r.blockByID,
+	}
+	for id, m := range r.byID {
+		clone.byID[id] = m
+	}
+	for op, ms := range r.byOperation {
+		clone.byOperation[op] = append([]Model(nil), ms...)
+	}
+	for i := range customs {
+		m := customs[i]
+		if err := clone.validateModel(m); err != nil {
+			return nil, fmt.Errorf("custom model %q: %w", m.ID, err)
+		}
+		if _, dup := clone.byID[m.ID]; dup {
+			return nil, fmt.Errorf("custom model %q collides with an existing model id", m.ID)
+		}
+		clone.models = append(clone.models, m)
+		clone.byID[m.ID] = m
+		for _, eo := range m.EffectiveOps() {
+			if eo.Offerable() {
+				clone.byOperation[eo.Op] = append(clone.byOperation[eo.Op], m)
+			}
+		}
+	}
+	return clone, nil
+}
+
 // validateModel enforces per-entry structural validity used for any entry
 // (seed or custom). Seed-only policy lives in validateSeedInvariants.
 func (r *Registry) validateModel(m Model) error {

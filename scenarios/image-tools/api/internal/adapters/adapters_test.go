@@ -16,10 +16,13 @@ func TestSeedLoadsAndUpholdsInvariants(t *testing.T) {
 		t.Fatal("seed has no adapters")
 	}
 	for _, a := range r.Adapters() {
-		if a.Ready {
-			t.Fatalf("seed adapter %q ships Ready=true (no vaporware)", a.ID)
+		// No-vaporware is Ready⇔Pending consistency: an unproven adapter ships
+		// Ready=false WITH a pending reason; a proven one ships Ready=true with NO
+		// pending reason (flipped only after an attended GPU run — TESTING.md).
+		if a.Ready && a.Pending != "" {
+			t.Fatalf("Ready adapter %q still declares a pending reason %q", a.ID, a.Pending)
 		}
-		if a.Pending == "" {
+		if !a.Ready && a.Pending == "" {
 			t.Fatalf("not-ready adapter %q has no pending reason", a.ID)
 		}
 		if a.CapabilityLabels.CommercialUse == models.CommercialUseConditional && a.Enabled {

@@ -38,6 +38,8 @@
     "31-look-style-library/module.json",
     "32-smart-select-edit/module.json",
     "33-instruction-edit/module.json",
-    "34-responsible-use-gate/module.json"
+    "34-responsible-use-gate/module.json",
+    "35-conditioning-adapters/module.json",
+    "36-byo-import/module.json"
   ]
 }

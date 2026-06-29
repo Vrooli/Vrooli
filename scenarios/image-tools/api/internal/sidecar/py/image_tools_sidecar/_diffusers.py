@@ -658,6 +658,59 @@ _IMG2IMG_SINGLE_FILE = {
 
 _GENERATE_DEFAULT_STEPS = 30
 
+# arch → concrete ControlNet pipeline class per op (Phase 5). When a request
+# carries ControlNet conditioning the base pipeline is swapped for its ControlNet
+# variant, constructed with ``controlnet=[ControlNetModel...]``.
+_CONTROLNET_TXT2IMG = {
+    "sd15": "StableDiffusionControlNetPipeline",
+    "sdxl": "StableDiffusionXLControlNetPipeline",
+}
+_CONTROLNET_IMG2IMG = {
+    "sd15": "StableDiffusionControlNetImg2ImgPipeline",
+    "sdxl": "StableDiffusionXLControlNetImg2ImgPipeline",
+}
+
+
+def _controlnet_class(architecture: str, class_map: dict, op: str) -> str:
+    cls = class_map.get(architecture)
+    if cls is None:
+        _common.fail(
+            f"no {op} controlnet pipeline class for architecture {architecture!r}; "
+            f"known: {sorted(class_map)}",
+            code=4,
+        )
+    return cls  # type: ignore[return-value]
+
+
+def _load_controlnet_pipe(diffusers, torch, architecture, model_dir, repo_index, single, class_map, op, controlnets):
+    """Construct a ControlNet pipeline for the base checkpoint with the given
+    ControlNetModel(s) attached. Mirrors _load_generate_pipe's repo/single-file
+    branch but uses the concrete ControlNet class (the AutoPipeline does not take a
+    controlnet= kwarg)."""
+    use_cuda = torch.cuda.is_available()
+    dtype = _resolve_dtype(torch, "float16", use_cuda)
+    # diffusers treats a list as a MultiControlNet (which then requires list-typed
+    # image + conditioning_scale at call time); a lone ControlNet must be passed as
+    # the bare model so the single-image call path (cn_images[0]) matches. Mirror
+    # the >1-vs-1 shape the call-site uses for image/controlnet_conditioning_scale.
+    controlnet = controlnets[0] if len(controlnets) == 1 else controlnets
+    load_kwargs = {"torch_dtype": dtype, "controlnet": controlnet}
+    if architecture == "sd15":
+        load_kwargs["safety_checker"] = None
+    cls = getattr(diffusers, _controlnet_class(architecture, class_map, op))
+    try:
+        if repo_index:
+            pipe = cls.from_pretrained(model_dir, **load_kwargs)
+        else:
+            pipe = cls.from_single_file(single, **load_kwargs)
+    except Exception as exc:  # noqa: BLE001
+        _common.fail(
+            f"failed to load {op} controlnet pipeline for arch {architecture!r} from {model_dir!r}: {exc}",
+            code=5,
+        )
+        raise
+    return pipe
+
 
 def build_txt2img_kwargs(params: "GenerateParams") -> dict:
     """Pure param→kwargs mapping for a base-checkpoint text2image (no torch)."""
@@ -730,11 +783,14 @@ def run_txt2img(
     out_path: str,
     params: "GenerateParams",
     lora_specs: Optional[Sequence[str]] = None,
+    controlnet_specs: Optional[Sequence[str]] = None,
+    ip_adapter_specs: Optional[Sequence[str]] = None,
 ) -> None:
     """Load a base checkpoint into its architecture's text2image pipeline and
     generate one image from the prompt, writing a PNG. FAILS LOUD on a missing
-    backend or load failure — never a fabricated success. lora_specs (the resolved
-    ``--lora <path>:<scale>`` conditioning stack) are fused before placement."""
+    backend or load failure — never a fabricated success. The conditioning stack is
+    applied in canonical order: lora_specs (fused), controlnet_specs (structural
+    control image), ip_adapter_specs (reference image) — all before placement."""
     diffusers, torch, _Image = _import_diffusers_backend()
     single = _find_single_file(model_dir) if os.path.isdir(model_dir) else None
     repo_index = os.path.isfile(os.path.join(model_dir, "model_index.json"))
@@ -744,15 +800,29 @@ def run_txt2img(
             "single-file .safetensors/.ckpt checkpoint",
             code=5,
         )
-    pipe = _load_generate_pipe(
-        diffusers, torch, architecture, model_dir, repo_index, single,
-        "AutoPipelineForText2Image", _TXT2IMG_SINGLE_FILE, "text_to_image",
-    )
-    _adapters.apply_loras(pipe, lora_specs or [])
     use_cuda = torch.cuda.is_available()
+    dtype = _resolve_dtype(torch, "float16", use_cuda)
+    cn_models, cn_images, cn_scales = _adapters.load_controlnets(diffusers, torch, dtype, controlnet_specs or [])
+    if cn_models:
+        pipe = _load_controlnet_pipe(
+            diffusers, torch, architecture, model_dir, repo_index, single,
+            _CONTROLNET_TXT2IMG, "text_to_image", cn_models,
+        )
+    else:
+        pipe = _load_generate_pipe(
+            diffusers, torch, architecture, model_dir, repo_index, single,
+            "AutoPipelineForText2Image", _TXT2IMG_SINGLE_FILE, "text_to_image",
+        )
+    _adapters.apply_loras(pipe, lora_specs or [])
+    ip_image = _adapters.apply_ip_adapter(pipe, ip_adapter_specs or [])
     pipe = _place_pipe(pipe, torch, use_cuda, offload=True)
 
     kwargs = build_txt2img_kwargs(params)
+    if cn_models:
+        kwargs["image"] = cn_images if len(cn_images) > 1 else cn_images[0]
+        kwargs["controlnet_conditioning_scale"] = cn_scales if len(cn_scales) > 1 else cn_scales[0]
+    if ip_image is not None:
+        kwargs["ip_adapter_image"] = ip_image
     if params.seed:
         kwargs["generator"] = torch.Generator(device="cuda" if use_cuda else "cpu").manual_seed(params.seed)
     try:
@@ -774,11 +844,14 @@ def run_img2img(
     out_path: str,
     params: "GenerateParams",
     lora_specs: Optional[Sequence[str]] = None,
+    controlnet_specs: Optional[Sequence[str]] = None,
+    ip_adapter_specs: Optional[Sequence[str]] = None,
 ) -> None:
     """Load a base checkpoint into its architecture's img2img pipeline and
     transform the init image guided by the prompt, writing a PNG. FAILS LOUD on a
-    missing backend or load failure — never a fabricated success. lora_specs are
-    fused before placement."""
+    missing backend or load failure — never a fabricated success. The conditioning
+    stack (lora/controlnet/ip-adapter) is applied before placement; for ControlNet
+    img2img the init rides ``image`` and the control map rides ``control_image``."""
     diffusers, torch, Image = _import_diffusers_backend()
     try:
         init = Image.open(image_path).convert("RGB")
@@ -794,16 +867,30 @@ def run_img2img(
             "single-file .safetensors/.ckpt checkpoint",
             code=5,
         )
-    pipe = _load_generate_pipe(
-        diffusers, torch, architecture, model_dir, repo_index, single,
-        "AutoPipelineForImage2Image", _IMG2IMG_SINGLE_FILE, "image_to_image",
-    )
-    _adapters.apply_loras(pipe, lora_specs or [])
     use_cuda = torch.cuda.is_available()
+    dtype = _resolve_dtype(torch, "float16", use_cuda)
+    cn_models, cn_images, cn_scales = _adapters.load_controlnets(diffusers, torch, dtype, controlnet_specs or [])
+    if cn_models:
+        pipe = _load_controlnet_pipe(
+            diffusers, torch, architecture, model_dir, repo_index, single,
+            _CONTROLNET_IMG2IMG, "image_to_image", cn_models,
+        )
+    else:
+        pipe = _load_generate_pipe(
+            diffusers, torch, architecture, model_dir, repo_index, single,
+            "AutoPipelineForImage2Image", _IMG2IMG_SINGLE_FILE, "image_to_image",
+        )
+    _adapters.apply_loras(pipe, lora_specs or [])
+    ip_image = _adapters.apply_ip_adapter(pipe, ip_adapter_specs or [])
     pipe = _place_pipe(pipe, torch, use_cuda, offload=True)
 
     kwargs = build_img2img_kwargs(params)
     kwargs["image"] = init
+    if cn_models:
+        kwargs["control_image"] = cn_images if len(cn_images) > 1 else cn_images[0]
+        kwargs["controlnet_conditioning_scale"] = cn_scales if len(cn_scales) > 1 else cn_scales[0]
+    if ip_image is not None:
+        kwargs["ip_adapter_image"] = ip_image
     if params.seed:
         kwargs["generator"] = torch.Generator(device="cuda" if use_cuda else "cpu").manual_seed(params.seed)
     try:

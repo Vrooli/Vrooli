@@ -522,6 +522,7 @@ func main() {
 		Enabled:          enabled,
 		DefaultOverride:  opDefaults.Get,
 		ModelInstalled:   modelInstalled,
+		CustomModels:     installer.Custom.List,
 		ModelsRoot:       modelsRoot,
 		AdapterByID:      adapterByID,
 		AdapterEnabled:   adapterEnabled,

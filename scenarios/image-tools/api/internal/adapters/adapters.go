@@ -308,8 +308,9 @@ func validateScaleRange(r ScaleRange) error {
 
 // validateSeedInvariants asserts the policy guarantees the bundled seed upholds:
 // license discipline (never seed an outright non-commercial adapter; conditional
-// stays opt-in with notes) and no-vaporware (every seed adapter ships Ready=false
-// until a later phase proves it, carrying a Pending reason).
+// stays opt-in with notes) and no-vaporware (Ready⇔Pending consistency: an unproven
+// adapter ships Ready=false with a Pending reason; a proven one ships Ready=true with
+// no Pending, the flip done only after an attended GPU run — see docs/internal/TESTING.md).
 func (r *Registry) validateSeedInvariants() error {
 	for _, a := range r.adapters {
 		switch a.CapabilityLabels.CommercialUse {
@@ -323,10 +324,17 @@ func (r *Registry) validateSeedInvariants() error {
 				return fmt.Errorf("adapter %q is commercial_use=conditional but carries no commercial_use_notes", a.ID)
 			}
 		}
+		// Ready⇔Pending consistency (no vaporware): a not-Ready adapter must name
+		// what blocks it (Pending); a Ready adapter carries no Pending. Readiness is
+		// flipped to true ONLY after an attended GPU run proves the kind×architecture
+		// (docs/internal/TESTING.md bootstrap), with the proof evidence recorded as a
+		// manual requirement validation (conditioning-freshness) the seed cannot
+		// self-certify — so the structural guard here is the Ready/Pending pairing.
 		if a.Ready {
-			return fmt.Errorf("adapter %q ships Ready=true in the seed; readiness is flipped only after an attended GPU run proves the kind×architecture (no vaporware)", a.ID)
-		}
-		if strings.TrimSpace(a.Pending) == "" {
+			if strings.TrimSpace(a.Pending) != "" {
+				return fmt.Errorf("adapter %q is Ready=true but still declares a pending reason %q", a.ID, a.Pending)
+			}
+		} else if strings.TrimSpace(a.Pending) == "" {
 			return fmt.Errorf("adapter %q is not Ready but declares no pending reason", a.ID)
 		}
 	}

@@ -331,6 +331,93 @@ func TestLoRAArgs(t *testing.T) {
 	}
 }
 
+// TestControlNetArgs covers the Phase 5 ControlNet flag assembly: repeatable
+// --controlnet <dir>:<scale>:<image>, skipping non-ControlNet adapters, and
+// failing closed on a missing dir or conditioning image.
+func TestControlNetArgs(t *testing.T) {
+	dir := t.TempDir()
+	req := backends.Request{
+		Operation: "text_to_image",
+		Adapters: []adapters.ResolvedAdapter{
+			{ID: "cn", Kind: adapters.KindControlNet, Scale: 0.9, Dir: dir, ConditioningImageKey: "/tmp/cond-0.png"},
+			{ID: "lcm", Kind: adapters.KindLoRA, Scale: 1.0, Dir: dir}, // skipped (not controlnet)
+		},
+	}
+	args, err := ControlNetArgs(req)
+	if err != nil {
+		t.Fatalf("ControlNetArgs: %v", err)
+	}
+	want := []string{"--controlnet", dir + ":0.9:/tmp/cond-0.png"}
+	if !slices.Equal(args, want) {
+		t.Fatalf("ControlNetArgs = %v, want %v", args, want)
+	}
+	// Fail closed when a ControlNet has no conditioning image.
+	_, err = ControlNetArgs(backends.Request{Adapters: []adapters.ResolvedAdapter{{ID: "cn", Kind: adapters.KindControlNet, Dir: dir}}})
+	if err == nil {
+		t.Fatal("expected error for a controlnet with no conditioning image")
+	}
+	// Fail closed when a ControlNet has no installed dir.
+	_, err = ControlNetArgs(backends.Request{Adapters: []adapters.ResolvedAdapter{{ID: "cn", Kind: adapters.KindControlNet, ConditioningImageKey: "/x.png"}}})
+	if err == nil {
+		t.Fatal("expected error for a controlnet with no installed dir")
+	}
+}
+
+// TestIPAdapterArgs covers the Phase 6 IP-Adapter flag assembly: repeatable
+// --ip-adapter <weightfile>:<scale>:<ref>, skipping other kinds, failing closed on
+// a missing weight file or reference image.
+func TestIPAdapterArgs(t *testing.T) {
+	dir := t.TempDir()
+	weight := filepath.Join(dir, "ip.safetensors")
+	if err := os.WriteFile(weight, []byte("x"), 0o644); err != nil {
+		t.Fatalf("write weight: %v", err)
+	}
+	req := backends.Request{
+		Adapters: []adapters.ResolvedAdapter{
+			{ID: "ip", Kind: adapters.KindIPAdapter, Scale: 0.6, Dir: dir, ConditioningImageKey: "/tmp/ref.png"},
+		},
+	}
+	args, err := IPAdapterArgs(req)
+	if err != nil {
+		t.Fatalf("IPAdapterArgs: %v", err)
+	}
+	want := []string{"--ip-adapter", weight + ":0.6:/tmp/ref.png"}
+	if !slices.Equal(args, want) {
+		t.Fatalf("IPAdapterArgs = %v, want %v", args, want)
+	}
+	// Fail closed when the reference image is missing.
+	_, err = IPAdapterArgs(backends.Request{Adapters: []adapters.ResolvedAdapter{{ID: "ip", Kind: adapters.KindIPAdapter, Dir: dir}}})
+	if err == nil {
+		t.Fatal("expected error for an ip-adapter with no reference image")
+	}
+}
+
+// TestDiffusersBuildersEmitConditioning asserts the txt2img/img2img builders
+// thread ControlNet + IP-Adapter flags through alongside LoRA.
+func TestDiffusersBuildersEmitConditioning(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "ip.safetensors"), []byte("x"), 0o644); err != nil {
+		t.Fatalf("write weight: %v", err)
+	}
+	req := backends.Request{
+		Operation: "text_to_image",
+		Model:     models.Model{ID: "m", Architecture: "sd15"},
+		Params:    map[string]string{"prompt": "p"},
+		Output:    storage.OutputTarget{LocalPath: "/out.png"},
+		Adapters: []adapters.ResolvedAdapter{
+			{ID: "cn", Kind: adapters.KindControlNet, Scale: 1, Dir: dir, ConditioningImageKey: "/cond.png"},
+			{ID: "ip", Kind: adapters.KindIPAdapter, Scale: 0.6, Dir: dir, ConditioningImageKey: "/ref.png"},
+		},
+	}
+	args, err := DiffusersText2Image(req, "/models/m")
+	if err != nil {
+		t.Fatalf("t2i: %v", err)
+	}
+	if !slices.Contains(args, "--controlnet") || !slices.Contains(args, "--ip-adapter") {
+		t.Fatalf("text2image missing conditioning flags: %v", args)
+	}
+}
+
 // TestStableDiffusionCppRejectsAdapters asserts sd.cpp fails closed on a
 // conditioned request (adapters run on the diffusers sidecar).
 func TestStableDiffusionCppRejectsAdapters(t *testing.T) {

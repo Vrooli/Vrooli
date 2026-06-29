@@ -14,7 +14,9 @@
 #
 # SCOPE: the proven, runnable Python backends only —
 #   * diffusers generative/edit stack: instruct-pix2pix, qwen-image-edit,
-#     sd-1.5-inpainting (edit_instruct / inpaint / outpaint / background_replace);
+#     sd-1.5-inpainting (edit_instruct / inpaint / outpaint / background_replace),
+#     plus the conditioning/adapter layer (LoRA / ControlNet / IP-Adapter) which
+#     loads adapter weights through diffusers' PEFT backend (peft);
 #   * ONNX Runtime inference stack: denoise/deblur/segment/detect/tagging/
 #     embedding/colorize and the other CPU-floor onnx ops.
 # The basicsr/facexlib RestoreFormer++ face-restore path is intentionally EXCLUDED:
@@ -29,6 +31,7 @@ torchvision>=0.19
 diffusers>=0.36,<0.40
 transformers>=4.49,<5
 accelerate>=0.30
+peft>=0.11
 huggingface_hub>=0.24
 safetensors>=0.4
 Pillow>=9

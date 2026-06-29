@@ -43,6 +43,7 @@ enhancer, never a gate.
 | enhancement | AI upscale, background-removal, denoise/deblur; P1 colorize, restore, face-restore, SAM, depth/normal. | Operation / AI | No persistent product data; outputs via storage. | API, CLI, UI | OT-P0-003, OT-P1-002 | `api/internal/enhancement/`, `api/handlers/enhancement/`, `cli/domains/enhancement/`, `ui/src/features/enhancement/`, `packages/proto/schemas/image-tools/v1/enhancement/` |
 | analysis | Image→data: OCR, NSFW classify, probe; P1 caption, detection, quality, dedup, embeddings, QR. | Operation / extract | No persistent product data; results returned to caller. | API, CLI, UI | OT-P0-004, OT-P1-003 | `api/internal/analysis/`, `api/handlers/analysis/`, `cli/domains/analysis/`, `ui/src/features/analysis/`, `packages/proto/schemas/image-tools/v1/analysis/` |
 | models | Declarative model registry, management, hardware-aware selection. | Registry / query | Model registry state, install/enable state. | API, CLI, UI | OT-P0-006, OT-P0-007, OT-P0-008 | `api/internal/models/`, `api/handlers/models/`, `cli/domains/models/`, `ui/src/features/models/`, `packages/proto/schemas/image-tools/v1/models/` |
+| adapters | Declarative conditioning-adapter catalog (LoRA / ControlNet / IP-Adapter) that modifies an op on a compatible base model; resolution + import. Sibling of `models`. | Registry / query | Adapter catalog state, install/enable overlay, custom imports. | API, CLI | IMG-CN-001, IMG-BYO-001 | `api/internal/adapters/`, `api/handlers/adapters/`, `cli/domains/adapters/`, `packages/proto/schemas/image-tools/v1/adapters/` |
 | backends | Per-op provider abstraction and fallback ladder. | Abstraction / policy | No product data (in-memory provider registry). | API (internal seam), CLI (introspection) | OT-P0-005, OT-P0-011 | `api/internal/backends/`, `packages/proto/schemas/image-tools/v1/backends/` |
 | jobs | Durable server-owned async jobs, GPU-serializing queue, progress/SSE. | Lifecycle / queue | Job records, status, progress. | API, CLI, UI | OT-P0-009 | `api/internal/jobs/`, `api/handlers/jobs/`, `cli/domains/jobs/`, `ui/src/features/jobs/`, `packages/proto/schemas/image-tools/v1/jobs/` |
 | storage | api-core storage/blobstore integration and output ownership. | Infrastructure seam | Blob references and ownership metadata. | API (seam), CLI (save-location flag) | OT-P0-010 | `api/internal/storage/`, `packages/proto/schemas/image-tools/v1/storage/` |
@@ -199,6 +200,50 @@ enhancer, never a gate.
 - Tests: registry repository, selector unit (fit/override cases), handler,
   CLI, UI feature, accessibility.
 - Related docs: [`DATA.md`](DATA.md), [`INTEGRATIONS.md`](INTEGRATIONS.md),
+  [`../internal/SEAMS.md`](../internal/SEAMS.md).
+
+### adapters
+
+- Purpose: the declarative conditioning-adapter catalog — LoRA / ControlNet /
+  IP-Adapter entries that *modify* an existing operation on a compatible base
+  model rather than serving an operation themselves. Each entry carries a
+  single compatible architecture, a consent weight, a scale range, a (ControlNet)
+  preprocessor, a fetch strategy, capability/licensing labels, and a Ready gate.
+  The resolver turns a request's ordered adapter stack into a validated,
+  execution-ready stack (compatible + enabled + installed + Ready), orders it
+  LoRA → ControlNet → IP-Adapter, and elevates the op's consent weight to
+  `max(op, adapters...)`. A guided import flow (inspect → confirm → install)
+  registers custom adapters add-only at local tier.
+- Primary archetype: registry / query.
+- Secondary traits: management lifecycle (install/enable/disable/remove/import),
+  no-vaporware Ready gating, data compatibility rule, conditioning resolution.
+- Owns: the adapter catalog seed + validation, the enable/install runtime
+  overlay, the compatibility rule, the conditioning resolver, the catalog
+  doctor, and custom adapter imports.
+- **Boundary — sibling of `models`, no operations of its own.** An adapter has
+  no operations to serve and a different ontology from a base model, so it is a
+  separate package, not a `kind` on `models.Model` (decision C1). It **shares
+  `internal/fetch`** (the download/checksum/artifact spine) and the
+  **architecture SSOT (`internal/models`)** with the models domain, but nothing
+  else — the two catalogs keep independent governance + licensing lifecycles.
+- Does not own: the operation vocabulary (`operations`), the technique
+  arg-builders that thread the stack into a backend invocation (`technique`),
+  the model registry / selection (`models`), the queue (`jobs`), or the
+  inference itself.
+- API: `api/handlers/adapters/` (Connect-RPC `AdaptersService`).
+- CLI: `cli/domains/adapters/` — list/get/compatible/enable/install/remove/
+  inspect/import/doctor (full headless parity).
+- UI: not a primary surface yet (the conditioning stack is exercised
+  headless via the `ai` submit flags); a compatible-adapter picker is future
+  work.
+- Storage: SQLite enable/install overlay + custom imports; read-only seed
+  (`api/internal/adapters/adapters.seed.json`).
+- Requirements: IMG-CN-001 (catalog + resolution), IMG-BYO-001 (self-serve
+  import, shared with `models`).
+- Tests: catalog load/validate + compatibility unit, resolver fail-closed
+  matrix, technique arg-builder + Go↔Python parity, engine image-materialization.
+- Related docs: [`../reference/adapter-registry.md`](../reference/adapter-registry.md),
+  [`../internal/TECHNIQUE-SUBSTRATE.md`](../internal/TECHNIQUE-SUBSTRATE.md),
   [`../internal/SEAMS.md`](../internal/SEAMS.md).
 
 ### backends

@@ -85,6 +85,14 @@ func RegimeForMethod(method, leg string) string {
 // regime produced these hits?" — both the floor and the weak-label read it.
 func regimeFor(method, leg string) scoreRegime {
 	switch {
+	// A blended leg ("blend:<inner>") replaces the inner reranker's calibrated
+	// scores with an RRF rank-fusion signal, so it belongs to the fusion band —
+	// checked before the "cross-encoder:"/"llm:" prefixes since the blended name
+	// embeds them (e.g. "blend:cross-encoder:…"). The engine resolves the regime
+	// internally from the unblended (method, leg); this branch only guards
+	// external callers that pass the observability leg off SearchResponse.
+	case strings.HasPrefix(leg, "blend:"):
+		return regimeFusion
 	case strings.HasPrefix(leg, "cross-encoder:"):
 		return regimeCrossEncoder
 	case strings.HasPrefix(leg, "llm:"):

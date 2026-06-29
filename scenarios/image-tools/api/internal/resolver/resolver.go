@@ -165,10 +165,11 @@ func (r *Resolver) Resolve(ctx context.Context, req Request) (Resolution, error)
 
 	if r.backends != nil {
 		bsel, berr := r.backends.SelectProvider(ctx, backends.SelectRequest{
-			Operation:    req.Operation,
-			ModelBackend: sel.Model.Backend,
-			GPUViable:    sel.GPUViable,
-			AllowBYOK:    req.AllowBYOK,
+			Operation:       req.Operation,
+			ModelBackend:    sel.Model.Backend,
+			GPUViable:       sel.GPUViable,
+			AllowBYOK:       req.AllowBYOK,
+			RequireAdapters: len(res.Adapters) > 0,
 		})
 		if berr != nil {
 			return Resolution{}, berr // "no available provider — install a backend/enable BYOK"

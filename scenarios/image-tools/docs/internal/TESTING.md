@@ -1145,6 +1145,86 @@ artifact validation, checksum pinning, and idempotent already-installed
 short-circuit behavior. Keep it out of default CI because it may download large
 model artifacts and depends on external model hosts.
 
+## Attended GPU end-to-end (conditioning + import)
+
+The conditioning-adapter layer (LoRA / ControlNet / IP-Adapter) and the
+bring-your-own model import each carry an **attended GPU** proof. Like
+`make gpu-e2e`, these targets are **not part of `make test` / the default
+`vrooli scenario test` run** and skip gracefully (exit 0 with a precise reason)
+when a prerequisite is missing. The catalog reference is
+[`../reference/adapter-registry.md`](../reference/adapter-registry.md).
+
+| Target | Proves |
+|---|---|
+| `make gpu-e2e-import` | Import an HF base by repo id (`IMAGE_TOOLS_E2E_IMPORT_REPO=<repo>`) → confirm inferred architecture → install → `ai generate` at 512px → non-empty output, and the import offers its derived `image_to_image`. |
+| `make gpu-e2e-lora` | SD1.5 + LCM-LoRA at 512px → non-empty output. |
+| `make gpu-e2e-controlnet` | SD1.5 + Canny ControlNet at 512px (`IMAGE_TOOLS_E2E_CONTROL_IMAGE_KEY=<blob>`, a pre-made canny map or the output of the canny op). |
+| `make gpu-e2e-ipadapter` | SD1.5 + IP-Adapter at 512px (`IMAGE_TOOLS_E2E_REF_IMAGE_KEY=<blob>`, the reference image). |
+| `make gpu-e2e-conditioning` | Umbrella: lora + controlnet + ipadapter. |
+
+**SD1.5 @ 512 sequential-offload default.** Each adapter target runs on
+`GPU_E2E_BASE_MODEL` (default `stable-diffusion-1-5`) at
+`GPU_E2E_W`×`GPU_E2E_H` (default 512) with the sidecar's sequential CPU offload,
+which fits ~7–8 GB VRAM. The shared `adapter_e2e_preamble` skips when the base
+model is not GPU-viable, the adapter is not in the catalog, or it is not
+installed.
+
+**SDXL higher-VRAM gating.** SDXL ControlNets carry a higher-VRAM caveat
+(SDXL + ControlNet may exceed 8 GB), so their e2e is gated behind a free-VRAM
+check rather than run by default on a modest GPU.
+
+**Conditioned requests route to the diffusers backend.** Conditioning adapters
+(LoRA / ControlNet / IP-Adapter) are applied by the diffusers sidecar (which
+loads adapter weights through the PEFT backend — `peft` is a governed dependency
+in `internal/pydeps`). `stable-diffusion.cpp` cannot apply them. Backend
+selection is adapter-aware: when a request carries adapters, the selector skips
+the model's native sd.cpp backend and picks the diffusers backend (emitting a
+"conditioning adapters require the diffusers backend" notice), so an SD1.5 base
+whose default backend is sd.cpp still runs its conditioned generate on diffusers.
+
+**Bootstrap proving procedure (the Ready flip).** An unproven adapter ships
+`Ready=false` (with a `pending` reason); the resolver refuses a conditioned
+submit until `Ready=true`. A proven adapter ships `Ready=true` with an empty
+`pending` (the seed invariant enforces this Ready⇔Pending pairing — no
+vaporware). The operator bootstraps the durable regression guard once:
+
+1. **Prove the sidecar path** — run the matching target on the GPU host; it
+   confirms model/backend viability and (once Ready) executes the conditioned
+   generate. (To prove the path *before* the flip, invoke the diffusers sidecar
+   directly: `python -m image_tools_sidecar.text_to_image --model <dir>
+   --architecture sd15 --lora|--controlnet|--ip-adapter <spec> …`.)
+2. **Flip Ready** in `api/internal/adapters/adapters.seed.json` for that adapter
+   (clear its `pending`; pin the repo revision for a ControlNet). A
+   conditional-commercial ControlNet stays `enabled:false` in the seed — enable
+   it per-host after confirming licence terms with `image-tools adapters enable
+   <id>` (the runtime overlay), since the seed gate forbids enabling a
+   conditional adapter by default.
+3. **Stamp `last_validated_at`** on the matching `type: manual` validation in the
+   requirement module.
+4. **Re-run the target** — it now executes for real as the durable regression
+   guard.
+
+Agents never commit; the Ready flip is an operator (or operator-delegated) edit
+to the working tree, reviewed before commit. Steps 2–4 are operator-owned.
+
+**Manual-freshness protocol.** The conditioning + import e2e validations are
+`type: manual` entries in
+[`../../requirements/35-conditioning-adapters/module.json`](../../requirements/35-conditioning-adapters/module.json)
+and
+[`../../requirements/36-byo-import/module.json`](../../requirements/36-byo-import/module.json)
+(`IMG-CN-E2E-{LORA,CONTROLNET,IPADAPTER}` and `IMG-CN-E2E-IMPORT`). Each carries
+two optional fields the test-genie requirements schema allows on a manual
+validation:
+
+- `valid_for_days` — the freshness window (90 here).
+- `last_validated_at` — when the attended run last proved it (empty = never
+  proven; the adapter stays Ready=false).
+
+`make conditioning-freshness` checks these **locally**: it reports each entry as
+`FRESH`, `PENDING` (never proven), or `STALE` (last validation older than the
+window) and **fails** if any manual evidence is stale — the signal to re-run the
+attended GPU e2e and re-stamp.
+
 ## Cross-references
 
 - **Seams definition + adding new seams**: [`SEAMS.md`](SEAMS.md).

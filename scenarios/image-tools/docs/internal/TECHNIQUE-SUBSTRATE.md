@@ -115,7 +115,62 @@ presets + recipes.
 inventory** (not aliased — greenfield: no second pipeline format survives). The `recipes` row and
 section in DOMAINS.md are deleted in Phase 5; the glossary `Recipe` term redirects to `Look`.
 
-## 6. What this note commits the plan to
+## 6. Conditioning axis — adapters compose with techniques
+
+The Operation/Technique/Model spine answers *what* runs on *which* weights via
+*which* pipeline. **Adapters** add an orthogonal axis: *how* that pipeline is
+conditioned — a LoRA fused into the weights, a ControlNet structural map, an
+IP-Adapter reference image. They are a separate catalog (`internal/adapters`,
+sibling of `models`) with their own ontology; the full catalog reference is
+[`../reference/adapter-registry.md`](../reference/adapter-registry.md). This
+section is the *technique-layer* view: how a resolved adapter stack threads into
+a technique's arg-builder.
+
+**Where it threads in.** Only the diffusers builders accept conditioning. The
+shared `conditioningArgs(req)` helper in `internal/technique` appends the LoRA,
+ControlNet, and IP-Adapter flags (grouped by kind), and `DiffusersText2Image` /
+`DiffusersImg2Img` splice its output into their argv. `DiffusersInpaint` threads
+LoRA only. `StableDiffusionCpp` **fails closed** on any `req.Adapters` — sd.cpp
+cannot condition, so a conditioned request must route to a diffusers-backed
+model rather than silently run unconditioned. The resolver has already validated
++ ordered the stack (LoRA → ControlNet → IP-Adapter) and the engine has
+materialized each conditioning/reference blob to a local path before the builder
+runs.
+
+**The Go↔Python wire formats.** Each kind has a colon-delimited spec the Go
+emitter writes and the Python sidecar parses; the trailing scale (and image,
+where present) are colon-free local paths so the Python side right-splits
+cleanly:
+
+| Kind | Go emitter (`technique`) | Spec | Python applier (`_adapters.py`) |
+|---|---|---|---|
+| LoRA | `LoRAArgs` | `--lora <path>:<scale>` | `parse_lora_spec` → `apply_loras` (`load_lora_weights` + `set_adapters` + `fuse_lora`) |
+| ControlNet | `ControlNetArgs` | `--controlnet <dir>:<scale>:<image>` | `parse_controlnet_spec` (rsplit 2) → `load_controlnets` (`ControlNetModel.from_pretrained`) |
+| IP-Adapter | `IPAdapterArgs` | `--ip-adapter <weightfile>:<scale>:<reference>` | `parse_ip_adapter_spec` (rsplit 2) → `apply_ip_adapter` (one per pipeline) |
+
+Each builder fails closed when a requested modifier has no resolvable weight
+file / installed dir / required image — never a silent drop. The image handed to
+the sidecar is **already the final control/reference map** (the sidecar never
+re-preprocesses; ControlNet auto-preprocess is intended to run as a Look step
+upstream — see the adapter-registry "Not yet built" note).
+
+**The parity seams.** The wire contract is unit-testable on any host because the
+Python parsers are pure (no torch). Three tests pin it:
+
+- `TestLoRASpecParityPython` — the Go `LoRAArgs` emitter and the Python
+  `parse_lora_spec` parser agree on `<path>:<scale>`.
+- `TestConditioningSpecParityPython` — the same agreement for the ControlNet and
+  IP-Adapter `<...>:<scale>:<image>` specs (right-split discipline).
+- `TestDiffusersSidecarContract` — the heavy appliers drive the expected
+  diffusers calls against a fake pipe (no GPU), so the contract holds before any
+  adapter flips Ready on the attended GPU e2e.
+
+**Safety stays operation-keyed, raised by adapters.** `safety.OpWeight` remains
+keyed on the operation; the adapter stack can only *raise* it via
+`EffectiveWeight = max(opWeight, adapter weights...)` (IP-Adapter / identity
+LoRA carry `high`). Conditioning never lowers a consent requirement.
+
+## 7. What this note commits the plan to
 
 - One vocabulary SSOT (`internal/operations`); `models` + `ai` read it; `operations_vocabulary` in
   the seed JSON and the `Op` table in `ai/catalog.go` are **deleted** (Phase 1).

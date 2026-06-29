@@ -15,15 +15,17 @@ import (
 // fakeProvider is a standalone provider that serves a fixed op set so the
 // backend-tier leg of resolution has something to pick.
 type fakeProvider struct {
-	name string
-	ops  []string
+	name     string
+	ops      []string
+	adapters bool // advertises conditioning-adapter support for its ops
 }
 
-func (p fakeProvider) Name() string                   { return p.name }
-func (p fakeProvider) Operations() []string           { return p.ops }
-func (p fakeProvider) Standalone() bool               { return true }
-func (p fakeProvider) IsCloud() bool                  { return false }
-func (p fakeProvider) Available(context.Context) bool { return true }
+func (p fakeProvider) Name() string                    { return p.name }
+func (p fakeProvider) Operations() []string            { return p.ops }
+func (p fakeProvider) Standalone() bool                { return true }
+func (p fakeProvider) IsCloud() bool                   { return false }
+func (p fakeProvider) Available(context.Context) bool  { return true }
+func (p fakeProvider) SupportsAdapters(op string) bool { return p.adapters }
 func (p fakeProvider) Execute(context.Context, backends.Request) (backends.Result, error) {
 	return backends.Result{}, errors.New("resolver tests never execute")
 }
@@ -130,7 +132,16 @@ func TestResolveConditioningElevatesWeightAndAttaches(t *testing.T) {
 	}
 	def, _ := registry.DefaultFor("text_to_image")
 	model, _ := registry.ByID(def.ID)
-	r, _ := newResolver(t, "text_to_image")
+	// A conditioned request routes to an adapter-capable backend, not the model's
+	// default non-conditioning backend — register both so selection has the choice.
+	be := backends.New()
+	if err := be.Register(fakeProvider{name: def.Backend, ops: []string{"text_to_image"}}); err != nil {
+		t.Fatalf("register native provider: %v", err)
+	}
+	if err := be.Register(fakeProvider{name: "diffusers", ops: []string{"text_to_image"}, adapters: true}); err != nil {
+		t.Fatalf("register adapter provider: %v", err)
+	}
+	r := New(registry, be)
 
 	ipa := adapters.Adapter{
 		ID: "test-ipa", Name: "Test IP-Adapter", Kind: adapters.KindIPAdapter,

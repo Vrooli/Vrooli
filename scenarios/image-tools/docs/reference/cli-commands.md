@@ -168,6 +168,37 @@ For an attended clean-host install proof, run
 directory; it loops enabled weight-backed models through `models install --wait`
 and resumes safely on already-installed models.
 
+### Conditioning flags (`--lora` / `--controlnet` / `--ip-adapter`)
+
+The generative `ai` submit verbs (`generate`, `img2img`) accept a
+**repeatable** conditioning flag per adapter kind (the same flags feed the
+read-only `--explain` dry run on those verbs), building a typed, ordered
+adapter stack (see
+[`adapter-registry.md`](adapter-registry.md)). The first colon-delimited field
+is always the adapter id; a trailing numeric field is the scale; a trailing
+non-numeric field is the conditioning/reference image blob key:
+
+| Flag | Spec form |
+|---|---|
+| `--lora` | `id[:scale]` |
+| `--controlnet` | `id[:scale[:conditioning_image_key]]` |
+| `--ip-adapter` | `id[:scale]:reference_image_key` |
+
+The resolver validates each adapter against the chosen model's architecture
+(compatible + enabled + installed + Ready), orders the stack
+LoRA → ControlNet → IP-Adapter, clamps each scale to the adapter's range, and
+elevates the op's consent weight to `max(op, adapters...)`. It fails closed on
+an incompatible / disabled / not-installed / not-Ready adapter or a missing
+required reference image. Add `--explain` to print which model/technique would
+run and the resolved adapter stack without submitting.
+
+```bash
+image-tools ai generate --model sd-1.5 --prompt "a serene mountain lake" \
+  --lora lcm-lora-sdv1-5:1.0 --wait --out lake.png
+image-tools ai generate --model sd-1.5 --prompt "a stone castle" \
+  --controlnet controlnet-canny-sd15:1.0:<control-image-key> --explain
+```
+
 ## Scenario commands — `models` (registry read + enable/disable)
 
 Inspect the declarative model registry and toggle which models are
@@ -243,6 +274,135 @@ commercial/checksum policy is incoherent.
 ```bash
 image-tools models doctor
 image-tools models doctor --json
+```
+
+### `image-tools models inspect <source>`
+
+Dry-run preview of a bring-your-own import source without installing. Calls
+`ModelsService/InspectModelSource`. `<source>` is a Hugging Face repo id (gold
+path), a direct URL, or a local path. Reports the detected layout (single-file
+checkpoint vs diffusers repo), the **inferred architecture** with confidence +
+evidence, license, NSFW flag, size, the ops the import would offer, and a
+proposed id. Installs nothing. See [`model-registry.md`](model-registry.md#self-serve-import-bring-your-own-model).
+
+```bash
+image-tools models inspect runwayml/stable-diffusion-v1-5
+image-tools models inspect ./my-finetune.safetensors --json
+```
+
+### `image-tools models import <source> [--architecture <arch>] [--id <id>] [--name <name>] [--operation <op>] [--attest-commercial-rights]`
+
+Register and install an imported model add-only at local tier. Calls
+`ModelsService/ImportModel`. `--architecture` is required when inference
+returned no confidence (never guessed silently). The entry carries a
+`user-imported` provenance label; public/BYOK serving of an unverified-license
+import is blocked until `--attest-commercial-rights` is passed. Uses the
+**mutation contract**.
+
+```bash
+image-tools models import runwayml/stable-diffusion-v1-5 --architecture sd15
+image-tools models import ./my-finetune.safetensors --architecture sdxl --attest-commercial-rights
+```
+
+## Scenario commands — `adapters` (conditioning-adapter catalog)
+
+Inspect and manage the conditioning-adapter catalog (LoRA / ControlNet /
+IP-Adapter) — the sibling of `models`. The seed catalog is read-only;
+enable/disable and install write a SQLite overlay. Every adapter ships
+`Ready=false` until an attended GPU run proves it (see
+[`adapter-registry.md`](adapter-registry.md) and
+[`../internal/TESTING.md`](../internal/TESTING.md)).
+
+### `image-tools adapters list [--kind <k>] [--architecture <arch>]`
+
+List adapter catalog entries, optionally filtered by kind or architecture.
+Calls `AdaptersService/ListAdapters`. Each row shows kind, architecture,
+weight, and effective enabled / Ready / install state.
+
+```bash
+image-tools adapters list
+image-tools adapters list --kind controlnet --architecture sd15
+```
+
+### `image-tools adapters get <id>`
+
+Get one adapter in detail (scale range, license, pending reason, install
+record). Calls `AdaptersService/GetAdapter`.
+
+```bash
+image-tools adapters get lcm-lora-sdv1-5
+```
+
+### `image-tools adapters compatible [--model <id>] [--architecture <arch>]`
+
+List adapters compatible with a base model (by architecture). Calls
+`AdaptersService/ListCompatibleAdapters`.
+
+```bash
+image-tools adapters compatible --model sd-1.5
+image-tools adapters compatible --architecture sdxl
+```
+
+### `image-tools adapters enable <id> [--disable]`
+
+Enable (default) or disable (`--disable`) an adapter, persisting the overlay.
+Calls `AdaptersService/SetAdapterEnabled`. Uses the **mutation contract**.
+
+```bash
+image-tools adapters enable controlnet-canny-sd15
+image-tools adapters enable controlnet-canny-sd15 --disable
+```
+
+### `image-tools adapters install <id> [--wait]`
+
+Submit a governed download job for the adapter weights. Calls
+`AdaptersService/InstallAdapter`; `--wait` blocks once until the download
+finishes. Re-running an installed adapter returns `already_installed`.
+
+```bash
+image-tools adapters install lcm-lora-sdv1-5 --wait
+```
+
+### `image-tools adapters remove <id>`
+
+Remove installed adapter weights. Calls `AdaptersService/RemoveAdapter`. Uses
+the **mutation contract**.
+
+```bash
+image-tools adapters remove lcm-lora-sdv1-5
+```
+
+### `image-tools adapters inspect <source>`
+
+Dry-run preview of an adapter import source (HF repo id / URL / local path):
+inferred kind + architecture (with confidence + evidence), license, size, and a
+proposed id. Calls `AdaptersService/InspectAdapterSource`. Installs nothing.
+
+```bash
+image-tools adapters inspect h94/IP-Adapter
+```
+
+### `image-tools adapters import <source> [--kind <k>] [--architecture <arch>] [--preprocessor <p>] [--id <id>] [--name <name>] [--attest-commercial-rights]`
+
+Register and install a custom adapter add-only at local tier. Calls
+`AdaptersService/ImportAdapter`. Confirm `--kind` and `--architecture` when
+inspect could not infer them; `--preprocessor` applies to a ControlNet. Carries
+a `user-imported` provenance label with the same `--attest-commercial-rights`
+gate as model import.
+
+```bash
+image-tools adapters import h94/IP-Adapter --kind ip-adapter --architecture sd15
+```
+
+### `image-tools adapters doctor`
+
+Catalog integrity check — enabled adapters must declare a concrete fetch
+strategy (assets / repo / local_path). Calls `AdaptersService/DoctorCatalog`
+and exits non-zero on findings. Uses the **operational contract**.
+
+```bash
+image-tools adapters doctor
+image-tools adapters doctor --json
 ```
 
 ## Scenario commands — `backends` (AI backend software readiness)

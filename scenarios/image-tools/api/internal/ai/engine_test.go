@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"image-tools/internal/adapters"
 	"image-tools/internal/backends"
 	"image-tools/internal/capabilities"
 	internaljobs "image-tools/internal/jobs"
@@ -280,6 +281,53 @@ func TestPlan_ErrorSurfaces(t *testing.T) {
 	}
 	if _, err := eng.Plan(context.Background(), PlanRequest{Operation: "naturalize"}); err == nil || !errors.Is(err, backends.ErrNoneAvailable) {
 		t.Fatalf("expected backend availability error, got %v", err)
+	}
+}
+
+// TestMaterializeAdapterImages covers the Phase 5/6 conditioning-image plumbing:
+// each adapter's ConditioningImageKey blob is fetched to a local file and the key
+// rewritten to that path; LoRAs (no image) pass through untouched.
+func TestMaterializeAdapterImages(t *testing.T) {
+	store := storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir())
+	ctx := context.Background()
+	if err := store.Put(ctx, "blob/cond.png", bytes.NewReader([]byte("controlmap")), "image/png"); err != nil {
+		t.Fatalf("put: %v", err)
+	}
+	registry, err := models.Load()
+	if err != nil {
+		t.Fatalf("load registry: %v", err)
+	}
+	eng, err := NewEngine(Deps{
+		Registry:       registry,
+		Backends:       backends.New(),
+		Probe:          capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}},
+		Store:          store,
+		ModelInstalled: func(string) bool { return true },
+	})
+	if err != nil {
+		t.Fatalf("NewEngine: %v", err)
+	}
+	dir := t.TempDir()
+	in := []adapters.ResolvedAdapter{
+		{ID: "lcm", Kind: adapters.KindLoRA}, // no image — untouched
+		{ID: "cn", Kind: adapters.KindControlNet, ConditioningImageKey: "blob/cond.png"},
+	}
+	out, err := eng.materializeAdapterImages(ctx, dir, in)
+	if err != nil {
+		t.Fatalf("materializeAdapterImages: %v", err)
+	}
+	if out[0].ConditioningImageKey != "" {
+		t.Fatalf("lora image key should stay empty, got %q", out[0].ConditioningImageKey)
+	}
+	if !strings.HasPrefix(out[1].ConditioningImageKey, dir) {
+		t.Fatalf("controlnet image not materialized under tmp dir: %q", out[1].ConditioningImageKey)
+	}
+	if data, rerr := os.ReadFile(out[1].ConditioningImageKey); rerr != nil || string(data) != "controlmap" {
+		t.Fatalf("materialized file mismatch: data=%q err=%v", data, rerr)
+	}
+	// A missing blob fails closed.
+	if _, err := eng.materializeAdapterImages(ctx, dir, []adapters.ResolvedAdapter{{ID: "x", Kind: adapters.KindIPAdapter, ConditioningImageKey: "blob/missing.png"}}); err == nil {
+		t.Fatal("expected error for a missing conditioning blob")
 	}
 }
 

@@ -1051,6 +1051,48 @@
           }
         },
         {
+          "path": "reference/adapter-registry.md",
+          "docType": "adapter-registry-reference",
+          "title": "Adapter Registry",
+          "aliases": [
+            "adapters",
+            "conditioning",
+            "lora",
+            "controlnet",
+            "ip-adapter"
+          ],
+          "description": "Human catalog of the conditioning-adapter layer: LoRA / ControlNet / IP-Adapter kinds + execution contracts, the data compatibility rule, Ready/no-vaporware gating, scale range + consent weight, the seed entries, and the adapters CLI verbs",
+          "audience": [
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "adapter-registry",
+            "conditioning-adapters"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional",
+          "validation": {
+            "requiredHeadings": [
+              "What an adapter is (and why it is a separate catalog)",
+              "The three kinds and their execution contracts",
+              "The compatibility rule",
+              "Ready / no-vaporware gating",
+              "Keeping this current"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
+            "requiredLinks": [
+              "../../api/internal/adapters/adapters.seed.json"
+            ]
+          }
+        },
+        {
           "path": "reference/backends.md",
           "docType": "backends-reference",
           "title": "AI Backends & Provisioning",
