@@ -54,7 +54,7 @@ The structured plan/phase schema every domain operates on lives in
 
 - Purpose: own the structured plan + phase record as the single source of truth (see [`PLAN-MODEL.md`](PLAN-MODEL.md)) — CRUD, the rendered markdown view, lifecycle (`draft`/`active`/`complete`/`archived`), the supersession/dependency graph, and per-surface plan templates.
 - Primary archetype: CRUD / entity.
-- Owns: plan + phase records, references, supersession edges, content hashes.
+- Owns: plan + phase records, references, the **change boundary** (`acceptance_allow`/`acceptance_deny`, the blast-radius source of truth — aligned with Swarm Manager's vocabulary), supersession edges, content hashes, and the **aggregate, conservative work-posture** derivation across every scenario the boundary/references touch.
 - Does not own: the authoring flow, execution, or validation logic — those operate *on* plans but live in their own domains. Persistence substrate (the durable home store) is shared infrastructure, not owned here.
 - API: `api/handlers/plans/`. CLI: `cli/domains/plans/`. UI: `ui/src/features/plans/`.
 - Storage: structured plan records in the scenario-independent `~/.vrooli` home store (see [`DATA.md`](DATA.md)).
@@ -65,7 +65,7 @@ The structured plan/phase schema every domain operates on lives in
 
 - Purpose: the guided composer wizard (OT-P0-002) — walk the plan's sections in order, then author each phase as a first-class draft object with API-owned guided steps at every transition. The wizard validates structure as it goes, derives the regression-anchor **intent**, suggests **reviewable** code references from search-hub, and requires explicit accept/reject decisions for both discovered context and reference candidates so a small model supplies only genuine prose and final judgment.
 - Primary archetype: orchestration / workflow.
-- Owns: authoring-session progression, phase-draft progression, context candidate discovery/accept/reject state, **reference candidate suggestion/accept/reject state** (search-hub Answer projection, routed by locator shape), API-owned guided-step payloads, the structure-validation gate, authoring-time `cli:` command-reference feedback, regression-anchor **intent** derivation (deterministic, no git-control-tower) and the remaining mechanical autofill behind seams (search-hub for references, prompt-manager/cli-health for context discovery).
+- Owns: authoring-session progression, phase-draft progression, the **change-boundary section** (`acceptance_allow`/`acceptance_deny`, with an `OPERATOR_ONLY` escape) authored before references/anchor, context candidate discovery/accept/reject state, **reference candidate suggestion/accept/reject state** (search-hub Answer projection, routed by locator shape), API-owned guided-step payloads, the structure-validation gate (incl. boundary placeholder rejection), authoring-time `cli:` command-reference feedback, **boundary-native** regression-anchor **intent** derivation (deterministic, derived from the change boundary; no git-control-tower) and the remaining mechanical autofill behind seams (search-hub for references, prompt-manager/cli-health for context discovery).
 - Does not own: the plan record itself (delegates writes to `plans`); command truth (delegates to CLI Health); reference *discovery providers* (consumes `search-hub` as-is); the actual baseline **snapshot/diff** and reference staleness computation (delegates to `validation` — captured fresh at execution start; authoring records intent only).
 - API: `api/handlers/authoring/`. CLI: `cli/domains/authoring/`. UI: `ui/src/features/authoring/`.
 - Storage: transient authoring-session state; the plan it produces is owned by `plans`.
@@ -76,7 +76,7 @@ The structured plan/phase schema every domain operates on lives in
 
 - Purpose: the guided runner (OT-P0-003, OT-P1-001/002) — phase status transitions, just-in-time setup context injection (`start`/`status`/`context`/`resume`/`continue`/`next`), a one-time execution-start **freshen inputs** step (fresh baseline snapshot + reference-staleness recompute, delegated to `validation`), validation-gated `done` transitions, the thin guided completion process, the canonical structured handoff, and per-plan velocity. Decisions/findings/bugs/records are no longer captured here — they are recorded in the `log` domain, and execution reads compact log summaries through the read-only `LogLedger` seam for its just-in-time context and handoff.
 - Primary archetype: orchestration / state machine.
-- Owns: run↔plan linkage, the one-time **freshen-inputs** status recorded on the execution record, the canonical handoff record (which now carries a `LogSummary` + the captured `log_entries`), the velocity series.
+- Owns: run↔plan linkage, the one-time **freshen-inputs** status recorded on the execution record, the canonical handoff record (which now carries a `LogSummary` + the captured `log_entries` + the plan's **change boundary** snapshot), the velocity series. The just-in-time phase context surfaces the change boundary (allowed/denied paths, oracle coverage, informational gaps) as boundary reminders.
 - Does not own: the typed work-product ledger itself (delegates to `log` — decisions, findings, bug reports, records, notes); the prose final-message handoff (orchestration-layer concern — see [`INTEGRATIONS.md`](INTEGRATIONS.md)); promotion of candidate findings to real bugs (`log promote` / operator triage); the validation it surfaces and the **baseline snapshot capture** at start (delegates to `validation`, which owns git-control-tower — execution never imports it directly, via the `InputFreshener` seam).
 - API: `api/handlers/execution/`. CLI: `cli/domains/execution/`. UI: `ui/src/features/execution/`, `ui/src/features/triage/`, `ui/src/features/velocity/`.
 - Storage: execution/run state, handoff records, velocity points. (The `decisions`/`findings` execution tables were removed; the ledger lives in `log`.)
@@ -85,9 +85,9 @@ The structured plan/phase schema every domain operates on lives in
 
 ### validation
 
-- Purpose: plan health (OT-P0-004/005) — resolve code references, compute staleness tiers, derive each phase's baseline scope, orchestrate baseline/check runs on request, and verify Definition of Done against the regression anchor.
+- Purpose: plan health (OT-P0-004/005) — resolve code references, compute staleness tiers, derive each phase's baseline scope **from the change boundary** (affected scenarios from `acceptance_allow`, supplemented by references), orchestrate baseline/check runs on request, and verify Definition of Done against the regression anchor.
 - Primary archetype: provider / verification.
-- Owns: reference resolutions, staleness factors, baseline-scope derivation, validation results.
+- Owns: reference resolutions, staleness factors, **boundary-derived** baseline-scope derivation (scenario baseline **oracle** commands vs **informational** repo/path diffs — the latter never a verdict until a path-baseline substrate exists), validation results.
 - Does not own: project-level validation of resources/packages/whole-project (consumed from test-genie / scenario-validation, not owned here); the baseline mechanism itself (composes git-control-tower). Per-reference staleness is implemented as filesystem existence plus git-sourced drift from the regression anchor because the live freshness engine is scenario-artifact scoped today.
 - API: `api/handlers/validation/`. CLI: `cli/domains/validation/`. UI: `ui/src/features/validation/`.
 - Storage: reference + validation result records keyed to plan/phase.
@@ -113,8 +113,9 @@ The structured plan/phase schema every domain operates on lives in
 |---|---|---|
 | Plan / Phase | The structured record + its first-class phases. | [`PLAN-MODEL.md`](PLAN-MODEL.md); `plans` domain owns persistence. |
 | Reference | A connected-code locator (`[CODE:]`/`[REQ:]`) on a plan/phase. | `validation` resolves; `plans` stores. |
+| Change boundary | The plan's blast radius as `acceptance_allow`/`acceptance_deny` path globs (no `scope`/`primary_scenario`). Scenario identity, posture, anchor, and validation scope all derive from it. Aligned with Swarm Manager's backlog vocabulary. | `plans` stores; `authoring` authors; `validation`/`execution` consume. |
 | Staleness tier | fresh / lightly-stale / definitely-stale. | `validation`. |
-| Regression anchor | The "before" baseline/sha for the plan. | `validation`; auto-filled by `authoring`. |
+| Regression anchor | The "before" baseline/sha for the plan; new plans use the boundary-native `change_boundary` strategy. | `validation`; auto-filled by `authoring`. |
 | Handoff (canonical) | Structured handoff assembled from captured state (carries a `LogSummary` + the run's `log_entries`). | `execution`; reads the ledger via `LogLedger`. |
 | Log entry | One typed execution-log work product: decision / finding / bug_report / record / note. | `log`. |
 | Candidate finding | An unvalidated possible-bug log entry (triage `candidate`) awaiting operator triage/promotion. | `log`. |

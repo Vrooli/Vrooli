@@ -95,6 +95,9 @@ type Handoff struct {
 	Staleness       planmodel.StalenessTier
 	ProseHandoffRef string
 	AssembledAt     string
+	// ChangeBoundary snapshots the plan's blast-radius contract so the next agent
+	// sees what was allowed/denied and where validation coverage is informational.
+	ChangeBoundary planmodel.ChangeBoundary
 }
 
 // VelocityPoint is a per-plan/run velocity sample. Captured LOCAL ONLY in v1;
@@ -148,6 +151,10 @@ type PhaseContext struct {
 	InputsFreshened bool
 	FreshenStatus   string
 	FreshenDetail   string
+	// ChangeBoundary is the plan's (or current phase's narrowing) blast-radius
+	// contract: the allowed/denied paths a fresh or resumed agent must respect,
+	// surfaced without reading the full plan markdown.
+	ChangeBoundary planmodel.ChangeBoundary
 }
 
 // CompletionNudge is one item in the thin guided completion process. Kinds are

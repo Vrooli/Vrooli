@@ -134,6 +134,17 @@ type RelevantContextItem = planmodel.RelevantContextItem
 // by the authoring wizard (delegating to git-control-tower).
 type RegressionAnchor = planmodel.RegressionAnchor
 
+const (
+	AnchorStrategyChangeBoundary   = planmodel.AnchorStrategyChangeBoundary
+	AnchorStrategyScenarioBaseline = planmodel.AnchorStrategyScenarioBaseline
+	AnchorStrategyHeadShaAllowlist = planmodel.AnchorStrategyHeadShaAllowlist
+	AnchorStrategyLegacyProse      = planmodel.AnchorStrategyLegacyProse
+)
+
+// ChangeBoundary is the plan's first-class blast-radius contract
+// (acceptance_allow / acceptance_deny). Scenario identity is derived from it.
+type ChangeBoundary = planmodel.ChangeBoundary
+
 // WorkPosture is the Greenfield/Brownfield stance of a plan. AUTOFILLED from
 // scenario maturity (default greenfield); never agent-authored.
 type WorkPosture = planmodel.WorkPosture

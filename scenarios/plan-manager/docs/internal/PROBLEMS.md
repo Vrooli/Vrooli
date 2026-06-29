@@ -179,6 +179,37 @@ derivation; and several CLI surfaces lagged the canonical phase/governance model
 [`../concepts/FLOWS.md`](../concepts/FLOWS.md) (authoring response contract);
 [`../reference/cli-commands.md`](../reference/cli-commands.md).
 
+### 2026-06-28 — GCT / Test Genie have no native path-scoped baseline
+
+**Symptom:** A plan whose change boundary includes non-scenario paths
+(`packages/proto/**`, `docs/**`, root tooling) has no pass/fail regression
+oracle for those paths. Plan Manager derives a scenario baseline **oracle** per
+affected scenario but can only emit an **informational** `git diff --stat -- <repo
+paths>` for the non-scenario allow globs — it is never treated as a verdict.
+
+**Root cause:** `git-control-tower baseline snapshot/diff` requires
+`--scenario --name`; there is no path-scope baseline command. `test-genie execute`
+requires a scenario positional argument (`--scenario-path` only relocates a
+scenario's physical placement, it does not test arbitrary repo paths). Both are
+scenario-keyed substrate.
+
+**Workaround:** Plan Manager consumes the substrate honestly: scenario baseline
+checks are oracles, repo/path diffs are informational and labelled as such in the
+rendered anchor, validation tiers, and execution reminders. `acceptance_deny`
+globs render as pre-execution constraints (validation does not parse actual
+changed paths, so it never claims a deny rule was verified).
+
+**Real fix:** Native multi-path / path-scoped baselines in git-control-tower and
+arbitrary path-scoped suites in test-genie. When they exist, Plan Manager can
+promote the repo/path diffs from informational to oracle. This is deferred
+substrate work, **not** a Plan Manager blocker.
+
+**Owner:** unassigned (cross-scenario: git-control-tower + test-genie).
+
+**Refs:** `api/internal/validation/service.go` (`deriveScope`, `isOracleCommand`);
+`api/internal/planmodel/boundary.go` (`BoundaryAnchorCommands`);
+[`../concepts/PLAN-MODEL.md`](../concepts/PLAN-MODEL.md) (Change Boundary).
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

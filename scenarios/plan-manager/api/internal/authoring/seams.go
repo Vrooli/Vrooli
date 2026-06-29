@@ -38,10 +38,12 @@ type PlanRenderer interface {
 // execution start (see the execution InputFreshener seam), however many days
 // later. Production wires the default deriver; tests inject a fake.
 type AnchorIntentDeriver interface {
-	// DeriveAnchorIntent returns the structured regression-anchor intent block
-	// for the given plan title/slug. It always succeeds — intent is cheap,
-	// deterministic, and never stale (no snapshot, no dependency).
-	DeriveAnchorIntent(ctx context.Context, title, slug string) string
+	// DeriveAnchorIntent returns the boundary-native regression-anchor intent
+	// block for the given plan title/slug and change boundary. Affected scenarios
+	// and the tiered baseline/diff commands are derived from the boundary; it
+	// always succeeds — intent is cheap, deterministic, and never stale (no
+	// snapshot, no dependency).
+	DeriveAnchorIntent(ctx context.Context, title, slug string, boundary planmodel.ChangeBoundary) string
 }
 
 // ReferenceSuggester discovers reviewable code/doc/req reference candidates from
@@ -107,8 +109,8 @@ type defaultAnchorIntentDeriver struct{}
 // the handler module; tests inject a fake instead.
 func DefaultAnchorIntentDeriver() AnchorIntentDeriver { return defaultAnchorIntentDeriver{} }
 
-func (defaultAnchorIntentDeriver) DeriveAnchorIntent(_ context.Context, title, slug string) string {
-	return RegressionAnchorIntentTemplate(title, slug)
+func (defaultAnchorIntentDeriver) DeriveAnchorIntent(_ context.Context, title, slug string, boundary planmodel.ChangeBoundary) string {
+	return RegressionAnchorIntentTemplate(title, slug, boundary)
 }
 
 // cmdReferenceSuggester discovers reviewable reference candidates from

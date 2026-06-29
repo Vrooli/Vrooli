@@ -104,6 +104,9 @@ func TestGuidedArgvAreValidManifestCommands(t *testing.T) {
 		case "purpose", "problem_statement", "target_outcome", "scope", "technical_approach", "validation_strategy", "regression_anchor", "definition_of_done":
 			_, _, _, err = authoringSvc.SubmitSection(ctx, session.ID, section.Key, "Guard fixture content for "+string(section.Key)+".")
 			require.NoError(t, err)
+		case "acceptance_boundary":
+			_, _, _, err = authoringSvc.SubmitSection(ctx, session.ID, section.Key, "acceptance_allow:\n- scenarios/plan-manager/**")
+			require.NoError(t, err)
 		case "references":
 			_, _, _, err = authoringSvc.SubmitSection(ctx, session.ID, section.Key, "[CODE: scenarios/plan-manager/api/main.go]")
 			require.NoError(t, err)

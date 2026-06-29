@@ -51,13 +51,19 @@ func TestGoldenAuthoringWizardHardening(t *testing.T) {
 		require.Empty(t, violations, "prose section %s should pass", p.key)
 	}
 
+	// Change boundary (mandatory): declare the allow globs the plan may change.
+	_, violations, _, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionAcceptanceBoundary,
+		"acceptance_allow:\n- scenarios/plan-manager/**\n- packages/proto/**")
+	require.NoError(t, err)
+	require.Empty(t, violations, "change boundary should pass")
+
 	// Friction 3: the references step surfaces a NO_CODE_REFS fallback.
 	_, refStep, err := svc.GetSection(ctx, sess.ID, authoring.SectionReferences)
 	require.NoError(t, err)
 	requireActionID(t, refStep, "submit-no-code-refs")
 
 	// Friction 1: a docs path tagged [CODE:] is rejected; the corrected mix passes.
-	_, violations, _, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "[CODE: docs/concepts/PLAN-MODEL.md]")
+	_, violations, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "[CODE: docs/concepts/PLAN-MODEL.md]")
 	require.NoError(t, err)
 	require.NotEmpty(t, violations, "docs path tagged [CODE:] must be rejected")
 

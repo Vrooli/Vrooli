@@ -59,14 +59,18 @@ func ComputeProgress(sess Session) AuthoringProgress {
 func remainingRequiredInputs(sess Session) []string {
 	var out []string
 	for _, sec := range sess.Sections {
-		// References is mandatory but owns a dedicated gate (below) that encodes
-		// the NO_CODE_REFS escape, so it is not listed via the generic path.
-		if sec.Key == SectionReferences {
+		// References and the change boundary are mandatory but own dedicated gates
+		// (below) that encode their NO_CODE_REFS / OPERATOR_ONLY escapes, so they
+		// are not listed via the generic path.
+		if sec.Key == SectionReferences || sec.Key == SectionAcceptanceBoundary {
 			continue
 		}
 		if sec.Mandatory && strings.TrimSpace(sec.Content) == "" {
 			out = append(out, sec.Label+" (mandatory section)")
 		}
+	}
+	if len(boundaryGateViolations(contentOf(sess.Sections, SectionAcceptanceBoundary))) > 0 {
+		out = append(out, "Change boundary: acceptance_allow path globs or an OPERATOR_ONLY: reason")
 	}
 	if !hasReferencesOrNoCodeReason(contentOf(sess.Sections, SectionReferences)) {
 		out = append(out, "References: at least one [CODE:]/[REQ:]/[DOC:] reference or a NO_CODE_REFS: reason")

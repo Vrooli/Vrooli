@@ -45,7 +45,14 @@ func ParsePlanMarkdown(markdown string) (Plan, error) {
 	p.Constraints = sections["constraints"]
 	p.NonGoals = firstNonEmpty(sections["non-goals"], sections["non goals"])
 	p.DefinitionOfDone = firstNonEmpty(sections["definition of done"], sections["definition-of-done"])
+	p.ChangeBoundary = ParseChangeBoundaryBlock(firstNonEmpty(sections["change boundary"], sections["acceptance boundary"]))
 	p.RegressionAnchor = ParseRegressionAnchorBlock(sections["regression anchor"])
+	// Import upgrade: a legacy plan with no Change Boundary section but a scenario/
+	// allowlist anchor gets a boundary DERIVED from that anchor, so imported plans
+	// join the boundary model without losing their original blast radius.
+	if p.ChangeBoundary.IsZero() {
+		p.ChangeBoundary = BoundaryFromLegacyAnchor(p.RegressionAnchor)
+	}
 
 	// Professional plan structure (see docs/concepts/PLAN-MODEL.md).
 	p.ProblemStatement = firstNonEmpty(sections["problem / need"], sections["problem/need"], sections["problem need"])
@@ -77,6 +84,76 @@ func ParsePlanMarkdown(markdown string) (Plan, error) {
 		return Plan{}, err
 	}
 	return p, nil
+}
+
+// ParseChangeBoundaryBlock recovers a ChangeBoundary from the rendered
+// "## Change Boundary" section: the `**Acceptance allow:**` / `**Acceptance
+// deny:**` backticked-bullet lists and an optional `- Operator-only:` line. The
+// result is normalized so render -> parse -> render is idempotent.
+func ParseChangeBoundaryBlock(block string) ChangeBoundary {
+	block = strings.TrimSpace(block)
+	if block == "" {
+		return ChangeBoundary{}
+	}
+	var b ChangeBoundary
+	current := "" // "allow" | "deny" | ""
+	for _, line := range strings.Split(block, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		switch {
+		case strings.EqualFold(trimmed, "**Acceptance allow:**"):
+			current = "allow"
+			continue
+		case strings.EqualFold(trimmed, "**Acceptance deny:**"):
+			current = "deny"
+			continue
+		}
+		lower := strings.ToLower(trimmed)
+		if strings.HasPrefix(lower, "- operator-only:") {
+			b.OperatorOnlyReason = strings.TrimSpace(trimmed[len("- Operator-only:"):])
+			current = ""
+			continue
+		}
+		if strings.HasPrefix(trimmed, "- ") {
+			val := trimMarkdownValue(strings.TrimSpace(trimmed[len("- "):]))
+			if val == "" {
+				continue
+			}
+			switch current {
+			case "allow":
+				b.AcceptanceAllow = append(b.AcceptanceAllow, val)
+			case "deny":
+				b.AcceptanceDeny = append(b.AcceptanceDeny, val)
+			}
+		}
+	}
+	return b.Normalized()
+}
+
+// parsePhaseChangeBoundary recovers a phase's compact boundary refinement block
+// (Allow/Deny comma lists + optional Operator-only line).
+func parsePhaseChangeBoundary(block string) ChangeBoundary {
+	block = strings.TrimSpace(block)
+	if block == "" {
+		return ChangeBoundary{}
+	}
+	var b ChangeBoundary
+	for _, line := range strings.Split(block, "\n") {
+		trimmed := strings.TrimSpace(line)
+		trimmed = strings.TrimSpace(strings.TrimPrefix(trimmed, "-"))
+		lower := strings.ToLower(trimmed)
+		switch {
+		case strings.HasPrefix(lower, "allow:"):
+			b.AcceptanceAllow = splitCommaList(trimmed[len("Allow:"):])
+		case strings.HasPrefix(lower, "deny:"):
+			b.AcceptanceDeny = splitCommaList(trimmed[len("Deny:"):])
+		case strings.HasPrefix(lower, "operator-only:"):
+			b.OperatorOnlyReason = strings.TrimSpace(trimmed[len("Operator-only:"):])
+		}
+	}
+	return b.Normalized()
 }
 
 // ParseRegressionAnchorBlock converts the rendered Regression Anchor section, or
@@ -340,6 +417,7 @@ func parsePhases(markdown string) ([]Phase, error) {
 		ph.RisksHazards = listItemsFromBlock(extractPhaseBlock(body, markerRisksHazards))
 		ph.Validation = extractPhaseBlock(body, markerPhaseValidation)
 		ph.HandoffNotes = extractPhaseBlock(body, markerHandoffNotes)
+		ph.ChangeBoundary = parsePhaseChangeBoundary(extractPhaseBlock(body, markerChangeBoundary))
 		contextBody := extractPhaseContextSetup(body)
 		if contextBody != "" {
 			context, err := parseRelevantContextBlock(contextBody, RelevantContextScopePhase, ph.ID)
@@ -367,6 +445,7 @@ const (
 	markerPhaseValidation = "**Phase Validation:**"
 	markerRisksHazards    = "**Risks / Hazards:**"
 	markerHandoffNotes    = "**Handoff Notes:**"
+	markerChangeBoundary  = "**Change Boundary:**"
 	markerReminders       = "**Reminders:**"
 	markerBaselineScope   = "**Baseline scope:**"
 	markerPhaseReferences = "**References:**"
@@ -375,8 +454,8 @@ const (
 
 var phaseBlockMarkers = []string{
 	markerAffectedAreas, markerPhaseContext, markerOrderedSteps, markerExpectedOutputs,
-	markerPhaseValidation, markerRisksHazards, markerHandoffNotes, markerReminders,
-	markerBaselineScope, markerPhaseReferences, markerRequiredReading,
+	markerPhaseValidation, markerRisksHazards, markerHandoffNotes, markerChangeBoundary,
+	markerReminders, markerBaselineScope, markerPhaseReferences, markerRequiredReading,
 }
 
 // phaseScalarBulletTerminators are the scalar phase bullets (rendered between
@@ -855,6 +934,7 @@ var canonicalConsumedHeadings = map[string]bool{
 	"non goals": true, "assumptions": true, "technical approach": true,
 	"technical approach / design rationale": true, "constraints": true,
 	"prohibited approaches": true, "global execution setup": true, "references": true,
+	"change boundary": true, "acceptance boundary": true,
 	"regression anchor": true, "validation strategy": true, "validation model": true,
 	"definition of done": true, "definition-of-done": true, "risks / hazards": true,
 	"risks/hazards": true, "import provenance": true, "preserved legacy sections": true,

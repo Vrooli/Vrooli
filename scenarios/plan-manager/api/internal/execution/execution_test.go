@@ -3,6 +3,7 @@ package execution_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -733,4 +734,55 @@ func TestFreshenSkippedWhenNoSeam(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, pctx.InputsFreshened, "no freshener wired => freshen is skipped silently")
 	require.Empty(t, pctx.FreshenStatus)
+}
+
+// TestChangeBoundarySurfacedInContextAndHandoff proves the plan's change boundary
+// is surfaced in the just-in-time phase context (with reminders) and snapshotted
+// into the canonical handoff.
+func TestChangeBoundarySurfacedInContextAndHandoff(t *testing.T) {
+	plan := threePhasePlan()
+	plan.ChangeBoundary = internalplans.ChangeBoundary{
+		AcceptanceAllow: []string{"scenarios/plan-manager/**", "packages/proto/**"},
+		AcceptanceDeny:  []string{"scenarios/swarm-manager/**"},
+	}
+	h := newHarness(t, plan, nil)
+	ctx := context.Background()
+
+	_, pctx, step, err := h.svc.Start(ctx, "plan-1", "run-boundary")
+	require.NoError(t, err)
+	require.Equal(t, []string{"scenarios/plan-manager/**", "packages/proto/**"}, pctx.ChangeBoundary.AcceptanceAllow)
+
+	// Status surfaces the boundary reminders in the phase-context step.
+	_, _, statusStep, err := h.svc.GetStatus(ctx, executionIDFromStep(t, step))
+	require.NoError(t, err)
+	require.Equal(t, "phase_context", statusStep.StepKind)
+	joined := strings.Join(statusStep.Instructions, " | ")
+	require.Contains(t, joined, "only edit within")
+	require.Contains(t, joined, "Forbidden paths")
+	require.Contains(t, joined, "informational only", "repo paths must be flagged as non-oracle")
+
+	// Drive every phase done and complete: the handoff snapshots the boundary.
+	for _, ph := range plan.Phases {
+		exec, _, _, err := h.svc.GetStatus(ctx, executionIDFromStep(t, step))
+		require.NoError(t, err)
+		_, _, _, err = h.svc.TransitionPhase(ctx, exec.ID, ph.ID, doneOverride())
+		require.NoError(t, err)
+	}
+	exec, _, _, err := h.svc.GetStatus(ctx, executionIDFromStep(t, step))
+	require.NoError(t, err)
+	handoff, _, _, err := h.svc.Complete(ctx, exec.ID, execution.CompletionInputs{})
+	require.NoError(t, err)
+	require.Equal(t, plan.ChangeBoundary.AcceptanceAllow, handoff.ChangeBoundary.AcceptanceAllow)
+	require.Equal(t, plan.ChangeBoundary.AcceptanceDeny, handoff.ChangeBoundary.AcceptanceDeny)
+}
+
+func executionIDFromStep(t *testing.T, step execution.GuidedStep) string {
+	t.Helper()
+	for _, a := range step.NextActions {
+		if len(a.Argv) >= 3 && a.Argv[0] == "exec" {
+			return a.Argv[2]
+		}
+	}
+	t.Fatalf("no execution id in step actions: %+v", step.NextActions)
+	return ""
 }

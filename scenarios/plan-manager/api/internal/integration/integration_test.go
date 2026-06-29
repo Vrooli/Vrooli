@@ -336,6 +336,12 @@ func TestSmallAgentContinueLoopsAuthorAndExecute(t *testing.T) {
 			session, violations, _, err = authoringSvc.SubmitSection(ctx, session.ID, section.Key, "In: Plan Manager authoring and execution loop. Out: consumer inversion.")
 			require.NoError(t, err)
 			require.Empty(t, violations)
+		case "acceptance_boundary":
+			// The change boundary is mandatory (satisfiable by OPERATOR_ONLY); the
+			// continue loop surfaces it before references.
+			session, violations, _, err = authoringSvc.SubmitSection(ctx, session.ID, section.Key, "acceptance_allow:\n- scenarios/plan-manager/**")
+			require.NoError(t, err)
+			require.Empty(t, violations)
 		case "references":
 			// References is mandatory (satisfiable by NO_CODE_REFS); the continue
 			// loop surfaces it as a first-class step now.

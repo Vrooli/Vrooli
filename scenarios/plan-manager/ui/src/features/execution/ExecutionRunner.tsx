@@ -495,6 +495,41 @@ export function ExecutionRunner() {
           </Card>
 
           <Card className="bg-app-surface-muted">
+            <h4 className="text-sm font-semibold">{t(strings.pages.execution.changeBoundaryHeading)}</h4>
+            <div className="mt-2 flex flex-col gap-2">
+              {(context?.changeBoundary?.acceptanceAllow.length ?? 0) ||
+              (context?.changeBoundary?.acceptanceDeny.length ?? 0) ||
+              context?.changeBoundary?.operatorOnlyReason ? (
+                <>
+                  {context?.changeBoundary?.acceptanceAllow.length ? (
+                    <div>
+                      <p className="text-xs font-medium text-app-muted-foreground">
+                        {t(strings.pages.execution.changeBoundaryAllow)}
+                      </p>
+                      <StringList items={context.changeBoundary.acceptanceAllow} empty={t(strings.common.none)} />
+                    </div>
+                  ) : null}
+                  {context?.changeBoundary?.acceptanceDeny.length ? (
+                    <div>
+                      <p className="text-xs font-medium text-app-muted-foreground">
+                        {t(strings.pages.execution.changeBoundaryDeny)}
+                      </p>
+                      <StringList items={context.changeBoundary.acceptanceDeny} empty={t(strings.common.none)} />
+                    </div>
+                  ) : null}
+                  {context?.changeBoundary?.operatorOnlyReason ? (
+                    <p className="text-xs text-app-muted-foreground">
+                      {context.changeBoundary.operatorOnlyReason}
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <p className="text-sm text-app-muted-foreground">{t(strings.pages.execution.changeBoundaryNone)}</p>
+              )}
+            </div>
+          </Card>
+
+          <Card className="bg-app-surface-muted">
             <dl className="flex flex-col gap-2">
               <MetaRow term={t(strings.pages.execution.stalenessHeading)}>
                 {context ? <StatusBadge descriptor={stalenessDescriptor(context.staleness)} /> : "—"}

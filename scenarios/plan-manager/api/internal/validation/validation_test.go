@@ -254,6 +254,74 @@ func TestDeriveBaselineScopeUsesHeadAllowlistAnchorWithoutReferences(t *testing.
 	require.Contains(t, scope.Commands, "git diff --stat abc123 -- packages/proto scenarios/plan-manager")
 }
 
+// TestDeriveBaselineScopeFromChangeBoundary proves the change boundary is the
+// source of truth: affected scenarios derive from acceptance_allow, non-scenario
+// allow globs become a path-scoped INFORMATIONAL diff, and references supplement
+// (never under-cover) the boundary scenarios.
+func TestDeriveBaselineScopeFromChangeBoundary(t *testing.T) {
+	plan := internalplans.Plan{
+		ID:   "p1",
+		Slug: "p1",
+		ChangeBoundary: internalplans.ChangeBoundary{
+			AcceptanceAllow: []string{"scenarios/foo/**", "packages/proto/**", "docs/**"},
+		},
+		References: []internalplans.Reference{
+			{Kind: internalplans.ReferenceCode, Target: "scenarios/bar/cli/app.go"}, // supplements boundary
+		},
+		RegressionAnchor: internalplans.RegressionAnchor{
+			Strategy:     internalplans.AnchorStrategyChangeBoundary,
+			BaselineName: "impl",
+		},
+	}
+	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}})
+	scope, err := svc.DeriveBaselineScope(context.Background(), "p1", "")
+	require.NoError(t, err)
+
+	// Boundary scenario foo and reference scenario bar both produce oracle pairs.
+	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario foo --name impl")
+	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario bar --name impl")
+	// Non-scenario allow globs become ONE path-scoped informational diff (no sha).
+	require.Contains(t, scope.Commands, "git diff --stat -- docs/** packages/proto/**")
+	require.Contains(t, scope.Locations, "scenarios/foo")
+	require.Contains(t, scope.Locations, "repo")
+}
+
+// TestDeriveBaselineScopeDocsOnlyBoundary proves a docs-only boundary yields no
+// scenario oracle and only an informational repo/path diff.
+func TestDeriveBaselineScopeDocsOnlyBoundary(t *testing.T) {
+	plan := internalplans.Plan{
+		ID: "p1", Slug: "p1",
+		ChangeBoundary: internalplans.ChangeBoundary{AcceptanceAllow: []string{"docs/**"}},
+	}
+	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}})
+	scope, err := svc.DeriveBaselineScope(context.Background(), "p1", "")
+	require.NoError(t, err)
+	require.Equal(t, []string{"repo"}, scope.Locations)
+	require.Contains(t, scope.Commands, "git diff --stat -- docs/**")
+	for _, c := range scope.Commands {
+		require.False(t, strings.HasPrefix(c, "git-control-tower baseline diff"), "docs-only boundary must not fabricate a scenario oracle")
+	}
+}
+
+// TestDeriveBaselineScopePhaseBoundaryNarrows proves a phase boundary narrows the
+// derived scope when a phase id is supplied.
+func TestDeriveBaselineScopePhaseBoundaryNarrows(t *testing.T) {
+	plan := internalplans.Plan{
+		ID: "p1", Slug: "p1",
+		ChangeBoundary:   internalplans.ChangeBoundary{AcceptanceAllow: []string{"scenarios/foo/**", "scenarios/bar/**"}},
+		RegressionAnchor: internalplans.RegressionAnchor{BaselineName: "impl"},
+		Phases: []internalplans.Phase{{
+			ID:             "ph1",
+			ChangeBoundary: internalplans.ChangeBoundary{AcceptanceAllow: []string{"scenarios/foo/**"}},
+		}},
+	}
+	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}})
+	scope, err := svc.DeriveBaselineScope(context.Background(), "p1", "ph1")
+	require.NoError(t, err)
+	require.Contains(t, scope.Locations, "scenarios/foo")
+	require.NotContains(t, scope.Locations, "scenarios/bar", "phase boundary narrows away the plan's other scenario")
+}
+
 // [REQ:PM-VALID-002]
 func TestRunValidationVerdicts(t *testing.T) {
 	plan := planWith([]internalplans.Reference{{Kind: internalplans.ReferenceCode, Target: "scenarios/foo/x.go"}}, nil)

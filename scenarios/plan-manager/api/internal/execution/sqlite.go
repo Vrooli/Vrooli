@@ -70,12 +70,13 @@ func (r *sqliteRepository) WithTx(ctx context.Context, fn func(Repository) error
 // (summary + captured entries) is read from the log domain at Complete time and
 // stored here so the handoff is a durable point-in-time record.
 type handoffDocument struct {
-	LogSummary      planmodel.LogSummary `json:"log_summary"`
-	LogEntries      []planmodel.LogEntry `json:"log_entries"`
-	LastValidation  ValidationResult     `json:"last_validation"`
-	HasValidation   bool                 `json:"has_validation"`
-	Staleness       string               `json:"staleness"`
-	ProseHandoffRef string               `json:"prose_handoff_ref"`
+	LogSummary      planmodel.LogSummary     `json:"log_summary"`
+	LogEntries      []planmodel.LogEntry     `json:"log_entries"`
+	LastValidation  ValidationResult         `json:"last_validation"`
+	HasValidation   bool                     `json:"has_validation"`
+	Staleness       string                   `json:"staleness"`
+	ProseHandoffRef string                   `json:"prose_handoff_ref"`
+	ChangeBoundary  planmodel.ChangeBoundary `json:"change_boundary"`
 }
 
 const (
@@ -187,6 +188,7 @@ func (r *sqliteRepository) SaveHandoff(ctx context.Context, h Handoff) error {
 		HasValidation:   h.HasValidation,
 		Staleness:       string(h.Staleness),
 		ProseHandoffRef: h.ProseHandoffRef,
+		ChangeBoundary:  h.ChangeBoundary,
 	}
 	raw, err := json.Marshal(doc)
 	if err != nil {
@@ -230,6 +232,7 @@ func (r *sqliteRepository) GetHandoff(ctx context.Context, executionID string) (
 	h.HasValidation = doc.HasValidation
 	h.Staleness = stalenessFromString(doc.Staleness)
 	h.ProseHandoffRef = doc.ProseHandoffRef
+	h.ChangeBoundary = doc.ChangeBoundary
 	return h, true, nil
 }
 

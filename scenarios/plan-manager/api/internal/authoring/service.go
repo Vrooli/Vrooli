@@ -538,7 +538,8 @@ func (s *service) runAutofill(ctx context.Context, sess *Session, src AutofillSo
 		if s.anchor == nil {
 			return degraded(src, key, "anchor intent deriver unavailable")
 		}
-		content = s.anchor.DeriveAnchorIntent(ctx, sess.Title, sess.Slug)
+		boundary := planmodel.ParseBoundarySection(contentOf(sess.Sections, SectionAcceptanceBoundary))
+		content = s.anchor.DeriveAnchorIntent(ctx, sess.Title, sess.Slug, boundary)
 	default:
 		return AutofillResult{Source: src, Degraded: true, Detail: "unknown autofill source"}
 	}
@@ -885,12 +886,61 @@ func stepForNextPhaseState(sess Session, fallback PhaseDraft) GuidedStep {
 // which keeps the "unless NO_CODE_REFS" escape in the same sentence.
 const referencesGateMessage = "references must include at least one [CODE:], [REQ:], or [DOC:] reference, or a NO_CODE_REFS: reason"
 
+// boundaryGateMessage is the single message for the change-boundary requirement.
+// The boundary is mandatory but satisfiable by an OPERATOR_ONLY: reason, so its
+// requirement is enforced by this gate (not the generic empty-mandatory message).
+const boundaryGateMessage = "change boundary must declare acceptance_allow paths (one glob per line), or an OPERATOR_ONLY: reason for no-code/operator-only work"
+
+// boundaryGateViolations enforces the change-boundary invariants on a submitted
+// acceptance-boundary section: an allow list (or operator-only reason) is
+// required and no glob may contain an unresolved placeholder.
+func boundaryGateViolations(content string) []StructureViolation {
+	b := planmodel.ParseBoundarySection(content)
+	if b.IsZero() {
+		return []StructureViolation{{SectionKey: SectionAcceptanceBoundary, Message: boundaryGateMessage}}
+	}
+	var out []StructureViolation
+	for _, problem := range planmodel.ValidateBoundary(b, true) {
+		out = append(out, StructureViolation{SectionKey: SectionAcceptanceBoundary, Message: problem})
+	}
+	return out
+}
+
+// anchorPlaceholderViolations rejects unresolved authoring placeholders in the
+// parsed regression-anchor's scenario, allowlist, and derived commands. The
+// HEAD-sha field is exempt: "<captured at execution start>" is intentional intent
+// the executor fills with a real sha when execution begins.
+func anchorPlaceholderViolations(content string) []StructureViolation {
+	if strings.TrimSpace(content) == "" {
+		return nil
+	}
+	anchor := planmodel.ParseRegressionAnchorBlock(content)
+	var out []StructureViolation
+	check := func(field, value string) {
+		if tokens := planmodel.UnresolvedPlaceholders(value); len(tokens) > 0 {
+			out = append(out, StructureViolation{
+				SectionKey: SectionRegressionAnchor,
+				Message:    "regression anchor " + field + " has unresolved placeholder(s) " + strings.Join(tokens, ", "),
+			})
+		}
+	}
+	check("scenario", anchor.Scenario)
+	for _, p := range anchor.AllowlistPaths {
+		check("allowlist", p)
+	}
+	for _, c := range anchor.Commands {
+		check("command", c)
+	}
+	return out
+}
+
 func structureViolations(sections []Section) []StructureViolation {
 	var out []StructureViolation
 	for _, sec := range sections {
-		// References is mandatory, but its gate (allowing NO_CODE_REFS) owns the
-		// message — skip the generic empty-mandatory one to avoid double-reporting.
-		if sec.Key == SectionReferences {
+		// References and the change boundary are mandatory, but each owns its gate
+		// (allowing NO_CODE_REFS / OPERATOR_ONLY) — skip the generic empty-mandatory
+		// message to avoid double-reporting.
+		if sec.Key == SectionReferences || sec.Key == SectionAcceptanceBoundary {
 			continue
 		}
 		if sec.Mandatory && strings.TrimSpace(sec.Content) == "" {
@@ -917,6 +967,8 @@ func sessionViolations(sess Session) []StructureViolation {
 		out = append(out, StructureViolation{SectionKey: SectionReferences, Message: referencesGateMessage})
 	}
 	out = append(out, referencesContentKindViolations(refsContent)...)
+	out = append(out, boundaryGateViolations(contentOf(sess.Sections, SectionAcceptanceBoundary))...)
+	out = append(out, anchorPlaceholderViolations(contentOf(sess.Sections, SectionRegressionAnchor))...)
 	out = append(out, postureConflictViolations(sess)...)
 	for _, phase := range sess.PhaseDrafts {
 		out = append(out, phaseViolations(phase)...)
@@ -1023,6 +1075,11 @@ func violationsForSection(sec Section) []StructureViolation {
 		// rejected at submit time, not silently accepted into session state.
 		out = append(out, referencesContentKindViolations(sec.Content)...)
 		return out
+	}
+	if sec.Key == SectionAcceptanceBoundary {
+		// The boundary uses its own gate (which allows an OPERATOR_ONLY: reason and
+		// rejects unresolved placeholders) rather than the generic empty message.
+		return boundaryGateViolations(sec.Content)
 	}
 	if sec.Mandatory && empty {
 		out = append(out, StructureViolation{
@@ -1647,6 +1704,7 @@ func sessionToPlan(sess Session) (planmodel.Plan, error) {
 	if len(sess.PhaseDrafts) > 0 {
 		p.Phases = phaseDraftsToPlanPhases(sess.PhaseDrafts)
 	}
+	p.ChangeBoundary = planmodel.ParseBoundarySection(contentOf(sess.Sections, SectionAcceptanceBoundary))
 	if reason := noCodeRefsReason(contentOf(sess.Sections, SectionReferences)); reason != "" {
 		p.Constraints = appendNoCodeRefsReason(p.Constraints, reason)
 	}

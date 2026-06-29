@@ -27,13 +27,18 @@ guided step at a time so a small/local model never submits a giant blob:
 
 > purpose → problem/need → target outcome → scope → non-goals → assumptions →
 > work posture checkpoint (autofilled, reviewed — not authored) → technical
-> approach → constraints / prohibited approaches → references → regression anchor
-> → global relevant context → validation strategy → definition of done → phases →
-> final review.
+> approach → constraints / prohibited approaches → **change boundary
+> (`acceptance_allow`/`acceptance_deny`)** → references → regression anchor
+> (boundary-native) → global relevant context → validation strategy → definition
+> of done → phases → final review.
 
 Mandatory for implementation plans: problem/need, target outcome, technical
-approach, validation strategy, and — per phase — ordered steps and phase
-validation. Optional sections stay optional only when omission is genuinely safe.
+approach, **change boundary** (satisfiable by an `OPERATOR_ONLY` reason),
+validation strategy, and — per phase — ordered steps and phase validation. The
+regression anchor is **boundary-native**: its affected scenarios and tiered
+baseline/diff commands derive from the change boundary, so the boundary is
+authored before the anchor. Optional sections stay optional only when omission is
+genuinely safe.
 
 1. Start a plan; the wizard walks sections in order and returns the API-owned
    guided step for the current section. The **work posture** step is autofilled

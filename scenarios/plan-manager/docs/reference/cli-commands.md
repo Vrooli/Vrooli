@@ -148,11 +148,37 @@ prose line as a note (`NO_CONTEXT:` reasons preserved) — it never turns prose
 into an executable `prompt-manager skill read …` command. Executable setup
 context must go through typed `author context-submit` / candidate acceptance.
 
-When anchor autofill degrades, the `regression_anchor` guided step carries
-concrete recovery `NextActions`: an `author autofill <session> --sources
-regression_anchor` retry, a `git-control-tower baseline snapshot …` recovery
-command, and a fallback anchor block template (Strategy / Scenario baseline /
-Baseline name / HEAD sha / Allowlist / diff command) the agent can submit verbatim.
+### Change boundary
+
+The `acceptance_boundary` section is **mandatory** and authored before references
+and the regression anchor. Submit it with `author section-submit <session>
+--section acceptance_boundary --content <boundary>`. The content accepts several
+shapes:
+
+- keyed lists:
+  ```
+  acceptance_allow:
+  - scenarios/plan-manager/**
+  - packages/proto/**
+  acceptance_deny:
+  - scenarios/swarm-manager/**
+  ```
+- a JSON object: `{"acceptance_allow":["scenarios/plan-manager/**"],"acceptance_deny":[]}`
+- an `OPERATOR_ONLY: <reason>` escape for genuinely no-code / operator-only plans
+  (the boundary analogue of `NO_CODE_REFS`).
+
+There is **no `scope` flag and no primary-scenario flag** — scenario identity is
+derived from the `acceptance_allow` globs. Finalize rejects unresolved
+`<placeholder>` tokens in the boundary or anchor.
+
+Because the anchor is **boundary-native**, anchor autofill (`author autofill
+<session> --sources regression_anchor`) derives the affected scenarios and the
+tiered baseline/diff commands from the change boundary — submit the boundary
+first. The derived anchor block is `Strategy: change_boundary` / `Baseline name:`
+/ `HEAD sha: <captured at execution start>` plus tiered commands (scenario
+baseline **oracle** pairs and an **informational** repo/path diff); it carries no
+`<scenario>` placeholder. The legacy `scenario_baseline` / `head_sha_allowlist`
+anchor strategies remain import/read-only for pre-cutover plans.
 
 ## `phase` — direct phases on a persisted plan
 

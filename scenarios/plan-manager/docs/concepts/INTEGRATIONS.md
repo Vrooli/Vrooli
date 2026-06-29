@@ -29,6 +29,17 @@ Future consumers to be **inverted** (they will depend on plan-manager, not the
 reverse): `swarm-manager` `phased-plan-drain`, project hygiene plan checks, the
 `vrooli plans` CLI. Sequenced after standalone proof (OT-P2-002).
 
+**Boundary vocabulary alignment (consumer-inversion contract).** Plan Manager's
+change boundary deliberately uses Swarm Manager's `acceptance_allow` /
+`acceptance_deny` field names (Swarm Manager's backlog model explicitly rejects a
+generic `scope` field). This means a future Swarm Manager → Plan Manager inversion
+can pass a backlog item's `acceptance_allow`/`acceptance_deny` **directly** into a
+Plan Manager `change_boundary` with no vocabulary translation. The two derive the
+same affected-scenario set from the same globs (`scenarios/<name>/...`). The shared
+glob/scenario logic is duplicated minimally today (`api/internal/planmodel/boundary.go`
+mirrors `swarm-manager/internal/pathutil`); extracting a shared package is a
+follow-up once a second cross-scenario consumer needs it.
+
 ## Vrooli Resources
 
 - **SQLite home store** — the only required resource. Rooted at `~/.vrooli` (see

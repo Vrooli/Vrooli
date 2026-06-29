@@ -55,6 +55,7 @@ func PlanToProto(p planmodel.Plan) *sharedv1.Plan {
 		WorkPostureDetail:       p.WorkPostureDetail,
 		ImportProvenance:        ImportProvenanceToProto(p.ImportProvenance),
 		PreservedLegacySections: LegacySectionsToProto(p.PreservedLegacySections),
+		ChangeBoundary:          ChangeBoundaryToProto(p.ChangeBoundary),
 	}
 }
 
@@ -94,6 +95,7 @@ func PlanFromProto(p *sharedv1.Plan) planmodel.Plan {
 		WorkPostureDetail:       p.GetWorkPostureDetail(),
 		ImportProvenance:        ImportProvenanceFromProto(p.GetImportProvenance()),
 		PreservedLegacySections: LegacySectionsFromProto(p.GetPreservedLegacySections()),
+		ChangeBoundary:          ChangeBoundaryFromProto(p.GetChangeBoundary()),
 	}
 }
 
@@ -116,6 +118,7 @@ func PhaseToProto(ph planmodel.Phase) *sharedv1.Phase {
 		Validation:      ph.Validation,
 		HandoffNotes:    ph.HandoffNotes,
 		RisksHazards:    ph.RisksHazards,
+		ChangeBoundary:  ChangeBoundaryToProto(ph.ChangeBoundary),
 	}
 }
 
@@ -144,6 +147,7 @@ func PhaseFromProto(ph *sharedv1.Phase) planmodel.Phase {
 		Validation:      ph.GetValidation(),
 		HandoffNotes:    ph.GetHandoffNotes(),
 		RisksHazards:    ph.GetRisksHazards(),
+		ChangeBoundary:  ChangeBoundaryFromProto(ph.GetChangeBoundary()),
 	}
 }
 
@@ -197,6 +201,31 @@ func AnchorFromProto(a *sharedv1.RegressionAnchor) planmodel.RegressionAnchor {
 		Commands:       a.GetCommands(),
 		CapturedAt:     a.GetCapturedAt(),
 		Unavailable:    a.GetUnavailable(),
+	}
+}
+
+// ChangeBoundaryToProto converts the neutral boundary to its wire shape. A zero
+// boundary still produces a (zero) message so consumers see consistent shape;
+// callers that omit boundaries entirely should pass a zero value.
+func ChangeBoundaryToProto(b planmodel.ChangeBoundary) *sharedv1.ChangeBoundary {
+	if b.IsZero() {
+		return nil
+	}
+	return &sharedv1.ChangeBoundary{
+		AcceptanceAllow:    b.AcceptanceAllow,
+		AcceptanceDeny:     b.AcceptanceDeny,
+		OperatorOnlyReason: b.OperatorOnlyReason,
+	}
+}
+
+func ChangeBoundaryFromProto(b *sharedv1.ChangeBoundary) planmodel.ChangeBoundary {
+	if b == nil {
+		return planmodel.ChangeBoundary{}
+	}
+	return planmodel.ChangeBoundary{
+		AcceptanceAllow:    b.GetAcceptanceAllow(),
+		AcceptanceDeny:     b.GetAcceptanceDeny(),
+		OperatorOnlyReason: b.GetOperatorOnlyReason(),
 	}
 }
 

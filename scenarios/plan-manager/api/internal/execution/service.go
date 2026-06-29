@@ -311,6 +311,7 @@ func (s *service) Complete(ctx context.Context, executionID string, inputs Compl
 		Staleness:       staleness,
 		ProseHandoffRef: "", // pass-through; the orchestration layer fills this by reference
 		AssembledAt:     now,
+		ChangeBoundary:  plan.ChangeBoundary,
 	}
 	// Capture the velocity point LOCAL ONLY — persisted regardless, then offered
 	// to the (stubbed) MoM emit seam after the durable write commits.
@@ -462,11 +463,16 @@ func (s *service) buildContext(ctx context.Context, plan planmodel.Plan, phaseID
 		Completeness:  computeCompleteness(plan.Phases),
 		LogSummary:    s.logSummary(ctx, executionID),
 	}
+	pctx.ChangeBoundary = plan.ChangeBoundary
 	if cur, ok := findPhase(plan.Phases, phaseID); ok {
 		pctx.CurrentPhase = cur
 		pctx.HasCurrent = true
 		pctx.RequiredReading = cur.RequiredReading
 		pctx.Reminders = cur.Reminders
+		// A phase that declares its own boundary narrows the surfaced contract.
+		if !cur.ChangeBoundary.IsZero() {
+			pctx.ChangeBoundary = cur.ChangeBoundary
+		}
 	}
 	pctx.RelevantContext = contextForPhase(plan, pctx.CurrentPhase, pctx.HasCurrent, mode)
 	if next, ok := nextPhase(plan.Phases, phaseID); ok {

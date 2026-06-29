@@ -73,6 +73,7 @@ type planDocument struct {
 	NonGoals         string                `json:"non_goals"`
 	DefinitionOfDone string                `json:"definition_of_done"`
 	References       []Reference           `json:"references"`
+	ChangeBoundary   ChangeBoundary        `json:"change_boundary"`
 	RegressionAnchor RegressionAnchor      `json:"regression_anchor"`
 	Phases           []Phase               `json:"phases"`
 	Supersedes       []string              `json:"supersedes"`
@@ -137,6 +138,7 @@ func (r *sqliteRepository) Save(ctx context.Context, p Plan) error {
 		NonGoals:         p.NonGoals,
 		DefinitionOfDone: p.DefinitionOfDone,
 		References:       p.References,
+		ChangeBoundary:   p.ChangeBoundary,
 		RegressionAnchor: p.RegressionAnchor,
 		Phases:           p.Phases,
 		Supersedes:       p.Supersedes,
@@ -277,6 +279,7 @@ func scanPlan(s rowScanner) (Plan, error) {
 	p.NonGoals = doc.NonGoals
 	p.DefinitionOfDone = doc.DefinitionOfDone
 	p.References = doc.References
+	p.ChangeBoundary = doc.ChangeBoundary
 	p.RegressionAnchor = doc.RegressionAnchor
 	p.Phases = doc.Phases
 	p.Supersedes = doc.Supersedes

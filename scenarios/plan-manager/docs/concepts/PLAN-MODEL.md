@@ -75,6 +75,14 @@ provenance** (kept verbatim because it could not be mapped).
 | `work_posture_source` | computed | How posture was decided: `default`, `service_maturity`, `explicit_override`, `import_legacy`. |
 | `work_posture_detail` | computed | Human-readable derivation note (e.g. fallback reason, sunset warning). |
 
+**Change Boundary** — the plan's blast radius, the source of truth for posture, anchor, and validation scope.
+
+| Field | Origin | Meaning |
+|---|---|---|
+| `change_boundary.acceptance_allow[]` | authored | Repo-relative path globs this plan may change (e.g. `scenarios/plan-manager/**`, `packages/proto/**`, `docs/**`). Mandatory for implementation plans unless an operator-only reason is recorded. **There is no `scope` field and no `primary_scenario` flag** — scenario identity is *derived* from these globs. |
+| `change_boundary.acceptance_deny[]` | authored (optional) | Path globs this plan must **not** change. Guardrails only — they never widen validation scope. |
+| `change_boundary.operator_only_reason` | authored (optional) | Why a plan legitimately carries no `acceptance_allow` (operator-only / no-code work) — the boundary analogue of the references `NO_CODE_REFS` escape. |
+
 **Execution Model** — what to load and how to build.
 
 | Field | Origin | Meaning |
@@ -120,6 +128,7 @@ runner walks and the unit context is scoped to.
 | `title` | authored | Short phase name. |
 | `intent` | authored | What this phase accomplishes. |
 | `affected_areas[]` | authored | The files/dirs/surfaces this phase touches, as orienting prose lines (complements typed `references[]`). |
+| `change_boundary` | authored (optional) | Optional per-phase boundary refinement. **Narrows** the plan-level boundary for phase-specific checks; it never widens the plan blast radius. |
 | `relevant_context[]` | authored + discovered | Phase-scoped setup items with kind, reason, instruction, command/argv, target, required flag, repeat policy, source, and status. New authored phases must include at least one phase-scoped relevant-context item or an explicit `NO_CONTEXT: <reason>` note. |
 | `steps[]` | authored | Ordered implementation steps — the concrete sequence an implementation agent follows. Mandatory for implementation phases. |
 | `expected_outputs[]` | authored | The artifacts/outputs this phase should produce (new files, generated code, passing suites). |
@@ -148,6 +157,42 @@ for context and the canonical handoff; it does not store them on the phase.
 **Resume point** = the earliest phase whose `status` is not `done`. Full vs.
 partial completion is derived from the phase-status set — never narrated.
 
+## Change Boundary — acceptance_allow / acceptance_deny
+
+A plan is **general over repository change boundaries**: it can target one
+scenario, multiple scenarios, shared packages, docs, root tooling, or any mixed
+set of repo paths. The `change_boundary` field is the first-class contract for
+that blast radius and the **single source of truth** the runtime derives posture,
+regression-anchor intent, validation scope, and execution reminders from.
+
+- **Vocabulary is `acceptance_allow` / `acceptance_deny`**, deliberately aligned
+  with Swarm Manager's backlog change boundary so the two compose without
+  translation. There is **no public `scope` field** and **no `primary_scenario` /
+  `affected_scenario` flag** — those were rejected. Scenario identity is *derived*
+  from the allow globs (and references), never authored as a top-level plan
+  identity.
+- **`acceptance_allow`** lists the repo-relative path globs the plan may change.
+  It is mandatory for newly authored implementation plans unless an explicit
+  operator-only / no-code reason is recorded (`operator_only_reason`).
+- **`acceptance_deny`** is optional and rendered when present. Deny globs are
+  **guardrails only**: they never widen validation scope; they flag forbidden
+  edits and render/validate as pre-execution constraints.
+- **Affected scenarios** are derived: a glob under `scenarios/<name>/...` yields
+  `<name>`; every other glob (`packages/**`, `docs/**`, root tooling) is a
+  **repo-level path** that has no scenario baseline oracle today.
+- **Unresolved placeholders** (`<scenario>`, `<path>`, `<branch>`, `<allowed
+  path>`) are invalid in a finalized boundary or anchor.
+
+A phase may carry its own optional `change_boundary` that **narrows** the plan
+boundary for phase-specific checks; it can never widen the plan's blast radius.
+
+**Substrate honesty.** `git-control-tower` baselines and `test-genie` suites are
+scenario-keyed today. Plan Manager consumes that limitation honestly: it derives a
+scenario baseline **oracle** for each affected scenario and an **informational**
+repo/path diff for non-scenario allow globs, and never pretends the repo diff is a
+pass/fail oracle. Native multi-path baselines are tracked as deferred substrate
+work (see `docs/internal/PROBLEMS.md`).
+
 ## Work Posture — Greenfield/Brownfield
 
 Every plan carries an automatic **work posture**. Authoring agents do **not** type
@@ -155,9 +200,17 @@ a Greenfield block; the runtime derives the posture and the renderer injects the
 exact block. This guarantees the Greenfield/Brownfield guidance is consistent and
 never contradicts the scenario's real maturity.
 
-**Derivation rules** (centralized; tested for every maturity enum value). The
-signal is the associated scenario's `.vrooli/service.json` `maturity` field,
-resolved through a posture seam:
+Posture is **aggregate and conservative** across *every* scenario the change
+boundary and references touch — not a single associated scenario. If **any**
+affected scenario is `pilot`, `production`, or `sunset`, the rendered posture is
+Brownfield and `work_posture_detail` names the causing scenario(s). Posture is
+Greenfield only when all affected scenarios are greenfield/absent, or when no
+scenario is resolved at all (non-scenario paths default to Greenfield with an
+honest detail).
+
+**Per-scenario derivation rules** (centralized; tested for every maturity enum
+value). The signal is each affected scenario's `.vrooli/service.json` `maturity`
+field, resolved through a posture seam:
 
 | Scenario `maturity` | Posture | Source | Detail |
 |---|---|---|---|
@@ -228,13 +281,14 @@ session internals. It is a deterministic *view* — never parsed back into truth
 10. Constraints
 11. Prohibited Approaches
 12. Global Execution Setup
-13. References
-14. Regression Anchor
-15. Validation Strategy
-16. Definition of Done
-17. Phases
-18. Import Provenance / Preserved Legacy Sections (only when present)
-19. Plan Graph
+13. Change Boundary (always shown for implementation plans)
+14. References
+15. Regression Anchor
+16. Validation Strategy
+17. Definition of Done
+18. Phases
+19. Import Provenance / Preserved Legacy Sections (only when present)
+20. Plan Graph
 
 **Phase render order:** heading → status → intent → affected areas → phase context
 setup → ordered steps → expected outputs → phase validation → acceptance criteria →
@@ -340,21 +394,29 @@ locator never reaches the references section.
 
 ## Validation, Staleness, And The Regression Anchor
 
-- **Regression anchor** — typed **intent** at authoring, fresh **snapshot** at
-  execution start. Authoring records only the intent fields (`strategy`,
-  `scenario`, `baseline_name`, `head_sha`, `allowlist_paths`, generated
-  `commands`) — derived deterministically from the plan title/slug (no
-  git-control-tower call, never stale). The actual "before" snapshot is captured
-  fresh when execution *starts* (a plan is often authored days before it runs), so
-  the anchor describes a "before" that is actually true: execution's one-time
-  **freshen inputs** step delegates the `git-control-tower baseline` capture to the
-  validation domain. Rendered markdown is imported back through the typed fields;
-  unstructured legacy prose is preserved as legacy/degraded and cannot silently
-  become a false validation oracle.
-- **Baseline scope** — derived per phase from `references[]`: the exact
+- **Regression anchor** — **boundary-native** typed **intent** at authoring, fresh
+  **snapshot** at execution start. New plans author the `change_boundary`
+  strategy: affected scenarios and the tiered command set are *derived* from the
+  plan's `change_boundary`, not from a hand-authored single scenario. Authoring
+  records only intent (the `baseline_name` derived from the plan slug, a
+  `head_sha` placeholder captured at execution start) — never a git-control-tower
+  call, never stale. Derived commands are **tiered and labelled**:
+  - one `git-control-tower baseline snapshot status` + `baseline diff` pair per
+    affected scenario — these are verdict **oracles**;
+  - one informational `git diff --stat [<head_sha>] -- <repo paths>` for the
+    non-scenario allow globs — **informational only**, never a pass/fail oracle
+    until a path-baseline substrate exists.
+
+  The actual "before" snapshot is captured fresh when execution *starts* (a plan
+  is often authored days before it runs): execution's one-time **freshen inputs**
+  step delegates the `git-control-tower baseline` capture to the validation
+  domain. The legacy `scenario_baseline` / `head_sha_allowlist` strategies remain
+  **import/read-only** for pre-cutover plans; unstructured legacy prose is
+  preserved as legacy/degraded and cannot silently become a false validation
+  oracle.
+- **Baseline scope** — derived from the `change_boundary` first (affected
+  scenarios + repo paths), supplemented by `references[]`: the exact
   baseline/diff command set across all affected locations (not just scenarios).
-  Typed anchor fields can also derive their own command set when stored commands
-  are absent.
 - **Staleness tier** — computed from change in referenced code since authoring:
   - `fresh` — no relevant change.
   - `lightly_stale` — small diffs in referenced code.
@@ -454,6 +516,20 @@ contract change, not an incidental edit.
    emits a section the parser cannot recover.
 5. **`acceptance` ≠ `validation`.** A phase's outcome gate and its checking method
    are distinct fields and must not be identical.
+6. **The change boundary is the blast-radius source of truth, expressed as
+   `acceptance_allow` / `acceptance_deny`.** There is no public `scope` field and
+   no `primary_scenario` / `affected_scenario` flag. Scenario identity is derived
+   from the allow globs; `acceptance_deny` is a guardrail that never widens
+   validation scope; finalized boundary/anchor data may not contain unresolved
+   `<placeholder>` tokens.
+7. **Posture is aggregate and conservative.** It is derived from every scenario
+   the boundary and references touch — if any affected scenario is pilot/
+   production/sunset the plan is Brownfield. No code path uses "first scenario
+   wins."
+8. **Non-scenario repo/path diffs are informational, never oracles.** Validation
+   classifies scenario baseline checks as oracles and repo/path diffs as
+   informational until a path-baseline substrate exists; a repo diff never
+   produces a false PASS.
 
 The code/proto surfaces that must stay in lockstep with this document:
 `packages/proto/schemas/plan-manager/v1/shared/model.proto` (wire contract),

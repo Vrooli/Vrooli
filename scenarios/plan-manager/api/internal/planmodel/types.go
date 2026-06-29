@@ -186,6 +186,15 @@ type RelevantContextItem struct {
 }
 
 // RegressionAnchor is the "before" anchor captured prior to changes.
+//
+// Strategy is one of:
+//   - AnchorStrategyChangeBoundary ("change_boundary"): the boundary-native
+//     anchor new plans author. Affected scenarios and the tiered baseline/diff
+//     commands are DERIVED from the plan's ChangeBoundary; Scenario/AllowlistPaths
+//     are not hand-authored.
+//   - "scenario_baseline" / "head_sha_allowlist": legacy strategies, retained for
+//     import/read of pre-cutover plans only — never produced for new authored plans.
+//   - "legacy_prose": an unstructured imported anchor preserved as provenance.
 type RegressionAnchor struct {
 	Strategy       string
 	Scenario       string
@@ -196,6 +205,22 @@ type RegressionAnchor struct {
 	CapturedAt     string
 	Unavailable    bool
 }
+
+// Regression-anchor strategy identifiers.
+const (
+	// AnchorStrategyChangeBoundary is the boundary-native anchor strategy used by
+	// all newly authored plans. Its commands are derived from the plan boundary.
+	AnchorStrategyChangeBoundary = "change_boundary"
+	// AnchorStrategyScenarioBaseline is the legacy single-scenario baseline anchor
+	// (import/read only).
+	AnchorStrategyScenarioBaseline = "scenario_baseline"
+	// AnchorStrategyHeadShaAllowlist is the legacy HEAD-sha + file-allowlist anchor
+	// (import/read only).
+	AnchorStrategyHeadShaAllowlist = "head_sha_allowlist"
+	// AnchorStrategyLegacyProse marks an unstructured imported anchor preserved as
+	// provenance; it is never a verdict oracle.
+	AnchorStrategyLegacyProse = "legacy_prose"
+)
 
 // Phase is a first-class phase. order/title/intent/required_reading/reminders/
 // acceptance/references are AUTHORED; baseline_scope/status are COMPUTED.
@@ -211,6 +236,9 @@ type Phase struct {
 	Status          PhaseStatus
 	References      []Reference
 	RelevantContext []RelevantContextItem
+	// Optional per-phase boundary refinement. When set it NARROWS the plan-level
+	// boundary for phase-specific checks; it never widens the plan blast radius.
+	ChangeBoundary ChangeBoundary
 	// AUTHORED professional phase fields (see docs/concepts/PLAN-MODEL.md).
 	AffectedAreas   []string
 	Steps           []string
@@ -222,18 +250,22 @@ type Phase struct {
 
 // Plan is the top-level structured record.
 type Plan struct {
-	ID               string
-	Slug             string
-	Title            string
-	Status           PlanStatus
-	ContentHash      string
-	CreatedAt        string
-	UpdatedAt        string
-	Purpose          string
-	Scope            string
-	Constraints      string
-	NonGoals         string
-	References       []Reference
+	ID          string
+	Slug        string
+	Title       string
+	Status      PlanStatus
+	ContentHash string
+	CreatedAt   string
+	UpdatedAt   string
+	Purpose     string
+	Scope       string
+	Constraints string
+	NonGoals    string
+	References  []Reference
+	// ChangeBoundary is the plan's first-class blast-radius contract
+	// (acceptance_allow / acceptance_deny). It is the source of truth for posture,
+	// regression-anchor intent, validation scope, and execution reminders.
+	ChangeBoundary   ChangeBoundary
 	RegressionAnchor RegressionAnchor
 	DefinitionOfDone string
 	Phases           []Phase

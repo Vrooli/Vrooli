@@ -258,7 +258,7 @@ func (s *service) DeriveBaselineScope(ctx context.Context, planID, phaseID strin
 	if err != nil {
 		return BaselineScope{}, err
 	}
-	return deriveScope(p, refs), nil
+	return deriveScope(p, refs, effectiveBoundary(p, phaseID)), nil
 }
 
 func (s *service) CaptureBaseline(ctx context.Context, planID string) (BaselineCapture, error) {
@@ -304,7 +304,7 @@ func (s *service) RunValidation(ctx context.Context, planID, phaseID string) (Re
 	if err != nil {
 		return Result{}, err
 	}
-	scope := deriveScope(p, refs)
+	scope := deriveScope(p, refs, effectiveBoundary(p, phaseID))
 	staleReport, _ := s.ComputeStaleness(ctx, planID, phaseID)
 	res := Result{
 		ID:          uuid.NewString(),
@@ -829,7 +829,7 @@ func (s *service) VerifyDefinitionOfDone(ctx context.Context, planID string) (Re
 		// commands. Derive the oracle command set from the plan's connected code so
 		// DoD verifies against a real diff oracle instead of always degrading to
 		// UNKNOWN (the authoring→DoD gap).
-		commands = deriveScope(p, p.References).Commands
+		commands = deriveScope(p, p.References, p.ChangeBoundary).Commands
 	}
 	res := Result{PlanID: planID, CommandsRun: commands, RanAt: s.now()}
 	if p.RegressionAnchor.Unavailable || len(commands) == 0 {
@@ -945,16 +945,27 @@ func (s *service) now() string {
 }
 
 // deriveScope computes the exact baseline/validation command set across all
-// affected locations a plan/phase's references touch. Scenario-scoped code refs
-// map to a git-control-tower snapshot lifecycle check followed by a baseline
-// diff only when the plan carries a baseline name; the verified GCT CLI requires
-// both --scenario and --name. If no baseline name exists, those locations are
-// still returned but no oracle command is fabricated. Non-scenario code refs map
-// to a repo-level informational git diff. The plan's own regression-anchor
-// commands are folded in. Output is deduped and stably ordered so the command set
-// is deterministic.
-func deriveScope(p planmodel.Plan, refs []planmodel.Reference) BaselineScope {
+// affected locations for a plan/phase. The CHANGE BOUNDARY is the source of
+// truth: affected scenarios come from acceptance_allow first, supplemented by
+// scenario-scoped code references (a reference to a scenario outside the boundary
+// is still included, so validation never under-covers). Non-scenario allow globs
+// and non-scenario references are repo-level paths with no scenario baseline
+// oracle today.
+//
+// Commands are emitted in tiers:
+//   - one git-control-tower snapshot-status + baseline diff ORACLE pair per
+//     affected scenario, only when a baseline name exists (the verified GCT CLI
+//     requires --scenario and --name); no oracle is fabricated otherwise.
+//   - one INFORMATIONAL `git diff --stat [<sha>] -- <repo paths>` for the
+//     non-scenario allowed paths — never an oracle (see isOracleCommand).
+//
+// The plan's own regression-anchor commands are folded in. Output is deduped and
+// stably ordered so the command set is deterministic.
+func deriveScope(p planmodel.Plan, refs []planmodel.Reference, boundary planmodel.ChangeBoundary) BaselineScope {
 	scenarios := map[string]bool{}
+	for _, name := range boundary.AffectedScenarios() {
+		scenarios[name] = true
+	}
 	repoLevel := false
 	for _, ref := range refs {
 		if ref.Kind != planmodel.ReferenceCode || ref.Future {
@@ -973,11 +984,11 @@ func deriveScope(p planmodel.Plan, refs []planmodel.Reference) BaselineScope {
 		commands = appendUnique(commands, c)
 	}
 	switch p.RegressionAnchor.Strategy {
-	case "scenario_baseline":
+	case planmodel.AnchorStrategyScenarioBaseline:
 		if scenario := strings.TrimSpace(p.RegressionAnchor.Scenario); scenario != "" {
 			locations = appendUnique(locations, "scenarios/"+scenario)
 		}
-	case "head_sha_allowlist":
+	case planmodel.AnchorStrategyHeadShaAllowlist:
 		locations = appendUnique(locations, "repo")
 	}
 	names := make([]string, 0, len(scenarios))
@@ -989,22 +1000,39 @@ func deriveScope(p planmodel.Plan, refs []planmodel.Reference) BaselineScope {
 		locations = appendUnique(locations, "scenarios/"+name)
 		commands = append(commands, baselineCommands(name, p.RegressionAnchor)...)
 	}
-	if repoLevel {
+	// Repo-level paths: boundary non-scenario allow globs (preferred, path-scoped)
+	// plus any non-scenario reference. These have no scenario baseline oracle, so
+	// emit a single INFORMATIONAL diff scoped to the boundary's repo paths.
+	repoPaths := boundary.RepoPaths()
+	if len(repoPaths) > 0 || repoLevel {
 		locations = appendUnique(locations, "repo")
-		// Repo-level changes have no scenario baseline; emit an INFORMATIONAL diff
-		// (scoped to the anchor's HeadSha when one was captured) so the agent sees
-		// what changed. This is not an oracle — see isOracleCommand — so it never
-		// produces a false PASS on its own.
-		if sha := strings.TrimSpace(p.RegressionAnchor.HeadSha); sha != "" {
-			commands = append(commands, "git diff --stat "+sha)
-		} else {
-			commands = append(commands, "git diff --stat")
+		cmd := "git diff --stat"
+		if sha := strings.TrimSpace(p.RegressionAnchor.HeadSha); sha != "" && !planmodel.ContainsUnresolvedPlaceholder(sha) {
+			cmd += " " + sha
 		}
+		if len(repoPaths) > 0 {
+			cmd += " -- " + strings.Join(repoPaths, " ")
+		}
+		commands = appendUnique(commands, cmd)
 	}
 	for _, c := range p.RegressionAnchor.Commands {
 		commands = appendUnique(commands, c)
 	}
 	return BaselineScope{Commands: commands, Locations: locations}
+}
+
+// effectiveBoundary returns the boundary that scopes validation for a phase: the
+// phase's own boundary when it declares one (a narrowing refinement), otherwise
+// the plan-level boundary.
+func effectiveBoundary(p planmodel.Plan, phaseID string) planmodel.ChangeBoundary {
+	if strings.TrimSpace(phaseID) != "" {
+		for _, ph := range p.Phases {
+			if ph.ID == phaseID && !ph.ChangeBoundary.IsZero() {
+				return ph.ChangeBoundary
+			}
+		}
+	}
+	return p.ChangeBoundary
 }
 
 func baselineCommands(scenario string, anchor planmodel.RegressionAnchor) []string {

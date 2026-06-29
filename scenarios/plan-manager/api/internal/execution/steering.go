@@ -1,6 +1,37 @@
 package execution
 
-import "strings"
+import (
+	"strings"
+
+	planmodel "plan-manager/internal/planmodel"
+)
+
+// boundaryReminders renders just-in-time change-boundary reminders for the phase
+// context step: the allowed paths, denied paths, which affected scenarios have a
+// baseline oracle, and where validation coverage is only informational. Returns
+// nil when the plan carries no boundary.
+func boundaryReminders(b planmodel.ChangeBoundary) []string {
+	if b.IsZero() {
+		return nil
+	}
+	var out []string
+	if len(b.AcceptanceAllow) > 0 {
+		out = append(out, "Change boundary — only edit within: "+strings.Join(b.AcceptanceAllow, ", "))
+	}
+	if len(b.AcceptanceDeny) > 0 {
+		out = append(out, "Forbidden paths (do NOT edit): "+strings.Join(b.AcceptanceDeny, ", "))
+	}
+	if scenarios := b.AffectedScenarios(); len(scenarios) > 0 {
+		out = append(out, "Scenario baseline oracle covers: "+strings.Join(scenarios, ", "))
+	}
+	if repo := b.RepoPaths(); len(repo) > 0 {
+		out = append(out, "No scenario baseline oracle for "+strings.Join(repo, ", ")+" — repo/path diffs there are informational only.")
+	}
+	if b.OperatorOnlyReason != "" {
+		out = append(out, "Operator-only plan (no editable repo paths): "+b.OperatorOnlyReason)
+	}
+	return out
+}
 
 func stepForStarted(e Execution) GuidedStep {
 	return GuidedStep{
@@ -42,11 +73,15 @@ func stepForContext(executionID, planID string, ctx PhaseContext, complete bool)
 	if ctx.HasCurrent && ctx.CurrentPhase.ID != "" {
 		phaseID = ctx.CurrentPhase.ID
 	}
+	instructions := []string{"Run or read the structured setup items before editing.", "Record decisions or findings as they occur.", "Run validation before marking the phase done."}
+	if reminders := boundaryReminders(ctx.ChangeBoundary); len(reminders) > 0 {
+		instructions = append(reminders, instructions...)
+	}
 	step := GuidedStep{
 		StepKind:     "phase_context",
 		Title:        "Phase Context",
 		Summary:      "Use the current phase setup context to implement, capture decisions/findings, and transition status.",
-		Instructions: []string{"Run or read the structured setup items before editing.", "Record decisions or findings as they occur.", "Run validation before marking the phase done."},
+		Instructions: instructions,
 		NextActions: []NextAction{
 			phasePrimaryAction(executionID, planID, phaseID, ctx),
 			{

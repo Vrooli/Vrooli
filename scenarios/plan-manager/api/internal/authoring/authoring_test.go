@@ -192,7 +192,7 @@ type fakeAnchor struct {
 	out string
 }
 
-func (f fakeAnchor) DeriveAnchorIntent(_ context.Context, _, _ string) string {
+func (f fakeAnchor) DeriveAnchorIntent(_ context.Context, _, _ string, _ planmodel.ChangeBoundary) string {
 	return f.out
 }
 
@@ -333,6 +333,7 @@ func fillMandatory(t *testing.T, svc authoring.Service, sessionID string) author
 		{authoring.SectionTargetOutcome, "Widgets are reliable and reviewable."},
 		{authoring.SectionScope, "In: widget core."},
 		{authoring.SectionTechnicalApproach, "Refactor the widget core behind a seam."},
+		{authoring.SectionAcceptanceBoundary, "acceptance_allow:\n- scenarios/plan-manager/**"},
 		{authoring.SectionReferences, "NO_CODE_REFS: unit test fixture has no connected production code"},
 		{authoring.SectionRegressionAnchor, "baseline captured at HEAD abc123"},
 		{authoring.SectionValidationStrategy, "Run the widget unit suite and compare against the baseline."},
@@ -535,6 +536,8 @@ func TestFinalizeRejectsInvalidCLIReferences(t *testing.T) {
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionScope, "In: widget core.")
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionTechnicalApproach, "An approach.")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionAcceptanceBoundary, "acceptance_allow:\n- scenarios/plan-manager/**")
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "NO_CODE_REFS: command validation fixture exercises CLI references only")
 	require.NoError(t, err)
@@ -842,6 +845,8 @@ func TestPhaseNativeAuthoringValidatesAndFinalizesStructuredPhase(t *testing.T) 
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionTechnicalApproach, "Phase-native guided steps over one big blob.")
 	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionAcceptanceBoundary, "acceptance_allow:\n- scenarios/plan-manager/**")
+	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "[CODE: scenarios/plan-manager/api/internal/authoring/service.go]")
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "baseline captured")
@@ -975,6 +980,8 @@ func TestReferenceGateRequiresReferenceOrExplicitReason(t *testing.T) {
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionTechnicalApproach, "An approach.")
 	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionAcceptanceBoundary, "acceptance_allow:\n- scenarios/plan-manager/**")
+	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "anchor")
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionValidationStrategy, "Run the suite.")
@@ -1013,6 +1020,8 @@ func TestPhaseContextGateRequiresContextOrExplicitNoContextReason(t *testing.T) 
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionScope, "In scope.")
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionTechnicalApproach, "An approach.")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionAcceptanceBoundary, "acceptance_allow:\n- scenarios/plan-manager/**")
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "NO_CODE_REFS: fixture")
 	require.NoError(t, err)
@@ -1056,15 +1065,18 @@ func TestPhaseContextGateRequiresContextOrExplicitNoContextReason(t *testing.T) 
 // degrading to legacy prose.
 func TestAnchorIntentDerivesTypedIntentNoSnapshot(t *testing.T) {
 	ctx := context.Background()
-	// No CommandRunner is involved at all; the default deriver is pure.
-	got := authoring.DefaultAnchorIntentDeriver().DeriveAnchorIntent(ctx, "Improve validation", "improve-validation")
-	require.Contains(t, got, "Strategy: scenario-baseline")
+	// No CommandRunner is involved at all; the default deriver is pure. The anchor
+	// is boundary-native: affected scenarios + commands derive from the boundary,
+	// with no hand-authored <scenario> placeholder.
+	boundary := planmodel.ChangeBoundary{AcceptanceAllow: []string{"scenarios/plan-manager/**", "packages/proto/**"}}
+	got := authoring.DefaultAnchorIntentDeriver().DeriveAnchorIntent(ctx, "Improve validation", "improve-validation", boundary)
+	require.Contains(t, got, "Strategy: "+planmodel.AnchorStrategyChangeBoundary)
 	require.Contains(t, got, "Baseline name: improve-validation-baseline")
-	require.Contains(t, got, "Allowlist: scenarios/<scenario>/**")
-	require.NotContains(t, got, "snapshot status", "intent must not depend on a captured snapshot")
+	require.NotContains(t, got, "<scenario>", "boundary-native intent must not carry a scenario placeholder")
+	require.Contains(t, got, "git-control-tower baseline diff --scenario plan-manager --name improve-validation-baseline")
 
 	anchor := planmodel.ParseRegressionAnchorBlock(got)
-	require.Equal(t, "scenario-baseline", anchor.Strategy)
+	require.Equal(t, planmodel.AnchorStrategyChangeBoundary, anchor.Strategy)
 	require.Equal(t, "improve-validation-baseline", anchor.BaselineName)
 }
 
@@ -1219,6 +1231,8 @@ func TestFinalizeRejectsNonParseablePhaseMarkup(t *testing.T) {
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionTechnicalApproach, "Refactor behind a seam.")
 	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionAcceptanceBoundary, "acceptance_allow:\n- scenarios/plan-manager/**")
+	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "NO_CODE_REFS: malformed phase markup fixture")
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "baseline captured at HEAD abc123")
@@ -1299,6 +1313,22 @@ func TestPreviewAppliesPostureSeam(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, md, "deployed or limited-live", "brownfield posture block must appear in preview")
 	require.NotContains(t, md, "**This is greenfield work.**", "preview must not show greenfield when the scenario resolves brownfield")
+}
+
+// TestPreviewShowsChangeBoundary proves preview/finalize parity for the boundary:
+// the preview render uses the same boundary path as the persisted render, so the
+// Change Boundary section and its allow globs appear before finalize.
+func TestPreviewShowsChangeBoundary(t *testing.T) {
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Renderer: testRenderer{}})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Preview boundary", "preview-boundary", "")
+	require.NoError(t, err)
+	fillMandatory(t, svc, sess.ID)
+
+	md, _, err := svc.PreviewPlan(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Contains(t, md, "## Change Boundary", "preview must render the change boundary")
+	require.Contains(t, md, "scenarios/plan-manager/**", "preview must show the authored allow glob")
 }
 
 // TestUpdateAndRemoveRelevantContextItem covers the accepted-context recovery
@@ -1385,9 +1415,107 @@ func TestRegressionAnchorStepOffersIntentNotSnapshot(t *testing.T) {
 		}
 		if a.ID == "submit-anchor-intent" {
 			hasConfirm = true
-			require.Contains(t, a.ContentPlaceholder, "Scenario baseline:")
+			require.Contains(t, a.ContentPlaceholder, "Strategy: "+planmodel.AnchorStrategyChangeBoundary)
+			require.NotContains(t, a.ContentPlaceholder, "<scenario>", "boundary-native anchor must not carry a scenario placeholder")
 		}
 	}
 	require.True(t, hasDerive, "anchor step must offer a derive-intent action")
 	require.True(t, hasConfirm, "anchor step must offer a confirm/adjust-intent action")
+}
+
+// TestBoundaryGateRequiresAllowOrOperatorOnly proves the change-boundary section
+// is mandatory but satisfiable by an OPERATOR_ONLY reason, and that the finalized
+// plan carries the parsed acceptance_allow / acceptance_deny.
+func TestBoundaryGateRequiresAllowOrOperatorOnly(t *testing.T) {
+	writer := &fakePlanWriter{}
+	svc := newService(t, authoring.Deps{Writer: writer})
+	ctx := context.Background()
+	sess := fillMandatorySession(t, svc)
+
+	// Empty boundary fails the gate.
+	_, violations, _, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionAcceptanceBoundary, "   ")
+	require.NoError(t, err)
+	require.NotEmpty(t, violations)
+	require.Contains(t, violations[0].Message, "change boundary must declare")
+
+	// A placeholder allow glob is rejected.
+	_, violations, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionAcceptanceBoundary, "acceptance_allow:\n- scenarios/<scenario>/**")
+	require.NoError(t, err)
+	require.NotEmpty(t, violations, "unresolved <scenario> placeholder must be rejected")
+
+	// A real allow list passes and finalizes with the parsed boundary.
+	_, violations, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionAcceptanceBoundary,
+		"acceptance_allow:\n- scenarios/plan-manager/**\n- packages/proto/**\nacceptance_deny:\n- scenarios/swarm-manager/**")
+	require.NoError(t, err)
+	require.Empty(t, violations)
+
+	plan, _, err := svc.Finalize(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"packages/proto/**", "scenarios/plan-manager/**"}, plan.ChangeBoundary.AcceptanceAllow)
+	require.Equal(t, []string{"scenarios/swarm-manager/**"}, plan.ChangeBoundary.AcceptanceDeny)
+}
+
+// TestBoundaryOperatorOnlyEscape proves an operator-only/no-code plan satisfies
+// the boundary gate without an allow list.
+func TestBoundaryOperatorOnlyEscape(t *testing.T) {
+	writer := &fakePlanWriter{}
+	svc := newService(t, authoring.Deps{Writer: writer})
+	ctx := context.Background()
+	sess := fillMandatorySession(t, svc)
+
+	_, violations, _, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionAcceptanceBoundary,
+		"OPERATOR_ONLY: documentation-only operator decision with no editable repo paths")
+	require.NoError(t, err)
+	require.Empty(t, violations)
+
+	plan, _, err := svc.Finalize(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Empty(t, plan.ChangeBoundary.AcceptanceAllow)
+	require.Contains(t, plan.ChangeBoundary.OperatorOnlyReason, "documentation-only")
+}
+
+// fillMandatorySession starts a session and fills every mandatory section EXCEPT
+// the change boundary plus a complete phase and resolved global context, leaving
+// the boundary for the caller to exercise.
+func fillMandatorySession(t *testing.T, svc authoring.Service) authoring.Session {
+	t.Helper()
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Boundary fixture", "boundary-fixture", "")
+	require.NoError(t, err)
+	for _, item := range []struct {
+		key authoring.SectionKey
+		val string
+	}{
+		{authoring.SectionPurpose, "Purpose."},
+		{authoring.SectionProblemStatement, "Problem."},
+		{authoring.SectionTargetOutcome, "Outcome."},
+		{authoring.SectionScope, "In: core."},
+		{authoring.SectionTechnicalApproach, "Approach."},
+		{authoring.SectionReferences, "NO_CODE_REFS: boundary fixture"},
+		{authoring.SectionRegressionAnchor, "anchor"},
+		{authoring.SectionValidationStrategy, "Run the suite."},
+		{authoring.SectionDefinitionOfDone, "Done."},
+		{authoring.SectionRelevantContext, "NO_CONTEXT: boundary fixture needs no plan-wide setup."},
+	} {
+		_, _, _, err := svc.SubmitSection(ctx, sess.ID, item.key, item.val)
+		require.NoError(t, err)
+	}
+	_, phase, _, _, err := svc.AddPhase(ctx, sess.ID, "Work", "Do the work.")
+	require.NoError(t, err)
+	for _, f := range []struct {
+		field authoring.PhaseField
+		val   string
+	}{
+		{authoring.PhaseFieldNoCodeRefsReason, "NO_CODE_REFS: fixture"},
+		{authoring.PhaseFieldSteps, "Do the thing"},
+		{authoring.PhaseFieldValidation, "go test ./..."},
+		{authoring.PhaseFieldAcceptance, "Tests pass."},
+		{authoring.PhaseFieldRelevantContext, "NO_CONTEXT: phase needs no extra setup."},
+	} {
+		_, _, _, err := svc.SubmitPhaseField(ctx, sess.ID, phase.ID, f.field, f.val)
+		require.NoError(t, err)
+	}
+	s, _, err := svc.GetSession(ctx, sess.ID)
+	require.NoError(t, err)
+	return s
 }

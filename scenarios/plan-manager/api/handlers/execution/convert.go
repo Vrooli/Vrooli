@@ -42,6 +42,7 @@ func phaseContextToProto(c internalexecution.PhaseContext) *executionv1.PhaseCon
 		InputsFreshened: c.InputsFreshened,
 		FreshenStatus:   c.FreshenStatus,
 		FreshenDetail:   c.FreshenDetail,
+		ChangeBoundary:  planproto.ChangeBoundaryToProto(c.ChangeBoundary),
 	}
 	if c.HasCurrent {
 		out.CurrentPhase = phaseToProto(c.CurrentPhase)
@@ -80,6 +81,7 @@ func handoffToProto(h internalexecution.Handoff) *sharedv1.Handoff {
 		Staleness:       stalenessToProto(h.Staleness),
 		ProseHandoffRef: h.ProseHandoffRef,
 		AssembledAt:     h.AssembledAt,
+		ChangeBoundary:  planproto.ChangeBoundaryToProto(h.ChangeBoundary),
 	}
 	if h.HasValidation {
 		out.LastValidation = validationResultToProto(h.LastValidation)

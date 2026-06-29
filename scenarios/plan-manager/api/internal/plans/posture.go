@@ -8,15 +8,18 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 )
 
 // Work-posture derivation. The Greenfield/Brownfield stance of a plan is
-// AUTOFILLED from the associated scenario's maturity — never typed by an
-// authoring agent. The default is Greenfield unless a scenario's
-// .vrooli/service.json maturity proves otherwise. This is the one place posture
-// is decided; render.go projects it and the wizard only reviews it. See
-// docs/concepts/PLAN-MODEL.md (Work Posture).
+// AUTOFILLED — never typed by an authoring agent. It is derived CONSERVATIVELY
+// and in AGGREGATE across every scenario the plan's change boundary and
+// references touch: if any affected scenario is pilot/production/sunset the plan
+// is Brownfield; otherwise Greenfield. The default is Greenfield unless a
+// scenario's .vrooli/service.json maturity proves otherwise. This is the one
+// place posture is decided; render.go projects it and the wizard only reviews it.
+// See docs/concepts/PLAN-MODEL.md (Work Posture).
 
 // Recognized scenario maturity values (mirrors api-core/projectmeta and
 // .vrooli/schemas/service.schema.json). Absent/unrecognized => greenfield.
@@ -37,9 +40,12 @@ type MaturityReader interface {
 }
 
 // ResolvePosture derives the work posture for a plan. It honors an explicit
-// override or an imported posture and never clobbers it; otherwise it resolves
-// the associated scenario and reads its maturity through the seam, defaulting to
-// Greenfield. The returned triple is (posture, source, detail).
+// override or an imported posture and never clobbers it; otherwise it collects
+// EVERY scenario the change boundary and references touch and derives the posture
+// CONSERVATIVELY across all of them: if any affected scenario is pilot/production/
+// sunset the plan is Brownfield (and the detail names the causes); otherwise it is
+// Greenfield. No code path uses "first scenario wins." The returned triple is
+// (posture, source, detail).
 func ResolvePosture(ctx context.Context, p Plan, reader MaturityReader) (WorkPosture, WorkPostureSource, string) {
 	// An explicit override or imported posture is authoritative.
 	if p.WorkPostureSource == WorkPostureSourceExplicitOverride ||
@@ -47,66 +53,105 @@ func ResolvePosture(ctx context.Context, p Plan, reader MaturityReader) (WorkPos
 		return p.WorkPosture, p.WorkPostureSource, p.WorkPostureDetail
 	}
 
-	scenario := scenarioForPlan(p)
-	if scenario == "" || reader == nil {
+	scenarios := affectedScenariosForPlan(p)
+	if len(scenarios) == 0 {
 		return WorkPostureGreenfield, WorkPostureSourceDefault,
-			"No associated scenario resolved; defaulting to greenfield."
+			"No affected scenario resolved; defaulting to greenfield."
+	}
+	if reader == nil {
+		return WorkPostureGreenfield, WorkPostureSourceDefault,
+			"Maturity reader unavailable; defaulting to greenfield."
 	}
 
-	maturity, ok, err := reader.Maturity(ctx, scenario)
-	if err != nil || !ok {
-		return WorkPostureGreenfield, WorkPostureSourceDefault,
-			fmt.Sprintf("Could not read maturity for scenario %q; defaulting to greenfield.", scenario)
+	var brownfieldCauses []string
+	var unreadable []string
+	readAny := false
+	for _, scenario := range scenarios {
+		maturity, ok, err := reader.Maturity(ctx, scenario)
+		if err != nil || !ok {
+			unreadable = append(unreadable, scenario)
+			continue
+		}
+		readAny = true
+		switch strings.TrimSpace(maturity) {
+		case maturityPilot:
+			brownfieldCauses = append(brownfieldCauses, fmt.Sprintf("%s (pilot)", scenario))
+		case maturityProduction:
+			brownfieldCauses = append(brownfieldCauses, fmt.Sprintf("%s (production)", scenario))
+		case maturitySunset:
+			brownfieldCauses = append(brownfieldCauses, fmt.Sprintf("%s (sunset)", scenario))
+		}
 	}
 
-	switch strings.TrimSpace(maturity) {
-	case maturityPilot:
+	if len(brownfieldCauses) > 0 {
 		return WorkPostureBrownfield, WorkPostureSourceServiceMaturity,
-			fmt.Sprintf("Scenario %q is in pilot (limited live use); preserve external contracts unless a breaking change is explicitly authorized.", scenario)
-	case maturityProduction:
-		return WorkPostureBrownfield, WorkPostureSourceServiceMaturity,
-			fmt.Sprintf("Scenario %q is in production (serving real data); preserve external contracts and data unless a breaking change is explicitly authorized.", scenario)
-	case maturitySunset:
-		return WorkPostureBrownfield, WorkPostureSourceServiceMaturity,
-			fmt.Sprintf("Scenario %q is being retired (sunset); prefer non-invasive changes and avoid new surface area.", scenario)
-	case maturityGreenfield, "":
-		return WorkPostureGreenfield, WorkPostureSourceServiceMaturity,
-			fmt.Sprintf("Scenario %q maturity is greenfield.", scenario)
-	default:
-		return WorkPostureGreenfield, WorkPostureSourceServiceMaturity,
-			fmt.Sprintf("Scenario %q has an unrecognized maturity %q; defaulting to greenfield.", scenario, maturity)
+			fmt.Sprintf("Brownfield because affected scenario(s) are deployed or limited-live: %s. Preserve external contracts and data unless the plan explicitly authorizes a breaking change.",
+				strings.Join(brownfieldCauses, ", "))
 	}
+
+	// No scenario maturity could actually be read — honest default, not a derived
+	// greenfield claim.
+	if !readAny {
+		return WorkPostureGreenfield, WorkPostureSourceDefault,
+			fmt.Sprintf("Maturity for affected scenario(s) %s could not be read; defaulting to greenfield.",
+				strings.Join(unreadable, ", "))
+	}
+
+	detail := fmt.Sprintf("All affected scenarios are greenfield: %s.", strings.Join(scenarios, ", "))
+	if len(unreadable) > 0 {
+		detail += fmt.Sprintf(" Maturity for %s could not be read; treated as greenfield.", strings.Join(unreadable, ", "))
+	}
+	return WorkPostureGreenfield, WorkPostureSourceServiceMaturity, detail
 }
 
 var scenarioRefPattern = regexp.MustCompile(`scenarios/([A-Za-z0-9._-]+)`)
 
-// scenarioForPlan derives the scenario a plan is about from its strongest
-// signals, in priority order: the regression anchor's scenario baseline, then a
-// `scenarios/<name>/...` code reference (plan or phase scope). Returns "" when no
-// scenario can be associated.
-func scenarioForPlan(p Plan) string {
-	if s := strings.TrimSpace(p.RegressionAnchor.Scenario); s != "" {
-		return s
+// affectedScenariosForPlan collects every scenario the plan touches, from (in
+// no priority order — all contribute): the change boundary's allow globs, each
+// phase boundary's allow globs, the plan/phase regression-anchor scenario (legacy
+// imported anchors), and `scenarios/<name>/...` code references at plan and phase
+// scope. The result is deduplicated and sorted so posture derivation is
+// deterministic.
+func affectedScenariosForPlan(p Plan) []string {
+	seen := map[string]struct{}{}
+	add := func(name string) {
+		name = strings.TrimSpace(name)
+		if name != "" {
+			seen[name] = struct{}{}
+		}
 	}
-	if s := scenarioFromReferences(p.References); s != "" {
-		return s
+	for _, s := range p.ChangeBoundary.AffectedScenarios() {
+		add(s)
+	}
+	add(p.RegressionAnchor.Scenario)
+	for _, ref := range p.References {
+		add(scenarioFromReference(ref))
 	}
 	for _, ph := range p.Phases {
-		if s := scenarioFromReferences(ph.References); s != "" {
-			return s
+		for _, s := range ph.ChangeBoundary.AffectedScenarios() {
+			add(s)
+		}
+		for _, ref := range ph.References {
+			add(scenarioFromReference(ref))
 		}
 	}
-	return ""
+	if len(seen) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(seen))
+	for name := range seen {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
 }
 
-func scenarioFromReferences(refs []Reference) string {
-	for _, ref := range refs {
-		if ref.Kind != ReferenceCode {
-			continue
-		}
-		if m := scenarioRefPattern.FindStringSubmatch(ref.Target); m != nil {
-			return m[1]
-		}
+func scenarioFromReference(ref Reference) string {
+	if ref.Kind != ReferenceCode {
+		return ""
+	}
+	if m := scenarioRefPattern.FindStringSubmatch(ref.Target); m != nil {
+		return m[1]
 	}
 	return ""
 }

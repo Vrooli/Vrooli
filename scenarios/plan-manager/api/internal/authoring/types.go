@@ -42,6 +42,7 @@ const (
 	SectionTechnicalApproach    SectionKey = "technical_approach"
 	SectionConstraints          SectionKey = "constraints"
 	SectionProhibitedApproaches SectionKey = "prohibited_approaches"
+	SectionAcceptanceBoundary   SectionKey = "acceptance_boundary"
 	SectionReferences           SectionKey = "references"
 	SectionRegressionAnchor     SectionKey = "regression_anchor"
 	SectionRequiredReading      SectionKey = "required_reading"
@@ -285,6 +286,7 @@ var defaultSkeleton = []sectionSpec{
 	{Key: SectionTechnicalApproach, Label: "Technical Approach", Mandatory: true},
 	{Key: SectionConstraints, Label: "Constraints", Mandatory: false},
 	{Key: SectionProhibitedApproaches, Label: "Prohibited Approaches", Mandatory: false},
+	{Key: SectionAcceptanceBoundary, Label: "Change Boundary", Mandatory: true},
 	{Key: SectionReferences, Label: "References", Mandatory: true},
 	{Key: SectionRegressionAnchor, Label: "Regression anchor", Mandatory: true},
 	{Key: SectionRelevantContext, Label: "Relevant context", Mandatory: false},

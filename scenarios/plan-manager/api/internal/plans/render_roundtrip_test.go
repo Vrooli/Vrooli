@@ -30,6 +30,10 @@ func comprehensivePlan() plans.Plan {
 		References: []plans.Reference{
 			{Kind: plans.ReferenceCode, Target: "scenarios/plan-manager/api/internal/plans/render.go"},
 		},
+		ChangeBoundary: plans.ChangeBoundary{
+			AcceptanceAllow: []string{"scenarios/plan-manager/**", "packages/proto/**"},
+			AcceptanceDeny:  []string{"scenarios/swarm-manager/**"},
+		},
 		RegressionAnchor: plans.RegressionAnchor{
 			Strategy:     "scenario_baseline",
 			Scenario:     "plan-manager",
@@ -59,10 +63,13 @@ func comprehensivePlan() plans.Plan {
 				},
 			},
 			{
-				Title:           "Renderer",
-				Intent:          "Project the new fields deterministically.",
-				Status:          plans.PhaseStatusTodo,
-				AffectedAreas:   []string{"plans/render.go"},
+				Title:         "Renderer",
+				Intent:        "Project the new fields deterministically.",
+				Status:        plans.PhaseStatusTodo,
+				AffectedAreas: []string{"plans/render.go"},
+				ChangeBoundary: plans.ChangeBoundary{
+					AcceptanceAllow: []string{"scenarios/plan-manager/api/internal/plans/**"},
+				},
 				Steps:           []string{"Add Work Posture section", "Add new field sections"},
 				ExpectedOutputs: []string{"Rendered markdown shows Work Posture"},
 				Validation:      "go test ./internal/plans",
@@ -104,11 +111,92 @@ func TestRenderShowsWorkPostureAndGreenfieldBlock(t *testing.T) {
 		"**Ordered Steps:**",
 		"**Affected Areas:**",
 		"**Phase Validation:**",
+		"## Change Boundary",
+		"**Acceptance allow:**",
+		"- `scenarios/plan-manager/**`",
+		"**Acceptance deny:**",
+		"**Scenario baseline oracle:**",
 	} {
 		if !strings.Contains(md, want) {
 			t.Errorf("rendered markdown missing %q\n---\n%s", want, md)
 		}
 	}
+}
+
+// TestRenderParseRecoversChangeBoundary asserts the plan-level and phase-level
+// change boundary round-trips through render -> parse without loss, including the
+// boundary-native anchor's tiered (oracle vs informational) command labels.
+func TestRenderParseRecoversChangeBoundary(t *testing.T) {
+	p := plans.Plan{
+		Title:  "Boundary plan",
+		Status: plans.PlanStatusDraft,
+		ChangeBoundary: plans.ChangeBoundary{
+			AcceptanceAllow: []string{"scenarios/plan-manager/**", "packages/proto/**", "docs/**"},
+			AcceptanceDeny:  []string{"scenarios/swarm-manager/**"},
+		},
+		RegressionAnchor: plans.RegressionAnchor{
+			Strategy:     plans.AnchorStrategyChangeBoundary,
+			BaselineName: "boundary-plan-baseline",
+			Commands: []string{
+				"git-control-tower baseline snapshot status --scenario plan-manager --name boundary-plan-baseline",
+				"git-control-tower baseline diff --scenario plan-manager --name boundary-plan-baseline",
+				"git diff --stat -- docs/** packages/proto/**",
+			},
+		},
+		Phases: []plans.Phase{{
+			Title:      "Only",
+			Intent:     "x",
+			Status:     plans.PhaseStatusTodo,
+			Steps:      []string{"do"},
+			Validation: "go test",
+			Acceptance: "passes",
+			ChangeBoundary: plans.ChangeBoundary{
+				AcceptanceAllow: []string{"scenarios/plan-manager/api/**"},
+				AcceptanceDeny:  []string{"scenarios/plan-manager/ui/**"},
+			},
+		}},
+	}
+	md := plans.RenderMarkdown(p)
+	parsed, err := planmodel.ParsePlanMarkdown(md)
+	if err != nil {
+		t.Fatalf("parse: %v\n%s", err, md)
+	}
+	wantAllow := []string{"docs/**", "packages/proto/**", "scenarios/plan-manager/**"}
+	if got := parsed.ChangeBoundary.AcceptanceAllow; !equalStrings(got, wantAllow) {
+		t.Errorf("plan allow = %v, want %v", got, wantAllow)
+	}
+	if got := parsed.ChangeBoundary.AcceptanceDeny; !equalStrings(got, []string{"scenarios/swarm-manager/**"}) {
+		t.Errorf("plan deny = %v", got)
+	}
+	if len(parsed.Phases) != 1 {
+		t.Fatalf("expected 1 phase, got %d", len(parsed.Phases))
+	}
+	if got := parsed.Phases[0].ChangeBoundary.AcceptanceAllow; !equalStrings(got, []string{"scenarios/plan-manager/api/**"}) {
+		t.Errorf("phase allow = %v", got)
+	}
+	if got := parsed.Phases[0].ChangeBoundary.AcceptanceDeny; !equalStrings(got, []string{"scenarios/plan-manager/ui/**"}) {
+		t.Errorf("phase deny = %v", got)
+	}
+	// Tiered labels present and informational diff is not mislabeled as an oracle.
+	if !strings.Contains(md, "**Repo/path diff (informational, not a pass/fail oracle):**") {
+		t.Errorf("missing informational tier label\n%s", md)
+	}
+	// Idempotent re-render.
+	if md2 := plans.RenderMarkdown(parsed); md2 != md {
+		t.Errorf("boundary render not idempotent:\n--- md ---\n%s\n--- md2 ---\n%s", md, md2)
+	}
+}
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // TestRenderParseRecoversNewFields asserts the parser recovers every new plan and

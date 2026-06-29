@@ -50,6 +50,15 @@ func RenderMarkdown(p Plan) string {
 		b.WriteString("\n")
 	}
 
+	// Change Boundary — the blast-radius contract, rendered before references and
+	// the regression anchor (both of which derive from it). Omitted only when the
+	// plan carries no boundary (legacy imports before the hard cutover).
+	if !p.ChangeBoundary.IsZero() {
+		b.WriteString("## Change Boundary\n\n")
+		b.WriteString(renderChangeBoundary(p.ChangeBoundary))
+		b.WriteString("\n")
+	}
+
 	if len(p.References) > 0 {
 		b.WriteString("## References\n\n")
 		for _, ref := range p.References {
@@ -210,6 +219,9 @@ func renderPhase(ph Phase, fallbackOrder int) string {
 	}
 	b.WriteString("\n")
 	renderStringList(&b, "Affected Areas", ph.AffectedAreas, false)
+	if !ph.ChangeBoundary.IsZero() {
+		b.WriteString(renderPhaseChangeBoundary(ph.ChangeBoundary))
+	}
 	context := phaseRelevantContext(ph)
 	if len(context) > 0 {
 		b.WriteString("**Phase Context Setup:**\n\n")
@@ -450,6 +462,62 @@ func renderReference(ref Reference) string {
 	return line + "\n"
 }
 
+// renderChangeBoundary renders the acceptance_allow / acceptance_deny lists (and
+// an operator-only reason when no allow list exists). Globs are backticked so the
+// parser recovers them verbatim and the markdown reads cleanly. Affected
+// scenarios are NOT rendered here — they are derived and surfaced by posture and
+// the anchor, keeping this section purely the authored source of truth.
+func renderChangeBoundary(b ChangeBoundary) string {
+	b = b.Normalized()
+	var sb strings.Builder
+	if len(b.AcceptanceAllow) > 0 {
+		sb.WriteString("**Acceptance allow:**\n")
+		for _, g := range b.AcceptanceAllow {
+			fmt.Fprintf(&sb, "- `%s`\n", g)
+		}
+		sb.WriteString("\n")
+	}
+	if len(b.AcceptanceDeny) > 0 {
+		sb.WriteString("**Acceptance deny:**\n")
+		for _, g := range b.AcceptanceDeny {
+			fmt.Fprintf(&sb, "- `%s`\n", g)
+		}
+		sb.WriteString("\n")
+	}
+	if b.OperatorOnlyReason != "" {
+		fmt.Fprintf(&sb, "- Operator-only: %s\n", b.OperatorOnlyReason)
+	}
+	return sb.String()
+}
+
+// renderPhaseChangeBoundary renders a phase's optional boundary refinement as a
+// compact bold-header block (Allow/Deny comma lists) terminated like other phase
+// blocks. It is recovered by parsePhaseChangeBoundary.
+func renderPhaseChangeBoundary(b ChangeBoundary) string {
+	b = b.Normalized()
+	var sb strings.Builder
+	sb.WriteString("**Change Boundary:**\n")
+	if len(b.AcceptanceAllow) > 0 {
+		fmt.Fprintf(&sb, "- Allow: %s\n", backtickJoin(b.AcceptanceAllow))
+	}
+	if len(b.AcceptanceDeny) > 0 {
+		fmt.Fprintf(&sb, "- Deny: %s\n", backtickJoin(b.AcceptanceDeny))
+	}
+	if b.OperatorOnlyReason != "" {
+		fmt.Fprintf(&sb, "- Operator-only: %s\n", b.OperatorOnlyReason)
+	}
+	sb.WriteString("\n")
+	return sb.String()
+}
+
+func backtickJoin(values []string) string {
+	quoted := make([]string, 0, len(values))
+	for _, v := range values {
+		quoted = append(quoted, "`"+v+"`")
+	}
+	return strings.Join(quoted, ", ")
+}
+
 func renderAnchor(a RegressionAnchor) string {
 	var b strings.Builder
 	if a.Unavailable {
@@ -477,10 +545,49 @@ func renderAnchor(a RegressionAnchor) string {
 	if a.CapturedAt != "" {
 		fmt.Fprintf(&b, "- Captured at: `%s`\n", a.CapturedAt)
 	}
-	for _, c := range a.Commands {
-		fmt.Fprintf(&b, "- `%s`\n", c)
-	}
+	renderAnchorCommands(&b, a.Commands)
 	return b.String()
+}
+
+// renderAnchorCommands groups the anchor's derived commands into the scenario
+// baseline ORACLE tier and the repo/path diff INFORMATIONAL tier, with explicit
+// labels so a reviewer never mistakes an informational diff for a pass/fail
+// oracle. Commands are still rendered as backticked bullets so the parser
+// recovers them verbatim; the bold labels are presentation-only.
+func renderAnchorCommands(b *strings.Builder, commands []string) {
+	if len(commands) == 0 {
+		return
+	}
+	var oracle, informational []string
+	for _, c := range commands {
+		if isInformationalDiffCommand(c) {
+			informational = append(informational, c)
+		} else {
+			oracle = append(oracle, c)
+		}
+	}
+	if len(oracle) > 0 {
+		b.WriteString("**Scenario baseline oracle:**\n")
+		for _, c := range oracle {
+			fmt.Fprintf(b, "- `%s`\n", c)
+		}
+	}
+	if len(informational) > 0 {
+		if len(oracle) > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString("**Repo/path diff (informational, not a pass/fail oracle):**\n")
+		for _, c := range informational {
+			fmt.Fprintf(b, "- `%s`\n", c)
+		}
+	}
+}
+
+// isInformationalDiffCommand reports whether a derived anchor/validation command
+// is a repo/path diff (informational) rather than a scenario baseline oracle. It
+// mirrors the validation domain's isOracleCommand split.
+func isInformationalDiffCommand(cmd string) bool {
+	return strings.HasPrefix(strings.TrimSpace(cmd), "git diff")
 }
 
 func writeSection(b *strings.Builder, heading, body string) {

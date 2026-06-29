@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	planmodel "plan-manager/internal/planmodel"
 )
 
 func stepForSession(sess Session) GuidedStep {
@@ -44,12 +46,15 @@ func stepForSection(sess Session, sec Section) GuidedStep {
 		// regression-anchor recovery posture.
 		step.NextActions = referencesRecoveryActions(sess)
 	}
+	if sec.Key == SectionAcceptanceBoundary {
+		step.NextActions = changeBoundaryActions(sess)
+	}
 	if sec.Key == SectionRegressionAnchor {
 		// The anchor carries concrete actions: derive the typed intent
 		// mechanically (no snapshot — the executor captures that at execution
 		// start), or confirm/adjust the derived intent block by hand.
 		step.NextActions = regressionAnchorRecoveryActions(sess)
-		step.Examples = append(step.Examples, RegressionAnchorIntentTemplate(sess.Title, sess.Slug))
+		step.Examples = append(step.Examples, RegressionAnchorIntentTemplate(sess.Title, sess.Slug, sessionBoundary(sess)))
 	}
 	if sec.Key == SectionRelevantContext {
 		step.NextActions = []NextAction{
@@ -182,6 +187,16 @@ func sectionBaseStep(key SectionKey) GuidedStep {
 			RequiredInputs: []string{"scope"},
 			Examples:       []string{"In scope: authoring API/CLI/UI phase wizard. Out of scope: swarm-manager consumer inversion."},
 			CommonMistakes: []string{"Using scope as another purpose paragraph.", "Omitting explicit non-goals for tempting adjacent work."},
+		}
+	case SectionAcceptanceBoundary:
+		return GuidedStep{
+			StepKind:       "acceptance_boundary",
+			Title:          "Change Boundary",
+			Summary:        "Declare the repo paths this plan may change as acceptance_allow globs (and optional acceptance_deny guardrails). This is the source of truth for posture, the regression anchor, and validation scope.",
+			Instructions:   []string{"List one path glob per line under acceptance_allow: — e.g. scenarios/<name>/**, packages/<pkg>/**, docs/**.", "Use acceptance_deny: for paths that must NOT change (guardrails only — they never widen scope).", "Do NOT name a primary scenario — scenario identity is derived from the allow globs.", "If the plan is genuinely operator-only/no-code, record OPERATOR_ONLY: <reason> instead.", "Replace every <placeholder> with a real path before finalizing."},
+			RequiredInputs: []string{"acceptance_allow globs or an OPERATOR_ONLY reason"},
+			Examples:       []string{"acceptance_allow:\n- scenarios/plan-manager/**\n- packages/proto/**\nacceptance_deny:\n- scenarios/swarm-manager/**", "OPERATOR_ONLY: documentation-only operator decision with no editable repo paths."},
+			CommonMistakes: []string{"Naming a single primary scenario instead of listing path globs.", "Leaving a <scenario>/<path> placeholder unresolved.", "Putting forbidden paths in acceptance_allow."},
 		}
 	case SectionReferences:
 		return GuidedStep{
@@ -321,8 +336,38 @@ func stepForReferenceCandidates(sess Session) GuidedStep {
 // alternative is to confirm/adjust the derived intent block by hand. There is no
 // "capture a baseline snapshot" action here — that moved to execution start,
 // where the "before" is actually true.
+// sessionBoundary parses the session's acceptance-boundary section into a typed
+// ChangeBoundary so anchor derivation and examples reflect the authored boundary.
+func sessionBoundary(sess Session) planmodel.ChangeBoundary {
+	return planmodel.ParseBoundarySection(contentOf(sess.Sections, SectionAcceptanceBoundary))
+}
+
+// changeBoundaryActions are the concrete actions surfaced for the change-boundary
+// section: submit acceptance_allow paths (recommended), or record an
+// OPERATOR_ONLY reason for genuinely no-code/operator-only work.
+func changeBoundaryActions(sess Session) []NextAction {
+	return []NextAction{
+		{
+			ID:                 "submit-boundary",
+			Kind:               NextActionRecommended,
+			Label:              "Submit change boundary",
+			Reason:             "Declare the repo paths this plan may change (acceptance_allow). Scenario identity and the regression anchor derive from these globs.",
+			Argv:               []string{"author", "section-submit", sess.ID, "--section", string(SectionAcceptanceBoundary), "--content", "acceptance_allow:\n- scenarios/<scenario>/**\nacceptance_deny:\n- (optional forbidden globs)"},
+			ContentPlaceholder: "acceptance_allow:\n- scenarios/<scenario>/**\n- packages/<shared>/**",
+		},
+		{
+			ID:                 "submit-operator-only-boundary",
+			Kind:               NextActionRecovery,
+			Label:              "Record OPERATOR_ONLY boundary",
+			Reason:             "Use only when the plan is genuinely operator-only / no-code and has no editable repo paths.",
+			Argv:               []string{"author", "section-submit", sess.ID, "--section", string(SectionAcceptanceBoundary), "--content", "OPERATOR_ONLY: <reason there are no editable repo paths>"},
+			ContentPlaceholder: "OPERATOR_ONLY: <reason there are no editable repo paths>",
+		},
+	}
+}
+
 func regressionAnchorRecoveryActions(sess Session) []NextAction {
-	template := RegressionAnchorIntentTemplate(sess.Title, sess.Slug)
+	template := RegressionAnchorIntentTemplate(sess.Title, sess.Slug, sessionBoundary(sess))
 	return []NextAction{
 		{
 			ID:     "autofill-anchor",
@@ -342,22 +387,29 @@ func regressionAnchorRecoveryActions(sess Session) []NextAction {
 	}
 }
 
-// RegressionAnchorIntentTemplate returns the structured regression-anchor intent
-// block — the primary authoring output for the anchor. Its field keys match the
-// plans-domain anchor parser (Strategy / Scenario baseline / Baseline name /
-// HEAD sha / Allowlist / Diff command), so it parses into typed fields. It
-// records INTENT only (the HEAD sha is a placeholder); the executor captures the
-// real snapshot at execution start.
-func RegressionAnchorIntentTemplate(title, slug string) string {
+// RegressionAnchorIntentTemplate returns the boundary-native regression-anchor
+// intent block — the primary authoring output for the anchor. Its field keys
+// match the plans-domain anchor parser (Strategy / Baseline name / HEAD sha +
+// backticked commands), so it parses into typed fields. Affected scenarios and
+// the tiered baseline/diff commands are DERIVED from the change boundary — no
+// hand-authored `<scenario>` placeholder. It records INTENT only (the HEAD sha is
+// captured fresh at execution start).
+func RegressionAnchorIntentTemplate(title, slug string, boundary planmodel.ChangeBoundary) string {
 	name := anchorBaselineName(title, slug)
-	return strings.Join([]string{
-		"Strategy: scenario-baseline",
-		"Scenario baseline: <scenario>",
+	lines := []string{
+		"Strategy: " + planmodel.AnchorStrategyChangeBoundary,
 		"Baseline name: " + name,
 		"HEAD sha: <captured at execution start>",
-		"Allowlist: scenarios/<scenario>/**",
-		"`git-control-tower baseline diff --scenario <scenario> --name " + name + " --branch <branch> --wait`",
-	}, "\n")
+	}
+	commands, _ := planmodel.BoundaryAnchorCommands(boundary, name, "")
+	for _, c := range commands {
+		lines = append(lines, "`"+c+"`")
+	}
+	if len(commands) == 0 {
+		lines = append(lines,
+			"- _submit the change boundary (acceptance_allow) first; the baseline/diff commands derive from it_")
+	}
+	return strings.Join(lines, "\n")
 }
 
 func anchorBaselineName(title, slug string) string {
@@ -654,6 +706,8 @@ func contentPlaceholderForSection(key SectionKey) string {
 		return "<hard constraints>"
 	case SectionNonGoals:
 		return "<explicit non-goals>"
+	case SectionAcceptanceBoundary:
+		return "acceptance_allow:\n- scenarios/<scenario>/**\n- packages/<shared>/**"
 	case SectionReferences:
 		return "[CODE: path/to/file.go]"
 	case SectionRegressionAnchor:

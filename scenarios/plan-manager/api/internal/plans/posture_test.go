@@ -57,7 +57,7 @@ func TestResolvePosture_MaturityMatrix(t *testing.T) {
 		{"pilot", "pilot-svc", WorkPostureBrownfield, WorkPostureSourceServiceMaturity, "pilot"},
 		{"production", "prod-svc", WorkPostureBrownfield, WorkPostureSourceServiceMaturity, "production"},
 		{"sunset", "sun-svc", WorkPostureBrownfield, WorkPostureSourceServiceMaturity, "sunset"},
-		{"unrecognized", "weird-svc", WorkPostureGreenfield, WorkPostureSourceServiceMaturity, "unrecognized"},
+		{"unrecognized", "weird-svc", WorkPostureGreenfield, WorkPostureSourceServiceMaturity, "greenfield"},
 		{"absent-key", "empty-svc", WorkPostureGreenfield, WorkPostureSourceServiceMaturity, "greenfield"},
 	}
 	for _, tc := range cases {
@@ -119,22 +119,93 @@ func TestResolvePosture_HonorsExplicitAndImport(t *testing.T) {
 	}
 }
 
-func TestScenarioForPlan_PrefersAnchorThenRefs(t *testing.T) {
+func TestAffectedScenariosForPlan_AggregatesAllSignals(t *testing.T) {
 	p := Plan{
+		ChangeBoundary:   ChangeBoundary{AcceptanceAllow: []string{"scenarios/boundary-svc/**", "packages/proto/**"}},
 		RegressionAnchor: RegressionAnchor{Scenario: "anchor-svc"},
 		References:       []Reference{{Kind: ReferenceCode, Target: "scenarios/ref-svc/x.go"}},
+		Phases: []Phase{
+			{
+				ChangeBoundary: ChangeBoundary{AcceptanceAllow: []string{"scenarios/phase-boundary-svc/**"}},
+				References:     []Reference{{Kind: ReferenceCode, Target: "scenarios/phase-ref-svc/y.go"}},
+			},
+		},
 	}
-	if got := scenarioForPlan(p); got != "anchor-svc" {
-		t.Fatalf("anchor should win: got %q", got)
+	got := affectedScenariosForPlan(p)
+	want := []string{"anchor-svc", "boundary-svc", "phase-boundary-svc", "phase-ref-svc", "ref-svc"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("affectedScenariosForPlan = %v, want %v", got, want)
+	}
+	// packages/proto/** is a repo path, never a scenario.
+	for _, s := range got {
+		if s == "proto" || s == "packages" {
+			t.Fatalf("repo path leaked into scenarios: %v", got)
+		}
 	}
 
-	p = Plan{Phases: []Phase{{References: []Reference{{Kind: ReferenceCode, Target: "scenarios/phase-svc/y.go"}}}}}
-	if got := scenarioForPlan(p); got != "phase-svc" {
-		t.Fatalf("phase ref should resolve: got %q", got)
+	if got := affectedScenariosForPlan(Plan{}); got != nil {
+		t.Fatalf("no signal should be nil: got %v", got)
+	}
+}
+
+// TestResolvePosture_AggregateConservative covers the cross-scenario rules: a
+// mixed greenfield+production boundary is Brownfield and names the cause; a
+// non-scenario-only boundary defaults Greenfield; an unreadable scenario degrades
+// honestly to Greenfield with detail.
+func TestResolvePosture_AggregateConservative(t *testing.T) {
+	reader := fakeMaturityReader{maturity: map[string]string{
+		"green-svc": maturityGreenfield,
+		"prod-svc":  maturityProduction,
+	}}
+
+	// Mixed greenfield + production => Brownfield naming the production scenario.
+	mixed := Plan{ChangeBoundary: ChangeBoundary{AcceptanceAllow: []string{
+		"scenarios/green-svc/**", "scenarios/prod-svc/**",
+	}}}
+	posture, source, detail := ResolvePosture(context.Background(), mixed, reader)
+	if posture != WorkPostureBrownfield || source != WorkPostureSourceServiceMaturity {
+		t.Fatalf("mixed => %q/%q, want brownfield/service_maturity", posture, source)
+	}
+	if !strings.Contains(detail, "prod-svc (production)") {
+		t.Fatalf("brownfield detail should name cause: %q", detail)
 	}
 
-	if got := scenarioForPlan(Plan{}); got != "" {
-		t.Fatalf("no signal should be empty: got %q", got)
+	// Only non-scenario paths => Greenfield default.
+	repoOnly := Plan{ChangeBoundary: ChangeBoundary{AcceptanceAllow: []string{"packages/proto/**", "docs/**"}}}
+	posture, source, _ = ResolvePosture(context.Background(), repoOnly, reader)
+	if posture != WorkPostureGreenfield || source != WorkPostureSourceDefault {
+		t.Fatalf("repo-only => %q/%q, want greenfield/default", posture, source)
+	}
+
+	// Unknown scenario service.json (all unreadable) => Greenfield default with
+	// honest degradation detail.
+	unknown := Plan{ChangeBoundary: ChangeBoundary{AcceptanceAllow: []string{"scenarios/missing-svc/**"}}}
+	posture, source, detail = ResolvePosture(context.Background(), unknown, reader)
+	if posture != WorkPostureGreenfield || source != WorkPostureSourceDefault {
+		t.Fatalf("unknown => %q/%q, want greenfield/default", posture, source)
+	}
+	if !strings.Contains(detail, "could not be read") {
+		t.Fatalf("degraded detail expected, got %q", detail)
+	}
+
+	// A readable greenfield scenario alongside an unreadable one => greenfield via
+	// service_maturity (at least one maturity was read), detail notes the gap.
+	partial := Plan{ChangeBoundary: ChangeBoundary{AcceptanceAllow: []string{
+		"scenarios/green-svc/**", "scenarios/missing-svc/**",
+	}}}
+	posture, source, detail = ResolvePosture(context.Background(), partial, reader)
+	if posture != WorkPostureGreenfield || source != WorkPostureSourceServiceMaturity {
+		t.Fatalf("partial => %q/%q, want greenfield/service_maturity", posture, source)
+	}
+	if !strings.Contains(detail, "could not be read") {
+		t.Fatalf("partial detail should note unreadable scenario, got %q", detail)
+	}
+
+	// Phase-only boundary still contributes to aggregate posture.
+	phaseOnly := Plan{Phases: []Phase{{ChangeBoundary: ChangeBoundary{AcceptanceAllow: []string{"scenarios/prod-svc/**"}}}}}
+	posture, _, _ = ResolvePosture(context.Background(), phaseOnly, reader)
+	if posture != WorkPostureBrownfield {
+		t.Fatalf("phase-only production boundary should drive Brownfield, got %q", posture)
 	}
 }
 
