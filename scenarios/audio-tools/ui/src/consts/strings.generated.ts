@@ -459,6 +459,7 @@ export const strings = {
     finalLabel: "dictationStudio.finalLabel",
     transcriptTitle: "dictationStudio.transcriptTitle",
     transcriptHint: "dictationStudio.transcriptHint",
+    transcriptLockedHint: "dictationStudio.transcriptLockedHint",
     transcriptPlaceholder: "dictationStudio.transcriptPlaceholder",
     tagsTitle: "dictationStudio.tagsTitle",
     tagsHint: "dictationStudio.tagsHint",

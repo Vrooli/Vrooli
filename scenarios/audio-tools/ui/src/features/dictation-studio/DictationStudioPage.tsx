@@ -31,13 +31,16 @@ export function DictationStudioPage() {
   const [captured, setCaptured] = useState<CapturedClip | null>(null);
   const [transcript, setTranscript] = useState("");
   const [tags, setTags] = useState<string[]>([]);
+  const selectedScript = findDictationScript(selectedScriptId);
+  const catalogScriptLocked = mode === "scripted" && selectedScript !== null;
+  const referenceText = catalogScriptLocked ? selectedScript.text : transcript;
 
   const save = useMutation({
     mutationFn: () => {
       if (!captured) throw new Error("no captured audio");
       return createClip({
         audio: captured.audio,
-        referenceText: transcript.trim(),
+        referenceText: referenceText.trim(),
         tags,
         durationMs: captured.durationMs,
         sampleRateHz: captured.sampleRateHz,
@@ -64,12 +67,11 @@ export function DictationStudioPage() {
     const script = findDictationScript(scriptId);
     if (!script) return;
     setScriptedPrompt(script.text);
+    setTranscript(script.text);
     setTags(script.tags);
   };
 
-  const selectedScript = findDictationScript(selectedScriptId);
-
-  const canSave = captured !== null && transcript.trim() !== "";
+  const canSave = captured !== null && referenceText.trim() !== "";
 
   const tabs = [
     { value: "record", label: t(strings.dictationStudio.tabRecord) },
@@ -147,7 +149,11 @@ export function DictationStudioPage() {
                       ) : null}
                     </div>
                   </div>
-                  <PromptPlayback prompt={scriptedPrompt} onChange={setScriptedPrompt} />
+                  <PromptPlayback
+                    prompt={scriptedPrompt}
+                    onChange={setScriptedPrompt}
+                    readOnly={catalogScriptLocked}
+                  />
                 </Panel>
               ) : null}
 
@@ -156,7 +162,11 @@ export function DictationStudioPage() {
               </Panel>
 
               <Panel title={t(strings.dictationStudio.transcriptTitle)}>
-                <TranscriptEditor value={transcript} onChange={setTranscript} />
+                <TranscriptEditor
+                  value={catalogScriptLocked ? selectedScript.text : transcript}
+                  onChange={setTranscript}
+                  readOnly={catalogScriptLocked}
+                />
               </Panel>
 
               <Panel title={t(strings.dictationStudio.tagsTitle)} description={t(strings.dictationStudio.tagsHint)}>

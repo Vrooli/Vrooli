@@ -10,6 +10,7 @@ import { selectors } from "../../consts/selectors";
 interface Props {
   prompt: string;
   onChange: (prompt: string) => void;
+  readOnly?: boolean;
   /** Optional reference-audio URL (e.g. a TTS render) the operator can hear. */
   audioUrl?: string;
 }
@@ -18,7 +19,7 @@ interface Props {
 // operator reads aloud and (when a reference URL is provided) plays it back
 // through an HTMLAudioElement. The shown prompt becomes the clip's exact
 // ground-truth reference text, and the page marks the source SCRIPTED.
-export function PromptPlayback({ prompt, onChange, audioUrl }: Props) {
+export function PromptPlayback({ prompt, onChange, readOnly = false, audioUrl }: Props) {
   const { t } = useTranslation();
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -40,6 +41,7 @@ export function PromptPlayback({ prompt, onChange, audioUrl }: Props) {
         aria-label={t(strings.dictationStudio.scriptedPromptTitle)}
         value={prompt}
         placeholder={t(strings.dictationStudio.promptPlaceholder)}
+        readOnly={readOnly}
         onChange={(e) => onChange(e.currentTarget.value)}
         rows={3}
       />

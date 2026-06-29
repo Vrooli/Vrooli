@@ -3,6 +3,7 @@ package eval
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -140,4 +141,50 @@ func TestRunEval_RealtimeProducesLatencySamples(t *testing.T) {
 	require.True(t, rep.LatencyMeasured)
 	require.Len(t, rep.PerStrategy[0].PerClip, 1)
 	require.Len(t, rep.PerStrategy[0].PerClip[0].LatencySamplesMs, 3, "one latency sample per real-time repeat")
+}
+
+func TestRunEval_RealtimeRepeatsRunConcurrentlyWithinBound(t *testing.T) {
+	clips := []Clip{
+		{ID: "c1", PCM: silentPCM(16000, 100), SampleRate: 16000, Reference: "one"},
+		{ID: "c2", PCM: silentPCM(16000, 100), SampleRate: 16000, Reference: "two"},
+		{ID: "c3", PCM: silentPCM(16000, 100), SampleRate: 16000, Reference: "three"},
+		{ID: "c4", PCM: silentPCM(16000, 100), SampleRate: 16000, Reference: "four"},
+	}
+	spec := StrategySpec{
+		Kind: sttchain.StrategyBuffered, Label: "batch",
+		BuildSession: func(clip Clip) (Session, *MeteredProvider) {
+			meter := NewMeteredProvider(fakeProv(clip.Reference, time.Millisecond), float64(clip.bytesPerSecond()))
+			return controlledSession(meter, clip.Reference), meter
+		},
+	}
+
+	var mu sync.Mutex
+	active := 0
+	maxActive := 0
+	twoActive := make(chan struct{})
+	var closeOnce sync.Once
+	sleep := func(time.Duration) {
+		mu.Lock()
+		active++
+		if active > maxActive {
+			maxActive = active
+		}
+		if active == 2 {
+			closeOnce.Do(func() { close(twoActive) })
+		}
+		mu.Unlock()
+
+		<-twoActive
+
+		mu.Lock()
+		active--
+		mu.Unlock()
+	}
+
+	rep := RunEval(context.Background(), clips, []StrategySpec{spec}, EvalOptions{
+		ChunkMs: 100, QualityPass: false, RealtimeRepeats: 1, RealtimeConcurrency: 2, Sleep: sleep,
+	})
+	require.True(t, rep.LatencyMeasured)
+	require.Len(t, rep.PerStrategy[0].PerClip, 4)
+	require.Equal(t, 2, maxActive, "real-time replay should use bounded concurrency instead of serializing every clip")
 }

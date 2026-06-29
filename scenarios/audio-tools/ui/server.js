@@ -1,6 +1,6 @@
-import { proxyToApi, startScenarioServer } from '@vrooli/api-base/server'
+import { startScenarioServer } from '@vrooli/api-base/server'
 
-const connectRpcPath = /^\/vrooli\.audio_tools\.v1\./
+const CONNECT_RPC_PROXY_TIMEOUT_MS = 15 * 60 * 1000
 
 startScenarioServer({
   uiPort: process.env.UI_PORT,
@@ -8,16 +8,5 @@ startScenarioServer({
   distDir: './dist',
   serviceName: 'audio-tools',
   corsOrigins: '*',
-  setupRoutes(app) {
-    app.use((req, res, next) => {
-      if (!connectRpcPath.test(req.path)) {
-        next()
-        return
-      }
-
-      proxyToApi(req, res, req.originalUrl || req.url, {
-        apiPort: process.env.API_PORT,
-      }).catch(next)
-    })
-  },
+  proxyTimeoutMs: CONNECT_RPC_PROXY_TIMEOUT_MS,
 })

@@ -31,7 +31,7 @@ function ms(value: number): string {
 // when the run did not pace clips in real time (latency_measured = false).
 export function EvalReportView() {
   const { t } = useTranslation();
-  const [repeats, setRepeats] = useState(3);
+  const [repeats, setRepeats] = useState(0);
 
   const run = useMutation({
     mutationFn: () => runEval({ realtimeRepeats: repeats }),

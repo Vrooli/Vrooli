@@ -45,7 +45,7 @@ describe("EvalReportView", () => {
     runEval.mockResolvedValue({
       perStrategy: [row("batch"), row("overlap_agree")],
       qualityMeasured: true,
-      latencyMeasured: true,
+      latencyMeasured: false,
     });
     const user = userEvent.setup();
     renderWithProviders(<EvalReportView />);
@@ -56,7 +56,25 @@ describe("EvalReportView", () => {
     // WER renders as a percentage (0.1 -> "10.0%").
     expect(within(batchRow).getByText(/10\.0%/)).toBeInTheDocument();
     expect(within(table).getByTestId(selectors.dictationStudio.evalRow({ strategy: "overlap_agree" }))).toBeInTheDocument();
-    expect(runEval).toHaveBeenCalledWith(expect.objectContaining({ realtimeRepeats: 3 }));
+    expect(runEval).toHaveBeenCalledWith(expect.objectContaining({ realtimeRepeats: 0 }));
+  });
+
+  it("passes requested real-time repeats when latency is enabled", async () => {
+    runEval.mockResolvedValue({
+      perStrategy: [row("batch")],
+      qualityMeasured: true,
+      latencyMeasured: true,
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<EvalReportView />);
+
+    const repeats = screen.getByTestId(selectors.dictationStudio.repeatsInput);
+    await user.clear(repeats);
+    await user.type(repeats, "2");
+    await user.click(screen.getByTestId(selectors.dictationStudio.runEval));
+
+    await screen.findByTestId(selectors.dictationStudio.evalTable);
+    expect(runEval).toHaveBeenCalledWith(expect.objectContaining({ realtimeRepeats: 2 }));
   });
 
   it("dashes the latency columns when latency was not measured", async () => {

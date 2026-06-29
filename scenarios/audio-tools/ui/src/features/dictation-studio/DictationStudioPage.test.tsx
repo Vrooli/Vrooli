@@ -123,6 +123,9 @@ describe("DictationStudioPage", () => {
     await user.selectOptions(screen.getByTestId(selectors.dictationStudio.scriptPicker), script.id);
 
     expect(screen.getByTestId(selectors.dictationStudio.promptInput)).toHaveValue(script.text);
+    expect(screen.getByTestId(selectors.dictationStudio.promptInput)).toHaveAttribute("readonly");
+    expect(screen.getByTestId(selectors.dictationStudio.transcriptEditor)).toHaveValue(script.text);
+    expect(screen.getByTestId(selectors.dictationStudio.transcriptEditor)).toHaveAttribute("readonly");
     for (const tag of script.tags) {
       expect(screen.getByText(tag)).toBeInTheDocument();
     }

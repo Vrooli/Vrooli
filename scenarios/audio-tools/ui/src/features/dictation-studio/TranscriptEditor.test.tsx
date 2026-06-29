@@ -21,4 +21,14 @@ describe("TranscriptEditor", () => {
     await user.type(screen.getByTestId(selectors.dictationStudio.transcriptEditor), "x");
     expect(onChange).toHaveBeenCalledWith("x");
   });
+
+  it("locks the field when the reference comes from a built-in script", async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    renderWithProviders(<TranscriptEditor value="catalog text" onChange={onChange} readOnly />);
+    const editor = screen.getByTestId(selectors.dictationStudio.transcriptEditor);
+    expect(editor).toHaveAttribute("readonly");
+    await user.type(editor, "x");
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });

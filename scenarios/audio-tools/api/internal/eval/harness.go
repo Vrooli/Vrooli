@@ -2,6 +2,7 @@ package eval
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"audio-tools/internal/ai/sttchain"
@@ -225,14 +226,26 @@ type EvalOptions struct {
 	// latency distribution. 0 skips latency measurement (the fast default
 	// suite path).
 	RealtimeRepeats int
-	Sleep           func(time.Duration)
-	Now             func() time.Time
+	// RealtimeConcurrency bounds concurrent real-time replay sessions.
+	// Real-time eval mostly waits on wall-clock audio pacing, so serializing
+	// every clip/repeat/strategy makes UI-triggered latency runs impractical.
+	// Default is 8, low enough to avoid stampeding the local STT backend.
+	RealtimeConcurrency int
+	Sleep               func(time.Duration)
+	Now                 func() time.Time
 }
 
 // DefaultEvalOptions is the deterministic-only configuration used by the
 // default (no-Whisper-needed) test suite and CLI quality runs.
 func DefaultEvalOptions() EvalOptions {
 	return EvalOptions{ChunkMs: 100, QualityPass: true, RealtimeRepeats: 0}
+}
+
+func (o EvalOptions) realtimeConcurrency() int {
+	if o.RealtimeConcurrency > 0 {
+		return o.RealtimeConcurrency
+	}
+	return 8
 }
 
 // RunEval replays every clip through every strategy spec and assembles the
@@ -245,8 +258,8 @@ func RunEval(ctx context.Context, clips []Clip, specs []StrategySpec, opts EvalO
 		LatencyMeasured: opts.RealtimeRepeats > 0,
 	}
 	for _, spec := range specs {
-		var clipResults []ClipResult
-		for _, clip := range clips {
+		clipResults := make([]ClipResult, len(clips))
+		for i, clip := range clips {
 			var cr ClipResult
 			if opts.QualityPass {
 				session, meter := spec.BuildSession(clip)
@@ -256,24 +269,68 @@ func RunEval(ctx context.Context, clips []Clip, specs []StrategySpec, opts EvalO
 			} else {
 				cr = ClipResult{ClipID: clip.ID, Reference: clip.Reference}
 			}
-			for r := 0; r < opts.RealtimeRepeats; r++ {
-				session, meter := spec.BuildSession(clip)
-				rt := EvalClip(ctx, clip, meter, ReplayOptions{
-					Mode: ModeRealtime, ChunkMs: opts.ChunkMs, Sleep: opts.Sleep, Now: opts.Now,
-				}, session)
-				cr.LatencySamplesMs = append(cr.LatencySamplesMs, rt.LatencySamplesMs...)
-				// On a quality-skipped run, take transcript/compute from the
-				// first real-time pass so the row still has content.
-				if !opts.QualityPass && r == 0 {
-					rt.LatencySamplesMs = cr.LatencySamplesMs
-					cr = rt
-				}
-			}
-			clipResults = append(clipResults, cr)
+			clipResults[i] = cr
+		}
+		if opts.RealtimeRepeats > 0 {
+			runRealtimeRepeats(ctx, clips, spec, opts, clipResults)
 		}
 		report.PerStrategy = append(report.PerStrategy, aggregateStrategy(spec.Kind, spec.Label, clipResults))
 	}
 	return report
+}
+
+type realtimeResult struct {
+	clipIndex int
+	repeat    int
+	result    ClipResult
+}
+
+func runRealtimeRepeats(ctx context.Context, clips []Clip, spec StrategySpec, opts EvalOptions, clipResults []ClipResult) {
+	total := len(clips) * opts.RealtimeRepeats
+	if total == 0 {
+		return
+	}
+
+	sem := make(chan struct{}, opts.realtimeConcurrency())
+	results := make(chan realtimeResult, total)
+	var wg sync.WaitGroup
+	for clipIndex, clip := range clips {
+		for repeat := 0; repeat < opts.RealtimeRepeats; repeat++ {
+			wg.Add(1)
+			go func(clipIndex int, repeat int, clip Clip) {
+				defer wg.Done()
+				select {
+				case sem <- struct{}{}:
+					defer func() { <-sem }()
+				case <-ctx.Done():
+					results <- realtimeResult{clipIndex: clipIndex, repeat: repeat, result: ClipResult{
+						ClipID: clip.ID, Reference: clip.Reference, Err: ctx.Err(),
+					}}
+					return
+				}
+				session, meter := spec.BuildSession(clip)
+				rt := EvalClip(ctx, clip, meter, ReplayOptions{
+					Mode: ModeRealtime, ChunkMs: opts.ChunkMs, Sleep: opts.Sleep, Now: opts.Now,
+				}, session)
+				results <- realtimeResult{clipIndex: clipIndex, repeat: repeat, result: rt}
+			}(clipIndex, repeat, clip)
+		}
+	}
+	wg.Wait()
+	close(results)
+
+	for rr := range results {
+		cr := clipResults[rr.clipIndex]
+		cr.LatencySamplesMs = append(cr.LatencySamplesMs, rr.result.LatencySamplesMs...)
+		if !opts.QualityPass && rr.repeat == 0 {
+			rr.result.LatencySamplesMs = cr.LatencySamplesMs
+			cr = rr.result
+		}
+		if cr.Err == nil {
+			cr.Err = rr.result.Err
+		}
+		clipResults[rr.clipIndex] = cr
+	}
 }
 
 // StrategySession adapts a bare strategy.Strategy-style Run (which does NOT
