@@ -68,12 +68,16 @@ class ExposeRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., ttl_seconds: _Optional[int] = ..., requested_by: _Optional[str] = ...) -> None: ...
 
 class ExposeResponse(_message.Message):
-    __slots__ = ("lease", "public_url")
+    __slots__ = ("lease", "public_url", "local_port", "port_assigned")
     LEASE_FIELD_NUMBER: _ClassVar[int]
     PUBLIC_URL_FIELD_NUMBER: _ClassVar[int]
+    LOCAL_PORT_FIELD_NUMBER: _ClassVar[int]
+    PORT_ASSIGNED_FIELD_NUMBER: _ClassVar[int]
     lease: Lease
     public_url: str
-    def __init__(self, lease: _Optional[_Union[Lease, _Mapping]] = ..., public_url: _Optional[str] = ...) -> None: ...
+    local_port: int
+    port_assigned: bool
+    def __init__(self, lease: _Optional[_Union[Lease, _Mapping]] = ..., public_url: _Optional[str] = ..., local_port: _Optional[int] = ..., port_assigned: _Optional[bool] = ...) -> None: ...
 
 class ExtendLeaseRequest(_message.Message):
     __slots__ = ("lease_id", "ttl_seconds")

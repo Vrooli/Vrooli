@@ -467,8 +467,19 @@ type StreamConfig struct {
 	// (vad/overlap) and only when ffmpeg is available. Improves silence
 	// detection + accuracy in noisy environments.
 	DenoiseEnabled bool `protobuf:"varint,18,opt,name=denoise_enabled,json=denoiseEnabled,proto3" json:"denoise_enabled,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// overlap_max_stall_rejects is the OverlapAgree stall-fallback commit
+	// policy. After this many CONSECUTIVE LocalAgreement divergence-rejects
+	// (the model wandering on hard audio so nothing commits), the strategy
+	// force-commits the freshest hypothesis tail and advances its cursor,
+	// bounding tail growth / re-transcription cost well before the 25s
+	// max_window_ms net — the fix for "streaming finalizes slower than
+	// batch". Range 0..10; 0 disables the fallback (only the 25s net
+	// applies); an absent/0-on-old-doc value backfills to the default (3).
+	// The active operator range is [1,10]. See
+	// scenarios/audio-tools/api/internal/stt/strategy/overlap_agree.go.
+	OverlapMaxStallRejects int32 `protobuf:"varint,19,opt,name=overlap_max_stall_rejects,json=overlapMaxStallRejects,proto3" json:"overlap_max_stall_rejects,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *StreamConfig) Reset() {
@@ -625,6 +636,13 @@ func (x *StreamConfig) GetDenoiseEnabled() bool {
 		return x.DenoiseEnabled
 	}
 	return false
+}
+
+func (x *StreamConfig) GetOverlapMaxStallRejects() int32 {
+	if x != nil {
+		return x.OverlapMaxStallRejects
+	}
+	return 0
 }
 
 type GetStreamConfigRequest struct {
@@ -4284,7 +4302,7 @@ const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	"providerId\x12\x19\n" +
 	"\bmodel_id\x18\x06 \x01(\tR\amodelId\x12\x1d\n" +
 	"\n" +
-	"latency_ms\x18\a \x01(\x01R\tlatencyMs\"\xd5\a\n" +
+	"latency_ms\x18\a \x01(\x01R\tlatencyMs\"\x9b\b\n" +
 	"\fStreamConfig\x12*\n" +
 	"\x11flush_interval_ms\x18\x01 \x01(\x05R\x0fflushIntervalMs\x12&\n" +
 	"\x0fmin_delta_bytes\x18\x02 \x01(\x05R\rminDeltaBytes\x12#\n" +
@@ -4306,7 +4324,9 @@ const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	"\x13no_speech_threshold\x18\x0f \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\xf0?)\x00\x00\x00\x00\x00\x00\x00\x00R\x11noSpeechThreshold\x12D\n" +
 	"\x11logprob_threshold\x18\x10 \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\x00\x00)\x00\x00\x00\x00\x00\x00$\xc0R\x10logprobThreshold\x12\x1b\n" +
 	"\tengine_id\x18\x11 \x01(\tR\bengineId\x12'\n" +
-	"\x0fdenoise_enabled\x18\x12 \x01(\bR\x0edenoiseEnabled\"\x18\n" +
+	"\x0fdenoise_enabled\x18\x12 \x01(\bR\x0edenoiseEnabled\x12D\n" +
+	"\x19overlap_max_stall_rejects\x18\x13 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\n" +
+	"(\x00R\x16overlapMaxStallRejects\"\x18\n" +
 	"\x16GetStreamConfigRequest\"Z\n" +
 	"\x17GetStreamConfigResponse\x12?\n" +
 	"\x06config\x18\x01 \x01(\v2'.vrooli.audio_tools.v1.stt.StreamConfigR\x06config\"\x1c\n" +

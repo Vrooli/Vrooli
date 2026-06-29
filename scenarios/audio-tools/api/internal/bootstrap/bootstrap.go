@@ -37,6 +37,7 @@ import (
 	intsession "audio-tools/internal/session"
 	sttpkg "audio-tools/internal/stt"
 	sttpipeline "audio-tools/internal/stt/pipeline"
+	"audio-tools/internal/sttbackend"
 	"audio-tools/internal/sttcapacity"
 	"audio-tools/internal/sttengine"
 	intsumm "audio-tools/internal/summarize"
@@ -117,6 +118,12 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 		env.WhisperURL+"/asr?output=json",
 		doer, audioEngine,
 	)
+	// On-demand STT backend recovery (plan L1): when a transcribe hits a down
+	// whisper backend, ensure it is running and retry once. Single-flight +
+	// cooldown + allowlist live in the Ensurer. STT_AUTO_ENSURE (default on)
+	// lets operators disable the auto-start.
+	voiceSvc.SetBackendEnsurer(sttbackend.NewCLIEnsurer(), "whisper")
+	voiceSvc.SetAutoEnsure(sttpipeline.AutoEnsureEnabledFromEnv())
 
 	ttsCache := inttts.NewCache(64 * 1024 * 1024)
 	kokoroSynth := &inttts.KokoroSynthesizer{BaseURL: env.KokoroURL, Doer: httpc.DefaultDoer()}

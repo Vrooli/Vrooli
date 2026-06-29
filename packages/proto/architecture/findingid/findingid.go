@@ -77,6 +77,8 @@ func SourceToken(s architecturev1.FindingSource) string {
 		return "dependency"
 	case architecturev1.FindingSource_FINDING_SOURCE_STORAGE:
 		return "storage"
+	case architecturev1.FindingSource_FINDING_SOURCE_BRANDING:
+		return "branding"
 	default:
 		return "unspecified"
 	}

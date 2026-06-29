@@ -10,10 +10,10 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file brand-manager/v1/generation/generation.proto.
  */
 export const file_brand_manager_v1_generation_generation: GenFile = /*@__PURE__*/
-  fileDesc("CixicmFuZC1tYW5hZ2VyL3YxL2dlbmVyYXRpb24vZ2VuZXJhdGlvbi5wcm90bxIidnJvb2xpLmJyYW5kX21hbmFnZXIudjEuZ2VuZXJhdGlvbiIxCg5Qcm92aWRlclN0YXR1cxIMCgRuYW1lGAEgASgJEhEKCWF2YWlsYWJsZRgCIAEoCCIaChhHZXRQcm92aWRlclN0YXR1c1JlcXVlc3QidQoZR2V0UHJvdmlkZXJTdGF0dXNSZXNwb25zZRIRCglhdmFpbGFibGUYASABKAgSRQoJcHJvdmlkZXJzGAIgAygLMjIudnJvb2xpLmJyYW5kX21hbmFnZXIudjEuZ2VuZXJhdGlvbi5Qcm92aWRlclN0YXR1cyJRChxHZW5lcmF0ZUJyYW5kRWxlbWVudHNSZXF1ZXN0EhAKCGJyYW5kX2lkGAEgASgJEhAKCGVsZW1lbnRzGAIgAygJEg0KBW1vZGVsGAMgASgJIkAKDUVsZW1lbnRSZXN1bHQSDwoHZWxlbWVudBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDgoGZGV0YWlsGAMgASgJIqwBCh1HZW5lcmF0ZUJyYW5kRWxlbWVudHNSZXNwb25zZRJCCgdyZXN1bHRzGAEgAygLMjEudnJvb2xpLmJyYW5kX21hbmFnZXIudjEuZ2VuZXJhdGlvbi5FbGVtZW50UmVzdWx0Eg8KB2FwcGxpZWQYAiADKAkSEAoIcHJvdmlkZXIYAyABKAkSDQoFbW9kZWwYBCABKAkSFQoNYnJhbmRfdmVyc2lvbhgFIAEoBSJKChlHZW5lcmF0ZUJyYW5kSW1hZ2VSZXF1ZXN0EhAKCGJyYW5kX2lkGAEgASgJEgwKBHR5cGUYAiABKAkSDQoFbW9kZWwYAyABKAkiogEKGkdlbmVyYXRlQnJhbmRJbWFnZVJlc3BvbnNlEhAKCGJyYW5kX2lkGAEgASgJEhAKCGFzc2V0X2lkGAIgASgJEgwKBHR5cGUYAyABKAkSEAoIZmlsZW5hbWUYBCABKAkSEQoJbWltZV90eXBlGAUgASgJEgwKBHNpemUYBiABKAMSEAoIcHJvdmlkZXIYByABKAkSDQoFbW9kZWwYCCABKAky2wMKEUdlbmVyYXRpb25TZXJ2aWNlEpABChFHZXRQcm92aWRlclN0YXR1cxI8LnZyb29saS5icmFuZF9tYW5hZ2VyLnYxLmdlbmVyYXRpb24uR2V0UHJvdmlkZXJTdGF0dXNSZXF1ZXN0Gj0udnJvb2xpLmJyYW5kX21hbmFnZXIudjEuZ2VuZXJhdGlvbi5HZXRQcm92aWRlclN0YXR1c1Jlc3BvbnNlEpwBChVHZW5lcmF0ZUJyYW5kRWxlbWVudHMSQC52cm9vbGkuYnJhbmRfbWFuYWdlci52MS5nZW5lcmF0aW9uLkdlbmVyYXRlQnJhbmRFbGVtZW50c1JlcXVlc3QaQS52cm9vbGkuYnJhbmRfbWFuYWdlci52MS5nZW5lcmF0aW9uLkdlbmVyYXRlQnJhbmRFbGVtZW50c1Jlc3BvbnNlEpMBChJHZW5lcmF0ZUJyYW5kSW1hZ2USPS52cm9vbGkuYnJhbmRfbWFuYWdlci52MS5nZW5lcmF0aW9uLkdlbmVyYXRlQnJhbmRJbWFnZVJlcXVlc3QaPi52cm9vbGkuYnJhbmRfbWFuYWdlci52MS5nZW5lcmF0aW9uLkdlbmVyYXRlQnJhbmRJbWFnZVJlc3BvbnNlQlpaWGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJhbmQtbWFuYWdlci92MS9nZW5lcmF0aW9uO2dlbmVyYXRpb25fdjFiBnByb3RvMw");
+  fileDesc("CixicmFuZC1tYW5hZ2VyL3YxL2dlbmVyYXRpb24vZ2VuZXJhdGlvbi5wcm90bxIidnJvb2xpLmJyYW5kX21hbmFnZXIudjEuZ2VuZXJhdGlvbiIxCg5Qcm92aWRlclN0YXR1cxIMCgRuYW1lGAEgASgJEhEKCWF2YWlsYWJsZRgCIAEoCCIaChhHZXRQcm92aWRlclN0YXR1c1JlcXVlc3QidQoZR2V0UHJvdmlkZXJTdGF0dXNSZXNwb25zZRIRCglhdmFpbGFibGUYASABKAgSRQoJcHJvdmlkZXJzGAIgAygLMjIudnJvb2xpLmJyYW5kX21hbmFnZXIudjEuZ2VuZXJhdGlvbi5Qcm92aWRlclN0YXR1cyIeChxHZXRJbWFnZUJhY2tlbmRTdGF0dXNSZXF1ZXN0ImYKFEltYWdlT3BlcmF0aW9uU3RhdHVzEhEKCW9wZXJhdGlvbhgBIAEoCRINCgVyZWFkeRgCIAEoCBIQCghtb2RlbF9pZBgDIAEoCRIMCgR0aWVyGAQgASgJEgwKBGhpbnQYBSABKAkikAEKHUdldEltYWdlQmFja2VuZFN0YXR1c1Jlc3BvbnNlEhEKCWF2YWlsYWJsZRgBIAEoCBIOCgZkZXRhaWwYAiABKAkSTAoKb3BlcmF0aW9ucxgDIAMoCzI4LnZyb29saS5icmFuZF9tYW5hZ2VyLnYxLmdlbmVyYXRpb24uSW1hZ2VPcGVyYXRpb25TdGF0dXMiUQocR2VuZXJhdGVCcmFuZEVsZW1lbnRzUmVxdWVzdBIQCghicmFuZF9pZBgBIAEoCRIQCghlbGVtZW50cxgCIAMoCRINCgVtb2RlbBgDIAEoCSJACg1FbGVtZW50UmVzdWx0Eg8KB2VsZW1lbnQYASABKAkSDgoGc3RhdHVzGAIgASgJEg4KBmRldGFpbBgDIAEoCSKsAQodR2VuZXJhdGVCcmFuZEVsZW1lbnRzUmVzcG9uc2USQgoHcmVzdWx0cxgBIAMoCzIxLnZyb29saS5icmFuZF9tYW5hZ2VyLnYxLmdlbmVyYXRpb24uRWxlbWVudFJlc3VsdBIPCgdhcHBsaWVkGAIgAygJEhAKCHByb3ZpZGVyGAMgASgJEg0KBW1vZGVsGAQgASgJEhUKDWJyYW5kX3ZlcnNpb24YBSABKAUiuwEKD0JyYW5kSW1hZ2VBc3NldBIQCghicmFuZF9pZBgBIAEoCRIQCghhc3NldF9pZBgCIAEoCRIMCgRraW5kGAMgASgJEhAKCGZpbGVuYW1lGAQgASgJEhEKCW1pbWVfdHlwZRgFIAEoCRIMCgRzaXplGAYgASgDEhAKCG1vZGVsX2lkGAcgASgJEgwKBHRpZXIYCCABKAkSEQoJY2Fub25pY2FsGAkgASgIEhAKCHdhcm5pbmdzGAogAygJIowBChlHZW5lcmF0ZUJyYW5kSW1hZ2VSZXF1ZXN0EhAKCGJyYW5kX2lkGAEgASgJEgwKBHR5cGUYAiABKAkSFgoObW9kZWxfb3ZlcnJpZGUYAyABKAkSEgoKYWxsb3dfYnlvaxgEIAEoCBIMCgRzZWVkGAUgASgDEhUKDXNldF9jYW5vbmljYWwYBiABKAgiqAEKFUVkaXRCcmFuZEltYWdlUmVxdWVzdBIQCghicmFuZF9pZBgBIAEoCRIXCg9zb3VyY2VfYXNzZXRfaWQYAiABKAkSEwoLaW5zdHJ1Y3Rpb24YAyABKAkSFgoObW9kZWxfb3ZlcnJpZGUYBCABKAkSEgoKYWxsb3dfYnlvaxgFIAEoCBIMCgRzZWVkGAYgASgDEhUKDXNldF9jYW5vbmljYWwYByABKAgikQEKIVJlbW92ZUJyYW5kSW1hZ2VCYWNrZ3JvdW5kUmVxdWVzdBIQCghicmFuZF9pZBgBIAEoCRIXCg9zb3VyY2VfYXNzZXRfaWQYAiABKAkSFgoObW9kZWxfb3ZlcnJpZGUYAyABKAkSEgoKYWxsb3dfYnlvaxgEIAEoCBIVCg1zZXRfY2Fub25pY2FsGAUgASgIIpQBChdEZXJpdmVCcmFuZEljb25zUmVxdWVzdBIQCghicmFuZF9pZBgBIAEoCRIXCg9zb3VyY2VfYXNzZXRfaWQYAiABKAkSGAoQaW5jbHVkZV9tYXNrYWJsZRgDIAEoCBIbChNpbmNsdWRlX2FwcGxlX3RvdWNoGAQgASgIEhcKD2luY2x1ZGVfZmF2aWNvbhgFIAEoCCJwChhEZXJpdmVCcmFuZEljb25zUmVzcG9uc2USQgoFaWNvbnMYASADKAsyMy52cm9vbGkuYnJhbmRfbWFuYWdlci52MS5nZW5lcmF0aW9uLkJyYW5kSW1hZ2VBc3NldBIQCgh3YXJuaW5ncxgCIAMoCTKdCAoRR2VuZXJhdGlvblNlcnZpY2USkAEKEUdldFByb3ZpZGVyU3RhdHVzEjwudnJvb2xpLmJyYW5kX21hbmFnZXIudjEuZ2VuZXJhdGlvbi5HZXRQcm92aWRlclN0YXR1c1JlcXVlc3QaPS52cm9vbGkuYnJhbmRfbWFuYWdlci52MS5nZW5lcmF0aW9uLkdldFByb3ZpZGVyU3RhdHVzUmVzcG9uc2USnAEKFUdldEltYWdlQmFja2VuZFN0YXR1cxJALnZyb29saS5icmFuZF9tYW5hZ2VyLnYxLmdlbmVyYXRpb24uR2V0SW1hZ2VCYWNrZW5kU3RhdHVzUmVxdWVzdBpBLnZyb29saS5icmFuZF9tYW5hZ2VyLnYxLmdlbmVyYXRpb24uR2V0SW1hZ2VCYWNrZW5kU3RhdHVzUmVzcG9uc2USnAEKFUdlbmVyYXRlQnJhbmRFbGVtZW50cxJALnZyb29saS5icmFuZF9tYW5hZ2VyLnYxLmdlbmVyYXRpb24uR2VuZXJhdGVCcmFuZEVsZW1lbnRzUmVxdWVzdBpBLnZyb29saS5icmFuZF9tYW5hZ2VyLnYxLmdlbmVyYXRpb24uR2VuZXJhdGVCcmFuZEVsZW1lbnRzUmVzcG9uc2USiAEKEkdlbmVyYXRlQnJhbmRJbWFnZRI9LnZyb29saS5icmFuZF9tYW5hZ2VyLnYxLmdlbmVyYXRpb24uR2VuZXJhdGVCcmFuZEltYWdlUmVxdWVzdBozLnZyb29saS5icmFuZF9tYW5hZ2VyLnYxLmdlbmVyYXRpb24uQnJhbmRJbWFnZUFzc2V0EoABCg5FZGl0QnJhbmRJbWFnZRI5LnZyb29saS5icmFuZF9tYW5hZ2VyLnYxLmdlbmVyYXRpb24uRWRpdEJyYW5kSW1hZ2VSZXF1ZXN0GjMudnJvb2xpLmJyYW5kX21hbmFnZXIudjEuZ2VuZXJhdGlvbi5CcmFuZEltYWdlQXNzZXQSmAEKGlJlbW92ZUJyYW5kSW1hZ2VCYWNrZ3JvdW5kEkUudnJvb2xpLmJyYW5kX21hbmFnZXIudjEuZ2VuZXJhdGlvbi5SZW1vdmVCcmFuZEltYWdlQmFja2dyb3VuZFJlcXVlc3QaMy52cm9vbGkuYnJhbmRfbWFuYWdlci52MS5nZW5lcmF0aW9uLkJyYW5kSW1hZ2VBc3NldBKNAQoQRGVyaXZlQnJhbmRJY29ucxI7LnZyb29saS5icmFuZF9tYW5hZ2VyLnYxLmdlbmVyYXRpb24uRGVyaXZlQnJhbmRJY29uc1JlcXVlc3QaPC52cm9vbGkuYnJhbmRfbWFuYWdlci52MS5nZW5lcmF0aW9uLkRlcml2ZUJyYW5kSWNvbnNSZXNwb25zZUJaWlhnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2JyYW5kLW1hbmFnZXIvdjEvZ2VuZXJhdGlvbjtnZW5lcmF0aW9uX3YxYgZwcm90bzM");
 
 /**
- * ProviderStatus reports one AI provider's current reachability.
+ * ProviderStatus reports one text AI provider's current reachability.
  *
  * @generated from message vrooli.brand_manager.v1.generation.ProviderStatus
  */
@@ -56,13 +56,15 @@ export const GetProviderStatusRequestSchema: GenMessage<GetProviderStatusRequest
   messageDesc(file_brand_manager_v1_generation_generation, 1);
 
 /**
- * GetProviderStatusResponse reports the configured provider chain's readiness.
+ * GetProviderStatusResponse reports the TEXT provider chain's readiness (the
+ * chain used for colors/typography/voice). Image readiness is a separate call
+ * (GetImageBackendStatus) because images run through image-tools, not this chain.
  *
  * @generated from message vrooli.brand_manager.v1.generation.GetProviderStatusResponse
  */
 export type GetProviderStatusResponse = Message<"vrooli.brand_manager.v1.generation.GetProviderStatusResponse"> & {
   /**
-   * True when at least one provider in the chain is available.
+   * True when at least one text provider in the chain is available.
    *
    * @generated from field: bool available = 1;
    */
@@ -82,6 +84,111 @@ export type GetProviderStatusResponse = Message<"vrooli.brand_manager.v1.generat
  */
 export const GetProviderStatusResponseSchema: GenMessage<GetProviderStatusResponse> = /*@__PURE__*/
   messageDesc(file_brand_manager_v1_generation_generation, 2);
+
+/**
+ * GetImageBackendStatusRequest takes no arguments.
+ *
+ * @generated from message vrooli.brand_manager.v1.generation.GetImageBackendStatusRequest
+ */
+export type GetImageBackendStatusRequest = Message<"vrooli.brand_manager.v1.generation.GetImageBackendStatusRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.brand_manager.v1.generation.GetImageBackendStatusRequest.
+ * Use `create(GetImageBackendStatusRequestSchema)` to create a new message.
+ */
+export const GetImageBackendStatusRequestSchema: GenMessage<GetImageBackendStatusRequest> = /*@__PURE__*/
+  messageDesc(file_brand_manager_v1_generation_generation, 3);
+
+/**
+ * ImageOperationStatus reports whether one brand image operation is runnable on
+ * image-tools right now, plus the model/tier image-tools would select and an
+ * actionable hint when it is not ready.
+ *
+ * @generated from message vrooli.brand_manager.v1.generation.ImageOperationStatus
+ */
+export type ImageOperationStatus = Message<"vrooli.brand_manager.v1.generation.ImageOperationStatus"> & {
+  /**
+   * The brand operation: "generate" (text_to_image), "edit" (edit_instruct), or
+   * "remove_background" (background_removal).
+   *
+   * @generated from field: string operation = 1;
+   */
+  operation: string;
+
+  /**
+   * True when image-tools can run this operation now (model installed, backend
+   * available).
+   *
+   * @generated from field: bool ready = 2;
+   */
+  ready: boolean;
+
+  /**
+   * The registry model image-tools would select (for display).
+   *
+   * @generated from field: string model_id = 3;
+   */
+  modelId: string;
+
+  /**
+   * Where it would run: "local-gpu", "local-cpu", or "byok-cloud".
+   *
+   * @generated from field: string tier = 4;
+   */
+  tier: string;
+
+  /**
+   * Human-readable guidance when not ready (e.g. "run image-tools models install
+   * sd-1.5") or a non-fatal caveat.
+   *
+   * @generated from field: string hint = 5;
+   */
+  hint: string;
+};
+
+/**
+ * Describes the message vrooli.brand_manager.v1.generation.ImageOperationStatus.
+ * Use `create(ImageOperationStatusSchema)` to create a new message.
+ */
+export const ImageOperationStatusSchema: GenMessage<ImageOperationStatus> = /*@__PURE__*/
+  messageDesc(file_brand_manager_v1_generation_generation, 4);
+
+/**
+ * GetImageBackendStatusResponse reports image-tools' overall reachability and
+ * per-operation readiness so a UI/CLI can warn before spending a generation.
+ *
+ * @generated from message vrooli.brand_manager.v1.generation.GetImageBackendStatusResponse
+ */
+export type GetImageBackendStatusResponse = Message<"vrooli.brand_manager.v1.generation.GetImageBackendStatusResponse"> & {
+  /**
+   * True when image-tools is reachable.
+   *
+   * @generated from field: bool available = 1;
+   */
+  available: boolean;
+
+  /**
+   * Detail when unavailable (e.g. "image-tools is not running").
+   *
+   * @generated from field: string detail = 2;
+   */
+  detail: string;
+
+  /**
+   * Per-operation readiness, in a stable order.
+   *
+   * @generated from field: repeated vrooli.brand_manager.v1.generation.ImageOperationStatus operations = 3;
+   */
+  operations: ImageOperationStatus[];
+};
+
+/**
+ * Describes the message vrooli.brand_manager.v1.generation.GetImageBackendStatusResponse.
+ * Use `create(GetImageBackendStatusResponseSchema)` to create a new message.
+ */
+export const GetImageBackendStatusResponseSchema: GenMessage<GetImageBackendStatusResponse> = /*@__PURE__*/
+  messageDesc(file_brand_manager_v1_generation_generation, 5);
 
 /**
  * GenerateBrandElementsRequest asks the AI chain to generate one or more text
@@ -119,7 +226,7 @@ export type GenerateBrandElementsRequest = Message<"vrooli.brand_manager.v1.gene
  * Use `create(GenerateBrandElementsRequestSchema)` to create a new message.
  */
 export const GenerateBrandElementsRequestSchema: GenMessage<GenerateBrandElementsRequest> = /*@__PURE__*/
-  messageDesc(file_brand_manager_v1_generation_generation, 3);
+  messageDesc(file_brand_manager_v1_generation_generation, 6);
 
 /**
  * ElementResult is the per-element outcome of a GenerateBrandElements call.
@@ -155,7 +262,7 @@ export type ElementResult = Message<"vrooli.brand_manager.v1.generation.ElementR
  * Use `create(ElementResultSchema)` to create a new message.
  */
 export const ElementResultSchema: GenMessage<ElementResult> = /*@__PURE__*/
-  messageDesc(file_brand_manager_v1_generation_generation, 4);
+  messageDesc(file_brand_manager_v1_generation_generation, 7);
 
 /**
  * GenerateBrandElementsResponse reports each element's outcome plus the brand
@@ -206,50 +313,17 @@ export type GenerateBrandElementsResponse = Message<"vrooli.brand_manager.v1.gen
  * Use `create(GenerateBrandElementsResponseSchema)` to create a new message.
  */
 export const GenerateBrandElementsResponseSchema: GenMessage<GenerateBrandElementsResponse> = /*@__PURE__*/
-  messageDesc(file_brand_manager_v1_generation_generation, 5);
+  messageDesc(file_brand_manager_v1_generation_generation, 8);
 
 /**
- * GenerateBrandImageRequest asks the AI chain to generate a brand image and
- * store it as a brand asset.
+ * BrandImageAsset is the stored-asset result shared by all image RPCs. It is the
+ * brand-manager view of a completed image: the brand asset that was written,
+ * plus which image-tools model/tier produced it. Image-tools job ids are never
+ * surfaced — brand-manager waits for the job and returns the stored asset.
  *
- * @generated from message vrooli.brand_manager.v1.generation.GenerateBrandImageRequest
+ * @generated from message vrooli.brand_manager.v1.generation.BrandImageAsset
  */
-export type GenerateBrandImageRequest = Message<"vrooli.brand_manager.v1.generation.GenerateBrandImageRequest"> & {
-  /**
-   * Required. Must reference an existing brand.
-   *
-   * @generated from field: string brand_id = 1;
-   */
-  brandId: string;
-
-  /**
-   * Required. The image type: "logo" or "favicon".
-   *
-   * @generated from field: string type = 2;
-   */
-  type: string;
-
-  /**
-   * Optional. Provider model override. Empty uses the chain's defaults.
-   *
-   * @generated from field: string model = 3;
-   */
-  model: string;
-};
-
-/**
- * Describes the message vrooli.brand_manager.v1.generation.GenerateBrandImageRequest.
- * Use `create(GenerateBrandImageRequestSchema)` to create a new message.
- */
-export const GenerateBrandImageRequestSchema: GenMessage<GenerateBrandImageRequest> = /*@__PURE__*/
-  messageDesc(file_brand_manager_v1_generation_generation, 6);
-
-/**
- * GenerateBrandImageResponse returns the stored asset's catalog metadata.
- *
- * @generated from message vrooli.brand_manager.v1.generation.GenerateBrandImageResponse
- */
-export type GenerateBrandImageResponse = Message<"vrooli.brand_manager.v1.generation.GenerateBrandImageResponse"> & {
+export type BrandImageAsset = Message<"vrooli.brand_manager.v1.generation.BrandImageAsset"> & {
   /**
    * The brand the image belongs to.
    *
@@ -265,14 +339,16 @@ export type GenerateBrandImageResponse = Message<"vrooli.brand_manager.v1.genera
   assetId: string;
 
   /**
-   * The image type that was generated ("logo" or "favicon").
+   * The asset role: "logo", "favicon", "logo-transparent", or an icon variant
+   * name ("favicon-32", "apple-touch-icon", "maskable-192", …).
    *
-   * @generated from field: string type = 3;
+   * @generated from field: string kind = 3;
    */
-  type: string;
+  kind: string;
 
   /**
-   * The stored asset filename (e.g. "logo.png").
+   * The stored asset filename (unique per exploratory generation; canonical for
+   * derived icons).
    *
    * @generated from field: string filename = 4;
    */
@@ -293,26 +369,307 @@ export type GenerateBrandImageResponse = Message<"vrooli.brand_manager.v1.genera
   size: bigint;
 
   /**
-   * The provider that produced the image (e.g. "openrouter").
+   * The image-tools registry model that produced it (empty for deterministic
+   * derivations).
    *
-   * @generated from field: string provider = 7;
+   * @generated from field: string model_id = 7;
    */
-  provider: string;
+  modelId: string;
 
   /**
-   * The model the provider reported using.
+   * Where it ran: "local-gpu", "local-cpu", "byok-cloud", or "deterministic".
    *
-   * @generated from field: string model = 8;
+   * @generated from field: string tier = 8;
    */
-  model: string;
+  tier: string;
+
+  /**
+   * True when this asset was (also) written as the canonical asset for its kind.
+   *
+   * @generated from field: bool canonical = 9;
+   */
+  canonical: boolean;
+
+  /**
+   * Non-fatal cautions from image-tools selection (CPU time, BYOK cost, …).
+   *
+   * @generated from field: repeated string warnings = 10;
+   */
+  warnings: string[];
 };
 
 /**
- * Describes the message vrooli.brand_manager.v1.generation.GenerateBrandImageResponse.
- * Use `create(GenerateBrandImageResponseSchema)` to create a new message.
+ * Describes the message vrooli.brand_manager.v1.generation.BrandImageAsset.
+ * Use `create(BrandImageAssetSchema)` to create a new message.
  */
-export const GenerateBrandImageResponseSchema: GenMessage<GenerateBrandImageResponse> = /*@__PURE__*/
-  messageDesc(file_brand_manager_v1_generation_generation, 7);
+export const BrandImageAssetSchema: GenMessage<BrandImageAsset> = /*@__PURE__*/
+  messageDesc(file_brand_manager_v1_generation_generation, 9);
+
+/**
+ * GenerateBrandImageRequest asks image-tools to generate a brand image
+ * (text_to_image) from a brand-aware prompt and stores it as a brand asset.
+ *
+ * @generated from message vrooli.brand_manager.v1.generation.GenerateBrandImageRequest
+ */
+export type GenerateBrandImageRequest = Message<"vrooli.brand_manager.v1.generation.GenerateBrandImageRequest"> & {
+  /**
+   * Required. Must reference an existing brand.
+   *
+   * @generated from field: string brand_id = 1;
+   */
+  brandId: string;
+
+  /**
+   * Required. The image type: "logo" or "favicon".
+   *
+   * @generated from field: string type = 2;
+   */
+  type: string;
+
+  /**
+   * Optional. image-tools model id override. Empty uses image-tools' hardware-fit
+   * default for the operation.
+   *
+   * @generated from field: string model_override = 3;
+   */
+  modelOverride: string;
+
+  /**
+   * Optional. Permit image-tools to fall back to its metered BYOK cloud provider
+   * when no local backend is available. Off by default.
+   *
+   * @generated from field: bool allow_byok = 4;
+   */
+  allowByok: boolean;
+
+  /**
+   * Optional. RNG seed for reproducibility; 0 means random.
+   *
+   * @generated from field: int64 seed = 5;
+   */
+  seed: bigint;
+
+  /**
+   * Optional. Also write the result as the brand's canonical asset for this type
+   * ("logo.png" / "favicon.png"). When false, the canonical is still written
+   * automatically if the brand has none yet, but an existing canonical is left
+   * untouched.
+   *
+   * @generated from field: bool set_canonical = 6;
+   */
+  setCanonical: boolean;
+};
+
+/**
+ * Describes the message vrooli.brand_manager.v1.generation.GenerateBrandImageRequest.
+ * Use `create(GenerateBrandImageRequestSchema)` to create a new message.
+ */
+export const GenerateBrandImageRequestSchema: GenMessage<GenerateBrandImageRequest> = /*@__PURE__*/
+  messageDesc(file_brand_manager_v1_generation_generation, 10);
+
+/**
+ * EditBrandImageRequest asks image-tools to edit an existing brand image
+ * (edit_instruct) by a natural-language instruction and stores the edited result
+ * as a new brand asset.
+ *
+ * @generated from message vrooli.brand_manager.v1.generation.EditBrandImageRequest
+ */
+export type EditBrandImageRequest = Message<"vrooli.brand_manager.v1.generation.EditBrandImageRequest"> & {
+  /**
+   * Required. Must reference an existing brand.
+   *
+   * @generated from field: string brand_id = 1;
+   */
+  brandId: string;
+
+  /**
+   * Required. The source asset to edit (an existing brand asset id).
+   *
+   * @generated from field: string source_asset_id = 2;
+   */
+  sourceAssetId: string;
+
+  /**
+   * Required. The natural-language edit instruction (e.g. "make the background
+   * navy and add a subtle gradient").
+   *
+   * @generated from field: string instruction = 3;
+   */
+  instruction: string;
+
+  /**
+   * Optional. image-tools model id override.
+   *
+   * @generated from field: string model_override = 4;
+   */
+  modelOverride: string;
+
+  /**
+   * Optional. Permit metered BYOK cloud fallback. Off by default.
+   *
+   * @generated from field: bool allow_byok = 5;
+   */
+  allowByok: boolean;
+
+  /**
+   * Optional. RNG seed; 0 means random.
+   *
+   * @generated from field: int64 seed = 6;
+   */
+  seed: bigint;
+
+  /**
+   * Optional. Also write the edited result as the canonical "logo.png" (see
+   * GenerateBrandImageRequest.set_canonical for semantics).
+   *
+   * @generated from field: bool set_canonical = 7;
+   */
+  setCanonical: boolean;
+};
+
+/**
+ * Describes the message vrooli.brand_manager.v1.generation.EditBrandImageRequest.
+ * Use `create(EditBrandImageRequestSchema)` to create a new message.
+ */
+export const EditBrandImageRequestSchema: GenMessage<EditBrandImageRequest> = /*@__PURE__*/
+  messageDesc(file_brand_manager_v1_generation_generation, 11);
+
+/**
+ * RemoveBrandImageBackgroundRequest asks image-tools to isolate the mark in an
+ * existing brand image (background_removal) and stores the transparent cutout as
+ * a new brand asset.
+ *
+ * @generated from message vrooli.brand_manager.v1.generation.RemoveBrandImageBackgroundRequest
+ */
+export type RemoveBrandImageBackgroundRequest = Message<"vrooli.brand_manager.v1.generation.RemoveBrandImageBackgroundRequest"> & {
+  /**
+   * Required. Must reference an existing brand.
+   *
+   * @generated from field: string brand_id = 1;
+   */
+  brandId: string;
+
+  /**
+   * Required. The source asset to cut out (an existing brand asset id).
+   *
+   * @generated from field: string source_asset_id = 2;
+   */
+  sourceAssetId: string;
+
+  /**
+   * Optional. image-tools model id override.
+   *
+   * @generated from field: string model_override = 3;
+   */
+  modelOverride: string;
+
+  /**
+   * Optional. Permit metered BYOK cloud fallback. Off by default.
+   *
+   * @generated from field: bool allow_byok = 4;
+   */
+  allowByok: boolean;
+
+  /**
+   * Optional. Also write the transparent result as the canonical
+   * "logo-transparent.png".
+   *
+   * @generated from field: bool set_canonical = 5;
+   */
+  setCanonical: boolean;
+};
+
+/**
+ * Describes the message vrooli.brand_manager.v1.generation.RemoveBrandImageBackgroundRequest.
+ * Use `create(RemoveBrandImageBackgroundRequestSchema)` to create a new message.
+ */
+export const RemoveBrandImageBackgroundRequestSchema: GenMessage<RemoveBrandImageBackgroundRequest> = /*@__PURE__*/
+  messageDesc(file_brand_manager_v1_generation_generation, 12);
+
+/**
+ * DeriveBrandIconsRequest produces a deterministic set of platform icon variants
+ * from a source brand asset. Derivation uses image-tools' deterministic ops
+ * (resize + solid-background flatten), NOT a model, so it is reproducible and
+ * idempotent. The transparent mark is the preferred source for solid-background
+ * variants; a transparent source is composited onto a brand-color background for
+ * Apple-touch and maskable launcher icons, while favicons keep transparency.
+ *
+ * @generated from message vrooli.brand_manager.v1.generation.DeriveBrandIconsRequest
+ */
+export type DeriveBrandIconsRequest = Message<"vrooli.brand_manager.v1.generation.DeriveBrandIconsRequest"> & {
+  /**
+   * Required. Must reference an existing brand.
+   *
+   * @generated from field: string brand_id = 1;
+   */
+  brandId: string;
+
+  /**
+   * Required. The source asset (typically the transparent logo) to derive from.
+   *
+   * @generated from field: string source_asset_id = 2;
+   */
+  sourceAssetId: string;
+
+  /**
+   * When NO include_* flag is set, every variant family is produced. When any is
+   * set, only the selected families are emitted.
+   * include_maskable: maskable launcher icons (192/512, solid brand-color bg).
+   *
+   * @generated from field: bool include_maskable = 3;
+   */
+  includeMaskable: boolean;
+
+  /**
+   * include_apple_touch: an opaque Apple-touch icon (180, solid background).
+   *
+   * @generated from field: bool include_apple_touch = 4;
+   */
+  includeAppleTouch: boolean;
+
+  /**
+   * include_favicon: transparent favicon PNGs (16/32/196).
+   *
+   * @generated from field: bool include_favicon = 5;
+   */
+  includeFavicon: boolean;
+};
+
+/**
+ * Describes the message vrooli.brand_manager.v1.generation.DeriveBrandIconsRequest.
+ * Use `create(DeriveBrandIconsRequestSchema)` to create a new message.
+ */
+export const DeriveBrandIconsRequestSchema: GenMessage<DeriveBrandIconsRequest> = /*@__PURE__*/
+  messageDesc(file_brand_manager_v1_generation_generation, 13);
+
+/**
+ * DeriveBrandIconsResponse returns each derived icon asset.
+ *
+ * @generated from message vrooli.brand_manager.v1.generation.DeriveBrandIconsResponse
+ */
+export type DeriveBrandIconsResponse = Message<"vrooli.brand_manager.v1.generation.DeriveBrandIconsResponse"> & {
+  /**
+   * The derived icon assets (canonical filenames), in a stable order.
+   *
+   * @generated from field: repeated vrooli.brand_manager.v1.generation.BrandImageAsset icons = 1;
+   */
+  icons: BrandImageAsset[];
+
+  /**
+   * Non-fatal cautions (e.g. a requested variant skipped because the source was
+   * too small).
+   *
+   * @generated from field: repeated string warnings = 2;
+   */
+  warnings: string[];
+};
+
+/**
+ * Describes the message vrooli.brand_manager.v1.generation.DeriveBrandIconsResponse.
+ * Use `create(DeriveBrandIconsResponseSchema)` to create a new message.
+ */
+export const DeriveBrandIconsResponseSchema: GenMessage<DeriveBrandIconsResponse> = /*@__PURE__*/
+  messageDesc(file_brand_manager_v1_generation_generation, 14);
 
 /**
  * @generated from service vrooli.brand_manager.v1.generation.GenerationService
@@ -325,6 +682,14 @@ export const GenerationService: GenService<{
     methodKind: "unary";
     input: typeof GetProviderStatusRequestSchema;
     output: typeof GetProviderStatusResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.brand_manager.v1.generation.GenerationService.GetImageBackendStatus
+   */
+  getImageBackendStatus: {
+    methodKind: "unary";
+    input: typeof GetImageBackendStatusRequestSchema;
+    output: typeof GetImageBackendStatusResponseSchema;
   },
   /**
    * @generated from rpc vrooli.brand_manager.v1.generation.GenerationService.GenerateBrandElements
@@ -340,7 +705,31 @@ export const GenerationService: GenService<{
   generateBrandImage: {
     methodKind: "unary";
     input: typeof GenerateBrandImageRequestSchema;
-    output: typeof GenerateBrandImageResponseSchema;
+    output: typeof BrandImageAssetSchema;
+  },
+  /**
+   * @generated from rpc vrooli.brand_manager.v1.generation.GenerationService.EditBrandImage
+   */
+  editBrandImage: {
+    methodKind: "unary";
+    input: typeof EditBrandImageRequestSchema;
+    output: typeof BrandImageAssetSchema;
+  },
+  /**
+   * @generated from rpc vrooli.brand_manager.v1.generation.GenerationService.RemoveBrandImageBackground
+   */
+  removeBrandImageBackground: {
+    methodKind: "unary";
+    input: typeof RemoveBrandImageBackgroundRequestSchema;
+    output: typeof BrandImageAssetSchema;
+  },
+  /**
+   * @generated from rpc vrooli.brand_manager.v1.generation.GenerationService.DeriveBrandIcons
+   */
+  deriveBrandIcons: {
+    methodKind: "unary";
+    input: typeof DeriveBrandIconsRequestSchema;
+    output: typeof DeriveBrandIconsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_brand_manager_v1_generation_generation, 0);

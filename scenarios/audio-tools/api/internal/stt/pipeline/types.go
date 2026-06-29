@@ -12,6 +12,15 @@ var (
 	ErrInternal           = errors.New("internal error")
 	ErrNotFound           = errors.New("not found")
 	ErrFailedPrecondition = errors.New("failed precondition")
+
+	// ErrSTTBackendUnavailable marks a transcribe failure caused by the speech
+	// backend (whisper/kyutai-stt) being down or unreachable — the honest typed
+	// replacement for the raw `dial tcp …: connection refused` transport string
+	// (plan L2). The Connect handler maps a transient/starting case to
+	// CodeUnavailable and an operator-action case to CodeFailedPrecondition via
+	// errors.As(*STTBackendError). Mirrors the ErrFfmpegExec sentinel precedent —
+	// classification is errors.Is/typed, never a string compare.
+	ErrSTTBackendUnavailable = errors.New("speech backend unavailable")
 )
 
 // WakeWordConfig is the transport-visible wake-word state. The

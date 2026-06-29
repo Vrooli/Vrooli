@@ -31,8 +31,12 @@ const (
 )
 
 type wsMessage struct {
-	Type         string  `json:"type"`
-	Text         string  `json:"text,omitempty"`
+	Type string `json:"type"`
+	Text string `json:"text,omitempty"`
+	// Code carries a machine-readable error class on Type==wsMsgError (e.g.
+	// "backend_starting", "backend_unavailable", "provider_failure") so the UI
+	// can render a transient "starting…" affordance vs a hard failure (plan L2).
+	Code         string  `json:"code,omitempty"`
 	SegmentIndex int     `json:"segmentIndex,omitempty"`
 	Score        float64 `json:"score,omitempty"`
 	Threshold    float64 `json:"threshold,omitempty"`
@@ -171,7 +175,7 @@ func StreamWSHandler(d Deps) http.Handler {
 				if ev.Error != nil {
 					msg = ev.Error.Error()
 				}
-				writeJSON(wsMessage{Type: wsMsgError, Text: msg})
+				writeJSON(wsMessage{Type: wsMsgError, Text: msg, Code: streamErrorCode(ev.Error)})
 			case sttchain.StreamEventDone:
 				if ev.Done != nil {
 					finalText = ev.Done.FinalText

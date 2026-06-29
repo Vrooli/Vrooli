@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)tunnel-manager/v1/exposure/exposure.proto\x12!vrooli.tunnel_manager.v1.exposure\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbb\x02\n\x05Lease\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12!\n\x0crequested_by\x18\x03 \x01(\tR\x0brequestedBy\x12\x39\n\ncreated_at\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nexpires_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\texpiresAt\x12%\n\x0e\x65xtended_count\x18\x06 \x01(\x05R\rextendedCount\x12\x46\n\x06status\x18\x07 \x01(\x0e\x32..vrooli.tunnel_manager.v1.exposure.LeaseStatusR\x06status\"\xf0\x01\n\x08\x45xposure\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x1c\n\tsubdomain\x18\x02 \x01(\tR\tsubdomain\x12\x1d\n\npublic_url\x18\x03 \x01(\tR\tpublicUrl\x12\x1d\n\nlocal_port\x18\x04 \x01(\x05R\tlocalPort\x12\x12\n\x04tier\x18\x05 \x01(\tR\x04tier\x12\x18\n\x07\x65nabled\x18\x06 \x01(\x08R\x07\x65nabled\x12>\n\x05lease\x18\x07 \x01(\x0b\x32(.vrooli.tunnel_manager.v1.exposure.LeaseR\x05lease\"o\n\rExposeRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x1f\n\x0bttl_seconds\x18\x02 \x01(\x03R\nttlSeconds\x12!\n\x0crequested_by\x18\x03 \x01(\tR\x0brequestedBy\"o\n\x0e\x45xposeResponse\x12>\n\x05lease\x18\x01 \x01(\x0b\x32(.vrooli.tunnel_manager.v1.exposure.LeaseR\x05lease\x12\x1d\n\npublic_url\x18\x02 \x01(\tR\tpublicUrl\"P\n\x12\x45xtendLeaseRequest\x12\x19\n\x08lease_id\x18\x01 \x01(\tR\x07leaseId\x12\x1f\n\x0bttl_seconds\x18\x02 \x01(\x03R\nttlSeconds\"U\n\x13\x45xtendLeaseResponse\x12>\n\x05lease\x18\x01 \x01(\x0b\x32(.vrooli.tunnel_manager.v1.exposure.LeaseR\x05lease\"/\n\x12RevokeLeaseRequest\x12\x19\n\x08lease_id\x18\x01 \x01(\tR\x07leaseId\"3\n\x13RevokeLeaseResponse\x12\x1c\n\tretracted\x18\x01 \x01(\x08R\tretracted\"-\n\x0fUnexposeRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"K\n\x10UnexposeResponse\x12\x1c\n\tretracted\x18\x01 \x01(\x08R\tretracted\x12\x19\n\x08lease_id\x18\x02 \x01(\tR\x07leaseId\"[\n\x11ListLeasesRequest\x12\x46\n\x06status\x18\x01 \x01(\x0e\x32..vrooli.tunnel_manager.v1.exposure.LeaseStatusR\x06status\"V\n\x12ListLeasesResponse\x12@\n\x06leases\x18\x01 \x03(\x0b\x32(.vrooli.tunnel_manager.v1.exposure.LeaseR\x06leases\"\x16\n\x14ListExposuresRequest\"b\n\x15ListExposuresResponse\x12I\n\texposures\x18\x01 \x03(\x0b\x32+.vrooli.tunnel_manager.v1.exposure.ExposureR\texposures\".\n\x10IsExposedRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"L\n\x11IsExposedResponse\x12\x18\n\x07\x65xposed\x18\x01 \x01(\x08R\x07\x65xposed\x12\x1d\n\npublic_url\x18\x02 \x01(\tR\tpublicUrl\"\x12\n\x10ReconcileRequest\"[\n\x11ReconcileResponse\x12!\n\x0c\x63ore_ensured\x18\x01 \x01(\x05R\x0b\x63oreEnsured\x12#\n\rleases_reaped\x18\x02 \x01(\x05R\x0cleasesReaped*x\n\x0bLeaseStatus\x12\x1c\n\x18LEASE_STATUS_UNSPECIFIED\x10\x00\x12\x17\n\x13LEASE_STATUS_ACTIVE\x10\x01\x12\x18\n\x14LEASE_STATUS_EXPIRED\x10\x02\x12\x18\n\x14LEASE_STATUS_REVOKED\x10\x03\x32\xe1\x07\n\x0f\x45xposureService\x12m\n\x06\x45xpose\x12\x30.vrooli.tunnel_manager.v1.exposure.ExposeRequest\x1a\x31.vrooli.tunnel_manager.v1.exposure.ExposeResponse\x12|\n\x0b\x45xtendLease\x12\x35.vrooli.tunnel_manager.v1.exposure.ExtendLeaseRequest\x1a\x36.vrooli.tunnel_manager.v1.exposure.ExtendLeaseResponse\x12|\n\x0bRevokeLease\x12\x35.vrooli.tunnel_manager.v1.exposure.RevokeLeaseRequest\x1a\x36.vrooli.tunnel_manager.v1.exposure.RevokeLeaseResponse\x12s\n\x08Unexpose\x12\x32.vrooli.tunnel_manager.v1.exposure.UnexposeRequest\x1a\x33.vrooli.tunnel_manager.v1.exposure.UnexposeResponse\x12y\n\nListLeases\x12\x34.vrooli.tunnel_manager.v1.exposure.ListLeasesRequest\x1a\x35.vrooli.tunnel_manager.v1.exposure.ListLeasesResponse\x12\x82\x01\n\rListExposures\x12\x37.vrooli.tunnel_manager.v1.exposure.ListExposuresRequest\x1a\x38.vrooli.tunnel_manager.v1.exposure.ListExposuresResponse\x12v\n\tIsExposed\x12\x33.vrooli.tunnel_manager.v1.exposure.IsExposedRequest\x1a\x34.vrooli.tunnel_manager.v1.exposure.IsExposedResponse\x12v\n\tReconcile\x12\x33.vrooli.tunnel_manager.v1.exposure.ReconcileRequest\x1a\x34.vrooli.tunnel_manager.v1.exposure.ReconcileResponseBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/exposure;exposure_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)tunnel-manager/v1/exposure/exposure.proto\x12!vrooli.tunnel_manager.v1.exposure\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbb\x02\n\x05Lease\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12!\n\x0crequested_by\x18\x03 \x01(\tR\x0brequestedBy\x12\x39\n\ncreated_at\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nexpires_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\texpiresAt\x12%\n\x0e\x65xtended_count\x18\x06 \x01(\x05R\rextendedCount\x12\x46\n\x06status\x18\x07 \x01(\x0e\x32..vrooli.tunnel_manager.v1.exposure.LeaseStatusR\x06status\"\xf0\x01\n\x08\x45xposure\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x1c\n\tsubdomain\x18\x02 \x01(\tR\tsubdomain\x12\x1d\n\npublic_url\x18\x03 \x01(\tR\tpublicUrl\x12\x1d\n\nlocal_port\x18\x04 \x01(\x05R\tlocalPort\x12\x12\n\x04tier\x18\x05 \x01(\tR\x04tier\x12\x18\n\x07\x65nabled\x18\x06 \x01(\x08R\x07\x65nabled\x12>\n\x05lease\x18\x07 \x01(\x0b\x32(.vrooli.tunnel_manager.v1.exposure.LeaseR\x05lease\"o\n\rExposeRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x1f\n\x0bttl_seconds\x18\x02 \x01(\x03R\nttlSeconds\x12!\n\x0crequested_by\x18\x03 \x01(\tR\x0brequestedBy\"\xb3\x01\n\x0e\x45xposeResponse\x12>\n\x05lease\x18\x01 \x01(\x0b\x32(.vrooli.tunnel_manager.v1.exposure.LeaseR\x05lease\x12\x1d\n\npublic_url\x18\x02 \x01(\tR\tpublicUrl\x12\x1d\n\nlocal_port\x18\x03 \x01(\x05R\tlocalPort\x12#\n\rport_assigned\x18\x04 \x01(\x08R\x0cportAssigned\"P\n\x12\x45xtendLeaseRequest\x12\x19\n\x08lease_id\x18\x01 \x01(\tR\x07leaseId\x12\x1f\n\x0bttl_seconds\x18\x02 \x01(\x03R\nttlSeconds\"U\n\x13\x45xtendLeaseResponse\x12>\n\x05lease\x18\x01 \x01(\x0b\x32(.vrooli.tunnel_manager.v1.exposure.LeaseR\x05lease\"/\n\x12RevokeLeaseRequest\x12\x19\n\x08lease_id\x18\x01 \x01(\tR\x07leaseId\"3\n\x13RevokeLeaseResponse\x12\x1c\n\tretracted\x18\x01 \x01(\x08R\tretracted\"-\n\x0fUnexposeRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"K\n\x10UnexposeResponse\x12\x1c\n\tretracted\x18\x01 \x01(\x08R\tretracted\x12\x19\n\x08lease_id\x18\x02 \x01(\tR\x07leaseId\"[\n\x11ListLeasesRequest\x12\x46\n\x06status\x18\x01 \x01(\x0e\x32..vrooli.tunnel_manager.v1.exposure.LeaseStatusR\x06status\"V\n\x12ListLeasesResponse\x12@\n\x06leases\x18\x01 \x03(\x0b\x32(.vrooli.tunnel_manager.v1.exposure.LeaseR\x06leases\"\x16\n\x14ListExposuresRequest\"b\n\x15ListExposuresResponse\x12I\n\texposures\x18\x01 \x03(\x0b\x32+.vrooli.tunnel_manager.v1.exposure.ExposureR\texposures\".\n\x10IsExposedRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"L\n\x11IsExposedResponse\x12\x18\n\x07\x65xposed\x18\x01 \x01(\x08R\x07\x65xposed\x12\x1d\n\npublic_url\x18\x02 \x01(\tR\tpublicUrl\"\x12\n\x10ReconcileRequest\"[\n\x11ReconcileResponse\x12!\n\x0c\x63ore_ensured\x18\x01 \x01(\x05R\x0b\x63oreEnsured\x12#\n\rleases_reaped\x18\x02 \x01(\x05R\x0cleasesReaped*x\n\x0bLeaseStatus\x12\x1c\n\x18LEASE_STATUS_UNSPECIFIED\x10\x00\x12\x17\n\x13LEASE_STATUS_ACTIVE\x10\x01\x12\x18\n\x14LEASE_STATUS_EXPIRED\x10\x02\x12\x18\n\x14LEASE_STATUS_REVOKED\x10\x03\x32\xe1\x07\n\x0f\x45xposureService\x12m\n\x06\x45xpose\x12\x30.vrooli.tunnel_manager.v1.exposure.ExposeRequest\x1a\x31.vrooli.tunnel_manager.v1.exposure.ExposeResponse\x12|\n\x0b\x45xtendLease\x12\x35.vrooli.tunnel_manager.v1.exposure.ExtendLeaseRequest\x1a\x36.vrooli.tunnel_manager.v1.exposure.ExtendLeaseResponse\x12|\n\x0bRevokeLease\x12\x35.vrooli.tunnel_manager.v1.exposure.RevokeLeaseRequest\x1a\x36.vrooli.tunnel_manager.v1.exposure.RevokeLeaseResponse\x12s\n\x08Unexpose\x12\x32.vrooli.tunnel_manager.v1.exposure.UnexposeRequest\x1a\x33.vrooli.tunnel_manager.v1.exposure.UnexposeResponse\x12y\n\nListLeases\x12\x34.vrooli.tunnel_manager.v1.exposure.ListLeasesRequest\x1a\x35.vrooli.tunnel_manager.v1.exposure.ListLeasesResponse\x12\x82\x01\n\rListExposures\x12\x37.vrooli.tunnel_manager.v1.exposure.ListExposuresRequest\x1a\x38.vrooli.tunnel_manager.v1.exposure.ListExposuresResponse\x12v\n\tIsExposed\x12\x33.vrooli.tunnel_manager.v1.exposure.IsExposedRequest\x1a\x34.vrooli.tunnel_manager.v1.exposure.IsExposedResponse\x12v\n\tReconcile\x12\x33.vrooli.tunnel_manager.v1.exposure.ReconcileRequest\x1a\x34.vrooli.tunnel_manager.v1.exposure.ReconcileResponseBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/exposure;exposure_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,44 +33,44 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'tunnel_manager.v1.exposure.
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZUgithub.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/exposure;exposure_v1'
-  _globals['_LEASESTATUS']._serialized_start=1839
-  _globals['_LEASESTATUS']._serialized_end=1959
+  _globals['_LEASESTATUS']._serialized_start=1908
+  _globals['_LEASESTATUS']._serialized_end=2028
   _globals['_LEASE']._serialized_start=114
   _globals['_LEASE']._serialized_end=429
   _globals['_EXPOSURE']._serialized_start=432
   _globals['_EXPOSURE']._serialized_end=672
   _globals['_EXPOSEREQUEST']._serialized_start=674
   _globals['_EXPOSEREQUEST']._serialized_end=785
-  _globals['_EXPOSERESPONSE']._serialized_start=787
-  _globals['_EXPOSERESPONSE']._serialized_end=898
-  _globals['_EXTENDLEASEREQUEST']._serialized_start=900
-  _globals['_EXTENDLEASEREQUEST']._serialized_end=980
-  _globals['_EXTENDLEASERESPONSE']._serialized_start=982
-  _globals['_EXTENDLEASERESPONSE']._serialized_end=1067
-  _globals['_REVOKELEASEREQUEST']._serialized_start=1069
-  _globals['_REVOKELEASEREQUEST']._serialized_end=1116
-  _globals['_REVOKELEASERESPONSE']._serialized_start=1118
-  _globals['_REVOKELEASERESPONSE']._serialized_end=1169
-  _globals['_UNEXPOSEREQUEST']._serialized_start=1171
-  _globals['_UNEXPOSEREQUEST']._serialized_end=1216
-  _globals['_UNEXPOSERESPONSE']._serialized_start=1218
-  _globals['_UNEXPOSERESPONSE']._serialized_end=1293
-  _globals['_LISTLEASESREQUEST']._serialized_start=1295
-  _globals['_LISTLEASESREQUEST']._serialized_end=1386
-  _globals['_LISTLEASESRESPONSE']._serialized_start=1388
-  _globals['_LISTLEASESRESPONSE']._serialized_end=1474
-  _globals['_LISTEXPOSURESREQUEST']._serialized_start=1476
-  _globals['_LISTEXPOSURESREQUEST']._serialized_end=1498
-  _globals['_LISTEXPOSURESRESPONSE']._serialized_start=1500
-  _globals['_LISTEXPOSURESRESPONSE']._serialized_end=1598
-  _globals['_ISEXPOSEDREQUEST']._serialized_start=1600
-  _globals['_ISEXPOSEDREQUEST']._serialized_end=1646
-  _globals['_ISEXPOSEDRESPONSE']._serialized_start=1648
-  _globals['_ISEXPOSEDRESPONSE']._serialized_end=1724
-  _globals['_RECONCILEREQUEST']._serialized_start=1726
-  _globals['_RECONCILEREQUEST']._serialized_end=1744
-  _globals['_RECONCILERESPONSE']._serialized_start=1746
-  _globals['_RECONCILERESPONSE']._serialized_end=1837
-  _globals['_EXPOSURESERVICE']._serialized_start=1962
-  _globals['_EXPOSURESERVICE']._serialized_end=2955
+  _globals['_EXPOSERESPONSE']._serialized_start=788
+  _globals['_EXPOSERESPONSE']._serialized_end=967
+  _globals['_EXTENDLEASEREQUEST']._serialized_start=969
+  _globals['_EXTENDLEASEREQUEST']._serialized_end=1049
+  _globals['_EXTENDLEASERESPONSE']._serialized_start=1051
+  _globals['_EXTENDLEASERESPONSE']._serialized_end=1136
+  _globals['_REVOKELEASEREQUEST']._serialized_start=1138
+  _globals['_REVOKELEASEREQUEST']._serialized_end=1185
+  _globals['_REVOKELEASERESPONSE']._serialized_start=1187
+  _globals['_REVOKELEASERESPONSE']._serialized_end=1238
+  _globals['_UNEXPOSEREQUEST']._serialized_start=1240
+  _globals['_UNEXPOSEREQUEST']._serialized_end=1285
+  _globals['_UNEXPOSERESPONSE']._serialized_start=1287
+  _globals['_UNEXPOSERESPONSE']._serialized_end=1362
+  _globals['_LISTLEASESREQUEST']._serialized_start=1364
+  _globals['_LISTLEASESREQUEST']._serialized_end=1455
+  _globals['_LISTLEASESRESPONSE']._serialized_start=1457
+  _globals['_LISTLEASESRESPONSE']._serialized_end=1543
+  _globals['_LISTEXPOSURESREQUEST']._serialized_start=1545
+  _globals['_LISTEXPOSURESREQUEST']._serialized_end=1567
+  _globals['_LISTEXPOSURESRESPONSE']._serialized_start=1569
+  _globals['_LISTEXPOSURESRESPONSE']._serialized_end=1667
+  _globals['_ISEXPOSEDREQUEST']._serialized_start=1669
+  _globals['_ISEXPOSEDREQUEST']._serialized_end=1715
+  _globals['_ISEXPOSEDRESPONSE']._serialized_start=1717
+  _globals['_ISEXPOSEDRESPONSE']._serialized_end=1793
+  _globals['_RECONCILEREQUEST']._serialized_start=1795
+  _globals['_RECONCILEREQUEST']._serialized_end=1813
+  _globals['_RECONCILERESPONSE']._serialized_start=1815
+  _globals['_RECONCILERESPONSE']._serialized_end=1906
+  _globals['_EXPOSURESERVICE']._serialized_start=2031
+  _globals['_EXPOSURESERVICE']._serialized_end=3024
 # @@protoc_insertion_point(module_scope)

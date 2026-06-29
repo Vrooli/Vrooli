@@ -331,7 +331,13 @@ type ExposeResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Lease *Lease                 `protobuf:"bytes,1,opt,name=lease,proto3" json:"lease,omitempty"`
 	// Reachable URL for the scenario (https://<subdomain>.<domain>).
-	PublicUrl     string `protobuf:"bytes,2,opt,name=public_url,json=publicUrl,proto3" json:"public_url,omitempty"`
+	PublicUrl string `protobuf:"bytes,2,opt,name=public_url,json=publicUrl,proto3" json:"public_url,omitempty"`
+	// The local port that ingress forwards to (the scenario's fixed UI port).
+	LocalPort int32 `protobuf:"varint,3,opt,name=local_port,json=localPort,proto3" json:"local_port,omitempty"`
+	// True if Tunnel Manager just assigned/pinned a fixed port for a scenario
+	// that previously only declared a port *range*. In this case the scenario
+	// process is restarted so it binds the newly pinned port.
+	PortAssigned  bool `protobuf:"varint,4,opt,name=port_assigned,json=portAssigned,proto3" json:"port_assigned,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -378,6 +384,20 @@ func (x *ExposeResponse) GetPublicUrl() string {
 		return x.PublicUrl
 	}
 	return ""
+}
+
+func (x *ExposeResponse) GetLocalPort() int32 {
+	if x != nil {
+		return x.LocalPort
+	}
+	return 0
+}
+
+func (x *ExposeResponse) GetPortAssigned() bool {
+	if x != nil {
+		return x.PortAssigned
+	}
+	return false
 }
 
 type ExtendLeaseRequest struct {
@@ -1051,11 +1071,14 @@ const file_tunnel_manager_v1_exposure_exposure_proto_rawDesc = "" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1f\n" +
 	"\vttl_seconds\x18\x02 \x01(\x03R\n" +
 	"ttlSeconds\x12!\n" +
-	"\frequested_by\x18\x03 \x01(\tR\vrequestedBy\"o\n" +
+	"\frequested_by\x18\x03 \x01(\tR\vrequestedBy\"\xb3\x01\n" +
 	"\x0eExposeResponse\x12>\n" +
 	"\x05lease\x18\x01 \x01(\v2(.vrooli.tunnel_manager.v1.exposure.LeaseR\x05lease\x12\x1d\n" +
 	"\n" +
-	"public_url\x18\x02 \x01(\tR\tpublicUrl\"P\n" +
+	"public_url\x18\x02 \x01(\tR\tpublicUrl\x12\x1d\n" +
+	"\n" +
+	"local_port\x18\x03 \x01(\x05R\tlocalPort\x12#\n" +
+	"\rport_assigned\x18\x04 \x01(\bR\fportAssigned\"P\n" +
 	"\x12ExtendLeaseRequest\x12\x19\n" +
 	"\blease_id\x18\x01 \x01(\tR\aleaseId\x12\x1f\n" +
 	"\vttl_seconds\x18\x02 \x01(\x03R\n" +

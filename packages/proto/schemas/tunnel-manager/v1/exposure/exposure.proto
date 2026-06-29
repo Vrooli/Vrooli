@@ -109,6 +109,12 @@ message ExposeResponse {
   Lease lease = 1;
   // Reachable URL for the scenario (https://<subdomain>.<domain>).
   string public_url = 2;
+  // The local port that ingress forwards to (the scenario's fixed UI port).
+  int32 local_port = 3;
+  // True if Tunnel Manager just assigned/pinned a fixed port for a scenario
+  // that previously only declared a port *range*. In this case the scenario
+  // process is restarted so it binds the newly pinned port.
+  bool port_assigned = 4;
 }
 
 message ExtendLeaseRequest {

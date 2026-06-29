@@ -3,6 +3,7 @@ package stt
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"connectrpc.com/connect"
@@ -161,6 +162,17 @@ func (h *connectHandler) GetSupportedFormats(_ context.Context, _ *connect.Reque
 }
 
 func mapChainError(err error) error {
+	// Backend-down (whisper/kyutai-stt unreachable) maps to an honest,
+	// user-actionable code (plan L2): a transient/starting backend is Unavailable
+	// ("retry shortly"); one needing operator action is FailedPrecondition. The
+	// typed *STTBackendError carries a user-safe message (no raw dial string).
+	var backendErr *sttpipeline.STTBackendError
+	if errors.As(err, &backendErr) {
+		if backendErr.Transient {
+			return connect.NewError(connect.CodeUnavailable, err)
+		}
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	}
 	switch err {
 	case sttchain.ErrInsufficientCredits:
 		return connect.NewError(connect.CodeResourceExhausted, err)

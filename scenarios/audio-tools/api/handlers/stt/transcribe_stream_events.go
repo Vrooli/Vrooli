@@ -4,11 +4,31 @@
 package stt
 
 import (
+	"errors"
+
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/protomap"
+	sttpipeline "audio-tools/internal/stt/pipeline"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 )
+
+// streamErrorCode classifies a stream error into a machine-readable code the
+// clients key off (plan L2). A typed backend-down error becomes "backend_starting"
+// (transient — show a "starting…" affordance) or "backend_unavailable" (operator
+// action). Everything else keeps the legacy "provider_failure" code. Shared by
+// the Connect stream-event path and the WebSocket bridge so both surfaces stay
+// in lockstep.
+func streamErrorCode(err error) string {
+	var backendErr *sttpipeline.STTBackendError
+	if errors.As(err, &backendErr) {
+		if backendErr.Transient {
+			return "backend_starting"
+		}
+		return "backend_unavailable"
+	}
+	return "provider_failure"
+}
 
 // protoForEvent translates a chain StreamEvent to its proto wire shape.
 func protoForEvent(ev sttchain.StreamEvent) *sttv1.TranscribeStreamEvent {
@@ -69,7 +89,7 @@ func protoForEvent(ev sttchain.StreamEvent) *sttv1.TranscribeStreamEvent {
 		}
 		return &sttv1.TranscribeStreamEvent{
 			Event: &sttv1.TranscribeStreamEvent_Error{
-				Error: &sttv1.StreamError{Code: "provider_failure", Message: msg},
+				Error: &sttv1.StreamError{Code: streamErrorCode(ev.Error), Message: msg},
 			},
 		}
 	case sttchain.StreamEventVadState:

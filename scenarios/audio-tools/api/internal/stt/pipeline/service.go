@@ -11,6 +11,7 @@ import (
 	"audio-tools/internal/audioformat"
 	"audio-tools/internal/capabilities"
 	"audio-tools/internal/logx"
+	"audio-tools/internal/sttbackend"
 )
 
 // Service owns the STT pipeline's state and behaviour: stream config,
@@ -39,6 +40,13 @@ type Service struct {
 	whisperURL string
 	httpClient HTTPDoer
 	engine     *audioformat.Engine
+	// ensurer brings the backing STT backend resource (backendResource) up on
+	// demand when a transcribe hits a down backend (plan L1). nil disables
+	// on-demand recovery (the existing behavior; tests leave it nil). autoEnsure
+	// gates it at runtime (STT_AUTO_ENSURE).
+	ensurer         sttbackend.Ensurer
+	backendResource string
+	autoEnsure      bool
 	// whisperSem bounds concurrent Whisper /asr calls to the resource's
 	// documented ceiling (5). Over-limit callers BLOCK on acquire (queue
 	// with backpressure) — they never error. The cap is the real
@@ -106,6 +114,22 @@ func (s *Service) SetWhisperURL(u string) { s.whisperURL = u }
 // SetHTTPClient is provided for tests that need to substitute outbound
 // transcription transport.
 func (s *Service) SetHTTPClient(c HTTPDoer) { s.httpClient = c }
+
+// SetBackendEnsurer wires the on-demand recovery seam (plan L1): when a
+// transcribe hits a down backend, the Service asks the ensurer to start
+// `resource` once, then retries the request. Production wires
+// sttbackend.NewCLIEnsurer() with "whisper"; tests inject a fake. A nil ensurer
+// (the default) preserves the legacy behavior — a down backend returns the typed
+// error without an auto-start.
+func (s *Service) SetBackendEnsurer(e sttbackend.Ensurer, resource string) {
+	s.ensurer = e
+	s.backendResource = resource
+}
+
+// SetAutoEnsure toggles on-demand recovery at runtime (STT_AUTO_ENSURE). When
+// false, a down backend returns the typed operator-action error immediately
+// without attempting a `resource start`.
+func (s *Service) SetAutoEnsure(on bool) { s.autoEnsure = on }
 
 // SetEngine overrides the audio-format engine. Tests use this to inject
 // an Engine wired to a fake ffmpeg Runner / process.
@@ -186,7 +210,43 @@ func (s *Service) transcribe(ctx context.Context, audio []byte, format, language
 			return TranscriptionResult{}, ctx.Err()
 		}
 	}
-	return TranscribeBytes(ctx, s.whisperURL, s.httpClient, s.engine, audio, format, language, initialPrompt, vadFilter)
+
+	res, err := TranscribeBytes(ctx, s.whisperURL, s.httpClient, s.engine, audio, format, language, initialPrompt, vadFilter)
+	if err == nil || !isBackendDown(err) {
+		return res, err
+	}
+
+	// The backend is down (connection refused / dial failure), the exact
+	// 2026-06-29 incident signature. On-demand recovery (plan L1): ensure the
+	// backing resource is running, then retry ONCE. Single-flight + cooldown +
+	// allowlist live in the Ensurer, so concurrent transcribes trigger at most one
+	// `resource start`. When recovery is off (no ensurer / autoEnsure disabled /
+	// no backend resource) we return the typed operator-action error — never the
+	// raw dial string (plan L2).
+	resource := s.backendResource
+	if s.ensurer == nil || !s.autoEnsure || resource == "" {
+		s.log().Printf("event=stt_backend_down resource=%q auto_ensure=%t recovered=false err=%v", resource, s.autoEnsure, err)
+		return TranscriptionResult{}, newBackendNeedsOperator(resource)
+	}
+
+	s.log().Printf("event=stt_backend_down resource=%q action=ensure err=%v", resource, err)
+	if ensureErr := s.ensurer.EnsureRunning(ctx, resource); ensureErr != nil {
+		s.log().Printf("event=stt_backend_ensure_failed resource=%q err=%v", resource, ensureErr)
+		return TranscriptionResult{}, newBackendNeedsOperator(resource)
+	}
+
+	res, err = TranscribeBytes(ctx, s.whisperURL, s.httpClient, s.engine, audio, format, language, initialPrompt, vadFilter)
+	if err == nil {
+		s.log().Printf("event=stt_backend_recovered resource=%q", resource)
+		return res, nil
+	}
+	if isBackendDown(err) {
+		// Ensured, but the backend is not serving yet — report transient so the UI
+		// shows a "starting…" state and the user retries shortly.
+		s.log().Printf("event=stt_backend_starting resource=%q err=%v", resource, err)
+		return TranscriptionResult{}, newBackendStarting(resource)
+	}
+	return res, err
 }
 
 // ----- Pipeline state API -----

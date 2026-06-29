@@ -36,20 +36,36 @@ const (
 	// GenerationServiceGetProviderStatusProcedure is the fully-qualified name of the
 	// GenerationService's GetProviderStatus RPC.
 	GenerationServiceGetProviderStatusProcedure = "/vrooli.brand_manager.v1.generation.GenerationService/GetProviderStatus"
+	// GenerationServiceGetImageBackendStatusProcedure is the fully-qualified name of the
+	// GenerationService's GetImageBackendStatus RPC.
+	GenerationServiceGetImageBackendStatusProcedure = "/vrooli.brand_manager.v1.generation.GenerationService/GetImageBackendStatus"
 	// GenerationServiceGenerateBrandElementsProcedure is the fully-qualified name of the
 	// GenerationService's GenerateBrandElements RPC.
 	GenerationServiceGenerateBrandElementsProcedure = "/vrooli.brand_manager.v1.generation.GenerationService/GenerateBrandElements"
 	// GenerationServiceGenerateBrandImageProcedure is the fully-qualified name of the
 	// GenerationService's GenerateBrandImage RPC.
 	GenerationServiceGenerateBrandImageProcedure = "/vrooli.brand_manager.v1.generation.GenerationService/GenerateBrandImage"
+	// GenerationServiceEditBrandImageProcedure is the fully-qualified name of the GenerationService's
+	// EditBrandImage RPC.
+	GenerationServiceEditBrandImageProcedure = "/vrooli.brand_manager.v1.generation.GenerationService/EditBrandImage"
+	// GenerationServiceRemoveBrandImageBackgroundProcedure is the fully-qualified name of the
+	// GenerationService's RemoveBrandImageBackground RPC.
+	GenerationServiceRemoveBrandImageBackgroundProcedure = "/vrooli.brand_manager.v1.generation.GenerationService/RemoveBrandImageBackground"
+	// GenerationServiceDeriveBrandIconsProcedure is the fully-qualified name of the GenerationService's
+	// DeriveBrandIcons RPC.
+	GenerationServiceDeriveBrandIconsProcedure = "/vrooli.brand_manager.v1.generation.GenerationService/DeriveBrandIcons"
 )
 
 // GenerationServiceClient is a client for the vrooli.brand_manager.v1.generation.GenerationService
 // service.
 type GenerationServiceClient interface {
 	GetProviderStatus(context.Context, *connect.Request[generation.GetProviderStatusRequest]) (*connect.Response[generation.GetProviderStatusResponse], error)
+	GetImageBackendStatus(context.Context, *connect.Request[generation.GetImageBackendStatusRequest]) (*connect.Response[generation.GetImageBackendStatusResponse], error)
 	GenerateBrandElements(context.Context, *connect.Request[generation.GenerateBrandElementsRequest]) (*connect.Response[generation.GenerateBrandElementsResponse], error)
-	GenerateBrandImage(context.Context, *connect.Request[generation.GenerateBrandImageRequest]) (*connect.Response[generation.GenerateBrandImageResponse], error)
+	GenerateBrandImage(context.Context, *connect.Request[generation.GenerateBrandImageRequest]) (*connect.Response[generation.BrandImageAsset], error)
+	EditBrandImage(context.Context, *connect.Request[generation.EditBrandImageRequest]) (*connect.Response[generation.BrandImageAsset], error)
+	RemoveBrandImageBackground(context.Context, *connect.Request[generation.RemoveBrandImageBackgroundRequest]) (*connect.Response[generation.BrandImageAsset], error)
+	DeriveBrandIcons(context.Context, *connect.Request[generation.DeriveBrandIconsRequest]) (*connect.Response[generation.DeriveBrandIconsResponse], error)
 }
 
 // NewGenerationServiceClient constructs a client for the
@@ -70,16 +86,40 @@ func NewGenerationServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(generationServiceMethods.ByName("GetProviderStatus")),
 			connect.WithClientOptions(opts...),
 		),
+		getImageBackendStatus: connect.NewClient[generation.GetImageBackendStatusRequest, generation.GetImageBackendStatusResponse](
+			httpClient,
+			baseURL+GenerationServiceGetImageBackendStatusProcedure,
+			connect.WithSchema(generationServiceMethods.ByName("GetImageBackendStatus")),
+			connect.WithClientOptions(opts...),
+		),
 		generateBrandElements: connect.NewClient[generation.GenerateBrandElementsRequest, generation.GenerateBrandElementsResponse](
 			httpClient,
 			baseURL+GenerationServiceGenerateBrandElementsProcedure,
 			connect.WithSchema(generationServiceMethods.ByName("GenerateBrandElements")),
 			connect.WithClientOptions(opts...),
 		),
-		generateBrandImage: connect.NewClient[generation.GenerateBrandImageRequest, generation.GenerateBrandImageResponse](
+		generateBrandImage: connect.NewClient[generation.GenerateBrandImageRequest, generation.BrandImageAsset](
 			httpClient,
 			baseURL+GenerationServiceGenerateBrandImageProcedure,
 			connect.WithSchema(generationServiceMethods.ByName("GenerateBrandImage")),
+			connect.WithClientOptions(opts...),
+		),
+		editBrandImage: connect.NewClient[generation.EditBrandImageRequest, generation.BrandImageAsset](
+			httpClient,
+			baseURL+GenerationServiceEditBrandImageProcedure,
+			connect.WithSchema(generationServiceMethods.ByName("EditBrandImage")),
+			connect.WithClientOptions(opts...),
+		),
+		removeBrandImageBackground: connect.NewClient[generation.RemoveBrandImageBackgroundRequest, generation.BrandImageAsset](
+			httpClient,
+			baseURL+GenerationServiceRemoveBrandImageBackgroundProcedure,
+			connect.WithSchema(generationServiceMethods.ByName("RemoveBrandImageBackground")),
+			connect.WithClientOptions(opts...),
+		),
+		deriveBrandIcons: connect.NewClient[generation.DeriveBrandIconsRequest, generation.DeriveBrandIconsResponse](
+			httpClient,
+			baseURL+GenerationServiceDeriveBrandIconsProcedure,
+			connect.WithSchema(generationServiceMethods.ByName("DeriveBrandIcons")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -87,14 +127,24 @@ func NewGenerationServiceClient(httpClient connect.HTTPClient, baseURL string, o
 
 // generationServiceClient implements GenerationServiceClient.
 type generationServiceClient struct {
-	getProviderStatus     *connect.Client[generation.GetProviderStatusRequest, generation.GetProviderStatusResponse]
-	generateBrandElements *connect.Client[generation.GenerateBrandElementsRequest, generation.GenerateBrandElementsResponse]
-	generateBrandImage    *connect.Client[generation.GenerateBrandImageRequest, generation.GenerateBrandImageResponse]
+	getProviderStatus          *connect.Client[generation.GetProviderStatusRequest, generation.GetProviderStatusResponse]
+	getImageBackendStatus      *connect.Client[generation.GetImageBackendStatusRequest, generation.GetImageBackendStatusResponse]
+	generateBrandElements      *connect.Client[generation.GenerateBrandElementsRequest, generation.GenerateBrandElementsResponse]
+	generateBrandImage         *connect.Client[generation.GenerateBrandImageRequest, generation.BrandImageAsset]
+	editBrandImage             *connect.Client[generation.EditBrandImageRequest, generation.BrandImageAsset]
+	removeBrandImageBackground *connect.Client[generation.RemoveBrandImageBackgroundRequest, generation.BrandImageAsset]
+	deriveBrandIcons           *connect.Client[generation.DeriveBrandIconsRequest, generation.DeriveBrandIconsResponse]
 }
 
 // GetProviderStatus calls vrooli.brand_manager.v1.generation.GenerationService.GetProviderStatus.
 func (c *generationServiceClient) GetProviderStatus(ctx context.Context, req *connect.Request[generation.GetProviderStatusRequest]) (*connect.Response[generation.GetProviderStatusResponse], error) {
 	return c.getProviderStatus.CallUnary(ctx, req)
+}
+
+// GetImageBackendStatus calls
+// vrooli.brand_manager.v1.generation.GenerationService.GetImageBackendStatus.
+func (c *generationServiceClient) GetImageBackendStatus(ctx context.Context, req *connect.Request[generation.GetImageBackendStatusRequest]) (*connect.Response[generation.GetImageBackendStatusResponse], error) {
+	return c.getImageBackendStatus.CallUnary(ctx, req)
 }
 
 // GenerateBrandElements calls
@@ -104,16 +154,36 @@ func (c *generationServiceClient) GenerateBrandElements(ctx context.Context, req
 }
 
 // GenerateBrandImage calls vrooli.brand_manager.v1.generation.GenerationService.GenerateBrandImage.
-func (c *generationServiceClient) GenerateBrandImage(ctx context.Context, req *connect.Request[generation.GenerateBrandImageRequest]) (*connect.Response[generation.GenerateBrandImageResponse], error) {
+func (c *generationServiceClient) GenerateBrandImage(ctx context.Context, req *connect.Request[generation.GenerateBrandImageRequest]) (*connect.Response[generation.BrandImageAsset], error) {
 	return c.generateBrandImage.CallUnary(ctx, req)
+}
+
+// EditBrandImage calls vrooli.brand_manager.v1.generation.GenerationService.EditBrandImage.
+func (c *generationServiceClient) EditBrandImage(ctx context.Context, req *connect.Request[generation.EditBrandImageRequest]) (*connect.Response[generation.BrandImageAsset], error) {
+	return c.editBrandImage.CallUnary(ctx, req)
+}
+
+// RemoveBrandImageBackground calls
+// vrooli.brand_manager.v1.generation.GenerationService.RemoveBrandImageBackground.
+func (c *generationServiceClient) RemoveBrandImageBackground(ctx context.Context, req *connect.Request[generation.RemoveBrandImageBackgroundRequest]) (*connect.Response[generation.BrandImageAsset], error) {
+	return c.removeBrandImageBackground.CallUnary(ctx, req)
+}
+
+// DeriveBrandIcons calls vrooli.brand_manager.v1.generation.GenerationService.DeriveBrandIcons.
+func (c *generationServiceClient) DeriveBrandIcons(ctx context.Context, req *connect.Request[generation.DeriveBrandIconsRequest]) (*connect.Response[generation.DeriveBrandIconsResponse], error) {
+	return c.deriveBrandIcons.CallUnary(ctx, req)
 }
 
 // GenerationServiceHandler is an implementation of the
 // vrooli.brand_manager.v1.generation.GenerationService service.
 type GenerationServiceHandler interface {
 	GetProviderStatus(context.Context, *connect.Request[generation.GetProviderStatusRequest]) (*connect.Response[generation.GetProviderStatusResponse], error)
+	GetImageBackendStatus(context.Context, *connect.Request[generation.GetImageBackendStatusRequest]) (*connect.Response[generation.GetImageBackendStatusResponse], error)
 	GenerateBrandElements(context.Context, *connect.Request[generation.GenerateBrandElementsRequest]) (*connect.Response[generation.GenerateBrandElementsResponse], error)
-	GenerateBrandImage(context.Context, *connect.Request[generation.GenerateBrandImageRequest]) (*connect.Response[generation.GenerateBrandImageResponse], error)
+	GenerateBrandImage(context.Context, *connect.Request[generation.GenerateBrandImageRequest]) (*connect.Response[generation.BrandImageAsset], error)
+	EditBrandImage(context.Context, *connect.Request[generation.EditBrandImageRequest]) (*connect.Response[generation.BrandImageAsset], error)
+	RemoveBrandImageBackground(context.Context, *connect.Request[generation.RemoveBrandImageBackgroundRequest]) (*connect.Response[generation.BrandImageAsset], error)
+	DeriveBrandIcons(context.Context, *connect.Request[generation.DeriveBrandIconsRequest]) (*connect.Response[generation.DeriveBrandIconsResponse], error)
 }
 
 // NewGenerationServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -129,6 +199,12 @@ func NewGenerationServiceHandler(svc GenerationServiceHandler, opts ...connect.H
 		connect.WithSchema(generationServiceMethods.ByName("GetProviderStatus")),
 		connect.WithHandlerOptions(opts...),
 	)
+	generationServiceGetImageBackendStatusHandler := connect.NewUnaryHandler(
+		GenerationServiceGetImageBackendStatusProcedure,
+		svc.GetImageBackendStatus,
+		connect.WithSchema(generationServiceMethods.ByName("GetImageBackendStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
 	generationServiceGenerateBrandElementsHandler := connect.NewUnaryHandler(
 		GenerationServiceGenerateBrandElementsProcedure,
 		svc.GenerateBrandElements,
@@ -141,14 +217,40 @@ func NewGenerationServiceHandler(svc GenerationServiceHandler, opts ...connect.H
 		connect.WithSchema(generationServiceMethods.ByName("GenerateBrandImage")),
 		connect.WithHandlerOptions(opts...),
 	)
+	generationServiceEditBrandImageHandler := connect.NewUnaryHandler(
+		GenerationServiceEditBrandImageProcedure,
+		svc.EditBrandImage,
+		connect.WithSchema(generationServiceMethods.ByName("EditBrandImage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	generationServiceRemoveBrandImageBackgroundHandler := connect.NewUnaryHandler(
+		GenerationServiceRemoveBrandImageBackgroundProcedure,
+		svc.RemoveBrandImageBackground,
+		connect.WithSchema(generationServiceMethods.ByName("RemoveBrandImageBackground")),
+		connect.WithHandlerOptions(opts...),
+	)
+	generationServiceDeriveBrandIconsHandler := connect.NewUnaryHandler(
+		GenerationServiceDeriveBrandIconsProcedure,
+		svc.DeriveBrandIcons,
+		connect.WithSchema(generationServiceMethods.ByName("DeriveBrandIcons")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.brand_manager.v1.generation.GenerationService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case GenerationServiceGetProviderStatusProcedure:
 			generationServiceGetProviderStatusHandler.ServeHTTP(w, r)
+		case GenerationServiceGetImageBackendStatusProcedure:
+			generationServiceGetImageBackendStatusHandler.ServeHTTP(w, r)
 		case GenerationServiceGenerateBrandElementsProcedure:
 			generationServiceGenerateBrandElementsHandler.ServeHTTP(w, r)
 		case GenerationServiceGenerateBrandImageProcedure:
 			generationServiceGenerateBrandImageHandler.ServeHTTP(w, r)
+		case GenerationServiceEditBrandImageProcedure:
+			generationServiceEditBrandImageHandler.ServeHTTP(w, r)
+		case GenerationServiceRemoveBrandImageBackgroundProcedure:
+			generationServiceRemoveBrandImageBackgroundHandler.ServeHTTP(w, r)
+		case GenerationServiceDeriveBrandIconsProcedure:
+			generationServiceDeriveBrandIconsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -162,10 +264,26 @@ func (UnimplementedGenerationServiceHandler) GetProviderStatus(context.Context, 
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.brand_manager.v1.generation.GenerationService.GetProviderStatus is not implemented"))
 }
 
+func (UnimplementedGenerationServiceHandler) GetImageBackendStatus(context.Context, *connect.Request[generation.GetImageBackendStatusRequest]) (*connect.Response[generation.GetImageBackendStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.brand_manager.v1.generation.GenerationService.GetImageBackendStatus is not implemented"))
+}
+
 func (UnimplementedGenerationServiceHandler) GenerateBrandElements(context.Context, *connect.Request[generation.GenerateBrandElementsRequest]) (*connect.Response[generation.GenerateBrandElementsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.brand_manager.v1.generation.GenerationService.GenerateBrandElements is not implemented"))
 }
 
-func (UnimplementedGenerationServiceHandler) GenerateBrandImage(context.Context, *connect.Request[generation.GenerateBrandImageRequest]) (*connect.Response[generation.GenerateBrandImageResponse], error) {
+func (UnimplementedGenerationServiceHandler) GenerateBrandImage(context.Context, *connect.Request[generation.GenerateBrandImageRequest]) (*connect.Response[generation.BrandImageAsset], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.brand_manager.v1.generation.GenerationService.GenerateBrandImage is not implemented"))
+}
+
+func (UnimplementedGenerationServiceHandler) EditBrandImage(context.Context, *connect.Request[generation.EditBrandImageRequest]) (*connect.Response[generation.BrandImageAsset], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.brand_manager.v1.generation.GenerationService.EditBrandImage is not implemented"))
+}
+
+func (UnimplementedGenerationServiceHandler) RemoveBrandImageBackground(context.Context, *connect.Request[generation.RemoveBrandImageBackgroundRequest]) (*connect.Response[generation.BrandImageAsset], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.brand_manager.v1.generation.GenerationService.RemoveBrandImageBackground is not implemented"))
+}
+
+func (UnimplementedGenerationServiceHandler) DeriveBrandIcons(context.Context, *connect.Request[generation.DeriveBrandIconsRequest]) (*connect.Response[generation.DeriveBrandIconsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.brand_manager.v1.generation.GenerationService.DeriveBrandIcons is not implemented"))
 }

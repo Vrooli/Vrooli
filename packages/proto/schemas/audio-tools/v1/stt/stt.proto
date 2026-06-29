@@ -204,6 +204,21 @@ message StreamConfig {
   // (vad/overlap) and only when ffmpeg is available. Improves silence
   // detection + accuracy in noisy environments.
   bool denoise_enabled = 18;
+
+  // overlap_max_stall_rejects is the OverlapAgree stall-fallback commit
+  // policy. After this many CONSECUTIVE LocalAgreement divergence-rejects
+  // (the model wandering on hard audio so nothing commits), the strategy
+  // force-commits the freshest hypothesis tail and advances its cursor,
+  // bounding tail growth / re-transcription cost well before the 25s
+  // max_window_ms net — the fix for "streaming finalizes slower than
+  // batch". Range 0..10; 0 disables the fallback (only the 25s net
+  // applies); an absent/0-on-old-doc value backfills to the default (3).
+  // The active operator range is [1,10]. See
+  // scenarios/audio-tools/api/internal/stt/strategy/overlap_agree.go.
+  int32 overlap_max_stall_rejects = 19 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 10
+  }];
 }
 
 message GetStreamConfigRequest {}

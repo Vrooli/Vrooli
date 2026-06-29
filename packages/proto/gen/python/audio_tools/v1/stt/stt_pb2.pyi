@@ -88,7 +88,7 @@ class TranscribeResponse(_message.Message):
     def __init__(self, text: _Optional[str] = ..., detected_language: _Optional[str] = ..., duration_seconds: _Optional[float] = ..., provider_tier: _Optional[_Union[_common_pb2.ProviderTier, str]] = ..., provider_id: _Optional[str] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ...) -> None: ...
 
 class StreamConfig(_message.Message):
-    __slots__ = ("flush_interval_ms", "min_delta_bytes", "overlap_bytes", "persistent_mode", "wake_word_enabled", "wake_word_threshold", "segment_silence_ms", "streaming_mode", "strategy_preference", "vad_silence_ms", "overlap_window_ms", "overlap_commit_runs", "hallucination_filter_enabled", "vad_filter_enabled", "no_speech_threshold", "logprob_threshold", "engine_id", "denoise_enabled")
+    __slots__ = ("flush_interval_ms", "min_delta_bytes", "overlap_bytes", "persistent_mode", "wake_word_enabled", "wake_word_threshold", "segment_silence_ms", "streaming_mode", "strategy_preference", "vad_silence_ms", "overlap_window_ms", "overlap_commit_runs", "hallucination_filter_enabled", "vad_filter_enabled", "no_speech_threshold", "logprob_threshold", "engine_id", "denoise_enabled", "overlap_max_stall_rejects")
     FLUSH_INTERVAL_MS_FIELD_NUMBER: _ClassVar[int]
     MIN_DELTA_BYTES_FIELD_NUMBER: _ClassVar[int]
     OVERLAP_BYTES_FIELD_NUMBER: _ClassVar[int]
@@ -107,6 +107,7 @@ class StreamConfig(_message.Message):
     LOGPROB_THRESHOLD_FIELD_NUMBER: _ClassVar[int]
     ENGINE_ID_FIELD_NUMBER: _ClassVar[int]
     DENOISE_ENABLED_FIELD_NUMBER: _ClassVar[int]
+    OVERLAP_MAX_STALL_REJECTS_FIELD_NUMBER: _ClassVar[int]
     flush_interval_ms: int
     min_delta_bytes: int
     overlap_bytes: int
@@ -125,7 +126,8 @@ class StreamConfig(_message.Message):
     logprob_threshold: float
     engine_id: str
     denoise_enabled: bool
-    def __init__(self, flush_interval_ms: _Optional[int] = ..., min_delta_bytes: _Optional[int] = ..., overlap_bytes: _Optional[int] = ..., persistent_mode: _Optional[bool] = ..., wake_word_enabled: _Optional[bool] = ..., wake_word_threshold: _Optional[float] = ..., segment_silence_ms: _Optional[int] = ..., streaming_mode: _Optional[_Union[StreamingMode, str]] = ..., strategy_preference: _Optional[_Union[StrategyPreference, str]] = ..., vad_silence_ms: _Optional[int] = ..., overlap_window_ms: _Optional[int] = ..., overlap_commit_runs: _Optional[int] = ..., hallucination_filter_enabled: _Optional[bool] = ..., vad_filter_enabled: _Optional[bool] = ..., no_speech_threshold: _Optional[float] = ..., logprob_threshold: _Optional[float] = ..., engine_id: _Optional[str] = ..., denoise_enabled: _Optional[bool] = ...) -> None: ...
+    overlap_max_stall_rejects: int
+    def __init__(self, flush_interval_ms: _Optional[int] = ..., min_delta_bytes: _Optional[int] = ..., overlap_bytes: _Optional[int] = ..., persistent_mode: _Optional[bool] = ..., wake_word_enabled: _Optional[bool] = ..., wake_word_threshold: _Optional[float] = ..., segment_silence_ms: _Optional[int] = ..., streaming_mode: _Optional[_Union[StreamingMode, str]] = ..., strategy_preference: _Optional[_Union[StrategyPreference, str]] = ..., vad_silence_ms: _Optional[int] = ..., overlap_window_ms: _Optional[int] = ..., overlap_commit_runs: _Optional[int] = ..., hallucination_filter_enabled: _Optional[bool] = ..., vad_filter_enabled: _Optional[bool] = ..., no_speech_threshold: _Optional[float] = ..., logprob_threshold: _Optional[float] = ..., engine_id: _Optional[str] = ..., denoise_enabled: _Optional[bool] = ..., overlap_max_stall_rejects: _Optional[int] = ...) -> None: ...
 
 class GetStreamConfigRequest(_message.Message):
     __slots__ = ()

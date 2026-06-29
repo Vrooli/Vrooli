@@ -1,6 +1,6 @@
 # Vrooli Skills
 
-This folder is **publication source** for Claude Skills (the [open SKILL.md standard](https://github.com/anthropics/skills)) that teach external agents — Claude Code, Codex CLI, Gemini CLI, Cursor, Windsurf, etc. — how to use specific Vrooli capabilities standalone.
+This folder is **publication source** for Claude Skills (the [open SKILL.md standard](https://github.com/anthropics/skills)) that teach external agents — Claude Code, Codex CLI, Antigravity CLI, Cursor, Windsurf, etc. — how to use specific Vrooli capabilities standalone.
 
 It is **not** a runtime skills directory. Internal skills used while working *on* Vrooli (vision walks, planning, debugging, etc.) live in [prompt-manager](../scenarios/prompt-manager/), invoked via `prompt-manager skill ...`. Don't confuse the two:
 
