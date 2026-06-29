@@ -57,6 +57,8 @@ func RunnerTypeToProto(r domain.RunnerType) pb.RunnerType {
 		return pb.RunnerType_RUNNER_TYPE_CODEX
 	case domain.RunnerTypeOpenCode:
 		return pb.RunnerType_RUNNER_TYPE_OPENCODE
+	case domain.RunnerTypeGrok:
+		return pb.RunnerType_RUNNER_TYPE_GROK
 	default:
 		return pb.RunnerType_RUNNER_TYPE_UNSPECIFIED
 	}
@@ -71,6 +73,8 @@ func RunnerTypeFromProto(r pb.RunnerType) domain.RunnerType {
 		return domain.RunnerTypeCodex
 	case pb.RunnerType_RUNNER_TYPE_OPENCODE:
 		return domain.RunnerTypeOpenCode
+	case pb.RunnerType_RUNNER_TYPE_GROK:
+		return domain.RunnerTypeGrok
 	default:
 		return domain.RunnerType("")
 	}

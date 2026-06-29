@@ -300,6 +300,32 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		}
 	}
 
+	// Register Grok runner (codecs.Grok wired through core.Runner).
+	// Permission posture (D4): the codec maps SkipPermissionPrompt to grok's
+	// --always-approve and does NOT write per-run permission rules; the grok
+	// resource's operator-configured PreToolUse deny hook enforces (it holds
+	// even under --always-approve). Per-run enforcement is a filed follow-up.
+	var grokRunner *runnercore.Runner
+	if grokCodec, err := codecs.NewGrok(); err != nil {
+		bootLog.Warn("Grok codec construction failed", obs.KeyRunnerType, string(domain.RunnerTypeGrok), obs.KeyError, err.Error())
+		if err := runnerRegistry.Register(runner.NewStubRunner(
+			domain.RunnerTypeGrok,
+			fmt.Sprintf("grok runner failed to initialize: %v", err),
+		)); err != nil {
+			bootLog.Warn("stub Grok runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeGrok), obs.KeyError, err.Error())
+		}
+	} else {
+		grokRunner = runnercore.NewRunner(grokCodec, hostLauncher, nil)
+		if err := runnerRegistry.Register(grokRunner); err != nil {
+			bootLog.Warn("Grok runner registration failed", obs.KeyRunnerType, string(domain.RunnerTypeGrok), obs.KeyError, err.Error())
+		}
+		if avail, msg := grokRunner.IsAvailable(context.Background()); avail {
+			bootLog.Info("runner available", obs.KeyRunnerType, string(domain.RunnerTypeGrok))
+		} else {
+			bootLog.Warn("runner unavailable", obs.KeyRunnerType, string(domain.RunnerTypeGrok), obs.KeyMessage, msg)
+		}
+	}
+
 	// Create flag validator for runner-specific CLI flag validation
 	flagValidator := runner.NewRegistryFlagValidator(runnerRegistry)
 

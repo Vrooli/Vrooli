@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -57,11 +56,25 @@ const opencodeTagEnvKey = "OPENCODE_AGENT_TAG"
 
 // OpenCode is the [Codec] implementation for the opencode CLI.
 type OpenCode struct {
-	binaryPath  string
-	available   bool
-	message     string
-	installHint string
-	ollama      *ollamaLister
+	baseCodec
+	ollama *ollamaLister
+}
+
+// opencodeBase is the identity shared by NewOpenCode and NewOpenCodeForTest.
+func opencodeBase() baseCodec {
+	return baseCodec{
+		runnerType:     domain.RunnerTypeOpenCode,
+		binaryDesc:     "opencode CLI",
+		installHint:    "Run: vrooli resource install opencode",
+		tagEnvKey:      opencodeTagEnvKey,
+		continuePrefix: "opencode",
+		labels: Labels{
+			StartMessage:         "OpenCode execution started",
+			EndMessage:           "OpenCode execution completed",
+			ContinueStartMessage: "OpenCode continuation started",
+			ContinueEndMessage:   "OpenCode continuation completed",
+		},
+	}
 }
 
 // NewOpenCode resolves the `opencode` binary on PATH and returns a codec
@@ -72,49 +85,36 @@ type OpenCode struct {
 // authoritative "binary is broken" signal comes from runtime
 // classification on the first real invocation.
 func NewOpenCode() (*OpenCode, error) {
-	binaryPath, err := exec.LookPath(OpenCodeCLICommand)
-	if err != nil {
-		return &OpenCode{
-			available:   false,
-			message:     "opencode CLI not found in PATH",
-			installHint: "Run: vrooli resource install opencode",
-			ollama:      newOllamaLister(),
-		}, nil
+	c := &OpenCode{
+		baseCodec: resolveBinary(opencodeBase(), OpenCodeCLICommand),
+		ollama:    newOllamaLister(),
 	}
-	return &OpenCode{
-		binaryPath: binaryPath,
-		available:  true,
-		message:    "opencode CLI available",
-		ollama:     newOllamaLister(),
-	}, nil
+	c.newParser = c.NewTranscriptParser
+	return c, nil
 }
 
 // NewOpenCodeForTest returns an OpenCode codec with a fake binary path
 // and Available=false. Used by codec tests that exercise BuildArgs /
 // decode paths without launching a real process.
 func NewOpenCodeForTest() *OpenCode {
-	return &OpenCode{
-		binaryPath: "/fake/opencode",
-		available:  false,
-		message:    "test opencode codec",
-	}
+	c := &OpenCode{baseCodec: testBase(opencodeBase(), "/fake/opencode", "test opencode codec")}
+	c.newParser = c.NewTranscriptParser
+	return c
 }
-
-// Type satisfies [Codec].
-func (c *OpenCode) Type() domain.RunnerType { return domain.RunnerTypeOpenCode }
 
 // Capabilities satisfies [Codec]. SupportedModels is the curated cloud list
 // plus any locally-pulled Ollama models discovered via the cached lister
 // (opencode reaches them through its first-class `ollama` provider block).
 func (c *OpenCode) Capabilities() runner.Capabilities {
+	// Curated defaults MUST stay a subset of config/model-registry.json's
+	// opencode models — the operator-facing catalog is the source of truth
+	// (D2). codecs/model_parity_test.go gates this; the registry routes
+	// opencode through OpenRouter, so these are openrouter/* ids.
 	models := []string{
-		"anthropic/claude-sonnet-4-6",
-		"anthropic/claude-opus-4-7",
-		"anthropic/claude-haiku-4-5",
-		"openai/gpt-4o",
-		"openai/o4-mini",
-		"google/gemini-2.0-flash",
-		"deepseek/deepseek-chat",
+		"openrouter/deepseek/deepseek-v4-pro",
+		"openrouter/google/gemini-3.5-flash",
+		"openrouter/anthropic/claude-opus-4.8",
+		"openrouter/deepseek/deepseek-v4-flash",
 	}
 	models = append(models, c.ollama.list()...)
 
@@ -131,30 +131,6 @@ func (c *OpenCode) Capabilities() runner.Capabilities {
 		SupportedFeatures:        []string{},
 		AllowedExtraFlags:        []string{"--verbose"},
 	}
-}
-
-// BinaryPath satisfies [Codec].
-func (c *OpenCode) BinaryPath() string { return c.binaryPath }
-
-// BinaryDescription satisfies [Codec].
-func (c *OpenCode) BinaryDescription() string { return "opencode CLI" }
-
-// TagEnvKey satisfies [Codec].
-func (c *OpenCode) TagEnvKey() string { return opencodeTagEnvKey }
-
-// Available satisfies [Codec].
-func (c *OpenCode) Available(ctx context.Context) (bool, string) {
-	if !c.available {
-		msg := c.message
-		if c.installHint != "" {
-			msg += ". " + c.installHint
-		}
-		return false, msg
-	}
-	if _, err := os.Stat(c.binaryPath); os.IsNotExist(err) {
-		return false, "opencode CLI not found. Run: vrooli resource install opencode"
-	}
-	return true, "opencode CLI is available"
 }
 
 // ProbeModel satisfies [Codec]. Lightweight by design — it never makes a
@@ -234,21 +210,6 @@ func validateOpenCodeModel(modelID string, ollamaModels []string, catalogPath st
 	return fmt.Errorf("model %q is not available from provider %q in the opencode catalog — opencode would fail with ProviderModelNotFoundError; check the model id (e.g. \"openrouter/<vendor>/<model>\") or refresh the catalog", modelID, provider)
 }
 
-// Labels satisfies [Codec].
-func (c *OpenCode) Labels() Labels {
-	return Labels{
-		StartMessage:         "OpenCode execution started",
-		EndMessage:           "OpenCode execution completed",
-		ContinueStartMessage: "OpenCode continuation started",
-		ContinueEndMessage:   "OpenCode continuation completed",
-	}
-}
-
-// ContinueTag satisfies [Codec].
-func (c *OpenCode) ContinueTag(req runner.ContinueRequest) string {
-	return fmt.Sprintf("opencode-continue-%s", req.RunID.String()[:8])
-}
-
 // BuildEnv satisfies [Codec]. The raw opencode binary reads its config
 // from the default XDG location (~/.config/opencode/opencode.json) and its
 // auth from ~/.local/share/opencode/auth.json — the same locations the
@@ -256,10 +217,7 @@ func (c *OpenCode) ContinueTag(req runner.ContinueRequest) string {
 // write to. We deliberately do NOT override XDG_CONFIG_HOME/OPENCODE_CONFIG
 // here so the managed config/auth is the single source of truth.
 func (c *OpenCode) BuildEnv(tag string, extras map[string]string) []string {
-	env := runner.SanitizedBaseEnv()
-	env = append(env, fmt.Sprintf("%s=%s", opencodeTagEnvKey, tag))
-	env = append(env, "OPENCODE_NON_INTERACTIVE=true")
-	return runner.AppendEnvMap(env, extras)
+	return standardBuildEnv(opencodeTagEnvKey, tag, extras, "OPENCODE_NON_INTERACTIVE=true")
 }
 
 // BuildPrompt satisfies [Codec]. OpenCode passes the prompt as a CLI
@@ -672,15 +630,8 @@ func (c *OpenCode) UpdateMetrics(event *domain.RunEvent, metrics *runner.Executi
 	}
 }
 
-// ParseTranscriptLine satisfies [Codec] for single-line transcript parsing.
-// Multi-line replay uses NewTranscriptParser to retain runner state across
-// the transcript stream.
-func (c *OpenCode) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
-	parser := c.NewTranscriptParser()
-	return parser.ParseTranscriptLine(runID, line)
-}
-
-// NewTranscriptParser satisfies [Codec].
+// NewTranscriptParser satisfies [Codec]. Single-line parsing is provided by
+// the embedded [baseCodec.ParseTranscriptLine], which delegates here.
 func (c *OpenCode) NewTranscriptParser() runner.TranscriptParser {
 	return &opencodeTranscriptParser{codec: c, state: &opencodeState{}}
 }

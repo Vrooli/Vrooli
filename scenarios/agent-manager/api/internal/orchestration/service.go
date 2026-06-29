@@ -3277,6 +3277,11 @@ func (o *Orchestrator) ProbeRunner(ctx context.Context, runnerType domain.Runner
 		cmdName = "opencode"
 		// Use run subcommand
 		probeCmd = exec.CommandContext(probeCtx, cmdName, "run", probePrompt)
+	case domain.RunnerTypeGrok:
+		cmdName = "grok"
+		// Headless single-turn; plain output is enough for a one-word probe
+		// and one turn cannot reach a tool that would need approval.
+		probeCmd = exec.CommandContext(probeCtx, cmdName, "-p", probePrompt, "--output-format", "plain", "--max-turns", "1")
 	default:
 		return &ProbeResult{
 			RunnerType: runnerType,

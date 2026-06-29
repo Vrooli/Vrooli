@@ -126,21 +126,33 @@ returns the host or sandbox launcher.
 ## Codec capability contract (SSOT, 2026-06-22)
 
 This is the single source of truth for each codec's
-`Capabilities()` struct (`internal/adapters/runner/codecs/{claude,codex,opencode}.go`).
+`Capabilities()` struct (`internal/adapters/runner/codecs/{claude,codex,opencode,grok}.go`).
 The drift guard `codecs.TestCapabilitiesConformance` pins code to this
 table — update both together. Parity means "same capability wherever the
 upstream CLI allows," not faked support.
 
-| Capability | claude_code | codex | opencode | Notes |
-|---|:---:|:---:|:---:|---|
-| Messages | ✅ | ✅ | ✅ | structured assistant/user messages |
-| Tool events | ✅ | ✅ | ✅ | tool_call / tool_result |
-| Cost tracking | ✅ | ✅ | ✅ | token + cost from the JSON stream |
-| Streaming | ✅ | ✅ | ✅ | line-delimited JSON event stream |
-| Cancellation | ✅ | ✅ | ✅ | mid-run kill via the launcher |
-| Continuation | ✅ | ✅ | ✅ | claude `--resume`; codex `exec resume`; opencode `--session` |
-| Image attachments | ✅ | ✅ | ✅ | claude embeds paths in the prompt; codex `-i/--image`; opencode `-f/--file` |
-| Local models (Ollama) | ❌ | ✅ | ✅ | **Acknowledged difference:** claude-code is Anthropic-native (litellm proxy retired). codex routes `ollama/*` models via `--oss --local-provider ollama`; opencode via its first-class `ollama` provider block. |
+| Capability | claude_code | codex | opencode | grok | Notes |
+|---|:---:|:---:|:---:|:---:|---|
+| Messages | ✅ | ✅ | ✅ | ✅ | structured assistant/user messages |
+| Tool events | ✅ | ✅ | ✅ | ❌ | tool_call / tool_result. **grok:** headless stdout never surfaces tool events even when a tool runs (trace-verified) |
+| Cost tracking | ✅ | ✅ | ✅ | ❌ | token + cost from the JSON stream. **grok:** no usage/cost in the stream |
+| Streaming | ✅ | ✅ | ✅ | ✅ | line-delimited JSON event stream (grok: `--output-format streaming-json`) |
+| Cancellation | ✅ | ✅ | ✅ | ✅ | mid-run kill via the launcher |
+| Continuation | ✅ | ✅ | ✅ | ✅ | claude `--resume`; codex `exec resume`; opencode `--session`; grok `--resume` |
+| Image attachments | ✅ | ✅ | ✅ | ❌ | claude embeds paths in the prompt; codex `-i/--image`; opencode `-f/--file`; **grok:** no headless image flag |
+| Local models (Ollama) | ❌ | ✅ | ✅ | ❌ | **Acknowledged difference:** claude-code is Anthropic-native (litellm proxy retired). codex routes `ollama/*` models via `--oss --local-provider ollama`; opencode via its first-class `ollama` provider block. grok is xAI-native. |
+
+> **Grok is an intentional non-uniform row (no vaporware).** Unlike the
+> other three coding agents, grok's headless `-p … --output-format
+> streaming-json` output carries only reasoning (`thought`), assistant text
+> (`text`), a terminal `end` event with the session id, and `error` events —
+> verified against `codecs/testdata/grok_trace.jsonl`. So tool events, cost,
+> and image attachments are honestly **false**. Permission posture (D4): the
+> codec maps `SkipPermissionPrompt` → grok's `--always-approve`; per-run
+> AllowedTools/DeniedTools are not written (they would race on the single
+> global `~/.grok/config.toml` and collide with the resource's `agentpolicy`
+> gate). The grok resource's PreToolUse deny hook enforces. Per-run
+> enforcement is a filed follow-up.
 
 **Model advertisement (`SupportedModels`).** Each codec advertises a
 curated cloud list and, for codex + opencode, **appends the

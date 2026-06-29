@@ -95,6 +95,23 @@
         "FAST": ["openrouter/google/gemini-3.5-flash", ""],
         "SMART": ["openrouter/anthropic/claude-opus-4.8", ""]
       }
+    },
+    "grok": {
+      "models": [
+        {
+          "id": "grok-build",
+          "description": "Grok Build — xAI's most capable coding model."
+        },
+        {
+          "id": "grok-composer-2.5-fast",
+          "description": "Grok Composer 2.5 Fast — fast, low-cost default for everyday coding."
+        }
+      ],
+      "presets": {
+        "CHEAP": ["grok-composer-2.5-fast"],
+        "FAST": ["grok-composer-2.5-fast", ""],
+        "SMART": ["grok-build", "grok-composer-2.5-fast", ""]
+      }
     }
   }
 }

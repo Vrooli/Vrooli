@@ -39,8 +39,10 @@ api/internal/
 │   └── integration/        # End-to-end recovery regression gate
 ├── adapters/
 │   ├── runner/
-│   │   ├── core/           # Generic Runner pipeline (one impl, three model bindings)
-│   │   ├── codecs/         # Per-model codecs: claude, codex, opencode (~250 LOC each)
+│   │   ├── core/           # Generic Runner pipeline (one impl, four model bindings)
+│   │   ├── codecs/         # Per-model codecs: claude, codex, opencode, grok
+│   │   │                   #   base.go (embeddable baseCodec + shared helpers),
+│   │   │                   #   pricing.go (runner-agnostic cost seam)
 │   │   ├── interface.go    # Runner / EventSink / TranscriptParser interfaces
 │   │   └── launcher.go     # Process launcher (host / sandbox)
 │   ├── sandbox/            # workspace-sandbox HTTP adapter
@@ -117,18 +119,62 @@ type Runner interface {
 - `MockRunner` - Simulates agent execution for testing (implemented)
 - `StubRunner` - Placeholder for unavailable runners (implemented)
 - `DefaultRegistry` - Runner registry with registration and lookup (implemented)
-- `ClaudeCodeRunner` - Claude Code CLI integration (implemented ✅)
-  - Executes `claude` CLI with `--print --output-format stream-json`
-  - Parses streaming events (messages, tool calls, errors)
-  - Supports cancellation and timeout
-  - Reports full capabilities: messages, tool events, cost tracking, streaming
-- `CodexRunner` - OpenAI Codex integration (planned)
-- `OpenCodeRunner` - Open-source model integration (planned)
+- `MockRunner` / `StubRunner` / `DefaultRegistry` (implemented)
+- Four codecs wired through `core.Runner` (all implemented ✅): `Claude`
+  (`claude --print --output-format stream-json`), `Codex` (`codex exec --json`),
+  `OpenCode` (`opencode run --format json`), `Grok`
+  (`grok -p … --output-format streaming-json`).
 
 **Dependencies:**
 - Receives: `ExecuteRequest` with profile, task, working directory
 - Produces: `ExecuteResult` with summary, metrics, exit code
 - Side effects: Streams `RunEvent` to `EventSink`
+
+---
+
+### 1a. Codec + baseCodec + Pricing (`adapters/runner/codecs`)
+
+**Purpose:** Isolate the per-runner glue (CLI args, stdout decode, classify,
+metrics, cost) from the generic `core.Runner` pipeline. One file per runner
+implements `Codec`; `core.Runner` owns launch/scan/transcript/events.
+
+**Seam shape:**
+- `Codec` (`codecs/codec.go`) — the per-runner contract.
+- `baseCodec` (`codecs/base.go`) — embeddable struct every codec composes for
+  the genuinely-identical surface: binary resolution + availability
+  (`resolveBinary`), `Type`/`BinaryDescription`/`TagEnvKey`/`Labels`, the
+  available-gated `ProbeModel` default, `ContinueTag`, the drain-to-EOF
+  `OnEarlyTerminate` and no-op `PostClassify` defaults, and `ParseTranscriptLine`
+  (delegating to each codec's `NewTranscriptParser` via a wired `newParser`
+  func). Free helpers `standardBuildEnv` / `testBase` cover env construction and
+  the `*ForTest` variant. Each `*.go` codec contains ONLY its unique surface
+  (BuildArgs, stream decode, Classify, UpdateMetrics, cost).
+- Pricing seam (`codecs/pricing.go`) — runner-agnostic `PricingService` /
+  `PricingCostRequest` / `PricingCostCalculation` + `buildCostEvent(runID,
+  runnerType, pricing, model, tokens)`. Parameterised by `RunnerType` so any
+  codec whose CLI reports tokens-but-not-cost (codex today) shares one
+  cost-event builder. Claude/OpenCode report cost natively and bypass it.
+
+**Why it's a seam:**
+- Adding a runner = one new `codecs/<name>.go` embedding `baseCodec` (+ enum and
+  registry plumbing), not a copy of the availability/probe/labels/transcript
+  boilerplate. Adding Grok was the forcing function that extracted it.
+
+**Drift gates (both run in CI):**
+- `codecs/model_parity_test.go` — each codec's curated `SupportedModels` must be
+  a subset of `config/model-registry.json` for that runner (the registry is the
+  source of truth; runtime-discovered `ollama/*` excluded).
+- `runner/runnertype_conformance_test.go` — the RunnerType set is identical
+  across `domain.ValidRunnerTypes()`, the generated proto enum, and the
+  model-registry runner keys.
+
+**Capability honesty (Grok):** grok's headless stdout surfaces assistant text +
+session id but NOT tool-call/result events or token/cost — even when a tool
+runs. `Grok.Capabilities()` reflects exactly that (no tool events, no cost);
+`codecs/capabilities_conformance_test.go` pins the honest contract.
+
+**Tests:** `codecs/{claude,codex,opencode,grok}_test.go`, `golden_test.go`,
+`classify_test.go`, `capabilities_conformance_test.go`, plus the two drift gates.
 
 ---
 
@@ -756,10 +802,23 @@ Each seam enables specific testing patterns:
 
 ### Adding a New Runner
 
-1. Implement `runner.Runner` interface in `adapters/runner/`
-2. Register in `runner.Registry` during startup
-3. Add runner type to `domain.RunnerType` constants
-4. Document capabilities in runner implementation
+The codec seam (§1a) makes this small. Using Grok as the worked example:
+
+1. **Capture real traces first** — never write a decoder from guessed fields.
+   Save run/resume/failure stdout to `codecs/testdata/<name>_trace.jsonl`.
+2. **Enum tri-source** (gated by `runnertype_conformance_test.go`): add
+   `RUNNER_TYPE_<NAME>` to `packages/proto/.../types.proto` (`make gen-code`),
+   `domain.RunnerType<Name>` + `ValidRunnerTypes()`, and a runner entry in
+   `config/model-registry.json`. Add the proto↔domain cases in
+   `protoconv/convert.go`.
+3. **Codec**: add `codecs/<name>.go` embedding `baseCodec` (via `resolveBinary`)
+   + `<name>_test.go` written against the captured trace. Keep
+   `Capabilities()` honest — only the bools the trace proves.
+4. **Wire** in `main.go` (real codec or `StubRunner` when unavailable) and add a
+   process-detection case in `orchestration/terminator.go` + a live-probe case
+   in `orchestration/service.go`.
+5. **Surface** in the UI (`lib/utils.ts` label/slug maps, the runner-select
+   lists) and refresh `@vrooli/proto-types` (`pnpm install` in `ui/`).
 
 ### Adding a New Policy Rule
 

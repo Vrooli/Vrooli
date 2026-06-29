@@ -14,12 +14,9 @@
 package codecs
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
@@ -53,10 +50,24 @@ const claudeTagEnvKey = "CLAUDE_CODE_AGENT_TAG"
 
 // Claude is the [Codec] implementation for the Claude Code CLI.
 type Claude struct {
-	binaryPath  string
-	available   bool
-	message     string
-	installHint string
+	baseCodec
+}
+
+// claudeBase is the identity shared by NewClaude and NewClaudeForTest.
+func claudeBase() baseCodec {
+	return baseCodec{
+		runnerType:     domain.RunnerTypeClaudeCode,
+		binaryDesc:     "claude CLI",
+		installHint:    "Install: npm install -g @anthropic-ai/claude-code",
+		tagEnvKey:      claudeTagEnvKey,
+		continuePrefix: "claude",
+		labels: Labels{
+			StartMessage:         "Claude Code execution started",
+			EndMessage:           "Claude Code execution completed",
+			ContinueStartMessage: "Claude Code continuation started",
+			ContinueEndMessage:   "Claude Code continuation completed",
+		},
+	}
 }
 
 // NewClaude resolves the `claude` binary on PATH and returns a codec ready
@@ -64,34 +75,19 @@ type Claude struct {
 // (rather than an error) when the binary is missing, so the runner
 // registry can register a stub instead.
 func NewClaude() (*Claude, error) {
-	binaryPath, err := exec.LookPath(ClaudeCLICommand)
-	if err != nil {
-		return &Claude{
-			available:   false,
-			message:     "claude CLI not found in PATH",
-			installHint: "Install: npm install -g @anthropic-ai/claude-code",
-		}, nil
-	}
-	return &Claude{
-		binaryPath: binaryPath,
-		available:  true,
-		message:    "claude CLI available",
-	}, nil
+	c := &Claude{baseCodec: resolveBinary(claudeBase(), ClaudeCLICommand)}
+	c.newParser = c.NewTranscriptParser
+	return c, nil
 }
 
 // NewClaudeForTest returns a Claude codec with a fake binary path and
 // Available=false. Used by codec tests that exercise BuildArgs / decode
 // paths without launching a real process.
 func NewClaudeForTest() *Claude {
-	return &Claude{
-		binaryPath: "/fake/path",
-		available:  false,
-		message:    "test claude codec",
-	}
+	c := &Claude{baseCodec: testBase(claudeBase(), "/fake/path", "test claude codec")}
+	c.newParser = c.NewTranscriptParser
+	return c
 }
-
-// Type satisfies [Codec].
-func (c *Claude) Type() domain.RunnerType { return domain.RunnerTypeClaudeCode }
 
 // Capabilities satisfies [Codec].
 func (c *Claude) Capabilities() runner.Capabilities {
@@ -117,64 +113,12 @@ func (c *Claude) Capabilities() runner.Capabilities {
 	}
 }
 
-// BinaryPath satisfies [Codec].
-func (c *Claude) BinaryPath() string { return c.binaryPath }
-
-// BinaryDescription satisfies [Codec].
-func (c *Claude) BinaryDescription() string { return "claude CLI" }
-
-// TagEnvKey satisfies [Codec].
-func (c *Claude) TagEnvKey() string { return claudeTagEnvKey }
-
-// Available satisfies [Codec]. ProbeModel uses this; the runner registry
-// uses it; main.go uses it to decide stub-vs-real registration.
-func (c *Claude) Available(ctx context.Context) (bool, string) {
-	if !c.available {
-		msg := c.message
-		if c.installHint != "" {
-			msg += ". " + c.installHint
-		}
-		return false, msg
-	}
-	if _, err := os.Stat(c.binaryPath); os.IsNotExist(err) {
-		return false, "claude CLI not found. Install: npm install -g @anthropic-ai/claude-code"
-	}
-	return true, "claude CLI is available"
-}
-
-// ProbeModel satisfies [Codec]. Claude is intentionally lenient: the
-// canonical presets are vendor aliases that resolve server-side, and
-// pinned versions surface failures on first real invocation.
-func (c *Claude) ProbeModel(ctx context.Context, modelID string) error {
-	if available, msg := c.Available(ctx); !available {
-		return fmt.Errorf("claude-code unavailable: %s", msg)
-	}
-	return nil
-}
-
-// Labels satisfies [Codec].
-func (c *Claude) Labels() Labels {
-	return Labels{
-		StartMessage:         "Claude Code execution started",
-		EndMessage:           "Claude Code execution completed",
-		ContinueStartMessage: "Claude Code continuation started",
-		ContinueEndMessage:   "Claude Code continuation completed",
-	}
-}
-
-// ContinueTag satisfies [Codec]. Synthesised tag distinguishes
-// continuation runs from initial runs of the same RunID for /proc-based
-// reconciliation.
-func (c *Claude) ContinueTag(req runner.ContinueRequest) string {
-	return fmt.Sprintf("claude-continue-%s", req.RunID.String()[:8])
-}
-
 // BuildEnv satisfies [Codec]. The tag is the value the launcher writes to
-// CLAUDE_CODE_AGENT_TAG; codec extras are merged on top.
+// CLAUDE_CODE_AGENT_TAG; codec extras are merged on top. Binary resolution,
+// availability, probing, labels, type, tag-key and continuation tags are
+// provided by the embedded [baseCodec].
 func (c *Claude) BuildEnv(tag string, extras map[string]string) []string {
-	env := runner.SanitizedBaseEnv()
-	env = append(env, fmt.Sprintf("%s=%s", claudeTagEnvKey, tag))
-	return runner.AppendEnvMap(env, extras)
+	return standardBuildEnv(claudeTagEnvKey, tag, extras)
 }
 
 // BuildPrompt satisfies [Codec]. Claude reads image attachments by file
@@ -488,11 +432,6 @@ func (c *Claude) DecodeStreamLine(state State, runID uuid.UUID, line string) ([]
 	return events, nil
 }
 
-// OnEarlyTerminate satisfies [Codec]. Claude's stream ends with a
-// `result` event but the CLI exits cleanly afterwards, so we let the
-// scanner drain to EOF. No early break.
-func (c *Claude) OnEarlyTerminate(state State, line string) bool { return false }
-
 // PostClassify satisfies [Codec]. When the stream produced a terminal
 // rate-limit event but the process still exited cleanly, flip the result
 // so the orchestrator sees the failure.
@@ -584,15 +523,8 @@ func (c *Claude) UpdateMetrics(event *domain.RunEvent, metrics *runner.Execution
 	}
 }
 
-// ParseTranscriptLine satisfies [Codec] for single-line transcript parsing.
-// Multi-line replay uses NewTranscriptParser so Claude result fallbacks can
-// see assistant content emitted by earlier transcript lines.
-func (c *Claude) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
-	parser := c.NewTranscriptParser()
-	return parser.ParseTranscriptLine(runID, line)
-}
-
-// NewTranscriptParser satisfies [Codec].
+// NewTranscriptParser satisfies [Codec]. Single-line parsing is provided by
+// the embedded [baseCodec.ParseTranscriptLine], which delegates here.
 func (c *Claude) NewTranscriptParser() runner.TranscriptParser {
 	return &claudeTranscriptParser{state: &claudeState{}}
 }

@@ -79,6 +79,7 @@ const (
 	RunnerTypeClaudeCode RunnerType = "claude-code"
 	RunnerTypeCodex      RunnerType = "codex"
 	RunnerTypeOpenCode   RunnerType = "opencode"
+	RunnerTypeGrok       RunnerType = "grok"
 )
 
 // ValidRunnerTypes returns all valid runner types.
@@ -87,6 +88,7 @@ func ValidRunnerTypes() []RunnerType {
 		RunnerTypeClaudeCode,
 		RunnerTypeCodex,
 		RunnerTypeOpenCode,
+		RunnerTypeGrok,
 	}
 }
 

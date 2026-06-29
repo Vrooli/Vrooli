@@ -49,6 +49,7 @@ const RUNNER_TYPES: RunnerType[] = [
   RunnerTypeEnum.CLAUDE_CODE,
   RunnerTypeEnum.CODEX,
   RunnerTypeEnum.OPENCODE,
+  RunnerTypeEnum.GROK,
 ];
 
 interface QuickRunDialogProps {

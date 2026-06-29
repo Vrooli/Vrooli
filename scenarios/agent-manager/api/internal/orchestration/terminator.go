@@ -297,6 +297,13 @@ func (t *Terminator) findProcessPIDForRun(run *domain.Run, tag string) int {
 			return pid
 		}
 		return findProcessPIDByResourceTag("resource-opencode", tag)
+	case domain.RunnerTypeGrok:
+		// No legacy resource-wrapper fallback — grok is invoked as the raw
+		// binary only (the grok resource ships no `run` passthrough).
+		if pid := findProcessPIDByRunnerEnvTag("grok", tag); pid != 0 {
+			return pid
+		}
+		return t.findProcessPIDByTag(tag)
 	default:
 		return t.findProcessPIDByTag(tag)
 	}

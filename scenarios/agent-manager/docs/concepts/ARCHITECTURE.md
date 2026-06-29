@@ -9,8 +9,8 @@ The system reduces to seven concepts. Anything outside this list is plumbing, no
 | Concept | What it is | Where it lives |
 |---|---|---|
 | **Run** | One execution of an agent against a task. Carries status, phase, transcript, sandbox, identity. | `internal/domain.Run` |
-| **Runner** | The generic stdout-scan-decode-emit-wait pipeline. One implementation, three model bindings. | `internal/adapters/runner/core.Runner` |
-| **Codec** | Per-model translation: arg shape, JSON event schema, transcript replay. ~250 LOC each. | `internal/adapters/runner/codecs/*.go` |
+| **Runner** | The generic stdout-scan-decode-emit-wait pipeline. One implementation, four model bindings (claude-code, codex, opencode, grok). | `internal/adapters/runner/core.Runner` |
+| **Codec** | Per-model translation: arg shape, JSON event schema, transcript replay. Each embeds the shared `baseCodec` (`base.go`) and contains only its unique surface. | `internal/adapters/runner/codecs/*.go` |
 | **Phase** | One step of the run lifecycle (Setup, Acquire, Execute, Validate, Result, Finalize). Pure-ish function with explicit input struct. | `internal/orchestration/phases/*.go` |
 | **Sandbox** | Per-run overlayfs workspace for accountability/provenance — captures which files this run changed, not for safety. | `internal/adapters/sandbox` + `scenarios/workspace-sandbox` |
 | **Gate** (`emit.Gate`) | The single Emit choke point. Future invariants (dedupe, audit hooks, ordering) attach inside the gate. | `internal/orchestration/emit.Gate` |
@@ -60,11 +60,14 @@ api/internal/
 │   │   ├── launcher.go        # Process-launch abstraction (host / sandbox)
 │   │   ├── core/              # Generic Runner: stdout-scan + decode + emit
 │   │   │   └── runner.go
-│   │   └── codecs/            # Per-model codecs (~250 LOC each)
+│   │   └── codecs/            # Per-model codecs (each embeds baseCodec)
 │   │       ├── codec.go       # Codec interface
+│   │       ├── base.go        # Embeddable baseCodec + shared helpers
+│   │       ├── pricing.go     # Runner-agnostic cost seam
 │   │       ├── claude.go      # Claude Code codec
 │   │       ├── codex.go       # Codex codec
-│   │       └── opencode.go    # OpenCode codec
+│   │       ├── opencode.go    # OpenCode codec
+│   │       └── grok.go        # Grok codec
 │   └── sandbox/               # workspace-sandbox HTTP adapter
 ├── repository/                # Persistence abstractions
 ├── policy/                    # Authorization decisions

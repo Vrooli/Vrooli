@@ -313,7 +313,7 @@ func TestCodex_DecodeStreamLine_AgentMessage(t *testing.T) {
 }
 
 func TestCodex_DecodeStreamLine_TurnCompleted_BuildsCostEvent(t *testing.T) {
-	c, _ := NewCodex(WithCodexPricingService(&mockPricingService{
+	c, _ := NewCodex(WithPricingService(&mockPricingService{
 		pricing: map[string]*PricingCostCalculation{
 			"gpt-5.1-codex-mini": {
 				CostSource:       domain.CostSourcePricingTableEstimate,
@@ -506,7 +506,7 @@ func TestCodex_UpdateMetrics(t *testing.T) {
 	})
 
 	t.Run("CostEvent", func(t *testing.T) {
-		c2, _ := NewCodex(WithCodexPricingService(&mockPricingService{
+		c2, _ := NewCodex(WithPricingService(&mockPricingService{
 			pricing: map[string]*PricingCostCalculation{
 				"gpt-5.1-codex-mini": {CostSource: "test", Provider: "test"},
 			},
@@ -673,7 +673,7 @@ func TestCodexStreamEvent_UnmarshalUsage(t *testing.T) {
 // =============================================================================
 
 func TestCodex_FullStream(t *testing.T) {
-	c, _ := NewCodex(WithCodexPricingService(&mockPricingService{
+	c, _ := NewCodex(WithPricingService(&mockPricingService{
 		pricing: map[string]*PricingCostCalculation{
 			"gpt-5.1-codex-mini": {CostSource: domain.CostSourcePricingTableEstimate},
 		},

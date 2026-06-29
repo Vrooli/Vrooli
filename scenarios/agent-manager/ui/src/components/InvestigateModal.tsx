@@ -61,6 +61,7 @@ const runnerOverrideOptions: { value: string; label: string }[] = [
   { value: "claude-code", label: "Claude Code" },
   { value: "codex", label: "Codex" },
   { value: "opencode", label: "OpenCode" },
+  { value: "grok", label: "Grok" },
 ];
 
 const presetOverrideOptions: { value: string; label: string }[] = [

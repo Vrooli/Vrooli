@@ -16,6 +16,8 @@ var inheritedEnvDenylist = map[string]struct{}{
 	// Prevent parent agent tag from leaking into child agent processes.
 	// BuildEnv sets this explicitly per-request.
 	"CLAUDE_CODE_AGENT_TAG": {},
+	// Same for the grok per-run tag.
+	"GROK_AGENT_TAG": {},
 	// Prevent a parent web-console/codex session's CODEX_HOME from leaking
 	// into nested sandboxed agent runs. When agent-manager runs inside a
 	// web-console session, CODEX_HOME points at ~/.vrooli/state/.../codex,

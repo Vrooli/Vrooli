@@ -16,17 +16,12 @@
 package codecs
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"os/exec"
 	"strings"
-	"time"
 
 	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/fallback"
 
@@ -46,41 +41,9 @@ const CodexResourceCommand = "resource-codex"
 
 const codexTagEnvKey = "CODEX_AGENT_TAG"
 
-// =============================================================================
-// Pricing-service seam
-// =============================================================================
-
-// PricingService is the optional pricing-lookup hook used when emitting
-// cost events. main.go wires the concrete implementation; codecs that
-// don't need pricing leave it nil and the [Codex.UpdateMetrics] +
-// cost-event paths simply omit dollar amounts.
-type PricingService interface {
-	CalculateCost(ctx context.Context, req PricingCostRequest) (*PricingCostCalculation, error)
-}
-
-// PricingCostRequest carries the inputs to a pricing lookup.
-type PricingCostRequest struct {
-	Model               string
-	RunnerType          string
-	InputTokens         int
-	OutputTokens        int
-	CacheReadTokens     int
-	CacheCreationTokens int
-}
-
-// PricingCostCalculation carries the pricing service's output.
-type PricingCostCalculation struct {
-	InputCostUSD         float64
-	OutputCostUSD        float64
-	CacheReadCostUSD     float64
-	CacheCreationCostUSD float64
-	TotalCostUSD         float64
-	CostSource           string
-	Provider             string
-	CanonicalModel       string
-	PricingFetchedAt     time.Time
-	PricingVersion       string
-}
+// The pricing seam ([PricingService], [PricingCostRequest],
+// [PricingCostCalculation], [buildCostEvent]) lives in pricing.go — it is
+// runner-agnostic; codex is currently its only consumer.
 
 // =============================================================================
 // Codec
@@ -88,10 +51,7 @@ type PricingCostCalculation struct {
 
 // Codex is the [Codec] implementation for the codex CLI.
 type Codex struct {
-	binaryPath     string
-	available      bool
-	message        string
-	installHint    string
+	baseCodec
 	pricingService PricingService
 	ollama         *ollamaLister
 }
@@ -99,36 +59,40 @@ type Codex struct {
 // CodexOption configures a Codex codec.
 type CodexOption func(*Codex)
 
-// WithCodexPricingService injects a pricing service used when building
-// cost events. Optional — when omitted, cost events carry token counts
-// without dollar amounts.
-func WithCodexPricingService(svc PricingService) CodexOption {
+// WithPricingService injects a pricing service used when building cost
+// events. Optional — when omitted, cost events carry token counts without
+// dollar amounts. The pricing seam is runner-agnostic ([PricingService] in
+// pricing.go); codex is currently its only consumer.
+func WithPricingService(svc PricingService) CodexOption {
 	return func(c *Codex) { c.pricingService = svc }
+}
+
+// codexBase is the identity shared by NewCodex and NewCodexForTest.
+func codexBase() baseCodec {
+	return baseCodec{
+		runnerType:     domain.RunnerTypeCodex,
+		binaryDesc:     "codex CLI",
+		installHint:    "Run: vrooli resource install codex",
+		tagEnvKey:      codexTagEnvKey,
+		continuePrefix: "codex",
+		labels: Labels{
+			StartMessage:         "Codex execution started",
+			EndMessage:           "Codex execution completed",
+			ContinueStartMessage: "Codex continuation started",
+			ContinueEndMessage:   "Codex continuation completed",
+		},
+	}
 }
 
 // NewCodex resolves the `codex` binary on PATH and returns a codec ready
 // to be wrapped in [core.NewRunner]. Returns a codec with Available=false
 // when the binary is missing so the runner registry can register a stub.
 func NewCodex(opts ...CodexOption) (*Codex, error) {
-	binaryPath, err := exec.LookPath(CodexCLICommand)
-	if err != nil {
-		c := &Codex{
-			available:   false,
-			message:     "codex CLI not found in PATH",
-			installHint: "Run: vrooli resource install codex",
-			ollama:      newOllamaLister(),
-		}
-		for _, opt := range opts {
-			opt(c)
-		}
-		return c, nil
-	}
 	c := &Codex{
-		binaryPath: binaryPath,
-		available:  true,
-		message:    "codex CLI available",
-		ollama:     newOllamaLister(),
+		baseCodec: resolveBinary(codexBase(), CodexCLICommand),
+		ollama:    newOllamaLister(),
 	}
+	c.newParser = c.NewTranscriptParser
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -139,15 +103,10 @@ func NewCodex(opts ...CodexOption) (*Codex, error) {
 // Available=false. Used by codec tests that exercise BuildArgs / decode
 // paths without launching a real process.
 func NewCodexForTest() *Codex {
-	return &Codex{
-		binaryPath: "/fake/codex",
-		available:  false,
-		message:    "test codex codec",
-	}
+	c := &Codex{baseCodec: testBase(codexBase(), "/fake/codex", "test codex codec")}
+	c.newParser = c.NewTranscriptParser
+	return c
 }
-
-// Type satisfies [Codec].
-func (c *Codex) Type() domain.RunnerType { return domain.RunnerTypeCodex }
 
 // Capabilities satisfies [Codec]. SupportedModels is the curated cloud list
 // plus any locally-pulled Ollama models discovered via the cached lister
@@ -178,63 +137,12 @@ func (c *Codex) Capabilities() runner.Capabilities {
 	}
 }
 
-// BinaryPath satisfies [Codec].
-func (c *Codex) BinaryPath() string { return c.binaryPath }
-
-// BinaryDescription satisfies [Codec].
-func (c *Codex) BinaryDescription() string { return "codex CLI" }
-
-// TagEnvKey satisfies [Codec].
-func (c *Codex) TagEnvKey() string { return codexTagEnvKey }
-
-// Available satisfies [Codec].
-func (c *Codex) Available(ctx context.Context) (bool, string) {
-	if !c.available {
-		msg := c.message
-		if c.installHint != "" {
-			msg += ". " + c.installHint
-		}
-		return false, msg
-	}
-	if _, err := os.Stat(c.binaryPath); os.IsNotExist(err) {
-		return false, "codex CLI not found. Run: vrooli resource install codex"
-	}
-	return true, "codex CLI is available"
-}
-
-// ProbeModel satisfies [Codec]. A deep check (validating modelID via a
-// live request) is intentionally avoided — each probe would cost vendor
-// quota. The authoritative "model is gone" signal comes from runtime
-// classification on the first real invocation.
-func (c *Codex) ProbeModel(ctx context.Context, modelID string) error {
-	if available, msg := c.Available(ctx); !available {
-		return fmt.Errorf("codex unavailable: %s", msg)
-	}
-	return nil
-}
-
-// Labels satisfies [Codec].
-func (c *Codex) Labels() Labels {
-	return Labels{
-		StartMessage:         "Codex execution started",
-		EndMessage:           "Codex execution completed",
-		ContinueStartMessage: "Codex continuation started",
-		ContinueEndMessage:   "Codex continuation completed",
-	}
-}
-
-// ContinueTag satisfies [Codec].
-func (c *Codex) ContinueTag(req runner.ContinueRequest) string {
-	return fmt.Sprintf("codex-continue-%s", req.RunID.String()[:8])
-}
-
 // BuildEnv satisfies [Codec]. Codex reads model + limits from environment
 // variables for backwards compatibility with the resource-codex wrapper.
+// Binary resolution, availability, probing, labels, type, tag-key and
+// continuation tags are provided by the embedded [baseCodec].
 func (c *Codex) BuildEnv(tag string, extras map[string]string) []string {
-	env := runner.SanitizedBaseEnv()
-	env = append(env, fmt.Sprintf("%s=%s", codexTagEnvKey, tag))
-	env = append(env, "CODEX_NON_INTERACTIVE=true")
-	return runner.AppendEnvMap(env, extras)
+	return standardBuildEnv(codexTagEnvKey, tag, extras, "CODEX_NON_INTERACTIVE=true")
 }
 
 // BuildPrompt satisfies [Codec]. Codex receives image attachments via the
@@ -415,14 +323,6 @@ func (c *Codex) DecodeStreamLine(state State, runID uuid.UUID, line string) ([]*
 	return c.parseCodexEvents(s, runID, streamEvent), nil
 }
 
-// OnEarlyTerminate satisfies [Codec]. Codex's stream ends naturally on
-// turn.completed → process exit; no in-stream sentinel.
-func (c *Codex) OnEarlyTerminate(state State, line string) bool { return false }
-
-// PostClassify satisfies [Codec]. Codex has no rate-limit-flip pattern;
-// no-op.
-func (c *Codex) PostClassify(state State, result *runner.ExecuteResult) {}
-
 // ClassifyTerminalError satisfies [Codec]. Codex's failure shapes
 // distinguish two distinct "thread not found" cases:
 //
@@ -507,15 +407,8 @@ func (c *Codex) UpdateMetrics(event *domain.RunEvent, metrics *runner.ExecutionM
 	}
 }
 
-// ParseTranscriptLine satisfies [Codec] for single-line transcript parsing.
-// Multi-line replay uses NewTranscriptParser to retain runner state across
-// the transcript stream.
-func (c *Codex) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
-	parser := c.NewTranscriptParser()
-	return parser.ParseTranscriptLine(runID, line)
-}
-
-// NewTranscriptParser satisfies [Codec].
+// NewTranscriptParser satisfies [Codec]. Single-line parsing is provided by
+// the embedded [baseCodec.ParseTranscriptLine], which delegates here.
 func (c *Codex) NewTranscriptParser() runner.TranscriptParser {
 	return &codexTranscriptParser{codec: c, state: &codexState{}}
 }
@@ -614,7 +507,11 @@ func (c *Codex) parseCodexEvents(state *codexState, runID uuid.UUID, streamEvent
 
 	case "turn.completed":
 		if streamEvent.Usage != nil {
-			return []*domain.RunEvent{c.buildCostEvent(state, runID, streamEvent.Usage)}
+			return []*domain.RunEvent{buildCostEvent(runID, domain.RunnerTypeCodex, c.pricingService, state.runModel, usageTokens{
+				InputTokens:     streamEvent.Usage.InputTokens,
+				OutputTokens:    streamEvent.Usage.OutputTokens,
+				CacheReadTokens: streamEvent.Usage.CachedInputTokens,
+			})}
 		}
 
 	case "error":
@@ -733,53 +630,6 @@ func parseCodexCommandExecution(runID uuid.UUID, item *CodexItem) []*domain.RunE
 		return []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, "", input)}
 	}
 	return nil
-}
-
-// buildCostEvent constructs a CostEventData event from a turn.completed
-// usage payload, optionally enriching with pricing-service data when the
-// codec was constructed with WithCodexPricingService.
-func (c *Codex) buildCostEvent(state *codexState, runID uuid.UUID, usage *CodexUsage) *domain.RunEvent {
-	costData := &domain.CostEventData{
-		InputTokens:     usage.InputTokens,
-		OutputTokens:    usage.OutputTokens,
-		CacheReadTokens: usage.CachedInputTokens,
-		Model:           state.runModel,
-		CostSource:      domain.CostSourceUnknown,
-	}
-
-	if c.pricingService != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), config.DefaultLevers().Runners.ProbeTimeout)
-		defer cancel()
-
-		calc, err := c.pricingService.CalculateCost(ctx, PricingCostRequest{
-			Model:           state.runModel,
-			RunnerType:      string(domain.RunnerTypeCodex),
-			InputTokens:     usage.InputTokens,
-			OutputTokens:    usage.OutputTokens,
-			CacheReadTokens: usage.CachedInputTokens,
-		})
-		if err == nil && calc != nil {
-			costData.InputCostUSD = calc.InputCostUSD
-			costData.OutputCostUSD = calc.OutputCostUSD
-			costData.CacheReadCostUSD = calc.CacheReadCostUSD
-			costData.TotalCostUSD = calc.TotalCostUSD
-			costData.CostSource = calc.CostSource
-			costData.PricingProvider = calc.Provider
-			costData.PricingModel = calc.CanonicalModel
-			if !calc.PricingFetchedAt.IsZero() {
-				costData.PricingFetchedAt = &calc.PricingFetchedAt
-			}
-			costData.PricingVersion = calc.PricingVersion
-		}
-	}
-
-	return &domain.RunEvent{
-		ID:        uuid.New(),
-		RunID:     runID,
-		EventType: domain.EventTypeMetric,
-		Timestamp: time.Now(),
-		Data:      costData,
-	}
 }
 
 // Compile-time interface checks.

@@ -56,10 +56,25 @@ func TestCapabilitiesConformance(t *testing.T) {
 			codec: NewOpenCodeForTest(),
 			want: func() want {
 				w := uniform
-				w.curatedModels = []string{"anthropic/claude-sonnet-4-6", "openai/gpt-4o"}
+				w.curatedModels = []string{"openrouter/deepseek/deepseek-v4-pro", "openrouter/anthropic/claude-opus-4.8"}
 				w.allowsLocalOllama = true
 				return w
 			}(),
+		},
+		{
+			// Grok intentionally diverges from the uniform contract: its
+			// headless stdout surfaces assistant text + session id but NOT
+			// tool events or token/cost (trace-verified, R3). These bools are
+			// honest, not aspirational.
+			name:  "grok",
+			codec: NewGrokForTest(),
+			want: want{
+				messages: true, toolEvents: false, cost: false,
+				streaming: true, cancel: true, continuation: true, image: false,
+				maxTurns:          0,
+				curatedModels:     []string{"grok-build", "grok-composer-2.5-fast"},
+				allowsLocalOllama: false,
+			},
 		},
 	}
 

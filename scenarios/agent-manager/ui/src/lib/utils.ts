@@ -28,6 +28,8 @@ export function runnerTypeToSlug(type?: RunnerType): string {
       return "codex";
     case RunnerType.OPENCODE:
       return "opencode";
+    case RunnerType.GROK:
+      return "grok";
     default:
       return "claude-code";
   }
@@ -41,6 +43,8 @@ export function runnerTypeFromSlug(value?: string): RunnerType | undefined {
       return RunnerType.CODEX;
     case "opencode":
       return RunnerType.OPENCODE;
+    case "grok":
+      return RunnerType.GROK;
     default:
       return undefined;
   }
@@ -55,6 +59,8 @@ export function runnerTypeLabel(type?: RunnerType): string {
       return "Codex";
     case RunnerType.OPENCODE:
       return "OpenCode";
+    case RunnerType.GROK:
+      return "Grok";
     default:
       return "Unknown";
   }
