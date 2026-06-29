@@ -6,6 +6,7 @@ package integrations
 import (
 	"context"
 	"mime/multipart"
+	"strings"
 	"time"
 )
 
@@ -40,9 +41,34 @@ const (
 	RunnerTypeOpenCode   RunnerType = "opencode"
 )
 
+const DefaultRunnerType = RunnerTypeClaudeCode
+
+var SupportedRunnerTypes = []RunnerType{
+	RunnerTypeClaudeCode,
+	RunnerTypeCodex,
+	RunnerTypeOpenCode,
+}
+
+func IsSupportedRunnerType(runnerType RunnerType) bool {
+	for _, supported := range SupportedRunnerTypes {
+		if runnerType == supported {
+			return true
+		}
+	}
+	return false
+}
+
+func SupportedRunnerTypeList() string {
+	values := make([]string, 0, len(SupportedRunnerTypes))
+	for _, runnerType := range SupportedRunnerTypes {
+		values = append(values, string(runnerType))
+	}
+	return strings.Join(values, ", ")
+}
+
 // AgentChatConfig contains configuration for starting an agent chat.
 type AgentChatConfig struct {
-	// RunnerType specifies which runner to use (claude-code, codex, opencode)
+	// RunnerType specifies which supported agent-manager runner to use.
 	RunnerType RunnerType `json:"runner_type"`
 
 	// ProjectPath is the directory where the agent will operate

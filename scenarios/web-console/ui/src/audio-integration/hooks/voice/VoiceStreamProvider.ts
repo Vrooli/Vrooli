@@ -10,6 +10,7 @@
 // Chunks are buffered in pendingChunks until the WebSocket is ready.
 
 import { transcribeAudioWithRetry, buildVoiceStreamWsUrl } from "../../api/voice";
+import { isStreamUsable } from "./micReadiness";
 import type { LastTurnAudio, TranscriptionProvider } from "./types";
 import { AUDIO_BITRATE, STREAM_CHUNK_INTERVAL_MS, WHISPER_FAILED_SENTINEL, computeFinalTimeout } from "./types";
 
@@ -60,6 +61,8 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   /** Timeout for pre-connected WebSocket — closed if start() isn't called. */
   private static readonly PRE_CONNECT_TIMEOUT_MS = 30_000;
   private firstPartialLogged = false;
+  /** Count of unparseable WS frames this turn — surfaced in logs, never thrown. */
+  private malformedMessageCount = 0;
   private preConnectTimer: ReturnType<typeof setTimeout> | null = null;
   /** True when the current WS was opened via preConnect() and hasn't been
    *  consumed by start() yet. Prevents start() from closing a pre-connected WS. */
@@ -216,7 +219,13 @@ export class VoiceStreamProvider implements TranscriptionProvider {
           this.onError?.(msg.text ?? "Streaming transcription failed");
         }
       } catch {
-        // Ignore malformed messages
+        // Malformed/non-JSON frame. Don't crash the handler, but don't let it
+        // vanish silently either — a burst here can explain a turn that never
+        // resolved. Log the first one (and every 10th after) so it's greppable.
+        this.malformedMessageCount++;
+        if (this.malformedMessageCount === 1 || this.malformedMessageCount % 10 === 0) {
+          console.warn("[voice] Ignored malformed WS message (#%d)", this.malformedMessageCount);
+        }
       }
     };
 
@@ -281,11 +290,14 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     const httpFallbackStart = Date.now();
     transcribeAudioWithRetry(blob, 2, this.language)
       .then((text) => {
-        console.info("[voice] HTTP fallback transcription took %dms, %d chars", Date.now() - httpFallbackStart, text.trim().length);
-        if (text.trim()) {
-          this.finalReceived = true;
-          this.onResult?.(text.trim());
-        }
+        const trimmed = text.trim();
+        console.info("[voice] HTTP fallback transcription took %dms, %d chars", Date.now() - httpFallbackStart, trimmed.length);
+        // Resolve the turn exactly once, even when empty. An empty result is
+        // not "nothing happened" — it's a recoverable silent loss the host
+        // must surface (retry banner) rather than leave the UI wedged on
+        // "transcribing". See TranscriptionProvider.onResult contract.
+        this.finalReceived = true;
+        this.onResult?.(trimmed);
       })
       .catch(() => {
         console.warn("[voice] HTTP fallback failed after %dms", Date.now() - httpFallbackStart);
@@ -372,12 +384,17 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     // Accept an optional pre-warmed stream (from micReadiness.ts when low-latency
     // voice mode is enabled). Only call getUserMedia if no pre-warmed stream is
     // available or if its tracks have ended (browser revoked access).
-    if (preWarmedStream && preWarmedStream.getTracks().every((t) => t.readyState === "live")) {
+    // Reuse the pre-warmed stream ONLY if every track is live AND unmuted. A
+    // muted-but-live track flows no audio (sleep/wake, device change, another
+    // app holding the mic) and would silently record nothing — the historical
+    // "mic stuck until page reload" bug. isStreamUsable rejects that case so we
+    // fall through to a fresh getUserMedia, which actually recovers the device.
+    if (preWarmedStream && isStreamUsable(preWarmedStream)) {
       this.stream = preWarmedStream;
       console.info("[voice] Low-latency: injecting pre-warmed stream into VoiceStreamProvider");
     } else {
       if (preWarmedStream) {
-        console.warn("[voice] Low-latency: pre-warmed stream tracks ended, provider will acquire fresh");
+        console.warn("[voice] Low-latency: pre-warmed stream not usable (ended or muted), provider will acquire fresh");
       }
       const micStart = Date.now();
       try {
@@ -387,6 +404,14 @@ export class VoiceStreamProvider implements TranscriptionProvider {
         return;
       }
       console.info("[voice] getUserMedia took %dms", Date.now() - micStart);
+    }
+
+    // A freshly-acquired track can briefly start muted and unmute within a few
+    // hundred ms, so we do NOT hard-fail here (that would false-reject valid
+    // streams). If it stays silent, the no-audio watchdog in useVoiceCore
+    // surfaces an actionable error and stops the session.
+    if (!isStreamUsable(this.stream)) {
+      console.warn("[voice] Acquired mic stream starts muted/not-usable; relying on no-audio watchdog if it persists");
     }
 
     // Reset session state. The new turn starts now; the previous turn's
@@ -405,6 +430,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     this.lastTurn = null;
     this.tailDropArmed = false;
     this.droppedChunkCount = 0;
+    this.malformedMessageCount = 0;
 
     // Start MediaRecorder IMMEDIATELY after mic acquisition.
     // Chunks are buffered in pendingChunks until the WebSocket connects.
@@ -534,8 +560,15 @@ export class VoiceStreamProvider implements TranscriptionProvider {
       const timeout = computeFinalTimeout(elapsed);
       this.finalTimeout = setTimeout(() => {
         if (!this.finalReceived) {
+          // The streaming `final` never arrived (slow segment, or the session
+          // dropped mid-turn and the reconnected server session lost context).
+          // Don't just error and discard the audio — fall back to a one-shot
+          // HTTP transcription of the FULL retained turn, which recovers the
+          // message the streaming path lost. attemptHttpFallback resolves the
+          // turn (text, empty, or error) so the UI never wedges.
+          console.warn("[voice] Streaming final timed out after %dms — falling back to HTTP transcription of retained audio", timeout);
           this.ws?.close();
-          this.onError?.("Streaming transcription timed out");
+          this.attemptHttpFallback();
         }
       }, timeout);
     }

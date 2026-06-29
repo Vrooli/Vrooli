@@ -1,20 +1,22 @@
 # Conversation Tracking
 
-Web-console parses `claude` and `codex` sessions into a structured message feed that lives alongside the raw terminal, so you can search, re-play, TTS, and cursor-track conversations without losing any of the terminal fidelity. This guide covers how the feature decides which session a given claude/codex invocation belongs to, and where that attribution breaks down.
+Web-console parses `claude`, `codex`, `opencode`, and `grok` sessions into a structured message feed that lives alongside the raw terminal, so you can search, re-play, TTS, and cursor-track conversations without losing any of the terminal fidelity. This guide covers how the feature decides which session a given agent invocation belongs to, and where that attribution breaks down.
 
 ## What gets tracked
 
-Two independent paths feed the conversation store:
+Four independent paths feed the conversation store. All of them converge on the same `AppendUser` / `AppendAssistant` seam and carry a stable `source` string (`claude_hook`, `codex_tailer`, `grok_tailer`, `opencode_api`) so the UI can label each message by runtime.
 
-- **Codex rollouts** — each session gets a private `CODEX_HOME` (`api/session.go:927-931`). When `codex` runs inside that session it writes rollout JSONL files under `$CODEX_HOME/sessions/YYYY/MM/DD/`. `CodexTailer` (`api/codex_tailer.go`) polls every 2s across all live sessions, tails any new rollout, and routes `output_text` items to the owning session's conversation store.
-- **Claude Stop hooks** — Claude Code fires a Stop hook after each assistant response. The hook script (`lib/claude-stop-hook.sh`) reads `WC_WEB_CONSOLE_SESSION_ID` from its shell env, includes it in the POST payload, and the server (`api/tts_hook_handler.go`) routes the event to that session.
+- **Codex rollouts** (`source=codex_tailer`) — each session gets a private `CODEX_HOME` (`api/session.go:927-931`). When `codex` runs inside that session it writes rollout JSONL files under `$CODEX_HOME/sessions/YYYY/MM/DD/`. `CodexTailer` (`api/codex_tailer.go`) polls every 2s across all live sessions, tails any new rollout, and routes `output_text` items to the owning session's conversation store.
+- **Claude Stop hooks** (`source=claude_hook`) — Claude Code fires a Stop hook after each assistant response. The hook script (`lib/claude-stop-hook.sh`) reads `WC_WEB_CONSOLE_SESSION_ID` from its shell env, includes it in the POST payload, and the server (`api/tts_hook_handler.go`) routes the event to that session.
+- **Grok transcripts** (`source=grok_tailer`) — each session gets a private `GROK_HOME` (`api/backends/grok/env.go`, injected by `defaultSessionEnv`). When `grok` runs inside that session it writes an ACP update stream to `$GROK_HOME/sessions/<url-encoded-cwd>/<session-id>/updates.jsonl`. `GrokTailer` (`api/grok_tailer.go`) polls every 2s, tails each transcript, accumulates `user_message_chunk` / `agent_message_chunk` text per turn, and emits one user + one assistant event at each `turn_completed` boundary. Thought chunks and tool-call lifecycle are parsed but **not** appended to the conversation (natural-language only).
+- **OpenCode API** (`source=opencode_api`) — web-console owns a single loopback `opencode serve` instance. `OpenCodeWatcher` (`api/opencode_watcher.go`) subscribes to its `GET /event` SSE stream and, on any session-touching event, reconciles the affected session through the full-history `GET /session/{id}/message` endpoint. OpenCode shares a global storage dir, so the managed server observes sessions started by any `opencode` process; attribution binds a session to a pane by directory + creation time (see below).
 
-Attribution is always path-or-env-bound — never inferred from PTY output text.
+Attribution is always path-, env-, or directory-bound — never inferred from PTY output text.
 
 ## Works from
 
-- **Shortcut launch** — clicking `claude` / `codex` in the Terminal Launcher.
-- **Plain shell, then typing `claude` or `codex` later.** The three attribution env vars (`WC_WEB_CONSOLE_SESSION_ID`, `CODEX_HOME`, `WC_CODEX_SESSIONS_DIR`) are injected on every PTY spawn, so launching the CLI mid-session is equivalent to launching via shortcut. Useful when you want to pass flags like `claude --continue`, `codex --model gpt-5`, or `cd` into a project first.
+- **Shortcut launch** — clicking `claude` / `codex` / `opencode` / `grok` in the Terminal Launcher.
+- **Plain shell, then typing the agent later.** The attribution env vars (`WC_WEB_CONSOLE_SESSION_ID`, `CODEX_HOME`, `WC_CODEX_SESSIONS_DIR`, `GROK_HOME`) are injected on every PTY spawn, so launching the CLI mid-session is equivalent to launching via shortcut. Useful when you want to pass flags like `claude --continue`, `codex --model gpt-5`, `grok --model ...`, or `cd` into a project first. OpenCode is the exception: it has no per-pane env isolation (see attribution below).
 - **Tmux panes inside a web-console-managed session.** `tmux new-session -e KEY=VAL` propagates the attribution vars into the tmux session env, so panes see the correct values even when the tmux server itself was created by a previous session. See `buildTmuxNewSessionArgs` in `api/pty_tmux.go`.
 
 ## Does not work from
@@ -30,6 +32,8 @@ These cases are correctly *ignored* — they won't produce events and won't blee
 
 - **Codex** — each session's `CODEX_HOME` is a unique path. Rollouts written by a codex process running in that session land in that path; the tailer iterates `server.sessions.List()` and only scans each session's own directory. Cross-session bleed is structurally impossible.
 - **Claude** — the Stop hook carries `WC_WEB_CONSOLE_SESSION_ID` inherited from the shell's env. The server's `appendConversationEvent` rejects any payload whose session id doesn't match a live session (`conversation_target_missing`). Two open tabs with two distinct ids cannot mis-route to each other.
+- **Grok** — like Codex, each session's `GROK_HOME` is a unique path (shared `~/.grok` auth/config is symlinked in so login keeps working; only the `sessions/` subtree is isolated). The tailer globs `<session GROK_HOME>/sessions/*/*/updates.jsonl` and attributes by construction. Cross-session bleed is structurally impossible.
+- **OpenCode** — there is no per-pane isolation: `opencode` uses a global storage dir shared across processes. The watcher attributes a session to a pane only when it is **mutually unique** — the OpenCode session's `directory` matches a single live opencode-launched pane's cwd (and was created after that pane), and that pane matches a single session. If two opencode panes run in the same directory at once, the watcher *skips* both rather than guess. Once bound, the pane's `agent_session_id` is recorded so the binding survives restart.
 
 ## Debugging attribution silently failing
 
@@ -39,6 +43,13 @@ If conversation events are missing:
 2. Enable the opt-in shell-side warning by exporting `WC_HOOK_WARN_UNATTRIBUTED=1` in the shell that runs claude. The hook scripts will then write to stderr when `WC_WEB_CONSOLE_SESSION_ID` is unset (normally silent to avoid noise for project-wide hook installations).
 3. Check that the project's `.claude/settings.json` contains the Stop hook. Reconcile via `wc::register_tts_hook` if not.
 4. For codex, check that a rollout file exists under `<session CODEX_HOME>/sessions/YYYY/MM/DD/`. The CodexTailer won't create one; codex itself has to.
+5. For grok, check that `<session GROK_HOME>/sessions/<encoded-cwd>/<id>/updates.jsonl` exists and that `make logs` shows `grok-tailer:` lines. Note that a turn only appends once `turn_completed` is written, so an in-progress turn shows nothing yet.
+6. For opencode, check `make logs` for `opencode-watcher: managed server at http://127.0.0.1:<port>` (capture is disabled if the `opencode` binary is missing) and `opencode-watcher: attributed session ... -> pane ...`. If a session is never attributed, it is almost always the ambiguity guard: another opencode pane shares the same cwd. Run them in distinct directories.
+
+## Security & privacy
+
+- Conversation events carry user/assistant natural-language text only. Grok thought chunks and tool-call arguments, and OpenCode tool parts, are deliberately **not** appended.
+- The managed `opencode serve` binds to `127.0.0.1` only and is stopped on web-console cleanup. No provider auth material (`~/.grok/auth.json`, OpenCode credentials) is read or stored by web-console.
 
 ## See also
 

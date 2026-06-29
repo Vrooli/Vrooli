@@ -28,7 +28,7 @@ A subset of session metadata is mirrored into the persistent `sessions` table so
 ### `sessions`
 Mirror of session metadata for recovery only. PTY state is **not** persisted. The `status` column enforces the recovery state machine: `live → awaiting_recovery → {live | dismissed}`. Transitions are owned by `Recover()` and the recovery endpoints. `agent_type` + `agent_session_id` are populated from the codex `session_meta` event or the claude `Stop` hook payload and are sufficient to reattach an agent on recovery.
 
-Key columns: `id`, `backend`, `shell`, `cols`, `rows`, `policy_mode`, `policy_duration`, `agent_type` (`none|codex|claude`), `launch_command`, `agent_session_id`, `cwd`, `last_rollout_path`, `last_activity_at`, `orphaned_at`, `recovered_into`, `detached`, `status`.
+Key columns: `id`, `backend`, `shell`, `cols`, `rows`, `policy_mode`, `policy_duration`, `agent_type` (`none|codex|claude|opencode|grok`), `launch_command`, `agent_session_id`, `cwd`, `last_rollout_path`, `last_activity_at`, `orphaned_at`, `recovered_into`, `detached`, `status`. For `opencode`/`grok`, `agent_session_id` is captured by the OpenCode watcher / Grok tailer respectively and is required for recovery.
 
 ### `conversation_sessions`
 One row per session that has a semantic message history. Tracks `last_sequence` (highest event sequence emitted), `last_seen_sequence` (cursor for unread badge), and `last_listened_sequence` (cursor for TTS replay).
@@ -38,6 +38,9 @@ Append-only event log scoped to a `conversation_sessions.session_id`. Each row i
 
 ### `codex_rollout_checkpoints`
 Per-rollout-file byte offset checkpoints. Lets the server backfill messages written while the UI was closed and resume after restart without re-reading old lines. Key: rollout `path`.
+
+### `agent_transcript_checkpoints`
+Generic per-source ingestion cursors for the newer transcript adapters (Grok tailer, OpenCode watcher). Primary key `(source, source_key)`; columns `web_console_session_id`, `cursor`, `updated_at`. The `cursor` is an opaque, source-defined string: for Grok (`source=grok_tailer`, `source_key`=absolute `updates.jsonl` path) it is a byte offset advanced only at turn-completion boundaries; for OpenCode (`source=opencode_api`, `source_key`=opencode session id) it is a JSON high-water mark (`{lastUserCreated,lastAssistantCompleted}`) used to make full-history reconciliation idempotent. This table is deliberately separate from `codex_rollout_checkpoints` — rewriting Codex's proven byte-offset history is higher risk than an additive table. Cleared per session on delete.
 
 ### `shortcut_profiles`
 Saved shortcut bindings with scope hierarchy (`service` < `workspace` < `parent`). The `shortcuts` column is a JSON-encoded array. Effective bindings are computed by [CODE: api/shortcut_profiles.go] from this table; see [GLOSSARY — Shortcut Profile](../concepts/GLOSSARY.md#shortcut-profile).
@@ -55,10 +58,14 @@ Per-provider knobs consumed by the AI generation chain ([CODE: api/ai_generate.g
 
 Schema bootstrap runs `initialization/sqlite/schema.sql` once at startup. Additive migrations live inline in [CODE: api/main.go] (search for the migrations block near where indexes on recovery columns are created). Recovery-hardening columns are added via `ALTER TABLE` before the corresponding indexes so an existing DB can be brought up to date without `schema.sql` failing.
 
+`migrateSessionsAgentTypeConstraint` ([CODE: api/main.go]) relaxes the `sessions.agent_type` CHECK constraint to admit `opencode`/`grok`. SQLite cannot `ALTER` a CHECK in place, so it performs the canonical table-rebuild (rename → recreate with the new constraint → explicit-column copy → drop), guarded so it is a no-op on fresh DBs and idempotent on re-run.
+
 ## Filesystem-backed state (not in this DB)
 
 | Concept | Location | Why not in SQLite |
 |---|---|---|
 | Codex rollouts | Codex-managed files referenced by `sessions.last_rollout_path` + `codex_rollout_checkpoints.path` | Codex owns the format; we only checkpoint offsets |
+| Grok transcripts | grok-managed `updates.jsonl` under a per-session `GROK_HOME`, referenced by `sessions.last_rollout_path` + `agent_transcript_checkpoints` | grok owns the ACP format; we only checkpoint offsets |
+| OpenCode sessions | OpenCode's global storage, accessed via the `opencode serve` HTTP API; only `agent_transcript_checkpoints` cursors persist | OpenCode owns the store; the HTTP API is the runtime contract (not SQLite) |
 | Wake-word template binary | Voice config dir | Binary blob; managed via `/api/v1/voice/wakeword` |
 | Speaker verification profiles | Speaker-verification resource | Owned by the resource; web-console references by id only |

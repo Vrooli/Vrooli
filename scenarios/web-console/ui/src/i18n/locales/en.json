@@ -76,6 +76,8 @@
     "roleYou": "You",
     "roleClaude": "Claude",
     "roleCodex": "Codex",
+    "roleOpenCode": "OpenCode",
+    "roleGrok": "Grok",
     "resume": "Resume",
     "pause": "Pause",
     "scrollToCurrent": "Scroll to currently playing message",
@@ -122,6 +124,9 @@
     "retry": "Retry",
     "transcribing": "Transcribing…",
     "retryTitle": "Transcribe the audio without speaker verification",
+    "emptyTitle": "Couldn't transcribe your speech",
+    "emptyDetail": "No words were recognized · {{duration}} kept — retry or record again",
+    "emptyRetryTitle": "Try transcribing the kept audio again",
     "dismiss": "Dismiss",
     "dismissAriaLabel": "Dismiss rejection notice"
   },

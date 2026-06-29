@@ -76,6 +76,8 @@
     "roleYou": "أنت",
     "roleClaude": "Claude",
     "roleCodex": "Codex",
+    "roleOpenCode": "OpenCode",
+    "roleGrok": "Grok",
     "resume": "استئناف",
     "pause": "إيقاف مؤقت",
     "scrollToCurrent": "التمرير إلى الرسالة قيد التشغيل",
@@ -122,6 +124,9 @@
     "retry": "إعادة المحاولة",
     "transcribing": "جارٍ النسخ…",
     "retryTitle": "نسخ الصوت بدون التحقق من المتحدث",
+    "emptyTitle": "تعذّر نسخ كلامك",
+    "emptyDetail": "لم يتم التعرّف على أي كلمات · {{duration}} محفوظ — أعد المحاولة أو سجّل مجددًا",
+    "emptyRetryTitle": "حاول نسخ الصوت المحفوظ مرة أخرى",
     "dismiss": "إغلاق",
     "dismissAriaLabel": "إغلاق إشعار الرفض"
   },

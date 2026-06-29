@@ -143,11 +143,15 @@ enforce:
 - Every consumer imports the gate result type; there is no `boolean`-returning shortcut. See `greenfield-assertions.test.ts` for the enforcing tests.
 
 ### 2b. Conversation Ingestion
-**Owner**: [CODE: api/conversation_router.go], [CODE: api/tts_hook_handler.go], [CODE: api/codex_tailer.go]
-- Claude hook adapter parses Stop-hook payloads and appends assistant conversation events.
-- Codex tailer parses rollout output and appends assistant conversation events.
-- `appendConversationEvent(...)` is the only semantic ingestion path.
+**Owner**: [CODE: api/conversation_router.go], [CODE: api/tts_hook_handler.go], [CODE: api/codex_tailer.go], [CODE: api/grok_tailer.go], [CODE: api/opencode_watcher.go]
+- Claude hook adapter parses Stop-hook payloads and appends assistant conversation events (`source=claude_hook`).
+- Codex tailer parses rollout output and appends user/assistant conversation events (`source=codex_tailer`).
+- Grok tailer parses `updates.jsonl` ACP turns under a per-session `GROK_HOME` and appends user/assistant text at each `turn_completed` boundary (`source=grok_tailer`).
+- OpenCode watcher subscribes to a managed `opencode serve` SSE stream and reconciles via `GET /session/{id}/message`, appending user/assistant text (`source=opencode_api`).
+- `AppendAssistant` / `AppendUser` (the `ConversationDispatcher` seam) is the only semantic ingestion path; every adapter routes through it. No adapter writes the conversation store directly or scrapes PTY output.
+- Source names are a stable, documented set: `claude_hook`, `codex_tailer`, `grok_tailer`, `opencode_api`.
 - Key invariant: source adapters produce normalized conversation events first; TTS is downstream of those events.
+- Checkpoint invariant: each adapter persists a replay-safe, source-scoped cursor. Codex uses `codex_rollout_checkpoints` (byte offset); Grok and OpenCode share `agent_transcript_checkpoints` (Grok cursor = byte offset advanced only at turn boundaries; OpenCode cursor = per-session JSON high-water mark). `ConversationStore` short-window dedup is the second line of defense, never the primary guard.
 
 ### 3. Domain / Session Lifecycle
 **Owner**: [CODE: api/session.go], [CODE: api/pty.go]
@@ -268,7 +272,7 @@ Replaces the pre-Phase-3 `stripANSI` helper that lived in `package main`.
 
 ### Conversation Dispatcher Seam (API)
 **File**: `api/conversation_router.go`
-**Purpose**: Narrow interface (`ConversationDispatcher`) for publishing trusted assistant and user conversation events to a terminal session. Lets non-Server callers — hook handlers, codex tailers, future adapters — depend on a small surface instead of `*Server`, and lets tests substitute a fake dispatcher.
+**Purpose**: Narrow interface (`ConversationDispatcher`) for publishing trusted assistant and user conversation events to a terminal session. Lets non-Server callers — hook handlers, the codex/grok tailers, the OpenCode watcher, future adapters — depend on a small surface instead of `*Server`, and lets tests substitute a fake dispatcher. The OpenCode watcher additionally depends on the fakeable `opencode.Client` seam (session list / message history / SSE events) and an injectable `startServer`, so its backfill, reconcile, reconnect, and attribution logic are unit-tested against an in-memory fake with no real `opencode serve`.
 
 | Component | Surface |
 |-----------|---------|

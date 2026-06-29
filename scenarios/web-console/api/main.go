@@ -17,6 +17,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
 	"web-console/internal/audioports"
 	"web-console/internal/backend"
 	"web-console/internal/capabilities"
@@ -107,6 +108,86 @@ func initSchema(db *sql.DB) error {
 		}
 	}
 
+	if err := migrateSessionsAgentTypeConstraint(db); err != nil {
+		return fmt.Errorf("migration: %w", err)
+	}
+
+	if err := reconcileDefaultShortcutProfile(db); err != nil {
+		return fmt.Errorf("migration: %w", err)
+	}
+
+	return nil
+}
+
+// migrateSessionsAgentTypeConstraint relaxes the sessions.agent_type CHECK
+// constraint to admit 'opencode' and 'grok'. SQLite cannot ALTER a CHECK
+// constraint in place, so a DB created before these agent types carries the old
+// constraint and would reject inserts for the new runtimes. The fix is the
+// canonical SQLite table-rebuild, guarded so it only runs when the live
+// constraint predates these values — making it a no-op on fresh DBs (which get
+// the up-to-date constraint from schema.sql) and idempotent on re-run.
+//
+// The column list is enumerated explicitly rather than `SELECT *` so the copy
+// is insensitive to physical column ordering (an incrementally ALTER-migrated
+// DB can order columns differently from schema.sql).
+func migrateSessionsAgentTypeConstraint(db *sql.DB) error {
+	var tableSQL string
+	if err := db.QueryRow(
+		`SELECT sql FROM sqlite_master WHERE type='table' AND name='sessions'`,
+	).Scan(&tableSQL); err != nil {
+		if err == sql.ErrNoRows {
+			return nil // no sessions table yet; schema.sql will create it current
+		}
+		return fmt.Errorf("inspect sessions table: %w", err)
+	}
+	// Already admits opencode → nothing to do. Also skip tables with no
+	// agent_type CHECK at all (older shapes get columns added by the ALTER
+	// block above and never carried the constraint).
+	if strings.Contains(tableSQL, "'opencode'") || !strings.Contains(tableSQL, "CHECK(agent_type") {
+		return nil
+	}
+
+	const cols = `id, backend, shell, cols, rows, policy_mode, policy_duration,
+		created_at, detached, status, agent_type, launch_command, agent_session_id,
+		cwd, last_rollout_path, last_activity_at, orphaned_at, recovered_into`
+	stmts := []string{
+		`PRAGMA foreign_keys=off`,
+		`ALTER TABLE sessions RENAME TO sessions_legacy_agentcheck`,
+		`CREATE TABLE sessions (
+			id TEXT PRIMARY KEY,
+			backend TEXT NOT NULL DEFAULT 'standard',
+			shell TEXT NOT NULL DEFAULT '/bin/bash',
+			cols INTEGER NOT NULL DEFAULT 80,
+			rows INTEGER NOT NULL DEFAULT 24,
+			policy_mode TEXT NOT NULL DEFAULT 'never' CHECK(policy_mode IN ('never', 'preset', 'custom')),
+			policy_duration TEXT,
+			created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+			detached INTEGER NOT NULL DEFAULT 0,
+			status TEXT NOT NULL DEFAULT 'live'
+				CHECK(status IN ('live','awaiting_recovery','dismissed')),
+			agent_type TEXT NOT NULL DEFAULT 'none'
+				CHECK(agent_type IN ('none','codex','claude','opencode','grok')),
+			launch_command TEXT NOT NULL DEFAULT '',
+			agent_session_id TEXT NOT NULL DEFAULT '',
+			cwd TEXT NOT NULL DEFAULT '',
+			last_rollout_path TEXT NOT NULL DEFAULT '',
+			last_activity_at TEXT NOT NULL DEFAULT '',
+			orphaned_at TEXT NOT NULL DEFAULT '',
+			recovered_into TEXT NOT NULL DEFAULT ''
+		)`,
+		`INSERT INTO sessions (` + cols + `) SELECT ` + cols + ` FROM sessions_legacy_agentcheck`,
+		`DROP TABLE sessions_legacy_agentcheck`,
+		`CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions(created_at DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status)`,
+		`CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_type, agent_session_id)`,
+		`PRAGMA foreign_keys=on`,
+	}
+	for _, stmt := range stmts {
+		if _, err := db.Exec(stmt); err != nil {
+			return fmt.Errorf("rebuild sessions constraint (%.40s): %w", stmt, err)
+		}
+	}
+	log.Println("migration: relaxed sessions.agent_type CHECK to include opencode/grok")
 	return nil
 }
 
@@ -148,6 +229,9 @@ type Server struct {
 	hookAuthToken        string
 	codexTailer          *CodexTailer
 	codexCheckpointStore CodexCheckpointStore
+	grokTailer           *GrokTailer
+	opencodeWatcher      *OpenCodeWatcher
+	agentCheckpointStore AgentTranscriptCheckpointStore
 
 	// Audio ports — all backed by audio-tools in production.
 	speechProcessor audioports.SpeechTextProcessor
@@ -309,6 +393,7 @@ func NewServer(db *sql.DB) *Server {
 		},
 		summarizeAutoPolicy:  defaultSummarizeAutoPolicy(),
 		codexCheckpointStore: NewSQLCodexCheckpointStore(db),
+		agentCheckpointStore: NewSQLAgentTranscriptCheckpointStore(db),
 		conversations:        NewConversationStoreWithRepository(NewSQLConversationRepository(db)),
 		lastTTSBySource:      make(map[string]conversationAppendSnapshot),
 		lastTTSAckBySrc:      make(map[string]ttsAckSnapshot),
@@ -401,6 +486,18 @@ func NewServer(db *sql.DB) *Server {
 	srv.codexTailer.Start()
 	log.Println("codex-tailer: started watching for per-session rollout files")
 
+	// Start Grok transcript tailer (per-session GROK_HOME updates.jsonl).
+	srv.grokTailer = NewGrokTailer(srv)
+	srv.grokTailer.Start()
+	log.Println("grok-tailer: started watching for per-session grok transcripts")
+
+	// Start the OpenCode watcher: owns a loopback `opencode serve` instance,
+	// subscribes to its event stream, and reconciles transcripts by directory.
+	// Best-effort — a missing/unstartable opencode binary must not fail boot.
+	srv.opencodeWatcher = NewOpenCodeWatcher(srv)
+	srv.opencodeWatcher.Start()
+	log.Println("opencode-watcher: started")
+
 	return srv
 }
 
@@ -425,6 +522,7 @@ func (s *Server) setupRoutes() {
 		Metrics:          s.metrics,
 		Conversations:    s.conversations,
 		CodexCheckpoints: s.codexCheckpointStore,
+		AgentCheckpoints: s.agentCheckpointStore,
 		CopyCodexHome:    copyCodexHome,
 	}, nil).Mount(s.router)
 
@@ -1033,6 +1131,12 @@ func main() {
 			srv.sessions.StopReattachWatchdog()
 			if srv.codexTailer != nil {
 				srv.codexTailer.Stop()
+			}
+			if srv.grokTailer != nil {
+				srv.grokTailer.Stop()
+			}
+			if srv.opencodeWatcher != nil {
+				srv.opencodeWatcher.Stop()
 			}
 			// Graceful session shutdown: detach from tmux sessions (preserving
 			// them for recovery) and kill standard sessions.

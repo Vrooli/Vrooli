@@ -236,6 +236,8 @@ export type {
 // Agent mode
 export {
   AgentModeError,
+  RUNNER_OPTIONS,
+  SUPPORTED_RUNNER_TYPES,
   isCompactionEvent,
   getCompactionReduction,
   startAgentMode,

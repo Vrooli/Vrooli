@@ -4,26 +4,8 @@
  */
 
 import { Cpu, FolderOpen, Zap, Loader2, CheckCircle2, XCircle } from "lucide-react";
-import type { RunnerType } from "../../lib/api";
+import { RUNNER_OPTIONS, type RunnerType } from "../../lib/api";
 import { usePathValidation } from "../../hooks/usePathValidation";
-
-export const RUNNER_OPTIONS: { value: RunnerType; label: string; description: string }[] = [
-  {
-    value: "claude-code",
-    label: "Claude Code",
-    description: "Anthropic's official CLI agent"
-  },
-  {
-    value: "codex",
-    label: "Codex",
-    description: "OpenAI Codex CLI agent"
-  },
-  {
-    value: "opencode",
-    label: "OpenCode",
-    description: "Open-source coding agent"
-  }
-];
 
 interface AgentStartFormProps {
   runnerType: RunnerType;

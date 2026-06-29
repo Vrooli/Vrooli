@@ -69,6 +69,16 @@ type eventsResponse struct {
 	RunID  string       `json:"run_id"`
 }
 
+var supportedRunnerTypes = []string{"claude-code", "codex", "opencode"}
+
+func supportedRunnerUsage() string {
+	return strings.Join(supportedRunnerTypes, "|")
+}
+
+func supportedRunnerDescription() string {
+	return "Runner type: " + strings.Join(supportedRunnerTypes, ", ")
+}
+
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{
 		Name:        "agent",
@@ -195,7 +205,7 @@ func runStatus(core *cliapp.ScenarioApp, args []string) error {
 func runStart(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("agent start")
 	message := fs.String("message", "", "Initial agent message")
-	runner := fs.String("runner", "claude-code", "Runner type: claude-code, codex, opencode")
+	runner := fs.String("runner", supportedRunnerTypes[0], supportedRunnerDescription())
 	projectPath := fs.String("project", ".", "Project path for the agent workspace")
 	model := fs.String("model", "", "Optional model override")
 	maxTurns := fs.Int("max-turns", 0, "Optional max turns")
@@ -204,7 +214,7 @@ func runStart(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: agent start <chat-id> --message TEXT [--runner claude-code|codex|opencode] [--project PATH] [--json]")
+		return fmt.Errorf("usage: agent start <chat-id> --message TEXT [--runner %s] [--project PATH] [--json]", supportedRunnerUsage())
 	}
 	if strings.TrimSpace(*message) == "" {
 		return fmt.Errorf("--message is required")

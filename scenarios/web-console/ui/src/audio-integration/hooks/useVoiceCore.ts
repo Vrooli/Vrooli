@@ -27,12 +27,12 @@
 // that wires their own store and APIs in.
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { getVoiceStreamConfig, transcribeAudioBypassFilter, getWakeWordConfig } from "../index";
+import { getVoiceStreamConfig, transcribeAudio, transcribeAudioBypassFilter, getWakeWordConfig } from "../index";
 import { createAudioFilterChain } from "../index";
 import { playRecordingStartCue, playRecordingStopCue } from "../index";
 import { buildVoiceActivitySnapshot, IDLE_VOICE_ACTIVITY, voiceActivitySnapshotsEqual } from "../index";
 import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, vadTick, VAD_FLOOR_CACHE_MAX_AGE_MS } from "../index";
-import { getSharedAudioContext, ensureAudioContextOnGesture } from "../index";
+import { getSharedAudioContext, ensureAudioContextOnGesture, ensureRunningSharedAudioContext } from "../index";
 import { acquireStream as acquireMicStream, releaseStream as releaseMicStream, getStream as getMicStream, isStreamAlive as isMicStreamAlive, installVisibilityHandler } from "../index";
 import { VoiceStreamProvider } from "../index";
 import { setServerVadState, resetServerVadState, useServerVadStateStore, SERVER_VAD_STALE_MS } from "./useServerVadStateStore";
@@ -82,6 +82,11 @@ const INITIAL_STATE: VoiceInputState = {
  * forgotten banner does not pin memory for the whole session.
  */
 const REJECTION_RETENTION_TTL_MS = 5 * 60 * 1000;
+
+/** Audio level (0..1) below which the mic is treated as silent by the no-audio
+ *  watchdog. Not strict zero: a wedged AudioContext or muted track produces
+ *  tiny non-zero noise, which the old ===0 check missed. */
+const NO_AUDIO_LEVEL_THRESHOLD = 0.01;
 
 /** Generate a stable id for a new rejection. Opaque to consumers. */
 function generateRejectionId(): string {
@@ -194,6 +199,14 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
 
   // Segment tracking for persistent mode
   const segmentsRef = useRef<VoiceSegment[]>([]);
+  /**
+   * True once any usable text has been delivered for the current turn — via a
+   * segment-final (persistent mode) or a non-empty `final`. Reset at the start
+   * of each turn. When a turn ends with this still false and no speaker
+   * rejection pending, the turn was a silent loss: we surface a recoverable
+   * "couldn't transcribe" banner instead of dropping the audio silently.
+   */
+  const turnDeliveredTextRef = useRef(false);
 
   // Audio level monitoring refs -- AudioContext is reused across recording
   // sessions to avoid hitting the browser's 6-8 context limit.
@@ -350,6 +363,9 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   /** Handle a segment-final transcript in persistent mode. */
   const handleSegmentFinal = useCallback((text: string, segmentIndex: number) => {
     if (!text.trim()) return;
+    // A recognized segment (dictation OR command) means this turn produced
+    // usable output — it is not a silent loss. Record it before either branch.
+    turnDeliveredTextRef.current = true;
 
     // Check for command match (text-based, no prefix needed — wake word detected at audio level)
     const parsed = parseCommandRef.current(text);
@@ -396,16 +412,14 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       // user gesture by ensureAudioContextOnGesture(), so it should already be
       // in "running" state. We still check for "suspended" as a safety net.
       // DOC: docs/internal/VOICE-LATENCY.md#pre-create-audiocontext-on-first-gesture
-      const ctx = getSharedAudioContext();
+      // Heal a wedged context (suspended/interrupted that won't resume) by
+      // rebuilding it, rather than reusing a dead one that yields a flat level
+      // meter forever. Non-fatal: capture does not depend on this context.
+      const ctx = await ensureRunningSharedAudioContext();
       audioCtxRef.current = ctx;
       if (ctx.state !== "running") {
-        // This resume is a safety net — the primary resume happens in
-        // startRecording (within the user gesture context). If we get here
-        // with a non-running context, the gesture-context resume failed or
-        // the browser suspended the context during provider.start().
-        console.warn("[voice] S%d AudioContext still %s in startLevelMonitor (gesture resume may have failed)",
+        console.warn("[voice] S%d AudioContext still %s after ensureRunning (level meter may be flat)",
           sessionCountRef.current, ctx.state);
-        await ctx.resume().catch(() => {});
       }
 
       const sessionId = sessionCountRef.current;
@@ -636,6 +650,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     const rejection: VoiceRejection = audio
       ? {
           kind: "retryable",
+          cause: "speaker-rejected",
           id,
           blob: audio.blob,
           mimeType: audio.mimeType,
@@ -667,6 +682,50 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       if (rejectedAudioRef.current?.id === id) {
         const p = providerRef.current;
         p?.disposeLastTurn();
+        rejectedAudioRef.current = null;
+        rejectionTtlTimerRef.current = null;
+        setState((s) => (s.rejectedAudio?.id === id ? { ...s, rejectedAudio: null } : s));
+      }
+    }, REJECTION_RETENTION_TTL_MS);
+  }, []);
+
+  /**
+   * Surface a recoverable banner for a turn that ended with NO usable text and
+   * no speaker rejection — the "silently lost everything I said" case. If the
+   * provider retained the turn's audio, offer a one-tap retry that re-runs the
+   * full audio through the plain HTTP batch path (this recovers messages the
+   * streaming path drops when a mid-turn reconnect loses server-side context).
+   * If no audio was retained, fall back to a transient mic-button error so the
+   * loss is at least visible instead of silent.
+   */
+  const surfaceEmptyTranscript = useCallback(() => {
+    const audio = providerRef.current?.getLastTurnAudio() ?? null;
+    if (!audio) {
+      setState((s) => ({ ...s, error: "No speech detected — tap to try again" }));
+      return;
+    }
+    const id = generateRejectionId();
+    const rejection: VoiceRejection = {
+      kind: "retryable",
+      cause: "empty-transcript",
+      id,
+      blob: audio.blob,
+      mimeType: audio.mimeType,
+      durationMs: audio.durationMs,
+      score: 0,
+      threshold: 0,
+      createdAt: Date.now(),
+      status: "idle",
+    };
+    rejectedAudioRef.current = rejection;
+    setState((s) => ({ ...s, rejectedAudio: rejection }));
+
+    // Same retention TTL as a speaker rejection — release the audio if the
+    // user neither retries nor dismisses.
+    if (rejectionTtlTimerRef.current) clearTimeout(rejectionTtlTimerRef.current);
+    rejectionTtlTimerRef.current = setTimeout(() => {
+      if (rejectedAudioRef.current?.id === id) {
+        providerRef.current?.disposeLastTurn();
         rejectedAudioRef.current = null;
         rejectionTtlTimerRef.current = null;
         setState((s) => (s.rejectedAudio?.id === id ? { ...s, rejectedAudio: null } : s));
@@ -781,6 +840,8 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     startingRef.current = true;
     stopRequestedRef.current = false;
     sessionCountRef.current++;
+    // New turn: no text delivered yet. Drives the silent-loss guard in onResult.
+    turnDeliveredTextRef.current = false;
     // Tear down background wake-word listening (if armed) so the recorder owns
     // the mic cleanly. Wake-word detection also funnels through here and has
     // already disposed its listener, so this is a no-op in that path. The
@@ -938,8 +999,12 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       }
 
       provider.onResult = (text) => {
-        console.info("[voice] S%d onResult: %d chars, vadActive=%s, vadState=%s",
-          sessionCountRef.current, text.length, vadActiveRef.current, vadRef.current.state);
+        console.info("[voice] S%d onResult: %d chars, vadActive=%s, vadState=%s, delivered=%s",
+          sessionCountRef.current, text.length, vadActiveRef.current, vadRef.current.state, turnDeliveredTextRef.current);
+        // Capture before surfacePendingRejection() consumes the pending flag:
+        // a speaker rejection owns this turn's banner, so we must not also
+        // raise an empty-transcript banner for the same turn.
+        const hadPendingRejection = pendingRejectionRef.current !== null;
         // Clear cue session — the stop cue already played in stopRecording().
         // If onResult fires without stopRecording() (e.g. server-side stop),
         // we still clear the guard to prevent a stale cue on next session.
@@ -971,6 +1036,16 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         // after the last segment boundary). Deliver it if non-empty.
         if (text) {
           onTranscriptRef.current(text);
+          turnDeliveredTextRef.current = true;
+        }
+
+        // Silent-loss guard: the turn ended but nothing was ever delivered
+        // (empty final, empty HTTP fallback, or a mid-turn reconnect that lost
+        // server context). Unless speaker verification already owns this turn's
+        // banner, surface a recoverable "couldn't transcribe" notice so the
+        // user isn't left staring at an idle mic with their message gone.
+        if (!turnDeliveredTextRef.current && !hadPendingRejection) {
+          surfaceEmptyTranscript();
         }
 
         // ── Low-latency: release-then-reacquire cycle ──
@@ -1111,14 +1186,23 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         playRecordingStartCue();
         startLevelMonitor(stream);
 
-        // Warn if no audio detected after 2s (catches dead/muted mics)
+        // Warn if no audio detected after 2s (catches dead/muted mics).
+        // Use a small threshold, not strict ===0: a wedged AudioContext or a
+        // muted track yields near-silence that is not bit-exactly zero, which
+        // is why the old ===0 guard silently missed the "stuck mic" state and
+        // showed no error. When we can tell the track is muted, say so —
+        // that's the actionable cause (device taken by another app / changed).
         if (noAudioTimerRef.current) clearTimeout(noAudioTimerRef.current);
         noAudioTimerRef.current = setTimeout(() => {
-          if (audioLevelRef.current === 0) {
+          if (audioLevelRef.current < NO_AUDIO_LEVEL_THRESHOLD) {
+            const muted = (stream.getAudioTracks?.() ?? []).some((t) => t.muted);
+            const message = muted
+              ? "Microphone is muted or in use by another app — reload to recover"
+              : "No audio detected — check your microphone";
             setState((s) => (s.voiceState === "recording" || s.voiceState === "listening")
-              ? { ...s, error: "No audio detected — check your microphone" }
+              ? { ...s, error: message }
               : s);
-            console.warn("[voice] No audio detected after 2s");
+            console.warn("[voice] No audio after 2s (level=%.4f, muted=%s)", audioLevelRef.current, muted);
           }
         }, 2000);
 
@@ -1298,15 +1382,19 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   }, []);
 
   /**
-   * Retry transcription of the retained audio while bypassing the server's
-   * speaker-verification filter for this single request. No-op if the
-   * current rejection has no retained audio (explanatory kind) or if a
-   * retry is already in flight.
+   * Retry transcription of the retained audio. The exact path depends on why
+   * the banner appeared (`rejection.cause`): a speaker-rejected turn re-runs
+   * with the verification filter bypassed; an empty-transcript turn re-runs
+   * the full audio through the plain batch endpoint. No-op if the current
+   * rejection has no retained audio (explanatory kind) or a retry is already
+   * in flight.
    *
    * On success the transcript is delivered via the normal `onTranscript`
-   * callback and the rejection banner is dismissed. On failure the banner
-   * flips to `status: "failed"` with an error message; the user can retry
-   * again or dismiss.
+   * callback and the banner is dismissed. On failure the banner flips to
+   * `status: "failed"` with an error message; the user can retry or dismiss.
+   *
+   * Named `retryWithoutFilter` for historical reasons (the speaker-rejection
+   * path was first); it now serves both causes.
    */
   const retryWithoutFilter = useCallback(async () => {
     const current = rejectedAudioRef.current;
@@ -1328,7 +1416,13 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     const lang = langSetting === "auto" ? "" : (langSetting.split("-")[0] ?? "en");
 
     try {
-      const text = await transcribeAudioBypassFilter(current.blob, lang);
+      // Pick the retry path by cause: an empty-transcript turn re-runs the
+      // FULL retained audio through the plain HTTP batch endpoint (recovering
+      // what a dropped streaming session lost); a speaker-rejected turn
+      // re-runs with the verification filter bypassed for this one request.
+      const text = current.cause === "empty-transcript"
+        ? await transcribeAudio(current.blob, lang)
+        : await transcribeAudioBypassFilter(current.blob, lang);
       const trimmed = text.trim();
       // The user may have dismissed between the await and now — only act
       // if the rejection we're finishing is still the displayed one.

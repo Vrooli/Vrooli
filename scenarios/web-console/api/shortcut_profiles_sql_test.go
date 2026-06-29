@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"database/sql"
+	"encoding/json"
+	"testing"
+)
 
 func TestSQLShortcutStore_ListSeeded(t *testing.T) {
 	db := setupTestDB(t)
@@ -183,5 +187,89 @@ func TestSQLShortcutStore_UnicodeShortcuts(t *testing.T) {
 	}
 	if p.Shortcuts[0].Label != "こんにちは" {
 		t.Errorf("unicode shortcut label: got %q", p.Shortcuts[0].Label)
+	}
+}
+
+// setLegacyDefaultRow forces the seeded "default" profile to the first known
+// legacy (pre-OpenCode/Grok) shortcut list, simulating a DB created before the
+// new defaults shipped.
+func setLegacyDefaultRow(t *testing.T, db *sql.DB) {
+	t.Helper()
+	legacy, err := json.Marshal(legacyDefaultShortcutSets[0])
+	if err != nil {
+		t.Fatalf("marshal legacy default: %v", err)
+	}
+	if _, err := db.Exec(
+		`UPDATE shortcut_profiles SET shortcuts = ? WHERE id = 'default' AND scope = 'service'`,
+		string(legacy),
+	); err != nil {
+		t.Fatalf("seed legacy default row: %v", err)
+	}
+}
+
+// TestReconcileDefaultShortcutProfile_UpgradesUnmodifiedSeed verifies that a
+// persisted default profile still equal to the legacy seed is bumped to the
+// current built-in defaults.
+func TestReconcileDefaultShortcutProfile_UpgradesUnmodifiedSeed(t *testing.T) {
+	db := setupTestDB(t)
+	setLegacyDefaultRow(t, db)
+
+	if err := reconcileDefaultShortcutProfile(db); err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+
+	store := NewSQLShortcutStore(db)
+	p, ok := store.Get("default")
+	if !ok {
+		t.Fatal("default profile missing after reconcile")
+	}
+	if len(p.Shortcuts) != len(defaultShortcuts) {
+		t.Fatalf("expected %d shortcuts after upgrade, got %d", len(defaultShortcuts), len(p.Shortcuts))
+	}
+	if !shortcutsEqual(p.Shortcuts, defaultShortcuts) {
+		t.Errorf("upgraded shortcuts do not match current defaults: %+v", p.Shortcuts)
+	}
+
+	// Idempotent: a second run is a no-op (content now differs from legacy).
+	if err := reconcileDefaultShortcutProfile(db); err != nil {
+		t.Fatalf("reconcile (2nd): %v", err)
+	}
+	p2, _ := store.Get("default")
+	if !shortcutsEqual(p2.Shortcuts, defaultShortcuts) {
+		t.Errorf("second reconcile changed content: %+v", p2.Shortcuts)
+	}
+}
+
+// TestReconcileDefaultShortcutProfile_PreservesCustomization verifies that a
+// user-customized default profile is never overwritten.
+func TestReconcileDefaultShortcutProfile_PreservesCustomization(t *testing.T) {
+	db := setupTestDB(t)
+	custom := []ShortcutEntry{{Label: "Mine", Command: "my-tool", Description: "personal"}}
+	store := NewSQLShortcutStore(db)
+	store.Upsert("default", "service", "Default", custom)
+
+	if err := reconcileDefaultShortcutProfile(db); err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+
+	p, _ := store.Get("default")
+	if !shortcutsEqual(p.Shortcuts, custom) {
+		t.Errorf("customized default was modified: %+v", p.Shortcuts)
+	}
+}
+
+// TestReconcileDefaultShortcutProfile_NoRowIsNoop verifies the migration is a
+// no-op when no default profile row exists (fresh DBs before seed, or deleted).
+func TestReconcileDefaultShortcutProfile_NoRowIsNoop(t *testing.T) {
+	db := setupTestDB(t)
+	if _, err := db.Exec(`DELETE FROM shortcut_profiles WHERE id = 'default'`); err != nil {
+		t.Fatalf("delete default: %v", err)
+	}
+	if err := reconcileDefaultShortcutProfile(db); err != nil {
+		t.Fatalf("reconcile on empty: %v", err)
+	}
+	store := NewSQLShortcutStore(db)
+	if _, ok := store.Get("default"); ok {
+		t.Error("reconcile should not create a default row")
 	}
 }

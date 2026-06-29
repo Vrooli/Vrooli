@@ -78,6 +78,15 @@ export async function acquireStream(): Promise<MediaStream> {
       _state = "released";
       _stream = null;
     }, { once: true });
+    // Muting (OS/another app seized the device, sleep/wake, device change) does
+    // NOT fire "ended" and leaves readyState "live". Log it so a wedged stream
+    // is diagnosable; point-of-use validation (isStreamUsable) re-acquires.
+    track.addEventListener("mute", () => {
+      console.warn("[voice] Low-latency: mic track muted (readyState=%s) — will re-acquire on next use", track.readyState);
+    });
+    track.addEventListener("unmute", () => {
+      console.info("[voice] Low-latency: mic track unmuted (readyState=%s)", track.readyState);
+    });
   }
 
   _state = "warm";
@@ -103,10 +112,37 @@ export function getStream(): MediaStream | null {
   return _stream;
 }
 
-/** Check whether the pre-warmed stream has all tracks in "live" state. */
+/**
+ * A track is usable only if it is BOTH live AND not muted.
+ *
+ * A MediaStreamTrack can sit at `readyState === "live"` while `muted === true`,
+ * meaning no audio samples flow. The browser/OS mutes a track after sleep/wake,
+ * a default-input-device change, or another app seizing the microphone — and
+ * crucially the `"ended"` event does NOT fire for muting. A retained pre-warmed
+ * stream can therefore stay muted indefinitely, and reusing it records pure
+ * silence: no transcript, no level meter, and no error (silence is not a
+ * failure). Treating muted tracks as unusable forces a fresh getUserMedia,
+ * which is what actually recovers the mic. Without this check the only fix was
+ * a full page reload (which discards the module-scoped `_stream`).
+ */
+export function isTrackUsable(track: MediaStreamTrack): boolean {
+  return track.readyState === "live" && !track.muted;
+}
+
+/** Whether every track of `stream` is live and unmuted (see isTrackUsable). */
+export function isStreamUsable(stream: MediaStream | null | undefined): boolean {
+  if (!stream) return false;
+  const tracks = stream.getTracks();
+  return tracks.length > 0 && tracks.every(isTrackUsable);
+}
+
+/**
+ * Check whether the pre-warmed stream is usable (all tracks live AND unmuted).
+ * Named "alive" for historical callers; muted-but-live tracks are NOT alive for
+ * reuse purposes — see isTrackUsable.
+ */
 export function isStreamAlive(): boolean {
-  if (!_stream) return false;
-  return _stream.getTracks().every((t) => t.readyState === "live");
+  return isStreamUsable(_stream);
 }
 
 /** Get the current state of the mic readiness module. */

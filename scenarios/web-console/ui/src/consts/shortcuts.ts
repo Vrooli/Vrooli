@@ -17,7 +17,7 @@ export interface ShortcutEntry {
   description?: string;
 }
 
-/** Default shortcuts per PRD: claude and codex. */
+/** Default shortcuts: the agent runtimes web-console captures conversations for. */
 export const DEFAULT_SHORTCUTS: ShortcutEntry[] = [
   {
     label: "Claude Code",
@@ -28,5 +28,15 @@ export const DEFAULT_SHORTCUTS: ShortcutEntry[] = [
     label: "Codex",
     command: "codex --yolo",
     description: "OpenAI Codex CLI in auto-approve mode",
+  },
+  {
+    label: "OpenCode",
+    command: "opencode",
+    description: "OpenCode TUI — conversation captured via its local server API",
+  },
+  {
+    label: "Grok",
+    command: "grok",
+    description: "xAI Grok CLI — conversation captured from its session transcript",
   },
 ];

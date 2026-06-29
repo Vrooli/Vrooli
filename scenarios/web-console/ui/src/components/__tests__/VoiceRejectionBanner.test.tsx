@@ -10,6 +10,7 @@ import { i18n } from "../../i18n";
 function retryable(overrides: Partial<Extract<VoiceRejection, { kind: "retryable" }>> = {}): VoiceRejection {
   const base: Extract<VoiceRejection, { kind: "retryable" }> = {
     kind: "retryable",
+    cause: "speaker-rejected",
     id: "rej-1",
     blob: new Blob([new Uint8Array(100)], { type: "audio/webm" }),
     mimeType: "audio/webm",
@@ -121,6 +122,35 @@ describe("VoiceRejectionBanner", () => {
     expect(screen.getByTestId("voice-rejection-retry")).toHaveTextContent(strings.voiceRejection.retry);
     expect(screen.getByTestId("voice-rejection-error")).toHaveTextContent("Network error");
     expect(screen.getByTestId("voice-rejection-retry")).not.toBeDisabled();
+  });
+
+  it("shows the empty-transcript copy and a Retry action for cause=empty-transcript", () => {
+    render(
+      <VoiceRejectionBanner
+        rejection={retryable({ cause: "empty-transcript", score: 0, threshold: 0 })}
+        onRetry={vi.fn()}
+        onDismiss={vi.fn()}
+      />,
+    );
+    const banner = screen.getByTestId("voice-rejection-banner");
+    expect(banner).toHaveAttribute("data-cause", "empty-transcript");
+    // Empty-transcript turns are framed as "Retry", never "Transcribe anyway".
+    expect(screen.getByTestId("voice-rejection-retry")).toHaveTextContent(strings.voiceRejection.retry);
+    expect(screen.getByTestId("voice-rejection-retry")).not.toHaveTextContent(strings.voiceRejection.transcribeAnyway);
+    expect(screen.getByTestId("voice-rejection-dismiss")).toBeInTheDocument();
+  });
+
+  it("renders empty-transcript title/detail in en locale", async () => {
+    await i18n.changeLanguage("en");
+    render(
+      <VoiceRejectionBanner
+        rejection={retryable({ cause: "empty-transcript", durationMs: 8_200 })}
+        onRetry={vi.fn()}
+        onDismiss={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/Couldn't transcribe your speech/)).toBeInTheDocument();
+    expect(screen.getByText(/8\.2s kept/)).toBeInTheDocument();
   });
 
   // Real-translations test: cimode returns the key without interpolation, so

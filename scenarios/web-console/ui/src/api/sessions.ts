@@ -53,6 +53,11 @@ export interface PolicyResponse {
   ttl_seconds?: number;
 }
 
+// Closed set of agent kinds the recovery flow knows how to reattach. Mirrors
+// sessionstore.Agent in the API; new runtimes require an explicit change on
+// both sides.
+export type AgentType = "none" | "codex" | "claude" | "opencode" | "grok";
+
 // Persistent-session-recovery surface. See
 // scenarios/web-console/docs/guides/SESSION_RECOVERY.md for the contract.
 export interface RecoverableSession {
@@ -64,7 +69,7 @@ export interface RecoverableSession {
   created_at?: string;
   orphaned_at?: string;
   last_activity_at?: string;
-  agent_type?: "none" | "codex" | "claude";
+  agent_type?: AgentType;
   agent_session_id?: string;
   launch_command?: string;
   cwd?: string;
@@ -153,7 +158,7 @@ function decodeRecoverable(r: ProtoRecoverable): RecoverableSession {
     created_at: r.createdAt || undefined,
     orphaned_at: r.orphanedAt || undefined,
     last_activity_at: r.lastActivityAt || undefined,
-    agent_type: (r.agentType as "none" | "codex" | "claude") || undefined,
+    agent_type: (r.agentType as AgentType) || undefined,
     agent_session_id: r.agentSessionId || undefined,
     launch_command: r.launchCommand || undefined,
     cwd: r.cwd || undefined,
@@ -190,7 +195,7 @@ export async function createSession(opts?: {
   backend?: BackendID;
   policy?: { mode: PolicyMode; duration?: string };
   launch_command?: string;
-  agent_type?: "none" | "codex" | "claude";
+  agent_type?: AgentType;
 }): Promise<SessionInfo> {
   const resp = await sessionsClient.create({
     shell: opts?.shell ?? "",

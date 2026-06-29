@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     status TEXT NOT NULL DEFAULT 'live'
         CHECK(status IN ('live','awaiting_recovery','dismissed')),
     agent_type TEXT NOT NULL DEFAULT 'none'
-        CHECK(agent_type IN ('none','codex','claude')),
+        CHECK(agent_type IN ('none','codex','claude','opencode','grok')),
     launch_command TEXT NOT NULL DEFAULT '',
     agent_session_id TEXT NOT NULL DEFAULT '',
     cwd TEXT NOT NULL DEFAULT '',
@@ -82,6 +82,24 @@ CREATE TABLE IF NOT EXISTS codex_rollout_checkpoints (
 
 CREATE INDEX IF NOT EXISTS idx_codex_rollout_checkpoints_session
     ON codex_rollout_checkpoints(session_id);
+
+-- Generic per-source ingestion cursors for newer agent transcript adapters
+-- (Grok updates.jsonl tailing, OpenCode HTTP reconciliation). The cursor is an
+-- opaque, source-defined string: a byte offset for Grok's append-only JSONL, a
+-- JSON high-water mark for OpenCode's full-history message reconciliation. This
+-- intentionally does NOT subsume codex_rollout_checkpoints — rewriting Codex's
+-- proven byte-offset history is higher risk than an additive new table.
+CREATE TABLE IF NOT EXISTS agent_transcript_checkpoints (
+    source TEXT NOT NULL,
+    source_key TEXT NOT NULL,
+    web_console_session_id TEXT NOT NULL,
+    cursor TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    PRIMARY KEY (source, source_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_transcript_checkpoints_session
+    ON agent_transcript_checkpoints(web_console_session_id);
 
 -- Shortcut profiles with scope hierarchy
 CREATE TABLE IF NOT EXISTS shortcut_profiles (

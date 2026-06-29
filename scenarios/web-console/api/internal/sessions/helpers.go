@@ -31,6 +31,10 @@ func NormalizeAgentType(s string) sessionstore.Agent {
 		return sessionstore.AgentCodex
 	case sessionstore.AgentClaude:
 		return sessionstore.AgentClaude
+	case sessionstore.AgentOpenCode:
+		return sessionstore.AgentOpenCode
+	case sessionstore.AgentGrok:
+		return sessionstore.AgentGrok
 	case sessionstore.AgentNone:
 		return sessionstore.AgentNone
 	default:
@@ -51,6 +55,16 @@ func Recoverability(m sessionstore.Metadata) (bool, string) {
 		return true, ""
 	case sessionstore.AgentCodex:
 		return true, ""
+	case sessionstore.AgentOpenCode:
+		if m.AgentSessionID == "" {
+			return false, "opencode session id is required (resuming the wrong project is unsafe)"
+		}
+		return true, ""
+	case sessionstore.AgentGrok:
+		if m.AgentSessionID == "" {
+			return false, "grok session id is required (resuming the wrong project is unsafe)"
+		}
+		return true, ""
 	default:
 		return false, "unknown agent type: " + string(m.AgentType)
 	}
@@ -68,6 +82,16 @@ func BuildResumeCommand(m sessionstore.Metadata) string {
 		return "codex --yolo resume --last\n"
 	case sessionstore.AgentClaude:
 		return "claude --resume " + m.AgentSessionID + " --dangerously-skip-permissions\n"
+	case sessionstore.AgentOpenCode:
+		if m.AgentSessionID != "" {
+			return "opencode --session " + m.AgentSessionID + "\n"
+		}
+		return "echo 'opencode session id missing; nothing to resume'\n"
+	case sessionstore.AgentGrok:
+		if m.AgentSessionID != "" {
+			return "grok --resume " + m.AgentSessionID + "\n"
+		}
+		return "echo 'grok session id missing; nothing to resume'\n"
 	}
 	return "echo 'no agent identity recorded; nothing to resume'\n"
 }

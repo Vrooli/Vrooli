@@ -76,6 +76,8 @@
     "roleYou": "あなた",
     "roleClaude": "Claude",
     "roleCodex": "Codex",
+    "roleOpenCode": "OpenCode",
+    "roleGrok": "Grok",
     "resume": "再開",
     "pause": "一時停止",
     "scrollToCurrent": "再生中のメッセージにスクロール",
@@ -122,6 +124,9 @@
     "retry": "再試行",
     "transcribing": "文字起こし中…",
     "retryTitle": "話者検証なしで音声を文字起こしする",
+    "emptyTitle": "音声を文字起こしできませんでした",
+    "emptyDetail": "単語を認識できませんでした · {{duration}}保持 — 再試行するか録音し直してください",
+    "emptyRetryTitle": "保持した音声をもう一度文字起こしする",
     "dismiss": "閉じる",
     "dismissAriaLabel": "拒否通知を閉じる"
   },

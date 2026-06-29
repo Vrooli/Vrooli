@@ -50,6 +50,38 @@ var defaultShortcuts = []ShortcutEntry{
 		Command:     "codex --yolo",
 		Description: "OpenAI Codex CLI in auto-approve mode",
 	},
+	{
+		Label:       "OpenCode",
+		Command:     "opencode",
+		Description: "OpenCode TUI — conversation captured via its local server API",
+	},
+	{
+		Label:       "Grok",
+		Command:     "grok",
+		Description: "xAI Grok CLI — conversation captured from its session transcript",
+	},
+}
+
+// legacyDefaultShortcutSets are prior built-in default shortcut lists that
+// shipped before OpenCode/Grok were added. A persisted "default" service
+// profile (seeded by older builds that wrote it to SQLite at boot) is only
+// reconciled to the current defaults when its content exactly matches one of
+// these — i.e. it is provably the unmodified seed, never a user customization.
+// Append a snapshot here whenever defaultShortcuts changes, so the prior shape
+// stays recognizable as "untouched seed".
+var legacyDefaultShortcutSets = [][]ShortcutEntry{
+	{
+		{
+			Label:       "Claude Code",
+			Command:     "claude --dangerously-skip-permissions",
+			Description: "AI coding assistant with full permissions",
+		},
+		{
+			Label:       "Codex",
+			Command:     "codex --yolo",
+			Description: "OpenAI Codex CLI in auto-approve mode",
+		},
+	},
 }
 
 // NewShortcutProfileStore creates a store pre-populated with the default

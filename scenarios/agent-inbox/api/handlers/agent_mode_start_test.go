@@ -161,6 +161,24 @@ func TestStartAgentMode_DefaultRunnerType(t *testing.T) {
 	}
 }
 
+func TestStartAgentMode_RejectsUnsupportedRunnerType(t *testing.T) {
+	env := setupAgentModeTest(t)
+	chatID := env.createChat(t)
+
+	w := env.doRequest("POST", "/api/v1/chats/"+chatID+"/agent-mode/start", map[string]interface{}{
+		"message":      "hello",
+		"project_path": "/tmp",
+		"runner_type":  "grok",
+	})
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+	if len(env.mockAgent.StartCalls) != 0 {
+		t.Fatalf("unsupported runner should not start agent-manager call")
+	}
+}
+
 func TestStartAgentMode_ChatNotFound(t *testing.T) {
 	env := setupAgentModeTest(t)
 

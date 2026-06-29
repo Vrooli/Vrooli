@@ -47,5 +47,9 @@ func defaultSessionEnv(sessionID string) map[string]string {
 		"WC_WEB_CONSOLE_SESSION_ID": sessionID,
 		"CODEX_HOME":                sessionCodexHome(sessionID),
 		"WC_CODEX_SESSIONS_DIR":     sessionCodexSessionsDir(sessionID),
+		// Per-session GROK_HOME isolates the grok transcript tree per pane so the
+		// tailer can attribute sessions by construction (shared auth/config are
+		// symlinked in by backends/grok). See CONVERSATION_TRACKING.md.
+		"GROK_HOME": sessionGrokHome(sessionID),
 	}
 }

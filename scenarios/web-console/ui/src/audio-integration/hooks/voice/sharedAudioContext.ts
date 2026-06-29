@@ -33,10 +33,44 @@ let _gestureInstalled = false;
  * monitor already handles this in startLevelMonitor().
  */
 export function getSharedAudioContext(): AudioContext {
-  if (!_sharedCtx || _sharedCtx.state === "closed") {
+  // Rebuild on "closed" AND "interrupted". "interrupted" (Safari/iOS, and some
+  // Chrome cases after audio-device changes) is a terminal state that resume()
+  // cannot reliably recover; reusing it leaves the level meter permanently dead.
+  if (!_sharedCtx || _sharedCtx.state === "closed" || (_sharedCtx.state as string) === "interrupted") {
     _sharedCtx = new AudioContext();
   }
   return _sharedCtx;
+}
+
+/**
+ * Return a shared AudioContext that is actually in "running" state, healing a
+ * wedged one if necessary.
+ *
+ * The plain getter only rebuilds on closed/interrupted. A context can also get
+ * stuck in "suspended" where resume() silently fails to bring it back (e.g.
+ * after the machine sleeps/wakes or the audio device changes). Before this,
+ * such a context was reused forever and the only fix was a full page reload.
+ * This function resumes, and if that doesn't reach "running", discards the
+ * wedged context and builds a fresh one. Best-effort: a context rebuilt outside
+ * a user gesture may remain suspended, but the capture path does not depend on
+ * it (only the level meter does), so callers should not fail the session on it.
+ */
+export async function ensureRunningSharedAudioContext(): Promise<AudioContext> {
+  let ctx = getSharedAudioContext();
+  // Cast to string: TS narrows ctx.state across the resume() call (property
+  // reads aren't re-widened), which would flag the post-resume comparison.
+  if ((ctx.state as string) === "running") return ctx;
+
+  try { await ctx.resume(); } catch { /* fall through to rebuild */ }
+  if ((ctx.state as string) === "running") return ctx;
+
+  // Wedged: resume() did not recover it. Discard and rebuild once.
+  console.warn("[voice] Shared AudioContext wedged (state=%s); rebuilding", ctx.state);
+  try { await ctx.close(); } catch { /* ignore */ }
+  _sharedCtx = null;
+  ctx = getSharedAudioContext();
+  try { await ctx.resume(); } catch { /* ignore — may need a gesture */ }
+  return ctx;
 }
 
 /**

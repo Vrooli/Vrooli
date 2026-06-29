@@ -102,8 +102,12 @@ export class WhisperProvider implements TranscriptionProvider {
       const transcribeStart = Date.now();
       try {
         const text = await transcribeAudioWithRetry(blob, 2, this.language);
-        console.info("[voice] WhisperHTTP: transcription took %dms, %d chars", Date.now() - transcribeStart, text.trim().length);
-        if (text.trim()) this.onResult?.(text.trim());
+        const trimmed = text.trim();
+        console.info("[voice] WhisperHTTP: transcription took %dms, %d chars", Date.now() - transcribeStart, trimmed.length);
+        // Resolve the turn exactly once, even when empty, so the host can
+        // surface a recoverable notice instead of wedging on "transcribing".
+        // See TranscriptionProvider.onResult contract.
+        this.onResult?.(trimmed);
       } catch {
         console.warn("[voice] WhisperHTTP: transcription failed after %dms", Date.now() - transcribeStart);
         this.onError?.(WHISPER_FAILED_SENTINEL);

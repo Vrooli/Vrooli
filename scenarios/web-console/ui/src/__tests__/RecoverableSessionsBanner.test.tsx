@@ -91,6 +91,33 @@ describe("RecoverableSessionsBanner", () => {
     );
   });
 
+  it("renders opencode and grok rows and gates Reattach on session id", async () => {
+    listMock.mockResolvedValue([
+      {
+        id: "cccccccc-1111-2222-3333-444444444444",
+        agent_type: "opencode",
+        agent_session_id: "ses_abc",
+        recoverable: true,
+      },
+      {
+        id: "dddddddd-1111-2222-3333-444444444444",
+        agent_type: "grok",
+        recoverable: false,
+        not_recoverable_reason: "grok session id is required (resuming the wrong project is unsafe)",
+      },
+    ]);
+    render(<RecoverableSessionsBanner />);
+    await waitFor(() => expect(screen.getByTestId("recoverable-sessions-banner")).toBeInTheDocument());
+
+    // Both new agent types render their own recovery row.
+    expect(screen.getByTestId("recoverable-row-cccccccc-1111-2222-3333-444444444444")).toBeInTheDocument();
+    expect(screen.getByTestId("recoverable-row-dddddddd-1111-2222-3333-444444444444")).toBeInTheDocument();
+
+    // opencode with a session id can reattach; grok without one cannot.
+    expect(screen.getByTestId("recoverable-row-cccccccc-1111-2222-3333-444444444444-recover")).not.toBeDisabled();
+    expect(screen.getByTestId("recoverable-row-dddddddd-1111-2222-3333-444444444444-recover")).toBeDisabled();
+  });
+
   it("invokes dismissRecoverableSession on Dismiss click", async () => {
     listMock
       .mockResolvedValueOnce([

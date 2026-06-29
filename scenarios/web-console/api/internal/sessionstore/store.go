@@ -32,9 +32,11 @@ const (
 type Agent string
 
 const (
-	AgentNone   Agent = "none"
-	AgentCodex  Agent = "codex"
-	AgentClaude Agent = "claude"
+	AgentNone     Agent = "none"
+	AgentCodex    Agent = "codex"
+	AgentClaude   Agent = "claude"
+	AgentOpenCode Agent = "opencode"
+	AgentGrok     Agent = "grok"
 )
 
 // Metadata holds persisted session state for restart recovery.

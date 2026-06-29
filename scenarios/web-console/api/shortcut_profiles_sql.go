@@ -141,6 +141,75 @@ func (s *SQLShortcutStore) Effective() []ShortcutEntry {
 	return shortcuts
 }
 
+// reconcileDefaultShortcutProfile refreshes a stale persisted "default" service
+// profile to the current built-in defaults — but only when the stored content is
+// provably the unmodified seed.
+//
+// Background: older builds wrote a "default" service profile row into SQLite at
+// boot. That seeding was since removed (fresh DBs now have no row and fall back
+// to defaultShortcuts in Effective()), but DBs created under the old code still
+// carry the persisted row, which shadows the Go-side default and never picks up
+// newly added shortcuts (e.g. OpenCode/Grok).
+//
+// This is a value-preserving data migration, not a destructive one:
+//   - No "default" row → no-op (fresh DBs use the Go fallback).
+//   - Row present but its shortcuts differ from every known legacy default →
+//     left untouched (a user customization, or already current/idempotent).
+//   - Row present and equal to a known legacy default → updated in place to the
+//     current defaults (the row stays; only its shortcuts/updated_at change).
+//
+// It never deletes a row and never touches a customized profile, so no user data
+// is lost. Idempotent: after the update the content no longer matches a legacy
+// default, so a re-run is a no-op.
+func reconcileDefaultShortcutProfile(db *sql.DB) error {
+	var storedJSON string
+	err := db.QueryRow(
+		`SELECT shortcuts FROM shortcut_profiles WHERE id = 'default' AND scope = 'service'`,
+	).Scan(&storedJSON)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil // fresh DB: Effective() uses the Go default
+		}
+		return err
+	}
+
+	var stored []ShortcutEntry
+	if err := json.Unmarshal([]byte(storedJSON), &stored); err != nil {
+		// Unparseable content is not a recognizable seed; leave it alone.
+		log.Printf("reconcileDefaultShortcutProfile: unparseable stored shortcuts, leaving untouched: %v", err)
+		return nil
+	}
+
+	if !shortcutsMatchAnyLegacyDefault(stored) {
+		return nil // customized or already current — preserve as-is
+	}
+
+	current, err := json.Marshal(defaultShortcuts)
+	if err != nil {
+		return err
+	}
+	if _, err := db.Exec(
+		`UPDATE shortcut_profiles SET shortcuts = ?, updated_at = ? WHERE id = 'default' AND scope = 'service'`,
+		string(current), formatTime(time.Now()),
+	); err != nil {
+		return err
+	}
+	log.Printf("migration: refreshed unmodified default shortcut profile to current built-ins (%d entries)", len(defaultShortcuts))
+	return nil
+}
+
+// shortcutsMatchAnyLegacyDefault reports whether the given shortcuts exactly
+// equal one of the known prior built-in default lists (order-sensitive,
+// field-for-field) — the test for "this is the untouched seed".
+func shortcutsMatchAnyLegacyDefault(got []ShortcutEntry) bool {
+	for _, legacy := range legacyDefaultShortcutSets {
+		if shortcutsEqual(got, legacy) {
+			return true
+		}
+	}
+	return false
+}
+
 // scanShortcutProfile reads a ShortcutProfile from a *sql.Rows cursor.
 func scanShortcutProfile(rows *sql.Rows) (*ShortcutProfile, error) {
 	var p ShortcutProfile

@@ -60,7 +60,8 @@ Returns the complete tool manifest for the scenario.
           "runner_type": {
             "type": "string",
             "enum": ["claude-code", "codex", "opencode"],
-            "default": "claude-code"
+            "default": "claude-code",
+            "description": "Agent-manager runner type. Grok is a platform resource but is not exposed here until agent-manager has a Grok runner adapter."
           }
         },
         "required": ["task"]

@@ -35,8 +35,9 @@ type ConversationsStore interface {
 	CopySession(oldID, newID string) error
 }
 
-// CodexCheckpoints is the minimal seam for clearing codex-checkpoint state
-// on session deletion.
+// CodexCheckpoints is the minimal seam for clearing per-source ingestion
+// checkpoint state on session deletion. Both the codex byte-offset store and
+// the generic agent-transcript checkpoint store (Grok/OpenCode) satisfy it.
 type CodexCheckpoints interface {
 	DeleteSession(id string) error
 }
@@ -51,6 +52,7 @@ type Adapter struct {
 	Metrics          *intmetrics.Metrics
 	Conversations    ConversationsStore
 	CodexCheckpoints CodexCheckpoints
+	AgentCheckpoints CodexCheckpoints
 	CopyCodexHome    func(oldID, newID string) error
 	Logger           *log.Logger
 }
@@ -140,6 +142,9 @@ func (a *Adapter) Delete(_ context.Context, id string) error {
 		if a.CodexCheckpoints != nil {
 			_ = a.CodexCheckpoints.DeleteSession(id)
 		}
+		if a.AgentCheckpoints != nil {
+			_ = a.AgentCheckpoints.DeleteSession(id)
+		}
 		a.Events.Emit(events.SessionDeleted, id, nil)
 		a.Metrics.SessionsDeleted.Add(1)
 		a.Metrics.ActiveSessions.Add(-1)
@@ -206,11 +211,11 @@ func (a *Adapter) Recover(_ context.Context, in RecoverInput) (RecoverResult, er
 	if old.Status != sessionstore.StatusAwaitingRecovery {
 		return RecoverResult{}, fmt.Errorf("session %q is in status %q, not awaiting_recovery: %w", sanitizeID(oldID), old.Status, ErrFailedPrecondition)
 	}
-	if old.AgentType == sessionstore.AgentNone {
-		return RecoverResult{}, fmt.Errorf("no agent identity recorded: %w", ErrFailedPrecondition)
-	}
-	if old.AgentType == sessionstore.AgentClaude && old.AgentSessionID == "" {
-		return RecoverResult{}, fmt.Errorf("claude session id is required: %w", ErrFailedPrecondition)
+	// Single source of truth for recoverability (and its precise refusal
+	// reasons) so every agent type — codex, claude, opencode, grok — is gated
+	// identically here and in the recoverable-sessions listing.
+	if ok, reason := intsessions.Recoverability(old); !ok {
+		return RecoverResult{}, fmt.Errorf("%s: %w", reason, ErrFailedPrecondition)
 	}
 
 	cols := old.Cols

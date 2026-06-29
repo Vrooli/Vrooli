@@ -1,5 +1,5 @@
 import { Bot, FolderOpen, Cpu, RotateCcw, CheckCircle2, XCircle, Loader2 } from "lucide-react";
-import type { RunnerType } from "../../lib/api";
+import { RUNNER_OPTIONS, type RunnerType } from "../../lib/api";
 import type { AgentModeSettings as Settings } from "../../hooks/useAgentSettings";
 import { usePathValidation } from "../../hooks/usePathValidation";
 
@@ -11,12 +11,6 @@ interface AgentModeSettingsProps {
   /** Called to reset settings to defaults */
   onReset: () => void;
 }
-
-const RUNNER_OPTIONS: { value: RunnerType; label: string }[] = [
-  { value: "claude-code", label: "Claude Code" },
-  { value: "codex", label: "Codex" },
-  { value: "opencode", label: "OpenCode" }
-];
 
 /**
  * Settings panel for configuring agent mode defaults.

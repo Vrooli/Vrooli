@@ -87,27 +87,42 @@ export default function VoiceRejectionBanner({
 
   const isRetrying = rejection.status === "retrying";
   const isFailed = rejection.status === "failed";
-  const primaryLabel = isFailed
+  const isEmpty = rejection.cause === "empty-transcript";
+  // An empty-transcript turn was never a "match" question — the verb is always
+  // "Retry". A speaker-rejected turn offers "Transcribe anyway" until it fails.
+  const primaryLabel = isEmpty || isFailed
     ? t(strings.voiceRejection.retry)
     : t(strings.voiceRejection.transcribeAnyway);
+  const title = isEmpty
+    ? t(strings.voiceRejection.emptyTitle)
+    : t(strings.voiceRejection.title);
+  const detail = isEmpty
+    ? t(strings.voiceRejection.emptyDetail, {
+        duration: formatDurationMs(rejection.durationMs),
+      })
+    : t(strings.voiceRejection.retryableDetail, {
+        score: rejection.score.toFixed(2),
+        threshold: rejection.threshold.toFixed(2),
+        duration: formatDurationMs(rejection.durationMs),
+      });
+  const retryTitle = isEmpty
+    ? t(strings.voiceRejection.emptyRetryTitle)
+    : t(strings.voiceRejection.retryTitle);
 
   return (
     <div
       data-testid="voice-rejection-banner"
       data-kind="retryable"
+      data-cause={rejection.cause}
       data-status={rejection.status}
       className="flex items-start gap-2 border-b border-sky-500/30 bg-sky-500/10 py-2 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))] text-xs text-sky-200"
       role="status"
     >
       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
       <div className="flex-1 min-w-0">
-        <div className="font-medium">{t(strings.voiceRejection.title)}</div>
+        <div className="font-medium">{title}</div>
         <div className="mt-0.5 text-sky-200/80">
-          {t(strings.voiceRejection.retryableDetail, {
-            score: rejection.score.toFixed(2),
-            threshold: rejection.threshold.toFixed(2),
-            duration: formatDurationMs(rejection.durationMs),
-          })}
+          {detail}
         </div>
         {isFailed && rejection.errorMessage ? (
           <div
@@ -123,7 +138,7 @@ export default function VoiceRejectionBanner({
         onClick={handleRetry}
         disabled={isRetrying}
         className="shrink-0 inline-flex items-center gap-1 rounded border border-sky-400/40 bg-sky-500/20 px-2 py-1 font-medium text-sky-100 transition active:bg-sky-500/30 disabled:cursor-not-allowed disabled:opacity-60"
-        title={t(strings.voiceRejection.retryTitle)}
+        title={retryTitle}
       >
         {isRetrying ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />

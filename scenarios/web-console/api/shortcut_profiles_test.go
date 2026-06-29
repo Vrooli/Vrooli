@@ -26,8 +26,8 @@ func TestShortcutProfileStore_DefaultProfile(t *testing.T) {
 	if profiles[0].Scope != "service" {
 		t.Errorf("expected service scope, got %q", profiles[0].Scope)
 	}
-	if len(profiles[0].Shortcuts) != 2 {
-		t.Errorf("expected 2 default shortcuts, got %d", len(profiles[0].Shortcuts))
+	if len(profiles[0].Shortcuts) != 4 {
+		t.Errorf("expected 4 default shortcuts, got %d", len(profiles[0].Shortcuts))
 	}
 }
 
@@ -63,9 +63,9 @@ func TestShortcutProfileStore_Upsert(t *testing.T) {
 func TestShortcutProfileStore_Effective(t *testing.T) {
 	store := NewShortcutProfileStore()
 
-	// Default service profile exists with 2 shortcuts
+	// Default service profile exists with 4 shortcuts
 	eff := store.Effective()
-	if len(eff) != 2 {
+	if len(eff) != 4 {
 		t.Fatalf("expected default service profile shortcuts, got %d", len(eff))
 	}
 
@@ -93,7 +93,7 @@ func TestShortcutProfileStore_EffectiveEmpty(t *testing.T) {
 	store := NewShortcutProfileStore()
 	store.Delete("default")
 	eff := store.Effective()
-	if len(eff) != 2 {
+	if len(eff) != 4 {
 		t.Errorf("expected default shortcuts fallback when no profiles, got %d", len(eff))
 	}
 }
@@ -157,8 +157,8 @@ func TestConnect_GetEffective(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetEffective: %v", err)
 	}
-	if len(resp.Msg.GetShortcuts()) != 2 {
-		t.Errorf("expected 2 shortcuts, got %d", len(resp.Msg.GetShortcuts()))
+	if len(resp.Msg.GetShortcuts()) != 4 {
+		t.Errorf("expected 4 shortcuts, got %d", len(resp.Msg.GetShortcuts()))
 	}
 }
 

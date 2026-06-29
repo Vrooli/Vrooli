@@ -17,6 +17,7 @@ import { cn } from "../lib/classnames";
 import { getScrubClasses } from "./tts/scrubStyles";
 import {
   applyFilter,
+  assistantRoleLabelKey,
   formatRelativeTime,
   groupEventsByTurn,
   statusGlyphFor,
@@ -149,9 +150,7 @@ function NowPlayingHeader({
   const desc = statusGlyphFor(event);
   const roleLabel = event.role === "user"
     ? t(strings.messageJumpList.roleYou)
-    : event.source === "claude_hook"
-      ? t(strings.messageJumpList.roleClaude)
-      : t(strings.messageJumpList.roleCodex);
+    : t(assistantRoleLabelKey(event.source));
   const seekable = duration > 0 && !!onSeek;
 
   return (
@@ -308,9 +307,7 @@ function AssistantRow({
 }) {
   const { t } = useTranslation();
   const desc = statusGlyphFor(event);
-  const roleLabel = event.source === "claude_hook"
-    ? t(strings.messageJumpList.roleClaude)
-    : t(strings.messageJumpList.roleCodex);
+  const roleLabel = t(assistantRoleLabelKey(event.source));
   return (
     <button
       type="button"

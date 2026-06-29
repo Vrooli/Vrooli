@@ -1,11 +1,25 @@
 import { describe, it, expect } from "vitest";
 import {
   applyFilter,
+  assistantRoleLabelKey,
   formatRelativeTime,
   groupEventsByTurn,
   statusGlyphFor,
 } from "../components/MessageJumpList.helpers";
 import type { ConversationEvent } from "../api/conversation";
+
+describe("assistantRoleLabelKey", () => {
+  it("maps each conversation source to its agent label key", () => {
+    expect(assistantRoleLabelKey("claude_hook")).toBe("messageJumpList.roleClaude");
+    expect(assistantRoleLabelKey("codex_tailer")).toBe("messageJumpList.roleCodex");
+    expect(assistantRoleLabelKey("opencode_api")).toBe("messageJumpList.roleOpenCode");
+    expect(assistantRoleLabelKey("grok_tailer")).toBe("messageJumpList.roleGrok");
+  });
+
+  it("falls back to Codex for unknown sources", () => {
+    expect(assistantRoleLabelKey("something_else")).toBe("messageJumpList.roleCodex");
+  });
+});
 
 function makeEvent(overrides: Partial<ConversationEvent> & { id: string; sequence: number }): ConversationEvent {
   return {

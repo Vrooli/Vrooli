@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { toErrorInfo, type ErrorInfo } from "../lib/errors";
 import { getWorkspaceLayout, updateWorkspacePane } from "../api/workspace";
-import { createSession, deleteSession, listSessions, type SessionInfo, type BackendID, type PolicyMode } from "../api/sessions";
+import { createSession, deleteSession, listSessions, type SessionInfo, type BackendID, type PolicyMode, type AgentType } from "../api/sessions";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { DEFAULT_COLS, DEFAULT_ROWS, ERROR_AUTO_DISMISS_MS } from "../consts/config";
 import type { TerminalPaneHandle } from "../components/TerminalPane";
@@ -35,12 +35,15 @@ function supportsMessagesViewForCommand(command?: string): boolean {
 
 // agentTypeFromCommand classifies the launch command into the closed
 // AgentType set persisted server-side. Used to populate the create-session
-// payload so the recovery flow can later reattach the agent.
-function agentTypeFromCommand(command?: string): "none" | "codex" | "claude" {
+// payload so the recovery flow can later reattach the agent. Exported for unit
+// coverage of the classification table.
+export function agentTypeFromCommand(command?: string): AgentType {
   if (!command) return "none";
   const trimmed = command.trim().toLowerCase();
   if (trimmed === "claude" || trimmed.startsWith("claude ")) return "claude";
   if (trimmed === "codex" || trimmed.startsWith("codex ")) return "codex";
+  if (trimmed === "opencode" || trimmed.startsWith("opencode ")) return "opencode";
+  if (trimmed === "grok" || trimmed.startsWith("grok ")) return "grok";
   return "none";
 }
 

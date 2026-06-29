@@ -1,4 +1,5 @@
 import type { ConversationEvent } from "../api/conversation";
+import { strings } from "../consts/strings";
 
 export type StatusGlyph = "played" | "playing" | "unseen" | "failed";
 
@@ -89,4 +90,20 @@ export function applyFilter(events: ConversationEvent[], filter: FilterMode): Co
   return events.filter(
     (e) => e.ttsState !== "played" && e.consumptionState !== "listened",
   );
+}
+
+// assistantRoleLabelKey maps a conversation event source to the i18n key for
+// the assistant's display name. Centralized so adding an agent runtime touches
+// one place instead of every component that renders a source label.
+export function assistantRoleLabelKey(source: string) {
+  switch (source) {
+    case "claude_hook":
+      return strings.messageJumpList.roleClaude;
+    case "opencode_api":
+      return strings.messageJumpList.roleOpenCode;
+    case "grok_tailer":
+      return strings.messageJumpList.roleGrok;
+    default:
+      return strings.messageJumpList.roleCodex;
+  }
 }

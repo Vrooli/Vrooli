@@ -24,6 +24,26 @@ export class AgentModeError extends Error {
 /** Runner types available for agent mode */
 export type RunnerType = "claude-code" | "codex" | "opencode";
 
+export const SUPPORTED_RUNNER_TYPES = ["claude-code", "codex", "opencode"] as const satisfies readonly RunnerType[];
+
+export const RUNNER_OPTIONS: { value: RunnerType; label: string; description: string }[] = [
+  {
+    value: "claude-code",
+    label: "Claude Code",
+    description: "Anthropic's official CLI agent"
+  },
+  {
+    value: "codex",
+    label: "Codex",
+    description: "OpenAI Codex CLI agent"
+  },
+  {
+    value: "opencode",
+    label: "OpenCode",
+    description: "Open-source coding agent"
+  }
+];
+
 /** Run status for agent runs */
 export type AgentRunStatus =
   | "pending"

@@ -68,13 +68,26 @@ export interface LastTurnAudio {
 }
 
 /**
- * A speaker-verification rejection surfaced to the UI.
+ * Why a turn surfaced a retryable banner:
+ *   - "speaker-rejected": speaker verification rejected the audio. Retry
+ *     re-transcribes with the verification filter bypassed.
+ *   - "empty-transcript": the turn completed but no text was delivered (an
+ *     empty `final`, an empty HTTP-fallback result, or a streaming session
+ *     that dropped mid-turn and lost context). The audio is intact, so retry
+ *     re-transcribes the full retained turn via the plain HTTP batch path —
+ *     which often recovers a message the streaming path silently lost.
+ */
+export type VoiceRejectionCause = "speaker-rejected" | "empty-transcript";
+
+/**
+ * A retryable/explanatory notice surfaced to the UI when a turn did not
+ * deliver usable text.
  *
- * `retryable` is emitted when the provider retained the turn's audio and the
- * server offers a bypass endpoint — the UI can offer a "Transcribe anyway"
- * button. `explanatory` is emitted when the provider cannot retain audio (e.g.
- * `WebSpeechProvider`, which does not hold the raw bytes); the UI shows the
- * reason but hides the retry action.
+ * `retryable` is emitted when the provider retained the turn's audio — the UI
+ * can offer a one-tap retry (see `cause` for what the retry does). `explanatory`
+ * is emitted when the provider cannot retain audio (e.g. `WebSpeechProvider`,
+ * which does not hold the raw bytes); the UI shows the reason but hides the
+ * retry action.
  *
  * Discriminated union enforces at compile time that every consumer handles
  * both kinds.
@@ -82,6 +95,8 @@ export interface LastTurnAudio {
 export type VoiceRejection =
   | {
       kind: "retryable";
+      /** What produced this banner — drives both the copy and the retry path. */
+      cause: VoiceRejectionCause;
       id: string;
       blob: Blob;
       mimeType: string;
@@ -178,6 +193,14 @@ export interface TranscriptionProvider {
    * do not leak into the transcription. Reset on the next `start()`.
    */
   dropTail(): void;
+  /**
+   * Delivers the final transcript for a turn. CONTRACT: a provider must call
+   * `onResult` exactly once per completed turn whose audio was not entirely
+   * dropped — **including with an empty string** when transcription produced
+   * no text. This is what lets the host distinguish "turn ended, nothing came
+   * back" (a recoverable silent loss) from "turn still in flight". A provider
+   * that returns early on empty text leaves the UI wedged in "transcribing".
+   */
   onResult: ((text: string) => void) | null;
   onError: ((error: string) => void) | null;
   onPartial?: ((text: string) => void) | null;
