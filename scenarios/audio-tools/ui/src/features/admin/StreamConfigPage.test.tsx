@@ -21,6 +21,16 @@ vi.mock("../../components/ui/toast", () => ({
   pushToast: (...args: unknown[]) => pushToast(...args),
 }));
 
+// OverlapStallGuard (mounted by the page) reads/writes StreamConfig via the
+// audio-integration voice API; stub those two calls so the engine-picker
+// suite stays focused and offline.
+const getVoiceStreamConfig = vi.fn();
+const updateVoiceStreamConfig = vi.fn();
+vi.mock("../../audio-integration", () => ({
+  getVoiceStreamConfig: () => getVoiceStreamConfig(),
+  updateVoiceStreamConfig: (patch: { overlapMaxStallRejects?: number }) => updateVoiceStreamConfig(patch),
+}));
+
 import { StreamConfigPage } from "./StreamConfigPage";
 
 const ENGINES = [
@@ -42,6 +52,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   listEngines.mockResolvedValue(ENGINES);
   setEngine.mockResolvedValue(undefined);
+  getVoiceStreamConfig.mockResolvedValue({ overlapMaxStallRejects: 3 });
+  updateVoiceStreamConfig.mockResolvedValue({ overlapMaxStallRejects: 3 });
 });
 
 describe("StreamConfigPage engine picker", () => {

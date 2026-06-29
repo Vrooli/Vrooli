@@ -10,7 +10,12 @@
 | `audio-tools stt transcribe --file PATH [--language EN] [--format FMT]` | Transcribe an audio file | `STTService.Transcribe` |
 | `audio-tools stt transcribe-stream --file PATH [--language EN] [--chunk-bytes N]` | Stream-transcribe a file (one event per line) | `STTService.TranscribeStream` |
 | `audio-tools stt stream-config` | Show the resolved streaming STT levers | `STTService.GetStreamConfig` |
-| `audio-tools stt stream-config-set [--streaming-mode auto\|off] [--strategy-preference …] [--vad-silence-ms N] [--overlap-window-ms N] [--overlap-commit-runs N]` | Mutate streaming STT levers | `STTService.UpdateStreamConfig` |
+| `audio-tools stt stream-config-set [--streaming-mode auto\|off] [--strategy-preference …] [--vad-silence-ms N] [--overlap-window-ms N] [--overlap-commit-runs N] [--overlap-max-stall-rejects N]` | Mutate streaming STT levers (incl. the overlap stall-fallback; `0` disables it) | `STTService.UpdateStreamConfig` |
+| `audio-tools corpus list [--tag SUBSTR] [--limit N]` | List speech-eval corpus clips (newest first) | `CorpusService.ListClips` |
+| `audio-tools corpus import AUDIO_FILE --reference TEXT [--reference-file PATH] [--tags a,b] [--format pcm_s16le] [--sample-rate 16000] [--scripted]` | Import a PCM clip + ground-truth transcript into the corpus | `CorpusService.CreateClip` |
+| `audio-tools corpus get ID` | Show one clip's metadata | `CorpusService.GetClip` |
+| `audio-tools corpus delete ID` | Delete a clip (row + audio blob) | `CorpusService.DeleteClip` |
+| `audio-tools eval run [--strategies batch,vad_segment,overlap_agree] [--clip-ids …] [--realtime-repeats N] [--chunk-ms N] [--output FILE] [--format table\|json]` | Replay the corpus through the strategies and print the WER/compute/latency comparison table (see [`eval-harness.md`](eval-harness.md)) | `EvalService.RunEval` |
 | `audio-tools tts synthesize --text TEXT [--voice ID] [--speed N] [--format FMT] [--out PATH]` | Synthesize speech audio | `TTSService.Synthesize` |
 | `audio-tools tts synthesize-stream --text TEXT [--voice ID] [--speed N] [--format FMT] [--out PATH]` | Stream-synthesize speech (writes frames to --out as they arrive) | `TTSService.SynthesizeStream` |
 | `audio-tools tts voices` | List canonical voices | `TTSService.ListVoices` |

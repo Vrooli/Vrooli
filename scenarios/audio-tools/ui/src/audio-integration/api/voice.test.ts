@@ -80,6 +80,15 @@ describe("getVoiceStreamConfig", () => {
     expect(cfg.overlapCommitRuns).toBe(3);
   });
 
+  it("decodes the overlap stall-reject guard", async () => {
+    const getStreamConfig = vi.fn().mockResolvedValue({
+      config: { overlapMaxStallRejects: 5 },
+    });
+    const api = createVoiceApi(makeFakeClient({ getStreamConfig }));
+    const cfg = await api.getVoiceStreamConfig();
+    expect(cfg.overlapMaxStallRejects).toBe(5);
+  });
+
   it("defaults advanced fields when the server omits them", async () => {
     const getStreamConfig = vi.fn().mockResolvedValue({ config: undefined });
     const api = createVoiceApi(makeFakeClient({ getStreamConfig }));
@@ -124,6 +133,16 @@ describe("updateVoiceStreamConfig", () => {
     expect(callArg.config.vadSilenceMs).toBe(1500);
     expect(callArg.config.strategyPreference).toBe(StrategyPreference.VAD);
     expect(callArg.config.streamingMode).toBe(StreamingMode.AUTO);
+  });
+
+  it("includes overlap_max_stall_rejects when the guard is patched", async () => {
+    const updateStreamConfig = vi.fn().mockResolvedValue({ config: {} });
+    const api = createVoiceApi(makeFakeClient({ updateStreamConfig }));
+    await api.updateVoiceStreamConfig({ overlapMaxStallRejects: 0 });
+    const callArg = updateStreamConfig.mock.calls[0]![0];
+    const paths: string[] = callArg.updateMask.paths;
+    expect(paths).toEqual(["overlap_max_stall_rejects"]);
+    expect(callArg.config.overlapMaxStallRejects).toBe(0);
   });
 
   it("omits paths for fields that were not patched", async () => {

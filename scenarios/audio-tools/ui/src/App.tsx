@@ -18,6 +18,7 @@ const DocViewerPage = lazy(() => import("./features/docs/DocViewerPage").then((m
 const SpeakerVerificationPage = lazy(() => import("./features/admin/SpeakerVerificationPage").then((m) => ({ default: m.SpeakerVerificationPage })));
 const WakeWordPage = lazy(() => import("./features/admin/WakeWordPage").then((m) => ({ default: m.WakeWordPage })));
 const StreamConfigPage = lazy(() => import("./features/admin/StreamConfigPage").then((m) => ({ default: m.StreamConfigPage })));
+const DictationStudioPage = lazy(() => import("./features/dictation-studio/DictationStudioPage").then((m) => ({ default: m.DictationStudioPage })));
 const NotFoundPage = lazy(() => import("./features/not-found/NotFoundPage").then((m) => ({ default: m.NotFoundPage })));
 
 function getRouterBasename(): string {
@@ -37,6 +38,7 @@ export default function App() {
             <Route element={<AppShell />}>
               <Route index element={<OverviewPage />} />
               <Route path="diagnostics" element={<DiagnosticsPage />} />
+              <Route path="dictation-studio" element={<DictationStudioPage />} />
               <Route path="status" element={<StatusPage />} />
               <Route path="configuration" element={<ConfigurationPage />} />
               <Route path="voices" element={<VoicesPage />} />

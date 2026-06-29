@@ -1,5 +1,17 @@
 # OverlapAgree realtime bench
 
+> **Superseded by the automated eval harness (2026-06-29).** The
+> hand-filled tables below are now produced automatically: record clips in
+> the Dictation Studio UI (or `audio-tools corpus import`), then run
+> `audio-tools eval run --realtime-repeats 5` to get WER, RTF,
+> Whisper-call count, audio-seconds, and finalization-latency p50/p95 for
+> batch + vad-segment + overlap-agree on the **same** clips — reproducibly.
+> The harness also measures the new `overlap_max_stall_rejects` lever's
+> effect (toggle it via `stt stream-config-set --overlap-max-stall-rejects`
+> and re-run). See [`../../docs/reference/eval-harness.md`](../../docs/reference/eval-harness.md).
+> Keep this file only as the live-mic *qualitative* checklist (Bench B);
+> prefer the harness for the quantitative tables (Bench A).
+
 This document captures the realtime characteristics of the rewritten
 OverlapAgree algorithm on the actual Whisper resource. The algorithm
 is correctness-validated under unit tests

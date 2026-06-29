@@ -18,6 +18,7 @@ import {
   type Engine,
   type EngineSwitchImpact,
 } from "../../services/sttEngines";
+import { OverlapStallGuard } from "./OverlapStallGuard";
 
 interface PendingSwitch {
   target: Engine;
@@ -171,6 +172,8 @@ export function StreamConfigPage() {
           })}
         </ul>
       </Panel>
+
+      <OverlapStallGuard />
 
       {pending ? (
         <Panel

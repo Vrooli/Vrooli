@@ -307,6 +307,19 @@ const literalSelectors = {
     switchPrompt: "stream-config-switch-prompt",
     confirmSwitch: "stream-config-confirm-switch",
     cancelSwitch: "stream-config-cancel-switch",
+    stallRejectsInput: "stream-config-stall-rejects-input",
+    saveOverlap: "stream-config-save-overlap",
+  },
+  dictationStudio: {
+    recordStart: "dictation-record-start",
+    transcriptEditor: "dictation-transcript-editor",
+    tagInput: "dictation-tag-input",
+    saveClip: "dictation-save-clip",
+    corpusList: "dictation-corpus-list",
+    runEval: "dictation-run-eval",
+    repeatsInput: "dictation-repeats-input",
+    evalTable: "dictation-eval-table",
+    promptInput: "dictation-prompt-input",
   },
   wakeWord: {
     label: "wake-word-label",
@@ -368,6 +381,23 @@ const dynamicSelectorDefinitions = {
       description: "Recorded wake-word sample row by index",
       testIdPattern: "wake-word-sample-${index}",
       params: { index: { type: "string" } },
+    }),
+  },
+  dictationStudio: {
+    clipRow: defineDynamicSelector({
+      description: "Corpus clip row by clip id",
+      testIdPattern: "dictation-clip-row-${id}",
+      params: { id: { type: "string" } },
+    }),
+    clipDelete: defineDynamicSelector({
+      description: "Delete-clip button by clip id",
+      testIdPattern: "dictation-clip-delete-${id}",
+      params: { id: { type: "string" } },
+    }),
+    evalRow: defineDynamicSelector({
+      description: "Eval comparison table row by strategy key",
+      testIdPattern: "dictation-eval-row-${strategy}",
+      params: { strategy: { type: "string" } },
     }),
   },
 } satisfies DynamicSelectorTree;

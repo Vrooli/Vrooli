@@ -66,6 +66,13 @@ type streamCfgDoc struct {
 	VadSilenceMs       int32  `json:"vad_silence_ms"`
 	OverlapWindowMs    int32  `json:"overlap_window_ms"`
 	OverlapCommitRuns  int32  `json:"overlap_commit_runs"`
+	// OverlapMaxStallRejects is the OverlapAgree stall-fallback policy. It
+	// is a *int32 (not a plain int32) because 0 is MEANINGFUL here — it
+	// disables the fallback — so an absent field (a doc written before the
+	// field existed) must NOT read as a deliberate "disabled". Presence
+	// tracking: nil backfills to the default (3); an explicit 0 stays
+	// disabled. Same rationale as the egress *bool toggles above.
+	OverlapMaxStallRejects *int32 `json:"overlap_max_stall_rejects,omitempty"`
 
 	// Egress-gate levers. The two filter toggles are *bool so an absent
 	// field (a doc written before the field existed) backfills to its
@@ -97,6 +104,7 @@ func (d streamCfgDoc) toProto() *sttv1.StreamConfig {
 		VadSilenceMs:               d.VadSilenceMs,
 		OverlapWindowMs:            d.OverlapWindowMs,
 		OverlapCommitRuns:          d.OverlapCommitRuns,
+		OverlapMaxStallRejects:     int32OrDefault(d.OverlapMaxStallRejects, 3),
 		HallucinationFilterEnabled: boolOrTrue(d.HallucinationFilterEnabled),
 		VadFilterEnabled:           boolOrTrue(d.VADFilterEnabled),
 		NoSpeechThreshold:          d.NoSpeechThreshold,
@@ -116,6 +124,19 @@ func boolOrTrue(p *bool) bool {
 
 func boolPtr(b bool) *bool { return &b }
 
+// int32Ptr boxes an int32 for presence-tracked config fields.
+func int32Ptr(v int32) *int32 { return &v }
+
+// int32OrDefault dereferences a presence-tracked int32, substituting def
+// when the pointer is absent (nil). An explicit value — including 0 — is
+// honored verbatim.
+func int32OrDefault(p *int32, def int32) int32 {
+	if p == nil {
+		return def
+	}
+	return *p
+}
+
 func defaultStreamCfg() streamCfgDoc {
 	return streamCfgDoc{
 		FlushIntervalMs: 250, MinDeltaBytes: 16384, OverlapBytes: 2048,
@@ -127,6 +148,7 @@ func defaultStreamCfg() streamCfgDoc {
 		VadSilenceMs:               1200,
 		OverlapWindowMs:            2000,
 		OverlapCommitRuns:          2,
+		OverlapMaxStallRejects:     int32Ptr(3),
 		HallucinationFilterEnabled: boolPtr(true),
 		VADFilterEnabled:           boolPtr(true),
 		NoSpeechThreshold:          0.6,

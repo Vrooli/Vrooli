@@ -172,6 +172,44 @@ func TestStreamConfig_DenoiseRoundTrip(t *testing.T) {
 	require.True(t, got.Msg.GetConfig().GetDenoiseEnabled(), "denoise_enabled must persist + round-trip")
 }
 
+// TestStreamConfig_StallRejectsRoundTrip is the stall-fallback config
+// contract: overlap_max_stall_rejects must default to 3, and — because 0
+// is a MEANINGFUL "disabled" value, not "unset" — an explicitly-set 0 must
+// survive the proto → streamCfgDoc → sqlite → backfill → proto round trip
+// rather than backfilling to the default. This is the presence-tracking
+// guarantee (a plain int32 with zero-as-default backfill would silently
+// re-enable a disabled fallback on the next load).
+func TestStreamConfig_StallRejectsRoundTrip(t *testing.T) {
+	scs := newStreamCfgStoreT(t)
+	c := newSTTClient(t, Deps{StreamConfig: scs})
+
+	// Default: 3 (operator default applied at the config layer).
+	res, err := c.GetStreamConfig(context.Background(), connect.NewRequest(&sttv1.GetStreamConfigRequest{}))
+	require.NoError(t, err)
+	require.Equal(t, int32(3), res.Msg.GetConfig().GetOverlapMaxStallRejects(), "stall-rejects must default to 3")
+
+	// Set an explicit non-default value and round-trip.
+	_, err = c.UpdateStreamConfig(context.Background(), connect.NewRequest(&sttv1.UpdateStreamConfigRequest{
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"overlap_max_stall_rejects"}},
+		Config:     &sttv1.StreamConfig{OverlapMaxStallRejects: 5},
+	}))
+	require.NoError(t, err)
+	got, err := c.GetStreamConfig(context.Background(), connect.NewRequest(&sttv1.GetStreamConfigRequest{}))
+	require.NoError(t, err)
+	require.Equal(t, int32(5), got.Msg.GetConfig().GetOverlapMaxStallRejects(), "explicit value must persist")
+
+	// Set 0 (disabled) and round-trip — must STAY 0, not backfill to 3.
+	_, err = c.UpdateStreamConfig(context.Background(), connect.NewRequest(&sttv1.UpdateStreamConfigRequest{
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"overlap_max_stall_rejects"}},
+		Config:     &sttv1.StreamConfig{OverlapMaxStallRejects: 0},
+	}))
+	require.NoError(t, err)
+	got, err = c.GetStreamConfig(context.Background(), connect.NewRequest(&sttv1.GetStreamConfigRequest{}))
+	require.NoError(t, err)
+	require.Equal(t, int32(0), got.Msg.GetConfig().GetOverlapMaxStallRejects(),
+		"explicit 0 (disabled) must survive — presence tracking, not zero-as-default backfill")
+}
+
 func TestStreamCfgDoc_ToProtoAndDefaults(t *testing.T) {
 	d := defaultStreamCfg()
 	require.Equal(t, "auto", d.StreamingMode)
@@ -179,6 +217,7 @@ func TestStreamCfgDoc_ToProtoAndDefaults(t *testing.T) {
 	p := d.toProto()
 	require.Equal(t, int32(250), p.GetFlushIntervalMs())
 	require.Equal(t, sttv1.StreamingMode_STREAMING_MODE_AUTO, p.GetStreamingMode())
+	require.Equal(t, int32(3), p.GetOverlapMaxStallRejects(), "stall-rejects default is 3")
 	// The server-side VAD silence default drives where Whisper sees segment
 	// boundaries; 1200ms is the SSOT for both the mic-button ring countdown
 	// (via useHydrateVoiceConfig) and the actual segment cut.
@@ -202,6 +241,11 @@ func TestValidateStreamingLevers(t *testing.T) {
 	require.Error(t, validateStreamingLevers(streamCfgDoc{VadSilenceMs: 100}))
 	require.Error(t, validateStreamingLevers(streamCfgDoc{OverlapWindowMs: 6000}))
 	require.Error(t, validateStreamingLevers(streamCfgDoc{OverlapCommitRuns: 9}))
+	// Stall-rejects: nil (absent) ok; 0 (disabled) ok; in-range ok; >10 error.
+	require.NoError(t, validateStreamingLevers(streamCfgDoc{OverlapMaxStallRejects: int32Ptr(0)}))
+	require.NoError(t, validateStreamingLevers(streamCfgDoc{OverlapMaxStallRejects: int32Ptr(10)}))
+	require.Error(t, validateStreamingLevers(streamCfgDoc{OverlapMaxStallRejects: int32Ptr(11)}))
+	require.Error(t, validateStreamingLevers(streamCfgDoc{OverlapMaxStallRejects: int32Ptr(-1)}))
 }
 
 // ----- mapChainError ----------------------------------------------

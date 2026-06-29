@@ -375,6 +375,7 @@ func (h *handlers) streamConfigGet(ctx cliapp.RunContext) error {
 	fmt.Fprintf(ctx.Stdout(), "  vad_silence_ms       = %d\n", intOrDefault(cfg.GetVadSilenceMs(), 700))
 	fmt.Fprintf(ctx.Stdout(), "  overlap_window_ms    = %d\n", intOrDefault(cfg.GetOverlapWindowMs(), 2000))
 	fmt.Fprintf(ctx.Stdout(), "  overlap_commit_runs  = %d\n", intOrDefault(cfg.GetOverlapCommitRuns(), 2))
+	fmt.Fprintf(ctx.Stdout(), "  overlap_max_stall_rejects = %d%s\n", cfg.GetOverlapMaxStallRejects(), stallRejectsHint(cfg.GetOverlapMaxStallRejects()))
 	fmt.Fprintf(ctx.Stdout(), "Egress gate (post-recognition quality):\n")
 	fmt.Fprintf(ctx.Stdout(), "  hallucination_filter = %t\n", cfg.GetHallucinationFilterEnabled())
 	fmt.Fprintf(ctx.Stdout(), "  vad_filter           = %t\n", cfg.GetVadFilterEnabled())
@@ -442,6 +443,14 @@ func (h *handlers) streamConfigSet(ctx cliapp.RunContext) error {
 		cfg.OverlapCommitRuns = int32(n)
 		mask.Paths = append(mask.Paths, "overlap_commit_runs")
 	}
+	if v := ctx.Flag("overlap-max-stall-rejects"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("--overlap-max-stall-rejects must be integer: %q", v)
+		}
+		cfg.OverlapMaxStallRejects = int32(n)
+		mask.Paths = append(mask.Paths, "overlap_max_stall_rejects")
+	}
 	if v := ctx.Flag("hallucination-filter"); v != "" {
 		b, err := strconv.ParseBool(v)
 		if err != nil {
@@ -483,7 +492,7 @@ func (h *handlers) streamConfigSet(ctx cliapp.RunContext) error {
 		mask.Paths = append(mask.Paths, "denoise_enabled")
 	}
 	if len(mask.Paths) == 0 {
-		return fmt.Errorf("at least one streaming/egress lever flag must be set (e.g. --streaming-mode, --strategy-preference, --vad-silence-ms, --overlap-window-ms, --overlap-commit-runs, --hallucination-filter, --vad-filter, --no-speech-threshold, --logprob-threshold)")
+		return fmt.Errorf("at least one streaming/egress lever flag must be set (e.g. --streaming-mode, --strategy-preference, --vad-silence-ms, --overlap-window-ms, --overlap-commit-runs, --overlap-max-stall-rejects, --hallucination-filter, --vad-filter, --no-speech-threshold, --logprob-threshold)")
 	}
 	resp, err := h.admin.UpdateStreamConfig(context.Background(), connect.NewRequest(&sttv1.UpdateStreamConfigRequest{
 		UpdateMask: mask,
@@ -500,12 +509,22 @@ func (h *handlers) streamConfigSet(ctx cliapp.RunContext) error {
 	fmt.Fprintf(ctx.Stdout(), "  vad_silence_ms       = %d\n", intOrDefault(out.GetVadSilenceMs(), 700))
 	fmt.Fprintf(ctx.Stdout(), "  overlap_window_ms    = %d\n", intOrDefault(out.GetOverlapWindowMs(), 2000))
 	fmt.Fprintf(ctx.Stdout(), "  overlap_commit_runs  = %d\n", intOrDefault(out.GetOverlapCommitRuns(), 2))
+	fmt.Fprintf(ctx.Stdout(), "  overlap_max_stall_rejects = %d%s\n", out.GetOverlapMaxStallRejects(), stallRejectsHint(out.GetOverlapMaxStallRejects()))
 	fmt.Fprintf(ctx.Stdout(), "  hallucination_filter = %t\n", out.GetHallucinationFilterEnabled())
 	fmt.Fprintf(ctx.Stdout(), "  vad_filter           = %t\n", out.GetVadFilterEnabled())
 	fmt.Fprintf(ctx.Stdout(), "  no_speech_threshold  = %.2f\n", floatOrDefault(out.GetNoSpeechThreshold(), 0.6))
 	fmt.Fprintf(ctx.Stdout(), "  logprob_threshold    = %.2f\n", floatOrDefault(out.GetLogprobThreshold(), -1.0))
 	fmt.Fprintf(ctx.Stdout(), "  denoise              = %t\n", out.GetDenoiseEnabled())
 	return nil
+}
+
+// stallRejectsHint annotates the overlap_max_stall_rejects value so the
+// operator can tell the disabled sentinel (0) apart from an active count.
+func stallRejectsHint(v int32) string {
+	if v == 0 {
+		return " (disabled — only the max_window_ms net applies)"
+	}
+	return ""
 }
 
 func stringOrDefault(v, def string) string {

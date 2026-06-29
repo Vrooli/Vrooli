@@ -73,6 +73,27 @@ type OverlapAgree struct {
 	// unbounded; default applied by applyDefaults is 30 tokens.
 	MaxAgreedTokens int
 
+	// MaxStallRejects is the stall-fallback commit policy. When
+	// LocalAgreement keeps producing hypotheses that DIVERGE from the
+	// committed prefix (the model wandered on hard audio / jittery word
+	// timestamps), the divergence-reject path commits nothing and the
+	// uncommitted tail grows toward the MaxWindowMs net — every settle
+	// attempt then re-transcribes an ever-larger window, saturating the
+	// Whisper semaphore and making finalization SLOWER than a single
+	// batch call. After this many CONSECUTIVE divergence-rejects, the
+	// strategy force-commits the freshest hypothesis tail and advances
+	// the cursor, bounding tail growth / re-transcription cost well
+	// before the 25s net. The counter resets on any forward commit.
+	//
+	// 0 disables the fallback (only the MaxWindowMs net applies — the
+	// pre-fallback behavior). This field carries no applyDefaults
+	// default precisely so that a directly-constructed OverlapAgree
+	// preserves legacy behavior and so 0 ("disabled") survives end to
+	// end; the operator default (3) is applied at the config layer
+	// (selector.Defaults / streamCfgDoc). Acceptable operator range
+	// [1,10].
+	MaxStallRejects int
+
 	// Trigger selects the settle-attempt source: TriggerVAD (default)
 	// or TriggerStopwatch. See the constants above.
 	Trigger string
@@ -114,8 +135,8 @@ func (o *OverlapAgree) Run(
 		return err
 	}
 	o.applyDefaults()
-	log.Printf("[stt-overlap] session start: trigger=%s window_ms=%d advance_ms=%d commit_runs=%d max_window_ms=%d silence_ms=%d silence_rms=%.0f frame_ms=%d max_agreed_tokens=%d sample_rate=%d",
-		o.Trigger, o.WindowMs, o.AdvanceMs, o.CommitRuns, o.MaxWindowMs, o.SilenceMs, o.SilenceRMS, o.FrameMs, o.MaxAgreedTokens, o.SampleRate)
+	log.Printf("[stt-overlap] session start: trigger=%s window_ms=%d advance_ms=%d commit_runs=%d max_window_ms=%d max_stall_rejects=%d silence_ms=%d silence_rms=%.0f frame_ms=%d max_agreed_tokens=%d sample_rate=%d",
+		o.Trigger, o.WindowMs, o.AdvanceMs, o.CommitRuns, o.MaxWindowMs, o.MaxStallRejects, o.SilenceMs, o.SilenceRMS, o.FrameMs, o.MaxAgreedTokens, o.SampleRate)
 	defer log.Printf("[stt-overlap] session end")
 
 	const sampleBytes = 2
@@ -145,6 +166,12 @@ func (o *OverlapAgree) Run(
 	// mergeAgreed's divergence detector would otherwise reject the
 	// expected "no overlap with committed" state as a wander.
 	lastAdvanced := false
+	// stallRejects counts CONSECUTIVE divergence-rejects (model wander
+	// with no commit). When it reaches MaxStallRejects the stall-fallback
+	// force-commits the freshest hypothesis tail (see the divergence
+	// branch in processIteration). Reset to 0 on any forward commit
+	// (normal agreement commit or forceCommitAll).
+	stallRejects := 0
 	// nextTriggerAt is the pcm length at which the next iteration may
 	// run. Initialized so the first iteration waits for max(advance,
 	// minWindow) bytes of audio.
@@ -293,6 +320,7 @@ func (o *OverlapAgree) Run(
 			committedAudioBytes = len(pcm)
 			recent = nil
 			lastAdvanced = true
+			stallRejects = 0
 			return true
 		}
 		if res.Text != "" {
@@ -316,6 +344,7 @@ func (o *OverlapAgree) Run(
 		committedAudioBytes = len(pcm)
 		recent = nil
 		lastAdvanced = true
+		stallRejects = 0
 		return true
 	}
 
@@ -389,8 +418,47 @@ func (o *OverlapAgree) Run(
 			newCommit, tail, ok = mergeAgreed(committed, agreed)
 		}
 		if agreed != "" && !ok {
-			log.Printf("[stt-overlap] divergence-reject: committed=%q agreed=%q (in-stream wander — no commit)",
-				voice.TruncateForLog(committed, 60), voice.TruncateForLog(agreed, 60))
+			stallRejects++
+			// Stall-fallback: after MaxStallRejects consecutive
+			// divergence-rejects, stop waiting for an agreement that
+			// isn't coming and commit the freshest hypothesis tail. This
+			// bounds tail growth / re-transcription cost well before the
+			// MaxWindowMs net (the pathology this lever fixes). It commits
+			// a best-guess — it never silently drops audio.
+			if o.MaxStallRejects > 0 && stallRejects >= o.MaxStallRejects {
+				log.Printf("[stt-overlap] stall-fallback: %d consecutive divergence-rejects >= max_stall_rejects=%d — force-committing freshest hypothesis tail=%q",
+					stallRejects, o.MaxStallRejects, voice.TruncateForLog(res.Text, 80))
+				if res.Text != "" {
+					newCommit, tail, _ := appendAfterAdvance(committed, strings.TrimSpace(res.Text))
+					if len(newCommit) > len(committed) && tail != "" {
+						events <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{
+							Text:             tail,
+							DetectedLanguage: res.DetectedLanguage,
+							ProviderTier:     res.Tier,
+							ProviderID:       res.ProviderID,
+							ModelID:          res.ModelID,
+							LatencyMs:        float64(res.Latency.Milliseconds()),
+							Confidence:       res.Confidence,
+						}}
+						committed = newCommit
+						lastTier = res.Tier
+						lastProviderID = res.ProviderID
+						lastModelID = res.ModelID
+					}
+				}
+				// Advance the cursor past the window we just force-
+				// committed (its whole transcript is now committed), so
+				// the next iteration starts on genuinely new audio.
+				if rightEdge > committedAudioBytes && rightEdge <= len(pcm) {
+					committedAudioBytes = rightEdge
+				}
+				recent = nil
+				lastAdvanced = true
+				stallRejects = 0
+				return
+			}
+			log.Printf("[stt-overlap] divergence-reject: committed=%q agreed=%q (in-stream wander — no commit, stall=%d/%d)",
+				voice.TruncateForLog(committed, 60), voice.TruncateForLog(agreed, 60), stallRejects, o.MaxStallRejects)
 			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventPartial, Partial: &sttchain.PartialEvent{Text: res.Text}}
 			return
 		}
@@ -407,6 +475,9 @@ func (o *OverlapAgree) Run(
 				Confidence:       res.Confidence,
 			}}
 			committed = newCommit
+			// A forward commit happened — the model is making progress
+			// again, so the consecutive-divergence streak resets.
+			stallRejects = 0
 			// Advance committedAudioBytes to the END time of the last
 			// agreed word so the next iteration's audio starts where
 			// the committed material ends. When word timestamps are

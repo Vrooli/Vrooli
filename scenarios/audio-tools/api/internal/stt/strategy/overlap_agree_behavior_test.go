@@ -502,6 +502,119 @@ func TestOverlapAgree_PostAdvanceCommitsContinue(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
+// Stall-fallback (overlap_max_stall_rejects)
+// ─────────────────────────────────────────────────────────────────────
+
+// TestOverlapAgree_StallFallbackFiresAtExactlyN proves the stall-fallback
+// commits the freshest hypothesis tail after exactly MaxStallRejects
+// CONSECUTIVE divergence-rejects — not before. Each case commits "alpha
+// beta", then feeds divergent hypotheses whose only difference is the
+// LAST word; the committed stall text's last word identifies precisely
+// which reject triggered the commit.
+func TestOverlapAgree_StallFallbackFiresAtExactlyN(t *testing.T) {
+	cases := []struct {
+		name       string
+		n          int
+		chunks     int
+		texts      []string
+		wantJoined string
+	}{
+		{
+			// rejects land on calls #4 ("...q") and #5 ("...r"); N=2 fires
+			// on #5 → committed stall text ends in "r".
+			name:       "n2",
+			n:          2,
+			chunks:     5,
+			texts:      []string{"alpha beta", "alpha beta", "zeta omega p", "zeta omega q", "zeta omega r"},
+			wantJoined: "alpha beta zeta omega r",
+		},
+		{
+			// rejects on #4/#5/#6; N=3 must wait for #6 ("...s"). If the
+			// counter mis-fired at N=2 the text would end in "r".
+			name:       "n3",
+			n:          3,
+			chunks:     6,
+			texts:      []string{"alpha beta", "alpha beta", "zeta omega p", "zeta omega q", "zeta omega r", "zeta omega s"},
+			wantJoined: "alpha beta zeta omega s",
+		},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			prov := scriptedProvider(-1, tc.texts...)
+			strat := &strategy.OverlapAgree{
+				Provider: prov, Trigger: strategy.TriggerStopwatch,
+				WindowMs: useWindowMs, AdvanceMs: useWindowMs, CommitRuns: 2,
+				MaxStallRejects: tc.n,
+			}
+			got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksOfWindows(tc.chunks, useWindowMs, 0))
+
+			segs, _, final := segmentsAndFinal(t, got)
+			joined := strings.TrimSpace(strings.Join(segs, ""))
+			require.Equal(t, tc.wantJoined, joined,
+				"stall-fallback must commit the freshest tail at exactly the Nth reject")
+			require.Equal(t, tc.wantJoined, final, "Done.FinalText carries the stall-committed text")
+		})
+	}
+}
+
+// TestOverlapAgree_StallFallbackDisabledPreservesLegacy proves
+// MaxStallRejects=0 disables the fallback entirely: the divergent
+// in-stream hypotheses are NEVER committed mid-stream (only surfaced as
+// Partials), exactly as before the lever existed. The audio ends with the
+// model recovering to the committed prefix so the channel-close tail
+// flush produces nothing — isolating the in-stream behavior.
+func TestOverlapAgree_StallFallbackDisabledPreservesLegacy(t *testing.T) {
+	prov := scriptedProvider(-1,
+		"alpha beta", "alpha beta", // commit "alpha beta"
+		"zeta omega p", "zeta omega q", "zeta omega r", // divergent: would trip the fallback if enabled
+		"alpha beta", "alpha beta", // model recovers → clean tail flush
+	)
+	strat := &strategy.OverlapAgree{
+		Provider: prov, Trigger: strategy.TriggerStopwatch,
+		WindowMs: useWindowMs, AdvanceMs: useWindowMs, CommitRuns: 2,
+		MaxStallRejects: 0, // disabled
+	}
+	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksOfWindows(7, useWindowMs, 0))
+
+	segs, partials, _ := segmentsAndFinal(t, got)
+	joined := strings.TrimSpace(strings.Join(segs, ""))
+	require.Equal(t, "alpha beta", joined, "with the fallback disabled, divergent runs never commit mid-stream")
+	for _, s := range segs {
+		require.NotContains(t, s, "zeta", "no divergent content may commit when MaxStallRejects=0")
+	}
+	require.Contains(t, partials, "zeta omega r", "the divergent runs are still surfaced as live Partials")
+}
+
+// TestOverlapAgree_StallFallbackResetsAfterCommit proves the
+// consecutive-reject counter resets on any forward commit. A reject (1),
+// then a real agreement commit (reset to 0), then two fresh rejects must
+// be required to fire — so the committed stall text reflects the SECOND
+// batch's freshest tail, not an early mis-fire carried over from the
+// first reject.
+func TestOverlapAgree_StallFallbackResetsAfterCommit(t *testing.T) {
+	prov := scriptedProvider(-1,
+		"alpha", "alpha", // commit "alpha"
+		"beta gamma p", "beta gamma q", // reject #1 (counter=1)
+		"alpha epsilon", "alpha epsilon", // real commit "epsilon" → counter resets to 0
+		"zeta eta p", "zeta eta q", "zeta eta r", // fresh rejects: #1, #2 → fire on "r"
+	)
+	strat := &strategy.OverlapAgree{
+		Provider: prov, Trigger: strategy.TriggerStopwatch,
+		WindowMs: useWindowMs, AdvanceMs: useWindowMs, CommitRuns: 2,
+		MaxStallRejects: 2,
+	}
+	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksOfWindows(9, useWindowMs, 0))
+
+	segs, _, final := segmentsAndFinal(t, got)
+	joined := strings.TrimSpace(strings.Join(segs, ""))
+	require.Equal(t, "alpha epsilon zeta eta r", joined,
+		"counter reset on commit: the fallback fires on the 2nd FRESH reject (\"r\"), not carried over from the pre-commit reject")
+	require.NotContains(t, joined, "zeta eta q", "the first fresh reject (\"q\") must not be the commit point")
+	require.Equal(t, joined, final)
+}
+
+// ─────────────────────────────────────────────────────────────────────
 // Phase C: VAD-anchored triggering tests
 // ─────────────────────────────────────────────────────────────────────
 

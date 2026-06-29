@@ -77,6 +77,12 @@ type StreamConfig struct {
 	VADSilenceMs      int
 	OverlapWindowMs   int
 	OverlapCommitRuns int
+	// OverlapMaxStallRejects is the OverlapAgree stall-fallback policy:
+	// after this many consecutive divergence-rejects the strategy force-
+	// commits the freshest hypothesis tail (bounding tail growth before
+	// the MaxWindowMs net). 0 disables the fallback. See
+	// strategy.OverlapAgree.MaxStallRejects. Default 3 (Defaults()).
+	OverlapMaxStallRejects int
 	// Boundary-accuracy levers for VADSegmenter. See pipeline.Config
 	// for documentation and acceptable ranges.
 	VADPreRollMs          int
@@ -123,6 +129,7 @@ func Defaults() StreamConfig {
 		VADSilenceMs:               1200,
 		OverlapWindowMs:            2000,
 		OverlapCommitRuns:          2,
+		OverlapMaxStallRejects:     3,
 		VADPreRollMs:               300,
 		VADTrailingPadMs:           200,
 		VADInitialPromptWords:      20,
@@ -315,9 +322,10 @@ func (s *Selector) Select(
 				return nil, "", ErrIncompatibleStrategyProvider
 			}
 			return &strategy.OverlapAgree{
-				Provider:   chosen.Provider,
-				WindowMs:   cfg.OverlapWindowMs,
-				CommitRuns: cfg.OverlapCommitRuns,
+				Provider:        chosen.Provider,
+				WindowMs:        cfg.OverlapWindowMs,
+				CommitRuns:      cfg.OverlapCommitRuns,
+				MaxStallRejects: cfg.OverlapMaxStallRejects,
 			}, kind, nil
 		}
 		return nil, "", ErrIncompatibleStrategyProvider

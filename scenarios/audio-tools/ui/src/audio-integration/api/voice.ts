@@ -45,6 +45,13 @@ export interface VoiceStreamConfig {
   vadSilenceMs: number;
   overlapWindowMs: number;
   overlapCommitRuns: number;
+  /**
+   * overlapMaxStallRejects bounds how many consecutive divergence-rejected
+   * commit attempts the Overlap-Agree strategy tolerates before it
+   * force-commits the longest stable prefix (the stall fallback). 0 disables
+   * the guard; the persisted default is 3.
+   */
+  overlapMaxStallRejects: number;
 }
 
 export interface WakeWordConfig {
@@ -142,6 +149,7 @@ function decodeStreamConfig(c: StreamConfigMsg | undefined): VoiceStreamConfig {
     vadSilenceMs: c?.vadSilenceMs ?? 0,
     overlapWindowMs: c?.overlapWindowMs ?? 0,
     overlapCommitRuns: c?.overlapCommitRuns ?? 0,
+    overlapMaxStallRejects: c?.overlapMaxStallRejects ?? 0,
   };
 }
 
@@ -266,6 +274,7 @@ export function createVoiceApi(client: AudioToolsClient) {
       if (patch.vadSilenceMs !== undefined) { cfg.vadSilenceMs = patch.vadSilenceMs; paths.push("vad_silence_ms"); }
       if (patch.overlapWindowMs !== undefined) { cfg.overlapWindowMs = patch.overlapWindowMs; paths.push("overlap_window_ms"); }
       if (patch.overlapCommitRuns !== undefined) { cfg.overlapCommitRuns = patch.overlapCommitRuns; paths.push("overlap_commit_runs"); }
+      if (patch.overlapMaxStallRejects !== undefined) { cfg.overlapMaxStallRejects = patch.overlapMaxStallRejects; paths.push("overlap_max_stall_rejects"); }
       const resp = await client.sttAdmin.updateStreamConfig({
         updateMask: create(FieldMaskSchema, { paths }),
         config: cfg,

@@ -177,6 +177,46 @@
       "category": "audio"
     },
     {
+      "id": "corpus.create_clip",
+      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/CreateClip",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus.list_clips",
+      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/ListClips",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus.get_clip",
+      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/GetClip",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus.get_clip_audio",
+      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/GetClipAudio",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus.delete_clip",
+      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/DeleteClip",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "corpus"
+    },
+    {
       "id": "diagnostics.run_suite",
       "path": "/vrooli.audio_tools.v1.diagnostics.DiagnosticsService/RunSuite",
       "method": "POST",
@@ -199,6 +239,14 @@
       "summary": "Describe the bundled diagnostics fixtures",
       "description": "",
       "category": "diagnostics"
+    },
+    {
+      "id": "eval.run_eval",
+      "path": "/vrooli.audio_tools.v1.eval.EvalService/RunEval",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "eval"
     },
     {
       "id": "session.open",

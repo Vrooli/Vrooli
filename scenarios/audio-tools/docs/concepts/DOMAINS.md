@@ -28,6 +28,8 @@ belong in [`DATA.md`](DATA.md).
 | session | Voice-session pub/sub fan-out for live STT + TTS streams. | Pub/sub / streaming | Ephemeral in-memory session state. | API, WS | OT-P0-007, OT-P0-008 | `api/internal/session/`, `api/handlers/stt/stream_ws.go`, `api/handlers/session/`, `packages/proto/schemas/audio-tools/v1/session/` |
 | settings | Operator configuration: provider defaults, per-capability precedence, BYOK creds (AES-GCM at rest). | CRUD / config | Provider config, BYOK secrets, voice overrides. | API, CLI, UI | OT-P0-009 | `api/internal/store/`, `api/internal/byokstore/`, `api/handlers/settings/`, `cli/domains/settings/`, `ui/src/features/configuration/`, `packages/proto/schemas/audio-tools/v1/settings/` |
 | usage | Per-operation usage + cost ledger and rollup queries for the dashboard. | Reporting / ledger | Usage rows (provider, op, ms, credits). | API, CLI, UI | OT-P0-011 | `api/internal/store/usage.go`, `api/internal/usagereport/`, `api/handlers/usage/`, `cli/domains/usage/`, `ui/src/features/usage/`, `packages/proto/schemas/audio-tools/v1/usage/` |
+| corpus | Speech-eval clip store: operator-recorded audio + corrected ground-truth transcripts for the eval harness. | CRUD / blob+metadata | Clip metadata (`corpus` SQLite domain) + audio bytes (blob store, git-ignored). | API, CLI, UI | (eval harness) | `api/internal/corpus/`, `api/handlers/corpus/`, `cli/domains/corpus/`, `ui/src/features/dictation-studio/`, `packages/proto/schemas/audio-tools/v1/corpus/` |
+| eval | STT strategy comparison harness: replays the corpus through batch/vad/overlap and reports WER, compute cost, and finalization latency. | Measurement / replay | None (reads the corpus domain; stateless). | API, CLI, UI | (eval harness) | `api/internal/eval/`, `api/handlers/eval/`, `cli/domains/eval/`, `ui/src/features/dictation-studio/`, `packages/proto/schemas/audio-tools/v1/eval/` |
 | health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/overview/`, `packages/proto/schemas/audio-tools/v1/health/` |
 
 ## Domain Details
@@ -118,6 +120,24 @@ belong in [`DATA.md`](DATA.md).
 - UI: `ui/src/features/usage/`.
 - Storage: `usage` table.
 - Requirements: OT-P0-011.
+
+### corpus
+
+- Purpose: store operator-recorded audio clips with corrected ground-truth transcripts as the substrate the eval harness replays against.
+- Primary archetype: CRUD over a blob+metadata split.
+- Owns: `CorpusService` (CreateClip/ListClips/GetClip/GetClipAudio/DeleteClip), the `corpus_clips` SQLite table, and the audio blob store.
+- API: `api/handlers/corpus/`. CLI: `cli/domains/corpus/`. UI: `ui/src/features/dictation-studio/`.
+- Storage: `corpus_clips` table (metadata only) + audio bytes in the blob store under the git-ignored runtime data dir (variant-aware namespace). Audio never enters git or the DB.
+- Does not own: the strategies it evaluates (stt) or the metrics/replay (eval).
+
+### eval
+
+- Purpose: measure WER, compute cost (Whisper-calls / audio-seconds / RTF), and finalization latency (p50/p95) of batch + vad-segment + overlap-agree on the corpus, so the streaming levers can be tuned against numbers.
+- Primary archetype: measurement / deterministic replay (stateless).
+- Owns: `EvalService.RunEval`, the offline harness (`internal/eval`: WER/normalizer/metered-provider/replay/report), mirroring `packages/ai-go/search/grading.go`.
+- API: `api/handlers/eval/`. CLI: `cli/domains/eval/`. UI: `ui/src/features/dictation-studio/`.
+- Storage: none — reads the corpus domain.
+- Reference: [`../reference/eval-harness.md`](../reference/eval-harness.md). Requires a live Whisper backend (build-tagged integration test; deterministic fake-provider tests in the default suite).
 
 ### health
 

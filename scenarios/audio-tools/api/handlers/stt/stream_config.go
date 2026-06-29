@@ -45,6 +45,12 @@ func (h *connectHandler) resolveStreamPipelineConfig(ctx context.Context) sttpkg
 	if d.OverlapCommitRuns != 0 {
 		cfg.OverlapCommitRuns = int(d.OverlapCommitRuns)
 	}
+	// Stall-fallback: presence-tracked, so an explicit 0 (disabled) is
+	// honored rather than overwritten by the default. loadStreamCfg has
+	// already backfilled nil → default, so non-nil here is authoritative.
+	if d.OverlapMaxStallRejects != nil {
+		cfg.OverlapMaxStallRejects = int(*d.OverlapMaxStallRejects)
+	}
 	// Egress-gate levers. loadStreamCfg has already backfilled the *bool
 	// toggles and zero thresholds, so these reads are authoritative.
 	cfg.HallucinationFilterEnabled = boolOrTrue(d.HallucinationFilterEnabled)
@@ -79,6 +85,12 @@ func validateStreamingLevers(d streamCfgDoc) error {
 	}
 	if d.OverlapCommitRuns != 0 && (d.OverlapCommitRuns < 2 || d.OverlapCommitRuns > 4) {
 		return fmt.Errorf("overlap_commit_runs must be in [2, 4], got %d", d.OverlapCommitRuns)
+	}
+	// overlap_max_stall_rejects: presence-tracked. 0 is a valid setting
+	// (disables the fallback); the active operator range is [1,10]. A nil
+	// pointer (absent) is fine — it backfills to the default.
+	if d.OverlapMaxStallRejects != nil && (*d.OverlapMaxStallRejects < 0 || *d.OverlapMaxStallRejects > 10) {
+		return fmt.Errorf("overlap_max_stall_rejects must be in [0, 10] (0 disables), got %d", *d.OverlapMaxStallRejects)
 	}
 	// Egress-gate thresholds: 0 means "use default" (backfilled), so only
 	// non-zero values are range-checked. no_speech_prob is a probability;
@@ -154,6 +166,11 @@ func backfillStreamCfgDefaults(d streamCfgDoc) streamCfgDoc {
 	if d.OverlapCommitRuns == 0 {
 		d.OverlapCommitRuns = def.OverlapCommitRuns
 	}
+	// Stall-fallback: presence-backfill (nil = absent → default), matching
+	// the *bool egress toggles. An explicit 0 (disabled) is preserved.
+	if d.OverlapMaxStallRejects == nil {
+		d.OverlapMaxStallRejects = def.OverlapMaxStallRejects
+	}
 	// Egress-gate levers. The *bool toggles backfill via presence (nil =
 	// absent → default true); the thresholds backfill zero → default.
 	if d.HallucinationFilterEnabled == nil {
@@ -180,19 +197,20 @@ func (h *connectHandler) GetStreamConfig(ctx context.Context, _ *connect.Request
 }
 
 var streamConfigAllowedPaths = map[string]struct{}{
-	"flush_interval_ms":   {},
-	"min_delta_bytes":     {},
-	"overlap_bytes":       {},
-	"persistent_mode":     {},
-	"wake_word_enabled":   {},
-	"wake_word_threshold": {},
-	"segment_silence_ms":  {},
-	"streaming_mode":      {},
-	"strategy_preference": {},
-	"engine_id":           {},
-	"vad_silence_ms":      {},
-	"overlap_window_ms":   {},
-	"overlap_commit_runs": {},
+	"flush_interval_ms":         {},
+	"min_delta_bytes":           {},
+	"overlap_bytes":             {},
+	"persistent_mode":           {},
+	"wake_word_enabled":         {},
+	"wake_word_threshold":       {},
+	"segment_silence_ms":        {},
+	"streaming_mode":            {},
+	"strategy_preference":       {},
+	"engine_id":                 {},
+	"vad_silence_ms":            {},
+	"overlap_window_ms":         {},
+	"overlap_commit_runs":       {},
+	"overlap_max_stall_rejects": {},
 
 	"hallucination_filter_enabled": {},
 	"vad_filter_enabled":           {},
@@ -258,6 +276,11 @@ func (h *connectHandler) UpdateStreamConfig(ctx context.Context, req *connect.Re
 	}
 	if protomap.MaskHas(mask, "overlap_commit_runs") {
 		d.OverlapCommitRuns = cfg.GetOverlapCommitRuns()
+	}
+	if protomap.MaskHas(mask, "overlap_max_stall_rejects") {
+		// Presence-track the operator's explicit value (including 0 =
+		// disabled) so it survives backfill on the next load.
+		d.OverlapMaxStallRejects = int32Ptr(cfg.GetOverlapMaxStallRejects())
 	}
 	if protomap.MaskHas(mask, "hallucination_filter_enabled") {
 		d.HallucinationFilterEnabled = boolPtr(cfg.GetHallucinationFilterEnabled())

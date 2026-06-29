@@ -1344,6 +1344,39 @@
           }
         },
         {
+          "path": "reference/eval-harness.md",
+          "docType": "reference",
+          "title": "STT evaluation harness + corpus",
+          "aliases": [
+            "eval",
+            "eval-harness",
+            "corpus",
+            "wer"
+          ],
+          "description": "The STT strategy comparison harness (WER/RTF/latency) and the speech-eval clip corpus that feeds it",
+          "audience": [
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "stt-eval-harness",
+            "speech-corpus"
+          ],
+          "maturity": "active",
+          "completion": "optional",
+          "validation": {
+            "requiredHeadings": [
+              "The two pieces",
+              "Metrics",
+              "Workflow"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
           "path": "reference/adoption.md",
           "docType": "reference",
           "title": "Adoption",

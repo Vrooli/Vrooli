@@ -10,7 +10,9 @@ import (
 	"time"
 
 	audioH "audio-tools/handlers/audio"
+	corpusH "audio-tools/handlers/corpus"
 	diagH "audio-tools/handlers/diagnostics"
+	evalH "audio-tools/handlers/eval"
 	healthH "audio-tools/handlers/health"
 	hsH "audio-tools/handlers/health_status"
 	plH "audio-tools/handlers/provider_lifecycle"
@@ -21,11 +23,13 @@ import (
 	ttsH "audio-tools/handlers/tts"
 	usageH "audio-tools/handlers/usage"
 
+	sttchain "audio-tools/internal/ai/sttchain"
 	intaudio "audio-tools/internal/audio"
 	"audio-tools/internal/audioformat"
 	"audio-tools/internal/byok"
 	"audio-tools/internal/capabilities"
 	"audio-tools/internal/clock"
+	intcorpus "audio-tools/internal/corpus"
 	diagcore "audio-tools/internal/diagnostics"
 	"audio-tools/internal/httpc"
 	"audio-tools/internal/logx"
@@ -38,6 +42,8 @@ import (
 	intsumm "audio-tools/internal/summarize"
 	inttts "audio-tools/internal/tts"
 	"audio-tools/internal/usagereport"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 // Deps is the bundle of everything Build constructs. main.go does not
@@ -157,6 +163,24 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 	sessionRegistry := intsession.NewRegistry()
 	usageRecorder := usagereport.New(stores.Usage, logger)
 
+	// Corpus + eval harness. Audio bytes live in the blob store under the
+	// git-ignored runtime data dir; the namespace is variant-aware so a
+	// shadow instance's corpus never collides with live's. Metadata lives in
+	// the corpus SQLite domain. A blob-store init failure disables the
+	// corpus/eval surfaces (their handlers return FailedPrecondition) rather
+	// than failing the whole boot.
+	var corpusSvc *intcorpus.Service
+	if ns, nerr := storage.ScenarioNamespace("audio-tools"); nerr != nil {
+		logger.Printf("corpus blob store disabled: resolve namespace: %v", nerr)
+	} else if blobs, berr := intcorpus.NewFilesystemBlobBytes(ns); berr != nil {
+		logger.Printf("corpus blob store disabled: %v", berr)
+	} else {
+		corpusSvc = intcorpus.NewService(intcorpus.NewSQLiteRepository(db, clock.System{}), blobs, clock.System{})
+	}
+	// evalProvider builds a fresh Local (Whisper) provider per replay; the
+	// eval handler wraps each in a metered decorator.
+	evalProvider := func() sttchain.Provider { return sttchain.NewLocalProvider(voiceSvc) }
+
 	diagOrch := diagcore.New(diagcore.Deps{
 		STT:       chs.STT,
 		TTS:       chs.TTS,
@@ -224,6 +248,14 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 			Playback:       stores.Playback,
 		}),
 		usageH.Module(usageH.Deps{Logger: logger, Clock: clock.System{}, Store: stores.Usage}),
+		corpusH.Module(corpusH.Deps{Logger: logger, Clock: clock.System{}, Service: corpusSvc}),
+		evalH.Module(evalH.Deps{
+			Logger:      logger,
+			Clock:       clock.System{},
+			Corpus:      corpusSvc,
+			NewProvider: evalProvider,
+			Defaults:    sttpkg.Defaults(),
+		}),
 		diagH.Module(diagOrch, logger),
 	)
 

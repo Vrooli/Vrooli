@@ -66,6 +66,7 @@
             { "name": "vad-silence-ms", "description": "VAD silence window in ms; range 200–3000 (default 1200)" },
             { "name": "overlap-window-ms", "description": "Sliding-window size for overlap-and-agree; range 1000–5000 (default 2000)" },
             { "name": "overlap-commit-runs", "description": "Consecutive agreeing runs to commit a prefix; range 2–4 (default 2)" },
+            { "name": "overlap-max-stall-rejects", "description": "Force-commit the freshest hypothesis tail after N consecutive overlap divergence-rejects (bounds tail growth before the max_window_ms net); range 1–10, 0 disables (default 3)" },
             { "name": "hallucination-filter", "description": "true|false — drop known Whisper silence-hallucination phrases (default true)" },
             { "name": "vad-filter", "description": "true|false — enable faster-whisper's built-in silence filter on /asr (default true)" },
             { "name": "no-speech-threshold", "description": "Egress drop when mean no_speech_prob exceeds this AND avg_logprob is below logprob-threshold; range (0,1] (default 0.6)" },
@@ -370,6 +371,77 @@
           "governance": { "effect": "read", "run_eligible": false, "permissions": ["network:internal"] }
         }
       ]
+    },
+    {
+      "name": "corpus",
+      "description": "Manage the speech-eval clip corpus (record-import, list, get, delete). Audio bytes live in the git-ignored blob store; metadata in the corpus SQLite domain.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List corpus clips (newest first), optionally filtered by tag",
+          "flags": [
+            { "name": "tag", "description": "Only clips whose tags contain this substring" },
+            { "name": "limit", "description": "Max clips to return (0 = no limit)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CorpusService", "method": "ListClips" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "import",
+          "description": "Import an s16le-mono-PCM audio file + reference transcript as a corpus clip",
+          "positionals": [
+            { "name": "audio-file", "required": true, "description": "Path to the audio file (s16le mono PCM preferred — the recorder's format)" }
+          ],
+          "flags": [
+            { "name": "reference", "description": "Ground-truth transcript text (inline)" },
+            { "name": "reference-file", "description": "Path to a file holding the ground-truth transcript" },
+            { "name": "tags", "description": "Comma-separated tags" },
+            { "name": "format", "description": "Audio format hint (default pcm_s16le)" },
+            { "name": "sample-rate", "description": "Sample rate in Hz (default 16000)" },
+            { "name": "scripted", "bool": true, "description": "Mark the clip as a scripted-prompt reading (default free-form)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CorpusService", "method": "CreateClip" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal", "filesystem:read"] }
+        },
+        {
+          "name": "get",
+          "description": "Show one corpus clip's metadata",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Clip id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CorpusService", "method": "GetClip" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a corpus clip (metadata row + audio blob)",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Clip id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CorpusService", "method": "DeleteClip" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "eval",
+      "description": "Run the STT strategy comparison harness over the corpus and print the WER/compute/latency report.",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Replay the corpus through batch + vad-segment + overlap-agree and print the comparison table",
+          "flags": [
+            { "name": "strategies", "description": "Comma-separated strategy kinds (batch,vad_segment,overlap_agree); default all three" },
+            { "name": "clip-ids", "description": "Comma-separated clip ids to evaluate (default: whole corpus)" },
+            { "name": "realtime-repeats", "description": "Real-time-paced runs per clip for latency p50/p95 (0 = quality only)" },
+            { "name": "chunk-ms", "description": "Replay chunk size in ms (default 100)" },
+            { "name": "output", "description": "Write the report JSON to this file" },
+            { "name": "format", "description": "Output format: table (default) or json" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EvalService", "method": "RunEval" },
+          "governance": { "effect": "read", "run_eligible": false, "permissions": ["network:internal", "filesystem:write"] }
+        }
+      ]
     }
   ],
   "omitted": [
@@ -385,6 +457,7 @@
     { "service": "SessionService", "method": "OpenSession", "reason": "Real-time bidirectional session RPC for the UI/WebSocket bridge; no CLI command today." },
     { "service": "SessionService", "method": "CloseSession", "reason": "Real-time bidirectional session RPC for the UI/WebSocket bridge; no CLI command today." },
     { "service": "SessionService", "method": "SendText", "reason": "Real-time bidirectional session RPC for the UI/WebSocket bridge; no CLI command today." },
+    { "service": "CorpusService", "method": "GetClipAudio", "reason": "Streams raw audio bytes for UI playback and is used internally by EvalService; no standalone CLI command (use the UI to audition a clip)." },
     { "service": "SessionService", "method": "SendCancel", "reason": "Real-time bidirectional session RPC for the UI/WebSocket bridge; no CLI command today." },
     { "service": "SessionService", "method": "Subscribe", "reason": "Server-streaming session feed for the UI/WebSocket bridge; no CLI command today." },
     { "service": "SettingsService", "method": "UpdateProviderConfig", "reason": "Exposed via API/UI only; no CLI command today." },

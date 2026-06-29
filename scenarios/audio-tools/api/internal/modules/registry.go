@@ -18,7 +18,9 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	audioH "audio-tools/handlers/audio"
+	corpusH "audio-tools/handlers/corpus"
 	diagH "audio-tools/handlers/diagnostics"
+	evalH "audio-tools/handlers/eval"
 	healthH "audio-tools/handlers/health"
 	hsH "audio-tools/handlers/health_status"
 	plH "audio-tools/handlers/provider_lifecycle"
@@ -31,7 +33,9 @@ import (
 	localdb "audio-tools/internal/database"
 
 	audiov1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio"
+	corpusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/corpus"
 	diagv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics"
+	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval"
 	hsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
 	plv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/provider_lifecycle"
 	sessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/session"
@@ -50,7 +54,9 @@ func AllEndpoints() []modulekit.EndpointDescriptor {
 	out = append(out, hsH.Endpoints...)
 	out = append(out, plH.Endpoints...)
 	out = append(out, audioH.Endpoints...)
+	out = append(out, corpusH.Endpoints...)
 	out = append(out, diagH.Endpoints...)
+	out = append(out, evalH.Endpoints...)
 	out = append(out, sessionH.Endpoints...)
 	out = append(out, settingsH.Endpoints...)
 	out = append(out, sttH.Endpoints...)
@@ -72,7 +78,9 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "audio", File: audiov1.File_audio_tools_v1_audio_audio_proto},
+		{Module: "corpus", File: corpusv1.File_audio_tools_v1_corpus_corpus_proto},
 		{Module: "diagnostics", File: diagv1.File_audio_tools_v1_diagnostics_diagnostics_proto},
+		{Module: "eval", File: evalv1.File_audio_tools_v1_eval_eval_proto},
 		{Module: "health_status", File: hsv1.File_audio_tools_v1_health_status_health_status_proto},
 		{Module: "provider_lifecycle", File: plv1.File_audio_tools_v1_provider_lifecycle_provider_lifecycle_proto},
 		{Module: "session", File: sessv1.File_audio_tools_v1_session_session_proto},
@@ -93,6 +101,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(hsH.Schema),
 		apidb.SchemaProviderFunc(plH.Schema),
 		apidb.SchemaProviderFunc(audioH.Schema),
+		apidb.SchemaProviderFunc(corpusH.Schema),
 		apidb.SchemaProviderFunc(diagH.Schema),
 		apidb.SchemaProviderFunc(sessionH.Schema),
 		apidb.SchemaProviderFunc(settingsH.Schema),
