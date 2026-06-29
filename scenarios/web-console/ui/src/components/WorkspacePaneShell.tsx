@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState, useTransition, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { memo, useCallback, useEffect, useState, useTransition, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { useConversationStore, type PaneViewMode } from "../stores/useConversationStore";
 import type { PaneMetadata } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
@@ -43,6 +43,7 @@ interface WorkspacePaneShellProps {
   /** Notifies when this pane is mid view-switch so a shared toolbar button
    *  (e.g. the tabs-mode floating toggle) can show a loading indicator. */
   onViewSwitchPendingChange?: (sessionId: string, pending: boolean) => void;
+  messagesToolbarTrailingAction?: ReactNode;
   onStartArrangeDrag?: (paneId: string, e: ReactPointerEvent) => void;
   onTerminalReady: (sessionId: string) => void;
   onTerminalExit: (sessionId: string) => void;
@@ -90,6 +91,7 @@ function WorkspacePaneShell({
   onRequestClose,
   onToggleView,
   onViewSwitchPendingChange,
+  messagesToolbarTrailingAction,
   onStartArrangeDrag,
   onTerminalReady,
   onTerminalExit,
@@ -241,6 +243,7 @@ function WorkspacePaneShell({
               onSetVolume={onSetVolume}
               onSetMuted={onSetMuted}
               playbackFocusRequest={playbackFocusRequest}
+              toolbarTrailingAction={messagesToolbarTrailingAction}
             />
           </div>
         )}

@@ -531,11 +531,10 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   return (
     <div
       data-testid="mobile-toolbar"
-      // pb-[var(--wc-safe-bottom)] adds bottom padding equal to the device's
-      // safe-area inset (for rounded corners / home indicators in PWA mode).
-      // The useAppViewport hook sets --wc-safe-bottom to 0px when the virtual
-      // keyboard is open since the keyboard covers the bottom edge.
-      className="wc-chrome-surface-raised flex shrink-0 flex-col border-t border-wc-default touch-manipulation pb-[var(--wc-safe-bottom)] ps-[max(0.25rem,var(--wc-safe-left,0px))] pe-[max(0.25rem,var(--wc-safe-right,0px))]"
+      // Do not add bottom safe-area padding here. The toolbar is part of the
+      // fixed app layout, and iOS/PWA safe-area handling already reserves the
+      // bottom edge; adding it here creates a visible extra gutter.
+      className="wc-chrome-surface-raised flex shrink-0 flex-col border-t border-wc-default touch-manipulation ps-[max(0.25rem,var(--wc-safe-left,0px))] pe-[max(0.25rem,var(--wc-safe-right,0px))]"
     >
       {/* Pending-input pill — visible whenever the terminal's stdin queue is non-empty.
           Clicking it toggles a disclosure listing truncated payloads and oldest age. */}

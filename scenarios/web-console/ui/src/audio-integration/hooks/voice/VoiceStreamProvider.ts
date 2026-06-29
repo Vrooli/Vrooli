@@ -165,6 +165,10 @@ export class VoiceStreamProvider implements TranscriptionProvider {
         const msg = JSON.parse(event.data as string) as {
           type: string;
           text?: string;
+          // Error class on type==="error" (plan L2): "backend_starting" (the
+          // speech backend is being auto-started — transient, retry shortly),
+          // "backend_unavailable" (operator action needed), or "provider_failure".
+          code?: string;
           segmentIndex?: number;
           score?: number;
           threshold?: number;
@@ -216,6 +220,11 @@ export class VoiceStreamProvider implements TranscriptionProvider {
           // speaker verification rejects the audio.
           this.onResult?.(text);
         } else if (msg.type === "error") {
+          // The server now sends a clean, user-actionable message for a
+          // backend-down failure (no raw `dial tcp …` transport string, plan
+          // L2). A "backend_starting" code means on-demand recovery is bringing
+          // the speech backend up — surface the server's "is starting…" message
+          // verbatim so the user knows to retry shortly.
           this.onError?.(msg.text ?? "Streaming transcription failed");
         }
       } catch {

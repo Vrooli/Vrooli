@@ -1,0 +1,24 @@
+/* ── Canonical brand design tokens ──
+ * The brand-identity SSOT for web-console, in the canonical `--color-*` /
+ * `--font-*` contract that the Vrooli branding ecosystem (brand-manager) reads
+ * and projects into. These mirror the operational `--wc-*` palette in
+ * styles.css (which carries the `R G B` triples Tailwind needs for alpha); this
+ * file is the human/brand-facing source of truth for the core identity colors
+ * and typography. Keep the two in sync when the brand changes.
+ */
+:root {
+  /* Core identity colors (hex SSOT). */
+  --color-background: #020617; /* slate-950 — app base */
+  --color-foreground: #f8fafc; /* slate-50  — primary text */
+  --color-primary: #22d3ee;    /* cyan-400  — brand accent */
+  --color-secondary: #0ea5b7;  /* cyan-600-ish */
+  --color-surface: #0f172a;    /* slate-900 — raised surface */
+  --color-accent: #22d3ee;     /* cyan-400 */
+
+  /* Typography. A system-font stack (no bundled webfont): we render with the
+   * platform UI typeface rather than shipping a custom font. If the brand later
+   * adopts a bundled typeface, self-host it (@font-face + woff2) and lead with
+   * it here. */
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}

@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
@@ -62,6 +62,7 @@ interface MessagesPaneProps {
   onSetVolume: (level: number) => void;
   onSetMuted: (next: boolean) => void;
   playbackFocusRequest: PlaybackFocusRequest | null;
+  toolbarTrailingAction?: ReactNode;
 }
 
 // ---------------------------------------------------------------------------
@@ -462,6 +463,7 @@ export default function MessagesPane({
   onSetVolume,
   onSetMuted,
   playbackFocusRequest,
+  toolbarTrailingAction,
 }: MessagesPaneProps) {
   const { t } = useTranslation();
   const events = useConversationStore((state) => getSessionConversationEvents(state, sessionId));
@@ -943,6 +945,11 @@ export default function MessagesPane({
         >
           <RotateCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
         </button>
+        {toolbarTrailingAction && (
+          <div data-testid="messages-control-trailing" className="ms-auto flex items-center">
+            {toolbarTrailingAction}
+          </div>
+        )}
       </div>
 
       {navOpen && (

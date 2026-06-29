@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import App from "./App";
 import "./i18n";
+import "./design-tokens.css";
 import "./styles.css";
 
 const queryClient = new QueryClient();

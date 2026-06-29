@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Web Console">
+  <title>Web Console</title>
+  <!-- Terminal window tile: slate surface with a cyan accent border, mirroring
+       the app's own chrome (slate-900 surface, cyan-400 accent). -->
+  <rect x="64" y="64" width="384" height="384" rx="88" ry="88" fill="#0f172a" stroke="#22d3ee" stroke-width="12"/>
+  <!-- Prompt glyph: a chevron and a cursor underscore in the brand cyan. -->
+  <g fill="none" stroke="#22d3ee" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="180,180 250,256 180,332"/>
+    <line x1="286" y1="326" x2="366" y2="326"/>
+  </g>
+</svg>

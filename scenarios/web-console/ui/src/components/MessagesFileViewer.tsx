@@ -64,7 +64,10 @@ export default function MessagesFileViewer({
   return (
     <div className="fixed inset-0 z-[80]">
       <div className="absolute inset-0 bg-wc-backdrop" onClick={onClose} />
-      <div className="wc-stable-theme absolute inset-x-0 bottom-0 top-4 flex flex-col overflow-hidden rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised shadow-2xl md:inset-x-8 md:bottom-8 md:top-8 md:rounded-2xl md:border">
+      <div
+        data-testid="messages-file-viewer-panel"
+        className="wc-stable-theme absolute inset-x-0 bottom-0 top-[max(1rem,var(--wc-safe-top,0px))] flex flex-col overflow-hidden rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised shadow-2xl md:inset-x-8 md:bottom-8 md:top-8 md:rounded-2xl md:border"
+      >
         <div className="shrink-0 border-b border-wc-default px-4 py-3">
           <div className="flex items-center gap-3">
             <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-wc-text-primary">{basename}</h2>

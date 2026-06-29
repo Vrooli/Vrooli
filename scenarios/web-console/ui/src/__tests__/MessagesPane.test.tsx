@@ -301,6 +301,7 @@ describe("MessagesPane", () => {
       expect(screen.getByText("messagesFileViewer.linePrefix")).toBeInTheDocument();
       expect(screen.getByText("const x = 1;")).toBeInTheDocument();
     });
+    expect(screen.getByTestId("messages-file-viewer-panel").className).toContain("--wc-safe-top");
     expect(mockResolveFileReference).toHaveBeenCalledWith("sess-1", "/tmp/example.ts:12");
     expect(mockGetFileReferenceContent).toHaveBeenCalledWith("sess-1", "/tmp/example.ts:12");
   });
@@ -343,6 +344,20 @@ describe("MessagesPane", () => {
     expect(screen.getByTestId("msg-jump-trigger")).toBeInTheDocument();
     expect(screen.getByTestId("messages-nav-up")).toBeInTheDocument();
     expect(screen.getByTestId("messages-nav-down")).toBeInTheDocument();
+  });
+
+  it("renders an optional trailing action in the control strip", () => {
+    seedEvents([makeEvent({ id: "e1", sequence: 1 })]);
+    render(
+      <MessagesPane
+        {...defaultProps}
+        toolbarTrailingAction={<button type="button" data-testid="messages-trailing-action">Toggle</button>}
+      />,
+    );
+
+    expect(screen.getByTestId("messages-control-trailing")).toContainElement(
+      screen.getByTestId("messages-trailing-action"),
+    );
   });
 
   it("clicking search button opens the navigator focused on search", () => {

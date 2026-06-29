@@ -59,10 +59,25 @@ func (h *handlers) expose(ctx cliapp.RunContext) error {
 		"`config credentials-status --verify` — if the URL is unreachable, re-check DNS scope",
 	}
 
-	if resp.Msg.LocalPort != 0 {
-		changes = append(changes, fmt.Sprintf("Local port: %d (the fixed UI port used by the tunnel).", resp.Msg.LocalPort))
+	localPort := resp.Msg.LocalPort
+	portAssigned := resp.Msg.PortAssigned
+	// Fallback to ListExposures to get the port if not present in the ExposeResponse
+	// (ensures the report always shows the current pinned port even if the response extension
+	// isn't populated on the wire yet).
+	if localPort == 0 {
+		if listResp, lerr := h.client.ListExposures(context.Background(), connect.NewRequest(&exposurev1.ListExposuresRequest{})); lerr == nil && listResp != nil {
+			for _, e := range listResp.Msg.Exposures {
+				if e.Scenario == req.Scenario {
+					localPort = e.LocalPort
+					break
+				}
+			}
+		}
 	}
-	if resp.Msg.PortAssigned {
+	if localPort != 0 {
+		changes = append(changes, fmt.Sprintf("Local port: %d (the fixed UI port used by the tunnel).", localPort))
+	}
+	if portAssigned {
 		changes = append(changes, "Assigned a fixed UI port (the scenario previously declared a range in service.json).")
 		// The runner forces a cycle in this case, so mention it.
 		result += " Scenario cycled to bind the new port."

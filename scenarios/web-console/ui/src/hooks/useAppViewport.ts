@@ -90,8 +90,8 @@ import { useEffect } from "react";
  * ## Consumers
  *
  * - **`Workspace.tsx`** — root container uses `h-wc-app` for its height.
- * - **`MobileToolbar.tsx`** — uses `pb-[var(--wc-safe-bottom)]` for bottom
- *   safe-area padding. Padding disappears when the keyboard opens.
+   * - **`MobileToolbar.tsx`** — intentionally does not add bottom safe-area
+   *   padding because the fixed app layout already reserves that edge.
  * - **`App.tsx`** — loading/error states use `h-wc-app` for full-height
  *   centering (the hook hasn't run yet, so the `100dvh` fallback kicks in).
  *

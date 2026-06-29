@@ -414,7 +414,7 @@ describe("Workspace", () => {
     Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
   });
 
-  it("keeps the terminal/messages toggle inside safe-area bounds", () => {
+  it("keeps the terminal/messages toggle aligned to the pane control row", () => {
     hookState.panes = [{ session: mockSession }];
     mockStoreState.activePane = mockSession.id;
     mockStoreState.displayMode = "tabs";
@@ -428,8 +428,8 @@ describe("Workspace", () => {
     render(<Workspace />);
 
     const toggleShell = screen.getByTitle(strings.workspace.switchToMessagesTitle).parentElement;
-    expect(toggleShell?.className).toContain("--wc-safe-right");
-    expect(toggleShell?.className).toContain("--wc-safe-top");
+    expect(toggleShell?.className).toContain("end-2");
+    expect(toggleShell?.className).toContain("top-2.5");
   });
 
   it("renders terminal headers for panes", () => {

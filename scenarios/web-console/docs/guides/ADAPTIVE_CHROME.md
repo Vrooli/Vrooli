@@ -95,18 +95,31 @@ collapses identical-color ticks (the common case under a busy TUI).
   viewport edge. The app therefore also keeps `body` backed by
   `--wc-chrome-color` and renders top/bottom 4px fixed edge slivers while
   adaptive chrome is active. This satisfies Safari 26's geometry-based sampler.
+  The slivers are a fallback: they sit **behind** app chrome (`z-index: 0`) so
+  they never overpaint a bar that already reaches the edge (an earlier max
+  z-index clipped the top of the mobile hamburger's unread badge).
   Safari 26.0/26.1 have reported bugs where post-paint color changes may not
   live-update the browser bars until navigation/repaint; Safari 26.2 reportedly
   improves that. In every version, the user-side Safari setting **Allow Website
   Tinting** must be enabled.
-- **iOS standalone PWA:** `apple-mobile-web-app-status-bar-style` only accepts
-  `default` / `black` / `black-translucent` and is read at launch — it cannot be
-  recolored per value. With `black-translucent` the status bar overlays the page
-  and shows our tinted `body` background, **but its text/icons are forced
-  light**. This works for the common dark-terminal case; a very *light* terminal
-  background can make the iOS status-bar text hard to read. The contrast-aware
-  `--wc-chrome-fg` keeps in-app chrome text legible, but it cannot override the
-  OS-forced light status-bar glyphs on iOS.
+- **iOS standalone PWA (Add to Home Screen):** the status bar is page-owned only
+  when the app launches standalone, which requires the **web-app-capable** metas.
+  `index.html` ships both `mobile-web-app-capable` and
+  `apple-mobile-web-app-capable` = `yes`; **without them iOS ignores
+  `apple-mobile-web-app-status-bar-style` entirely** and draws an opaque system
+  status bar that cannot show the tinted body (this was the cause of the status
+  bar "not updating" in an installed build). `apple-mobile-web-app-status-bar-style`
+  only accepts `default` / `black` / `black-translucent` and is read at launch —
+  it cannot be recolored per value. With `black-translucent` the status bar
+  overlays the page and shows our tinted `body` background, **but its text/icons
+  are forced light**. This works for the common dark-terminal case; a very
+  *light* terminal background can make the iOS status-bar text hard to read. The
+  contrast-aware `--wc-chrome-fg` keeps in-app chrome text legible, but it cannot
+  override the OS-forced light status-bar glyphs on iOS.
+- **Normal Safari tab:** the status strip at the top is system-drawn and not
+  page-controllable in the default bottom-address-bar layout; only the bottom
+  toolbar and (in top-address-bar layout) the top bar tint. Install the app to
+  get full status-bar theming.
 - The desktop sidebar and Messages view use the derived token palette; per-group
   color dots, pane header accents, and semantic warning/error state colors stay
   stable so the list remains structurally distinct over the tint.

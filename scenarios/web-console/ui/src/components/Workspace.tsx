@@ -843,6 +843,27 @@ export default function Workspace() {
     });
   }, []);
 
+  const renderViewToggleButton = useCallback(() => (
+    <button
+      data-testid="workspace-toggle-view"
+      data-view-mode={activeViewMode}
+      className="flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary backdrop-blur-sm transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary"
+      onClick={() => {
+        if (workspace.activePane) {
+          handlePaneToggleView(workspace.activePane, activeViewMode);
+        }
+      }}
+      title={activeViewMode === "terminal" ? t(strings.workspace.switchToMessagesTitle) : t(strings.workspace.switchToTerminalTitle)}
+      type="button"
+    >
+      {viewSwitchPendingPane === workspace.activePane
+        ? <Loader2 data-testid="workspace-toggle-view-pending" className="h-3.5 w-3.5 animate-spin" />
+        : activeViewMode === "terminal"
+          ? <MessageSquareText className="h-3.5 w-3.5" />
+          : <TerminalSquare className="h-3.5 w-3.5" />}
+    </button>
+  ), [activeViewMode, handlePaneToggleView, t, viewSwitchPendingPane, workspace.activePane]);
+
   const handlePaneTransportSpeakingEvent = useCallback((sessionId: string, eventId: string | null) => {
     if (sessionId === workspace.activePane) {
       handlePaneTransportEventStart(sessionId, eventId);
@@ -1423,25 +1444,9 @@ export default function Workspace() {
            *   • In messages mode → show terminal icon (click to switch back)
            * Circular icon button with a translucent background so it doesn't
            * obscure too much terminal content but is still easy to tap. */}
-          {workspace.activePane && workspace.panes.find((pane) => pane.sessionId === workspace.activePane)?.supportsMessagesView && (
-            <div className="absolute end-[max(0.75rem,var(--wc-safe-right,0px))] top-[max(0.75rem,var(--wc-safe-top,0px))] z-20">
-              <button
-                data-testid="workspace-toggle-view"
-                data-view-mode={activeViewMode}
-                className="flex items-center justify-center h-8 w-8 rounded-full bg-wc-surface-raised/80 border border-wc-default text-wc-text-secondary hover:text-wc-text-primary hover:bg-wc-surface-input transition-colors backdrop-blur-sm"
-                onClick={() => {
-                  if (workspace.activePane) {
-                    handlePaneToggleView(workspace.activePane, activeViewMode);
-                  }
-                }}
-                title={activeViewMode === "terminal" ? t(strings.workspace.switchToMessagesTitle) : t(strings.workspace.switchToTerminalTitle)}
-              >
-                {viewSwitchPendingPane === workspace.activePane
-                  ? <Loader2 data-testid="workspace-toggle-view-pending" className="h-3.5 w-3.5 animate-spin" />
-                  : activeViewMode === "terminal"
-                    ? <MessageSquareText className="h-3.5 w-3.5" />
-                    : <TerminalSquare className="h-3.5 w-3.5" />}
-              </button>
+          {activeViewMode === "terminal" && workspace.activePane && workspace.panes.find((pane) => pane.sessionId === workspace.activePane)?.supportsMessagesView && (
+            <div className="absolute end-2 top-2.5 z-20">
+              {renderViewToggleButton()}
             </div>
           )}
             {orderedPanes.filter((paneMeta) => mountedTabSessions.has(paneMeta.sessionId)).map((paneMeta) => {
@@ -1471,6 +1476,7 @@ export default function Workspace() {
                   onRequestClose={handleRequestClose}
                   onToggleView={handlePaneToggleView}
                   onViewSwitchPendingChange={handleViewSwitchPendingChange}
+                  messagesToolbarTrailingAction={activeViewMode === "messages" && paneMeta.sessionId === workspace.activePane ? renderViewToggleButton() : undefined}
                   onTerminalReady={handleTerminalReady}
                   onTerminalExit={handleExit}
                   onTerminalRef={registerTerminalRef}
