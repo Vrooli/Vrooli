@@ -306,7 +306,7 @@ func newAutomatedFixJob(options AutomatedFixJobOptions) (*automatedFixJob, error
 		ctx, cancel = context.WithCancel(ctx)
 	}
 
-	model := sanitizeAutomationModel(options.Model, openRouterModel)
+	model := sanitizeAutomationModel(options.Model, openRouterModel())
 
 	job := &automatedFixJob{
 		id:                fmt.Sprintf("auto-%s", uuid.NewString()),

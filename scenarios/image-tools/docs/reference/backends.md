@@ -339,9 +339,11 @@ presence.
 
 The registered cloud provider is **`openrouter`** (backend `openrouter`, seed
 model `openrouter-image`). It serves `text_to_image`, `image_to_image`, and
-`edit_instruct` through OpenRouter's chat-completions **image output modality**
-(there is no DALL·E-style `/images/generations` endpoint on OpenRouter). It holds
-no local weights, so `RequiresWeights()` is false and it is always "installed";
+`edit_instruct` through OpenRouter's dedicated image API
+(`POST /api/v1/images`): the prompt (and, for edits, the source image as an
+`input_references` data URL) goes up, and the response returns the image as
+base64 in `data[].b64_json` (vector models add a `media_type`). It holds no local
+weights, so `RequiresWeights()` is false and it is always "installed";
 runnability is gated instead by `Available()` — a usable `OPENROUTER_API_KEY`.
 
 - **Key resolution:** `OPENROUTER_API_KEY` from the environment first (injected by
@@ -349,7 +351,12 @@ runnability is gated instead by `Available()` — a usable `OPENROUTER_API_KEY`.
   best-effort `resource-vault secrets export openrouter|opencode`. A usable key
   must look like `sk-or-…` (length floor). No key → the provider reports
   unavailable and only-BYOK ops refuse cleanly with guidance.
-- **Model slug:** defaults to `google/gemini-2.5-flash-image-preview`; override
-  with `OPENROUTER_IMAGE_MODEL`.
+- **Model selection (greenfield):** no concrete slug is hard-coded. Each request
+  resolves an OpenRouter **policy role** through `resource-openrouter policy
+  resolve` — `text_to_image` → `image.generate.default`, edits →
+  `image.edit.default`. A caller carries intent through the request param
+  `openrouter_role` (e.g. brand-manager requesting `image.generate.logo` or
+  `image.edit.identity`). The concrete model, endpoint, and request defaults all
+  come from `resources/openrouter/model-policy.json` — the single update point.
 - **Costs + privacy:** every call is billed to your key and sends the prompt (and
   any input image) to a third-party cloud — not for private/local-only data.

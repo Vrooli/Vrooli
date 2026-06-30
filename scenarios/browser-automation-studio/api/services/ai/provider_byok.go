@@ -17,7 +17,6 @@ import (
 const (
 	openRouterAPIURL      = "https://openrouter.ai/api/v1/chat/completions"
 	openRouterKeyCheckURL = "https://openrouter.ai/api/v1/auth/key"
-	byokDefaultModel      = "openai/gpt-4o-mini"
 	byokRequestTimeout    = 120 * time.Second
 	byokKeyValidationTTL  = 5 * time.Minute
 )
@@ -44,16 +43,15 @@ type BYOKProviderOptions struct {
 }
 
 // NewBYOKProvider creates a new BYOK provider with the user's OpenRouter key.
+//
+// The model must be supplied by the caller (resolved through the OpenRouter
+// resource policy or an explicit user override). No concrete default slug is
+// baked in here.
 func NewBYOKProvider(opts BYOKProviderOptions) *BYOKProvider {
-	model := opts.Model
-	if model == "" {
-		model = byokDefaultModel
-	}
-
 	return &BYOKProvider{
 		log:    opts.Logger,
 		apiKey: opts.APIKey,
-		model:  model,
+		model:  opts.Model,
 		client: &http.Client{
 			Timeout: byokRequestTimeout,
 		},

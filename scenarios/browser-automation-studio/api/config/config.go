@@ -603,9 +603,18 @@ type AIProviderConfig struct {
 	// Env: BAS_AI_VROOLI_API_URL (default: "")
 	VrooliAPIURL string
 
-	// DefaultModel is the AI model to use when not specified.
-	// Env: BAS_AI_DEFAULT_MODEL (default: "openai/gpt-4o-mini")
+	// DefaultModel is an OPTIONAL explicit operator override for the AI model.
+	// When empty (the default), the effective OpenRouter model is resolved through
+	// the OpenRouter resource policy using DefaultRole. There is intentionally no
+	// concrete model slug baked in as a default.
+	// Env: BAS_AI_DEFAULT_MODEL (default: "")
 	DefaultModel string
+
+	// DefaultRole is the OpenRouter policy role used to resolve the default model
+	// when no explicit override is supplied. The concrete slug it maps to is owned
+	// by the OpenRouter resource policy, never by this code.
+	// Env: BAS_OPENROUTER_ROLE (default: "chat.default")
+	DefaultRole string
 }
 
 var (
@@ -752,7 +761,8 @@ func loadFromEnv() *Config {
 			EnableDevMode:     parseBool("BAS_AI_ENABLE_DEV_MODE", true),
 			BYOKValidationTTL: parseDurationMs("BAS_AI_BYOK_VALIDATION_TTL_MS", 300000),
 			VrooliAPIURL:      parseString("BAS_AI_VROOLI_API_URL", ""),
-			DefaultModel:      parseString("BAS_AI_DEFAULT_MODEL", "openai/gpt-4o-mini"),
+			DefaultModel:      parseString("BAS_AI_DEFAULT_MODEL", ""),
+			DefaultRole:       parseString("BAS_OPENROUTER_ROLE", "chat.default"),
 		},
 	}
 }

@@ -21,15 +21,18 @@ const MODEL_PROVIDERS = [
   { value: 'openrouter', label: 'OpenRouter (Cloud)' },
 ];
 
-const OLLAMA_MODELS = [
+// Policy roles resolved at runtime by the model provider's policy.
+// The UI offers roles, not concrete model slugs.
+const OLLAMA_ROLES = [
   'chat.default',
   'chat.small',
 ];
 
-const OPENROUTER_MODELS = [
-  'anthropic/claude-3-haiku',
-  'google/gemini-flash-1.5',
-  'meta-llama/llama-3.2-3b-instruct',
+const OPENROUTER_ROLES = [
+  'chat.default',
+  'chat.quality',
+  'chat.small',
+  'agent.tools',
 ];
 
 interface RecyclerTabProps {
@@ -47,7 +50,7 @@ export function RecyclerTab({ settings, onChange, constraints }: RecyclerTabProp
   };
 
   const modelOptions =
-    settings.model_provider === 'ollama' ? OLLAMA_MODELS : OPENROUTER_MODELS;
+    settings.model_provider === 'ollama' ? OLLAMA_ROLES : OPENROUTER_ROLES;
 
   return (
     <div className="space-y-6">

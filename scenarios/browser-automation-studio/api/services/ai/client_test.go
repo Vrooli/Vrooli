@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -11,15 +12,7 @@ import (
 )
 
 func TestNewOpenRouterClient(t *testing.T) {
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] uses default model when env var not set", func(t *testing.T) {
-		originalModel := os.Getenv("BAS_OPENROUTER_MODEL")
-		os.Unsetenv("BAS_OPENROUTER_MODEL")
-		defer func() {
-			if originalModel != "" {
-				os.Setenv("BAS_OPENROUTER_MODEL", originalModel)
-			}
-		}()
-
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] bakes in no concrete default model slug", func(t *testing.T) {
 		log := logrus.New()
 		log.SetOutput(os.Stderr)
 		client := NewOpenRouterClient(log)
@@ -27,18 +20,19 @@ func TestNewOpenRouterClient(t *testing.T) {
 		if client == nil {
 			t.Fatal("expected non-nil client")
 		}
-		if client.model != openRouterDefaultModel {
-			t.Errorf("expected default model %q, got %q", openRouterDefaultModel, client.model)
+		// The model is intentionally unset; it is resolved through the OpenRouter
+		// resource policy (role based) at execution time. No hard-coded slug.
+		if client.model != "" {
+			t.Errorf("expected empty model on a fresh client, got %q", client.model)
 		}
 		if client.log == nil {
 			t.Error("expected non-nil logger")
 		}
 	})
 
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] uses custom model from env var", func(t *testing.T) {
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] ignores legacy BAS_OPENROUTER_MODEL env var", func(t *testing.T) {
 		originalModel := os.Getenv("BAS_OPENROUTER_MODEL")
-		customModel := "anthropic/claude-3-sonnet"
-		os.Setenv("BAS_OPENROUTER_MODEL", customModel)
+		os.Setenv("BAS_OPENROUTER_MODEL", "anthropic/claude-3-sonnet")
 		defer func() {
 			if originalModel != "" {
 				os.Setenv("BAS_OPENROUTER_MODEL", originalModel)
@@ -50,27 +44,60 @@ func TestNewOpenRouterClient(t *testing.T) {
 		log := logrus.New()
 		client := NewOpenRouterClient(log)
 
-		if client.model != customModel {
-			t.Errorf("expected custom model %q, got %q", customModel, client.model)
+		if client.model != "" {
+			t.Errorf("expected client to ignore legacy env var, got model %q", client.model)
+		}
+	})
+}
+
+func TestResolveRoleModel(t *testing.T) {
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] resolves model through policy seam", func(t *testing.T) {
+		original := resolveRoleModelFunc
+		var gotRole string
+		resolveRoleModelFunc = func(_ context.Context, role string) (string, error) {
+			gotRole = role
+			return "vendor/resolved-model", nil
+		}
+		defer func() { resolveRoleModelFunc = original }()
+
+		model, err := resolveRoleModel(context.Background(), "chat.default")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if model != "vendor/resolved-model" {
+			t.Errorf("expected resolved model, got %q", model)
+		}
+		if gotRole != "chat.default" {
+			t.Errorf("expected role chat.default, got %q", gotRole)
 		}
 	})
 
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles whitespace in model env var", func(t *testing.T) {
-		originalModel := os.Getenv("BAS_OPENROUTER_MODEL")
-		os.Setenv("BAS_OPENROUTER_MODEL", "   ")
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] propagates resolution failure without fallback slug", func(t *testing.T) {
+		original := resolveRoleModelFunc
+		resolveRoleModelFunc = func(_ context.Context, _ string) (string, error) {
+			return "", errors.New("policy unavailable")
+		}
+		defer func() { resolveRoleModelFunc = original }()
+
+		_, err := resolveRoleModel(context.Background(), "chat.default")
+		if err == nil {
+			t.Fatal("expected error when policy resolution fails")
+		}
+	})
+
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] BAS_OPENROUTER_ROLE selects the role", func(t *testing.T) {
+		originalEnv := os.Getenv("BAS_OPENROUTER_ROLE")
+		os.Setenv("BAS_OPENROUTER_ROLE", "chat.small")
 		defer func() {
-			if originalModel != "" {
-				os.Setenv("BAS_OPENROUTER_MODEL", originalModel)
+			if originalEnv != "" {
+				os.Setenv("BAS_OPENROUTER_ROLE", originalEnv)
 			} else {
-				os.Unsetenv("BAS_OPENROUTER_MODEL")
+				os.Unsetenv("BAS_OPENROUTER_ROLE")
 			}
 		}()
 
-		log := logrus.New()
-		client := NewOpenRouterClient(log)
-
-		if client.model != openRouterDefaultModel {
-			t.Errorf("expected default model when env var is whitespace, got %q", client.model)
+		if got := openRouterRole(); got != "chat.small" {
+			t.Errorf("expected role chat.small from env, got %q", got)
 		}
 	})
 }

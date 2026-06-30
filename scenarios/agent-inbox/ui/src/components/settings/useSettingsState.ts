@@ -19,6 +19,7 @@ import {
 import type { ApprovalOverride, EffectiveTool } from "../../lib/api";
 import type { TemplateWithSource, SkillWithSource, Skill } from "../../lib/types/templates";
 import type { Theme, SettingsTab } from "./settingsTypes";
+import { DEFAULT_MODEL } from "./settingsTypes";
 
 export function useSettingsState(open: boolean, activeTab: SettingsTab, onClose: () => void, onEditTemplate?: (template: TemplateWithSource, allTemplates: TemplateWithSource[]) => void) {
   const [theme, setTheme] = useState<Theme>(() => {
@@ -29,8 +30,8 @@ export function useSettingsState(open: boolean, activeTab: SettingsTab, onClose:
     return "dark";
   });
   const [defaultModel, setDefaultModelState] = useState<string>(() => {
-    if (typeof window !== "undefined") return localStorage.getItem("defaultModel") || "anthropic/claude-3.5-sonnet";
-    return "anthropic/claude-3.5-sonnet";
+    if (typeof window !== "undefined") return localStorage.getItem("defaultModel") || DEFAULT_MODEL;
+    return DEFAULT_MODEL;
   });
   const [selectedToolForRun, setSelectedToolForRun] = useState<EffectiveTool | null>(null);
 

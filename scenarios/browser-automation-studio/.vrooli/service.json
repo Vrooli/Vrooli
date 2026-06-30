@@ -246,7 +246,10 @@
         "type": "openrouter",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (resource_cli)"
+        "description": "Auto-detected via analyzer (resource_cli)",
+        "model_roles": [
+          "chat.default"
+        ]
       }
     },
     "scenarios": {}

@@ -26,38 +26,48 @@ import (
 // model lives on OpenRouter, so the registry model (backend "openrouter") is
 // always "installed" and runnability is gated by Available() (a usable key).
 //
-// Image generation rides OpenRouter's chat-completions surface with the image
-// output modality — the only OpenRouter image path that actually works (there is
-// no DALL·E-style /images/generations endpoint). A prompt (and, for edits, an
-// input image) goes up as a chat message; the response carries the generated
-// image as a base64 data URL.
-const (
-	openRouterChatURL           = "https://openrouter.ai/api/v1/chat/completions"
-	defaultOpenRouterImageModel = "google/gemini-2.5-flash-image-preview"
-)
+// Greenfield: this provider selects NO concrete model itself. Each request
+// resolves an OpenRouter policy ROLE (e.g. image.generate.default) through
+// `resource-openrouter policy resolve`, which returns the concrete model slug,
+// endpoint family, and bounded request defaults. Generation rides OpenRouter's
+// dedicated image API (`POST /api/v1/images`): the prompt (and, for edits,
+// input_references) go up and the response carries the image as base64 in
+// data[].b64_json.
+const openRouterImagesURL = "https://openrouter.ai/api/v1/images"
 
-// openRouterProvider implements backends.Provider over the OpenRouter API.
-type openRouterProvider struct {
-	httpClient *http.Client
-	baseURL    string // chat-completions endpoint (overridable in tests)
-	model      string // OpenRouter image model slug
-	resolveKey func(ctx context.Context) string
+// resolvedImageRole is the subset of `resource-openrouter policy resolve --json`
+// the image provider needs to build an /images request.
+type resolvedImageRole struct {
+	Model           string `json:"model"`
+	Endpoint        string `json:"endpoint"`
+	RequestDefaults struct {
+		OutputFormat string `json:"output_format"`
+		Background   string `json:"background"`
+		AspectRatio  string `json:"aspect_ratio"`
+		Resolution   string `json:"resolution"`
+		Size         string `json:"size"`
+		Quality      string `json:"quality"`
+	} `json:"request_defaults"`
 }
 
-// newOpenRouterProvider builds the production provider. The image model slug is
-// OPENROUTER_IMAGE_MODEL or a sensible default; the key is resolved lazily (env
-// → vault) so the provider can be registered unconditionally and simply report
+// openRouterProvider implements backends.Provider over the OpenRouter image API.
+type openRouterProvider struct {
+	httpClient  *http.Client
+	baseURL     string // /images endpoint (overridable in tests)
+	resolveKey  func(ctx context.Context) string
+	resolveRole func(ctx context.Context, role string) (resolvedImageRole, error)
+}
+
+// newOpenRouterProvider builds the production provider. The model is resolved
+// per-request from an OpenRouter policy role; the key is resolved lazily (env →
+// vault) so the provider can be registered unconditionally and simply report
 // unavailable when no key is configured.
 func newOpenRouterProvider() *openRouterProvider {
-	model := sanitizeModelSlug(os.Getenv("OPENROUTER_IMAGE_MODEL"))
-	if model == "" {
-		model = defaultOpenRouterImageModel
-	}
 	return &openRouterProvider{
-		httpClient: &http.Client{Timeout: 4 * time.Minute},
-		baseURL:    openRouterChatURL,
-		model:      model,
-		resolveKey: resolveOpenRouterKey,
+		httpClient:  &http.Client{Timeout: 4 * time.Minute},
+		baseURL:     openRouterImagesURL,
+		resolveKey:  resolveOpenRouterKey,
+		resolveRole: resolveOpenRouterRole,
 	}
 }
 
@@ -79,7 +89,7 @@ func (p *openRouterProvider) Availability(ctx context.Context) backends.Availabi
 	if p.Available(ctx) {
 		return backends.Availability{
 			Available: true,
-			Detail:    fmt.Sprintf("OpenRouter BYOK cloud (%s)", p.model),
+			Detail:    "OpenRouter BYOK cloud (role-resolved image model)",
 			Provision: "set OPENROUTER_API_KEY (or store it in resource-vault)",
 		}
 	}
@@ -88,6 +98,20 @@ func (p *openRouterProvider) Availability(ctx context.Context) backends.Availabi
 		Detail:    "OpenRouter API key not configured",
 		Provision: "set OPENROUTER_API_KEY (or store it in resource-vault) to enable BYOK cloud image ops",
 	}
+}
+
+// roleForRequest maps an op (and optional explicit intent) to an OpenRouter
+// image policy role. A caller may carry intent through Params["openrouter_role"]
+// (e.g. brand-manager requesting image.generate.logo or image.edit.identity);
+// otherwise the op maps to the default generate/edit role.
+func roleForRequest(req backends.Request) string {
+	if r := strings.TrimSpace(req.Params["openrouter_role"]); r != "" {
+		return r
+	}
+	if req.Operation == "text_to_image" {
+		return "image.generate.default"
+	}
+	return "image.edit.default"
 }
 
 func (p *openRouterProvider) Execute(ctx context.Context, req backends.Request) (backends.Result, error) {
@@ -103,8 +127,36 @@ func (p *openRouterProvider) Execute(ctx context.Context, req backends.Request) 
 		return backends.Result{}, fmt.Errorf("ai: openrouter image generation requires a prompt")
 	}
 
-	content := []any{map[string]any{"type": "text", "text": prompt}}
-	// Edits / img2img carry the source image as a data URL alongside the prompt.
+	role := roleForRequest(req)
+	resolved, err := p.resolveRole(ctx, role)
+	if err != nil {
+		return backends.Result{}, err
+	}
+
+	reqBody := map[string]any{
+		"model":  resolved.Model,
+		"prompt": prompt,
+	}
+	if v := resolved.RequestDefaults.OutputFormat; v != "" {
+		reqBody["output_format"] = v
+	}
+	if v := resolved.RequestDefaults.Background; v != "" {
+		reqBody["background"] = v
+	}
+	if v := resolved.RequestDefaults.AspectRatio; v != "" {
+		reqBody["aspect_ratio"] = v
+	}
+	if v := resolved.RequestDefaults.Resolution; v != "" {
+		reqBody["resolution"] = v
+	}
+	if v := resolved.RequestDefaults.Size; v != "" {
+		reqBody["size"] = v
+	}
+	if v := resolved.RequestDefaults.Quality; v != "" {
+		reqBody["quality"] = v
+	}
+
+	// Edits / img2img carry the source image as a base64 data URL reference.
 	if req.Operation != "text_to_image" {
 		in, err := technique.Input0(req)
 		if err != nil {
@@ -114,17 +166,12 @@ func (p *openRouterProvider) Execute(ctx context.Context, req backends.Request) 
 		if err != nil {
 			return backends.Result{}, fmt.Errorf("ai: openrouter read input: %w", err)
 		}
-		content = append(content, map[string]any{
+		reqBody["input_references"] = []any{map[string]any{
 			"type":      "image_url",
 			"image_url": map[string]string{"url": "data:image/png;base64," + base64.StdEncoding.EncodeToString(data)},
-		})
+		}}
 	}
 
-	reqBody := map[string]any{
-		"model":      p.model,
-		"modalities": []string{"image", "text"},
-		"messages":   []any{map[string]any{"role": "user", "content": content}},
-	}
 	raw, err := json.Marshal(reqBody)
 	if err != nil {
 		return backends.Result{}, fmt.Errorf("ai: openrouter marshal request: %w", err)
@@ -132,7 +179,7 @@ func (p *openRouterProvider) Execute(ctx context.Context, req backends.Request) 
 
 	endpoint := p.baseURL
 	if endpoint == "" {
-		endpoint = openRouterChatURL
+		endpoint = openRouterImagesURL
 	}
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(raw))
 	if err != nil {
@@ -153,75 +200,78 @@ func (p *openRouterProvider) Execute(ctx context.Context, req backends.Request) 
 		return backends.Result{}, fmt.Errorf("ai: openrouter returned %d: %s", resp.StatusCode, strings.TrimSpace(string(out)))
 	}
 
-	img, err := decodeOpenRouterImage(out)
+	img, mediaType, err := decodeOpenRouterImage(out)
 	if err != nil {
 		return backends.Result{}, err
 	}
 	if err := os.WriteFile(req.Output.LocalPath, img, 0o644); err != nil {
 		return backends.Result{}, fmt.Errorf("ai: openrouter write output: %w", err)
 	}
+	meta := map[string]string{"backend": models.BackendOpenRouter, "model": resolved.Model, "role": role}
+	if mediaType != "" {
+		meta["media_type"] = mediaType
+	}
 	return backends.Result{
 		OutputRef: req.Output.LocalPath,
 		Tier:      backends.TierBYOK,
-		Meta:      map[string]string{"backend": models.BackendOpenRouter, "model": p.model},
+		Meta:      meta,
 	}, nil
 }
 
-// openRouterChatResponse is the subset of the chat-completions response that
-// carries a generated image. OpenRouter returns image outputs in
-// message.images[].image_url.url as a base64 data URL.
-type openRouterChatResponse struct {
-	Choices []struct {
-		Message struct {
-			Images []struct {
-				ImageURL struct {
-					URL string `json:"url"`
-				} `json:"image_url"`
-			} `json:"images"`
-		} `json:"message"`
-	} `json:"choices"`
+// openRouterImagesResponse is the subset of the /api/v1/images response that
+// carries a generated image. Images are returned base64-encoded in
+// data[].b64_json; vector models additionally set media_type (e.g.
+// image/svg+xml).
+type openRouterImagesResponse struct {
+	Data []struct {
+		B64JSON   string `json:"b64_json"`
+		MediaType string `json:"media_type"`
+	} `json:"data"`
 	Error *struct {
 		Message string `json:"message"`
 	} `json:"error"`
 }
 
-// decodeOpenRouterImage extracts the generated image bytes from a chat response.
-func decodeOpenRouterImage(body []byte) ([]byte, error) {
-	var parsed openRouterChatResponse
+// decodeOpenRouterImage extracts the generated image bytes and media type from
+// an /images response.
+func decodeOpenRouterImage(body []byte) ([]byte, string, error) {
+	var parsed openRouterImagesResponse
 	if err := json.Unmarshal(body, &parsed); err != nil {
-		return nil, fmt.Errorf("ai: openrouter decode response: %w", err)
+		return nil, "", fmt.Errorf("ai: openrouter decode response: %w", err)
 	}
 	if parsed.Error != nil && parsed.Error.Message != "" {
-		return nil, fmt.Errorf("ai: openrouter error: %s", parsed.Error.Message)
+		return nil, "", fmt.Errorf("ai: openrouter error: %s", parsed.Error.Message)
 	}
-	if len(parsed.Choices) == 0 || len(parsed.Choices[0].Message.Images) == 0 {
-		return nil, fmt.Errorf("ai: openrouter returned no image (the model may not support image output)")
+	if len(parsed.Data) == 0 || strings.TrimSpace(parsed.Data[0].B64JSON) == "" {
+		return nil, "", fmt.Errorf("ai: openrouter returned no image (the model may not support image output)")
 	}
-	url := parsed.Choices[0].Message.Images[0].ImageURL.URL
-	idx := strings.Index(url, ",")
-	if !strings.HasPrefix(url, "data:") || idx < 0 {
-		return nil, fmt.Errorf("ai: openrouter image is not a data URL")
-	}
-	img, err := base64.StdEncoding.DecodeString(url[idx+1:])
+	img, err := base64.StdEncoding.DecodeString(parsed.Data[0].B64JSON)
 	if err != nil {
-		return nil, fmt.Errorf("ai: openrouter decode image data: %w", err)
+		return nil, "", fmt.Errorf("ai: openrouter decode image data: %w", err)
 	}
 	if len(img) == 0 {
-		return nil, fmt.Errorf("ai: openrouter image is empty")
+		return nil, "", fmt.Errorf("ai: openrouter image is empty")
 	}
-	return img, nil
+	return img, strings.TrimSpace(parsed.Data[0].MediaType), nil
 }
 
-// sanitizeModelSlug trims an env-provided model slug and rejects an
-// unsubstituted lifecycle placeholder (e.g. "${OPENROUTER_IMAGE_MODEL}" when the
-// var is unset) so the provider falls back to the default rather than POSTing a
-// bogus model id.
-func sanitizeModelSlug(raw string) string {
-	v := strings.TrimSpace(raw)
-	if v == "" || strings.HasPrefix(v, "${") {
-		return ""
+// resolveOpenRouterRole shells out to the OpenRouter resource policy authority to
+// turn a logical role into a concrete model slug + request defaults. resource-
+// openrouter is the single source of truth; this provider never reads the policy
+// file directly.
+func resolveOpenRouterRole(ctx context.Context, role string) (resolvedImageRole, error) {
+	out, err := exec.CommandContext(ctx, "resource-openrouter", "policy", "resolve", "--role", role, "--json").Output()
+	if err != nil {
+		return resolvedImageRole{}, fmt.Errorf("ai: openrouter policy resolve %q: %w", role, err)
 	}
-	return v
+	var resolved resolvedImageRole
+	if err := json.Unmarshal(out, &resolved); err != nil {
+		return resolvedImageRole{}, fmt.Errorf("ai: openrouter decode policy resolve %q: %w", role, err)
+	}
+	if strings.TrimSpace(resolved.Model) == "" {
+		return resolvedImageRole{}, fmt.Errorf("ai: openrouter policy resolve %q returned no model", role)
+	}
+	return resolved, nil
 }
 
 // openRouterKeyUsable reports whether a resolved key looks like a real OpenRouter

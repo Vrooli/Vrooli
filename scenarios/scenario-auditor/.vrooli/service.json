@@ -191,6 +191,15 @@
         "required": true,
         "description": "Auto-detected via analyzer (resource_cli)"
       },
+      "openrouter": {
+        "type": "openrouter",
+        "enabled": true,
+        "required": false,
+        "description": "Role-based model selection for dispatched fix agents via `resource-openrouter policy resolve`",
+        "model_roles": [
+          "agent.tools"
+        ]
+      },
       "ollama": {
         "type": "ollama",
         "enabled": true,

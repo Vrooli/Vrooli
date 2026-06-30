@@ -16,29 +16,32 @@ import (
 
 const fakeKey = "sk-or-v1-0000000000000000000000000000000000000000"
 
+func fakeImageRole(model string) func(context.Context, string) (resolvedImageRole, error) {
+	return func(_ context.Context, _ string) (resolvedImageRole, error) {
+		r := resolvedImageRole{Model: model, Endpoint: "images"}
+		r.RequestDefaults.OutputFormat = "png"
+		return r, nil
+	}
+}
+
 func newTestOpenRouter(t *testing.T, handler http.HandlerFunc) (*openRouterProvider, func()) {
 	t.Helper()
 	srv := httptest.NewServer(handler)
 	p := &openRouterProvider{
-		httpClient: srv.Client(),
-		baseURL:    srv.URL,
-		model:      "test/image-model",
-		resolveKey: func(context.Context) string { return fakeKey },
+		httpClient:  srv.Client(),
+		baseURL:     srv.URL,
+		resolveKey:  func(context.Context) string { return fakeKey },
+		resolveRole: fakeImageRole("test/image-model"),
 	}
 	return p, srv.Close
 }
 
+// imageResponseBody builds an OpenRouter /api/v1/images success body.
 func imageResponseBody(t *testing.T, png []byte) []byte {
 	t.Helper()
 	resp := map[string]any{
-		"choices": []any{
-			map[string]any{
-				"message": map[string]any{
-					"images": []any{
-						map[string]any{"image_url": map[string]any{"url": "data:image/png;base64," + base64.StdEncoding.EncodeToString(png)}},
-					},
-				},
-			},
+		"data": []any{
+			map[string]any{"b64_json": base64.StdEncoding.EncodeToString(png)},
 		},
 	}
 	raw, err := json.Marshal(resp)
@@ -81,8 +84,14 @@ func TestOpenRouter_GenerateWritesImage(t *testing.T) {
 		}
 		var body map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&body)
-		if _, ok := body["modalities"]; !ok {
-			t.Error("request missing image modality")
+		if body["model"] != "test/image-model" {
+			t.Errorf("request model = %v, want test/image-model", body["model"])
+		}
+		if body["prompt"] == nil {
+			t.Error("request missing prompt")
+		}
+		if body["output_format"] != "png" {
+			t.Errorf("request output_format = %v, want png (from request_defaults)", body["output_format"])
 		}
 		_, _ = w.Write(imageResponseBody(t, wantPNG))
 	})
@@ -100,12 +109,46 @@ func TestOpenRouter_GenerateWritesImage(t *testing.T) {
 	if res.Tier != backends.TierBYOK {
 		t.Errorf("tier = %v, want byok-cloud", res.Tier)
 	}
+	if res.Meta["model"] != "test/image-model" || res.Meta["role"] != "image.generate.default" {
+		t.Errorf("meta = %v", res.Meta)
+	}
 	got, err := os.ReadFile(out)
 	if err != nil {
 		t.Fatalf("read output: %v", err)
 	}
 	if string(got) != string(wantPNG) {
 		t.Errorf("written bytes mismatch")
+	}
+}
+
+func TestOpenRouter_ExplicitRoleParam(t *testing.T) {
+	var sawModel string
+	p, closeFn := newTestOpenRouter(t, func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		sawModel, _ = body["model"].(string)
+		_, _ = w.Write(imageResponseBody(t, []byte("PNG")))
+	})
+	// the role param drives which role is resolved; the fake echoes a role-specific model
+	p.resolveRole = func(_ context.Context, role string) (resolvedImageRole, error) {
+		return resolvedImageRole{Model: "model-for/" + role, Endpoint: "images"}, nil
+	}
+	defer closeFn()
+
+	out := filepath.Join(t.TempDir(), "out.png")
+	res, err := p.Execute(context.Background(), backends.Request{
+		Operation: "text_to_image",
+		Params:    map[string]string{"prompt": "logo", "openrouter_role": "image.generate.logo"},
+		Output:    storage.OutputTarget{LocalPath: out},
+	})
+	if err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	if sawModel != "model-for/image.generate.logo" {
+		t.Errorf("explicit role not honored: model = %q", sawModel)
+	}
+	if res.Meta["role"] != "image.generate.logo" {
+		t.Errorf("meta role = %q", res.Meta["role"])
 	}
 }
 
@@ -117,16 +160,12 @@ func TestOpenRouter_EditSendsInputImage(t *testing.T) {
 	sawImage := false
 	p, closeFn := newTestOpenRouter(t, func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
-			Messages []struct {
-				Content []map[string]any `json:"content"`
-			} `json:"messages"`
+			InputReferences []map[string]any `json:"input_references"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&body)
-		for _, m := range body.Messages {
-			for _, c := range m.Content {
-				if c["type"] == "image_url" {
-					sawImage = true
-				}
+		for _, ref := range body.InputReferences {
+			if ref["type"] == "image_url" {
+				sawImage = true
 			}
 		}
 		_, _ = w.Write(imageResponseBody(t, []byte("EDITED")))
@@ -144,7 +183,7 @@ func TestOpenRouter_EditSendsInputImage(t *testing.T) {
 		t.Fatalf("execute: %v", err)
 	}
 	if !sawImage {
-		t.Error("edit request did not include the source image")
+		t.Error("edit request did not include the source image via input_references")
 	}
 }
 
@@ -167,7 +206,7 @@ func TestOpenRouter_ErrorStatusSurfaces(t *testing.T) {
 
 func TestOpenRouter_NoImageInResponse(t *testing.T) {
 	p, closeFn := newTestOpenRouter(t, func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"choices":[{"message":{"images":[]}}]}`))
+		_, _ = w.Write([]byte(`{"data":[]}`))
 	})
 	defer closeFn()
 
@@ -196,23 +235,23 @@ func TestOpenRouter_RequiresPrompt(t *testing.T) {
 	}
 }
 
-func TestSanitizeModelSlug(t *testing.T) {
-	cases := map[string]string{
-		"":                          "",
-		"  ":                        "",
-		"${OPENROUTER_IMAGE_MODEL}": "", // unsubstituted lifecycle placeholder
-		" google/gemini-2.5-flash ": "google/gemini-2.5-flash",
-		"openai/some-image-model":   "openai/some-image-model",
+func TestRoleForRequest(t *testing.T) {
+	cases := []struct {
+		op     string
+		params map[string]string
+		want   string
+	}{
+		{"text_to_image", nil, "image.generate.default"},
+		{"edit_instruct", nil, "image.edit.default"},
+		{"image_to_image", nil, "image.edit.default"},
+		{"text_to_image", map[string]string{"openrouter_role": "image.generate.logo"}, "image.generate.logo"},
+		{"edit_instruct", map[string]string{"openrouter_role": "image.edit.identity"}, "image.edit.identity"},
 	}
-	for in, want := range cases {
-		if got := sanitizeModelSlug(in); got != want {
-			t.Errorf("sanitizeModelSlug(%q) = %q, want %q", in, got, want)
+	for _, c := range cases {
+		got := roleForRequest(backends.Request{Operation: c.op, Params: c.params})
+		if got != c.want {
+			t.Errorf("roleForRequest(%q,%v) = %q, want %q", c.op, c.params, got, c.want)
 		}
-	}
-	// An unset placeholder resolves to the default model, not a bogus slug.
-	t.Setenv("OPENROUTER_IMAGE_MODEL", "${OPENROUTER_IMAGE_MODEL}")
-	if p := newOpenRouterProvider(); p.model != defaultOpenRouterImageModel {
-		t.Errorf("placeholder model = %q, want default %q", p.model, defaultOpenRouterImageModel)
 	}
 }
 

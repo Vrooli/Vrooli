@@ -529,7 +529,7 @@ func createRuleWithAIHandler(w http.ResponseWriter, r *http.Request) {
 		Name:     name,
 		Action:   agentActionCreateRule,
 		Prompt:   prompt,
-		Model:    openRouterModel,
+		Model:    openRouterModel(),
 		Metadata: metadata,
 	})
 	if err != nil {
@@ -622,7 +622,7 @@ func editRuleWithAIHandler(w http.ResponseWriter, r *http.Request) {
 		Name:     name,
 		Action:   agentActionEditRule,
 		Prompt:   prompt,
-		Model:    openRouterModel,
+		Model:    openRouterModel(),
 		Metadata: metadata,
 	})
 	if err != nil {

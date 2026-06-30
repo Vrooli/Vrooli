@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"sort"
@@ -41,8 +42,20 @@ const (
 )
 
 const (
-	defaultOpenRouterModel = "openrouter/x-ai/grok-code-fast-1"
-	defaultAllowedTools    = "read,write,edit,bash"
+	defaultAllowedTools = "read,write,edit,bash"
+
+	// envAgentModel is an advanced, explicit override: when set, its value is
+	// used verbatim as the opencode/agent-manager model string. There is NO
+	// concrete model slug default in source — when this is unset the model is
+	// resolved from a role via the OpenRouter resource policy (see
+	// resolveAgentModel).
+	envAgentModel = "SCENARIO_AUDITOR_AGENT_MODEL"
+	// envAgentRole names the OpenRouter policy role to resolve when no explicit
+	// model override is set. Defaults to defaultAgentRole.
+	envAgentRole = "SCENARIO_AUDITOR_AGENT_ROLE"
+	// defaultAgentRole is the OpenRouter policy role resolved for dispatched fix
+	// agents when neither an explicit model nor an explicit role is configured.
+	defaultAgentRole = "agent.tools"
 
 	agentManagerProfileKey   = "scenario-auditor-opencode"
 	agentManagerProfileName  = "Scenario Auditor OpenCode"
@@ -53,7 +66,15 @@ const (
 	metadataAttachmentKey    = "scenario-auditor-metadata"
 )
 
-var openRouterModel = resolveOpenRouterModel()
+// resolveAgentModelRole is the seam tests override to avoid shelling out to
+// resource-openrouter. It resolves an OpenRouter policy role (e.g. "agent.tools")
+// to a concrete OpenRouter model slug (e.g. "z-ai/glm-5.2").
+var resolveAgentModelRole = execResolveAgentModelRole
+
+var (
+	agentModelMu    sync.Mutex
+	agentModelCache string
+)
 
 // AgentInfo represents an active or completed agent run tracked by scenario-auditor.
 type AgentInfo struct {
@@ -118,23 +139,89 @@ func NewAgentManager() *AgentManager {
 	}
 }
 
-func resolveOpenRouterModel() string {
-	if override := strings.TrimSpace(os.Getenv("SCENARIO_AUDITOR_AGENT_MODEL")); override != "" {
-		if strings.EqualFold(override, "default") {
-			return defaultOpenRouterModel
-		}
-		if strings.Contains(override, "/") && !strings.HasPrefix(strings.ToLower(override), "openrouter/") {
-			return "openrouter/" + override
-		}
-		return override
+// execResolveAgentModelRole shells out to the OpenRouter resource policy to
+// resolve a role to a concrete model slug. The OpenRouter resource is the only
+// model-selection authority; there is deliberately no hard-coded slug fallback.
+func execResolveAgentModelRole(role string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "resource-openrouter", "policy", "resolve", "--role", role, "--field", "model")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("resource-openrouter policy resolve --role %s --field model: %w", role, err)
 	}
-	return defaultOpenRouterModel
+	return strings.TrimSpace(string(out)), nil
+}
+
+// computeAgentModel determines the default opencode/agent-manager model string.
+// Precedence: explicit env override (used verbatim) > the OpenRouter policy role
+// resolved into an opencode-style provider-prefixed ref. There is no concrete
+// slug default in source; if resolution fails and no override is set, this
+// returns a clear error rather than substituting a slug.
+func computeAgentModel() (string, error) {
+	if override := strings.TrimSpace(os.Getenv(envAgentModel)); override != "" {
+		// Advanced override: honor the user-supplied model string as-is.
+		return override, nil
+	}
+	role := strings.TrimSpace(os.Getenv(envAgentRole))
+	if role == "" {
+		role = defaultAgentRole
+	}
+	slug, err := resolveAgentModelRole(role)
+	if err != nil {
+		return "", fmt.Errorf("resolve agent model for role %q: %w (set %s to override explicitly)", role, err, envAgentModel)
+	}
+	slug = strings.TrimSpace(slug)
+	if slug == "" {
+		return "", fmt.Errorf("resource-openrouter returned an empty model for role %q (set %s to override explicitly)", role, envAgentModel)
+	}
+	// The dispatch path expects an opencode-style provider-prefixed ref of the
+	// form "openrouter/<openrouter-slug>"; the policy returns the bare OpenRouter
+	// slug (e.g. "z-ai/glm-5.2").
+	return "openrouter/" + slug, nil
+}
+
+// resolveAgentModel returns the resolved default agent model, caching successful
+// resolutions. Failures are not cached so a transient resource-openrouter outage
+// can recover on the next call.
+func resolveAgentModel() (string, error) {
+	agentModelMu.Lock()
+	defer agentModelMu.Unlock()
+	if agentModelCache != "" {
+		return agentModelCache, nil
+	}
+	model, err := computeAgentModel()
+	if err != nil {
+		return "", err
+	}
+	agentModelCache = model
+	return model, nil
+}
+
+// openRouterModel returns the resolved default agent model, or an empty string
+// when resolution fails. Call sites that must fail loudly (agent dispatch) use
+// resolveAgentModel or selectAgentModel directly to surface the error.
+func openRouterModel() string {
+	model, _ := resolveAgentModel()
+	return model
+}
+
+// selectAgentModel resolves the model for a dispatched agent. A non-empty
+// explicit request is normalized and honored; otherwise the default is resolved
+// via the OpenRouter resource policy and any failure is surfaced rather than
+// silently substituting a slug.
+func selectAgentModel(requested string) (string, error) {
+	trimmed := strings.TrimSpace(requested)
+	if trimmed != "" && !strings.EqualFold(trimmed, "default") {
+		return normalizeAgentModel(trimmed), nil
+	}
+	return resolveAgentModel()
 }
 
 func normalizeAgentModel(requested string) string {
 	trimmed := strings.TrimSpace(requested)
 	if trimmed == "" || strings.EqualFold(trimmed, "default") {
-		return openRouterModel
+		return openRouterModel()
 	}
 	lower := strings.ToLower(trimmed)
 	if strings.HasPrefix(lower, "openrouter/") || strings.HasPrefix(lower, "opencode/") || strings.HasPrefix(lower, "openai/") || strings.HasPrefix(lower, "anthropic/") || strings.HasPrefix(lower, "google/") || strings.HasPrefix(lower, "x-ai/") || strings.HasPrefix(lower, "mistral/") || strings.HasPrefix(lower, "deepseek/") {
@@ -220,7 +307,11 @@ func (am *AgentManager) StartAgent(cfg AgentStartConfig) (*AgentInfo, error) {
 	}
 	sandboxScope := path.Join("scenarios", auditTarget)
 
-	cfg.Model = normalizeAgentModel(cfg.Model)
+	resolvedModel, err := selectAgentModel(cfg.Model)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve agent model: %w", err)
+	}
+	cfg.Model = resolvedModel
 	allowedTools := configuredAllowedTools()
 	maxTurns := configuredMaxTurns(len(cfg.IssueIDs))
 	taskTimeoutSeconds := configuredTaskTimeout(len(cfg.IssueIDs))
@@ -473,7 +564,7 @@ func (am *AgentManager) defaultProfile() *domainpb.AgentProfile {
 		ProfileKey:           agentManagerProfileKey,
 		Description:          "OpenCode profile for scenario-auditor automated fixes",
 		RunnerType:           domainpb.RunnerType_RUNNER_TYPE_OPENCODE,
-		Model:                openRouterModel,
+		Model:                openRouterModel(),
 		MaxTurns:             int32(configuredMaxTurns(1)),
 		Timeout:              durationpb.New(time.Duration(timeout) * time.Second),
 		AllowedTools:         configuredAllowedTools(),
@@ -580,7 +671,7 @@ func (am *AgentManager) composeAgentInfo(agentID string, run *domainpb.Run, task
 		model = strings.TrimSpace(run.GetResolvedConfig().GetModel())
 	}
 	if model == "" {
-		model = openRouterModel
+		model = openRouterModel()
 	}
 
 	metadata := cloneMetadata(meta.Metadata)

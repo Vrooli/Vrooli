@@ -1,9 +1,10 @@
 package config_test
 
 import (
-	"agent-inbox/config"
 	"testing"
 	"time"
+
+	"agent-inbox/config"
 )
 
 func TestDefault_ReturnsValidConfig(t *testing.T) {
@@ -34,8 +35,11 @@ func TestDefault_ServerDefaults(t *testing.T) {
 func TestDefault_AIDefaults(t *testing.T) {
 	cfg := config.Default()
 
-	if cfg.AI.DefaultModel != "anthropic/claude-3.5-sonnet" {
-		t.Errorf("expected DefaultModel 'anthropic/claude-3.5-sonnet', got %v", cfg.AI.DefaultModel)
+	if cfg.AI.DefaultRole != "chat.default" {
+		t.Errorf("expected DefaultRole 'chat.default', got %v", cfg.AI.DefaultRole)
+	}
+	if cfg.AI.DefaultModel != "" {
+		t.Errorf("expected DefaultModel to be empty (no concrete code default), got %v", cfg.AI.DefaultModel)
 	}
 	if cfg.AI.CompletionTimeout != 120*time.Second {
 		t.Errorf("expected CompletionTimeout 120s, got %v", cfg.AI.CompletionTimeout)

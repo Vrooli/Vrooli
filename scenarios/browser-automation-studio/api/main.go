@@ -197,6 +197,7 @@ func main() {
 		EnableDevMode: cfg.AIProvider.EnableDevMode,
 		VrooliAPIURL:  cfg.AIProvider.VrooliAPIURL,
 		DefaultModel:  cfg.AIProvider.DefaultModel,
+		Role:          cfg.AIProvider.DefaultRole,
 	})
 	aiClientFactory := ai.NewAIClientFactory(ai.AIClientFactoryOptions{
 		Chain:  aiProviderChain,

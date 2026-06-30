@@ -183,7 +183,10 @@
         "enabled": true,
         "required": true,
         "startup_policy": "must_start",
-        "description": "Auto-detected via analyzer (resource_cli)"
+        "description": "Auto-detected via analyzer (resource_cli)",
+        "model_roles": [
+          "chat.default"
+        ]
       }
     },
     "scenarios": {

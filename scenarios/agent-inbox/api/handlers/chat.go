@@ -9,6 +9,7 @@
 package handlers
 
 import (
+	"agent-inbox/config"
 	"agent-inbox/domain"
 	"agent-inbox/middleware"
 	"encoding/json"
@@ -50,7 +51,16 @@ func (h *Handlers) CreateChat(w http.ResponseWriter, r *http.Request) {
 		req.Name = "New Chat"
 	}
 	if req.Model == "" {
-		req.Model = "anthropic/claude-3.5-sonnet"
+		// No per-request model: resolve the operator default via policy role.
+		// There is no concrete code default; if the OpenRouter resource is
+		// unavailable and no explicit override is configured, fail clearly.
+		resolved, err := config.ResolveDefaultChatModel(r.Context())
+		if err != nil {
+			log.Printf("[ERROR] [%s] CreateChat default-model resolution failed: %v", middleware.GetRequestID(r.Context()), err)
+			h.WriteAppError(w, r, domain.ErrOpenRouterUnavailable(err))
+			return
+		}
+		req.Model = resolved
 	}
 	if req.ViewMode == "" {
 		req.ViewMode = domain.ViewModeBubble

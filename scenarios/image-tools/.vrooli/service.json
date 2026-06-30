@@ -283,12 +283,22 @@
       "comfyui": {
         "required": false,
         "notes": "Optional plug-in backend for AI ops, accepted only when already installed. Never required: every AI op ships at least one standalone (non-ComfyUI) backend per the headless tenet (docs/internal/DECISIONS.md). AI model download/runtime is managed internally by the model registry, not as a Vrooli resource."
+      },
+      "openrouter": {
+        "type": "openrouter",
+        "required": false,
+        "notes": "Optional BYOK cloud image backend (last tier). The concrete model is resolved per request from an OpenRouter policy role; callers carry intent via the openrouter_role param.",
+        "model_roles": [
+          "image.generate.default",
+          "image.generate.logo",
+          "image.edit.default",
+          "image.edit.identity"
+        ]
       }
     }
   },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/image-tools.db",
-    "OPENROUTER_API_KEY": "${OPENROUTER_API_KEY}",
-    "OPENROUTER_IMAGE_MODEL": "${OPENROUTER_IMAGE_MODEL}"
+    "OPENROUTER_API_KEY": "${OPENROUTER_API_KEY}"
   }
 }

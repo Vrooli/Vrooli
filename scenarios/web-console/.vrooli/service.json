@@ -252,6 +252,17 @@
         "model_roles": [
           "chat.default"
         ]
+      },
+      "openrouter": {
+        "type": "openrouter",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Cloud LLM provider (BYOK) for AI command generation; used as the fallback when Ollama is unavailable. Model selection resolves through resource-openrouter policy roles.",
+        "degraded_behavior": "AI generation is unavailable only if both Ollama and OpenRouter are unreachable; OpenRouter requires OPENROUTER_API_KEY.",
+        "model_roles": [
+          "chat.default"
+        ]
       }
     },
     "scenarios": {

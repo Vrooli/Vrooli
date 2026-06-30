@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -29,9 +30,13 @@ type ResourceClaimSpec struct {
 	// once its claim has been idle this long the broker proactively unloads it to
 	// floor (advisory logs / enforce actuates), accepting a cold start on next use.
 	// 0 (the default) disables it for this resource — autonomous unload is opt-in.
-	IdleUnloadTTLSeconds int             `json:"idle_unload_ttl_seconds,omitempty"`
-	TTLSeconds           int             `json:"ttl_seconds,omitempty"`
-	Profile              *DegradeProfile `json:"profile,omitempty"`
+	IdleUnloadTTLSeconds int `json:"idle_unload_ttl_seconds,omitempty"`
+	// IdleGraceSeconds overrides the global demand-driven reclaim grace for this
+	// resource. 0 keeps policy.idle_grace. Use this for warm audio/STT resources
+	// that should remain resident briefly after recent use.
+	IdleGraceSeconds int             `json:"idle_grace_seconds,omitempty"`
+	TTLSeconds       int             `json:"ttl_seconds,omitempty"`
+	Profile          *DegradeProfile `json:"profile,omitempty"`
 }
 
 // resourceManifestEnvelope is the minimal shape we decode from resource.json —
@@ -137,6 +142,37 @@ func AdmitResource(ctx context.Context, opts AdmitOptions) (AdmissionResult, err
 
 	req := spec.toRequest(opts.ResourceName)
 	verdict := Verdict{Kind: VerdictGrant, GrantedBytes: req.PreferredBytes}
+	var admissionWarnings []string
+	existing, listErr := store.ListClaims(ctx, ClaimFilter{
+		OwnerKind:    OwnerKindResource,
+		OwnerID:      opts.ResourceName,
+		ResourceKind: req.ResourceKind,
+		Statuses:     ActiveClaimStatuses(),
+	})
+	if listErr != nil {
+		return AdmissionResult{}, listErr
+	}
+	var reusable *CapacityClaim
+	for _, claim := range existing {
+		claim := claim
+		if claimMatchesResourceRequest(claim, req) && reusable == nil {
+			reusable = &claim
+			continue
+		}
+		if _, err := store.ReleaseClaim(ctx, claim.ClaimID); err != nil {
+			return AdmissionResult{}, fmt.Errorf("release stale capacity claim %s: %w", claim.ClaimID, err)
+		}
+		admissionWarnings = append(admissionWarnings, fmt.Sprintf("released stale capacity claim %s for manifest refresh", claim.ClaimID))
+	}
+	if reusable != nil {
+		reused := *reusable
+		if refreshed, hbErr := store.HeartbeatClaim(ctx, reused.ClaimID, reused.Generation, normalizeAdmitTTL(req.TTL)); hbErr == nil {
+			reused = refreshed
+		}
+		verdict.Warnings = append(verdict.Warnings, admissionWarnings...)
+		return AdmissionResult{Enforce: effective, Verdict: verdict, ClaimID: reused.ClaimID, Reason: "reused existing active claim"}, nil
+	}
+
 	source := opts.Source
 	if source == nil {
 		source = HostInventorySource{}
@@ -166,6 +202,7 @@ func AdmitResource(ctx context.Context, opts AdmitOptions) (AdmissionResult, err
 		ledger = listed
 		verdict = Decide(req, snapshot, ledger, policy, now)
 	}
+	verdict.Warnings = append(verdict.Warnings, admissionWarnings...)
 
 	// Enforce-mode actuation (§8.8): when the grant depends on reclaiming idle
 	// lower-priority capacity, plan + actuate the degrade ladder BEFORE recording
@@ -192,27 +229,6 @@ func AdmitResource(ctx context.Context, opts AdmitOptions) (AdmissionResult, err
 			status = StatusDegraded
 		}
 	}
-	// Idempotent claim (§8.7): a resident that is re-admitted (lifecycle restart,
-	// repeated start) must NOT stack a second claim. If an active claim for this
-	// (resource owner, resource_kind) already exists, renew its heartbeat and
-	// reuse it instead of inserting a duplicate.
-	existing, listErr := store.ListClaims(ctx, ClaimFilter{
-		OwnerKind:    OwnerKindResource,
-		OwnerID:      opts.ResourceName,
-		ResourceKind: req.ResourceKind,
-		Statuses:     ActiveClaimStatuses(),
-	})
-	if listErr != nil {
-		return AdmissionResult{}, listErr
-	}
-	if len(existing) > 0 {
-		reused := existing[0]
-		if refreshed, hbErr := store.HeartbeatClaim(ctx, reused.ClaimID, reused.Generation, normalizeAdmitTTL(req.TTL)); hbErr == nil {
-			reused = refreshed
-		}
-		return AdmissionResult{Enforce: effective, Verdict: verdict, ClaimID: reused.ClaimID, Reason: "reused existing active claim"}, nil
-	}
-
 	claim := CapacityClaim{
 		OwnerKind:      OwnerKindResource,
 		OwnerID:        opts.ResourceName,
@@ -225,6 +241,7 @@ func AdmitResource(ctx context.Context, opts AdmitOptions) (AdmissionResult, err
 		Protected:      req.Protected,
 		YieldWhenIdle:  req.YieldWhenIdle,
 		IdleUnloadTTL:  req.IdleUnloadTTL,
+		IdleGrace:      req.IdleGrace,
 		Status:         status,
 		DegradeProfile: req.Profile,
 	}
@@ -233,6 +250,19 @@ func AdmitResource(ctx context.Context, opts AdmitOptions) (AdmissionResult, err
 		return AdmissionResult{}, err
 	}
 	return AdmissionResult{Enforce: effective, Verdict: verdict, ClaimID: created.ClaimID}, nil
+}
+
+func claimMatchesResourceRequest(claim CapacityClaim, req CapacityRequest) bool {
+	return claim.ResourceKind == req.ResourceKind &&
+		claim.GPUIndex == req.GPUIndex &&
+		claim.PreferredBytes == req.PreferredBytes &&
+		claim.FloorBytes == req.FloorBytes &&
+		claim.Priority == req.Priority &&
+		claim.Protected == req.Protected &&
+		claim.YieldWhenIdle == req.YieldWhenIdle &&
+		claim.IdleUnloadTTL == req.IdleUnloadTTL &&
+		claim.IdleGrace == req.IdleGrace &&
+		reflect.DeepEqual(claim.DegradeProfile, req.Profile)
 }
 
 // normalizeAdmitTTL resolves the heartbeat TTL for a reused claim: a declared
@@ -262,6 +292,7 @@ func (spec ResourceClaimSpec) toRequest(resourceName string) CapacityRequest {
 		Protected:      spec.Protected,
 		YieldWhenIdle:  spec.YieldWhenIdle,
 		IdleUnloadTTL:  time.Duration(spec.IdleUnloadTTLSeconds) * time.Second,
+		IdleGrace:      time.Duration(spec.IdleGraceSeconds) * time.Second,
 		Profile:        spec.Profile,
 		TTL:            ttl,
 	}

@@ -108,21 +108,30 @@ func (o *OllamaProvider) run(ctx context.Context, args []string, stdin string) (
 }
 
 // OpenRouterProvider calls the OpenRouter API as a fallback.
+//
+// Greenfield: this provider selects NO concrete model. It resolves an OpenRouter
+// policy ROLE (default chat.default) to a concrete slug through
+// `resource-openrouter policy resolve`; resource-openrouter is the single source
+// of truth.
 type OpenRouterProvider struct {
 	APIKey string
-	Model  string
+	Role   string
 	Client *http.Client
+
+	// Runner is an optional seam for tests; production callers leave it nil and
+	// the real resource-openrouter binary is exec'd to resolve the role.
+	Runner func(ctx context.Context, args []string) ([]byte, error)
 }
 
 // NewOpenRouterProvider creates an OpenRouter provider with env-configurable settings.
 func NewOpenRouterProvider() *OpenRouterProvider {
-	model := os.Getenv("WC_OPENROUTER_MODEL")
-	if model == "" {
-		model = "meta-llama/llama-3-8b-instruct"
+	role := os.Getenv("WC_OPENROUTER_ROLE")
+	if role == "" {
+		role = "chat.default"
 	}
 	return &OpenRouterProvider{
 		APIKey: os.Getenv("OPENROUTER_API_KEY"),
-		Model:  model,
+		Role:   role,
 		Client: &http.Client{Timeout: DefaultProviderTimeout},
 	}
 }
@@ -134,8 +143,13 @@ func (o *OpenRouterProvider) Generate(ctx context.Context, systemPrompt, userPro
 		return "", fmt.Errorf("OPENROUTER_API_KEY not set")
 	}
 
+	model, err := o.resolveModel(ctx, o.Role)
+	if err != nil {
+		return "", err
+	}
+
 	body := map[string]any{
-		"model": o.Model,
+		"model": model,
 		"messages": []map[string]string{
 			{"role": "system", "content": systemPrompt},
 			{"role": "user", "content": userPrompt},
@@ -177,6 +191,41 @@ func (o *OpenRouterProvider) Generate(ctx context.Context, systemPrompt, userPro
 		return "", fmt.Errorf("no choices in response")
 	}
 	return result.Choices[0].Message.Content, nil
+}
+
+// resolveModel turns a policy role into a concrete OpenRouter model slug via
+// `resource-openrouter policy resolve`. The resource is the authority; this
+// provider never reads the policy file or hard-codes a model slug.
+func (o *OpenRouterProvider) resolveModel(ctx context.Context, role string) (string, error) {
+	role = strings.TrimSpace(role)
+	if role == "" {
+		role = "chat.default"
+	}
+	args := []string{"policy", "resolve", "--role", role, "--field", "model"}
+	out, err := o.run(ctx, args)
+	if err != nil {
+		return "", fmt.Errorf("resource-openrouter policy resolve %q: %w", role, err)
+	}
+	model := strings.TrimSpace(string(out))
+	if model == "" {
+		return "", fmt.Errorf("resource-openrouter policy resolve %q returned no model", role)
+	}
+	return model, nil
+}
+
+func (o *OpenRouterProvider) run(ctx context.Context, args []string) ([]byte, error) {
+	if o.Runner != nil {
+		return o.Runner(ctx, args)
+	}
+	cmd := exec.CommandContext(ctx, "resource-openrouter", args...)
+	out, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok && len(exitErr.Stderr) > 0 {
+			return nil, fmt.Errorf("%w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, err
+	}
+	return out, nil
 }
 
 func checkProviderResponse(resp *http.Response, providerName string) error {

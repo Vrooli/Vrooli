@@ -29,6 +29,11 @@ type TestServer struct {
 
 // setupTestServer creates a test server with an in-memory SQLite database.
 func setupTestServer(t *testing.T) *TestServer {
+	// New chats with no per-request model resolve their default from the
+	// OpenRouter policy role. Set an explicit operator override so handler-driven
+	// chat creation stays hermetic (no resource-openrouter binary required).
+	t.Setenv("DEFAULT_AI_MODEL", "vendor/test-default-model")
+
 	db, err := sql.Open("sqlite", ":memory:?_pragma=foreign_keys(ON)")
 	if err != nil {
 		t.Fatalf("Failed to open in-memory SQLite: %v", err)

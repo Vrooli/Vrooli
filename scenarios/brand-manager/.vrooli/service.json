@@ -220,7 +220,8 @@
         "type": "openrouter",
         "enabled": true,
         "required": false,
-        "description": "Fallback AI provider in the AIProviderChain when Ollama is unavailable or lacks a model"
+        "description": "Fallback AI provider in the AIProviderChain when Ollama is unavailable or lacks a model. Text model resolves through an OpenRouter policy role.",
+        "model_roles": ["chat.default"]
       }
     }
   },

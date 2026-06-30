@@ -94,7 +94,7 @@ func TestAutomatedFixStoreSplitsConfigAndHistory(t *testing.T) {
 			Strategy:       defaultAutomatedFixStrategy,
 			LoopDelay:      defaultLoopDelaySeconds,
 			TimeoutSeconds: defaultTimeoutSeconds,
-			Model:          openRouterModel,
+			Model:          openRouterModel(),
 		},
 		maxHistory: 10,
 	}

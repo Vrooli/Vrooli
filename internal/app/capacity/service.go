@@ -96,9 +96,11 @@ type ClaimView struct {
 	ObservedPeakBytes int64   `json:"observed_peak_bytes"`
 	ObservedAt        *string `json:"observed_at,omitempty"`
 	IdleUnloadTTL     string  `json:"idle_unload_ttl,omitempty"`
+	IdleGrace         string  `json:"idle_grace,omitempty"`
+	IdleReclaimState  string  `json:"idle_reclaim_state,omitempty"`
 }
 
-func viewClaim(c engine.CapacityClaim) ClaimView {
+func viewClaim(c engine.CapacityClaim, policy engine.Policy, now time.Time) ClaimView {
 	v := ClaimView{
 		ClaimID:           c.ClaimID,
 		OwnerKind:         c.OwnerKind,
@@ -130,7 +132,32 @@ func viewClaim(c engine.CapacityClaim) ClaimView {
 	if c.IdleUnloadTTL > 0 {
 		v.IdleUnloadTTL = c.IdleUnloadTTL.String()
 	}
+	grace := c.IdleGrace
+	if grace <= 0 {
+		grace = policy.IdleGrace
+	}
+	if grace > 0 {
+		v.IdleGrace = grace.String()
+	}
+	v.IdleReclaimState = idleReclaimState(c, grace, now)
 	return v
+}
+
+func idleReclaimState(c engine.CapacityClaim, grace time.Duration, now time.Time) string {
+	if !engine.IsActiveClaimStatus(c.Status) {
+		return "terminal"
+	}
+	if c.ActivityState != engine.ActivityIdle {
+		return "active"
+	}
+	since := c.LastActiveAt
+	if since == nil {
+		since = &c.CreatedAt
+	}
+	if grace > 0 && now.Before(since.Add(grace)) {
+		return "warm_idle"
+	}
+	return "cold_idle"
 }
 
 // ClaimRequest is the parsed `vrooli capacity claim` input.
@@ -146,6 +173,7 @@ type ClaimRequest struct {
 	Protected      bool
 	YieldWhenIdle  bool
 	IdleUnloadTTL  time.Duration
+	IdleGrace      time.Duration
 	ProfileJSON    string
 	TTL            time.Duration
 }
@@ -187,6 +215,7 @@ func (s Service) Claim(ctx context.Context, req ClaimRequest) (ClaimOutput, erro
 		Protected:      req.Protected,
 		YieldWhenIdle:  req.YieldWhenIdle,
 		IdleUnloadTTL:  req.IdleUnloadTTL,
+		IdleGrace:      req.IdleGrace,
 		Profile:        profile,
 		TTL:            req.TTL,
 	}
@@ -237,6 +266,7 @@ func (s Service) Claim(ctx context.Context, req ClaimRequest) (ClaimOutput, erro
 		Protected:      req.Protected,
 		YieldWhenIdle:  req.YieldWhenIdle,
 		IdleUnloadTTL:  req.IdleUnloadTTL,
+		IdleGrace:      req.IdleGrace,
 		Status:         status,
 		DegradeProfile: profile,
 	}
@@ -244,7 +274,7 @@ func (s Service) Claim(ctx context.Context, req ClaimRequest) (ClaimOutput, erro
 	if err != nil {
 		return ClaimOutput{}, err
 	}
-	return ClaimOutput{Verdict: verdict, Claim: viewClaim(created), Enforce: policy.EffectiveEnforce(envEnforce())}, nil
+	return ClaimOutput{Verdict: verdict, Claim: viewClaim(created, policy, s.now()), Enforce: policy.EffectiveEnforce(envEnforce())}, nil
 }
 
 // Ref identifies a single claim by ID, with the generation for guarded ops.
@@ -318,11 +348,15 @@ func (s Service) mutate(ctx context.Context, fn func(Store) (engine.CapacityClai
 		return ClaimView{}, err
 	}
 	defer store.Close()
+	policy, err := store.GetPolicy(ctx)
+	if err != nil {
+		return ClaimView{}, err
+	}
 	claim, err := fn(store)
 	if err != nil {
 		return ClaimView{}, err
 	}
-	return viewClaim(claim), nil
+	return viewClaim(claim, policy, s.now()), nil
 }
 
 func resolveStepAmount(c engine.CapacityClaim, label string) (int64, bool) {
@@ -370,8 +404,13 @@ func (s Service) List(ctx context.Context, req ListRequest) (ListOutput, error) 
 		return ListOutput{}, err
 	}
 	out := ListOutput{Claims: make([]ClaimView, 0, len(claims))}
+	policy, err := store.GetPolicy(ctx)
+	if err != nil {
+		return ListOutput{}, err
+	}
+	now := s.now()
 	for _, c := range claims {
-		out.Claims = append(out.Claims, viewClaim(c))
+		out.Claims = append(out.Claims, viewClaim(c, policy, now))
 	}
 	return out, nil
 }

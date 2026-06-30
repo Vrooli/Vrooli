@@ -105,9 +105,13 @@ landing and are tracked here:
   internally).
 
 - **Detection for additional runtimes.** Cursor (background agent),
-  Gemini CLI, Grok CLI — same verification methodology as codex/
-  opencode; deferred until agent-manager runners exist for each. Until
-  then, the gate falls through to `CallerKindUnknown` (treated as
+  Antigravity CLI — same verification methodology as codex/opencode/
+  grok; deferred until a confirmed self-set tool-shell signal exists for
+  each. (Grok CLI graduated 2026-06-28 via its `GROK_AGENT=1` sentinel;
+  Antigravity CLI — Google's `agy`, replacing Gemini CLI — graduated
+  2026-06-29 via `ANTIGRAVITY_AGENT=1`, binary-confirmed with live `/proc`
+  confirmation pending. Cursor remains deferred until a harness exists.)
+  Until then, the gate falls through to `CallerKindUnknown` (treated as
   human) for those sessions, recoverable via `VROOLI_CALLER=agent`.
 
 ## Deferred Ideas

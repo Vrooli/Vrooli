@@ -51,9 +51,17 @@ type ServerConfig struct {
 // AIConfig controls AI model behavior and completion settings.
 // Audience: Operators (defaults), Users (per-chat overrides).
 type AIConfig struct {
-	// DefaultModel is the AI model used for new chats.
-	// Set via DEFAULT_AI_MODEL env var.
-	// Default: "anthropic/claude-3.5-sonnet"
+	// DefaultRole is the OpenRouter policy role used to select the model for
+	// new chats. It is resolved to a concrete model slug at call time via
+	// resource-openrouter (see ResolveModel). Set via DEFAULT_AI_ROLE env var.
+	// Default: "chat.default"
+	DefaultRole string
+
+	// DefaultModel is an advanced, explicit OpenRouter model-slug override.
+	// Set via DEFAULT_AI_MODEL env var. There is NO concrete code default: when
+	// empty, the model is resolved from DefaultRole via resource-openrouter.
+	// Per-request overrides take precedence over this operator-level override.
+	// Default: "" (resolve via role)
 	DefaultModel string
 
 	// CompletionTimeout is the maximum wait time for AI completions.

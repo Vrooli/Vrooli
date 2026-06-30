@@ -21,12 +21,14 @@ const DEFAULT_SECTIONS = [
   { value: 'custom', label: '✏️ Custom Section' },
 ]
 
+// Policy roles, not concrete model slugs. The server resolves the chosen role
+// via the OpenRouter resource policy; "default" lets the server pick the
+// configured default role.
 const MODEL_OPTIONS = [
   { value: 'default', label: 'Default (scenario setting)' },
-  { value: 'openrouter/x-ai/grok-code-fast-1', label: 'x-ai/grok-code-fast-1' },
-  { value: 'openrouter/google/gemini-2.5-flash', label: 'google/gemini-2.5-flash' },
-  { value: 'openrouter/openai/gpt-5', label: 'openai/gpt-5' },
-  { value: 'openrouter/x-ai/grok-4-fast:free', label: 'x-ai/grok-4-fast:free' },
+  { value: 'chat.default', label: 'Fast (chat.default)' },
+  { value: 'chat.quality', label: 'Quality (chat.quality)' },
+  { value: 'agent.tools', label: 'Agent/tools (agent.tools)' },
 ]
 
 interface TemplateDefinition {

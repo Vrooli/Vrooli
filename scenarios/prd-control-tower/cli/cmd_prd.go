@@ -115,7 +115,7 @@ func (a *App) prdGenerate(args []string) error {
 	entityType := fs.String("type", "scenario", "Entity type: scenario or resource")
 	context := fs.String("context", "", "Context for AI generation")
 	contextFile := fs.String("context-file", "", "Path to a file containing context for AI generation")
-	model := fs.String("model", "", "Override OpenRouter model (e.g. openrouter/x-ai/grok-code-fast-1)")
+	model := fs.String("model", "", "Advanced: override the concrete OpenRouter model slug (default: resolved from the chat.default policy role)")
 	owner := fs.String("owner", "", "Owner metadata for the created/updated draft")
 	customPath := fs.String("path", "", "Custom directory for PRD/requirements I/O (overrides default scenario/resource path)")
 
@@ -390,7 +390,7 @@ func (a *App) prdFix(args []string) error {
 	fs := flag.NewFlagSet("prd fix", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 	entityType := fs.String("type", "", "Entity type: scenario or resource (default: auto-detect)")
-	model := fs.String("model", "", "Override OpenRouter model")
+	model := fs.String("model", "", "Advanced: override the concrete OpenRouter model slug (default: resolved from the chat.default policy role)")
 	auto := fs.Bool("auto", false, "Automatically apply fixes without confirmation")
 	noBackup := fs.Bool("no-backup", false, "Do not create a backup before fixing")
 	customPath := fs.String("path", "", "Custom directory for PRD/requirements I/O (overrides default scenario/resource path)")

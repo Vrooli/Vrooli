@@ -40,6 +40,12 @@ func TestCreateChat(t *testing.T) {
 
 // [REQ:BUBBLE-001] Test create chat with default values
 func TestCreateChatWithDefaults(t *testing.T) {
+	// With no per-request model, the default is resolved from the OpenRouter
+	// policy role. There is no hard-coded code default; an explicit operator
+	// override (DEFAULT_AI_MODEL) is honored verbatim and keeps this test
+	// hermetic (no resource-openrouter binary required).
+	t.Setenv("DEFAULT_AI_MODEL", "vendor/test-default-model")
+
 	ts := setupTestServer(t)
 	defer ts.cleanup(t)
 
@@ -62,8 +68,8 @@ func TestCreateChatWithDefaults(t *testing.T) {
 		t.Errorf("Expected default name 'New Chat', got %s", chat.Name)
 	}
 
-	if chat.Model != "anthropic/claude-3.5-sonnet" {
-		t.Errorf("Expected default model 'anthropic/claude-3.5-sonnet', got %s", chat.Model)
+	if chat.Model != "vendor/test-default-model" {
+		t.Errorf("Expected resolved default model 'vendor/test-default-model', got %s", chat.Model)
 	}
 
 	if chat.ViewMode != "bubble" {

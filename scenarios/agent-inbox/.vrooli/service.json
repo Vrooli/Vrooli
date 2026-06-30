@@ -178,7 +178,10 @@
         "type": "openrouter",
         "enabled": true,
         "required": true,
-        "description": "Multi-model chat completions API"
+        "description": "Multi-model chat completions API",
+        "model_roles": [
+          "chat.default"
+        ]
       }
     },
     "scenarios": {

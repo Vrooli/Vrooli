@@ -19,30 +19,55 @@ type OpenRouterClient struct {
 	model string
 }
 
-const (
-	openRouterDefaultModel = "openai/gpt-4o-mini"
-	openRouterCommand      = "resource-openrouter"
-)
+const openRouterCommand = "resource-openrouter"
 
 // NewOpenRouterClient initializes an OpenRouter client instance.
+//
+// No concrete model slug is baked in: the client's model is left unset and the
+// effective model is resolved per call via the OpenRouter resource policy (role
+// based) unless an explicit model override is configured on the client.
 func NewOpenRouterClient(log *logrus.Logger) *OpenRouterClient {
-	model := os.Getenv("BAS_OPENROUTER_MODEL")
-	if strings.TrimSpace(model) == "" {
-		model = openRouterDefaultModel
-	}
-
 	return &OpenRouterClient{
-		log:   log,
-		model: model,
+		log: log,
 	}
 }
 
 // ExecutePrompt sends a prompt through resource-openrouter and returns the raw response text.
+//
+// The model is resolved in order: explicit client model override → role-based
+// resolution via the OpenRouter resource policy. If neither yields a model the
+// call fails — there is no hard-coded fallback slug.
 func (c *OpenRouterClient) ExecutePrompt(ctx context.Context, prompt string) (string, error) {
 	if strings.TrimSpace(prompt) == "" {
 		return "", errors.New("prompt is required")
 	}
-	cmd := exec.CommandContext(ctx, openRouterCommand, "generate", "--model", c.model)
+
+	model := strings.TrimSpace(c.model)
+	if model == "" {
+		resolved, err := resolveRoleModel(ctx, openRouterRole())
+		if err != nil {
+			return "", err
+		}
+		model = resolved
+	}
+	return c.executePromptWithModel(ctx, model, prompt)
+}
+
+// ExecutePromptWithModel sends a prompt through resource-openrouter using an
+// explicit, already-resolved model slug. The caller is responsible for supplying
+// a non-empty model (typically resolved through the OpenRouter resource policy).
+func (c *OpenRouterClient) ExecutePromptWithModel(ctx context.Context, model, prompt string) (string, error) {
+	if strings.TrimSpace(prompt) == "" {
+		return "", errors.New("prompt is required")
+	}
+	if strings.TrimSpace(model) == "" {
+		return "", errors.New("model is required")
+	}
+	return c.executePromptWithModel(ctx, strings.TrimSpace(model), prompt)
+}
+
+func (c *OpenRouterClient) executePromptWithModel(ctx context.Context, model, prompt string) (string, error) {
+	cmd := exec.CommandContext(ctx, openRouterCommand, "generate", "--model", model)
 	cmd.Env = os.Environ()
 	cmd.Stdin = strings.NewReader(prompt)
 
@@ -51,7 +76,7 @@ func (c *OpenRouterClient) ExecutePrompt(ctx context.Context, prompt string) (st
 	duration := time.Since(start)
 
 	fields := logrus.Fields{
-		"model":    c.model,
+		"model":    model,
 		"duration": duration.Milliseconds(),
 		"cmd":      strings.Join(cmd.Args, " "),
 	}

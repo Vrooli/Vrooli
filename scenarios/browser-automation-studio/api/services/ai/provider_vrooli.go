@@ -313,10 +313,11 @@ func (p *VrooliProvider) ExecutePromptWithMetadata(ctx context.Context, prompt s
 }
 
 // Model implements AIProvider.
+//
+// Returns the model the provider was configured with (resolved by the chain
+// through the OpenRouter resource policy, or an explicit override). No concrete
+// default slug is baked in.
 func (p *VrooliProvider) Model() string {
-	if p.model == "" {
-		return "openai/gpt-4o-mini"
-	}
 	return p.model
 }
 

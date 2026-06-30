@@ -23,7 +23,11 @@ func Default() *Config {
 			ShutdownTimeout: 10 * time.Second,
 		},
 		AI: AIConfig{
-			DefaultModel:             getEnvOrDefault("DEFAULT_AI_MODEL", "anthropic/claude-3.5-sonnet"),
+			DefaultRole: getEnvOrDefault("DEFAULT_AI_ROLE", "chat.default"),
+			// DefaultModel is an advanced explicit override only. There is no
+			// concrete code default: when empty, the model is resolved from
+			// DefaultRole via resource-openrouter (see AIConfig.ResolveModel).
+			DefaultModel:             getEnvOrDefault("DEFAULT_AI_MODEL", ""),
 			CompletionTimeout:        120 * time.Second,
 			StreamBufferSize:         4096,
 			CompletionReservePercent: 25,

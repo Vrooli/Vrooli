@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -18,6 +19,57 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
+
+// resolveOpenRouterModelExec resolves an OpenRouter policy role to a concrete
+// model slug by shelling out to resource-openrouter. It is a package-level seam
+// so tests can override role resolution without spawning the real binary.
+var resolveOpenRouterModelExec = func(ctx context.Context, role string) (string, error) {
+	cmd := exec.CommandContext(ctx, "resource-openrouter", "policy", "resolve", "--role", role, "--field", "model")
+	out, err := cmd.Output()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
+			return "", fmt.Errorf("%w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// prdOpenRouterRole returns the OpenRouter policy role used to select the model.
+// It is read from PRD_OPENROUTER_ROLE and defaults to chat.default. There is no
+// concrete model slug baked in.
+func prdOpenRouterRole() string {
+	if role := strings.TrimSpace(os.Getenv("PRD_OPENROUTER_ROLE")); role != "" {
+		return role
+	}
+	return "chat.default"
+}
+
+// resolveOpenRouterModel resolves the concrete OpenRouter model slug for a
+// request. An explicit per-request override (advanced) wins; otherwise the
+// configured policy role is resolved through resource-openrouter. There is no
+// concrete fallback slug: if the resource is unavailable and no override is
+// supplied, this fails clearly.
+func resolveOpenRouterModel(modelOverride string) (string, error) {
+	if override := strings.TrimSpace(modelOverride); override != "" && override != "default" {
+		// Advanced explicit override; tolerate a leading "openrouter/".
+		return strings.TrimPrefix(override, "openrouter/"), nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	role := prdOpenRouterRole()
+	model, err := resolveOpenRouterModelExec(ctx, role)
+	if err != nil {
+		return "", fmt.Errorf("resolve OpenRouter model for role %q via resource-openrouter: %w", role, err)
+	}
+	if model = strings.TrimSpace(model); model == "" {
+		return "", fmt.Errorf("resource-openrouter returned an empty model slug for role %q", role)
+	}
+	return model, nil
+}
 
 // ReferencePRD represents a reference PRD for AI generation
 type ReferencePRD struct {
@@ -386,15 +438,12 @@ func openRouterChatCompletion(baseURL string, prompt string, modelOverride strin
 }
 
 func openRouterChatCompletionInternal(baseURL string, prompt string, modelOverride string, maxTokens int, timeout time.Duration) (string, string, error) {
-	// Determine which model to use
-	model := "anthropic/claude-sonnet-4.6"
-	if modelOverride != "" && modelOverride != "default" {
-		// Remove "openrouter/" prefix if present
-		if strings.HasPrefix(modelOverride, "openrouter/") {
-			model = strings.TrimPrefix(modelOverride, "openrouter/")
-		} else {
-			model = modelOverride
-		}
+	// Determine which model to use: an explicit override wins; otherwise the
+	// configured policy role is resolved through resource-openrouter. No
+	// concrete fallback slug is baked into this binary.
+	model, err := resolveOpenRouterModel(modelOverride)
+	if err != nil {
+		return "", "", err
 	}
 
 	// Call OpenRouter API
@@ -497,8 +546,10 @@ func generateAIContentCLI(draft Draft, section string, context string, action st
 	// Construct prompt
 	prompt := buildPrompt(draft, section, context, action, includeExisting, referencePRDs)
 
-	// Run resource-openrouter
-	cmd := exec.Command("resource-openrouter", "generate", "--model", "anthropic/claude-sonnet-4.6", "--prompt", prompt)
+	// Run resource-openrouter with a policy role; the resource resolves the
+	// concrete model internally. No concrete slug is hard-coded here.
+	role := prdOpenRouterRole()
+	cmd := exec.Command("resource-openrouter", "generate", "--role", role, "--prompt", prompt)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -509,7 +560,7 @@ func generateAIContentCLI(draft Draft, section string, context string, action st
 		return "", "", fmt.Errorf("resource-openrouter failed: %v, stderr: %s", err, stderr.String())
 	}
 
-	return stdout.String(), "anthropic/claude-sonnet-4.6", nil
+	return stdout.String(), role, nil
 }
 
 func generateCompliantFullPRDHTTP(baseURL string, draft Draft, context string, includeExisting bool, referencePRDs []ReferencePRD, modelOverride string, customPath ...string) (string, string, error) {

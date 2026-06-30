@@ -93,7 +93,7 @@ func newAutomatedFixStore() *AutomatedFixStore {
 			LoopDelay:      defaultLoopDelaySeconds,
 			TimeoutSeconds: defaultTimeoutSeconds,
 			MaxFixes:       defaultMaxFixes,
-			Model:          openRouterModel,
+			Model:          openRouterModel(),
 			UpdatedAt:      time.Now().UTC(),
 		},
 		maxHistory: 100,
@@ -380,7 +380,7 @@ func sanitizeConfig(cfg AutomatedFixConfig) AutomatedFixConfig {
 	cfg.LoopDelay = sanitizeLoopDelay(cfg.LoopDelay, defaultLoopDelaySeconds)
 	cfg.TimeoutSeconds = sanitizeTimeout(cfg.TimeoutSeconds, defaultTimeoutSeconds)
 	cfg.MaxFixes = sanitizeMaxFixes(cfg.MaxFixes, defaultMaxFixes)
-	cfg.Model = sanitizeAutomationModel(cfg.Model, openRouterModel)
+	cfg.Model = sanitizeAutomationModel(cfg.Model, openRouterModel())
 	return cfg
 }
 
@@ -476,7 +476,7 @@ func sanitizeAutomationModel(value, fallback string) string {
 		trimmed = strings.TrimSpace(fallback)
 	}
 	if trimmed == "" {
-		trimmed = openRouterModel
+		trimmed = openRouterModel()
 	}
 	return normalizeAgentModel(trimmed)
 }

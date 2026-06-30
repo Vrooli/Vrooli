@@ -71,8 +71,9 @@ var _ Providers = (*Chain)(nil)
 //   - Ollama is always added (local, free, routed through the resource-ollama
 //     gateway CLI). Its role defaults to "chat.default" unless OLLAMA_ROLE is
 //     set.
-//   - OpenRouter is added only when OPENROUTER_API_KEY is set. Its text model
-//     defaults unless OPENROUTER_TEXT_MODEL is set.
+//   - OpenRouter is added only when OPENROUTER_API_KEY is set. Its model is
+//     resolved from a policy role (default chat.default, overridable with
+//     OPENROUTER_ROLE) through resource-openrouter.
 //
 // The chain is never empty (Ollama is always present); whether it is *available*
 // depends on the resource-ollama daemon being reachable at call time.
@@ -81,7 +82,7 @@ func NewChainFromEnv() *Chain {
 	if key := strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY")); key != "" {
 		providers = append(providers, NewOpenRouterProvider(
 			key,
-			strings.TrimSpace(os.Getenv("OPENROUTER_TEXT_MODEL")),
+			strings.TrimSpace(os.Getenv("OPENROUTER_ROLE")),
 		))
 	}
 	return NewChain(providers...)
