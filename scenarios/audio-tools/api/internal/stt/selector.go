@@ -77,6 +77,11 @@ type StreamConfig struct {
 	VADSilenceMs      int
 	OverlapWindowMs   int
 	OverlapCommitRuns int
+	// OverlapMaxWindowMs caps the uncommitted audio buffer for
+	// OverlapAgree. When no prefix commits before this ceiling, the
+	// strategy force-commits the current hypothesis tail instead of letting
+	// the window grow without bound. Default 25000ms.
+	OverlapMaxWindowMs int
 	// OverlapMaxStallRejects is the OverlapAgree stall-fallback policy:
 	// after this many consecutive divergence-rejects the strategy force-
 	// commits the freshest hypothesis tail (bounding tail growth before
@@ -139,6 +144,7 @@ func Defaults() StreamConfig {
 		VADSilenceMs:               DefaultVADSilenceMs,
 		OverlapWindowMs:            2000,
 		OverlapCommitRuns:          2,
+		OverlapMaxWindowMs:         25000,
 		OverlapMaxStallRejects:     3,
 		VADPreRollMs:               300,
 		VADTrailingPadMs:           200,
@@ -335,6 +341,7 @@ func (s *Selector) Select(
 				Provider:        chosen.Provider,
 				WindowMs:        cfg.OverlapWindowMs,
 				CommitRuns:      cfg.OverlapCommitRuns,
+				MaxWindowMs:     cfg.OverlapMaxWindowMs,
 				MaxStallRejects: cfg.OverlapMaxStallRejects,
 			}, kind, nil
 		}

@@ -103,10 +103,30 @@ class ListRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class ListResponse(_message.Message):
-    __slots__ = ("sessions",)
+    __slots__ = ("sessions", "recovery")
     SESSIONS_FIELD_NUMBER: _ClassVar[int]
+    RECOVERY_FIELD_NUMBER: _ClassVar[int]
     sessions: _containers.RepeatedCompositeFieldContainer[Session]
-    def __init__(self, sessions: _Optional[_Iterable[_Union[Session, _Mapping]]] = ...) -> None: ...
+    recovery: RecoveryStatus
+    def __init__(self, sessions: _Optional[_Iterable[_Union[Session, _Mapping]]] = ..., recovery: _Optional[_Union[RecoveryStatus, _Mapping]] = ...) -> None: ...
+
+class RecoveryStatus(_message.Message):
+    __slots__ = ("in_progress", "total", "recovered", "awaiting_recovery", "adopted", "started_at_unix_ms", "completed_at_unix_ms")
+    IN_PROGRESS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    RECOVERED_FIELD_NUMBER: _ClassVar[int]
+    AWAITING_RECOVERY_FIELD_NUMBER: _ClassVar[int]
+    ADOPTED_FIELD_NUMBER: _ClassVar[int]
+    STARTED_AT_UNIX_MS_FIELD_NUMBER: _ClassVar[int]
+    COMPLETED_AT_UNIX_MS_FIELD_NUMBER: _ClassVar[int]
+    in_progress: bool
+    total: int
+    recovered: int
+    awaiting_recovery: int
+    adopted: int
+    started_at_unix_ms: int
+    completed_at_unix_ms: int
+    def __init__(self, in_progress: _Optional[bool] = ..., total: _Optional[int] = ..., recovered: _Optional[int] = ..., awaiting_recovery: _Optional[int] = ..., adopted: _Optional[int] = ..., started_at_unix_ms: _Optional[int] = ..., completed_at_unix_ms: _Optional[int] = ...) -> None: ...
 
 class GetRequest(_message.Message):
     __slots__ = ("id",)

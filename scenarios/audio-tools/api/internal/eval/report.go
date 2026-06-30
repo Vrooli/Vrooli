@@ -16,15 +16,21 @@ type ClipResult struct {
 	Reference  string
 	Hypothesis string
 
-	WER                  WERResult
-	NormalizedReference  string
-	NormalizedHypothesis string
-	EditOperations       []EditOperation
-	WhisperCalls         int
-	WhisperAudioSeconds  float64
-	RTF                  float64
-	SegmentCount         int
-	PartialRevisions     int
+	WER                   WERResult
+	NormalizedReference   string
+	NormalizedHypothesis  string
+	EditOperations        []EditOperation
+	WhisperCalls          int
+	WhisperAudioSeconds   float64
+	RTF                   float64
+	SegmentCount          int
+	PartialRevisions      int
+	CommitTimeline        []CommitState
+	TimeToFirstCommitMs   float64
+	CommitCount           int
+	SpeakerRejectionCount int
+	AudioDurationMs       int64
+	Safety                SafetyGateReport
 
 	// LatencySamplesMs are the finalization-latency samples (last-chunk →
 	// terminal Done) gathered over the real-time repeats. Empty when the
@@ -58,6 +64,11 @@ type StrategyReport struct {
 	FinalizationLatencyP50Ms float64
 	FinalizationLatencyP95Ms float64
 	PartialRevisions         int
+	CommitCount              int
+	SpeakerRejectionCount    int
+	Safety                   SafetyGateReport
+	StageAttribution         StageAttribution
+	LengthCurves             []LengthBucketCurve
 
 	WERDeltaVsWinner       float64
 	P95DeltaMsVsWinner     float64
@@ -89,6 +100,57 @@ type NormalizationPolicy struct {
 	OverlapAgreementPolicy string
 }
 
+const DefaultDroppedSpanThresholdWords = 4
+
+// CommitState is one committed-text snapshot emitted by the strategy or
+// Segmenter. A valid streaming strategy must only append stable text over
+// time; changing/removing an earlier committed token fails the retraction
+// gate.
+type CommitState struct {
+	Text       string
+	AtMs       int64
+	AudioEndMs int64
+}
+
+type SafetyOptions struct {
+	DroppedSpanThresholdWords int
+}
+
+type RetractionEvent struct {
+	PreviousText string
+	CurrentText  string
+	AtMs         int64
+}
+
+type SafetyGateReport struct {
+	Passed                    bool
+	RetractionFree            bool
+	DroppedSpanFree           bool
+	RetractionEvents          []RetractionEvent
+	MaxDroppedSpanWords       int
+	DroppedSpanThresholdWords int
+	Reasons                   []string
+}
+
+type StageAttribution struct {
+	IngressLostWords   int
+	StrategyLostWords  int
+	EgressLostWords    int
+	EgressRejectEvents int
+	Notes              []string
+}
+
+type LengthBucketCurve struct {
+	Bucket                   string
+	MinDurationMs            int64
+	MaxDurationMs            int64
+	ClipCount                int
+	WER                      float64
+	FinalizationLatencyP95Ms float64
+	MeanTimeToFirstCommitMs  float64
+	MaxDroppedSpanWords      int
+}
+
 // EvalReport is the top-level comparison report: one StrategyReport row
 // per (strategy, config). Mirrors the AI-search SuiteReport shape.
 type EvalReport struct {
@@ -108,6 +170,7 @@ func aggregateStrategy(kind sttchain.StrategyKind, label string, clips []ClipRes
 	r := StrategyReport{Strategy: kind, Label: label, PerClip: clips}
 	var latency []float64
 	var totalAudio, totalRTFWeighted float64
+	r.Safety = aggregateSafety(clips)
 	for _, c := range clips {
 		r.EditCounts.Substitutions += c.WER.Substitutions
 		r.EditCounts.Insertions += c.WER.Insertions
@@ -116,6 +179,8 @@ func aggregateStrategy(kind sttchain.StrategyKind, label string, clips []ClipRes
 		r.WhisperCalls += c.WhisperCalls
 		r.WhisperAudioSeconds += c.WhisperAudioSeconds
 		r.PartialRevisions += c.PartialRevisions
+		r.CommitCount += c.CommitCount
+		r.SpeakerRejectionCount += c.SpeakerRejectionCount
 		latency = append(latency, c.LatencySamplesMs...)
 		// RTF aggregate is audio-weighted: Σ(rtf_i * audio_i) / Σ audio_i,
 		// which equals Σ provider-time / Σ audio across clips.
@@ -130,6 +195,8 @@ func aggregateStrategy(kind sttchain.StrategyKind, label string, clips []ClipRes
 	}
 	r.FinalizationLatencyP50Ms = P50(latency)
 	r.FinalizationLatencyP95Ms = P95(latency)
+	r.StageAttribution = attributeStages(r)
+	r.LengthCurves = buildLengthCurves(clips)
 	return r
 }
 

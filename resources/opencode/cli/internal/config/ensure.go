@@ -14,16 +14,27 @@ import (
 // Defaults carries the static config defaults formerly in config/defaults.sh.
 type Defaults struct {
 	Provider           string // cloud default provider (openrouter)
-	ChatModel          string // cloud default chat model
-	CompletionModel    string // cloud default completion model
+	CloudRole          string // openrouter policy role backing the cloud default (code.default)
+	ChatModel          string // cloud default chat model (resolved from CloudRole when empty)
+	CompletionModel    string // cloud default completion model (resolved from CloudRole when empty)
 	OllamaDefaultModel string // local model declared in the provider block
 	NumCtx             int    // per-model num_ctx for the local coder
 	LocalRole          string // ollama policy role backing local coding (code.local)
-	LegacyTargets      []string
+	// LegacyTargets are old concrete cloud slugs that self-heal (repoint) stale
+	// user configs onto the current default. This is config-cleanup-only
+	// migration data, NOT a runtime default source — never treat these slugs as
+	// a fallback model. Do not expand this list.
+	LegacyTargets []string
 }
 
 // DefaultDefaults returns the built-in defaults, honoring the same env
 // overrides the bash defaults.sh recognized.
+//
+// The OpenRouter cloud chat/completion model is intentionally left empty here:
+// it is resolved at write time from the CloudRole policy role via the
+// resource-openrouter SSOT (see Ensure). Greenfield rule: no concrete
+// OpenRouter model slug is a code default — resource-openrouter policy is the
+// sole model-selection authority.
 func DefaultDefaults(getenv func(string) string) Defaults {
 	if getenv == nil {
 		getenv = os.Getenv
@@ -38,10 +49,13 @@ func DefaultDefaults(getenv func(string) string) Defaults {
 	if localModel == "" {
 		localModel = "gemma4:12b"
 	}
+	cloudRole := strings.TrimSpace(getenv("OPENCODE_DEFAULT_CHAT_ROLE"))
+	if cloudRole == "" {
+		cloudRole = "code.default"
+	}
 	return Defaults{
 		Provider:           "openrouter",
-		ChatModel:          "deepseek/deepseek-v4-flash",
-		CompletionModel:    "deepseek/deepseek-v4-flash",
+		CloudRole:          cloudRole,
 		OllamaDefaultModel: localModel,
 		NumCtx:             numCtx,
 		LocalRole:          "code.local",
@@ -84,6 +98,27 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 		logf = func(string, ...any) {}
 	}
 	d := opts.Defaults
+
+	// Resolve the OpenRouter cloud default model from its policy role (SSOT).
+	// Greenfield rule: there is NO concrete OpenRouter slug fallback in source —
+	// resource-openrouter is the sole model-selection authority. If the role
+	// cannot be resolved we FAIL loudly rather than pinning a hard-coded slug.
+	if d.ChatModel == "" || d.CompletionModel == "" {
+		role := strings.TrimSpace(d.CloudRole)
+		if role == "" {
+			role = "code.default"
+		}
+		model, err := resolveCloudModel(ctx, role)
+		if err != nil {
+			return false, fmt.Errorf("resolve OpenRouter cloud default model (role %q): %w", role, err)
+		}
+		if d.ChatModel == "" {
+			d.ChatModel = model
+		}
+		if d.CompletionModel == "" {
+			d.CompletionModel = model
+		}
+	}
 
 	// Reachability + local model/sampling come from the SSOT.
 	installed, listErr := opts.Resolver.InstalledModels(ctx)
@@ -278,6 +313,30 @@ func parseInt(s string) (int, error) {
 	var n int
 	_, err := fmt.Sscanf(s, "%d", &n)
 	return n, err
+}
+
+// --- cloud model role resolver (execs the resource-openrouter SSOT) -----------
+
+// resolveCloudModel resolves an OpenRouter policy role to a concrete model slug.
+// It is a package var so tests can override the SSOT call; the default shells out
+// to `resource-openrouter policy resolve`. Greenfield rule: no concrete slug
+// fallback lives here — resource-openrouter policy is the sole authority.
+var resolveCloudModel = execResolveCloudModel
+
+// execResolveCloudModel runs
+// `resource-openrouter policy resolve --role <role> --field model` and returns
+// the trimmed concrete model slug. A missing binary, a non-zero exit, or an
+// empty result is a hard error (no concrete fallback).
+func execResolveCloudModel(ctx context.Context, role string) (string, error) {
+	out, err := exec.CommandContext(ctx, "resource-openrouter", "policy", "resolve", "--role", role, "--field", "model").Output()
+	if err != nil {
+		return "", fmt.Errorf("exec resource-openrouter policy resolve --role %s --field model: %w", role, err)
+	}
+	model := strings.TrimSpace(string(out))
+	if model == "" {
+		return "", fmt.Errorf("resource-openrouter resolved an empty model for role %q", role)
+	}
+	return model, nil
 }
 
 // --- default Resolver (execs the resource-ollama SSOT) ------------------------

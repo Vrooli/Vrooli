@@ -242,6 +242,12 @@
         "required": false,
         "notes": "Local summarize tier"
       },
+      "openrouter": {
+        "type": "openrouter",
+        "required": false,
+        "notes": "Cloud summarize tier (BYOK); model resolved via OpenRouter policy role",
+        "model_roles": ["summarize.default"]
+      },
       "postgres": {
         "required": false,
         "notes": "Optional usage history backend; sqlite is default"

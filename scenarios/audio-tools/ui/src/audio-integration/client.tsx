@@ -18,6 +18,7 @@ import { createClient, type Client, type Transport } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createContext, createElement, useContext, type ReactNode } from "react";
 
+import { API_BASE } from "../api/base";
 import { STTService } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
 import { STTAdminService } from "@vrooli/proto-types/audio-tools/v1/stt/stt_admin_pb";
 import { SummarizeService } from "@vrooli/proto-types/audio-tools/v1/summarize/summarize_pb";
@@ -113,7 +114,7 @@ export function getActiveAudioToolsClient(): AudioToolsClient {
     // don't crash. HTTP requests fail naturally rather than throwing at
     // module construction time. Production code should always have a real
     // provider mounted at boot.
-    activeClient = createAudioToolsClient({ baseUrl: "http://localhost:0" });
+    activeClient = createAudioToolsClient({ baseUrl: API_BASE });
   }
   return activeClient;
 }

@@ -3,7 +3,8 @@ import { buildApiUrl } from "@vrooli/api-base";
 import { ResponseSchema } from "@vrooli/proto-types/audio-tools/v1/health/health_pb";
 import type { Response as HealthResponse } from "@vrooli/proto-types/audio-tools/v1/health/health_pb";
 
-import { API_BASE, PROTO_READ_OPTIONS, decodeApiError } from "./client";
+import { API_BASE } from "./base";
+import { PROTO_READ_OPTIONS, decodeApiError } from "./client";
 
 export async function fetchHealth(): Promise<HealthResponse> {
   const res = await fetch(buildApiUrl("/health", { baseUrl: API_BASE }), {

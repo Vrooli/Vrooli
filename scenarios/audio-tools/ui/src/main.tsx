@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
+import { API_BASE } from "./api/base";
 import { AudioToolsProvider, createAudioToolsClient } from "./audio-integration";
 import "./styles.css";
 
@@ -21,7 +22,7 @@ initSpatialNav();
 // scenario's own origin and mount the provider before any audio-integration
 // hook fires.
 const audioToolsClient = createAudioToolsClient({
-  baseUrl: typeof window !== "undefined" ? window.location.origin : "http://localhost:0",
+  baseUrl: API_BASE,
 });
 
 const rootEl = document.getElementById("root");

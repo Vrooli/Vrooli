@@ -104,8 +104,8 @@ message AIParams {
   // ModelOverride forces a specific registry model id instead of the hardware
   // -fit default (still validated for op-support, enabled-state, runnability).
   string model_override = 11;
-  // AllowByok permits falling back to a paid BYOK cloud provider when no local
-  // backend is available. Off by default — BYOK is opt-in and metered.
+  // AllowByok permits paid BYOK cloud candidates. FallbackPolicy can still
+  // force local-only execution even when this is true.
   bool allow_byok = 12;
   // AutoScanNsfw runs an NSFW classification on the generated output and records
   // the verdict with the job. Off by default.
@@ -135,6 +135,22 @@ message AIParams {
   // weight to max(op, adapters...). An incompatible / not-yet-proven adapter is
   // rejected before any job runs (no vaporware). Empty for an unconditioned op.
   repeated AdapterRef adapters = 17;
+  // QualityPolicy tunes candidate ordering: "fast", "balanced", or "quality".
+  // Empty means the scenario default.
+  string quality_policy = 18;
+  // FallbackPolicy controls provider fallback: "local_only", "cloud_allowed", or
+  // "any". Empty means any policy permitted by allow_byok and deployment config.
+  string fallback_policy = 19;
+  // Priority is the capacity claim tier: "batch", "service", or "interactive".
+  // Empty means service for image generation/editing.
+  string priority = 20;
+  // AllowReclaim permits capacity claims that free idle lower-value resources.
+  // Unset means true for image generation/editing.
+  optional bool allow_reclaim = 21;
+  // OpenRouterRole is an optional logical policy role (for example
+  // "image.generate.logo") that the OpenRouter resource resolves to a concrete
+  // model. Callers should pass roles, never provider-specific model ids.
+  string openrouter_role = 22;
 }
 
 // AdapterRef is one requested conditioning modifier on a generation.

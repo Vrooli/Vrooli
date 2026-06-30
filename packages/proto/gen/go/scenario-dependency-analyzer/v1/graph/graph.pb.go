@@ -208,6 +208,185 @@ func (x *DescribeInterfaceGraphResponse) GetComputedAt() string {
 	return ""
 }
 
+type SearchInterfaceGraphRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Natural-language connection query.
+	Query string `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
+	// Maximum hits to return. Zero means the service default.
+	Limit         int32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchInterfaceGraphRequest) Reset() {
+	*x = SearchInterfaceGraphRequest{}
+	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchInterfaceGraphRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchInterfaceGraphRequest) ProtoMessage() {}
+
+func (x *SearchInterfaceGraphRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchInterfaceGraphRequest.ProtoReflect.Descriptor instead.
+func (*SearchInterfaceGraphRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_dependency_analyzer_v1_graph_graph_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SearchInterfaceGraphRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *SearchInterfaceGraphRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type SearchInterfaceGraphResponse struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Results       []*ScenarioConnectionHit `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchInterfaceGraphResponse) Reset() {
+	*x = SearchInterfaceGraphResponse{}
+	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchInterfaceGraphResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchInterfaceGraphResponse) ProtoMessage() {}
+
+func (x *SearchInterfaceGraphResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchInterfaceGraphResponse.ProtoReflect.Descriptor instead.
+func (*SearchInterfaceGraphResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_dependency_analyzer_v1_graph_graph_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SearchInterfaceGraphResponse) GetResults() []*ScenarioConnectionHit {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
+type ScenarioConnectionHit struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Scenario name (the natural ID / title).
+	Scenario string `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	// Scenarios this scenario depends on (forward edges).
+	DependsOn []string `protobuf:"bytes,2,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
+	// Scenarios that depend on this scenario (reverse edges).
+	UsedBy []string `protobuf:"bytes,3,rep,name=used_by,json=usedBy,proto3" json:"used_by,omitempty"`
+	// Human-readable connection summary, used as the federated snippet.
+	Summary string `protobuf:"bytes,4,opt,name=summary,proto3" json:"summary,omitempty"`
+	// Relevance score in [0,1] (cosine/rerank regime).
+	RelevanceScore float64 `protobuf:"fixed64,5,opt,name=relevance_score,json=relevanceScore,proto3" json:"relevance_score,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ScenarioConnectionHit) Reset() {
+	*x = ScenarioConnectionHit{}
+	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioConnectionHit) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioConnectionHit) ProtoMessage() {}
+
+func (x *ScenarioConnectionHit) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioConnectionHit.ProtoReflect.Descriptor instead.
+func (*ScenarioConnectionHit) Descriptor() ([]byte, []int) {
+	return file_scenario_dependency_analyzer_v1_graph_graph_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ScenarioConnectionHit) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *ScenarioConnectionHit) GetDependsOn() []string {
+	if x != nil {
+		return x.DependsOn
+	}
+	return nil
+}
+
+func (x *ScenarioConnectionHit) GetUsedBy() []string {
+	if x != nil {
+		return x.UsedBy
+	}
+	return nil
+}
+
+func (x *ScenarioConnectionHit) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *ScenarioConnectionHit) GetRelevanceScore() float64 {
+	if x != nil {
+		return x.RelevanceScore
+	}
+	return 0
+}
+
 type InterfaceGraph struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Nodes         []*GraphNode           `protobuf:"bytes,1,rep,name=nodes,proto3" json:"nodes,omitempty"`
@@ -219,7 +398,7 @@ type InterfaceGraph struct {
 
 func (x *InterfaceGraph) Reset() {
 	*x = InterfaceGraph{}
-	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[2]
+	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -231,7 +410,7 @@ func (x *InterfaceGraph) String() string {
 func (*InterfaceGraph) ProtoMessage() {}
 
 func (x *InterfaceGraph) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[2]
+	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -244,7 +423,7 @@ func (x *InterfaceGraph) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InterfaceGraph.ProtoReflect.Descriptor instead.
 func (*InterfaceGraph) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_graph_graph_proto_rawDescGZIP(), []int{2}
+	return file_scenario_dependency_analyzer_v1_graph_graph_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *InterfaceGraph) GetNodes() []*GraphNode {
@@ -277,7 +456,7 @@ type GraphNode struct {
 
 func (x *GraphNode) Reset() {
 	*x = GraphNode{}
-	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[3]
+	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -289,7 +468,7 @@ func (x *GraphNode) String() string {
 func (*GraphNode) ProtoMessage() {}
 
 func (x *GraphNode) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[3]
+	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -302,7 +481,7 @@ func (x *GraphNode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GraphNode.ProtoReflect.Descriptor instead.
 func (*GraphNode) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_graph_graph_proto_rawDescGZIP(), []int{3}
+	return file_scenario_dependency_analyzer_v1_graph_graph_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GraphNode) GetScenario() string {
@@ -325,7 +504,7 @@ type GraphEdge struct {
 
 func (x *GraphEdge) Reset() {
 	*x = GraphEdge{}
-	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[4]
+	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -337,7 +516,7 @@ func (x *GraphEdge) String() string {
 func (*GraphEdge) ProtoMessage() {}
 
 func (x *GraphEdge) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[4]
+	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -350,7 +529,7 @@ func (x *GraphEdge) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GraphEdge.ProtoReflect.Descriptor instead.
 func (*GraphEdge) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_graph_graph_proto_rawDescGZIP(), []int{4}
+	return file_scenario_dependency_analyzer_v1_graph_graph_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GraphEdge) GetFromScenario() string {
@@ -402,7 +581,7 @@ type GraphEvidence struct {
 
 func (x *GraphEvidence) Reset() {
 	*x = GraphEvidence{}
-	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[5]
+	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -414,7 +593,7 @@ func (x *GraphEvidence) String() string {
 func (*GraphEvidence) ProtoMessage() {}
 
 func (x *GraphEvidence) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[5]
+	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -427,7 +606,7 @@ func (x *GraphEvidence) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GraphEvidence.ProtoReflect.Descriptor instead.
 func (*GraphEvidence) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_graph_graph_proto_rawDescGZIP(), []int{5}
+	return file_scenario_dependency_analyzer_v1_graph_graph_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GraphEvidence) GetSource() EvidenceSource {
@@ -483,7 +662,7 @@ type GraphError struct {
 
 func (x *GraphError) Reset() {
 	*x = GraphError{}
-	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[6]
+	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -495,7 +674,7 @@ func (x *GraphError) String() string {
 func (*GraphError) ProtoMessage() {}
 
 func (x *GraphError) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[6]
+	mi := &file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -508,7 +687,7 @@ func (x *GraphError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GraphError.ProtoReflect.Descriptor instead.
 func (*GraphError) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_graph_graph_proto_rawDescGZIP(), []int{6}
+	return file_scenario_dependency_analyzer_v1_graph_graph_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GraphError) GetSource() string {
@@ -546,7 +725,19 @@ const file_scenario_dependency_analyzer_v1_graph_graph_proto_rawDesc = "" +
 	"\x1eDescribeInterfaceGraphResponse\x12R\n" +
 	"\x05graph\x18\x01 \x01(\v2<.vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphR\x05graph\x12\x1f\n" +
 	"\vcomputed_at\x18\x02 \x01(\tR\n" +
-	"computedAt\"\x80\x02\n" +
+	"computedAt\"I\n" +
+	"\x1bSearchInterfaceGraphRequest\x12\x14\n" +
+	"\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\"}\n" +
+	"\x1cSearchInterfaceGraphResponse\x12]\n" +
+	"\aresults\x18\x01 \x03(\v2C.vrooli.scenario_dependency_analyzer.v1.graph.ScenarioConnectionHitR\aresults\"\xae\x01\n" +
+	"\x15ScenarioConnectionHit\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1d\n" +
+	"\n" +
+	"depends_on\x18\x02 \x03(\tR\tdependsOn\x12\x17\n" +
+	"\aused_by\x18\x03 \x03(\tR\x06usedBy\x12\x18\n" +
+	"\asummary\x18\x04 \x01(\tR\asummary\x12'\n" +
+	"\x0frelevance_score\x18\x05 \x01(\x01R\x0erelevanceScore\"\x80\x02\n" +
 	"\x0eInterfaceGraph\x12M\n" +
 	"\x05nodes\x18\x01 \x03(\v27.vrooli.scenario_dependency_analyzer.v1.graph.GraphNodeR\x05nodes\x12M\n" +
 	"\x05edges\x18\x02 \x03(\v27.vrooli.scenario_dependency_analyzer.v1.graph.GraphEdgeR\x05edges\x12P\n" +
@@ -576,9 +767,10 @@ const file_scenario_dependency_analyzer_v1_graph_graph_proto_rawDesc = "" +
 	"\x0eEvidenceSource\x12\x1f\n" +
 	"\x1bEVIDENCE_SOURCE_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cEVIDENCE_SOURCE_PROTO_IMPORT\x10\x01\x12\x1d\n" +
-	"\x19EVIDENCE_SOURCE_GO_IMPORT\x10\x022\xcd\x01\n" +
+	"\x19EVIDENCE_SOURCE_GO_IMPORT\x10\x022\xfd\x02\n" +
 	"\x15InterfaceGraphService\x12\xb3\x01\n" +
-	"\x16DescribeInterfaceGraph\x12K.vrooli.scenario_dependency_analyzer.v1.graph.DescribeInterfaceGraphRequest\x1aL.vrooli.scenario_dependency_analyzer.v1.graph.DescribeInterfaceGraphResponseB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/graph;graph_v1b\x06proto3"
+	"\x16DescribeInterfaceGraph\x12K.vrooli.scenario_dependency_analyzer.v1.graph.DescribeInterfaceGraphRequest\x1aL.vrooli.scenario_dependency_analyzer.v1.graph.DescribeInterfaceGraphResponse\x12\xad\x01\n" +
+	"\x14SearchInterfaceGraph\x12I.vrooli.scenario_dependency_analyzer.v1.graph.SearchInterfaceGraphRequest\x1aJ.vrooli.scenario_dependency_analyzer.v1.graph.SearchInterfaceGraphResponseB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/graph;graph_v1b\x06proto3"
 
 var (
 	file_scenario_dependency_analyzer_v1_graph_graph_proto_rawDescOnce sync.Once
@@ -593,31 +785,37 @@ func file_scenario_dependency_analyzer_v1_graph_graph_proto_rawDescGZIP() []byte
 }
 
 var file_scenario_dependency_analyzer_v1_graph_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_scenario_dependency_analyzer_v1_graph_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_scenario_dependency_analyzer_v1_graph_graph_proto_goTypes = []any{
 	(EvidenceSource)(0),                    // 0: vrooli.scenario_dependency_analyzer.v1.graph.EvidenceSource
 	(*DescribeInterfaceGraphRequest)(nil),  // 1: vrooli.scenario_dependency_analyzer.v1.graph.DescribeInterfaceGraphRequest
 	(*DescribeInterfaceGraphResponse)(nil), // 2: vrooli.scenario_dependency_analyzer.v1.graph.DescribeInterfaceGraphResponse
-	(*InterfaceGraph)(nil),                 // 3: vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraph
-	(*GraphNode)(nil),                      // 4: vrooli.scenario_dependency_analyzer.v1.graph.GraphNode
-	(*GraphEdge)(nil),                      // 5: vrooli.scenario_dependency_analyzer.v1.graph.GraphEdge
-	(*GraphEvidence)(nil),                  // 6: vrooli.scenario_dependency_analyzer.v1.graph.GraphEvidence
-	(*GraphError)(nil),                     // 7: vrooli.scenario_dependency_analyzer.v1.graph.GraphError
+	(*SearchInterfaceGraphRequest)(nil),    // 3: vrooli.scenario_dependency_analyzer.v1.graph.SearchInterfaceGraphRequest
+	(*SearchInterfaceGraphResponse)(nil),   // 4: vrooli.scenario_dependency_analyzer.v1.graph.SearchInterfaceGraphResponse
+	(*ScenarioConnectionHit)(nil),          // 5: vrooli.scenario_dependency_analyzer.v1.graph.ScenarioConnectionHit
+	(*InterfaceGraph)(nil),                 // 6: vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraph
+	(*GraphNode)(nil),                      // 7: vrooli.scenario_dependency_analyzer.v1.graph.GraphNode
+	(*GraphEdge)(nil),                      // 8: vrooli.scenario_dependency_analyzer.v1.graph.GraphEdge
+	(*GraphEvidence)(nil),                  // 9: vrooli.scenario_dependency_analyzer.v1.graph.GraphEvidence
+	(*GraphError)(nil),                     // 10: vrooli.scenario_dependency_analyzer.v1.graph.GraphError
 }
 var file_scenario_dependency_analyzer_v1_graph_graph_proto_depIdxs = []int32{
-	3, // 0: vrooli.scenario_dependency_analyzer.v1.graph.DescribeInterfaceGraphResponse.graph:type_name -> vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraph
-	4, // 1: vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraph.nodes:type_name -> vrooli.scenario_dependency_analyzer.v1.graph.GraphNode
-	5, // 2: vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraph.edges:type_name -> vrooli.scenario_dependency_analyzer.v1.graph.GraphEdge
-	7, // 3: vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraph.errors:type_name -> vrooli.scenario_dependency_analyzer.v1.graph.GraphError
-	6, // 4: vrooli.scenario_dependency_analyzer.v1.graph.GraphEdge.evidence:type_name -> vrooli.scenario_dependency_analyzer.v1.graph.GraphEvidence
-	0, // 5: vrooli.scenario_dependency_analyzer.v1.graph.GraphEvidence.source:type_name -> vrooli.scenario_dependency_analyzer.v1.graph.EvidenceSource
-	1, // 6: vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService.DescribeInterfaceGraph:input_type -> vrooli.scenario_dependency_analyzer.v1.graph.DescribeInterfaceGraphRequest
-	2, // 7: vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService.DescribeInterfaceGraph:output_type -> vrooli.scenario_dependency_analyzer.v1.graph.DescribeInterfaceGraphResponse
-	7, // [7:8] is the sub-list for method output_type
-	6, // [6:7] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	6,  // 0: vrooli.scenario_dependency_analyzer.v1.graph.DescribeInterfaceGraphResponse.graph:type_name -> vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraph
+	5,  // 1: vrooli.scenario_dependency_analyzer.v1.graph.SearchInterfaceGraphResponse.results:type_name -> vrooli.scenario_dependency_analyzer.v1.graph.ScenarioConnectionHit
+	7,  // 2: vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraph.nodes:type_name -> vrooli.scenario_dependency_analyzer.v1.graph.GraphNode
+	8,  // 3: vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraph.edges:type_name -> vrooli.scenario_dependency_analyzer.v1.graph.GraphEdge
+	10, // 4: vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraph.errors:type_name -> vrooli.scenario_dependency_analyzer.v1.graph.GraphError
+	9,  // 5: vrooli.scenario_dependency_analyzer.v1.graph.GraphEdge.evidence:type_name -> vrooli.scenario_dependency_analyzer.v1.graph.GraphEvidence
+	0,  // 6: vrooli.scenario_dependency_analyzer.v1.graph.GraphEvidence.source:type_name -> vrooli.scenario_dependency_analyzer.v1.graph.EvidenceSource
+	1,  // 7: vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService.DescribeInterfaceGraph:input_type -> vrooli.scenario_dependency_analyzer.v1.graph.DescribeInterfaceGraphRequest
+	3,  // 8: vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService.SearchInterfaceGraph:input_type -> vrooli.scenario_dependency_analyzer.v1.graph.SearchInterfaceGraphRequest
+	2,  // 9: vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService.DescribeInterfaceGraph:output_type -> vrooli.scenario_dependency_analyzer.v1.graph.DescribeInterfaceGraphResponse
+	4,  // 10: vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService.SearchInterfaceGraph:output_type -> vrooli.scenario_dependency_analyzer.v1.graph.SearchInterfaceGraphResponse
+	9,  // [9:11] is the sub-list for method output_type
+	7,  // [7:9] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_scenario_dependency_analyzer_v1_graph_graph_proto_init() }
@@ -631,7 +829,7 @@ func file_scenario_dependency_analyzer_v1_graph_graph_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_dependency_analyzer_v1_graph_graph_proto_rawDesc), len(file_scenario_dependency_analyzer_v1_graph_graph_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   7,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

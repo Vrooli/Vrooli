@@ -9,12 +9,15 @@ OPENCODE_DISPLAY_NAME="OpenCode AI CLI"
 # config-write time when a local daemon is reachable and no OpenRouter key
 # is present (see opencode::ensure_config).
 #
-# Cloud default: deepseek-v4-flash — cheap, fast, and (verified) returns
-# structured tool calls through OpenRouter. Replaced x-ai/grok-code-fast-1,
-# which was delisted from OpenRouter (every run failed ProviderModelNotFound).
+# Cloud default: there is NO hard-coded model slug. The concrete OpenRouter
+# chat/completion model is resolved at config-write time from the OpenRouter
+# policy SSOT (`resource-openrouter policy resolve --role "$OPENCODE_DEFAULT_CHAT_ROLE"
+# --field model`) by the Go config writer (cli/internal/config/ensure.go).
+# resource-openrouter is the sole model-selection authority; the only concrete
+# fallbacks live in resources/openrouter/model-policy.json. Override the role
+# (not a slug) via OPENCODE_DEFAULT_CHAT_ROLE.
 OPENCODE_DEFAULT_PROVIDER="openrouter"
-OPENCODE_DEFAULT_CHAT_MODEL="deepseek/deepseek-v4-flash"
-OPENCODE_DEFAULT_COMPLETION_MODEL="deepseek/deepseek-v4-flash"
+OPENCODE_DEFAULT_CHAT_ROLE="${OPENCODE_DEFAULT_CHAT_ROLE:-code.default}"
 
 # Default local model used when Ollama is auto-selected. Aligned with the
 # `code.local` role in resources/ollama/model-policy.json (gemma4:12b — the

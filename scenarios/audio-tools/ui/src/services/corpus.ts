@@ -16,10 +16,14 @@ import {
 } from "@vrooli/proto-types/audio-tools/v1/corpus/corpus_pb";
 import {
   EvalService,
+  type LengthBucketCurve,
+  type SafetyGateReport,
+  type StageAttribution,
   type EditOperation,
   type EvalReportSummary,
   type NormalizationPolicy,
   type ReportWarning,
+  type EvalReport,
   type StrategyReport,
 } from "@vrooli/proto-types/audio-tools/v1/eval/eval_pb";
 
@@ -143,6 +147,11 @@ export interface StrategyRow {
   verdict: string;
   reasons: string[];
   warnings: WarningRow[];
+  safety: SafetyGateRow | null;
+  stageAttribution: StageAttributionRow | null;
+  lengthCurves: LengthCurveRow[];
+  commitCount: number;
+  speakerRejectionCount: number;
 }
 
 export interface ClipReportRow {
@@ -166,6 +175,35 @@ export interface ClipReportRow {
   normalizedReference: string;
   normalizedHypothesis: string;
   editOperations: EditOperationRow[];
+}
+
+export interface SafetyGateRow {
+  passed: boolean;
+  retractionFree: boolean;
+  droppedSpanFree: boolean;
+  maxDroppedSpanWords: number;
+  droppedSpanThresholdWords: number;
+  retractionEvents: Array<{ previousText: string; currentText: string; atMs: number }>;
+  reasons: string[];
+}
+
+export interface StageAttributionRow {
+  ingressLostWords: number;
+  strategyLostWords: number;
+  egressLostWords: number;
+  egressRejectEvents: number;
+  notes: string[];
+}
+
+export interface LengthCurveRow {
+  bucket: string;
+  minDurationMs: number;
+  maxDurationMs: number;
+  clipCount: number;
+  wer: number;
+  finalizationLatencyP95Ms: number;
+  meanTimeToFirstCommitMs: number;
+  maxDroppedSpanWords: number;
 }
 
 export interface EditOperationRow {
@@ -203,10 +241,15 @@ export interface EvalReportData {
   summary: ReportSummaryRow | null;
   warnings: WarningRow[];
   normalizationPolicy: NormalizationPolicyRow | null;
+  latencyHonesty: string;
 }
 
 function decodeWarning(w: ReportWarning): WarningRow {
   return { code: w.code, message: w.message, severity: w.severity };
+}
+
+function arrayOrEmpty<T>(value: T[] | undefined): T[] {
+  return value ?? [];
 }
 
 function decodeSummary(s?: EvalReportSummary): ReportSummaryRow | null {
@@ -239,6 +282,47 @@ function decodeEditOperation(op: EditOperation): EditOperationRow {
   };
 }
 
+function decodeSafety(s?: SafetyGateReport): SafetyGateRow | null {
+  if (!s) return null;
+  return {
+    passed: s.passed,
+    retractionFree: s.retractionFree,
+    droppedSpanFree: s.droppedSpanFree,
+    maxDroppedSpanWords: s.maxDroppedSpanWords,
+    droppedSpanThresholdWords: s.droppedSpanThresholdWords,
+    retractionEvents: s.retractionEvents.map((event) => ({
+      previousText: event.previousText,
+      currentText: event.currentText,
+      atMs: Number(event.atMs),
+    })),
+    reasons: s.reasons,
+  };
+}
+
+function decodeStageAttribution(a?: StageAttribution): StageAttributionRow | null {
+  if (!a) return null;
+  return {
+    ingressLostWords: a.ingressLostWords,
+    strategyLostWords: a.strategyLostWords,
+    egressLostWords: a.egressLostWords,
+    egressRejectEvents: a.egressRejectEvents,
+    notes: a.notes,
+  };
+}
+
+function decodeLengthCurve(c: LengthBucketCurve): LengthCurveRow {
+  return {
+    bucket: c.bucket,
+    minDurationMs: Number(c.minDurationMs),
+    maxDurationMs: Number(c.maxDurationMs),
+    clipCount: c.clipCount,
+    wer: c.wer,
+    finalizationLatencyP95Ms: c.finalizationLatencyP95Ms,
+    meanTimeToFirstCommitMs: c.meanTimeToFirstCommitMs,
+    maxDroppedSpanWords: c.maxDroppedSpanWords,
+  };
+}
+
 function decodeStrategy(s: StrategyReport): StrategyRow {
   return {
     strategy: s.strategy,
@@ -254,7 +338,7 @@ function decodeStrategy(s: StrategyReport): StrategyRow {
     finalizationLatencyP50Ms: s.finalizationLatencyP50Ms,
     finalizationLatencyP95Ms: s.finalizationLatencyP95Ms,
     partialRevisions: s.partialRevisions,
-    perClip: s.perClip.map((c) => ({
+    perClip: arrayOrEmpty(s.perClip).map((c) => ({
       clipId: c.clipId,
       reference: c.reference,
       hypothesis: c.hypothesis,
@@ -274,14 +358,19 @@ function decodeStrategy(s: StrategyReport): StrategyRow {
       hypWords: c.hypWords,
       normalizedReference: c.normalizedReference,
       normalizedHypothesis: c.normalizedHypothesis,
-      editOperations: c.editOperations.map(decodeEditOperation),
+      editOperations: arrayOrEmpty(c.editOperations).map(decodeEditOperation),
     })),
     werDeltaVsWinner: s.werDeltaVsWinner,
     p95DeltaMsVsWinner: s.p95DeltaMsVsWinner,
     callMultiplierVsWinner: s.callMultiplierVsWinner,
     verdict: s.verdict,
-    reasons: s.reasons,
-    warnings: s.warnings.map(decodeWarning),
+    reasons: arrayOrEmpty(s.reasons),
+    warnings: arrayOrEmpty(s.warnings).map(decodeWarning),
+    safety: decodeSafety(s.safety),
+    stageAttribution: decodeStageAttribution(s.stageAttribution),
+    lengthCurves: arrayOrEmpty(s.lengthCurves).map(decodeLengthCurve),
+    commitCount: s.commitCount,
+    speakerRejectionCount: s.speakerRejectionCount,
   };
 }
 
@@ -306,7 +395,10 @@ export async function runEval(args: RunEvalArgs = {}): Promise<EvalReportData> {
     realtimeRepeats: args.realtimeRepeats ?? 0,
     chunkMs: args.chunkMs ?? 0,
   });
-  const report = resp.report;
+  return decodeEvalReport(resp.report);
+}
+
+export function decodeEvalReport(report?: EvalReport): EvalReportData {
   return {
     perStrategy: (report?.perStrategy ?? []).map(decodeStrategy),
     qualityMeasured: report?.qualityMeasured ?? false,
@@ -314,5 +406,6 @@ export async function runEval(args: RunEvalArgs = {}): Promise<EvalReportData> {
     summary: decodeSummary(report?.summary),
     warnings: (report?.warnings ?? []).map(decodeWarning),
     normalizationPolicy: decodePolicy(report?.normalizationPolicy),
+    latencyHonesty: report?.latencyHonesty ?? "",
   };
 }

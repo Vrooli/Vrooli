@@ -52,6 +52,18 @@ enum RouteSource {
   ROUTE_SOURCE_EXTERNAL = 2;
 }
 
+// PublicExposure is the per-route override for the /public Access-bypass
+// convention (see docs/concepts/PUBLIC_ASSETS.md). It is ORTHOGONAL to Tier and
+// Source. UNSPECIFIED == INHERIT (defer to the global
+// config.public_exposure_enabled switch); ENABLED forces the <host>/public
+// bypass on, DISABLED forces it off.
+enum PublicExposure {
+  PUBLIC_EXPOSURE_UNSPECIFIED = 0;
+  PUBLIC_EXPOSURE_INHERIT = 1;
+  PUBLIC_EXPOSURE_ENABLED = 2;
+  PUBLIC_EXPOSURE_DISABLED = 3;
+}
+
 // Route is the canonical wire shape for one manifest entry.
 message Route {
   // Stable identifier assigned by the store on create.
@@ -96,6 +108,10 @@ message Route {
   // http://127.0.0.1:9000). Empty for scenario routes, which derive
   // http://localhost:<local_port>.
   string service_target = 14;
+
+  // Per-route override for the /public Access-bypass convention.
+  // UNSPECIFIED == INHERIT.
+  PublicExposure public_exposure = 15;
 }
 
 message ListRoutesRequest {
@@ -134,6 +150,9 @@ message CreateRouteRequest {
   RouteSource source = 9;
   // Explicit local target for an external route.
   string service_target = 10;
+  // Per-route override for the /public Access-bypass convention
+  // (UNSPECIFIED == INHERIT).
+  PublicExposure public_exposure = 11;
 }
 
 message CreateRouteResponse {
@@ -154,6 +173,9 @@ message UpdateRouteRequest {
   RouteSource source = 9;
   // Explicit local target for an external route (empty leaves it unchanged).
   string service_target = 10;
+  // Per-route override for the /public Access-bypass convention
+  // (UNSPECIFIED leaves it unchanged).
+  PublicExposure public_exposure = 11;
 }
 
 message UpdateRouteResponse {

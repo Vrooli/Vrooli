@@ -41,6 +41,9 @@ function deltaMs(value: number): string {
   const sign = value > 0 ? "+" : "";
   return `${sign}${Math.round(value)} ms`;
 }
+function arrayOrEmpty<T>(value: T[] | undefined): T[] {
+  return value ?? [];
+}
 
 // EvalReportView replays the corpus through every strategy and renders the
 // quality-vs-latency comparison table. Latency columns degrade to a dash
@@ -96,7 +99,7 @@ export function EvalReportView() {
       ) : null}
 
       {report ? (
-        <ReportTable report={report} />
+        <EvalReportTable report={report} />
       ) : !run.isError ? (
         <p className="text-sm text-app-muted-foreground">{t(strings.dictationStudio.reportEmpty)}</p>
       ) : null}
@@ -104,7 +107,7 @@ export function EvalReportView() {
   );
 }
 
-function ReportTable({ report }: { report: EvalReportData }) {
+export function EvalReportTable({ report }: { report: EvalReportData }) {
   const { t } = useTranslation();
   const latency = report.latencyMeasured;
   const worstClips = report.perStrategy.flatMap((strategy) =>
@@ -157,6 +160,54 @@ function ReportTable({ report }: { report: EvalReportData }) {
             </p>
           ))}
         </div>
+      ) : null}
+      {report.latencyHonesty ? (
+        <p className="text-xs text-app-muted-foreground">{report.latencyHonesty}</p>
+      ) : null}
+
+      {report.perStrategy.some((row) => row.safety || row.stageAttribution || arrayOrEmpty(row.lengthCurves).length > 0) ? (
+        <section className="grid gap-3 border-y border-app-border py-3 md:grid-cols-3">
+          {report.perStrategy.map((row) => (
+            <div key={`${row.strategy}-safety`} className="rounded-control border border-app-border p-3">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold">{row.label}</h3>
+                <span className={row.safety?.passed ? "text-xs text-app-success" : "text-xs text-app-danger"}>
+                  {row.safety
+                    ? (row.safety.passed ? t(strings.dictationStudio.safetySafe) : t(strings.dictationStudio.safetyUnsafe))
+                    : t(strings.dictationStudio.safetyMeasured)}
+                </span>
+              </div>
+              {row.safety ? (
+                <dl className="mt-2 grid grid-cols-2 gap-2 text-xs text-app-muted-foreground">
+                  <div>
+                    <dt>{t(strings.dictationStudio.safetyRetractions)}</dt>
+                    <dd className="font-medium text-app-foreground">{row.safety.retractionFree ? "0" : String(row.safety.retractionEvents.length)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t(strings.dictationStudio.safetyMaxDrop)}</dt>
+                    <dd className="font-medium text-app-foreground">
+                      {row.safety.maxDroppedSpanWords}/{row.safety.droppedSpanThresholdWords}
+                    </dd>
+                  </div>
+                </dl>
+              ) : null}
+              {row.stageAttribution ? (
+                <p className="mt-2 text-xs text-app-muted-foreground">
+                  {t(strings.dictationStudio.stageIngress)} {row.stageAttribution.ingressLostWords} · {t(strings.dictationStudio.stageStrategy)} {row.stageAttribution.strategyLostWords} · {t(strings.dictationStudio.stageEgress)} {row.stageAttribution.egressLostWords}
+                </p>
+              ) : null}
+              {arrayOrEmpty(row.lengthCurves).length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {arrayOrEmpty(row.lengthCurves).map((curve) => (
+                    <span key={curve.bucket} className="rounded border border-app-border px-1.5 py-0.5 text-xs text-app-muted-foreground">
+                      {curve.bucket}: {pct(curve.wer)}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </section>
       ) : null}
 
       <details className="border-y border-app-border py-2">

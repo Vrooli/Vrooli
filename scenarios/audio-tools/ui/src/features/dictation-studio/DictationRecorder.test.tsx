@@ -176,7 +176,7 @@ describe("DictationRecorder", () => {
       await Promise.resolve();
     });
     expect(constructed[0]).toBeTruthy();
-    await act(async () => {
+    act(() => {
       vi.advanceTimersByTime(2_000);
     });
 

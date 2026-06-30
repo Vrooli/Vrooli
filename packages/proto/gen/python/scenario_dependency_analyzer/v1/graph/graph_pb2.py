@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n1scenario-dependency-analyzer/v1/graph/graph.proto\x12,vrooli.scenario_dependency_analyzer.v1.graph\"\xd3\x01\n\x1d\x44\x65scribeInterfaceGraphRequest\x12\x1c\n\tscenarios\x18\x01 \x03(\tR\tscenarios\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12)\n\x10stability_filter\x18\x03 \x01(\tR\x0fstabilityFilter\x12\'\n\x0flanguage_filter\x18\x04 \x03(\tR\x0elanguageFilter\x12*\n\x11max_scenario_hops\x18\x05 \x01(\x05R\x0fmaxScenarioHops\"\x95\x01\n\x1e\x44\x65scribeInterfaceGraphResponse\x12R\n\x05graph\x18\x01 \x01(\x0b\x32<.vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphR\x05graph\x12\x1f\n\x0b\x63omputed_at\x18\x02 \x01(\tR\ncomputedAt\"\x80\x02\n\x0eInterfaceGraph\x12M\n\x05nodes\x18\x01 \x03(\x0b\x32\x37.vrooli.scenario_dependency_analyzer.v1.graph.GraphNodeR\x05nodes\x12M\n\x05\x65\x64ges\x18\x02 \x03(\x0b\x32\x37.vrooli.scenario_dependency_analyzer.v1.graph.GraphEdgeR\x05\x65\x64ges\x12P\n\x06\x65rrors\x18\x03 \x03(\x0b\x32\x38.vrooli.scenario_dependency_analyzer.v1.graph.GraphErrorR\x06\x65rrors\"\'\n\tGraphNode\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"\xf1\x01\n\tGraphEdge\x12#\n\rfrom_scenario\x18\x01 \x01(\tR\x0c\x66romScenario\x12\x1f\n\x0bto_scenario\x18\x02 \x01(\tR\ntoScenario\x12W\n\x08\x65vidence\x18\x03 \x03(\x0b\x32;.vrooli.scenario_dependency_analyzer.v1.graph.GraphEvidenceR\x08\x65vidence\x12\'\n\x0ftransport_world\x18\x04 \x01(\tR\x0etransportWorld\x12\x1c\n\tstability\x18\x05 \x03(\tR\tstability\"\xec\x01\n\rGraphEvidence\x12T\n\x06source\x18\x01 \x01(\x0e\x32<.vrooli.scenario_dependency_analyzer.v1.graph.EvidenceSourceR\x06source\x12\x1f\n\x0bimport_path\x18\x02 \x01(\tR\nimportPath\x12\x1b\n\tfrom_file\x18\x03 \x01(\tR\x08\x66romFile\x12\x17\n\x07to_file\x18\x04 \x01(\tR\x06toFile\x12\x12\n\x04path\x18\x05 \x01(\tR\x04path\x12\x1a\n\x08\x61nalyzer\x18\x06 \x01(\tR\x08\x61nalyzer\"Z\n\nGraphError\x12\x16\n\x06source\x18\x01 \x01(\tR\x06source\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12\x18\n\x07message\x18\x03 \x01(\tR\x07message*r\n\x0e\x45videnceSource\x12\x1f\n\x1b\x45VIDENCE_SOURCE_UNSPECIFIED\x10\x00\x12 \n\x1c\x45VIDENCE_SOURCE_PROTO_IMPORT\x10\x01\x12\x1d\n\x19\x45VIDENCE_SOURCE_GO_IMPORT\x10\x02\x32\xcd\x01\n\x15InterfaceGraphService\x12\xb3\x01\n\x16\x44\x65scribeInterfaceGraph\x12K.vrooli.scenario_dependency_analyzer.v1.graph.DescribeInterfaceGraphRequest\x1aL.vrooli.scenario_dependency_analyzer.v1.graph.DescribeInterfaceGraphResponseB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/graph;graph_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n1scenario-dependency-analyzer/v1/graph/graph.proto\x12,vrooli.scenario_dependency_analyzer.v1.graph\"\xd3\x01\n\x1d\x44\x65scribeInterfaceGraphRequest\x12\x1c\n\tscenarios\x18\x01 \x03(\tR\tscenarios\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12)\n\x10stability_filter\x18\x03 \x01(\tR\x0fstabilityFilter\x12\'\n\x0flanguage_filter\x18\x04 \x03(\tR\x0elanguageFilter\x12*\n\x11max_scenario_hops\x18\x05 \x01(\x05R\x0fmaxScenarioHops\"\x95\x01\n\x1e\x44\x65scribeInterfaceGraphResponse\x12R\n\x05graph\x18\x01 \x01(\x0b\x32<.vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphR\x05graph\x12\x1f\n\x0b\x63omputed_at\x18\x02 \x01(\tR\ncomputedAt\"I\n\x1bSearchInterfaceGraphRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\"}\n\x1cSearchInterfaceGraphResponse\x12]\n\x07results\x18\x01 \x03(\x0b\x32\x43.vrooli.scenario_dependency_analyzer.v1.graph.ScenarioConnectionHitR\x07results\"\xae\x01\n\x15ScenarioConnectionHit\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x1d\n\ndepends_on\x18\x02 \x03(\tR\tdependsOn\x12\x17\n\x07used_by\x18\x03 \x03(\tR\x06usedBy\x12\x18\n\x07summary\x18\x04 \x01(\tR\x07summary\x12\'\n\x0frelevance_score\x18\x05 \x01(\x01R\x0erelevanceScore\"\x80\x02\n\x0eInterfaceGraph\x12M\n\x05nodes\x18\x01 \x03(\x0b\x32\x37.vrooli.scenario_dependency_analyzer.v1.graph.GraphNodeR\x05nodes\x12M\n\x05\x65\x64ges\x18\x02 \x03(\x0b\x32\x37.vrooli.scenario_dependency_analyzer.v1.graph.GraphEdgeR\x05\x65\x64ges\x12P\n\x06\x65rrors\x18\x03 \x03(\x0b\x32\x38.vrooli.scenario_dependency_analyzer.v1.graph.GraphErrorR\x06\x65rrors\"\'\n\tGraphNode\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"\xf1\x01\n\tGraphEdge\x12#\n\rfrom_scenario\x18\x01 \x01(\tR\x0c\x66romScenario\x12\x1f\n\x0bto_scenario\x18\x02 \x01(\tR\ntoScenario\x12W\n\x08\x65vidence\x18\x03 \x03(\x0b\x32;.vrooli.scenario_dependency_analyzer.v1.graph.GraphEvidenceR\x08\x65vidence\x12\'\n\x0ftransport_world\x18\x04 \x01(\tR\x0etransportWorld\x12\x1c\n\tstability\x18\x05 \x03(\tR\tstability\"\xec\x01\n\rGraphEvidence\x12T\n\x06source\x18\x01 \x01(\x0e\x32<.vrooli.scenario_dependency_analyzer.v1.graph.EvidenceSourceR\x06source\x12\x1f\n\x0bimport_path\x18\x02 \x01(\tR\nimportPath\x12\x1b\n\tfrom_file\x18\x03 \x01(\tR\x08\x66romFile\x12\x17\n\x07to_file\x18\x04 \x01(\tR\x06toFile\x12\x12\n\x04path\x18\x05 \x01(\tR\x04path\x12\x1a\n\x08\x61nalyzer\x18\x06 \x01(\tR\x08\x61nalyzer\"Z\n\nGraphError\x12\x16\n\x06source\x18\x01 \x01(\tR\x06source\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12\x18\n\x07message\x18\x03 \x01(\tR\x07message*r\n\x0e\x45videnceSource\x12\x1f\n\x1b\x45VIDENCE_SOURCE_UNSPECIFIED\x10\x00\x12 \n\x1c\x45VIDENCE_SOURCE_PROTO_IMPORT\x10\x01\x12\x1d\n\x19\x45VIDENCE_SOURCE_GO_IMPORT\x10\x02\x32\xfd\x02\n\x15InterfaceGraphService\x12\xb3\x01\n\x16\x44\x65scribeInterfaceGraph\x12K.vrooli.scenario_dependency_analyzer.v1.graph.DescribeInterfaceGraphRequest\x1aL.vrooli.scenario_dependency_analyzer.v1.graph.DescribeInterfaceGraphResponse\x12\xad\x01\n\x14SearchInterfaceGraph\x12I.vrooli.scenario_dependency_analyzer.v1.graph.SearchInterfaceGraphRequest\x1aJ.vrooli.scenario_dependency_analyzer.v1.graph.SearchInterfaceGraphResponseB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/graph;graph_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,22 +32,28 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'scenario_dependency_analyze
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Z]github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/graph;graph_v1'
-  _globals['_EVIDENCESOURCE']._serialized_start=1340
-  _globals['_EVIDENCESOURCE']._serialized_end=1454
+  _globals['_EVIDENCESOURCE']._serialized_start=1719
+  _globals['_EVIDENCESOURCE']._serialized_end=1833
   _globals['_DESCRIBEINTERFACEGRAPHREQUEST']._serialized_start=100
   _globals['_DESCRIBEINTERFACEGRAPHREQUEST']._serialized_end=311
   _globals['_DESCRIBEINTERFACEGRAPHRESPONSE']._serialized_start=314
   _globals['_DESCRIBEINTERFACEGRAPHRESPONSE']._serialized_end=463
-  _globals['_INTERFACEGRAPH']._serialized_start=466
-  _globals['_INTERFACEGRAPH']._serialized_end=722
-  _globals['_GRAPHNODE']._serialized_start=724
-  _globals['_GRAPHNODE']._serialized_end=763
-  _globals['_GRAPHEDGE']._serialized_start=766
-  _globals['_GRAPHEDGE']._serialized_end=1007
-  _globals['_GRAPHEVIDENCE']._serialized_start=1010
-  _globals['_GRAPHEVIDENCE']._serialized_end=1246
-  _globals['_GRAPHERROR']._serialized_start=1248
-  _globals['_GRAPHERROR']._serialized_end=1338
-  _globals['_INTERFACEGRAPHSERVICE']._serialized_start=1457
-  _globals['_INTERFACEGRAPHSERVICE']._serialized_end=1662
+  _globals['_SEARCHINTERFACEGRAPHREQUEST']._serialized_start=465
+  _globals['_SEARCHINTERFACEGRAPHREQUEST']._serialized_end=538
+  _globals['_SEARCHINTERFACEGRAPHRESPONSE']._serialized_start=540
+  _globals['_SEARCHINTERFACEGRAPHRESPONSE']._serialized_end=665
+  _globals['_SCENARIOCONNECTIONHIT']._serialized_start=668
+  _globals['_SCENARIOCONNECTIONHIT']._serialized_end=842
+  _globals['_INTERFACEGRAPH']._serialized_start=845
+  _globals['_INTERFACEGRAPH']._serialized_end=1101
+  _globals['_GRAPHNODE']._serialized_start=1103
+  _globals['_GRAPHNODE']._serialized_end=1142
+  _globals['_GRAPHEDGE']._serialized_start=1145
+  _globals['_GRAPHEDGE']._serialized_end=1386
+  _globals['_GRAPHEVIDENCE']._serialized_start=1389
+  _globals['_GRAPHEVIDENCE']._serialized_end=1625
+  _globals['_GRAPHERROR']._serialized_start=1627
+  _globals['_GRAPHERROR']._serialized_end=1717
+  _globals['_INTERFACEGRAPHSERVICE']._serialized_start=1836
+  _globals['_INTERFACEGRAPHSERVICE']._serialized_end=2217
 # @@protoc_insertion_point(module_scope)

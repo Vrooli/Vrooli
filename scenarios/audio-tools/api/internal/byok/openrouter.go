@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os/exec"
+	"strings"
 
 	"audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/clock"
@@ -15,22 +17,55 @@ import (
 
 // OpenRouterSummarize calls OpenRouter's chat-completions endpoint for the
 // summarization capability. Mirrors BAS's openrouter integration.
+//
+// Greenfield: it selects NO concrete model. The model is resolved from an
+// OpenRouter policy ROLE (default summarize.default) through
+// `resource-openrouter policy resolve`; resource-openrouter is the SSOT.
 type OpenRouterSummarize struct {
 	Endpoint string
+	Role     string
 	Doer     httpc.Doer
 	Clock    clock.Clock
+
+	// ResolveModel is a test seam; production callers leave it nil and the real
+	// resource-openrouter binary is exec'd to resolve the role.
+	ResolveModel func(ctx context.Context, role string) (string, error)
 }
 
 func NewOpenRouterSummarize() *OpenRouterSummarize {
 	return &OpenRouterSummarize{
 		Endpoint: "https://openrouter.ai/api/v1/chat/completions",
+		Role:     "summarize.default",
 		Doer:     httpc.DefaultDoer(),
 		Clock:    clock.System{},
 	}
 }
 
-func (a *OpenRouterSummarize) ID() string    { return "openrouter" }
-func (a *OpenRouterSummarize) Model() string { return "anthropic/claude-haiku-4-5" }
+func (a *OpenRouterSummarize) ID() string { return "openrouter" }
+
+// Model reports the OpenRouter policy role this provider resolves at call time.
+// The concrete slug is an implementation detail owned by resource-openrouter.
+func (a *OpenRouterSummarize) Model() string {
+	if a.Role == "" {
+		return "summarize.default"
+	}
+	return a.Role
+}
+
+func (a *OpenRouterSummarize) resolveModel(ctx context.Context, role string) (string, error) {
+	if a.ResolveModel != nil {
+		return a.ResolveModel(ctx, role)
+	}
+	out, err := exec.CommandContext(ctx, "resource-openrouter", "policy", "resolve", "--role", role, "--field", "model").Output()
+	if err != nil {
+		return "", fmt.Errorf("openrouter: resolve role %q: %w", role, err)
+	}
+	model := strings.TrimSpace(string(out))
+	if model == "" {
+		return "", fmt.Errorf("openrouter: role %q resolved no model", role)
+	}
+	return model, nil
+}
 
 func (a *OpenRouterSummarize) IsAvailable(ctx context.Context, key string) bool { return key != "" }
 
@@ -49,9 +84,13 @@ func (a *OpenRouterSummarize) Summarize(ctx context.Context, key string, req sum
 	if key == "" {
 		return nil, fmt.Errorf("openrouter: missing API key")
 	}
-	model := req.Model
+	model := strings.TrimSpace(req.Model)
 	if model == "" {
-		model = a.Model()
+		resolved, err := a.resolveModel(ctx, a.Model())
+		if err != nil {
+			return nil, err
+		}
+		model = resolved
 	}
 	payload, _ := json.Marshal(map[string]any{
 		"model": model,

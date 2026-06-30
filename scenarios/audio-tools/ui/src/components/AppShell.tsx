@@ -32,7 +32,7 @@ export function AppShell() {
   ]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-app-background text-app-foreground">
+    <div className="flex min-h-full flex-col bg-app-background text-app-foreground">
       <TopBar onOpenSettings={() => setSettingsOpen(true)} />
       <div className="flex flex-1">
         <Sidebar />

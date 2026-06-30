@@ -8,6 +8,16 @@ import (
 	"testing"
 )
 
+// TestMain overrides the OpenRouter cloud-model role resolver so Ensure tests
+// run hermetically (no resource-openrouter binary required). The returned slug
+// stands in for whatever `code.default` would resolve to in production.
+func TestMain(m *testing.M) {
+	resolveCloudModel = func(context.Context, string) (string, error) {
+		return "deepseek/deepseek-v4-flash", nil
+	}
+	os.Exit(m.Run())
+}
+
 func readFile(path string) ([]byte, error) { return os.ReadFile(path) }
 
 func writeFile(t *testing.T, path, body string) {
@@ -200,6 +210,7 @@ type fakeResolver struct {
 func (f fakeResolver) InstalledModels(ctx context.Context) ([]string, error) {
 	return f.installed, f.listErr
 }
+
 func (f fakeResolver) LocalRole(ctx context.Context, role string) (RoleResolution, error) {
 	return f.role, f.roleErr
 }
@@ -286,6 +297,53 @@ func TestEnsure_Idempotent(t *testing.T) {
 	}
 	if changed {
 		t.Errorf("second Ensure must be a no-op (idempotent)")
+	}
+}
+
+func TestEnsure_CloudRoleResolutionFailsLoud(t *testing.T) {
+	prev := resolveCloudModel
+	resolveCloudModel = func(context.Context, string) (string, error) {
+		return "", errors.New("resource-openrouter not found")
+	}
+	defer func() { resolveCloudModel = prev }()
+
+	dir := t.TempDir()
+	_, err := Ensure(context.Background(), EnsureOptions{
+		ConfigPath:     dir + "/opencode.json",
+		Defaults:       DefaultDefaults(func(string) string { return "" }),
+		HaveOpenRouter: true,
+		Resolver:       fakeResolver{installed: []string{"gemma4:12b"}},
+	})
+	if err == nil {
+		t.Fatal("expected Ensure to fail when the cloud role cannot be resolved (no concrete fallback)")
+	}
+}
+
+func TestEnsure_ResolvesCloudModelFromRole(t *testing.T) {
+	prev := resolveCloudModel
+	var gotRole string
+	resolveCloudModel = func(_ context.Context, role string) (string, error) {
+		gotRole = role
+		return "vendor/some-resolved-model", nil
+	}
+	defer func() { resolveCloudModel = prev }()
+
+	dir := t.TempDir()
+	path := dir + "/opencode.json"
+	if _, err := Ensure(context.Background(), EnsureOptions{
+		ConfigPath:     path,
+		Defaults:       DefaultDefaults(func(string) string { return "" }),
+		HaveOpenRouter: true,
+		Resolver:       fakeResolver{installed: []string{"gemma4:12b"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if gotRole != "code.default" {
+		t.Errorf("expected role code.default, got %q", gotRole)
+	}
+	data, _ := readFile(path)
+	if parse(t, data)["model"] != "openrouter/vendor/some-resolved-model" {
+		t.Errorf("active model should be the resolved cloud slug: %v", parse(t, data)["model"])
 	}
 }
 

@@ -21,15 +21,26 @@ class RouteSource(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ROUTE_SOURCE_UNSPECIFIED: _ClassVar[RouteSource]
     ROUTE_SOURCE_SCENARIO: _ClassVar[RouteSource]
     ROUTE_SOURCE_EXTERNAL: _ClassVar[RouteSource]
+
+class PublicExposure(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    PUBLIC_EXPOSURE_UNSPECIFIED: _ClassVar[PublicExposure]
+    PUBLIC_EXPOSURE_INHERIT: _ClassVar[PublicExposure]
+    PUBLIC_EXPOSURE_ENABLED: _ClassVar[PublicExposure]
+    PUBLIC_EXPOSURE_DISABLED: _ClassVar[PublicExposure]
 TIER_UNSPECIFIED: Tier
 TIER_CORE: Tier
 TIER_LEASED: Tier
 ROUTE_SOURCE_UNSPECIFIED: RouteSource
 ROUTE_SOURCE_SCENARIO: RouteSource
 ROUTE_SOURCE_EXTERNAL: RouteSource
+PUBLIC_EXPOSURE_UNSPECIFIED: PublicExposure
+PUBLIC_EXPOSURE_INHERIT: PublicExposure
+PUBLIC_EXPOSURE_ENABLED: PublicExposure
+PUBLIC_EXPOSURE_DISABLED: PublicExposure
 
 class Route(_message.Message):
-    __slots__ = ("id", "subdomain", "scenario", "domain", "local_port", "tier", "lease_id", "enabled", "health_path", "public_url", "created_at", "updated_at", "source", "service_target")
+    __slots__ = ("id", "subdomain", "scenario", "domain", "local_port", "tier", "lease_id", "enabled", "health_path", "public_url", "created_at", "updated_at", "source", "service_target", "public_exposure")
     ID_FIELD_NUMBER: _ClassVar[int]
     SUBDOMAIN_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
@@ -44,6 +55,7 @@ class Route(_message.Message):
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     SERVICE_TARGET_FIELD_NUMBER: _ClassVar[int]
+    PUBLIC_EXPOSURE_FIELD_NUMBER: _ClassVar[int]
     id: str
     subdomain: str
     scenario: str
@@ -58,7 +70,8 @@ class Route(_message.Message):
     updated_at: _timestamp_pb2.Timestamp
     source: RouteSource
     service_target: str
-    def __init__(self, id: _Optional[str] = ..., subdomain: _Optional[str] = ..., scenario: _Optional[str] = ..., domain: _Optional[str] = ..., local_port: _Optional[int] = ..., tier: _Optional[_Union[Tier, str]] = ..., lease_id: _Optional[str] = ..., enabled: _Optional[bool] = ..., health_path: _Optional[str] = ..., public_url: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., source: _Optional[_Union[RouteSource, str]] = ..., service_target: _Optional[str] = ...) -> None: ...
+    public_exposure: PublicExposure
+    def __init__(self, id: _Optional[str] = ..., subdomain: _Optional[str] = ..., scenario: _Optional[str] = ..., domain: _Optional[str] = ..., local_port: _Optional[int] = ..., tier: _Optional[_Union[Tier, str]] = ..., lease_id: _Optional[str] = ..., enabled: _Optional[bool] = ..., health_path: _Optional[str] = ..., public_url: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., source: _Optional[_Union[RouteSource, str]] = ..., service_target: _Optional[str] = ..., public_exposure: _Optional[_Union[PublicExposure, str]] = ...) -> None: ...
 
 class ListRoutesRequest(_message.Message):
     __slots__ = ("tier",)
@@ -85,7 +98,7 @@ class GetRouteResponse(_message.Message):
     def __init__(self, route: _Optional[_Union[Route, _Mapping]] = ...) -> None: ...
 
 class CreateRouteRequest(_message.Message):
-    __slots__ = ("subdomain", "scenario", "domain", "local_port", "tier", "lease_id", "health_path", "enabled", "source", "service_target")
+    __slots__ = ("subdomain", "scenario", "domain", "local_port", "tier", "lease_id", "health_path", "enabled", "source", "service_target", "public_exposure")
     SUBDOMAIN_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     DOMAIN_FIELD_NUMBER: _ClassVar[int]
@@ -96,6 +109,7 @@ class CreateRouteRequest(_message.Message):
     ENABLED_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     SERVICE_TARGET_FIELD_NUMBER: _ClassVar[int]
+    PUBLIC_EXPOSURE_FIELD_NUMBER: _ClassVar[int]
     subdomain: str
     scenario: str
     domain: str
@@ -106,7 +120,8 @@ class CreateRouteRequest(_message.Message):
     enabled: bool
     source: RouteSource
     service_target: str
-    def __init__(self, subdomain: _Optional[str] = ..., scenario: _Optional[str] = ..., domain: _Optional[str] = ..., local_port: _Optional[int] = ..., tier: _Optional[_Union[Tier, str]] = ..., lease_id: _Optional[str] = ..., health_path: _Optional[str] = ..., enabled: _Optional[bool] = ..., source: _Optional[_Union[RouteSource, str]] = ..., service_target: _Optional[str] = ...) -> None: ...
+    public_exposure: PublicExposure
+    def __init__(self, subdomain: _Optional[str] = ..., scenario: _Optional[str] = ..., domain: _Optional[str] = ..., local_port: _Optional[int] = ..., tier: _Optional[_Union[Tier, str]] = ..., lease_id: _Optional[str] = ..., health_path: _Optional[str] = ..., enabled: _Optional[bool] = ..., source: _Optional[_Union[RouteSource, str]] = ..., service_target: _Optional[str] = ..., public_exposure: _Optional[_Union[PublicExposure, str]] = ...) -> None: ...
 
 class CreateRouteResponse(_message.Message):
     __slots__ = ("route",)
@@ -115,7 +130,7 @@ class CreateRouteResponse(_message.Message):
     def __init__(self, route: _Optional[_Union[Route, _Mapping]] = ...) -> None: ...
 
 class UpdateRouteRequest(_message.Message):
-    __slots__ = ("id", "subdomain", "scenario", "domain", "local_port", "tier", "health_path", "enabled", "source", "service_target")
+    __slots__ = ("id", "subdomain", "scenario", "domain", "local_port", "tier", "health_path", "enabled", "source", "service_target", "public_exposure")
     ID_FIELD_NUMBER: _ClassVar[int]
     SUBDOMAIN_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
@@ -126,6 +141,7 @@ class UpdateRouteRequest(_message.Message):
     ENABLED_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     SERVICE_TARGET_FIELD_NUMBER: _ClassVar[int]
+    PUBLIC_EXPOSURE_FIELD_NUMBER: _ClassVar[int]
     id: str
     subdomain: str
     scenario: str
@@ -136,7 +152,8 @@ class UpdateRouteRequest(_message.Message):
     enabled: bool
     source: RouteSource
     service_target: str
-    def __init__(self, id: _Optional[str] = ..., subdomain: _Optional[str] = ..., scenario: _Optional[str] = ..., domain: _Optional[str] = ..., local_port: _Optional[int] = ..., tier: _Optional[_Union[Tier, str]] = ..., health_path: _Optional[str] = ..., enabled: _Optional[bool] = ..., source: _Optional[_Union[RouteSource, str]] = ..., service_target: _Optional[str] = ...) -> None: ...
+    public_exposure: PublicExposure
+    def __init__(self, id: _Optional[str] = ..., subdomain: _Optional[str] = ..., scenario: _Optional[str] = ..., domain: _Optional[str] = ..., local_port: _Optional[int] = ..., tier: _Optional[_Union[Tier, str]] = ..., health_path: _Optional[str] = ..., enabled: _Optional[bool] = ..., source: _Optional[_Union[RouteSource, str]] = ..., service_target: _Optional[str] = ..., public_exposure: _Optional[_Union[PublicExposure, str]] = ...) -> None: ...
 
 class UpdateRouteResponse(_message.Message):
     __slots__ = ("route",)

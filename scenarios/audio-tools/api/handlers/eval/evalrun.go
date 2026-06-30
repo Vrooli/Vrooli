@@ -4,13 +4,17 @@ import (
 	"context"
 	"fmt"
 
+	sttH "audio-tools/handlers/stt"
 	"audio-tools/internal/ai/sttchain"
 	intcorpus "audio-tools/internal/corpus"
 	inteval "audio-tools/internal/eval"
-	"audio-tools/internal/stt/strategy"
+	"audio-tools/internal/stt"
+	"audio-tools/internal/stt/segmenter"
 
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval"
 )
+
+const evalEngineID = "eval-whisper-local"
 
 // defaultStrategyKinds is the trio compared when a RunEval request lists no
 // strategies: the batch oracle plus the two streaming strategies.
@@ -61,6 +65,7 @@ func (h *connectHandler) buildSpecs(reqStrategies []*evalv1.EvalStrategy) ([]int
 		stall int
 		win   int
 		runs  int
+		max   int
 		vad   int
 	}
 	var wanted []cfg
@@ -75,6 +80,7 @@ func (h *connectHandler) buildSpecs(reqStrategies []*evalv1.EvalStrategy) ([]int
 				stall: int(s.GetOverlapMaxStallRejects()),
 				win:   int(s.GetOverlapWindowMs()),
 				runs:  int(s.GetOverlapCommitRuns()),
+				max:   int(s.GetOverlapMaxWindowMs()),
 				vad:   int(s.GetVadSilenceMs()),
 			})
 		}
@@ -97,49 +103,36 @@ func (h *connectHandler) buildSpecs(reqStrategies []*evalv1.EvalStrategy) ([]int
 				},
 			})
 		case "vad_segment", "vad":
-			silence := h.deps.Defaults.VADSilenceMs
+			cfg := h.streamConfigFor(stt.PreferenceVAD)
 			if w.vad > 0 {
-				silence = w.vad
+				cfg.VADSilenceMs = w.vad
 			}
 			specs = append(specs, inteval.StrategySpec{
 				Kind: sttchain.StrategyVADSegment, Label: label,
 				BuildSession: func(clip inteval.Clip) (inteval.Session, *inteval.MeteredProvider) {
 					meter := h.newMeter(clip)
-					strat := &strategy.VADSegmenter{
-						Provider:           meter,
-						SilenceMs:          silence,
-						PreRollMs:          h.deps.Defaults.VADPreRollMs,
-						TrailingPadMs:      h.deps.Defaults.VADTrailingPadMs,
-						InitialPromptWords: h.deps.Defaults.VADInitialPromptWords,
-					}
-					return strategySession(strat, clip.SampleRate), meter
+					return h.segmenterSession(meter, cfg, clip), meter
 				},
 			})
 		case "overlap_agree", "overlap":
-			stall := h.deps.Defaults.OverlapMaxStallRejects
+			cfg := h.streamConfigFor(stt.PreferenceOverlap)
 			if w.stall >= 0 {
-				stall = w.stall // 0 = disabled is honored
+				cfg.OverlapMaxStallRejects = w.stall // 0 = disabled is honored
 			}
-			win := h.deps.Defaults.OverlapWindowMs
 			if w.win > 0 {
-				win = w.win
+				cfg.OverlapWindowMs = w.win
 			}
-			runs := h.deps.Defaults.OverlapCommitRuns
 			if w.runs > 0 {
-				runs = w.runs
+				cfg.OverlapCommitRuns = w.runs
+			}
+			if w.max > 0 {
+				cfg.OverlapMaxWindowMs = w.max
 			}
 			specs = append(specs, inteval.StrategySpec{
 				Kind: sttchain.StrategyOverlapAgree, Label: label,
 				BuildSession: func(clip inteval.Clip) (inteval.Session, *inteval.MeteredProvider) {
 					meter := h.newMeter(clip)
-					strat := &strategy.OverlapAgree{
-						Provider:        meter,
-						WindowMs:        win,
-						CommitRuns:      runs,
-						MaxStallRejects: stall,
-						SampleRate:      clip.SampleRate,
-					}
-					return strategySession(strat, clip.SampleRate), meter
+					return h.segmenterSession(meter, cfg, clip), meter
 				},
 			})
 		default:
@@ -153,14 +146,53 @@ func (h *connectHandler) newMeter(clip inteval.Clip) *inteval.MeteredProvider {
 	return inteval.NewMeteredProvider(h.deps.NewProvider(), float64(clip.SampleRate*2))
 }
 
-// strategySession adapts a PCM-consuming strategy's Run into a harness
-// Session, stamping the canonical-PCM input format so the provider knows
-// the bytes' codec.
-func strategySession(strat strategy.Strategy, _ int) inteval.Session {
-	start := sttchain.StreamStart{InputFormat: "pcm_s16le"}
-	return inteval.StrategySession(func(ctx context.Context, chunks <-chan sttchain.AudioChunk, events chan<- sttchain.StreamEvent) error {
-		return strat.Run(ctx, start, chunks, events)
+func (h *connectHandler) streamConfigFor(pref stt.StrategyPreference) stt.StreamConfig {
+	cfg := h.deps.Defaults
+	if cfg.Mode == "" {
+		cfg = stt.Defaults()
+	}
+	cfg.Mode = stt.ModeAuto
+	cfg.StrategyPreference = pref
+	cfg.EngineID = evalEngineID
+	return cfg
+}
+
+// segmenterSession routes eval streaming strategies through the production
+// Segmenter path. Speaker stages stay unbound unless a caller supplies a
+// per-run SpeakerConfig, so the public eval surface remains speaker-off while
+// experiments can exercise extraction/verification hermetically.
+func (h *connectHandler) segmenterSession(meter *inteval.MeteredProvider, cfg stt.StreamConfig, clip inteval.Clip) inteval.Session {
+	chain := sttchain.NewChain(sttchain.Options{
+		EnableLocal:  true,
+		LocalEngines: map[string]sttchain.Provider{evalEngineID: meter},
 	})
+	selector := stt.NewSelector(providerBatchExecutor{provider: meter})
+	deps := segmenter.Deps{Chain: chain, Selector: selector}
+	if h.deps.SpeakerConfig != nil {
+		if h.deps.SpeakerVerificationEnabled {
+			deps.SpeakerIsolation = sttH.NewSpeakerIsolationFromConfig(*h.deps.SpeakerConfig, h.deps.SpeakerResource, h.deps.Logger)
+		}
+		if h.deps.SpeakerExtractionEnabled {
+			deps.SpeakerExtraction = sttH.NewSpeakerExtractionFromConfig(*h.deps.SpeakerConfig, h.deps.SpeakerResource)
+		}
+	}
+	seg := segmenter.New(deps)
+	start := sttchain.StreamStart{
+		InputFormat:     "pcm_s16le",
+		InputSampleRate: int32(clip.SampleRate),
+		EngineID:        evalEngineID,
+	}
+	return func(ctx context.Context, chunks <-chan sttchain.AudioChunk, events chan<- sttchain.StreamEvent) error {
+		return seg.Run(ctx, start, cfg, chunks, events)
+	}
+}
+
+type providerBatchExecutor struct {
+	provider sttchain.Provider
+}
+
+func (e providerBatchExecutor) Execute(ctx context.Context, req sttchain.Request) (*sttchain.Result, error) {
+	return e.provider.Transcribe(ctx, req)
 }
 
 // batchSession is the oracle row: drain the whole clip, make ONE metered

@@ -13,6 +13,7 @@ import (
 	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
 	"audio-tools/internal/stt"
+	sttpipeline "audio-tools/internal/stt/pipeline"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -34,6 +35,19 @@ type Deps struct {
 	// Defaults supplies the overlap/vad config used when an EvalStrategy
 	// leaves a knob unset.
 	Defaults stt.StreamConfig
+	// SpeakerConfig is an optional per-run experiment speaker snapshot. Nil
+	// keeps eval speaker stages off, which preserves the public EvalService's
+	// historical behavior and avoids reading the live speaker config cell.
+	SpeakerConfig *sttpipeline.SpeakerConfig
+	// SpeakerExtractionEnabled and SpeakerVerificationEnabled select which
+	// speaker stages this eval run binds. They let experiments run attribution
+	// ablations such as extraction-on / verification-off with the same
+	// underlying adapter implementations.
+	SpeakerExtractionEnabled   bool
+	SpeakerVerificationEnabled bool
+	// SpeakerResource is the speaker-verification resource client used only
+	// when SpeakerConfig enables extraction and/or verification.
+	SpeakerResource *sttpipeline.SpeakerClient
 }
 
 // Module wires the EvalService Connect handler.

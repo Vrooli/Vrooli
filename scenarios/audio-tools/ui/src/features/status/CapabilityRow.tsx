@@ -26,7 +26,7 @@ function capabilitySlug(c: Capability): string {
   }
 }
 
-type TFn = ReturnType<typeof useTranslation>["t"];
+type TFn = (key: string, options?: Record<string, unknown>) => string;
 
 function capabilityLabel(t: TFn, c: Capability): string {
   switch (c) {
@@ -77,15 +77,16 @@ function ProviderCard({
   renderActions?: (providerId: string) => React.ReactNode;
 }) {
   const { t } = useTranslation();
+  const tr = t as unknown as TFn;
   return (
     <div className="flex flex-col gap-2 rounded-control border border-app-border bg-app-surface p-3">
       <div className="flex items-center justify-between gap-2">
         <span className="font-medium text-app-foreground">{provider.providerId}</span>
-        <Badge variant={stateVariant(provider.state)}>{stateLabel(t, provider.state)}</Badge>
+        <Badge variant={stateVariant(provider.state)}>{stateLabel(tr, provider.state)}</Badge>
       </div>
       <div className="flex items-center gap-2 text-xs text-app-muted-foreground">
         <ProviderTierBadge tier={provider.tier} />
-        {provider.lastCheckedAt && <span>{t(strings.status.checkedAt, { when: provider.lastCheckedAt })}</span>}
+        {provider.lastCheckedAt && <span>{tr(strings.status.checkedAt, { when: provider.lastCheckedAt })}</span>}
       </div>
       {provider.errorMessage && (
         <p className="text-xs text-app-danger">{provider.errorMessage}</p>
@@ -106,18 +107,19 @@ interface CapabilityRowProps {
 
 export function CapabilityRow({ capability, renderProviderActions }: CapabilityRowProps) {
   const { t } = useTranslation();
+  const tr = t as unknown as TFn;
   return (
     <Card id={capabilitySlug(capability.capability)} className="flex flex-col gap-3 p-4 scroll-mt-20">
       <header className="flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold text-app-foreground">
-          {capabilityLabel(t, capability.capability)}
+          {capabilityLabel(tr, capability.capability)}
         </h2>
         <Badge variant={stateVariant(capability.effectiveState)}>
-          {stateLabel(t, capability.effectiveState)}
+          {stateLabel(tr, capability.effectiveState)}
         </Badge>
       </header>
       {capability.providers.length === 0 ? (
-        <p className="text-sm text-app-muted-foreground">{t(strings.status.noProviders)}</p>
+        <p className="text-sm text-app-muted-foreground">{tr(strings.status.noProviders)}</p>
       ) : (
         <div className="grid gap-2 sm:grid-cols-2">
           {capability.providers.map((p) => (

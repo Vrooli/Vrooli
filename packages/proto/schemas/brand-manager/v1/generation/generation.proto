@@ -124,6 +124,9 @@ message ImageOperationStatus {
   // Human-readable guidance when not ready (e.g. "run image-tools models install
   // sd-1.5") or a non-fatal caveat.
   string hint = 5;
+  // Non-fatal selection/backend cautions from image-tools, including BYOK cost
+  // disclosure and skipped higher-quality candidates.
+  repeated string warnings = 6;
 }
 
 // GetImageBackendStatusResponse reports image-tools' overall reachability and
@@ -225,8 +228,9 @@ message GenerateBrandImageRequest {
   // Optional. image-tools model id override. Empty uses image-tools' hardware-fit
   // default for the operation.
   string model_override = 3;
-  // Optional. Permit image-tools to fall back to its metered BYOK cloud provider
-  // when no local backend is available. Off by default.
+  // Optional. Permit image-tools to use its metered BYOK cloud provider unless
+  // fallback_policy is "local_only". Brand image generation defaults to quality
+  // with cloud fallback when configured.
   bool allow_byok = 4;
   // Optional. RNG seed for reproducibility; 0 means random.
   int64 seed = 5;
@@ -235,6 +239,15 @@ message GenerateBrandImageRequest {
   // automatically if the brand has none yet, but an existing canonical is left
   // untouched.
   bool set_canonical = 6;
+  // Optional. "quality" (default), "balanced", or "fast".
+  string quality_policy = 7;
+  // Optional. "any" (default), "cloud_allowed", or "local_only".
+  string fallback_policy = 8;
+  // Optional. Capacity priority: "service" (default), "interactive", or "batch".
+  string priority = 9;
+  // Optional. Whether image-tools may reclaim cold-idle local resources. Unset
+  // defaults to true for brand-quality image generation.
+  optional bool allow_reclaim = 10;
 }
 
 // EditBrandImageRequest asks image-tools to edit an existing brand image
@@ -250,13 +263,24 @@ message EditBrandImageRequest {
   string instruction = 3;
   // Optional. image-tools model id override.
   string model_override = 4;
-  // Optional. Permit metered BYOK cloud fallback. Off by default.
+  // Optional. Permit metered BYOK cloud fallback unless fallback_policy is
+  // "local_only". Brand image editing defaults to quality with cloud fallback
+  // when configured.
   bool allow_byok = 5;
   // Optional. RNG seed; 0 means random.
   int64 seed = 6;
   // Optional. Also write the edited result as the canonical "logo.png" (see
   // GenerateBrandImageRequest.set_canonical for semantics).
   bool set_canonical = 7;
+  // Optional. "quality" (default), "balanced", or "fast".
+  string quality_policy = 8;
+  // Optional. "any" (default), "cloud_allowed", or "local_only".
+  string fallback_policy = 9;
+  // Optional. Capacity priority: "service" (default), "interactive", or "batch".
+  string priority = 10;
+  // Optional. Whether image-tools may reclaim cold-idle local resources. Unset
+  // defaults to true for brand-quality image editing.
+  optional bool allow_reclaim = 11;
 }
 
 // RemoveBrandImageBackgroundRequest asks image-tools to isolate the mark in an

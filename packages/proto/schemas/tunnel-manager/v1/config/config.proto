@@ -58,6 +58,16 @@ service ConfigService {
   // PruneIngress removes a single named hostname from live ingress and the
   // ledger. This is the only path that removes a specific entry.
   rpc PruneIngress(PruneIngressRequest) returns (PruneIngressResponse);
+  // SetPublicExposure flips the global /public Access-bypass switch (the
+  // public-asset convention; see docs/concepts/PUBLIC_ASSETS.md). PURE: it
+  // persists the flag and performs zero Cloudflare writes — the next Sync
+  // reconciles the live Access apps.
+  rpc SetPublicExposure(SetPublicExposureRequest) returns (SetPublicExposureResponse);
+  // GetAccessStatus returns the /public Access-bypass read model: the global
+  // switch, whether the Access client is configured, the per-host effective
+  // decisions, and the dry-run plan (apps a reconcile would create/remove).
+  // Pure — no mutation, no live Cloudflare calls.
+  rpc GetAccessStatus(GetAccessStatusRequest) returns (GetAccessStatusResponse);
 }
 
 // OwnershipState classifies one ingress hostname after reconciling the desired
@@ -129,6 +139,9 @@ message TunnelConfig {
   // Prometheus metrics endpoint exposed by cloudflared (e.g.
   // "127.0.0.1:20241").
   string prom_endpoint = 5;
+  // Global switch for the /public Access-bypass capability (default false).
+  // See docs/concepts/PUBLIC_ASSETS.md.
+  bool public_exposure_enabled = 6;
 }
 
 // ConfigReadiness reports whether the current process has enough
@@ -332,4 +345,48 @@ message PruneIngressRequest {
 message PruneIngressResponse {
   // True when the hostname was removed from live ingress and/or the ledger.
   bool pruned = 1;
+}
+
+message SetPublicExposureRequest {
+  // New global state for the /public Access-bypass capability.
+  bool enabled = 1;
+}
+
+message SetPublicExposureResponse {
+  // The persisted config after the flip.
+  TunnelConfig config = 1;
+}
+
+message GetAccessStatusRequest {}
+
+// AccessHostState is one host's /public Access-bypass status.
+message AccessHostState {
+  string host = 1;
+  // Per-route override: "inherit", "enabled", or "disabled".
+  string override = 2;
+  // Whether this host would have a /public bypass under the current
+  // global switch + override.
+  bool effective_bypass = 3;
+  // Whether the access ledger attributes a bypass app to TM.
+  bool managed = 4;
+  // Cloudflare app id when managed.
+  string app_id = 5;
+}
+
+// AccessStatus is the /public Access-bypass read model + dry-run plan.
+message AccessStatus {
+  // Global switch state.
+  bool enabled = 1;
+  // True when the Access client is configured (Cloudflare creds present).
+  bool configured = 2;
+  // Per-host effective decisions, ordered by host.
+  repeated AccessHostState hosts = 3;
+  // Hosts a reconcile would create a bypass app for (not yet managed).
+  repeated string to_create = 4;
+  // Ledgered hosts a reconcile would remove the bypass app for.
+  repeated string to_remove = 5;
+}
+
+message GetAccessStatusResponse {
+  AccessStatus status = 1;
 }

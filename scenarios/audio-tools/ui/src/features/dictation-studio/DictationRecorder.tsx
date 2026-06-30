@@ -66,8 +66,11 @@ export function DictationRecorder({ onCaptured }: Props) {
 
   const startLevelMonitor = (stream: MediaStream | null) => {
     stopLevelMonitor();
-    const win = window as Window & { webkitAudioContext?: typeof AudioContext };
-    const AudioContextCtor = window.AudioContext ?? win.webkitAudioContext;
+    const win = window as Window & {
+      AudioContext?: typeof AudioContext;
+      webkitAudioContext?: typeof AudioContext;
+    };
+    const AudioContextCtor = win.AudioContext ?? win.webkitAudioContext;
     if (!stream || !AudioContextCtor) return;
 
     try {

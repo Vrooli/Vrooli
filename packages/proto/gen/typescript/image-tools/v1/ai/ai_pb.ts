@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file image-tools/v1/ai/ai.proto.
  */
 export const file_image_tools_v1_ai_ai: GenFile = /*@__PURE__*/
-  fileDesc("ChppbWFnZS10b29scy92MS9haS9haS5wcm90bxIYdnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpIqIBCg9BSU9wZXJhdGlvbkluZm8SDAoEbmFtZRgBIAEoCRIQCghjYXRlZ29yeRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEhYKDnJlcXVpcmVzX2ltYWdlGAQgASgIEhUKDXJlcXVpcmVzX21hc2sYBSABKAgSFQoNcHJvbXB0X2RyaXZlbhgGIAEoCBIYChBkZWZhdWx0X21vZGVsX2lkGAcgASgJIhkKF0xpc3RBSU9wZXJhdGlvbnNSZXF1ZXN0IlkKGExpc3RBSU9wZXJhdGlvbnNSZXNwb25zZRI9CgpvcGVyYXRpb25zGAEgAygLMikudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkFJT3BlcmF0aW9uSW5mbyLyAgoIQUlQYXJhbXMSDgoGcHJvbXB0GAEgASgJEhcKD25lZ2F0aXZlX3Byb21wdBgCIAEoCRIMCgRzZWVkGAMgASgDEg0KBXdpZHRoGAQgASgFEg4KBmhlaWdodBgFIAEoBRINCgVzdGVwcxgGIAEoBRIRCgljZmdfc2NhbGUYByABKAESEgoKdmFyaWF0aW9ucxgIIAEoBRIQCghzdHJlbmd0aBgJIAEoARINCgVzY2FsZRgKIAEoBRIWCg5tb2RlbF9vdmVycmlkZRgLIAEoCRISCgphbGxvd19ieW9rGAwgASgIEhYKDmF1dG9fc2Nhbl9uc2Z3GA0gASgIEg8KB3JlYWxpc20YDiABKAESEgoKZmFjZV9hd2FyZRgPIAEoCBIYChBjb25zZW50X2FmZmlybWVkGBAgASgIEjYKCGFkYXB0ZXJzGBEgAygLMiQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkFkYXB0ZXJSZWYibgoKQWRhcHRlclJlZhISCgphZGFwdGVyX2lkGAEgASgJEg0KBXNjYWxlGAIgASgBEh4KFmNvbmRpdGlvbmluZ19pbWFnZV9rZXkYAyABKAkSHQoVcHJlcHJvY2Vzc29yX292ZXJyaWRlGAQgASgJIm8KEFN1Ym1pdEFJUmVzcG9uc2USDgoGam9iX2lkGAEgASgJEhkKEWVzdGltYXRlZF9zZWNvbmRzGAIgASgFEhAKCG1vZGVsX2lkGAMgASgJEgwKBHRpZXIYBCABKAkSEAoId2FybmluZ3MYBSADKAkyhgEKCUFJU2VydmljZRJ5ChBMaXN0QUlPcGVyYXRpb25zEjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkxpc3RBSU9wZXJhdGlvbnNSZXF1ZXN0GjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkxpc3RBSU9wZXJhdGlvbnNSZXNwb25zZUJIWkZnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2ltYWdlLXRvb2xzL3YxL2FpO2FpX3YxYgZwcm90bzM");
+  fileDesc("ChppbWFnZS10b29scy92MS9haS9haS5wcm90bxIYdnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpIqIBCg9BSU9wZXJhdGlvbkluZm8SDAoEbmFtZRgBIAEoCRIQCghjYXRlZ29yeRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEhYKDnJlcXVpcmVzX2ltYWdlGAQgASgIEhUKDXJlcXVpcmVzX21hc2sYBSABKAgSFQoNcHJvbXB0X2RyaXZlbhgGIAEoCBIYChBkZWZhdWx0X21vZGVsX2lkGAcgASgJIhkKF0xpc3RBSU9wZXJhdGlvbnNSZXF1ZXN0IlkKGExpc3RBSU9wZXJhdGlvbnNSZXNwb25zZRI9CgpvcGVyYXRpb25zGAEgAygLMikudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkFJT3BlcmF0aW9uSW5mbyL8AwoIQUlQYXJhbXMSDgoGcHJvbXB0GAEgASgJEhcKD25lZ2F0aXZlX3Byb21wdBgCIAEoCRIMCgRzZWVkGAMgASgDEg0KBXdpZHRoGAQgASgFEg4KBmhlaWdodBgFIAEoBRINCgVzdGVwcxgGIAEoBRIRCgljZmdfc2NhbGUYByABKAESEgoKdmFyaWF0aW9ucxgIIAEoBRIQCghzdHJlbmd0aBgJIAEoARINCgVzY2FsZRgKIAEoBRIWCg5tb2RlbF9vdmVycmlkZRgLIAEoCRISCgphbGxvd19ieW9rGAwgASgIEhYKDmF1dG9fc2Nhbl9uc2Z3GA0gASgIEg8KB3JlYWxpc20YDiABKAESEgoKZmFjZV9hd2FyZRgPIAEoCBIYChBjb25zZW50X2FmZmlybWVkGBAgASgIEjYKCGFkYXB0ZXJzGBEgAygLMiQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkFkYXB0ZXJSZWYSFgoOcXVhbGl0eV9wb2xpY3kYEiABKAkSFwoPZmFsbGJhY2tfcG9saWN5GBMgASgJEhAKCHByaW9yaXR5GBQgASgJEhoKDWFsbG93X3JlY2xhaW0YFSABKAhIAIgBARIXCg9vcGVucm91dGVyX3JvbGUYFiABKAlCEAoOX2FsbG93X3JlY2xhaW0ibgoKQWRhcHRlclJlZhISCgphZGFwdGVyX2lkGAEgASgJEg0KBXNjYWxlGAIgASgBEh4KFmNvbmRpdGlvbmluZ19pbWFnZV9rZXkYAyABKAkSHQoVcHJlcHJvY2Vzc29yX292ZXJyaWRlGAQgASgJIm8KEFN1Ym1pdEFJUmVzcG9uc2USDgoGam9iX2lkGAEgASgJEhkKEWVzdGltYXRlZF9zZWNvbmRzGAIgASgFEhAKCG1vZGVsX2lkGAMgASgJEgwKBHRpZXIYBCABKAkSEAoId2FybmluZ3MYBSADKAkyhgEKCUFJU2VydmljZRJ5ChBMaXN0QUlPcGVyYXRpb25zEjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkxpc3RBSU9wZXJhdGlvbnNSZXF1ZXN0GjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkxpc3RBSU9wZXJhdGlvbnNSZXNwb25zZUJIWkZnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2ltYWdlLXRvb2xzL3YxL2FpO2FpX3YxYgZwcm90bzM");
 
 /**
  * AIOperationInfo describes one model-backed operation for discovery.
@@ -192,8 +192,8 @@ export type AIParams = Message<"vrooli.image_tools.v1.ai.AIParams"> & {
   modelOverride: string;
 
   /**
-   * AllowByok permits falling back to a paid BYOK cloud provider when no local
-   * backend is available. Off by default — BYOK is opt-in and metered.
+   * AllowByok permits paid BYOK cloud candidates. FallbackPolicy can still
+   * force local-only execution even when this is true.
    *
    * @generated from field: bool allow_byok = 12;
    */
@@ -251,6 +251,47 @@ export type AIParams = Message<"vrooli.image_tools.v1.ai.AIParams"> & {
    * @generated from field: repeated vrooli.image_tools.v1.ai.AdapterRef adapters = 17;
    */
   adapters: AdapterRef[];
+
+  /**
+   * QualityPolicy tunes candidate ordering: "fast", "balanced", or "quality".
+   * Empty means the scenario default.
+   *
+   * @generated from field: string quality_policy = 18;
+   */
+  qualityPolicy: string;
+
+  /**
+   * FallbackPolicy controls provider fallback: "local_only", "cloud_allowed", or
+   * "any". Empty means any policy permitted by allow_byok and deployment config.
+   *
+   * @generated from field: string fallback_policy = 19;
+   */
+  fallbackPolicy: string;
+
+  /**
+   * Priority is the capacity claim tier: "batch", "service", or "interactive".
+   * Empty means service for image generation/editing.
+   *
+   * @generated from field: string priority = 20;
+   */
+  priority: string;
+
+  /**
+   * AllowReclaim permits capacity claims that free idle lower-value resources.
+   * Unset means true for image generation/editing.
+   *
+   * @generated from field: optional bool allow_reclaim = 21;
+   */
+  allowReclaim?: boolean | undefined;
+
+  /**
+   * OpenRouterRole is an optional logical policy role (for example
+   * "image.generate.logo") that the OpenRouter resource resolves to a concrete
+   * model. Callers should pass roles, never provider-specific model ids.
+   *
+   * @generated from field: string openrouter_role = 22;
+   */
+  openrouterRole: string;
 };
 
 /**

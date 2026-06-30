@@ -249,6 +249,70 @@
       "category": "eval"
     },
     {
+      "id": "experiment.start",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/StartExperiment",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.get",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/GetExperiment",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.wait",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/WaitExperiment",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.list",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/ListExperiments",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.cancel",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/CancelExperiment",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.stream",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/StreamExperimentEvents",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.report",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/GetExperimentReport",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.compare",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/CompareExperiments",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
       "id": "session.open",
       "path": "/vrooli.audio_tools.v1.session.SessionService/OpenSession",
       "method": "POST",

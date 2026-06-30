@@ -104,6 +104,35 @@ func TestRunEval_BatchAndOverlapOverFakeProvider(t *testing.T) {
 	}
 }
 
+func TestRunEval_StreamingStrategiesRouteThroughSegmenter(t *testing.T) {
+	corpus := newCorpusWithClip(t, "hello world", 16000*2/2)
+	var sawVADFilter bool
+	provider := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{Batch: true})
+	provider.TranscribeFn = func(_ context.Context, req sttchain.Request) (*sttchain.Result, error) {
+		if req.VADFilter {
+			sawVADFilter = true
+		}
+		return &sttchain.Result{Text: "hello world", Tier: sttchain.TierLocal, Latency: time.Millisecond}, nil
+	}
+	h := NewConnectHandler(Deps{
+		Logger:      logx.Std{},
+		Clock:       mocks.NewFakeClock(time.Now()),
+		Corpus:      corpus,
+		NewProvider: func() sttchain.Provider { return provider },
+		Defaults:    stt.Defaults(),
+	})
+
+	_, err := h.RunEval(context.Background(), connect.NewRequest(&evalv1.RunEvalRequest{
+		Strategies: []*evalv1.EvalStrategy{{
+			Kind:                   "overlap_agree",
+			OverlapMaxStallRejects: -1,
+			OverlapMaxWindowMs:     5000,
+		}},
+	}))
+	require.NoError(t, err)
+	require.True(t, sawVADFilter, "eval streaming path must go through Segmenter, which stamps StreamConfig.VADFilterEnabled onto provider requests")
+}
+
 func TestRunEval_NoProviderFailsPrecondition(t *testing.T) {
 	h := NewConnectHandler(Deps{
 		Logger: logx.Std{}, Clock: mocks.NewFakeClock(time.Now()),

@@ -65,7 +65,7 @@ function RouteFallback() {
     <div
       role="status"
       aria-label={t(strings.common.loading)}
-      className="flex h-screen items-center justify-center text-sm text-app-muted-foreground"
+      className="flex h-full items-center justify-center text-sm text-app-muted-foreground"
     >
       <span
         aria-hidden="true"

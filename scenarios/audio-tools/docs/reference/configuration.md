@@ -172,7 +172,7 @@ audio-tools`").
 ## Streaming STT control surface
 
 The streaming STT pipeline ([`../domains/stt/streaming-pipeline.md`](../domains/stt/streaming-pipeline.md))
-exposes the operator-tunable levers below (six strategy levers plus
+exposes the operator-tunable levers below (strategy levers plus
 the egress-gate levers in the next subsection). They are read once per
 streaming session by `StrategySelector` and apply to both transports
 (browser WS, Connect bidi). The defaults match the pre-extraction
@@ -187,6 +187,12 @@ CPU, or quality.
 | `stt.vad_silence_ms` | integer | `700` | `200–3000` | operator | Silence window that closes a VAD segment. Lower = snappier but may chop natural pauses; higher = preserves long sentences, increases end-of-segment latency. Only meaningful when `VADSegmentStrategy` is active. |
 | `stt.overlap_window_ms` | integer | `2000` | `1000–5000` | operator | Sliding window size for `OverlapAgreeStrategy`. Bigger = better agreement, more CPU per partial. Only meaningful for Local Whisper + `overlap`. |
 | `stt.overlap_commit_runs` | integer | `2` | `2–4` | operator | How many consecutive sliding-window runs must agree on a prefix before it commits from `Partial` → `Segment`. Higher = more stable text, longer commit latency. |
+| `experiment.overlap_max_window_ms` | integer | `25000` | per-run experiment override | agent/operator | Hermetic eval/experiment-only ceiling for overlap-agree's uncommitted tail before force-commit. Lower = bounds worst-case tail latency and repeated Whisper work earlier; too low can force-commit less-agreed text. It is snapshotted in the experiment recipe and does not mutate live `stt_stream_config`. |
+| `experiment.augmentation.snr_db` | repeated number | `12` when augmentation is enabled without an explicit grid | per-run experiment override | agent/operator | SNR grid for generated-noise and competing-voice overlays. Lower values make the interferer louder relative to the target. Stored in the experiment recipe; no live STT or speaker config row is mutated. |
+| `experiment.speaker.target_profile_id` | string | empty | per-run experiment override | agent/operator | Enrolled speaker profile used as the target identity for experiment-only extraction and verification. Required when a speaker condition enables either stage. |
+| `experiment.speaker.extraction_enabled` | bool | `false` | per-run experiment override | agent/operator | Binds target-speaker extraction into the eval `Segmenter` for this experiment only. Does not mutate `speaker.extraction_enabled`. |
+| `experiment.speaker.verification_enabled` | bool | `false` | per-run experiment override | agent/operator | Binds egress speaker verification into the eval `Segmenter` for this experiment only. Does not mutate `speaker.enabled` or `speaker.mode`. |
+| `experiment.speaker.ablation_enabled` | bool | `false` | per-run experiment override | agent/operator | Evaluates extraction/verification off/on combinations over the same realized input so reports can show recovery/dropped-word deltas. Phase 6 exposes these as condition-suffixed strategy rows; Phase 7 adds first-class attribution. |
 | `stt.overlap_max_stall_rejects` | integer | `3` | `0–10` (`0`=disabled) | operator | OverlapAgree **stall-fallback**. On hard audio / jittery word timestamps, LocalAgreement can keep producing hypotheses that diverge from the committed prefix; the divergence-reject path then commits nothing and the uncommitted tail grows toward the 25s `max_window_ms` net, re-transcribing an ever-larger window each settle and saturating the 5-wide Whisper semaphore — so streaming *finalizes slower than batch*. After this many **consecutive** divergence-rejects the strategy force-commits the freshest hypothesis tail and advances its cursor, bounding tail growth well before the 25s net. Lower = snappier recovery on stalls but more risk of committing un-agreed (possibly wrong) text; higher = waits longer for natural agreement. `0` disables the fallback (only the 25s net applies — the pre-2026-06 behavior). It never silently drops audio — it commits a best guess. Only meaningful for Local Whisper + `overlap`. |
 
 Overlap-agree compares candidate prefixes by lowercasing each whitespace token
@@ -198,8 +204,8 @@ changes remain strict: `D.C.` and `DC` agree, but `well-known` and
 
 Lever rules (per [control-surface-tunable-levers-design]):
 
-- All six have safe defaults that produce working behavior.
-- All six are monotonic where applicable — increasing a value moves
+- All levers have safe defaults that produce working behavior.
+- Levers are monotonic where applicable — increasing a value moves
   the system in one consistent direction (more CPU, more latency, more
   stable text, …).
 - The selector refuses incompatible combinations via the matrix in

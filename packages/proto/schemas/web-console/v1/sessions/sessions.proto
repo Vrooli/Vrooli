@@ -121,6 +121,27 @@ message ListRequest {}
 
 message ListResponse {
   repeated Session sessions = 1;
+  // recovery reports startup session-recovery progress. Reattaching surviving
+  // tmux sessions runs asynchronously so the API can serve immediately, so a
+  // client that lists during recovery may see fewer sessions than will exist
+  // once recovery finishes. When in_progress is true the UI should show an
+  // honest "sessions still recovering" indicator instead of treating the list
+  // as complete.
+  RecoveryStatus recovery = 2;
+}
+
+// RecoveryStatus is a snapshot of startup persistent-session recovery.
+message RecoveryStatus {
+  bool in_progress = 1;
+  // total is the number of persisted (detached) sessions recovery will attempt
+  // to reattach. Adopted orphan sessions are extra and not counted here.
+  int32 total = 2;
+  int32 recovered = 3;
+  int32 awaiting_recovery = 4;
+  int32 adopted = 5;
+  // Unix-millis timestamps; completed_at is 0 while in_progress.
+  int64 started_at_unix_ms = 6;
+  int64 completed_at_unix_ms = 7;
 }
 
 message GetRequest {

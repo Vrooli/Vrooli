@@ -5,6 +5,7 @@ import (
 	"audio-tools/cli/domains/corpus"
 	"audio-tools/cli/domains/diagnostics"
 	"audio-tools/cli/domains/eval"
+	"audio-tools/cli/domains/experiment"
 	"audio-tools/cli/domains/health"
 	"audio-tools/cli/domains/provider"
 	"audio-tools/cli/domains/settings"
@@ -77,6 +78,10 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
+	experimentGroup, err := experiment.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
 	return []cliapp.SubcommandGroup{
 		sttGroup,
 		ttsGroup,
@@ -89,5 +94,6 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		providerGroup,
 		corpusGroup,
 		evalGroup,
+		experimentGroup,
 	}, nil
 }

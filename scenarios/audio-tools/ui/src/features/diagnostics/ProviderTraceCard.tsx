@@ -14,6 +14,8 @@ export type TraceFilter = "all" | SuiteCapability;
 
 const FILTERS: TraceFilter[] = ["all", "stt", "tts", "summarize", "transcode"];
 
+type Translate = (key: string, options?: Record<string, unknown>) => string;
+
 interface Props {
   entries: TraceEntry[];
   filter?: TraceFilter;
@@ -24,21 +26,22 @@ interface Props {
 
 export function ProviderTraceCard({ entries, filter = "all", onFilterChange, sticky }: Props) {
   const { t } = useTranslation();
+  const tr = t as unknown as Translate;
   const visible = filter === "all" ? entries : entries.filter((e) => e.capability === filter);
 
   return (
     <aside
       className={cn(
         "flex flex-col gap-2",
-        sticky && "lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto",
+        sticky && "lg:sticky lg:top-4 lg:max-h-[calc(100%-2rem)] lg:overflow-y-auto",
       )}
     >
       <Panel
-        title={t(strings.diagnostics.traceTitle)}
-        description={t(strings.diagnostics.traceDescription)}
+        title={tr(strings.diagnostics.traceTitle)}
+        description={tr(strings.diagnostics.traceDescription)}
         bodyless
       >
-        <div className="flex flex-wrap gap-1 border-b border-app-border px-3 py-2" role="tablist" aria-label={t(strings.diagnostics.suite.traceFilterTitle)}>
+        <div className="flex flex-wrap gap-1 border-b border-app-border px-3 py-2" role="tablist" aria-label={tr(strings.diagnostics.suite.traceFilterTitle)}>
           {FILTERS.map((f) => {
             const active = filter === f;
             return (
@@ -58,13 +61,13 @@ export function ProviderTraceCard({ entries, filter = "all", onFilterChange, sti
                   !onFilterChange && "cursor-default opacity-60",
                 )}
               >
-                {filterLabel(t, f)}
+                {filterLabel(tr, f)}
               </button>
             );
           })}
         </div>
         {visible.length === 0 ? (
-          <div className="p-4 text-sm text-app-muted-foreground">{t(strings.diagnostics.traceEmpty)}</div>
+          <div className="p-4 text-sm text-app-muted-foreground">{tr(strings.diagnostics.traceEmpty)}</div>
         ) : (
           <ul className="divide-y divide-app-border">
             {visible.map((e) => (
@@ -75,8 +78,8 @@ export function ProviderTraceCard({ entries, filter = "all", onFilterChange, sti
                   <span className="text-app-muted-foreground">{e.providerId}</span>
                 </div>
                 <div className="flex items-center justify-between text-app-muted-foreground">
-                  <span className="font-mono">{e.modelId || t(strings.common.dash)}</span>
-                  <span>{t(strings.common.millisSuffix, { ms: Math.round(e.latencyMs) })}</span>
+                  <span className="font-mono">{e.modelId || tr(strings.common.dash)}</span>
+                  <span>{tr(strings.common.millisSuffix, { ms: Math.round(e.latencyMs) })}</span>
                 </div>
               </li>
             ))}
@@ -87,7 +90,7 @@ export function ProviderTraceCard({ entries, filter = "all", onFilterChange, sti
   );
 }
 
-function filterLabel(t: ReturnType<typeof useTranslation>["t"], f: TraceFilter): string {
+function filterLabel(t: Translate, f: TraceFilter): string {
   switch (f) {
     case "all": return t(strings.diagnostics.suite.traceFilterAll);
     case "stt": return t(strings.diagnostics.suite.traceFilterSTT);

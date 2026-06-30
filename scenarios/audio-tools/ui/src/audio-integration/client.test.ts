@@ -125,8 +125,7 @@ describe("getActiveAudioToolsClient", () => {
   it("creates a sentinel-URL client when no provider has registered one", () => {
     setActiveAudioToolsClientForTesting(null);
     const client = getActiveAudioToolsClient();
-    // Sentinel URL is http://localhost:0
-    expect(client.baseUrl).toBe("http://localhost:0");
+    expect(client.baseUrl).toBe("http://localhost:3000");
   });
 
   it("returns the same sentinel client on subsequent calls (no re-create)", () => {
@@ -146,7 +145,6 @@ describe("getActiveAudioToolsClient", () => {
     const testClient = createAudioToolsClient({ baseUrl: "http://test-injected:99" });
     setActiveAudioToolsClientForTesting(testClient);
     setActiveAudioToolsClientForTesting(null);
-    // Now should fall back to sentinel
-    expect(getActiveAudioToolsClient().baseUrl).toBe("http://localhost:0");
+    expect(getActiveAudioToolsClient().baseUrl).toBe("http://localhost:3000");
   });
 });

@@ -8,7 +8,7 @@ export function Sidebar() {
   const { t } = useTranslation();
   return (
     <aside
-      className="sticky top-topbar hidden h-[calc(100vh-theme(spacing.topbar))] w-sidebar shrink-0 border-r border-app-border bg-app-surface md:flex md:flex-col"
+      className="sticky top-topbar hidden h-[calc(100%-theme(spacing.topbar))] w-sidebar shrink-0 border-r border-app-border bg-app-surface md:flex md:flex-col"
       aria-label={t(strings.shell.primaryNav)}
     >
       <nav className="flex-1 overflow-y-auto p-3">

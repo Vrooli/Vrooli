@@ -3,9 +3,11 @@ package bootstrap
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 	corpusH "audio-tools/handlers/corpus"
 	diagH "audio-tools/handlers/diagnostics"
 	evalH "audio-tools/handlers/eval"
+	experimentH "audio-tools/handlers/experiment"
 	healthH "audio-tools/handlers/health"
 	hsH "audio-tools/handlers/health_status"
 	plH "audio-tools/handlers/provider_lifecycle"
@@ -31,8 +34,12 @@ import (
 	"audio-tools/internal/clock"
 	intcorpus "audio-tools/internal/corpus"
 	diagcore "audio-tools/internal/diagnostics"
+	inteval "audio-tools/internal/eval"
+	intexp "audio-tools/internal/experiment"
+	exprecipe "audio-tools/internal/experiment/recipe"
 	"audio-tools/internal/httpc"
 	"audio-tools/internal/logx"
+	"audio-tools/internal/protomap"
 	"audio-tools/internal/server"
 	intsession "audio-tools/internal/session"
 	sttpkg "audio-tools/internal/stt"
@@ -45,6 +52,10 @@ import (
 	"audio-tools/internal/usagereport"
 
 	"github.com/vrooli/api-core/storage"
+	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval"
+	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
+	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // Deps is the bundle of everything Build constructs. main.go does not
@@ -170,23 +181,85 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 	sessionRegistry := intsession.NewRegistry()
 	usageRecorder := usagereport.New(stores.Usage, logger)
 
-	// Corpus + eval harness. Audio bytes live in the blob store under the
+	// Corpus + eval/experiment harnesses. Audio bytes live in the blob store under the
 	// git-ignored runtime data dir; the namespace is variant-aware so a
 	// shadow instance's corpus never collides with live's. Metadata lives in
 	// the corpus SQLite domain. A blob-store init failure disables the
-	// corpus/eval surfaces (their handlers return FailedPrecondition) rather
+	// corpus/eval/experiment surfaces (their handlers return FailedPrecondition) rather
 	// than failing the whole boot.
 	var corpusSvc *intcorpus.Service
+	var experimentSvc *intexp.Service
+	var experimentMgr *intexp.Manager
 	if ns, nerr := storage.ScenarioNamespace("audio-tools"); nerr != nil {
 		logger.Printf("corpus blob store disabled: resolve namespace: %v", nerr)
 	} else if blobs, berr := intcorpus.NewFilesystemBlobBytes(ns); berr != nil {
 		logger.Printf("corpus blob store disabled: %v", berr)
 	} else {
 		corpusSvc = intcorpus.NewService(intcorpus.NewSQLiteRepository(db, clock.System{}), blobs, clock.System{})
+		if expBlobs, eerr := intexp.NewFilesystemBlobBytes(ns); eerr != nil {
+			logger.Printf("experiment blob store disabled: %v", eerr)
+		} else {
+			experimentSvc = intexp.NewService(intexp.NewSQLiteRepository(db, clock.System{}), expBlobs)
+		}
 	}
 	// evalProvider builds a fresh Local (Whisper) provider per replay; the
 	// eval handler wraps each in a metered decorator.
 	evalProvider := func() sttchain.Provider { return sttchain.NewLocalProvider(voiceSvc) }
+	evalDeps := evalH.Deps{
+		Logger:      logger,
+		Clock:       clock.System{},
+		Corpus:      corpusSvc,
+		NewProvider: evalProvider,
+		Defaults:    sttpkg.Defaults(),
+	}
+	if experimentSvc != nil {
+		experimentMgr = intexp.NewManager(intexp.Config{
+			Service: experimentSvc,
+			Clock:   clock.System{},
+			Runner: func(runCtx context.Context, exp intexp.Experiment, emit func(int, string)) (intexp.RunResult, error) {
+				recipe := &experimentv1.ExperimentRecipe{}
+				if len(exp.RecipeJSON) > 0 {
+					if err := protojson.Unmarshal(exp.RecipeJSON, recipe); err != nil {
+						return intexp.RunResult{}, fmt.Errorf("parse experiment recipe: %w", err)
+					}
+				}
+				emit(5, "loading corpus")
+				report, realized, err := runExperimentReport(runCtx, evalDeps, corpusSvc, ttsSvc, audioEngine, recipe)
+				if err != nil {
+					return intexp.RunResult{}, err
+				}
+				recipeJSON, err := protojson.Marshal(recipe)
+				if err != nil {
+					return intexp.RunResult{}, fmt.Errorf("marshal realized recipe: %w", err)
+				}
+				reportProto := evalH.ReportToProto(report)
+				reportJSON, err := protojson.Marshal(reportProto)
+				if err != nil {
+					return intexp.RunResult{}, fmt.Errorf("marshal report: %w", err)
+				}
+				runs := make([]intexp.Run, 0, len(reportProto.GetPerStrategy()))
+				for _, strategyReport := range reportProto.GetPerStrategy() {
+					metrics, err := protojson.Marshal(strategyReport)
+					if err != nil {
+						return intexp.RunResult{}, fmt.Errorf("marshal strategy metrics: %w", err)
+					}
+					condition, _ := json.Marshal(realized)
+					runs = append(runs, intexp.Run{
+						Strategy:      strategyReport.GetStrategy(),
+						ConditionJSON: condition,
+						MetricsJSON:   metrics,
+					})
+				}
+				emit(95, "storing report")
+				return intexp.RunResult{Report: reportJSON, ReportMIME: "application/json", Runs: runs, RecipeJSON: recipeJSON}, nil
+			},
+		})
+		if err := experimentMgr.Start(ctx); err != nil {
+			logger.Printf("experiment manager disabled: %v", err)
+			experimentMgr = nil
+			experimentSvc = nil
+		}
+	}
 
 	diagOrch := diagcore.New(diagcore.Deps{
 		STT:       chs.STT,
@@ -256,19 +329,352 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 		}),
 		usageH.Module(usageH.Deps{Logger: logger, Clock: clock.System{}, Store: stores.Usage}),
 		corpusH.Module(corpusH.Deps{Logger: logger, Clock: clock.System{}, Service: corpusSvc}),
-		evalH.Module(evalH.Deps{
-			Logger:      logger,
-			Clock:       clock.System{},
-			Corpus:      corpusSvc,
-			NewProvider: evalProvider,
-			Defaults:    sttpkg.Defaults(),
-		}),
+		evalH.Module(evalDeps),
+		experimentH.Module(experimentH.Deps{Logger: logger, Manager: experimentMgr, Service: experimentSvc}),
 		diagH.Module(diagOrch, logger),
 	)
 
 	_ = dsn // retained for diagnostics if Deps is exposed; not used here.
-	cleanup := func() error { return db.Close() }
+	cleanup := func() error {
+		if experimentMgr != nil {
+			experimentMgr.Close()
+		}
+		return db.Close()
+	}
 	return srv, cleanup, nil
+}
+
+func runExperimentReport(ctx context.Context, evalDeps evalH.Deps, corpusSvc *intcorpus.Service, ttsSvc *inttts.Service, audioEngine *audioformat.Engine, recipe *experimentv1.ExperimentRecipe) (inteval.EvalReport, map[string]any, error) {
+	longForm := recipe.GetLongForm()
+	augmentation := recipe.GetAugmentation()
+	speaker := recipe.GetSpeaker()
+	longFormEnabled := longForm != nil && (longForm.GetEnabled() || longForm.GetTargetDurationSeconds() > 0 || longForm.GetGapMs() > 0 || longForm.GetTagContains() != "")
+	augmentationEnabled := augmentation != nil && (len(augmentation.GetNoiseTypes()) > 0 || len(augmentation.GetCompetingVoiceIds()) > 0)
+	speakerEnabled := speaker != nil && speakerConfigured(speaker)
+	if !longFormEnabled && !augmentationEnabled && !speakerEnabled {
+		report, err := evalH.RunReportWithOptions(ctx, evalDeps, recipe.GetClipIds(), recipe.GetStrategies(), recipe.GetRealtimeRepeats(), recipe.GetChunkMs(), inteval.EvalOptions{
+			DroppedSpanThresholdWords: int(safetyThreshold(recipe)),
+		})
+		return report, map[string]any{"phase": "default", "long_form": false}, err
+	}
+	if corpusSvc == nil {
+		return inteval.EvalReport{}, nil, fmt.Errorf("experiment recipe materialization requires corpus service")
+	}
+	tagContains := ""
+	if longForm != nil {
+		tagContains = longForm.GetTagContains()
+	}
+	clips, err := loadRecipeClips(ctx, corpusSvc, recipe.GetClipIds(), tagContains)
+	if err != nil {
+		return inteval.EvalReport{}, nil, err
+	}
+	evalClips := make([]inteval.Clip, 0, len(clips))
+	realized := map[string]any{"phase": "materialized", "long_form": false}
+	if longFormEnabled {
+		synthetic, longRealized, err := exprecipe.Build(exprecipe.Spec{
+			Seed:                  recipe.GetSeed(),
+			TargetDurationSeconds: int(longForm.GetTargetDurationSeconds()),
+			GapMs:                 int(longForm.GetGapMs()),
+		}, clips)
+		if err != nil {
+			return inteval.EvalReport{}, nil, err
+		}
+		if longForm.GapMs <= 0 {
+			longForm.GapMs = exprecipe.DefaultGapMs
+		}
+		if recipe.Seed == 0 {
+			recipe.Seed = 1
+		}
+		recipe.RealizedClipIds = append(recipe.RealizedClipIds[:0], longRealized.ClipIDs...)
+		recipe.RealizedReference = longRealized.Reference
+		recipe.RealizedDurationMs = longRealized.DurationMs
+		evalClips = append(evalClips, synthetic)
+		realized = map[string]any{
+			"phase":                "long_form",
+			"long_form":            true,
+			"gap_ms":               longForm.GetGapMs(),
+			"target_duration_sec":  longForm.GetTargetDurationSeconds(),
+			"realized_duration_ms": longRealized.DurationMs,
+			"clip_count":           len(longRealized.ClipIDs),
+		}
+	} else {
+		for _, c := range clips {
+			evalClips = append(evalClips, inteval.Clip{
+				ID:         c.ID,
+				PCM:        c.PCM,
+				SampleRate: c.SampleRate,
+				Reference:  c.Reference,
+				Format:     c.Format,
+			})
+		}
+		realized["clip_count"] = len(evalClips)
+	}
+	if augmentationEnabled {
+		augmented, conditions, err := exprecipe.ApplyAugmentation(ctx, evalClips, exprecipe.AugmentationSpec{
+			Seed:            recipe.GetSeed(),
+			NoiseTypes:      augmentation.GetNoiseTypes(),
+			SNRDB:           augmentation.GetSnrDb(),
+			CompetingVoices: augmentation.GetCompetingVoiceIds(),
+			CompetingText:   augmentation.GetCompetingText(),
+			SynthesizeVoice: synthesizeCanonicalVoice(ttsSvc, audioEngine),
+		})
+		if err != nil {
+			return inteval.EvalReport{}, nil, err
+		}
+		evalClips = augmented
+		recipe.RealizedAugmentationConditions = recipe.RealizedAugmentationConditions[:0]
+		for _, c := range conditions {
+			recipe.RealizedAugmentationConditions = append(recipe.RealizedAugmentationConditions, &experimentv1.AugmentationCondition{
+				Id: c.ID, Kind: c.Kind, Source: c.Source, SnrDb: c.SNRDB, Skipped: c.Skipped, Note: c.Note,
+			})
+		}
+		realized["augmentation"] = map[string]any{
+			"noise_types":       augmentation.GetNoiseTypes(),
+			"snr_db":            augmentation.GetSnrDb(),
+			"competing_voices":  augmentation.GetCompetingVoiceIds(),
+			"condition_count":   len(conditions),
+			"evaluated_inputs":  len(evalClips),
+			"skipped_condition": countSkippedConditions(conditions),
+		}
+	}
+	conditions := buildSpeakerConditions(speaker)
+	recipe.RealizedSpeakerConditions = recipe.RealizedSpeakerConditions[:0]
+	for _, cond := range conditions {
+		recipe.RealizedSpeakerConditions = append(recipe.RealizedSpeakerConditions, &experimentv1.SpeakerCondition{
+			Id:                  cond.ID,
+			ExtractionEnabled:   cond.ExtractionEnabled,
+			VerificationEnabled: cond.VerificationEnabled,
+			VerificationMode:    cond.VerificationMode,
+			Skipped:             cond.Skipped,
+			Note:                cond.Note,
+		})
+	}
+	realized["speaker"] = map[string]any{
+		"enabled":                      speakerEnabled,
+		"target_profile":               speaker.GetTargetProfileId(),
+		"ablation_enabled":             speaker.GetAblationEnabled(),
+		"condition_count":              len(conditions),
+		"dropped_span_threshold_words": safetyThreshold(recipe),
+	}
+	report, err := runSpeakerConditionReports(ctx, evalDeps, evalClips, recipe.GetStrategies(), recipe.GetRealtimeRepeats(), recipe.GetChunkMs(), safetyThreshold(recipe), conditions)
+	return report, realized, err
+}
+
+func safetyThreshold(recipe *experimentv1.ExperimentRecipe) int32 {
+	if recipe.GetDroppedSpanThresholdWords() > 0 {
+		return recipe.GetDroppedSpanThresholdWords()
+	}
+	return int32(inteval.DefaultDroppedSpanThresholdWords)
+}
+
+type speakerEvalCondition struct {
+	ID                  string
+	Config              sttpipeline.SpeakerConfig
+	ExtractionEnabled   bool
+	VerificationEnabled bool
+	VerificationMode    sttv1.SpeakerMode
+	Skipped             bool
+	Note                string
+}
+
+func speakerConfigured(s *experimentv1.SpeakerExperimentRecipe) bool {
+	return s.GetTargetProfileId() != "" || s.GetExtractionEnabled() || s.GetVerificationEnabled() || s.GetAblationEnabled()
+}
+
+func buildSpeakerConditions(s *experimentv1.SpeakerExperimentRecipe) []speakerEvalCondition {
+	if s == nil || !speakerConfigured(s) {
+		return []speakerEvalCondition{{ID: "speaker_off", Note: "speaker extraction and verification disabled"}}
+	}
+	if !s.GetAblationEnabled() {
+		return []speakerEvalCondition{speakerConditionFromRecipe("speaker_recipe", s, s.GetExtractionEnabled(), s.GetVerificationEnabled())}
+	}
+	return []speakerEvalCondition{
+		speakerConditionFromRecipe("extract_off_verify_off", s, false, false),
+		speakerConditionFromRecipe("extract_on_verify_off", s, true, false),
+		speakerConditionFromRecipe("extract_off_verify_on", s, false, true),
+		speakerConditionFromRecipe("extract_on_verify_on", s, true, true),
+	}
+}
+
+func speakerConditionFromRecipe(id string, s *experimentv1.SpeakerExperimentRecipe, extraction bool, verification bool) speakerEvalCondition {
+	mode := s.GetVerificationMode()
+	modeStr := protomap.SpeakerModeFromProto(mode)
+	if modeStr == "" || modeStr == "off" {
+		modeStr = "filter"
+	}
+	threshold := s.GetThreshold()
+	if threshold == 0 {
+		threshold = sttpipeline.DefaultSpeakerConfig().Threshold
+	}
+	enabled := extraction || verification
+	cfg := sttpipeline.DefaultSpeakerConfig()
+	cfg.Enabled = enabled
+	cfg.ProfileIDs = nil
+	if s.GetTargetProfileId() != "" {
+		cfg.ProfileIDs = []string{s.GetTargetProfileId()}
+	}
+	cfg.Threshold = threshold
+	cfg.Mode = modeStr
+	cfg.RejectBehavior = "drop"
+	cfg.FallbackWithoutVerification = s.GetFallbackWithoutVerification()
+	cfg.ExtractionEnabled = extraction
+	note := "speaker stages disabled"
+	if enabled {
+		note = fmt.Sprintf("profile=%s extraction=%t verification=%t mode=%s", s.GetTargetProfileId(), extraction, verification, modeStr)
+	}
+	if enabled && s.GetTargetProfileId() == "" {
+		return speakerEvalCondition{
+			ID:                  id,
+			Config:              cfg,
+			ExtractionEnabled:   extraction,
+			VerificationEnabled: verification,
+			VerificationMode:    mode,
+			Skipped:             true,
+			Note:                "speaker condition skipped: target profile id is required",
+		}
+	}
+	return speakerEvalCondition{
+		ID:                  id,
+		Config:              cfg,
+		ExtractionEnabled:   extraction,
+		VerificationEnabled: verification,
+		VerificationMode:    mode,
+		Note:                note,
+	}
+}
+
+func runSpeakerConditionReports(ctx context.Context, evalDeps evalH.Deps, clips []inteval.Clip, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs, droppedSpanThresholdWords int32, conditions []speakerEvalCondition) (inteval.EvalReport, error) {
+	if len(conditions) == 0 {
+		return evalH.RunReportForClips(ctx, evalDeps, clips, strategies, realtimeRepeats, chunkMs)
+	}
+	var combined inteval.EvalReport
+	haveMetadata := false
+	for _, cond := range conditions {
+		if cond.Skipped {
+			continue
+		}
+		deps := evalDeps
+		if cond.ExtractionEnabled || cond.VerificationEnabled {
+			cfg := cond.Config
+			deps.SpeakerConfig = &cfg
+			deps.SpeakerExtractionEnabled = cond.ExtractionEnabled
+			deps.SpeakerVerificationEnabled = cond.VerificationEnabled
+		} else {
+			deps.SpeakerConfig = nil
+			deps.SpeakerExtractionEnabled = false
+			deps.SpeakerVerificationEnabled = false
+		}
+		report, err := evalH.RunReportForClipsWithOptions(ctx, deps, clips, strategies, realtimeRepeats, chunkMs, inteval.EvalOptions{
+			DroppedSpanThresholdWords: int(droppedSpanThresholdWords),
+		})
+		if err != nil {
+			return inteval.EvalReport{}, err
+		}
+		if !haveMetadata {
+			combined = report
+			combined.PerStrategy = nil
+			haveMetadata = true
+		} else {
+			combined.QualityMeasured = combined.QualityMeasured || report.QualityMeasured
+			combined.LatencyMeasured = combined.LatencyMeasured || report.LatencyMeasured
+			combined.Warnings = append(combined.Warnings, report.Warnings...)
+		}
+		for _, row := range report.PerStrategy {
+			row.Strategy = sttchain.StrategyKind(fmt.Sprintf("%s/%s", row.Strategy, cond.ID))
+			if row.Label == "" {
+				row.Label = string(row.Strategy)
+			} else {
+				row.Label = fmt.Sprintf("%s / %s", row.Label, cond.ID)
+			}
+			combined.PerStrategy = append(combined.PerStrategy, row)
+		}
+	}
+	if len(combined.PerStrategy) == 0 {
+		return inteval.EvalReport{}, fmt.Errorf("all speaker experiment conditions were skipped")
+	}
+	return combined, nil
+}
+
+func synthesizeCanonicalVoice(ttsSvc *inttts.Service, audioEngine *audioformat.Engine) func(context.Context, string, string) ([]byte, error) {
+	return func(ctx context.Context, voice string, text string) ([]byte, error) {
+		if ttsSvc == nil || audioEngine == nil {
+			return nil, fmt.Errorf("TTS synthesis is not configured")
+		}
+		out, err := ttsSvc.Synthesize(ctx, inttts.SynthesizeInput{
+			Input:          text,
+			Voice:          voice,
+			ResponseFormat: string(audioformat.OutputWAV),
+			Speed:          1,
+		})
+		if err != nil {
+			return nil, err
+		}
+		codec, err := audioformat.Detect(audioformat.CodecUnknown, out.Audio)
+		if err != nil {
+			return nil, err
+		}
+		pcm, err := audioEngine.Normalize(ctx, codec, out.Audio)
+		if err != nil {
+			return nil, err
+		}
+		return pcm, nil
+	}
+}
+
+func countSkippedConditions(conditions []exprecipe.Condition) int {
+	var n int
+	for _, c := range conditions {
+		if c.Skipped {
+			n++
+		}
+	}
+	return n
+}
+
+func loadRecipeClips(ctx context.Context, corpusSvc *intcorpus.Service, clipIDs []string, tagContains string) ([]exprecipe.Clip, error) {
+	var metas []intcorpus.Clip
+	if len(clipIDs) == 0 {
+		all, err := corpusSvc.ListClips(ctx, intcorpus.ListFilter{TagContains: tagContains})
+		if err != nil {
+			return nil, err
+		}
+		metas = all
+	} else {
+		for _, id := range clipIDs {
+			c, err := corpusSvc.GetClip(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			if tagContains != "" && !clipMatchesTag(c, tagContains) {
+				continue
+			}
+			metas = append(metas, c)
+		}
+	}
+	clips := make([]exprecipe.Clip, 0, len(metas))
+	for _, meta := range metas {
+		audio, _, err := corpusSvc.GetClipAudio(ctx, meta.ID)
+		if err != nil {
+			return nil, fmt.Errorf("load audio for clip %q: %w", meta.ID, err)
+		}
+		clips = append(clips, exprecipe.Clip{
+			ID:         meta.ID,
+			PCM:        audio,
+			SampleRate: meta.SampleRateHz,
+			Reference:  meta.ReferenceText,
+			Format:     meta.Format,
+		})
+	}
+	return clips, nil
+}
+
+func clipMatchesTag(c intcorpus.Clip, needle string) bool {
+	for _, tag := range c.Tags {
+		if strings.Contains(tag, needle) {
+			return true
+		}
+	}
+	return false
 }
 
 // ffmpegTranscoder adapts internal/audio.TranscodeOpts to the

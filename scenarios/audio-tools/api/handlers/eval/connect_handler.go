@@ -3,6 +3,7 @@ package eval
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"connectrpc.com/connect"
 
@@ -26,36 +27,79 @@ func NewConnectHandler(d Deps) *connectHandler {
 }
 
 func (h *connectHandler) RunEval(ctx context.Context, req *connect.Request[evalv1.RunEvalRequest]) (*connect.Response[evalv1.RunEvalResponse], error) {
-	if h.deps.Corpus == nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("eval service not configured (no corpus/database)"))
-	}
-	if h.deps.NewProvider == nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("eval requires a transcription provider (Whisper) — none configured"))
-	}
-
-	clips, err := h.loadClips(ctx, req.Msg.GetClipIds())
+	report, err := RunReport(ctx, h.deps, req.Msg.GetClipIds(), req.Msg.GetStrategies(), req.Msg.GetRealtimeRepeats(), req.Msg.GetChunkMs())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		var code connect.Code
+		if errors.Is(err, errEvalNotConfigured) || errors.Is(err, errEvalNoProvider) || errors.Is(err, errEvalEmptyCorpus) {
+			code = connect.CodeFailedPrecondition
+		} else if errors.Is(err, errEvalInvalidRequest) {
+			code = connect.CodeInvalidArgument
+		} else {
+			code = connect.CodeInternal
+		}
+		return nil, connect.NewError(code, err)
 	}
-	if len(clips) == 0 {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("corpus is empty — record clips before running an eval"))
-	}
-
-	specs, err := h.buildSpecs(req.Msg.GetStrategies())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-
-	opts := inteval.EvalOptions{
-		ChunkMs:         int(req.Msg.GetChunkMs()),
-		QualityPass:     true,
-		RealtimeRepeats: int(req.Msg.GetRealtimeRepeats()),
-	}
-	report := inteval.RunEval(ctx, clips, specs, opts)
-	return connect.NewResponse(&evalv1.RunEvalResponse{Report: reportToProto(report)}), nil
+	return connect.NewResponse(&evalv1.RunEvalResponse{Report: ReportToProto(report)}), nil
 }
 
-func reportToProto(r inteval.EvalReport) *evalv1.EvalReport {
+var (
+	errEvalNotConfigured  = errors.New("eval service not configured (no corpus/database)")
+	errEvalNoProvider     = errors.New("eval requires a transcription provider (Whisper) — none configured")
+	errEvalEmptyCorpus    = errors.New("corpus is empty — record clips before running an eval")
+	errEvalInvalidRequest = errors.New("invalid eval request")
+)
+
+// RunReport runs the existing synchronous eval harness. It is exported so the
+// experiment worker can reuse the same compute path instead of cloning it.
+func RunReport(ctx context.Context, deps Deps, clipIDs []string, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs int32) (inteval.EvalReport, error) {
+	return RunReportWithOptions(ctx, deps, clipIDs, strategies, realtimeRepeats, chunkMs, inteval.EvalOptions{})
+}
+
+func RunReportWithOptions(ctx context.Context, deps Deps, clipIDs []string, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs int32, opts inteval.EvalOptions) (inteval.EvalReport, error) {
+	h := &connectHandler{deps: deps}
+	if h.deps.Corpus == nil {
+		return inteval.EvalReport{}, errEvalNotConfigured
+	}
+	if h.deps.NewProvider == nil {
+		return inteval.EvalReport{}, errEvalNoProvider
+	}
+
+	clips, err := h.loadClips(ctx, clipIDs)
+	if err != nil {
+		return inteval.EvalReport{}, err
+	}
+	if len(clips) == 0 {
+		return inteval.EvalReport{}, errEvalEmptyCorpus
+	}
+	return RunReportForClipsWithOptions(ctx, deps, clips, strategies, realtimeRepeats, chunkMs, opts)
+}
+
+// RunReportForClips runs the eval harness over already-materialized clips.
+// Experiment recipe builders use this to evaluate synthetic long-form inputs
+// without cloning strategy/session construction.
+func RunReportForClips(ctx context.Context, deps Deps, clips []inteval.Clip, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs int32) (inteval.EvalReport, error) {
+	return RunReportForClipsWithOptions(ctx, deps, clips, strategies, realtimeRepeats, chunkMs, inteval.EvalOptions{})
+}
+
+func RunReportForClipsWithOptions(ctx context.Context, deps Deps, clips []inteval.Clip, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs int32, opts inteval.EvalOptions) (inteval.EvalReport, error) {
+	h := &connectHandler{deps: deps}
+	if h.deps.NewProvider == nil {
+		return inteval.EvalReport{}, errEvalNoProvider
+	}
+	if len(clips) == 0 {
+		return inteval.EvalReport{}, errEvalEmptyCorpus
+	}
+	specs, err := h.buildSpecs(strategies)
+	if err != nil {
+		return inteval.EvalReport{}, fmt.Errorf("%w: %v", errEvalInvalidRequest, err)
+	}
+	opts.ChunkMs = int(chunkMs)
+	opts.QualityPass = true
+	opts.RealtimeRepeats = int(realtimeRepeats)
+	return inteval.RunEval(ctx, clips, specs, opts), nil
+}
+
+func ReportToProto(r inteval.EvalReport) *evalv1.EvalReport {
 	out := &evalv1.EvalReport{
 		QualityMeasured: r.QualityMeasured,
 		LatencyMeasured: r.LatencyMeasured,
@@ -73,6 +117,7 @@ func reportToProto(r inteval.EvalReport) *evalv1.EvalReport {
 			WerPolicy:              r.NormalizationPolicy.WERPolicy,
 			OverlapAgreementPolicy: r.NormalizationPolicy.OverlapAgreementPolicy,
 		},
+		LatencyHonesty: "Wall-clock finalization and commit timing are intra-experiment-only; compare cross-experiment runs by WER, calls, audio-seconds, RTF, safety gates, and pinned machine metadata.",
 	}
 	for _, s := range r.PerStrategy {
 		out.PerStrategy = append(out.PerStrategy, strategyReportToProto(s))
@@ -95,12 +140,17 @@ func strategyReportToProto(s inteval.StrategyReport) *evalv1.StrategyReport {
 		FinalizationLatencyP50Ms: s.FinalizationLatencyP50Ms,
 		FinalizationLatencyP95Ms: s.FinalizationLatencyP95Ms,
 		PartialRevisions:         int32(s.PartialRevisions),
+		CommitCount:              int32(s.CommitCount),
+		SpeakerRejectionCount:    int32(s.SpeakerRejectionCount),
 		WerDeltaVsWinner:         s.WERDeltaVsWinner,
 		P95DeltaMsVsWinner:       s.P95DeltaMsVsWinner,
 		CallMultiplierVsWinner:   s.CallMultiplierVsWinner,
 		Verdict:                  s.Verdict,
 		Reasons:                  append([]string(nil), s.Reasons...),
 		Warnings:                 reportWarningsToProto(s.Warnings),
+		Safety:                   safetyGateToProto(s.Safety),
+		StageAttribution:         stageAttributionToProto(s.StageAttribution),
+		LengthCurves:             lengthCurvesToProto(s.LengthCurves),
 		PerClip:                  make([]*evalv1.ClipReport, 0, len(s.PerClip)),
 	}
 	for _, c := range s.PerClip {
@@ -129,6 +179,12 @@ func strategyReportToProto(s inteval.StrategyReport) *evalv1.StrategyReport {
 			NormalizedReference:      c.NormalizedReference,
 			NormalizedHypothesis:     c.NormalizedHypothesis,
 			EditOperations:           editOperationsToProto(c.EditOperations),
+			CommitTimeline:           commitTimelineToProto(c.CommitTimeline),
+			TimeToFirstCommitMs:      c.TimeToFirstCommitMs,
+			CommitCount:              int32(c.CommitCount),
+			SpeakerRejectionCount:    int32(c.SpeakerRejectionCount),
+			AudioDurationMs:          c.AudioDurationMs,
+			Safety:                   safetyGateToProto(c.Safety),
 		})
 	}
 	return sr
@@ -155,6 +211,64 @@ func editOperationsToProto(in []inteval.EditOperation) []*evalv1.EditOperation {
 			HypothesisToken: op.HypothesisToken,
 			ReferenceIndex:  int32(op.ReferenceIndex),
 			HypothesisIndex: int32(op.HypothesisIndex),
+		})
+	}
+	return out
+}
+
+func commitTimelineToProto(in []inteval.CommitState) []*evalv1.CommitState {
+	out := make([]*evalv1.CommitState, 0, len(in))
+	for _, state := range in {
+		out = append(out, &evalv1.CommitState{
+			Text:       state.Text,
+			AtMs:       state.AtMs,
+			AudioEndMs: state.AudioEndMs,
+		})
+	}
+	return out
+}
+
+func safetyGateToProto(in inteval.SafetyGateReport) *evalv1.SafetyGateReport {
+	out := &evalv1.SafetyGateReport{
+		Passed:                    in.Passed,
+		RetractionFree:            in.RetractionFree,
+		DroppedSpanFree:           in.DroppedSpanFree,
+		MaxDroppedSpanWords:       int32(in.MaxDroppedSpanWords),
+		DroppedSpanThresholdWords: int32(in.DroppedSpanThresholdWords),
+		Reasons:                   append([]string(nil), in.Reasons...),
+	}
+	for _, ev := range in.RetractionEvents {
+		out.RetractionEvents = append(out.RetractionEvents, &evalv1.RetractionEvent{
+			PreviousText: ev.PreviousText,
+			CurrentText:  ev.CurrentText,
+			AtMs:         ev.AtMs,
+		})
+	}
+	return out
+}
+
+func stageAttributionToProto(in inteval.StageAttribution) *evalv1.StageAttribution {
+	return &evalv1.StageAttribution{
+		IngressLostWords:   int32(in.IngressLostWords),
+		StrategyLostWords:  int32(in.StrategyLostWords),
+		EgressLostWords:    int32(in.EgressLostWords),
+		EgressRejectEvents: int32(in.EgressRejectEvents),
+		Notes:              append([]string(nil), in.Notes...),
+	}
+}
+
+func lengthCurvesToProto(in []inteval.LengthBucketCurve) []*evalv1.LengthBucketCurve {
+	out := make([]*evalv1.LengthBucketCurve, 0, len(in))
+	for _, curve := range in {
+		out = append(out, &evalv1.LengthBucketCurve{
+			Bucket:                   curve.Bucket,
+			MinDurationMs:            curve.MinDurationMs,
+			MaxDurationMs:            curve.MaxDurationMs,
+			ClipCount:                int32(curve.ClipCount),
+			Wer:                      curve.WER,
+			FinalizationLatencyP95Ms: curve.FinalizationLatencyP95Ms,
+			MeanTimeToFirstCommitMs:  curve.MeanTimeToFirstCommitMs,
+			MaxDroppedSpanWords:      int32(curve.MaxDroppedSpanWords),
 		})
 	}
 	return out

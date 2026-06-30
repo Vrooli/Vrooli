@@ -16,7 +16,7 @@ import { TranscriptEditor } from "./TranscriptEditor";
 import { TagInput } from "./TagInput";
 import { PromptPlayback } from "./PromptPlayback";
 import { CorpusListView } from "./CorpusListView";
-import { EvalReportView } from "./EvalReportView";
+import { ExperimentLabView } from "./ExperimentLabView";
 import { CUSTOM_SCRIPT_ID, DICTATION_SCRIPTS, findDictationScript } from "./scripts";
 
 type Mode = "free" | "scripted";
@@ -76,7 +76,7 @@ export function DictationStudioPage() {
   const tabs = [
     { value: "record", label: t(strings.dictationStudio.tabRecord) },
     { value: "corpus", label: t(strings.dictationStudio.tabCorpus) },
-    { value: "report", label: t(strings.dictationStudio.tabReport) },
+    { value: "lab", label: t(strings.dictationStudio.tabLab) },
   ];
 
   return (
@@ -194,11 +194,7 @@ export function DictationStudioPage() {
             <Panel title={t(strings.dictationStudio.corpusTitle)}>
               <CorpusListView />
             </Panel>
-          ) : (
-            <Panel title={t(strings.dictationStudio.reportTitle)}>
-              <EvalReportView />
-            </Panel>
-          )
+          ) : <ExperimentLabView />
         }
       </Tabs>
     </div>

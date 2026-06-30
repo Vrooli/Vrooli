@@ -300,7 +300,7 @@ class StartDiffResponse(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., estimated_total_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., coalesced: _Optional[bool] = ..., reused_run: _Optional[bool] = ..., reused_sha: _Optional[str] = ..., dirty_warning: _Optional[str] = ...) -> None: ...
 
 class GetDiffResultRequest(_message.Message):
-    __slots__ = ("scenario", "name", "branch", "run_id", "surface", "repo_id", "wait")
+    __slots__ = ("scenario", "name", "branch", "run_id", "surface", "repo_id", "wait", "latest")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     BRANCH_FIELD_NUMBER: _ClassVar[int]
@@ -308,6 +308,7 @@ class GetDiffResultRequest(_message.Message):
     SURFACE_FIELD_NUMBER: _ClassVar[int]
     REPO_ID_FIELD_NUMBER: _ClassVar[int]
     WAIT_FIELD_NUMBER: _ClassVar[int]
+    LATEST_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     name: str
     branch: str
@@ -315,7 +316,8 @@ class GetDiffResultRequest(_message.Message):
     surface: str
     repo_id: int
     wait: bool
-    def __init__(self, scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., run_id: _Optional[str] = ..., surface: _Optional[str] = ..., repo_id: _Optional[int] = ..., wait: _Optional[bool] = ...) -> None: ...
+    latest: bool
+    def __init__(self, scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., run_id: _Optional[str] = ..., surface: _Optional[str] = ..., repo_id: _Optional[int] = ..., wait: _Optional[bool] = ..., latest: _Optional[bool] = ...) -> None: ...
 
 class GetDiffResultResponse(_message.Message):
     __slots__ = ("status", "diff", "error", "recommended_next_check_seconds", "run_id")

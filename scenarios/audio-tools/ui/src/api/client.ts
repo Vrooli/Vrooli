@@ -4,16 +4,15 @@ import {
   type JsonValue,
 } from "@bufbuild/protobuf";
 import { createConnectTransport } from "@connectrpc/connect-web";
-import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
+import { buildApiUrl } from "@vrooli/api-base";
 import {
   ErrorEnvelopeSchema,
   type ErrorEnvelope,
 } from "@vrooli/proto-types/audio-tools/v1/errors/errors_pb";
 
 import { createFallbackInterceptor } from "./fallbackInterceptor";
+import { API_BASE, REST_API_BASE } from "./base";
 
-export const API_BASE = resolveApiBase();
-const REST_API_BASE = resolveApiBase({ appendSuffix: true });
 const PROTO_READ_OPTIONS = { ignoreUnknownFields: true } as const;
 
 // Connect transport wired with the fallback-observability interceptor.

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file scenario-dependency-analyzer/v1/graph/graph.proto.
  */
 export const file_scenario_dependency_analyzer_v1_graph_graph: GenFile = /*@__PURE__*/
-  fileDesc("CjFzY2VuYXJpby1kZXBlbmRlbmN5LWFuYWx5emVyL3YxL2dyYXBoL2dyYXBoLnByb3RvEix2cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5ncmFwaCKPAQodRGVzY3JpYmVJbnRlcmZhY2VHcmFwaFJlcXVlc3QSEQoJc2NlbmFyaW9zGAEgAygJEg0KBWxpbWl0GAIgASgFEhgKEHN0YWJpbGl0eV9maWx0ZXIYAyABKAkSFwoPbGFuZ3VhZ2VfZmlsdGVyGAQgAygJEhkKEW1heF9zY2VuYXJpb19ob3BzGAUgASgFIoIBCh5EZXNjcmliZUludGVyZmFjZUdyYXBoUmVzcG9uc2USSwoFZ3JhcGgYASABKAsyPC52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5ncmFwaC5JbnRlcmZhY2VHcmFwaBITCgtjb21wdXRlZF9hdBgCIAEoCSLqAQoOSW50ZXJmYWNlR3JhcGgSRgoFbm9kZXMYASADKAsyNy52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5ncmFwaC5HcmFwaE5vZGUSRgoFZWRnZXMYAiADKAsyNy52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5ncmFwaC5HcmFwaEVkZ2USSAoGZXJyb3JzGAMgAygLMjgudnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZ3JhcGguR3JhcGhFcnJvciIdCglHcmFwaE5vZGUSEAoIc2NlbmFyaW8YASABKAkisgEKCUdyYXBoRWRnZRIVCg1mcm9tX3NjZW5hcmlvGAEgASgJEhMKC3RvX3NjZW5hcmlvGAIgASgJEk0KCGV2aWRlbmNlGAMgAygLMjsudnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZ3JhcGguR3JhcGhFdmlkZW5jZRIXCg90cmFuc3BvcnRfd29ybGQYBCABKAkSEQoJc3RhYmlsaXR5GAUgAygJIrYBCg1HcmFwaEV2aWRlbmNlEkwKBnNvdXJjZRgBIAEoDjI8LnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmdyYXBoLkV2aWRlbmNlU291cmNlEhMKC2ltcG9ydF9wYXRoGAIgASgJEhEKCWZyb21fZmlsZRgDIAEoCRIPCgd0b19maWxlGAQgASgJEgwKBHBhdGgYBSABKAkSEAoIYW5hbHl6ZXIYBiABKAkiPwoKR3JhcGhFcnJvchIOCgZzb3VyY2UYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSDwoHbWVzc2FnZRgDIAEoCSpyCg5FdmlkZW5jZVNvdXJjZRIfChtFVklERU5DRV9TT1VSQ0VfVU5TUEVDSUZJRUQQABIgChxFVklERU5DRV9TT1VSQ0VfUFJPVE9fSU1QT1JUEAESHQoZRVZJREVOQ0VfU09VUkNFX0dPX0lNUE9SVBACMs0BChVJbnRlcmZhY2VHcmFwaFNlcnZpY2USswEKFkRlc2NyaWJlSW50ZXJmYWNlR3JhcGgSSy52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5ncmFwaC5EZXNjcmliZUludGVyZmFjZUdyYXBoUmVxdWVzdBpMLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmdyYXBoLkRlc2NyaWJlSW50ZXJmYWNlR3JhcGhSZXNwb25zZUJfWl1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NjZW5hcmlvLWRlcGVuZGVuY3ktYW5hbHl6ZXIvdjEvZ3JhcGg7Z3JhcGhfdjFiBnByb3RvMw");
+  fileDesc("CjFzY2VuYXJpby1kZXBlbmRlbmN5LWFuYWx5emVyL3YxL2dyYXBoL2dyYXBoLnByb3RvEix2cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5ncmFwaCKPAQodRGVzY3JpYmVJbnRlcmZhY2VHcmFwaFJlcXVlc3QSEQoJc2NlbmFyaW9zGAEgAygJEg0KBWxpbWl0GAIgASgFEhgKEHN0YWJpbGl0eV9maWx0ZXIYAyABKAkSFwoPbGFuZ3VhZ2VfZmlsdGVyGAQgAygJEhkKEW1heF9zY2VuYXJpb19ob3BzGAUgASgFIoIBCh5EZXNjcmliZUludGVyZmFjZUdyYXBoUmVzcG9uc2USSwoFZ3JhcGgYASABKAsyPC52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5ncmFwaC5JbnRlcmZhY2VHcmFwaBITCgtjb21wdXRlZF9hdBgCIAEoCSI7ChtTZWFyY2hJbnRlcmZhY2VHcmFwaFJlcXVlc3QSDQoFcXVlcnkYASABKAkSDQoFbGltaXQYAiABKAUidAocU2VhcmNoSW50ZXJmYWNlR3JhcGhSZXNwb25zZRJUCgdyZXN1bHRzGAEgAygLMkMudnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZ3JhcGguU2NlbmFyaW9Db25uZWN0aW9uSGl0IngKFVNjZW5hcmlvQ29ubmVjdGlvbkhpdBIQCghzY2VuYXJpbxgBIAEoCRISCgpkZXBlbmRzX29uGAIgAygJEg8KB3VzZWRfYnkYAyADKAkSDwoHc3VtbWFyeRgEIAEoCRIXCg9yZWxldmFuY2Vfc2NvcmUYBSABKAEi6gEKDkludGVyZmFjZUdyYXBoEkYKBW5vZGVzGAEgAygLMjcudnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZ3JhcGguR3JhcGhOb2RlEkYKBWVkZ2VzGAIgAygLMjcudnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZ3JhcGguR3JhcGhFZGdlEkgKBmVycm9ycxgDIAMoCzI4LnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmdyYXBoLkdyYXBoRXJyb3IiHQoJR3JhcGhOb2RlEhAKCHNjZW5hcmlvGAEgASgJIrIBCglHcmFwaEVkZ2USFQoNZnJvbV9zY2VuYXJpbxgBIAEoCRITCgt0b19zY2VuYXJpbxgCIAEoCRJNCghldmlkZW5jZRgDIAMoCzI7LnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmdyYXBoLkdyYXBoRXZpZGVuY2USFwoPdHJhbnNwb3J0X3dvcmxkGAQgASgJEhEKCXN0YWJpbGl0eRgFIAMoCSK2AQoNR3JhcGhFdmlkZW5jZRJMCgZzb3VyY2UYASABKA4yPC52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5ncmFwaC5FdmlkZW5jZVNvdXJjZRITCgtpbXBvcnRfcGF0aBgCIAEoCRIRCglmcm9tX2ZpbGUYAyABKAkSDwoHdG9fZmlsZRgEIAEoCRIMCgRwYXRoGAUgASgJEhAKCGFuYWx5emVyGAYgASgJIj8KCkdyYXBoRXJyb3ISDgoGc291cmNlGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEg8KB21lc3NhZ2UYAyABKAkqcgoORXZpZGVuY2VTb3VyY2USHwobRVZJREVOQ0VfU09VUkNFX1VOU1BFQ0lGSUVEEAASIAocRVZJREVOQ0VfU09VUkNFX1BST1RPX0lNUE9SVBABEh0KGUVWSURFTkNFX1NPVVJDRV9HT19JTVBPUlQQAjL9AgoVSW50ZXJmYWNlR3JhcGhTZXJ2aWNlErMBChZEZXNjcmliZUludGVyZmFjZUdyYXBoEksudnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZ3JhcGguRGVzY3JpYmVJbnRlcmZhY2VHcmFwaFJlcXVlc3QaTC52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5ncmFwaC5EZXNjcmliZUludGVyZmFjZUdyYXBoUmVzcG9uc2USrQEKFFNlYXJjaEludGVyZmFjZUdyYXBoEkkudnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZ3JhcGguU2VhcmNoSW50ZXJmYWNlR3JhcGhSZXF1ZXN0GkoudnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZ3JhcGguU2VhcmNoSW50ZXJmYWNlR3JhcGhSZXNwb25zZUJfWl1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NjZW5hcmlvLWRlcGVuZGVuY3ktYW5hbHl6ZXIvdjEvZ3JhcGg7Z3JhcGhfdjFiBnByb3RvMw");
 
 /**
  * @generated from message vrooli.scenario_dependency_analyzer.v1.graph.DescribeInterfaceGraphRequest
@@ -88,6 +88,96 @@ export const DescribeInterfaceGraphResponseSchema: GenMessage<DescribeInterfaceG
   messageDesc(file_scenario_dependency_analyzer_v1_graph_graph, 1);
 
 /**
+ * @generated from message vrooli.scenario_dependency_analyzer.v1.graph.SearchInterfaceGraphRequest
+ */
+export type SearchInterfaceGraphRequest = Message<"vrooli.scenario_dependency_analyzer.v1.graph.SearchInterfaceGraphRequest"> & {
+  /**
+   * Natural-language connection query.
+   *
+   * @generated from field: string query = 1;
+   */
+  query: string;
+
+  /**
+   * Maximum hits to return. Zero means the service default.
+   *
+   * @generated from field: int32 limit = 2;
+   */
+  limit: number;
+};
+
+/**
+ * Describes the message vrooli.scenario_dependency_analyzer.v1.graph.SearchInterfaceGraphRequest.
+ * Use `create(SearchInterfaceGraphRequestSchema)` to create a new message.
+ */
+export const SearchInterfaceGraphRequestSchema: GenMessage<SearchInterfaceGraphRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_dependency_analyzer_v1_graph_graph, 2);
+
+/**
+ * @generated from message vrooli.scenario_dependency_analyzer.v1.graph.SearchInterfaceGraphResponse
+ */
+export type SearchInterfaceGraphResponse = Message<"vrooli.scenario_dependency_analyzer.v1.graph.SearchInterfaceGraphResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.scenario_dependency_analyzer.v1.graph.ScenarioConnectionHit results = 1;
+   */
+  results: ScenarioConnectionHit[];
+};
+
+/**
+ * Describes the message vrooli.scenario_dependency_analyzer.v1.graph.SearchInterfaceGraphResponse.
+ * Use `create(SearchInterfaceGraphResponseSchema)` to create a new message.
+ */
+export const SearchInterfaceGraphResponseSchema: GenMessage<SearchInterfaceGraphResponse> = /*@__PURE__*/
+  messageDesc(file_scenario_dependency_analyzer_v1_graph_graph, 3);
+
+/**
+ * @generated from message vrooli.scenario_dependency_analyzer.v1.graph.ScenarioConnectionHit
+ */
+export type ScenarioConnectionHit = Message<"vrooli.scenario_dependency_analyzer.v1.graph.ScenarioConnectionHit"> & {
+  /**
+   * Scenario name (the natural ID / title).
+   *
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * Scenarios this scenario depends on (forward edges).
+   *
+   * @generated from field: repeated string depends_on = 2;
+   */
+  dependsOn: string[];
+
+  /**
+   * Scenarios that depend on this scenario (reverse edges).
+   *
+   * @generated from field: repeated string used_by = 3;
+   */
+  usedBy: string[];
+
+  /**
+   * Human-readable connection summary, used as the federated snippet.
+   *
+   * @generated from field: string summary = 4;
+   */
+  summary: string;
+
+  /**
+   * Relevance score in [0,1] (cosine/rerank regime).
+   *
+   * @generated from field: double relevance_score = 5;
+   */
+  relevanceScore: number;
+};
+
+/**
+ * Describes the message vrooli.scenario_dependency_analyzer.v1.graph.ScenarioConnectionHit.
+ * Use `create(ScenarioConnectionHitSchema)` to create a new message.
+ */
+export const ScenarioConnectionHitSchema: GenMessage<ScenarioConnectionHit> = /*@__PURE__*/
+  messageDesc(file_scenario_dependency_analyzer_v1_graph_graph, 4);
+
+/**
  * @generated from message vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraph
  */
 export type InterfaceGraph = Message<"vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraph"> & {
@@ -112,7 +202,7 @@ export type InterfaceGraph = Message<"vrooli.scenario_dependency_analyzer.v1.gra
  * Use `create(InterfaceGraphSchema)` to create a new message.
  */
 export const InterfaceGraphSchema: GenMessage<InterfaceGraph> = /*@__PURE__*/
-  messageDesc(file_scenario_dependency_analyzer_v1_graph_graph, 2);
+  messageDesc(file_scenario_dependency_analyzer_v1_graph_graph, 5);
 
 /**
  * @generated from message vrooli.scenario_dependency_analyzer.v1.graph.GraphNode
@@ -129,7 +219,7 @@ export type GraphNode = Message<"vrooli.scenario_dependency_analyzer.v1.graph.Gr
  * Use `create(GraphNodeSchema)` to create a new message.
  */
 export const GraphNodeSchema: GenMessage<GraphNode> = /*@__PURE__*/
-  messageDesc(file_scenario_dependency_analyzer_v1_graph_graph, 3);
+  messageDesc(file_scenario_dependency_analyzer_v1_graph_graph, 6);
 
 /**
  * @generated from message vrooli.scenario_dependency_analyzer.v1.graph.GraphEdge
@@ -166,7 +256,7 @@ export type GraphEdge = Message<"vrooli.scenario_dependency_analyzer.v1.graph.Gr
  * Use `create(GraphEdgeSchema)` to create a new message.
  */
 export const GraphEdgeSchema: GenMessage<GraphEdge> = /*@__PURE__*/
-  messageDesc(file_scenario_dependency_analyzer_v1_graph_graph, 4);
+  messageDesc(file_scenario_dependency_analyzer_v1_graph_graph, 7);
 
 /**
  * @generated from message vrooli.scenario_dependency_analyzer.v1.graph.GraphEvidence
@@ -208,7 +298,7 @@ export type GraphEvidence = Message<"vrooli.scenario_dependency_analyzer.v1.grap
  * Use `create(GraphEvidenceSchema)` to create a new message.
  */
 export const GraphEvidenceSchema: GenMessage<GraphEvidence> = /*@__PURE__*/
-  messageDesc(file_scenario_dependency_analyzer_v1_graph_graph, 5);
+  messageDesc(file_scenario_dependency_analyzer_v1_graph_graph, 8);
 
 /**
  * @generated from message vrooli.scenario_dependency_analyzer.v1.graph.GraphError
@@ -235,7 +325,7 @@ export type GraphError = Message<"vrooli.scenario_dependency_analyzer.v1.graph.G
  * Use `create(GraphErrorSchema)` to create a new message.
  */
 export const GraphErrorSchema: GenMessage<GraphError> = /*@__PURE__*/
-  messageDesc(file_scenario_dependency_analyzer_v1_graph_graph, 6);
+  messageDesc(file_scenario_dependency_analyzer_v1_graph_graph, 9);
 
 /**
  * @generated from enum vrooli.scenario_dependency_analyzer.v1.graph.EvidenceSource
@@ -276,6 +366,21 @@ export const InterfaceGraphService: GenService<{
     methodKind: "unary";
     input: typeof DescribeInterfaceGraphRequestSchema;
     output: typeof DescribeInterfaceGraphResponseSchema;
+  },
+  /**
+   * SearchInterfaceGraph is the federated AI-search leaf over the connection
+   * graph: a natural-language query ("what does plan-manager depend on", "what
+   * depends on prompt-manager") returns the scenarios whose connection record
+   * best matches, ranked by relevance. It is Connection-only (what depends on
+   * what) — purpose/anatomy queries belong to architecture-cartographer's
+   * domain-map leaf. Backed by the .scenarios search corpus.
+   *
+   * @generated from rpc vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService.SearchInterfaceGraph
+   */
+  searchInterfaceGraph: {
+    methodKind: "unary";
+    input: typeof SearchInterfaceGraphRequestSchema;
+    output: typeof SearchInterfaceGraphResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_scenario_dependency_analyzer_v1_graph_graph, 0);

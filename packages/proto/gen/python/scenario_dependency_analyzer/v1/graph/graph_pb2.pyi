@@ -38,6 +38,34 @@ class DescribeInterfaceGraphResponse(_message.Message):
     computed_at: str
     def __init__(self, graph: _Optional[_Union[InterfaceGraph, _Mapping]] = ..., computed_at: _Optional[str] = ...) -> None: ...
 
+class SearchInterfaceGraphRequest(_message.Message):
+    __slots__ = ("query", "limit")
+    QUERY_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    query: str
+    limit: int
+    def __init__(self, query: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class SearchInterfaceGraphResponse(_message.Message):
+    __slots__ = ("results",)
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
+    results: _containers.RepeatedCompositeFieldContainer[ScenarioConnectionHit]
+    def __init__(self, results: _Optional[_Iterable[_Union[ScenarioConnectionHit, _Mapping]]] = ...) -> None: ...
+
+class ScenarioConnectionHit(_message.Message):
+    __slots__ = ("scenario", "depends_on", "used_by", "summary", "relevance_score")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    DEPENDS_ON_FIELD_NUMBER: _ClassVar[int]
+    USED_BY_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    RELEVANCE_SCORE_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    depends_on: _containers.RepeatedScalarFieldContainer[str]
+    used_by: _containers.RepeatedScalarFieldContainer[str]
+    summary: str
+    relevance_score: float
+    def __init__(self, scenario: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., used_by: _Optional[_Iterable[str]] = ..., summary: _Optional[str] = ..., relevance_score: _Optional[float] = ...) -> None: ...
+
 class InterfaceGraph(_message.Message):
     __slots__ = ("nodes", "edges", "errors")
     NODES_FIELD_NUMBER: _ClassVar[int]

@@ -35,7 +35,7 @@ class ListAIOperationsResponse(_message.Message):
     def __init__(self, operations: _Optional[_Iterable[_Union[AIOperationInfo, _Mapping]]] = ...) -> None: ...
 
 class AIParams(_message.Message):
-    __slots__ = ("prompt", "negative_prompt", "seed", "width", "height", "steps", "cfg_scale", "variations", "strength", "scale", "model_override", "allow_byok", "auto_scan_nsfw", "realism", "face_aware", "consent_affirmed", "adapters")
+    __slots__ = ("prompt", "negative_prompt", "seed", "width", "height", "steps", "cfg_scale", "variations", "strength", "scale", "model_override", "allow_byok", "auto_scan_nsfw", "realism", "face_aware", "consent_affirmed", "adapters", "quality_policy", "fallback_policy", "priority", "allow_reclaim", "openrouter_role")
     PROMPT_FIELD_NUMBER: _ClassVar[int]
     NEGATIVE_PROMPT_FIELD_NUMBER: _ClassVar[int]
     SEED_FIELD_NUMBER: _ClassVar[int]
@@ -53,6 +53,11 @@ class AIParams(_message.Message):
     FACE_AWARE_FIELD_NUMBER: _ClassVar[int]
     CONSENT_AFFIRMED_FIELD_NUMBER: _ClassVar[int]
     ADAPTERS_FIELD_NUMBER: _ClassVar[int]
+    QUALITY_POLICY_FIELD_NUMBER: _ClassVar[int]
+    FALLBACK_POLICY_FIELD_NUMBER: _ClassVar[int]
+    PRIORITY_FIELD_NUMBER: _ClassVar[int]
+    ALLOW_RECLAIM_FIELD_NUMBER: _ClassVar[int]
+    OPENROUTER_ROLE_FIELD_NUMBER: _ClassVar[int]
     prompt: str
     negative_prompt: str
     seed: int
@@ -70,7 +75,12 @@ class AIParams(_message.Message):
     face_aware: bool
     consent_affirmed: bool
     adapters: _containers.RepeatedCompositeFieldContainer[AdapterRef]
-    def __init__(self, prompt: _Optional[str] = ..., negative_prompt: _Optional[str] = ..., seed: _Optional[int] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., steps: _Optional[int] = ..., cfg_scale: _Optional[float] = ..., variations: _Optional[int] = ..., strength: _Optional[float] = ..., scale: _Optional[int] = ..., model_override: _Optional[str] = ..., allow_byok: _Optional[bool] = ..., auto_scan_nsfw: _Optional[bool] = ..., realism: _Optional[float] = ..., face_aware: _Optional[bool] = ..., consent_affirmed: _Optional[bool] = ..., adapters: _Optional[_Iterable[_Union[AdapterRef, _Mapping]]] = ...) -> None: ...
+    quality_policy: str
+    fallback_policy: str
+    priority: str
+    allow_reclaim: bool
+    openrouter_role: str
+    def __init__(self, prompt: _Optional[str] = ..., negative_prompt: _Optional[str] = ..., seed: _Optional[int] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., steps: _Optional[int] = ..., cfg_scale: _Optional[float] = ..., variations: _Optional[int] = ..., strength: _Optional[float] = ..., scale: _Optional[int] = ..., model_override: _Optional[str] = ..., allow_byok: _Optional[bool] = ..., auto_scan_nsfw: _Optional[bool] = ..., realism: _Optional[float] = ..., face_aware: _Optional[bool] = ..., consent_affirmed: _Optional[bool] = ..., adapters: _Optional[_Iterable[_Union[AdapterRef, _Mapping]]] = ..., quality_policy: _Optional[str] = ..., fallback_policy: _Optional[str] = ..., priority: _Optional[str] = ..., allow_reclaim: _Optional[bool] = ..., openrouter_role: _Optional[str] = ...) -> None: ...
 
 class AdapterRef(_message.Message):
     __slots__ = ("adapter_id", "scale", "conditioning_image_key", "preprocessor_override")

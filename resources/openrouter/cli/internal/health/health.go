@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
+
 	"resource-openrouter/cli/internal/auth"
 	"resource-openrouter/cli/internal/config"
-	"strings"
 
 	resourceenv "resource-openrouter/cli/internal/env"
 )

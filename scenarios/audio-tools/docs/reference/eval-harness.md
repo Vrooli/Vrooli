@@ -22,7 +22,11 @@ per-case + aggregate report.
    namespace is variant-aware, so a shadow instance's corpus never collides
    with live's.
 2. **Harness** (`EvalService`, `api/internal/eval`) — replays each clip
-   through each strategy and reports the metrics.
+   through each strategy and reports the metrics. Streaming rows
+   (`vad_segment`, `overlap_agree`) route through the production
+   `internal/stt/segmenter` path with speaker stages unbound by default,
+   so eval exercises the same ingress/selector/egress construction point as
+   live STT without reading or mutating the live stream-config row.
 
 ## Metrics
 
@@ -34,6 +38,9 @@ per-case + aggregate report.
 | **RTF** | provider compute-time ÷ audio duration (`<1` = faster than real time). | yes |
 | **Finalization latency p50/p95** | wall-clock from the last audio chunk to the terminal transcript, over repeated real-time-paced runs. | **no** (machine-load dependent) |
 | **Partial-revisions** | how many times the live partial text changed before committing (stability/jitter). | yes |
+| **Safety gates** | zero-tolerance committed-text retraction gate plus configurable contiguous dropped-span gate (`default=4` reference words). Reported per row/condition, not averaged into WER. | yes |
+| **Commit metrics** | commit count and time-to-first-commit from the strategy/Segmenter event stream. | **no** for wall-clock timing; commit count is reproducible |
+| **Length curves** | WER, p95 finalization latency, mean time-to-first-commit, and max dropped span by input-length bucket (10s/30s/1m/3m/5m/>5m). | mixed; quality/drop fields yes, wall-clock latency no |
 
 The num[sot]:two run modes are a first-class contract: the **deterministic** pass feeds
 chunks back-to-back and yields reproducible WER + compute (used for
@@ -73,6 +80,16 @@ reference/hypothesis, edit counts, and a word-level alignment path with
 `match`, `substitution`, `insertion`, and `deletion` operations. This is the
 debug surface for answering why a strategy lost on specific clips.
 
+Persisted experiment reports also include Phase-7 safety fields. The
+committed-text timeline is derived from `SegmentEvent`/terminal `Done`
+states; a later state must preserve every previously committed normalized
+token as a prefix or the retraction gate fails. Dropped-span detection uses
+the final word alignment and fails when a contiguous run of deleted reference
+words reaches the stored threshold (`audio-tools experiment start
+--dropped-span-threshold`, default 4). These gates are deliberately separate
+from WER so a single catastrophic omission stays visible even when the
+aggregate rate looks acceptable.
+
 ## Normalization policy
 
 WER normalization lowercases text, removes Unicode punctuation and symbols,
@@ -103,10 +120,23 @@ audio-tools eval run
 # 3. Add finalization-latency measurement (slower; repeated real-time runs):
 audio-tools eval run --realtime-repeats 5 --output report.json
 
-# 4. Tune the stall-fallback through the existing stream-config path and
-#    re-run to see the latency/WER deltas:
-audio-tools stt stream-config-set --overlap-max-stall-rejects 2
-audio-tools eval run --realtime-repeats 5
+# 4. Tune overlap-agree experiment knobs hermetically and re-run to see
+#    latency/WER deltas without changing live STT settings:
+audio-tools eval run --strategies overlap_agree --overlap-max-window-ms 12000 --realtime-repeats 5
+
+# 5. Enqueue a persisted long-form experiment from the same corpus:
+audio-tools experiment start --long-form true --target-duration-seconds 180 --gap-ms 5000 --seed 42 --json
+
+# 6. Add deterministic augmentation conditions over the whole realized input:
+audio-tools experiment start --long-form true --target-duration-seconds 180 --seed 42 \
+  --noise-types white,fan --snr-db 18,12,6 --json
+
+# 7. Add target-speaker extraction / verification ablations over a mixed input:
+audio-tools experiment start --long-form true --target-duration-seconds 180 --seed 42 \
+  --competing-voices af_bella --snr-db 12 --target-profile-id my-voice \
+  --speaker-extraction true --speaker-verification true --speaker-mode filter \
+  --dropped-span-threshold 4 \
+  --speaker-ablation true --json
 ```
 
 A live Whisper backend is required (the harness is an integration tool, not
@@ -129,15 +159,44 @@ warning as a capture problem and retry before saving the clip.
 force-commits the freshest hypothesis tail after N consecutive
 LocalAgreement divergence-rejects, bounding tail growth before the 25s
 `max_window_ms` net — the fix for "overlap-agree finalizes slower than
-batch". The harness answers, with saved numbers: *does the stall-fallback
-lower finalization latency without raising WER beyond an agreed delta?*
+batch". Experiments can also override `overlap_max_window_ms`, the hard
+ceiling on uncommitted tail growth before force-commit. The harness answers,
+with saved numbers: *does the stall-fallback or max-window ceiling lower
+finalization latency without raising WER beyond an agreed delta?*
 
 Today the harness recommends a winning strategy and explains measured
 trade-offs. Mutating stream config remains intentionally outside
-`EvalService`; use `audio-tools stt stream-config-set` or the STT admin UI,
-which both reuse the validated `STTAdminService.UpdateStreamConfig` writer.
+`EvalService`; the experiment/eval knobs are a per-run `StreamConfig`
+snapshot layered over defaults, not a write to `stt_stream_config`.
 A future bounded sweep RPC should call that same writer for apply semantics
 rather than creating a second config mutation path.
+
+Persisted experiments can also ask the worker to build a long-form input
+from corpus clips before running the same harness. Long-form recipes store
+the seed, gap length, target duration, realized clip-id order, assembled
+reference transcript, and realized duration. The audio is concatenated in
+memory with zero-byte canonical PCM silence gaps, then evaluated as one
+synthetic clip; the generated audio bytes are not stored in SQLite or git.
+
+Experiments can also realize augmentation conditions before replay. The
+worker keeps a clean input, then adds generated noise beds (`white`, `fan`,
+`percussive`, `music`) and/or Kokoro-synthesized competing voices at the
+stored SNR grid. Mixing happens after concatenation, so noise continues
+through long-form silence gaps. The recipe stores requested augmentation
+fields plus realized condition notes, including resource-down skips for
+competing voices. Phase 5 reports still aggregate all evaluated condition
+clips per strategy; Phase 7 is responsible for per-condition safety gates
+and curves.
+
+Experiments can also bind target-speaker extraction and egress speaker
+verification from a stored recipe. The worker builds a per-run speaker config
+snapshot from `target_profile_id`, extraction/verification toggles, mode,
+threshold, and fallback settings, then binds the same production adapters used
+by live STT into the eval `Segmenter`. With `--speaker-ablation true`, the
+same realized inputs are evaluated under extraction/verification off/on
+conditions; current reports expose those as condition-suffixed strategy rows,
+while Phase 7 promotes attribution and safety envelopes to first-class fields.
+The live speaker config cell is not read or written by experiment runs.
 
 ## Why the corpus can't ride CI
 

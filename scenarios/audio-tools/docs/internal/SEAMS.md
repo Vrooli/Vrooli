@@ -37,7 +37,7 @@
 | `audio.Runner` + `audio.DefaultRunner` + `audio.SetFfmpegAvailableForTest` | Interface + var + test seam | `internal/audio/transcode.go` | `handlers/audio` unit tests substitute a fake Runner and seed ffmpeg presence so happy-path / error branches run without an ffmpeg binary on PATH |
 | `audioformat.ProcessRunner` / `audioformat.Process` / `audioformat.StreamDecoder` | Interface + per-session decoder | `internal/audioformat/stream.go` | streaming STT live decode (one ffmpeg child per non-PCM session); `FakeProcessRunner` keeps ffmpeg off the unit-test path |
 | `stt.StreamWSHandler` | Concrete | `handlers/stt/stream_ws.go` | mounts `/api/v1/voice/stream` over `voice.Service.HandleStreamWS` |
-| `stt.Segmenter` | Concrete | `internal/stt/segmenter/` | WS handler + Connect bidi handler (one impl, two transports) |
+| `stt.Segmenter` | Concrete | `internal/stt/segmenter/` | WS handler + Connect bidi handler + eval streaming harness rows (one impl, two transports, one lab replay path) |
 | `stt.StrategySelector` | Concrete | `internal/stt/selector.go` | `stt.Segmenter` at session start |
 | `stt.StreamingStrategy` | Interface | `internal/stt/strategy/{vad_segment,overlap_agree,passthrough}.go` | `stt.StrategySelector` |
 | `egress.Stage` | Interface | `internal/stt/egress/{hallucination,confidence,speaker}_stage.go` (fake: `internal/stt/egress/mocks/stage.go::FakeStage`) | `stt.Segmenter` builds the per-session `egress.Gate` (single post-recognition seam every SegmentEvent passes through; text-domain hallucination + signal-domain confidence + audio-domain speaker stages, manifest-derived) |
@@ -48,6 +48,15 @@
 | `sttchain.ProviderTraits` | Struct (replaces `StreamingCapability() bool`) | `internal/ai/sttchain/interface.go` | `stt.StrategySelector` |
 | `capabilities.ResourceController` | Interface | `internal/capabilities/lifecycle.go` (production impl: `CLIController` in `lifecycle_cli.go` shells out to `vrooli resource …`) | `handlers/provider_lifecycle/connect_handler.go` — single chokepoint for lifecycle shell-outs; tests substitute recording fakes |
 | `capabilities.Registry.ResolveForce` | Concrete (additive) | `internal/capabilities/registry.go` | `handlers/health_status` (RefreshProviderHealth) and `handlers/provider_lifecycle` (post-mutation cache-bust) |
+| `experiment.Repository` | Interface | `internal/experiment/sqlite.go` | `internal/experiment.Service` and the experiment async runner — persists experiment lifecycle rows and per-condition metric cells; tests substitute repository fakes or the SQLite impl over a temp DB |
+| `experiment.BlobBytes` | Interface | `internal/experiment/blobstore.go` | `internal/experiment.Service` — stores large reports/artifacts under variant-aware `experiment-blobs`; tests can use an in-memory or temp filesystem blob store |
+| `experiment.Runner` / `experiment.Manager` | Function seam + concrete lifecycle owner | `internal/experiment/runner.go` | `internal/bootstrap` wires the current eval harness as the runner body; `handlers/experiment` exposes lifecycle RPCs. Work runs under server lifetime context, not request context, so Wait cancellation does not abort the experiment |
+| `experiment/recipe.Build` | Pure function seam | `internal/experiment/recipe/longform.go` | `internal/bootstrap` materializes corpus clips into seeded long-form eval inputs. Unit tests prove deterministic clip ordering, zero-byte gap insertion, and realized reference capture without requiring Whisper |
+| `audio/mix.OverlayAtSNR` | Pure function seam | `internal/audio/mix/mix.go` | `internal/experiment/recipe.ApplyAugmentation` overlays generated noise or competing-speaker PCM over canonical experiment inputs at a target SNR. Unit tests prove SNR tolerance, saturating clipping, and length handling without ffmpeg or live resources |
+| `experiment/recipe.ApplyAugmentation` | Pure function seam with injected voice synthesizer | `internal/experiment/recipe/augmentation.go` | `internal/bootstrap` supplies the TTS-to-canonical helper for Kokoro voices; tests inject or omit `SynthesizeVoice` to prove deterministic noise and resource-down skip recording |
+| `experiment speaker condition binding` | Per-run config seam | `internal/bootstrap::buildSpeakerConditions` + `handlers/eval.Deps` | Experiment recipes become explicit `pipeline.SpeakerConfig` snapshots and eval-stage booleans, then `handlers/eval` binds the production `handlers/stt` speaker extraction/verification adapters into `Segmenter` without reading or mutating the live speaker-config cell |
+| `handlers/experiment.ExperimentManager` | Interface | `handlers/experiment/connect_handler.go` | Connect handler consumer-side seam over `internal/experiment.Manager` (`Submit/Get/Wait/List/Cancel/Subscribe`); handler tests can substitute a fake manager without starting the worker |
+| `ui experiment client` | Generated Connect client wrapper | `ui/src/services/experiment.ts` | Dictation Studio lab console consumes `ExperimentService` for start/wait/cancel/list/report/compare. Component tests mock this module, so UI tests prove lifecycle wiring without live Whisper/Kokoro/speaker resources or a running API |
 
 ## Cross-scenario boundaries
 
@@ -564,9 +573,14 @@ an actionable diff showing exactly which entries diverged.
   (see [`../domains/stt/streaming-pipeline.md`](../domains/stt/streaming-pipeline.md)).
 - **Production wires:** constructed once per streaming session by both
   the browser WS handler (`handlers/stt/stream_ws.go`) and the Connect
-  bidi handler (`handlers/stt/transcribe_stream.go`). Owns the session lifecycle,
-  the chunk-in/event-out channel pair, observer fanout to
-  `session.Registry`, and the cancellation/barge-in fan-out into TTS.
+  bidi handler (`handlers/stt/transcribe_stream.go`). The eval/experiment
+  harness also constructs it per replay for `vad_segment` and
+  `overlap_agree`, using an eval-local single-provider chain. Public eval
+  leaves speaker stages unbound by default; persisted experiments can bind
+  per-run extraction/verification adapters from the stored speaker recipe.
+  Owns the session lifecycle, the chunk-in/event-out channel pair,
+  observer fanout to `session.Registry`, and the cancellation/barge-in
+  fan-out into TTS.
 - **Test substitutes:** in-process fakes feed a canned audio channel
   and assert the emitted event sequence; parity test runs the same
   WAV through both transports' Segmenter wiring and asserts equivalent
@@ -653,6 +667,24 @@ qualified names the test searches for.
 - `tts.Synthesizer` — local-TTS engine seam (Kokoro HTTP synthesizer in
   production).
 - `tts.VoiceLister` — voice-catalog seam.
+
+## Eval safety metrics seam
+
+### `internal/eval.EvaluateSafety`
+
+Pure evaluator for Phase-7 STT experiment safety gates.
+
+- **Inputs**: normalized alignment operations, committed-text timeline
+  snapshots, and the dropped-span threshold stored in the experiment recipe.
+- **Outputs**: retraction verdict, max contiguous dropped-span length,
+  threshold verdict, and reasons. Aggregation and length-bucket curves are
+  built in `internal/eval` report assembly; proto/CLI layers only render
+  the backend-owned results.
+- **Why a seam**: keeps catastrophic-failure policy out of UI/CLI code and
+  makes the gates unit-testable without Whisper, Kokoro, speaker resources,
+  or wall-clock timing.
+- **Consumed by**: `EvalClip` during deterministic/realtime replay and
+  `ExperimentService.GetExperimentReport` through the stored eval report.
 
 ## UI: auto-stop decision boundary <a id="auto-stop-decision"></a>
 

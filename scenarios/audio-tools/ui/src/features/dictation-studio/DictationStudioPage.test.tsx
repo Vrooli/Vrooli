@@ -32,13 +32,19 @@ vi.mock("./DictationRecorder", () => ({
 const createClip = vi.fn();
 const listClips = vi.fn();
 const deleteClip = vi.fn();
-const runEval = vi.fn();
 vi.mock("../../services/corpus", () => ({
   ClipSource: { UNSPECIFIED: 0, FREE_FORM: 1, SCRIPTED: 2 },
   createClip: (a: unknown) => createClip(a),
   listClips: () => listClips(),
   deleteClip: (id: string) => deleteClip(id),
-  runEval: (a: unknown) => runEval(a),
+}));
+vi.mock("../../services/experiment", () => ({
+  listExperiments: () => Promise.resolve([]),
+  startExperiment: () => Promise.resolve({ id: "exp-1", name: "exp-1", status: "queued", recipe: { strategies: [] } }),
+  waitExperiment: () => Promise.resolve({ experiment: null, runs: [] }),
+  cancelExperiment: () => Promise.resolve(null),
+  getExperimentReport: () => Promise.resolve({ experiment: null, report: { perStrategy: [], qualityMeasured: false, latencyMeasured: false, summary: null, warnings: [], normalizationPolicy: null, latencyHonesty: "" }, runs: [] }),
+  compareExperiments: () => Promise.resolve([]),
 }));
 
 const pushToast = vi.fn();
@@ -52,7 +58,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   createClip.mockResolvedValue({ id: "c1" });
   listClips.mockResolvedValue([]);
-  runEval.mockResolvedValue({ perStrategy: [], qualityMeasured: false, latencyMeasured: false });
 });
 afterEach(cleanup);
 
@@ -65,7 +70,7 @@ describe("DictationStudioPage", () => {
     );
     expect(screen.getByRole("tab", { name: strings.dictationStudio.tabRecord })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: strings.dictationStudio.tabCorpus })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: strings.dictationStudio.tabReport })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: strings.dictationStudio.tabLab })).toBeInTheDocument();
     await expectNoA11yViolations(container);
   });
 
@@ -151,10 +156,10 @@ describe("DictationStudioPage", () => {
     expect(await screen.findByText(strings.dictationStudio.corpusEmpty)).toBeInTheDocument();
   });
 
-  it("switches to the Eval Report tab", async () => {
+  it("switches to the Experiment Lab tab", async () => {
     const user = userEvent.setup();
     renderWithProviders(<DictationStudioPage />);
-    await user.click(screen.getByRole("tab", { name: strings.dictationStudio.tabReport }));
-    expect(await screen.findByText(strings.dictationStudio.reportEmpty)).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: strings.dictationStudio.tabLab }));
+    expect(await screen.findByTestId(selectors.dictationStudio.startExperiment)).toBeInTheDocument();
   });
 });

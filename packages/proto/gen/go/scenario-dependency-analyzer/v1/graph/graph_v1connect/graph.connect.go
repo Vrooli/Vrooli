@@ -36,6 +36,9 @@ const (
 	// InterfaceGraphServiceDescribeInterfaceGraphProcedure is the fully-qualified name of the
 	// InterfaceGraphService's DescribeInterfaceGraph RPC.
 	InterfaceGraphServiceDescribeInterfaceGraphProcedure = "/vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService/DescribeInterfaceGraph"
+	// InterfaceGraphServiceSearchInterfaceGraphProcedure is the fully-qualified name of the
+	// InterfaceGraphService's SearchInterfaceGraph RPC.
+	InterfaceGraphServiceSearchInterfaceGraphProcedure = "/vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService/SearchInterfaceGraph"
 )
 
 // InterfaceGraphServiceClient is a client for the
@@ -43,6 +46,13 @@ const (
 type InterfaceGraphServiceClient interface {
 	// DescribeInterfaceGraph returns the actual interface graph.
 	DescribeInterfaceGraph(context.Context, *connect.Request[graph.DescribeInterfaceGraphRequest]) (*connect.Response[graph.DescribeInterfaceGraphResponse], error)
+	// SearchInterfaceGraph is the federated AI-search leaf over the connection
+	// graph: a natural-language query ("what does plan-manager depend on", "what
+	// depends on prompt-manager") returns the scenarios whose connection record
+	// best matches, ranked by relevance. It is Connection-only (what depends on
+	// what) — purpose/anatomy queries belong to architecture-cartographer's
+	// domain-map leaf. Backed by the .scenarios search corpus.
+	SearchInterfaceGraph(context.Context, *connect.Request[graph.SearchInterfaceGraphRequest]) (*connect.Response[graph.SearchInterfaceGraphResponse], error)
 }
 
 // NewInterfaceGraphServiceClient constructs a client for the
@@ -63,12 +73,19 @@ func NewInterfaceGraphServiceClient(httpClient connect.HTTPClient, baseURL strin
 			connect.WithSchema(interfaceGraphServiceMethods.ByName("DescribeInterfaceGraph")),
 			connect.WithClientOptions(opts...),
 		),
+		searchInterfaceGraph: connect.NewClient[graph.SearchInterfaceGraphRequest, graph.SearchInterfaceGraphResponse](
+			httpClient,
+			baseURL+InterfaceGraphServiceSearchInterfaceGraphProcedure,
+			connect.WithSchema(interfaceGraphServiceMethods.ByName("SearchInterfaceGraph")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // interfaceGraphServiceClient implements InterfaceGraphServiceClient.
 type interfaceGraphServiceClient struct {
 	describeInterfaceGraph *connect.Client[graph.DescribeInterfaceGraphRequest, graph.DescribeInterfaceGraphResponse]
+	searchInterfaceGraph   *connect.Client[graph.SearchInterfaceGraphRequest, graph.SearchInterfaceGraphResponse]
 }
 
 // DescribeInterfaceGraph calls
@@ -77,11 +94,24 @@ func (c *interfaceGraphServiceClient) DescribeInterfaceGraph(ctx context.Context
 	return c.describeInterfaceGraph.CallUnary(ctx, req)
 }
 
+// SearchInterfaceGraph calls
+// vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService.SearchInterfaceGraph.
+func (c *interfaceGraphServiceClient) SearchInterfaceGraph(ctx context.Context, req *connect.Request[graph.SearchInterfaceGraphRequest]) (*connect.Response[graph.SearchInterfaceGraphResponse], error) {
+	return c.searchInterfaceGraph.CallUnary(ctx, req)
+}
+
 // InterfaceGraphServiceHandler is an implementation of the
 // vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService service.
 type InterfaceGraphServiceHandler interface {
 	// DescribeInterfaceGraph returns the actual interface graph.
 	DescribeInterfaceGraph(context.Context, *connect.Request[graph.DescribeInterfaceGraphRequest]) (*connect.Response[graph.DescribeInterfaceGraphResponse], error)
+	// SearchInterfaceGraph is the federated AI-search leaf over the connection
+	// graph: a natural-language query ("what does plan-manager depend on", "what
+	// depends on prompt-manager") returns the scenarios whose connection record
+	// best matches, ranked by relevance. It is Connection-only (what depends on
+	// what) — purpose/anatomy queries belong to architecture-cartographer's
+	// domain-map leaf. Backed by the .scenarios search corpus.
+	SearchInterfaceGraph(context.Context, *connect.Request[graph.SearchInterfaceGraphRequest]) (*connect.Response[graph.SearchInterfaceGraphResponse], error)
 }
 
 // NewInterfaceGraphServiceHandler builds an HTTP handler from the service implementation. It
@@ -97,10 +127,18 @@ func NewInterfaceGraphServiceHandler(svc InterfaceGraphServiceHandler, opts ...c
 		connect.WithSchema(interfaceGraphServiceMethods.ByName("DescribeInterfaceGraph")),
 		connect.WithHandlerOptions(opts...),
 	)
+	interfaceGraphServiceSearchInterfaceGraphHandler := connect.NewUnaryHandler(
+		InterfaceGraphServiceSearchInterfaceGraphProcedure,
+		svc.SearchInterfaceGraph,
+		connect.WithSchema(interfaceGraphServiceMethods.ByName("SearchInterfaceGraph")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InterfaceGraphServiceDescribeInterfaceGraphProcedure:
 			interfaceGraphServiceDescribeInterfaceGraphHandler.ServeHTTP(w, r)
+		case InterfaceGraphServiceSearchInterfaceGraphProcedure:
+			interfaceGraphServiceSearchInterfaceGraphHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -112,4 +150,8 @@ type UnimplementedInterfaceGraphServiceHandler struct{}
 
 func (UnimplementedInterfaceGraphServiceHandler) DescribeInterfaceGraph(context.Context, *connect.Request[graph.DescribeInterfaceGraphRequest]) (*connect.Response[graph.DescribeInterfaceGraphResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService.DescribeInterfaceGraph is not implemented"))
+}
+
+func (UnimplementedInterfaceGraphServiceHandler) SearchInterfaceGraph(context.Context, *connect.Request[graph.SearchInterfaceGraphRequest]) (*connect.Response[graph.SearchInterfaceGraphResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService.SearchInterfaceGraph is not implemented"))
 }

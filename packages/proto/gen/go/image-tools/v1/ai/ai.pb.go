@@ -230,8 +230,8 @@ type AIParams struct {
 	// ModelOverride forces a specific registry model id instead of the hardware
 	// -fit default (still validated for op-support, enabled-state, runnability).
 	ModelOverride string `protobuf:"bytes,11,opt,name=model_override,json=modelOverride,proto3" json:"model_override,omitempty"`
-	// AllowByok permits falling back to a paid BYOK cloud provider when no local
-	// backend is available. Off by default — BYOK is opt-in and metered.
+	// AllowByok permits paid BYOK cloud candidates. FallbackPolicy can still
+	// force local-only execution even when this is true.
 	AllowByok bool `protobuf:"varint,12,opt,name=allow_byok,json=allowByok,proto3" json:"allow_byok,omitempty"`
 	// AutoScanNsfw runs an NSFW classification on the generated output and records
 	// the verdict with the job. Off by default.
@@ -260,9 +260,25 @@ type AIParams struct {
 	// model's architecture, enabled/installed/Ready state, and elevates the consent
 	// weight to max(op, adapters...). An incompatible / not-yet-proven adapter is
 	// rejected before any job runs (no vaporware). Empty for an unconditioned op.
-	Adapters      []*AdapterRef `protobuf:"bytes,17,rep,name=adapters,proto3" json:"adapters,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Adapters []*AdapterRef `protobuf:"bytes,17,rep,name=adapters,proto3" json:"adapters,omitempty"`
+	// QualityPolicy tunes candidate ordering: "fast", "balanced", or "quality".
+	// Empty means the scenario default.
+	QualityPolicy string `protobuf:"bytes,18,opt,name=quality_policy,json=qualityPolicy,proto3" json:"quality_policy,omitempty"`
+	// FallbackPolicy controls provider fallback: "local_only", "cloud_allowed", or
+	// "any". Empty means any policy permitted by allow_byok and deployment config.
+	FallbackPolicy string `protobuf:"bytes,19,opt,name=fallback_policy,json=fallbackPolicy,proto3" json:"fallback_policy,omitempty"`
+	// Priority is the capacity claim tier: "batch", "service", or "interactive".
+	// Empty means service for image generation/editing.
+	Priority string `protobuf:"bytes,20,opt,name=priority,proto3" json:"priority,omitempty"`
+	// AllowReclaim permits capacity claims that free idle lower-value resources.
+	// Unset means true for image generation/editing.
+	AllowReclaim *bool `protobuf:"varint,21,opt,name=allow_reclaim,json=allowReclaim,proto3,oneof" json:"allow_reclaim,omitempty"`
+	// OpenRouterRole is an optional logical policy role (for example
+	// "image.generate.logo") that the OpenRouter resource resolves to a concrete
+	// model. Callers should pass roles, never provider-specific model ids.
+	OpenrouterRole string `protobuf:"bytes,22,opt,name=openrouter_role,json=openrouterRole,proto3" json:"openrouter_role,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *AIParams) Reset() {
@@ -412,6 +428,41 @@ func (x *AIParams) GetAdapters() []*AdapterRef {
 		return x.Adapters
 	}
 	return nil
+}
+
+func (x *AIParams) GetQualityPolicy() string {
+	if x != nil {
+		return x.QualityPolicy
+	}
+	return ""
+}
+
+func (x *AIParams) GetFallbackPolicy() string {
+	if x != nil {
+		return x.FallbackPolicy
+	}
+	return ""
+}
+
+func (x *AIParams) GetPriority() string {
+	if x != nil {
+		return x.Priority
+	}
+	return ""
+}
+
+func (x *AIParams) GetAllowReclaim() bool {
+	if x != nil && x.AllowReclaim != nil {
+		return *x.AllowReclaim
+	}
+	return false
+}
+
+func (x *AIParams) GetOpenrouterRole() string {
+	if x != nil {
+		return x.OpenrouterRole
+	}
+	return ""
 }
 
 // AdapterRef is one requested conditioning modifier on a generation.
@@ -595,7 +646,7 @@ const file_image_tools_v1_ai_ai_proto_rawDesc = "" +
 	"\x18ListAIOperationsResponse\x12I\n" +
 	"\n" +
 	"operations\x18\x01 \x03(\v2).vrooli.image_tools.v1.ai.AIOperationInfoR\n" +
-	"operations\"\xa4\x04\n" +
+	"operations\"\xf5\x05\n" +
 	"\bAIParams\x12\x16\n" +
 	"\x06prompt\x18\x01 \x01(\tR\x06prompt\x12'\n" +
 	"\x0fnegative_prompt\x18\x02 \x01(\tR\x0enegativePrompt\x12\x12\n" +
@@ -618,7 +669,13 @@ const file_image_tools_v1_ai_ai_proto_rawDesc = "" +
 	"\n" +
 	"face_aware\x18\x0f \x01(\bR\tfaceAware\x12)\n" +
 	"\x10consent_affirmed\x18\x10 \x01(\bR\x0fconsentAffirmed\x12@\n" +
-	"\badapters\x18\x11 \x03(\v2$.vrooli.image_tools.v1.ai.AdapterRefR\badapters\"\xac\x01\n" +
+	"\badapters\x18\x11 \x03(\v2$.vrooli.image_tools.v1.ai.AdapterRefR\badapters\x12%\n" +
+	"\x0equality_policy\x18\x12 \x01(\tR\rqualityPolicy\x12'\n" +
+	"\x0ffallback_policy\x18\x13 \x01(\tR\x0efallbackPolicy\x12\x1a\n" +
+	"\bpriority\x18\x14 \x01(\tR\bpriority\x12(\n" +
+	"\rallow_reclaim\x18\x15 \x01(\bH\x00R\fallowReclaim\x88\x01\x01\x12'\n" +
+	"\x0fopenrouter_role\x18\x16 \x01(\tR\x0eopenrouterRoleB\x10\n" +
+	"\x0e_allow_reclaim\"\xac\x01\n" +
 	"\n" +
 	"AdapterRef\x12\x1d\n" +
 	"\n" +
@@ -673,6 +730,7 @@ func file_image_tools_v1_ai_ai_proto_init() {
 	if File_image_tools_v1_ai_ai_proto != nil {
 		return
 	}
+	file_image_tools_v1_ai_ai_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

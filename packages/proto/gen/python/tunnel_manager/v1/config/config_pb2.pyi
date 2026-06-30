@@ -90,18 +90,20 @@ class DriftCounts(_message.Message):
     def __init__(self, managed: _Optional[int] = ..., missing: _Optional[int] = ..., external_ok: _Optional[int] = ..., orphaned: _Optional[int] = ..., ignored: _Optional[int] = ..., unmanaged: _Optional[int] = ...) -> None: ...
 
 class TunnelConfig(_message.Message):
-    __slots__ = ("mode", "tunnel_id", "account_id", "cred_ref", "prom_endpoint")
+    __slots__ = ("mode", "tunnel_id", "account_id", "cred_ref", "prom_endpoint", "public_exposure_enabled")
     MODE_FIELD_NUMBER: _ClassVar[int]
     TUNNEL_ID_FIELD_NUMBER: _ClassVar[int]
     ACCOUNT_ID_FIELD_NUMBER: _ClassVar[int]
     CRED_REF_FIELD_NUMBER: _ClassVar[int]
     PROM_ENDPOINT_FIELD_NUMBER: _ClassVar[int]
+    PUBLIC_EXPOSURE_ENABLED_FIELD_NUMBER: _ClassVar[int]
     mode: Mode
     tunnel_id: str
     account_id: str
     cred_ref: str
     prom_endpoint: str
-    def __init__(self, mode: _Optional[_Union[Mode, str]] = ..., tunnel_id: _Optional[str] = ..., account_id: _Optional[str] = ..., cred_ref: _Optional[str] = ..., prom_endpoint: _Optional[str] = ...) -> None: ...
+    public_exposure_enabled: bool
+    def __init__(self, mode: _Optional[_Union[Mode, str]] = ..., tunnel_id: _Optional[str] = ..., account_id: _Optional[str] = ..., cred_ref: _Optional[str] = ..., prom_endpoint: _Optional[str] = ..., public_exposure_enabled: _Optional[bool] = ...) -> None: ...
 
 class ConfigReadiness(_message.Message):
     __slots__ = ("desired_mode", "remote_available", "missing_fields", "credential_source", "credential_ref", "local_config_path", "sync_ready", "mode_reason", "credential_fields")
@@ -328,3 +330,53 @@ class PruneIngressResponse(_message.Message):
     PRUNED_FIELD_NUMBER: _ClassVar[int]
     pruned: bool
     def __init__(self, pruned: _Optional[bool] = ...) -> None: ...
+
+class SetPublicExposureRequest(_message.Message):
+    __slots__ = ("enabled",)
+    ENABLED_FIELD_NUMBER: _ClassVar[int]
+    enabled: bool
+    def __init__(self, enabled: _Optional[bool] = ...) -> None: ...
+
+class SetPublicExposureResponse(_message.Message):
+    __slots__ = ("config",)
+    CONFIG_FIELD_NUMBER: _ClassVar[int]
+    config: TunnelConfig
+    def __init__(self, config: _Optional[_Union[TunnelConfig, _Mapping]] = ...) -> None: ...
+
+class GetAccessStatusRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class AccessHostState(_message.Message):
+    __slots__ = ("host", "override", "effective_bypass", "managed", "app_id")
+    HOST_FIELD_NUMBER: _ClassVar[int]
+    OVERRIDE_FIELD_NUMBER: _ClassVar[int]
+    EFFECTIVE_BYPASS_FIELD_NUMBER: _ClassVar[int]
+    MANAGED_FIELD_NUMBER: _ClassVar[int]
+    APP_ID_FIELD_NUMBER: _ClassVar[int]
+    host: str
+    override: str
+    effective_bypass: bool
+    managed: bool
+    app_id: str
+    def __init__(self, host: _Optional[str] = ..., override: _Optional[str] = ..., effective_bypass: _Optional[bool] = ..., managed: _Optional[bool] = ..., app_id: _Optional[str] = ...) -> None: ...
+
+class AccessStatus(_message.Message):
+    __slots__ = ("enabled", "configured", "hosts", "to_create", "to_remove")
+    ENABLED_FIELD_NUMBER: _ClassVar[int]
+    CONFIGURED_FIELD_NUMBER: _ClassVar[int]
+    HOSTS_FIELD_NUMBER: _ClassVar[int]
+    TO_CREATE_FIELD_NUMBER: _ClassVar[int]
+    TO_REMOVE_FIELD_NUMBER: _ClassVar[int]
+    enabled: bool
+    configured: bool
+    hosts: _containers.RepeatedCompositeFieldContainer[AccessHostState]
+    to_create: _containers.RepeatedScalarFieldContainer[str]
+    to_remove: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, enabled: _Optional[bool] = ..., configured: _Optional[bool] = ..., hosts: _Optional[_Iterable[_Union[AccessHostState, _Mapping]]] = ..., to_create: _Optional[_Iterable[str]] = ..., to_remove: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class GetAccessStatusResponse(_message.Message):
+    __slots__ = ("status",)
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    status: AccessStatus
+    def __init__(self, status: _Optional[_Union[AccessStatus, _Mapping]] = ...) -> None: ...

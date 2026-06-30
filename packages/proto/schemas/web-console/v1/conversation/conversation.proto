@@ -5,23 +5,22 @@ package vrooli.web_console.v1.conversation;
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation;conversation_v1";
 
 // =============================================================================
-// CONVERSATION DOMAIN — per-session conversation history, cursor, summarization,
-//                       and file-reference resolution/preview
+// CONVERSATION DOMAIN — per-session conversation history, cursor, summarization
 // =============================================================================
 //
 // @layer 5  (api surface)
 // @domain conversation
 // @stability stable
 //
-// Wire contract for ConversationService. Mirrors five legacy REST routes:
+// Wire contract for ConversationService. Mirrors three legacy REST routes:
 //   GET  /api/v1/sessions/{id}/conversation
 //   PUT  /api/v1/sessions/{id}/conversation/cursor
 //   POST /api/v1/sessions/{id}/conversation/{eventId}/summarize
-//   POST /api/v1/sessions/{id}/files/resolve
-//   GET  /api/v1/sessions/{id}/files/content
 //
-// File-reference resolve/content live in this domain because the UI surfaces
-// them inside conversation events (assistant messages can embed file refs).
+// File-reference resolution/preview moved out to its own domain
+// (vrooli.web_console.v1.file_preview.FilePreviewService) so the conversation
+// domain stays semantic conversation state and the preview subsystem is
+// reusable by other surfaces.
 //
 // Consumed by:
 //   - API: handlers/conversation/connect_handler.go
@@ -33,8 +32,6 @@ service ConversationService {
   rpc Get(GetRequest) returns (GetResponse);
   rpc UpdateCursor(UpdateCursorRequest) returns (UpdateCursorResponse);
   rpc SummarizeEvent(SummarizeEventRequest) returns (SummarizeEventResponse);
-  rpc ResolveFileReference(ResolveFileReferenceRequest) returns (ResolveFileReferenceResponse);
-  rpc GetFileReferenceContent(GetFileReferenceContentRequest) returns (GetFileReferenceContentResponse);
 }
 
 // ConversationEvent is one stored entry in a session's transcript. Mirrors the
@@ -107,39 +104,3 @@ message SummarizeEventResponse {
   string error = 3;
 }
 
-// ResolveFileReferenceRequest asks the server to translate a path string
-// (possibly with a :line suffix or file:// scheme) into an absolute path the
-// preview endpoint can serve. The resolution honors session cwd, project root,
-// and per-session upload roots.
-message ResolveFileReferenceRequest {
-  string session_id = 1;
-  string path = 2;
-}
-
-message ResolveFileReferenceResponse {
-  string input_path = 1;
-  string resolved_path = 2;
-  int32 line = 3; // 0 = absent
-  bool has_line = 4;
-  bool exists = 5;
-  string resolution_basis = 6; // "session_cwd" | "project_root" | "absolute_allowed" | "session_upload"
-  string category = 7; // "markdown" | "code" | "text" | "binary"
-  bool can_preview = 8;
-}
-
-// GetFileReferenceContentRequest returns a UTF-8 text preview of a previously
-// resolvable file path (capped at 256 KiB).
-message GetFileReferenceContentRequest {
-  string session_id = 1;
-  string path = 2;
-}
-
-message GetFileReferenceContentResponse {
-  string path = 1;
-  int32 line = 2; // 0 = absent
-  bool has_line = 3;
-  string category = 4;
-  string content_type = 5;
-  string content = 6;
-  bool truncated = 7;
-}

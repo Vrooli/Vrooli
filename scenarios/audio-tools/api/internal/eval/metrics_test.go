@@ -128,3 +128,56 @@ func TestWERResult_RateGuards(t *testing.T) {
 	require.InDelta(t, 0.0, WERResult{RefWords: 0, HypWords: 0}.Rate(), 1e-9)
 	require.InDelta(t, 1.0, WERResult{RefWords: 0, HypWords: 3, EditCounts: EditCounts{Insertions: 3}}.Rate(), 1e-9)
 }
+
+func TestSafetyGates_CleanPasses(t *testing.T) {
+	opts := DefaultNormalizeOptions()
+	ref := Tokenize("alpha bravo charlie", opts)
+	hyp := Tokenize("alpha bravo charlie", opts)
+	_, ops := AlignOperations(ref, hyp)
+
+	got := EvaluateSafety(ref, hyp, ops, []CommitState{
+		{Text: "alpha", AtMs: 100},
+		{Text: "alpha bravo", AtMs: 200},
+		{Text: "alpha bravo charlie", AtMs: 300},
+	}, SafetyOptions{})
+
+	require.True(t, got.Passed)
+	require.True(t, got.RetractionFree)
+	require.True(t, got.DroppedSpanFree)
+	require.Equal(t, 0, got.MaxDroppedSpanWords)
+	require.Equal(t, DefaultDroppedSpanThresholdWords, got.DroppedSpanThresholdWords)
+}
+
+func TestSafetyGates_DetectsCommittedTextRetraction(t *testing.T) {
+	opts := DefaultNormalizeOptions()
+	ref := Tokenize("alpha bravo charlie", opts)
+	hyp := Tokenize("alpha delta charlie", opts)
+	_, ops := AlignOperations(ref, hyp)
+
+	got := EvaluateSafety(ref, hyp, ops, []CommitState{
+		{Text: "alpha bravo", AtMs: 100},
+		{Text: "alpha delta", AtMs: 200},
+	}, SafetyOptions{})
+
+	require.False(t, got.Passed)
+	require.False(t, got.RetractionFree)
+	require.Len(t, got.RetractionEvents, 1)
+	require.Equal(t, "alpha bravo", got.RetractionEvents[0].PreviousText)
+	require.Equal(t, "alpha delta", got.RetractionEvents[0].CurrentText)
+}
+
+func TestSafetyGates_DetectsThresholdSizedDroppedSpan(t *testing.T) {
+	opts := DefaultNormalizeOptions()
+	ref := Tokenize("one two three four five six", opts)
+	hyp := Tokenize("one six", opts)
+	_, ops := AlignOperations(ref, hyp)
+
+	got := EvaluateSafety(ref, hyp, ops, []CommitState{{Text: "one six", AtMs: 100}}, SafetyOptions{
+		DroppedSpanThresholdWords: 4,
+	})
+
+	require.False(t, got.Passed)
+	require.True(t, got.RetractionFree)
+	require.False(t, got.DroppedSpanFree)
+	require.Equal(t, 4, got.MaxDroppedSpanWords)
+}

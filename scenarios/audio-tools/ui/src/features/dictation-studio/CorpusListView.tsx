@@ -10,7 +10,7 @@ import { strings } from "../../consts/strings";
 import { selectors } from "../../consts/selectors";
 import { ClipSource, deleteClip, listClips, type ClipMeta } from "../../services/corpus";
 
-type Translate = ReturnType<typeof useTranslation>["t"];
+type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 function sourceLabel(t: Translate, source: ClipSource): string {
   switch (source) {
@@ -31,6 +31,7 @@ function formatSeconds(durationMs: number): string {
 // and supports per-clip deletion.
 export function CorpusListView() {
   const { t } = useTranslation();
+  const tr = t as unknown as Translate;
   const qc = useQueryClient();
   const clips = useQuery({ queryKey: ["corpus", "clips"], queryFn: () => listClips() });
 
@@ -38,18 +39,18 @@ export function CorpusListView() {
     mutationFn: (id: string) => deleteClip(id),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["corpus", "clips"] });
-      pushToast({ title: t(strings.dictationStudio.clipDeleted) });
+      pushToast({ title: tr(strings.dictationStudio.clipDeleted) });
     },
   });
 
   if (clips.isPending) {
-    return <LoadingRows rows={3} label={t(strings.dictationStudio.corpusTitle)} />;
+    return <LoadingRows rows={3} label={tr(strings.dictationStudio.corpusTitle)} />;
   }
   if (clips.isError) {
     return (
       <ApiErrorState
         error={clips.error}
-        title={t(strings.dictationStudio.corpusError)}
+        title={tr(strings.dictationStudio.corpusError)}
         onRetry={() => void clips.refetch()}
       />
     );
@@ -57,7 +58,7 @@ export function CorpusListView() {
 
   const list: ClipMeta[] = clips.data;
   if (list.length === 0) {
-    return <p className="text-sm text-app-muted-foreground">{t(strings.dictationStudio.corpusEmpty)}</p>;
+    return <p className="text-sm text-app-muted-foreground">{tr(strings.dictationStudio.corpusEmpty)}</p>;
   }
 
   return (
@@ -71,7 +72,7 @@ export function CorpusListView() {
           <div className="flex min-w-0 flex-col gap-1">
             <p className="truncate text-sm text-app-foreground">{clip.referenceText}</p>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="neutral">{sourceLabel(t, clip.source)}</Badge>
+              <Badge variant="neutral">{sourceLabel(tr, clip.source)}</Badge>
               <span className="text-xs text-app-muted-foreground">{formatSeconds(clip.durationMs)}</span>
               {clip.tags.map((tag) => (
                 <Badge key={tag} variant="info">

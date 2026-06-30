@@ -118,7 +118,7 @@ describe("EvalReportView", () => {
     await user.click(screen.getByTestId(selectors.dictationStudio.runEval));
 
     expect(await screen.findByTestId(selectors.dictationStudio.evalSummary)).toHaveTextContent("Prefer vad_segment");
-    expect(screen.getByText("Only 2 clips were evaluated.")).toBeInTheDocument();
+    expect(screen.getByText(/Only 2 clips/)).toBeInTheDocument();
     expect(screen.getByText(strings.dictationStudio.metricGlossary)).toBeInTheDocument();
     expect(screen.getByText(/WER lowercases/)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.dictationStudio.evalClips)).toBeInTheDocument();

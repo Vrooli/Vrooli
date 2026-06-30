@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-console/v1/conversation/conversation.proto.
  */
 export const file_web_console_v1_conversation_conversation: GenFile = /*@__PURE__*/
-  fileDesc("Ci53ZWItY29uc29sZS92MS9jb252ZXJzYXRpb24vY29udmVyc2F0aW9uLnByb3RvEiJ2cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uIp4CChFDb252ZXJzYXRpb25FdmVudBIKCgJpZBgBIAEoCRISCgpzZXNzaW9uX2lkGAIgASgJEg4KBnNvdXJjZRgDIAEoCRIMCgRyb2xlGAQgASgJEgwKBHRleHQYBSABKAkSGQoRc3BlZWNoX3BhcmFncmFwaHMYBiADKAkSIgoab3JpZ2luYWxfc3BlZWNoX3BhcmFncmFwaHMYByADKAkSEgoKc3VtbWFyaXplZBgIIAEoCBISCgpjcmVhdGVkX2F0GAkgASgJEhAKCHNlcXVlbmNlGAogASgDEhYKDmRlbGl2ZXJ5X3N0YXRlGAsgASgJEhEKCXR0c19zdGF0ZRgMIAEoCRIZChFjb25zdW1wdGlvbl9zdGF0ZRgNIAEoCSJQChJDb252ZXJzYXRpb25DdXJzb3ISGgoSbGFzdF9zZWVuX3NlcXVlbmNlGAEgASgDEh4KFmxhc3RfbGlzdGVuZWRfc2VxdWVuY2UYAiABKAMiOAoKR2V0UmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhYKDnNpbmNlX3NlcXVlbmNlGAIgASgDIrABCgtHZXRSZXNwb25zZRISCgpzZXNzaW9uX2lkGAEgASgJEkUKBmV2ZW50cxgCIAMoCzI1LnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uQ29udmVyc2F0aW9uRXZlbnQSRgoGY3Vyc29yGAMgASgLMjYudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5Db252ZXJzYXRpb25DdXJzb3IiqQEKE1VwZGF0ZUN1cnNvclJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIaChJsYXN0X3NlZW5fc2VxdWVuY2UYAiABKAMSHgoWaGFzX2xhc3Rfc2Vlbl9zZXF1ZW5jZRgDIAEoCBIeChZsYXN0X2xpc3RlbmVkX3NlcXVlbmNlGAQgASgDEiIKGmhhc19sYXN0X2xpc3RlbmVkX3NlcXVlbmNlGAUgASgIIl4KFFVwZGF0ZUN1cnNvclJlc3BvbnNlEkYKBmN1cnNvchgBIAEoCzI2LnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uQ29udmVyc2F0aW9uQ3Vyc29yIj0KFVN1bW1hcml6ZUV2ZW50UmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhAKCGV2ZW50X2lkGAIgASgJIlYKFlN1bW1hcml6ZUV2ZW50UmVzcG9uc2USEgoKc3VtbWFyaXplZBgBIAEoCBIZChFzcGVlY2hfcGFyYWdyYXBocxgCIAMoCRINCgVlcnJvchgDIAEoCSI/ChtSZXNvbHZlRmlsZVJlZmVyZW5jZVJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIMCgRwYXRoGAIgASgJIroBChxSZXNvbHZlRmlsZVJlZmVyZW5jZVJlc3BvbnNlEhIKCmlucHV0X3BhdGgYASABKAkSFQoNcmVzb2x2ZWRfcGF0aBgCIAEoCRIMCgRsaW5lGAMgASgFEhAKCGhhc19saW5lGAQgASgIEg4KBmV4aXN0cxgFIAEoCBIYChByZXNvbHV0aW9uX2Jhc2lzGAYgASgJEhAKCGNhdGVnb3J5GAcgASgJEhMKC2Nhbl9wcmV2aWV3GAggASgIIkIKHkdldEZpbGVSZWZlcmVuY2VDb250ZW50UmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEgwKBHBhdGgYAiABKAkimwEKH0dldEZpbGVSZWZlcmVuY2VDb250ZW50UmVzcG9uc2USDAoEcGF0aBgBIAEoCRIMCgRsaW5lGAIgASgFEhAKCGhhc19saW5lGAMgASgIEhAKCGNhdGVnb3J5GAQgASgJEhQKDGNvbnRlbnRfdHlwZRgFIAEoCRIPCgdjb250ZW50GAYgASgJEhEKCXRydW5jYXRlZBgHIAEoCDLMBQoTQ29udmVyc2F0aW9uU2VydmljZRJmCgNHZXQSLi52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLkdldFJlcXVlc3QaLy52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLkdldFJlc3BvbnNlEoEBCgxVcGRhdGVDdXJzb3ISNy52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLlVwZGF0ZUN1cnNvclJlcXVlc3QaOC52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLlVwZGF0ZUN1cnNvclJlc3BvbnNlEocBCg5TdW1tYXJpemVFdmVudBI5LnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uU3VtbWFyaXplRXZlbnRSZXF1ZXN0GjoudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5TdW1tYXJpemVFdmVudFJlc3BvbnNlEpkBChRSZXNvbHZlRmlsZVJlZmVyZW5jZRI/LnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uUmVzb2x2ZUZpbGVSZWZlcmVuY2VSZXF1ZXN0GkAudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5SZXNvbHZlRmlsZVJlZmVyZW5jZVJlc3BvbnNlEqIBChdHZXRGaWxlUmVmZXJlbmNlQ29udGVudBJCLnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uR2V0RmlsZVJlZmVyZW5jZUNvbnRlbnRSZXF1ZXN0GkMudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5HZXRGaWxlUmVmZXJlbmNlQ29udGVudFJlc3BvbnNlQlxaWmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vd2ViLWNvbnNvbGUvdjEvY29udmVyc2F0aW9uO2NvbnZlcnNhdGlvbl92MWIGcHJvdG8z");
+  fileDesc("Ci53ZWItY29uc29sZS92MS9jb252ZXJzYXRpb24vY29udmVyc2F0aW9uLnByb3RvEiJ2cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uIp4CChFDb252ZXJzYXRpb25FdmVudBIKCgJpZBgBIAEoCRISCgpzZXNzaW9uX2lkGAIgASgJEg4KBnNvdXJjZRgDIAEoCRIMCgRyb2xlGAQgASgJEgwKBHRleHQYBSABKAkSGQoRc3BlZWNoX3BhcmFncmFwaHMYBiADKAkSIgoab3JpZ2luYWxfc3BlZWNoX3BhcmFncmFwaHMYByADKAkSEgoKc3VtbWFyaXplZBgIIAEoCBISCgpjcmVhdGVkX2F0GAkgASgJEhAKCHNlcXVlbmNlGAogASgDEhYKDmRlbGl2ZXJ5X3N0YXRlGAsgASgJEhEKCXR0c19zdGF0ZRgMIAEoCRIZChFjb25zdW1wdGlvbl9zdGF0ZRgNIAEoCSJQChJDb252ZXJzYXRpb25DdXJzb3ISGgoSbGFzdF9zZWVuX3NlcXVlbmNlGAEgASgDEh4KFmxhc3RfbGlzdGVuZWRfc2VxdWVuY2UYAiABKAMiOAoKR2V0UmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhYKDnNpbmNlX3NlcXVlbmNlGAIgASgDIrABCgtHZXRSZXNwb25zZRISCgpzZXNzaW9uX2lkGAEgASgJEkUKBmV2ZW50cxgCIAMoCzI1LnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uQ29udmVyc2F0aW9uRXZlbnQSRgoGY3Vyc29yGAMgASgLMjYudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5Db252ZXJzYXRpb25DdXJzb3IiqQEKE1VwZGF0ZUN1cnNvclJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIaChJsYXN0X3NlZW5fc2VxdWVuY2UYAiABKAMSHgoWaGFzX2xhc3Rfc2Vlbl9zZXF1ZW5jZRgDIAEoCBIeChZsYXN0X2xpc3RlbmVkX3NlcXVlbmNlGAQgASgDEiIKGmhhc19sYXN0X2xpc3RlbmVkX3NlcXVlbmNlGAUgASgIIl4KFFVwZGF0ZUN1cnNvclJlc3BvbnNlEkYKBmN1cnNvchgBIAEoCzI2LnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uQ29udmVyc2F0aW9uQ3Vyc29yIj0KFVN1bW1hcml6ZUV2ZW50UmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhAKCGV2ZW50X2lkGAIgASgJIlYKFlN1bW1hcml6ZUV2ZW50UmVzcG9uc2USEgoKc3VtbWFyaXplZBgBIAEoCBIZChFzcGVlY2hfcGFyYWdyYXBocxgCIAMoCRINCgVlcnJvchgDIAEoCTKLAwoTQ29udmVyc2F0aW9uU2VydmljZRJmCgNHZXQSLi52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLkdldFJlcXVlc3QaLy52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLkdldFJlc3BvbnNlEoEBCgxVcGRhdGVDdXJzb3ISNy52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLlVwZGF0ZUN1cnNvclJlcXVlc3QaOC52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLlVwZGF0ZUN1cnNvclJlc3BvbnNlEocBCg5TdW1tYXJpemVFdmVudBI5LnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uU3VtbWFyaXplRXZlbnRSZXF1ZXN0GjoudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5TdW1tYXJpemVFdmVudFJlc3BvbnNlQlxaWmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vd2ViLWNvbnNvbGUvdjEvY29udmVyc2F0aW9uO2NvbnZlcnNhdGlvbl92MWIGcHJvdG8z");
 
 /**
  * ConversationEvent is one stored entry in a session's transcript. Mirrors the
@@ -292,165 +292,6 @@ export const SummarizeEventResponseSchema: GenMessage<SummarizeEventResponse> = 
   messageDesc(file_web_console_v1_conversation_conversation, 7);
 
 /**
- * ResolveFileReferenceRequest asks the server to translate a path string
- * (possibly with a :line suffix or file:// scheme) into an absolute path the
- * preview endpoint can serve. The resolution honors session cwd, project root,
- * and per-session upload roots.
- *
- * @generated from message vrooli.web_console.v1.conversation.ResolveFileReferenceRequest
- */
-export type ResolveFileReferenceRequest = Message<"vrooli.web_console.v1.conversation.ResolveFileReferenceRequest"> & {
-  /**
-   * @generated from field: string session_id = 1;
-   */
-  sessionId: string;
-
-  /**
-   * @generated from field: string path = 2;
-   */
-  path: string;
-};
-
-/**
- * Describes the message vrooli.web_console.v1.conversation.ResolveFileReferenceRequest.
- * Use `create(ResolveFileReferenceRequestSchema)` to create a new message.
- */
-export const ResolveFileReferenceRequestSchema: GenMessage<ResolveFileReferenceRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_conversation_conversation, 8);
-
-/**
- * @generated from message vrooli.web_console.v1.conversation.ResolveFileReferenceResponse
- */
-export type ResolveFileReferenceResponse = Message<"vrooli.web_console.v1.conversation.ResolveFileReferenceResponse"> & {
-  /**
-   * @generated from field: string input_path = 1;
-   */
-  inputPath: string;
-
-  /**
-   * @generated from field: string resolved_path = 2;
-   */
-  resolvedPath: string;
-
-  /**
-   * 0 = absent
-   *
-   * @generated from field: int32 line = 3;
-   */
-  line: number;
-
-  /**
-   * @generated from field: bool has_line = 4;
-   */
-  hasLine: boolean;
-
-  /**
-   * @generated from field: bool exists = 5;
-   */
-  exists: boolean;
-
-  /**
-   * "session_cwd" | "project_root" | "absolute_allowed" | "session_upload"
-   *
-   * @generated from field: string resolution_basis = 6;
-   */
-  resolutionBasis: string;
-
-  /**
-   * "markdown" | "code" | "text" | "binary"
-   *
-   * @generated from field: string category = 7;
-   */
-  category: string;
-
-  /**
-   * @generated from field: bool can_preview = 8;
-   */
-  canPreview: boolean;
-};
-
-/**
- * Describes the message vrooli.web_console.v1.conversation.ResolveFileReferenceResponse.
- * Use `create(ResolveFileReferenceResponseSchema)` to create a new message.
- */
-export const ResolveFileReferenceResponseSchema: GenMessage<ResolveFileReferenceResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_conversation_conversation, 9);
-
-/**
- * GetFileReferenceContentRequest returns a UTF-8 text preview of a previously
- * resolvable file path (capped at 256 KiB).
- *
- * @generated from message vrooli.web_console.v1.conversation.GetFileReferenceContentRequest
- */
-export type GetFileReferenceContentRequest = Message<"vrooli.web_console.v1.conversation.GetFileReferenceContentRequest"> & {
-  /**
-   * @generated from field: string session_id = 1;
-   */
-  sessionId: string;
-
-  /**
-   * @generated from field: string path = 2;
-   */
-  path: string;
-};
-
-/**
- * Describes the message vrooli.web_console.v1.conversation.GetFileReferenceContentRequest.
- * Use `create(GetFileReferenceContentRequestSchema)` to create a new message.
- */
-export const GetFileReferenceContentRequestSchema: GenMessage<GetFileReferenceContentRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_conversation_conversation, 10);
-
-/**
- * @generated from message vrooli.web_console.v1.conversation.GetFileReferenceContentResponse
- */
-export type GetFileReferenceContentResponse = Message<"vrooli.web_console.v1.conversation.GetFileReferenceContentResponse"> & {
-  /**
-   * @generated from field: string path = 1;
-   */
-  path: string;
-
-  /**
-   * 0 = absent
-   *
-   * @generated from field: int32 line = 2;
-   */
-  line: number;
-
-  /**
-   * @generated from field: bool has_line = 3;
-   */
-  hasLine: boolean;
-
-  /**
-   * @generated from field: string category = 4;
-   */
-  category: string;
-
-  /**
-   * @generated from field: string content_type = 5;
-   */
-  contentType: string;
-
-  /**
-   * @generated from field: string content = 6;
-   */
-  content: string;
-
-  /**
-   * @generated from field: bool truncated = 7;
-   */
-  truncated: boolean;
-};
-
-/**
- * Describes the message vrooli.web_console.v1.conversation.GetFileReferenceContentResponse.
- * Use `create(GetFileReferenceContentResponseSchema)` to create a new message.
- */
-export const GetFileReferenceContentResponseSchema: GenMessage<GetFileReferenceContentResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_conversation_conversation, 11);
-
-/**
  * @generated from service vrooli.web_console.v1.conversation.ConversationService
  */
 export const ConversationService: GenService<{
@@ -477,22 +318,6 @@ export const ConversationService: GenService<{
     methodKind: "unary";
     input: typeof SummarizeEventRequestSchema;
     output: typeof SummarizeEventResponseSchema;
-  },
-  /**
-   * @generated from rpc vrooli.web_console.v1.conversation.ConversationService.ResolveFileReference
-   */
-  resolveFileReference: {
-    methodKind: "unary";
-    input: typeof ResolveFileReferenceRequestSchema;
-    output: typeof ResolveFileReferenceResponseSchema;
-  },
-  /**
-   * @generated from rpc vrooli.web_console.v1.conversation.ConversationService.GetFileReferenceContent
-   */
-  getFileReferenceContent: {
-    methodKind: "unary";
-    input: typeof GetFileReferenceContentRequestSchema;
-    output: typeof GetFileReferenceContentResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_web_console_v1_conversation_conversation, 0);

@@ -117,6 +117,19 @@ func newSpeakerVerification(cfg sttpipeline.SpeakerConfig, client *sttpipeline.S
 	}
 }
 
+// NewSpeakerIsolationFromConfig builds the production speaker-verification
+// egress adapter from an explicit per-session config. Experiment workers use
+// this to exercise the same adapter as live STT without reading or mutating the
+// live speaker-config cell.
+func NewSpeakerIsolationFromConfig(cfg sttpipeline.SpeakerConfig, client *sttpipeline.SpeakerClient, logger logx.Logger) egress.SpeakerIsolation {
+	if !cfg.Enabled || cfg.Mode == "off" {
+		return nil
+	}
+	v := newSpeakerVerification(cfg, client)
+	v.logger = logger
+	return v
+}
+
 func (s *speakerVerification) Evaluate(ctx context.Context, audio []byte) egress.SpeakerVerdict {
 	d := sttpipeline.EvaluateSpeaker(ctx, s.cfg, s.client, audio)
 	allowed, smoothed, reason := s.state.Observe(d)
@@ -177,9 +190,7 @@ func currentSpeakerIsolation(d Deps) egress.SpeakerIsolation {
 		MinDecisionSeconds:          doc.MinDecisionSeconds,
 		ScoreSmoothing:              doc.ScoreSmoothing,
 	}
-	v := newSpeakerVerification(cfg, d.SpeakerResource)
-	v.logger = d.Logger
-	return v
+	return NewSpeakerIsolationFromConfig(cfg, d.SpeakerResource, d.Logger)
 }
 
 // speakerExtraction adapts the speaker-verification resource's /v1/extract
@@ -226,6 +237,26 @@ func (s speakerExtraction) Extract(ctx context.Context, pcm []byte) ([]byte, err
 	return best, nil
 }
 
+// NewSpeakerExtractionFromConfig builds the production target-speaker
+// extraction ingress adapter from an explicit per-session config. Experiment
+// workers use this path for hermetic speaker-dimension runs.
+func NewSpeakerExtractionFromConfig(cfg sttpipeline.SpeakerConfig, client *sttpipeline.SpeakerClient) ingress.TargetExtractor {
+	if !cfg.Enabled || cfg.Mode == "off" || !cfg.ExtractionEnabled || len(cfg.ProfileIDs) == 0 {
+		return nil
+	}
+	if client == nil {
+		return nil
+	}
+	return speakerExtraction{
+		cfg: sttpipeline.SpeakerConfig{
+			ProfileIDs: cfg.ProfileIDs,
+			Threshold:  cfg.Threshold,
+			Mode:       cfg.Mode,
+		},
+		client: client,
+	}
+}
+
 // currentSpeakerExtraction builds the per-session ingress extractor from the
 // live speaker-config cell + the resource client. Returns nil (the Segmenter
 // then omits the ingress extraction stage) unless extraction is explicitly
@@ -239,17 +270,13 @@ func currentSpeakerExtraction(d Deps) ingress.TargetExtractor {
 	if !doc.Enabled || doc.Mode == "off" || !doc.ExtractionEnabled || len(doc.ProfileIDs) == 0 {
 		return nil
 	}
-	if d.SpeakerResource == nil {
-		return nil
-	}
-	return speakerExtraction{
-		cfg: sttpipeline.SpeakerConfig{
-			ProfileIDs: doc.ProfileIDs,
-			Threshold:  doc.Threshold,
-			Mode:       doc.Mode,
-		},
-		client: d.SpeakerResource,
-	}
+	return NewSpeakerExtractionFromConfig(sttpipeline.SpeakerConfig{
+		Enabled:           doc.Enabled,
+		ProfileIDs:        doc.ProfileIDs,
+		Threshold:         doc.Threshold,
+		Mode:              doc.Mode,
+		ExtractionEnabled: doc.ExtractionEnabled,
+	}, d.SpeakerResource)
 }
 
 func (h *connectHandler) GetSpeakerConfig(_ context.Context, _ *connect.Request[sttv1.GetSpeakerConfigRequest]) (*connect.Response[sttv1.GetSpeakerConfigResponse], error) {

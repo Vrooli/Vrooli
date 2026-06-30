@@ -570,308 +570,6 @@ func (x *SummarizeEventResponse) GetError() string {
 	return ""
 }
 
-// ResolveFileReferenceRequest asks the server to translate a path string
-// (possibly with a :line suffix or file:// scheme) into an absolute path the
-// preview endpoint can serve. The resolution honors session cwd, project root,
-// and per-session upload roots.
-type ResolveFileReferenceRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ResolveFileReferenceRequest) Reset() {
-	*x = ResolveFileReferenceRequest{}
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[8]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ResolveFileReferenceRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ResolveFileReferenceRequest) ProtoMessage() {}
-
-func (x *ResolveFileReferenceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[8]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ResolveFileReferenceRequest.ProtoReflect.Descriptor instead.
-func (*ResolveFileReferenceRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *ResolveFileReferenceRequest) GetSessionId() string {
-	if x != nil {
-		return x.SessionId
-	}
-	return ""
-}
-
-func (x *ResolveFileReferenceRequest) GetPath() string {
-	if x != nil {
-		return x.Path
-	}
-	return ""
-}
-
-type ResolveFileReferenceResponse struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	InputPath       string                 `protobuf:"bytes,1,opt,name=input_path,json=inputPath,proto3" json:"input_path,omitempty"`
-	ResolvedPath    string                 `protobuf:"bytes,2,opt,name=resolved_path,json=resolvedPath,proto3" json:"resolved_path,omitempty"`
-	Line            int32                  `protobuf:"varint,3,opt,name=line,proto3" json:"line,omitempty"` // 0 = absent
-	HasLine         bool                   `protobuf:"varint,4,opt,name=has_line,json=hasLine,proto3" json:"has_line,omitempty"`
-	Exists          bool                   `protobuf:"varint,5,opt,name=exists,proto3" json:"exists,omitempty"`
-	ResolutionBasis string                 `protobuf:"bytes,6,opt,name=resolution_basis,json=resolutionBasis,proto3" json:"resolution_basis,omitempty"` // "session_cwd" | "project_root" | "absolute_allowed" | "session_upload"
-	Category        string                 `protobuf:"bytes,7,opt,name=category,proto3" json:"category,omitempty"`                                      // "markdown" | "code" | "text" | "binary"
-	CanPreview      bool                   `protobuf:"varint,8,opt,name=can_preview,json=canPreview,proto3" json:"can_preview,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
-}
-
-func (x *ResolveFileReferenceResponse) Reset() {
-	*x = ResolveFileReferenceResponse{}
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ResolveFileReferenceResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ResolveFileReferenceResponse) ProtoMessage() {}
-
-func (x *ResolveFileReferenceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[9]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ResolveFileReferenceResponse.ProtoReflect.Descriptor instead.
-func (*ResolveFileReferenceResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *ResolveFileReferenceResponse) GetInputPath() string {
-	if x != nil {
-		return x.InputPath
-	}
-	return ""
-}
-
-func (x *ResolveFileReferenceResponse) GetResolvedPath() string {
-	if x != nil {
-		return x.ResolvedPath
-	}
-	return ""
-}
-
-func (x *ResolveFileReferenceResponse) GetLine() int32 {
-	if x != nil {
-		return x.Line
-	}
-	return 0
-}
-
-func (x *ResolveFileReferenceResponse) GetHasLine() bool {
-	if x != nil {
-		return x.HasLine
-	}
-	return false
-}
-
-func (x *ResolveFileReferenceResponse) GetExists() bool {
-	if x != nil {
-		return x.Exists
-	}
-	return false
-}
-
-func (x *ResolveFileReferenceResponse) GetResolutionBasis() string {
-	if x != nil {
-		return x.ResolutionBasis
-	}
-	return ""
-}
-
-func (x *ResolveFileReferenceResponse) GetCategory() string {
-	if x != nil {
-		return x.Category
-	}
-	return ""
-}
-
-func (x *ResolveFileReferenceResponse) GetCanPreview() bool {
-	if x != nil {
-		return x.CanPreview
-	}
-	return false
-}
-
-// GetFileReferenceContentRequest returns a UTF-8 text preview of a previously
-// resolvable file path (capped at 256 KiB).
-type GetFileReferenceContentRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetFileReferenceContentRequest) Reset() {
-	*x = GetFileReferenceContentRequest{}
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[10]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetFileReferenceContentRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetFileReferenceContentRequest) ProtoMessage() {}
-
-func (x *GetFileReferenceContentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[10]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetFileReferenceContentRequest.ProtoReflect.Descriptor instead.
-func (*GetFileReferenceContentRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{10}
-}
-
-func (x *GetFileReferenceContentRequest) GetSessionId() string {
-	if x != nil {
-		return x.SessionId
-	}
-	return ""
-}
-
-func (x *GetFileReferenceContentRequest) GetPath() string {
-	if x != nil {
-		return x.Path
-	}
-	return ""
-}
-
-type GetFileReferenceContentResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
-	Line          int32                  `protobuf:"varint,2,opt,name=line,proto3" json:"line,omitempty"` // 0 = absent
-	HasLine       bool                   `protobuf:"varint,3,opt,name=has_line,json=hasLine,proto3" json:"has_line,omitempty"`
-	Category      string                 `protobuf:"bytes,4,opt,name=category,proto3" json:"category,omitempty"`
-	ContentType   string                 `protobuf:"bytes,5,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
-	Content       string                 `protobuf:"bytes,6,opt,name=content,proto3" json:"content,omitempty"`
-	Truncated     bool                   `protobuf:"varint,7,opt,name=truncated,proto3" json:"truncated,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetFileReferenceContentResponse) Reset() {
-	*x = GetFileReferenceContentResponse{}
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[11]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetFileReferenceContentResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetFileReferenceContentResponse) ProtoMessage() {}
-
-func (x *GetFileReferenceContentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[11]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetFileReferenceContentResponse.ProtoReflect.Descriptor instead.
-func (*GetFileReferenceContentResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{11}
-}
-
-func (x *GetFileReferenceContentResponse) GetPath() string {
-	if x != nil {
-		return x.Path
-	}
-	return ""
-}
-
-func (x *GetFileReferenceContentResponse) GetLine() int32 {
-	if x != nil {
-		return x.Line
-	}
-	return 0
-}
-
-func (x *GetFileReferenceContentResponse) GetHasLine() bool {
-	if x != nil {
-		return x.HasLine
-	}
-	return false
-}
-
-func (x *GetFileReferenceContentResponse) GetCategory() string {
-	if x != nil {
-		return x.Category
-	}
-	return ""
-}
-
-func (x *GetFileReferenceContentResponse) GetContentType() string {
-	if x != nil {
-		return x.ContentType
-	}
-	return ""
-}
-
-func (x *GetFileReferenceContentResponse) GetContent() string {
-	if x != nil {
-		return x.Content
-	}
-	return ""
-}
-
-func (x *GetFileReferenceContentResponse) GetTruncated() bool {
-	if x != nil {
-		return x.Truncated
-	}
-	return false
-}
-
 var File_web_console_v1_conversation_conversation_proto protoreflect.FileDescriptor
 
 const file_web_console_v1_conversation_conversation_proto_rawDesc = "" +
@@ -927,40 +625,11 @@ const file_web_console_v1_conversation_conversation_proto_rawDesc = "" +
 	"summarized\x18\x01 \x01(\bR\n" +
 	"summarized\x12+\n" +
 	"\x11speech_paragraphs\x18\x02 \x03(\tR\x10speechParagraphs\x12\x14\n" +
-	"\x05error\x18\x03 \x01(\tR\x05error\"P\n" +
-	"\x1bResolveFileReferenceRequest\x12\x1d\n" +
-	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x12\n" +
-	"\x04path\x18\x02 \x01(\tR\x04path\"\x91\x02\n" +
-	"\x1cResolveFileReferenceResponse\x12\x1d\n" +
-	"\n" +
-	"input_path\x18\x01 \x01(\tR\tinputPath\x12#\n" +
-	"\rresolved_path\x18\x02 \x01(\tR\fresolvedPath\x12\x12\n" +
-	"\x04line\x18\x03 \x01(\x05R\x04line\x12\x19\n" +
-	"\bhas_line\x18\x04 \x01(\bR\ahasLine\x12\x16\n" +
-	"\x06exists\x18\x05 \x01(\bR\x06exists\x12)\n" +
-	"\x10resolution_basis\x18\x06 \x01(\tR\x0fresolutionBasis\x12\x1a\n" +
-	"\bcategory\x18\a \x01(\tR\bcategory\x12\x1f\n" +
-	"\vcan_preview\x18\b \x01(\bR\n" +
-	"canPreview\"S\n" +
-	"\x1eGetFileReferenceContentRequest\x12\x1d\n" +
-	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x12\n" +
-	"\x04path\x18\x02 \x01(\tR\x04path\"\xdb\x01\n" +
-	"\x1fGetFileReferenceContentResponse\x12\x12\n" +
-	"\x04path\x18\x01 \x01(\tR\x04path\x12\x12\n" +
-	"\x04line\x18\x02 \x01(\x05R\x04line\x12\x19\n" +
-	"\bhas_line\x18\x03 \x01(\bR\ahasLine\x12\x1a\n" +
-	"\bcategory\x18\x04 \x01(\tR\bcategory\x12!\n" +
-	"\fcontent_type\x18\x05 \x01(\tR\vcontentType\x12\x18\n" +
-	"\acontent\x18\x06 \x01(\tR\acontent\x12\x1c\n" +
-	"\ttruncated\x18\a \x01(\bR\ttruncated2\xcc\x05\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error2\x8b\x03\n" +
 	"\x13ConversationService\x12f\n" +
 	"\x03Get\x12..vrooli.web_console.v1.conversation.GetRequest\x1a/.vrooli.web_console.v1.conversation.GetResponse\x12\x81\x01\n" +
 	"\fUpdateCursor\x127.vrooli.web_console.v1.conversation.UpdateCursorRequest\x1a8.vrooli.web_console.v1.conversation.UpdateCursorResponse\x12\x87\x01\n" +
-	"\x0eSummarizeEvent\x129.vrooli.web_console.v1.conversation.SummarizeEventRequest\x1a:.vrooli.web_console.v1.conversation.SummarizeEventResponse\x12\x99\x01\n" +
-	"\x14ResolveFileReference\x12?.vrooli.web_console.v1.conversation.ResolveFileReferenceRequest\x1a@.vrooli.web_console.v1.conversation.ResolveFileReferenceResponse\x12\xa2\x01\n" +
-	"\x17GetFileReferenceContent\x12B.vrooli.web_console.v1.conversation.GetFileReferenceContentRequest\x1aC.vrooli.web_console.v1.conversation.GetFileReferenceContentResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation;conversation_v1b\x06proto3"
+	"\x0eSummarizeEvent\x129.vrooli.web_console.v1.conversation.SummarizeEventRequest\x1a:.vrooli.web_console.v1.conversation.SummarizeEventResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation;conversation_v1b\x06proto3"
 
 var (
 	file_web_console_v1_conversation_conversation_proto_rawDescOnce sync.Once
@@ -974,40 +643,32 @@ func file_web_console_v1_conversation_conversation_proto_rawDescGZIP() []byte {
 	return file_web_console_v1_conversation_conversation_proto_rawDescData
 }
 
-var file_web_console_v1_conversation_conversation_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_web_console_v1_conversation_conversation_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_web_console_v1_conversation_conversation_proto_goTypes = []any{
-	(*ConversationEvent)(nil),               // 0: vrooli.web_console.v1.conversation.ConversationEvent
-	(*ConversationCursor)(nil),              // 1: vrooli.web_console.v1.conversation.ConversationCursor
-	(*GetRequest)(nil),                      // 2: vrooli.web_console.v1.conversation.GetRequest
-	(*GetResponse)(nil),                     // 3: vrooli.web_console.v1.conversation.GetResponse
-	(*UpdateCursorRequest)(nil),             // 4: vrooli.web_console.v1.conversation.UpdateCursorRequest
-	(*UpdateCursorResponse)(nil),            // 5: vrooli.web_console.v1.conversation.UpdateCursorResponse
-	(*SummarizeEventRequest)(nil),           // 6: vrooli.web_console.v1.conversation.SummarizeEventRequest
-	(*SummarizeEventResponse)(nil),          // 7: vrooli.web_console.v1.conversation.SummarizeEventResponse
-	(*ResolveFileReferenceRequest)(nil),     // 8: vrooli.web_console.v1.conversation.ResolveFileReferenceRequest
-	(*ResolveFileReferenceResponse)(nil),    // 9: vrooli.web_console.v1.conversation.ResolveFileReferenceResponse
-	(*GetFileReferenceContentRequest)(nil),  // 10: vrooli.web_console.v1.conversation.GetFileReferenceContentRequest
-	(*GetFileReferenceContentResponse)(nil), // 11: vrooli.web_console.v1.conversation.GetFileReferenceContentResponse
+	(*ConversationEvent)(nil),      // 0: vrooli.web_console.v1.conversation.ConversationEvent
+	(*ConversationCursor)(nil),     // 1: vrooli.web_console.v1.conversation.ConversationCursor
+	(*GetRequest)(nil),             // 2: vrooli.web_console.v1.conversation.GetRequest
+	(*GetResponse)(nil),            // 3: vrooli.web_console.v1.conversation.GetResponse
+	(*UpdateCursorRequest)(nil),    // 4: vrooli.web_console.v1.conversation.UpdateCursorRequest
+	(*UpdateCursorResponse)(nil),   // 5: vrooli.web_console.v1.conversation.UpdateCursorResponse
+	(*SummarizeEventRequest)(nil),  // 6: vrooli.web_console.v1.conversation.SummarizeEventRequest
+	(*SummarizeEventResponse)(nil), // 7: vrooli.web_console.v1.conversation.SummarizeEventResponse
 }
 var file_web_console_v1_conversation_conversation_proto_depIdxs = []int32{
-	0,  // 0: vrooli.web_console.v1.conversation.GetResponse.events:type_name -> vrooli.web_console.v1.conversation.ConversationEvent
-	1,  // 1: vrooli.web_console.v1.conversation.GetResponse.cursor:type_name -> vrooli.web_console.v1.conversation.ConversationCursor
-	1,  // 2: vrooli.web_console.v1.conversation.UpdateCursorResponse.cursor:type_name -> vrooli.web_console.v1.conversation.ConversationCursor
-	2,  // 3: vrooli.web_console.v1.conversation.ConversationService.Get:input_type -> vrooli.web_console.v1.conversation.GetRequest
-	4,  // 4: vrooli.web_console.v1.conversation.ConversationService.UpdateCursor:input_type -> vrooli.web_console.v1.conversation.UpdateCursorRequest
-	6,  // 5: vrooli.web_console.v1.conversation.ConversationService.SummarizeEvent:input_type -> vrooli.web_console.v1.conversation.SummarizeEventRequest
-	8,  // 6: vrooli.web_console.v1.conversation.ConversationService.ResolveFileReference:input_type -> vrooli.web_console.v1.conversation.ResolveFileReferenceRequest
-	10, // 7: vrooli.web_console.v1.conversation.ConversationService.GetFileReferenceContent:input_type -> vrooli.web_console.v1.conversation.GetFileReferenceContentRequest
-	3,  // 8: vrooli.web_console.v1.conversation.ConversationService.Get:output_type -> vrooli.web_console.v1.conversation.GetResponse
-	5,  // 9: vrooli.web_console.v1.conversation.ConversationService.UpdateCursor:output_type -> vrooli.web_console.v1.conversation.UpdateCursorResponse
-	7,  // 10: vrooli.web_console.v1.conversation.ConversationService.SummarizeEvent:output_type -> vrooli.web_console.v1.conversation.SummarizeEventResponse
-	9,  // 11: vrooli.web_console.v1.conversation.ConversationService.ResolveFileReference:output_type -> vrooli.web_console.v1.conversation.ResolveFileReferenceResponse
-	11, // 12: vrooli.web_console.v1.conversation.ConversationService.GetFileReferenceContent:output_type -> vrooli.web_console.v1.conversation.GetFileReferenceContentResponse
-	8,  // [8:13] is the sub-list for method output_type
-	3,  // [3:8] is the sub-list for method input_type
-	3,  // [3:3] is the sub-list for extension type_name
-	3,  // [3:3] is the sub-list for extension extendee
-	0,  // [0:3] is the sub-list for field type_name
+	0, // 0: vrooli.web_console.v1.conversation.GetResponse.events:type_name -> vrooli.web_console.v1.conversation.ConversationEvent
+	1, // 1: vrooli.web_console.v1.conversation.GetResponse.cursor:type_name -> vrooli.web_console.v1.conversation.ConversationCursor
+	1, // 2: vrooli.web_console.v1.conversation.UpdateCursorResponse.cursor:type_name -> vrooli.web_console.v1.conversation.ConversationCursor
+	2, // 3: vrooli.web_console.v1.conversation.ConversationService.Get:input_type -> vrooli.web_console.v1.conversation.GetRequest
+	4, // 4: vrooli.web_console.v1.conversation.ConversationService.UpdateCursor:input_type -> vrooli.web_console.v1.conversation.UpdateCursorRequest
+	6, // 5: vrooli.web_console.v1.conversation.ConversationService.SummarizeEvent:input_type -> vrooli.web_console.v1.conversation.SummarizeEventRequest
+	3, // 6: vrooli.web_console.v1.conversation.ConversationService.Get:output_type -> vrooli.web_console.v1.conversation.GetResponse
+	5, // 7: vrooli.web_console.v1.conversation.ConversationService.UpdateCursor:output_type -> vrooli.web_console.v1.conversation.UpdateCursorResponse
+	7, // 8: vrooli.web_console.v1.conversation.ConversationService.SummarizeEvent:output_type -> vrooli.web_console.v1.conversation.SummarizeEventResponse
+	6, // [6:9] is the sub-list for method output_type
+	3, // [3:6] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_web_console_v1_conversation_conversation_proto_init() }
@@ -1021,7 +682,7 @@ func file_web_console_v1_conversation_conversation_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_console_v1_conversation_conversation_proto_rawDesc), len(file_web_console_v1_conversation_conversation_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

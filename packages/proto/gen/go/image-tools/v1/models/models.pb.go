@@ -3218,7 +3218,10 @@ type ExplainResolutionRequest struct {
 	AllowByok bool `protobuf:"varint,3,opt,name=allow_byok,json=allowByok,proto3" json:"allow_byok,omitempty"`
 	// adapters is the conditioning stack to validate + explain (each rejected if
 	// incompatible / disabled / not-installed / not-yet-Ready). Empty = unconditioned.
-	Adapters      []*AdapterRef `protobuf:"bytes,4,rep,name=adapters,proto3" json:"adapters,omitempty"`
+	Adapters []*AdapterRef `protobuf:"bytes,4,rep,name=adapters,proto3" json:"adapters,omitempty"`
+	// quality_policy tunes candidate ordering for dry-run resolution: "fast",
+	// "balanced", or "quality". Empty preserves the historical explain default.
+	QualityPolicy string `protobuf:"bytes,5,opt,name=quality_policy,json=qualityPolicy,proto3" json:"quality_policy,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3279,6 +3282,13 @@ func (x *ExplainResolutionRequest) GetAdapters() []*AdapterRef {
 		return x.Adapters
 	}
 	return nil
+}
+
+func (x *ExplainResolutionRequest) GetQualityPolicy() string {
+	if x != nil {
+		return x.QualityPolicy
+	}
+	return ""
 }
 
 type ExplainResolutionResponse struct {
@@ -4090,13 +4100,14 @@ const file_image_tools_v1_models_models_proto_rawDesc = "" +
 	"\x05scale\x18\x05 \x01(\x01R\x05scale\x12\x16\n" +
 	"\x06weight\x18\x06 \x01(\tR\x06weight\x12\"\n" +
 	"\fpreprocessor\x18\a \x01(\tR\fpreprocessor\x124\n" +
-	"\x16conditioning_image_key\x18\b \x01(\tR\x14conditioningImageKey\"\xb8\x01\n" +
+	"\x16conditioning_image_key\x18\b \x01(\tR\x14conditioningImageKey\"\xdf\x01\n" +
 	"\x18ExplainResolutionRequest\x12\x1c\n" +
 	"\toperation\x18\x01 \x01(\tR\toperation\x12\x19\n" +
 	"\bmodel_id\x18\x02 \x01(\tR\amodelId\x12\x1d\n" +
 	"\n" +
 	"allow_byok\x18\x03 \x01(\bR\tallowByok\x12D\n" +
-	"\badapters\x18\x04 \x03(\v2(.vrooli.image_tools.v1.models.AdapterRefR\badapters\"e\n" +
+	"\badapters\x18\x04 \x03(\v2(.vrooli.image_tools.v1.models.AdapterRefR\badapters\x12%\n" +
+	"\x0equality_policy\x18\x05 \x01(\tR\rqualityPolicy\"e\n" +
 	"\x19ExplainResolutionResponse\x12H\n" +
 	"\n" +
 	"resolution\x18\x01 \x01(\v2(.vrooli.image_tools.v1.models.ResolutionR\n" +

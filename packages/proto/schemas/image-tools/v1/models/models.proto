@@ -581,6 +581,9 @@ message ExplainResolutionRequest {
   // adapters is the conditioning stack to validate + explain (each rejected if
   // incompatible / disabled / not-installed / not-yet-Ready). Empty = unconditioned.
   repeated AdapterRef adapters = 4;
+  // quality_policy tunes candidate ordering for dry-run resolution: "fast",
+  // "balanced", or "quality". Empty preserves the historical explain default.
+  string quality_policy = 5;
 }
 
 message ExplainResolutionResponse {

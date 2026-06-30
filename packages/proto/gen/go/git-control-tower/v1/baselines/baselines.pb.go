@@ -1509,7 +1509,10 @@ type GetDiffResultRequest struct {
 	// wait, when true, blocks SERVER-SIDE until the run is terminal and returns the
 	// ready result (no client polling). When false, an in-flight run returns
 	// status=in_progress immediately with a recommended next-check backoff.
-	Wait          bool `protobuf:"varint,7,opt,name=wait,proto3" json:"wait,omitempty"`
+	Wait bool `protobuf:"varint,7,opt,name=wait,proto3" json:"wait,omitempty"`
+	// latest, when true and run_id is empty, resolves the latest StartDiff run
+	// recorded for this baseline. This is an interrupted-wait recovery path.
+	Latest        bool `protobuf:"varint,8,opt,name=latest,proto3" json:"latest,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1589,6 +1592,13 @@ func (x *GetDiffResultRequest) GetRepoId() int64 {
 func (x *GetDiffResultRequest) GetWait() bool {
 	if x != nil {
 		return x.Wait
+	}
+	return false
+}
+
+func (x *GetDiffResultRequest) GetLatest() bool {
+	if x != nil {
+		return x.Latest
 	}
 	return false
 }
@@ -2221,7 +2231,7 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\n" +
 	"reused_sha\x18\t \x01(\tR\treusedSha\x12#\n" +
 	"\rdirty_warning\x18\n" +
-	" \x01(\tR\fdirtyWarning\"\xbc\x01\n" +
+	" \x01(\tR\fdirtyWarning\"\xd4\x01\n" +
 	"\x14GetDiffResultRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
@@ -2229,7 +2239,8 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\x06run_id\x18\x04 \x01(\tR\x05runId\x12\x18\n" +
 	"\asurface\x18\x05 \x01(\tR\asurface\x12\x17\n" +
 	"\arepo_id\x18\x06 \x01(\x03R\x06repoId\x12\x12\n" +
-	"\x04wait\x18\a \x01(\bR\x04wait\"\xe8\x01\n" +
+	"\x04wait\x18\a \x01(\bR\x04wait\x12\x16\n" +
+	"\x06latest\x18\b \x01(\bR\x06latest\"\xe8\x01\n" +
 	"\x15GetDiffResultResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12E\n" +
 	"\x04diff\x18\x02 \x01(\v21.vrooli.git_control_tower.v1.baselines.DiffResultR\x04diff\x12\x14\n" +

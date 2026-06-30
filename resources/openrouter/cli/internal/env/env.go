@@ -25,10 +25,9 @@ type Runtime struct {
 	CredentialsFile    string
 	ManualModelsFile   string
 	APIBaseURL         string
-	DefaultModel       string
+	DefaultRole        string
 	Timeout            time.Duration
 	HealthCheckTimeout time.Duration
-	HealthCheckModel   string
 }
 
 // Load derives the OpenRouter runtime from env vars with XDG-based defaults.
@@ -61,10 +60,9 @@ func Load() Runtime {
 		CredentialsFile:    firstNonEmpty(os.Getenv("OPENROUTER_CREDENTIALS_FILE"), filepath.Join(configRoot, "openrouter-credentials.json")),
 		ManualModelsFile:   firstNonEmpty(os.Getenv("OPENROUTER_MANUAL_MODELS_FILE"), filepath.Join(configRoot, "manual-models.json")),
 		APIBaseURL:         firstNonEmpty(os.Getenv("OPENROUTER_API_BASE"), defaultAPIBaseURL),
-		DefaultModel:       firstNonEmpty(os.Getenv("OPENROUTER_DEFAULT_MODEL"), "openai/gpt-3.5-turbo"),
+		DefaultRole:        firstNonEmpty(os.Getenv("OPENROUTER_DEFAULT_ROLE"), "chat.default"),
 		Timeout:            time.Duration(envInt("OPENROUTER_TIMEOUT", 30)) * time.Second,
 		HealthCheckTimeout: time.Duration(envInt("OPENROUTER_HEALTH_CHECK_TIMEOUT", 10)) * time.Second,
-		HealthCheckModel:   firstNonEmpty(os.Getenv("OPENROUTER_HEALTH_CHECK_MODEL"), "openai/gpt-3.5-turbo"),
 	}
 }
 
@@ -88,7 +86,7 @@ func (r Runtime) Export() map[string]string {
 		"OPENROUTER_CONFIG_DIR":         r.ConfigRoot,
 		"OPENROUTER_STATE_DIR":          r.StateRoot,
 		"OPENROUTER_API_BASE":           r.APIBaseURL,
-		"OPENROUTER_DEFAULT_MODEL":      r.DefaultModel,
+		"OPENROUTER_DEFAULT_ROLE":       r.DefaultRole,
 		"OPENROUTER_CREDENTIALS_FILE":   r.CredentialsFile,
 		"OPENROUTER_MANUAL_MODELS_FILE": r.ManualModelsFile,
 	}

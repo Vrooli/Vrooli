@@ -11,7 +11,10 @@ import (
 	"os"
 	"resource-openrouter/cli/internal/auth"
 	"resource-openrouter/cli/internal/config"
+	"resource-openrouter/cli/internal/ensure"
 	"resource-openrouter/cli/internal/health"
+	"resource-openrouter/cli/internal/policy"
+	"resource-openrouter/cli/internal/policycmd"
 	"strings"
 	"time"
 
@@ -45,6 +48,7 @@ func New(buildFingerprint, buildTimestamp, buildSourceRoot string) (*cliapp.Reso
 	}
 
 	commands := append(app.StandardLifecycleCommands(), commandGroups(app)...)
+	commands = append(commands, ensure.CommandGroup(ensure.NewCatalogChecker(context.Background())))
 	app.SetCommandsWithSubgroups(commands, commandSubgroups(app))
 	return app, nil
 }
@@ -102,7 +106,38 @@ func commandSubgroups(app *cliapp.ResourceApp) []cliapp.SubcommandGroup {
 				},
 			},
 		},
+		policycmd.Commands(nil),
 	}
+}
+
+// resolveDefaultModel resolves the OpenRouter default role to a concrete model
+// slug through policy. It is best-effort for display surfaces: a policy load
+// failure returns "" rather than aborting the command.
+func resolveDefaultModel(role string) string {
+	p, _, err := policy.LoadDefaultFile(os.Getenv)
+	if err != nil {
+		return ""
+	}
+	resolved, err := p.ResolveRole(strings.TrimSpace(role))
+	if err != nil {
+		return ""
+	}
+	return resolved.Model
+}
+
+// resolveRoleModel resolves a role to its concrete model slug, erroring on an
+// unknown role or unreadable policy. This is the authoritative path for the
+// generate command.
+func resolveRoleModel(role string) (string, error) {
+	p, _, err := policy.LoadDefaultFile(os.Getenv)
+	if err != nil {
+		return "", err
+	}
+	resolved, err := p.ResolveRole(strings.TrimSpace(role))
+	if err != nil {
+		return "", err
+	}
+	return resolved.Model, nil
 }
 
 func runListModels(app *cliapp.ResourceApp, args []string, stdout io.Writer) error {
@@ -142,7 +177,8 @@ func runListModels(app *cliapp.ResourceApp, args []string, stdout io.Writer) err
 	if err != nil {
 		body = []byte(`{"data":[]}`)
 	}
-	response, err := config.NormalizeModelsResponse(body, runtime.DefaultModel, time.Now().UTC().Format(time.RFC3339), provider, search, limit, runtime.ManualModelsFile)
+	defaultModel := resolveDefaultModel(runtime.DefaultRole)
+	response, err := config.NormalizeModelsResponse(body, defaultModel, time.Now().UTC().Format(time.RFC3339), provider, search, limit, runtime.ManualModelsFile)
 	if err != nil {
 		return err
 	}
@@ -157,7 +193,7 @@ func runListModels(app *cliapp.ResourceApp, args []string, stdout io.Writer) err
 	}
 
 	if len(response.Models) == 0 {
-		_, err = fmt.Fprintln(stdout, runtime.DefaultModel)
+		_, err = fmt.Fprintln(stdout, firstNonEmpty(defaultModel, runtime.DefaultRole))
 		return err
 	}
 	for _, model := range response.Models {
@@ -179,6 +215,7 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 	fs := flag.NewFlagSet("generate", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	var (
+		role        string
 		model       string
 		promptFlag  string
 		promptFile  string
@@ -186,7 +223,8 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 		temperature float64
 		maxTokens   int
 	)
-	fs.StringVar(&model, "model", "", "OpenRouter model to use")
+	fs.StringVar(&role, "role", "", "OpenRouter policy role to resolve (e.g. chat.default)")
+	fs.StringVar(&model, "model", "", "Concrete OpenRouter model slug (advanced override; prefer --role)")
 	fs.StringVar(&promptFlag, "prompt", "", "Prompt text to send")
 	fs.StringVar(&promptFile, "prompt-file", "", "Read prompt text from a file")
 	fs.BoolVar(&jsonOutput, "json", false, "Print raw OpenRouter response JSON")
@@ -201,8 +239,18 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 	}
 
 	runtime := resourceenv.Load()
+	// Greenfield: the model is selected by policy role, not a concrete default.
+	// --model is an explicit advanced override; absent it, --role (defaulting to
+	// the resource default role) is resolved through the policy authority.
 	if strings.TrimSpace(model) == "" {
-		model = runtime.DefaultModel
+		if strings.TrimSpace(role) == "" {
+			role = runtime.DefaultRole
+		}
+		resolved, err := resolveRoleModel(role)
+		if err != nil {
+			return err
+		}
+		model = resolved
 	}
 	prompt, err := resolvePrompt(promptFlag, promptFile, fs.Args(), stdin)
 	if err != nil {
@@ -294,19 +342,21 @@ func runShowConfig(app *cliapp.ResourceApp, args []string, stdout io.Writer) err
 	creds, _ := resolver.Resolve(context.Background())
 
 	payload := struct {
-		APIBaseURL      string `json:"api_base_url"`
-		DefaultModel    string `json:"default_model"`
-		CredentialsFile string `json:"credentials_file"`
-		ManualModels    string `json:"manual_models_file"`
-		APIKeySource    string `json:"api_key_source,omitempty"`
-		APIKeyPreview   string `json:"api_key_preview,omitempty"`
+		APIBaseURL       string `json:"api_base_url"`
+		DefaultRole      string `json:"default_role"`
+		DefaultRoleModel string `json:"default_role_model,omitempty"`
+		CredentialsFile  string `json:"credentials_file"`
+		ManualModels     string `json:"manual_models_file"`
+		APIKeySource     string `json:"api_key_source,omitempty"`
+		APIKeyPreview    string `json:"api_key_preview,omitempty"`
 	}{
-		APIBaseURL:      runtime.APIBaseURL,
-		DefaultModel:    runtime.DefaultModel,
-		CredentialsFile: runtime.CredentialsFile,
-		ManualModels:    runtime.ManualModelsFile,
-		APIKeySource:    creds.Source,
-		APIKeyPreview:   creds.RedactedAPIKey(),
+		APIBaseURL:       runtime.APIBaseURL,
+		DefaultRole:      runtime.DefaultRole,
+		DefaultRoleModel: resolveDefaultModel(runtime.DefaultRole),
+		CredentialsFile:  runtime.CredentialsFile,
+		ManualModels:     runtime.ManualModelsFile,
+		APIKeySource:     creds.Source,
+		APIKeyPreview:    creds.RedactedAPIKey(),
 	}
 
 	if jsonOutput {
@@ -318,9 +368,10 @@ func runShowConfig(app *cliapp.ResourceApp, args []string, stdout io.Writer) err
 		return err
 	}
 
-	_, err := fmt.Fprintf(stdout, "API Base: %s\nDefault Model: %s\nCredentials File: %s\nManual Models File: %s\nAPI Key Source: %s\nAPI Key Preview: %s\n",
+	_, err := fmt.Fprintf(stdout, "API Base: %s\nDefault Role: %s\nDefault Role Model: %s\nCredentials File: %s\nManual Models File: %s\nAPI Key Source: %s\nAPI Key Preview: %s\n",
 		payload.APIBaseURL,
-		payload.DefaultModel,
+		payload.DefaultRole,
+		firstNonEmpty(payload.DefaultRoleModel, "unresolved"),
 		payload.CredentialsFile,
 		payload.ManualModels,
 		firstNonEmpty(payload.APIKeySource, "not configured"),
@@ -423,11 +474,13 @@ func printListModelsUsage(stdout io.Writer) {
 
 func printGenerateUsage(stdout io.Writer) {
 	fmt.Fprintln(stdout, "Usage:")
-	fmt.Fprintln(stdout, "  resource-openrouter generate [--model <name>] [--temperature <value>] [--max-tokens <n>] [--json] [--prompt <text>]")
-	fmt.Fprintln(stdout, "  resource-openrouter generate [--model <name>] [--temperature <value>] [--max-tokens <n>] [--json] --prompt-file <path>")
+	fmt.Fprintln(stdout, "  resource-openrouter generate [--role <role>] [--temperature <value>] [--max-tokens <n>] [--json] [--prompt <text>]")
+	fmt.Fprintln(stdout, "  resource-openrouter generate --model <slug> ...   (advanced override; prefer --role)")
 	fmt.Fprintln(stdout, "  resource-openrouter generate <prompt text>")
 	fmt.Fprintln(stdout)
-	fmt.Fprintln(stdout, "Prompt input can come from `--prompt`, `--prompt-file`, trailing args, or stdin.")
+	fmt.Fprintln(stdout, "Model selection: --role is resolved through `resource-openrouter policy`; absent both --role and")
+	fmt.Fprintln(stdout, "--model the resource default role is used. Prompt input can come from --prompt, --prompt-file,")
+	fmt.Fprintln(stdout, "trailing args, or stdin.")
 }
 
 func firstNonEmpty(values ...string) string {

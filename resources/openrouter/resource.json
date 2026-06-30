@@ -66,11 +66,8 @@
   "environment_exports": {
     "static": {
       "OPENROUTER_API_BASE": "https://openrouter.ai/api/v1",
-      "OPENROUTER_DEFAULT_MODEL": "openai/gpt-3.5-turbo"
+      "OPENROUTER_DEFAULT_ROLE": "chat.default"
     },
-    "from_runtime_env": [
-      "OPENROUTER_API_KEY"
-    ],
     "derived": {
       "OPENROUTER_URL": {
         "template": "${OPENROUTER_API_BASE}"
@@ -101,7 +98,46 @@
     }
   ],
   "capabilities": {
-    "supports_logs": false
+    "supports_logs": false,
+    "supports_ensure": true
+  },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific OpenRouter dependency settings. Greenfield: roles only — concrete model slugs are resolved by resource-openrouter, never declared here.",
+    "properties": {
+      "model_roles": {
+        "type": "array",
+        "description": "Logical OpenRouter model roles resolved through resources/openrouter/model-policy.json (e.g. chat.default, image.generate.logo).",
+        "items": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "required": {
+                  "type": "boolean"
+                }
+              },
+              "required": ["role"],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "configuration": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "additionalProperties": false
   },
   "template_version": "2"
 }

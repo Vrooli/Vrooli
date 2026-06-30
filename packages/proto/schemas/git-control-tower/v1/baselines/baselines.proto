@@ -276,6 +276,9 @@ message GetDiffResultRequest {
   // ready result (no client polling). When false, an in-flight run returns
   // status=in_progress immediately with a recommended next-check backoff.
   bool wait = 7;
+  // latest, when true and run_id is empty, resolves the latest StartDiff run
+  // recorded for this baseline. This is an interrupted-wait recovery path.
+  bool latest = 8;
 }
 
 // GetDiffResultResponse carries the cached diff or its in-flight status.

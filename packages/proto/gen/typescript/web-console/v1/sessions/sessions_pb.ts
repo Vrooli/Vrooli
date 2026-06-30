@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-console/v1/sessions/sessions.proto.
  */
 export const file_web_console_v1_sessions_sessions: GenFile = /*@__PURE__*/
-  fileDesc("CiZ3ZWItY29uc29sZS92MS9zZXNzaW9ucy9zZXNzaW9ucy5wcm90bxIednJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zIjIKEEV4cGlyYXRpb25Qb2xpY3kSDAoEbW9kZRgBIAEoCRIQCghkdXJhdGlvbhgCIAEoCSLiAQoHU2Vzc2lvbhIKCgJpZBgBIAEoCRINCgVzaGVsbBgCIAEoCRISCgpjcmVhdGVkX2F0GAMgASgJEgwKBGNvbHMYBCABKAUSDAoEcm93cxgFIAEoBRIPCgdiYWNrZW5kGAYgASgJEhgKEHN1cnZpdmVzX3Jlc3RhcnQYByABKAgSQAoGcG9saWN5GAggASgLMjAudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkV4cGlyYXRpb25Qb2xpY3kSDAoEYnVzeRgJIAEoCBIRCglyZWNvdmVyZWQYCiABKAgiwgIKElJlY292ZXJhYmxlU2Vzc2lvbhIKCgJpZBgBIAEoCRIPCgdiYWNrZW5kGAIgASgJEg0KBXNoZWxsGAMgASgJEgwKBGNvbHMYBCABKAUSDAoEcm93cxgFIAEoBRISCgpjcmVhdGVkX2F0GAYgASgJEhMKC29ycGhhbmVkX2F0GAcgASgJEhgKEGxhc3RfYWN0aXZpdHlfYXQYCCABKAkSEgoKYWdlbnRfdHlwZRgJIAEoCRIYChBhZ2VudF9zZXNzaW9uX2lkGAogASgJEhYKDmxhdW5jaF9jb21tYW5kGAsgASgJEgsKA2N3ZBgMIAEoCRIZChFsYXN0X3JvbGxvdXRfcGF0aBgNIAEoCRITCgtyZWNvdmVyYWJsZRgOIAEoCBIeChZub3RfcmVjb3ZlcmFibGVfcmVhc29uGA8gASgJIs0BCg1DcmVhdGVSZXF1ZXN0Eg0KBXNoZWxsGAEgASgJEgwKBGNvbHMYAiABKAUSDAoEcm93cxgDIAEoBRIPCgdiYWNrZW5kGAQgASgJEkAKBnBvbGljeRgFIAEoCzIwLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5FeHBpcmF0aW9uUG9saWN5EhIKCmhhc19wb2xpY3kYBiABKAgSFgoObGF1bmNoX2NvbW1hbmQYByABKAkSEgoKYWdlbnRfdHlwZRgIIAEoCSJKCg5DcmVhdGVSZXNwb25zZRI4CgdzZXNzaW9uGAEgASgLMicudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlNlc3Npb24iDQoLTGlzdFJlcXVlc3QiSQoMTGlzdFJlc3BvbnNlEjkKCHNlc3Npb25zGAEgAygLMicudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlNlc3Npb24iGAoKR2V0UmVxdWVzdBIKCgJpZBgBIAEoCSJHCgtHZXRSZXNwb25zZRI4CgdzZXNzaW9uGAEgASgLMicudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlNlc3Npb24iGwoNRGVsZXRlUmVxdWVzdBIKCgJpZBgBIAEoCSIQCg5EZWxldGVSZXNwb25zZSIYChZMaXN0UmVjb3ZlcmFibGVSZXF1ZXN0Il8KF0xpc3RSZWNvdmVyYWJsZVJlc3BvbnNlEkQKCHNlc3Npb25zGAEgAygLMjIudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlJlY292ZXJhYmxlU2Vzc2lvbiInChlEaXNtaXNzUmVjb3ZlcmFibGVSZXF1ZXN0EgoKAmlkGAEgASgJIigKGkRpc21pc3NSZWNvdmVyYWJsZVJlc3BvbnNlEgoKAmlkGAEgASgJIhwKDlJlY292ZXJSZXF1ZXN0EgoKAmlkGAEgASgJIoYBCg9SZWNvdmVyUmVzcG9uc2USFgoOb2xkX3Nlc3Npb25faWQYASABKAkSFgoObmV3X3Nlc3Npb25faWQYAiABKAkSEgoKYWdlbnRfdHlwZRgDIAEoCRIUCgxjb21tYW5kX3NlbnQYBCABKAkSGQoRY29kZXhfaG9tZV9jb3BpZWQYBSABKAgiHgoQR2V0UG9saWN5UmVxdWVzdBIKCgJpZBgBIAEoCSKfAQoKUG9saWN5VmlldxISCgpzZXNzaW9uX2lkGAEgASgJEkAKBnBvbGljeRgCIAEoCzIwLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5FeHBpcmF0aW9uUG9saWN5EhIKCmV4cGlyZXNfYXQYAyABKAkSEwoLdHRsX3NlY29uZHMYBCABKAESEgoKaGFzX2V4cGlyeRgFIAEoCCJPChFHZXRQb2xpY3lSZXNwb25zZRI6CgZwb2xpY3kYASABKAsyKi52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuUG9saWN5VmlldyJjChNVcGRhdGVQb2xpY3lSZXF1ZXN0EgoKAmlkGAEgASgJEkAKBnBvbGljeRgCIAEoCzIwLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5FeHBpcmF0aW9uUG9saWN5IlIKFFVwZGF0ZVBvbGljeVJlc3BvbnNlEjoKBnBvbGljeRgBIAEoCzIqLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5Qb2xpY3lWaWV3MpIICg9TZXNzaW9uc1NlcnZpY2USZwoGQ3JlYXRlEi0udnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkNyZWF0ZVJlcXVlc3QaLi52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuQ3JlYXRlUmVzcG9uc2USYQoETGlzdBIrLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5MaXN0UmVxdWVzdBosLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5MaXN0UmVzcG9uc2USXgoDR2V0EioudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkdldFJlcXVlc3QaKy52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuR2V0UmVzcG9uc2USZwoGRGVsZXRlEi0udnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkRlbGV0ZVJlcXVlc3QaLi52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuRGVsZXRlUmVzcG9uc2USggEKD0xpc3RSZWNvdmVyYWJsZRI2LnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5MaXN0UmVjb3ZlcmFibGVSZXF1ZXN0GjcudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkxpc3RSZWNvdmVyYWJsZVJlc3BvbnNlEosBChJEaXNtaXNzUmVjb3ZlcmFibGUSOS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuRGlzbWlzc1JlY292ZXJhYmxlUmVxdWVzdBo6LnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5EaXNtaXNzUmVjb3ZlcmFibGVSZXNwb25zZRJqCgdSZWNvdmVyEi4udnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlJlY292ZXJSZXF1ZXN0Gi8udnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlJlY292ZXJSZXNwb25zZRJwCglHZXRQb2xpY3kSMC52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuR2V0UG9saWN5UmVxdWVzdBoxLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5HZXRQb2xpY3lSZXNwb25zZRJ5CgxVcGRhdGVQb2xpY3kSMy52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuVXBkYXRlUG9saWN5UmVxdWVzdBo0LnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5VcGRhdGVQb2xpY3lSZXNwb25zZUJUWlJnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1jb25zb2xlL3YxL3Nlc3Npb25zO3Nlc3Npb25zX3YxYgZwcm90bzM");
+  fileDesc("CiZ3ZWItY29uc29sZS92MS9zZXNzaW9ucy9zZXNzaW9ucy5wcm90bxIednJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zIjIKEEV4cGlyYXRpb25Qb2xpY3kSDAoEbW9kZRgBIAEoCRIQCghkdXJhdGlvbhgCIAEoCSLiAQoHU2Vzc2lvbhIKCgJpZBgBIAEoCRINCgVzaGVsbBgCIAEoCRISCgpjcmVhdGVkX2F0GAMgASgJEgwKBGNvbHMYBCABKAUSDAoEcm93cxgFIAEoBRIPCgdiYWNrZW5kGAYgASgJEhgKEHN1cnZpdmVzX3Jlc3RhcnQYByABKAgSQAoGcG9saWN5GAggASgLMjAudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkV4cGlyYXRpb25Qb2xpY3kSDAoEYnVzeRgJIAEoCBIRCglyZWNvdmVyZWQYCiABKAgiwgIKElJlY292ZXJhYmxlU2Vzc2lvbhIKCgJpZBgBIAEoCRIPCgdiYWNrZW5kGAIgASgJEg0KBXNoZWxsGAMgASgJEgwKBGNvbHMYBCABKAUSDAoEcm93cxgFIAEoBRISCgpjcmVhdGVkX2F0GAYgASgJEhMKC29ycGhhbmVkX2F0GAcgASgJEhgKEGxhc3RfYWN0aXZpdHlfYXQYCCABKAkSEgoKYWdlbnRfdHlwZRgJIAEoCRIYChBhZ2VudF9zZXNzaW9uX2lkGAogASgJEhYKDmxhdW5jaF9jb21tYW5kGAsgASgJEgsKA2N3ZBgMIAEoCRIZChFsYXN0X3JvbGxvdXRfcGF0aBgNIAEoCRITCgtyZWNvdmVyYWJsZRgOIAEoCBIeChZub3RfcmVjb3ZlcmFibGVfcmVhc29uGA8gASgJIs0BCg1DcmVhdGVSZXF1ZXN0Eg0KBXNoZWxsGAEgASgJEgwKBGNvbHMYAiABKAUSDAoEcm93cxgDIAEoBRIPCgdiYWNrZW5kGAQgASgJEkAKBnBvbGljeRgFIAEoCzIwLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5FeHBpcmF0aW9uUG9saWN5EhIKCmhhc19wb2xpY3kYBiABKAgSFgoObGF1bmNoX2NvbW1hbmQYByABKAkSEgoKYWdlbnRfdHlwZRgIIAEoCSJKCg5DcmVhdGVSZXNwb25zZRI4CgdzZXNzaW9uGAEgASgLMicudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlNlc3Npb24iDQoLTGlzdFJlcXVlc3QiiwEKDExpc3RSZXNwb25zZRI5CghzZXNzaW9ucxgBIAMoCzInLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5TZXNzaW9uEkAKCHJlY292ZXJ5GAIgASgLMi4udnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlJlY292ZXJ5U3RhdHVzIq0BCg5SZWNvdmVyeVN0YXR1cxITCgtpbl9wcm9ncmVzcxgBIAEoCBINCgV0b3RhbBgCIAEoBRIRCglyZWNvdmVyZWQYAyABKAUSGQoRYXdhaXRpbmdfcmVjb3ZlcnkYBCABKAUSDwoHYWRvcHRlZBgFIAEoBRIaChJzdGFydGVkX2F0X3VuaXhfbXMYBiABKAMSHAoUY29tcGxldGVkX2F0X3VuaXhfbXMYByABKAMiGAoKR2V0UmVxdWVzdBIKCgJpZBgBIAEoCSJHCgtHZXRSZXNwb25zZRI4CgdzZXNzaW9uGAEgASgLMicudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlNlc3Npb24iGwoNRGVsZXRlUmVxdWVzdBIKCgJpZBgBIAEoCSIQCg5EZWxldGVSZXNwb25zZSIYChZMaXN0UmVjb3ZlcmFibGVSZXF1ZXN0Il8KF0xpc3RSZWNvdmVyYWJsZVJlc3BvbnNlEkQKCHNlc3Npb25zGAEgAygLMjIudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlJlY292ZXJhYmxlU2Vzc2lvbiInChlEaXNtaXNzUmVjb3ZlcmFibGVSZXF1ZXN0EgoKAmlkGAEgASgJIigKGkRpc21pc3NSZWNvdmVyYWJsZVJlc3BvbnNlEgoKAmlkGAEgASgJIhwKDlJlY292ZXJSZXF1ZXN0EgoKAmlkGAEgASgJIoYBCg9SZWNvdmVyUmVzcG9uc2USFgoOb2xkX3Nlc3Npb25faWQYASABKAkSFgoObmV3X3Nlc3Npb25faWQYAiABKAkSEgoKYWdlbnRfdHlwZRgDIAEoCRIUCgxjb21tYW5kX3NlbnQYBCABKAkSGQoRY29kZXhfaG9tZV9jb3BpZWQYBSABKAgiHgoQR2V0UG9saWN5UmVxdWVzdBIKCgJpZBgBIAEoCSKfAQoKUG9saWN5VmlldxISCgpzZXNzaW9uX2lkGAEgASgJEkAKBnBvbGljeRgCIAEoCzIwLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5FeHBpcmF0aW9uUG9saWN5EhIKCmV4cGlyZXNfYXQYAyABKAkSEwoLdHRsX3NlY29uZHMYBCABKAESEgoKaGFzX2V4cGlyeRgFIAEoCCJPChFHZXRQb2xpY3lSZXNwb25zZRI6CgZwb2xpY3kYASABKAsyKi52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuUG9saWN5VmlldyJjChNVcGRhdGVQb2xpY3lSZXF1ZXN0EgoKAmlkGAEgASgJEkAKBnBvbGljeRgCIAEoCzIwLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5FeHBpcmF0aW9uUG9saWN5IlIKFFVwZGF0ZVBvbGljeVJlc3BvbnNlEjoKBnBvbGljeRgBIAEoCzIqLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5Qb2xpY3lWaWV3MpIICg9TZXNzaW9uc1NlcnZpY2USZwoGQ3JlYXRlEi0udnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkNyZWF0ZVJlcXVlc3QaLi52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuQ3JlYXRlUmVzcG9uc2USYQoETGlzdBIrLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5MaXN0UmVxdWVzdBosLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5MaXN0UmVzcG9uc2USXgoDR2V0EioudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkdldFJlcXVlc3QaKy52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuR2V0UmVzcG9uc2USZwoGRGVsZXRlEi0udnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkRlbGV0ZVJlcXVlc3QaLi52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuRGVsZXRlUmVzcG9uc2USggEKD0xpc3RSZWNvdmVyYWJsZRI2LnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5MaXN0UmVjb3ZlcmFibGVSZXF1ZXN0GjcudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkxpc3RSZWNvdmVyYWJsZVJlc3BvbnNlEosBChJEaXNtaXNzUmVjb3ZlcmFibGUSOS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuRGlzbWlzc1JlY292ZXJhYmxlUmVxdWVzdBo6LnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5EaXNtaXNzUmVjb3ZlcmFibGVSZXNwb25zZRJqCgdSZWNvdmVyEi4udnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlJlY292ZXJSZXF1ZXN0Gi8udnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlJlY292ZXJSZXNwb25zZRJwCglHZXRQb2xpY3kSMC52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuR2V0UG9saWN5UmVxdWVzdBoxLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5HZXRQb2xpY3lSZXNwb25zZRJ5CgxVcGRhdGVQb2xpY3kSMy52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuVXBkYXRlUG9saWN5UmVxdWVzdBo0LnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5VcGRhdGVQb2xpY3lSZXNwb25zZUJUWlJnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1jb25zb2xlL3YxL3Nlc3Npb25zO3Nlc3Npb25zX3YxYgZwcm90bzM");
 
 /**
  * ExpirationPolicy controls when a session ends. mode is one of
@@ -285,6 +285,18 @@ export type ListResponse = Message<"vrooli.web_console.v1.sessions.ListResponse"
    * @generated from field: repeated vrooli.web_console.v1.sessions.Session sessions = 1;
    */
   sessions: Session[];
+
+  /**
+   * recovery reports startup session-recovery progress. Reattaching surviving
+   * tmux sessions runs asynchronously so the API can serve immediately, so a
+   * client that lists during recovery may see fewer sessions than will exist
+   * once recovery finishes. When in_progress is true the UI should show an
+   * honest "sessions still recovering" indicator instead of treating the list
+   * as complete.
+   *
+   * @generated from field: vrooli.web_console.v1.sessions.RecoveryStatus recovery = 2;
+   */
+  recovery?: RecoveryStatus | undefined;
 };
 
 /**
@@ -293,6 +305,60 @@ export type ListResponse = Message<"vrooli.web_console.v1.sessions.ListResponse"
  */
 export const ListResponseSchema: GenMessage<ListResponse> = /*@__PURE__*/
   messageDesc(file_web_console_v1_sessions_sessions, 6);
+
+/**
+ * RecoveryStatus is a snapshot of startup persistent-session recovery.
+ *
+ * @generated from message vrooli.web_console.v1.sessions.RecoveryStatus
+ */
+export type RecoveryStatus = Message<"vrooli.web_console.v1.sessions.RecoveryStatus"> & {
+  /**
+   * @generated from field: bool in_progress = 1;
+   */
+  inProgress: boolean;
+
+  /**
+   * total is the number of persisted (detached) sessions recovery will attempt
+   * to reattach. Adopted orphan sessions are extra and not counted here.
+   *
+   * @generated from field: int32 total = 2;
+   */
+  total: number;
+
+  /**
+   * @generated from field: int32 recovered = 3;
+   */
+  recovered: number;
+
+  /**
+   * @generated from field: int32 awaiting_recovery = 4;
+   */
+  awaitingRecovery: number;
+
+  /**
+   * @generated from field: int32 adopted = 5;
+   */
+  adopted: number;
+
+  /**
+   * Unix-millis timestamps; completed_at is 0 while in_progress.
+   *
+   * @generated from field: int64 started_at_unix_ms = 6;
+   */
+  startedAtUnixMs: bigint;
+
+  /**
+   * @generated from field: int64 completed_at_unix_ms = 7;
+   */
+  completedAtUnixMs: bigint;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.sessions.RecoveryStatus.
+ * Use `create(RecoveryStatusSchema)` to create a new message.
+ */
+export const RecoveryStatusSchema: GenMessage<RecoveryStatus> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_sessions_sessions, 7);
 
 /**
  * @generated from message vrooli.web_console.v1.sessions.GetRequest
@@ -309,7 +375,7 @@ export type GetRequest = Message<"vrooli.web_console.v1.sessions.GetRequest"> & 
  * Use `create(GetRequestSchema)` to create a new message.
  */
 export const GetRequestSchema: GenMessage<GetRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_sessions_sessions, 7);
+  messageDesc(file_web_console_v1_sessions_sessions, 8);
 
 /**
  * @generated from message vrooli.web_console.v1.sessions.GetResponse
@@ -326,7 +392,7 @@ export type GetResponse = Message<"vrooli.web_console.v1.sessions.GetResponse"> 
  * Use `create(GetResponseSchema)` to create a new message.
  */
 export const GetResponseSchema: GenMessage<GetResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_sessions_sessions, 8);
+  messageDesc(file_web_console_v1_sessions_sessions, 9);
 
 /**
  * @generated from message vrooli.web_console.v1.sessions.DeleteRequest
@@ -343,7 +409,7 @@ export type DeleteRequest = Message<"vrooli.web_console.v1.sessions.DeleteReques
  * Use `create(DeleteRequestSchema)` to create a new message.
  */
 export const DeleteRequestSchema: GenMessage<DeleteRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_sessions_sessions, 9);
+  messageDesc(file_web_console_v1_sessions_sessions, 10);
 
 /**
  * @generated from message vrooli.web_console.v1.sessions.DeleteResponse
@@ -356,7 +422,7 @@ export type DeleteResponse = Message<"vrooli.web_console.v1.sessions.DeleteRespo
  * Use `create(DeleteResponseSchema)` to create a new message.
  */
 export const DeleteResponseSchema: GenMessage<DeleteResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_sessions_sessions, 10);
+  messageDesc(file_web_console_v1_sessions_sessions, 11);
 
 /**
  * @generated from message vrooli.web_console.v1.sessions.ListRecoverableRequest
@@ -369,7 +435,7 @@ export type ListRecoverableRequest = Message<"vrooli.web_console.v1.sessions.Lis
  * Use `create(ListRecoverableRequestSchema)` to create a new message.
  */
 export const ListRecoverableRequestSchema: GenMessage<ListRecoverableRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_sessions_sessions, 11);
+  messageDesc(file_web_console_v1_sessions_sessions, 12);
 
 /**
  * @generated from message vrooli.web_console.v1.sessions.ListRecoverableResponse
@@ -386,7 +452,7 @@ export type ListRecoverableResponse = Message<"vrooli.web_console.v1.sessions.Li
  * Use `create(ListRecoverableResponseSchema)` to create a new message.
  */
 export const ListRecoverableResponseSchema: GenMessage<ListRecoverableResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_sessions_sessions, 12);
+  messageDesc(file_web_console_v1_sessions_sessions, 13);
 
 /**
  * @generated from message vrooli.web_console.v1.sessions.DismissRecoverableRequest
@@ -403,7 +469,7 @@ export type DismissRecoverableRequest = Message<"vrooli.web_console.v1.sessions.
  * Use `create(DismissRecoverableRequestSchema)` to create a new message.
  */
 export const DismissRecoverableRequestSchema: GenMessage<DismissRecoverableRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_sessions_sessions, 13);
+  messageDesc(file_web_console_v1_sessions_sessions, 14);
 
 /**
  * @generated from message vrooli.web_console.v1.sessions.DismissRecoverableResponse
@@ -420,7 +486,7 @@ export type DismissRecoverableResponse = Message<"vrooli.web_console.v1.sessions
  * Use `create(DismissRecoverableResponseSchema)` to create a new message.
  */
 export const DismissRecoverableResponseSchema: GenMessage<DismissRecoverableResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_sessions_sessions, 14);
+  messageDesc(file_web_console_v1_sessions_sessions, 15);
 
 /**
  * @generated from message vrooli.web_console.v1.sessions.RecoverRequest
@@ -437,7 +503,7 @@ export type RecoverRequest = Message<"vrooli.web_console.v1.sessions.RecoverRequ
  * Use `create(RecoverRequestSchema)` to create a new message.
  */
 export const RecoverRequestSchema: GenMessage<RecoverRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_sessions_sessions, 15);
+  messageDesc(file_web_console_v1_sessions_sessions, 16);
 
 /**
  * @generated from message vrooli.web_console.v1.sessions.RecoverResponse
@@ -474,7 +540,7 @@ export type RecoverResponse = Message<"vrooli.web_console.v1.sessions.RecoverRes
  * Use `create(RecoverResponseSchema)` to create a new message.
  */
 export const RecoverResponseSchema: GenMessage<RecoverResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_sessions_sessions, 16);
+  messageDesc(file_web_console_v1_sessions_sessions, 17);
 
 /**
  * @generated from message vrooli.web_console.v1.sessions.GetPolicyRequest
@@ -491,7 +557,7 @@ export type GetPolicyRequest = Message<"vrooli.web_console.v1.sessions.GetPolicy
  * Use `create(GetPolicyRequestSchema)` to create a new message.
  */
 export const GetPolicyRequestSchema: GenMessage<GetPolicyRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_sessions_sessions, 17);
+  messageDesc(file_web_console_v1_sessions_sessions, 18);
 
 /**
  * PolicyView bundles the policy with derived expiry info. expires_at and
@@ -531,7 +597,7 @@ export type PolicyView = Message<"vrooli.web_console.v1.sessions.PolicyView"> & 
  * Use `create(PolicyViewSchema)` to create a new message.
  */
 export const PolicyViewSchema: GenMessage<PolicyView> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_sessions_sessions, 18);
+  messageDesc(file_web_console_v1_sessions_sessions, 19);
 
 /**
  * @generated from message vrooli.web_console.v1.sessions.GetPolicyResponse
@@ -548,7 +614,7 @@ export type GetPolicyResponse = Message<"vrooli.web_console.v1.sessions.GetPolic
  * Use `create(GetPolicyResponseSchema)` to create a new message.
  */
 export const GetPolicyResponseSchema: GenMessage<GetPolicyResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_sessions_sessions, 19);
+  messageDesc(file_web_console_v1_sessions_sessions, 20);
 
 /**
  * @generated from message vrooli.web_console.v1.sessions.UpdatePolicyRequest
@@ -570,7 +636,7 @@ export type UpdatePolicyRequest = Message<"vrooli.web_console.v1.sessions.Update
  * Use `create(UpdatePolicyRequestSchema)` to create a new message.
  */
 export const UpdatePolicyRequestSchema: GenMessage<UpdatePolicyRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_sessions_sessions, 20);
+  messageDesc(file_web_console_v1_sessions_sessions, 21);
 
 /**
  * @generated from message vrooli.web_console.v1.sessions.UpdatePolicyResponse
@@ -587,7 +653,7 @@ export type UpdatePolicyResponse = Message<"vrooli.web_console.v1.sessions.Updat
  * Use `create(UpdatePolicyResponseSchema)` to create a new message.
  */
 export const UpdatePolicyResponseSchema: GenMessage<UpdatePolicyResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_sessions_sessions, 21);
+  messageDesc(file_web_console_v1_sessions_sessions, 22);
 
 /**
  * @generated from service vrooli.web_console.v1.sessions.SessionsService

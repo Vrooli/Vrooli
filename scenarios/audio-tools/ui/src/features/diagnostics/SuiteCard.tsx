@@ -26,8 +26,11 @@ interface SuiteCardProps {
 
 const SUITE_CAPABILITIES: SuiteCapability[] = ["stt", "tts", "summarize", "transcode"];
 
+type Translate = (key: string, options?: Record<string, unknown>) => string;
+
 export function SuiteCard({ onTrace, onTileClick }: SuiteCardProps) {
   const { t } = useTranslation();
+  const tr = t as unknown as Translate;
   const qc = useQueryClient();
 
   const lastQuery = useQuery({ queryKey: ["diagnostics", "last"], queryFn: getLastSuiteRun });
@@ -70,7 +73,7 @@ export function SuiteCard({ onTrace, onTileClick }: SuiteCardProps) {
   return (
     <section
       className="rounded-panel border border-app-border bg-app-surface text-app-foreground"
-      aria-label={t(strings.diagnostics.suite.title)}
+      aria-label={tr(strings.diagnostics.suite.title)}
     >
       <OverallStrip
         run={liveRun}
@@ -98,15 +101,15 @@ export function SuiteCard({ onTrace, onTileClick }: SuiteCardProps) {
       >
         <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-app-muted-foreground select-none">
           {logOpen
-            ? t(strings.diagnostics.suite.logToggleClose)
-            : t(strings.diagnostics.suite.logToggleOpen)}
+            ? tr(strings.diagnostics.suite.logToggleClose)
+            : tr(strings.diagnostics.suite.logToggleOpen)}
         </summary>
         <StepLog run={liveRun} />
       </details>
 
       {runMutation.data && !runMutation.data.ok ? (
         <p className="border-t border-app-border px-3 py-2 text-sm text-app-danger">
-          {t(strings.diagnostics.suite.runFailed, { message: runMutation.data.error.message })}
+          {tr(strings.diagnostics.suite.runFailed, { message: runMutation.data.error.message })}
         </p>
       ) : null}
     </section>
@@ -125,8 +128,9 @@ function OverallStrip({
   onRun: () => void;
 }) {
   const { t } = useTranslation();
+  const tr = t as unknown as Translate;
   const tone = overallTone(run?.overall ?? "never");
-  const label = overallLabel(t, run?.overall ?? "never");
+  const label = overallLabel(tr, run?.overall ?? "never");
   const finishedAt = everRan && run ? new Date(run.finishedAtUnixMs) : null;
 
   return (
@@ -140,15 +144,15 @@ function OverallStrip({
             title={finishedAt.toLocaleString()}
             data-testid="suite-last-run"
           >
-            {t(strings.diagnostics.suite.lastRunLabel, {
-              relative: relativeTime(t, finishedAt),
+            {tr(strings.diagnostics.suite.lastRunLabel, {
+              relative: relativeTime(tr, finishedAt),
               absolute: finishedAt.toLocaleString(),
             })}
           </span>
         </>
       ) : (
         <span className="text-xs text-app-muted-foreground">
-          {t(strings.diagnostics.suite.lastRunNever)}
+          {tr(strings.diagnostics.suite.lastRunNever)}
         </span>
       )}
       <div className="ml-auto">
@@ -161,10 +165,10 @@ function OverallStrip({
             <Play className="h-4 w-4" aria-hidden="true" />
           )}
           {busy
-            ? t(strings.diagnostics.suite.runningAction)
+            ? tr(strings.diagnostics.suite.runningAction)
             : everRan
-              ? t(strings.diagnostics.suite.rerunAction)
-              : t(strings.diagnostics.suite.runAction)}
+              ? tr(strings.diagnostics.suite.rerunAction)
+              : tr(strings.diagnostics.suite.runAction)}
         </Button>
       </div>
     </div>
@@ -183,8 +187,9 @@ function CapabilityTile({
   onClick?: (capability: SuiteCapability, failed: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const tr = t as unknown as Translate;
   const tone = tileTone(step, busy);
-  const status = tileStatus(t, step, busy);
+  const status = tileStatus(tr, step, busy);
   const failed = !!step && !step.ok;
   const interactive = !!onClick;
   return (
@@ -201,25 +206,25 @@ function CapabilityTile({
         !interactive && "cursor-default",
       )}
       data-testid={`suite-tile-${capability}`}
-      aria-label={`${capabilityLabel(t, capability)} — ${status}`}
+      aria-label={`${capabilityLabel(tr, capability)} — ${status}`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-semibold text-app-foreground">{capabilityLabel(t, capability)}</span>
+        <span className="text-xs font-semibold text-app-foreground">{capabilityLabel(tr, capability)}</span>
         <StatusDot tone={tone} label={status} pulse={busy} />
       </div>
       <div className="text-xs text-app-muted-foreground">
         {!step ? (
-          <span>{t(strings.diagnostics.suite.tileNever)}</span>
+          <span>{tr(strings.diagnostics.suite.tileNever)}</span>
         ) : step.ok ? (
           <span className="flex flex-wrap items-center gap-1">
             <Badge variant="info">{step.providerTier || "-"}</Badge>
             <span>{step.providerId || "-"}</span>
             <span>·</span>
-            <span>{t(strings.diagnostics.suite.tileLatencyMs, { ms: Math.round(step.latencyMs) })}</span>
+            <span>{tr(strings.diagnostics.suite.tileLatencyMs, { ms: Math.round(step.latencyMs) })}</span>
           </span>
         ) : (
           <span className="text-app-danger">
-            {errorCodeLabel(t, step.errorCode) || step.errorMessage || "—"}
+            {errorCodeLabel(tr, step.errorCode) || step.errorMessage || "—"}
           </span>
         )}
       </div>
@@ -229,19 +234,20 @@ function CapabilityTile({
 
 function StepLog({ run }: { run: SuiteRun | null }) {
   const { t } = useTranslation();
+  const tr = t as unknown as Translate;
   if (!run || run.steps.length === 0) {
-    return <p className="px-3 py-2 text-xs text-app-muted-foreground">{t(strings.diagnostics.suite.logEmpty)}</p>;
+    return <p className="px-3 py-2 text-xs text-app-muted-foreground">{tr(strings.diagnostics.suite.logEmpty)}</p>;
   }
   return (
     <ul className="divide-y divide-app-border">
       {run.steps.map((s, i) => (
         <li key={`${s.capability}-${i}`} className="px-3 py-2 text-xs">
           <span className="font-mono">
-            {t(strings.diagnostics.suite.logEntry, {
+            {tr(strings.diagnostics.suite.logEntry, {
               capability: s.capability,
               status: s.ok
-                ? t(strings.diagnostics.suite.logStatusOK)
-                : t(strings.diagnostics.suite.logStatusFail),
+                ? tr(strings.diagnostics.suite.logStatusOK)
+                : tr(strings.diagnostics.suite.logStatusFail),
               latencyMs: Math.round(s.latencyMs),
             })}
           </span>
@@ -273,7 +279,7 @@ function overallTone(s: SuiteOverallStatus): "neutral" | "success" | "warning" |
   }
 }
 
-function overallLabel(t: ReturnType<typeof useTranslation>["t"], s: SuiteOverallStatus): string {
+function overallLabel(t: Translate, s: SuiteOverallStatus): string {
   switch (s) {
     case "pass": return t(strings.diagnostics.suite.overallPass);
     case "partial": return t(strings.diagnostics.suite.overallPartial);
@@ -290,7 +296,7 @@ function tileTone(step?: SuiteStep, busy?: boolean): "neutral" | "success" | "da
 }
 
 function tileStatus(
-  t: ReturnType<typeof useTranslation>["t"],
+  t: Translate,
   step?: SuiteStep,
   busy?: boolean,
 ): string {
@@ -299,7 +305,7 @@ function tileStatus(
   return step.ok ? t(strings.diagnostics.suite.tileOK) : t(strings.diagnostics.suite.tileFail);
 }
 
-function capabilityLabel(t: ReturnType<typeof useTranslation>["t"], c: SuiteCapability): string {
+function capabilityLabel(t: Translate, c: SuiteCapability): string {
   switch (c) {
     case "stt": return t(strings.diagnostics.suite.tileLabelSTT);
     case "tts": return t(strings.diagnostics.suite.tileLabelTTS);
@@ -308,7 +314,7 @@ function capabilityLabel(t: ReturnType<typeof useTranslation>["t"], c: SuiteCapa
   }
 }
 
-function errorCodeLabel(t: ReturnType<typeof useTranslation>["t"], code: string): string {
+function errorCodeLabel(t: Translate, code: string): string {
   switch (code) {
     case "provider_unavailable": return t(strings.diagnostics.suite.errorCodeProviderUnavailable);
     case "not_configured": return t(strings.diagnostics.suite.errorCodeNotConfigured);
@@ -321,7 +327,7 @@ function errorCodeLabel(t: ReturnType<typeof useTranslation>["t"], code: string)
   }
 }
 
-function relativeTime(t: ReturnType<typeof useTranslation>["t"], when: Date): string {
+function relativeTime(t: Translate, when: Date): string {
   const seconds = Math.floor((Date.now() - when.getTime()) / 1000);
   if (seconds < 5) return t(strings.diagnostics.suite.lastRunJustNow);
   if (seconds < 60) return `${seconds}s ago`;

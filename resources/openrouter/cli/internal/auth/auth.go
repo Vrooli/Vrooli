@@ -148,7 +148,34 @@ func (r Resolver) resolveFromVault(ctx context.Context) (Credentials, bool) {
 		}
 	}
 
+	for _, scope := range []string{"openrouter", "opencode"} {
+		value, err := run(ctx, command, "secrets", "export", scope)
+		if err != nil {
+			continue
+		}
+		creds := Credentials{
+			APIKey: parseExportedKey(value, APIKeyEnv),
+			Source: "vault-export-" + scope,
+		}
+		if creds.Valid() {
+			return creds, true
+		}
+	}
+
 	return Credentials{}, false
+}
+
+func parseExportedKey(out, name string) string {
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		line = strings.TrimPrefix(line, "export ")
+		eq := strings.IndexByte(line, '=')
+		if eq <= 0 || strings.TrimSpace(line[:eq]) != name {
+			continue
+		}
+		return strings.Trim(strings.TrimSpace(line[eq+1:]), `"'`)
+	}
+	return ""
 }
 
 func (r Resolver) resolveFromCredentialsFile() (Credentials, bool) {

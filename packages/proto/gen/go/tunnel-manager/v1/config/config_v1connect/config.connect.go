@@ -63,6 +63,12 @@ const (
 	// ConfigServicePruneIngressProcedure is the fully-qualified name of the ConfigService's
 	// PruneIngress RPC.
 	ConfigServicePruneIngressProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/PruneIngress"
+	// ConfigServiceSetPublicExposureProcedure is the fully-qualified name of the ConfigService's
+	// SetPublicExposure RPC.
+	ConfigServiceSetPublicExposureProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/SetPublicExposure"
+	// ConfigServiceGetAccessStatusProcedure is the fully-qualified name of the ConfigService's
+	// GetAccessStatus RPC.
+	ConfigServiceGetAccessStatusProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/GetAccessStatus"
 )
 
 // ConfigServiceClient is a client for the vrooli.tunnel_manager.v1.config.ConfigService service.
@@ -103,6 +109,16 @@ type ConfigServiceClient interface {
 	// PruneIngress removes a single named hostname from live ingress and the
 	// ledger. This is the only path that removes a specific entry.
 	PruneIngress(context.Context, *connect.Request[config.PruneIngressRequest]) (*connect.Response[config.PruneIngressResponse], error)
+	// SetPublicExposure flips the global /public Access-bypass switch (the
+	// public-asset convention; see docs/concepts/PUBLIC_ASSETS.md). PURE: it
+	// persists the flag and performs zero Cloudflare writes — the next Sync
+	// reconciles the live Access apps.
+	SetPublicExposure(context.Context, *connect.Request[config.SetPublicExposureRequest]) (*connect.Response[config.SetPublicExposureResponse], error)
+	// GetAccessStatus returns the /public Access-bypass read model: the global
+	// switch, whether the Access client is configured, the per-host effective
+	// decisions, and the dry-run plan (apps a reconcile would create/remove).
+	// Pure — no mutation, no live Cloudflare calls.
+	GetAccessStatus(context.Context, *connect.Request[config.GetAccessStatusRequest]) (*connect.Response[config.GetAccessStatusResponse], error)
 }
 
 // NewConfigServiceClient constructs a client for the vrooli.tunnel_manager.v1.config.ConfigService
@@ -182,6 +198,18 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(configServiceMethods.ByName("PruneIngress")),
 			connect.WithClientOptions(opts...),
 		),
+		setPublicExposure: connect.NewClient[config.SetPublicExposureRequest, config.SetPublicExposureResponse](
+			httpClient,
+			baseURL+ConfigServiceSetPublicExposureProcedure,
+			connect.WithSchema(configServiceMethods.ByName("SetPublicExposure")),
+			connect.WithClientOptions(opts...),
+		),
+		getAccessStatus: connect.NewClient[config.GetAccessStatusRequest, config.GetAccessStatusResponse](
+			httpClient,
+			baseURL+ConfigServiceGetAccessStatusProcedure,
+			connect.WithSchema(configServiceMethods.ByName("GetAccessStatus")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -198,6 +226,8 @@ type configServiceClient struct {
 	adoptIngress               *connect.Client[config.AdoptIngressRequest, config.AdoptIngressResponse]
 	ignoreIngress              *connect.Client[config.IgnoreIngressRequest, config.IgnoreIngressResponse]
 	pruneIngress               *connect.Client[config.PruneIngressRequest, config.PruneIngressResponse]
+	setPublicExposure          *connect.Client[config.SetPublicExposureRequest, config.SetPublicExposureResponse]
+	getAccessStatus            *connect.Client[config.GetAccessStatusRequest, config.GetAccessStatusResponse]
 }
 
 // GetConfig calls vrooli.tunnel_manager.v1.config.ConfigService.GetConfig.
@@ -257,6 +287,16 @@ func (c *configServiceClient) PruneIngress(ctx context.Context, req *connect.Req
 	return c.pruneIngress.CallUnary(ctx, req)
 }
 
+// SetPublicExposure calls vrooli.tunnel_manager.v1.config.ConfigService.SetPublicExposure.
+func (c *configServiceClient) SetPublicExposure(ctx context.Context, req *connect.Request[config.SetPublicExposureRequest]) (*connect.Response[config.SetPublicExposureResponse], error) {
+	return c.setPublicExposure.CallUnary(ctx, req)
+}
+
+// GetAccessStatus calls vrooli.tunnel_manager.v1.config.ConfigService.GetAccessStatus.
+func (c *configServiceClient) GetAccessStatus(ctx context.Context, req *connect.Request[config.GetAccessStatusRequest]) (*connect.Response[config.GetAccessStatusResponse], error) {
+	return c.getAccessStatus.CallUnary(ctx, req)
+}
+
 // ConfigServiceHandler is an implementation of the vrooli.tunnel_manager.v1.config.ConfigService
 // service.
 type ConfigServiceHandler interface {
@@ -296,6 +336,16 @@ type ConfigServiceHandler interface {
 	// PruneIngress removes a single named hostname from live ingress and the
 	// ledger. This is the only path that removes a specific entry.
 	PruneIngress(context.Context, *connect.Request[config.PruneIngressRequest]) (*connect.Response[config.PruneIngressResponse], error)
+	// SetPublicExposure flips the global /public Access-bypass switch (the
+	// public-asset convention; see docs/concepts/PUBLIC_ASSETS.md). PURE: it
+	// persists the flag and performs zero Cloudflare writes — the next Sync
+	// reconciles the live Access apps.
+	SetPublicExposure(context.Context, *connect.Request[config.SetPublicExposureRequest]) (*connect.Response[config.SetPublicExposureResponse], error)
+	// GetAccessStatus returns the /public Access-bypass read model: the global
+	// switch, whether the Access client is configured, the per-host effective
+	// decisions, and the dry-run plan (apps a reconcile would create/remove).
+	// Pure — no mutation, no live Cloudflare calls.
+	GetAccessStatus(context.Context, *connect.Request[config.GetAccessStatusRequest]) (*connect.Response[config.GetAccessStatusResponse], error)
 }
 
 // NewConfigServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -371,6 +421,18 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(configServiceMethods.ByName("PruneIngress")),
 		connect.WithHandlerOptions(opts...),
 	)
+	configServiceSetPublicExposureHandler := connect.NewUnaryHandler(
+		ConfigServiceSetPublicExposureProcedure,
+		svc.SetPublicExposure,
+		connect.WithSchema(configServiceMethods.ByName("SetPublicExposure")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceGetAccessStatusHandler := connect.NewUnaryHandler(
+		ConfigServiceGetAccessStatusProcedure,
+		svc.GetAccessStatus,
+		connect.WithSchema(configServiceMethods.ByName("GetAccessStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.tunnel_manager.v1.config.ConfigService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ConfigServiceGetConfigProcedure:
@@ -395,6 +457,10 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 			configServiceIgnoreIngressHandler.ServeHTTP(w, r)
 		case ConfigServicePruneIngressProcedure:
 			configServicePruneIngressHandler.ServeHTTP(w, r)
+		case ConfigServiceSetPublicExposureProcedure:
+			configServiceSetPublicExposureHandler.ServeHTTP(w, r)
+		case ConfigServiceGetAccessStatusProcedure:
+			configServiceGetAccessStatusHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -446,4 +512,12 @@ func (UnimplementedConfigServiceHandler) IgnoreIngress(context.Context, *connect
 
 func (UnimplementedConfigServiceHandler) PruneIngress(context.Context, *connect.Request[config.PruneIngressRequest]) (*connect.Response[config.PruneIngressResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.config.ConfigService.PruneIngress is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) SetPublicExposure(context.Context, *connect.Request[config.SetPublicExposureRequest]) (*connect.Response[config.SetPublicExposureResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.config.ConfigService.SetPublicExposure is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) GetAccessStatus(context.Context, *connect.Request[config.GetAccessStatusRequest]) (*connect.Response[config.GetAccessStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.config.ConfigService.GetAccessStatus is not implemented"))
 }

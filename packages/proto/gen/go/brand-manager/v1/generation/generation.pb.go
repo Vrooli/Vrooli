@@ -224,7 +224,10 @@ type ImageOperationStatus struct {
 	Tier string `protobuf:"bytes,4,opt,name=tier,proto3" json:"tier,omitempty"`
 	// Human-readable guidance when not ready (e.g. "run image-tools models install
 	// sd-1.5") or a non-fatal caveat.
-	Hint          string `protobuf:"bytes,5,opt,name=hint,proto3" json:"hint,omitempty"`
+	Hint string `protobuf:"bytes,5,opt,name=hint,proto3" json:"hint,omitempty"`
+	// Non-fatal selection/backend cautions from image-tools, including BYOK cost
+	// disclosure and skipped higher-quality candidates.
+	Warnings      []string `protobuf:"bytes,6,rep,name=warnings,proto3" json:"warnings,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -292,6 +295,13 @@ func (x *ImageOperationStatus) GetHint() string {
 		return x.Hint
 	}
 	return ""
+}
+
+func (x *ImageOperationStatus) GetWarnings() []string {
+	if x != nil {
+		return x.Warnings
+	}
+	return nil
 }
 
 // GetImageBackendStatusResponse reports image-tools' overall reachability and
@@ -719,8 +729,9 @@ type GenerateBrandImageRequest struct {
 	// Optional. image-tools model id override. Empty uses image-tools' hardware-fit
 	// default for the operation.
 	ModelOverride string `protobuf:"bytes,3,opt,name=model_override,json=modelOverride,proto3" json:"model_override,omitempty"`
-	// Optional. Permit image-tools to fall back to its metered BYOK cloud provider
-	// when no local backend is available. Off by default.
+	// Optional. Permit image-tools to use its metered BYOK cloud provider unless
+	// fallback_policy is "local_only". Brand image generation defaults to quality
+	// with cloud fallback when configured.
 	AllowByok bool `protobuf:"varint,4,opt,name=allow_byok,json=allowByok,proto3" json:"allow_byok,omitempty"`
 	// Optional. RNG seed for reproducibility; 0 means random.
 	Seed int64 `protobuf:"varint,5,opt,name=seed,proto3" json:"seed,omitempty"`
@@ -728,7 +739,16 @@ type GenerateBrandImageRequest struct {
 	// ("logo.png" / "favicon.png"). When false, the canonical is still written
 	// automatically if the brand has none yet, but an existing canonical is left
 	// untouched.
-	SetCanonical  bool `protobuf:"varint,6,opt,name=set_canonical,json=setCanonical,proto3" json:"set_canonical,omitempty"`
+	SetCanonical bool `protobuf:"varint,6,opt,name=set_canonical,json=setCanonical,proto3" json:"set_canonical,omitempty"`
+	// Optional. "quality" (default), "balanced", or "fast".
+	QualityPolicy string `protobuf:"bytes,7,opt,name=quality_policy,json=qualityPolicy,proto3" json:"quality_policy,omitempty"`
+	// Optional. "any" (default), "cloud_allowed", or "local_only".
+	FallbackPolicy string `protobuf:"bytes,8,opt,name=fallback_policy,json=fallbackPolicy,proto3" json:"fallback_policy,omitempty"`
+	// Optional. Capacity priority: "service" (default), "interactive", or "batch".
+	Priority string `protobuf:"bytes,9,opt,name=priority,proto3" json:"priority,omitempty"`
+	// Optional. Whether image-tools may reclaim cold-idle local resources. Unset
+	// defaults to true for brand-quality image generation.
+	AllowReclaim  *bool `protobuf:"varint,10,opt,name=allow_reclaim,json=allowReclaim,proto3,oneof" json:"allow_reclaim,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -805,6 +825,34 @@ func (x *GenerateBrandImageRequest) GetSetCanonical() bool {
 	return false
 }
 
+func (x *GenerateBrandImageRequest) GetQualityPolicy() string {
+	if x != nil {
+		return x.QualityPolicy
+	}
+	return ""
+}
+
+func (x *GenerateBrandImageRequest) GetFallbackPolicy() string {
+	if x != nil {
+		return x.FallbackPolicy
+	}
+	return ""
+}
+
+func (x *GenerateBrandImageRequest) GetPriority() string {
+	if x != nil {
+		return x.Priority
+	}
+	return ""
+}
+
+func (x *GenerateBrandImageRequest) GetAllowReclaim() bool {
+	if x != nil && x.AllowReclaim != nil {
+		return *x.AllowReclaim
+	}
+	return false
+}
+
 // EditBrandImageRequest asks image-tools to edit an existing brand image
 // (edit_instruct) by a natural-language instruction and stores the edited result
 // as a new brand asset.
@@ -819,13 +867,24 @@ type EditBrandImageRequest struct {
 	Instruction string `protobuf:"bytes,3,opt,name=instruction,proto3" json:"instruction,omitempty"`
 	// Optional. image-tools model id override.
 	ModelOverride string `protobuf:"bytes,4,opt,name=model_override,json=modelOverride,proto3" json:"model_override,omitempty"`
-	// Optional. Permit metered BYOK cloud fallback. Off by default.
+	// Optional. Permit metered BYOK cloud fallback unless fallback_policy is
+	// "local_only". Brand image editing defaults to quality with cloud fallback
+	// when configured.
 	AllowByok bool `protobuf:"varint,5,opt,name=allow_byok,json=allowByok,proto3" json:"allow_byok,omitempty"`
 	// Optional. RNG seed; 0 means random.
 	Seed int64 `protobuf:"varint,6,opt,name=seed,proto3" json:"seed,omitempty"`
 	// Optional. Also write the edited result as the canonical "logo.png" (see
 	// GenerateBrandImageRequest.set_canonical for semantics).
-	SetCanonical  bool `protobuf:"varint,7,opt,name=set_canonical,json=setCanonical,proto3" json:"set_canonical,omitempty"`
+	SetCanonical bool `protobuf:"varint,7,opt,name=set_canonical,json=setCanonical,proto3" json:"set_canonical,omitempty"`
+	// Optional. "quality" (default), "balanced", or "fast".
+	QualityPolicy string `protobuf:"bytes,8,opt,name=quality_policy,json=qualityPolicy,proto3" json:"quality_policy,omitempty"`
+	// Optional. "any" (default), "cloud_allowed", or "local_only".
+	FallbackPolicy string `protobuf:"bytes,9,opt,name=fallback_policy,json=fallbackPolicy,proto3" json:"fallback_policy,omitempty"`
+	// Optional. Capacity priority: "service" (default), "interactive", or "batch".
+	Priority string `protobuf:"bytes,10,opt,name=priority,proto3" json:"priority,omitempty"`
+	// Optional. Whether image-tools may reclaim cold-idle local resources. Unset
+	// defaults to true for brand-quality image editing.
+	AllowReclaim  *bool `protobuf:"varint,11,opt,name=allow_reclaim,json=allowReclaim,proto3,oneof" json:"allow_reclaim,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -905,6 +964,34 @@ func (x *EditBrandImageRequest) GetSeed() int64 {
 func (x *EditBrandImageRequest) GetSetCanonical() bool {
 	if x != nil {
 		return x.SetCanonical
+	}
+	return false
+}
+
+func (x *EditBrandImageRequest) GetQualityPolicy() string {
+	if x != nil {
+		return x.QualityPolicy
+	}
+	return ""
+}
+
+func (x *EditBrandImageRequest) GetFallbackPolicy() string {
+	if x != nil {
+		return x.FallbackPolicy
+	}
+	return ""
+}
+
+func (x *EditBrandImageRequest) GetPriority() string {
+	if x != nil {
+		return x.Priority
+	}
+	return ""
+}
+
+func (x *EditBrandImageRequest) GetAllowReclaim() bool {
+	if x != nil && x.AllowReclaim != nil {
+		return *x.AllowReclaim
 	}
 	return false
 }
@@ -1151,13 +1238,14 @@ const file_brand_manager_v1_generation_generation_proto_rawDesc = "" +
 	"\x19GetProviderStatusResponse\x12\x1c\n" +
 	"\tavailable\x18\x01 \x01(\bR\tavailable\x12P\n" +
 	"\tproviders\x18\x02 \x03(\v22.vrooli.brand_manager.v1.generation.ProviderStatusR\tproviders\"\x1e\n" +
-	"\x1cGetImageBackendStatusRequest\"\x8d\x01\n" +
+	"\x1cGetImageBackendStatusRequest\"\xa9\x01\n" +
 	"\x14ImageOperationStatus\x12\x1c\n" +
 	"\toperation\x18\x01 \x01(\tR\toperation\x12\x14\n" +
 	"\x05ready\x18\x02 \x01(\bR\x05ready\x12\x19\n" +
 	"\bmodel_id\x18\x03 \x01(\tR\amodelId\x12\x12\n" +
 	"\x04tier\x18\x04 \x01(\tR\x04tier\x12\x12\n" +
-	"\x04hint\x18\x05 \x01(\tR\x04hint\"\xaf\x01\n" +
+	"\x04hint\x18\x05 \x01(\tR\x04hint\x12\x1a\n" +
+	"\bwarnings\x18\x06 \x03(\tR\bwarnings\"\xaf\x01\n" +
 	"\x1dGetImageBackendStatusResponse\x12\x1c\n" +
 	"\tavailable\x18\x01 \x01(\bR\tavailable\x12\x16\n" +
 	"\x06detail\x18\x02 \x01(\tR\x06detail\x12X\n" +
@@ -1189,7 +1277,7 @@ const file_brand_manager_v1_generation_generation_proto_rawDesc = "" +
 	"\x04tier\x18\b \x01(\tR\x04tier\x12\x1c\n" +
 	"\tcanonical\x18\t \x01(\bR\tcanonical\x12\x1a\n" +
 	"\bwarnings\x18\n" +
-	" \x03(\tR\bwarnings\"\xc9\x01\n" +
+	" \x03(\tR\bwarnings\"\xf1\x02\n" +
 	"\x19GenerateBrandImageRequest\x12\x19\n" +
 	"\bbrand_id\x18\x01 \x01(\tR\abrandId\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12%\n" +
@@ -1197,7 +1285,13 @@ const file_brand_manager_v1_generation_generation_proto_rawDesc = "" +
 	"\n" +
 	"allow_byok\x18\x04 \x01(\bR\tallowByok\x12\x12\n" +
 	"\x04seed\x18\x05 \x01(\x03R\x04seed\x12#\n" +
-	"\rset_canonical\x18\x06 \x01(\bR\fsetCanonical\"\xfb\x01\n" +
+	"\rset_canonical\x18\x06 \x01(\bR\fsetCanonical\x12%\n" +
+	"\x0equality_policy\x18\a \x01(\tR\rqualityPolicy\x12'\n" +
+	"\x0ffallback_policy\x18\b \x01(\tR\x0efallbackPolicy\x12\x1a\n" +
+	"\bpriority\x18\t \x01(\tR\bpriority\x12(\n" +
+	"\rallow_reclaim\x18\n" +
+	" \x01(\bH\x00R\fallowReclaim\x88\x01\x01B\x10\n" +
+	"\x0e_allow_reclaim\"\xa3\x03\n" +
 	"\x15EditBrandImageRequest\x12\x19\n" +
 	"\bbrand_id\x18\x01 \x01(\tR\abrandId\x12&\n" +
 	"\x0fsource_asset_id\x18\x02 \x01(\tR\rsourceAssetId\x12 \n" +
@@ -1206,7 +1300,13 @@ const file_brand_manager_v1_generation_generation_proto_rawDesc = "" +
 	"\n" +
 	"allow_byok\x18\x05 \x01(\bR\tallowByok\x12\x12\n" +
 	"\x04seed\x18\x06 \x01(\x03R\x04seed\x12#\n" +
-	"\rset_canonical\x18\a \x01(\bR\fsetCanonical\"\xd1\x01\n" +
+	"\rset_canonical\x18\a \x01(\bR\fsetCanonical\x12%\n" +
+	"\x0equality_policy\x18\b \x01(\tR\rqualityPolicy\x12'\n" +
+	"\x0ffallback_policy\x18\t \x01(\tR\x0efallbackPolicy\x12\x1a\n" +
+	"\bpriority\x18\n" +
+	" \x01(\tR\bpriority\x12(\n" +
+	"\rallow_reclaim\x18\v \x01(\bH\x00R\fallowReclaim\x88\x01\x01B\x10\n" +
+	"\x0e_allow_reclaim\"\xd1\x01\n" +
 	"!RemoveBrandImageBackgroundRequest\x12\x19\n" +
 	"\bbrand_id\x18\x01 \x01(\tR\abrandId\x12&\n" +
 	"\x0fsource_asset_id\x18\x02 \x01(\tR\rsourceAssetId\x12%\n" +
@@ -1293,6 +1393,8 @@ func file_brand_manager_v1_generation_generation_proto_init() {
 	if File_brand_manager_v1_generation_generation_proto != nil {
 		return
 	}
+	file_brand_manager_v1_generation_generation_proto_msgTypes[10].OneofWrappers = []any{}
+	file_brand_manager_v1_generation_generation_proto_msgTypes[11].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

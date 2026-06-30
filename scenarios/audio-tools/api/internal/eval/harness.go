@@ -2,6 +2,7 @@ package eval
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
@@ -57,10 +58,12 @@ type Session func(ctx context.Context, chunks <-chan sttchain.AudioChunk, events
 
 // StreamResult is one replay's captured output.
 type StreamResult struct {
-	FinalText    string
-	Segments     []string
-	Partials     []string
-	SegmentCount int
+	FinalText             string
+	Segments              []string
+	Partials              []string
+	SegmentCount          int
+	CommitTimeline        []CommitState
+	SpeakerRejectionCount int
 	// FinalizationLatency is the wall-clock gap between feeding the last
 	// audio chunk and the terminal Done. Only meaningful in ModeRealtime.
 	FinalizationLatency time.Duration
@@ -77,6 +80,9 @@ type ReplayOptions struct {
 	Sleep func(time.Duration)
 	// Now stamps event/feed times; defaults to time.Now (clock.System).
 	Now func() time.Time
+	// DroppedSpanThresholdWords controls the safety gate for contiguous
+	// deleted reference words. 0 uses DefaultDroppedSpanThresholdWords.
+	DroppedSpanThresholdWords int
 }
 
 func (o ReplayOptions) chunkMs() int {
@@ -141,6 +147,7 @@ func Replay(ctx context.Context, clip Clip, opts ReplayOptions, session Session)
 	go func() { sessionDone <- session(ctx, chunks, events) }()
 
 	var res StreamResult
+	startedAt := opts.now()
 	var doneAt time.Time
 	for ev := range events {
 		switch ev.Kind {
@@ -148,11 +155,18 @@ func Replay(ctx context.Context, clip Clip, opts ReplayOptions, session Session)
 			if ev.Segment != nil {
 				res.Segments = append(res.Segments, ev.Segment.Text)
 				res.SegmentCount++
+				res.CommitTimeline = append(res.CommitTimeline, CommitState{
+					Text:       strings.TrimSpace(strings.Join(res.Segments, " ")),
+					AtMs:       millisSince(startedAt, opts.now()),
+					AudioEndMs: ev.Segment.EndMs,
+				})
 			}
 		case sttchain.StreamEventPartial:
 			if ev.Partial != nil {
 				res.Partials = append(res.Partials, ev.Partial.Text)
 			}
+		case sttchain.StreamEventSpeakerRejection:
+			res.SpeakerRejectionCount++
 		case sttchain.StreamEventError:
 			if ev.Error != nil {
 				res.Err = ev.Error
@@ -161,6 +175,12 @@ func Replay(ctx context.Context, clip Clip, opts ReplayOptions, session Session)
 			doneAt = opts.now()
 			if ev.Done != nil {
 				res.FinalText = ev.Done.FinalText
+				if shouldAppendFinalCommit(res.CommitTimeline, res.FinalText) {
+					res.CommitTimeline = append(res.CommitTimeline, CommitState{
+						Text: strings.TrimSpace(res.FinalText),
+						AtMs: millisSince(startedAt, doneAt),
+					})
+				}
 			}
 		}
 	}
@@ -192,17 +212,25 @@ func EvalClip(ctx context.Context, clip Clip, meter *MeteredProvider, opts Repla
 	wer := WER(refTokens, hypTokens)
 
 	cr := ClipResult{
-		ClipID:               clip.ID,
-		Reference:            clip.Reference,
-		Hypothesis:           res.FinalText,
-		WER:                  wer,
-		NormalizedReference:  normalizedReference,
-		NormalizedHypothesis: normalizedHypothesis,
-		EditOperations:       editOperations,
-		SegmentCount:         res.SegmentCount,
-		PartialRevisions:     PartialRevisions(res.Partials),
-		Err:                  res.Err,
+		ClipID:                clip.ID,
+		Reference:             clip.Reference,
+		Hypothesis:            res.FinalText,
+		WER:                   wer,
+		NormalizedReference:   normalizedReference,
+		NormalizedHypothesis:  normalizedHypothesis,
+		EditOperations:        editOperations,
+		SegmentCount:          res.SegmentCount,
+		PartialRevisions:      PartialRevisions(res.Partials),
+		CommitTimeline:        res.CommitTimeline,
+		CommitCount:           len(res.CommitTimeline),
+		TimeToFirstCommitMs:   firstCommitMs(res.CommitTimeline),
+		SpeakerRejectionCount: res.SpeakerRejectionCount,
+		AudioDurationMs:       int64(clip.Duration() / time.Millisecond),
+		Err:                   res.Err,
 	}
+	cr.Safety = EvaluateSafety(refTokens, hypTokens, editOperations, res.CommitTimeline, SafetyOptions{
+		DroppedSpanThresholdWords: opts.DroppedSpanThresholdWords,
+	})
 	if meter != nil {
 		snap := meter.Snapshot()
 		cr.WhisperCalls = snap.Calls
@@ -238,9 +266,10 @@ type EvalOptions struct {
 	// Real-time eval mostly waits on wall-clock audio pacing, so serializing
 	// every clip/repeat/strategy makes UI-triggered latency runs impractical.
 	// Default is 8, low enough to avoid stampeding the local STT backend.
-	RealtimeConcurrency int
-	Sleep               func(time.Duration)
-	Now                 func() time.Time
+	RealtimeConcurrency       int
+	Sleep                     func(time.Duration)
+	Now                       func() time.Time
+	DroppedSpanThresholdWords int
 }
 
 // DefaultEvalOptions is the deterministic-only configuration used by the
@@ -272,10 +301,10 @@ func RunEval(ctx context.Context, clips []Clip, specs []StrategySpec, opts EvalO
 			if opts.QualityPass {
 				session, meter := spec.BuildSession(clip)
 				cr = EvalClip(ctx, clip, meter, ReplayOptions{
-					Mode: ModeDeterministic, ChunkMs: opts.ChunkMs, Sleep: opts.Sleep, Now: opts.Now,
+					Mode: ModeDeterministic, ChunkMs: opts.ChunkMs, Sleep: opts.Sleep, Now: opts.Now, DroppedSpanThresholdWords: opts.DroppedSpanThresholdWords,
 				}, session)
 			} else {
-				cr = ClipResult{ClipID: clip.ID, Reference: clip.Reference}
+				cr = ClipResult{ClipID: clip.ID, Reference: clip.Reference, AudioDurationMs: int64(clip.Duration() / time.Millisecond)}
 			}
 			clipResults[i] = cr
 		}
@@ -318,7 +347,7 @@ func runRealtimeRepeats(ctx context.Context, clips []Clip, spec StrategySpec, op
 				}
 				session, meter := spec.BuildSession(clip)
 				rt := EvalClip(ctx, clip, meter, ReplayOptions{
-					Mode: ModeRealtime, ChunkMs: opts.ChunkMs, Sleep: opts.Sleep, Now: opts.Now,
+					Mode: ModeRealtime, ChunkMs: opts.ChunkMs, Sleep: opts.Sleep, Now: opts.Now, DroppedSpanThresholdWords: opts.DroppedSpanThresholdWords,
 				}, session)
 				results <- realtimeResult{clipIndex: clipIndex, repeat: repeat, result: rt}
 			}(clipIndex, repeat, clip)
@@ -339,6 +368,28 @@ func runRealtimeRepeats(ctx context.Context, clips []Clip, spec StrategySpec, op
 		}
 		clipResults[rr.clipIndex] = cr
 	}
+}
+
+func millisSince(start, end time.Time) int64 {
+	if start.IsZero() || end.IsZero() || end.Before(start) {
+		return 0
+	}
+	return int64(end.Sub(start) / time.Millisecond)
+}
+
+func shouldAppendFinalCommit(timeline []CommitState, finalText string) bool {
+	finalText = strings.TrimSpace(finalText)
+	if finalText == "" {
+		return len(timeline) > 0 && strings.TrimSpace(timeline[len(timeline)-1].Text) != ""
+	}
+	return len(timeline) == 0 || strings.TrimSpace(timeline[len(timeline)-1].Text) != finalText
+}
+
+func firstCommitMs(timeline []CommitState) float64 {
+	if len(timeline) == 0 {
+		return 0
+	}
+	return float64(timeline[0].AtMs)
 }
 
 // StrategySession adapts a bare strategy.Strategy-style Run (which does NOT

@@ -182,6 +182,24 @@ func ChatCompletionsEndpoint(apiBase string) string {
 	return base + "/chat/completions"
 }
 
+// ImagesEndpoint returns the OpenRouter image-generation URL (POST target).
+func ImagesEndpoint(apiBase string) string {
+	base := strings.TrimRight(strings.TrimSpace(apiBase), "/")
+	if base == "" {
+		return ""
+	}
+	return base + "/images"
+}
+
+// ImagesModelsEndpoint returns the OpenRouter dedicated image-model catalog URL.
+func ImagesModelsEndpoint(apiBase string) string {
+	base := strings.TrimRight(strings.TrimSpace(apiBase), "/")
+	if base == "" {
+		return ""
+	}
+	return base + "/images/models"
+}
+
 // NormalizeModelsResponse converts raw OpenRouter API JSON into the repo's
 // expected normalized response shape.
 func NormalizeModelsResponse(raw []byte, defaultModel, fetchedAt string, providerFilter, search string, limit int, manualModelsPath string) (ModelsResponse, error) {

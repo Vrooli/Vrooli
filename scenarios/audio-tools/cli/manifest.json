@@ -435,11 +435,116 @@
             { "name": "clip-ids", "description": "Comma-separated clip ids to evaluate (default: whole corpus)" },
             { "name": "realtime-repeats", "description": "Real-time-paced runs per clip for latency p50/p95 (0 = quality only)" },
             { "name": "chunk-ms", "description": "Replay chunk size in ms (default 100)" },
+            { "name": "dropped-span-threshold", "description": "Contiguous deleted reference-word threshold for the safety gate (default 4)" },
+            { "name": "overlap-max-window-ms", "description": "Overlap-agree max uncommitted tail window in ms before force-commit (default 25000)" },
             { "name": "output", "description": "Write the report JSON to this file" },
             { "name": "format", "description": "Output format: table (default) or json" }
           ],
           "binding": { "kind": "connect-rpc", "service": "EvalService", "method": "RunEval" },
           "governance": { "effect": "read", "run_eligible": false, "permissions": ["network:internal", "filesystem:write"] }
+        }
+      ]
+    },
+    {
+      "name": "experiment",
+      "description": "Manage persisted async STT experiments: start, watch, wait, report, and compare runs.",
+      "commands": [
+        {
+          "name": "start",
+          "description": "Enqueue an async STT experiment and return immediately with its persisted id.",
+          "flags": [
+            { "name": "name", "description": "Human label for the experiment" },
+            { "name": "strategies", "description": "Comma-separated strategy kinds (batch,vad_segment,overlap_agree); default server trio" },
+            { "name": "clip-ids", "description": "Comma-separated corpus clip ids to evaluate (default: whole corpus)" },
+            { "name": "realtime-repeats", "description": "Real-time-paced runs per clip for latency p50/p95 (0 = quality only)" },
+            { "name": "chunk-ms", "description": "Replay chunk size in ms (default 100)" },
+            { "name": "dropped-span-threshold", "description": "Contiguous deleted reference-word threshold for the safety gate (default 4)" },
+            { "name": "overlap-max-window-ms", "description": "Overlap-agree max uncommitted tail window in ms before force-commit (default 25000)" },
+            { "name": "seed", "description": "Seed for deterministic long-form clip ordering (default 1 when long-form is enabled)" },
+            { "name": "long-form", "description": "true|false — concatenate selected corpus clips into one seeded long-form input" },
+            { "name": "target-duration-seconds", "description": "Keep concatenating seeded corpus clips until this approximate input duration is reached" },
+            { "name": "gap-ms", "description": "Silence gap inserted between clips in long-form inputs (default 5000)" },
+            { "name": "tag-contains", "description": "Restrict long-form source clips to corpus clips whose tags contain this substring" },
+            { "name": "noise-types", "description": "Comma-separated generated noise beds to mix across the full input (white,fan,percussive,music)" },
+            { "name": "snr-db", "description": "Comma-separated SNR levels in dB for augmentation conditions (default 12 when augmentation is enabled)" },
+            { "name": "competing-voices", "description": "Comma-separated Kokoro voice ids to synthesize as competing speakers" },
+            { "name": "competing-text", "description": "Text spoken by each synthesized competing voice" },
+            { "name": "target-profile-id", "description": "Speaker profile id for target-speaker extraction/verification experiment conditions" },
+            { "name": "speaker-extraction", "description": "true|false — enable target-speaker extraction for the recipe condition" },
+            { "name": "speaker-verification", "description": "true|false — enable egress speaker verification for the recipe condition" },
+            { "name": "speaker-mode", "description": "Speaker verification mode: off, filter, or advisory" },
+            { "name": "speaker-threshold", "description": "Speaker verification cosine threshold (default 0.5)" },
+            { "name": "speaker-fallback", "description": "true|false — allow unverified text when the speaker resource cannot decide" },
+            { "name": "speaker-ablation", "description": "true|false — evaluate extraction/verification off/on combinations for attribution" },
+            { "name": "estimated-seconds", "description": "Optional client-visible runtime estimate in seconds" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExperimentService", "method": "StartExperiment" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "get",
+          "description": "Show one experiment's persisted lifecycle state and run cells.",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Experiment id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExperimentService", "method": "GetExperiment" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "wait",
+          "description": "Block once until an experiment reaches a terminal state; canceling the client does not abort the run.",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Experiment id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExperimentService", "method": "WaitExperiment" },
+          "governance": { "effect": "read", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "list",
+          "description": "List persisted experiments newest first, optionally filtered by status.",
+          "flags": [
+            { "name": "status", "description": "queued|running|succeeded|failed|canceled" },
+            { "name": "limit", "description": "Maximum experiments to return (0 = server default)" },
+            { "name": "offset", "description": "Pagination offset" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExperimentService", "method": "ListExperiments" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "cancel",
+          "description": "Cancel a queued or running experiment.",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Experiment id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExperimentService", "method": "CancelExperiment" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "watch",
+          "description": "Stream in-memory progress events for one active experiment.",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Experiment id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExperimentService", "method": "StreamExperimentEvents" },
+          "governance": { "effect": "read", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "report",
+          "description": "Fetch an experiment's stored report artifact and run-cell metrics.",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Experiment id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExperimentService", "method": "GetExperimentReport" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "compare",
+          "description": "Compare two or more experiments by id. Use --json for full recipes and reports.",
+          "positionals": [
+            { "name": "ids", "required": true, "description": "Comma-separated experiment ids" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExperimentService", "method": "CompareExperiments" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]
     }

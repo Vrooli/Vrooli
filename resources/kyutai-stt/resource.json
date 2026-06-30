@@ -52,9 +52,19 @@
     "resource_kind": "vram",
     "gpu_index": 0,
     "preferred_bytes": 3221225472,
-    "floor_bytes": 3221225472,
+    "floor_bytes": 0,
     "priority": "service",
-    "protected": true
+    "yield_when_idle": true,
+    "idle_grace_seconds": 900,
+    "idle_unload_ttl_seconds": 900,
+    "profile": {
+      "steps": [
+        { "label": "loaded", "amount_bytes": 3221225472 },
+        { "label": "unloaded", "amount_bytes": 0 }
+      ],
+      "apply": { "verb": "stop", "argv": [] },
+      "upshift": false
+    }
   },
   "portability_tier": "platform-specific",
   "category": "ai",

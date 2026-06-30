@@ -34,6 +34,16 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	for _, kind := range splitCSV(ctx.Flag("strategies")) {
 		req.Strategies = append(req.Strategies, &evalv1.EvalStrategy{Kind: kind, OverlapMaxStallRejects: -1})
 	}
+	if v := strings.TrimSpace(ctx.Flag("overlap-max-window-ms")); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("--overlap-max-window-ms must be an integer: %q", v)
+		}
+		ensureDefaultStrategies(req)
+		for _, s := range req.Strategies {
+			s.OverlapMaxWindowMs = int32(n)
+		}
+	}
 	req.ClipIds = splitCSV(ctx.Flag("clip-ids"))
 	if v := strings.TrimSpace(ctx.Flag("realtime-repeats")); v != "" {
 		n, err := strconv.Atoi(v)
@@ -78,6 +88,17 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 
 	printReportTable(ctx, report)
 	return nil
+}
+
+func ensureDefaultStrategies(req *evalv1.RunEvalRequest) {
+	if len(req.GetStrategies()) > 0 {
+		return
+	}
+	req.Strategies = []*evalv1.EvalStrategy{
+		{Kind: "batch", OverlapMaxStallRejects: -1},
+		{Kind: "vad_segment", OverlapMaxStallRejects: -1},
+		{Kind: "overlap_agree", OverlapMaxStallRejects: -1},
+	}
 }
 
 func printReportTable(ctx cliapp.RunContext, report *evalv1.EvalReport) {

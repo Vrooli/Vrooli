@@ -51,17 +51,47 @@ resource-openrouter status
 resource-openrouter list-models
 resource-openrouter content models --json --limit 20
 
-# Generate a response
+# Resolve a model ROLE to a concrete model (the only model-selection authority)
+resource-openrouter policy resolve --role chat.default --json
+resource-openrouter policy resolve --role image.generate.logo --field model
+resource-openrouter policy roles
+resource-openrouter policy models
+resource-openrouter policy constraints --json
+
+# Generate a response (model is selected by ROLE via policy, not a slug)
 resource-openrouter generate "Summarize OpenRouter routing in one paragraph"
-echo "Explain tool routing simply" | resource-openrouter generate --model openai/gpt-4o-mini
-resource-openrouter generate --model openai/gpt-4o-mini --max-tokens 640 --prompt-file ./prompt.txt
+echo "Explain tool routing simply" | resource-openrouter generate --role chat.small
+resource-openrouter generate --role chat.quality --max-tokens 640 --prompt-file ./prompt.txt
+# --model is an explicit advanced override; prefer --role.
 
 # Store credentials for future commands
 resource-openrouter configure --api-key sk-or-v1-example
 
-# Show resolved runtime configuration
+# Show resolved runtime configuration (default role + resolved model)
 resource-openrouter show-config --json
 ```
+
+## Model Role Policy
+
+OpenRouter is the **policy authority** for model selection. Concrete OpenRouter
+model slugs live in exactly one place — [`model-policy.json`](/home/matthalloran8/Vrooli/resources/openrouter/model-policy.json).
+Scenarios and resources declare the **roles** they need and resolve them through
+`resource-openrouter policy resolve`; they never hard-code a provider slug or an
+`OPENROUTER_*_MODEL` env default (enforced by the `openrouter_policy_facts`
+repo-contract check).
+
+- A **role** describes intent + capability (e.g. `chat.default`, `agent.tools`,
+  `image.generate.logo`, `image.edit.identity`), an **endpoint** family (`chat`
+  or `images`), and bounded **request defaults**.
+- The policy carries the concrete default model plus an ordered **fallbacks**
+  list and per-model capabilities/modalities/pricing metadata.
+- Scenarios declare needed roles in `service.json` under
+  `dependencies.resources.openrouter.model_roles`. At scenario start,
+  `resource-openrouter ensure --config-base64 <json>` validates every declared
+  role against the policy (it never downloads anything — OpenRouter is cloud
+  hosted) and best-effort checks the live catalog.
+- To change a model, edit `model-policy.json` (the single update point) — never a
+  consumer.
 
 Credentials can come from:
 

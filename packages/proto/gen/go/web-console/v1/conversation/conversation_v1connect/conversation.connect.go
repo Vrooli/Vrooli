@@ -41,12 +41,6 @@ const (
 	// ConversationServiceSummarizeEventProcedure is the fully-qualified name of the
 	// ConversationService's SummarizeEvent RPC.
 	ConversationServiceSummarizeEventProcedure = "/vrooli.web_console.v1.conversation.ConversationService/SummarizeEvent"
-	// ConversationServiceResolveFileReferenceProcedure is the fully-qualified name of the
-	// ConversationService's ResolveFileReference RPC.
-	ConversationServiceResolveFileReferenceProcedure = "/vrooli.web_console.v1.conversation.ConversationService/ResolveFileReference"
-	// ConversationServiceGetFileReferenceContentProcedure is the fully-qualified name of the
-	// ConversationService's GetFileReferenceContent RPC.
-	ConversationServiceGetFileReferenceContentProcedure = "/vrooli.web_console.v1.conversation.ConversationService/GetFileReferenceContent"
 )
 
 // ConversationServiceClient is a client for the
@@ -55,8 +49,6 @@ type ConversationServiceClient interface {
 	Get(context.Context, *connect.Request[conversation.GetRequest]) (*connect.Response[conversation.GetResponse], error)
 	UpdateCursor(context.Context, *connect.Request[conversation.UpdateCursorRequest]) (*connect.Response[conversation.UpdateCursorResponse], error)
 	SummarizeEvent(context.Context, *connect.Request[conversation.SummarizeEventRequest]) (*connect.Response[conversation.SummarizeEventResponse], error)
-	ResolveFileReference(context.Context, *connect.Request[conversation.ResolveFileReferenceRequest]) (*connect.Response[conversation.ResolveFileReferenceResponse], error)
-	GetFileReferenceContent(context.Context, *connect.Request[conversation.GetFileReferenceContentRequest]) (*connect.Response[conversation.GetFileReferenceContentResponse], error)
 }
 
 // NewConversationServiceClient constructs a client for the
@@ -89,28 +81,14 @@ func NewConversationServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(conversationServiceMethods.ByName("SummarizeEvent")),
 			connect.WithClientOptions(opts...),
 		),
-		resolveFileReference: connect.NewClient[conversation.ResolveFileReferenceRequest, conversation.ResolveFileReferenceResponse](
-			httpClient,
-			baseURL+ConversationServiceResolveFileReferenceProcedure,
-			connect.WithSchema(conversationServiceMethods.ByName("ResolveFileReference")),
-			connect.WithClientOptions(opts...),
-		),
-		getFileReferenceContent: connect.NewClient[conversation.GetFileReferenceContentRequest, conversation.GetFileReferenceContentResponse](
-			httpClient,
-			baseURL+ConversationServiceGetFileReferenceContentProcedure,
-			connect.WithSchema(conversationServiceMethods.ByName("GetFileReferenceContent")),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
 // conversationServiceClient implements ConversationServiceClient.
 type conversationServiceClient struct {
-	get                     *connect.Client[conversation.GetRequest, conversation.GetResponse]
-	updateCursor            *connect.Client[conversation.UpdateCursorRequest, conversation.UpdateCursorResponse]
-	summarizeEvent          *connect.Client[conversation.SummarizeEventRequest, conversation.SummarizeEventResponse]
-	resolveFileReference    *connect.Client[conversation.ResolveFileReferenceRequest, conversation.ResolveFileReferenceResponse]
-	getFileReferenceContent *connect.Client[conversation.GetFileReferenceContentRequest, conversation.GetFileReferenceContentResponse]
+	get            *connect.Client[conversation.GetRequest, conversation.GetResponse]
+	updateCursor   *connect.Client[conversation.UpdateCursorRequest, conversation.UpdateCursorResponse]
+	summarizeEvent *connect.Client[conversation.SummarizeEventRequest, conversation.SummarizeEventResponse]
 }
 
 // Get calls vrooli.web_console.v1.conversation.ConversationService.Get.
@@ -128,26 +106,12 @@ func (c *conversationServiceClient) SummarizeEvent(ctx context.Context, req *con
 	return c.summarizeEvent.CallUnary(ctx, req)
 }
 
-// ResolveFileReference calls
-// vrooli.web_console.v1.conversation.ConversationService.ResolveFileReference.
-func (c *conversationServiceClient) ResolveFileReference(ctx context.Context, req *connect.Request[conversation.ResolveFileReferenceRequest]) (*connect.Response[conversation.ResolveFileReferenceResponse], error) {
-	return c.resolveFileReference.CallUnary(ctx, req)
-}
-
-// GetFileReferenceContent calls
-// vrooli.web_console.v1.conversation.ConversationService.GetFileReferenceContent.
-func (c *conversationServiceClient) GetFileReferenceContent(ctx context.Context, req *connect.Request[conversation.GetFileReferenceContentRequest]) (*connect.Response[conversation.GetFileReferenceContentResponse], error) {
-	return c.getFileReferenceContent.CallUnary(ctx, req)
-}
-
 // ConversationServiceHandler is an implementation of the
 // vrooli.web_console.v1.conversation.ConversationService service.
 type ConversationServiceHandler interface {
 	Get(context.Context, *connect.Request[conversation.GetRequest]) (*connect.Response[conversation.GetResponse], error)
 	UpdateCursor(context.Context, *connect.Request[conversation.UpdateCursorRequest]) (*connect.Response[conversation.UpdateCursorResponse], error)
 	SummarizeEvent(context.Context, *connect.Request[conversation.SummarizeEventRequest]) (*connect.Response[conversation.SummarizeEventResponse], error)
-	ResolveFileReference(context.Context, *connect.Request[conversation.ResolveFileReferenceRequest]) (*connect.Response[conversation.ResolveFileReferenceResponse], error)
-	GetFileReferenceContent(context.Context, *connect.Request[conversation.GetFileReferenceContentRequest]) (*connect.Response[conversation.GetFileReferenceContentResponse], error)
 }
 
 // NewConversationServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -175,18 +139,6 @@ func NewConversationServiceHandler(svc ConversationServiceHandler, opts ...conne
 		connect.WithSchema(conversationServiceMethods.ByName("SummarizeEvent")),
 		connect.WithHandlerOptions(opts...),
 	)
-	conversationServiceResolveFileReferenceHandler := connect.NewUnaryHandler(
-		ConversationServiceResolveFileReferenceProcedure,
-		svc.ResolveFileReference,
-		connect.WithSchema(conversationServiceMethods.ByName("ResolveFileReference")),
-		connect.WithHandlerOptions(opts...),
-	)
-	conversationServiceGetFileReferenceContentHandler := connect.NewUnaryHandler(
-		ConversationServiceGetFileReferenceContentProcedure,
-		svc.GetFileReferenceContent,
-		connect.WithSchema(conversationServiceMethods.ByName("GetFileReferenceContent")),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/vrooli.web_console.v1.conversation.ConversationService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ConversationServiceGetProcedure:
@@ -195,10 +147,6 @@ func NewConversationServiceHandler(svc ConversationServiceHandler, opts ...conne
 			conversationServiceUpdateCursorHandler.ServeHTTP(w, r)
 		case ConversationServiceSummarizeEventProcedure:
 			conversationServiceSummarizeEventHandler.ServeHTTP(w, r)
-		case ConversationServiceResolveFileReferenceProcedure:
-			conversationServiceResolveFileReferenceHandler.ServeHTTP(w, r)
-		case ConversationServiceGetFileReferenceContentProcedure:
-			conversationServiceGetFileReferenceContentHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -218,12 +166,4 @@ func (UnimplementedConversationServiceHandler) UpdateCursor(context.Context, *co
 
 func (UnimplementedConversationServiceHandler) SummarizeEvent(context.Context, *connect.Request[conversation.SummarizeEventRequest]) (*connect.Response[conversation.SummarizeEventResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.conversation.ConversationService.SummarizeEvent is not implemented"))
-}
-
-func (UnimplementedConversationServiceHandler) ResolveFileReference(context.Context, *connect.Request[conversation.ResolveFileReferenceRequest]) (*connect.Response[conversation.ResolveFileReferenceResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.conversation.ConversationService.ResolveFileReference is not implemented"))
-}
-
-func (UnimplementedConversationServiceHandler) GetFileReferenceContent(context.Context, *connect.Request[conversation.GetFileReferenceContentRequest]) (*connect.Response[conversation.GetFileReferenceContentResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.conversation.ConversationService.GetFileReferenceContent is not implemented"))
 }

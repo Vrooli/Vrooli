@@ -26,6 +26,14 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dep
 service InterfaceGraphService {
   // DescribeInterfaceGraph returns the actual interface graph.
   rpc DescribeInterfaceGraph(DescribeInterfaceGraphRequest) returns (DescribeInterfaceGraphResponse);
+
+  // SearchInterfaceGraph is the federated AI-search leaf over the connection
+  // graph: a natural-language query ("what does plan-manager depend on", "what
+  // depends on prompt-manager") returns the scenarios whose connection record
+  // best matches, ranked by relevance. It is Connection-only (what depends on
+  // what) — purpose/anatomy queries belong to architecture-cartographer's
+  // domain-map leaf. Backed by the .scenarios search corpus.
+  rpc SearchInterfaceGraph(SearchInterfaceGraphRequest) returns (SearchInterfaceGraphResponse);
 }
 
 message DescribeInterfaceGraphRequest {
@@ -49,6 +57,30 @@ message DescribeInterfaceGraphResponse {
   // RFC3339 timestamp for the cached graph used to serve the response. Empty
   // means the graph was built for this request and not served from cache.
   string computed_at = 2;
+}
+
+message SearchInterfaceGraphRequest {
+  // Natural-language connection query.
+  string query = 1;
+  // Maximum hits to return. Zero means the service default.
+  int32 limit = 2;
+}
+
+message SearchInterfaceGraphResponse {
+  repeated ScenarioConnectionHit results = 1;
+}
+
+message ScenarioConnectionHit {
+  // Scenario name (the natural ID / title).
+  string scenario = 1;
+  // Scenarios this scenario depends on (forward edges).
+  repeated string depends_on = 2;
+  // Scenarios that depend on this scenario (reverse edges).
+  repeated string used_by = 3;
+  // Human-readable connection summary, used as the federated snippet.
+  string summary = 4;
+  // Relevance score in [0,1] (cosine/rerank regime).
+  double relevance_score = 5;
 }
 
 message InterfaceGraph {
