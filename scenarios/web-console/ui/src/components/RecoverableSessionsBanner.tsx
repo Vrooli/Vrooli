@@ -9,11 +9,14 @@ import {
   type RecoverResult,
 } from "../api/sessions";
 import { strings } from "../consts/strings";
+import { cn } from "../lib/classnames";
 
 export interface RecoverableSessionsBannerProps {
   // Called after a successful recovery so the workspace can attach the new
   // pane. The new session id is the one returned by the API.
   onRecovered?: (result: RecoverResult) => void;
+  /** Reserve top safe area when this banner is the first top-edge surface. */
+  topSafe?: boolean;
 }
 
 // RecoverableSessionsBanner surfaces awaiting_recovery rows from the API and
@@ -22,7 +25,7 @@ export interface RecoverableSessionsBannerProps {
 //
 // See: scenarios/web-console/docs/guides/SESSION_RECOVERY.md
 export default function RecoverableSessionsBanner(props: RecoverableSessionsBannerProps) {
-  const { onRecovered } = props;
+  const { onRecovered, topSafe = false } = props;
   const { t } = useTranslation();
   const [rows, setRows] = useState<RecoverableSession[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -81,7 +84,10 @@ export default function RecoverableSessionsBanner(props: RecoverableSessionsBann
   return (
     <div
       data-testid="recoverable-sessions-banner"
-      className="wc-stable-theme border-b border-amber-700/40 bg-amber-900/20 text-sm text-amber-100"
+      className={cn(
+        "wc-stable-theme border-b border-amber-700/40 bg-amber-900/20 text-sm text-amber-100",
+        topSafe && "pt-[var(--wc-safe-top,0px)]",
+      )}
     >
       <div className="py-2 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))] font-medium">
         {t(strings.recoverableSessions.heading, { count: rows.length })}

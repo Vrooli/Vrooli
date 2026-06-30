@@ -53,6 +53,7 @@ import AudioPlayerBar from "./AudioPlayerBar";
 import SummarizeErrorBanner, { type SummarizeErrorState } from "./SummarizeErrorBanner";
 import EnableAudioBanner from "./EnableAudioBanner";
 import RecoverableSessionsBanner from "./RecoverableSessionsBanner";
+import TopSafeArea from "./TopSafeArea";
 import { useConversationStore, type PaneViewMode } from "../stores/useConversationStore";
 import type { TTSPlaybackState } from "../audio-integration";
 import { useTtsPlaybackController } from "../domains/tts-playback/useTtsPlaybackController";
@@ -73,6 +74,15 @@ type ActiveArrangeDrag = { paneId: string; dropIndex: number };
 const SIDEBAR_HEADER_LONG_PRESS_MS = 500;
 const SIDEBAR_HEADER_PRESS_MOVE_THRESHOLD = 8;
 
+interface WorkspaceProps {
+  /**
+   * True when a parent surface, such as App's connection banner, already owns
+   * the top safe area. Workspace then avoids adding a second notch/status-bar
+   * inset before its own top chrome.
+   */
+  topSafeAreaReserved?: boolean;
+}
+
 /**
  * ── STABLE CORE: Pane layout and control wiring. ──
  * This component owns ONLY visual layout (grid, header, empty state)
@@ -85,7 +95,7 @@ const SIDEBAR_HEADER_PRESS_MOVE_THRESHOLD = 8;
  * [REQ:P0-001a] Responsive Pane Grid Layout
  * [REQ:P0-001b] Independent Pane Session Lifecycle
  */
-export default function Workspace() {
+export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProps = {}) {
   const { t } = useTranslation();
   const {
     panes: sessionPanes,
@@ -1085,11 +1095,17 @@ export default function Workspace() {
   if (sessionPanes.length === 0) {
     return (
       <div className="flex h-wc-app flex-col bg-wc-surface-base text-wc-text-primary">
-        <RecoverableSessionsBanner
-          onRecovered={(result) => {
-            pendingActivePaneRef.current = result.new_session_id;
-          }}
-        />
+        <TopSafeArea
+          testId="workspace-top-edge"
+          enabled={!topSafeAreaReserved}
+          fillClassName="bg-wc-surface-base"
+        >
+          <RecoverableSessionsBanner
+            onRecovered={(result) => {
+              pendingActivePaneRef.current = result.new_session_id;
+            }}
+          />
+        </TopSafeArea>
         <div className="flex flex-1 items-center justify-center">
           <div className="text-center">
             <h1 className="text-2xl font-semibold mb-4">{t(strings.app.title)}</h1>
@@ -1242,6 +1258,9 @@ export default function Workspace() {
   );
   const activeSidebarPane = activeNavigationItem?.kind === "pane" ? activeNavigationItem : null;
   const sidebarUnreadCount = countWorkspaceUnreadMessages(orderedPanes, conversationSessions);
+  const hasTopChrome = workspace.displayMode === "tabs" || workspace.displayMode === "sidebar";
+  const workspaceTopSafeEnabled = !topSafeAreaReserved;
+  const statusFillClassName = hasTopChrome ? "wc-chrome-surface" : "bg-wc-surface-base";
 
   // h-wc-app maps to var(--wc-app-height, 100dvh) — the actual visible
   // viewport height set by useAppViewport(). This is the root layout
@@ -1277,142 +1296,148 @@ export default function Workspace() {
         onTtsStop={handleTtsStop}
       />
 
-      {/* Voice fallback notice */}
-      {voiceInput.fallbackNotice && (
-        <div className="wc-stable-theme py-1.5 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))] text-xs text-amber-300 bg-amber-500/10 border-b border-amber-500/30">
-          {voiceInput.fallbackNotice}
-        </div>
-      )}
-      {voiceInput.rejectedAudio && (
-        <VoiceRejectionBanner
-          rejection={voiceInput.rejectedAudio}
-          onRetry={voiceInput.retryWithoutFilter}
-          onDismiss={voiceInput.dismissRejection}
+      <TopSafeArea
+        testId="workspace-top-edge"
+        enabled={workspaceTopSafeEnabled}
+        fillClassName={statusFillClassName}
+      >
+        {/* Voice fallback notice */}
+        {voiceInput.fallbackNotice && (
+          <div className="wc-stable-theme py-1.5 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))] text-xs text-amber-300 bg-amber-500/10 border-b border-amber-500/30">
+            {voiceInput.fallbackNotice}
+          </div>
+        )}
+        {voiceInput.rejectedAudio && (
+          <VoiceRejectionBanner
+            rejection={voiceInput.rejectedAudio}
+            onRetry={voiceInput.retryWithoutFilter}
+            onDismiss={voiceInput.dismissRejection}
+          />
+        )}
+
+        {summarizeError && (
+          <SummarizeErrorBanner
+            state={summarizeError}
+            onRetry={handleRetrySummarize}
+            onDismiss={handleDismissSummarizeError}
+          />
+        )}
+
+        {enableAudio && !enableAudioSuppressed && (
+          <EnableAudioBanner
+            onEnable={handleEnableAudio}
+            onDismiss={handleDismissEnableAudio}
+          />
+        )}
+
+        {/* Error banner */}
+        {createError && (
+          <ErrorBanner
+            error={createError}
+            onDismiss={clearError}
+            onRetry={createError.retry ? handleRetry : undefined}
+            className="border-b border-wc-error"
+          />
+        )}
+
+        {/* Recoverable sessions surface — banner is hidden when nothing is
+            awaiting recovery, so steady-state UI is unchanged. */}
+        <RecoverableSessionsBanner
+          onRecovered={(result) => {
+            pendingActivePaneRef.current = result.new_session_id;
+          }}
         />
-      )}
 
-      {summarizeError && (
-        <SummarizeErrorBanner
-          state={summarizeError}
-          onRetry={handleRetrySummarize}
-          onDismiss={handleDismissSummarizeError}
-        />
-      )}
+        {/* Tab bar (only in tabs mode) */}
+        {workspace.displayMode === "tabs" && (
+          <TabBar
+            panes={orderedPanes}
+            activePane={workspace.activePane}
+            onNewTerminal={handleNewTerminal}
+            onOpenLauncher={openLauncher}
+            onClosePane={handleRequestClose}
+            isCreating={isCreating}
+            trailingActions={isMobile ? (
+              <Button
+                data-testid="tabbar-settings"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 shrink-0 mx-1 self-center"
+                onClick={() => workspace.setSettingsModalOpen(true)}
+                title={t(strings.workspace.settingsTitle)}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            ) : undefined}
+          />
+        )}
 
-      {enableAudio && !enableAudioSuppressed && (
-        <EnableAudioBanner
-          onEnable={handleEnableAudio}
-          onDismiss={handleDismissEnableAudio}
-        />
-      )}
-
-      {/* Error banner */}
-      {createError && (
-        <ErrorBanner
-          error={createError}
-          onDismiss={clearError}
-          onRetry={createError.retry ? handleRetry : undefined}
-          className="border-b border-wc-error"
-        />
-      )}
-
-      {/* Recoverable sessions surface — banner is hidden when nothing is
-          awaiting recovery, so steady-state UI is unchanged. */}
-      <RecoverableSessionsBanner
-        onRecovered={(result) => {
-          pendingActivePaneRef.current = result.new_session_id;
-        }}
-      />
-
-      {/* Tab bar (only in tabs mode) */}
-      {workspace.displayMode === "tabs" && (
-        <TabBar
-          panes={orderedPanes}
-          activePane={workspace.activePane}
-          onNewTerminal={handleNewTerminal}
-          onOpenLauncher={openLauncher}
-          onClosePane={handleRequestClose}
-          isCreating={isCreating}
-          trailingActions={isMobile ? (
+        {workspace.displayMode === "sidebar" && (
+          <div
+            data-testid="workspace-sidebar-topbar"
+            className="wc-chrome-surface wc-chrome-fg flex h-10 shrink-0 items-center gap-2 border-b border-wc-default ps-[max(0.5rem,var(--wc-safe-left,0px))] pe-[max(0.5rem,var(--wc-safe-right,0px))] md:hidden"
+          >
             <Button
-              data-testid="tabbar-settings"
+              data-testid="workspace-sidebar-toggle"
               variant="ghost"
               size="icon"
-              className="h-7 w-7 shrink-0 mx-1 self-center"
+              className="relative h-8 w-8"
+              onClick={() => setMobileSidebarOpen(true)}
+              title={t(strings.sessionSidebar.open)}
+            >
+              <Menu className="h-4 w-4" />
+              {sidebarUnreadCount > 0 && (
+                <span
+                  data-testid="workspace-sidebar-toggle-unread"
+                  className="absolute -end-1 -top-1 min-w-4 rounded-full bg-wc-accent px-1 text-[10px] font-semibold leading-4 text-wc-accent-fg"
+                >
+                  {sidebarUnreadCount > 99 ? "99+" : sidebarUnreadCount}
+                </span>
+              )}
+            </Button>
+            <div
+              data-testid="workspace-sidebar-active-title"
+              className="min-w-0 flex-1 select-none truncate text-sm font-medium touch-manipulation"
+              title={activeSidebarPane?.pane.name ?? t(strings.sessionSidebar.title)}
+              {...(activeSidebarPane
+                ? sidebarHeaderPressGesture.getGestureHandlers(activeSidebarPane.pane.sessionId)
+                : {})}
+            >
+              {activeSidebarPane?.pane.name ?? t(strings.sessionSidebar.title)}
+            </div>
+            {activeSidebarPane && activeSidebarPane.unreadCount > 0 && (
+              <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-wc-accent-fg">
+                {activeSidebarPane.unreadCount}
+              </span>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              disabled={isCreating}
+              onClick={() => {
+                if (workspace.plusButtonBehavior === "launcher") {
+                  openLauncher();
+                } else {
+                  handleLaunch();
+                }
+              }}
+              title={workspace.plusButtonBehavior === "launcher" ? t(strings.floatingToolbar.launcherFirstTitle) : t(strings.floatingToolbar.terminalFirstTitle)}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
               onClick={() => workspace.setSettingsModalOpen(true)}
               title={t(strings.workspace.settingsTitle)}
             >
               <Settings className="h-4 w-4" />
             </Button>
-          ) : undefined}
-        />
-      )}
-
-      {workspace.displayMode === "sidebar" && (
-        <div
-          data-testid="workspace-sidebar-topbar"
-          className="wc-chrome-surface wc-chrome-fg flex h-[calc(2.5rem+var(--wc-safe-top,0px))] shrink-0 items-center gap-2 border-b border-wc-default pt-[var(--wc-safe-top,0px)] ps-[max(0.5rem,var(--wc-safe-left,0px))] pe-[max(0.5rem,var(--wc-safe-right,0px))] md:hidden"
-        >
-          <Button
-            data-testid="workspace-sidebar-toggle"
-            variant="ghost"
-            size="icon"
-            className="relative h-8 w-8"
-            onClick={() => setMobileSidebarOpen(true)}
-            title={t(strings.sessionSidebar.open)}
-          >
-            <Menu className="h-4 w-4" />
-            {sidebarUnreadCount > 0 && (
-              <span
-                data-testid="workspace-sidebar-toggle-unread"
-                className="absolute -end-1 -top-1 min-w-4 rounded-full bg-wc-accent px-1 text-[10px] font-semibold leading-4 text-wc-accent-fg"
-              >
-                {sidebarUnreadCount > 99 ? "99+" : sidebarUnreadCount}
-              </span>
-            )}
-          </Button>
-          <div
-            data-testid="workspace-sidebar-active-title"
-            className="min-w-0 flex-1 select-none truncate text-sm font-medium touch-manipulation"
-            title={activeSidebarPane?.pane.name ?? t(strings.sessionSidebar.title)}
-            {...(activeSidebarPane
-              ? sidebarHeaderPressGesture.getGestureHandlers(activeSidebarPane.pane.sessionId)
-              : {})}
-          >
-            {activeSidebarPane?.pane.name ?? t(strings.sessionSidebar.title)}
           </div>
-          {activeSidebarPane && activeSidebarPane.unreadCount > 0 && (
-            <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-wc-accent-fg">
-              {activeSidebarPane.unreadCount}
-            </span>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            disabled={isCreating}
-            onClick={() => {
-              if (workspace.plusButtonBehavior === "launcher") {
-                openLauncher();
-              } else {
-                handleLaunch();
-              }
-            }}
-            title={workspace.plusButtonBehavior === "launcher" ? t(strings.floatingToolbar.launcherFirstTitle) : t(strings.floatingToolbar.terminalFirstTitle)}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => workspace.setSettingsModalOpen(true)}
-            title={t(strings.workspace.settingsTitle)}
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
+        )}
+      </TopSafeArea>
 
       {/* Main content area */}
       {isTabLikeMode ? (

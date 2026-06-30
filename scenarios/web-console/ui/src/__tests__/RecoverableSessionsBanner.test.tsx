@@ -59,6 +59,21 @@ describe("RecoverableSessionsBanner", () => {
     expect(reattachB).toBeDisabled();
   });
 
+  it("can reserve top safe area when rendered as the first top-edge surface", async () => {
+    listMock.mockResolvedValue([
+      {
+        id: "aaaaaaaa-1111-2222-3333-444444444444",
+        agent_type: "codex",
+        recoverable: true,
+      },
+    ]);
+
+    render(<RecoverableSessionsBanner topSafe />);
+    await waitFor(() => expect(screen.getByTestId("recoverable-sessions-banner")).toBeInTheDocument());
+
+    expect(screen.getByTestId("recoverable-sessions-banner").className).toContain("--wc-safe-top");
+  });
+
   it("invokes recoverSession on Reattach click and notifies via onRecovered", async () => {
     listMock
       .mockResolvedValueOnce([

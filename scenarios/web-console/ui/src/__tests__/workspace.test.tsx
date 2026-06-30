@@ -451,6 +451,35 @@ describe("Workspace", () => {
     expect(screen.getByTestId("mock-terminal-sess-test-002")).toBeTruthy();
   });
 
+  it("reserves top safe area once for tabs mode", () => {
+    hookState.panes = [{ session: mockSession }];
+    mockStoreState.displayMode = "tabs";
+    mockStoreState.activePane = mockSession.id;
+    mockStoreState.panes = [
+      { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: true },
+    ];
+
+    render(<Workspace />);
+
+    expect(screen.getByTestId("workspace-top-edge-fill").className).toContain("--wc-safe-top");
+    expect(screen.getByTestId("workspace-top-edge-fill").className).toContain("wc-chrome-surface");
+    expect(screen.getByTestId("tab-bar").className).not.toContain("--wc-safe-top");
+  });
+
+  it("does not double-reserve top safe area when parent already owns it", () => {
+    hookState.panes = [{ session: mockSession }];
+    mockStoreState.displayMode = "tabs";
+    mockStoreState.activePane = mockSession.id;
+    mockStoreState.panes = [
+      { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: true },
+    ];
+
+    render(<Workspace topSafeAreaReserved />);
+
+    expect(screen.queryByTestId("workspace-top-edge-fill")).toBeNull();
+    expect(screen.getByTestId("tab-bar")).toBeTruthy();
+  });
+
   it("renders sidebar mode as tab-like stacked panes with desktop sidebar", () => {
     const session2: SessionInfo = { ...mockSession, id: "sess-test-002" };
     hookState.panes = [{ session: mockSession }, { session: session2 }];
@@ -483,7 +512,10 @@ describe("Workspace", () => {
     ];
 
     render(<Workspace />);
-    expect(screen.getByTestId("workspace-sidebar-topbar").className).toContain("--wc-safe-top");
+    expect(screen.getByTestId("workspace-top-edge-fill").className).toContain("--wc-safe-top");
+    expect(screen.getByTestId("workspace-top-edge-fill").className).toContain("wc-chrome-surface");
+    expect(screen.getByTestId("workspace-sidebar-topbar").className).toContain("h-10");
+    expect(screen.getByTestId("workspace-sidebar-topbar").className).not.toContain("--wc-safe-top");
     fireEvent.click(screen.getByTestId("workspace-sidebar-toggle"));
     expect(screen.getByTestId("workspace-sidebar-backdrop")).toBeTruthy();
     expect(screen.getByTestId("workspace-sidebar-shell").className).toContain("--wc-safe-top");

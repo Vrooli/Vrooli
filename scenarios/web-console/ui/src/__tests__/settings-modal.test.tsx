@@ -93,4 +93,10 @@ describe("SettingsModal", () => {
     expect(screen.getByTestId("settings-tabs-row")).toBeTruthy();
     expect(screen.queryByTestId("settings-sidebar")).toBeNull();
   });
+
+  it("keeps the mobile sheet below the top safe area", () => {
+    mediaQueryState.isMobile = true;
+    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    expect(screen.getByTestId("settings-modal").className).toContain("--wc-safe-top");
+  });
 });

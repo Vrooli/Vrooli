@@ -7,6 +7,7 @@ import { HEALTH_RETRY_COUNT, HEALTH_RETRY_DELAY_MS } from "./consts/config";
 import { strings } from "./consts/strings";
 import { Button } from "./components/ui/button";
 import ErrorBoundary from "./components/ErrorBoundary";
+import TopSafeArea from "./components/TopSafeArea";
 import { AlertTriangle, X } from "lucide-react";
 
 const Workspace = lazy(() => import("./components/Workspace"));
@@ -39,42 +40,46 @@ export default function App() {
 
   return (
     <ErrorBoundary region="app">
-      <div className="wc-ios-tint-edge wc-ios-tint-edge-top" aria-hidden="true" />
       <div className="wc-ios-tint-edge wc-ios-tint-edge-bottom" aria-hidden="true" />
 
       {/* Connection banner — shown above workspace when API is unreachable */}
       {showBanner && (
-        <div
-          data-testid="connection-banner"
-          className="wc-stable-theme flex items-center gap-2 bg-wc-error-surface border-b border-wc-error py-2 ps-[max(1rem,var(--wc-safe-left,0px))] pe-[max(1rem,var(--wc-safe-right,0px))] text-sm text-wc-error-text"
+        <TopSafeArea
+          testId="connection-top-edge"
+          fillClassName="wc-stable-theme bg-wc-error-surface"
         >
-          <AlertTriangle className="h-4 w-4 shrink-0" />
-          <span className="flex-1">
-            {t(strings.app.connectionBanner.message)}
-          </span>
-          <Button
-            data-testid="health-retry-button"
-            variant="outline"
-            size="sm"
-            className="shrink-0 text-xs h-7"
-            onClick={() => {
-              setDismissed(false);
-              queryClient.invalidateQueries({ queryKey: ["health"] });
-            }}
-            disabled={isFetching}
+          <div
+            data-testid="connection-banner"
+            className="wc-stable-theme flex items-center gap-2 bg-wc-error-surface border-b border-wc-error py-2 ps-[max(1rem,var(--wc-safe-left,0px))] pe-[max(1rem,var(--wc-safe-right,0px))] text-sm text-wc-error-text"
           >
-            {isFetching ? t(strings.app.connectionBanner.retrying) : t(strings.app.connectionBanner.retry)}
-          </Button>
-          <button
-            data-testid="connection-banner-dismiss"
-            onClick={() => setDismissed(true)}
-            className="shrink-0 p-0.5 hover:text-red-100"
-            aria-label={t(strings.app.connectionBanner.dismissAriaLabel)}
-            type="button"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span className="flex-1">
+              {t(strings.app.connectionBanner.message)}
+            </span>
+            <Button
+              data-testid="health-retry-button"
+              variant="outline"
+              size="sm"
+              className="shrink-0 text-xs h-7"
+              onClick={() => {
+                setDismissed(false);
+                queryClient.invalidateQueries({ queryKey: ["health"] });
+              }}
+              disabled={isFetching}
+            >
+              {isFetching ? t(strings.app.connectionBanner.retrying) : t(strings.app.connectionBanner.retry)}
+            </Button>
+            <button
+              data-testid="connection-banner-dismiss"
+              onClick={() => setDismissed(true)}
+              className="shrink-0 p-0.5 hover:text-red-100"
+              aria-label={t(strings.app.connectionBanner.dismissAriaLabel)}
+              type="button"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </TopSafeArea>
       )}
 
       {/* Always render workspace — even during initial load or error */}
@@ -82,7 +87,7 @@ export default function App() {
         {isLoading && !error ? (
           <PageFallback />
         ) : (
-          <Workspace />
+          <Workspace topSafeAreaReserved={showBanner} />
         )}
       </Suspense>
     </ErrorBoundary>
