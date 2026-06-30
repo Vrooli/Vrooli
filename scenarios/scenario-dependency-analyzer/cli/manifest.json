@@ -772,6 +772,82 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "search",
+          "description": "Search the scenario connection graph (what depends on what) via the federated leaf",
+          "positionals": [
+            {
+              "name": "query",
+              "description": "Natural-language connection query",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum hits to return",
+              "default": "10"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "InterfaceGraphService",
+            "method": "SearchInterfaceGraph"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "resources",
+      "description": "Local resource usage search across the fleet",
+      "commands": [
+        {
+          "name": "search",
+          "description": "Search local resource usage (which scenarios use a resource) via the federated leaf",
+          "positionals": [
+            {
+              "name": "query",
+              "description": "Natural-language resource-usage query",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum hits to return",
+              "default": "10"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResourceUsageService",
+            "method": "SearchResourceUsage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     }

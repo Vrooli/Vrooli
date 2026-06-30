@@ -26,12 +26,15 @@ type ConnectOptions struct {
 	BuildTimeout time.Duration
 }
 
-// RegisterConnectRoutes mounts the durable Connect interface graph contract.
-func RegisterConnectRoutes(router *gin.Engine, scenariosDir func() string, graphStore *store.Store, opts ConnectOptions) {
+// RegisterConnectRoutes mounts the durable Connect interface graph contract. The
+// optional searcher backs the SearchInterfaceGraph federated leaf (the
+// .scenarios corpus); a nil searcher degrades that RPC to an honest unavailable.
+func RegisterConnectRoutes(router *gin.Engine, scenariosDir func() string, graphStore *store.Store, opts ConnectOptions, searcher ConnectionSearcher) {
 	connectPath, connectHandler := graphconnect.NewInterfaceGraphServiceHandler(&connectHandler{
 		scenariosDir: scenariosDir,
 		store:        graphStore,
 		opts:         opts.withDefaults(),
+		searcher:     searcher,
 	})
 	router.Any(connectPath+"*path", gin.WrapH(connectHandler))
 }
@@ -40,6 +43,7 @@ type connectHandler struct {
 	scenariosDir func() string
 	store        *store.Store
 	opts         ConnectOptions
+	searcher     ConnectionSearcher
 }
 
 func (h *connectHandler) DescribeInterfaceGraph(ctx context.Context, req *connect.Request[graphv1.DescribeInterfaceGraphRequest]) (*connect.Response[graphv1.DescribeInterfaceGraphResponse], error) {
@@ -73,6 +77,15 @@ func (h *connectHandler) DescribeInterfaceGraph(ctx context.Context, req *connec
 }
 
 func (h *connectHandler) describeInterfaceGraph(ctx context.Context, req interfacegraph.BuildRequest) (interfacegraph.Graph, time.Time, error) {
+	return loadInterfaceGraph(ctx, h.store, h.opts, req)
+}
+
+// loadInterfaceGraph builds (or cache-serves) the interface graph for req. It is
+// shared by the DescribeInterfaceGraph handler and the .scenarios search corpus
+// provider so both reuse the same store-backed cache instead of double-building
+// the (expensive) fleet graph.
+func loadInterfaceGraph(ctx context.Context, graphStore *store.Store, opts ConnectOptions, req interfacegraph.BuildRequest) (interfacegraph.Graph, time.Time, error) {
+	h := &connectHandler{store: graphStore, opts: opts}
 	cacheReq := req
 	if req.MaxScenarioHops > 0 && len(req.Scenarios) > 0 {
 		cacheReq.Scenarios = nil

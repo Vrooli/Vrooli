@@ -9,11 +9,12 @@ import (
 	searchregister "github.com/vrooli/searchregister-go"
 )
 
-// TestSearchJSONFederationDescriptor locks the federation contract: the shipped
-// .vrooli/search.json parses, validates, and produces a single dependency-typed
-// provider descriptor pointing at the SearchApprovedDependencies RPC. This is the
-// boundary search-hub routes on, so a drift here would silently break discovery.
-func TestSearchJSONFederationDescriptor(t *testing.T) {
+// TestSearchJSONFederationDescriptors locks the federation contract: the shipped
+// .vrooli/search.json parses, validates, and produces exactly the three SDA
+// provider descriptors — dependencies, scenarios, resources — each pointing at
+// its own Search RPC with a camelCase result_mapping. This is the boundary
+// search-hub routes on, so a drift here would silently break discovery.
+func TestSearchJSONFederationDescriptors(t *testing.T) {
 	path := filepath.Join("..", "..", "..", ".vrooli", "search.json")
 
 	file, err := pkg.LoadSearchFile(path)
@@ -28,34 +29,75 @@ func TestSearchJSONFederationDescriptor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build descriptors: %v", err)
 	}
-	if len(descs) != 1 {
-		t.Fatalf("descriptors = %d, want exactly one dependency provider", len(descs))
+	if len(descs) != 3 {
+		t.Fatalf("descriptors = %d, want exactly three SDA providers", len(descs))
 	}
-	d := descs[0]
-	if d.GetProviderId() != "scenario-dependency-analyzer.dependencies" {
-		t.Fatalf("provider_id = %q", d.GetProviderId())
+
+	byID := map[string]int{}
+	for i, d := range descs {
+		byID[d.GetProviderId()] = i
 	}
-	if d.GetType() != "dependency" {
-		t.Fatalf("type = %q, want dependency (kept out of the record,skill,doc recall preset)", d.GetType())
+	for _, want := range []string{
+		"scenario-dependency-analyzer.dependencies",
+		"scenario-dependency-analyzer.scenarios",
+		"scenario-dependency-analyzer.resources",
+	} {
+		if _, ok := byID[want]; !ok {
+			t.Fatalf("missing provider %q", want)
+		}
 	}
-	if got := d.GetBucket().String(); got != "BUCKET_REUSE" {
-		t.Fatalf("bucket = %q, want BUCKET_REUSE (dependency packages are build-with-it)", got)
+
+	type want struct {
+		typ        string
+		pathSuffix string
+		idField    string
+		scoreField string
+		descWords  []string
 	}
-	hj := d.GetEndpoint().GetHttpJson()
-	if hj == nil || !strings.HasSuffix(hj.GetPath(), "/SearchApprovedDependencies") {
-		t.Fatalf("endpoint path = %q, want the SearchApprovedDependencies RPC", hj.GetPath())
+	cases := map[string]want{
+		"scenario-dependency-analyzer.dependencies": {
+			typ: "dependency", pathSuffix: "/SearchApprovedDependencies",
+			idField: "packageName", scoreField: "relevanceScore",
+			descWords: []string{"dependency", "package"},
+		},
+		"scenario-dependency-analyzer.scenarios": {
+			typ: "scenarios", pathSuffix: "/SearchInterfaceGraph",
+			idField: "scenario", scoreField: "relevanceScore",
+			descWords: []string{"depend", "connection"},
+		},
+		"scenario-dependency-analyzer.resources": {
+			typ: "resources", pathSuffix: "/SearchResourceUsage",
+			idField: "resource", scoreField: "relevanceScore",
+			descWords: []string{"resource", "use"},
+		},
 	}
-	if desc := d.GetDescription(); !strings.Contains(strings.ToLower(desc), "dependency") || !strings.Contains(strings.ToLower(desc), "package") {
-		t.Fatalf("description should be classifier-sharp about dependencies/packages: %q", desc)
-	}
-	// The Connect RPC response is camelCase (protojson default), so the result
-	// mapping MUST use camelCase field names — snake_case silently yields empty
-	// titles + zero scores in the federated hit.
-	rm := d.GetResultMapping()
-	if rm.GetScoreField() != "relevanceScore" {
-		t.Fatalf("score_field = %q, want camelCase relevanceScore", rm.GetScoreField())
-	}
-	if rm.GetIdField() != "packageName" || rm.GetTitleField() != "packageName" {
-		t.Fatalf("id/title field must be camelCase packageName, got id=%q title=%q", rm.GetIdField(), rm.GetTitleField())
+
+	for id, w := range cases {
+		d := descs[byID[id]]
+		if d.GetType() != w.typ {
+			t.Errorf("%s: type = %q, want %q", id, d.GetType(), w.typ)
+		}
+		if got := d.GetBucket().String(); got != "BUCKET_REUSE" {
+			t.Errorf("%s: bucket = %q, want BUCKET_REUSE", id, got)
+		}
+		hj := d.GetEndpoint().GetHttpJson()
+		if hj == nil || !strings.HasSuffix(hj.GetPath(), w.pathSuffix) {
+			t.Errorf("%s: endpoint path = %q, want suffix %q", id, hj.GetPath(), w.pathSuffix)
+		}
+		// protojson responses are camelCase — a snake_case mapping silently yields
+		// empty titles + zero scores in the federated hit.
+		rm := d.GetResultMapping()
+		if rm.GetScoreField() != w.scoreField {
+			t.Errorf("%s: score_field = %q, want %q", id, rm.GetScoreField(), w.scoreField)
+		}
+		if rm.GetIdField() != w.idField || rm.GetTitleField() != w.idField {
+			t.Errorf("%s: id/title field must be camelCase %q, got id=%q title=%q", id, w.idField, rm.GetIdField(), rm.GetTitleField())
+		}
+		desc := strings.ToLower(d.GetDescription())
+		for _, word := range w.descWords {
+			if !strings.Contains(desc, word) {
+				t.Errorf("%s: description should mention %q (classifier-sharp): %q", id, word, d.GetDescription())
+			}
+		}
 	}
 }

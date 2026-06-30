@@ -3,33 +3,25 @@ package aisearch
 import (
 	"context"
 	"log"
+	"strings"
 	"time"
 
 	pkg "github.com/vrooli/ai-go/search"
 )
 
-// DefaultTuning is the v1 engine recipe for the governance corpus: dense,
-// nomic task prefixes on, rerank off. (T2 federation moves this into
-// .vrooli/search.json so it becomes a sweep-tunable lever.)
-func DefaultTuning() pkg.TuningConfig {
-	return pkg.TuningConfig{
-		Engine:          pkg.EngineDense,
-		EmbedModel:      pkg.DefaultEmbedModel,
-		EmbedTaskPrefix: true,
-		RerankEnabled:   false,
-	}.WithDefaults()
-}
-
-// Start builds the governance-records search service from env config, ensures
-// the Qdrant collection (best-effort — a down backend degrades to text search,
-// never fails boot), and launches the background reconcile loop bound to ctx.
-// It never returns an error: search is an enhancement, not a boot dependency.
-func Start(ctx context.Context, provider RecordProvider) *Service {
+// Start builds SDA's multi-corpus search service from env config + the wired
+// data sources, ensures every corpus's Qdrant collection (best-effort — a down
+// backend degrades to text search, never fails boot), and launches ONE
+// background reconcile loop that converges all corpora. It never returns an
+// error: search is an enhancement, not a boot dependency.
+//
+// The embedding policy is resolved ONCE and shared across corpora (they share a
+// single embedder/Reconciler); per-corpus Collection is set inside New.
+func Start(ctx context.Context, sources Sources) *Service {
 	cfg := pkg.LoadConfig(envPrefix)
 	deps := pkg.EngineDeps{
 		QdrantURL:     cfg.QdrantURL,
 		QdrantAPIKey:  cfg.QdrantAPIKey,
-		Collection:    DefaultCollection,
 		EmbedRole:     cfg.EmbedRole,
 		EmbedModel:    cfg.EmbedModel,
 		RerankerURL:   cfg.RerankerURL,
@@ -45,9 +37,11 @@ func Start(ctx context.Context, provider RecordProvider) *Service {
 		deps = resolved
 	}
 
-	svc := New(provider, DefaultTuning(), deps, cfg.ReconcileParallelism, cfg.MaxEmbedsPerTick)
+	specs := buildCorpusSpecs(sources)
+	applyTuningFromSearchJSON(specs, sources.SearchJSONPath)
+	svc := New(specs, deps, cfg.ReconcileParallelism, cfg.MaxEmbedsPerTick)
 
-	if err := svc.EnsureCollection(ctx); err != nil {
+	if err := svc.EnsureCollections(ctx); err != nil {
 		log.Printf("[scenario-dependency-analyzer/aisearch] qdrant collection ensure failed (degraded text search): %v", err)
 	}
 
@@ -57,4 +51,31 @@ func Start(ctx context.Context, provider RecordProvider) *Service {
 	}
 
 	return svc
+}
+
+// applyTuningFromSearchJSON overrides each corpus's hardcoded tuning with the
+// resolved tuning from its provider entry in search.json (the SSOT), in place. A
+// missing file or provider leaves the hardcoded default (logged), never failing
+// boot — search is an added capability. The embed recipe (model/task_prefix) is
+// NOT overridden divergently: if a provider declares a different embed recipe
+// than the first corpus, it is kept as-authored but the New() shared-embedder
+// invariant still uses the first corpus's embedder, so authors must keep the
+// recipe uniform (enforced by docs + the searchjson test).
+func applyTuningFromSearchJSON(specs []corpusSpec, path string) {
+	if strings.TrimSpace(path) == "" || len(specs) == 0 {
+		return
+	}
+	file, err := pkg.LoadSearchFile(path)
+	if err != nil {
+		log.Printf("[scenario-dependency-analyzer/aisearch] load search.json tuning (%s): %v — using hardcoded defaults", path, err)
+		return
+	}
+	for i := range specs {
+		provider, ok := file.Provider(ProviderID(specs[i].id))
+		if !ok {
+			log.Printf("[scenario-dependency-analyzer/aisearch] provider %q not in search.json — using hardcoded default tuning", ProviderID(specs[i].id))
+			continue
+		}
+		specs[i].tuning = provider.ResolvedTuning()
+	}
 }

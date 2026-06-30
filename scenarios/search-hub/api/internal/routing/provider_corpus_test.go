@@ -107,8 +107,6 @@ func TestProviderCorpusLiveVsGap(t *testing.T) {
 		"contract-registry.contracts":            true,
 		"git-control-tower.git-provenance":       true,
 		"product-manager-agent.requirements":     true,
-		"scenario-dependency-analyzer.resources": true,
-		"scenario-dependency-analyzer.scenarios": true,
 		"vrooli-onboarding.config":               true,
 	}
 	for id, d := range loadProviderCorpus(t) {

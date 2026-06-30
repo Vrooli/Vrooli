@@ -45,6 +45,9 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 	if len(args) > 0 && strings.EqualFold(strings.TrimSpace(args[0]), "sweeper") {
 		return runSweeper(core, args[1:])
 	}
+	if len(args) > 0 && strings.EqualFold(strings.TrimSpace(args[0]), "search") {
+		return runGraphSearch(core, args[1:])
+	}
 
 	fs := support.NewFlagSet("graph")
 	var graphType string
@@ -193,6 +196,54 @@ func runActual(core *cliapp.ScenarioApp, args []string) error {
 			fmt.Sprintf("%s graph actual %s --json", support.AppName, strings.TrimSpace(scenario)),
 			fmt.Sprintf("%s drift %s --json", support.AppName, strings.TrimSpace(scenario)),
 		},
+	}
+	return support.PrintList(false, report, nil)
+}
+
+// runGraphSearch queries the .scenarios federated leaf (SearchInterfaceGraph):
+// "what does X depend on" / "what depends on X" connection questions.
+func runGraphSearch(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("graph search")
+	var limit int
+	var jsonOutput bool
+	fs.IntVar(&limit, "limit", 10, "Maximum hits to return")
+	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	query := strings.TrimSpace(strings.Join(fs.Args(), " "))
+	if query == "" {
+		return fmt.Errorf("usage: %s graph search <query> [--limit n] [--json]", support.AppName)
+	}
+
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 45*time.Second)
+	client := graphconnect.NewInterfaceGraphServiceClient(httpClient, baseURL)
+	resp, err := client.SearchInterfaceGraph(context.Background(), connect.NewRequest(&graphv1.SearchInterfaceGraphRequest{
+		Query: query,
+		Limit: int32(limit),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("search interface graph", err, nil)
+	}
+	if jsonOutput {
+		body, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(resp.Msg)
+		if err != nil {
+			return fmt.Errorf("render search JSON: %w", err)
+		}
+		fmt.Fprintln(os.Stdout, string(body))
+		return nil
+	}
+
+	hits := resp.Msg.GetResults()
+	results := make([]string, 0, len(hits))
+	for _, h := range hits {
+		results = append(results, fmt.Sprintf("%s (%.3f) — %s", h.GetScenario(), h.GetRelevanceScore(), h.GetSummary()))
+	}
+	report := cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Query: %s", query), fmt.Sprintf("Hits: %d", len(hits))},
+		ResultsHeading: "Connection Hits",
+		Results:        results,
+		RetrievalHints: []string{fmt.Sprintf("%s graph search %q --json", support.AppName, query)},
 	}
 	return support.PrintList(false, report, nil)
 }

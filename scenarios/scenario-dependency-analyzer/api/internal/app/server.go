@@ -29,6 +29,8 @@ import (
 	graphapi "scenario-dependency-analyzer/internal/graph"
 	optimizationapi "scenario-dependency-analyzer/internal/optimization"
 	proposalapi "scenario-dependency-analyzer/internal/proposal"
+	resourceusageapi "scenario-dependency-analyzer/internal/resourceusage"
+	searchcontrolapi "scenario-dependency-analyzer/internal/searchcontrol"
 )
 
 // Run boots the HTTP API using the provided configuration and database connection.
@@ -54,10 +56,41 @@ func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 	h := newHandler(rt)
 	graphIngest := newGraphIngestService(rt)
 	registerRoutes(router, h, graphIngest)
-	graphapi.RegisterConnectRoutes(router, h.scenariosDir, rt.Store(), graphapi.ConnectOptions{
+
+	// AI semantic search over SDA's corpora. ONE multi-corpus service backs every
+	// federated leaf: the dependency-governance corpus (RankIDs ranker), the
+	// scenario-connection corpus (graph SearchInterfaceGraph), and the
+	// resource-usage corpus (ResourceUsageService). Built before the leaf handlers
+	// so each can query it; a down Qdrant/Ollama degrades to keyword text search.
+	graphOpts := graphapi.ConnectOptions{
 		CacheTTL:     cfg.InterfaceGraphCacheTTL,
 		BuildTimeout: cfg.InterfaceGraphBuildTimeout,
+	}
+	searchJSONPath := filepath.Join(h.scenariosDir(), "scenario-dependency-analyzer", ".vrooli", "search.json")
+	searchRegistry := dependencygovernanceapi.NewRegistry(filepath.Dir(h.scenariosDir()))
+	connectionsProvider := graphapi.NewConnectionsProvider(h.scenariosDir, rt.Store(), graphOpts)
+	resourceProvider := resourceusageapi.NewUsageProvider(h.scenariosDir)
+	searchService := aisearch.Start(context.Background(), aisearch.Sources{
+		Dependencies:   searchRegistry,
+		Scenarios:      connectionsProvider,
+		Resources:      resourceProvider,
+		SearchJSONPath: searchJSONPath,
 	})
+
+	// The control token gates the shared, token-gated reindex/config-write plane.
+	// search-hub mints it at registration and is its only holder, so the token
+	// alone gates the mutating verbs for every SDA leaf (provider_id selects).
+	controlTokens := searchcontrolapi.NewTokenStore()
+	searchcontrolapi.RegisterConnectRoutes(router, searchcontrolapi.Deps{
+		Logger:       log.New(os.Stderr, "[scenario-dependency-analyzer/searchcontrol] ", log.LstdFlags),
+		Reindexer:    searchcontrolapi.ServiceAdapter{Service: searchService},
+		ConfigWriter: searchcontrolapi.FileConfigWriter{Path: searchJSONPath},
+		CorpusWriter: searchcontrolapi.FileCorpusWriter{Path: searchJSONPath},
+		Gate:         &searchcontrolapi.Gate{Tokens: controlTokens},
+	})
+
+	graphapi.RegisterConnectRoutes(router, h.scenariosDir, rt.Store(), graphOpts, searchService)
+	resourceusageapi.RegisterConnectRoutes(router, searchService)
 	if graphIngest != nil {
 		graphIngest.StartSweeper(context.Background())
 	}
@@ -79,23 +112,22 @@ func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 	}
 	dependencyhealthapi.RegisterConnectRoutes(router, h.scenariosDir, dependencyhealthapi.Options{MaturitySpec: spec, Environment: environment})
 
-	// AI semantic search over the governance records. The provider registry reads
-	// the approved-dependencies corpus; the search service indexes it into Qdrant
-	// (degrading to keyword text search when the backend is down) and is injected
-	// as the SearchApprovedDependencies ranker.
-	searchRegistry := dependencygovernanceapi.NewRegistry(filepath.Dir(h.scenariosDir()))
-	searchService := aisearch.Start(context.Background(), searchRegistry)
+	// The dependency-governance corpus is injected as the SearchApprovedDependencies
+	// ranker (searchService is the same multi-corpus service built above).
 	dependencygovernanceapi.RegisterConnectRoutes(router, h.scenariosDir,
 		dependencygovernanceapi.WithSemanticRanker(searchService))
 
-	// Federate the dependency-governance search into search-hub so agents reach it
-	// via `search-hub query "<purpose>" --type dependency`. Best-effort: the hub
-	// being down is logged, never fatal (upsert re-registers on next boot).
-	searchJSONPath := filepath.Join(h.scenariosDir(), "scenario-dependency-analyzer", ".vrooli", "search.json")
+	// Federate every SDA leaf into search-hub from the same .vrooli/search.json
+	// SSOT (dependencies, scenarios, resources). Best-effort: the hub being down is
+	// logged, never fatal (upsert re-registers on next boot). The control-token
+	// callbacks cache the secret search-hub mints so the searchcontrol plane can
+	// authorize the sweep's reindex/config-write verbs.
 	go searchregister.Register(context.Background(), searchregister.Config{
 		ScenarioID:     "scenario-dependency-analyzer",
 		SearchFilePath: searchJSONPath,
 		Logger:         log.New(os.Stderr, "[scenario-dependency-analyzer/searchregister] ", log.LstdFlags),
+		OnControlToken: func(providerID string, token string) { controlTokens.Set(providerID, token) },
+		ControlToken:   func(providerID string) string { return controlTokens.Get(providerID) },
 	})
 
 	log.Printf("Starting Scenario Dependency Analyzer API on port %s", cfg.Port)

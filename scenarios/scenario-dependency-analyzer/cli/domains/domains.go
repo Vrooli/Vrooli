@@ -15,6 +15,7 @@ import (
 	"scenario-dependency-analyzer/cli/domains/impact"
 	"scenario-dependency-analyzer/cli/domains/optimize"
 	"scenario-dependency-analyzer/cli/domains/proposals"
+	"scenario-dependency-analyzer/cli/domains/resources"
 	"scenario-dependency-analyzer/cli/domains/scan"
 	"scenario-dependency-analyzer/cli/domains/scenarios"
 
@@ -38,6 +39,7 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 		optimize.Register(core),
 		dependencies.Register(core),
 		deployment.Register(core),
+		resources.Register(core),
 	}
 }
 

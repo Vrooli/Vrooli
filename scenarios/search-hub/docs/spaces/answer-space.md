@@ -43,7 +43,7 @@ column doubles as the gap registry.
 | 2 | Domains · Inventory + Anatomy — "What domains does X have and what does each own?" | `architecture-cartographer.domain-map` | NOW | DERIVED / VALIDATED | **First-slice provider, live.** Semantic search over the derived domain map (`ExtractDomains` responsibility/purpose/glossary) — term-agnostic: "how does authoring work in plan-manager" → `plan-manager/authoring`. |
 | 3 | Doc-set · Conformance — "Do X's docs match its code? Where's the drift?" | `architecture-cartographer` (drift detectors) | IN-REACH | VALIDATED / CONTRADICTED | Cartographer's core job; expose drift findings as attested answers. |
 | 4 | Requirements/maturity · State — "What's X's maturity rung + requirements status?" | `completeness-scoring` (`GetScore`) | IN-REACH | DERIVED | Read `GetScore`, wrap in attestation. |
-| 5 | Dependencies · Connection — "What resources + scenarios does X depend on?" | `scenario-dependency-analyzer` (`.scenarios` / `.resources`) | IN-REACH (gap stubs) | DERIVED | Interface graph + `service.json`. |
+| 5 | Dependencies · Connection — "What resources + scenarios does X depend on?" | `scenario-dependency-analyzer` (`.scenarios` / `.resources`) | NOW (active) | DERIVED | Both leaves live + federated. `.scenarios` from the interface graph (depends-on/used-by); `.resources` from a fleet `service.json` scan. |
 | 6 | Test suite · Verification / State — "How is X tested; which phases are red and why?" | `test-genie` (`health` / `fleet status`) | IN-REACH | DERIVED | Read existing RPCs, attest. |
 
 ### G2 — Within-scenario
@@ -84,9 +84,9 @@ column doubles as the gap registry.
 
 | # | Question (Entity · Archetype) | Owner (provider) | Status | Basis | Notes / approach |
 |---|---|---|---|---|---|
-| 31 | Scenario graph · Connection — "What does X depend on; where is X used (reverse)?" | `scenario-dependency-analyzer.scenarios` (gap stub) | IN-REACH | DERIVED | Interface graph; reverse/ownership query thin. |
+| 31 | Scenario graph · Connection — "What does X depend on; where is X used (reverse)?" | `scenario-dependency-analyzer.scenarios` | NOW (active) | DERIVED | Live federated leaf over the interface graph: per scenario, depends-on (forward edges) + used-by (reverse edges). `SearchInterfaceGraph`. |
 | 32 | ⭐ Dependency rationale · Provenance — "Why does this cross-scenario dependency exist?" | `scenario-dependency-analyzer` (governance rationale) | MISSING (query) | DECLARED_UNVERIFIED | Rationale stored in governance records, not queryable. |
-| 33 | Resource usage · Connection — "Which scenarios use resource Y?" | `scenario-dependency-analyzer.resources` (gap stub) | IN-REACH | DERIVED | |
+| 33 | Resource usage · Connection — "Which scenarios use resource Y?" | `scenario-dependency-analyzer.resources` | NOW (active) | DERIVED | Live federated leaf: a fleet `service.json` scan inverted to resource → consuming-scenarios. `SearchResourceUsage`. |
 | 34 | Capability map · Inventory — "Which scenario provides capability X / where should I build Y?" | `prompt-manager` (skills/actions) + ecosystem-fit | IN-REACH (partial) | DECLARED_UNVERIFIED | Capability map is fuzzy; partly judgment. |
 | 35 | Package deps · Connection — "What approved packages does the fleet use; security gaps?" | `scenario-dependency-analyzer.dependencies` | NOW (active) | DERIVED | Already live. |
 | 36 | Federation · Inventory / State — "Which providers are registered; what's federation health?" | `search-hub` (`providers list` / `Status`) | NOW | DERIVED | Already live; could attest. |

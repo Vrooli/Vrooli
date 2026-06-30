@@ -3,8 +3,25 @@
   "provider_group": "scenario-dependency-analyzer",
   "bucket": "BUCKET_REUSE",
   "type": "resources",
-  "description": "Local resources (the shared substrate: ollama, qdrant, postgres, redis, judge0, browserless, vault, …) searchable by what each offers — 'what resource exists that provides X?'. No semantic search exists yet; today this means browsing resources/.",
-  "intended_home": "scenario-dependency-analyzer",
-  "state": "PROVIDER_STATE_CAPABILITY_GAP",
-  "scope": "SCOPE_PROJECT"
+  "description": "Local resource usage — which scenarios use a given local resource (postgres, redis, qdrant, ollama, vault, minio, ...). Route here for 'which scenarios use postgres', 'what uses qdrant', 'who uses resource Y'. Do NOT route here for third-party package/dependency selection (that is the dependency leaf) or scenario-to-scenario connections (that is the scenarios leaf).",
+  "endpoint": {
+    "http_json": {
+      "scenario_id": "scenario-dependency-analyzer",
+      "path": "/vrooli.scenario_dependency_analyzer.v1.resource_usage.ResourceUsageService/SearchResourceUsage",
+      "method": "HTTP_METHOD_POST",
+      "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+      "headers": { "Content-Type": "application/json" }
+    }
+  },
+  "result_mapping": {
+    "results_path": "results",
+    "id_field": "resource",
+    "title_field": "resource",
+    "snippet_field": "summary",
+    "score_field": "relevanceScore",
+    "path_field": "resource",
+    "score_scale": "SCORE_SCALE_COSINE_0_1"
+  },
+  "scope": "SCOPE_PROJECT",
+  "state": "PROVIDER_STATE_ACTIVE"
 }
