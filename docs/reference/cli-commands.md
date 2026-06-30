@@ -153,6 +153,11 @@ vrooli package refresh <name>
 vrooli package audit
 ```
 
+`vrooli package audit --all --json` includes `audit.scan_stats`, which reports
+bounded docs-drift scan counts, skipped categories, bytes scanned, and whether a
+text-scan budget was exceeded. Runtime data and generated output skips are
+normal for live development trees.
+
 ## Repo Contract
 
 Inspect the current surface with:

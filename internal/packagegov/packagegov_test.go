@@ -1,8 +1,12 @@
 package packagegov
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
@@ -373,6 +377,111 @@ require github.com/example/alpha v0.0.0
 	}
 }
 
+func TestAuditSkipsRuntimeDataAndElectronOutputsBeforeOpen(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	writePackageManifestFixture(t, fixture.Root, "alpha", packageManifestFixture("alpha"))
+	testscenario.WriteScenarioService(t, fixture.Root, "demo", testscenario.ScenarioServiceManifest("demo"))
+	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "docs", "package-governance.md"), "# package governance\n")
+	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "demo", "README.md"), "# demo\n")
+	mustSparseFile(t, filepath.Join(fixture.Root, "scenarios", "demo", "data", "demo.db"), 8<<30)
+	mustSparseFile(t, filepath.Join(fixture.Root, "scenarios", "demo", "data", "demo.db-wal"), 1<<20)
+	mustSparseFile(t, filepath.Join(fixture.Root, "scenarios", "demo", "platforms", "electron", "dist-electron", "demo.AppImage"), 256<<20)
+
+	originalOpen := scanOpenFile
+	t.Cleanup(func() { scanOpenFile = originalOpen })
+	scanOpenFile = func(path string) (*os.File, error) {
+		slash := filepath.ToSlash(path)
+		if strings.Contains(slash, "/data/") || strings.Contains(slash, "/dist-electron/") {
+			t.Fatalf("skipped heavyweight path was opened for content scan: %s", slash)
+		}
+		return originalOpen(path)
+	}
+
+	report, err := Audit(fixture.Root, "")
+	if err != nil {
+		t.Fatalf("Audit: %v", err)
+	}
+	if report.ScanStats.FilesScanned == 0 {
+		t.Fatalf("expected some eligible files to be scanned, stats = %#v", report.ScanStats)
+	}
+	if got := report.ScanStats.SkippedByReason["runtime-data-dir"]; got == 0 {
+		t.Fatalf("expected runtime data dir skip, stats = %#v", report.ScanStats)
+	}
+	if got := report.ScanStats.SkippedByReason["output-dir"]; got == 0 {
+		t.Fatalf("expected output dir skip, stats = %#v", report.ScanStats)
+	}
+}
+
+func TestScanDocsDriftBudgetSkipsOversizedEligibleText(t *testing.T) {
+	root := t.TempDir()
+	testkitgo.WriteFile(t, filepath.Join(root, "docs", "small.md"), "workspace:*\n")
+	testkitgo.WriteFile(t, filepath.Join(root, "docs", "large.md"), strings.Repeat("a", 128))
+
+	issues, stats, err := scanDocsDriftWithPolicy(filepath.Join(root, "docs"), scanPolicy{MaxFileBytes: 64, MaxTotalBytes: 1024})
+	if err != nil {
+		t.Fatalf("scanDocsDriftWithPolicy: %v", err)
+	}
+	if !stats.BudgetExceeded {
+		t.Fatalf("expected file budget to be exceeded, stats = %#v", stats)
+	}
+	if got := stats.SkippedByReason["file-byte-budget"]; got != 1 {
+		t.Fatalf("file-byte-budget skips = %d, stats = %#v", got, stats)
+	}
+	if len(issues) != 1 || issues[0].Code != "workspace-star-guidance" {
+		t.Fatalf("issues = %#v", issues)
+	}
+}
+
+func BenchmarkAuditAllSyntheticHeavyFiles(b *testing.B) {
+	root := newBenchmarkRepoFixture(b)
+	for i := range 24 {
+		name := fmt.Sprintf("pkg-%02d", i)
+		writeBenchmarkPackageManifestFixture(b, root, name, packageManifestFixture(name, func(manifest *Manifest) {
+			manifest.Package.ModuleIdentifiers = []string{"@vrooli/" + name}
+		}))
+	}
+	for i := range 200 {
+		name := fmt.Sprintf("demo-%03d", i)
+		writeBenchmarkScenarioService(b, root, name)
+		dep := fmt.Sprintf("@vrooli/pkg-%02d", i%24)
+		writeBenchmarkScenarioUIPackageManifestFixture(b, root, name, map[string]string{dep: "file:../../../packages/" + strings.TrimPrefix(dep, "@vrooli/")}, nil)
+		writeBenchmarkFile(b, filepath.Join(root, "scenarios", name, "README.md"), "# "+name+"\n")
+	}
+	mustSparseFile(b, filepath.Join(root, "scenarios", "demo-000", "data", "demo.db"), 8<<30)
+	mustSparseFile(b, filepath.Join(root, "scenarios", "demo-001", "platforms", "electron", "dist-electron", "demo.AppImage"), 256<<20)
+
+	b.ResetTimer()
+	for range b.N {
+		if _, err := Audit(root, ""); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkValidateAllManyPackagesManyConsumers(b *testing.B) {
+	root := newBenchmarkRepoFixture(b)
+	for i := range 32 {
+		name := fmt.Sprintf("pkg-%02d", i)
+		writeBenchmarkPackageManifestFixture(b, root, name, packageManifestFixture(name, func(manifest *Manifest) {
+			manifest.Package.ModuleIdentifiers = []string{"@vrooli/" + name}
+		}))
+	}
+	for i := range 500 {
+		name := fmt.Sprintf("demo-%03d", i)
+		writeBenchmarkScenarioService(b, root, name)
+		dep := fmt.Sprintf("@vrooli/pkg-%02d", i%32)
+		writeBenchmarkScenarioUIPackageManifestFixture(b, root, name, map[string]string{dep: "file:../../../packages/" + strings.TrimPrefix(dep, "@vrooli/")}, nil)
+	}
+
+	b.ResetTimer()
+	for range b.N {
+		if _, err := Validate(root, ""); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func TestAuditFlagsWorkspaceAndGoWorkGuidanceDrift(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
@@ -443,4 +552,92 @@ func writeScenarioUIPackageManifestFixture(t *testing.T, root, scenarioName stri
 		"dependencies": dependencies,
 		"scripts":      scripts,
 	})
+}
+
+type testHelper interface {
+	Helper()
+	Fatalf(format string, args ...any)
+}
+
+func mustSparseFile(t testHelper, path string, size int64) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir sparse file parent: %v", err)
+	}
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatalf("create sparse file: %v", err)
+	}
+	if err := file.Truncate(size); err != nil {
+		_ = file.Close()
+		t.Fatalf("truncate sparse file: %v", err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatalf("close sparse file: %v", err)
+	}
+}
+
+func newBenchmarkRepoFixture(b *testing.B) string {
+	b.Helper()
+	root := b.TempDir()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		b.Fatal("runtime.Caller failed")
+	}
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(filename), "..", ".."))
+	contract, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		b.Fatalf("read live repo contract: %v", err)
+	}
+	writeBenchmarkFile(b, filepath.Join(root, ".vrooli", "repo-contract.json"), string(contract))
+	writeBenchmarkFile(b, filepath.Join(root, "go.mod"), "module benchmark\n")
+	for _, dir := range []string{"packages", "scenarios", "templates", "resources", "docs"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			b.Fatalf("mkdir benchmark dir: %v", err)
+		}
+	}
+	return root
+}
+
+func writeBenchmarkPackageManifestFixture(b *testing.B, root, name string, manifest Manifest) {
+	b.Helper()
+	writeBenchmarkJSON(b, filepath.Join(root, "packages", name, ".vrooli", "package.json"), manifest)
+}
+
+func writeBenchmarkScenarioService(b *testing.B, root, name string) {
+	b.Helper()
+	writeBenchmarkJSON(b, filepath.Join(root, "scenarios", name, ".vrooli", "service.json"), map[string]any{
+		"id":      name,
+		"name":    name,
+		"version": "1.0.0",
+	})
+}
+
+func writeBenchmarkScenarioUIPackageManifestFixture(b *testing.B, root, scenarioName string, dependencies, scripts map[string]string) {
+	b.Helper()
+	writeBenchmarkJSON(b, filepath.Join(root, "scenarios", scenarioName, "ui", "package.json"), map[string]any{
+		"name":         scenarioName + "-ui",
+		"private":      true,
+		"dependencies": dependencies,
+		"scripts":      scripts,
+	})
+}
+
+func writeBenchmarkJSON(b *testing.B, path string, value any) {
+	b.Helper()
+	data, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		b.Fatalf("marshal benchmark JSON: %v", err)
+	}
+	writeBenchmarkFile(b, path, string(data))
+}
+
+func writeBenchmarkFile(b *testing.B, path, content string) {
+	b.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		b.Fatalf("mkdir benchmark file parent: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		b.Fatalf("write benchmark file: %v", err)
+	}
 }

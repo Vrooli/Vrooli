@@ -318,4 +318,28 @@ message PackageAuditReport {
 
   // Audit-level issues (validation issues plus docs-drift); empty when clean.
   repeated PackageValidationIssue issues = 2;
+
+  // Bounded scanner accounting for docs-drift checks.
+  PackageAuditScanStats scan_stats = 3;
+}
+
+// PackageAuditScanStats mirrors packagegov.ScanStats.
+message PackageAuditScanStats {
+  // Eligible filesystem entries visited.
+  int64 files_visited = 1;
+
+  // Files opened and scanned as bounded text.
+  int64 files_scanned = 2;
+
+  // Files skipped by policy or budget.
+  int64 files_skipped = 3;
+
+  // Bytes read from scanned text files.
+  int64 bytes_scanned = 4;
+
+  // Skip counts keyed by machine-readable reason.
+  map<string, int64> skipped_by_reason = 5;
+
+  // True when a byte budget stopped scanning an otherwise eligible file.
+  bool budget_exceeded = 6;
 }

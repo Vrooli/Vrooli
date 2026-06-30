@@ -96,6 +96,11 @@ func RenderAudit(w io.Writer, format cliout.Format, resp AuditResponse) error {
 	if format == cliout.FormatJSON {
 		return writePackageJSON(w, PackageAuditResponse(resp))
 	}
+	_, _ = fmt.Fprintf(w, "scan: %d scanned, %d skipped, %d bytes", resp.Report.ScanStats.FilesScanned, resp.Report.ScanStats.FilesSkipped, resp.Report.ScanStats.BytesScanned)
+	if resp.Report.ScanStats.BudgetExceeded {
+		_, _ = fmt.Fprint(w, " (budget exceeded)")
+	}
+	_, _ = fmt.Fprintln(w)
 	if len(resp.Report.Issues) == 0 {
 		_, _ = fmt.Fprintln(w, "package governance audit passed")
 		return nil

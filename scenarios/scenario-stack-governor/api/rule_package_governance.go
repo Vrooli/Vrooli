@@ -14,14 +14,25 @@ import (
 
 const packageGovernanceRuleID = "PACKAGE_GOVERNANCE_SCENARIO_ADOPTION"
 
+var packageAuditTimeout = 2 * time.Minute
+
 type packageAuditCLIResponse struct {
 	Success bool `json:"success"`
 	Audit   struct {
 		Validation struct {
 			Issues []packageGovernanceIssue `json:"issues"`
 		} `json:"validation"`
-		Issues []packageGovernanceIssue `json:"issues"`
+		Issues    []packageGovernanceIssue `json:"issues"`
+		ScanStats packageAuditScanStats    `json:"scan_stats"`
 	} `json:"audit"`
+}
+
+type packageAuditScanStats struct {
+	FilesScanned    string            `json:"files_scanned"`
+	FilesSkipped    string            `json:"files_skipped"`
+	BytesScanned    string            `json:"bytes_scanned"`
+	SkippedByReason map[string]string `json:"skipped_by_reason"`
+	BudgetExceeded  bool              `json:"budget_exceeded"`
 }
 
 type packageGovernanceIssue struct {
@@ -53,6 +64,16 @@ func RunPackageGovernanceScenarioAdoption(ctx context.Context, repoRoot, scenari
 			},
 		})
 		return result
+	}
+	if report.Audit.ScanStats.BudgetExceeded {
+		result.Findings = append(result.Findings, Finding{
+			Level:   "warn",
+			Message: "package governance audit hit a text scan budget; review scan stats before treating the audit as complete",
+			Evidence: []Evidence{
+				{Type: "command", Ref: packageAuditCommandRef()},
+				{Type: "note", Detail: fmt.Sprintf("scan_stats: files_scanned=%s files_skipped=%s bytes_scanned=%s", report.Audit.ScanStats.FilesScanned, report.Audit.ScanStats.FilesSkipped, report.Audit.ScanStats.BytesScanned)},
+			},
+		})
 	}
 
 	filter := strings.TrimSpace(scenarioName)
@@ -145,7 +166,10 @@ func packageAuditCommandRef() string {
 }
 
 func runPackageAuditCLI(ctx context.Context, repoRoot string) (packageAuditCLIResponse, string, error) {
-	command := exec.CommandContext(ctx, packageGovernanceBinary(), "--json", "--no-stale-check", "package", "audit", "--all")
+	auditCtx, cancel := context.WithTimeout(ctx, packageAuditTimeout)
+	defer cancel()
+
+	command := exec.CommandContext(auditCtx, packageGovernanceBinary(), "--json", "--no-stale-check", "package", "audit", "--all")
 	command.Dir = repoRoot
 	command.Env = append(os.Environ(), "VROOLI_SOURCE_ROOT="+repoRoot)
 
@@ -155,6 +179,9 @@ func runPackageAuditCLI(ctx context.Context, repoRoot string) (packageAuditCLIRe
 	command.Stderr = &stderr
 
 	if err := command.Run(); err != nil {
+		if auditCtx.Err() != nil {
+			return packageAuditCLIResponse{}, stderr.String(), fmt.Errorf("package audit timed out after %s: %w", packageAuditTimeout, auditCtx.Err())
+		}
 		return packageAuditCLIResponse{}, stderr.String(), err
 	}
 

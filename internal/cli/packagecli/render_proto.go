@@ -117,6 +117,21 @@ func packageValidationReportProto(r packagegov.ValidationReport) *cliv1.PackageV
 	return out
 }
 
+func packageAuditScanStatsProto(stats packagegov.ScanStats) *cliv1.PackageAuditScanStats {
+	skipped := make(map[string]int64, len(stats.SkippedByReason))
+	for reason, count := range stats.SkippedByReason {
+		skipped[reason] = int64(count)
+	}
+	return &cliv1.PackageAuditScanStats{
+		FilesVisited:    int64(stats.FilesVisited),
+		FilesScanned:    int64(stats.FilesScanned),
+		FilesSkipped:    int64(stats.FilesSkipped),
+		BytesScanned:    stats.BytesScanned,
+		SkippedByReason: skipped,
+		BudgetExceeded:  stats.BudgetExceeded,
+	}
+}
+
 // PackageListResponse maps a ListResponse onto the wire contract
 // (`vrooli package list --json`).
 func PackageListResponse(resp ListResponse) *cliv1.PackageListResponse {
@@ -201,6 +216,7 @@ func PackageRefreshResponse(resp RefreshResponse) *cliv1.PackageRefreshResponse 
 func PackageAuditResponse(resp AuditResponse) *cliv1.PackageAuditResponse {
 	audit := &cliv1.PackageAuditReport{
 		Validation: packageValidationReportProto(resp.Report.Validation),
+		ScanStats:  packageAuditScanStatsProto(resp.Report.ScanStats),
 	}
 	for _, i := range resp.Report.Issues {
 		audit.Issues = append(audit.Issues, packageValidationIssueProto(i))

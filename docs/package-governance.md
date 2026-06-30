@@ -32,6 +32,23 @@ vrooli package refresh api-base all
 vrooli package audit --all
 ```
 
+`package audit` is bounded so it can run routinely on a live development tree.
+The docs-drift portion only scans allowlisted text/config/code extensions and
+reports scanner accounting in JSON:
+
+```bash
+vrooli package audit --all --json | jq '.audit.scan_stats'
+```
+
+Runtime and generated-output paths are expected skips, not degraded results.
+The audit intentionally ignores scenario `data/` directories, package-manager
+trees, build outputs, Electron `dist-electron/` artifacts, archives, binaries,
+SQLite databases, WAL/SHM files, generated proto outputs, lockfiles, and similar
+non-source artifacts before opening files for content scanning. Eligible text
+files are scanned under per-file and total byte budgets; if a budget is hit,
+`scan_stats.budget_exceeded` is set so automation can distinguish a clean bounded
+scan from an incomplete text scan.
+
 ## Workflow
 
 ### Adding a governed package

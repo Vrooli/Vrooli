@@ -27,11 +27,12 @@ func Validate(root string, filter string) (ValidationReport, error) {
 		}
 	}
 
+	inventory, err := buildDependencyInventory(root, items)
+	if err != nil {
+		return ValidationReport{}, err
+	}
 	for _, item := range items {
-		report, err := DiscoverDependents(root, item)
-		if err != nil {
-			return ValidationReport{}, err
-		}
+		report := inventory.reportFor(item)
 		issues = append(issues, report.Issues...)
 		for _, dep := range report.Dependents {
 			if item.Manifest.Package.Adoption.ScenarioAdoptable {

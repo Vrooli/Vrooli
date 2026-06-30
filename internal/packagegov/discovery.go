@@ -6,10 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
-
-	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 type packageJSON struct {
@@ -34,97 +31,11 @@ const (
 )
 
 func DiscoverDependents(root string, pkg Package) (DiscoveryReport, error) {
-	var report DiscoveryReport
-
-	contract, err := repocontract.LoadDefault(root)
+	inv, err := buildDependencyInventory(root, []Package{pkg})
 	if err != nil {
 		return DiscoveryReport{}, err
 	}
-	scenarioRoot, err := contract.TopLevelDir(root, "scenarios")
-	if err != nil {
-		return DiscoveryReport{}, err
-	}
-	templateRoot := repocontract.ScenarioTemplateRoot(root)
-	resourceRoot, err := contract.TopLevelDir(root, "resources")
-	if err != nil {
-		return DiscoveryReport{}, err
-	}
-
-	if err := walkPackageJSONs(scenarioRoot, func(path string) error {
-		deps, issues, err := scanPackageJSON(root, pkg, path, scopeScenario)
-		if err != nil {
-			return err
-		}
-		report.Dependents = append(report.Dependents, deps...)
-		report.Issues = append(report.Issues, issues...)
-		return nil
-	}); err != nil {
-		return DiscoveryReport{}, err
-	}
-	if err := walkPackageJSONs(templateRoot, func(path string) error {
-		deps, issues, err := scanPackageJSON(root, pkg, path, scopeTemplate)
-		if err != nil {
-			return err
-		}
-		report.Dependents = append(report.Dependents, deps...)
-		report.Issues = append(report.Issues, issues...)
-		return nil
-	}); err != nil {
-		return DiscoveryReport{}, err
-	}
-	if err := walkPackageJSONs(resourceRoot, func(path string) error {
-		deps, issues, err := scanPackageJSON(root, pkg, path, scopeResource)
-		if err != nil {
-			return err
-		}
-		report.Dependents = append(report.Dependents, deps...)
-		report.Issues = append(report.Issues, issues...)
-		return nil
-	}); err != nil {
-		return DiscoveryReport{}, err
-	}
-
-	if err := walkGoMods(scenarioRoot, func(path string) error {
-		deps, issues, err := scanGoMod(root, pkg, path, scopeScenario)
-		if err != nil {
-			return err
-		}
-		report.Dependents = append(report.Dependents, deps...)
-		report.Issues = append(report.Issues, issues...)
-		return nil
-	}); err != nil {
-		return DiscoveryReport{}, err
-	}
-	if err := walkGoMods(templateRoot, func(path string) error {
-		deps, issues, err := scanGoMod(root, pkg, path, scopeTemplate)
-		if err != nil {
-			return err
-		}
-		report.Dependents = append(report.Dependents, deps...)
-		report.Issues = append(report.Issues, issues...)
-		return nil
-	}); err != nil {
-		return DiscoveryReport{}, err
-	}
-	if err := walkGoMods(resourceRoot, func(path string) error {
-		deps, issues, err := scanGoMod(root, pkg, path, scopeResource)
-		if err != nil {
-			return err
-		}
-		report.Dependents = append(report.Dependents, deps...)
-		report.Issues = append(report.Issues, issues...)
-		return nil
-	}); err != nil {
-		return DiscoveryReport{}, err
-	}
-
-	sort.Slice(report.Dependents, func(i, j int) bool {
-		if report.Dependents[i].ConsumerName == report.Dependents[j].ConsumerName {
-			return report.Dependents[i].DependencyFile < report.Dependents[j].DependencyFile
-		}
-		return report.Dependents[i].ConsumerName < report.Dependents[j].ConsumerName
-	})
-	return report, nil
+	return inv.reportFor(pkg), nil
 }
 
 func walkPackageJSONs(root string, fn func(path string) error) error {
@@ -195,13 +106,9 @@ func walkGoMods(root string, fn func(path string) error) error {
 }
 
 func scanPackageJSON(root string, pkg Package, path string, scope consumerScope) ([]Dependent, []ValidationIssue, error) {
-	data, err := os.ReadFile(path)
+	manifest, err := readPackageJSON(path)
 	if err != nil {
-		return nil, nil, fmt.Errorf("read %s: %w", path, err)
-	}
-	var manifest packageJSON
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		return nil, nil, fmt.Errorf("decode %s: %w", path, err)
+		return nil, nil, err
 	}
 
 	var deps []Dependent
@@ -257,12 +164,10 @@ func scanPackageJSON(root string, pkg Package, path string, scope consumerScope)
 }
 
 func scanGoMod(root string, pkg Package, path string, scope consumerScope) ([]Dependent, []ValidationIssue, error) {
-	data, err := os.ReadFile(path)
+	mod, err := readGoMod(path)
 	if err != nil {
-		return nil, nil, fmt.Errorf("read %s: %w", path, err)
+		return nil, nil, err
 	}
-	content := string(data)
-	mod := parseGoMod(content)
 	var deps []Dependent
 	var issues []ValidationIssue
 	for _, id := range packageModuleIdentifiers(pkg) {
@@ -293,6 +198,26 @@ func scanGoMod(root string, pkg Package, path string, scope consumerScope) ([]De
 		})
 	}
 	return deps, issues, nil
+}
+
+func readPackageJSON(path string) (packageJSON, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return packageJSON{}, fmt.Errorf("read %s: %w", path, err)
+	}
+	var manifest packageJSON
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return packageJSON{}, fmt.Errorf("decode %s: %w", path, err)
+	}
+	return manifest, nil
+}
+
+func readGoMod(path string) (parsedGoMod, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return parsedGoMod{}, fmt.Errorf("read %s: %w", path, err)
+	}
+	return parseGoMod(string(data)), nil
 }
 
 func packageModuleIdentifiers(pkg Package) []string {

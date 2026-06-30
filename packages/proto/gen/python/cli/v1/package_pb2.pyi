@@ -237,9 +237,34 @@ class PackageAuditResponse(_message.Message):
     def __init__(self, success: _Optional[bool] = ..., audit: _Optional[_Union[PackageAuditReport, _Mapping]] = ...) -> None: ...
 
 class PackageAuditReport(_message.Message):
-    __slots__ = ("validation", "issues")
+    __slots__ = ("validation", "issues", "scan_stats")
     VALIDATION_FIELD_NUMBER: _ClassVar[int]
     ISSUES_FIELD_NUMBER: _ClassVar[int]
+    SCAN_STATS_FIELD_NUMBER: _ClassVar[int]
     validation: PackageValidationReport
     issues: _containers.RepeatedCompositeFieldContainer[PackageValidationIssue]
-    def __init__(self, validation: _Optional[_Union[PackageValidationReport, _Mapping]] = ..., issues: _Optional[_Iterable[_Union[PackageValidationIssue, _Mapping]]] = ...) -> None: ...
+    scan_stats: PackageAuditScanStats
+    def __init__(self, validation: _Optional[_Union[PackageValidationReport, _Mapping]] = ..., issues: _Optional[_Iterable[_Union[PackageValidationIssue, _Mapping]]] = ..., scan_stats: _Optional[_Union[PackageAuditScanStats, _Mapping]] = ...) -> None: ...
+
+class PackageAuditScanStats(_message.Message):
+    __slots__ = ("files_visited", "files_scanned", "files_skipped", "bytes_scanned", "skipped_by_reason", "budget_exceeded")
+    class SkippedByReasonEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: int
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
+    FILES_VISITED_FIELD_NUMBER: _ClassVar[int]
+    FILES_SCANNED_FIELD_NUMBER: _ClassVar[int]
+    FILES_SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    BYTES_SCANNED_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_BY_REASON_FIELD_NUMBER: _ClassVar[int]
+    BUDGET_EXCEEDED_FIELD_NUMBER: _ClassVar[int]
+    files_visited: int
+    files_scanned: int
+    files_skipped: int
+    bytes_scanned: int
+    skipped_by_reason: _containers.ScalarMap[str, int]
+    budget_exceeded: bool
+    def __init__(self, files_visited: _Optional[int] = ..., files_scanned: _Optional[int] = ..., files_skipped: _Optional[int] = ..., bytes_scanned: _Optional[int] = ..., skipped_by_reason: _Optional[_Mapping[str, int]] = ..., budget_exceeded: _Optional[bool] = ...) -> None: ...

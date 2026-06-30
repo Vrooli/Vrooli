@@ -1494,7 +1494,9 @@ type PackageAuditReport struct {
 	// The underlying validation report.
 	Validation *PackageValidationReport `protobuf:"bytes,1,opt,name=validation,proto3" json:"validation,omitempty"`
 	// Audit-level issues (validation issues plus docs-drift); empty when clean.
-	Issues        []*PackageValidationIssue `protobuf:"bytes,2,rep,name=issues,proto3" json:"issues,omitempty"`
+	Issues []*PackageValidationIssue `protobuf:"bytes,2,rep,name=issues,proto3" json:"issues,omitempty"`
+	// Bounded scanner accounting for docs-drift checks.
+	ScanStats     *PackageAuditScanStats `protobuf:"bytes,3,opt,name=scan_stats,json=scanStats,proto3" json:"scan_stats,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1541,6 +1543,104 @@ func (x *PackageAuditReport) GetIssues() []*PackageValidationIssue {
 		return x.Issues
 	}
 	return nil
+}
+
+func (x *PackageAuditReport) GetScanStats() *PackageAuditScanStats {
+	if x != nil {
+		return x.ScanStats
+	}
+	return nil
+}
+
+// PackageAuditScanStats mirrors packagegov.ScanStats.
+type PackageAuditScanStats struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Eligible filesystem entries visited.
+	FilesVisited int64 `protobuf:"varint,1,opt,name=files_visited,json=filesVisited,proto3" json:"files_visited,omitempty"`
+	// Files opened and scanned as bounded text.
+	FilesScanned int64 `protobuf:"varint,2,opt,name=files_scanned,json=filesScanned,proto3" json:"files_scanned,omitempty"`
+	// Files skipped by policy or budget.
+	FilesSkipped int64 `protobuf:"varint,3,opt,name=files_skipped,json=filesSkipped,proto3" json:"files_skipped,omitempty"`
+	// Bytes read from scanned text files.
+	BytesScanned int64 `protobuf:"varint,4,opt,name=bytes_scanned,json=bytesScanned,proto3" json:"bytes_scanned,omitempty"`
+	// Skip counts keyed by machine-readable reason.
+	SkippedByReason map[string]int64 `protobuf:"bytes,5,rep,name=skipped_by_reason,json=skippedByReason,proto3" json:"skipped_by_reason,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	// True when a byte budget stopped scanning an otherwise eligible file.
+	BudgetExceeded bool `protobuf:"varint,6,opt,name=budget_exceeded,json=budgetExceeded,proto3" json:"budget_exceeded,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *PackageAuditScanStats) Reset() {
+	*x = PackageAuditScanStats{}
+	mi := &file_cli_v1_package_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PackageAuditScanStats) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PackageAuditScanStats) ProtoMessage() {}
+
+func (x *PackageAuditScanStats) ProtoReflect() protoreflect.Message {
+	mi := &file_cli_v1_package_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PackageAuditScanStats.ProtoReflect.Descriptor instead.
+func (*PackageAuditScanStats) Descriptor() ([]byte, []int) {
+	return file_cli_v1_package_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *PackageAuditScanStats) GetFilesVisited() int64 {
+	if x != nil {
+		return x.FilesVisited
+	}
+	return 0
+}
+
+func (x *PackageAuditScanStats) GetFilesScanned() int64 {
+	if x != nil {
+		return x.FilesScanned
+	}
+	return 0
+}
+
+func (x *PackageAuditScanStats) GetFilesSkipped() int64 {
+	if x != nil {
+		return x.FilesSkipped
+	}
+	return 0
+}
+
+func (x *PackageAuditScanStats) GetBytesScanned() int64 {
+	if x != nil {
+		return x.BytesScanned
+	}
+	return 0
+}
+
+func (x *PackageAuditScanStats) GetSkippedByReason() map[string]int64 {
+	if x != nil {
+		return x.SkippedByReason
+	}
+	return nil
+}
+
+func (x *PackageAuditScanStats) GetBudgetExceeded() bool {
+	if x != nil {
+		return x.BudgetExceeded
+	}
+	return false
 }
 
 var File_cli_v1_package_proto protoreflect.FileDescriptor
@@ -1645,12 +1745,24 @@ const file_cli_v1_package_proto_rawDesc = "" +
 	"\x06status\x18\x05 \x01(\tR\x06status\"i\n" +
 	"\x14PackageAuditResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x127\n" +
-	"\x05audit\x18\x02 \x01(\v2!.vrooli.cli.v1.PackageAuditReportR\x05audit\"\x9b\x01\n" +
+	"\x05audit\x18\x02 \x01(\v2!.vrooli.cli.v1.PackageAuditReportR\x05audit\"\xe0\x01\n" +
 	"\x12PackageAuditReport\x12F\n" +
 	"\n" +
 	"validation\x18\x01 \x01(\v2&.vrooli.cli.v1.PackageValidationReportR\n" +
 	"validation\x12=\n" +
-	"\x06issues\x18\x02 \x03(\v2%.vrooli.cli.v1.PackageValidationIssueR\x06issuesB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3"
+	"\x06issues\x18\x02 \x03(\v2%.vrooli.cli.v1.PackageValidationIssueR\x06issues\x12C\n" +
+	"\n" +
+	"scan_stats\x18\x03 \x01(\v2$.vrooli.cli.v1.PackageAuditScanStatsR\tscanStats\"\xff\x02\n" +
+	"\x15PackageAuditScanStats\x12#\n" +
+	"\rfiles_visited\x18\x01 \x01(\x03R\ffilesVisited\x12#\n" +
+	"\rfiles_scanned\x18\x02 \x01(\x03R\ffilesScanned\x12#\n" +
+	"\rfiles_skipped\x18\x03 \x01(\x03R\ffilesSkipped\x12#\n" +
+	"\rbytes_scanned\x18\x04 \x01(\x03R\fbytesScanned\x12e\n" +
+	"\x11skipped_by_reason\x18\x05 \x03(\v29.vrooli.cli.v1.PackageAuditScanStats.SkippedByReasonEntryR\x0fskippedByReason\x12'\n" +
+	"\x0fbudget_exceeded\x18\x06 \x01(\bR\x0ebudgetExceeded\x1aB\n" +
+	"\x14SkippedByReasonEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01B=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3"
 
 var (
 	file_cli_v1_package_proto_rawDescOnce sync.Once
@@ -1664,7 +1776,7 @@ func file_cli_v1_package_proto_rawDescGZIP() []byte {
 	return file_cli_v1_package_proto_rawDescData
 }
 
-var file_cli_v1_package_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_cli_v1_package_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_cli_v1_package_proto_goTypes = []any{
 	(*PackageListResponse)(nil),       // 0: vrooli.cli.v1.PackageListResponse
 	(*PackageInfoResponse)(nil),       // 1: vrooli.cli.v1.PackageInfoResponse
@@ -1689,6 +1801,8 @@ var file_cli_v1_package_proto_goTypes = []any{
 	(*PackageRefreshItem)(nil),        // 20: vrooli.cli.v1.PackageRefreshItem
 	(*PackageAuditResponse)(nil),      // 21: vrooli.cli.v1.PackageAuditResponse
 	(*PackageAuditReport)(nil),        // 22: vrooli.cli.v1.PackageAuditReport
+	(*PackageAuditScanStats)(nil),     // 23: vrooli.cli.v1.PackageAuditScanStats
+	nil,                               // 24: vrooli.cli.v1.PackageAuditScanStats.SkippedByReasonEntry
 }
 var file_cli_v1_package_proto_depIdxs = []int32{
 	2,  // 0: vrooli.cli.v1.PackageListResponse.packages:type_name -> vrooli.cli.v1.PackageInfo
@@ -1713,11 +1827,13 @@ var file_cli_v1_package_proto_depIdxs = []int32{
 	22, // 19: vrooli.cli.v1.PackageAuditResponse.audit:type_name -> vrooli.cli.v1.PackageAuditReport
 	14, // 20: vrooli.cli.v1.PackageAuditReport.validation:type_name -> vrooli.cli.v1.PackageValidationReport
 	15, // 21: vrooli.cli.v1.PackageAuditReport.issues:type_name -> vrooli.cli.v1.PackageValidationIssue
-	22, // [22:22] is the sub-list for method output_type
-	22, // [22:22] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	23, // 22: vrooli.cli.v1.PackageAuditReport.scan_stats:type_name -> vrooli.cli.v1.PackageAuditScanStats
+	24, // 23: vrooli.cli.v1.PackageAuditScanStats.skipped_by_reason:type_name -> vrooli.cli.v1.PackageAuditScanStats.SkippedByReasonEntry
+	24, // [24:24] is the sub-list for method output_type
+	24, // [24:24] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_cli_v1_package_proto_init() }
@@ -1731,7 +1847,7 @@ func file_cli_v1_package_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cli_v1_package_proto_rawDesc), len(file_cli_v1_package_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   23,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

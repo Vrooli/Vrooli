@@ -219,6 +219,13 @@ func TestPackageAuditJSONContract(t *testing.T) {
 	resp := AuditResponse{Report: packagegov.AuditReport{
 		Validation: packagegov.ValidationReport{Packages: []packagegov.Package{samplePackage()}},
 		Issues:     []packagegov.ValidationIssue{{Severity: "warning", Code: "docs_drift", Message: "stale"}},
+		ScanStats: packagegov.ScanStats{
+			FilesVisited:    4,
+			FilesScanned:    2,
+			FilesSkipped:    2,
+			BytesScanned:    128,
+			SkippedByReason: map[string]int{"runtime-data-dir": 1, "output-dir": 1},
+		},
 	}}
 	var buf bytes.Buffer
 	if err := RenderAudit(&buf, cliout.FormatJSON, resp); err != nil {
@@ -238,5 +245,13 @@ func TestPackageAuditJSONContract(t *testing.T) {
 	}
 	if len(audit["issues"].([]any)) != 1 {
 		t.Errorf("audit issues: %v", audit["issues"])
+	}
+	stats := audit["scan_stats"].(map[string]any)
+	if stats["files_scanned"] != "2" || stats["bytes_scanned"] != "128" {
+		t.Errorf("scan_stats mismatch: %v", stats)
+	}
+	skipped := stats["skipped_by_reason"].(map[string]any)
+	if skipped["runtime-data-dir"] != "1" {
+		t.Errorf("skipped_by_reason mismatch: %v", skipped)
 	}
 }

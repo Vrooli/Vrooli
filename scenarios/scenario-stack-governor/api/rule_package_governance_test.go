@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPackageGovernanceRule_FiltersToScenarioPaths(t *testing.T) {
@@ -115,5 +116,68 @@ func TestPackageGovernanceRule_ReportsCommandFailure(t *testing.T) {
 	}
 	if result.Findings[0].Level != "error" {
 		t.Fatalf("finding level = %q", result.Findings[0].Level)
+	}
+}
+
+func TestPackageGovernanceRule_ReportsBudgetExceededMetadata(t *testing.T) {
+	root := setupRuleGoCliTestRepo(t)
+	script := filepath.Join(t.TempDir(), "fake-vrooli")
+	writeTestFile(t, script, `#!/usr/bin/env bash
+set -e
+cat <<'JSON'
+{
+  "success": true,
+  "audit": {
+    "validation": {"issues": []},
+    "issues": [],
+    "scan_stats": {
+      "files_scanned": "10",
+      "files_skipped": "2",
+      "bytes_scanned": "2048",
+      "skipped_by_reason": {"file-byte-budget": "1"},
+      "budget_exceeded": true
+    }
+  }
+}
+JSON
+`)
+	if err := os.Chmod(script, 0o755); err != nil {
+		t.Fatalf("chmod fake vrooli: %v", err)
+	}
+	t.Setenv("VROOLI_BIN", script)
+
+	result := RunPackageGovernanceScenarioAdoption(t.Context(), root, "alpha")
+	if result.Passed {
+		t.Fatalf("expected warning to fail rule, got pass: %+v", result)
+	}
+	if len(result.Findings) != 1 {
+		t.Fatalf("expected 1 finding, got %d: %+v", len(result.Findings), result.Findings)
+	}
+	if result.Findings[0].Level != "warn" || !strings.Contains(result.Findings[0].Message, "scan budget") {
+		t.Fatalf("unexpected budget finding: %+v", result.Findings[0])
+	}
+}
+
+func TestPackageGovernanceRule_TimesOutAuditCommand(t *testing.T) {
+	root := setupRuleGoCliTestRepo(t)
+	script := filepath.Join(t.TempDir(), "fake-vrooli")
+	writeTestFile(t, script, "#!/usr/bin/env bash\nsleep 5\n")
+	if err := os.Chmod(script, 0o755); err != nil {
+		t.Fatalf("chmod fake vrooli: %v", err)
+	}
+	t.Setenv("VROOLI_BIN", script)
+	originalTimeout := packageAuditTimeout
+	packageAuditTimeout = 10 * time.Millisecond
+	t.Cleanup(func() { packageAuditTimeout = originalTimeout })
+
+	result := RunPackageGovernanceScenarioAdoption(t.Context(), root, "alpha")
+	if result.Passed {
+		t.Fatal("expected failure when package audit times out")
+	}
+	if len(result.Findings) != 1 {
+		t.Fatalf("expected 1 finding, got %d", len(result.Findings))
+	}
+	if !strings.Contains(result.Findings[0].Message, "timed out") {
+		t.Fatalf("unexpected timeout message: %q", result.Findings[0].Message)
 	}
 }
