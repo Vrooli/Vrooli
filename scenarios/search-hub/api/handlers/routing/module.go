@@ -6,7 +6,7 @@
 // This package is the wiring edge: it composes the pure internal/routing.Router
 // with the concrete cross-scenario URL resolver (api-core/discovery), the timed
 // outbound HTTP client (internal/httpc), the local-Ollama classifier (Phase 5
-// automatic routing), and the local-Ollama reranker (Phase 6 unified ranking).
+// automatic routing), and the shared TEI-primary reranker chain (Phase 6 unified ranking).
 // internal/routing itself stays dependency-light (interfaces only) so it is
 // unit-testable without the network, a model, or the CLI.
 package routing
@@ -50,11 +50,11 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, recorder
 		Resolver:      newScenarioResolver(),
 		Doer:          httpc.NewDefault(),
 		Classifier:    internalrouting.NewOllamaClassifier(),
-		Reranker:      internalrouting.NewOllamaReranker(),
+		Reranker:      internalrouting.NewDefaultRerankerChain(),
 		Recorder:      recorder,
 		Logger:        logger,
 		QueryTimeout:  durationEnv(logger, "SEARCH_HUB_QUERY_TIMEOUT", 25*time.Second, time.Second, 29*time.Second),
-		RerankTimeout: durationEnv(logger, "SEARCH_HUB_RERANK_TIMEOUT", 5*time.Second, 100*time.Millisecond, 20*time.Second),
+		RerankTimeout: durationEnv(logger, "SEARCH_HUB_RERANK_TIMEOUT", 10*time.Second, 100*time.Millisecond, 20*time.Second),
 		RerankBreaker: internalrouting.RerankBreakerConfig{
 			FailureThreshold: intEnv(logger, "SEARCH_HUB_RERANK_BREAKER_FAILURES", 3, 1, 20),
 			Cooldown:         durationEnv(logger, "SEARCH_HUB_RERANK_BREAKER_COOLDOWN", 60*time.Second, time.Second, 10*time.Minute),

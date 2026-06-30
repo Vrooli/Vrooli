@@ -28,12 +28,16 @@ reaches providers at runtime — never owning their data.
   harness needs no external service). See the Intentional Deviations
   table in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 - **`ollama` — required (`try_start` + `degraded_behavior`).** Serves
-  the classifier (`qwen3:1.7b`) and reranker (`qwen3:4b`), both already
-  pulled. Declared required so the quality layers have a home, but with
-  explicit degradation: classifier down ⇒ fall back to explicit
-  `--type`/`--all`; reranker down ⇒ by-provider grouping + `degraded`
-  flag. (The `try_start` + `degraded_behavior` pairing is the
-  intentional-degradation shape the schema validator requires.)
+  the classifier, the LLM fallback reranker, and optional eval corpus
+  generation; Search Hub declares only `classify.routing` and
+  `rerank.llm_fallback`, both resolving to the resident 4B model. Explicit
+  degradation: classifier down ⇒ fall back to explicit `--type`/`--all`;
+  rerank fallback down ⇒ by-provider grouping after TEI also fails.
+- **`reranker` — optional (`try_start`).** Dedicated TEI cross-encoder
+  primary for unified federation rerank. It is preferred over Ollama because it
+  is the right primitive for short-list relevance scoring and avoids cold LLM
+  startup on the query hot path. If absent or unhealthy, the router falls back
+  to the Ollama LLM rerank leg, then honest grouping.
 - **Federated provider scenarios — soft (`startup_policy: ignore`).**
   `cli-health`, `ui-health`, `swarm-manager`, `knowledge-observatory`,
   `prompt-manager` are *runtime federation targets*, not boot
@@ -51,7 +55,8 @@ reaches providers at runtime — never owning their data.
 | Dependency | Type | Required? | Startup Policy | Used By | Failure / Degradation Behavior |
 |---|---|---|---|---|---|
 | SQLite (`SQLITE_PATH`) | embedded store | n/a (in-process) | n/a | registry, metrics | API unhealthy if the DB file is unwritable; no external service. |
-| `ollama` | shared resource | yes | `try_start` + `degraded_behavior` | routing (classifier `qwen3:1.7b`), rerank (`qwen3:4b`) | Classifier down ⇒ explicit `--type`/`--all`; reranker down ⇒ by-provider grouping + `degraded` flag. |
+| `ollama` | shared resource | yes | `try_start` + `degraded_behavior` | routing classifier, LLM rerank fallback, eval corpusgen | Classifier down ⇒ explicit `--type`/`--all`; LLM rerank fallback down ⇒ by-provider grouping when TEI also cannot answer. |
+| `reranker` | shared resource | no | `try_start` | routing rerank primary | Unavailable ⇒ Ollama LLM rerank fallback; all rerank legs unavailable ⇒ by-provider grouping + `degraded` flag. |
 | `cli-health` | scenario (provider) | no | `ignore` | providers / routing fan-out | Absent ⇒ provider skipped with warning. |
 | `ui-health` | scenario (provider) | no | `ignore` | providers / routing fan-out | Absent ⇒ provider skipped with warning. |
 | `swarm-manager` | scenario (provider) | no | `ignore` | providers / routing fan-out | Absent ⇒ provider skipped with warning. |
@@ -71,7 +76,8 @@ reaches providers at runtime — never owning their data.
 | Resource | Status | Reason | Revisit Trigger |
 |---|---|---|---|
 | SQLite (embedded) | in-process | Registry + metrics persistence (no external service). | If the registry outgrows single-writer SQLite. |
-| `ollama` | required (degradable) | Classifier + reranker. | Swap reranker model when a cross-encoder lands (KO plan). |
+| `ollama` | required (degradable) | Classifier + LLM rerank fallback + eval corpusgen. | If the fallback role changes or corpusgen gets a dedicated low-cost role. |
+| `reranker` | optional (degradable) | TEI cross-encoder primary for unified federation rerank. | If Search Hub no longer uses cross-provider rerank. |
 | qdrant | deliberately excluded | Thin-router invariant; router holds no vectors. | Never (would break the boundary). |
 
 ## Scenario Dependencies
@@ -91,6 +97,7 @@ reaches providers at runtime — never owning their data.
 | Dependency | Failure Signal | Expected Behavior | Tests |
 |---|---|---|---|
 | SQLite (`SQLITE_PATH`) | `PingContext` error (unwritable/corrupt DB file) | `/health` returns unhealthy dependency status. | health handler tests |
+| `reranker` | TEI `/health` or `/rerank` error/timeout | Fall back to Ollama LLM rerank within the router budget. | shared-reranker chain adapter tests |
 | `ollama` | classify/rerank call error or timeout | Degrade per policy above; surface in `status` (`classifier_available` / `reranker_available`). | routing/rerank degradation tests (Phase 5/6) |
 | Provider scenario | unreachable within per-provider timeout | Skip provider, surface warning, return partial results. | federation-correctness tests (Phase 4) |
 

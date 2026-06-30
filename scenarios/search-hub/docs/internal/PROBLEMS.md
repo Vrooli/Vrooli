@@ -332,7 +332,7 @@ corpus carries. Three pieces:
   the load-bearing marker the sweep already keys guard #2 on (`generatedCaseIDs`
   → always held out of the tuning fold). Case ids are a stable FNV hash of the
   normalized query, so re-running `generate` is idempotent. Default `Inverter` =
-  `OllamaInverter` (local gateway, `qwen3:1.7b`, override `SEARCH_HUB_CORPUSGEN_MODEL`);
+  `OllamaInverter` (local gateway, role `classify.routing`, override `SEARCH_HUB_CORPUSGEN_ROLE`);
   default `Deduper` = `JaccardDeduper` (see the deliberate limitation below).
 - **`EvalService.Generate` RPC + `evals generate <suite_id> [--count N] [--negatives] [--apply]`.**
   Preview by default (proposals + resulting-corpus adequacy, no mutation); `--apply`

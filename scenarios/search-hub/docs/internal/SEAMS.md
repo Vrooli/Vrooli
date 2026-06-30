@@ -350,13 +350,23 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `handlers/eval/generate_test.go::fakeGenerator` (canned `corpusgen.Result` / error). Proves preview-vs-apply (no persist on preview, append+upsert on apply), zero-proposal no-op, NotFound/Unregistered/Unimplemented translation, and adequacy surfacing. |
 | **Why it exists** | The handler must stay transport-only; the generator owns the (per-suite, per-descriptor) sampler wiring. The seam lets the handler's orchestration (resolve → generate → merge → adequacy → persist) be tested without an LLM or live index. |
 
+### routing.Reranker (unified federation ranking)
+
+| | |
+|---|---|
+| **Seam** | Cross-provider rerank over the fused provider shortlist. |
+| **Interface** | `internal/routing/reranker.go::Reranker` (`Rerank`, `Available`). |
+| **Production wiring** | `handlers/routing/module.go` wires `routing.NewDefaultRerankerChain()`, an adapter over `packages/ai-go/search` with TEI cross-encoder primary and Ollama LLM fallback. |
+| **Test fake** | `internal/routing/router_test.go::fakeReranker` drives router degradation, timeout, circuit-breaker, and half-open recovery. `internal/routing/reranker_chain_test.go::stubSharedReranker` drives adapter mapping and shared-chain preference/fallback. |
+| **Why it exists** | Search Hub owns how heterogeneous provider hits are fused into its proto `SearchHit` shape, but TEI/Ollama client logic belongs in the shared AI search package. The seam keeps query failure semantics local: rerank failures degrade to by-provider grouping instead of failing the query. |
+
 ### ollama.Generate / Available (the one gateway to the local LLM)
 
 | | |
 |---|---|
-| **Seam** | The single transport to the shared Ollama daemon. Not substituted directly (callers seam at their own `generateFn` field); listed here because it is the one place the `resource-ollama gateway` shell + envelope-unwrap + think-strip lives, reused by the classifier, reranker, and corpus inverter. |
+| **Seam** | The single transport to the shared Ollama daemon for Search Hub-local LLM callers. Not substituted directly (callers seam at their own `generateFn` field); listed here because it is the one place the `resource-ollama gateway` shell + envelope-unwrap + think-strip lives, reused by the classifier and corpus inverter. |
 | **Interface** | `internal/ollama`: `Generate(ctx, model, prompt, maxTokens)`, `Available(ctx)`, `UnwrapResponse`, `StripThink`, `ExtractJSONObject`. |
-| **Production wiring** | `routing.NewOllamaClassifier`/`NewOllamaReranker` and `corpusgen.NewOllamaInverter` default their `generate` field to `ollama.Generate`. |
+| **Production wiring** | `routing.NewOllamaClassifier` and `corpusgen.NewOllamaInverter` default their `generate` field to `ollama.Generate`. Production rerank uses the shared `ai-go/search` chain; the older local `OllamaReranker` remains covered by tests but is no longer the routing module's default. |
 | **Test fake** | Each caller injects a deterministic `generateFn`; `internal/ollama/gateway_test.go` covers the envelope/think/JSON helpers directly. |
 | **Why it exists** | Three LLM callers were each shelling the gateway + unwrapping its envelope. Extracting it removes the duplication (utils-unification) and gives one governed entry point to the throttled daemon. |
 

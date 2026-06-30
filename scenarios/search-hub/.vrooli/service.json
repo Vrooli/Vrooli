@@ -215,14 +215,21 @@
         "enabled": true,
         "required": true,
         "startup_policy": "try_start",
-        "purpose": "Classifier (free query -> ranked provider types) and reranker (fuse heterogeneous candidates into one comparable list). The router embeds nothing; embedding stays provider-side.",
-        "description": "Local LLMs for routing classification and result reranking.",
-        "degraded_behavior": "Reranker down -> by-provider grouping + degraded flag; classifier down -> explicit --type/--all still works. Both swappable behind interfaces.",
+        "purpose": "Classifier (free query -> ranked provider types), LLM fallback reranker, and corpus-generation inversion. The router embeds nothing; embedding stays provider-side.",
+        "description": "Local LLMs for routing classification, best-effort rerank fallback, and corpus generation.",
+        "degraded_behavior": "TEI reranker down -> Ollama LLM rerank fallback; all rerank legs down -> by-provider grouping + degraded flag; classifier down -> explicit --type/--all still works. Both swappable behind interfaces.",
         "model_roles": [
           "classify.routing",
-          "chat.default",
           "rerank.llm_fallback"
         ]
+      },
+      "reranker": {
+        "type": "reranker",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "TEI cross-encoder primary for federation rerank.",
+        "degraded_behavior": "Fall back to Ollama LLM rerank, then honest by-provider grouping."
       }
     },
     "scenarios": {

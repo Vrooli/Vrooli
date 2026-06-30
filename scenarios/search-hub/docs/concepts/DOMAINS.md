@@ -197,21 +197,18 @@ query ─▶ [routing: classifier picks provider types]  (or explicit --type / -
   prescribes ("a `Reranker` interface … in the `routing` domain"). The
   earlier `api/internal/rerank/` target path was a Phase-2 sketch,
   superseded.
-- Owns: the `Reranker` interface and its default implementation
-  (LLM-as-reranker, pointwise 0–10 relevance), plus the degradation path:
-  reranker unavailable/erroring ⇒ fall back to by-provider grouping +
-  `reranked=false` + a `degraded` flag. Swap in a true cross-encoder
-  (`bge-reranker-v2-m3`) behind the same interface when the KO cutover
-  plan lands one — the router contract does not change.
-- Model note: the default model is **`qwen3:1.7b`**, not the Phase-0
-  nominee `qwen3:4b`. qwen3:4b does not honor `/no_think` through the
-  resource-ollama gateway and reasons past the gateway's ~60s deadline
-  (every rerank would time out and degrade); qwen3:1.7b honors it, emits
-  the scores JSON directly, and reranks in ~6s. The order also breaks
-  rerank-score ties by the original per-provider score, so a hedging
-  small model (all-5/10) preserves the providers' retrieval signal rather
-  than collapsing to fan-out order. Override with
-  `SEARCH_HUB_RERANKER_MODEL`.
+- Owns: the `Reranker` interface and its default Search Hub adapter over
+  `packages/ai-go/search`: TEI cross-encoder first, Ollama
+  `rerank.llm_fallback` second, then by-provider grouping when neither leg can
+  complete within budget. Reranker unavailable/erroring ⇒
+  `reranked=false` + a `degraded` flag; query results still return.
+- Model note: the primary rerank leg is the dedicated TEI `reranker` resource
+  serving `bge-reranker-v2-m3` via `RERANKER_URL` / `RERANKER_MODEL`
+  resolution. The Ollama fallback is best-effort under the same router-owned
+  timeout budget, so cold model startup may degrade instead of blocking
+  discovery. The final order breaks rerank-score ties by the original
+  per-provider score, preserving provider retrieval signal when a fallback leg
+  is uninformative.
 - Does not own: candidate generation (providers) or fan-out (routing).
 - Storage: none (calls Ollama).
 - Requirements: MOD-P1-007 (unified cross-provider ranking).

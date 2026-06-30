@@ -53,12 +53,11 @@ const (
 	// the scenario CLI's default 30s HTTP timeout, so degraded responses can be
 	// returned instead of surfacing as transport timeouts.
 	defaultQueryTimeout = 25 * time.Second
-	// defaultRerankTimeout bounds the single reranker round-trip so a slow or
-	// thinky model degrades to honest grouping fast instead of hanging the whole
-	// query (the reranker sits on the hot path, unlike per-provider fan-out which
-	// is already bounded). The underlying gateway has its own ~60s cap; this is
-	// the tighter, router-owned bound.
-	defaultRerankTimeout = 5 * time.Second
+	// defaultRerankTimeout bounds the reranker chain so a slow fallback model
+	// degrades to honest grouping before the whole query times out. TEI usually
+	// completes quickly; the extra budget mainly gives the bounded Ollama
+	// fallback a chance when the primary leg is unavailable.
+	defaultRerankTimeout = 10 * time.Second
 	// defaultResponseCushion reserves a small tail of the query budget for
 	// response construction, telemetry stamping, and Connect header write-out.
 	defaultResponseCushion       = 500 * time.Millisecond
@@ -350,8 +349,14 @@ func (r *Router) maybeRerank(ctx context.Context, query string, groups []*routin
 		}
 	}
 	r.rerankBreaker.recordSuccess()
+	leg := "reranker"
+	if named, ok := r.deps.Reranker.(interface{ ActiveName(context.Context) string }); ok {
+		if active := strings.TrimSpace(named.ActiveName(ctx)); active != "" && active != "none" {
+			leg = active
+		}
+	}
 	return ranked, true, false, []string{
-		fmt.Sprintf("reranked %d candidate(s) into one unified cross-provider list", len(ranked)),
+		fmt.Sprintf("reranked %d candidate(s) into one unified cross-provider list via %s", len(ranked), leg),
 	}
 }
 

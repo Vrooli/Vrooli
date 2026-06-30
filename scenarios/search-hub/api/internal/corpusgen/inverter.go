@@ -19,7 +19,7 @@ type Inverter interface {
 	InvertNegative(ctx context.Context, it Item) (query string, err error)
 }
 
-const defaultInverterRole = "chat.default"
+const defaultInverterRole = "classify.routing"
 
 // inverterMaxTokens caps generation — one short query line needs little room.
 const inverterMaxTokens = 128
