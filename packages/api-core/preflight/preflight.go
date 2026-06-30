@@ -81,8 +81,9 @@ func Run(cfg Config) bool {
 	// This may rebuild the binary and re-exec, preserving all env vars
 	if !cfg.DisableStaleness {
 		staleCfg := staleness.CheckerConfig{
-			SkipRebuild: cfg.SkipRebuild,
-			Logger:      cfg.Logger,
+			SkipRebuild:      cfg.SkipRebuild,
+			Logger:           cfg.Logger,
+			LifecycleManaged: os.Getenv(LifecycleManagedEnvVar) == "true",
 		}
 
 		// Merge any custom staleness config
@@ -101,6 +102,12 @@ func Run(cfg Config) bool {
 			}
 			if cfg.StalenessConfig.LookPath != nil {
 				staleCfg.LookPath = cfg.StalenessConfig.LookPath
+			}
+			if cfg.StalenessConfig.LifecycleManaged {
+				staleCfg.LifecycleManaged = true
+			}
+			if cfg.StalenessConfig.ManifestPath != "" {
+				staleCfg.ManifestPath = cfg.StalenessConfig.ManifestPath
 			}
 		}
 

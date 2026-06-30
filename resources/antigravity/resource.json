@@ -1,0 +1,171 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "antigravity",
+  "display_name": "Antigravity CLI",
+  "description": "Google Antigravity coding CLI resource (binary `agy`): a thin Go entrypoint wiring lifecycle, an upstream update-check, and shared command-permission governance. Optional external-cli; sudo-free install; on-disk state backed up. NOT wired as an agent-manager runner (deferred follow-up).",
+  "cli": {
+    "enabled": true,
+    "command": "resource-antigravity",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-antigravity"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    }
+  },
+  "template": "external-cli",
+  "driver": "external-cli",
+  "binary": "agy",
+  "version_args": [
+    "--version"
+  ],
+  "portability_tier": "partial",
+  "category": "developer-tooling",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "health_checks": [
+    {
+      "type": "command",
+      "command": [
+        "agy",
+        "--version"
+      ],
+      "timeout_seconds": 15
+    }
+  ],
+  "environment_exports": {
+    "static": {
+      "ANTIGRAVITY_PATH": "agy"
+    }
+  },
+  "orchestration": {
+    "startup_order": 541,
+    "startup_timeout_seconds": 20,
+    "startup_time_estimate": "5-10s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "low"
+  },
+  "install": {
+    "platforms": {
+      "linux": [
+        "bash",
+        "-lc",
+        "source resources/antigravity/lib/install.sh && antigravity::install::execute"
+      ],
+      "macos": [
+        "bash",
+        "-lc",
+        "source resources/antigravity/lib/install.sh && antigravity::install::execute"
+      ]
+    }
+  },
+  "durable_data": {
+    "base": "$HOME/.gemini",
+    "entries": {
+      "settings": {
+        "path": "settings.json",
+        "kind": "file",
+        "regenerable": false,
+        "rationale": "Shared Gemini/Antigravity global settings (selected auth type, preview toggles) read by the agy CLI and the Antigravity 2.0 desktop app."
+      },
+      "oauth": {
+        "path": "oauth_creds.json",
+        "kind": "file",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Google OAuth credentials (access/refresh tokens) — live secrets; back up only deliberately. Restoring stale tokens can break auth; re-run `agy` sign-in instead."
+      },
+      "accounts": {
+        "path": "google_accounts.json",
+        "kind": "file",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Active/old Google account identifiers bound to the OAuth session — back up deliberately alongside the credentials."
+      },
+      "cli_settings": {
+        "path": "antigravity-cli/settings.json",
+        "kind": "file",
+        "regenerable": false,
+        "rationale": "Antigravity CLI configuration: model, toolPermission mode, trustedWorkspaces, and the native `permissions` allow/deny/ask grants. Hand-tuned operator state."
+      },
+      "cli_conversations": {
+        "path": "antigravity-cli/conversations",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "Antigravity CLI conversation transcripts (one SQLite .db per thread) — the primary CLI conversation record for later analysis."
+      },
+      "cli_memory": {
+        "path": "antigravity-cli/brain",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "Antigravity CLI cross-session memory and per-conversation transcripts/state (brain/<id>/) carried across sessions."
+      },
+      "cli_knowledge": {
+        "path": "antigravity-cli/knowledge",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "Antigravity CLI knowledge base (user knowledge items the agent retrieves across sessions)."
+      },
+      "desktop_state": {
+        "path": "antigravity",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "Antigravity 2.0 desktop app agent state under the shared home: conversation transcripts (conversations/*.pb) and memory (brain/). Excludes the sibling antigravity-browser-profile/ (regenerable Chromium cache)."
+      }
+    }
+  },
+  "capabilities": {
+    "supports_logs": false
+  },
+  "upstream_cli": {
+    "version_command": [
+      "agy",
+      "--version"
+    ],
+    "version_pinned": "1.0.13",
+    "docs_source": "https://antigravity.google/docs",
+    "docs_pinned_at": "2026-06-29",
+    "schema_version": 1
+  },
+  "template_version": "2"
+}

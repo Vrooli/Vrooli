@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/staleness"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 // testLogger returns a logger that appends formatted output to the provided string pointer.
@@ -143,6 +144,57 @@ func TestRun_StalenessNotStale_LifecycleSet(t *testing.T) {
 	}
 }
 
+func TestRun_LifecycleManagedManifestPreventsInProcessRebuild(t *testing.T) {
+	os.Setenv(LifecycleManagedEnvVar, "true")
+	defer os.Unsetenv(LifecycleManagedEnvVar)
+
+	repoRoot := t.TempDir()
+	apiDir := filepath.Join(repoRoot, "scenarios", "demo", "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "go.mod"), []byte("module demo/api\ngo 1.25\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	binaryPath := filepath.Join(apiDir, "demo-api")
+	if err := os.WriteFile(binaryPath, []byte("binary"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeLifecycleManifest(t, repoRoot, apiDir, binaryPath)
+
+	time.Sleep(10 * time.Millisecond)
+	if err := os.WriteFile(filepath.Join(apiDir, "main_test.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var buildCalled bool
+	result := Run(Config{
+		ScenarioName: "test-scenario",
+		StalenessConfig: &staleness.CheckerConfig{
+			BinaryPath: binaryPath,
+			APIDir:     apiDir,
+			CommandRunner: func(cmd *exec.Cmd) error {
+				buildCalled = true
+				return nil
+			},
+			Reexec: func(binary string, args []string, env []string) error {
+				t.Fatal("reexec must not be called for lifecycle-managed fresh artifact")
+				return nil
+			},
+		},
+	})
+
+	if result {
+		t.Fatal("lifecycle-managed fresh artifact must not rebuild/reexec")
+	}
+	if buildCalled {
+		t.Fatal("lifecycle-managed fresh artifact must not invoke go build")
+	}
+}
+
 func TestRun_SkipRebuild(t *testing.T) {
 	os.Setenv(LifecycleManagedEnvVar, "true")
 	defer os.Unsetenv(LifecycleManagedEnvVar)
@@ -271,6 +323,28 @@ func TestRun_CustomLogger(t *testing.T) {
 
 	if logged == "" {
 		t.Error("expected custom logger to receive output")
+	}
+}
+
+func writeLifecycleManifest(t *testing.T, repoRoot, apiDir, binaryPath string) {
+	t.Helper()
+	relAPI, err := filepath.Rel(repoRoot, apiDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec := cliutil.FreshnessSpec{
+		SourceRoot:   apiDir,
+		ContextRoot:  repoRoot,
+		Inputs:       []string{filepath.ToSlash(relAPI)},
+		SkipFiles:    []string{filepath.Base(binaryPath)},
+		SkipSuffixes: []string{"_test.go", cliutil.FreshnessManifestSuffix},
+	}
+	manifest, err := cliutil.ComputeFreshnessManifest(spec, "binaries", nil, time.Now().UnixNano())
+	if err != nil {
+		t.Fatalf("ComputeFreshnessManifest: %v", err)
+	}
+	if err := cliutil.WriteFreshnessManifest(cliutil.FreshnessManifestPath(binaryPath), manifest); err != nil {
+		t.Fatalf("WriteFreshnessManifest: %v", err)
 	}
 }
 

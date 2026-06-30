@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 // testLogger returns a logger that appends formatted output to the provided string pointer.
@@ -94,6 +96,176 @@ func TestChecker_NotStale(t *testing.T) {
 	}
 }
 
+func TestChecker_LifecycleManagedFreshManifestSkipsTimestampFalsePositive(t *testing.T) {
+	repoRoot := t.TempDir()
+	apiDir := filepath.Join(repoRoot, "scenarios", "demo", "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "go.mod"), []byte("module demo/api\ngo 1.25\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	binaryPath := filepath.Join(apiDir, "demo-api")
+	if err := os.WriteFile(binaryPath, []byte("binary"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeLifecycleManifest(t, repoRoot, apiDir, binaryPath)
+
+	// A newer test file would trip the legacy mtime preflight, but lifecycle
+	// binary freshness excludes _test.go because it cannot affect the runtime.
+	time.Sleep(10 * time.Millisecond)
+	if err := os.WriteFile(filepath.Join(apiDir, "main_test.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var buildCalled bool
+	var logged string
+	checker := NewChecker(CheckerConfig{
+		BinaryPath:       binaryPath,
+		APIDir:           apiDir,
+		LifecycleManaged: true,
+		Logger:           testLogger(&logged),
+		CommandRunner: func(cmd *exec.Cmd) error {
+			buildCalled = true
+			return nil
+		},
+		Reexec: func(binary string, args []string, env []string) error {
+			t.Fatal("reexec must not be called for lifecycle-managed fresh artifact")
+			return nil
+		},
+	})
+
+	if checker.CheckAndMaybeRebuild() {
+		t.Fatal("lifecycle-managed fresh artifact must not rebuild/reexec")
+	}
+	if buildCalled {
+		t.Fatal("lifecycle-managed fresh artifact must not invoke go build")
+	}
+	if strings.Contains(logged, "binary is stale") {
+		t.Fatalf("fresh lifecycle manifest should suppress legacy stale log, got: %s", logged)
+	}
+}
+
+func TestChecker_LifecycleManagedManifestPreservesExactInputs(t *testing.T) {
+	repoRoot := t.TempDir()
+	apiDir := filepath.Join(repoRoot, "scenarios", "demo", "api")
+	apiCoreDir := filepath.Join(repoRoot, "packages", "api-core")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(apiCoreDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "go.mod"), []byte("module demo/api\ngo 1.25\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(apiCoreDir, "go.mod"), []byte("module github.com/vrooli/api-core\ngo 1.25\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	binaryPath := filepath.Join(apiDir, "demo-api")
+	if err := os.WriteFile(binaryPath, []byte("binary"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeLifecycleManifestWithInputs(t, repoRoot, apiDir, binaryPath, []string{
+		"scenarios/demo/api",
+		"packages/api-core/go.mod",
+	})
+
+	// This file is beside a recorded single-file input. Reconstructing inputs
+	// from recorded file dirs would incorrectly widen packages/api-core/go.mod to
+	// packages/api-core/ and report this as "new input file".
+	time.Sleep(10 * time.Millisecond)
+	if err := os.WriteFile(filepath.Join(apiCoreDir, ".golangci.yml"), []byte("linters:\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var buildCalled bool
+	var logged string
+	checker := NewChecker(CheckerConfig{
+		BinaryPath:       binaryPath,
+		APIDir:           apiDir,
+		LifecycleManaged: true,
+		Logger:           testLogger(&logged),
+		CommandRunner: func(cmd *exec.Cmd) error {
+			buildCalled = true
+			return nil
+		},
+	})
+
+	if checker.CheckAndMaybeRebuild() {
+		t.Fatal("lifecycle-managed fresh artifact must not rebuild/reexec")
+	}
+	if buildCalled {
+		t.Fatal("lifecycle-managed fresh artifact must not invoke go build")
+	}
+	if logged != "" {
+		t.Fatalf("expected no lifecycle stale log, got: %s", logged)
+	}
+}
+
+func TestChecker_LifecycleManagedStaleManifestDefersRebuildToLifecycle(t *testing.T) {
+	repoRoot := t.TempDir()
+	apiDir := filepath.Join(repoRoot, "scenarios", "demo", "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sourcePath := filepath.Join(apiDir, "main.go")
+	if err := os.WriteFile(filepath.Join(apiDir, "go.mod"), []byte("module demo/api\ngo 1.25\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(sourcePath, []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	binaryPath := filepath.Join(apiDir, "demo-api")
+	if err := os.WriteFile(binaryPath, []byte("binary"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeLifecycleManifest(t, repoRoot, apiDir, binaryPath)
+
+	time.Sleep(10 * time.Millisecond)
+	if err := os.WriteFile(sourcePath, []byte("package main\nfunc main() { println(\"changed\") }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var buildCalled bool
+	var logged string
+	checker := NewChecker(CheckerConfig{
+		BinaryPath:       binaryPath,
+		APIDir:           apiDir,
+		LifecycleManaged: true,
+		Logger:           testLogger(&logged),
+		CommandRunner: func(cmd *exec.Cmd) error {
+			buildCalled = true
+			return nil
+		},
+		Reexec: func(binary string, args []string, env []string) error {
+			t.Fatal("reexec must not be called for lifecycle-managed stale artifact")
+			return nil
+		},
+	})
+
+	if checker.CheckAndMaybeRebuild() {
+		t.Fatal("lifecycle-managed stale artifact must not rebuild/reexec")
+	}
+	if buildCalled {
+		t.Fatal("lifecycle-managed stale artifact must defer rebuild to lifecycle")
+	}
+	if !strings.Contains(logged, "deferring rebuild to Vrooli lifecycle") {
+		t.Fatalf("expected lifecycle deferral log, got: %s", logged)
+	}
+	if !strings.Contains(logged, "scenarios/demo/api/main.go") {
+		t.Fatalf("expected manifest freshness reason, got: %s", logged)
+	}
+}
+
 func TestChecker_StaleSource(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -134,6 +306,33 @@ func TestChecker_StaleSource(t *testing.T) {
 	}
 	if !strings.Contains(logged, "source file modified") {
 		t.Errorf("expected 'source file modified' in log, got: %s", logged)
+	}
+}
+
+func writeLifecycleManifest(t *testing.T, repoRoot, apiDir, binaryPath string) {
+	t.Helper()
+	relAPI, err := filepath.Rel(repoRoot, apiDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeLifecycleManifestWithInputs(t, repoRoot, apiDir, binaryPath, []string{filepath.ToSlash(relAPI)})
+}
+
+func writeLifecycleManifestWithInputs(t *testing.T, repoRoot, apiDir, binaryPath string, inputs []string) {
+	t.Helper()
+	spec := cliutil.FreshnessSpec{
+		SourceRoot:   apiDir,
+		ContextRoot:  repoRoot,
+		Inputs:       inputs,
+		SkipFiles:    []string{filepath.Base(binaryPath)},
+		SkipSuffixes: []string{"_test.go", cliutil.FreshnessManifestSuffix},
+	}
+	manifest, err := cliutil.ComputeFreshnessManifest(spec, "binaries", nil, time.Now().UnixNano())
+	if err != nil {
+		t.Fatalf("ComputeFreshnessManifest: %v", err)
+	}
+	if err := cliutil.WriteFreshnessManifest(cliutil.FreshnessManifestPath(binaryPath), manifest); err != nil {
+		t.Fatalf("WriteFreshnessManifest: %v", err)
 	}
 }
 

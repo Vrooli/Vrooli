@@ -1,0 +1,846 @@
+{
+  "schema_version": "2026-06-30",
+  "roles": {
+    "chat.small": {
+      "model": "bytedance-seed/seed-2.0-mini",
+      "fallbacks": ["openai/gpt-oss-20b", "inception/mercury-2"],
+      "endpoint": "chat",
+      "required_capabilities": ["chat"],
+      "description": "Low-latency, low-cost cloud chat/generation role for cheap, low-risk text paths.",
+      "preference": 10,
+      "request_defaults": {
+        "temperature": 0.7,
+        "max_tokens": 2048
+      },
+      "provenance": {
+        "source_kind": "chatgpt_survey",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-30 OpenRouter list-price survey, chat.small default/fallbacks",
+        "observed_at": "2026-06-30",
+        "sample_count": 0
+      }
+    },
+    "chat.default": {
+      "model": "minimax/minimax-m3",
+      "fallbacks": ["qwen/qwen3.7-plus", "google/gemini-3.1-flash-lite-preview", "z-ai/glm-5.2"],
+      "endpoint": "chat",
+      "required_capabilities": ["chat"],
+      "description": "Default cloud chat/generation role: 1M-context value workhorse for synthesis and lightweight agent text.",
+      "preference": 20,
+      "request_defaults": {
+        "temperature": 0.7,
+        "max_tokens": 4096
+      },
+      "provenance": {
+        "source_kind": "chatgpt_survey",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-30 OpenRouter list-price survey, chat.default default/fallbacks",
+        "observed_at": "2026-06-30",
+        "sample_count": 0
+      }
+    },
+    "chat.quality": {
+      "model": "z-ai/glm-5.2",
+      "fallbacks": ["anthropic/claude-haiku-4.5", "google/gemini-3.5-flash", "openai/gpt-5.4"],
+      "endpoint": "chat",
+      "required_capabilities": ["chat"],
+      "description": "Quality-tier cloud chat role for higher-reliability reasoning and customer-facing prose.",
+      "preference": 30,
+      "request_defaults": {
+        "temperature": 0.7,
+        "max_tokens": 4096
+      },
+      "provenance": {
+        "source_kind": "chatgpt_survey",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-30 OpenRouter list-price survey, chat.quality default/fallbacks",
+        "observed_at": "2026-06-30",
+        "sample_count": 0
+      }
+    },
+    "summarize.default": {
+      "model": "minimax/minimax-m3",
+      "fallbacks": ["google/gemini-3.1-flash-lite-preview", "qwen/qwen3.7-plus"],
+      "endpoint": "chat",
+      "required_capabilities": ["chat", "long_context"],
+      "description": "Default summarization/distillation role; long-context model so large inputs fit in one pass.",
+      "preference": 40,
+      "request_defaults": {
+        "temperature": 0.3,
+        "max_tokens": 2048
+      },
+      "provenance": {
+        "source_kind": "chatgpt_survey",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-30 OpenRouter list-price survey, summarize.default default/fallbacks",
+        "observed_at": "2026-06-30",
+        "sample_count": 0
+      }
+    },
+    "classify.routing": {
+      "model": "inception/mercury-2",
+      "fallbacks": ["openai/gpt-oss-20b", "bytedance-seed/seed-2.0-mini", "google/gemini-3.1-flash-lite-preview"],
+      "endpoint": "chat",
+      "required_capabilities": ["chat"],
+      "description": "Fast, cheap routing/classification role for structured decisions.",
+      "preference": 50,
+      "request_defaults": {
+        "temperature": 0.0,
+        "max_tokens": 512
+      },
+      "provenance": {
+        "source_kind": "chatgpt_survey",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-30 OpenRouter list-price survey, classify.routing default/fallbacks",
+        "observed_at": "2026-06-30",
+        "sample_count": 0
+      }
+    },
+    "extract.structured": {
+      "model": "google/gemini-3.1-flash-lite-preview",
+      "fallbacks": ["inception/mercury-2", "minimax/minimax-m3", "qwen/qwen3.7-plus"],
+      "endpoint": "chat",
+      "required_capabilities": ["structured_output"],
+      "description": "Structured-extraction role; default biases to long-context multimodal coverage with structured_outputs support.",
+      "preference": 60,
+      "request_defaults": {
+        "temperature": 0.0,
+        "max_tokens": 4096,
+        "response_format": "json_object"
+      },
+      "provenance": {
+        "source_kind": "chatgpt_survey",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-30 OpenRouter list-price survey, extract.structured default/fallbacks",
+        "observed_at": "2026-06-30",
+        "sample_count": 0
+      }
+    },
+    "rerank.llm_fallback": {
+      "model": "inception/mercury-2",
+      "fallbacks": ["bytedance-seed/seed-2.0-mini", "openai/gpt-oss-20b"],
+      "endpoint": "chat",
+      "required_capabilities": ["chat"],
+      "description": "LLM rerank fallback role used when a dedicated reranker resource is unavailable.",
+      "preference": 70,
+      "request_defaults": {
+        "temperature": 0.0,
+        "max_tokens": 512
+      },
+      "provenance": {
+        "source_kind": "chatgpt_survey",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-30 OpenRouter list-price survey, rerank.llm_fallback default/fallbacks",
+        "observed_at": "2026-06-30",
+        "sample_count": 0
+      }
+    },
+    "code.default": {
+      "model": "z-ai/glm-5.2",
+      "fallbacks": ["moonshotai/kimi-k2.7-code", "anthropic/claude-haiku-4.5", "openai/gpt-5.4-mini"],
+      "endpoint": "chat",
+      "required_capabilities": ["chat", "code"],
+      "description": "Default cloud code-generation role; price/performance winner for coding and agentic edits.",
+      "preference": 80,
+      "request_defaults": {
+        "temperature": 0.1,
+        "max_tokens": 8192
+      },
+      "provenance": {
+        "source_kind": "chatgpt_survey",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-30 OpenRouter list-price survey, code.default default/fallbacks",
+        "observed_at": "2026-06-30",
+        "sample_count": 0
+      }
+    },
+    "agent.tools": {
+      "model": "z-ai/glm-5.2",
+      "fallbacks": ["minimax/minimax-m3", "anthropic/claude-haiku-4.5", "google/gemini-3.5-flash", "openai/gpt-5.4"],
+      "endpoint": "chat",
+      "required_capabilities": ["tools"],
+      "description": "Tool-calling agent role; biases toward reliability over raw cheapness for multi-step tool use.",
+      "preference": 90,
+      "request_defaults": {
+        "temperature": 0.2,
+        "max_tokens": 8192
+      },
+      "provenance": {
+        "source_kind": "chatgpt_survey",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-30 OpenRouter list-price survey, agent.tools default/fallbacks",
+        "observed_at": "2026-06-30",
+        "sample_count": 0
+      }
+    },
+    "image.generate.fast": {
+      "model": "sourceful/riverflow-v2.5-fast",
+      "fallbacks": ["black-forest-labs/flux.2-klein", "recraft/recraft-v4.1-utility"],
+      "endpoint": "images",
+      "required_capabilities": ["image_output"],
+      "description": "Cheap, fast cloud image-generation role for drafts and high-volume product/brand imagery.",
+      "preference": 100,
+      "request_defaults": {
+        "output_format": "png",
+        "aspect_ratio": "1:1"
+      },
+      "provenance": {
+        "source_kind": "chatgpt_survey",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-30 OpenRouter image-API survey, image.generate.fast default/fallbacks",
+        "observed_at": "2026-06-30",
+        "sample_count": 0
+      }
+    },
+    "image.generate.default": {
+      "model": "bytedance-seed/seedream-4.5",
+      "fallbacks": ["sourceful/riverflow-v2.5-fast", "google/gemini-3.1-flash-image", "recraft/recraft-v4.1-utility"],
+      "endpoint": "images",
+      "required_capabilities": ["image_output"],
+      "description": "Default cloud image-generation role; flat-price model with good composition and editing consistency.",
+      "preference": 110,
+      "request_defaults": {
+        "output_format": "png",
+        "aspect_ratio": "1:1"
+      },
+      "provenance": {
+        "source_kind": "chatgpt_survey",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-30 OpenRouter image-API survey, image.generate.default default/fallbacks",
+        "observed_at": "2026-06-30",
+        "sample_count": 0
+      }
+    },
+    "image.generate.quality": {
+      "model": "google/gemini-3-pro-image",
+      "fallbacks": ["black-forest-labs/flux.2-max", "openai/gpt-5.4-image-2", "x-ai/grok-imagine-image-quality"],
+      "endpoint": "images",
+      "required_capabilities": ["image_output"],
+      "description": "Premium cloud image-generation role for identity/text/logo-quality-sensitive renders.",
+      "preference": 120,
+      "request_defaults": {
+        "output_format": "png",
+        "aspect_ratio": "1:1",
+        "quality": "high"
+      },
+      "provenance": {
+        "source_kind": "chatgpt_survey",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-30 OpenRouter image-API survey, image.generate.quality default/fallbacks",
+        "observed_at": "2026-06-30",
+        "sample_count": 0
+      }
+    },
+    "image.generate.logo": {
+      "model": "recraft/recraft-v4.1-vector",
+      "fallbacks": ["recraft/recraft-v4.1-pro-vector", "sourceful/riverflow-v2.5-fast", "recraft/recraft-v4.1-utility"],
+      "endpoint": "images",
+      "required_capabilities": ["image_output"],
+      "preferred_capabilities": ["svg_output", "transparent_background"],
+      "description": "Logo-generation role; the default model emits vector/SVG natively (response media_type), with a transparent background.",
+      "preference": 130,
+      "request_defaults": {
+        "background": "transparent",
+        "aspect_ratio": "1:1"
+      },
+      "provenance": {
+        "source_kind": "chatgpt_survey",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-30 OpenRouter image-API survey, image.generate.logo default/fallbacks",
+        "observed_at": "2026-06-30",
+        "sample_count": 0
+      }
+    },
+    "image.edit.default": {
+      "model": "bytedance-seed/seedream-4.5",
+      "fallbacks": ["sourceful/riverflow-v2.5-fast", "sourceful/riverflow-v2.5-pro", "google/gemini-3.1-flash-image"],
+      "endpoint": "images",
+      "required_capabilities": ["image_input", "image_output"],
+      "description": "Default cloud image-edit/img2img role; flat-price model positioned for editing consistency.",
+      "preference": 140,
+      "request_defaults": {
+        "output_format": "png"
+      },
+      "provenance": {
+        "source_kind": "chatgpt_survey",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-30 OpenRouter image-API survey, image.edit.default default/fallbacks",
+        "observed_at": "2026-06-30",
+        "sample_count": 0
+      }
+    },
+    "image.edit.identity": {
+      "model": "google/gemini-3-pro-image",
+      "fallbacks": ["x-ai/grok-imagine-image-quality"],
+      "endpoint": "images",
+      "required_capabilities": ["image_input", "image_output", "identity_preservation"],
+      "description": "Identity-preserving image-edit role for edits that must keep a subject's likeness or structure.",
+      "preference": 150,
+      "request_defaults": {
+        "output_format": "png"
+      },
+      "provenance": {
+        "source_kind": "chatgpt_survey",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-30 OpenRouter image-API survey, image.edit.identity default/fallbacks",
+        "observed_at": "2026-06-30",
+        "sample_count": 0
+      }
+    },
+    "image.vector.default": {
+      "model": "recraft/recraft-v4.1-vector",
+      "fallbacks": ["recraft/recraft-v4.1-pro-vector"],
+      "endpoint": "images",
+      "required_capabilities": ["image_output", "svg_output"],
+      "description": "Vector/SVG image role for clean scalable marks and icons; the model emits SVG natively (response media_type).",
+      "preference": 160,
+      "request_defaults": {
+        "background": "transparent"
+      },
+      "provenance": {
+        "source_kind": "chatgpt_survey",
+        "confidence": "medium",
+        "source": "ChatGPT 2026-06-30 OpenRouter image-API survey, image.vector.default default/fallbacks",
+        "observed_at": "2026-06-30",
+        "sample_count": 0
+      }
+    }
+  },
+  "models": {
+    "bytedance-seed/seed-2.0-mini": {
+      "provider": "bytedance-seed",
+      "family": "seed",
+      "capabilities": ["chat", "text_input", "text_output"],
+      "modalities": {"input": ["text"], "output": ["text"]},
+      "endpoints": ["chat"],
+      "context_window_tokens": 131072,
+      "default_eligible": true,
+      "pricing": {"unit": "per_mtok", "input_per_mtok": 0.10, "output_per_mtok": 0.40},
+      "use_case_notes": "Cheap general cloud model; better default than ultra-cheap raw models when some generality matters.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "openai/gpt-oss-20b": {
+      "provider": "openai",
+      "family": "gpt-oss",
+      "capabilities": ["chat", "text_input", "text_output", "structured_output"],
+      "modalities": {"input": ["text"], "output": ["text"]},
+      "endpoints": ["chat"],
+      "context_window_tokens": 131072,
+      "default_eligible": true,
+      "pricing": {"unit": "per_mtok", "input_per_mtok": 0.029, "output_per_mtok": 0.14},
+      "use_case_notes": "Ultra-cheap text model for low-risk routing/rerank fallback work.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "inception/mercury-2": {
+      "provider": "inception",
+      "family": "mercury",
+      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output"],
+      "modalities": {"input": ["text"], "output": ["text"]},
+      "endpoints": ["chat"],
+      "context_window_tokens": 131072,
+      "default_eligible": true,
+      "pricing": {"unit": "per_mtok", "input_per_mtok": 0.25, "output_per_mtok": 0.75},
+      "use_case_notes": "Low-latency model for routing, classification, and JSON-ish structured tasks.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "google/gemini-3.1-flash-lite-preview": {
+      "provider": "google",
+      "family": "gemini",
+      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "long_context", "vision", "document"],
+      "modalities": {"input": ["text", "image"], "output": ["text"]},
+      "endpoints": ["chat"],
+      "context_window_tokens": 1000000,
+      "default_eligible": true,
+      "pricing": {"unit": "per_mtok", "input_per_mtok": 0.25, "output_per_mtok": 1.50},
+      "use_case_notes": "Cheap long-context multimodal workhorse for extraction, documents, OCR-ish vision, and video understanding.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "minimax/minimax-m3": {
+      "provider": "minimax",
+      "family": "minimax",
+      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "long_context", "code"],
+      "modalities": {"input": ["text"], "output": ["text"]},
+      "endpoints": ["chat"],
+      "context_window_tokens": 1000000,
+      "default_eligible": true,
+      "pricing": {"unit": "per_mtok", "input_per_mtok": 0.30, "output_per_mtok": 1.20},
+      "use_case_notes": "Best general text value: 1M context, agent/coding/tool-oriented, low output price.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "qwen/qwen3.7-plus": {
+      "provider": "qwen",
+      "family": "qwen",
+      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "long_context", "code"],
+      "modalities": {"input": ["text"], "output": ["text"]},
+      "endpoints": ["chat"],
+      "context_window_tokens": 1000000,
+      "default_eligible": true,
+      "pricing": {"unit": "per_mtok", "input_per_mtok": 0.32, "output_per_mtok": 1.28},
+      "use_case_notes": "Strong coding/tool/productivity fallback near MiniMax on price with 1M context.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "z-ai/glm-5.2": {
+      "provider": "z-ai",
+      "family": "glm",
+      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "code"],
+      "modalities": {"input": ["text"], "output": ["text"]},
+      "endpoints": ["chat"],
+      "context_window_tokens": 200000,
+      "default_eligible": true,
+      "pricing": {"unit": "per_mtok", "input_per_mtok": 0.94, "output_per_mtok": 3.00},
+      "use_case_notes": "Price/performance winner for quality reasoning, coding, and agentic tool work.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "moonshotai/kimi-k2.7-code": {
+      "provider": "moonshotai",
+      "family": "kimi",
+      "capabilities": ["chat", "text_input", "text_output", "tools", "code"],
+      "modalities": {"input": ["text"], "output": ["text"]},
+      "endpoints": ["chat"],
+      "context_window_tokens": 256000,
+      "default_eligible": true,
+      "pricing": {"unit": "per_mtok", "input_per_mtok": 0.74, "output_per_mtok": 3.50},
+      "use_case_notes": "Coding-focused model cheaper than many frontier coding options.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "low",
+          "source": "ChatGPT 2026-06-30 OpenRouter list-price survey; slug inferred from provider naming, verify via /models",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "anthropic/claude-haiku-4.5": {
+      "provider": "anthropic",
+      "family": "claude",
+      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "code", "vision"],
+      "modalities": {"input": ["text", "image"], "output": ["text"]},
+      "endpoints": ["chat"],
+      "context_window_tokens": 200000,
+      "default_eligible": true,
+      "pricing": {"unit": "per_mtok", "input_per_mtok": 1.00, "output_per_mtok": 5.00},
+      "use_case_notes": "Reliable coding/computer-use profile at reasonable cost; strong quality-tier fallback.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "google/gemini-3.5-flash": {
+      "provider": "google",
+      "family": "gemini",
+      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "long_context", "vision", "document"],
+      "modalities": {"input": ["text", "image"], "output": ["text"]},
+      "endpoints": ["chat"],
+      "context_window_tokens": 1000000,
+      "default_eligible": true,
+      "pricing": {"unit": "per_mtok", "input_per_mtok": 1.50, "output_per_mtok": 9.00},
+      "use_case_notes": "Higher-quality multimodal fallback; OCR/document/vision quality jump over Flash Lite.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "openai/gpt-5.4": {
+      "provider": "openai",
+      "family": "gpt-5",
+      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "vision", "document", "code"],
+      "modalities": {"input": ["text", "image"], "output": ["text"]},
+      "endpoints": ["chat"],
+      "context_window_tokens": 400000,
+      "default_eligible": true,
+      "pricing": {"unit": "per_mtok", "input_per_mtok": 2.50, "output_per_mtok": 15.00},
+      "use_case_notes": "Premium chat/agent/document fallback; not the price/performance default.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "openai/gpt-5.4-mini": {
+      "provider": "openai",
+      "family": "gpt-5",
+      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "code"],
+      "modalities": {"input": ["text"], "output": ["text"]},
+      "endpoints": ["chat"],
+      "context_window_tokens": 400000,
+      "default_eligible": true,
+      "pricing": {"unit": "per_mtok", "input_per_mtok": 0.75, "output_per_mtok": 4.50},
+      "use_case_notes": "OpenAI behavior at lower cost than GPT-5.4; code fallback.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-30 OpenRouter list-price survey",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "bytedance-seed/seedream-4.5": {
+      "provider": "bytedance-seed",
+      "family": "seedream",
+      "capabilities": ["text_input", "image_output", "image_input", "image_edit"],
+      "modalities": {"input": ["text", "image"], "output": ["image"]},
+      "endpoints": ["images"],
+      "default_eligible": true,
+      "pricing": {"unit": "per_image", "per_image": 0.04},
+      "use_case_notes": "Default image model: flat cheap price, good editing consistency, multi-image composition.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-30 OpenRouter image-API survey",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "sourceful/riverflow-v2.5-fast": {
+      "provider": "sourceful",
+      "family": "riverflow",
+      "capabilities": ["text_input", "image_output", "image_input", "image_edit", "transparent_background"],
+      "modalities": {"input": ["text", "image"], "output": ["image"]},
+      "endpoints": ["images"],
+      "default_eligible": true,
+      "pricing": {"unit": "per_image", "per_image": 0.019},
+      "use_case_notes": "Cheap default for product/brand generation and editing with background controls.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-30 OpenRouter image-API survey",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "sourceful/riverflow-v2.5-pro": {
+      "provider": "sourceful",
+      "family": "riverflow",
+      "capabilities": ["text_input", "image_output", "image_input", "image_edit", "transparent_background"],
+      "modalities": {"input": ["text", "image"], "output": ["image"]},
+      "endpoints": ["images"],
+      "default_eligible": true,
+      "pricing": {"unit": "per_image", "per_image": 0.13},
+      "use_case_notes": "More capable Sourceful option supporting more input images than Fast.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-30 OpenRouter image-API survey",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "google/gemini-3.1-flash-image": {
+      "provider": "google",
+      "family": "gemini-image",
+      "capabilities": ["text_input", "image_output", "image_input", "image_edit"],
+      "modalities": {"input": ["text", "image"], "output": ["image"]},
+      "endpoints": ["images"],
+      "default_eligible": true,
+      "pricing": {"unit": "per_mtok_image", "input_per_mtok": 0.50, "output_per_mtok": 3.00, "image_tokens_per_mtok": 60.00},
+      "use_case_notes": "Nano Banana 2; stronger when text/image reasoning and editing quality matter, image-token priced.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-30 OpenRouter image-API survey",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "recraft/recraft-v4.1-utility": {
+      "provider": "recraft",
+      "family": "recraft",
+      "capabilities": ["text_input", "image_output"],
+      "modalities": {"input": ["text"], "output": ["image"]},
+      "endpoints": ["images"],
+      "default_eligible": true,
+      "pricing": {"unit": "per_image", "per_image": 0.035},
+      "use_case_notes": "Clean structured raster graphics, product/mockup work.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-30 OpenRouter image-API survey",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "recraft/recraft-v4.1-vector": {
+      "provider": "recraft",
+      "family": "recraft",
+      "capabilities": ["text_input", "image_output", "svg_output", "transparent_background"],
+      "modalities": {"input": ["text"], "output": ["image", "vector"]},
+      "endpoints": ["images"],
+      "default_eligible": true,
+      "pricing": {"unit": "per_image", "per_image": 0.08},
+      "use_case_notes": "Best-value vector/SVG/logo candidate.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-30 OpenRouter image-API survey",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "recraft/recraft-v4.1-pro-vector": {
+      "provider": "recraft",
+      "family": "recraft",
+      "capabilities": ["text_input", "image_output", "svg_output", "transparent_background"],
+      "modalities": {"input": ["text"], "output": ["image", "vector"]},
+      "endpoints": ["images"],
+      "default_eligible": true,
+      "pricing": {"unit": "per_image", "per_image": 0.30},
+      "use_case_notes": "Premium vector/SVG fallback.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-30 OpenRouter image-API survey",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "black-forest-labs/flux.2-klein": {
+      "provider": "black-forest-labs",
+      "family": "flux",
+      "capabilities": ["text_input", "image_output"],
+      "modalities": {"input": ["text"], "output": ["image"]},
+      "endpoints": ["images"],
+      "default_eligible": true,
+      "pricing": {"unit": "per_megapixel", "first_output_mp": 0.014, "additional_mp": 0.001},
+      "use_case_notes": "Cheap raster generation when megapixel billing is favorable.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "low",
+          "source": "ChatGPT 2026-06-30 OpenRouter image-API survey; slug inferred, verify via /images/models",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "black-forest-labs/flux.2-max": {
+      "provider": "black-forest-labs",
+      "family": "flux",
+      "capabilities": ["text_input", "image_output", "image_input"],
+      "modalities": {"input": ["text", "image"], "output": ["image"]},
+      "endpoints": ["images"],
+      "default_eligible": true,
+      "pricing": {"unit": "per_megapixel", "input_mp": 0.03, "first_output_mp": 0.07, "additional_mp": 0.03},
+      "use_case_notes": "Premium FLUX raster generation option.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "low",
+          "source": "ChatGPT 2026-06-30 OpenRouter image-API survey; slug inferred, verify via /images/models",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "google/gemini-3-pro-image": {
+      "provider": "google",
+      "family": "gemini-image",
+      "capabilities": ["text_input", "image_output", "image_input", "image_edit", "identity_preservation"],
+      "modalities": {"input": ["text", "image"], "output": ["image"]},
+      "endpoints": ["images"],
+      "default_eligible": true,
+      "pricing": {"unit": "per_mtok_image", "input_per_mtok": 2.00, "output_per_mtok": 12.00, "image_tokens_per_mtok": 120.00},
+      "use_case_notes": "Nano Banana Pro; premium default for identity/text/logo-quality-sensitive work; listing calls out identity preservation.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-30 OpenRouter image-API survey",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "openai/gpt-5.4-image-2": {
+      "provider": "openai",
+      "family": "gpt-5-image",
+      "capabilities": ["text_input", "image_output", "image_input", "image_edit"],
+      "modalities": {"input": ["text", "image"], "output": ["image"]},
+      "endpoints": ["images"],
+      "default_eligible": true,
+      "pricing": {"unit": "per_mtok_image", "input_per_mtok": 8.00, "output_per_mtok": 15.00, "image_tokens_per_mtok": 30.00},
+      "use_case_notes": "Premium OpenAI image generation/editing; high-cost candidate, not a default.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "low",
+          "source": "ChatGPT 2026-06-30 OpenRouter image-API survey; slug inferred, verify via /images/models",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "x-ai/grok-imagine-image-quality": {
+      "provider": "x-ai",
+      "family": "grok-imagine",
+      "capabilities": ["text_input", "image_output", "image_input", "image_edit", "identity_preservation"],
+      "modalities": {"input": ["text", "image"], "output": ["image"]},
+      "endpoints": ["images"],
+      "default_eligible": true,
+      "pricing": {"unit": "per_mtok_image", "image_tokens_per_mtok": 11.98},
+      "use_case_notes": "Identity/structure-preserving photoreal image work.",
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "low",
+          "source": "ChatGPT 2026-06-30 OpenRouter image-API survey; slug inferred, verify via /images/models",
+          "observed_at": "2026-06-30",
+          "sample_count": 0
+        }
+      }
+    }
+  },
+  "constraints": {
+    "endpoints": ["chat", "images", "embeddings", "rerank", "responses", "audio", "video"],
+    "capability_vocabulary": [
+      "chat",
+      "text_input",
+      "text_output",
+      "tools",
+      "structured_output",
+      "long_context",
+      "code",
+      "vision",
+      "document",
+      "embedding",
+      "rerank",
+      "image_output",
+      "image_input",
+      "image_edit",
+      "transparent_background",
+      "svg_output",
+      "identity_preservation"
+    ],
+    "role_preference_order": [
+      "chat.small",
+      "chat.default",
+      "chat.quality",
+      "summarize.default",
+      "classify.routing",
+      "extract.structured",
+      "rerank.llm_fallback",
+      "code.default",
+      "agent.tools",
+      "image.generate.fast",
+      "image.generate.default",
+      "image.generate.quality",
+      "image.generate.logo",
+      "image.edit.default",
+      "image.edit.identity",
+      "image.vector.default"
+    ],
+    "direct_model_exception_required_fields": ["reason", "owner", "review_after"],
+    "provenance_required": true,
+    "provenance_source_kinds": [
+      "manual_policy",
+      "operator_override",
+      "openrouter_models",
+      "openrouter_images_models",
+      "chatgpt_survey",
+      "static_estimate",
+      "scenario_pin"
+    ]
+  },
+  "provenance": {
+    "policy": {
+      "source_kind": "manual_policy",
+      "confidence": "medium",
+      "source": "openrouter-role-policy-greenfield-cutover implementation plan Phase 1",
+      "observed_at": "2026-06-30",
+      "sample_count": 0
+    },
+    "model_candidates": {
+      "source_kind": "chatgpt_survey",
+      "confidence": "medium",
+      "source": "ChatGPT 2026-06-30 OpenRouter list-price + image-API survey supplied to the executor",
+      "observed_at": "2026-06-30",
+      "sample_count": 0
+    }
+  }
+}

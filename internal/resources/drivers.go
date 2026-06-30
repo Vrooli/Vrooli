@@ -97,8 +97,21 @@ func (composeServiceDriver) Status(ctx context.Context, controller *Controller, 
 		return status, nil
 	}
 	if len(services) == 0 {
-		status.Message = "not installed"
-		return status, nil
+		if state, exists, err := inspectComposeFallbackContainer(ctx, controller, manifest); err != nil {
+			status.StatusCode = StatusCodeCommandError
+			status.Message = "docker container inspect failed"
+			status.ProbeError = err.Error()
+			return status, nil
+		} else if exists {
+			service := composeServiceState{Service: manifest.Name, State: "exited"}
+			if state.Running {
+				service.State = "running"
+			}
+			services = []composeServiceState{service}
+		} else {
+			status.Message = "not installed"
+			return status, nil
+		}
 	}
 
 	status.Installed = true
@@ -208,6 +221,11 @@ func (d composeServiceDriver) Run(ctx context.Context, controller *Controller, i
 		}
 		return composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "build")
 	case "start":
+		if running, err := composeFallbackContainerHealthy(ctx, controller, manifest); err != nil {
+			return err
+		} else if running {
+			return nil
+		}
 		if err := composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "up", "-d"); err != nil {
 			return err
 		}
@@ -441,6 +459,59 @@ func inspectComposeServices(ctx context.Context, controller *Controller, manifes
 		services = append(services, service)
 	}
 	return services, nil
+}
+
+func inspectComposeFallbackContainer(ctx context.Context, controller *Controller, manifest ResourceManifest) (dockerState, bool, error) {
+	for _, name := range composeFallbackContainerNames(manifest) {
+		output, err := dockerOutput(ctx, controller, "container", "inspect", name, "--format", "{{json .State}}")
+		if err != nil {
+			if strings.Contains(err.Error(), "No such object") || strings.Contains(err.Error(), "No such container") {
+				continue
+			}
+			return dockerState{}, false, err
+		}
+		var state dockerState
+		if err := json.Unmarshal(output, &state); err != nil {
+			return dockerState{}, false, fmt.Errorf("parse docker inspect state for %s: %w", name, err)
+		}
+		return state, true, nil
+	}
+	return dockerState{}, false, nil
+}
+
+func composeFallbackContainerNames(manifest ResourceManifest) []string {
+	seen := map[string]struct{}{}
+	names := make([]string, 0, 3)
+	for _, name := range []string{
+		strings.TrimSpace(manifest.Runtime.ContainerName),
+		strings.TrimSpace(manifest.Name),
+		dockerContainerName(manifest),
+	} {
+		if name == "" {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		names = append(names, name)
+	}
+	return names
+}
+
+func composeFallbackContainerHealthy(ctx context.Context, controller *Controller, manifest ResourceManifest) (bool, error) {
+	state, exists, err := inspectComposeFallbackContainer(ctx, controller, manifest)
+	if err != nil || !exists || !state.Running {
+		return false, err
+	}
+	if len(manifest.HealthChecks) == 0 {
+		return true, nil
+	}
+	health, err := controller.runResourceHealthChecks(ctx, manifest)
+	if err != nil {
+		return false, err
+	}
+	return health.Healthy, nil
 }
 
 func normalizeComposePSOutput(output []byte) string {

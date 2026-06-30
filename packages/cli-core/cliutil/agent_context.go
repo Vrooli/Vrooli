@@ -119,6 +119,23 @@ var knownAgentSignals = []agentSignal{
 	{Name: "claude-code", Kind: CallerKindExternalAgent, Match: envEquals("CLAUDECODE", "1")},
 	{Name: "codex", Kind: CallerKindExternalAgent, Match: envAllNonEmpty("CODEX_CI", "CODEX_THREAD_ID")},
 	{Name: "opencode", Kind: CallerKindExternalAgent, Match: opencodePIDMatchesAncestor},
+	// grok injects GROK_AGENT=1 into the tool subprocesses it spawns. The
+	// EXACT value "1" is a fixed sentinel: when a user sets GROK_AGENT to a
+	// custom-agent name, grok keeps that value in its OWN env but still
+	// overwrites it to "1" in tool shells (verified by /proc env-diff,
+	// 2026-06-28). Matching the exact value — not mere presence — avoids
+	// false-positiving a human who exports GROK_AGENT=<agent-name> in their rc.
+	{Name: "grok", Kind: CallerKindExternalAgent, Match: envEquals("GROK_AGENT", "1")},
+	// Antigravity (Google's `agy` CLI) injects ANTIGRAVITY_AGENT=1 into the
+	// shells it spawns to run tool commands — the direct analog of grok's
+	// GROK_AGENT=1, alongside per-run ANTIGRAVITY_CONVERSATION_ID /
+	// ANTIGRAVITY_TRAJECTORY_ID. The fixed sentinel value "1" is a string
+	// constant in the agy 1.0.13 binary's command-exec path (next to
+	// `context_engine_hook`); we match the exact value (not mere presence) so a
+	// human who exports ANTIGRAVITY_AGENT=<something> in their rc is not
+	// misclassified, mirroring the GROK_AGENT lesson. Binary-confirmed
+	// 2026-06-29; live /proc env-diff confirmation pending (agy free-tier quota).
+	{Name: "antigravity", Kind: CallerKindExternalAgent, Match: envEquals("ANTIGRAVITY_AGENT", "1")},
 }
 
 // DetectCallerKind returns the typed caller classification. Precedence:

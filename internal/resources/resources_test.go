@@ -534,6 +534,37 @@ func TestStatusForManifestNativeComposeResource(t *testing.T) {
 	}
 }
 
+func TestStatusForManifestNativeComposeResourceAcceptsLegacyNamedContainer(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("compose-service"),
+		testresource.WithResourceTemplate("compose-service"),
+		testresource.WithResourceDescription("Fixture compose resource"),
+		testresource.WithResourceComposeFile("compose.yaml"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+			Linux:   "supported",
+			MacOS:   "supported",
+			Windows: "partial",
+		}),
+	))
+	testkitgo.WriteRelativeFile(t, root, filepath.Join("resources", "fixture", "compose.yaml"), "services:\n  app:\n    image: fixture:latest\n")
+	writeFakeDockerWithLegacyComposeContainer(t)
+
+	status, err := NewController(root, home).Status("fixture", true)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if !status.Installed || !status.Running {
+		t.Fatalf("status = %#v, expected installed/running", status)
+	}
+	if status.Healthy == nil || !*status.Healthy {
+		t.Fatalf("Healthy = %#v, want true", status.Healthy)
+	}
+}
+
 func TestRunManifestNativeComposeLifecycle(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
@@ -582,6 +613,33 @@ func TestRunManifestNativeComposeLifecycle(t *testing.T) {
 	}
 	if strings.TrimSpace(string(data)) != "stopped" {
 		t.Fatalf("state after stop = %q, want stopped", string(data))
+	}
+}
+
+func TestRunManifestNativeComposeStartNoopsForHealthyLegacyNamedContainer(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("compose-service"),
+		testresource.WithResourceTemplate("compose-service"),
+		testresource.WithResourceDescription("Fixture compose resource"),
+		testresource.WithResourceComposeFile("compose.yaml"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+			Linux:   "supported",
+			MacOS:   "supported",
+			Windows: "partial",
+		}),
+	))
+	testkitgo.WriteRelativeFile(t, root, filepath.Join("resources", "fixture", "compose.yaml"), "services:\n  app:\n    image: fixture:latest\n")
+	composeUpFile := writeFakeDockerWithLegacyComposeContainer(t)
+
+	if err := NewController(root, home).Run("fixture", []string{"start"}, ioDiscard{}, ioDiscard{}); err != nil {
+		t.Fatalf("Run(start): %v", err)
+	}
+	if _, err := os.Stat(composeUpFile); !os.IsNotExist(err) {
+		t.Fatalf("compose up marker exists after start no-op: err=%v", err)
 	}
 }
 
@@ -1177,6 +1235,64 @@ func writeFakeDocker(t *testing.T) string {
 	stateFile := testresource.WriteFakeDocker(t)
 	testresource.UseSystemLookPath(t, &lookPathCommandFn)
 	return stateFile
+}
+
+func writeFakeDockerWithLegacyComposeContainer(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	composeUpFile := filepath.Join(dir, "compose-up-called")
+	scriptPath := filepath.Join(dir, "docker")
+	script := fmt.Sprintf(`#!/usr/bin/env bash
+set -e
+cmd="${1:-}"
+shift || true
+
+case "$cmd" in
+  compose)
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        -f|--project-name)
+          shift 2
+          ;;
+        *)
+          break
+          ;;
+      esac
+    done
+    subcmd="${1:-}"
+    case "$subcmd" in
+      ps)
+        printf '[]'
+        exit 0
+        ;;
+      up)
+        touch %q
+        echo "compose up should not be called" >&2
+        exit 42
+        ;;
+      logs)
+        echo "fixture logs"
+        exit 0
+        ;;
+    esac
+    ;;
+  container)
+    if [[ "${1:-}" == "inspect" && "${2:-}" == "fixture" ]]; then
+      printf '{"Running":true}'
+      exit 0
+    fi
+    echo "Error: No such container" >&2
+    exit 1
+    ;;
+esac
+
+echo "unexpected docker invocation: $cmd $*" >&2
+exit 1
+`, composeUpFile)
+	testkitgo.WriteExecutable(t, scriptPath, script)
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	testresource.UseSystemLookPath(t, &lookPathCommandFn)
+	return composeUpFile
 }
 
 func projectRootForResourcesTest(t *testing.T) string {

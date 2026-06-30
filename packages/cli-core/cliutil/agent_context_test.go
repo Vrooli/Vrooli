@@ -22,6 +22,8 @@ func clearAllSignalEnv(t *testing.T) {
 		"CODEX_CI",
 		"CODEX_THREAD_ID",
 		"OPENCODE_PID",
+		"GROK_AGENT",
+		"ANTIGRAVITY_AGENT",
 	}
 	for _, k := range keys {
 		t.Setenv(k, "")
@@ -135,6 +137,52 @@ func TestDetectCallerKind_CodexRequiresBothSignals(t *testing.T) {
 	t.Setenv("CODEX_THREAD_ID", "abc-123")
 	if got := DetectCallerKind(); got != CallerKindExternalAgent {
 		t.Fatalf("CODEX_CI=1 + CODEX_THREAD_ID: got %v, want CallerKindExternalAgent", got)
+	}
+}
+
+func TestDetectCallerKind_Grok(t *testing.T) {
+	// grok injects GROK_AGENT=1 into the tool subprocesses it spawns
+	// (verified via /proc env-diff 2026-06-28: present in grok tool shells,
+	// absent from grok's own runtime env and every ancestor).
+	clearAllSignalEnv(t)
+	t.Setenv("GROK_AGENT", "1")
+	if got := DetectCallerKind(); got != CallerKindExternalAgent {
+		t.Fatalf("GROK_AGENT=1: got %v, want CallerKindExternalAgent", got)
+	}
+}
+
+func TestDetectCallerKind_GrokCustomAgentValueDoesNotMatch(t *testing.T) {
+	// GROK_AGENT doubles as a user-facing config var ("custom agent
+	// definition path or name"). grok overwrites it to the literal "1" in
+	// tool shells, so a non-"1" value means a human exported a custom-agent
+	// name in their shell rc — that must NOT classify as an agent caller.
+	clearAllSignalEnv(t)
+	t.Setenv("GROK_AGENT", "my-custom-agent")
+	if got := DetectCallerKind(); got == CallerKindExternalAgent {
+		t.Fatal("GROK_AGENT=<custom-name> should not classify as grok agent")
+	}
+}
+
+func TestDetectCallerKind_Antigravity(t *testing.T) {
+	// Antigravity (Google's `agy` CLI) injects ANTIGRAVITY_AGENT=1 into the
+	// shells it spawns for tool commands — the analog of grok's GROK_AGENT=1.
+	// Binary-confirmed in agy 1.0.13's command-exec path (live /proc
+	// confirmation pending). We match the exact sentinel value "1".
+	clearAllSignalEnv(t)
+	t.Setenv("ANTIGRAVITY_AGENT", "1")
+	if got := DetectCallerKind(); got != CallerKindExternalAgent {
+		t.Fatalf("ANTIGRAVITY_AGENT=1: got %v, want CallerKindExternalAgent", got)
+	}
+}
+
+func TestDetectCallerKind_AntigravityNonSentinelValueDoesNotMatch(t *testing.T) {
+	// Only the fixed sentinel "1" identifies an agy tool shell. A human who
+	// exported ANTIGRAVITY_AGENT to any other value in their rc must NOT be
+	// classified as an agent caller (mirrors the GROK_AGENT value-match rule).
+	clearAllSignalEnv(t)
+	t.Setenv("ANTIGRAVITY_AGENT", "custom")
+	if got := DetectCallerKind(); got == CallerKindExternalAgent {
+		t.Fatal("ANTIGRAVITY_AGENT=<non-1> should not classify as antigravity agent")
 	}
 }
 
