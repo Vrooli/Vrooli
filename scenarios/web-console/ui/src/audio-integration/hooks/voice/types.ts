@@ -138,6 +138,14 @@ export interface VoiceInputState {
   /** Whether a wake word template is configured and detection is available. */
   wakeWordConfigured: boolean;
   /**
+   * Whether the passive wake-word listener currently holds the microphone.
+   * Drives the mic control's honest "passively listening" presentation — the
+   * UI must never report ordinary idle/off while this is true. Released (set
+   * false) by user exit, active recording takeover, or page-hidden lifecycle
+   * cleanup.
+   */
+  passiveListeningActive: boolean;
+  /**
    * The most recent speaker-verification rejection that still has user-visible
    * state (banner open, retry available). Single slot — a new rejection
    * replaces the previous one. Cleared by `dismissRejection()`, successful

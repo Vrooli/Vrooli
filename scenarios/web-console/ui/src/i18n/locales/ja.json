@@ -206,6 +206,13 @@
     "dismiss": "閉じる",
     "dismissTitle": "このオーファンをリストから非表示にする(ディスク上の状態は保持)"
   },
+  "sessionRecovery": {
+    "recovering": "セッションを復元中… {{recovered}}/{{total}}",
+    "recoveringUnknown": "セッションを復元中…",
+    "recovered": "{{count}} 件のセッションを復元しました",
+    "recovered_one": "1 件のセッションを復元しました",
+    "view": "表示"
+  },
   "mobileToolbar": {
     "showUnsentTitle": "未送信入力の詳細を表示",
     "unsentCount": "未送信 {{count}}件",

@@ -4,6 +4,7 @@
 // Provides continuous recognition with interim results. Quality and availability
 // vary by browser. Final fallback when Whisper is entirely unavailable.
 
+import { acquireMicStream, releaseMicLease, type MicLease } from "./micOwnership";
 import type { LastTurnAudio, TranscriptionProvider } from "./types";
 
 // Web Speech API type declarations (not included in all TS libs)
@@ -60,6 +61,8 @@ declare global {
 export class WebSpeechProvider implements TranscriptionProvider {
   private recognition: SpeechRecognitionInstance | null = null;
   private micStream: MediaStream | null = null;
+  /** Lease for a provider-acquired stream; null when an injected stream is used. */
+  private lease: MicLease | null = null;
   private stopped = false;
   /** Tracks how many results have already been dispatched via onResult. */
   private processedResultCount = 0;
@@ -104,10 +107,12 @@ export class WebSpeechProvider implements TranscriptionProvider {
     // its own audio capture internally.
     if (preWarmedStream && preWarmedStream.getTracks().every((t) => t.readyState === "live")) {
       this.micStream = preWarmedStream;
+      this.lease = null;
       console.info("[voice] WebSpeech: using pre-warmed stream for level monitoring");
     } else {
       try {
-        this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this.lease = await acquireMicStream("web-speech", { audio: true });
+        this.micStream = this.lease.stream;
       } catch {
         console.info("[voice] WebSpeech: mic access denied");
         this.onError?.("Microphone access denied");
@@ -170,8 +175,12 @@ export class WebSpeechProvider implements TranscriptionProvider {
     this.stopped = true;
     this.recognition?.stop();
     this.recognition = null;
-    // Release mic so the browser indicator turns off
-    this.micStream?.getTracks().forEach((t) => t.stop());
+    // Release mic so the browser indicator turns off. Only a provider-owned
+    // stream is stopped; an injected stream belongs to micReadiness.
+    if (this.lease) {
+      releaseMicLease(this.lease, "manual-stop");
+      this.lease = null;
+    }
     this.micStream = null;
   }
 

@@ -78,6 +78,10 @@ The cache uses opportunistic eviction (triggered when size > 100 entries).
 | Audio level and VAD UI state share one sample source | `useVoiceInput` computes `audioLevel` and `voiceActivity` from the same audio-analysis tick after `vadTick` runs | `useVoiceInput.ts`, `voice/activity.ts` |
 | Auto-stop countdown is VAD-derived | The circular ring is visible only for one-shot `watchingSilence` after the visual grace; persistent listening does not show the one-shot stop ring | `voice/activity.ts`, `VoiceMicButton.tsx` |
 | Stop/cancel/error teardown clears voice activity | Teardown paths reset both `audioLevel` and `voiceActivity` to idle | `useVoiceInput.ts` |
+| Every browser mic stream has exactly one observable owner | All `getUserMedia` audio streams are acquired/registered through the mic ownership registry under a named `MicOwner`; releasing a lease stops all tracks exactly once (idempotent) | `audio-integration/hooks/voice/micOwnership.ts` |
+| Passive wake-word listening is visible and user-cancellable | `passiveListeningActive` drives `isPassive`; the mic control shows the passive presentation while a passive stream is live and never reports ordinary idle/off; tapping it calls `exitPassiveMode()` | `useVoiceCore.ts`, `VoiceMicButton.tsx` |
+| A hidden tab / backgrounded PWA holds no mic stream | Page-lifecycle cleanup releases passive + prewarm + settings leases on `visibilitychange` hidden and ALL leases on `pagehide`/`freeze`; an active recording is stopped on hidden (privacy over partial audio); passive listening never arms while hidden | `micOwnership.ts#installMicLifecycleCleanup`, `useVoiceCore.ts`, `passiveArmDecision.ts` |
+| `MediaStreamTrack.stop()` is the only mic release signal | Lifecycle/cleanup paths stop tracks via lease release; clearing React state or dropping a reference is never relied on to release the OS microphone | `micOwnership.ts` |
 
 ## Unsafe Operations (Intentionally Non-Idempotent)
 

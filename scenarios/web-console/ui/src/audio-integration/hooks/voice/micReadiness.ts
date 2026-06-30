@@ -15,28 +15,38 @@
 //      making it testable without rendering React components. The useVoiceInput
 //      hook reads from this module synchronously.
 //
-//   2. **Stream ownership transfer**: When a pre-warmed stream is injected into
+//   2. **One owner via the registry**: The pre-warmed stream is acquired through
+//      the central mic ownership registry under the "low-latency-prewarm" owner.
+//      Releasing the lease (here, on OS track-end, or by page-lifecycle
+//      emergency cleanup) stops the tracks and drives this module's state back
+//      to "released" via the lease `onRelease` callback — so the module never
+//      believes it holds a warm stream whose tracks the registry already
+//      stopped.
+//      DOC: docs/internal/SEAMS.md#mic-ownership-seam
+//
+//   3. **Stream ownership transfer**: When a pre-warmed stream is injected into
 //      a provider via start(preWarmedStream), the provider uses it but does NOT
 //      stop its tracks (retainStream=true). After recording finishes, this module
 //      may release the stream (for audio ducking mitigation) and then re-acquire
 //      it for the next recording session.
 //      DOC: docs/internal/VOICE-LATENCY.md#stream-injection-vs-stream-acquisition
 //
-//   3. **Visibility lifecycle**: When the tab becomes hidden, the pre-warmed
-//      stream is released (saves resources, stops OS mic indicator). When the
-//      tab becomes visible again, it is re-acquired. Active recordings are
-//      NEVER interrupted by visibility changes.
-//      DOC: docs/internal/VOICE-LATENCY.md#visibility-based-mic-lifecycle
-//
 //   4. **Audio ducking mitigation**: On mobile, holding a getUserMedia stream
 //      switches the OS audio session to "play-and-record" mode, which ducks or
 //      pauses other audio apps (YouTube, Spotify). We minimize this by releasing
 //      the stream promptly after each recording session.
 //      DOC: docs/internal/VOICE-LATENCY.md#audio-ducking-deep-dive
+//
+// Page-visibility lifecycle (release on hidden, re-acquire on visible) is no
+// longer owned here: it is one concern across ALL mic owners and lives in the
+// central registry (installMicLifecycleCleanup) plus useVoiceCore's coordinated
+// re-arm. DOC: docs/internal/VOICE-LATENCY.md#visibility-based-mic-lifecycle
+
+import { acquireMicStream, releaseMicLease, type MicLease } from "./micOwnership";
 
 export type MicReadinessState = "idle" | "acquiring" | "warm" | "released";
 
-let _stream: MediaStream | null = null;
+let _lease: MicLease | null = null;
 let _state: MicReadinessState = "idle";
 let _generation = 0;
 
@@ -45,8 +55,8 @@ let _generation = 0;
  * Returns the live MediaStream.
  */
 export async function acquireStream(): Promise<MediaStream> {
-  if (_stream && isStreamAlive()) {
-    return _stream;
+  if (_lease && !_lease.released && isStreamUsable(_lease.stream)) {
+    return _lease.stream;
   }
 
   const generation = _generation;
@@ -54,9 +64,19 @@ export async function acquireStream(): Promise<MediaStream> {
   console.info("[voice] Low-latency: pre-warming getUserMedia");
   const start = Date.now();
 
-  let stream: MediaStream;
+  let lease: MicLease;
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    lease = await acquireMicStream("low-latency-prewarm", { audio: true }, {
+      // Fires when this lease is released by anyone — the OS revoking the
+      // device, page-lifecycle emergency cleanup, or releaseStream below. Reset
+      // module state so the next use re-acquires instead of reusing dead tracks.
+      onRelease: () => {
+        if (_lease === lease) {
+          _lease = null;
+          _state = "released";
+        }
+      },
+    });
   } catch {
     if (generation === _generation) {
       _state = "released";
@@ -65,33 +85,14 @@ export async function acquireStream(): Promise<MediaStream> {
   }
 
   if (generation !== _generation) {
-    stream.getTracks().forEach((t) => t.stop());
+    releaseMicLease(lease, "owner-replaced");
     throw new Error("Microphone pre-warm cancelled");
   }
 
-  _stream = stream;
-
-  // Listen for unexpected track termination (browser/OS revoked access)
-  for (const track of _stream.getTracks()) {
-    track.addEventListener("ended", () => {
-      console.warn("[voice] Low-latency: mic track ended unexpectedly (readyState=%s)", track.readyState);
-      _state = "released";
-      _stream = null;
-    }, { once: true });
-    // Muting (OS/another app seized the device, sleep/wake, device change) does
-    // NOT fire "ended" and leaves readyState "live". Log it so a wedged stream
-    // is diagnosable; point-of-use validation (isStreamUsable) re-acquires.
-    track.addEventListener("mute", () => {
-      console.warn("[voice] Low-latency: mic track muted (readyState=%s) — will re-acquire on next use", track.readyState);
-    });
-    track.addEventListener("unmute", () => {
-      console.info("[voice] Low-latency: mic track unmuted (readyState=%s)", track.readyState);
-    });
-  }
-
+  _lease = lease;
   _state = "warm";
   console.info("[voice] Low-latency: mic pre-warmed in %dms", Date.now() - start);
-  return _stream;
+  return lease.stream;
 }
 
 /**
@@ -100,16 +101,16 @@ export async function acquireStream(): Promise<MediaStream> {
  */
 export function releaseStream(): void {
   _generation++;
-  if (_stream) {
-    _stream.getTracks().forEach((t) => t.stop());
-    _stream = null;
+  if (_lease) {
+    releaseMicLease(_lease, "manual-stop");
+    _lease = null;
   }
   _state = "released";
 }
 
 /** Get the current pre-warmed stream, or null if none exists. */
 export function getStream(): MediaStream | null {
-  return _stream;
+  return _lease && !_lease.released ? _lease.stream : null;
 }
 
 /**
@@ -123,7 +124,7 @@ export function getStream(): MediaStream | null {
  * silence: no transcript, no level meter, and no error (silence is not a
  * failure). Treating muted tracks as unusable forces a fresh getUserMedia,
  * which is what actually recovers the mic. Without this check the only fix was
- * a full page reload (which discards the module-scoped `_stream`).
+ * a full page reload (which discards the module-scoped stream).
  */
 export function isTrackUsable(track: MediaStreamTrack): boolean {
   return track.readyState === "live" && !track.muted;
@@ -142,7 +143,7 @@ export function isStreamUsable(stream: MediaStream | null | undefined): boolean 
  * reuse purposes — see isTrackUsable.
  */
 export function isStreamAlive(): boolean {
-  return isStreamUsable(_stream);
+  return isStreamUsable(getStream());
 }
 
 /** Get the current state of the mic readiness module. */
@@ -151,65 +152,13 @@ export function getMicReadinessState(): MicReadinessState {
 }
 
 /**
- * Install a Page Visibility API handler that releases the mic when the tab
- * is hidden and re-acquires it when the tab becomes visible.
- *
- * This is critical for two reasons:
- *   1. Privacy — no mic access in background tabs
- *   2. Audio ducking — releasing the mic restores normal audio routing on mobile
- *
- * The handler NEVER releases the mic during active recording. The
- * `isRecordingActive` callback lets the caller (useVoiceInput) provide
- * real-time recording state.
- *
- * Platform behavior:
- *   - Mobile (iOS Safari, Chrome Android): visibilitychange fires on app switch,
- *     tab switch, and screen lock. Mic is released. Correct behavior.
- *   - Desktop: visibilitychange fires on tab switch/minimize. Does NOT fire when
- *     the window is on a second monitor (still "visible"). Mic stays active —
- *     correct for hands-free use on a secondary display.
- *
- * DOC: docs/internal/VOICE-LATENCY.md#visibility-based-mic-lifecycle
- *
- * @returns Cleanup function that removes the visibility listener.
- */
-export function installVisibilityHandler(opts: {
-  isRecordingActive: () => boolean;
-  isLowLatencyEnabled: () => boolean;
-}): () => void {
-  const handler = () => {
-    if (document.visibilityState === "hidden") {
-      if (opts.isRecordingActive()) {
-        console.info("[voice] Visibility: tab hidden during active recording, keeping mic");
-        return;
-      }
-      if (_stream) {
-        console.info("[voice] Visibility: tab hidden, releasing mic tracks");
-        releaseStream();
-      }
-    } else {
-      // document.visibilityState === "visible"
-      if (opts.isLowLatencyEnabled() && !opts.isRecordingActive()) {
-        console.info("[voice] Visibility: tab visible, re-acquiring mic (low-latency=true)");
-        acquireStream().catch((err: unknown) => {
-          console.warn("[voice] Visibility: failed to re-acquire mic:", err);
-        });
-      }
-    }
-  };
-
-  document.addEventListener("visibilitychange", handler);
-  return () => document.removeEventListener("visibilitychange", handler);
-}
-
-/**
  * Reset all module state. For test cleanup only — not called in production.
  */
 export function _resetMicReadiness(): void {
   _generation++;
-  if (_stream) {
-    _stream.getTracks().forEach((t) => t.stop());
+  if (_lease) {
+    releaseMicLease(_lease, "test-reset");
   }
-  _stream = null;
+  _lease = null;
   _state = "idle";
 }

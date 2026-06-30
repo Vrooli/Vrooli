@@ -11,6 +11,7 @@
 
 import { transcribeAudioWithRetry, buildVoiceStreamWsUrl } from "../../api/voice";
 import { isStreamUsable } from "./micReadiness";
+import { acquireMicStream, releaseMicLease, type MicLease, type MicReleaseReason } from "./micOwnership";
 import type { LastTurnAudio, TranscriptionProvider } from "./types";
 import { AUDIO_BITRATE, STREAM_CHUNK_INTERVAL_MS, WHISPER_FAILED_SENTINEL, computeFinalTimeout } from "./types";
 
@@ -18,6 +19,13 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   private ws: WebSocket | null = null;
   private mediaRecorder: MediaRecorder | null = null;
   private stream: MediaStream | null = null;
+  /**
+   * Lease for a stream this provider acquired itself (registry-owned). Null when
+   * using an injected pre-warmed stream — micReadiness owns that lease, so this
+   * provider must never stop its tracks.
+   * DOC: docs/internal/SEAMS.md#mic-ownership-seam
+   */
+  private lease: MicLease | null = null;
   private finalReceived = false;
   private finalTimeout: ReturnType<typeof setTimeout> | null = null;
   private wsUrl = "";
@@ -96,6 +104,21 @@ export class VoiceStreamProvider implements TranscriptionProvider {
 
   getStream(): MediaStream | null {
     return this.stream;
+  }
+
+  /**
+   * Release a stream this provider acquired itself. No-op on the track when the
+   * stream was injected (lease === null) — micReadiness owns that lease and
+   * keeps it warm for re-use. This (not `retainStream`) is the discriminator,
+   * which also closes the latent leak where a fresh getUserMedia fallback ran
+   * while `retainStream` was still true.
+   */
+  private releaseOwnStream(reason: MicReleaseReason): void {
+    if (this.lease) {
+      releaseMicLease(this.lease, reason);
+      this.lease = null;
+    }
+    this.stream = null;
   }
 
   getLastTurnAudio(): LastTurnAudio | null {
@@ -399,7 +422,9 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     // "mic stuck until page reload" bug. isStreamUsable rejects that case so we
     // fall through to a fresh getUserMedia, which actually recovers the device.
     if (preWarmedStream && isStreamUsable(preWarmedStream)) {
+      // Injected pre-warmed stream — micReadiness owns its lease.
       this.stream = preWarmedStream;
+      this.lease = null;
       console.info("[voice] Low-latency: injecting pre-warmed stream into VoiceStreamProvider");
     } else {
       if (preWarmedStream) {
@@ -407,7 +432,8 @@ export class VoiceStreamProvider implements TranscriptionProvider {
       }
       const micStart = Date.now();
       try {
-        this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this.lease = await acquireMicStream("voice-stream", { audio: true });
+        this.stream = this.lease.stream;
       } catch {
         this.onError?.("Microphone access denied");
         return;
@@ -524,15 +550,11 @@ export class VoiceStreamProvider implements TranscriptionProvider {
       }
       if (this.mediaRecorder?.state === "recording") {
         this.mediaRecorder.onstop = () => {
-          if (!this.retainStream) {
-            this.stream?.getTracks().forEach((t) => t.stop());
-            this.stream = null;
-          }
+          this.releaseOwnStream("manual-stop");
         };
         this.mediaRecorder.stop();
-      } else if (!this.retainStream) {
-        this.stream?.getTracks().forEach((t) => t.stop());
-        this.stream = null;
+      } else {
+        this.releaseOwnStream("manual-stop");
       }
     } else if (this.mediaRecorder?.state === "recording") {
       // Defer "done" signal until after final data is flushed.
@@ -543,14 +565,10 @@ export class VoiceStreamProvider implements TranscriptionProvider {
         // Snapshot retained audio AFTER the final ondataavailable fires so the
         // retained blob includes the last tail of the turn.
         this.snapshotLastTurn();
-        // When retainStream is true (low-latency mode), keep the stream alive
-        // for re-use in subsequent recordings. The mic readiness module manages
-        // the stream lifecycle instead.
+        // Release only a stream this provider owns. An injected pre-warmed
+        // stream (lease === null) is kept alive by micReadiness for re-use.
         // DOC: docs/internal/VOICE-LATENCY.md#audio-ducking-deep-dive
-        if (!this.retainStream) {
-          this.stream?.getTracks().forEach((t) => t.stop());
-          this.stream = null;
-        }
+        this.releaseOwnStream("manual-stop");
       };
       this.mediaRecorder.stop();
     } else {
@@ -558,10 +576,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
         this.ws.send(JSON.stringify({ type: "done" }));
       }
       this.snapshotLastTurn();
-      if (!this.retainStream) {
-        this.stream?.getTracks().forEach((t) => t.stop());
-        this.stream = null;
-      }
+      this.releaseOwnStream("manual-stop");
     }
 
     if (!this.finalReceived) {
@@ -598,10 +613,11 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     }
     this.ws?.close();
     this.ws = null;
-    // Always stop tracks on dispose, regardless of retainStream —
-    // dispose is a full cleanup, not a recording-end event.
-    this.stream?.getTracks().forEach((t) => t.stop());
-    this.stream = null;
+    // Release only a provider-owned stream. An injected pre-warmed stream
+    // (lease === null) belongs to micReadiness, whose own lifecycle / emergency
+    // cleanup releases it — disposing the provider must not stop another owner's
+    // tracks. DOC: docs/internal/SEAMS.md#mic-ownership-seam
+    this.releaseOwnStream("unmount");
     this.pendingChunks = [];
     // Dispose is a full cleanup; drop retained audio too. The hook calls
     // this when reclaiming the provider, not when ending a turn.

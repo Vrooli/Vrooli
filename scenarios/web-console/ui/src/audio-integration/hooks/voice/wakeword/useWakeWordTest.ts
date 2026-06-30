@@ -3,8 +3,13 @@
 // Uses the same MediaRecorder → decode → MFCC → DTW pipeline as enrollment.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { acquireMicStream, releaseMicLease, type MicLease, type MicReleaseReason } from "../micOwnership";
 import { WAKE_WORD_AUDIO_CONSTRAINTS } from "./types";
 import type { AudioFeatures, EngineCalibration, WakeWordEngine } from "./types";
+
+/** Lease reasons that mean the page/OS pulled the mic out from under us, so an
+ *  in-flight test recording must be cancelled rather than processed. */
+const LIFECYCLE_CANCEL_REASONS: ReadonlySet<MicReleaseReason> = new Set(["hidden", "pagehide", "freeze", "ended"]);
 
 /** Single test attempt result. */
 export interface TestAttempt {
@@ -53,8 +58,11 @@ export function useWakeWordTest(opts: UseWakeWordTestOpts): UseWakeWordTestRetur
   const [recordingSeconds, setRecordingSeconds] = useState(0);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const leaseRef = useRef<MicLease | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  /** Set when the mic lease is pulled by page/OS lifecycle so onstop skips
+   *  processing the (now silent / partial) capture. */
+  const cancelledRef = useRef(false);
   const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startTimeRef = useRef<number>(0);
@@ -76,12 +84,19 @@ export function useWakeWordTest(opts: UseWakeWordTestOpts): UseWakeWordTestRetur
   const cleanup = useCallback(() => {
     if (tickerRef.current) { clearInterval(tickerRef.current); tickerRef.current = null; }
     if (autoStopRef.current) { clearTimeout(autoStopRef.current); autoStopRef.current = null; }
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
+    releaseMicLease(leaseRef.current, "manual-stop");
+    leaseRef.current = null;
     recorderRef.current = null;
   }, []);
 
   const processRecording = useCallback(async (chunks: Blob[], durationMs: number) => {
+    // Lifecycle cancellation (tab hidden / pagehide pulled the mic) — do not
+    // process or surface a comparison; just return to idle.
+    if (cancelledRef.current) {
+      cancelledRef.current = false;
+      setStatus("idle");
+      return;
+    }
     if (durationMs < MIN_DURATION_MS) {
       setError("Hold the button longer (at least 0.5s).");
       setStatus("idle");
@@ -141,11 +156,23 @@ export function useWakeWordTest(opts: UseWakeWordTestOpts): UseWakeWordTestRetur
     setError(null);
     setCurrentResult(null);
     setRecordingSeconds(0);
+    cancelledRef.current = false;
     chunksRef.current = [];
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: WAKE_WORD_AUDIO_CONSTRAINTS });
-      streamRef.current = stream;
+      const lease = await acquireMicStream("wake-word-test", { audio: WAKE_WORD_AUDIO_CONSTRAINTS }, {
+        onRelease: (reason) => {
+          // Page/OS lifecycle pulled the mic mid-test → cancel processing.
+          if (!LIFECYCLE_CANCEL_REASONS.has(reason)) return;
+          cancelledRef.current = true;
+          if (tickerRef.current) { clearInterval(tickerRef.current); tickerRef.current = null; }
+          if (autoStopRef.current) { clearTimeout(autoStopRef.current); autoStopRef.current = null; }
+          if (recorderRef.current?.state === "recording") recorderRef.current.stop();
+          setStatus("idle");
+        },
+      });
+      leaseRef.current = lease;
+      const stream = lease.stream;
 
       const recorder = new MediaRecorder(stream, {
         mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
@@ -167,8 +194,8 @@ export function useWakeWordTest(opts: UseWakeWordTestOpts): UseWakeWordTestRetur
       recorder.onstop = () => {
         const durationMs = performance.now() - startTimeRef.current;
         const chunks = [...chunksRef.current];
-        streamRef.current?.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
+        releaseMicLease(leaseRef.current, "manual-stop");
+        leaseRef.current = null;
         void processRecording(chunks, durationMs);
       };
 
@@ -196,7 +223,8 @@ export function useWakeWordTest(opts: UseWakeWordTestOpts): UseWakeWordTestRetur
     return () => {
       if (tickerRef.current) clearInterval(tickerRef.current);
       if (autoStopRef.current) clearTimeout(autoStopRef.current);
-      streamRef.current?.getTracks().forEach((t) => t.stop());
+      releaseMicLease(leaseRef.current, "unmount");
+      leaseRef.current = null;
     };
   }, []);
 

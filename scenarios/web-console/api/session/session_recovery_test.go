@@ -255,6 +255,58 @@ func TestRecover_AdoptsOrphanedTmuxWithoutMetadata(t *testing.T) {
 	}
 }
 
+func TestRecoveryProgress_TracksLifecycleAndCounts(t *testing.T) {
+	// Recovery now runs asynchronously so the HTTP listener comes up without
+	// waiting. RecoveryProgress() is what the API exposes (and the UI shows) so
+	// a client opening the app mid-recovery sees an honest state. Assert the
+	// snapshot reflects begin → counts → done.
+	useIsolatedSessionState(t)
+	useIsolatedTmuxSocket(t)
+
+	store := sessionstore.NewInMemory()
+	// One detached row whose tmux survives (will be Recovered) and one whose
+	// tmux is gone (will be AwaitingRecovery). Total counts detached rows only.
+	_ = store.Save(sessionstore.Metadata{
+		ID: "alive", Backend: backend.Persistent, Shell: "/bin/bash",
+		Cols: 80, Rows: 24, Created: time.Now(), Detached: true,
+	})
+	_ = store.Save(sessionstore.Metadata{
+		ID: "dead", Backend: backend.Persistent, Shell: "/bin/bash",
+		Cols: 80, Rows: 24, Created: time.Now(), Detached: true,
+	})
+
+	sm := NewManagerWithFactory(nil)
+	sm.tmuxDiscoverFunc = func() ([]string, error) { return []string{"alive"}, nil }
+	sm.tmuxAttachFunc = func(string) (pty.PTY, error) { return ptyfake.NewFakePTYWithOutput(), nil }
+
+	// Before recovery: not in progress, nothing counted.
+	if p := sm.RecoveryProgress(); p.InProgress || p.Total != 0 {
+		t.Fatalf("pre-recovery progress = %+v, want zero/not-in-progress", p)
+	}
+
+	report := sm.Recover(store, backend.New())
+
+	p := sm.RecoveryProgress()
+	if p.InProgress {
+		t.Errorf("InProgress = true after Recover returned; want false")
+	}
+	if p.Total != 2 {
+		t.Errorf("Total = %d, want 2 (detached rows)", p.Total)
+	}
+	if p.Recovered != report.Recovered || p.Recovered != 1 {
+		t.Errorf("Recovered snapshot = %d, report = %d, want 1", p.Recovered, report.Recovered)
+	}
+	if p.AwaitingRecovery != 1 {
+		t.Errorf("AwaitingRecovery = %d, want 1", p.AwaitingRecovery)
+	}
+	if p.StartedAt.IsZero() || p.CompletedAt.IsZero() {
+		t.Errorf("StartedAt/CompletedAt must be set after recovery: %+v", p)
+	}
+	if p.CompletedAt.Before(p.StartedAt) {
+		t.Errorf("CompletedAt %v before StartedAt %v", p.CompletedAt, p.StartedAt)
+	}
+}
+
 // --- Session Store Tests ---
 
 func TestInMemorySessionStore_SaveAndGet(t *testing.T) {

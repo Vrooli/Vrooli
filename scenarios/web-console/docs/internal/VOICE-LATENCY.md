@@ -59,16 +59,40 @@ Additionally, on mobile, `getUserMedia` switches the OS audio session to "play-a
 - **CONSTRAINT**: The pre-warmed stream is "provider-independent" — it is acquired by micReadiness and injected into whichever provider starts. See "Stream injection vs stream acquisition" below.
 - **COST**: One active mic stream while the setting is enabled and the tab is visible.
 
-### 6. Visibility-based mic lifecycle (always-on when low-latency enabled)
+### 6. Page-lifecycle mic cleanup (always-on for ALL mic owners)
 
-- **WHERE**: [CODE: ui/src/hooks/voice/micReadiness.ts#installVisibilityHandler]
-- **WHAT**: When the tab becomes hidden, release all mic tracks (stops OS indicator, frees audio hardware). When visible again, re-acquire if low-latency mode is enabled.
-- **WHY**: (a) Privacy — no mic access in background tabs. (b) Audio ducking — releasing the mic restores normal audio routing on mobile.
+- **WHERE**: [CODE: ui/src/audio-integration/hooks/voice/micOwnership.ts#installMicLifecycleCleanup] (privacy backstop) + [CODE: ui/src/audio-integration/hooks/useVoiceCore.ts] (coordinated stop + re-arm).
+- **WHAT**: Visibility/lifecycle cleanup is no longer scoped to the low-latency
+  pre-warm stream. Every browser mic stream opened by web-console UI is acquired
+  through the **mic ownership registry** (one lease per owner: low-latency
+  prewarm, active providers, passive wake-word, and the three settings capture
+  flows). One central installer reacts to page lifecycle:
+  - `visibilitychange` → hidden: release every **non-active-recording** lease
+    (passive, prewarm, settings). Each owner's `onRelease` callback resets its
+    own state (passive listening flips off; micReadiness goes `released`;
+    settings captures cancel without uploading).
+  - `pagehide` / `freeze`: release **all** leases. The PWA is closing — privacy
+    and hardware release win over preserving a partial recording. MDN notes
+    mobile `pagehide` is not fully reliable, so `visibilitychange` is the primary
+    session-end signal and `pagehide`/`freeze` are complementary.
+  - On becoming visible again, useVoiceCore re-arms passive listening and/or the
+    low-latency prewarm (gated on toggles, a loaded template, no active
+    recording). A lease release does not re-run React effects, so re-arm is
+    explicit.
+- **ACTIVE RECORDING POLICY (iOS PWA)**: an active user recording is **stopped**
+  on hidden by useVoiceCore (not silently kept open). Whatever was captured is
+  finalized and the mic is released; the change is surfaced via a transient
+  notice rather than a stuck Dynamic Island indicator.
+- **WHY**: (a) Privacy — no mic access in a hidden tab / backgrounded PWA, the
+  iOS "mic indicator on while the app looks idle" failure mode. (b) Audio
+  ducking — releasing the mic restores normal audio routing on mobile.
 - **PLATFORM DIFFERENCES**:
   - **Mobile Safari**: `visibilitychange` fires on app switch, tab switch, and screen lock. Reliable.
   - **Chrome Android**: `visibilitychange` fires on tab switch and app switch. Reliable.
   - **Desktop browsers**: `visibilitychange` fires on tab switch. Does NOT fire when window is on a second monitor (still "visible" per spec). Mic stays active — correct for hands-free use.
-- **KEY INVARIANT**: Active recording is NEVER interrupted by visibility changes. The handler checks `isRecordingActive()` and no-ops if true.
+- **KEY INVARIANT**: `MediaStreamTrack.stop()` is the only reliable
+  application-level mic release; dropping a reference or unmounting React does
+  not stop the OS microphone. Lease release is idempotent.
 
 ### 7. Prompt mic release (always-on)
 
@@ -106,7 +130,12 @@ Two ownership models for the MediaStream:
 Key invariants:
 - If the pre-warmed stream's tracks are ended (browser revoked access), the provider falls back to its own `getUserMedia` call
 - The provider checks `track.readyState === "live"` before using an injected stream
-- `dispose()` always stops tracks regardless of `retainStream` — it's a full cleanup, not a session-end
+- Ownership is tracked by a **lease**, not the `retainStream` flag. A provider
+  holds a lease only for a stream it acquired itself (via the mic ownership
+  registry); an injected pre-warmed stream's lease stays with micReadiness. On
+  `stop()` / `dispose()` the provider releases only its own lease — it never
+  stops another owner's tracks. (This also closes a latent leak where a fresh
+  `getUserMedia` fallback ran while `retainStream` was still true.)
 - The micReadiness module handles the release-then-reacquire cycle after recording finishes
 
 ## Audio Cue Contract

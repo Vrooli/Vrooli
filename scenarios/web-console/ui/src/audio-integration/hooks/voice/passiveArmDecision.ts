@@ -33,6 +33,12 @@ export interface PassiveArmInput {
   listenerActive: boolean;
   /** Whether the last passive start failed and we're holding off auto-retries. */
   startBlocked: boolean;
+  /**
+   * Whether the document is currently visible. Passive listening must NOT open
+   * the mic while the tab/PWA is hidden (the iOS-PWA background-mic leak). The
+   * visibility handler re-arms explicitly on becoming visible.
+   */
+  documentVisible: boolean;
 }
 
 export type PassiveArmAction = "enter" | "exit" | "none";
@@ -41,10 +47,10 @@ export type PassiveArmAction = "enter" | "exit" | "none";
  * Decide whether to enter, exit, or leave passive listening untouched.
  *
  * - Voice/wake-word off → tear down any live listener ("exit"), else "none".
- * - Wake word on + template loaded + idle + nothing already listening + not
- *   blocked by a prior failure → arm passive listening ("enter").
- * - Anything mid-flight (preparing/recording/listening/transcribing, or a
- *   listener already running, or a failure latch) → "none" (hold).
+ * - Wake word on + template loaded + idle + visible + nothing already listening
+ *   + not blocked by a prior failure → arm passive listening ("enter").
+ * - Hidden document, anything mid-flight (preparing/recording/listening/
+ *   transcribing), a listener already running, or a failure latch → "none".
  */
 export function decidePassiveArm(input: PassiveArmInput): PassiveArmAction {
   const {
@@ -54,13 +60,14 @@ export function decidePassiveArm(input: PassiveArmInput): PassiveArmAction {
     voiceState,
     listenerActive,
     startBlocked,
+    documentVisible,
   } = input;
 
   if (!voiceEnabled || !wakeWordEnabled) {
     return listenerActive || voiceState === "passive" ? "exit" : "none";
   }
 
-  if (wakeWordConfigured && voiceState === "idle" && !listenerActive && !startBlocked) {
+  if (wakeWordConfigured && voiceState === "idle" && documentVisible && !listenerActive && !startBlocked) {
     return "enter";
   }
 

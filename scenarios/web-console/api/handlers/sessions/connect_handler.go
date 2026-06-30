@@ -91,7 +91,19 @@ func (h *connectHandler) List(ctx context.Context, _ *connect.Request[sessionsv1
 	if err != nil {
 		return nil, h.classify(err, "sessions.List")
 	}
-	return connect.NewResponse(&sessionsv1.ListResponse{Sessions: sessionsToProto(out)}), nil
+	rs := h.deps.Service.RecoveryStatus(ctx)
+	return connect.NewResponse(&sessionsv1.ListResponse{
+		Sessions: sessionsToProto(out),
+		Recovery: &sessionsv1.RecoveryStatus{
+			InProgress:        rs.InProgress,
+			Total:             int32(rs.Total),
+			Recovered:         int32(rs.Recovered),
+			AwaitingRecovery:  int32(rs.AwaitingRecovery),
+			Adopted:           int32(rs.Adopted),
+			StartedAtUnixMs:   rs.StartedAtUnixMs,
+			CompletedAtUnixMs: rs.CompletedAtUnixMs,
+		},
+	}), nil
 }
 
 func (h *connectHandler) Get(ctx context.Context, req *connect.Request[sessionsv1.GetRequest]) (*connect.Response[sessionsv1.GetResponse], error) {

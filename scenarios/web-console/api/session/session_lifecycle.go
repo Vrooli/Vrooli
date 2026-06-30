@@ -80,9 +80,57 @@ func (sm *Manager) Shutdown() {
 	}
 }
 
+// RecoveryProgress returns a snapshot of startup session-recovery progress.
+// Safe to call concurrently with an in-flight recovery.
+func (sm *Manager) RecoveryProgress() RecoveryProgress {
+	sm.recoveryMu.RLock()
+	defer sm.recoveryMu.RUnlock()
+	return sm.recovery
+}
+
+// MarkRecoveryStarted flips the recovery snapshot to in-progress. Call this
+// synchronously before launching Recover in a goroutine so a client that lists
+// sessions in the gap before the goroutine is scheduled still sees the honest
+// "recovering" state.
+func (sm *Manager) MarkRecoveryStarted() {
+	sm.recoveryMu.Lock()
+	defer sm.recoveryMu.Unlock()
+	if sm.recovery.StartedAt.IsZero() {
+		sm.recovery.StartedAt = time.Now()
+	}
+	sm.recovery.InProgress = true
+	sm.recovery.CompletedAt = time.Time{}
+}
+
+func (sm *Manager) setRecoveryTotal(total int) {
+	sm.recoveryMu.Lock()
+	defer sm.recoveryMu.Unlock()
+	sm.recovery.Total = total
+}
+
+func (sm *Manager) bumpRecovery(recovered, awaiting, adopted int) {
+	sm.recoveryMu.Lock()
+	defer sm.recoveryMu.Unlock()
+	sm.recovery.Recovered += recovered
+	sm.recovery.AwaitingRecovery += awaiting
+	sm.recovery.Adopted += adopted
+}
+
+func (sm *Manager) finishRecovery() {
+	sm.recoveryMu.Lock()
+	defer sm.recoveryMu.Unlock()
+	sm.recovery.InProgress = false
+	sm.recovery.CompletedAt = time.Now()
+}
+
 // Recover discovers surviving tmux sessions, matches them against persisted
-// metadata, and re-registers them. Called once at server startup.
+// metadata, and re-registers them. Called once at server startup — typically in
+// a goroutine so the HTTP listener does not block on reattaching N tmux
+// sessions. Live progress is published via RecoveryProgress().
 func (sm *Manager) Recover(store sessionstore.Store, registry *backend.Registry) RecoveryReport {
+	sm.MarkRecoveryStarted()
+	defer sm.finishRecovery()
+
 	report := RecoveryReport{}
 
 	// 1. Load persisted metadata for detached sessions
@@ -95,6 +143,7 @@ func (sm *Manager) Recover(store sessionstore.Store, registry *backend.Registry)
 	for _, m := range metaList {
 		metaMap[m.ID] = m
 	}
+	sm.setRecoveryTotal(len(metaMap))
 
 	// 2. Discover live tmux sessions
 	tmuxSessions, err := sm.tmuxDiscoverFunc()
@@ -121,6 +170,7 @@ func (sm *Manager) Recover(store sessionstore.Store, registry *backend.Registry)
 			}
 			report.AwaitingRecovery++
 			report.OrphanedMetadata++
+			sm.bumpRecovery(0, 1, 0)
 			log.Printf("recovery: marked session %s as awaiting_recovery (tmux gone, agent=%s session_id=%s)",
 				id, meta.AgentType, meta.AgentSessionID)
 			continue
@@ -139,6 +189,7 @@ func (sm *Manager) Recover(store sessionstore.Store, registry *backend.Registry)
 		}
 
 		report.Recovered++
+		sm.bumpRecovery(1, 0, 0)
 		log.Printf("recovery: recovered session %s (backend=%s)", id, meta.Backend)
 		delete(tmuxSet, id)
 	}
@@ -174,6 +225,7 @@ func (sm *Manager) Recover(store sessionstore.Store, registry *backend.Registry)
 		}
 		if sm.reattachSession(store, id, meta) {
 			report.Adopted++
+			sm.bumpRecovery(0, 0, 1)
 			log.Printf("recovery: adopted orphaned tmux session %s (metadata was missing; reattached and persisted)", id)
 		} else {
 			// Persisted but couldn't attach right now; the watchdog and the next

@@ -211,9 +211,41 @@ export async function createSession(opts?: {
   return decodeSession(resp.session);
 }
 
-export async function listSessions(): Promise<SessionInfo[]> {
+/**
+ * Snapshot of startup persistent-session recovery, returned alongside the
+ * session list. Reattaching surviving tmux sessions runs asynchronously so the
+ * API serves immediately; while `in_progress` is true the list may be
+ * incomplete and the UI should say so rather than imply the user has no
+ * sessions. See session_lifecycle.go (RecoveryProgress) + sessions.proto.
+ */
+export interface RecoverySnapshot {
+  in_progress: boolean;
+  total: number;
+  recovered: number;
+  awaiting_recovery: number;
+  adopted: number;
+}
+
+export async function listSessionsWithRecovery(): Promise<{
+  sessions: SessionInfo[];
+  recovery: RecoverySnapshot;
+}> {
   const resp = await sessionsClient.list({});
-  return resp.sessions.map(decodeSession);
+  const r = resp.recovery;
+  return {
+    sessions: resp.sessions.map(decodeSession),
+    recovery: {
+      in_progress: r?.inProgress ?? false,
+      total: r?.total ?? 0,
+      recovered: r?.recovered ?? 0,
+      awaiting_recovery: r?.awaitingRecovery ?? 0,
+      adopted: r?.adopted ?? 0,
+    },
+  };
+}
+
+export async function listSessions(): Promise<SessionInfo[]> {
+  return (await listSessionsWithRecovery()).sessions;
 }
 
 export async function getSession(id: string): Promise<SessionInfo> {

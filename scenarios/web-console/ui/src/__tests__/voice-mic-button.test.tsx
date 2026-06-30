@@ -177,6 +177,29 @@ describe("VoiceMicButton", () => {
     expect(btn.title).toBe("voiceMicButton.error");
   });
 
+  // --- Passive wake-word listening (honest UI state) ---
+
+  it("shows passive styling/title and breathing icon when passively listening", () => {
+    render(<VoiceMicButton {...defaults} isPassive />);
+    const btn = screen.getByTestId("voice-mic-btn");
+    // Passive must never look like ordinary idle.
+    expect(btn.className).toContain("border-indigo-500/30");
+    expect(btn.className).not.toContain("border-wc-default");
+    expect(btn.title).toBe("voiceMicButton.passiveListening");
+    expect(btn.querySelector(".animate-\\[breathe_3s_ease-in-out_infinite\\]")).toBeTruthy();
+  });
+
+  it("calls onExitPassive (not onStart) when the passive button is tapped", () => {
+    const onExitPassive = vi.fn();
+    render(<VoiceMicButton {...defaults} isPassive onExitPassive={onExitPassive} />);
+    const btn = screen.getByTestId("voice-mic-btn");
+    fireEvent.pointerDown(btn);
+    fireEvent.pointerUp(btn);
+    expect(onExitPassive).toHaveBeenCalledTimes(1);
+    expect(onStart).not.toHaveBeenCalled();
+    expect(onStop).not.toHaveBeenCalled();
+  });
+
   // --- Pointer interaction (intent-based) ---
 
   it("calls onStart on pointerDown when idle", () => {

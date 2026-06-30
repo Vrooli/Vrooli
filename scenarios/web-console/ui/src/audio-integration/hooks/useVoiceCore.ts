@@ -33,7 +33,8 @@ import { playRecordingStartCue, playRecordingStopCue } from "../index";
 import { buildVoiceActivitySnapshot, IDLE_VOICE_ACTIVITY, voiceActivitySnapshotsEqual } from "../index";
 import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, vadTick, VAD_FLOOR_CACHE_MAX_AGE_MS } from "../index";
 import { getSharedAudioContext, ensureAudioContextOnGesture, ensureRunningSharedAudioContext } from "../index";
-import { acquireStream as acquireMicStream, releaseStream as releaseMicStream, getStream as getMicStream, isStreamAlive as isMicStreamAlive, installVisibilityHandler } from "../index";
+import { acquireStream as acquireMicStream, releaseStream as releaseMicStream, getStream as getMicStream, isStreamAlive as isMicStreamAlive } from "../index";
+import { installMicLifecycleCleanup } from "../index";
 import { VoiceStreamProvider } from "../index";
 import { setServerVadState, resetServerVadState, useServerVadStateStore, SERVER_VAD_STALE_MS } from "./useServerVadStateStore";
 import { decideAutoStop } from "./voice/autoStopDecision";
@@ -73,6 +74,7 @@ const INITIAL_STATE: VoiceInputState = {
   speakerVerificationEnabled: false,
   speakerProfileConfigured: false,
   wakeWordConfigured: false,
+  passiveListeningActive: false,
 };
 
 /**
@@ -165,7 +167,10 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   const isListening = state.voiceState === "listening";
   const isTranscribing = state.voiceState === "transcribing";
   const isPreparing = state.voiceState === "preparing";
-  const isPassive = state.voiceState === "passive";
+  // Honest passive state: driven by real passive-listener activity, NOT by a
+  // never-set voiceState === "passive". voiceState stays "idle" while passively
+  // listening (so tap-to-talk still works); the mic control reads this instead.
+  const isPassive = state.passiveListeningActive;
   /** True when mic is active in either mode (excludes passive). */
   const isActive = isRecording || isListening;
 
@@ -236,8 +241,14 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   const noAudioTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Guards against concurrent startRecording calls during async startup. */
   const startingRef = useRef(false);
-  /** Cleanup function for the Page Visibility handler (low-latency mode). */
-  const visibilityCleanupRef = useRef<(() => void) | null>(null);
+  /** Latest document-hidden state, read by non-React paths (timers, reconcile)
+   *  to keep background mic acquisition from racing a hidden tab. */
+  const documentHiddenRef = useRef(
+    typeof document !== "undefined" && document.visibilityState === "hidden",
+  );
+  /** Holds the latest passive-arm reconcile so the visibility effect (which has
+   *  a narrow dep list) can call it on becoming visible without going stale. */
+  const reconcilePassiveRef = useRef<(() => void) | null>(null);
   /** Ref for isActive so non-React callbacks can read it. */
   const isActiveRef = useRef(false);
   isActiveRef.current = isRecording || isListening;
@@ -322,42 +333,30 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     });
   }, [persistentMode]);
 
-  // ── Low-latency voice lifecycle ──
+  // ── Low-latency voice pre-warm ──
   // DOC: docs/internal/VOICE-LATENCY.md#visibility-based-mic-lifecycle
   //
-  // When low-latency voice is enabled, install a Page Visibility handler that
-  // releases the mic on tab hidden and re-acquires on visible. Also pre-warm
-  // the mic stream immediately.
+  // When low-latency voice is enabled, pre-warm the mic stream so pressing the
+  // button skips getUserMedia. Pre-warm only when the document is visible, no
+  // passive listener already owns a mic stream (Phase 5: never two invisible
+  // background streams), and no recording is active. Release/re-acquire on
+  // page-visibility is owned by the central lifecycle effect below, NOT here.
   useEffect(() => {
     if (!voiceEnabled) return;
 
     if (lowLatencyVoice) {
-      // Pre-warm the mic stream
-      acquireMicStream().catch((err) => {
-        console.warn("[voice] Low-latency: initial mic pre-warm failed:", err);
-      });
-
-      // Install visibility handler
-      const cleanup = installVisibilityHandler({
-        isRecordingActive: () => isActiveRef.current,
-        isLowLatencyEnabled: () => lowLatencyVoiceRef.current,
-      });
-      visibilityCleanupRef.current = cleanup;
-
+      if (!documentHiddenRef.current && !passiveListenerRef.current && !isActiveRef.current) {
+        acquireMicStream().catch((err) => {
+          console.warn("[voice] Low-latency: initial mic pre-warm failed:", err);
+        });
+      }
       return () => {
-        cleanup();
-        visibilityCleanupRef.current = null;
-        // Release the pre-warmed stream when low-latency is turned off
+        // Release the pre-warmed stream when low-latency is turned off / unmount.
         releaseMicStream();
       };
-    } else {
-      // Low-latency was turned off — clean up any leftover state
-      if (visibilityCleanupRef.current) {
-        visibilityCleanupRef.current();
-        visibilityCleanupRef.current = null;
-      }
-      releaseMicStream();
     }
+    // Low-latency turned off — drop any leftover pre-warmed stream.
+    releaseMicStream();
   }, [voiceEnabled, lowLatencyVoice]);
 
   /** Handle a segment-final transcript in persistent mode. */
@@ -847,7 +846,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     // already disposed its listener, so this is a no-op in that path. The
     // auto-arm effect re-arms passive listening once this turn returns to idle.
     if (passiveListenerRef.current) {
-      passiveListenerRef.current.dispose();
+      passiveListenerRef.current.dispose("owner-replaced");
       passiveListenerRef.current = null;
     }
     // Clear any server-VAD snapshot from a prior session BEFORE the first
@@ -1056,7 +1055,13 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         if (lowLatencyVoiceRef.current) {
           releaseMicStream();
           setTimeout(() => {
-            if (lowLatencyVoiceRef.current) {
+            // Gate the delayed re-acquire on a visible tab with no passive
+            // listener and no active recording, so a timer that fires after the
+            // tab was hidden does not silently re-open the mic in the background.
+            if (lowLatencyVoiceRef.current
+              && !documentHiddenRef.current
+              && !passiveListenerRef.current
+              && !isActiveRef.current) {
               acquireMicStream().catch(() => {});
             }
           }, 500);
@@ -1487,10 +1492,17 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       console.warn("[voice] Cannot enter passive mode: no wake word configured");
       return;
     }
+    // Never open a background mic while hidden (iOS-PWA background-mic leak);
+    // the visibility handler re-arms on becoming visible.
+    if (documentHiddenRef.current) return;
     if (passiveListenerRef.current) {
-      passiveListenerRef.current.dispose();
+      passiveListenerRef.current.dispose("owner-replaced");
       passiveListenerRef.current = null;
     }
+
+    // Phase 5: passive mode owns its own mic stream — never also hold a
+    // low-latency pre-warm stream. Drop the prewarm before arming.
+    releaseMicStream();
 
     // Pick up the latest sensitivity before arming (the user may have moved the
     // slider since the template loaded). The sync effect keeps it current after.
@@ -1514,7 +1526,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         // the listener fully here — otherwise its mic stream stays live (mic
         // indicator stuck on, and a second stream contends for the device).
         // dispose() leaves the shared AudioContext open (ownAudioCtx === false).
-        listener.dispose();
+        listener.dispose("owner-replaced");
         passiveListenerRef.current = null;
         startRecording({ vadEnabled: true });
       },
@@ -1527,16 +1539,30 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         passiveListenerRef.current = null;
         void error;
       },
+      // Fires whenever the mic lease is released for ANY reason (our dispose,
+      // the OS revoking the device, or page-hidden emergency cleanup). Drives
+      // the honest passive state false so the mic control never shows idle while
+      // a stream was live.
+      onMicReleased: () => {
+        if (passiveListenerRef.current === listener) passiveListenerRef.current = null;
+        setState((s) => (s.passiveListeningActive ? { ...s, passiveListeningActive: false } : s));
+      },
     });
 
     passiveListenerRef.current = listener;
     await listener.start();
+    // Reflect successful arming in honest UI state. If start failed, onError /
+    // onMicReleased already cleared the ref, so this guard skips the update.
+    if (passiveListenerRef.current === listener) {
+      setState((s) => (s.passiveListeningActive ? s : { ...s, passiveListeningActive: true }));
+    }
   }, [startRecording]);
 
   /** Stop background passive listening (does not touch voiceState). */
   const exitPassiveMode = useCallback(() => {
     if (passiveListenerRef.current) {
-      passiveListenerRef.current.dispose();
+      // dispose() releases the lease → onMicReleased clears the ref + state.
+      passiveListenerRef.current.dispose("manual-stop");
       passiveListenerRef.current = null;
     }
   }, []);
@@ -1546,7 +1572,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   // this, navigating away while passively listening would leak an open mic.
   useEffect(() => () => {
     if (passiveListenerRef.current) {
-      passiveListenerRef.current.dispose();
+      passiveListenerRef.current.dispose("unmount");
       passiveListenerRef.current = null;
     }
   }, []);
@@ -1568,35 +1594,91 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
 
   // ── Auto-arm passive wake-word listening ──
   //
-  // Nothing else in the app starts passive mode, so without this effect the
-  // "always-on" wake word never actually listens — the toggle flips a config
-  // bit but the mic is never opened. Here we reconcile the desired state:
-  // when wake word is enabled and a template is loaded, listen passively in
-  // the background whenever voice is idle (voiceState stays "idle" — the
-  // button is unaffected). On detection enterPassiveMode routes to
-  // startRecording; when that turn ends voiceState returns to "idle" and this
-  // effect re-arms — the always-on cycle (idle+listening → wake → record →
-  // idle+listening). Disabling the toggle (or a start failure) tears it down.
-  useEffect(() => {
-    // Clear the failure latch whenever the feature is off so a later
-    // re-enable gets a fresh start attempt.
-    if (!voiceEnabled || !wakeWordEnabled) {
+  // Nothing else in the app starts passive mode, so without this the "always-on"
+  // wake word never actually listens — the toggle flips a config bit but the mic
+  // is never opened. We reconcile the desired state: when wake word is enabled,
+  // a template is loaded, voice is idle, AND the document is visible, listen
+  // passively in the background (voiceState stays "idle" — tap-to-talk still
+  // works; the honest `passiveListeningActive` flag drives the mic control). On
+  // detection enterPassiveMode routes to startRecording; when that turn ends
+  // voiceState returns to "idle" and we re-arm. Disabling the toggle (or a start
+  // failure) tears it down. The reconcile is also called by the visibility
+  // handler on becoming visible (lease release does not re-run React effects).
+  const reconcilePassive = useCallback(() => {
+    // Clear the failure latch whenever the feature is off so a later re-enable
+    // gets a fresh start attempt.
+    if (!voiceEnabled || !wakeWordEnabledRef.current) {
       passiveStartBlockedRef.current = false;
     }
     const action = decidePassiveArm({
       voiceEnabled,
-      wakeWordEnabled,
+      wakeWordEnabled: wakeWordEnabledRef.current,
       wakeWordConfigured: state.wakeWordConfigured,
       voiceState: state.voiceState,
       listenerActive: !!passiveListenerRef.current,
       startBlocked: passiveStartBlockedRef.current,
+      documentVisible: !documentHiddenRef.current,
     });
     if (action === "enter") {
       void enterPassiveMode();
     } else if (action === "exit") {
       exitPassiveMode();
     }
-  }, [voiceEnabled, wakeWordEnabled, state.wakeWordConfigured, state.voiceState, enterPassiveMode, exitPassiveMode]);
+  }, [voiceEnabled, state.wakeWordConfigured, state.voiceState, enterPassiveMode, exitPassiveMode]);
+  reconcilePassiveRef.current = reconcilePassive;
+
+  useEffect(() => {
+    reconcilePassive();
+  }, [voiceEnabled, wakeWordEnabled, reconcilePassive]);
+
+  // ── Page-lifecycle mic cleanup + coordinated re-arm ──
+  // DOC: docs/internal/VOICE-LATENCY.md#visibility-based-mic-lifecycle
+  //
+  // One handler for ALL mic owners (replaces micReadiness's prewarm-only
+  // visibility handler):
+  //   - Install the registry's privacy backstop, which releases every
+  //     non-active lease on tab-hidden and ALL leases on pagehide/freeze even
+  //     if React cleanup never runs (mobile PWA close). Passive + prewarm leases
+  //     reset their owners via onRelease.
+  //   - For iOS-PWA privacy, an ACTIVE recording is stopped on hidden (it is not
+  //     a registry lease concern — stopping it keeps UI state honest and
+  //     releases the mic). Surfaced via a transient notice.
+  //   - On becoming visible, re-arm passive listening and/or low-latency prewarm
+  //     explicitly (a lease release does not re-run React effects).
+  useEffect(() => {
+    if (!voiceEnabled) return;
+    const uninstallBackstop = installMicLifecycleCleanup();
+
+    const onVisibility = () => {
+      const hidden = typeof document !== "undefined" && document.visibilityState === "hidden";
+      documentHiddenRef.current = hidden;
+      if (hidden) {
+        if (isActiveRef.current) {
+          console.info("[voice] Visibility: hidden during active recording — stopping (privacy)");
+          stopRecordingRef.current?.({ reason: "auto" });
+          if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+          setState((s) => ({ ...s, fallbackNotice: "Recording stopped — app moved to background" }));
+          fallbackTimerRef.current = setTimeout(() => {
+            setState((s) => (s.fallbackNotice ? { ...s, fallbackNotice: null } : s));
+          }, 5000);
+        }
+        // Passive + prewarm leases are released by the backstop; their onRelease
+        // callbacks reset passiveListeningActive / micReadiness state.
+      } else {
+        reconcilePassiveRef.current?.();
+        if (lowLatencyVoiceRef.current && !isActiveRef.current && !passiveListenerRef.current) {
+          acquireMicStream().catch(() => {});
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    documentHiddenRef.current = typeof document !== "undefined" && document.visibilityState === "hidden";
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      uninstallBackstop();
+    };
+  }, [voiceEnabled]);
 
   return {
     ...state,

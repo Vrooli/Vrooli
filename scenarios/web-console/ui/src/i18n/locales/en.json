@@ -208,6 +208,13 @@
     "dismiss": "Dismiss",
     "dismissTitle": "Hide this orphan from the list (on-disk state preserved)"
   },
+  "sessionRecovery": {
+    "recovering": "Recovering sessions… {{recovered}}/{{total}}",
+    "recoveringUnknown": "Recovering sessions…",
+    "recovered": "{{count}} sessions recovered",
+    "recovered_one": "1 session recovered",
+    "view": "View"
+  },
   "mobileToolbar": {
     "showUnsentTitle": "Show unsent input details",
     "unsentCount": "{{count}} unsent",

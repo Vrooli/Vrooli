@@ -15,6 +15,7 @@ const base: PassiveArmInput = {
   voiceState: "idle",
   listenerActive: false,
   startBlocked: false,
+  documentVisible: true,
 };
 
 describe("decidePassiveArm", () => {
@@ -41,6 +42,11 @@ describe("decidePassiveArm", () => {
 
   it("does not retry-storm after a passive start failure (latch held)", () => {
     expect(decidePassiveArm({ ...base, startBlocked: true })).toBe("none");
+  });
+
+  it("does not arm while the document is hidden (iOS-PWA background-mic leak)", () => {
+    // Even fully enabled + configured + idle, a hidden tab must not open the mic.
+    expect(decidePassiveArm({ ...base, documentVisible: false })).toBe("none");
   });
 
   it("tears down the listener when the wake-word toggle goes off", () => {

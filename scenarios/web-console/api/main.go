@@ -375,10 +375,24 @@ func NewServer(db *sql.DB) *Server {
 		log.Printf("default-backend: resolved 'auto' -> %q", resolved)
 	}
 
-	// Recover surviving tmux sessions from previous run
-	report := sessions.Recover(sessionStore, backendRegistry)
-	log.Printf("recovery: recovered=%d adopted=%d awaiting_recovery=%d orphaned_tmux=%d (awaiting_recovery rows preserved for explicit recovery via /api/v1/sessions/recoverable; orphaned_tmux are live sessions we could not adopt and left running)",
-		report.Recovered, report.Adopted, report.AwaitingRecovery, report.OrphanedTmux)
+	// Recover surviving tmux sessions from previous run — ASYNCHRONOUSLY.
+	// Reattaching many persisted tmux sessions can take minutes; doing it here
+	// synchronously delayed the HTTP listener past the lifecycle health-check
+	// timeout, so the scenario was killed as "unhealthy" even though every
+	// session was about to come back. Recovery now runs in the background while
+	// the server listens immediately; progress is published via
+	// sessions.RecoveryProgress() and surfaced on Sessions.List so the UI shows
+	// an honest "sessions still recovering" state. MarkRecoveryStarted is called
+	// synchronously so a client that lists in the scheduling gap still sees it.
+	// The reattach watchdog starts only after recovery completes, so the two do
+	// not race to reattach the same session.
+	sessions.MarkRecoveryStarted()
+	go func() {
+		report := sessions.Recover(sessionStore, backendRegistry)
+		log.Printf("recovery: recovered=%d adopted=%d awaiting_recovery=%d orphaned_tmux=%d (awaiting_recovery rows preserved for explicit recovery via /api/v1/sessions/recoverable; orphaned_tmux are live sessions we could not adopt and left running)",
+			report.Recovered, report.Adopted, report.AwaitingRecovery, report.OrphanedTmux)
+		sessions.StartReattachWatchdog()
+	}()
 
 	srv := &Server{
 		db:              db,
@@ -455,10 +469,17 @@ func NewServer(db *sql.DB) *Server {
 		log.Println("capabilities: initial check complete")
 	}()
 
-	// audio-tools is a required dependency (.vrooli/service.json). Resolve
-	// it once at startup and wire the audioports.Remote* adapters; the
-	// lifecycle ensures it is running before web-console boots.
-	// AUDIO_TOOLS_URL pins to an explicit URL for dev/test override.
+	// audio-tools powers voice (STT/TTS/wake-word/speaker) but NOT the core
+	// terminal workspace. Resolve it lazily and wire the audioports.Remote*
+	// adapters: web-console must not refuse to boot (log.Fatal) just because a
+	// voice dependency is momentarily unavailable — e.g. audio-tools is still
+	// starting, or temporarily failing its own build. With Required:false the
+	// client resolves on demand, so voice features report unavailable via the
+	// capabilities surface (and fall back to Web Speech / disabled in the UI)
+	// and recover automatically once audio-tools is reachable, no restart
+	// needed. The lifecycle still declares audio-tools a dependency and starts
+	// it first in the normal case. AUDIO_TOOLS_URL pins an explicit URL for
+	// dev/test override.
 	var atResolver audiotoolsint.URLResolver
 	if explicit := strings.TrimSpace(os.Getenv("AUDIO_TOOLS_URL")); explicit != "" {
 		atResolver = audiotoolsint.EnvResolver{EnvVar: "AUDIO_TOOLS_URL", Default: explicit}
@@ -469,11 +490,14 @@ func NewServer(db *sql.DB) *Server {
 		}
 	}
 	atClient, err := audiotoolsint.New(atResolver, audiotoolsint.Policy{
-		Required:       true,
+		Required:       false,
 		PerCallTimeout: 150 * time.Second,
 	})
 	if err != nil {
-		log.Fatalf("audio-tools adoption: required dependency not reachable: %v", err)
+		// Required:false never returns an error today (lazy resolution), but keep
+		// this non-fatal so a future change can't silently reintroduce a
+		// boot-blocking dependency on a voice add-on.
+		log.Printf("audio-tools adoption: not reachable yet (%v); voice features degraded until it is up", err)
 	}
 	srv.sttPort = &audioports.RemoteSpeechToText{Client: atClient}
 	srv.ttsPort = &audioports.RemoteTextToSpeech{Client: atClient}
@@ -489,7 +513,9 @@ func NewServer(db *sql.DB) *Server {
 	log.Printf("audio-tools adoption: STT/TTS/processor/summarize + admin/runtime ports wired to %s", atClient.BaseURL())
 
 	srv.sweeper.Start()
-	sessions.StartReattachWatchdog()
+	// sessions.StartReattachWatchdog() runs after async recovery completes (see
+	// the recovery goroutine above) so the watchdog and recovery never race to
+	// reattach the same session.
 	srv.setupRoutes()
 
 	// Start Codex rollout tailer for auto-TTS.

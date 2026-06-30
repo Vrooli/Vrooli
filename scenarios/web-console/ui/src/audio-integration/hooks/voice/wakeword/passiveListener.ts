@@ -8,6 +8,7 @@
 //            extract MFCC → compare DTW → fire onWakeWordDetected or discard.
 
 import { AudioRingBuffer, createPassiveCapturePipeline, downsample } from "../audioUtils";
+import { acquireMicStream, releaseMicLease, type MicLease, type MicReleaseReason } from "../micOwnership";
 import { createPassiveVadRefs, vadTick, type VadRefs } from "../vad";
 import { WAKE_WORD_AUDIO_CONSTRAINTS, type WakeWordEngine, type WakeWordTemplate } from "./types";
 
@@ -32,6 +33,13 @@ export interface PassiveListenerOpts {
   /** Fired when the wake word is detected. Receives the mic MediaStream for handoff. */
   onWakeWordDetected: (stream: MediaStream) => void;
   onError: (error: string) => void;
+  /**
+   * Fired when the mic lease is released for ANY reason — our own dispose, the
+   * OS revoking the device, or page-lifecycle emergency cleanup (tab hidden /
+   * pagehide). Lets the host drive passive UI state back to "not listening" so
+   * the mic control never shows idle while a stream is (or was) live.
+   */
+  onMicReleased?: (reason: MicReleaseReason) => void;
   /** Optional shared AudioContext (reused to avoid browser limit). */
   audioContext?: AudioContext;
 }
@@ -41,9 +49,11 @@ export class PassiveListener {
   private template: WakeWordTemplate;
   private onWakeWordDetected: (stream: MediaStream) => void;
   private onError: (error: string) => void;
+  private onMicReleased?: (reason: MicReleaseReason) => void;
 
   private audioCtx: AudioContext | null = null;
   private ownAudioCtx = false; // whether we created the AudioContext
+  private lease: MicLease | null = null;
   private stream: MediaStream | null = null;
   private ringBuffer: AudioRingBuffer | null = null;
   private vad: VadRefs | null = null;
@@ -62,6 +72,7 @@ export class PassiveListener {
     this.template = opts.template;
     this.onWakeWordDetected = opts.onWakeWordDetected;
     this.onError = opts.onError;
+    this.onMicReleased = opts.onMicReleased;
     if (opts.audioContext) {
       this.audioCtx = opts.audioContext;
       this.ownAudioCtx = false;
@@ -72,13 +83,39 @@ export class PassiveListener {
     if (this.running) return;
     this.running = true;
 
+    // Acquire mic through the ownership registry — identical constraints to
+    // enrollment + the settings test so the acoustic channel matches at
+    // detection time. The lease's onRelease fires when the stream is released
+    // for ANY reason (our dispose, OS revoke, page-hidden emergency cleanup),
+    // making the listener inert and notifying the host.
+    let lease: MicLease;
     try {
-      // Acquire mic — identical constraints to enrollment + the settings test
-      // so the acoustic channel matches at detection time.
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        audio: WAKE_WORD_AUDIO_CONSTRAINTS,
+      lease = await acquireMicStream("passive-wake-word", { audio: WAKE_WORD_AUDIO_CONSTRAINTS }, {
+        onRelease: (reason) => {
+          if (this.lease === lease) {
+            this.lease = null;
+            this.stream = null;
+          }
+          this.stopLoop();
+          this.onMicReleased?.(reason);
+        },
       });
+    } catch (err) {
+      this.running = false;
+      this.onError(`Passive listener failed to start: ${err}`);
+      return;
+    }
 
+    // Disposed during the async acquire — do not leak the stream we just got.
+    if (!this.running) {
+      releaseMicLease(lease, "owner-replaced");
+      return;
+    }
+
+    this.lease = lease;
+    this.stream = lease.stream;
+
+    try {
       // Reuse or create AudioContext
       if (!this.audioCtx) {
         this.audioCtx = new AudioContext();
@@ -110,12 +147,17 @@ export class PassiveListener {
       this.lastFailedMatchTime = 0;
       this.tick();
     } catch (err) {
+      // Setup failed AFTER getUserMedia succeeded. Release the acquired stream
+      // so no mic track leaks (the historical passive-listener leak). The lease
+      // onRelease nulls this.lease/this.stream and stops the loop.
       this.running = false;
+      releaseMicLease(this.lease, "setup-error");
       this.onError(`Passive listener failed to start: ${err}`);
     }
   }
 
-  stop(): void {
+  /** Stop the RAF loop and tear down audio nodes; leaves the stream/lease alone. */
+  private stopLoop(): void {
     this.running = false;
     if (this.rafId) {
       cancelAnimationFrame(this.rafId);
@@ -124,11 +166,17 @@ export class PassiveListener {
     this.cleanupAudioNodes();
   }
 
-  /** Full cleanup including stream and AudioContext. */
-  dispose(): void {
-    this.stop();
-    if (this.stream) {
-      for (const track of this.stream.getTracks()) track.stop();
+  stop(): void {
+    this.stopLoop();
+  }
+
+  /** Full cleanup including mic stream and AudioContext. */
+  dispose(reason: MicReleaseReason = "unmount"): void {
+    this.stopLoop();
+    if (this.lease) {
+      // Releasing the lease stops tracks and runs onRelease (nulls stream/lease).
+      releaseMicLease(this.lease, reason);
+    } else {
       this.stream = null;
     }
     if (this.ownAudioCtx && this.audioCtx) {

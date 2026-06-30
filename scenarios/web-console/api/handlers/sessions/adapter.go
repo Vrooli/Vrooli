@@ -23,6 +23,7 @@ type SessionManager interface {
 	Get(id string) (*session.Session, bool)
 	List() []*session.Session
 	Delete(id string) error
+	RecoveryProgress() session.RecoveryProgress
 }
 
 // ConversationsStore is the minimal seam for moving/clearing conversation
@@ -124,6 +125,26 @@ func (a *Adapter) List(_ context.Context) ([]Session, error) {
 		out = append(out, responseToHandlerSession(intsessions.FromSession(sess)))
 	}
 	return out, nil
+}
+
+// RecoveryStatus exposes startup session-recovery progress for the List
+// response so the UI can show an honest "sessions still recovering" indicator.
+func (a *Adapter) RecoveryStatus(_ context.Context) RecoveryStatus {
+	p := a.Manager.RecoveryProgress()
+	rs := RecoveryStatus{
+		InProgress:       p.InProgress,
+		Total:            p.Total,
+		Recovered:        p.Recovered,
+		AwaitingRecovery: p.AwaitingRecovery,
+		Adopted:          p.Adopted,
+	}
+	if !p.StartedAt.IsZero() {
+		rs.StartedAtUnixMs = p.StartedAt.UnixMilli()
+	}
+	if !p.CompletedAt.IsZero() {
+		rs.CompletedAtUnixMs = p.CompletedAt.UnixMilli()
+	}
+	return rs
 }
 
 func (a *Adapter) Get(_ context.Context, id string) (Session, error) {

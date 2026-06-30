@@ -207,6 +207,13 @@
     "dismiss": "إغلاق",
     "dismissTitle": "إخفاء هذه الجلسة اليتيمة من القائمة (يبقى الحالة على القرص)"
   },
+  "sessionRecovery": {
+    "recovering": "جارٍ استعادة الجلسات… {{recovered}}/{{total}}",
+    "recoveringUnknown": "جارٍ استعادة الجلسات…",
+    "recovered": "تمت استعادة {{count}} جلسة",
+    "recovered_one": "تمت استعادة جلسة واحدة",
+    "view": "عرض"
+  },
   "mobileToolbar": {
     "showUnsentTitle": "عرض تفاصيل الإدخال غير المرسل",
     "unsentCount": "{{count}} غير مرسل",

@@ -82,6 +82,32 @@ type Manager struct {
 
 	// reattachStopCh signals the periodic re-attach watchdog to stop.
 	reattachStopCh chan struct{}
+
+	// recoveryMu guards recovery, the live progress of startup session
+	// recovery. Recovery runs asynchronously (so the HTTP listener comes up
+	// without waiting on reattaching N tmux sessions); this snapshot is what
+	// the API exposes so the UI can honestly show "sessions still recovering".
+	recoveryMu sync.RWMutex
+	recovery   RecoveryProgress
+}
+
+// RecoveryProgress is a snapshot of startup session-recovery progress, surfaced
+// through the API so clients opening the app mid-recovery see an honest state
+// rather than an apparently-empty session list.
+type RecoveryProgress struct {
+	// InProgress is true from the moment recovery is scheduled until it finishes.
+	InProgress bool
+	// StartedAt / CompletedAt bound the recovery window (CompletedAt is zero
+	// while InProgress).
+	StartedAt   time.Time
+	CompletedAt time.Time
+	// Total is the number of persisted (detached) metadata rows recovery will
+	// attempt to reattach. Adopted orphan sessions are extra and not counted here.
+	Total int
+	// Recovered / AwaitingRecovery / Adopted accumulate as recovery proceeds.
+	Recovered        int
+	AwaitingRecovery int
+	Adopted          int
 }
 
 // NewManager returns a Manager with the configured PTY factory and

@@ -21,6 +21,7 @@ import (
 type Service interface {
 	Create(ctx context.Context, in CreateInput) (Session, error)
 	List(ctx context.Context) ([]Session, error)
+	RecoveryStatus(ctx context.Context) RecoveryStatus
 	Get(ctx context.Context, id string) (Session, error)
 	Delete(ctx context.Context, id string) error
 
@@ -36,6 +37,18 @@ type Service interface {
 type Policy struct {
 	Mode     string
 	Duration string
+}
+
+// RecoveryStatus is the transport-neutral snapshot of startup session recovery.
+// Surfaced on List so a client opening the app mid-recovery sees an honest state.
+type RecoveryStatus struct {
+	InProgress        bool
+	Total             int
+	Recovered         int
+	AwaitingRecovery  int
+	Adopted           int
+	StartedAtUnixMs   int64
+	CompletedAtUnixMs int64
 }
 
 // Session mirrors the legacy SessionResponse JSON shape.

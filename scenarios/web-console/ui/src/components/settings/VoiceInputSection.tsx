@@ -40,6 +40,7 @@ import { VoiceStreamProvider, WhisperProvider, WebSpeechProvider } from "../../a
 import type { TranscriptionProvider } from "../../audio-integration";
 import { getSharedAudioContext } from "../../audio-integration/hooks/voice/sharedAudioContext";
 import { createAudioFilterChain } from "../../audio-integration/hooks/voice/audioUtils";
+import { acquireMicStream, releaseMicLease, type MicLease, type MicReleaseReason } from "../../audio-integration/hooks/voice/micOwnership";
 import { VOICE_COMMANDS } from "../../hooks/voice/commands";
 import {
   bytesToFeatures,
@@ -54,6 +55,10 @@ import {
 import { formatShortcutFromEvent } from "../../lib/shortcutParser";
 import { Button } from "../ui/button";
 import { SettingsCard, SettingsRow, SettingsSectionIntro, SettingsToggle } from "./primitives";
+
+/** Lease reasons meaning the page/OS pulled the mic, so an in-flight settings
+ *  capture must be cancelled (not processed/uploaded). */
+const LIFECYCLE_CANCEL_REASONS: ReadonlySet<MicReleaseReason> = new Set(["hidden", "pagehide", "freeze", "ended"]);
 
 export default function VoiceInputSection() {
   const { t } = useTranslation();
@@ -108,7 +113,10 @@ export default function VoiceInputSection() {
   const wwSamplesRef = useRef<(AudioFeatures | null)[]>([]);
   const wwAudioBlobsRef = useRef<(Blob | null)[]>([]);
   const wwRecorderRef = useRef<MediaRecorder | null>(null);
-  const wwStreamRef = useRef<MediaStream | null>(null);
+  const wwLeaseRef = useRef<MicLease | null>(null);
+  /** Set when the mic lease is pulled by page/OS lifecycle so onstop skips
+   *  feature extraction of the cancelled capture. */
+  const wwCancelledRef = useRef(false);
   const wwChunksRef = useRef<Blob[]>([]);
   const wwTickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wwStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -127,7 +135,10 @@ export default function VoiceInputSection() {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const enrollmentChunksRef = useRef<Blob[]>([]);
   const enrollmentRecorderRef = useRef<MediaRecorder | null>(null);
-  const enrollmentStreamRef = useRef<MediaStream | null>(null);
+  const enrollmentLeaseRef = useRef<MicLease | null>(null);
+  /** Set when the mic lease is pulled by page/OS lifecycle so onstop skips
+   *  the enroll upload of the cancelled capture. */
+  const enrollmentCancelledRef = useRef(false);
   const enrollmentTickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const enrollmentStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Web Audio graph used purely for the live level meter + Chrome's render
@@ -210,21 +221,38 @@ export default function VoiceInputSection() {
     setWwTestResult(null);
     setWwRecordingIdx(slotIdx);
     setWwRecordingSeconds(0);
+    wwCancelledRef.current = false;
     wwChunksRef.current = [];
     try {
       // Wake-word enrollment capture: pin the same constraints the settings test
       // and the passive listener use, so the channel matches at detection time.
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: WAKE_WORD_AUDIO_CONSTRAINTS });
-      wwStreamRef.current = stream;
-      const recorder = new MediaRecorder(stream, {
+      const lease = await acquireMicStream("wake-word-enrollment", { audio: WAKE_WORD_AUDIO_CONSTRAINTS }, {
+        onRelease: (reason) => {
+          if (!LIFECYCLE_CANCEL_REASONS.has(reason)) return;
+          // Page/OS pulled the mic mid-capture → cancel; onstop must not extract.
+          wwCancelledRef.current = true;
+          if (wwTickerRef.current) { clearInterval(wwTickerRef.current); wwTickerRef.current = null; }
+          if (wwStopTimerRef.current) { clearTimeout(wwStopTimerRef.current); wwStopTimerRef.current = null; }
+          if (wwRecorderRef.current?.state === "recording") wwRecorderRef.current.stop();
+          setWwRecordingIdx(null);
+        },
+      });
+      wwLeaseRef.current = lease;
+      const recorder = new MediaRecorder(lease.stream, {
         mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm",
       });
       wwRecorderRef.current = recorder;
       recorder.ondataavailable = (e) => { if (e.data.size > 0) wwChunksRef.current.push(e.data); };
-      recorder.onerror = () => { setWwRecordingIdx(null); setWakeWordError(t(strings.settings.voiceInputSection.recordingFailed)); };
+      recorder.onerror = () => {
+        releaseMicLease(wwLeaseRef.current, "provider-error");
+        wwLeaseRef.current = null;
+        setWwRecordingIdx(null);
+        setWakeWordError(t(strings.settings.voiceInputSection.recordingFailed));
+      };
       recorder.onstop = async () => {
-        wwStreamRef.current?.getTracks().forEach((track) => track.stop());
-        wwStreamRef.current = null;
+        releaseMicLease(wwLeaseRef.current, "manual-stop");
+        wwLeaseRef.current = null;
+        if (wwCancelledRef.current) { wwCancelledRef.current = false; setWwRecordingIdx(null); return; }
         const blob = new Blob(wwChunksRef.current, { type: "audio/webm" });
         if (blob.size === 0) { setWwRecordingIdx(null); setWakeWordError(t(strings.settings.voiceInputSection.recordingEmpty)); return; }
         // Decode audio and extract MFCC features via the shared helper — the
@@ -283,7 +311,8 @@ export default function VoiceInputSection() {
     return () => {
       if (wwTickerRef.current) clearInterval(wwTickerRef.current);
       if (wwStopTimerRef.current) clearTimeout(wwStopTimerRef.current);
-      wwStreamRef.current?.getTracks().forEach((track) => track.stop());
+      releaseMicLease(wwLeaseRef.current, "unmount");
+      wwLeaseRef.current = null;
       if (wwPlaybackRef.current) { wwPlaybackRef.current.pause(); wwPlaybackRef.current = null; }
     };
   }, []);
@@ -291,8 +320,10 @@ export default function VoiceInputSection() {
   const requestMicPermission = useCallback(async () => {
     setMicRequesting(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((track) => track.stop());
+      // One-shot permission probe: acquire through the registry for ownership
+      // visibility, then release immediately (tracks stopped).
+      const lease = await acquireMicStream("mic-permission-probe", { audio: true });
+      releaseMicLease(lease, "manual-stop");
       setMicPermission("granted");
       if (voiceEnabled) {
         setVoiceEnabled(false);
@@ -405,7 +436,8 @@ export default function VoiceInputSection() {
       for (const node of enrollmentNodesRef.current) {
         try { node.disconnect(); } catch { /* noop */ }
       }
-      enrollmentStreamRef.current?.getTracks().forEach((track) => track.stop());
+      releaseMicLease(enrollmentLeaseRef.current, "unmount");
+      enrollmentLeaseRef.current = null;
     };
   }, []);
 
@@ -582,6 +614,7 @@ export default function VoiceInputSection() {
     setEnrollmentState("recording");
     setEnrollmentSeconds(0);
     setEnrollmentLevel(0);
+    enrollmentCancelledRef.current = false;
     enrollmentChunksRef.current = [];
 
     // Resume the shared AudioContext synchronously inside this click gesture —
@@ -595,8 +628,18 @@ export default function VoiceInputSection() {
     } catch { /* AudioContext unavailable */ }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      enrollmentStreamRef.current = stream;
+      const lease = await acquireMicStream("speaker-enrollment", { audio: true }, {
+        onRelease: (reason) => {
+          if (!LIFECYCLE_CANCEL_REASONS.has(reason)) return;
+          // Page/OS pulled the mic mid-enrollment → cancel; onstop must not upload.
+          enrollmentCancelledRef.current = true;
+          stopEnrollmentRecording();
+          teardownEnrollmentAudio();
+          setEnrollmentState("idle");
+        },
+      });
+      enrollmentLeaseRef.current = lease;
+      const stream = lease.stream;
 
       // Build the same analyser/filter graph the streaming mic uses. We do NOT
       // record its filteredStream — recording the RAW stream keeps enrollment
@@ -640,14 +683,17 @@ export default function VoiceInputSection() {
       };
       recorder.onerror = () => {
         teardownEnrollmentAudio();
+        releaseMicLease(enrollmentLeaseRef.current, "provider-error");
+        enrollmentLeaseRef.current = null;
         setEnrollmentState("error");
         setEnrollmentMessage(t(strings.settings.voiceInputSection.enrollmentRecordingFailed));
       };
       recorder.onstop = () => {
         teardownEnrollmentAudio();
         const blob = new Blob(enrollmentChunksRef.current, { type: "audio/webm" });
-        enrollmentStreamRef.current?.getTracks().forEach((track) => track.stop());
-        enrollmentStreamRef.current = null;
+        releaseMicLease(enrollmentLeaseRef.current, "manual-stop");
+        enrollmentLeaseRef.current = null;
+        if (enrollmentCancelledRef.current) { enrollmentCancelledRef.current = false; setEnrollmentState("idle"); return; }
         if (blob.size === 0) {
           setEnrollmentState("error");
           setEnrollmentMessage(t(strings.settings.voiceInputSection.enrollmentEmpty));

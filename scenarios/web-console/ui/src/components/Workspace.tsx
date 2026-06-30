@@ -53,6 +53,7 @@ import AudioPlayerBar from "./AudioPlayerBar";
 import SummarizeErrorBanner, { type SummarizeErrorState } from "./SummarizeErrorBanner";
 import EnableAudioBanner from "./EnableAudioBanner";
 import RecoverableSessionsBanner from "./RecoverableSessionsBanner";
+import SessionRecoveryBanner from "./SessionRecoveryBanner";
 import TopSafeArea from "./TopSafeArea";
 import { useConversationStore, type PaneViewMode } from "../stores/useConversationStore";
 import type { TTSPlaybackState } from "../audio-integration";
@@ -1100,6 +1101,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
           enabled={!topSafeAreaReserved}
           fillClassName="bg-wc-surface-base"
         >
+          <SessionRecoveryBanner />
           <RecoverableSessionsBanner
             onRecovered={(result) => {
               pendingActivePaneRef.current = result.new_session_id;
@@ -1283,6 +1285,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
         voicePreparing={voiceInput.isPreparing}
         voiceRecording={voiceInput.isRecording}
         voiceListening={voiceInput.isListening}
+        voicePassive={voiceInput.isPassive}
         voiceTranscribing={voiceInput.isTranscribing}
         voiceError={voiceInput.error}
         voiceLevel={voiceInput.audioLevel}
@@ -1291,6 +1294,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
         voiceBackend={voiceInput.backend}
         onVoiceStart={handleVoiceStart}
         onVoiceStop={handleVoiceStop}
+        onVoiceExitPassive={voiceInput.exitPassiveMode}
         onVoiceCancel={handleVoiceCancel}
         isTtsSpeaking={isTtsSpeaking}
         onTtsStop={handleTtsStop}
@@ -1340,6 +1344,9 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
           />
         )}
 
+        {/* Async startup recovery indicator — hidden unless recovery is (or was
+            just) running, so steady-state UI is unchanged. */}
+        <SessionRecoveryBanner />
         {/* Recoverable sessions surface — banner is hidden when nothing is
             awaiting recovery, so steady-state UI is unchanged. */}
         <RecoverableSessionsBanner
@@ -1642,6 +1649,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
           voicePreparing={voiceInput.isPreparing}
           voiceRecording={voiceInput.isRecording}
           voiceListening={voiceInput.isListening}
+          voicePassive={voiceInput.isPassive}
           voiceTranscribing={voiceInput.isTranscribing}
           voiceError={voiceInput.error}
           voiceLevel={voiceInput.audioLevel}
@@ -1650,6 +1658,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
           voiceBackend={voiceInput.backend}
           onVoiceStart={handleVoiceStart}
           onVoiceStop={handleVoiceStop}
+          onVoiceExitPassive={voiceInput.exitPassiveMode}
           onVoiceCancel={handleVoiceCancel}
           voiceCommandSuggestion={voiceInput.commandSuggestion}
           onVoiceCommandConfirm={handleVoiceCommandConfirm}

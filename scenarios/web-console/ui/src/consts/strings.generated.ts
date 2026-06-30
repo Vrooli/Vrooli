@@ -220,6 +220,13 @@ export const strings = {
     dismiss: "recoverableSessions.dismiss",
     dismissTitle: "recoverableSessions.dismissTitle",
   },
+  sessionRecovery: {
+    recovering: "sessionRecovery.recovering",
+    recoveringUnknown: "sessionRecovery.recoveringUnknown",
+    recovered: "sessionRecovery.recovered",
+    recovered_one: "sessionRecovery.recovered_one",
+    view: "sessionRecovery.view",
+  },
   mobileToolbar: {
     showUnsentTitle: "mobileToolbar.showUnsentTitle",
     unsentCount: "mobileToolbar.unsentCount",

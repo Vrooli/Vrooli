@@ -26,6 +26,7 @@ export * from "./hooks/voice/audioCues";
 export * from "./hooks/voice/activity";
 export * from "./hooks/voice/vad";
 export * from "./hooks/voice/sharedAudioContext";
+export * from "./hooks/voice/micOwnership";
 export * from "./hooks/voice/micReadiness";
 export { VoiceStreamProvider } from "./hooks/voice/VoiceStreamProvider";
 export { WhisperProvider } from "./hooks/voice/WhisperProvider";

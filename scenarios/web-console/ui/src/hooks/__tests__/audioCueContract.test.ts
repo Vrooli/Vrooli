@@ -83,7 +83,6 @@ vi.mock("../../audio-integration/hooks/voice/micReadiness", async (importOrigina
     releaseStream: vi.fn(),
     getStream: vi.fn().mockReturnValue(null),
     isStreamAlive: vi.fn().mockReturnValue(false),
-    installVisibilityHandler: vi.fn().mockReturnValue(() => {}),
     _resetMicReadiness: vi.fn(),
   };
 });
@@ -149,7 +148,6 @@ vi.mock("../../audio-integration", async (importOriginal) => {
     releaseStream: vi.fn(),
     getStream: vi.fn().mockReturnValue(null),
     isStreamAlive: vi.fn().mockReturnValue(false),
-    installVisibilityHandler: vi.fn().mockReturnValue(() => {}),
     _resetMicReadiness: vi.fn(),
     createVadRefs: () => ({ state: "idle", silenceThreshold: 0, speechThreshold: 0, cachedFloorBaseline: null }),
     createVadRefsFromCache: vi.fn(),

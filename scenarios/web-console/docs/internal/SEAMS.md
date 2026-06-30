@@ -514,28 +514,56 @@ Replaces the pre-Phase-3 `stripANSI` helper that lived in `package main`.
 
 **Benefits**: Voice input can be tested without real microphone access or Whisper server. Fallback chain (Whisper -> Web Speech -> disabled) is testable by controlling capability fetch responses. AudioContext reuse prevents browser context limit exhaustion. Each provider is independently testable in its own module. State machine prevents impossible state combinations.
 
+### Mic Ownership Seam (UI)
+**File**: `ui/src/audio-integration/hooks/voice/micOwnership.ts`
+**Purpose**: Single owner + lease registry for EVERY browser `getUserMedia` audio
+stream opened by web-console UI. Gives every live mic stream exactly one
+observable owner, lets page-lifecycle emergency cleanup release all of them
+without per-owner handlers, and makes `MediaStreamTrack.stop()` the single
+release path. Closes the iOS-PWA "mic indicator on while the UI looks idle"
+failure class (passive wake-word / prewarm / settings captures leaking live
+tracks). [DOC: docs/internal/VOICE-LATENCY.md#page-lifecycle-mic-cleanup-always-on-for-all-mic-owners]
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `acquireMicStream(owner, constraints, opts?)` | `getUserMedia` + register a lease under a named `MicOwner` | Mock `getUserMedia`, assert lease + owner |
+| `registerMicStream(owner, stream, opts?)` | Register an externally-acquired stream | Pass a fake stream, assert snapshot |
+| `releaseMicLease(lease, reason)` / `lease.release` | Stop all tracks once, run `onRelease`, idempotent | Double-release → one `stop()`, one `onRelease` |
+| `releaseAllMicLeases(reason, predicate?)` | Release every (filtered) lease | Predicate selects owners |
+| `getActiveMicLeases()` | Metadata-only snapshots (never the raw stream) | Assert owner/trackCount, no `stream` field |
+| `installMicLifecycleCleanup()` | Ref-counted `visibilitychange`/`pagehide`/`freeze` backstop | Dispatch events, assert non-active vs all released |
+| lease `onRelease(reason)` | Owner resets its own state when released by anyone | Fire OS `ended`, assert owner reset |
+
+**Key invariant**: lease release is idempotent and stops tracks exactly once;
+`onRelease` lets the owner (micReadiness, PassiveListener, settings flows) reset
+its own state when the registry or the OS releases the lease.
+
 ### Voice Latency — Stream Ownership Seam (UI)
-**Files**: `ui/src/hooks/voice/micReadiness.ts`, `ui/src/hooks/voice/sharedAudioContext.ts`
+**Files**: `ui/src/audio-integration/hooks/voice/micReadiness.ts`, `ui/src/audio-integration/hooks/voice/sharedAudioContext.ts`
 **Purpose**: Decouple mic stream lifecycle from provider lifecycle, enabling pre-warmed streams for near-instant activation while maintaining testability.
 [DOC: docs/internal/VOICE-LATENCY.md]
 
 | Component | Production | Test |
 |-----------|-----------|------|
-| `micReadiness.acquireStream()` | Calls `getUserMedia`, caches result | Mock `getUserMedia`, verify single call |
-| `micReadiness.releaseStream()` | Stops all tracks, nulls stream | Verify `track.stop()` called |
-| `micReadiness.installVisibilityHandler()` | Listens for `visibilitychange`, releases/acquires mic | Dispatch synthetic events, verify behavior |
+| `micReadiness.acquireStream()` | Acquires a `low-latency-prewarm` lease via the mic ownership registry, caches it | Mock `getUserMedia`, verify single call |
+| `micReadiness.releaseStream()` | Releases the lease (stops all tracks, resets state) | Verify `track.stop()` called |
 | `sharedAudioContext.getSharedAudioContext()` | Returns singleton AudioContext | Mock constructor, assert single creation |
 | `sharedAudioContext.ensureAudioContextOnGesture()` | One-shot pointerdown/keydown listener | Simulate event, verify context created |
 | `VoiceStreamProvider.preConnect()` | Opens WebSocket early, 30s timeout | Mock WebSocket, verify reuse in `start()` |
-| `VoiceStreamProvider.start(preWarmedStream?)` | Uses injected stream or calls `getUserMedia` | Pass mock stream, verify no `getUserMedia` |
-| `VoiceStreamProvider.retainStream` | When true, `stop()` keeps tracks alive | Set flag, call stop, verify tracks not stopped |
+| `VoiceStreamProvider.start(preWarmedStream?)` | Uses injected stream or acquires its own lease | Pass mock stream, verify no `getUserMedia` |
+| `VoiceStreamProvider` lease vs injected stream | Provider releases only a stream it acquired (lease set); injected stream's lease stays with micReadiness | Inject a stream, stop, verify tracks not stopped |
 | `vad.createVadRefsFromCache(cached)` | Seeds thresholds from localStorage cache | Pure function, assert `waitingForSpeech` state |
 | `vad.extractCacheableFloor(vad)` | Extracts current thresholds for persistence | Pure function round-trip test |
 | `api.getCapabilitiesLivenessSnapshot()` | Synchronous read of cached capabilities | Verify no network call in `startRecording()` |
 
-**Key invariant**: Stream ownership transfers on injection. Before injection, micReadiness may release the stream (on visibility hidden). After injection, the provider uses the stream. On `dispose()`, the provider always stops tracks regardless of `retainStream`.
+**Key invariant**: Ownership is tracked by a lease, not the `retainStream` flag.
+A provider holds a lease only for a stream it acquired itself; an injected
+pre-warmed stream's lease stays with micReadiness. `stop()`/`dispose()` release
+only the provider's own lease — never another owner's tracks.
 
-**Key invariant**: Active recording is NEVER interrupted by visibility changes. The visibility handler checks `isRecordingActive()` and no-ops if true.
+**Key invariant**: Page-lifecycle cleanup releases passive/prewarm/settings mic
+owners on hidden and ALL owners on pagehide; an active recording is stopped on
+hidden (privacy). Re-arm happens only on becoming visible.
 
 ### Audio Transcoding Seam (API)
 **File**: `api/internal/audio/transcode.go`

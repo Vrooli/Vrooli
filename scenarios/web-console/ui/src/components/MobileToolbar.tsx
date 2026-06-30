@@ -131,6 +131,8 @@ interface MobileToolbarProps {
   voiceRecording?: boolean;
   /** True when persistent voice mode is active. */
   voiceListening?: boolean;
+  /** True when passive wake-word listening currently holds the mic. */
+  voicePassive?: boolean;
   voiceTranscribing?: boolean;
   voiceError?: string | null;
   /** 0–1 audio level for live mic visualization */
@@ -140,6 +142,8 @@ interface MobileToolbarProps {
   voiceBackend?: string;
   onVoiceStart?: (opts?: StartRecordingOpts) => void;
   onVoiceStop?: () => void;
+  /** Exit passive wake-word listening (tapping the passive mic button). */
+  onVoiceExitPassive?: () => void;
   onVoiceCancel?: () => void;
   /** Current voice command suggestion awaiting confirmation. */
   voiceCommandSuggestion?: CommandSuggestion | null;
@@ -177,6 +181,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   voicePreparing,
   voiceRecording,
   voiceListening,
+  voicePassive,
   voiceTranscribing,
   voiceError,
   voiceLevel,
@@ -185,6 +190,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   voiceBackend,
   onVoiceStart,
   onVoiceStop,
+  onVoiceExitPassive,
   onVoiceCancel,
   voiceCommandSuggestion,
   onVoiceCommandConfirm,
@@ -715,6 +721,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               isPreparing={voicePreparing ?? false}
               isRecording={voiceRecording ?? false}
               isListening={voiceListening ?? false}
+              isPassive={voicePassive ?? false}
               isTranscribing={voiceTranscribing ?? false}
               error={voiceError ?? null}
               audioLevel={voiceLevel}
@@ -724,6 +731,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               isTtsSpeaking={isTtsSpeaking}
               onStart={onVoiceStart}
               onStop={onVoiceStop}
+              onExitPassive={onVoiceExitPassive}
               onCancel={onVoiceCancel}
               onTtsStop={onTtsStop}
               className="flex min-w-0 flex-1"
@@ -862,6 +870,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 isTtsSpeaking={isTtsSpeaking}
                 onStart={onVoiceStart}
                 onStop={onVoiceStop}
+                onExitPassive={onVoiceExitPassive}
                 onCancel={onVoiceCancel}
                 onTtsStop={onTtsStop}
                 className="h-full w-full"
@@ -966,6 +975,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               isPreparing={voicePreparing ?? false}
               isRecording={voiceRecording ?? false}
               isListening={voiceListening ?? false}
+              isPassive={voicePassive ?? false}
               isTranscribing={voiceTranscribing ?? false}
               error={voiceError ?? null}
               audioLevel={voiceLevel}
@@ -975,6 +985,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               isTtsSpeaking={isTtsSpeaking}
               onStart={onVoiceStart}
               onStop={onVoiceStop}
+              onExitPassive={onVoiceExitPassive}
               onCancel={onVoiceCancel}
               onTtsStop={onTtsStop}
             />
