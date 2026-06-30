@@ -99,6 +99,7 @@ type ImageOperationStatus struct {
 	ModelID   string
 	Tier      string
 	Hint      string
+	Warnings  []string
 }
 
 // ErrImageBackendUnavailable is returned when image-tools cannot be reached.

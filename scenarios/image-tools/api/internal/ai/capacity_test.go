@@ -21,14 +21,16 @@ type fakeBroker struct {
 	claimErr    error
 	claimedFor  string
 	claimedPref int64
+	claimedOpts CapacityClaimOptions
 	released    string
 	claimN      int
 }
 
-func (b *fakeBroker) Claim(_ context.Context, ownerID string, preferredBytes int64) (CapacityLease, error) {
+func (b *fakeBroker) Claim(_ context.Context, ownerID string, preferredBytes int64, opts CapacityClaimOptions) (CapacityLease, error) {
 	b.claimN++
 	b.claimedFor = ownerID
 	b.claimedPref = preferredBytes
+	b.claimedOpts = opts
 	if b.claimErr != nil {
 		return CapacityLease{}, b.claimErr
 	}
@@ -75,7 +77,7 @@ func newCapacityTestEngine(t *testing.T, op string, fp *fakeProvider, broker Cap
 
 func runGPUJob(t *testing.T, eng *Engine, op, modelID string) error {
 	t.Helper()
-	raw, err := json.Marshal(Payload{Operation: op, ModelID: modelID, GPU: true})
+	raw, err := json.Marshal(Payload{Operation: op, ModelID: modelID, GPU: true, CapacityPriority: "service", AllowReclaim: true})
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
@@ -101,8 +103,8 @@ func TestCapacity_GrantKeepsGPU(t *testing.T) {
 	if !strings.HasPrefix(broker.claimedFor, "image-tools:") {
 		t.Errorf("owner id %q should be scoped image-tools:<job>", broker.claimedFor)
 	}
-	if broker.claimedPref != sdGPUVRAMEstimateBytes {
-		t.Errorf("preferred bytes = %d, want %d", broker.claimedPref, sdGPUVRAMEstimateBytes)
+	if broker.claimedPref != modelVRAMClaimBytes(models.Model{Hardware: models.Hardware{MinVRAMGB: 2}}) {
+		t.Errorf("preferred bytes = %d, want selected model VRAM requirement", broker.claimedPref)
 	}
 	if broker.released != "clm-test" {
 		t.Errorf("claim should be released; released=%q", broker.released)
@@ -130,11 +132,14 @@ func TestCLICapacityBroker_ParsesVerdict(t *testing.T) {
 		name        string
 		stdout      string
 		wantDegrade bool
+		wantReclaim int64
 	}{
-		{"grant fp16-gpu keeps GPU", `{"verdict":{"kind":"grant","step":"fp16-gpu"},"claim":{"claim_id":"clm-1"}}`, false},
-		{"degrade to cpu", `{"verdict":{"kind":"degrade","step":"cpu"},"claim":{"claim_id":"clm-2"}}`, true},
-		{"queue → cpu", `{"verdict":{"kind":"queue","step":""},"claim":{"claim_id":"clm-3"}}`, true},
-		{"deny → cpu", `{"verdict":{"kind":"deny","step":""},"claim":{"claim_id":""}}`, true},
+		{"grant fp16-gpu keeps GPU when no reclaim needed", `{"verdict":{"kind":"grant","step":"fp16-gpu"},"claim":{"claim_id":"clm-1"},"enforce":"advisory"}`, false, 0},
+		{"advisory reclaim grant skips GPU", `{"verdict":{"kind":"grant","step":"fp16-gpu","reclaim_bytes":1073741824},"claim":{"claim_id":"clm-1"},"enforce":"advisory"}`, true, 1073741824},
+		{"enforced reclaim grant keeps GPU", `{"verdict":{"kind":"grant","step":"fp16-gpu","reclaim_bytes":1073741824},"claim":{"claim_id":"clm-1"},"enforce":"on"}`, false, 1073741824},
+		{"degrade to cpu", `{"verdict":{"kind":"degrade","step":"cpu"},"claim":{"claim_id":"clm-2"}}`, true, 0},
+		{"queue -> cpu", `{"verdict":{"kind":"queue","step":""},"claim":{"claim_id":"clm-3"}}`, true, 0},
+		{"deny -> cpu", `{"verdict":{"kind":"deny","step":""},"claim":{"claim_id":""}}`, true, 0},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -143,20 +148,40 @@ func TestCLICapacityBroker_ParsesVerdict(t *testing.T) {
 				gotArgs = args
 				return []byte(tc.stdout), nil
 			}}
-			lease, err := b.Claim(context.Background(), "image-tools:job-1", sdGPUVRAMEstimateBytes)
+			lease, err := b.Claim(context.Background(), "image-tools:job-1", fallbackGPUVRAMEstimateBytes, CapacityClaimOptions{Priority: "service", AllowReclaim: true})
 			if err != nil {
 				t.Fatalf("claim: %v", err)
 			}
 			if lease.DegradeToCPU != tc.wantDegrade {
 				t.Errorf("DegradeToCPU=%v want %v", lease.DegradeToCPU, tc.wantDegrade)
 			}
+			if lease.ReclaimBytes != tc.wantReclaim {
+				t.Errorf("ReclaimBytes=%d want %d", lease.ReclaimBytes, tc.wantReclaim)
+			}
 			joined := strings.Join(gotArgs, " ")
-			for _, want := range []string{"capacity claim", "--owner-kind op", "--owner-id image-tools:job-1", "--resource-kind vram", "--priority batch", "--json"} {
+			for _, want := range []string{"capacity claim", "--owner-kind op", "--owner-id image-tools:job-1", "--resource-kind vram", "--priority service", "--json"} {
 				if !strings.Contains(joined, want) {
 					t.Errorf("argv missing %q; got %v", want, gotArgs)
 				}
 			}
 		})
+	}
+}
+
+func TestCLICapacityBroker_DisallowReclaimUsesBatchPriority(t *testing.T) {
+	var gotArgs []string
+	b := &CLICapacityBroker{Exec: func(_ context.Context, args ...string) ([]byte, error) {
+		gotArgs = args
+		return []byte(`{"verdict":{"kind":"grant","step":"fp16-gpu"},"claim":{"claim_id":"clm-1"},"enforce":"on"}`), nil
+	}}
+
+	_, err := b.Claim(context.Background(), "image-tools:job-1", fallbackGPUVRAMEstimateBytes, CapacityClaimOptions{Priority: "service", AllowReclaim: false})
+	if err != nil {
+		t.Fatalf("claim: %v", err)
+	}
+	joined := strings.Join(gotArgs, " ")
+	if !strings.Contains(joined, "--priority batch") {
+		t.Fatalf("allow_reclaim=false should map to batch priority; got %v", gotArgs)
 	}
 }
 

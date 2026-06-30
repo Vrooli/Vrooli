@@ -99,11 +99,18 @@ export function GenerationCard() {
                     {op.operation}
                     {op.modelId ? <span className="ml-2 text-xs text-slate-500">{op.modelId} · {op.tier}</span> : null}
                   </span>
-                  <span
-                    data-testid={selectors.generation.imageOpStatus}
-                    className={op.ready ? "text-xs text-emerald-400" : "text-xs text-amber-400"}
-                  >
-                    {op.ready ? t(strings.generation.imageReadyLabel) : t(strings.generation.imageNotReadyLabel)}
+                  <span className="flex shrink-0 items-center gap-2">
+                    {op.tier === "byok-cloud" ? (
+                      <span className="rounded border border-sky-400/30 px-2 py-0.5 text-xs text-sky-300">
+                        {t(strings.generation.imageCloudLabel)}
+                      </span>
+                    ) : null}
+                    <span
+                      data-testid={selectors.generation.imageOpStatus}
+                      className={op.ready ? "text-xs text-emerald-400" : "text-xs text-amber-400"}
+                    >
+                      {op.ready ? t(strings.generation.imageReadyLabel) : t(strings.generation.imageNotReadyLabel)}
+                    </span>
                   </span>
                 </div>
                 {op.hint ? <p className="mt-1 text-xs text-slate-500">{op.hint}</p> : null}

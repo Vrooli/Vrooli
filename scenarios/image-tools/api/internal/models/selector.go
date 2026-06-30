@@ -32,6 +32,12 @@ type SelectRequest struct {
 	// OverrideID, when non-empty, forces a specific model (still validated for
 	// op-support, enabled-state, and host-runnability).
 	OverrideID string
+	// QualityPolicy tunes candidate ordering: "fast" preserves cheap defaults,
+	// "balanced" keeps historical best-fit ordering, and "quality" prefers
+	// quality-tier local models, then BYOK cloud, before low-quality defaults.
+	QualityPolicy string
+	// AllowBYOK permits BYOK/cloud catalog candidates such as openrouter-image.
+	AllowBYOK bool
 }
 
 // Selection is the selector's verdict for one operation.
@@ -159,12 +165,27 @@ func (r *Registry) enabled(m Model, isEnabled EnabledFunc) bool {
 // "the default" until an operator opts a quality tier in; on a fitting GPU host
 // an enabled quality tier then wins, which is the intended best-fit behavior.
 func (r *Registry) Select(req SelectRequest, isEnabled EnabledFunc) (Selection, error) {
+	candidates, err := r.SelectCandidates(req, isEnabled)
+	if err != nil {
+		return Selection{}, err
+	}
+	return candidates[0], nil
+}
+
+// SelectCandidates returns runnable candidates in deterministic policy order.
+// Select returns the first candidate; resolver uses the full list to skip a
+// higher-quality candidate whose provider is not currently available.
+func (r *Registry) SelectCandidates(req SelectRequest, isEnabled EnabledFunc) ([]Selection, error) {
 	if !r.IsOperation(req.Operation) {
-		return Selection{}, fmt.Errorf("%w: %q", ErrUnknownOperation, req.Operation)
+		return nil, fmt.Errorf("%w: %q", ErrUnknownOperation, req.Operation)
 	}
 
 	if req.OverrideID != "" {
-		return r.selectOverride(req, isEnabled)
+		sel, err := r.selectOverride(req, isEnabled)
+		if err != nil {
+			return nil, err
+		}
+		return []Selection{sel}, nil
 	}
 
 	candidates := r.ForOperation(req.Operation)
@@ -172,6 +193,9 @@ func (r *Registry) Select(req SelectRequest, isEnabled EnabledFunc) (Selection, 
 	var runnable []Model
 	worstShortfall := 0
 	for _, m := range candidates {
+		if m.Backend == BackendOpenRouter && !req.AllowBYOK {
+			continue
+		}
 		if !r.enabled(m, isEnabled) {
 			continue
 		}
@@ -184,25 +208,91 @@ func (r *Registry) Select(req SelectRequest, isEnabled EnabledFunc) (Selection, 
 		}
 	}
 	if enabledCount == 0 {
-		return Selection{}, fmt.Errorf("%w: %q", ErrNoEnabledModel, req.Operation)
+		return nil, fmt.Errorf("%w: %q", ErrNoEnabledModel, req.Operation)
 	}
 	if len(runnable) == 0 {
 		if worstShortfall > 0 {
-			return Selection{}, fmt.Errorf("%w: %q needs ~%d GB more VRAM, and no CPU-capable model is enabled", ErrNotRunnable, req.Operation, worstShortfall)
+			return nil, fmt.Errorf("%w: %q needs ~%d GB more VRAM, and no CPU-capable model is enabled", ErrNotRunnable, req.Operation, worstShortfall)
 		}
-		return Selection{}, fmt.Errorf("%w: %q", ErrNotRunnable, req.Operation)
+		return nil, fmt.Errorf("%w: %q", ErrNotRunnable, req.Operation)
 	}
 
-	best := r.rankBest(runnable, req)
-	sel := r.buildSelection(best, req)
-	if !sel.GPUViable {
-		shortfall := Fit(best, req.Host).VRAMShortfallGB
-		if worstShortfall > shortfall {
-			shortfall = worstShortfall
+	ranked := r.rankCandidates(runnable, req)
+	out := make([]Selection, 0, len(ranked))
+	for _, m := range ranked {
+		sel := r.buildSelection(m, req)
+		if !sel.GPUViable {
+			shortfall := Fit(m, req.Host).VRAMShortfallGB
+			if worstShortfall > shortfall {
+				shortfall = worstShortfall
+			}
+			appendFreeVRAMShortfallWarning(&sel, shortfall)
 		}
-		appendFreeVRAMShortfallWarning(&sel, shortfall)
+		out = append(out, sel)
 	}
-	return sel, nil
+	return out, nil
+}
+
+// rankBest returns the highest-ranked model per the documented comparator.
+// runnable is assumed non-empty.
+func (r *Registry) rankBest(runnable []Model, req SelectRequest) Model {
+	return r.rankCandidates(runnable, req)[0]
+}
+
+// rankCandidates returns all candidates in descending preference order.
+func (r *Registry) rankCandidates(runnable []Model, req SelectRequest) []Model {
+	type scored struct {
+		m         Model
+		gpuViable bool
+	}
+	items := make([]scored, len(runnable))
+	for i, m := range runnable {
+		items[i] = scored{m: m, gpuViable: Fit(m, req.Host).GPUViable}
+	}
+	sort.SliceStable(items, func(i, j int) bool {
+		a, b := items[i], items[j]
+		if req.QualityPolicy == "fast" {
+			if da, db := a.m.IsDefaultFor(req.Operation), b.m.IsDefaultFor(req.Operation); da != db {
+				return da
+			}
+		}
+		if req.QualityPolicy == "quality" {
+			if qa, qb := qualityPolicyRank(a.m), qualityPolicyRank(b.m); qa != qb {
+				return qa > qb
+			}
+		}
+		if a.gpuViable != b.gpuViable {
+			return a.gpuViable // GPU-viable first
+		}
+		if ra, rb := a.m.Tier.rank(), b.m.Tier.rank(); ra != rb {
+			return ra > rb // higher tier first
+		}
+		if da, db := a.m.IsDefaultFor(req.Operation), b.m.IsDefaultFor(req.Operation); da != db {
+			return da // the seeded default wins the tie
+		}
+		if a.m.Hardware.MinVRAMGB != b.m.Hardware.MinVRAMGB {
+			return a.m.Hardware.MinVRAMGB < b.m.Hardware.MinVRAMGB // more headroom
+		}
+		return a.m.ID < b.m.ID // deterministic final tie-break
+	})
+	out := make([]Model, len(items))
+	for i, item := range items {
+		out[i] = item.m
+	}
+	return out
+}
+
+func qualityPolicyRank(m Model) int {
+	if m.Tier == TierQuality {
+		return 3
+	}
+	if m.Backend == BackendOpenRouter {
+		return 2
+	}
+	if m.Tier == TierDefault || m.Tier == TierDefaultVariant {
+		return 1
+	}
+	return 0
 }
 
 func (r *Registry) selectOverride(req SelectRequest, isEnabled EnabledFunc) (Selection, error) {
@@ -229,36 +319,6 @@ func (r *Registry) selectOverride(req SelectRequest, isEnabled EnabledFunc) (Sel
 	}
 	sel.Reason = fmt.Sprintf("model %q selected by explicit override", m.ID)
 	return sel, nil
-}
-
-// rankBest returns the highest-ranked model per the documented comparator.
-// runnable is assumed non-empty.
-func (r *Registry) rankBest(runnable []Model, req SelectRequest) Model {
-	type scored struct {
-		m         Model
-		gpuViable bool
-	}
-	items := make([]scored, len(runnable))
-	for i, m := range runnable {
-		items[i] = scored{m: m, gpuViable: Fit(m, req.Host).GPUViable}
-	}
-	sort.SliceStable(items, func(i, j int) bool {
-		a, b := items[i], items[j]
-		if a.gpuViable != b.gpuViable {
-			return a.gpuViable // GPU-viable first
-		}
-		if ra, rb := a.m.Tier.rank(), b.m.Tier.rank(); ra != rb {
-			return ra > rb // higher tier first
-		}
-		if da, db := a.m.IsDefaultFor(req.Operation), b.m.IsDefaultFor(req.Operation); da != db {
-			return da // the seeded default wins the tie
-		}
-		if a.m.Hardware.MinVRAMGB != b.m.Hardware.MinVRAMGB {
-			return a.m.Hardware.MinVRAMGB < b.m.Hardware.MinVRAMGB // more headroom
-		}
-		return a.m.ID < b.m.ID // deterministic final tie-break
-	})
-	return items[0].m
 }
 
 func (r *Registry) buildSelection(m Model, req SelectRequest) Selection {

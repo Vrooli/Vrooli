@@ -120,9 +120,10 @@ func (h *handlers) selectModel(ctx cliapp.RunContext) error {
 func (h *handlers) explain(ctx cliapp.RunContext) error {
 	op := ctx.Positional("operation")
 	resp, err := h.client.ExplainResolution(context.Background(), connect.NewRequest(&modelsv1.ExplainResolutionRequest{
-		Operation: op,
-		ModelId:   strings.TrimSpace(ctx.Flag("model")),
-		AllowByok: ctx.BoolFlag("byok"),
+		Operation:     op,
+		ModelId:       strings.TrimSpace(ctx.Flag("model")),
+		AllowByok:     ctx.BoolFlag("byok"),
+		QualityPolicy: strings.TrimSpace(ctx.Flag("quality-policy")),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("explain resolution for %q", op), err, nil)

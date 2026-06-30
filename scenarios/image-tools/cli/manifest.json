@@ -213,6 +213,10 @@
               "name": "byok",
               "bool": true,
               "description": "Allow a paid BYOK cloud tier when no local backend is available"
+            },
+            {
+              "name": "quality-policy",
+              "description": "Candidate ordering policy: fast, balanced, or quality"
             }
           ],
           "binding": {

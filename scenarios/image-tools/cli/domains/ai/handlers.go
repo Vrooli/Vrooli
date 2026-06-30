@@ -150,11 +150,23 @@ func buildParams(ctx cliapp.RunContext) *aiv1.AIParams {
 		FaceAware:       boolOr(ctx, "face-aware"),
 		ModelOverride:   flagOr(ctx, "model"),
 		AllowByok:       boolOr(ctx, "byok"),
+		QualityPolicy:   flagOr(ctx, "quality-policy"),
+		FallbackPolicy:  flagOr(ctx, "fallback-policy"),
+		Priority:        flagOr(ctx, "priority"),
+		AllowReclaim:    optionalReclaim(ctx),
 		AutoScanNsfw:    boolOr(ctx, "auto-scan"),
 		ConsentAffirmed: boolOr(ctx, "consent"),
 		Adapters:        adapterRefs(ctx),
 	}
 	return p
+}
+
+func optionalReclaim(ctx cliapp.RunContext) *bool {
+	if boolOr(ctx, "no-reclaim") {
+		v := false
+		return &v
+	}
+	return nil
 }
 
 // adapterRefs parses the repeatable --lora / --controlnet / --ip-adapter flags

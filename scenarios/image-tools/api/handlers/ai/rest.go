@@ -116,10 +116,14 @@ func (h *Deps) submitHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	plan, err := h.Engine.Plan(r.Context(), ai.PlanRequest{
-		Operation:     op,
-		ModelOverride: params.GetModelOverride(),
-		AllowBYOK:     params.GetAllowByok(),
-		Adapters:      adapterRequests(params),
+		Operation:      op,
+		ModelOverride:  params.GetModelOverride(),
+		AllowBYOK:      allowBYOKForParams(params),
+		QualityPolicy:  qualityPolicyForParams(params),
+		FallbackPolicy: fallbackPolicyForParams(params),
+		Priority:       priorityForParams(params),
+		AllowReclaim:   allowReclaimForParams(params),
+		Adapters:       adapterRequests(params),
 	})
 	if err != nil {
 		h.writePlanError(w, err)
@@ -144,18 +148,20 @@ func (h *Deps) submitHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	payload := ai.Payload{
-		Operation:    op,
-		InputKey:     inputKey,
-		MaskKey:      maskKey,
-		ModelID:      plan.ModelID,
-		Backend:      h.modelBackend(plan.ModelID),
-		Tier:         plan.Tier,
-		GPU:          plan.GPUViable,
-		AllowBYOK:    params.GetAllowByok(),
-		AutoScanNSFW: params.GetAutoScanNsfw() || forceScan,
-		Variations:   int(params.GetVariations()),
-		Params:       paramsMap(params),
-		Adapters:     plan.Adapters,
+		Operation:        op,
+		InputKey:         inputKey,
+		MaskKey:          maskKey,
+		ModelID:          plan.ModelID,
+		Backend:          h.modelBackend(plan.ModelID),
+		Tier:             plan.Tier,
+		GPU:              plan.GPUViable,
+		AllowBYOK:        allowBYOKForParams(params),
+		CapacityPriority: priorityForParams(params),
+		AllowReclaim:     allowReclaimForParams(params),
+		AutoScanNSFW:     params.GetAutoScanNsfw() || forceScan,
+		Variations:       int(params.GetVariations()),
+		Params:           paramsMap(params),
+		Adapters:         plan.Adapters,
 	}
 	raw, err := json.Marshal(payload)
 	if err != nil {

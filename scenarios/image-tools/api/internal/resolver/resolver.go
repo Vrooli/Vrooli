@@ -16,6 +16,7 @@ package resolver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"image-tools/internal/adapters"
@@ -81,6 +82,7 @@ type Request struct {
 	ModelOverride string
 	Host          capabilities.Host
 	AllowBYOK     bool
+	QualityPolicy string
 	IsEnabled     models.EnabledFunc
 	// Adapters is the requested conditioning stack (LoRA / ControlNet / IP-Adapter).
 	// Empty for an unconditioned op.
@@ -116,15 +118,54 @@ func New(registry *models.Registry, be *backends.Registry) *Resolver {
 // message. A derived operation whose technique is not yet proven (Ready=false) is
 // not served and surfaces as a selection error, honestly, never a silent run.
 func (r *Resolver) Resolve(ctx context.Context, req Request) (Resolution, error) {
-	sel, err := r.registry.Select(models.SelectRequest{
-		Operation:  req.Operation,
-		Host:       req.Host,
-		OverrideID: req.ModelOverride,
+	candidates, err := r.registry.SelectCandidates(models.SelectRequest{
+		Operation:     req.Operation,
+		Host:          req.Host,
+		OverrideID:    req.ModelOverride,
+		QualityPolicy: req.QualityPolicy,
+		AllowBYOK:     req.AllowBYOK,
 	}, req.IsEnabled)
 	if err != nil {
 		return Resolution{}, err
 	}
 
+	var skipped []string
+	var lastBackendErr error
+	for _, sel := range candidates {
+		res, err := r.resolutionForSelection(sel, req)
+		if err != nil {
+			return Resolution{}, err
+		}
+		if r.backends == nil {
+			return res, nil
+		}
+		bsel, berr := r.backends.SelectProvider(ctx, backends.SelectRequest{
+			Operation:       req.Operation,
+			ModelBackend:    sel.Model.Backend,
+			GPUViable:       sel.GPUViable,
+			AllowBYOK:       req.AllowBYOK,
+			RequireAdapters: len(res.Adapters) > 0,
+		})
+		if berr != nil {
+			if !errors.Is(berr, backends.ErrNoneAvailable) && !errors.Is(berr, backends.ErrNoProvider) {
+				return Resolution{}, berr
+			}
+			lastBackendErr = berr
+			skipped = append(skipped, fmt.Sprintf("model %q unavailable: %v", sel.Model.ID, berr))
+			continue
+		}
+		res.Tier = bsel.Tier.String()
+		res.Warnings = append(res.Warnings, bsel.Warnings...)
+		res.Warnings = append(res.Warnings, skipped...)
+		return res, nil
+	}
+	if lastBackendErr != nil {
+		return Resolution{}, lastBackendErr
+	}
+	return Resolution{}, fmt.Errorf("%w for %q", backends.ErrNoneAvailable, req.Operation)
+}
+
+func (r *Resolver) resolutionForSelection(sel models.Selection, req Request) (Resolution, error) {
 	res := Resolution{
 		Operation:     req.Operation,
 		Model:         sel.Model,
@@ -143,10 +184,6 @@ func (r *Resolver) Resolve(ctx context.Context, req Request) (Resolution, error)
 		}
 	}
 
-	// Conditioning: validate the requested adapter stack against the chosen model's
-	// architecture (fail closed on incompatible/disabled/not-installed/not-Ready),
-	// attach it to the resolution, and elevate the consent weight to
-	// max(op, adapters...) — decision C4. Producing this executes nothing.
 	if len(req.Adapters) > 0 {
 		resolved, warns, cerr := adapters.ResolveConditioning(
 			sel.Model.Architecture,
@@ -161,21 +198,6 @@ func (r *Resolver) Resolve(ctx context.Context, req Request) (Resolution, error)
 		res.Adapters = resolved
 		res.Warnings = append(res.Warnings, warns...)
 		res.Weight = string(adapters.EffectiveWeight(safety.OpWeight(req.Operation), resolved))
-	}
-
-	if r.backends != nil {
-		bsel, berr := r.backends.SelectProvider(ctx, backends.SelectRequest{
-			Operation:       req.Operation,
-			ModelBackend:    sel.Model.Backend,
-			GPUViable:       sel.GPUViable,
-			AllowBYOK:       req.AllowBYOK,
-			RequireAdapters: len(res.Adapters) > 0,
-		})
-		if berr != nil {
-			return Resolution{}, berr // "no available provider — install a backend/enable BYOK"
-		}
-		res.Tier = bsel.Tier.String()
-		res.Warnings = append(res.Warnings, bsel.Warnings...)
 	}
 	return res, nil
 }

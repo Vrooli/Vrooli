@@ -236,6 +236,25 @@ func TestSelectBYOKGatedByFlag(t *testing.T) {
 	}
 }
 
+func TestSelectCloudModelDoesNotSubstituteLocalBackend(t *testing.T) {
+	ctx := context.Background()
+	r := New()
+	_ = r.Register(fakeProvider{name: "sd.cpp", ops: []string{"generate"}, standalone: true, available: true})
+	_ = r.Register(fakeProvider{name: models.BackendOpenRouter, ops: []string{"generate"}, standalone: true, cloud: true, available: false, detail: "api key missing"})
+
+	_, err := r.SelectProvider(ctx, SelectRequest{
+		Operation:    "generate",
+		ModelBackend: models.BackendOpenRouter,
+		AllowBYOK:    true,
+	})
+	if !errors.Is(err, ErrNoneAvailable) {
+		t.Fatalf("cloud model must not run through local backend, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "api key missing") {
+		t.Fatalf("error should explain cloud unavailability, got %v", err)
+	}
+}
+
 func TestSelectNoProvider(t *testing.T) {
 	r := New()
 	if _, err := r.SelectProvider(context.Background(), SelectRequest{Operation: "ghost"}); !errors.Is(err, ErrNoProvider) {

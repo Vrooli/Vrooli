@@ -136,7 +136,8 @@
     "imageSummaryAvailable": "image-tools is reachable.",
     "imageSummaryUnavailable": "image-tools is not reachable.",
     "imageReadyLabel": "Ready",
-    "imageNotReadyLabel": "Not ready"
+    "imageNotReadyLabel": "Not ready",
+    "imageCloudLabel": "BYOK cloud"
   },
   "apply": {
     "title": "Apply Brand",

@@ -3,6 +3,8 @@ package backends
 import (
 	"context"
 	"fmt"
+
+	"image-tools/internal/models"
 )
 
 // gpuCapableProvider is an optional Provider capability: a backend that can run
@@ -125,12 +127,18 @@ func (r *Registry) SelectProvider(ctx context.Context, req SelectRequest) (Selec
 				cloud = p
 			}
 		case p.Standalone():
+			if req.ModelBackend == models.BackendOpenRouter {
+				continue
+			}
 			if req.ModelBackend != "" && p.Name() == req.ModelBackend && matchLocal == nil {
 				matchLocal = p
 			} else if otherLocal == nil {
 				otherLocal = p
 			}
 		default: // local but not standalone == ComfyUI plug-in
+			if req.ModelBackend == models.BackendOpenRouter {
+				continue
+			}
 			if comfy == nil {
 				comfy = p
 			}
@@ -196,6 +204,9 @@ func (r *Registry) SelectProvider(ctx context.Context, req SelectRequest) (Selec
 		return Selection{}, fmt.Errorf("%w for %q: providers are registered but none is ready (%s)", ErrNoneAvailable, req.Operation, details)
 
 	default:
+		if req.ModelBackend == models.BackendOpenRouter && len(unavailableCloud) > 0 {
+			return Selection{}, fmt.Errorf("%w for %q: BYOK provider unavailable (%s)", ErrNoneAvailable, req.Operation, unavailableProviderDetails(ctx, unavailableCloud))
+		}
 		if len(unavailableLocals) > 0 && len(unavailableCloud) > 0 {
 			return Selection{}, fmt.Errorf("%w for %q: local providers unavailable (%s); BYOK providers unavailable (%s)", ErrNoneAvailable, req.Operation, unavailableProviderDetails(ctx, unavailableLocals), unavailableProviderDetails(ctx, unavailableCloud))
 		}

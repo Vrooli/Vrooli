@@ -2,6 +2,7 @@ package ai
 
 import (
 	"strconv"
+	"strings"
 
 	"image-tools/internal/adapters"
 
@@ -26,6 +27,47 @@ func adapterRequests(p *aiv1.AIParams) []adapters.AdapterRequest {
 		})
 	}
 	return out
+}
+
+func qualityPolicyForParams(p *aiv1.AIParams) string {
+	switch strings.ToLower(strings.TrimSpace(p.GetQualityPolicy())) {
+	case "fast", "balanced", "quality":
+		return strings.ToLower(strings.TrimSpace(p.GetQualityPolicy()))
+	default:
+		return ""
+	}
+}
+
+func fallbackPolicyForParams(p *aiv1.AIParams) string {
+	switch strings.ToLower(strings.TrimSpace(p.GetFallbackPolicy())) {
+	case "local_only", "cloud_allowed", "any":
+		return strings.ToLower(strings.TrimSpace(p.GetFallbackPolicy()))
+	default:
+		return ""
+	}
+}
+
+func allowBYOKForParams(p *aiv1.AIParams) bool {
+	if fallbackPolicyForParams(p) == "local_only" {
+		return false
+	}
+	return p.GetAllowByok()
+}
+
+func priorityForParams(p *aiv1.AIParams) string {
+	switch strings.ToLower(strings.TrimSpace(p.GetPriority())) {
+	case "batch", "service", "interactive":
+		return strings.ToLower(strings.TrimSpace(p.GetPriority()))
+	default:
+		return "service"
+	}
+}
+
+func allowReclaimForParams(p *aiv1.AIParams) bool {
+	if p.AllowReclaim == nil {
+		return true
+	}
+	return p.GetAllowReclaim()
 }
 
 // paramsMap flattens AIParams into the string map the engine threads to the

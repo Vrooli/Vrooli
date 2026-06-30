@@ -177,7 +177,11 @@ func (c *Client) Status(ctx context.Context) generation.ImageBackendStatus {
 	reachable := false
 	for _, op := range ops {
 		st := generation.ImageOperationStatus{Operation: op.brand}
-		resp, err := client.ExplainResolution(ctx, connect.NewRequest(&modelsv1.ExplainResolutionRequest{Operation: op.image}))
+		resp, err := client.ExplainResolution(ctx, connect.NewRequest(&modelsv1.ExplainResolutionRequest{
+			Operation:     op.image,
+			AllowByok:     true,
+			QualityPolicy: "quality",
+		}))
 		if err != nil {
 			st.Ready = false
 			st.Hint = explainErrorHint(err)
@@ -190,6 +194,10 @@ func (c *Client) Status(ctx context.Context) generation.ImageBackendStatus {
 		st.Tier = res.GetTier()
 		st.Ready = res.GetModelId() != ""
 		st.Hint = res.GetCaveat()
+		st.Warnings = append([]string(nil), res.GetWarnings()...)
+		if st.Hint == "" && len(st.Warnings) > 0 {
+			st.Hint = st.Warnings[0]
+		}
 		statuses = append(statuses, st)
 	}
 	if !reachable {

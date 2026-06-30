@@ -186,6 +186,7 @@ func (h *connectHandler) ExplainResolution(ctx context.Context, req *connect.Req
 		ModelOverride:    override,
 		Host:             host,
 		AllowBYOK:        req.Msg.GetAllowByok(),
+		QualityPolicy:    strings.TrimSpace(req.Msg.GetQualityPolicy()),
 		IsEnabled:        h.deps.Registry.EnabledWithOverlay(overlay),
 		Adapters:         adapterReqs,
 		AdapterByID:      h.deps.AdapterByID,

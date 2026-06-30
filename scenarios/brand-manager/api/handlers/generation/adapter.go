@@ -26,6 +26,7 @@ func imageBackendStatusToProto(s generation.ImageBackendStatus) *generationv1.Ge
 			ModelId:   op.ModelID,
 			Tier:      op.Tier,
 			Hint:      op.Hint,
+			Warnings:  append([]string(nil), op.Warnings...),
 		})
 	}
 	return &generationv1.GetImageBackendStatusResponse{

@@ -136,7 +136,8 @@
     "imageSummaryAvailable": "يمكن الوصول إلى image-tools.",
     "imageSummaryUnavailable": "تعذّر الوصول إلى image-tools.",
     "imageReadyLabel": "جاهز",
-    "imageNotReadyLabel": "غير جاهز"
+    "imageNotReadyLabel": "غير جاهز",
+    "imageCloudLabel": "سحابة BYOK"
   },
   "apply": {
     "title": "تطبيق العلامة",

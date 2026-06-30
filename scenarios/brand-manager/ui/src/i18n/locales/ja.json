@@ -133,7 +133,8 @@
     "imageSummaryAvailable": "image-tools に接続できます。",
     "imageSummaryUnavailable": "image-tools に接続できません。",
     "imageReadyLabel": "準備完了",
-    "imageNotReadyLabel": "未準備"
+    "imageNotReadyLabel": "未準備",
+    "imageCloudLabel": "BYOKクラウド"
   },
   "apply": {
     "title": "ブランドを適用",

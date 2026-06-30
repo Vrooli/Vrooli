@@ -139,17 +139,19 @@ func (e *Engine) effectiveRegistry(ctx context.Context) *models.Registry {
 // to execute the op without re-running selection's host probe from scratch
 // (model id is pinned at submit time for determinism).
 type Payload struct {
-	Operation    string            `json:"operation"`
-	InputKey     string            `json:"input_key,omitempty"`
-	MaskKey      string            `json:"mask_key,omitempty"`
-	ModelID      string            `json:"model_id"`
-	Backend      string            `json:"backend,omitempty"`
-	Tier         string            `json:"tier,omitempty"`
-	GPU          bool              `json:"gpu"`
-	AllowBYOK    bool              `json:"allow_byok,omitempty"`
-	AutoScanNSFW bool              `json:"auto_scan_nsfw,omitempty"`
-	Variations   int               `json:"variations,omitempty"`
-	Params       map[string]string `json:"params,omitempty"`
+	Operation        string            `json:"operation"`
+	InputKey         string            `json:"input_key,omitempty"`
+	MaskKey          string            `json:"mask_key,omitempty"`
+	ModelID          string            `json:"model_id"`
+	Backend          string            `json:"backend,omitempty"`
+	Tier             string            `json:"tier,omitempty"`
+	GPU              bool              `json:"gpu"`
+	AllowBYOK        bool              `json:"allow_byok,omitempty"`
+	CapacityPriority string            `json:"capacity_priority,omitempty"`
+	AllowReclaim     bool              `json:"allow_reclaim,omitempty"`
+	AutoScanNSFW     bool              `json:"auto_scan_nsfw,omitempty"`
+	Variations       int               `json:"variations,omitempty"`
+	Params           map[string]string `json:"params,omitempty"`
 	// Adapters is the validated conditioning stack pinned at submit time (typed,
 	// not in Params — decision C2). Empty for an unconditioned op.
 	Adapters []adapters.ResolvedAdapter `json:"adapters,omitempty"`
@@ -174,9 +176,13 @@ type Plan struct {
 
 // PlanRequest drives pre-submit selection.
 type PlanRequest struct {
-	Operation     string
-	ModelOverride string
-	AllowBYOK     bool
+	Operation      string
+	ModelOverride  string
+	AllowBYOK      bool
+	QualityPolicy  string
+	FallbackPolicy string
+	Priority       string
+	AllowReclaim   bool
 	// Adapters is the requested conditioning stack (resolved + validated here so an
 	// incompatible/not-Ready/uninstalled adapter is rejected before any job).
 	Adapters []adapters.AdapterRequest
@@ -223,6 +229,7 @@ func (e *Engine) Plan(ctx context.Context, req PlanRequest) (Plan, error) {
 		ModelOverride:    override,
 		Host:             host,
 		AllowBYOK:        req.AllowBYOK,
+		QualityPolicy:    req.QualityPolicy,
 		IsEnabled:        enabled,
 		Adapters:         req.Adapters,
 		AdapterByID:      e.deps.AdapterByID,
@@ -359,7 +366,10 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	// re-selecting on CPU. Advisory by default: any broker error leaves the GPU
 	// selection untouched (the engine never blocks on the broker).
 	if e.deps.Capacity != nil && bsel.Tier == backends.TierLocalGPU {
-		lease, cerr := e.deps.Capacity.Claim(ctx, "image-tools:"+job.ID, sdGPUVRAMEstimateBytes)
+		lease, cerr := e.deps.Capacity.Claim(ctx, "image-tools:"+job.ID, modelVRAMClaimBytes(model), CapacityClaimOptions{
+			Priority:     pl.CapacityPriority,
+			AllowReclaim: pl.AllowReclaim,
+		})
 		if cerr != nil {
 			e.deps.Logger.Printf("ai: capacity claim failed (advisory, proceeding on GPU): %v", cerr)
 		} else {
@@ -451,6 +461,13 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 		emit(98, fmt.Sprintf("variations: %v", outKeys))
 	}
 	return primary, nil
+}
+
+func modelVRAMClaimBytes(model models.Model) int64 {
+	if model.Hardware.MinVRAMGB > 0 {
+		return int64(model.Hardware.MinVRAMGB) << 30
+	}
+	return fallbackGPUVRAMEstimateBytes
 }
 
 type inputFiles struct {

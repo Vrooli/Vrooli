@@ -83,7 +83,14 @@ describe("GenerationCard", () => {
         available: true,
         operations: [
           makeImageOperationStatus({ operation: "generate", ready: true, modelId: "sd-1.5", tier: "local-gpu" }),
-          makeImageOperationStatus({ operation: "edit", ready: false, hint: "run image-tools models install ip2p" }),
+          makeImageOperationStatus({
+            operation: "edit",
+            ready: true,
+            modelId: "openrouter-image",
+            tier: "byok-cloud",
+            hint: "running on a paid BYOK cloud provider",
+          }),
+          makeImageOperationStatus({ operation: "remove_background", ready: false, hint: "install rembg" }),
         ],
       }),
     );
@@ -95,7 +102,10 @@ describe("GenerationCard", () => {
     expect(screen.getByTestId(selectors.generation.imageSummary).textContent).toContain("image-tools is reachable");
     const opStatuses = screen.getAllByTestId(selectors.generation.imageOpStatus);
     expect(opStatuses[0]?.textContent).toContain("Ready");
-    expect(opStatuses[1]?.textContent).toContain("Not ready");
-    expect(screen.getByTestId(selectors.generation.imageList).textContent).toContain("install ip2p");
+    expect(opStatuses[1]?.textContent).toContain("Ready");
+    expect(opStatuses[2]?.textContent).toContain("Not ready");
+    expect(screen.getByTestId(selectors.generation.imageList).textContent).toContain("BYOK cloud");
+    expect(screen.getByTestId(selectors.generation.imageList).textContent).toContain("install rembg");
+    expect(screen.getByTestId(selectors.generation.imageList).textContent).toContain("paid BYOK cloud");
   });
 });

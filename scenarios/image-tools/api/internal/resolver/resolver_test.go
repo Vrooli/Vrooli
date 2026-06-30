@@ -3,6 +3,7 @@ package resolver
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"image-tools/internal/adapters"
@@ -18,17 +19,22 @@ type fakeProvider struct {
 	name     string
 	ops      []string
 	adapters bool // advertises conditioning-adapter support for its ops
+	down     bool
 }
 
 func (p fakeProvider) Name() string                    { return p.name }
 func (p fakeProvider) Operations() []string            { return p.ops }
 func (p fakeProvider) Standalone() bool                { return true }
 func (p fakeProvider) IsCloud() bool                   { return false }
-func (p fakeProvider) Available(context.Context) bool  { return true }
+func (p fakeProvider) Available(context.Context) bool  { return !p.down }
 func (p fakeProvider) SupportsAdapters(op string) bool { return p.adapters }
 func (p fakeProvider) Execute(context.Context, backends.Request) (backends.Result, error) {
 	return backends.Result{}, errors.New("resolver tests never execute")
 }
+
+type fakeCloudProvider struct{ fakeProvider }
+
+func (p fakeCloudProvider) IsCloud() bool { return true }
 
 // newResolver builds a resolver over the real registry and a backend registry
 // holding a provider for op under the op default model's backend (so the
@@ -91,6 +97,38 @@ func TestResolveInvalidOverride(t *testing.T) {
 	})
 	if !errors.Is(err, models.ErrOverrideInvalid) {
 		t.Fatalf("err = %v, want ErrOverrideInvalid", err)
+	}
+}
+
+func TestResolveQualitySkipsUnavailableBYOKToLocalDefault(t *testing.T) {
+	registry, err := models.Load()
+	if err != nil {
+		t.Fatalf("load registry: %v", err)
+	}
+	be := backends.New()
+	if err := be.Register(fakeProvider{name: "stable-diffusion.cpp", ops: []string{"text_to_image"}}); err != nil {
+		t.Fatalf("register local provider: %v", err)
+	}
+	if err := be.Register(fakeCloudProvider{fakeProvider{name: models.BackendOpenRouter, ops: []string{"text_to_image"}, down: true}}); err != nil {
+		t.Fatalf("register cloud provider: %v", err)
+	}
+	r := New(registry, be)
+
+	res, err := r.Resolve(context.Background(), Request{
+		Operation:     "text_to_image",
+		Host:          cpuHost(),
+		AllowBYOK:     true,
+		QualityPolicy: "quality",
+	})
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if res.Model.ID != "sd-1.5" {
+		t.Fatalf("model = %q, want local fallback sd-1.5 after unavailable BYOK", res.Model.ID)
+	}
+	joined := strings.Join(res.Warnings, " ")
+	if !strings.Contains(joined, "openrouter-image") || !strings.Contains(joined, "unavailable") {
+		t.Fatalf("expected skipped BYOK warning, got %v", res.Warnings)
 	}
 }
 

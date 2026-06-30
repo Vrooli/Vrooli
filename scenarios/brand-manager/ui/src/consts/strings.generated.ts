@@ -149,6 +149,7 @@ export const strings = {
     imageSummaryUnavailable: "generation.imageSummaryUnavailable",
     imageReadyLabel: "generation.imageReadyLabel",
     imageNotReadyLabel: "generation.imageNotReadyLabel",
+    imageCloudLabel: "generation.imageCloudLabel",
   },
   apply: {
     title: "apply.title",

@@ -31,6 +31,12 @@ func testRegistry(t *testing.T) *Registry {
           "id": "ocr-default", "name": "OCR", "operations": ["ocr"],
           "default_for": ["ocr"], "tier": "default", "backend": "tesseract",
           "hardware": {"cpu_capable": true, "min_vram_gb": 0}, "capability_labels": {"commercial_use": "yes"}, "enabled": true
+        },
+        {
+          "id": "openrouter-image", "name": "OpenRouter Image", "operations": ["upscale"],
+          "default_for": [], "tier": "nice-to-have", "backend": "openrouter",
+          "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 0, "min_ram_gb": 0},
+          "capability_labels": {"commercial_use": "yes"}, "enabled": true
         }
       ],
       "blocklist": []
@@ -164,6 +170,28 @@ func TestSelectDefaultWhenQualityDisabled(t *testing.T) {
 	}
 	if sel.Model.ID != "cpu-default" {
 		t.Fatalf("got %s want cpu-default", sel.Model.ID)
+	}
+}
+
+func TestSelectQualityPolicyPrefersBYOKBeforeDefault(t *testing.T) {
+	r := testRegistry(t)
+	sel, err := r.Select(SelectRequest{Operation: "upscale", Host: cpuHost(), QualityPolicy: "quality", AllowBYOK: true}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sel.Model.ID != "openrouter-image" {
+		t.Fatalf("quality policy model = %q, want openrouter-image before low-quality default", sel.Model.ID)
+	}
+}
+
+func TestSelectQualityPolicyExcludesBYOKWhenDisallowed(t *testing.T) {
+	r := testRegistry(t)
+	sel, err := r.Select(SelectRequest{Operation: "upscale", Host: cpuHost(), QualityPolicy: "quality"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sel.Model.ID != "cpu-default" {
+		t.Fatalf("quality policy with BYOK disabled model = %q, want local default", sel.Model.ID)
 	}
 }
 
