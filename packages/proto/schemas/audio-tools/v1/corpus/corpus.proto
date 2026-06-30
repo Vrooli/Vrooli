@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+package vrooli.audio_tools.v1.corpus;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/corpus;corpus_v1";
+
+// =============================================================================
+// CORPUS DOMAIN — the speech-eval clip store.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain corpus
+// @stability experimental
+//
+// Holds operator-recorded audio clips with corrected ground-truth
+// transcripts for the offline STT eval harness. Metadata lives in the
+// `corpus` SQLite domain; the audio BYTES live in the blob store under the
+// git-ignored runtime data dir (never git, never the DB). Operator-facing
+// and local-only in v1 — not exposed cross-scenario.
+// =============================================================================
+
+service CorpusService {
+  // CreateClip stores the audio bytes in the blob store and the metadata
+  // row, returning the saved clip (without bytes).
+  rpc CreateClip(CreateClipRequest) returns (CreateClipResponse);
+  // ListClips returns clip metadata, newest first, optionally tag-filtered.
+  rpc ListClips(ListClipsRequest) returns (ListClipsResponse);
+  // GetClip returns one clip's metadata.
+  rpc GetClip(GetClipRequest) returns (GetClipResponse);
+  // GetClipAudio streams a clip's audio bytes back for playback/replay.
+  rpc GetClipAudio(GetClipAudioRequest) returns (GetClipAudioResponse);
+  // DeleteClip removes the metadata row and its blob.
+  rpc DeleteClip(DeleteClipRequest) returns (DeleteClipResponse);
+}
+
+// ClipSource records how a clip was captured.
+enum ClipSource {
+  CLIP_SOURCE_UNSPECIFIED = 0;
+  CLIP_SOURCE_FREE_FORM = 1; // free-form dictation
+  CLIP_SOURCE_SCRIPTED = 2;  // a scripted prompt read aloud
+}
+
+// Clip is one corpus item's metadata. Audio bytes are NOT carried here —
+// fetch them via GetClipAudio.
+message Clip {
+  string id = 1;
+  string reference_text = 2;
+  repeated string tags = 3;
+  int64 duration_ms = 4;
+  int32 sample_rate_hz = 5;
+  string format = 6; // audioformat hint, e.g. "pcm_s16le"
+  string blob_key = 7;
+  ClipSource source = 8;
+  google.protobuf.Timestamp created_at = 9;
+}
+
+message CreateClipRequest {
+  bytes audio = 1; // raw bytes in `format`
+  string reference_text = 2;
+  repeated string tags = 3;
+  int64 duration_ms = 4;
+  int32 sample_rate_hz = 5;
+  string format = 6;
+  ClipSource source = 7;
+}
+
+message CreateClipResponse {
+  Clip clip = 1;
+}
+
+message ListClipsRequest {
+  string tag_contains = 1; // optional substring filter on tags
+  int32 limit = 2;         // 0 = no limit
+  int32 offset = 3;
+}
+
+message ListClipsResponse {
+  repeated Clip clips = 1;
+}
+
+message GetClipRequest {
+  string id = 1;
+}
+
+message GetClipResponse {
+  Clip clip = 1;
+}
+
+message GetClipAudioRequest {
+  string id = 1;
+}
+
+message GetClipAudioResponse {
+  bytes audio = 1;
+  Clip clip = 2;
+}
+
+message DeleteClipRequest {
+  string id = 1;
+}
+
+message DeleteClipResponse {}

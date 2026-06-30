@@ -1,0 +1,118 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.file_preview;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/file_preview;file_preview_v1";
+
+// =============================================================================
+// FILE PREVIEW DOMAIN — resolve local file references into rich preview targets
+//                       and serve bounded UTF-8 text content.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain file_preview
+// @stability stable
+//
+// This domain replaces the file-reference resolve/content methods that used to
+// live on ConversationService. It is a reusable preview subsystem: any
+// web-console surface (conversation links, agent records, BAS runs, plan
+// drill-downs) can Resolve a path into a PreviewTarget and then either fetch
+// bounded text over Connect (GetTextContent) or stream bytes from the REST blob
+// endpoint using the opaque preview_id.
+//
+// Binary/media bytes do NOT travel through Connect. Resolve returns a blob_url
+// (a relative path on the same origin); the browser's native <img>/<video>/
+// <audio>/<iframe> elements fetch it with HTTP Range support. See
+//   GET/HEAD /api/v1/sessions/{sessionId}/file-previews/{previewId}/blob
+// (a sanctioned REST exception, reason ops_probe).
+//
+// Consumed by:
+//   - API: handlers/file_preview/connect_handler.go (+ api/file_preview_handlers.go for the blob route)
+//   - UI:  ui/src/api/filePreview.ts (Connect-Web client + blob URL helper)
+//   - CLI: cli/domains/file_preview/register.go (Connect-Go client)
+// =============================================================================
+
+service FilePreviewService {
+  // Resolve translates a raw path string into a PreviewTarget: canonical path,
+  // classification, capability flags, and an opaque preview_id the blob route
+  // serves bytes against.
+  rpc Resolve(ResolveRequest) returns (ResolveResponse);
+
+  // GetTextContent returns the bounded UTF-8 content for a text-kind preview
+  // (markdown/code/text/csv/diff). Media and images never use this — they
+  // stream from the blob route.
+  rpc GetTextContent(GetTextContentRequest) returns (GetTextContentResponse);
+}
+
+// PreviewKind classifies how a resolved file should be rendered. The UI keys
+// its renderer registry on these values.
+enum PreviewKind {
+  PREVIEW_KIND_UNSPECIFIED = 0;
+  PREVIEW_KIND_MARKDOWN = 1;
+  PREVIEW_KIND_CODE = 2;
+  PREVIEW_KIND_TEXT = 3;
+  PREVIEW_KIND_SVG = 4;
+  PREVIEW_KIND_IMAGE = 5;
+  PREVIEW_KIND_PDF = 6;
+  PREVIEW_KIND_AUDIO = 7;
+  PREVIEW_KIND_VIDEO = 8;
+  PREVIEW_KIND_CSV = 9;
+  PREVIEW_KIND_DIFF = 10;
+  PREVIEW_KIND_UNSUPPORTED = 11;
+}
+
+// SourceContext records where the resolve request originated, so future
+// surfaces can be told apart for auditing/telemetry. Optional.
+enum SourceContext {
+  SOURCE_CONTEXT_UNSPECIFIED = 0;
+  SOURCE_CONTEXT_MESSAGE_LINK = 1;
+  SOURCE_CONTEXT_INLINE_CODE = 2;
+  SOURCE_CONTEXT_CLI = 3;
+}
+
+message ResolveRequest {
+  string session_id = 1;
+  string path = 2;
+  SourceContext source_context = 3;
+}
+
+message ResolveResponse {
+  // preview_id is the opaque, session-bound, short-lived handle the blob route
+  // accepts. Empty only when the file is non-previewable and non-downloadable.
+  string preview_id = 1;
+  string input_path = 2;
+  string resolved_path = 3;
+  string basename = 4;
+  int32 line = 5; // 0 = absent
+  bool has_line = 6;
+  string resolution_basis = 7; // "absolute" | "session_cwd" | "project_root"
+  PreviewKind preview_kind = 8;
+  string mime_type = 9;
+  int64 size_bytes = 10;
+  int64 mtime_unix_nano = 11;
+  bool can_preview = 12;
+  bool can_download = 13;
+  bool supports_range = 14;
+  bool text_content_available = 15;
+  // blob_url is a same-origin relative path (no host) for the bytes, present
+  // whenever the file can be downloaded/streamed.
+  string blob_url = 16;
+  // expires_unix_nano is when preview_id (and blob_url) stop working.
+  int64 expires_unix_nano = 17;
+  repeated string warnings = 18;
+}
+
+message GetTextContentRequest {
+  string session_id = 1;
+  string preview_id = 2;
+}
+
+message GetTextContentResponse {
+  string resolved_path = 1;
+  PreviewKind preview_kind = 2;
+  string mime_type = 3;
+  string content = 4;
+  bool truncated = 5;
+  int32 line = 6; // 0 = absent
+  bool has_line = 7;
+}

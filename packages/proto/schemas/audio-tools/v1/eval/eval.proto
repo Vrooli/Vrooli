@@ -1,0 +1,196 @@
+syntax = "proto3";
+
+package vrooli.audio_tools.v1.eval;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval;eval_v1";
+
+// =============================================================================
+// EVAL DOMAIN — the STT strategy comparison harness surface.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain eval
+// @stability experimental
+//
+// Replays the corpus through batch + vad-segment + overlap-agree and
+// reports WER, compute cost (Whisper-calls / audio-seconds / RTF), and
+// finalization latency (p50/p95). Kept separate from CorpusService so
+// clip CRUD and evaluation stay distinct responsibilities (mirrors
+// search-hub's separate EvalService). Requires a live Whisper backend.
+// =============================================================================
+
+service EvalService {
+  // RunEval replays the selected clips through the given strategies and
+  // returns the comparison report.
+  rpc RunEval(RunEvalRequest) returns (RunEvalResponse);
+}
+
+// EvalStrategy selects one strategy row + its config overrides. Unset
+// overlap fields fall back to the persisted stream-config defaults; a
+// negative overlap_max_stall_rejects means "use default" (0 is a valid
+// value meaning "disabled").
+message EvalStrategy {
+  string kind = 1;  // "batch" | "vad_segment" | "overlap_agree"
+  string label = 2; // display label; defaults to kind when empty
+  // overlap_agree config overrides.
+  int32 overlap_max_stall_rejects = 3; // <0 = default; 0 = disabled
+  int32 overlap_window_ms = 4;
+  int32 overlap_commit_runs = 5;
+  // vad_segment config override.
+  int32 vad_silence_ms = 6;
+  // overlap_max_window_ms caps overlap_agree's uncommitted tail before it
+  // force-commits. 0 = default.
+  int32 overlap_max_window_ms = 7;
+}
+
+message RunEvalRequest {
+  // clip_ids narrows the run; empty = the whole corpus.
+  repeated string clip_ids = 1;
+  // strategies to compare; empty = the default trio (batch, vad, overlap).
+  repeated EvalStrategy strategies = 2;
+  // realtime_repeats real-time-paced runs per clip feed the latency
+  // distribution; 0 = quality-only (no latency).
+  int32 realtime_repeats = 3;
+  // chunk_ms is the replay chunk size; 0 defaults to 100.
+  int32 chunk_ms = 4;
+}
+
+message RunEvalResponse {
+  EvalReport report = 1;
+}
+
+message EvalReport {
+  repeated StrategyReport per_strategy = 1;
+  bool quality_measured = 2;
+  bool latency_measured = 3;
+  EvalReportSummary summary = 4;
+  repeated ReportWarning warnings = 5;
+  NormalizationPolicy normalization_policy = 6;
+  string latency_honesty = 7;
+}
+
+message StrategyReport {
+  string strategy = 1;
+  string label = 2;
+  double wer = 3;
+  int32 substitutions = 4;
+  int32 insertions = 5;
+  int32 deletions = 6;
+  int32 ref_words = 7;
+  int32 whisper_calls = 8;
+  double whisper_audio_seconds = 9;
+  double rtf = 10;
+  double finalization_latency_p50_ms = 11;
+  double finalization_latency_p95_ms = 12;
+  int32 partial_revisions = 13;
+  repeated ClipReport per_clip = 14;
+  double wer_delta_vs_winner = 15;
+  double p95_delta_ms_vs_winner = 16;
+  double call_multiplier_vs_winner = 17;
+  string verdict = 18; // "winner" | "competitive" | "tradeoff" | "loser"
+  repeated string reasons = 19;
+  repeated ReportWarning warnings = 20;
+  SafetyGateReport safety = 21;
+  StageAttribution stage_attribution = 22;
+  repeated LengthBucketCurve length_curves = 23;
+  int32 commit_count = 24;
+  int32 speaker_rejection_count = 25;
+}
+
+message ClipReport {
+  string clip_id = 1;
+  string reference = 2;
+  string hypothesis = 3;
+  double wer = 4;
+  int32 whisper_calls = 5;
+  double whisper_audio_seconds = 6;
+  double rtf = 7;
+  int32 segment_count = 8;
+  int32 partial_revisions = 9;
+  double finalization_latency_p50_ms = 10;
+  double finalization_latency_p95_ms = 11;
+  string error = 12;
+  int32 substitutions = 13;
+  int32 insertions = 14;
+  int32 deletions = 15;
+  int32 ref_words = 16;
+  int32 hyp_words = 17;
+  string normalized_reference = 18;
+  string normalized_hypothesis = 19;
+  repeated EditOperation edit_operations = 20;
+  repeated CommitState commit_timeline = 21;
+  double time_to_first_commit_ms = 22;
+  int32 commit_count = 23;
+  int32 speaker_rejection_count = 24;
+  int64 audio_duration_ms = 25;
+  SafetyGateReport safety = 26;
+}
+
+message EvalReportSummary {
+  string winner_strategy = 1;
+  string winner_label = 2;
+  string recommendation = 3;
+  string confidence = 4; // "low" | "medium" | "high"
+  repeated string reasons = 5;
+  repeated string confidence_notes = 6;
+}
+
+message ReportWarning {
+  string code = 1;
+  string message = 2;
+  string severity = 3; // "info" | "warning" | "critical"
+}
+
+message NormalizationPolicy {
+  string wer_policy = 1;
+  string overlap_agreement_policy = 2;
+}
+
+message EditOperation {
+  string kind = 1; // "match" | "substitution" | "insertion" | "deletion"
+  string reference_token = 2;
+  string hypothesis_token = 3;
+  int32 reference_index = 4;
+  int32 hypothesis_index = 5;
+}
+
+message CommitState {
+  string text = 1;
+  int64 at_ms = 2;
+  int64 audio_end_ms = 3;
+}
+
+message RetractionEvent {
+  string previous_text = 1;
+  string current_text = 2;
+  int64 at_ms = 3;
+}
+
+message SafetyGateReport {
+  bool passed = 1;
+  bool retraction_free = 2;
+  bool dropped_span_free = 3;
+  repeated RetractionEvent retraction_events = 4;
+  int32 max_dropped_span_words = 5;
+  int32 dropped_span_threshold_words = 6;
+  repeated string reasons = 7;
+}
+
+message StageAttribution {
+  int32 ingress_lost_words = 1;
+  int32 strategy_lost_words = 2;
+  int32 egress_lost_words = 3;
+  int32 egress_reject_events = 4;
+  repeated string notes = 5;
+}
+
+message LengthBucketCurve {
+  string bucket = 1;
+  int64 min_duration_ms = 2;
+  int64 max_duration_ms = 3;
+  int32 clip_count = 4;
+  double wer = 5;
+  double finalization_latency_p95_ms = 6;
+  double mean_time_to_first_commit_ms = 7;
+  int32 max_dropped_span_words = 8;
+}

@@ -1,0 +1,205 @@
+syntax = "proto3";
+
+package vrooli.audio_tools.v1.experiment;
+
+import "audio-tools/v1/eval/eval.proto";
+import "audio-tools/v1/stt/stt.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment;experiment_v1";
+
+// =============================================================================
+// EXPERIMENT DOMAIN — persisted async STT experiment lifecycle.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain experiment
+// @stability experimental
+//
+// Long-running operation surface for Dictation Studio's STT experiment lab.
+// StartExperiment persists a reproducible recipe and returns immediately; the
+// server owns execution, so WaitExperiment cancellation never aborts the run.
+// =============================================================================
+
+service ExperimentService {
+  rpc StartExperiment(StartExperimentRequest) returns (StartExperimentResponse);
+  rpc GetExperiment(GetExperimentRequest) returns (GetExperimentResponse);
+  rpc WaitExperiment(WaitExperimentRequest) returns (WaitExperimentResponse);
+  rpc ListExperiments(ListExperimentsRequest) returns (ListExperimentsResponse);
+  rpc CancelExperiment(CancelExperimentRequest) returns (CancelExperimentResponse);
+  rpc StreamExperimentEvents(StreamExperimentEventsRequest) returns (stream ExperimentEvent);
+  rpc GetExperimentReport(GetExperimentReportRequest) returns (GetExperimentReportResponse);
+  rpc CompareExperiments(CompareExperimentsRequest) returns (CompareExperimentsResponse);
+}
+
+enum ExperimentStatus {
+  EXPERIMENT_STATUS_UNSPECIFIED = 0;
+  EXPERIMENT_STATUS_QUEUED = 1;
+  EXPERIMENT_STATUS_RUNNING = 2;
+  EXPERIMENT_STATUS_SUCCEEDED = 3;
+  EXPERIMENT_STATUS_FAILED = 4;
+  EXPERIMENT_STATUS_CANCELED = 5;
+}
+
+message ExperimentRecipe {
+  repeated string clip_ids = 1;
+  repeated vrooli.audio_tools.v1.eval.EvalStrategy strategies = 2;
+  int32 realtime_repeats = 3;
+  int32 chunk_ms = 4;
+  int64 seed = 5;
+  LongFormRecipe long_form = 6;
+  repeated string realized_clip_ids = 7;
+  string realized_reference = 8;
+  int64 realized_duration_ms = 9;
+  AugmentationRecipe augmentation = 10;
+  repeated AugmentationCondition realized_augmentation_conditions = 11;
+  SpeakerExperimentRecipe speaker = 12;
+  repeated SpeakerCondition realized_speaker_conditions = 13;
+  int32 dropped_span_threshold_words = 14;
+}
+
+message LongFormRecipe {
+  bool enabled = 1;
+  int32 target_duration_seconds = 2;
+  int32 gap_ms = 3;
+  string tag_contains = 4;
+}
+
+message AugmentationRecipe {
+  repeated string noise_types = 1;
+  repeated double snr_db = 2;
+  repeated string competing_voice_ids = 3;
+  string competing_text = 4;
+}
+
+message AugmentationCondition {
+  string id = 1;
+  string kind = 2;
+  string source = 3;
+  double snr_db = 4;
+  bool skipped = 5;
+  string note = 6;
+}
+
+message SpeakerExperimentRecipe {
+  string target_profile_id = 1;
+  bool extraction_enabled = 2;
+  bool verification_enabled = 3;
+  vrooli.audio_tools.v1.stt.SpeakerMode verification_mode = 4;
+  double threshold = 5;
+  bool fallback_without_verification = 6;
+  bool ablation_enabled = 7;
+}
+
+message SpeakerCondition {
+  string id = 1;
+  bool extraction_enabled = 2;
+  bool verification_enabled = 3;
+  vrooli.audio_tools.v1.stt.SpeakerMode verification_mode = 4;
+  bool skipped = 5;
+  string note = 6;
+}
+
+message Experiment {
+  string id = 1;
+  string name = 2;
+  ExperimentStatus status = 3;
+  ExperimentRecipe recipe = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp started_at = 6;
+  google.protobuf.Timestamp finished_at = 7;
+  string error = 8;
+  string result_ref = 9;
+  string machine_json = 10;
+}
+
+message ExperimentRun {
+  string id = 1;
+  string experiment_id = 2;
+  string strategy = 3;
+  string condition_json = 4;
+  string metrics_json = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message ExperimentEvent {
+  string experiment_id = 1;
+  ExperimentStatus status = 2;
+  int32 progress = 3;
+  string message = 4;
+  google.protobuf.Timestamp at = 5;
+}
+
+message StartExperimentRequest {
+  string name = 1;
+  ExperimentRecipe recipe = 2;
+  int32 estimated_seconds = 3;
+}
+
+message StartExperimentResponse {
+  Experiment experiment = 1;
+  int32 estimated_seconds = 2;
+}
+
+message GetExperimentRequest {
+  string id = 1;
+}
+
+message GetExperimentResponse {
+  Experiment experiment = 1;
+  repeated ExperimentRun runs = 2;
+}
+
+message WaitExperimentRequest {
+  string id = 1;
+}
+
+message WaitExperimentResponse {
+  Experiment experiment = 1;
+  repeated ExperimentRun runs = 2;
+}
+
+message ListExperimentsRequest {
+  ExperimentStatus status = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+message ListExperimentsResponse {
+  repeated Experiment experiments = 1;
+}
+
+message CancelExperimentRequest {
+  string id = 1;
+}
+
+message CancelExperimentResponse {
+  Experiment experiment = 1;
+}
+
+message StreamExperimentEventsRequest {
+  string id = 1;
+}
+
+message GetExperimentReportRequest {
+  string id = 1;
+}
+
+message GetExperimentReportResponse {
+  Experiment experiment = 1;
+  vrooli.audio_tools.v1.eval.EvalReport report = 2;
+  repeated ExperimentRun runs = 3;
+}
+
+message CompareExperimentsRequest {
+  repeated string ids = 1;
+}
+
+message ComparedExperiment {
+  Experiment experiment = 1;
+  vrooli.audio_tools.v1.eval.EvalReport report = 2;
+}
+
+message CompareExperimentsResponse {
+  repeated ComparedExperiment experiments = 1;
+}
