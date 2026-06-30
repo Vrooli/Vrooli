@@ -28,6 +28,61 @@ function row(strategy: string, over: Record<string, number> = {}) {
     finalizationLatencyP50Ms: 100,
     finalizationLatencyP95Ms: 200,
     partialRevisions: 1,
+    perClip: [
+      {
+        clipId: "clip-1",
+        reference: "Hello world",
+        hypothesis: "Hello word",
+        wer: 0.5,
+        whisperCalls: 1,
+        whisperAudioSeconds: 1.5,
+        rtf: 0.5,
+        segmentCount: 1,
+        partialRevisions: 1,
+        finalizationLatencyP50Ms: 90,
+        finalizationLatencyP95Ms: 120,
+        error: "",
+        substitutions: 1,
+        insertions: 0,
+        deletions: 0,
+        refWords: 2,
+        hypWords: 2,
+        normalizedReference: "hello world",
+        normalizedHypothesis: "hello word",
+        editOperations: [
+          { kind: "match", referenceToken: "hello", hypothesisToken: "hello", referenceIndex: 0, hypothesisIndex: 0 },
+          { kind: "substitution", referenceToken: "world", hypothesisToken: "word", referenceIndex: 1, hypothesisIndex: 1 },
+        ],
+      },
+    ],
+    werDeltaVsWinner: 0,
+    p95DeltaMsVsWinner: 0,
+    callMultiplierVsWinner: 1,
+    verdict: "winner",
+    reasons: ["Lowest WER after deterministic normalization."],
+    warnings: [],
+    ...over,
+  };
+}
+
+function report(over = {}) {
+  return {
+    perStrategy: [row("batch"), row("vad_segment", { wer: 0.05, finalizationLatencyP95Ms: 100 })],
+    qualityMeasured: true,
+    latencyMeasured: false,
+    summary: {
+      winnerStrategy: "vad_segment",
+      winnerLabel: "vad_segment",
+      recommendation: "Prefer vad_segment for this corpus.",
+      confidence: "low",
+      reasons: ["vad_segment has 5.0% WER on this corpus."],
+      confidenceNotes: ["Fewer than 10 clips makes per-strategy differences easy to overfit."],
+    },
+    warnings: [{ code: "tiny_corpus", severity: "warning", message: "Only 2 clips were evaluated." }],
+    normalizationPolicy: {
+      werPolicy: "WER lowercases text and removes punctuation.",
+      overlapAgreementPolicy: "Overlap-agree strips Unicode punctuation for agreement only.",
+    },
     ...over,
   };
 }
@@ -42,11 +97,7 @@ describe("EvalReportView", () => {
   });
 
   it("runs the eval and renders the comparison table", async () => {
-    runEval.mockResolvedValue({
-      perStrategy: [row("batch"), row("overlap_agree")],
-      qualityMeasured: true,
-      latencyMeasured: false,
-    });
+    runEval.mockResolvedValue(report({ perStrategy: [row("batch"), row("overlap_agree")] }));
     const user = userEvent.setup();
     renderWithProviders(<EvalReportView />);
     await user.click(screen.getByTestId(selectors.dictationStudio.runEval));
@@ -59,12 +110,23 @@ describe("EvalReportView", () => {
     expect(runEval).toHaveBeenCalledWith(expect.objectContaining({ realtimeRepeats: 0 }));
   });
 
+  it("renders recommendation, glossary, warnings, deltas, and per-clip diffs", async () => {
+    runEval.mockResolvedValue(report());
+    const user = userEvent.setup();
+    renderWithProviders(<EvalReportView />);
+
+    await user.click(screen.getByTestId(selectors.dictationStudio.runEval));
+
+    expect(await screen.findByTestId(selectors.dictationStudio.evalSummary)).toHaveTextContent("Prefer vad_segment");
+    expect(screen.getByText("Only 2 clips were evaluated.")).toBeInTheDocument();
+    expect(screen.getByText(strings.dictationStudio.metricGlossary)).toBeInTheDocument();
+    expect(screen.getByText(/WER lowercases/)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.dictationStudio.evalClips)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.dictationStudio.evalClip({ strategy: "batch", clipId: "clip-1" }))).toHaveTextContent("50.0%");
+  });
+
   it("passes requested real-time repeats when latency is enabled", async () => {
-    runEval.mockResolvedValue({
-      perStrategy: [row("batch")],
-      qualityMeasured: true,
-      latencyMeasured: true,
-    });
+    runEval.mockResolvedValue(report({ perStrategy: [row("batch")], latencyMeasured: true }));
     const user = userEvent.setup();
     renderWithProviders(<EvalReportView />);
 
@@ -78,11 +140,7 @@ describe("EvalReportView", () => {
   });
 
   it("dashes the latency columns when latency was not measured", async () => {
-    runEval.mockResolvedValue({
-      perStrategy: [row("batch")],
-      qualityMeasured: true,
-      latencyMeasured: false,
-    });
+    runEval.mockResolvedValue(report({ perStrategy: [row("batch")], latencyMeasured: false }));
     const user = userEvent.setup();
     renderWithProviders(<EvalReportView />);
     await user.click(screen.getByTestId(selectors.dictationStudio.runEval));

@@ -189,6 +189,13 @@ CPU, or quality.
 | `stt.overlap_commit_runs` | integer | `2` | `2–4` | operator | How many consecutive sliding-window runs must agree on a prefix before it commits from `Partial` → `Segment`. Higher = more stable text, longer commit latency. |
 | `stt.overlap_max_stall_rejects` | integer | `3` | `0–10` (`0`=disabled) | operator | OverlapAgree **stall-fallback**. On hard audio / jittery word timestamps, LocalAgreement can keep producing hypotheses that diverge from the committed prefix; the divergence-reject path then commits nothing and the uncommitted tail grows toward the 25s `max_window_ms` net, re-transcribing an ever-larger window each settle and saturating the 5-wide Whisper semaphore — so streaming *finalizes slower than batch*. After this many **consecutive** divergence-rejects the strategy force-commits the freshest hypothesis tail and advances its cursor, bounding tail growth well before the 25s net. Lower = snappier recovery on stalls but more risk of committing un-agreed (possibly wrong) text; higher = waits longer for natural agreement. `0` disables the fallback (only the 25s net applies — the pre-2026-06 behavior). It never silently drops audio — it commits a best guess. Only meaningful for Local Whisper + `overlap`. |
 
+Overlap-agree compares candidate prefixes by lowercasing each whitespace token
+and stripping Unicode punctuation/symbols for comparison only. The emitted
+segment text remains the first agreeing hypothesis verbatim, so punctuation
+normalization cannot rewrite committed user-visible text. Token-boundary
+changes remain strict: `D.C.` and `DC` agree, but `well-known` and
+`well known` do not become the same token sequence.
+
 Lever rules (per [control-surface-tunable-levers-design]):
 
 - All six have safe defaults that produce working behavior.

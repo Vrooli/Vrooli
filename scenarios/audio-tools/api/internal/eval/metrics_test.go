@@ -104,6 +104,26 @@ func TestAlign_TieBreakDeterministic(t *testing.T) {
 	require.Equal(t, 0, first.Deletions)
 }
 
+func TestAlignOperations_AllEditKinds(t *testing.T) {
+	ref := []string{"alpha", "bravo", "charlie", "delta"}
+	hyp := []string{"alpha", "brown", "charlie", "echo", "delta"}
+
+	counts, ops := AlignOperations(ref, hyp)
+	require.Equal(t, EditCounts{Substitutions: 1, Insertions: 1}, counts)
+	require.Equal(t, []EditOperation{
+		{Kind: "match", ReferenceToken: "alpha", HypothesisToken: "alpha", ReferenceIndex: 0, HypothesisIndex: 0},
+		{Kind: "substitution", ReferenceToken: "bravo", HypothesisToken: "brown", ReferenceIndex: 1, HypothesisIndex: 1},
+		{Kind: "match", ReferenceToken: "charlie", HypothesisToken: "charlie", ReferenceIndex: 2, HypothesisIndex: 2},
+		{Kind: "insertion", HypothesisToken: "echo", ReferenceIndex: -1, HypothesisIndex: 3},
+		{Kind: "match", ReferenceToken: "delta", HypothesisToken: "delta", ReferenceIndex: 3, HypothesisIndex: 4},
+	}, ops)
+
+	counts, ops = AlignOperations([]string{"alpha", "bravo"}, []string{"alpha"})
+	require.Equal(t, EditCounts{Deletions: 1}, counts)
+	require.Equal(t, "deletion", ops[1].Kind)
+	require.Equal(t, "bravo", ops[1].ReferenceToken)
+}
+
 func TestWERResult_RateGuards(t *testing.T) {
 	require.InDelta(t, 0.0, WERResult{RefWords: 0, HypWords: 0}.Rate(), 1e-9)
 	require.InDelta(t, 1.0, WERResult{RefWords: 0, HypWords: 3, EditCounts: EditCounts{Insertions: 3}}.Rate(), 1e-9)

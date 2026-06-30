@@ -184,16 +184,24 @@ func EvalClip(ctx context.Context, clip Clip, meter *MeteredProvider, opts Repla
 	res := Replay(ctx, clip, opts, session)
 
 	norm := DefaultNormalizeOptions()
-	wer := WER(Tokenize(clip.Reference, norm), Tokenize(res.FinalText, norm))
+	normalizedReference := Normalize(clip.Reference, norm)
+	normalizedHypothesis := Normalize(res.FinalText, norm)
+	refTokens := Tokenize(clip.Reference, norm)
+	hypTokens := Tokenize(res.FinalText, norm)
+	_, editOperations := AlignOperations(refTokens, hypTokens)
+	wer := WER(refTokens, hypTokens)
 
 	cr := ClipResult{
-		ClipID:           clip.ID,
-		Reference:        clip.Reference,
-		Hypothesis:       res.FinalText,
-		WER:              wer,
-		SegmentCount:     res.SegmentCount,
-		PartialRevisions: PartialRevisions(res.Partials),
-		Err:              res.Err,
+		ClipID:               clip.ID,
+		Reference:            clip.Reference,
+		Hypothesis:           res.FinalText,
+		WER:                  wer,
+		NormalizedReference:  normalizedReference,
+		NormalizedHypothesis: normalizedHypothesis,
+		EditOperations:       editOperations,
+		SegmentCount:         res.SegmentCount,
+		PartialRevisions:     PartialRevisions(res.Partials),
+		Err:                  res.Err,
 	}
 	if meter != nil {
 		snap := meter.Snapshot()
@@ -276,7 +284,7 @@ func RunEval(ctx context.Context, clips []Clip, specs []StrategySpec, opts EvalO
 		}
 		report.PerStrategy = append(report.PerStrategy, aggregateStrategy(spec.Kind, spec.Label, clipResults))
 	}
-	return report
+	return explainReport(report)
 }
 
 type realtimeResult struct {

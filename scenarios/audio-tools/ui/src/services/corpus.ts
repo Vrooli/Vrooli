@@ -16,6 +16,10 @@ import {
 } from "@vrooli/proto-types/audio-tools/v1/corpus/corpus_pb";
 import {
   EvalService,
+  type EditOperation,
+  type EvalReportSummary,
+  type NormalizationPolicy,
+  type ReportWarning,
   type StrategyReport,
 } from "@vrooli/proto-types/audio-tools/v1/eval/eval_pb";
 
@@ -132,12 +136,107 @@ export interface StrategyRow {
   finalizationLatencyP50Ms: number;
   finalizationLatencyP95Ms: number;
   partialRevisions: number;
+  perClip: ClipReportRow[];
+  werDeltaVsWinner: number;
+  p95DeltaMsVsWinner: number;
+  callMultiplierVsWinner: number;
+  verdict: string;
+  reasons: string[];
+  warnings: WarningRow[];
+}
+
+export interface ClipReportRow {
+  clipId: string;
+  reference: string;
+  hypothesis: string;
+  wer: number;
+  whisperCalls: number;
+  whisperAudioSeconds: number;
+  rtf: number;
+  segmentCount: number;
+  partialRevisions: number;
+  finalizationLatencyP50Ms: number;
+  finalizationLatencyP95Ms: number;
+  error: string;
+  substitutions: number;
+  insertions: number;
+  deletions: number;
+  refWords: number;
+  hypWords: number;
+  normalizedReference: string;
+  normalizedHypothesis: string;
+  editOperations: EditOperationRow[];
+}
+
+export interface EditOperationRow {
+  kind: string;
+  referenceToken: string;
+  hypothesisToken: string;
+  referenceIndex: number;
+  hypothesisIndex: number;
+}
+
+export interface WarningRow {
+  code: string;
+  message: string;
+  severity: string;
+}
+
+export interface ReportSummaryRow {
+  winnerStrategy: string;
+  winnerLabel: string;
+  recommendation: string;
+  confidence: string;
+  reasons: string[];
+  confidenceNotes: string[];
+}
+
+export interface NormalizationPolicyRow {
+  werPolicy: string;
+  overlapAgreementPolicy: string;
 }
 
 export interface EvalReportData {
   perStrategy: StrategyRow[];
   qualityMeasured: boolean;
   latencyMeasured: boolean;
+  summary: ReportSummaryRow | null;
+  warnings: WarningRow[];
+  normalizationPolicy: NormalizationPolicyRow | null;
+}
+
+function decodeWarning(w: ReportWarning): WarningRow {
+  return { code: w.code, message: w.message, severity: w.severity };
+}
+
+function decodeSummary(s?: EvalReportSummary): ReportSummaryRow | null {
+  if (!s) return null;
+  return {
+    winnerStrategy: s.winnerStrategy,
+    winnerLabel: s.winnerLabel,
+    recommendation: s.recommendation,
+    confidence: s.confidence,
+    reasons: s.reasons,
+    confidenceNotes: s.confidenceNotes,
+  };
+}
+
+function decodePolicy(p?: NormalizationPolicy): NormalizationPolicyRow | null {
+  if (!p) return null;
+  return {
+    werPolicy: p.werPolicy,
+    overlapAgreementPolicy: p.overlapAgreementPolicy,
+  };
+}
+
+function decodeEditOperation(op: EditOperation): EditOperationRow {
+  return {
+    kind: op.kind,
+    referenceToken: op.referenceToken,
+    hypothesisToken: op.hypothesisToken,
+    referenceIndex: op.referenceIndex,
+    hypothesisIndex: op.hypothesisIndex,
+  };
 }
 
 function decodeStrategy(s: StrategyReport): StrategyRow {
@@ -155,6 +254,34 @@ function decodeStrategy(s: StrategyReport): StrategyRow {
     finalizationLatencyP50Ms: s.finalizationLatencyP50Ms,
     finalizationLatencyP95Ms: s.finalizationLatencyP95Ms,
     partialRevisions: s.partialRevisions,
+    perClip: s.perClip.map((c) => ({
+      clipId: c.clipId,
+      reference: c.reference,
+      hypothesis: c.hypothesis,
+      wer: c.wer,
+      whisperCalls: c.whisperCalls,
+      whisperAudioSeconds: c.whisperAudioSeconds,
+      rtf: c.rtf,
+      segmentCount: c.segmentCount,
+      partialRevisions: c.partialRevisions,
+      finalizationLatencyP50Ms: c.finalizationLatencyP50Ms,
+      finalizationLatencyP95Ms: c.finalizationLatencyP95Ms,
+      error: c.error,
+      substitutions: c.substitutions,
+      insertions: c.insertions,
+      deletions: c.deletions,
+      refWords: c.refWords,
+      hypWords: c.hypWords,
+      normalizedReference: c.normalizedReference,
+      normalizedHypothesis: c.normalizedHypothesis,
+      editOperations: c.editOperations.map(decodeEditOperation),
+    })),
+    werDeltaVsWinner: s.werDeltaVsWinner,
+    p95DeltaMsVsWinner: s.p95DeltaMsVsWinner,
+    callMultiplierVsWinner: s.callMultiplierVsWinner,
+    verdict: s.verdict,
+    reasons: s.reasons,
+    warnings: s.warnings.map(decodeWarning),
   };
 }
 
@@ -184,5 +311,8 @@ export async function runEval(args: RunEvalArgs = {}): Promise<EvalReportData> {
     perStrategy: (report?.perStrategy ?? []).map(decodeStrategy),
     qualityMeasured: report?.qualityMeasured ?? false,
     latencyMeasured: report?.latencyMeasured ?? false,
+    summary: decodeSummary(report?.summary),
+    warnings: (report?.warnings ?? []).map(decodeWarning),
+    normalizationPolicy: decodePolicy(report?.normalizationPolicy),
   };
 }

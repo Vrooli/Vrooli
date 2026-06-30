@@ -1,6 +1,9 @@
 package eval
 
 import (
+	"fmt"
+	"math"
+
 	"audio-tools/internal/ai/sttchain"
 )
 
@@ -13,12 +16,15 @@ type ClipResult struct {
 	Reference  string
 	Hypothesis string
 
-	WER                 WERResult
-	WhisperCalls        int
-	WhisperAudioSeconds float64
-	RTF                 float64
-	SegmentCount        int
-	PartialRevisions    int
+	WER                  WERResult
+	NormalizedReference  string
+	NormalizedHypothesis string
+	EditOperations       []EditOperation
+	WhisperCalls         int
+	WhisperAudioSeconds  float64
+	RTF                  float64
+	SegmentCount         int
+	PartialRevisions     int
 
 	// LatencySamplesMs are the finalization-latency samples (last-chunk →
 	// terminal Done) gathered over the real-time repeats. Empty when the
@@ -53,7 +59,34 @@ type StrategyReport struct {
 	FinalizationLatencyP95Ms float64
 	PartialRevisions         int
 
+	WERDeltaVsWinner       float64
+	P95DeltaMsVsWinner     float64
+	CallMultiplierVsWinner float64
+	Verdict                string
+	Reasons                []string
+	Warnings               []ReportWarning
+
 	PerClip []ClipResult
+}
+
+type EvalReportSummary struct {
+	WinnerStrategy  string
+	WinnerLabel     string
+	Recommendation  string
+	Confidence      string
+	Reasons         []string
+	ConfidenceNotes []string
+}
+
+type ReportWarning struct {
+	Code     string
+	Message  string
+	Severity string
+}
+
+type NormalizationPolicy struct {
+	WERPolicy              string
+	OverlapAgreementPolicy string
 }
 
 // EvalReport is the top-level comparison report: one StrategyReport row
@@ -62,8 +95,11 @@ type EvalReport struct {
 	PerStrategy []StrategyReport
 	// Mode notes which measurement passes ran, so a consumer can tell
 	// whether latency numbers are present/meaningful.
-	QualityMeasured bool
-	LatencyMeasured bool
+	QualityMeasured     bool
+	LatencyMeasured     bool
+	Summary             EvalReportSummary
+	Warnings            []ReportWarning
+	NormalizationPolicy NormalizationPolicy
 }
 
 // aggregateStrategy folds per-clip results (and their pooled latency
@@ -95,4 +131,182 @@ func aggregateStrategy(kind sttchain.StrategyKind, label string, clips []ClipRes
 	r.FinalizationLatencyP50Ms = P50(latency)
 	r.FinalizationLatencyP95Ms = P95(latency)
 	return r
+}
+
+func explainReport(report EvalReport) EvalReport {
+	report.NormalizationPolicy = NormalizationPolicy{
+		WERPolicy:              "WER lowercases text, removes Unicode punctuation and symbols, collapses whitespace, then compares whitespace-delimited tokens.",
+		OverlapAgreementPolicy: "Overlap-agree compares whitespace tokens after lowercasing and stripping Unicode punctuation/symbols for agreement only; committed text remains verbatim from the first agreeing hypothesis.",
+	}
+	if len(report.PerStrategy) == 0 {
+		report.Summary = EvalReportSummary{Confidence: "low", Recommendation: "No strategies were evaluated."}
+		return report
+	}
+
+	winnerIndex := chooseWinner(report.PerStrategy, report.LatencyMeasured)
+	winner := report.PerStrategy[winnerIndex]
+	totalClips := len(winner.PerClip)
+	totalAudio := winner.WhisperAudioSeconds
+	confidence, notes := corpusConfidence(totalClips, totalAudio, report.LatencyMeasured)
+	if totalClips < 10 {
+		report.Warnings = append(report.Warnings, ReportWarning{
+			Code:     "tiny_corpus",
+			Severity: "warning",
+			Message:  fmt.Sprintf("Only %d clips were evaluated; use the recommendation as a direction, not a promotion decision.", totalClips),
+		})
+	}
+	if totalAudio > 0 && totalAudio < 120 {
+		report.Warnings = append(report.Warnings, ReportWarning{
+			Code:     "short_audio",
+			Severity: "warning",
+			Message:  fmt.Sprintf("The evaluated audio totals %.1f seconds; at least 120 seconds gives a more stable comparison.", totalAudio),
+		})
+	}
+	if !report.LatencyMeasured {
+		report.Warnings = append(report.Warnings, ReportWarning{
+			Code:     "latency_not_measured",
+			Severity: "info",
+			Message:  "Latency columns were not measured because real-time repeats were disabled.",
+		})
+	}
+
+	for i := range report.PerStrategy {
+		row := &report.PerStrategy[i]
+		row.WERDeltaVsWinner = row.WER - winner.WER
+		row.P95DeltaMsVsWinner = row.FinalizationLatencyP95Ms - winner.FinalizationLatencyP95Ms
+		row.CallMultiplierVsWinner = callMultiplier(row.WhisperCalls, winner.WhisperCalls)
+		row.Verdict, row.Reasons, row.Warnings = explainStrategy(*row, winner, i == winnerIndex, report.LatencyMeasured)
+	}
+
+	report.Summary = EvalReportSummary{
+		WinnerStrategy:  string(winner.Strategy),
+		WinnerLabel:     displayLabel(winner),
+		Recommendation:  fmt.Sprintf("Prefer %s for this corpus.", displayLabel(winner)),
+		Confidence:      confidence,
+		Reasons:         winnerReasons(winner, report.PerStrategy, report.LatencyMeasured),
+		ConfidenceNotes: notes,
+	}
+	return report
+}
+
+func chooseWinner(rows []StrategyReport, latencyMeasured bool) int {
+	best := 0
+	for i := 1; i < len(rows); i++ {
+		if strategyLess(rows[i], rows[best], latencyMeasured) {
+			best = i
+		}
+	}
+	return best
+}
+
+func strategyLess(a, b StrategyReport, latencyMeasured bool) bool {
+	const werTie = 0.0005
+	if math.Abs(a.WER-b.WER) > werTie {
+		return a.WER < b.WER
+	}
+	if latencyMeasured && math.Abs(a.FinalizationLatencyP95Ms-b.FinalizationLatencyP95Ms) > 25 {
+		return a.FinalizationLatencyP95Ms < b.FinalizationLatencyP95Ms
+	}
+	if a.WhisperCalls != b.WhisperCalls {
+		return a.WhisperCalls < b.WhisperCalls
+	}
+	return string(a.Strategy) < string(b.Strategy)
+}
+
+func corpusConfidence(clips int, audioSeconds float64, latencyMeasured bool) (string, []string) {
+	notes := []string{}
+	if clips < 10 {
+		notes = append(notes, "Fewer than 10 clips makes per-strategy differences easy to overfit.")
+	}
+	if audioSeconds > 0 && audioSeconds < 120 {
+		notes = append(notes, "Less than 120 seconds of audio makes latency and WER less stable.")
+	}
+	if !latencyMeasured {
+		notes = append(notes, "Latency was not measured; the recommendation is quality/cost-only.")
+	}
+	if len(notes) > 0 {
+		return "low", notes
+	}
+	if clips >= 25 && audioSeconds >= 300 && latencyMeasured {
+		return "high", []string{"Corpus size and latency repeats are sufficient for a stronger local recommendation."}
+	}
+	return "medium", []string{"Recommendation is suitable for local tuning; confirm with a broader corpus before promotion."}
+}
+
+func explainStrategy(row, winner StrategyReport, isWinner bool, latencyMeasured bool) (string, []string, []ReportWarning) {
+	if isWinner {
+		reasons := []string{"Lowest WER after deterministic normalization."}
+		if latencyMeasured {
+			reasons = append(reasons, "Best tie-break balance of p95 finalization latency and compute cost.")
+		} else {
+			reasons = append(reasons, "Latency was not part of this run.")
+		}
+		return "winner", reasons, nil
+	}
+	reasons := []string{}
+	warnings := []ReportWarning{}
+	verdict := "competitive"
+	if row.WERDeltaVsWinner > 0.005 {
+		verdict = "loser"
+		reasons = append(reasons, fmt.Sprintf("WER is %.1f percentage points worse than the winner.", row.WERDeltaVsWinner*100))
+		warnings = append(warnings, ReportWarning{Code: "higher_wer", Severity: "warning", Message: "WER is materially higher than the winning strategy."})
+	}
+	if row.CallMultiplierVsWinner > 1.5 {
+		if verdict == "competitive" {
+			verdict = "tradeoff"
+		}
+		reasons = append(reasons, fmt.Sprintf("Uses %.1fx as many Whisper calls as the winner.", row.CallMultiplierVsWinner))
+		warnings = append(warnings, ReportWarning{Code: "higher_compute", Severity: "warning", Message: "Compute cost is materially higher than the winning strategy."})
+	}
+	if latencyMeasured && row.P95DeltaMsVsWinner > 250 {
+		if verdict == "competitive" {
+			verdict = "tradeoff"
+		}
+		reasons = append(reasons, fmt.Sprintf("p95 finalization is %.0f ms slower than the winner.", row.P95DeltaMsVsWinner))
+		warnings = append(warnings, ReportWarning{Code: "higher_p95", Severity: "warning", Message: "Finalization latency is materially slower than the winning strategy."})
+	}
+	if row.PartialRevisions > winner.PartialRevisions+3 {
+		if verdict == "competitive" {
+			verdict = "tradeoff"
+		}
+		reasons = append(reasons, "Shows more partial transcript revisions, so live text is less stable.")
+		warnings = append(warnings, ReportWarning{Code: "higher_revisions", Severity: "warning", Message: "Partial transcript revisions are higher than the winning strategy."})
+	}
+	if len(reasons) == 0 {
+		reasons = append(reasons, "Close to the winner on measured metrics, but loses the deterministic tie-breaks.")
+	}
+	return verdict, reasons, warnings
+}
+
+func winnerReasons(winner StrategyReport, rows []StrategyReport, latencyMeasured bool) []string {
+	reasons := []string{fmt.Sprintf("%s has %.1f%% WER on this corpus.", displayLabel(winner), winner.WER*100)}
+	if latencyMeasured {
+		reasons = append(reasons, fmt.Sprintf("p95 finalization is %.0f ms with %d Whisper calls.", winner.FinalizationLatencyP95Ms, winner.WhisperCalls))
+	} else {
+		reasons = append(reasons, fmt.Sprintf("Uses %d Whisper calls over %.1f seconds of audio.", winner.WhisperCalls, winner.WhisperAudioSeconds))
+	}
+	for _, row := range rows {
+		if row.Strategy == "overlap_agree" && row.Strategy != winner.Strategy && row.WhisperCalls > winner.WhisperCalls {
+			reasons = append(reasons, "Overlap-agree is not worth its extra calls on this corpus unless a later run shows better WER or stability.")
+			break
+		}
+	}
+	return reasons
+}
+
+func callMultiplier(calls, winnerCalls int) float64 {
+	if winnerCalls <= 0 {
+		if calls <= 0 {
+			return 1
+		}
+		return 0
+	}
+	return float64(calls) / float64(winnerCalls)
+}
+
+func displayLabel(row StrategyReport) string {
+	if row.Label != "" {
+		return row.Label
+	}
+	return string(row.Strategy)
 }

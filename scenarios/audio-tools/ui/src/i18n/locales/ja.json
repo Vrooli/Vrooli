@@ -491,6 +491,25 @@
     "colAudioSeconds": "Audio (s)",
     "colP50": "Final p50 (ms)",
     "colP95": "Final p95 (ms)",
-    "colRevisions": "Partial revisions"
+    "colRevisions": "Partial revisions",
+    "recommendationTitle": "Recommendation",
+    "confidenceLabel": "Confidence",
+    "metricGlossary": "Metric glossary",
+    "glossaryWer": "Word error rate after normalization; lower is better.",
+    "glossaryRtf": "Real-time factor: provider processing time divided by audio duration.",
+    "glossaryCalls": "Number of Whisper backend calls made by the strategy.",
+    "glossaryLatency": "Finalization latency percentile from the last audio chunk to done.",
+    "glossaryRevisions": "How many visible partial transcript rewrites occurred.",
+    "glossaryEdits": "Substitutions / insertions / deletions in normalized token alignment.",
+    "editBreakdown": "S/I/D",
+    "colWerDelta": "WER Δ",
+    "colP95Delta": "p95 Δ",
+    "colVerdict": "Verdict",
+    "clipDrilldown": "Worst clips",
+    "referenceLabel": "Reference",
+    "hypothesisLabel": "Hypothesis",
+    "normalizedReferenceLabel": "Normalized reference",
+    "normalizedHypothesisLabel": "Normalized hypothesis",
+    "wordDiffLabel": "Word-level diff"
   }
 }

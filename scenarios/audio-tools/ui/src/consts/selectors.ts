@@ -324,6 +324,8 @@ const literalSelectors = {
     runEval: "dictation-run-eval",
     repeatsInput: "dictation-repeats-input",
     evalTable: "dictation-eval-table",
+    evalSummary: "dictation-eval-summary",
+    evalClips: "dictation-eval-clips",
     promptInput: "dictation-prompt-input",
     scriptPicker: "dictation-script-picker",
     scriptDetails: "dictation-script-details",
@@ -405,6 +407,11 @@ const dynamicSelectorDefinitions = {
       description: "Eval comparison table row by strategy key",
       testIdPattern: "dictation-eval-row-${strategy}",
       params: { strategy: { type: "string" } },
+    }),
+    evalClip: defineDynamicSelector({
+      description: "Eval per-clip drilldown row by strategy and clip id",
+      testIdPattern: "dictation-eval-clip-${strategy}-${clipId}",
+      params: { strategy: { type: "string" }, clipId: { type: "string" } },
     }),
   },
 } satisfies DynamicSelectorTree;

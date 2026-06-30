@@ -60,6 +60,19 @@ func reportToProto(r inteval.EvalReport) *evalv1.EvalReport {
 		QualityMeasured: r.QualityMeasured,
 		LatencyMeasured: r.LatencyMeasured,
 		PerStrategy:     make([]*evalv1.StrategyReport, 0, len(r.PerStrategy)),
+		Summary: &evalv1.EvalReportSummary{
+			WinnerStrategy:  r.Summary.WinnerStrategy,
+			WinnerLabel:     r.Summary.WinnerLabel,
+			Recommendation:  r.Summary.Recommendation,
+			Confidence:      r.Summary.Confidence,
+			Reasons:         append([]string(nil), r.Summary.Reasons...),
+			ConfidenceNotes: append([]string(nil), r.Summary.ConfidenceNotes...),
+		},
+		Warnings: reportWarningsToProto(r.Warnings),
+		NormalizationPolicy: &evalv1.NormalizationPolicy{
+			WerPolicy:              r.NormalizationPolicy.WERPolicy,
+			OverlapAgreementPolicy: r.NormalizationPolicy.OverlapAgreementPolicy,
+		},
 	}
 	for _, s := range r.PerStrategy {
 		out.PerStrategy = append(out.PerStrategy, strategyReportToProto(s))
@@ -82,6 +95,12 @@ func strategyReportToProto(s inteval.StrategyReport) *evalv1.StrategyReport {
 		FinalizationLatencyP50Ms: s.FinalizationLatencyP50Ms,
 		FinalizationLatencyP95Ms: s.FinalizationLatencyP95Ms,
 		PartialRevisions:         int32(s.PartialRevisions),
+		WerDeltaVsWinner:         s.WERDeltaVsWinner,
+		P95DeltaMsVsWinner:       s.P95DeltaMsVsWinner,
+		CallMultiplierVsWinner:   s.CallMultiplierVsWinner,
+		Verdict:                  s.Verdict,
+		Reasons:                  append([]string(nil), s.Reasons...),
+		Warnings:                 reportWarningsToProto(s.Warnings),
 		PerClip:                  make([]*evalv1.ClipReport, 0, len(s.PerClip)),
 	}
 	for _, c := range s.PerClip {
@@ -102,7 +121,41 @@ func strategyReportToProto(s inteval.StrategyReport) *evalv1.StrategyReport {
 			FinalizationLatencyP50Ms: c.FinalizationLatencyP50Ms(),
 			FinalizationLatencyP95Ms: c.FinalizationLatencyP95Ms(),
 			Error:                    errStr,
+			Substitutions:            int32(c.WER.Substitutions),
+			Insertions:               int32(c.WER.Insertions),
+			Deletions:                int32(c.WER.Deletions),
+			RefWords:                 int32(c.WER.RefWords),
+			HypWords:                 int32(c.WER.HypWords),
+			NormalizedReference:      c.NormalizedReference,
+			NormalizedHypothesis:     c.NormalizedHypothesis,
+			EditOperations:           editOperationsToProto(c.EditOperations),
 		})
 	}
 	return sr
+}
+
+func reportWarningsToProto(in []inteval.ReportWarning) []*evalv1.ReportWarning {
+	out := make([]*evalv1.ReportWarning, 0, len(in))
+	for _, w := range in {
+		out = append(out, &evalv1.ReportWarning{
+			Code:     w.Code,
+			Message:  w.Message,
+			Severity: w.Severity,
+		})
+	}
+	return out
+}
+
+func editOperationsToProto(in []inteval.EditOperation) []*evalv1.EditOperation {
+	out := make([]*evalv1.EditOperation, 0, len(in))
+	for _, op := range in {
+		out = append(out, &evalv1.EditOperation{
+			Kind:            op.Kind,
+			ReferenceToken:  op.ReferenceToken,
+			HypothesisToken: op.HypothesisToken,
+			ReferenceIndex:  int32(op.ReferenceIndex),
+			HypothesisIndex: int32(op.HypothesisIndex),
+		})
+	}
+	return out
 }

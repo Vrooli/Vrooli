@@ -132,10 +132,56 @@ describe("runEval", () => {
             finalizationLatencyP50Ms: 120,
             finalizationLatencyP95Ms: 240,
             partialRevisions: 2,
+            werDeltaVsWinner: 0.02,
+            p95DeltaMsVsWinner: 100,
+            callMultiplierVsWinner: 1.5,
+            verdict: "tradeoff",
+            reasons: ["Uses more calls."],
+            warnings: [{ code: "higher_compute", message: "Compute is higher.", severity: "warning" }],
+            perClip: [
+              {
+                clipId: "clip-1",
+                reference: "Hello, world!",
+                hypothesis: "hello word",
+                wer: 0.5,
+                whisperCalls: 1,
+                whisperAudioSeconds: 1.5,
+                rtf: 0.5,
+                segmentCount: 1,
+                partialRevisions: 1,
+                finalizationLatencyP50Ms: 100,
+                finalizationLatencyP95Ms: 200,
+                error: "",
+                substitutions: 1,
+                insertions: 0,
+                deletions: 0,
+                refWords: 2,
+                hypWords: 2,
+                normalizedReference: "hello world",
+                normalizedHypothesis: "hello word",
+                editOperations: [
+                  { kind: "match", referenceToken: "hello", hypothesisToken: "hello", referenceIndex: 0, hypothesisIndex: 0 },
+                  { kind: "substitution", referenceToken: "world", hypothesisToken: "word", referenceIndex: 1, hypothesisIndex: 1 },
+                ],
+              },
+            ],
           },
         ],
         qualityMeasured: true,
         latencyMeasured: true,
+        summary: {
+          winnerStrategy: "batch",
+          winnerLabel: "batch",
+          recommendation: "Prefer batch.",
+          confidence: "low",
+          reasons: ["Best WER."],
+          confidenceNotes: ["Tiny corpus."],
+        },
+        warnings: [{ code: "tiny_corpus", message: "Only 1 clip.", severity: "warning" }],
+        normalizationPolicy: {
+          werPolicy: "WER policy.",
+          overlapAgreementPolicy: "Agreement policy.",
+        },
       },
     });
     const out = await runEval({ strategies: [{ kind: "overlap_agree" }], realtimeRepeats: 3 });
@@ -143,6 +189,12 @@ describe("runEval", () => {
     expect(req.strategies[0].overlapMaxStallRejects).toBe(-1);
     expect(req.realtimeRepeats).toBe(3);
     expect(out.perStrategy[0]!.label).toBe("overlap_agree");
+    expect(out.perStrategy[0]!.perClip[0]!.normalizedReference).toBe("hello world");
+    expect(out.perStrategy[0]!.perClip[0]!.editOperations[1]!.kind).toBe("substitution");
+    expect(out.perStrategy[0]!.verdict).toBe("tradeoff");
+    expect(out.summary?.recommendation).toBe("Prefer batch.");
+    expect(out.warnings[0]!.code).toBe("tiny_corpus");
+    expect(out.normalizationPolicy?.werPolicy).toBe("WER policy.");
     expect(out.qualityMeasured).toBe(true);
   });
 
@@ -152,5 +204,8 @@ describe("runEval", () => {
     expect(out.perStrategy).toEqual([]);
     expect(out.qualityMeasured).toBe(false);
     expect(out.latencyMeasured).toBe(false);
+    expect(out.summary).toBeNull();
+    expect(out.warnings).toEqual([]);
+    expect(out.normalizationPolicy).toBeNull();
   });
 });

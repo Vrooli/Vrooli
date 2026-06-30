@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode"
 
 	"audio-tools/internal/audioformat"
 	"audio-tools/internal/envx"
@@ -334,23 +335,28 @@ func TruncateForLog(s string, maxLen int) string {
 	return string(runes[:maxLen]) + "…"
 }
 
-func stripTrailingPunct(w string) string {
-	return strings.TrimRight(w, ".,;:!?\"')")
+func stripTokenPunctuation(w string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsPunct(r) || unicode.IsSymbol(r) {
+			return -1
+		}
+		return r
+	}, w)
 }
 
-// NormalizeToken returns the case- and trailing-punctuation-normalized
+// NormalizeToken returns the case- and punctuation/symbol-normalized
 // form of a single whitespace-delimited token. Used by both the
 // DeduplicateOverlap defense and the OverlapAgree strategy's
 // longestAgreedPrefix gate so consecutive Whisper hypotheses that
-// differ only in capitalization or punctuation jitter ("Hello world"
-// vs "hello world.") still register as agreeing.
+// differ only in capitalization, quotes, or punctuation/symbol jitter
+// ("Hello world" vs "hello world.") still register as agreeing.
 func NormalizeToken(w string) string {
-	return strings.ToLower(stripTrailingPunct(w))
+	return stripTokenPunctuation(strings.ToLower(w))
 }
 
 // DeduplicateOverlap merges newText into accumulated by detecting the longest
 // suffix of accumulated (in words) that matches a prefix of newText.
-// Comparison is case-insensitive and ignores trailing punctuation.
+// Comparison is case-insensitive and ignores Unicode punctuation/symbols.
 func DeduplicateOverlap(accumulated, newText string) string {
 	if accumulated == "" {
 		return newText
@@ -367,7 +373,7 @@ func DeduplicateOverlap(accumulated, newText string) string {
 	for k := maxCheck; k >= 1; k-- {
 		match := true
 		for i := range k {
-			if !strings.EqualFold(stripTrailingPunct(accWords[len(accWords)-k+i]), stripTrailingPunct(newWords[i])) {
+			if NormalizeToken(accWords[len(accWords)-k+i]) != NormalizeToken(newWords[i]) {
 				match = false
 				break
 			}

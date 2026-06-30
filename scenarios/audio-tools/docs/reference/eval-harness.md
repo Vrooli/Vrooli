@@ -1,7 +1,7 @@
 # STT evaluation harness + corpus
 
 The eval harness measures the **accuracy, compute cost, and finalization
-latency** of audio-tools' three streaming STT strategies (batch,
+latency** of audio-tools' num[sot]:three streaming STT strategies (batch,
 vad-segment, overlap-agree) on *real* audio clips with operator-corrected
 ground truth. It exists because the streaming strategies have empirical
 quality/latency trade-offs (boundary errors, dropped sections,
@@ -35,7 +35,7 @@ per-case + aggregate report.
 | **Finalization latency p50/p95** | wall-clock from the last audio chunk to the terminal transcript, over repeated real-time-paced runs. | **no** (machine-load dependent) |
 | **Partial-revisions** | how many times the live partial text changed before committing (stability/jitter). | yes |
 
-Two run modes are a first-class contract: the **deterministic** pass feeds
+The num[sot]:two run modes are a first-class contract: the **deterministic** pass feeds
 chunks back-to-back and yields reproducible WER + compute (used for
 pass/fail); the **real-time-paced** pass releases chunks at 1× audio rate
 and yields wall-clock latency, reported only as a p50/p95 distribution over
@@ -46,6 +46,46 @@ repeated runs — never gated on a single sample.
 > v1 uses a small local normalizer, so absolute WER is comparable *within*
 > the harness (strategy-vs-strategy on the same footing), not against
 > published Whisper benchmarks.
+
+## Interpreting the report
+
+`EvalService.RunEval` returns both raw measurements and explanation fields.
+Consumers should prefer the backend-owned `summary`, row `verdict`, row
+`reasons`, and `warnings` fields over re-deriving strategy ranking in UI or
+CLI code.
+
+The default ranking policy is deterministic:
+
+1. lowest WER wins;
+2. if WER is effectively tied, lower p95 finalization latency wins when
+   latency was measured;
+3. if still tied, fewer Whisper calls wins;
+4. final tie-break is the stable strategy id.
+
+The report also includes corpus adequacy warnings. Fewer than num[threshold]:10 clips or
+less than num[threshold]:120 seconds of evaluated audio is useful for local debugging but
+too small to promote a new config without a broader corpus. If
+`realtime_repeats=0`, latency is explicitly marked as not measured and the
+recommendation is quality/cost-only.
+
+Each `ClipReport` includes the raw reference/hypothesis, the normalized
+reference/hypothesis, edit counts, and a word-level alignment path with
+`match`, `substitution`, `insertion`, and `deletion` operations. This is the
+debug surface for answering why a strategy lost on specific clips.
+
+## Normalization policy
+
+WER normalization lowercases text, removes Unicode punctuation and symbols,
+collapses whitespace, and compares whitespace-delimited tokens. That means
+capitalization, periods, quotes, most punctuation, and symbol-only differences
+do not inflate WER.
+
+Overlap-agree uses a separate agreement policy: each whitespace token is
+lowercased and stripped of Unicode punctuation/symbols for comparison only.
+The committed text still comes from the first agreeing hypothesis verbatim.
+This lets `D.C.` agree with `DC` and leading smart quotes agree with plain
+text, while token-boundary changes such as `well-known` versus `well known`
+remain strict.
 
 ## Workflow
 
@@ -63,7 +103,8 @@ audio-tools eval run
 # 3. Add finalization-latency measurement (slower; repeated real-time runs):
 audio-tools eval run --realtime-repeats 5 --output report.json
 
-# 4. Tune the stall-fallback and re-run to see the latency/WER deltas:
+# 4. Tune the stall-fallback through the existing stream-config path and
+#    re-run to see the latency/WER deltas:
 audio-tools stt stream-config-set --overlap-max-stall-rejects 2
 audio-tools eval run --realtime-repeats 5
 ```
@@ -90,6 +131,13 @@ LocalAgreement divergence-rejects, bounding tail growth before the 25s
 `max_window_ms` net — the fix for "overlap-agree finalizes slower than
 batch". The harness answers, with saved numbers: *does the stall-fallback
 lower finalization latency without raising WER beyond an agreed delta?*
+
+Today the harness recommends a winning strategy and explains measured
+trade-offs. Mutating stream config remains intentionally outside
+`EvalService`; use `audio-tools stt stream-config-set` or the STT admin UI,
+which both reuse the validated `STTAdminService.UpdateStreamConfig` writer.
+A future bounded sweep RPC should call that same writer for apply semantics
+rather than creating a second config mutation path.
 
 ## Why the corpus can't ride CI
 

@@ -84,11 +84,23 @@ func TestRunEval_BatchAndOverlapOverFakeProvider(t *testing.T) {
 	require.True(t, report.GetQualityMeasured())
 	require.False(t, report.GetLatencyMeasured())
 	require.Len(t, report.GetPerStrategy(), 2)
+	require.NotNil(t, report.GetSummary())
+	require.NotEmpty(t, report.GetSummary().GetWinnerStrategy())
+	require.NotNil(t, report.GetNormalizationPolicy())
+	require.Contains(t, report.GetNormalizationPolicy().GetWerPolicy(), "WER lowercases")
 
 	for _, s := range report.GetPerStrategy() {
 		require.InDelta(t, 0.0, s.GetWer(), 1e-9, "fake provider returns the exact reference -> zero WER (%s)", s.GetLabel())
 		require.GreaterOrEqual(t, s.GetWhisperCalls(), int32(1), "calls metered for %s", s.GetLabel())
 		require.Len(t, s.GetPerClip(), 1)
+		require.NotEmpty(t, s.GetVerdict())
+		clip := s.GetPerClip()[0]
+		require.Equal(t, int32(2), clip.GetRefWords())
+		require.Equal(t, int32(2), clip.GetHypWords())
+		require.Equal(t, "hello world", clip.GetNormalizedReference())
+		require.Equal(t, "hello world", clip.GetNormalizedHypothesis())
+		require.Len(t, clip.GetEditOperations(), 2)
+		require.Equal(t, "match", clip.GetEditOperations()[0].GetKind())
 	}
 }
 

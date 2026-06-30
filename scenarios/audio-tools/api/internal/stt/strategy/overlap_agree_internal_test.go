@@ -111,3 +111,42 @@ func TestLongestAgreedPrefix_CaseAndPunctuationNormalization(t *testing.T) {
 	// proceeds case- and trailing-punct-insensitively.
 	require.Equal(t, "Hello, World how are you", got)
 }
+
+func TestLongestAgreedPrefix_UnicodePunctuationAndSymbols(t *testing.T) {
+	cases := []struct {
+		name string
+		a    string
+		b    string
+		want string
+	}{
+		{
+			name: "leading smart quotes and parentheses",
+			a:    "“Hello (world)” next",
+			b:    "hello world next",
+			want: "“Hello (world)” next",
+		},
+		{
+			name: "intra word punctuation",
+			a:    "D.C. office",
+			b:    "DC office",
+			want: "D.C. office",
+		},
+		{
+			name: "hyphen folds only when both sides are same letters",
+			a:    "well-known term",
+			b:    "wellknown term",
+			want: "well-known term",
+		},
+		{
+			name: "real word difference still blocks",
+			a:    "well-known term",
+			b:    "well worn term",
+			want: "",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, longestAgreedPrefix([]string{tc.a, tc.b}, 2, 0))
+		})
+	}
+}
