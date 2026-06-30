@@ -39,7 +39,7 @@ func TestOllamaProvider_UsesGatewayRole(t *testing.T) {
 }
 
 func TestOpenRouterProvider_MissingAPIKey(t *testing.T) {
-	noKey := &intai.OpenRouterProvider{Model: "test"}
+	noKey := &intai.OpenRouterProvider{Role: "test"}
 	_, err := noKey.Generate(context.Background(), "sys", "user")
 	if err == nil {
 		t.Error("expected error with no API key")

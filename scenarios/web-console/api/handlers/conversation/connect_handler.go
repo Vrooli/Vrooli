@@ -43,15 +43,6 @@ var ErrNotFound = errors.New("not found")
 // CodeInvalidArgument.
 var ErrInvalidArgument = errors.New("invalid argument")
 
-// ErrPermissionDenied is the sentinel for a path that resolved outside the
-// allowed roots. Mapped to CodePermissionDenied.
-var ErrPermissionDenied = errors.New("permission denied")
-
-// ErrPreviewUnavailable is returned when /files/content is asked for a
-// non-previewable category (binary, too large, etc.). Mapped to
-// CodeFailedPrecondition.
-var ErrPreviewUnavailable = errors.New("preview unavailable")
-
 func (h *connectHandler) Get(_ context.Context, req *connect.Request[conversationv1.GetRequest]) (*connect.Response[conversationv1.GetResponse], error) {
 	sessionID := strings.TrimSpace(req.Msg.GetSessionId())
 	if sessionID == "" {
@@ -104,53 +95,6 @@ func (h *connectHandler) SummarizeEvent(ctx context.Context, req *connect.Reques
 	}), nil
 }
 
-func (h *connectHandler) ResolveFileReference(ctx context.Context, req *connect.Request[conversationv1.ResolveFileReferenceRequest]) (*connect.Response[conversationv1.ResolveFileReferenceResponse], error) {
-	sessionID := strings.TrimSpace(req.Msg.GetSessionId())
-	if sessionID == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("session_id is required"))
-	}
-	if strings.TrimSpace(req.Msg.GetPath()) == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("path is required"))
-	}
-	ref, err := h.deps.Service.ResolveFileReference(ctx, sessionID, req.Msg.GetPath())
-	if err != nil {
-		return nil, h.classify(err, "conversation.ResolveFileReference")
-	}
-	return connect.NewResponse(&conversationv1.ResolveFileReferenceResponse{
-		InputPath:       ref.InputPath,
-		ResolvedPath:    ref.ResolvedPath,
-		Line:            int32(ref.Line),
-		HasLine:         ref.HasLine,
-		Exists:          ref.Exists,
-		ResolutionBasis: ref.ResolutionBasis,
-		Category:        ref.Category,
-		CanPreview:      ref.CanPreview,
-	}), nil
-}
-
-func (h *connectHandler) GetFileReferenceContent(ctx context.Context, req *connect.Request[conversationv1.GetFileReferenceContentRequest]) (*connect.Response[conversationv1.GetFileReferenceContentResponse], error) {
-	sessionID := strings.TrimSpace(req.Msg.GetSessionId())
-	if sessionID == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("session_id is required"))
-	}
-	if strings.TrimSpace(req.Msg.GetPath()) == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("path is required"))
-	}
-	content, err := h.deps.Service.GetFileReferenceContent(ctx, sessionID, req.Msg.GetPath())
-	if err != nil {
-		return nil, h.classify(err, "conversation.GetFileReferenceContent")
-	}
-	return connect.NewResponse(&conversationv1.GetFileReferenceContentResponse{
-		Path:        content.Path,
-		Line:        int32(content.Line),
-		HasLine:     content.HasLine,
-		Category:    content.Category,
-		ContentType: content.ContentType,
-		Content:     content.Content,
-		Truncated:   content.Truncated,
-	}), nil
-}
-
 // classify maps the package's sentinel errors to Connect codes. Anything
 // unrecognized is logged and returned as CodeInternal so the caller never sees
 // an opaque framework error.
@@ -160,10 +104,6 @@ func (h *connectHandler) classify(err error, op string) error {
 		return connect.NewError(connect.CodeNotFound, err)
 	case errors.Is(err, ErrInvalidArgument):
 		return connect.NewError(connect.CodeInvalidArgument, err)
-	case errors.Is(err, ErrPermissionDenied):
-		return connect.NewError(connect.CodePermissionDenied, err)
-	case errors.Is(err, ErrPreviewUnavailable):
-		return connect.NewError(connect.CodeFailedPrecondition, err)
 	default:
 		h.deps.Logger.Printf("%s: %v", op, err)
 		return connect.NewError(connect.CodeInternal, err)

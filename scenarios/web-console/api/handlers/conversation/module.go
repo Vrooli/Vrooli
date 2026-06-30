@@ -6,24 +6,21 @@ package conversation
 import (
 	"context"
 	"log"
+	"web-console/internal/module"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 
 	conversationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation/conversation_v1connect"
-
-	"web-console/internal/module"
 )
 
 // Service is the seam the Connect handler depends on. The concrete
-// implementation lives in package main (adapts ConversationStore, the TTS
-// summarizer, and the file-reference resolver to satisfy this interface).
+// implementation lives in package main (adapts ConversationStore and the TTS
+// summarizer to satisfy this interface).
 type Service interface {
 	Get(sessionID string, sinceSequence int64) (SessionState, error)
 	UpdateCursor(sessionID string, patch CursorPatch) (Cursor, error)
 	SummarizeEvent(ctx context.Context, sessionID, eventID string) (SummarizeResult, error)
-	ResolveFileReference(ctx context.Context, sessionID, rawPath string) (FileReference, error)
-	GetFileReferenceContent(ctx context.Context, sessionID, rawPath string) (FileContent, error)
 }
 
 // Event mirrors the legacy JSON shape of one stored conversation entry.
@@ -71,29 +68,6 @@ type SummarizeResult struct {
 	Summarized       bool
 	SpeechParagraphs []string
 	Error            string
-}
-
-// FileReference is the resolved-path result for /files/resolve.
-type FileReference struct {
-	InputPath       string
-	ResolvedPath    string
-	Line            int
-	HasLine         bool
-	Exists          bool
-	ResolutionBasis string
-	Category        string
-	CanPreview      bool
-}
-
-// FileContent is the preview result for /files/content.
-type FileContent struct {
-	Path        string
-	Line        int
-	HasLine     bool
-	Category    string
-	ContentType string
-	Content     string
-	Truncated   bool
 }
 
 // Module wires the conversation domain into the API server.

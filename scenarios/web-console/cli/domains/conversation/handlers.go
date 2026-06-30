@@ -152,69 +152,6 @@ func (h *handlers) summarize(ctx cliapp.RunContext) error {
 	return cliapp.RenderListReport(ctx.Stdout(), report)
 }
 
-func (h *handlers) fileResolve(ctx cliapp.RunContext) error {
-	session := ctx.Flag("session")
-	path := ctx.Flag("path")
-	if session == "" || path == "" {
-		return fmt.Errorf("--session and --path are required")
-	}
-
-	resp, err := h.client.ResolveFileReference(context.Background(), connect.NewRequest(&conversationv1.ResolveFileReferenceRequest{
-		SessionId: session,
-		Path:      path,
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("conversation file-resolve", err, nil)
-	}
-
-	rows := []string{
-		fmt.Sprintf("input:    %s", resp.Msg.GetInputPath()),
-		fmt.Sprintf("resolved: %s", resp.Msg.GetResolvedPath()),
-		fmt.Sprintf("exists:   %t", resp.Msg.GetExists()),
-		fmt.Sprintf("basis:    %s", resp.Msg.GetResolutionBasis()),
-		fmt.Sprintf("category: %s | previewable=%t", resp.Msg.GetCategory(), resp.Msg.GetCanPreview()),
-	}
-	if resp.Msg.GetHasLine() {
-		rows = append(rows, fmt.Sprintf("line:     %d", resp.Msg.GetLine()))
-	}
-	report := cliapp.ListReport{
-		Summary:        []string{"File reference"},
-		ResultsHeading: "Resolution",
-		Results:        rows,
-	}
-	if ctx.JSON() {
-		return cliapp.PrintReportJSON(ctx.Stdout(), report)
-	}
-	return cliapp.RenderListReport(ctx.Stdout(), report)
-}
-
-func (h *handlers) fileContent(ctx cliapp.RunContext) error {
-	session := ctx.Flag("session")
-	path := ctx.Flag("path")
-	if session == "" || path == "" {
-		return fmt.Errorf("--session and --path are required")
-	}
-
-	resp, err := h.client.GetFileReferenceContent(context.Background(), connect.NewRequest(&conversationv1.GetFileReferenceContentRequest{
-		SessionId: session,
-		Path:      path,
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("conversation file-content", err, nil)
-	}
-
-	if ctx.JSON() {
-		return cliapp.PrintReportJSON(ctx.Stdout(), cliapp.ListReport{
-			Summary:        []string{fmt.Sprintf("%s (%s)", resp.Msg.GetPath(), resp.Msg.GetCategory())},
-			ResultsHeading: "Content",
-			Results:        []string{resp.Msg.GetContent()},
-		})
-	}
-	fmt.Fprintf(ctx.Stdout(), "%s (%s, %s)\n", resp.Msg.GetPath(), resp.Msg.GetCategory(), resp.Msg.GetContentType())
-	fmt.Fprintln(ctx.Stdout(), resp.Msg.GetContent())
-	return nil
-}
-
 func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s

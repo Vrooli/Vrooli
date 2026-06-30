@@ -93,12 +93,25 @@ session ownership rules and the policy struct is small; keep it inside
 | `/api/v1/sessions/{id}/conversation` | GET | `Conversation.Get` |
 | `/api/v1/sessions/{id}/conversation/cursor` | PUT | `Conversation.UpdateCursor` |
 | `/api/v1/sessions/{id}/conversation/{eventId}/summarize` | POST | `Conversation.SummarizeEvent` |
-| `/api/v1/sessions/{id}/files/resolve` | POST | `Conversation.ResolveFileReference` |
-| `/api/v1/sessions/{id}/files/content` | GET | `Conversation.GetFileReferenceContent` |
 
-The `/files/resolve` + `/files/content` pair is part of the conversation
-experience (file refs surfaced inside conversation events), so it lives
-in this domain rather than a standalone `files` domain.
+File-reference resolution/preview moved out of this domain into its own
+`file_preview` domain (see below) so the conversation domain stays
+semantic conversation state.
+
+---
+
+### `file_preview` — resolve local file refs + serve preview bytes
+
+| Path | Method | Transport |
+|---|---|---|
+| `FilePreviewService/Resolve` | POST | Connect-RPC — path → preview metadata + opaque `preview_id` + `blob_url` |
+| `FilePreviewService/GetTextContent` | POST | Connect-RPC — bounded UTF-8 for text kinds (≤1 MiB) |
+| `/api/v1/sessions/{id}/file-previews/{previewId}/blob` | GET/HEAD | REST exception (`ops_probe`) — byte-range stream for native `<img>/<video>/<audio>/<iframe>` |
+
+A reusable subsystem (not conversation state): message links/chips are
+today's only caller, but agent records, BAS runs, and plan drill-downs can
+call the same resolve → preview-id → blob/text path. Binary/media bytes
+never travel through Connect. See `docs/concepts/ARCHITECTURE.md#file-preview`.
 
 ---
 

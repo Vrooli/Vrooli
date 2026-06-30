@@ -38,24 +38,4 @@ func TestValidation(t *testing.T) {
 			t.Fatalf("expected missing session/event error, got %v", err)
 		}
 	})
-
-	t.Run("file_resolve_requires_session_and_path", func(t *testing.T) {
-		ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
-			Schema: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "session"}, {Name: "path"}}},
-		})
-		err := h.fileResolve(ctx)
-		if err == nil || err.Error() != "--session and --path are required" {
-			t.Fatalf("expected missing session/path error, got %v", err)
-		}
-	})
-
-	t.Run("file_content_requires_session_and_path", func(t *testing.T) {
-		ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
-			Schema: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "session"}, {Name: "path"}}},
-		})
-		err := h.fileContent(ctx)
-		if err == nil || err.Error() != "--session and --path are required" {
-			t.Fatalf("expected missing session/path error, got %v", err)
-		}
-	})
 }

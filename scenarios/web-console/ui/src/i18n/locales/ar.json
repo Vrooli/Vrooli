@@ -53,7 +53,22 @@
     "increaseFontSize": "تكبير حجم الخط",
     "enableWordWrap": "تمكين التفاف النص",
     "disableWordWrap": "تعطيل التفاف النص",
-    "wrap": "التفاف"
+    "wrap": "التفاف",
+    "download": "تنزيل",
+    "openInNewTab": "فتح في علامة تبويب جديدة",
+    "unsupportedTitle": "المعاينة غير متاحة",
+    "unsupportedBody": "لا يمكن معاينة هذا النوع من الملفات داخليًا. نزّله أو انسخ مساره.",
+    "mediaLoadError": "تعذّر تحميل هذا الملف في المتصفح.",
+    "codecHint": "قد لا يدعم متصفحك هذا التنسيق — جرّب تنزيل الملف.",
+    "pdfFallback": "لا يستطيع متصفحك عرض ملف PDF هذا داخليًا.",
+    "csvParseFallback": "تعذّر تحليله كجدول؛ يتم عرض النص الخام.",
+    "emptyFile": "هذا الملف فارغ.",
+    "reopen": "إعادة الفتح",
+    "truncatedNotice": "تم اقتطاع المعاينة.",
+    "audioPreview": "معاينة صوتية",
+    "videoPreview": "معاينة فيديو",
+    "pdfPreview": "معاينة PDF",
+    "imagePreview": "معاينة الصورة"
   },
   "audioPlayerBar": {
     "resume": "استئناف",

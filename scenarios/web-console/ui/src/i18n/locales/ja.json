@@ -53,7 +53,22 @@
     "increaseFontSize": "フォントサイズを拡大",
     "enableWordWrap": "ワードラップを有効にする",
     "disableWordWrap": "ワードラップを無効にする",
-    "wrap": "折返し"
+    "wrap": "折返し",
+    "download": "ダウンロード",
+    "openInNewTab": "新しいタブで開く",
+    "unsupportedTitle": "プレビューできません",
+    "unsupportedBody": "このファイル形式はインラインでプレビューできません。ダウンロードするかパスをコピーしてください。",
+    "mediaLoadError": "このファイルをブラウザーで読み込めませんでした。",
+    "codecHint": "お使いのブラウザーはこの形式に対応していない可能性があります。ファイルをダウンロードしてみてください。",
+    "pdfFallback": "お使いのブラウザーではこの PDF をインライン表示できません。",
+    "csvParseFallback": "テーブルとして解析できませんでした。生のテキストを表示します。",
+    "emptyFile": "このファイルは空です。",
+    "reopen": "再度開く",
+    "truncatedNotice": "プレビューは切り詰められています。",
+    "audioPreview": "オーディオプレビュー",
+    "videoPreview": "動画プレビュー",
+    "pdfPreview": "PDF プレビュー",
+    "imagePreview": "画像プレビュー"
   },
   "audioPlayerBar": {
     "resume": "再開",

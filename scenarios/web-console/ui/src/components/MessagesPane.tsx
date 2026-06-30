@@ -19,14 +19,8 @@ import { useConversationStore, getSessionConversationEvents } from "../stores/us
 import { refreshConversationSession } from "../hooks/useConversationSession";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useMediaQuery } from "../hooks/useMediaQuery";
-import { APIError } from "../lib/errors";
-import {
-  getFileReferenceContent,
-  resolveFileReference,
-  type ConversationEvent,
-  type FileReferenceContentResponse,
-  type FileReferenceResolveResponse,
-} from "../api/conversation";
+import { type ConversationEvent } from "../api/conversation";
+import { useFilePreviewController } from "./file-preview/useFilePreviewController";
 import { TERMINAL_FONT_SIZE } from "../consts/config";
 import { cn } from "../lib/classnames";
 import { looksLikeFileReference } from "../lib/fileReferences";
@@ -514,12 +508,9 @@ export default function MessagesPane({
 
   // --- Collapse ---
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [fileViewerOpen, setFileViewerOpen] = useState(false);
-  const [fileViewerLoading, setFileViewerLoading] = useState(false);
-  const [fileViewerError, setFileViewerError] = useState<string | null>(null);
-  const [requestedFilePath, setRequestedFilePath] = useState<string | null>(null);
-  const [resolvedFile, setResolvedFile] = useState<FileReferenceResolveResponse | null>(null);
-  const [fileContent, setFileContent] = useState<FileReferenceContentResponse | null>(null);
+
+  // --- File preview ---
+  const filePreview = useFilePreviewController(sessionId);
 
   // --- Auto-scroll ---
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -830,55 +821,16 @@ export default function MessagesPane({
     focusAndScroll(playbackFocusRequest.eventId);
   }, [focusAndScroll, playbackFocusRequest]);
 
-  const closeFileViewer = useCallback(() => {
-    setFileViewerOpen(false);
-    setFileViewerLoading(false);
-    setFileViewerError(null);
-    setRequestedFilePath(null);
-    setResolvedFile(null);
-    setFileContent(null);
-  }, []);
-
-  const openFileReference = useCallback(async (href: string) => {
-    setRequestedFilePath(href);
-    setResolvedFile(null);
-    setFileContent(null);
-    setFileViewerError(null);
-    setFileViewerOpen(true);
-    setFileViewerLoading(true);
-
-    try {
-      const resolved = await resolveFileReference(sessionId, href);
-      setResolvedFile(resolved);
-      if (!resolved.can_preview) {
-        setFileViewerError(t(strings.messagesPane.fileNotPreviewable));
-        return;
-      }
-      const contentPath = resolved.line ? `${resolved.resolved_path}:${resolved.line}` : resolved.resolved_path;
-      const content = await getFileReferenceContent(sessionId, contentPath);
-      setFileContent(content);
-    } catch (err) {
-      if (err instanceof APIError) {
-        setFileViewerError(err.message);
-      } else if (err instanceof Error) {
-        setFileViewerError(err.message);
-      } else {
-        setFileViewerError(t(strings.messagesPane.fileOpenFailed));
-      }
-    } finally {
-      setFileViewerLoading(false);
-    }
-  }, [sessionId, t]);
-
+  const { openPreview } = filePreview;
   const handleMarkdownLinkClick = useCallback((href: string, event: React.MouseEvent<HTMLAnchorElement>) => {
     if (!looksLikeFileReference(href)) return;
     event.preventDefault();
-    void openFileReference(href);
-  }, [openFileReference]);
+    void openPreview(href, "message_link");
+  }, [openPreview]);
 
   const handleInlineCodeFileClick = useCallback((path: string) => {
-    void openFileReference(path);
-  }, [openFileReference]);
+    void openPreview(path, "inline_code");
+  }, [openPreview]);
 
   return (
     <div
@@ -1041,13 +993,10 @@ export default function MessagesPane({
       )}
 
       <MessagesFileViewer
-        open={fileViewerOpen}
-        loading={fileViewerLoading}
-        error={fileViewerError}
-        requestedPath={requestedFilePath}
-        resolved={resolvedFile}
-        content={fileContent}
-        onClose={closeFileViewer}
+        state={filePreview.state}
+        onClose={filePreview.close}
+        onReopen={filePreview.reopen}
+        onRendererError={filePreview.reportError}
       />
     </div>
   );

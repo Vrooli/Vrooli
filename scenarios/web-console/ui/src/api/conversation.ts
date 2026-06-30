@@ -40,25 +40,6 @@ export interface ConversationSessionResponse {
   cursor: ConversationCursor;
 }
 
-export interface FileReferenceResolveResponse {
-  input_path: string;
-  resolved_path: string;
-  line?: number;
-  exists: boolean;
-  resolution_basis: "session_cwd" | "project_root" | "absolute_allowed" | "session_upload";
-  category: "markdown" | "code" | "text" | "image" | "binary";
-  can_preview: boolean;
-}
-
-export interface FileReferenceContentResponse {
-  path: string;
-  line?: number;
-  category: "markdown" | "code" | "text" | "image" | "binary";
-  content_type: string;
-  content: string;
-  truncated: boolean;
-}
-
 // ---------------------------------------------------------------------------
 // Decoders — proto wire shape → domain shape
 // ---------------------------------------------------------------------------
@@ -152,22 +133,6 @@ export async function updateConversationCursor(
   return decodeConversationCursor(resp.cursor);
 }
 
-export async function resolveFileReference(
-  sessionId: string,
-  path: string,
-): Promise<FileReferenceResolveResponse> {
-  const resp = await conversationClient.resolveFileReference({ sessionId, path });
-  return {
-    input_path: resp.inputPath,
-    resolved_path: resp.resolvedPath,
-    line: resp.hasLine ? resp.line : undefined,
-    exists: resp.exists,
-    resolution_basis: resp.resolutionBasis as FileReferenceResolveResponse["resolution_basis"],
-    category: resp.category as FileReferenceResolveResponse["category"],
-    can_preview: resp.canPreview,
-  };
-}
-
 export interface SummarizeEventResponse {
   summarized: boolean;
   speechParagraphs?: string[];
@@ -187,17 +152,3 @@ export async function summarizeEvent(
   };
 }
 
-export async function getFileReferenceContent(
-  sessionId: string,
-  path: string,
-): Promise<FileReferenceContentResponse> {
-  const resp = await conversationClient.getFileReferenceContent({ sessionId, path });
-  return {
-    path: resp.path,
-    line: resp.hasLine ? resp.line : undefined,
-    category: resp.category as FileReferenceContentResponse["category"],
-    content_type: resp.contentType,
-    content: resp.content,
-    truncated: resp.truncated,
-  };
-}

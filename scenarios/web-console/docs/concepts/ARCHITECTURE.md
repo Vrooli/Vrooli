@@ -159,6 +159,19 @@ Each session conversation has two independent cursors:
 
 These cursors drive unread badges, missed-response replay, and future conversation-centric UI features. They are not inferred from PTY output.
 
+### File Preview
+
+File preview is a third supporting data plane, separate from terminal I/O and conversation events. It is **not** semantic conversation state — it is a reusable subsystem any web-console surface (today: conversation message links + inline path chips) can call to open a resolved local artifact.
+
+Two transports, by intent:
+
+1. **Metadata + bounded text — Connect-RPC** `FilePreviewService` ([CODE: api/handlers/file_preview]). `Resolve(path)` returns a `PreviewModel`: canonical path, basename, `:line`, classification (`PreviewKind`), MIME type, size, capability flags (`can_preview`/`can_download`/`supports_range`/`text_content_available`), an opaque short-lived `preview_id`, a same-origin `blob_url`, and warnings. `GetTextContent(preview_id)` returns ≤1 MiB UTF-8 for text kinds (markdown/code/text/csv/diff).
+2. **Bytes — REST blob/range** `GET|HEAD /api/v1/sessions/{id}/file-previews/{previewId}/blob` ([CODE: api/file_preview_handlers.go]). A sanctioned REST exception (reason `ops_probe`) because byte-range streaming consumed directly by native `<img>/<video>/<audio>/<iframe>` is browser-native and cannot be a Connect call. Binary/media bytes never travel through Connect.
+
+Resolution + classification + the preview-id store live in the transport-neutral [CODE: api/internal/filepreview] package (independently unit-tested, reusable). The UI side is registry-based: a viewer state machine ([CODE: ui/src/components/file-preview/useFilePreviewController.ts]) feeds a normalized `PreviewModel` to [CODE: ui/src/components/MessagesFileViewer.tsx], which routes on `kind` through the renderer registry ([CODE: ui/src/components/file-preview/renderers/index.ts]) — one dedicated renderer per kind (markdown, code/text, image/svg, pdf, audio, video, csv, diff, unsupported).
+
+Flow: message link/chip → `openPreview(path)` → `Resolve` issues a session-bound `preview_id` → text kinds fetch `GetTextContent`; blob kinds load lazily via `blob_href` in the renderer. The blob handler re-stats the file on every request and returns 409 if size/mtime changed since resolve, 404 for unknown/expired/session-mismatched ids.
+
 ### Error Handling
 
 All API errors return structured JSON with `code`, `category`, `recovery`, and `retry` fields. See [Error Semantics](../internal/ERROR_SEMANTICS.md) for the full contract.

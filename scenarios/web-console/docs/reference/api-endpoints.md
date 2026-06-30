@@ -49,10 +49,20 @@ Message protocol: see [Architecture — Terminal I/O](../concepts/ARCHITECTURE.m
 | GET | `/api/v1/sessions/{id}/conversation` | `handleGetConversationSession` |
 | PUT | `/api/v1/sessions/{id}/conversation/cursor` | `handleUpdateConversationCursor` |
 | POST | `/api/v1/sessions/{id}/conversation/{eventId}/summarize` | `handleSummarizeEvent` |
-| POST | `/api/v1/sessions/{id}/files/resolve` | `handleResolveFileReference` |
-| GET | `/api/v1/sessions/{id}/files/content` | `handleGetFileReferenceContent` |
 
 User-facing contract for the messages feed: [Conversation Tracking guide](../guides/CONVERSATION_TRACKING.md).
+
+## File Preview
+
+[CODE: api/handlers/file_preview], [CODE: api/file_preview_handlers.go]
+
+| Method | Path | Handler |
+|---|---|---|
+| POST | `FilePreviewService/Resolve` (Connect-RPC) | `file_preview.connectHandler.Resolve` |
+| POST | `FilePreviewService/GetTextContent` (Connect-RPC) | `file_preview.connectHandler.GetTextContent` |
+| GET/HEAD | `/api/v1/sessions/{id}/file-previews/{previewId}/blob` | `Server.handleFilePreviewBlob` (REST exception, `ops_probe`) |
+
+The blob route serves bytes for an opaque, session-bound `preview_id` with HTTP Range support; it is consumed directly by native `<img>/<video>/<audio>/<iframe>`. See `docs/concepts/ARCHITECTURE.md#file-preview` and `docs/internal/SEAMS.md`.
 
 ## Workspace
 

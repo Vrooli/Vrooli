@@ -23,6 +23,7 @@ import (
 	"web-console/internal/capabilities"
 	"web-console/internal/config"
 	"web-console/internal/events"
+	"web-console/internal/filepreview"
 	"web-console/internal/metrics"
 	"web-console/internal/sessionstore"
 	"web-console/session"
@@ -42,6 +43,7 @@ import (
 	capabilitiesH "web-console/handlers/capabilities"
 	conversationH "web-console/handlers/conversation"
 	eventsH "web-console/handlers/events"
+	filePreviewH "web-console/handlers/file_preview"
 	hooksH "web-console/handlers/hooks"
 	metricsH "web-console/handlers/metrics"
 
@@ -258,7 +260,14 @@ type Server struct {
 	summarizeAutoPolicyMu sync.RWMutex
 	summarizeAutoPolicy   SummarizeAutoPolicy
 
-	conversations   *ConversationStore
+	conversations *ConversationStore
+
+	// File-preview subsystem: a transport-neutral resolver + an opaque,
+	// session-bound, expiring preview-id store the REST blob route serves
+	// bytes against. See internal/filepreview and api/file_preview_handlers.go.
+	filePreviewResolver *filepreview.Resolver
+	filePreviews        *filepreview.Store
+
 	ttsStatusMu     sync.RWMutex
 	lastTTSRouting  *ConversationAppendResult
 	lastTTSAt       time.Time
@@ -395,6 +404,8 @@ func NewServer(db *sql.DB) *Server {
 		codexCheckpointStore: NewSQLCodexCheckpointStore(db),
 		agentCheckpointStore: NewSQLAgentTranscriptCheckpointStore(db),
 		conversations:        NewConversationStoreWithRepository(NewSQLConversationRepository(db)),
+		filePreviewResolver:  &filepreview.Resolver{ProjectRoot: config.ResolveWorkingDir()},
+		filePreviews:         filepreview.NewStore(filepreview.DefaultTTL),
 		lastTTSBySource:      make(map[string]conversationAppendSnapshot),
 		lastTTSAckBySrc:      make(map[string]ttsAckSnapshot),
 		speechProcessor:      audioports.PassthroughSpeechTextProcessor{},
@@ -540,8 +551,16 @@ func (s *Server) setupRoutes() {
 		Events: s.events,
 	}, nil).Mount(s.router)
 
-	// Conversation domain (history, cursor, summarize, file refs) — Connect-RPC.
+	// Conversation domain (history, cursor, summarize) — Connect-RPC.
 	conversationH.Module(newConversationAdapter(s), nil).Mount(s.router)
+
+	// File-preview domain — Connect-RPC FilePreviewService (Resolve,
+	// GetTextContent) plus a REST blob/range exception for opaque byte
+	// streaming into native browser media elements. The Connect handler is
+	// mounted via Module; the blob route is registered directly below because
+	// it needs the Server's session lookup + preview store.
+	filePreviewH.Module(newFilePreviewAdapter(s), nil).Mount(s.router)
+	s.router.HandleFunc("/api/v1/sessions/{id}/file-previews/{previewId}/blob", s.handleFilePreviewBlob).Methods("GET", "HEAD")
 
 	// Settings domain — Connect-RPC, mounted via Module.
 	settingsH.Module(newSettingsAdapter(s), nil).Mount(s.router)

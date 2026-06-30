@@ -18,8 +18,6 @@ type conversationConnectIface interface {
 	Get(context.Context, *connect.Request[conversationv1.GetRequest]) (*connect.Response[conversationv1.GetResponse], error)
 	UpdateCursor(context.Context, *connect.Request[conversationv1.UpdateCursorRequest]) (*connect.Response[conversationv1.UpdateCursorResponse], error)
 	SummarizeEvent(context.Context, *connect.Request[conversationv1.SummarizeEventRequest]) (*connect.Response[conversationv1.SummarizeEventResponse], error)
-	ResolveFileReference(context.Context, *connect.Request[conversationv1.ResolveFileReferenceRequest]) (*connect.Response[conversationv1.ResolveFileReferenceResponse], error)
-	GetFileReferenceContent(context.Context, *connect.Request[conversationv1.GetFileReferenceContentRequest]) (*connect.Response[conversationv1.GetFileReferenceContentResponse], error)
 }
 
 // newConversationConnectHandlerForServer wires a real conversation Connect

@@ -1,7 +1,8 @@
 // Package conversation is the CLI's conversation-domain command surface. It
 // mirrors the API's Connect-RPC ConversationService — session history, the
-// read/listened cursor, on-demand TTS summarization, and file-reference
-// resolution / preview — and is built from the embedded manifest.
+// read/listened cursor, and on-demand TTS summarization — and is built from
+// the embedded manifest. File-reference resolution/preview moved to the
+// file-preview domain.
 package conversation
 
 import (
@@ -18,11 +19,9 @@ const GroupName = "conversation"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"ConversationService.Get":                     h.get,
-		"ConversationService.UpdateCursor":            h.cursorSet,
-		"ConversationService.SummarizeEvent":          h.summarize,
-		"ConversationService.ResolveFileReference":    h.fileResolve,
-		"ConversationService.GetFileReferenceContent": h.fileContent,
+		"ConversationService.Get":            h.get,
+		"ConversationService.UpdateCursor":   h.cursorSet,
+		"ConversationService.SummarizeEvent": h.summarize,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

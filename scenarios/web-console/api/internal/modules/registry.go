@@ -26,6 +26,7 @@ import (
 	capabilitiesH "web-console/handlers/capabilities"
 	conversationH "web-console/handlers/conversation"
 	eventsH "web-console/handlers/events"
+	filePreviewH "web-console/handlers/file_preview"
 	healthH "web-console/handlers/health"
 	hooksH "web-console/handlers/hooks"
 	metricsH "web-console/handlers/metrics"
@@ -49,6 +50,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, capabilitiesH.Endpoints...)
 	out = append(out, conversationH.Endpoints...)
 	out = append(out, eventsH.Endpoints...)
+	out = append(out, filePreviewH.Endpoints...)
 	out = append(out, hooksH.Endpoints...)
 	out = append(out, metricsH.Endpoints...)
 	out = append(out, sessionsH.Endpoints...)

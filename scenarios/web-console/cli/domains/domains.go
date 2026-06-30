@@ -5,6 +5,7 @@ import (
 	"web-console/cli/domains/capabilities"
 	"web-console/cli/domains/conversation"
 	"web-console/cli/domains/events"
+	filepreview "web-console/cli/domains/file_preview"
 	"web-console/cli/domains/metrics"
 	"web-console/cli/domains/session"
 	"web-console/cli/domains/settings"
@@ -49,6 +50,10 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
+	filePreviewGroup, err := filepreview.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
 	eventsGroup, err := events.Register(core, manifest)
 	if err != nil {
 		return nil, err
@@ -81,6 +86,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		shortcutsGroup,
 		aiGroup,
 		conversationGroup,
+		filePreviewGroup,
 		eventsGroup,
 		metricsGroup,
 		capabilitiesGroup,

@@ -3,17 +3,16 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
-	"unicode/utf8"
+
 	"web-console/internal/audioports"
 
 	conversationH "web-console/handlers/conversation"
 )
 
 // conversationAdapter implements conversationH.Service against the server's
-// ConversationStore, file-reference resolver, and TTS summarizer.
+// ConversationStore and TTS summarizer.
 type conversationAdapter struct {
 	srv *Server
 }
@@ -133,70 +132,6 @@ func (a *conversationAdapter) SummarizeEvent(ctx context.Context, sessionID, eve
 	}, nil
 }
 
-func (a *conversationAdapter) ResolveFileReference(ctx context.Context, sessionID, rawPath string) (conversationH.FileReference, error) {
-	sess, ok := a.srv.sessions.Get(sessionID)
-	if !ok {
-		return conversationH.FileReference{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
-	}
-	resolved, err := a.srv.resolveFileReference(ctx, sess, rawPath)
-	if err != nil {
-		return conversationH.FileReference{}, mapFileReferenceError(err)
-	}
-	ref := conversationH.FileReference{
-		InputPath:       resolved.inputPath,
-		ResolvedPath:    resolved.resolvedPath,
-		Exists:          resolved.exists,
-		ResolutionBasis: resolved.resolutionBasis,
-		Category:        resolved.category,
-		CanPreview:      resolved.canPreview,
-	}
-	if resolved.line != nil {
-		ref.Line = *resolved.line
-		ref.HasLine = true
-	}
-	return ref, nil
-}
-
-func (a *conversationAdapter) GetFileReferenceContent(ctx context.Context, sessionID, rawPath string) (conversationH.FileContent, error) {
-	sess, ok := a.srv.sessions.Get(sessionID)
-	if !ok {
-		return conversationH.FileContent{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
-	}
-	resolved, err := a.srv.resolveFileReference(ctx, sess, rawPath)
-	if err != nil {
-		return conversationH.FileContent{}, mapFileReferenceError(err)
-	}
-	if !resolved.canPreview {
-		return conversationH.FileContent{}, fmt.Errorf("file type cannot be previewed: %w", conversationH.ErrPreviewUnavailable)
-	}
-	if resolved.sizeBytes > maxFilePreviewBytes {
-		return conversationH.FileContent{}, fmt.Errorf("file exceeds preview limit of %d bytes: %w", maxFilePreviewBytes, conversationH.ErrPreviewUnavailable)
-	}
-	data, err := os.ReadFile(resolved.resolvedPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return conversationH.FileContent{}, fmt.Errorf("referenced file not found: %w", conversationH.ErrNotFound) //nolint:staticcheck // share NotFound code
-		}
-		return conversationH.FileContent{}, fmt.Errorf("read referenced file: %w", err)
-	}
-	if !utf8.Valid(data) || bytesContainNull(data) {
-		return conversationH.FileContent{}, fmt.Errorf("file is not valid UTF-8 text: %w", conversationH.ErrPreviewUnavailable)
-	}
-
-	content := conversationH.FileContent{
-		Path:        resolved.resolvedPath,
-		Category:    resolved.category,
-		ContentType: fileReferenceContentType(resolved.category),
-		Content:     string(data),
-		Truncated:   false,
-	}
-	if resolved.line != nil {
-		content.Line = *resolved.line
-		content.HasLine = true
-	}
-	return content, nil
-}
-
 // transportEvents converts the internal ConversationEvent slice into the
 // transport-neutral shape used by the handler package.
 func transportEvents(in []ConversationEvent) []conversationH.Event {
@@ -219,28 +154,4 @@ func transportEvents(in []ConversationEvent) []conversationH.Event {
 		})
 	}
 	return out
-}
-
-// mapFileReferenceError translates the legacy *fileReferenceError codes into
-// handler-package sentinels so the Connect handler can pick the right
-// Connect code.
-func mapFileReferenceError(err error) error {
-	var refErr *fileReferenceError
-	if !asFileReferenceError(err, &refErr) {
-		return err
-	}
-	switch refErr.code {
-	case "file_reference_invalid":
-		return fmt.Errorf("%s: %w", refErr.message, conversationH.ErrInvalidArgument)
-	case "file_reference_not_allowed":
-		return fmt.Errorf("%s: %w", refErr.message, conversationH.ErrPermissionDenied)
-	case "file_reference_not_previewable":
-		return fmt.Errorf("%s: %w", refErr.message, conversationH.ErrPreviewUnavailable)
-	case "file_reference_too_large":
-		return fmt.Errorf("%s: %w", refErr.message, conversationH.ErrPreviewUnavailable)
-	case "file_reference_unresolvable", "file_reference_not_found":
-		return fmt.Errorf("%s: %w", refErr.message, conversationH.ErrNotFound) //nolint:staticcheck // share NotFound code
-	default:
-		return fmt.Errorf("%s", refErr.message)
-	}
 }

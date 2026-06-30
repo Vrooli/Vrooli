@@ -53,7 +53,22 @@
     "increaseFontSize": "Increase font size",
     "enableWordWrap": "Enable word wrap",
     "disableWordWrap": "Disable word wrap",
-    "wrap": "Wrap"
+    "wrap": "Wrap",
+    "download": "Download",
+    "openInNewTab": "Open in new tab",
+    "unsupportedTitle": "Preview not available",
+    "unsupportedBody": "This file type can't be previewed inline. Download it or copy its path.",
+    "mediaLoadError": "This file could not be loaded in the browser.",
+    "codecHint": "Your browser may not support this format — try downloading the file.",
+    "pdfFallback": "Your browser can't display this PDF inline.",
+    "csvParseFallback": "Couldn't parse as a table; showing raw text.",
+    "emptyFile": "This file is empty.",
+    "reopen": "Reopen",
+    "truncatedNotice": "Preview truncated.",
+    "audioPreview": "Audio preview",
+    "videoPreview": "Video preview",
+    "pdfPreview": "PDF preview",
+    "imagePreview": "Image preview"
   },
   "audioPlayerBar": {
     "resume": "Resume",

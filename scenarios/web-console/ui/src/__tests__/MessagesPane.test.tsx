@@ -11,19 +11,41 @@ vi.mock("../hooks/useConversationSession", () => ({
   refreshConversationSession: vi.fn().mockResolvedValue(undefined),
 }));
 
-const { mockResolveFileReference, mockGetFileReferenceContent } = vi.hoisted(() => ({
-  mockResolveFileReference: vi.fn(),
-  mockGetFileReferenceContent: vi.fn(),
+const { mockResolveFilePreview, mockGetFilePreviewText } = vi.hoisted(() => ({
+  mockResolveFilePreview: vi.fn(),
+  mockGetFilePreviewText: vi.fn(),
 }));
 
-vi.mock("../api/conversation", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../api/conversation")>();
+vi.mock("../api/filePreview", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/filePreview")>();
   return {
     ...actual,
-    resolveFileReference: mockResolveFileReference,
-    getFileReferenceContent: mockGetFileReferenceContent,
+    resolveFilePreview: mockResolveFilePreview,
+    getFilePreviewText: mockGetFilePreviewText,
   };
 });
+
+// makeModel builds a PreviewModel fixture for the file-preview controller.
+function makeModel(overrides: Record<string, unknown>) {
+  return {
+    previewId: "pv-1",
+    inputPath: "/tmp/example.ts",
+    resolvedPath: "/tmp/example.ts",
+    basename: "example.ts",
+    resolutionBasis: "absolute",
+    kind: "code",
+    mimeType: "text/plain; charset=utf-8",
+    sizeBytes: 12,
+    canPreview: true,
+    canDownload: true,
+    supportsRange: false,
+    textContentAvailable: true,
+    blobUrl: "/api/v1/sessions/sess-1/file-previews/pv-1/blob",
+    blobHref: "/api/v1/sessions/sess-1/file-previews/pv-1/blob",
+    warnings: [],
+    ...overrides,
+  };
+}
 
 // Mock the markdown renderer to avoid shiki/mermaid in jsdom
 vi.mock("../components/markdown", () => ({
@@ -272,22 +294,16 @@ describe("MessagesPane", () => {
   });
 
   it("opens the file viewer when clicking a file-like markdown link", async () => {
-    mockResolveFileReference.mockResolvedValueOnce({
-      input_path: "/tmp/example.ts:12",
-      resolved_path: "/tmp/example.ts",
-      line: 12,
-      exists: true,
-      resolution_basis: "absolute_allowed",
-      category: "code",
-      can_preview: true,
-    });
-    mockGetFileReferenceContent.mockResolvedValueOnce({
-      path: "/tmp/example.ts",
-      line: 12,
-      category: "code",
-      content_type: "text/plain; charset=utf-8",
+    mockResolveFilePreview.mockResolvedValueOnce(
+      makeModel({ inputPath: "/tmp/example.ts:12", line: 12, kind: "code" }),
+    );
+    mockGetFilePreviewText.mockResolvedValueOnce({
+      resolvedPath: "/tmp/example.ts",
+      kind: "code",
+      mimeType: "text/plain; charset=utf-8",
       content: "const x = 1;\n",
       truncated: false,
+      line: 12,
     });
 
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "[example.ts](/tmp/example.ts:12)" })]);
@@ -302,26 +318,22 @@ describe("MessagesPane", () => {
       expect(screen.getByText("const x = 1;")).toBeInTheDocument();
     });
     expect(screen.getByTestId("messages-file-viewer-panel").className).toContain("--wc-safe-top");
-    expect(mockResolveFileReference).toHaveBeenCalledWith("sess-1", "/tmp/example.ts:12");
-    expect(mockGetFileReferenceContent).toHaveBeenCalledWith("sess-1", "/tmp/example.ts:12");
+    expect(mockResolveFilePreview).toHaveBeenCalledWith("sess-1", "/tmp/example.ts:12", "message_link");
+    expect(mockGetFilePreviewText).toHaveBeenCalledWith("sess-1", "pv-1");
   });
 
   it("renders SVG file references as image previews", async () => {
-    mockResolveFileReference.mockResolvedValueOnce({
-      input_path: "/tmp/logo.svg",
-      resolved_path: "/tmp/logo.svg",
-      exists: true,
-      resolution_basis: "absolute_allowed",
-      category: "image",
-      can_preview: true,
-    });
-    mockGetFileReferenceContent.mockResolvedValueOnce({
-      path: "/tmp/logo.svg",
-      category: "image",
-      content_type: "image/svg+xml; charset=utf-8",
-      content: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>',
-      truncated: false,
-    });
+    mockResolveFilePreview.mockResolvedValueOnce(
+      makeModel({
+        inputPath: "/tmp/logo.svg",
+        resolvedPath: "/tmp/logo.svg",
+        basename: "logo.svg",
+        kind: "svg",
+        mimeType: "image/svg+xml",
+        textContentAvailable: false,
+        supportsRange: true,
+      }),
+    );
 
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "[logo](/tmp/logo.svg)" })]);
     render(<MessagesPane {...defaultProps} />);
@@ -332,10 +344,11 @@ describe("MessagesPane", () => {
       expect(screen.getByRole("img", { name: "logo.svg" })).toBeInTheDocument();
     });
     expect(screen.getByText("/tmp/logo.svg")).toBeInTheDocument();
+    expect(mockGetFilePreviewText).not.toHaveBeenCalled();
   });
 
   it("shows a viewer error when file resolution fails", async () => {
-    mockResolveFileReference.mockRejectedValueOnce(new Error("Referenced file was not found"));
+    mockResolveFilePreview.mockRejectedValueOnce(new Error("Referenced file was not found"));
 
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "[missing.ts](missing.ts)" })]);
     render(<MessagesPane {...defaultProps} />);

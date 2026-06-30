@@ -96,25 +96,31 @@
           ],
           "binding": { "kind": "connect-rpc", "service": "ConversationService", "method": "SummarizeEvent" },
           "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
-        },
+        }
+      ]
+    },
+    {
+      "name": "file-preview",
+      "description": "Resolve local file references into preview targets and read bounded text content",
+      "commands": [
         {
-          "name": "file-resolve",
-          "description": "Resolve a file reference path for a session",
+          "name": "resolve",
+          "description": "Resolve a path into a preview target (kind, mime, size, preview id, blob url)",
           "flags": [
             { "name": "session", "required": true, "description": "Session ID (required)" },
             { "name": "path", "required": true, "description": "Path to resolve (required)" }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ConversationService", "method": "ResolveFileReference" },
+          "binding": { "kind": "connect-rpc", "service": "FilePreviewService", "method": "Resolve" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
-          "name": "file-content",
-          "description": "Read a previewable file referenced by a session",
+          "name": "text",
+          "description": "Read bounded UTF-8 text content for a resolved preview id",
           "flags": [
             { "name": "session", "required": true, "description": "Session ID (required)" },
-            { "name": "path", "required": true, "description": "Path to read (required)" }
+            { "name": "preview-id", "required": true, "description": "Preview id from file-preview resolve (required)" }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ConversationService", "method": "GetFileReferenceContent" },
+          "binding": { "kind": "connect-rpc", "service": "FilePreviewService", "method": "GetTextContent" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]

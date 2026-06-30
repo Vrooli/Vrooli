@@ -62,6 +62,15 @@ Sessions with default never-expire policy could accumulate unbounded transcript 
 - No BAS mobile viewport workflow yet for floating toolbar key/chord behavior.
 - Playbooks phase currently blocks on BAS startup when browser-automation-studio dependencies are unavailable (e2e workflows present but cannot execute).
 
+## 9a. File Preview — Intentionally Deferred (2026-06-30)
+
+The file-preview subsystem (`api/internal/filepreview`, `FilePreviewService`, blob/range route, UI renderer registry) ships these deliberate deferrals — all are working-as-intended, not bugs:
+
+- **PDF.js deferred.** PDFs render via the native browser viewer (`<iframe>` at the blob href) with a download/open fallback. PDF.js is only worth adopting if native rendering proves inadequate in validation across target browsers.
+- **No media transcoding.** Audio/video play through native browser codecs only. Unsupported codecs (`.mov`, `.flac`, …) show a clear "your browser may not support this format" hint plus download — web-console does not transcode.
+- **CLI is metadata/text only.** `web-console file-preview resolve` and `file-preview text` cover programmatic metadata + bounded text. Blob streaming/download has no CLI command (no clear operator workflow yet); it stays UI/browser-only because the blob route is consumed by native media elements.
+- **In-memory preview-id store.** Preview ids live in a process-local store with a 30m TTL; they do not survive an API restart. That is acceptable for the single-operator, reopen-on-demand UX. A persistent store would only matter for long-lived shareable preview links, which are out of scope.
+
 ## 10. Audio Extraction Prep — Deferred Sub-Phases (2026-05-16)
 
 Active initiative: `swarm-manager/initiatives/continuous-audio-platform`. The

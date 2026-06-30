@@ -25,9 +25,9 @@ describe("api module", () => {
     expect(url).toMatch(/^ws/);
   });
 
-  // resolveFileReference / getFileReferenceContent are covered through the
-  // ConversationService in src/api/conversation.ts; their REST-era tests
-  // were removed when the lib/api shims were retired.
+  // File-preview resolve/text/blob now live in the dedicated file_preview
+  // domain (src/api/filePreview.ts); they are covered by
+  // src/api/__tests__/filePreview.test.ts and the file-preview component tests.
 });
 
 describe("toErrorInfo", () => {

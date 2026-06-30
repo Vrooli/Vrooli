@@ -185,10 +185,10 @@ enforce:
 
 ### 4a. Sanctioned REST Exceptions (UI → API)
 
-Every UI → API call goes through Connect-RPC except for the two
-endpoints below. Both are template-sanctioned `RESTReason` values (see
+Every UI → API call goes through Connect-RPC except for the endpoints
+below. All are template-sanctioned `RESTReason` values (see
 `api/internal/module/module.go::RESTReason*` in the react-vite
-template). Adding a third REST surface requires either picking another
+template). Adding another REST surface requires either picking another
 enumerated `RESTReason` or extending the template — not a one-off
 exemption.
 
@@ -196,10 +196,14 @@ exemption.
 |---|---|---|---|
 | [CODE: ui/src/api/health.ts] | `GET /health` | `RESTReasonOpsProbe` | The API liveness probe must answer before Connect-RPC routing is wired up. Load balancers, lifecycle checks, and `curl` need the simplest possible shape. The proto in `packages/proto/schemas/web-console/v1/health/health.proto` carries the JSON wire shape so the response decodes through `fromJson(ResponseSchema, ...)` for type safety — there is no hand-rolled `HealthResponse` type. |
 | [CODE: ui/src/api/uploads.ts] | `POST /sessions/{id}/upload` | `RESTReasonMultipartUpload` | Multipart binary upload. Connect-RPC binary payloads are non-trivial; the template explicitly enumerates multipart as an allowed shape. Metadata around uploads (if any) stays proto-typed; only the raw bytes ride the REST edge. |
+| [CODE: ui/src/api/filePreview.ts] (consumed by native elements, not `fetch`) | `GET\|HEAD /sessions/{id}/file-previews/{previewId}/blob` | `RESTReasonOpsProbe` | Byte-range blob stream consumed directly by native `<img>/<video>/<audio>/<iframe>` `src`/`href` — browser-native transport Connect cannot express (the same category as `terminal_ws`). The opaque, session-bound `preview_id` (never a raw path) is issued by `FilePreviewService.Resolve`; preview metadata + bounded text stay proto-typed over Connect. Bytes never travel through Connect. |
 
 **Regression guard**: [CODE: ui/src/api/__tests__/no-rest-exceptions.test.ts]
 greps `ui/src/api/*.ts` for the literal token `fetch(` and fails if it
-appears outside `health.ts` and `uploads.ts`.
+appears outside `health.ts` and `uploads.ts`. `filePreview.ts` does not
+trip it: the blob bytes are loaded by native element `src`/`href`
+attributes, not a `fetch(` call, so the file-preview REST surface adds no
+`fetch(` to the API layer.
 
 ### 5. Integration / Infrastructure
 **Owner**: [CODE: api/main.go], [CODE: ui/src/lib/api.ts]
@@ -293,6 +297,28 @@ Replaces the pre-Phase-3 `stripANSI` helper that lived in `package main`.
 | `Server.handleEventStream(w, r)` | SSE handler; honors `Last-Event-ID` header / `?last_event_id=` query (header wins); emits `conversation_out_of_sync` on gap so the client backfills via `GET /conversation?since_sequence=N` |
 
 **Knobs (package vars/consts for tests)**: `hubRingSize` (replay buffer depth, default 1024), `hubSubscriberBuffer` (per-subscriber channel, default 256), `hubHeartbeatInterval` (SSE keepalive comment cadence, default 15s).
+
+### File Preview Resolver + Preview-ID Store Seam (API)
+**File**: `api/internal/filepreview/` (resolver, classification, store), `api/file_preview_handlers.go` (adapter + blob route)
+**Purpose**: Keep path resolution, MIME/kind classification, and the opaque preview-id store transport-neutral and independently unit-testable, and keep the blob route from ever becoming an arbitrary local file server.
+
+| Component | Surface |
+|-----------|---------|
+| `filepreview.Resolver` | `Resolve(sessionCwd, cwdErr, rawPath) (*Target, error)` — pure: probes absolute → session_cwd → project_root, classifies by extension + content sniff, downgrades oversize text. `ReadText(*Target)` re-validates UTF-8 + size cap. No session/Connect/mux deps. |
+| `filepreview.Store` | `Issue(sessionID, *Target) (id, expiry)` / `Lookup(sessionID, id)` — in-memory, session-bound, expiring (`DefaultTTL` 30m). All miss modes collapse to `ErrPreviewNotFound`. `now`/`rand` are injectable for tests. |
+| Blob handler | `Server.handleFilePreviewBlob` — accepts only a preview id (never a raw path), re-stats the file (409 on size/mtime drift, 404 on delete), sets `Content-Type`/`no-store`/`nosniff`/`Content-Disposition`, then `http.ServeContent` for Range/HEAD/206/416. |
+
+**Invariants**: directory traversal is impossible because resolution happens before id issuance; the blob route binds id↔session; a swapped file is never served under a stale id.
+
+### File Preview Renderer Registry Seam (UI)
+**File**: `ui/src/components/file-preview/` (controller, renderers, registry)
+**Purpose**: Keep `MessagesFileViewer` a thin shell — a normalized `PreviewModel` state machine feeding a kind-keyed renderer table — so new preview kinds are additive, not new special-cases.
+
+| Component | Surface |
+|-----------|---------|
+| `useFilePreviewController(sessionId)` | Owns the `idle → resolving → loadingText → ready \| unsupported \| error` state machine; request-id guarded; the only seam surfaces (MessagesPane, future) call to open a path. |
+| `renderers` registry (`renderers/index.ts`) | `Record<PreviewKind, PreviewRenderer>` — one component per kind; `rendererForKind` falls back to the unsupported renderer. |
+| `previewBlobHref` / `format.ts` | Pure helpers (blob URL join, `formatBytes`, `parseDelimited` CSV/TSV parser) split out for fast-refresh + unit tests. |
 
 ### API↔CLI Parity Seam (CLI)
 **File**: `cli/parity_test.go`

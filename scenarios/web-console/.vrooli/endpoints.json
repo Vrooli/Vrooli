@@ -451,86 +451,6 @@
       ]
     },
     {
-      "id": "conversation_file_resolve",
-      "path": "/vrooli.web_console.v1.conversation.ConversationService/ResolveFileReference",
-      "method": "POST",
-      "summary": "Resolve a file reference for a session",
-      "description": "Translates a path string (with optional :line suffix or file:// scheme) into an absolute path that lives under an allowed root.",
-      "category": "conversation",
-      "response": {
-        "type": "object",
-        "properties": {
-          "can_preview": "bool",
-          "category": "string",
-          "exists": "bool",
-          "has_line": "bool",
-          "input_path": "string",
-          "line": "int32",
-          "resolution_basis": "string",
-          "resolved_path": "string"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing or malformed path"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Path resolved outside allowed roots"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "Session or file not found"
-        }
-      ]
-    },
-    {
-      "id": "conversation_file_content",
-      "path": "/vrooli.web_console.v1.conversation.ConversationService/GetFileReferenceContent",
-      "method": "POST",
-      "summary": "Read a previewable file referenced by a session",
-      "description": "Returns up to 256 KiB of UTF-8 text content for a path that resolved under an allowed root.",
-      "category": "conversation",
-      "response": {
-        "type": "object",
-        "properties": {
-          "category": "string",
-          "content": "string",
-          "content_type": "string",
-          "has_line": "bool",
-          "line": "int32",
-          "path": "string",
-          "truncated": "bool"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing path"
-        },
-        {
-          "status": 403,
-          "code": "permission_denied",
-          "description": "Path resolved outside allowed roots"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "Session or file not found"
-        },
-        {
-          "status": 412,
-          "code": "failed_precondition",
-          "description": "File type not previewable or too large"
-        }
-      ]
-    },
-    {
       "id": "events_list",
       "path": "/vrooli.web_console.v1.events.EventsService/List",
       "method": "POST",
@@ -543,6 +463,116 @@
           "events": "Event[]",
           "total": "int32"
         }
+      }
+    },
+    {
+      "id": "file_preview_resolve",
+      "path": "/vrooli.web_console.v1.file_preview.FilePreviewService/Resolve",
+      "method": "POST",
+      "summary": "Resolve a path into a preview target",
+      "description": "Translates a path string (with optional :line suffix or file:// scheme) into rich preview metadata: canonical path, classification, capability flags, and an opaque short-lived preview id the blob route serves bytes against.",
+      "category": "file_preview",
+      "response": {
+        "type": "object",
+        "properties": {
+          "blob_url": "string",
+          "can_download": "bool",
+          "can_preview": "bool",
+          "mime_type": "string",
+          "preview_id": "string",
+          "preview_kind": "PreviewKind",
+          "resolved_path": "string",
+          "size_bytes": "int64",
+          "supports_range": "bool",
+          "text_content_available": "bool",
+          "warnings": "[]string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing or malformed path"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Referenced file is not readable"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Session or file not found"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Referenced path is a directory or otherwise not previewable"
+        }
+      ]
+    },
+    {
+      "id": "file_preview_text",
+      "path": "/vrooli.web_console.v1.file_preview.FilePreviewService/GetTextContent",
+      "method": "POST",
+      "summary": "Read bounded text content for a preview id",
+      "description": "Returns up to 1 MiB of UTF-8 text for a text-kind preview (markdown/code/text/csv/diff). Media and images stream from the blob route instead.",
+      "category": "file_preview",
+      "response": {
+        "type": "object",
+        "properties": {
+          "content": "string",
+          "mime_type": "string",
+          "preview_kind": "PreviewKind",
+          "resolved_path": "string",
+          "truncated": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing session_id or preview_id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown/expired preview id or missing file"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Preview kind has no inline text content"
+        }
+      ]
+    },
+    {
+      "id": "file_preview_blob",
+      "path": "/api/v1/sessions/{id}/file-previews/{previewId}/blob",
+      "method": "GET",
+      "summary": "Stream the bytes of a resolved preview",
+      "description": "Serves the file bytes for an opaque, session-bound preview id with HTTP Range support (206/Content-Range/Accept-Ranges, 416 on bad range) and HEAD. Content-Type comes from the resolved metadata; no-store + nosniff. Re-stats the file and returns 409 if it changed since resolve. Consumed directly by native <img>/<video>/<audio>/<iframe>.",
+      "category": "file_preview",
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown/expired preview id or session mismatch"
+        },
+        {
+          "status": 409,
+          "code": "conflict",
+          "description": "File changed since the preview was resolved; reopen to refresh"
+        },
+        {
+          "status": 416,
+          "code": "range_not_satisfiable",
+          "description": "Requested byte range is invalid"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Byte-range blob stream consumed by native browser media elements without a generated client — the same browser-native-transport category as terminal_ws. Connect's wire format cannot express opaque byte streaming with Range. The opaque preview id (never a raw path) is issued by FilePreviewService.Resolve and bound to the session."
       }
     },
     {
