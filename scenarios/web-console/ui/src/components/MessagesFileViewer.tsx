@@ -149,6 +149,8 @@ export default function MessagesFileViewer({
               <div className="h-full overflow-auto px-4 py-4">
                 <MarkdownRenderer content={content.content} className="text-sm" />
               </div>
+            ) : content.category === "image" ? (
+              <SvgImagePreview content={content.content} path={displayPath} />
             ) : (
               <CodeLinePreview
                 content={content.content}
@@ -159,6 +161,30 @@ export default function MessagesFileViewer({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function SvgImagePreview({
+  content,
+  path,
+}: {
+  content: string;
+  path: string;
+}) {
+  const basename = path.split(/[\\/]/).pop() || path;
+  const src = useMemo(
+    () => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(content)}`,
+    [content],
+  );
+
+  return (
+    <div className="flex h-full items-center justify-center overflow-auto bg-[linear-gradient(45deg,var(--wc-surface-base)_25%,transparent_25%,transparent_75%,var(--wc-surface-base)_75%),linear-gradient(45deg,var(--wc-surface-base)_25%,transparent_25%,transparent_75%,var(--wc-surface-base)_75%)] bg-[length:24px_24px] bg-[position:0_0,12px_12px] p-6">
+      <img
+        src={src}
+        alt={basename}
+        className="max-h-full max-w-full rounded-lg border border-wc-default bg-white/95 object-contain p-4 shadow-lg"
+      />
     </div>
   );
 }

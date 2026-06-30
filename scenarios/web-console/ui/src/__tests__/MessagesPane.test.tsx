@@ -306,6 +306,34 @@ describe("MessagesPane", () => {
     expect(mockGetFileReferenceContent).toHaveBeenCalledWith("sess-1", "/tmp/example.ts:12");
   });
 
+  it("renders SVG file references as image previews", async () => {
+    mockResolveFileReference.mockResolvedValueOnce({
+      input_path: "/tmp/logo.svg",
+      resolved_path: "/tmp/logo.svg",
+      exists: true,
+      resolution_basis: "absolute_allowed",
+      category: "image",
+      can_preview: true,
+    });
+    mockGetFileReferenceContent.mockResolvedValueOnce({
+      path: "/tmp/logo.svg",
+      category: "image",
+      content_type: "image/svg+xml; charset=utf-8",
+      content: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>',
+      truncated: false,
+    });
+
+    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "[logo](/tmp/logo.svg)" })]);
+    render(<MessagesPane {...defaultProps} />);
+
+    fireEvent.click(screen.getByTestId("mock-markdown-link"));
+
+    await waitFor(() => {
+      expect(screen.getByRole("img", { name: "logo.svg" })).toBeInTheDocument();
+    });
+    expect(screen.getByText("/tmp/logo.svg")).toBeInTheDocument();
+  });
+
   it("shows a viewer error when file resolution fails", async () => {
     mockResolveFileReference.mockRejectedValueOnce(new Error("Referenced file was not found"));
 

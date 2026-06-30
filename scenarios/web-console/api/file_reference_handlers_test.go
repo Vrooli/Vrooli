@@ -313,3 +313,44 @@ func TestConnect_GetFileReferenceContent_ReturnsContent(t *testing.T) {
 		t.Fatalf("expected code category, got %q", resp.Msg.GetCategory())
 	}
 }
+
+func TestConnect_GetFileReferenceContent_ReturnsSVGImagePreview(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("WC_DEFAULT_CWD", root)
+	filePath := filepath.Join(root, "assets", "logo.svg")
+	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	content := `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>`
+	if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	srv := newFakeTestServer()
+	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+
+	resolveResp := resolveFileRef(t, srv, sess.ID, "assets/logo.svg")
+	if resolveResp.GetCategory() != "image" || !resolveResp.GetCanPreview() {
+		t.Fatalf("expected previewable image category, got category=%q preview=%v", resolveResp.GetCategory(), resolveResp.GetCanPreview())
+	}
+
+	resp, err := newConversationConnectHandlerForServer(srv).GetFileReferenceContent(
+		context.Background(),
+		connect.NewRequest(&conversationv1.GetFileReferenceContentRequest{SessionId: sess.ID, Path: "assets/logo.svg"}),
+	)
+	if err != nil {
+		t.Fatalf("GetFileReferenceContent: %v", err)
+	}
+	if resp.Msg.GetContent() != content {
+		t.Fatalf("expected content %q, got %q", content, resp.Msg.GetContent())
+	}
+	if resp.Msg.GetCategory() != "image" {
+		t.Fatalf("expected image category, got %q", resp.Msg.GetCategory())
+	}
+	if resp.Msg.GetContentType() != "image/svg+xml; charset=utf-8" {
+		t.Fatalf("expected SVG content type, got %q", resp.Msg.GetContentType())
+	}
+}

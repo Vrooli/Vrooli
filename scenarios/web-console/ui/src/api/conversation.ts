@@ -46,14 +46,14 @@ export interface FileReferenceResolveResponse {
   line?: number;
   exists: boolean;
   resolution_basis: "session_cwd" | "project_root" | "absolute_allowed" | "session_upload";
-  category: "markdown" | "code" | "text" | "binary";
+  category: "markdown" | "code" | "text" | "image" | "binary";
   can_preview: boolean;
 }
 
 export interface FileReferenceContentResponse {
   path: string;
   line?: number;
-  category: "markdown" | "code" | "text" | "binary";
+  category: "markdown" | "code" | "text" | "image" | "binary";
   content_type: string;
   content: string;
   truncated: boolean;

@@ -241,7 +241,9 @@ func classifyFileReference(path string, sizeBytes int64) (category string, canPr
 	switch ext {
 	case ".md", ".mdx", ".markdown":
 		return "markdown", true
-	case ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".bmp", ".tiff", ".pdf":
+	case ".svg":
+		return "image", true
+	case ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".bmp", ".tiff", ".pdf":
 		return "binary", false
 	case ".go", ".ts", ".tsx", ".js", ".jsx", ".json", ".yml", ".yaml", ".sh", ".bash", ".zsh", ".sql", ".css", ".html", ".txt", ".proto", ".toml", ".ini", ".env":
 		return "code", true
@@ -264,6 +266,8 @@ func fileReferenceContentType(category string) string {
 	switch category {
 	case "markdown":
 		return "text/markdown; charset=utf-8"
+	case "image":
+		return "image/svg+xml; charset=utf-8"
 	default:
 		return "text/plain; charset=utf-8"
 	}
