@@ -298,7 +298,6 @@
     }
   },
   "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/image-tools.db",
-    "OPENROUTER_API_KEY": "${OPENROUTER_API_KEY}"
+    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/image-tools.db"
   }
 }

@@ -2,6 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { apiBaseMock } from "../../test-utils";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
+import {
+  _resetMicOwnershipForTesting,
+  getActiveMicLeases,
+  registerMicStream,
+} from "../../audio-integration";
 
 vi.mock("@vrooli/api-base", () => apiBaseMock());
 
@@ -335,5 +340,113 @@ describe("WebSpeechProvider deduplication (via hook)", () => {
     });
     expect(onTranscript).toHaveBeenCalledTimes(2);
     expect(onTranscript).toHaveBeenLastCalledWith("world");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Capture lifecycle ownership (mic-lease honesty + self-healing)
+// ---------------------------------------------------------------------------
+
+/** SpeechRecognition stub that can fire onerror, for the error-path test. */
+function installErrorableSpeechRecognition() {
+  type SR = {
+    onresult: ((e: unknown) => void) | null;
+    onerror: ((e: unknown) => void) | null;
+    onend: (() => void) | null;
+    continuous: boolean;
+    interimResults: boolean;
+    lang: string;
+    start(): void;
+    stop(): void;
+    abort(): void;
+    addEventListener(): void;
+    removeEventListener(): void;
+    dispatchEvent(): boolean;
+  };
+  let instance: SR | null = null;
+  window.SpeechRecognition = class {
+    onresult: ((e: unknown) => void) | null = null;
+    onerror: ((e: unknown) => void) | null = null;
+    onend: (() => void) | null = null;
+    continuous = false;
+    interimResults = false;
+    lang = "";
+    start() { instance = this as unknown as SR; }
+    stop() {}
+    abort() {}
+    addEventListener() {}
+    removeEventListener() {}
+    dispatchEvent() { return false; }
+  } as unknown as typeof window.SpeechRecognition;
+  return { fireError: (error: string) => instance?.onerror?.({ error, message: error }) };
+}
+
+describe("voice capture lifecycle ownership", () => {
+  let originalFetch: typeof globalThis.fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    vi.clearAllMocks();
+    removeSpeechRecognition();
+    _resetMicOwnershipForTesting();
+    useWorkspaceStore.setState({ voiceEnabled: true });
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    _resetMicOwnershipForTesting();
+  });
+
+  it("a provider error while recording releases the mic lease and returns the UI to idle", async () => {
+    mockCapabilities(false); // web-speech backend (testable without MediaRecorder/WS)
+    mockMediaDevices(true);
+    const ctrl = installErrorableSpeechRecognition();
+
+    const onTranscript = vi.fn();
+    const { useVoiceInput } = await import("../useVoiceInput");
+    const { result } = renderHook(() => useVoiceInput(onTranscript));
+
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    expect(result.current.backend).toBe("web-speech");
+
+    await act(async () => { await result.current.startRecording(); });
+    // The provider acquired a registry mic lease for capture.
+    expect(getActiveMicLeases().length).toBeGreaterThan(0);
+
+    await act(async () => { ctrl.fireError("network"); });
+
+    // Idle UI AND no live mic lease — the error path disposed the provider.
+    expect(result.current.voiceState).toBe("idle");
+    expect(getActiveMicLeases()).toHaveLength(0);
+  });
+
+  it("self-heals an orphaned live mic lease while the UI is idle (registry-vs-UI mismatch)", async () => {
+    mockCapabilities(true); // whisper backend; idle, not recording
+    mockMediaDevices(true);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const onTranscript = vi.fn();
+    const { useVoiceInput } = await import("../useVoiceInput");
+    const { result } = renderHook(() => useVoiceInput(onTranscript));
+
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    expect(result.current.voiceState).toBe("idle");
+
+    // Inject the bug: a live active-recording lease appears while the UI is idle.
+    await act(async () => {
+      registerMicStream("voice-stream", {
+        getTracks: () => [{ readyState: "live", muted: false, kind: "audio", stop: vi.fn(), addEventListener() {}, removeEventListener() {} }],
+      } as unknown as MediaStream);
+    });
+
+    // The registry subscription detected and self-healed the orphan.
+    expect(getActiveMicLeases()).toHaveLength(0);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("INVARIANT VIOLATION"),
+      expect.anything(),
+      expect.anything(),
+    );
+
+    warn.mockRestore();
   });
 });

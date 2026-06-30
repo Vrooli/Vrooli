@@ -34,7 +34,10 @@ import { buildVoiceActivitySnapshot, IDLE_VOICE_ACTIVITY, voiceActivitySnapshots
 import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, vadTick, VAD_FLOOR_CACHE_MAX_AGE_MS } from "../index";
 import { getSharedAudioContext, ensureAudioContextOnGesture, ensureRunningSharedAudioContext } from "../index";
 import { acquireStream as acquireMicStream, releaseStream as releaseMicStream, getStream as getMicStream, isStreamAlive as isMicStreamAlive } from "../index";
-import { installMicLifecycleCleanup } from "../index";
+import { installMicLifecycleCleanup, subscribeMicLeases, getActiveMicLeases } from "../index";
+import { VoiceCaptureController } from "../index";
+import { decideMicLifecycle, isStandaloneDisplayMode, selectStaleLeases } from "../index";
+import type { LifecycleReleaseScope, MicReleaseReason, MicLeaseSnapshot } from "../index";
 import { VoiceStreamProvider } from "../index";
 import { setServerVadState, resetServerVadState, useServerVadStateStore, SERVER_VAD_STALE_MS } from "./useServerVadStateStore";
 import { decideAutoStop } from "./voice/autoStopDecision";
@@ -75,6 +78,7 @@ const INITIAL_STATE: VoiceInputState = {
   speakerProfileConfigured: false,
   wakeWordConfigured: false,
   passiveListeningActive: false,
+  staleLiveMicLease: false,
 };
 
 /**
@@ -175,6 +179,24 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   const isActive = isRecording || isListening;
 
   const providerRef = useRef<TranscriptionProvider | null>(null);
+  // Mirror of the workflow state for non-React callbacks (the registry lease
+  // subscription) that must read the latest value without re-subscribing.
+  const voiceStateRef = useRef<VoiceInputState["voiceState"]>(state.voiceState);
+  voiceStateRef.current = state.voiceState;
+  // Hook-local capture teardown, wired after stopLevelMonitor is defined. The
+  // controller calls this on every provider shutdown so capture machinery and
+  // workflow ownership always tear down together. Idempotent.
+  const captureTeardownRef = useRef<(reason: MicReleaseReason) => void>(() => {});
+  // Single authority for provider replacement / disposal / shutdown / stale-lease
+  // recovery + the start-cancellation generation token. Wraps providerRef so
+  // reads stay `providerRef.current`; only sanctioned mutations go through it.
+  const captureControllerRef = useRef<VoiceCaptureController | null>(null);
+  if (!captureControllerRef.current) {
+    captureControllerRef.current = new VoiceCaptureController(providerRef, {
+      onCaptureTeardown: (reason) => captureTeardownRef.current(reason),
+    });
+  }
+  const controller = captureControllerRef.current;
   const onTranscriptRef = useRef(onTranscript);
   onTranscriptRef.current = onTranscript;
   const backendRef = useRef<VoiceBackend>(state.backend);
@@ -603,6 +625,18 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       : { ...s, audioLevel: 0, voiceActivity: IDLE_VOICE_ACTIVITY }));
   }, []);
 
+  // Capture-machinery teardown invoked by the controller after every provider
+  // shutdown. Resets timers, VAD, the level monitor, and the cue-session guard
+  // (without playing a stop cue — shutdown is not a user-initiated stop). Pure
+  // machinery reset: callers set `voiceState` to the appropriate value. Idempotent.
+  captureTeardownRef.current = (_reason: MicReleaseReason) => {
+    if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
+    vadActiveRef.current = false;
+    vadRef.current.state = "idle";
+    cueSessionActiveRef.current = false;
+    stopLevelMonitor();
+  };
+
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const capCheckFailCountRef = useRef(0);
   /**
@@ -769,9 +803,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           // the mic button, eliminating 10-100ms of connection latency.
           // DOC: docs/internal/VOICE-LATENCY.md#websocket-pre-connection
           if (streamingAvailableRef.current) {
-            if (!providerRef.current) {
-              providerRef.current = new VoiceStreamProvider();
-            }
+            controller.ensure(() => new VoiceStreamProvider());
             if (providerRef.current instanceof VoiceStreamProvider) {
               const currentLanguage = voiceLanguageRef.current;
               const lang = currentLanguage === "auto" ? "" : (currentLanguage.split("-")[0] ?? "en");
@@ -811,12 +843,11 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     return () => {
       cancelled = true;
       if (bgRefreshInterval) clearInterval(bgRefreshInterval);
-      // Clear the cue session guard WITHOUT playing the stop cue. Unmount is
-      // not a user-initiated recording stop — it's a lifecycle event. Playing
-      // a cue here would be confusing (e.g., closing a tab shouldn't chime).
-      cueSessionActiveRef.current = false;
-      providerRef.current?.dispose();
-      providerRef.current = null;
+      // Single-authority shutdown: disposes the provider (releasing its mic
+      // lease), cancels any in-flight start, and runs capture teardown (clears
+      // the cue-session guard WITHOUT playing a stop cue — unmount is a
+      // lifecycle event, not a user-initiated stop, so a chime would mislead).
+      controller.shutdown("unmount");
       // Do NOT close the shared AudioContext here — it is app-lifetime and
       // managed by sharedAudioContext.ts. Individual audio nodes are disconnected
       // by stopLevelMonitor() which is called before unmount.
@@ -838,6 +869,11 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     if (state.voiceState !== "idle" || startingRef.current) return;
     startingRef.current = true;
     stopRequestedRef.current = false;
+    // Generation token for this start. A lifecycle shutdown (tab hidden, unmount)
+    // calls controller.cancelStarts(), invalidating the token; when the async
+    // start resolves we compare and release any late-acquired lease instead of
+    // entering the recording state. DOC: plan Phase 6 — preparing/start cancel.
+    const startToken = controller.beginStart();
     sessionCountRef.current++;
     // New turn: no text delivered yet. Drives the silent-loss guard in onResult.
     turnDeliveredTextRef.current = false;
@@ -906,8 +942,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           if (capCheckFailCountRef.current >= CAP_CHECK_FAIL_THRESHOLD && backendRef.current === "whisper") {
             const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
             if (Ctor) {
-              providerRef.current?.dispose();
-              providerRef.current = null;
+              controller.shutdown("owner-replaced");
               setState((s) => ({
                 ...s,
                 backend: "web-speech",
@@ -923,22 +958,23 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           capCheckFailCountRef.current = 0;
           streamingAvailableRef.current = probe.streamingAvailable ?? true;
           if (backendRef.current === "web-speech") {
-            providerRef.current?.dispose();
-            providerRef.current = null;
+            controller.shutdown("owner-replaced");
             setState((s) => ({ ...s, backend: "whisper", fallbackNotice: null }));
           }
         }
       }).catch(() => {});
 
-      // Lazily create provider on first use (backendRef reflects any fallback changes)
+      // Lazily create provider on first use (backendRef reflects any fallback
+      // changes). All assignment goes through the controller — never a direct
+      // `providerRef.current = …` — so a stray provider can never be orphaned.
       if (!providerRef.current) {
         if (backendRef.current === "whisper") {
-          providerRef.current = streamingAvailableRef.current
+          controller.set(streamingAvailableRef.current
             ? new VoiceStreamProvider()
-            : new WhisperProvider();
+            : new WhisperProvider());
           console.info("[voice] Provider:", streamingAvailableRef.current ? "VoiceStream" : "WhisperHTTP");
         } else if (backendRef.current === "web-speech") {
-          providerRef.current = new WebSpeechProvider();
+          controller.set(new WebSpeechProvider());
           console.info("[voice] Provider: WebSpeech");
         } else {
           setState((s) => ({ ...s, voiceState: "idle" }));
@@ -946,8 +982,14 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         }
       }
 
-      // Set language from opts
+      // Set language from opts. Provider assignment flows through the controller
+      // (an opaque function call), so re-assert non-null here for the type system
+      // and as a defensive guard against the unreachable backend === "none" path.
       const provider = providerRef.current;
+      if (!provider) {
+        setState((s) => s.voiceState === "preparing" ? { ...s, voiceState: "idle" } : s);
+        return;
+      }
       const langCode = voiceLanguage === "auto" ? "" : (voiceLanguage.split("-")[0] ?? "en");
       if ("language" in provider) provider.language = langCode;
       if ("lang" in provider) {
@@ -1081,11 +1123,14 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         // with whatever audio was retained.
         surfacePendingRejection();
 
-        // Whisper failed after retry -- try falling back to Web Speech
+        // Whisper failed after retry -- try falling back to Web Speech.
+        // Replace ATOMICALLY through the controller so the failed
+        // VoiceStreamProvider is disposed (its mic lease released) BEFORE the
+        // WebSpeechProvider is installed — the leak this plan closes.
         if (error === WHISPER_FAILED_SENTINEL) {
           const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
           if (Ctor) {
-            providerRef.current = new WebSpeechProvider();
+            controller.replace(new WebSpeechProvider(), "provider-error");
             setState((s) => ({
               ...s,
               voiceState: "idle",
@@ -1101,6 +1146,10 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
             }, 5000);
             return;
           }
+          // No fallback available — dispose the failed provider (releasing its
+          // mic lease) before going idle. Bug class #1: an error path must never
+          // leave the UI idle while the provider still owns a live mic track.
+          controller.shutdown("provider-error");
           setState((s) => ({
             ...s,
             voiceState: "idle",
@@ -1111,6 +1160,9 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           return;
         }
 
+        // Generic error terminal path: dispose the errored provider (releasing
+        // its mic lease) before returning the UI to idle.
+        controller.shutdown("provider-error");
         setState((s) => ({ ...s, voiceState: "idle", error, audioLevel: 0, voiceActivity: IDLE_VOICE_ACTIVITY }));
       };
       if (provider.onPartial !== undefined) {
@@ -1139,6 +1191,19 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       const providerStartTime = Date.now();
       await provider.start(preWarmedStream);
       console.info("[voice] Provider.start() took %dms (includes getUserMedia)", Date.now() - providerStartTime);
+
+      // ── Late-resolve cancellation (Phase 6) ──
+      // A lifecycle shutdown (tab hidden / unmount) may have fired while we were
+      // awaiting start(). getUserMedia can have already returned a live lease, so
+      // simply not entering the recording state would leak the mic. Compare the
+      // generation token; if stale, shut the provider down (which releases the
+      // just-acquired lease) and bail before showing any capture UI.
+      if (!controller.isCurrentStart(startToken)) {
+        console.info("[voice] S%d start resolved stale (cancelled during preparing) — releasing mic", sessionCountRef.current);
+        controller.shutdown("hidden");
+        setState((s) => s.voiceState === "preparing" ? { ...s, voiceState: "idle" } : s);
+        return;
+      }
 
       // If start() failed (e.g. permission denied), onError already set state.
       // Check if the mic stream was acquired before entering recording state.
@@ -1236,8 +1301,9 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
             partialTranscript: "",
             segments: [],
           }));
-          provider.dispose();
-          providerRef.current = null;
+          // Single-authority shutdown: disposes the provider (releasing its mic
+          // lease) and runs capture teardown. The stop cue already played above.
+          controller.shutdown("manual-stop");
           return;
         }
       } else {
@@ -1341,8 +1407,9 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       provider.onSegmentRejected = null;
       provider.onSpeakerStatus = null;
     }
-    provider.dispose();
-    providerRef.current = null;
+    // Single-authority shutdown disposes the provider (releasing its mic lease)
+    // and runs capture teardown. Callbacks were nulled above so dispose is silent.
+    controller.shutdown("manual-stop");
 
     if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
     vadActiveRef.current = false;
@@ -1647,12 +1714,23 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   //     explicitly (a lease release does not re-run React effects).
   useEffect(() => {
     if (!voiceEnabled) return;
-    const uninstallBackstop = installMicLifecycleCleanup();
+    // Platform-aware backstop: a standalone/PWA releases ALL leases on hidden
+    // (iOS keeps the OS mic indicator on otherwise); a desktop tab releases only
+    // non-active leases and lets the controller stop the active recording. The
+    // resolver is read on every event so display-mode can change at runtime.
+    const resolveScope = (event: "hidden" | "pagehide" | "freeze"): LifecycleReleaseScope =>
+      decideMicLifecycle({ event, standalonePwa: isStandaloneDisplayMode() }).release === "all"
+        ? "all"
+        : "non-active";
+    const uninstallBackstop = installMicLifecycleCleanup(resolveScope);
 
     const onVisibility = () => {
       const hidden = typeof document !== "undefined" && document.visibilityState === "hidden";
       documentHiddenRef.current = hidden;
       if (hidden) {
+        // Abort any in-flight start so a getUserMedia that resolves after we go
+        // hidden releases its lease instead of entering recording (Phase 6).
+        controller.cancelStarts();
         if (isActiveRef.current) {
           console.info("[voice] Visibility: hidden during active recording — stopping (privacy)");
           stopRecordingRef.current?.({ reason: "auto" });
@@ -1680,6 +1758,70 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     };
   }, [voiceEnabled]);
 
+  // ── Registry-driven UI honesty + stale-lease self-healing (Phase 4) ──
+  // DOC: docs/internal/INVARIANTS.md#voice-input-ui-invariants
+  //
+  // Hardware truth is the mic ownership registry, not `voiceState`. Subscribe to
+  // lease acquire/release: if a live lease exists that the workflow should not
+  // be holding (UI idle/off but a provider/prewarm/passive stream is still live),
+  // flip the honest `staleLiveMicLease` flag AND self-heal by releasing it. The
+  // re-entrancy guard is required because recovery releases leases, which
+  // re-notifies this same listener synchronously.
+  useEffect(() => {
+    if (!voiceEnabled) return;
+    const recovery = { inProgress: false };
+    const evaluate = (snapshots: MicLeaseSnapshot[]) => {
+      // `voiceStateRef` is render-driven and lags a synchronous `setState`. While
+      // a start is in flight, getUserMedia can return a recording lease before
+      // the "preparing" render commits — treat an in-flight start as "preparing"
+      // so a legitimate fresh lease is never mistaken for an orphan and recovered.
+      const effectiveState = startingRef.current ? "preparing" : voiceStateRef.current;
+      const staleInput = {
+        leases: snapshots.map((s) => ({ id: s.id, owner: s.owner })),
+        voiceState: effectiveState,
+        lowLatencyVoice: lowLatencyVoiceRef.current,
+        passiveListenerActive: !!passiveListenerRef.current,
+      };
+      const hasStale = selectStaleLeases(staleInput).length > 0;
+      setState((s) => (s.staleLiveMicLease === hasStale ? s : { ...s, staleLiveMicLease: hasStale }));
+      if (hasStale && !recovery.inProgress) {
+        recovery.inProgress = true;
+        try {
+          controller.recoverStaleLeases({
+            voiceState: effectiveState,
+            lowLatencyVoice: lowLatencyVoiceRef.current,
+            passiveListenerActive: !!passiveListenerRef.current,
+            reason: "invariant-violation",
+          });
+        } finally {
+          recovery.inProgress = false;
+        }
+      }
+    };
+    evaluate(getActiveMicLeases());
+    return subscribeMicLeases(evaluate);
+  }, [voiceEnabled]);
+
+  // User-triggered "release microphone" recovery (mic control affordance). Frees
+  // any orphaned lease and tears down active capture; safe to call anytime.
+  const releaseMicrophone = useCallback(() => {
+    controller.recoverStaleLeases({
+      voiceState: voiceStateRef.current,
+      lowLatencyVoice: lowLatencyVoiceRef.current,
+      passiveListenerActive: !!passiveListenerRef.current,
+      reason: "recovery",
+    });
+    controller.shutdown("recovery");
+    setState((s) => ({
+      ...s,
+      voiceState: "idle",
+      staleLiveMicLease: false,
+      audioLevel: 0,
+      voiceActivity: IDLE_VOICE_ACTIVITY,
+      partialTranscript: "",
+    }));
+  }, [controller]);
+
   return {
     ...state,
     // Derived booleans for UI components
@@ -1697,5 +1839,6 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     retryWithoutFilter,
     enterPassiveMode,
     exitPassiveMode,
+    releaseMicrophone,
   };
 }

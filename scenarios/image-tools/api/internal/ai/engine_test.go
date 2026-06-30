@@ -26,6 +26,7 @@ type fakeProvider struct {
 	name     string
 	ops      []string
 	out      []byte
+	meta     map[string]string
 	lastReq  backends.Request
 	execN    int
 	failWith error
@@ -50,7 +51,7 @@ func (p *fakeProvider) Execute(_ context.Context, req backends.Request) (backend
 	if err := os.WriteFile(req.Output.LocalPath, out, 0o600); err != nil {
 		return backends.Result{}, err
 	}
-	return backends.Result{OutputRef: req.Output.LocalPath}, nil
+	return backends.Result{OutputRef: req.Output.LocalPath, Meta: p.meta}, nil
 }
 
 type failingProbe struct{ err error }
@@ -130,6 +131,35 @@ func storeInput(t *testing.T, store *storage.Store, key string, data []byte) {
 	t.Helper()
 	if err := store.Put(context.Background(), key, bytes.NewReader(data), "image/png"); err != nil {
 		t.Fatalf("store input: %v", err)
+	}
+}
+
+func TestRunJob_PersistsProviderMediaType(t *testing.T) {
+	fp := &fakeProvider{
+		out:  []byte(`<svg xmlns="http://www.w3.org/2000/svg"></svg>`),
+		meta: map[string]string{"media_type": "image/svg+xml"},
+	}
+	eng, store, modelID := newTestEngine(t, "text_to_image", fp)
+
+	ref, err := runJob(t, eng, "text_to_image", Payload{
+		Operation: "text_to_image",
+		ModelID:   modelID,
+		GPU:       true,
+		Params:    map[string]string{"prompt": "logo"},
+	})
+	if err != nil {
+		t.Fatalf("runJob: %v", err)
+	}
+	if !strings.HasSuffix(ref, ".svg") {
+		t.Fatalf("result ref = %q, want .svg", ref)
+	}
+	rc, mime, err := store.Get(context.Background(), ref)
+	if err != nil {
+		t.Fatalf("get stored output: %v", err)
+	}
+	defer func() { _ = rc.Close() }()
+	if mime != "image/svg+xml" {
+		t.Fatalf("mime = %q, want image/svg+xml", mime)
 	}
 }
 

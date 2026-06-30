@@ -35,7 +35,8 @@
     "tapToSpeak": "タップして話す",
     "tapToSpeakWithBackend": "タップして話す ({{backend}})",
     "backendWhisper": "Whisper",
-    "backendBrowser": "ブラウザ"
+    "backendBrowser": "ブラウザ",
+    "recoverMic": "マイクがまだ作動中です — タップして解放"
   },
   "messagesFileViewer": {
     "filePreviewFallback": "ファイルプレビュー",
@@ -69,6 +70,27 @@
     "videoPreview": "動画プレビュー",
     "pdfPreview": "PDF プレビュー",
     "imagePreview": "画像プレビュー"
+  },
+  "mermaid": {
+    "emptyDiagram": "空の図",
+    "openFullscreen": "全画面で開く",
+    "expand": "拡大",
+    "showDiagram": "図を表示",
+    "showSource": "ソースを表示",
+    "diagram": "図",
+    "source": "ソース",
+    "copy": "コピー",
+    "copied": "コピーしました",
+    "copySource": "ソースをコピー",
+    "viewerTitle": "Mermaid 図",
+    "closeViewer": "図ビューアを閉じる",
+    "badgeMessageDiagram": "メッセージ図",
+    "zoomIn": "拡大",
+    "zoomOut": "縮小",
+    "fitToScreen": "画面に合わせる",
+    "resetZoom": "ズームをリセット",
+    "rendering": "図を描画しています…",
+    "renderError": "図を描画できませんでした"
   },
   "audioPlayerBar": {
     "resume": "再開",

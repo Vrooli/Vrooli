@@ -35,7 +35,8 @@
     "tapToSpeak": "Tap to speak",
     "tapToSpeakWithBackend": "Tap to speak ({{backend}})",
     "backendWhisper": "Whisper",
-    "backendBrowser": "Browser"
+    "backendBrowser": "Browser",
+    "recoverMic": "Microphone still active — tap to release"
   },
   "messagesFileViewer": {
     "filePreviewFallback": "File preview",
@@ -69,6 +70,27 @@
     "videoPreview": "Video preview",
     "pdfPreview": "PDF preview",
     "imagePreview": "Image preview"
+  },
+  "mermaid": {
+    "emptyDiagram": "Empty diagram",
+    "openFullscreen": "Open full screen",
+    "expand": "Expand",
+    "showDiagram": "Show diagram",
+    "showSource": "Show source",
+    "diagram": "Diagram",
+    "source": "Source",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copySource": "Copy source",
+    "viewerTitle": "Mermaid diagram",
+    "closeViewer": "Close diagram viewer",
+    "badgeMessageDiagram": "message diagram",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "fitToScreen": "Fit to screen",
+    "resetZoom": "Reset zoom",
+    "rendering": "Rendering diagram…",
+    "renderError": "Couldn't render diagram"
   },
   "audioPlayerBar": {
     "resume": "Resume",

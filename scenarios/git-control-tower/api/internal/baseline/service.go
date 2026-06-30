@@ -720,7 +720,31 @@ func (s *Service) StartDiff(ctx context.Context, req StartDiffRequest) (StartDif
 	if cur.Dirty {
 		out.DirtyWarning = fmt.Sprintf("working tree is dirty (%s) — failures may be caused by uncommitted changes rather than the diff itself", cur.DirtySummary)
 	}
+	if err := s.saveDiffIntent(ctx, out.Pending, "pending", ""); err != nil {
+		return StartDiffOutcome{}, err
+	}
 	return out, nil
+}
+
+func (s *Service) saveDiffIntent(_ context.Context, pending PendingDiff, status, errMsg string) error {
+	now := s.now().UTC()
+	intent := DiffIntent{
+		Status:     status,
+		Error:      errMsg,
+		RepoID:     pending.RepoID,
+		Scenario:   pending.Scenario,
+		Branch:     pending.Branch,
+		Name:       pending.Name,
+		Surface:    pending.Surface,
+		Manifest:   pending.Manifest,
+		CurrentGit: pending.CurrentGit,
+		Staleness:  pending.Staleness,
+		BaseRunID:  pending.BaseRunID,
+		CurRunID:   pending.CurRunID,
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}
+	return s.storage.SaveDiffIntent(pending.RepoID, intent)
 }
 
 // resolveCurrentRun decides the comprehensive run a diff compares against:
@@ -755,8 +779,10 @@ func (s *Service) FinalizeDiff(ctx context.Context, pending PendingDiff) (Cached
 	diff := s.computeDiff(ctx, pending.Manifest, pending.Surface, pending.CurrentGit, pending.Staleness, pending.BaseRunID, pending.CurRunID, awaitErr)
 	cd := CachedDiff{Status: "ready", Result: &diff, RunID: pending.CurRunID, ComputedAt: s.now().UTC()}
 	if err := s.storage.SaveDiffResult(pending.RepoID, pending.Scenario, pending.Branch, pending.Name, pending.CurRunID, cd); err != nil {
+		_ = s.saveDiffIntent(ctx, pending, "failed", err.Error())
 		return cd, err
 	}
+	_ = s.saveDiffIntent(ctx, pending, "ready", "")
 	return cd, nil
 }
 
@@ -769,6 +795,7 @@ type GetDiffResultRequest struct {
 	Name     string
 	RunID    string
 	Surface  string
+	Latest   bool
 	// Wait blocks SERVER-SIDE until the run is terminal before computing (no
 	// client polling). When false, an in-flight run returns status=in_progress.
 	Wait bool
@@ -780,6 +807,22 @@ type GetDiffResultRequest struct {
 // terminal but uncached (finalize lost to a crash) → recompute once on demand
 // and cache it. The returned CachedDiff.Status is one of in_progress | ready.
 func (s *Service) GetDiffResult(ctx context.Context, req GetDiffResultRequest) (CachedDiff, int, error) {
+	if req.RunID == "" && req.Latest {
+		intent, ok, err := s.storage.LatestDiffIntent(req.RepoID, req.Scenario, req.Branch, req.Name)
+		if err != nil {
+			return CachedDiff{}, 0, err
+		}
+		if !ok {
+			return CachedDiff{}, 0, fmt.Errorf("no diff run found for baseline %q (start one with `baseline diff --scenario %s --name %s`)", req.Name, req.Scenario, req.Name)
+		}
+		req.RunID = intent.CurRunID
+		if req.Surface == "" {
+			req.Surface = intent.Surface
+		}
+	}
+	if strings.TrimSpace(req.RunID) == "" {
+		return CachedDiff{}, 0, fmt.Errorf("run id is required")
+	}
 	cached, ok, err := s.storage.LoadDiffResult(req.RepoID, req.Scenario, req.Branch, req.Name, req.RunID)
 	if err != nil {
 		return CachedDiff{}, 0, err

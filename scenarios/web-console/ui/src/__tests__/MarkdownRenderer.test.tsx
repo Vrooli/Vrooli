@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MarkdownRenderer } from "../components/markdown";
 
 // Mock shiki and mermaid to avoid async loading in jsdom
@@ -151,6 +151,25 @@ describe("MarkdownRenderer", () => {
     const { container } = render(<MarkdownRenderer content="Hello world" />);
     const wrapper = container.querySelector("[data-search-query]");
     expect(wrapper).toBeNull();
+  });
+
+  it("renders a Mermaid full-screen control and forwards the exact source", () => {
+    const onMermaidOpen = vi.fn();
+    render(
+      <MarkdownRenderer
+        content={"```mermaid\ngraph TD; A-->B\n```"}
+        onMermaidOpen={onMermaidOpen}
+      />,
+    );
+    const openButton = screen.getByLabelText("mermaid.openFullscreen");
+    fireEvent.click(openButton);
+    expect(onMermaidOpen).toHaveBeenCalledTimes(1);
+    expect(onMermaidOpen.mock.calls[0]?.[0]).toContain("graph TD; A-->B");
+  });
+
+  it("omits the Mermaid full-screen control when no handler is provided", () => {
+    render(<MarkdownRenderer content={"```mermaid\ngraph TD; A-->B\n```"} />);
+    expect(screen.queryByLabelText("mermaid.openFullscreen")).toBeNull();
   });
 
   it("falls back to plain text on error via error boundary", () => {

@@ -35,7 +35,8 @@
     "tapToSpeak": "انقر للتحدث",
     "tapToSpeakWithBackend": "انقر للتحدث ({{backend}})",
     "backendWhisper": "Whisper",
-    "backendBrowser": "المتصفح"
+    "backendBrowser": "المتصفح",
+    "recoverMic": "الميكروفون لا يزال نشطًا — انقر للتحرير"
   },
   "messagesFileViewer": {
     "filePreviewFallback": "معاينة الملف",
@@ -69,6 +70,27 @@
     "videoPreview": "معاينة فيديو",
     "pdfPreview": "معاينة PDF",
     "imagePreview": "معاينة الصورة"
+  },
+  "mermaid": {
+    "emptyDiagram": "مخطط فارغ",
+    "openFullscreen": "فتح بملء الشاشة",
+    "expand": "توسيع",
+    "showDiagram": "عرض المخطط",
+    "showSource": "عرض المصدر",
+    "diagram": "مخطط",
+    "source": "المصدر",
+    "copy": "نسخ",
+    "copied": "تم النسخ",
+    "copySource": "نسخ المصدر",
+    "viewerTitle": "مخطط Mermaid",
+    "closeViewer": "إغلاق عارض المخطط",
+    "badgeMessageDiagram": "مخطط الرسالة",
+    "zoomIn": "تكبير",
+    "zoomOut": "تصغير",
+    "fitToScreen": "ملاءمة الشاشة",
+    "resetZoom": "إعادة ضبط التكبير",
+    "rendering": "جارٍ عرض المخطط…",
+    "renderError": "تعذّر عرض المخطط"
   },
   "audioPlayerBar": {
     "resume": "استئناف",

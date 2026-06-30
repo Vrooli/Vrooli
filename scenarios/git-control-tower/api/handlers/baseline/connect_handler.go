@@ -359,6 +359,7 @@ func (s *Server) finalizeDiffAsync(ctx context.Context, pending bl.PendingDiff) 
 // GetDiffResult returns the cached diff verdict for a (baseline, run), or its
 // in-flight status when the run is still executing.
 func (s *Server) GetDiffResult(ctx context.Context, req *connect.Request[baselinesv1.GetDiffResultRequest]) (*connect.Response[baselinesv1.GetDiffResultResponse], error) {
+	started := time.Now()
 	m := req.Msg
 	rid, repoDir, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
 	if err != nil {
@@ -367,15 +368,27 @@ func (s *Server) GetDiffResult(ctx context.Context, req *connect.Request[baselin
 	cd, nextCheck, err := s.svc.GetDiffResult(ctx, bl.GetDiffResultRequest{
 		RepoID: rid, RepoDir: repoDir, Scenario: m.GetScenario(),
 		Branch: branch, Name: m.GetName(), RunID: m.GetRunId(), Surface: m.GetSurface(),
-		Wait: m.GetWait(),
+		Wait: m.GetWait(), Latest: m.GetLatest(),
 	})
 	if err != nil {
+		s.logger.Printf("baselines.GetDiffResult: scenario=%s name=%s run=%s latest=%t wait=%t status=error duration=%s err=%v",
+			m.GetScenario(), m.GetName(), m.GetRunId(), m.GetLatest(), m.GetWait(), time.Since(started), err)
 		return nil, s.wrap("GetDiffResult", err)
 	}
+	runID := cd.RunID
+	if runID == "" {
+		runID = m.GetRunId()
+	}
+	verdict := ""
+	if cd.Result != nil {
+		verdict = string(cd.Result.Verdict)
+	}
+	s.logger.Printf("baselines.GetDiffResult: scenario=%s name=%s run=%s latest=%t wait=%t status=%s verdict=%s next_check=%d duration=%s",
+		m.GetScenario(), m.GetName(), runID, m.GetLatest(), m.GetWait(), cd.Status, verdict, nextCheck, time.Since(started))
 	out := &baselinesv1.GetDiffResultResponse{
 		Status:                      cd.Status,
 		Error:                       cd.Error,
-		RunId:                       m.GetRunId(),
+		RunId:                       runID,
 		RecommendedNextCheckSeconds: int32(nextCheck),
 	}
 	if cd.Result != nil {

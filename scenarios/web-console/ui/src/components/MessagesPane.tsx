@@ -32,6 +32,7 @@ import { PlaybackModeControl, type SummarizationLevel } from "./tts/PlaybackMode
 import type { TTSPlaybackState } from "../audio-integration";
 import type { PlaybackFocusRequest, PlaybackVersion } from "../domains/tts-playback/types";
 import MessagesFileViewer from "./MessagesFileViewer";
+import MessagesMermaidViewer from "./MessagesMermaidViewer";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -144,6 +145,7 @@ interface MessageRowProps {
   onToggleExpanded: (eventId: string) => void;
   onLinkClick: (href: string, event: React.MouseEvent<HTMLAnchorElement>) => void;
   onFileReferenceClick: (path: string) => void;
+  onMermaidOpen: (code: string) => void;
 }
 
 const MessageRow = memo(function MessageRow({
@@ -177,6 +179,7 @@ const MessageRow = memo(function MessageRow({
   onToggleExpanded,
   onLinkClick,
   onFileReferenceClick,
+  onMermaidOpen,
 }: MessageRowProps) {
   const { t } = useTranslation();
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
@@ -399,7 +402,7 @@ const MessageRow = memo(function MessageRow({
           style={{ fontSize: `${fontSize}px` }}
           className="text-wc-text-primary"
         >
-          <MarkdownRenderer content={event.text} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick} />
+          <MarkdownRenderer content={event.text} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick} onMermaidOpen={onMermaidOpen} />
         </div>
 
         {isCollapsed && (
@@ -435,7 +438,8 @@ const MessageRow = memo(function MessageRow({
   prevProps.isDimmed === nextProps.isDimmed &&
   prevProps.isExpanded === nextProps.isExpanded &&
   prevProps.onLinkClick === nextProps.onLinkClick &&
-  prevProps.onFileReferenceClick === nextProps.onFileReferenceClick
+  prevProps.onFileReferenceClick === nextProps.onFileReferenceClick &&
+  prevProps.onMermaidOpen === nextProps.onMermaidOpen
 ));
 
 export default function MessagesPane({
@@ -832,6 +836,12 @@ export default function MessagesPane({
     void openPreview(path, "inline_code");
   }, [openPreview]);
 
+  const [mermaidViewer, setMermaidViewer] = useState<{ code: string } | null>(null);
+  const handleMermaidOpen = useCallback((code: string) => {
+    setMermaidViewer({ code });
+  }, []);
+  const closeMermaidViewer = useCallback(() => setMermaidViewer(null), []);
+
   return (
     <div
       data-testid={`messages-pane-${sessionId}`}
@@ -960,6 +970,7 @@ export default function MessagesPane({
                     onToggleExpanded={toggleExpanded}
                     onLinkClick={handleMarkdownLinkClick}
                     onFileReferenceClick={handleInlineCodeFileClick}
+                    onMermaidOpen={handleMermaidOpen}
                   />
                 </div>
               );
@@ -997,6 +1008,12 @@ export default function MessagesPane({
         onClose={filePreview.close}
         onReopen={filePreview.reopen}
         onRendererError={filePreview.reportError}
+      />
+
+      <MessagesMermaidViewer
+        open={mermaidViewer !== null}
+        code={mermaidViewer?.code ?? ""}
+        onClose={closeMermaidViewer}
       />
     </div>
   );

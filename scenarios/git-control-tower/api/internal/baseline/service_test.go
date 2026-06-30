@@ -668,6 +668,36 @@ func TestServiceGetDiffResultInProgress(t *testing.T) {
 	}
 }
 
+func TestServiceGetDiffResultLatestUsesStartDiffIntent(t *testing.T) {
+	exec := &fakeExecutor{statusInfo: &RunStatusInfo{Status: "in_progress", Terminal: false, RecommendedNextCheckSeconds: 12}}
+	runs := &fakeRuns{}
+	svc, _ := newTestServiceWith(t, Deps{Exec: exec, Runs: runs, CaptureGit: fixedGit(git.State{Branch: "agi", Sha: "abc"})})
+	seedBaseline(t, svc, "p")
+
+	start, err := svc.StartDiff(context.Background(), StartDiffRequest{
+		RepoID: 1, RepoDir: "/repo", Scenario: "foo", Branch: "agi", Name: "p",
+	})
+	if err != nil {
+		t.Fatalf("StartDiff: %v", err)
+	}
+
+	cd, next, err := svc.GetDiffResult(context.Background(), GetDiffResultRequest{
+		RepoID: 1, RepoDir: "/repo", Scenario: "foo", Branch: "agi", Name: "p", Latest: true,
+	})
+	if err != nil {
+		t.Fatalf("GetDiffResult latest: %v", err)
+	}
+	if cd.RunID != start.RunID {
+		t.Fatalf("latest resolved run %q, want %q", cd.RunID, start.RunID)
+	}
+	if cd.Status != "in_progress" {
+		t.Fatalf("status = %q, want in_progress", cd.Status)
+	}
+	if next != 12 {
+		t.Fatalf("recommended next check = %d, want 12", next)
+	}
+}
+
 // FinalizeDiff caches the verdict; GetDiffResult then returns it instantly.
 // Two baseline names sharing ONE current run each cache their own result (§6.3).
 func TestServiceTwoNamesShareOneRunTwoCachedResults(t *testing.T) {

@@ -148,6 +148,8 @@ The PTY dimensions follow a last-writer-wins model — whichever client sends a 
 | [CODE: ui/src/components/Workspace.tsx] (create session) | Session limit (429) | Banner: "Close an existing session and try again" | Retry button shown |
 | [CODE: ui/src/hooks/useTerminalSocket.ts] | WS disconnect (abnormal, visible) | Gray `[Connection lost, reconnecting...]` + auto-reconnect | Automatic (exponential backoff, max 5 attempts) |
 | [CODE: ui/src/hooks/useTerminalSocket.ts] | WS disconnect (abnormal, hidden) | Gray `[Connection lost while backgrounded]` + deferred reconnect | Automatic on tab visibility return |
+| [CODE: ui/src/audio-integration/hooks/useVoiceCore.ts] (voice provider) | Provider error / Whisper failure / cancel | UI returns to idle; the errored provider is disposed through the capture controller so no live mic lease is left behind | Automatic (atomic dispose/fallback); user can re-tap to record |
+| [CODE: ui/src/audio-integration/hooks/useVoiceCore.ts] (mic-lease mismatch) | Registry holds a live lease while UI idle/off (e.g. OS mic indicator stuck on) | Mic button shows a "release microphone" recovery affordance (amber, alert icon) | Automatic self-heal (`recoverStaleLeases`, logs a structured invariant violation); manual `releaseMicrophone` tap as backstop |
 | [CODE: ui/src/hooks/useTerminalSocket.ts] | WS reconnect exhausted | Red `[Connection lost]` + guidance | Close pane, open new terminal |
 | [CODE: ui/src/hooks/useTerminalSocket.ts] | WS disconnect (normal) | Gray `[Disconnected]` | — |
 | [CODE: ui/src/hooks/useTerminalSocket.ts] | Sync warning (dropped frames) | Yellow `[Warning: N output frames dropped]` | Reconnect to resync from history buffer |

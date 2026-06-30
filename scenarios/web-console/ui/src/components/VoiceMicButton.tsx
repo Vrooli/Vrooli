@@ -30,6 +30,13 @@ interface VoiceMicButtonProps {
   /** True when passive wake word listening is active (mic open, no streaming). */
   isPassive?: boolean;
   isTranscribing: boolean;
+  /**
+   * True when the mic ownership registry holds a live lease while the UI is
+   * idle/off — the "OS mic indicator on but app looks idle" mismatch. Shows an
+   * explicit "release microphone" recovery affordance; tapping it calls
+   * `onReleaseMic`, never `onStart`.
+   */
+  staleLiveMic?: boolean;
   error: string | null;
   /** 0-1 audio level for live mic visualization */
   audioLevel?: number;
@@ -53,6 +60,8 @@ interface VoiceMicButtonProps {
   onCancel?: () => void;
   /** Exit passive wake word mode. */
   onExitPassive?: () => void;
+  /** Release an orphaned live mic lease (stale-live-mic recovery). */
+  onReleaseMic?: () => void;
   /** Stop active TTS before starting voice input. Does not affect presentation. */
   onTtsStop?: () => void;
   /** Extra classes for the outer wrapper (e.g. to control height from a grid parent). */
@@ -117,6 +126,7 @@ function VoiceMicButtonInner({
   isListening = false,
   isPassive = false,
   isTranscribing,
+  staleLiveMic = false,
   error,
   audioLevel = 0,
   voiceActivity,
@@ -128,6 +138,7 @@ function VoiceMicButtonInner({
   onStop,
   onCancel,
   onExitPassive,
+  onReleaseMic,
   onTtsStop,
   className: wrapperClassName,
   buttonClassName,
@@ -135,11 +146,17 @@ function VoiceMicButtonInner({
   const { t } = useTranslation();
   /** True when the mic is actively capturing (either one-shot or persistent). */
   const isMicActive = isRecording || isListening;
+  /**
+   * Stale-live-mic recovery: the registry holds a live lease while the UI is
+   * otherwise idle. Takes precedence over the normal idle "tap to speak" so the
+   * tap releases the orphaned mic instead of starting a new recording.
+   */
+  const showRecovery = staleLiveMic && !isMicActive && !isPassive && !isTranscribing && !isPreparing;
   const [buttonEl, setButtonEl] = useState<HTMLButtonElement | null>(null);
   const [dismissedError, setDismissedError] = useState<string | null>(null);
   const pressStartRef = useRef(0);
   /** Tracks the intent of the current pointer interaction to avoid stale-closure races. */
-  const pressIntentRef = useRef<"start" | "stop" | "cancel" | "none">("none");
+  const pressIntentRef = useRef<"start" | "stop" | "cancel" | "release" | "none">("none");
 
   /** Timestamp (ms) when isTranscribing last became true — used for grace period. */
   const transcribingAtRef = useRef(0);
@@ -154,6 +171,11 @@ function VoiceMicButtonInner({
     // Block interaction while preparing to prevent double-tap issues
     if (isPreparing) return;
     pressStartRef.current = Date.now();
+    if (showRecovery) {
+      // Stale live mic — the tap releases the orphaned lease, never starts.
+      pressIntentRef.current = "release";
+      return;
+    }
     if (isTranscribing) {
       // Grace period: if we just entered transcribing (e.g. VAD auto-stopped),
       // ignore the tap so the user doesn't accidentally cancel the transcript.
@@ -169,13 +191,15 @@ function VoiceMicButtonInner({
       pressIntentRef.current = "start";
       onStart({ vadEnabled: true });
     }
-  }, [isPreparing, isMicActive, isPassive, isTranscribing, isTtsSpeaking, onStart, onCancel, onTtsStop]);
+  }, [isPreparing, isMicActive, isPassive, isTranscribing, isTtsSpeaking, showRecovery, onStart, onCancel, onTtsStop]);
 
   const handlePointerUp = useCallback(() => {
     if (isPreparing) return;
     const intent = pressIntentRef.current;
     pressIntentRef.current = "none";
-    if (intent === "cancel") {
+    if (intent === "release") {
+      onReleaseMic?.();
+    } else if (intent === "cancel") {
       onCancel?.();
     } else if (intent === "stop" && isPassive) {
       onExitPassive?.();
@@ -186,7 +210,7 @@ function VoiceMicButtonInner({
       onStop();
     }
     // Short press on "start" -- tap-to-toggle: keep recording
-  }, [isPreparing, isPassive, isListening, onStop, onCancel, onExitPassive]);
+  }, [isPreparing, isPassive, isListening, onStop, onCancel, onExitPassive, onReleaseMic]);
 
   // Subscribe to the server VAD-state store. Prop override (used by tests)
   // wins over the live store snapshot.
@@ -277,10 +301,13 @@ function VoiceMicButtonInner({
                 ? "border-red-500 bg-red-500/20 text-red-400"
                 : isTranscribing
                   ? "border-blue-500 bg-blue-500/20 text-blue-400"
-                  : hasError
-                    ? "border-amber-500 bg-amber-500/10 text-amber-400"
-                    : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
+                  : showRecovery
+                    ? "border-amber-500 bg-amber-500/15 text-amber-400"
+                    : hasError
+                      ? "border-amber-500 bg-amber-500/10 text-amber-400"
+                      : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
         )}
+        data-recovery={showRecovery ? "true" : undefined}
         title={
           isPreparing
             ? t(strings.voiceMicButton.preparing)
@@ -292,7 +319,9 @@ function VoiceMicButtonInner({
                 ? t(strings.voiceMicButton.recording)
                 : isTranscribing
                   ? t(strings.voiceMicButton.transcribing)
-                  : hasError
+                  : showRecovery
+                    ? t(strings.voiceMicButton.recoverMic)
+                    : hasError
                     ? t(strings.voiceMicButton.error, { error })
                     : backend
                       ? t(strings.voiceMicButton.tapToSpeakWithBackend, {
@@ -342,6 +371,8 @@ function VoiceMicButtonInner({
           <Mic className="h-3.5 w-3.5 animate-pulse relative" />
         ) : isTranscribing ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin relative" />
+        ) : showRecovery ? (
+          <AlertCircle className="h-3.5 w-3.5 relative" data-testid="voice-mic-recovery-icon" />
         ) : hasError ? (
           <AlertCircle className="h-3.5 w-3.5 relative" />
         ) : (

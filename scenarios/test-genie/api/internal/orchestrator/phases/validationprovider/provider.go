@@ -45,27 +45,51 @@ type Provider struct {
 }
 
 type Summary struct {
-	Scenario            string            `json:"scenario"`
-	Status              string            `json:"status"`
-	Blockers            int               `json:"blockers"`
-	Errors              int               `json:"errors"`
-	Warnings            int               `json:"warnings"`
-	Infos               int               `json:"infos"`
-	LocalCurrentLevel   string            `json:"local_current_level,omitempty"`
-	LocalNextLevel      string            `json:"local_next_level,omitempty"`
-	LocalClean          bool              `json:"local_clean"`
-	LocalUnknownCount   int               `json:"local_unknown_count,omitempty"`
-	AuthorityConfidence string            `json:"authority_confidence,omitempty"`
-	GateMode            string            `json:"gate_mode,omitempty"`
-	GatedBlockers       int               `json:"gated_blockers,omitempty"`
-	Categories          []CategorySummary `json:"categories,omitempty"`
-	Skipped             bool              `json:"skipped,omitempty"`
+	Scenario                  string              `json:"scenario"`
+	Status                    string              `json:"status"`
+	Blockers                  int                 `json:"blockers"`
+	Errors                    int                 `json:"errors"`
+	Warnings                  int                 `json:"warnings"`
+	Infos                     int                 `json:"infos"`
+	LocalCurrentLevel         string              `json:"local_current_level,omitempty"`
+	LocalNextLevel            string              `json:"local_next_level,omitempty"`
+	LocalClean                bool                `json:"local_clean"`
+	LocalUnknownCount         int                 `json:"local_unknown_count,omitempty"`
+	Capabilities              []CapabilitySummary `json:"capabilities,omitempty"`
+	HighestPriorityCapability *PriorityFocus      `json:"highest_priority_capability,omitempty"`
+	AuthorityConfidence       string              `json:"authority_confidence,omitempty"`
+	GateMode                  string              `json:"gate_mode,omitempty"`
+	GatedBlockers             int                 `json:"gated_blockers,omitempty"`
+	Categories                []CategorySummary   `json:"categories,omitempty"`
+	Skipped                   bool                `json:"skipped,omitempty"`
 }
 
 type CategorySummary struct {
 	Key   string  `json:"key"`
 	Label string  `json:"label"`
 	Score float64 `json:"score"`
+}
+
+type CapabilitySummary struct {
+	ID                   string `json:"id"`
+	Label                string `json:"label"`
+	CurrentLevel         string `json:"current_level,omitempty"`
+	NextLevel            string `json:"next_level,omitempty"`
+	CurrentSummary       string `json:"current_summary,omitempty"`
+	NextUnlock           string `json:"next_unlock,omitempty"`
+	Clean                bool   `json:"clean"`
+	UnknownCount         int    `json:"unknown_count,omitempty"`
+	BlockingFindingCount int    `json:"blocking_finding_count,omitempty"`
+	PriorityRank         int    `json:"priority_rank,omitempty"`
+	PriorityReason       string `json:"priority_reason,omitempty"`
+}
+
+type PriorityFocus struct {
+	CapabilityID    string `json:"capability_id"`
+	CapabilityLabel string `json:"capability_label,omitempty"`
+	CurrentLevel    string `json:"current_level,omitempty"`
+	NextLevel       string `json:"next_level,omitempty"`
+	Reason          string `json:"reason,omitempty"`
 }
 
 func (s Summary) String() string {
@@ -78,6 +102,12 @@ func (s Summary) String() string {
 	}
 	if s.LocalClean || s.LocalUnknownCount > 0 {
 		text += fmt.Sprintf(" clean=%t unknown=%d", s.LocalClean, s.LocalUnknownCount)
+	}
+	if s.HighestPriorityCapability != nil && s.HighestPriorityCapability.CapabilityID != "" {
+		text += fmt.Sprintf(" focus=%s", s.HighestPriorityCapability.CapabilityID)
+		if s.HighestPriorityCapability.NextLevel != "" {
+			text += "->" + s.HighestPriorityCapability.NextLevel
+		}
 	}
 	if s.AuthorityConfidence != "" {
 		text += fmt.Sprintf(" authority=%s", s.AuthorityConfidence)
@@ -213,7 +243,40 @@ func summarize(scenario string, status scenariovalidationv1.ValidationStatus, a 
 		s.LocalClean = local.GetClean()
 		s.LocalUnknownCount = int(local.GetUnknownCount())
 	}
+	s.Capabilities = capabilitySummaries(a.GetCapabilities())
+	if focus := a.GetHighestPriorityCapability(); focus != nil && strings.TrimSpace(focus.GetCapabilityId()) != "" {
+		s.HighestPriorityCapability = &PriorityFocus{
+			CapabilityID:    focus.GetCapabilityId(),
+			CapabilityLabel: focus.GetCapabilityLabel(),
+			CurrentLevel:    focus.GetCurrentLevel(),
+			NextLevel:       focus.GetNextLevel(),
+			Reason:          focus.GetReason(),
+		}
+	}
 	return s
+}
+
+func capabilitySummaries(capabilities []*commonv1.CapabilityMaturityAssessment) []CapabilitySummary {
+	out := make([]CapabilitySummary, 0, len(capabilities))
+	for _, capability := range capabilities {
+		if capability == nil {
+			continue
+		}
+		out = append(out, CapabilitySummary{
+			ID:                   capability.GetId(),
+			Label:                capability.GetLabel(),
+			CurrentLevel:         capability.GetCurrentLevel(),
+			NextLevel:            capability.GetNextLevel(),
+			CurrentSummary:       capability.GetCurrentSummary(),
+			NextUnlock:           capability.GetNextUnlock(),
+			Clean:                capability.GetClean(),
+			UnknownCount:         int(capability.GetUnknownCount()),
+			BlockingFindingCount: len(capability.GetBlockingFindingCodes()),
+			PriorityRank:         int(capability.GetPriorityRank()),
+			PriorityReason:       capability.GetPriorityReason(),
+		})
+	}
+	return out
 }
 
 func applyGate(provider Provider, scenario string, resp *scenariovalidationv1.ValidateScenarioResponse, out *Result) {
@@ -494,6 +557,7 @@ func authorityLabel(authority auditv1.AuthorityConfidence) string {
 
 func observations(provider Provider, a *commonv1.MaturityAssessment) []shared.Observation {
 	out := []shared.Observation{shared.NewSectionObservation(provider.Emoji, provider.Phase)}
+	out = append(out, capabilityObservations(a)...)
 	if len(a.GetFindings()) == 0 {
 		return append(out, shared.NewSuccessObservation("No "+provider.Phase+" findings detected"))
 	}
@@ -510,6 +574,50 @@ func observations(provider Provider, a *commonv1.MaturityAssessment) []shared.Ob
 		default:
 			out = append(out, shared.NewInfoObservation(msg))
 		}
+	}
+	return out
+}
+
+func capabilityObservations(a *commonv1.MaturityAssessment) []shared.Observation {
+	if a == nil || len(a.GetCapabilities()) == 0 {
+		return nil
+	}
+	out := make([]shared.Observation, 0, len(a.GetCapabilities())+1)
+	if focus := a.GetHighestPriorityCapability(); focus != nil && strings.TrimSpace(focus.GetCapabilityId()) != "" {
+		label := strings.TrimSpace(focus.GetCapabilityLabel())
+		if label == "" {
+			label = focus.GetCapabilityId()
+		}
+		msg := "highest priority capability: " + label
+		if next := strings.TrimSpace(focus.GetNextLevel()); next != "" {
+			msg += " to " + next
+		}
+		if reason := strings.TrimSpace(focus.GetReason()); reason != "" {
+			msg += " - " + reason
+		}
+		out = append(out, shared.NewInfoObservation(msg))
+	}
+	for _, capability := range a.GetCapabilities() {
+		if capability == nil {
+			continue
+		}
+		label := strings.TrimSpace(capability.GetLabel())
+		if label == "" {
+			label = capability.GetId()
+		}
+		msg := fmt.Sprintf("%s capability: current=%s", label, emptyAs(capability.GetCurrentLevel(), "none"))
+		if next := strings.TrimSpace(capability.GetNextLevel()); next != "" {
+			msg += " next=" + next
+		} else {
+			msg += " maximum maturity reached"
+		}
+		if blockers := len(capability.GetBlockingFindingCodes()); blockers > 0 {
+			msg += fmt.Sprintf(" blockers=%d", blockers)
+		}
+		if summary := strings.TrimSpace(capability.GetCurrentSummary()); summary != "" {
+			msg += " - " + summary
+		}
+		out = append(out, shared.NewInfoObservation(msg))
 	}
 	return out
 }
@@ -656,4 +764,11 @@ func nonEmpty(values ...string) []string {
 		}
 	}
 	return out
+}
+
+func emptyAs(value, fallback string) string {
+	if trimmed := strings.TrimSpace(value); trimmed != "" {
+		return trimmed
+	}
+	return fallback
 }

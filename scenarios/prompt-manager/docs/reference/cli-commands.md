@@ -35,6 +35,17 @@ go build -o prompt-manager .
 | `prompt-manager status` | Check API health |
 | `prompt-manager configure` | View/update CLI settings |
 
+Action and skill command validation delegates Vrooli-owned command truth to CLI
+Health. Prompt Manager owns action policy, placeholders, permissions, and
+run-eligibility reporting; it does not maintain a separate current-command
+catalog. When CLI Health can prove a command path exists but cannot prove
+arguments or action governance, Prompt Manager reports the action as
+unvalidated instead of treating partial coverage as fully safe.
+Skill graph health also reports CLI Health findings for Vrooli-owned commands
+detected in skill content: invalid current commands are critical diagnostics,
+while command-exists/arguments-unknown results remain visible as partial
+coverage warnings.
+
 ---
 
 ## Skills
@@ -860,6 +871,9 @@ prompt-manager graph health <node-id> [--json]
 prompt-manager graph health --type=skill
 prompt-manager graph health debugging
 ```
+
+Skill health includes command-reference diagnostics from CLI Health for
+Vrooli-owned commands detected in skill instructions.
 
 ---
 

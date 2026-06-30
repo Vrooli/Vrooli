@@ -61,28 +61,50 @@ Additionally, on mobile, `getUserMedia` switches the OS audio session to "play-a
 
 ### 6. Page-lifecycle mic cleanup (always-on for ALL mic owners)
 
-- **WHERE**: [CODE: ui/src/audio-integration/hooks/voice/micOwnership.ts#installMicLifecycleCleanup] (privacy backstop) + [CODE: ui/src/audio-integration/hooks/useVoiceCore.ts] (coordinated stop + re-arm).
+- **WHERE**: [CODE: ui/src/audio-integration/hooks/voice/micLifecyclePolicy.ts#decideMicLifecycle] (pure policy) + [CODE: ui/src/audio-integration/hooks/voice/micOwnership.ts#installMicLifecycleCleanup] (privacy backstop) + [CODE: ui/src/audio-integration/hooks/voice/voiceCaptureController.ts] (single-authority capture cleanup) + [CODE: ui/src/audio-integration/hooks/useVoiceCore.ts] (coordinated stop + re-arm + registry-driven self-heal).
 - **WHAT**: Visibility/lifecycle cleanup is no longer scoped to the low-latency
   pre-warm stream. Every browser mic stream opened by web-console UI is acquired
   through the **mic ownership registry** (one lease per owner: low-latency
   prewarm, active providers, passive wake-word, and the three settings capture
-  flows). One central installer reacts to page lifecycle:
-  - `visibilitychange` → hidden: release every **non-active-recording** lease
-    (passive, prewarm, settings). Each owner's `onRelease` callback resets its
-    own state (passive listening flips off; micReadiness goes `released`;
-    settings captures cancel without uploading).
-  - `pagehide` / `freeze`: release **all** leases. The PWA is closing — privacy
-    and hardware release win over preserving a partial recording. MDN notes
-    mobile `pagehide` is not fully reliable, so `visibilitychange` is the primary
-    session-end signal and `pagehide`/`freeze` are complementary.
+  flows). The reaction to each page-lifecycle event is decided by the pure
+  `decideMicLifecycle({ event, standalonePwa })` policy and applied by the
+  ref-counted backstop installer:
+  - `visibilitychange` → hidden, **standalone/PWA** (`navigator.standalone` or
+    `display-mode: standalone`): release **ALL** leases, including the active
+    recording. iOS keeps the OS mic indicator (Dynamic Island) active otherwise,
+    even after the JS believes it stopped — this is the failure class the policy
+    closes.
+  - `visibilitychange` → hidden, **desktop tab**: release every **non-active**
+    lease (passive, prewarm, settings); the controller stops the active
+    recording so React state stays honest. Each owner's `onRelease` callback
+    resets its own state (passive listening flips off; micReadiness goes
+    `released`; settings captures cancel without uploading).
+  - `pagehide` / `freeze`: release **all** leases everywhere. The PWA is closing
+    — privacy and hardware release win over preserving a partial recording. MDN
+    notes mobile `pagehide` is not fully reliable, so `visibilitychange` is the
+    primary session-end signal and `pagehide`/`freeze` are complementary.
   - On becoming visible again, useVoiceCore re-arms passive listening and/or the
     low-latency prewarm (gated on toggles, a loaded template, no active
     recording). A lease release does not re-run React effects, so re-arm is
     explicit.
+- **PREPARING / START CANCELLATION**: `getUserMedia` may resolve a live lease
+  *after* the tab goes hidden (async startup). The controller stamps a
+  generation token at `beginStart()`; the hidden handler calls `cancelStarts()`,
+  and when the late start resolves it sees a stale token and shuts the provider
+  down (releasing the just-acquired lease) instead of entering the recording
+  state. So `preparing` is treated as capture-active for lifecycle safety.
+- **REGISTRY-DRIVEN SELF-HEAL**: useVoiceCore subscribes to the registry. If a
+  live lease exists that the workflow should not be holding (UI idle/off but a
+  provider/prewarm/passive stream is still live — `selectStaleLeases`), it flips
+  the honest `staleLiveMicLease` flag and self-heals via
+  `controller.recoverStaleLeases` (releasing the orphan + logging a structured
+  invariant violation). The mic button exposes a user "release microphone"
+  recovery affordance for the same mismatch.
 - **ACTIVE RECORDING POLICY (iOS PWA)**: an active user recording is **stopped**
-  on hidden by useVoiceCore (not silently kept open). Whatever was captured is
-  finalized and the mic is released; the change is surfaced via a transient
-  notice rather than a stuck Dynamic Island indicator.
+  on hidden by useVoiceCore (not silently kept open) and, in standalone/PWA, its
+  lease is also released by the backstop. Whatever was captured is finalized and
+  the mic is released; the change is surfaced via a transient notice rather than
+  a stuck Dynamic Island indicator.
 - **WHY**: (a) Privacy — no mic access in a hidden tab / backgrounded PWA, the
   iOS "mic indicator on while the app looks idle" failure mode. (b) Audio
   ducking — releasing the mic restores normal audio routing on mobile.

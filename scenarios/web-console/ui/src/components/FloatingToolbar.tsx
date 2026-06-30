@@ -60,6 +60,8 @@ interface FloatingToolbarProps {
   /** True when passive wake-word listening currently holds the mic. */
   voicePassive?: boolean;
   voiceTranscribing?: boolean;
+  /** True when a live mic lease is orphaned while the UI is idle (recovery). */
+  voiceStaleLiveMic?: boolean;
   voiceError?: string | null;
   /** 0–1 audio level for live mic visualization */
   voiceLevel?: number;
@@ -70,6 +72,8 @@ interface FloatingToolbarProps {
   onVoiceStop?: () => void;
   /** Exit passive wake-word listening (tapping the passive mic button). */
   onVoiceExitPassive?: () => void;
+  /** Release an orphaned live mic lease (stale-live-mic recovery). */
+  onVoiceReleaseMic?: () => void;
   onVoiceCancel?: () => void;
   /** Whether TTS is currently playing audio on the active pane. */
   isTtsSpeaking?: boolean;
@@ -90,6 +94,7 @@ export default function FloatingToolbar({
   voiceListening,
   voicePassive,
   voiceTranscribing,
+  voiceStaleLiveMic,
   voiceError,
   voiceLevel = 0,
   voiceActivity,
@@ -98,6 +103,7 @@ export default function FloatingToolbar({
   onVoiceStart,
   onVoiceStop,
   onVoiceExitPassive,
+  onVoiceReleaseMic,
   onVoiceCancel,
   isTtsSpeaking,
   onTtsStop,
@@ -259,6 +265,7 @@ export default function FloatingToolbar({
           isListening={voiceListening ?? false}
           isPassive={voicePassive ?? false}
           isTranscribing={voiceTranscribing ?? false}
+          staleLiveMic={voiceStaleLiveMic ?? false}
           error={voiceError ?? null}
           audioLevel={voiceLevel}
           voiceActivity={voiceActivity}
@@ -268,6 +275,7 @@ export default function FloatingToolbar({
           onStart={onVoiceStart}
           onStop={onVoiceStop}
           onExitPassive={onVoiceExitPassive}
+          onReleaseMic={onVoiceReleaseMic}
           onCancel={onVoiceCancel}
           onTtsStop={onTtsStop}
           className="hidden md:flex"

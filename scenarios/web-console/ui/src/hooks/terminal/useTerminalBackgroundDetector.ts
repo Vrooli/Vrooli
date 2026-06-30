@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { Terminal, IBufferCell } from "@xterm/xterm";
-import { cellBackgroundHex, dominantBackground, parseOscColor } from "../../lib/terminalBackground";
+import { ambientBackground, cellBackgroundHex, parseOscColor } from "../../lib/terminalBackground";
 
 /**
  * Debounce window for re-sampling after a render. `onRender` fires frequently
@@ -17,10 +17,21 @@ export const BG_DETECT_DEBOUNCE_MS = 200;
 export const BG_DETECT_STATUS_ROWS = 1;
 
 /**
- * Minimum share of non-empty sampled cells a single color must hold to win.
- * Below this the sample is ambiguous and we report `null` (→ theme fallback).
+ * Minimum weighted share a single color must hold across the *perimeter*
+ * samples (corners + edge bands) to be treated as the terminal's ambient
+ * background. Above 0.5 so an even split reports `null` rather than flipping
+ * on scan order. The perimeter is what app chrome visually borders, so a large
+ * center-only content block (e.g. a coding-agent user message) is ignored.
  */
-export const BG_DETECT_DOMINANCE = 0.5;
+export const BG_DETECT_PERIMETER_DOMINANCE = 0.6;
+
+/**
+ * Minimum share of the *whole* usable grid a single color must hold to win as
+ * a fallback, so a true full-screen TUI whose new background also fills the
+ * interior still retints the chrome. Higher than the perimeter threshold
+ * because this pass has no perimeter bias to lean on.
+ */
+export const BG_DETECT_FULLSCREEN_DOMINANCE = 0.75;
 
 interface BackgroundDetectorOptions {
   /** Run detection only when true (focused pane, tab-like mode, adaptive on). */
@@ -69,19 +80,27 @@ export function useTerminalBackgroundDetector(
       // Reuse one cell object across reads to avoid per-cell allocation.
       const reuse: IBufferCell | undefined = buf.getNullCell?.();
       const top = buf.viewportY;
-      const maxRow = Math.max(1, term.rows - BG_DETECT_STATUS_ROWS);
       const defaultBg = osc11Ref.current ?? defaultBgRef.current;
-      const hexes: (string | null)[] = [];
-      for (let r = 0; r < maxRow; r++) {
+      // Build the visible grid (status row included); the ambient selector
+      // excludes the bottom status row(s) itself via `statusRows`.
+      const grid: (string | null)[][] = [];
+      for (let r = 0; r < term.rows; r++) {
         const line = buf.getLine(top + r);
         if (!line) continue;
+        const cells: (string | null)[] = [];
         for (let c = 0; c < term.cols; c++) {
           const cell = line.getCell(c, reuse);
-          if (!cell) continue;
-          hexes.push(cellBackgroundHex(cell, defaultBg));
+          cells.push(cell ? cellBackgroundHex(cell, defaultBg) : null);
         }
+        grid.push(cells);
       }
-      onColorRef.current(dominantBackground(hexes, BG_DETECT_DOMINANCE));
+      onColorRef.current(
+        ambientBackground(grid, {
+          statusRows: BG_DETECT_STATUS_ROWS,
+          perimeterThreshold: BG_DETECT_PERIMETER_DOMINANCE,
+          fullScreenThreshold: BG_DETECT_FULLSCREEN_DOMINANCE,
+        }),
+      );
     };
 
     const schedule = (): void => {

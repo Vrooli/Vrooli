@@ -47,6 +47,8 @@ interface MarkdownRendererProps {
   onLinkClick?: (href: string, event: MouseEvent<HTMLAnchorElement>) => void;
   /** Open a file in the preview dialog when an inline-code chip looks like a path. */
   onFileReferenceClick?: (path: string) => void;
+  /** Open a Mermaid diagram in the full-screen zoomable viewer. */
+  onMermaidOpen?: (code: string) => void;
 }
 
 /** Renders markdown content with syntax highlighting, mermaid diagrams, and GFM support. */
@@ -55,6 +57,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
   className,
   onLinkClick,
   onFileReferenceClick,
+  onMermaidOpen,
 }: MarkdownRendererProps) {
   const components = useMemo(
     () => ({
@@ -68,7 +71,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
         const isInline = inline ?? (!codeClassName && !codeContent.includes("\n"));
 
         if (isInline) return <InlineCode onFileReferenceClick={onFileReferenceClick}>{children}</InlineCode>;
-        if (codeClassName === "language-mermaid") return <MermaidDiagram code={codeContent} />;
+        if (codeClassName === "language-mermaid") return <MermaidDiagram code={codeContent} onOpenFullscreen={onMermaidOpen} />;
         return <CodeBlock code={codeContent} className={codeClassName} {...props} />;
       },
 
@@ -150,7 +153,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
         <del className="line-through text-wc-text-faint">{children}</del>
       ),
     }),
-    [onLinkClick, onFileReferenceClick],
+    [onLinkClick, onFileReferenceClick, onMermaidOpen],
   );
 
   if (!content) return null;
@@ -176,7 +179,8 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
     prevProps.content === nextProps.content &&
     prevProps.className === nextProps.className &&
     prevProps.onLinkClick === nextProps.onLinkClick &&
-    prevProps.onFileReferenceClick === nextProps.onFileReferenceClick
+    prevProps.onFileReferenceClick === nextProps.onFileReferenceClick &&
+    prevProps.onMermaidOpen === nextProps.onMermaidOpen
   );
 });
 

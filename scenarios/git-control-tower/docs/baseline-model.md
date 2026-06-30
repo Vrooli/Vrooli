@@ -83,7 +83,9 @@ agent wait protocol with a bounded `test-genie runs wait --json --timeout=...`
 command, ETA, recommended timeout, and interrupted-wait recovery via
 `pgrep` + `tail --pid`. The verdict is computed and **cached server-side** when
 the run completes (keyed `(repoID, scenario, branch, name, runID)`), surviving
-client disconnect; `GetDiffResult` returns it instantly.
+client disconnect; `GetDiffResult` returns it instantly. `StartDiff` also records
+a small durable intent before returning, so an interrupted wait can recover the
+most recent run id for a baseline without guessing from test-genie history.
 The CLI:
 
 ```
@@ -91,7 +93,8 @@ git-control-tower baseline snapshot --scenario S --name N        # start, return
 git-control-tower baseline snapshot status --scenario S --name N --run R  # resolve the pin
 git-control-tower baseline diff   --scenario S --name N        # start, returns a run id
 git-control-tower baseline diff status --scenario S --name N --run R   # resolve the verdict
-git-control-tower baseline diff   --scenario S --name N --wait  # block server-side, print inline
+git-control-tower baseline diff status --scenario S --name N --latest  # recover latest diff run
+git-control-tower baseline diff   --scenario S --name N --wait  # print run id once, then block server-side
 ```
 
 `snapshot status` exit codes: `0` ready, `2` missing/failed, `3` pending. A

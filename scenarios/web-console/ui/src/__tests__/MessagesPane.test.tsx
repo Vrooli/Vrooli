@@ -52,9 +52,11 @@ vi.mock("../components/markdown", () => ({
   MarkdownRenderer: ({
     content,
     onLinkClick,
+    onMermaidOpen,
   }: {
     content: string;
     onLinkClick?: (href: string, event: unknown) => void;
+    onMermaidOpen?: (code: string) => void;
   }) => (
     <div data-testid="mock-markdown">
       {content.includes("[")
@@ -68,8 +70,16 @@ vi.mock("../components/markdown", () => ({
           </a>
         )
         : content}
+      <button data-testid="mock-mermaid-open" type="button" onClick={() => onMermaidOpen?.("graph TD; A-->B")}>
+        open diagram
+      </button>
     </div>
   ),
+}));
+
+// Keep the real Mermaid viewer/drawer but avoid loading the mermaid bundle.
+vi.mock("../components/markdown/hooks/useMermaidSvg", () => ({
+  useMermaidSvg: () => ({ svgHtml: '<svg viewBox="0 0 100 80"></svg>', error: null, loading: false }),
 }));
 
 function makeEvent(overrides: Partial<ConversationEvent> & { id: string; sequence: number }): ConversationEvent {
@@ -278,6 +288,35 @@ describe("MessagesPane", () => {
     expect(screen.getByTestId("msg-markdown-e1")).toBeInTheDocument();
     expect(screen.getByTestId("mock-markdown")).toBeInTheDocument();
     expect(screen.getByText("Hello World")).toBeInTheDocument();
+  });
+
+  it("opens the Mermaid viewer from a diagram open action and closes it", () => {
+    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "diagram here" })]);
+    render(<MessagesPane {...defaultProps} />);
+
+    expect(screen.queryByTestId("messages-mermaid-viewer-panel")).toBeNull();
+
+    fireEvent.click(screen.getAllByTestId("mock-mermaid-open")[0] as HTMLElement);
+
+    const panel = screen.getByTestId("messages-mermaid-viewer-panel");
+    expect(panel).toBeInTheDocument();
+    expect(screen.getByText(strings.mermaid.viewerTitle)).toBeInTheDocument();
+    expect(screen.getByLabelText(strings.mermaid.zoomIn)).toBeInTheDocument();
+    expect(screen.getByLabelText(strings.mermaid.showSource)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText(strings.mermaid.closeViewer));
+    expect(screen.queryByTestId("messages-mermaid-viewer-panel")).toBeNull();
+  });
+
+  it("closes the Mermaid viewer with Escape", () => {
+    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "diagram here" })]);
+    render(<MessagesPane {...defaultProps} />);
+
+    fireEvent.click(screen.getAllByTestId("mock-mermaid-open")[0] as HTMLElement);
+    expect(screen.getByTestId("messages-mermaid-viewer-panel")).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByTestId("messages-mermaid-viewer-panel")).toBeNull();
   });
 
   it("search updates row state without pushing query into markdown renderer props", () => {

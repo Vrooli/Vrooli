@@ -531,12 +531,41 @@ tracks). [DOC: docs/internal/VOICE-LATENCY.md#page-lifecycle-mic-cleanup-always-
 | `releaseMicLease(lease, reason)` / `lease.release` | Stop all tracks once, run `onRelease`, idempotent | Double-release → one `stop()`, one `onRelease` |
 | `releaseAllMicLeases(reason, predicate?)` | Release every (filtered) lease | Predicate selects owners |
 | `getActiveMicLeases()` | Metadata-only snapshots (never the raw stream) | Assert owner/trackCount, no `stream` field |
-| `installMicLifecycleCleanup()` | Ref-counted `visibilitychange`/`pagehide`/`freeze` backstop | Dispatch events, assert non-active vs all released |
+| `subscribeMicLeases(listener)` | Notify on every acquire/release with a metadata-only snapshot, so the UI can derive live-mic honesty without polling | Subscribe, acquire/release, assert snapshot + no `stream` field |
+| `installMicLifecycleCleanup(resolveScope?)` | Ref-counted `visibilitychange`/`pagehide`/`freeze` backstop; `resolveScope(event)` (injected by useVoiceCore from `decideMicLifecycle`) selects `all` vs `non-active` per event/platform | Inject a resolver returning `all`, assert active recording released on hidden |
 | lease `onRelease(reason)` | Owner resets its own state when released by anyone | Fire OS `ended`, assert owner reset |
 
 **Key invariant**: lease release is idempotent and stops tracks exactly once;
 `onRelease` lets the owner (micReadiness, PassiveListener, settings flows) reset
 its own state when the registry or the OS releases the lease.
+
+### Voice Capture Lifecycle Controller Seam (UI)
+**Files**: `ui/src/audio-integration/hooks/voice/voiceCaptureController.ts`, `ui/src/audio-integration/hooks/voice/micLifecyclePolicy.ts`
+**Purpose**: Single authority for transitioning provider/capture ownership in
+`useVoiceCore`. Before this seam, provider replacement/disposal/error cleanup was
+scattered across several hook branches — a provider could be replaced without
+disposing the old one first, leaking a live mic track (the iOS-PWA "stuck
+indicator" class). The controller wraps the existing `providerRef` (reads stay
+`providerRef.current`; only sanctioned mutations go through it) and owns the
+start-cancellation generation token + stale-lease recovery. The pure
+`micLifecyclePolicy` helpers make the platform privacy decision and the
+registry-vs-UI honesty check reviewable and unit-testable.
+[DOC: docs/internal/VOICE-LATENCY.md#page-lifecycle-mic-cleanup-always-on-for-all-mic-owners]
+
+| Component | Production | Test |
+|-----------|-----------|------|
+| `controller.replace(next, reason)` | Dispose previous provider (release lease) BEFORE installing next — atomic, no-op if already current | Replace, assert old disposed once + ref is next |
+| `controller.shutdown(reason)` | Cancel in-flight start + dispose provider + run hook capture teardown; idempotent | Double shutdown, assert one dispose + teardown ran |
+| `controller.beginStart()` / `isCurrentStart()` / `cancelStarts()` | Generation token so a late-resolving `start()` releases its lease instead of entering recording | `cancelStarts` then assert token stale |
+| `controller.recoverStaleLeases({voiceState,…})` | Release orphaned leases (`selectStaleLeases`) + dispose dangling provider + log invariant violation | Register an idle `voice-stream` lease, assert released + logged |
+| `decideMicLifecycle({event, standalonePwa})` | Pure: which leases release, stop-active, re-arm per event/platform | Matrix test (hidden PWA → all; desktop → non-active) |
+| `selectStaleLeases({leases, voiceState, …})` | Pure: which live leases the workflow should not hold | Active-owner-while-idle / prewarm-off / passive-no-listener |
+| `isStandaloneDisplayMode()` | `navigator.standalone` or `display-mode: standalone` | Impure detector; the decision it feeds is the pure unit |
+
+**Key invariant**: provider cleanup is idempotent and replay-safe; an error,
+fallback, cancel, unmount, hidden, pagehide, freeze, or stale-start path always
+releases the mic track and never leaves the UI idle while a provider owns a live
+stream. `voiceState` is workflow state; the registry is hardware truth.
 
 ### Voice Latency — Stream Ownership Seam (UI)
 **Files**: `ui/src/audio-integration/hooks/voice/micReadiness.ts`, `ui/src/audio-integration/hooks/voice/sharedAudioContext.ts`

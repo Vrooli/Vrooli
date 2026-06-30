@@ -69,7 +69,7 @@ var clientFactory = func(core *cliapp.ScenarioApp) baselines_v1connect.Baselines
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	subcommands := []cliapp.Command{
 		{Name: "snapshot", NeedsAPI: true, Description: "Capture a baseline from one durable test-genie run, or inspect it with `snapshot status` (--scenario --name [--run] [--branch]); Ctrl-C detaches, never aborts", Run: func(a []string) error { return runSnapshot(core, a) }},
-		{Name: "diff", NeedsAPI: true, Description: "Start a durable diff of a baseline vs the working tree, returning a run id + re-attach command (--scenario --name [--branch] [--surface] [--wait]); `diff status --run R` resolves the verdict (exit 1 regression, 2 not-comparable, 3 not-ready); `diff wait-all --run s:name:R …` resolves several started diffs in one call; reuses a clean-tree run when possible; Ctrl-C detaches, never aborts", Run: func(a []string) error { return runDiff(core, a) }},
+		{Name: "diff", NeedsAPI: true, Description: "Start a durable diff of a baseline vs the working tree, returning a run id + re-attach command (--scenario --name [--branch] [--surface] [--wait]); `diff status --run R` resolves the verdict, `diff status --latest` recovers an interrupted wait (exit 1 regression, 2 not-comparable, 3 not-ready); `diff wait-all --run s:name:R …` resolves several started diffs in one call; reuses a clean-tree run when possible; Ctrl-C detaches, never aborts", Run: func(a []string) error { return runDiff(core, a) }},
 		{Name: "list", NeedsAPI: true, Description: "List baselines (--scenario [--branch] [--all-branches])", Run: func(a []string) error { return runList(core, a) }},
 		{Name: "show", NeedsAPI: true, Description: "Show one baseline (--scenario --name [--branch])", Run: func(a []string) error { return runShow(core, a) }},
 		{Name: "delete", NeedsAPI: true, Description: "Delete a baseline and unpin its test-genie runs (--scenario --name [--branch])", Run: func(a []string) error { return runDelete(core, a) }},
@@ -282,6 +282,13 @@ func runDiff(core *cliapp.ScenarioApp, args []string) error {
 	// --wait: resolve the verdict inline. Otherwise return fast with the
 	// re-attach banner (no client polling).
 	if wait {
+		if c.json {
+			fmt.Fprintf(os.Stderr, "baseline diff started: scenario=%s name=%s run=%s; recover with `git-control-tower baseline diff status --scenario %s --name %s --run %s --wait --json`\n",
+				c.scenario, c.name, start.Msg.GetRunId(), c.scenario, c.name, start.Msg.GetRunId())
+		} else {
+			fmt.Fprint(os.Stderr, diffStartBanner(start.Msg))
+			fmt.Fprintf(os.Stderr, "  waiting once for verdict; interrupt detaches but the server-side diff continues.\n")
+		}
 		return resolveDiff(core, c, surface, start.Msg.GetRunId(), wait)
 	}
 	if c.json {
@@ -307,11 +314,12 @@ func parkForDiff(scenario, name string) (*cliutil.ParkResult, bool, error) {
 func runDiffStatus(core *cliapp.ScenarioApp, args []string) error {
 	var c commonFlags
 	var surface, run string
-	var wait bool
+	var wait, latest bool
 	fs := newFlagSet("baseline diff status")
 	c.bind(fs)
 	fs.StringVar(&surface, "surface", "", "Restrict to one surface")
 	fs.StringVar(&run, "run", "", "The diff's run id (from `baseline diff`) (required)")
+	fs.BoolVar(&latest, "latest", false, "Recover the latest diff run recorded for this baseline (use when a wait was interrupted before you captured the run id)")
 	fs.BoolVar(&wait, "wait", false, "Block server-side until the verdict is ready")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -319,15 +327,18 @@ func runDiffStatus(core *cliapp.ScenarioApp, args []string) error {
 	if err := c.requireScenarioName(); err != nil {
 		return err
 	}
-	if strings.TrimSpace(run) == "" {
-		return fmt.Errorf("--run is required (the run id printed by `baseline diff`)")
+	if strings.TrimSpace(run) == "" && !latest {
+		return fmt.Errorf("--run is required (the run id printed by `baseline diff`), or pass --latest to recover the latest run for this baseline")
 	}
-	return resolveDiff(core, c, surface, run, wait)
+	if strings.TrimSpace(run) != "" && latest {
+		return fmt.Errorf("--run and --latest are mutually exclusive")
+	}
+	return resolveDiff(core, c, surface, run, wait, latest)
 }
 
 // resolveDiff fetches a diff verdict via GetDiffResult and renders it, exiting by
 // verdict (0/1/2) or 3 when still in flight. wait blocks server-side.
-func resolveDiff(core *cliapp.ScenarioApp, c commonFlags, surface, run string, wait bool) error {
+func resolveDiff(core *cliapp.ScenarioApp, c commonFlags, surface, run string, wait bool, latest ...bool) error {
 	timeout := snapshotStartCeiling
 	if wait {
 		timeout = baselineClientTimeout
@@ -335,20 +346,25 @@ func resolveDiff(core *cliapp.ScenarioApp, c commonFlags, surface, run string, w
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	client := clientFactory(core)
+	useLatest := len(latest) > 0 && latest[0]
 	resp, err := client.GetDiffResult(ctx, connect.NewRequest(&baselinesv1.GetDiffResultRequest{
-		Scenario: c.scenario, Name: c.name, Branch: c.branch, RunId: run, Surface: surface, Wait: wait,
+		Scenario: c.scenario, Name: c.name, Branch: c.branch, RunId: run, Surface: surface, Wait: wait, Latest: useLatest,
 	}))
 	if err != nil {
 		return err
 	}
 	msg := resp.Msg
+	effectiveRun := run
+	if msg.GetRunId() != "" {
+		effectiveRun = msg.GetRunId()
+	}
 	if msg.GetStatus() == "in_progress" {
 		if c.json {
 			if err := printJSON(msg); err != nil {
 				return err
 			}
 		} else {
-			printDiffPending(c.scenario, c.name, run, int(msg.GetRecommendedNextCheckSeconds()))
+			printDiffPending(c.scenario, c.name, effectiveRun, int(msg.GetRecommendedNextCheckSeconds()))
 		}
 		os.Exit(exitNotReady)
 	}
@@ -358,6 +374,9 @@ func resolveDiff(core *cliapp.ScenarioApp, c commonFlags, surface, run string, w
 		}
 	} else if d := msg.GetDiff(); d != nil {
 		printDiff(d)
+	}
+	if msg.GetDiff() == nil {
+		os.Exit(exitNotComparable)
 	}
 	os.Exit(exitCodeForVerdict(msg.GetDiff().GetVerdict()))
 	return nil

@@ -127,6 +127,10 @@ func (s *Storage) snapshotIntentPath(dir, name, runID string) string {
 	return filepath.Join(dir, ".snapshots", sanitizeSegment(name)+"__"+sanitizeSegment(runID)+".json")
 }
 
+func (s *Storage) diffIntentPath(dir, name, runID string) string {
+	return filepath.Join(dir, ".diffs", ".intents", sanitizeSegment(name)+"__"+sanitizeSegment(runID)+".json")
+}
+
 // CachedDiff is the persisted outcome of a finalized diff: the computed result
 // (ready) or the failure reason (failed). Cached so GetDiffResult returns the
 // verdict instantly, surviving client disconnect and server restart.
@@ -136,6 +140,25 @@ type CachedDiff struct {
 	Error      string      `json:"error,omitempty"`
 	RunID      string      `json:"run_id"`
 	ComputedAt time.Time   `json:"computed_at"`
+}
+
+// DiffIntent is the durable StartDiff handoff. It exists before the verdict
+// cache, so interrupted clients can recover the latest run id for a baseline.
+type DiffIntent struct {
+	Status     string           `json:"status"` // pending | ready | failed
+	Error      string           `json:"error,omitempty"`
+	RepoID     int64            `json:"repo_id"`
+	Scenario   string           `json:"scenario"`
+	Branch     string           `json:"branch"`
+	Name       string           `json:"name"`
+	Surface    string           `json:"surface,omitempty"`
+	Manifest   BaselineManifest `json:"manifest"`
+	CurrentGit git.State        `json:"current_git"`
+	Staleness  Staleness        `json:"staleness"`
+	BaseRunID  string           `json:"base_run_id"`
+	CurRunID   string           `json:"cur_run_id"`
+	CreatedAt  time.Time        `json:"created_at"`
+	UpdatedAt  time.Time        `json:"updated_at"`
 }
 
 // SnapshotIntent is the durable handoff between SnapshotForBaseline's
@@ -181,6 +204,22 @@ func (i SnapshotIntent) PendingCapture() PendingCapture {
 		Want:         i.Want,
 		Run:          i.Run,
 		DirtyWarning: i.DirtyWarning,
+	}
+}
+
+// PendingDiff reconstructs the finalize input from the durable intent.
+func (i DiffIntent) PendingDiff() PendingDiff {
+	return PendingDiff{
+		RepoID:     i.RepoID,
+		Scenario:   i.Scenario,
+		Branch:     i.Branch,
+		Name:       i.Name,
+		Surface:    i.Surface,
+		Manifest:   i.Manifest,
+		CurrentGit: i.CurrentGit,
+		Staleness:  i.Staleness,
+		BaseRunID:  i.BaseRunID,
+		CurRunID:   i.CurRunID,
 	}
 }
 
@@ -380,6 +419,71 @@ func (s *Storage) LoadDiffResult(repoID int64, scenario, branch, name, runID str
 		return CachedDiff{}, false, err
 	}
 	return cd, found, nil
+}
+
+// SaveDiffIntent persists the StartDiff handoff before the RPC returns.
+func (s *Storage) SaveDiffIntent(repoID int64, intent DiffIntent) error {
+	dir, err := s.branchDir(repoID, intent.Scenario, intent.Branch)
+	if err != nil {
+		return err
+	}
+	return s.withLock(dir, intent.Name, func() error {
+		path := s.diffIntentPath(dir, intent.Name, intent.CurRunID)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return fmt.Errorf("create diff intent dir: %w", err)
+		}
+		data, err := json.MarshalIndent(intent, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshal diff intent: %w", err)
+		}
+		tmp := path + ".tmp"
+		if err := os.WriteFile(tmp, data, 0o644); err != nil {
+			return fmt.Errorf("write diff intent tmp: %w", err)
+		}
+		if err := os.Rename(tmp, path); err != nil {
+			return fmt.Errorf("replace diff intent: %w", err)
+		}
+		return nil
+	})
+}
+
+// LatestDiffIntent returns the newest StartDiff intent for a baseline.
+func (s *Storage) LatestDiffIntent(repoID int64, scenario, branch, name string) (DiffIntent, bool, error) {
+	dir, err := s.branchDir(repoID, scenario, branch)
+	if err != nil {
+		return DiffIntent{}, false, err
+	}
+	intentDir := filepath.Join(dir, ".diffs", ".intents")
+	entries, rerr := os.ReadDir(intentDir)
+	if rerr != nil {
+		if os.IsNotExist(rerr) {
+			return DiffIntent{}, false, nil
+		}
+		return DiffIntent{}, false, fmt.Errorf("read diff intents: %w", rerr)
+	}
+	var latest DiffIntent
+	found := false
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
+			continue
+		}
+		data, ferr := os.ReadFile(filepath.Join(intentDir, e.Name()))
+		if ferr != nil {
+			continue
+		}
+		var intent DiffIntent
+		if json.Unmarshal(data, &intent) != nil {
+			continue
+		}
+		if intent.Name != name {
+			continue
+		}
+		if !found || intent.UpdatedAt.After(latest.UpdatedAt) {
+			latest = intent
+			found = true
+		}
+	}
+	return latest, found, nil
 }
 
 func (s *Storage) lockPath(dir, name string) string {

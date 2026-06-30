@@ -287,11 +287,17 @@ Seam guardrails:
 - A baseline pins ONE run and unpins it ONCE on delete, regardless of surface count.
 - `BaselineStorage` is branch-scoped and `flock`-protected (`storage.go`); writes are atomic temp-file renames.
 - **Snapshot durability (return-fast):** `SnapshotForBaseline` STARTS the comprehensive run, records a durable snapshot intent, and returns immediately with `{run_id, estimated_total_seconds, eta_known}` (via `Service.StartCapture`). The pin + manifest write happen on a server-owned goroutine (`Service.FinalizeCapture` under `context.WithoutCancel(ctx)` + `snapshotTailCeiling`); if GCT restarts before that goroutine finishes, startup recovery and `baseline snapshot status` reattach to the intent and either write the manifest or mark the intent failed. The heavy run itself is durable in test-genie's `runmanager`; GCT keeps NO parallel job system. The CLI returns fast (bounded by `snapshotStartCeiling`, ~2m) — no SIGINT-detach plumbing, because there is no long block.
+- **Diff durability (return-fast + recoverable wait):** `StartDiff` resolves the current comprehensive run, records a durable diff intent, and returns the run id immediately. `FinalizeDiff` computes and caches the verdict on a server-owned context; `GetDiffResult` can recover the latest intent for a baseline when called with `latest=true`, so an interrupted `--wait` can reattach without guessing from test-genie run history.
 
 ### Observability Surface (baseline snapshot)
 - **States/transitions:** `SnapshotForBaseline` logs a "started comprehensive run" line (`scenario`, `name`, `run`, `eta`) up front and, when finalization completes, a "pinned" line (`run`, `surfaces`, `skipped`) or a "finalize FAILED" line. The CLI prints an up-front banner — run id + ETA + the quiet `baseline snapshot status --run <run-id>` reattach command plus the human `test-genie runs follow <scenario> <run-id>` live-watch command — and returns immediately, so the snapshot never blocks or reads as a silent hang.
 - **Skip reasons are first-class:** every fast-skip carries its cause into the manifest's `skipped` map (`comprehensive run failed: …`), surfaced by `show`/`diff` so a partial baseline can't masquerade as complete.
 - **Signal stability:** the structured re-attach verb is `baseline snapshot status`; it reports `pending`, `ready`, `failed`, or `missing` and carries similar-name hints when the manifest is absent. The baseline becomes queryable via `baseline show`/`diff` once the run completes. The visuals surface verdict vocabulary gains the advisory `changed` tier (never gates; diff exit code unchanged).
+
+### Observability Surface (baseline diff)
+- **Start signal:** `baseline diff --wait` prints the run id once before blocking, preserving machine-readable JSON on stdout by writing that recovery notice to stderr when `--json` is used. It intentionally does not emit heartbeat/progress lines while waiting.
+- **Recovery signal:** `baseline diff status --latest --scenario <s> --name <n>` resolves the newest durable diff intent for that baseline; `--run` remains the precise reattach path.
+- **Server logs:** `GetDiffResult` logs one completion line per request with `scenario`, `name`, resolved `run`, `latest`, `wait`, `status`, `verdict`, `next_check`, and duration; errors include the same request identifiers and elapsed time.
 
 ## Verification Checklist
 

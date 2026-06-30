@@ -7,6 +7,7 @@ import {
   registerMicStream,
   releaseAllMicLeases,
   releaseMicLease,
+  subscribeMicLeases,
 } from "./micOwnership";
 
 interface FakeTrack {
@@ -147,6 +148,45 @@ describe("micOwnership", () => {
       expect(passive.released).toBe(true);
 
       uninstall2();
+    });
+
+    it("an injected resolver that returns 'all' releases active recordings on hidden (iOS/PWA)", () => {
+      // Standalone/PWA policy: hidden releases EVERY lease, including the active
+      // recording, so the iOS Dynamic Island indicator cannot stay on.
+      const uninstall = installMicLifecycleCleanup((event) => (event === "hidden" ? "all" : "all"));
+      const passive = registerMicStream("passive-wake-word", fakeStream([fakeTrack()]));
+      const recording = registerMicStream("voice-stream", fakeStream([fakeTrack()]));
+
+      Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+      document.dispatchEvent(new Event("visibilitychange"));
+
+      expect(passive.released).toBe(true);
+      expect(recording.released).toBe(true);
+
+      uninstall();
+    });
+  });
+
+  describe("subscribeMicLeases", () => {
+    it("notifies subscribers with a metadata-only snapshot on acquire and release", () => {
+      const seen: number[] = [];
+      let lastSnapshot: ReturnType<typeof getActiveMicLeases> = [];
+      const unsub = subscribeMicLeases((snap) => {
+        seen.push(snap.length);
+        lastSnapshot = snap;
+      });
+
+      const lease = registerMicStream("voice-stream", fakeStream([fakeTrack()]));
+      expect(seen).toContain(1);
+      expect(lastSnapshot[0]).not.toHaveProperty("stream");
+
+      releaseMicLease(lease, "manual-stop");
+      expect(seen[seen.length - 1]).toBe(0);
+
+      unsub();
+      registerMicStream("whisper", fakeStream([fakeTrack()]));
+      // No further notifications after unsubscribe.
+      expect(seen[seen.length - 1]).toBe(0);
     });
   });
 });

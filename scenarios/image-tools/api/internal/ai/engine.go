@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"image-tools/internal/adapters"
 	"image-tools/internal/backends"
@@ -567,10 +569,11 @@ func (e *Engine) runOnce(ctx context.Context, op string, model models.Model, bse
 		Adapters:  pl.Adapters,
 		Progress:  progress,
 	}
-	if _, err := bsel.Provider.Execute(ctx, req); err != nil {
+	res, err := bsel.Provider.Execute(ctx, req)
+	if err != nil {
 		return "", err
 	}
-	return e.persistOutput(ctx, outPath)
+	return e.persistOutput(ctx, outPath, res.Meta)
 }
 
 func collectInputs(in inputFiles) []string {
@@ -590,16 +593,39 @@ func (e *Engine) absModelDir(modelID string) string {
 	return filepath.Join(e.deps.ModelsRoot, "models", modelID)
 }
 
-func (e *Engine) persistOutput(ctx context.Context, outPath string) (string, error) {
+func (e *Engine) persistOutput(ctx context.Context, outPath string, meta map[string]string) (string, error) {
 	data, err := os.ReadFile(outPath)
 	if err != nil {
 		return "", fmt.Errorf("ai: read backend output: %w", err)
 	}
-	key := "out/" + uuid.NewString() + ".png"
-	if err := e.deps.Store.Put(ctx, key, bytes.NewReader(data), "image/png"); err != nil {
+	mime, ext := outputFormat(data, meta)
+	key := "out/" + uuid.NewString() + ext
+	if err := e.deps.Store.Put(ctx, key, bytes.NewReader(data), mime); err != nil {
 		return "", fmt.Errorf("ai: store output: %w", err)
 	}
 	return key, nil
+}
+
+func outputFormat(data []byte, meta map[string]string) (mime, ext string) {
+	mime = strings.TrimSpace(meta["media_type"])
+	if mime == "" {
+		trimmed := strings.TrimSpace(string(data[:min(len(data), 256)]))
+		if strings.HasPrefix(trimmed, "<svg") || strings.HasPrefix(trimmed, "<?xml") && strings.Contains(trimmed, "<svg") {
+			mime = "image/svg+xml"
+		} else {
+			mime = http.DetectContentType(data)
+		}
+	}
+	switch strings.ToLower(strings.Split(mime, ";")[0]) {
+	case "image/svg+xml":
+		return "image/svg+xml", ".svg"
+	case "image/jpeg":
+		return "image/jpeg", ".jpg"
+	case "image/webp":
+		return "image/webp", ".webp"
+	default:
+		return "image/png", ".png"
+	}
 }
 
 func (e *Engine) autoScan(ctx context.Context, key string) string {

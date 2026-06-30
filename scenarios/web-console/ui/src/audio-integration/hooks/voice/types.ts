@@ -146,6 +146,15 @@ export interface VoiceInputState {
    */
   passiveListeningActive: boolean;
   /**
+   * True when the mic ownership registry holds a live lease that the workflow
+   * should NOT be holding (UI idle/off while the OS mic is still on — the
+   * iOS-PWA "stuck indicator" violation). The hook self-heals by releasing the
+   * orphaned lease; this flag drives the user-facing "release microphone"
+   * recovery affordance for the window where a mismatch is observed. Hardware
+   * truth comes from the registry, never from `voiceState`.
+   */
+  staleLiveMicLease: boolean;
+  /**
    * The most recent speaker-verification rejection that still has user-visible
    * state (banner open, retry available). Single slot — a new rejection
    * replaces the previous one. Cleared by `dismissRejection()`, successful

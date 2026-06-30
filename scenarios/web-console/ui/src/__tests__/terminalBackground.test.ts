@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
+  ambientBackground,
   ansi256ToHex,
   cellBackgroundHex,
   dominantBackground,
+  dominantWeightedBackground,
   parseOscColor,
   type BgCell,
 } from "../lib/terminalBackground";
@@ -81,6 +83,139 @@ describe("dominantBackground", () => {
   it("returns null for an empty / all-null sample", () => {
     expect(dominantBackground([], 0.5)).toBeNull();
     expect(dominantBackground([null, null], 0.5)).toBeNull();
+  });
+});
+
+describe("dominantWeightedBackground", () => {
+  it("picks the color with the largest total weight above the threshold", () => {
+    expect(
+      dominantWeightedBackground(
+        [
+          { hex: "#111111", weight: 3 },
+          { hex: "#222222", weight: 1 },
+        ],
+        0.6,
+      ),
+    ).toBe("#111111");
+  });
+
+  it("lets a heavier color overcome a more numerous lighter one", () => {
+    // Two edge cells (weight 2) of B vs one corner cell (weight 3) of A.
+    // A holds 3/7 ≈ 0.43, B holds 4/7 ≈ 0.57 → with a 0.5 threshold B wins.
+    const samples = [
+      { hex: "#aaaaaa", weight: 3 },
+      { hex: "#bbbbbb", weight: 2 },
+      { hex: "#bbbbbb", weight: 2 },
+    ];
+    expect(dominantWeightedBackground(samples, 0.5)).toBe("#bbbbbb");
+    // …but the same split is ambiguous at the stricter perimeter threshold.
+    expect(dominantWeightedBackground(samples, 0.6)).toBeNull();
+  });
+
+  it("ignores null hexes and non-positive weights", () => {
+    expect(
+      dominantWeightedBackground(
+        [
+          { hex: null, weight: 10 },
+          { hex: "#cccccc", weight: 0 },
+          { hex: "#dddddd", weight: -5 },
+          { hex: "#eeeeee", weight: 2 },
+        ],
+        0.6,
+      ),
+    ).toBe("#eeeeee");
+  });
+
+  it("returns null for an empty / all-null sample", () => {
+    expect(dominantWeightedBackground([], 0.6)).toBeNull();
+    expect(dominantWeightedBackground([{ hex: null, weight: 3 }], 0.6)).toBeNull();
+  });
+});
+
+describe("ambientBackground", () => {
+  /** Build a `rows × cols` grid filled with a single color. */
+  function fillGrid(rows: number, cols: number, color: string | null): (string | null)[][] {
+    return Array.from({ length: rows }, () => Array.from({ length: cols }, () => color));
+  }
+
+  /** Set a cell without a non-null assertion (lint forbids `!`). */
+  function setCell(grid: (string | null)[][], r: number, c: number, color: string | null): void {
+    const row = grid[r];
+    if (row) row[c] = color;
+  }
+
+  const BASE = "#1e1e1e";
+  const CONTENT = "#553377";
+
+  it("ignores a large center-only content block when the perimeter is base", () => {
+    // 20×40 terminal. A coding-agent user-message block fills the strict
+    // interior (rows 3–15, cols 4–35) — 52% of all cells — but leaves every
+    // perimeter (corner/edge) cell at the base color.
+    const grid = fillGrid(20, 40, BASE);
+    let contentCells = 0;
+    for (let r = 3; r <= 15; r++) {
+      for (let c = 4; c <= 35; c++) {
+        setCell(grid, r, c, CONTENT);
+        contentCells++;
+      }
+    }
+    // Sanity: the content block really is a flat-histogram majority…
+    expect(contentCells / (20 * 40)).toBeGreaterThan(0.5);
+    expect(dominantBackground(grid.flat(), 0.5)).toBe(CONTENT);
+    // …yet ambient sampling follows the perimeter base color.
+    expect(ambientBackground(grid)).toBe(BASE);
+  });
+
+  it("follows a true full-screen TUI background that reaches the edges", () => {
+    expect(ambientBackground(fillGrid(20, 40, "#0d1117"))).toBe("#0d1117");
+  });
+
+  it("excludes the bottom status row so a status band cannot hijack the color", () => {
+    const grid = fillGrid(20, 40, BASE);
+    for (let c = 0; c < 40; c++) setCell(grid, 19, c, "#0dbc79"); // green status line
+    expect(ambientBackground(grid)).toBe(BASE);
+  });
+
+  it("returns null when the perimeter has no dominant color (quadrants)", () => {
+    // Four distinct quadrants: no single color reaches either threshold.
+    const grid = fillGrid(20, 40, "#111111");
+    for (let r = 0; r < 20; r++) {
+      for (let c = 0; c < 40; c++) {
+        const top = r < 10;
+        const left = c < 20;
+        setCell(grid, r, c, top ? (left ? "#111111" : "#222222") : left ? "#333333" : "#444444");
+      }
+    }
+    expect(ambientBackground(grid)).toBeNull();
+  });
+
+  it("does not flip on an exact 50/50 perimeter tie (threshold above 0.5)", () => {
+    // Left half one color, right half another. The status-row exclusion takes
+    // a full row from both halves equally, so the perimeter stays an exact
+    // 50/50 tie. The >0.5 threshold makes the result a deterministic null.
+    const grid = fillGrid(20, 40, "#101010");
+    for (let r = 0; r < 20; r++) {
+      for (let c = 20; c < 40; c++) setCell(grid, r, c, "#202020");
+    }
+    expect(ambientBackground(grid)).toBeNull();
+  });
+
+  it("retints when a content block grows to fill the whole usable screen", () => {
+    // Interior + edges all the new color, only the excluded status row differs.
+    const grid = fillGrid(20, 40, "#2b2b40");
+    for (let c = 0; c < 40; c++) setCell(grid, 19, c, "#0dbc79");
+    expect(ambientBackground(grid)).toBe("#2b2b40");
+  });
+
+  it("handles tiny terminals without throwing", () => {
+    // 1 row + statusRows=1 would leave nothing → falls back to the whole grid.
+    expect(ambientBackground([["#abcdef", "#abcdef", "#abcdef"]])).toBe("#abcdef");
+    // 2 narrow rows, uniform.
+    expect(ambientBackground([["#123456", "#123456"], ["#123456", "#123456"]])).toBe("#123456");
+    // All-null sample → null.
+    expect(ambientBackground([[null, null], [null, null]])).toBeNull();
+    // Empty grid → null.
+    expect(ambientBackground([])).toBeNull();
   });
 });
 

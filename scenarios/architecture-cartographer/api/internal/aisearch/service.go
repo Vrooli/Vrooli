@@ -274,9 +274,12 @@ func (s *Service) Search(ctx context.Context, query string, limit int, mode Sear
 	if method == "dense" || method == "hybrid" {
 		method = "ai" // wire vocab
 	}
-	regime := pkg.RegimeForMethod(presp.Method, presp.Reranker)
+	// The engine resolves the scoring regime once, authoritatively, from the
+	// actual (method, leg) it ran — read it off the response rather than
+	// re-deriving from presp.Reranker, whose blended leg name ("blend:…") is
+	// observability-only and does not round-trip through RegimeForMethod.
 	for i := range hits {
-		hits[i].Regime = regime
+		hits[i].Regime = presp.Regime
 	}
 	return &SearchResponse{
 		Results:  hits,

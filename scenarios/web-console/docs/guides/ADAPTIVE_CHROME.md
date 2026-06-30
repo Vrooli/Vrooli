@@ -23,14 +23,30 @@ surface.
 
 - Detection reads the **xterm buffer cell colors** (unlocked by
   `allowProposedApi: true`) — not canvas pixels. No renderer addon is added.
-- The focused pane's visible rows are sampled into a histogram; the dominant
-  background wins. The **bottom row is excluded** so a tmux/shell status-line
-  band does not hijack the chrome color.
+- The focused pane's visible cells are read into a grid and the **ambient**
+  background is selected with a **perimeter-biased** model (`ambientBackground`),
+  not a flat full-buffer histogram. App chrome sits visually adjacent to the
+  terminal's perimeter, so the cells nearest that perimeter decide the color:
+  1. The **bottom status row(s) are excluded** so a tmux/shell status-line band
+     does not hijack the chrome color.
+  2. **Perimeter pass** — corner and edge-band cells are weighted (corners count
+     more than plain edges); if one color holds a strong weighted majority
+     (`BG_DETECT_PERIMETER_DOMINANCE`, 0.6) it wins. A large **center-only**
+     content block — e.g. a coding-agent user message with its own background —
+     is *not* part of the perimeter, so scrolling past it no longer flips the
+     chrome while the terminal edges stay at the base background.
+  3. **Full-screen fallback** — otherwise, if a single color fills the whole
+     usable grid at a high share (`BG_DETECT_FULLSCREEN_DOMINANCE`, 0.75), it
+     wins, so a real full-screen TUI whose new background reaches the edges
+     still retints within the debounce window.
+  4. Otherwise the sample is ambiguous and detection reports `null`. Thresholds
+     sit above 0.5 so an even split is a deterministic `null` rather than a
+     scan-order coin-flip. No color blending or averaging is performed.
 - Per-cell colors resolve by mode: RGB truecolor used directly, palette indices
   against the ANSI 256 palette, and DEFAULT-mode cells against the current
   default background — which also tracks **`OSC 11`** (set-default-background)
   changes, with `OSC 111` resetting it.
-- **Fallback chain:** detected rendered background → the pane's configured theme
+- **Fallback chain:** detected ambient background → the pane's configured theme
   background → the app default (slate). Detection failure never errors.
 
 Implementation: `src/lib/terminalBackground.ts` (pure helpers),
@@ -123,3 +139,10 @@ collapses identical-color ticks (the common case under a busy TUI).
 - The desktop sidebar and Messages view use the derived token palette; per-group
   color dots, pane header accents, and semantic warning/error state colors stay
   stable so the list remains structurally distinct over the tint.
+- **Perimeter-biased detection is intentional, not exact.** A background that
+  reaches most of the terminal's edges/corners — a full-screen TUI, or a content
+  block large enough to fill the perimeter — *will* retint the chrome, because
+  from the app's perspective that color is genuinely ambient. Conversely, a
+  background confined to the center (with base-colored edges) will not, even if
+  it covers a majority of cells. This favors a stable chrome that follows the
+  terminal environment over one that chases transient content cards.

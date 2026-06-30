@@ -114,6 +114,24 @@ func TestSubmit_TextToImage_Accepted(t *testing.T) {
 	}
 }
 
+func TestSubmit_CarriesOpenRouterRoleParam(t *testing.T) {
+	r, sub := newTestServer(t, true)
+	req := newMultipartSubmit(t, "text_to_image", `{"prompt":"a cat","openrouterRole":"image.generate.logo"}`)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want 202; body=%s", w.Code, w.Body.String())
+	}
+	var payload internalai.Payload
+	if err := json.Unmarshal(sub.last.Payload, &payload); err != nil {
+		t.Fatalf("decode submitted payload: %v", err)
+	}
+	if got := payload.Params["openrouter_role"]; got != "image.generate.logo" {
+		t.Fatalf("openrouter_role = %q", got)
+	}
+}
+
 func TestSubmit_ModelNotInstalled_Conflict(t *testing.T) {
 	r, _ := newTestServer(t, false)
 	req := newMultipartSubmit(t, "text_to_image", `{"prompt":"x"}`)

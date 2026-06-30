@@ -103,6 +103,154 @@ export function dominantBackground(
   return best;
 }
 
+/** A color sample carrying a relative importance weight. */
+export interface WeightedSample {
+  hex: string | null;
+  weight: number;
+}
+
+/**
+ * Pick the color holding the largest share of total *weight* across the
+ * samples. Null hexes and non-positive weights are ignored. Returns `null`
+ * when no color reaches `threshold` of the total weight (an ambiguous sample),
+ * so the caller can fall back to a flat pass or the configured theme.
+ */
+export function dominantWeightedBackground(
+  samples: ReadonlyArray<WeightedSample>,
+  threshold: number,
+): string | null {
+  const weights = new Map<string, number>();
+  let total = 0;
+  for (const { hex, weight } of samples) {
+    if (!hex || weight <= 0) continue;
+    const key = hex.toLowerCase();
+    weights.set(key, (weights.get(key) ?? 0) + weight);
+    total += weight;
+  }
+  if (total === 0) return null;
+  let best: string | null = null;
+  let bestW = 0;
+  for (const [hex, w] of weights) {
+    if (w > bestW) {
+      bestW = w;
+      best = hex;
+    }
+  }
+  if (best === null || bestW / total < threshold) return null;
+  return best;
+}
+
+/**
+ * Tuning knobs for {@link ambientBackground}. All sizes are in cells and are
+ * clamped to the usable grid, so they degrade gracefully on tiny terminals.
+ */
+export interface AmbientBackgroundOptions {
+  /** Bottom rows excluded from sampling (the tmux/shell status line). */
+  statusRows: number;
+  /** Corner region depth: rows and columns measured from each corner. */
+  cornerRows: number;
+  cornerCols: number;
+  /** Edge band thickness for the top/bottom (rows) and left/right (cols). */
+  edgeRows: number;
+  edgeCols: number;
+  /** Relative perimeter-pass weights — corners count more than plain edges. */
+  cornerWeight: number;
+  edgeWeight: number;
+  /** Minimum weighted share the perimeter winner must hold. */
+  perimeterThreshold: number;
+  /** Minimum flat share for a whole-screen winner (true full-screen TUI). */
+  fullScreenThreshold: number;
+}
+
+/**
+ * Defaults chosen so the perimeter (where app chrome visually meets the
+ * terminal) decides the ambient color, while a color that fills the *entire*
+ * usable screen still wins via the full-screen fallback. Thresholds sit above
+ * 0.5 so an even split returns `null` rather than flipping on scan order.
+ */
+export const AMBIENT_BACKGROUND_DEFAULTS: AmbientBackgroundOptions = {
+  statusRows: 1,
+  cornerRows: 3,
+  cornerCols: 8,
+  edgeRows: 2,
+  edgeCols: 4,
+  cornerWeight: 3,
+  edgeWeight: 2,
+  perimeterThreshold: 0.6,
+  fullScreenThreshold: 0.75,
+};
+
+/**
+ * Select the terminal's *ambient* background from a rectangular-ish grid of
+ * resolved cell colors (rows × columns, ragged rows tolerated).
+ *
+ * The app chrome sits visually adjacent to the terminal's perimeter, so the
+ * heuristic is perimeter-biased rather than a flat full-buffer histogram:
+ *   1. The bottom `statusRows` are excluded (status-line protection).
+ *   2. Perimeter pass — corner and edge-band cells are weighted (corners more
+ *      than edges); if one color holds `perimeterThreshold` of that weight it
+ *      wins. A large center-only content block (e.g. a coding-agent user
+ *      message) is ignored here, so it can no longer hijack the chrome.
+ *   3. Full-screen fallback — otherwise, if one color fills `fullScreenThreshold`
+ *      of the whole usable grid it wins, so a real full-screen TUI still retints.
+ *   4. Otherwise `null`, leaving the caller's theme fallback in charge.
+ *
+ * O(rows × cols), no allocations beyond two bounded sample passes, no blending.
+ */
+export function ambientBackground(
+  hexGrid: ReadonlyArray<ReadonlyArray<string | null>>,
+  options?: Partial<AmbientBackgroundOptions>,
+): string | null {
+  const o = { ...AMBIENT_BACKGROUND_DEFAULTS, ...options };
+  const rowCount = hexGrid.length;
+  if (rowCount === 0) return null;
+
+  // Exclude the bottom status row(s). If that would leave nothing to sample
+  // (a 1–2 row terminal), fall back to the whole grid rather than returning
+  // nothing.
+  let usableRows = rowCount - Math.max(0, o.statusRows);
+  if (usableRows < 1) usableRows = rowCount;
+
+  // Widest usable row sets the column extent; grids may be ragged.
+  let cols = 0;
+  for (let r = 0; r < usableRows; r++) {
+    const len = hexGrid[r]?.length ?? 0;
+    if (len > cols) cols = len;
+  }
+  if (cols === 0) return null;
+
+  const cornerRows = Math.min(o.cornerRows, usableRows);
+  const cornerCols = Math.min(o.cornerCols, cols);
+  const edgeRows = Math.min(o.edgeRows, usableRows);
+  const edgeCols = Math.min(o.edgeCols, cols);
+
+  const perimeter: WeightedSample[] = [];
+  const all: (string | null)[] = [];
+
+  for (let r = 0; r < usableRows; r++) {
+    const row = hexGrid[r];
+    if (!row) continue;
+    const nearTopBottomEdge = r < edgeRows || r >= usableRows - edgeRows;
+    const nearTopBottomCorner = r < cornerRows || r >= usableRows - cornerRows;
+    for (let c = 0; c < row.length; c++) {
+      const hex = row[c] ?? null;
+      all.push(hex);
+      const nearLeftRightEdge = c < edgeCols || c >= cols - edgeCols;
+      const nearLeftRightCorner = c < cornerCols || c >= cols - cornerCols;
+      if (nearTopBottomCorner && nearLeftRightCorner) {
+        perimeter.push({ hex, weight: o.cornerWeight });
+      } else if (nearTopBottomEdge || nearLeftRightEdge) {
+        perimeter.push({ hex, weight: o.edgeWeight });
+      }
+    }
+  }
+
+  const perimeterWinner = dominantWeightedBackground(perimeter, o.perimeterThreshold);
+  if (perimeterWinner) return perimeterWinner;
+
+  return dominantBackground(all, o.fullScreenThreshold);
+}
+
 /**
  * Parse an `OSC 11` color payload (set-default-background) into a hex string.
  * Handles the common `rgb:RR/GG/BB` (1–4 hex digits per channel) and `#rgb` /

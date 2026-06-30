@@ -48,6 +48,25 @@ reasoning/prompt leakage.
 
 Sessions with default never-expire policy could accumulate unbounded transcript data in SQLite. May need eventual transcript rotation or archival strategy (deferred — not MVP).
 
+## 8a. iOS/WebKit Residual Mic-Indicator Limitation (2026-06-30)
+
+The microphone lifecycle hardening (capture lifecycle controller, platform-aware
+`decideMicLifecycle` policy, registry-driven self-heal, preparing/start
+cancellation) makes it structurally impossible for web-console JS to report the
+mic as off while JS still owns a live browser mic track, and releases all
+app-owned tracks as early as `visibilitychange: hidden` on standalone/PWA.
+
+**Residual platform limitation we cannot fix from JS:** if iOS/WebKit fully
+freezes or kills the page's JavaScript *before* `visibilitychange: hidden`,
+`pagehide`, or `freeze` is delivered (or without delivering any of them), no
+application code can run `MediaStreamTrack.stop()`, and the OS mic indicator may
+remain active until the OS reclaims the track or the device is restarted. This is
+outside the web platform's control surface. Mitigation in place: release on the
+earliest lifecycle signal (`visibilitychange: hidden`) rather than waiting for
+`pagehide`, and treat `preparing` as capture-active so an in-flight `getUserMedia`
+is also released. A native wrapper would be required to guarantee release across
+a hard JS freeze.
+
 ## 9. E2E Issues
 
 **PARTIALLY RESOLVED** (2026-02-19): Added BAS workflows for terminal command execution, route-level session persistence, reconnect replay, and multi-pane independence:

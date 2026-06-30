@@ -49,7 +49,15 @@ export type MicReleaseReason =
   | "pagehide"
   | "freeze"
   | "ended"
+  // A live lease was found while the UI was idle/off (the "mic indicator on but
+  // app looks idle" violation); the registry-driven recovery path released it.
+  | "invariant-violation"
+  // User-triggered "release microphone" recovery from the mic control.
+  | "recovery"
   | "test-reset";
+
+/** Scope a page-lifecycle event releases. The backstop never sees "none". */
+export type LifecycleReleaseScope = "all" | "non-active";
 
 export type MicLeaseMetadata = Record<string, string | number | boolean | undefined>;
 
@@ -96,6 +104,36 @@ export interface AcquireMicOptions {
 
 let _idSeq = 0;
 const _leases = new Set<LeaseImpl>();
+
+/** Subscribers notified (with a fresh metadata-only snapshot) on every lease
+ *  acquire/release, so the UI can derive live-mic honesty without polling. */
+export type MicLeaseListener = (snapshots: MicLeaseSnapshot[]) => void;
+const _listeners = new Set<MicLeaseListener>();
+
+function notifyLeaseListeners(): void {
+  if (_listeners.size === 0) return;
+  const snapshot = getActiveMicLeases();
+  for (const listener of [..._listeners]) {
+    try {
+      listener(snapshot);
+    } catch (err) {
+      console.warn("[mic] lease listener threw:", err);
+    }
+  }
+}
+
+/**
+ * Subscribe to lease acquire/release. The listener receives a metadata-only
+ * snapshot (never the raw stream) on every change and once is not called for
+ * the current state — call `getActiveMicLeases()` for the initial read.
+ * Returns an unsubscribe function.
+ */
+export function subscribeMicLeases(listener: MicLeaseListener): () => void {
+  _listeners.add(listener);
+  return () => {
+    _listeners.delete(listener);
+  };
+}
 
 function safeTrackStop(track: MediaStreamTrack): boolean {
   const wasLive = track.readyState === "live";
@@ -168,6 +206,7 @@ class LeaseImpl implements MicLease {
     }
     _leases.delete(this);
     console.info("[mic] release owner=%s id=%s reason=%s liveTracks=%d", this.owner, this.id, reason, liveCount);
+    notifyLeaseListeners();
 
     if (this.onRelease) {
       try {
@@ -187,6 +226,7 @@ export function registerMicStream(owner: MicOwner, stream: MediaStream, options?
   const lease = new LeaseImpl(owner, stream, options);
   _leases.add(lease);
   console.info("[mic] acquire owner=%s id=%s tracks=%d", owner, lease.id, stream.getTracks().length);
+  notifyLeaseListeners();
   return lease;
 }
 
@@ -238,30 +278,48 @@ export function getActiveMicLeases(): MicLeaseSnapshot[] {
 let _lifecycleRefcount = 0;
 let _uninstallLifecycle: (() => void) | null = null;
 
+/** Default backstop policy: hidden releases non-active leases (the active
+ *  recording is stopped by its owner for UI consistency); pagehide/freeze
+ *  release all. Callers running as a standalone/PWA inject a resolver that
+ *  upgrades `hidden` to `all` — see `micLifecyclePolicy.decideMicLifecycle`. */
+const DEFAULT_LIFECYCLE_SCOPE: (event: "hidden" | "pagehide" | "freeze") => LifecycleReleaseScope =
+  (event) => (event === "hidden" ? "non-active" : "all");
+
 /**
  * Install page-lifecycle emergency cleanup (idempotent + ref-counted, so it can
  * be installed from multiple mounts without stacking listeners):
  *
- *   - `visibilitychange` → hidden: release every NON-active-recording lease
- *     (passive wake-word, low-latency prewarm, settings capture). Active user
- *     recording is released by its owner so UI state stays consistent.
+ *   - `visibilitychange` → hidden: release leases per `resolveScope("hidden")`.
+ *     The default releases every NON-active-recording lease; a standalone/PWA
+ *     caller releases ALL (iOS keeps the OS mic indicator on otherwise).
  *   - `pagehide` / `freeze`: release ALL leases. The page is going away —
  *     privacy/hardware release wins over preserving a partial recording. MDN
  *     notes mobile `pagehide` is not fully reliable, so `visibilitychange` is
  *     the primary session-end signal and `pagehide`/`freeze` are complementary.
  *
- * Returns an uninstall function.
+ * `resolveScope` is read on every event (not cached) so display-mode can change
+ * at runtime. Returns an uninstall function.
  */
-export function installMicLifecycleCleanup(): () => void {
+export function installMicLifecycleCleanup(
+  resolveScope: (event: "hidden" | "pagehide" | "freeze") => LifecycleReleaseScope = DEFAULT_LIFECYCLE_SCOPE,
+): () => void {
+  const release = (event: "hidden" | "pagehide" | "freeze") => {
+    const scope = resolveScope(event);
+    if (scope === "all") {
+      releaseAllMicLeases(event);
+    } else {
+      releaseAllMicLeases(event, (l) => !isActiveRecordingOwner(l.owner));
+    }
+  };
   _lifecycleRefcount++;
   if (_lifecycleRefcount === 1) {
     const onVisibility = () => {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") {
-        releaseAllMicLeases("hidden", (l) => !isActiveRecordingOwner(l.owner));
+        release("hidden");
       }
     };
-    const onPageHide = () => releaseAllMicLeases("pagehide");
-    const onFreeze = () => releaseAllMicLeases("freeze");
+    const onPageHide = () => release("pagehide");
+    const onFreeze = () => release("freeze");
 
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("pagehide", onPageHide);
@@ -291,6 +349,7 @@ export function installMicLifecycleCleanup(): () => void {
 export function _resetMicOwnershipForTesting(): void {
   for (const lease of [..._leases]) lease.release("test-reset");
   _leases.clear();
+  _listeners.clear();
   if (_uninstallLifecycle) {
     _uninstallLifecycle();
     _uninstallLifecycle = null;

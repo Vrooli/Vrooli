@@ -200,6 +200,37 @@ describe("VoiceMicButton", () => {
     expect(onStop).not.toHaveBeenCalled();
   });
 
+  // --- Stale-live-mic recovery affordance ---
+
+  it("shows the recovery affordance when a live mic lease is orphaned while idle", () => {
+    render(<VoiceMicButton {...defaults} staleLiveMic />);
+    const btn = screen.getByTestId("voice-mic-btn");
+    // Distinct recovery presentation, never ordinary idle.
+    expect(btn.getAttribute("data-recovery")).toBe("true");
+    expect(btn.className).not.toContain("border-wc-default");
+    expect(btn.title).toBe("voiceMicButton.recoverMic");
+    expect(screen.getByTestId("voice-mic-recovery-icon")).toBeTruthy();
+  });
+
+  it("tapping the recovery affordance calls onReleaseMic, never onStart", () => {
+    const onReleaseMic = vi.fn();
+    render(<VoiceMicButton {...defaults} staleLiveMic onReleaseMic={onReleaseMic} />);
+    const btn = screen.getByTestId("voice-mic-btn");
+    fireEvent.pointerDown(btn);
+    fireEvent.pointerUp(btn);
+    expect(onReleaseMic).toHaveBeenCalledTimes(1);
+    expect(onStart).not.toHaveBeenCalled();
+    expect(onStop).not.toHaveBeenCalled();
+  });
+
+  it("does not show the recovery affordance while actively recording", () => {
+    // An active recording legitimately holds the mic — no mismatch.
+    render(<VoiceMicButton {...defaults} isRecording staleLiveMic />);
+    const btn = screen.getByTestId("voice-mic-btn");
+    expect(btn.getAttribute("data-recovery")).toBeNull();
+    expect(btn.className).toContain("border-red-500");
+  });
+
   // --- Pointer interaction (intent-based) ---
 
   it("calls onStart on pointerDown when idle", () => {

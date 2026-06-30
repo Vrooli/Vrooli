@@ -108,5 +108,8 @@ func paramsMap(p *aiv1.AIParams) map[string]string {
 	if p.GetFaceAware() {
 		m["face_aware"] = "true"
 	}
+	if v := p.GetOpenrouterRole(); v != "" {
+		m["openrouter_role"] = v
+	}
 	return m
 }
