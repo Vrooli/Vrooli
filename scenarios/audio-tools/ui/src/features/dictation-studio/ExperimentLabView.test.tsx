@@ -12,14 +12,19 @@ const waitExperiment = vi.fn();
 const cancelExperiment = vi.fn();
 const getExperimentReport = vi.fn();
 const compareExperiments = vi.fn();
+const getExperiment = vi.fn();
+const streamExperimentEvents = vi.fn();
 
 vi.mock("../../services/experiment", () => ({
   startExperiment: (input: unknown) => startExperiment(input),
   listExperiments: () => listExperiments(),
+  getExperiment: (id: string) => getExperiment(id),
   waitExperiment: (id: string) => waitExperiment(id),
   cancelExperiment: (id: string) => cancelExperiment(id),
   getExperimentReport: (id: string) => getExperimentReport(id),
   compareExperiments: (ids: string[]) => compareExperiments(ids),
+  streamExperimentEvents: (id: string, onEvent: (event: unknown) => void, signal?: AbortSignal) =>
+    streamExperimentEvents(id, onEvent, signal),
 }));
 
 const pushToast = vi.fn();
@@ -44,6 +49,7 @@ function experiment(over = {}) {
       clipIds: [],
       strategies: ["batch", "overlap_agree"],
       realtimeRepeats: 0,
+      latencyTailSeconds: 8,
       chunkMs: 100,
       seed: 42,
       longFormEnabled: true,
@@ -154,6 +160,12 @@ beforeEach(() => {
   waitExperiment.mockResolvedValue({ experiment: experiment(), runs: [] });
   cancelExperiment.mockResolvedValue(experiment({ status: "canceled" }));
   getExperimentReport.mockResolvedValue(report());
+  getExperiment.mockResolvedValue({ experiment: experiment(), runs: [] });
+  streamExperimentEvents.mockImplementation(async (id: string, onEvent: (event: unknown) => void) => {
+    onEvent({ experimentId: id, status: "running", progress: 45, message: "evaluating strategies", at: "" });
+    await new Promise((resolve) => window.setTimeout(resolve, 25));
+    onEvent({ experimentId: id, status: "succeeded", progress: 100, message: "storing report", at: "" });
+  });
   compareExperiments.mockResolvedValue([report(), { ...report(), experiment: experiment({ id: "exp-2", name: "New run" }) }]);
 });
 afterEach(cleanup);
@@ -173,12 +185,16 @@ describe("ExperimentLabView", () => {
         expect.objectContaining({
           name: "Noise sweep",
           longForm: true,
+          latencyTailSeconds: 8,
           noiseTypesCsv: "white,fan",
           strategies: expect.arrayContaining(["batch", "vad_segment", "overlap_agree"]),
         }),
       ),
     );
     expect(pushToast).toHaveBeenCalledWith(expect.objectContaining({ title: strings.dictationStudio.experimentStarted }));
+    expect(await screen.findByTestId(selectors.dictationStudio.experimentLiveProgress)).toHaveTextContent("evaluating strategies");
+    expect(streamExperimentEvents).toHaveBeenCalledWith("exp-2", expect.any(Function), expect.any(AbortSignal));
+    await waitFor(() => expect(getExperimentReport).toHaveBeenCalledWith("exp-2"));
   });
 
   it("loads history, report, safety envelope, and compare results", async () => {

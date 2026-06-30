@@ -36,6 +36,14 @@ type Condition struct {
 	Note    string
 }
 
+// ConditionGroup is the set of eval clips that belong to one augmentation
+// condition row. ID is "clean", "noise:<type>/<snr>db", or
+// "voice:<voice>/<snr>db".
+type ConditionGroup struct {
+	ID    string
+	Clips []inteval.Clip
+}
+
 // ApplyAugmentation returns clean input clips plus every realized
 // noise/competing-voice condition. The same seed/spec/base audio produces
 // byte-identical generated noise and condition ordering.
@@ -115,6 +123,35 @@ func ApplyAugmentation(ctx context.Context, base []inteval.Clip, spec Augmentati
 		}
 	}
 	return out, conditions, nil
+}
+
+// GroupClipsByAugCondition folds ApplyAugmentation output back into report
+// rows. ApplyAugmentation stamps augmented clip IDs as
+// "<base-id>/noise:<type>/<snr>db" or "<base-id>/voice:<id>/<snr>db"; the
+// suffix is the cross-clip condition key.
+func GroupClipsByAugCondition(clips []inteval.Clip) []ConditionGroup {
+	groups := make([]ConditionGroup, 0)
+	index := make(map[string]int)
+	for _, clip := range clips {
+		id := augmentationConditionID(clip.ID)
+		pos, ok := index[id]
+		if !ok {
+			index[id] = len(groups)
+			groups = append(groups, ConditionGroup{ID: id})
+			pos = len(groups) - 1
+		}
+		groups[pos].Clips = append(groups[pos].Clips, clip)
+	}
+	return groups
+}
+
+func augmentationConditionID(clipID string) string {
+	for _, marker := range []string{"/noise:", "/voice:"} {
+		if idx := strings.Index(clipID, marker); idx >= 0 {
+			return clipID[idx+1:]
+		}
+	}
+	return "clean"
 }
 
 func (s AugmentationSpec) enabled() bool {

@@ -3,6 +3,7 @@ import { createClient } from "@connectrpc/connect";
 import { SpeakerMode } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
 import {
   ExperimentService,
+  type ExperimentEvent,
   ExperimentStatus,
   type Experiment,
   type ExperimentRecipe,
@@ -82,6 +83,7 @@ export interface RecipeSummary {
   clipIds: string[];
   strategies: string[];
   realtimeRepeats: number;
+  latencyTailSeconds: number;
   chunkMs: number;
   seed: number;
   longFormEnabled: boolean;
@@ -115,6 +117,14 @@ export interface ExperimentRunRow {
   createdAt: string;
 }
 
+export interface ExperimentEventRow {
+  experimentId: string;
+  status: ExperimentStatusLabel;
+  progress: number;
+  message: string;
+  at: string;
+}
+
 export interface ExperimentReportRow {
   experiment: ExperimentRow | null;
   report: EvalReportData;
@@ -125,6 +135,7 @@ export interface StartExperimentInput {
   name: string;
   strategies: string[];
   realtimeRepeats: number;
+  latencyTailSeconds: number;
   chunkMs: number;
   seed: number;
   longForm: boolean;
@@ -158,6 +169,7 @@ function decodeRecipe(r?: ExperimentRecipe): RecipeSummary {
     clipIds: r?.clipIds ?? [],
     strategies: (r?.strategies ?? []).map((s) => s.kind || s.label).filter(Boolean),
     realtimeRepeats: r?.realtimeRepeats ?? 0,
+    latencyTailSeconds: r?.latencyTailSeconds ?? 0,
     chunkMs: r?.chunkMs ?? 0,
     seed: Number(r?.seed ?? 0),
     longFormEnabled: Boolean(r?.longForm?.enabled),
@@ -223,6 +235,16 @@ function decodeRun(r: ExperimentRun): ExperimentRunRow {
   };
 }
 
+function decodeEvent(e: ExperimentEvent): ExperimentEventRow {
+  return {
+    experimentId: e.experimentId,
+    status: statusLabel(e.status),
+    progress: e.progress,
+    message: e.message,
+    at: tsToISO(e.at),
+  };
+}
+
 function buildRecipe(input: StartExperimentInput) {
   const strategies = input.strategies.map((kind) => ({
     kind,
@@ -237,6 +259,7 @@ function buildRecipe(input: StartExperimentInput) {
     clipIds: [],
     strategies,
     realtimeRepeats: input.realtimeRepeats,
+    latencyTailSeconds: input.latencyTailSeconds,
     chunkMs: input.chunkMs,
     seed: BigInt(input.seed),
     longForm: {
@@ -285,6 +308,11 @@ export async function listExperiments(): Promise<ExperimentRow[]> {
   return resp.experiments.map((e) => decodeExperiment(e)).filter((e): e is ExperimentRow => e !== null);
 }
 
+export async function getExperiment(id: string): Promise<{ experiment: ExperimentRow | null; runs: ExperimentRunRow[] }> {
+  const resp = await client.getExperiment({ id });
+  return { experiment: decodeExperiment(resp.experiment), runs: resp.runs.map(decodeRun) };
+}
+
 export async function waitExperiment(id: string): Promise<{ experiment: ExperimentRow | null; runs: ExperimentRunRow[] }> {
   const resp = await client.waitExperiment({ id });
   return { experiment: decodeExperiment(resp.experiment), runs: resp.runs.map(decodeRun) };
@@ -311,4 +339,14 @@ export async function compareExperiments(ids: string[]): Promise<ExperimentRepor
     report: decodeEvalReport(row.report),
     runs: [],
   }));
+}
+
+export async function streamExperimentEvents(
+  id: string,
+  onEvent: (event: ExperimentEventRow) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  for await (const event of client.streamExperimentEvents({ id }, { signal })) {
+    onEvent(decodeEvent(event));
+  }
 }

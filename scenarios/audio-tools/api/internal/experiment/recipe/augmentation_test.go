@@ -45,3 +45,27 @@ func TestApplyAugmentationRecordsCompetingVoiceSkip(t *testing.T) {
 		t.Fatalf("expected skipped competing voice condition")
 	}
 }
+
+func TestGroupClipsByAugConditionGroupsAcrossBaseClips(t *testing.T) {
+	clips := []inteval.Clip{
+		{ID: "clip-a", Reference: "clean a"},
+		{ID: "clip-b", Reference: "clean b"},
+		{ID: "clip-a/noise:fan/6db", Reference: "fan a"},
+		{ID: "clip-b/noise:fan/6db", Reference: "fan b"},
+		{ID: "clip-a/noise:white/15db", Reference: "white a"},
+	}
+
+	groups := GroupClipsByAugCondition(clips)
+	if len(groups) != 3 {
+		t.Fatalf("expected 3 groups, got %d: %#v", len(groups), groups)
+	}
+	if groups[0].ID != "clean" || len(groups[0].Clips) != 2 {
+		t.Fatalf("clean group = %#v, want two clean clips", groups[0])
+	}
+	if groups[1].ID != "noise:fan/6db" || len(groups[1].Clips) != 2 {
+		t.Fatalf("fan group = %#v, want two fan clips", groups[1])
+	}
+	if groups[2].ID != "noise:white/15db" || len(groups[2].Clips) != 1 {
+		t.Fatalf("white group = %#v, want one white clip", groups[2])
+	}
+}

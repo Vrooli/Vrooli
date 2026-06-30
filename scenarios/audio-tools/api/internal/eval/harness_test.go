@@ -143,6 +143,45 @@ func TestRunEval_RealtimeProducesLatencySamples(t *testing.T) {
 	require.Len(t, rep.PerStrategy[0].PerClip[0].LatencySamplesMs, 3, "one latency sample per real-time repeat")
 }
 
+func TestReplay_RealtimeTailPacesOnlyFinalWindow(t *testing.T) {
+	clip := Clip{ID: "c1", PCM: silentPCM(16000, 2000), SampleRate: 16000, Reference: "hello world"}
+	var sleeps []time.Duration
+	session := func(ctx context.Context, chunks <-chan sttchain.AudioChunk, events chan<- sttchain.StreamEvent) error {
+		for range chunks {
+		}
+		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{FinalText: "hello world"}}
+		close(events)
+		return nil
+	}
+
+	res := Replay(context.Background(), clip, ReplayOptions{
+		Mode:               ModeRealtime,
+		ChunkMs:            100,
+		LatencyTailSeconds: 1,
+		Sleep: func(d time.Duration) {
+			sleeps = append(sleeps, d)
+		},
+	}, session)
+
+	require.NoError(t, res.Err)
+	require.Len(t, sleeps, 10, "one-second tail on a two-second clip should skip prefix pacing")
+	for _, sleep := range sleeps {
+		require.Equal(t, 100*time.Millisecond, sleep)
+	}
+
+	sleeps = nil
+	res = Replay(context.Background(), clip, ReplayOptions{
+		Mode:               ModeRealtime,
+		ChunkMs:            100,
+		LatencyTailSeconds: 0,
+		Sleep: func(d time.Duration) {
+			sleeps = append(sleeps, d)
+		},
+	}, session)
+	require.NoError(t, res.Err)
+	require.Len(t, sleeps, 20, "zero tail preserves full real-time pacing")
+}
+
 func TestRunEval_RealtimeRepeatsRunConcurrentlyWithinBound(t *testing.T) {
 	clips := []Clip{
 		{ID: "c1", PCM: silentPCM(16000, 100), SampleRate: 16000, Reference: "one"},

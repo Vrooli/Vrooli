@@ -48,6 +48,13 @@ pass/fail); the **real-time-paced** pass releases chunks at 1× audio rate
 and yields wall-clock latency, reported only as a p50/p95 distribution over
 repeated runs — never gated on a single sample.
 
+Persisted experiments can opt into tail-paced latency with
+`--latency-tail-seconds N`. In that mode the worker fast-feeds the prefix of
+each clip and paces only the final N seconds at 1×. This is an affordable
+final-tail approximation for long-form clips: it measures last-chunk →
+terminal transcript behavior without sleeping through minutes of prefix
+audio, but it intentionally does not model prefix backlog effects.
+
 > **WER normalization is a documented non-goal of parity** with OpenAI
 > Whisper's Python normalizer (number-word expansion, currency/unit rules).
 > v1 uses a small local normalizer, so absolute WER is comparable *within*
@@ -126,6 +133,11 @@ audio-tools eval run --strategies overlap_agree --overlap-max-window-ms 12000 --
 
 # 5. Enqueue a persisted long-form experiment from the same corpus:
 audio-tools experiment start --long-form true --target-duration-seconds 180 --gap-ms 5000 --seed 42 --json
+audio-tools experiment watch <experiment-id>
+
+# 5b. Measure long-form final-tail latency without pacing the full prefix:
+audio-tools experiment start --long-form true --target-duration-seconds 180 \
+  --realtime-repeats 2 --latency-tail-seconds 8 --json
 
 # 6. Add deterministic augmentation conditions over the whole realized input:
 audio-tools experiment start --long-form true --target-duration-seconds 180 --seed 42 \
@@ -184,9 +196,11 @@ worker keeps a clean input, then adds generated noise beds (`white`, `fan`,
 stored SNR grid. Mixing happens after concatenation, so noise continues
 through long-form silence gaps. The recipe stores requested augmentation
 fields plus realized condition notes, including resource-down skips for
-competing voices. Phase 5 reports still aggregate all evaluated condition
-clips per strategy; Phase 7 is responsible for per-condition safety gates
-and curves.
+competing voices. Reports expose one row per strategy and augmentation
+condition, such as `batch / clean`, `batch / noise:fan/6db`, and
+`batch / competing:voice/12db`; each row owns its WER, compute, latency, and
+safety envelope. Speaker ablations compose the same grammar as
+`strategy / augmentation-condition / speaker-condition`.
 
 Experiments can also bind target-speaker extraction and egress speaker
 verification from a stored recipe. The worker builds a per-run speaker config
@@ -197,6 +211,17 @@ same realized inputs are evaluated under extraction/verification off/on
 conditions; current reports expose those as condition-suffixed strategy rows,
 while Phase 7 promotes attribution and safety envelopes to first-class fields.
 The live speaker config cell is not read or written by experiment runs.
+
+Persisted experiments run through `experiment.Manager`, not the request
+context, so closing the CLI/UI does not cancel server-side work. The manager
+keeps the default worker count at one to avoid stampeding Whisper and other
+local resources; queue visibility comes from lifecycle events instead of
+parallelism by default. `StreamExperimentEvents` emits `queued; N experiments
+ahead` while a run is waiting, updates that message as earlier jobs start or
+are canceled, then emits normal running progress (`loading corpus`, eval
+steps, `storing report`) and a terminal event. The Dictation Studio lab
+subscribes to that stream and falls back to `GetExperiment` polling only when
+the browser transport cannot stream.
 
 ## Why the corpus can't ride CI
 

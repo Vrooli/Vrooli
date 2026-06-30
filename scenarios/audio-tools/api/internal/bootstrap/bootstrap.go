@@ -354,6 +354,7 @@ func runExperimentReport(ctx context.Context, evalDeps evalH.Deps, corpusSvc *in
 	if !longFormEnabled && !augmentationEnabled && !speakerEnabled {
 		report, err := evalH.RunReportWithOptions(ctx, evalDeps, recipe.GetClipIds(), recipe.GetStrategies(), recipe.GetRealtimeRepeats(), recipe.GetChunkMs(), inteval.EvalOptions{
 			DroppedSpanThresholdWords: int(safetyThreshold(recipe)),
+			LatencyTailSeconds:        int(recipe.GetLatencyTailSeconds()),
 		})
 		return report, map[string]any{"phase": "default", "long_form": false}, err
 	}
@@ -409,6 +410,7 @@ func runExperimentReport(ctx context.Context, evalDeps evalH.Deps, corpusSvc *in
 		}
 		realized["clip_count"] = len(evalClips)
 	}
+	var augGroups []exprecipe.ConditionGroup
 	if augmentationEnabled {
 		augmented, conditions, err := exprecipe.ApplyAugmentation(ctx, evalClips, exprecipe.AugmentationSpec{
 			Seed:            recipe.GetSeed(),
@@ -422,6 +424,7 @@ func runExperimentReport(ctx context.Context, evalDeps evalH.Deps, corpusSvc *in
 			return inteval.EvalReport{}, nil, err
 		}
 		evalClips = augmented
+		augGroups = exprecipe.GroupClipsByAugCondition(evalClips)
 		recipe.RealizedAugmentationConditions = recipe.RealizedAugmentationConditions[:0]
 		for _, c := range conditions {
 			recipe.RealizedAugmentationConditions = append(recipe.RealizedAugmentationConditions, &experimentv1.AugmentationCondition{
@@ -434,6 +437,7 @@ func runExperimentReport(ctx context.Context, evalDeps evalH.Deps, corpusSvc *in
 			"competing_voices":  augmentation.GetCompetingVoiceIds(),
 			"condition_count":   len(conditions),
 			"evaluated_inputs":  len(evalClips),
+			"row_count":         len(augGroups),
 			"skipped_condition": countSkippedConditions(conditions),
 		}
 	}
@@ -456,7 +460,7 @@ func runExperimentReport(ctx context.Context, evalDeps evalH.Deps, corpusSvc *in
 		"condition_count":              len(conditions),
 		"dropped_span_threshold_words": safetyThreshold(recipe),
 	}
-	report, err := runSpeakerConditionReports(ctx, evalDeps, evalClips, recipe.GetStrategies(), recipe.GetRealtimeRepeats(), recipe.GetChunkMs(), safetyThreshold(recipe), conditions)
+	report, err := runAugmentationSpeakerConditionReports(ctx, evalDeps, evalClips, augGroups, recipe.GetStrategies(), recipe.GetRealtimeRepeats(), recipe.GetChunkMs(), recipe.GetLatencyTailSeconds(), safetyThreshold(recipe), conditions, speakerConfigured(speaker))
 	return report, realized, err
 }
 
@@ -543,9 +547,9 @@ func speakerConditionFromRecipe(id string, s *experimentv1.SpeakerExperimentReci
 	}
 }
 
-func runSpeakerConditionReports(ctx context.Context, evalDeps evalH.Deps, clips []inteval.Clip, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs, droppedSpanThresholdWords int32, conditions []speakerEvalCondition) (inteval.EvalReport, error) {
+func runSpeakerConditionReportsWithOptions(ctx context.Context, evalDeps evalH.Deps, clips []inteval.Clip, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs int32, opts inteval.EvalOptions, conditions []speakerEvalCondition) (inteval.EvalReport, error) {
 	if len(conditions) == 0 {
-		return evalH.RunReportForClips(ctx, evalDeps, clips, strategies, realtimeRepeats, chunkMs)
+		return evalH.RunReportForClipsWithOptions(ctx, evalDeps, clips, strategies, realtimeRepeats, chunkMs, opts)
 	}
 	var combined inteval.EvalReport
 	haveMetadata := false
@@ -564,9 +568,7 @@ func runSpeakerConditionReports(ctx context.Context, evalDeps evalH.Deps, clips 
 			deps.SpeakerExtractionEnabled = false
 			deps.SpeakerVerificationEnabled = false
 		}
-		report, err := evalH.RunReportForClipsWithOptions(ctx, deps, clips, strategies, realtimeRepeats, chunkMs, inteval.EvalOptions{
-			DroppedSpanThresholdWords: int(droppedSpanThresholdWords),
-		})
+		report, err := evalH.RunReportForClipsWithOptions(ctx, deps, clips, strategies, realtimeRepeats, chunkMs, opts)
 		if err != nil {
 			return inteval.EvalReport{}, err
 		}
@@ -577,7 +579,7 @@ func runSpeakerConditionReports(ctx context.Context, evalDeps evalH.Deps, clips 
 		} else {
 			combined.QualityMeasured = combined.QualityMeasured || report.QualityMeasured
 			combined.LatencyMeasured = combined.LatencyMeasured || report.LatencyMeasured
-			combined.Warnings = append(combined.Warnings, report.Warnings...)
+			combined.Warnings = appendUniqueReportWarnings(combined.Warnings, report.Warnings...)
 		}
 		for _, row := range report.PerStrategy {
 			row.Strategy = sttchain.StrategyKind(fmt.Sprintf("%s/%s", row.Strategy, cond.ID))
@@ -593,6 +595,81 @@ func runSpeakerConditionReports(ctx context.Context, evalDeps evalH.Deps, clips 
 		return inteval.EvalReport{}, fmt.Errorf("all speaker experiment conditions were skipped")
 	}
 	return combined, nil
+}
+
+func runAugmentationSpeakerConditionReports(ctx context.Context, evalDeps evalH.Deps, clips []inteval.Clip, augGroups []exprecipe.ConditionGroup, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs, latencyTailSeconds, droppedSpanThresholdWords int32, speakerConditions []speakerEvalCondition, speakerEnabled bool) (inteval.EvalReport, error) {
+	if len(augGroups) == 0 {
+		return runSpeakerConditionReportsWithOptions(ctx, evalDeps, clips, strategies, realtimeRepeats, chunkMs, inteval.EvalOptions{
+			LatencyTailSeconds:        int(latencyTailSeconds),
+			DroppedSpanThresholdWords: int(droppedSpanThresholdWords),
+		}, speakerConditions)
+	}
+	var combined inteval.EvalReport
+	haveMetadata := false
+	for _, group := range augGroups {
+		report, err := runSpeakerConditionReportsForAugmentation(ctx, evalDeps, group.Clips, strategies, realtimeRepeats, chunkMs, latencyTailSeconds, droppedSpanThresholdWords, speakerConditions, speakerEnabled)
+		if err != nil {
+			return inteval.EvalReport{}, err
+		}
+		if !haveMetadata {
+			combined = report
+			combined.PerStrategy = nil
+			haveMetadata = true
+		} else {
+			combined.QualityMeasured = combined.QualityMeasured || report.QualityMeasured
+			combined.LatencyMeasured = combined.LatencyMeasured || report.LatencyMeasured
+			combined.Warnings = appendUniqueReportWarnings(combined.Warnings, report.Warnings...)
+		}
+		for _, row := range report.PerStrategy {
+			row.Strategy = sttchain.StrategyKind(fmt.Sprintf("%s/%s", row.Strategy, group.ID))
+			if row.Label == "" {
+				row.Label = string(row.Strategy)
+			} else {
+				row.Label = fmt.Sprintf("%s / %s", row.Label, group.ID)
+			}
+			combined.PerStrategy = append(combined.PerStrategy, row)
+		}
+	}
+	if len(combined.PerStrategy) == 0 {
+		return inteval.EvalReport{}, fmt.Errorf("all augmentation experiment conditions were skipped")
+	}
+	return combined, nil
+}
+
+func runSpeakerConditionReportsForAugmentation(ctx context.Context, evalDeps evalH.Deps, clips []inteval.Clip, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs, latencyTailSeconds, droppedSpanThresholdWords int32, speakerConditions []speakerEvalCondition, speakerEnabled bool) (inteval.EvalReport, error) {
+	if !speakerEnabled {
+		return evalH.RunReportForClipsWithOptions(ctx, evalDeps, clips, strategies, realtimeRepeats, chunkMs, inteval.EvalOptions{
+			DroppedSpanThresholdWords: int(droppedSpanThresholdWords),
+			LatencyTailSeconds:        int(latencyTailSeconds),
+		})
+	}
+	return runSpeakerConditionReportsWithOptions(ctx, evalDeps, clips, strategies, realtimeRepeats, chunkMs, inteval.EvalOptions{
+		DroppedSpanThresholdWords: int(droppedSpanThresholdWords),
+		LatencyTailSeconds:        int(latencyTailSeconds),
+	}, speakerConditions)
+}
+
+func appendUniqueReportWarnings(dst []inteval.ReportWarning, src ...inteval.ReportWarning) []inteval.ReportWarning {
+	if len(src) == 0 {
+		return dst
+	}
+	seen := make(map[string]struct{}, len(dst)+len(src))
+	for _, warning := range dst {
+		seen[reportWarningKey(warning)] = struct{}{}
+	}
+	for _, warning := range src {
+		key := reportWarningKey(warning)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		dst = append(dst, warning)
+	}
+	return dst
+}
+
+func reportWarningKey(warning inteval.ReportWarning) string {
+	return warning.Severity + "\x00" + warning.Code + "\x00" + warning.Message
 }
 
 func synthesizeCanonicalVoice(ttsSvc *inttts.Service, audioEngine *audioformat.Engine) func(context.Context, string, string) ([]byte, error) {

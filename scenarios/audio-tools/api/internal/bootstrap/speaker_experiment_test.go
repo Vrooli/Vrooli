@@ -3,6 +3,8 @@ package bootstrap
 import (
 	"testing"
 
+	inteval "audio-tools/internal/eval"
+
 	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 )
@@ -57,5 +59,21 @@ func TestBuildSpeakerConditions_SkipsMissingTargetProfile(t *testing.T) {
 	}
 	if got[0].Note == "" {
 		t.Fatalf("skipped condition should explain why")
+	}
+}
+
+func TestAppendUniqueReportWarnings_DeduplicatesRepeatedConditionWarnings(t *testing.T) {
+	warning := inteval.ReportWarning{Severity: "warning", Code: "tiny_corpus", Message: "Only 1 clips were evaluated"}
+	got := appendUniqueReportWarnings([]inteval.ReportWarning{warning}, warning, inteval.ReportWarning{
+		Severity: "warning",
+		Code:     "short_audio",
+		Message:  "The evaluated audio totals 2.7 seconds",
+	})
+
+	if len(got) != 2 {
+		t.Fatalf("warning count = %d, want 2: %#v", len(got), got)
+	}
+	if got[0].Code != "tiny_corpus" || got[1].Code != "short_audio" {
+		t.Fatalf("warnings = %#v", got)
 	}
 }

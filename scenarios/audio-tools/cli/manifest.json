@@ -457,6 +457,7 @@
             { "name": "strategies", "description": "Comma-separated strategy kinds (batch,vad_segment,overlap_agree); default server trio" },
             { "name": "clip-ids", "description": "Comma-separated corpus clip ids to evaluate (default: whole corpus)" },
             { "name": "realtime-repeats", "description": "Real-time-paced runs per clip for latency p50/p95 (0 = quality only)" },
+            { "name": "latency-tail-seconds", "description": "When realtime repeats are enabled, fast-feed the prefix and pace only the final N seconds at 1x (0 = full real-time pacing)" },
             { "name": "chunk-ms", "description": "Replay chunk size in ms (default 100)" },
             { "name": "dropped-span-threshold", "description": "Contiguous deleted reference-word threshold for the safety gate (default 4)" },
             { "name": "overlap-max-window-ms", "description": "Overlap-agree max uncommitted tail window in ms before force-commit (default 25000)" },

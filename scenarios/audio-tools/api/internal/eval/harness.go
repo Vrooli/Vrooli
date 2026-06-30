@@ -75,6 +75,12 @@ type ReplayOptions struct {
 	Mode RunMode
 	// ChunkMs is the audio-duration of each replayed chunk (default 100ms).
 	ChunkMs int
+	// LatencyTailSeconds switches ModeRealtime into a bounded approximation:
+	// the prefix is fed without wall-clock pacing and only the final tail
+	// window is paced at 1x. This measures final-tail behavior for long clips
+	// without sleeping through the full recording; prefix backlog effects are
+	// intentionally not modeled.
+	LatencyTailSeconds int
 	// Sleep paces ModeRealtime; defaults to time.Sleep. Injectable so unit
 	// tests can drive paced replay without real sleeping.
 	Sleep func(time.Duration)
@@ -116,6 +122,7 @@ func Replay(ctx context.Context, clip Clip, opts ReplayOptions, session Session)
 	if chunkBytes <= 0 {
 		chunkBytes = len(clip.PCM)
 	}
+	tailStartByte := latencyTailStartByte(clip, opts.LatencyTailSeconds)
 
 	chunks := make(chan sttchain.AudioChunk, 4)
 	events := make(chan sttchain.StreamEvent, 64)
@@ -136,7 +143,7 @@ func Replay(ctx context.Context, clip Clip, opts ReplayOptions, session Session)
 				return
 			case chunks <- sttchain.AudioChunk{Audio: cp}:
 			}
-			if opts.Mode == ModeRealtime {
+			if opts.Mode == ModeRealtime && shouldPaceChunk(end, tailStartByte) {
 				opts.sleep(time.Duration(float64(end-off) / float64(clip.bytesPerSecond()) * float64(time.Second)))
 			}
 		}
@@ -267,6 +274,7 @@ type EvalOptions struct {
 	// every clip/repeat/strategy makes UI-triggered latency runs impractical.
 	// Default is 8, low enough to avoid stampeding the local STT backend.
 	RealtimeConcurrency       int
+	LatencyTailSeconds        int
 	Sleep                     func(time.Duration)
 	Now                       func() time.Time
 	DroppedSpanThresholdWords int
@@ -347,7 +355,7 @@ func runRealtimeRepeats(ctx context.Context, clips []Clip, spec StrategySpec, op
 				}
 				session, meter := spec.BuildSession(clip)
 				rt := EvalClip(ctx, clip, meter, ReplayOptions{
-					Mode: ModeRealtime, ChunkMs: opts.ChunkMs, Sleep: opts.Sleep, Now: opts.Now, DroppedSpanThresholdWords: opts.DroppedSpanThresholdWords,
+					Mode: ModeRealtime, ChunkMs: opts.ChunkMs, LatencyTailSeconds: opts.LatencyTailSeconds, Sleep: opts.Sleep, Now: opts.Now, DroppedSpanThresholdWords: opts.DroppedSpanThresholdWords,
 				}, session)
 				results <- realtimeResult{clipIndex: clipIndex, repeat: repeat, result: rt}
 			}(clipIndex, repeat, clip)
@@ -368,6 +376,25 @@ func runRealtimeRepeats(ctx context.Context, clips []Clip, spec StrategySpec, op
 		}
 		clipResults[rr.clipIndex] = cr
 	}
+}
+
+func latencyTailStartByte(clip Clip, tailSeconds int) int {
+	if tailSeconds <= 0 {
+		return 0
+	}
+	bps := clip.bytesPerSecond()
+	if bps <= 0 {
+		return 0
+	}
+	tailBytes := bps * tailSeconds
+	if tailBytes >= len(clip.PCM) {
+		return 0
+	}
+	return len(clip.PCM) - tailBytes
+}
+
+func shouldPaceChunk(endByte, tailStartByte int) bool {
+	return tailStartByte <= 0 || endByte > tailStartByte
 }
 
 func millisSince(start, end time.Time) int64 {

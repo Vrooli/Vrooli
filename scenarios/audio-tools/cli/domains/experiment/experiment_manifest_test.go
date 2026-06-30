@@ -59,6 +59,7 @@ func TestExperimentStartManifestDeclaresHandlerFlags(t *testing.T) {
 		"strategies",
 		"clip-ids",
 		"realtime-repeats",
+		"latency-tail-seconds",
 		"chunk-ms",
 		"dropped-span-threshold",
 		"overlap-max-window-ms",

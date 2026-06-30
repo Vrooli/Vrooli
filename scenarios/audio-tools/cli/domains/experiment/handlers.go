@@ -45,6 +45,13 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		}
 		req.Recipe.RealtimeRepeats = int32(n)
 	}
+	if v := strings.TrimSpace(ctx.Flag("latency-tail-seconds")); v != "" {
+		n, err := parseIntFlag("latency-tail-seconds", v)
+		if err != nil {
+			return err
+		}
+		req.Recipe.LatencyTailSeconds = int32(n)
+	}
 	if v := strings.TrimSpace(ctx.Flag("chunk-ms")); v != "" {
 		n, err := parseIntFlag("chunk-ms", v)
 		if err != nil {
@@ -226,6 +233,16 @@ func (h *handlers) wait(ctx cliapp.RunContext) error {
 	if err != nil {
 		return cliapp.WrapAPIError("experiment-wait", err, nil)
 	}
+	if !ctx.JSON() && experimentTerminal(resp.Msg.GetExperiment()) && resp.Msg.GetExperiment().GetResultRef() != "" {
+		reportResp, reportErr := h.client.GetExperimentReport(context.Background(), connect.NewRequest(&experimentv1.GetExperimentReportRequest{Id: id}))
+		if reportErr == nil && reportResp != nil && reportResp.Msg != nil && reportResp.Msg.GetReport() != nil {
+			exp := reportResp.Msg.GetExperiment()
+			fmt.Fprintf(ctx.Stdout(), "Experiment %s (%s)\n", exp.GetId(), statusLabel(exp.GetStatus()))
+			printReportTable(ctx, reportResp.Msg.GetReport())
+			return nil
+		}
+		fmt.Fprintf(ctx.Stderr(), "Report is not available yet; use `audio-tools experiment report %s` to re-attach.\n", id)
+	}
 	return renderExperiment(ctx, resp.Msg, "wait")
 }
 
@@ -376,7 +393,7 @@ func renderExperiment(ctx cliapp.RunContext, msg interface {
 		},
 	}
 	for _, run := range runs {
-		report.Results = append(report.Results, fmt.Sprintf("%s metrics=%s condition=%s", run.GetStrategy(), run.GetMetricsJson(), run.GetConditionJson()))
+		report.Results = append(report.Results, formatRunStatus(run))
 	}
 	if len(runs) == 0 {
 		report.Results = append(report.Results, "(none yet)")
@@ -389,8 +406,9 @@ func printReportTable(ctx cliapp.RunContext, report *evalv1.EvalReport) {
 		fmt.Fprintln(ctx.Stdout(), "No report rows available.")
 		return
 	}
-	fmt.Fprintf(ctx.Stdout(), "%-24s  %6s  %6s  %6s  %8s  %9s  %9s  %8s  %8s  %8s\n",
-		"STRATEGY", "WER%", "CALLS", "RTF", "AUDIO_S", "LAT_P50", "LAT_P95", "REVISES", "SAFE", "MAXDROP")
+	printReportSummary(ctx, report)
+	fmt.Fprintf(ctx.Stdout(), "%-34s  %6s  %6s  %6s  %8s  %9s  %9s  %8s  %8s  %8s  %12s\n",
+		"STRATEGY", "WER%", "CALLS", "RTF", "AUDIO_S", "LAT_P50", "LAT_P95", "REVISES", "SAFE", "MAXDROP", "VERDICT")
 	for _, s := range report.GetPerStrategy() {
 		lat50, lat95 := "-", "-"
 		if report.GetLatencyMeasured() {
@@ -405,9 +423,108 @@ func printReportTable(ctx cliapp.RunContext, report *evalv1.EvalReport) {
 		if s.GetSafety() != nil {
 			maxDrop = s.GetSafety().GetMaxDroppedSpanWords()
 		}
-		fmt.Fprintf(ctx.Stdout(), "%-24s  %6.1f  %6d  %6.2f  %8.2f  %9s  %9s  %8d  %8s  %8d\n",
+		verdict := s.GetVerdict()
+		if verdict == "" {
+			verdict = "-"
+		}
+		fmt.Fprintf(ctx.Stdout(), "%-34s  %6.1f  %6d  %6.2f  %8.2f  %9s  %9s  %8d  %8s  %8d  %12s\n",
 			s.GetLabel(), s.GetWer()*100, s.GetWhisperCalls(), s.GetRtf(),
-			s.GetWhisperAudioSeconds(), lat50, lat95, s.GetPartialRevisions(), safe, maxDrop)
+			s.GetWhisperAudioSeconds(), lat50, lat95, s.GetPartialRevisions(), safe, maxDrop, verdict)
+	}
+	printReportWarnings(ctx, report)
+	printLengthCurves(ctx, report)
+}
+
+func printReportSummary(ctx cliapp.RunContext, report *evalv1.EvalReport) {
+	summary := report.GetSummary()
+	if summary == nil || summary.GetRecommendation() == "" {
+		return
+	}
+	confidence := summary.GetConfidence()
+	if confidence == "" {
+		confidence = "unknown"
+	}
+	fmt.Fprintf(ctx.Stdout(), "Recommendation: %s (confidence: %s)\n", summary.GetRecommendation(), confidence)
+	for _, reason := range summary.GetReasons() {
+		fmt.Fprintf(ctx.Stdout(), "  - %s\n", reason)
+	}
+	for _, note := range summary.GetConfidenceNotes() {
+		fmt.Fprintf(ctx.Stdout(), "  - %s\n", note)
+	}
+	fmt.Fprintln(ctx.Stdout())
+}
+
+func printReportWarnings(ctx cliapp.RunContext, report *evalv1.EvalReport) {
+	warnings := report.GetWarnings()
+	if len(warnings) == 0 {
+		return
+	}
+	fmt.Fprintln(ctx.Stdout(), "\nWarnings:")
+	for _, w := range warnings {
+		severity := w.GetSeverity()
+		if severity == "" {
+			severity = "info"
+		}
+		code := w.GetCode()
+		if code == "" {
+			code = "warning"
+		}
+		fmt.Fprintf(ctx.Stdout(), "  - %s/%s: %s\n", severity, code, w.GetMessage())
+	}
+}
+
+func printLengthCurves(ctx cliapp.RunContext, report *evalv1.EvalReport) {
+	hasCurves := false
+	for _, s := range report.GetPerStrategy() {
+		if len(s.GetLengthCurves()) > 0 {
+			hasCurves = true
+			break
+		}
+	}
+	if !hasCurves {
+		return
+	}
+	fmt.Fprintln(ctx.Stdout(), "\nLength curves:")
+	for _, s := range report.GetPerStrategy() {
+		if len(s.GetLengthCurves()) == 0 {
+			continue
+		}
+		fmt.Fprintf(ctx.Stdout(), "  %s\n", s.GetLabel())
+		fmt.Fprintf(ctx.Stdout(), "    %-12s  %5s  %6s  %9s  %9s  %8s\n", "BUCKET", "CLIPS", "WER%", "P95", "TTFC", "MAXDROP")
+		for _, curve := range s.GetLengthCurves() {
+			p95, ttfc := "-", "-"
+			if report.GetLatencyMeasured() {
+				p95 = fmt.Sprintf("%.0fms", curve.GetFinalizationLatencyP95Ms())
+				ttfc = fmt.Sprintf("%.0fms", curve.GetMeanTimeToFirstCommitMs())
+			}
+			fmt.Fprintf(ctx.Stdout(), "    %-12s  %5d  %6.1f  %9s  %9s  %8d\n",
+				curve.GetBucket(), curve.GetClipCount(), curve.GetWer()*100, p95, ttfc, curve.GetMaxDroppedSpanWords())
+		}
+	}
+}
+
+func formatRunStatus(run *experimentv1.ExperimentRun) string {
+	if run == nil {
+		return "(nil run)"
+	}
+	condition := strings.TrimSpace(run.GetConditionJson())
+	if condition != "" && condition != "{}" {
+		return fmt.Sprintf("%s - condition=%s", run.GetStrategy(), condition)
+	}
+	return fmt.Sprintf("%s - completed", run.GetStrategy())
+}
+
+func experimentTerminal(exp *experimentv1.Experiment) bool {
+	if exp == nil {
+		return false
+	}
+	switch exp.GetStatus() {
+	case experimentv1.ExperimentStatus_EXPERIMENT_STATUS_SUCCEEDED,
+		experimentv1.ExperimentStatus_EXPERIMENT_STATUS_FAILED,
+		experimentv1.ExperimentStatus_EXPERIMENT_STATUS_CANCELED:
+		return true
+	default:
+		return false
 	}
 }
 

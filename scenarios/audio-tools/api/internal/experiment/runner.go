@@ -28,6 +28,7 @@ type Manager struct {
 
 	mu      sync.Mutex
 	entries map[string]*entry
+	queued  []*entry
 	queue   chan *entry
 	started bool
 	wg      sync.WaitGroup
@@ -149,12 +150,16 @@ func (m *Manager) Submit(ctx context.Context, spec SubmitSpec) (Experiment, erro
 	e := &entry{exp: saved, done: make(chan struct{})}
 	m.mu.Lock()
 	m.entries[saved.ID] = e
+	m.queued = append(m.queued, e)
+	ahead := len(m.queued) - 1
 	m.mu.Unlock()
+	m.emitQueued(e, ahead)
 
 	select {
 	case m.queue <- e:
 		return saved, nil
 	default:
+		m.removeQueued(e)
 		now := m.clock.Now().UTC()
 		saved.Status = StatusFailed
 		saved.Error = "experiment queue is full"
@@ -172,6 +177,7 @@ func (m *Manager) worker() {
 		case <-m.baseCtx.Done():
 			return
 		case e := <-m.queue:
+			m.markDequeued(e)
 			m.execute(e)
 		}
 	}
@@ -290,6 +296,44 @@ func (m *Manager) emit(e *entry, status Status, progress int, message string) {
 	e.mu.Unlock()
 }
 
+func (m *Manager) emitQueued(e *entry, ahead int) {
+	if ahead < 0 {
+		ahead = 0
+	}
+	message := "queued"
+	if ahead == 1 {
+		message = "queued; 1 experiment ahead"
+	} else if ahead > 1 {
+		message = fmt.Sprintf("queued; %d experiments ahead", ahead)
+	}
+	m.emit(e, StatusQueued, 0, message)
+}
+
+func (m *Manager) markDequeued(e *entry) {
+	m.removeQueued(e)
+	m.emitQueuePositions()
+}
+
+func (m *Manager) removeQueued(target *entry) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i, e := range m.queued {
+		if e == target {
+			m.queued = append(m.queued[:i], m.queued[i+1:]...)
+			return
+		}
+	}
+}
+
+func (m *Manager) emitQueuePositions() {
+	m.mu.Lock()
+	queued := append([]*entry(nil), m.queued...)
+	m.mu.Unlock()
+	for i, e := range queued {
+		m.emitQueued(e, i)
+	}
+}
+
 func trySend(ch chan ProgressEvent, ev ProgressEvent) {
 	select {
 	case ch <- ev:
@@ -367,6 +411,8 @@ func (m *Manager) Cancel(id string) error {
 	e.mu.Unlock()
 	_ = m.service.repo.UpdateExperiment(m.baseCtx, final)
 	m.finalizeEntry(e, final)
+	m.removeQueued(e)
+	m.emitQueuePositions()
 	return nil
 }
 

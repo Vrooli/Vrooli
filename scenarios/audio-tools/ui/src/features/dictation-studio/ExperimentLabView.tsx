@@ -1,4 +1,4 @@
-import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FlaskConical, Loader2, RefreshCw } from "lucide-react";
 
@@ -18,10 +18,13 @@ import { useTranslation } from "../../i18n";
 import {
   cancelExperiment,
   compareExperiments,
+  getExperiment,
   getExperimentReport,
   listExperiments,
   startExperiment,
+  streamExperimentEvents,
   waitExperiment,
+  type ExperimentEventRow,
   type ExperimentReportRow,
   type ExperimentRow,
   type StartExperimentInput,
@@ -43,6 +46,7 @@ function defaultInput(): StartExperimentInput {
     name: "Dictation experiment",
     strategies: [...strategyOptions],
     realtimeRepeats: 0,
+    latencyTailSeconds: 8,
     chunkMs: 100,
     seed: 42,
     longForm: true,
@@ -74,6 +78,9 @@ export function ExperimentLabView() {
   const qc = useQueryClient();
   const [input, setInput] = useState<StartExperimentInput>(() => defaultInput());
   const [selectedId, setSelectedId] = useState("");
+  const [activeExperiment, setActiveExperiment] = useState<ExperimentRow | null>(null);
+  const [liveEvent, setLiveEvent] = useState<ExperimentEventRow | null>(null);
+  const [streamError, setStreamError] = useState("");
   const [report, setReport] = useState<ExperimentReportRow | null>(null);
   const [compareIds, setCompareIds] = useState("");
   const [compareRows, setCompareRows] = useState<ExperimentReportRow[]>([]);
@@ -87,6 +94,16 @@ export function ExperimentLabView() {
     mutationFn: () => startExperiment(input),
     onSuccess: (row) => {
       setSelectedId(row.id);
+      setActiveExperiment(row);
+      setReport(null);
+      setStreamError("");
+      setLiveEvent({
+        experimentId: row.id,
+        status: row.status,
+        progress: row.status === "queued" ? 0 : 1,
+        message: row.status,
+        at: row.createdAt,
+      });
       void qc.invalidateQueries({ queryKey: ["experiments", "list"] });
       pushToast({ title: t(strings.dictationStudio.experimentStarted) });
     },
@@ -95,14 +112,18 @@ export function ExperimentLabView() {
   const wait = useMutation({
     mutationFn: (id: string) => waitExperiment(id),
     onSuccess: ({ experiment }) => {
-      if (experiment) setSelectedId(experiment.id);
+      if (experiment) {
+        setSelectedId(experiment.id);
+        setActiveExperiment(experiment);
+      }
       void qc.invalidateQueries({ queryKey: ["experiments", "list"] });
     },
   });
 
   const cancel = useMutation({
     mutationFn: (id: string) => cancelExperiment(id),
-    onSuccess: () => {
+    onSuccess: (experiment) => {
+      if (experiment) setActiveExperiment(experiment);
       void qc.invalidateQueries({ queryKey: ["experiments", "list"] });
     },
   });
@@ -111,7 +132,10 @@ export function ExperimentLabView() {
     mutationFn: (id: string) => getExperimentReport(id),
     onSuccess: (row) => {
       setReport(row);
-      if (row.experiment) setSelectedId(row.experiment.id);
+      if (row.experiment) {
+        setSelectedId(row.experiment.id);
+        setActiveExperiment(row.experiment);
+      }
     },
   });
 
@@ -119,11 +143,83 @@ export function ExperimentLabView() {
     mutationFn: () => compareExperiments(compareIds.split(",").map((id) => id.trim()).filter(Boolean)),
     onSuccess: setCompareRows,
   });
+  const qcRef = useRef(qc);
+  const loadReportRef = useRef(loadReport.mutate);
+  const tRef = useRef(t);
+  qcRef.current = qc;
+  loadReportRef.current = loadReport.mutate;
+  tRef.current = t;
 
   const selected = useMemo(
-    () => history.data?.find((row) => row.id === selectedId) ?? report?.experiment ?? null,
-    [history.data, report, selectedId],
+    () => history.data?.find((row) => row.id === selectedId) ?? report?.experiment ?? activeExperiment,
+    [activeExperiment, history.data, report, selectedId],
   );
+
+  const selectedLiveEvent = liveEvent?.experimentId === selectedId ? liveEvent : null;
+
+  useEffect(() => {
+    if (!selected || isTerminal(selected.status)) return;
+    const controller = new AbortController();
+    let closed = false;
+    let fallbackTimer: number | null = null;
+
+    const handleTerminal = (id: string) => {
+      void qcRef.current.invalidateQueries({ queryKey: ["experiments", "list"] });
+      loadReportRef.current(id);
+    };
+
+    const startFallbackPolling = () => {
+      if (closed || fallbackTimer) return;
+      fallbackTimer = window.setInterval(() => {
+        void getExperiment(selected.id)
+          .then(({ experiment }) => {
+            if (!experiment || closed) return;
+            setActiveExperiment(experiment);
+            setLiveEvent((current) => ({
+              experimentId: experiment.id,
+              status: experiment.status,
+              progress: isTerminal(experiment.status) ? 100 : current?.experimentId === experiment.id ? current.progress : 0,
+              message: isTerminal(experiment.status)
+                ? tRef.current(strings.dictationStudio.liveComplete)
+                : tRef.current(strings.dictationStudio.livePolling),
+              at: experiment.finishedAt || experiment.startedAt || experiment.createdAt,
+            }));
+            if (isTerminal(experiment.status)) {
+              handleTerminal(experiment.id);
+              if (fallbackTimer) window.clearInterval(fallbackTimer);
+              fallbackTimer = null;
+            }
+          })
+          .catch((error: unknown) => {
+            if (!closed) setStreamError(error instanceof Error ? error.message : String(error));
+          });
+      }, 2500);
+    };
+
+    setStreamError("");
+    void streamExperimentEvents(
+      selected.id,
+      (event) => {
+        if (closed) return;
+        setLiveEvent(event);
+        if (isTerminal(event.status)) {
+          handleTerminal(event.experimentId);
+          controller.abort();
+        }
+      },
+      controller.signal,
+    ).catch((error: unknown) => {
+      if (closed || controller.signal.aborted) return;
+      setStreamError(error instanceof Error ? error.message : String(error));
+      startFallbackPolling();
+    });
+
+    return () => {
+      closed = true;
+      controller.abort();
+      if (fallbackTimer) window.clearInterval(fallbackTimer);
+    };
+  }, [selected?.id, selected?.status]);
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)]">
@@ -162,6 +258,9 @@ export function ExperimentLabView() {
       <Panel title={t(strings.dictationStudio.resultsTitle)} description={t(strings.dictationStudio.resultsHint)} className="xl:col-span-2">
         {loadReport.isError ? (
           <ApiErrorState error={loadReport.error} title={t(strings.dictationStudio.reportError)} onRetry={() => selectedId && loadReport.mutate(selectedId)} />
+        ) : null}
+        {selected && !isTerminal(selected.status) ? (
+          <LiveExperimentProgress event={selectedLiveEvent} fallbackMessage={streamError} status={selected.status} />
         ) : null}
         {report ? (
           <div data-testid={selectors.dictationStudio.experimentResults} className="flex flex-col gap-4">
@@ -280,7 +379,11 @@ function ExperimentBuilder({
 
         <fieldset className="grid gap-2 rounded-control border border-app-border p-3 sm:grid-cols-2">
           <legend className="px-1 text-xs font-medium">{t(strings.dictationStudio.hyperparamsLabel)}</legend>
-          <NumberField testId={selectors.dictationStudio.experimentRealtimeRepeats} label={t(strings.dictationStudio.repeatsLabel)} value={input.realtimeRepeats} onChange={(value) => set("realtimeRepeats", value)} />
+          <div className="flex flex-col gap-1">
+            <NumberField testId={selectors.dictationStudio.experimentRealtimeRepeats} label={t(strings.dictationStudio.repeatsLabel)} value={input.realtimeRepeats} onChange={(value) => set("realtimeRepeats", value)} />
+            {input.realtimeRepeats === 0 ? <p className="text-xs text-app-muted-foreground">{t(strings.dictationStudio.latencyNotMeasured)}</p> : null}
+          </div>
+          <NumberField testId={selectors.dictationStudio.experimentLatencyTailSeconds} label={t(strings.dictationStudio.latencyTailLabel)} value={input.latencyTailSeconds} onChange={(value) => set("latencyTailSeconds", value)} />
           <NumberField testId={selectors.dictationStudio.experimentOverlapMaxWindow} label={t(strings.dictationStudio.maxWindowLabel)} value={input.overlapMaxWindowMs} onChange={(value) => set("overlapMaxWindowMs", value)} />
         </fieldset>
 
@@ -454,6 +557,44 @@ function ExperimentHistory({
           ))}
         </TBody>
       </Table>
+    </div>
+  );
+}
+
+function LiveExperimentProgress({
+  event,
+  fallbackMessage,
+  status,
+}: {
+  event: ExperimentEventRow | null;
+  fallbackMessage: string;
+  status: ExperimentRow["status"];
+}) {
+  const { t } = useTranslation();
+  const progress = Math.max(0, Math.min(100, event?.progress ?? (status === "queued" ? 0 : 1)));
+  const message = fallbackMessage
+    ? t(strings.dictationStudio.liveFallback)
+    : event?.message || (status === "queued" ? t(strings.dictationStudio.liveQueued) : t(strings.dictationStudio.liveRunning));
+
+  return (
+    <div data-testid={selectors.dictationStudio.experimentLiveProgress} className="mb-4 rounded-control border border-app-border p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+        <div className="flex items-center gap-2">
+          <StatusBadge status={event?.status ?? status} />
+          <span className="font-medium">{message}</span>
+        </div>
+        <span className="text-xs text-app-muted-foreground">{progress}%</span>
+      </div>
+      <div
+        className="mt-2 h-2 overflow-hidden rounded-full bg-app-surface-muted"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={progress}
+      >
+        <div className="h-full bg-app-accent" style={{ width: `${progress}%` }} />
+      </div>
+      {fallbackMessage ? <p className="mt-2 text-xs text-app-muted-foreground">{fallbackMessage}</p> : null}
     </div>
   );
 }

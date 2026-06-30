@@ -3,6 +3,7 @@ package experiment_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -135,6 +136,59 @@ func TestManager_CancelRunningExperiment(t *testing.T) {
 	require.Equal(t, experiment.StatusCanceled, done.Status)
 }
 
+func TestManager_StreamReportsQueuePosition(t *testing.T) {
+	firstStarted := make(chan struct{})
+	secondStarted := make(chan struct{})
+	releaseFirst := make(chan struct{})
+	releaseSecond := make(chan struct{})
+	mgr, _, _ := newManager(t, func(ctx context.Context, exp experiment.Experiment, _ func(int, string)) (experiment.RunResult, error) {
+		switch exp.Name {
+		case "first":
+			close(firstStarted)
+			select {
+			case <-releaseFirst:
+			case <-ctx.Done():
+				return experiment.RunResult{}, ctx.Err()
+			}
+		case "second":
+			close(secondStarted)
+			select {
+			case <-releaseSecond:
+			case <-ctx.Done():
+				return experiment.RunResult{}, ctx.Err()
+			}
+		}
+		return experiment.RunResult{Report: []byte(`{"done":true}`)}, nil
+	})
+
+	first, err := mgr.Submit(context.Background(), experiment.SubmitSpec{Name: "first"})
+	require.NoError(t, err)
+	<-firstStarted
+	_, err = mgr.Submit(context.Background(), experiment.SubmitSpec{Name: "second"})
+	require.NoError(t, err)
+	third, err := mgr.Submit(context.Background(), experiment.SubmitSpec{Name: "third"})
+	require.NoError(t, err)
+
+	ch, unsub, err := mgr.Subscribe(third.ID)
+	require.NoError(t, err)
+	defer unsub()
+
+	initial := requireEvent(t, ch)
+	require.Equal(t, experiment.StatusQueued, initial.Status)
+	require.True(t, strings.Contains(initial.Message, "1 experiment ahead"), initial.Message)
+
+	close(releaseFirst)
+	<-secondStarted
+	updated := requireEvent(t, ch)
+	require.Equal(t, experiment.StatusQueued, updated.Status)
+	require.Equal(t, "queued", updated.Message)
+
+	close(releaseSecond)
+	done, err := mgr.Wait(context.Background(), first.ID)
+	require.NoError(t, err)
+	require.Equal(t, experiment.StatusSucceeded, done.Status)
+}
+
 func TestManager_StartMarksOrphansFailed(t *testing.T) {
 	ctx := context.Background()
 	clk := mocks.NewFakeClock(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC))
@@ -163,4 +217,15 @@ func TestManager_StartMarksOrphansFailed(t *testing.T) {
 	gotRunning, err := repo.GetExperiment(ctx, running.ID)
 	require.NoError(t, err)
 	require.Equal(t, experiment.StatusFailed, gotRunning.Status)
+}
+
+func requireEvent(t *testing.T, ch <-chan experiment.ProgressEvent) experiment.ProgressEvent {
+	t.Helper()
+	select {
+	case ev := <-ch:
+		return ev
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for progress event")
+		return experiment.ProgressEvent{}
+	}
 }

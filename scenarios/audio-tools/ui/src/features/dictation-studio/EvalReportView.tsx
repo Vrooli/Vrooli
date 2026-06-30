@@ -156,7 +156,7 @@ export function EvalReportTable({ report }: { report: EvalReportData }) {
         <div className="flex flex-col gap-1">
           {report.warnings.map((warning) => (
             <p key={`${warning.code}-${warning.message}`} className="text-xs text-app-warning">
-              {warning.message}
+              {warning.severity ? `${warning.severity}: ` : ""}{warning.code ? `${warning.code} — ` : ""}{warning.message}
             </p>
           ))}
         </div>
@@ -200,7 +200,7 @@ export function EvalReportTable({ report }: { report: EvalReportData }) {
                 <div className="mt-2 flex flex-wrap gap-1">
                   {arrayOrEmpty(row.lengthCurves).map((curve) => (
                     <span key={curve.bucket} className="rounded border border-app-border px-1.5 py-0.5 text-xs text-app-muted-foreground">
-                      {curve.bucket}: {pct(curve.wer)}
+                      {curve.bucket}: {curve.clipCount} {t(strings.dictationStudio.clipsShort)} · {t(strings.dictationStudio.colWer)} {pct(curve.wer)} · {t(strings.dictationStudio.colP95)} {latency ? ms(curve.finalizationLatencyP95Ms) : DASH} · {t(strings.dictationStudio.ttfcShort)} {latency ? ms(curve.meanTimeToFirstCommitMs) : DASH}
                     </span>
                   ))}
                 </div>
