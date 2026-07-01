@@ -157,6 +157,16 @@ execution fields — they are typed entries in the `log` execution-log ledger (s
 [The execution-log ledger](#the-execution-log-ledger) below), scoped to a
 plan/execution/phase. The execution runner reads a compact `LogSummary` of them
 for context and the canonical handoff; it does not store them on the phase.
+Rendered plans include an **Execution Feedback** section with the default
+`plan-manager log ...` capture workflow so a small execution agent sees the
+feedback contract even before it asks the runner for just-in-time context.
+
+The runner also computes a **phase feedback checkpoint** from phase-scoped log
+entries. A `done` transition is recommended and accepted only after the phase has
+captured durable feedback (decision, finding, bug report, or record) or an
+explicit no-feedback note titled `Phase feedback reviewed: none`; degraded or
+operator-reviewed cases must carry an explicit feedback override reason. This
+checkpoint is computed from the log ledger, not authored onto the phase.
 
 **Resume point** = the earliest phase whose `status` is not `done`. Full vs.
 partial completion is derived from the phase-status set — never narrated.

@@ -73,7 +73,7 @@ func stepForContext(executionID, planID string, ctx PhaseContext, complete bool)
 	if ctx.HasCurrent && ctx.CurrentPhase.ID != "" {
 		phaseID = ctx.CurrentPhase.ID
 	}
-	instructions := []string{"Run or read the structured setup items before editing.", "Record decisions or findings as they occur.", "Run validation before marking the phase done."}
+	instructions := []string{"Run or read the structured setup items before editing.", "Capture feedback in the log ledger as it happens: decisions, candidate findings, confirmed bugs, reusable records, and notes.", "Run validation before marking the phase done."}
 	if reminders := boundaryReminders(ctx.ChangeBoundary); len(reminders) > 0 {
 		instructions = append(reminders, instructions...)
 	}
@@ -100,6 +100,37 @@ func stepForContext(executionID, planID string, ctx PhaseContext, complete bool)
 				Argv:               []string{"log", "finding-add", executionID, "--phase", phaseID, "--title", "<finding title>", "--detail", "<finding detail>"},
 				ContentPlaceholder: "<finding title> / <finding detail>",
 			},
+			{
+				ID:                 "log-bug",
+				Kind:               NextActionOptional,
+				Label:              "File confirmed bug",
+				Reason:             "File confirmed defects in-flow; Plan Manager keeps the entry durable and forwards it internally when configured.",
+				Argv:               []string{"log", "bug-add", executionID, "--phase", phaseID, "--title", "<bug title>", "--detail", "<bug detail>"},
+				ContentPlaceholder: "<bug title> / <bug detail>",
+			},
+			{
+				ID:                 "log-record",
+				Kind:               NextActionOptional,
+				Label:              "Capture reusable record",
+				Reason:             "Capture reusable learning or completed work before the final handoff.",
+				Argv:               []string{"log", "record-add", executionID, "--phase", phaseID, "--title", "<record title>", "--detail", "<record detail>"},
+				ContentPlaceholder: "<record title> / <record detail>",
+			},
+			{
+				ID:                 "log-note",
+				Kind:               NextActionOptional,
+				Label:              "Record progress note",
+				Reason:             "Capture lightweight progress or context that should survive resume.",
+				Argv:               []string{"log", "note-add", executionID, "--phase", phaseID, "--title", "<note title>", "--detail", "<note detail>"},
+				ContentPlaceholder: "<note title> / <note detail>",
+			},
+			{
+				ID:     "log-no-feedback",
+				Kind:   NextActionOptional,
+				Label:  "Confirm no feedback",
+				Reason: "Record an explicit durable checkpoint when the phase has no decisions, findings, bugs, records, or notes to capture.",
+				Argv:   []string{"log", "note-add", executionID, "--phase", phaseID, "--title", NoFeedbackCheckpointTitle, "--detail", noFeedbackCheckpointDetail},
+			},
 		},
 	}
 	if phaseID == "" {
@@ -118,13 +149,25 @@ func phasePrimaryAction(executionID, planID, phaseID string, ctx PhaseContext) N
 			Argv:   []string{"exec", "transition", executionID, phaseID, "--status", "active"},
 		}
 	}
-	if validationIsRecentPass(ctx.LastValidation, ctx.HasValidation, ctx.Staleness) {
+	if validationIsRecentPass(ctx.LastValidation, ctx.HasValidation, ctx.Staleness) && ctx.FeedbackCheckpoint.Satisfied {
 		return NextAction{
 			ID:     "transition-done",
 			Kind:   NextActionRecommended,
 			Label:  "Mark phase done",
 			Reason: "The last stored validation result passed and is fresh.",
 			Argv:   []string{"exec", "transition", executionID, phaseID, "--status", "done"},
+		}
+	}
+	if validationIsRecentPass(ctx.LastValidation, ctx.HasValidation, ctx.Staleness) {
+		return NextAction{
+			ID:     "review-phase-feedback",
+			Kind:   NextActionRecommended,
+			Label:  "Review phase feedback",
+			Reason: ctx.FeedbackCheckpoint.Summary,
+			Argv:   []string{"log", "note-add", executionID, "--phase", phaseID, "--title", NoFeedbackCheckpointTitle, "--detail", noFeedbackCheckpointDetail},
+			BlockedBy: []string{
+				"Capture any decisions/findings/bugs/records first, or run this no-feedback note command when there is nothing to capture.",
+			},
 		}
 	}
 	return NextAction{

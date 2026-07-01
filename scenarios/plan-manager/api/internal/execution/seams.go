@@ -48,6 +48,9 @@ type LogLedger interface {
 	// Summarize returns the compact roll-up plus the captured entries for an
 	// execution (oldest-first).
 	Summarize(ctx context.Context, executionID string) (planmodel.LogSummary, []planmodel.LogEntry, error)
+	// SummarizePhase returns the compact roll-up plus captured entries for one
+	// execution phase. It powers the phase-close feedback checkpoint.
+	SummarizePhase(ctx context.Context, executionID, phaseID string) (planmodel.LogSummary, []planmodel.LogEntry, error)
 }
 
 // InputFreshener captures the regression-anchor's baseline snapshot fresh at

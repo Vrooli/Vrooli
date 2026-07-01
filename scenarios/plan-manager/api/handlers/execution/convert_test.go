@@ -45,6 +45,15 @@ func TestPhaseContextToProtoIncludesPresentParts(t *testing.T) {
 		Staleness:       internalplans.StalenessFresh,
 		ResumePhaseID:   "ph-1",
 		Completeness:    internalexecution.CompletenessPartial,
+		FeedbackCheckpoint: internalexecution.PhaseFeedbackCheckpoint{
+			PhaseID:          "ph-1",
+			Reviewed:         true,
+			Satisfied:        true,
+			Summary:          "captured",
+			Decisions:        1,
+			NoFeedbackTitle:  internalexecution.NoFeedbackCheckpointTitle,
+			NoFeedbackDetail: "none",
+		},
 	}
 	got := phaseContextToProto(pctx)
 	require.NotNil(t, got.GetCurrentPhase())
@@ -57,6 +66,10 @@ func TestPhaseContextToProtoIncludesPresentParts(t *testing.T) {
 	require.Equal(t, sharedv1.StalenessTier_STALENESS_TIER_FRESH, got.GetStaleness())
 	require.Equal(t, "ph-1", got.GetResumePhaseId())
 	require.Equal(t, sharedv1.Completeness_COMPLETENESS_PARTIAL, got.GetCompleteness())
+	require.NotNil(t, got.GetFeedbackCheckpoint())
+	require.True(t, got.GetFeedbackCheckpoint().GetSatisfied())
+	require.Equal(t, int32(1), got.GetFeedbackCheckpoint().GetDecisions())
+	require.Equal(t, internalexecution.NoFeedbackCheckpointTitle, got.GetFeedbackCheckpoint().GetNoFeedbackTitle())
 }
 
 func TestPhaseContextToProtoOmitsAbsentParts(t *testing.T) {

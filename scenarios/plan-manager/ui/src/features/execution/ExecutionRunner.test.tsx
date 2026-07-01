@@ -28,6 +28,7 @@ import {
 import {
   CompletionNudgeSchema,
   ExecutionSchema,
+  PhaseFeedbackCheckpointSchema,
   PhaseContextSchema,
 } from "@vrooli/proto-types/plan-manager/v1/execution/execution_pb";
 import { PlanSchema } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
@@ -39,6 +40,9 @@ const transitionPhase = vi.fn();
 const completeExecution = vi.fn();
 const addDecision = vi.fn();
 const addFinding = vi.fn();
+const addBug = vi.fn();
+const addRecord = vi.fn();
+const addNote = vi.fn();
 const listPlans = vi.fn();
 
 vi.mock("../../api/execution", () => ({
@@ -54,6 +58,9 @@ vi.mock("../../api/execution", () => ({
 vi.mock("../../api/log", () => ({
   addDecision: (...a: unknown[]) => addDecision(...a),
   addFinding: (...a: unknown[]) => addFinding(...a),
+  addBug: (...a: unknown[]) => addBug(...a),
+  addRecord: (...a: unknown[]) => addRecord(...a),
+  addNote: (...a: unknown[]) => addNote(...a),
 }));
 vi.mock("../../api/plans", () => ({
   listPlans: (...a: unknown[]) => listPlans(...a),
@@ -120,6 +127,14 @@ const context = create(PhaseContextSchema, {
     candidateFindings: 1,
     pendingSync: 1,
   }),
+  feedbackCheckpoint: create(PhaseFeedbackCheckpointSchema, {
+    phaseId: "p1",
+    reviewed: false,
+    satisfied: false,
+    summary: "Review phase feedback before marking done.",
+    noFeedbackTitle: "Phase feedback reviewed: none",
+    noFeedbackDetail: "No decisions, findings, bugs, records, or reusable notes to capture for this phase.",
+  }),
 });
 
 const startAndLand = async () => {
@@ -158,6 +173,9 @@ describe("ExecutionRunner", () => {
     expect(screen.getByTestId(selectors.execution.guidedStep)).toHaveTextContent("exec transition exec-1 p1 --status done");
     // The phase context surfaces a compact log-ledger roll-up (counts + pending sync).
     expect(screen.getByTestId(selectors.execution.logSummary)).toHaveTextContent("Pending sync");
+    expect(screen.getByText("Feedback checkpoint").closest("section")).toHaveTextContent(
+      "Review phase feedback before marking done.",
+    );
     // The execution-start freshen status is surfaced (captured baseline + staleness).
     expect(screen.getByTestId(selectors.execution.freshenStatus)).toHaveTextContent("captured");
   });
@@ -243,6 +261,48 @@ describe("ExecutionRunner", () => {
       expect(screen.getByTestId(selectors.execution.recordFindingButton).closest("section")).toHaveTextContent(
         "needs triage",
       );
+    });
+  });
+
+  it("captures bug reports, records, notes, and explicit no-feedback checkpoints", async () => {
+    const user = await startAndLand();
+    addBug.mockResolvedValue({
+      entry: create(LogEntrySchema, { id: "b1", title: "confirmed defect", detail: "breaks done gate" }),
+      step,
+      deduplicated: false,
+    });
+    addRecord.mockResolvedValue({
+      entry: create(LogEntrySchema, { id: "r1", title: "checkpoint pattern", detail: "phase-close review" }),
+      step,
+      deduplicated: false,
+    });
+    addNote.mockResolvedValue({
+      entry: create(LogEntrySchema, { id: "n1", title: "Phase feedback reviewed: none" }),
+      step,
+      deduplicated: false,
+    });
+
+    await user.type(screen.getByLabelText("Bug title"), "confirmed defect");
+    await user.type(screen.getByLabelText("Bug detail"), "breaks done gate");
+    await user.click(screen.getByRole("button", { name: "File bug report" }));
+
+    await user.type(screen.getByLabelText("Record title"), "checkpoint pattern");
+    await user.type(screen.getByLabelText("Record detail"), "phase-close review");
+    await user.click(screen.getByRole("button", { name: "Capture record" }));
+
+    await user.type(screen.getByLabelText("Note title"), "operator note");
+    await user.click(screen.getByRole("button", { name: "Record note" }));
+
+    await user.click(screen.getByRole("button", { name: "Confirm no feedback" }));
+
+    await waitFor(() => {
+      expect(addBug).toHaveBeenCalledWith("exec-1", "p1", "confirmed defect", { detail: "breaks done gate" });
+      expect(addRecord).toHaveBeenCalledWith("exec-1", "p1", "checkpoint pattern", { detail: "phase-close review" });
+      expect(addNote).toHaveBeenCalledWith("exec-1", "p1", "operator note", { detail: "" });
+      expect(addNote).toHaveBeenCalledWith("exec-1", "p1", "Phase feedback reviewed: none", {
+        detail: "No decisions, findings, bugs, records, or reusable notes to capture for this phase.",
+      });
+      expect(getStatus).toHaveBeenCalled();
     });
   });
 

@@ -54,7 +54,26 @@ func phaseContextToProto(c internalexecution.PhaseContext) *executionv1.PhaseCon
 		out.LastValidation = validationResultToProto(c.LastValidation)
 	}
 	out.LogSummary = planproto.LogSummaryToProto(c.LogSummary)
+	out.FeedbackCheckpoint = feedbackCheckpointToProto(c.FeedbackCheckpoint)
 	return out
+}
+
+func feedbackCheckpointToProto(c internalexecution.PhaseFeedbackCheckpoint) *executionv1.PhaseFeedbackCheckpoint {
+	return &executionv1.PhaseFeedbackCheckpoint{
+		PhaseId:          c.PhaseID,
+		Reviewed:         c.Reviewed,
+		Satisfied:        c.Satisfied,
+		Summary:          c.Summary,
+		Decisions:        int32(c.Decisions),
+		Findings:         int32(c.Findings),
+		BugReports:       int32(c.BugReports),
+		Records:          int32(c.Records),
+		Notes:            int32(c.Notes),
+		PendingSync:      int32(c.PendingSync),
+		FailedSync:       int32(c.FailedSync),
+		NoFeedbackTitle:  c.NoFeedbackTitle,
+		NoFeedbackDetail: c.NoFeedbackDetail,
+	}
 }
 
 func nudgesToProto(nudges []internalexecution.CompletionNudge) []*executionv1.CompletionNudge {

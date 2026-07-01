@@ -1801,6 +1801,10 @@
             {
               "name": "validation-override-reason",
               "description": "Explicit reason for marking done without a fresh passing validation result"
+            },
+            {
+              "name": "feedback-override-reason",
+              "description": "Explicit reason for marking done without a satisfied phase feedback checkpoint"
             }
           ],
           "binding": {

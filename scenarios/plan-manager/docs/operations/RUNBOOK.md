@@ -28,8 +28,8 @@ incident set and will be refined with real diagnostics once implemented:
 
 - Scenario will not start: check `make logs` for port conflicts or a
   failed SQLite open at `~/.vrooli`.
-- Health endpoint unhealthy: check logs; plan reads should still work via
-  `vrooli plans` even if the server is degraded.
+- Health endpoint unhealthy: check logs; inspect stored records and rendered
+  mirrors with `plan-manager plans ...` once the scenario is healthy again.
 - A soft integration is down (code-facts, git-control-tower, test-genie /
   scenario-validation, prompt-manager, meta-optimization-manager,
   agent-manager): expect degraded features (missing code refs, no fresh
@@ -43,9 +43,9 @@ incident set and will be refined with real diagnostics once implemented:
 - Plan data (plan + phase records, plan→code references, validation /
   staleness results, candidate findings, per-plan velocity) lives in the
   shared SQLite store under `~/.vrooli`, not in a scenario-private DB.
-- Because the store is scenario-independent and server-independent, plans
-  persist there even when plan-manager is stopped and remain readable via
-  the `vrooli plans` CLI thin client.
+- Because the store is scenario-independent, plans persist there even when
+  plan-manager is stopped. Plan lifecycle and inspection are owned by the
+  `plan-manager` CLI/API/UI.
 - Backup/restore uses Vrooli's standard `~/.vrooli` home-store backup
   mechanisms. A scenario-specific backup/restore procedure is deferred
   until the storage schema is implemented.
@@ -63,7 +63,7 @@ incident set and will be refined with real diagnostics once implemented:
 ## Escalation
 
 - First response: an operator triaging plans/handoffs via the UI or
-  `vrooli plans`.
+  `plan-manager` CLI.
 - Escalate to the plan-manager owner/maintainer when start fails
   persistently, the shared `~/.vrooli` store appears corrupted, or plan
   data integrity is in doubt.

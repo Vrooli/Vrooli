@@ -37,6 +37,7 @@ type fakeExecutionService struct {
 	gotPhaseID     string
 	gotToStatus    internalplans.PhaseStatus
 	gotOverride    string
+	gotFeedback    string
 	gotInputs      internalexecution.CompletionInputs
 }
 
@@ -71,7 +72,7 @@ func (f *fakeExecutionService) GetNext(_ context.Context, executionID string) (i
 }
 
 func (f *fakeExecutionService) TransitionPhase(_ context.Context, executionID, phaseID string, inputs internalexecution.PhaseTransitionInputs) (internalexecution.Execution, internalplans.Plan, internalexecution.GuidedStep, error) {
-	f.gotExecutionID, f.gotPhaseID, f.gotToStatus, f.gotOverride = executionID, phaseID, inputs.ToStatus, inputs.ValidationOverrideReason
+	f.gotExecutionID, f.gotPhaseID, f.gotToStatus, f.gotOverride, f.gotFeedback = executionID, phaseID, inputs.ToStatus, inputs.ValidationOverrideReason, inputs.FeedbackOverrideReason
 	return f.execution, f.plan, f.step, f.err
 }
 
@@ -210,6 +211,9 @@ func TestTransitionPhaseForwardsStatus(t *testing.T) {
 		ValidationOverride: &executionv1.ValidationOverride{
 			Reason: "validated externally",
 		},
+		FeedbackOverride: &executionv1.FeedbackOverride{
+			Reason: "feedback reviewed externally",
+		},
 	}))
 	require.NoError(t, err)
 	require.Equal(t, "e1", resp.Msg.GetExecution().GetId())
@@ -217,6 +221,7 @@ func TestTransitionPhaseForwardsStatus(t *testing.T) {
 	require.Equal(t, "ph-1", svc.gotPhaseID)
 	require.Equal(t, internalplans.PhaseStatusDone, svc.gotToStatus, "proto status must be translated to the domain enum")
 	require.Equal(t, "validated externally", svc.gotOverride)
+	require.Equal(t, "feedback reviewed externally", svc.gotFeedback)
 }
 
 func TestCompleteForwardsInputs(t *testing.T) {

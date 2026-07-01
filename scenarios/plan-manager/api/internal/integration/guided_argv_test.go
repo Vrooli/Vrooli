@@ -167,6 +167,13 @@ func TestGuidedArgvAreValidManifestCommands(t *testing.T) {
 	idx.validateExecStep(t, "exec status", statusStep)
 
 	for _, ph := range plan.Phases {
+		_, _, _, err = logSvc.AddNote(ctx, internalplanlog.AddInputs{
+			PlanOrExecution: exec.ID,
+			PhaseID:         ph.ID,
+			Title:           internalexecution.NoFeedbackCheckpointTitle,
+			Detail:          "argv guard fixture has no phase feedback to capture",
+		})
+		require.NoError(t, err)
 		_, _, tstep, terr := executionSvc.TransitionPhase(ctx, exec.ID, ph.ID, internalexecution.PhaseTransitionInputs{
 			ToStatus: internalplans.PhaseStatusDone, ValidationOverrideReason: "argv guard fixture",
 		})

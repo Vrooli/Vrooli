@@ -203,14 +203,15 @@ func TestExecRequestMapping(t *testing.T) {
 			},
 		},
 		{
-			name: "transition maps status and validation override", cmd: "transition",
-			argv: []string{"exec-1", "phase-3", "--status", "done", "--validation-override-reason", "offline validation accepted"},
+			name: "transition maps status and overrides", cmd: "transition",
+			argv: []string{"exec-1", "phase-3", "--status", "done", "--validation-override-reason", "offline validation accepted", "--feedback-override-reason", "feedback reviewed manually"},
 			assert: func(t *testing.T, req proto.Message) {
 				m := req.(*executionv1.TransitionPhaseRequest)
 				require.Equal(t, "exec-1", m.GetExecutionId())
 				require.Equal(t, "phase-3", m.GetPhaseId())
 				require.Equal(t, sharedv1.PhaseStatus_PHASE_STATUS_DONE, m.GetToStatus())
 				require.Equal(t, "offline validation accepted", m.GetValidationOverride().GetReason())
+				require.Equal(t, "feedback reviewed manually", m.GetFeedbackOverride().GetReason())
 			},
 		},
 		{

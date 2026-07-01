@@ -128,10 +128,16 @@ preview render and the persisted render agree (see
    (`log decision-add`, `log finding-add`, `log bug-add`, `log record-add`,
    `log note-add`) — these are typed ledger entries, not execution/phase fields.
    Findings file as candidate; bugs/records are forwarded downstream internally.
-3. `check` runs the phase's computed baseline/validation set and returns results +
+3. Before a phase can be marked `done`, the runner requires a **phase feedback
+   checkpoint**. The checkpoint is satisfied by phase-scoped durable feedback
+   (decision/finding/bug/record) or by an explicit no-feedback note:
+   `plan-manager log note-add <execution> --phase <phase> --title "Phase
+   feedback reviewed: none" ...`. This keeps small agents from silently skipping
+   feedback capture while avoiding fake findings.
+4. `check` runs the phase's computed baseline/validation set and returns results +
    staleness; phase status advances by typed transition or by inference once
    acceptance + validation pass.
-4. Resume point and full/partial completion are computed from the phase-status set.
+5. Resume point and full/partial completion are computed from the phase-status set.
 
 ### Completion / handoff
 
@@ -226,8 +232,9 @@ fresh ──small diff in refs──▶ lightly_stale ──refs moved/deleted�
   access this scenario must not have).
 - Background staleness sweeps / proactive re-validation — deferred; v1 computes
   staleness on demand and on resume, not on a timer.
-- Consumer-inversion handshakes (swarm-manager/hygiene/`vrooli plans` delegating
-  here) — deferred to OT-P2-002, after standalone proof.
+- Consumer-inversion handshakes (swarm-manager/hygiene delegating here) —
+  deferred to OT-P2-002, after standalone proof. Root `vrooli plans` has been
+  retired in favor of direct `plan-manager` usage.
 
 ## Cross-References
 

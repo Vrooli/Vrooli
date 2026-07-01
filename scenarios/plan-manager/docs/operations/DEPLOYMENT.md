@@ -24,13 +24,13 @@ Use this document to answer:
 
 ## Runtime Requirements
 
-- Go binaries: the api server and the `vrooli plans` CLI.
+- Go binaries: the api server and the `plan-manager` CLI.
 - UI: a React + Vite + Tailwind bundle served by the scenario.
 - Transport: Connect-RPC over proto.
 - Storage: SQLite via api-core/storage, rooted at the scenario-independent
   `~/.vrooli` home store. This is deliberately NOT a scenario-private DB,
-  so plans remain readable (via the CLI thin client) when the server is
-  down.
+  so plan data survives scenario restarts and can be repaired from durable
+  storage.
 - Resources: no heavy resources (no Postgres, Redis, Qdrant, Vault, etc.).
   plan-manager's integrations (code-facts, git-control-tower, test-genie /
   scenario-validation, prompt-manager, meta-optimization-manager,
@@ -55,7 +55,7 @@ vertical slice exists:
 - Run the scenario test suite via `vrooli scenario test plan-manager` and
   confirm it is green.
 - Confirm the SQLite store at `~/.vrooli` migrates forward without data
-  loss and that `vrooli plans` can still read existing plans.
+  loss and that `plan-manager plans ...` can read existing plans.
 - Confirm soft integrations degrade gracefully when their backing
   scenarios are unavailable.
 - Confirm the standard scenario health endpoint reports healthy after

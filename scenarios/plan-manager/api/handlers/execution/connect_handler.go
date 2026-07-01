@@ -105,6 +105,7 @@ func (h *connectHandler) TransitionPhase(ctx context.Context, req *connect.Reque
 	e, plan, step, err := h.deps.Service.TransitionPhase(ctx, req.Msg.GetExecutionId(), req.Msg.GetPhaseId(), internalexecution.PhaseTransitionInputs{
 		ToStatus:                 phaseStatusFromProto(req.Msg.GetToStatus()),
 		ValidationOverrideReason: req.Msg.GetValidationOverride().GetReason(),
+		FeedbackOverrideReason:   req.Msg.GetFeedbackOverride().GetReason(),
 	})
 	if err != nil {
 		return nil, internalexecution.ToConnectError(err)

@@ -50,6 +50,10 @@ func RenderMarkdown(p Plan) string {
 		b.WriteString("\n")
 	}
 
+	b.WriteString("## Execution Feedback\n\n")
+	b.WriteString(renderExecutionFeedback())
+	b.WriteString("\n")
+
 	// Change Boundary — the blast-radius contract, rendered before references and
 	// the regression anchor (both of which derive from it). Omitted only when the
 	// plan carries no boundary (legacy imports before the hard cutover).
@@ -116,6 +120,24 @@ func RenderMarkdown(p Plan) string {
 	}
 
 	return b.String()
+}
+
+// renderExecutionFeedback renders the default capture policy every plan carries
+// while executing. It is renderer-owned guidance, not mutable plan truth: the
+// typed work products themselves live in the log ledger.
+func renderExecutionFeedback() string {
+	lines := []string{
+		"Capture typed work products as they happen; do not wait for the final handoff.",
+		"",
+		"- Design decision: `plan-manager log decision-add <plan-or-execution> --phase <phase> --title <summary> --detail <detail>`",
+		"- Candidate finding (possible bug): `plan-manager log finding-add <plan-or-execution> --phase <phase> --title <title> --detail <detail>`",
+		"- Confirmed defect: `plan-manager log bug-add <plan-or-execution> --phase <phase> --title <title> --detail <detail>`",
+		"- Reusable learning or completed work: `plan-manager log record-add <plan-or-execution> --phase <phase> --title <title> --detail <detail>`",
+		"- Lightweight progress/context note: `plan-manager log note-add <plan-or-execution> --phase <phase> --title <title> --detail <detail>`",
+		"",
+		"Candidate findings are unvalidated until triaged or promoted with `plan-manager log promote <finding-id> --to bug|record`. Bug reports and records are forwarded internally; retry degraded forwarding with `plan-manager log sync <entry-id>`.",
+	}
+	return strings.Join(lines, "\n") + "\n"
 }
 
 // renderWorkPosture renders the always-present Work Posture section: a source/

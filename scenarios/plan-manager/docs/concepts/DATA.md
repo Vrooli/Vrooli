@@ -24,19 +24,17 @@ scenario-private database.
   plan from a fallback source into the structured model; `MigratePlan` ensures a
   resolved plan resides in the canonical store. The fallback sources are **never
   mutated destructively** without an explicit step. This resolver — not a shared
-  raw directory — is how plan-manager coexists with the legacy `vrooli plans`
-  data and how the future consumer-inversion (OT-P2-002) delegates plan-location
-  logic here.
-- **Why:** plans must stay readable when the plan-manager server is down, and the
-  thin `vrooli plans` CLI must be able to read them. plan-manager owns the schema,
-  validation, and logic; the home store is the persistence substrate.
+  raw directory — is how plan-manager coexists with legacy markdown plan data and
+  how the future consumer-inversion (OT-P2-002) delegates plan-location logic here.
+- **Why:** plans must remain durable outside the plan-manager server process.
+  plan-manager owns the schema, validation, and logic; the home store is the
+  persistence substrate.
 - **Consequence:** reads do not require the API process; writes go through
   plan-manager (the schema/lifecycle authority), but the on-disk store is
   process-independent and concurrency-safe for multiple readers.
 - **Rendered markdown mirror:** every plan may carry `mirror` metadata in its
   structured document. The mirror file itself is a durable projection under the
-  repo-contract runtime-home `plans` entry (the same operator-visible directory
-  used by the legacy root `vrooli plans` flow). The mirror is not canonical:
+  repo-contract runtime-home `plans` entry. The mirror is not canonical:
   when it is missing or stale, Plan Manager regenerates it from SQLite and
   updates the metadata. If a mirror write fails after SQLite commits, the plan
   remains saved with `mirror.status=write_failed` and can be repaired later.
@@ -109,7 +107,7 @@ this map is the ownership contract.
 ## Migrations And Compatibility
 
 - Schema is created idempotently from the embedded `schema.sql` per domain on boot.
-- Because the store is shared with the legacy `vrooli plans` data, the first
+- Because the store is shared with legacy markdown plan data, the first
   migration concern is **adopting / coexisting with** the existing `~/.vrooli/plans`
   file store: plan-manager reads the existing plans and writes the structured
   superset. No destructive migration of legacy plans without an explicit,
@@ -119,8 +117,8 @@ this map is the ownership contract.
 
 ## Import / Export
 
-- **Import:** adopt existing markdown plans (the current `vrooli plans import`
-  path) into the structured model; references are parsed from `[CODE:]`/`[REQ:]`.
+- **Import:** adopt existing markdown plans via `plan-manager plans import`
+  into the structured model; references are parsed from `[CODE:]`/`[REQ:]`.
 - **Reconcile/adopt legacy:** `ReconcilePlans` can dry-run or execute a bulk pass
   over the runtime-home `plans`, repo `docs/plans`, and repo `plans` fallback
   locations. It reports each source as imported, already canonical, duplicate,
@@ -139,7 +137,7 @@ this map is the ownership contract.
 ## Retention And Deletion
 
 - Plans are retained until archived or deleted; archival is a soft state (kept,
-  hidden by default) mirroring today's `vrooli plans archive`.
+  hidden by default) managed by `plan-manager plans archive`.
 - Velocity points and handoff records are retained as historical signal (small,
   append-only); pruning is a future tuning concern, not v1.
 - Candidate findings are retained until an operator triages (promote/dismiss).

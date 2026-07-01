@@ -26,7 +26,7 @@ Use this document to answer:
 
 ## Channels
 
-- In-ecosystem discovery: the `vrooli plans` CLI, the scenario UI, and
+- In-ecosystem discovery: the `plan-manager` CLI, the scenario UI, and
   Connect-RPC consumers within other scenarios.
 - Skill discovery: plan-skill-discovery via prompt-manager surfaces
   plan-manager to agents at the moment they need to plan.
@@ -38,7 +38,7 @@ Use this document to answer:
 - Internal launch: ship behind the standard scenario lifecycle
   (`make start` / `vrooli scenario start plan-manager`), then drive
   adoption by routing agent planning work to it via prompt-manager and by
-  making `vrooli plans` the canonical read path.
+  making `plan-manager` the canonical plan lifecycle path.
 - There is no external launch event planned. A broader launch is deferred
   until plan-manager has proven local-model cost savings on real plans.
 
@@ -47,9 +47,8 @@ Use this document to answer:
 - Core message: "Plan once, in the SSOT; execute it on a cheap local
   model." Authoring and executing plans should not require a large cloud
   model.
-- Secondary message: plans stay readable even when the server is down
-  (SQLite under `~/.vrooli`, readable via the thin `vrooli plans` client),
-  so operators are never locked out of their own plans.
+- Secondary message: plans are durable in SQLite under `~/.vrooli` and rendered
+  markdown mirrors are repairable from the structured record.
 - Honesty guardrail: candidate findings are surfaced as unvalidated, never
   as confirmed facts — messaging must not overclaim correctness.
 

@@ -79,8 +79,16 @@ export async function transitionPhase(
   executionId: string,
   phaseId: string,
   toStatus: PhaseStatus,
+  validationOverrideReason = "",
+  feedbackOverrideReason = "",
 ): Promise<{ execution: Execution | undefined; step: GuidedStep | undefined }> {
-  const resp = await executionClient.transitionPhase({ executionId, phaseId, toStatus });
+  const resp = await executionClient.transitionPhase({
+    executionId,
+    phaseId,
+    toStatus,
+    validationOverride: { reason: validationOverrideReason },
+    feedbackOverride: { reason: feedbackOverrideReason },
+  });
   return { execution: resp.execution, step: resp.step };
 }
 

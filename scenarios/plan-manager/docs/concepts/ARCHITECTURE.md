@@ -11,8 +11,8 @@ themselves are mapped in [`DOMAINS.md`](DOMAINS.md); the data they persist is in
 The one architectural idea that shapes everything: plan-manager is a **planning
 runtime and plan-logic SSOT**. It re-homes plan logic that is otherwise scattered
 (swarm-manager `phased-plan-drain`, the prose authoring skill, project hygiene,
-the `vrooli plans` CLI) so that authoring and executing plans is cheap enough for
-a local model. It does that by moving judgment into deterministic code (the
+and legacy root plan storage) so that authoring and executing plans is cheap enough
+for a local model. It does that by moving judgment into deterministic code (the
 wizard + validators) and by injecting context just-in-time during execution.
 
 ## Scenario Shape
@@ -37,7 +37,7 @@ proto contracts.
                                           ▼
                           ~/.vrooli durable home store (SQLite/file)
                                           ▲
-                    `vrooli plans` thin client reads here when API is down
+                    Plan Manager CLI/UI/API read the structured record
 ```
 
 ## System Boundaries
@@ -51,7 +51,7 @@ proto contracts.
 
 1. A proto `service` per domain defines the wire contract; handlers implement the generated `*ServiceHandler`.
 2. The CLI binds each command to a `connect-rpc` `service`/`method` via `cliapp.LoadFromManifest`; the UI calls generated Connect clients.
-3. Plan + phase records persist to the durable `~/.vrooli` home store (see [`DATA.md`](DATA.md)) — readable even when the API process is down, which is what lets `vrooli plans` act as a thin client.
+3. Plan + phase records persist to the durable `~/.vrooli` home store (see [`DATA.md`](DATA.md)); Plan Manager owns the structured record and rendered mirrors.
 4. Authoring writes a structured plan; execution reads/advances it (and reads the `log` ledger summary for just-in-time context and the handoff); the `log` domain captures the agent's typed work products (decisions/findings/bugs/records/notes) in-flow; validation resolves references, computes staleness, and runs baselines; the rendered markdown view is always derived from the structured record, never parsed back.
 
 The structured shape of what flows here is defined once in [`PLAN-MODEL.md`](PLAN-MODEL.md).
@@ -82,12 +82,13 @@ scaffold `notes` example has been removed. The PRD, requirements registry, domai
 map, this document, the [`PLAN-MODEL.md`](PLAN-MODEL.md) keystone,
 [`DATA.md`](DATA.md), [`FLOWS.md`](FLOWS.md), and
 [`INTEGRATIONS.md`](INTEGRATIONS.md) track that implemented contract. The remaining
-maturity step is adoption: inverting consumers (root `vrooli plans`, Swarm Manager
-phased execution) and wiring the deferred downstream forwarding adapters.
+maturity step is adoption: inverting Swarm Manager phased execution and wiring
+the deferred downstream forwarding adapters. Root `vrooli plans` has been retired
+in favor of direct Plan Manager CLI usage.
 
 ## Intentional Deviations
 
-- **Storage is rooted at the shared `~/.vrooli` home store, not a scenario-private DB.** Deliberate: plans must be readable when the server is down and by the thin `vrooli plans` CLI. plan-manager owns the schema/logic; the home store is the persistence substrate. See [`DATA.md`](DATA.md) and `docs/internal/DECISIONS.md`.
+- **Storage is rooted at the shared `~/.vrooli` home store, not a scenario-private DB.** Deliberate: plan data is durable outside the scenario process and plan-manager owns the schema/logic; the home store is the persistence substrate. See [`DATA.md`](DATA.md) and `docs/internal/DECISIONS.md`.
 - **The prose handoff is intentionally not owned here.** It requires reading transcripts, which violates this scenario's boundary; the orchestration layer owns it.
 
 ## Documentation Architecture

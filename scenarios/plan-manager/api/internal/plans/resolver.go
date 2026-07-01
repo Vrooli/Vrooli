@@ -160,7 +160,12 @@ func (s *service) Reconcile(ctx context.Context, req ReconcileRequest) (Reconcil
 		req.SourceRepoPlans = true
 	}
 	result := ReconcileResult{DryRun: req.DryRun}
-	existing, err := s.repo.List(ctx, ListFilter{IncludeArchived: true})
+	workspace := normalizeWorkspaceScope(req.Workspace)
+	existing, err := s.repo.List(ctx, ListFilter{
+		IncludeArchived: true,
+		WorkspaceID:     workspace.ID,
+		WorkspaceRoot:   workspace.Root,
+	})
 	if err != nil {
 		return result, err
 	}

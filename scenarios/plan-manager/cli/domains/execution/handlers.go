@@ -146,6 +146,9 @@ func (h *handlers) transition(ctx cliapp.RunContext) error {
 		ValidationOverride: &executionv1.ValidationOverride{
 			Reason: ctx.Flag("validation-override-reason"),
 		},
+		FeedbackOverride: &executionv1.FeedbackOverride{
+			Reason: ctx.Flag("feedback-override-reason"),
+		},
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("transition phase", err, nil)
@@ -273,6 +276,14 @@ func contextLines(c *executionv1.PhaseContext) []string {
 	}
 	if lv := c.GetLastValidation(); lv != nil {
 		out = append(out, fmt.Sprintf("last validation: %s", lv.GetDetail()))
+	}
+	if cp := c.GetFeedbackCheckpoint(); cp != nil && cp.GetPhaseId() != "" {
+		out = append(out, fmt.Sprintf("feedback checkpoint: %s", cp.GetSummary()))
+		out = append(out, fmt.Sprintf("  phase feedback: %d decisions, %d findings, %d bugs, %d records, %d notes",
+			cp.GetDecisions(), cp.GetFindings(), cp.GetBugReports(), cp.GetRecords(), cp.GetNotes()))
+		if cp.GetPendingSync()+cp.GetFailedSync() > 0 {
+			out = append(out, fmt.Sprintf("  feedback sync: %d pending, %d failed", cp.GetPendingSync(), cp.GetFailedSync()))
+		}
 	}
 	out = append(out, logSummaryLines(c.GetLogSummary())...)
 	return out

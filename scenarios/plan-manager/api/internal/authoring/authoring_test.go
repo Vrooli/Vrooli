@@ -63,6 +63,10 @@ func TestWizardAuthoredPlanRendersComprehensive(t *testing.T) {
 	for _, want := range []string{
 		"## Work Posture",
 		"**This is greenfield work.**",
+		"## Execution Feedback",
+		"plan-manager log decision-add",
+		"plan-manager log finding-add",
+		"plan-manager log record-add",
 		"## Problem / Need",
 		"## Target Outcome",
 		"## Technical Approach",
@@ -90,9 +94,26 @@ func TestPreviewPlanRendersWithoutPersisting(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, md, "## Work Posture")
 	require.Contains(t, md, "**This is greenfield work.**")
+	require.Contains(t, md, "## Execution Feedback")
+	require.Contains(t, md, "plan-manager log decision-add")
 	require.Contains(t, md, "## Problem / Need")
 	require.Equal(t, "final_review", step.StepKind)
 	require.Equal(t, 0, writer.calls, "preview must not persist a plan")
+}
+
+func TestAuthoringGuidanceReferencesDefaultFeedbackWorkflow(t *testing.T) {
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Feedback guidance", "feedback-guidance", "")
+	require.NoError(t, err)
+
+	_, relevantStep, err := svc.GetSection(ctx, sess.ID, authoring.SectionRelevantContext)
+	require.NoError(t, err)
+	require.Contains(t, strings.Join(relevantStep.Instructions, " | "), "default plan-manager log capture workflow")
+
+	_, phasesStep, err := svc.GetSection(ctx, sess.ID, authoring.SectionPhases)
+	require.NoError(t, err)
+	require.Contains(t, strings.Join(phasesStep.Instructions, " | "), "default feedback capture is rendered automatically")
 }
 
 // TestPreviewUnavailableWithoutRenderer asserts preview degrades honestly when no

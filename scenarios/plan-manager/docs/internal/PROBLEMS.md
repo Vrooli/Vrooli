@@ -67,7 +67,7 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ### 2026-06-25 — Legacy `~/.vrooli/plans` coexistence is unspecified in code
 
-**Symptom:** plan-manager will share the home store with the existing `vrooli plans` file store, but the adoption/coexistence path is documented (DATA.md) not built.
+**Symptom:** plan-manager will share the home store with existing markdown plan files, but the adoption/coexistence path is documented (DATA.md) not built.
 
 **Root cause:** Storage decision (scenario-owned logic over the durable home store) is new; the migration/coexistence step is deferred to the `plans` slice.
 

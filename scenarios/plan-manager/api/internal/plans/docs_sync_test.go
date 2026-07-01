@@ -27,7 +27,7 @@ func TestPlanModelDocNamesRenderSections(t *testing.T) {
 	sections := []string{
 		"Purpose", "Problem / Need", "Target Outcome", "Work Posture", "Scope",
 		"Non-Goals", "Assumptions", "Technical Approach", "Constraints",
-		"Prohibited Approaches", "Global Execution Setup", "References",
+		"Prohibited Approaches", "Global Execution Setup", "Execution Feedback", "References",
 		"Regression Anchor", "Validation Strategy", "Definition of Done",
 		"Import Provenance", "Preserved Legacy Sections",
 		"Affected Areas", "Ordered Steps", "Expected Outputs", "Phase Validation",
@@ -47,7 +47,7 @@ func TestRenderEmitsDocumentedSections(t *testing.T) {
 	md := plans.RenderMarkdown(comprehensivePlan())
 	for _, h := range []string{
 		"## Purpose", "## Problem / Need", "## Target Outcome", "## Work Posture",
-		"## Scope", "## Technical Approach", "## Validation Strategy",
+		"## Scope", "## Technical Approach", "## Execution Feedback", "## Validation Strategy",
 		"## Definition of Done",
 	} {
 		if !strings.Contains(md, h) {

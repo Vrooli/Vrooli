@@ -27,10 +27,10 @@ re-implementing it, and every dependency is soft and degrades gracefully.
 | `swarm-manager` | Scenario | Downstream sink for `log` **record** entries (`records create`) | Soft |
 
 Future consumers to be **inverted** (they will depend on plan-manager, not the
-reverse): `swarm-manager` `phased-plan-drain`. Project hygiene plan checks and
-the root `vrooli plans` CLI are already Plan Manager consumers: hygiene calls
-`ReconcilePlans`, and root `vrooli plans` routes writes through Plan Manager
-while retaining read-only mirror fallback for broken-server inspection.
+reverse): `swarm-manager` `phased-plan-drain`. Project hygiene plan checks are
+already a Plan Manager consumer: hygiene calls `ReconcilePlans`. Root
+`vrooli plans` has been retired; plan lifecycle and inspection now use the
+`plan-manager` CLI directly.
 
 **Boundary vocabulary alignment (consumer-inversion contract).** Plan Manager's
 change boundary deliberately uses Swarm Manager's `acceptance_allow` /
@@ -53,13 +53,8 @@ follow-up once a second cross-scenario consumer needs it.
   the repo-contract `plans` entry. These files are operator-facing and backup
   material, but repairable from SQLite; a missing/stale mirror degrades reads
   until Plan Manager regenerates it.
-- **Root `vrooli plans` CLI** — a project-level control-plane client.
-  Normal writes (`add --stdin`, `import`, `archive`) require Plan Manager and
-  send workspace scope for deterministic path resolution instead of creating
-  standalone markdown truth. Reads (`list`, `show`, `path`, `export`) prefer
-  Plan Manager and fall back to existing mirror files only when the scenario is
-  unavailable or times out; fallback output is labelled degraded and is filtered
-  by workspace metadata for scoped reads.
+- **Plan Manager CLI** — the direct control surface for plan lifecycle,
+  inspection, import, archive, authoring, and render workflows.
 - **Root `vrooli hygiene` plans provider** — a consumer of `ReconcilePlans`.
   It reports Plan Manager reconcile outcomes separately from applied fixes so
   no-op results (`skipped_duplicate`, `already_canonical`) are not counted as

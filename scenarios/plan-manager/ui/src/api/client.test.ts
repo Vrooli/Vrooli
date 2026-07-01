@@ -242,6 +242,13 @@ describe("Connect API wrapper helpers", () => {
     expect(client.start).toHaveBeenCalledWith({ planId: "plan-1", runId: "" });
     expect(client.getContext).toHaveBeenCalledWith({ executionId: "exec-1", phaseId: "phase-1" });
     expect(client.resume).toHaveBeenCalledWith({ planOrExecution: "plan-1", phaseId: "phase-1", runId: "run-1" });
+    expect(client.transitionPhase).toHaveBeenCalledWith({
+      executionId: "exec-1",
+      phaseId: "phase-1",
+      toStatus: PhaseStatus.DONE,
+      validationOverride: { reason: "" },
+      feedbackOverride: { reason: "" },
+    });
     expect(client.complete).toHaveBeenCalledWith({ executionId: "exec-1", tokens: 10n, iterations: 2 });
     expect(client.complete).toHaveBeenCalledWith({ executionId: "exec-1", tokens: 0n, iterations: 0 });
   });

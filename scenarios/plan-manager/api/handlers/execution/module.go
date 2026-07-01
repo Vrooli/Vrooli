@@ -119,6 +119,10 @@ func (a logLedgerAdapter) Summarize(ctx context.Context, executionID string) (pl
 	return a.svc.Summarize(ctx, internalplanlog.Filter{ExecutionID: executionID})
 }
 
+func (a logLedgerAdapter) SummarizePhase(ctx context.Context, executionID, phaseID string) (planmodel.LogSummary, []planmodel.LogEntry, error) {
+	return a.svc.Summarize(ctx, internalplanlog.Filter{ExecutionID: executionID, PhaseID: phaseID})
+}
+
 // planSourceAdapter adapts the plans domain Service to the validation domain's
 // PlanSource read seam (method-name shim; the types are the shared plans model).
 type planSourceAdapter struct{ svc internalplans.Service }

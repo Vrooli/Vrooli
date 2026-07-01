@@ -16,6 +16,12 @@ import (
 // when the caller does not supply a run id (best-effort when absent).
 const runIDEnv = "VROOLI_AGENT_MANAGER_RUN_ID"
 
+// NoFeedbackCheckpointTitle is the durable note title that explicitly records a
+// phase feedback review found nothing to capture.
+const NoFeedbackCheckpointTitle = "Phase feedback reviewed: none"
+
+const noFeedbackCheckpointDetail = "No decisions, findings, bugs, records, or reusable notes to capture for this phase."
+
 // Service is the execution application surface — the guided runner.
 type Service interface {
 	Start(ctx context.Context, planID, runID string) (Execution, PhaseContext, GuidedStep, error)
@@ -259,6 +265,9 @@ func (s *service) TransitionPhase(ctx context.Context, executionID, phaseID stri
 		if err := s.requireValidationForDone(ctx, plan, target.ID, inputs.ValidationOverrideReason); err != nil {
 			return Execution{}, planmodel.Plan{}, GuidedStep{}, err
 		}
+		if err := s.requireFeedbackForDone(ctx, e.ID, target.ID, inputs.FeedbackOverrideReason); err != nil {
+			return Execution{}, planmodel.Plan{}, GuidedStep{}, err
+		}
 	}
 	// Delegate the phase-status change to the plans domain — it stays the single
 	// source of truth for the record (plan status is recomputed there).
@@ -473,6 +482,7 @@ func (s *service) buildContext(ctx context.Context, plan planmodel.Plan, phaseID
 		if !cur.ChangeBoundary.IsZero() {
 			pctx.ChangeBoundary = cur.ChangeBoundary
 		}
+		pctx.FeedbackCheckpoint = s.feedbackCheckpoint(ctx, executionID, cur.ID)
 	}
 	pctx.RelevantContext = contextForPhase(plan, pctx.CurrentPhase, pctx.HasCurrent, mode)
 	if next, ok := nextPhase(plan.Phases, phaseID); ok {
@@ -500,10 +510,71 @@ func (s *service) logLedger(ctx context.Context, executionID string) (planmodel.
 	return summary, entries
 }
 
+func (s *service) phaseLogLedger(ctx context.Context, executionID, phaseID string) (planmodel.LogSummary, []planmodel.LogEntry) {
+	if s.log == nil {
+		return planmodel.LogSummary{}, nil
+	}
+	summary, entries, err := s.log.SummarizePhase(ctx, executionID, phaseID)
+	if err != nil {
+		return planmodel.LogSummary{}, nil
+	}
+	return summary, entries
+}
+
 // logSummary reads only the compact summary for the just-in-time context.
 func (s *service) logSummary(ctx context.Context, executionID string) planmodel.LogSummary {
 	summary, _ := s.logLedger(ctx, executionID)
 	return summary
+}
+
+func (s *service) feedbackCheckpoint(ctx context.Context, executionID, phaseID string) PhaseFeedbackCheckpoint {
+	summary, entries := s.phaseLogLedger(ctx, executionID, phaseID)
+	cp := PhaseFeedbackCheckpoint{
+		PhaseID:          phaseID,
+		Decisions:        summary.Decisions,
+		Findings:         summary.Findings,
+		BugReports:       summary.BugReports,
+		Records:          summary.Records,
+		Notes:            summary.Notes,
+		PendingSync:      summary.PendingSync,
+		FailedSync:       summary.FailedSync,
+		NoFeedbackTitle:  NoFeedbackCheckpointTitle,
+		NoFeedbackDetail: noFeedbackCheckpointDetail,
+	}
+	explicitNone := false
+	for _, entry := range entries {
+		if entry.Type == planmodel.LogEntryNote && strings.EqualFold(strings.TrimSpace(entry.Title), NoFeedbackCheckpointTitle) {
+			explicitNone = true
+			break
+		}
+	}
+	capturedWork := summary.Decisions + summary.Findings + summary.BugReports + summary.Records
+	cp.Reviewed = explicitNone || capturedWork > 0
+	cp.Satisfied = cp.Reviewed && summary.FailedSync == 0 && summary.PendingSync == 0
+	switch {
+	case !cp.Reviewed:
+		cp.Summary = "Review phase feedback before marking done: capture decisions/findings/bugs/records, or record an explicit no-feedback note."
+	case summary.FailedSync > 0:
+		cp.Summary = "Feedback was reviewed, but some bug/record forwarding failed; retry sync before marking done."
+	case summary.PendingSync > 0:
+		cp.Summary = "Feedback was reviewed, but some bug/record forwarding is pending; retry or acknowledge before marking done."
+	case explicitNone:
+		cp.Summary = "Feedback reviewed: no durable work products needed for this phase."
+	default:
+		cp.Summary = "Feedback reviewed with durable phase log entries."
+	}
+	return cp
+}
+
+func (s *service) requireFeedbackForDone(ctx context.Context, executionID, phaseID, overrideReason string) error {
+	if strings.TrimSpace(overrideReason) != "" {
+		return nil
+	}
+	cp := s.feedbackCheckpoint(ctx, executionID, phaseID)
+	if cp.Satisfied {
+		return nil
+	}
+	return ErrInvalidExecution{Reason: "phase feedback checkpoint is required before marking done; capture phase feedback or record a no-feedback note, or provide feedback override reason"}
 }
 
 func contextForPhase(plan planmodel.Plan, cur planmodel.Phase, hasCurrent bool, mode contextMode) []planmodel.RelevantContextItem {

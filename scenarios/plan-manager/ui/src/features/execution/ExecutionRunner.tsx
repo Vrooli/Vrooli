@@ -8,7 +8,7 @@ import {
   startExecution,
   transitionPhase,
 } from "../../api/execution";
-import { addDecision, addFinding } from "../../api/log";
+import { addBug, addDecision, addFinding, addNote, addRecord } from "../../api/log";
 import { PlanSelect } from "../../components/PlanSelect";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Card, MetaRow, SectionPanel } from "../../components/Surfaces";
@@ -46,6 +46,9 @@ interface RunnerState {
   context?: PhaseContext;
   decisions: LogEntry[];
   findings: LogEntry[];
+  bugs: LogEntry[];
+  records: LogEntry[];
+  notes: LogEntry[];
   handoff?: Handoff;
   nudges: CompletionNudge[];
   step?: GuidedStep;
@@ -248,12 +251,25 @@ export function ExecutionRunner() {
   const { t } = useTranslation();
   const [planId, setPlanId] = useState("");
   const [runId, setRunId] = useState("");
-  const [state, setState] = useState<RunnerState>({ decisions: [], findings: [], nudges: [] });
+  const [state, setState] = useState<RunnerState>({
+    decisions: [],
+    findings: [],
+    bugs: [],
+    records: [],
+    notes: [],
+    nudges: [],
+  });
   const [toStatus, setToStatus] = useState<PhaseStatus>(PhaseStatus.DONE);
   const [decisionSummary, setDecisionSummary] = useState("");
   const [decisionDetail, setDecisionDetail] = useState("");
   const [findingTitle, setFindingTitle] = useState("");
   const [findingDetail, setFindingDetail] = useState("");
+  const [bugTitle, setBugTitle] = useState("");
+  const [bugDetail, setBugDetail] = useState("");
+  const [recordTitle, setRecordTitle] = useState("");
+  const [recordDetail, setRecordDetail] = useState("");
+  const [noteTitle, setNoteTitle] = useState("");
+  const [noteDetail, setNoteDetail] = useState("");
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
 
@@ -292,6 +308,9 @@ export function ExecutionRunner() {
           context: res.context,
           decisions: [],
           findings: [],
+          bugs: [],
+          records: [],
+          notes: [],
           nudges: [],
           step: res.step,
         });
@@ -335,6 +354,7 @@ export function ExecutionRunner() {
         setState((prev) => ({ ...prev, decisions: [...prev.decisions, dec], step: res.step }));
         setDecisionSummary("");
         setDecisionDetail("");
+        await refreshStatus(execution.id);
       }
     });
   };
@@ -350,6 +370,73 @@ export function ExecutionRunner() {
         setState((prev) => ({ ...prev, findings: [...prev.findings, finding], step: res.step }));
         setFindingTitle("");
         setFindingDetail("");
+        await refreshStatus(execution.id);
+      }
+    });
+  };
+
+  const handleRecordBug = () => {
+    if (!execution || bugTitle.trim().length === 0) return;
+    run(async () => {
+      const res = await addBug(execution.id, currentPhaseId, bugTitle.trim(), {
+        detail: bugDetail.trim(),
+      });
+      const bug = res.entry;
+      if (bug) {
+        setState((prev) => ({ ...prev, bugs: [...prev.bugs, bug], step: res.step }));
+        setBugTitle("");
+        setBugDetail("");
+        await refreshStatus(execution.id);
+      }
+    });
+  };
+
+  const handleRecordRecord = () => {
+    if (!execution || recordTitle.trim().length === 0) return;
+    run(async () => {
+      const res = await addRecord(execution.id, currentPhaseId, recordTitle.trim(), {
+        detail: recordDetail.trim(),
+      });
+      const record = res.entry;
+      if (record) {
+        setState((prev) => ({ ...prev, records: [...prev.records, record], step: res.step }));
+        setRecordTitle("");
+        setRecordDetail("");
+        await refreshStatus(execution.id);
+      }
+    });
+  };
+
+  const handleRecordNote = () => {
+    if (!execution || noteTitle.trim().length === 0) return;
+    run(async () => {
+      const res = await addNote(execution.id, currentPhaseId, noteTitle.trim(), {
+        detail: noteDetail.trim(),
+      });
+      const note = res.entry;
+      if (note) {
+        setState((prev) => ({ ...prev, notes: [...prev.notes, note], step: res.step }));
+        setNoteTitle("");
+        setNoteDetail("");
+        await refreshStatus(execution.id);
+      }
+    });
+  };
+
+  const handleNoFeedback = () => {
+    if (!execution || currentPhaseId.length === 0) return;
+    const checkpoint = context?.feedbackCheckpoint;
+    run(async () => {
+      const res = await addNote(
+        execution.id,
+        currentPhaseId,
+        checkpoint?.noFeedbackTitle || "Phase feedback reviewed: none",
+        { detail: checkpoint?.noFeedbackDetail || "No decisions, findings, bugs, records, or reusable notes to capture for this phase." },
+      );
+      const note = res.entry;
+      if (note) {
+        setState((prev) => ({ ...prev, notes: [...prev.notes, note], step: res.step }));
+        await refreshStatus(execution.id);
       }
     });
   };
@@ -564,6 +651,39 @@ export function ExecutionRunner() {
           </Card>
 
           <Card className="bg-app-surface-muted">
+            <h4 className="text-sm font-semibold">Feedback checkpoint</h4>
+            <div className="mt-2 flex flex-col gap-2 text-sm">
+              <p className="text-app-muted-foreground">
+                {context?.feedbackCheckpoint?.summary || "Review feedback before marking this phase done."}
+              </p>
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="rounded-pill bg-app-info/15 px-2 py-0.5 text-app-info">
+                  decisions {context?.feedbackCheckpoint?.decisions ?? 0}
+                </span>
+                <span className="rounded-pill bg-app-info/15 px-2 py-0.5 text-app-info">
+                  findings {context?.feedbackCheckpoint?.findings ?? 0}
+                </span>
+                <span className="rounded-pill bg-app-info/15 px-2 py-0.5 text-app-info">
+                  bugs {context?.feedbackCheckpoint?.bugReports ?? 0}
+                </span>
+                <span className="rounded-pill bg-app-info/15 px-2 py-0.5 text-app-info">
+                  records {context?.feedbackCheckpoint?.records ?? 0}
+                </span>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={busy || currentPhaseId.length === 0 || Boolean(context?.feedbackCheckpoint?.satisfied)}
+                onClick={handleNoFeedback}
+                className="w-fit"
+              >
+                Confirm no feedback
+              </Button>
+            </div>
+          </Card>
+
+          <Card className="bg-app-surface-muted">
             <h4 className="text-sm font-semibold">{t(strings.pages.execution.transitionHeading)}</h4>
             <div className="mt-2 flex flex-wrap items-end gap-2">
               <label className="flex flex-col gap-1 text-sm">
@@ -680,6 +800,120 @@ export function ExecutionRunner() {
                 >
                   <p className="font-medium text-app-foreground">{finding.title}</p>
                   {finding.detail ? <p className="text-app-muted-foreground">{finding.detail}</p> : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionPanel>
+
+        <SectionPanel title="Bug reports" headingId="execution-bugs-heading">
+          <div className="flex flex-col gap-2">
+            <Input
+              value={bugTitle}
+              onChange={(e) => setBugTitle(e.target.value)}
+              placeholder="Bug title"
+              aria-label="Bug title"
+            />
+            <Textarea
+              value={bugDetail}
+              onChange={(e) => setBugDetail(e.target.value)}
+              rows={2}
+              aria-label="Bug detail"
+            />
+            <Button
+              type="button"
+              size="sm"
+              disabled={busy || bugTitle.trim().length === 0}
+              onClick={handleRecordBug}
+              className="w-fit"
+            >
+              File bug report
+            </Button>
+          </div>
+          {state.bugs.length === 0 ? (
+            <p className="text-sm text-app-muted-foreground">No bug reports recorded.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {state.bugs.map((bug) => (
+                <li key={bug.id} className="rounded-control border border-app-border bg-app-surface-muted px-3 py-2 text-sm">
+                  <p className="font-medium text-app-foreground">{bug.title}</p>
+                  {bug.detail ? <p className="text-app-muted-foreground">{bug.detail}</p> : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionPanel>
+
+        <SectionPanel title="Reusable records" headingId="execution-records-heading">
+          <div className="flex flex-col gap-2">
+            <Input
+              value={recordTitle}
+              onChange={(e) => setRecordTitle(e.target.value)}
+              placeholder="Record title"
+              aria-label="Record title"
+            />
+            <Textarea
+              value={recordDetail}
+              onChange={(e) => setRecordDetail(e.target.value)}
+              rows={2}
+              aria-label="Record detail"
+            />
+            <Button
+              type="button"
+              size="sm"
+              disabled={busy || recordTitle.trim().length === 0}
+              onClick={handleRecordRecord}
+              className="w-fit"
+            >
+              Capture record
+            </Button>
+          </div>
+          {state.records.length === 0 ? (
+            <p className="text-sm text-app-muted-foreground">No records captured.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {state.records.map((record) => (
+                <li key={record.id} className="rounded-control border border-app-border bg-app-surface-muted px-3 py-2 text-sm">
+                  <p className="font-medium text-app-foreground">{record.title}</p>
+                  {record.detail ? <p className="text-app-muted-foreground">{record.detail}</p> : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionPanel>
+
+        <SectionPanel title="Notes" headingId="execution-notes-heading">
+          <div className="flex flex-col gap-2">
+            <Input
+              value={noteTitle}
+              onChange={(e) => setNoteTitle(e.target.value)}
+              placeholder="Note title"
+              aria-label="Note title"
+            />
+            <Textarea
+              value={noteDetail}
+              onChange={(e) => setNoteDetail(e.target.value)}
+              rows={2}
+              aria-label="Note detail"
+            />
+            <Button
+              type="button"
+              size="sm"
+              disabled={busy || noteTitle.trim().length === 0}
+              onClick={handleRecordNote}
+              className="w-fit"
+            >
+              Record note
+            </Button>
+          </div>
+          {state.notes.length === 0 ? (
+            <p className="text-sm text-app-muted-foreground">No notes recorded.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {state.notes.map((note) => (
+                <li key={note.id} className="rounded-control border border-app-border bg-app-surface-muted px-3 py-2 text-sm">
+                  <p className="font-medium text-app-foreground">{note.title}</p>
+                  {note.detail ? <p className="text-app-muted-foreground">{note.detail}</p> : null}
                 </li>
               ))}
             </ul>

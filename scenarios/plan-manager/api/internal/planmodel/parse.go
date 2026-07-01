@@ -951,7 +951,7 @@ var canonicalConsumedHeadings = map[string]bool{
 	"target outcome": true, "work posture": true, "scope": true, "non-goals": true,
 	"non goals": true, "assumptions": true, "technical approach": true,
 	"technical approach / design rationale": true, "constraints": true,
-	"prohibited approaches": true, "global execution setup": true, "references": true,
+	"prohibited approaches": true, "global execution setup": true, "execution feedback": true, "references": true,
 	"change boundary": true, "acceptance boundary": true,
 	"regression anchor": true, "validation strategy": true, "validation model": true,
 	"definition of done": true, "definition-of-done": true, "risks / hazards": true,

@@ -77,13 +77,19 @@ func (s *recordingSink) Emit(_ context.Context, p execution.VelocityPoint) error
 // log roll-ups are exercised without the real log domain. Decisions/findings are
 // OWNED by the log domain; execution only reads compact summaries here.
 type fakeLog struct {
-	summary planmodel.LogSummary
-	entries []planmodel.LogEntry
-	err     error
+	summary      planmodel.LogSummary
+	entries      []planmodel.LogEntry
+	phaseSummary planmodel.LogSummary
+	phaseEntries []planmodel.LogEntry
+	err          error
 }
 
 func (f *fakeLog) Summarize(context.Context, string) (planmodel.LogSummary, []planmodel.LogEntry, error) {
 	return f.summary, f.entries, f.err
+}
+
+func (f *fakeLog) SummarizePhase(context.Context, string, string) (planmodel.LogSummary, []planmodel.LogEntry, error) {
+	return f.phaseSummary, f.phaseEntries, f.err
 }
 
 // fakeFreshener is the InputFreshener seam — the execution-start baseline
@@ -181,6 +187,7 @@ func doneOverride() execution.PhaseTransitionInputs {
 	return execution.PhaseTransitionInputs{
 		ToStatus:                 internalplans.PhaseStatusDone,
 		ValidationOverrideReason: "test fixture bypasses validation to exercise runner pointer behavior",
+		FeedbackOverrideReason:   "test fixture bypasses feedback checkpoint to exercise runner pointer behavior",
 	}
 }
 
@@ -253,7 +260,7 @@ func TestContinueExecutionRecommendsValidationForActiveUnvalidatedPhase(t *testi
 	require.Contains(t, step.NextActions[0].BlockedBy[0], "no stored validation result")
 }
 
-func TestContinueExecutionRecommendsDoneAfterFreshPassingValidation(t *testing.T) {
+func TestContinueExecutionRecommendsFeedbackCheckpointAfterFreshPassingValidation(t *testing.T) {
 	plan := threePhasePlan()
 	plan.Phases[0].Status = internalplans.PhaseStatusActive
 	validator := fakeValidator{
@@ -265,9 +272,70 @@ func TestContinueExecutionRecommendsDoneAfterFreshPassingValidation(t *testing.T
 	}
 	h := newHarness(t, plan, validator)
 
-	e, _, step, err := h.svc.ContinueExecution(context.Background(), "plan-1", "", "run-1")
+	e, pctx, step, err := h.svc.ContinueExecution(context.Background(), "plan-1", "", "run-1")
 	require.NoError(t, err)
 	require.Len(t, step.NextActions, 1, "continue returns exactly one recommended action")
+	require.Equal(t, "review-phase-feedback", step.NextActions[0].ID)
+	require.Equal(t, []string{"log", "note-add", e.ID, "--phase", "ph-1", "--title", execution.NoFeedbackCheckpointTitle, "--detail", "No decisions, findings, bugs, records, or reusable notes to capture for this phase."}, step.NextActions[0].Argv)
+	require.False(t, pctx.FeedbackCheckpoint.Satisfied)
+}
+
+func TestContinueExecutionRecommendsDoneAfterFeedbackCheckpointSatisfied(t *testing.T) {
+	plan := threePhasePlan()
+	plan.Phases[0].Status = internalplans.PhaseStatusActive
+	validator := fakeValidator{
+		hasResult: true,
+		result: execution.ValidationResult{
+			Verdict:   "pass",
+			Staleness: internalplans.StalenessFresh,
+		},
+	}
+	lg := &fakeLog{
+		phaseSummary: planmodel.LogSummary{Total: 1, Notes: 1},
+		phaseEntries: []planmodel.LogEntry{{
+			ID:      "note-1",
+			Type:    planmodel.LogEntryNote,
+			PhaseID: "ph-1",
+			Title:   execution.NoFeedbackCheckpointTitle,
+		}},
+	}
+	h := newHarnessWithLog(t, plan, validator, lg)
+
+	e, pctx, step, err := h.svc.ContinueExecution(context.Background(), "plan-1", "", "run-1")
+	require.NoError(t, err)
+	require.True(t, pctx.FeedbackCheckpoint.Satisfied)
+	require.True(t, pctx.FeedbackCheckpoint.Reviewed)
+	require.Len(t, step.NextActions, 1, "continue returns exactly one recommended action")
+	require.Equal(t, "transition-done", step.NextActions[0].ID)
+	require.Equal(t, []string{"exec", "transition", e.ID, "ph-1", "--status", "done"}, step.NextActions[0].Argv)
+}
+
+func TestContinueExecutionRecommendsDoneAfterCapturedPhaseFeedback(t *testing.T) {
+	plan := threePhasePlan()
+	plan.Phases[0].Status = internalplans.PhaseStatusActive
+	validator := fakeValidator{
+		hasResult: true,
+		result: execution.ValidationResult{
+			Verdict:   "pass",
+			Staleness: internalplans.StalenessFresh,
+		},
+	}
+	lg := &fakeLog{
+		phaseSummary: planmodel.LogSummary{Total: 1, Decisions: 1},
+		phaseEntries: []planmodel.LogEntry{{
+			ID:      "decision-1",
+			Type:    planmodel.LogEntryDecision,
+			PhaseID: "ph-1",
+			Title:   "Use phase-scoped feedback checkpoint",
+		}},
+	}
+	h := newHarnessWithLog(t, plan, validator, lg)
+
+	e, pctx, step, err := h.svc.ContinueExecution(context.Background(), "plan-1", "", "run-1")
+	require.NoError(t, err)
+	require.True(t, pctx.FeedbackCheckpoint.Satisfied)
+	require.Equal(t, 1, pctx.FeedbackCheckpoint.Decisions)
+	require.Len(t, step.NextActions, 1)
 	require.Equal(t, "transition-done", step.NextActions[0].ID)
 	require.Equal(t, []string{"exec", "transition", e.ID, "ph-1", "--status", "done"}, step.NextActions[0].Argv)
 }
@@ -403,7 +471,7 @@ func TestTransitionPhaseRequiresValidationBeforeDone(t *testing.T) {
 	require.Equal(t, internalplans.PhaseStatusTodo, h.store.plan.Phases[0].Status, "failed validation gate must not mutate the plan")
 }
 
-func TestTransitionPhaseDoneAllowsFreshPassingValidation(t *testing.T) {
+func TestTransitionPhaseDoneRequiresFeedbackCheckpointAfterFreshPassingValidation(t *testing.T) {
 	validator := fakeValidator{
 		hasResult: true,
 		result: execution.ValidationResult{
@@ -415,6 +483,33 @@ func TestTransitionPhaseDoneAllowsFreshPassingValidation(t *testing.T) {
 	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
 	require.NoError(t, err)
 
+	_, _, _, err = h.svc.TransitionPhase(context.Background(), e.ID, "ph-1", execution.PhaseTransitionInputs{ToStatus: internalplans.PhaseStatusDone})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "phase feedback checkpoint is required")
+	require.Equal(t, internalplans.PhaseStatusTodo, h.store.plan.Phases[0].Status)
+}
+
+func TestTransitionPhaseDoneAllowsFreshPassingValidationAndFeedbackCheckpoint(t *testing.T) {
+	validator := fakeValidator{
+		hasResult: true,
+		result: execution.ValidationResult{
+			Verdict:   "pass",
+			Staleness: internalplans.StalenessFresh,
+		},
+	}
+	lg := &fakeLog{
+		phaseSummary: planmodel.LogSummary{Total: 1, Notes: 1},
+		phaseEntries: []planmodel.LogEntry{{
+			ID:      "note-1",
+			Type:    planmodel.LogEntryNote,
+			PhaseID: "ph-1",
+			Title:   execution.NoFeedbackCheckpointTitle,
+		}},
+	}
+	h := newHarnessWithLog(t, threePhasePlan(), validator, lg)
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	require.NoError(t, err)
+
 	updatedE, plan, _, err := h.svc.TransitionPhase(context.Background(), e.ID, "ph-1", execution.PhaseTransitionInputs{ToStatus: internalplans.PhaseStatusDone})
 	require.NoError(t, err)
 	require.Equal(t, internalplans.PhaseStatusDone, plan.Phases[0].Status, "the plans domain owns the persisted status")
@@ -422,7 +517,7 @@ func TestTransitionPhaseDoneAllowsFreshPassingValidation(t *testing.T) {
 	require.False(t, updatedE.Complete)
 }
 
-func TestTransitionPhaseDoneAllowsExplicitValidationOverride(t *testing.T) {
+func TestTransitionPhaseDoneAllowsExplicitValidationAndFeedbackOverrides(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
 	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
 	require.NoError(t, err)
@@ -774,6 +869,29 @@ func TestChangeBoundarySurfacedInContextAndHandoff(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, plan.ChangeBoundary.AcceptanceAllow, handoff.ChangeBoundary.AcceptanceAllow)
 	require.Equal(t, plan.ChangeBoundary.AcceptanceDeny, handoff.ChangeBoundary.AcceptanceDeny)
+}
+
+func TestPhaseContextStepSurfacesFeedbackCaptureActions(t *testing.T) {
+	h := newHarness(t, threePhasePlan(), nil)
+	ctx := context.Background()
+
+	e, _, _, err := h.svc.Start(ctx, "plan-1", "run-feedback")
+	require.NoError(t, err)
+	_, _, step, err := h.svc.GetStatus(ctx, e.ID)
+	require.NoError(t, err)
+	require.Equal(t, "phase_context", step.StepKind)
+
+	joinedInstructions := strings.Join(step.Instructions, " | ")
+	require.Contains(t, joinedInstructions, "Capture feedback in the log ledger")
+
+	actionIDs := map[string]bool{}
+	for _, action := range step.NextActions {
+		actionIDs[action.ID] = true
+	}
+	require.True(t, actionIDs["log-decision"], "phase context should expose decision capture")
+	require.True(t, actionIDs["log-finding"], "phase context should expose candidate finding capture")
+	require.True(t, actionIDs["log-record"], "phase context should expose reusable record capture")
+	require.True(t, actionIDs["log-note"], "phase context should expose progress note capture")
 }
 
 func executionIDFromStep(t *testing.T, step execution.GuidedStep) string {

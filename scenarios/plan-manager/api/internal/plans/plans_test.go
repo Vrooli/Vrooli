@@ -433,6 +433,37 @@ func TestReconcileDryRunReportsMirrorRepairWithoutWriting(t *testing.T) {
 	require.Empty(t, mirror.files[created.Mirror.Path])
 }
 
+func TestReconcileMirrorRepairHonorsWorkspaceScope(t *testing.T) {
+	d, clk := newDB(t)
+	mirror := newFakeMirrorStore(t.TempDir())
+	svc := plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: fakeReader{},
+		Mirror: mirror,
+	})
+	ctx := context.Background()
+	wsA := plans.WorkspaceScope{Root: filepath.Join(t.TempDir(), "a")}
+	wsB := plans.WorkspaceScope{Root: filepath.Join(t.TempDir(), "b")}
+
+	a, err := svc.Create(ctx, plans.Plan{Title: "Scoped Repair A", Purpose: "Canonical.", WorkspaceRoot: wsA.Root})
+	require.NoError(t, err)
+	b, err := svc.Create(ctx, plans.Plan{Title: "Scoped Repair B", Purpose: "Canonical.", WorkspaceRoot: wsB.Root})
+	require.NoError(t, err)
+	delete(mirror.files, a.Mirror.Path)
+	delete(mirror.files, b.Mirror.Path)
+
+	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{
+		DryRun:        true,
+		RepairMirrors: true,
+		Workspace:     wsA,
+	})
+	require.NoError(t, err)
+	require.Len(t, report.Items, 1)
+	require.Equal(t, a.ID, report.Items[0].PlanID)
+	require.Equal(t, plans.ReconcileActionMirrorRepairNeeded, report.Items[0].Action)
+}
+
 func TestReconcileAdoptsLegacyPlansNonDestructively(t *testing.T) {
 	d, clk := newDB(t)
 	mirror := newFakeMirrorStore(t.TempDir())

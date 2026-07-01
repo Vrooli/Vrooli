@@ -17,8 +17,8 @@ Use this document to answer:
 - Budgets are deferred until the first vertical slice exists. Setting
   numeric latency/throughput targets now would be inventing detail for an
   unimplemented system.
-- Intended budget shape: interactive plan reads/writes via the api and the
-  `vrooli plans` CLI thin client should feel instant against the local
+- Intended budget shape: interactive plan reads/writes via the API and the
+  `plan-manager` CLI should feel instant against the local
   SQLite store, and any fan-out to other scenarios (staleness, baseline)
   must stay bounded so the UI/CLI never blocks on a slow integration.
 
@@ -38,8 +38,8 @@ Use this document to answer:
 - Local SQLite store: reads/writes go to the shared `~/.vrooli` store; this
   keeps plans available even when the server is down, but it means
   performance is tied to local disk and single-writer SQLite semantics.
-- The thin `vrooli plans` CLI client reads the same store directly, so the
-  store layout should keep common reads cheap.
+- The Plan Manager CLI/API/UI read the same store through Plan Manager-owned
+  logic, so the store layout should keep common reads cheap.
 
 ## Regression Procedure
 

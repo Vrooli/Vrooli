@@ -78,6 +78,10 @@ func (a logLedger) Summarize(ctx context.Context, executionID string) (planmodel
 	return a.svc.Summarize(ctx, internalplanlog.Filter{ExecutionID: executionID})
 }
 
+func (a logLedger) SummarizePhase(ctx context.Context, executionID, phaseID string) (planmodel.LogSummary, []planmodel.LogEntry, error) {
+	return a.svc.Summarize(ctx, internalplanlog.Filter{ExecutionID: executionID, PhaseID: phaseID})
+}
+
 type logResolver struct {
 	plans      internalplans.Service
 	executions internalexecution.Repository
@@ -271,6 +275,13 @@ func TestCrossDomainAuthorToExecuteToHandoff(t *testing.T) {
 
 	// Drive every phase to done (the runner delegates the transition to plans).
 	for _, ph := range persisted.Phases {
+		_, _, _, err = logSvc.AddNote(ctx, internalplanlog.AddInputs{
+			PlanOrExecution: exec.ID,
+			PhaseID:         ph.ID,
+			Title:           internalexecution.NoFeedbackCheckpointTitle,
+			Detail:          "integration fixture reviewed phase feedback before transition",
+		})
+		require.NoError(t, err)
 		_, _, _, transErr := executionSvc.TransitionPhase(ctx, exec.ID, ph.ID, internalexecution.PhaseTransitionInputs{
 			ToStatus:                 internalplans.PhaseStatusDone,
 			ValidationOverrideReason: "integration fixture focuses on author-to-handoff flow; validation is covered separately",
@@ -290,7 +301,8 @@ func TestCrossDomainAuthorToExecuteToHandoff(t *testing.T) {
 	require.Empty(t, handoff.ResumePhaseID, "no resume point when complete")
 	require.Equal(t, 1, handoff.LogSummary.Decisions, "the decision is rolled into the handoff log summary")
 	require.Equal(t, 1, handoff.LogSummary.Findings, "the candidate finding is rolled into the handoff log summary")
-	require.Len(t, handoff.LogEntries, 2, "the handoff snapshots both captured log entries")
+	require.Equal(t, 2, handoff.LogSummary.Notes, "phase feedback checkpoint notes are rolled into the handoff")
+	require.Len(t, handoff.LogEntries, 4, "the handoff snapshots work products and feedback checkpoint notes")
 
 	got, _, err := executionSvc.GetHandoff(ctx, exec.ID)
 	require.NoError(t, err)
@@ -305,7 +317,7 @@ func TestCrossDomainAuthorToExecuteToHandoff(t *testing.T) {
 
 func TestSmallAgentContinueLoopsAuthorAndExecute(t *testing.T) {
 	ctx := context.Background()
-	_, plansSvc, _, authoringSvc, executionSvc, _ := newStack(t)
+	_, plansSvc, _, authoringSvc, executionSvc, logSvc := newStack(t)
 
 	session, step, err := authoringSvc.StartSession(ctx, "Small-agent loop", "small-agent-loop", "")
 	require.NoError(t, err)
@@ -443,6 +455,14 @@ func TestSmallAgentContinueLoopsAuthorAndExecute(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "run-validation", execStep.NextActions[0].ID, "continue must not recommend done without fresh passing validation")
 	require.NotEmpty(t, execStep.NextActions[0].BlockedBy)
+
+	_, _, _, err = logSvc.AddNote(ctx, internalplanlog.AddInputs{
+		PlanOrExecution: exec.ID,
+		PhaseID:         pctx.CurrentPhase.ID,
+		Title:           internalexecution.NoFeedbackCheckpointTitle,
+		Detail:          "small-agent fixture reviewed phase feedback before transition",
+	})
+	require.NoError(t, err)
 
 	exec, _, execStep, err = executionSvc.TransitionPhase(ctx, exec.ID, pctx.CurrentPhase.ID, internalexecution.PhaseTransitionInputs{
 		ToStatus:                 internalplans.PhaseStatusDone,

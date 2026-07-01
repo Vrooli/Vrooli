@@ -127,7 +127,7 @@ The structured plan/phase schema every domain operates on lives in
 
 | Candidate Domain | Why Deferred | Revisit Trigger |
 |---|---|---|
-| consumer-inversion adapters | OT-P2-002 re-points swarm-manager/hygiene/`vrooli plans` to delegate here; sequenced after standalone proof. | After the P0/P1 domains are green and proven standalone. |
+| consumer-inversion adapters | OT-P2-002 re-points swarm-manager/hygiene to delegate here; sequenced after standalone proof. Root `vrooli plans` has been retired in favor of direct `plan-manager` usage. | After the P0/P1 domains are green and proven standalone. |
 | prose-handoff capture | Owned by the orchestration layer (agent-manager/swarm-manager), not plan-manager — it reads transcripts, which this scenario must not. | Never becomes a plan-manager domain; tracked in INTEGRATIONS. |
 
 ## Non-Domains

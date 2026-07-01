@@ -72,6 +72,7 @@ const (
 type PhaseTransitionInputs struct {
 	ToStatus                 planmodel.PhaseStatus
 	ValidationOverrideReason string
+	FeedbackOverrideReason   string
 }
 
 // Handoff is the canonical, structured handoff assembled from state captured
@@ -155,6 +156,28 @@ type PhaseContext struct {
 	// contract: the allowed/denied paths a fresh or resumed agent must respect,
 	// surfaced without reading the full plan markdown.
 	ChangeBoundary planmodel.ChangeBoundary
+	// FeedbackCheckpoint is the phase-close capture gate. It is computed from
+	// phase-scoped log entries or an explicit no-feedback note, never stored on the
+	// phase itself.
+	FeedbackCheckpoint PhaseFeedbackCheckpoint
+}
+
+// PhaseFeedbackCheckpoint reports whether a phase has durable feedback captured,
+// or an explicit durable note that there was nothing to capture.
+type PhaseFeedbackCheckpoint struct {
+	PhaseID          string
+	Reviewed         bool
+	Satisfied        bool
+	Summary          string
+	Decisions        int
+	Findings         int
+	BugReports       int
+	Records          int
+	Notes            int
+	PendingSync      int
+	FailedSync       int
+	NoFeedbackTitle  string
+	NoFeedbackDetail string
 }
 
 // CompletionNudge is one item in the thin guided completion process. Kinds are
