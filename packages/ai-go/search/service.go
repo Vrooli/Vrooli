@@ -283,7 +283,7 @@ func (s *Service) autoSearch(ctx context.Context, q SearchQuery, eff effectivePa
 	}
 	// No text leg: return an empty (not errored) vector response so callers see a
 	// clean "no results" rather than a hard failure.
-	return SearchResponse{Query: q.Query, Method: "dense", Reranker: "none"}, nil
+	return SearchResponse{Query: q.Query, Method: "dense", Reranker: "none", Regime: RegimeForMethod("dense", "none")}, nil
 }
 
 // vectorSearch runs the dense or hybrid leg, then projects, post-filters,
@@ -402,6 +402,10 @@ func (s *Service) vectorSearch(ctx context.Context, q SearchQuery, hybrid bool, 
 		Query:    q.Query,
 		Method:   method,
 		Reranker: respLeg,
+		// Resolve the regime from the SAME (method, leg) the floor + weak label
+		// used — not respLeg, whose "blend:" prefix is observability-only. This is
+		// the single authoritative regime; adopters read it off the response.
+		Regime: RegimeForMethod(floorMethod, floorLeg),
 	}, nil
 }
 
@@ -420,7 +424,7 @@ func (s *Service) textSearch(ctx context.Context, q SearchQuery) (SearchResponse
 		hits = hits[:q.Limit]
 	}
 	labelWeak(hits, "text", "")
-	return SearchResponse{Results: hits, Total: total, Query: q.Query, Method: "text", Reranker: "none"}, nil
+	return SearchResponse{Results: hits, Total: total, Query: q.Query, Method: "text", Reranker: "none", Regime: RegimeForMethod("text", "none")}, nil
 }
 
 func (s *Service) projectAll(raw []SearchResult) []SearchResult {

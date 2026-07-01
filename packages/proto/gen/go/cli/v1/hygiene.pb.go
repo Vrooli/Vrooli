@@ -48,9 +48,12 @@ type HygieneReport struct {
 	// Count of blocking (error-severity) failures.
 	BlockingFailures int32 `protobuf:"varint,11,opt,name=blocking_failures,json=blockingFailures,proto3" json:"blocking_failures,omitempty"`
 	// Count of warning-severity findings.
-	Warnings      int32 `protobuf:"varint,12,opt,name=warnings,proto3" json:"warnings,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Warnings int32 `protobuf:"varint,12,opt,name=warnings,proto3" json:"warnings,omitempty"`
+	// Authoritative Plan Manager reconcile outcomes. Includes no-op and failed
+	// outcomes; actual mutations also appear in fixes_applied.
+	PlanReconcileOutcomes []*HygienePlanReconcileOutcome `protobuf:"bytes,13,rep,name=plan_reconcile_outcomes,json=planReconcileOutcomes,proto3" json:"plan_reconcile_outcomes,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *HygieneReport) Reset() {
@@ -165,6 +168,13 @@ func (x *HygieneReport) GetWarnings() int32 {
 		return x.Warnings
 	}
 	return 0
+}
+
+func (x *HygieneReport) GetPlanReconcileOutcomes() []*HygienePlanReconcileOutcome {
+	if x != nil {
+		return x.PlanReconcileOutcomes
+	}
+	return nil
 }
 
 // HygieneCheck is one named hygiene check result.
@@ -492,7 +502,11 @@ type HygienePlanFix struct {
 	// Source path the plan was imported from.
 	Source string `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
 	// The imported plan record.
-	Plan          *HygienePlanRecord `protobuf:"bytes,2,opt,name=plan,proto3" json:"plan,omitempty"`
+	Plan *HygienePlanRecord `protobuf:"bytes,2,opt,name=plan,proto3" json:"plan,omitempty"`
+	// Plan Manager reconcile action that performed the mutation.
+	Action string `protobuf:"bytes,3,opt,name=action,proto3" json:"action,omitempty"`
+	// Rendered mirror provenance for the mutation.
+	Mirror        *HygieneMirror `protobuf:"bytes,4,opt,name=mirror,proto3" json:"mirror,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -541,6 +555,184 @@ func (x *HygienePlanFix) GetPlan() *HygienePlanRecord {
 	return nil
 }
 
+func (x *HygienePlanFix) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *HygienePlanFix) GetMirror() *HygieneMirror {
+	if x != nil {
+		return x.Mirror
+	}
+	return nil
+}
+
+// HygienePlanReconcileOutcome records one authoritative Plan Manager reconcile
+// result, including no-op and failed outcomes.
+type HygienePlanReconcileOutcome struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Plan Manager reconcile action.
+	Action string `protobuf:"bytes,1,opt,name=action,proto3" json:"action,omitempty"`
+	// Source path involved in the outcome, when present.
+	Source string `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
+	// Plan record identified by the outcome, when present.
+	Plan *HygienePlanRecord `protobuf:"bytes,3,opt,name=plan,proto3" json:"plan,omitempty"`
+	// Rendered mirror provenance.
+	Mirror *HygieneMirror `protobuf:"bytes,4,opt,name=mirror,proto3" json:"mirror,omitempty"`
+	// True when Plan Manager intentionally left the source file untouched.
+	SourceUntouched bool `protobuf:"varint,5,opt,name=source_untouched,json=sourceUntouched,proto3" json:"source_untouched,omitempty"`
+	// Per-item error detail, when present.
+	Error string `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`
+	// True when a dry-run would remove the adopted legacy source.
+	SourceCleanupPlanned bool `protobuf:"varint,7,opt,name=source_cleanup_planned,json=sourceCleanupPlanned,proto3" json:"source_cleanup_planned,omitempty"`
+	// True when Plan Manager removed the adopted legacy source.
+	SourceRemoved bool `protobuf:"varint,8,opt,name=source_removed,json=sourceRemoved,proto3" json:"source_removed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HygienePlanReconcileOutcome) Reset() {
+	*x = HygienePlanReconcileOutcome{}
+	mi := &file_cli_v1_hygiene_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HygienePlanReconcileOutcome) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HygienePlanReconcileOutcome) ProtoMessage() {}
+
+func (x *HygienePlanReconcileOutcome) ProtoReflect() protoreflect.Message {
+	mi := &file_cli_v1_hygiene_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HygienePlanReconcileOutcome.ProtoReflect.Descriptor instead.
+func (*HygienePlanReconcileOutcome) Descriptor() ([]byte, []int) {
+	return file_cli_v1_hygiene_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *HygienePlanReconcileOutcome) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *HygienePlanReconcileOutcome) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *HygienePlanReconcileOutcome) GetPlan() *HygienePlanRecord {
+	if x != nil {
+		return x.Plan
+	}
+	return nil
+}
+
+func (x *HygienePlanReconcileOutcome) GetMirror() *HygieneMirror {
+	if x != nil {
+		return x.Mirror
+	}
+	return nil
+}
+
+func (x *HygienePlanReconcileOutcome) GetSourceUntouched() bool {
+	if x != nil {
+		return x.SourceUntouched
+	}
+	return false
+}
+
+func (x *HygienePlanReconcileOutcome) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *HygienePlanReconcileOutcome) GetSourceCleanupPlanned() bool {
+	if x != nil {
+		return x.SourceCleanupPlanned
+	}
+	return false
+}
+
+func (x *HygienePlanReconcileOutcome) GetSourceRemoved() bool {
+	if x != nil {
+		return x.SourceRemoved
+	}
+	return false
+}
+
+type HygieneMirror struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Rendered mirror path.
+	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// Rendered mirror status.
+	Status        string `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HygieneMirror) Reset() {
+	*x = HygieneMirror{}
+	mi := &file_cli_v1_hygiene_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HygieneMirror) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HygieneMirror) ProtoMessage() {}
+
+func (x *HygieneMirror) ProtoReflect() protoreflect.Message {
+	mi := &file_cli_v1_hygiene_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HygieneMirror.ProtoReflect.Descriptor instead.
+func (*HygieneMirror) Descriptor() ([]byte, []int) {
+	return file_cli_v1_hygiene_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *HygieneMirror) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *HygieneMirror) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
 // HygienePlanRecord mirrors a plan record (internal/app/plans.PlanRecord).
 type HygienePlanRecord struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -570,7 +762,7 @@ type HygienePlanRecord struct {
 
 func (x *HygienePlanRecord) Reset() {
 	*x = HygienePlanRecord{}
-	mi := &file_cli_v1_hygiene_proto_msgTypes[6]
+	mi := &file_cli_v1_hygiene_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -582,7 +774,7 @@ func (x *HygienePlanRecord) String() string {
 func (*HygienePlanRecord) ProtoMessage() {}
 
 func (x *HygienePlanRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_hygiene_proto_msgTypes[6]
+	mi := &file_cli_v1_hygiene_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -595,7 +787,7 @@ func (x *HygienePlanRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HygienePlanRecord.ProtoReflect.Descriptor instead.
 func (*HygienePlanRecord) Descriptor() ([]byte, []int) {
-	return file_cli_v1_hygiene_proto_rawDescGZIP(), []int{6}
+	return file_cli_v1_hygiene_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *HygienePlanRecord) GetId() string {
@@ -672,7 +864,7 @@ var File_cli_v1_hygiene_proto protoreflect.FileDescriptor
 
 const file_cli_v1_hygiene_proto_rawDesc = "" +
 	"\n" +
-	"\x14cli/v1/hygiene.proto\x12\rvrooli.cli.v1\x1a\x15cli/v1/contract.proto\x1a\x19cli/v1/shared_drift.proto\"\xed\x04\n" +
+	"\x14cli/v1/hygiene.proto\x12\rvrooli.cli.v1\x1a\x15cli/v1/contract.proto\x1a\x19cli/v1/shared_drift.proto\"\xd1\x05\n" +
 	"\rHygieneReport\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x12\n" +
 	"\x04root\x18\x02 \x01(\tR\x04root\x123\n" +
@@ -686,7 +878,8 @@ const file_cli_v1_hygiene_proto_rawDesc = "" +
 	"\fshared_drift\x18\n" +
 	" \x01(\v2 .vrooli.cli.v1.SharedDriftReportR\vsharedDrift\x12+\n" +
 	"\x11blocking_failures\x18\v \x01(\x05R\x10blockingFailures\x12\x1a\n" +
-	"\bwarnings\x18\f \x01(\x05R\bwarnings\"p\n" +
+	"\bwarnings\x18\f \x01(\x05R\bwarnings\x12b\n" +
+	"\x17plan_reconcile_outcomes\x18\r \x03(\v2*.vrooli.cli.v1.HygienePlanReconcileOutcomeR\x15planReconcileOutcomes\"p\n" +
 	"\fHygieneCheck\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06passed\x18\x02 \x01(\bR\x06passed\x12\x1a\n" +
@@ -713,10 +906,24 @@ const file_cli_v1_hygiene_proto_rawDesc = "" +
 	"\x14HygienePlanCandidate\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reason\"^\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"\xac\x01\n" +
 	"\x0eHygienePlanFix\x12\x16\n" +
 	"\x06source\x18\x01 \x01(\tR\x06source\x124\n" +
-	"\x04plan\x18\x02 \x01(\v2 .vrooli.cli.v1.HygienePlanRecordR\x04plan\"\xa0\x02\n" +
+	"\x04plan\x18\x02 \x01(\v2 .vrooli.cli.v1.HygienePlanRecordR\x04plan\x12\x16\n" +
+	"\x06action\x18\x03 \x01(\tR\x06action\x124\n" +
+	"\x06mirror\x18\x04 \x01(\v2\x1c.vrooli.cli.v1.HygieneMirrorR\x06mirror\"\xd7\x02\n" +
+	"\x1bHygienePlanReconcileOutcome\x12\x16\n" +
+	"\x06action\x18\x01 \x01(\tR\x06action\x12\x16\n" +
+	"\x06source\x18\x02 \x01(\tR\x06source\x124\n" +
+	"\x04plan\x18\x03 \x01(\v2 .vrooli.cli.v1.HygienePlanRecordR\x04plan\x124\n" +
+	"\x06mirror\x18\x04 \x01(\v2\x1c.vrooli.cli.v1.HygieneMirrorR\x06mirror\x12)\n" +
+	"\x10source_untouched\x18\x05 \x01(\bR\x0fsourceUntouched\x12\x14\n" +
+	"\x05error\x18\x06 \x01(\tR\x05error\x124\n" +
+	"\x16source_cleanup_planned\x18\a \x01(\bR\x14sourceCleanupPlanned\x12%\n" +
+	"\x0esource_removed\x18\b \x01(\bR\rsourceRemoved\";\n" +
+	"\rHygieneMirror\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\"\xa0\x02\n" +
 	"\x11HygienePlanRecord\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x12\n" +
@@ -746,33 +953,39 @@ func file_cli_v1_hygiene_proto_rawDescGZIP() []byte {
 	return file_cli_v1_hygiene_proto_rawDescData
 }
 
-var file_cli_v1_hygiene_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_cli_v1_hygiene_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_cli_v1_hygiene_proto_goTypes = []any{
-	(*HygieneReport)(nil),            // 0: vrooli.cli.v1.HygieneReport
-	(*HygieneCheck)(nil),             // 1: vrooli.cli.v1.HygieneCheck
-	(*HygieneFinding)(nil),           // 2: vrooli.cli.v1.HygieneFinding
-	(*HygieneAction)(nil),            // 3: vrooli.cli.v1.HygieneAction
-	(*HygienePlanCandidate)(nil),     // 4: vrooli.cli.v1.HygienePlanCandidate
-	(*HygienePlanFix)(nil),           // 5: vrooli.cli.v1.HygienePlanFix
-	(*HygienePlanRecord)(nil),        // 6: vrooli.cli.v1.HygienePlanRecord
-	(*ContractValidationOutput)(nil), // 7: vrooli.cli.v1.ContractValidationOutput
-	(*SharedDriftReport)(nil),        // 8: vrooli.cli.v1.SharedDriftReport
+	(*HygieneReport)(nil),               // 0: vrooli.cli.v1.HygieneReport
+	(*HygieneCheck)(nil),                // 1: vrooli.cli.v1.HygieneCheck
+	(*HygieneFinding)(nil),              // 2: vrooli.cli.v1.HygieneFinding
+	(*HygieneAction)(nil),               // 3: vrooli.cli.v1.HygieneAction
+	(*HygienePlanCandidate)(nil),        // 4: vrooli.cli.v1.HygienePlanCandidate
+	(*HygienePlanFix)(nil),              // 5: vrooli.cli.v1.HygienePlanFix
+	(*HygienePlanReconcileOutcome)(nil), // 6: vrooli.cli.v1.HygienePlanReconcileOutcome
+	(*HygieneMirror)(nil),               // 7: vrooli.cli.v1.HygieneMirror
+	(*HygienePlanRecord)(nil),           // 8: vrooli.cli.v1.HygienePlanRecord
+	(*ContractValidationOutput)(nil),    // 9: vrooli.cli.v1.ContractValidationOutput
+	(*SharedDriftReport)(nil),           // 10: vrooli.cli.v1.SharedDriftReport
 }
 var file_cli_v1_hygiene_proto_depIdxs = []int32{
-	1, // 0: vrooli.cli.v1.HygieneReport.checks:type_name -> vrooli.cli.v1.HygieneCheck
-	2, // 1: vrooli.cli.v1.HygieneReport.findings:type_name -> vrooli.cli.v1.HygieneFinding
-	3, // 2: vrooli.cli.v1.HygieneReport.actions:type_name -> vrooli.cli.v1.HygieneAction
-	4, // 3: vrooli.cli.v1.HygieneReport.plan_candidates:type_name -> vrooli.cli.v1.HygienePlanCandidate
-	5, // 4: vrooli.cli.v1.HygieneReport.fixes_applied:type_name -> vrooli.cli.v1.HygienePlanFix
-	7, // 5: vrooli.cli.v1.HygieneReport.contract:type_name -> vrooli.cli.v1.ContractValidationOutput
-	8, // 6: vrooli.cli.v1.HygieneReport.shared_drift:type_name -> vrooli.cli.v1.SharedDriftReport
-	3, // 7: vrooli.cli.v1.HygieneFinding.next_actions:type_name -> vrooli.cli.v1.HygieneAction
-	6, // 8: vrooli.cli.v1.HygienePlanFix.plan:type_name -> vrooli.cli.v1.HygienePlanRecord
-	9, // [9:9] is the sub-list for method output_type
-	9, // [9:9] is the sub-list for method input_type
-	9, // [9:9] is the sub-list for extension type_name
-	9, // [9:9] is the sub-list for extension extendee
-	0, // [0:9] is the sub-list for field type_name
+	1,  // 0: vrooli.cli.v1.HygieneReport.checks:type_name -> vrooli.cli.v1.HygieneCheck
+	2,  // 1: vrooli.cli.v1.HygieneReport.findings:type_name -> vrooli.cli.v1.HygieneFinding
+	3,  // 2: vrooli.cli.v1.HygieneReport.actions:type_name -> vrooli.cli.v1.HygieneAction
+	4,  // 3: vrooli.cli.v1.HygieneReport.plan_candidates:type_name -> vrooli.cli.v1.HygienePlanCandidate
+	5,  // 4: vrooli.cli.v1.HygieneReport.fixes_applied:type_name -> vrooli.cli.v1.HygienePlanFix
+	9,  // 5: vrooli.cli.v1.HygieneReport.contract:type_name -> vrooli.cli.v1.ContractValidationOutput
+	10, // 6: vrooli.cli.v1.HygieneReport.shared_drift:type_name -> vrooli.cli.v1.SharedDriftReport
+	6,  // 7: vrooli.cli.v1.HygieneReport.plan_reconcile_outcomes:type_name -> vrooli.cli.v1.HygienePlanReconcileOutcome
+	3,  // 8: vrooli.cli.v1.HygieneFinding.next_actions:type_name -> vrooli.cli.v1.HygieneAction
+	8,  // 9: vrooli.cli.v1.HygienePlanFix.plan:type_name -> vrooli.cli.v1.HygienePlanRecord
+	7,  // 10: vrooli.cli.v1.HygienePlanFix.mirror:type_name -> vrooli.cli.v1.HygieneMirror
+	8,  // 11: vrooli.cli.v1.HygienePlanReconcileOutcome.plan:type_name -> vrooli.cli.v1.HygienePlanRecord
+	7,  // 12: vrooli.cli.v1.HygienePlanReconcileOutcome.mirror:type_name -> vrooli.cli.v1.HygieneMirror
+	13, // [13:13] is the sub-list for method output_type
+	13, // [13:13] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_cli_v1_hygiene_proto_init() }
@@ -788,7 +1001,7 @@ func file_cli_v1_hygiene_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cli_v1_hygiene_proto_rawDesc), len(file_cli_v1_hygiene_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

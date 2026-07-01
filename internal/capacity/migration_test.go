@@ -5,12 +5,12 @@ import (
 	"database/sql"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
-// TestSchemaMigrationV1ToV2PreservesRows proves the additive 1->2 migration adds
-// yield_when_idle without dropping a live claim, defaulting existing rows to
-// false, and that the version is re-stamped so a reopen is a clean no-op.
-func TestSchemaMigrationV1ToV2PreservesRows(t *testing.T) {
+// TestSchemaMigrationV1ToCurrentPreservesRows proves additive migrations preserve
+// live claims, default new opt-in columns to disabled, and re-stamp the schema.
+func TestSchemaMigrationV1ToCurrentPreservesRows(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "capacity.db")
 	ctx := context.Background()
 
@@ -76,6 +76,12 @@ VALUES ('clm-legacy','resource','whisper','vram',8589934592,30,1,'granted','2026
 	if got.YieldWhenIdle {
 		t.Error("migrated legacy claim should default yield_when_idle = false")
 	}
+	if got.IdleUnloadTTL != 0 {
+		t.Errorf("migrated legacy claim idle_unload_ttl = %s, want 0", got.IdleUnloadTTL)
+	}
+	if got.IdleGrace != 0 {
+		t.Errorf("migrated legacy claim idle_grace = %s, want 0", got.IdleGrace)
+	}
 
 	if v, verr := readSchemaVersion(ctx, store.db); verr != nil {
 		t.Fatalf("read version: %v", verr)
@@ -84,7 +90,7 @@ VALUES ('clm-legacy','resource','whisper','vram',8589934592,30,1,'granted','2026
 	}
 
 	// A new claim can set the new column and it round-trips.
-	created, err := store.CreateClaim(ctx, CapacityClaim{OwnerID: "x", ResourceKind: ResourceKindVRAM, YieldWhenIdle: true}, 0)
+	created, err := store.CreateClaim(ctx, CapacityClaim{OwnerID: "x", ResourceKind: ResourceKindVRAM, YieldWhenIdle: true, IdleGrace: 15 * time.Minute}, 0)
 	if err != nil {
 		t.Fatalf("create post-migration claim: %v", err)
 	}
@@ -94,5 +100,8 @@ VALUES ('clm-legacy','resource','whisper','vram',8589934592,30,1,'granted','2026
 	}
 	if !reread.YieldWhenIdle {
 		t.Error("post-migration claim must persist yield_when_idle = true")
+	}
+	if reread.IdleGrace != 15*time.Minute {
+		t.Errorf("post-migration claim idle_grace = %s, want 15m", reread.IdleGrace)
 	}
 }

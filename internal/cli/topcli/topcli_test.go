@@ -14,6 +14,9 @@ func TestRenderMainHelpUsesPlainLabelsAndIncludesContract(t *testing.T) {
 	if strings.Contains(output, "🚀") || strings.Contains(output, "📋") {
 		t.Fatalf("output = %q", output)
 	}
+	if strings.Contains(output, "check-shared-drift") {
+		t.Fatalf("retired check-shared-drift command appeared in help: %q", output)
+	}
 	if !strings.Contains(output, "Vrooli CLI - AI Platform Management Tool") {
 		t.Fatalf("output = %q", output)
 	}

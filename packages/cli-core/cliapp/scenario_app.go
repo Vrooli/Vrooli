@@ -233,7 +233,7 @@ func NewStandardScenarioApp(opts StandardScenarioOptions) (*ScenarioApp, error) 
 		BuildSourceRoot:    opts.BuildSourceRoot,
 		SourceContextPath:  "..",
 		ManifestSourcePath: defaultIfEmpty(opts.ManifestSourcePath, ".vrooli/service.json"),
-		FreshnessInputs:    resolveFreshnessInputs(opts.FreshnessInputs, []string{"cli/**", ".vrooli/service.json"}),
+		FreshnessInputs:    resolveFreshnessInputs(opts.FreshnessInputs, []string{"cli/**", ".vrooli/service.json", "../../packages/cli-core"}),
 		HTTPClientOptions:  opts.HTTPClientOptions,
 		HTTPTimeoutEnvVars: env.HTTPTimeoutEnvVars,
 		DefaultHTTPTimeout: opts.DefaultHTTPTimeout,

@@ -56,6 +56,65 @@ The spec shape is intentionally scenario-local:
 }
 ```
 
+Providers that need more than one independent local maturity ladder can use the
+additive `capabilities[]` shape. Existing `levels[]` specs stay valid; when
+`capabilities[]` is present, each finding maps to one provider-local capability
+with `capability_id`, and the package still computes the backward-compatible
+`assessment.local` rollup for old consumers.
+
+```json
+{
+  "provider": "ui-health",
+  "phase": "ui-health",
+  "version": "1",
+  "capabilities": [
+    {
+      "id": "pwa_native_readiness",
+      "label": "PWA Native Readiness",
+      "description": "Installability, launch, offline, and native-feeling web app behavior.",
+      "levels": [
+        {
+          "id": "L1",
+          "name": "Install metadata",
+          "status_label": "Basic",
+          "description": "Manifest and launch metadata are present.",
+          "capability_summary": "Can be installed with the expected name, icon, theme color, and display mode.",
+          "next_unlock": "Offline-safe launch, service worker registration, and app-shell fallback."
+        }
+      ]
+    }
+  ],
+  "findings": {
+    "pwa.service_worker_missing": {
+      "capability_id": "pwa_native_readiness",
+      "local_level_impact": "L2",
+      "global_impact": "capability_gap",
+      "dimension": "ui",
+      "severity_default": "WARNING"
+    }
+  }
+}
+```
+
+The shared report renderer preserves legacy single-ladder output when
+`assessment.capabilities` is empty. For capability-aware assessments, it renders
+one line per capability with the current level, qualitative status label,
+blocking/debt counts, current summary, next unlock, and the deterministic
+highest-priority focus.
+
+Capability focus is scored in shared code so Test Genie and provider CLIs do
+not need provider-specific rules. The order is required/blocking state,
+current level, severity counts, global-impact strength, fixable finding count,
+then provider declaration order. The emitted capability list remains in
+declaration order; `priority_rank` records the sorted focus order.
+
+Knowledge Observatory is the documentation-health reference adopter for this
+shape. Its `.vrooli/maturity.json` separates the docs provider into
+`doc_contract`, `required_docs`, `append_log_integrity`, `content_quality`,
+`link_health`, `reference_integrity`, and `manifest_coverage`; the native
+`DocHealthResponse` stays provider-owned while the shared `assessment` carries
+both the legacy `local` rollup and the capability list.
+
 Global impact vocabulary is semantic and stable:
 
 - `foundation_blocker`: cannot reliably run, build, test, or validate basics.

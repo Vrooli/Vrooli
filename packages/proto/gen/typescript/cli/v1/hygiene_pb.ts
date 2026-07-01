@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cli/v1/hygiene.proto.
  */
 export const file_cli_v1_hygiene: GenFile = /*@__PURE__*/
-  fileDesc("ChRjbGkvdjEvaHlnaWVuZS5wcm90bxINdnJvb2xpLmNsaS52MSLlAwoNSHlnaWVuZVJlcG9ydBIPCgdzdWNjZXNzGAEgASgIEgwKBHJvb3QYAiABKAkSKwoGY2hlY2tzGAMgAygLMhsudnJvb2xpLmNsaS52MS5IeWdpZW5lQ2hlY2sSLwoIZmluZGluZ3MYBCADKAsyHS52cm9vbGkuY2xpLnYxLkh5Z2llbmVGaW5kaW5nEi0KB2FjdGlvbnMYBSADKAsyHC52cm9vbGkuY2xpLnYxLkh5Z2llbmVBY3Rpb24SPAoPcGxhbl9jYW5kaWRhdGVzGAYgAygLMiMudnJvb2xpLmNsaS52MS5IeWdpZW5lUGxhbkNhbmRpZGF0ZRI0Cg1maXhlc19hcHBsaWVkGAcgAygLMh0udnJvb2xpLmNsaS52MS5IeWdpZW5lUGxhbkZpeBIUCgxjb25maWdfZml4ZXMYCCADKAkSOQoIY29udHJhY3QYCSABKAsyJy52cm9vbGkuY2xpLnYxLkNvbnRyYWN0VmFsaWRhdGlvbk91dHB1dBI2CgxzaGFyZWRfZHJpZnQYCiABKAsyIC52cm9vbGkuY2xpLnYxLlNoYXJlZERyaWZ0UmVwb3J0EhkKEWJsb2NraW5nX2ZhaWx1cmVzGAsgASgFEhAKCHdhcm5pbmdzGAwgASgFIk8KDEh5Z2llbmVDaGVjaxIMCgRuYW1lGAEgASgJEg4KBnBhc3NlZBgCIAEoCBIQCghzZXZlcml0eRgDIAEoCRIPCgdtZXNzYWdlGAQgASgJIrcBCg5IeWdpZW5lRmluZGluZxIQCghzZXZlcml0eRgBIAEoCRIMCgRjb2RlGAIgASgJEgwKBHBhdGgYAyABKAkSEQoJbG9jYXRpb25zGAQgAygJEg8KB21lc3NhZ2UYBSABKAkSCwoDd2h5GAYgASgJEhIKCmZpeGFiaWxpdHkYByABKAkSMgoMbmV4dF9hY3Rpb25zGAggAygLMhwudnJvb2xpLmNsaS52MS5IeWdpZW5lQWN0aW9uIlMKDUh5Z2llbmVBY3Rpb24SDAoEY29kZRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEg8KB2NvbW1hbmQYAyABKAkSEgoKZml4YWJpbGl0eRgEIAEoCSJEChRIeWdpZW5lUGxhbkNhbmRpZGF0ZRIMCgRwYXRoGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIOCgZyZWFzb24YAyABKAkiUAoOSHlnaWVuZVBsYW5GaXgSDgoGc291cmNlGAEgASgJEi4KBHBsYW4YAiABKAsyIC52cm9vbGkuY2xpLnYxLkh5Z2llbmVQbGFuUmVjb3JkIsQBChFIeWdpZW5lUGxhblJlY29yZBIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRIMCgRzbHVnGAMgASgJEgwKBHBhdGgYBCABKAkSEgoKY3JlYXRlZF9hdBgFIAEoCRISCgp1cGRhdGVkX2F0GAYgASgJEhAKCGFyY2hpdmVkGAcgASgIEhMKC2FyY2hpdmVkX2F0GAggASgJEhMKC3NvdXJjZV9wYXRoGAkgASgJEhQKDGNvbnRlbnRfaGFzaBgKIAEoCUI9WjtnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NsaS92MTtjbGl2MWIGcHJvdG8z", [file_cli_v1_contract, file_cli_v1_shared_drift]);
+  fileDesc("ChRjbGkvdjEvaHlnaWVuZS5wcm90bxINdnJvb2xpLmNsaS52MSKyBAoNSHlnaWVuZVJlcG9ydBIPCgdzdWNjZXNzGAEgASgIEgwKBHJvb3QYAiABKAkSKwoGY2hlY2tzGAMgAygLMhsudnJvb2xpLmNsaS52MS5IeWdpZW5lQ2hlY2sSLwoIZmluZGluZ3MYBCADKAsyHS52cm9vbGkuY2xpLnYxLkh5Z2llbmVGaW5kaW5nEi0KB2FjdGlvbnMYBSADKAsyHC52cm9vbGkuY2xpLnYxLkh5Z2llbmVBY3Rpb24SPAoPcGxhbl9jYW5kaWRhdGVzGAYgAygLMiMudnJvb2xpLmNsaS52MS5IeWdpZW5lUGxhbkNhbmRpZGF0ZRI0Cg1maXhlc19hcHBsaWVkGAcgAygLMh0udnJvb2xpLmNsaS52MS5IeWdpZW5lUGxhbkZpeBIUCgxjb25maWdfZml4ZXMYCCADKAkSOQoIY29udHJhY3QYCSABKAsyJy52cm9vbGkuY2xpLnYxLkNvbnRyYWN0VmFsaWRhdGlvbk91dHB1dBI2CgxzaGFyZWRfZHJpZnQYCiABKAsyIC52cm9vbGkuY2xpLnYxLlNoYXJlZERyaWZ0UmVwb3J0EhkKEWJsb2NraW5nX2ZhaWx1cmVzGAsgASgFEhAKCHdhcm5pbmdzGAwgASgFEksKF3BsYW5fcmVjb25jaWxlX291dGNvbWVzGA0gAygLMioudnJvb2xpLmNsaS52MS5IeWdpZW5lUGxhblJlY29uY2lsZU91dGNvbWUiTwoMSHlnaWVuZUNoZWNrEgwKBG5hbWUYASABKAkSDgoGcGFzc2VkGAIgASgIEhAKCHNldmVyaXR5GAMgASgJEg8KB21lc3NhZ2UYBCABKAkitwEKDkh5Z2llbmVGaW5kaW5nEhAKCHNldmVyaXR5GAEgASgJEgwKBGNvZGUYAiABKAkSDAoEcGF0aBgDIAEoCRIRCglsb2NhdGlvbnMYBCADKAkSDwoHbWVzc2FnZRgFIAEoCRILCgN3aHkYBiABKAkSEgoKZml4YWJpbGl0eRgHIAEoCRIyCgxuZXh0X2FjdGlvbnMYCCADKAsyHC52cm9vbGkuY2xpLnYxLkh5Z2llbmVBY3Rpb24iUwoNSHlnaWVuZUFjdGlvbhIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSDwoHY29tbWFuZBgDIAEoCRISCgpmaXhhYmlsaXR5GAQgASgJIkQKFEh5Z2llbmVQbGFuQ2FuZGlkYXRlEgwKBHBhdGgYASABKAkSDgoGc3RhdHVzGAIgASgJEg4KBnJlYXNvbhgDIAEoCSKOAQoOSHlnaWVuZVBsYW5GaXgSDgoGc291cmNlGAEgASgJEi4KBHBsYW4YAiABKAsyIC52cm9vbGkuY2xpLnYxLkh5Z2llbmVQbGFuUmVjb3JkEg4KBmFjdGlvbhgDIAEoCRIsCgZtaXJyb3IYBCABKAsyHC52cm9vbGkuY2xpLnYxLkh5Z2llbmVNaXJyb3Ii/AEKG0h5Z2llbmVQbGFuUmVjb25jaWxlT3V0Y29tZRIOCgZhY3Rpb24YASABKAkSDgoGc291cmNlGAIgASgJEi4KBHBsYW4YAyABKAsyIC52cm9vbGkuY2xpLnYxLkh5Z2llbmVQbGFuUmVjb3JkEiwKBm1pcnJvchgEIAEoCzIcLnZyb29saS5jbGkudjEuSHlnaWVuZU1pcnJvchIYChBzb3VyY2VfdW50b3VjaGVkGAUgASgIEg0KBWVycm9yGAYgASgJEh4KFnNvdXJjZV9jbGVhbnVwX3BsYW5uZWQYByABKAgSFgoOc291cmNlX3JlbW92ZWQYCCABKAgiLQoNSHlnaWVuZU1pcnJvchIMCgRwYXRoGAEgASgJEg4KBnN0YXR1cxgCIAEoCSLEAQoRSHlnaWVuZVBsYW5SZWNvcmQSCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSDAoEc2x1ZxgDIAEoCRIMCgRwYXRoGAQgASgJEhIKCmNyZWF0ZWRfYXQYBSABKAkSEgoKdXBkYXRlZF9hdBgGIAEoCRIQCghhcmNoaXZlZBgHIAEoCBITCgthcmNoaXZlZF9hdBgIIAEoCRITCgtzb3VyY2VfcGF0aBgJIAEoCRIUCgxjb250ZW50X2hhc2gYCiABKAlCPVo7Z2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jbGkvdjE7Y2xpdjFiBnByb3RvMw", [file_cli_v1_contract, file_cli_v1_shared_drift]);
 
 /**
  * HygieneReport is the top-level shape of `vrooli hygiene --json`.
@@ -106,6 +106,14 @@ export type HygieneReport = Message<"vrooli.cli.v1.HygieneReport"> & {
    * @generated from field: int32 warnings = 12;
    */
   warnings: number;
+
+  /**
+   * Authoritative Plan Manager reconcile outcomes. Includes no-op and failed
+   * outcomes; actual mutations also appear in fixes_applied.
+   *
+   * @generated from field: repeated vrooli.cli.v1.HygienePlanReconcileOutcome plan_reconcile_outcomes = 13;
+   */
+  planReconcileOutcomes: HygienePlanReconcileOutcome[];
 };
 
 /**
@@ -323,6 +331,20 @@ export type HygienePlanFix = Message<"vrooli.cli.v1.HygienePlanFix"> & {
    * @generated from field: vrooli.cli.v1.HygienePlanRecord plan = 2;
    */
   plan?: HygienePlanRecord | undefined;
+
+  /**
+   * Plan Manager reconcile action that performed the mutation.
+   *
+   * @generated from field: string action = 3;
+   */
+  action: string;
+
+  /**
+   * Rendered mirror provenance for the mutation.
+   *
+   * @generated from field: vrooli.cli.v1.HygieneMirror mirror = 4;
+   */
+  mirror?: HygieneMirror | undefined;
 };
 
 /**
@@ -331,6 +353,103 @@ export type HygienePlanFix = Message<"vrooli.cli.v1.HygienePlanFix"> & {
  */
 export const HygienePlanFixSchema: GenMessage<HygienePlanFix> = /*@__PURE__*/
   messageDesc(file_cli_v1_hygiene, 5);
+
+/**
+ * HygienePlanReconcileOutcome records one authoritative Plan Manager reconcile
+ * result, including no-op and failed outcomes.
+ *
+ * @generated from message vrooli.cli.v1.HygienePlanReconcileOutcome
+ */
+export type HygienePlanReconcileOutcome = Message<"vrooli.cli.v1.HygienePlanReconcileOutcome"> & {
+  /**
+   * Plan Manager reconcile action.
+   *
+   * @generated from field: string action = 1;
+   */
+  action: string;
+
+  /**
+   * Source path involved in the outcome, when present.
+   *
+   * @generated from field: string source = 2;
+   */
+  source: string;
+
+  /**
+   * Plan record identified by the outcome, when present.
+   *
+   * @generated from field: vrooli.cli.v1.HygienePlanRecord plan = 3;
+   */
+  plan?: HygienePlanRecord | undefined;
+
+  /**
+   * Rendered mirror provenance.
+   *
+   * @generated from field: vrooli.cli.v1.HygieneMirror mirror = 4;
+   */
+  mirror?: HygieneMirror | undefined;
+
+  /**
+   * True when Plan Manager intentionally left the source file untouched.
+   *
+   * @generated from field: bool source_untouched = 5;
+   */
+  sourceUntouched: boolean;
+
+  /**
+   * Per-item error detail, when present.
+   *
+   * @generated from field: string error = 6;
+   */
+  error: string;
+
+  /**
+   * True when a dry-run would remove the adopted legacy source.
+   *
+   * @generated from field: bool source_cleanup_planned = 7;
+   */
+  sourceCleanupPlanned: boolean;
+
+  /**
+   * True when Plan Manager removed the adopted legacy source.
+   *
+   * @generated from field: bool source_removed = 8;
+   */
+  sourceRemoved: boolean;
+};
+
+/**
+ * Describes the message vrooli.cli.v1.HygienePlanReconcileOutcome.
+ * Use `create(HygienePlanReconcileOutcomeSchema)` to create a new message.
+ */
+export const HygienePlanReconcileOutcomeSchema: GenMessage<HygienePlanReconcileOutcome> = /*@__PURE__*/
+  messageDesc(file_cli_v1_hygiene, 6);
+
+/**
+ * @generated from message vrooli.cli.v1.HygieneMirror
+ */
+export type HygieneMirror = Message<"vrooli.cli.v1.HygieneMirror"> & {
+  /**
+   * Rendered mirror path.
+   *
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * Rendered mirror status.
+   *
+   * @generated from field: string status = 2;
+   */
+  status: string;
+};
+
+/**
+ * Describes the message vrooli.cli.v1.HygieneMirror.
+ * Use `create(HygieneMirrorSchema)` to create a new message.
+ */
+export const HygieneMirrorSchema: GenMessage<HygieneMirror> = /*@__PURE__*/
+  messageDesc(file_cli_v1_hygiene, 7);
 
 /**
  * HygienePlanRecord mirrors a plan record (internal/app/plans.PlanRecord).
@@ -414,5 +533,5 @@ export type HygienePlanRecord = Message<"vrooli.cli.v1.HygienePlanRecord"> & {
  * Use `create(HygienePlanRecordSchema)` to create a new message.
  */
 export const HygienePlanRecordSchema: GenMessage<HygienePlanRecord> = /*@__PURE__*/
-  messageDesc(file_cli_v1_hygiene, 6);
+  messageDesc(file_cli_v1_hygiene, 8);
 

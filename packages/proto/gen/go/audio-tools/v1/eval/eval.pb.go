@@ -240,6 +240,7 @@ type StrategyReport struct {
 	LengthCurves             []*LengthBucketCurve   `protobuf:"bytes,23,rep,name=length_curves,json=lengthCurves,proto3" json:"length_curves,omitempty"`
 	CommitCount              int32                  `protobuf:"varint,24,opt,name=commit_count,json=commitCount,proto3" json:"commit_count,omitempty"`
 	SpeakerRejectionCount    int32                  `protobuf:"varint,25,opt,name=speaker_rejection_count,json=speakerRejectionCount,proto3" json:"speaker_rejection_count,omitempty"`
+	Scaling                  *ScalingAnalysis       `protobuf:"bytes,26,opt,name=scaling,proto3" json:"scaling,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -447,6 +448,13 @@ func (x *StrategyReport) GetSpeakerRejectionCount() int32 {
 		return x.SpeakerRejectionCount
 	}
 	return 0
+}
+
+func (x *StrategyReport) GetScaling() *ScalingAnalysis {
+	if x != nil {
+		return x.Scaling
+	}
+	return nil
 }
 
 type ClipReport struct {
@@ -1353,6 +1361,354 @@ func (x *LengthBucketCurve) GetMaxDroppedSpanWords() int32 {
 	return 0
 }
 
+type ScalingPoint struct {
+	state                          protoimpl.MessageState `protogen:"open.v1"`
+	ClipId                         string                 `protobuf:"bytes,1,opt,name=clip_id,json=clipId,proto3" json:"clip_id,omitempty"`
+	TargetDurationMs               int64                  `protobuf:"varint,2,opt,name=target_duration_ms,json=targetDurationMs,proto3" json:"target_duration_ms,omitempty"`
+	RealizedDurationMs             int64                  `protobuf:"varint,3,opt,name=realized_duration_ms,json=realizedDurationMs,proto3" json:"realized_duration_ms,omitempty"`
+	Wer                            float64                `protobuf:"fixed64,4,opt,name=wer,proto3" json:"wer,omitempty"`
+	FinalizationLatencyP50Ms       float64                `protobuf:"fixed64,5,opt,name=finalization_latency_p50_ms,json=finalizationLatencyP50Ms,proto3" json:"finalization_latency_p50_ms,omitempty"`
+	FinalizationLatencyP95Ms       float64                `protobuf:"fixed64,6,opt,name=finalization_latency_p95_ms,json=finalizationLatencyP95Ms,proto3" json:"finalization_latency_p95_ms,omitempty"`
+	FinalizationLatencySampleCount int32                  `protobuf:"varint,7,opt,name=finalization_latency_sample_count,json=finalizationLatencySampleCount,proto3" json:"finalization_latency_sample_count,omitempty"`
+	TimeToFirstCommitMs            float64                `protobuf:"fixed64,8,opt,name=time_to_first_commit_ms,json=timeToFirstCommitMs,proto3" json:"time_to_first_commit_ms,omitempty"`
+	CommitCount                    int32                  `protobuf:"varint,9,opt,name=commit_count,json=commitCount,proto3" json:"commit_count,omitempty"`
+	PartialRevisions               int32                  `protobuf:"varint,10,opt,name=partial_revisions,json=partialRevisions,proto3" json:"partial_revisions,omitempty"`
+	MaxDroppedSpanWords            int32                  `protobuf:"varint,11,opt,name=max_dropped_span_words,json=maxDroppedSpanWords,proto3" json:"max_dropped_span_words,omitempty"`
+	WhisperCalls                   int32                  `protobuf:"varint,12,opt,name=whisper_calls,json=whisperCalls,proto3" json:"whisper_calls,omitempty"`
+	WhisperAudioSeconds            float64                `protobuf:"fixed64,13,opt,name=whisper_audio_seconds,json=whisperAudioSeconds,proto3" json:"whisper_audio_seconds,omitempty"`
+	ProviderLatencyMs              float64                `protobuf:"fixed64,14,opt,name=provider_latency_ms,json=providerLatencyMs,proto3" json:"provider_latency_ms,omitempty"`
+	Rtf                            float64                `protobuf:"fixed64,15,opt,name=rtf,proto3" json:"rtf,omitempty"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
+}
+
+func (x *ScalingPoint) Reset() {
+	*x = ScalingPoint{}
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScalingPoint) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScalingPoint) ProtoMessage() {}
+
+func (x *ScalingPoint) ProtoReflect() protoreflect.Message {
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScalingPoint.ProtoReflect.Descriptor instead.
+func (*ScalingPoint) Descriptor() ([]byte, []int) {
+	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ScalingPoint) GetClipId() string {
+	if x != nil {
+		return x.ClipId
+	}
+	return ""
+}
+
+func (x *ScalingPoint) GetTargetDurationMs() int64 {
+	if x != nil {
+		return x.TargetDurationMs
+	}
+	return 0
+}
+
+func (x *ScalingPoint) GetRealizedDurationMs() int64 {
+	if x != nil {
+		return x.RealizedDurationMs
+	}
+	return 0
+}
+
+func (x *ScalingPoint) GetWer() float64 {
+	if x != nil {
+		return x.Wer
+	}
+	return 0
+}
+
+func (x *ScalingPoint) GetFinalizationLatencyP50Ms() float64 {
+	if x != nil {
+		return x.FinalizationLatencyP50Ms
+	}
+	return 0
+}
+
+func (x *ScalingPoint) GetFinalizationLatencyP95Ms() float64 {
+	if x != nil {
+		return x.FinalizationLatencyP95Ms
+	}
+	return 0
+}
+
+func (x *ScalingPoint) GetFinalizationLatencySampleCount() int32 {
+	if x != nil {
+		return x.FinalizationLatencySampleCount
+	}
+	return 0
+}
+
+func (x *ScalingPoint) GetTimeToFirstCommitMs() float64 {
+	if x != nil {
+		return x.TimeToFirstCommitMs
+	}
+	return 0
+}
+
+func (x *ScalingPoint) GetCommitCount() int32 {
+	if x != nil {
+		return x.CommitCount
+	}
+	return 0
+}
+
+func (x *ScalingPoint) GetPartialRevisions() int32 {
+	if x != nil {
+		return x.PartialRevisions
+	}
+	return 0
+}
+
+func (x *ScalingPoint) GetMaxDroppedSpanWords() int32 {
+	if x != nil {
+		return x.MaxDroppedSpanWords
+	}
+	return 0
+}
+
+func (x *ScalingPoint) GetWhisperCalls() int32 {
+	if x != nil {
+		return x.WhisperCalls
+	}
+	return 0
+}
+
+func (x *ScalingPoint) GetWhisperAudioSeconds() float64 {
+	if x != nil {
+		return x.WhisperAudioSeconds
+	}
+	return 0
+}
+
+func (x *ScalingPoint) GetProviderLatencyMs() float64 {
+	if x != nil {
+		return x.ProviderLatencyMs
+	}
+	return 0
+}
+
+func (x *ScalingPoint) GetRtf() float64 {
+	if x != nil {
+		return x.Rtf
+	}
+	return 0
+}
+
+type ScalingModelFit struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Metric         string                 `protobuf:"bytes,1,opt,name=metric,proto3" json:"metric,omitempty"`
+	Model          string                 `protobuf:"bytes,2,opt,name=model,proto3" json:"model,omitempty"` // "constant" | "linear" | "n_log_n" | "quadratic"
+	SlopePerSecond float64                `protobuf:"fixed64,3,opt,name=slope_per_second,json=slopePerSecond,proto3" json:"slope_per_second,omitempty"`
+	Intercept      float64                `protobuf:"fixed64,4,opt,name=intercept,proto3" json:"intercept,omitempty"`
+	RSquared       float64                `protobuf:"fixed64,5,opt,name=r_squared,json=rSquared,proto3" json:"r_squared,omitempty"`
+	SampleCount    int32                  `protobuf:"varint,6,opt,name=sample_count,json=sampleCount,proto3" json:"sample_count,omitempty"`
+	Reason         string                 `protobuf:"bytes,7,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ScalingModelFit) Reset() {
+	*x = ScalingModelFit{}
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScalingModelFit) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScalingModelFit) ProtoMessage() {}
+
+func (x *ScalingModelFit) ProtoReflect() protoreflect.Message {
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScalingModelFit.ProtoReflect.Descriptor instead.
+func (*ScalingModelFit) Descriptor() ([]byte, []int) {
+	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ScalingModelFit) GetMetric() string {
+	if x != nil {
+		return x.Metric
+	}
+	return ""
+}
+
+func (x *ScalingModelFit) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *ScalingModelFit) GetSlopePerSecond() float64 {
+	if x != nil {
+		return x.SlopePerSecond
+	}
+	return 0
+}
+
+func (x *ScalingModelFit) GetIntercept() float64 {
+	if x != nil {
+		return x.Intercept
+	}
+	return 0
+}
+
+func (x *ScalingModelFit) GetRSquared() float64 {
+	if x != nil {
+		return x.RSquared
+	}
+	return 0
+}
+
+func (x *ScalingModelFit) GetSampleCount() int32 {
+	if x != nil {
+		return x.SampleCount
+	}
+	return 0
+}
+
+func (x *ScalingModelFit) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type ScalingAnalysis struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Points                []*ScalingPoint        `protobuf:"bytes,1,rep,name=points,proto3" json:"points,omitempty"`
+	LatencyClassification string                 `protobuf:"bytes,2,opt,name=latency_classification,json=latencyClassification,proto3" json:"latency_classification,omitempty"` // "flat" | "linear" | "superlinear" | "inconclusive"
+	ComputeClassification string                 `protobuf:"bytes,3,opt,name=compute_classification,json=computeClassification,proto3" json:"compute_classification,omitempty"` // "flat" | "linear" | "superlinear" | "inconclusive"
+	Confidence            string                 `protobuf:"bytes,4,opt,name=confidence,proto3" json:"confidence,omitempty"`                                                    // "low" | "medium" | "high"
+	Reasons               []string               `protobuf:"bytes,5,rep,name=reasons,proto3" json:"reasons,omitempty"`
+	Warnings              []*ReportWarning       `protobuf:"bytes,6,rep,name=warnings,proto3" json:"warnings,omitempty"`
+	LatencyFit            *ScalingModelFit       `protobuf:"bytes,7,opt,name=latency_fit,json=latencyFit,proto3" json:"latency_fit,omitempty"`
+	ComputeFit            *ScalingModelFit       `protobuf:"bytes,8,opt,name=compute_fit,json=computeFit,proto3" json:"compute_fit,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *ScalingAnalysis) Reset() {
+	*x = ScalingAnalysis{}
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScalingAnalysis) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScalingAnalysis) ProtoMessage() {}
+
+func (x *ScalingAnalysis) ProtoReflect() protoreflect.Message {
+	mi := &file_audio_tools_v1_eval_eval_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScalingAnalysis.ProtoReflect.Descriptor instead.
+func (*ScalingAnalysis) Descriptor() ([]byte, []int) {
+	return file_audio_tools_v1_eval_eval_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ScalingAnalysis) GetPoints() []*ScalingPoint {
+	if x != nil {
+		return x.Points
+	}
+	return nil
+}
+
+func (x *ScalingAnalysis) GetLatencyClassification() string {
+	if x != nil {
+		return x.LatencyClassification
+	}
+	return ""
+}
+
+func (x *ScalingAnalysis) GetComputeClassification() string {
+	if x != nil {
+		return x.ComputeClassification
+	}
+	return ""
+}
+
+func (x *ScalingAnalysis) GetConfidence() string {
+	if x != nil {
+		return x.Confidence
+	}
+	return ""
+}
+
+func (x *ScalingAnalysis) GetReasons() []string {
+	if x != nil {
+		return x.Reasons
+	}
+	return nil
+}
+
+func (x *ScalingAnalysis) GetWarnings() []*ReportWarning {
+	if x != nil {
+		return x.Warnings
+	}
+	return nil
+}
+
+func (x *ScalingAnalysis) GetLatencyFit() *ScalingModelFit {
+	if x != nil {
+		return x.LatencyFit
+	}
+	return nil
+}
+
+func (x *ScalingAnalysis) GetComputeFit() *ScalingModelFit {
+	if x != nil {
+		return x.ComputeFit
+	}
+	return nil
+}
+
 var File_audio_tools_v1_eval_eval_proto protoreflect.FileDescriptor
 
 const file_audio_tools_v1_eval_eval_proto_rawDesc = "" +
@@ -1374,7 +1730,7 @@ const file_audio_tools_v1_eval_eval_proto_rawDesc = "" +
 	"\asummary\x18\x04 \x01(\v2-.vrooli.audio_tools.v1.eval.EvalReportSummaryR\asummary\x12E\n" +
 	"\bwarnings\x18\x05 \x03(\v2).vrooli.audio_tools.v1.eval.ReportWarningR\bwarnings\x12b\n" +
 	"\x14normalization_policy\x18\x06 \x01(\v2/.vrooli.audio_tools.v1.eval.NormalizationPolicyR\x13normalizationPolicy\x12'\n" +
-	"\x0flatency_honesty\x18\a \x01(\tR\x0elatencyHonesty\"\x97\t\n" +
+	"\x0flatency_honesty\x18\a \x01(\tR\x0elatencyHonesty\"\xde\t\n" +
 	"\x0eStrategyReport\x12\x1a\n" +
 	"\bstrategy\x18\x01 \x01(\tR\bstrategy\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x10\n" +
@@ -1403,7 +1759,8 @@ const file_audio_tools_v1_eval_eval_proto_rawDesc = "" +
 	"\x11stage_attribution\x18\x16 \x01(\v2,.vrooli.audio_tools.v1.eval.StageAttributionR\x10stageAttribution\x12R\n" +
 	"\rlength_curves\x18\x17 \x03(\v2-.vrooli.audio_tools.v1.eval.LengthBucketCurveR\flengthCurves\x12!\n" +
 	"\fcommit_count\x18\x18 \x01(\x05R\vcommitCount\x126\n" +
-	"\x17speaker_rejection_count\x18\x19 \x01(\x05R\x15speakerRejectionCount\"\xf5\b\n" +
+	"\x17speaker_rejection_count\x18\x19 \x01(\x05R\x15speakerRejectionCount\x12E\n" +
+	"\ascaling\x18\x1a \x01(\v2+.vrooli.audio_tools.v1.eval.ScalingAnalysisR\ascaling\"\xf5\b\n" +
 	"\n" +
 	"ClipReport\x12\x17\n" +
 	"\aclip_id\x18\x01 \x01(\tR\x06clipId\x12\x1c\n" +
@@ -1492,7 +1849,45 @@ const file_audio_tools_v1_eval_eval_proto_rawDesc = "" +
 	"\x03wer\x18\x05 \x01(\x01R\x03wer\x12=\n" +
 	"\x1bfinalization_latency_p95_ms\x18\x06 \x01(\x01R\x18finalizationLatencyP95Ms\x12=\n" +
 	"\x1cmean_time_to_first_commit_ms\x18\a \x01(\x01R\x17meanTimeToFirstCommitMs\x123\n" +
-	"\x16max_dropped_span_words\x18\b \x01(\x05R\x13maxDroppedSpanWordsBLZJgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval;eval_v1b\x06proto3"
+	"\x16max_dropped_span_words\x18\b \x01(\x05R\x13maxDroppedSpanWords\"\xb8\x05\n" +
+	"\fScalingPoint\x12\x17\n" +
+	"\aclip_id\x18\x01 \x01(\tR\x06clipId\x12,\n" +
+	"\x12target_duration_ms\x18\x02 \x01(\x03R\x10targetDurationMs\x120\n" +
+	"\x14realized_duration_ms\x18\x03 \x01(\x03R\x12realizedDurationMs\x12\x10\n" +
+	"\x03wer\x18\x04 \x01(\x01R\x03wer\x12=\n" +
+	"\x1bfinalization_latency_p50_ms\x18\x05 \x01(\x01R\x18finalizationLatencyP50Ms\x12=\n" +
+	"\x1bfinalization_latency_p95_ms\x18\x06 \x01(\x01R\x18finalizationLatencyP95Ms\x12I\n" +
+	"!finalization_latency_sample_count\x18\a \x01(\x05R\x1efinalizationLatencySampleCount\x124\n" +
+	"\x17time_to_first_commit_ms\x18\b \x01(\x01R\x13timeToFirstCommitMs\x12!\n" +
+	"\fcommit_count\x18\t \x01(\x05R\vcommitCount\x12+\n" +
+	"\x11partial_revisions\x18\n" +
+	" \x01(\x05R\x10partialRevisions\x123\n" +
+	"\x16max_dropped_span_words\x18\v \x01(\x05R\x13maxDroppedSpanWords\x12#\n" +
+	"\rwhisper_calls\x18\f \x01(\x05R\fwhisperCalls\x122\n" +
+	"\x15whisper_audio_seconds\x18\r \x01(\x01R\x13whisperAudioSeconds\x12.\n" +
+	"\x13provider_latency_ms\x18\x0e \x01(\x01R\x11providerLatencyMs\x12\x10\n" +
+	"\x03rtf\x18\x0f \x01(\x01R\x03rtf\"\xdf\x01\n" +
+	"\x0fScalingModelFit\x12\x16\n" +
+	"\x06metric\x18\x01 \x01(\tR\x06metric\x12\x14\n" +
+	"\x05model\x18\x02 \x01(\tR\x05model\x12(\n" +
+	"\x10slope_per_second\x18\x03 \x01(\x01R\x0eslopePerSecond\x12\x1c\n" +
+	"\tintercept\x18\x04 \x01(\x01R\tintercept\x12\x1b\n" +
+	"\tr_squared\x18\x05 \x01(\x01R\brSquared\x12!\n" +
+	"\fsample_count\x18\x06 \x01(\x05R\vsampleCount\x12\x16\n" +
+	"\x06reason\x18\a \x01(\tR\x06reason\"\xde\x03\n" +
+	"\x0fScalingAnalysis\x12@\n" +
+	"\x06points\x18\x01 \x03(\v2(.vrooli.audio_tools.v1.eval.ScalingPointR\x06points\x125\n" +
+	"\x16latency_classification\x18\x02 \x01(\tR\x15latencyClassification\x125\n" +
+	"\x16compute_classification\x18\x03 \x01(\tR\x15computeClassification\x12\x1e\n" +
+	"\n" +
+	"confidence\x18\x04 \x01(\tR\n" +
+	"confidence\x12\x18\n" +
+	"\areasons\x18\x05 \x03(\tR\areasons\x12E\n" +
+	"\bwarnings\x18\x06 \x03(\v2).vrooli.audio_tools.v1.eval.ReportWarningR\bwarnings\x12L\n" +
+	"\vlatency_fit\x18\a \x01(\v2+.vrooli.audio_tools.v1.eval.ScalingModelFitR\n" +
+	"latencyFit\x12L\n" +
+	"\vcompute_fit\x18\b \x01(\v2+.vrooli.audio_tools.v1.eval.ScalingModelFitR\n" +
+	"computeFitBLZJgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval;eval_v1b\x06proto3"
 
 var (
 	file_audio_tools_v1_eval_eval_proto_rawDescOnce sync.Once
@@ -1506,7 +1901,7 @@ func file_audio_tools_v1_eval_eval_proto_rawDescGZIP() []byte {
 	return file_audio_tools_v1_eval_eval_proto_rawDescData
 }
 
-var file_audio_tools_v1_eval_eval_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_audio_tools_v1_eval_eval_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_audio_tools_v1_eval_eval_proto_goTypes = []any{
 	(*EvalStrategy)(nil),        // 0: vrooli.audio_tools.v1.eval.EvalStrategy
 	(*EvalReport)(nil),          // 1: vrooli.audio_tools.v1.eval.EvalReport
@@ -1521,6 +1916,9 @@ var file_audio_tools_v1_eval_eval_proto_goTypes = []any{
 	(*SafetyGateReport)(nil),    // 10: vrooli.audio_tools.v1.eval.SafetyGateReport
 	(*StageAttribution)(nil),    // 11: vrooli.audio_tools.v1.eval.StageAttribution
 	(*LengthBucketCurve)(nil),   // 12: vrooli.audio_tools.v1.eval.LengthBucketCurve
+	(*ScalingPoint)(nil),        // 13: vrooli.audio_tools.v1.eval.ScalingPoint
+	(*ScalingModelFit)(nil),     // 14: vrooli.audio_tools.v1.eval.ScalingModelFit
+	(*ScalingAnalysis)(nil),     // 15: vrooli.audio_tools.v1.eval.ScalingAnalysis
 }
 var file_audio_tools_v1_eval_eval_proto_depIdxs = []int32{
 	2,  // 0: vrooli.audio_tools.v1.eval.EvalReport.per_strategy:type_name -> vrooli.audio_tools.v1.eval.StrategyReport
@@ -1532,15 +1930,20 @@ var file_audio_tools_v1_eval_eval_proto_depIdxs = []int32{
 	10, // 6: vrooli.audio_tools.v1.eval.StrategyReport.safety:type_name -> vrooli.audio_tools.v1.eval.SafetyGateReport
 	11, // 7: vrooli.audio_tools.v1.eval.StrategyReport.stage_attribution:type_name -> vrooli.audio_tools.v1.eval.StageAttribution
 	12, // 8: vrooli.audio_tools.v1.eval.StrategyReport.length_curves:type_name -> vrooli.audio_tools.v1.eval.LengthBucketCurve
-	7,  // 9: vrooli.audio_tools.v1.eval.ClipReport.edit_operations:type_name -> vrooli.audio_tools.v1.eval.EditOperation
-	8,  // 10: vrooli.audio_tools.v1.eval.ClipReport.commit_timeline:type_name -> vrooli.audio_tools.v1.eval.CommitState
-	10, // 11: vrooli.audio_tools.v1.eval.ClipReport.safety:type_name -> vrooli.audio_tools.v1.eval.SafetyGateReport
-	9,  // 12: vrooli.audio_tools.v1.eval.SafetyGateReport.retraction_events:type_name -> vrooli.audio_tools.v1.eval.RetractionEvent
-	13, // [13:13] is the sub-list for method output_type
-	13, // [13:13] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	15, // 9: vrooli.audio_tools.v1.eval.StrategyReport.scaling:type_name -> vrooli.audio_tools.v1.eval.ScalingAnalysis
+	7,  // 10: vrooli.audio_tools.v1.eval.ClipReport.edit_operations:type_name -> vrooli.audio_tools.v1.eval.EditOperation
+	8,  // 11: vrooli.audio_tools.v1.eval.ClipReport.commit_timeline:type_name -> vrooli.audio_tools.v1.eval.CommitState
+	10, // 12: vrooli.audio_tools.v1.eval.ClipReport.safety:type_name -> vrooli.audio_tools.v1.eval.SafetyGateReport
+	9,  // 13: vrooli.audio_tools.v1.eval.SafetyGateReport.retraction_events:type_name -> vrooli.audio_tools.v1.eval.RetractionEvent
+	13, // 14: vrooli.audio_tools.v1.eval.ScalingAnalysis.points:type_name -> vrooli.audio_tools.v1.eval.ScalingPoint
+	5,  // 15: vrooli.audio_tools.v1.eval.ScalingAnalysis.warnings:type_name -> vrooli.audio_tools.v1.eval.ReportWarning
+	14, // 16: vrooli.audio_tools.v1.eval.ScalingAnalysis.latency_fit:type_name -> vrooli.audio_tools.v1.eval.ScalingModelFit
+	14, // 17: vrooli.audio_tools.v1.eval.ScalingAnalysis.compute_fit:type_name -> vrooli.audio_tools.v1.eval.ScalingModelFit
+	18, // [18:18] is the sub-list for method output_type
+	18, // [18:18] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_audio_tools_v1_eval_eval_proto_init() }
@@ -1554,7 +1957,7 @@ func file_audio_tools_v1_eval_eval_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_audio_tools_v1_eval_eval_proto_rawDesc), len(file_audio_tools_v1_eval_eval_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

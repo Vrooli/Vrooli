@@ -109,22 +109,30 @@ class ArchivePlanResponse(_message.Message):
     def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
 
 class RenderMarkdownRequest(_message.Message):
-    __slots__ = ("id", "workspace")
+    __slots__ = ("id", "workspace", "compact")
     ID_FIELD_NUMBER: _ClassVar[int]
     WORKSPACE_FIELD_NUMBER: _ClassVar[int]
+    COMPACT_FIELD_NUMBER: _ClassVar[int]
     id: str
     workspace: WorkspaceScope
-    def __init__(self, id: _Optional[str] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ...) -> None: ...
+    compact: bool
+    def __init__(self, id: _Optional[str] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., compact: _Optional[bool] = ...) -> None: ...
 
 class RenderMarkdownResponse(_message.Message):
-    __slots__ = ("markdown", "mirror", "repaired")
+    __slots__ = ("markdown", "mirror", "repaired", "plan", "quality_status", "quality_findings")
     MARKDOWN_FIELD_NUMBER: _ClassVar[int]
     MIRROR_FIELD_NUMBER: _ClassVar[int]
     REPAIRED_FIELD_NUMBER: _ClassVar[int]
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    QUALITY_STATUS_FIELD_NUMBER: _ClassVar[int]
+    QUALITY_FINDINGS_FIELD_NUMBER: _ClassVar[int]
     markdown: str
     mirror: _model_pb2.RenderedPlanMirror
     repaired: bool
-    def __init__(self, markdown: _Optional[str] = ..., mirror: _Optional[_Union[_model_pb2.RenderedPlanMirror, _Mapping]] = ..., repaired: _Optional[bool] = ...) -> None: ...
+    plan: _model_pb2.Plan
+    quality_status: str
+    quality_findings: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, markdown: _Optional[str] = ..., mirror: _Optional[_Union[_model_pb2.RenderedPlanMirror, _Mapping]] = ..., repaired: _Optional[bool] = ..., plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ..., quality_status: _Optional[str] = ..., quality_findings: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class AddPhaseRequest(_message.Message):
     __slots__ = ("plan_id", "phase")
@@ -227,7 +235,7 @@ class MigratePlanResponse(_message.Message):
     def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
 
 class ReconcilePlansRequest(_message.Message):
-    __slots__ = ("dry_run", "repair_mirrors", "adopt_legacy", "include_archived", "include_archived_legacy", "conflict_policy", "source_runtime_home_plans", "source_docs_plans", "source_repo_plans", "workspace")
+    __slots__ = ("dry_run", "repair_mirrors", "adopt_legacy", "include_archived", "include_archived_legacy", "conflict_policy", "source_runtime_home_plans", "source_docs_plans", "source_repo_plans", "workspace", "cleanup_adopted_sources")
     DRY_RUN_FIELD_NUMBER: _ClassVar[int]
     REPAIR_MIRRORS_FIELD_NUMBER: _ClassVar[int]
     ADOPT_LEGACY_FIELD_NUMBER: _ClassVar[int]
@@ -238,6 +246,7 @@ class ReconcilePlansRequest(_message.Message):
     SOURCE_DOCS_PLANS_FIELD_NUMBER: _ClassVar[int]
     SOURCE_REPO_PLANS_FIELD_NUMBER: _ClassVar[int]
     WORKSPACE_FIELD_NUMBER: _ClassVar[int]
+    CLEANUP_ADOPTED_SOURCES_FIELD_NUMBER: _ClassVar[int]
     dry_run: bool
     repair_mirrors: bool
     adopt_legacy: bool
@@ -248,7 +257,8 @@ class ReconcilePlansRequest(_message.Message):
     source_docs_plans: bool
     source_repo_plans: bool
     workspace: WorkspaceScope
-    def __init__(self, dry_run: _Optional[bool] = ..., repair_mirrors: _Optional[bool] = ..., adopt_legacy: _Optional[bool] = ..., include_archived: _Optional[bool] = ..., include_archived_legacy: _Optional[bool] = ..., conflict_policy: _Optional[_Union[ReconcileConflictPolicy, str]] = ..., source_runtime_home_plans: _Optional[bool] = ..., source_docs_plans: _Optional[bool] = ..., source_repo_plans: _Optional[bool] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ...) -> None: ...
+    cleanup_adopted_sources: bool
+    def __init__(self, dry_run: _Optional[bool] = ..., repair_mirrors: _Optional[bool] = ..., adopt_legacy: _Optional[bool] = ..., include_archived: _Optional[bool] = ..., include_archived_legacy: _Optional[bool] = ..., conflict_policy: _Optional[_Union[ReconcileConflictPolicy, str]] = ..., source_runtime_home_plans: _Optional[bool] = ..., source_docs_plans: _Optional[bool] = ..., source_repo_plans: _Optional[bool] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., cleanup_adopted_sources: _Optional[bool] = ...) -> None: ...
 
 class WorkspaceScope(_message.Message):
     __slots__ = ("id", "root")
@@ -259,7 +269,7 @@ class WorkspaceScope(_message.Message):
     def __init__(self, id: _Optional[str] = ..., root: _Optional[str] = ...) -> None: ...
 
 class ReconcilePlanItem(_message.Message):
-    __slots__ = ("action", "plan_id", "slug", "title", "source_path", "mirror", "source_untouched", "error")
+    __slots__ = ("action", "plan_id", "slug", "title", "source_path", "mirror", "source_untouched", "error", "source_cleanup_planned", "source_removed")
     ACTION_FIELD_NUMBER: _ClassVar[int]
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     SLUG_FIELD_NUMBER: _ClassVar[int]
@@ -268,6 +278,8 @@ class ReconcilePlanItem(_message.Message):
     MIRROR_FIELD_NUMBER: _ClassVar[int]
     SOURCE_UNTOUCHED_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_CLEANUP_PLANNED_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_REMOVED_FIELD_NUMBER: _ClassVar[int]
     action: ReconcileAction
     plan_id: str
     slug: str
@@ -276,7 +288,9 @@ class ReconcilePlanItem(_message.Message):
     mirror: _model_pb2.RenderedPlanMirror
     source_untouched: bool
     error: str
-    def __init__(self, action: _Optional[_Union[ReconcileAction, str]] = ..., plan_id: _Optional[str] = ..., slug: _Optional[str] = ..., title: _Optional[str] = ..., source_path: _Optional[str] = ..., mirror: _Optional[_Union[_model_pb2.RenderedPlanMirror, _Mapping]] = ..., source_untouched: _Optional[bool] = ..., error: _Optional[str] = ...) -> None: ...
+    source_cleanup_planned: bool
+    source_removed: bool
+    def __init__(self, action: _Optional[_Union[ReconcileAction, str]] = ..., plan_id: _Optional[str] = ..., slug: _Optional[str] = ..., title: _Optional[str] = ..., source_path: _Optional[str] = ..., mirror: _Optional[_Union[_model_pb2.RenderedPlanMirror, _Mapping]] = ..., source_untouched: _Optional[bool] = ..., error: _Optional[str] = ..., source_cleanup_planned: _Optional[bool] = ..., source_removed: _Optional[bool] = ...) -> None: ...
 
 class ReconcilePlansResponse(_message.Message):
     __slots__ = ("dry_run", "items")

@@ -577,6 +577,32 @@ class AddPhaseResponse(_message.Message):
     step: _model_pb2.GuidedStep
     def __init__(self, phase: _Optional[_Union[PhaseDraft, _Mapping]] = ..., summary: _Optional[_Union[AuthoringMutationSummary, _Mapping]] = ..., progress: _Optional[_Union[AuthoringProgress, _Mapping]] = ..., violations: _Optional[_Iterable[_Union[StructureViolation, _Mapping]]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
 
+class MovePhaseRequest(_message.Message):
+    __slots__ = ("session_id", "phase_id", "before_phase_id", "after_phase_id")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
+    BEFORE_PHASE_ID_FIELD_NUMBER: _ClassVar[int]
+    AFTER_PHASE_ID_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    phase_id: str
+    before_phase_id: str
+    after_phase_id: str
+    def __init__(self, session_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., before_phase_id: _Optional[str] = ..., after_phase_id: _Optional[str] = ...) -> None: ...
+
+class MovePhaseResponse(_message.Message):
+    __slots__ = ("phase", "summary", "progress", "violations", "step")
+    PHASE_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    PROGRESS_FIELD_NUMBER: _ClassVar[int]
+    VIOLATIONS_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
+    phase: PhaseDraft
+    summary: AuthoringMutationSummary
+    progress: AuthoringProgress
+    violations: _containers.RepeatedCompositeFieldContainer[StructureViolation]
+    step: _model_pb2.GuidedStep
+    def __init__(self, phase: _Optional[_Union[PhaseDraft, _Mapping]] = ..., summary: _Optional[_Union[AuthoringMutationSummary, _Mapping]] = ..., progress: _Optional[_Union[AuthoringProgress, _Mapping]] = ..., violations: _Optional[_Iterable[_Union[StructureViolation, _Mapping]]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
+
 class GetPhaseRequest(_message.Message):
     __slots__ = ("session_id", "phase_id")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]

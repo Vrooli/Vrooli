@@ -75,7 +75,7 @@ func Decide(req CapacityRequest, snapshot hostinventory.Snapshot, ledger []Capac
 		}
 		if potentialReclaimEligibleFor(c, req.Priority, policy) {
 			potentialBytes += c.AmountBytes
-			if isReclaimEligible(c, policy.IdleGrace, now) {
+			if isReclaimEligible(c, effectiveIdleGrace(c, policy), now) {
 				reclaimNowBytes += c.AmountBytes
 				reclaimTargets = append(reclaimTargets, c.ClaimID)
 			}
@@ -264,7 +264,14 @@ func potentialReclaimEligibleFor(c CapacityClaim, requesterPriority int, policy 
 // higher/equal-priority claims) are never eligible — age/utilization never make
 // a claim eligible, only reported idle state does.
 func reclaimEligibleFor(c CapacityClaim, requesterPriority int, policy Policy, now time.Time) bool {
-	return potentialReclaimEligibleFor(c, requesterPriority, policy) && isReclaimEligible(c, policy.IdleGrace, now)
+	return potentialReclaimEligibleFor(c, requesterPriority, policy) && isReclaimEligible(c, effectiveIdleGrace(c, policy), now)
+}
+
+func effectiveIdleGrace(c CapacityClaim, policy Policy) time.Duration {
+	if c.IdleGrace > 0 {
+		return c.IdleGrace
+	}
+	return policy.IdleGrace
 }
 
 // idleYieldFloor normalizes the policy's idle-yield floor, defaulting a zero

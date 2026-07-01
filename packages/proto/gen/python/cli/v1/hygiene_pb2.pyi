@@ -9,7 +9,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class HygieneReport(_message.Message):
-    __slots__ = ("success", "root", "checks", "findings", "actions", "plan_candidates", "fixes_applied", "config_fixes", "contract", "shared_drift", "blocking_failures", "warnings")
+    __slots__ = ("success", "root", "checks", "findings", "actions", "plan_candidates", "fixes_applied", "config_fixes", "contract", "shared_drift", "blocking_failures", "warnings", "plan_reconcile_outcomes")
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     ROOT_FIELD_NUMBER: _ClassVar[int]
     CHECKS_FIELD_NUMBER: _ClassVar[int]
@@ -22,6 +22,7 @@ class HygieneReport(_message.Message):
     SHARED_DRIFT_FIELD_NUMBER: _ClassVar[int]
     BLOCKING_FAILURES_FIELD_NUMBER: _ClassVar[int]
     WARNINGS_FIELD_NUMBER: _ClassVar[int]
+    PLAN_RECONCILE_OUTCOMES_FIELD_NUMBER: _ClassVar[int]
     success: bool
     root: str
     checks: _containers.RepeatedCompositeFieldContainer[HygieneCheck]
@@ -34,7 +35,8 @@ class HygieneReport(_message.Message):
     shared_drift: _shared_drift_pb2.SharedDriftReport
     blocking_failures: int
     warnings: int
-    def __init__(self, success: _Optional[bool] = ..., root: _Optional[str] = ..., checks: _Optional[_Iterable[_Union[HygieneCheck, _Mapping]]] = ..., findings: _Optional[_Iterable[_Union[HygieneFinding, _Mapping]]] = ..., actions: _Optional[_Iterable[_Union[HygieneAction, _Mapping]]] = ..., plan_candidates: _Optional[_Iterable[_Union[HygienePlanCandidate, _Mapping]]] = ..., fixes_applied: _Optional[_Iterable[_Union[HygienePlanFix, _Mapping]]] = ..., config_fixes: _Optional[_Iterable[str]] = ..., contract: _Optional[_Union[_contract_pb2.ContractValidationOutput, _Mapping]] = ..., shared_drift: _Optional[_Union[_shared_drift_pb2.SharedDriftReport, _Mapping]] = ..., blocking_failures: _Optional[int] = ..., warnings: _Optional[int] = ...) -> None: ...
+    plan_reconcile_outcomes: _containers.RepeatedCompositeFieldContainer[HygienePlanReconcileOutcome]
+    def __init__(self, success: _Optional[bool] = ..., root: _Optional[str] = ..., checks: _Optional[_Iterable[_Union[HygieneCheck, _Mapping]]] = ..., findings: _Optional[_Iterable[_Union[HygieneFinding, _Mapping]]] = ..., actions: _Optional[_Iterable[_Union[HygieneAction, _Mapping]]] = ..., plan_candidates: _Optional[_Iterable[_Union[HygienePlanCandidate, _Mapping]]] = ..., fixes_applied: _Optional[_Iterable[_Union[HygienePlanFix, _Mapping]]] = ..., config_fixes: _Optional[_Iterable[str]] = ..., contract: _Optional[_Union[_contract_pb2.ContractValidationOutput, _Mapping]] = ..., shared_drift: _Optional[_Union[_shared_drift_pb2.SharedDriftReport, _Mapping]] = ..., blocking_failures: _Optional[int] = ..., warnings: _Optional[int] = ..., plan_reconcile_outcomes: _Optional[_Iterable[_Union[HygienePlanReconcileOutcome, _Mapping]]] = ...) -> None: ...
 
 class HygieneCheck(_message.Message):
     __slots__ = ("name", "passed", "severity", "message")
@@ -91,12 +93,44 @@ class HygienePlanCandidate(_message.Message):
     def __init__(self, path: _Optional[str] = ..., status: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class HygienePlanFix(_message.Message):
-    __slots__ = ("source", "plan")
+    __slots__ = ("source", "plan", "action", "mirror")
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     PLAN_FIELD_NUMBER: _ClassVar[int]
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    MIRROR_FIELD_NUMBER: _ClassVar[int]
     source: str
     plan: HygienePlanRecord
-    def __init__(self, source: _Optional[str] = ..., plan: _Optional[_Union[HygienePlanRecord, _Mapping]] = ...) -> None: ...
+    action: str
+    mirror: HygieneMirror
+    def __init__(self, source: _Optional[str] = ..., plan: _Optional[_Union[HygienePlanRecord, _Mapping]] = ..., action: _Optional[str] = ..., mirror: _Optional[_Union[HygieneMirror, _Mapping]] = ...) -> None: ...
+
+class HygienePlanReconcileOutcome(_message.Message):
+    __slots__ = ("action", "source", "plan", "mirror", "source_untouched", "error", "source_cleanup_planned", "source_removed")
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    MIRROR_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_UNTOUCHED_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_CLEANUP_PLANNED_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_REMOVED_FIELD_NUMBER: _ClassVar[int]
+    action: str
+    source: str
+    plan: HygienePlanRecord
+    mirror: HygieneMirror
+    source_untouched: bool
+    error: str
+    source_cleanup_planned: bool
+    source_removed: bool
+    def __init__(self, action: _Optional[str] = ..., source: _Optional[str] = ..., plan: _Optional[_Union[HygienePlanRecord, _Mapping]] = ..., mirror: _Optional[_Union[HygieneMirror, _Mapping]] = ..., source_untouched: _Optional[bool] = ..., error: _Optional[str] = ..., source_cleanup_planned: _Optional[bool] = ..., source_removed: _Optional[bool] = ...) -> None: ...
+
+class HygieneMirror(_message.Message):
+    __slots__ = ("path", "status")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    status: str
+    def __init__(self, path: _Optional[str] = ..., status: _Optional[str] = ...) -> None: ...
 
 class HygienePlanRecord(_message.Message):
     __slots__ = ("id", "title", "slug", "path", "created_at", "updated_at", "archived", "archived_at", "source_path", "content_hash")

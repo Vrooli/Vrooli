@@ -14,7 +14,8 @@ import (
 // v2: adds capacity_claims.yield_when_idle (additive ALTER TABLE; idle-yield).
 // v3: adds observed_bytes, observed_peak_bytes, observed_at (usage sampling /
 // decaying high-water mark) and idle_unload_ttl_seconds (autonomous idle-unload).
-const SchemaVersion = 3
+// v4: adds idle_grace_seconds for per-claim demand-reclaim warm/cold idle dwell.
+const SchemaVersion = 4
 
 // Owner kinds — who holds a claim.
 const (
@@ -251,6 +252,10 @@ type CapacityClaim struct {
 	// (advisory logs, enforce actuates). 0 disables autonomous unload for this
 	// claim. Distinct from idle_grace (which gates demand-driven reclaim).
 	IdleUnloadTTL time.Duration
+	// IdleGrace is the demand-driven reclaim dwell for this specific claim. When
+	// zero, policy.IdleGrace remains the fallback so existing claims preserve the
+	// historical global behavior.
+	IdleGrace time.Duration
 }
 
 // ClaimFilter narrows ListClaims.
@@ -275,6 +280,7 @@ type CapacityRequest struct {
 	Protected      bool
 	YieldWhenIdle  bool
 	IdleUnloadTTL  time.Duration
+	IdleGrace      time.Duration
 	Profile        *DegradeProfile
 	TTL            time.Duration
 }
@@ -330,6 +336,7 @@ type ClaimRepository interface {
 	HeartbeatClaim(ctx context.Context, claimID string, generation int64, ttl time.Duration) (CapacityClaim, error)
 	ReportActivity(ctx context.Context, claimID string, generation int64, state string) (CapacityClaim, error)
 	DegradeClaim(ctx context.Context, claimID string, generation int64, step string, amountBytes int64) (CapacityClaim, error)
+	UpshiftClaim(ctx context.Context, claimID string, generation int64, step string, amountBytes int64) (CapacityClaim, error)
 	ReleaseClaim(ctx context.Context, claimID string) (CapacityClaim, error)
 	PreemptClaim(ctx context.Context, claimID string, reason string) (CapacityClaim, error)
 	ExpireStaleClaims(ctx context.Context, at time.Time) ([]CapacityClaim, error)

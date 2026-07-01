@@ -21,7 +21,8 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// SharedDriftReport is the top-level shape of `check-shared-drift --json`.
+// SharedDriftReport is the compatibility dependency freshness report embedded
+// by hygiene JSON.
 type SharedDriftReport struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// True when no shared-package drift was detected.

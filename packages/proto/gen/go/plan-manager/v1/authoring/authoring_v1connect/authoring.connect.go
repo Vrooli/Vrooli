@@ -92,6 +92,9 @@ const (
 	// AuthoringServiceAddPhaseProcedure is the fully-qualified name of the AuthoringService's AddPhase
 	// RPC.
 	AuthoringServiceAddPhaseProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/AddPhase"
+	// AuthoringServiceMovePhaseProcedure is the fully-qualified name of the AuthoringService's
+	// MovePhase RPC.
+	AuthoringServiceMovePhaseProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/MovePhase"
 	// AuthoringServiceGetPhaseProcedure is the fully-qualified name of the AuthoringService's GetPhase
 	// RPC.
 	AuthoringServiceGetPhaseProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/GetPhase"
@@ -178,6 +181,9 @@ type AuthoringServiceClient interface {
 	RejectReferenceCandidate(context.Context, *connect.Request[authoring.RejectReferenceCandidateRequest]) (*connect.Response[authoring.RejectReferenceCandidateResponse], error)
 	// AddPhase appends one structured phase draft to the session.
 	AddPhase(context.Context, *connect.Request[authoring.AddPhaseRequest]) (*connect.Response[authoring.AddPhaseResponse], error)
+	// MovePhase reorders a structured phase draft before or after another draft
+	// without rewriting the phase's authored content.
+	MovePhase(context.Context, *connect.Request[authoring.MovePhaseRequest]) (*connect.Response[authoring.MovePhaseResponse], error)
 	// GetPhase returns one structured phase draft plus the API-owned guided step
 	// for its next missing field.
 	GetPhase(context.Context, *connect.Request[authoring.GetPhaseRequest]) (*connect.Response[authoring.GetPhaseResponse], error)
@@ -186,11 +192,11 @@ type AuthoringServiceClient interface {
 	SubmitPhaseField(context.Context, *connect.Request[authoring.SubmitPhaseFieldRequest]) (*connect.Response[authoring.SubmitPhaseFieldResponse], error)
 	// NextPhase returns the first structured phase that still needs input.
 	NextPhase(context.Context, *connect.Request[authoring.NextPhaseRequest]) (*connect.Response[authoring.NextPhaseResponse], error)
-	// Finalize validates structure then writes the produced plan through the plans
-	// domain, returning the persisted plan.
 	// PreviewPlan renders the in-progress session to its markdown review artifact
 	// WITHOUT persisting, so a human/agent can review the plan before finalize.
 	PreviewPlan(context.Context, *connect.Request[authoring.PreviewPlanRequest]) (*connect.Response[authoring.PreviewPlanResponse], error)
+	// Finalize validates structure then writes the produced plan through the plans
+	// domain, returning the persisted plan.
 	Finalize(context.Context, *connect.Request[authoring.FinalizeRequest]) (*connect.Response[authoring.FinalizeResponse], error)
 }
 
@@ -326,6 +332,12 @@ func NewAuthoringServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(authoringServiceMethods.ByName("AddPhase")),
 			connect.WithClientOptions(opts...),
 		),
+		movePhase: connect.NewClient[authoring.MovePhaseRequest, authoring.MovePhaseResponse](
+			httpClient,
+			baseURL+AuthoringServiceMovePhaseProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("MovePhase")),
+			connect.WithClientOptions(opts...),
+		),
 		getPhase: connect.NewClient[authoring.GetPhaseRequest, authoring.GetPhaseResponse](
 			httpClient,
 			baseURL+AuthoringServiceGetPhaseProcedure,
@@ -381,6 +393,7 @@ type authoringServiceClient struct {
 	acceptReferenceCandidate  *connect.Client[authoring.AcceptReferenceCandidateRequest, authoring.AcceptReferenceCandidateResponse]
 	rejectReferenceCandidate  *connect.Client[authoring.RejectReferenceCandidateRequest, authoring.RejectReferenceCandidateResponse]
 	addPhase                  *connect.Client[authoring.AddPhaseRequest, authoring.AddPhaseResponse]
+	movePhase                 *connect.Client[authoring.MovePhaseRequest, authoring.MovePhaseResponse]
 	getPhase                  *connect.Client[authoring.GetPhaseRequest, authoring.GetPhaseResponse]
 	submitPhaseField          *connect.Client[authoring.SubmitPhaseFieldRequest, authoring.SubmitPhaseFieldResponse]
 	nextPhase                 *connect.Client[authoring.NextPhaseRequest, authoring.NextPhaseResponse]
@@ -497,6 +510,11 @@ func (c *authoringServiceClient) AddPhase(ctx context.Context, req *connect.Requ
 	return c.addPhase.CallUnary(ctx, req)
 }
 
+// MovePhase calls vrooli.plan_manager.v1.authoring.AuthoringService.MovePhase.
+func (c *authoringServiceClient) MovePhase(ctx context.Context, req *connect.Request[authoring.MovePhaseRequest]) (*connect.Response[authoring.MovePhaseResponse], error) {
+	return c.movePhase.CallUnary(ctx, req)
+}
+
 // GetPhase calls vrooli.plan_manager.v1.authoring.AuthoringService.GetPhase.
 func (c *authoringServiceClient) GetPhase(ctx context.Context, req *connect.Request[authoring.GetPhaseRequest]) (*connect.Response[authoring.GetPhaseResponse], error) {
 	return c.getPhase.CallUnary(ctx, req)
@@ -591,6 +609,9 @@ type AuthoringServiceHandler interface {
 	RejectReferenceCandidate(context.Context, *connect.Request[authoring.RejectReferenceCandidateRequest]) (*connect.Response[authoring.RejectReferenceCandidateResponse], error)
 	// AddPhase appends one structured phase draft to the session.
 	AddPhase(context.Context, *connect.Request[authoring.AddPhaseRequest]) (*connect.Response[authoring.AddPhaseResponse], error)
+	// MovePhase reorders a structured phase draft before or after another draft
+	// without rewriting the phase's authored content.
+	MovePhase(context.Context, *connect.Request[authoring.MovePhaseRequest]) (*connect.Response[authoring.MovePhaseResponse], error)
 	// GetPhase returns one structured phase draft plus the API-owned guided step
 	// for its next missing field.
 	GetPhase(context.Context, *connect.Request[authoring.GetPhaseRequest]) (*connect.Response[authoring.GetPhaseResponse], error)
@@ -599,11 +620,11 @@ type AuthoringServiceHandler interface {
 	SubmitPhaseField(context.Context, *connect.Request[authoring.SubmitPhaseFieldRequest]) (*connect.Response[authoring.SubmitPhaseFieldResponse], error)
 	// NextPhase returns the first structured phase that still needs input.
 	NextPhase(context.Context, *connect.Request[authoring.NextPhaseRequest]) (*connect.Response[authoring.NextPhaseResponse], error)
-	// Finalize validates structure then writes the produced plan through the plans
-	// domain, returning the persisted plan.
 	// PreviewPlan renders the in-progress session to its markdown review artifact
 	// WITHOUT persisting, so a human/agent can review the plan before finalize.
 	PreviewPlan(context.Context, *connect.Request[authoring.PreviewPlanRequest]) (*connect.Response[authoring.PreviewPlanResponse], error)
+	// Finalize validates structure then writes the produced plan through the plans
+	// domain, returning the persisted plan.
 	Finalize(context.Context, *connect.Request[authoring.FinalizeRequest]) (*connect.Response[authoring.FinalizeResponse], error)
 }
 
@@ -734,6 +755,12 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 		connect.WithSchema(authoringServiceMethods.ByName("AddPhase")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authoringServiceMovePhaseHandler := connect.NewUnaryHandler(
+		AuthoringServiceMovePhaseProcedure,
+		svc.MovePhase,
+		connect.WithSchema(authoringServiceMethods.ByName("MovePhase")),
+		connect.WithHandlerOptions(opts...),
+	)
 	authoringServiceGetPhaseHandler := connect.NewUnaryHandler(
 		AuthoringServiceGetPhaseProcedure,
 		svc.GetPhase,
@@ -806,6 +833,8 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 			authoringServiceRejectReferenceCandidateHandler.ServeHTTP(w, r)
 		case AuthoringServiceAddPhaseProcedure:
 			authoringServiceAddPhaseHandler.ServeHTTP(w, r)
+		case AuthoringServiceMovePhaseProcedure:
+			authoringServiceMovePhaseHandler.ServeHTTP(w, r)
 		case AuthoringServiceGetPhaseProcedure:
 			authoringServiceGetPhaseHandler.ServeHTTP(w, r)
 		case AuthoringServiceSubmitPhaseFieldProcedure:
@@ -903,6 +932,10 @@ func (UnimplementedAuthoringServiceHandler) RejectReferenceCandidate(context.Con
 
 func (UnimplementedAuthoringServiceHandler) AddPhase(context.Context, *connect.Request[authoring.AddPhaseRequest]) (*connect.Response[authoring.AddPhaseResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.AddPhase is not implemented"))
+}
+
+func (UnimplementedAuthoringServiceHandler) MovePhase(context.Context, *connect.Request[authoring.MovePhaseRequest]) (*connect.Response[authoring.MovePhaseResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.MovePhase is not implemented"))
 }
 
 func (UnimplementedAuthoringServiceHandler) GetPhase(context.Context, *connect.Request[authoring.GetPhaseRequest]) (*connect.Response[authoring.GetPhaseResponse], error) {

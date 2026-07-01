@@ -172,6 +172,35 @@ func TestDecideIdleGraceMustElapse(t *testing.T) {
 	}
 }
 
+func TestDecideClaimSpecificIdleGraceOverridesGlobalGrace(t *testing.T) {
+	now := time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC)
+	lastActive := now.Add(-2 * time.Minute)
+	ledger := []CapacityClaim{{
+		ClaimID: "clm-warm-stt", OwnerID: "kyutai-stt", ResourceKind: ResourceKindVRAM,
+		GPUIndex: gpu(0), AmountBytes: 3 * gib, Status: StatusGranted, Priority: PriorityService,
+		ActivityState: ActivityIdle, LastActiveAt: &lastActive, CreatedAt: now.Add(-30 * time.Minute),
+		YieldWhenIdle: true, IdleGrace: 15 * time.Minute,
+	}}
+	req := vramReq(6, 6, PriorityService)
+	v := Decide(req, snapshotWith(16, 13), ledger, DefaultPolicy(), now)
+	if len(v.ReclaimTargets) != 0 {
+		t.Fatalf("warm idle claim should not be reclaimable yet; targets = %v", v.ReclaimTargets)
+	}
+	if v.Kind != VerdictQueue {
+		t.Fatalf("kind = %q, want queue until claim-specific idle grace elapses (%s)", v.Kind, v.Reason)
+	}
+
+	cold := ledger
+	cold[0].LastActiveAt = ptrTime(now.Add(-16 * time.Minute))
+	v = Decide(req, snapshotWith(16, 13), cold, DefaultPolicy(), now)
+	if v.Kind != VerdictGrant {
+		t.Fatalf("kind = %q, want grant after claim-specific idle grace (%s)", v.Kind, v.Reason)
+	}
+	if len(v.ReclaimTargets) != 1 || v.ReclaimTargets[0] != "clm-warm-stt" {
+		t.Fatalf("reclaim targets = %v, want [clm-warm-stt]", v.ReclaimTargets)
+	}
+}
+
 func TestDecideQueueVsDeny(t *testing.T) {
 	now := time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC)
 	// Host full with a SAME-priority claim (can never be reclaimed) -> deny.
@@ -186,6 +215,8 @@ func TestDecideQueueVsDeny(t *testing.T) {
 		t.Fatalf("kind = %q, want deny (peer priority, nothing reclaimable) (%s)", v.Kind, v.Reason)
 	}
 }
+
+func ptrTime(t time.Time) *time.Time { return &t }
 
 func TestDecideNoGPUDenies(t *testing.T) {
 	now := time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC)

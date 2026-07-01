@@ -92,6 +92,9 @@ service AuthoringService {
   rpc RejectReferenceCandidate(RejectReferenceCandidateRequest) returns (RejectReferenceCandidateResponse);
   // AddPhase appends one structured phase draft to the session.
   rpc AddPhase(AddPhaseRequest) returns (AddPhaseResponse);
+  // MovePhase reorders a structured phase draft before or after another draft
+  // without rewriting the phase's authored content.
+  rpc MovePhase(MovePhaseRequest) returns (MovePhaseResponse);
   // GetPhase returns one structured phase draft plus the API-owned guided step
   // for its next missing field.
   rpc GetPhase(GetPhaseRequest) returns (GetPhaseResponse);
@@ -100,12 +103,12 @@ service AuthoringService {
   rpc SubmitPhaseField(SubmitPhaseFieldRequest) returns (SubmitPhaseFieldResponse);
   // NextPhase returns the first structured phase that still needs input.
   rpc NextPhase(NextPhaseRequest) returns (NextPhaseResponse);
-  // Finalize validates structure then writes the produced plan through the plans
-  // domain, returning the persisted plan.
   // PreviewPlan renders the in-progress session to its markdown review artifact
   // WITHOUT persisting, so a human/agent can review the plan before finalize.
   rpc PreviewPlan(PreviewPlanRequest) returns (PreviewPlanResponse);
 
+  // Finalize validates structure then writes the produced plan through the plans
+  // domain, returning the persisted plan.
   rpc Finalize(FinalizeRequest) returns (FinalizeResponse);
 }
 
@@ -503,6 +506,25 @@ message AddPhaseRequest {
 
 message AddPhaseResponse {
   // The single new phase draft (existing phases are not echoed).
+  PhaseDraft phase = 1;
+  AuthoringMutationSummary summary = 2;
+  AuthoringProgress progress = 3;
+  repeated StructureViolation violations = 4;
+  shared.GuidedStep step = 5;
+}
+
+message MovePhaseRequest {
+  string session_id = 1;
+  // Phase id or authored order number to move.
+  string phase_id = 2;
+  // Move phase_id before this phase id/order. Mutually exclusive with after_phase_id.
+  string before_phase_id = 3;
+  // Move phase_id after this phase id/order. Mutually exclusive with before_phase_id.
+  string after_phase_id = 4;
+}
+
+message MovePhaseResponse {
+  // The moved phase draft after order renumbering.
   PhaseDraft phase = 1;
   AuthoringMutationSummary summary = 2;
   AuthoringProgress progress = 3;

@@ -28,6 +28,7 @@ func TestCanonicalScenarioSpecMatchesStaleCheckerDerivation(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(modulePath, "main.go"), []byte("package main\n"), 0o644); err != nil {
 		t.Fatalf("write main.go: %v", err)
 	}
+	mustWriteFile(t, filepath.Join(root, "packages", "cli-core", "connect.go"), "package cliapp\n")
 
 	installerSpec := CanonicalScenarioGoModuleFreshnessSpec(scenarioRoot, modulePath, "alpha", nil)
 	installerFP, err := ComputeFreshnessFingerprint(installerSpec)
@@ -39,7 +40,7 @@ func TestCanonicalScenarioSpecMatchesStaleCheckerDerivation(t *testing.T) {
 	runtime := StaleChecker{
 		BuildSourceRoot:   modulePath,
 		SourceContextPath: "..",
-		FreshnessInputs:   []string{"cli/**", ".vrooli/service.json"},
+		FreshnessInputs:   []string{"cli/**", ".vrooli/service.json", "../../packages/cli-core"},
 	}
 	runtimeSpec := runtime.freshnessSpec(modulePath)
 	runtimeSpec.SkipFiles = []string{"alpha"}
@@ -87,6 +88,9 @@ func TestCanonicalSpecFallsBackToDefaultModuleDir(t *testing.T) {
 	spec := CanonicalScenarioGoModuleFreshnessSpec("/scenarios/alpha", ".", "alpha", nil)
 	if spec.Inputs[0] != "cli/**" {
 		t.Fatalf("expected cli/** default, got %q", spec.Inputs[0])
+	}
+	if spec.Inputs[2] != "../../packages/cli-core" {
+		t.Fatalf("expected shared cli-core default, got %#v", spec.Inputs)
 	}
 }
 

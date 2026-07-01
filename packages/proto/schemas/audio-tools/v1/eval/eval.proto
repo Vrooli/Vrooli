@@ -71,6 +71,7 @@ message StrategyReport {
   repeated LengthBucketCurve length_curves = 23;
   int32 commit_count = 24;
   int32 speaker_rejection_count = 25;
+  ScalingAnalysis scaling = 26;
 }
 
 message ClipReport {
@@ -169,4 +170,43 @@ message LengthBucketCurve {
   double finalization_latency_p95_ms = 6;
   double mean_time_to_first_commit_ms = 7;
   int32 max_dropped_span_words = 8;
+}
+
+message ScalingPoint {
+  string clip_id = 1;
+  int64 target_duration_ms = 2;
+  int64 realized_duration_ms = 3;
+  double wer = 4;
+  double finalization_latency_p50_ms = 5;
+  double finalization_latency_p95_ms = 6;
+  int32 finalization_latency_sample_count = 7;
+  double time_to_first_commit_ms = 8;
+  int32 commit_count = 9;
+  int32 partial_revisions = 10;
+  int32 max_dropped_span_words = 11;
+  int32 whisper_calls = 12;
+  double whisper_audio_seconds = 13;
+  double provider_latency_ms = 14;
+  double rtf = 15;
+}
+
+message ScalingModelFit {
+  string metric = 1;
+  string model = 2; // "constant" | "linear" | "n_log_n" | "quadratic"
+  double slope_per_second = 3;
+  double intercept = 4;
+  double r_squared = 5;
+  int32 sample_count = 6;
+  string reason = 7;
+}
+
+message ScalingAnalysis {
+  repeated ScalingPoint points = 1;
+  string latency_classification = 2; // "flat" | "linear" | "superlinear" | "inconclusive"
+  string compute_classification = 3; // "flat" | "linear" | "superlinear" | "inconclusive"
+  string confidence = 4; // "low" | "medium" | "high"
+  repeated string reasons = 5;
+  repeated ReportWarning warnings = 6;
+  ScalingModelFit latency_fit = 7;
+  ScalingModelFit compute_fit = 8;
 }

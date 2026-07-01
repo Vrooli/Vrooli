@@ -98,6 +98,26 @@ class SurfaceDiff(_message.Message):
     changed: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, surface_id: _Optional[str] = ..., verdict: _Optional[str] = ..., regressions: _Optional[_Iterable[str]] = ..., new_failures: _Optional[_Iterable[str]] = ..., preexisting: _Optional[_Iterable[str]] = ..., cleared: _Optional[_Iterable[str]] = ..., summary: _Optional[str] = ..., changed: _Optional[_Iterable[str]] = ...) -> None: ...
 
+class PhaseDiff(_message.Message):
+    __slots__ = ("phase", "surface_id", "verdict", "regressions", "new_failures", "preexisting", "cleared", "summary")
+    PHASE_FIELD_NUMBER: _ClassVar[int]
+    SURFACE_ID_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    REGRESSIONS_FIELD_NUMBER: _ClassVar[int]
+    NEW_FAILURES_FIELD_NUMBER: _ClassVar[int]
+    PREEXISTING_FIELD_NUMBER: _ClassVar[int]
+    CLEARED_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    phase: str
+    surface_id: str
+    verdict: str
+    regressions: _containers.RepeatedScalarFieldContainer[str]
+    new_failures: _containers.RepeatedScalarFieldContainer[str]
+    preexisting: _containers.RepeatedScalarFieldContainer[str]
+    cleared: _containers.RepeatedScalarFieldContainer[str]
+    summary: str
+    def __init__(self, phase: _Optional[str] = ..., surface_id: _Optional[str] = ..., verdict: _Optional[str] = ..., regressions: _Optional[_Iterable[str]] = ..., new_failures: _Optional[_Iterable[str]] = ..., preexisting: _Optional[_Iterable[str]] = ..., cleared: _Optional[_Iterable[str]] = ..., summary: _Optional[str] = ...) -> None: ...
+
 class Staleness(_message.Message):
     __slots__ = ("commits_since", "files_changed", "likely_stale")
     COMMITS_SINCE_FIELD_NUMBER: _ClassVar[int]
@@ -334,20 +354,22 @@ class GetDiffResultResponse(_message.Message):
     def __init__(self, status: _Optional[str] = ..., diff: _Optional[_Union[DiffResult, _Mapping]] = ..., error: _Optional[str] = ..., recommended_next_check_seconds: _Optional[int] = ..., run_id: _Optional[str] = ...) -> None: ...
 
 class DiffResult(_message.Message):
-    __slots__ = ("baseline", "current_git", "staleness", "surfaces", "verdict", "dirty_warning")
+    __slots__ = ("baseline", "current_git", "staleness", "surfaces", "verdict", "dirty_warning", "phases")
     BASELINE_FIELD_NUMBER: _ClassVar[int]
     CURRENT_GIT_FIELD_NUMBER: _ClassVar[int]
     STALENESS_FIELD_NUMBER: _ClassVar[int]
     SURFACES_FIELD_NUMBER: _ClassVar[int]
     VERDICT_FIELD_NUMBER: _ClassVar[int]
     DIRTY_WARNING_FIELD_NUMBER: _ClassVar[int]
+    PHASES_FIELD_NUMBER: _ClassVar[int]
     baseline: BaselineManifest
     current_git: GitState
     staleness: Staleness
     surfaces: _containers.RepeatedCompositeFieldContainer[SurfaceDiff]
     verdict: str
     dirty_warning: str
-    def __init__(self, baseline: _Optional[_Union[BaselineManifest, _Mapping]] = ..., current_git: _Optional[_Union[GitState, _Mapping]] = ..., staleness: _Optional[_Union[Staleness, _Mapping]] = ..., surfaces: _Optional[_Iterable[_Union[SurfaceDiff, _Mapping]]] = ..., verdict: _Optional[str] = ..., dirty_warning: _Optional[str] = ...) -> None: ...
+    phases: _containers.RepeatedCompositeFieldContainer[PhaseDiff]
+    def __init__(self, baseline: _Optional[_Union[BaselineManifest, _Mapping]] = ..., current_git: _Optional[_Union[GitState, _Mapping]] = ..., staleness: _Optional[_Union[Staleness, _Mapping]] = ..., surfaces: _Optional[_Iterable[_Union[SurfaceDiff, _Mapping]]] = ..., verdict: _Optional[str] = ..., dirty_warning: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[PhaseDiff, _Mapping]]] = ...) -> None: ...
 
 class RunBusyInfo(_message.Message):
     __slots__ = ("scenario", "run_id", "preset")

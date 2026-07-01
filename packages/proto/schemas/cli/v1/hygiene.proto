@@ -59,6 +59,10 @@ message HygieneReport {
 
   // Count of warning-severity findings.
   int32 warnings = 12;
+
+  // Authoritative Plan Manager reconcile outcomes. Includes no-op and failed
+  // outcomes; actual mutations also appear in fixes_applied.
+  repeated HygienePlanReconcileOutcome plan_reconcile_outcomes = 13;
 }
 
 // HygieneCheck is one named hygiene check result.
@@ -137,6 +141,48 @@ message HygienePlanFix {
 
   // The imported plan record.
   HygienePlanRecord plan = 2;
+
+  // Plan Manager reconcile action that performed the mutation.
+  string action = 3;
+
+  // Rendered mirror provenance for the mutation.
+  HygieneMirror mirror = 4;
+}
+
+// HygienePlanReconcileOutcome records one authoritative Plan Manager reconcile
+// result, including no-op and failed outcomes.
+message HygienePlanReconcileOutcome {
+  // Plan Manager reconcile action.
+  string action = 1;
+
+  // Source path involved in the outcome, when present.
+  string source = 2;
+
+  // Plan record identified by the outcome, when present.
+  HygienePlanRecord plan = 3;
+
+  // Rendered mirror provenance.
+  HygieneMirror mirror = 4;
+
+  // True when Plan Manager intentionally left the source file untouched.
+  bool source_untouched = 5;
+
+  // Per-item error detail, when present.
+  string error = 6;
+
+  // True when a dry-run would remove the adopted legacy source.
+  bool source_cleanup_planned = 7;
+
+  // True when Plan Manager removed the adopted legacy source.
+  bool source_removed = 8;
+}
+
+message HygieneMirror {
+  // Rendered mirror path.
+  string path = 1;
+
+  // Rendered mirror status.
+  string status = 2;
 }
 
 // HygienePlanRecord mirrors a plan record (internal/app/plans.PlanRecord).

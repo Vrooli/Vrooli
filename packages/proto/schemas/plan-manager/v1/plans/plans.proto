@@ -123,12 +123,18 @@ message ArchivePlanResponse {
 message RenderMarkdownRequest {
   string id = 1;
   WorkspaceScope workspace = 2;
+  // When true, omit provenance/debug sections and render the execution-facing
+  // compact view. The full canonical mirror remains the default.
+  bool compact = 3;
 }
 
 message RenderMarkdownResponse {
   string markdown = 1;
   shared.RenderedPlanMirror mirror = 2;
   bool repaired = 3;
+  shared.Plan plan = 4;
+  string quality_status = 5;
+  repeated string quality_findings = 6;
 }
 
 message AddPhaseRequest {
@@ -181,9 +187,9 @@ message ImportPlanRequest {
   string source_path = 1;
   // Raw markdown to import; when empty the server reads source_path.
   string markdown = 2;
-  // Optional title override used by root `vrooli plans add/import` adoption.
+  // Optional title override used by CLI adoption/import flows.
   string title = 3;
-  // Optional slug override used by root `vrooli plans add/import` adoption.
+  // Optional slug override used by CLI adoption/import flows.
   string slug = 4;
   WorkspaceScope workspace = 5;
 }
@@ -230,6 +236,7 @@ message ReconcilePlansRequest {
   bool source_docs_plans = 8;
   bool source_repo_plans = 9;
   WorkspaceScope workspace = 10;
+  bool cleanup_adopted_sources = 11;
 }
 
 message WorkspaceScope {
@@ -246,6 +253,8 @@ message ReconcilePlanItem {
   shared.RenderedPlanMirror mirror = 6;
   bool source_untouched = 7;
   string error = 8;
+  bool source_cleanup_planned = 9;
+  bool source_removed = 10;
 }
 
 message ReconcilePlansResponse {

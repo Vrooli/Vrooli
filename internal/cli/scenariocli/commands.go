@@ -552,7 +552,29 @@ func ParseTestArgs(globalsJSON, globalsVerbose bool, args []string) (TestRequest
 		return TestRequest{}, clipolicy.UsageErrorf("scenario test", "scenario test requires a scenario name")
 	}
 	if selection != "" {
-		valid := map[string]string{"structure": "structure", "dependencies": "dependencies", "unit": "unit", "integration": "integration", "business": "business", "performance": "performance", "all": "all", "e2e": "integration"}
+		valid := map[string]string{
+			"all":          "all",
+			"architecture": "architecture",
+			"branding":     "branding",
+			"business":     "business",
+			"contracts":    "contracts",
+			"dependencies": "dependencies",
+			"docs":         "docs",
+			"e2e":          "playbooks",
+			"integration":  "playbooks",
+			"measures":     "measures",
+			"performance":  "performance",
+			"playbooks":    "playbooks",
+			"proto":        "proto",
+			"quality":      "quality",
+			"security":     "security",
+			"standards":    "standards",
+			"storage":      "storage",
+			"structure":    "structure",
+			"tidiness":     "tidiness",
+			"ui-health":    "ui-health",
+			"unit":         "unit",
+		}
 		mapped, ok := valid[selection]
 		if !ok {
 			return TestRequest{}, clipolicy.UsageErrorf("scenario test", "invalid test selector: %s", selection)

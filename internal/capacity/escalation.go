@@ -11,6 +11,7 @@ import (
 const (
 	ActionWarn           = "warn"            // surface an unclaimed/contended consumer; no action
 	ActionRequestDegrade = "request-degrade" // ask the adopter to step down its profile
+	ActionRequestUpshift = "request-upshift" // ask the adopter to step UP toward preferred when headroom frees
 	ActionPreempt        = "preempt"         // stop the owner (last rung, config-gated)
 )
 

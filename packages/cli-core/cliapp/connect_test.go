@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/cli-core/cliutil"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -69,6 +70,39 @@ func TestNewConnectHTTPClientUsesRootBase(t *testing.T) {
 	}
 }
 
+func TestConnectHTTPClientResolvesRelativeURLAtCallTime(t *testing.T) {
+	var gotPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		_, _ = io.WriteString(w, "{}")
+	}))
+	defer server.Close()
+
+	app := &ScenarioApp{
+		HTTPClient: cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}),
+		options:    ScenarioOptions{APIPrefix: "/api/v1"},
+	}
+	app.baseOptions = func() cliutil.APIBaseOptions {
+		return cliutil.APIBaseOptions{Override: server.URL}
+	}
+	app.tokenSource = func() string { return "" }
+
+	client := &scenarioConnectHTTPClient{app: app, client: server.Client()}
+	req, err := http.NewRequest(http.MethodPost, "/vrooli.plan_manager.v1.plans.PlansService/ReconcilePlans", nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("Do: %v", err)
+	}
+	_ = resp.Body.Close()
+
+	if gotPath != "/vrooli.plan_manager.v1.plans.PlansService/ReconcilePlans" {
+		t.Fatalf("path = %q, want Connect RPC path", gotPath)
+	}
+}
+
 func TestConnectWrapAPIError(t *testing.T) {
 	err := connect.NewError(connect.CodeInvalidArgument, io.ErrUnexpectedEOF)
 	wrapped := WrapAPIError("create note", err, nil)
@@ -88,6 +122,7 @@ func TestNewConnectHTTPClientRejectsInvalidConfiguration(t *testing.T) {
 	}
 
 	app := callTestApp(t, httptest.NewServer(http.NotFoundHandler()))
+	app.baseOptions = func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{} }
 	client := &scenarioConnectHTTPClient{app: app}
 	req = httptest.NewRequest(http.MethodPost, "/", nil)
 	req.URL = &url.URL{Path: "/relative"}

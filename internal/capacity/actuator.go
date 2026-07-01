@@ -77,6 +77,12 @@ func Actuate(ctx context.Context, plan EscalationPlan, store ClaimRepository, ex
 			if applied {
 				result.FreedBytes += outcome.FreedBytes
 			}
+		case ActionRequestUpshift:
+			applied, err := actuateUpshift(ctx, store, exec, policy, now, action, &outcome)
+			if err != nil {
+				return result, err
+			}
+			_ = applied // upshift consumes capacity; it contributes no freed bytes
 		case ActionPreempt:
 			if !policy.PreemptEnabled {
 				outcome.Skipped = true
@@ -156,6 +162,73 @@ func actuateDegrade(ctx context.Context, store ClaimRepository, exec ApplyExecut
 	}
 	outcome.Applied = true
 	outcome.FreedBytes = claim.AmountBytes - degraded.AmountBytes
+	return true, nil
+}
+
+// actuateUpshift applies a single request-upshift action — the symmetric
+// counterpart to actuateDegrade. It resolves the target's resize verb, appends
+// the "--upshift" flag (so the adopter recreates LARGER and clears any degrade
+// pin), and on success records status=granted + the higher amount via
+// UpshiftClaim. Like degrade it is idempotent (already at/above the target step is
+// a no-op), debounce-guarded (a just-resized claim is skipped — anti-thrash), and
+// never strands the claim on a verb failure (leaves it as-is and warns). It
+// returns whether the upshift was applied and an error only on a store-level
+// failure that should abort the whole actuation.
+func actuateUpshift(ctx context.Context, store ClaimRepository, exec ApplyExecutor, policy Policy, now time.Time, action EscalationAction, outcome *ActuationOutcome) (bool, error) {
+	claim, err := store.GetClaim(ctx, action.ClaimID)
+	if err != nil {
+		outcome.Err = err.Error()
+		return false, nil // a vanished target is not fatal; the plan was stale
+	}
+	if claim.DegradeProfile == nil || !claim.DegradeProfile.Upshift {
+		outcome.Skipped = true
+		outcome.Reason = "target has no upshift-enabled profile"
+		return false, nil
+	}
+	targetAmount, ok := stepAmount(claim.DegradeProfile, action.ToStep)
+	if !ok {
+		outcome.Skipped = true
+		outcome.Reason = fmt.Sprintf("step %q not in target profile", action.ToStep)
+		return false, nil
+	}
+	// Idempotent: already at or above the requested step — nothing to climb to.
+	if claim.AmountBytes >= targetAmount {
+		outcome.Skipped = true
+		outcome.Reason = fmt.Sprintf("already at or above step %q (%s)", action.ToStep, humanBytes(claim.AmountBytes))
+		return false, nil
+	}
+	// Debounce: do not resize a target that was just resized (anti-thrash). Reuses
+	// degrade_debounce so a degrade→upshift flap is rate-bounded from both sides.
+	if policy.DegradeDebounce > 0 && now.Sub(claim.UpdatedAt) < policy.DegradeDebounce {
+		outcome.Skipped = true
+		outcome.Reason = fmt.Sprintf("debounced: last resized %s ago (< %s)", now.Sub(claim.UpdatedAt).Round(time.Second), policy.DegradeDebounce)
+		return false, nil
+	}
+
+	verb := strings.TrimSpace(claim.DegradeProfile.Apply.Verb)
+	if verb == "" {
+		outcome.Err = "target profile declares no apply verb"
+		return false, nil
+	}
+	// The adopter's resize verb sets a target size; "--upshift" tells it to recreate
+	// LARGER and clear any degrade pin (whisper capacity-degrade --to <label>
+	// --upshift). The step label still flows through the declared argv placeholder.
+	argv := append(substituteLabel(claim.DegradeProfile.Apply.Argv, action.ToStep), "--upshift")
+	if exec == nil {
+		exec = DefaultExecutor()
+	}
+	if applyErr := exec.Apply(ctx, claim.OwnerID, verb, argv); applyErr != nil {
+		outcome.Err = applyErr.Error()
+		outcome.Reason = "actuator failed; claim left unchanged"
+		return false, nil
+	}
+	upshifted, err := store.UpshiftClaim(ctx, claim.ClaimID, claim.Generation, action.ToStep, targetAmount)
+	if err != nil {
+		outcome.Err = "adopter resized but ledger update failed: " + err.Error()
+		return false, nil
+	}
+	outcome.Applied = true
+	outcome.Reason = fmt.Sprintf("upshifted %q to %q (%s)", claim.OwnerID, action.ToStep, humanBytes(upshifted.AmountBytes))
 	return true, nil
 }
 

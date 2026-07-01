@@ -86,18 +86,20 @@
 //     only by strictly-higher-priority work. This is the behavior every claim gets
 //     unless it opts in below — byte-identical to the pre-idle-yield engine.
 //   - idle-yield opt-in (yield_when_idle=1): when such a claim has dwelt idle
-//     beyond idle_grace, it yields its capacity to active work at OR ABOVE the
+//     beyond its claim-specific idle_grace (or the global policy idle_grace when
+//     unset), it yields its capacity to active work at OR ABOVE the
 //     idle_yield_floor (a tunable tier lever, default batch). This RELAXES the
 //     strict rule to permit equal-priority reclaim — but ONLY for claims that
 //     explicitly opted in, and ONLY while idle. Active claims are NEVER demoted.
-//     It is how an idle interactive whisper frees VRAM for a batch SD job, then
-//     recovers (upshift) when it next transcribes. Without the opt-in, an idle
-//     interactive claim stays untouchable (strict priority), which is why the
-//     activity signal alone is inert — the engine needs this rule too.
+//     It is how an idle STT resource frees VRAM for an image job, then recovers
+//     when it next transcribes. Without the opt-in, an idle interactive claim
+//     stays untouchable (strict priority), which is why the activity signal alone
+//     is inert — the engine needs this rule too.
 //
 // Idle-yield is opt-in PER RESOURCE (not a global enforce flip) so the blast
-// radius is exactly the resources that declare yield_when_idle. whisper opts in;
-// kyutai-stt and others keep strict priority.
+// radius is exactly the resources that declare yield_when_idle. whisper and
+// kyutai-stt opt in with longer claim-level idle_grace values so recent speech
+// work stays warm while cold-idle STT can yield to image generation.
 //
 // # The three time axes — "idle" disambiguated (autonomy plan §Phase 0)
 //
@@ -110,6 +112,8 @@
 //   - ACTIVITY (activity_state ∈ active|idle): is the owner doing work RIGHT NOW?
 //     Reported by the work-owner (never inferred). Gates demand-driven reclaim
 //     eligibility together with idle_grace (the dwell after a report of "idle").
+//     A claim may declare its own idle_grace_seconds; otherwise the global policy
+//     idle_grace applies.
 //   - IDLE-UNLOAD (idle_unload_ttl): has the owner been idle long enough that the
 //     broker should AUTONOMOUSLY free its VRAM, accepting a cold start on next use?
 //     This is a NEW axis (autonomy plan). It is distinct from idle_grace:
@@ -286,6 +290,18 @@
 // `upshift_headroom` and the target is idle. Every actuation and every skip
 // emits an honest log/finding — no silent caps. Actuate runs ONLY in enforce
 // mode; advisory logs the plan but does not act.
+//
+// Upshift (the symmetric counterpart, upshift.go) is IMPLEMENTED: PlanUpshift /
+// PlanUpshiftAll / RunUpshift plan and (enforce-only) actuate climbing a
+// degraded, idle claim back UP its profile toward preferred when per-GPU free
+// headroom clears `upshift_headroom`. It is driven opportunistically from the
+// maintenance sweep (idle-time/background — never a synchronous resize on an
+// active request), reuses the adopter's resize verb with `--upshift` and the
+// `degrade_debounce` window for anti-thrash, and records status=granted at the
+// higher amount via UpshiftClaim. Advisory surfaces the would-upshift as a
+// recommendation (non-acting); enforce=on actuates. This closes the gap where a
+// whisper degraded to `small` under GPU pressure never recovered after the GPU
+// freed.
 //
 // # 8.9 Adopter degrade-verb semantics
 //

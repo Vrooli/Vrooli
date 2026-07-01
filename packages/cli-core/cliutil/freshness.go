@@ -33,9 +33,10 @@ type FreshnessSpec struct {
 
 // CanonicalScenarioGoModuleFreshnessSpec returns the freshness contract used by
 // cli-core's NewStandardScenarioApp (SourceContextPath="..", FreshnessInputs=
-// ["<moduleDir>/**", ".vrooli/service.json"]). Both the installer and the
-// runtime StaleChecker must use this same spec to produce matching
-// fingerprints, otherwise the installed binary is perpetually considered stale.
+// ["<moduleDir>/**", ".vrooli/service.json", "../../packages/cli-core"]).
+// Both the installer and the runtime StaleChecker must use this same spec to
+// produce matching fingerprints, otherwise the installed binary is perpetually
+// considered stale.
 //
 // scenarioRoot is the absolute path to the scenario directory (one level above
 // the module). modulePath is the absolute path to the CLI's Go module. Custom
@@ -45,7 +46,7 @@ func CanonicalScenarioGoModuleFreshnessSpec(scenarioRoot, modulePath, binaryName
 	if moduleDir == "" || moduleDir == "." || moduleDir == string(filepath.Separator) {
 		moduleDir = "cli"
 	}
-	inputs := []string{moduleDir + "/**", ".vrooli/service.json"}
+	inputs := []string{moduleDir + "/**", ".vrooli/service.json", "../../packages/cli-core"}
 	if trimmed := trimNonEmpty(customInputs); len(trimmed) > 0 {
 		inputs = trimmed
 	}
@@ -59,13 +60,14 @@ func CanonicalScenarioGoModuleFreshnessSpec(scenarioRoot, modulePath, binaryName
 
 // CanonicalResourceGoModuleFreshnessSpec returns the freshness contract used
 // by cli-core's NewResourceApp (SourceContextPath="..", FreshnessInputs=
-// ["<moduleDir>/**", "resource.json"]). See CanonicalScenarioGoModuleFreshnessSpec.
+// ["<moduleDir>/**", "resource.json", "../../packages/cli-core"]). See
+// CanonicalScenarioGoModuleFreshnessSpec.
 func CanonicalResourceGoModuleFreshnessSpec(resourceRoot, modulePath, binaryName string, customInputs []string) FreshnessSpec {
 	moduleDir := strings.TrimSpace(filepath.Base(modulePath))
 	if moduleDir == "" || moduleDir == "." || moduleDir == string(filepath.Separator) {
 		moduleDir = "cli"
 	}
-	inputs := []string{moduleDir + "/**", "resource.json"}
+	inputs := []string{moduleDir + "/**", "resource.json", "../../packages/cli-core"}
 	if trimmed := trimNonEmpty(customInputs); len(trimmed) > 0 {
 		inputs = trimmed
 	}

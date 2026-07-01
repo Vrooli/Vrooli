@@ -54,6 +54,8 @@ var validCleanRequirements = map[CleanRequirement]struct{}{
 	CleanRequirementUncheckable: {},
 }
 
+const defaultCapabilityID = "local"
+
 // FixClass declares whether a finding category can EVER be auto-remediated. It is
 // the spec-level intent, orthogonal to whether the fixer is built yet (see
 // FixerStatus). It deliberately separates "needs human judgment" (manual) from
@@ -122,23 +124,35 @@ var impactDimensions = map[GlobalImpact][]dimensions.Dimension{
 
 // Spec is the `.vrooli/maturity.json` schema shared by health scenarios.
 type Spec struct {
-	Provider string                    `json:"provider"`
-	Phase    string                    `json:"phase"`
-	Version  string                    `json:"version"`
-	Levels   []Level                   `json:"levels"`
-	Findings map[string]FindingMapping `json:"findings"`
-	Fallback FallbackPolicy            `json:"fallback"`
+	Provider     string                    `json:"provider"`
+	Phase        string                    `json:"phase"`
+	Version      string                    `json:"version"`
+	Levels       []Level                   `json:"levels"`
+	Capabilities []CapabilitySpec          `json:"capabilities,omitempty"`
+	Findings     map[string]FindingMapping `json:"findings"`
+	Fallback     FallbackPolicy            `json:"fallback"`
 }
 
 type Level struct {
-	ID            string   `json:"id"`
-	Name          string   `json:"name"`
-	Description   string   `json:"description"`
-	EntryCriteria []string `json:"entry_criteria"`
-	ExitCriteria  []string `json:"exit_criteria"`
+	ID                string   `json:"id"`
+	Name              string   `json:"name"`
+	Description       string   `json:"description"`
+	EntryCriteria     []string `json:"entry_criteria"`
+	ExitCriteria      []string `json:"exit_criteria"`
+	StatusLabel       string   `json:"status_label,omitempty"`
+	CapabilitySummary string   `json:"capability_summary,omitempty"`
+	NextUnlock        string   `json:"next_unlock,omitempty"`
+}
+
+type CapabilitySpec struct {
+	ID          string  `json:"id"`
+	Label       string  `json:"label"`
+	Description string  `json:"description,omitempty"`
+	Levels      []Level `json:"levels"`
 }
 
 type FindingMapping struct {
+	CapabilityID        string       `json:"capability_id,omitempty"`
 	LocalLevelImpact    string       `json:"local_level_impact"`
 	GlobalImpact        GlobalImpact `json:"global_impact"`
 	Dimension           string       `json:"dimension"`
@@ -183,6 +197,7 @@ func (m FindingMapping) EffectiveFixerStatus() FixerStatus {
 }
 
 type FallbackPolicy struct {
+	CapabilityID     string       `json:"capability_id,omitempty"`
 	LocalLevelImpact string       `json:"local_level_impact"`
 	GlobalImpact     GlobalImpact `json:"global_impact"`
 	Dimension        string       `json:"dimension"`
@@ -215,12 +230,20 @@ type FindingAssessment struct {
 }
 
 type LocalResult struct {
-	CurrentLevel         string
-	NextLevel            string
-	BlockingFindingCodes []string
-	Findings             []FindingAssessment
-	Clean                bool
-	UnknownCount         int
+	CapabilityID          string
+	CapabilityLabel       string
+	CapabilityDescription string
+	CurrentLevel          string
+	NextLevel             string
+	CurrentSummary        string
+	NextUnlock            string
+	Levels                []Level
+	BlockingFindingCodes  []string
+	Findings              []FindingAssessment
+	Clean                 bool
+	UnknownCount          int
+	PriorityRank          int
+	PriorityReason        string
 }
 
 type DebtCounts struct {
@@ -263,6 +286,53 @@ func ParseSpec(raw []byte) (*Spec, error) {
 	return &spec, nil
 }
 
+func normalizedCapabilities(spec Spec) ([]CapabilitySpec, error) {
+	if len(spec.Capabilities) == 0 {
+		if len(spec.Levels) == 0 {
+			return nil, fmt.Errorf("at least one level is required")
+		}
+		return []CapabilitySpec{{
+			ID:     defaultCapabilityID,
+			Label:  "Local Maturity",
+			Levels: append([]Level(nil), spec.Levels...),
+		}}, nil
+	}
+	capabilities := make([]CapabilitySpec, 0, len(spec.Capabilities))
+	seen := make(map[string]struct{}, len(spec.Capabilities))
+	for i, capability := range spec.Capabilities {
+		id := strings.TrimSpace(capability.ID)
+		if id == "" {
+			return nil, fmt.Errorf("capabilities[%d].id is required", i)
+		}
+		if _, exists := seen[id]; exists {
+			return nil, fmt.Errorf("duplicate capability id %q", id)
+		}
+		seen[id] = struct{}{}
+		label := strings.TrimSpace(capability.Label)
+		if label == "" {
+			return nil, fmt.Errorf("capabilities[%d].label is required", i)
+		}
+		capability.ID = id
+		capability.Label = label
+		capabilities = append(capabilities, capability)
+	}
+	return capabilities, nil
+}
+
+func defaultCapabilityFor(capabilities []CapabilitySpec) string {
+	if len(capabilities) == 0 {
+		return defaultCapabilityID
+	}
+	return capabilities[0].ID
+}
+
+func capabilityPath(id, child string) string {
+	if id == defaultCapabilityID {
+		return child
+	}
+	return "capabilities." + id + "." + child
+}
+
 func ValidateSpec(spec Spec) error {
 	if strings.TrimSpace(spec.Provider) == "" {
 		return fmt.Errorf("provider is required")
@@ -273,40 +343,68 @@ func ValidateSpec(spec Spec) error {
 	if strings.TrimSpace(spec.Version) == "" {
 		return fmt.Errorf("version is required")
 	}
-	if len(spec.Levels) == 0 {
-		return fmt.Errorf("at least one level is required")
+	capabilities, err := normalizedCapabilities(spec)
+	if err != nil {
+		return err
 	}
-	levels := make(map[string]int, len(spec.Levels))
-	for i, level := range spec.Levels {
-		id := strings.TrimSpace(level.ID)
-		if id == "" {
-			return fmt.Errorf("levels[%d].id is required", i)
+	levelIndexes := make(map[string]map[string]int, len(capabilities))
+	for _, capability := range capabilities {
+		levels, err := validateLevels(capability.Levels, capabilityPath(capability.ID, "levels"))
+		if err != nil {
+			return err
 		}
-		if _, exists := levels[id]; exists {
-			return fmt.Errorf("duplicate level id %q", id)
-		}
-		levels[id] = i
+		levelIndexes[capability.ID] = levels
 	}
+	defaultID := defaultCapabilityFor(capabilities)
+	strictCleanRequirement := len(spec.Capabilities) > 0
 	for code, mapping := range spec.Findings {
 		if strings.TrimSpace(code) == "" {
 			return fmt.Errorf("finding code cannot be empty")
 		}
-		if err := validateMapping(mapping, levels, "findings."+code); err != nil {
+		if err := validateMapping(mapping, levelIndexes, defaultID, strictCleanRequirement, "findings."+code); err != nil {
 			return err
 		}
 	}
 	return validateMapping(FindingMapping{
+		CapabilityID:     spec.Fallback.CapabilityID,
 		LocalLevelImpact: spec.Fallback.LocalLevelImpact,
 		GlobalImpact:     spec.Fallback.GlobalImpact,
 		Dimension:        spec.Fallback.Dimension,
 		SeverityDefault:  spec.Fallback.SeverityDefault,
-	}, levels, "fallback")
+		CleanRequirement: spec.Fallback.CleanRequirement,
+	}, levelIndexes, defaultID, strictCleanRequirement, "fallback")
 }
 
-func validateMapping(mapping FindingMapping, levels map[string]int, path string) error {
+func validateLevels(levels []Level, path string) (map[string]int, error) {
+	if len(levels) == 0 {
+		return nil, fmt.Errorf("%s must declare at least one level", path)
+	}
+	out := make(map[string]int, len(levels))
+	for i, level := range levels {
+		id := strings.TrimSpace(level.ID)
+		if id == "" {
+			return nil, fmt.Errorf("%s[%d].id is required", path, i)
+		}
+		if _, exists := out[id]; exists {
+			return nil, fmt.Errorf("%s duplicate level id %q", path, id)
+		}
+		out[id] = i
+	}
+	return out, nil
+}
+
+func validateMapping(mapping FindingMapping, levelsByCapability map[string]map[string]int, defaultID string, strictCleanRequirement bool, path string) error {
+	capabilityID := strings.TrimSpace(mapping.CapabilityID)
+	if capabilityID == "" {
+		capabilityID = defaultID
+	}
+	levels, ok := levelsByCapability[capabilityID]
+	if !ok {
+		return fmt.Errorf("%s.capability_id %q is not a declared capability", path, capabilityID)
+	}
 	if strings.TrimSpace(mapping.LocalLevelImpact) != "" {
 		if _, ok := levels[mapping.LocalLevelImpact]; !ok {
-			return fmt.Errorf("%s.local_level_impact %q is not a declared level", path, mapping.LocalLevelImpact)
+			return fmt.Errorf("%s.local_level_impact %q is not a declared level for capability %q", path, mapping.LocalLevelImpact, capabilityID)
 		}
 	}
 	if mapping.GlobalImpact == "" {
@@ -321,7 +419,11 @@ func validateMapping(mapping FindingMapping, levels map[string]int, path string)
 	if sev := strings.TrimSpace(mapping.SeverityDefault); sev != "" && normalizeSeverity(sev) == architecturev1.FindingSeverity_FINDING_SEVERITY_UNSPECIFIED {
 		return fmt.Errorf("%s.severity_default %q is not valid", path, sev)
 	}
-	if req := strings.TrimSpace(mapping.CleanRequirement); req != "" && !IsValidCleanRequirement(CleanRequirement(strings.ToLower(req))) {
+	req := strings.TrimSpace(mapping.CleanRequirement)
+	if strictCleanRequirement && req == "" {
+		return fmt.Errorf("%s.clean_requirement is required for capability maturity specs", path)
+	}
+	if req != "" && !IsValidCleanRequirement(CleanRequirement(strings.ToLower(req))) {
 		return fmt.Errorf("%s.clean_requirement %q is not valid", path, req)
 	}
 	if err := validateFixability(mapping, path); err != nil {
@@ -371,6 +473,7 @@ func BuildProtoAssessment(input BuildInput) (*commonv1.MaturityAssessment, error
 		return nil, err
 	}
 	local := LocalMaturity(input.Spec, input.Findings)
+	capabilities := CapabilityMaturity(input.Spec, input.Findings)
 	out := &commonv1.MaturityAssessment{
 		Scenario:               strings.TrimSpace(input.Scenario),
 		Provider:               input.Spec.Provider,
@@ -420,8 +523,21 @@ func BuildProtoAssessment(input BuildInput) (*commonv1.MaturityAssessment, error
 				Dimension:           assessed.Mapping.Dimension,
 				RecommendedSkillIds: append([]string(nil), assessed.Mapping.RecommendedSkillIDs...),
 				CleanRequirement:    CleanRequirementToProto(cleanRequirement),
+				CapabilityId:        assessed.Mapping.CapabilityID,
 			},
 		})
+	}
+	if len(input.Spec.Capabilities) > 0 {
+		out.Capabilities = buildProtoCapabilities(capabilities)
+		if focus := protoCapabilityByID(out.Capabilities, local.CapabilityID); focus != nil {
+			out.HighestPriorityCapability = &commonv1.PriorityFocus{
+				CapabilityId:    focus.GetId(),
+				CapabilityLabel: focus.GetLabel(),
+				CurrentLevel:    focus.GetCurrentLevel(),
+				NextLevel:       focus.GetNextLevel(),
+				Reason:          focus.GetPriorityReason(),
+			}
+		}
 	}
 	out.AutofixableCount = autofixable
 	out.AutofixableTotal = int32(len(input.Findings))
@@ -430,6 +546,18 @@ func BuildProtoAssessment(input BuildInput) (*commonv1.MaturityAssessment, error
 		return nil, err
 	}
 	return out, nil
+}
+
+func protoCapabilityByID(capabilities []*commonv1.CapabilityMaturityAssessment, id string) *commonv1.CapabilityMaturityAssessment {
+	for _, capability := range capabilities {
+		if capability.GetId() == id {
+			return capability
+		}
+	}
+	if len(capabilities) == 0 {
+		return nil
+	}
+	return capabilities[0]
 }
 
 func ValidateAssessment(a *commonv1.MaturityAssessment) error {
@@ -454,6 +582,43 @@ func ValidateAssessment(a *commonv1.MaturityAssessment) error {
 	if strings.TrimSpace(a.GetLocal().GetCurrentLevel()) == "" {
 		return fmt.Errorf("assessment.local.current_level is required")
 	}
+	capabilityLevels := map[string]map[string]struct{}{}
+	for i, capability := range a.GetCapabilities() {
+		if capability == nil {
+			return fmt.Errorf("assessment.capabilities[%d] is required", i)
+		}
+		id := strings.TrimSpace(capability.GetId())
+		if id == "" {
+			return fmt.Errorf("assessment.capabilities[%d].id is required", i)
+		}
+		if strings.TrimSpace(capability.GetLabel()) == "" {
+			return fmt.Errorf("assessment.capabilities[%d].label is required", i)
+		}
+		if _, exists := capabilityLevels[id]; exists {
+			return fmt.Errorf("assessment.capabilities[%d].id %q is duplicated", i, id)
+		}
+		levels := map[string]struct{}{}
+		for j, level := range capability.GetLevels() {
+			if level == nil {
+				return fmt.Errorf("assessment.capabilities[%d].levels[%d] is required", i, j)
+			}
+			levelID := strings.TrimSpace(level.GetId())
+			if levelID == "" {
+				return fmt.Errorf("assessment.capabilities[%d].levels[%d].id is required", i, j)
+			}
+			if _, exists := levels[levelID]; exists {
+				return fmt.Errorf("assessment.capabilities[%d].levels[%d].id %q is duplicated", i, j, levelID)
+			}
+			levels[levelID] = struct{}{}
+		}
+		if _, ok := levels[capability.GetCurrentLevel()]; strings.TrimSpace(capability.GetCurrentLevel()) != "" && !ok {
+			return fmt.Errorf("assessment.capabilities[%d].current_level %q is not declared", i, capability.GetCurrentLevel())
+		}
+		if _, ok := levels[capability.GetNextLevel()]; strings.TrimSpace(capability.GetNextLevel()) != "" && !ok {
+			return fmt.Errorf("assessment.capabilities[%d].next_level %q is not declared", i, capability.GetNextLevel())
+		}
+		capabilityLevels[id] = levels
+	}
 	for i, finding := range a.GetFindings() {
 		if finding == nil {
 			return fmt.Errorf("assessment.findings[%d] is required", i)
@@ -469,6 +634,22 @@ func ValidateAssessment(a *commonv1.MaturityAssessment) error {
 		}
 		if finding.GetMaturity().GetGlobalImpact() == commonv1.GlobalImpact_GLOBAL_IMPACT_UNSPECIFIED {
 			return fmt.Errorf("assessment.findings[%d].maturity.global_impact is required", i)
+		}
+		if len(capabilityLevels) > 0 {
+			capabilityID := strings.TrimSpace(finding.GetMaturity().GetCapabilityId())
+			if capabilityID == "" {
+				return fmt.Errorf("assessment.findings[%d].maturity.capability_id is required when capabilities are present", i)
+			}
+			levels, ok := capabilityLevels[capabilityID]
+			if !ok {
+				return fmt.Errorf("assessment.findings[%d].maturity.capability_id %q is not emitted", i, capabilityID)
+			}
+			localLevel := strings.TrimSpace(finding.GetMaturity().GetLocalLevel())
+			if localLevel != "" {
+				if _, ok := levels[localLevel]; !ok {
+					return fmt.Errorf("assessment.findings[%d].maturity.local_level %q is not declared for capability %q", i, localLevel, capabilityID)
+				}
+			}
 		}
 	}
 	return nil
@@ -710,16 +891,7 @@ func DimensionsForImpact(impact GlobalImpact) []dimensions.Dimension {
 }
 
 func buildProtoLocal(spec Spec, local LocalResult) *commonv1.LocalMaturityAssessment {
-	levels := make([]*commonv1.LocalMaturityLevel, 0, len(spec.Levels))
-	for _, level := range spec.Levels {
-		levels = append(levels, &commonv1.LocalMaturityLevel{
-			Id:            level.ID,
-			Name:          level.Name,
-			Description:   level.Description,
-			EntryCriteria: append([]string(nil), level.EntryCriteria...),
-			ExitCriteria:  append([]string(nil), level.ExitCriteria...),
-		})
-	}
+	levels := buildProtoLevels(local.Levels)
 	return &commonv1.LocalMaturityAssessment{
 		CurrentLevel:         local.CurrentLevel,
 		NextLevel:            local.NextLevel,
@@ -730,13 +902,67 @@ func buildProtoLocal(spec Spec, local LocalResult) *commonv1.LocalMaturityAssess
 	}
 }
 
+func buildProtoCapabilities(results []LocalResult) []*commonv1.CapabilityMaturityAssessment {
+	out := make([]*commonv1.CapabilityMaturityAssessment, 0, len(results))
+	for _, result := range results {
+		capability := &commonv1.CapabilityMaturityAssessment{
+			Id:                         result.CapabilityID,
+			Label:                      result.CapabilityLabel,
+			Description:                result.CapabilityDescription,
+			CurrentLevel:               result.CurrentLevel,
+			NextLevel:                  result.NextLevel,
+			Levels:                     buildProtoLevels(result.Levels),
+			CurrentSummary:             result.CurrentSummary,
+			NextUnlock:                 result.NextUnlock,
+			BlockingFindingCodes:       append([]string(nil), result.BlockingFindingCodes...),
+			Clean:                      result.Clean,
+			UnknownCount:               int32(result.UnknownCount),
+			FindingsByGlobalImpact:     map[string]int32{},
+			FindingsBySeverity:         map[string]int32{},
+			FindingsByCleanRequirement: map[string]int32{},
+			PriorityRank:               int32(result.PriorityRank),
+			PriorityReason:             result.PriorityReason,
+		}
+		for _, finding := range result.Findings {
+			capability.FindingsByGlobalImpact[string(finding.Mapping.GlobalImpact)]++
+			capability.FindingsBySeverity[finding.Severity.String()]++
+			capability.FindingsByCleanRequirement[string(normalizeCleanRequirement(finding.Mapping.CleanRequirement))]++
+		}
+		out = append(out, capability)
+	}
+	return out
+}
+
+func buildProtoLevels(levels []Level) []*commonv1.LocalMaturityLevel {
+	out := make([]*commonv1.LocalMaturityLevel, 0, len(levels))
+	for _, level := range levels {
+		out = append(out, &commonv1.LocalMaturityLevel{
+			Id:                level.ID,
+			Name:              level.Name,
+			Description:       level.Description,
+			EntryCriteria:     append([]string(nil), level.EntryCriteria...),
+			ExitCriteria:      append([]string(nil), level.ExitCriteria...),
+			StatusLabel:       level.StatusLabel,
+			CapabilitySummary: level.CapabilitySummary,
+			NextUnlock:        level.NextUnlock,
+		})
+	}
+	return out
+}
+
 func NormalizeFinding(spec Spec, finding Finding) FindingAssessment {
+	capabilities, _ := normalizedCapabilities(spec)
+	return normalizeFinding(spec, finding, defaultCapabilityFor(capabilities))
+}
+
+func normalizeFinding(spec Spec, finding Finding, defaultID string) FindingAssessment {
 	mapping := finding.Maturity
 	if !finding.HasMaturity {
 		if m, ok := spec.Findings[finding.Code]; ok {
 			mapping = m
 		} else {
 			mapping = FindingMapping{
+				CapabilityID:     spec.Fallback.CapabilityID,
 				LocalLevelImpact: spec.Fallback.LocalLevelImpact,
 				GlobalImpact:     spec.Fallback.GlobalImpact,
 				Dimension:        spec.Fallback.Dimension,
@@ -744,6 +970,9 @@ func NormalizeFinding(spec Spec, finding Finding) FindingAssessment {
 				CleanRequirement: spec.Fallback.CleanRequirement,
 			}
 		}
+	}
+	if strings.TrimSpace(mapping.CapabilityID) == "" {
+		mapping.CapabilityID = defaultID
 	}
 	if strings.TrimSpace(mapping.Dimension) == "" {
 		if dim, ok := dimensions.ForSource(finding.Source); ok {
@@ -764,18 +993,84 @@ func NormalizeFinding(spec Spec, finding Finding) FindingAssessment {
 }
 
 func LocalMaturity(spec Spec, findings []Finding) LocalResult {
-	levelIndex := make(map[string]int, len(spec.Levels))
-	for i, level := range spec.Levels {
-		levelIndex[level.ID] = i
+	capabilities := CapabilityMaturity(spec, findings)
+	if len(capabilities) == 0 {
+		return LocalResult{}
 	}
-	lowestBlocked := len(spec.Levels)
-	var blocking []string
+	assessed := make([]FindingAssessment, 0, len(findings))
+	defaultID := defaultCapabilityFor(mustCapabilities(spec))
+	for _, finding := range findings {
+		assessed = append(assessed, normalizeFinding(spec, finding, defaultID))
+	}
+	if len(capabilities) == 1 {
+		out := capabilities[0]
+		out.Findings = assessed
+		return out
+	}
+	focus := prioritySortedCapabilities(capabilities)[0]
 	clean := true
 	unknownCount := 0
-	assessed := make([]FindingAssessment, 0, len(findings))
+	var blocking []string
+	for _, capability := range capabilities {
+		if !capability.Clean {
+			clean = false
+		}
+		unknownCount += capability.UnknownCount
+	}
+	blocking = append(blocking, focus.BlockingFindingCodes...)
+	sort.Strings(blocking)
+	return LocalResult{
+		CapabilityID:          focus.CapabilityID,
+		CapabilityLabel:       focus.CapabilityLabel,
+		CapabilityDescription: focus.CapabilityDescription,
+		CurrentLevel:          focus.CurrentLevel,
+		NextLevel:             focus.NextLevel,
+		CurrentSummary:        focus.CurrentSummary,
+		NextUnlock:            focus.NextUnlock,
+		Levels:                append([]Level(nil), focus.Levels...),
+		BlockingFindingCodes:  blocking,
+		Findings:              assessed,
+		Clean:                 clean,
+		UnknownCount:          unknownCount,
+		PriorityRank:          focus.PriorityRank,
+		PriorityReason:        focus.PriorityReason,
+	}
+}
+
+func CapabilityMaturity(spec Spec, findings []Finding) []LocalResult {
+	capabilities := mustCapabilities(spec)
+	defaultID := defaultCapabilityFor(capabilities)
+	byCapability := make(map[string][]FindingAssessment, len(capabilities))
 	for _, finding := range findings {
-		item := NormalizeFinding(spec, finding)
-		assessed = append(assessed, item)
+		item := normalizeFinding(spec, finding, defaultID)
+		byCapability[item.Mapping.CapabilityID] = append(byCapability[item.Mapping.CapabilityID], item)
+	}
+	results := make([]LocalResult, 0, len(capabilities))
+	for _, capability := range capabilities {
+		result := capabilityMaturity(capability, byCapability[capability.ID])
+		results = append(results, result)
+	}
+	for rank, result := range prioritySortedCapabilities(results) {
+		for i := range results {
+			if results[i].CapabilityID == result.CapabilityID {
+				results[i].PriorityRank = rank + 1
+				results[i].PriorityReason = priorityReason(result)
+				break
+			}
+		}
+	}
+	return results
+}
+
+func capabilityMaturity(capability CapabilitySpec, assessed []FindingAssessment) LocalResult {
+	levelIndex := make(map[string]int, len(capability.Levels))
+	for i, level := range capability.Levels {
+		levelIndex[level.ID] = i
+	}
+	lowestBlocked := len(capability.Levels)
+	clean := true
+	unknownCount := 0
+	for _, item := range assessed {
 		switch normalizeCleanRequirement(item.Mapping.CleanRequirement) {
 		case CleanRequirementRequired:
 			clean = false
@@ -786,8 +1081,9 @@ func LocalMaturity(spec Spec, findings []Finding) LocalResult {
 			lowestBlocked = idx
 		}
 	}
-	if lowestBlocked < len(spec.Levels) {
-		blockedID := spec.Levels[lowestBlocked].ID
+	var blocking []string
+	if lowestBlocked < len(capability.Levels) {
+		blockedID := capability.Levels[lowestBlocked].ID
 		for _, item := range assessed {
 			if item.Mapping.LocalLevelImpact == blockedID && blocksLocalMaturity(item) {
 				blocking = append(blocking, item.Code)
@@ -795,25 +1091,263 @@ func LocalMaturity(spec Spec, findings []Finding) LocalResult {
 		}
 	}
 	sort.Strings(blocking)
-	currentIdx := len(spec.Levels) - 1
-	if lowestBlocked < len(spec.Levels) {
+	currentIdx := len(capability.Levels) - 1
+	if lowestBlocked < len(capability.Levels) {
 		currentIdx = lowestBlocked - 1
 	}
 	current := ""
+	currentSummary := ""
 	if currentIdx >= 0 {
-		current = spec.Levels[currentIdx].ID
+		currentLevel := capability.Levels[currentIdx]
+		current = currentLevel.ID
+		currentSummary = currentLevel.CapabilitySummary
 	}
 	next := ""
-	if currentIdx+1 >= 0 && currentIdx+1 < len(spec.Levels) {
-		next = spec.Levels[currentIdx+1].ID
+	nextUnlock := ""
+	if currentIdx+1 >= 0 && currentIdx+1 < len(capability.Levels) {
+		nextLevel := capability.Levels[currentIdx+1]
+		next = nextLevel.ID
+		nextUnlock = nextLevel.NextUnlock
 	}
 	return LocalResult{
-		CurrentLevel:         current,
-		NextLevel:            next,
-		BlockingFindingCodes: blocking,
-		Findings:             assessed,
-		Clean:                clean,
-		UnknownCount:         unknownCount,
+		CapabilityID:          capability.ID,
+		CapabilityLabel:       capability.Label,
+		CapabilityDescription: capability.Description,
+		CurrentLevel:          current,
+		NextLevel:             next,
+		CurrentSummary:        currentSummary,
+		NextUnlock:            nextUnlock,
+		Levels:                append([]Level(nil), capability.Levels...),
+		BlockingFindingCodes:  blocking,
+		Findings:              assessed,
+		Clean:                 clean,
+		UnknownCount:          unknownCount,
+	}
+}
+
+func mustCapabilities(spec Spec) []CapabilitySpec {
+	capabilities, err := normalizedCapabilities(spec)
+	if err != nil {
+		return nil
+	}
+	return capabilities
+}
+
+func currentLevelIndex(result LocalResult) int {
+	for i, level := range result.Levels {
+		if level.ID == result.CurrentLevel {
+			return i
+		}
+	}
+	return -1
+}
+
+type capabilityPriorityScore struct {
+	requiredState int
+	levelIndex    int
+	debt          int
+	severity      [4]int
+	impact        [7]int
+	fixable       int
+	declaration   int
+}
+
+func prioritySortedCapabilities(results []LocalResult) []LocalResult {
+	out := append([]LocalResult(nil), results...)
+	declaration := make(map[string]int, len(results))
+	for i, result := range results {
+		declaration[result.CapabilityID] = i
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		left := scoreCapabilityPriority(out[i], declaration[out[i].CapabilityID])
+		right := scoreCapabilityPriority(out[j], declaration[out[j].CapabilityID])
+		return compareCapabilityPriority(left, right) < 0
+	})
+	return out
+}
+
+func scoreCapabilityPriority(result LocalResult, declaration int) capabilityPriorityScore {
+	score := capabilityPriorityScore{
+		requiredState: 2,
+		levelIndex:    currentLevelIndex(result),
+		declaration:   declaration,
+	}
+	if score.levelIndex < 0 {
+		score.levelIndex = len(result.Levels)
+	}
+	if !result.Clean || len(result.BlockingFindingCodes) > 0 {
+		score.requiredState = 0
+	} else if len(result.Findings) > 0 || result.UnknownCount > 0 {
+		score.requiredState = 1
+	}
+	for _, finding := range result.Findings {
+		if isDebtFinding(finding) {
+			score.debt++
+		}
+		score.severity[prioritySeverityIndex(finding.Severity)]++
+		score.impact[priorityImpactIndex(finding.Mapping.GlobalImpact)]++
+		switch finding.Mapping.EffectiveFixClass() {
+		case FixClassAuto, FixClassExternal:
+			score.fixable++
+		}
+	}
+	return score
+}
+
+func compareCapabilityPriority(left, right capabilityPriorityScore) int {
+	if left.requiredState != right.requiredState {
+		return left.requiredState - right.requiredState
+	}
+	if left.levelIndex != right.levelIndex {
+		return left.levelIndex - right.levelIndex
+	}
+	if left.debt != right.debt {
+		return right.debt - left.debt
+	}
+	for i := range left.severity {
+		if left.severity[i] != right.severity[i] {
+			return right.severity[i] - left.severity[i]
+		}
+	}
+	for i := range left.impact {
+		if left.impact[i] != right.impact[i] {
+			return right.impact[i] - left.impact[i]
+		}
+	}
+	if left.fixable != right.fixable {
+		return right.fixable - left.fixable
+	}
+	return left.declaration - right.declaration
+}
+
+func priorityReason(result LocalResult) string {
+	state := "clean capability"
+	if !result.Clean || len(result.BlockingFindingCodes) > 0 {
+		state = "required/blocking findings"
+	} else if len(result.Findings) > 0 {
+		state = "advisory findings"
+	} else if result.UnknownCount > 0 {
+		state = "unknown findings"
+	}
+	severity, severityCount := highestPrioritySeverity(result.Findings)
+	impact, impactCount := highestPriorityImpact(result.Findings)
+	parts := []string{"lowest current level"}
+	if state != "clean capability" {
+		parts = append(parts, "with "+state)
+	}
+	if severityCount > 0 {
+		parts = append(parts, prioritySeverityLabel(severity))
+	}
+	if impactCount > 0 {
+		parts = append(parts, string(impact))
+	}
+	if debt := DebtScore(result.Findings); debt > 0 {
+		parts = append(parts, "debt="+fmt.Sprint(debt))
+	}
+	if fixable := fixableFindingCount(result.Findings); fixable > 0 {
+		parts = append(parts, "fixable="+fmt.Sprint(fixable))
+	}
+	return strings.Join(parts, " ")
+}
+
+func prioritySeverityLabel(severity architecturev1.FindingSeverity) string {
+	switch severity {
+	case architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER:
+		return "BLOCKER"
+	case architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR:
+		return "ERROR"
+	case architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING:
+		return "WARNING"
+	case architecturev1.FindingSeverity_FINDING_SEVERITY_INFO:
+		return "INFO"
+	default:
+		return "UNSPECIFIED"
+	}
+}
+
+func highestPrioritySeverity(findings []FindingAssessment) (architecturev1.FindingSeverity, int) {
+	for _, severity := range []architecturev1.FindingSeverity{
+		architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER,
+		architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR,
+		architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING,
+		architecturev1.FindingSeverity_FINDING_SEVERITY_INFO,
+	} {
+		count := 0
+		for _, finding := range findings {
+			if finding.Severity == severity {
+				count++
+			}
+		}
+		if count > 0 {
+			return severity, count
+		}
+	}
+	return architecturev1.FindingSeverity_FINDING_SEVERITY_UNSPECIFIED, 0
+}
+
+func highestPriorityImpact(findings []FindingAssessment) (GlobalImpact, int) {
+	for _, impact := range []GlobalImpact{
+		ImpactFoundationBlocker,
+		ImpactSafetyBlocker,
+		ImpactEvolvabilityGap,
+		ImpactHardeningGap,
+		ImpactCapabilityGap,
+		ImpactAdvisory,
+		ImpactUnknown,
+	} {
+		count := 0
+		for _, finding := range findings {
+			if finding.Mapping.GlobalImpact == impact {
+				count++
+			}
+		}
+		if count > 0 {
+			return impact, count
+		}
+	}
+	return ImpactUnknown, 0
+}
+
+func fixableFindingCount(findings []FindingAssessment) int {
+	count := 0
+	for _, finding := range findings {
+		switch finding.Mapping.EffectiveFixClass() {
+		case FixClassAuto, FixClassExternal:
+			count++
+		}
+	}
+	return count
+}
+
+func prioritySeverityIndex(severity architecturev1.FindingSeverity) int {
+	switch severity {
+	case architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER:
+		return 0
+	case architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR:
+		return 1
+	case architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING:
+		return 2
+	default:
+		return 3
+	}
+}
+
+func priorityImpactIndex(impact GlobalImpact) int {
+	switch impact {
+	case ImpactFoundationBlocker:
+		return 0
+	case ImpactSafetyBlocker:
+		return 1
+	case ImpactEvolvabilityGap:
+		return 2
+	case ImpactHardeningGap:
+		return 3
+	case ImpactCapabilityGap:
+		return 4
+	case ImpactAdvisory:
+		return 5
+	default:
+		return 6
 	}
 }
 

@@ -118,6 +118,20 @@ message SurfaceDiff {
   repeated string changed = 8;
 }
 
+// PhaseDiff is one Test Genie phase's authoritative comparison verdict. Named
+// surfaces are presentation views over these phase diffs.
+message PhaseDiff {
+  string phase = 1;
+  string surface_id = 2;
+  // verdict: clean | regression | new-failure | preexisting | not-comparable
+  string verdict = 3;
+  repeated string regressions = 4;
+  repeated string new_failures = 5;
+  repeated string preexisting = 6;
+  repeated string cleared = 7;
+  string summary = 8;
+}
+
 // Staleness reports working-tree drift from the baseline commit.
 message Staleness {
   int32 commits_since = 1;
@@ -306,6 +320,7 @@ message DiffResult {
   // dirty_warning is non-empty when the current working tree is dirty, where
   // failures may stem from uncommitted changes rather than the diff itself.
   string dirty_warning = 6;
+  repeated PhaseDiff phases = 7;
 }
 
 // RunBusyInfo describes the in-progress run that caused a divergent StartDiff to

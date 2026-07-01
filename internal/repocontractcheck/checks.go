@@ -71,6 +71,7 @@ func Run(root string) (Report, error) {
 		{name: "resource_schema_artifacts", fn: checkResourceSchemaArtifacts},
 		{name: "ollama_gateway_only", fn: checkOllamaGatewayOnly},
 		{name: "ollama_policy_facts", fn: checkOllamaPolicyFacts},
+		{name: "openrouter_policy_facts", fn: checkOpenRouterPolicyFacts},
 		{name: "host_inventory_authority", fn: checkHostInventoryAuthority},
 	}
 
@@ -897,6 +898,181 @@ func isPhysicalModelBoundary(s string, idx int) bool {
 	default:
 		return true
 	}
+}
+
+// checkOpenRouterPolicyFacts enforces the OpenRouter role-policy greenfield
+// contract: runtime consumers select models by ROLE (resolved through
+// `resource-openrouter policy resolve`), never by hard-coding concrete slugs or
+// `OPENROUTER_*_MODEL` env defaults. The only place concrete OpenRouter slugs may
+// live is resources/openrouter/model-policy.json (and its loader tests).
+//
+// The slug detector is provider-anchored (a curated OpenRouter provider prefix
+// AND a model-family token) so it does not flag Go import paths like
+// google/go-cmp or resource names like claude-code. Catalog/pricing domains
+// (agent-manager, the agent-inbox live model registry, the landing-page billing
+// gateway) are allow-listed because enumerating model ids is their product
+// purpose, not runtime default selection.
+var (
+	openRouterSlugPattern     = regexp.MustCompile(`"(?:openai|anthropic|google|x-ai|deepseek|mistralai|meta-llama|qwen|z-ai|minimax|bytedance-seed|moonshotai|recraft|sourceful|black-forest-labs|inception|microsoft|alibaba)/[a-z0-9._:-]*(?:gpt|claude|gemini|llama|grok|deepseek|mixtral|mistral|qwen|glm|kimi|seedream|flux|recraft|riverflow|mercury|nano-banana|veo|seed-2)[a-z0-9._:-]*"`)
+	openRouterModelEnvPattern = regexp.MustCompile(`\b[A-Z0-9]*_?OPENROUTER_[A-Z0-9_]*MODEL\b`)
+)
+
+func checkOpenRouterPolicyFacts(contract *repocontract.Contract, root string, raw string) error {
+	var violations []string
+	scopes := []string{"scenarios", "resources"}
+	for _, scope := range scopes {
+		base := filepath.Join(root, filepath.FromSlash(scope))
+		err := filepath.WalkDir(base, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				if os.IsNotExist(err) {
+					return filepath.SkipDir
+				}
+				if os.IsPermission(err) {
+					if d != nil && d.IsDir() {
+						return filepath.SkipDir
+					}
+					return nil
+				}
+				return err
+			}
+			if d.IsDir() {
+				switch d.Name() {
+				case "node_modules", "vendor", ".git", "dist", "build", "coverage":
+					return filepath.SkipDir
+				}
+				rel, relErr := filepath.Rel(root, path)
+				if relErr != nil {
+					return relErr
+				}
+				rel = filepath.ToSlash(rel)
+				if strings.Contains(rel, "/instances/") || strings.Contains(rel, "/data/") {
+					return filepath.SkipDir
+				}
+				// resources/openrouter is the policy authority — never a violation.
+				if rel == "resources/openrouter" || strings.HasPrefix(rel, "resources/openrouter/") {
+					return filepath.SkipDir
+				}
+				if scope == "scenarios" && strings.HasPrefix(rel, "scenarios/") && strings.Count(rel, "/") >= 2 && !isScenarioOpenRouterSurface(rel) {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if !isOpenRouterScanFile(path) {
+				return nil
+			}
+			rel, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				return relErr
+			}
+			rel = filepath.ToSlash(rel)
+			if isAllowedOpenRouterSurface(rel) {
+				return nil
+			}
+			data, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return readErr
+			}
+			for lineNo, line := range strings.Split(string(data), "\n") {
+				if isAllowedOpenRouterLine(line) {
+					continue
+				}
+				// Only the executable portion is enforced: an example slug or env
+				// name inside a code comment is documentation, not a runtime default.
+				code := openRouterCodePortion(line)
+				if code == "" {
+					continue
+				}
+				if openRouterSlugPattern.MatchString(code) {
+					violations = append(violations, fmt.Sprintf("%s:%d hard-codes a concrete OpenRouter model slug; resolve a role via `resource-openrouter policy resolve`", rel, lineNo+1))
+				}
+				if openRouterModelEnvPattern.MatchString(code) {
+					violations = append(violations, fmt.Sprintf("%s:%d uses an OPENROUTER_*_MODEL env default; use an OpenRouter role (e.g. *_OPENROUTER_ROLE) resolved through resource-openrouter", rel, lineNo+1))
+				}
+				if strings.Contains(code, "resource-openrouter") && strings.Contains(code, "generate") && strings.Contains(code, "--model") {
+					violations = append(violations, fmt.Sprintf("%s:%d calls `resource-openrouter generate --model`; use --role outside documented direct-model exceptions", rel, lineNo+1))
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("scan OpenRouter policy facts under %s: %w", scope, err)
+		}
+	}
+	if len(violations) == 0 {
+		return nil
+	}
+	sort.Strings(violations)
+	return fmt.Errorf("openrouter policy fact violations: %s", strings.Join(violations, "; "))
+}
+
+func isOpenRouterScanFile(path string) bool {
+	switch filepath.Ext(path) {
+	case ".go", ".ts", ".tsx", ".js", ".json", ".yaml", ".yml", ".sh":
+		return true
+	default:
+		return false
+	}
+}
+
+// isScenarioOpenRouterSurface limits scenario scanning to runtime/config surfaces
+// (api, cli, ui, initialization, init) — the places that actually choose a model
+// for a call.
+func isScenarioOpenRouterSurface(rel string) bool {
+	parts := strings.Split(rel, "/")
+	if len(parts) < 3 || parts[0] != "scenarios" {
+		return false
+	}
+	switch parts[2] {
+	case "api", "cli", "ui", "initialization", "init":
+		return true
+	default:
+		return false
+	}
+}
+
+// isAllowedOpenRouterSurface allow-lists catalog/pricing/test/doc surfaces where
+// concrete model ids are domain data, not runtime defaults.
+func isAllowedOpenRouterSurface(rel string) bool {
+	switch {
+	case strings.HasSuffix(rel, "_test.go"),
+		strings.HasSuffix(rel, ".test.ts"),
+		strings.HasSuffix(rel, ".test.tsx"),
+		strings.HasSuffix(rel, ".spec.ts"),
+		strings.HasSuffix(rel, ".spec.tsx"):
+		return true
+	// agent-manager is the model-runner/pricing registry domain: model ids are
+	// its product, not a runtime OpenRouter default.
+	case strings.HasPrefix(rel, "scenarios/agent-manager/"):
+		return true
+	// agent-inbox live OpenRouter model catalog (enumeration, not defaulting).
+	case rel == "scenarios/agent-inbox/api/services/model_registry.go",
+		strings.HasPrefix(rel, "scenarios/agent-inbox/api/integrations/"):
+		return true
+	// landing-page billing gateway: an allow-list + pricing table is the product.
+	case rel == "scenarios/landing-page-business-suite/api/ai_gateway_service.go",
+		rel == "scenarios/landing-page-business-suite/api/openrouter_client.go":
+		return true
+	default:
+		return false
+	}
+}
+
+func isAllowedOpenRouterLine(line string) bool {
+	return strings.Contains(line, "fixture") || strings.Contains(line, "Fixture")
+}
+
+// openRouterCodePortion returns the executable part of a line with line/block
+// comments stripped, so a documented example slug (`// e.g. anthropic/claude-…`)
+// is not treated as a runtime default. Whole-comment lines return "".
+func openRouterCodePortion(line string) string {
+	trimmed := strings.TrimSpace(line)
+	if strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "*") || strings.HasPrefix(trimmed, "/*") || strings.HasPrefix(trimmed, "#") {
+		return ""
+	}
+	if i := strings.Index(line, "//"); i >= 0 {
+		return line[:i]
+	}
+	return line
 }
 
 func checkHostInventoryAuthority(contract *repocontract.Contract, root string, raw string) error {

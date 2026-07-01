@@ -57,7 +57,7 @@ func NewResourceApp(opts ResourceOptions) (*ResourceApp, error) {
 	} else {
 		app.StaleChecker.ManifestSourcePath = opts.ManifestSourcePath
 	}
-	app.StaleChecker.FreshnessInputs = resolveFreshnessInputs(opts.FreshnessInputs, []string{"cli/**", "resource.json"})
+	app.StaleChecker.FreshnessInputs = resolveFreshnessInputs(opts.FreshnessInputs, []string{"cli/**", "resource.json", "../../packages/cli-core"})
 	app.SetCommandsWithSubgroups(opts.Commands, opts.SubcommandGroups)
 	return app, nil
 }

@@ -90,6 +90,30 @@ func TestCreateClaimDefaultsAndRead(t *testing.T) {
 	}
 }
 
+func TestCreateClaimPersistsIdleGrace(t *testing.T) {
+	ctx := context.Background()
+	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := newTestStore(t, clk)
+
+	claim := sampleClaim()
+	claim.IdleUnloadTTL = 15 * time.Minute
+	claim.IdleGrace = 15 * time.Minute
+	created, err := store.CreateClaim(ctx, claim, 0)
+	if err != nil {
+		t.Fatalf("CreateClaim() error = %v", err)
+	}
+	got, err := store.GetClaim(ctx, created.ClaimID)
+	if err != nil {
+		t.Fatalf("GetClaim() error = %v", err)
+	}
+	if got.IdleUnloadTTL != 15*time.Minute {
+		t.Fatalf("idle unload ttl = %s, want 15m", got.IdleUnloadTTL)
+	}
+	if got.IdleGrace != 15*time.Minute {
+		t.Fatalf("idle grace = %s, want 15m", got.IdleGrace)
+	}
+}
+
 func TestHeartbeatRenewsLivenessWithoutBumpingGeneration(t *testing.T) {
 	ctx := context.Background()
 	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))

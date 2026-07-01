@@ -59,6 +59,7 @@ func (c *scenarioConnectHTTPClient) Do(req *http.Request) (*http.Response, error
 		c.app.HTTPClient.SetToken(strings.TrimSpace(c.app.tokenSource()))
 		c.app.HTTPClient.ApplyRequestHeaders(req)
 	}
+	resolveRelativeConnectURL(c.app, req)
 	if err := validateAbsoluteURL(req.URL); err != nil {
 		return nil, err
 	}
@@ -67,6 +68,29 @@ func (c *scenarioConnectHTTPClient) Do(req *http.Request) (*http.Response, error
 		client = http.DefaultClient
 	}
 	return client.Do(req)
+}
+
+func resolveRelativeConnectURL(app *ScenarioApp, req *http.Request) {
+	if app == nil || req == nil || req.URL == nil {
+		return
+	}
+	if req.URL.Scheme != "" && req.URL.Host != "" {
+		return
+	}
+	base := strings.TrimRight(strings.TrimSpace(app.APIRootBase()), "/")
+	if base == "" {
+		return
+	}
+	parsed, err := url.Parse(base)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return
+	}
+	rel := req.URL
+	parsed.Path = strings.TrimRight(parsed.Path, "/") + "/" + strings.TrimLeft(rel.Path, "/")
+	parsed.RawPath = ""
+	parsed.RawQuery = rel.RawQuery
+	parsed.Fragment = rel.Fragment
+	req.URL = parsed
 }
 
 func validateAbsoluteURL(u *url.URL) error {

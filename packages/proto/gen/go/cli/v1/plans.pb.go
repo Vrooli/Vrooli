@@ -149,61 +149,6 @@ func (x *PlansRecord) GetContentHash() string {
 	return ""
 }
 
-// PlansAddOutput is the shape of `vrooli plans add --json`.
-type PlansAddOutput struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the plan was added successfully.
-	Success bool `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	// The newly added plan.
-	Plan          *PlansRecord `protobuf:"bytes,2,opt,name=plan,proto3" json:"plan,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PlansAddOutput) Reset() {
-	*x = PlansAddOutput{}
-	mi := &file_cli_v1_plans_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PlansAddOutput) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PlansAddOutput) ProtoMessage() {}
-
-func (x *PlansAddOutput) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_plans_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PlansAddOutput.ProtoReflect.Descriptor instead.
-func (*PlansAddOutput) Descriptor() ([]byte, []int) {
-	return file_cli_v1_plans_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *PlansAddOutput) GetSuccess() bool {
-	if x != nil {
-		return x.Success
-	}
-	return false
-}
-
-func (x *PlansAddOutput) GetPlan() *PlansRecord {
-	if x != nil {
-		return x.Plan
-	}
-	return nil
-}
-
 // PlansListOutput is the shape of `vrooli plans list --json`.
 type PlansListOutput struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -223,7 +168,7 @@ type PlansListOutput struct {
 
 func (x *PlansListOutput) Reset() {
 	*x = PlansListOutput{}
-	mi := &file_cli_v1_plans_proto_msgTypes[2]
+	mi := &file_cli_v1_plans_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -235,7 +180,7 @@ func (x *PlansListOutput) String() string {
 func (*PlansListOutput) ProtoMessage() {}
 
 func (x *PlansListOutput) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_plans_proto_msgTypes[2]
+	mi := &file_cli_v1_plans_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -248,7 +193,7 @@ func (x *PlansListOutput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlansListOutput.ProtoReflect.Descriptor instead.
 func (*PlansListOutput) Descriptor() ([]byte, []int) {
-	return file_cli_v1_plans_proto_rawDescGZIP(), []int{2}
+	return file_cli_v1_plans_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *PlansListOutput) GetSuccess() bool {
@@ -307,7 +252,7 @@ type PlansShowOutput struct {
 
 func (x *PlansShowOutput) Reset() {
 	*x = PlansShowOutput{}
-	mi := &file_cli_v1_plans_proto_msgTypes[3]
+	mi := &file_cli_v1_plans_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -319,7 +264,7 @@ func (x *PlansShowOutput) String() string {
 func (*PlansShowOutput) ProtoMessage() {}
 
 func (x *PlansShowOutput) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_plans_proto_msgTypes[3]
+	mi := &file_cli_v1_plans_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -332,7 +277,7 @@ func (x *PlansShowOutput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlansShowOutput.ProtoReflect.Descriptor instead.
 func (*PlansShowOutput) Descriptor() ([]byte, []int) {
-	return file_cli_v1_plans_proto_rawDescGZIP(), []int{3}
+	return file_cli_v1_plans_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *PlansShowOutput) GetSuccess() bool {
@@ -398,7 +343,7 @@ type PlansPathOutput struct {
 
 func (x *PlansPathOutput) Reset() {
 	*x = PlansPathOutput{}
-	mi := &file_cli_v1_plans_proto_msgTypes[4]
+	mi := &file_cli_v1_plans_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -410,7 +355,7 @@ func (x *PlansPathOutput) String() string {
 func (*PlansPathOutput) ProtoMessage() {}
 
 func (x *PlansPathOutput) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_plans_proto_msgTypes[4]
+	mi := &file_cli_v1_plans_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -423,7 +368,7 @@ func (x *PlansPathOutput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlansPathOutput.ProtoReflect.Descriptor instead.
 func (*PlansPathOutput) Descriptor() ([]byte, []int) {
-	return file_cli_v1_plans_proto_rawDescGZIP(), []int{4}
+	return file_cli_v1_plans_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *PlansPathOutput) GetSuccess() bool {
@@ -468,217 +413,6 @@ func (x *PlansPathOutput) GetWarning() string {
 	return ""
 }
 
-// PlansArchiveOutput is the shape of `vrooli plans archive --json`.
-type PlansArchiveOutput struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the plan was archived successfully.
-	Success bool `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	// The archived plan (with archived/archived_at updated).
-	Plan          *PlansRecord `protobuf:"bytes,2,opt,name=plan,proto3" json:"plan,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PlansArchiveOutput) Reset() {
-	*x = PlansArchiveOutput{}
-	mi := &file_cli_v1_plans_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PlansArchiveOutput) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PlansArchiveOutput) ProtoMessage() {}
-
-func (x *PlansArchiveOutput) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_plans_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PlansArchiveOutput.ProtoReflect.Descriptor instead.
-func (*PlansArchiveOutput) Descriptor() ([]byte, []int) {
-	return file_cli_v1_plans_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *PlansArchiveOutput) GetSuccess() bool {
-	if x != nil {
-		return x.Success
-	}
-	return false
-}
-
-func (x *PlansArchiveOutput) GetPlan() *PlansRecord {
-	if x != nil {
-		return x.Plan
-	}
-	return nil
-}
-
-// PlansImportOutput is the shape of `vrooli plans import --json`.
-type PlansImportOutput struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the plan was imported successfully.
-	Success bool `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	// The imported plan.
-	Plan *PlansRecord `protobuf:"bytes,2,opt,name=plan,proto3" json:"plan,omitempty"`
-	// True when the import source file was deleted (--delete-source).
-	// JSON key is "deleted_source" (proto field name preserves it).
-	DeletedSource bool `protobuf:"varint,3,opt,name=deleted_source,json=deletedSource,proto3" json:"deleted_source,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PlansImportOutput) Reset() {
-	*x = PlansImportOutput{}
-	mi := &file_cli_v1_plans_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PlansImportOutput) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PlansImportOutput) ProtoMessage() {}
-
-func (x *PlansImportOutput) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_plans_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PlansImportOutput.ProtoReflect.Descriptor instead.
-func (*PlansImportOutput) Descriptor() ([]byte, []int) {
-	return file_cli_v1_plans_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *PlansImportOutput) GetSuccess() bool {
-	if x != nil {
-		return x.Success
-	}
-	return false
-}
-
-func (x *PlansImportOutput) GetPlan() *PlansRecord {
-	if x != nil {
-		return x.Plan
-	}
-	return nil
-}
-
-func (x *PlansImportOutput) GetDeletedSource() bool {
-	if x != nil {
-		return x.DeletedSource
-	}
-	return false
-}
-
-// PlansExportOutput is the shape of `vrooli plans export --json`.
-type PlansExportOutput struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the plan was exported successfully.
-	Success bool `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	// Exported plan identifier.
-	Id string `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
-	// Destination path the plan was exported to.
-	Path string `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
-	// Source used to read the plan before exporting.
-	Source string `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
-	// True when export used degraded mirror fallback content.
-	Degraded bool `protobuf:"varint,5,opt,name=degraded,proto3" json:"degraded,omitempty"`
-	// Human-readable degraded-mode warning; "" for canonical reads.
-	Warning       string `protobuf:"bytes,6,opt,name=warning,proto3" json:"warning,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PlansExportOutput) Reset() {
-	*x = PlansExportOutput{}
-	mi := &file_cli_v1_plans_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PlansExportOutput) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PlansExportOutput) ProtoMessage() {}
-
-func (x *PlansExportOutput) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_plans_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PlansExportOutput.ProtoReflect.Descriptor instead.
-func (*PlansExportOutput) Descriptor() ([]byte, []int) {
-	return file_cli_v1_plans_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *PlansExportOutput) GetSuccess() bool {
-	if x != nil {
-		return x.Success
-	}
-	return false
-}
-
-func (x *PlansExportOutput) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *PlansExportOutput) GetPath() string {
-	if x != nil {
-		return x.Path
-	}
-	return ""
-}
-
-func (x *PlansExportOutput) GetSource() string {
-	if x != nil {
-		return x.Source
-	}
-	return ""
-}
-
-func (x *PlansExportOutput) GetDegraded() bool {
-	if x != nil {
-		return x.Degraded
-	}
-	return false
-}
-
-func (x *PlansExportOutput) GetWarning() string {
-	if x != nil {
-		return x.Warning
-	}
-	return ""
-}
-
 var File_cli_v1_plans_proto protoreflect.FileDescriptor
 
 const file_cli_v1_plans_proto_rawDesc = "" +
@@ -699,10 +433,7 @@ const file_cli_v1_plans_proto_rawDesc = "" +
 	"\vsource_path\x18\t \x01(\tR\n" +
 	"sourcePath\x12!\n" +
 	"\fcontent_hash\x18\n" +
-	" \x01(\tR\vcontentHash\"Z\n" +
-	"\x0ePlansAddOutput\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\x12.\n" +
-	"\x04plan\x18\x02 \x01(\v2\x1a.vrooli.cli.v1.PlansRecordR\x04plan\"\xab\x01\n" +
+	" \x01(\tR\vcontentHash\"\xab\x01\n" +
 	"\x0fPlansListOutput\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x120\n" +
 	"\x05plans\x18\x02 \x03(\v2\x1a.vrooli.cli.v1.PlansRecordR\x05plans\x12\x16\n" +
@@ -722,20 +453,6 @@ const file_cli_v1_plans_proto_rawDesc = "" +
 	"\x04path\x18\x03 \x01(\tR\x04path\x12\x16\n" +
 	"\x06source\x18\x04 \x01(\tR\x06source\x12\x1a\n" +
 	"\bdegraded\x18\x05 \x01(\bR\bdegraded\x12\x18\n" +
-	"\awarning\x18\x06 \x01(\tR\awarning\"^\n" +
-	"\x12PlansArchiveOutput\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\x12.\n" +
-	"\x04plan\x18\x02 \x01(\v2\x1a.vrooli.cli.v1.PlansRecordR\x04plan\"\x84\x01\n" +
-	"\x11PlansImportOutput\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\x12.\n" +
-	"\x04plan\x18\x02 \x01(\v2\x1a.vrooli.cli.v1.PlansRecordR\x04plan\x12%\n" +
-	"\x0edeleted_source\x18\x03 \x01(\bR\rdeletedSource\"\x9f\x01\n" +
-	"\x11PlansExportOutput\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x0e\n" +
-	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
-	"\x04path\x18\x03 \x01(\tR\x04path\x12\x16\n" +
-	"\x06source\x18\x04 \x01(\tR\x06source\x12\x1a\n" +
-	"\bdegraded\x18\x05 \x01(\bR\bdegraded\x12\x18\n" +
 	"\awarning\x18\x06 \x01(\tR\awarningB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3"
 
 var (
@@ -750,28 +467,21 @@ func file_cli_v1_plans_proto_rawDescGZIP() []byte {
 	return file_cli_v1_plans_proto_rawDescData
 }
 
-var file_cli_v1_plans_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_cli_v1_plans_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_cli_v1_plans_proto_goTypes = []any{
-	(*PlansRecord)(nil),        // 0: vrooli.cli.v1.PlansRecord
-	(*PlansAddOutput)(nil),     // 1: vrooli.cli.v1.PlansAddOutput
-	(*PlansListOutput)(nil),    // 2: vrooli.cli.v1.PlansListOutput
-	(*PlansShowOutput)(nil),    // 3: vrooli.cli.v1.PlansShowOutput
-	(*PlansPathOutput)(nil),    // 4: vrooli.cli.v1.PlansPathOutput
-	(*PlansArchiveOutput)(nil), // 5: vrooli.cli.v1.PlansArchiveOutput
-	(*PlansImportOutput)(nil),  // 6: vrooli.cli.v1.PlansImportOutput
-	(*PlansExportOutput)(nil),  // 7: vrooli.cli.v1.PlansExportOutput
+	(*PlansRecord)(nil),     // 0: vrooli.cli.v1.PlansRecord
+	(*PlansListOutput)(nil), // 1: vrooli.cli.v1.PlansListOutput
+	(*PlansShowOutput)(nil), // 2: vrooli.cli.v1.PlansShowOutput
+	(*PlansPathOutput)(nil), // 3: vrooli.cli.v1.PlansPathOutput
 }
 var file_cli_v1_plans_proto_depIdxs = []int32{
-	0, // 0: vrooli.cli.v1.PlansAddOutput.plan:type_name -> vrooli.cli.v1.PlansRecord
-	0, // 1: vrooli.cli.v1.PlansListOutput.plans:type_name -> vrooli.cli.v1.PlansRecord
-	0, // 2: vrooli.cli.v1.PlansShowOutput.plan:type_name -> vrooli.cli.v1.PlansRecord
-	0, // 3: vrooli.cli.v1.PlansArchiveOutput.plan:type_name -> vrooli.cli.v1.PlansRecord
-	0, // 4: vrooli.cli.v1.PlansImportOutput.plan:type_name -> vrooli.cli.v1.PlansRecord
-	5, // [5:5] is the sub-list for method output_type
-	5, // [5:5] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	0, // 0: vrooli.cli.v1.PlansListOutput.plans:type_name -> vrooli.cli.v1.PlansRecord
+	0, // 1: vrooli.cli.v1.PlansShowOutput.plan:type_name -> vrooli.cli.v1.PlansRecord
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_cli_v1_plans_proto_init() }
@@ -785,7 +495,7 @@ func file_cli_v1_plans_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cli_v1_plans_proto_rawDesc), len(file_cli_v1_plans_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

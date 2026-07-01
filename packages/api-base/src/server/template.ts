@@ -10,6 +10,7 @@ import express, { type Express, type Request, type Response, type NextFunction }
 import * as path from 'node:path'
 import * as fs from 'node:fs'
 import * as http from 'node:http'
+import * as zlib from 'node:zlib'
 import type { ServerTemplateOptions } from '../shared/types.js'
 import { createConfigEndpoint } from './config.js'
 import { createHealthEndpoint } from './health.js'
@@ -55,6 +56,8 @@ const IMMUTABLE_ASSET_EXTENSIONS = new Set([
 
 const HASHED_FILENAME_PATTERN = /[-_][A-Za-z0-9_\-]{6,}\./
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365
+const MIN_GZIP_BYTES = 1024
+const COMPRESSIBLE_CONTENT_TYPE = /^(?:text\/|application\/(?:javascript|json|manifest\+json|xml|wasm)|image\/svg\+xml)/i
 
 function isImmutableBuildAsset(filePath: string): boolean {
   const ext = path.extname(filePath).toLowerCase()
@@ -85,6 +88,90 @@ function applyStaticCacheHeaders(res: Response, filePath: string): void {
   if (!res.getHeader('Cache-Control')) {
     res.setHeader('Cache-Control', 'public, max-age=0')
   }
+}
+
+function appendVary(res: Response, value: string): void {
+  const current = res.getHeader('Vary')
+  if (!current) {
+    res.setHeader('Vary', value)
+    return
+  }
+
+  const values = Array.isArray(current) ? current.join(',') : String(current)
+  if (values.toLowerCase().split(',').map(item => item.trim()).includes(value.toLowerCase())) {
+    return
+  }
+  res.setHeader('Vary', `${values}, ${value}`)
+}
+
+function acceptsGzip(req: Request): boolean {
+  return String(req.headers['accept-encoding'] || '').split(',').some(part => part.trim().toLowerCase().startsWith('gzip'))
+}
+
+function shouldCompressResponse(res: Response, bodyLength: number): boolean {
+  if (bodyLength < MIN_GZIP_BYTES) {
+    return false
+  }
+  if (res.statusCode < 200 || res.statusCode >= 300) {
+    return false
+  }
+  if (res.getHeader('Content-Encoding')) {
+    return false
+  }
+  const contentType = String(res.getHeader('Content-Type') || '')
+  return COMPRESSIBLE_CONTENT_TYPE.test(contentType)
+}
+
+function gzipStaticResponseMiddleware(req: Request, res: Response, next: NextFunction): void {
+  if (req.method !== 'GET' || !acceptsGzip(req)) {
+    next()
+    return
+  }
+
+  const chunks: Buffer[] = []
+  const originalWrite = res.write.bind(res) as (...args: any[]) => boolean
+  const originalEnd = res.end.bind(res) as (...args: any[]) => Response
+
+  const bufferFrom = (chunk: any, encoding?: any): Buffer => {
+    if (Buffer.isBuffer(chunk)) {
+      return chunk
+    }
+    return Buffer.from(chunk, typeof encoding === 'string' ? encoding as BufferEncoding : undefined)
+  }
+
+  ;(res as unknown as { write: (...args: any[]) => boolean }).write = (chunk: any, encoding?: any, callback?: any): boolean => {
+    if (chunk) {
+      chunks.push(bufferFrom(chunk, encoding))
+    }
+    if (typeof encoding === 'function') {
+      encoding()
+    } else if (typeof callback === 'function') {
+      callback()
+    }
+    return true
+  }
+
+  ;(res as unknown as { end: (...args: any[]) => Response }).end = (chunk?: any, encoding?: any, callback?: any): Response => {
+    if (chunk) {
+      chunks.push(bufferFrom(chunk, encoding))
+    }
+
+    const body = Buffer.concat(chunks)
+    appendVary(res, 'Accept-Encoding')
+    if (!shouldCompressResponse(res, body.length)) {
+      for (const buffered of chunks) {
+        originalWrite(buffered)
+      }
+      return originalEnd(typeof callback === 'function' ? callback : undefined)
+    }
+
+    const compressed = zlib.gzipSync(body)
+    res.setHeader('Content-Encoding', 'gzip')
+    res.removeHeader('Content-Length')
+    return originalEnd(compressed, typeof callback === 'function' ? callback : undefined)
+  }
+
+  next()
 }
 
 /**
@@ -514,6 +601,8 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     console.warn(`[server] Warning: dist directory does not exist: ${absoluteDistDir}`)
     console.warn('[server] Static files will not be served. Run build first.')
   }
+
+  app.use(gzipStaticResponseMiddleware)
 
   // Serve static files with production-friendly caching
   app.use(express.static(absoluteDistDir, {

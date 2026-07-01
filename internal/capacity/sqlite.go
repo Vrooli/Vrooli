@@ -194,14 +194,14 @@ INSERT INTO capacity_claims (
   amount_bytes, preferred_bytes, floor_bytes, priority, protected, yield_when_idle, status,
   activity_state, generation, created_at, updated_at, last_heartbeat_at,
   heartbeat_deadline_at, last_active_at, degrade_profile,
-  observed_bytes, observed_peak_bytes, observed_at, idle_unload_ttl_seconds
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  observed_bytes, observed_peak_bytes, observed_at, idle_unload_ttl_seconds, idle_grace_seconds
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			claim.ClaimID, claim.OwnerKind, claim.OwnerID, claim.InstanceID, claim.ResourceKind,
 			optionalIntValue(claim.GPUIndex), claim.AmountBytes, claim.PreferredBytes, claim.FloorBytes,
 			claim.Priority, boolToInt(claim.Protected), boolToInt(claim.YieldWhenIdle), claim.Status, claim.ActivityState, claim.Generation,
 			formatTime(claim.CreatedAt), formatTime(claim.UpdatedAt), formatOptionalTime(claim.LastHeartbeatAt),
 			formatOptionalTime(claim.HeartbeatDeadlineAt), formatOptionalTime(claim.LastActiveAt), profileJSON,
-			claim.ObservedBytes, claim.ObservedPeakBytes, formatOptionalTime(claim.ObservedAt), int64(claim.IdleUnloadTTL/time.Second))
+			claim.ObservedBytes, claim.ObservedPeakBytes, formatOptionalTime(claim.ObservedAt), int64(claim.IdleUnloadTTL/time.Second), int64(claim.IdleGrace/time.Second))
 		if execErr != nil {
 			return fmt.Errorf("insert capacity claim: %w", execErr)
 		}
@@ -311,6 +311,39 @@ WHERE claim_id = ? AND generation = ? AND status IN (?, ?, ?)`,
 			claimID, generation, StatusReserved, StatusGranted, StatusDegraded)
 		if execErr != nil {
 			return fmt.Errorf("degrade capacity claim: %w", execErr)
+		}
+		_ = step // the label is the adopter's concern; the ledger records the resulting amount.
+		return finishMutation(ctx, tx, result, claimID, &out)
+	})
+	if err != nil {
+		return CapacityClaim{}, err
+	}
+	return out, nil
+}
+
+// UpshiftClaim steps a claim UP to a larger profile rung (the symmetric
+// counterpart of DegradeClaim): it raises amount_bytes and restores status to
+// granted (the claim is no longer running below its preferred size), bumping the
+// generation under the optimistic-concurrency guard. The label is the adopter's
+// concern; the ledger records the resulting amount.
+func (s *SQLiteStore) UpshiftClaim(ctx context.Context, claimID string, generation int64, step string, amountBytes int64) (CapacityClaim, error) {
+	if strings.TrimSpace(claimID) == "" {
+		return CapacityClaim{}, fmt.Errorf("%w: claim_id is required", ErrInvalidClaim)
+	}
+	if amountBytes < 0 {
+		return CapacityClaim{}, fmt.Errorf("%w: upshift amount must be non-negative", ErrInvalidClaim)
+	}
+	now := s.now()
+	var out CapacityClaim
+	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		result, execErr := tx.ExecContext(ctx, `
+UPDATE capacity_claims
+SET status = ?, amount_bytes = ?, generation = generation + 1, updated_at = ?
+WHERE claim_id = ? AND generation = ? AND status IN (?, ?, ?)`,
+			StatusGranted, amountBytes, formatTime(now),
+			claimID, generation, StatusReserved, StatusGranted, StatusDegraded)
+		if execErr != nil {
+			return fmt.Errorf("upshift capacity claim: %w", execErr)
 		}
 		_ = step // the label is the adopter's concern; the ledger records the resulting amount.
 		return finishMutation(ctx, tx, result, claimID, &out)
@@ -739,7 +772,7 @@ SELECT claim_id, owner_kind, owner_id, instance_id, resource_kind, gpu_index,
   amount_bytes, preferred_bytes, floor_bytes, priority, protected, yield_when_idle, status,
   activity_state, generation, created_at, updated_at, last_heartbeat_at,
   heartbeat_deadline_at, last_active_at, degrade_profile,
-  observed_bytes, observed_peak_bytes, observed_at, idle_unload_ttl_seconds
+  observed_bytes, observed_peak_bytes, observed_at, idle_unload_ttl_seconds, idle_grace_seconds
 FROM capacity_claims`
 
 func getClaimTx(ctx context.Context, tx *sql.Tx, claimID string) (CapacityClaim, error) {
@@ -770,17 +803,19 @@ func scanClaimRow(row rowScanner) (CapacityClaim, error) {
 		updated      string
 		observedAt   sql.NullString
 		idleUnloadTS int64
+		idleGraceS   int64
 	)
 	if err := row.Scan(
 		&c.ClaimID, &c.OwnerKind, &c.OwnerID, &c.InstanceID, &c.ResourceKind, &gpuIndex,
 		&c.AmountBytes, &c.PreferredBytes, &c.FloorBytes, &c.Priority, &protected, &yieldOnIdle, &c.Status,
 		&c.ActivityState, &c.Generation, &created, &updated, &lastHB,
 		&hbDeadline, &lastActive, &profile,
-		&c.ObservedBytes, &c.ObservedPeakBytes, &observedAt, &idleUnloadTS,
+		&c.ObservedBytes, &c.ObservedPeakBytes, &observedAt, &idleUnloadTS, &idleGraceS,
 	); err != nil {
 		return CapacityClaim{}, err
 	}
 	c.IdleUnloadTTL = time.Duration(idleUnloadTS) * time.Second
+	c.IdleGrace = time.Duration(idleGraceS) * time.Second
 	if gpuIndex.Valid {
 		idx := int(gpuIndex.Int64)
 		c.GPUIndex = &idx

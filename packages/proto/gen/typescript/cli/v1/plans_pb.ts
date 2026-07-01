@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cli/v1/plans.proto.
  */
 export const file_cli_v1_plans: GenFile = /*@__PURE__*/
-  fileDesc("ChJjbGkvdjEvcGxhbnMucHJvdG8SDXZyb29saS5jbGkudjEivgEKC1BsYW5zUmVjb3JkEgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEgwKBHNsdWcYAyABKAkSDAoEcGF0aBgEIAEoCRISCgpjcmVhdGVkX2F0GAUgASgJEhIKCnVwZGF0ZWRfYXQYBiABKAkSEAoIYXJjaGl2ZWQYByABKAgSEwoLYXJjaGl2ZWRfYXQYCCABKAkSEwoLc291cmNlX3BhdGgYCSABKAkSFAoMY29udGVudF9oYXNoGAogASgJIksKDlBsYW5zQWRkT3V0cHV0Eg8KB3N1Y2Nlc3MYASABKAgSKAoEcGxhbhgCIAEoCzIaLnZyb29saS5jbGkudjEuUGxhbnNSZWNvcmQigAEKD1BsYW5zTGlzdE91dHB1dBIPCgdzdWNjZXNzGAEgASgIEikKBXBsYW5zGAIgAygLMhoudnJvb2xpLmNsaS52MS5QbGFuc1JlY29yZBIOCgZzb3VyY2UYAyABKAkSEAoIZGVncmFkZWQYBCABKAgSDwoHd2FybmluZxgFIAEoCSKQAQoPUGxhbnNTaG93T3V0cHV0Eg8KB3N1Y2Nlc3MYASABKAgSKAoEcGxhbhgCIAEoCzIaLnZyb29saS5jbGkudjEuUGxhbnNSZWNvcmQSDwoHY29udGVudBgDIAEoCRIOCgZzb3VyY2UYBCABKAkSEAoIZGVncmFkZWQYBSABKAgSDwoHd2FybmluZxgGIAEoCSJvCg9QbGFuc1BhdGhPdXRwdXQSDwoHc3VjY2VzcxgBIAEoCBIKCgJpZBgCIAEoCRIMCgRwYXRoGAMgASgJEg4KBnNvdXJjZRgEIAEoCRIQCghkZWdyYWRlZBgFIAEoCBIPCgd3YXJuaW5nGAYgASgJIk8KElBsYW5zQXJjaGl2ZU91dHB1dBIPCgdzdWNjZXNzGAEgASgIEigKBHBsYW4YAiABKAsyGi52cm9vbGkuY2xpLnYxLlBsYW5zUmVjb3JkImYKEVBsYW5zSW1wb3J0T3V0cHV0Eg8KB3N1Y2Nlc3MYASABKAgSKAoEcGxhbhgCIAEoCzIaLnZyb29saS5jbGkudjEuUGxhbnNSZWNvcmQSFgoOZGVsZXRlZF9zb3VyY2UYAyABKAgicQoRUGxhbnNFeHBvcnRPdXRwdXQSDwoHc3VjY2VzcxgBIAEoCBIKCgJpZBgCIAEoCRIMCgRwYXRoGAMgASgJEg4KBnNvdXJjZRgEIAEoCRIQCghkZWdyYWRlZBgFIAEoCBIPCgd3YXJuaW5nGAYgASgJQj1aO2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY2xpL3YxO2NsaXYxYgZwcm90bzM");
+  fileDesc("ChJjbGkvdjEvcGxhbnMucHJvdG8SDXZyb29saS5jbGkudjEivgEKC1BsYW5zUmVjb3JkEgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEgwKBHNsdWcYAyABKAkSDAoEcGF0aBgEIAEoCRISCgpjcmVhdGVkX2F0GAUgASgJEhIKCnVwZGF0ZWRfYXQYBiABKAkSEAoIYXJjaGl2ZWQYByABKAgSEwoLYXJjaGl2ZWRfYXQYCCABKAkSEwoLc291cmNlX3BhdGgYCSABKAkSFAoMY29udGVudF9oYXNoGAogASgJIoABCg9QbGFuc0xpc3RPdXRwdXQSDwoHc3VjY2VzcxgBIAEoCBIpCgVwbGFucxgCIAMoCzIaLnZyb29saS5jbGkudjEuUGxhbnNSZWNvcmQSDgoGc291cmNlGAMgASgJEhAKCGRlZ3JhZGVkGAQgASgIEg8KB3dhcm5pbmcYBSABKAkikAEKD1BsYW5zU2hvd091dHB1dBIPCgdzdWNjZXNzGAEgASgIEigKBHBsYW4YAiABKAsyGi52cm9vbGkuY2xpLnYxLlBsYW5zUmVjb3JkEg8KB2NvbnRlbnQYAyABKAkSDgoGc291cmNlGAQgASgJEhAKCGRlZ3JhZGVkGAUgASgIEg8KB3dhcm5pbmcYBiABKAkibwoPUGxhbnNQYXRoT3V0cHV0Eg8KB3N1Y2Nlc3MYASABKAgSCgoCaWQYAiABKAkSDAoEcGF0aBgDIAEoCRIOCgZzb3VyY2UYBCABKAkSEAoIZGVncmFkZWQYBSABKAgSDwoHd2FybmluZxgGIAEoCUI9WjtnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NsaS92MTtjbGl2MWIGcHJvdG8z");
 
 /**
  * PlansRecord is one plan entry, shared across every plans command payload.
@@ -98,34 +98,6 @@ export const PlansRecordSchema: GenMessage<PlansRecord> = /*@__PURE__*/
   messageDesc(file_cli_v1_plans, 0);
 
 /**
- * PlansAddOutput is the shape of `vrooli plans add --json`.
- *
- * @generated from message vrooli.cli.v1.PlansAddOutput
- */
-export type PlansAddOutput = Message<"vrooli.cli.v1.PlansAddOutput"> & {
-  /**
-   * True when the plan was added successfully.
-   *
-   * @generated from field: bool success = 1;
-   */
-  success: boolean;
-
-  /**
-   * The newly added plan.
-   *
-   * @generated from field: vrooli.cli.v1.PlansRecord plan = 2;
-   */
-  plan?: PlansRecord | undefined;
-};
-
-/**
- * Describes the message vrooli.cli.v1.PlansAddOutput.
- * Use `create(PlansAddOutputSchema)` to create a new message.
- */
-export const PlansAddOutputSchema: GenMessage<PlansAddOutput> = /*@__PURE__*/
-  messageDesc(file_cli_v1_plans, 1);
-
-/**
  * PlansListOutput is the shape of `vrooli plans list --json`.
  *
  * @generated from message vrooli.cli.v1.PlansListOutput
@@ -172,7 +144,7 @@ export type PlansListOutput = Message<"vrooli.cli.v1.PlansListOutput"> & {
  * Use `create(PlansListOutputSchema)` to create a new message.
  */
 export const PlansListOutputSchema: GenMessage<PlansListOutput> = /*@__PURE__*/
-  messageDesc(file_cli_v1_plans, 2);
+  messageDesc(file_cli_v1_plans, 1);
 
 /**
  * PlansShowOutput is the shape of `vrooli plans show --json`.
@@ -228,7 +200,7 @@ export type PlansShowOutput = Message<"vrooli.cli.v1.PlansShowOutput"> & {
  * Use `create(PlansShowOutputSchema)` to create a new message.
  */
 export const PlansShowOutputSchema: GenMessage<PlansShowOutput> = /*@__PURE__*/
-  messageDesc(file_cli_v1_plans, 3);
+  messageDesc(file_cli_v1_plans, 2);
 
 /**
  * PlansPathOutput is the shape of `vrooli plans path --json`.
@@ -284,125 +256,5 @@ export type PlansPathOutput = Message<"vrooli.cli.v1.PlansPathOutput"> & {
  * Use `create(PlansPathOutputSchema)` to create a new message.
  */
 export const PlansPathOutputSchema: GenMessage<PlansPathOutput> = /*@__PURE__*/
-  messageDesc(file_cli_v1_plans, 4);
-
-/**
- * PlansArchiveOutput is the shape of `vrooli plans archive --json`.
- *
- * @generated from message vrooli.cli.v1.PlansArchiveOutput
- */
-export type PlansArchiveOutput = Message<"vrooli.cli.v1.PlansArchiveOutput"> & {
-  /**
-   * True when the plan was archived successfully.
-   *
-   * @generated from field: bool success = 1;
-   */
-  success: boolean;
-
-  /**
-   * The archived plan (with archived/archived_at updated).
-   *
-   * @generated from field: vrooli.cli.v1.PlansRecord plan = 2;
-   */
-  plan?: PlansRecord | undefined;
-};
-
-/**
- * Describes the message vrooli.cli.v1.PlansArchiveOutput.
- * Use `create(PlansArchiveOutputSchema)` to create a new message.
- */
-export const PlansArchiveOutputSchema: GenMessage<PlansArchiveOutput> = /*@__PURE__*/
-  messageDesc(file_cli_v1_plans, 5);
-
-/**
- * PlansImportOutput is the shape of `vrooli plans import --json`.
- *
- * @generated from message vrooli.cli.v1.PlansImportOutput
- */
-export type PlansImportOutput = Message<"vrooli.cli.v1.PlansImportOutput"> & {
-  /**
-   * True when the plan was imported successfully.
-   *
-   * @generated from field: bool success = 1;
-   */
-  success: boolean;
-
-  /**
-   * The imported plan.
-   *
-   * @generated from field: vrooli.cli.v1.PlansRecord plan = 2;
-   */
-  plan?: PlansRecord | undefined;
-
-  /**
-   * True when the import source file was deleted (--delete-source).
-   * JSON key is "deleted_source" (proto field name preserves it).
-   *
-   * @generated from field: bool deleted_source = 3;
-   */
-  deletedSource: boolean;
-};
-
-/**
- * Describes the message vrooli.cli.v1.PlansImportOutput.
- * Use `create(PlansImportOutputSchema)` to create a new message.
- */
-export const PlansImportOutputSchema: GenMessage<PlansImportOutput> = /*@__PURE__*/
-  messageDesc(file_cli_v1_plans, 6);
-
-/**
- * PlansExportOutput is the shape of `vrooli plans export --json`.
- *
- * @generated from message vrooli.cli.v1.PlansExportOutput
- */
-export type PlansExportOutput = Message<"vrooli.cli.v1.PlansExportOutput"> & {
-  /**
-   * True when the plan was exported successfully.
-   *
-   * @generated from field: bool success = 1;
-   */
-  success: boolean;
-
-  /**
-   * Exported plan identifier.
-   *
-   * @generated from field: string id = 2;
-   */
-  id: string;
-
-  /**
-   * Destination path the plan was exported to.
-   *
-   * @generated from field: string path = 3;
-   */
-  path: string;
-
-  /**
-   * Source used to read the plan before exporting.
-   *
-   * @generated from field: string source = 4;
-   */
-  source: string;
-
-  /**
-   * True when export used degraded mirror fallback content.
-   *
-   * @generated from field: bool degraded = 5;
-   */
-  degraded: boolean;
-
-  /**
-   * Human-readable degraded-mode warning; "" for canonical reads.
-   *
-   * @generated from field: string warning = 6;
-   */
-  warning: string;
-};
-
-/**
- * Describes the message vrooli.cli.v1.PlansExportOutput.
- * Use `create(PlansExportOutputSchema)` to create a new message.
- */
-export const PlansExportOutputSchema: GenMessage<PlansExportOutput> = /*@__PURE__*/
-  messageDesc(file_cli_v1_plans, 7);
+  messageDesc(file_cli_v1_plans, 3);
 

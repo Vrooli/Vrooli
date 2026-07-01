@@ -26,7 +26,7 @@ class Execution(_message.Message):
     def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., run_id: _Optional[str] = ..., current_phase_id: _Optional[str] = ..., complete: _Optional[bool] = ..., started_at: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
 
 class PhaseContext(_message.Message):
-    __slots__ = ("current_phase", "next_phase", "required_reading", "reminders", "last_validation", "staleness", "resume_phase_id", "completeness", "relevant_context", "log_summary", "inputs_freshened", "freshen_status", "freshen_detail", "change_boundary")
+    __slots__ = ("current_phase", "next_phase", "required_reading", "reminders", "last_validation", "staleness", "resume_phase_id", "completeness", "relevant_context", "log_summary", "inputs_freshened", "freshen_status", "freshen_detail", "change_boundary", "feedback_checkpoint")
     CURRENT_PHASE_FIELD_NUMBER: _ClassVar[int]
     NEXT_PHASE_FIELD_NUMBER: _ClassVar[int]
     REQUIRED_READING_FIELD_NUMBER: _ClassVar[int]
@@ -41,6 +41,7 @@ class PhaseContext(_message.Message):
     FRESHEN_STATUS_FIELD_NUMBER: _ClassVar[int]
     FRESHEN_DETAIL_FIELD_NUMBER: _ClassVar[int]
     CHANGE_BOUNDARY_FIELD_NUMBER: _ClassVar[int]
+    FEEDBACK_CHECKPOINT_FIELD_NUMBER: _ClassVar[int]
     current_phase: _model_pb2.Phase
     next_phase: _model_pb2.Phase
     required_reading: _containers.RepeatedScalarFieldContainer[str]
@@ -55,7 +56,38 @@ class PhaseContext(_message.Message):
     freshen_status: str
     freshen_detail: str
     change_boundary: _model_pb2.ChangeBoundary
-    def __init__(self, current_phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., next_phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., required_reading: _Optional[_Iterable[str]] = ..., reminders: _Optional[_Iterable[str]] = ..., last_validation: _Optional[_Union[_model_pb2.ValidationResult, _Mapping]] = ..., staleness: _Optional[_Union[_model_pb2.StalenessTier, str]] = ..., resume_phase_id: _Optional[str] = ..., completeness: _Optional[_Union[_model_pb2.Completeness, str]] = ..., relevant_context: _Optional[_Iterable[_Union[_model_pb2.RelevantContextItem, _Mapping]]] = ..., log_summary: _Optional[_Union[_model_pb2.LogSummary, _Mapping]] = ..., inputs_freshened: _Optional[bool] = ..., freshen_status: _Optional[str] = ..., freshen_detail: _Optional[str] = ..., change_boundary: _Optional[_Union[_model_pb2.ChangeBoundary, _Mapping]] = ...) -> None: ...
+    feedback_checkpoint: PhaseFeedbackCheckpoint
+    def __init__(self, current_phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., next_phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., required_reading: _Optional[_Iterable[str]] = ..., reminders: _Optional[_Iterable[str]] = ..., last_validation: _Optional[_Union[_model_pb2.ValidationResult, _Mapping]] = ..., staleness: _Optional[_Union[_model_pb2.StalenessTier, str]] = ..., resume_phase_id: _Optional[str] = ..., completeness: _Optional[_Union[_model_pb2.Completeness, str]] = ..., relevant_context: _Optional[_Iterable[_Union[_model_pb2.RelevantContextItem, _Mapping]]] = ..., log_summary: _Optional[_Union[_model_pb2.LogSummary, _Mapping]] = ..., inputs_freshened: _Optional[bool] = ..., freshen_status: _Optional[str] = ..., freshen_detail: _Optional[str] = ..., change_boundary: _Optional[_Union[_model_pb2.ChangeBoundary, _Mapping]] = ..., feedback_checkpoint: _Optional[_Union[PhaseFeedbackCheckpoint, _Mapping]] = ...) -> None: ...
+
+class PhaseFeedbackCheckpoint(_message.Message):
+    __slots__ = ("phase_id", "reviewed", "satisfied", "summary", "decisions", "findings", "bug_reports", "records", "notes", "pending_sync", "failed_sync", "no_feedback_title", "no_feedback_detail")
+    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
+    REVIEWED_FIELD_NUMBER: _ClassVar[int]
+    SATISFIED_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    DECISIONS_FIELD_NUMBER: _ClassVar[int]
+    FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    BUG_REPORTS_FIELD_NUMBER: _ClassVar[int]
+    RECORDS_FIELD_NUMBER: _ClassVar[int]
+    NOTES_FIELD_NUMBER: _ClassVar[int]
+    PENDING_SYNC_FIELD_NUMBER: _ClassVar[int]
+    FAILED_SYNC_FIELD_NUMBER: _ClassVar[int]
+    NO_FEEDBACK_TITLE_FIELD_NUMBER: _ClassVar[int]
+    NO_FEEDBACK_DETAIL_FIELD_NUMBER: _ClassVar[int]
+    phase_id: str
+    reviewed: bool
+    satisfied: bool
+    summary: str
+    decisions: int
+    findings: int
+    bug_reports: int
+    records: int
+    notes: int
+    pending_sync: int
+    failed_sync: int
+    no_feedback_title: str
+    no_feedback_detail: str
+    def __init__(self, phase_id: _Optional[str] = ..., reviewed: _Optional[bool] = ..., satisfied: _Optional[bool] = ..., summary: _Optional[str] = ..., decisions: _Optional[int] = ..., findings: _Optional[int] = ..., bug_reports: _Optional[int] = ..., records: _Optional[int] = ..., notes: _Optional[int] = ..., pending_sync: _Optional[int] = ..., failed_sync: _Optional[int] = ..., no_feedback_title: _Optional[str] = ..., no_feedback_detail: _Optional[str] = ...) -> None: ...
 
 class CompletionNudge(_message.Message):
     __slots__ = ("kind", "message", "satisfied")
@@ -176,16 +208,18 @@ class GetNextResponse(_message.Message):
     def __init__(self, context: _Optional[_Union[PhaseContext, _Mapping]] = ..., complete: _Optional[bool] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
 
 class TransitionPhaseRequest(_message.Message):
-    __slots__ = ("execution_id", "phase_id", "to_status", "validation_override")
+    __slots__ = ("execution_id", "phase_id", "to_status", "validation_override", "feedback_override")
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     PHASE_ID_FIELD_NUMBER: _ClassVar[int]
     TO_STATUS_FIELD_NUMBER: _ClassVar[int]
     VALIDATION_OVERRIDE_FIELD_NUMBER: _ClassVar[int]
+    FEEDBACK_OVERRIDE_FIELD_NUMBER: _ClassVar[int]
     execution_id: str
     phase_id: str
     to_status: _model_pb2.PhaseStatus
     validation_override: ValidationOverride
-    def __init__(self, execution_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., to_status: _Optional[_Union[_model_pb2.PhaseStatus, str]] = ..., validation_override: _Optional[_Union[ValidationOverride, _Mapping]] = ...) -> None: ...
+    feedback_override: FeedbackOverride
+    def __init__(self, execution_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., to_status: _Optional[_Union[_model_pb2.PhaseStatus, str]] = ..., validation_override: _Optional[_Union[ValidationOverride, _Mapping]] = ..., feedback_override: _Optional[_Union[FeedbackOverride, _Mapping]] = ...) -> None: ...
 
 class TransitionPhaseResponse(_message.Message):
     __slots__ = ("execution", "plan", "step")
@@ -198,6 +232,12 @@ class TransitionPhaseResponse(_message.Message):
     def __init__(self, execution: _Optional[_Union[Execution, _Mapping]] = ..., plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
 
 class ValidationOverride(_message.Message):
+    __slots__ = ("reason",)
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    reason: str
+    def __init__(self, reason: _Optional[str] = ...) -> None: ...
+
+class FeedbackOverride(_message.Message):
     __slots__ = ("reason",)
     REASON_FIELD_NUMBER: _ClassVar[int]
     reason: str

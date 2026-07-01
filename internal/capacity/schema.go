@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS capacity_claims (
   observed_bytes INTEGER NOT NULL DEFAULT 0,
   observed_peak_bytes INTEGER NOT NULL DEFAULT 0,
   observed_at TEXT,
-  idle_unload_ttl_seconds INTEGER NOT NULL DEFAULT 0
+  idle_unload_ttl_seconds INTEGER NOT NULL DEFAULT 0,
+  idle_grace_seconds INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_capacity_claims_owner ON capacity_claims(owner_kind, owner_id);
 CREATE INDEX IF NOT EXISTS idx_capacity_claims_status ON capacity_claims(status);
@@ -104,6 +105,10 @@ func (s *SQLiteStore) migrateSchema(ctx context.Context, from int) error {
 				if err := addColumnIfMissing(ctx, s.db, "capacity_claims", col.name, col.decl); err != nil {
 					return fmt.Errorf("migrate capacity ledger 2 -> 3: %w", err)
 				}
+			}
+		case 3: // 3 -> 4: per-claim demand-reclaim idle grace (additive).
+			if err := addColumnIfMissing(ctx, s.db, "capacity_claims", "idle_grace_seconds", "INTEGER NOT NULL DEFAULT 0"); err != nil {
+				return fmt.Errorf("migrate capacity ledger 3 -> 4: %w", err)
 			}
 		default:
 			return fmt.Errorf("capacity ledger schema_version %d -> %d has no additive migration: requires greenfield rebuild or an operator-run conversion script", v, SchemaVersion)

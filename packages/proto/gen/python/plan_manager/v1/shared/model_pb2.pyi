@@ -290,16 +290,20 @@ class LegacySection(_message.Message):
     def __init__(self, heading: _Optional[str] = ..., content: _Optional[str] = ..., mapped_to: _Optional[str] = ..., preservation_reason: _Optional[str] = ...) -> None: ...
 
 class ImportProvenance(_message.Message):
-    __slots__ = ("source_path", "imported_at", "original_format", "note")
+    __slots__ = ("source_path", "imported_at", "original_format", "note", "workspace_id", "workspace_root")
     SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
     IMPORTED_AT_FIELD_NUMBER: _ClassVar[int]
     ORIGINAL_FORMAT_FIELD_NUMBER: _ClassVar[int]
     NOTE_FIELD_NUMBER: _ClassVar[int]
+    WORKSPACE_ID_FIELD_NUMBER: _ClassVar[int]
+    WORKSPACE_ROOT_FIELD_NUMBER: _ClassVar[int]
     source_path: str
     imported_at: str
     original_format: str
     note: str
-    def __init__(self, source_path: _Optional[str] = ..., imported_at: _Optional[str] = ..., original_format: _Optional[str] = ..., note: _Optional[str] = ...) -> None: ...
+    workspace_id: str
+    workspace_root: str
+    def __init__(self, source_path: _Optional[str] = ..., imported_at: _Optional[str] = ..., original_format: _Optional[str] = ..., note: _Optional[str] = ..., workspace_id: _Optional[str] = ..., workspace_root: _Optional[str] = ...) -> None: ...
 
 class NextAction(_message.Message):
     __slots__ = ("id", "kind", "label", "reason", "argv", "content_placeholder", "blocked_by")
@@ -604,7 +608,7 @@ class Phase(_message.Message):
     def __init__(self, id: _Optional[str] = ..., order: _Optional[int] = ..., title: _Optional[str] = ..., intent: _Optional[str] = ..., required_reading: _Optional[_Iterable[str]] = ..., reminders: _Optional[_Iterable[str]] = ..., baseline_scope: _Optional[_Iterable[str]] = ..., acceptance: _Optional[str] = ..., status: _Optional[_Union[PhaseStatus, str]] = ..., last_validation: _Optional[_Union[ValidationResult, _Mapping]] = ..., references: _Optional[_Iterable[_Union[Reference, _Mapping]]] = ..., relevant_context: _Optional[_Iterable[_Union[RelevantContextItem, _Mapping]]] = ..., affected_areas: _Optional[_Iterable[str]] = ..., steps: _Optional[_Iterable[str]] = ..., expected_outputs: _Optional[_Iterable[str]] = ..., validation: _Optional[str] = ..., handoff_notes: _Optional[str] = ..., risks_hazards: _Optional[_Iterable[str]] = ..., change_boundary: _Optional[_Union[ChangeBoundary, _Mapping]] = ...) -> None: ...
 
 class Plan(_message.Message):
-    __slots__ = ("id", "slug", "title", "status", "content_hash", "created_at", "updated_at", "purpose", "scope", "constraints", "non_goals", "references", "regression_anchor", "definition_of_done", "phases", "supersedes", "superseded_by", "relevant_context", "problem_statement", "target_outcome", "assumptions", "technical_approach", "validation_strategy", "final_validation_commands", "risks_hazards", "prohibited_approaches", "work_posture", "work_posture_source", "work_posture_detail", "import_provenance", "preserved_legacy_sections", "change_boundary", "mirror")
+    __slots__ = ("id", "slug", "title", "status", "content_hash", "created_at", "updated_at", "purpose", "scope", "constraints", "non_goals", "references", "regression_anchor", "definition_of_done", "phases", "supersedes", "superseded_by", "relevant_context", "problem_statement", "target_outcome", "assumptions", "technical_approach", "validation_strategy", "final_validation_commands", "risks_hazards", "prohibited_approaches", "work_posture", "work_posture_source", "work_posture_detail", "import_provenance", "preserved_legacy_sections", "change_boundary", "mirror", "workspace_id", "workspace_root")
     ID_FIELD_NUMBER: _ClassVar[int]
     SLUG_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -638,6 +642,8 @@ class Plan(_message.Message):
     PRESERVED_LEGACY_SECTIONS_FIELD_NUMBER: _ClassVar[int]
     CHANGE_BOUNDARY_FIELD_NUMBER: _ClassVar[int]
     MIRROR_FIELD_NUMBER: _ClassVar[int]
+    WORKSPACE_ID_FIELD_NUMBER: _ClassVar[int]
+    WORKSPACE_ROOT_FIELD_NUMBER: _ClassVar[int]
     id: str
     slug: str
     title: str
@@ -671,7 +677,9 @@ class Plan(_message.Message):
     preserved_legacy_sections: _containers.RepeatedCompositeFieldContainer[LegacySection]
     change_boundary: ChangeBoundary
     mirror: RenderedPlanMirror
-    def __init__(self, id: _Optional[str] = ..., slug: _Optional[str] = ..., title: _Optional[str] = ..., status: _Optional[_Union[PlanStatus, str]] = ..., content_hash: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., purpose: _Optional[str] = ..., scope: _Optional[str] = ..., constraints: _Optional[str] = ..., non_goals: _Optional[str] = ..., references: _Optional[_Iterable[_Union[Reference, _Mapping]]] = ..., regression_anchor: _Optional[_Union[RegressionAnchor, _Mapping]] = ..., definition_of_done: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[Phase, _Mapping]]] = ..., supersedes: _Optional[_Iterable[str]] = ..., superseded_by: _Optional[_Iterable[str]] = ..., relevant_context: _Optional[_Iterable[_Union[RelevantContextItem, _Mapping]]] = ..., problem_statement: _Optional[str] = ..., target_outcome: _Optional[str] = ..., assumptions: _Optional[str] = ..., technical_approach: _Optional[str] = ..., validation_strategy: _Optional[str] = ..., final_validation_commands: _Optional[_Iterable[str]] = ..., risks_hazards: _Optional[str] = ..., prohibited_approaches: _Optional[str] = ..., work_posture: _Optional[_Union[WorkPosture, str]] = ..., work_posture_source: _Optional[_Union[WorkPostureSource, str]] = ..., work_posture_detail: _Optional[str] = ..., import_provenance: _Optional[_Union[ImportProvenance, _Mapping]] = ..., preserved_legacy_sections: _Optional[_Iterable[_Union[LegacySection, _Mapping]]] = ..., change_boundary: _Optional[_Union[ChangeBoundary, _Mapping]] = ..., mirror: _Optional[_Union[RenderedPlanMirror, _Mapping]] = ...) -> None: ...
+    workspace_id: str
+    workspace_root: str
+    def __init__(self, id: _Optional[str] = ..., slug: _Optional[str] = ..., title: _Optional[str] = ..., status: _Optional[_Union[PlanStatus, str]] = ..., content_hash: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., purpose: _Optional[str] = ..., scope: _Optional[str] = ..., constraints: _Optional[str] = ..., non_goals: _Optional[str] = ..., references: _Optional[_Iterable[_Union[Reference, _Mapping]]] = ..., regression_anchor: _Optional[_Union[RegressionAnchor, _Mapping]] = ..., definition_of_done: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[Phase, _Mapping]]] = ..., supersedes: _Optional[_Iterable[str]] = ..., superseded_by: _Optional[_Iterable[str]] = ..., relevant_context: _Optional[_Iterable[_Union[RelevantContextItem, _Mapping]]] = ..., problem_statement: _Optional[str] = ..., target_outcome: _Optional[str] = ..., assumptions: _Optional[str] = ..., technical_approach: _Optional[str] = ..., validation_strategy: _Optional[str] = ..., final_validation_commands: _Optional[_Iterable[str]] = ..., risks_hazards: _Optional[str] = ..., prohibited_approaches: _Optional[str] = ..., work_posture: _Optional[_Union[WorkPosture, str]] = ..., work_posture_source: _Optional[_Union[WorkPostureSource, str]] = ..., work_posture_detail: _Optional[str] = ..., import_provenance: _Optional[_Union[ImportProvenance, _Mapping]] = ..., preserved_legacy_sections: _Optional[_Iterable[_Union[LegacySection, _Mapping]]] = ..., change_boundary: _Optional[_Union[ChangeBoundary, _Mapping]] = ..., mirror: _Optional[_Union[RenderedPlanMirror, _Mapping]] = ..., workspace_id: _Optional[str] = ..., workspace_root: _Optional[str] = ...) -> None: ...
 
 class PlanEdge(_message.Message):
     __slots__ = ("from_plan_id", "to_plan_id", "kind")

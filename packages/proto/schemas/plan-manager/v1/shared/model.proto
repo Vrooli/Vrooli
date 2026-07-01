@@ -198,6 +198,8 @@ message ImportProvenance {
   string imported_at = 2; // RFC3339
   string original_format = 3; // e.g. "legacy_markdown"
   string note = 4; // human-readable adoption note
+  string workspace_id = 5; // workspace identity at import time, when known
+  string workspace_root = 6; // absolute workspace root at import time, when known
 }
 
 // ValidationVerdict is the outcome of a validation/DoD check. UNKNOWN is the
@@ -571,6 +573,10 @@ message Plan {
   // COMPUTED rendered markdown mirror metadata. The file is a durable projection,
   // not canonical editable state.
   RenderedPlanMirror mirror = 33;
+  // Canonical workspace association used for workspace-scoped list/lookup.
+  string workspace_id = 34;
+  // Canonical absolute workspace root used for filesystem-scoped plans.
+  string workspace_root = 35;
 }
 
 // PlanEdge is one supersession/dependency edge between two plans (the plan

@@ -58,6 +58,10 @@ type PhaseRecord struct {
 	Name            string `json:"name"`
 	Status          string `json:"status"`
 	DurationSeconds int    `json:"duration_seconds"`
+	Comparable      bool   `json:"comparable,omitempty"`
+	Advisory        bool   `json:"advisory,omitempty"`
+	ArtifactBacked  bool   `json:"artifact_backed,omitempty"`
+	NonComparable   bool   `json:"non_comparable,omitempty"`
 }
 
 // RunRecord is the index entry for a single test-genie execution.
@@ -85,6 +89,8 @@ type RunRecord struct {
 	// Empty on runs that predate shape stamping.
 	Preset         string            `json:"preset,omitempty"`
 	CaptureProfile string            `json:"capture_profile,omitempty"`
+	PlannedPhases  []string          `json:"planned_phases,omitempty"`
+	PhaseSetDigest string            `json:"phase_set_digest,omitempty"`
 	Diagnostics    DiagnosticsConfig `json:"diagnostics"`
 	Pins           []PinRecord       `json:"pins,omitempty"`
 }

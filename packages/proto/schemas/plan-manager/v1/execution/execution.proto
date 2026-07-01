@@ -106,6 +106,29 @@ message PhaseContext {
   // resumed agent sees the allowed/denied paths and oracle coverage without
   // reading the full plan markdown.
   shared.ChangeBoundary change_boundary = 14;
+  // Phase-close feedback checkpoint. Computed from phase-scoped log entries so
+  // a smaller agent gets an explicit "capture or confirm none" gate before a
+  // phase is recommended done.
+  PhaseFeedbackCheckpoint feedback_checkpoint = 15;
+}
+
+// PhaseFeedbackCheckpoint reports whether the current phase has durable feedback
+// captured in the log ledger, or an explicit no-feedback note. It is computed
+// from LogService entries; execution never stores feedback on the phase.
+message PhaseFeedbackCheckpoint {
+  string phase_id = 1;
+  bool reviewed = 2;
+  bool satisfied = 3;
+  string summary = 4;
+  int32 decisions = 5;
+  int32 findings = 6;
+  int32 bug_reports = 7;
+  int32 records = 8;
+  int32 notes = 9;
+  int32 pending_sync = 10;
+  int32 failed_sync = 11;
+  string no_feedback_title = 12;
+  string no_feedback_detail = 13;
 }
 
 // CompletionNudge is one item in the thin guided completion process. Nudges are
@@ -204,6 +227,10 @@ message TransitionPhaseRequest {
   // result. This is an explicit audit trail for degraded/offline work, not a
   // free pass hidden in prose.
   ValidationOverride validation_override = 4;
+  // Required when marking a phase done without a satisfied feedback checkpoint.
+  // This is an explicit audit trail for operator/degraded cases; normal agents
+  // should satisfy the checkpoint by capturing feedback or a no-feedback note.
+  FeedbackOverride feedback_override = 5;
 }
 
 message TransitionPhaseResponse {
@@ -213,6 +240,10 @@ message TransitionPhaseResponse {
 }
 
 message ValidationOverride {
+  string reason = 1;
+}
+
+message FeedbackOverride {
   string reason = 1;
 }
 

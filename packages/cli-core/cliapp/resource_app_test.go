@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -85,6 +86,9 @@ func TestResourceAppUsesStaleCheckerForDelegatingCommands(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("NewResourceApp: %v", err)
+	}
+	if got := strings.Join(app.StaleChecker.FreshnessInputs, ","); got != "cli/**,resource.json,../../packages/cli-core" {
+		t.Fatalf("freshness inputs = %q", got)
 	}
 	restarted := false
 	app.StaleChecker.FingerprintFunc = func(spec cliutil.FreshnessSpec) (string, error) {

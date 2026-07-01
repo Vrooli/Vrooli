@@ -16,7 +16,7 @@ func TestHelpText() string {
 			{Name: "--json", Description: "Emit the typed pass/fail summary (vrooli.cli.v1.TestPhaseResult)"},
 		},
 	}
-	spec.Help.Description = "Run scenario tests. Supported selectors include structure, dependencies, unit, integration, business, performance, all, and e2e.\n\n" +
+	spec.Help.Description = "Run scenario tests. Supported selectors include Test Genie catalog phases such as structure, contracts, ui-health, standards, dependencies, quality, docs, unit, storage, playbooks, business, tidiness, security, measures, proto, branding, all, and e2e.\n\n" +
 		"The run is owned by the test-genie SERVER, so this command is cancel-survivable: the run id and a\n" +
 		"re-attach command are printed up front, and the run keeps going if your shell/tool times out. Do NOT\n" +
 		"poll with repeated checks — just re-attach with the printed `wait` command, which blocks once and exits\n" +

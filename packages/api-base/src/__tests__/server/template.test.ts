@@ -12,6 +12,7 @@ import * as http from 'node:http'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import * as os from 'node:os'
+import * as zlib from 'node:zlib'
 
 // Helper to make HTTP requests to test server
 async function makeRequest(server: Server, path: string, method: string = 'GET'): Promise<{
@@ -44,6 +45,46 @@ async function makeRequest(server: Server, path: string, method: string = 'GET')
         } catch {
           resolve({ status: res.statusCode || 500, body: body, headers: res.headers })
         }
+      })
+    })
+
+    req.on('error', reject)
+    req.setTimeout(1000, () => {
+      req.destroy()
+      reject(new Error('Request timeout'))
+    })
+    req.end()
+  })
+}
+
+async function makeRawRequest(server: Server, path: string, headers?: http.OutgoingHttpHeaders): Promise<{
+  status: number
+  body: Buffer
+  headers: http.IncomingHttpHeaders
+}> {
+  const address = server.address()
+  if (!address || typeof address === 'string') {
+    throw new Error('Server not listening')
+  }
+
+  return new Promise((resolve, reject) => {
+    const req = http.request({
+      hostname: 'localhost',
+      port: address.port,
+      path,
+      method: 'GET',
+      headers,
+    }, (res) => {
+      const chunks: Buffer[] = []
+      res.on('data', chunk => {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+      })
+      res.on('end', () => {
+        resolve({
+          status: res.statusCode || 500,
+          body: Buffer.concat(chunks),
+          headers: res.headers,
+        })
       })
     })
 
@@ -743,6 +784,34 @@ describe('createScenarioServer HTTP endpoints', () => {
 
       expect(result.status).toBe(200)
       expect(result.headers['cache-control']).toBe('public, max-age=31536000, immutable')
+    } finally {
+      temp.cleanup()
+    }
+  })
+
+  it('compresses static JavaScript assets when the client accepts gzip', async () => {
+    const source = `console.log("${'compressible '.repeat(300)}")`
+    const temp = createTempDist('<html><body>assets</body></html>', {
+      'assets/app-main-abc12345.js': source,
+    })
+
+    try {
+      const app = createScenarioServer({
+        uiPort: 33015,
+        apiPort: 8080,
+        distDir: temp.distDir,
+      })
+
+      server = app.listen(0)
+      const result = await makeRawRequest(server, '/assets/app-main-abc12345.js', {
+        'Accept-Encoding': 'gzip',
+      })
+
+      expect(result.status).toBe(200)
+      expect(result.headers['content-encoding']).toBe('gzip')
+      expect(result.headers['vary']).toContain('Accept-Encoding')
+      expect(result.headers['content-length']).toBeUndefined()
+      expect(zlib.gunzipSync(result.body).toString('utf-8')).toBe(source)
     } finally {
       temp.cleanup()
     }

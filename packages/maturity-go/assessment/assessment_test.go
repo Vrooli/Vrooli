@@ -41,7 +41,62 @@ func validSpec() Spec {
 	}
 }
 
-func TestRepositoryProviderSpecsKeepCleanRequirementCompatibility(t *testing.T) {
+func validMultiCapabilitySpec() Spec {
+	return Spec{
+		Provider: "ui-health",
+		Phase:    "ui-health",
+		Version:  "1",
+		Capabilities: []CapabilitySpec{
+			{
+				ID:          "interop",
+				Label:       "Interop",
+				Description: "Embedding and deployment-context correctness.",
+				Levels: []Level{
+					{ID: "L0", Name: "Missing", StatusLabel: "Unavailable", CapabilitySummary: "Cannot embed reliably."},
+					{ID: "L1", Name: "Base", StatusLabel: "Foundation", CapabilitySummary: "Basic UI contract exists.", NextUnlock: "Proxy-safe routes and assets."},
+					{ID: "L2", Name: "Proxy-safe", StatusLabel: "Ready", CapabilitySummary: "Routes and assets work under proxy.", NextUnlock: "Maximum maturity reached."},
+				},
+			},
+			{
+				ID:          "pwa_native_readiness",
+				Label:       "PWA Native Readiness",
+				Description: "Installability, launch, and offline-native web behavior.",
+				Levels: []Level{
+					{ID: "L0", Name: "Absent", StatusLabel: "Unavailable", CapabilitySummary: "Install surface is absent."},
+					{ID: "L1", Name: "Install metadata", StatusLabel: "Basic", CapabilitySummary: "Manifest and launch colors are present.", NextUnlock: "Offline-safe launch and app-shell fallback."},
+					{ID: "L2", Name: "Offline-ready", StatusLabel: "Ready", CapabilitySummary: "App shell is reload-safe offline."},
+				},
+			},
+		},
+		Findings: map[string]FindingMapping{
+			"interop.proxy_base_missing": {
+				CapabilityID:     "interop",
+				LocalLevelImpact: "L2",
+				GlobalImpact:     ImpactHardeningGap,
+				Dimension:        "ui",
+				SeverityDefault:  "ERROR",
+				CleanRequirement: string(CleanRequirementRequired),
+			},
+			"pwa.service_worker_missing": {
+				CapabilityID:     "pwa_native_readiness",
+				LocalLevelImpact: "L1",
+				GlobalImpact:     ImpactCapabilityGap,
+				Dimension:        "ui",
+				SeverityDefault:  "WARNING",
+				CleanRequirement: string(CleanRequirementRequired),
+			},
+		},
+		Fallback: FallbackPolicy{
+			LocalLevelImpact: "L1",
+			GlobalImpact:     ImpactUnknown,
+			Dimension:        "ui",
+			SeverityDefault:  "WARNING",
+			CleanRequirement: string(CleanRequirementAdvisory),
+		},
+	}
+}
+
+func TestRepositoryProviderSpecsValidateCleanRequirementContract(t *testing.T) {
 	repoRoot := filepath.Clean(filepath.Join("..", "..", ".."))
 	specPaths, err := filepath.Glob(filepath.Join(repoRoot, "scenarios", "*", ".vrooli", "maturity.json"))
 	if err != nil {
@@ -67,26 +122,89 @@ func TestRepositoryProviderSpecsKeepCleanRequirementCompatibility(t *testing.T) 
 			if err := ValidateSpec(spec); err != nil {
 				t.Fatalf("validate %s: %v", specPath, err)
 			}
+			if len(spec.Capabilities) > 0 {
+				for code, mapping := range spec.Findings {
+					if strings.TrimSpace(mapping.CapabilityID) == "" {
+						t.Fatalf("%s multi-capability finding %q must declare capability_id", spec.Provider, code)
+					}
+				}
+				if strings.TrimSpace(spec.Fallback.CapabilityID) == "" {
+					t.Fatalf("%s multi-capability fallback must declare capability_id", spec.Provider)
+				}
+			}
 
 			counts := map[CleanRequirement]int{}
+			explicit := 0
 			for _, mapping := range spec.Findings {
-				counts[normalizeCleanRequirement(mapping.CleanRequirement)]++
-			}
-			if spec.Provider == "proto-health" {
-				if counts[CleanRequirementRequired] == 0 || counts[CleanRequirementUncheckable] == 0 {
-					t.Fatalf("proto-health clean requirement counts = %#v, want required and uncheckable classifications", counts)
-				}
-				return
-			}
-			for code, mapping := range spec.Findings {
-				if strings.TrimSpace(mapping.CleanRequirement) != "" {
-					t.Fatalf("%s unexpectedly sets clean_requirement %q; only proto-health opts in during this migration", code, mapping.CleanRequirement)
+				requirement := normalizeCleanRequirement(mapping.CleanRequirement)
+				counts[requirement]++
+				if mapping.CleanRequirement != "" {
+					explicit++
+					if !IsValidCleanRequirement(requirement) {
+						t.Fatalf("%s clean_requirement %q normalized to invalid value %q", spec.Provider, mapping.CleanRequirement, requirement)
+					}
 				}
 			}
-			if counts[CleanRequirementRequired] != 0 || counts[CleanRequirementUncheckable] != 0 {
-				t.Fatalf("unmigrated provider counts = %#v, want advisory defaults only", counts)
+			if len(spec.Findings) > 0 && counts[CleanRequirementAdvisory]+counts[CleanRequirementRequired]+counts[CleanRequirementUncheckable] != len(spec.Findings) {
+				t.Fatalf("%s clean requirement counts = %#v, want one normalized classification per finding", spec.Provider, counts)
+			}
+			if explicit > 0 && counts[CleanRequirementAdvisory]+counts[CleanRequirementRequired]+counts[CleanRequirementUncheckable] == 0 {
+				t.Fatalf("%s declared clean requirements but none normalized: %#v", spec.Provider, counts)
 			}
 		})
+	}
+}
+
+func TestCleanRequirementDefaultsToAdvisory(t *testing.T) {
+	spec := validSpec()
+	mapping := spec.Findings["measures.uncovered-domain"]
+	mapping.CleanRequirement = ""
+	spec.Findings["measures.uncovered-domain"] = mapping
+	assessment, err := BuildProtoAssessment(BuildInput{
+		Spec:     spec,
+		Scenario: "demo",
+		Findings: []Finding{
+			{Code: "measures.uncovered-domain", Severity: "WARNING"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("BuildProtoAssessment returned error: %v", err)
+	}
+	if got := assessment.GetFindingsByCleanRequirement()[string(CleanRequirementAdvisory)]; got != 1 {
+		t.Fatalf("advisory clean requirement count = %d, want 1", got)
+	}
+	if got := assessment.GetFindings()[0].GetMaturity().GetCleanRequirement(); got != commonv1.CleanRequirement_CLEAN_REQUIREMENT_ADVISORY {
+		t.Fatalf("finding clean requirement = %v, want advisory", got)
+	}
+}
+
+func TestValidateSpecAllowsExplicitCleanRequirementsForAnyProvider(t *testing.T) {
+	spec := validSpec()
+	for name, requirement := range map[string]string{
+		"required":    string(CleanRequirementRequired),
+		"advisory":    string(CleanRequirementAdvisory),
+		"uncheckable": string(CleanRequirementUncheckable),
+	} {
+		t.Run(name, func(t *testing.T) {
+			spec := spec
+			spec.Provider = "structure-health"
+			mapping := spec.Findings["measures.uncovered-domain"]
+			mapping.CleanRequirement = requirement
+			spec.Findings = map[string]FindingMapping{"structure.demo": mapping}
+			if err := ValidateSpec(spec); err != nil {
+				t.Fatalf("ValidateSpec rejected %s for non-proto provider: %v", requirement, err)
+			}
+		})
+	}
+}
+
+func TestValidateSpecRejectsUnknownCleanRequirement(t *testing.T) {
+	spec := validSpec()
+	mapping := spec.Findings["measures.uncovered-domain"]
+	mapping.CleanRequirement = "sometimes"
+	spec.Findings["measures.uncovered-domain"] = mapping
+	if err := ValidateSpec(spec); err == nil {
+		t.Fatal("ValidateSpec succeeded with unknown clean_requirement")
 	}
 }
 
@@ -111,6 +229,33 @@ func TestValidateSpecRejectsUnknownImpact(t *testing.T) {
 	}
 	if err := ValidateSpec(spec); err == nil {
 		t.Fatal("ValidateSpec succeeded with unknown global impact")
+	}
+}
+
+func TestValidateSpecAllowsDuplicateLevelIDsAcrossCapabilities(t *testing.T) {
+	spec := validMultiCapabilitySpec()
+	if err := ValidateSpec(spec); err != nil {
+		t.Fatalf("ValidateSpec returned error: %v", err)
+	}
+	spec.Findings["bad.capability"] = FindingMapping{
+		CapabilityID:     "missing",
+		LocalLevelImpact: "L1",
+		GlobalImpact:     ImpactHardeningGap,
+		Dimension:        "ui",
+		CleanRequirement: string(CleanRequirementRequired),
+	}
+	if err := ValidateSpec(spec); err == nil {
+		t.Fatal("ValidateSpec succeeded with unknown capability_id")
+	}
+}
+
+func TestValidateSpecRequiresCleanRequirementForCapabilitySpecs(t *testing.T) {
+	spec := validMultiCapabilitySpec()
+	mapping := spec.Findings["pwa.service_worker_missing"]
+	mapping.CleanRequirement = ""
+	spec.Findings["pwa.service_worker_missing"] = mapping
+	if err := ValidateSpec(spec); err == nil {
+		t.Fatal("ValidateSpec succeeded with missing clean_requirement in capability spec")
 	}
 }
 
@@ -391,6 +536,219 @@ func TestBuildProtoAssessmentIncludesBlockingFindingMetadata(t *testing.T) {
 	}
 	if got.GetFindingsByCleanRequirement()["advisory"] != 1 {
 		t.Fatalf("clean requirement counts = %#v", got.GetFindingsByCleanRequirement())
+	}
+}
+
+func TestBuildProtoAssessmentEmitsCapabilityAssessmentsAndRollup(t *testing.T) {
+	got, err := BuildProtoAssessment(BuildInput{
+		Scenario: "demo",
+		Spec:     validMultiCapabilitySpec(),
+		Findings: []Finding{
+			{Code: "interop.proxy_base_missing"},
+			{Code: "pwa.service_worker_missing"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("BuildProtoAssessment returned error: %v", err)
+	}
+	if got.GetLocal().GetCurrentLevel() != "L0" || got.GetLocal().GetNextLevel() != "L1" {
+		t.Fatalf("rollup local = current %q next %q, want L0/L1", got.GetLocal().GetCurrentLevel(), got.GetLocal().GetNextLevel())
+	}
+	if got.GetHighestPriorityCapability().GetCapabilityId() != "pwa_native_readiness" {
+		t.Fatalf("highest priority = %#v, want pwa_native_readiness", got.GetHighestPriorityCapability())
+	}
+	if len(got.GetCapabilities()) != 2 {
+		t.Fatalf("capabilities = %d, want 2", len(got.GetCapabilities()))
+	}
+	pwa := got.GetCapabilities()[1]
+	if pwa.GetCurrentLevel() != "L0" || pwa.GetNextLevel() != "L1" {
+		t.Fatalf("pwa maturity = current %q next %q, want L0/L1", pwa.GetCurrentLevel(), pwa.GetNextLevel())
+	}
+	if pwa.GetCurrentSummary() != "Install surface is absent." {
+		t.Fatalf("pwa current summary = %q", pwa.GetCurrentSummary())
+	}
+	if pwa.GetNextUnlock() != "Offline-safe launch and app-shell fallback." {
+		t.Fatalf("pwa next unlock = %q", pwa.GetNextUnlock())
+	}
+	if got.GetFindings()[0].GetMaturity().GetCapabilityId() != "interop" {
+		t.Fatalf("finding capability = %q, want interop", got.GetFindings()[0].GetMaturity().GetCapabilityId())
+	}
+	if got.GetFindings()[1].GetMaturity().GetCapabilityId() != "pwa_native_readiness" {
+		t.Fatalf("finding capability = %q, want pwa_native_readiness", got.GetFindings()[1].GetMaturity().GetCapabilityId())
+	}
+}
+
+func TestCapabilityPriorityScoring(t *testing.T) {
+	tests := []struct {
+		name       string
+		mutate     func(*Spec)
+		findings   []Finding
+		wantFocus  string
+		wantRanks  map[string]int32
+		wantReason string
+	}{
+		{
+			name: "required lower level warning outranks higher level error",
+			findings: []Finding{
+				{Code: "pwa.service_worker_missing"},
+				{Code: "interop.proxy_base_missing"},
+			},
+			wantFocus: "pwa_native_readiness",
+			wantRanks: map[string]int32{
+				"pwa_native_readiness": 1,
+				"interop":              2,
+			},
+			wantReason: "lowest current level with required/blocking findings WARNING capability_gap debt=1",
+		},
+		{
+			name: "same level foundation impact outranks advisory",
+			mutate: func(spec *Spec) {
+				spec.Findings["interop.proxy_base_missing"] = FindingMapping{
+					CapabilityID:     "interop",
+					LocalLevelImpact: "L1",
+					GlobalImpact:     ImpactFoundationBlocker,
+					Dimension:        "ui",
+					SeverityDefault:  "ERROR",
+					CleanRequirement: string(CleanRequirementRequired),
+				}
+				spec.Findings["pwa.service_worker_missing"] = FindingMapping{
+					CapabilityID:     "pwa_native_readiness",
+					LocalLevelImpact: "L1",
+					GlobalImpact:     ImpactAdvisory,
+					Dimension:        "ui",
+					SeverityDefault:  "ERROR",
+					CleanRequirement: string(CleanRequirementAdvisory),
+				}
+			},
+			findings: []Finding{
+				{Code: "pwa.service_worker_missing"},
+				{Code: "interop.proxy_base_missing"},
+			},
+			wantFocus:  "interop",
+			wantReason: "lowest current level with required/blocking findings ERROR foundation_blocker",
+		},
+		{
+			name: "advisory debt outranks fully clean capability",
+			mutate: func(spec *Spec) {
+				delete(spec.Findings, "pwa.service_worker_missing")
+				spec.Findings["interop.proxy_base_missing"] = FindingMapping{
+					CapabilityID:     "interop",
+					LocalLevelImpact: "L2",
+					GlobalImpact:     ImpactHardeningGap,
+					Dimension:        "ui",
+					SeverityDefault:  "WARNING",
+					CleanRequirement: string(CleanRequirementAdvisory),
+				}
+			},
+			findings:   []Finding{{Code: "interop.proxy_base_missing"}},
+			wantFocus:  "interop",
+			wantReason: "lowest current level with advisory findings WARNING hardening_gap debt=1",
+		},
+		{
+			name: "debt bearing capability outranks earlier clean capability at same rung",
+			mutate: func(spec *Spec) {
+				spec.Capabilities = []CapabilitySpec{
+					spec.Capabilities[1],
+					spec.Capabilities[0],
+				}
+				spec.Findings["interop.proxy_base_missing"] = FindingMapping{
+					CapabilityID:     "interop",
+					LocalLevelImpact: "L2",
+					GlobalImpact:     ImpactHardeningGap,
+					Dimension:        "ui",
+					SeverityDefault:  "WARNING",
+					CleanRequirement: string(CleanRequirementAdvisory),
+				}
+				delete(spec.Findings, "pwa.service_worker_missing")
+			},
+			findings:   []Finding{{Code: "interop.proxy_base_missing"}},
+			wantFocus:  "interop",
+			wantReason: "lowest current level with advisory findings WARNING hardening_gap debt=1",
+		},
+		{
+			name: "fixable tie break applies after severity and impact",
+			mutate: func(spec *Spec) {
+				spec.Findings["interop.proxy_base_missing"] = FindingMapping{
+					CapabilityID:     "interop",
+					LocalLevelImpact: "L1",
+					GlobalImpact:     ImpactHardeningGap,
+					Dimension:        "ui",
+					SeverityDefault:  "ERROR",
+					CleanRequirement: string(CleanRequirementRequired),
+				}
+				spec.Findings["pwa.service_worker_missing"] = FindingMapping{
+					CapabilityID:     "pwa_native_readiness",
+					LocalLevelImpact: "L1",
+					GlobalImpact:     ImpactHardeningGap,
+					Dimension:        "ui",
+					SeverityDefault:  "ERROR",
+					CleanRequirement: string(CleanRequirementRequired),
+					FixClass:         FixClassAuto,
+					FixerStatus:      FixerStatusPending,
+				}
+			},
+			findings: []Finding{
+				{Code: "pwa.service_worker_missing"},
+				{Code: "interop.proxy_base_missing"},
+			},
+			wantFocus:  "pwa_native_readiness",
+			wantReason: "lowest current level with required/blocking findings ERROR hardening_gap fixable=1",
+		},
+		{
+			name: "declaration order is final stable tie break",
+			mutate: func(spec *Spec) {
+				spec.Findings["interop.proxy_base_missing"] = FindingMapping{
+					CapabilityID:     "interop",
+					LocalLevelImpact: "L1",
+					GlobalImpact:     ImpactHardeningGap,
+					Dimension:        "ui",
+					SeverityDefault:  "ERROR",
+					CleanRequirement: string(CleanRequirementRequired),
+				}
+				spec.Findings["pwa.service_worker_missing"] = FindingMapping{
+					CapabilityID:     "pwa_native_readiness",
+					LocalLevelImpact: "L1",
+					GlobalImpact:     ImpactHardeningGap,
+					Dimension:        "ui",
+					SeverityDefault:  "ERROR",
+					CleanRequirement: string(CleanRequirementRequired),
+				}
+			},
+			findings: []Finding{
+				{Code: "pwa.service_worker_missing"},
+				{Code: "interop.proxy_base_missing"},
+			},
+			wantFocus:  "interop",
+			wantReason: "lowest current level with required/blocking findings ERROR hardening_gap",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spec := validMultiCapabilitySpec()
+			if tt.mutate != nil {
+				tt.mutate(&spec)
+			}
+			got, err := BuildProtoAssessment(BuildInput{
+				Scenario: "demo",
+				Spec:     spec,
+				Findings: tt.findings,
+			})
+			if err != nil {
+				t.Fatalf("BuildProtoAssessment returned error: %v", err)
+			}
+			if got.GetHighestPriorityCapability().GetCapabilityId() != tt.wantFocus {
+				t.Fatalf("focus = %#v, want %s", got.GetHighestPriorityCapability(), tt.wantFocus)
+			}
+			if got.GetHighestPriorityCapability().GetReason() != tt.wantReason {
+				t.Fatalf("focus reason = %q, want %q", got.GetHighestPriorityCapability().GetReason(), tt.wantReason)
+			}
+			for _, capability := range got.GetCapabilities() {
+				if want, ok := tt.wantRanks[capability.GetId()]; ok && capability.GetPriorityRank() != want {
+					t.Fatalf("%s priority rank = %d, want %d", capability.GetId(), capability.GetPriorityRank(), want)
+				}
+			}
+		})
 	}
 }
 

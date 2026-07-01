@@ -5,18 +5,19 @@ package vrooli.cli.v1;
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
 
 // =============================================================================
-// VROOLI CLI — `check-shared-drift` output contract
+// VROOLI CLI — dependency freshness compatibility payload
 // =============================================================================
 //
 // @stability experimental
 //
-// Canonical wire shape of `vrooli check-shared-drift --json`. The command emits
-// the report directly (cliout.WriteJSON, no success envelope). Marshaled with
-// protojson (UseProtoNames=true, EmitUnpopulated=true). Reused by the hygiene
-// report, which embeds a shared-drift report.
+// Compatibility wire shape embedded by the hygiene report for consumers that
+// still read the historical `shared_drift` field. The standalone root command
+// has been retired; dependency freshness is owned by Scenario Dependency
+// Analyzer and aggregated by `vrooli hygiene`.
 // =============================================================================
 
-// SharedDriftReport is the top-level shape of `check-shared-drift --json`.
+// SharedDriftReport is the compatibility dependency freshness report embedded
+// by hygiene JSON.
 message SharedDriftReport {
   // True when no shared-package drift was detected.
   bool clean = 1;

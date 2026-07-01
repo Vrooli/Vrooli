@@ -30,6 +30,9 @@ func BuildMaturityListReport(a *commonv1.MaturityAssessment) cliapp.ListReport {
 			ResultsHeading: "Findings",
 		}
 	}
+	if len(a.GetCapabilities()) > 0 {
+		return buildCapabilityMaturityListReport(a)
+	}
 	blockers := sortedCopy(a.GetLocal().GetBlockingFindingCodes())
 	debtByLevel := assessmentDebtByLevel(a)
 	debtScore := debtTotal(debtByLevel)
@@ -60,6 +63,84 @@ func BuildMaturityListReport(a *commonv1.MaturityAssessment) cliapp.ListReport {
 		Summary:        summary,
 		ResultsHeading: "Findings",
 		Results:        results,
+		RetrievalHints: hints,
+	}
+}
+
+func buildCapabilityMaturityListReport(a *commonv1.MaturityAssessment) cliapp.ListReport {
+	blockers := sortedCopy(a.GetLocal().GetBlockingFindingCodes())
+	debtByLevel := assessmentDebtByLevel(a)
+	debtScore := debtTotal(debtByLevel)
+	summary := []string{
+		fmt.Sprintf("%s/%s assessed %s", a.GetProvider(), a.GetPhase(), a.GetScenario()),
+		fmt.Sprintf("Local maturity: current=%s · %d blocking · %d debt",
+			emptyAs(a.GetLocal().GetCurrentLevel(), "none"), len(blockers), debtScore),
+	}
+	if next := strings.TrimSpace(a.GetLocal().GetNextLevel()); next != "" {
+		summary = append(summary, fmt.Sprintf("Next level: %s", next))
+	}
+	if focus := a.GetHighestPriorityCapability(); focus != nil && strings.TrimSpace(focus.GetCapabilityId()) != "" {
+		focusLine := fmt.Sprintf("Highest priority: %s", emptyAs(focus.GetCapabilityLabel(), focus.GetCapabilityId()))
+		if next := strings.TrimSpace(focus.GetNextLevel()); next != "" {
+			focusLine += " to " + next
+		}
+		if reason := strings.TrimSpace(focus.GetReason()); reason != "" {
+			focusLine += " - " + reason
+		}
+		summary = append(summary, focusLine)
+	}
+	for _, capability := range sortedCapabilities(a.GetCapabilities()) {
+		if capability == nil {
+			continue
+		}
+		debt := capabilityDebtCount(a, capability.GetId())
+		blocking := len(sortedCopy(capability.GetBlockingFindingCodes()))
+		status := capabilityCurrentStatus(capability)
+		line := fmt.Sprintf("%s: rung=%s%s%s · blocking=%d · debt=%d",
+			emptyAs(capability.GetLabel(), capability.GetId()),
+			emptyAs(capability.GetCurrentLevel(), "none"),
+			status,
+			debtQualifier(debt),
+			blocking,
+			debt,
+		)
+		summary = append(summary, line)
+		if currentSummary := strings.TrimSpace(capability.GetCurrentSummary()); currentSummary != "" && debt == 0 {
+			summary = append(summary, "  "+currentSummary)
+		}
+		if debt > 0 {
+			summary = append(summary, fmt.Sprintf("  Debt: %s.", pluralize(debt, "debt finding", "debt findings")))
+		}
+		if next := strings.TrimSpace(capability.GetNextLevel()); next != "" {
+			if unlock := strings.TrimSpace(capability.GetNextUnlock()); unlock != "" {
+				summary = append(summary, fmt.Sprintf("  Next %s unlocks: %s", next, unlock))
+			}
+		} else if debt > 0 {
+			summary = append(summary, fmt.Sprintf("  Top rung reached, but %s %s.",
+				pluralize(debt, "advisory debt item", "advisory debt items"),
+				remainVerb(debt),
+			))
+		} else {
+			summary = append(summary, "  Maximum maturity reached.")
+		}
+	}
+	if len(blockers) > 0 {
+		summary = append(summary, fmt.Sprintf("Blocking findings: %s", strings.Join(blockers, ", ")))
+	}
+	if len(debtByLevel) > 0 {
+		summary = append(summary, "Debt by level: "+formatDebtByLevel(a, debtByLevel))
+	}
+
+	hints := make([]string, 0)
+	hints = append(hints, impactCountLines(a.GetFindingsByGlobalImpact())...)
+	for _, skill := range sortedCopy(a.GetRecommendedSkillIds()) {
+		hints = append(hints, fmt.Sprintf("skill: %s", skill))
+	}
+
+	return cliapp.ListReport{
+		Summary:        summary,
+		ResultsHeading: "Findings",
+		Results:        groupedCapabilityAssessmentFindings(a),
 		RetrievalHints: hints,
 	}
 }
@@ -105,6 +186,85 @@ func groupedAssessmentFindings(a *commonv1.MaturityAssessment) []string {
 	return results
 }
 
+func groupedCapabilityAssessmentFindings(a *commonv1.MaturityAssessment) []string {
+	if a == nil {
+		return nil
+	}
+	byCapability := make(map[string][]*commonv1.AssessmentFinding)
+	for _, f := range a.GetFindings() {
+		if f == nil {
+			continue
+		}
+		capabilityID := "unknown"
+		if maturity := f.GetMaturity(); maturity != nil {
+			capabilityID = emptyAs(maturity.GetCapabilityId(), "unknown")
+		}
+		byCapability[capabilityID] = append(byCapability[capabilityID], f)
+	}
+	results := make([]string, 0, len(a.GetFindings())+len(byCapability))
+	seen := make(map[string]struct{}, len(byCapability))
+	for _, capability := range sortedCapabilities(a.GetCapabilities()) {
+		if capability == nil {
+			continue
+		}
+		id := capability.GetId()
+		if findings := byCapability[id]; len(findings) > 0 {
+			results = append(results, groupedCapabilityFindings(capability, findings)...)
+			seen[id] = struct{}{}
+		}
+	}
+	for _, id := range sortedMapKeys(byCapability) {
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		results = append(results, groupedCapabilityFindings(&commonv1.CapabilityMaturityAssessment{
+			Id:     id,
+			Label:  id,
+			Levels: a.GetLocal().GetLevels(),
+		}, byCapability[id])...)
+	}
+	return results
+}
+
+func groupedCapabilityFindings(capability *commonv1.CapabilityMaturityAssessment, findings []*commonv1.AssessmentFinding) []string {
+	byLevel := make(map[string][]*commonv1.AssessmentFinding)
+	for _, f := range findings {
+		if f == nil {
+			continue
+		}
+		level := "unknown"
+		if maturity := f.GetMaturity(); maturity != nil {
+			level = emptyAs(maturity.GetLocalLevel(), "unknown")
+		}
+		byLevel[level] = append(byLevel[level], f)
+	}
+	levels := capabilityLevelOrder(capability)
+	for _, level := range sortedMapKeys(byLevel) {
+		if !contains(levels, level) {
+			levels = append(levels, level)
+		}
+	}
+	results := make([]string, 0, len(findings)+len(byLevel))
+	for _, level := range levels {
+		findings := byLevel[level]
+		if len(findings) == 0 {
+			continue
+		}
+		sort.SliceStable(findings, func(i, j int) bool {
+			if findings[i].GetSeverity() != findings[j].GetSeverity() {
+				return severityRank(findings[i].GetSeverity()) < severityRank(findings[j].GetSeverity())
+			}
+			return findings[i].GetCode() < findings[j].GetCode()
+		})
+		label := emptyAs(capability.GetLabel(), capability.GetId())
+		results = append(results, fmt.Sprintf("%s / %s findings (%d)", label, level, len(findings)))
+		for _, f := range findings {
+			results = append(results, formatAssessmentFinding(f))
+		}
+	}
+	return results
+}
+
 func formatAssessmentFinding(f *commonv1.AssessmentFinding) string {
 	parts := []string{fmt.Sprintf("[%s]", emptyAs(f.GetSeverity(), "UNSPECIFIED"))}
 	if code := strings.TrimSpace(f.GetCode()); code != "" {
@@ -119,8 +279,14 @@ func formatAssessmentFinding(f *commonv1.AssessmentFinding) string {
 	}
 	if maturity := f.GetMaturity(); maturity != nil {
 		impact := globalImpactLabel(maturity.GetGlobalImpact())
-		line += fmt.Sprintf("\n    maturity: local=%s impact=%s dimension=%s",
-			emptyAs(maturity.GetLocalLevel(), "n/a"), impact, emptyAs(maturity.GetDimension(), "n/a"))
+		capability := strings.TrimSpace(maturity.GetCapabilityId())
+		if capability != "" {
+			line += fmt.Sprintf("\n    maturity: capability=%s local=%s impact=%s dimension=%s",
+				capability, emptyAs(maturity.GetLocalLevel(), "n/a"), impact, emptyAs(maturity.GetDimension(), "n/a"))
+		} else {
+			line += fmt.Sprintf("\n    maturity: local=%s impact=%s dimension=%s",
+				emptyAs(maturity.GetLocalLevel(), "n/a"), impact, emptyAs(maturity.GetDimension(), "n/a"))
+		}
 	}
 	if loc := strings.TrimSpace(f.GetLocation()); loc != "" {
 		line += "\n    location: " + loc
@@ -301,6 +467,104 @@ func localLevelOrder(a *commonv1.MaturityAssessment) []string {
 		}
 	}
 	return levels
+}
+
+func capabilityLevelOrder(capability *commonv1.CapabilityMaturityAssessment) []string {
+	if capability == nil {
+		return nil
+	}
+	levels := make([]string, 0, len(capability.GetLevels()))
+	for _, level := range capability.GetLevels() {
+		if level == nil {
+			continue
+		}
+		if id := strings.TrimSpace(level.GetId()); id != "" {
+			levels = append(levels, id)
+		}
+	}
+	return levels
+}
+
+func sortedCapabilities(capabilities []*commonv1.CapabilityMaturityAssessment) []*commonv1.CapabilityMaturityAssessment {
+	out := make([]*commonv1.CapabilityMaturityAssessment, 0, len(capabilities))
+	for _, capability := range capabilities {
+		if capability != nil {
+			out = append(out, capability)
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		left := out[i].GetPriorityRank()
+		right := out[j].GetPriorityRank()
+		if left != right {
+			if left == 0 {
+				return false
+			}
+			if right == 0 {
+				return true
+			}
+			return left < right
+		}
+		return out[i].GetId() < out[j].GetId()
+	})
+	return out
+}
+
+func capabilityCurrentStatus(capability *commonv1.CapabilityMaturityAssessment) string {
+	if capability == nil {
+		return ""
+	}
+	current := strings.TrimSpace(capability.GetCurrentLevel())
+	for _, level := range capability.GetLevels() {
+		if level == nil || level.GetId() != current {
+			continue
+		}
+		if status := strings.TrimSpace(level.GetStatusLabel()); status != "" {
+			return " " + status
+		}
+		if name := strings.TrimSpace(level.GetName()); name != "" {
+			return " " + name
+		}
+	}
+	return ""
+}
+
+func debtQualifier(debt int) string {
+	if debt <= 0 {
+		return ""
+	}
+	return " with debt"
+}
+
+func capabilityDebtCount(a *commonv1.MaturityAssessment, capabilityID string) int {
+	if a == nil {
+		return 0
+	}
+	total := 0
+	for _, finding := range a.GetFindings() {
+		if finding == nil || !isDebtFinding(finding) {
+			continue
+		}
+		maturity := finding.GetMaturity()
+		if maturity == nil || maturity.GetCapabilityId() != capabilityID {
+			continue
+		}
+		total++
+	}
+	return total
+}
+
+func pluralize(n int, singular, plural string) string {
+	if n == 1 {
+		return fmt.Sprintf("%d %s", n, singular)
+	}
+	return fmt.Sprintf("%d %s", n, plural)
+}
+
+func remainVerb(n int) string {
+	if n == 1 {
+		return "remains"
+	}
+	return "remain"
 }
 
 func sortedMapKeys[T any](values map[string]T) []string {

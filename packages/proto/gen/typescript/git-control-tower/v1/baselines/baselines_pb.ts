@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file git-control-tower/v1/baselines/baselines.proto.
  */
 export const file_git_control_tower_v1_baselines_baselines: GenFile = /*@__PURE__*/
-  fileDesc("Ci5naXQtY29udHJvbC10b3dlci92MS9iYXNlbGluZXMvYmFzZWxpbmVzLnByb3RvEiV2cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzIrYBCghHaXRTdGF0ZRILCgNzaGEYASABKAkSDgoGYnJhbmNoGAIgASgJEhAKCGRldGFjaGVkGAMgASgIEg0KBWRpcnR5GAQgASgIEhUKDWRpcnR5X3N1bW1hcnkYBSABKAkSFgoOY29tbWl0X21lc3NhZ2UYBiABKAkSFQoNY29tbWl0X2F1dGhvchgHIAEoCRITCgtjb21taXRfZGF0ZRgIIAEoCRIRCglzYW5kYm94ZWQYCSABKAgiZQoOU3VyZmFjZVBvaW50ZXISEgoKc3VyZmFjZV9pZBgBIAEoCRIMCgRraW5kGAIgASgJEgsKA3JlZhgDIAEoCRITCgtjYXB0dXJlZF9hdBgEIAEoCRIPCgdzdW1tYXJ5GAUgASgJIogEChBCYXNlbGluZU1hbmlmZXN0EgwKBG5hbWUYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSDgoGYnJhbmNoGAMgASgJEhIKCmNyZWF0ZWRfYXQYBCABKAkSEgoKY3JlYXRlZF9ieRgFIAEoCRI8CgNnaXQYBiABKAsyLy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkdpdFN0YXRlElcKCHN1cmZhY2VzGAcgAygLMkUudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5CYXNlbGluZU1hbmlmZXN0LlN1cmZhY2VzRW50cnkSFgoOc2NoZW1hX3ZlcnNpb24YCCABKAUSVQoHc2tpcHBlZBgJIAMoCzJELnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuQmFzZWxpbmVNYW5pZmVzdC5Ta2lwcGVkRW50cnkaZgoNU3VyZmFjZXNFbnRyeRILCgNrZXkYASABKAkSRAoFdmFsdWUYAiABKAsyNS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlN1cmZhY2VQb2ludGVyOgI4ARouCgxTa2lwcGVkRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKlAQoLU3VyZmFjZURpZmYSEgoKc3VyZmFjZV9pZBgBIAEoCRIPCgd2ZXJkaWN0GAIgASgJEhMKC3JlZ3Jlc3Npb25zGAMgAygJEhQKDG5ld19mYWlsdXJlcxgEIAMoCRITCgtwcmVleGlzdGluZxgFIAMoCRIPCgdjbGVhcmVkGAYgAygJEg8KB3N1bW1hcnkYByABKAkSDwoHY2hhbmdlZBgIIAMoCSJPCglTdGFsZW5lc3MSFQoNY29tbWl0c19zaW5jZRgBIAEoBRIVCg1maWxlc19jaGFuZ2VkGAIgASgFEhQKDGxpa2VseV9zdGFsZRgDIAEoCCKbAQoVQ3JlYXRlQmFzZWxpbmVSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBG5hbWUYAiABKAkSDgoGYnJhbmNoGAMgASgJEg8KB2luY2x1ZGUYBCADKAkSDAoEZmFzdBgFIAEoCBISCgpjcmVhdGVkX2J5GAYgASgJEg4KBnJlYXNvbhgHIAEoCRIPCgdyZXBvX2lkGAggASgDIocCChZDcmVhdGVCYXNlbGluZVJlc3BvbnNlEkkKCGJhc2VsaW5lGAEgASgLMjcudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5CYXNlbGluZU1hbmlmZXN0ElsKB3NraXBwZWQYAiADKAsySi52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkNyZWF0ZUJhc2VsaW5lUmVzcG9uc2UuU2tpcHBlZEVudHJ5EhUKDWRpcnR5X3dhcm5pbmcYAyABKAkaLgoMU2tpcHBlZEVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEioAEKGlNuYXBzaG90Rm9yQmFzZWxpbmVSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBG5hbWUYAiABKAkSDgoGYnJhbmNoGAMgASgJEg8KB2luY2x1ZGUYBCADKAkSDAoEZmFzdBgFIAEoCBISCgpjcmVhdGVkX2J5GAYgASgJEg4KBnJlYXNvbhgHIAEoCRIPCgdyZXBvX2lkGAggASgDIrsBChtTbmFwc2hvdEZvckJhc2VsaW5lUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEgwKBG5hbWUYAyABKAkSDgoGYnJhbmNoGAQgASgJEh8KF2VzdGltYXRlZF90b3RhbF9zZWNvbmRzGAUgASgFEhEKCWV0YV9rbm93bhgGIAEoCBIVCg1kaXJ0eV93YXJuaW5nGAcgASgJEhEKCWNvYWxlc2NlZBgIIAEoCCJ5ChhHZXRTbmFwc2hvdFN0YXR1c1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEbmFtZRgCIAEoCRIOCgZicmFuY2gYAyABKAkSDgoGcnVuX2lkGAQgASgJEg8KB3JlcG9faWQYBSABKAMSDAoEd2FpdBgGIAEoCCKcAgoZR2V0U25hcHNob3RTdGF0dXNSZXNwb25zZRIOCgZzdGF0dXMYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSDAoEbmFtZRgDIAEoCRIOCgZicmFuY2gYBCABKAkSDgoGcnVuX2lkGAUgASgJEhIKCnJ1bl9zdGF0dXMYBiABKAkSSQoIYmFzZWxpbmUYByABKAsyNy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkJhc2VsaW5lTWFuaWZlc3QSDQoFZXJyb3IYCCABKAkSGQoRc2ltaWxhcl9iYXNlbGluZXMYCSADKAkSJgoecmVjb21tZW5kZWRfbmV4dF9jaGVja19zZWNvbmRzGAogASgFIlUKEkdldEJhc2VsaW5lUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIMCgRuYW1lGAIgASgJEg4KBmJyYW5jaBgDIAEoCRIPCgdyZXBvX2lkGAQgASgDImAKE0dldEJhc2VsaW5lUmVzcG9uc2USSQoIYmFzZWxpbmUYASABKAsyNy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkJhc2VsaW5lTWFuaWZlc3QiXwoUTGlzdEJhc2VsaW5lc1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDgoGYnJhbmNoGAIgASgJEhQKDGFsbF9icmFuY2hlcxgDIAEoCBIPCgdyZXBvX2lkGAQgASgDImMKFUxpc3RCYXNlbGluZXNSZXNwb25zZRJKCgliYXNlbGluZXMYASADKAsyNy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkJhc2VsaW5lTWFuaWZlc3QiZAoQU3RhcnREaWZmUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIMCgRuYW1lGAIgASgJEg4KBmJyYW5jaBgDIAEoCRIPCgdzdXJmYWNlGAQgASgJEg8KB3JlcG9faWQYBSABKAMi2QEKEVN0YXJ0RGlmZlJlc3BvbnNlEg4KBnJ1bl9pZBgBIAEoCRIQCghzY2VuYXJpbxgCIAEoCRIMCgRuYW1lGAMgASgJEg4KBmJyYW5jaBgEIAEoCRIfChdlc3RpbWF0ZWRfdG90YWxfc2Vjb25kcxgFIAEoBRIRCglldGFfa25vd24YBiABKAgSEQoJY29hbGVzY2VkGAcgASgIEhIKCnJldXNlZF9ydW4YCCABKAgSEgoKcmV1c2VkX3NoYRgJIAEoCRIVCg1kaXJ0eV93YXJuaW5nGAogASgJIpYBChRHZXREaWZmUmVzdWx0UmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIMCgRuYW1lGAIgASgJEg4KBmJyYW5jaBgDIAEoCRIOCgZydW5faWQYBCABKAkSDwoHc3VyZmFjZRgFIAEoCRIPCgdyZXBvX2lkGAYgASgDEgwKBHdhaXQYByABKAgSDgoGbGF0ZXN0GAggASgIIq8BChVHZXREaWZmUmVzdWx0UmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEj8KBGRpZmYYAiABKAsyMS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkRpZmZSZXN1bHQSDQoFZXJyb3IYAyABKAkSJgoecmVjb21tZW5kZWRfbmV4dF9jaGVja19zZWNvbmRzGAQgASgFEg4KBnJ1bl9pZBgFIAEoCSLQAgoKRGlmZlJlc3VsdBJJCghiYXNlbGluZRgBIAEoCzI3LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuQmFzZWxpbmVNYW5pZmVzdBJECgtjdXJyZW50X2dpdBgCIAEoCzIvLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuR2l0U3RhdGUSQwoJc3RhbGVuZXNzGAMgASgLMjAudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5TdGFsZW5lc3MSRAoIc3VyZmFjZXMYBCADKAsyMi52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlN1cmZhY2VEaWZmEg8KB3ZlcmRpY3QYBSABKAkSFQoNZGlydHlfd2FybmluZxgGIAEoCSI/CgtSdW5CdXN5SW5mbxIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkSDgoGcHJlc2V0GAMgASgJIlgKFURlbGV0ZUJhc2VsaW5lUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIMCgRuYW1lGAIgASgJEg4KBmJyYW5jaBgDIAEoCRIPCgdyZXBvX2lkGAQgASgDIikKFkRlbGV0ZUJhc2VsaW5lUmVzcG9uc2USDwoHZGVsZXRlZBgBIAEoCCKLAQoTRWRpdEJhc2VsaW5lUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIMCgRuYW1lGAIgASgJEg4KBmJyYW5jaBgDIAEoCRIPCgdzdXJmYWNlGAQgASgJEhIKCnBpbl9ydW5faWQYBSABKAkSDgoGcmVhc29uGAYgASgJEg8KB3JlcG9faWQYByABKAMiYQoURWRpdEJhc2VsaW5lUmVzcG9uc2USSQoIYmFzZWxpbmUYASABKAsyNy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkJhc2VsaW5lTWFuaWZlc3QylQoKEEJhc2VsaW5lc1NlcnZpY2USjQEKDkNyZWF0ZUJhc2VsaW5lEjwudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5DcmVhdGVCYXNlbGluZVJlcXVlc3QaPS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkNyZWF0ZUJhc2VsaW5lUmVzcG9uc2USnAEKE1NuYXBzaG90Rm9yQmFzZWxpbmUSQS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlNuYXBzaG90Rm9yQmFzZWxpbmVSZXF1ZXN0GkIudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5TbmFwc2hvdEZvckJhc2VsaW5lUmVzcG9uc2USlgEKEUdldFNuYXBzaG90U3RhdHVzEj8udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5HZXRTbmFwc2hvdFN0YXR1c1JlcXVlc3QaQC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkdldFNuYXBzaG90U3RhdHVzUmVzcG9uc2UShAEKC0dldEJhc2VsaW5lEjkudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5HZXRCYXNlbGluZVJlcXVlc3QaOi52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkdldEJhc2VsaW5lUmVzcG9uc2USigEKDUxpc3RCYXNlbGluZXMSOy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkxpc3RCYXNlbGluZXNSZXF1ZXN0GjwudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5MaXN0QmFzZWxpbmVzUmVzcG9uc2USfgoJU3RhcnREaWZmEjcudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5TdGFydERpZmZSZXF1ZXN0GjgudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5TdGFydERpZmZSZXNwb25zZRKKAQoNR2V0RGlmZlJlc3VsdBI7LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuR2V0RGlmZlJlc3VsdFJlcXVlc3QaPC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkdldERpZmZSZXN1bHRSZXNwb25zZRKNAQoORGVsZXRlQmFzZWxpbmUSPC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkRlbGV0ZUJhc2VsaW5lUmVxdWVzdBo9LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuRGVsZXRlQmFzZWxpbmVSZXNwb25zZRKHAQoMRWRpdEJhc2VsaW5lEjoudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5FZGl0QmFzZWxpbmVSZXF1ZXN0GjsudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5FZGl0QmFzZWxpbmVSZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2dpdC1jb250cm9sLXRvd2VyL3YxL2Jhc2VsaW5lcztiYXNlbGluZXNfdjFiBnByb3RvMw");
+  fileDesc("Ci5naXQtY29udHJvbC10b3dlci92MS9iYXNlbGluZXMvYmFzZWxpbmVzLnByb3RvEiV2cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzIrYBCghHaXRTdGF0ZRILCgNzaGEYASABKAkSDgoGYnJhbmNoGAIgASgJEhAKCGRldGFjaGVkGAMgASgIEg0KBWRpcnR5GAQgASgIEhUKDWRpcnR5X3N1bW1hcnkYBSABKAkSFgoOY29tbWl0X21lc3NhZ2UYBiABKAkSFQoNY29tbWl0X2F1dGhvchgHIAEoCRITCgtjb21taXRfZGF0ZRgIIAEoCRIRCglzYW5kYm94ZWQYCSABKAgiZQoOU3VyZmFjZVBvaW50ZXISEgoKc3VyZmFjZV9pZBgBIAEoCRIMCgRraW5kGAIgASgJEgsKA3JlZhgDIAEoCRITCgtjYXB0dXJlZF9hdBgEIAEoCRIPCgdzdW1tYXJ5GAUgASgJIogEChBCYXNlbGluZU1hbmlmZXN0EgwKBG5hbWUYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSDgoGYnJhbmNoGAMgASgJEhIKCmNyZWF0ZWRfYXQYBCABKAkSEgoKY3JlYXRlZF9ieRgFIAEoCRI8CgNnaXQYBiABKAsyLy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkdpdFN0YXRlElcKCHN1cmZhY2VzGAcgAygLMkUudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5CYXNlbGluZU1hbmlmZXN0LlN1cmZhY2VzRW50cnkSFgoOc2NoZW1hX3ZlcnNpb24YCCABKAUSVQoHc2tpcHBlZBgJIAMoCzJELnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuQmFzZWxpbmVNYW5pZmVzdC5Ta2lwcGVkRW50cnkaZgoNU3VyZmFjZXNFbnRyeRILCgNrZXkYASABKAkSRAoFdmFsdWUYAiABKAsyNS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlN1cmZhY2VQb2ludGVyOgI4ARouCgxTa2lwcGVkRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKlAQoLU3VyZmFjZURpZmYSEgoKc3VyZmFjZV9pZBgBIAEoCRIPCgd2ZXJkaWN0GAIgASgJEhMKC3JlZ3Jlc3Npb25zGAMgAygJEhQKDG5ld19mYWlsdXJlcxgEIAMoCRITCgtwcmVleGlzdGluZxgFIAMoCRIPCgdjbGVhcmVkGAYgAygJEg8KB3N1bW1hcnkYByABKAkSDwoHY2hhbmdlZBgIIAMoCSKhAQoJUGhhc2VEaWZmEg0KBXBoYXNlGAEgASgJEhIKCnN1cmZhY2VfaWQYAiABKAkSDwoHdmVyZGljdBgDIAEoCRITCgtyZWdyZXNzaW9ucxgEIAMoCRIUCgxuZXdfZmFpbHVyZXMYBSADKAkSEwoLcHJlZXhpc3RpbmcYBiADKAkSDwoHY2xlYXJlZBgHIAMoCRIPCgdzdW1tYXJ5GAggASgJIk8KCVN0YWxlbmVzcxIVCg1jb21taXRzX3NpbmNlGAEgASgFEhUKDWZpbGVzX2NoYW5nZWQYAiABKAUSFAoMbGlrZWx5X3N0YWxlGAMgASgIIpsBChVDcmVhdGVCYXNlbGluZVJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEbmFtZRgCIAEoCRIOCgZicmFuY2gYAyABKAkSDwoHaW5jbHVkZRgEIAMoCRIMCgRmYXN0GAUgASgIEhIKCmNyZWF0ZWRfYnkYBiABKAkSDgoGcmVhc29uGAcgASgJEg8KB3JlcG9faWQYCCABKAMihwIKFkNyZWF0ZUJhc2VsaW5lUmVzcG9uc2USSQoIYmFzZWxpbmUYASABKAsyNy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkJhc2VsaW5lTWFuaWZlc3QSWwoHc2tpcHBlZBgCIAMoCzJKLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuQ3JlYXRlQmFzZWxpbmVSZXNwb25zZS5Ta2lwcGVkRW50cnkSFQoNZGlydHlfd2FybmluZxgDIAEoCRouCgxTa2lwcGVkRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKgAQoaU25hcHNob3RGb3JCYXNlbGluZVJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEbmFtZRgCIAEoCRIOCgZicmFuY2gYAyABKAkSDwoHaW5jbHVkZRgEIAMoCRIMCgRmYXN0GAUgASgIEhIKCmNyZWF0ZWRfYnkYBiABKAkSDgoGcmVhc29uGAcgASgJEg8KB3JlcG9faWQYCCABKAMiuwEKG1NuYXBzaG90Rm9yQmFzZWxpbmVSZXNwb25zZRIOCgZydW5faWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSDAoEbmFtZRgDIAEoCRIOCgZicmFuY2gYBCABKAkSHwoXZXN0aW1hdGVkX3RvdGFsX3NlY29uZHMYBSABKAUSEQoJZXRhX2tub3duGAYgASgIEhUKDWRpcnR5X3dhcm5pbmcYByABKAkSEQoJY29hbGVzY2VkGAggASgIInkKGEdldFNuYXBzaG90U3RhdHVzUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIMCgRuYW1lGAIgASgJEg4KBmJyYW5jaBgDIAEoCRIOCgZydW5faWQYBCABKAkSDwoHcmVwb19pZBgFIAEoAxIMCgR3YWl0GAYgASgIIpwCChlHZXRTbmFwc2hvdFN0YXR1c1Jlc3BvbnNlEg4KBnN0YXR1cxgBIAEoCRIQCghzY2VuYXJpbxgCIAEoCRIMCgRuYW1lGAMgASgJEg4KBmJyYW5jaBgEIAEoCRIOCgZydW5faWQYBSABKAkSEgoKcnVuX3N0YXR1cxgGIAEoCRJJCghiYXNlbGluZRgHIAEoCzI3LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuQmFzZWxpbmVNYW5pZmVzdBINCgVlcnJvchgIIAEoCRIZChFzaW1pbGFyX2Jhc2VsaW5lcxgJIAMoCRImCh5yZWNvbW1lbmRlZF9uZXh0X2NoZWNrX3NlY29uZHMYCiABKAUiVQoSR2V0QmFzZWxpbmVSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBG5hbWUYAiABKAkSDgoGYnJhbmNoGAMgASgJEg8KB3JlcG9faWQYBCABKAMiYAoTR2V0QmFzZWxpbmVSZXNwb25zZRJJCghiYXNlbGluZRgBIAEoCzI3LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuQmFzZWxpbmVNYW5pZmVzdCJfChRMaXN0QmFzZWxpbmVzUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZicmFuY2gYAiABKAkSFAoMYWxsX2JyYW5jaGVzGAMgASgIEg8KB3JlcG9faWQYBCABKAMiYwoVTGlzdEJhc2VsaW5lc1Jlc3BvbnNlEkoKCWJhc2VsaW5lcxgBIAMoCzI3LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuQmFzZWxpbmVNYW5pZmVzdCJkChBTdGFydERpZmZSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBG5hbWUYAiABKAkSDgoGYnJhbmNoGAMgASgJEg8KB3N1cmZhY2UYBCABKAkSDwoHcmVwb19pZBgFIAEoAyLZAQoRU3RhcnREaWZmUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEgwKBG5hbWUYAyABKAkSDgoGYnJhbmNoGAQgASgJEh8KF2VzdGltYXRlZF90b3RhbF9zZWNvbmRzGAUgASgFEhEKCWV0YV9rbm93bhgGIAEoCBIRCgljb2FsZXNjZWQYByABKAgSEgoKcmV1c2VkX3J1bhgIIAEoCBISCgpyZXVzZWRfc2hhGAkgASgJEhUKDWRpcnR5X3dhcm5pbmcYCiABKAkilgEKFEdldERpZmZSZXN1bHRSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBG5hbWUYAiABKAkSDgoGYnJhbmNoGAMgASgJEg4KBnJ1bl9pZBgEIAEoCRIPCgdzdXJmYWNlGAUgASgJEg8KB3JlcG9faWQYBiABKAMSDAoEd2FpdBgHIAEoCBIOCgZsYXRlc3QYCCABKAgirwEKFUdldERpZmZSZXN1bHRSZXNwb25zZRIOCgZzdGF0dXMYASABKAkSPwoEZGlmZhgCIAEoCzIxLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuRGlmZlJlc3VsdBINCgVlcnJvchgDIAEoCRImCh5yZWNvbW1lbmRlZF9uZXh0X2NoZWNrX3NlY29uZHMYBCABKAUSDgoGcnVuX2lkGAUgASgJIpIDCgpEaWZmUmVzdWx0EkkKCGJhc2VsaW5lGAEgASgLMjcudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5CYXNlbGluZU1hbmlmZXN0EkQKC2N1cnJlbnRfZ2l0GAIgASgLMi8udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5HaXRTdGF0ZRJDCglzdGFsZW5lc3MYAyABKAsyMC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlN0YWxlbmVzcxJECghzdXJmYWNlcxgEIAMoCzIyLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuU3VyZmFjZURpZmYSDwoHdmVyZGljdBgFIAEoCRIVCg1kaXJ0eV93YXJuaW5nGAYgASgJEkAKBnBoYXNlcxgHIAMoCzIwLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuUGhhc2VEaWZmIj8KC1J1bkJ1c3lJbmZvEhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRIOCgZwcmVzZXQYAyABKAkiWAoVRGVsZXRlQmFzZWxpbmVSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBG5hbWUYAiABKAkSDgoGYnJhbmNoGAMgASgJEg8KB3JlcG9faWQYBCABKAMiKQoWRGVsZXRlQmFzZWxpbmVSZXNwb25zZRIPCgdkZWxldGVkGAEgASgIIosBChNFZGl0QmFzZWxpbmVSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBG5hbWUYAiABKAkSDgoGYnJhbmNoGAMgASgJEg8KB3N1cmZhY2UYBCABKAkSEgoKcGluX3J1bl9pZBgFIAEoCRIOCgZyZWFzb24YBiABKAkSDwoHcmVwb19pZBgHIAEoAyJhChRFZGl0QmFzZWxpbmVSZXNwb25zZRJJCghiYXNlbGluZRgBIAEoCzI3LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuQmFzZWxpbmVNYW5pZmVzdDKVCgoQQmFzZWxpbmVzU2VydmljZRKNAQoOQ3JlYXRlQmFzZWxpbmUSPC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkNyZWF0ZUJhc2VsaW5lUmVxdWVzdBo9LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuQ3JlYXRlQmFzZWxpbmVSZXNwb25zZRKcAQoTU25hcHNob3RGb3JCYXNlbGluZRJBLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuU25hcHNob3RGb3JCYXNlbGluZVJlcXVlc3QaQi52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlNuYXBzaG90Rm9yQmFzZWxpbmVSZXNwb25zZRKWAQoRR2V0U25hcHNob3RTdGF0dXMSPy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkdldFNuYXBzaG90U3RhdHVzUmVxdWVzdBpALnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuR2V0U25hcHNob3RTdGF0dXNSZXNwb25zZRKEAQoLR2V0QmFzZWxpbmUSOS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkdldEJhc2VsaW5lUmVxdWVzdBo6LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuR2V0QmFzZWxpbmVSZXNwb25zZRKKAQoNTGlzdEJhc2VsaW5lcxI7LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuTGlzdEJhc2VsaW5lc1JlcXVlc3QaPC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkxpc3RCYXNlbGluZXNSZXNwb25zZRJ+CglTdGFydERpZmYSNy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlN0YXJ0RGlmZlJlcXVlc3QaOC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLlN0YXJ0RGlmZlJlc3BvbnNlEooBCg1HZXREaWZmUmVzdWx0EjsudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5HZXREaWZmUmVzdWx0UmVxdWVzdBo8LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuR2V0RGlmZlJlc3VsdFJlc3BvbnNlEo0BCg5EZWxldGVCYXNlbGluZRI8LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5iYXNlbGluZXMuRGVsZXRlQmFzZWxpbmVSZXF1ZXN0Gj0udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLmJhc2VsaW5lcy5EZWxldGVCYXNlbGluZVJlc3BvbnNlEocBCgxFZGl0QmFzZWxpbmUSOi52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkVkaXRCYXNlbGluZVJlcXVlc3QaOy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEuYmFzZWxpbmVzLkVkaXRCYXNlbGluZVJlc3BvbnNlQlxaWmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vZ2l0LWNvbnRyb2wtdG93ZXIvdjEvYmFzZWxpbmVzO2Jhc2VsaW5lc192MWIGcHJvdG8z");
 
 /**
  * GitState is the repository state recorded at capture time.
@@ -245,6 +245,63 @@ export const SurfaceDiffSchema: GenMessage<SurfaceDiff> = /*@__PURE__*/
   messageDesc(file_git_control_tower_v1_baselines_baselines, 3);
 
 /**
+ * PhaseDiff is one Test Genie phase's authoritative comparison verdict. Named
+ * surfaces are presentation views over these phase diffs.
+ *
+ * @generated from message vrooli.git_control_tower.v1.baselines.PhaseDiff
+ */
+export type PhaseDiff = Message<"vrooli.git_control_tower.v1.baselines.PhaseDiff"> & {
+  /**
+   * @generated from field: string phase = 1;
+   */
+  phase: string;
+
+  /**
+   * @generated from field: string surface_id = 2;
+   */
+  surfaceId: string;
+
+  /**
+   * verdict: clean | regression | new-failure | preexisting | not-comparable
+   *
+   * @generated from field: string verdict = 3;
+   */
+  verdict: string;
+
+  /**
+   * @generated from field: repeated string regressions = 4;
+   */
+  regressions: string[];
+
+  /**
+   * @generated from field: repeated string new_failures = 5;
+   */
+  newFailures: string[];
+
+  /**
+   * @generated from field: repeated string preexisting = 6;
+   */
+  preexisting: string[];
+
+  /**
+   * @generated from field: repeated string cleared = 7;
+   */
+  cleared: string[];
+
+  /**
+   * @generated from field: string summary = 8;
+   */
+  summary: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.baselines.PhaseDiff.
+ * Use `create(PhaseDiffSchema)` to create a new message.
+ */
+export const PhaseDiffSchema: GenMessage<PhaseDiff> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 4);
+
+/**
  * Staleness reports working-tree drift from the baseline commit.
  *
  * @generated from message vrooli.git_control_tower.v1.baselines.Staleness
@@ -271,7 +328,7 @@ export type Staleness = Message<"vrooli.git_control_tower.v1.baselines.Staleness
  * Use `create(StalenessSchema)` to create a new message.
  */
 export const StalenessSchema: GenMessage<Staleness> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 4);
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 5);
 
 /**
  * @generated from message vrooli.git_control_tower.v1.baselines.CreateBaselineRequest
@@ -327,7 +384,7 @@ export type CreateBaselineRequest = Message<"vrooli.git_control_tower.v1.baselin
  * Use `create(CreateBaselineRequestSchema)` to create a new message.
  */
 export const CreateBaselineRequestSchema: GenMessage<CreateBaselineRequest> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 5);
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 6);
 
 /**
  * @generated from message vrooli.git_control_tower.v1.baselines.CreateBaselineResponse
@@ -356,7 +413,7 @@ export type CreateBaselineResponse = Message<"vrooli.git_control_tower.v1.baseli
  * Use `create(CreateBaselineResponseSchema)` to create a new message.
  */
 export const CreateBaselineResponseSchema: GenMessage<CreateBaselineResponse> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 6);
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 7);
 
 /**
  * @generated from message vrooli.git_control_tower.v1.baselines.SnapshotForBaselineRequest
@@ -408,7 +465,7 @@ export type SnapshotForBaselineRequest = Message<"vrooli.git_control_tower.v1.ba
  * Use `create(SnapshotForBaselineRequestSchema)` to create a new message.
  */
 export const SnapshotForBaselineRequestSchema: GenMessage<SnapshotForBaselineRequest> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 7);
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 8);
 
 /**
  * SnapshotForBaselineResponse returns IMMEDIATELY once the one comprehensive
@@ -480,7 +537,7 @@ export type SnapshotForBaselineResponse = Message<"vrooli.git_control_tower.v1.b
  * Use `create(SnapshotForBaselineResponseSchema)` to create a new message.
  */
 export const SnapshotForBaselineResponseSchema: GenMessage<SnapshotForBaselineResponse> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 8);
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 9);
 
 /**
  * @generated from message vrooli.git_control_tower.v1.baselines.GetSnapshotStatusRequest
@@ -529,7 +586,7 @@ export type GetSnapshotStatusRequest = Message<"vrooli.git_control_tower.v1.base
  * Use `create(GetSnapshotStatusRequestSchema)` to create a new message.
  */
 export const GetSnapshotStatusRequestSchema: GenMessage<GetSnapshotStatusRequest> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 9);
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 10);
 
 /**
  * @generated from message vrooli.git_control_tower.v1.baselines.GetSnapshotStatusResponse
@@ -602,7 +659,7 @@ export type GetSnapshotStatusResponse = Message<"vrooli.git_control_tower.v1.bas
  * Use `create(GetSnapshotStatusResponseSchema)` to create a new message.
  */
 export const GetSnapshotStatusResponseSchema: GenMessage<GetSnapshotStatusResponse> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 10);
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 11);
 
 /**
  * @generated from message vrooli.git_control_tower.v1.baselines.GetBaselineRequest
@@ -636,7 +693,7 @@ export type GetBaselineRequest = Message<"vrooli.git_control_tower.v1.baselines.
  * Use `create(GetBaselineRequestSchema)` to create a new message.
  */
 export const GetBaselineRequestSchema: GenMessage<GetBaselineRequest> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 11);
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 12);
 
 /**
  * @generated from message vrooli.git_control_tower.v1.baselines.GetBaselineResponse
@@ -653,7 +710,7 @@ export type GetBaselineResponse = Message<"vrooli.git_control_tower.v1.baselines
  * Use `create(GetBaselineResponseSchema)` to create a new message.
  */
 export const GetBaselineResponseSchema: GenMessage<GetBaselineResponse> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 12);
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 13);
 
 /**
  * @generated from message vrooli.git_control_tower.v1.baselines.ListBaselinesRequest
@@ -687,7 +744,7 @@ export type ListBaselinesRequest = Message<"vrooli.git_control_tower.v1.baseline
  * Use `create(ListBaselinesRequestSchema)` to create a new message.
  */
 export const ListBaselinesRequestSchema: GenMessage<ListBaselinesRequest> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 13);
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 14);
 
 /**
  * @generated from message vrooli.git_control_tower.v1.baselines.ListBaselinesResponse
@@ -704,7 +761,7 @@ export type ListBaselinesResponse = Message<"vrooli.git_control_tower.v1.baselin
  * Use `create(ListBaselinesResponseSchema)` to create a new message.
  */
 export const ListBaselinesResponseSchema: GenMessage<ListBaselinesResponse> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 14);
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 15);
 
 /**
  * @generated from message vrooli.git_control_tower.v1.baselines.StartDiffRequest
@@ -743,7 +800,7 @@ export type StartDiffRequest = Message<"vrooli.git_control_tower.v1.baselines.St
  * Use `create(StartDiffRequestSchema)` to create a new message.
  */
 export const StartDiffRequestSchema: GenMessage<StartDiffRequest> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 15);
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 16);
 
 /**
  * StartDiffResponse returns IMMEDIATELY once the comprehensive run the diff will
@@ -823,7 +880,7 @@ export type StartDiffResponse = Message<"vrooli.git_control_tower.v1.baselines.S
  * Use `create(StartDiffResponseSchema)` to create a new message.
  */
 export const StartDiffResponseSchema: GenMessage<StartDiffResponse> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 16);
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 17);
 
 /**
  * @generated from message vrooli.git_control_tower.v1.baselines.GetDiffResultRequest
@@ -884,7 +941,7 @@ export type GetDiffResultRequest = Message<"vrooli.git_control_tower.v1.baseline
  * Use `create(GetDiffResultRequestSchema)` to create a new message.
  */
 export const GetDiffResultRequestSchema: GenMessage<GetDiffResultRequest> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 17);
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 18);
 
 /**
  * GetDiffResultResponse carries the cached diff or its in-flight status.
@@ -932,7 +989,7 @@ export type GetDiffResultResponse = Message<"vrooli.git_control_tower.v1.baselin
  * Use `create(GetDiffResultResponseSchema)` to create a new message.
  */
 export const GetDiffResultResponseSchema: GenMessage<GetDiffResultResponse> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 18);
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 19);
 
 /**
  * DiffResult is the computed cross-surface comparison payload.
@@ -974,6 +1031,11 @@ export type DiffResult = Message<"vrooli.git_control_tower.v1.baselines.DiffResu
    * @generated from field: string dirty_warning = 6;
    */
   dirtyWarning: string;
+
+  /**
+   * @generated from field: repeated vrooli.git_control_tower.v1.baselines.PhaseDiff phases = 7;
+   */
+  phases: PhaseDiff[];
 };
 
 /**
@@ -981,7 +1043,7 @@ export type DiffResult = Message<"vrooli.git_control_tower.v1.baselines.DiffResu
  * Use `create(DiffResultSchema)` to create a new message.
  */
 export const DiffResultSchema: GenMessage<DiffResult> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 19);
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 20);
 
 /**
  * RunBusyInfo describes the in-progress run that caused a divergent StartDiff to
@@ -1014,7 +1076,7 @@ export type RunBusyInfo = Message<"vrooli.git_control_tower.v1.baselines.RunBusy
  * Use `create(RunBusyInfoSchema)` to create a new message.
  */
 export const RunBusyInfoSchema: GenMessage<RunBusyInfo> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 20);
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 21);
 
 /**
  * @generated from message vrooli.git_control_tower.v1.baselines.DeleteBaselineRequest
@@ -1046,7 +1108,7 @@ export type DeleteBaselineRequest = Message<"vrooli.git_control_tower.v1.baselin
  * Use `create(DeleteBaselineRequestSchema)` to create a new message.
  */
 export const DeleteBaselineRequestSchema: GenMessage<DeleteBaselineRequest> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 21);
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 22);
 
 /**
  * @generated from message vrooli.git_control_tower.v1.baselines.DeleteBaselineResponse
@@ -1063,7 +1125,7 @@ export type DeleteBaselineResponse = Message<"vrooli.git_control_tower.v1.baseli
  * Use `create(DeleteBaselineResponseSchema)` to create a new message.
  */
 export const DeleteBaselineResponseSchema: GenMessage<DeleteBaselineResponse> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 22);
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 23);
 
 /**
  * @generated from message vrooli.git_control_tower.v1.baselines.EditBaselineRequest
@@ -1110,7 +1172,7 @@ export type EditBaselineRequest = Message<"vrooli.git_control_tower.v1.baselines
  * Use `create(EditBaselineRequestSchema)` to create a new message.
  */
 export const EditBaselineRequestSchema: GenMessage<EditBaselineRequest> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 23);
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 24);
 
 /**
  * @generated from message vrooli.git_control_tower.v1.baselines.EditBaselineResponse
@@ -1127,7 +1189,7 @@ export type EditBaselineResponse = Message<"vrooli.git_control_tower.v1.baseline
  * Use `create(EditBaselineResponseSchema)` to create a new message.
  */
 export const EditBaselineResponseSchema: GenMessage<EditBaselineResponse> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_baselines_baselines, 24);
+  messageDesc(file_git_control_tower_v1_baselines_baselines, 25);
 
 /**
  * @generated from service vrooli.git_control_tower.v1.baselines.BaselinesService

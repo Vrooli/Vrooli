@@ -92,6 +92,48 @@ func TestAdmitResourceIdempotentReuse(t *testing.T) {
 	}
 }
 
+func TestAdmitResourceReplacesStaleManifestClaim(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	writeResourceManifest(t, root, "whisper", `{"capacity":{"resource_kind":"vram","preferred_bytes":8589934592,"floor_bytes":2147483648,"priority":"interactive","yield_when_idle":true,"idle_grace_seconds":60}}`)
+	open, clk := admitTestStore(t)
+	opts := AdmitOptions{
+		Root: root, ResourceName: "whisper",
+		Source:    StaticSource{Inventory: snapshotWith(16, 0)},
+		OpenStore: open, Clock: clk, EnforceEnv: EnforceAdvisory,
+	}
+
+	first, err := AdmitResource(ctx, opts)
+	if err != nil || first.ClaimID == "" {
+		t.Fatalf("first AdmitResource() = %+v, err %v", first, err)
+	}
+	writeResourceManifest(t, root, "whisper", `{"capacity":{"resource_kind":"vram","preferred_bytes":5368709120,"floor_bytes":2147483648,"priority":"interactive","yield_when_idle":true,"idle_grace_seconds":900}}`)
+	second, err := AdmitResource(ctx, opts)
+	if err != nil {
+		t.Fatalf("second AdmitResource() error = %v", err)
+	}
+	if second.ClaimID == "" || second.ClaimID == first.ClaimID {
+		t.Fatalf("second claim id = %q, want replacement of stale %q", second.ClaimID, first.ClaimID)
+	}
+
+	store, _ := open(ctx)
+	defer store.Close()
+	active, _ := store.ListClaims(ctx, ClaimFilter{OwnerID: "whisper", Statuses: ActiveClaimStatuses()})
+	if len(active) != 1 {
+		t.Fatalf("active whisper claims = %d, want exactly 1", len(active))
+	}
+	if active[0].PreferredBytes != 5368709120 || active[0].IdleGrace != 15*time.Minute {
+		t.Fatalf("active claim = %+v, want refreshed manifest shape", active[0])
+	}
+	old, err := store.GetClaim(ctx, first.ClaimID)
+	if err != nil {
+		t.Fatalf("old claim lookup: %v", err)
+	}
+	if old.Status != StatusReleased {
+		t.Fatalf("old claim status = %q, want released", old.Status)
+	}
+}
+
 func TestAdmitResourceFlagOffIsByteIdenticalNoop(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()
@@ -154,12 +196,91 @@ func TestAdmitResourceMissingManifestSkips(t *testing.T) {
 
 func TestLoadResourceClaimSpec(t *testing.T) {
 	root := t.TempDir()
-	writeResourceManifest(t, root, "img", `{"capacity":{"resource_kind":"vram","preferred_bytes":100,"floor_bytes":0,"priority":"batch","profile":{"steps":[{"label":"fp16","amount_bytes":100},{"label":"cpu","amount_bytes":0}],"upshift":true}}}`)
+	writeResourceManifest(t, root, "img", `{"capacity":{"resource_kind":"vram","preferred_bytes":100,"floor_bytes":0,"priority":"batch","idle_grace_seconds":900,"profile":{"steps":[{"label":"fp16","amount_bytes":100},{"label":"cpu","amount_bytes":0}],"upshift":true}}}`)
 	spec, ok, err := LoadResourceClaimSpec(root, "img")
 	if err != nil || !ok {
 		t.Fatalf("LoadResourceClaimSpec() = ok %v err %v", ok, err)
 	}
+	if spec.IdleGraceSeconds != 900 {
+		t.Fatalf("idle_grace_seconds = %d, want 900", spec.IdleGraceSeconds)
+	}
 	if spec.Profile == nil || len(spec.Profile.Steps) != 2 || spec.Profile.Steps[1].Label != "cpu" {
 		t.Errorf("spec profile = %+v", spec.Profile)
 	}
+}
+
+func TestRealWhisperCapacitySpecIsRightSized(t *testing.T) {
+	spec, ok, err := LoadResourceClaimSpec(findAdmissionRepoRoot(t), "whisper")
+	if err != nil || !ok {
+		t.Fatalf("LoadResourceClaimSpec(whisper) = ok %v err %v", ok, err)
+	}
+	if spec.PreferredBytes != 5*gib {
+		t.Fatalf("whisper preferred_bytes = %d, want 5GiB", spec.PreferredBytes)
+	}
+	if spec.FloorBytes != 2*gib {
+		t.Fatalf("whisper floor_bytes = %d, want 2GiB", spec.FloorBytes)
+	}
+	if spec.Priority != "interactive" || !spec.YieldWhenIdle {
+		t.Fatalf("whisper priority/yield = %q/%v, want interactive/true", spec.Priority, spec.YieldWhenIdle)
+	}
+	if spec.IdleGraceSeconds != 900 {
+		t.Fatalf("whisper idle_grace_seconds = %d, want 900", spec.IdleGraceSeconds)
+	}
+	if spec.Profile == nil || len(spec.Profile.Steps) != 3 {
+		t.Fatalf("whisper profile = %+v, want 3-step degradation ladder", spec.Profile)
+	}
+	if got := spec.Profile.Steps[0]; got.Label != "large-v3" || got.AmountBytes != 5*gib {
+		t.Fatalf("whisper top step = %+v, want large-v3/5GiB", got)
+	}
+}
+
+func TestRealKyutaiCapacitySpecYieldsWhenIdle(t *testing.T) {
+	spec, ok, err := LoadResourceClaimSpec(findAdmissionRepoRoot(t), "kyutai-stt")
+	if err != nil || !ok {
+		t.Fatalf("LoadResourceClaimSpec(kyutai-stt) = ok %v err %v", ok, err)
+	}
+	if spec.Protected {
+		t.Fatal("kyutai-stt must not be statically protected; activity state owns active protection")
+	}
+	if !spec.YieldWhenIdle {
+		t.Fatal("kyutai-stt must yield when idle")
+	}
+	if spec.IdleUnloadTTLSeconds != 900 {
+		t.Fatalf("kyutai-stt idle_unload_ttl_seconds = %d, want 900", spec.IdleUnloadTTLSeconds)
+	}
+	if spec.IdleGraceSeconds != 900 {
+		t.Fatalf("kyutai-stt idle_grace_seconds = %d, want 900", spec.IdleGraceSeconds)
+	}
+	if spec.Profile == nil || len(spec.Profile.Steps) != 2 {
+		t.Fatalf("kyutai-stt profile = %+v, want loaded/unloaded ladder", spec.Profile)
+	}
+	if got := spec.Profile.Steps[1]; got.Label != "unloaded" || got.AmountBytes != 0 {
+		t.Fatalf("kyutai-stt floor step = %+v, want unloaded/0", got)
+	}
+	if spec.Profile.Apply.Verb != "stop" {
+		t.Fatalf("kyutai-stt apply verb = %q, want standard lifecycle stop", spec.Profile.Apply.Verb)
+	}
+	if spec.Profile.Upshift {
+		t.Fatal("kyutai-stt profile should not auto-upshift through stop; next STT request owns restart")
+	}
+}
+
+func findAdmissionRepoRoot(t *testing.T) string {
+	t.Helper()
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	for i := 0; i < 8; i++ {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	t.Fatal("could not locate repo root")
+	return ""
 }

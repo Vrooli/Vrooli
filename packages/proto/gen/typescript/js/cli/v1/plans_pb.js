@@ -8,7 +8,7 @@ import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
  * Describes the file cli/v1/plans.proto.
  */
 export const file_cli_v1_plans = /*@__PURE__*/
-  fileDesc("ChJjbGkvdjEvcGxhbnMucHJvdG8SDXZyb29saS5jbGkudjEivgEKC1BsYW5zUmVjb3JkEgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEgwKBHNsdWcYAyABKAkSDAoEcGF0aBgEIAEoCRISCgpjcmVhdGVkX2F0GAUgASgJEhIKCnVwZGF0ZWRfYXQYBiABKAkSEAoIYXJjaGl2ZWQYByABKAgSEwoLYXJjaGl2ZWRfYXQYCCABKAkSEwoLc291cmNlX3BhdGgYCSABKAkSFAoMY29udGVudF9oYXNoGAogASgJIksKDlBsYW5zQWRkT3V0cHV0Eg8KB3N1Y2Nlc3MYASABKAgSKAoEcGxhbhgCIAEoCzIaLnZyb29saS5jbGkudjEuUGxhbnNSZWNvcmQigAEKD1BsYW5zTGlzdE91dHB1dBIPCgdzdWNjZXNzGAEgASgIEikKBXBsYW5zGAIgAygLMhoudnJvb2xpLmNsaS52MS5QbGFuc1JlY29yZBIOCgZzb3VyY2UYAyABKAkSEAoIZGVncmFkZWQYBCABKAgSDwoHd2FybmluZxgFIAEoCSKQAQoPUGxhbnNTaG93T3V0cHV0Eg8KB3N1Y2Nlc3MYASABKAgSKAoEcGxhbhgCIAEoCzIaLnZyb29saS5jbGkudjEuUGxhbnNSZWNvcmQSDwoHY29udGVudBgDIAEoCRIOCgZzb3VyY2UYBCABKAkSEAoIZGVncmFkZWQYBSABKAgSDwoHd2FybmluZxgGIAEoCSJvCg9QbGFuc1BhdGhPdXRwdXQSDwoHc3VjY2VzcxgBIAEoCBIKCgJpZBgCIAEoCRIMCgRwYXRoGAMgASgJEg4KBnNvdXJjZRgEIAEoCRIQCghkZWdyYWRlZBgFIAEoCBIPCgd3YXJuaW5nGAYgASgJIk8KElBsYW5zQXJjaGl2ZU91dHB1dBIPCgdzdWNjZXNzGAEgASgIEigKBHBsYW4YAiABKAsyGi52cm9vbGkuY2xpLnYxLlBsYW5zUmVjb3JkImYKEVBsYW5zSW1wb3J0T3V0cHV0Eg8KB3N1Y2Nlc3MYASABKAgSKAoEcGxhbhgCIAEoCzIaLnZyb29saS5jbGkudjEuUGxhbnNSZWNvcmQSFgoOZGVsZXRlZF9zb3VyY2UYAyABKAgicQoRUGxhbnNFeHBvcnRPdXRwdXQSDwoHc3VjY2VzcxgBIAEoCBIKCgJpZBgCIAEoCRIMCgRwYXRoGAMgASgJEg4KBnNvdXJjZRgEIAEoCRIQCghkZWdyYWRlZBgFIAEoCBIPCgd3YXJuaW5nGAYgASgJQj1aO2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY2xpL3YxO2NsaXYxYgZwcm90bzM");
+  fileDesc("ChJjbGkvdjEvcGxhbnMucHJvdG8SDXZyb29saS5jbGkudjEivgEKC1BsYW5zUmVjb3JkEgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEgwKBHNsdWcYAyABKAkSDAoEcGF0aBgEIAEoCRISCgpjcmVhdGVkX2F0GAUgASgJEhIKCnVwZGF0ZWRfYXQYBiABKAkSEAoIYXJjaGl2ZWQYByABKAgSEwoLYXJjaGl2ZWRfYXQYCCABKAkSEwoLc291cmNlX3BhdGgYCSABKAkSFAoMY29udGVudF9oYXNoGAogASgJIoABCg9QbGFuc0xpc3RPdXRwdXQSDwoHc3VjY2VzcxgBIAEoCBIpCgVwbGFucxgCIAMoCzIaLnZyb29saS5jbGkudjEuUGxhbnNSZWNvcmQSDgoGc291cmNlGAMgASgJEhAKCGRlZ3JhZGVkGAQgASgIEg8KB3dhcm5pbmcYBSABKAkikAEKD1BsYW5zU2hvd091dHB1dBIPCgdzdWNjZXNzGAEgASgIEigKBHBsYW4YAiABKAsyGi52cm9vbGkuY2xpLnYxLlBsYW5zUmVjb3JkEg8KB2NvbnRlbnQYAyABKAkSDgoGc291cmNlGAQgASgJEhAKCGRlZ3JhZGVkGAUgASgIEg8KB3dhcm5pbmcYBiABKAkibwoPUGxhbnNQYXRoT3V0cHV0Eg8KB3N1Y2Nlc3MYASABKAgSCgoCaWQYAiABKAkSDAoEcGF0aBgDIAEoCRIOCgZzb3VyY2UYBCABKAkSEAoIZGVncmFkZWQYBSABKAgSDwoHd2FybmluZxgGIAEoCUI9WjtnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NsaS92MTtjbGl2MWIGcHJvdG8z");
 
 /**
  * Describes the message vrooli.cli.v1.PlansRecord.
@@ -18,51 +18,23 @@ export const PlansRecordSchema = /*@__PURE__*/
   messageDesc(file_cli_v1_plans, 0);
 
 /**
- * Describes the message vrooli.cli.v1.PlansAddOutput.
- * Use `create(PlansAddOutputSchema)` to create a new message.
- */
-export const PlansAddOutputSchema = /*@__PURE__*/
-  messageDesc(file_cli_v1_plans, 1);
-
-/**
  * Describes the message vrooli.cli.v1.PlansListOutput.
  * Use `create(PlansListOutputSchema)` to create a new message.
  */
 export const PlansListOutputSchema = /*@__PURE__*/
-  messageDesc(file_cli_v1_plans, 2);
+  messageDesc(file_cli_v1_plans, 1);
 
 /**
  * Describes the message vrooli.cli.v1.PlansShowOutput.
  * Use `create(PlansShowOutputSchema)` to create a new message.
  */
 export const PlansShowOutputSchema = /*@__PURE__*/
-  messageDesc(file_cli_v1_plans, 3);
+  messageDesc(file_cli_v1_plans, 2);
 
 /**
  * Describes the message vrooli.cli.v1.PlansPathOutput.
  * Use `create(PlansPathOutputSchema)` to create a new message.
  */
 export const PlansPathOutputSchema = /*@__PURE__*/
-  messageDesc(file_cli_v1_plans, 4);
-
-/**
- * Describes the message vrooli.cli.v1.PlansArchiveOutput.
- * Use `create(PlansArchiveOutputSchema)` to create a new message.
- */
-export const PlansArchiveOutputSchema = /*@__PURE__*/
-  messageDesc(file_cli_v1_plans, 5);
-
-/**
- * Describes the message vrooli.cli.v1.PlansImportOutput.
- * Use `create(PlansImportOutputSchema)` to create a new message.
- */
-export const PlansImportOutputSchema = /*@__PURE__*/
-  messageDesc(file_cli_v1_plans, 6);
-
-/**
- * Describes the message vrooli.cli.v1.PlansExportOutput.
- * Use `create(PlansExportOutputSchema)` to create a new message.
- */
-export const PlansExportOutputSchema = /*@__PURE__*/
-  messageDesc(file_cli_v1_plans, 7);
+  messageDesc(file_cli_v1_plans, 3);
 

@@ -1319,6 +1319,8 @@ type ImportProvenance struct {
 	ImportedAt     string                 `protobuf:"bytes,2,opt,name=imported_at,json=importedAt,proto3" json:"imported_at,omitempty"`             // RFC3339
 	OriginalFormat string                 `protobuf:"bytes,3,opt,name=original_format,json=originalFormat,proto3" json:"original_format,omitempty"` // e.g. "legacy_markdown"
 	Note           string                 `protobuf:"bytes,4,opt,name=note,proto3" json:"note,omitempty"`                                           // human-readable adoption note
+	WorkspaceId    string                 `protobuf:"bytes,5,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`          // workspace identity at import time, when known
+	WorkspaceRoot  string                 `protobuf:"bytes,6,opt,name=workspace_root,json=workspaceRoot,proto3" json:"workspace_root,omitempty"`    // absolute workspace root at import time, when known
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1377,6 +1379,20 @@ func (x *ImportProvenance) GetOriginalFormat() string {
 func (x *ImportProvenance) GetNote() string {
 	if x != nil {
 		return x.Note
+	}
+	return ""
+}
+
+func (x *ImportProvenance) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *ImportProvenance) GetWorkspaceRoot() string {
+	if x != nil {
+		return x.WorkspaceRoot
 	}
 	return ""
 }
@@ -2990,7 +3006,11 @@ type Plan struct {
 	ChangeBoundary *ChangeBoundary `protobuf:"bytes,32,opt,name=change_boundary,json=changeBoundary,proto3" json:"change_boundary,omitempty"`
 	// COMPUTED rendered markdown mirror metadata. The file is a durable projection,
 	// not canonical editable state.
-	Mirror        *RenderedPlanMirror `protobuf:"bytes,33,opt,name=mirror,proto3" json:"mirror,omitempty"`
+	Mirror *RenderedPlanMirror `protobuf:"bytes,33,opt,name=mirror,proto3" json:"mirror,omitempty"`
+	// Canonical workspace association used for workspace-scoped list/lookup.
+	WorkspaceId string `protobuf:"bytes,34,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	// Canonical absolute workspace root used for filesystem-scoped plans.
+	WorkspaceRoot string `protobuf:"bytes,35,opt,name=workspace_root,json=workspaceRoot,proto3" json:"workspace_root,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3254,6 +3274,20 @@ func (x *Plan) GetMirror() *RenderedPlanMirror {
 		return x.Mirror
 	}
 	return nil
+}
+
+func (x *Plan) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *Plan) GetWorkspaceRoot() string {
+	if x != nil {
+		return x.WorkspaceRoot
+	}
+	return ""
 }
 
 // PlanEdge is one supersession/dependency edge between two plans (the plan
@@ -3583,14 +3617,16 @@ const file_plan_manager_v1_shared_model_proto_rawDesc = "" +
 	"\aheading\x18\x01 \x01(\tR\aheading\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\x12\x1b\n" +
 	"\tmapped_to\x18\x03 \x01(\tR\bmappedTo\x12/\n" +
-	"\x13preservation_reason\x18\x04 \x01(\tR\x12preservationReason\"\x91\x01\n" +
+	"\x13preservation_reason\x18\x04 \x01(\tR\x12preservationReason\"\xdb\x01\n" +
 	"\x10ImportProvenance\x12\x1f\n" +
 	"\vsource_path\x18\x01 \x01(\tR\n" +
 	"sourcePath\x12\x1f\n" +
 	"\vimported_at\x18\x02 \x01(\tR\n" +
 	"importedAt\x12'\n" +
 	"\x0foriginal_format\x18\x03 \x01(\tR\x0eoriginalFormat\x12\x12\n" +
-	"\x04note\x18\x04 \x01(\tR\x04note\"\xf1\x01\n" +
+	"\x04note\x18\x04 \x01(\tR\x04note\x12!\n" +
+	"\fworkspace_id\x18\x05 \x01(\tR\vworkspaceId\x12%\n" +
+	"\x0eworkspace_root\x18\x06 \x01(\tR\rworkspaceRoot\"\xf1\x01\n" +
 	"\n" +
 	"NextAction\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12A\n" +
@@ -3754,7 +3790,7 @@ const file_plan_manager_v1_shared_model_proto_rawDesc = "" +
 	"validation\x12#\n" +
 	"\rhandoff_notes\x18\x11 \x01(\tR\fhandoffNotes\x12#\n" +
 	"\rrisks_hazards\x18\x12 \x03(\tR\frisksHazards\x12V\n" +
-	"\x0fchange_boundary\x18\x13 \x01(\v2-.vrooli.plan_manager.v1.shared.ChangeBoundaryR\x0echangeBoundary\"\xc3\r\n" +
+	"\x0fchange_boundary\x18\x13 \x01(\v2-.vrooli.plan_manager.v1.shared.ChangeBoundaryR\x0echangeBoundary\"\x8d\x0e\n" +
 	"\x04Plan\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04slug\x18\x02 \x01(\tR\x04slug\x12\x14\n" +
@@ -3795,7 +3831,9 @@ const file_plan_manager_v1_shared_model_proto_rawDesc = "" +
 	"\x11import_provenance\x18\x1e \x01(\v2/.vrooli.plan_manager.v1.shared.ImportProvenanceR\x10importProvenance\x12h\n" +
 	"\x19preserved_legacy_sections\x18\x1f \x03(\v2,.vrooli.plan_manager.v1.shared.LegacySectionR\x17preservedLegacySections\x12V\n" +
 	"\x0fchange_boundary\x18  \x01(\v2-.vrooli.plan_manager.v1.shared.ChangeBoundaryR\x0echangeBoundary\x12I\n" +
-	"\x06mirror\x18! \x01(\v21.vrooli.plan_manager.v1.shared.RenderedPlanMirrorR\x06mirror\"^\n" +
+	"\x06mirror\x18! \x01(\v21.vrooli.plan_manager.v1.shared.RenderedPlanMirrorR\x06mirror\x12!\n" +
+	"\fworkspace_id\x18\" \x01(\tR\vworkspaceId\x12%\n" +
+	"\x0eworkspace_root\x18# \x01(\tR\rworkspaceRoot\"^\n" +
 	"\bPlanEdge\x12 \n" +
 	"\ffrom_plan_id\x18\x01 \x01(\tR\n" +
 	"fromPlanId\x12\x1c\n" +

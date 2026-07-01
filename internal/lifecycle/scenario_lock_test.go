@@ -7,6 +7,7 @@ import (
 	"sync"
 	"syscall"
 	"testing"
+	"time"
 )
 
 func TestAcquireScenarioLockBlocksSecondCallerSameProcess(t *testing.T) {
@@ -166,6 +167,125 @@ func TestReleaseIsIdempotent(t *testing.T) {
 	release2()
 }
 
+func TestAcquireDependencyScenarioLockReusesReadyDependencyWhileBusy(t *testing.T) {
+	home := t.TempDir()
+	now := time.Date(2026, 6, 26, 12, 0, 0, 0, time.UTC)
+	r := &Runner{
+		Home: home,
+		deps: lifecycleDeps{
+			now: func() time.Time { return now },
+			sleep: func(d time.Duration) {
+				now = now.Add(d)
+			},
+		},
+	}
+	seedScenarioLockFile(t, home, "test-genie", "99999\n")
+
+	origFlock := lockFileFlockFn
+	defer func() { lockFileFlockFn = origFlock }()
+	lockFileFlockFn = func(fd int, how int) error {
+		if how == syscall.LOCK_UN {
+			return nil
+		}
+		return syscall.EWOULDBLOCK
+	}
+
+	checks := 0
+	release, reused, err := r.acquireDependencyScenarioLock("test-genie", func() (bool, error) {
+		checks++
+		return checks >= 2, nil
+	})
+	if err != nil {
+		t.Fatalf("acquireDependencyScenarioLock() error = %v", err)
+	}
+	if !reused {
+		t.Fatalf("reused = false, want true after dependency became ready")
+	}
+	if release != nil {
+		t.Fatalf("release is non-nil, want nil when no lock was acquired")
+	}
+}
+
+func TestAcquireDependencyScenarioLockRetriesUntilLockAvailable(t *testing.T) {
+	home := t.TempDir()
+	now := time.Date(2026, 6, 26, 12, 0, 0, 0, time.UTC)
+	r := &Runner{
+		Home: home,
+		deps: lifecycleDeps{
+			now: func() time.Time { return now },
+			sleep: func(d time.Duration) {
+				now = now.Add(d)
+			},
+		},
+	}
+	seedScenarioLockFile(t, home, "test-genie", "99999\n")
+
+	origFlock := lockFileFlockFn
+	defer func() { lockFileFlockFn = origFlock }()
+	attempts := 0
+	lockFileFlockFn = func(fd int, how int) error {
+		if how == syscall.LOCK_UN {
+			return nil
+		}
+		attempts++
+		if attempts < 3 {
+			return syscall.EWOULDBLOCK
+		}
+		return nil
+	}
+
+	release, reused, err := r.acquireDependencyScenarioLock("test-genie", func() (bool, error) {
+		return false, nil
+	})
+	if err != nil {
+		t.Fatalf("acquireDependencyScenarioLock() error = %v", err)
+	}
+	if reused {
+		t.Fatalf("reused = true, want false when lock was acquired")
+	}
+	if release == nil {
+		t.Fatalf("release = nil, want acquired lock release")
+	}
+	release()
+	if attempts != 3 {
+		t.Fatalf("lock attempts = %d, want 3", attempts)
+	}
+}
+
+func TestAcquireDependencyScenarioLockTimesOutWhenBusy(t *testing.T) {
+	home := t.TempDir()
+	now := time.Date(2026, 6, 26, 12, 0, 0, 0, time.UTC)
+	r := &Runner{
+		Home: home,
+		deps: lifecycleDeps{
+			now: func() time.Time { return now },
+			sleep: func(d time.Duration) {
+				now = now.Add(3 * time.Minute)
+			},
+		},
+	}
+	seedScenarioLockFile(t, home, "test-genie", "99999\n")
+
+	origFlock := lockFileFlockFn
+	defer func() { lockFileFlockFn = origFlock }()
+	lockFileFlockFn = func(fd int, how int) error {
+		if how == syscall.LOCK_UN {
+			return nil
+		}
+		return syscall.EWOULDBLOCK
+	}
+
+	_, _, err := r.acquireDependencyScenarioLock("test-genie", func() (bool, error) {
+		return false, nil
+	})
+	if !errors.Is(err, ErrScenarioBusy) {
+		t.Fatalf("error = %v, want ErrScenarioBusy", err)
+	}
+	if msg := err.Error(); !contains(msg, "remained busy") {
+		t.Fatalf("error message should mention timeout, got %q", msg)
+	}
+}
+
 func contains(s, sub string) bool {
 	return len(s) >= len(sub) && (indexOf(s, sub) >= 0)
 }
@@ -207,3 +327,14 @@ func pidString(pid int) string {
 // Sanity check that we link to syscall and sync so unused-import warnings
 // don't trip on the conditional logic above when test files are restructured.
 var _ = sync.Mutex{}
+
+func seedScenarioLockFile(t *testing.T, home, name, contents string) {
+	t.Helper()
+	lockDir := filepath.Join(home, scenarioLockDirName)
+	if err := os.MkdirAll(lockDir, 0o755); err != nil {
+		t.Fatalf("mkdir lock dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(lockDir, "scenario-"+sanitizeScenarioName(name)+".lock"), []byte(contents), 0o644); err != nil {
+		t.Fatalf("seed lock file: %v", err)
+	}
+}

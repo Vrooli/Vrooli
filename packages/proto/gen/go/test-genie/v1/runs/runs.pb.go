@@ -1130,6 +1130,10 @@ type PhaseInfo struct {
 	Name            string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Status          string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"` // passed | failed | skipped
 	DurationSeconds float64                `protobuf:"fixed64,3,opt,name=duration_seconds,json=durationSeconds,proto3" json:"duration_seconds,omitempty"`
+	Comparable      bool                   `protobuf:"varint,4,opt,name=comparable,proto3" json:"comparable,omitempty"`
+	Advisory        bool                   `protobuf:"varint,5,opt,name=advisory,proto3" json:"advisory,omitempty"`
+	ArtifactBacked  bool                   `protobuf:"varint,6,opt,name=artifact_backed,json=artifactBacked,proto3" json:"artifact_backed,omitempty"`
+	NonComparable   bool                   `protobuf:"varint,7,opt,name=non_comparable,json=nonComparable,proto3" json:"non_comparable,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -1185,6 +1189,34 @@ func (x *PhaseInfo) GetDurationSeconds() float64 {
 	return 0
 }
 
+func (x *PhaseInfo) GetComparable() bool {
+	if x != nil {
+		return x.Comparable
+	}
+	return false
+}
+
+func (x *PhaseInfo) GetAdvisory() bool {
+	if x != nil {
+		return x.Advisory
+	}
+	return false
+}
+
+func (x *PhaseInfo) GetArtifactBacked() bool {
+	if x != nil {
+		return x.ArtifactBacked
+	}
+	return false
+}
+
+func (x *PhaseInfo) GetNonComparable() bool {
+	if x != nil {
+		return x.NonComparable
+	}
+	return false
+}
+
 // RunInfo mirrors the run index record.
 type RunInfo struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
@@ -1209,8 +1241,10 @@ type RunInfo struct {
 	// suite SHAPE the run executed, so a consumer (git-control-tower) can reuse a
 	// completed run only when it matches the shape it needs. Empty on runs that
 	// predate shape stamping.
-	Preset         string `protobuf:"bytes,14,opt,name=preset,proto3" json:"preset,omitempty"`
-	CaptureProfile string `protobuf:"bytes,15,opt,name=capture_profile,json=captureProfile,proto3" json:"capture_profile,omitempty"`
+	Preset         string   `protobuf:"bytes,14,opt,name=preset,proto3" json:"preset,omitempty"`
+	CaptureProfile string   `protobuf:"bytes,15,opt,name=capture_profile,json=captureProfile,proto3" json:"capture_profile,omitempty"`
+	PlannedPhases  []string `protobuf:"bytes,16,rep,name=planned_phases,json=plannedPhases,proto3" json:"planned_phases,omitempty"`
+	PhaseSetDigest string   `protobuf:"bytes,17,opt,name=phase_set_digest,json=phaseSetDigest,proto3" json:"phase_set_digest,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1346,6 +1380,20 @@ func (x *RunInfo) GetPreset() string {
 func (x *RunInfo) GetCaptureProfile() string {
 	if x != nil {
 		return x.CaptureProfile
+	}
+	return ""
+}
+
+func (x *RunInfo) GetPlannedPhases() []string {
+	if x != nil {
+		return x.PlannedPhases
+	}
+	return nil
+}
+
+func (x *RunInfo) GetPhaseSetDigest() string {
+	if x != nil {
+		return x.PhaseSetDigest
 	}
 	return ""
 }
@@ -2107,9 +2155,13 @@ type FindRunRequest struct {
 	// require_clean, when true, excludes runs captured against a dirty tree
 	// (git_dirty). Reuse always sets this — an uncommitted-edit run isn't a
 	// faithful stand-in for the current clean tree.
-	RequireClean  bool `protobuf:"varint,7,opt,name=require_clean,json=requireClean,proto3" json:"require_clean,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	RequireClean bool `protobuf:"varint,7,opt,name=require_clean,json=requireClean,proto3" json:"require_clean,omitempty"`
+	// phase_set_digest is the exact planned phase shape required by the caller.
+	// Empty means "do not constrain"; baseline reuse should set this so stale
+	// completed runs from before catalog evolution cannot silently stand in.
+	PhaseSetDigest string `protobuf:"bytes,8,opt,name=phase_set_digest,json=phaseSetDigest,proto3" json:"phase_set_digest,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *FindRunRequest) Reset() {
@@ -2189,6 +2241,13 @@ func (x *FindRunRequest) GetRequireClean() bool {
 		return x.RequireClean
 	}
 	return false
+}
+
+func (x *FindRunRequest) GetPhaseSetDigest() string {
+	if x != nil {
+		return x.PhaseSetDigest
+	}
+	return ""
 }
 
 type FindRunResponse struct {
@@ -4928,11 +4987,17 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\aPinInfo\x12\x1b\n" +
 	"\tpinned_by\x18\x01 \x01(\tR\bpinnedBy\x12\x1b\n" +
 	"\tpinned_at\x18\x02 \x01(\tR\bpinnedAt\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reason\"b\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"\xee\x01\n" +
 	"\tPhaseInfo\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12)\n" +
-	"\x10duration_seconds\x18\x03 \x01(\x01R\x0fdurationSeconds\"\xbd\x04\n" +
+	"\x10duration_seconds\x18\x03 \x01(\x01R\x0fdurationSeconds\x12\x1e\n" +
+	"\n" +
+	"comparable\x18\x04 \x01(\bR\n" +
+	"comparable\x12\x1a\n" +
+	"\badvisory\x18\x05 \x01(\bR\badvisory\x12'\n" +
+	"\x0fartifact_backed\x18\x06 \x01(\bR\x0eartifactBacked\x12%\n" +
+	"\x0enon_comparable\x18\a \x01(\bR\rnonComparable\"\x8e\x05\n" +
 	"\aRunInfo\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x1d\n" +
@@ -4952,7 +5017,9 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\vtree_digest\x18\r \x01(\tR\n" +
 	"treeDigest\x12\x16\n" +
 	"\x06preset\x18\x0e \x01(\tR\x06preset\x12'\n" +
-	"\x0fcapture_profile\x18\x0f \x01(\tR\x0ecaptureProfile\"[\n" +
+	"\x0fcapture_profile\x18\x0f \x01(\tR\x0ecaptureProfile\x12%\n" +
+	"\x0eplanned_phases\x18\x10 \x03(\tR\rplannedPhases\x12(\n" +
+	"\x10phase_set_digest\x18\x11 \x01(\tR\x0ephaseSetDigest\"[\n" +
 	"\x0fListRunsRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x14\n" +
@@ -4999,7 +5066,7 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x10cleared_failures\x18\b \x03(\tR\x0fclearedFailures\"m\n" +
 	"\x13CompareRunsResponse\x12<\n" +
 	"\x06phases\x18\x01 \x03(\v2$.vrooli.test_genie.v1.runs.PhaseDiffR\x06phases\x12\x18\n" +
-	"\averdict\x18\x02 \x01(\tR\averdict\"\xe4\x01\n" +
+	"\averdict\x18\x02 \x01(\tR\averdict\"\x8e\x02\n" +
 	"\x0eFindRunRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x17\n" +
 	"\agit_sha\x18\x02 \x01(\tR\x06gitSha\x12\x1f\n" +
@@ -5008,7 +5075,8 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x06preset\x18\x04 \x01(\tR\x06preset\x12'\n" +
 	"\x0fcapture_profile\x18\x05 \x01(\tR\x0ecaptureProfile\x12\x16\n" +
 	"\x06status\x18\x06 \x01(\tR\x06status\x12#\n" +
-	"\rrequire_clean\x18\a \x01(\bR\frequireClean\"]\n" +
+	"\rrequire_clean\x18\a \x01(\bR\frequireClean\x12(\n" +
+	"\x10phase_set_digest\x18\b \x01(\tR\x0ephaseSetDigest\"]\n" +
 	"\x0fFindRunResponse\x12\x14\n" +
 	"\x05found\x18\x01 \x01(\bR\x05found\x124\n" +
 	"\x03run\x18\x02 \x01(\v2\".vrooli.test_genie.v1.runs.RunInfoR\x03run\"b\n" +

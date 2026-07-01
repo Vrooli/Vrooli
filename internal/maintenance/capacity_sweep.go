@@ -112,6 +112,25 @@ func (c *Controller) sweepCapacityClaims(ctx context.Context) ([]control.ResultI
 			}
 			items = append(items, control.Stopped(a.OwnerID, fmt.Sprintf("%s claim %s to %q", verb, a.ClaimID, a.ToStep)))
 		}
+
+		// Capacity upshift (§8.8 hysteresis): a claim degraded under earlier GPU
+		// pressure should climb back toward its preferred size once the contending
+		// consumer frees VRAM and the claim is idle, so it is ready before its owner
+		// is next used. Symmetric to idle-unload and gated identically — advisory
+		// surfaces the would-upshift recommendation (non-acting), enforce=on actuates
+		// through the adopter's resize verb (--upshift). Reuses the snapshot the
+		// sweep already collected for per-GPU free-headroom accounting.
+		upPlan, _, _ := capacity.RunUpshift(ctx, store, active, snapshot, capacityExecFn(), policy, enforce, now)
+		for _, a := range upPlan.Actions {
+			if a.Action != capacity.ActionRequestUpshift {
+				continue
+			}
+			verb := "would upshift (advisory)"
+			if enforce == capacity.EnforceOn {
+				verb = "upshifted"
+			}
+			items = append(items, control.Started(a.OwnerID, fmt.Sprintf("%s claim %s to %q", verb, a.ClaimID, a.ToStep)))
+		}
 	}
 
 	// Claim-on-observe adoption (plan §Phase 6): an observed GPU consumer whose
