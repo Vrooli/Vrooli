@@ -50,6 +50,9 @@ message LocalMaturityLevel {
   string description = 3;
   repeated string entry_criteria = 4;
   repeated string exit_criteria = 5;
+  string status_label = 6;
+  string capability_summary = 7;
+  string next_unlock = 8;
 }
 
 // FindingMaturity is the maturity metadata attached to one provider finding.
@@ -61,6 +64,9 @@ message FindingMaturity {
   string dimension = 3;
   repeated string recommended_skill_ids = 4;
   CleanRequirement clean_requirement = 5;
+  // Provider-local capability ladder that owns this finding, when the provider
+  // declares multiple ladders in `.vrooli/maturity.json`.
+  string capability_id = 6;
 }
 
 // AssessmentFinding is the shared finding projection used by the assessment.
@@ -89,6 +95,33 @@ message LocalMaturityAssessment {
   int32 unknown_count = 6;
 }
 
+message CapabilityMaturityAssessment {
+  string id = 1;
+  string label = 2;
+  string description = 3;
+  string current_level = 4;
+  string next_level = 5;
+  repeated LocalMaturityLevel levels = 6;
+  string current_summary = 7;
+  string next_unlock = 8;
+  repeated string blocking_finding_codes = 9;
+  bool clean = 10;
+  int32 unknown_count = 11;
+  map<string, int32> findings_by_global_impact = 12;
+  map<string, int32> findings_by_severity = 13;
+  map<string, int32> findings_by_clean_requirement = 14;
+  int32 priority_rank = 15;
+  string priority_reason = 16;
+}
+
+message PriorityFocus {
+  string capability_id = 1;
+  string capability_label = 2;
+  string current_level = 3;
+  string next_level = 4;
+  string reason = 5;
+}
+
 // MaturityAssessment is the single structural object health providers emit.
 message MaturityAssessment {
   string scenario = 1;
@@ -105,4 +138,6 @@ message MaturityAssessment {
   int32 autofixable_count = 11;
   // Total findings considered for auto-fix coverage (the coverage denominator).
   int32 autofixable_total = 12;
+  repeated CapabilityMaturityAssessment capabilities = 13;
+  PriorityFocus highest_priority_capability = 14;
 }

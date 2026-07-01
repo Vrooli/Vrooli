@@ -127,6 +127,31 @@ const (
 	WorkPostureSourceImportLegacy     WorkPostureSource = "import_legacy"
 )
 
+// RenderedMirrorStatus describes the freshness/repair state of a plan's durable
+// rendered markdown projection. The mirror is derived from the structured plan.
+type RenderedMirrorStatus string
+
+const (
+	RenderedMirrorStatusUnspecified RenderedMirrorStatus = ""
+	RenderedMirrorStatusFresh       RenderedMirrorStatus = "fresh"
+	RenderedMirrorStatusMissing     RenderedMirrorStatus = "missing"
+	RenderedMirrorStatusStale       RenderedMirrorStatus = "stale"
+	RenderedMirrorStatusWriteFailed RenderedMirrorStatus = "write_failed"
+	RenderedMirrorStatusUnknown     RenderedMirrorStatus = "unknown"
+)
+
+// RenderedPlanMirror is the file-addressable markdown projection metadata for a
+// canonical structured plan. The file is durable and repairable, but not truth.
+type RenderedPlanMirror struct {
+	Path          string
+	RelativePath  string
+	ContentHash   string
+	RenderVersion string
+	RenderedAt    string
+	Status        RenderedMirrorStatus
+	LastError     string
+}
+
 // LegacySection is one imported markdown section preserved as provenance because
 // it could not be mapped to a canonical field — never silently dropped.
 type LegacySection struct {
@@ -288,6 +313,8 @@ type Plan struct {
 	// GOVERNANCE: import bookkeeping (only when imported).
 	ImportProvenance        *ImportProvenance
 	PreservedLegacySections []LegacySection
+	// COMPUTED projection metadata for the durable rendered markdown mirror.
+	Mirror RenderedPlanMirror
 }
 
 // PlanEdge is one supersession/dependency edge between two plans.

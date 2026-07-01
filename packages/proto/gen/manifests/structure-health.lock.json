@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "structure-health",
-  "input_digest": "sha256:63f2d647effd05fa45e2b0b14f8bc3638ea65a31b4aff4acf6826846f4415532",
+  "input_digest": "sha256:356bac1aee23f8f938acee30e1c210b36802b1661fd0367a844759698e805c00",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/structure-health/v1/fleet/fleet.proto",

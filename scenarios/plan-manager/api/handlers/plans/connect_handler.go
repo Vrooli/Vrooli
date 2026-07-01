@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"plan-manager/internal/planproto"
 	internalplans "plan-manager/internal/plans"
 
 	"connectrpc.com/connect"
@@ -85,11 +86,15 @@ func (h *connectHandler) ArchivePlan(ctx context.Context, req *connect.Request[p
 }
 
 func (h *connectHandler) RenderMarkdown(ctx context.Context, req *connect.Request[plansv1.RenderMarkdownRequest]) (*connect.Response[plansv1.RenderMarkdownResponse], error) {
-	md, err := h.deps.Service.Render(ctx, req.Msg.GetId())
+	rendered, err := h.deps.Service.Render(ctx, req.Msg.GetId())
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
-	return connect.NewResponse(&plansv1.RenderMarkdownResponse{Markdown: md}), nil
+	return connect.NewResponse(&plansv1.RenderMarkdownResponse{
+		Markdown: rendered.Markdown,
+		Mirror:   planproto.MirrorToProto(rendered.Mirror),
+		Repaired: rendered.Repaired,
+	}), nil
 }
 
 func (h *connectHandler) AddPhase(ctx context.Context, req *connect.Request[plansv1.AddPhaseRequest]) (*connect.Response[plansv1.AddPhaseResponse], error) {
@@ -145,7 +150,7 @@ func (h *connectHandler) LinkDependency(ctx context.Context, req *connect.Reques
 }
 
 func (h *connectHandler) ImportPlan(ctx context.Context, req *connect.Request[plansv1.ImportPlanRequest]) (*connect.Response[plansv1.ImportPlanResponse], error) {
-	p, err := h.deps.Service.Import(ctx, req.Msg.GetSourcePath(), req.Msg.GetMarkdown())
+	p, err := h.deps.Service.Import(ctx, req.Msg.GetSourcePath(), req.Msg.GetMarkdown(), req.Msg.GetTitle(), req.Msg.GetSlug(), workspaceScopeFromProto(req.Msg.GetWorkspace()))
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
@@ -158,6 +163,14 @@ func (h *connectHandler) MigratePlan(ctx context.Context, req *connect.Request[p
 		return nil, internalplans.ToConnectError(err)
 	}
 	return connect.NewResponse(&plansv1.MigratePlanResponse{Plan: planToProto(p)}), nil
+}
+
+func (h *connectHandler) ReconcilePlans(ctx context.Context, req *connect.Request[plansv1.ReconcilePlansRequest]) (*connect.Response[plansv1.ReconcilePlansResponse], error) {
+	result, err := h.deps.Service.Reconcile(ctx, reconcileRequestFromProto(req.Msg))
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(reconcileResultToProto(result)), nil
 }
 
 func (h *connectHandler) ListTemplates(ctx context.Context, req *connect.Request[plansv1.ListTemplatesRequest]) (*connect.Response[plansv1.ListTemplatesResponse], error) {

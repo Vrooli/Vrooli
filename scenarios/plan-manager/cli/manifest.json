@@ -288,6 +288,10 @@
             {
               "name": "markdown",
               "description": "Inline markdown (overrides source)"
+            },
+            {
+              "name": "workspace",
+              "description": "Workspace root for relative source paths"
             }
           ],
           "binding": {
@@ -317,6 +321,72 @@
             "kind": "connect-rpc",
             "service": "PlansService",
             "method": "MigratePlan"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reconcile",
+          "description": "Repair rendered mirrors and non-destructively adopt legacy markdown plans in bulk",
+          "flags": [
+            {
+              "name": "dry-run",
+              "description": "Report planned actions without writing canonical records or mirrors",
+              "bool": true
+            },
+            {
+              "name": "repair-mirrors",
+              "description": "Repair missing or stale rendered markdown mirrors",
+              "bool": true
+            },
+            {
+              "name": "adopt-legacy",
+              "description": "Scan fallback legacy plan locations and import missing markdown plans",
+              "bool": true
+            },
+            {
+              "name": "include-archived",
+              "description": "Include archived canonical plans when repairing mirrors",
+              "bool": true
+            },
+            {
+              "name": "include-archived-legacy",
+              "description": "Include archived legacy index records when adopting",
+              "bool": true
+            },
+            {
+              "name": "conflict-policy",
+              "description": "Duplicate/conflict behavior (report_only|skip_existing)"
+            },
+            {
+              "name": "workspace",
+              "description": "Workspace root for docs/plans and plans source scans"
+            },
+            {
+              "name": "source-runtime-home-plans",
+              "description": "Scan the runtime-home plans directory",
+              "bool": true
+            },
+            {
+              "name": "source-docs-plans",
+              "description": "Scan repo docs/plans",
+              "bool": true
+            },
+            {
+              "name": "source-repo-plans",
+              "description": "Scan repo plans",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "ReconcilePlans"
           },
           "governance": {
             "effect": "write",

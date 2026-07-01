@@ -65,6 +65,9 @@ const (
 	// PlansServiceMigratePlanProcedure is the fully-qualified name of the PlansService's MigratePlan
 	// RPC.
 	PlansServiceMigratePlanProcedure = "/vrooli.plan_manager.v1.plans.PlansService/MigratePlan"
+	// PlansServiceReconcilePlansProcedure is the fully-qualified name of the PlansService's
+	// ReconcilePlans RPC.
+	PlansServiceReconcilePlansProcedure = "/vrooli.plan_manager.v1.plans.PlansService/ReconcilePlans"
 	// PlansServiceListTemplatesProcedure is the fully-qualified name of the PlansService's
 	// ListTemplates RPC.
 	PlansServiceListTemplatesProcedure = "/vrooli.plan_manager.v1.plans.PlansService/ListTemplates"
@@ -108,6 +111,9 @@ type PlansServiceClient interface {
 	// MigratePlan moves a fallback-resolved plan into the canonical home store
 	// (non-destructive to the source unless explicitly requested).
 	MigratePlan(context.Context, *connect.Request[plans.MigratePlanRequest]) (*connect.Response[plans.MigratePlanResponse], error)
+	// ReconcilePlans repairs rendered mirrors and bulk-adopts legacy markdown
+	// sources non-destructively.
+	ReconcilePlans(context.Context, *connect.Request[plans.ReconcilePlansRequest]) (*connect.Response[plans.ReconcilePlansResponse], error)
 	// ListTemplates returns the per-surface plan templates (CLI/proto/UI).
 	ListTemplates(context.Context, *connect.Request[plans.ListTemplatesRequest]) (*connect.Response[plans.ListTemplatesResponse], error)
 	// CreateFromTemplate pre-scaffolds a plan from a template.
@@ -203,6 +209,12 @@ func NewPlansServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(plansServiceMethods.ByName("MigratePlan")),
 			connect.WithClientOptions(opts...),
 		),
+		reconcilePlans: connect.NewClient[plans.ReconcilePlansRequest, plans.ReconcilePlansResponse](
+			httpClient,
+			baseURL+PlansServiceReconcilePlansProcedure,
+			connect.WithSchema(plansServiceMethods.ByName("ReconcilePlans")),
+			connect.WithClientOptions(opts...),
+		),
 		listTemplates: connect.NewClient[plans.ListTemplatesRequest, plans.ListTemplatesResponse](
 			httpClient,
 			baseURL+PlansServiceListTemplatesProcedure,
@@ -233,6 +245,7 @@ type plansServiceClient struct {
 	linkDependency     *connect.Client[plans.LinkDependencyRequest, plans.LinkDependencyResponse]
 	importPlan         *connect.Client[plans.ImportPlanRequest, plans.ImportPlanResponse]
 	migratePlan        *connect.Client[plans.MigratePlanRequest, plans.MigratePlanResponse]
+	reconcilePlans     *connect.Client[plans.ReconcilePlansRequest, plans.ReconcilePlansResponse]
 	listTemplates      *connect.Client[plans.ListTemplatesRequest, plans.ListTemplatesResponse]
 	createFromTemplate *connect.Client[plans.CreateFromTemplateRequest, plans.CreateFromTemplateResponse]
 }
@@ -302,6 +315,11 @@ func (c *plansServiceClient) MigratePlan(ctx context.Context, req *connect.Reque
 	return c.migratePlan.CallUnary(ctx, req)
 }
 
+// ReconcilePlans calls vrooli.plan_manager.v1.plans.PlansService.ReconcilePlans.
+func (c *plansServiceClient) ReconcilePlans(ctx context.Context, req *connect.Request[plans.ReconcilePlansRequest]) (*connect.Response[plans.ReconcilePlansResponse], error) {
+	return c.reconcilePlans.CallUnary(ctx, req)
+}
+
 // ListTemplates calls vrooli.plan_manager.v1.plans.PlansService.ListTemplates.
 func (c *plansServiceClient) ListTemplates(ctx context.Context, req *connect.Request[plans.ListTemplatesRequest]) (*connect.Response[plans.ListTemplatesResponse], error) {
 	return c.listTemplates.CallUnary(ctx, req)
@@ -348,6 +366,9 @@ type PlansServiceHandler interface {
 	// MigratePlan moves a fallback-resolved plan into the canonical home store
 	// (non-destructive to the source unless explicitly requested).
 	MigratePlan(context.Context, *connect.Request[plans.MigratePlanRequest]) (*connect.Response[plans.MigratePlanResponse], error)
+	// ReconcilePlans repairs rendered mirrors and bulk-adopts legacy markdown
+	// sources non-destructively.
+	ReconcilePlans(context.Context, *connect.Request[plans.ReconcilePlansRequest]) (*connect.Response[plans.ReconcilePlansResponse], error)
 	// ListTemplates returns the per-surface plan templates (CLI/proto/UI).
 	ListTemplates(context.Context, *connect.Request[plans.ListTemplatesRequest]) (*connect.Response[plans.ListTemplatesResponse], error)
 	// CreateFromTemplate pre-scaffolds a plan from a template.
@@ -439,6 +460,12 @@ func NewPlansServiceHandler(svc PlansServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(plansServiceMethods.ByName("MigratePlan")),
 		connect.WithHandlerOptions(opts...),
 	)
+	plansServiceReconcilePlansHandler := connect.NewUnaryHandler(
+		PlansServiceReconcilePlansProcedure,
+		svc.ReconcilePlans,
+		connect.WithSchema(plansServiceMethods.ByName("ReconcilePlans")),
+		connect.WithHandlerOptions(opts...),
+	)
 	plansServiceListTemplatesHandler := connect.NewUnaryHandler(
 		PlansServiceListTemplatesProcedure,
 		svc.ListTemplates,
@@ -479,6 +506,8 @@ func NewPlansServiceHandler(svc PlansServiceHandler, opts ...connect.HandlerOpti
 			plansServiceImportPlanHandler.ServeHTTP(w, r)
 		case PlansServiceMigratePlanProcedure:
 			plansServiceMigratePlanHandler.ServeHTTP(w, r)
+		case PlansServiceReconcilePlansProcedure:
+			plansServiceReconcilePlansHandler.ServeHTTP(w, r)
 		case PlansServiceListTemplatesProcedure:
 			plansServiceListTemplatesHandler.ServeHTTP(w, r)
 		case PlansServiceCreateFromTemplateProcedure:
@@ -542,6 +571,10 @@ func (UnimplementedPlansServiceHandler) ImportPlan(context.Context, *connect.Req
 
 func (UnimplementedPlansServiceHandler) MigratePlan(context.Context, *connect.Request[plans.MigratePlanRequest]) (*connect.Response[plans.MigratePlanResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.plans.PlansService.MigratePlan is not implemented"))
+}
+
+func (UnimplementedPlansServiceHandler) ReconcilePlans(context.Context, *connect.Request[plans.ReconcilePlansRequest]) (*connect.Response[plans.ReconcilePlansResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.plans.PlansService.ReconcilePlans is not implemented"))
 }
 
 func (UnimplementedPlansServiceHandler) ListTemplates(context.Context, *connect.Request[plans.ListTemplatesRequest]) (*connect.Response[plans.ListTemplatesResponse], error) {

@@ -2,9 +2,9 @@
 // @generated from file plan-manager/v1/plans/plans.proto (package vrooli.plan_manager.v1.plans, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Phase, Plan, PlanEdge, PlanStatus } from "../shared/model_pb";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Phase, Plan, PlanEdge, PlanStatus, RenderedPlanMirror } from "../shared/model_pb";
 import { file_plan_manager_v1_shared_model } from "../shared/model_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file plan-manager/v1/plans/plans.proto.
  */
 export const file_plan_manager_v1_plans_plans: GenFile = /*@__PURE__*/
-  fileDesc("CiFwbGFuLW1hbmFnZXIvdjEvcGxhbnMvcGxhbnMucHJvdG8SHHZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMiZwoQTGlzdFBsYW5zUmVxdWVzdBI5CgZzdGF0dXMYASABKA4yKS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuU3RhdHVzEhgKEGluY2x1ZGVfYXJjaGl2ZWQYAiABKAgiRwoRTGlzdFBsYW5zUmVzcG9uc2USMgoFcGxhbnMYASADKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuIhwKDkdldFBsYW5SZXF1ZXN0EgoKAmlkGAEgASgJIkQKD0dldFBsYW5SZXNwb25zZRIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiJGChFDcmVhdGVQbGFuUmVxdWVzdBIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiJHChJDcmVhdGVQbGFuUmVzcG9uc2USMQoEcGxhbhgBIAEoCzIjLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW4iRgoRVXBkYXRlUGxhblJlcXVlc3QSMQoEcGxhbhgBIAEoCzIjLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW4iRwoSVXBkYXRlUGxhblJlc3BvbnNlEjEKBHBsYW4YASABKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuIiAKEkFyY2hpdmVQbGFuUmVxdWVzdBIKCgJpZBgBIAEoCSJIChNBcmNoaXZlUGxhblJlc3BvbnNlEjEKBHBsYW4YASABKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuIiMKFVJlbmRlck1hcmtkb3duUmVxdWVzdBIKCgJpZBgBIAEoCSIqChZSZW5kZXJNYXJrZG93blJlc3BvbnNlEhAKCG1hcmtkb3duGAEgASgJIlcKD0FkZFBoYXNlUmVxdWVzdBIPCgdwbGFuX2lkGAEgASgJEjMKBXBoYXNlGAIgASgLMiQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGhhc2UiRQoQQWRkUGhhc2VSZXNwb25zZRIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiJaChJVcGRhdGVQaGFzZVJlcXVlc3QSDwoHcGxhbl9pZBgBIAEoCRIzCgVwaGFzZRgCIAEoCzIkLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBoYXNlIkgKE1VwZGF0ZVBoYXNlUmVzcG9uc2USMQoEcGxhbhgBIAEoCzIjLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW4iIgoPR2V0R3JhcGhSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkiSgoQR2V0R3JhcGhSZXNwb25zZRI2CgVlZGdlcxgBIAMoCzInLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW5FZGdlIlIKF0xpbmtTdXBlcnNlc3Npb25SZXF1ZXN0EhsKE3N1cGVyc2VkaW5nX3BsYW5faWQYASABKAkSGgoSc3VwZXJzZWRlZF9wbGFuX2lkGAIgASgJIk0KGExpbmtTdXBlcnNlc3Npb25SZXNwb25zZRIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiJOChVMaW5rRGVwZW5kZW5jeVJlcXVlc3QSGQoRZGVwZW5kaW5nX3BsYW5faWQYASABKAkSGgoSZGVwZW5kZW5jeV9wbGFuX2lkGAIgASgJIksKFkxpbmtEZXBlbmRlbmN5UmVzcG9uc2USMQoEcGxhbhgBIAEoCzIjLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW4iOgoRSW1wb3J0UGxhblJlcXVlc3QSEwoLc291cmNlX3BhdGgYASABKAkSEAoIbWFya2Rvd24YAiABKAkiRwoSSW1wb3J0UGxhblJlc3BvbnNlEjEKBHBsYW4YASABKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuIiAKEk1pZ3JhdGVQbGFuUmVxdWVzdBIKCgJpZBgBIAEoCSJIChNNaWdyYXRlUGxhblJlc3BvbnNlEjEKBHBsYW4YASABKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuIhYKFExpc3RUZW1wbGF0ZXNSZXF1ZXN0IlYKFUxpc3RUZW1wbGF0ZXNSZXNwb25zZRI9Cgl0ZW1wbGF0ZXMYASADKAsyKi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLlBsYW5UZW1wbGF0ZSJOCgxQbGFuVGVtcGxhdGUSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIPCgdzdXJmYWNlGAQgASgJIk0KGUNyZWF0ZUZyb21UZW1wbGF0ZVJlcXVlc3QSEwoLdGVtcGxhdGVfaWQYASABKAkSDQoFdGl0bGUYAiABKAkSDAoEc2x1ZxgDIAEoCSJPChpDcmVhdGVGcm9tVGVtcGxhdGVSZXNwb25zZRIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbjLrDQoMUGxhbnNTZXJ2aWNlEmwKCUxpc3RQbGFucxIuLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuTGlzdFBsYW5zUmVxdWVzdBovLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuTGlzdFBsYW5zUmVzcG9uc2USZgoHR2V0UGxhbhIsLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuR2V0UGxhblJlcXVlc3QaLS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkdldFBsYW5SZXNwb25zZRJvCgpDcmVhdGVQbGFuEi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5DcmVhdGVQbGFuUmVxdWVzdBowLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuQ3JlYXRlUGxhblJlc3BvbnNlEm8KClVwZGF0ZVBsYW4SLy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLlVwZGF0ZVBsYW5SZXF1ZXN0GjAudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5VcGRhdGVQbGFuUmVzcG9uc2UScgoLQXJjaGl2ZVBsYW4SMC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkFyY2hpdmVQbGFuUmVxdWVzdBoxLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuQXJjaGl2ZVBsYW5SZXNwb25zZRJ7Cg5SZW5kZXJNYXJrZG93bhIzLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuUmVuZGVyTWFya2Rvd25SZXF1ZXN0GjQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5SZW5kZXJNYXJrZG93blJlc3BvbnNlEmkKCEFkZFBoYXNlEi0udnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5BZGRQaGFzZVJlcXVlc3QaLi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkFkZFBoYXNlUmVzcG9uc2UScgoLVXBkYXRlUGhhc2USMC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLlVwZGF0ZVBoYXNlUmVxdWVzdBoxLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuVXBkYXRlUGhhc2VSZXNwb25zZRJpCghHZXRHcmFwaBItLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuR2V0R3JhcGhSZXF1ZXN0Gi4udnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5HZXRHcmFwaFJlc3BvbnNlEoEBChBMaW5rU3VwZXJzZXNzaW9uEjUudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5MaW5rU3VwZXJzZXNzaW9uUmVxdWVzdBo2LnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuTGlua1N1cGVyc2Vzc2lvblJlc3BvbnNlEnsKDkxpbmtEZXBlbmRlbmN5EjMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5MaW5rRGVwZW5kZW5jeVJlcXVlc3QaNC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkxpbmtEZXBlbmRlbmN5UmVzcG9uc2USbwoKSW1wb3J0UGxhbhIvLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuSW1wb3J0UGxhblJlcXVlc3QaMC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkltcG9ydFBsYW5SZXNwb25zZRJyCgtNaWdyYXRlUGxhbhIwLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuTWlncmF0ZVBsYW5SZXF1ZXN0GjEudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5NaWdyYXRlUGxhblJlc3BvbnNlEngKDUxpc3RUZW1wbGF0ZXMSMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkxpc3RUZW1wbGF0ZXNSZXF1ZXN0GjMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5MaXN0VGVtcGxhdGVzUmVzcG9uc2UShwEKEkNyZWF0ZUZyb21UZW1wbGF0ZRI3LnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuQ3JlYXRlRnJvbVRlbXBsYXRlUmVxdWVzdBo4LnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuQ3JlYXRlRnJvbVRlbXBsYXRlUmVzcG9uc2VCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9wbGFuLW1hbmFnZXIvdjEvcGxhbnM7cGxhbnNfdjFiBnByb3RvMw", [file_plan_manager_v1_shared_model]);
+  fileDesc("CiFwbGFuLW1hbmFnZXIvdjEvcGxhbnMvcGxhbnMucHJvdG8SHHZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMiqAEKEExpc3RQbGFuc1JlcXVlc3QSOQoGc3RhdHVzGAEgASgOMikudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhblN0YXR1cxIYChBpbmNsdWRlX2FyY2hpdmVkGAIgASgIEj8KCXdvcmtzcGFjZRgDIAEoCzIsLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuV29ya3NwYWNlU2NvcGUiRwoRTGlzdFBsYW5zUmVzcG9uc2USMgoFcGxhbnMYASADKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuIl0KDkdldFBsYW5SZXF1ZXN0EgoKAmlkGAEgASgJEj8KCXdvcmtzcGFjZRgCIAEoCzIsLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuV29ya3NwYWNlU2NvcGUiRAoPR2V0UGxhblJlc3BvbnNlEjEKBHBsYW4YASABKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuIkYKEUNyZWF0ZVBsYW5SZXF1ZXN0EjEKBHBsYW4YASABKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuIkcKEkNyZWF0ZVBsYW5SZXNwb25zZRIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiJGChFVcGRhdGVQbGFuUmVxdWVzdBIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiJHChJVcGRhdGVQbGFuUmVzcG9uc2USMQoEcGxhbhgBIAEoCzIjLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW4iYQoSQXJjaGl2ZVBsYW5SZXF1ZXN0EgoKAmlkGAEgASgJEj8KCXdvcmtzcGFjZRgCIAEoCzIsLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuV29ya3NwYWNlU2NvcGUiSAoTQXJjaGl2ZVBsYW5SZXNwb25zZRIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiJkChVSZW5kZXJNYXJrZG93blJlcXVlc3QSCgoCaWQYASABKAkSPwoJd29ya3NwYWNlGAIgASgLMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5Xb3Jrc3BhY2VTY29wZSJ/ChZSZW5kZXJNYXJrZG93blJlc3BvbnNlEhAKCG1hcmtkb3duGAEgASgJEkEKBm1pcnJvchgCIAEoCzIxLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlbmRlcmVkUGxhbk1pcnJvchIQCghyZXBhaXJlZBgDIAEoCCJXCg9BZGRQaGFzZVJlcXVlc3QSDwoHcGxhbl9pZBgBIAEoCRIzCgVwaGFzZRgCIAEoCzIkLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBoYXNlIkUKEEFkZFBoYXNlUmVzcG9uc2USMQoEcGxhbhgBIAEoCzIjLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW4iWgoSVXBkYXRlUGhhc2VSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkSMwoFcGhhc2UYAiABKAsyJC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QaGFzZSJIChNVcGRhdGVQaGFzZVJlc3BvbnNlEjEKBHBsYW4YASABKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuIiIKD0dldEdyYXBoUmVxdWVzdBIPCgdwbGFuX2lkGAEgASgJIkoKEEdldEdyYXBoUmVzcG9uc2USNgoFZWRnZXMYASADKAsyJy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuRWRnZSJSChdMaW5rU3VwZXJzZXNzaW9uUmVxdWVzdBIbChNzdXBlcnNlZGluZ19wbGFuX2lkGAEgASgJEhoKEnN1cGVyc2VkZWRfcGxhbl9pZBgCIAEoCSJNChhMaW5rU3VwZXJzZXNzaW9uUmVzcG9uc2USMQoEcGxhbhgBIAEoCzIjLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW4iTgoVTGlua0RlcGVuZGVuY3lSZXF1ZXN0EhkKEWRlcGVuZGluZ19wbGFuX2lkGAEgASgJEhoKEmRlcGVuZGVuY3lfcGxhbl9pZBgCIAEoCSJLChZMaW5rRGVwZW5kZW5jeVJlc3BvbnNlEjEKBHBsYW4YASABKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuIpgBChFJbXBvcnRQbGFuUmVxdWVzdBITCgtzb3VyY2VfcGF0aBgBIAEoCRIQCghtYXJrZG93bhgCIAEoCRINCgV0aXRsZRgDIAEoCRIMCgRzbHVnGAQgASgJEj8KCXdvcmtzcGFjZRgFIAEoCzIsLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuV29ya3NwYWNlU2NvcGUiRwoSSW1wb3J0UGxhblJlc3BvbnNlEjEKBHBsYW4YASABKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuIiAKEk1pZ3JhdGVQbGFuUmVxdWVzdBIKCgJpZBgBIAEoCSJIChNNaWdyYXRlUGxhblJlc3BvbnNlEjEKBHBsYW4YASABKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuIvsCChVSZWNvbmNpbGVQbGFuc1JlcXVlc3QSDwoHZHJ5X3J1bhgBIAEoCBIWCg5yZXBhaXJfbWlycm9ycxgCIAEoCBIUCgxhZG9wdF9sZWdhY3kYAyABKAgSGAoQaW5jbHVkZV9hcmNoaXZlZBgEIAEoCBIfChdpbmNsdWRlX2FyY2hpdmVkX2xlZ2FjeRgFIAEoCBJOCg9jb25mbGljdF9wb2xpY3kYBiABKA4yNS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLlJlY29uY2lsZUNvbmZsaWN0UG9saWN5EiEKGXNvdXJjZV9ydW50aW1lX2hvbWVfcGxhbnMYByABKAgSGQoRc291cmNlX2RvY3NfcGxhbnMYCCABKAgSGQoRc291cmNlX3JlcG9fcGxhbnMYCSABKAgSPwoJd29ya3NwYWNlGAogASgLMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5Xb3Jrc3BhY2VTY29wZSIqCg5Xb3Jrc3BhY2VTY29wZRIKCgJpZBgBIAEoCRIMCgRyb290GAIgASgJIoECChFSZWNvbmNpbGVQbGFuSXRlbRI9CgZhY3Rpb24YASABKA4yLS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLlJlY29uY2lsZUFjdGlvbhIPCgdwbGFuX2lkGAIgASgJEgwKBHNsdWcYAyABKAkSDQoFdGl0bGUYBCABKAkSEwoLc291cmNlX3BhdGgYBSABKAkSQQoGbWlycm9yGAYgASgLMjEudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVuZGVyZWRQbGFuTWlycm9yEhgKEHNvdXJjZV91bnRvdWNoZWQYByABKAgSDQoFZXJyb3IYCCABKAkiaQoWUmVjb25jaWxlUGxhbnNSZXNwb25zZRIPCgdkcnlfcnVuGAEgASgIEj4KBWl0ZW1zGAIgAygLMi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5SZWNvbmNpbGVQbGFuSXRlbSIWChRMaXN0VGVtcGxhdGVzUmVxdWVzdCJWChVMaXN0VGVtcGxhdGVzUmVzcG9uc2USPQoJdGVtcGxhdGVzGAEgAygLMioudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5QbGFuVGVtcGxhdGUiTgoMUGxhblRlbXBsYXRlEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSDwoHc3VyZmFjZRgEIAEoCSJNChlDcmVhdGVGcm9tVGVtcGxhdGVSZXF1ZXN0EhMKC3RlbXBsYXRlX2lkGAEgASgJEg0KBXRpdGxlGAIgASgJEgwKBHNsdWcYAyABKAkiTwoaQ3JlYXRlRnJvbVRlbXBsYXRlUmVzcG9uc2USMQoEcGxhbhgBIAEoCzIjLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW4qnAEKF1JlY29uY2lsZUNvbmZsaWN0UG9saWN5EikKJVJFQ09OQ0lMRV9DT05GTElDVF9QT0xJQ1lfVU5TUEVDSUZJRUQQABIpCiVSRUNPTkNJTEVfQ09ORkxJQ1RfUE9MSUNZX1JFUE9SVF9PTkxZEAESKwonUkVDT05DSUxFX0NPTkZMSUNUX1BPTElDWV9TS0lQX0VYSVNUSU5HEAIq/QIKD1JlY29uY2lsZUFjdGlvbhIgChxSRUNPTkNJTEVfQUNUSU9OX1VOU1BFQ0lGSUVEEAASJgoiUkVDT05DSUxFX0FDVElPTl9BTFJFQURZX0NBTk9OSUNBTBABEiEKHVJFQ09OQ0lMRV9BQ1RJT05fTUlSUk9SX0ZSRVNIEAISKQolUkVDT05DSUxFX0FDVElPTl9NSVJST1JfUkVQQUlSX05FRURFRBADEiQKIFJFQ09OQ0lMRV9BQ1RJT05fTUlSUk9SX1JFUEFJUkVEEAQSIwofUkVDT05DSUxFX0FDVElPTl9JTVBPUlRfUExBTk5FRBAFEh0KGVJFQ09OQ0lMRV9BQ1RJT05fSU1QT1JURUQQBhImCiJSRUNPTkNJTEVfQUNUSU9OX1NLSVBQRURfRFVQTElDQVRFEAcSIQodUkVDT05DSUxFX0FDVElPTl9QQVJTRV9GQUlMRUQQCBIdChlSRUNPTkNJTEVfQUNUSU9OX0NPTkZMSUNUEAky6A4KDFBsYW5zU2VydmljZRJsCglMaXN0UGxhbnMSLi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkxpc3RQbGFuc1JlcXVlc3QaLy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkxpc3RQbGFuc1Jlc3BvbnNlEmYKB0dldFBsYW4SLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkdldFBsYW5SZXF1ZXN0Gi0udnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5HZXRQbGFuUmVzcG9uc2USbwoKQ3JlYXRlUGxhbhIvLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuQ3JlYXRlUGxhblJlcXVlc3QaMC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkNyZWF0ZVBsYW5SZXNwb25zZRJvCgpVcGRhdGVQbGFuEi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5VcGRhdGVQbGFuUmVxdWVzdBowLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuVXBkYXRlUGxhblJlc3BvbnNlEnIKC0FyY2hpdmVQbGFuEjAudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5BcmNoaXZlUGxhblJlcXVlc3QaMS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkFyY2hpdmVQbGFuUmVzcG9uc2USewoOUmVuZGVyTWFya2Rvd24SMy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLlJlbmRlck1hcmtkb3duUmVxdWVzdBo0LnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuUmVuZGVyTWFya2Rvd25SZXNwb25zZRJpCghBZGRQaGFzZRItLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuQWRkUGhhc2VSZXF1ZXN0Gi4udnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5BZGRQaGFzZVJlc3BvbnNlEnIKC1VwZGF0ZVBoYXNlEjAudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5VcGRhdGVQaGFzZVJlcXVlc3QaMS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLlVwZGF0ZVBoYXNlUmVzcG9uc2USaQoIR2V0R3JhcGgSLS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkdldEdyYXBoUmVxdWVzdBouLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuR2V0R3JhcGhSZXNwb25zZRKBAQoQTGlua1N1cGVyc2Vzc2lvbhI1LnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuTGlua1N1cGVyc2Vzc2lvblJlcXVlc3QaNi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkxpbmtTdXBlcnNlc3Npb25SZXNwb25zZRJ7Cg5MaW5rRGVwZW5kZW5jeRIzLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuTGlua0RlcGVuZGVuY3lSZXF1ZXN0GjQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5MaW5rRGVwZW5kZW5jeVJlc3BvbnNlEm8KCkltcG9ydFBsYW4SLy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkltcG9ydFBsYW5SZXF1ZXN0GjAudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5JbXBvcnRQbGFuUmVzcG9uc2UScgoLTWlncmF0ZVBsYW4SMC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLk1pZ3JhdGVQbGFuUmVxdWVzdBoxLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuTWlncmF0ZVBsYW5SZXNwb25zZRJ7Cg5SZWNvbmNpbGVQbGFucxIzLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuUmVjb25jaWxlUGxhbnNSZXF1ZXN0GjQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5SZWNvbmNpbGVQbGFuc1Jlc3BvbnNlEngKDUxpc3RUZW1wbGF0ZXMSMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkxpc3RUZW1wbGF0ZXNSZXF1ZXN0GjMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5MaXN0VGVtcGxhdGVzUmVzcG9uc2UShwEKEkNyZWF0ZUZyb21UZW1wbGF0ZRI3LnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuQ3JlYXRlRnJvbVRlbXBsYXRlUmVxdWVzdBo4LnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuQ3JlYXRlRnJvbVRlbXBsYXRlUmVzcG9uc2VCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9wbGFuLW1hbmFnZXIvdjEvcGxhbnM7cGxhbnNfdjFiBnByb3RvMw", [file_plan_manager_v1_shared_model]);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.ListPlansRequest
@@ -31,6 +31,11 @@ export type ListPlansRequest = Message<"vrooli.plan_manager.v1.plans.ListPlansRe
    * @generated from field: bool include_archived = 2;
    */
   includeArchived: boolean;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.plans.WorkspaceScope workspace = 3;
+   */
+  workspace?: WorkspaceScope | undefined;
 };
 
 /**
@@ -67,6 +72,11 @@ export type GetPlanRequest = Message<"vrooli.plan_manager.v1.plans.GetPlanReques
    * @generated from field: string id = 1;
    */
   id: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.plans.WorkspaceScope workspace = 2;
+   */
+  workspace?: WorkspaceScope | undefined;
 };
 
 /**
@@ -172,6 +182,11 @@ export type ArchivePlanRequest = Message<"vrooli.plan_manager.v1.plans.ArchivePl
    * @generated from field: string id = 1;
    */
   id: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.plans.WorkspaceScope workspace = 2;
+   */
+  workspace?: WorkspaceScope | undefined;
 };
 
 /**
@@ -206,6 +221,11 @@ export type RenderMarkdownRequest = Message<"vrooli.plan_manager.v1.plans.Render
    * @generated from field: string id = 1;
    */
   id: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.plans.WorkspaceScope workspace = 2;
+   */
+  workspace?: WorkspaceScope | undefined;
 };
 
 /**
@@ -223,6 +243,16 @@ export type RenderMarkdownResponse = Message<"vrooli.plan_manager.v1.plans.Rende
    * @generated from field: string markdown = 1;
    */
   markdown: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.RenderedPlanMirror mirror = 2;
+   */
+  mirror?: RenderedPlanMirror | undefined;
+
+  /**
+   * @generated from field: bool repaired = 3;
+   */
+  repaired: boolean;
 };
 
 /**
@@ -441,6 +471,25 @@ export type ImportPlanRequest = Message<"vrooli.plan_manager.v1.plans.ImportPlan
    * @generated from field: string markdown = 2;
    */
   markdown: string;
+
+  /**
+   * Optional title override used by root `vrooli plans add/import` adoption.
+   *
+   * @generated from field: string title = 3;
+   */
+  title: string;
+
+  /**
+   * Optional slug override used by root `vrooli plans add/import` adoption.
+   *
+   * @generated from field: string slug = 4;
+   */
+  slug: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.plans.WorkspaceScope workspace = 5;
+   */
+  workspace?: WorkspaceScope | undefined;
 };
 
 /**
@@ -502,6 +551,164 @@ export const MigratePlanResponseSchema: GenMessage<MigratePlanResponse> = /*@__P
   messageDesc(file_plan_manager_v1_plans_plans, 25);
 
 /**
+ * @generated from message vrooli.plan_manager.v1.plans.ReconcilePlansRequest
+ */
+export type ReconcilePlansRequest = Message<"vrooli.plan_manager.v1.plans.ReconcilePlansRequest"> & {
+  /**
+   * @generated from field: bool dry_run = 1;
+   */
+  dryRun: boolean;
+
+  /**
+   * @generated from field: bool repair_mirrors = 2;
+   */
+  repairMirrors: boolean;
+
+  /**
+   * @generated from field: bool adopt_legacy = 3;
+   */
+  adoptLegacy: boolean;
+
+  /**
+   * @generated from field: bool include_archived = 4;
+   */
+  includeArchived: boolean;
+
+  /**
+   * @generated from field: bool include_archived_legacy = 5;
+   */
+  includeArchivedLegacy: boolean;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.plans.ReconcileConflictPolicy conflict_policy = 6;
+   */
+  conflictPolicy: ReconcileConflictPolicy;
+
+  /**
+   * @generated from field: bool source_runtime_home_plans = 7;
+   */
+  sourceRuntimeHomePlans: boolean;
+
+  /**
+   * @generated from field: bool source_docs_plans = 8;
+   */
+  sourceDocsPlans: boolean;
+
+  /**
+   * @generated from field: bool source_repo_plans = 9;
+   */
+  sourceRepoPlans: boolean;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.plans.WorkspaceScope workspace = 10;
+   */
+  workspace?: WorkspaceScope | undefined;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.plans.ReconcilePlansRequest.
+ * Use `create(ReconcilePlansRequestSchema)` to create a new message.
+ */
+export const ReconcilePlansRequestSchema: GenMessage<ReconcilePlansRequest> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_plans_plans, 26);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.plans.WorkspaceScope
+ */
+export type WorkspaceScope = Message<"vrooli.plan_manager.v1.plans.WorkspaceScope"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string root = 2;
+   */
+  root: string;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.plans.WorkspaceScope.
+ * Use `create(WorkspaceScopeSchema)` to create a new message.
+ */
+export const WorkspaceScopeSchema: GenMessage<WorkspaceScope> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_plans_plans, 27);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.plans.ReconcilePlanItem
+ */
+export type ReconcilePlanItem = Message<"vrooli.plan_manager.v1.plans.ReconcilePlanItem"> & {
+  /**
+   * @generated from field: vrooli.plan_manager.v1.plans.ReconcileAction action = 1;
+   */
+  action: ReconcileAction;
+
+  /**
+   * @generated from field: string plan_id = 2;
+   */
+  planId: string;
+
+  /**
+   * @generated from field: string slug = 3;
+   */
+  slug: string;
+
+  /**
+   * @generated from field: string title = 4;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string source_path = 5;
+   */
+  sourcePath: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.RenderedPlanMirror mirror = 6;
+   */
+  mirror?: RenderedPlanMirror | undefined;
+
+  /**
+   * @generated from field: bool source_untouched = 7;
+   */
+  sourceUntouched: boolean;
+
+  /**
+   * @generated from field: string error = 8;
+   */
+  error: string;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.plans.ReconcilePlanItem.
+ * Use `create(ReconcilePlanItemSchema)` to create a new message.
+ */
+export const ReconcilePlanItemSchema: GenMessage<ReconcilePlanItem> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_plans_plans, 28);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.plans.ReconcilePlansResponse
+ */
+export type ReconcilePlansResponse = Message<"vrooli.plan_manager.v1.plans.ReconcilePlansResponse"> & {
+  /**
+   * @generated from field: bool dry_run = 1;
+   */
+  dryRun: boolean;
+
+  /**
+   * @generated from field: repeated vrooli.plan_manager.v1.plans.ReconcilePlanItem items = 2;
+   */
+  items: ReconcilePlanItem[];
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.plans.ReconcilePlansResponse.
+ * Use `create(ReconcilePlansResponseSchema)` to create a new message.
+ */
+export const ReconcilePlansResponseSchema: GenMessage<ReconcilePlansResponse> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_plans_plans, 29);
+
+/**
  * @generated from message vrooli.plan_manager.v1.plans.ListTemplatesRequest
  */
 export type ListTemplatesRequest = Message<"vrooli.plan_manager.v1.plans.ListTemplatesRequest"> & {
@@ -512,7 +719,7 @@ export type ListTemplatesRequest = Message<"vrooli.plan_manager.v1.plans.ListTem
  * Use `create(ListTemplatesRequestSchema)` to create a new message.
  */
 export const ListTemplatesRequestSchema: GenMessage<ListTemplatesRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 26);
+  messageDesc(file_plan_manager_v1_plans_plans, 30);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.ListTemplatesResponse
@@ -529,7 +736,7 @@ export type ListTemplatesResponse = Message<"vrooli.plan_manager.v1.plans.ListTe
  * Use `create(ListTemplatesResponseSchema)` to create a new message.
  */
 export const ListTemplatesResponseSchema: GenMessage<ListTemplatesResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 27);
+  messageDesc(file_plan_manager_v1_plans_plans, 31);
 
 /**
  * PlanTemplate is a per-surface starter plan (CLI/proto/UI) that pre-scaffolds
@@ -566,7 +773,7 @@ export type PlanTemplate = Message<"vrooli.plan_manager.v1.plans.PlanTemplate"> 
  * Use `create(PlanTemplateSchema)` to create a new message.
  */
 export const PlanTemplateSchema: GenMessage<PlanTemplate> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 28);
+  messageDesc(file_plan_manager_v1_plans_plans, 32);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.CreateFromTemplateRequest
@@ -593,7 +800,7 @@ export type CreateFromTemplateRequest = Message<"vrooli.plan_manager.v1.plans.Cr
  * Use `create(CreateFromTemplateRequestSchema)` to create a new message.
  */
 export const CreateFromTemplateRequestSchema: GenMessage<CreateFromTemplateRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 29);
+  messageDesc(file_plan_manager_v1_plans_plans, 33);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.CreateFromTemplateResponse
@@ -610,7 +817,94 @@ export type CreateFromTemplateResponse = Message<"vrooli.plan_manager.v1.plans.C
  * Use `create(CreateFromTemplateResponseSchema)` to create a new message.
  */
 export const CreateFromTemplateResponseSchema: GenMessage<CreateFromTemplateResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 30);
+  messageDesc(file_plan_manager_v1_plans_plans, 34);
+
+/**
+ * @generated from enum vrooli.plan_manager.v1.plans.ReconcileConflictPolicy
+ */
+export enum ReconcileConflictPolicy {
+  /**
+   * @generated from enum value: RECONCILE_CONFLICT_POLICY_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: RECONCILE_CONFLICT_POLICY_REPORT_ONLY = 1;
+   */
+  REPORT_ONLY = 1,
+
+  /**
+   * @generated from enum value: RECONCILE_CONFLICT_POLICY_SKIP_EXISTING = 2;
+   */
+  SKIP_EXISTING = 2,
+}
+
+/**
+ * Describes the enum vrooli.plan_manager.v1.plans.ReconcileConflictPolicy.
+ */
+export const ReconcileConflictPolicySchema: GenEnum<ReconcileConflictPolicy> = /*@__PURE__*/
+  enumDesc(file_plan_manager_v1_plans_plans, 0);
+
+/**
+ * @generated from enum vrooli.plan_manager.v1.plans.ReconcileAction
+ */
+export enum ReconcileAction {
+  /**
+   * @generated from enum value: RECONCILE_ACTION_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: RECONCILE_ACTION_ALREADY_CANONICAL = 1;
+   */
+  ALREADY_CANONICAL = 1,
+
+  /**
+   * @generated from enum value: RECONCILE_ACTION_MIRROR_FRESH = 2;
+   */
+  MIRROR_FRESH = 2,
+
+  /**
+   * @generated from enum value: RECONCILE_ACTION_MIRROR_REPAIR_NEEDED = 3;
+   */
+  MIRROR_REPAIR_NEEDED = 3,
+
+  /**
+   * @generated from enum value: RECONCILE_ACTION_MIRROR_REPAIRED = 4;
+   */
+  MIRROR_REPAIRED = 4,
+
+  /**
+   * @generated from enum value: RECONCILE_ACTION_IMPORT_PLANNED = 5;
+   */
+  IMPORT_PLANNED = 5,
+
+  /**
+   * @generated from enum value: RECONCILE_ACTION_IMPORTED = 6;
+   */
+  IMPORTED = 6,
+
+  /**
+   * @generated from enum value: RECONCILE_ACTION_SKIPPED_DUPLICATE = 7;
+   */
+  SKIPPED_DUPLICATE = 7,
+
+  /**
+   * @generated from enum value: RECONCILE_ACTION_PARSE_FAILED = 8;
+   */
+  PARSE_FAILED = 8,
+
+  /**
+   * @generated from enum value: RECONCILE_ACTION_CONFLICT = 9;
+   */
+  CONFLICT = 9,
+}
+
+/**
+ * Describes the enum vrooli.plan_manager.v1.plans.ReconcileAction.
+ */
+export const ReconcileActionSchema: GenEnum<ReconcileAction> = /*@__PURE__*/
+  enumDesc(file_plan_manager_v1_plans_plans, 1);
 
 /**
  * @generated from service vrooli.plan_manager.v1.plans.PlansService
@@ -752,6 +1046,17 @@ export const PlansService: GenService<{
     methodKind: "unary";
     input: typeof MigratePlanRequestSchema;
     output: typeof MigratePlanResponseSchema;
+  },
+  /**
+   * ReconcilePlans repairs rendered mirrors and bulk-adopts legacy markdown
+   * sources non-destructively.
+   *
+   * @generated from rpc vrooli.plan_manager.v1.plans.PlansService.ReconcilePlans
+   */
+  reconcilePlans: {
+    methodKind: "unary";
+    input: typeof ReconcilePlansRequestSchema;
+    output: typeof ReconcilePlansResponseSchema;
   },
   /**
    * ListTemplates returns the per-surface plan templates (CLI/proto/UI).

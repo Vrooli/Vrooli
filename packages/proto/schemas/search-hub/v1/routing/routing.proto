@@ -156,6 +156,8 @@ message ProviderResultGroup {
   bool degraded = 4;
   // e.g. "last sync 3h ago" / "unreachable — skipped".
   string note = 5;
+  // Per-provider fan-out leg latency in milliseconds, including degraded legs.
+  int64 latency_ms = 6;
 }
 
 message QueryResponse {

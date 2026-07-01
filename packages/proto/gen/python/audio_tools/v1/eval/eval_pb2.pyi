@@ -24,24 +24,6 @@ class EvalStrategy(_message.Message):
     overlap_max_window_ms: int
     def __init__(self, kind: _Optional[str] = ..., label: _Optional[str] = ..., overlap_max_stall_rejects: _Optional[int] = ..., overlap_window_ms: _Optional[int] = ..., overlap_commit_runs: _Optional[int] = ..., vad_silence_ms: _Optional[int] = ..., overlap_max_window_ms: _Optional[int] = ...) -> None: ...
 
-class RunEvalRequest(_message.Message):
-    __slots__ = ("clip_ids", "strategies", "realtime_repeats", "chunk_ms")
-    CLIP_IDS_FIELD_NUMBER: _ClassVar[int]
-    STRATEGIES_FIELD_NUMBER: _ClassVar[int]
-    REALTIME_REPEATS_FIELD_NUMBER: _ClassVar[int]
-    CHUNK_MS_FIELD_NUMBER: _ClassVar[int]
-    clip_ids: _containers.RepeatedScalarFieldContainer[str]
-    strategies: _containers.RepeatedCompositeFieldContainer[EvalStrategy]
-    realtime_repeats: int
-    chunk_ms: int
-    def __init__(self, clip_ids: _Optional[_Iterable[str]] = ..., strategies: _Optional[_Iterable[_Union[EvalStrategy, _Mapping]]] = ..., realtime_repeats: _Optional[int] = ..., chunk_ms: _Optional[int] = ...) -> None: ...
-
-class RunEvalResponse(_message.Message):
-    __slots__ = ("report",)
-    REPORT_FIELD_NUMBER: _ClassVar[int]
-    report: EvalReport
-    def __init__(self, report: _Optional[_Union[EvalReport, _Mapping]] = ...) -> None: ...
-
 class EvalReport(_message.Message):
     __slots__ = ("per_strategy", "quality_measured", "latency_measured", "summary", "warnings", "normalization_policy", "latency_honesty")
     PER_STRATEGY_FIELD_NUMBER: _ClassVar[int]

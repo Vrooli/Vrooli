@@ -150,6 +150,32 @@ preview render and the persisted render agree (see
 
 ## State Machines
 
+### Rendered markdown mirror
+
+Plan mutations persist the structured SQLite record first, then render and
+publish the markdown mirror under the repo-contract runtime-home `plans` entry.
+The mirror publish is crash-safe at the file level (temp file in the same
+directory, then rename). Cross-resource atomicity is intentionally not promised:
+if SQLite succeeds and the file write fails, the plan remains canonical and the
+mirror metadata records `write_failed`.
+
+`plans render` loads the canonical plan, reads the mirror when its hash and
+renderer version match, and repairs from SQLite when the file is missing or
+stale. This makes the absolute mirror path useful in terminals, Web Console
+links, backups, and broken-server scenarios without making markdown editable
+truth.
+
+`plans reconcile` is the operator bulk path. With `--dry-run` it reads canonical
+plans and fallback markdown sources, reports which mirrors would be repaired and
+which legacy files would be imported, and performs no writes. The CLI accepts
+`--workspace <path>` for repo-relative fallback scans; without it the scenario
+CLI sends the current discovered Vrooli repo root when available. API callers
+should pass `WorkspaceScope.root` explicitly when resolving `docs/plans` or
+`plans` from a workspace. Without dry-run it repairs mirrors from SQLite and
+imports legacy markdown into new canonical records while leaving every source
+file untouched. Current mirror files under runtime-home `plans` are recognized as
+projections and skipped rather than re-imported as duplicate truth.
+
 **Plan lifecycle:**
 
 ```

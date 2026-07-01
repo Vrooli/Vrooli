@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file common/v1/maturity.proto.
  */
 export const file_common_v1_maturity: GenFile = /*@__PURE__*/
-  fileDesc("Chhjb21tb24vdjEvbWF0dXJpdHkucHJvdG8SCWNvbW1vbi52MSJyChJMb2NhbE1hdHVyaXR5TGV2ZWwSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIWCg5lbnRyeV9jcml0ZXJpYRgEIAMoCRIVCg1leGl0X2NyaXRlcmlhGAUgAygJIsABCg9GaW5kaW5nTWF0dXJpdHkSEwoLbG9jYWxfbGV2ZWwYASABKAkSLgoNZ2xvYmFsX2ltcGFjdBgCIAEoDjIXLmNvbW1vbi52MS5HbG9iYWxJbXBhY3QSEQoJZGltZW5zaW9uGAMgASgJEh0KFXJlY29tbWVuZGVkX3NraWxsX2lkcxgEIAMoCRI2ChFjbGVhbl9yZXF1aXJlbWVudBgFIAEoDjIbLmNvbW1vbi52MS5DbGVhblJlcXVpcmVtZW50ItYBChFBc3Nlc3NtZW50RmluZGluZxIMCgRjb2RlGAEgASgJEhAKCHNldmVyaXR5GAIgASgJEg0KBXRpdGxlGAMgASgJEg8KB21lc3NhZ2UYBCABKAkSEAoIbG9jYXRpb24YBSABKAkSEwoLcmVtZWRpYXRpb24YBiABKAkSLAoIbWF0dXJpdHkYByABKAsyGi5jb21tb24udjEuRmluZGluZ01hdHVyaXR5EhkKEWF1dG9maXhfYXZhaWxhYmxlGAggASgIEhEKCWZpeF9jbGFzcxgJIAEoCSK5AQoXTG9jYWxNYXR1cml0eUFzc2Vzc21lbnQSFQoNY3VycmVudF9sZXZlbBgBIAEoCRISCgpuZXh0X2xldmVsGAIgASgJEi0KBmxldmVscxgDIAMoCzIdLmNvbW1vbi52MS5Mb2NhbE1hdHVyaXR5TGV2ZWwSHgoWYmxvY2tpbmdfZmluZGluZ19jb2RlcxgEIAMoCRINCgVjbGVhbhgFIAEoCBIVCg11bmtub3duX2NvdW50GAYgASgFIuYFChJNYXR1cml0eUFzc2Vzc21lbnQSEAoIc2NlbmFyaW8YASABKAkSEAoIcHJvdmlkZXIYAiABKAkSDQoFcGhhc2UYAyABKAkSDwoHdmVyc2lvbhgEIAEoCRIxCgVsb2NhbBgFIAEoCzIiLmNvbW1vbi52MS5Mb2NhbE1hdHVyaXR5QXNzZXNzbWVudBIuCghmaW5kaW5ncxgGIAMoCzIcLmNvbW1vbi52MS5Bc3Nlc3NtZW50RmluZGluZxJcChlmaW5kaW5nc19ieV9nbG9iYWxfaW1wYWN0GAcgAygLMjkuY29tbW9uLnYxLk1hdHVyaXR5QXNzZXNzbWVudC5GaW5kaW5nc0J5R2xvYmFsSW1wYWN0RW50cnkSUwoUZmluZGluZ3NfYnlfc2V2ZXJpdHkYCCADKAsyNS5jb21tb24udjEuTWF0dXJpdHlBc3Nlc3NtZW50LkZpbmRpbmdzQnlTZXZlcml0eUVudHJ5Eh0KFXJlY29tbWVuZGVkX3NraWxsX2lkcxgJIAMoCRJkCh1maW5kaW5nc19ieV9jbGVhbl9yZXF1aXJlbWVudBgKIAMoCzI9LmNvbW1vbi52MS5NYXR1cml0eUFzc2Vzc21lbnQuRmluZGluZ3NCeUNsZWFuUmVxdWlyZW1lbnRFbnRyeRIZChFhdXRvZml4YWJsZV9jb3VudBgLIAEoBRIZChFhdXRvZml4YWJsZV90b3RhbBgMIAEoBRo9ChtGaW5kaW5nc0J5R2xvYmFsSW1wYWN0RW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgFOgI4ARo5ChdGaW5kaW5nc0J5U2V2ZXJpdHlFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBGkEKH0ZpbmRpbmdzQnlDbGVhblJlcXVpcmVtZW50RW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgFOgI4ASqTAgoMR2xvYmFsSW1wYWN0Eh0KGUdMT0JBTF9JTVBBQ1RfVU5TUEVDSUZJRUQQABIkCiBHTE9CQUxfSU1QQUNUX0ZPVU5EQVRJT05fQkxPQ0tFUhABEiAKHEdMT0JBTF9JTVBBQ1RfU0FGRVRZX0JMT0NLRVIQAhIiCh5HTE9CQUxfSU1QQUNUX0VWT0xWQUJJTElUWV9HQVAQAxIfChtHTE9CQUxfSU1QQUNUX0hBUkRFTklOR19HQVAQBBIgChxHTE9CQUxfSU1QQUNUX0NBUEFCSUxJVFlfR0FQEAUSGgoWR0xPQkFMX0lNUEFDVF9BRFZJU09SWRAGEhkKFUdMT0JBTF9JTVBBQ1RfVU5LTk9XThAHKpgBChBDbGVhblJlcXVpcmVtZW50EiEKHUNMRUFOX1JFUVVJUkVNRU5UX1VOU1BFQ0lGSUVEEAASHgoaQ0xFQU5fUkVRVUlSRU1FTlRfUkVRVUlSRUQQARIeChpDTEVBTl9SRVFVSVJFTUVOVF9BRFZJU09SWRACEiEKHUNMRUFOX1JFUVVJUkVNRU5UX1VOQ0hFQ0tBQkxFEANCQ1pBZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jb21tb24vdjE7Y29tbW9udjFiBnByb3RvMw");
+  fileDesc("Chhjb21tb24vdjEvbWF0dXJpdHkucHJvdG8SCWNvbW1vbi52MSK5AQoSTG9jYWxNYXR1cml0eUxldmVsEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSFgoOZW50cnlfY3JpdGVyaWEYBCADKAkSFQoNZXhpdF9jcml0ZXJpYRgFIAMoCRIUCgxzdGF0dXNfbGFiZWwYBiABKAkSGgoSY2FwYWJpbGl0eV9zdW1tYXJ5GAcgASgJEhMKC25leHRfdW5sb2NrGAggASgJItcBCg9GaW5kaW5nTWF0dXJpdHkSEwoLbG9jYWxfbGV2ZWwYASABKAkSLgoNZ2xvYmFsX2ltcGFjdBgCIAEoDjIXLmNvbW1vbi52MS5HbG9iYWxJbXBhY3QSEQoJZGltZW5zaW9uGAMgASgJEh0KFXJlY29tbWVuZGVkX3NraWxsX2lkcxgEIAMoCRI2ChFjbGVhbl9yZXF1aXJlbWVudBgFIAEoDjIbLmNvbW1vbi52MS5DbGVhblJlcXVpcmVtZW50EhUKDWNhcGFiaWxpdHlfaWQYBiABKAki1gEKEUFzc2Vzc21lbnRGaW5kaW5nEgwKBGNvZGUYASABKAkSEAoIc2V2ZXJpdHkYAiABKAkSDQoFdGl0bGUYAyABKAkSDwoHbWVzc2FnZRgEIAEoCRIQCghsb2NhdGlvbhgFIAEoCRITCgtyZW1lZGlhdGlvbhgGIAEoCRIsCghtYXR1cml0eRgHIAEoCzIaLmNvbW1vbi52MS5GaW5kaW5nTWF0dXJpdHkSGQoRYXV0b2ZpeF9hdmFpbGFibGUYCCABKAgSEQoJZml4X2NsYXNzGAkgASgJIrkBChdMb2NhbE1hdHVyaXR5QXNzZXNzbWVudBIVCg1jdXJyZW50X2xldmVsGAEgASgJEhIKCm5leHRfbGV2ZWwYAiABKAkSLQoGbGV2ZWxzGAMgAygLMh0uY29tbW9uLnYxLkxvY2FsTWF0dXJpdHlMZXZlbBIeChZibG9ja2luZ19maW5kaW5nX2NvZGVzGAQgAygJEg0KBWNsZWFuGAUgASgIEhUKDXVua25vd25fY291bnQYBiABKAUiwAYKHENhcGFiaWxpdHlNYXR1cml0eUFzc2Vzc21lbnQSCgoCaWQYASABKAkSDQoFbGFiZWwYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSFQoNY3VycmVudF9sZXZlbBgEIAEoCRISCgpuZXh0X2xldmVsGAUgASgJEi0KBmxldmVscxgGIAMoCzIdLmNvbW1vbi52MS5Mb2NhbE1hdHVyaXR5TGV2ZWwSFwoPY3VycmVudF9zdW1tYXJ5GAcgASgJEhMKC25leHRfdW5sb2NrGAggASgJEh4KFmJsb2NraW5nX2ZpbmRpbmdfY29kZXMYCSADKAkSDQoFY2xlYW4YCiABKAgSFQoNdW5rbm93bl9jb3VudBgLIAEoBRJmChlmaW5kaW5nc19ieV9nbG9iYWxfaW1wYWN0GAwgAygLMkMuY29tbW9uLnYxLkNhcGFiaWxpdHlNYXR1cml0eUFzc2Vzc21lbnQuRmluZGluZ3NCeUdsb2JhbEltcGFjdEVudHJ5El0KFGZpbmRpbmdzX2J5X3NldmVyaXR5GA0gAygLMj8uY29tbW9uLnYxLkNhcGFiaWxpdHlNYXR1cml0eUFzc2Vzc21lbnQuRmluZGluZ3NCeVNldmVyaXR5RW50cnkSbgodZmluZGluZ3NfYnlfY2xlYW5fcmVxdWlyZW1lbnQYDiADKAsyRy5jb21tb24udjEuQ2FwYWJpbGl0eU1hdHVyaXR5QXNzZXNzbWVudC5GaW5kaW5nc0J5Q2xlYW5SZXF1aXJlbWVudEVudHJ5EhUKDXByaW9yaXR5X3JhbmsYDyABKAUSFwoPcHJpb3JpdHlfcmVhc29uGBAgASgJGj0KG0ZpbmRpbmdzQnlHbG9iYWxJbXBhY3RFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBGjkKF0ZpbmRpbmdzQnlTZXZlcml0eUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAEaQQofRmluZGluZ3NCeUNsZWFuUmVxdWlyZW1lbnRFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBInsKDVByaW9yaXR5Rm9jdXMSFQoNY2FwYWJpbGl0eV9pZBgBIAEoCRIYChBjYXBhYmlsaXR5X2xhYmVsGAIgASgJEhUKDWN1cnJlbnRfbGV2ZWwYAyABKAkSEgoKbmV4dF9sZXZlbBgEIAEoCRIOCgZyZWFzb24YBSABKAki5AYKEk1hdHVyaXR5QXNzZXNzbWVudBIQCghzY2VuYXJpbxgBIAEoCRIQCghwcm92aWRlchgCIAEoCRINCgVwaGFzZRgDIAEoCRIPCgd2ZXJzaW9uGAQgASgJEjEKBWxvY2FsGAUgASgLMiIuY29tbW9uLnYxLkxvY2FsTWF0dXJpdHlBc3Nlc3NtZW50Ei4KCGZpbmRpbmdzGAYgAygLMhwuY29tbW9uLnYxLkFzc2Vzc21lbnRGaW5kaW5nElwKGWZpbmRpbmdzX2J5X2dsb2JhbF9pbXBhY3QYByADKAsyOS5jb21tb24udjEuTWF0dXJpdHlBc3Nlc3NtZW50LkZpbmRpbmdzQnlHbG9iYWxJbXBhY3RFbnRyeRJTChRmaW5kaW5nc19ieV9zZXZlcml0eRgIIAMoCzI1LmNvbW1vbi52MS5NYXR1cml0eUFzc2Vzc21lbnQuRmluZGluZ3NCeVNldmVyaXR5RW50cnkSHQoVcmVjb21tZW5kZWRfc2tpbGxfaWRzGAkgAygJEmQKHWZpbmRpbmdzX2J5X2NsZWFuX3JlcXVpcmVtZW50GAogAygLMj0uY29tbW9uLnYxLk1hdHVyaXR5QXNzZXNzbWVudC5GaW5kaW5nc0J5Q2xlYW5SZXF1aXJlbWVudEVudHJ5EhkKEWF1dG9maXhhYmxlX2NvdW50GAsgASgFEhkKEWF1dG9maXhhYmxlX3RvdGFsGAwgASgFEj0KDGNhcGFiaWxpdGllcxgNIAMoCzInLmNvbW1vbi52MS5DYXBhYmlsaXR5TWF0dXJpdHlBc3Nlc3NtZW50Ej0KG2hpZ2hlc3RfcHJpb3JpdHlfY2FwYWJpbGl0eRgOIAEoCzIYLmNvbW1vbi52MS5Qcmlvcml0eUZvY3VzGj0KG0ZpbmRpbmdzQnlHbG9iYWxJbXBhY3RFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBGjkKF0ZpbmRpbmdzQnlTZXZlcml0eUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAEaQQofRmluZGluZ3NCeUNsZWFuUmVxdWlyZW1lbnRFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAU6AjgBKpMCCgxHbG9iYWxJbXBhY3QSHQoZR0xPQkFMX0lNUEFDVF9VTlNQRUNJRklFRBAAEiQKIEdMT0JBTF9JTVBBQ1RfRk9VTkRBVElPTl9CTE9DS0VSEAESIAocR0xPQkFMX0lNUEFDVF9TQUZFVFlfQkxPQ0tFUhACEiIKHkdMT0JBTF9JTVBBQ1RfRVZPTFZBQklMSVRZX0dBUBADEh8KG0dMT0JBTF9JTVBBQ1RfSEFSREVOSU5HX0dBUBAEEiAKHEdMT0JBTF9JTVBBQ1RfQ0FQQUJJTElUWV9HQVAQBRIaChZHTE9CQUxfSU1QQUNUX0FEVklTT1JZEAYSGQoVR0xPQkFMX0lNUEFDVF9VTktOT1dOEAcqmAEKEENsZWFuUmVxdWlyZW1lbnQSIQodQ0xFQU5fUkVRVUlSRU1FTlRfVU5TUEVDSUZJRUQQABIeChpDTEVBTl9SRVFVSVJFTUVOVF9SRVFVSVJFRBABEh4KGkNMRUFOX1JFUVVJUkVNRU5UX0FEVklTT1JZEAISIQodQ0xFQU5fUkVRVUlSRU1FTlRfVU5DSEVDS0FCTEUQA0JDWkFnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NvbW1vbi92MTtjb21tb252MWIGcHJvdG8z");
 
 /**
  * LocalMaturityLevel is one provider-local rung from `.vrooli/maturity.json`.
@@ -42,6 +42,21 @@ export type LocalMaturityLevel = Message<"common.v1.LocalMaturityLevel"> & {
    * @generated from field: repeated string exit_criteria = 5;
    */
   exitCriteria: string[];
+
+  /**
+   * @generated from field: string status_label = 6;
+   */
+  statusLabel: string;
+
+  /**
+   * @generated from field: string capability_summary = 7;
+   */
+  capabilitySummary: string;
+
+  /**
+   * @generated from field: string next_unlock = 8;
+   */
+  nextUnlock: string;
 };
 
 /**
@@ -85,6 +100,14 @@ export type FindingMaturity = Message<"common.v1.FindingMaturity"> & {
    * @generated from field: common.v1.CleanRequirement clean_requirement = 5;
    */
   cleanRequirement: CleanRequirement;
+
+  /**
+   * Provider-local capability ladder that owns this finding, when the provider
+   * declares multiple ladders in `.vrooli/maturity.json`.
+   *
+   * @generated from field: string capability_id = 6;
+   */
+  capabilityId: string;
 };
 
 /**
@@ -203,6 +226,135 @@ export const LocalMaturityAssessmentSchema: GenMessage<LocalMaturityAssessment> 
   messageDesc(file_common_v1_maturity, 3);
 
 /**
+ * @generated from message common.v1.CapabilityMaturityAssessment
+ */
+export type CapabilityMaturityAssessment = Message<"common.v1.CapabilityMaturityAssessment"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string label = 2;
+   */
+  label: string;
+
+  /**
+   * @generated from field: string description = 3;
+   */
+  description: string;
+
+  /**
+   * @generated from field: string current_level = 4;
+   */
+  currentLevel: string;
+
+  /**
+   * @generated from field: string next_level = 5;
+   */
+  nextLevel: string;
+
+  /**
+   * @generated from field: repeated common.v1.LocalMaturityLevel levels = 6;
+   */
+  levels: LocalMaturityLevel[];
+
+  /**
+   * @generated from field: string current_summary = 7;
+   */
+  currentSummary: string;
+
+  /**
+   * @generated from field: string next_unlock = 8;
+   */
+  nextUnlock: string;
+
+  /**
+   * @generated from field: repeated string blocking_finding_codes = 9;
+   */
+  blockingFindingCodes: string[];
+
+  /**
+   * @generated from field: bool clean = 10;
+   */
+  clean: boolean;
+
+  /**
+   * @generated from field: int32 unknown_count = 11;
+   */
+  unknownCount: number;
+
+  /**
+   * @generated from field: map<string, int32> findings_by_global_impact = 12;
+   */
+  findingsByGlobalImpact: { [key: string]: number };
+
+  /**
+   * @generated from field: map<string, int32> findings_by_severity = 13;
+   */
+  findingsBySeverity: { [key: string]: number };
+
+  /**
+   * @generated from field: map<string, int32> findings_by_clean_requirement = 14;
+   */
+  findingsByCleanRequirement: { [key: string]: number };
+
+  /**
+   * @generated from field: int32 priority_rank = 15;
+   */
+  priorityRank: number;
+
+  /**
+   * @generated from field: string priority_reason = 16;
+   */
+  priorityReason: string;
+};
+
+/**
+ * Describes the message common.v1.CapabilityMaturityAssessment.
+ * Use `create(CapabilityMaturityAssessmentSchema)` to create a new message.
+ */
+export const CapabilityMaturityAssessmentSchema: GenMessage<CapabilityMaturityAssessment> = /*@__PURE__*/
+  messageDesc(file_common_v1_maturity, 4);
+
+/**
+ * @generated from message common.v1.PriorityFocus
+ */
+export type PriorityFocus = Message<"common.v1.PriorityFocus"> & {
+  /**
+   * @generated from field: string capability_id = 1;
+   */
+  capabilityId: string;
+
+  /**
+   * @generated from field: string capability_label = 2;
+   */
+  capabilityLabel: string;
+
+  /**
+   * @generated from field: string current_level = 3;
+   */
+  currentLevel: string;
+
+  /**
+   * @generated from field: string next_level = 4;
+   */
+  nextLevel: string;
+
+  /**
+   * @generated from field: string reason = 5;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message common.v1.PriorityFocus.
+ * Use `create(PriorityFocusSchema)` to create a new message.
+ */
+export const PriorityFocusSchema: GenMessage<PriorityFocus> = /*@__PURE__*/
+  messageDesc(file_common_v1_maturity, 5);
+
+/**
  * MaturityAssessment is the single structural object health providers emit.
  *
  * @generated from message common.v1.MaturityAssessment
@@ -271,6 +423,16 @@ export type MaturityAssessment = Message<"common.v1.MaturityAssessment"> & {
    * @generated from field: int32 autofixable_total = 12;
    */
   autofixableTotal: number;
+
+  /**
+   * @generated from field: repeated common.v1.CapabilityMaturityAssessment capabilities = 13;
+   */
+  capabilities: CapabilityMaturityAssessment[];
+
+  /**
+   * @generated from field: common.v1.PriorityFocus highest_priority_capability = 14;
+   */
+  highestPriorityCapability?: PriorityFocus | undefined;
 };
 
 /**
@@ -278,7 +440,7 @@ export type MaturityAssessment = Message<"common.v1.MaturityAssessment"> & {
  * Use `create(MaturityAssessmentSchema)` to create a new message.
  */
 export const MaturityAssessmentSchema: GenMessage<MaturityAssessment> = /*@__PURE__*/
-  messageDesc(file_common_v1_maturity, 4);
+  messageDesc(file_common_v1_maturity, 6);
 
 /**
  * GlobalImpact is a stable semantic vocabulary for how one provider finding

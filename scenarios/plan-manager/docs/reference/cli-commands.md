@@ -193,6 +193,19 @@ addition to `--title`, `--intent`, `--acceptance`, `--context`, `--reminders`,
 `preserved_legacy_sections` when the caller omits them, so a routine
 authored-field update never drops governance lineage.
 
+`plan-manager plans get`, mutation outputs, and `plans render` surface the
+rendered markdown mirror path when the API returns mirror metadata. Use
+`plan-manager plans import --source docs/plans/example.md --workspace <path>` to
+resolve a relative source path from a workspace root. Use `plan-manager plans
+reconcile --dry-run --workspace <path>` to preview missing/stale mirror repairs
+and bulk legacy adoption. Run `plan-manager plans reconcile --repair-mirrors` to
+repair projections from SQLite, or add `--adopt-legacy` to import markdown from
+the documented fallback locations. Reconcile resolves repo `docs/plans` and
+`plans` scans from the workspace root when provided, defaulting to the discovered
+Vrooli repo root in the scenario CLI. Reconcile is non-destructive: source files
+are reported as untouched, skipped duplicate, parse failed, conflict, or
+imported; the command never deletes legacy markdown.
+
 ## `log` — the execution-log ledger
 
 The `log` group is the single durable home for the typed work products an agent

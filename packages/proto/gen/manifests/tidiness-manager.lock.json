@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "tidiness-manager",
-  "input_digest": "sha256:31cc4e6fe83db58c0dd25bfb21199de95d259340829c8d876293746c32745d0a",
+  "input_digest": "sha256:457ee2e2404f13bd7c66b4bdd8ba0d52d013908a7806ec9f8f5785293a715b59",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/tidiness-manager/v1/validation/validation.proto"

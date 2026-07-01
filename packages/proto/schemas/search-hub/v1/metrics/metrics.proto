@@ -50,6 +50,16 @@ message ProviderUtilization {
   int64 times_routed = 4;
   int64 total_hits = 5;
   bool under_utilized = 6;
+  int64 latency_p50_ms = 7;
+  int64 latency_p95_ms = 8;
+  int64 degraded_count = 9;
+  double degradation_rate = 10;
+  repeated ProviderDegradationReason degradation_reasons = 11;
+}
+
+message ProviderDegradationReason {
+  string reason = 1;
+  int64 count = 2;
 }
 
 message InsightsResponse {

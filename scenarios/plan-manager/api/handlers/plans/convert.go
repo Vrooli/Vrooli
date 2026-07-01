@@ -7,6 +7,7 @@ import (
 	"plan-manager/internal/planproto"
 	internalplans "plan-manager/internal/plans"
 
+	plansv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/plans"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
 )
 
@@ -77,6 +78,7 @@ func planFromProtoChecked(p *sharedv1.Plan) (internalplans.Plan, error) {
 		WorkPostureDetail:       p.GetWorkPostureDetail(),
 		ImportProvenance:        planproto.ImportProvenanceFromProto(p.GetImportProvenance()),
 		PreservedLegacySections: planproto.LegacySectionsFromProto(p.GetPreservedLegacySections()),
+		Mirror:                  planproto.MirrorFromProto(p.GetMirror()),
 	}, nil
 }
 
@@ -176,6 +178,54 @@ func edgeToProto(e internalplans.PlanEdge) *sharedv1.PlanEdge {
 	return planproto.EdgeToProto(e)
 }
 
+func reconcileRequestFromProto(req *plansv1.ReconcilePlansRequest) internalplans.ReconcileRequest {
+	if req == nil {
+		return internalplans.ReconcileRequest{}
+	}
+	return internalplans.ReconcileRequest{
+		DryRun:                 req.GetDryRun(),
+		RepairMirrors:          req.GetRepairMirrors(),
+		AdoptLegacy:            req.GetAdoptLegacy(),
+		IncludeArchived:        req.GetIncludeArchived(),
+		IncludeArchivedLegacy:  req.GetIncludeArchivedLegacy(),
+		ConflictPolicy:         reconcileConflictPolicyFromProto(req.GetConflictPolicy()),
+		Workspace:              workspaceScopeFromProto(req.GetWorkspace()),
+		SourceRuntimeHomePlans: req.GetSourceRuntimeHomePlans(),
+		SourceDocsPlans:        req.GetSourceDocsPlans(),
+		SourceRepoPlans:        req.GetSourceRepoPlans(),
+	}
+}
+
+func workspaceScopeFromProto(scope *plansv1.WorkspaceScope) internalplans.WorkspaceScope {
+	if scope == nil {
+		return internalplans.WorkspaceScope{}
+	}
+	return internalplans.WorkspaceScope{
+		ID:   strings.TrimSpace(scope.GetId()),
+		Root: strings.TrimSpace(scope.GetRoot()),
+	}
+}
+
+func reconcileResultToProto(result internalplans.ReconcileResult) *plansv1.ReconcilePlansResponse {
+	resp := &plansv1.ReconcilePlansResponse{
+		DryRun: result.DryRun,
+		Items:  make([]*plansv1.ReconcilePlanItem, 0, len(result.Items)),
+	}
+	for _, item := range result.Items {
+		resp.Items = append(resp.Items, &plansv1.ReconcilePlanItem{
+			Action:          reconcileActionToProto(item.Action),
+			PlanId:          item.PlanID,
+			Slug:            item.Slug,
+			Title:           item.Title,
+			SourcePath:      item.SourcePath,
+			Mirror:          planproto.MirrorToProto(item.Mirror),
+			SourceUntouched: item.SourceUntouched,
+			Error:           item.Error,
+		})
+	}
+	return resp
+}
+
 // --- enum converters ---
 
 func planStatusToProto(s internalplans.PlanStatus) sharedv1.PlanStatus {
@@ -216,4 +266,40 @@ func stalenessToProto(s internalplans.StalenessTier) sharedv1.StalenessTier {
 
 func stalenessFromProto(s sharedv1.StalenessTier) internalplans.StalenessTier {
 	return planproto.StalenessFromProto(s)
+}
+
+func reconcileConflictPolicyFromProto(p plansv1.ReconcileConflictPolicy) internalplans.ReconcileConflictPolicy {
+	switch p {
+	case plansv1.ReconcileConflictPolicy_RECONCILE_CONFLICT_POLICY_REPORT_ONLY:
+		return internalplans.ReconcileConflictReportOnly
+	case plansv1.ReconcileConflictPolicy_RECONCILE_CONFLICT_POLICY_SKIP_EXISTING:
+		return internalplans.ReconcileConflictSkipExisting
+	default:
+		return ""
+	}
+}
+
+func reconcileActionToProto(a internalplans.ReconcileAction) plansv1.ReconcileAction {
+	switch a {
+	case internalplans.ReconcileActionAlreadyCanonical:
+		return plansv1.ReconcileAction_RECONCILE_ACTION_ALREADY_CANONICAL
+	case internalplans.ReconcileActionMirrorFresh:
+		return plansv1.ReconcileAction_RECONCILE_ACTION_MIRROR_FRESH
+	case internalplans.ReconcileActionMirrorRepairNeeded:
+		return plansv1.ReconcileAction_RECONCILE_ACTION_MIRROR_REPAIR_NEEDED
+	case internalplans.ReconcileActionMirrorRepaired:
+		return plansv1.ReconcileAction_RECONCILE_ACTION_MIRROR_REPAIRED
+	case internalplans.ReconcileActionImportPlanned:
+		return plansv1.ReconcileAction_RECONCILE_ACTION_IMPORT_PLANNED
+	case internalplans.ReconcileActionImported:
+		return plansv1.ReconcileAction_RECONCILE_ACTION_IMPORTED
+	case internalplans.ReconcileActionSkippedDuplicate:
+		return plansv1.ReconcileAction_RECONCILE_ACTION_SKIPPED_DUPLICATE
+	case internalplans.ReconcileActionParseFailed:
+		return plansv1.ReconcileAction_RECONCILE_ACTION_PARSE_FAILED
+	case internalplans.ReconcileActionConflict:
+		return plansv1.ReconcileAction_RECONCILE_ACTION_CONFLICT
+	default:
+		return plansv1.ReconcileAction_RECONCILE_ACTION_UNSPECIFIED
+	}
 }

@@ -164,6 +164,17 @@ func (r *plansRecorder) MigratePlan(_ context.Context, req *connect.Request[plan
 	return connect.NewResponse(&plansv1.MigratePlanResponse{Plan: &sharedv1.Plan{Id: req.Msg.GetId()}}), nil
 }
 
+func (r *plansRecorder) ReconcilePlans(_ context.Context, req *connect.Request[plansv1.ReconcilePlansRequest]) (*connect.Response[plansv1.ReconcilePlansResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*plansv1.ReconcilePlansResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&plansv1.ReconcilePlansResponse{DryRun: req.Msg.GetDryRun()}), nil
+}
+
 func (r *plansRecorder) ListTemplates(_ context.Context, req *connect.Request[plansv1.ListTemplatesRequest]) (*connect.Response[plansv1.ListTemplatesResponse], error) {
 	r.record(req.Msg)
 	if r.err != nil {
@@ -300,12 +311,13 @@ func TestPlansRequestMapping(t *testing.T) {
 			},
 		},
 		{
-			name: "import maps source+markdown", group: "plans", cmd: "import",
-			argv: []string{"--source", "/tmp/p.md", "--markdown", "# Plan"},
+			name: "import maps source markdown and workspace", group: "plans", cmd: "import",
+			argv: []string{"--source", "/tmp/p.md", "--markdown", "# Plan", "--workspace", "/workspace"},
 			assert: func(t *testing.T, req proto.Message) {
 				m := req.(*plansv1.ImportPlanRequest)
 				require.Equal(t, "/tmp/p.md", m.GetSourcePath())
 				require.Equal(t, "# Plan", m.GetMarkdown())
+				require.Equal(t, "/workspace", m.GetWorkspace().GetRoot())
 			},
 		},
 		{
@@ -313,6 +325,25 @@ func TestPlansRequestMapping(t *testing.T) {
 			argv: []string{"plan-m"},
 			assert: func(t *testing.T, req proto.Message) {
 				require.Equal(t, "plan-m", req.(*plansv1.MigratePlanRequest).GetId())
+			},
+		},
+		{
+			name: "reconcile maps dry-run repair adoption and source flags", group: "plans", cmd: "reconcile",
+			argv: []string{
+				"--dry-run", "--repair-mirrors", "--adopt-legacy", "--include-archived",
+				"--conflict-policy", "report_only", "--source-docs-plans", "--workspace", "/workspace",
+			},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*plansv1.ReconcilePlansRequest)
+				require.True(t, m.GetDryRun())
+				require.True(t, m.GetRepairMirrors())
+				require.True(t, m.GetAdoptLegacy())
+				require.True(t, m.GetIncludeArchived())
+				require.Equal(t, plansv1.ReconcileConflictPolicy_RECONCILE_CONFLICT_POLICY_REPORT_ONLY, m.GetConflictPolicy())
+				require.True(t, m.GetSourceDocsPlans())
+				require.False(t, m.GetSourceRuntimeHomePlans())
+				require.False(t, m.GetSourceRepoPlans())
+				require.Equal(t, "/workspace", m.GetWorkspace().GetRoot())
 			},
 		},
 		{

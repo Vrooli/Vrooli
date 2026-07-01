@@ -27,6 +27,7 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 		Repo:     internalplans.NewSQLiteRepository(db, clk),
 		Clock:    clk,
 		Reader:   internalplans.OSSourceReader{},
+		Mirror:   internalplans.NewDefaultOSMirrorStore(),
 		Maturity: internalplans.NewFilesystemMaturityReader(),
 	})
 	connectPath, connectHandler := plansconnect.NewPlansServiceHandler(NewConnectHandler(Deps{
@@ -64,6 +65,7 @@ var Endpoints = []module.EndpointDescriptor{
 	endpoint("plans_link_dependency", plansconnect.PlansServiceLinkDependencyProcedure, "Link dependency", "Records that one plan depends on another."),
 	endpoint("plans_import", plansconnect.PlansServiceImportPlanProcedure, "Import a markdown plan", "Adopts a markdown plan from a fallback read location into the structured model."),
 	endpoint("plans_migrate", plansconnect.PlansServiceMigratePlanProcedure, "Migrate a plan to canonical", "Ensures a fallback-resolved plan resides in the canonical home store."),
+	endpoint("plans_reconcile", plansconnect.PlansServiceReconcilePlansProcedure, "Reconcile plans", "Repairs rendered mirrors and non-destructively adopts legacy markdown plans in bulk."),
 	endpoint("plans_list_templates", plansconnect.PlansServiceListTemplatesProcedure, "List plan templates", "Returns the per-surface plan templates (CLI/proto/UI)."),
 	endpoint("plans_create_from_template", plansconnect.PlansServiceCreateFromTemplateProcedure, "Create from template", "Pre-scaffolds a plan from a template."),
 }

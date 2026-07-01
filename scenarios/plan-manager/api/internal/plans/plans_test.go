@@ -2,8 +2,12 @@ package plans_test
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -37,8 +41,74 @@ func newService(t *testing.T) (plans.Service, *mocks.FakeClock) {
 		Repo:   plans.NewSQLiteRepository(d, clk),
 		Clock:  clk,
 		Reader: fakeReader{},
+		Mirror: newFakeMirrorStore(t.TempDir()),
 	})
 	return svc, clk
+}
+
+type fakeMirrorStore struct {
+	root        string
+	files       map[string][]byte
+	publishErr  error
+	publishSeen int
+}
+
+func newFakeMirrorStore(root string) *fakeMirrorStore {
+	return &fakeMirrorStore{root: root, files: map[string][]byte{}}
+}
+
+func (f *fakeMirrorStore) PathFor(_ context.Context, p plans.Plan) (plans.RenderedPlanMirror, error) {
+	rel := p.Slug + ".md"
+	return plans.RenderedPlanMirror{
+		Path:          filepath.Join(f.root, rel),
+		RelativePath:  rel,
+		RenderVersion: plans.RendererVersion,
+		Status:        plans.RenderedMirrorStatusUnknown,
+	}, nil
+}
+
+func (f *fakeMirrorStore) Read(ctx context.Context, p plans.Plan) ([]byte, plans.RenderedPlanMirror, error) {
+	meta, err := f.PathFor(ctx, p)
+	if err != nil {
+		return nil, meta, err
+	}
+	data, ok := f.files[meta.Path]
+	if !ok {
+		meta.Status = plans.RenderedMirrorStatusMissing
+		return nil, meta, os.ErrNotExist
+	}
+	meta.ContentHash = renderedHashForTest(data)
+	meta.RenderedAt = p.Mirror.RenderedAt
+	if p.Mirror.ContentHash == meta.ContentHash && p.Mirror.RenderVersion == plans.RendererVersion {
+		meta.Status = plans.RenderedMirrorStatusFresh
+		return data, meta, nil
+	}
+	meta.Status = plans.RenderedMirrorStatusStale
+	return data, meta, nil
+}
+
+func (f *fakeMirrorStore) Publish(ctx context.Context, p plans.Plan, markdown []byte, renderedAt string) (plans.RenderedPlanMirror, error) {
+	f.publishSeen++
+	meta, err := f.PathFor(ctx, p)
+	if err != nil {
+		return meta, err
+	}
+	if f.publishErr != nil {
+		meta.Status = plans.RenderedMirrorStatusWriteFailed
+		meta.LastError = f.publishErr.Error()
+		return meta, f.publishErr
+	}
+	cp := append([]byte(nil), markdown...)
+	f.files[meta.Path] = cp
+	meta.ContentHash = renderedHashForTest(cp)
+	meta.RenderedAt = renderedAt
+	meta.Status = plans.RenderedMirrorStatusFresh
+	return meta, nil
+}
+
+func renderedHashForTest(data []byte) string {
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
 }
 
 // TestStorageRoundTripsNewProfessionalFields asserts every new professional
@@ -108,6 +178,154 @@ func TestContentHashChangesWithNewFields(t *testing.T) {
 	require.NotEqual(t, base.ContentHash, other.ContentHash, "technical_approach must affect the content hash")
 }
 
+func TestCreatePublishesRenderedMirror(t *testing.T) {
+	d, clk := newDB(t)
+	mirror := newFakeMirrorStore(t.TempDir())
+	svc := plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: fakeReader{},
+		Mirror: mirror,
+	})
+	ctx := context.Background()
+
+	created, err := svc.Create(ctx, plans.Plan{Title: "Mirror Me", Purpose: "Durable view."})
+	require.NoError(t, err)
+	require.Equal(t, plans.RenderedMirrorStatusFresh, created.Mirror.Status)
+	require.NotEmpty(t, created.Mirror.Path)
+	require.Equal(t, "mirror-me.md", created.Mirror.RelativePath)
+	require.NotEmpty(t, mirror.files[created.Mirror.Path])
+
+	got, err := svc.Get(ctx, created.ID)
+	require.NoError(t, err)
+	require.Equal(t, created.Mirror.ContentHash, got.Mirror.ContentHash)
+	require.Equal(t, created.Mirror.Path, got.Mirror.Path)
+}
+
+func TestRenderRepairsMissingMirrorFromCanonicalPlan(t *testing.T) {
+	d, clk := newDB(t)
+	mirror := newFakeMirrorStore(t.TempDir())
+	svc := plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: fakeReader{},
+		Mirror: mirror,
+	})
+	ctx := context.Background()
+	created, err := svc.Create(ctx, plans.Plan{Title: "Repair Missing", Purpose: "Canonical text."})
+	require.NoError(t, err)
+	delete(mirror.files, created.Mirror.Path)
+
+	rendered, err := svc.Render(ctx, created.ID)
+	require.NoError(t, err)
+	require.True(t, rendered.Repaired)
+	require.Equal(t, plans.RenderedMirrorStatusFresh, rendered.Mirror.Status)
+	require.Contains(t, rendered.Markdown, "Canonical text.")
+	require.NotEmpty(t, mirror.files[created.Mirror.Path])
+}
+
+func TestRenderRepairsStaleMirrorFromCanonicalPlan(t *testing.T) {
+	d, clk := newDB(t)
+	mirror := newFakeMirrorStore(t.TempDir())
+	svc := plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: fakeReader{},
+		Mirror: mirror,
+	})
+	ctx := context.Background()
+	created, err := svc.Create(ctx, plans.Plan{Title: "Repair Stale", Purpose: "Canonical text."})
+	require.NoError(t, err)
+	mirror.files[created.Mirror.Path] = []byte("# Edited by hand\n")
+
+	rendered, err := svc.Render(ctx, created.ID)
+	require.NoError(t, err)
+	require.True(t, rendered.Repaired)
+	require.Equal(t, plans.RenderedMirrorStatusFresh, rendered.Mirror.Status)
+	require.Contains(t, string(mirror.files[created.Mirror.Path]), "Canonical text.")
+	require.NotContains(t, rendered.Markdown, "Edited by hand")
+}
+
+func TestReconcileDryRunReportsMirrorRepairWithoutWriting(t *testing.T) {
+	d, clk := newDB(t)
+	mirror := newFakeMirrorStore(t.TempDir())
+	svc := plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: fakeReader{},
+		Mirror: mirror,
+	})
+	ctx := context.Background()
+	created, err := svc.Create(ctx, plans.Plan{Title: "Dry Repair", Purpose: "Canonical."})
+	require.NoError(t, err)
+	delete(mirror.files, created.Mirror.Path)
+	seen := mirror.publishSeen
+
+	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{DryRun: true, RepairMirrors: true})
+	require.NoError(t, err)
+	require.Len(t, report.Items, 1)
+	require.Equal(t, plans.ReconcileActionMirrorRepairNeeded, report.Items[0].Action)
+	require.Equal(t, seen, mirror.publishSeen, "dry-run must not publish mirrors")
+	require.Empty(t, mirror.files[created.Mirror.Path])
+}
+
+func TestReconcileAdoptsLegacyPlansNonDestructively(t *testing.T) {
+	d, clk := newDB(t)
+	mirror := newFakeMirrorStore(t.TempDir())
+	source := filepath.Join("docs", "plans", "legacy.md")
+	reader := fakeReader{files: map[string]string{
+		source: "# Legacy plan\n\n## Purpose\nAdopt me.\n",
+	}}
+	svc := plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: reader,
+		Mirror: mirror,
+	})
+	ctx := context.Background()
+
+	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{AdoptLegacy: true, SourceDocsPlans: true})
+	require.NoError(t, err)
+	require.Len(t, report.Items, 1)
+	require.Equal(t, plans.ReconcileActionImported, report.Items[0].Action)
+	require.True(t, report.Items[0].SourceUntouched)
+	require.Equal(t, source, report.Items[0].SourcePath)
+	require.Equal(t, "# Legacy plan\n\n## Purpose\nAdopt me.\n", reader.files[source], "legacy source must remain untouched")
+
+	imported, err := svc.Get(ctx, report.Items[0].PlanID)
+	require.NoError(t, err)
+	require.NotNil(t, imported.ImportProvenance)
+	require.Equal(t, source, imported.ImportProvenance.SourcePath)
+	require.NotEmpty(t, mirror.files[imported.Mirror.Path])
+}
+
+func TestReconcileAdoptsWorkspaceRelativeLegacyPlans(t *testing.T) {
+	d, clk := newDB(t)
+	mirror := newFakeMirrorStore(t.TempDir())
+	workspaceRoot := t.TempDir()
+	source := filepath.Join(workspaceRoot, "docs", "plans", "workspace-legacy.md")
+	reader := fakeReader{files: map[string]string{
+		source: "# Workspace Legacy\n\n## Purpose\nAdopt from the scoped workspace.\n",
+	}}
+	svc := plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: reader,
+		Mirror: mirror,
+	})
+	ctx := context.Background()
+
+	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{
+		AdoptLegacy:     true,
+		SourceDocsPlans: true,
+		Workspace:       plans.WorkspaceScope{Root: workspaceRoot},
+	})
+	require.NoError(t, err)
+	require.Len(t, report.Items, 1)
+	require.Equal(t, plans.ReconcileActionImported, report.Items[0].Action)
+	require.Equal(t, source, report.Items[0].SourcePath)
+}
+
 type fakeReader struct{ files map[string]string }
 
 func (f fakeReader) ReadFile(path string) ([]byte, error) {
@@ -115,6 +333,18 @@ func (f fakeReader) ReadFile(path string) ([]byte, error) {
 		return []byte(v), nil
 	}
 	return nil, sql.ErrNoRows
+}
+
+func (f fakeReader) ListMarkdownFiles(dir string) ([]string, error) {
+	var out []string
+	prefix := filepath.Clean(dir) + string(os.PathSeparator)
+	for path := range f.files {
+		clean := filepath.Clean(path)
+		if filepath.Dir(clean) == filepath.Clean(dir) && strings.HasPrefix(clean, prefix) && strings.EqualFold(filepath.Ext(clean), ".md") {
+			out = append(out, clean)
+		}
+	}
+	return out, nil
 }
 
 func samplePlan() plans.Plan {
@@ -586,16 +816,21 @@ func TestImportAndMigrate(t *testing.T) {
 	ctx := context.Background()
 
 	// Import from a fallback source path.
-	imported, err := svc.Import(ctx, "docs/plans/foo.md", "")
+	imported, err := svc.Import(ctx, "docs/plans/foo.md", "", "", "", plans.WorkspaceScope{})
 	require.NoError(t, err)
 	require.Equal(t, "Foo plan", imported.Title)
 	require.Equal(t, "foo-plan", imported.Slug)
 	require.Len(t, imported.Phases, 1)
 
 	// Import inline markdown (no reader needed).
-	inline, err := svc.Import(ctx, "", "# Bar plan\n\n## Purpose\nDo bar.\n")
+	inline, err := svc.Import(ctx, "", "# Bar plan\n\n## Purpose\nDo bar.\n", "", "", plans.WorkspaceScope{})
 	require.NoError(t, err)
 	require.Equal(t, "Bar plan", inline.Title)
+
+	overridden, err := svc.Import(ctx, "", "# Original\n\n## Purpose\nDo original.\n", "Override Title", "override-slug", plans.WorkspaceScope{})
+	require.NoError(t, err)
+	require.Equal(t, "Override Title", overridden.Title)
+	require.Equal(t, "override-slug", overridden.Slug)
 
 	// Migrate is idempotent and returns the canonical record.
 	migrated, err := svc.Migrate(ctx, imported.ID)
@@ -603,8 +838,25 @@ func TestImportAndMigrate(t *testing.T) {
 	require.Equal(t, imported.ID, migrated.ID)
 
 	// Importing with neither markdown nor a resolvable path errors.
-	_, err = svc.Import(ctx, "", "")
+	_, err = svc.Import(ctx, "", "", "", "", plans.WorkspaceScope{})
 	require.Error(t, err)
+}
+
+func TestImportRelativeSourceUsesWorkspaceRoot(t *testing.T) {
+	d, clk := newDB(t)
+	workspaceRoot := t.TempDir()
+	source := filepath.Join(workspaceRoot, "docs", "plans", "foo.md")
+	reader := fakeReader{files: map[string]string{
+		source: "# Foo plan\n\n## Purpose\nDo foo.\n",
+	}}
+	svc := plans.NewService(plans.Deps{Repo: plans.NewSQLiteRepository(d, clk), Clock: clk, Reader: reader})
+	ctx := context.Background()
+
+	imported, err := svc.Import(ctx, "docs/plans/foo.md", "", "", "", plans.WorkspaceScope{Root: workspaceRoot})
+	require.NoError(t, err)
+	require.Equal(t, "Foo plan", imported.Title)
+	require.NotNil(t, imported.ImportProvenance)
+	require.Equal(t, source, imported.ImportProvenance.SourcePath)
 }
 
 func TestImportMigratesLegacyRequiredReadingToRelevantContext(t *testing.T) {
@@ -632,7 +884,7 @@ func TestImportMigratesLegacyRequiredReadingToRelevantContext(t *testing.T) {
 	svc := plans.NewService(plans.Deps{Repo: plans.NewSQLiteRepository(d, clk), Clock: clk, Reader: reader})
 	ctx := context.Background()
 
-	imported, err := svc.Import(ctx, "docs/plans/legacy-context.md", "")
+	imported, err := svc.Import(ctx, "docs/plans/legacy-context.md", "", "", "", plans.WorkspaceScope{})
 	require.NoError(t, err)
 	require.Len(t, imported.RelevantContext, 2)
 	require.Equal(t, plans.RelevantContextSkill, imported.RelevantContext[0].Kind)
@@ -647,11 +899,11 @@ func TestImportMigratesLegacyRequiredReadingToRelevantContext(t *testing.T) {
 
 	rendered, err := svc.Render(ctx, imported.ID)
 	require.NoError(t, err)
-	require.Contains(t, rendered, "## Global Execution Setup")
-	require.Contains(t, rendered, "**Phase Context Setup:**")
-	require.Contains(t, rendered, "_(required, migrated)_")
-	require.NotContains(t, rendered, "## Required Reading")
-	require.NotContains(t, rendered, "**Required Reading:**")
+	require.Contains(t, rendered.Markdown, "## Global Execution Setup")
+	require.Contains(t, rendered.Markdown, "**Phase Context Setup:**")
+	require.Contains(t, rendered.Markdown, "_(required, migrated)_")
+	require.NotContains(t, rendered.Markdown, "## Required Reading")
+	require.NotContains(t, rendered.Markdown, "**Required Reading:**")
 }
 
 func TestMigrateImportsIndexedFallbackPlan(t *testing.T) {

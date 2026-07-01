@@ -210,7 +210,13 @@ type PlansListOutput struct {
 	// True when the listing completed successfully.
 	Success bool `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
 	// All matched plans; empty when none found.
-	Plans         []*PlansRecord `protobuf:"bytes,2,rep,name=plans,proto3" json:"plans,omitempty"`
+	Plans []*PlansRecord `protobuf:"bytes,2,rep,name=plans,proto3" json:"plans,omitempty"`
+	// Read source: "plan-manager" for canonical reads or "mirror-fallback" for degraded mirror reads.
+	Source string `protobuf:"bytes,3,opt,name=source,proto3" json:"source,omitempty"`
+	// True when the response came from degraded mirror fallback.
+	Degraded bool `protobuf:"varint,4,opt,name=degraded,proto3" json:"degraded,omitempty"`
+	// Human-readable degraded-mode warning; "" for canonical reads.
+	Warning       string `protobuf:"bytes,5,opt,name=warning,proto3" json:"warning,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -259,6 +265,27 @@ func (x *PlansListOutput) GetPlans() []*PlansRecord {
 	return nil
 }
 
+func (x *PlansListOutput) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *PlansListOutput) GetDegraded() bool {
+	if x != nil {
+		return x.Degraded
+	}
+	return false
+}
+
+func (x *PlansListOutput) GetWarning() string {
+	if x != nil {
+		return x.Warning
+	}
+	return ""
+}
+
 // PlansShowOutput is the shape of `vrooli plans show --json`.
 type PlansShowOutput struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -267,7 +294,13 @@ type PlansShowOutput struct {
 	// The resolved plan.
 	Plan *PlansRecord `protobuf:"bytes,2,opt,name=plan,proto3" json:"plan,omitempty"`
 	// Full plan body content; "" when not requested / empty.
-	Content       string `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
+	Content string `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
+	// Read source: "plan-manager" for canonical reads or "mirror-fallback" for degraded mirror reads.
+	Source string `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
+	// True when the response came from degraded mirror fallback.
+	Degraded bool `protobuf:"varint,5,opt,name=degraded,proto3" json:"degraded,omitempty"`
+	// Human-readable degraded-mode warning; "" for canonical reads.
+	Warning       string `protobuf:"bytes,6,opt,name=warning,proto3" json:"warning,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -323,6 +356,27 @@ func (x *PlansShowOutput) GetContent() string {
 	return ""
 }
 
+func (x *PlansShowOutput) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *PlansShowOutput) GetDegraded() bool {
+	if x != nil {
+		return x.Degraded
+	}
+	return false
+}
+
+func (x *PlansShowOutput) GetWarning() string {
+	if x != nil {
+		return x.Warning
+	}
+	return ""
+}
+
 // PlansPathOutput is the shape of `vrooli plans path --json`.
 type PlansPathOutput struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -331,7 +385,13 @@ type PlansPathOutput struct {
 	// Resolved plan identifier.
 	Id string `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
 	// Absolute path to the plan file on disk.
-	Path          string `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	Path string `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	// Read source: "plan-manager" for canonical reads or "mirror-fallback" for degraded mirror reads.
+	Source string `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
+	// True when the response came from degraded mirror fallback.
+	Degraded bool `protobuf:"varint,5,opt,name=degraded,proto3" json:"degraded,omitempty"`
+	// Human-readable degraded-mode warning; "" for canonical reads.
+	Warning       string `protobuf:"bytes,6,opt,name=warning,proto3" json:"warning,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -383,6 +443,27 @@ func (x *PlansPathOutput) GetId() string {
 func (x *PlansPathOutput) GetPath() string {
 	if x != nil {
 		return x.Path
+	}
+	return ""
+}
+
+func (x *PlansPathOutput) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *PlansPathOutput) GetDegraded() bool {
+	if x != nil {
+		return x.Degraded
+	}
+	return false
+}
+
+func (x *PlansPathOutput) GetWarning() string {
+	if x != nil {
+		return x.Warning
 	}
 	return ""
 }
@@ -515,7 +596,13 @@ type PlansExportOutput struct {
 	// Exported plan identifier.
 	Id string `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
 	// Destination path the plan was exported to.
-	Path          string `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	Path string `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	// Source used to read the plan before exporting.
+	Source string `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
+	// True when export used degraded mirror fallback content.
+	Degraded bool `protobuf:"varint,5,opt,name=degraded,proto3" json:"degraded,omitempty"`
+	// Human-readable degraded-mode warning; "" for canonical reads.
+	Warning       string `protobuf:"bytes,6,opt,name=warning,proto3" json:"warning,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -571,6 +658,27 @@ func (x *PlansExportOutput) GetPath() string {
 	return ""
 }
 
+func (x *PlansExportOutput) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *PlansExportOutput) GetDegraded() bool {
+	if x != nil {
+		return x.Degraded
+	}
+	return false
+}
+
+func (x *PlansExportOutput) GetWarning() string {
+	if x != nil {
+		return x.Warning
+	}
+	return ""
+}
+
 var File_cli_v1_plans_proto protoreflect.FileDescriptor
 
 const file_cli_v1_plans_proto_rawDesc = "" +
@@ -594,29 +702,41 @@ const file_cli_v1_plans_proto_rawDesc = "" +
 	" \x01(\tR\vcontentHash\"Z\n" +
 	"\x0ePlansAddOutput\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12.\n" +
-	"\x04plan\x18\x02 \x01(\v2\x1a.vrooli.cli.v1.PlansRecordR\x04plan\"]\n" +
+	"\x04plan\x18\x02 \x01(\v2\x1a.vrooli.cli.v1.PlansRecordR\x04plan\"\xab\x01\n" +
 	"\x0fPlansListOutput\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x120\n" +
-	"\x05plans\x18\x02 \x03(\v2\x1a.vrooli.cli.v1.PlansRecordR\x05plans\"u\n" +
+	"\x05plans\x18\x02 \x03(\v2\x1a.vrooli.cli.v1.PlansRecordR\x05plans\x12\x16\n" +
+	"\x06source\x18\x03 \x01(\tR\x06source\x12\x1a\n" +
+	"\bdegraded\x18\x04 \x01(\bR\bdegraded\x12\x18\n" +
+	"\awarning\x18\x05 \x01(\tR\awarning\"\xc3\x01\n" +
 	"\x0fPlansShowOutput\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12.\n" +
 	"\x04plan\x18\x02 \x01(\v2\x1a.vrooli.cli.v1.PlansRecordR\x04plan\x12\x18\n" +
-	"\acontent\x18\x03 \x01(\tR\acontent\"O\n" +
+	"\acontent\x18\x03 \x01(\tR\acontent\x12\x16\n" +
+	"\x06source\x18\x04 \x01(\tR\x06source\x12\x1a\n" +
+	"\bdegraded\x18\x05 \x01(\bR\bdegraded\x12\x18\n" +
+	"\awarning\x18\x06 \x01(\tR\awarning\"\x9d\x01\n" +
 	"\x0fPlansPathOutput\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
-	"\x04path\x18\x03 \x01(\tR\x04path\"^\n" +
+	"\x04path\x18\x03 \x01(\tR\x04path\x12\x16\n" +
+	"\x06source\x18\x04 \x01(\tR\x06source\x12\x1a\n" +
+	"\bdegraded\x18\x05 \x01(\bR\bdegraded\x12\x18\n" +
+	"\awarning\x18\x06 \x01(\tR\awarning\"^\n" +
 	"\x12PlansArchiveOutput\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12.\n" +
 	"\x04plan\x18\x02 \x01(\v2\x1a.vrooli.cli.v1.PlansRecordR\x04plan\"\x84\x01\n" +
 	"\x11PlansImportOutput\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12.\n" +
 	"\x04plan\x18\x02 \x01(\v2\x1a.vrooli.cli.v1.PlansRecordR\x04plan\x12%\n" +
-	"\x0edeleted_source\x18\x03 \x01(\bR\rdeletedSource\"Q\n" +
+	"\x0edeleted_source\x18\x03 \x01(\bR\rdeletedSource\"\x9f\x01\n" +
 	"\x11PlansExportOutput\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
-	"\x04path\x18\x03 \x01(\tR\x04pathB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3"
+	"\x04path\x18\x03 \x01(\tR\x04path\x12\x16\n" +
+	"\x06source\x18\x04 \x01(\tR\x06source\x12\x1a\n" +
+	"\bdegraded\x18\x05 \x01(\bR\bdegraded\x12\x18\n" +
+	"\awarning\x18\x06 \x01(\tR\awarningB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3"
 
 var (
 	file_cli_v1_plans_proto_rawDescOnce sync.Once

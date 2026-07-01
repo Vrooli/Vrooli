@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file search-hub/v1/metrics/metrics.proto.
  */
 export const file_search_hub_v1_metrics_metrics: GenFile = /*@__PURE__*/
-  fileDesc("CiNzZWFyY2gtaHViL3YxL21ldHJpY3MvbWV0cmljcy5wcm90bxIcdnJvb2xpLnNlYXJjaF9odWIudjEubWV0cmljcyImCg9JbnNpZ2h0c1JlcXVlc3QSEwoLd2luZG93X2RheXMYASABKAUikgEKE1Byb3ZpZGVyVXRpbGl6YXRpb24SEwoLcHJvdmlkZXJfaWQYASABKAkSFgoOcHJvdmlkZXJfZ3JvdXAYAiABKAkSDAoEdHlwZRgDIAEoCRIUCgx0aW1lc19yb3V0ZWQYBCABKAMSEgoKdG90YWxfaGl0cxgFIAEoAxIWCg51bmRlcl91dGlsaXplZBgGIAEoCCKKAgoQSW5zaWdodHNSZXNwb25zZRIVCg10b3RhbF9xdWVyaWVzGAEgASgDEhsKE3plcm9fcmVzdWx0X3F1ZXJpZXMYAiABKAMSGAoQemVyb19yZXN1bHRfcmF0ZRgDIAEoARIYChBkZWdyYWRlZF9xdWVyaWVzGAQgASgDEhgKEHJlcmFua2VkX3F1ZXJpZXMYBSABKAMSFgoObGF0ZW5jeV9wNTBfbXMYBiABKAMSFgoObGF0ZW5jeV9wOTVfbXMYByABKAMSRAoJcHJvdmlkZXJzGAggAygLMjEudnJvb2xpLnNlYXJjaF9odWIudjEubWV0cmljcy5Qcm92aWRlclV0aWxpemF0aW9uMnsKDk1ldHJpY3NTZXJ2aWNlEmkKCEluc2lnaHRzEi0udnJvb2xpLnNlYXJjaF9odWIudjEubWV0cmljcy5JbnNpZ2h0c1JlcXVlc3QaLi52cm9vbGkuc2VhcmNoX2h1Yi52MS5tZXRyaWNzLkluc2lnaHRzUmVzcG9uc2VCUVpPZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zZWFyY2gtaHViL3YxL21ldHJpY3M7bWV0cmljc192MWIGcHJvdG8z");
+  fileDesc("CiNzZWFyY2gtaHViL3YxL21ldHJpY3MvbWV0cmljcy5wcm90bxIcdnJvb2xpLnNlYXJjaF9odWIudjEubWV0cmljcyImCg9JbnNpZ2h0c1JlcXVlc3QSEwoLd2luZG93X2RheXMYASABKAUiygIKE1Byb3ZpZGVyVXRpbGl6YXRpb24SEwoLcHJvdmlkZXJfaWQYASABKAkSFgoOcHJvdmlkZXJfZ3JvdXAYAiABKAkSDAoEdHlwZRgDIAEoCRIUCgx0aW1lc19yb3V0ZWQYBCABKAMSEgoKdG90YWxfaGl0cxgFIAEoAxIWCg51bmRlcl91dGlsaXplZBgGIAEoCBIWCg5sYXRlbmN5X3A1MF9tcxgHIAEoAxIWCg5sYXRlbmN5X3A5NV9tcxgIIAEoAxIWCg5kZWdyYWRlZF9jb3VudBgJIAEoAxIYChBkZWdyYWRhdGlvbl9yYXRlGAogASgBElQKE2RlZ3JhZGF0aW9uX3JlYXNvbnMYCyADKAsyNy52cm9vbGkuc2VhcmNoX2h1Yi52MS5tZXRyaWNzLlByb3ZpZGVyRGVncmFkYXRpb25SZWFzb24iOgoZUHJvdmlkZXJEZWdyYWRhdGlvblJlYXNvbhIOCgZyZWFzb24YASABKAkSDQoFY291bnQYAiABKAMiigIKEEluc2lnaHRzUmVzcG9uc2USFQoNdG90YWxfcXVlcmllcxgBIAEoAxIbChN6ZXJvX3Jlc3VsdF9xdWVyaWVzGAIgASgDEhgKEHplcm9fcmVzdWx0X3JhdGUYAyABKAESGAoQZGVncmFkZWRfcXVlcmllcxgEIAEoAxIYChByZXJhbmtlZF9xdWVyaWVzGAUgASgDEhYKDmxhdGVuY3lfcDUwX21zGAYgASgDEhYKDmxhdGVuY3lfcDk1X21zGAcgASgDEkQKCXByb3ZpZGVycxgIIAMoCzIxLnZyb29saS5zZWFyY2hfaHViLnYxLm1ldHJpY3MuUHJvdmlkZXJVdGlsaXphdGlvbjJ7Cg5NZXRyaWNzU2VydmljZRJpCghJbnNpZ2h0cxItLnZyb29saS5zZWFyY2hfaHViLnYxLm1ldHJpY3MuSW5zaWdodHNSZXF1ZXN0Gi4udnJvb2xpLnNlYXJjaF9odWIudjEubWV0cmljcy5JbnNpZ2h0c1Jlc3BvbnNlQlFaT2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc2VhcmNoLWh1Yi92MS9tZXRyaWNzO21ldHJpY3NfdjFiBnByb3RvMw");
 
 /**
  * @generated from message vrooli.search_hub.v1.metrics.InsightsRequest
@@ -71,6 +71,31 @@ export type ProviderUtilization = Message<"vrooli.search_hub.v1.metrics.Provider
    * @generated from field: bool under_utilized = 6;
    */
   underUtilized: boolean;
+
+  /**
+   * @generated from field: int64 latency_p50_ms = 7;
+   */
+  latencyP50Ms: bigint;
+
+  /**
+   * @generated from field: int64 latency_p95_ms = 8;
+   */
+  latencyP95Ms: bigint;
+
+  /**
+   * @generated from field: int64 degraded_count = 9;
+   */
+  degradedCount: bigint;
+
+  /**
+   * @generated from field: double degradation_rate = 10;
+   */
+  degradationRate: number;
+
+  /**
+   * @generated from field: repeated vrooli.search_hub.v1.metrics.ProviderDegradationReason degradation_reasons = 11;
+   */
+  degradationReasons: ProviderDegradationReason[];
 };
 
 /**
@@ -79,6 +104,28 @@ export type ProviderUtilization = Message<"vrooli.search_hub.v1.metrics.Provider
  */
 export const ProviderUtilizationSchema: GenMessage<ProviderUtilization> = /*@__PURE__*/
   messageDesc(file_search_hub_v1_metrics_metrics, 1);
+
+/**
+ * @generated from message vrooli.search_hub.v1.metrics.ProviderDegradationReason
+ */
+export type ProviderDegradationReason = Message<"vrooli.search_hub.v1.metrics.ProviderDegradationReason"> & {
+  /**
+   * @generated from field: string reason = 1;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: int64 count = 2;
+   */
+  count: bigint;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.metrics.ProviderDegradationReason.
+ * Use `create(ProviderDegradationReasonSchema)` to create a new message.
+ */
+export const ProviderDegradationReasonSchema: GenMessage<ProviderDegradationReason> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_metrics_metrics, 2);
 
 /**
  * @generated from message vrooli.search_hub.v1.metrics.InsightsResponse
@@ -145,7 +192,7 @@ export type InsightsResponse = Message<"vrooli.search_hub.v1.metrics.InsightsRes
  * Use `create(InsightsResponseSchema)` to create a new message.
  */
 export const InsightsResponseSchema: GenMessage<InsightsResponse> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_metrics_metrics, 2);
+  messageDesc(file_search_hub_v1_metrics_metrics, 3);
 
 /**
  * @generated from service vrooli.search_hub.v1.metrics.MetricsService

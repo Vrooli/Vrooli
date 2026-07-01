@@ -166,6 +166,26 @@ accepted-context recovery methods (`UpdateRelevantContextItem`,
 seam, not new seams — see [`../concepts/FLOWS.md`](../concepts/FLOWS.md)
 (authoring response contract).
 
+### Plans MirrorStore
+
+| | |
+|---|---|
+| **Seam** | Durable rendered markdown mirror files for canonical structured plans |
+| **Interface** | `api/internal/plans/mirror.go::MirrorStore` (`PathFor`, `Read`, `Publish`) |
+| **Production wiring** | `api/handlers/plans/module.go::Module` wires `internalplans.NewDefaultOSMirrorStore()`, which resolves the repo-contract runtime-home `plans` entry and writes `<slug>.md` using a temp file plus rename. |
+| **Test fake** | `api/internal/plans/plans_test.go::fakeMirrorStore` keeps files in memory and can simulate missing/stale/write-failed mirrors. |
+| **Why it exists** | Plan Manager must expose a stable human-readable file path without making markdown canonical truth. The seam lets tests prove mutation publish and render repair behavior without touching the operator runtime home, while production keeps runtime-home path resolution centralized and contract-backed. |
+
+### Plans SourceReader
+
+| | |
+|---|---|
+| **Seam** | Legacy markdown source reads and bulk fallback-location scans |
+| **Interface** | `api/internal/plans/resolver.go::SourceReader` (`ReadFile`, `ListMarkdownFiles`) |
+| **Production wiring** | `api/handlers/plans/module.go::Module` wires `internalplans.OSSourceReader{}`. Runtime-home plans resolution uses the repo-contract `plans` entry; repo fallback locations are `docs/plans` and `plans`. |
+| **Test fake** | `api/internal/plans/plans_test.go::fakeReader` keeps source markdown in memory and lists direct child `.md` files for reconcile/adoption tests. |
+| **Why it exists** | Import, migrate, and reconcile must adopt legacy files non-destructively without giving the domain arbitrary filesystem reach. The seam lets tests prove dry-run, parse-failure, duplicate, and source-untouched behavior while production can scan only the documented fallback locations. |
+
 ### Validation dependency seams
 
 | | |

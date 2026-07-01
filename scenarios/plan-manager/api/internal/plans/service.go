@@ -21,7 +21,7 @@ type Service interface {
 	Get(ctx context.Context, idOrSlug string) (Plan, error)
 	List(ctx context.Context, filter ListFilter) ([]Plan, error)
 	Archive(ctx context.Context, idOrSlug string) (Plan, error)
-	Render(ctx context.Context, idOrSlug string) (string, error)
+	Render(ctx context.Context, idOrSlug string) (RenderResult, error)
 
 	AddPhase(ctx context.Context, planID string, phase Phase) (Plan, error)
 	UpdatePhase(ctx context.Context, planID string, phase Phase) (Plan, error)
@@ -33,14 +33,16 @@ type Service interface {
 	ListTemplates(ctx context.Context) ([]PlanTemplate, error)
 	CreateFromTemplate(ctx context.Context, templateID, title, slug string) (Plan, error)
 
-	Import(ctx context.Context, sourcePath, markdown string) (Plan, error)
+	Import(ctx context.Context, sourcePath, markdown, title, slug string, workspace WorkspaceScope) (Plan, error)
 	Migrate(ctx context.Context, idOrSlug string) (Plan, error)
+	Reconcile(ctx context.Context, req ReconcileRequest) (ReconcileResult, error)
 }
 
 type service struct {
 	repo     Repository
 	clock    clock.Clock
 	reader   SourceReader
+	mirror   MirrorStore
 	maturity MaturityReader
 }
 
@@ -52,6 +54,7 @@ type Deps struct {
 	Repo     Repository
 	Clock    clock.Clock
 	Reader   SourceReader
+	Mirror   MirrorStore
 	Maturity MaturityReader
 }
 
@@ -61,7 +64,11 @@ func NewService(d Deps) Service {
 	if clk == nil {
 		clk = clock.System{}
 	}
-	return &service{repo: d.Repo, clock: clk, reader: d.Reader, maturity: d.Maturity}
+	mirror := d.Mirror
+	if mirror == nil {
+		mirror = noMirrorStore{}
+	}
+	return &service{repo: d.Repo, clock: clk, reader: d.Reader, mirror: mirror, maturity: d.Maturity}
 }
 
 // applyPosture derives and stamps the work posture onto a plan (autofilled;
@@ -119,7 +126,7 @@ func (s *service) Create(ctx context.Context, p Plan) (Plan, error) {
 	}); err != nil {
 		return Plan{}, err
 	}
-	return p, nil
+	return s.publishMirror(ctx, p)
 }
 
 func (s *service) Update(ctx context.Context, p Plan) (Plan, error) {
@@ -186,7 +193,7 @@ func (s *service) Update(ctx context.Context, p Plan) (Plan, error) {
 	}); err != nil {
 		return Plan{}, err
 	}
-	return p, nil
+	return s.publishMirror(ctx, p)
 }
 
 func (s *service) Get(ctx context.Context, idOrSlug string) (Plan, error) {
@@ -197,6 +204,7 @@ func (s *service) Get(ctx context.Context, idOrSlug string) (Plan, error) {
 	if !ok {
 		return Plan{}, ErrPlanNotFound{ID: idOrSlug}
 	}
+	p.Mirror = s.ensureMirrorPath(ctx, p)
 	return p, nil
 }
 
@@ -214,15 +222,31 @@ func (s *service) Archive(ctx context.Context, idOrSlug string) (Plan, error) {
 	if err := s.repo.Save(ctx, p); err != nil {
 		return Plan{}, err
 	}
-	return p, nil
+	return s.publishMirror(ctx, p)
 }
 
-func (s *service) Render(ctx context.Context, idOrSlug string) (string, error) {
+func (s *service) Render(ctx context.Context, idOrSlug string) (RenderResult, error) {
 	p, err := s.Get(ctx, idOrSlug)
 	if err != nil {
-		return "", err
+		return RenderResult{}, err
 	}
-	return RenderMarkdown(p), nil
+	data, meta, err := s.mirror.Read(ctx, p)
+	if err == nil && meta.Status == RenderedMirrorStatusFresh {
+		p.Mirror = meta
+		return RenderResult{Markdown: string(data), Mirror: meta}, nil
+	}
+	repaired, err := s.publishMirror(ctx, p)
+	if err != nil {
+		markdown := RenderMarkdown(p)
+		if meta.Status == "" {
+			meta = repaired.Mirror
+		}
+		if meta.Status == "" {
+			meta.Status = RenderedMirrorStatusWriteFailed
+		}
+		return RenderResult{Markdown: markdown, Mirror: meta, Repaired: false}, nil
+	}
+	return RenderResult{Markdown: RenderMarkdown(repaired), Mirror: repaired.Mirror, Repaired: true}, nil
 }
 
 func (s *service) AddPhase(ctx context.Context, planID string, phase Phase) (Plan, error) {
@@ -389,7 +413,51 @@ func (s *service) saveRecomputed(ctx context.Context, p Plan) (Plan, error) {
 	}); err != nil {
 		return Plan{}, err
 	}
+	return s.publishMirror(ctx, p)
+}
+
+func (s *service) publishMirror(ctx context.Context, p Plan) (Plan, error) {
+	markdown := []byte(RenderMarkdown(p))
+	meta, err := s.mirror.Publish(ctx, p, markdown, s.now())
+	if err != nil {
+		if fallback, pathErr := s.mirror.PathFor(ctx, p); pathErr == nil {
+			meta = fallback
+		}
+		meta.Status = RenderedMirrorStatusWriteFailed
+		meta.RenderVersion = RendererVersion
+		meta.LastError = err.Error()
+		p.Mirror = meta
+		_ = s.repo.Save(ctx, p)
+		return p, nil
+	}
+	p.Mirror = meta
+	if err := s.repo.Save(ctx, p); err != nil {
+		return Plan{}, err
+	}
 	return p, nil
+}
+
+func (s *service) ensureMirrorPath(ctx context.Context, p Plan) RenderedPlanMirror {
+	meta, err := s.mirror.PathFor(ctx, p)
+	if err != nil {
+		p.Mirror.Status = RenderedMirrorStatusUnknown
+		p.Mirror.LastError = err.Error()
+		p.Mirror.RenderVersion = RendererVersion
+		return p.Mirror
+	}
+	if p.Mirror.Path == "" {
+		p.Mirror.Path = meta.Path
+	}
+	if p.Mirror.RelativePath == "" {
+		p.Mirror.RelativePath = meta.RelativePath
+	}
+	if p.Mirror.RenderVersion == "" {
+		p.Mirror.RenderVersion = RendererVersion
+	}
+	if p.Mirror.Status == "" {
+		p.Mirror.Status = RenderedMirrorStatusUnknown
+	}
+	return p.Mirror
 }
 
 func (s *service) contentHashMatches(ctx context.Context, p Plan) ([]Plan, error) {

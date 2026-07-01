@@ -2,15 +2,15 @@
 // @generated from file audio-tools/v1/eval/eval.proto (package vrooli.audio_tools.v1.eval, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file audio-tools/v1/eval/eval.proto.
  */
 export const file_audio_tools_v1_eval_eval: GenFile = /*@__PURE__*/
-  fileDesc("Ch5hdWRpby10b29scy92MS9ldmFsL2V2YWwucHJvdG8SGnZyb29saS5hdWRpb190b29scy52MS5ldmFsIr0BCgxFdmFsU3RyYXRlZ3kSDAoEa2luZBgBIAEoCRINCgVsYWJlbBgCIAEoCRIhChlvdmVybGFwX21heF9zdGFsbF9yZWplY3RzGAMgASgFEhkKEW92ZXJsYXBfd2luZG93X21zGAQgASgFEhsKE292ZXJsYXBfY29tbWl0X3J1bnMYBSABKAUSFgoOdmFkX3NpbGVuY2VfbXMYBiABKAUSHQoVb3ZlcmxhcF9tYXhfd2luZG93X21zGAcgASgFIowBCg5SdW5FdmFsUmVxdWVzdBIQCghjbGlwX2lkcxgBIAMoCRI8CgpzdHJhdGVnaWVzGAIgAygLMigudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV2YWwuRXZhbFN0cmF0ZWd5EhgKEHJlYWx0aW1lX3JlcGVhdHMYAyABKAUSEAoIY2h1bmtfbXMYBCABKAUiSQoPUnVuRXZhbFJlc3BvbnNlEjYKBnJlcG9ydBgBIAEoCzImLnZyb29saS5hdWRpb190b29scy52MS5ldmFsLkV2YWxSZXBvcnQi5wIKCkV2YWxSZXBvcnQSQAoMcGVyX3N0cmF0ZWd5GAEgAygLMioudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV2YWwuU3RyYXRlZ3lSZXBvcnQSGAoQcXVhbGl0eV9tZWFzdXJlZBgCIAEoCBIYChBsYXRlbmN5X21lYXN1cmVkGAMgASgIEj4KB3N1bW1hcnkYBCABKAsyLS52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXZhbC5FdmFsUmVwb3J0U3VtbWFyeRI7Cgh3YXJuaW5ncxgFIAMoCzIpLnZyb29saS5hdWRpb190b29scy52MS5ldmFsLlJlcG9ydFdhcm5pbmcSTQoUbm9ybWFsaXphdGlvbl9wb2xpY3kYBiABKAsyLy52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXZhbC5Ob3JtYWxpemF0aW9uUG9saWN5EhcKD2xhdGVuY3lfaG9uZXN0eRgHIAEoCSK0BgoOU3RyYXRlZ3lSZXBvcnQSEAoIc3RyYXRlZ3kYASABKAkSDQoFbGFiZWwYAiABKAkSCwoDd2VyGAMgASgBEhUKDXN1YnN0aXR1dGlvbnMYBCABKAUSEgoKaW5zZXJ0aW9ucxgFIAEoBRIRCglkZWxldGlvbnMYBiABKAUSEQoJcmVmX3dvcmRzGAcgASgFEhUKDXdoaXNwZXJfY2FsbHMYCCABKAUSHQoVd2hpc3Blcl9hdWRpb19zZWNvbmRzGAkgASgBEgsKA3J0ZhgKIAEoARIjChtmaW5hbGl6YXRpb25fbGF0ZW5jeV9wNTBfbXMYCyABKAESIwobZmluYWxpemF0aW9uX2xhdGVuY3lfcDk1X21zGAwgASgBEhkKEXBhcnRpYWxfcmV2aXNpb25zGA0gASgFEjgKCHBlcl9jbGlwGA4gAygLMiYudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV2YWwuQ2xpcFJlcG9ydBIbChN3ZXJfZGVsdGFfdnNfd2lubmVyGA8gASgBEh4KFnA5NV9kZWx0YV9tc192c193aW5uZXIYECABKAESIQoZY2FsbF9tdWx0aXBsaWVyX3ZzX3dpbm5lchgRIAEoARIPCgd2ZXJkaWN0GBIgASgJEg8KB3JlYXNvbnMYEyADKAkSOwoId2FybmluZ3MYFCADKAsyKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXZhbC5SZXBvcnRXYXJuaW5nEjwKBnNhZmV0eRgVIAEoCzIsLnZyb29saS5hdWRpb190b29scy52MS5ldmFsLlNhZmV0eUdhdGVSZXBvcnQSRwoRc3RhZ2VfYXR0cmlidXRpb24YFiABKAsyLC52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXZhbC5TdGFnZUF0dHJpYnV0aW9uEkQKDWxlbmd0aF9jdXJ2ZXMYFyADKAsyLS52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXZhbC5MZW5ndGhCdWNrZXRDdXJ2ZRIUCgxjb21taXRfY291bnQYGCABKAUSHwoXc3BlYWtlcl9yZWplY3Rpb25fY291bnQYGSABKAUi9wUKCkNsaXBSZXBvcnQSDwoHY2xpcF9pZBgBIAEoCRIRCglyZWZlcmVuY2UYAiABKAkSEgoKaHlwb3RoZXNpcxgDIAEoCRILCgN3ZXIYBCABKAESFQoNd2hpc3Blcl9jYWxscxgFIAEoBRIdChV3aGlzcGVyX2F1ZGlvX3NlY29uZHMYBiABKAESCwoDcnRmGAcgASgBEhUKDXNlZ21lbnRfY291bnQYCCABKAUSGQoRcGFydGlhbF9yZXZpc2lvbnMYCSABKAUSIwobZmluYWxpemF0aW9uX2xhdGVuY3lfcDUwX21zGAogASgBEiMKG2ZpbmFsaXphdGlvbl9sYXRlbmN5X3A5NV9tcxgLIAEoARINCgVlcnJvchgMIAEoCRIVCg1zdWJzdGl0dXRpb25zGA0gASgFEhIKCmluc2VydGlvbnMYDiABKAUSEQoJZGVsZXRpb25zGA8gASgFEhEKCXJlZl93b3JkcxgQIAEoBRIRCgloeXBfd29yZHMYESABKAUSHAoUbm9ybWFsaXplZF9yZWZlcmVuY2UYEiABKAkSHQoVbm9ybWFsaXplZF9oeXBvdGhlc2lzGBMgASgJEkIKD2VkaXRfb3BlcmF0aW9ucxgUIAMoCzIpLnZyb29saS5hdWRpb190b29scy52MS5ldmFsLkVkaXRPcGVyYXRpb24SQAoPY29tbWl0X3RpbWVsaW5lGBUgAygLMicudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV2YWwuQ29tbWl0U3RhdGUSHwoXdGltZV90b19maXJzdF9jb21taXRfbXMYFiABKAESFAoMY29tbWl0X2NvdW50GBcgASgFEh8KF3NwZWFrZXJfcmVqZWN0aW9uX2NvdW50GBggASgFEhkKEWF1ZGlvX2R1cmF0aW9uX21zGBkgASgDEjwKBnNhZmV0eRgaIAEoCzIsLnZyb29saS5hdWRpb190b29scy52MS5ldmFsLlNhZmV0eUdhdGVSZXBvcnQimQEKEUV2YWxSZXBvcnRTdW1tYXJ5EhcKD3dpbm5lcl9zdHJhdGVneRgBIAEoCRIUCgx3aW5uZXJfbGFiZWwYAiABKAkSFgoOcmVjb21tZW5kYXRpb24YAyABKAkSEgoKY29uZmlkZW5jZRgEIAEoCRIPCgdyZWFzb25zGAUgAygJEhgKEGNvbmZpZGVuY2Vfbm90ZXMYBiADKAkiQAoNUmVwb3J0V2FybmluZxIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSEAoIc2V2ZXJpdHkYAyABKAkiSwoTTm9ybWFsaXphdGlvblBvbGljeRISCgp3ZXJfcG9saWN5GAEgASgJEiAKGG92ZXJsYXBfYWdyZWVtZW50X3BvbGljeRgCIAEoCSKDAQoNRWRpdE9wZXJhdGlvbhIMCgRraW5kGAEgASgJEhcKD3JlZmVyZW5jZV90b2tlbhgCIAEoCRIYChBoeXBvdGhlc2lzX3Rva2VuGAMgASgJEhcKD3JlZmVyZW5jZV9pbmRleBgEIAEoBRIYChBoeXBvdGhlc2lzX2luZGV4GAUgASgFIkAKC0NvbW1pdFN0YXRlEgwKBHRleHQYASABKAkSDQoFYXRfbXMYAiABKAMSFAoMYXVkaW9fZW5kX21zGAMgASgDIk0KD1JldHJhY3Rpb25FdmVudBIVCg1wcmV2aW91c190ZXh0GAEgASgJEhQKDGN1cnJlbnRfdGV4dBgCIAEoCRINCgVhdF9tcxgDIAEoAyL1AQoQU2FmZXR5R2F0ZVJlcG9ydBIOCgZwYXNzZWQYASABKAgSFwoPcmV0cmFjdGlvbl9mcmVlGAIgASgIEhkKEWRyb3BwZWRfc3Bhbl9mcmVlGAMgASgIEkYKEXJldHJhY3Rpb25fZXZlbnRzGAQgAygLMisudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV2YWwuUmV0cmFjdGlvbkV2ZW50Eh4KFm1heF9kcm9wcGVkX3NwYW5fd29yZHMYBSABKAUSJAocZHJvcHBlZF9zcGFuX3RocmVzaG9sZF93b3JkcxgGIAEoBRIPCgdyZWFzb25zGAcgAygJIpMBChBTdGFnZUF0dHJpYnV0aW9uEhoKEmluZ3Jlc3NfbG9zdF93b3JkcxgBIAEoBRIbChNzdHJhdGVneV9sb3N0X3dvcmRzGAIgASgFEhkKEWVncmVzc19sb3N0X3dvcmRzGAMgASgFEhwKFGVncmVzc19yZWplY3RfZXZlbnRzGAQgASgFEg0KBW5vdGVzGAUgAygJIuEBChFMZW5ndGhCdWNrZXRDdXJ2ZRIOCgZidWNrZXQYASABKAkSFwoPbWluX2R1cmF0aW9uX21zGAIgASgDEhcKD21heF9kdXJhdGlvbl9tcxgDIAEoAxISCgpjbGlwX2NvdW50GAQgASgFEgsKA3dlchgFIAEoARIjChtmaW5hbGl6YXRpb25fbGF0ZW5jeV9wOTVfbXMYBiABKAESJAocbWVhbl90aW1lX3RvX2ZpcnN0X2NvbW1pdF9tcxgHIAEoARIeChZtYXhfZHJvcHBlZF9zcGFuX3dvcmRzGAggASgFMnEKC0V2YWxTZXJ2aWNlEmIKB1J1bkV2YWwSKi52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXZhbC5SdW5FdmFsUmVxdWVzdBorLnZyb29saS5hdWRpb190b29scy52MS5ldmFsLlJ1bkV2YWxSZXNwb25zZUJMWkpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2F1ZGlvLXRvb2xzL3YxL2V2YWw7ZXZhbF92MWIGcHJvdG8z");
+  fileDesc("Ch5hdWRpby10b29scy92MS9ldmFsL2V2YWwucHJvdG8SGnZyb29saS5hdWRpb190b29scy52MS5ldmFsIr0BCgxFdmFsU3RyYXRlZ3kSDAoEa2luZBgBIAEoCRINCgVsYWJlbBgCIAEoCRIhChlvdmVybGFwX21heF9zdGFsbF9yZWplY3RzGAMgASgFEhkKEW92ZXJsYXBfd2luZG93X21zGAQgASgFEhsKE292ZXJsYXBfY29tbWl0X3J1bnMYBSABKAUSFgoOdmFkX3NpbGVuY2VfbXMYBiABKAUSHQoVb3ZlcmxhcF9tYXhfd2luZG93X21zGAcgASgFIucCCgpFdmFsUmVwb3J0EkAKDHBlcl9zdHJhdGVneRgBIAMoCzIqLnZyb29saS5hdWRpb190b29scy52MS5ldmFsLlN0cmF0ZWd5UmVwb3J0EhgKEHF1YWxpdHlfbWVhc3VyZWQYAiABKAgSGAoQbGF0ZW5jeV9tZWFzdXJlZBgDIAEoCBI+CgdzdW1tYXJ5GAQgASgLMi0udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV2YWwuRXZhbFJlcG9ydFN1bW1hcnkSOwoId2FybmluZ3MYBSADKAsyKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXZhbC5SZXBvcnRXYXJuaW5nEk0KFG5vcm1hbGl6YXRpb25fcG9saWN5GAYgASgLMi8udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV2YWwuTm9ybWFsaXphdGlvblBvbGljeRIXCg9sYXRlbmN5X2hvbmVzdHkYByABKAkitAYKDlN0cmF0ZWd5UmVwb3J0EhAKCHN0cmF0ZWd5GAEgASgJEg0KBWxhYmVsGAIgASgJEgsKA3dlchgDIAEoARIVCg1zdWJzdGl0dXRpb25zGAQgASgFEhIKCmluc2VydGlvbnMYBSABKAUSEQoJZGVsZXRpb25zGAYgASgFEhEKCXJlZl93b3JkcxgHIAEoBRIVCg13aGlzcGVyX2NhbGxzGAggASgFEh0KFXdoaXNwZXJfYXVkaW9fc2Vjb25kcxgJIAEoARILCgNydGYYCiABKAESIwobZmluYWxpemF0aW9uX2xhdGVuY3lfcDUwX21zGAsgASgBEiMKG2ZpbmFsaXphdGlvbl9sYXRlbmN5X3A5NV9tcxgMIAEoARIZChFwYXJ0aWFsX3JldmlzaW9ucxgNIAEoBRI4CghwZXJfY2xpcBgOIAMoCzImLnZyb29saS5hdWRpb190b29scy52MS5ldmFsLkNsaXBSZXBvcnQSGwoTd2VyX2RlbHRhX3ZzX3dpbm5lchgPIAEoARIeChZwOTVfZGVsdGFfbXNfdnNfd2lubmVyGBAgASgBEiEKGWNhbGxfbXVsdGlwbGllcl92c193aW5uZXIYESABKAESDwoHdmVyZGljdBgSIAEoCRIPCgdyZWFzb25zGBMgAygJEjsKCHdhcm5pbmdzGBQgAygLMikudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV2YWwuUmVwb3J0V2FybmluZxI8CgZzYWZldHkYFSABKAsyLC52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXZhbC5TYWZldHlHYXRlUmVwb3J0EkcKEXN0YWdlX2F0dHJpYnV0aW9uGBYgASgLMiwudnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV2YWwuU3RhZ2VBdHRyaWJ1dGlvbhJECg1sZW5ndGhfY3VydmVzGBcgAygLMi0udnJvb2xpLmF1ZGlvX3Rvb2xzLnYxLmV2YWwuTGVuZ3RoQnVja2V0Q3VydmUSFAoMY29tbWl0X2NvdW50GBggASgFEh8KF3NwZWFrZXJfcmVqZWN0aW9uX2NvdW50GBkgASgFIvcFCgpDbGlwUmVwb3J0Eg8KB2NsaXBfaWQYASABKAkSEQoJcmVmZXJlbmNlGAIgASgJEhIKCmh5cG90aGVzaXMYAyABKAkSCwoDd2VyGAQgASgBEhUKDXdoaXNwZXJfY2FsbHMYBSABKAUSHQoVd2hpc3Blcl9hdWRpb19zZWNvbmRzGAYgASgBEgsKA3J0ZhgHIAEoARIVCg1zZWdtZW50X2NvdW50GAggASgFEhkKEXBhcnRpYWxfcmV2aXNpb25zGAkgASgFEiMKG2ZpbmFsaXphdGlvbl9sYXRlbmN5X3A1MF9tcxgKIAEoARIjChtmaW5hbGl6YXRpb25fbGF0ZW5jeV9wOTVfbXMYCyABKAESDQoFZXJyb3IYDCABKAkSFQoNc3Vic3RpdHV0aW9ucxgNIAEoBRISCgppbnNlcnRpb25zGA4gASgFEhEKCWRlbGV0aW9ucxgPIAEoBRIRCglyZWZfd29yZHMYECABKAUSEQoJaHlwX3dvcmRzGBEgASgFEhwKFG5vcm1hbGl6ZWRfcmVmZXJlbmNlGBIgASgJEh0KFW5vcm1hbGl6ZWRfaHlwb3RoZXNpcxgTIAEoCRJCCg9lZGl0X29wZXJhdGlvbnMYFCADKAsyKS52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXZhbC5FZGl0T3BlcmF0aW9uEkAKD2NvbW1pdF90aW1lbGluZRgVIAMoCzInLnZyb29saS5hdWRpb190b29scy52MS5ldmFsLkNvbW1pdFN0YXRlEh8KF3RpbWVfdG9fZmlyc3RfY29tbWl0X21zGBYgASgBEhQKDGNvbW1pdF9jb3VudBgXIAEoBRIfChdzcGVha2VyX3JlamVjdGlvbl9jb3VudBgYIAEoBRIZChFhdWRpb19kdXJhdGlvbl9tcxgZIAEoAxI8CgZzYWZldHkYGiABKAsyLC52cm9vbGkuYXVkaW9fdG9vbHMudjEuZXZhbC5TYWZldHlHYXRlUmVwb3J0IpkBChFFdmFsUmVwb3J0U3VtbWFyeRIXCg93aW5uZXJfc3RyYXRlZ3kYASABKAkSFAoMd2lubmVyX2xhYmVsGAIgASgJEhYKDnJlY29tbWVuZGF0aW9uGAMgASgJEhIKCmNvbmZpZGVuY2UYBCABKAkSDwoHcmVhc29ucxgFIAMoCRIYChBjb25maWRlbmNlX25vdGVzGAYgAygJIkAKDVJlcG9ydFdhcm5pbmcSDAoEY29kZRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEhAKCHNldmVyaXR5GAMgASgJIksKE05vcm1hbGl6YXRpb25Qb2xpY3kSEgoKd2VyX3BvbGljeRgBIAEoCRIgChhvdmVybGFwX2FncmVlbWVudF9wb2xpY3kYAiABKAkigwEKDUVkaXRPcGVyYXRpb24SDAoEa2luZBgBIAEoCRIXCg9yZWZlcmVuY2VfdG9rZW4YAiABKAkSGAoQaHlwb3RoZXNpc190b2tlbhgDIAEoCRIXCg9yZWZlcmVuY2VfaW5kZXgYBCABKAUSGAoQaHlwb3RoZXNpc19pbmRleBgFIAEoBSJACgtDb21taXRTdGF0ZRIMCgR0ZXh0GAEgASgJEg0KBWF0X21zGAIgASgDEhQKDGF1ZGlvX2VuZF9tcxgDIAEoAyJNCg9SZXRyYWN0aW9uRXZlbnQSFQoNcHJldmlvdXNfdGV4dBgBIAEoCRIUCgxjdXJyZW50X3RleHQYAiABKAkSDQoFYXRfbXMYAyABKAMi9QEKEFNhZmV0eUdhdGVSZXBvcnQSDgoGcGFzc2VkGAEgASgIEhcKD3JldHJhY3Rpb25fZnJlZRgCIAEoCBIZChFkcm9wcGVkX3NwYW5fZnJlZRgDIAEoCBJGChFyZXRyYWN0aW9uX2V2ZW50cxgEIAMoCzIrLnZyb29saS5hdWRpb190b29scy52MS5ldmFsLlJldHJhY3Rpb25FdmVudBIeChZtYXhfZHJvcHBlZF9zcGFuX3dvcmRzGAUgASgFEiQKHGRyb3BwZWRfc3Bhbl90aHJlc2hvbGRfd29yZHMYBiABKAUSDwoHcmVhc29ucxgHIAMoCSKTAQoQU3RhZ2VBdHRyaWJ1dGlvbhIaChJpbmdyZXNzX2xvc3Rfd29yZHMYASABKAUSGwoTc3RyYXRlZ3lfbG9zdF93b3JkcxgCIAEoBRIZChFlZ3Jlc3NfbG9zdF93b3JkcxgDIAEoBRIcChRlZ3Jlc3NfcmVqZWN0X2V2ZW50cxgEIAEoBRINCgVub3RlcxgFIAMoCSLhAQoRTGVuZ3RoQnVja2V0Q3VydmUSDgoGYnVja2V0GAEgASgJEhcKD21pbl9kdXJhdGlvbl9tcxgCIAEoAxIXCg9tYXhfZHVyYXRpb25fbXMYAyABKAMSEgoKY2xpcF9jb3VudBgEIAEoBRILCgN3ZXIYBSABKAESIwobZmluYWxpemF0aW9uX2xhdGVuY3lfcDk1X21zGAYgASgBEiQKHG1lYW5fdGltZV90b19maXJzdF9jb21taXRfbXMYByABKAESHgoWbWF4X2Ryb3BwZWRfc3Bhbl93b3JkcxgIIAEoBUJMWkpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2F1ZGlvLXRvb2xzL3YxL2V2YWw7ZXZhbF92MWIGcHJvdG8z");
 
 /**
  * EvalStrategy selects one strategy row + its config overrides. Unset
@@ -78,64 +78,6 @@ export const EvalStrategySchema: GenMessage<EvalStrategy> = /*@__PURE__*/
   messageDesc(file_audio_tools_v1_eval_eval, 0);
 
 /**
- * @generated from message vrooli.audio_tools.v1.eval.RunEvalRequest
- */
-export type RunEvalRequest = Message<"vrooli.audio_tools.v1.eval.RunEvalRequest"> & {
-  /**
-   * clip_ids narrows the run; empty = the whole corpus.
-   *
-   * @generated from field: repeated string clip_ids = 1;
-   */
-  clipIds: string[];
-
-  /**
-   * strategies to compare; empty = the default trio (batch, vad, overlap).
-   *
-   * @generated from field: repeated vrooli.audio_tools.v1.eval.EvalStrategy strategies = 2;
-   */
-  strategies: EvalStrategy[];
-
-  /**
-   * realtime_repeats real-time-paced runs per clip feed the latency
-   * distribution; 0 = quality-only (no latency).
-   *
-   * @generated from field: int32 realtime_repeats = 3;
-   */
-  realtimeRepeats: number;
-
-  /**
-   * chunk_ms is the replay chunk size; 0 defaults to 100.
-   *
-   * @generated from field: int32 chunk_ms = 4;
-   */
-  chunkMs: number;
-};
-
-/**
- * Describes the message vrooli.audio_tools.v1.eval.RunEvalRequest.
- * Use `create(RunEvalRequestSchema)` to create a new message.
- */
-export const RunEvalRequestSchema: GenMessage<RunEvalRequest> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_eval_eval, 1);
-
-/**
- * @generated from message vrooli.audio_tools.v1.eval.RunEvalResponse
- */
-export type RunEvalResponse = Message<"vrooli.audio_tools.v1.eval.RunEvalResponse"> & {
-  /**
-   * @generated from field: vrooli.audio_tools.v1.eval.EvalReport report = 1;
-   */
-  report?: EvalReport | undefined;
-};
-
-/**
- * Describes the message vrooli.audio_tools.v1.eval.RunEvalResponse.
- * Use `create(RunEvalResponseSchema)` to create a new message.
- */
-export const RunEvalResponseSchema: GenMessage<RunEvalResponse> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_eval_eval, 2);
-
-/**
  * @generated from message vrooli.audio_tools.v1.eval.EvalReport
  */
 export type EvalReport = Message<"vrooli.audio_tools.v1.eval.EvalReport"> & {
@@ -180,7 +122,7 @@ export type EvalReport = Message<"vrooli.audio_tools.v1.eval.EvalReport"> & {
  * Use `create(EvalReportSchema)` to create a new message.
  */
 export const EvalReportSchema: GenMessage<EvalReport> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_eval_eval, 3);
+  messageDesc(file_audio_tools_v1_eval_eval, 1);
 
 /**
  * @generated from message vrooli.audio_tools.v1.eval.StrategyReport
@@ -319,7 +261,7 @@ export type StrategyReport = Message<"vrooli.audio_tools.v1.eval.StrategyReport"
  * Use `create(StrategyReportSchema)` to create a new message.
  */
 export const StrategyReportSchema: GenMessage<StrategyReport> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_eval_eval, 4);
+  messageDesc(file_audio_tools_v1_eval_eval, 2);
 
 /**
  * @generated from message vrooli.audio_tools.v1.eval.ClipReport
@@ -461,7 +403,7 @@ export type ClipReport = Message<"vrooli.audio_tools.v1.eval.ClipReport"> & {
  * Use `create(ClipReportSchema)` to create a new message.
  */
 export const ClipReportSchema: GenMessage<ClipReport> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_eval_eval, 5);
+  messageDesc(file_audio_tools_v1_eval_eval, 3);
 
 /**
  * @generated from message vrooli.audio_tools.v1.eval.EvalReportSummary
@@ -505,7 +447,7 @@ export type EvalReportSummary = Message<"vrooli.audio_tools.v1.eval.EvalReportSu
  * Use `create(EvalReportSummarySchema)` to create a new message.
  */
 export const EvalReportSummarySchema: GenMessage<EvalReportSummary> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_eval_eval, 6);
+  messageDesc(file_audio_tools_v1_eval_eval, 4);
 
 /**
  * @generated from message vrooli.audio_tools.v1.eval.ReportWarning
@@ -534,7 +476,7 @@ export type ReportWarning = Message<"vrooli.audio_tools.v1.eval.ReportWarning"> 
  * Use `create(ReportWarningSchema)` to create a new message.
  */
 export const ReportWarningSchema: GenMessage<ReportWarning> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_eval_eval, 7);
+  messageDesc(file_audio_tools_v1_eval_eval, 5);
 
 /**
  * @generated from message vrooli.audio_tools.v1.eval.NormalizationPolicy
@@ -556,7 +498,7 @@ export type NormalizationPolicy = Message<"vrooli.audio_tools.v1.eval.Normalizat
  * Use `create(NormalizationPolicySchema)` to create a new message.
  */
 export const NormalizationPolicySchema: GenMessage<NormalizationPolicy> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_eval_eval, 8);
+  messageDesc(file_audio_tools_v1_eval_eval, 6);
 
 /**
  * @generated from message vrooli.audio_tools.v1.eval.EditOperation
@@ -595,7 +537,7 @@ export type EditOperation = Message<"vrooli.audio_tools.v1.eval.EditOperation"> 
  * Use `create(EditOperationSchema)` to create a new message.
  */
 export const EditOperationSchema: GenMessage<EditOperation> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_eval_eval, 9);
+  messageDesc(file_audio_tools_v1_eval_eval, 7);
 
 /**
  * @generated from message vrooli.audio_tools.v1.eval.CommitState
@@ -622,7 +564,7 @@ export type CommitState = Message<"vrooli.audio_tools.v1.eval.CommitState"> & {
  * Use `create(CommitStateSchema)` to create a new message.
  */
 export const CommitStateSchema: GenMessage<CommitState> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_eval_eval, 10);
+  messageDesc(file_audio_tools_v1_eval_eval, 8);
 
 /**
  * @generated from message vrooli.audio_tools.v1.eval.RetractionEvent
@@ -649,7 +591,7 @@ export type RetractionEvent = Message<"vrooli.audio_tools.v1.eval.RetractionEven
  * Use `create(RetractionEventSchema)` to create a new message.
  */
 export const RetractionEventSchema: GenMessage<RetractionEvent> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_eval_eval, 11);
+  messageDesc(file_audio_tools_v1_eval_eval, 9);
 
 /**
  * @generated from message vrooli.audio_tools.v1.eval.SafetyGateReport
@@ -696,7 +638,7 @@ export type SafetyGateReport = Message<"vrooli.audio_tools.v1.eval.SafetyGateRep
  * Use `create(SafetyGateReportSchema)` to create a new message.
  */
 export const SafetyGateReportSchema: GenMessage<SafetyGateReport> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_eval_eval, 12);
+  messageDesc(file_audio_tools_v1_eval_eval, 10);
 
 /**
  * @generated from message vrooli.audio_tools.v1.eval.StageAttribution
@@ -733,7 +675,7 @@ export type StageAttribution = Message<"vrooli.audio_tools.v1.eval.StageAttribut
  * Use `create(StageAttributionSchema)` to create a new message.
  */
 export const StageAttributionSchema: GenMessage<StageAttribution> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_eval_eval, 13);
+  messageDesc(file_audio_tools_v1_eval_eval, 11);
 
 /**
  * @generated from message vrooli.audio_tools.v1.eval.LengthBucketCurve
@@ -785,23 +727,5 @@ export type LengthBucketCurve = Message<"vrooli.audio_tools.v1.eval.LengthBucket
  * Use `create(LengthBucketCurveSchema)` to create a new message.
  */
 export const LengthBucketCurveSchema: GenMessage<LengthBucketCurve> = /*@__PURE__*/
-  messageDesc(file_audio_tools_v1_eval_eval, 14);
-
-/**
- * @generated from service vrooli.audio_tools.v1.eval.EvalService
- */
-export const EvalService: GenService<{
-  /**
-   * RunEval replays the selected clips through the given strategies and
-   * returns the comparison report.
-   *
-   * @generated from rpc vrooli.audio_tools.v1.eval.EvalService.RunEval
-   */
-  runEval: {
-    methodKind: "unary";
-    input: typeof RunEvalRequestSchema;
-    output: typeof RunEvalResponseSchema;
-  },
-}> = /*@__PURE__*/
-  serviceDesc(file_audio_tools_v1_eval_eval, 0);
+  messageDesc(file_audio_tools_v1_eval_eval, 12);
 

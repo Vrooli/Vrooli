@@ -56,6 +56,9 @@ message ExperimentRecipe {
   SpeakerExperimentRecipe speaker = 12;
   repeated SpeakerCondition realized_speaker_conditions = 13;
   int32 dropped_span_threshold_words = 14;
+  // When realtime_repeats > 0, pace only the final N seconds of each clip at
+  // 1x. A value of 0 keeps full real-time pacing.
+  int32 latency_tail_seconds = 15;
 }
 
 message LongFormRecipe {
@@ -63,6 +66,12 @@ message LongFormRecipe {
   int32 target_duration_seconds = 2;
   int32 gap_ms = 3;
   string tag_contains = 4;
+  // sweep_durations_seconds turns one experiment into a length sweep: the
+  // server builds one seeded long-form input per listed duration, so the
+  // metric-vs-length curve is populated with multiple points in a single run.
+  // When non-empty it supersedes target_duration_seconds. Each input uses a
+  // seed derived from the base seed and its duration so orderings differ.
+  repeated int32 sweep_durations_seconds = 5;
 }
 
 message AugmentationRecipe {
@@ -198,6 +207,7 @@ message CompareExperimentsRequest {
 message ComparedExperiment {
   Experiment experiment = 1;
   vrooli.audio_tools.v1.eval.EvalReport report = 2;
+  repeated ExperimentRun runs = 3;
 }
 
 message CompareExperimentsResponse {

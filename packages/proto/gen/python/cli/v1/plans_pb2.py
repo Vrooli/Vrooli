@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x12\x63li/v1/plans.proto\x12\rvrooli.cli.v1\"\x9a\x02\n\x0bPlansRecord\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05title\x18\x02 \x01(\tR\x05title\x12\x12\n\x04slug\x18\x03 \x01(\tR\x04slug\x12\x12\n\x04path\x18\x04 \x01(\tR\x04path\x12\x1d\n\ncreated_at\x18\x05 \x01(\tR\tcreatedAt\x12\x1d\n\nupdated_at\x18\x06 \x01(\tR\tupdatedAt\x12\x1a\n\x08\x61rchived\x18\x07 \x01(\x08R\x08\x61rchived\x12\x1f\n\x0b\x61rchived_at\x18\x08 \x01(\tR\narchivedAt\x12\x1f\n\x0bsource_path\x18\t \x01(\tR\nsourcePath\x12!\n\x0c\x63ontent_hash\x18\n \x01(\tR\x0b\x63ontentHash\"Z\n\x0ePlansAddOutput\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12.\n\x04plan\x18\x02 \x01(\x0b\x32\x1a.vrooli.cli.v1.PlansRecordR\x04plan\"]\n\x0fPlansListOutput\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12\x30\n\x05plans\x18\x02 \x03(\x0b\x32\x1a.vrooli.cli.v1.PlansRecordR\x05plans\"u\n\x0fPlansShowOutput\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12.\n\x04plan\x18\x02 \x01(\x0b\x32\x1a.vrooli.cli.v1.PlansRecordR\x04plan\x12\x18\n\x07\x63ontent\x18\x03 \x01(\tR\x07\x63ontent\"O\n\x0fPlansPathOutput\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12\x0e\n\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n\x04path\x18\x03 \x01(\tR\x04path\"^\n\x12PlansArchiveOutput\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12.\n\x04plan\x18\x02 \x01(\x0b\x32\x1a.vrooli.cli.v1.PlansRecordR\x04plan\"\x84\x01\n\x11PlansImportOutput\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12.\n\x04plan\x18\x02 \x01(\x0b\x32\x1a.vrooli.cli.v1.PlansRecordR\x04plan\x12%\n\x0e\x64\x65leted_source\x18\x03 \x01(\x08R\rdeletedSource\"Q\n\x11PlansExportOutput\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12\x0e\n\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n\x04path\x18\x03 \x01(\tR\x04pathB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x12\x63li/v1/plans.proto\x12\rvrooli.cli.v1\"\x9a\x02\n\x0bPlansRecord\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05title\x18\x02 \x01(\tR\x05title\x12\x12\n\x04slug\x18\x03 \x01(\tR\x04slug\x12\x12\n\x04path\x18\x04 \x01(\tR\x04path\x12\x1d\n\ncreated_at\x18\x05 \x01(\tR\tcreatedAt\x12\x1d\n\nupdated_at\x18\x06 \x01(\tR\tupdatedAt\x12\x1a\n\x08\x61rchived\x18\x07 \x01(\x08R\x08\x61rchived\x12\x1f\n\x0b\x61rchived_at\x18\x08 \x01(\tR\narchivedAt\x12\x1f\n\x0bsource_path\x18\t \x01(\tR\nsourcePath\x12!\n\x0c\x63ontent_hash\x18\n \x01(\tR\x0b\x63ontentHash\"Z\n\x0ePlansAddOutput\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12.\n\x04plan\x18\x02 \x01(\x0b\x32\x1a.vrooli.cli.v1.PlansRecordR\x04plan\"\xab\x01\n\x0fPlansListOutput\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12\x30\n\x05plans\x18\x02 \x03(\x0b\x32\x1a.vrooli.cli.v1.PlansRecordR\x05plans\x12\x16\n\x06source\x18\x03 \x01(\tR\x06source\x12\x1a\n\x08\x64\x65graded\x18\x04 \x01(\x08R\x08\x64\x65graded\x12\x18\n\x07warning\x18\x05 \x01(\tR\x07warning\"\xc3\x01\n\x0fPlansShowOutput\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12.\n\x04plan\x18\x02 \x01(\x0b\x32\x1a.vrooli.cli.v1.PlansRecordR\x04plan\x12\x18\n\x07\x63ontent\x18\x03 \x01(\tR\x07\x63ontent\x12\x16\n\x06source\x18\x04 \x01(\tR\x06source\x12\x1a\n\x08\x64\x65graded\x18\x05 \x01(\x08R\x08\x64\x65graded\x12\x18\n\x07warning\x18\x06 \x01(\tR\x07warning\"\x9d\x01\n\x0fPlansPathOutput\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12\x0e\n\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n\x04path\x18\x03 \x01(\tR\x04path\x12\x16\n\x06source\x18\x04 \x01(\tR\x06source\x12\x1a\n\x08\x64\x65graded\x18\x05 \x01(\x08R\x08\x64\x65graded\x12\x18\n\x07warning\x18\x06 \x01(\tR\x07warning\"^\n\x12PlansArchiveOutput\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12.\n\x04plan\x18\x02 \x01(\x0b\x32\x1a.vrooli.cli.v1.PlansRecordR\x04plan\"\x84\x01\n\x11PlansImportOutput\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12.\n\x04plan\x18\x02 \x01(\x0b\x32\x1a.vrooli.cli.v1.PlansRecordR\x04plan\x12%\n\x0e\x64\x65leted_source\x18\x03 \x01(\x08R\rdeletedSource\"\x9f\x01\n\x11PlansExportOutput\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12\x0e\n\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n\x04path\x18\x03 \x01(\tR\x04path\x12\x16\n\x06source\x18\x04 \x01(\tR\x06source\x12\x1a\n\x08\x64\x65graded\x18\x05 \x01(\x08R\x08\x64\x65graded\x12\x18\n\x07warning\x18\x06 \x01(\tR\x07warningB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -36,16 +36,16 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_PLANSRECORD']._serialized_end=320
   _globals['_PLANSADDOUTPUT']._serialized_start=322
   _globals['_PLANSADDOUTPUT']._serialized_end=412
-  _globals['_PLANSLISTOUTPUT']._serialized_start=414
-  _globals['_PLANSLISTOUTPUT']._serialized_end=507
-  _globals['_PLANSSHOWOUTPUT']._serialized_start=509
-  _globals['_PLANSSHOWOUTPUT']._serialized_end=626
-  _globals['_PLANSPATHOUTPUT']._serialized_start=628
-  _globals['_PLANSPATHOUTPUT']._serialized_end=707
-  _globals['_PLANSARCHIVEOUTPUT']._serialized_start=709
-  _globals['_PLANSARCHIVEOUTPUT']._serialized_end=803
-  _globals['_PLANSIMPORTOUTPUT']._serialized_start=806
-  _globals['_PLANSIMPORTOUTPUT']._serialized_end=938
-  _globals['_PLANSEXPORTOUTPUT']._serialized_start=940
-  _globals['_PLANSEXPORTOUTPUT']._serialized_end=1021
+  _globals['_PLANSLISTOUTPUT']._serialized_start=415
+  _globals['_PLANSLISTOUTPUT']._serialized_end=586
+  _globals['_PLANSSHOWOUTPUT']._serialized_start=589
+  _globals['_PLANSSHOWOUTPUT']._serialized_end=784
+  _globals['_PLANSPATHOUTPUT']._serialized_start=787
+  _globals['_PLANSPATHOUTPUT']._serialized_end=944
+  _globals['_PLANSARCHIVEOUTPUT']._serialized_start=946
+  _globals['_PLANSARCHIVEOUTPUT']._serialized_end=1040
+  _globals['_PLANSIMPORTOUTPUT']._serialized_start=1043
+  _globals['_PLANSIMPORTOUTPUT']._serialized_end=1175
+  _globals['_PLANSEXPORTOUTPUT']._serialized_start=1178
+  _globals['_PLANSEXPORTOUTPUT']._serialized_end=1337
 # @@protoc_insertion_point(module_scope)

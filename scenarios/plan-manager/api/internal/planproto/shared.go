@@ -56,6 +56,7 @@ func PlanToProto(p planmodel.Plan) *sharedv1.Plan {
 		ImportProvenance:        ImportProvenanceToProto(p.ImportProvenance),
 		PreservedLegacySections: LegacySectionsToProto(p.PreservedLegacySections),
 		ChangeBoundary:          ChangeBoundaryToProto(p.ChangeBoundary),
+		Mirror:                  MirrorToProto(p.Mirror),
 	}
 }
 
@@ -96,6 +97,37 @@ func PlanFromProto(p *sharedv1.Plan) planmodel.Plan {
 		ImportProvenance:        ImportProvenanceFromProto(p.GetImportProvenance()),
 		PreservedLegacySections: LegacySectionsFromProto(p.GetPreservedLegacySections()),
 		ChangeBoundary:          ChangeBoundaryFromProto(p.GetChangeBoundary()),
+		Mirror:                  MirrorFromProto(p.GetMirror()),
+	}
+}
+
+func MirrorToProto(m planmodel.RenderedPlanMirror) *sharedv1.RenderedPlanMirror {
+	if m == (planmodel.RenderedPlanMirror{}) {
+		return nil
+	}
+	return &sharedv1.RenderedPlanMirror{
+		Path:          m.Path,
+		RelativePath:  m.RelativePath,
+		ContentHash:   m.ContentHash,
+		RenderVersion: m.RenderVersion,
+		RenderedAt:    m.RenderedAt,
+		Status:        MirrorStatusToProto(m.Status),
+		LastError:     m.LastError,
+	}
+}
+
+func MirrorFromProto(m *sharedv1.RenderedPlanMirror) planmodel.RenderedPlanMirror {
+	if m == nil {
+		return planmodel.RenderedPlanMirror{}
+	}
+	return planmodel.RenderedPlanMirror{
+		Path:          m.GetPath(),
+		RelativePath:  m.GetRelativePath(),
+		ContentHash:   m.GetContentHash(),
+		RenderVersion: m.GetRenderVersion(),
+		RenderedAt:    m.GetRenderedAt(),
+		Status:        MirrorStatusFromProto(m.GetStatus()),
+		LastError:     m.GetLastError(),
 	}
 }
 
@@ -278,6 +310,40 @@ func WorkPostureSourceFromProto(s sharedv1.WorkPostureSource) planmodel.WorkPost
 		return planmodel.WorkPostureSourceImportLegacy
 	default:
 		return planmodel.WorkPostureSourceUnspecified
+	}
+}
+
+func MirrorStatusToProto(s planmodel.RenderedMirrorStatus) sharedv1.RenderedMirrorStatus {
+	switch s {
+	case planmodel.RenderedMirrorStatusFresh:
+		return sharedv1.RenderedMirrorStatus_RENDERED_MIRROR_STATUS_FRESH
+	case planmodel.RenderedMirrorStatusMissing:
+		return sharedv1.RenderedMirrorStatus_RENDERED_MIRROR_STATUS_MISSING
+	case planmodel.RenderedMirrorStatusStale:
+		return sharedv1.RenderedMirrorStatus_RENDERED_MIRROR_STATUS_STALE
+	case planmodel.RenderedMirrorStatusWriteFailed:
+		return sharedv1.RenderedMirrorStatus_RENDERED_MIRROR_STATUS_WRITE_FAILED
+	case planmodel.RenderedMirrorStatusUnknown:
+		return sharedv1.RenderedMirrorStatus_RENDERED_MIRROR_STATUS_UNKNOWN
+	default:
+		return sharedv1.RenderedMirrorStatus_RENDERED_MIRROR_STATUS_UNSPECIFIED
+	}
+}
+
+func MirrorStatusFromProto(s sharedv1.RenderedMirrorStatus) planmodel.RenderedMirrorStatus {
+	switch s {
+	case sharedv1.RenderedMirrorStatus_RENDERED_MIRROR_STATUS_FRESH:
+		return planmodel.RenderedMirrorStatusFresh
+	case sharedv1.RenderedMirrorStatus_RENDERED_MIRROR_STATUS_MISSING:
+		return planmodel.RenderedMirrorStatusMissing
+	case sharedv1.RenderedMirrorStatus_RENDERED_MIRROR_STATUS_STALE:
+		return planmodel.RenderedMirrorStatusStale
+	case sharedv1.RenderedMirrorStatus_RENDERED_MIRROR_STATUS_WRITE_FAILED:
+		return planmodel.RenderedMirrorStatusWriteFailed
+	case sharedv1.RenderedMirrorStatus_RENDERED_MIRROR_STATUS_UNKNOWN:
+		return planmodel.RenderedMirrorStatusUnknown
+	default:
+		return planmodel.RenderedMirrorStatusUnspecified
 	}
 }
 

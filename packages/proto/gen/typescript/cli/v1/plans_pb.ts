@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cli/v1/plans.proto.
  */
 export const file_cli_v1_plans: GenFile = /*@__PURE__*/
-  fileDesc("ChJjbGkvdjEvcGxhbnMucHJvdG8SDXZyb29saS5jbGkudjEivgEKC1BsYW5zUmVjb3JkEgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEgwKBHNsdWcYAyABKAkSDAoEcGF0aBgEIAEoCRISCgpjcmVhdGVkX2F0GAUgASgJEhIKCnVwZGF0ZWRfYXQYBiABKAkSEAoIYXJjaGl2ZWQYByABKAgSEwoLYXJjaGl2ZWRfYXQYCCABKAkSEwoLc291cmNlX3BhdGgYCSABKAkSFAoMY29udGVudF9oYXNoGAogASgJIksKDlBsYW5zQWRkT3V0cHV0Eg8KB3N1Y2Nlc3MYASABKAgSKAoEcGxhbhgCIAEoCzIaLnZyb29saS5jbGkudjEuUGxhbnNSZWNvcmQiTQoPUGxhbnNMaXN0T3V0cHV0Eg8KB3N1Y2Nlc3MYASABKAgSKQoFcGxhbnMYAiADKAsyGi52cm9vbGkuY2xpLnYxLlBsYW5zUmVjb3JkIl0KD1BsYW5zU2hvd091dHB1dBIPCgdzdWNjZXNzGAEgASgIEigKBHBsYW4YAiABKAsyGi52cm9vbGkuY2xpLnYxLlBsYW5zUmVjb3JkEg8KB2NvbnRlbnQYAyABKAkiPAoPUGxhbnNQYXRoT3V0cHV0Eg8KB3N1Y2Nlc3MYASABKAgSCgoCaWQYAiABKAkSDAoEcGF0aBgDIAEoCSJPChJQbGFuc0FyY2hpdmVPdXRwdXQSDwoHc3VjY2VzcxgBIAEoCBIoCgRwbGFuGAIgASgLMhoudnJvb2xpLmNsaS52MS5QbGFuc1JlY29yZCJmChFQbGFuc0ltcG9ydE91dHB1dBIPCgdzdWNjZXNzGAEgASgIEigKBHBsYW4YAiABKAsyGi52cm9vbGkuY2xpLnYxLlBsYW5zUmVjb3JkEhYKDmRlbGV0ZWRfc291cmNlGAMgASgIIj4KEVBsYW5zRXhwb3J0T3V0cHV0Eg8KB3N1Y2Nlc3MYASABKAgSCgoCaWQYAiABKAkSDAoEcGF0aBgDIAEoCUI9WjtnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NsaS92MTtjbGl2MWIGcHJvdG8z");
+  fileDesc("ChJjbGkvdjEvcGxhbnMucHJvdG8SDXZyb29saS5jbGkudjEivgEKC1BsYW5zUmVjb3JkEgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEgwKBHNsdWcYAyABKAkSDAoEcGF0aBgEIAEoCRISCgpjcmVhdGVkX2F0GAUgASgJEhIKCnVwZGF0ZWRfYXQYBiABKAkSEAoIYXJjaGl2ZWQYByABKAgSEwoLYXJjaGl2ZWRfYXQYCCABKAkSEwoLc291cmNlX3BhdGgYCSABKAkSFAoMY29udGVudF9oYXNoGAogASgJIksKDlBsYW5zQWRkT3V0cHV0Eg8KB3N1Y2Nlc3MYASABKAgSKAoEcGxhbhgCIAEoCzIaLnZyb29saS5jbGkudjEuUGxhbnNSZWNvcmQigAEKD1BsYW5zTGlzdE91dHB1dBIPCgdzdWNjZXNzGAEgASgIEikKBXBsYW5zGAIgAygLMhoudnJvb2xpLmNsaS52MS5QbGFuc1JlY29yZBIOCgZzb3VyY2UYAyABKAkSEAoIZGVncmFkZWQYBCABKAgSDwoHd2FybmluZxgFIAEoCSKQAQoPUGxhbnNTaG93T3V0cHV0Eg8KB3N1Y2Nlc3MYASABKAgSKAoEcGxhbhgCIAEoCzIaLnZyb29saS5jbGkudjEuUGxhbnNSZWNvcmQSDwoHY29udGVudBgDIAEoCRIOCgZzb3VyY2UYBCABKAkSEAoIZGVncmFkZWQYBSABKAgSDwoHd2FybmluZxgGIAEoCSJvCg9QbGFuc1BhdGhPdXRwdXQSDwoHc3VjY2VzcxgBIAEoCBIKCgJpZBgCIAEoCRIMCgRwYXRoGAMgASgJEg4KBnNvdXJjZRgEIAEoCRIQCghkZWdyYWRlZBgFIAEoCBIPCgd3YXJuaW5nGAYgASgJIk8KElBsYW5zQXJjaGl2ZU91dHB1dBIPCgdzdWNjZXNzGAEgASgIEigKBHBsYW4YAiABKAsyGi52cm9vbGkuY2xpLnYxLlBsYW5zUmVjb3JkImYKEVBsYW5zSW1wb3J0T3V0cHV0Eg8KB3N1Y2Nlc3MYASABKAgSKAoEcGxhbhgCIAEoCzIaLnZyb29saS5jbGkudjEuUGxhbnNSZWNvcmQSFgoOZGVsZXRlZF9zb3VyY2UYAyABKAgicQoRUGxhbnNFeHBvcnRPdXRwdXQSDwoHc3VjY2VzcxgBIAEoCBIKCgJpZBgCIAEoCRIMCgRwYXRoGAMgASgJEg4KBnNvdXJjZRgEIAEoCRIQCghkZWdyYWRlZBgFIAEoCBIPCgd3YXJuaW5nGAYgASgJQj1aO2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY2xpL3YxO2NsaXYxYgZwcm90bzM");
 
 /**
  * PlansRecord is one plan entry, shared across every plans command payload.
@@ -144,6 +144,27 @@ export type PlansListOutput = Message<"vrooli.cli.v1.PlansListOutput"> & {
    * @generated from field: repeated vrooli.cli.v1.PlansRecord plans = 2;
    */
   plans: PlansRecord[];
+
+  /**
+   * Read source: "plan-manager" for canonical reads or "mirror-fallback" for degraded mirror reads.
+   *
+   * @generated from field: string source = 3;
+   */
+  source: string;
+
+  /**
+   * True when the response came from degraded mirror fallback.
+   *
+   * @generated from field: bool degraded = 4;
+   */
+  degraded: boolean;
+
+  /**
+   * Human-readable degraded-mode warning; "" for canonical reads.
+   *
+   * @generated from field: string warning = 5;
+   */
+  warning: string;
 };
 
 /**
@@ -179,6 +200,27 @@ export type PlansShowOutput = Message<"vrooli.cli.v1.PlansShowOutput"> & {
    * @generated from field: string content = 3;
    */
   content: string;
+
+  /**
+   * Read source: "plan-manager" for canonical reads or "mirror-fallback" for degraded mirror reads.
+   *
+   * @generated from field: string source = 4;
+   */
+  source: string;
+
+  /**
+   * True when the response came from degraded mirror fallback.
+   *
+   * @generated from field: bool degraded = 5;
+   */
+  degraded: boolean;
+
+  /**
+   * Human-readable degraded-mode warning; "" for canonical reads.
+   *
+   * @generated from field: string warning = 6;
+   */
+  warning: string;
 };
 
 /**
@@ -214,6 +256,27 @@ export type PlansPathOutput = Message<"vrooli.cli.v1.PlansPathOutput"> & {
    * @generated from field: string path = 3;
    */
   path: string;
+
+  /**
+   * Read source: "plan-manager" for canonical reads or "mirror-fallback" for degraded mirror reads.
+   *
+   * @generated from field: string source = 4;
+   */
+  source: string;
+
+  /**
+   * True when the response came from degraded mirror fallback.
+   *
+   * @generated from field: bool degraded = 5;
+   */
+  degraded: boolean;
+
+  /**
+   * Human-readable degraded-mode warning; "" for canonical reads.
+   *
+   * @generated from field: string warning = 6;
+   */
+  warning: string;
 };
 
 /**
@@ -313,6 +376,27 @@ export type PlansExportOutput = Message<"vrooli.cli.v1.PlansExportOutput"> & {
    * @generated from field: string path = 3;
    */
   path: string;
+
+  /**
+   * Source used to read the plan before exporting.
+   *
+   * @generated from field: string source = 4;
+   */
+  source: string;
+
+  /**
+   * True when export used degraded mirror fallback content.
+   *
+   * @generated from field: bool degraded = 5;
+   */
+  degraded: boolean;
+
+  /**
+   * Human-readable degraded-mode warning; "" for canonical reads.
+   *
+   * @generated from field: string warning = 6;
+   */
+  warning: string;
 };
 
 /**

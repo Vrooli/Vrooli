@@ -39,32 +39,50 @@ class PlansAddOutput(_message.Message):
     def __init__(self, success: _Optional[bool] = ..., plan: _Optional[_Union[PlansRecord, _Mapping]] = ...) -> None: ...
 
 class PlansListOutput(_message.Message):
-    __slots__ = ("success", "plans")
+    __slots__ = ("success", "plans", "source", "degraded", "warning")
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     PLANS_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_FIELD_NUMBER: _ClassVar[int]
+    WARNING_FIELD_NUMBER: _ClassVar[int]
     success: bool
     plans: _containers.RepeatedCompositeFieldContainer[PlansRecord]
-    def __init__(self, success: _Optional[bool] = ..., plans: _Optional[_Iterable[_Union[PlansRecord, _Mapping]]] = ...) -> None: ...
+    source: str
+    degraded: bool
+    warning: str
+    def __init__(self, success: _Optional[bool] = ..., plans: _Optional[_Iterable[_Union[PlansRecord, _Mapping]]] = ..., source: _Optional[str] = ..., degraded: _Optional[bool] = ..., warning: _Optional[str] = ...) -> None: ...
 
 class PlansShowOutput(_message.Message):
-    __slots__ = ("success", "plan", "content")
+    __slots__ = ("success", "plan", "content", "source", "degraded", "warning")
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     PLAN_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_FIELD_NUMBER: _ClassVar[int]
+    WARNING_FIELD_NUMBER: _ClassVar[int]
     success: bool
     plan: PlansRecord
     content: str
-    def __init__(self, success: _Optional[bool] = ..., plan: _Optional[_Union[PlansRecord, _Mapping]] = ..., content: _Optional[str] = ...) -> None: ...
+    source: str
+    degraded: bool
+    warning: str
+    def __init__(self, success: _Optional[bool] = ..., plan: _Optional[_Union[PlansRecord, _Mapping]] = ..., content: _Optional[str] = ..., source: _Optional[str] = ..., degraded: _Optional[bool] = ..., warning: _Optional[str] = ...) -> None: ...
 
 class PlansPathOutput(_message.Message):
-    __slots__ = ("success", "id", "path")
+    __slots__ = ("success", "id", "path", "source", "degraded", "warning")
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_FIELD_NUMBER: _ClassVar[int]
+    WARNING_FIELD_NUMBER: _ClassVar[int]
     success: bool
     id: str
     path: str
-    def __init__(self, success: _Optional[bool] = ..., id: _Optional[str] = ..., path: _Optional[str] = ...) -> None: ...
+    source: str
+    degraded: bool
+    warning: str
+    def __init__(self, success: _Optional[bool] = ..., id: _Optional[str] = ..., path: _Optional[str] = ..., source: _Optional[str] = ..., degraded: _Optional[bool] = ..., warning: _Optional[str] = ...) -> None: ...
 
 class PlansArchiveOutput(_message.Message):
     __slots__ = ("success", "plan")
@@ -85,11 +103,17 @@ class PlansImportOutput(_message.Message):
     def __init__(self, success: _Optional[bool] = ..., plan: _Optional[_Union[PlansRecord, _Mapping]] = ..., deleted_source: _Optional[bool] = ...) -> None: ...
 
 class PlansExportOutput(_message.Message):
-    __slots__ = ("success", "id", "path")
+    __slots__ = ("success", "id", "path", "source", "degraded", "warning")
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_FIELD_NUMBER: _ClassVar[int]
+    WARNING_FIELD_NUMBER: _ClassVar[int]
     success: bool
     id: str
     path: str
-    def __init__(self, success: _Optional[bool] = ..., id: _Optional[str] = ..., path: _Optional[str] = ...) -> None: ...
+    source: str
+    degraded: bool
+    warning: str
+    def __init__(self, success: _Optional[bool] = ..., id: _Optional[str] = ..., path: _Optional[str] = ..., source: _Optional[str] = ..., degraded: _Optional[bool] = ..., warning: _Optional[str] = ...) -> None: ...

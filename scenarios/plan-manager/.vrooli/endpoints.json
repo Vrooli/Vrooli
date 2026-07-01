@@ -149,6 +149,14 @@
       "category": "plans"
     },
     {
+      "id": "plans_reconcile",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/ReconcilePlans",
+      "method": "POST",
+      "summary": "Reconcile plans",
+      "description": "Repairs rendered mirrors and non-destructively adopts legacy markdown plans in bulk.",
+      "category": "plans"
+    },
+    {
       "id": "plans_list_templates",
       "path": "/vrooli.plan_manager.v1.plans.PlansService/ListTemplates",
       "method": "POST",

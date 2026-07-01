@@ -5,25 +5,17 @@ package vrooli.audio_tools.v1.eval;
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval;eval_v1";
 
 // =============================================================================
-// EVAL DOMAIN — the STT strategy comparison harness surface.
+// EVAL REPORT TYPES — shared STT strategy comparison report contract.
 // =============================================================================
 //
 // @layer 5  (api surface)
 // @domain eval
 // @stability experimental
 //
-// Replays the corpus through batch + vad-segment + overlap-agree and
-// reports WER, compute cost (Whisper-calls / audio-seconds / RTF), and
-// finalization latency (p50/p95). Kept separate from CorpusService so
-// clip CRUD and evaluation stay distinct responsibilities (mirrors
-// search-hub's separate EvalService). Requires a live Whisper backend.
+// Shared report messages used by the persisted async ExperimentService. The
+// former blocking eval RPC was retired so one async path owns
+// evaluation lifecycle, persistence, progress, report retrieval, and compare.
 // =============================================================================
-
-service EvalService {
-  // RunEval replays the selected clips through the given strategies and
-  // returns the comparison report.
-  rpc RunEval(RunEvalRequest) returns (RunEvalResponse);
-}
 
 // EvalStrategy selects one strategy row + its config overrides. Unset
 // overlap fields fall back to the persisted stream-config defaults; a
@@ -41,22 +33,6 @@ message EvalStrategy {
   // overlap_max_window_ms caps overlap_agree's uncommitted tail before it
   // force-commits. 0 = default.
   int32 overlap_max_window_ms = 7;
-}
-
-message RunEvalRequest {
-  // clip_ids narrows the run; empty = the whole corpus.
-  repeated string clip_ids = 1;
-  // strategies to compare; empty = the default trio (batch, vad, overlap).
-  repeated EvalStrategy strategies = 2;
-  // realtime_repeats real-time-paced runs per clip feed the latency
-  // distribution; 0 = quality-only (no latency).
-  int32 realtime_repeats = 3;
-  // chunk_ms is the replay chunk size; 0 defaults to 100.
-  int32 chunk_ms = 4;
-}
-
-message RunEvalResponse {
-  EvalReport report = 1;
 }
 
 message EvalReport {

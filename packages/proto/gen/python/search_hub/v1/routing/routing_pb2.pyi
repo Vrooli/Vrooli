@@ -100,18 +100,20 @@ class MeasureHit(_message.Message):
     def __init__(self, measure_id: _Optional[str] = ..., scenario: _Optional[str] = ..., params: _Optional[_Mapping[str, str]] = ..., answer: _Optional[str] = ..., needs: _Optional[_Iterable[str]] = ..., effect: _Optional[str] = ..., executed_query: _Optional[str] = ..., confidence: _Optional[float] = ...) -> None: ...
 
 class ProviderResultGroup(_message.Message):
-    __slots__ = ("provider_id", "hits", "count", "degraded", "note")
+    __slots__ = ("provider_id", "hits", "count", "degraded", "note", "latency_ms")
     PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     HITS_FIELD_NUMBER: _ClassVar[int]
     COUNT_FIELD_NUMBER: _ClassVar[int]
     DEGRADED_FIELD_NUMBER: _ClassVar[int]
     NOTE_FIELD_NUMBER: _ClassVar[int]
+    LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
     provider_id: str
     hits: _containers.RepeatedCompositeFieldContainer[SearchHit]
     count: int
     degraded: bool
     note: str
-    def __init__(self, provider_id: _Optional[str] = ..., hits: _Optional[_Iterable[_Union[SearchHit, _Mapping]]] = ..., count: _Optional[int] = ..., degraded: _Optional[bool] = ..., note: _Optional[str] = ...) -> None: ...
+    latency_ms: int
+    def __init__(self, provider_id: _Optional[str] = ..., hits: _Optional[_Iterable[_Union[SearchHit, _Mapping]]] = ..., count: _Optional[int] = ..., degraded: _Optional[bool] = ..., note: _Optional[str] = ..., latency_ms: _Optional[int] = ...) -> None: ...
 
 class QueryResponse(_message.Message):
     __slots__ = ("ranked", "groups", "corpora_searched", "routing_explanation", "reranked", "degraded", "latency_ms")

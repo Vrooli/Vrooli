@@ -166,6 +166,23 @@ const (
 	WorkPostureSourceImportLegacy     = planmodel.WorkPostureSourceImportLegacy
 )
 
+// RenderedMirrorStatus describes the freshness/repair state of a plan's durable
+// rendered markdown projection.
+type RenderedMirrorStatus = planmodel.RenderedMirrorStatus
+
+const (
+	RenderedMirrorStatusUnspecified = planmodel.RenderedMirrorStatusUnspecified
+	RenderedMirrorStatusFresh       = planmodel.RenderedMirrorStatusFresh
+	RenderedMirrorStatusMissing     = planmodel.RenderedMirrorStatusMissing
+	RenderedMirrorStatusStale       = planmodel.RenderedMirrorStatusStale
+	RenderedMirrorStatusWriteFailed = planmodel.RenderedMirrorStatusWriteFailed
+	RenderedMirrorStatusUnknown     = planmodel.RenderedMirrorStatusUnknown
+)
+
+// RenderedPlanMirror is the file-addressable markdown projection metadata for a
+// canonical structured plan.
+type RenderedPlanMirror = planmodel.RenderedPlanMirror
+
 // LegacySection is one imported markdown section preserved as provenance.
 type LegacySection = planmodel.LegacySection
 
@@ -201,3 +218,68 @@ type PlanTemplate = planmodel.PlanTemplate
 
 // ListFilter narrows ListPlans. A zero value matches all non-archived plans.
 type ListFilter = planmodel.ListFilter
+
+// WorkspaceScope anchors filesystem-scoped plan operations to a Vrooli
+// workspace root instead of the Plan Manager API process cwd.
+type WorkspaceScope struct {
+	ID   string
+	Root string
+}
+
+// ReconcileConflictPolicy controls how bulk legacy adoption handles plans that
+// appear to already exist.
+type ReconcileConflictPolicy string
+
+const (
+	ReconcileConflictReportOnly   ReconcileConflictPolicy = "report_only"
+	ReconcileConflictSkipExisting ReconcileConflictPolicy = "skip_existing"
+)
+
+// ReconcileRequest describes one bulk mirror/adoption pass. DryRun reports the
+// same item decisions without mutating SQLite or mirror files.
+type ReconcileRequest struct {
+	DryRun                 bool
+	RepairMirrors          bool
+	AdoptLegacy            bool
+	IncludeArchived        bool
+	IncludeArchivedLegacy  bool
+	ConflictPolicy         ReconcileConflictPolicy
+	Workspace              WorkspaceScope
+	SourceRuntimeHomePlans bool
+	SourceDocsPlans        bool
+	SourceRepoPlans        bool
+}
+
+// ReconcileAction is the per-item outcome of a reconcile pass.
+type ReconcileAction string
+
+const (
+	ReconcileActionUnspecified        ReconcileAction = ""
+	ReconcileActionAlreadyCanonical   ReconcileAction = "already_canonical"
+	ReconcileActionMirrorFresh        ReconcileAction = "mirror_fresh"
+	ReconcileActionMirrorRepairNeeded ReconcileAction = "mirror_repair_needed"
+	ReconcileActionMirrorRepaired     ReconcileAction = "mirror_repaired"
+	ReconcileActionImportPlanned      ReconcileAction = "import_planned"
+	ReconcileActionImported           ReconcileAction = "imported"
+	ReconcileActionSkippedDuplicate   ReconcileAction = "skipped_duplicate"
+	ReconcileActionParseFailed        ReconcileAction = "parse_failed"
+	ReconcileActionConflict           ReconcileAction = "conflict"
+)
+
+// ReconcileItem reports one inspected canonical plan or legacy source.
+type ReconcileItem struct {
+	Action          ReconcileAction
+	PlanID          string
+	Slug            string
+	Title           string
+	SourcePath      string
+	Mirror          RenderedPlanMirror
+	SourceUntouched bool
+	Error           string
+}
+
+// ReconcileResult is the full bulk reconcile report.
+type ReconcileResult struct {
+	DryRun bool
+	Items  []ReconcileItem
+}

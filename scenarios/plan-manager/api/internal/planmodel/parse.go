@@ -7,15 +7,16 @@ import (
 )
 
 var (
-	titleRe              = regexp.MustCompile(`(?m)^#\s+(.+?)\s*$`)
-	sectionRe            = regexp.MustCompile(`(?m)^##\s+(.+?)\s*$`)
-	subHeadingRe         = regexp.MustCompile(`(?m)^###\s+(.+?)\s*$`)
-	phaseRe              = regexp.MustCompile(`(?m)^###\s+Phase\s+(\d+)\s*[—:-]\s*(.+?)\s*$`)
-	referenceRe          = regexp.MustCompile(`\[(CODE|REQ|DOC):\s*([^\]]+?)\]`)
-	malformedReferenceRe = regexp.MustCompile(`\[(CODE|REQ|DOC)(?:\s*:)?\s*(?:\]|$)`)
-	bulletKeyValueLineRe = regexp.MustCompile(`(?m)^-\s*([A-Za-z ]+):\s*(.+?)\s*$`)
-	contextItemLineRe    = regexp.MustCompile(`^-\s*(.+?)(?:\s+_\((.+)\)_)?\s*$`)
-	backtickValueRe      = regexp.MustCompile("`([^`]+)`")
+	titleRe               = regexp.MustCompile(`(?m)^#\s+(.+?)\s*$`)
+	sectionRe             = regexp.MustCompile(`(?m)^##\s+(.+?)\s*$`)
+	subHeadingRe          = regexp.MustCompile(`(?m)^###\s+(.+?)\s*$`)
+	phaseRe               = regexp.MustCompile(`(?m)^###\s+Phase\s+(\d+)\s*[—:-]\s*(.+?)\s*$`)
+	referenceRe           = regexp.MustCompile(`\[(CODE|REQ|DOC):\s*([^\]]+?)\]`)
+	malformedReferenceRe  = regexp.MustCompile(`\[(CODE|REQ|DOC)(?:\s*:)?\s*(?:\]|$)`)
+	bulletKeyValueLineRe  = regexp.MustCompile(`(?m)^-\s*([A-Za-z ]+):\s*(.+?)\s*$`)
+	contextItemLineRe     = regexp.MustCompile(`^-\s*(.+?)(?:\s+_\((.+)\)_)?\s*$`)
+	backtickValueRe       = regexp.MustCompile("`([^`]+)`")
+	sectionNumberPrefixRe = regexp.MustCompile(`^\d+[A-Za-z]?\.\s+`)
 )
 
 // ParsePlanMarkdown parses a markdown plan into the structured model. It is a
@@ -346,11 +347,17 @@ func extractOrderedSections(markdown string) []sectionEntry {
 		}
 		out = append(out, sectionEntry{
 			heading: heading,
-			lower:   strings.ToLower(heading),
+			lower:   normalizeSectionKey(heading),
 			body:    strings.TrimSpace(body),
 		})
 	}
 	return out
+}
+
+func normalizeSectionKey(heading string) string {
+	heading = strings.TrimSpace(heading)
+	heading = sectionNumberPrefixRe.ReplaceAllString(heading, "")
+	return strings.ToLower(strings.TrimSpace(heading))
 }
 
 // prePhaseMarkdown returns the markdown before the first phase heading, so

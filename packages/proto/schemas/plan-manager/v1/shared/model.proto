@@ -156,6 +156,31 @@ enum WorkPostureSource {
   WORK_POSTURE_SOURCE_IMPORT_LEGACY = 4; // carried in from a legacy markdown import
 }
 
+// RenderedMirrorStatus describes the health of the durable rendered markdown
+// projection for a canonical structured plan. The mirror is repairable from the
+// structured record and is never editable truth.
+enum RenderedMirrorStatus {
+  RENDERED_MIRROR_STATUS_UNSPECIFIED = 0;
+  RENDERED_MIRROR_STATUS_FRESH = 1;
+  RENDERED_MIRROR_STATUS_MISSING = 2;
+  RENDERED_MIRROR_STATUS_STALE = 3;
+  RENDERED_MIRROR_STATUS_WRITE_FAILED = 4;
+  RENDERED_MIRROR_STATUS_UNKNOWN = 5;
+}
+
+// RenderedPlanMirror is the durable markdown projection contract for a plan.
+// SQLite remains canonical; this metadata lets clients link to and diagnose the
+// file-addressable rendered view under the repo-contract runtime-home plans dir.
+message RenderedPlanMirror {
+  string path = 1; // absolute path to the rendered markdown mirror
+  string relative_path = 2; // path relative to runtime-home plans
+  string content_hash = 3; // sha256 of rendered markdown bytes
+  string render_version = 4; // deterministic renderer version
+  string rendered_at = 5; // RFC3339
+  RenderedMirrorStatus status = 6;
+  string last_error = 7; // diagnostics for degraded/repairable states
+}
+
 // LegacySection is one imported markdown section preserved as provenance because
 // it could not be mapped to a canonical field — never silently dropped.
 message LegacySection {
@@ -543,6 +568,9 @@ message Plan {
   // The plan's first-class blast-radius contract (acceptance_allow /
   // acceptance_deny). Source of truth for posture, anchor, and validation scope.
   ChangeBoundary change_boundary = 32;
+  // COMPUTED rendered markdown mirror metadata. The file is a durable projection,
+  // not canonical editable state.
+  RenderedPlanMirror mirror = 33;
 }
 
 // PlanEdge is one supersession/dependency edge between two plans (the plan

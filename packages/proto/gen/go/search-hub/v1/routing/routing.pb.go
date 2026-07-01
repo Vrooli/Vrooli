@@ -517,7 +517,9 @@ type ProviderResultGroup struct {
 	// Stale / timed-out / down.
 	Degraded bool `protobuf:"varint,4,opt,name=degraded,proto3" json:"degraded,omitempty"`
 	// e.g. "last sync 3h ago" / "unreachable — skipped".
-	Note          string `protobuf:"bytes,5,opt,name=note,proto3" json:"note,omitempty"`
+	Note string `protobuf:"bytes,5,opt,name=note,proto3" json:"note,omitempty"`
+	// Per-provider fan-out leg latency in milliseconds, including degraded legs.
+	LatencyMs     int64 `protobuf:"varint,6,opt,name=latency_ms,json=latencyMs,proto3" json:"latency_ms,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -585,6 +587,13 @@ func (x *ProviderResultGroup) GetNote() string {
 		return x.Note
 	}
 	return ""
+}
+
+func (x *ProviderResultGroup) GetLatencyMs() int64 {
+	if x != nil {
+		return x.LatencyMs
+	}
+	return 0
 }
 
 type QueryResponse struct {
@@ -917,14 +926,16 @@ const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"confidence\x1a9\n" +
 	"\vParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb9\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd8\x01\n" +
 	"\x13ProviderResultGroup\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12;\n" +
 	"\x04hits\x18\x02 \x03(\v2'.vrooli.search_hub.v1.routing.SearchHitR\x04hits\x12\x14\n" +
 	"\x05count\x18\x03 \x01(\x05R\x05count\x12\x1a\n" +
 	"\bdegraded\x18\x04 \x01(\bR\bdegraded\x12\x12\n" +
-	"\x04note\x18\x05 \x01(\tR\x04note\"\xce\x02\n" +
+	"\x04note\x18\x05 \x01(\tR\x04note\x12\x1d\n" +
+	"\n" +
+	"latency_ms\x18\x06 \x01(\x03R\tlatencyMs\"\xce\x02\n" +
 	"\rQueryResponse\x12?\n" +
 	"\x06ranked\x18\x01 \x03(\v2'.vrooli.search_hub.v1.routing.SearchHitR\x06ranked\x12I\n" +
 	"\x06groups\x18\x02 \x03(\v21.vrooli.search_hub.v1.routing.ProviderResultGroupR\x06groups\x12)\n" +

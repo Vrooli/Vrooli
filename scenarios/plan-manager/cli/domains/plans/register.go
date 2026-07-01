@@ -36,6 +36,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGro
 		"PlansService.LinkDependency":   h.depend,
 		"PlansService.ImportPlan":       h.importPlan,
 		"PlansService.MigratePlan":      h.migrate,
+		"PlansService.ReconcilePlans":   h.reconcile,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("plans: load plans group: %w", err)

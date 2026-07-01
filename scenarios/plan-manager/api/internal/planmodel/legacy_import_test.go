@@ -91,6 +91,69 @@ func TestLegacyImportMapsAndPreserves(t *testing.T) {
 	}
 }
 
+func TestLegacyImportMapsNumberedImplementationPlanHeadings(t *testing.T) {
+	p, err := ParsePlanMarkdown(`# Numbered Legacy Plan
+
+## 1. Purpose
+Make the thing work.
+
+## 3. Problem Statement
+The legacy thing is broken and nobody can review it.
+
+## 6. Target End State
+The thing works and is reviewable.
+
+## 7. Implementation Strategy
+Build it as a vertical slice, then validate.
+
+### Phase 1 — Build
+- Intent: Build the slice.
+- Acceptance: It compiles.
+
+## 9. Testing Plan
+Run the unit suite and the scenario test.
+
+## 11. Risks + Mitigations
+It might regress; compare against the baseline.
+
+## 13. Definition of Done
+All validation passes.
+`)
+	if err != nil {
+		t.Fatalf("parse numbered legacy plan: %v", err)
+	}
+
+	checks := map[string]string{
+		"purpose":             p.Purpose,
+		"problem_statement":   p.ProblemStatement,
+		"target_outcome":      p.TargetOutcome,
+		"technical_approach":  p.TechnicalApproach,
+		"validation_strategy": p.ValidationStrategy,
+		"risks_hazards":       p.RisksHazards,
+		"definition_of_done":  p.DefinitionOfDone,
+	}
+	wants := map[string]string{
+		"purpose":             "Make the thing work.",
+		"problem_statement":   "The legacy thing is broken and nobody can review it.",
+		"target_outcome":      "The thing works and is reviewable.",
+		"technical_approach":  "Build it as a vertical slice, then validate.",
+		"validation_strategy": "Run the unit suite and the scenario test.",
+		"risks_hazards":       "It might regress; compare against the baseline.",
+		"definition_of_done":  "All validation passes.",
+	}
+	for field, got := range checks {
+		if got != wants[field] {
+			t.Errorf("%s = %q, want %q", field, got, wants[field])
+		}
+	}
+	if len(p.Phases) != 1 || p.Phases[0].Title != "Build" {
+		t.Fatalf("phases = %+v", p.Phases)
+	}
+	if len(p.PreservedLegacySections) != 0 {
+		t.Fatalf("numbered canonical legacy sections should not be preserved: %+v", p.PreservedLegacySections)
+	}
+}
+
 func keys(m map[string]string) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {

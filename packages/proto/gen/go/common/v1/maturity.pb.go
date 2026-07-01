@@ -145,14 +145,17 @@ func (CleanRequirement) EnumDescriptor() ([]byte, []int) {
 
 // LocalMaturityLevel is one provider-local rung from `.vrooli/maturity.json`.
 type LocalMaturityLevel struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	EntryCriteria []string               `protobuf:"bytes,4,rep,name=entry_criteria,json=entryCriteria,proto3" json:"entry_criteria,omitempty"`
-	ExitCriteria  []string               `protobuf:"bytes,5,rep,name=exit_criteria,json=exitCriteria,proto3" json:"exit_criteria,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name              string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description       string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	EntryCriteria     []string               `protobuf:"bytes,4,rep,name=entry_criteria,json=entryCriteria,proto3" json:"entry_criteria,omitempty"`
+	ExitCriteria      []string               `protobuf:"bytes,5,rep,name=exit_criteria,json=exitCriteria,proto3" json:"exit_criteria,omitempty"`
+	StatusLabel       string                 `protobuf:"bytes,6,opt,name=status_label,json=statusLabel,proto3" json:"status_label,omitempty"`
+	CapabilitySummary string                 `protobuf:"bytes,7,opt,name=capability_summary,json=capabilitySummary,proto3" json:"capability_summary,omitempty"`
+	NextUnlock        string                 `protobuf:"bytes,8,opt,name=next_unlock,json=nextUnlock,proto3" json:"next_unlock,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *LocalMaturityLevel) Reset() {
@@ -220,6 +223,27 @@ func (x *LocalMaturityLevel) GetExitCriteria() []string {
 	return nil
 }
 
+func (x *LocalMaturityLevel) GetStatusLabel() string {
+	if x != nil {
+		return x.StatusLabel
+	}
+	return ""
+}
+
+func (x *LocalMaturityLevel) GetCapabilitySummary() string {
+	if x != nil {
+		return x.CapabilitySummary
+	}
+	return ""
+}
+
+func (x *LocalMaturityLevel) GetNextUnlock() string {
+	if x != nil {
+		return x.NextUnlock
+	}
+	return ""
+}
+
 // FindingMaturity is the maturity metadata attached to one provider finding.
 type FindingMaturity struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -230,8 +254,11 @@ type FindingMaturity struct {
 	Dimension           string           `protobuf:"bytes,3,opt,name=dimension,proto3" json:"dimension,omitempty"`
 	RecommendedSkillIds []string         `protobuf:"bytes,4,rep,name=recommended_skill_ids,json=recommendedSkillIds,proto3" json:"recommended_skill_ids,omitempty"`
 	CleanRequirement    CleanRequirement `protobuf:"varint,5,opt,name=clean_requirement,json=cleanRequirement,proto3,enum=common.v1.CleanRequirement" json:"clean_requirement,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Provider-local capability ladder that owns this finding, when the provider
+	// declares multiple ladders in `.vrooli/maturity.json`.
+	CapabilityId  string `protobuf:"bytes,6,opt,name=capability_id,json=capabilityId,proto3" json:"capability_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *FindingMaturity) Reset() {
@@ -297,6 +324,13 @@ func (x *FindingMaturity) GetCleanRequirement() CleanRequirement {
 		return x.CleanRequirement
 	}
 	return CleanRequirement_CLEAN_REQUIREMENT_UNSPECIFIED
+}
+
+func (x *FindingMaturity) GetCapabilityId() string {
+	if x != nil {
+		return x.CapabilityId
+	}
+	return ""
 }
 
 // AssessmentFinding is the shared finding projection used by the assessment.
@@ -496,6 +530,246 @@ func (x *LocalMaturityAssessment) GetUnknownCount() int32 {
 	return 0
 }
 
+type CapabilityMaturityAssessment struct {
+	state                      protoimpl.MessageState `protogen:"open.v1"`
+	Id                         string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Label                      string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Description                string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	CurrentLevel               string                 `protobuf:"bytes,4,opt,name=current_level,json=currentLevel,proto3" json:"current_level,omitempty"`
+	NextLevel                  string                 `protobuf:"bytes,5,opt,name=next_level,json=nextLevel,proto3" json:"next_level,omitempty"`
+	Levels                     []*LocalMaturityLevel  `protobuf:"bytes,6,rep,name=levels,proto3" json:"levels,omitempty"`
+	CurrentSummary             string                 `protobuf:"bytes,7,opt,name=current_summary,json=currentSummary,proto3" json:"current_summary,omitempty"`
+	NextUnlock                 string                 `protobuf:"bytes,8,opt,name=next_unlock,json=nextUnlock,proto3" json:"next_unlock,omitempty"`
+	BlockingFindingCodes       []string               `protobuf:"bytes,9,rep,name=blocking_finding_codes,json=blockingFindingCodes,proto3" json:"blocking_finding_codes,omitempty"`
+	Clean                      bool                   `protobuf:"varint,10,opt,name=clean,proto3" json:"clean,omitempty"`
+	UnknownCount               int32                  `protobuf:"varint,11,opt,name=unknown_count,json=unknownCount,proto3" json:"unknown_count,omitempty"`
+	FindingsByGlobalImpact     map[string]int32       `protobuf:"bytes,12,rep,name=findings_by_global_impact,json=findingsByGlobalImpact,proto3" json:"findings_by_global_impact,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	FindingsBySeverity         map[string]int32       `protobuf:"bytes,13,rep,name=findings_by_severity,json=findingsBySeverity,proto3" json:"findings_by_severity,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	FindingsByCleanRequirement map[string]int32       `protobuf:"bytes,14,rep,name=findings_by_clean_requirement,json=findingsByCleanRequirement,proto3" json:"findings_by_clean_requirement,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	PriorityRank               int32                  `protobuf:"varint,15,opt,name=priority_rank,json=priorityRank,proto3" json:"priority_rank,omitempty"`
+	PriorityReason             string                 `protobuf:"bytes,16,opt,name=priority_reason,json=priorityReason,proto3" json:"priority_reason,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
+}
+
+func (x *CapabilityMaturityAssessment) Reset() {
+	*x = CapabilityMaturityAssessment{}
+	mi := &file_common_v1_maturity_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CapabilityMaturityAssessment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CapabilityMaturityAssessment) ProtoMessage() {}
+
+func (x *CapabilityMaturityAssessment) ProtoReflect() protoreflect.Message {
+	mi := &file_common_v1_maturity_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CapabilityMaturityAssessment.ProtoReflect.Descriptor instead.
+func (*CapabilityMaturityAssessment) Descriptor() ([]byte, []int) {
+	return file_common_v1_maturity_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CapabilityMaturityAssessment) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *CapabilityMaturityAssessment) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *CapabilityMaturityAssessment) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *CapabilityMaturityAssessment) GetCurrentLevel() string {
+	if x != nil {
+		return x.CurrentLevel
+	}
+	return ""
+}
+
+func (x *CapabilityMaturityAssessment) GetNextLevel() string {
+	if x != nil {
+		return x.NextLevel
+	}
+	return ""
+}
+
+func (x *CapabilityMaturityAssessment) GetLevels() []*LocalMaturityLevel {
+	if x != nil {
+		return x.Levels
+	}
+	return nil
+}
+
+func (x *CapabilityMaturityAssessment) GetCurrentSummary() string {
+	if x != nil {
+		return x.CurrentSummary
+	}
+	return ""
+}
+
+func (x *CapabilityMaturityAssessment) GetNextUnlock() string {
+	if x != nil {
+		return x.NextUnlock
+	}
+	return ""
+}
+
+func (x *CapabilityMaturityAssessment) GetBlockingFindingCodes() []string {
+	if x != nil {
+		return x.BlockingFindingCodes
+	}
+	return nil
+}
+
+func (x *CapabilityMaturityAssessment) GetClean() bool {
+	if x != nil {
+		return x.Clean
+	}
+	return false
+}
+
+func (x *CapabilityMaturityAssessment) GetUnknownCount() int32 {
+	if x != nil {
+		return x.UnknownCount
+	}
+	return 0
+}
+
+func (x *CapabilityMaturityAssessment) GetFindingsByGlobalImpact() map[string]int32 {
+	if x != nil {
+		return x.FindingsByGlobalImpact
+	}
+	return nil
+}
+
+func (x *CapabilityMaturityAssessment) GetFindingsBySeverity() map[string]int32 {
+	if x != nil {
+		return x.FindingsBySeverity
+	}
+	return nil
+}
+
+func (x *CapabilityMaturityAssessment) GetFindingsByCleanRequirement() map[string]int32 {
+	if x != nil {
+		return x.FindingsByCleanRequirement
+	}
+	return nil
+}
+
+func (x *CapabilityMaturityAssessment) GetPriorityRank() int32 {
+	if x != nil {
+		return x.PriorityRank
+	}
+	return 0
+}
+
+func (x *CapabilityMaturityAssessment) GetPriorityReason() string {
+	if x != nil {
+		return x.PriorityReason
+	}
+	return ""
+}
+
+type PriorityFocus struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	CapabilityId    string                 `protobuf:"bytes,1,opt,name=capability_id,json=capabilityId,proto3" json:"capability_id,omitempty"`
+	CapabilityLabel string                 `protobuf:"bytes,2,opt,name=capability_label,json=capabilityLabel,proto3" json:"capability_label,omitempty"`
+	CurrentLevel    string                 `protobuf:"bytes,3,opt,name=current_level,json=currentLevel,proto3" json:"current_level,omitempty"`
+	NextLevel       string                 `protobuf:"bytes,4,opt,name=next_level,json=nextLevel,proto3" json:"next_level,omitempty"`
+	Reason          string                 `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *PriorityFocus) Reset() {
+	*x = PriorityFocus{}
+	mi := &file_common_v1_maturity_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PriorityFocus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PriorityFocus) ProtoMessage() {}
+
+func (x *PriorityFocus) ProtoReflect() protoreflect.Message {
+	mi := &file_common_v1_maturity_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PriorityFocus.ProtoReflect.Descriptor instead.
+func (*PriorityFocus) Descriptor() ([]byte, []int) {
+	return file_common_v1_maturity_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *PriorityFocus) GetCapabilityId() string {
+	if x != nil {
+		return x.CapabilityId
+	}
+	return ""
+}
+
+func (x *PriorityFocus) GetCapabilityLabel() string {
+	if x != nil {
+		return x.CapabilityLabel
+	}
+	return ""
+}
+
+func (x *PriorityFocus) GetCurrentLevel() string {
+	if x != nil {
+		return x.CurrentLevel
+	}
+	return ""
+}
+
+func (x *PriorityFocus) GetNextLevel() string {
+	if x != nil {
+		return x.NextLevel
+	}
+	return ""
+}
+
+func (x *PriorityFocus) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 // MaturityAssessment is the single structural object health providers emit.
 type MaturityAssessment struct {
 	state                      protoimpl.MessageState   `protogen:"open.v1"`
@@ -512,14 +786,16 @@ type MaturityAssessment struct {
 	// Number of findings a provider auto-fix can deterministically remediate.
 	AutofixableCount int32 `protobuf:"varint,11,opt,name=autofixable_count,json=autofixableCount,proto3" json:"autofixable_count,omitempty"`
 	// Total findings considered for auto-fix coverage (the coverage denominator).
-	AutofixableTotal int32 `protobuf:"varint,12,opt,name=autofixable_total,json=autofixableTotal,proto3" json:"autofixable_total,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	AutofixableTotal          int32                           `protobuf:"varint,12,opt,name=autofixable_total,json=autofixableTotal,proto3" json:"autofixable_total,omitempty"`
+	Capabilities              []*CapabilityMaturityAssessment `protobuf:"bytes,13,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	HighestPriorityCapability *PriorityFocus                  `protobuf:"bytes,14,opt,name=highest_priority_capability,json=highestPriorityCapability,proto3" json:"highest_priority_capability,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *MaturityAssessment) Reset() {
 	*x = MaturityAssessment{}
-	mi := &file_common_v1_maturity_proto_msgTypes[4]
+	mi := &file_common_v1_maturity_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -531,7 +807,7 @@ func (x *MaturityAssessment) String() string {
 func (*MaturityAssessment) ProtoMessage() {}
 
 func (x *MaturityAssessment) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_maturity_proto_msgTypes[4]
+	mi := &file_common_v1_maturity_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -544,7 +820,7 @@ func (x *MaturityAssessment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MaturityAssessment.ProtoReflect.Descriptor instead.
 func (*MaturityAssessment) Descriptor() ([]byte, []int) {
-	return file_common_v1_maturity_proto_rawDescGZIP(), []int{4}
+	return file_common_v1_maturity_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *MaturityAssessment) GetScenario() string {
@@ -631,24 +907,43 @@ func (x *MaturityAssessment) GetAutofixableTotal() int32 {
 	return 0
 }
 
+func (x *MaturityAssessment) GetCapabilities() []*CapabilityMaturityAssessment {
+	if x != nil {
+		return x.Capabilities
+	}
+	return nil
+}
+
+func (x *MaturityAssessment) GetHighestPriorityCapability() *PriorityFocus {
+	if x != nil {
+		return x.HighestPriorityCapability
+	}
+	return nil
+}
+
 var File_common_v1_maturity_proto protoreflect.FileDescriptor
 
 const file_common_v1_maturity_proto_rawDesc = "" +
 	"\n" +
-	"\x18common/v1/maturity.proto\x12\tcommon.v1\"\xa6\x01\n" +
+	"\x18common/v1/maturity.proto\x12\tcommon.v1\"\x99\x02\n" +
 	"\x12LocalMaturityLevel\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12%\n" +
 	"\x0eentry_criteria\x18\x04 \x03(\tR\rentryCriteria\x12#\n" +
-	"\rexit_criteria\x18\x05 \x03(\tR\fexitCriteria\"\x8c\x02\n" +
+	"\rexit_criteria\x18\x05 \x03(\tR\fexitCriteria\x12!\n" +
+	"\fstatus_label\x18\x06 \x01(\tR\vstatusLabel\x12-\n" +
+	"\x12capability_summary\x18\a \x01(\tR\x11capabilitySummary\x12\x1f\n" +
+	"\vnext_unlock\x18\b \x01(\tR\n" +
+	"nextUnlock\"\xb1\x02\n" +
 	"\x0fFindingMaturity\x12\x1f\n" +
 	"\vlocal_level\x18\x01 \x01(\tR\n" +
 	"localLevel\x12<\n" +
 	"\rglobal_impact\x18\x02 \x01(\x0e2\x17.common.v1.GlobalImpactR\fglobalImpact\x12\x1c\n" +
 	"\tdimension\x18\x03 \x01(\tR\tdimension\x122\n" +
 	"\x15recommended_skill_ids\x18\x04 \x03(\tR\x13recommendedSkillIds\x12H\n" +
-	"\x11clean_requirement\x18\x05 \x01(\x0e2\x1b.common.v1.CleanRequirementR\x10cleanRequirement\"\xb3\x02\n" +
+	"\x11clean_requirement\x18\x05 \x01(\x0e2\x1b.common.v1.CleanRequirementR\x10cleanRequirement\x12#\n" +
+	"\rcapability_id\x18\x06 \x01(\tR\fcapabilityId\"\xb3\x02\n" +
 	"\x11AssessmentFinding\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x1a\n" +
 	"\bseverity\x18\x02 \x01(\tR\bseverity\x12\x14\n" +
@@ -666,7 +961,43 @@ const file_common_v1_maturity_proto_rawDesc = "" +
 	"\x06levels\x18\x03 \x03(\v2\x1d.common.v1.LocalMaturityLevelR\x06levels\x124\n" +
 	"\x16blocking_finding_codes\x18\x04 \x03(\tR\x14blockingFindingCodes\x12\x14\n" +
 	"\x05clean\x18\x05 \x01(\bR\x05clean\x12#\n" +
-	"\runknown_count\x18\x06 \x01(\x05R\funknownCount\"\xc1\a\n" +
+	"\runknown_count\x18\x06 \x01(\x05R\funknownCount\"\xcb\b\n" +
+	"\x1cCapabilityMaturityAssessment\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12#\n" +
+	"\rcurrent_level\x18\x04 \x01(\tR\fcurrentLevel\x12\x1d\n" +
+	"\n" +
+	"next_level\x18\x05 \x01(\tR\tnextLevel\x125\n" +
+	"\x06levels\x18\x06 \x03(\v2\x1d.common.v1.LocalMaturityLevelR\x06levels\x12'\n" +
+	"\x0fcurrent_summary\x18\a \x01(\tR\x0ecurrentSummary\x12\x1f\n" +
+	"\vnext_unlock\x18\b \x01(\tR\n" +
+	"nextUnlock\x124\n" +
+	"\x16blocking_finding_codes\x18\t \x03(\tR\x14blockingFindingCodes\x12\x14\n" +
+	"\x05clean\x18\n" +
+	" \x01(\bR\x05clean\x12#\n" +
+	"\runknown_count\x18\v \x01(\x05R\funknownCount\x12~\n" +
+	"\x19findings_by_global_impact\x18\f \x03(\v2C.common.v1.CapabilityMaturityAssessment.FindingsByGlobalImpactEntryR\x16findingsByGlobalImpact\x12q\n" +
+	"\x14findings_by_severity\x18\r \x03(\v2?.common.v1.CapabilityMaturityAssessment.FindingsBySeverityEntryR\x12findingsBySeverity\x12\x8a\x01\n" +
+	"\x1dfindings_by_clean_requirement\x18\x0e \x03(\v2G.common.v1.CapabilityMaturityAssessment.FindingsByCleanRequirementEntryR\x1afindingsByCleanRequirement\x12#\n" +
+	"\rpriority_rank\x18\x0f \x01(\x05R\fpriorityRank\x12'\n" +
+	"\x0fpriority_reason\x18\x10 \x01(\tR\x0epriorityReason\x1aI\n" +
+	"\x1bFindingsByGlobalImpactEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1aE\n" +
+	"\x17FindingsBySeverityEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1aM\n" +
+	"\x1fFindingsByCleanRequirementEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"\xbb\x01\n" +
+	"\rPriorityFocus\x12#\n" +
+	"\rcapability_id\x18\x01 \x01(\tR\fcapabilityId\x12)\n" +
+	"\x10capability_label\x18\x02 \x01(\tR\x0fcapabilityLabel\x12#\n" +
+	"\rcurrent_level\x18\x03 \x01(\tR\fcurrentLevel\x12\x1d\n" +
+	"\n" +
+	"next_level\x18\x04 \x01(\tR\tnextLevel\x12\x16\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\"\xe8\b\n" +
 	"\x12MaturityAssessment\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1a\n" +
 	"\bprovider\x18\x02 \x01(\tR\bprovider\x12\x14\n" +
@@ -680,7 +1011,9 @@ const file_common_v1_maturity_proto_rawDesc = "" +
 	"\x1dfindings_by_clean_requirement\x18\n" +
 	" \x03(\v2=.common.v1.MaturityAssessment.FindingsByCleanRequirementEntryR\x1afindingsByCleanRequirement\x12+\n" +
 	"\x11autofixable_count\x18\v \x01(\x05R\x10autofixableCount\x12+\n" +
-	"\x11autofixable_total\x18\f \x01(\x05R\x10autofixableTotal\x1aI\n" +
+	"\x11autofixable_total\x18\f \x01(\x05R\x10autofixableTotal\x12K\n" +
+	"\fcapabilities\x18\r \x03(\v2'.common.v1.CapabilityMaturityAssessmentR\fcapabilities\x12X\n" +
+	"\x1bhighest_priority_capability\x18\x0e \x01(\v2\x18.common.v1.PriorityFocusR\x19highestPriorityCapability\x1aI\n" +
 	"\x1bFindingsByGlobalImpactEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1aE\n" +
@@ -718,34 +1051,45 @@ func file_common_v1_maturity_proto_rawDescGZIP() []byte {
 }
 
 var file_common_v1_maturity_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_common_v1_maturity_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_common_v1_maturity_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_common_v1_maturity_proto_goTypes = []any{
-	(GlobalImpact)(0),               // 0: common.v1.GlobalImpact
-	(CleanRequirement)(0),           // 1: common.v1.CleanRequirement
-	(*LocalMaturityLevel)(nil),      // 2: common.v1.LocalMaturityLevel
-	(*FindingMaturity)(nil),         // 3: common.v1.FindingMaturity
-	(*AssessmentFinding)(nil),       // 4: common.v1.AssessmentFinding
-	(*LocalMaturityAssessment)(nil), // 5: common.v1.LocalMaturityAssessment
-	(*MaturityAssessment)(nil),      // 6: common.v1.MaturityAssessment
-	nil,                             // 7: common.v1.MaturityAssessment.FindingsByGlobalImpactEntry
-	nil,                             // 8: common.v1.MaturityAssessment.FindingsBySeverityEntry
-	nil,                             // 9: common.v1.MaturityAssessment.FindingsByCleanRequirementEntry
+	(GlobalImpact)(0),                    // 0: common.v1.GlobalImpact
+	(CleanRequirement)(0),                // 1: common.v1.CleanRequirement
+	(*LocalMaturityLevel)(nil),           // 2: common.v1.LocalMaturityLevel
+	(*FindingMaturity)(nil),              // 3: common.v1.FindingMaturity
+	(*AssessmentFinding)(nil),            // 4: common.v1.AssessmentFinding
+	(*LocalMaturityAssessment)(nil),      // 5: common.v1.LocalMaturityAssessment
+	(*CapabilityMaturityAssessment)(nil), // 6: common.v1.CapabilityMaturityAssessment
+	(*PriorityFocus)(nil),                // 7: common.v1.PriorityFocus
+	(*MaturityAssessment)(nil),           // 8: common.v1.MaturityAssessment
+	nil,                                  // 9: common.v1.CapabilityMaturityAssessment.FindingsByGlobalImpactEntry
+	nil,                                  // 10: common.v1.CapabilityMaturityAssessment.FindingsBySeverityEntry
+	nil,                                  // 11: common.v1.CapabilityMaturityAssessment.FindingsByCleanRequirementEntry
+	nil,                                  // 12: common.v1.MaturityAssessment.FindingsByGlobalImpactEntry
+	nil,                                  // 13: common.v1.MaturityAssessment.FindingsBySeverityEntry
+	nil,                                  // 14: common.v1.MaturityAssessment.FindingsByCleanRequirementEntry
 }
 var file_common_v1_maturity_proto_depIdxs = []int32{
-	0, // 0: common.v1.FindingMaturity.global_impact:type_name -> common.v1.GlobalImpact
-	1, // 1: common.v1.FindingMaturity.clean_requirement:type_name -> common.v1.CleanRequirement
-	3, // 2: common.v1.AssessmentFinding.maturity:type_name -> common.v1.FindingMaturity
-	2, // 3: common.v1.LocalMaturityAssessment.levels:type_name -> common.v1.LocalMaturityLevel
-	5, // 4: common.v1.MaturityAssessment.local:type_name -> common.v1.LocalMaturityAssessment
-	4, // 5: common.v1.MaturityAssessment.findings:type_name -> common.v1.AssessmentFinding
-	7, // 6: common.v1.MaturityAssessment.findings_by_global_impact:type_name -> common.v1.MaturityAssessment.FindingsByGlobalImpactEntry
-	8, // 7: common.v1.MaturityAssessment.findings_by_severity:type_name -> common.v1.MaturityAssessment.FindingsBySeverityEntry
-	9, // 8: common.v1.MaturityAssessment.findings_by_clean_requirement:type_name -> common.v1.MaturityAssessment.FindingsByCleanRequirementEntry
-	9, // [9:9] is the sub-list for method output_type
-	9, // [9:9] is the sub-list for method input_type
-	9, // [9:9] is the sub-list for extension type_name
-	9, // [9:9] is the sub-list for extension extendee
-	0, // [0:9] is the sub-list for field type_name
+	0,  // 0: common.v1.FindingMaturity.global_impact:type_name -> common.v1.GlobalImpact
+	1,  // 1: common.v1.FindingMaturity.clean_requirement:type_name -> common.v1.CleanRequirement
+	3,  // 2: common.v1.AssessmentFinding.maturity:type_name -> common.v1.FindingMaturity
+	2,  // 3: common.v1.LocalMaturityAssessment.levels:type_name -> common.v1.LocalMaturityLevel
+	2,  // 4: common.v1.CapabilityMaturityAssessment.levels:type_name -> common.v1.LocalMaturityLevel
+	9,  // 5: common.v1.CapabilityMaturityAssessment.findings_by_global_impact:type_name -> common.v1.CapabilityMaturityAssessment.FindingsByGlobalImpactEntry
+	10, // 6: common.v1.CapabilityMaturityAssessment.findings_by_severity:type_name -> common.v1.CapabilityMaturityAssessment.FindingsBySeverityEntry
+	11, // 7: common.v1.CapabilityMaturityAssessment.findings_by_clean_requirement:type_name -> common.v1.CapabilityMaturityAssessment.FindingsByCleanRequirementEntry
+	5,  // 8: common.v1.MaturityAssessment.local:type_name -> common.v1.LocalMaturityAssessment
+	4,  // 9: common.v1.MaturityAssessment.findings:type_name -> common.v1.AssessmentFinding
+	12, // 10: common.v1.MaturityAssessment.findings_by_global_impact:type_name -> common.v1.MaturityAssessment.FindingsByGlobalImpactEntry
+	13, // 11: common.v1.MaturityAssessment.findings_by_severity:type_name -> common.v1.MaturityAssessment.FindingsBySeverityEntry
+	14, // 12: common.v1.MaturityAssessment.findings_by_clean_requirement:type_name -> common.v1.MaturityAssessment.FindingsByCleanRequirementEntry
+	6,  // 13: common.v1.MaturityAssessment.capabilities:type_name -> common.v1.CapabilityMaturityAssessment
+	7,  // 14: common.v1.MaturityAssessment.highest_priority_capability:type_name -> common.v1.PriorityFocus
+	15, // [15:15] is the sub-list for method output_type
+	15, // [15:15] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_common_v1_maturity_proto_init() }
@@ -759,7 +1103,7 @@ func file_common_v1_maturity_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_common_v1_maturity_proto_rawDesc), len(file_common_v1_maturity_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   8,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

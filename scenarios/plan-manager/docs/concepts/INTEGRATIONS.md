@@ -13,6 +13,7 @@ re-implementing it, and every dependency is soft and degrades gracefully.
 | Dependency | Kind | Purpose | Hard/Soft |
 |---|---|---|---|
 | `~/.vrooli` home store (SQLite) | Resource | Durable plan persistence (server-independent) | Required |
+| runtime-home `plans` entry | Resource | Durable rendered markdown mirrors for file-addressable operator workflows | Soft repairable |
 | `search-hub` | Scenario | Reference **discovery** at authoring — the Answer projection; hits routed by locator shape into reviewable `[CODE:]/[DOC:]/[REQ:]` candidates | Soft |
 | `code-facts` | Scenario | Resolve `[CODE:]`/`[REQ:]` references at **validation** where its current surface can provide evidence | Soft |
 | `git-control-tower` | Scenario | Regression anchor baseline snapshot (captured at **execution start**) + diff (validation/DoD) | Soft |
@@ -26,8 +27,10 @@ re-implementing it, and every dependency is soft and degrades gracefully.
 | `swarm-manager` | Scenario | Downstream sink for `log` **record** entries (`records create`) | Soft |
 
 Future consumers to be **inverted** (they will depend on plan-manager, not the
-reverse): `swarm-manager` `phased-plan-drain`, project hygiene plan checks, the
-`vrooli plans` CLI. Sequenced after standalone proof (OT-P2-002).
+reverse): `swarm-manager` `phased-plan-drain`. Project hygiene plan checks and
+the root `vrooli plans` CLI are already Plan Manager consumers: hygiene calls
+`ReconcilePlans`, and root `vrooli plans` routes writes through Plan Manager
+while retaining read-only mirror fallback for broken-server inspection.
 
 **Boundary vocabulary alignment (consumer-inversion contract).** Plan Manager's
 change boundary deliberately uses Swarm Manager's `acceptance_allow` /
@@ -46,6 +49,16 @@ follow-up once a second cross-scenario consumer needs it.
   [`DATA.md`](DATA.md)) so plans persist independent of the server process. No
   heavy resources (no Ollama/Qdrant) — plan-manager aggregates structured data and
   composes other scenarios' typed CLI/RPC; it does not embed or search.
+- **Runtime-home plans mirror directory** — durable markdown projections under
+  the repo-contract `plans` entry. These files are operator-facing and backup
+  material, but repairable from SQLite; a missing/stale mirror degrades reads
+  until Plan Manager regenerates it.
+- **Root `vrooli plans` CLI** — a project-level compatibility/adoption layer.
+  Normal writes (`add --stdin`, `import`, `archive`) require Plan Manager and
+  send workspace scope for deterministic path resolution instead of creating
+  standalone markdown truth. Reads (`list`, `show`, `path`, `export`) prefer
+  Plan Manager and fall back to existing mirror files only when the scenario is
+  unavailable or times out; fallback output is labelled degraded.
 
 ## Scenario Dependencies
 
@@ -147,6 +160,9 @@ used at the orchestration layer runs through existing Vrooli runners
 - **Home store unavailable** → reads/writes fail loudly; this is the one required
   dependency. The store is process-independent, so a downed API server does not
   count as "store unavailable".
+- **Rendered mirror unavailable/stale** → render/get surfaces degraded metadata
+  and repairs from SQLite when possible. The stale file is never parsed back into
+  the canonical structured plan.
 - **Velocity sink down** → velocity retained locally; emit retried later.
 - **Downstream bug/record sink down or unwired** → the `log` entry persists
   locally with `sync_status` `pending`/`sync_failed`; never blocks execution.

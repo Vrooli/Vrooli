@@ -68,6 +68,15 @@ message PlansListOutput {
 
   // All matched plans; empty when none found.
   repeated PlansRecord plans = 2;
+
+  // Read source: "plan-manager" for canonical reads or "mirror-fallback" for degraded mirror reads.
+  string source = 3;
+
+  // True when the response came from degraded mirror fallback.
+  bool degraded = 4;
+
+  // Human-readable degraded-mode warning; "" for canonical reads.
+  string warning = 5;
 }
 
 // PlansShowOutput is the shape of `vrooli plans show --json`.
@@ -80,6 +89,15 @@ message PlansShowOutput {
 
   // Full plan body content; "" when not requested / empty.
   string content = 3;
+
+  // Read source: "plan-manager" for canonical reads or "mirror-fallback" for degraded mirror reads.
+  string source = 4;
+
+  // True when the response came from degraded mirror fallback.
+  bool degraded = 5;
+
+  // Human-readable degraded-mode warning; "" for canonical reads.
+  string warning = 6;
 }
 
 // PlansPathOutput is the shape of `vrooli plans path --json`.
@@ -92,6 +110,15 @@ message PlansPathOutput {
 
   // Absolute path to the plan file on disk.
   string path = 3;
+
+  // Read source: "plan-manager" for canonical reads or "mirror-fallback" for degraded mirror reads.
+  string source = 4;
+
+  // True when the response came from degraded mirror fallback.
+  bool degraded = 5;
+
+  // Human-readable degraded-mode warning; "" for canonical reads.
+  string warning = 6;
 }
 
 // PlansArchiveOutput is the shape of `vrooli plans archive --json`.
@@ -126,4 +153,13 @@ message PlansExportOutput {
 
   // Destination path the plan was exported to.
   string path = 3;
+
+  // Source used to read the plan before exporting.
+  string source = 4;
+
+  // True when export used degraded mirror fallback content.
+  bool degraded = 5;
+
+  // Human-readable degraded-mode warning; "" for canonical reads.
+  string warning = 6;
 }

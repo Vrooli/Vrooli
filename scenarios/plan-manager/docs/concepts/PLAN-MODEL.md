@@ -33,7 +33,10 @@ machine-owned.
 | Handoff = end-of-run prose dump | Canonical handoff assembled from in-flow captured state |
 
 The structured record is the source of truth. A human-readable markdown view is
-always *rendered* from it; the view is never parsed back into truth.
+always *rendered* from it; the view is never parsed back into truth. Plan Manager
+also keeps a durable rendered mirror file for operator and broken-server
+workflows, but the mirror is still a projection: stale or edited mirror bytes are
+repaired from the structured record, never silently adopted as truth.
 
 ## Plan
 
@@ -60,6 +63,7 @@ provenance** (kept verbatim because it could not be mapped).
 | `status` | computed | `draft` → `active` → `complete` / `archived`. Derives from phase status + lifecycle actions. |
 | `content_hash` | computed | Hash of the structured content; powers supersession/dependency edges. |
 | `created_at`, `updated_at` | computed | Timestamps (RFC3339). |
+| `mirror` | computed | Durable rendered markdown projection metadata: absolute path, runtime-home-relative path, rendered content hash, renderer version, rendered timestamp, freshness/repair status, and last error when degraded. |
 | `purpose` | authored | One-paragraph why this plan exists. |
 | `problem_statement` | authored | The concrete problem / need / gap this plan closes. Mandatory for implementation plans. |
 | `target_outcome` | authored | The end state once the plan is done — what is observably true. Mandatory for implementation plans. |

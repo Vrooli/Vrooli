@@ -3,9 +3,11 @@ package plans
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"connectrpc.com/connect"
+	repocontract "github.com/vrooli/repo-contract-go"
 
 	plansv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/plans"
 	plansconnect "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/plans/plans_v1connect"
@@ -169,6 +171,7 @@ func (h *handlers) importPlan(ctx cliapp.RunContext) error {
 	resp, err := h.client.ImportPlan(context.Background(), connect.NewRequest(&plansv1.ImportPlanRequest{
 		SourcePath: ctx.Flag("source"),
 		Markdown:   ctx.Flag("markdown"),
+		Workspace:  workspaceScopeFromFlag(ctx.Flag("workspace")),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("import plan", err, nil)
@@ -182,6 +185,57 @@ func (h *handlers) migrate(ctx cliapp.RunContext) error {
 		return cliapp.WrapAPIError("migrate plan", err, nil)
 	}
 	return h.renderMutation(ctx, resp.Msg.GetPlan(), "Migrated")
+}
+
+func (h *handlers) reconcile(ctx cliapp.RunContext) error {
+	resp, err := h.client.ReconcilePlans(context.Background(), connect.NewRequest(&plansv1.ReconcilePlansRequest{
+		DryRun:                 ctx.BoolFlag("dry-run"),
+		RepairMirrors:          ctx.BoolFlag("repair-mirrors"),
+		AdoptLegacy:            ctx.BoolFlag("adopt-legacy"),
+		IncludeArchived:        ctx.BoolFlag("include-archived"),
+		IncludeArchivedLegacy:  ctx.BoolFlag("include-archived-legacy"),
+		ConflictPolicy:         reconcileConflictPolicyFlag(ctx.Flag("conflict-policy")),
+		SourceRuntimeHomePlans: ctx.BoolFlag("source-runtime-home-plans"),
+		SourceDocsPlans:        ctx.BoolFlag("source-docs-plans"),
+		SourceRepoPlans:        ctx.BoolFlag("source-repo-plans"),
+		Workspace:              workspaceScopeFromFlag(ctx.Flag("workspace")),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("reconcile plans", err, nil)
+	}
+	results := make([]string, 0, len(resp.Msg.GetItems()))
+	for _, item := range resp.Msg.GetItems() {
+		results = append(results, formatReconcileItem(item))
+	}
+	mode := "Applied"
+	if resp.Msg.GetDryRun() {
+		mode = "Dry run"
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("%s inspected %d item(s).", mode, len(resp.Msg.GetItems()))},
+		ResultsHeading: "Reconcile results",
+		Results:        results,
+		RetrievalHints: []string{
+			"`plans reconcile --dry-run` — preview mirror repair and legacy adoption",
+			"`plans reconcile --repair-mirrors` — repair rendered markdown mirrors",
+		},
+	})
+}
+
+func workspaceScopeFromFlag(raw string) *plansv1.WorkspaceScope {
+	root := strings.TrimSpace(raw)
+	if root == "" {
+		resolved, err := repocontract.ResolveRepoRoot()
+		if err != nil {
+			return nil
+		}
+		root = resolved
+	}
+	abs, err := filepath.Abs(root)
+	if err != nil {
+		return &plansv1.WorkspaceScope{Root: filepath.Clean(root)}
+	}
+	return &plansv1.WorkspaceScope{Root: filepath.Clean(abs)}
 }
 
 // splitCSV splits a comma-separated flag value into a trimmed, non-empty list.
@@ -464,6 +518,12 @@ func planDetail(p *sharedv1.Plan) []string {
 	if p.ContentHash != "" {
 		out = append(out, fmt.Sprintf("content-hash: %s", p.ContentHash))
 	}
+	if mirror := p.GetMirror(); mirror != nil && mirror.GetPath() != "" {
+		out = append(out, fmt.Sprintf("mirror path: %s", mirror.GetPath()))
+		if status := mirrorStatusLabel(mirror.GetStatus()); status != "" && status != "fresh" {
+			out = append(out, fmt.Sprintf("mirror status: %s", status))
+		}
+	}
 	// Work posture is autofilled; surface it so a reviewer sees it without the
 	// full rendered markdown.
 	if label := workPostureLabel(p.WorkPosture); label != "" {
@@ -487,6 +547,34 @@ func planDetail(p *sharedv1.Plan) []string {
 	}
 	out = append(out, "(run `plan-manager plans render "+p.Slug+"` for the full markdown review artifact)")
 	return out
+}
+
+func formatReconcileItem(item *plansv1.ReconcilePlanItem) string {
+	if item == nil {
+		return "(nil)"
+	}
+	parts := []string{reconcileActionLabel(item.GetAction())}
+	if item.GetSlug() != "" {
+		parts = append(parts, item.GetSlug())
+	} else if item.GetPlanId() != "" {
+		parts = append(parts, item.GetPlanId())
+	}
+	if item.GetTitle() != "" {
+		parts = append(parts, "— "+truncateOneLine(item.GetTitle(), 72))
+	}
+	if item.GetSourcePath() != "" {
+		parts = append(parts, "source="+item.GetSourcePath())
+	}
+	if mirror := item.GetMirror(); mirror != nil && mirror.GetPath() != "" {
+		parts = append(parts, "mirror="+mirror.GetPath())
+	}
+	if item.GetSourceUntouched() {
+		parts = append(parts, "source untouched")
+	}
+	if item.GetError() != "" {
+		parts = append(parts, "error="+truncateOneLine(item.GetError(), 120))
+	}
+	return strings.Join(parts, " ")
 }
 
 // appendField appends a "label: value" detail line only when value is non-empty,
@@ -577,5 +665,58 @@ func phaseStatusLabel(s sharedv1.PhaseStatus) string {
 		return "blocked"
 	default:
 		return "todo"
+	}
+}
+
+func mirrorStatusLabel(s sharedv1.RenderedMirrorStatus) string {
+	switch s {
+	case sharedv1.RenderedMirrorStatus_RENDERED_MIRROR_STATUS_FRESH:
+		return "fresh"
+	case sharedv1.RenderedMirrorStatus_RENDERED_MIRROR_STATUS_MISSING:
+		return "missing"
+	case sharedv1.RenderedMirrorStatus_RENDERED_MIRROR_STATUS_STALE:
+		return "stale"
+	case sharedv1.RenderedMirrorStatus_RENDERED_MIRROR_STATUS_WRITE_FAILED:
+		return "write_failed"
+	case sharedv1.RenderedMirrorStatus_RENDERED_MIRROR_STATUS_UNKNOWN:
+		return "unknown"
+	default:
+		return ""
+	}
+}
+
+func reconcileConflictPolicyFlag(s string) plansv1.ReconcileConflictPolicy {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "report_only":
+		return plansv1.ReconcileConflictPolicy_RECONCILE_CONFLICT_POLICY_REPORT_ONLY
+	case "skip_existing", "":
+		return plansv1.ReconcileConflictPolicy_RECONCILE_CONFLICT_POLICY_SKIP_EXISTING
+	default:
+		return plansv1.ReconcileConflictPolicy_RECONCILE_CONFLICT_POLICY_UNSPECIFIED
+	}
+}
+
+func reconcileActionLabel(a plansv1.ReconcileAction) string {
+	switch a {
+	case plansv1.ReconcileAction_RECONCILE_ACTION_ALREADY_CANONICAL:
+		return "already_canonical"
+	case plansv1.ReconcileAction_RECONCILE_ACTION_MIRROR_FRESH:
+		return "mirror_fresh"
+	case plansv1.ReconcileAction_RECONCILE_ACTION_MIRROR_REPAIR_NEEDED:
+		return "mirror_repair_needed"
+	case plansv1.ReconcileAction_RECONCILE_ACTION_MIRROR_REPAIRED:
+		return "mirror_repaired"
+	case plansv1.ReconcileAction_RECONCILE_ACTION_IMPORT_PLANNED:
+		return "import_planned"
+	case plansv1.ReconcileAction_RECONCILE_ACTION_IMPORTED:
+		return "imported"
+	case plansv1.ReconcileAction_RECONCILE_ACTION_SKIPPED_DUPLICATE:
+		return "skipped_duplicate"
+	case plansv1.ReconcileAction_RECONCILE_ACTION_PARSE_FAILED:
+		return "parse_failed"
+	case plansv1.ReconcileAction_RECONCILE_ACTION_CONFLICT:
+		return "conflict"
+	default:
+		return "unspecified"
 	}
 }

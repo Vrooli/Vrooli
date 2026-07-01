@@ -81,19 +81,20 @@ type planDocument struct {
 	RelevantContext  []RelevantContextItem `json:"relevant_context"`
 	// Professional plan structure (see docs/concepts/PLAN-MODEL.md). New fields
 	// persist transparently because the whole document is one JSON blob.
-	ProblemStatement        string            `json:"problem_statement,omitempty"`
-	TargetOutcome           string            `json:"target_outcome,omitempty"`
-	Assumptions             string            `json:"assumptions,omitempty"`
-	TechnicalApproach       string            `json:"technical_approach,omitempty"`
-	ValidationStrategy      string            `json:"validation_strategy,omitempty"`
-	FinalValidationCommands []string          `json:"final_validation_commands,omitempty"`
-	RisksHazards            string            `json:"risks_hazards,omitempty"`
-	ProhibitedApproaches    string            `json:"prohibited_approaches,omitempty"`
-	WorkPosture             WorkPosture       `json:"work_posture,omitempty"`
-	WorkPostureSource       WorkPostureSource `json:"work_posture_source,omitempty"`
-	WorkPostureDetail       string            `json:"work_posture_detail,omitempty"`
-	ImportProvenance        *ImportProvenance `json:"import_provenance,omitempty"`
-	PreservedLegacySections []LegacySection   `json:"preserved_legacy_sections,omitempty"`
+	ProblemStatement        string             `json:"problem_statement,omitempty"`
+	TargetOutcome           string             `json:"target_outcome,omitempty"`
+	Assumptions             string             `json:"assumptions,omitempty"`
+	TechnicalApproach       string             `json:"technical_approach,omitempty"`
+	ValidationStrategy      string             `json:"validation_strategy,omitempty"`
+	FinalValidationCommands []string           `json:"final_validation_commands,omitempty"`
+	RisksHazards            string             `json:"risks_hazards,omitempty"`
+	ProhibitedApproaches    string             `json:"prohibited_approaches,omitempty"`
+	WorkPosture             WorkPosture        `json:"work_posture,omitempty"`
+	WorkPostureSource       WorkPostureSource  `json:"work_posture_source,omitempty"`
+	WorkPostureDetail       string             `json:"work_posture_detail,omitempty"`
+	ImportProvenance        *ImportProvenance  `json:"import_provenance,omitempty"`
+	PreservedLegacySections []LegacySection    `json:"preserved_legacy_sections,omitempty"`
+	Mirror                  RenderedPlanMirror `json:"mirror,omitempty"`
 }
 
 const (
@@ -158,6 +159,7 @@ func (r *sqliteRepository) Save(ctx context.Context, p Plan) error {
 		WorkPostureDetail:       p.WorkPostureDetail,
 		ImportProvenance:        p.ImportProvenance,
 		PreservedLegacySections: p.PreservedLegacySections,
+		Mirror:                  p.Mirror,
 	}
 	raw, err := json.Marshal(doc)
 	if err != nil {
@@ -298,5 +300,6 @@ func scanPlan(s rowScanner) (Plan, error) {
 	p.WorkPostureDetail = doc.WorkPostureDetail
 	p.ImportProvenance = doc.ImportProvenance
 	p.PreservedLegacySections = doc.PreservedLegacySections
+	p.Mirror = doc.Mirror
 	return p, nil
 }

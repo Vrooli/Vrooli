@@ -28,7 +28,7 @@ EXPERIMENT_STATUS_FAILED: ExperimentStatus
 EXPERIMENT_STATUS_CANCELED: ExperimentStatus
 
 class ExperimentRecipe(_message.Message):
-    __slots__ = ("clip_ids", "strategies", "realtime_repeats", "chunk_ms", "seed", "long_form", "realized_clip_ids", "realized_reference", "realized_duration_ms", "augmentation", "realized_augmentation_conditions", "speaker", "realized_speaker_conditions", "dropped_span_threshold_words")
+    __slots__ = ("clip_ids", "strategies", "realtime_repeats", "chunk_ms", "seed", "long_form", "realized_clip_ids", "realized_reference", "realized_duration_ms", "augmentation", "realized_augmentation_conditions", "speaker", "realized_speaker_conditions", "dropped_span_threshold_words", "latency_tail_seconds")
     CLIP_IDS_FIELD_NUMBER: _ClassVar[int]
     STRATEGIES_FIELD_NUMBER: _ClassVar[int]
     REALTIME_REPEATS_FIELD_NUMBER: _ClassVar[int]
@@ -43,6 +43,7 @@ class ExperimentRecipe(_message.Message):
     SPEAKER_FIELD_NUMBER: _ClassVar[int]
     REALIZED_SPEAKER_CONDITIONS_FIELD_NUMBER: _ClassVar[int]
     DROPPED_SPAN_THRESHOLD_WORDS_FIELD_NUMBER: _ClassVar[int]
+    LATENCY_TAIL_SECONDS_FIELD_NUMBER: _ClassVar[int]
     clip_ids: _containers.RepeatedScalarFieldContainer[str]
     strategies: _containers.RepeatedCompositeFieldContainer[_eval_pb2.EvalStrategy]
     realtime_repeats: int
@@ -57,19 +58,22 @@ class ExperimentRecipe(_message.Message):
     speaker: SpeakerExperimentRecipe
     realized_speaker_conditions: _containers.RepeatedCompositeFieldContainer[SpeakerCondition]
     dropped_span_threshold_words: int
-    def __init__(self, clip_ids: _Optional[_Iterable[str]] = ..., strategies: _Optional[_Iterable[_Union[_eval_pb2.EvalStrategy, _Mapping]]] = ..., realtime_repeats: _Optional[int] = ..., chunk_ms: _Optional[int] = ..., seed: _Optional[int] = ..., long_form: _Optional[_Union[LongFormRecipe, _Mapping]] = ..., realized_clip_ids: _Optional[_Iterable[str]] = ..., realized_reference: _Optional[str] = ..., realized_duration_ms: _Optional[int] = ..., augmentation: _Optional[_Union[AugmentationRecipe, _Mapping]] = ..., realized_augmentation_conditions: _Optional[_Iterable[_Union[AugmentationCondition, _Mapping]]] = ..., speaker: _Optional[_Union[SpeakerExperimentRecipe, _Mapping]] = ..., realized_speaker_conditions: _Optional[_Iterable[_Union[SpeakerCondition, _Mapping]]] = ..., dropped_span_threshold_words: _Optional[int] = ...) -> None: ...
+    latency_tail_seconds: int
+    def __init__(self, clip_ids: _Optional[_Iterable[str]] = ..., strategies: _Optional[_Iterable[_Union[_eval_pb2.EvalStrategy, _Mapping]]] = ..., realtime_repeats: _Optional[int] = ..., chunk_ms: _Optional[int] = ..., seed: _Optional[int] = ..., long_form: _Optional[_Union[LongFormRecipe, _Mapping]] = ..., realized_clip_ids: _Optional[_Iterable[str]] = ..., realized_reference: _Optional[str] = ..., realized_duration_ms: _Optional[int] = ..., augmentation: _Optional[_Union[AugmentationRecipe, _Mapping]] = ..., realized_augmentation_conditions: _Optional[_Iterable[_Union[AugmentationCondition, _Mapping]]] = ..., speaker: _Optional[_Union[SpeakerExperimentRecipe, _Mapping]] = ..., realized_speaker_conditions: _Optional[_Iterable[_Union[SpeakerCondition, _Mapping]]] = ..., dropped_span_threshold_words: _Optional[int] = ..., latency_tail_seconds: _Optional[int] = ...) -> None: ...
 
 class LongFormRecipe(_message.Message):
-    __slots__ = ("enabled", "target_duration_seconds", "gap_ms", "tag_contains")
+    __slots__ = ("enabled", "target_duration_seconds", "gap_ms", "tag_contains", "sweep_durations_seconds")
     ENABLED_FIELD_NUMBER: _ClassVar[int]
     TARGET_DURATION_SECONDS_FIELD_NUMBER: _ClassVar[int]
     GAP_MS_FIELD_NUMBER: _ClassVar[int]
     TAG_CONTAINS_FIELD_NUMBER: _ClassVar[int]
+    SWEEP_DURATIONS_SECONDS_FIELD_NUMBER: _ClassVar[int]
     enabled: bool
     target_duration_seconds: int
     gap_ms: int
     tag_contains: str
-    def __init__(self, enabled: _Optional[bool] = ..., target_duration_seconds: _Optional[int] = ..., gap_ms: _Optional[int] = ..., tag_contains: _Optional[str] = ...) -> None: ...
+    sweep_durations_seconds: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, enabled: _Optional[bool] = ..., target_duration_seconds: _Optional[int] = ..., gap_ms: _Optional[int] = ..., tag_contains: _Optional[str] = ..., sweep_durations_seconds: _Optional[_Iterable[int]] = ...) -> None: ...
 
 class AugmentationRecipe(_message.Message):
     __slots__ = ("noise_types", "snr_db", "competing_voice_ids", "competing_text")
@@ -290,12 +294,14 @@ class CompareExperimentsRequest(_message.Message):
     def __init__(self, ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ComparedExperiment(_message.Message):
-    __slots__ = ("experiment", "report")
+    __slots__ = ("experiment", "report", "runs")
     EXPERIMENT_FIELD_NUMBER: _ClassVar[int]
     REPORT_FIELD_NUMBER: _ClassVar[int]
+    RUNS_FIELD_NUMBER: _ClassVar[int]
     experiment: Experiment
     report: _eval_pb2.EvalReport
-    def __init__(self, experiment: _Optional[_Union[Experiment, _Mapping]] = ..., report: _Optional[_Union[_eval_pb2.EvalReport, _Mapping]] = ...) -> None: ...
+    runs: _containers.RepeatedCompositeFieldContainer[ExperimentRun]
+    def __init__(self, experiment: _Optional[_Union[Experiment, _Mapping]] = ..., report: _Optional[_Union[_eval_pb2.EvalReport, _Mapping]] = ..., runs: _Optional[_Iterable[_Union[ExperimentRun, _Mapping]]] = ...) -> None: ...
 
 class CompareExperimentsResponse(_message.Message):
     __slots__ = ("experiments",)

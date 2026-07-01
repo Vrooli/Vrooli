@@ -33,12 +33,19 @@ scenario-private database.
 - **Consequence:** reads do not require the API process; writes go through
   plan-manager (the schema/lifecycle authority), but the on-disk store is
   process-independent and concurrency-safe for multiple readers.
+- **Rendered markdown mirror:** every plan may carry `mirror` metadata in its
+  structured document. The mirror file itself is a durable projection under the
+  repo-contract runtime-home `plans` entry (the same operator-visible directory
+  used by the legacy root `vrooli plans` flow). The mirror is not canonical:
+  when it is missing or stale, Plan Manager regenerates it from SQLite and
+  updates the metadata. If a mirror write fails after SQLite commits, the plan
+  remains saved with `mirror.status=write_failed` and can be repaired later.
 
 ## Data Ownership
 
 | Data | Owning domain | Notes |
 |---|---|---|
-| Plans, phases, references, supersession edges, content hashes | `plans` | The structured-record SSOT. |
+| Plans, phases, references, supersession edges, content hashes, rendered-mirror metadata | `plans` | The structured-record SSOT. Mirror files are derived projections. |
 | Authoring-session progression + validation findings | `authoring` | Transient; the produced plan is owned by `plans`. |
 | Run↔plan linkage, canonical handoff records (carry a log summary + entries), velocity series | `execution` | Decisions/findings are no longer stored here — they live in `log`; execution reads a compact summary through the `LogLedger` seam. |
 | Reference resolutions, staleness factors, validation results | `validation` | Derived; never the source of truth for code itself. |
@@ -114,9 +121,16 @@ this map is the ownership contract.
 
 - **Import:** adopt existing markdown plans (the current `vrooli plans import`
   path) into the structured model; references are parsed from `[CODE:]`/`[REQ:]`.
-- **Export:** render any plan to a markdown view (the human-readable projection);
-  optionally export to a repo path (the existing `vrooli plans export` behavior).
+- **Reconcile/adopt legacy:** `ReconcilePlans` can dry-run or execute a bulk pass
+  over the runtime-home `plans`, repo `docs/plans`, and repo `plans` fallback
+  locations. It reports each source as imported, already canonical, duplicate,
+  parse failed, conflict, or source untouched; it never deletes or overwrites the
+  legacy source file.
+- **Render/export:** render any plan to a markdown view (the human-readable
+  projection). `RenderMarkdown` returns the mirror contents when fresh and
+  repairs the mirror from SQLite when missing or stale.
 - The structured record is canonical; markdown is always a derived projection.
+  Editing the mirror file by hand never updates SQLite.
 
 ## Retention And Deletion
 

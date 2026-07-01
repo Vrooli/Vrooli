@@ -13,20 +13,38 @@ class InsightsRequest(_message.Message):
     def __init__(self, window_days: _Optional[int] = ...) -> None: ...
 
 class ProviderUtilization(_message.Message):
-    __slots__ = ("provider_id", "provider_group", "type", "times_routed", "total_hits", "under_utilized")
+    __slots__ = ("provider_id", "provider_group", "type", "times_routed", "total_hits", "under_utilized", "latency_p50_ms", "latency_p95_ms", "degraded_count", "degradation_rate", "degradation_reasons")
     PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_GROUP_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     TIMES_ROUTED_FIELD_NUMBER: _ClassVar[int]
     TOTAL_HITS_FIELD_NUMBER: _ClassVar[int]
     UNDER_UTILIZED_FIELD_NUMBER: _ClassVar[int]
+    LATENCY_P50_MS_FIELD_NUMBER: _ClassVar[int]
+    LATENCY_P95_MS_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    DEGRADATION_RATE_FIELD_NUMBER: _ClassVar[int]
+    DEGRADATION_REASONS_FIELD_NUMBER: _ClassVar[int]
     provider_id: str
     provider_group: str
     type: str
     times_routed: int
     total_hits: int
     under_utilized: bool
-    def __init__(self, provider_id: _Optional[str] = ..., provider_group: _Optional[str] = ..., type: _Optional[str] = ..., times_routed: _Optional[int] = ..., total_hits: _Optional[int] = ..., under_utilized: _Optional[bool] = ...) -> None: ...
+    latency_p50_ms: int
+    latency_p95_ms: int
+    degraded_count: int
+    degradation_rate: float
+    degradation_reasons: _containers.RepeatedCompositeFieldContainer[ProviderDegradationReason]
+    def __init__(self, provider_id: _Optional[str] = ..., provider_group: _Optional[str] = ..., type: _Optional[str] = ..., times_routed: _Optional[int] = ..., total_hits: _Optional[int] = ..., under_utilized: _Optional[bool] = ..., latency_p50_ms: _Optional[int] = ..., latency_p95_ms: _Optional[int] = ..., degraded_count: _Optional[int] = ..., degradation_rate: _Optional[float] = ..., degradation_reasons: _Optional[_Iterable[_Union[ProviderDegradationReason, _Mapping]]] = ...) -> None: ...
+
+class ProviderDegradationReason(_message.Message):
+    __slots__ = ("reason", "count")
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    reason: str
+    count: int
+    def __init__(self, reason: _Optional[str] = ..., count: _Optional[int] = ...) -> None: ...
 
 class InsightsResponse(_message.Message):
     __slots__ = ("total_queries", "zero_result_queries", "zero_result_rate", "degraded_queries", "reranked_queries", "latency_p50_ms", "latency_p95_ms", "providers")

@@ -73,15 +73,20 @@ func (x *InsightsRequest) GetWindowDays() int32 {
 // routed-to in the window — a signal its description routes poorly (or it is
 // genuinely never needed).
 type ProviderUtilization struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ProviderId    string                 `protobuf:"bytes,1,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
-	ProviderGroup string                 `protobuf:"bytes,2,opt,name=provider_group,json=providerGroup,proto3" json:"provider_group,omitempty"`
-	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
-	TimesRouted   int64                  `protobuf:"varint,4,opt,name=times_routed,json=timesRouted,proto3" json:"times_routed,omitempty"`
-	TotalHits     int64                  `protobuf:"varint,5,opt,name=total_hits,json=totalHits,proto3" json:"total_hits,omitempty"`
-	UnderUtilized bool                   `protobuf:"varint,6,opt,name=under_utilized,json=underUtilized,proto3" json:"under_utilized,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState       `protogen:"open.v1"`
+	ProviderId         string                       `protobuf:"bytes,1,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	ProviderGroup      string                       `protobuf:"bytes,2,opt,name=provider_group,json=providerGroup,proto3" json:"provider_group,omitempty"`
+	Type               string                       `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	TimesRouted        int64                        `protobuf:"varint,4,opt,name=times_routed,json=timesRouted,proto3" json:"times_routed,omitempty"`
+	TotalHits          int64                        `protobuf:"varint,5,opt,name=total_hits,json=totalHits,proto3" json:"total_hits,omitempty"`
+	UnderUtilized      bool                         `protobuf:"varint,6,opt,name=under_utilized,json=underUtilized,proto3" json:"under_utilized,omitempty"`
+	LatencyP50Ms       int64                        `protobuf:"varint,7,opt,name=latency_p50_ms,json=latencyP50Ms,proto3" json:"latency_p50_ms,omitempty"`
+	LatencyP95Ms       int64                        `protobuf:"varint,8,opt,name=latency_p95_ms,json=latencyP95Ms,proto3" json:"latency_p95_ms,omitempty"`
+	DegradedCount      int64                        `protobuf:"varint,9,opt,name=degraded_count,json=degradedCount,proto3" json:"degraded_count,omitempty"`
+	DegradationRate    float64                      `protobuf:"fixed64,10,opt,name=degradation_rate,json=degradationRate,proto3" json:"degradation_rate,omitempty"`
+	DegradationReasons []*ProviderDegradationReason `protobuf:"bytes,11,rep,name=degradation_reasons,json=degradationReasons,proto3" json:"degradation_reasons,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ProviderUtilization) Reset() {
@@ -156,6 +161,93 @@ func (x *ProviderUtilization) GetUnderUtilized() bool {
 	return false
 }
 
+func (x *ProviderUtilization) GetLatencyP50Ms() int64 {
+	if x != nil {
+		return x.LatencyP50Ms
+	}
+	return 0
+}
+
+func (x *ProviderUtilization) GetLatencyP95Ms() int64 {
+	if x != nil {
+		return x.LatencyP95Ms
+	}
+	return 0
+}
+
+func (x *ProviderUtilization) GetDegradedCount() int64 {
+	if x != nil {
+		return x.DegradedCount
+	}
+	return 0
+}
+
+func (x *ProviderUtilization) GetDegradationRate() float64 {
+	if x != nil {
+		return x.DegradationRate
+	}
+	return 0
+}
+
+func (x *ProviderUtilization) GetDegradationReasons() []*ProviderDegradationReason {
+	if x != nil {
+		return x.DegradationReasons
+	}
+	return nil
+}
+
+type ProviderDegradationReason struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Reason        string                 `protobuf:"bytes,1,opt,name=reason,proto3" json:"reason,omitempty"`
+	Count         int64                  `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProviderDegradationReason) Reset() {
+	*x = ProviderDegradationReason{}
+	mi := &file_search_hub_v1_metrics_metrics_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProviderDegradationReason) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProviderDegradationReason) ProtoMessage() {}
+
+func (x *ProviderDegradationReason) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_metrics_metrics_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProviderDegradationReason.ProtoReflect.Descriptor instead.
+func (*ProviderDegradationReason) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_metrics_metrics_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ProviderDegradationReason) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *ProviderDegradationReason) GetCount() int64 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
 type InsightsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Total federated queries recorded in the window.
@@ -180,7 +272,7 @@ type InsightsResponse struct {
 
 func (x *InsightsResponse) Reset() {
 	*x = InsightsResponse{}
-	mi := &file_search_hub_v1_metrics_metrics_proto_msgTypes[2]
+	mi := &file_search_hub_v1_metrics_metrics_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -192,7 +284,7 @@ func (x *InsightsResponse) String() string {
 func (*InsightsResponse) ProtoMessage() {}
 
 func (x *InsightsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_metrics_metrics_proto_msgTypes[2]
+	mi := &file_search_hub_v1_metrics_metrics_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -205,7 +297,7 @@ func (x *InsightsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InsightsResponse.ProtoReflect.Descriptor instead.
 func (*InsightsResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_metrics_metrics_proto_rawDescGZIP(), []int{2}
+	return file_search_hub_v1_metrics_metrics_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *InsightsResponse) GetTotalQueries() int64 {
@@ -271,7 +363,7 @@ const file_search_hub_v1_metrics_metrics_proto_rawDesc = "" +
 	"#search-hub/v1/metrics/metrics.proto\x12\x1cvrooli.search_hub.v1.metrics\"2\n" +
 	"\x0fInsightsRequest\x12\x1f\n" +
 	"\vwindow_days\x18\x01 \x01(\x05R\n" +
-	"windowDays\"\xda\x01\n" +
+	"windowDays\"\xe2\x03\n" +
 	"\x13ProviderUtilization\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12%\n" +
@@ -280,7 +372,16 @@ const file_search_hub_v1_metrics_metrics_proto_rawDesc = "" +
 	"\ftimes_routed\x18\x04 \x01(\x03R\vtimesRouted\x12\x1d\n" +
 	"\n" +
 	"total_hits\x18\x05 \x01(\x03R\ttotalHits\x12%\n" +
-	"\x0eunder_utilized\x18\x06 \x01(\bR\runderUtilized\"\x84\x03\n" +
+	"\x0eunder_utilized\x18\x06 \x01(\bR\runderUtilized\x12$\n" +
+	"\x0elatency_p50_ms\x18\a \x01(\x03R\flatencyP50Ms\x12$\n" +
+	"\x0elatency_p95_ms\x18\b \x01(\x03R\flatencyP95Ms\x12%\n" +
+	"\x0edegraded_count\x18\t \x01(\x03R\rdegradedCount\x12)\n" +
+	"\x10degradation_rate\x18\n" +
+	" \x01(\x01R\x0fdegradationRate\x12h\n" +
+	"\x13degradation_reasons\x18\v \x03(\v27.vrooli.search_hub.v1.metrics.ProviderDegradationReasonR\x12degradationReasons\"I\n" +
+	"\x19ProviderDegradationReason\x12\x16\n" +
+	"\x06reason\x18\x01 \x01(\tR\x06reason\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x03R\x05count\"\x84\x03\n" +
 	"\x10InsightsResponse\x12#\n" +
 	"\rtotal_queries\x18\x01 \x01(\x03R\ftotalQueries\x12.\n" +
 	"\x13zero_result_queries\x18\x02 \x01(\x03R\x11zeroResultQueries\x12(\n" +
@@ -305,21 +406,23 @@ func file_search_hub_v1_metrics_metrics_proto_rawDescGZIP() []byte {
 	return file_search_hub_v1_metrics_metrics_proto_rawDescData
 }
 
-var file_search_hub_v1_metrics_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_search_hub_v1_metrics_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_search_hub_v1_metrics_metrics_proto_goTypes = []any{
-	(*InsightsRequest)(nil),     // 0: vrooli.search_hub.v1.metrics.InsightsRequest
-	(*ProviderUtilization)(nil), // 1: vrooli.search_hub.v1.metrics.ProviderUtilization
-	(*InsightsResponse)(nil),    // 2: vrooli.search_hub.v1.metrics.InsightsResponse
+	(*InsightsRequest)(nil),           // 0: vrooli.search_hub.v1.metrics.InsightsRequest
+	(*ProviderUtilization)(nil),       // 1: vrooli.search_hub.v1.metrics.ProviderUtilization
+	(*ProviderDegradationReason)(nil), // 2: vrooli.search_hub.v1.metrics.ProviderDegradationReason
+	(*InsightsResponse)(nil),          // 3: vrooli.search_hub.v1.metrics.InsightsResponse
 }
 var file_search_hub_v1_metrics_metrics_proto_depIdxs = []int32{
-	1, // 0: vrooli.search_hub.v1.metrics.InsightsResponse.providers:type_name -> vrooli.search_hub.v1.metrics.ProviderUtilization
-	0, // 1: vrooli.search_hub.v1.metrics.MetricsService.Insights:input_type -> vrooli.search_hub.v1.metrics.InsightsRequest
-	2, // 2: vrooli.search_hub.v1.metrics.MetricsService.Insights:output_type -> vrooli.search_hub.v1.metrics.InsightsResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	2, // 0: vrooli.search_hub.v1.metrics.ProviderUtilization.degradation_reasons:type_name -> vrooli.search_hub.v1.metrics.ProviderDegradationReason
+	1, // 1: vrooli.search_hub.v1.metrics.InsightsResponse.providers:type_name -> vrooli.search_hub.v1.metrics.ProviderUtilization
+	0, // 2: vrooli.search_hub.v1.metrics.MetricsService.Insights:input_type -> vrooli.search_hub.v1.metrics.InsightsRequest
+	3, // 3: vrooli.search_hub.v1.metrics.MetricsService.Insights:output_type -> vrooli.search_hub.v1.metrics.InsightsResponse
+	3, // [3:4] is the sub-list for method output_type
+	2, // [2:3] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_search_hub_v1_metrics_metrics_proto_init() }
@@ -333,7 +436,7 @@ func file_search_hub_v1_metrics_metrics_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_search_hub_v1_metrics_metrics_proto_rawDesc), len(file_search_hub_v1_metrics_metrics_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -26,6 +26,7 @@ type fakePlansService struct {
 	edges     []internalplans.PlanEdge
 	templates []internalplans.PlanTemplate
 	markdown  string
+	reconcile internalplans.ReconcileResult
 	err       error
 
 	gotListFilter        internalplans.ListFilter
@@ -45,7 +46,9 @@ type fakePlansService struct {
 	gotDependencyID      string
 	gotImportPath        string
 	gotImportMarkdown    string
+	gotImportWorkspace   internalplans.WorkspaceScope
 	gotMigrateID         string
+	gotReconcile         internalplans.ReconcileRequest
 	gotTemplateID        string
 	gotTemplateTitle     string
 	gotTemplateSlug      string
@@ -76,9 +79,13 @@ func (f *fakePlansService) Archive(_ context.Context, idOrSlug string) (internal
 	return f.plan, f.err
 }
 
-func (f *fakePlansService) Render(_ context.Context, idOrSlug string) (string, error) {
+func (f *fakePlansService) Render(_ context.Context, idOrSlug string) (internalplans.RenderResult, error) {
 	f.gotRenderID = idOrSlug
-	return f.markdown, f.err
+	return internalplans.RenderResult{
+		Markdown: f.markdown,
+		Mirror:   internalplans.RenderedPlanMirror{Path: "/tmp/rendered.md", Status: internalplans.RenderedMirrorStatusFresh},
+		Repaired: true,
+	}, f.err
 }
 
 func (f *fakePlansService) AddPhase(_ context.Context, planID string, phase internalplans.Phase) (internalplans.Plan, error) {
@@ -121,15 +128,23 @@ func (f *fakePlansService) CreateFromTemplate(_ context.Context, templateID, tit
 	return f.plan, f.err
 }
 
-func (f *fakePlansService) Import(_ context.Context, sourcePath, markdown string) (internalplans.Plan, error) {
+func (f *fakePlansService) Import(_ context.Context, sourcePath, markdown, title, slug string, workspace internalplans.WorkspaceScope) (internalplans.Plan, error) {
 	f.gotImportPath = sourcePath
 	f.gotImportMarkdown = markdown
+	f.gotImportWorkspace = workspace
+	f.gotCreate.Title = title
+	f.gotCreate.Slug = slug
 	return f.plan, f.err
 }
 
 func (f *fakePlansService) Migrate(_ context.Context, idOrSlug string) (internalplans.Plan, error) {
 	f.gotMigrateID = idOrSlug
 	return f.plan, f.err
+}
+
+func (f *fakePlansService) Reconcile(_ context.Context, req internalplans.ReconcileRequest) (internalplans.ReconcileResult, error) {
+	f.gotReconcile = req
+	return f.reconcile, f.err
 }
 
 var _ internalplans.Service = (*fakePlansService)(nil)
@@ -205,6 +220,38 @@ func TestMigratePlanSuccess(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "p1", resp.Msg.GetPlan().GetId())
 	require.Equal(t, "p1", svc.gotMigrateID)
+}
+
+func TestReconcilePlansForwardsRequest(t *testing.T) {
+	svc := &fakePlansService{reconcile: internalplans.ReconcileResult{
+		DryRun: true,
+		Items: []internalplans.ReconcileItem{{
+			Action:          internalplans.ReconcileActionImportPlanned,
+			Title:           "Legacy",
+			SourcePath:      "docs/plans/legacy.md",
+			SourceUntouched: true,
+		}},
+	}}
+	h := newPlansHandler(svc)
+
+	resp, err := h.ReconcilePlans(context.Background(), connect.NewRequest(&plansv1.ReconcilePlansRequest{
+		DryRun:          true,
+		RepairMirrors:   true,
+		AdoptLegacy:     true,
+		ConflictPolicy:  plansv1.ReconcileConflictPolicy_RECONCILE_CONFLICT_POLICY_REPORT_ONLY,
+		SourceDocsPlans: true,
+		Workspace:       &plansv1.WorkspaceScope{Root: "/workspace"},
+	}))
+	require.NoError(t, err)
+	require.True(t, svc.gotReconcile.DryRun)
+	require.True(t, svc.gotReconcile.RepairMirrors)
+	require.True(t, svc.gotReconcile.AdoptLegacy)
+	require.Equal(t, internalplans.ReconcileConflictReportOnly, svc.gotReconcile.ConflictPolicy)
+	require.True(t, svc.gotReconcile.SourceDocsPlans)
+	require.Equal(t, "/workspace", svc.gotReconcile.Workspace.Root)
+	require.Len(t, resp.Msg.GetItems(), 1)
+	require.Equal(t, plansv1.ReconcileAction_RECONCILE_ACTION_IMPORT_PLANNED, resp.Msg.GetItems()[0].GetAction())
+	require.True(t, resp.Msg.GetItems()[0].GetSourceUntouched())
 }
 
 func TestArchivePlanSuccess(t *testing.T) {
@@ -289,11 +336,17 @@ func TestImportPlanForwardsArgs(t *testing.T) {
 	resp, err := h.ImportPlan(context.Background(), connect.NewRequest(&plansv1.ImportPlanRequest{
 		SourcePath: "docs/plan.md",
 		Markdown:   "# Plan",
+		Title:      "Override",
+		Slug:       "override",
+		Workspace:  &plansv1.WorkspaceScope{Root: "/workspace"},
 	}))
 	require.NoError(t, err)
 	require.Equal(t, "imported", resp.Msg.GetPlan().GetId())
 	require.Equal(t, "docs/plan.md", svc.gotImportPath)
 	require.Equal(t, "# Plan", svc.gotImportMarkdown)
+	require.Equal(t, "/workspace", svc.gotImportWorkspace.Root)
+	require.Equal(t, "Override", svc.gotCreate.Title)
+	require.Equal(t, "override", svc.gotCreate.Slug)
 }
 
 func TestListTemplatesSuccess(t *testing.T) {

@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"plan-manager/internal/planmodel"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // SourceReader is the filesystem seam for the plan-source resolver. It reads
@@ -20,6 +22,7 @@ import (
 // path/filesystem concerns beyond a byte read.
 type SourceReader interface {
 	ReadFile(path string) ([]byte, error)
+	ListMarkdownFiles(dir string) ([]string, error)
 }
 
 // OSSourceReader is the production SourceReader (reads from disk).
@@ -27,6 +30,30 @@ type OSSourceReader struct{}
 
 // ReadFile reads the named file from disk.
 func (OSSourceReader) ReadFile(path string) ([]byte, error) { return os.ReadFile(path) }
+
+// ListMarkdownFiles returns direct child markdown files in dir, excluding the
+// fallback projection index. Missing directories are treated as empty.
+func (OSSourceReader) ListMarkdownFiles(dir string) ([]string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	out := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if name == fallbackIndexFilename || !strings.EqualFold(filepath.Ext(name), ".md") {
+			continue
+		}
+		out = append(out, filepath.Join(dir, name))
+	}
+	return out, nil
+}
 
 var _ SourceReader = OSSourceReader{}
 
@@ -47,7 +74,11 @@ const fallbackIndexFilename = "_index.json"
 // the source is read from sourcePath via the SourceReader seam. References are
 // parsed from the [CODE:]/[REQ:]/[DOC:] grammar. The fallback source is NOT
 // mutated (non-destructive import — see docs/concepts/DATA.md).
-func (s *service) Import(ctx context.Context, sourcePath, markdown string) (Plan, error) {
+func (s *service) Import(ctx context.Context, sourcePath, markdown, title, slug string, workspace WorkspaceScope) (Plan, error) {
+	sourcePath, err := resolveWorkspacePath(sourcePath, workspace)
+	if err != nil {
+		return Plan{}, err
+	}
 	if strings.TrimSpace(markdown) == "" {
 		if strings.TrimSpace(sourcePath) == "" {
 			return Plan{}, ErrInvalidPlan{Reason: "import requires markdown or a source path"}
@@ -64,6 +95,12 @@ func (s *service) Import(ctx context.Context, sourcePath, markdown string) (Plan
 	parsed, err := ParsePlanMarkdown(markdown)
 	if err != nil {
 		return Plan{}, err
+	}
+	if override := strings.TrimSpace(title); override != "" {
+		parsed.Title = override
+	}
+	if override := slugify(slug); override != "" {
+		parsed.Slug = override
 	}
 	// Record import provenance (adoption bookkeeping) unless the markdown already
 	// carried it. Import is non-destructive: the source file is never mutated.
@@ -101,7 +138,208 @@ func (s *service) Migrate(ctx context.Context, idOrSlug string) (Plan, error) {
 	if err != nil {
 		return Plan{}, err
 	}
-	return s.Import(ctx, sourcePath, markdown)
+	return s.Import(ctx, sourcePath, markdown, "", "", WorkspaceScope{})
+}
+
+// Reconcile repairs rendered mirrors and optionally adopts legacy markdown
+// sources in bulk. Legacy sources are never deleted, moved, or overwritten.
+func (s *service) Reconcile(ctx context.Context, req ReconcileRequest) (ReconcileResult, error) {
+	if !req.RepairMirrors && !req.AdoptLegacy {
+		req.RepairMirrors = true
+		req.AdoptLegacy = true
+	}
+	if req.ConflictPolicy == "" {
+		req.ConflictPolicy = ReconcileConflictSkipExisting
+	}
+	if !req.SourceRuntimeHomePlans && !req.SourceDocsPlans && !req.SourceRepoPlans {
+		req.SourceRuntimeHomePlans = true
+		req.SourceDocsPlans = true
+		req.SourceRepoPlans = true
+	}
+	result := ReconcileResult{DryRun: req.DryRun}
+	existing, err := s.repo.List(ctx, ListFilter{IncludeArchived: true})
+	if err != nil {
+		return result, err
+	}
+	if req.RepairMirrors {
+		for _, p := range existing {
+			if p.Status == PlanStatusArchived && !req.IncludeArchived {
+				continue
+			}
+			result.Items = append(result.Items, s.reconcileMirrorItem(ctx, p, req.DryRun))
+		}
+	}
+	if req.AdoptLegacy {
+		items, err := s.reconcileLegacyItems(ctx, req, existing)
+		if err != nil {
+			return result, err
+		}
+		result.Items = append(result.Items, items...)
+	}
+	return result, nil
+}
+
+func (s *service) reconcileMirrorItem(ctx context.Context, p Plan, dryRun bool) ReconcileItem {
+	item := ReconcileItem{
+		PlanID: p.ID,
+		Slug:   p.Slug,
+		Title:  p.Title,
+		Mirror: s.ensureMirrorPath(ctx, p),
+	}
+	_, meta, err := s.mirror.Read(ctx, p)
+	if err == nil && meta.Status == RenderedMirrorStatusFresh {
+		item.Action = ReconcileActionMirrorFresh
+		item.Mirror = meta
+		return item
+	}
+	if meta.Status != "" {
+		item.Mirror = meta
+	}
+	if dryRun {
+		item.Action = ReconcileActionMirrorRepairNeeded
+		if err != nil {
+			item.Error = err.Error()
+		}
+		return item
+	}
+	repaired, repairErr := s.publishMirror(ctx, p)
+	item.Mirror = repaired.Mirror
+	if repairErr != nil {
+		item.Action = ReconcileActionMirrorRepairNeeded
+		item.Error = repairErr.Error()
+		return item
+	}
+	item.Action = ReconcileActionMirrorRepaired
+	return item
+}
+
+func (s *service) reconcileLegacyItems(ctx context.Context, req ReconcileRequest, existing []Plan) ([]ReconcileItem, error) {
+	if s.reader == nil {
+		return nil, ErrInvalidPlan{Reason: "no source reader configured; cannot scan legacy plans"}
+	}
+	mirrorPaths := make(map[string]bool, len(existing))
+	importedSources := make(map[string]Plan, len(existing))
+	contentHashes := make(map[string]Plan, len(existing))
+	for _, p := range existing {
+		if meta, err := s.mirror.PathFor(ctx, p); err == nil && strings.TrimSpace(meta.Path) != "" {
+			mirrorPaths[filepath.Clean(meta.Path)] = true
+		}
+		if p.ImportProvenance != nil && strings.TrimSpace(p.ImportProvenance.SourcePath) != "" {
+			importedSources[filepath.Clean(p.ImportProvenance.SourcePath)] = p
+		}
+		if strings.TrimSpace(p.ContentHash) != "" {
+			contentHashes[p.ContentHash] = p
+		}
+	}
+	var out []ReconcileItem
+	for _, dir := range reconcileSourceDirs(req) {
+		root := expandPlanLocation(dir)
+		paths, err := s.listLegacySourcePaths(root, req.IncludeArchivedLegacy)
+		if err != nil {
+			out = append(out, ReconcileItem{Action: ReconcileActionConflict, SourcePath: root, SourceUntouched: true, Error: err.Error()})
+			continue
+		}
+		for _, sourcePath := range paths {
+			clean := filepath.Clean(sourcePath)
+			if mirrorPaths[clean] {
+				out = append(out, ReconcileItem{Action: ReconcileActionAlreadyCanonical, SourcePath: clean, SourceUntouched: true})
+				continue
+			}
+			if p, ok := importedSources[clean]; ok {
+				out = append(out, ReconcileItem{Action: ReconcileActionAlreadyCanonical, PlanID: p.ID, Slug: p.Slug, Title: p.Title, SourcePath: clean, Mirror: p.Mirror, SourceUntouched: true})
+				continue
+			}
+			raw, err := s.reader.ReadFile(clean)
+			if err != nil {
+				out = append(out, ReconcileItem{Action: ReconcileActionConflict, SourcePath: clean, SourceUntouched: true, Error: err.Error()})
+				continue
+			}
+			parsed, err := ParsePlanMarkdown(string(raw))
+			if err != nil {
+				out = append(out, ReconcileItem{Action: ReconcileActionParseFailed, SourcePath: clean, SourceUntouched: true, Error: err.Error()})
+				continue
+			}
+			parsed.ContentHash = contentHash(parsed)
+			if match, ok := contentHashes[parsed.ContentHash]; ok {
+				action := ReconcileActionSkippedDuplicate
+				if req.ConflictPolicy == ReconcileConflictReportOnly {
+					action = ReconcileActionConflict
+				}
+				out = append(out, ReconcileItem{Action: action, PlanID: match.ID, Slug: match.Slug, Title: parsed.Title, SourcePath: clean, Mirror: match.Mirror, SourceUntouched: true})
+				continue
+			}
+			item := ReconcileItem{Action: ReconcileActionImportPlanned, Title: parsed.Title, SourcePath: clean, SourceUntouched: true}
+			if !req.DryRun {
+				imported, err := s.Import(ctx, clean, string(raw), "", "", req.Workspace)
+				if err != nil {
+					item.Action = ReconcileActionConflict
+					item.Error = err.Error()
+				} else {
+					item.Action = ReconcileActionImported
+					item.PlanID = imported.ID
+					item.Slug = imported.Slug
+					item.Title = imported.Title
+					item.Mirror = imported.Mirror
+					contentHashes[imported.ContentHash] = imported
+					importedSources[clean] = imported
+				}
+			}
+			out = append(out, item)
+		}
+	}
+	return out, nil
+}
+
+func (s *service) listLegacySourcePaths(root string, includeArchived bool) ([]string, error) {
+	seen := map[string]bool{}
+	var out []string
+	indexPath := filepath.Join(root, fallbackIndexFilename)
+	if raw, err := s.reader.ReadFile(indexPath); err == nil {
+		var idx fallbackIndex
+		if err := json.Unmarshal(raw, &idx); err != nil {
+			return nil, fmt.Errorf("decode fallback plan index %q: %w", indexPath, err)
+		}
+		for _, record := range idx.Plans {
+			if record.Archived && !includeArchived {
+				continue
+			}
+			sourcePath := strings.TrimSpace(record.Path)
+			if sourcePath == "" {
+				sourcePath = filepath.Join(root, record.Slug+".md")
+			}
+			clean := filepath.Clean(sourcePath)
+			if !seen[clean] {
+				seen[clean] = true
+				out = append(out, clean)
+			}
+		}
+	}
+	paths, err := s.reader.ListMarkdownFiles(root)
+	if err != nil {
+		return nil, err
+	}
+	for _, path := range paths {
+		clean := filepath.Clean(path)
+		if !seen[clean] {
+			seen[clean] = true
+			out = append(out, clean)
+		}
+	}
+	return out, nil
+}
+
+func reconcileSourceDirs(req ReconcileRequest) []string {
+	var dirs []string
+	if req.SourceRuntimeHomePlans {
+		dirs = append(dirs, FallbackReadLocations[0])
+	}
+	if req.SourceDocsPlans {
+		dirs = append(dirs, workspaceLocation(FallbackReadLocations[1], req.Workspace))
+	}
+	if req.SourceRepoPlans {
+		dirs = append(dirs, workspaceLocation(FallbackReadLocations[2], req.Workspace))
+	}
+	return dirs
 }
 
 type fallbackIndex struct {
@@ -175,12 +413,46 @@ func (s *service) resolveFallbackFromIndex(dir, idOrSlug string) (string, string
 }
 
 func expandPlanLocation(location string) string {
+	if location == "~/.vrooli/plans" {
+		if home, err := os.UserHomeDir(); err == nil && home != "" {
+			if path, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyPlans); err == nil {
+				return path
+			}
+		}
+	}
 	if strings.HasPrefix(location, "~/") {
 		if home, err := os.UserHomeDir(); err == nil && home != "" {
 			return filepath.Join(home, strings.TrimPrefix(location, "~/"))
 		}
 	}
 	return filepath.Clean(location)
+}
+
+func workspaceLocation(location string, workspace WorkspaceScope) string {
+	root := strings.TrimSpace(workspace.Root)
+	if root == "" || filepath.IsAbs(location) || strings.HasPrefix(location, "~/") {
+		return location
+	}
+	return filepath.Join(root, location)
+}
+
+func resolveWorkspacePath(path string, workspace WorkspaceScope) (string, error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return "", nil
+	}
+	if filepath.IsAbs(path) {
+		return filepath.Clean(path), nil
+	}
+	root := strings.TrimSpace(workspace.Root)
+	if root == "" {
+		return filepath.Clean(path), nil
+	}
+	cleanRoot, err := filepath.Abs(root)
+	if err != nil {
+		return "", ErrInvalidPlan{Reason: fmt.Sprintf("invalid workspace root %q: %v", root, err)}
+	}
+	return filepath.Clean(filepath.Join(cleanRoot, path)), nil
 }
 
 // ParsePlanMarkdown parses a markdown plan into the structured model.
