@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P0-005 — baseline-aware validation: compute the exact check set, run on request, verify DoD.",
-    "last_validated_at": "2026-07-01T14:04:59-04:00",
+    "last_validated_at": "2026-07-01T14:23:35-04:00",
     "module": "validation-orchestration",
     "prd_ref": "PRD.md",
     "priority": "P0",

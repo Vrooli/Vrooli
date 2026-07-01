@@ -86,42 +86,18 @@ type Section struct {
 	Autofilled bool
 }
 
-// NextActionKind classifies how strongly the wizard recommends an action.
-type NextActionKind string
-
-const (
-	NextActionRecommended NextActionKind = "recommended"
-	NextActionAlternative NextActionKind = "alternative"
-	NextActionOptional    NextActionKind = "optional"
-	NextActionRecovery    NextActionKind = "recovery"
+type (
+	NextActionKind = planmodel.NextActionKind
+	NextAction     = planmodel.NextAction
+	GuidedStep     = planmodel.GuidedStep
 )
 
-// NextAction is one API-owned concrete action for the current guided step. Argv
-// is canonical; CLI/UI may format it, but they must not decide workflow order.
-type NextAction struct {
-	ID                 string
-	Kind               NextActionKind
-	Label              string
-	Reason             string
-	Argv               []string
-	ContentPlaceholder string
-	BlockedBy          []string
-}
-
-// GuidedStep is deterministic just-in-time wizard steering for the current
-// authoring step. It moves the old prose skill reminders and next-command
-// decisions into the runtime, so a smaller model receives the relevant rule and
-// concrete command exactly when it is authoring a field.
-type GuidedStep struct {
-	StepKind       string
-	Title          string
-	Summary        string
-	Instructions   []string
-	RequiredInputs []string
-	Examples       []string
-	CommonMistakes []string
-	NextActions    []NextAction
-}
+const (
+	NextActionRecommended = planmodel.NextActionRecommended
+	NextActionAlternative = planmodel.NextActionAlternative
+	NextActionOptional    = planmodel.NextActionOptional
+	NextActionRecovery    = planmodel.NextActionRecovery
+)
 
 // PhaseDraft is a structured phase being authored before Finalize maps it into
 // the plans SSOT. References are parsed into structured locators immediately so

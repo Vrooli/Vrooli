@@ -56,10 +56,14 @@ test: ## Run scenario tests
 clean: ## Clean build artifacts
 	@rm -rf ui/dist 2>/dev/null || true
 	@rm -f api/$(SCENARIO_NAME)-api api/$(SCENARIO_NAME) 2>/dev/null || true
+	@rm -f cli/$(SCENARIO_NAME) 2>/dev/null || true
 
 build: ## Build the scenario
 	@if [ -f api/go.mod ]; then \
 		cd api && GOWORK=off go build -o "$(SCENARIO_NAME)-api" .; \
+	fi
+	@if [ -f cli/go.mod ]; then \
+		cd cli && GOWORK=off go build -o "$(SCENARIO_NAME)" .; \
 	fi
 	@if [ -f ui/package.json ]; then \
 		cd ui && pnpm run build; \

@@ -751,14 +751,5 @@ func firstViolationMessage(violations []StructureViolation) string {
 }
 
 func onlyRecommendedAction(step GuidedStep) GuidedStep {
-	for _, action := range step.NextActions {
-		if action.Kind == NextActionRecommended {
-			step.NextActions = []NextAction{action}
-			return step
-		}
-	}
-	if len(step.NextActions) > 1 {
-		step.NextActions = step.NextActions[:1]
-	}
-	return step
+	return planmodel.OnlyRecommended(step)
 }

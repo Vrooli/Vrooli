@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"plan-manager/cli/internal/statusconv"
+
 	"connectrpc.com/connect"
 	repocontract "github.com/vrooli/repo-contract-go"
 
@@ -33,7 +35,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 
 func (h *handlers) list(ctx cliapp.RunContext) error {
 	resp, err := h.client.ListPlans(context.Background(), connect.NewRequest(&plansv1.ListPlansRequest{
-		Status:          planStatusFlag(ctx.Flag("status")),
+		Status:          statusconv.PlanStatusFlag(ctx.Flag("status")),
 		IncludeArchived: ctx.BoolFlag("include-archived"),
 		Workspace:       workspaceScopeFromFlag(ctx.Flag("workspace")),
 	}))
@@ -445,7 +447,7 @@ func (h *handlers) phaseUpdate(ctx cliapp.RunContext) error {
 			Acceptance:      ctx.Flag("acceptance"),
 			RisksHazards:    splitLinesOrCSV(ctx.Flag("risks-hazards")),
 			HandoffNotes:    ctx.Flag("handoff-notes"),
-			Status:          phaseStatusFlag(ctx.Flag("status")),
+			Status:          statusconv.PhaseStatusFlag(ctx.Flag("status")),
 			RelevantContext: parsePhaseContext(ctx.Flag("context")),
 			Reminders:       splitCSV(ctx.Flag("reminders")),
 			BaselineScope:   splitCSV(ctx.Flag("baseline-scope")),
@@ -504,7 +506,7 @@ func formatPlan(p *sharedv1.Plan) string {
 	if p == nil {
 		return "(nil)"
 	}
-	return fmt.Sprintf("%s — %s [%s, phases=%d]", p.Slug, p.Title, planStatusLabel(p.Status), len(p.Phases))
+	return fmt.Sprintf("%s — %s [%s, phases=%d]", p.Slug, p.Title, statusconv.PlanStatusLabel(p.Status), len(p.Phases))
 }
 
 func planDetail(p *sharedv1.Plan) []string {
@@ -515,7 +517,7 @@ func planDetail(p *sharedv1.Plan) []string {
 		fmt.Sprintf("id: %s", p.Id),
 		fmt.Sprintf("slug: %s", p.Slug),
 		fmt.Sprintf("title: %s", p.Title),
-		fmt.Sprintf("status: %s", planStatusLabel(p.Status)),
+		fmt.Sprintf("status: %s", statusconv.PlanStatusLabel(p.Status)),
 	}
 	if p.ContentHash != "" {
 		out = append(out, fmt.Sprintf("content-hash: %s", p.ContentHash))
@@ -542,7 +544,7 @@ func planDetail(p *sharedv1.Plan) []string {
 		out = append(out, fmt.Sprintf("preserved legacy sections: %d", n))
 	}
 	for i, ph := range p.Phases {
-		out = append(out, fmt.Sprintf("  phase %d: %s [%s] (id=%s)", i+1, ph.Title, phaseStatusLabel(ph.Status), ph.Id))
+		out = append(out, fmt.Sprintf("  phase %d: %s [%s] (id=%s)", i+1, ph.Title, statusconv.PlanPhaseStatusLabel(ph.Status), ph.Id))
 		if len(ph.GetSteps()) > 0 {
 			out = append(out, fmt.Sprintf("    steps: %d · validation: %s", len(ph.GetSteps()), truncateOneLine(ph.GetValidation(), 60)))
 		}
@@ -610,69 +612,6 @@ func workPostureLabel(p sharedv1.WorkPosture) string {
 		return "brownfield"
 	default:
 		return ""
-	}
-}
-
-// --- flag → proto enum helpers (unknown values fall through to UNSPECIFIED, a
-// no-op filter for reads). ---
-
-func planStatusFlag(s string) sharedv1.PlanStatus {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "draft":
-		return sharedv1.PlanStatus_PLAN_STATUS_DRAFT
-	case "active":
-		return sharedv1.PlanStatus_PLAN_STATUS_ACTIVE
-	case "complete":
-		return sharedv1.PlanStatus_PLAN_STATUS_COMPLETE
-	case "archived":
-		return sharedv1.PlanStatus_PLAN_STATUS_ARCHIVED
-	default:
-		return sharedv1.PlanStatus_PLAN_STATUS_UNSPECIFIED
-	}
-}
-
-func phaseStatusFlag(s string) sharedv1.PhaseStatus {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "todo":
-		return sharedv1.PhaseStatus_PHASE_STATUS_TODO
-	case "active":
-		return sharedv1.PhaseStatus_PHASE_STATUS_ACTIVE
-	case "done":
-		return sharedv1.PhaseStatus_PHASE_STATUS_DONE
-	case "blocked":
-		return sharedv1.PhaseStatus_PHASE_STATUS_BLOCKED
-	default:
-		return sharedv1.PhaseStatus_PHASE_STATUS_UNSPECIFIED
-	}
-}
-
-func planStatusLabel(s sharedv1.PlanStatus) string {
-	switch s {
-	case sharedv1.PlanStatus_PLAN_STATUS_DRAFT:
-		return "draft"
-	case sharedv1.PlanStatus_PLAN_STATUS_ACTIVE:
-		return "active"
-	case sharedv1.PlanStatus_PLAN_STATUS_COMPLETE:
-		return "complete"
-	case sharedv1.PlanStatus_PLAN_STATUS_ARCHIVED:
-		return "archived"
-	default:
-		return "unspecified"
-	}
-}
-
-func phaseStatusLabel(s sharedv1.PhaseStatus) string {
-	switch s {
-	case sharedv1.PhaseStatus_PHASE_STATUS_TODO:
-		return "todo"
-	case sharedv1.PhaseStatus_PHASE_STATUS_ACTIVE:
-		return "active"
-	case sharedv1.PhaseStatus_PHASE_STATUS_DONE:
-		return "done"
-	case sharedv1.PhaseStatus_PHASE_STATUS_BLOCKED:
-		return "blocked"
-	default:
-		return "todo"
 	}
 }
 

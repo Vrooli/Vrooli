@@ -426,27 +426,7 @@ func TestExecErrorHandling(t *testing.T) {
 	})
 }
 
-// --- direct unit tests of the flag->enum + enum->label + int helpers ---
-
-func TestExecPhaseStatusFlag(t *testing.T) {
-	cases := map[string]sharedv1.PhaseStatus{
-		"todo":    sharedv1.PhaseStatus_PHASE_STATUS_TODO,
-		"active":  sharedv1.PhaseStatus_PHASE_STATUS_ACTIVE,
-		"done":    sharedv1.PhaseStatus_PHASE_STATUS_DONE,
-		"blocked": sharedv1.PhaseStatus_PHASE_STATUS_BLOCKED,
-		" DONE ":  sharedv1.PhaseStatus_PHASE_STATUS_DONE,
-		"":        sharedv1.PhaseStatus_PHASE_STATUS_UNSPECIFIED,
-		"weird":   sharedv1.PhaseStatus_PHASE_STATUS_UNSPECIFIED,
-	}
-	for in, want := range cases {
-		require.Equalf(t, want, phaseStatusFlag(in), "phaseStatusFlag(%q)", in)
-	}
-}
-
 func TestExecLabels(t *testing.T) {
-	require.Equal(t, "active", phaseStatusLabel(sharedv1.PhaseStatus_PHASE_STATUS_ACTIVE))
-	require.Equal(t, "unspecified", phaseStatusLabel(sharedv1.PhaseStatus_PHASE_STATUS_UNSPECIFIED))
-	require.Equal(t, "complete", planStatusLabel(sharedv1.PlanStatus_PLAN_STATUS_COMPLETE))
 	require.Equal(t, "full", completenessLabel(sharedv1.Completeness_COMPLETENESS_FULL))
 	require.Equal(t, "partial", completenessLabel(sharedv1.Completeness_COMPLETENESS_PARTIAL))
 	require.Equal(t, "unspecified", completenessLabel(sharedv1.Completeness_COMPLETENESS_UNSPECIFIED))

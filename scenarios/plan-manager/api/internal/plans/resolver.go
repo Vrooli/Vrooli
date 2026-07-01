@@ -197,7 +197,7 @@ func (s *service) Reconcile(ctx context.Context, req ReconcileRequest) (Reconcil
 		}
 	}
 	if req.AdoptLegacy {
-		items, err := s.reconcileLegacyItems(ctx, req, existing, allExisting)
+		items, err := s.reconcileLegacyItems(ctx, req, allExisting)
 		if err != nil {
 			return result, err
 		}
@@ -240,106 +240,130 @@ func (s *service) reconcileMirrorItem(ctx context.Context, p Plan, dryRun bool) 
 	return item
 }
 
-func (s *service) reconcileLegacyItems(ctx context.Context, req ReconcileRequest, existing, allExisting []Plan) ([]ReconcileItem, error) {
+func (s *service) reconcileLegacyItems(ctx context.Context, req ReconcileRequest, allExisting []Plan) ([]ReconcileItem, error) {
 	if s.reader == nil {
 		return nil, ErrInvalidPlan{Reason: "no source reader configured; cannot scan legacy plans"}
 	}
-	protectedMirrorPaths := make(map[string]bool, len(allExisting))
-	importedSources := make(map[string]Plan, len(allExisting))
-	contentHashes := make(map[string]Plan, len(allExisting))
-	slugs := make(map[string]Plan, len(allExisting))
-	for _, p := range allExisting {
-		if meta, err := s.mirror.PathFor(ctx, p); err == nil && strings.TrimSpace(meta.Path) != "" {
-			protectedMirrorPaths[filepath.Clean(meta.Path)] = true
-		}
-		if p.ImportProvenance != nil && strings.TrimSpace(p.ImportProvenance.SourcePath) != "" {
-			importedSources[filepath.Clean(p.ImportProvenance.SourcePath)] = p
-		}
-		if strings.TrimSpace(p.ContentHash) != "" {
-			contentHashes[p.ContentHash] = p
-		}
-		if strings.TrimSpace(p.Slug) != "" {
-			slugs[p.Slug] = p
-		}
-	}
+	index := s.buildLegacyReconcileIndex(ctx, allExisting)
 	var out []ReconcileItem
 	for _, dir := range reconcileSourceDirs(req) {
-		root := expandPlanLocation(dir)
-		paths, err := s.listLegacySourcePaths(root, req.IncludeArchivedLegacy)
-		if err != nil {
-			out = append(out, ReconcileItem{Action: ReconcileActionConflict, SourcePath: root, SourceUntouched: true, Error: err.Error()})
-			continue
-		}
-		for _, sourcePath := range paths {
-			clean := filepath.Clean(sourcePath)
-			if protectedMirrorPaths[clean] {
-				out = append(out, ReconcileItem{Action: ReconcileActionAlreadyCanonical, SourcePath: clean, SourceUntouched: true})
-				continue
-			}
-			if p, ok := importedSources[clean]; ok {
-				item := ReconcileItem{Action: ReconcileActionAlreadyCanonical, PlanID: p.ID, Slug: p.Slug, Title: p.Title, SourcePath: clean, Mirror: p.Mirror, SourceUntouched: true}
-				out = append(out, s.cleanupAdoptedSource(req, item, protectedMirrorPaths))
-				continue
-			}
-			raw, err := s.reader.ReadFile(clean)
-			if err != nil {
-				out = append(out, ReconcileItem{Action: ReconcileActionConflict, SourcePath: clean, SourceUntouched: true, Error: err.Error()})
-				continue
-			}
-			parsed, err := ParsePlanMarkdown(string(raw))
-			if err != nil {
-				out = append(out, ReconcileItem{Action: ReconcileActionParseFailed, SourcePath: clean, SourceUntouched: true, Error: err.Error()})
-				continue
-			}
-			parsed.ContentHash = contentHash(parsed)
-			if match, ok := contentHashes[parsed.ContentHash]; ok {
-				action := ReconcileActionSkippedDuplicate
-				if req.ConflictPolicy == ReconcileConflictReportOnly {
-					action = ReconcileActionConflict
-				}
-				item := ReconcileItem{Action: action, PlanID: match.ID, Slug: match.Slug, Title: parsed.Title, SourcePath: clean, Mirror: match.Mirror, SourceUntouched: true}
-				out = append(out, s.cleanupAdoptedSource(req, item, protectedMirrorPaths))
-				continue
-			}
-			parsedSlug := reconcileParsedSlug(parsed)
-			if match, ok := slugs[parsedSlug]; ok {
-				out = append(out, ReconcileItem{
-					Action:          ReconcileActionConflict,
-					PlanID:          match.ID,
-					Slug:            match.Slug,
-					Title:           parsed.Title,
-					SourcePath:      clean,
-					Mirror:          match.Mirror,
-					SourceUntouched: true,
-					Error:           fmt.Sprintf("plan slug %q already exists", parsedSlug),
-				})
-				continue
-			}
-			item := ReconcileItem{Action: ReconcileActionImportPlanned, Title: parsed.Title, SourcePath: clean, SourceUntouched: true}
-			if req.DryRun {
-				item = s.cleanupAdoptedSource(req, item, protectedMirrorPaths)
-			}
-			if !req.DryRun {
-				imported, err := s.Import(ctx, clean, string(raw), "", "", req.Workspace)
-				if err != nil {
-					item.Action = ReconcileActionConflict
-					item.Error = err.Error()
-				} else {
-					item.Action = ReconcileActionImported
-					item.PlanID = imported.ID
-					item.Slug = imported.Slug
-					item.Title = imported.Title
-					item.Mirror = imported.Mirror
-					contentHashes[imported.ContentHash] = imported
-					importedSources[clean] = imported
-					slugs[imported.Slug] = imported
-					item = s.cleanupAdoptedSource(req, item, protectedMirrorPaths)
-				}
-			}
-			out = append(out, item)
-		}
+		out = append(out, s.reconcileLegacyDir(ctx, req, expandPlanLocation(dir), index)...)
 	}
 	return out, nil
+}
+
+type legacyReconcileIndex struct {
+	protectedMirrorPaths map[string]bool
+	importedSources      map[string]Plan
+	contentHashes        map[string]Plan
+	slugs                map[string]Plan
+}
+
+func (s *service) buildLegacyReconcileIndex(ctx context.Context, plans []Plan) *legacyReconcileIndex {
+	index := &legacyReconcileIndex{
+		protectedMirrorPaths: make(map[string]bool, len(plans)),
+		importedSources:      make(map[string]Plan, len(plans)),
+		contentHashes:        make(map[string]Plan, len(plans)),
+		slugs:                make(map[string]Plan, len(plans)),
+	}
+	for _, p := range plans {
+		if meta, err := s.mirror.PathFor(ctx, p); err == nil && strings.TrimSpace(meta.Path) != "" {
+			index.protectedMirrorPaths[filepath.Clean(meta.Path)] = true
+		}
+		if p.ImportProvenance != nil && strings.TrimSpace(p.ImportProvenance.SourcePath) != "" {
+			index.importedSources[filepath.Clean(p.ImportProvenance.SourcePath)] = p
+		}
+		if strings.TrimSpace(p.ContentHash) != "" {
+			index.contentHashes[p.ContentHash] = p
+		}
+		if strings.TrimSpace(p.Slug) != "" {
+			index.slugs[p.Slug] = p
+		}
+	}
+	return index
+}
+
+func (s *service) reconcileLegacyDir(ctx context.Context, req ReconcileRequest, root string, index *legacyReconcileIndex) []ReconcileItem {
+	paths, err := s.listLegacySourcePaths(root, req.IncludeArchivedLegacy)
+	if err != nil {
+		return []ReconcileItem{{Action: ReconcileActionConflict, SourcePath: root, SourceUntouched: true, Error: err.Error()}}
+	}
+	out := make([]ReconcileItem, 0, len(paths))
+	for _, sourcePath := range paths {
+		out = append(out, s.reconcileLegacySource(ctx, req, filepath.Clean(sourcePath), index))
+	}
+	return out
+}
+
+func (s *service) reconcileLegacySource(ctx context.Context, req ReconcileRequest, clean string, index *legacyReconcileIndex) ReconcileItem {
+	if index.protectedMirrorPaths[clean] {
+		return ReconcileItem{Action: ReconcileActionAlreadyCanonical, SourcePath: clean, SourceUntouched: true}
+	}
+	if p, ok := index.importedSources[clean]; ok {
+		item := ReconcileItem{Action: ReconcileActionAlreadyCanonical, PlanID: p.ID, Slug: p.Slug, Title: p.Title, SourcePath: clean, Mirror: p.Mirror, SourceUntouched: true}
+		return s.cleanupAdoptedSource(req, item, index.protectedMirrorPaths)
+	}
+	raw, err := s.reader.ReadFile(clean)
+	if err != nil {
+		return ReconcileItem{Action: ReconcileActionConflict, SourcePath: clean, SourceUntouched: true, Error: err.Error()}
+	}
+	parsed, err := ParsePlanMarkdown(string(raw))
+	if err != nil {
+		return ReconcileItem{Action: ReconcileActionParseFailed, SourcePath: clean, SourceUntouched: true, Error: err.Error()}
+	}
+	parsed.ContentHash = contentHash(parsed)
+	if match, ok := index.contentHashes[parsed.ContentHash]; ok {
+		return s.reconcileDuplicateLegacySource(req, clean, parsed, match, index)
+	}
+	if match, ok := index.slugs[reconcileParsedSlug(parsed)]; ok {
+		return reconcileSlugConflict(clean, parsed, match)
+	}
+	return s.importLegacySource(ctx, req, clean, raw, parsed, index)
+}
+
+func (s *service) reconcileDuplicateLegacySource(req ReconcileRequest, clean string, parsed, match Plan, index *legacyReconcileIndex) ReconcileItem {
+	action := ReconcileActionSkippedDuplicate
+	if req.ConflictPolicy == ReconcileConflictReportOnly {
+		action = ReconcileActionConflict
+	}
+	item := ReconcileItem{Action: action, PlanID: match.ID, Slug: match.Slug, Title: parsed.Title, SourcePath: clean, Mirror: match.Mirror, SourceUntouched: true}
+	return s.cleanupAdoptedSource(req, item, index.protectedMirrorPaths)
+}
+
+func reconcileSlugConflict(clean string, parsed, match Plan) ReconcileItem {
+	parsedSlug := reconcileParsedSlug(parsed)
+	return ReconcileItem{
+		Action:          ReconcileActionConflict,
+		PlanID:          match.ID,
+		Slug:            match.Slug,
+		Title:           parsed.Title,
+		SourcePath:      clean,
+		Mirror:          match.Mirror,
+		SourceUntouched: true,
+		Error:           fmt.Sprintf("plan slug %q already exists", parsedSlug),
+	}
+}
+
+func (s *service) importLegacySource(ctx context.Context, req ReconcileRequest, clean string, raw []byte, parsed Plan, index *legacyReconcileIndex) ReconcileItem {
+	item := ReconcileItem{Action: ReconcileActionImportPlanned, Title: parsed.Title, SourcePath: clean, SourceUntouched: true}
+	if req.DryRun {
+		return s.cleanupAdoptedSource(req, item, index.protectedMirrorPaths)
+	}
+	imported, err := s.Import(ctx, clean, string(raw), "", "", req.Workspace)
+	if err != nil {
+		item.Action = ReconcileActionConflict
+		item.Error = err.Error()
+		return item
+	}
+	item.Action = ReconcileActionImported
+	item.PlanID = imported.ID
+	item.Slug = imported.Slug
+	item.Title = imported.Title
+	item.Mirror = imported.Mirror
+	index.contentHashes[imported.ContentHash] = imported
+	index.importedSources[clean] = imported
+	index.slugs[imported.Slug] = imported
+	return s.cleanupAdoptedSource(req, item, index.protectedMirrorPaths)
 }
 
 func (s *service) cleanupAdoptedSource(req ReconcileRequest, item ReconcileItem, protectedMirrorPaths map[string]bool) ReconcileItem {

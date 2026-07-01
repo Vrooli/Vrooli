@@ -198,6 +198,14 @@ func TestPlanProtoRoundTripNewFields(t *testing.T) {
 	}
 	got := PlanFromProto(PlanToProto(in))
 
+	assertPlanRoundTripFields(t, got, in)
+	assertPlanRoundTripMetadata(t, got)
+	assertPhaseRoundTripFields(t, got.Phases[0])
+}
+
+func assertPlanRoundTripFields(t *testing.T, got planmodel.Plan, in planmodel.Plan) {
+	t.Helper()
+
 	if got.ProblemStatement != in.ProblemStatement || got.TargetOutcome != in.TargetOutcome ||
 		got.Assumptions != in.Assumptions || got.TechnicalApproach != in.TechnicalApproach ||
 		got.ValidationStrategy != in.ValidationStrategy || got.RisksHazards != in.RisksHazards ||
@@ -210,6 +218,11 @@ func TestPlanProtoRoundTripNewFields(t *testing.T) {
 	if got.WorkPosture != planmodel.WorkPostureBrownfield || got.WorkPostureSource != planmodel.WorkPostureSourceServiceMaturity || got.WorkPostureDetail != "pilot" {
 		t.Fatalf("work posture round-trip: %q/%q/%q", got.WorkPosture, got.WorkPostureSource, got.WorkPostureDetail)
 	}
+}
+
+func assertPlanRoundTripMetadata(t *testing.T, got planmodel.Plan) {
+	t.Helper()
+
 	if got.WorkspaceID != "ws-rt" || got.WorkspaceRoot != "/workspace/rt" {
 		t.Fatalf("workspace fields round-trip: %q/%q", got.WorkspaceID, got.WorkspaceRoot)
 	}
@@ -222,9 +235,13 @@ func TestPlanProtoRoundTripNewFields(t *testing.T) {
 	if len(got.PreservedLegacySections) != 1 || got.PreservedLegacySections[0].Heading != "Old" {
 		t.Fatalf("preserved legacy round-trip: %+v", got.PreservedLegacySections)
 	}
-	ph := got.Phases[0]
-	if len(ph.AffectedAreas) != 2 || len(ph.Steps) != 2 || len(ph.ExpectedOutputs) != 1 ||
-		ph.Validation != "go test" || ph.HandoffNotes != "handoff" || len(ph.RisksHazards) != 1 {
-		t.Fatalf("phase fields round-trip: %+v", ph)
+}
+
+func assertPhaseRoundTripFields(t *testing.T, phase planmodel.Phase) {
+	t.Helper()
+
+	if len(phase.AffectedAreas) != 2 || len(phase.Steps) != 2 || len(phase.ExpectedOutputs) != 1 ||
+		phase.Validation != "go test" || phase.HandoffNotes != "handoff" || len(phase.RisksHazards) != 1 {
+		t.Fatalf("phase fields round-trip: %+v", phase)
 	}
 }

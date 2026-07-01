@@ -82,126 +82,62 @@ func LogSummaryToProto(s planmodel.LogSummary) *sharedv1.LogSummary {
 
 // --- enum converters ---------------------------------------------------------
 
-func LogEntryTypeToProto(t planmodel.LogEntryType) sharedv1.LogEntryType {
-	switch t {
-	case planmodel.LogEntryDecision:
-		return sharedv1.LogEntryType_LOG_ENTRY_TYPE_DECISION
-	case planmodel.LogEntryFinding:
-		return sharedv1.LogEntryType_LOG_ENTRY_TYPE_FINDING
-	case planmodel.LogEntryBugReport:
-		return sharedv1.LogEntryType_LOG_ENTRY_TYPE_BUG_REPORT
-	case planmodel.LogEntryRecord:
-		return sharedv1.LogEntryType_LOG_ENTRY_TYPE_RECORD
-	case planmodel.LogEntryNote:
-		return sharedv1.LogEntryType_LOG_ENTRY_TYPE_NOTE
-	default:
-		return sharedv1.LogEntryType_LOG_ENTRY_TYPE_UNSPECIFIED
+var (
+	logEntryTypePairs = []enumPair[planmodel.LogEntryType, sharedv1.LogEntryType]{
+		{planmodel.LogEntryDecision, sharedv1.LogEntryType_LOG_ENTRY_TYPE_DECISION},
+		{planmodel.LogEntryFinding, sharedv1.LogEntryType_LOG_ENTRY_TYPE_FINDING},
+		{planmodel.LogEntryBugReport, sharedv1.LogEntryType_LOG_ENTRY_TYPE_BUG_REPORT},
+		{planmodel.LogEntryRecord, sharedv1.LogEntryType_LOG_ENTRY_TYPE_RECORD},
+		{planmodel.LogEntryNote, sharedv1.LogEntryType_LOG_ENTRY_TYPE_NOTE},
 	}
+	logSyncStatusPairs = []enumPair[planmodel.LogSyncStatus, sharedv1.LogSyncStatus]{
+		{planmodel.LogSyncLocal, sharedv1.LogSyncStatus_LOG_SYNC_STATUS_LOCAL},
+		{planmodel.LogSyncPending, sharedv1.LogSyncStatus_LOG_SYNC_STATUS_PENDING},
+		{planmodel.LogSyncSynced, sharedv1.LogSyncStatus_LOG_SYNC_STATUS_SYNCED},
+		{planmodel.LogSyncFailed, sharedv1.LogSyncStatus_LOG_SYNC_STATUS_FAILED},
+	}
+	logSeverityPairs = []enumPair[planmodel.LogSeverity, sharedv1.LogSeverity]{
+		{planmodel.LogSeverityInfo, sharedv1.LogSeverity_LOG_SEVERITY_INFO},
+		{planmodel.LogSeverityLow, sharedv1.LogSeverity_LOG_SEVERITY_LOW},
+		{planmodel.LogSeverityMedium, sharedv1.LogSeverity_LOG_SEVERITY_MEDIUM},
+		{planmodel.LogSeverityHigh, sharedv1.LogSeverity_LOG_SEVERITY_HIGH},
+		{planmodel.LogSeverityCritical, sharedv1.LogSeverity_LOG_SEVERITY_CRITICAL},
+	}
+	triagePairs = []enumPair[planmodel.FindingTriage, sharedv1.FindingTriage]{
+		{planmodel.TriageCandidate, sharedv1.FindingTriage_FINDING_TRIAGE_CANDIDATE},
+		{planmodel.TriagePromoted, sharedv1.FindingTriage_FINDING_TRIAGE_PROMOTED},
+		{planmodel.TriageDismissed, sharedv1.FindingTriage_FINDING_TRIAGE_DISMISSED},
+	}
+)
+
+func LogEntryTypeToProto(t planmodel.LogEntryType) sharedv1.LogEntryType {
+	return enumToProto(t, logEntryTypePairs, sharedv1.LogEntryType_LOG_ENTRY_TYPE_UNSPECIFIED)
 }
 
 func LogEntryTypeFromProto(t sharedv1.LogEntryType) planmodel.LogEntryType {
-	switch t {
-	case sharedv1.LogEntryType_LOG_ENTRY_TYPE_DECISION:
-		return planmodel.LogEntryDecision
-	case sharedv1.LogEntryType_LOG_ENTRY_TYPE_FINDING:
-		return planmodel.LogEntryFinding
-	case sharedv1.LogEntryType_LOG_ENTRY_TYPE_BUG_REPORT:
-		return planmodel.LogEntryBugReport
-	case sharedv1.LogEntryType_LOG_ENTRY_TYPE_RECORD:
-		return planmodel.LogEntryRecord
-	case sharedv1.LogEntryType_LOG_ENTRY_TYPE_NOTE:
-		return planmodel.LogEntryNote
-	default:
-		return planmodel.LogEntryUnspecified
-	}
+	return enumFromProto(t, logEntryTypePairs, planmodel.LogEntryUnspecified)
 }
 
 func LogSyncStatusToProto(s planmodel.LogSyncStatus) sharedv1.LogSyncStatus {
-	switch s {
-	case planmodel.LogSyncLocal:
-		return sharedv1.LogSyncStatus_LOG_SYNC_STATUS_LOCAL
-	case planmodel.LogSyncPending:
-		return sharedv1.LogSyncStatus_LOG_SYNC_STATUS_PENDING
-	case planmodel.LogSyncSynced:
-		return sharedv1.LogSyncStatus_LOG_SYNC_STATUS_SYNCED
-	case planmodel.LogSyncFailed:
-		return sharedv1.LogSyncStatus_LOG_SYNC_STATUS_FAILED
-	default:
-		return sharedv1.LogSyncStatus_LOG_SYNC_STATUS_UNSPECIFIED
-	}
+	return enumToProto(s, logSyncStatusPairs, sharedv1.LogSyncStatus_LOG_SYNC_STATUS_UNSPECIFIED)
 }
 
 func LogSyncStatusFromProto(s sharedv1.LogSyncStatus) planmodel.LogSyncStatus {
-	switch s {
-	case sharedv1.LogSyncStatus_LOG_SYNC_STATUS_LOCAL:
-		return planmodel.LogSyncLocal
-	case sharedv1.LogSyncStatus_LOG_SYNC_STATUS_PENDING:
-		return planmodel.LogSyncPending
-	case sharedv1.LogSyncStatus_LOG_SYNC_STATUS_SYNCED:
-		return planmodel.LogSyncSynced
-	case sharedv1.LogSyncStatus_LOG_SYNC_STATUS_FAILED:
-		return planmodel.LogSyncFailed
-	default:
-		return planmodel.LogSyncUnspecified
-	}
+	return enumFromProto(s, logSyncStatusPairs, planmodel.LogSyncUnspecified)
 }
 
 func LogSeverityToProto(s planmodel.LogSeverity) sharedv1.LogSeverity {
-	switch s {
-	case planmodel.LogSeverityInfo:
-		return sharedv1.LogSeverity_LOG_SEVERITY_INFO
-	case planmodel.LogSeverityLow:
-		return sharedv1.LogSeverity_LOG_SEVERITY_LOW
-	case planmodel.LogSeverityMedium:
-		return sharedv1.LogSeverity_LOG_SEVERITY_MEDIUM
-	case planmodel.LogSeverityHigh:
-		return sharedv1.LogSeverity_LOG_SEVERITY_HIGH
-	case planmodel.LogSeverityCritical:
-		return sharedv1.LogSeverity_LOG_SEVERITY_CRITICAL
-	default:
-		return sharedv1.LogSeverity_LOG_SEVERITY_UNSPECIFIED
-	}
+	return enumToProto(s, logSeverityPairs, sharedv1.LogSeverity_LOG_SEVERITY_UNSPECIFIED)
 }
 
 func LogSeverityFromProto(s sharedv1.LogSeverity) planmodel.LogSeverity {
-	switch s {
-	case sharedv1.LogSeverity_LOG_SEVERITY_INFO:
-		return planmodel.LogSeverityInfo
-	case sharedv1.LogSeverity_LOG_SEVERITY_LOW:
-		return planmodel.LogSeverityLow
-	case sharedv1.LogSeverity_LOG_SEVERITY_MEDIUM:
-		return planmodel.LogSeverityMedium
-	case sharedv1.LogSeverity_LOG_SEVERITY_HIGH:
-		return planmodel.LogSeverityHigh
-	case sharedv1.LogSeverity_LOG_SEVERITY_CRITICAL:
-		return planmodel.LogSeverityCritical
-	default:
-		return planmodel.LogSeverityUnspecified
-	}
+	return enumFromProto(s, logSeverityPairs, planmodel.LogSeverityUnspecified)
 }
 
 func TriageToProto(t planmodel.FindingTriage) sharedv1.FindingTriage {
-	switch t {
-	case planmodel.TriageCandidate:
-		return sharedv1.FindingTriage_FINDING_TRIAGE_CANDIDATE
-	case planmodel.TriagePromoted:
-		return sharedv1.FindingTriage_FINDING_TRIAGE_PROMOTED
-	case planmodel.TriageDismissed:
-		return sharedv1.FindingTriage_FINDING_TRIAGE_DISMISSED
-	default:
-		return sharedv1.FindingTriage_FINDING_TRIAGE_UNSPECIFIED
-	}
+	return enumToProto(t, triagePairs, sharedv1.FindingTriage_FINDING_TRIAGE_UNSPECIFIED)
 }
 
 func TriageFromProto(t sharedv1.FindingTriage) planmodel.FindingTriage {
-	switch t {
-	case sharedv1.FindingTriage_FINDING_TRIAGE_CANDIDATE:
-		return planmodel.TriageCandidate
-	case sharedv1.FindingTriage_FINDING_TRIAGE_PROMOTED:
-		return planmodel.TriagePromoted
-	case sharedv1.FindingTriage_FINDING_TRIAGE_DISMISSED:
-		return planmodel.TriageDismissed
-	default:
-		return planmodel.TriageUnspecified
-	}
+	return enumFromProto(t, triagePairs, planmodel.TriageUnspecified)
 }

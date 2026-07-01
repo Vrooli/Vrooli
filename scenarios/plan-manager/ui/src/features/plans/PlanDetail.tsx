@@ -10,6 +10,7 @@ import { strings } from "../../consts/strings";
 import { formatDate } from "../../i18n/format";
 import { useTranslation } from "../../i18n";
 import { phaseStatusDescriptor, planStatusDescriptor, stalenessDescriptor } from "../../lib/planStatus";
+import { contextCommand, contextKindLabel, repeatLabel } from "../../lib/relevantContext";
 import type {
   Phase,
   Plan,
@@ -18,8 +19,6 @@ import type {
   RelevantContextItem,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 import {
-  RelevantContextKind,
-  RelevantContextRepeatPolicy,
   RelevantContextStatus,
   WorkPosture,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
@@ -53,39 +52,6 @@ function StringList({ items, empty }: { items: readonly string[]; empty: string 
   );
 }
 
-const contextKindLabels: Record<RelevantContextKind, string> = {
-  [RelevantContextKind.UNSPECIFIED]: "Context",
-  [RelevantContextKind.SKILL]: "Skill",
-  [RelevantContextKind.DOC]: "Doc",
-  [RelevantContextKind.COMMAND]: "Command",
-  [RelevantContextKind.SEARCH]: "Search",
-  [RelevantContextKind.CODE_REF]: "Code",
-  [RelevantContextKind.REQ_REF]: "Requirement",
-  [RelevantContextKind.NOTE]: "Note",
-};
-
-function repeatLabel(policy: RelevantContextRepeatPolicy) {
-  switch (policy) {
-    case RelevantContextRepeatPolicy.ON_RESUME:
-      return "on resume";
-    case RelevantContextRepeatPolicy.EVERY_PHASE:
-      return "every phase";
-    case RelevantContextRepeatPolicy.PHASE_ENTRY:
-      return "phase entry";
-    case RelevantContextRepeatPolicy.AS_NEEDED:
-      return "as needed";
-    case RelevantContextRepeatPolicy.ONCE_PER_EXECUTION:
-      return "once";
-    default:
-      return "";
-  }
-}
-
-function contextCommand(item: RelevantContextItem) {
-  if (item.argv.length > 0) return item.argv.join(" ");
-  return item.command;
-}
-
 function RelevantContextList({ items }: { items: readonly RelevantContextItem[] }) {
   const { t } = useTranslation();
   if (items.length === 0) {
@@ -103,7 +69,7 @@ function RelevantContextList({ items }: { items: readonly RelevantContextItem[] 
           >
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-pill bg-app-info/15 px-2 py-0.5 text-xs text-app-info">
-                {contextKindLabels[item.kind]}
+                {contextKindLabel(item.kind)}
               </span>
               <span className="font-medium text-app-foreground">{item.label || item.target || command}</span>
               {repeat ? <span className="text-xs text-app-muted-foreground">{repeat}</span> : null}

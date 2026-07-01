@@ -576,57 +576,6 @@ func TestPlansErrorHandling(t *testing.T) {
 	})
 }
 
-// --- direct unit tests of the flag->enum + enum->label helpers ---
-
-func TestPlanStatusFlag(t *testing.T) {
-	cases := map[string]sharedv1.PlanStatus{
-		"draft":    sharedv1.PlanStatus_PLAN_STATUS_DRAFT,
-		"active":   sharedv1.PlanStatus_PLAN_STATUS_ACTIVE,
-		"complete": sharedv1.PlanStatus_PLAN_STATUS_COMPLETE,
-		"archived": sharedv1.PlanStatus_PLAN_STATUS_ARCHIVED,
-		"  Active": sharedv1.PlanStatus_PLAN_STATUS_ACTIVE, // case-insensitive + trimmed
-		"DRAFT":    sharedv1.PlanStatus_PLAN_STATUS_DRAFT,
-		"":         sharedv1.PlanStatus_PLAN_STATUS_UNSPECIFIED,
-		"bogus":    sharedv1.PlanStatus_PLAN_STATUS_UNSPECIFIED,
-	}
-	for in, want := range cases {
-		require.Equalf(t, want, planStatusFlag(in), "planStatusFlag(%q)", in)
-	}
-}
-
-func TestPhaseStatusFlag(t *testing.T) {
-	cases := map[string]sharedv1.PhaseStatus{
-		"todo":    sharedv1.PhaseStatus_PHASE_STATUS_TODO,
-		"active":  sharedv1.PhaseStatus_PHASE_STATUS_ACTIVE,
-		"done":    sharedv1.PhaseStatus_PHASE_STATUS_DONE,
-		"blocked": sharedv1.PhaseStatus_PHASE_STATUS_BLOCKED,
-		" Done ":  sharedv1.PhaseStatus_PHASE_STATUS_DONE,
-		"":        sharedv1.PhaseStatus_PHASE_STATUS_UNSPECIFIED,
-		"unknown": sharedv1.PhaseStatus_PHASE_STATUS_UNSPECIFIED,
-	}
-	for in, want := range cases {
-		require.Equalf(t, want, phaseStatusFlag(in), "phaseStatusFlag(%q)", in)
-	}
-}
-
-func TestPlanStatusLabel(t *testing.T) {
-	require.Equal(t, "draft", planStatusLabel(sharedv1.PlanStatus_PLAN_STATUS_DRAFT))
-	require.Equal(t, "active", planStatusLabel(sharedv1.PlanStatus_PLAN_STATUS_ACTIVE))
-	require.Equal(t, "complete", planStatusLabel(sharedv1.PlanStatus_PLAN_STATUS_COMPLETE))
-	require.Equal(t, "archived", planStatusLabel(sharedv1.PlanStatus_PLAN_STATUS_ARCHIVED))
-	require.Equal(t, "unspecified", planStatusLabel(sharedv1.PlanStatus_PLAN_STATUS_UNSPECIFIED))
-}
-
-func TestPhaseStatusLabel(t *testing.T) {
-	require.Equal(t, "todo", phaseStatusLabel(sharedv1.PhaseStatus_PHASE_STATUS_TODO))
-	require.Equal(t, "active", phaseStatusLabel(sharedv1.PhaseStatus_PHASE_STATUS_ACTIVE))
-	require.Equal(t, "done", phaseStatusLabel(sharedv1.PhaseStatus_PHASE_STATUS_DONE))
-	require.Equal(t, "blocked", phaseStatusLabel(sharedv1.PhaseStatus_PHASE_STATUS_BLOCKED))
-	// Unspecified falls back to "todo" (see handlers.go: a phase with no status
-	// is treated as not-yet-started rather than "unspecified").
-	require.Equal(t, "todo", phaseStatusLabel(sharedv1.PhaseStatus_PHASE_STATUS_UNSPECIFIED))
-}
-
 func errBoom() error { return &boomError{} }
 
 type boomError struct{}

@@ -219,10 +219,21 @@ func TestParsePlanMarkdownRecoversRelevantContextSetup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParsePlanMarkdown() error = %v", err)
 	}
-	if got := len(plan.RelevantContext); got != 2 {
+
+	assertGlobalRelevantContext(t, plan.RelevantContext)
+	if got := len(plan.Phases); got != 1 {
+		t.Fatalf("len(plan.Phases) = %d, want 1", got)
+	}
+	assertPhaseRelevantContext(t, plan.Phases[0].RelevantContext)
+}
+
+func assertGlobalRelevantContext(t *testing.T, context []RelevantContextItem) {
+	t.Helper()
+
+	if got := len(context); got != 2 {
 		t.Fatalf("len(plan.RelevantContext) = %d, want 2", got)
 	}
-	skill := plan.RelevantContext[0]
+	skill := context[0]
 	if skill.Kind != RelevantContextSkill || skill.Target != "api-steer" || !skill.Required {
 		t.Fatalf("skill context = %#v", skill)
 	}
@@ -232,28 +243,29 @@ func TestParsePlanMarkdownRecoversRelevantContextSetup(t *testing.T) {
 	if skill.Reason != "API contract changes." || skill.Instruction != "Load API steering." {
 		t.Fatalf("skill reason/instruction = %#v", skill)
 	}
-	search := plan.RelevantContext[1]
+	search := context[1]
 	if search.Kind != RelevantContextSearch || search.Command == "" || search.RepeatPolicy != RelevantContextAsNeeded {
 		t.Fatalf("search context = %#v", search)
 	}
-	if got := len(plan.Phases); got != 1 {
-		t.Fatalf("len(plan.Phases) = %d, want 1", got)
-	}
-	phaseContext := plan.Phases[0].RelevantContext
-	if got := len(phaseContext); got != 3 {
+}
+
+func assertPhaseRelevantContext(t *testing.T, context []RelevantContextItem) {
+	t.Helper()
+
+	if got := len(context); got != 3 {
 		t.Fatalf("len(phase context) = %d, want 3", got)
 	}
-	if phaseContext[0].Kind != RelevantContextDoc || phaseContext[0].Target != "docs/concepts/PLAN-MODEL.md" {
-		t.Fatalf("doc context = %#v", phaseContext[0])
+	if context[0].Kind != RelevantContextDoc || context[0].Target != "docs/concepts/PLAN-MODEL.md" {
+		t.Fatalf("doc context = %#v", context[0])
 	}
-	if phaseContext[0].RepeatPolicy != RelevantContextPhaseEntry || phaseContext[0].Scope != RelevantContextScopePhase {
-		t.Fatalf("doc scope/policy = %#v", phaseContext[0])
+	if context[0].RepeatPolicy != RelevantContextPhaseEntry || context[0].Scope != RelevantContextScopePhase {
+		t.Fatalf("doc scope/policy = %#v", context[0])
 	}
-	if phaseContext[1].Kind != RelevantContextReqRef || phaseContext[1].Target != "PM-CTX-001" || phaseContext[1].Status != RelevantContextStatusUnresolved {
-		t.Fatalf("req context = %#v", phaseContext[1])
+	if context[1].Kind != RelevantContextReqRef || context[1].Target != "PM-CTX-001" || context[1].Status != RelevantContextStatusUnresolved {
+		t.Fatalf("req context = %#v", context[1])
 	}
-	if phaseContext[2].Kind != RelevantContextNote || phaseContext[2].Instruction == "" {
-		t.Fatalf("note context = %#v", phaseContext[2])
+	if context[2].Kind != RelevantContextNote || context[2].Instruction == "" {
+		t.Fatalf("note context = %#v", context[2])
 	}
 }
 

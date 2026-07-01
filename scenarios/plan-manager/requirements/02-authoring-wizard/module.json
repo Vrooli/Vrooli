@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P0-002 — guided section-by-section authoring with autofill and a structure-validation gate.",
-    "last_validated_at": "2026-07-01T14:04:59-04:00",
+    "last_validated_at": "2026-07-01T14:23:35-04:00",
     "module": "authoring-wizard",
     "prd_ref": "PRD.md",
     "priority": "P0",

@@ -122,47 +122,7 @@ func velocityToProto(v internalexecution.VelocityPoint) *sharedv1.VelocityPoint 
 }
 
 func guidedStepToProto(g internalexecution.GuidedStep) *sharedv1.GuidedStep {
-	return &sharedv1.GuidedStep{
-		StepKind:       g.StepKind,
-		Title:          g.Title,
-		Summary:        g.Summary,
-		Instructions:   append([]string(nil), g.Instructions...),
-		RequiredInputs: append([]string(nil), g.RequiredInputs...),
-		Examples:       append([]string(nil), g.Examples...),
-		CommonMistakes: append([]string(nil), g.CommonMistakes...),
-		NextActions:    nextActionsToProto(g.NextActions),
-	}
-}
-
-func nextActionsToProto(actions []internalexecution.NextAction) []*sharedv1.NextAction {
-	out := make([]*sharedv1.NextAction, 0, len(actions))
-	for _, action := range actions {
-		out = append(out, &sharedv1.NextAction{
-			Id:                 action.ID,
-			Kind:               nextActionKindToProto(action.Kind),
-			Label:              action.Label,
-			Reason:             action.Reason,
-			Argv:               append([]string(nil), action.Argv...),
-			ContentPlaceholder: action.ContentPlaceholder,
-			BlockedBy:          append([]string(nil), action.BlockedBy...),
-		})
-	}
-	return out
-}
-
-func nextActionKindToProto(kind internalexecution.NextActionKind) sharedv1.NextActionKind {
-	switch kind {
-	case internalexecution.NextActionRecommended:
-		return sharedv1.NextActionKind_NEXT_ACTION_KIND_RECOMMENDED
-	case internalexecution.NextActionAlternative:
-		return sharedv1.NextActionKind_NEXT_ACTION_KIND_ALTERNATIVE
-	case internalexecution.NextActionOptional:
-		return sharedv1.NextActionKind_NEXT_ACTION_KIND_OPTIONAL
-	case internalexecution.NextActionRecovery:
-		return sharedv1.NextActionKind_NEXT_ACTION_KIND_RECOVERY
-	default:
-		return sharedv1.NextActionKind_NEXT_ACTION_KIND_UNSPECIFIED
-	}
+	return planproto.GuidedStepToProto(g)
 }
 
 func velocitiesToProto(vs []internalexecution.VelocityPoint) []*sharedv1.VelocityPoint {

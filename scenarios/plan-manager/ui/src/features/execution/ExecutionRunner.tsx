@@ -12,6 +12,7 @@ import { addBug, addDecision, addFinding, addNote, addRecord } from "../../api/l
 import { PlanSelect } from "../../components/PlanSelect";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Card, MetaRow, SectionPanel } from "../../components/Surfaces";
+import { GuidedStepPanel } from "../../components/GuidedStepPanel";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
@@ -20,21 +21,18 @@ import { strings } from "../../consts/strings";
 import { type StringKey } from "../../consts/stringKey";
 import { errorMessage } from "../../lib/errorMessage";
 import { phaseStatusDescriptor, stalenessDescriptor, verdictDescriptor } from "../../lib/planStatus";
+import { contextCommand, contextKindLabel, repeatLabel } from "../../lib/relevantContext";
 import { useTranslation } from "../../i18n";
 import {
   Completeness,
   PhaseStatus,
-  type GuidedStep,
   type Handoff,
   type LogEntry,
   type LogSummary,
   type RelevantContextItem,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
-import {
-  RelevantContextKind,
-  RelevantContextRepeatPolicy,
-  RelevantContextStatus,
-} from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
+import { RelevantContextStatus } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
+import type { GuidedStep } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 import type {
   CompletionNudge,
   Execution,
@@ -80,48 +78,6 @@ function StringList({ items, empty }: { items: readonly string[]; empty: string 
   );
 }
 
-function shellQuote(arg: string) {
-  if (/^[A-Za-z0-9_./:=@+-]+$/.test(arg)) return arg;
-  return `'${arg.replace(/'/g, "'\\''")}'`;
-}
-
-function shellCommand(argv: readonly string[]) {
-  return ["vrooli", "scenario", "plan-manager", ...argv].map(shellQuote).join(" ");
-}
-
-const contextKindLabels: Record<RelevantContextKind, string> = {
-  [RelevantContextKind.UNSPECIFIED]: "Context",
-  [RelevantContextKind.SKILL]: "Skill",
-  [RelevantContextKind.DOC]: "Doc",
-  [RelevantContextKind.COMMAND]: "Command",
-  [RelevantContextKind.SEARCH]: "Search",
-  [RelevantContextKind.CODE_REF]: "Code",
-  [RelevantContextKind.REQ_REF]: "Requirement",
-  [RelevantContextKind.NOTE]: "Note",
-};
-
-function repeatLabel(policy: RelevantContextRepeatPolicy) {
-  switch (policy) {
-    case RelevantContextRepeatPolicy.ON_RESUME:
-      return "on resume";
-    case RelevantContextRepeatPolicy.EVERY_PHASE:
-      return "every phase";
-    case RelevantContextRepeatPolicy.PHASE_ENTRY:
-      return "phase entry";
-    case RelevantContextRepeatPolicy.AS_NEEDED:
-      return "as needed";
-    case RelevantContextRepeatPolicy.ONCE_PER_EXECUTION:
-      return "once";
-    default:
-      return "";
-  }
-}
-
-function contextCommand(item: RelevantContextItem) {
-  if (item.argv.length > 0) return item.argv.join(" ");
-  return item.command;
-}
-
 function RelevantContextList({ items }: { items: readonly RelevantContextItem[] }) {
   const { t } = useTranslation();
   if (items.length === 0) {
@@ -139,7 +95,7 @@ function RelevantContextList({ items }: { items: readonly RelevantContextItem[] 
           >
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-pill bg-app-info/15 px-2 py-0.5 text-xs text-app-info">
-                {contextKindLabels[item.kind]}
+                {contextKindLabel(item.kind)}
               </span>
               <span className="font-medium text-app-foreground">{item.label || item.target || command}</span>
               {repeat ? <span className="text-xs text-app-muted-foreground">{repeat}</span> : null}
@@ -164,50 +120,6 @@ function RelevantContextList({ items }: { items: readonly RelevantContextItem[] 
         );
       })}
     </ul>
-  );
-}
-
-function StepPanel({ step }: { step?: GuidedStep }) {
-  if (!step || (!step.title && !step.summary)) return null;
-  return (
-    <SectionPanel title={step.title || step.stepKind} headingId="execution-step-heading">
-      <div data-testid={selectors.execution.guidedStep} className="flex flex-col gap-3">
-        {step.summary ? <p className="text-sm text-app-muted-foreground">{step.summary}</p> : null}
-        {step.instructions.length > 0 ? (
-          <ul className="flex flex-col gap-1">
-            {step.instructions.map((item, i) => (
-              <li key={`${item}-${i}`} className="text-sm text-app-foreground">
-                {item}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {step.requiredInputs.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {step.requiredInputs.map((item) => (
-              <span
-                key={item}
-                className="rounded-control border border-app-border bg-app-surface-muted px-2 py-1 font-mono text-xs"
-              >
-                {item}
-              </span>
-            ))}
-          </div>
-        ) : null}
-        {step.nextActions.length > 0 ? (
-          <div className="flex flex-col gap-2">
-            {step.nextActions.map((action) => (
-              <code
-                key={`${action.label}-${action.argv.join(" ")}`}
-                className="break-all rounded-control bg-app-surface-muted px-3 py-2 text-xs text-app-foreground"
-              >
-                {shellCommand(action.argv)}
-              </code>
-            ))}
-          </div>
-        ) : null}
-      </div>
-    </SectionPanel>
   );
 }
 
@@ -503,7 +415,12 @@ export function ExecutionRunner() {
         </p>
       ) : null}
 
-      <StepPanel step={state.step} />
+      <GuidedStepPanel
+        step={state.step}
+        headingId="execution-step-heading"
+        testId={selectors.execution.guidedStep}
+        commandPrefix={["vrooli", "scenario", "plan-manager"]}
+      />
 
       <SectionPanel
         title={t(strings.pages.execution.contextHeading)}
@@ -651,34 +568,35 @@ export function ExecutionRunner() {
           </Card>
 
           <Card className="bg-app-surface-muted">
-            <h4 className="text-sm font-semibold">Feedback checkpoint</h4>
+            <h4 className="text-sm font-semibold">{t(strings.pages.execution.feedbackCheckpointHeading)}</h4>
             <div className="mt-2 flex flex-col gap-2 text-sm">
-              <p className="text-app-muted-foreground">
-                {context?.feedbackCheckpoint?.summary || "Review feedback before marking this phase done."}
+              <p data-testid={selectors.execution.feedbackCheckpoint} className="text-app-muted-foreground">
+                {context?.feedbackCheckpoint?.summary || t(strings.pages.execution.feedbackReviewDefault)}
               </p>
               <div className="flex flex-wrap gap-2 text-xs">
                 <span className="rounded-pill bg-app-info/15 px-2 py-0.5 text-app-info">
-                  decisions {context?.feedbackCheckpoint?.decisions ?? 0}
+                  {t(strings.pages.execution.feedbackDecisions)} {context?.feedbackCheckpoint?.decisions ?? 0}
                 </span>
                 <span className="rounded-pill bg-app-info/15 px-2 py-0.5 text-app-info">
-                  findings {context?.feedbackCheckpoint?.findings ?? 0}
+                  {t(strings.pages.execution.feedbackFindings)} {context?.feedbackCheckpoint?.findings ?? 0}
                 </span>
                 <span className="rounded-pill bg-app-info/15 px-2 py-0.5 text-app-info">
-                  bugs {context?.feedbackCheckpoint?.bugReports ?? 0}
+                  {t(strings.pages.execution.feedbackBugs)} {context?.feedbackCheckpoint?.bugReports ?? 0}
                 </span>
                 <span className="rounded-pill bg-app-info/15 px-2 py-0.5 text-app-info">
-                  records {context?.feedbackCheckpoint?.records ?? 0}
+                  {t(strings.pages.execution.feedbackRecords)} {context?.feedbackCheckpoint?.records ?? 0}
                 </span>
               </div>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
+                data-testid={selectors.execution.noFeedbackButton}
                 disabled={busy || currentPhaseId.length === 0 || Boolean(context?.feedbackCheckpoint?.satisfied)}
                 onClick={handleNoFeedback}
                 className="w-fit"
               >
-                Confirm no feedback
+                {t(strings.pages.execution.confirmNoFeedback)}
               </Button>
             </div>
           </Card>
@@ -806,32 +724,35 @@ export function ExecutionRunner() {
           )}
         </SectionPanel>
 
-        <SectionPanel title="Bug reports" headingId="execution-bugs-heading">
+        <SectionPanel title={t(strings.pages.execution.bugReportsHeading)} headingId="execution-bugs-heading">
           <div className="flex flex-col gap-2">
             <Input
+              data-testid={selectors.execution.bugTitle}
               value={bugTitle}
               onChange={(e) => setBugTitle(e.target.value)}
-              placeholder="Bug title"
-              aria-label="Bug title"
+              placeholder={t(strings.pages.execution.bugTitleLabel)}
+              aria-label={t(strings.pages.execution.bugTitleLabel)}
             />
             <Textarea
+              data-testid={selectors.execution.bugDetail}
               value={bugDetail}
               onChange={(e) => setBugDetail(e.target.value)}
               rows={2}
-              aria-label="Bug detail"
+              aria-label={t(strings.pages.execution.bugDetailLabel)}
             />
             <Button
               type="button"
               size="sm"
+              data-testid={selectors.execution.recordBugButton}
               disabled={busy || bugTitle.trim().length === 0}
               onClick={handleRecordBug}
               className="w-fit"
             >
-              File bug report
+              {t(strings.pages.execution.fileBugReport)}
             </Button>
           </div>
           {state.bugs.length === 0 ? (
-            <p className="text-sm text-app-muted-foreground">No bug reports recorded.</p>
+            <p className="text-sm text-app-muted-foreground">{t(strings.pages.execution.noBugReports)}</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {state.bugs.map((bug) => (
@@ -844,32 +765,35 @@ export function ExecutionRunner() {
           )}
         </SectionPanel>
 
-        <SectionPanel title="Reusable records" headingId="execution-records-heading">
+        <SectionPanel title={t(strings.pages.execution.reusableRecordsHeading)} headingId="execution-records-heading">
           <div className="flex flex-col gap-2">
             <Input
+              data-testid={selectors.execution.recordTitle}
               value={recordTitle}
               onChange={(e) => setRecordTitle(e.target.value)}
-              placeholder="Record title"
-              aria-label="Record title"
+              placeholder={t(strings.pages.execution.recordTitleLabel)}
+              aria-label={t(strings.pages.execution.recordTitleLabel)}
             />
             <Textarea
+              data-testid={selectors.execution.recordDetail}
               value={recordDetail}
               onChange={(e) => setRecordDetail(e.target.value)}
               rows={2}
-              aria-label="Record detail"
+              aria-label={t(strings.pages.execution.recordDetailLabel)}
             />
             <Button
               type="button"
               size="sm"
+              data-testid={selectors.execution.recordRecordButton}
               disabled={busy || recordTitle.trim().length === 0}
               onClick={handleRecordRecord}
               className="w-fit"
             >
-              Capture record
+              {t(strings.pages.execution.captureRecord)}
             </Button>
           </div>
           {state.records.length === 0 ? (
-            <p className="text-sm text-app-muted-foreground">No records captured.</p>
+            <p className="text-sm text-app-muted-foreground">{t(strings.pages.execution.noRecords)}</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {state.records.map((record) => (
@@ -882,32 +806,35 @@ export function ExecutionRunner() {
           )}
         </SectionPanel>
 
-        <SectionPanel title="Notes" headingId="execution-notes-heading">
+        <SectionPanel title={t(strings.pages.execution.notesHeading)} headingId="execution-notes-heading">
           <div className="flex flex-col gap-2">
             <Input
+              data-testid={selectors.execution.noteTitle}
               value={noteTitle}
               onChange={(e) => setNoteTitle(e.target.value)}
-              placeholder="Note title"
-              aria-label="Note title"
+              placeholder={t(strings.pages.execution.noteTitleLabel)}
+              aria-label={t(strings.pages.execution.noteTitleLabel)}
             />
             <Textarea
+              data-testid={selectors.execution.noteDetail}
               value={noteDetail}
               onChange={(e) => setNoteDetail(e.target.value)}
               rows={2}
-              aria-label="Note detail"
+              aria-label={t(strings.pages.execution.noteDetailLabel)}
             />
             <Button
               type="button"
               size="sm"
+              data-testid={selectors.execution.recordNoteButton}
               disabled={busy || noteTitle.trim().length === 0}
               onClick={handleRecordNote}
               className="w-fit"
             >
-              Record note
+              {t(strings.pages.execution.recordNote)}
             </Button>
           </div>
           {state.notes.length === 0 ? (
-            <p className="text-sm text-app-muted-foreground">No notes recorded.</p>
+            <p className="text-sm text-app-muted-foreground">{t(strings.pages.execution.noNotes)}</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {state.notes.map((note) => (

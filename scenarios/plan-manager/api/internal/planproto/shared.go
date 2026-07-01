@@ -517,120 +517,62 @@ func EdgeToProto(e planmodel.PlanEdge) *sharedv1.PlanEdge {
 	}
 }
 
-func PlanStatusToProto(s planmodel.PlanStatus) sharedv1.PlanStatus {
-	switch s {
-	case planmodel.PlanStatusDraft:
-		return sharedv1.PlanStatus_PLAN_STATUS_DRAFT
-	case planmodel.PlanStatusActive:
-		return sharedv1.PlanStatus_PLAN_STATUS_ACTIVE
-	case planmodel.PlanStatusComplete:
-		return sharedv1.PlanStatus_PLAN_STATUS_COMPLETE
-	case planmodel.PlanStatusArchived:
-		return sharedv1.PlanStatus_PLAN_STATUS_ARCHIVED
-	default:
-		return sharedv1.PlanStatus_PLAN_STATUS_UNSPECIFIED
+var (
+	planStatusPairs = []enumPair[planmodel.PlanStatus, sharedv1.PlanStatus]{
+		{planmodel.PlanStatusDraft, sharedv1.PlanStatus_PLAN_STATUS_DRAFT},
+		{planmodel.PlanStatusActive, sharedv1.PlanStatus_PLAN_STATUS_ACTIVE},
+		{planmodel.PlanStatusComplete, sharedv1.PlanStatus_PLAN_STATUS_COMPLETE},
+		{planmodel.PlanStatusArchived, sharedv1.PlanStatus_PLAN_STATUS_ARCHIVED},
 	}
+	phaseStatusPairs = []enumPair[planmodel.PhaseStatus, sharedv1.PhaseStatus]{
+		{planmodel.PhaseStatusTodo, sharedv1.PhaseStatus_PHASE_STATUS_TODO},
+		{planmodel.PhaseStatusActive, sharedv1.PhaseStatus_PHASE_STATUS_ACTIVE},
+		{planmodel.PhaseStatusDone, sharedv1.PhaseStatus_PHASE_STATUS_DONE},
+		{planmodel.PhaseStatusBlocked, sharedv1.PhaseStatus_PHASE_STATUS_BLOCKED},
+	}
+	refKindPairs = []enumPair[planmodel.ReferenceKind, sharedv1.ReferenceKind]{
+		{planmodel.ReferenceCode, sharedv1.ReferenceKind_REFERENCE_KIND_CODE},
+		{planmodel.ReferenceReq, sharedv1.ReferenceKind_REFERENCE_KIND_REQ},
+		{planmodel.ReferenceDoc, sharedv1.ReferenceKind_REFERENCE_KIND_DOC},
+	}
+	refResolutionPairs = []enumPair[planmodel.ReferenceResolution, sharedv1.ReferenceResolution]{
+		{planmodel.ResolutionResolved, sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_RESOLVED},
+		{planmodel.ResolutionUnresolved, sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_UNRESOLVED},
+		{planmodel.ResolutionFuture, sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_FUTURE},
+		{planmodel.ResolutionMissing, sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_MISSING},
+	}
+)
+
+func PlanStatusToProto(s planmodel.PlanStatus) sharedv1.PlanStatus {
+	return enumToProto(s, planStatusPairs, sharedv1.PlanStatus_PLAN_STATUS_UNSPECIFIED)
 }
 
 func PlanStatusFromProto(s sharedv1.PlanStatus) planmodel.PlanStatus {
-	switch s {
-	case sharedv1.PlanStatus_PLAN_STATUS_DRAFT:
-		return planmodel.PlanStatusDraft
-	case sharedv1.PlanStatus_PLAN_STATUS_ACTIVE:
-		return planmodel.PlanStatusActive
-	case sharedv1.PlanStatus_PLAN_STATUS_COMPLETE:
-		return planmodel.PlanStatusComplete
-	case sharedv1.PlanStatus_PLAN_STATUS_ARCHIVED:
-		return planmodel.PlanStatusArchived
-	default:
-		return ""
-	}
+	return enumFromProto(s, planStatusPairs, "")
 }
 
 func PhaseStatusToProto(s planmodel.PhaseStatus) sharedv1.PhaseStatus {
-	switch s {
-	case planmodel.PhaseStatusTodo:
-		return sharedv1.PhaseStatus_PHASE_STATUS_TODO
-	case planmodel.PhaseStatusActive:
-		return sharedv1.PhaseStatus_PHASE_STATUS_ACTIVE
-	case planmodel.PhaseStatusDone:
-		return sharedv1.PhaseStatus_PHASE_STATUS_DONE
-	case planmodel.PhaseStatusBlocked:
-		return sharedv1.PhaseStatus_PHASE_STATUS_BLOCKED
-	default:
-		return sharedv1.PhaseStatus_PHASE_STATUS_UNSPECIFIED
-	}
+	return enumToProto(s, phaseStatusPairs, sharedv1.PhaseStatus_PHASE_STATUS_UNSPECIFIED)
 }
 
 func PhaseStatusFromProto(s sharedv1.PhaseStatus) planmodel.PhaseStatus {
-	switch s {
-	case sharedv1.PhaseStatus_PHASE_STATUS_TODO:
-		return planmodel.PhaseStatusTodo
-	case sharedv1.PhaseStatus_PHASE_STATUS_ACTIVE:
-		return planmodel.PhaseStatusActive
-	case sharedv1.PhaseStatus_PHASE_STATUS_DONE:
-		return planmodel.PhaseStatusDone
-	case sharedv1.PhaseStatus_PHASE_STATUS_BLOCKED:
-		return planmodel.PhaseStatusBlocked
-	default:
-		return ""
-	}
+	return enumFromProto(s, phaseStatusPairs, "")
 }
 
 func RefKindToProto(k planmodel.ReferenceKind) sharedv1.ReferenceKind {
-	switch k {
-	case planmodel.ReferenceCode:
-		return sharedv1.ReferenceKind_REFERENCE_KIND_CODE
-	case planmodel.ReferenceReq:
-		return sharedv1.ReferenceKind_REFERENCE_KIND_REQ
-	case planmodel.ReferenceDoc:
-		return sharedv1.ReferenceKind_REFERENCE_KIND_DOC
-	default:
-		return sharedv1.ReferenceKind_REFERENCE_KIND_UNSPECIFIED
-	}
+	return enumToProto(k, refKindPairs, sharedv1.ReferenceKind_REFERENCE_KIND_UNSPECIFIED)
 }
 
 func RefKindFromProto(k sharedv1.ReferenceKind) planmodel.ReferenceKind {
-	switch k {
-	case sharedv1.ReferenceKind_REFERENCE_KIND_REQ:
-		return planmodel.ReferenceReq
-	case sharedv1.ReferenceKind_REFERENCE_KIND_DOC:
-		return planmodel.ReferenceDoc
-	case sharedv1.ReferenceKind_REFERENCE_KIND_CODE:
-		return planmodel.ReferenceCode
-	default:
-		return planmodel.ReferenceCode
-	}
+	return enumFromProto(k, refKindPairs, planmodel.ReferenceCode)
 }
 
 func RefResolutionToProto(r planmodel.ReferenceResolution) sharedv1.ReferenceResolution {
-	switch r {
-	case planmodel.ResolutionResolved:
-		return sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_RESOLVED
-	case planmodel.ResolutionUnresolved:
-		return sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_UNRESOLVED
-	case planmodel.ResolutionFuture:
-		return sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_FUTURE
-	case planmodel.ResolutionMissing:
-		return sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_MISSING
-	default:
-		return sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_UNSPECIFIED
-	}
+	return enumToProto(r, refResolutionPairs, sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_UNSPECIFIED)
 }
 
 func RefResolutionFromProto(r sharedv1.ReferenceResolution) planmodel.ReferenceResolution {
-	switch r {
-	case sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_RESOLVED:
-		return planmodel.ResolutionResolved
-	case sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_UNRESOLVED:
-		return planmodel.ResolutionUnresolved
-	case sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_FUTURE:
-		return planmodel.ResolutionFuture
-	case sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_MISSING:
-		return planmodel.ResolutionMissing
-	default:
-		return planmodel.ResolutionUnspecified
-	}
+	return enumFromProto(r, refResolutionPairs, planmodel.ResolutionUnspecified)
 }
 
 func RelevantContextKindToProto(k planmodel.RelevantContextKind) sharedv1.RelevantContextKind {

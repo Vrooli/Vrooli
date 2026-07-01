@@ -4,14 +4,11 @@
 package planlog
 
 import (
-	"context"
 	"log"
 
 	"plan-manager/internal/clock"
-	internalexecution "plan-manager/internal/execution"
 	"plan-manager/internal/module"
 	internalplanlog "plan-manager/internal/planlog"
-	internalplans "plan-manager/internal/plans"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -26,16 +23,10 @@ import (
 // execution id binds entries to the right scope), and the downstream bug/record
 // sinks (the documented pending stubs in v1 — durable-local + retryable via
 // `log sync`; no API-blocking auto-forward to absent downstreams).
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
-	plansSvc := internalplans.NewService(internalplans.Deps{
-		Repo:  internalplans.NewSQLiteRepository(db, clk),
-		Clock: clk,
-	})
-	execRepo := internalexecution.NewSQLiteRepository(db, clk)
-
+func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, resolver internalplanlog.Resolver) module.Module {
 	svc := internalplanlog.NewService(internalplanlog.Deps{
 		Repo:     internalplanlog.NewSQLiteRepository(db, clk),
-		Resolver: resolverAdapter{plans: plansSvc, executions: execRepo},
+		Resolver: resolver,
 		Bugs:     internalplanlog.DefaultBugReporter(),  // pending stub; retry via `log sync`
 		Records:  internalplanlog.DefaultRecordWriter(), // pending stub; retry via `log sync`
 		Clock:    clk,
@@ -56,30 +47,6 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 
 // Schema returns the log domain's SQL contribution.
 func Schema() string { return internalplanlog.Schema() }
-
-// resolverAdapter maps a `plan_or_execution` handle to the canonical plan id and
-// (when the handle was an execution) the execution id. It checks the execution
-// store first (an execution id binds the entry to a run + its plan), then falls
-// back to resolving the handle as a plan id/slug through the plans SSOT.
-type resolverAdapter struct {
-	plans      internalplans.Service
-	executions internalexecution.Repository
-}
-
-func (a resolverAdapter) Resolve(ctx context.Context, handle string) (planID, executionID string, ok bool, err error) {
-	if e, found, gerr := a.executions.GetExecution(ctx, handle); gerr != nil {
-		return "", "", false, gerr
-	} else if found {
-		return e.PlanID, e.ID, true, nil
-	}
-	plan, gerr := a.plans.Get(ctx, handle, internalplans.WorkspaceScope{})
-	if gerr != nil {
-		// A non-resolving handle is not a hard error here — the service decides
-		// whether an unresolved handle is acceptable (it is for filters).
-		return "", "", false, nil
-	}
-	return plan.ID, "", true, nil
-}
 
 // Endpoints is the machine-readable description of the log module's public
 // surface; one entry per RPC (the global parity test enforces this).

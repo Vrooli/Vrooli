@@ -173,7 +173,7 @@ describe("ExecutionRunner", () => {
     expect(screen.getByTestId(selectors.execution.guidedStep)).toHaveTextContent("exec transition exec-1 p1 --status done");
     // The phase context surfaces a compact log-ledger roll-up (counts + pending sync).
     expect(screen.getByTestId(selectors.execution.logSummary)).toHaveTextContent("Pending sync");
-    expect(screen.getByText("Feedback checkpoint").closest("section")).toHaveTextContent(
+    expect(screen.getByTestId(selectors.execution.feedbackCheckpoint)).toHaveTextContent(
       "Review phase feedback before marking done.",
     );
     // The execution-start freshen status is surfaced (captured baseline + staleness).
@@ -282,18 +282,18 @@ describe("ExecutionRunner", () => {
       deduplicated: false,
     });
 
-    await user.type(screen.getByLabelText("Bug title"), "confirmed defect");
-    await user.type(screen.getByLabelText("Bug detail"), "breaks done gate");
-    await user.click(screen.getByRole("button", { name: "File bug report" }));
+    await user.type(screen.getByTestId(selectors.execution.bugTitle), "confirmed defect");
+    await user.type(screen.getByTestId(selectors.execution.bugDetail), "breaks done gate");
+    await user.click(screen.getByTestId(selectors.execution.recordBugButton));
 
-    await user.type(screen.getByLabelText("Record title"), "checkpoint pattern");
-    await user.type(screen.getByLabelText("Record detail"), "phase-close review");
-    await user.click(screen.getByRole("button", { name: "Capture record" }));
+    await user.type(screen.getByTestId(selectors.execution.recordTitle), "checkpoint pattern");
+    await user.type(screen.getByTestId(selectors.execution.recordDetail), "phase-close review");
+    await user.click(screen.getByTestId(selectors.execution.recordRecordButton));
 
-    await user.type(screen.getByLabelText("Note title"), "operator note");
-    await user.click(screen.getByRole("button", { name: "Record note" }));
+    await user.type(screen.getByTestId(selectors.execution.noteTitle), "operator note");
+    await user.click(screen.getByTestId(selectors.execution.recordNoteButton));
 
-    await user.click(screen.getByRole("button", { name: "Confirm no feedback" }));
+    await user.click(screen.getByTestId(selectors.execution.noFeedbackButton));
 
     await waitFor(() => {
       expect(addBug).toHaveBeenCalledWith("exec-1", "p1", "confirmed defect", { detail: "breaks done gate" });

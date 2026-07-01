@@ -27,7 +27,9 @@
 // import this package; the handler is the only translation point (api-steer §7).
 package execution
 
-import planmodel "plan-manager/internal/planmodel"
+import (
+	planmodel "plan-manager/internal/planmodel"
+)
 
 // Completeness distinguishes a full run from a partial one. COMPUTED from the
 // phase-status set (full iff every phase is done); never narrated.
@@ -197,32 +199,15 @@ type CompletionInputs struct {
 	Iterations int32
 }
 
-type NextActionKind string
-
-const (
-	NextActionRecommended NextActionKind = "recommended"
-	NextActionAlternative NextActionKind = "alternative"
-	NextActionOptional    NextActionKind = "optional"
-	NextActionRecovery    NextActionKind = "recovery"
+type (
+	NextActionKind = planmodel.NextActionKind
+	NextAction     = planmodel.NextAction
+	GuidedStep     = planmodel.GuidedStep
 )
 
-type NextAction struct {
-	ID                 string
-	Kind               NextActionKind
-	Label              string
-	Reason             string
-	Argv               []string
-	ContentPlaceholder string
-	BlockedBy          []string
-}
-
-type GuidedStep struct {
-	StepKind       string
-	Title          string
-	Summary        string
-	Instructions   []string
-	RequiredInputs []string
-	Examples       []string
-	CommonMistakes []string
-	NextActions    []NextAction
-}
+const (
+	NextActionRecommended = planmodel.NextActionRecommended
+	NextActionAlternative = planmodel.NextActionAlternative
+	NextActionOptional    = planmodel.NextActionOptional
+	NextActionRecovery    = planmodel.NextActionRecovery
+)

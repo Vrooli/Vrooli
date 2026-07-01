@@ -6,6 +6,9 @@ import (
 	"strconv"
 	"strings"
 
+	"plan-manager/cli/internal/statusconv"
+	"plan-manager/cli/internal/steprender"
+
 	"connectrpc.com/connect"
 
 	executionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/execution"
@@ -142,7 +145,7 @@ func (h *handlers) transition(ctx cliapp.RunContext) error {
 	resp, err := h.client.TransitionPhase(context.Background(), connect.NewRequest(&executionv1.TransitionPhaseRequest{
 		ExecutionId: ctx.Positional("execution"),
 		PhaseId:     ctx.Positional("phase"),
-		ToStatus:    phaseStatusFlag(ctx.Flag("status")),
+		ToStatus:    statusconv.PhaseStatusFlag(ctx.Flag("status")),
 		ValidationOverride: &executionv1.ValidationOverride{
 			Reason: ctx.Flag("validation-override-reason"),
 		},
@@ -155,9 +158,9 @@ func (h *handlers) transition(ctx cliapp.RunContext) error {
 	}
 	e := resp.Msg.GetExecution()
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result: []string{fmt.Sprintf("Transitioned phase %s to %s.", ctx.Positional("phase"), phaseStatusLabel(phaseStatusFlag(ctx.Flag("status"))))},
+		Result: []string{fmt.Sprintf("Transitioned phase %s to %s.", ctx.Positional("phase"), statusconv.PhaseStatusLabel(statusconv.PhaseStatusFlag(ctx.Flag("status"))))},
 		Changes: append([]string{
-			fmt.Sprintf("plan status: %s", planStatusLabel(resp.Msg.GetPlan().GetStatus())),
+			fmt.Sprintf("plan status: %s", statusconv.PlanStatusLabel(resp.Msg.GetPlan().GetStatus())),
 			fmt.Sprintf("current phase: %s", orNone(e.GetCurrentPhaseId())),
 		}, formatStep(resp.Msg.GetStep())...),
 		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
@@ -255,7 +258,7 @@ func contextSummary(e *executionv1.Execution, c *executionv1.PhaseContext) []str
 		fmt.Sprintf("Resume point: %s; staleness: %s.", orNone(c.GetResumePhaseId()), stalenessLabel(c.GetStaleness())),
 	}
 	if cur := c.GetCurrentPhase(); cur != nil {
-		out = append(out, fmt.Sprintf("Current phase: %s (%s).", cur.GetTitle(), phaseStatusLabel(cur.GetStatus())))
+		out = append(out, fmt.Sprintf("Current phase: %s (%s).", cur.GetTitle(), statusconv.PhaseStatusLabel(cur.GetStatus())))
 	}
 	return out
 }
@@ -333,7 +336,7 @@ func relevantContextCommand(item *sharedv1.RelevantContextItem) string {
 		return item.GetCommand()
 	}
 	if len(item.GetArgv()) > 0 {
-		return shellCommand(item.GetArgv())
+		return steprender.ShellCommand(item.GetArgv())
 	}
 	return ""
 }
@@ -369,70 +372,11 @@ func firstNonEmpty(values ...string) string {
 }
 
 func formatStep(step *sharedv1.GuidedStep) []string {
-	if step == nil || strings.TrimSpace(step.GetStepKind()) == "" {
-		return nil
-	}
-	out := []string{fmt.Sprintf("Current Step (%s): %s", step.GetStepKind(), step.GetSummary())}
-	for _, input := range step.GetRequiredInputs() {
-		out = append(out, "Required input: "+input)
-	}
-	for _, item := range step.GetInstructions() {
-		out = append(out, "- "+item)
-	}
-	for _, action := range step.GetNextActions() {
-		if action.GetKind() == sharedv1.NextActionKind_NEXT_ACTION_KIND_RECOMMENDED {
-			continue
-		}
-		out = append(out, fmt.Sprintf("%s: `%s` — %s", actionKindLabel(action.GetKind()), shellCommand(action.GetArgv()), action.GetReason()))
-	}
-	return out
+	return steprender.StepLines(step)
 }
 
 func formatRecommendedActions(step *sharedv1.GuidedStep) []string {
-	if step == nil {
-		return nil
-	}
-	out := make([]string, 0, 1)
-	for _, action := range step.GetNextActions() {
-		if action.GetKind() != sharedv1.NextActionKind_NEXT_ACTION_KIND_RECOMMENDED {
-			continue
-		}
-		out = append(out, fmt.Sprintf("`%s` — %s", shellCommand(action.GetArgv()), action.GetReason()))
-	}
-	return out
-}
-
-func actionKindLabel(kind sharedv1.NextActionKind) string {
-	switch kind {
-	case sharedv1.NextActionKind_NEXT_ACTION_KIND_ALTERNATIVE:
-		return "Alternative"
-	case sharedv1.NextActionKind_NEXT_ACTION_KIND_OPTIONAL:
-		return "Optional"
-	case sharedv1.NextActionKind_NEXT_ACTION_KIND_RECOVERY:
-		return "Recovery"
-	default:
-		return "Action"
-	}
-}
-
-func shellCommand(argv []string) string {
-	parts := make([]string, 0, len(argv))
-	for _, arg := range argv {
-		parts = append(parts, shellQuote(arg))
-	}
-	return strings.Join(parts, " ")
-}
-
-func shellQuote(arg string) string {
-	if arg == "" {
-		return "''"
-	}
-	if strings.IndexFunc(arg, func(r rune) bool {
-		return r == ' ' || r == '\t' || r == '\n' || r == '\'' || r == '"' || r == '<' || r == '>' || r == '[' || r == ']' || r == ':' || r == ';' || r == '|' || r == '&'
-	}) < 0 {
-		return arg
-	}
-	return "'" + strings.ReplaceAll(arg, "'", "'\\''") + "'"
+	return steprender.RecommendedActions(step)
 }
 
 func parseInt64Flag(s string) (int64, error) {
@@ -460,51 +404,6 @@ func orNone(s string) string {
 		return "(none)"
 	}
 	return s
-}
-
-func phaseStatusFlag(s string) sharedv1.PhaseStatus {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "todo":
-		return sharedv1.PhaseStatus_PHASE_STATUS_TODO
-	case "active":
-		return sharedv1.PhaseStatus_PHASE_STATUS_ACTIVE
-	case "done":
-		return sharedv1.PhaseStatus_PHASE_STATUS_DONE
-	case "blocked":
-		return sharedv1.PhaseStatus_PHASE_STATUS_BLOCKED
-	default:
-		return sharedv1.PhaseStatus_PHASE_STATUS_UNSPECIFIED
-	}
-}
-
-func phaseStatusLabel(s sharedv1.PhaseStatus) string {
-	switch s {
-	case sharedv1.PhaseStatus_PHASE_STATUS_TODO:
-		return "todo"
-	case sharedv1.PhaseStatus_PHASE_STATUS_ACTIVE:
-		return "active"
-	case sharedv1.PhaseStatus_PHASE_STATUS_DONE:
-		return "done"
-	case sharedv1.PhaseStatus_PHASE_STATUS_BLOCKED:
-		return "blocked"
-	default:
-		return "unspecified"
-	}
-}
-
-func planStatusLabel(s sharedv1.PlanStatus) string {
-	switch s {
-	case sharedv1.PlanStatus_PLAN_STATUS_DRAFT:
-		return "draft"
-	case sharedv1.PlanStatus_PLAN_STATUS_ACTIVE:
-		return "active"
-	case sharedv1.PlanStatus_PLAN_STATUS_COMPLETE:
-		return "complete"
-	case sharedv1.PlanStatus_PLAN_STATUS_ARCHIVED:
-		return "archived"
-	default:
-		return "unspecified"
-	}
 }
 
 func completenessLabel(c sharedv1.Completeness) string {

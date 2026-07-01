@@ -35,7 +35,7 @@ The structured plan/phase schema every domain operates on lives in
 | authoring | Guided composer wizard: section-by-section flow, structure-validation gate, autofill of mechanical sections. | orchestration / workflow | Authoring-session state; validation findings. | API, CLI, UI | PM-AUTHOR-001/002 | `api/internal/authoring/`, `api/handlers/authoring/`, `cli/domains/authoring/`, `ui/src/features/authoring/`, `packages/proto/schemas/plan-manager/v1/authoring/` |
 | execution | Guided runner: phase transitions, just-in-time context injection (reads the log ledger), thin completion + canonical handoff, velocity. | orchestration / state machine | Execution/run linkage, handoff records, velocity series. | API, CLI, UI | PM-EXEC-001/002, PM-HANDOFF-001/002, PM-VEL-001, PM-UI-001 | `api/internal/execution/`, `api/handlers/execution/`, `cli/domains/execution/`, `ui/src/features/execution/`, `ui/src/features/triage/`, `ui/src/features/velocity/`, `packages/proto/schemas/plan-manager/v1/execution/` |
 | validation | Plan health: code-reference resolution, staleness tiers, baseline-scope derivation, baseline/check orchestration, DoD verification. | provider / verification | Reference resolutions, validation results, staleness factors. | API, CLI, UI | PM-REF-001, PM-STALE-001, PM-VALID-001/002 | `api/internal/validation/`, `api/handlers/validation/`, `cli/domains/validation/`, `ui/src/features/validation/`, `packages/proto/schemas/plan-manager/v1/validation/` |
-| log | Execution-log ledger: the single durable home for typed work products an agent produces while executing a plan — decisions, candidate findings, filed bug reports, reusable records, notes; list/get/update/promote/sync; internal downstream forwarding. | ledger / capture | Log entries (decisions, findings, bug reports, records, notes) + downstream sync state. | API, CLI, UI (client + candidate-finding triage view under execution's `triage` feature) | PM-LOG-001/002/003/004 | `api/internal/planlog/`, `api/internal/planmodel/log.go`, `api/handlers/planlog/`, `cli/domains/log/`, `ui/src/api/log.ts`, `packages/proto/schemas/plan-manager/v1/log/` |
+| log | Execution-log ledger: the single durable home for typed work products an agent produces while executing a plan — decisions, candidate findings, filed bug reports, reusable records, notes; list/get/update/promote/sync; internal downstream forwarding. | ledger / capture | Log entries (decisions, findings, bug reports, records, notes) + downstream sync state. | API, CLI, UI (client + candidate-finding triage view under execution's `triage` feature) | PM-LOG-001/002/003/004 | `api/internal/planlog/`, `api/handlers/planlog/`, `cli/domains/log/`, `ui/src/api/log.ts`, `packages/proto/schemas/plan-manager/v1/log/` |
 
 ## Domain Details
 
@@ -138,6 +138,9 @@ These are important but should not become product domains:
 - `api/internal/module/` — shared module descriptor type.
 - `api/internal/modules/` — thin registry for boot/codegen.
 - `api/internal/database/` — cross-cutting database/home-store infrastructure.
+- `api/internal/clihealth/` — shared CLI Health HTTP adapter for command-reference validation; authoring/validation own the policy surfaces that consume it.
+- `api/internal/planmodel/` — neutral structured-plan, guided-step, boundary, and log-entry model kernel shared by domains; no transport, persistence, or service policy.
+- `api/internal/planproto/` — transport translation helpers between the neutral plan model and generated proto messages; handlers call it, domains do not.
 - `api/internal/testutil/` — cross-domain test harnesses.
 - `ui/src/components/` — shared presentation primitives.
 - `ui/src/test-utils/` — cross-feature testing support.

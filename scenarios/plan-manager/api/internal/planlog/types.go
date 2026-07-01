@@ -19,7 +19,9 @@
 // (handlers/planlog) and never import this package.
 package planlog
 
-import planmodel "plan-manager/internal/planmodel"
+import (
+	planmodel "plan-manager/internal/planmodel"
+)
 
 // Domain type aliases onto the shared planmodel kernel so the service signatures
 // read in the log domain's vocabulary.
@@ -59,35 +61,15 @@ type UpdateInputs struct {
 	AddEvidence []string
 }
 
-// NextActionKind classifies how strongly the wizard recommends an action.
-type NextActionKind string
-
-const (
-	NextActionRecommended NextActionKind = "recommended"
-	NextActionAlternative NextActionKind = "alternative"
-	NextActionOptional    NextActionKind = "optional"
-	NextActionRecovery    NextActionKind = "recovery"
+type (
+	NextActionKind = planmodel.NextActionKind
+	NextAction     = planmodel.NextAction
+	GuidedStep     = planmodel.GuidedStep
 )
 
-// NextAction is one API-owned concrete action for the current guided step.
-type NextAction struct {
-	ID                 string
-	Kind               NextActionKind
-	Label              string
-	Reason             string
-	Argv               []string
-	ContentPlaceholder string
-	BlockedBy          []string
-}
-
-// GuidedStep is deterministic just-in-time steering for the current log action.
-type GuidedStep struct {
-	StepKind       string
-	Title          string
-	Summary        string
-	Instructions   []string
-	RequiredInputs []string
-	Examples       []string
-	CommonMistakes []string
-	NextActions    []NextAction
-}
+const (
+	NextActionRecommended = planmodel.NextActionRecommended
+	NextActionAlternative = planmodel.NextActionAlternative
+	NextActionOptional    = planmodel.NextActionOptional
+	NextActionRecovery    = planmodel.NextActionRecovery
+)

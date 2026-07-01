@@ -23,12 +23,14 @@ import {
   validateStructure,
 } from "../../api/authoring";
 import { SectionPanel } from "../../components/Surfaces";
+import { GuidedStepPanel } from "../../components/GuidedStepPanel";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { errorMessage } from "../../lib/errorMessage";
+import { contextKindLabel } from "../../lib/relevantContext";
 import { useTranslation } from "../../i18n";
 import type {
   AuthoringProgress,
@@ -86,17 +88,6 @@ const contextKinds = [
   RelevantContextKind.NOTE,
 ];
 
-const contextKindLabels: Record<RelevantContextKind, string> = {
-  [RelevantContextKind.UNSPECIFIED]: "context",
-  [RelevantContextKind.SKILL]: "skill",
-  [RelevantContextKind.DOC]: "doc",
-  [RelevantContextKind.COMMAND]: "command",
-  [RelevantContextKind.SEARCH]: "search",
-  [RelevantContextKind.CODE_REF]: "code_ref",
-  [RelevantContextKind.REQ_REF]: "req_ref",
-  [RelevantContextKind.NOTE]: "note",
-};
-
 function ContextList({
   items,
   onRemove,
@@ -119,7 +110,7 @@ function ContextList({
         >
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-pill bg-app-info/15 px-2 py-0.5 text-xs text-app-info">
-              {contextKindLabels[item.kind]}
+              {contextKindLabel(item.kind, "lower")}
             </span>
             <span className="font-medium text-app-foreground">{item.label || item.target || item.command}</span>
             {onRemove && item.id ? (
@@ -366,42 +357,6 @@ function SectionRow({
         </span>
       </button>
     </li>
-  );
-}
-
-function StepPanel({ step }: { step?: GuidedStep }) {
-  if (!step || (!step.title && !step.summary)) return null;
-  return (
-    <SectionPanel title={step.title || step.stepKind} headingId="authoring-guidance-heading">
-      <div data-testid={selectors.authoring.guidance} className="flex flex-col gap-3">
-        {step.summary ? <p className="text-sm text-app-muted-foreground">{step.summary}</p> : null}
-        {step.instructions.length > 0 ? (
-          <ul className="flex flex-col gap-1 text-sm text-app-foreground">
-            {step.instructions.map((item, i) => (
-              <li key={`instruction-${i}`}>{item}</li>
-            ))}
-          </ul>
-        ) : null}
-        {step.requiredInputs.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
-            {step.requiredInputs.map((item) => (
-              <span key={item} className="rounded-pill bg-app-info/15 px-2 py-0.5 text-xs text-app-info">
-                {item}
-              </span>
-            ))}
-          </div>
-        ) : null}
-        {step.nextActions.length > 0 ? (
-          <div className="flex flex-col gap-1 text-xs text-app-muted-foreground">
-            {step.nextActions.map((action) => (
-              <code key={action.id || action.label} className="rounded-control bg-app-surface-muted px-2 py-1">
-                {action.argv.join(" ")}
-              </code>
-            ))}
-          </div>
-        ) : null}
-      </div>
-    </SectionPanel>
   );
 }
 
@@ -800,7 +755,11 @@ export function AuthoringWizard() {
           </p>
         ) : null}
 
-        <StepPanel step={state.step} />
+        <GuidedStepPanel
+          step={state.step}
+          headingId="authoring-guidance-heading"
+          testId={selectors.authoring.guidance}
+        />
 
         {activeSection ? (
           <SectionPanel
@@ -1079,7 +1038,7 @@ export function AuthoringWizard() {
                 >
                   {contextKinds.map((kind) => (
                     <option key={kind} value={String(kind)}>
-                      {contextKindLabels[kind]}
+                      {contextKindLabel(kind, "lower")}
                     </option>
                   ))}
                 </select>

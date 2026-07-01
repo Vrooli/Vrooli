@@ -10,7 +10,9 @@ import (
 	"strings"
 
 	"plan-manager/internal/clock"
+	internalexecution "plan-manager/internal/execution"
 	"plan-manager/internal/modules"
+	internalplans "plan-manager/internal/plans"
 	"plan-manager/internal/server"
 
 	"github.com/vrooli/api-core/apihttp"
@@ -132,7 +134,7 @@ func main() {
 		validationH.Module(db, clock.System{}, log.Default()),
 		authoringH.Module(db, clock.System{}, log.Default()),
 		executionH.Module(db, clock.System{}, log.Default()),
-		planlogH.Module(db, clock.System{}, log.Default()),
+		planlogH.Module(db, clock.System{}, log.Default(), newPlanLogResolver(db, clock.System{})),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -154,4 +156,35 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+// planLogResolver maps a `plan_or_execution` handle to the canonical plan id
+// and optional execution id. This is cross-domain composition, so it lives in
+// main rather than inside the log transport module.
+type planLogResolver struct {
+	plans      internalplans.Service
+	executions internalexecution.Repository
+}
+
+func newPlanLogResolver(db *database.RoutedDB, clk clock.Clock) planLogResolver {
+	return planLogResolver{
+		plans: internalplans.NewService(internalplans.Deps{
+			Repo:  internalplans.NewSQLiteRepository(db, clk),
+			Clock: clk,
+		}),
+		executions: internalexecution.NewSQLiteRepository(db, clk),
+	}
+}
+
+func (r planLogResolver) Resolve(ctx context.Context, handle string) (planID, executionID string, ok bool, err error) {
+	if e, found, gerr := r.executions.GetExecution(ctx, handle); gerr != nil {
+		return "", "", false, gerr
+	} else if found {
+		return e.PlanID, e.ID, true, nil
+	}
+	plan, gerr := r.plans.Get(ctx, handle, internalplans.WorkspaceScope{})
+	if gerr != nil {
+		return "", "", false, nil
+	}
+	return plan.ID, "", true, nil
 }
