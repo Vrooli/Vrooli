@@ -61,7 +61,7 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Owner:** unassigned.
 
-**Refs:** `vrooli plans show scenario-status-layer-…` §12.
+**Refs:** `plan-manager plans render scenario-status-layer-...` §12.
 
 ### 2026-06-10 — Deferred: search-hub provider registration
 

@@ -45,3 +45,5 @@ replace github.com/vrooli/vrooli => ../../..
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
 replace github.com/vrooli/vrooli/scenarios/audio-tools/clients/go => ../../../scenarios/audio-tools/clients/go
+
+replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch

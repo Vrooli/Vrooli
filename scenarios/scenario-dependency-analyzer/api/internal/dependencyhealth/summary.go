@@ -78,12 +78,27 @@ func sortedSet(values map[string]struct{}) []string {
 
 func scenarioDirFromSurfaces(surfaces []*healthv1.DependencyHealthSurface) string {
 	for _, surface := range surfaces {
-		root := strings.TrimSpace(surface.GetRootPath())
+		root := strings.TrimSpace(packageRoot(surface))
 		if root != "" {
 			return root
 		}
 	}
 	return ""
+}
+
+func packageRoot(surface *healthv1.DependencyHealthSurface) string {
+	return firstNonEmpty(surface.GetParseUnitRoot(), surface.GetRootPath())
+}
+
+func packageConfigPath(surface *healthv1.DependencyHealthSurface, fallbackName string) string {
+	if config := strings.TrimSpace(surface.GetConfigPath()); config != "" {
+		return config
+	}
+	root := packageRoot(surface)
+	if root == "" || fallbackName == "" {
+		return root
+	}
+	return filepath.Join(root, fallbackName)
 }
 
 func surfaceID(surface *healthv1.DependencyHealthSurface) string {

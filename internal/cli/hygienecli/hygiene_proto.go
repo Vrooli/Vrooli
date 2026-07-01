@@ -5,8 +5,6 @@ import (
 	"time"
 
 	hygieneapp "github.com/vrooli/vrooli/internal/app/hygiene"
-	planapp "github.com/vrooli/vrooli/internal/app/plans"
-	shareddriftapp "github.com/vrooli/vrooli/internal/app/shareddrift"
 	"github.com/vrooli/vrooli/internal/cli/contractcli"
 	"github.com/vrooli/vrooli/internal/cliout"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
@@ -15,7 +13,8 @@ import (
 // HygieneReportMessage maps the internal hygiene report onto the vrooli.cli.v1
 // wire contract. A proto field rename breaks this mapping at compile time —
 // that is the drift guard. The embedded contract-validation output reuses the
-// contractcli mapping; the shared-drift report reuses the shared_drift contract.
+// contractcli mapping; dependency freshness keeps the shared_drift field as a
+// compatibility payload while SDA owns the underlying freshness logic.
 func HygieneReportMessage(report hygieneapp.Report) *cliv1.HygieneReport {
 	msg := &cliv1.HygieneReport{
 		Success:          report.Success,
@@ -51,6 +50,20 @@ func HygieneReportMessage(report hygieneapp.Report) *cliv1.HygieneReport {
 		msg.FixesApplied = append(msg.FixesApplied, &cliv1.HygienePlanFix{
 			Source: fix.Source,
 			Plan:   hygienePlanRecordMessage(fix.Plan),
+			Action: fix.Action,
+			Mirror: hygieneMirrorMessage(fix.Mirror),
+		})
+	}
+	for _, outcome := range report.PlanReconcileOutcomes {
+		msg.PlanReconcileOutcomes = append(msg.PlanReconcileOutcomes, &cliv1.HygienePlanReconcileOutcome{
+			Action:               outcome.Action,
+			Source:               outcome.Source,
+			Plan:                 hygienePlanRecordMessage(outcome.Plan),
+			Mirror:               hygieneMirrorMessage(outcome.Mirror),
+			SourceUntouched:      outcome.SourceUntouched,
+			SourceCleanupPlanned: outcome.SourceCleanupPlanned,
+			SourceRemoved:        outcome.SourceRemoved,
+			Error:                outcome.Error,
 		})
 	}
 	return msg
@@ -81,24 +94,28 @@ func hygieneActionMessage(action hygieneapp.Action) *cliv1.HygieneAction {
 	}
 }
 
-func hygienePlanRecordMessage(record planapp.PlanRecord) *cliv1.HygienePlanRecord {
+func hygienePlanRecordMessage(record hygieneapp.HygienePlan) *cliv1.HygienePlanRecord {
 	return &cliv1.HygienePlanRecord{
-		Id:          record.ID,
-		Title:       record.Title,
-		Slug:        record.Slug,
-		Path:        record.Path,
-		CreatedAt:   formatTime(record.CreatedAt),
-		UpdatedAt:   formatTime(record.UpdatedAt),
-		Archived:    record.Archived,
-		ArchivedAt:  formatTime(record.ArchivedAt),
-		SourcePath:  record.SourcePath,
-		ContentHash: record.ContentHash,
+		Id:         record.ID,
+		Title:      record.Title,
+		Slug:       record.Slug,
+		Path:       record.Path,
+		UpdatedAt:  record.UpdatedAt,
+		Archived:   record.Archived,
+		SourcePath: record.Source,
+	}
+}
+
+func hygieneMirrorMessage(mirror hygieneapp.HygieneMirror) *cliv1.HygieneMirror {
+	return &cliv1.HygieneMirror{
+		Path:   mirror.Path,
+		Status: mirror.Status,
 	}
 }
 
 // sharedDriftReportMessage maps the optional embedded shared-drift report. A nil
 // report (drift check skipped) maps to a nil message (absent in JSON).
-func sharedDriftReportMessage(report *shareddriftapp.Report) *cliv1.SharedDriftReport {
+func sharedDriftReportMessage(report *hygieneapp.DependencyFreshnessCompatReport) *cliv1.SharedDriftReport {
 	if report == nil {
 		return nil
 	}

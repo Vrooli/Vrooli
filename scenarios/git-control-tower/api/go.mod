@@ -46,3 +46,5 @@ require (
 )
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
+
+replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch

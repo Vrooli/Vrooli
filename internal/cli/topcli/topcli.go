@@ -27,9 +27,7 @@ const (
 	CommandLocks        CommandID = "locks"
 	CommandDiagnosePort CommandID = "diagnose-port"
 	CommandContract     CommandID = "contract"
-	CommandPlans        CommandID = "plans"
 	CommandHygiene      CommandID = "hygiene"
-	CommandSharedDrift  CommandID = "check-shared-drift"
 	CommandLifecycle    CommandID = "lifecycle"
 	CommandAuth         CommandID = "auth"
 	CommandAgentPolicy  CommandID = "agent-policy"
@@ -58,9 +56,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandLocks), Group: "Maintenance Commands", Summary: "Inspect runtime registry claims and legacy lock artifacts", Handler: CommandLocks, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandDiagnosePort), Group: "Maintenance Commands", Summary: "Diagnose port conflicts using registry claims and listener evidence", Handler: CommandDiagnosePort, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandContract), Group: "Maintenance Commands", Summary: "Inspect and validate the repository contract", Handler: CommandContract, Suggestable: true},
-		{Name: string(CommandPlans), Group: "Maintenance Commands", Summary: "Manage user-scoped implementation plans", Handler: CommandPlans, Suggestable: true},
 		{Name: string(CommandHygiene), Group: "Maintenance Commands", Summary: "Run repository hygiene checks", Handler: CommandHygiene, Suggestable: true},
-		{Name: string(CommandSharedDrift), Group: "Maintenance Commands", Summary: "Check dependent scenarios for stale shared-package state", Handler: CommandSharedDrift, Suggestable: true},
 		{Name: string(CommandAuth), Group: "Maintenance Commands", Summary: "Report sign-in state for host tools (buf, future: claude/codex/gh/...)", Handler: CommandAuth, Suggestable: true},
 		{Name: string(CommandAgentPolicy), Group: "Maintenance Commands", Summary: "Manage permissions across every installed coding-agent resource", Handler: CommandAgentPolicy, Suggestable: true},
 		{Name: string(CommandRecovery), Group: "Maintenance Commands", Summary: "Baseline Modes recovery floor: restore points and engagement manifests", Handler: CommandRecovery, Suggestable: true},

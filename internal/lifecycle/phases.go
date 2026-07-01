@@ -247,14 +247,14 @@ func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, 
 		)
 
 		finalCmd := step.Run
-		if phaseName == "test" && len(args) > 0 {
-			quotedArgs := make([]string, 0, len(args))
-			for _, arg := range args {
-				quotedArgs = append(quotedArgs, shellQuote(arg))
-			}
-			finalCmd += " " + strings.Join(quotedArgs, " ")
-		}
 		if phaseName == "test" {
+			if len(args) > 0 && isTestGenieExecuteCommand(finalCmd) {
+				quotedArgs := make([]string, 0, len(args))
+				for _, arg := range args {
+					quotedArgs = append(quotedArgs, shellQuote(arg))
+				}
+				finalCmd += " " + strings.Join(quotedArgs, " ")
+			}
 			finalCmd = injectTestGenieTestFlags(finalCmd)
 		}
 
@@ -314,33 +314,8 @@ func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, 
 func injectTestGenieTestFlags(command string) string {
 	fields := strings.Fields(command)
 
-	// Locate the test-genie binary (the first token that is not an env
-	// assignment).
-	binIdx := -1
-	for i, f := range fields {
-		if strings.Contains(f, "=") && !strings.HasPrefix(f, "-") {
-			continue
-		}
-		binIdx = i
-		break
-	}
-	if binIdx < 0 || filepath.Base(fields[binIdx]) != "test-genie" {
-		return command
-	}
-
-	// Locate the `execute` subcommand, allowing global flags (e.g. an existing
-	// --auto-start) between the binary and the subcommand.
-	execIdx := -1
-	for i := binIdx + 1; i < len(fields); i++ {
-		if fields[i] == "execute" {
-			execIdx = i
-			break
-		}
-		if !strings.HasPrefix(fields[i], "-") {
-			break // a positional before `execute` — not a test-genie execute command
-		}
-	}
-	if execIdx < 0 {
+	binIdx, execIdx := testGenieExecuteIndexes(fields)
+	if binIdx < 0 || execIdx < 0 {
 		return command
 	}
 
@@ -375,7 +350,7 @@ func injectTestGenieTestFlags(command string) string {
 	rebuilt += " execute"
 	command = strings.Replace(command, span, rebuilt, 1)
 
-	// --wait is an `execute` flag, so it MUST follow the scenario positional —
+	// --wait is an `execute` flag, so it MUST follow the scenario positional -
 	// `execute` reads its first argument as the scenario name. Splicing --wait
 	// right after `execute` would make `--wait` the scenario and push the real
 	// scenario name into the phase list ("unknown phase '<scenario>'"). `execute`
@@ -385,6 +360,45 @@ func injectTestGenieTestFlags(command string) string {
 		command += " --wait"
 	}
 	return command
+}
+
+func isTestGenieExecuteCommand(command string) bool {
+	fields := strings.Fields(command)
+	_, execIdx := testGenieExecuteIndexes(fields)
+	return execIdx >= 0
+}
+
+func testGenieExecuteIndexes(fields []string) (int, int) {
+	// Locate the test-genie binary (the first token that is not an env
+	// assignment).
+	binIdx := -1
+	for i, f := range fields {
+		if strings.Contains(f, "=") && !strings.HasPrefix(f, "-") {
+			continue
+		}
+		binIdx = i
+		break
+	}
+	if binIdx < 0 || filepath.Base(fields[binIdx]) != "test-genie" {
+		return -1, -1
+	}
+
+	// Locate the `execute` subcommand, allowing global flags (e.g. an existing
+	// --auto-start) between the binary and the subcommand.
+	execIdx := -1
+	for i := binIdx + 1; i < len(fields); i++ {
+		if fields[i] == "execute" {
+			execIdx = i
+			break
+		}
+		if !strings.HasPrefix(fields[i], "-") {
+			break // a positional before `execute` — not a test-genie execute command
+		}
+	}
+	if execIdx < 0 {
+		return -1, -1
+	}
+	return binIdx, execIdx
 }
 
 func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step scenario.PhaseStep, env map[string]string) error {

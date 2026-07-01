@@ -45,3 +45,5 @@ replace github.com/vrooli/cli-core => ../../../packages/cli-core
 replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-go
 
 replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
+
+replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch

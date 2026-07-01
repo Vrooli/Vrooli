@@ -685,6 +685,68 @@ health. Vulnerability scanning and security-phase gating remain owned by
 Security Health; SDA governance commands consume Security Health vulnerability
 evidence only for approval, denial, and remediation decisions.
 
+Dependency freshness belongs to SDA. `vrooli hygiene` may aggregate and render
+dependency freshness, but root hygiene must call an SDA-owned provider instead
+of reimplementing package topology, touched-file selection, or Go module drift
+checks.
+
+Per-scenario freshness uses Code Facts-discovered dependency surfaces and falls
+back to conventional `api`, `cli`, and `ui` roots only when Code Facts is
+unavailable. Fleet/touched freshness should use the same health findings after
+mapping git-touched files to in-repo package/module roots and impacted scenario
+surfaces. Root `go.mod` and `go.sum` changes affect all applicable Go surfaces.
+
+Readiness findings stay on stable maturity rules: Go module presence, local
+replace resolution, tidy drift, optional build freshness, Node package metadata,
+lockfiles, and install state map to `package_readiness`; discovery and
+classification failures map to `surface_inventory`. Any new emitted rule ID
+must be registered in `.vrooli/maturity.json` before it is used.
+
+Fixes use preview/apply semantics. SDA may safely apply deterministic Go fixes
+for a specific surface, such as local replace reconciliation or `go mod tidy`.
+Ambiguous mappings, unsupported ecosystems, optional build failures, and
+third-party dependency governance changes are advisory until a typed fixer owns
+them.
+
+---
+
+### freshness
+
+Report fleet/touched package freshness for Go scenario surfaces. This is the
+SDA-owned provider surface that root `vrooli hygiene` aggregates for dependency
+freshness; root hygiene must not maintain its own shared-package trigger list.
+
+**Usage:**
+```bash
+scenario-dependency-analyzer freshness [--touched|--all] [OPTIONS]
+```
+
+**Options:**
+- `--touched` - Check only surfaces impacted by changed in-repo modules (default)
+- `--all` - Check every discovered Go scenario surface
+- `--apply` - Run `go mod tidy` on stale surfaces
+- `--build` - Run `go build ./...` after tidy checks
+- `--concurrency <n>` - Maximum package surfaces to check concurrently (default: `8`)
+- `--repo-root <path>` - Repository root (defaults to `git rev-parse --show-toplevel`)
+- `--json` - Output raw JSON
+
+**Examples:**
+```bash
+# Machine-readable touched-surface report for hygiene aggregation
+scenario-dependency-analyzer freshness --touched --json
+
+# Repair deterministic tidy drift on impacted Go surfaces
+scenario-dependency-analyzer freshness --touched --apply
+```
+
+The report includes the selected mode, git-touched files, checked scenario
+surfaces, stale/error counts, diff paths, fixability labels, and next actions.
+Stale tidy drift is automatic and points to `freshness --apply`; errored
+surfaces caused by missing in-repo replaces are guided and point to
+`deps reconcile --all --json` for preview before apply. Touched mode maps
+changed files to in-repo Go module roots and then to scenario surfaces requiring
+those modules; root `go.mod` and `go.sum` changes fan out to all Go surfaces.
+
 ---
 
 ### deps approved

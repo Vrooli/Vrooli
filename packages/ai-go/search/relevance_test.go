@@ -22,6 +22,33 @@ func TestWeakThresholdPerRegime(t *testing.T) {
 	}
 }
 
+func TestRegimeForMethodBlend(t *testing.T) {
+	cases := []struct {
+		name   string
+		method string
+		leg    string
+		want   string
+	}{
+		// The blended leg embeds its inner reranker name; it must still resolve to
+		// the fusion band (RRF rank-fusion scores), not the inner regime.
+		{"blend over cross-encoder is fused", "dense", "blend:cross-encoder:bge-reranker-v2-m3", "fused"},
+		{"blend over llm is fused", "dense", "blend:llm:judge", "fused"},
+		// Unblended legs keep their own regime.
+		{"pure cross-encoder", "dense", "cross-encoder:m", "cross-encoder"},
+		{"pure llm", "dense", "llm:q", "llm"},
+		{"rerank-off hybrid is fused", "hybrid", "none", "fused"},
+		{"dense none is cosine", "dense", "none", "cosine"},
+		{"text is cosine", "text", "", "cosine"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := RegimeForMethod(tc.method, tc.leg); got != tc.want {
+				t.Fatalf("RegimeForMethod(%q,%q) = %q, want %q", tc.method, tc.leg, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestWeakThresholdForMethod(t *testing.T) {
 	cases := []struct {
 		name   string

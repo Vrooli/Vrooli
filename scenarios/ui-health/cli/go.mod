@@ -16,7 +16,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/vrooli/maturity-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
+	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
@@ -31,3 +31,5 @@ replace github.com/vrooli/vrooli => ../../..
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
+
+replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch

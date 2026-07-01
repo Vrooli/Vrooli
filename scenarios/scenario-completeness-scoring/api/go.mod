@@ -60,3 +60,5 @@ replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 replace github.com/vrooli/freshness-go => ../../../packages/freshness-go
 
 replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
+
+replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch

@@ -10,8 +10,9 @@ import (
 // recall_test.go is SDA's per-build search-SSOT guard. It stays thin:
 // .vrooli/search.json owns the corpora + scoring policies, and the shared
 // ai-go/search.GradeSuite owns the recall denominator. The LIVE recall gate
-// (actual retrieval against a populated index) lives in internal/searchgate,
-// which can wire the real fleet data providers without an import cycle.
+// (actual retrieval against a populated index) is the search-hub eval suite
+// (search-hub evals run scenario-dependency-analyzer.{scenarios,resources}.primary),
+// which wires the real fleet data providers without an import cycle.
 
 func loadProvider(t *testing.T, id string) pkg.ProviderConfig {
 	t.Helper()

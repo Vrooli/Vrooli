@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	hygieneapp "github.com/vrooli/vrooli/internal/app/hygiene"
-	shareddriftapp "github.com/vrooli/vrooli/internal/app/shareddrift"
 	"github.com/vrooli/vrooli/internal/cliout"
 )
 
@@ -72,6 +71,35 @@ func TestRenderShowsConfigFixes(t *testing.T) {
 	}
 }
 
+func TestRenderLabelsPlanManagerFixActions(t *testing.T) {
+	report := hygieneapp.Report{
+		Root:    "/repo",
+		Success: true,
+		FixesApplied: []hygieneapp.PlanFix{
+			{Source: "docs/plans/a.md", Action: "imported", Plan: hygieneapp.HygienePlan{Path: "/repo/.vrooli/plans/a.md"}},
+			{Source: "/repo/.vrooli/plans/b.md", Action: "mirror_repaired", Plan: hygieneapp.HygienePlan{Path: "/repo/.vrooli/plans/b.md"}},
+		},
+		PlanReconcileOutcomes: []hygieneapp.PlanReconcileOutcome{
+			{Source: "plans/c.md", Action: "skipped_duplicate", Plan: hygieneapp.HygienePlan{Path: "/repo/.vrooli/plans/c.md"}, Mirror: hygieneapp.HygieneMirror{Status: "fresh"}, SourceUntouched: true},
+		},
+	}
+	var out bytes.Buffer
+	if err := Render(&out, cliout.FormatHuman, report, OutputModeDefault); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	text := out.String()
+	for _, want := range []string{
+		"- imported docs/plans/a.md -> /repo/.vrooli/plans/a.md",
+		"- mirror repaired /repo/.vrooli/plans/b.md -> /repo/.vrooli/plans/b.md",
+		"Plan reconcile results:",
+		"- skipped duplicate plans/c.md -> /repo/.vrooli/plans/c.md [fresh] (source untouched)",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("render missing %q:\n%s", want, text)
+		}
+	}
+}
+
 func TestParseRequestSupportsDriftFlags(t *testing.T) {
 	req, err := ParseRequest([]string{"--drift-only"})
 	if err != nil {
@@ -102,13 +130,13 @@ func TestParseRequestSupportsNoFreshness(t *testing.T) {
 func TestRenderIncludesDriftSummary(t *testing.T) {
 	report := hygieneapp.Report{
 		Root: "/repo",
-		SharedDrift: &shareddriftapp.Report{
+		SharedDrift: &hygieneapp.DependencyFreshnessCompatReport{
 			Clean:           false,
 			Root:            "/repo",
 			OnlyTouchedUsed: true,
-			Scenarios: []shareddriftapp.ScenarioReport{
-				{Path: "scenarios/foo", Status: shareddriftapp.StatusStaleModules, DiffPaths: []string{"scenarios/foo/api/go.sum"}},
-				{Path: "scenarios/bar", Status: shareddriftapp.StatusClean},
+			Scenarios: []hygieneapp.DependencyFreshnessScenario{
+				{Path: "scenarios/foo", Status: hygieneapp.DependencyFreshnessStatusStaleModules, DiffPaths: []string{"scenarios/foo/api/go.sum"}},
+				{Path: "scenarios/bar", Status: hygieneapp.DependencyFreshnessStatusClean},
 			},
 		},
 	}
@@ -189,6 +217,46 @@ func TestRenderDefaultShowsFindingsPlanSummaryAndNextSteps(t *testing.T) {
 	}
 }
 
+func TestRenderShowsInvalidLegacyPlanReasons(t *testing.T) {
+	report := hygieneapp.Report{
+		Success:  false,
+		Root:     "/repo",
+		Warnings: 1,
+		Findings: []hygieneapp.Finding{{
+			Severity:   hygieneapp.SeverityWarning,
+			Code:       "invalid_legacy_plan_sources",
+			Message:    "1 invalid legacy plan source(s) need guided remediation",
+			Fixability: hygieneapp.FixabilityGuided,
+			NextActions: []hygieneapp.Action{{
+				Code:       "inspect_invalid_legacy_plans",
+				Message:    "List the invalid legacy plan files and Plan Manager parser or conflict reason.",
+				Command:    "vrooli hygiene --plans-only --details",
+				Fixability: hygieneapp.FixabilityGuided,
+			}},
+		}},
+		PlanCandidates: []hygieneapp.PlanCandidate{
+			{Path: "docs/plans/broken.md", Status: "parse_failed", Reason: "missing phase heading"},
+		},
+	}
+	var out bytes.Buffer
+	if err := Render(&out, cliout.FormatHuman, report, OutputModeSummary); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	text := out.String()
+	for _, want := range []string{
+		"invalid_legacy_plan_sources [guided]",
+		"Plan candidates: 1",
+		"- 1 parse_failed",
+		"Invalid legacy plan candidates:",
+		"docs/plans/broken.md: missing phase heading",
+		"vrooli hygiene --plans-only --details",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("rendered output missing %q:\n%s", want, text)
+		}
+	}
+}
+
 func TestRenderNextOnlySuppressesStatus(t *testing.T) {
 	report := hygieneapp.Report{
 		Root: "/repo",
@@ -212,5 +280,126 @@ func TestRenderNextOnlySuppressesStatus(t *testing.T) {
 	}
 	if !strings.Contains(text, "vrooli hygiene --fix-safe --plans") {
 		t.Fatalf("--next output missing next command:\n%s", text)
+	}
+}
+
+func TestRenderNextListsAutomaticAndInvalidLegacyActions(t *testing.T) {
+	report := hygieneapp.Report{
+		Root: "/repo",
+		Findings: []hygieneapp.Finding{
+			{
+				Severity: hygieneapp.SeverityWarning,
+				Code:     "plan_manager_reconcile",
+				Message:  "1 plan hygiene item(s) can be reconciled automatically",
+				NextActions: []hygieneapp.Action{{
+					Code:    "reconcile_plan_manager_plans",
+					Message: "Ask Plan Manager to repair rendered mirrors, adopt parseable legacy plan files, and remove adopted/proven legacy sources.",
+					Command: "vrooli hygiene --fix-safe --plans",
+				}},
+			},
+			{
+				Severity: hygieneapp.SeverityWarning,
+				Code:     "invalid_legacy_plan_sources",
+				Message:  "1 invalid legacy plan source(s) need guided remediation",
+				NextActions: []hygieneapp.Action{
+					{
+						Code:    "inspect_invalid_legacy_plans",
+						Message: "List the invalid legacy plan files and Plan Manager parser or conflict reason.",
+						Command: "vrooli hygiene --plans-only --details",
+					},
+					{
+						Code:    "preview_plan_manager_reconcile",
+						Message: "Preview Plan Manager's authoritative reconcile report before and after repairing legacy plan markdown.",
+						Command: "plan-manager plans reconcile --dry-run --workspace \"/repo\"",
+					},
+				},
+			},
+		},
+	}
+	var out bytes.Buffer
+	if err := Render(&out, cliout.FormatHuman, report, OutputModeNext); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	text := out.String()
+	for _, want := range []string{
+		"vrooli hygiene --fix-safe --plans",
+		"vrooli hygiene --plans-only --details",
+		"plan-manager plans reconcile --dry-run --workspace \"/repo\"",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("--next output missing %q:\n%s", want, text)
+		}
+	}
+}
+
+func TestRenderFindingShowsEveryNextAction(t *testing.T) {
+	report := hygieneapp.Report{
+		Root:             "/repo",
+		Success:          false,
+		BlockingFailures: 1,
+		Findings: []hygieneapp.Finding{{
+			Severity:   hygieneapp.SeverityError,
+			Code:       "dependency_freshness",
+			Message:    "SDA reports stale and errored dependency surfaces",
+			Fixability: hygieneapp.FixabilityGuided,
+			NextActions: []hygieneapp.Action{
+				{
+					Code:       "apply_go_tidy",
+					Message:    "Run SDA-owned package freshness repair for impacted Go surfaces.",
+					Command:    "scenario-dependency-analyzer freshness --touched --apply",
+					Fixability: hygieneapp.FixabilityAutomatic,
+				},
+				{
+					Code:       "preview_missing_local_replaces",
+					Message:    "Preview SDA-owned local replace reconciliation for errored Go surfaces.",
+					Command:    "scenario-dependency-analyzer deps reconcile --all --json",
+					Fixability: hygieneapp.FixabilityGuided,
+				},
+			},
+		}},
+	}
+	var out bytes.Buffer
+	if err := Render(&out, cliout.FormatHuman, report, OutputModeDefault); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	text := out.String()
+	for _, want := range []string{
+		"Next: scenario-dependency-analyzer freshness --touched --apply",
+		"automatic - Run SDA-owned package freshness repair for impacted Go surfaces.",
+		"Also: scenario-dependency-analyzer deps reconcile --all --json",
+		"guided - Preview SDA-owned local replace reconciliation for errored Go surfaces.",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("rendered output missing %q:\n%s", want, text)
+		}
+	}
+}
+
+func TestRenderDriftSummarySummarizesMissingReplaceErrors(t *testing.T) {
+	report := hygieneapp.Report{
+		Root: "/repo",
+		SharedDrift: &hygieneapp.DependencyFreshnessCompatReport{
+			Clean:           false,
+			Root:            "/repo",
+			OnlyTouchedUsed: true,
+			Scenarios: []hygieneapp.DependencyFreshnessScenario{
+				{
+					Path:   "scenarios/demo",
+					Status: hygieneapp.DependencyFreshnessStatusError,
+					Error:  "exit status 1: reading github.com/vrooli/cli-core/go.mod at revision v0.0.0: ERROR: Repository not found.\nfull details",
+				},
+			},
+		},
+	}
+	var out bytes.Buffer
+	if err := Render(&out, cliout.FormatHuman, report, OutputModeDefault); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	text := out.String()
+	if !strings.Contains(text, "missing local replace for an in-repo Go module") {
+		t.Fatalf("rendered output missing concise missing-replace guidance:\n%s", text)
+	}
+	if strings.Contains(text, "full details") {
+		t.Fatalf("default render leaked full multiline error:\n%s", text)
 	}
 }

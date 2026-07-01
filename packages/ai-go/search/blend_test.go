@@ -133,6 +133,12 @@ func TestServiceBlendLabelsWeakFromRawRerankScores(t *testing.T) {
 	if resp.Reranker != "blend:cross-encoder:test" {
 		t.Fatalf("reranker leg = %q, want blend:cross-encoder:test", resp.Reranker)
 	}
+	// The engine must resolve the blended path to the fusion regime (its scores
+	// are RRF rank-fusion, not cross-encoder sigmoids) and expose it on the
+	// response, so adopters never re-derive from the "blend:" leg name.
+	if resp.Regime != "fused" {
+		t.Fatalf("blend regime = %q, want fused", resp.Regime)
+	}
 	byID := map[string]SearchResult{}
 	for _, h := range resp.Results {
 		byID[h.ID] = h

@@ -27,3 +27,5 @@ replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 replace github.com/vrooli/vrooli => ../../..
 
 replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
+
+replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch

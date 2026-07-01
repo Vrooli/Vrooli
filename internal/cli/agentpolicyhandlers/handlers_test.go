@@ -30,8 +30,12 @@ func newDeps(installed map[string]bool, run func(binary string, args []string) (
 
 func TestFanOutAllInstalledSuccess(t *testing.T) {
 	calls := map[string][]string{}
+	installed := map[string]bool{}
+	for _, agent := range agentpolicycli.SupportedAgents {
+		installed[agent] = true
+	}
 	deps, stdout := newDeps(
-		map[string]bool{"resource-claude-code": true, "resource-codex": true, "resource-opencode": true},
+		installed,
 		func(binary string, args []string) (string, error) {
 			calls[binary] = args
 			return "ok\n", nil
@@ -42,8 +46,8 @@ func TestFanOutAllInstalledSuccess(t *testing.T) {
 	if err := h(ctx, []string{"deny", "git stash *"}); err != nil {
 		t.Fatalf("Handler: %v", err)
 	}
-	if len(calls) != 3 {
-		t.Errorf("expected 3 fan-out calls, got %d (%v)", len(calls), calls)
+	if len(calls) != len(agentpolicycli.SupportedAgents) {
+		t.Errorf("expected %d fan-out calls, got %d (%v)", len(agentpolicycli.SupportedAgents), len(calls), calls)
 	}
 	for binary, args := range calls {
 		if len(args) < 3 || args[0] != "permissions" || args[1] != "deny" || args[2] != "git stash *" {

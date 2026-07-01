@@ -60,6 +60,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 					{Name: "--priority", ValueName: "tier", Description: "interactive|service|batch (default batch)"},
 					{Name: "--protected", Description: "Never preempt/degrade while active"},
 					{Name: "--yield-when-idle", Description: "When idle beyond grace, yield capacity to active work at/above idle_yield_floor"},
+					{Name: "--idle-grace", ValueName: "dur", Description: "Demand-reclaim warm-idle dwell before this claim can become cold-idle (e.g. 15m; default policy idle_grace)"},
 					{Name: "--idle-unload-ttl", ValueName: "dur", Description: "Autonomously unload to floor after this much idle dwell (e.g. 30m; 0 = off)"},
 					{Name: "--profile", ValueName: "json", Description: "Degradation profile JSON"},
 					{Name: "--ttl", ValueName: "dur", Description: "Heartbeat TTL (e.g. 30s)"},
@@ -196,6 +197,10 @@ func ParseClaimRequest(args []string) (capacityapp.ClaimRequest, error) {
 	if err != nil {
 		return capacityapp.ClaimRequest{}, err
 	}
+	idleGrace, err := parseTTL(parsed.FlagValue("--idle-grace"))
+	if err != nil {
+		return capacityapp.ClaimRequest{}, err
+	}
 	return capacityapp.ClaimRequest{
 		OwnerKind:      parsed.FlagValue("--owner-kind"),
 		OwnerID:        parsed.FlagValue("--owner-id"),
@@ -208,6 +213,7 @@ func ParseClaimRequest(args []string) (capacityapp.ClaimRequest, error) {
 		Protected:      parsed.HasFlag("--protected"),
 		YieldWhenIdle:  parsed.HasFlag("--yield-when-idle"),
 		IdleUnloadTTL:  idleUnloadTTL,
+		IdleGrace:      idleGrace,
 		ProfileJSON:    parsed.FlagValue("--profile"),
 		TTL:            ttl,
 	}, nil

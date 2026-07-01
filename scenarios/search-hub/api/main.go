@@ -102,6 +102,9 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
+	if err := metricsH.Migrate(context.Background(), db); err != nil {
+		log.Fatalf("metrics schema migration failed: %v", err)
+	}
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}

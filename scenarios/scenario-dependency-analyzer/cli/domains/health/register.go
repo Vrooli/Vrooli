@@ -31,6 +31,13 @@ func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
 					return run(core, args)
 				},
 			},
+			{
+				Name:        "freshness",
+				Description: "Report fleet/touched package freshness for Go scenario surfaces",
+				Run: func(args []string) error {
+					return runFreshness(args)
+				},
+			},
 		},
 	}
 }

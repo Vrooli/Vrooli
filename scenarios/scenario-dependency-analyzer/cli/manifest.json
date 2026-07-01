@@ -43,6 +43,56 @@
           }
         },
         {
+          "name": "freshness",
+          "description": "Report fleet/touched package freshness for Go scenario surfaces",
+          "flags": [
+            {
+              "name": "touched",
+              "description": "Only check surfaces impacted by changed in-repo modules",
+              "default": "true"
+            },
+            {
+              "name": "all",
+              "description": "Check every discovered Go scenario surface",
+              "default": "false"
+            },
+            {
+              "name": "apply",
+              "description": "Run go mod tidy on stale surfaces",
+              "default": "false"
+            },
+            {
+              "name": "build",
+              "description": "Run go build ./... after tidy checks",
+              "default": "false"
+            },
+            {
+              "name": "concurrency",
+              "description": "Maximum package surfaces to check concurrently",
+              "default": "8"
+            },
+            {
+              "name": "repo-root",
+              "description": "Repository root; defaults to git rev-parse --show-toplevel"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "local-command"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:workspace"
+            ]
+          }
+        },
+        {
           "name": "upsert",
           "description": "Preview or apply one dependency governance record from JSON",
           "positionals": [

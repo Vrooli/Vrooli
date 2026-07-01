@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	hygieneapp "github.com/vrooli/vrooli/internal/app/hygiene"
-	shareddriftapp "github.com/vrooli/vrooli/internal/app/shareddrift"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cliout"
 )
@@ -42,16 +41,16 @@ func CommandSpec() commandtree.Spec[string] {
 		Args: commandtree.ArgSchema{
 			Options: []commandtree.OptionArg{
 				{Name: "--fix-safe", Description: "Apply safe, non-destructive fixes"},
-				{Name: "--plans", Description: "Include safe plan candidate imports when fixing"},
+				{Name: "--plans", Description: "Ask Plan Manager to reconcile plan mirrors and legacy markdown during --fix-safe"},
 				{Name: "--fail-on", ValueName: "severity", Description: "Exit non-zero on warning or error"},
 				{Name: "--summary", Description: "Show compact status, findings, and plan counts"},
 				{Name: "--details", Description: "Show full findings, checks, and plan candidate lists"},
 				{Name: "--next", Description: "Show only recommended next commands and actions"},
 				{Name: "--plans-only", Description: "Run only plan lifecycle hygiene checks"},
 				{Name: "--contract-only", Description: "Run only repository contract hygiene checks"},
-				{Name: "--drift-only", Description: "Run only the shared-package drift check"},
+				{Name: "--drift-only", Description: "Run only SDA-backed dependency freshness hygiene"},
 				{Name: "--pnpm-only", Description: "Run only the pnpm workspace config checks"},
-				{Name: "--no-drift", Description: "Skip the shared-package drift check"},
+				{Name: "--no-drift", Description: "Skip SDA-backed dependency freshness hygiene"},
 				{Name: "--no-freshness", Description: "Skip the advisory test-freshness check (changed scenarios vs test-genie runs)"},
 				commandtree.JSONOption(),
 			},
@@ -157,7 +156,33 @@ func Render(w io.Writer, format cliout.Format, report hygieneapp.Report, mode Ou
 	if len(report.FixesApplied) > 0 {
 		_, _ = fmt.Fprintln(w, "\nFixes applied:")
 		for _, fix := range report.FixesApplied {
-			_, _ = fmt.Fprintf(w, "- imported %s -> %s\n", fix.Source, fix.Plan.Path)
+			_, _ = fmt.Fprintf(w, "- %s %s -> %s\n", planFixActionLabel(fix.Action), fix.Source, fix.Plan.Path)
+		}
+	}
+	if len(report.PlanReconcileOutcomes) > 0 {
+		_, _ = fmt.Fprintln(w, "\nPlan reconcile results:")
+		for _, outcome := range report.PlanReconcileOutcomes {
+			target := outcome.Plan.Path
+			if target == "" {
+				target = outcome.Mirror.Path
+			}
+			if target == "" {
+				target = outcome.Source
+			}
+			line := fmt.Sprintf("- %s %s", planFixActionLabel(outcome.Action), outcome.Source)
+			if target != "" && target != outcome.Source {
+				line += " -> " + target
+			}
+			if outcome.Mirror.Status != "" {
+				line += " [" + outcome.Mirror.Status + "]"
+			}
+			if outcome.SourceUntouched {
+				line += " (source untouched)"
+			}
+			if outcome.Error != "" {
+				line += ": " + outcome.Error
+			}
+			_, _ = fmt.Fprintln(w, line)
 		}
 	}
 	if len(report.ConfigFixes) > 0 {
@@ -203,11 +228,26 @@ func renderFinding(w io.Writer, index int, finding hygieneapp.Finding) {
 		_, _ = fmt.Fprintf(w, "   Why: %s\n", finding.Why)
 	}
 	if len(finding.NextActions) > 0 {
-		action := finding.NextActions[0]
-		if action.Command != "" {
-			_, _ = fmt.Fprintf(w, "   Next: %s\n", action.Command)
-		} else {
-			_, _ = fmt.Fprintf(w, "   Next: %s\n", action.Message)
+		for i, action := range finding.NextActions {
+			label := "Next"
+			if i > 0 {
+				label = "Also"
+			}
+			if action.Command != "" {
+				_, _ = fmt.Fprintf(w, "   %s: %s\n", label, action.Command)
+			} else {
+				_, _ = fmt.Fprintf(w, "   %s: %s\n", label, action.Message)
+			}
+			if action.Fixability != "" || (action.Command != "" && action.Message != "") {
+				var details []string
+				if action.Fixability != "" {
+					details = append(details, string(action.Fixability))
+				}
+				if action.Command != "" && action.Message != "" {
+					details = append(details, action.Message)
+				}
+				_, _ = fmt.Fprintf(w, "   %s\n", strings.Join(details, " - "))
+			}
 		}
 	}
 }
@@ -226,14 +266,14 @@ func splitFindings(findings []hygieneapp.Finding) ([]hygieneapp.Finding, []hygie
 	return blockers, warnings
 }
 
-func renderDriftSummary(w io.Writer, drift *shareddriftapp.Report, mode OutputMode) {
-	var stale []shareddriftapp.ScenarioReport
-	var errored []shareddriftapp.ScenarioReport
+func renderDriftSummary(w io.Writer, drift *hygieneapp.DependencyFreshnessCompatReport, mode OutputMode) {
+	var stale []hygieneapp.DependencyFreshnessScenario
+	var errored []hygieneapp.DependencyFreshnessScenario
 	for _, sc := range drift.Scenarios {
 		switch sc.Status {
-		case shareddriftapp.StatusStaleModules, shareddriftapp.StatusStaleBuild:
+		case hygieneapp.DependencyFreshnessStatusStaleModules, hygieneapp.DependencyFreshnessStatusStaleBuild:
 			stale = append(stale, sc)
-		case shareddriftapp.StatusError:
+		case hygieneapp.DependencyFreshnessStatusError:
 			errored = append(errored, sc)
 		}
 	}
@@ -261,9 +301,55 @@ func renderDriftSummary(w io.Writer, drift *shareddriftapp.Report, mode OutputMo
 	}
 	if len(errored) > 0 {
 		_, _ = fmt.Fprintln(w, "Drift check errors:")
-		for _, sc := range errored {
-			_, _ = fmt.Fprintf(w, "- %s — %s\n", sc.Path, sc.Error)
+		limit := len(errored)
+		if mode != OutputModeDetails && limit > 10 {
+			limit = 10
 		}
+		for _, sc := range errored[:limit] {
+			_, _ = fmt.Fprintf(w, "- %s — %s\n", sc.Path, dependencyFreshnessErrorSummary(sc.Error, mode))
+		}
+		if limit < len(errored) {
+			_, _ = fmt.Fprintf(w, "- ... %d more; run `vrooli hygiene --details` to list all\n", len(errored)-limit)
+		}
+	}
+}
+
+func dependencyFreshnessErrorSummary(message string, mode OutputMode) string {
+	message = strings.TrimSpace(message)
+	if message == "" {
+		return "freshness check failed"
+	}
+	if mode == OutputModeDetails {
+		return message
+	}
+	if isMissingLocalReplaceError(message) {
+		return "missing local replace for an in-repo Go module; preview repair with `scenario-dependency-analyzer deps reconcile --all --json`"
+	}
+	if idx := strings.IndexByte(message, '\n'); idx >= 0 {
+		return strings.TrimSpace(message[:idx])
+	}
+	return message
+}
+
+func isMissingLocalReplaceError(message string) bool {
+	message = strings.ToLower(message)
+	return strings.Contains(message, "github.com/vrooli/") &&
+		strings.Contains(message, "go.mod at revision v0.0.0") &&
+		strings.Contains(message, "repository not found")
+}
+
+func planFixActionLabel(action string) string {
+	switch action {
+	case "imported":
+		return "imported"
+	case "mirror_repaired":
+		return "mirror repaired"
+	case "skipped_duplicate":
+		return "skipped duplicate"
+	case "":
+		return "reconciled"
+	default:
+		return strings.ReplaceAll(action, "_", " ")
 	}
 }
 
@@ -271,6 +357,8 @@ func renderPlanSummary(w io.Writer, candidates []hygieneapp.PlanCandidate, mode 
 	counts := map[string]int{}
 	var modified []string
 	var untracked []string
+	var invalid []hygieneapp.PlanCandidate
+	var cleanupPlanned []hygieneapp.PlanCandidate
 	for _, candidate := range candidates {
 		status := candidate.Status
 		if status == "" {
@@ -282,6 +370,10 @@ func renderPlanSummary(w io.Writer, candidates []hygieneapp.PlanCandidate, mode 
 			modified = append(modified, candidate.Path)
 		case "untracked":
 			untracked = append(untracked, candidate.Path)
+		case "parse_failed", "conflict":
+			invalid = append(invalid, candidate)
+		case "source_cleanup_planned":
+			cleanupPlanned = append(cleanupPlanned, candidate)
 		}
 	}
 	_, _ = fmt.Fprintf(w, "\nPlan candidates: %d\n", len(candidates))
@@ -307,6 +399,14 @@ func renderPlanSummary(w io.Writer, candidates []hygieneapp.PlanCandidate, mode 
 			_, _ = fmt.Fprintf(w, "- ... %d more; run `vrooli hygiene --details` to list all\n", len(untracked)-limit)
 		}
 	}
+	if len(invalid) > 0 {
+		_, _ = fmt.Fprintln(w, "\nInvalid legacy plan candidates:")
+		renderPlanCandidatesWithReasons(w, invalid, mode)
+	}
+	if len(cleanupPlanned) > 0 && mode == OutputModeDetails {
+		_, _ = fmt.Fprintln(w, "\nLegacy plan sources ready for cleanup:")
+		renderPlanCandidatesWithReasons(w, cleanupPlanned, mode)
+	}
 }
 
 func renderNextSteps(w io.Writer, report hygieneapp.Report, leadingBlank bool) {
@@ -327,6 +427,23 @@ func renderNextSteps(w io.Writer, report hygieneapp.Report, leadingBlank bool) {
 		} else {
 			_, _ = fmt.Fprintf(w, "- %s\n", action.Message)
 		}
+	}
+}
+
+func renderPlanCandidatesWithReasons(w io.Writer, candidates []hygieneapp.PlanCandidate, mode OutputMode) {
+	limit := len(candidates)
+	if mode != OutputModeDetails && limit > 10 {
+		limit = 10
+	}
+	for _, candidate := range candidates[:limit] {
+		if candidate.Reason != "" {
+			_, _ = fmt.Fprintf(w, "- %s: %s\n", candidate.Path, candidate.Reason)
+		} else {
+			_, _ = fmt.Fprintf(w, "- %s\n", candidate.Path)
+		}
+	}
+	if limit < len(candidates) {
+		_, _ = fmt.Fprintf(w, "- ... %d more; run `vrooli hygiene --details` to list all\n", len(candidates)-limit)
 	}
 }
 

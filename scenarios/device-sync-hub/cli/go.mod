@@ -6,7 +6,6 @@ require (
 	connectrpc.com/connect v1.19.2
 	github.com/stretchr/testify v1.10.0
 	github.com/vrooli/cli-core v0.0.0
-	github.com/vrooli/vrooli-cli-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11
 )
@@ -31,3 +30,5 @@ replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 replace github.com/vrooli/vrooli => ../../..
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+
+replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch

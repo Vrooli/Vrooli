@@ -1986,6 +1986,72 @@ func TestUIBundleFreshnessTracksBundleFreshness(t *testing.T) {
 	}
 }
 
+func TestUIBundleFreshnessNarrowsProtoTypesFileDependencyToImportedFiles(t *testing.T) {
+	repoRoot := t.TempDir()
+	appPath := filepath.Join(repoRoot, "scenarios", "alpha")
+	uiDir := filepath.Join(appPath, "ui")
+	sourceDir := filepath.Join(uiDir, "src")
+	protoRoot := filepath.Join(repoRoot, "packages", "proto", "gen", "typescript")
+	testkitgo.WriteFile(t, filepath.Join(uiDir, "package.json"), `{
+  "dependencies": {
+    "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript"
+  }
+}
+`)
+	testkitgo.WriteFile(t, filepath.Join(sourceDir, "App.tsx"), `import { FocusService } from "@vrooli/proto-types/meta-optimization-manager/v1/focus/focus_pb";
+export const App = FocusService;
+`)
+	testkitgo.WriteFile(t, filepath.Join(protoRoot, "meta-optimization-manager", "v1", "focus", "focus_pb.ts"), `import type { CellStatus } from "../shared/model_pb";
+export const FocusService = {};
+`)
+	testkitgo.WriteFile(t, filepath.Join(protoRoot, "meta-optimization-manager", "v1", "shared", "model_pb.ts"), `export enum CellStatus { NOW = 1 }
+`)
+	testkitgo.WriteFile(t, filepath.Join(protoRoot, "image-tools", "v1", "models", "models_pb.ts"), `export const ImageModel = {};
+`)
+
+	art := uiBundleFreshnessArtifact(appPath, repoRoot, scenario.ConditionCheck{Type: "ui-bundle"}, defaultHostProbeDeps())
+	inputs := strings.Join(art.Spec.Inputs, "\n")
+
+	if !strings.Contains(inputs, "packages/proto/gen/typescript/meta-optimization-manager/v1/focus/focus_pb.ts") {
+		t.Fatalf("inputs missing imported proto file:\n%s", inputs)
+	}
+	if !strings.Contains(inputs, "packages/proto/gen/typescript/meta-optimization-manager/v1/shared/model_pb.ts") {
+		t.Fatalf("inputs missing generated relative proto dependency:\n%s", inputs)
+	}
+	if strings.Contains(inputs, "packages/proto/gen/typescript/image-tools") {
+		t.Fatalf("inputs include unrelated image-tools proto files:\n%s", inputs)
+	}
+	if strings.Contains(inputs, "packages/proto/gen/typescript\n") {
+		t.Fatalf("inputs include whole proto-types package instead of precise files:\n%s", inputs)
+	}
+}
+
+func TestUIBundleFreshnessFallsBackToWholeProtoTypesPackageWhenImportUnresolved(t *testing.T) {
+	repoRoot := t.TempDir()
+	appPath := filepath.Join(repoRoot, "scenarios", "alpha")
+	uiDir := filepath.Join(appPath, "ui")
+	sourceDir := filepath.Join(uiDir, "src")
+	protoRoot := filepath.Join(repoRoot, "packages", "proto", "gen", "typescript")
+	testkitgo.WriteFile(t, filepath.Join(uiDir, "package.json"), `{
+  "dependencies": {
+    "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript"
+  }
+}
+`)
+	testkitgo.WriteFile(t, filepath.Join(sourceDir, "App.tsx"), `import { Missing } from "@vrooli/proto-types/missing/v1/missing_pb";
+export const App = Missing;
+`)
+	testkitgo.WriteFile(t, filepath.Join(protoRoot, "package.json"), `{"name":"@vrooli/proto-types"}
+`)
+
+	art := uiBundleFreshnessArtifact(appPath, repoRoot, scenario.ConditionCheck{Type: "ui-bundle"}, defaultHostProbeDeps())
+	inputs := strings.Join(art.Spec.Inputs, "\n")
+
+	if !strings.Contains(inputs, "packages/proto/gen/typescript") {
+		t.Fatalf("inputs = %q, want whole proto-types fallback", inputs)
+	}
+}
+
 func TestEvaluateSetupCheckSupportsFilesystemStateChecks(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
@@ -2626,22 +2692,36 @@ func TestRegistryRuntimeHealthCheckUsesBoundPorts(t *testing.T) {
 	deadPID := 99999999
 	deadOwnerView := authorityView
 	deadOwnerView.Instance.OwnerPID = &deadPID
+	deadOwnerView.Instance.OwnerKind = scenarioruntime.OwnerKindLifecycle
 	if runner.isRegistryRuntimeHealthy(item, deadOwnerView) {
 		t.Fatalf("expected dead owner pid to fail health (orphan squat)")
+	}
+	supervisedOwnerView := authorityView
+	supervisedOwnerView.Instance.OwnerPID = &deadPID
+	supervisedOwnerView.Instance.OwnerKind = scenarioruntime.OwnerKindSupervisor
+	if !runner.isRegistryRuntimeHealthy(item, supervisedOwnerView) {
+		t.Fatalf("expected supervised runtime with stale launcher pid + healthy probe to pass")
 	}
 	// A live owner PID still passes once the probe succeeds.
 	livePID := os.Getpid()
 	liveOwnerView := authorityView
 	liveOwnerView.Instance.OwnerPID = &livePID
+	liveOwnerView.Instance.OwnerKind = scenarioruntime.OwnerKindLifecycle
 	if !runner.isRegistryRuntimeHealthy(item, liveOwnerView) {
 		t.Fatalf("expected live owner pid + healthy probe to pass")
 	}
 }
 
-func TestExecutePhaseAppendsTestArgsAndWarnsOnStopFailure(t *testing.T) {
+func TestExecutePhaseOnlyAppendsTestArgsToTestGenieAndWarnsOnStopFailure(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	testresource.WritePortRegistry(t, root, nil)
+	binDir := t.TempDir()
+	testGeniePath := filepath.Join(binDir, "test-genie")
+	testGenieScript := fmt.Sprintf("#!/bin/sh\nprintf '%%s\\n' \"$@\" > %s\n", shellQuote(filepath.Join(root, "test-genie-args.txt")))
+	if err := os.WriteFile(testGeniePath, []byte(testGenieScript), 0o755); err != nil {
+		t.Fatalf("write fake test-genie: %v", err)
+	}
 
 	runner, err := NewRunner(root, home, io.Discard, io.Discard)
 	if err != nil {
@@ -2663,8 +2743,12 @@ func TestExecutePhaseAppendsTestArgsAndWarnsOnStopFailure(t *testing.T) {
 							},
 						},
 						{
-							Name: "write-args",
-							Run:  "printf '%s\\n' > args.txt",
+							Name: "plain-precheck",
+							Run:  "printf '%s\\n' > precheck.txt",
+						},
+						{
+							Name: "run-tests",
+							Run:  testGeniePath + " execute alpha --preset comprehensive",
 						},
 					},
 				},
@@ -2687,12 +2771,19 @@ func TestExecutePhaseAppendsTestArgsAndWarnsOnStopFailure(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, "skipped.txt")); !os.IsNotExist(err) {
 		t.Fatalf("expected skipped step to avoid writing file, stat err=%v", err)
 	}
-	argsData, err := os.ReadFile(filepath.Join(root, "args.txt"))
+	precheckData, err := os.ReadFile(filepath.Join(root, "precheck.txt"))
 	if err != nil {
-		t.Fatalf("read args.txt: %v", err)
+		t.Fatalf("read precheck.txt: %v", err)
 	}
-	if got := string(argsData); got != "phase-a\ntwo words\n" {
-		t.Fatalf("args.txt = %q", got)
+	if got := string(precheckData); got != "\n" {
+		t.Fatalf("precheck.txt = %q", got)
+	}
+	argsData, err := os.ReadFile(filepath.Join(root, "test-genie-args.txt"))
+	if err != nil {
+		t.Fatalf("read test-genie-args.txt: %v", err)
+	}
+	if got := string(argsData); got != "--auto-start\nexecute\nalpha\n--preset\ncomprehensive\nphase-a\ntwo words\n--wait\n" {
+		t.Fatalf("test-genie-args.txt = %q", got)
 	}
 	if !strings.Contains(testLog.String(), "Skipping skip-me - step disabled by always=false") {
 		t.Fatalf("expected skip log, got %q", testLog.String())

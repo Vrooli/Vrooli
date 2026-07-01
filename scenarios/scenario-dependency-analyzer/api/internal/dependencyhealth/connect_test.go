@@ -170,6 +170,15 @@ func TestBuildMaturityAssessmentIncludesLocalMaturity(t *testing.T) {
 	if len(got.GetFindings()) != 1 || got.GetFindings()[0].GetMaturity() == nil {
 		t.Fatalf("assessment findings missing maturity metadata: %+v", got.GetFindings())
 	}
+	if len(got.GetCapabilities()) != 6 {
+		t.Fatalf("capabilities = %d, want 6", len(got.GetCapabilities()))
+	}
+	if got.GetFindings()[0].GetMaturity().GetCapabilityId() != "release_age_policy" {
+		t.Fatalf("finding capability = %q, want release_age_policy", got.GetFindings()[0].GetMaturity().GetCapabilityId())
+	}
+	if got.GetHighestPriorityCapability().GetCapabilityId() != "release_age_policy" {
+		t.Fatalf("highest priority = %#v, want release_age_policy", got.GetHighestPriorityCapability())
+	}
 }
 
 func TestBuildMaturityAssessmentRequiresSpec(t *testing.T) {
@@ -181,23 +190,22 @@ func TestBuildMaturityAssessmentRequiresSpec(t *testing.T) {
 
 func TestMaturitySpecCoversDependencyHealthRuleFamilies(t *testing.T) {
 	spec := testMaturitySpec(t)
-	for _, code := range []string{
-		"dependency.surfaces.none",
-		"dependency.runtime.resource_running",
-		"dependency.runtime.scenario_healthy",
-		"dependency.command.available",
-		"dependency.go.tidy",
-		"dependency.node.lockfile_present",
-		"dependency.release_age.minimum_value",
-		"dependency.governance.approved_dependency",
-		"dependency.graph.undeclared",
-	} {
+	if len(spec.Capabilities) != 6 {
+		t.Fatalf("capabilities = %d, want 6", len(spec.Capabilities))
+	}
+	for _, code := range emittedDependencyHealthRuleIDs() {
 		if _, ok := spec.Findings[code]; !ok {
 			t.Fatalf("maturity spec missing emitted rule %q", code)
+		}
+		if spec.Findings[code].CapabilityID == "" {
+			t.Fatalf("maturity spec finding %q must declare capability_id", code)
 		}
 	}
 	if spec.Fallback.LocalLevelImpact == "" {
 		t.Fatal("maturity spec fallback must cover newly introduced dependency-health rules explicitly")
+	}
+	if spec.Fallback.CapabilityID == "" {
+		t.Fatal("maturity spec fallback must declare capability_id")
 	}
 }
 
@@ -558,6 +566,57 @@ func TestReadinessRoutesByDiscoveredSurfaceLanguage(t *testing.T) {
 	}
 }
 
+func TestReadinessUsesParseUnitPackageRoots(t *testing.T) {
+	// [REQ:SDA-P0-013]
+	tmp := t.TempDir()
+	apiRoot := filepath.Join(tmp, "api")
+	apiSurfaceRoot := filepath.Join(apiRoot, "handlers")
+	uiRoot := filepath.Join(tmp, "ui")
+	uiSurfaceRoot := filepath.Join(uiRoot, "src")
+	for _, dir := range []string{apiSurfaceRoot, uiSurfaceRoot, filepath.Join(uiRoot, "node_modules")} {
+		if err := mkdirAll(dir); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFile(t, filepath.Join(apiRoot, "go.mod"), "module example.com/api\n")
+	writeFile(t, filepath.Join(uiRoot, "package.json"), `{"dependencies":{"vite":"^7.0.0"}}`)
+	writeFile(t, filepath.Join(uiRoot, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n")
+
+	runner := &fakeCommandRunner{}
+	handler := &connectHandler{
+		scenariosDir: func() string { return filepath.Dir(tmp) },
+		surfaceDiscoverer: fakeSurfaceDiscoverer{inventory: surfaceInventory{Surfaces: []*healthv1.DependencyHealthSurface{
+			{Id: "api-handlers", Language: "go", RootPath: apiSurfaceRoot, ParseUnitRoot: apiRoot, ConfigPath: filepath.Join(apiRoot, "go.mod")},
+			{Id: "ui-src", Language: "typescript", RootPath: uiSurfaceRoot, ParseUnitRoot: uiRoot, ConfigPath: filepath.Join(uiRoot, "package.json"), PackageManager: "pnpm"},
+		}}},
+		commandLookup: func(name string) (string, error) {
+			return "/usr/bin/" + name, nil
+		},
+		commandRunner: runner,
+	}
+
+	_, _, readinessSection, findings, _, _ := handler.evaluateReadiness(context.Background(), "fixture", true)
+
+	if len(findings) != 0 {
+		t.Fatalf("findings = %v, want none", findingIDs(findings, ""))
+	}
+	if readinessSection.GetStatus() != "pass" {
+		t.Fatalf("readiness status = %q, want pass", readinessSection.GetStatus())
+	}
+	var tidyAtPackageRoot bool
+	for _, call := range runner.calls {
+		if strings.Contains(call, filepath.ToSlash(apiRoot)+"/go/mod/tidy/-diff") {
+			tidyAtPackageRoot = true
+		}
+		if strings.Contains(call, filepath.ToSlash(apiSurfaceRoot)+"/go/mod/tidy/-diff") {
+			t.Fatalf("go tidy used surface root instead of parse-unit root: %v", runner.calls)
+		}
+	}
+	if !tidyAtPackageRoot {
+		t.Fatalf("go tidy did not run at parse-unit root %s; calls=%v", apiRoot, runner.calls)
+	}
+}
+
 func TestReadinessReportsUnsupportedSurfaceAndMissingCommand(t *testing.T) {
 	handler := &connectHandler{
 		commandLookup: func(name string) (string, error) {
@@ -640,6 +699,38 @@ func containsFinding(findings []*healthv1.DependencyHealthFinding, id string) bo
 		}
 	}
 	return false
+}
+
+func emittedDependencyHealthRuleIDs() []string {
+	return []string{
+		"dependency.surfaces.none",
+		"dependency.surface.unsupported",
+		"dependency.surface.unsupported_language",
+		"dependency.command.available",
+		"dependency.runtime.version",
+		"dependency.go.mod_present",
+		"dependency.go.local_replace_resolves",
+		"dependency.go.tidy",
+		"dependency.gomod.replace.missing",
+		"dependency.node.package_json_present",
+		"dependency.node.lockfile_present",
+		"dependency.node.single_lockfile",
+		"dependency.node.install_state",
+		"dependency.runtime.manifest_readable",
+		"dependency.runtime.resource_present",
+		"dependency.runtime.resource_running",
+		"dependency.runtime.resource_healthy",
+		"dependency.runtime.scenario_running",
+		"dependency.runtime.scenario_healthy",
+		"dependency.governance.registry_readable",
+		"dependency.governance.approved_dependency",
+		"dependency.release_age.policy_readable",
+		"dependency.release_age.minimum_configured",
+		"dependency.release_age.minimum_value",
+		"dependency.release_age.exclude_governed",
+		"dependency.undeclared-but-used",
+		"dependency.declared-without-import-evidence",
+	}
 }
 
 func mkdirAll(path string) error {

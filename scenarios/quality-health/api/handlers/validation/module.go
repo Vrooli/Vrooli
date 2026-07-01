@@ -83,4 +83,58 @@ var Endpoints = []module.EndpointDescriptor{
 			{Name: "Validate scenario", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"quality-health\"}'"},
 		},
 	},
+	{
+		ID:          "validation_preview_fix",
+		Path:        scenariovalidationconnect.ScenarioValidationServicePreviewFixProcedure,
+		Method:      "POST",
+		Summary:     "Preview deterministic static-quality fixes",
+		Description: "Returns deterministic config edits quality-health can apply without writing files.",
+		Category:    "validation",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"scenario": "string (required when path is empty)",
+				"path":     "string (required when scenario is empty)",
+				"rule_ids": "array<string> (optional rule filter)",
+			},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"candidates": "array<scenario_validation.v1.FixCandidate>",
+				"applied":    "bool (always false for preview)",
+				"messages":   "array<string>",
+			},
+		},
+		Examples: []module.Example{
+			{Name: "Preview fixes", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix -H 'Content-Type: application/json' -d '{\"scenario\":\"quality-health\"}'"},
+		},
+	},
+	{
+		ID:          "validation_apply_fix",
+		Path:        scenariovalidationconnect.ScenarioValidationServiceApplyFixProcedure,
+		Method:      "POST",
+		Summary:     "Apply deterministic static-quality fixes",
+		Description: "Applies deterministic config edits quality-health can safely perform.",
+		Category:    "validation",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"scenario": "string (required when path is empty)",
+				"path":     "string (required when scenario is empty)",
+				"rule_ids": "array<string> (optional rule filter)",
+			},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"candidates": "array<scenario_validation.v1.FixCandidate>",
+				"applied":    "bool",
+				"messages":   "array<string>",
+			},
+		},
+		Examples: []module.Example{
+			{Name: "Apply fixes", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix -H 'Content-Type: application/json' -d '{\"scenario\":\"quality-health\"}'"},
+		},
+	},
 }

@@ -312,7 +312,7 @@
         {
           "id": "L4",
           "name": "Platform enhanced",
-          "status_label": "Strong",
+          "status_label": "Enhanced",
           "description": "Optional manifest/platform capabilities are validated when declared.",
           "capability_summary": "Optional manifest/platform capabilities are validated when declared.",
           "next_unlock": "Maximum PWA/native-readiness maturity."

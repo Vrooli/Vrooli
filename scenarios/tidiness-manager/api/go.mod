@@ -79,3 +79,5 @@ require (
 )
 
 replace github.com/vrooli/vrooli => ../../..
+
+replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch

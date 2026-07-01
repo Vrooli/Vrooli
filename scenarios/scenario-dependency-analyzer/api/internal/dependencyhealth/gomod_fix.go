@@ -91,12 +91,16 @@ func (h *connectHandler) runFix(ctx context.Context, req *connect.Request[scenar
 	return connect.NewResponse(resp), nil
 }
 
-// goSurfaceGoMods returns the go.mod files for a scenario's surfaces (api, cli,
-// ui, …) in deterministic order.
+// goSurfaceGoMods returns the go.mod files for a scenario's surfaces in
+// deterministic order. Most scenarios use nested surfaces such as api/cli/ui,
+// but some Go scenarios keep the API surface at the scenario root.
 func goSurfaceGoMods(scenarioDir string) []string {
 	matches, err := filepath.Glob(filepath.Join(scenarioDir, "*", "go.mod"))
 	if err != nil {
 		return nil
+	}
+	if fileExists(filepath.Join(scenarioDir, "go.mod")) {
+		matches = append(matches, filepath.Join(scenarioDir, "go.mod"))
 	}
 	sort.Strings(matches)
 	return matches

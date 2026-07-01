@@ -16,9 +16,15 @@ SDA is evolving from a declared-dependency reporter into Vrooli's actual cross-s
 | Language-level import extraction | `code-facts` | Batch imports fact RPC |
 | Import/proto path attribution to scenario slugs | SDA | Fleet naming conventions |
 | Declared-vs-actual drift interpretation | SDA | `service.json` + actual edge set |
+| Dependency surface freshness | SDA | Code Facts surfaces + package-manager checks |
+| Root hygiene dependency presentation | root `vrooli hygiene` | SDA-owned provider output |
 | Runtime URL and CLI shell-out facts | Future AST facts | Follow-up plan |
 
-SDA must not scan source files for actual graph evidence. Its responsibility is interpretation, not extraction.
+SDA must not scan source files for actual graph evidence. Its responsibility is
+interpretation, not extraction. For dependency freshness, SDA is also the domain
+owner: root `vrooli hygiene` is only an aggregate registry and presentation
+surface. It must not embed package-topology rules, shared-package trigger lists,
+or Go module drift logic that belongs in SDA.
 
 ## Actual Graph Model
 
@@ -47,6 +53,29 @@ The derived graph cache is persisted in SQLite for repeat-read performance. It i
 | `declared_without_import_evidence` | `service.json` declares a scenario but no import evidence exists | `INFO` |
 
 The second case is intentionally advisory because runtime discovery calls and CLI shell-outs are deferred to AST fact providers.
+
+## Dependency Freshness Semantics
+
+Dependency freshness is evaluated per discovered dependency surface. Code Facts
+is the preferred inventory source because it can report every package root; SDA
+falls back to conventional `api`, `cli`, and `ui` roots only as degraded
+behavior. Go readiness checks cover `go.mod` presence, local replace targets,
+`go mod tidy -diff`, and optional build freshness. Node readiness checks cover
+`package.json`, exactly one supported lockfile, and local install state.
+
+Fleet/touched freshness is an aggregation mode over the same findings, not a
+separate root-owned model. Touched files are mapped to in-repo package/module
+roots and then to impacted scenario surfaces. Root `go.mod` and `go.sum`
+changes fan out to applicable Go surfaces. Findings report the scenario,
+surface, package root, rule ID, observed value, expected value, remediation, and
+fix class so `vrooli hygiene` can render next actions without interpreting
+dependency logic.
+
+Freshness maturity maps Go and Node package coherence to
+`package_readiness`. Surface discovery, unsupported language, and package-root
+classification failures map to `surface_inventory`. Deterministic Go fixes may
+be previewed/applied by SDA for a specific surface; all ambiguous or
+ecosystem-specific repairs remain advisory until SDA owns a safe typed fixer.
 
 ## Storage
 

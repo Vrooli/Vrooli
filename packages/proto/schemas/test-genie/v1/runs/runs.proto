@@ -279,6 +279,10 @@ message PhaseInfo {
   string name = 1;
   string status = 2; // passed | failed | skipped
   double duration_seconds = 3;
+  bool comparable = 4;
+  bool advisory = 5;
+  bool artifact_backed = 6;
+  bool non_comparable = 7;
 }
 
 // RunInfo mirrors the run index record.
@@ -306,6 +310,8 @@ message RunInfo {
   // predate shape stamping.
   string preset = 14;
   string capture_profile = 15;
+  repeated string planned_phases = 16;
+  string phase_set_digest = 17;
 }
 
 message ListRunsRequest {
@@ -398,6 +404,10 @@ message FindRunRequest {
   // (git_dirty). Reuse always sets this — an uncommitted-edit run isn't a
   // faithful stand-in for the current clean tree.
   bool require_clean = 7;
+  // phase_set_digest is the exact planned phase shape required by the caller.
+  // Empty means "do not constrain"; baseline reuse should set this so stale
+  // completed runs from before catalog evolution cannot silently stand in.
+  string phase_set_digest = 8;
 }
 
 message FindRunResponse {

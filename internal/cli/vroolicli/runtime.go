@@ -28,14 +28,12 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/hygienehandlers"
 	"github.com/vrooli/vrooli/internal/cli/metrics"
 	"github.com/vrooli/vrooli/internal/cli/packagehandlers"
-	"github.com/vrooli/vrooli/internal/cli/planshandlers"
 	"github.com/vrooli/vrooli/internal/cli/projectcli"
 	"github.com/vrooli/vrooli/internal/cli/recoveryhandlers"
 	"github.com/vrooli/vrooli/internal/cli/resourcehandlers"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 	"github.com/vrooli/vrooli/internal/cli/scenariohandlers"
-	"github.com/vrooli/vrooli/internal/cli/shareddrifthandlers"
 	"github.com/vrooli/vrooli/internal/cli/topcli"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/cliout"
@@ -943,22 +941,10 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 				return contractapp.NewDefaultService()
 			},
 		}),
-		topcli.CommandPlans: planshandlers.RootHandler(planshandlers.HandlerDeps[*CommandContext]{
-			Stdout:       commandStdout,
-			Stdin:        func(ctx *CommandContext) io.Reader { return os.Stdin },
-			Root:         func(ctx *CommandContext) string { return ctx.Root },
-			Home:         func(ctx *CommandContext) (string, error) { return ctx.HomeDir() },
-			OutputFormat: projectOutputFormat,
-		}),
 		topcli.CommandHygiene: hygienehandlers.Handler(hygienehandlers.HandlerDeps[*CommandContext]{
 			Stdout:       commandStdout,
 			Root:         func(ctx *CommandContext) string { return ctx.Root },
 			Home:         func(ctx *CommandContext) (string, error) { return ctx.HomeDir() },
-			OutputFormat: projectOutputFormat,
-		}),
-		topcli.CommandSharedDrift: shareddrifthandlers.Handler(shareddrifthandlers.HandlerDeps[*CommandContext]{
-			Stdout:       commandStdout,
-			Root:         func(ctx *CommandContext) string { return ctx.Root },
 			OutputFormat: projectOutputFormat,
 		}),
 		topcli.CommandAuth: authhandlers.RootHandler(authhandlers.HandlerDeps[*CommandContext]{

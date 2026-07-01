@@ -27,3 +27,7 @@ replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace github.com/vrooli/vrooli => ../../..
+
+replace github.com/vrooli/api-core => ../../../packages/api-core
+
+replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch

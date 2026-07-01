@@ -6,6 +6,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
 func (r *Runner) WaitForHealth(item scenario.Scenario, env map[string]string) (string, error) {
@@ -73,7 +74,8 @@ func (r *Runner) isRegistryRuntimeHealthy(item scenario.Scenario, view registryR
 	// and not running, the data plane belongs to an orphan, not this instance —
 	// report unhealthy no matter who answers the port. Unknown owner PID (nil) or
 	// an unavailable liveness probe is NOT condemned (positive bad evidence only).
-	if pid := view.Instance.OwnerPID; pid != nil && deps.isPIDRunning != nil && !deps.isPIDRunning(*pid) {
+	if pid := view.Instance.OwnerPID; pid != nil && view.Instance.OwnerKind != scenarioruntime.OwnerKindSupervisor &&
+		deps.isPIDRunning != nil && !deps.isPIDRunning(*pid) {
 		r.logWarn("Registry runtime owner pid is not alive; a bound port answered by another process would be an orphan squat",
 			logx.AttrScenario, item.Slug, "owner_pid", *pid)
 		return false

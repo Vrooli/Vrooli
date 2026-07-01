@@ -30,3 +30,5 @@ replace github.com/vrooli/vrooli => ../../..
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace flow-verifier => ../api
+
+replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch

@@ -12,10 +12,10 @@ import (
 )
 
 func (h *connectHandler) checkGoSurface(ctx context.Context, runner commandRunner, surface *healthv1.DependencyHealthSurface) []*healthv1.DependencyHealthFinding {
-	root := surface.GetRootPath()
-	modPath := filepath.Join(root, "go.mod")
+	root := packageRoot(surface)
+	modPath := packageConfigPath(surface, "go.mod")
 	if !fileExists(modPath) {
-		return []*healthv1.DependencyHealthFinding{readinessFinding("go."+surfaceID(surface)+".missing-go-mod", "WARNING", "Go surface has no go.mod", "A discovered Go surface does not have a go.mod at its root.", "Expose the correct parse-unit root through Code Facts or add a go.mod for this Go module.", surface, "dependency.go.mod_present", "missing go.mod", "go.mod at the Go surface root")}
+		return []*healthv1.DependencyHealthFinding{readinessFinding("go."+surfaceID(surface)+".missing-go-mod", "WARNING", "Go surface has no go.mod", "A discovered Go surface does not have a go.mod at its package root.", "Expose the correct parse-unit root through Code Facts or add a go.mod for this Go module.", surface, "dependency.go.mod_present", "missing go.mod", "go.mod at the Go package root")}
 	}
 	var findings []*healthv1.DependencyHealthFinding
 	for _, missing := range missingLocalReplaces(root, modPath) {

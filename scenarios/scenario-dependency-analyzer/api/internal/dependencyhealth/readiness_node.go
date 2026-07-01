@@ -8,9 +8,9 @@ import (
 )
 
 func checkNodeSurface(surface *healthv1.DependencyHealthSurface) []*healthv1.DependencyHealthFinding {
-	root := surface.GetRootPath()
+	root := packageRoot(surface)
 	if !fileExists(filepath.Join(root, "package.json")) {
-		return []*healthv1.DependencyHealthFinding{readinessFinding("node."+surfaceID(surface)+".missing-package-json", "WARNING", "JavaScript surface has no package.json", "A discovered JavaScript/TypeScript surface does not have a package.json at its root.", "Expose the correct package root through Code Facts or add package.json for this surface.", surface, "dependency.node.package_json_present", "missing package.json", "package.json at the JS/TS surface root")}
+		return []*healthv1.DependencyHealthFinding{readinessFinding("node."+surfaceID(surface)+".missing-package-json", "WARNING", "JavaScript surface has no package.json", "A discovered JavaScript/TypeScript surface does not have a package.json at its package root.", "Expose the correct package root through Code Facts or add package.json for this surface.", surface, "dependency.node.package_json_present", "missing package.json", "package.json at the JS/TS package root")}
 	}
 	lockfiles := detectLockfiles(root)
 	var findings []*healthv1.DependencyHealthFinding
@@ -44,7 +44,7 @@ func readinessFinding(id, severity, title, description, remediation string, surf
 		Title:        title,
 		Description:  description,
 		Remediation:  remediation,
-		FilePath:     relScenarioPath(surface.GetRootPath()),
+		FilePath:     relScenarioPath(packageConfigPath(surface, "")),
 		SurfaceId:    surface.GetId(),
 		RuleId:       ruleID,
 		Observed:     observed,

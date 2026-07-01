@@ -1,14 +1,15 @@
 // Package agentpolicycli defines the top-level `vrooli agent-policy`
 // command surface. It fans permission verbs out to every installed
-// coding-agent resource CLI (resource-claude-code, resource-codex,
-// resource-opencode) so one invocation can deny/allow/ask a bash
-// pattern across all three.
+// coding-agent resource CLI so one invocation can deny/allow/ask a bash
+// pattern across the platform catalog.
 package agentpolicycli
 
 import (
 	"io"
+	"strings"
 
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
+	"github.com/vrooli/vrooli/internal/codingagents"
 )
 
 // CommandID is the verb identifier inside the agent-policy subtree.
@@ -28,20 +29,17 @@ const (
 // `--i-was-explicitly-authorized` spelling across the platform.
 const OverrideFlag = "--i-was-explicitly-authorized"
 
-// SupportedAgents lists the resource CLI binaries the fan-out
-// targets. Each entry must:
+// SupportedAgents lists the resource CLI binaries the fan-out targets. Each
+// entry must:
 //
 //   - be installed on $PATH (the handler reports "not-installed" for
 //     missing entries rather than failing the whole call), and
 //   - expose `permissions <verb>` with the canonical CLI surface
 //     produced by Phases 1–3 of the agent-permissions plan.
 //
-// Adding a new coding-agent resource to the platform = append here.
-var SupportedAgents = []string{
-	"resource-claude-code",
-	"resource-codex",
-	"resource-opencode",
-}
+// Adding a new coding-agent resource to the platform = add it to
+// internal/codingagents.Catalog.
+var SupportedAgents = codingagents.ResourceCLIs()
 
 func CommandSpecs() []commandtree.Spec[CommandID] {
 	mutatingArgs := commandtree.ArgSchema{
@@ -75,7 +73,7 @@ func RenderCommandHelp(w io.Writer) {
 	commandtree.WriteHelp(w, commandtree.RenderHelpText(commandtree.Help{
 		Title:        "vrooli agent-policy - Manage permissions on every installed coding-agent resource",
 		Usage:        "vrooli agent-policy <verb> [options]",
-		Description:  "Fans permission verbs out to resource-claude-code, resource-codex, and resource-opencode. Resources not installed are reported as not-installed and skipped — they do not fail the call. Mutating verbs refuse agent callers unless --i-was-explicitly-authorized is passed.",
+		Description:  "Fans permission verbs out to " + strings.Join(SupportedAgents, ", ") + ". Resources not installed are reported as not-installed and skipped — they do not fail the call. Mutating verbs refuse agent callers unless --i-was-explicitly-authorized is passed.",
 		DefaultGroup: "Agent Policy",
 		Notes:        []string{"Pattern syntax is each agent's native form (e.g. 'Bash(git stash*)' for Claude, 'git stash *' for OpenCode); the fan-out does not translate."},
 	}, CommandSpecs()))

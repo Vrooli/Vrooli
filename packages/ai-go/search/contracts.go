@@ -377,7 +377,14 @@ type SearchResponse struct {
 	Total    int
 	Query    string
 	Method   string // which leg answered: "hybrid" | "dense" | "text"
-	Reranker string // active reranker Name() or "none"
+	Reranker string // active reranker Name() or "none" (observability; e.g. "blend:cross-encoder:…")
+	// Regime is the engine-resolved scoring regime that classifies Results'
+	// scores ("cosine" | "cross-encoder" | "llm" | "fused"). It is computed once,
+	// here, from the actual retrieval method + rerank leg the engine ran — the
+	// authoritative source. Adopters MUST read this instead of re-deriving from
+	// Reranker, whose blended leg name ("blend:…") is observability-only and does
+	// not round-trip through RegimeForMethod.
+	Regime string
 }
 
 // StatusReport describes backend availability for `search status`.

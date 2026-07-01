@@ -4,12 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"testing"
-	"time"
 
 	contractapp "github.com/vrooli/vrooli/internal/app/contract"
 	hygieneapp "github.com/vrooli/vrooli/internal/app/hygiene"
-	planapp "github.com/vrooli/vrooli/internal/app/plans"
-	shareddriftapp "github.com/vrooli/vrooli/internal/app/shareddrift"
 	"github.com/vrooli/vrooli/internal/cliout"
 )
 
@@ -17,7 +14,6 @@ import (
 // a fully populated report (findings, actions, plan candidates, fixes, embedded
 // contract + shared-drift).
 func TestRenderHygieneJSONContract(t *testing.T) {
-	created := time.Date(2026, 6, 11, 10, 0, 0, 0, time.UTC)
 	report := hygieneapp.Report{
 		Success: true,
 		Root:    "/repo",
@@ -34,7 +30,7 @@ func TestRenderHygieneJSONContract(t *testing.T) {
 				Why:        "plans should be imported",
 				Fixability: hygieneapp.FixabilityGuided,
 				NextActions: []hygieneapp.Action{
-					{Code: "import_plan", Message: "import it", Command: "vrooli plans import plans/foo.md"},
+					{Code: "import_plan", Message: "import it", Command: "plan-manager plans import --source plans/foo.md --workspace /repo"},
 				},
 			},
 		},
@@ -45,7 +41,23 @@ func TestRenderHygieneJSONContract(t *testing.T) {
 			{Path: "plans/foo.md", Status: "untracked", Reason: "looks like a plan"},
 		},
 		FixesApplied: []hygieneapp.PlanFix{
-			{Source: "plans/foo.md", Plan: planapp.PlanRecord{ID: "p1", Title: "Foo", Slug: "foo", CreatedAt: created}},
+			{
+				Source: "plans/foo.md",
+				Action: "mirror_repaired",
+				Plan:   hygieneapp.HygienePlan{ID: "p1", Title: "Foo", Slug: "foo"},
+				Mirror: hygieneapp.HygieneMirror{Path: "/repo/.vrooli/plans/foo.md", Status: "fresh"},
+			},
+		},
+		PlanReconcileOutcomes: []hygieneapp.PlanReconcileOutcome{
+			{
+				Source:               "plans/foo.md",
+				Action:               "skipped_duplicate",
+				Plan:                 hygieneapp.HygienePlan{ID: "p1", Title: "Foo", Slug: "foo"},
+				Mirror:               hygieneapp.HygieneMirror{Path: "/repo/.vrooli/plans/foo.md", Status: "fresh"},
+				SourceUntouched:      true,
+				SourceCleanupPlanned: true,
+				SourceRemoved:        false,
+			},
 		},
 		ConfigFixes: []string{"fixed pnpm workspace"},
 		Contract: contractapp.ValidationOutput{
@@ -53,11 +65,11 @@ func TestRenderHygieneJSONContract(t *testing.T) {
 			Root:    "/repo",
 			Schema:  contractapp.ValidationCheck{Passed: true, Message: "ok"},
 		},
-		SharedDrift: &shareddriftapp.Report{
+		SharedDrift: &hygieneapp.DependencyFreshnessCompatReport{
 			Clean: true,
 			Root:  "/repo",
-			Scenarios: []shareddriftapp.ScenarioReport{
-				{Path: "scenarios/demo", APIDir: "scenarios/demo/api", Status: shareddriftapp.StatusClean},
+			Scenarios: []hygieneapp.DependencyFreshnessScenario{
+				{Path: "scenarios/demo", APIDir: "scenarios/demo/api", Status: hygieneapp.DependencyFreshnessStatusClean},
 			},
 			ElapsedMs: 1234,
 		},
@@ -104,15 +116,30 @@ func TestRenderHygieneJSONContract(t *testing.T) {
 	}
 
 	fixes := got["fixes_applied"].([]any)
-	plan := fixes[0].(map[string]any)["plan"].(map[string]any)
+	fix := fixes[0].(map[string]any)
+	if fix["source"] != "plans/foo.md" {
+		t.Errorf("fix source mismatch: %v", fix)
+	}
+	if fix["action"] != "mirror_repaired" {
+		t.Errorf("fix action mismatch: %v", fix)
+	}
+	if mirror := fix["mirror"].(map[string]any); mirror["status"] != "fresh" {
+		t.Errorf("fix mirror mismatch: %v", mirror)
+	}
+	plan := fix["plan"].(map[string]any)
 	if plan["id"] != "p1" {
 		t.Errorf("plan id (snake_case 'id'?): %v", plan)
 	}
-	if plan["created_at"] != "2026-06-11T10:00:00Z" {
-		t.Errorf("created_at RFC3339: %v", plan["created_at"])
+	if plan["title"] != "Foo" || plan["slug"] != "foo" {
+		t.Errorf("plan title/slug mismatch: %v", plan)
 	}
 	if plan["archived_at"] != "" {
 		t.Errorf("zero archived_at should be empty: %v", plan["archived_at"])
+	}
+	outcomes := got["plan_reconcile_outcomes"].([]any)
+	outcome := outcomes[0].(map[string]any)
+	if outcome["action"] != "skipped_duplicate" || outcome["source_untouched"] != true || outcome["source_cleanup_planned"] != true {
+		t.Errorf("plan_reconcile_outcomes mismatch: %v", outcome)
 	}
 
 	contract := got["contract"].(map[string]any)

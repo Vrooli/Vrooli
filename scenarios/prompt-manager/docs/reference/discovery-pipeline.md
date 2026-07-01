@@ -1,9 +1,11 @@
 # Discovery Pipeline
 
 `prompt-manager discover` is the engine behind every implementation plan's
-**Required Reading** line. Given 2–5 concept queries it returns the set of skills
-(and optionally Actions) an agent should read before doing the work, sized
-against a complexity budget. This doc explains how the pipeline ranks results
+curated **skill setup context**. Given 2–5 concept queries it returns the set of
+skills (and optionally Actions) an agent should read before doing the work, sized
+against a complexity budget. Plan Manager stores accepted setup through
+`relevant_context[]`; legacy `Required Reading` markdown is import-only
+compatibility. This doc explains how the pipeline ranks results
 (the block-aware ranking model and its tunable levers), how the topic hierarchy
 contributes curated packs, the two other knobs that bound output (similarity
 **threshold** and per-tier **budget**), the telemetry that makes them tunable,
@@ -20,7 +22,7 @@ Discover serves two opposite needs, selected by `--type`:
 
 | Mode | `--type` | Want | Callers |
 |---|---|---|---|
-| **Curated / plan-authoring** | `skill` (default) | the *required-reading set* for development work — strong direct matches **plus** the curated topic packs for that kind of work | `plan-skill-discovery`, `implementation-plan-authoring`, `ecosystem-fit` |
+| **Curated / plan-authoring** | `skill` (default) | the skill setup bundle for development work — strong direct matches **plus** the curated topic packs for that kind of work | `plan-skill-discovery`, `implementation-plan-authoring`, `ecosystem-fit` |
 | **Operational** | `all`, `action` | the *single best-matching* skill or action to avoid hand-rolling — pure relevance, no packs | the AGENTS.md "Discover → Use → Capture" reflex, `skill-improvement-suggestions`, meta-optimization, etc. |
 
 **INVARIANT I8 — mode-aware ranking.** Curated-pack behavior (I1–I7 below)

@@ -141,7 +141,7 @@ device token via the `?token=` query param (already supported by `internal/devic
 - **STRUCTURE (1), UNIT (2):** fresh-scaffold/notes-example state; resolve as real domains land + `notes` is removed.
 - **STANDARDS (high — "Security Headers"):** the stub API lacks security-headers middleware; add it when building the real API (Phase 2). Criticals (P0-missing-requirements) are already FIXED by the charter.
 
-**NEXT — Phase 2 (per the plan `vrooli plans show device-sync-hub-greenfield-rewrite-cross-device-file-text-transfer`):**
+**NEXT — Phase 2 (per the plan `plan-manager plans render device-sync-hub-greenfield-rewrite-cross-device-file-text-transfer`):**
 1. Build the API foundation + `auth` integration (scenario-authenticator client, fail-closed) + `devices` domain (devices/pairing_codes tables, code/QR pairing, request→approve, revocation). Wire `api-core/storage` + `blobstore` seams.
 2. Prove `devices` green, THEN remove the `notes` example (clears `example-domain-removed` + most PROTO/STRUCTURE/UNIT residuals).
 3. Add security-headers middleware (clears STANDARDS high).

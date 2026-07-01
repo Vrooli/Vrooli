@@ -56,3 +56,5 @@ replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
 require github.com/vrooli/cli-core v0.0.0 // indirect
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
+
+replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch

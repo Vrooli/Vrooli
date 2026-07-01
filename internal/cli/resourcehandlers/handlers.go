@@ -217,7 +217,7 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 				if !ok {
 					return "", upstreamcheck.AggregateReport{}, rootcli.UsageErrorf(
 						"resource upstream-check",
-						"unknown coding-agent resource %q (known: codex, claude-code, opencode)", req.Name)
+						"unknown coding-agent resource %q (known: %s)", req.Name, knownCodingAgentResourceNames())
 				}
 				return format, agg, nil
 			},

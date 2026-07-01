@@ -8,8 +8,6 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
-	github.com/gorilla/websocket v1.5.3
-	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/testcontainers/testcontainers-go v0.31.0
 	github.com/vrooli/freshness-go v0.0.0
 	github.com/vrooli/maturity-go v0.0.0
@@ -104,3 +102,5 @@ replace github.com/vrooli/cli-core => ../../../packages/cli-core
 replace github.com/vrooli/vrooli => ../../..
 
 replace intent-go => ../../../packages/intent-go
+
+replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch

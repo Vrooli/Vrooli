@@ -36,8 +36,8 @@ func RenderClaimView(w io.Writer, format cliout.Format, resp capacityapp.ClaimVi
 	if format == cliout.FormatJSON {
 		return cliout.WriteJSON(w, resp)
 	}
-	_, _ = fmt.Fprintf(w, "%s\t%s/%s\t%s\tactivity=%s\tgen=%d\t%s\n",
-		resp.ClaimID, resp.OwnerKind, resp.OwnerID, resp.Status, resp.ActivityState, resp.Generation, humanBytes(resp.AmountBytes))
+	_, _ = fmt.Fprintf(w, "%s\t%s/%s\t%s\tactivity=%s\tidle=%s\tgen=%d\t%s\n",
+		resp.ClaimID, resp.OwnerKind, resp.OwnerID, resp.Status, resp.ActivityState, resp.IdleReclaimState, resp.Generation, humanBytes(resp.AmountBytes))
 	return nil
 }
 
@@ -51,9 +51,9 @@ func RenderList(w io.Writer, format cliout.Format, resp capacityapp.ListOutput) 
 		return nil
 	}
 	for _, c := range resp.Claims {
-		_, _ = fmt.Fprintf(w, "%s\t%s/%s\t%s\t%s\tprio=%s\tprotected=%t\tgranted=%s\tobserved=%s\tpeak=%s\n",
+		_, _ = fmt.Fprintf(w, "%s\t%s/%s\t%s\t%s\tprio=%s\tprotected=%t\tidle=%s\tgranted=%s\tobserved=%s\tpeak=%s\n",
 			c.ClaimID, c.OwnerKind, c.OwnerID, c.ResourceKind, c.Status, c.PriorityTier, c.Protected,
-			humanBytes(c.AmountBytes), humanBytes(c.ObservedBytes), humanBytes(c.ObservedPeakBytes))
+			c.IdleReclaimState, humanBytes(c.AmountBytes), humanBytes(c.ObservedBytes), humanBytes(c.ObservedPeakBytes))
 	}
 	return nil
 }
