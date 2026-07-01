@@ -60,6 +60,53 @@ func TestPrintReportTableSurfacesDecisionSignals(t *testing.T) {
 	require.NotContains(t, out, "metrics=")
 }
 
+func TestPrintComparisonRendersWinnerRowsAndKeepsNilReportVisible(t *testing.T) {
+	app := testutil.NewTestApp(t, http.NewServeMux())
+	ctx, buf := cliapptest.NewCapturedRunContext(app, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{})
+
+	mkReport := func(winnerWer, winnerRtf float64, passed bool) *evalv1.EvalReport {
+		return &evalv1.EvalReport{
+			Summary: &evalv1.EvalReportSummary{WinnerStrategy: "batch"},
+			PerStrategy: []*evalv1.StrategyReport{
+				{Strategy: "batch", Label: "batch / clean", Wer: winnerWer, Rtf: winnerRtf, WhisperCalls: 1, Safety: &evalv1.SafetyGateReport{Passed: passed}},
+				{Strategy: "vad_segment", Label: "vad", Wer: winnerWer + 0.05, Rtf: winnerRtf + 1},
+			},
+		}
+	}
+
+	printComparison(ctx, []*experimentv1.ComparedExperiment{
+		{
+			Experiment: &experimentv1.Experiment{Id: "exp-aaa", Name: "alpha", Status: experimentv1.ExperimentStatus_EXPERIMENT_STATUS_SUCCEEDED},
+			Report:     mkReport(0.08, 0.5, false),
+		},
+		{
+			// Best: lowest winner WER.
+			Experiment: &experimentv1.Experiment{Id: "exp-bbb", Name: "beta", Status: experimentv1.ExperimentStatus_EXPERIMENT_STATUS_SUCCEEDED},
+			Report:     mkReport(0.02, 0.4, true),
+		},
+		{
+			// Still running — nil report must remain visible.
+			Experiment: &experimentv1.Experiment{Id: "exp-ccc", Name: "gamma", Status: experimentv1.ExperimentStatus_EXPERIMENT_STATUS_RUNNING},
+			Report:     nil,
+		},
+	})
+
+	out := buf.String()
+	require.Contains(t, out, "exp-aaa")
+	require.Contains(t, out, "exp-bbb")
+	require.Contains(t, out, "exp-ccc", "nil-report experiment row must still render")
+	require.Contains(t, out, "running", "nil-report experiment must show its status")
+	require.Contains(t, out, "SAFE")
+	require.Contains(t, out, "UNSAFE")
+	require.Contains(t, out, "* best")
+	// The best (beta) row carries the marker.
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, "exp-bbb") {
+			require.True(t, strings.HasPrefix(strings.TrimSpace(line), "*"), "best experiment row should be marked: %q", line)
+		}
+	}
+}
+
 func TestFormatRunStatusDoesNotDumpMetricsJSON(t *testing.T) {
 	line := formatRunStatus(&experimentv1.ExperimentRun{
 		Strategy:      "batch",

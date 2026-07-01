@@ -3,6 +3,7 @@ package experiment
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -14,6 +15,7 @@ import (
 	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
 	experimentconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment/experiment_v1connect"
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -31,12 +33,21 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 }
 
 func (h *handlers) start(ctx cliapp.RunContext) error {
+	recipe, err := loadBaseRecipe(ctx)
+	if err != nil {
+		return err
+	}
 	req := &experimentv1.StartExperimentRequest{
-		Name: ctx.Flag("name"),
-		Recipe: &experimentv1.ExperimentRecipe{
-			ClipIds:    splitCSV(ctx.Flag("clip-ids")),
-			Strategies: strategiesFromFlag(ctx.Flag("strategies")),
-		},
+		Name:   ctx.Flag("name"),
+		Recipe: recipe,
+	}
+	// Individual flags override any field the base recipe (--recipe-json /
+	// --recipe-file) supplied; only override when the flag was passed.
+	if v := strings.TrimSpace(ctx.Flag("clip-ids")); v != "" {
+		req.Recipe.ClipIds = splitCSV(v)
+	}
+	if v := strings.TrimSpace(ctx.Flag("strategies")); v != "" {
+		req.Recipe.Strategies = strategiesFromFlag(v)
 	}
 	if v := strings.TrimSpace(ctx.Flag("realtime-repeats")); v != "" {
 		n, err := parseIntFlag("realtime-repeats", v)
@@ -83,12 +94,13 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		}
 		req.Recipe.Seed = n
 	}
-	longForm := &experimentv1.LongFormRecipe{}
-	if v := strings.TrimSpace(ctx.Flag("long-form")); v != "" {
-		enabled, err := parseBoolFlag("long-form", v)
-		if err != nil {
-			return err
-		}
+	longForm := req.Recipe.GetLongForm()
+	if longForm == nil {
+		longForm = &experimentv1.LongFormRecipe{}
+	}
+	if set, enabled, err := optionalBoolFlag(ctx, "long-form"); err != nil {
+		return err
+	} else if set {
 		longForm.Enabled = enabled
 	}
 	if v := strings.TrimSpace(ctx.Flag("target-duration-seconds")); v != "" {
@@ -111,10 +123,21 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		longForm.Enabled = true
 		longForm.TagContains = v
 	}
-	if longForm.GetEnabled() || longForm.GetTargetDurationSeconds() > 0 || longForm.GetGapMs() > 0 || longForm.GetTagContains() != "" {
+	if v := strings.TrimSpace(ctx.Flag("sweep-durations")); v != "" {
+		values, err := parseIntCSVFlag("sweep-durations", v)
+		if err != nil {
+			return err
+		}
+		longForm.Enabled = true
+		longForm.SweepDurationsSeconds = values
+	}
+	if longFormHasContent(longForm) {
 		req.Recipe.LongForm = longForm
 	}
-	augmentation := &experimentv1.AugmentationRecipe{}
+	augmentation := req.Recipe.GetAugmentation()
+	if augmentation == nil {
+		augmentation = &experimentv1.AugmentationRecipe{}
+	}
 	if v := strings.TrimSpace(ctx.Flag("noise-types")); v != "" {
 		augmentation.NoiseTypes = splitCSV(v)
 	}
@@ -131,25 +154,24 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 	if v := strings.TrimSpace(ctx.Flag("competing-text")); v != "" {
 		augmentation.CompetingText = v
 	}
-	if len(augmentation.GetNoiseTypes()) > 0 || len(augmentation.GetCompetingVoiceIds()) > 0 || len(augmentation.GetSnrDb()) > 0 || augmentation.GetCompetingText() != "" {
+	if augmentationHasContent(augmentation) {
 		req.Recipe.Augmentation = augmentation
 	}
-	speaker := &experimentv1.SpeakerExperimentRecipe{}
+	speaker := req.Recipe.GetSpeaker()
+	if speaker == nil {
+		speaker = &experimentv1.SpeakerExperimentRecipe{}
+	}
 	if v := strings.TrimSpace(ctx.Flag("target-profile-id")); v != "" {
 		speaker.TargetProfileId = v
 	}
-	if v := strings.TrimSpace(ctx.Flag("speaker-extraction")); v != "" {
-		enabled, err := parseBoolFlag("speaker-extraction", v)
-		if err != nil {
-			return err
-		}
+	if set, enabled, err := optionalBoolFlag(ctx, "speaker-extraction"); err != nil {
+		return err
+	} else if set {
 		speaker.ExtractionEnabled = enabled
 	}
-	if v := strings.TrimSpace(ctx.Flag("speaker-verification")); v != "" {
-		enabled, err := parseBoolFlag("speaker-verification", v)
-		if err != nil {
-			return err
-		}
+	if set, enabled, err := optionalBoolFlag(ctx, "speaker-verification"); err != nil {
+		return err
+	} else if set {
 		speaker.VerificationEnabled = enabled
 	}
 	if v := strings.TrimSpace(ctx.Flag("speaker-mode")); v != "" {
@@ -166,22 +188,23 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		}
 		speaker.Threshold = n
 	}
-	if v := strings.TrimSpace(ctx.Flag("speaker-fallback")); v != "" {
-		enabled, err := parseBoolFlag("speaker-fallback", v)
-		if err != nil {
-			return err
-		}
+	if set, enabled, err := optionalBoolFlag(ctx, "speaker-fallback"); err != nil {
+		return err
+	} else if set {
 		speaker.FallbackWithoutVerification = enabled
 	}
-	if v := strings.TrimSpace(ctx.Flag("speaker-ablation")); v != "" {
-		enabled, err := parseBoolFlag("speaker-ablation", v)
-		if err != nil {
-			return err
-		}
+	if set, enabled, err := optionalBoolFlag(ctx, "speaker-ablation"); err != nil {
+		return err
+	} else if set {
 		speaker.AblationEnabled = enabled
 	}
-	if speaker.GetTargetProfileId() != "" || speaker.GetExtractionEnabled() || speaker.GetVerificationEnabled() || speaker.GetVerificationMode() != sttv1.SpeakerMode_SPEAKER_MODE_UNSPECIFIED || speaker.GetThreshold() != 0 || speaker.GetFallbackWithoutVerification() || speaker.GetAblationEnabled() {
+	if speakerHasContent(speaker) {
 		req.Recipe.Speaker = speaker
+	}
+	// Local guard: target-speaker extraction/verification/ablation cannot run
+	// without an enrolled profile, so fail before submitting an unrunnable job.
+	if (speaker.GetExtractionEnabled() || speaker.GetVerificationEnabled() || speaker.GetAblationEnabled()) && strings.TrimSpace(speaker.GetTargetProfileId()) == "" {
+		return fmt.Errorf("speaker experiments require --target-profile-id; enroll a profile with `audio-tools stt speaker-enroll --file <clip> --activate true` and list ids with `audio-tools stt speaker-status`")
 	}
 	if v := strings.TrimSpace(ctx.Flag("estimated-seconds")); v != "" {
 		n, err := parseIntFlag("estimated-seconds", v)
@@ -190,6 +213,9 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		}
 		req.EstimatedSeconds = int32(n)
 	}
+	// Echo the strategies that will actually run (the server applies the same
+	// default trio at run time when none are given) so `start --json` is honest.
+	ensureDefaultStrategies(req.Recipe)
 
 	resp, err := h.client.StartExperiment(context.Background(), connect.NewRequest(req))
 	if err != nil {
@@ -206,6 +232,7 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 			fmt.Sprintf("strategies=%s", strategyLabels(exp.GetRecipe().GetStrategies())),
 			fmt.Sprintf("clip_ids=%s", strings.Join(exp.GetRecipe().GetClipIds(), ",")),
 			fmt.Sprintf("long_form=%t", exp.GetRecipe().GetLongForm().GetEnabled()),
+			fmt.Sprintf("long_form_sweep=%s", int32sCSV(exp.GetRecipe().GetLongForm().GetSweepDurationsSeconds())),
 			fmt.Sprintf("augmentation_noise=%s", strings.Join(exp.GetRecipe().GetAugmentation().GetNoiseTypes(), ",")),
 			fmt.Sprintf("augmentation_voices=%s", strings.Join(exp.GetRecipe().GetAugmentation().GetCompetingVoiceIds(), ",")),
 			fmt.Sprintf("speaker_profile=%s", exp.GetRecipe().GetSpeaker().GetTargetProfileId()),
@@ -346,9 +373,11 @@ func (h *handlers) report(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) compare(ctx cliapp.RunContext) error {
-	ids := splitCSV(ctx.Positional("ids"))
+	// Accept both space-separated positionals (`compare a b`) and comma-separated
+	// forms (`compare a,b`), flatten, and dedupe while preserving order.
+	ids := dedupeStrings(flattenCSV(ctx.Positionals("ids")))
 	if len(ids) < 2 {
-		return fmt.Errorf("compare requires at least two comma-separated experiment ids")
+		return fmt.Errorf("compare requires at least two experiment ids (space- or comma-separated)")
 	}
 	resp, err := h.client.CompareExperiments(context.Background(), connect.NewRequest(&experimentv1.CompareExperimentsRequest{Ids: ids}))
 	if err != nil {
@@ -528,22 +557,148 @@ func experimentTerminal(exp *experimentv1.Experiment) bool {
 	}
 }
 
+// comparisonRow is the per-experiment projection the comparison table renders:
+// the experiment, its report (may be nil), and the winning strategy row.
+type comparisonRow struct {
+	exp    *experimentv1.Experiment
+	report *evalv1.EvalReport
+	winner *evalv1.StrategyReport
+}
+
 func printComparison(ctx cliapp.RunContext, experiments []*experimentv1.ComparedExperiment) {
 	if len(experiments) == 0 {
 		fmt.Fprintln(ctx.Stdout(), "No experiments returned.")
 		return
 	}
-	fmt.Fprintf(ctx.Stdout(), "%-38s  %-10s  %-24s  %8s  %8s  %8s\n", "ID", "STATUS", "STRATEGY", "WER%", "CALLS", "RTF")
-	for _, ce := range experiments {
-		exp := ce.GetExperiment()
-		for _, row := range ce.GetReport().GetPerStrategy() {
-			fmt.Fprintf(ctx.Stdout(), "%-38s  %-10s  %-24s  %8.2f  %8d  %8.2f\n",
-				exp.GetId(), statusLabel(exp.GetStatus()), row.GetLabel(), row.GetWer()*100, row.GetWhisperCalls(), row.GetRtf())
+	rows := make([]comparisonRow, 0, len(experiments))
+	bestIdx := -1
+	anyMissingReport := false
+	for i, ce := range experiments {
+		row := comparisonRow{exp: ce.GetExperiment(), report: ce.GetReport()}
+		if row.report != nil {
+			row.winner = winnerStrategyRow(row.report)
+		} else {
+			anyMissingReport = true
+		}
+		rows = append(rows, row)
+		if row.winner == nil {
+			continue
+		}
+		if bestIdx == -1 {
+			bestIdx = i
+			continue
+		}
+		best := rows[bestIdx].winner
+		if row.winner.GetWer() < best.GetWer() ||
+			(row.winner.GetWer() == best.GetWer() && row.winner.GetRtf() < best.GetRtf()) {
+			bestIdx = i
 		}
 	}
-	if len(experiments) >= 2 {
-		fmt.Fprintln(ctx.Stdout(), "\nUse --json for full recipe fields and per-experiment report payloads.")
+	var bestWinner *evalv1.StrategyReport
+	if bestIdx >= 0 {
+		bestWinner = rows[bestIdx].winner
 	}
+
+	fmt.Fprintf(ctx.Stdout(), "%-2s %-18s %-38s %-10s %-22s %7s %8s %6s %6s %7s %7s %7s\n",
+		"", "NAME", "ID", "STATUS", "WINNER", "WER%", "P95", "CALLS", "RTF", "SAFE", "dWER%", "dRTF")
+	for i, row := range rows {
+		mark := ""
+		if i == bestIdx {
+			mark = "*"
+		}
+		name := row.exp.GetName()
+		if name == "" {
+			name = "-"
+		}
+		winnerLabel, werCol, p95Col, callsCol, rtfCol, safeCol, dWerCol, dRtfCol := "-", "-", "-", "-", "-", "-", "-", "-"
+		if row.winner != nil {
+			winnerLabel = row.winner.GetLabel()
+			if winnerLabel == "" {
+				winnerLabel = row.winner.GetStrategy()
+			}
+			werCol = fmt.Sprintf("%.1f", row.winner.GetWer()*100)
+			callsCol = fmt.Sprintf("%d", row.winner.GetWhisperCalls())
+			rtfCol = fmt.Sprintf("%.2f", row.winner.GetRtf())
+			if row.report.GetLatencyMeasured() {
+				p95Col = fmt.Sprintf("%.0fms", row.winner.GetFinalizationLatencyP95Ms())
+			}
+			safeCol = safetyLabel(row.winner.GetSafety())
+			if bestWinner != nil {
+				dWerCol = fmt.Sprintf("%+.1f", (row.winner.GetWer()-bestWinner.GetWer())*100)
+				dRtfCol = fmt.Sprintf("%+.2f", row.winner.GetRtf()-bestWinner.GetRtf())
+			}
+		}
+		fmt.Fprintf(ctx.Stdout(), "%-2s %-18s %-38s %-10s %-22s %7s %8s %6s %6s %7s %7s %7s\n",
+			mark, truncate(name, 18), row.exp.GetId(), statusLabel(row.exp.GetStatus()),
+			truncate(winnerLabel, 22), werCol, p95Col, callsCol, rtfCol, safeCol, dWerCol, dRtfCol)
+	}
+	if bestIdx >= 0 {
+		fmt.Fprintf(ctx.Stdout(), "\n* best = lowest winner WER (tie-break lower RTF); deltas are vs that experiment.\n")
+	}
+	if anyMissingReport {
+		fmt.Fprintln(ctx.Stdout(), "Rows without a winner have no stored report yet (still running, or failed before reporting).")
+	}
+	fmt.Fprintln(ctx.Stdout(), "Use --json for full recipes and per-experiment report payloads.")
+}
+
+// winnerStrategyRow returns the report's winning strategy row, preferring the
+// summary's declared winner, then a verdict=="winner" row, then lowest WER.
+func winnerStrategyRow(report *evalv1.EvalReport) *evalv1.StrategyReport {
+	if report == nil {
+		return nil
+	}
+	rows := report.GetPerStrategy()
+	if len(rows) == 0 {
+		return nil
+	}
+	if summary := report.GetSummary(); summary != nil {
+		if ws := summary.GetWinnerStrategy(); ws != "" {
+			for _, r := range rows {
+				if r.GetStrategy() == ws {
+					return r
+				}
+			}
+		}
+		if wl := summary.GetWinnerLabel(); wl != "" {
+			for _, r := range rows {
+				if r.GetLabel() == wl {
+					return r
+				}
+			}
+		}
+	}
+	for _, r := range rows {
+		if r.GetVerdict() == "winner" {
+			return r
+		}
+	}
+	best := rows[0]
+	for _, r := range rows[1:] {
+		if r.GetWer() < best.GetWer() {
+			best = r
+		}
+	}
+	return best
+}
+
+func safetyLabel(safety *evalv1.SafetyGateReport) string {
+	if safety == nil {
+		return "-"
+	}
+	if safety.GetPassed() {
+		return "SAFE"
+	}
+	return "UNSAFE"
+}
+
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	if max <= 1 {
+		return s[:max]
+	}
+	return s[:max-1] + "…"
 }
 
 func strategiesFromFlag(s string) []*evalv1.EvalStrategy {
@@ -610,6 +765,120 @@ func parseFloatCSVFlag(name string, value string) ([]float64, error) {
 		out = append(out, n)
 	}
 	return out, nil
+}
+
+// parseIntCSVFlag parses a comma-separated list of ints into []int32.
+func parseIntCSVFlag(name, value string) ([]int32, error) {
+	parts := splitCSV(value)
+	out := make([]int32, 0, len(parts))
+	for _, part := range parts {
+		n, err := strconv.Atoi(part)
+		if err != nil {
+			return nil, fmt.Errorf("--%s must be comma-separated integers: %q", name, value)
+		}
+		out = append(out, int32(n))
+	}
+	return out, nil
+}
+
+// optionalBoolFlag reads a tri-state boolean flag. It returns set=false when the
+// flag was not provided. When the flag is present with no/empty value
+// (e.g. `--long-form` or `--long-form=`) it means true; an explicit
+// `--long-form true|false` is honored. (cli-core's parser cannot express a flag
+// that is both bare-able and value-accepting, so these stay valued flags; the
+// bare-without-`=` form is rejected by the parser before the handler runs.)
+func optionalBoolFlag(ctx cliapp.RunContext, name string) (set bool, value bool, err error) {
+	if !ctx.BoolFlag(name) {
+		return false, false, nil
+	}
+	raw := strings.TrimSpace(ctx.Flag(name))
+	if raw == "" {
+		return true, true, nil
+	}
+	parsed, err := parseBoolFlag(name, raw)
+	if err != nil {
+		return false, false, err
+	}
+	return true, parsed, nil
+}
+
+func longFormHasContent(lf *experimentv1.LongFormRecipe) bool {
+	return lf.GetEnabled() || lf.GetTargetDurationSeconds() > 0 || lf.GetGapMs() > 0 ||
+		lf.GetTagContains() != "" || len(lf.GetSweepDurationsSeconds()) > 0
+}
+
+func augmentationHasContent(a *experimentv1.AugmentationRecipe) bool {
+	return len(a.GetNoiseTypes()) > 0 || len(a.GetCompetingVoiceIds()) > 0 ||
+		len(a.GetSnrDb()) > 0 || a.GetCompetingText() != ""
+}
+
+func speakerHasContent(s *experimentv1.SpeakerExperimentRecipe) bool {
+	return s.GetTargetProfileId() != "" || s.GetExtractionEnabled() || s.GetVerificationEnabled() ||
+		s.GetVerificationMode() != sttv1.SpeakerMode_SPEAKER_MODE_UNSPECIFIED || s.GetThreshold() != 0 ||
+		s.GetFallbackWithoutVerification() || s.GetAblationEnabled()
+}
+
+// loadBaseRecipe unmarshals a full ExperimentRecipe from --recipe-json (inline)
+// or --recipe-file (path) via protojson, to be used as the base that individual
+// flags then override. Returns an empty recipe when neither is set.
+func loadBaseRecipe(ctx cliapp.RunContext) (*experimentv1.ExperimentRecipe, error) {
+	inline := strings.TrimSpace(ctx.Flag("recipe-json"))
+	file := strings.TrimSpace(ctx.Flag("recipe-file"))
+	if inline != "" && file != "" {
+		return nil, fmt.Errorf("--recipe-json and --recipe-file are mutually exclusive; pass only one")
+	}
+	recipe := &experimentv1.ExperimentRecipe{}
+	raw := inline
+	source := "--recipe-json"
+	if file != "" {
+		b, err := os.ReadFile(file)
+		if err != nil {
+			return nil, fmt.Errorf("read --recipe-file: %w", err)
+		}
+		raw = string(b)
+		source = "--recipe-file"
+	}
+	if strings.TrimSpace(raw) == "" {
+		return recipe, nil
+	}
+	if err := protojson.Unmarshal([]byte(raw), recipe); err != nil {
+		return nil, fmt.Errorf("parse %s as ExperimentRecipe JSON: %w", source, err)
+	}
+	return recipe, nil
+}
+
+// flattenCSV splits each argument on commas and concatenates the results.
+func flattenCSV(args []string) []string {
+	var out []string
+	for _, arg := range args {
+		out = append(out, splitCSV(arg)...)
+	}
+	return out
+}
+
+// dedupeStrings drops empties and duplicates while preserving first-seen order.
+func dedupeStrings(in []string) []string {
+	seen := make(map[string]bool, len(in))
+	var out []string
+	for _, v := range in {
+		if v == "" || seen[v] {
+			continue
+		}
+		seen[v] = true
+		out = append(out, v)
+	}
+	return out
+}
+
+func int32sCSV(values []int32) string {
+	if len(values) == 0 {
+		return ""
+	}
+	parts := make([]string, len(values))
+	for i, v := range values {
+		parts[i] = strconv.Itoa(int(v))
+	}
+	return strings.Join(parts, ",")
 }
 
 func speakerModeFromFlag(s string) (sttv1.SpeakerMode, error) {

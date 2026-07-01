@@ -90,6 +90,7 @@ export interface RecipeSummary {
   targetDurationSeconds: number;
   gapMs: number;
   tagContains: string;
+  sweepDurationsSeconds: number[];
   realizedClipIds: string[];
   realizedDurationMs: number;
   realizedReference: string;
@@ -133,6 +134,7 @@ export interface ExperimentReportRow {
 
 export interface StartExperimentInput {
   name: string;
+  clipIds: string[];
   strategies: string[];
   realtimeRepeats: number;
   latencyTailSeconds: number;
@@ -142,6 +144,7 @@ export interface StartExperimentInput {
   targetDurationSeconds: number;
   gapMs: number;
   tagContains: string;
+  sweepDurationsCsv: string;
   overlapMaxStallRejects: number;
   overlapWindowMs: number;
   overlapCommitRuns: number;
@@ -176,6 +179,7 @@ function decodeRecipe(r?: ExperimentRecipe): RecipeSummary {
     targetDurationSeconds: r?.longForm?.targetDurationSeconds ?? 0,
     gapMs: r?.longForm?.gapMs ?? 0,
     tagContains: r?.longForm?.tagContains ?? "",
+    sweepDurationsSeconds: r?.longForm?.sweepDurationsSeconds ?? [],
     realizedClipIds: r?.realizedClipIds ?? [],
     realizedDurationMs: Number(r?.realizedDurationMs ?? 0),
     realizedReference: r?.realizedReference ?? "",
@@ -255,18 +259,24 @@ function buildRecipe(input: StartExperimentInput) {
     overlapMaxWindowMs: input.overlapMaxWindowMs,
     vadSilenceMs: input.vadSilenceMs,
   }));
+  const sweepDurationsSeconds = csvNumbers(input.sweepDurationsCsv)
+    .map((n) => Math.max(0, Math.round(n)))
+    .filter((n) => n > 0);
   return {
-    clipIds: [],
+    clipIds: input.clipIds,
     strategies,
     realtimeRepeats: input.realtimeRepeats,
     latencyTailSeconds: input.latencyTailSeconds,
     chunkMs: input.chunkMs,
     seed: BigInt(input.seed),
     longForm: {
-      enabled: input.longForm,
+      // A length sweep implies long-form synthesis, so enabling it (or
+      // listing any sweep durations) flips the recipe into long-form mode.
+      enabled: input.longForm || sweepDurationsSeconds.length > 0,
       targetDurationSeconds: input.targetDurationSeconds,
       gapMs: input.gapMs,
       tagContains: input.tagContains,
+      sweepDurationsSeconds,
     },
     realizedClipIds: [],
     realizedReference: "",

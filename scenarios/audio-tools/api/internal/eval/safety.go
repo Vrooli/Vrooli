@@ -1,6 +1,10 @@
 package eval
 
-import "fmt"
+import (
+	"fmt"
+
+	sttchain "audio-tools/internal/ai/sttchain"
+)
 
 // EvaluateSafety computes the phase-7 hard gates for one clip. WER remains
 // the graded metric; these gates call out catastrophic streaming failures
@@ -134,6 +138,53 @@ func attributeStages(row StrategyReport) StageAttribution {
 		out.Notes = append(out.Notes, "no speaker rejection events were observed; lost recognized words are attributed to the strategy/input path")
 	}
 	return out
+}
+
+// AttributeIngressByAblation fills the ingress (target-speaker extraction)
+// stage attribution that a single row cannot observe on its own. Per-row, the
+// extraction stage is invisible: there is no way to know how many words the
+// extractor dropped without a no-extraction baseline. The ablation grid
+// provides exactly that, so for every extraction-on row we find its
+// extraction-off sibling (same base strategy, same verification state, same
+// augmentation group) and attribute the extra deletions to ingress. The
+// surplus is moved out of StrategyLostWords so the decomposition does not
+// double-count it. Rows without ablation identity are left untouched.
+func AttributeIngressByAblation(report *EvalReport) {
+	if report == nil {
+		return
+	}
+	type key struct {
+		base   sttchain.StrategyKind
+		verify bool
+		group  string
+	}
+	offDeletions := make(map[key]int, len(report.PerStrategy))
+	for _, row := range report.PerStrategy {
+		if row.BaseStrategy == "" || row.ExtractionEnabled {
+			continue
+		}
+		offDeletions[key{row.BaseStrategy, row.VerificationEnabled, row.ConditionGroup}] = row.EditCounts.Deletions
+	}
+	for i := range report.PerStrategy {
+		row := &report.PerStrategy[i]
+		if row.BaseStrategy == "" || !row.ExtractionEnabled {
+			continue
+		}
+		baseline, ok := offDeletions[key{row.BaseStrategy, row.VerificationEnabled, row.ConditionGroup}]
+		if !ok {
+			continue
+		}
+		surplus := row.EditCounts.Deletions - baseline
+		if surplus < 0 {
+			surplus = 0
+		}
+		row.StageAttribution.IngressLostWords = surplus
+		if surplus > 0 && row.StageAttribution.StrategyLostWords >= surplus {
+			row.StageAttribution.StrategyLostWords -= surplus
+		}
+		row.StageAttribution.Notes = append(row.StageAttribution.Notes,
+			fmt.Sprintf("ingress attribution from ablation: %d extra deleted word(s) vs the extraction-off sibling are attributed to target-speaker extraction", surplus))
+	}
 }
 
 type lengthBucket struct {

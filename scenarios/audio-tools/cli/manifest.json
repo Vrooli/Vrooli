@@ -451,7 +451,7 @@
       "commands": [
         {
           "name": "start",
-          "description": "Enqueue an async STT experiment and return immediately with its persisted id.",
+          "description": "Enqueue an async STT experiment and return immediately with its persisted id. Boolean flags (--long-form, --speaker-extraction, --speaker-verification, --speaker-fallback, --speaker-ablation) accept true|false; passing the flag with no value means true. Example: audio-tools experiment start --name baseline --strategies batch,vad_segment,overlap_agree --clip-ids c1,c2 --json",
           "flags": [
             { "name": "name", "description": "Human label for the experiment" },
             { "name": "strategies", "description": "Comma-separated strategy kinds (batch,vad_segment,overlap_agree); default server trio" },
@@ -466,6 +466,7 @@
             { "name": "target-duration-seconds", "description": "Keep concatenating seeded corpus clips until this approximate input duration is reached" },
             { "name": "gap-ms", "description": "Silence gap inserted between clips in long-form inputs (default 5000)" },
             { "name": "tag-contains", "description": "Restrict long-form source clips to corpus clips whose tags contain this substring" },
+            { "name": "sweep-durations", "description": "Comma-separated long-form input durations in SECONDS to evaluate as separate length conditions (e.g. 30,60,120,300); setting this implies --long-form" },
             { "name": "noise-types", "description": "Comma-separated generated noise beds to mix across the full input (white,fan,percussive,music)" },
             { "name": "snr-db", "description": "Comma-separated SNR levels in dB for augmentation conditions (default 12 when augmentation is enabled)" },
             { "name": "competing-voices", "description": "Comma-separated Kokoro voice ids to synthesize as competing speakers" },
@@ -477,7 +478,9 @@
             { "name": "speaker-threshold", "description": "Speaker verification cosine threshold (default 0.5)" },
             { "name": "speaker-fallback", "description": "true|false — allow unverified text when the speaker resource cannot decide" },
             { "name": "speaker-ablation", "description": "true|false — evaluate extraction/verification off/on combinations for attribution" },
-            { "name": "estimated-seconds", "description": "Optional client-visible runtime estimate in seconds" }
+            { "name": "estimated-seconds", "description": "Optional client-visible runtime estimate in seconds" },
+            { "name": "recipe-json", "description": "Inline JSON ExperimentRecipe (protojson) used as the BASE recipe; any individual --flags you also pass override its fields. Mutually exclusive with --recipe-file" },
+            { "name": "recipe-file", "description": "Path to a JSON file holding an ExperimentRecipe (protojson) used as the BASE recipe; individual --flags override its fields. Mutually exclusive with --recipe-json" }
           ],
           "binding": { "kind": "connect-rpc", "service": "ExperimentService", "method": "StartExperiment" },
           "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
@@ -493,7 +496,7 @@
         },
         {
           "name": "wait",
-          "description": "Block once until an experiment reaches a terminal state; canceling the client does not abort the run.",
+          "description": "Block once until an experiment reaches a terminal state; canceling the client does not abort the run. Example: audio-tools experiment wait <id> --json",
           "positionals": [
             { "name": "id", "required": true, "description": "Experiment id" }
           ],
@@ -531,7 +534,7 @@
         },
         {
           "name": "report",
-          "description": "Fetch an experiment's stored report artifact and run-cell metrics.",
+          "description": "Fetch an experiment's stored report artifact and run-cell metrics. Example: audio-tools experiment report <id> --json",
           "positionals": [
             { "name": "id", "required": true, "description": "Experiment id" }
           ],
@@ -540,9 +543,9 @@
         },
         {
           "name": "compare",
-          "description": "Compare two or more experiments by id. Use --json for full recipes and reports.",
+          "description": "Compare two or more experiments by id, showing each one's winning strategy, WER, p95 latency, calls, RTF, and safety gate, with deltas vs the best (lowest-WER) experiment. Ids may be space-separated AND/OR comma-separated. Experiments still running (no report) appear as a row with their status. Use --json for full recipes and reports. Example: audio-tools experiment compare <id-a> <id-b> --json",
           "positionals": [
-            { "name": "ids", "required": true, "description": "Comma-separated experiment ids" }
+            { "name": "ids", "required": true, "repeated": true, "description": "Experiment ids, space- and/or comma-separated (e.g. `id-a id-b` or `id-a,id-b`)" }
           ],
           "binding": { "kind": "connect-rpc", "service": "ExperimentService", "method": "CompareExperiments" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }

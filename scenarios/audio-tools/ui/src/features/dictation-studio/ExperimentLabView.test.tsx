@@ -27,12 +27,32 @@ vi.mock("../../services/experiment", () => ({
     streamExperimentEvents(id, onEvent, signal),
 }));
 
+const listClips = vi.fn();
+vi.mock("../../services/corpus", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../services/corpus")>();
+  return { ...actual, listClips: (...args: unknown[]) => listClips(...args) };
+});
+
 const pushToast = vi.fn();
 vi.mock("../../components/ui/toast", () => ({
   pushToast: (...args: unknown[]) => pushToast(...args),
 }));
 
 import { ExperimentLabView } from "./ExperimentLabView";
+
+function clip(id: string, over = {}) {
+  return {
+    id,
+    referenceText: `reference for ${id}`,
+    tags: ["news"],
+    durationMs: 4200,
+    sampleRateHz: 16000,
+    format: "pcm_s16le",
+    source: 0,
+    createdAt: "",
+    ...over,
+  };
+}
 
 function experiment(over = {}) {
   return {
@@ -56,6 +76,7 @@ function experiment(over = {}) {
       targetDurationSeconds: 180,
       gapMs: 5000,
       tagContains: "",
+      sweepDurationsSeconds: [],
       realizedClipIds: ["clip-1"],
       realizedDurationMs: 180000,
       realizedReference: "hello world",
@@ -156,6 +177,7 @@ function report() {
 beforeEach(() => {
   vi.clearAllMocks();
   listExperiments.mockResolvedValue([experiment()]);
+  listClips.mockResolvedValue([clip("clip-1"), clip("clip-2")]);
   startExperiment.mockResolvedValue(experiment({ id: "exp-2", name: "New run", status: "queued" }));
   waitExperiment.mockResolvedValue({ experiment: experiment(), runs: [] });
   cancelExperiment.mockResolvedValue(experiment({ status: "canceled" }));
@@ -197,7 +219,7 @@ describe("ExperimentLabView", () => {
     await waitFor(() => expect(getExperimentReport).toHaveBeenCalledWith("exp-2"));
   });
 
-  it("loads history, report, safety envelope, and compare results", async () => {
+  it("loads history, report, and safety envelope", async () => {
     const user = userEvent.setup();
     renderWithProviders(<ExperimentLabView />);
 
@@ -207,10 +229,72 @@ describe("ExperimentLabView", () => {
     await user.click(screen.getByTestId(selectors.dictationStudio.experimentReport({ id: "exp-1" })));
     expect(await screen.findByTestId(selectors.dictationStudio.experimentResults)).toHaveTextContent(strings.dictationStudio.safetySafe);
     expect(getExperimentReport).toHaveBeenCalledWith("exp-1");
+  });
 
-    await user.type(screen.getByTestId(selectors.dictationStudio.compareIds), "exp-1,exp-2");
-    await user.click(screen.getByTestId(selectors.dictationStudio.compareExperiments));
-    expect(await screen.findByTestId(selectors.dictationStudio.compareResults)).toHaveTextContent("Prefer batch.");
+  it("compares experiments selected from the history list", async () => {
+    listExperiments.mockResolvedValue([experiment(), experiment({ id: "exp-2", name: "New run" })]);
+    const user = userEvent.setup();
+    renderWithProviders(<ExperimentLabView />);
+
+    await screen.findByTestId(selectors.dictationStudio.experimentRow({ id: "exp-1" }));
+
+    const compareButton = screen.getByTestId(selectors.dictationStudio.compareExperiments);
+    expect(compareButton).toBeDisabled();
+
+    await user.click(screen.getByTestId(selectors.dictationStudio.experimentCompare({ id: "exp-1" })));
+    await user.click(screen.getByTestId(selectors.dictationStudio.experimentCompare({ id: "exp-2" })));
+    expect(compareButton).not.toBeDisabled();
+
+    await user.click(compareButton);
     expect(compareExperiments).toHaveBeenCalledWith(["exp-1", "exp-2"]);
+    const results = await screen.findByTestId(selectors.dictationStudio.compareResults);
+    expect(results).toHaveTextContent(strings.dictationStudio.safetySafe);
+  });
+
+  it("wires the clip picker, dropped-span threshold, and length sweep into the recipe", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<ExperimentLabView />);
+
+    await user.click(await screen.findByTestId(selectors.dictationStudio.clipPick({ id: "clip-1" })));
+    expect(screen.getByTestId(selectors.dictationStudio.clipPickerCount)).toBeInTheDocument();
+
+    const threshold = screen.getByTestId(selectors.dictationStudio.experimentDroppedSpanThreshold);
+    await user.clear(threshold);
+    await user.type(threshold, "7");
+
+    const sweep = screen.getByTestId(selectors.dictationStudio.experimentSweepDurations);
+    await user.type(sweep, "30,60,120");
+
+    await user.click(screen.getByTestId(selectors.dictationStudio.startExperiment));
+
+    await waitFor(() =>
+      expect(startExperiment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          clipIds: ["clip-1"],
+          droppedSpanThresholdWords: 7,
+          sweepDurationsCsv: "30,60,120",
+        }),
+      ),
+    );
+  });
+
+  it("requires confirmation before canceling a running experiment", async () => {
+    listExperiments.mockResolvedValue([experiment({ id: "exp-run", name: "Running run", status: "running" })]);
+    const user = userEvent.setup();
+    renderWithProviders(<ExperimentLabView />);
+
+    await screen.findByTestId(selectors.dictationStudio.experimentRow({ id: "exp-run" }));
+
+    await user.click(screen.getByTestId(selectors.dictationStudio.experimentCancel({ id: "exp-run" })));
+    expect(cancelExperiment).not.toHaveBeenCalled();
+
+    // Dismissing keeps the run untouched.
+    await user.click(screen.getByTestId(selectors.dictationStudio.experimentCancelDismiss({ id: "exp-run" })));
+    expect(cancelExperiment).not.toHaveBeenCalled();
+
+    // Confirming actually cancels.
+    await user.click(screen.getByTestId(selectors.dictationStudio.experimentCancel({ id: "exp-run" })));
+    await user.click(screen.getByTestId(selectors.dictationStudio.experimentCancelConfirm({ id: "exp-run" })));
+    expect(cancelExperiment).toHaveBeenCalledWith("exp-run");
   });
 });

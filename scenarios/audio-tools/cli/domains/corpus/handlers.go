@@ -44,6 +44,9 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 	if err != nil {
 		return cliapp.WrapAPIError("list-clips", err, nil)
 	}
+	if ctx.JSON() {
+		return cliapp.PrintProtoJSON(ctx.Stdout(), resp.Msg)
+	}
 	clips := resp.Msg.GetClips()
 	if len(clips) == 0 {
 		fmt.Fprintln(ctx.Stdout(), "No clips in the corpus. Record some in the Dictation Studio UI or `corpus import` a PCM file.")

@@ -219,6 +219,45 @@ func TestManager_StartMarksOrphansFailed(t *testing.T) {
 	require.Equal(t, experiment.StatusFailed, gotRunning.Status)
 }
 
+// failRunRepo wraps a real Repository but fails every CreateRun, simulating a
+// metrics-row insert failure during finalize.
+type failRunRepo struct {
+	experiment.Repository
+}
+
+func (failRunRepo) CreateRun(context.Context, experiment.Run) (experiment.Run, error) {
+	return experiment.Run{}, errors.New("disk full")
+}
+
+func TestManager_RunPersistFailureMarksFailed(t *testing.T) {
+	clk := mocks.NewFakeClock(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC))
+	repo := failRunRepo{experiment.NewSQLiteRepository(newSchemaDB(t), clk)}
+	svc := experiment.NewService(repo, &memBlobs{})
+	mgr := experiment.NewManager(experiment.Config{Service: svc, Clock: clk, Runner: func(context.Context, experiment.Experiment, func(int, string)) (experiment.RunResult, error) {
+		return experiment.RunResult{
+			Report: []byte(`{"ok":true}`),
+			Runs:   []experiment.Run{{Strategy: "batch", MetricsJSON: []byte(`{"wer":0}`)}},
+		}, nil
+	}})
+	require.NoError(t, mgr.Start(context.Background()))
+	t.Cleanup(mgr.Close)
+
+	exp, err := mgr.Submit(context.Background(), experiment.SubmitSpec{Name: "persist-fail"})
+	require.NoError(t, err)
+
+	done, err := mgr.Wait(context.Background(), exp.ID)
+	require.NoError(t, err)
+	// A run-row insert failure must NOT be reported as success; the report blob
+	// without its backing metrics rows would be a silent partial result.
+	require.Equal(t, experiment.StatusFailed, done.Status)
+	require.Contains(t, done.Error, "persist run metrics")
+	require.Empty(t, done.ResultRef)
+
+	stored, err := repo.GetExperiment(context.Background(), exp.ID)
+	require.NoError(t, err)
+	require.Equal(t, experiment.StatusFailed, stored.Status)
+}
+
 func requireEvent(t *testing.T, ch <-chan experiment.ProgressEvent) experiment.ProgressEvent {
 	t.Helper()
 	select {

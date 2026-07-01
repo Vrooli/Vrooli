@@ -139,6 +139,12 @@ audio-tools experiment watch <experiment-id>
 audio-tools experiment start --long-form true --target-duration-seconds 180 \
   --realtime-repeats 2 --latency-tail-seconds 8 --json
 
+# 5c. Populate the metric-vs-length CURVE in one run: a length sweep builds one
+#     seeded input per duration, so the report's length buckets get multiple
+#     points instead of a single long-form blob collapsing to one bucket:
+audio-tools experiment start --sweep-durations 30,60,120,300 \
+  --realtime-repeats 2 --latency-tail-seconds 8 --seed 42 --json
+
 # 6. Add deterministic augmentation conditions over the whole realized input:
 audio-tools experiment start --long-form true --target-duration-seconds 180 --seed 42 \
   --noise-types white,fan --snr-db 18,12,6 --json
@@ -189,6 +195,26 @@ the seed, gap length, target duration, realized clip-id order, assembled
 reference transcript, and realized duration. The audio is concatenated in
 memory with zero-byte canonical PCM silence gaps, then evaluated as one
 synthetic clip; the generated audio bytes are not stored in SQLite or git.
+
+A single long-form input collapses the length curve to one bucket, so to
+answer "which strategy wins as messages get **long**" in one run, set
+`--sweep-durations <csv>` (proto `long_form.sweep_durations_seconds`). The
+worker then builds one seeded input per listed duration — each with a seed
+derived from the base seed plus its duration so orderings differ — and the
+report's per-strategy length curve (10s/30s/1m/3m/5m/>5m buckets) is populated
+with one point per swept duration. A sweep supersedes
+`--target-duration-seconds`. With `--realtime-repeats`, this yields the
+finalization-latency-vs-length curve the lab exists to produce.
+
+Target-speaker experiments (`--speaker-extraction`/`--speaker-verification`/
+`--speaker-ablation`) require `--target-profile-id`; the recipe is rejected at
+`StartExperiment` with an actionable message otherwise. Enroll a profile with
+`audio-tools stt speaker-enroll --file <clip> --activate true` and list ids via
+`audio-tools stt speaker-status`. Extraction only does observable work when the
+input actually contains a competing voice, so pair it with `--competing-voices`.
+Word loss attributable to the extraction (ingress) stage is filled by comparing
+each extraction-on row against its extraction-off ablation sibling, so run with
+`--speaker-ablation true` to see ingress attribution in the report.
 
 Experiments can also realize augmentation conditions before replay. The
 worker keeps a clean input, then adds generated noise beds (`white`, `fan`,

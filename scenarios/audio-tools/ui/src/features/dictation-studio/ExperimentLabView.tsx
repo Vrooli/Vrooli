@@ -15,6 +15,7 @@ import { pushToast } from "../../components/ui/toast";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
+import { listClips, type ClipMeta } from "../../services/corpus";
 import {
   cancelExperiment,
   compareExperiments,
@@ -37,13 +38,50 @@ function pct(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 
+function ms(value: number): string {
+  return String(Math.round(value));
+}
+
 function isTerminal(status: ExperimentRow["status"]): boolean {
   return status === "succeeded" || status === "failed" || status === "canceled";
+}
+
+function StatusLabel({ status }: { status: ExperimentRow["status"] }) {
+  const { t } = useTranslation();
+  switch (status) {
+    case "queued":
+      return <>{t(strings.dictationStudio.statusQueued)}</>;
+    case "running":
+      return <>{t(strings.dictationStudio.statusRunning)}</>;
+    case "succeeded":
+      return <>{t(strings.dictationStudio.statusSucceeded)}</>;
+    case "failed":
+      return <>{t(strings.dictationStudio.statusFailed)}</>;
+    case "canceled":
+      return <>{t(strings.dictationStudio.statusCanceled)}</>;
+    default:
+      return <>{t(strings.dictationStudio.statusUnspecified)}</>;
+  }
+}
+
+function StrategyName({ kind }: { kind: string }) {
+  const { t } = useTranslation();
+  switch (kind) {
+    case "batch":
+      return <>{t(strings.dictationStudio.strategyBatch)}</>;
+    case "vad_segment":
+      return <>{t(strings.dictationStudio.strategyVadSegment)}</>;
+    case "overlap_agree":
+      return <>{t(strings.dictationStudio.strategyOverlapAgree)}</>;
+    default:
+      return <>{kind}</>;
+  }
 }
 
 function defaultInput(): StartExperimentInput {
   return {
     name: "Dictation experiment",
+    clipIds: [],
     strategies: [...strategyOptions],
     realtimeRepeats: 0,
     latencyTailSeconds: 8,
@@ -53,6 +91,7 @@ function defaultInput(): StartExperimentInput {
     targetDurationSeconds: 180,
     gapMs: 5000,
     tagContains: "",
+    sweepDurationsCsv: "",
     overlapMaxStallRejects: -1,
     overlapWindowMs: 0,
     overlapCommitRuns: 0,
@@ -82,7 +121,7 @@ export function ExperimentLabView() {
   const [liveEvent, setLiveEvent] = useState<ExperimentEventRow | null>(null);
   const [streamError, setStreamError] = useState("");
   const [report, setReport] = useState<ExperimentReportRow | null>(null);
-  const [compareIds, setCompareIds] = useState("");
+  const [compareSelected, setCompareSelected] = useState<string[]>([]);
   const [compareRows, setCompareRows] = useState<ExperimentReportRow[]>([]);
 
   const history = useQuery({
@@ -140,7 +179,7 @@ export function ExperimentLabView() {
   });
 
   const compare = useMutation({
-    mutationFn: () => compareExperiments(compareIds.split(",").map((id) => id.trim()).filter(Boolean)),
+    mutationFn: (ids: string[]) => compareExperiments(ids),
     onSuccess: setCompareRows,
   });
   const qcRef = useRef(qc);
@@ -156,6 +195,11 @@ export function ExperimentLabView() {
   );
 
   const selectedLiveEvent = liveEvent?.experimentId === selectedId ? liveEvent : null;
+
+  const toggleCompare = (id: string) =>
+    setCompareSelected((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+    );
 
   useEffect(() => {
     if (!selected || isTerminal(selected.status)) return;
@@ -246,6 +290,8 @@ export function ExperimentLabView() {
           pending={history.isPending}
           error={history.error}
           selectedId={selectedId}
+          compareSelected={compareSelected}
+          onToggleCompare={toggleCompare}
           onSelect={setSelectedId}
           onWait={(id) => wait.mutate(id)}
           onCancel={(id) => cancel.mutate(id)}
@@ -282,27 +328,21 @@ export function ExperimentLabView() {
 
       <Panel title={t(strings.dictationStudio.compareTitle)} description={t(strings.dictationStudio.compareHint)} className="xl:col-span-2">
         <div className="flex flex-col gap-3">
-          <label className="flex flex-col gap-1 text-xs">
-            {t(strings.dictationStudio.compareIdsLabel)}
-            <Input
-              data-testid={selectors.dictationStudio.compareIds}
-              value={compareIds}
-              onChange={(event) => setCompareIds(event.currentTarget.value)}
-              placeholder={t(strings.dictationStudio.comparePlaceholder)}
-            />
-          </label>
-          <div>
+          <div className="flex flex-wrap items-center gap-3">
             <Button
               type="button"
               data-testid={selectors.dictationStudio.compareExperiments}
-              disabled={compare.isPending || compareIds.split(",").filter(Boolean).length < 2}
-              onClick={() => compare.mutate()}
+              disabled={compare.isPending || compareSelected.length < 2}
+              onClick={() => compare.mutate(compareSelected)}
             >
               {compare.isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
-              {t(strings.dictationStudio.compareRun)}
+              {t(strings.dictationStudio.compareRunSelected, { count: compareSelected.length })}
             </Button>
+            {compareSelected.length < 2 ? (
+              <span className="text-xs text-app-muted-foreground">{t(strings.dictationStudio.compareSelectHint)}</span>
+            ) : null}
           </div>
-          {compare.isError ? <ApiErrorState error={compare.error} title={t(strings.dictationStudio.compareError)} onRetry={() => compare.mutate()} /> : null}
+          {compare.isError ? <ApiErrorState error={compare.error} title={t(strings.dictationStudio.compareError)} onRetry={() => compare.mutate(compareSelected)} /> : null}
           {compareRows.length > 0 ? <CompareResults rows={compareRows} /> : null}
         </div>
       </Panel>
@@ -351,13 +391,29 @@ function ExperimentBuilder({
                 aria-pressed={input.strategies.includes(kind)}
                 onClick={() => toggleStrategy(kind)}
               >
-                {kind}
+                <StrategyName kind={kind} />
               </Button>
             ))}
           </div>
         </fieldset>
 
-        <fieldset className="grid gap-2 rounded-control border border-app-border p-3 sm:grid-cols-2">
+        <fieldset className="flex flex-col gap-2 rounded-control border border-app-border p-3 lg:col-span-2">
+          <legend className="px-1 text-xs font-medium">{t(strings.dictationStudio.safetyGateLabel)}</legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <NumberField
+              testId={selectors.dictationStudio.experimentDroppedSpanThreshold}
+              label={t(strings.dictationStudio.droppedSpanThresholdLabel)}
+              value={input.droppedSpanThresholdWords}
+              min={0}
+              onChange={(value) => set("droppedSpanThresholdWords", value)}
+            />
+          </div>
+          <p className="text-xs text-app-muted-foreground">{t(strings.dictationStudio.droppedSpanThresholdHint)}</p>
+        </fieldset>
+
+        <ClipPicker selected={input.clipIds} onChange={(ids) => set("clipIds", ids)} />
+
+        <fieldset className="grid gap-2 rounded-control border border-app-border p-3 sm:grid-cols-2 lg:col-span-2">
           <legend className="px-1 text-xs font-medium">{t(strings.dictationStudio.longFormLabel)}</legend>
           <label className="flex items-center gap-2 text-xs sm:col-span-2">
             <input
@@ -369,22 +425,32 @@ function ExperimentBuilder({
             {t(strings.dictationStudio.longFormEnabled)}
           </label>
           <NumberField testId={selectors.dictationStudio.experimentSeed} label={t(strings.dictationStudio.seedLabel)} value={input.seed} onChange={(value) => set("seed", value)} />
-          <NumberField testId={selectors.dictationStudio.experimentTargetDuration} label={t(strings.dictationStudio.targetDurationLabel)} value={input.targetDurationSeconds} onChange={(value) => set("targetDurationSeconds", value)} />
-          <NumberField testId={selectors.dictationStudio.experimentGapMs} label={t(strings.dictationStudio.gapMsLabel)} value={input.gapMs} onChange={(value) => set("gapMs", value)} />
+          <NumberField testId={selectors.dictationStudio.experimentTargetDuration} label={t(strings.dictationStudio.targetDurationLabel)} value={input.targetDurationSeconds} min={0} onChange={(value) => set("targetDurationSeconds", value)} />
+          <NumberField testId={selectors.dictationStudio.experimentGapMs} label={t(strings.dictationStudio.gapMsLabel)} value={input.gapMs} min={0} onChange={(value) => set("gapMs", value)} />
           <label className="flex flex-col gap-1 text-xs">
             {t(strings.dictationStudio.tagFilterLabel)}
             <Input data-testid={selectors.dictationStudio.experimentTagContains} value={input.tagContains} onChange={(event) => set("tagContains", event.currentTarget.value)} />
+          </label>
+          <label className="flex flex-col gap-1 text-xs sm:col-span-2">
+            {t(strings.dictationStudio.sweepDurationsLabel)}
+            <Input
+              data-testid={selectors.dictationStudio.experimentSweepDurations}
+              value={input.sweepDurationsCsv}
+              onChange={(event) => set("sweepDurationsCsv", event.currentTarget.value)}
+              placeholder={t(strings.dictationStudio.sweepPlaceholder)}
+            />
+            <span className="text-xs text-app-muted-foreground">{t(strings.dictationStudio.sweepDurationsHint)}</span>
           </label>
         </fieldset>
 
         <fieldset className="grid gap-2 rounded-control border border-app-border p-3 sm:grid-cols-2">
           <legend className="px-1 text-xs font-medium">{t(strings.dictationStudio.hyperparamsLabel)}</legend>
           <div className="flex flex-col gap-1">
-            <NumberField testId={selectors.dictationStudio.experimentRealtimeRepeats} label={t(strings.dictationStudio.repeatsLabel)} value={input.realtimeRepeats} onChange={(value) => set("realtimeRepeats", value)} />
+            <NumberField testId={selectors.dictationStudio.experimentRealtimeRepeats} label={t(strings.dictationStudio.repeatsLabel)} value={input.realtimeRepeats} min={0} max={20} onChange={(value) => set("realtimeRepeats", value)} />
             {input.realtimeRepeats === 0 ? <p className="text-xs text-app-muted-foreground">{t(strings.dictationStudio.latencyNotMeasured)}</p> : null}
           </div>
-          <NumberField testId={selectors.dictationStudio.experimentLatencyTailSeconds} label={t(strings.dictationStudio.latencyTailLabel)} value={input.latencyTailSeconds} onChange={(value) => set("latencyTailSeconds", value)} />
-          <NumberField testId={selectors.dictationStudio.experimentOverlapMaxWindow} label={t(strings.dictationStudio.maxWindowLabel)} value={input.overlapMaxWindowMs} onChange={(value) => set("overlapMaxWindowMs", value)} />
+          <NumberField testId={selectors.dictationStudio.experimentLatencyTailSeconds} label={t(strings.dictationStudio.latencyTailLabel)} value={input.latencyTailSeconds} min={0} onChange={(value) => set("latencyTailSeconds", value)} />
+          <NumberField testId={selectors.dictationStudio.experimentOverlapMaxWindow} label={t(strings.dictationStudio.maxWindowLabel)} value={input.overlapMaxWindowMs} min={0} onChange={(value) => set("overlapMaxWindowMs", value)} />
         </fieldset>
 
         <fieldset className="grid gap-2 rounded-control border border-app-border p-3 sm:grid-cols-2">
@@ -429,12 +495,40 @@ function ExperimentBuilder({
               <option value="off">{t(strings.speakerAdmin.modeOff)}</option>
             </Select>
           </label>
-          <NumberField label={t(strings.speakerAdmin.configThreshold)} value={input.speakerThreshold} step={0.05} onChange={(value) => set("speakerThreshold", value)} />
+          <NumberField label={t(strings.speakerAdmin.configThreshold)} value={input.speakerThreshold} step={0.05} min={0} max={1} onChange={(value) => set("speakerThreshold", value)} />
           <label className="flex items-center gap-2 text-xs sm:col-span-2">
             <input type="checkbox" checked={input.speakerAblation} onChange={(event) => set("speakerAblation", event.currentTarget.checked)} />
             {t(strings.dictationStudio.speakerAblationLabel)}
           </label>
         </fieldset>
+
+        <details className="rounded-control border border-app-border p-3 lg:col-span-2">
+          <summary data-testid={selectors.dictationStudio.experimentAdvanced} className="cursor-pointer text-xs font-medium">
+            {t(strings.dictationStudio.advancedLabel)}
+          </summary>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <NumberField testId={selectors.dictationStudio.experimentChunkMs} label={t(strings.dictationStudio.chunkMsLabel)} value={input.chunkMs} min={0} onChange={(value) => set("chunkMs", value)} />
+              <span className="text-xs text-app-muted-foreground">{t(strings.dictationStudio.chunkMsHint)}</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <NumberField testId={selectors.dictationStudio.experimentOverlapMaxStall} label={t(strings.dictationStudio.overlapMaxStallLabel)} value={input.overlapMaxStallRejects} min={-1} onChange={(value) => set("overlapMaxStallRejects", value)} />
+              <span className="text-xs text-app-muted-foreground">{t(strings.dictationStudio.overlapMaxStallHint)}</span>
+            </div>
+            <NumberField testId={selectors.dictationStudio.experimentOverlapWindow} label={t(strings.dictationStudio.overlapWindowLabel)} value={input.overlapWindowMs} min={0} onChange={(value) => set("overlapWindowMs", value)} />
+            <NumberField testId={selectors.dictationStudio.experimentOverlapCommitRuns} label={t(strings.dictationStudio.overlapCommitRunsLabel)} value={input.overlapCommitRuns} min={0} onChange={(value) => set("overlapCommitRuns", value)} />
+            <NumberField testId={selectors.dictationStudio.experimentVadSilence} label={t(strings.dictationStudio.vadSilenceLabel)} value={input.vadSilenceMs} min={0} onChange={(value) => set("vadSilenceMs", value)} />
+            <label className="flex items-center gap-2 text-xs sm:col-span-2">
+              <input
+                data-testid={selectors.dictationStudio.experimentSpeakerFallback}
+                type="checkbox"
+                checked={input.speakerFallback}
+                onChange={(event) => set("speakerFallback", event.currentTarget.checked)}
+              />
+              {t(strings.dictationStudio.speakerFallbackLabel)}
+            </label>
+          </div>
+        </details>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -453,19 +547,98 @@ function ExperimentBuilder({
   );
 }
 
+function ClipPicker({ selected, onChange }: { selected: string[]; onChange: (ids: string[]) => void }) {
+  const { t } = useTranslation();
+  const clips = useQuery({
+    queryKey: ["corpus", "clips"],
+    queryFn: () => listClips(),
+  });
+  const all = clips.data ?? [];
+  const selectedSet = new Set(selected);
+
+  const toggle = (id: string) =>
+    onChange(selectedSet.has(id) ? selected.filter((item) => item !== id) : [...selected, id]);
+  const selectAll = () => onChange(all.map((clip) => clip.id));
+  const clear = () => onChange([]);
+
+  return (
+    <fieldset data-testid={selectors.dictationStudio.clipPicker} className="flex flex-col gap-2 rounded-control border border-app-border p-3 lg:col-span-2">
+      <legend className="px-1 text-xs font-medium">{t(strings.dictationStudio.clipPickerLabel)}</legend>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-xs text-app-muted-foreground">{t(strings.dictationStudio.clipPickerHint)}</span>
+        <span data-testid={selectors.dictationStudio.clipPickerCount} className="text-xs font-medium text-app-foreground">
+          {t(strings.dictationStudio.clipPickerSelected, { selected: selected.length, total: all.length })}
+        </span>
+      </div>
+      {clips.isPending ? (
+        <p className="text-xs text-app-muted-foreground">{t(strings.dictationStudio.clipPickerLoading)}</p>
+      ) : clips.isError ? (
+        <ApiErrorState error={clips.error} title={t(strings.dictationStudio.clipPickerError)} onRetry={() => void clips.refetch()} />
+      ) : all.length === 0 ? (
+        <p className="text-xs text-app-muted-foreground">{t(strings.dictationStudio.clipPickerEmpty)}</p>
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" variant="outline" data-testid={selectors.dictationStudio.clipPickerSelectAll} onClick={selectAll}>
+              {t(strings.dictationStudio.clipPickerSelectAll)}
+            </Button>
+            <Button type="button" size="sm" variant="ghost" data-testid={selectors.dictationStudio.clipPickerClear} onClick={clear}>
+              {t(strings.dictationStudio.clipPickerClear)}
+            </Button>
+          </div>
+          <div className="flex max-h-48 flex-col gap-1 overflow-y-auto">
+            {all.map((clip) => (
+              <ClipPickerRow key={clip.id} clip={clip} checked={selectedSet.has(clip.id)} onToggle={() => toggle(clip.id)} />
+            ))}
+          </div>
+        </>
+      )}
+    </fieldset>
+  );
+}
+
+function ClipPickerRow({ clip, checked, onToggle }: { clip: ClipMeta; checked: boolean; onToggle: () => void }) {
+  return (
+    <label className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-control px-1 py-1 text-xs hover:bg-app-surface-muted">
+      <input
+        type="checkbox"
+        data-testid={selectors.dictationStudio.clipPick({ id: clip.id })}
+        checked={checked}
+        onChange={onToggle}
+      />
+      <span className="max-w-full truncate font-medium text-app-foreground">{clip.referenceText || clip.id}</span>
+      <span className="text-app-muted-foreground">
+        {clip.id}
+        {clip.tags.length > 0 ? ` · ${clip.tags.join(", ")}` : ""}
+        {clip.durationMs > 0 ? ` · ${(clip.durationMs / 1000).toFixed(1)}s` : ""}
+      </span>
+    </label>
+  );
+}
+
 function NumberField({
   label,
   value,
   onChange,
   testId,
   step = 1,
+  min,
+  max,
 }: {
   label: string;
   value: number;
   onChange: (value: number) => void;
   testId?: string;
   step?: number;
+  min?: number;
+  max?: number;
 }) {
+  const clamp = (n: number): number => {
+    let next = n;
+    if (typeof min === "number") next = Math.max(min, next);
+    if (typeof max === "number") next = Math.min(max, next);
+    return next;
+  };
   return (
     <label className="flex flex-col gap-1 text-xs">
       {label}
@@ -473,8 +646,22 @@ function NumberField({
         data-testid={testId}
         type="number"
         step={step}
+        min={min}
+        max={max}
         value={value}
-        onChange={(event) => onChange(Number(event.currentTarget.value) || 0)}
+        onChange={(event) => {
+          const raw = event.currentTarget.value;
+          // Empty resets to the lower bound (or 0); a non-empty value that
+          // does not parse is ignored rather than silently coerced to 0,
+          // so invalid keystrokes don't hide the operator's real intent.
+          if (raw === "") {
+            onChange(clamp(min ?? 0));
+            return;
+          }
+          const parsed = Number(raw);
+          if (Number.isNaN(parsed)) return;
+          onChange(clamp(parsed));
+        }}
       />
     </label>
   );
@@ -485,6 +672,8 @@ function ExperimentHistory({
   pending,
   error,
   selectedId,
+  compareSelected,
+  onToggleCompare,
   onSelect,
   onWait,
   onCancel,
@@ -496,6 +685,8 @@ function ExperimentHistory({
   pending: boolean;
   error: Error | null;
   selectedId: string;
+  compareSelected: string[];
+  onToggleCompare: (id: string) => void;
   onSelect: (id: string) => void;
   onWait: (id: string) => void;
   onCancel: (id: string) => void;
@@ -504,15 +695,19 @@ function ExperimentHistory({
   actionPending: boolean;
 }) {
   const { t } = useTranslation();
+  const [confirmCancelId, setConfirmCancelId] = useState("");
   if (pending) return <LoadingRows rows={3} label={t(strings.dictationStudio.historyTitle)} />;
   if (error) return <ApiErrorState error={error} title={t(strings.dictationStudio.historyError)} onRetry={onRetry} />;
   if (rows.length === 0) return <p className="text-sm text-app-muted-foreground">{t(strings.dictationStudio.historyEmpty)}</p>;
+
+  const compareSet = new Set(compareSelected);
 
   return (
     <div className="overflow-x-auto">
       <Table>
         <THead>
           <TR>
+            <TH>{t(strings.dictationStudio.compareSelectHeader)}</TH>
             <TH>{t(strings.dictationStudio.colName)}</TH>
             <TH>{t(strings.dictationStudio.colStatus)}</TH>
             <TH>{t(strings.dictationStudio.colRecipe)}</TH>
@@ -527,6 +722,15 @@ function ExperimentHistory({
               className={row.id === selectedId ? "bg-app-surface-muted" : undefined}
             >
               <TD>
+                <input
+                  type="checkbox"
+                  aria-label={t(strings.dictationStudio.compareSelectHeader)}
+                  data-testid={selectors.dictationStudio.experimentCompare({ id: row.id })}
+                  checked={compareSet.has(row.id)}
+                  onChange={() => onToggleCompare(row.id)}
+                />
+              </TD>
+              <TD>
                 <button type="button" className="text-left font-medium text-app-foreground underline-offset-2 hover:underline" onClick={() => onSelect(row.id)}>
                   {row.name || row.id}
                 </button>
@@ -539,14 +743,42 @@ function ExperimentHistory({
               <TD>
                 <div className="flex flex-wrap gap-1">
                   {!isTerminal(row.status) ? (
-                    <>
-                      <Button type="button" size="sm" variant="outline" data-testid={selectors.dictationStudio.experimentWait({ id: row.id })} disabled={actionPending} onClick={() => onWait(row.id)}>
-                        {t(strings.dictationStudio.wait)}
-                      </Button>
-                      <Button type="button" size="sm" variant="ghost" data-testid={selectors.dictationStudio.experimentCancel({ id: row.id })} disabled={actionPending} onClick={() => onCancel(row.id)}>
-                        {t(strings.dictationStudio.cancel)}
-                      </Button>
-                    </>
+                    confirmCancelId === row.id ? (
+                      <>
+                        <span className="self-center text-xs text-app-muted-foreground">{t(strings.dictationStudio.cancelConfirmPrompt)}</span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          data-testid={selectors.dictationStudio.experimentCancelConfirm({ id: row.id })}
+                          disabled={actionPending}
+                          onClick={() => {
+                            onCancel(row.id);
+                            setConfirmCancelId("");
+                          }}
+                        >
+                          {t(strings.dictationStudio.cancelConfirm)}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          data-testid={selectors.dictationStudio.experimentCancelDismiss({ id: row.id })}
+                          onClick={() => setConfirmCancelId("")}
+                        >
+                          {t(strings.dictationStudio.cancelDismiss)}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button type="button" size="sm" variant="outline" data-testid={selectors.dictationStudio.experimentWait({ id: row.id })} disabled={actionPending} onClick={() => onWait(row.id)}>
+                          {t(strings.dictationStudio.wait)}
+                        </Button>
+                        <Button type="button" size="sm" variant="ghost" data-testid={selectors.dictationStudio.experimentCancel({ id: row.id })} disabled={actionPending} onClick={() => setConfirmCancelId(row.id)}>
+                          {t(strings.dictationStudio.cancel)}
+                        </Button>
+                      </>
+                    )
                   ) : null}
                   <Button type="button" size="sm" variant="ghost" data-testid={selectors.dictationStudio.experimentReport({ id: row.id })} disabled={actionPending} onClick={() => onReport(row.id)}>
                     {t(strings.dictationStudio.report)}
@@ -601,7 +833,11 @@ function LiveExperimentProgress({
 
 function StatusBadge({ status }: { status: ExperimentRow["status"] }) {
   const variant = status === "succeeded" ? "success" : status === "failed" || status === "canceled" ? "danger" : status === "running" ? "info" : "neutral";
-  return <Badge variant={variant}>{status}</Badge>;
+  return (
+    <Badge variant={variant}>
+      <StatusLabel status={status} />
+    </Badge>
+  );
 }
 
 function ExperimentRecipeSummary({ row }: { row: ExperimentRow | null }) {
@@ -620,7 +856,10 @@ function ExperimentRecipeSummary({ row }: { row: ExperimentRow | null }) {
       </div>
       <div>
         <div className="text-xs text-app-muted-foreground">{t(strings.dictationStudio.longFormLabel)}</div>
-        <div>{r.longFormEnabled ? `${r.targetDurationSeconds}s · ${r.gapMs}ms` : t(strings.common.dash)}</div>
+        <div>
+          {r.longFormEnabled ? `${r.targetDurationSeconds}s · ${r.gapMs}ms` : t(strings.common.dash)}
+          {r.sweepDurationsSeconds.length > 0 ? ` · ${r.sweepDurationsSeconds.join("/")}s` : ""}
+        </div>
       </div>
       <div>
         <div className="text-xs text-app-muted-foreground">{t(strings.dictationStudio.augmentationLabel)}</div>
@@ -642,21 +881,35 @@ function CompareResults({ rows }: { rows: ExperimentReportRow[] }) {
         <THead>
           <TR>
             <TH>{t(strings.dictationStudio.colName)}</TH>
-            <TH>{t(strings.dictationStudio.recommendationTitle)}</TH>
-            <TH>{t(strings.dictationStudio.colWer)}</TH>
             <TH>{t(strings.dictationStudio.colStatus)}</TH>
+            <TH>{t(strings.dictationStudio.compareColWinner)}</TH>
+            <TH>{t(strings.dictationStudio.colWer)}</TH>
+            <TH>{t(strings.dictationStudio.compareColP95)}</TH>
+            <TH>{t(strings.dictationStudio.compareColSafety)}</TH>
           </TR>
         </THead>
         <TBody>
           {rows.map((row) => {
             const winner = row.report.summary?.winnerStrategy;
             const strategy = row.report.perStrategy.find((item) => item.strategy === winner) ?? row.report.perStrategy[0];
+            const latency = row.report.latencyMeasured;
+            const quality = row.report.qualityMeasured;
             return (
               <TR key={row.experiment?.id ?? row.report.summary?.recommendation ?? "compare-row"}>
                 <TD>{row.experiment?.name ?? row.experiment?.id ?? t(strings.common.dash)}</TD>
-                <TD>{row.report.summary?.recommendation ?? t(strings.common.dash)}</TD>
-                <TD>{strategy ? pct(strategy.wer) : t(strings.common.dash)}</TD>
                 <TD>{row.experiment ? <StatusBadge status={row.experiment.status} /> : t(strings.common.dash)}</TD>
+                <TD>{strategy ? <StrategyName kind={strategy.strategy} /> : t(strings.common.dash)}</TD>
+                <TD>{strategy && quality ? pct(strategy.wer) : t(strings.common.dash)}</TD>
+                <TD>{strategy && latency ? ms(strategy.finalizationLatencyP95Ms) : t(strings.common.dash)}</TD>
+                <TD>
+                  {strategy?.safety ? (
+                    <span className={strategy.safety.passed ? "text-app-success" : "text-app-danger"}>
+                      {strategy.safety.passed ? t(strings.dictationStudio.safetySafe) : t(strings.dictationStudio.safetyUnsafe)}
+                    </span>
+                  ) : (
+                    t(strings.dictationStudio.safetyMeasured)
+                  )}
+                </TD>
               </TR>
             );
           })}

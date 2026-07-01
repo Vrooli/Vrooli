@@ -70,6 +70,16 @@ type StrategyReport struct {
 	StageAttribution         StageAttribution
 	LengthCurves             []LengthBucketCurve
 
+	// Ablation identity. These let AttributeIngressByAblation pair an
+	// extraction-on row with its extraction-off sibling so word loss can be
+	// attributed to the ingress (target-speaker extraction) stage. They are
+	// set by the experiment assembler when it suffixes condition rows; bare
+	// eval rows leave them zero/empty.
+	BaseStrategy        sttchain.StrategyKind
+	ExtractionEnabled   bool
+	VerificationEnabled bool
+	ConditionGroup      string
+
 	WERDeltaVsWinner       float64
 	P95DeltaMsVsWinner     float64
 	CallMultiplierVsWinner float64

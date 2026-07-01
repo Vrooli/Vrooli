@@ -101,12 +101,18 @@ func (s *sqliteRepository) ListExperiments(ctx context.Context, filter ListFilte
 		args = append(args, string(filter.Status))
 	}
 	query += " ORDER BY created_at DESC, id DESC"
-	if filter.Limit > 0 {
+	// SQLite rejects OFFSET without a preceding LIMIT, so when the caller pages
+	// (offset > 0) without a limit we emit the unbounded sentinel LIMIT -1.
+	switch {
+	case filter.Limit > 0:
 		query += " LIMIT ?"
 		args = append(args, filter.Limit)
-	}
-	if filter.Offset > 0 {
-		query += " OFFSET ?"
+		if filter.Offset > 0 {
+			query += " OFFSET ?"
+			args = append(args, filter.Offset)
+		}
+	case filter.Offset > 0:
+		query += " LIMIT -1 OFFSET ?"
 		args = append(args, filter.Offset)
 	}
 	rows, err := s.db.QueryContext(ctx, query, args...)

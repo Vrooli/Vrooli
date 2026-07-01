@@ -16,12 +16,23 @@ var (
 
 const queueCap = 64
 
+// Logger is the narrow logging seam the Manager uses to surface persistence
+// failures it cannot return to a caller (they happen on the background worker).
+type Logger interface {
+	Printf(format string, args ...any)
+}
+
+type noopLogger struct{}
+
+func (noopLogger) Printf(string, ...any) {}
+
 // Manager owns server-lifetime experiment execution. Work survives client
 // disconnects because Submit persists and workers run under baseCtx.
 type Manager struct {
 	service *Service
 	runner  Runner
 	clock   clock.Clock
+	logger  Logger
 
 	baseCtx context.Context
 	cancel  context.CancelFunc
@@ -53,6 +64,7 @@ type Config struct {
 	Service *Service
 	Runner  Runner
 	Clock   clock.Clock
+	Logger  Logger
 }
 
 func NewManager(cfg Config) *Manager {
@@ -60,10 +72,15 @@ func NewManager(cfg Config) *Manager {
 	if clk == nil {
 		clk = clock.System{}
 	}
+	lg := cfg.Logger
+	if lg == nil {
+		lg = noopLogger{}
+	}
 	return &Manager{
 		service: cfg.Service,
 		runner:  cfg.Runner,
 		clock:   clk,
+		logger:  lg,
 		entries: make(map[string]*entry),
 		queue:   make(chan *entry, queueCap),
 	}
@@ -164,7 +181,9 @@ func (m *Manager) Submit(ctx context.Context, spec SubmitSpec) (Experiment, erro
 		saved.Status = StatusFailed
 		saved.Error = "experiment queue is full"
 		saved.FinishedAt = &now
-		_ = m.service.repo.UpdateExperiment(m.baseCtx, saved)
+		if err := m.service.repo.UpdateExperiment(m.baseCtx, saved); err != nil {
+			m.logger.Printf("experiment %s: persist queue-full status: %v", saved.ID, err)
+		}
 		m.finalizeEntry(e, saved)
 		return Experiment{}, ErrQueueFull
 	}
@@ -198,7 +217,9 @@ func (m *Manager) execute(e *entry) {
 	e.mu.Unlock()
 	defer cancel()
 
-	_ = m.service.repo.UpdateExperiment(m.baseCtx, snapshot)
+	if err := m.service.repo.UpdateExperiment(m.baseCtx, snapshot); err != nil {
+		m.logger.Printf("experiment %s: persist running transition: %v", snapshot.ID, err)
+	}
 	m.emit(e, StatusRunning, 0, "started")
 
 	emit := func(progress int, message string) {
@@ -234,29 +255,52 @@ func (m *Manager) execute(e *entry) {
 		if len(result.RecipeJSON) > 0 {
 			final.RecipeJSON = result.RecipeJSON
 		}
+		// Run rows are part of the success contract: a "succeeded" experiment
+		// must have every metrics cell persisted, otherwise GetExperiment/
+		// report-by-runs would silently return a partial result. If any insert
+		// fails we downgrade to failed rather than reporting a false success.
+		var runErr error
 		for _, run := range result.Runs {
 			run.ExperimentID = final.ID
-			_, _ = m.service.repo.CreateRun(m.baseCtx, run)
+			if _, err := m.service.repo.CreateRun(m.baseCtx, run); err != nil {
+				runErr = err
+				m.logger.Printf("experiment %s: persist run %q: %v", final.ID, run.Strategy, err)
+			}
 		}
-		if len(result.Report) > 0 {
+		switch {
+		case runErr != nil:
+			final.Status = StatusFailed
+			final.Error = fmt.Sprintf("persist run metrics: %v", runErr)
+			final.ResultRef = ""
+			if err := m.service.repo.UpdateExperiment(m.baseCtx, final); err != nil {
+				m.logger.Printf("experiment %s: persist run-failure status: %v", final.ID, err)
+			}
+		case len(result.Report) > 0:
 			mime := result.ReportMIME
 			if mime == "" {
 				mime = "application/json"
 			}
 			stored, storeErr := m.service.StoreReport(m.baseCtx, final, result.Report, mime, finished)
 			if storeErr != nil {
+				m.logger.Printf("experiment %s: store report: %v", final.ID, storeErr)
 				final.Status = StatusFailed
 				final.Error = storeErr.Error()
 				final.ResultRef = ""
-				_ = m.service.repo.UpdateExperiment(m.baseCtx, final)
+				if err := m.service.repo.UpdateExperiment(m.baseCtx, final); err != nil {
+					m.logger.Printf("experiment %s: persist report-failure status: %v", final.ID, err)
+				}
 			} else {
 				final = stored
 			}
-		} else {
-			_ = m.service.repo.UpdateExperiment(m.baseCtx, final)
+		default:
+			if err := m.service.repo.UpdateExperiment(m.baseCtx, final); err != nil {
+				m.logger.Printf("experiment %s: persist terminal status: %v", final.ID, err)
+			}
 		}
 	} else {
-		_ = m.service.repo.UpdateExperiment(m.baseCtx, final)
+		if err := m.service.repo.UpdateExperiment(m.baseCtx, final); err != nil {
+			m.logger.Printf("experiment %s: persist terminal status: %v", final.ID, err)
+		}
 	}
 	m.finalizeEntry(e, final)
 }
@@ -409,7 +453,9 @@ func (m *Manager) Cancel(id string) error {
 	e.exp.FinishedAt = &now
 	final := e.exp
 	e.mu.Unlock()
-	_ = m.service.repo.UpdateExperiment(m.baseCtx, final)
+	if err := m.service.repo.UpdateExperiment(m.baseCtx, final); err != nil {
+		m.logger.Printf("experiment %s: persist cancel status: %v", final.ID, err)
+	}
 	m.finalizeEntry(e, final)
 	m.removeQueued(e)
 	m.emitQueuePositions()

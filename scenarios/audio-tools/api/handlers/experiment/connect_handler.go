@@ -47,6 +47,9 @@ func (h *connectHandler) StartExperiment(ctx context.Context, req *connect.Reque
 	if recipe == nil {
 		recipe = &experimentv1.ExperimentRecipe{}
 	}
+	if err := validateRecipe(recipe); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	recipeJSON, err := protojson.Marshal(recipe)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -162,18 +165,55 @@ func (h *connectHandler) GetExperimentReport(ctx context.Context, req *connect.R
 }
 
 func (h *connectHandler) CompareExperiments(ctx context.Context, req *connect.Request[experimentv1.CompareExperimentsRequest]) (*connect.Response[experimentv1.CompareExperimentsResponse], error) {
+	if h.deps.Manager == nil || h.deps.Service == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("experiment service not configured"))
+	}
 	resp := &experimentv1.CompareExperimentsResponse{Experiments: make([]*experimentv1.ComparedExperiment, 0, len(req.Msg.GetIds()))}
 	for _, id := range req.Msg.GetIds() {
-		exp, report, _, err := h.report(ctx, id)
+		exp, err := h.deps.Manager.Get(ctx, id)
 		if err != nil {
+			// A genuinely missing experiment id is still an error; but an
+			// experiment that exists without a report (running/failed) must
+			// appear in the comparison with a nil report rather than failing
+			// the whole call and hiding the other experiments.
 			return nil, experimentError(err, h.deps.Logger, "CompareExperiments")
 		}
 		resp.Experiments = append(resp.Experiments, &experimentv1.ComparedExperiment{
 			Experiment: domainToProto(exp),
-			Report:     report,
+			Report:     h.reportOrNil(ctx, exp),
 		})
 	}
 	return connect.NewResponse(resp), nil
+}
+
+// reportOrNil returns the experiment's parsed report, or nil when none has been
+// persisted yet (or it cannot be parsed). It never errors: callers that compare
+// across a mix of finished and unfinished experiments rely on the nil signal.
+func (h *connectHandler) reportOrNil(ctx context.Context, exp intexp.Experiment) *evalv1.EvalReport {
+	data, err := h.deps.Service.GetReport(ctx, exp)
+	if err != nil {
+		return nil
+	}
+	report := &evalv1.EvalReport{}
+	if err := protojson.Unmarshal(data, report); err != nil {
+		h.deps.Logger.Printf("experiment.CompareExperiments: unparseable report for %s: %v", exp.ID, err)
+		return nil
+	}
+	return report
+}
+
+// validateRecipe rejects recipes that would queue only to fail or skip every
+// condition, returning an actionable message instead of a late opaque failure.
+func validateRecipe(recipe *experimentv1.ExperimentRecipe) error {
+	s := recipe.GetSpeaker()
+	if s == nil {
+		return nil
+	}
+	wantsSpeaker := s.GetExtractionEnabled() || s.GetVerificationEnabled() || s.GetAblationEnabled()
+	if wantsSpeaker && s.GetTargetProfileId() == "" {
+		return errors.New("speaker experiments require a target_profile_id; enroll a voice profile with `audio-tools stt speaker-enroll --file <clip> --activate true` and list profile ids with `audio-tools stt speaker-status`")
+	}
+	return nil
 }
 
 func (h *connectHandler) getWithRuns(ctx context.Context, id string) (intexp.Experiment, []intexp.Run, error) {

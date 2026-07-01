@@ -86,6 +86,29 @@ func TestRepository_ListNonTerminal(t *testing.T) {
 	require.Equal(t, []string{queued.ID, running.ID}, []string{got[0].ID, got[1].ID})
 }
 
+func TestRepository_ListPagination(t *testing.T) {
+	ctx := context.Background()
+	repo, _ := newRepo(t)
+	for i := 0; i < 5; i++ {
+		_, err := repo.CreateExperiment(ctx, experiment.Experiment{Name: "exp"})
+		require.NoError(t, err)
+	}
+
+	limited, err := repo.ListExperiments(ctx, experiment.ListFilter{Limit: 2})
+	require.NoError(t, err)
+	require.Len(t, limited, 2)
+
+	paged, err := repo.ListExperiments(ctx, experiment.ListFilter{Limit: 2, Offset: 2})
+	require.NoError(t, err)
+	require.Len(t, paged, 2)
+
+	// Offset without a limit must not throw a SQLite "OFFSET without LIMIT"
+	// syntax error; it should skip rows and return the remainder.
+	offsetOnly, err := repo.ListExperiments(ctx, experiment.ListFilter{Offset: 3})
+	require.NoError(t, err)
+	require.Len(t, offsetOnly, 2)
+}
+
 func TestRepository_RunsRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	repo, _ := newRepo(t)

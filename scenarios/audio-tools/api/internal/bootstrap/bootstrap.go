@@ -216,6 +216,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 		experimentMgr = intexp.NewManager(intexp.Config{
 			Service: experimentSvc,
 			Clock:   clock.System{},
+			Logger:  logger,
 			Runner: func(runCtx context.Context, exp intexp.Experiment, emit func(int, string)) (intexp.RunResult, error) {
 				recipe := &experimentv1.ExperimentRecipe{}
 				if len(exp.RecipeJSON) > 0 {
@@ -348,7 +349,7 @@ func runExperimentReport(ctx context.Context, evalDeps evalH.Deps, corpusSvc *in
 	longForm := recipe.GetLongForm()
 	augmentation := recipe.GetAugmentation()
 	speaker := recipe.GetSpeaker()
-	longFormEnabled := longForm != nil && (longForm.GetEnabled() || longForm.GetTargetDurationSeconds() > 0 || longForm.GetGapMs() > 0 || longForm.GetTagContains() != "")
+	longFormEnabled := longForm != nil && (longForm.GetEnabled() || longForm.GetTargetDurationSeconds() > 0 || longForm.GetGapMs() > 0 || longForm.GetTagContains() != "" || len(longForm.GetSweepDurationsSeconds()) > 0)
 	augmentationEnabled := augmentation != nil && (len(augmentation.GetNoiseTypes()) > 0 || len(augmentation.GetCompetingVoiceIds()) > 0)
 	speakerEnabled := speaker != nil && speakerConfigured(speaker)
 	if !longFormEnabled && !augmentationEnabled && !speakerEnabled {
@@ -372,31 +373,67 @@ func runExperimentReport(ctx context.Context, evalDeps evalH.Deps, corpusSvc *in
 	evalClips := make([]inteval.Clip, 0, len(clips))
 	realized := map[string]any{"phase": "materialized", "long_form": false}
 	if longFormEnabled {
-		synthetic, longRealized, err := exprecipe.Build(exprecipe.Spec{
-			Seed:                  recipe.GetSeed(),
-			TargetDurationSeconds: int(longForm.GetTargetDurationSeconds()),
-			GapMs:                 int(longForm.GetGapMs()),
-		}, clips)
-		if err != nil {
-			return inteval.EvalReport{}, nil, err
-		}
 		if longForm.GapMs <= 0 {
 			longForm.GapMs = exprecipe.DefaultGapMs
 		}
 		if recipe.Seed == 0 {
 			recipe.Seed = 1
 		}
-		recipe.RealizedClipIds = append(recipe.RealizedClipIds[:0], longRealized.ClipIDs...)
-		recipe.RealizedReference = longRealized.Reference
-		recipe.RealizedDurationMs = longRealized.DurationMs
-		evalClips = append(evalClips, synthetic)
+		// A non-empty sweep turns one experiment into N length-bucketed inputs,
+		// one per listed duration, so the metric-vs-length curve is populated
+		// from a single run. Each input is seeded distinctly (base seed +
+		// duration) so the orderings differ; a single (non-sweep) input keeps
+		// the recipe seed verbatim for backwards-compatible reproducibility.
+		sweep := longForm.GetSweepDurationsSeconds()
+		isSweep := len(sweep) > 0
+		durations := sweep
+		if !isSweep {
+			durations = []int32{longForm.GetTargetDurationSeconds()}
+		}
+		recipe.RealizedClipIds = recipe.RealizedClipIds[:0]
+		var totalDurationMs int64
+		sweepRealized := make([]map[string]any, 0, len(durations))
+		for _, durSec := range durations {
+			seed := recipe.GetSeed()
+			if isSweep {
+				seed = recipe.GetSeed() + int64(durSec)
+			}
+			synthetic, longRealized, err := exprecipe.Build(exprecipe.Spec{
+				Seed:                  seed,
+				TargetDurationSeconds: int(durSec),
+				GapMs:                 int(longForm.GetGapMs()),
+			}, clips)
+			if err != nil {
+				return inteval.EvalReport{}, nil, err
+			}
+			if isSweep {
+				synthetic.ID = fmt.Sprintf("long-form-%ds", durSec)
+			}
+			recipe.RealizedClipIds = append(recipe.RealizedClipIds, longRealized.ClipIDs...)
+			recipe.RealizedReference = longRealized.Reference
+			totalDurationMs += longRealized.DurationMs
+			evalClips = append(evalClips, synthetic)
+			sweepRealized = append(sweepRealized, map[string]any{
+				"input_id":             synthetic.ID,
+				"target_duration_sec":  durSec,
+				"realized_duration_ms": longRealized.DurationMs,
+				"clip_count":           len(longRealized.ClipIDs),
+			})
+		}
+		recipe.RealizedDurationMs = totalDurationMs
 		realized = map[string]any{
 			"phase":                "long_form",
 			"long_form":            true,
 			"gap_ms":               longForm.GetGapMs(),
-			"target_duration_sec":  longForm.GetTargetDurationSeconds(),
-			"realized_duration_ms": longRealized.DurationMs,
-			"clip_count":           len(longRealized.ClipIDs),
+			"sweep":                isSweep,
+			"input_count":          len(durations),
+			"realized_duration_ms": totalDurationMs,
+		}
+		if isSweep {
+			realized["sweep_durations_sec"] = sweep
+			realized["sweep_inputs"] = sweepRealized
+		} else {
+			realized["target_duration_sec"] = longForm.GetTargetDurationSeconds()
 		}
 	} else {
 		for _, c := range clips {
@@ -461,6 +498,12 @@ func runExperimentReport(ctx context.Context, evalDeps evalH.Deps, corpusSvc *in
 		"dropped_span_threshold_words": safetyThreshold(recipe),
 	}
 	report, err := runAugmentationSpeakerConditionReports(ctx, evalDeps, evalClips, augGroups, recipe.GetStrategies(), recipe.GetRealtimeRepeats(), recipe.GetChunkMs(), recipe.GetLatencyTailSeconds(), safetyThreshold(recipe), conditions, speakerConfigured(speaker))
+	if err == nil {
+		// Cross-condition ingress attribution: pair extraction-on rows with
+		// their extraction-off siblings so target-speaker-extraction word loss
+		// is no longer invisible. Runs exactly once on the fully-assembled set.
+		inteval.AttributeIngressByAblation(&report)
+	}
 	return report, realized, err
 }
 
@@ -582,6 +625,9 @@ func runSpeakerConditionReportsWithOptions(ctx context.Context, evalDeps evalH.D
 			combined.Warnings = appendUniqueReportWarnings(combined.Warnings, report.Warnings...)
 		}
 		for _, row := range report.PerStrategy {
+			row.BaseStrategy = row.Strategy
+			row.ExtractionEnabled = cond.ExtractionEnabled
+			row.VerificationEnabled = cond.VerificationEnabled
 			row.Strategy = sttchain.StrategyKind(fmt.Sprintf("%s/%s", row.Strategy, cond.ID))
 			if row.Label == "" {
 				row.Label = string(row.Strategy)
@@ -621,6 +667,10 @@ func runAugmentationSpeakerConditionReports(ctx context.Context, evalDeps evalH.
 			combined.Warnings = appendUniqueReportWarnings(combined.Warnings, report.Warnings...)
 		}
 		for _, row := range report.PerStrategy {
+			row.ConditionGroup = group.ID
+			if row.BaseStrategy == "" {
+				row.BaseStrategy = row.Strategy
+			}
 			row.Strategy = sttchain.StrategyKind(fmt.Sprintf("%s/%s", row.Strategy, group.ID))
 			if row.Label == "" {
 				row.Label = string(row.Strategy)
