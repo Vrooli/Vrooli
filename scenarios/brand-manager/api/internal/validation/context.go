@@ -319,9 +319,17 @@ func (h *headDoc) metaBy(kind brandsurface.TagKind, key string) (string, bool) {
 // metasByName returns every `<meta name=key>` (theme-color ships light+dark
 // variants distinguished by media).
 func (h *headDoc) metasByName(key string) []metaTag {
+	return h.metasBy(brandsurface.KindName, key)
+}
+
+func (h *headDoc) metasByProperty(key string) []metaTag {
+	return h.metasBy(brandsurface.KindProperty, key)
+}
+
+func (h *headDoc) metasBy(kind brandsurface.TagKind, key string) []metaTag {
 	var out []metaTag
 	for _, m := range h.metas {
-		if m.kind == brandsurface.KindName && strings.EqualFold(m.key, key) {
+		if m.kind == kind && strings.EqualFold(m.key, key) {
 			out = append(out, m)
 		}
 	}

@@ -64,3 +64,25 @@ func ruleTwitterCard(c *scanContext) (Finding, bool) {
 		Evidence:               map[string]any{"missing": missing},
 	}, true
 }
+
+func ruleSocialPreviewImage(c *scanContext) (Finding, bool) {
+	id := c.identity()
+	if !id.HasIdentity() {
+		return Finding{}, false
+	}
+	h := c.head()
+	if v, ok := h.metaByProperty("og:image"); ok && strings.TrimSpace(v) != "" {
+		return Finding{}, false
+	}
+	if v, ok := h.metaByName("twitter:image"); ok && strings.TrimSpace(v) != "" {
+		return Finding{}, false
+	}
+	return Finding{
+		Severity:               SeverityWarning,
+		Title:                  "No social preview image is declared",
+		Description:            "ui/index.html has no og:image or twitter:image metadata for branded link previews.",
+		FilePath:               indexHTMLRel,
+		WhyItMatters:           "A missing social preview image makes shared links look generic even when title and description metadata exist.",
+		RecommendedRemediation: "Add a real preview image under /public/ and reference it with og:image and twitter:image.",
+	}, true
+}

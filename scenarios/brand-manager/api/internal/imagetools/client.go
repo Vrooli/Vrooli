@@ -101,6 +101,7 @@ func (c *Client) Generate(ctx context.Context, req generation.ImageGenerateReque
 		Width:          int32(req.Width),
 		Height:         int32(req.Height),
 		Seed:           req.Seed,
+		OpenrouterRole: req.OpenRouterRole,
 		ModelOverride:  req.ModelOverride,
 		AllowByok:      req.AllowBYOK,
 		QualityPolicy:  req.QualityPolicy,
@@ -116,6 +117,7 @@ func (c *Client) Edit(ctx context.Context, req generation.ImageEditRequest) (gen
 	params := &aiv1.AIParams{
 		Prompt:         req.Instruction,
 		Seed:           req.Seed,
+		OpenrouterRole: req.OpenRouterRole,
 		ModelOverride:  req.ModelOverride,
 		AllowByok:      req.AllowBYOK,
 		QualityPolicy:  req.QualityPolicy,

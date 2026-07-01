@@ -96,4 +96,26 @@ var Endpoints = []module.EndpointDescriptor{
 		// `validate scenario` CLI command covers it; map both endpoints to it.
 
 	},
+	{
+		ID:          "scenario_validation_preview_fix",
+		Path:        scenariovalidationconnect.ScenarioValidationServicePreviewFixProcedure,
+		Method:      "POST",
+		Summary:     "Preview unit validation fixes",
+		Description: "Returns unimplemented because Unit Health currently has no deterministic fixer.",
+		Category:    "validation",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "finding_code": "string"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"status": "string", "message": "string"}},
+		Errors:      []module.ErrorDesc{{Status: 501, Code: "unimplemented", Description: "Unit Health has no deterministic fixer"}},
+	},
+	{
+		ID:          "scenario_validation_apply_fix",
+		Path:        scenariovalidationconnect.ScenarioValidationServiceApplyFixProcedure,
+		Method:      "POST",
+		Summary:     "Apply unit validation fixes",
+		Description: "Returns unimplemented because Unit Health currently has no deterministic fixer.",
+		Category:    "validation",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "finding_code": "string"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"status": "string", "message": "string"}},
+		Errors:      []module.ErrorDesc{{Status: 501, Code: "unimplemented", Description: "Unit Health has no deterministic fixer"}},
+	},
 }

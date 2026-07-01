@@ -30,6 +30,23 @@ func ruleAssetValidity(c *scanContext) (Finding, bool) {
 	}, true
 }
 
+// ruleAppleTouchIconPresent checks the iOS/home-screen install icon presence.
+// Its referenced file existence and opacity are handled by referenced-assets-exist
+// and asset-validity respectively, so this rule only owns declaration.
+func ruleAppleTouchIconPresent(c *scanContext) (Finding, bool) {
+	if _, ok := c.head().linkByRel("apple-touch-icon"); ok {
+		return Finding{}, false
+	}
+	return Finding{
+		Severity:               SeverityWarning,
+		Title:                  "No Apple touch icon is declared",
+		Description:            "ui/index.html has no <link rel=\"apple-touch-icon\"> for iOS and home-screen install surfaces.",
+		FilePath:               indexHTMLRel,
+		WhyItMatters:           "Without an Apple touch icon, installed iOS web apps and saved home-screen links fall back to an unbranded or low-quality icon.",
+		RecommendedRemediation: "Add a real 180x180 Apple touch icon under /public/ and reference it from ui/index.html.",
+	}, true
+}
+
 // assetIssues returns the detected per-asset problems (stable keys).
 func assetIssues(c *scanContext) map[string]any {
 	out := map[string]any{}

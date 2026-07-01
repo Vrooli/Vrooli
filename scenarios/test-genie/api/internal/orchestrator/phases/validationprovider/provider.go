@@ -583,7 +583,13 @@ func capabilityObservations(a *commonv1.MaturityAssessment) []shared.Observation
 		return nil
 	}
 	out := make([]shared.Observation, 0, len(a.GetCapabilities())+1)
+	if len(a.GetFindings()) == 0 {
+		out = append(out, shared.NewSuccessObservation(fmt.Sprintf("all %d capability assessment(s) clean", len(a.GetCapabilities()))))
+		return out
+	}
+	focusID := ""
 	if focus := a.GetHighestPriorityCapability(); focus != nil && strings.TrimSpace(focus.GetCapabilityId()) != "" {
+		focusID = strings.TrimSpace(focus.GetCapabilityId())
 		label := strings.TrimSpace(focus.GetCapabilityLabel())
 		if label == "" {
 			label = focus.GetCapabilityId()
@@ -601,6 +607,11 @@ func capabilityObservations(a *commonv1.MaturityAssessment) []shared.Observation
 		if capability == nil {
 			continue
 		}
+		blockers := len(capability.GetBlockingFindingCodes())
+		unknowns := int(capability.GetUnknownCount())
+		if capability.GetId() == focusID || blockers == 0 && unknowns == 0 {
+			continue
+		}
 		label := strings.TrimSpace(capability.GetLabel())
 		if label == "" {
 			label = capability.GetId()
@@ -611,8 +622,11 @@ func capabilityObservations(a *commonv1.MaturityAssessment) []shared.Observation
 		} else {
 			msg += " maximum maturity reached"
 		}
-		if blockers := len(capability.GetBlockingFindingCodes()); blockers > 0 {
+		if blockers > 0 {
 			msg += fmt.Sprintf(" blockers=%d", blockers)
+		}
+		if unknowns > 0 {
+			msg += fmt.Sprintf(" unknown=%d", unknowns)
 		}
 		if summary := strings.TrimSpace(capability.GetCurrentSummary()); summary != "" {
 			msg += " - " + summary

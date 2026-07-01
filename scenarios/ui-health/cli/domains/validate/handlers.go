@@ -55,9 +55,9 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 		line := formatFinding(f)
 		results = append(results, line)
 	}
-	errors := int(assessment.GetFindingsBySeverity()["SEVERITY_ERROR"])
-	warnings := int(assessment.GetFindingsBySeverity()["SEVERITY_WARNING"])
-	infos := int(assessment.GetFindingsBySeverity()["SEVERITY_INFO"])
+	errors := countSeverity(assessment, "ERROR")
+	warnings := countSeverity(assessment, "WARN")
+	infos := countSeverity(assessment, "INFO")
 	summaryLines := []string{
 		fmt.Sprintf("Validated %s — status=%s errors=%d warnings=%d infos=%d",
 			msg.GetScenario(), statusLabel(msg.GetStatus()), errors, warnings, infos,
@@ -103,6 +103,19 @@ func statusLabel(s scenariovalidationv1.ValidationStatus) string {
 	}
 }
 
+func countSeverity(a *commonv1.MaturityAssessment, severity string) int {
+	if a == nil {
+		return 0
+	}
+	total := 0
+	for key, count := range a.GetFindingsBySeverity() {
+		if severityLabel(key) == severity {
+			total += int(count)
+		}
+	}
+	return total
+}
+
 func formatFinding(f *commonv1.AssessmentFinding) string {
 	if f == nil {
 		return ""
@@ -116,12 +129,14 @@ func formatFinding(f *commonv1.AssessmentFinding) string {
 
 func severityLabel(s string) string {
 	switch s {
-	case "SEVERITY_ERROR":
+	case "SEVERITY_ERROR", "FINDING_SEVERITY_ERROR", "ERROR":
 		return "ERROR"
-	case "SEVERITY_WARNING":
+	case "SEVERITY_WARNING", "FINDING_SEVERITY_WARNING", "WARNING", "WARN":
 		return "WARN"
-	case "SEVERITY_INFO":
+	case "SEVERITY_INFO", "FINDING_SEVERITY_INFO", "INFO":
 		return "INFO"
+	case "SEVERITY_BLOCKER", "FINDING_SEVERITY_BLOCKER", "BLOCKER":
+		return "BLOCKER"
 	default:
 		return "UNSPECIFIED"
 	}

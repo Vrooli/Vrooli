@@ -30,8 +30,8 @@ the standard full-stack Vrooli scenario shape:
   declarative command args, generated Connect clients, and report-shaped
   output.
 - Baseline PWA branding metadata: web app manifest, standalone-mode
-  mobile tags, and generic placeholder icons ready for scenario-specific
-  replacement.
+  mobile tags, Apple/home-screen icons, social preview metadata, and generic
+  placeholder icons ready for scenario-specific replacement.
 - Root-level `DESIGN.md` plus generated UI token assets from the
   selected design kit.
 - A documentation contract in `docs/manifest.json`, with stubs for

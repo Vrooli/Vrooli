@@ -37,6 +37,16 @@
       "service": "ScenarioValidationService",
       "method": "ValidateScenario",
       "reason": "Shared cross-scenario validation surface exposed alongside this scenario's own ValidationService; the CLI 'validate scenario' command targets the scenario-local ValidationService."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "PreviewFix",
+      "reason": "Unit Health has no deterministic fixer; the shared RPC is mounted only to report unimplemented consistently."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "ApplyFix",
+      "reason": "Unit Health has no deterministic fixer; the shared RPC is mounted only to report unimplemented consistently."
     }
   ]
 }

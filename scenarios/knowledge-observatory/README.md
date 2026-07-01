@@ -106,6 +106,7 @@ knowledge-observatory docs search-files "**/README.md"
 knowledge-observatory docs search-text "health score"
 knowledge-observatory docs search-deep "How does deep search work?"
 knowledge-observatory docs health knowledge-observatory
+knowledge-observatory docs health knowledge-observatory --json
 knowledge-observatory docs audit knowledge-observatory
 
 # Watch health in real-time
@@ -115,6 +116,7 @@ knowledge-observatory health --watch
 Notes:
 - `search` and `ingest` are implemented and call the Knowledge Observatory API.
 - `ingest-job` and `job-status` are implemented for async chunked ingestion.
+- `docs health` reports documentation-health maturity by capability while preserving the shared `assessment.local` rollup for legacy consumers.
 - `docs audit` validates documentation structure, `[CODE:]` references, and marked inline `path:` / `doc:` references.
 - `graph`, `metrics`, and `health` are implemented and call the Knowledge Observatory API.
 - `health --watch` is supported for live polling output.

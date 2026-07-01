@@ -66,6 +66,16 @@
   ],
   "omitted": [
     {
+      "service": "ScenarioValidationService",
+      "method": "PreviewFix",
+      "reason": "Proto Health has no deterministic fixer; the shared RPC is mounted only to report unimplemented consistently."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "ApplyFix",
+      "reason": "Proto Health has no deterministic fixer; the shared RPC is mounted only to report unimplemented consistently."
+    },
+    {
       "service": "ProtoHealthService",
       "method": "DescribeScenariosProtos",
       "reason": "Fleet-batch surface consumed programmatically by scenario-dependency-analyzer over Connect; no human CLI verb needed."

@@ -94,6 +94,7 @@
         "type": "object",
         "properties": {
           "assessment": "common.v1.MaturityAssessment",
+          "metrics": "common.v1.ExecutionMetrics",
           "native_detail": "google.protobuf.Any",
           "scenario": "string",
           "status": "scenario_validation.v1.ValidationStatus"
@@ -110,6 +111,64 @@
         {
           "name": "Validate proto-health",
           "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"proto-health\"}'"
+        }
+      ]
+    },
+    {
+      "id": "validation_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview proto validation fixes",
+      "description": "Returns unimplemented because Proto Health currently has no deterministic fixer.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "finding_code": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "message": "string",
+          "status": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Proto Health has no deterministic fixer"
+        }
+      ]
+    },
+    {
+      "id": "validation_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply proto validation fixes",
+      "description": "Returns unimplemented because Proto Health currently has no deterministic fixer.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "finding_code": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "message": "string",
+          "status": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Proto Health has no deterministic fixer"
         }
       ]
     },

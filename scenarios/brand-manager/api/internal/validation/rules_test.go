@@ -52,9 +52,11 @@ const compliantIndexHTML = `<!doctype html>
     <meta property="og:title" content="Widget Shop" />
     <meta property="og:description" content="Buy widgets fast." />
     <meta property="og:site_name" content="Widget Shop" />
+    <meta property="og:image" content="/public/social-preview.png" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Widget Shop" />
     <meta name="twitter:description" content="Buy widgets fast." />
+    <meta name="twitter:image" content="/public/social-preview.png" />
     <title>Widget Shop</title>
   </head>
   <body><div id="root"></div></body>
@@ -89,6 +91,7 @@ func fullyBrandedScenario(t *testing.T) string {
 	writeFile(t, root, "ui/public/public/logo.svg", "<svg/>")
 	writeFile(t, root, "ui/public/public/favicon.svg", "<svg/>")
 	writeFile(t, root, "ui/public/public/apple-icon-180.png", "PNGDATAOPAQUE")
+	writeFile(t, root, "ui/public/public/social-preview.png", "PNGDATA-SOCIAL")
 	// The manifest declares these icons; a fully-branded scenario ships the files
 	// (non-decodable stub bytes keep the dimension check best-effort/silent).
 	writeFile(t, root, "ui/public/public/icon-192.png", "PNGDATA-192")
@@ -104,6 +107,14 @@ func findingByRule(res *ScanResult, ruleID string) (Finding, bool) {
 		}
 	}
 	return Finding{}, false
+}
+
+func TestReactViteTemplateHasSafeAreaForTranslucentStatusBar(t *testing.T) {
+	root := filepath.Clean(filepath.Join("..", "..", "..", "..", "..", "templates", "scenarios", "react-vite"))
+	ctx := newScanContext("react-vite-template", root)
+	if _, ok := ruleIOSStatusBarSafeArea(ctx); ok {
+		t.Fatalf("react-vite template should pair black-translucent status bar metadata with viewport-fit and safe-area CSS")
+	}
 }
 
 func mustFire(t *testing.T, root, ruleID string) Finding {
@@ -353,6 +364,12 @@ func TestManifestCompletenessFires(t *testing.T) {
 	}
 }
 
+func TestAppleTouchIconFires(t *testing.T) {
+	root := fullyBrandedScenario(t)
+	writeFile(t, root, "ui/index.html", removeLine(compliantIndexHTML, `rel="apple-touch-icon"`))
+	mustFire(t, root, "apple-touch-icon")
+}
+
 // --- social ----------------------------------------------------------------
 
 func TestOpenGraphFires(t *testing.T) {
@@ -365,6 +382,14 @@ func TestTwitterCardFires(t *testing.T) {
 	root := fullyBrandedScenario(t)
 	writeFile(t, root, "ui/index.html", removeLine(compliantIndexHTML, `name="twitter:card"`))
 	mustFire(t, root, "twitter-card")
+}
+
+func TestSocialPreviewImageFires(t *testing.T) {
+	root := fullyBrandedScenario(t)
+	html := removeLine(compliantIndexHTML, `property="og:image"`)
+	html = removeLine(html, `name="twitter:image"`)
+	writeFile(t, root, "ui/index.html", html)
+	mustFire(t, root, "social-preview-image")
 }
 
 // --- asset validity --------------------------------------------------------

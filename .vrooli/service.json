@@ -178,6 +178,9 @@
         "required": true,
         "version": "7"
       },
+      "reranker": {
+        "enabled": true
+      },
       "sagemath": {
         "enabled": true
       },

@@ -86,10 +86,57 @@ func TestMaturitySpecCoversUIHealthFindings(t *testing.T) {
 		"runtime_console_errors",
 		"runtime_skipped_ui_unavailable",
 		"runtime_skipped_bas_unavailable",
+		"standard_pwa_manifest",
+		"pwa_manifest_install_fields",
+		"pwa_launch_scope",
+		"pwa_service_worker_offline",
+		"pwa_optional_platform_fields",
 	} {
 		if _, ok := spec.Findings[code]; !ok {
 			t.Fatalf("maturity spec does not map emitted finding code %q", code)
 		}
+	}
+}
+
+func TestMaturitySpecEmitsCapabilityAssessment(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", ".vrooli", "maturity.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, err := assessment.ParseSpec(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := manifestvalidation.Report{
+		Scenario: "demo",
+		Findings: []manifestvalidation.Finding{
+			{
+				Severity: manifestvalidation.SeverityError,
+				Code:     "overlay_unknown_slot",
+				Message:  "unknown slot",
+			},
+			{
+				Severity: manifestvalidation.SeverityWarning,
+				Code:     "standard_pwa_manifest",
+				Message:  "missing PWA manifest metadata",
+			},
+		},
+	}
+	got, err := buildMaturityAssessment(report, spec)
+	if err != nil {
+		t.Fatalf("buildMaturityAssessment returned error: %v", err)
+	}
+	if len(got.GetCapabilities()) != 6 {
+		t.Fatalf("capabilities = %d, want 6", len(got.GetCapabilities()))
+	}
+	if got.GetHighestPriorityCapability().GetCapabilityId() != "manifest_contract" {
+		t.Fatalf("highest priority = %#v, want manifest_contract", got.GetHighestPriorityCapability())
+	}
+	if got.GetFindings()[0].GetMaturity().GetCapabilityId() != "manifest_contract" {
+		t.Fatalf("overlay capability = %q, want manifest_contract", got.GetFindings()[0].GetMaturity().GetCapabilityId())
+	}
+	if got.GetFindings()[1].GetMaturity().GetCapabilityId() != "pwa_native_readiness" {
+		t.Fatalf("pwa capability = %q, want pwa_native_readiness", got.GetFindings()[1].GetMaturity().GetCapabilityId())
 	}
 }
 

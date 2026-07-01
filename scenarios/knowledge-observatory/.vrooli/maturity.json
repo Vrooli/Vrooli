@@ -1,365 +1,1137 @@
 {
   "provider": "knowledge-observatory",
   "phase": "docs",
-  "version": "1.0.0",
-  "levels": [
+  "version": "1.1.0",
+  "capabilities": [
     {
-      "id": "L0",
-      "name": "No documentation target",
-      "description": "Knowledge Observatory cannot resolve a scenario or documentation path for docs health validation.",
-      "entry_criteria": ["Scenario id or docs path is provided"],
-      "exit_criteria": ["The target scenario or path resolves to readable documentation input"]
+      "id": "doc_contract",
+      "label": "Documentation Contract",
+      "description": "Scenario documentation target resolution, manifest schema, and contract metadata validity.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "Contract unresolved",
+          "status_label": "Blocked",
+          "description": "Knowledge Observatory cannot trust the scenario documentation contract.",
+          "entry_criteria": [
+            "A scenario or documentation path was selected"
+          ],
+          "exit_criteria": [
+            "The target resolves to a readable documentation contract"
+          ],
+          "capability_summary": "Documentation contract cannot be resolved or trusted.",
+          "next_unlock": "Resolve the scenario docs manifest or source-template fallback contract."
+        },
+        {
+          "id": "L1",
+          "name": "Contract discoverable",
+          "status_label": "Discovered",
+          "description": "A documentation contract is readable, but schema or required metadata may still be incomplete.",
+          "entry_criteria": [
+            "A manifest or fallback contract is readable"
+          ],
+          "exit_criteria": [
+            "Manifest schema, kind, schema id, stage, maturity, and document metadata validate"
+          ],
+          "capability_summary": "Contract input is present but not yet fully valid.",
+          "next_unlock": "Make the docs manifest and all contract metadata schema-valid."
+        },
+        {
+          "id": "L2",
+          "name": "Contract valid with fallback tolerance",
+          "status_label": "Valid",
+          "description": "Contract metadata is valid; any remaining findings are fallback or advisory contract posture.",
+          "entry_criteria": [
+            "Contract fields validate"
+          ],
+          "exit_criteria": [
+            "Scenario-owned manifest is present and contract findings are clean"
+          ],
+          "capability_summary": "Contract metadata validates with only advisory posture left.",
+          "next_unlock": "Own the docs contract directly in the scenario manifest without fallback warnings."
+        },
+        {
+          "id": "L3",
+          "name": "Contract clean",
+          "status_label": "Clean",
+          "description": "Documentation contract and schema are clean enough for delegated docs health.",
+          "entry_criteria": [
+            "No contract findings remain"
+          ],
+          "exit_criteria": [
+            "Contract stays clean during Test Genie delegation"
+          ],
+          "capability_summary": "Documentation contract is valid and scenario-owned.",
+          "next_unlock": ""
+        }
+      ]
     },
     {
-      "id": "L1",
-      "name": "Documentation contract discoverable",
-      "description": "The target has a readable documentation manifest or an explicit fallback contract, with required contract fields present.",
-      "entry_criteria": ["Documentation input is readable"],
-      "exit_criteria": ["Manifest schema, contract kind, maturity values, stages, and document metadata validate"]
+      "id": "required_docs",
+      "label": "Required Documentation",
+      "description": "Required, missing, misplaced, extra, and temporary documentation placement.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "Required docs blocked",
+          "status_label": "Blocked",
+          "description": "Required documentation cannot be found at contract-approved paths.",
+          "entry_criteria": [
+            "The documentation contract identifies required docs"
+          ],
+          "exit_criteria": [
+            "Required docs exist and are not misplaced"
+          ],
+          "capability_summary": "Required documentation is missing or misplaced.",
+          "next_unlock": "Create required docs and move misplaced docs to their contract paths."
+        },
+        {
+          "id": "L1",
+          "name": "Required docs present",
+          "status_label": "Present",
+          "description": "Required docs exist, but placement hygiene may still have temporary or extra artifacts.",
+          "entry_criteria": [
+            "Required docs exist"
+          ],
+          "exit_criteria": [
+            "No extra or temporary docs remain"
+          ],
+          "capability_summary": "Required docs are present with placement hygiene still to resolve.",
+          "next_unlock": "Retire temporary docs and register or remove extra docs."
+        },
+        {
+          "id": "L2",
+          "name": "Placement managed",
+          "status_label": "Managed",
+          "description": "Required documentation placement is managed and low-noise.",
+          "entry_criteria": [
+            "Placement hygiene is clean"
+          ],
+          "exit_criteria": [
+            "Placement stays clean across scenario changes"
+          ],
+          "capability_summary": "Documentation placement is managed.",
+          "next_unlock": "Keep placement clean as the scenario evolves."
+        },
+        {
+          "id": "L3",
+          "name": "Placement clean",
+          "status_label": "Clean",
+          "description": "Required docs are present, correctly placed, and free of temporary or extra artifacts.",
+          "entry_criteria": [
+            "No placement findings remain"
+          ],
+          "exit_criteria": [
+            "Placement remains clean during provider validation"
+          ],
+          "capability_summary": "Required documentation is present and correctly placed.",
+          "next_unlock": ""
+        }
+      ]
     },
     {
-      "id": "L2",
-      "name": "Required documentation placed",
-      "description": "Required scenario documentation exists at contract-approved paths, without misplaced or missing docs.",
-      "entry_criteria": ["Documentation contract is discoverable"],
-      "exit_criteria": ["No required docs are missing or misplaced"]
+      "id": "append_log_integrity",
+      "label": "Append-Log Integrity",
+      "description": "Append-log heading, field, date-source, and format contract validity.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "Append-log contract blocked",
+          "status_label": "Blocked",
+          "description": "Append-log operations cannot be applied safely.",
+          "entry_criteria": [
+            "A document declares append-log operations"
+          ],
+          "exit_criteria": [
+            "Append-log target heading, fields, date source, and format validate"
+          ],
+          "capability_summary": "Append-log configuration is invalid.",
+          "next_unlock": "Fix append-log heading, fields, date source, and format declarations."
+        },
+        {
+          "id": "L1",
+          "name": "Append-log contract valid",
+          "status_label": "Valid",
+          "description": "Append-log operations are structurally valid.",
+          "entry_criteria": [
+            "Append-log metadata validates"
+          ],
+          "exit_criteria": [
+            "Append-log operations remain valid as docs evolve"
+          ],
+          "capability_summary": "Append-log declarations validate.",
+          "next_unlock": "Keep append-log contracts synchronized with their target documents."
+        },
+        {
+          "id": "L2",
+          "name": "Append-log managed",
+          "status_label": "Managed",
+          "description": "Append-log contracts are managed and ready for automated doc entries.",
+          "entry_criteria": [
+            "Append-log validation is clean"
+          ],
+          "exit_criteria": [
+            "Append-log contracts remain clean during resets and additions"
+          ],
+          "capability_summary": "Append-log operations are safe to use.",
+          "next_unlock": "Retain clean append-log contracts during maintenance workflows."
+        },
+        {
+          "id": "L3",
+          "name": "Append-log clean",
+          "status_label": "Clean",
+          "description": "Append-log integrity is clean.",
+          "entry_criteria": [
+            "No append-log findings remain"
+          ],
+          "exit_criteria": [
+            "Append-log validation remains clean"
+          ],
+          "capability_summary": "Append-log integrity is clean.",
+          "next_unlock": ""
+        }
+      ]
     },
     {
-      "id": "L3",
-      "name": "Content and links healthy",
-      "description": "Markdown, Mermaid, absolute paths, derived-count markers, and local/external links are healthy enough for operator and agent use.",
-      "entry_criteria": ["Required documentation is present"],
-      "exit_criteria": ["No content validator findings block documentation health"]
+      "id": "content_quality",
+      "label": "Content Quality",
+      "description": "Markdown, Mermaid, absolute paths, file reads, content issues, and derived-number markers.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "Content unreadable",
+          "status_label": "Blocked",
+          "description": "Documentation content cannot be read or parsed reliably.",
+          "entry_criteria": [
+            "Markdown files are discovered"
+          ],
+          "exit_criteria": [
+            "Files are readable and markdown structure is not broken"
+          ],
+          "capability_summary": "Documentation content is unreadable or structurally broken.",
+          "next_unlock": "Fix file read errors and broken markdown structure."
+        },
+        {
+          "id": "L1",
+          "name": "Content readable",
+          "status_label": "Readable",
+          "description": "Documentation content is readable, but quality findings remain.",
+          "entry_criteria": [
+            "Files are readable"
+          ],
+          "exit_criteria": [
+            "Markdown, Mermaid, absolute-path, and number-marker findings are resolved"
+          ],
+          "capability_summary": "Content is readable with quality findings still present.",
+          "next_unlock": "Resolve markdown, Mermaid, absolute-path, and derived-number findings."
+        },
+        {
+          "id": "L2",
+          "name": "Content managed",
+          "status_label": "Managed",
+          "description": "Documentation content is healthy enough for operator and agent use.",
+          "entry_criteria": [
+            "Content quality checks pass"
+          ],
+          "exit_criteria": [
+            "Content quality remains clean across doc changes"
+          ],
+          "capability_summary": "Content quality checks are managed.",
+          "next_unlock": "Keep content quality clean as documentation changes."
+        },
+        {
+          "id": "L3",
+          "name": "Content advisory-ready",
+          "status_label": "Advisory-ready",
+          "description": "Documentation content has no maturity-blocking content findings; advisory debt remains visible separately.",
+          "entry_criteria": [
+            "No maturity-blocking content-quality findings remain"
+          ],
+          "exit_criteria": [
+            "Content health remains clean in delegated validation"
+          ],
+          "capability_summary": "Documentation content has no maturity-blocking findings.",
+          "next_unlock": ""
+        }
+      ]
     },
     {
-      "id": "L4",
-      "name": "References and manifest coverage healthy",
-      "description": "Bidirectional code/doc references and docs manifest coverage stay coherent as code and docs evolve.",
-      "entry_criteria": ["Content validators pass"],
-      "exit_criteria": ["No reference-integrity or manifest-coverage findings block documentation health"]
+      "id": "link_health",
+      "label": "Link Health",
+      "description": "Local link parsing, broken local links, and external link warnings or failures.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "Links blocked",
+          "status_label": "Blocked",
+          "description": "Documentation links cannot be trusted.",
+          "entry_criteria": [
+            "Markdown links are discovered"
+          ],
+          "exit_criteria": [
+            "Broken local links and parse failures are resolved"
+          ],
+          "capability_summary": "Local link integrity is broken.",
+          "next_unlock": "Fix local link parse failures and broken local targets."
+        },
+        {
+          "id": "L1",
+          "name": "Local links healthy",
+          "status_label": "Local clean",
+          "description": "Local links are healthy; external link posture may still be advisory.",
+          "entry_criteria": [
+            "Local link checks pass"
+          ],
+          "exit_criteria": [
+            "External link warnings are triaged or resolved"
+          ],
+          "capability_summary": "Local links are healthy with external-link findings still possible.",
+          "next_unlock": "Resolve or triage external link warnings and failures."
+        },
+        {
+          "id": "L2",
+          "name": "Links managed",
+          "status_label": "Managed",
+          "description": "Local and external link health is managed.",
+          "entry_criteria": [
+            "Link findings are resolved or intentionally advisory"
+          ],
+          "exit_criteria": [
+            "Link health remains clean across docs changes"
+          ],
+          "capability_summary": "Link health is managed.",
+          "next_unlock": "Keep link health clean during documentation updates."
+        },
+        {
+          "id": "L3",
+          "name": "Links clean",
+          "status_label": "Clean",
+          "description": "Documentation links are clean.",
+          "entry_criteria": [
+            "No link-health findings remain"
+          ],
+          "exit_criteria": [
+            "Link validation remains clean"
+          ],
+          "capability_summary": "Documentation links are clean.",
+          "next_unlock": ""
+        }
+      ]
     },
     {
-      "id": "L5",
-      "name": "Fleet-ready documentation posture",
-      "description": "Documentation health is clean enough for Test Genie delegation, provider maturity comparison, and reusable scenario onboarding.",
-      "entry_criteria": ["References and manifest coverage are healthy"],
-      "exit_criteria": ["No documentation-health findings block fleet validation"]
+      "id": "reference_integrity",
+      "label": "Reference Integrity",
+      "description": "[CODE:], // DOC:, marked machine-readable references, CLI refs, and command snippet validation.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "References broken",
+          "status_label": "Blocked",
+          "description": "Code/doc or marked references are broken enough to mislead agents.",
+          "entry_criteria": [
+            "References are discovered in docs or code"
+          ],
+          "exit_criteria": [
+            "Broken code, doc, marked, CLI, and command references are resolved"
+          ],
+          "capability_summary": "Documentation references are broken.",
+          "next_unlock": "Fix broken code/doc references, marked refs, CLI refs, and command snippets."
+        },
+        {
+          "id": "L1",
+          "name": "References resolvable",
+          "status_label": "Resolvable",
+          "description": "Hard reference failures are resolved; partial or unknown validation may remain.",
+          "entry_criteria": [
+            "Hard reference failures are fixed"
+          ],
+          "exit_criteria": [
+            "Partial and unknown reference validations are triaged or resolved"
+          ],
+          "capability_summary": "References are mostly resolvable with validation gaps still present.",
+          "next_unlock": "Resolve partial and unknown marked-reference or command-snippet validation."
+        },
+        {
+          "id": "L2",
+          "name": "References managed",
+          "status_label": "Managed",
+          "description": "References are healthy enough to support code/documentation traceability.",
+          "entry_criteria": [
+            "Reference-integrity findings are resolved or intentionally advisory"
+          ],
+          "exit_criteria": [
+            "References remain healthy as code and docs move"
+          ],
+          "capability_summary": "Reference integrity is managed.",
+          "next_unlock": "Keep references synchronized with code and command surfaces."
+        },
+        {
+          "id": "L3",
+          "name": "References advisory-ready",
+          "status_label": "Advisory-ready",
+          "description": "Code, doc, marked, CLI, and command snippet references have no maturity-blocking findings; advisory debt remains visible separately.",
+          "entry_criteria": [
+            "No maturity-blocking reference-integrity findings remain"
+          ],
+          "exit_criteria": [
+            "Reference checks remain clean in delegated validation"
+          ],
+          "capability_summary": "Reference integrity has no maturity-blocking findings.",
+          "next_unlock": ""
+        }
+      ]
+    },
+    {
+      "id": "manifest_coverage",
+      "label": "Manifest Coverage",
+      "description": "docs/manifest.json coverage of the markdown documentation set.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "Manifest coverage blocked",
+          "status_label": "Blocked",
+          "description": "Required docs are missing from the manifest coverage model.",
+          "entry_criteria": [
+            "A docs manifest is readable"
+          ],
+          "exit_criteria": [
+            "Docs required by the manifest are present"
+          ],
+          "capability_summary": "Manifest coverage is missing required docs.",
+          "next_unlock": "Add missing docs or correct manifest registrations."
+        },
+        {
+          "id": "L1",
+          "name": "Manifest coverage present",
+          "status_label": "Present",
+          "description": "Manifest-required docs are present; orphaned docs may still be unregistered.",
+          "entry_criteria": [
+            "Manifest-required docs exist"
+          ],
+          "exit_criteria": [
+            "No orphaned markdown docs remain"
+          ],
+          "capability_summary": "Manifest coverage is present with orphaned docs still possible.",
+          "next_unlock": "Register orphaned docs or remove obsolete files."
+        },
+        {
+          "id": "L2",
+          "name": "Manifest coverage managed",
+          "status_label": "Managed",
+          "description": "Manifest coverage is managed across the markdown set.",
+          "entry_criteria": [
+            "Manifest coverage findings are resolved"
+          ],
+          "exit_criteria": [
+            "Manifest coverage stays clean as docs change"
+          ],
+          "capability_summary": "Manifest coverage is managed.",
+          "next_unlock": "Keep docs/manifest.json synchronized with markdown changes."
+        },
+        {
+          "id": "L3",
+          "name": "Manifest coverage clean",
+          "status_label": "Clean",
+          "description": "The manifest covers the documentation set cleanly.",
+          "entry_criteria": [
+            "No manifest coverage findings remain"
+          ],
+          "exit_criteria": [
+            "Manifest coverage remains clean"
+          ],
+          "capability_summary": "Manifest coverage is clean.",
+          "next_unlock": ""
+        }
+      ]
     }
   ],
   "findings": {
-    "schema_load_error": {
+    "contract_missing": {
+      "capability_id": "doc_contract",
       "local_level_impact": "L1",
       "global_impact": "foundation_blocker",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health", "knowledge-observatory-tools"]
+      "recommended_skill_ids": [
+        "documentation-health",
+        "knowledge-observatory-tools"
+      ],
+      "fix_class": "manual",
+      "reason": "Resolving a missing documentation contract requires choosing the correct manifest or template source of truth.",
+      "clean_requirement": "required"
+    },
+    "schema_load_error": {
+      "capability_id": "doc_contract",
+      "local_level_impact": "L1",
+      "global_impact": "foundation_blocker",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": [
+        "documentation-health",
+        "knowledge-observatory-tools"
+      ],
+      "fix_class": "manual",
+      "reason": "Schema load failures require inspecting the local schema and manifest paths before editing docs.",
+      "clean_requirement": "required"
     },
     "schema_violation": {
+      "capability_id": "doc_contract",
       "local_level_impact": "L1",
       "global_impact": "foundation_blocker",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health", "knowledge-observatory-tools"]
+      "recommended_skill_ids": [
+        "documentation-health",
+        "knowledge-observatory-tools"
+      ],
+      "fix_class": "manual",
+      "reason": "Schema violations require deciding the correct contract metadata for the scenario.",
+      "clean_requirement": "required"
     },
     "manifest_missing": {
+      "capability_id": "doc_contract",
       "local_level_impact": "L1",
       "global_impact": "foundation_blocker",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health", "knowledge-observatory-tools"]
+      "recommended_skill_ids": [
+        "documentation-health",
+        "knowledge-observatory-tools"
+      ],
+      "fix_class": "manual",
+      "reason": "Creating a missing docs manifest requires selecting scenario-owned documentation structure.",
+      "clean_requirement": "required"
+    },
+    "scenario_manifest_missing": {
+      "capability_id": "doc_contract",
+      "local_level_impact": "L2",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": [
+        "documentation-health",
+        "knowledge-observatory-tools"
+      ],
+      "fix_class": "manual",
+      "reason": "Promoting from template fallback to a scenario manifest requires scenario ownership decisions.",
+      "clean_requirement": "required"
     },
     "invalid_contract_kind": {
+      "capability_id": "doc_contract",
       "local_level_impact": "L1",
       "global_impact": "foundation_blocker",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "The correct contract kind is a source-of-truth metadata decision.",
+      "clean_requirement": "required"
     },
     "invalid_contract_schema": {
+      "capability_id": "doc_contract",
       "local_level_impact": "L1",
       "global_impact": "foundation_blocker",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "The correct contract schema version must match the manifest semantics.",
+      "clean_requirement": "required"
     },
     "missing_maturity_values": {
+      "capability_id": "doc_contract",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Maturity values define scenario documentation policy and require human intent.",
+      "clean_requirement": "required"
     },
     "missing_stages": {
+      "capability_id": "doc_contract",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Stage definitions encode scenario lifecycle policy and require human intent.",
+      "clean_requirement": "required"
     },
     "duplicate_identifier": {
+      "capability_id": "doc_contract",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Resolving duplicate identifiers requires choosing canonical document ids.",
+      "clean_requirement": "required"
     },
     "invalid_maturity": {
+      "capability_id": "doc_contract",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Correct maturity classification depends on the document's role.",
+      "clean_requirement": "required"
     },
     "invalid_required_by": {
+      "capability_id": "doc_contract",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Correct required-by stages depend on scenario lifecycle policy.",
+      "clean_requirement": "required"
     },
     "missing_section_id": {
+      "capability_id": "doc_contract",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Section ids must be chosen to preserve stable documentation navigation.",
+      "clean_requirement": "required"
     },
     "missing_section_title": {
+      "capability_id": "doc_contract",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Section titles require human-readable navigation wording.",
+      "clean_requirement": "required"
     },
     "missing_document_path": {
+      "capability_id": "doc_contract",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Document paths require choosing the correct durable location.",
+      "clean_requirement": "required"
     },
     "missing_doc_type": {
+      "capability_id": "doc_contract",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Document type depends on the document's intended audience and role.",
+      "clean_requirement": "required"
     },
     "missing_document_title": {
+      "capability_id": "doc_contract",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Document titles require human-readable navigation wording.",
+      "clean_requirement": "required"
     },
     "missing_maturity": {
+      "capability_id": "doc_contract",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Document maturity depends on the document's role in the scenario.",
+      "clean_requirement": "required"
     },
     "missing_required_by": {
+      "capability_id": "doc_contract",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Required-by metadata depends on scenario lifecycle policy.",
+      "clean_requirement": "required"
     },
     "missing_completion": {
+      "capability_id": "doc_contract",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Completion metadata requires deciding whether a doc is required, conditional, or optional.",
+      "clean_requirement": "required"
     },
     "invalid_completion": {
+      "capability_id": "doc_contract",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Correct completion metadata depends on the document's contract role.",
+      "clean_requirement": "required"
     },
     "append_log_missing_heading": {
+      "capability_id": "append_log_integrity",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Append-log target headings must match the document structure chosen by humans.",
+      "clean_requirement": "required"
     },
     "append_log_invalid_fields": {
+      "capability_id": "append_log_integrity",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Append-log fields define durable entry shape and require contract intent.",
+      "clean_requirement": "required"
     },
     "append_log_invalid_date_source": {
+      "capability_id": "append_log_integrity",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Append-log date-source behavior must match the chosen entry format.",
+      "clean_requirement": "required"
     },
     "append_log_invalid_format": {
+      "capability_id": "append_log_integrity",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Append-log formats are contract decisions and cannot be inferred safely.",
+      "clean_requirement": "required"
     },
     "misplaced_doc": {
-      "local_level_impact": "L2",
+      "capability_id": "required_docs",
+      "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["documentation-health", "knowledge-observatory-tools"]
+      "recommended_skill_ids": [
+        "documentation-health",
+        "knowledge-observatory-tools"
+      ],
+      "fix_class": "auto",
+      "fixer_status": "implemented",
+      "clean_requirement": "required"
     },
     "missing_doc": {
-      "local_level_impact": "L2",
+      "capability_id": "required_docs",
+      "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["documentation-health", "knowledge-observatory-tools"]
+      "recommended_skill_ids": [
+        "documentation-health",
+        "knowledge-observatory-tools"
+      ],
+      "fix_class": "manual",
+      "reason": "Creating missing documentation requires scenario-specific content judgment.",
+      "clean_requirement": "required"
     },
     "extra_doc": {
+      "capability_id": "required_docs",
       "local_level_impact": "L2",
       "global_impact": "advisory",
       "dimension": "docs",
       "severity_default": "SEVERITY_INFO",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Extra docs require deciding whether to register, move, merge, or delete content.",
+      "clean_requirement": "advisory"
     },
     "temporary_doc": {
+      "capability_id": "required_docs",
       "local_level_impact": "L2",
       "global_impact": "advisory",
       "dimension": "docs",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Temporary docs require deciding whether the content should be promoted or removed.",
+      "clean_requirement": "advisory"
     },
     "content_issue": {
-      "local_level_impact": "L3",
+      "capability_id": "content_quality",
+      "local_level_impact": "L2",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Content issues require choosing the correct durable documentation wording.",
+      "clean_requirement": "required"
     },
     "file_read_error": {
-      "local_level_impact": "L3",
+      "capability_id": "content_quality",
+      "local_level_impact": "L1",
       "global_impact": "foundation_blocker",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "File read failures require inspecting filesystem state and intended document ownership.",
+      "clean_requirement": "required"
     },
     "markdown_unclosed_fence": {
-      "local_level_impact": "L3",
+      "capability_id": "content_quality",
+      "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Closing a markdown fence safely requires understanding the intended fenced content.",
+      "clean_requirement": "required"
     },
     "mermaid_invalid": {
-      "local_level_impact": "L3",
+      "capability_id": "content_quality",
+      "local_level_impact": "L2",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Invalid Mermaid diagrams require choosing the correct diagram semantics.",
+      "clean_requirement": "required"
     },
     "absolute_path": {
-      "local_level_impact": "L3",
+      "capability_id": "content_quality",
+      "local_level_impact": "L2",
       "global_impact": "hardening_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["cross-platform-readiness", "documentation-health"]
+      "recommended_skill_ids": [
+        "cross-platform-readiness",
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Absolute paths require deciding the correct portable reference or source-of-truth link.",
+      "clean_requirement": "required"
     },
     "unmarked_number": {
-      "local_level_impact": "L3",
+      "capability_id": "content_quality",
+      "local_level_impact": "L2",
       "global_impact": "advisory",
       "dimension": "docs",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Derived numbers require deciding whether to remove, tag, or replace with a source-of-truth reference.",
+      "clean_requirement": "advisory"
     },
     "number_marker_without_reason": {
-      "local_level_impact": "L3",
+      "capability_id": "content_quality",
+      "local_level_impact": "L2",
       "global_impact": "advisory",
       "dimension": "docs",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Number markers need human-owned rationale for why the number is stable enough to keep.",
+      "clean_requirement": "advisory"
     },
     "broken_link_parse": {
-      "local_level_impact": "L3",
+      "capability_id": "link_health",
+      "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Malformed links require preserving the intended target while correcting syntax.",
+      "clean_requirement": "required"
     },
     "broken_local_link": {
-      "local_level_impact": "L3",
+      "capability_id": "link_health",
+      "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Broken local links require choosing whether to update, restore, or remove the target.",
+      "clean_requirement": "required"
     },
     "external_link_warning": {
-      "local_level_impact": "L3",
+      "capability_id": "link_health",
+      "local_level_impact": "L2",
       "global_impact": "advisory",
       "dimension": "docs",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "External link warnings require deciding whether the source remains authoritative.",
+      "clean_requirement": "advisory"
     },
     "broken_external_link": {
-      "local_level_impact": "L3",
+      "capability_id": "link_health",
+      "local_level_impact": "L2",
       "global_impact": "advisory",
       "dimension": "docs",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Broken external links require finding a durable replacement or removing the reference.",
+      "clean_requirement": "advisory"
     },
     "broken_code_ref": {
-      "local_level_impact": "L4",
+      "capability_id": "reference_integrity",
+      "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health", "intent-clarification"]
+      "recommended_skill_ids": [
+        "documentation-health",
+        "intent-clarification"
+      ],
+      "fix_class": "manual",
+      "reason": "Broken code references require choosing the correct implementation target or retiring stale prose.",
+      "clean_requirement": "required"
     },
     "broken_doc_ref": {
-      "local_level_impact": "L4",
+      "capability_id": "reference_integrity",
+      "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health", "intent-clarification"]
+      "recommended_skill_ids": [
+        "documentation-health",
+        "intent-clarification"
+      ],
+      "fix_class": "manual",
+      "reason": "Broken doc references require choosing the correct durable documentation target.",
+      "clean_requirement": "required"
     },
     "broken_marked_ref": {
-      "local_level_impact": "L4",
+      "capability_id": "reference_integrity",
+      "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health", "intent-clarification"]
+      "recommended_skill_ids": [
+        "documentation-health",
+        "intent-clarification"
+      ],
+      "fix_class": "manual",
+      "reason": "Broken marked references require preserving typed reference intent while correcting the target.",
+      "clean_requirement": "required"
     },
     "unknown_marked_ref": {
-      "local_level_impact": "L4",
+      "capability_id": "reference_integrity",
+      "local_level_impact": "L2",
       "global_impact": "advisory",
       "dimension": "docs",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Unknown marked references require deciding whether to register a marker or rewrite the reference.",
+      "clean_requirement": "advisory"
+    },
+    "unknown_cli_ref": {
+      "capability_id": "reference_integrity",
+      "local_level_impact": "L2",
+      "global_impact": "advisory",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": [
+        "documentation-health",
+        "cli-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Unknown CLI refs require deciding whether the command is real, renamed, or intentionally illustrative.",
+      "clean_requirement": "advisory"
+    },
+    "partial_cli_ref": {
+      "capability_id": "reference_integrity",
+      "local_level_impact": "L2",
+      "global_impact": "advisory",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": [
+        "documentation-health",
+        "cli-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Partial CLI refs require deciding whether stricter command validation is required.",
+      "clean_requirement": "advisory"
+    },
+    "unknown_command_snippet": {
+      "capability_id": "reference_integrity",
+      "local_level_impact": "L2",
+      "global_impact": "advisory",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": [
+        "documentation-health",
+        "cli-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Unknown command snippets require deciding whether to update the command, narrow validation, or keep prose-only guidance.",
+      "clean_requirement": "advisory"
+    },
+    "partial_command_snippet": {
+      "capability_id": "reference_integrity",
+      "local_level_impact": "L2",
+      "global_impact": "advisory",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": [
+        "documentation-health",
+        "cli-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Partial command snippets require deciding whether argument-level validation is needed.",
+      "clean_requirement": "advisory"
+    },
+    "broken_command_snippet": {
+      "capability_id": "reference_integrity",
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": [
+        "documentation-health",
+        "cli-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Broken command snippets require choosing the correct current command invocation.",
+      "clean_requirement": "required"
     },
     "manifest_missing_doc": {
-      "local_level_impact": "L4",
+      "capability_id": "manifest_coverage",
+      "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "docs",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Missing manifest docs require deciding whether to create the document or correct manifest coverage.",
+      "clean_requirement": "required"
     },
     "manifest_orphaned_doc": {
-      "local_level_impact": "L4",
+      "capability_id": "manifest_coverage",
+      "local_level_impact": "L2",
       "global_impact": "advisory",
       "dimension": "docs",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["documentation-health"]
+      "recommended_skill_ids": [
+        "documentation-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Orphaned docs require deciding whether to register, move, merge, or delete content.",
+      "clean_requirement": "advisory"
     }
   },
   "fallback": {
-    "local_level_impact": "L3",
+    "capability_id": "content_quality",
+    "local_level_impact": "L2",
     "global_impact": "evolvability_gap",
     "dimension": "docs",
-    "severity_default": "SEVERITY_WARNING"
+    "severity_default": "SEVERITY_WARNING",
+    "clean_requirement": "required"
   }
 }

@@ -294,6 +294,11 @@ Fetch the documentation tree for a scenario.
 
 Fetch documentation health details for a scenario.
 
+```bash
+knowledge-observatory docs health knowledge-observatory
+knowledge-observatory docs health knowledge-observatory --json
+```
+
 **Options:**
 | Flag | Description |
 |------|-------------|
@@ -310,6 +315,14 @@ The `refs` check validates explicit marked references such as `cli:...`.
 The `commands` check conservatively validates Vrooli-owned commands found in
 fenced shell snippets by delegating to CLI Health; it does not execute the
 referenced commands.
+
+Human output includes the shared health maturity report. For Knowledge
+Observatory docs health, that report separates documentation contract, required
+docs, append-log integrity, content quality, link health, reference integrity,
+and manifest coverage so operators can see the highest-priority documentation
+capability instead of one overloaded local ladder. The `--json` form preserves
+the complete shared `assessment` payload, including `assessment.local` for
+legacy consumers and `assessment.capabilities[]` for capability-aware tooling.
 
 ### docs view
 

@@ -110,6 +110,51 @@ func testAssessment(severity string) *commonv1.MaturityAssessment {
 	return a
 }
 
+func testCapabilityAssessment() *commonv1.MaturityAssessment {
+	a := testAssessment("SEVERITY_WARNING")
+	a.Capabilities = []*commonv1.CapabilityMaturityAssessment{
+		{
+			Id:                   "interop",
+			Label:                "Interop",
+			CurrentLevel:         "L2",
+			CurrentSummary:       "Embeds correctly across deployment contexts.",
+			Clean:                true,
+			PriorityRank:         1,
+			BlockingFindingCodes: nil,
+			Levels: []*commonv1.LocalMaturityLevel{
+				{Id: "L0"},
+				{Id: "L1"},
+				{Id: "L2"},
+			},
+		},
+		{
+			Id:                   "pwa_native_readiness",
+			Label:                "PWA Native Readiness",
+			CurrentLevel:         "L0",
+			NextLevel:            "L1",
+			CurrentSummary:       "Install surface is absent.",
+			NextUnlock:           "Offline-safe launch and app-shell fallback.",
+			PriorityRank:         2,
+			PriorityReason:       "lowest current level with required/blocking findings WARNING capability_gap",
+			BlockingFindingCodes: []string{"proto.gen_out_of_sync"},
+			Levels: []*commonv1.LocalMaturityLevel{
+				{Id: "L0"},
+				{Id: "L1"},
+			},
+		},
+	}
+	a.HighestPriorityCapability = &commonv1.PriorityFocus{
+		CapabilityId:    "pwa_native_readiness",
+		CapabilityLabel: "PWA Native Readiness",
+		CurrentLevel:    "L0",
+		NextLevel:       "L1",
+		Reason:          "lowest current level with required/blocking findings WARNING capability_gap",
+	}
+	a.Findings[0].Maturity.CapabilityId = "pwa_native_readiness"
+	a.Findings[0].Maturity.LocalLevel = "L1"
+	return a
+}
+
 func testArchitectureProvider() Provider {
 	return Provider{
 		Phase:            "architecture",
@@ -228,6 +273,101 @@ func TestRunFailedStatusEmitsFindingAndFails(t *testing.T) {
 	}
 	if !got.Summary.LocalClean || got.Summary.LocalUnknownCount != 1 {
 		t.Fatalf("summary clean/unknown = %v/%d, want true/1", got.Summary.LocalClean, got.Summary.LocalUnknownCount)
+	}
+}
+
+func TestRunSummarizesCapabilityMaturity(t *testing.T) {
+	prevResolve, prevClient := ResolveBaseURL, NewClient
+	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
+	NewClient = func(time.Duration, string) Client {
+		return fakeClient{resp: &scenariovalidationv1.ValidateScenarioResponse{
+			Scenario:   "demo",
+			Status:     scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED,
+			Assessment: testCapabilityAssessment(),
+		}}
+	}
+	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
+
+	got := Run(context.Background(), testProvider(false), "demo", "")
+	if !got.Success {
+		t.Fatalf("capability assessment should pass provider transport, got %v", got.Error)
+	}
+	if len(got.Summary.Capabilities) != 2 {
+		t.Fatalf("capabilities = %+v, want two summaries", got.Summary.Capabilities)
+	}
+	pwa := got.Summary.Capabilities[1]
+	if pwa.ID != "pwa_native_readiness" || pwa.NextUnlock != "Offline-safe launch and app-shell fallback." || pwa.BlockingFindingCount != 1 {
+		t.Fatalf("pwa summary = %+v", pwa)
+	}
+	if got.Summary.HighestPriorityCapability == nil || got.Summary.HighestPriorityCapability.CapabilityID != "pwa_native_readiness" {
+		t.Fatalf("focus = %+v, want pwa_native_readiness", got.Summary.HighestPriorityCapability)
+	}
+	if !strings.Contains(got.Summary.String(), "focus=pwa_native_readiness->L1") {
+		t.Fatalf("summary string missing focus: %q", got.Summary.String())
+	}
+	joined := strings.Join(observationStrings(got.Observations), "\n")
+	if !strings.Contains(joined, "highest priority capability: PWA Native Readiness to L1") {
+		t.Fatalf("observations missing priority focus:\n%s", joined)
+	}
+	if strings.Contains(joined, "Interop capability: current=L2 maximum maturity reached") {
+		t.Fatalf("observations should omit clean non-focus capabilities:\n%s", joined)
+	}
+}
+
+func TestRunOmitsCleanCapabilitySpam(t *testing.T) {
+	assessment := testCapabilityAssessment()
+	assessment.Findings = nil
+	assessment.FindingsBySeverity = map[string]int32{}
+	assessment.FindingsByGlobalImpact = map[string]int32{}
+	assessment.Capabilities[0].Clean = true
+	assessment.Capabilities[1].Clean = true
+	assessment.Capabilities[1].BlockingFindingCodes = nil
+	assessment.HighestPriorityCapability = nil
+
+	prevResolve, prevClient := ResolveBaseURL, NewClient
+	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
+	NewClient = func(time.Duration, string) Client {
+		return fakeClient{resp: &scenariovalidationv1.ValidateScenarioResponse{
+			Scenario:   "demo",
+			Status:     scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
+			Assessment: assessment,
+		}}
+	}
+	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
+
+	got := Run(context.Background(), testProvider(false), "demo", "")
+	if !got.Success {
+		t.Fatalf("clean capability assessment should pass, got %v", got.Error)
+	}
+	joined := strings.Join(observationStrings(got.Observations), "\n")
+	if !strings.Contains(joined, "all 2 capability assessment(s) clean") {
+		t.Fatalf("observations missing compact clean capability line:\n%s", joined)
+	}
+	if strings.Contains(joined, "Interop capability:") || strings.Contains(joined, "PWA Native Readiness capability:") {
+		t.Fatalf("observations should not list every clean capability:\n%s", joined)
+	}
+}
+
+func TestRunMalformedCapabilityAssessmentIsMaturityContract(t *testing.T) {
+	bad := testCapabilityAssessment()
+	bad.Capabilities[0].CurrentLevel = "L9"
+	prevResolve, prevClient := ResolveBaseURL, NewClient
+	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
+	NewClient = func(time.Duration, string) Client {
+		return fakeClient{resp: &scenariovalidationv1.ValidateScenarioResponse{
+			Scenario:   "demo",
+			Status:     scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
+			Assessment: bad,
+		}}
+	}
+	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
+
+	got := Run(context.Background(), testProvider(false), "demo", "")
+	if got.FailureClass != shared.FailureClassMaturityContract {
+		t.Fatalf("FailureClass = %q, want maturity_contract (err=%v)", got.FailureClass, got.Error)
+	}
+	if got.Error == nil || !strings.Contains(got.Error.Error(), "current_level") {
+		t.Fatalf("expected current_level contract error, got %v", got.Error)
 	}
 }
 

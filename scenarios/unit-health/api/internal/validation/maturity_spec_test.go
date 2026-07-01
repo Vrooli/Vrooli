@@ -24,8 +24,23 @@ func specSeverityToLocal(s string) string {
 // mapping" guard from Phase 5.
 func TestCodeSeverityMatchesSpec(t *testing.T) {
 	spec := loadSpec(t)
+	if spec.Version != "2.0.0" {
+		t.Errorf("spec version = %q, want 2.0.0", spec.Version)
+	}
+	if len(spec.Capabilities) == 0 {
+		t.Error("spec must declare capability ladders")
+	}
+	if spec.Fallback.CapabilityID == "" {
+		t.Error("fallback must declare capability_id")
+	}
 
 	for code, mapping := range spec.Findings {
+		if mapping.CapabilityID == "" {
+			t.Errorf("spec code %q has no capability_id", code)
+		}
+		if mapping.CleanRequirement == "" {
+			t.Errorf("spec code %q has no clean_requirement", code)
+		}
 		want := specSeverityToLocal(mapping.SeverityDefault)
 		if want == "" {
 			t.Errorf("spec code %q has unrecognized severity_default %q", code, mapping.SeverityDefault)
@@ -48,15 +63,15 @@ func TestCodeSeverityMatchesSpec(t *testing.T) {
 	}
 }
 
-// TestMaturityLadderGateAdvisorySplit encodes the Phase 5 honesty contract:
-// L0–L3 are enforced gates (an ERROR/BLOCKER, non-advisory finding can block
-// local maturity), while L4–L5 are advisory tiers (measured, never gating).
-// This is the anti-drift guard that keeps the ladder from silently overselling
-// L4/L5 as enforced — or from a future edit promoting an L4/L5 finding to a
-// blocker.
-func TestMaturityLadderGateAdvisorySplit(t *testing.T) {
+// TestMaturityCapabilitiesGateAdvisorySplit encodes the honesty contract:
+// capability foundations can gate local maturity, while coverage-quality and
+// stability-traceability remain measured, non-blocking hardening signals.
+func TestMaturityCapabilitiesGateAdvisorySplit(t *testing.T) {
 	spec := loadSpec(t)
-	advisoryTier := map[string]bool{"L4": true, "L5": true}
+	advisoryCapabilities := map[string]bool{
+		"coverage_quality":       true,
+		"stability_traceability": true,
+	}
 
 	gates := 0
 	for code, m := range spec.Findings {
@@ -66,15 +81,15 @@ func TestMaturityLadderGateAdvisorySplit(t *testing.T) {
 		// (mirrors maturity-go's blocksLocalMaturity).
 		gating := sev == "error" && !isAdvisory
 
-		if advisoryTier[m.LocalLevelImpact] {
+		if advisoryCapabilities[m.CapabilityID] {
 			if !isAdvisory {
-				t.Errorf("L4/L5 finding %q must be global_impact=advisory (non-gating), got %q", code, m.GlobalImpact)
+				t.Errorf("advisory capability finding %q must be global_impact=advisory (non-gating), got %q", code, m.GlobalImpact)
 			}
 			if sev == "error" {
-				t.Errorf("L4/L5 finding %q must not be ERROR severity (advisory tier never blocks)", code)
+				t.Errorf("advisory capability finding %q must not be ERROR severity", code)
 			}
 			if gating {
-				t.Errorf("L4/L5 finding %q must never gate local maturity", code)
+				t.Errorf("advisory capability finding %q must never gate local maturity", code)
 			}
 		} else if gating {
 			gates++

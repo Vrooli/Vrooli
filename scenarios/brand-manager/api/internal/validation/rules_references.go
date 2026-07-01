@@ -53,11 +53,11 @@ func referencedAssetIssues(c *scanContext) map[string]any {
 	checkRef(c.root, "link:mask-icon", linkHref(h, "mask-icon"), out, true)
 
 	// Social preview images — not covered by any other rule.
-	if v, ok := h.metaByProperty("og:image"); ok {
-		checkRef(c.root, "meta:og:image", v, out, true)
+	for _, m := range h.metasByProperty("og:image") {
+		checkRef(c.root, nextRefKey(out, "meta:og:image"), m.content, out, true)
 	}
-	if v, ok := h.metaByName("twitter:image"); ok {
-		checkRef(c.root, "meta:twitter:image", v, out, true)
+	for _, m := range h.metasByName("twitter:image") {
+		checkRef(c.root, nextRefKey(out, "meta:twitter:image"), m.content, out, true)
 	}
 
 	// Manifest icons: existence + emptiness + best-effort dimension match.
@@ -90,6 +90,18 @@ func referencedAssetIssues(c *scanContext) map[string]any {
 		}
 	}
 	return out
+}
+
+func nextRefKey(out map[string]any, base string) string {
+	if _, exists := out[base]; !exists {
+		return base
+	}
+	for i := 1; ; i++ {
+		key := fmt.Sprintf("%s[%d]", base, i)
+		if _, exists := out[key]; !exists {
+			return key
+		}
+	}
 }
 
 // linkHref returns the href of the first <link rel=rel>, or "" when absent.

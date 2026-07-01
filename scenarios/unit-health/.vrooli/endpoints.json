@@ -112,6 +112,64 @@
           "description": "Scenario/path is missing or cannot be resolved"
         }
       ]
+    },
+    {
+      "id": "scenario_validation_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview unit validation fixes",
+      "description": "Returns unimplemented because Unit Health currently has no deterministic fixer.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "finding_code": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "message": "string",
+          "status": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Unit Health has no deterministic fixer"
+        }
+      ]
+    },
+    {
+      "id": "scenario_validation_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply unit validation fixes",
+      "description": "Returns unimplemented because Unit Health currently has no deterministic fixer.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "finding_code": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "message": "string",
+          "status": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Unit Health has no deterministic fixer"
+        }
+      ]
     }
   ]
 }

@@ -38,12 +38,31 @@ func TestMaturityLadderIsWellFormed(t *testing.T) {
 		t.Fatal("maturity spec has no finding mappings")
 	}
 
-	levelIDs := map[string]bool{}
-	for _, lvl := range spec.Levels {
-		levelIDs[lvl.ID] = true
+	capabilityLevels := map[string]map[string]bool{}
+	if len(spec.Capabilities) == 0 {
+		capabilityLevels[""] = map[string]bool{}
+		for _, lvl := range spec.Levels {
+			capabilityLevels[""][lvl.ID] = true
+		}
+	} else {
+		for _, capability := range spec.Capabilities {
+			if capability.ID == "" {
+				t.Fatal("maturity capability has empty id")
+			}
+			if capability.Label == "" {
+				t.Fatalf("maturity capability %q has empty label", capability.ID)
+			}
+			capabilityLevels[capability.ID] = map[string]bool{}
+			for _, lvl := range capability.Levels {
+				capabilityLevels[capability.ID][lvl.ID] = true
+			}
+		}
 	}
 
 	for code, m := range spec.Findings {
+		if len(spec.Capabilities) > 0 && m.CapabilityID == "" {
+			t.Errorf("%s: empty capability_id", code)
+		}
 		if m.LocalLevelImpact == "" {
 			t.Errorf("%s: empty local_level_impact", code)
 		}
@@ -53,11 +72,16 @@ func TestMaturityLadderIsWellFormed(t *testing.T) {
 		if m.SeverityDefault == "" {
 			t.Errorf("%s: empty severity_default", code)
 		}
-		// local_level_impact references a defined level (e.g. L0–L4) unless it
-		// is the foundation_blocker sentinel used for unresolvable skeletons.
-		if m.LocalLevelImpact != "" && !levelIDs[m.LocalLevelImpact] &&
+		if m.CleanRequirement == "" {
+			t.Errorf("%s: empty clean_requirement", code)
+		}
+		levels := capabilityLevels[m.CapabilityID]
+		// local_level_impact references a level defined on the owning capability
+		// unless it is the foundation_blocker sentinel used for unresolvable
+		// skeletons in legacy specs.
+		if m.LocalLevelImpact != "" && !levels[m.LocalLevelImpact] &&
 			string(m.GlobalImpact) != "foundation_blocker" {
-			t.Errorf("%s: local_level_impact %q is not a defined level", code, m.LocalLevelImpact)
+			t.Errorf("%s: local_level_impact %q is not a defined level for capability %q", code, m.LocalLevelImpact, m.CapabilityID)
 		}
 	}
 }

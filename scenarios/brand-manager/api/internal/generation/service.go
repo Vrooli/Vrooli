@@ -64,6 +64,9 @@ const (
 	kindFavicon         = "favicon"
 	kindLogoTransparent = "logo-transparent"
 
+	openRouterRoleLogoGenerate = "image.generate.logo"
+	openRouterRoleLogoEdit     = "image.edit.identity"
+
 	// defaultIconBackground is the solid background used for opaque icon variants
 	// when the brand has no usable primary color.
 	defaultIconBackground = "#ffffff"
@@ -295,6 +298,7 @@ func (s *service) GenerateImage(ctx context.Context, in GenerateImageInput) (Ima
 		NegativePrompt: logoNegativePrompt,
 		Width:          spec.width,
 		Height:         spec.height,
+		OpenRouterRole: openRouterRoleLogoGenerate,
 		ModelOverride:  in.ModelOverride,
 		AllowBYOK:      brandImageAllowBYOK(in.AllowBYOK, in.FallbackPolicy),
 		QualityPolicy:  brandImageQualityPolicy(in.QualityPolicy),
@@ -326,6 +330,7 @@ func (s *service) EditImage(ctx context.Context, in EditImageInput) (ImageResult
 	out, err := s.images.Edit(ctx, ImageEditRequest{
 		Source:         src.Content,
 		Instruction:    instruction,
+		OpenRouterRole: openRouterRoleLogoEdit,
 		ModelOverride:  in.ModelOverride,
 		AllowBYOK:      brandImageAllowBYOK(in.AllowBYOK, in.FallbackPolicy),
 		QualityPolicy:  brandImageQualityPolicy(in.QualityPolicy),
@@ -486,7 +491,7 @@ func (s *service) storeImage(ctx context.Context, brandID, kind string, out Imag
 	}
 	stored, err := s.assets.Store(ctx, AssetUpload{
 		BrandID:  brandID,
-		Filename: s.uniqueFilename(kind),
+		Filename: s.uniqueFilename(kind, mime),
 		MimeType: mime,
 		Content:  out.Data,
 	})
@@ -496,7 +501,7 @@ func (s *service) storeImage(ctx context.Context, brandID, kind string, out Imag
 
 	canonical := setCanonical
 	if !canonical {
-		exists, existsErr := s.assets.Exists(ctx, brandID, canonicalFilename(kind))
+		exists, existsErr := s.assets.Exists(ctx, brandID, canonicalFilename(kind, mime))
 		if existsErr != nil {
 			return ImageResult{}, existsErr
 		}
@@ -505,7 +510,7 @@ func (s *service) storeImage(ctx context.Context, brandID, kind string, out Imag
 	if canonical {
 		if _, err := s.assets.Store(ctx, AssetUpload{
 			BrandID:  brandID,
-			Filename: canonicalFilename(kind),
+			Filename: canonicalFilename(kind, mime),
 			MimeType: mime,
 			Content:  out.Data,
 		}); err != nil {
@@ -555,12 +560,25 @@ func (s *service) storeDerived(ctx context.Context, brandID string, v iconVarian
 	}, nil
 }
 
-func (s *service) uniqueFilename(kind string) string {
-	return kind + "-" + s.idGen() + ".png"
+func (s *service) uniqueFilename(kind, mime string) string {
+	return kind + "-" + s.idGen() + imageExtension(mime)
 }
 
-func canonicalFilename(kind string) string {
-	return kind + ".png"
+func canonicalFilename(kind, mime string) string {
+	return kind + imageExtension(mime)
+}
+
+func imageExtension(mime string) string {
+	switch strings.ToLower(strings.TrimSpace(strings.Split(mime, ";")[0])) {
+	case "image/svg+xml":
+		return ".svg"
+	case "image/jpeg":
+		return ".jpg"
+	case "image/webp":
+		return ".webp"
+	default:
+		return ".png"
+	}
 }
 
 // normalizeHexColor returns a "#rrggbb" color for an icon background, defaulting

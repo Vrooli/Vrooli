@@ -152,6 +152,7 @@ func TestGenerateImage_RoutesThroughImageToolsAndAutoPromotesFirstCanonical(t *t
 			require.Equal(t, "any", req.FallbackPolicy)
 			require.Equal(t, "service", req.Priority)
 			require.True(t, req.AllowReclaim)
+			require.Equal(t, "image.generate.logo", req.OpenRouterRole)
 			return generation.ImageOutput{Data: []byte("\x89PNGlogo"), MimeType: "image/png", ModelID: "sd-1.5", Tier: "local-gpu"}, nil
 		},
 	}
@@ -197,6 +198,28 @@ func TestGenerateImage_LocalOnlyEscapeHatchDisablesBYOKAndReclaim(t *testing.T) 
 		AllowReclaim:   &allowReclaim,
 	})
 	require.NoError(t, err)
+}
+
+func TestGenerateImage_UsesExtensionFromMimeType(t *testing.T) {
+	brands := &mocks.FakeBrandStore{}
+	brands.Seed(generation.BrandView{ID: "b1", Name: "Acme"})
+	images := &mocks.FakeImageBackend{
+		GenerateResponder: func(generation.ImageGenerateRequest) (generation.ImageOutput, error) {
+			return generation.ImageOutput{Data: []byte("<svg></svg>"), MimeType: "image/svg+xml", ModelID: "openrouter-image", Tier: "byok-cloud"}, nil
+		},
+	}
+	assets := &mocks.FakeAssetStore{}
+	svc := newService(t, &mocks.FakeProviders{}, images, brands, assets)
+
+	res, err := svc.GenerateImage(context.Background(), generation.GenerateImageInput{BrandID: "b1", Type: "logo"})
+	require.NoError(t, err)
+	require.Equal(t, "logo-u1.svg", res.Filename)
+	require.Equal(t, "image/svg+xml", res.MimeType)
+
+	stored := assets.StoredUploads()
+	require.Len(t, stored, 2)
+	require.Equal(t, "logo-u1.svg", stored[0].Filename)
+	require.Equal(t, "logo.svg", stored[1].Filename)
 }
 
 func TestGenerateImage_DoesNotOverwriteExistingCanonicalUnlessRequested(t *testing.T) {
@@ -274,6 +297,7 @@ func TestEditImage_LoadsSourceAndStoresNewAsset(t *testing.T) {
 			require.Equal(t, "any", req.FallbackPolicy)
 			require.Equal(t, "service", req.Priority)
 			require.True(t, req.AllowReclaim)
+			require.Equal(t, "image.edit.identity", req.OpenRouterRole)
 			return generation.ImageOutput{Data: []byte("edited"), MimeType: "image/png", ModelID: "ip2p", Tier: "local-gpu"}, nil
 		},
 	}

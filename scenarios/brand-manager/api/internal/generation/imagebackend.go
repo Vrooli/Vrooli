@@ -47,6 +47,7 @@ type ImageGenerateRequest struct {
 	NegativePrompt string
 	Width          int
 	Height         int
+	OpenRouterRole string
 	ModelOverride  string
 	AllowBYOK      bool
 	QualityPolicy  string
@@ -60,6 +61,7 @@ type ImageGenerateRequest struct {
 type ImageEditRequest struct {
 	Source         []byte
 	Instruction    string
+	OpenRouterRole string
 	ModelOverride  string
 	AllowBYOK      bool
 	QualityPolicy  string

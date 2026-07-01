@@ -2,565 +2,1197 @@
   "provider": "ui-health",
   "phase": "ui-health",
   "version": "2.0.0",
-  "levels": [
+  "capabilities": [
     {
-      "id": "L0",
-      "name": "Manifest foundation / no UI surface",
-      "description": "The target scenario has no UI surface, or its service.json / template UI manifest cannot be read and parsed. Nothing further can be assessed until the foundation is readable.",
-      "entry_criteria": ["Scenario exists in the repository"],
-      "exit_criteria": ["A UI surface is discoverable and service.json + the template ui/manifest.json parse"]
+      "id": "manifest_contract",
+      "label": "Manifest Contract",
+      "description": "UI surface discoverability, service.json validity, template UI manifest compatibility, overlay compatibility, and slot filesystem alignment.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "No UI surface",
+          "status_label": "Unavailable",
+          "description": "No readable UI surface or UI manifest contract is available.",
+          "capability_summary": "No readable UI surface or UI manifest contract is available.",
+          "next_unlock": "A discoverable UI surface with parseable service.json and template manifest."
+        },
+        {
+          "id": "L1",
+          "name": "Readable surface",
+          "status_label": "Foundation",
+          "description": "The UI surface can be found and parsed.",
+          "capability_summary": "The UI surface can be found and parsed.",
+          "next_unlock": "A valid template contract, overlay, and slot filesystem."
+        },
+        {
+          "id": "L2",
+          "name": "Template-aligned",
+          "status_label": "Basic",
+          "description": "The UI declares a known template and compatible contract shape.",
+          "capability_summary": "The UI declares a known template and compatible contract shape.",
+          "next_unlock": "Clean overlay and slot alignment."
+        },
+        {
+          "id": "L3",
+          "name": "Slot-aligned",
+          "status_label": "Ready",
+          "description": "Slots, overlays, and path patterns are aligned enough for validation.",
+          "capability_summary": "Slots, overlays, and path patterns are aligned enough for validation.",
+          "next_unlock": "No manifest-contract drift remains."
+        },
+        {
+          "id": "L4",
+          "name": "Contract clean",
+          "status_label": "Strong",
+          "description": "The manifest contract has no blocking findings.",
+          "capability_summary": "The manifest contract has no blocking findings.",
+          "next_unlock": "Maximum manifest-contract maturity."
+        },
+        {
+          "id": "L5",
+          "name": "Contract authority",
+          "status_label": "Complete",
+          "description": "The UI manifest contract is fully clean and ready for downstream providers.",
+          "capability_summary": "The UI manifest contract is fully clean and ready for downstream providers."
+        }
+      ]
     },
     {
-      "id": "L1",
-      "name": "Manifest valid + static interop clean",
-      "description": "The UI manifest contract is valid (kind/schema/slots, overlay compatibility, slot-filesystem alignment, path-pattern vocabulary) AND every static UI-interop check passes: bridge dep/init/guard/appId, vite base, router basename, no hardcoded localhost, server standards, resolveApiBase-single, proxy-base preservation, shortcut relay / no scattered keydown, protective comments, spatial-nav-init, helmet frame-ancestors, focus-visible, banned-scroll/scrollIntoView, h-screen.",
-      "entry_criteria": ["A UI surface is discoverable"],
-      "exit_criteria": ["No manifest validation or static UI-interop findings remain"]
+      "id": "interop",
+      "label": "Interop",
+      "description": "Iframe, proxy, tunnel, localhost, API-base, router, shortcut, viewport, and focus correctness across Vrooli deployment contexts.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "Not embeddable",
+          "status_label": "Unavailable",
+          "description": "Required interop primitives are absent or unreadable.",
+          "capability_summary": "Required interop primitives are absent or unreadable.",
+          "next_unlock": "Iframe bridge, relative base, and proxy-aware route foundations."
+        },
+        {
+          "id": "L1",
+          "name": "Interop foundation",
+          "status_label": "Foundation",
+          "description": "Core bridge, Vite base, router basename, and API-base patterns are present.",
+          "capability_summary": "Core bridge, Vite base, router basename, and API-base patterns are present.",
+          "next_unlock": "Proxy/tunnel-safe runtime behavior."
+        },
+        {
+          "id": "L2",
+          "name": "Proxy safe",
+          "status_label": "Basic",
+          "description": "Assets, API calls, and routes survive proxy and tunnel contexts.",
+          "capability_summary": "Assets, API calls, and routes survive proxy and tunnel contexts.",
+          "next_unlock": "Shortcut, focus, viewport, and server hardening."
+        },
+        {
+          "id": "L3",
+          "name": "Embedded ready",
+          "status_label": "Ready",
+          "description": "The UI embeds safely without host scroll, shortcut, focus, or frame-ancestor drift.",
+          "capability_summary": "The UI embeds safely without host scroll, shortcut, focus, or frame-ancestor drift.",
+          "next_unlock": "Interop hardening debt eliminated."
+        },
+        {
+          "id": "L4",
+          "name": "Interop strong",
+          "status_label": "Strong",
+          "description": "Static interop checks are clean and safe-subset fixers are available.",
+          "capability_summary": "Static interop checks are clean and safe-subset fixers are available.",
+          "next_unlock": "Maximum interop maturity."
+        },
+        {
+          "id": "L5",
+          "name": "Interop complete",
+          "status_label": "Complete",
+          "description": "The UI is fully proxy, tunnel, localhost, and iframe safe.",
+          "capability_summary": "The UI is fully proxy, tunnel, localhost, and iframe safe."
+        }
+      ]
     },
     {
-      "id": "L2",
-      "name": "Freshness + code-facts wired",
-      "description": "The built UI bundle is fresh per the canonical content-hash freshness engine (not an mtime heuristic), and UI presence/framework are resolved via the code-facts authority rather than hand-rolled directory/port probing.",
-      "entry_criteria": ["Manifest and static interop are clean"],
-      "exit_criteria": ["The UI bundle is fresh and code-facts resolves the UI surface and framework"]
+      "id": "freshness",
+      "label": "Freshness",
+      "description": "Content-hash bundle freshness and code-facts UI/framework authority.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "Unknown bundle",
+          "status_label": "Unavailable",
+          "description": "The built UI bundle cannot be trusted against source.",
+          "capability_summary": "The built UI bundle cannot be trusted against source.",
+          "next_unlock": "A content-hash freshness baseline."
+        },
+        {
+          "id": "L1",
+          "name": "Freshness foundation",
+          "status_label": "Foundation",
+          "description": "The UI build artifacts are discoverable.",
+          "capability_summary": "The UI build artifacts are discoverable.",
+          "next_unlock": "Code-facts backed UI/framework detection."
+        },
+        {
+          "id": "L2",
+          "name": "Bundle fresh",
+          "status_label": "Ready",
+          "description": "The built UI bundle matches source through the canonical freshness engine.",
+          "capability_summary": "The built UI bundle matches source through the canonical freshness engine.",
+          "next_unlock": "Stable freshness reporting in provider summaries."
+        },
+        {
+          "id": "L3",
+          "name": "Freshness strong",
+          "status_label": "Strong",
+          "description": "Freshness and code-facts authority are wired into the provider.",
+          "capability_summary": "Freshness and code-facts authority are wired into the provider.",
+          "next_unlock": "Maximum freshness maturity."
+        },
+        {
+          "id": "L4",
+          "name": "Freshness clean",
+          "status_label": "Complete",
+          "description": "Freshness validation reports no blocking drift.",
+          "capability_summary": "Freshness validation reports no blocking drift."
+        },
+        {
+          "id": "L5",
+          "name": "Freshness authority",
+          "status_label": "Complete",
+          "description": "Freshness is fully clean and ready for downstream runtime validation.",
+          "capability_summary": "Freshness is fully clean and ready for downstream runtime validation."
+        }
+      ]
     },
     {
-      "id": "L3",
-      "name": "Runtime render passes",
-      "description": "Driven in a real browser via browser-automation-studio, the live UI renders correctly: iframe-bridge handshake succeeds, the storage shim engages, zero console errors, assets/proxy load, the shortcut relay reaches the host, and spatial focus works. When BAS or the UI is unavailable, runtime checks are skipped (not failed) and do not falsely grant this rung.",
-      "entry_criteria": ["Freshness and code-facts are wired"],
-      "exit_criteria": ["All runtime/render checks pass when BAS is available"]
+      "id": "runtime_render",
+      "label": "Runtime Render",
+      "description": "Browser-driven render, handshake, console, network, asset, storage shim, spatial focus, and visual correctness checks.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "Not runnable",
+          "status_label": "Unavailable",
+          "description": "The live UI cannot be loaded for runtime validation.",
+          "capability_summary": "The live UI cannot be loaded for runtime validation.",
+          "next_unlock": "A reachable UI and browser automation path."
+        },
+        {
+          "id": "L1",
+          "name": "Runtime foundation",
+          "status_label": "Foundation",
+          "description": "The UI can be driven in a browser when BAS and the target are available.",
+          "capability_summary": "The UI can be driven in a browser when BAS and the target are available.",
+          "next_unlock": "A successful iframe handshake and basic render."
+        },
+        {
+          "id": "L2",
+          "name": "Render baseline",
+          "status_label": "Basic",
+          "description": "The UI loads and reaches an inspectable render state.",
+          "capability_summary": "The UI loads and reaches an inspectable render state.",
+          "next_unlock": "Clean console, network, asset, and page-error checks."
+        },
+        {
+          "id": "L3",
+          "name": "Runtime ready",
+          "status_label": "Ready",
+          "description": "Runtime render, handshake, console, network, visual, and focus checks pass when available.",
+          "capability_summary": "Runtime render, handshake, console, network, visual, and focus checks pass when available.",
+          "next_unlock": "Visual hardening debt eliminated."
+        },
+        {
+          "id": "L4",
+          "name": "Runtime strong",
+          "status_label": "Strong",
+          "description": "Runtime and visual checks are clean across the provider surface.",
+          "capability_summary": "Runtime and visual checks are clean across the provider surface.",
+          "next_unlock": "Maximum runtime maturity."
+        },
+        {
+          "id": "L5",
+          "name": "Runtime complete",
+          "status_label": "Complete",
+          "description": "Browser-driven UI validation is fully clean.",
+          "capability_summary": "Browser-driven UI validation is fully clean."
+        }
+      ]
     },
     {
-      "id": "L4",
-      "name": "Net-new standards + auto-fix implemented",
-      "description": "The project UI standards pass — i18n locale parity, design-token usage with no raw hex, accessibility (axe/WCAG), favicon/webmanifest/viewport, and strict-config + react-stability lint — and the safe-subset auto-fixers for the mechanical findings are implemented (fixer_status=implemented), not merely declared.",
-      "entry_criteria": ["Runtime render passes"],
-      "exit_criteria": ["Net-new UI standards pass and the declared safe fixers exist"]
+      "id": "project_standards",
+      "label": "Project Standards",
+      "description": "i18n parity, design-token discipline, accessibility harness, strict TypeScript config, and React stability lint.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "Standards absent",
+          "status_label": "Unavailable",
+          "description": "Project UI standards cannot be evaluated.",
+          "capability_summary": "Project UI standards cannot be evaluated.",
+          "next_unlock": "Baseline standards files and test harnesses."
+        },
+        {
+          "id": "L1",
+          "name": "Standards foundation",
+          "status_label": "Foundation",
+          "description": "The UI has the basic files needed for standards validation.",
+          "capability_summary": "The UI has the basic files needed for standards validation.",
+          "next_unlock": "i18n, token, accessibility, strict-config, and lint coverage."
+        },
+        {
+          "id": "L2",
+          "name": "Standards basic",
+          "status_label": "Basic",
+          "description": "Core standards are present with visible hardening debt.",
+          "capability_summary": "Core standards are present with visible hardening debt.",
+          "next_unlock": "Clean i18n parity, token use, a11y harness, and strict config."
+        },
+        {
+          "id": "L3",
+          "name": "Standards ready",
+          "status_label": "Ready",
+          "description": "Project standards checks are mostly clean and actionable.",
+          "capability_summary": "Project standards checks are mostly clean and actionable.",
+          "next_unlock": "Safe-subset standards fixers implemented."
+        },
+        {
+          "id": "L4",
+          "name": "Standards strong",
+          "status_label": "Strong",
+          "description": "Net-new UI standards pass and safe mechanical fixers exist.",
+          "capability_summary": "Net-new UI standards pass and safe mechanical fixers exist.",
+          "next_unlock": "Maximum project-standards maturity."
+        },
+        {
+          "id": "L5",
+          "name": "Standards complete",
+          "status_label": "Complete",
+          "description": "Project standards are fully clean and self-healing for the mechanical subset.",
+          "capability_summary": "Project standards are fully clean and self-healing for the mechanical subset."
+        }
+      ]
     },
     {
-      "id": "L5",
-      "name": "Full UI authority",
-      "description": "The entire fixable universe is implemented with zero pending fixers; static and runtime check groups are all green; the consolidated report carries no blocking findings. The scenario's UI is fully validated and self-healing for the mechanical subset.",
-      "entry_criteria": ["Net-new standards and safe auto-fixers are in place"],
-      "exit_criteria": ["Zero pending fixers and no blocking findings across all check groups"]
+      "id": "pwa_native_readiness",
+      "label": "PWA Native Readiness",
+      "description": "Install metadata, manifest baseline, launch colors, standalone display, and future service-worker/offline native-feel behavior.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "No install surface",
+          "status_label": "Unavailable",
+          "description": "No usable web app install metadata is present.",
+          "capability_summary": "No usable web app install metadata is present.",
+          "next_unlock": "Manifest link, viewport, icons, theme colors, and standalone display metadata."
+        },
+        {
+          "id": "L1",
+          "name": "Install baseline",
+          "status_label": "Basic",
+          "description": "Manifest, favicon, viewport, and install metadata are present.",
+          "capability_summary": "Manifest, favicon, viewport, and install metadata are present.",
+          "next_unlock": "Service worker registration, offline app-shell fallback, and reload-safe cached assets."
+        },
+        {
+          "id": "L2",
+          "name": "Launch ready",
+          "status_label": "Ready",
+          "description": "Install metadata and launch scope are ready for native-feeling web app use.",
+          "capability_summary": "Install metadata and launch scope are ready for native-feeling web app use.",
+          "next_unlock": "Deep-link and scope validation."
+        },
+        {
+          "id": "L3",
+          "name": "Offline ready",
+          "status_label": "Strong",
+          "description": "The UI can reload safely and present an app shell offline.",
+          "capability_summary": "The UI can reload safely and present an app shell offline.",
+          "next_unlock": "Optional platform capabilities such as shortcuts and share targets."
+        },
+        {
+          "id": "L4",
+          "name": "Platform enhanced",
+          "status_label": "Strong",
+          "description": "Optional manifest/platform capabilities are validated when declared.",
+          "capability_summary": "Optional manifest/platform capabilities are validated when declared.",
+          "next_unlock": "Maximum PWA/native-readiness maturity."
+        },
+        {
+          "id": "L5",
+          "name": "Native ready",
+          "status_label": "Complete",
+          "description": "Installability, launch, offline, and declared platform capabilities are fully clean.",
+          "capability_summary": "Installability, launch, offline, and declared platform capabilities are fully clean."
+        }
+      ]
     }
   ],
   "findings": {
     "no_ui_surface": {
+      "capability_id": "manifest_contract",
       "local_level_impact": "L0",
       "global_impact": "advisory",
       "dimension": "ui",
       "severity_default": "SEVERITY_INFO",
-      "recommended_skill_ids": ["ecosystem-fit"]
+      "recommended_skill_ids": [
+        "ecosystem-fit"
+      ],
+      "clean_requirement": "advisory"
     },
     "service_json_missing": {
+      "capability_id": "manifest_contract",
       "local_level_impact": "L0",
       "global_impact": "foundation_blocker",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["ecosystem-fit"]
+      "recommended_skill_ids": [
+        "ecosystem-fit"
+      ],
+      "clean_requirement": "required"
     },
     "service_json_invalid": {
+      "capability_id": "manifest_contract",
       "local_level_impact": "L0",
       "global_impact": "foundation_blocker",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["ecosystem-fit"]
+      "recommended_skill_ids": [
+        "ecosystem-fit"
+      ],
+      "clean_requirement": "required"
     },
     "template_id_missing": {
+      "capability_id": "manifest_contract",
       "local_level_impact": "L0",
       "global_impact": "advisory",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["ecosystem-fit", "react-coherence"]
+      "recommended_skill_ids": [
+        "ecosystem-fit",
+        "react-coherence"
+      ],
+      "clean_requirement": "advisory"
     },
     "template_unknown": {
+      "capability_id": "manifest_contract",
       "local_level_impact": "L0",
       "global_impact": "foundation_blocker",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["ecosystem-fit"]
+      "recommended_skill_ids": [
+        "ecosystem-fit"
+      ],
+      "clean_requirement": "required"
     },
     "template_manifest_invalid": {
+      "capability_id": "manifest_contract",
       "local_level_impact": "L0",
       "global_impact": "foundation_blocker",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "ui_predates_template_layout": {
+      "capability_id": "manifest_contract",
       "local_level_impact": "L1",
       "global_impact": "advisory",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["ux", "react-coherence"]
+      "recommended_skill_ids": [
+        "ux",
+        "react-coherence"
+      ],
+      "clean_requirement": "advisory"
     },
     "contract_kind_mismatch": {
+      "capability_id": "manifest_contract",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "contract_schema_mismatch": {
+      "capability_id": "manifest_contract",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "slots_empty": {
+      "capability_id": "manifest_contract",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "overlay_read_failed": {
+      "capability_id": "manifest_contract",
       "local_level_impact": "L1",
       "global_impact": "foundation_blocker",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "overlay_invalid": {
+      "capability_id": "manifest_contract",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "overlay_unknown_slot": {
+      "capability_id": "manifest_contract",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-coherence", "ux"]
+      "recommended_skill_ids": [
+        "react-coherence",
+        "ux"
+      ],
+      "clean_requirement": "required"
     },
     "slot_dir_empty": {
+      "capability_id": "manifest_contract",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-coherence", "ux"]
+      "recommended_skill_ids": [
+        "react-coherence",
+        "ux"
+      ],
+      "clean_requirement": "required"
     },
     "slot_dir_missing": {
+      "capability_id": "manifest_contract",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["react-coherence", "ux"],
+      "recommended_skill_ids": [
+        "react-coherence",
+        "ux"
+      ],
       "fix_class": "auto",
-      "fixer_status": "implemented"
+      "fixer_status": "implemented",
+      "clean_requirement": "required"
     },
     "slot_dir_stat_failed": {
+      "capability_id": "manifest_contract",
       "local_level_impact": "L1",
       "global_impact": "foundation_blocker",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "slot_dir_not_directory": {
+      "capability_id": "manifest_contract",
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-coherence", "ux"]
+      "recommended_skill_ids": [
+        "react-coherence",
+        "ux"
+      ],
+      "clean_requirement": "required"
     },
     "slot_parent_dir_missing": {
+      "capability_id": "manifest_contract",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["react-coherence", "ux"],
+      "recommended_skill_ids": [
+        "react-coherence",
+        "ux"
+      ],
       "fix_class": "auto",
-      "fixer_status": "implemented"
+      "fixer_status": "implemented",
+      "clean_requirement": "required"
     },
     "slot_instances_empty": {
+      "capability_id": "manifest_contract",
       "local_level_impact": "L1",
       "global_impact": "advisory",
       "dimension": "ui",
       "severity_default": "SEVERITY_INFO",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "advisory"
     },
     "path_pattern_unknown_token": {
+      "capability_id": "manifest_contract",
       "local_level_impact": "L1",
       "global_impact": "advisory",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["react-coherence", "ux"]
+      "recommended_skill_ids": [
+        "react-coherence",
+        "ux"
+      ],
+      "clean_requirement": "advisory"
     },
     "slot_dir_overlap_equal": {
+      "capability_id": "manifest_contract",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["react-coherence", "ux"]
+      "recommended_skill_ids": [
+        "react-coherence",
+        "ux"
+      ],
+      "clean_requirement": "required"
     },
     "interop_iframe_bridge_dep": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "interop_bridge_init": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "interop_bridge_app_id": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "interop_iframe_guard": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "interop_capture_enabled": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "interop_relative_base": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "interop_router_basename": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "interop_api_base_dep": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "interop_resolve_api_base_single": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "interop_proxy_base_preserved": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "interop_hardcoded_localhost": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "interop_secure_tunnel": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "interop_standard_server": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "interop_no_custom_server": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "interop_shortcut_relay": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "interop_no_scattered_keydown": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "interop_spatial_nav_init": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "interop_helmet_frame_ancestors": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
     },
     "interop_focus_visible_styles": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "advisory",
       "dimension": "ui",
       "severity_default": "SEVERITY_INFO",
-      "recommended_skill_ids": ["react-coherence", "ux"]
+      "recommended_skill_ids": [
+        "react-coherence",
+        "ux"
+      ],
+      "clean_requirement": "advisory"
     },
     "interop_banned_scroll": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "advisory",
       "dimension": "ui",
       "severity_default": "SEVERITY_INFO",
-      "recommended_skill_ids": ["react-coherence"]
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
+      "clean_requirement": "advisory"
     },
     "interop_h_screen": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["react-coherence"],
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
       "fix_class": "auto",
-      "fixer_status": "implemented"
+      "fixer_status": "implemented",
+      "clean_requirement": "required"
     },
     "interop_protective_comments": {
+      "capability_id": "interop",
       "local_level_impact": "L1",
       "global_impact": "advisory",
       "dimension": "ui",
       "severity_default": "SEVERITY_INFO",
-      "recommended_skill_ids": ["react-coherence"],
+      "recommended_skill_ids": [
+        "react-coherence"
+      ],
       "fix_class": "auto",
-      "fixer_status": "implemented"
+      "fixer_status": "implemented",
+      "clean_requirement": "advisory"
     },
     "freshness_ui_bundle_stale": {
+      "capability_id": "freshness",
       "local_level_impact": "L2",
       "global_impact": "foundation_blocker",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["ux"]
+      "recommended_skill_ids": [
+        "ux"
+      ],
+      "clean_requirement": "required"
     },
     "runtime_render_ok": {
+      "capability_id": "runtime_render",
       "local_level_impact": "L3",
       "global_impact": "advisory",
       "dimension": "ui",
       "severity_default": "SEVERITY_INFO",
-      "recommended_skill_ids": ["ux"]
+      "recommended_skill_ids": [
+        "ux"
+      ],
+      "clean_requirement": "advisory"
     },
     "runtime_handshake_failed": {
+      "capability_id": "runtime_render",
       "local_level_impact": "L3",
       "global_impact": "evolvability_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["vrooli-ui-interop", "ux"]
+      "recommended_skill_ids": [
+        "vrooli-ui-interop",
+        "ux"
+      ],
+      "clean_requirement": "required"
     },
     "runtime_network_failure": {
+      "capability_id": "runtime_render",
       "local_level_impact": "L3",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-stability", "ux"]
+      "recommended_skill_ids": [
+        "react-stability",
+        "ux"
+      ],
+      "clean_requirement": "required"
     },
     "runtime_render_broken": {
+      "capability_id": "runtime_render",
       "local_level_impact": "L3",
       "global_impact": "evolvability_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["ux"]
+      "recommended_skill_ids": [
+        "ux"
+      ],
+      "clean_requirement": "required"
     },
     "runtime_page_error": {
+      "capability_id": "runtime_render",
       "local_level_impact": "L3",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-stability", "ux"]
+      "recommended_skill_ids": [
+        "react-stability",
+        "ux"
+      ],
+      "clean_requirement": "required"
     },
     "runtime_load_failed": {
+      "capability_id": "runtime_render",
       "local_level_impact": "L3",
       "global_impact": "foundation_blocker",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-stability", "ux"]
+      "recommended_skill_ids": [
+        "react-stability",
+        "ux"
+      ],
+      "clean_requirement": "required"
     },
     "runtime_render_failed": {
+      "capability_id": "runtime_render",
       "local_level_impact": "L3",
       "global_impact": "evolvability_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["ux"]
+      "recommended_skill_ids": [
+        "ux"
+      ],
+      "clean_requirement": "required"
     },
     "runtime_console_errors": {
+      "capability_id": "runtime_render",
       "local_level_impact": "L3",
       "global_impact": "advisory",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["react-stability", "ux"]
+      "recommended_skill_ids": [
+        "react-stability",
+        "ux"
+      ],
+      "clean_requirement": "advisory"
     },
     "visual_pixel_blank": {
+      "capability_id": "runtime_render",
       "local_level_impact": "L3",
       "global_impact": "evolvability_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["ux"]
+      "recommended_skill_ids": [
+        "ux"
+      ],
+      "clean_requirement": "required"
     },
     "visual_pixel_unreadable": {
+      "capability_id": "runtime_render",
       "local_level_impact": "L3",
       "global_impact": "advisory",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["ui-health"]
+      "recommended_skill_ids": [
+        "ui-health"
+      ],
+      "clean_requirement": "advisory"
     },
     "visual_dom_blank": {
+      "capability_id": "runtime_render",
       "local_level_impact": "L3",
       "global_impact": "evolvability_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["ux"]
+      "recommended_skill_ids": [
+        "ux"
+      ],
+      "clean_requirement": "required"
     },
     "visual_broken_asset": {
+      "capability_id": "runtime_render",
       "local_level_impact": "L3",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["ux"]
+      "recommended_skill_ids": [
+        "ux"
+      ],
+      "clean_requirement": "required"
     },
     "visual_stuck_loading": {
+      "capability_id": "runtime_render",
       "local_level_impact": "L3",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["ux"]
+      "recommended_skill_ids": [
+        "ux"
+      ],
+      "clean_requirement": "required"
     },
     "visual_layout_unreadable": {
+      "capability_id": "runtime_render",
       "local_level_impact": "L3",
       "global_impact": "advisory",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["ui-health"]
+      "recommended_skill_ids": [
+        "ui-health"
+      ],
+      "clean_requirement": "advisory"
     },
     "visual_viewport_overflow": {
+      "capability_id": "runtime_render",
       "local_level_impact": "L3",
       "global_impact": "evolvability_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["ux"]
+      "recommended_skill_ids": [
+        "ux"
+      ],
+      "clean_requirement": "required"
     },
     "visual_offscreen_interactive": {
+      "capability_id": "runtime_render",
       "local_level_impact": "L3",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["ux"]
+      "recommended_skill_ids": [
+        "ux"
+      ],
+      "clean_requirement": "required"
     },
     "visual_text_clipped": {
+      "capability_id": "runtime_render",
       "local_level_impact": "L3",
       "global_impact": "advisory",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["ux"]
+      "recommended_skill_ids": [
+        "ux"
+      ],
+      "clean_requirement": "advisory"
     },
     "visual_focus_zoom_risk": {
+      "capability_id": "runtime_render",
       "local_level_impact": "L3",
       "global_impact": "advisory",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["ux"]
+      "recommended_skill_ids": [
+        "ux"
+      ],
+      "clean_requirement": "advisory"
     },
     "visual_blocking_overlay": {
+      "capability_id": "runtime_render",
       "local_level_impact": "L3",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["ux"]
+      "recommended_skill_ids": [
+        "ux"
+      ],
+      "clean_requirement": "required"
     },
     "runtime_skipped_ui_unavailable": {
+      "capability_id": "runtime_render",
       "local_level_impact": "L3",
       "global_impact": "advisory",
       "dimension": "ui",
       "severity_default": "SEVERITY_INFO",
-      "recommended_skill_ids": ["ux"]
+      "recommended_skill_ids": [
+        "ux"
+      ],
+      "clean_requirement": "advisory"
     },
     "runtime_skipped_bas_unavailable": {
+      "capability_id": "runtime_render",
       "local_level_impact": "L3",
       "global_impact": "advisory",
       "dimension": "ui",
       "severity_default": "SEVERITY_INFO",
-      "recommended_skill_ids": ["ux"]
+      "recommended_skill_ids": [
+        "ux"
+      ],
+      "clean_requirement": "advisory"
     },
     "standard_i18n_locale_parity": {
+      "capability_id": "project_standards",
       "local_level_impact": "L4",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["ux", "react-coherence"],
+      "recommended_skill_ids": [
+        "ux",
+        "react-coherence"
+      ],
       "fix_class": "auto",
-      "fixer_status": "implemented"
+      "fixer_status": "implemented",
+      "clean_requirement": "required"
     },
     "standard_no_raw_hex": {
+      "capability_id": "project_standards",
       "local_level_impact": "L4",
       "global_impact": "advisory",
       "dimension": "ui",
       "severity_default": "SEVERITY_INFO",
-      "recommended_skill_ids": ["ux", "react-coherence"]
+      "recommended_skill_ids": [
+        "ux",
+        "react-coherence"
+      ],
+      "clean_requirement": "advisory"
     },
     "standard_a11y_harness": {
+      "capability_id": "project_standards",
       "local_level_impact": "L4",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["ux"]
+      "recommended_skill_ids": [
+        "ux"
+      ],
+      "clean_requirement": "required"
     },
     "standard_pwa_manifest": {
+      "capability_id": "pwa_native_readiness",
       "local_level_impact": "L4",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["ux", "react-coherence"]
+      "recommended_skill_ids": [
+        "ux",
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
+    },
+    "pwa_manifest_install_fields": {
+      "capability_id": "pwa_native_readiness",
+      "local_level_impact": "L1",
+      "global_impact": "capability_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": [
+        "ux",
+        "react-coherence"
+      ],
+      "clean_requirement": "required"
+    },
+    "pwa_launch_scope": {
+      "capability_id": "pwa_native_readiness",
+      "local_level_impact": "L2",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": [
+        "ux",
+        "vrooli-ui-interop"
+      ],
+      "clean_requirement": "required"
+    },
+    "pwa_service_worker_offline": {
+      "capability_id": "pwa_native_readiness",
+      "local_level_impact": "L3",
+      "global_impact": "capability_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": [
+        "react-stability",
+        "ux"
+      ],
+      "clean_requirement": "required"
+    },
+    "pwa_optional_platform_fields": {
+      "capability_id": "pwa_native_readiness",
+      "local_level_impact": "L4",
+      "global_impact": "advisory",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": [
+        "ux"
+      ],
+      "clean_requirement": "advisory"
     },
     "standard_tsconfig_strict": {
+      "capability_id": "project_standards",
       "local_level_impact": "L4",
       "global_impact": "evolvability_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["react-stability"],
+      "recommended_skill_ids": [
+        "react-stability"
+      ],
       "fix_class": "auto",
-      "fixer_status": "implemented"
+      "fixer_status": "implemented",
+      "clean_requirement": "required"
     },
     "standard_eslint_stability": {
+      "capability_id": "project_standards",
       "local_level_impact": "L4",
       "global_impact": "hardening_gap",
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["react-stability"]
+      "recommended_skill_ids": [
+        "react-stability"
+      ],
+      "clean_requirement": "required"
     }
   },
   "fallback": {
+    "capability_id": "manifest_contract",
     "local_level_impact": "L1",
     "global_impact": "evolvability_gap",
     "dimension": "ui",
-    "severity_default": "SEVERITY_WARNING"
+    "severity_default": "SEVERITY_WARNING",
+    "clean_requirement": "required"
   }
 }

@@ -1,67 +1,30 @@
 {
   "provider": "proto-health",
   "phase": "proto",
-  "version": "1.0.0",
-  "levels": [
-    {
-      "id": "L0",
-      "name": "No proto surface",
-      "description": "The scenario does not expose a readable scenario-scoped proto surface.",
-      "entry_criteria": ["Scenario exists in the repository"],
-      "exit_criteria": ["Scenario proto files are discoverable in packages/proto/schemas/<scenario>/"]
-    },
-    {
-      "id": "L1",
-      "name": "Organized proto packages",
-      "description": "Proto files use the expected scenario package, version directory, domain placement, and supported annotations.",
-      "entry_criteria": ["Proto files are discoverable"],
-      "exit_criteria": ["Packages, versions, domains, annotations, and shared type placement follow the proto style guide"]
-    },
-    {
-      "id": "L2",
-      "name": "Generated artifacts synchronized",
-      "description": "Committed generated artifacts and descriptor output are in sync with schema sources.",
-      "entry_criteria": ["Proto packages are organized"],
-      "exit_criteria": ["Generated Go, Python, TypeScript, and descriptor artifacts match schema sources"]
-    },
-    {
-      "id": "L3",
-      "name": "Transport world declared",
-      "description": "The proto surface avoids hand-rolled transport drift and has explicit health proto coverage.",
-      "entry_criteria": ["Generated artifacts are synchronized"],
-      "exit_criteria": ["Transport usage is generated/proto-backed and health contracts are present where required"]
-    },
-    {
-      "id": "L4",
-      "name": "Endpoint proof aligned",
-      "description": "REST exceptions and generated proto adoption are backed by code-facts proof instead of declarations alone.",
-      "entry_criteria": ["Transport world is clear"],
-      "exit_criteria": ["Proto adoption and REST exception endpoint payloads have proven, non-contradictory implementation evidence"]
-    },
-    {
-      "id": "L5",
-      "name": "Fleet-ready proto surface",
-      "description": "The proto surface is clean enough for fleet dependency analysis and reuse/search consumers.",
-      "entry_criteria": ["Endpoint proof is aligned"],
-      "exit_criteria": ["No dependency, import, unused-type, or fleet-surface hints remain"]
-    }
-  ],
+  "version": "2.0.0",
   "findings": {
     "proto.code_facts_unavailable": {
-      "local_level_impact": "L4",
+      "local_level_impact": "L0",
       "global_impact": "advisory",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "uncheckable",
-      "recommended_skill_ids": ["proto-contract-audit"]
+      "recommended_skill_ids": [
+        "proto-contract-audit"
+      ],
+      "capability_id": "endpoint_proof"
     },
     "proto.cross_domain_import": {
-      "local_level_impact": "L5",
+      "local_level_impact": "L2",
       "global_impact": "evolvability_gap",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit", "screaming-architecture-audit"]
+      "recommended_skill_ids": [
+        "proto-contract-audit",
+        "screaming-architecture-audit"
+      ],
+      "capability_id": "dependency_reuse"
     },
     "proto.cycle": {
       "local_level_impact": "L1",
@@ -69,7 +32,11 @@
       "dimension": "cycles",
       "severity_default": "SEVERITY_ERROR",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit", "screaming-architecture-audit"]
+      "recommended_skill_ids": [
+        "proto-contract-audit",
+        "screaming-architecture-audit"
+      ],
+      "capability_id": "package_layout"
     },
     "proto.domain_mismatch": {
       "local_level_impact": "L1",
@@ -77,39 +44,56 @@
       "dimension": "proto-health",
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit"]
+      "recommended_skill_ids": [
+        "proto-contract-audit"
+      ],
+      "capability_id": "package_layout"
     },
     "proto.endpoint_proof_contradicted": {
-      "local_level_impact": "L4",
+      "local_level_impact": "L3",
       "global_impact": "evolvability_gap",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_ERROR",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit", "api-steer"]
+      "recommended_skill_ids": [
+        "proto-contract-audit",
+        "api-steer"
+      ],
+      "capability_id": "endpoint_proof"
     },
     "proto.endpoint_proof_missing": {
-      "local_level_impact": "L4",
+      "local_level_impact": "L2",
       "global_impact": "advisory",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit", "api-steer"]
+      "recommended_skill_ids": [
+        "proto-contract-audit",
+        "api-steer"
+      ],
+      "capability_id": "endpoint_proof"
     },
     "proto.endpoint_proof_unsupported": {
-      "local_level_impact": "L4",
+      "local_level_impact": "L0",
       "global_impact": "advisory",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "uncheckable",
-      "recommended_skill_ids": ["proto-contract-audit"]
+      "recommended_skill_ids": [
+        "proto-contract-audit"
+      ],
+      "capability_id": "endpoint_proof"
     },
     "proto.gen_manifest_missing": {
-      "local_level_impact": "L2",
+      "local_level_impact": "L0",
       "global_impact": "foundation_blocker",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_ERROR",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit"]
+      "recommended_skill_ids": [
+        "proto-contract-audit"
+      ],
+      "capability_id": "generation_sync"
     },
     "proto.gen_out_of_sync": {
       "local_level_impact": "L2",
@@ -117,39 +101,56 @@
       "dimension": "proto-health",
       "severity_default": "SEVERITY_ERROR",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit"]
+      "recommended_skill_ids": [
+        "proto-contract-audit"
+      ],
+      "capability_id": "generation_sync"
     },
     "proto.gen_toolchain_drift": {
-      "local_level_impact": "L2",
+      "local_level_impact": "L3",
       "global_impact": "advisory",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit"]
+      "recommended_skill_ids": [
+        "proto-contract-audit"
+      ],
+      "capability_id": "generation_sync"
     },
     "proto.hand_rolled_transport": {
-      "local_level_impact": "L3",
+      "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit", "api-steer"]
+      "recommended_skill_ids": [
+        "proto-contract-audit",
+        "api-steer"
+      ],
+      "capability_id": "transport_contracts"
     },
     "proto.import_kind_unknown": {
-      "local_level_impact": "L5",
+      "local_level_impact": "L0",
       "global_impact": "evolvability_gap",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit"]
+      "recommended_skill_ids": [
+        "proto-contract-audit"
+      ],
+      "capability_id": "dependency_reuse"
     },
     "proto.missing_health_proto": {
-      "local_level_impact": "L3",
+      "local_level_impact": "L1",
       "global_impact": "hardening_gap",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit", "test"]
+      "recommended_skill_ids": [
+        "proto-contract-audit",
+        "test"
+      ],
+      "capability_id": "transport_contracts"
     },
     "proto.package_mismatch": {
       "local_level_impact": "L1",
@@ -157,63 +158,92 @@
       "dimension": "proto-health",
       "severity_default": "SEVERITY_ERROR",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit"]
+      "recommended_skill_ids": [
+        "proto-contract-audit"
+      ],
+      "capability_id": "package_layout"
     },
     "proto.possibly_unused": {
-      "local_level_impact": "L5",
+      "local_level_impact": "L2",
       "global_impact": "advisory",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit"]
+      "recommended_skill_ids": [
+        "proto-contract-audit"
+      ],
+      "capability_id": "dependency_reuse"
     },
     "proto.proto_adoption_contradicted": {
-      "local_level_impact": "L4",
+      "local_level_impact": "L3",
       "global_impact": "evolvability_gap",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_ERROR",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit", "api-steer"]
+      "recommended_skill_ids": [
+        "proto-contract-audit",
+        "api-steer"
+      ],
+      "capability_id": "endpoint_proof"
     },
     "proto.proto_adoption_missing": {
-      "local_level_impact": "L4",
+      "local_level_impact": "L2",
       "global_impact": "advisory",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit", "api-steer"]
+      "recommended_skill_ids": [
+        "proto-contract-audit",
+        "api-steer"
+      ],
+      "capability_id": "endpoint_proof"
     },
     "proto.proto_adoption_unsupported": {
-      "local_level_impact": "L4",
+      "local_level_impact": "L0",
       "global_impact": "advisory",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "uncheckable",
-      "recommended_skill_ids": ["proto-contract-audit"]
+      "recommended_skill_ids": [
+        "proto-contract-audit"
+      ],
+      "capability_id": "endpoint_proof"
     },
     "proto.rest_payload_invalid_conformance": {
-      "local_level_impact": "L4",
+      "local_level_impact": "L2",
       "global_impact": "evolvability_gap",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_ERROR",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit", "api-steer"]
+      "recommended_skill_ids": [
+        "proto-contract-audit",
+        "api-steer"
+      ],
+      "capability_id": "transport_contracts"
     },
     "proto.rest_payload_missing_declaration": {
-      "local_level_impact": "L4",
+      "local_level_impact": "L2",
       "global_impact": "evolvability_gap",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_ERROR",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit", "api-steer"]
+      "recommended_skill_ids": [
+        "proto-contract-audit",
+        "api-steer"
+      ],
+      "capability_id": "transport_contracts"
     },
     "proto.rest_payload_unknown_message": {
-      "local_level_impact": "L4",
+      "local_level_impact": "L2",
       "global_impact": "evolvability_gap",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_ERROR",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit", "api-steer"]
+      "recommended_skill_ids": [
+        "proto-contract-audit",
+        "api-steer"
+      ],
+      "capability_id": "transport_contracts"
     },
     "proto.shared_type_misplaced": {
       "local_level_impact": "L1",
@@ -221,15 +251,22 @@
       "dimension": "proto-health",
       "severity_default": "SEVERITY_ERROR",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit"]
+      "recommended_skill_ids": [
+        "proto-contract-audit"
+      ],
+      "capability_id": "package_layout"
     },
     "proto.stability_dependency_mismatch": {
-      "local_level_impact": "L1",
+      "local_level_impact": "L2",
       "global_impact": "evolvability_gap",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_ERROR",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit", "dependency-direction-audit"]
+      "recommended_skill_ids": [
+        "proto-contract-audit",
+        "dependency-direction-audit"
+      ],
+      "capability_id": "dependency_reuse"
     },
     "proto.stability_dishonest": {
       "local_level_impact": "L1",
@@ -237,7 +274,10 @@
       "dimension": "proto-health",
       "severity_default": "SEVERITY_ERROR",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit"]
+      "recommended_skill_ids": [
+        "proto-contract-audit"
+      ],
+      "capability_id": "package_layout"
     },
     "proto.template_source": {
       "local_level_impact": "L1",
@@ -245,7 +285,10 @@
       "dimension": "proto-health",
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit"]
+      "recommended_skill_ids": [
+        "proto-contract-audit"
+      ],
+      "capability_id": "package_layout"
     },
     "proto.unsupported_annotation": {
       "local_level_impact": "L1",
@@ -253,15 +296,21 @@
       "dimension": "proto-health",
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit"]
+      "recommended_skill_ids": [
+        "proto-contract-audit"
+      ],
+      "capability_id": "package_layout"
     },
     "proto.constraint_missing_protovalidate": {
-      "local_level_impact": "L4",
+      "local_level_impact": "L2",
       "global_impact": "advisory",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit"]
+      "recommended_skill_ids": [
+        "proto-contract-audit"
+      ],
+      "capability_id": "transport_contracts"
     },
     "proto.version_naming": {
       "local_level_impact": "L1",
@@ -269,7 +318,10 @@
       "dimension": "proto-health",
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "required",
-      "recommended_skill_ids": ["proto-contract-audit"]
+      "recommended_skill_ids": [
+        "proto-contract-audit"
+      ],
+      "capability_id": "package_layout"
     }
   },
   "fallback": {
@@ -277,6 +329,183 @@
     "global_impact": "unknown",
     "dimension": "proto-health",
     "severity_default": "SEVERITY_WARNING",
-    "clean_requirement": "advisory"
-  }
+    "clean_requirement": "advisory",
+    "capability_id": "package_layout"
+  },
+  "capabilities": [
+    {
+      "id": "package_layout",
+      "label": "Package Layout",
+      "description": "Scenario proto files, packages, version directories, domain placement, imports, stability metadata, and supported annotations.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "No proto surface",
+          "status_label": "Unavailable",
+          "description": "The scenario does not expose a readable scenario-scoped proto surface.",
+          "capability_summary": "No readable proto surface is available.",
+          "next_unlock": "Scenario proto files are discoverable in packages/proto/schemas/<scenario>."
+        },
+        {
+          "id": "L1",
+          "name": "Proto surface organized",
+          "status_label": "Foundation",
+          "description": "Proto files use the expected scenario package, version directory, domain placement, and supported annotations.",
+          "capability_summary": "Proto files are organized enough for generated artifacts and downstream checks.",
+          "next_unlock": "Maximum package-layout maturity."
+        },
+        {
+          "id": "L2",
+          "name": "Package layout clean",
+          "status_label": "Complete",
+          "description": "Package, version, domain, import, stability, shared-type, and annotation contracts are clean.",
+          "capability_summary": "Proto package layout is clean."
+        }
+      ]
+    },
+    {
+      "id": "generation_sync",
+      "label": "Generation Sync",
+      "description": "Generated Go, Python, TypeScript, descriptor, and generation-manifest artifacts stay synchronized with schema sources.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "Generation manifest unavailable",
+          "status_label": "Unavailable",
+          "description": "The generation manifest needed to compare schema sources and generated artifacts is missing.",
+          "capability_summary": "Generated artifact sync cannot be evaluated.",
+          "next_unlock": "A readable generation manifest for the proto surface."
+        },
+        {
+          "id": "L1",
+          "name": "Generation manifest readable",
+          "status_label": "Foundation",
+          "description": "Generation metadata exists and can be compared with schema sources.",
+          "capability_summary": "Generated artifact sync can be evaluated.",
+          "next_unlock": "Generated artifacts match schema sources."
+        },
+        {
+          "id": "L2",
+          "name": "Artifacts synchronized",
+          "status_label": "Ready",
+          "description": "Committed generated artifacts and descriptor output match schema sources.",
+          "capability_summary": "Generated artifacts are synchronized.",
+          "next_unlock": "Toolchain provenance is current."
+        },
+        {
+          "id": "L3",
+          "name": "Toolchain current",
+          "status_label": "Complete",
+          "description": "Generated artifacts and toolchain provenance are current.",
+          "capability_summary": "Generation sync is clean."
+        }
+      ]
+    },
+    {
+      "id": "transport_contracts",
+      "label": "Transport Contracts",
+      "description": "Generated/proto-backed transport usage, health proto coverage, validation constraints, and REST payload declarations.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "Transport contract absent",
+          "status_label": "Unavailable",
+          "description": "Required generated transport or health proto contracts are absent.",
+          "capability_summary": "Transport contract coverage is not established.",
+          "next_unlock": "Generated transport and health proto declarations are present where required."
+        },
+        {
+          "id": "L1",
+          "name": "Transport declared",
+          "status_label": "Foundation",
+          "description": "Transport usage is proto-backed and required health contracts are declared.",
+          "capability_summary": "Transport and health contracts are declared.",
+          "next_unlock": "REST payload declarations and protovalidate constraints are aligned."
+        },
+        {
+          "id": "L2",
+          "name": "Payloads and constraints aligned",
+          "status_label": "Ready",
+          "description": "REST exceptions, payload conformance, and validation constraints align with proto declarations.",
+          "capability_summary": "Transport payload and validation contracts are aligned.",
+          "next_unlock": "Maximum transport-contract maturity."
+        },
+        {
+          "id": "L3",
+          "name": "Transport contracts clean",
+          "status_label": "Complete",
+          "description": "Generated transport, health proto coverage, REST payload declarations, and validation constraints are clean.",
+          "capability_summary": "Transport contracts are clean."
+        }
+      ]
+    },
+    {
+      "id": "endpoint_proof",
+      "label": "Endpoint Proof",
+      "description": "Code Facts proof for proto adoption and endpoint payload implementation evidence.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "Proof unavailable",
+          "status_label": "Unavailable",
+          "description": "Code Facts proof is unavailable or unsupported for endpoint/proto adoption checks.",
+          "capability_summary": "Endpoint proof cannot be fully evaluated.",
+          "next_unlock": "Code Facts proof is available for proto adoption and endpoints."
+        },
+        {
+          "id": "L1",
+          "name": "Proof available",
+          "status_label": "Foundation",
+          "description": "Code Facts proof can evaluate proto adoption and endpoint declarations.",
+          "capability_summary": "Endpoint proof is available.",
+          "next_unlock": "Proto adoption and endpoint payload evidence are present."
+        },
+        {
+          "id": "L2",
+          "name": "Evidence present",
+          "status_label": "Ready",
+          "description": "Proto adoption and endpoint payload declarations have implementation evidence.",
+          "capability_summary": "Endpoint proof evidence is present.",
+          "next_unlock": "No contradictory implementation evidence remains."
+        },
+        {
+          "id": "L3",
+          "name": "Proof aligned",
+          "status_label": "Complete",
+          "description": "Proto adoption and endpoint payload proof is present and non-contradictory.",
+          "capability_summary": "Endpoint proof is aligned."
+        }
+      ]
+    },
+    {
+      "id": "dependency_reuse",
+      "label": "Dependency Reuse",
+      "description": "Cross-domain imports, import-kind classification, dependency stability, and unused/reusable type hygiene.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "Reuse evidence unavailable",
+          "status_label": "Unavailable",
+          "description": "Dependency and reuse evidence cannot be classified.",
+          "capability_summary": "Proto dependency/reuse posture cannot be evaluated.",
+          "next_unlock": "Imports and reuse evidence can be classified."
+        },
+        {
+          "id": "L1",
+          "name": "Reuse comparable",
+          "status_label": "Foundation",
+          "description": "Imports, dependencies, and reusable type evidence can be compared with policy.",
+          "capability_summary": "Proto dependency/reuse evidence is comparable.",
+          "next_unlock": "Cross-domain imports, dependency stability, and unused-type hints are clean."
+        },
+        {
+          "id": "L2",
+          "name": "Reuse clean",
+          "status_label": "Complete",
+          "description": "Dependency, import, unused-type, and fleet-surface hints are clean.",
+          "capability_summary": "Proto dependency and reuse posture is clean."
+        }
+      ]
+    }
+  ]
 }

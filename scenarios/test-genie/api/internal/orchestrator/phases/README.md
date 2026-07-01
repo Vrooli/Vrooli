@@ -140,6 +140,14 @@ Delegates dependency validation to Scenario Dependency Analyzer:
 - Does not run native dependency checks or call SDA drift separately
 - Fails when SDA returns `ERROR` / `BLOCKER` dependency health findings or when the producer is unavailable
 
+Delegated health providers may return either a legacy single local maturity
+ladder or additive `assessment.capabilities[]` ladders. Test Genie validates
+both through `maturity-go/assessment`, preserves the backward-compatible
+`local.current_level` / `local.next_level` summary, and includes compact
+capability summaries plus `highest_priority_capability` in observations when a
+provider emits them. Phase pass/fail remains based on the shared validation
+status and finding severity, not provider-specific capability names.
+
 ### unit
 
 **File:** `phase_validationprovider.go`

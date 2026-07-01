@@ -54,6 +54,7 @@ var specs = []ruleSpec{
 	{id: "no-template-residue", surfaces: []surface{surfaceUI}, eval: ruleNoTemplateResidue},
 
 	// Phase 3 — brand asset quality (detect-only; image re-encode is non-deterministic here).
+	{id: "apple-touch-icon", surfaces: []surface{surfaceUI}, eval: ruleAppleTouchIconPresent},
 	{id: "asset-validity", surfaces: []surface{surfaceUI}, eval: ruleAssetValidity},
 	{id: "referenced-assets-exist", surfaces: []surface{surfaceUI}, eval: ruleReferencedAssetsExist},
 	{id: "svg-asset-safety", surfaces: []surface{surfaceUI}, eval: ruleSVGAssetSafety},
@@ -68,6 +69,7 @@ var specs = []ruleSpec{
 	// Phase 5 — social / link-preview metadata.
 	{id: "open-graph", surfaces: []surface{surfaceUI}, eval: ruleOpenGraph},
 	{id: "twitter-card", surfaces: []surface{surfaceUI}, eval: ruleTwitterCard},
+	{id: "social-preview-image", surfaces: []surface{surfaceUI}, eval: ruleSocialPreviewImage},
 
 	// Phase 6 — CLI / API branding (detect-only; surface-conditional).
 	{id: "cli-branding", surfaces: []surface{surfaceCLI}, eval: ruleCLIBranding},

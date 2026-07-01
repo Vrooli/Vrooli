@@ -7,50 +7,98 @@
       "id": "L0",
       "name": "No branding target",
       "description": "Brand Manager cannot resolve a scenario or readable source tree to assess branding.",
-      "entry_criteria": ["Scenario name or path is provided"],
-      "exit_criteria": ["The target scenario resolves to a readable tree"]
+      "entry_criteria": [
+        "Scenario name or path is provided"
+      ],
+      "exit_criteria": [
+        "The target scenario resolves to a readable tree"
+      ],
+      "status_label": "Unavailable",
+      "capability_summary": "Brand Manager cannot yet resolve a readable branding target.",
+      "next_unlock": "A readable target tree and completed branding scan."
     },
     {
       "id": "L1",
       "name": "Branding scan available",
       "description": "The provider can scan the target and return normalized branding findings for Test Genie and agents.",
-      "entry_criteria": ["Target tree is readable"],
-      "exit_criteria": ["Branding scan completes with structured findings and summary counts"]
+      "entry_criteria": [
+        "Target tree is readable"
+      ],
+      "exit_criteria": [
+        "Branding scan completes with structured findings and summary counts"
+      ],
+      "status_label": "Foundation",
+      "capability_summary": "The target can be scanned and normalized branding findings can be reported.",
+      "next_unlock": "A non-placeholder display name and declared brand identity."
     },
     {
       "id": "L2",
       "name": "Brand identity declared",
       "description": "The scenario declares a non-placeholder brand display name — the minimum identity every surface renders.",
-      "entry_criteria": ["Branding scan completes"],
-      "exit_criteria": ["No missing display-name finding blocks branding identity"]
+      "entry_criteria": [
+        "Branding scan completes"
+      ],
+      "exit_criteria": [
+        "No missing display-name finding blocks branding identity"
+      ],
+      "status_label": "Basic",
+      "capability_summary": "The scenario declares the minimum brand identity every surface can render.",
+      "next_unlock": "A coherent color and typography system."
     },
     {
       "id": "L3",
       "name": "Visual system defined",
       "description": "The scenario defines a core color system and typography so its surfaces share one coherent look.",
-      "entry_criteria": ["Brand identity is declared"],
-      "exit_criteria": ["No missing color-system or typography finding blocks the visual system"]
+      "entry_criteria": [
+        "Brand identity is declared"
+      ],
+      "exit_criteria": [
+        "No missing color-system or typography finding blocks the visual system"
+      ],
+      "status_label": "Defined",
+      "capability_summary": "The visual system has enough structure for consistent brand application.",
+      "next_unlock": "Real logo, favicon, and public brand assets."
     },
     {
       "id": "L4",
       "name": "Brand assets present",
       "description": "The scenario ships real brand imagery (logo, favicon, valid non-template assets) users and tabs actually see.",
-      "entry_criteria": ["Visual system is defined"],
-      "exit_criteria": ["No missing/invalid logo, favicon, or template-residue finding blocks brand assets"]
+      "entry_criteria": [
+        "Visual system is defined"
+      ],
+      "exit_criteria": [
+        "No missing/invalid logo, favicon, or template-residue finding blocks brand assets"
+      ],
+      "status_label": "Asset Ready",
+      "capability_summary": "Visible brand assets are present and template residue is removed.",
+      "next_unlock": "Accessible light/dark contrast and applied brand markers."
     },
     {
       "id": "L5",
       "name": "Accessible and applied",
       "description": "Core (light + dark) color pairings meet WCAG AA and the brand is actually applied (markers + manifest keys) — fleet-ready branding.",
-      "entry_criteria": ["Brand assets are present"],
-      "exit_criteria": ["No contrast (light/dark) or unapplied-markers finding blocks fleet-ready branding"]
+      "entry_criteria": [
+        "Brand assets are present"
+      ],
+      "exit_criteria": [
+        "No contrast (light/dark) or unapplied-markers finding blocks fleet-ready branding"
+      ],
+      "status_label": "Fleet Ready",
+      "capability_summary": "Branding is accessible and applied across core surfaces.",
+      "next_unlock": "Installable PWA assets, theme consistency, safe-area metadata, and social previews."
     },
     {
       "id": "L6",
       "name": "Installable and shareable",
       "description": "The scenario is an installable, consistently-branded PWA: complete manifest (icons 192/512 + maskable), theme-color + color-scheme, mobile status-bar safe-area handling, social/link-preview metadata, and a name that agrees across every surface.",
-      "entry_criteria": ["Branding is accessible and applied"],
-      "exit_criteria": ["No PWA/manifest, theme-color, safe-area, social-metadata, cross-surface consistency, or CLI/API branding finding blocks installability"]
+      "entry_criteria": [
+        "Branding is accessible and applied"
+      ],
+      "exit_criteria": [
+        "No PWA/manifest, theme-color, safe-area, social-metadata, cross-surface consistency, or CLI/API branding finding blocks installability"
+      ],
+      "status_label": "Installable",
+      "capability_summary": "The scenario is consistently branded across install, share, mobile, CLI, and API surfaces."
     }
   ],
   "findings": {
@@ -61,7 +109,11 @@
       "severity_default": "SEVERITY_ERROR",
       "fix_class": "manual",
       "reason": "A meaningful display name requires human/product judgment, not a deterministic default.",
-      "recommended_skill_ids": ["branding", "ecosystem-fit"]
+      "recommended_skill_ids": [
+        "branding",
+        "ecosystem-fit"
+      ],
+      "clean_requirement": "required"
     },
     "has-color-system": {
       "local_level_impact": "L3",
@@ -71,7 +123,10 @@
       "fix_class": "auto",
       "fixer_status": "implemented",
       "reason": "A complete baseline token set is only created when none exists; an existing-but-incomplete file is left to a human (not advertised as auto-fixable).",
-      "recommended_skill_ids": ["branding"]
+      "recommended_skill_ids": [
+        "branding"
+      ],
+      "clean_requirement": "required"
     },
     "has-typography": {
       "local_level_impact": "L3",
@@ -80,7 +135,10 @@
       "severity_default": "SEVERITY_INFO",
       "fix_class": "manual",
       "reason": "Font selection is a design choice, not a deterministic default.",
-      "recommended_skill_ids": ["branding"]
+      "recommended_skill_ids": [
+        "branding"
+      ],
+      "clean_requirement": "required"
     },
     "has-logo": {
       "local_level_impact": "L4",
@@ -89,7 +147,10 @@
       "severity_default": "SEVERITY_WARNING",
       "fix_class": "manual",
       "reason": "Logo image generation is non-deterministic and requires AI or a human asset.",
-      "recommended_skill_ids": ["branding"]
+      "recommended_skill_ids": [
+        "branding"
+      ],
+      "clean_requirement": "required"
     },
     "has-favicon": {
       "local_level_impact": "L4",
@@ -99,7 +160,22 @@
       "fix_class": "auto",
       "fixer_status": "implemented",
       "reason": "Self-contained: derived from an existing logo. When no logo exists it is honestly guidance-only (autofix not advertised).",
-      "recommended_skill_ids": ["branding"]
+      "recommended_skill_ids": [
+        "branding"
+      ],
+      "clean_requirement": "required"
+    },
+    "apple-touch-icon": {
+      "local_level_impact": "L6",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_WARNING",
+      "fix_class": "manual",
+      "reason": "A home-screen icon is a branded visual asset and should be derived from the approved brand/logo source, not invented by validation.",
+      "recommended_skill_ids": [
+        "branding"
+      ],
+      "clean_requirement": "required"
     },
     "no-template-residue": {
       "local_level_impact": "L4",
@@ -109,7 +185,10 @@
       "fix_class": "auto",
       "fixer_status": "implemented",
       "reason": "Default Vite favicon/title residue is removed deterministically; lorem-ipsum copy stays a manual finding.",
-      "recommended_skill_ids": ["branding"]
+      "recommended_skill_ids": [
+        "branding"
+      ],
+      "clean_requirement": "required"
     },
     "asset-validity": {
       "local_level_impact": "L4",
@@ -118,7 +197,11 @@
       "severity_default": "SEVERITY_WARNING",
       "fix_class": "manual",
       "reason": "Flattening/re-encoding an icon or generating an icon set is an image transform left to the brand-projection path.",
-      "recommended_skill_ids": ["branding", "accessibility"]
+      "recommended_skill_ids": [
+        "branding",
+        "accessibility"
+      ],
+      "clean_requirement": "required"
     },
     "referenced-assets-exist": {
       "local_level_impact": "L4",
@@ -127,7 +210,10 @@
       "severity_default": "SEVERITY_WARNING",
       "fix_class": "manual",
       "reason": "A dangling reference is fixed by shipping the missing image bytes, which cannot be synthesized deterministically.",
-      "recommended_skill_ids": ["branding"]
+      "recommended_skill_ids": [
+        "branding"
+      ],
+      "clean_requirement": "required"
     },
     "svg-asset-safety": {
       "local_level_impact": "L4",
@@ -136,7 +222,11 @@
       "severity_default": "SEVERITY_WARNING",
       "fix_class": "manual",
       "reason": "Stripping nodes from a hand/tool-authored SVG can silently break its rendering, so sanitizing stays a human decision.",
-      "recommended_skill_ids": ["branding", "accessibility"]
+      "recommended_skill_ids": [
+        "branding",
+        "accessibility"
+      ],
+      "clean_requirement": "required"
     },
     "custom-font-loaded": {
       "local_level_impact": "L6",
@@ -145,7 +235,11 @@
       "severity_default": "SEVERITY_INFO",
       "fix_class": "manual",
       "reason": "Fetching/self-hosting a typeface is not a deterministic edit; font selection is a design choice.",
-      "recommended_skill_ids": ["branding", "accessibility"]
+      "recommended_skill_ids": [
+        "branding",
+        "accessibility"
+      ],
+      "clean_requirement": "required"
     },
     "reduced-motion-support": {
       "local_level_impact": "L6",
@@ -155,7 +249,11 @@
       "fix_class": "auto",
       "fixer_status": "implemented",
       "reason": "A uniform prefers-reduced-motion reduce block is appended to the existing design tokens; when no tokens file exists it is guidance-only.",
-      "recommended_skill_ids": ["branding", "accessibility"]
+      "recommended_skill_ids": [
+        "branding",
+        "accessibility"
+      ],
+      "clean_requirement": "required"
     },
     "wcag-aa-contrast": {
       "local_level_impact": "L5",
@@ -164,7 +262,11 @@
       "severity_default": "SEVERITY_WARNING",
       "fix_class": "manual",
       "reason": "Re-balancing a palette to pass AA requires design judgment, not a mechanical edit.",
-      "recommended_skill_ids": ["branding", "accessibility"]
+      "recommended_skill_ids": [
+        "branding",
+        "accessibility"
+      ],
+      "clean_requirement": "required"
     },
     "dark-mode-contrast": {
       "local_level_impact": "L5",
@@ -173,7 +275,11 @@
       "severity_default": "SEVERITY_WARNING",
       "fix_class": "manual",
       "reason": "Re-balancing the dark palette to pass AA requires design judgment.",
-      "recommended_skill_ids": ["branding", "accessibility"]
+      "recommended_skill_ids": [
+        "branding",
+        "accessibility"
+      ],
+      "clean_requirement": "required"
     },
     "brand-markers-applied": {
       "local_level_impact": "L5",
@@ -182,7 +288,10 @@
       "severity_default": "SEVERITY_INFO",
       "fix_class": "manual",
       "reason": "Applying markers is brand-projection: it needs an assigned brand via the apply domain, which the served validation path has no input for, so it is guidance-only here.",
-      "recommended_skill_ids": ["branding"]
+      "recommended_skill_ids": [
+        "branding"
+      ],
+      "clean_requirement": "required"
     },
     "color-scheme-declared": {
       "local_level_impact": "L6",
@@ -191,7 +300,11 @@
       "severity_default": "SEVERITY_INFO",
       "fix_class": "auto",
       "fixer_status": "implemented",
-      "recommended_skill_ids": ["branding", "accessibility"]
+      "recommended_skill_ids": [
+        "branding",
+        "accessibility"
+      ],
+      "clean_requirement": "required"
     },
     "name-consistency": {
       "local_level_impact": "L6",
@@ -200,7 +313,10 @@
       "severity_default": "SEVERITY_WARNING",
       "fix_class": "auto",
       "fixer_status": "implemented",
-      "recommended_skill_ids": ["branding"]
+      "recommended_skill_ids": [
+        "branding"
+      ],
+      "clean_requirement": "required"
     },
     "theme-color-consistency": {
       "local_level_impact": "L6",
@@ -209,7 +325,10 @@
       "severity_default": "SEVERITY_WARNING",
       "fix_class": "auto",
       "fixer_status": "implemented",
-      "recommended_skill_ids": ["branding"]
+      "recommended_skill_ids": [
+        "branding"
+      ],
+      "clean_requirement": "required"
     },
     "theme-color-present": {
       "local_level_impact": "L6",
@@ -219,7 +338,10 @@
       "fix_class": "auto",
       "fixer_status": "implemented",
       "reason": "The missing-entirely case is auto-injected; deriving a dark-scheme variant value is left guidance-only.",
-      "recommended_skill_ids": ["branding"]
+      "recommended_skill_ids": [
+        "branding"
+      ],
+      "clean_requirement": "required"
     },
     "standalone-capable": {
       "local_level_impact": "L6",
@@ -228,7 +350,10 @@
       "severity_default": "SEVERITY_INFO",
       "fix_class": "auto",
       "fixer_status": "implemented",
-      "recommended_skill_ids": ["branding"]
+      "recommended_skill_ids": [
+        "branding"
+      ],
+      "clean_requirement": "required"
     },
     "ios-statusbar-safe-area": {
       "local_level_impact": "L6",
@@ -238,7 +363,10 @@
       "fix_class": "auto",
       "fixer_status": "implemented",
       "reason": "Injects viewport-fit=cover + a safe-area-inset token deterministically; the runtime render is out of scope (ui-health/device harness).",
-      "recommended_skill_ids": ["branding"]
+      "recommended_skill_ids": [
+        "branding"
+      ],
+      "clean_requirement": "required"
     },
     "manifest-completeness": {
       "local_level_impact": "L6",
@@ -248,7 +376,10 @@
       "fix_class": "auto",
       "fixer_status": "implemented",
       "reason": "Scalar fields are filled from identity + house defaults; missing icons require a logo and stay guidance-only.",
-      "recommended_skill_ids": ["branding"]
+      "recommended_skill_ids": [
+        "branding"
+      ],
+      "clean_requirement": "required"
     },
     "open-graph": {
       "local_level_impact": "L6",
@@ -257,7 +388,10 @@
       "severity_default": "SEVERITY_WARNING",
       "fix_class": "auto",
       "fixer_status": "implemented",
-      "recommended_skill_ids": ["branding"]
+      "recommended_skill_ids": [
+        "branding"
+      ],
+      "clean_requirement": "required"
     },
     "twitter-card": {
       "local_level_impact": "L6",
@@ -266,7 +400,22 @@
       "severity_default": "SEVERITY_INFO",
       "fix_class": "auto",
       "fixer_status": "implemented",
-      "recommended_skill_ids": ["branding"]
+      "recommended_skill_ids": [
+        "branding"
+      ],
+      "clean_requirement": "required"
+    },
+    "social-preview-image": {
+      "local_level_impact": "L6",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_WARNING",
+      "fix_class": "manual",
+      "reason": "A share-card image requires a branded 1200x630 asset or approved visual composition, so validation only reports the missing surface.",
+      "recommended_skill_ids": [
+        "branding"
+      ],
+      "clean_requirement": "required"
     },
     "cli-branding": {
       "local_level_impact": "L6",
@@ -275,7 +424,10 @@
       "severity_default": "SEVERITY_INFO",
       "fix_class": "manual",
       "reason": "Human-facing CLI help copy is a writing decision, not a deterministic default.",
-      "recommended_skill_ids": ["branding"]
+      "recommended_skill_ids": [
+        "branding"
+      ],
+      "clean_requirement": "required"
     },
     "api-branding": {
       "local_level_impact": "L6",
@@ -284,7 +436,10 @@
       "severity_default": "SEVERITY_INFO",
       "fix_class": "manual",
       "reason": "The API/OpenAPI title (service.description) is human-authored product copy.",
-      "recommended_skill_ids": ["branding"]
+      "recommended_skill_ids": [
+        "branding"
+      ],
+      "clean_requirement": "required"
     },
     "public-asset-convention": {
       "local_level_impact": "L6",
@@ -294,7 +449,10 @@
       "fix_class": "auto",
       "fixer_status": "implemented",
       "reason": "Branding/PWA/OG assets and their references are deterministically relocated under /public/ (ui/public/public) and repointed, so an edge Access bypass can serve them to anonymous fetchers.",
-      "recommended_skill_ids": ["branding"]
+      "recommended_skill_ids": [
+        "branding"
+      ],
+      "clean_requirement": "required"
     }
   },
   "fallback": {
