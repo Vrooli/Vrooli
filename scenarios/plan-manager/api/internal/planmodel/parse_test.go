@@ -83,6 +83,9 @@ func TestParsePlanMarkdownExtractsTypedRegressionAnchor(t *testing.T) {
 		"- Strategy: scenario_baseline\n" +
 		"- Scenario baseline: `plan-manager` (name `plan-manager-hardening-readiness`)\n" +
 		"- HEAD sha: `abc123`\n" +
+		"- Capture status: requested; usable only after status validation\n" +
+		"- Capture reason: test-genie unavailable\n" +
+		"- Fallback: HEAD sha + allowlist diff\n" +
 		"- Captured at: `2026-06-27T14:00:17Z`\n")
 	if err != nil {
 		t.Fatalf("ParsePlanMarkdown() error = %v", err)
@@ -95,7 +98,12 @@ func TestParsePlanMarkdownExtractsTypedRegressionAnchor(t *testing.T) {
 	if anchor.HeadSha != "abc123" || anchor.CapturedAt != "2026-06-27T14:00:17Z" {
 		t.Fatalf("anchor metadata = %#v", anchor)
 	}
-	want := "git-control-tower baseline diff --scenario plan-manager --name plan-manager-hardening-readiness"
+	if anchor.CaptureStatus != "requested; usable only after status validation" ||
+		anchor.CaptureReason != "test-genie unavailable" ||
+		anchor.Fallback != "HEAD sha + allowlist diff" {
+		t.Fatalf("anchor capture health = %#v", anchor)
+	}
+	want := "git-control-tower baseline diff --scenario plan-manager --name plan-manager-hardening-readiness --wait"
 	if !containsString(anchor.Commands, want) {
 		t.Fatalf("anchor.Commands = %#v, want %q", anchor.Commands, want)
 	}

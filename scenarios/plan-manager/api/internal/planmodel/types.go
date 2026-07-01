@@ -172,6 +172,8 @@ type ImportProvenance struct {
 	ImportedAt     string
 	OriginalFormat string
 	Note           string
+	WorkspaceID    string
+	WorkspaceRoot  string
 }
 
 // OriginalFormatLegacyMarkdown is the original_format tag for legacy 13-section
@@ -228,6 +230,9 @@ type RegressionAnchor struct {
 	AllowlistPaths []string
 	Commands       []string
 	CapturedAt     string
+	CaptureStatus  string
+	CaptureReason  string
+	Fallback       string
 	Unavailable    bool
 }
 
@@ -275,18 +280,20 @@ type Phase struct {
 
 // Plan is the top-level structured record.
 type Plan struct {
-	ID          string
-	Slug        string
-	Title       string
-	Status      PlanStatus
-	ContentHash string
-	CreatedAt   string
-	UpdatedAt   string
-	Purpose     string
-	Scope       string
-	Constraints string
-	NonGoals    string
-	References  []Reference
+	ID            string
+	Slug          string
+	Title         string
+	Status        PlanStatus
+	ContentHash   string
+	CreatedAt     string
+	UpdatedAt     string
+	WorkspaceID   string
+	WorkspaceRoot string
+	Purpose       string
+	Scope         string
+	Constraints   string
+	NonGoals      string
+	References    []Reference
 	// ChangeBoundary is the plan's first-class blast-radius contract
 	// (acceptance_allow / acceptance_deny). It is the source of truth for posture,
 	// regression-anchor intent, validation scope, and execution reminders.
@@ -341,4 +348,6 @@ type PlanTemplate struct {
 type ListFilter struct {
 	Status          PlanStatus
 	IncludeArchived bool
+	WorkspaceID     string
+	WorkspaceRoot   string
 }

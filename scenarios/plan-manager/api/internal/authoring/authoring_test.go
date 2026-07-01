@@ -1191,7 +1191,7 @@ func TestFinalizeParsesStructuredRegressionAnchor(t *testing.T) {
 	require.Equal(t, "scenario_baseline", writer.created.RegressionAnchor.Strategy)
 	require.Equal(t, "plan-manager", writer.created.RegressionAnchor.Scenario)
 	require.Equal(t, "plan-manager-hardening-readiness", writer.created.RegressionAnchor.BaselineName)
-	require.Contains(t, writer.created.RegressionAnchor.Commands, "git-control-tower baseline diff --scenario plan-manager --name plan-manager-hardening-readiness")
+	require.Contains(t, writer.created.RegressionAnchor.Commands, "git-control-tower baseline diff --scenario plan-manager --name plan-manager-hardening-readiness --wait")
 	require.False(t, writer.created.RegressionAnchor.Unavailable)
 }
 

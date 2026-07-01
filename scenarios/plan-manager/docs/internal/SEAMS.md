@@ -144,7 +144,7 @@ and use matrix/trace helpers from the relevant testutil package.
 
 | | |
 |---|---|
-| **Seam** | Authoring discovery + intent-derivation dependencies (`search-hub` for references, `prompt-manager`/`cli-health` for context discovery; the regression-anchor intent is pure/local) |
+| **Seam** | Authoring discovery + intent-derivation dependencies (`search-hub` for references and broad recall context, `prompt-manager` for curated skill/action context, `cli-health` for command context; the regression-anchor intent is pure/local) |
 | **Interface** | `api/internal/authoring/seams.go::{AnchorIntentDeriver,ReferenceSuggester,ContextDiscoverer,CommandRunner}`. `ReferenceSuggester` shells `search-hub query --json` and routes hits by locator shape into reviewable `ReferenceCandidate`s; `AnchorIntentDeriver` derives the **boundary-native** typed anchor intent block deterministically from the plan's `change_boundary` (affected scenarios + tiered baseline/diff commands; no git-control-tower, never stale, no `<scenario>` placeholder). |
 | **Production wiring** | `api/handlers/authoring/module.go::Module` creates one LookPath-guarded `CommandRunner` (`internalauthoring.DefaultRunner()`) for the search-hub/context seams and wires the pure `internalauthoring.DefaultAnchorIntentDeriver()` for the anchor. |
 | **Test fake** | `api/internal/authoring/authoring_test.go` uses a `fakeSuggester` (dialed candidates/error), a `fakeAnchor` deriver, a fake context discoverer, and a recording command runner to exercise healthy/degraded paths and the suggester's locator-shape routing. |
@@ -174,7 +174,7 @@ seam, not new seams — see [`../concepts/FLOWS.md`](../concepts/FLOWS.md)
 | **Interface** | `api/internal/plans/mirror.go::MirrorStore` (`PathFor`, `Read`, `Publish`) |
 | **Production wiring** | `api/handlers/plans/module.go::Module` wires `internalplans.NewDefaultOSMirrorStore()`, which resolves the repo-contract runtime-home `plans` entry and writes `<slug>.md` using a temp file plus rename. |
 | **Test fake** | `api/internal/plans/plans_test.go::fakeMirrorStore` keeps files in memory and can simulate missing/stale/write-failed mirrors. |
-| **Why it exists** | Plan Manager must expose a stable human-readable file path without making markdown canonical truth. The seam lets tests prove mutation publish and render repair behavior without touching the operator runtime home, while production keeps runtime-home path resolution centralized and contract-backed. |
+| **Why it exists** | Plan Manager must expose a stable human-readable file path without making markdown canonical truth. The seam lets tests prove mutation publish and render repair behavior without touching the operator runtime home, while production keeps runtime-home path resolution centralized and contract-backed. Published mirror index metadata includes workspace id/root so root fallback readers can filter scoped degraded reads safely. |
 
 ### Plans SourceReader
 
@@ -184,7 +184,7 @@ seam, not new seams — see [`../concepts/FLOWS.md`](../concepts/FLOWS.md)
 | **Interface** | `api/internal/plans/resolver.go::SourceReader` (`ReadFile`, `ListMarkdownFiles`) |
 | **Production wiring** | `api/handlers/plans/module.go::Module` wires `internalplans.OSSourceReader{}`. Runtime-home plans resolution uses the repo-contract `plans` entry; repo fallback locations are `docs/plans` and `plans`. |
 | **Test fake** | `api/internal/plans/plans_test.go::fakeReader` keeps source markdown in memory and lists direct child `.md` files for reconcile/adoption tests. |
-| **Why it exists** | Import, migrate, and reconcile must adopt legacy files non-destructively without giving the domain arbitrary filesystem reach. The seam lets tests prove dry-run, parse-failure, duplicate, and source-untouched behavior while production can scan only the documented fallback locations. |
+| **Why it exists** | Import, migrate, and reconcile must adopt legacy files non-destructively without giving the domain arbitrary filesystem reach. The seam lets tests prove dry-run, parse-failure, duplicate, and source-untouched behavior while production can scan only the documented fallback locations. Workspace-scoped import/reconcile resolves relative paths from a repo-contract-validated workspace root and rejects absolute sources outside that root by default. |
 
 ### Validation dependency seams
 

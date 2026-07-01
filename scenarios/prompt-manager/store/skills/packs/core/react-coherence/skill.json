@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "react-coherence",
   "name": "React Coherence",
-  "description": "Ensure architectural coherence in React codebases through Zustand state management, code sharing patterns, and styling organization",
+  "description": "DEPRECATED — consolidated into the ui-health steer skill. State/sharing/theming guidance now lives as ui-health lenses; load `ui-health` instead.",
   "modes": [
     "steer",
     "react"

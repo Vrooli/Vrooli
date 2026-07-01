@@ -193,24 +193,24 @@ func TestDeriveBaselineScope(t *testing.T) {
 		},
 		RegressionAnchor: internalplans.RegressionAnchor{
 			BaselineName: "impl",
-			Commands:     []string{"git-control-tower baseline diff --scenario foo --name impl"},
+			Commands:     []string{"git-control-tower baseline diff --scenario foo --name impl --wait"},
 		},
 	}
 	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}})
 	scope, err := svc.DeriveBaselineScope(context.Background(), "p1", "")
 	require.NoError(t, err)
 
-	require.Contains(t, scope.Commands, "git-control-tower baseline snapshot status --scenario foo --name impl")
-	require.Contains(t, scope.Commands, "git-control-tower baseline snapshot status --scenario bar --name impl")
-	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario foo --name impl")
-	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario bar --name impl")
+	require.Contains(t, scope.Commands, "git-control-tower baseline snapshot status --scenario foo --name impl --wait --json")
+	require.Contains(t, scope.Commands, "git-control-tower baseline snapshot status --scenario bar --name impl --wait --json")
+	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario foo --name impl --wait")
+	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario bar --name impl --wait")
 	require.Contains(t, scope.Commands, "git diff --stat", "non-scenario code => repo-level diff")
 	require.Contains(t, scope.Locations, "scenarios/foo")
 	require.Contains(t, scope.Locations, "repo")
 	// Anchor command is deduped, not duplicated.
 	foo := 0
 	for _, c := range scope.Commands {
-		if c == "git-control-tower baseline diff --scenario foo --name impl" {
+		if c == "git-control-tower baseline diff --scenario foo --name impl --wait" {
 			foo++
 		}
 	}
@@ -237,7 +237,7 @@ func TestDeriveBaselineScopeUsesTypedAnchorWithoutReferences(t *testing.T) {
 	scope, err := svc.DeriveBaselineScope(context.Background(), "p1", "")
 	require.NoError(t, err)
 	require.Contains(t, scope.Locations, "scenarios/plan-manager")
-	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario plan-manager --name hardening")
+	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario plan-manager --name hardening --wait")
 }
 
 func TestDeriveBaselineScopeUsesHeadAllowlistAnchorWithoutReferences(t *testing.T) {
@@ -278,8 +278,8 @@ func TestDeriveBaselineScopeFromChangeBoundary(t *testing.T) {
 	require.NoError(t, err)
 
 	// Boundary scenario foo and reference scenario bar both produce oracle pairs.
-	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario foo --name impl")
-	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario bar --name impl")
+	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario foo --name impl --wait")
+	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario bar --name impl --wait")
 	// Non-scenario allow globs become ONE path-scoped informational diff (no sha).
 	require.Contains(t, scope.Commands, "git diff --stat -- docs/** packages/proto/**")
 	require.Contains(t, scope.Locations, "scenarios/foo")
@@ -363,12 +363,14 @@ func TestCaptureBaselineShellsGCTFromAnchorIntent(t *testing.T) {
 	// Healthy: anchor scenario + name set, runner present → captured.
 	plan := planWith(nil, nil)
 	plan.RegressionAnchor = internalplans.RegressionAnchor{Scenario: "plan-manager", BaselineName: "impl-baseline"}
-	var gotName string
-	var gotArgs []string
+	var calls []string
 	captured := validation.NewService(validation.Deps{
 		Plans: fakePlans{plan: plan},
 		Runner: func(_ context.Context, name string, args ...string) ([]byte, error) {
-			gotName, gotArgs = name, args
+			calls = append(calls, name+" "+strings.Join(args, " "))
+			if len(args) >= 3 && args[0] == "baseline" && args[1] == "snapshot" && args[2] == "status" {
+				return []byte(`{"status":"ready","baseline":{"surfaces":{"tests":{},"rules":{}}}}`), nil
+			}
 			return []byte("snapshot started"), nil
 		},
 	})
@@ -377,8 +379,10 @@ func TestCaptureBaselineShellsGCTFromAnchorIntent(t *testing.T) {
 	require.True(t, cap1.Captured)
 	require.Equal(t, "plan-manager", cap1.Scenario)
 	require.Equal(t, "impl-baseline", cap1.BaselineName)
-	require.Equal(t, "git-control-tower", gotName)
-	require.Contains(t, strings.Join(gotArgs, " "), "baseline snapshot --scenario plan-manager --name impl-baseline")
+	require.Equal(t, 2, cap1.CapturedSurfaceCount)
+	require.Len(t, calls, 2)
+	require.Contains(t, calls[0], "git-control-tower baseline snapshot --scenario plan-manager --name impl-baseline")
+	require.Contains(t, calls[1], "git-control-tower baseline snapshot status --scenario plan-manager --name impl-baseline --wait --json")
 
 	// Placeholder scenario → honest degradation, never a fabricated capture.
 	placeholder := planWith(nil, nil)
@@ -398,6 +402,51 @@ func TestCaptureBaselineShellsGCTFromAnchorIntent(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, cap3.Captured)
 	require.Contains(t, cap3.Detail, "git-control-tower unavailable")
+}
+
+func TestCaptureBaselineRejectsZeroSurfaceGCTBaseline(t *testing.T) {
+	ctx := context.Background()
+	plan := planWith(nil, nil)
+	plan.RegressionAnchor = internalplans.RegressionAnchor{Scenario: "audio-tools", BaselineName: "stt-scaling-analysis-plan"}
+	svc := validation.NewService(validation.Deps{
+		Plans: fakePlans{plan: plan},
+		Runner: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+			if len(args) >= 3 && args[0] == "baseline" && args[1] == "snapshot" && args[2] == "status" {
+				return []byte(`{"status":"ready","baseline":{"surfaces":{},"skipped":{"tests":"test-genie unreachable","rules":"api-core discovery failed"}}}`), nil
+			}
+			return []byte("snapshot started"), nil
+		},
+	})
+
+	cap, err := svc.CaptureBaseline(ctx, "p1")
+	require.NoError(t, err)
+	require.False(t, cap.Captured)
+	require.Equal(t, 0, cap.CapturedSurfaceCount)
+	require.Equal(t, "test-genie unreachable", cap.SkippedSurfaces["tests"])
+	require.Contains(t, cap.Detail, "captured 0 surfaces")
+	require.Contains(t, cap.Detail, "tests: test-genie unreachable")
+	require.Contains(t, cap.Detail, "HEAD sha + allowlist")
+}
+
+func TestCaptureBaselineRejectsUnverifiableGCTBaseline(t *testing.T) {
+	ctx := context.Background()
+	plan := planWith(nil, nil)
+	plan.RegressionAnchor = internalplans.RegressionAnchor{Scenario: "audio-tools", BaselineName: "stt-scaling-analysis-plan"}
+	svc := validation.NewService(validation.Deps{
+		Plans: fakePlans{plan: plan},
+		Runner: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+			if len(args) >= 3 && args[0] == "baseline" && args[1] == "snapshot" && args[2] == "status" {
+				return nil, errors.New("connect: unavailable")
+			}
+			return []byte("snapshot started"), nil
+		},
+	})
+
+	cap, err := svc.CaptureBaseline(ctx, "p1")
+	require.NoError(t, err)
+	require.False(t, cap.Captured)
+	require.Contains(t, cap.Detail, "validation failed")
+	require.Contains(t, cap.Detail, "unusable")
 }
 
 func TestRunValidationIncludesCommandReferenceFindings(t *testing.T) {
@@ -641,14 +690,14 @@ func TestVerifyDoDDerivesFromReferences(t *testing.T) {
 	require.True(t, ok, "DoD derives an oracle from references when the anchor has no commands")
 	require.Equal(t, validation.VerdictPass, res.Verdict)
 	require.NotEmpty(t, ran, "a baseline command was actually derived and run")
-	require.Contains(t, res.CommandsRun, "git-control-tower baseline diff --scenario foo --name impl")
+	require.Contains(t, res.CommandsRun, "git-control-tower baseline diff --scenario foo --name impl --wait")
 }
 
 func TestVerifyDefinitionOfDone(t *testing.T) {
 	plan := internalplans.Plan{
 		ID:               "p1",
 		Slug:             "p1",
-		RegressionAnchor: internalplans.RegressionAnchor{Commands: []string{"git-control-tower baseline diff --scenario foo --name impl"}},
+		RegressionAnchor: internalplans.RegressionAnchor{Commands: []string{"git-control-tower baseline diff --scenario foo --name impl --wait"}},
 	}
 
 	// DoD met: oracle exits 0.

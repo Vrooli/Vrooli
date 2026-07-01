@@ -45,13 +45,13 @@ func (a planWriter) CreatePlan(ctx context.Context, p internalplans.Plan) (inter
 type planSource struct{ svc internalplans.Service }
 
 func (a planSource) GetPlan(ctx context.Context, idOrSlug string) (internalplans.Plan, error) {
-	return a.svc.Get(ctx, idOrSlug)
+	return a.svc.Get(ctx, idOrSlug, internalplans.WorkspaceScope{})
 }
 
 type planStore struct{ svc internalplans.Service }
 
 func (a planStore) GetPlan(ctx context.Context, idOrSlug string) (internalplans.Plan, error) {
-	return a.svc.Get(ctx, idOrSlug)
+	return a.svc.Get(ctx, idOrSlug, internalplans.WorkspaceScope{})
 }
 
 func (a planStore) UpdatePhase(ctx context.Context, planID string, phase internalplans.Phase) (internalplans.Plan, error) {
@@ -89,7 +89,7 @@ func (a logResolver) Resolve(ctx context.Context, handle string) (string, string
 	} else if ok {
 		return e.PlanID, e.ID, true, nil
 	}
-	plan, err := a.plans.Get(ctx, handle)
+	plan, err := a.plans.Get(ctx, handle, internalplans.WorkspaceScope{})
 	if err != nil {
 		return "", "", false, nil
 	}
@@ -237,7 +237,7 @@ func TestCrossDomainAuthorToExecuteToHandoff(t *testing.T) {
 	require.NotEmpty(t, plan.Phases, "phases section parsed into structured phases")
 
 	// 2) The finalized plan is the SSOT — readable through the plans service.
-	persisted, err := plansSvc.Get(ctx, plan.ID)
+	persisted, err := plansSvc.Get(ctx, plan.ID, internalplans.WorkspaceScope{})
 	require.NoError(t, err)
 	require.Equal(t, plan.ID, persisted.ID)
 	require.Equal(t, internalplans.PlanStatusDraft, persisted.Status, "all phases start todo => draft")
@@ -279,7 +279,7 @@ func TestCrossDomainAuthorToExecuteToHandoff(t *testing.T) {
 	}
 
 	// Plan status is recomputed to complete via the delegated transitions.
-	done, err := plansSvc.Get(ctx, plan.ID)
+	done, err := plansSvc.Get(ctx, plan.ID, internalplans.WorkspaceScope{})
 	require.NoError(t, err)
 	require.Equal(t, internalplans.PlanStatusComplete, done.Status)
 
@@ -456,7 +456,7 @@ func TestSmallAgentContinueLoopsAuthorAndExecute(t *testing.T) {
 	require.Equal(t, internalexecution.CompletenessFull, handoff.Completeness)
 	require.Equal(t, "execution-handoff", execStep.NextActions[0].ID)
 
-	persisted, err := plansSvc.Get(ctx, finalized.ID)
+	persisted, err := plansSvc.Get(ctx, finalized.ID, internalplans.WorkspaceScope{})
 	require.NoError(t, err)
 	require.Equal(t, internalplans.PlanStatusComplete, persisted.Status)
 }

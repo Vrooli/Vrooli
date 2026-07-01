@@ -191,8 +191,8 @@ func RegressionAnchorCommands(anchor RegressionAnchor) []string {
 			return nil
 		}
 		return []string{
-			"git-control-tower baseline snapshot status --scenario " + anchor.Scenario + " --name " + anchor.BaselineName,
-			"git-control-tower baseline diff --scenario " + anchor.Scenario + " --name " + anchor.BaselineName,
+			"git-control-tower baseline snapshot status --scenario " + anchor.Scenario + " --name " + anchor.BaselineName + " --wait --json",
+			"git-control-tower baseline diff --scenario " + anchor.Scenario + " --name " + anchor.BaselineName + " --wait",
 		}
 	case "head_sha_allowlist":
 		if anchor.HeadSha == "" {
@@ -210,7 +210,8 @@ func RegressionAnchorCommands(anchor RegressionAnchor) []string {
 
 func anchorPresent(a RegressionAnchor) bool {
 	return a.Strategy != "" || a.Scenario != "" || a.BaselineName != "" || a.HeadSha != "" ||
-		len(a.AllowlistPaths) > 0 || len(a.Commands) > 0 || a.CapturedAt != "" || a.Unavailable
+		len(a.AllowlistPaths) > 0 || len(a.Commands) > 0 || a.CapturedAt != "" ||
+		a.CaptureStatus != "" || a.CaptureReason != "" || a.Fallback != "" || a.Unavailable
 }
 
 func applyRegressionAnchorLine(anchor *RegressionAnchor, legacy *[]string, line string) {
@@ -244,6 +245,12 @@ func applyRegressionAnchorField(anchor *RegressionAnchor, trimmed string) bool {
 		anchor.AllowlistPaths = splitCommaList(trimmed[len("Allowlist:"):])
 	case strings.HasPrefix(lower, "captured at:"):
 		anchor.CapturedAt = trimMarkdownValue(trimmed[len("Captured at:"):])
+	case strings.HasPrefix(lower, "capture status:"):
+		anchor.CaptureStatus = strings.TrimSpace(trimmed[len("Capture status:"):])
+	case strings.HasPrefix(lower, "capture reason:"):
+		anchor.CaptureReason = strings.TrimSpace(trimmed[len("Capture reason:"):])
+	case strings.HasPrefix(lower, "fallback:"):
+		anchor.Fallback = strings.TrimSpace(trimmed[len("Fallback:"):])
 	case strings.HasPrefix(trimmed, "`") && strings.HasSuffix(trimmed, "`"):
 		anchor.Commands = append(anchor.Commands, strings.Trim(trimmed, "`"))
 	default:
@@ -868,11 +875,15 @@ func parseImportProvenanceBlock(block string) *ImportProvenance {
 			prov.OriginalFormat = strings.TrimSpace(trimmed[len("Original format:"):])
 		case strings.HasPrefix(lower, "imported at:"):
 			prov.ImportedAt = trimMarkdownValue(trimmed[len("Imported at:"):])
+		case strings.HasPrefix(lower, "workspace id:"):
+			prov.WorkspaceID = trimMarkdownValue(trimmed[len("Workspace ID:"):])
+		case strings.HasPrefix(lower, "workspace root:"):
+			prov.WorkspaceRoot = trimMarkdownValue(trimmed[len("Workspace root:"):])
 		case strings.HasPrefix(lower, "note:"):
 			prov.Note = strings.TrimSpace(trimmed[len("Note:"):])
 		}
 	}
-	if prov.SourcePath == "" && prov.OriginalFormat == "" && prov.ImportedAt == "" && prov.Note == "" {
+	if prov.SourcePath == "" && prov.OriginalFormat == "" && prov.ImportedAt == "" && prov.Note == "" && prov.WorkspaceID == "" && prov.WorkspaceRoot == "" {
 		return nil
 	}
 	return prov

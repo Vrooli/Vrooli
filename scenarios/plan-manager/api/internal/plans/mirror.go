@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -13,13 +14,17 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
-const RendererVersion = "plan-manager-renderer-v1"
+const (
+	RendererVersion     = "plan-manager-renderer-v1"
+	mirrorIndexFilename = "_index.json"
+)
 
 // RenderResult is the read model for a rendered markdown request.
 type RenderResult struct {
 	Markdown string
 	Mirror   RenderedPlanMirror
 	Repaired bool
+	Plan     Plan
 }
 
 // MirrorStore owns the durable file projection of canonical structured plans.
@@ -167,7 +172,101 @@ func (s OSMirrorStore) Publish(ctx context.Context, p Plan, markdown []byte, ren
 	meta.RenderVersion = RendererVersion
 	meta.RenderedAt = renderedAt
 	meta.Status = RenderedMirrorStatusFresh
+	if err := s.upsertIndex(p, meta); err != nil {
+		meta.Status = RenderedMirrorStatusWriteFailed
+		meta.LastError = err.Error()
+		return meta, err
+	}
 	return meta, nil
+}
+
+func (s OSMirrorStore) upsertIndex(p Plan, meta RenderedPlanMirror) error {
+	root, err := s.root()
+	if err != nil {
+		return err
+	}
+	path := filepath.Join(root, mirrorIndexFilename)
+	idx := mirrorIndex{Version: 2}
+	if raw, err := os.ReadFile(path); err == nil {
+		if err := json.Unmarshal(raw, &idx); err != nil {
+			return fmt.Errorf("decode mirror index: %w", err)
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("read mirror index: %w", err)
+	}
+	record := mirrorIndexPlanRecord{
+		ID:            p.ID,
+		Title:         p.Title,
+		Slug:          p.Slug,
+		Path:          meta.Path,
+		CreatedAt:     p.CreatedAt,
+		UpdatedAt:     p.UpdatedAt,
+		Archived:      p.Status == PlanStatusArchived,
+		ContentHash:   meta.ContentHash,
+		WorkspaceID:   p.WorkspaceID,
+		WorkspaceRoot: p.WorkspaceRoot,
+	}
+	replaced := false
+	for i, existing := range idx.Plans {
+		if existing.ID == p.ID || (existing.ID == "" && existing.Slug == p.Slug) {
+			idx.Plans[i] = record
+			replaced = true
+			break
+		}
+	}
+	if !replaced {
+		idx.Plans = append(idx.Plans, record)
+	}
+	raw, err := json.MarshalIndent(idx, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode mirror index: %w", err)
+	}
+	raw = append(raw, '\n')
+	tmp, err := os.CreateTemp(root, "."+mirrorIndexFilename+".tmp-*")
+	if err != nil {
+		return fmt.Errorf("create mirror index temp: %w", err)
+	}
+	tmpPath := tmp.Name()
+	cleanup := true
+	defer func() {
+		if cleanup {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+	if _, err := tmp.Write(raw); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("write mirror index temp: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("sync mirror index temp: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close mirror index temp: %w", err)
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return fmt.Errorf("replace mirror index: %w", err)
+	}
+	cleanup = false
+	return fsyncDir(root)
+}
+
+type mirrorIndex struct {
+	Version int                     `json:"version"`
+	Plans   []mirrorIndexPlanRecord `json:"plans"`
+}
+
+type mirrorIndexPlanRecord struct {
+	ID            string `json:"id"`
+	Title         string `json:"title"`
+	Slug          string `json:"slug"`
+	Path          string `json:"path"`
+	CreatedAt     string `json:"created_at,omitempty"`
+	UpdatedAt     string `json:"updated_at,omitempty"`
+	Archived      bool   `json:"archived,omitempty"`
+	ContentHash   string `json:"content_hash,omitempty"`
+	WorkspaceID   string `json:"workspace_id,omitempty"`
+	WorkspaceRoot string `json:"workspace_root,omitempty"`
 }
 
 func (s OSMirrorStore) root() (string, error) {

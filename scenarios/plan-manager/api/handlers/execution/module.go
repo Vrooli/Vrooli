@@ -102,7 +102,7 @@ func Schema() string { return internalexecution.Schema() }
 type planStoreAdapter struct{ svc internalplans.Service }
 
 func (a planStoreAdapter) GetPlan(ctx context.Context, idOrSlug string) (internalplans.Plan, error) {
-	return a.svc.Get(ctx, idOrSlug)
+	return a.svc.Get(ctx, idOrSlug, internalplans.WorkspaceScope{})
 }
 
 func (a planStoreAdapter) UpdatePhase(ctx context.Context, planID string, phase internalplans.Phase) (internalplans.Plan, error) {
@@ -124,7 +124,7 @@ func (a logLedgerAdapter) Summarize(ctx context.Context, executionID string) (pl
 type planSourceAdapter struct{ svc internalplans.Service }
 
 func (a planSourceAdapter) GetPlan(ctx context.Context, idOrSlug string) (internalplans.Plan, error) {
-	return a.svc.Get(ctx, idOrSlug)
+	return a.svc.Get(ctx, idOrSlug, internalplans.WorkspaceScope{})
 }
 
 // validatorAdapter adapts the validation domain Service to execution's Validator

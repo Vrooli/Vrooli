@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS plans (
   updated_at   TEXT NOT NULL
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_plans_slug ON plans(slug);
+CREATE INDEX IF NOT EXISTS idx_plans_slug_lookup ON plans(slug);
 CREATE INDEX IF NOT EXISTS idx_plans_status ON plans(status);
 
 -- plan_edges — the supersession/dependency graph. A row (from, to, kind) means

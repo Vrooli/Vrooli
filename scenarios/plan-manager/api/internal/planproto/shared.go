@@ -31,6 +31,8 @@ func PlanToProto(p planmodel.Plan) *sharedv1.Plan {
 		ContentHash:             p.ContentHash,
 		CreatedAt:               p.CreatedAt,
 		UpdatedAt:               p.UpdatedAt,
+		WorkspaceId:             p.WorkspaceID,
+		WorkspaceRoot:           p.WorkspaceRoot,
 		Purpose:                 p.Purpose,
 		Scope:                   p.Scope,
 		Constraints:             p.Constraints,
@@ -72,6 +74,8 @@ func PlanFromProto(p *sharedv1.Plan) planmodel.Plan {
 		ContentHash:             p.GetContentHash(),
 		CreatedAt:               p.GetCreatedAt(),
 		UpdatedAt:               p.GetUpdatedAt(),
+		WorkspaceID:             p.GetWorkspaceId(),
+		WorkspaceRoot:           p.GetWorkspaceRoot(),
 		Purpose:                 p.GetPurpose(),
 		Scope:                   p.GetScope(),
 		Constraints:             p.GetConstraints(),
@@ -391,6 +395,8 @@ func ImportProvenanceToProto(p *planmodel.ImportProvenance) *sharedv1.ImportProv
 		ImportedAt:     p.ImportedAt,
 		OriginalFormat: p.OriginalFormat,
 		Note:           p.Note,
+		WorkspaceId:    p.WorkspaceID,
+		WorkspaceRoot:  p.WorkspaceRoot,
 	}
 }
 
@@ -403,6 +409,8 @@ func ImportProvenanceFromProto(p *sharedv1.ImportProvenance) *planmodel.ImportPr
 		ImportedAt:     p.GetImportedAt(),
 		OriginalFormat: p.GetOriginalFormat(),
 		Note:           p.GetNote(),
+		WorkspaceID:    p.GetWorkspaceId(),
+		WorkspaceRoot:  p.GetWorkspaceRoot(),
 	}
 }
 

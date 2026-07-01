@@ -112,7 +112,7 @@ docs/
 | Config options | docs/reference/configuration.md | Schema files |
 | Known issues | docs/internal/PROBLEMS.md | GitHub Issues |
 | Architecture decisions | docs/strategy/ or promoted docs/plans/ | ADR format |
-| Scratch implementation plans | `vrooli plans add --stdin` | User-scoped plan storage |
+| Scratch implementation plans | `plan-manager author start/continue/finalize` | Plan Manager structured record + rendered mirror |
 | Code behavior | Inline comments | docs/reference/ |
 
 ---

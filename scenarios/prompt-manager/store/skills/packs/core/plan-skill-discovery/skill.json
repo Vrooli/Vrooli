@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "plan-skill-discovery",
   "name": "Plan Skill Discovery",
-  "description": "Methodology for discovering and loading relevant skills before creating implementation plans. Uses multi-query decomposition across both topic and skill search, with autonomous relevance assessment. Works in both interactive and automated (workshop) contexts.",
+  "description": "Methodology for selecting curated, budget-aware Prompt Manager skill bundles for Plan Manager implementation plans while using Search Hub for broad recall and Plan Manager for context acceptance.",
   "modes": [
     "practice"
   ],
@@ -17,7 +17,7 @@
   "icon": "search",
   "status": "active",
   "entry": "SKILL.md",
-  "revision": 3,
+  "revision": 5,
   "createdAt": "2026-03-20T00:00:00Z",
   "updatedAt": "2026-03-25T00:00:00Z"
 }

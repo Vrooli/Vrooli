@@ -53,12 +53,18 @@ follow-up once a second cross-scenario consumer needs it.
   the repo-contract `plans` entry. These files are operator-facing and backup
   material, but repairable from SQLite; a missing/stale mirror degrades reads
   until Plan Manager regenerates it.
-- **Root `vrooli plans` CLI** — a project-level compatibility/adoption layer.
+- **Root `vrooli plans` CLI** — a project-level control-plane client.
   Normal writes (`add --stdin`, `import`, `archive`) require Plan Manager and
   send workspace scope for deterministic path resolution instead of creating
   standalone markdown truth. Reads (`list`, `show`, `path`, `export`) prefer
   Plan Manager and fall back to existing mirror files only when the scenario is
-  unavailable or times out; fallback output is labelled degraded.
+  unavailable or times out; fallback output is labelled degraded and is filtered
+  by workspace metadata for scoped reads.
+- **Root `vrooli hygiene` plans provider** — a consumer of `ReconcilePlans`.
+  It reports Plan Manager reconcile outcomes separately from applied fixes so
+  no-op results (`skipped_duplicate`, `already_canonical`) are not counted as
+  mutations. Static scan fallback is advisory only and is used only when Plan
+  Manager is unavailable or times out.
 
 ## Scenario Dependencies
 
@@ -97,12 +103,15 @@ failing the flow:
   remain FRESH and missing references are still DEFINITELY_STALE.
 - **test-genie / scenario-validation** — validation results consumed for plan
   health. plan-manager never re-implements project-level validation; it reads.
-- **prompt-manager** — relevant-context skill/action discovery for authoring and
-  setup guidance (the Guide projection, distinct from the search-hub Answer
-  projection that feeds references). Authoring stores discovered setup as pending
-  candidates; the author must accept useful candidates or reject noisy ones before
-  finalization. If down: context candidates are marked degraded or left for the
-  author to supply explicitly.
+- **prompt-manager / search-hub / cli-health** — relevant-context candidate
+  discovery for authoring and setup guidance. Prompt Manager owns the curated
+  skill/action discovery contract; Search Hub contributes broad recall candidates
+  across records/docs/skills; CLI Health contributes command-surface discovery.
+  This Guide/setup flow is distinct from the search-hub Answer projection that
+  feeds references. Authoring stores discovered setup as pending candidates; the
+  author must accept useful candidates or reject noisy ones before finalization.
+  If a source is down: candidates are marked degraded or left for the author to
+  supply explicitly.
 - **meta-optimization-manager** — velocity sink. If down: velocity is retained
   locally and emit is retried/skipped; no flow blocks.
 - **agent-manager** — provides the run-id attribution contract

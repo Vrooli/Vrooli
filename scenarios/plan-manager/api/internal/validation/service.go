@@ -2,6 +2,7 @@ package validation
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -23,10 +24,12 @@ type Service interface {
 	DeriveBaselineScope(ctx context.Context, planID, phaseID string) (BaselineScope, error)
 	// CaptureBaseline captures the regression-anchor's baseline snapshot for a plan
 	// from its typed anchor intent (scenario + baseline name), shelling
-	// git-control-tower through the command-runner seam. This is the execution-start
-	// "capture the before when before is true" action; it degrades honestly
-	// (Captured=false + Detail) when the anchor intent is incomplete or
-	// git-control-tower is unavailable — never a fabricated capture.
+	// git-control-tower through the command-runner seam, then validates the
+	// finalized snapshot status before calling it captured. This is the
+	// execution-start "capture the before when before is true" action; it degrades
+	// honestly (Captured=false + Detail) when the anchor intent is incomplete,
+	// git-control-tower is unavailable, or the finalized manifest captured zero
+	// surfaces — never a fabricated capture.
 	CaptureBaseline(ctx context.Context, planID string) (BaselineCapture, error)
 	RunValidation(ctx context.Context, planID, phaseID string) (Result, error)
 	// LastValidation returns the most recent STORED validation result for a
@@ -284,7 +287,132 @@ func (s *service) CaptureBaseline(ctx context.Context, planID string) (BaselineC
 	if _, err := s.runner(ctx, "git-control-tower", "baseline", "snapshot", "--scenario", scenario, "--name", name, "--reason", reason); err != nil {
 		return BaselineCapture{Scenario: scenario, BaselineName: name, Detail: "baseline snapshot failed: " + err.Error()}, nil
 	}
-	return BaselineCapture{Captured: true, Scenario: scenario, BaselineName: name, Detail: "captured baseline " + name + " for " + scenario}, nil
+	health := s.validateCapturedBaseline(ctx, scenario, name)
+	if !health.usable {
+		return BaselineCapture{
+			Scenario:             scenario,
+			BaselineName:         name,
+			CapturedSurfaceCount: health.capturedSurfaceCount,
+			SkippedSurfaces:      health.skipped,
+			Detail:               health.detail,
+		}, nil
+	}
+	return BaselineCapture{
+		Captured:             true,
+		Scenario:             scenario,
+		BaselineName:         name,
+		CapturedSurfaceCount: health.capturedSurfaceCount,
+		SkippedSurfaces:      health.skipped,
+		Detail:               fmt.Sprintf("captured baseline %s for %s with %d surface(s)", name, scenario, health.capturedSurfaceCount),
+	}, nil
+}
+
+type baselineCaptureHealth struct {
+	usable               bool
+	capturedSurfaceCount int
+	skipped              map[string]string
+	detail               string
+}
+
+func (s *service) validateCapturedBaseline(ctx context.Context, scenario, name string) baselineCaptureHealth {
+	out, err := s.runner(ctx, "git-control-tower", "baseline", "snapshot", "status", "--scenario", scenario, "--name", name, "--wait", "--json")
+	if err != nil {
+		return baselineCaptureHealth{
+			detail: fmt.Sprintf("baseline snapshot started but finalized validation failed: %v; treat %q as unusable and fall back to HEAD sha + allowlist diff until git-control-tower reports captured surfaces", err, name),
+		}
+	}
+	count, skipped, parseErr := parseBaselineStatusHealth(out)
+	if parseErr != nil {
+		return baselineCaptureHealth{
+			detail: fmt.Sprintf("baseline snapshot completed but validation output was unreadable: %v; treat %q as unusable and fall back to HEAD sha + allowlist diff", parseErr, name),
+		}
+	}
+	if count == 0 {
+		return baselineCaptureHealth{
+			capturedSurfaceCount: count,
+			skipped:              skipped,
+			detail:               fmt.Sprintf("baseline %q is unusable: captured 0 surfaces; %s; fall back to HEAD sha + allowlist diff until the skipped surfaces are fixed", name, summarizeSkippedSurfaces(skipped)),
+		}
+	}
+	return baselineCaptureHealth{usable: true, capturedSurfaceCount: count, skipped: skipped}
+}
+
+func parseBaselineStatusHealth(out []byte) (int, map[string]string, error) {
+	var resp struct {
+		Status   string `json:"status"`
+		Error    string `json:"error"`
+		Baseline struct {
+			Surfaces map[string]json.RawMessage `json:"surfaces"`
+			Skipped  map[string]string          `json:"skipped"`
+		} `json:"baseline"`
+	}
+	if err := json.Unmarshal(out, &resp); err == nil {
+		if resp.Status != "" && resp.Status != "ready" {
+			detail := strings.TrimSpace(resp.Error)
+			if detail == "" {
+				detail = resp.Status
+			}
+			return 0, resp.Baseline.Skipped, fmt.Errorf("snapshot status %s", detail)
+		}
+		return len(resp.Baseline.Surfaces), resp.Baseline.Skipped, nil
+	}
+	text := string(out)
+	count := 0
+	inSurfaces := false
+	inSkipped := false
+	skipped := map[string]string{}
+	for _, line := range strings.Split(text, "\n") {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case trimmed == "surfaces:":
+			inSurfaces = true
+			inSkipped = false
+		case strings.HasPrefix(trimmed, "not captured"):
+			inSurfaces = false
+			inSkipped = true
+		case inSurfaces && trimmed != "":
+			count++
+		case inSkipped && trimmed != "":
+			trimmed = strings.TrimLeft(trimmed, "!* \t")
+			fields := strings.Fields(trimmed)
+			if len(fields) > 1 && len([]rune(fields[0])) == 1 && !strings.Contains(fields[0], ":") {
+				trimmed = strings.TrimSpace(strings.TrimPrefix(trimmed, fields[0]))
+				fields = strings.Fields(trimmed)
+			}
+			if len(fields) > 0 {
+				reason := strings.TrimSpace(strings.TrimPrefix(trimmed, fields[0]))
+				skipped[fields[0]] = reason
+			}
+		}
+	}
+	if count == 0 && len(skipped) == 0 && strings.TrimSpace(text) == "" {
+		return 0, nil, errors.New("empty baseline status output")
+	}
+	if len(skipped) == 0 {
+		skipped = nil
+	}
+	return count, skipped, nil
+}
+
+func summarizeSkippedSurfaces(skipped map[string]string) string {
+	if len(skipped) == 0 {
+		return "no skipped-surface reason was reported"
+	}
+	keys := make([]string, 0, len(skipped))
+	for k := range skipped {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		reason := strings.TrimSpace(skipped[k])
+		if reason == "" {
+			parts = append(parts, k)
+			continue
+		}
+		parts = append(parts, k+": "+reason)
+	}
+	return "skipped surfaces: " + strings.Join(parts, "; ")
 }
 
 // planIdentifier prefers the human slug for log/reason text, falling back to id.
@@ -1041,8 +1169,8 @@ func baselineCommands(scenario string, anchor planmodel.RegressionAnchor) []stri
 		return nil
 	}
 	return []string{
-		fmt.Sprintf("git-control-tower baseline snapshot status --scenario %s --name %s", scenario, name),
-		fmt.Sprintf("git-control-tower baseline diff --scenario %s --name %s", scenario, name),
+		fmt.Sprintf("git-control-tower baseline snapshot status --scenario %s --name %s --wait --json", scenario, name),
+		fmt.Sprintf("git-control-tower baseline diff --scenario %s --name %s --wait", scenario, name),
 	}
 }
 

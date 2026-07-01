@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P0-001 — structured plan + phase record persisted to a durable, scenario-independent home store.",
-    "last_validated_at": "2026-06-28T12:36:23-04:00",
+    "last_validated_at": "2026-07-01T09:51:53-04:00",
     "module": "plan-store",
     "prd_ref": "PRD.md",
     "priority": "P0",

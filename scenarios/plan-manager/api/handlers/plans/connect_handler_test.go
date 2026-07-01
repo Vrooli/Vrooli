@@ -31,10 +31,13 @@ type fakePlansService struct {
 
 	gotListFilter        internalplans.ListFilter
 	gotGetID             string
+	gotGetWorkspace      internalplans.WorkspaceScope
 	gotCreate            internalplans.Plan
 	gotUpdate            internalplans.Plan
 	gotArchiveID         string
+	gotArchiveWorkspace  internalplans.WorkspaceScope
 	gotRenderID          string
+	gotRenderWorkspace   internalplans.WorkspaceScope
 	gotAddPhasePlanID    string
 	gotAddPhase          internalplans.Phase
 	gotUpdatePhasePlanID string
@@ -64,8 +67,9 @@ func (f *fakePlansService) Update(_ context.Context, p internalplans.Plan) (inte
 	return f.plan, f.err
 }
 
-func (f *fakePlansService) Get(_ context.Context, idOrSlug string) (internalplans.Plan, error) {
+func (f *fakePlansService) Get(_ context.Context, idOrSlug string, workspace internalplans.WorkspaceScope) (internalplans.Plan, error) {
 	f.gotGetID = idOrSlug
+	f.gotGetWorkspace = workspace
 	return f.plan, f.err
 }
 
@@ -74,13 +78,15 @@ func (f *fakePlansService) List(_ context.Context, filter internalplans.ListFilt
 	return f.plans, f.err
 }
 
-func (f *fakePlansService) Archive(_ context.Context, idOrSlug string) (internalplans.Plan, error) {
+func (f *fakePlansService) Archive(_ context.Context, idOrSlug string, workspace internalplans.WorkspaceScope) (internalplans.Plan, error) {
 	f.gotArchiveID = idOrSlug
+	f.gotArchiveWorkspace = workspace
 	return f.plan, f.err
 }
 
-func (f *fakePlansService) Render(_ context.Context, idOrSlug string) (internalplans.RenderResult, error) {
+func (f *fakePlansService) Render(_ context.Context, idOrSlug string, workspace internalplans.WorkspaceScope) (internalplans.RenderResult, error) {
 	f.gotRenderID = idOrSlug
+	f.gotRenderWorkspace = workspace
 	return internalplans.RenderResult{
 		Markdown: f.markdown,
 		Mirror:   internalplans.RenderedPlanMirror{Path: "/tmp/rendered.md", Status: internalplans.RenderedMirrorStatusFresh},
@@ -163,6 +169,7 @@ func TestListPlansSuccess(t *testing.T) {
 	resp, err := h.ListPlans(context.Background(), connect.NewRequest(&plansv1.ListPlansRequest{
 		Status:          sharedv1.PlanStatus_PLAN_STATUS_ACTIVE,
 		IncludeArchived: true,
+		Workspace:       &plansv1.WorkspaceScope{Root: "/workspace"},
 	}))
 	require.NoError(t, err)
 	require.Len(t, resp.Msg.GetPlans(), 2)
@@ -171,18 +178,20 @@ func TestListPlansSuccess(t *testing.T) {
 	// Filter is translated from the proto request.
 	require.Equal(t, internalplans.PlanStatusActive, svc.gotListFilter.Status)
 	require.True(t, svc.gotListFilter.IncludeArchived)
+	require.Equal(t, "/workspace", svc.gotListFilter.WorkspaceRoot)
 }
 
 func TestGetPlanSuccess(t *testing.T) {
 	svc := &fakePlansService{plan: internalplans.Plan{ID: "p1", Title: "Hello", Status: internalplans.PlanStatusDraft}}
 	h := newPlansHandler(svc)
 
-	resp, err := h.GetPlan(context.Background(), connect.NewRequest(&plansv1.GetPlanRequest{Id: "p1"}))
+	resp, err := h.GetPlan(context.Background(), connect.NewRequest(&plansv1.GetPlanRequest{Id: "p1", Workspace: &plansv1.WorkspaceScope{Root: "/workspace"}}))
 	require.NoError(t, err)
 	require.Equal(t, "p1", resp.Msg.GetPlan().GetId())
 	require.Equal(t, "Hello", resp.Msg.GetPlan().GetTitle())
 	require.Equal(t, sharedv1.PlanStatus_PLAN_STATUS_DRAFT, resp.Msg.GetPlan().GetStatus())
 	require.Equal(t, "p1", svc.gotGetID, "handler must forward the request id to the service")
+	require.Equal(t, "/workspace", svc.gotGetWorkspace.Root)
 }
 
 func TestCreatePlanForwardsAuthoredFields(t *testing.T) {
@@ -258,20 +267,22 @@ func TestArchivePlanSuccess(t *testing.T) {
 	svc := &fakePlansService{plan: internalplans.Plan{ID: "p1", Status: internalplans.PlanStatusArchived}}
 	h := newPlansHandler(svc)
 
-	resp, err := h.ArchivePlan(context.Background(), connect.NewRequest(&plansv1.ArchivePlanRequest{Id: "p1"}))
+	resp, err := h.ArchivePlan(context.Background(), connect.NewRequest(&plansv1.ArchivePlanRequest{Id: "p1", Workspace: &plansv1.WorkspaceScope{Root: "/workspace"}}))
 	require.NoError(t, err)
 	require.Equal(t, sharedv1.PlanStatus_PLAN_STATUS_ARCHIVED, resp.Msg.GetPlan().GetStatus())
 	require.Equal(t, "p1", svc.gotArchiveID)
+	require.Equal(t, "/workspace", svc.gotArchiveWorkspace.Root)
 }
 
 func TestRenderMarkdownSuccess(t *testing.T) {
 	svc := &fakePlansService{markdown: "# Title\n"}
 	h := newPlansHandler(svc)
 
-	resp, err := h.RenderMarkdown(context.Background(), connect.NewRequest(&plansv1.RenderMarkdownRequest{Id: "p1"}))
+	resp, err := h.RenderMarkdown(context.Background(), connect.NewRequest(&plansv1.RenderMarkdownRequest{Id: "p1", Workspace: &plansv1.WorkspaceScope{Root: "/workspace"}}))
 	require.NoError(t, err)
 	require.Equal(t, "# Title\n", resp.Msg.GetMarkdown())
 	require.Equal(t, "p1", svc.gotRenderID)
+	require.Equal(t, "/workspace", svc.gotRenderWorkspace.Root)
 }
 
 func TestAddPhaseSuccess(t *testing.T) {

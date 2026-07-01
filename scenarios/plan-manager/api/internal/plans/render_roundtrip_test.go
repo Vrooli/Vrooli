@@ -39,7 +39,7 @@ func comprehensivePlan() plans.Plan {
 			Scenario:     "plan-manager",
 			BaselineName: "plan-manager-structured-rendered-plans",
 			Commands: []string{
-				"git-control-tower baseline diff --scenario plan-manager --name plan-manager-structured-rendered-plans",
+				"git-control-tower baseline diff --scenario plan-manager --name plan-manager-structured-rendered-plans --wait",
 			},
 		},
 		ValidationStrategy:      "Run focused Go tests plus the scenario test; compare against the baseline.",
@@ -138,8 +138,8 @@ func TestRenderParseRecoversChangeBoundary(t *testing.T) {
 			Strategy:     plans.AnchorStrategyChangeBoundary,
 			BaselineName: "boundary-plan-baseline",
 			Commands: []string{
-				"git-control-tower baseline snapshot status --scenario plan-manager --name boundary-plan-baseline",
-				"git-control-tower baseline diff --scenario plan-manager --name boundary-plan-baseline",
+				"git-control-tower baseline snapshot status --scenario plan-manager --name boundary-plan-baseline --wait --json",
+				"git-control-tower baseline diff --scenario plan-manager --name boundary-plan-baseline --wait",
 				"git diff --stat -- docs/** packages/proto/**",
 			},
 		},

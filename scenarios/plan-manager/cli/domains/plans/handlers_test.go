@@ -220,12 +220,13 @@ func TestPlansRequestMapping(t *testing.T) {
 		{
 			// --include-archived is a proper boolean flag (manifest "bool": true):
 			// bare presence sets it, no value required.
-			name: "list maps status flag to ACTIVE enum", group: "plans", cmd: "list",
-			argv: []string{"--status", "active", "--include-archived"},
+			name: "list maps status flag to ACTIVE enum and workspace", group: "plans", cmd: "list",
+			argv: []string{"--status", "active", "--include-archived", "--workspace", "/workspace"},
 			assert: func(t *testing.T, req proto.Message) {
 				m := req.(*plansv1.ListPlansRequest)
 				require.Equal(t, sharedv1.PlanStatus_PLAN_STATUS_ACTIVE, m.GetStatus())
 				require.True(t, m.GetIncludeArchived())
+				require.Equal(t, "/workspace", m.GetWorkspace().GetRoot())
 			},
 		},
 		{
@@ -238,10 +239,12 @@ func TestPlansRequestMapping(t *testing.T) {
 			},
 		},
 		{
-			name: "get passes positional id", group: "plans", cmd: "get",
-			argv: []string{"plan-123"},
+			name: "get passes positional id and workspace", group: "plans", cmd: "get",
+			argv: []string{"plan-123", "--workspace", "/workspace"},
 			assert: func(t *testing.T, req proto.Message) {
-				require.Equal(t, "plan-123", req.(*plansv1.GetPlanRequest).GetId())
+				m := req.(*plansv1.GetPlanRequest)
+				require.Equal(t, "plan-123", m.GetId())
+				require.Equal(t, "/workspace", m.GetWorkspace().GetRoot())
 			},
 		},
 		{
@@ -272,17 +275,21 @@ func TestPlansRequestMapping(t *testing.T) {
 			},
 		},
 		{
-			name: "archive passes id", group: "plans", cmd: "archive",
-			argv: []string{"plan-9"},
+			name: "archive passes id and workspace", group: "plans", cmd: "archive",
+			argv: []string{"plan-9", "--workspace", "/workspace"},
 			assert: func(t *testing.T, req proto.Message) {
-				require.Equal(t, "plan-9", req.(*plansv1.ArchivePlanRequest).GetId())
+				m := req.(*plansv1.ArchivePlanRequest)
+				require.Equal(t, "plan-9", m.GetId())
+				require.Equal(t, "/workspace", m.GetWorkspace().GetRoot())
 			},
 		},
 		{
-			name: "render passes id", group: "plans", cmd: "render",
-			argv: []string{"plan-r"},
+			name: "render passes id and workspace", group: "plans", cmd: "render",
+			argv: []string{"plan-r", "--workspace", "/workspace"},
 			assert: func(t *testing.T, req proto.Message) {
-				require.Equal(t, "plan-r", req.(*plansv1.RenderMarkdownRequest).GetId())
+				m := req.(*plansv1.RenderMarkdownRequest)
+				require.Equal(t, "plan-r", m.GetId())
+				require.Equal(t, "/workspace", m.GetWorkspace().GetRoot())
 			},
 		},
 		{

@@ -127,10 +127,14 @@ this map is the ownership contract.
   parse failed, conflict, or source untouched; it never deletes or overwrites the
   legacy source file.
 - **Render/export:** render any plan to a markdown view (the human-readable
-  projection). `RenderMarkdown` returns the mirror contents when fresh and
-  repairs the mirror from SQLite when missing or stale.
+  projection). `RenderMarkdown` returns the mirror contents when fresh, repairs
+  the mirror from SQLite when missing or stale, and returns the resolved plan
+  metadata alongside the markdown/mirror metadata for caller provenance.
 - The structured record is canonical; markdown is always a derived projection.
   Editing the mirror file by hand never updates SQLite.
+- Canonical plan records carry `workspace_id`/`workspace_root`. Rendered mirror
+  index metadata also carries workspace identity so root fallback clients can
+  filter safely and fail closed for scoped reads when provenance is missing.
 
 ## Retention And Deletion
 

@@ -82,6 +82,16 @@ The response returns per-item actions (`mirror_fresh`, `mirror_repair_needed`,
 metadata, and `source_untouched`. The operation is non-destructive to legacy
 markdown sources. CLI mirror: `plan-manager plans reconcile`.
 
+## PlansService RenderMarkdown
+
+`POST /vrooli.plan_manager.v1.plans.PlansService/RenderMarkdown`
+
+Returns the rendered markdown projection for a plan id or slug. The request
+accepts `workspace` scope so slug lookup is deterministic across workspaces. The
+response includes the markdown, rendered mirror metadata, a `repaired` flag, and
+the resolved plan metadata so root and scenario CLIs can preserve provenance
+without issuing a second lookup. CLI mirror: `plan-manager plans render`.
+
 ---
 
 ## Adding a new endpoint

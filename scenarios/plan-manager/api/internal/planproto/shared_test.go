@@ -64,6 +64,8 @@ func TestPlanToProtoMapsNestedStructuredFields(t *testing.T) {
 		ContentHash:      "hash",
 		CreatedAt:        "2026-06-25T10:00:00Z",
 		UpdatedAt:        "2026-06-25T11:00:00Z",
+		WorkspaceID:      "ws-1",
+		WorkspaceRoot:    "/workspaces/main",
 		Purpose:          "Move auth",
 		Scope:            "auth only",
 		Constraints:      "no outage",
@@ -131,6 +133,9 @@ func TestPlanToProtoMapsNestedStructuredFields(t *testing.T) {
 	if proto.GetRegressionAnchor().GetBaselineName() != "base" {
 		t.Fatalf("anchor = %#v", proto.GetRegressionAnchor())
 	}
+	if proto.GetWorkspaceId() != "ws-1" || proto.GetWorkspaceRoot() != "/workspaces/main" {
+		t.Fatalf("workspace fields = %q/%q", proto.GetWorkspaceId(), proto.GetWorkspaceRoot())
+	}
 	if got := len(proto.GetReferences()); got != 1 {
 		t.Fatalf("len(proto.References) = %d, want 1", got)
 	}
@@ -175,7 +180,9 @@ func TestPlanProtoRoundTripNewFields(t *testing.T) {
 		WorkPosture:             planmodel.WorkPostureBrownfield,
 		WorkPostureSource:       planmodel.WorkPostureSourceServiceMaturity,
 		WorkPostureDetail:       "pilot",
-		ImportProvenance:        &planmodel.ImportProvenance{SourcePath: "x.md", OriginalFormat: "legacy_markdown"},
+		ImportProvenance:        &planmodel.ImportProvenance{SourcePath: "x.md", OriginalFormat: "legacy_markdown", WorkspaceID: "ws-rt", WorkspaceRoot: "/workspace/rt"},
+		WorkspaceID:             "ws-rt",
+		WorkspaceRoot:           "/workspace/rt",
 		PreservedLegacySections: []planmodel.LegacySection{
 			{Heading: "Old", Content: "body", PreservationReason: "unmapped_legacy_section"},
 		},
@@ -203,8 +210,14 @@ func TestPlanProtoRoundTripNewFields(t *testing.T) {
 	if got.WorkPosture != planmodel.WorkPostureBrownfield || got.WorkPostureSource != planmodel.WorkPostureSourceServiceMaturity || got.WorkPostureDetail != "pilot" {
 		t.Fatalf("work posture round-trip: %q/%q/%q", got.WorkPosture, got.WorkPostureSource, got.WorkPostureDetail)
 	}
+	if got.WorkspaceID != "ws-rt" || got.WorkspaceRoot != "/workspace/rt" {
+		t.Fatalf("workspace fields round-trip: %q/%q", got.WorkspaceID, got.WorkspaceRoot)
+	}
 	if got.ImportProvenance == nil || got.ImportProvenance.SourcePath != "x.md" {
 		t.Fatalf("import provenance round-trip: %+v", got.ImportProvenance)
+	}
+	if got.ImportProvenance.WorkspaceID != "ws-rt" || got.ImportProvenance.WorkspaceRoot != "/workspace/rt" {
+		t.Fatalf("import provenance workspace round-trip: %+v", got.ImportProvenance)
 	}
 	if len(got.PreservedLegacySections) != 1 || got.PreservedLegacySections[0].Heading != "Old" {
 		t.Fatalf("preserved legacy round-trip: %+v", got.PreservedLegacySections)

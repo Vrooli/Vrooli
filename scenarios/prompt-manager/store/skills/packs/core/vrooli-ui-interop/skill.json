@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "vrooli-ui-interop",
   "name": "Vrooli UI Interop",
-  "description": "Vrooli-specific UI architecture for reliable behavior across deployment contexts (localhost, tunnel, proxy/iframe)",
+  "description": "DEPRECATED — consolidated into the ui-health steer skill. Interop rubric now owned by the ui-health provider (replaces the removed app-monitor interop command); load `ui-health` instead.",
   "modes": [
     "steer",
     "react"

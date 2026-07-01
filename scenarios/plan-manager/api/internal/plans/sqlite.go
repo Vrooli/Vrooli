@@ -67,6 +67,8 @@ func (r *sqliteRepository) WithTx(ctx context.Context, fn func(Repository) error
 // field that isn't a first-class queryable column. Phases and references live
 // here because they round-trip with the plan and are never queried across plans.
 type planDocument struct {
+	WorkspaceID      string                `json:"workspace_id,omitempty"`
+	WorkspaceRoot    string                `json:"workspace_root,omitempty"`
 	Purpose          string                `json:"purpose"`
 	Scope            string                `json:"scope"`
 	Constraints      string                `json:"constraints"`
@@ -133,6 +135,8 @@ ORDER BY from_plan_id, to_plan_id, kind`
 
 func (r *sqliteRepository) Save(ctx context.Context, p Plan) error {
 	doc := planDocument{
+		WorkspaceID:      p.WorkspaceID,
+		WorkspaceRoot:    p.WorkspaceRoot,
 		Purpose:          p.Purpose,
 		Scope:            p.Scope,
 		Constraints:      p.Constraints,
@@ -210,6 +214,9 @@ func (r *sqliteRepository) List(ctx context.Context, filter ListFilter) ([]Plan,
 		if !filter.IncludeArchived && filter.Status == "" && p.Status == PlanStatusArchived {
 			continue
 		}
+		if !planMatchesWorkspace(p, WorkspaceScope{ID: filter.WorkspaceID, Root: filter.WorkspaceRoot}) {
+			continue
+		}
 		out = append(out, p)
 	}
 	if err := rows.Err(); err != nil {
@@ -276,6 +283,8 @@ func scanPlan(s rowScanner) (Plan, error) {
 		return Plan{}, fmt.Errorf("unmarshal plan document %q: %w", p.ID, err)
 	}
 	p.Purpose = doc.Purpose
+	p.WorkspaceID = doc.WorkspaceID
+	p.WorkspaceRoot = doc.WorkspaceRoot
 	p.Scope = doc.Scope
 	p.Constraints = doc.Constraints
 	p.NonGoals = doc.NonGoals

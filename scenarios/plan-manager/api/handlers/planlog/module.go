@@ -72,7 +72,7 @@ func (a resolverAdapter) Resolve(ctx context.Context, handle string) (planID, ex
 	} else if found {
 		return e.PlanID, e.ID, true, nil
 	}
-	plan, gerr := a.plans.Get(ctx, handle)
+	plan, gerr := a.plans.Get(ctx, handle, internalplans.WorkspaceScope{})
 	if gerr != nil {
 		// A non-resolving handle is not a hard error here — the service decides
 		// whether an unresolved handle is acceptable (it is for filters).

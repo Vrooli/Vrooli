@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "react-stability",
   "name": "React Stability",
-  "description": "React best practices, performance, and stability patterns",
+  "description": "DEPRECATED — consolidated into the ui-health steer skill. Crash-prevention rubric now owned by the ui-health provider; load `ui-health` instead.",
   "modes": [
     "steer",
     "react"

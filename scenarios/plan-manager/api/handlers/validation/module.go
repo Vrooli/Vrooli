@@ -70,7 +70,7 @@ func Schema() string { return internalvalidation.Schema() }
 type planAdapter struct{ svc internalplans.Service }
 
 func (a planAdapter) GetPlan(ctx context.Context, idOrSlug string) (internalplans.Plan, error) {
-	return a.svc.Get(ctx, idOrSlug)
+	return a.svc.Get(ctx, idOrSlug, internalplans.WorkspaceScope{})
 }
 
 // repoRoot resolves the repository root so filesystem reference resolution

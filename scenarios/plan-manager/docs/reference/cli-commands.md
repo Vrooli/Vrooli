@@ -193,8 +193,11 @@ addition to `--title`, `--intent`, `--acceptance`, `--context`, `--reminders`,
 `preserved_legacy_sections` when the caller omits them, so a routine
 authored-field update never drops governance lineage.
 
+`plan-manager plans list/get/render/archive` accept `--workspace <path>` so slug
+lookup and list/archive/render behavior can be scoped consistently with the API.
 `plan-manager plans get`, mutation outputs, and `plans render` surface the
-rendered markdown mirror path when the API returns mirror metadata. Use
+rendered markdown mirror path when the API returns mirror metadata; render also
+returns the resolved plan metadata in JSON. Use
 `plan-manager plans import --source docs/plans/example.md --workspace <path>` to
 resolve a relative source path from a workspace root. Use `plan-manager plans
 reconcile --dry-run --workspace <path>` to preview missing/stale mirror repairs

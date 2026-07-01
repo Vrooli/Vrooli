@@ -1,9 +1,11 @@
 ## Practice focus: Plan Skill Discovery
 
-Methodology for finding and loading relevant prompt-manager skills before creating implementation plans. Ensures plans are informed by existing organizational knowledge and that executing agents can load the same context.
+Methodology for choosing the right **Prompt Manager skills** for a Plan Manager implementation plan. Use it to preserve Prompt Manager's curated skill-pack and budget behavior while Plan Manager owns the authoring flow and Search Hub owns broad federated recall.
 
 Required reading:
 - `docs/agent-system/SKILL_AUTHORING.md`
+- `scenarios/plan-manager/docs/concepts/PLAN-MODEL.md`
+- `scenarios/plan-manager/docs/reference/cli-commands.md`
 
 ---
 
@@ -11,218 +13,189 @@ Required reading:
 
 Use Plan Skill Discovery when:
 - Creating an implementation plan and the user has **not** provided specific skills
-- You need to find domain-relevant skills before writing a plan
-- An executing agent needs to know which skills to load
-- An automated workshop agent needs to discover domain-relevant skills for a backlog item
+- You need a curated, budget-aware `prompt-manager skill read ...` set for Plan Manager setup context
+- Plan Manager `author context-discover` proposes a `prompt-manager-skill-discovery` candidate and you need to decide whether to accept it
+- An automated workshop agent needs to discover domain-relevant **skills** for a backlog item
 
-This workflow uses **skill mode** (`--type skill`, the default) on purpose. Skill mode is *curated*: discover treats topics as packs — when your query fires a relevant topic, that topic's whole skill pack (its own skills plus its folder's and the root's) is included as required reading, and strong direct matches surface above the packs. That curated behavior is exactly what an implementation plan wants. Operational `--type all` is the opposite (best-match relevance, no packs) and is for "is there already a tool for X?" lookups, not plan authoring — so stay in skill mode here.
+**Discovery layers are intentionally separate:**
 
-> The old caveat "do not add `--type all` because Actions crowd out skills" no longer applies: discover is now mode-aware (I8). `--type all` ranks skills and actions purely by relevance with no pack injection, so it can't bury steer skills under a curated dev pack — but it also won't *give* you the curated pack a plan needs, which is why skill mode remains correct here.
+| Layer | Use it for | What it does not replace |
+|---|---|---|
+| `search-hub query ...` | Broad recall across records, docs, skills, backlog, commands, and other registered corpora | The curated/budgeted Prompt Manager skill-read contract |
+| `prompt-manager discover ... --type skill` | Plan-authoring skill selection: strong direct skill hits plus curated topic packs and complexity budgets | Broad cross-corpus recall |
+| `plan-manager author context-discover` | Reviewable setup candidates inside the authoring wizard | Author judgment about which candidates matter |
+
+This workflow uses **Prompt Manager skill mode** (`--type skill`, the default) on purpose. Skill mode is *curated*: `prompt-manager discover` treats topics as packs. When a query fires a relevant topic, that topic's skill pack is included and strong direct matches surface above the packs. `search-hub query --type skill` can find skill hits, but it does not currently expose the same multi-query, topic-pack, budget-status, and recommended-read-command artifact.
 
 **Do NOT use** for:
-- Routine task execution (skills should already be embedded in the plan)
+- Routine task execution where Plan Manager has already provided accepted setup context
 - Quick one-step fixes with no planning phase
-- Executing a plan that already contains Required Reading
-- The user already provided specific skills to use
+- Executing a plan that already contains accepted Plan Manager `relevant_context`
+- Cases where the user already provided the exact skills to use
+- General prior-work recall across records/docs/backlog; use `search-hub query` for that
 
 ---
 
 ### **2. The Process**
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                      PLAN SKILL DISCOVERY PROCESS                            │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│   ┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐          │
-│   │ CLASSIFY │ ──▶ │  SEARCH  │ ──▶ │ CONFIRM  │ ──▶ │  EMBED   │          │
-│   │  WORK    │     │          │     │RELEVANCE │     │ IN PLAN  │          │
-│   └──────────┘     └────┬─────┘     └──────────┘     └──────────┘          │
-│                         │                                                    │
-│                    Too many results?                                          │
-│                    ──▶ Narrow with tags                                       │
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
+RECALL BROADLY -> CLASSIFY SKILL NEEDS -> RUN CURATED SKILL DISCOVERY -> ACCEPT/REJECT IN PLAN MANAGER
 ```
 
 ---
 
-### **Phase 1: Classify the Work**
+### **Phase 1: Recall Broadly**
 
-**Entry criteria:** You are about to create an implementation plan.
+**Entry criteria:** You are about to create or update an implementation plan.
 
 **Actions:**
-1. Decompose the work into distinct concepts (domain area, technology/stack, problem type). Each concept becomes its own search query. Use this decision tree to guide decomposition:
+1. Use Search Hub first for broad prior-work and source-of-truth recall:
+   ```bash
+   search-hub query "<one-sentence plan intent>" --type record,backlog,initiative,skill,doc
+   ```
+2. Use those results to identify prior work, existing plans/backlog, canonical docs, and candidate skill concepts. Do not treat this as the final skill-read bundle.
+
+**Exit criteria:**
+- [ ] Broad recall was run or explicitly unavailable
+- [ ] Prior work/docs/backlog findings were folded into the plan context
+- [ ] Candidate skill concepts are ready for curated discovery
+
+---
+
+### **Phase 2: Classify Skill Needs**
+
+**Entry criteria:** Broad recall is complete.
+
+**Actions:**
+1. Decompose the work into distinct skill-discovery concepts: domain area, technology/stack, problem type, and scenario surface. Each concept becomes its own Prompt Manager discovery query.
 
 ```
 What kind of work is this?
-├─ Bug/debugging        → concepts: "debugging", "<domain>", "<error type>"
-├─ New feature/scenario → concepts: "<scenario-name>", "<domain>", "<technology>"
-├─ Refactor/cleanup     → concepts: "refactor", "<area>", "<pattern>"
-├─ Deployment/infra     → concepts: "deploy", "<target>", "<infrastructure>"
-└─ Unsure               → concepts: "<goal description>", "<technology>", "<problem type>"
+├─ Bug/debugging        -> concepts: "debugging", "<domain>", "<error type>"
+├─ New feature/scenario -> concepts: "<scenario-name>", "<domain>", "<technology>"
+├─ Refactor/cleanup     -> concepts: "refactor", "<area>", "<pattern>"
+├─ Deployment/infra     -> concepts: "deploy", "<target>", "<infrastructure>"
+└─ Unsure               -> concepts: "<goal description>", "<technology>", "<problem type>"
 ```
 
-> **Ecosystem-fit check (new-scenario & refactor work).** For **New feature/scenario** and **Refactor/cleanup** classifications, also load `ecosystem-fit` (`prompt-manager skill read ecosystem-fit`). It places the scenario in Vrooli's interfaces, functional role, and compound-value design so the plan reflects how the work fits the whole — not just the local task. See `path:docs/concepts/ECOSYSTEM.md`.
+> **Ecosystem-fit check.** For **New feature/scenario** and **Refactor/cleanup** classifications, also load `ecosystem-fit` (`prompt-manager skill read ecosystem-fit`). It places the work in Vrooli's interfaces, functional role, and compound-value design so the plan reflects how the change fits the whole system.
 
 2. Formulate 2-5 focused search queries, one per concept.
 
 **Exit criteria:**
 - [ ] Work type identified
-- [ ] 2-5 focused search queries formulated (one per concept)
+- [ ] 2-5 focused skill-discovery queries formulated
 
 ---
 
-### **Phase 2: Search**
+### **Phase 3: Run Curated Skill Discovery**
 
 **Entry criteria:** 2-5 focused search queries are ready.
 
 **Actions:**
-1. **Run unified discovery with all queries and a complexity level:**
+1. Run Prompt Manager discovery in skill mode with all queries and a complexity level:
    ```bash
-   prompt-manager discover "concept1" "concept2" "concept3" --complexity moderate
+   prompt-manager discover "concept1" "concept2" "concept3" --type skill --complexity moderate
    ```
-   The `discover` command performs both topic search and skill search for each query,
-   deduplicates results, and reports content size against the complexity budget.
-   It ranks by **relevance with topics as curated packs**: strong direct matches
-   surface at the top, the curated pack for any topic your query fires is always
-   included, and neither crowds out the other. (This replaced the old topic-first
-   ordering that buried the best matches under a generic seed bundle.)
 
-   **Phrase queries as activity + surface concepts so the right topic packs fire.**
-   A topic only contributes its pack when the query is semantically close to the
-   topic's description. Name the *kind of work* and the *surface* — e.g.
-   "refactor and clean up duplication", "design a CLI command surface",
-   "tunable config levers and thresholds", "graceful degradation under failure" —
-   rather than a bare noun. A vague query fires no topic and you fall back to pure
-   skill search.
+   Phrase queries as activity + surface concepts so the right topic packs fire, for example: "refactor and clean up duplication", "design a CLI command surface", "graceful degradation under failure". A bare noun often falls back to pure skill search.
 
-2. **Choose the complexity that matches the work:**
+2. Choose the complexity that matches the work:
 
-   | Complexity | Char Budget (live) | When to Use |
-   |---|---|---|
-   | `minor` | ~50,000 | Bug fix, small tweak |
-   | `moderate` | ~75,000 | New feature, refactor |
-   | `major` | ~100,000 | Multi-file feature, new endpoint |
-   | `architectural` | ~150,000 | Cross-scenario, new system design |
+   | Complexity | When to Use |
+   |---|---|
+   | `minor` | Bug fix, small tweak |
+   | `moderate` | New feature, refactor |
+   | `major` | Multi-file feature, new endpoint |
+   | `architectural` | Cross-scenario, new system design |
 
-   These are the **live** budgets (from `store/config/budgets.json`), not the
-   small code defaults. They are deliberately generous — at these sizes the
-   budget rarely binds, so **do not reflexively prefer the trimmed command**.
-   Include the full discovered set unless `discover` explicitly reports `over`.
-
-3. **If over budget:** use the recommended (trimmed) read command from the output.
-   The trim is block-aware: it keeps the strong direct matches and the curated
-   packs whole and trims the weak embedding tail first, so the recommended set is
-   the dependable core, not an arbitrary prefix.
-4. **If you get few results**, broaden the query phrasing — name the activity and
-   surface (see Phase 1 above) so a topic pack fires, and add more concepts. Two
-   secondary causes, in order: a relevant **topic isn't firing** because the query
-   doesn't match its description (rephrase toward the kind of work), or the
-   **similarity floor** (`AI_SEARCH_THRESHOLD`, default 0.5) drops individual
-   skills scoring just below it (add concepts to recover them). See
-   `path:scenarios/prompt-manager/docs/reference/discovery-pipeline.md` for the
-   ranking model and `prompt-manager discovery-metrics` for the measured
-   near-threshold/returned-count rates.
-5. **If you need to narrow results for a specific concept, use tag filtering:**
-   ```bash
-   prompt-manager search "<concept>" -tag testing
-   ```
+3. If over budget, use the recommended trimmed read command from the output. The trim keeps strong direct matches and curated packs before weak embedding-tail results.
+4. If you get few results, broaden the query phrasing toward the kind of work and the affected surface.
 
 **Exit criteria:**
-- [ ] Discovery command executed with appropriate complexity
-- [ ] Budget status checked (under/over)
-- [ ] Skill candidates identified from discover output
-
-6. **Check existing CLI surface for the plan's operations.** If the plan will introduce or replace any deterministic operation (anything you'd otherwise wrap in an Action or document as command prose), run `cli-health search "<operation>"` once per operation. The plan's Current Technical Context section should cite the matching command(s) found there — assume the command exists and reuse it before proposing a new CLI verb. A no-hit result is a legitimate signal that a new CLI command is part of the plan's scope.
-
-**Exit criteria (CLI surface check):**
-- [ ] Every deterministic operation named in the plan was searched against `cli-health` and either reused or noted as a new CLI commitment.
+- [ ] Prompt Manager discovery command executed with appropriate complexity
+- [ ] Budget status checked
+- [ ] Skill candidates identified
 
 ---
 
-### **Phase 3: Confirm Relevance**
+### **Phase 4: Confirm Skill Relevance**
 
 **Entry criteria:** Candidate skills found.
 
 **Actions:**
-1. **Read the candidates:**
+1. Read candidates:
    ```bash
    prompt-manager skill read <id-1> <id-2> -output combined
    ```
-2. **Assess each candidate autonomously using these criteria:**
+2. Assess each candidate autonomously:
    - Does it apply to this specific task?
    - Would it materially improve the plan's quality?
-   - Is it a Practice, Steer, Search, or Tools skill that the executing agent needs?
-   - Can you articulate a specific way it will improve the plan?
-3. **Apply confidence threshold:** Include a skill only if you can articulate a specific way it will improve the plan. Vague relevance ("might be useful") is insufficient — discard.
-
-**Decision table:**
+   - Is it a Practice, Steer, Search, or Tools skill the executing agent needs?
+   - Can you articulate the specific way it improves the plan?
+3. Include a skill only if you can articulate that concrete improvement. Vague relevance is insufficient.
 
 | Skill Relevance | Action |
 |---|---|
-| Directly applicable to the task | Include as required reading |
+| Directly applicable to the task | Accept as required Plan Manager context |
 | Tangentially related | Discard |
-| No relevant skills found | Proceed without — not every plan needs skills |
+| No relevant skills found | Proceed with explicit no-context rationale |
 
 **Exit criteria:**
 - [ ] Final skill list determined
+- [ ] Discarded candidates have a clear reason
 
 ---
 
-### **Phase 4: Embed in Plan**
+### **Phase 5: Accept or Submit in Plan Manager**
 
 **Entry criteria:** Relevant skills confirmed.
 
 **Actions:**
-1. **Copy the pre-built read command** from the `discover` output into the plan:
-   ```markdown
-   ## Required Reading
-   prompt-manager skill read <skill-1> <skill-2> <skill-3>
+1. Prefer Plan Manager's context candidate workflow when authoring is already in a session:
+   ```bash
+   plan-manager author context-discover <session> --concepts "concept1,concept2" --complexity moderate
+   plan-manager author context-accept <session> <candidate-id>
    ```
-   If you trimmed for budget, use the recommended (trimmed) command instead.
-2. This ensures any agent executing the plan loads the same context.
-3. In automated contexts (e.g., workshop rounds), embed discovered skills directly into plan.md's Required Reading section.
+   Plan Manager currently proposes multiple candidate setup commands per concept, including Prompt Manager curated skill discovery, Prompt Manager operational/action discovery, Search Hub recall, and CLI Health search. Accept only the candidates that materially improve execution.
+2. If the curated `prompt-manager discover` output gives a concrete skill-read command, submit that exact setup item directly:
+   ```bash
+   plan-manager author context-submit <session> \
+     --kind skill \
+     --label "Curated Prompt Manager skills" \
+     --reason "<why these skills are needed>" \
+     --instruction "Run the command and read the returned skills before implementation." \
+     --command "prompt-manager skill read <skill-1> <skill-2>" \
+     --required
+   ```
+3. If no relevant skills exist, encode that explicitly in the authoring session instead of inventing filler context.
 
 **Exit criteria:**
-- [ ] Plan contains Required Reading section with explicit read commands
-- [ ] Executing agent can reproduce the same skill context
+- [ ] Plan Manager session contains accepted `relevant_context` items, or explicit no-context rationale
+- [ ] Each accepted item has a reason and executable setup instruction
+- [ ] Executing agent can reproduce the same context through Plan Manager setup output
 
 ---
 
-### **3. Mandatory Plan Conventions**
+### **3. Plan Manager Conventions**
 
-These conventions apply to **every** implementation plan, regardless of which skills were discovered. They counteract common coding-agent anti-patterns that consistently produce worse outcomes.
+These conventions apply to implementation plans created through Plan Manager.
 
-#### **3a. Greenfield by Default**
+#### **3a. Work Posture Is Plan Manager-Owned**
 
-Unless the user explicitly requires backwards compatibility, every plan must state:
-
-> **This is greenfield work.** Do not include compatibility shims, legacy wrappers, dead code, unused re-exports, `// removed` comments, or renamed `_unused` variables.
-
-**Why:** Coding agents default to preserving backwards compatibility — adding shims, re-exporting removed types, and keeping dead code "just in case." In practice this creates tech debt and messy code. Explicitly stating greenfield up front produces cleaner results.
-
-**When to omit:** Only when the user says the change must be backwards-compatible with existing consumers (e.g., a published API, shared library, or migration path).
+Plan Manager derives work posture from scope, compatibility constraints, and user intent. Do not hand-author a generic "greenfield by default" markdown block. Instead, make the compatibility requirement explicit in the authoring loop:
+- If there are no published consumers or compatibility obligations, state that compatibility shims and legacy wrappers are prohibited.
+- If compatibility matters, identify the consumers and migration expectation.
+- If unknown, add a plan risk or investigation step rather than assuming compatibility.
 
 #### **3b. Scenario Plans Must End with Cleanup + Health Verification**
 
-Any plan that modifies a scenario must include a final step:
+Any plan that modifies a scenario must encode final validation work in its phases and acceptance criteria:
+1. Fix lint, type, and unit test issues in modified files, including issues that appear pre-existing but are exposed by the change.
+2. Restart the scenario with `vrooli scenario restart <name>` or the scenario-local `make` lifecycle where appropriate.
+3. Verify the scenario is healthy through its API/UI checks.
 
-1. Fix **all** lint, type, and unit test issues in modified files — **including pre-existing ones**
-2. Restart the scenario with `vrooli scenario restart <name>`
-3. Verify the scenario is healthy (API health check, UI loads)
-
-**Why:** Coding agents commonly encounter a lint or type error, conclude it was "pre-existing," and skip it. ~90% of the time the agent is wrong — the error is from their own changes. Even when truly pre-existing, fixing it improves codebase health. The explicit "even if pre-existing" phrasing is intentional — it removes the agent's escape hatch for skipping issues.
-
-**Example plan step:**
-```markdown
-### Final: Cleanup & Verification
-- Run type checking (`npx tsc --noEmit` or `go build ./...`) and fix ALL errors, even pre-existing
-- Run linter (`eslint` / `golangci-lint run`) and fix ALL warnings in modified files
-- Run unit tests and fix any failures
-- `vrooli scenario restart <scenario-name>`
-- Verify health: `curl -s http://localhost:<port>/health`
-```
+Do not leave this as a prose reminder outside the structured plan. It belongs in Plan Manager phase steps, validation commands, and acceptance criteria.
 
 ---
 
@@ -230,22 +203,28 @@ Any plan that modifies a scenario must include a final step:
 
 | Anti-Pattern | Why It Fails | Better Approach |
 |---|---|---|
-| **Searching during execution** | Skills should already be in the plan | Search during planning only |
-| **Including every result** | Context bloat, irrelevant noise | Only include materially useful skills |
-| **Skipping search entirely** | Miss organizational knowledge | Always search when planning |
-| **Single broad query** | Poor recall across diverse concepts | Decompose into 2-5 focused queries, one per concept |
-| **Asking user to confirm in automated contexts** | Blocks autonomous processing | Assess relevance autonomously using Phase 3 criteria |
+| Searching during execution | Setup context should already be accepted in Plan Manager | Search during planning only |
+| Including every result | Context bloat, irrelevant noise | Accept only materially useful context |
+| Skipping search entirely | Misses organizational knowledge | Search when planning unless the user supplied exact context |
+| Single broad query | Poor recall across diverse concepts | Decompose into 2-5 focused queries |
+| Asking user to confirm in automated contexts | Blocks autonomous processing | Assess relevance autonomously |
+| Hand-authoring Required Reading markdown | Duplicates Plan Manager's setup model | Use `relevant_context` candidates/submissions |
+| Treating Search Hub skill hits as the curated bundle | Loses Prompt Manager topic-pack and budget behavior | Use `prompt-manager discover --type skill` for the final skill-read set |
+| Accepting every Plan Manager context candidate | Bloats setup with duplicate search commands | Accept only candidates with a concrete execution reason |
 
 ---
 
 ### **5. Boundaries**
 
-This methodology covers **skill discovery for planning purposes** and **mandatory conventions** that every plan must follow.
+This methodology covers **curated Prompt Manager skill discovery for planning purposes** and **how to attach the resulting skill setup to Plan Manager plans**.
 
 **Does NOT cover:**
-- **Full plan structure/template** — Use implementation-plan-authoring for the 13-section format
-- **Skill authoring** — Use skill-authoring-practice for creating new skills
-- **Situational skill loading** — The CLAUDE.md dispatch table handles conversation-mode detection separately
+- **Full plan structure/template** - Plan Manager owns the structured plan and phase model; use `implementation-plan-authoring` for the authoring loop
+- **Broad cross-corpus recall** - Use Search Hub directly or the Search Hub candidate from Plan Manager `context-discover`
+- **CLI command governance** - Use CLI Health directly or the CLI Health candidate from Plan Manager `context-discover`
+- **Action/tool discovery** - Use `prompt-manager discover --type all` or the Prompt Manager actions candidate from Plan Manager `context-discover`
+- **Skill authoring** - Use `skill-authoring-practice` for creating new skills
+- **Situational skill loading** - The AGENTS/CLAUDE dispatch table handles conversation-mode detection separately
 
 ---
 
@@ -253,14 +232,9 @@ This methodology covers **skill discovery for planning purposes** and **mandator
 
 When applying Plan Skill Discovery, you **must** produce:
 
-1. **2-5 focused search queries** based on work classification
-2. **A `discover` command run** with appropriate complexity level
-3. **A relevance assessment** of found skills (informed by budget status)
-4. **A Required Reading section** in the plan (even if empty — state "no relevant skills found")
-5. **A greenfield statement** unless the user explicitly requires backwards compatibility
-6. **A cleanup & verification step** if the plan modifies a scenario
-
-You **should** also:
-- Use the pre-built read command from `discover` output in the Required Reading section
-- Respect the budget recommendation — trim to the recommended command if over budget
-- Prefer specific skill IDs over broad categories in the Required Reading section
+1. **2-5 focused skill-discovery queries** based on work classification
+2. **A broad Search Hub recall pass** or an explicit unavailable note
+3. **A `prompt-manager discover --type skill` command run** with appropriate complexity
+4. **A relevance assessment** of found skills
+5. **Accepted Plan Manager `relevant_context` items** with setup commands, or an explicit no-context rationale
+6. **Scenario cleanup and health verification criteria** when the plan touches a scenario

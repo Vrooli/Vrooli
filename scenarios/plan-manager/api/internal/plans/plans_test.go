@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -17,6 +18,7 @@ import (
 	"plan-manager/internal/testutil/mocks"
 
 	"github.com/stretchr/testify/require"
+	repocontract "github.com/vrooli/repo-contract-go"
 
 	apidb "github.com/vrooli/api-core/database"
 
@@ -44,6 +46,16 @@ func newService(t *testing.T) (plans.Service, *mocks.FakeClock) {
 		Mirror: newFakeMirrorStore(t.TempDir()),
 	})
 	return svc, clk
+}
+
+func validWorkspaceRoot(t *testing.T) string {
+	t.Helper()
+	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", ".."))
+	require.NoError(t, err)
+	if _, err := os.Stat(filepath.Join(root, ".vrooli", "repo-contract.json")); err != nil {
+		t.Fatalf("valid workspace fixture missing repo contract: %v", err)
+	}
+	return root
 }
 
 type fakeMirrorStore struct {
@@ -142,7 +154,7 @@ func TestStorageRoundTripsNewProfessionalFields(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	got, err := svc.Get(ctx, created.ID)
+	got, err := svc.Get(ctx, created.ID, plans.WorkspaceScope{})
 	require.NoError(t, err)
 	require.Equal(t, "A problem.", got.ProblemStatement)
 	require.Equal(t, "An outcome.", got.TargetOutcome)
@@ -164,6 +176,115 @@ func TestStorageRoundTripsNewProfessionalFields(t *testing.T) {
 	require.Equal(t, "go test ./...", ph.Validation)
 	require.Equal(t, []string{"r1"}, ph.RisksHazards)
 	require.Equal(t, "next phase needs this", ph.HandoffNotes)
+}
+
+func TestStorageRoundTripsCanonicalWorkspaceFields(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := context.Background()
+
+	created, err := svc.Create(ctx, plans.Plan{
+		Title:         "Scoped plan",
+		WorkspaceID:   "ws-1",
+		WorkspaceRoot: filepath.Join(t.TempDir(), "workspace"),
+	})
+	require.NoError(t, err)
+
+	got, err := svc.Get(ctx, created.ID, plans.WorkspaceScope{ID: "ws-1"})
+	require.NoError(t, err)
+	require.Equal(t, "ws-1", got.WorkspaceID)
+	require.Equal(t, created.WorkspaceRoot, got.WorkspaceRoot)
+}
+
+func TestWorkspaceScopedListAndLookup(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := context.Background()
+	wsA := plans.WorkspaceScope{Root: filepath.Join(t.TempDir(), "a")}
+	wsB := plans.WorkspaceScope{Root: filepath.Join(t.TempDir(), "b")}
+
+	a, err := svc.Create(ctx, plans.Plan{Title: "Shared Title", Slug: "shared", WorkspaceRoot: wsA.Root})
+	require.NoError(t, err)
+	b, err := svc.Create(ctx, plans.Plan{Title: "Shared Title", Slug: "shared", WorkspaceRoot: wsB.Root})
+	require.NoError(t, err)
+	require.Equal(t, "shared", a.Slug)
+	require.Equal(t, "shared", b.Slug, "slug uniqueness is workspace-scoped")
+
+	listA, err := svc.List(ctx, plans.ListFilter{WorkspaceRoot: wsA.Root})
+	require.NoError(t, err)
+	require.Len(t, listA, 1)
+	require.Equal(t, a.ID, listA[0].ID)
+
+	got, err := svc.Get(ctx, "shared", wsB)
+	require.NoError(t, err)
+	require.Equal(t, b.ID, got.ID)
+
+	_, err = svc.Get(ctx, a.ID, wsB)
+	require.Error(t, err, "scoped lookup must not return a plan from another workspace")
+}
+
+func TestImportStampsCanonicalWorkspaceFields(t *testing.T) {
+	d, clk := newDB(t)
+	mirror := newFakeMirrorStore(t.TempDir())
+	workspaceRoot := validWorkspaceRoot(t)
+	source := filepath.Join(workspaceRoot, "docs", "plans", "legacy.md")
+	reader := fakeReader{files: map[string]string{
+		source: "# Workspace Import\n\n## Purpose\nAdopt from workspace.\n",
+	}}
+	svc := plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: reader,
+		Mirror: mirror,
+	})
+	ctx := context.Background()
+
+	imported, err := svc.Import(ctx, "docs/plans/legacy.md", "", "", "", plans.WorkspaceScope{ID: "ws-import", Root: workspaceRoot})
+	require.NoError(t, err)
+	require.Equal(t, "ws-import", imported.WorkspaceID)
+	require.Equal(t, workspaceRoot, imported.WorkspaceRoot)
+	require.NotNil(t, imported.ImportProvenance)
+	require.Equal(t, "ws-import", imported.ImportProvenance.WorkspaceID)
+	require.Equal(t, workspaceRoot, imported.ImportProvenance.WorkspaceRoot)
+
+	got, err := svc.Get(ctx, imported.Slug, plans.WorkspaceScope{Root: workspaceRoot})
+	require.NoError(t, err)
+	require.Equal(t, imported.ID, got.ID)
+}
+
+func TestImportRejectsAbsoluteSourceOutsideWorkspaceRoot(t *testing.T) {
+	d, clk := newDB(t)
+	reader := fakeReader{files: map[string]string{}}
+	svc := plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: reader,
+		Mirror: newFakeMirrorStore(t.TempDir()),
+	})
+	ctx := context.Background()
+	workspaceRoot := validWorkspaceRoot(t)
+
+	_, err := svc.Import(ctx, filepath.Join(t.TempDir(), "external.md"), "", "", "", plans.WorkspaceScope{Root: workspaceRoot})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "outside workspace root")
+}
+
+func TestImportRejectsInvalidWorkspaceRoot(t *testing.T) {
+	d, clk := newDB(t)
+	workspaceRoot := t.TempDir()
+	source := filepath.Join(workspaceRoot, "docs", "plans", "legacy.md")
+	reader := fakeReader{files: map[string]string{
+		source: "# Legacy\n",
+	}}
+	svc := plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: reader,
+		Mirror: newFakeMirrorStore(t.TempDir()),
+	})
+	ctx := context.Background()
+
+	_, err := svc.Import(ctx, source, "", "", "", plans.WorkspaceScope{Root: workspaceRoot})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid workspace root")
 }
 
 // TestContentHashChangesWithNewFields asserts the content hash incorporates the
@@ -196,10 +317,53 @@ func TestCreatePublishesRenderedMirror(t *testing.T) {
 	require.Equal(t, "mirror-me.md", created.Mirror.RelativePath)
 	require.NotEmpty(t, mirror.files[created.Mirror.Path])
 
-	got, err := svc.Get(ctx, created.ID)
+	got, err := svc.Get(ctx, created.ID, plans.WorkspaceScope{})
 	require.NoError(t, err)
 	require.Equal(t, created.Mirror.ContentHash, got.Mirror.ContentHash)
 	require.Equal(t, created.Mirror.Path, got.Mirror.Path)
+}
+
+func TestOSMirrorStoreWritesWorkspaceAwareIndex(t *testing.T) {
+	d, clk := newDB(t)
+	home := t.TempDir()
+	workspaceRoot := validWorkspaceRoot(t)
+	svc := plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: fakeReader{},
+		Mirror: plans.NewOSMirrorStore(home),
+	})
+	ctx := context.Background()
+
+	created, err := svc.Create(ctx, plans.Plan{
+		Title:         "Indexed Mirror",
+		Purpose:       "Publish index metadata.",
+		WorkspaceID:   "ws-index",
+		WorkspaceRoot: workspaceRoot,
+	})
+	require.NoError(t, err)
+	mirrorRoot, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyPlans)
+	require.NoError(t, err)
+	raw, err := os.ReadFile(filepath.Join(mirrorRoot, "_index.json"))
+	require.NoError(t, err)
+	var idx struct {
+		Version int `json:"version"`
+		Plans   []struct {
+			ID            string `json:"id"`
+			Slug          string `json:"slug"`
+			Path          string `json:"path"`
+			WorkspaceID   string `json:"workspace_id"`
+			WorkspaceRoot string `json:"workspace_root"`
+		} `json:"plans"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &idx))
+	require.Equal(t, 2, idx.Version)
+	require.Len(t, idx.Plans, 1)
+	require.Equal(t, created.ID, idx.Plans[0].ID)
+	require.Equal(t, created.Slug, idx.Plans[0].Slug)
+	require.Equal(t, created.Mirror.Path, idx.Plans[0].Path)
+	require.Equal(t, "ws-index", idx.Plans[0].WorkspaceID)
+	require.Equal(t, workspaceRoot, idx.Plans[0].WorkspaceRoot)
 }
 
 func TestRenderRepairsMissingMirrorFromCanonicalPlan(t *testing.T) {
@@ -216,7 +380,7 @@ func TestRenderRepairsMissingMirrorFromCanonicalPlan(t *testing.T) {
 	require.NoError(t, err)
 	delete(mirror.files, created.Mirror.Path)
 
-	rendered, err := svc.Render(ctx, created.ID)
+	rendered, err := svc.Render(ctx, created.ID, plans.WorkspaceScope{})
 	require.NoError(t, err)
 	require.True(t, rendered.Repaired)
 	require.Equal(t, plans.RenderedMirrorStatusFresh, rendered.Mirror.Status)
@@ -238,7 +402,7 @@ func TestRenderRepairsStaleMirrorFromCanonicalPlan(t *testing.T) {
 	require.NoError(t, err)
 	mirror.files[created.Mirror.Path] = []byte("# Edited by hand\n")
 
-	rendered, err := svc.Render(ctx, created.ID)
+	rendered, err := svc.Render(ctx, created.ID, plans.WorkspaceScope{})
 	require.NoError(t, err)
 	require.True(t, rendered.Repaired)
 	require.Equal(t, plans.RenderedMirrorStatusFresh, rendered.Mirror.Status)
@@ -292,7 +456,7 @@ func TestReconcileAdoptsLegacyPlansNonDestructively(t *testing.T) {
 	require.Equal(t, source, report.Items[0].SourcePath)
 	require.Equal(t, "# Legacy plan\n\n## Purpose\nAdopt me.\n", reader.files[source], "legacy source must remain untouched")
 
-	imported, err := svc.Get(ctx, report.Items[0].PlanID)
+	imported, err := svc.Get(ctx, report.Items[0].PlanID, plans.WorkspaceScope{})
 	require.NoError(t, err)
 	require.NotNil(t, imported.ImportProvenance)
 	require.Equal(t, source, imported.ImportProvenance.SourcePath)
@@ -302,7 +466,7 @@ func TestReconcileAdoptsLegacyPlansNonDestructively(t *testing.T) {
 func TestReconcileAdoptsWorkspaceRelativeLegacyPlans(t *testing.T) {
 	d, clk := newDB(t)
 	mirror := newFakeMirrorStore(t.TempDir())
-	workspaceRoot := t.TempDir()
+	workspaceRoot := validWorkspaceRoot(t)
 	source := filepath.Join(workspaceRoot, "docs", "plans", "workspace-legacy.md")
 	reader := fakeReader{files: map[string]string{
 		source: "# Workspace Legacy\n\n## Purpose\nAdopt from the scoped workspace.\n",
@@ -361,7 +525,7 @@ func samplePlan() plans.Plan {
 		},
 		RegressionAnchor: plans.RegressionAnchor{
 			Strategy: "scenario_baseline", Scenario: "widget-svc", BaselineName: "impl",
-			Commands: []string{"git-control-tower baseline diff --scenario widget-svc --name impl"},
+			Commands: []string{"git-control-tower baseline diff --scenario widget-svc --name impl --wait"},
 		},
 		RelevantContext: []plans.RelevantContextItem{{
 			Kind:         plans.RelevantContextSearch,
@@ -511,7 +675,7 @@ func TestStatusTransitionLegality(t *testing.T) {
 	require.Equal(t, plans.PlanStatusComplete, p.Status)
 
 	// Archive is terminal and survives a phase update.
-	p, err = svc.Archive(ctx, p.ID)
+	p, err = svc.Archive(ctx, p.ID, plans.WorkspaceScope{})
 	require.NoError(t, err)
 	require.Equal(t, plans.PlanStatusArchived, p.Status)
 	ph := p.Phases[0]
@@ -626,7 +790,7 @@ func TestSupersessionResolution(t *testing.T) {
 	require.Contains(t, superseding.Supersedes, oldPlan.ID)
 
 	// The superseded plan records the reverse edge.
-	gotOld, err := svc.Get(ctx, oldPlan.ID)
+	gotOld, err := svc.Get(ctx, oldPlan.ID, plans.WorkspaceScope{})
 	require.NoError(t, err)
 	require.Contains(t, gotOld.SupersededBy, newPlan.ID)
 
@@ -656,7 +820,7 @@ func TestContentHashDerivesSupersession(t *testing.T) {
 	require.Equal(t, oldPlan.ContentHash, newPlan.ContentHash)
 	require.Contains(t, newPlan.Supersedes, oldPlan.ID, "duplicate authored content records the newer plan as superseding the older one")
 
-	gotOld, err := svc.Get(ctx, oldPlan.ID)
+	gotOld, err := svc.Get(ctx, oldPlan.ID, plans.WorkspaceScope{})
 	require.NoError(t, err)
 	require.Contains(t, gotOld.SupersededBy, newPlan.ID)
 
@@ -702,7 +866,7 @@ func TestListFilters(t *testing.T) {
 	require.NoError(t, err)
 	_, err = svc.Create(ctx, samplePlan())
 	require.NoError(t, err)
-	_, err = svc.Archive(ctx, a.ID)
+	_, err = svc.Archive(ctx, a.ID, plans.WorkspaceScope{})
 	require.NoError(t, err)
 
 	// Default list excludes archived.
@@ -844,7 +1008,7 @@ func TestImportAndMigrate(t *testing.T) {
 
 func TestImportRelativeSourceUsesWorkspaceRoot(t *testing.T) {
 	d, clk := newDB(t)
-	workspaceRoot := t.TempDir()
+	workspaceRoot := validWorkspaceRoot(t)
 	source := filepath.Join(workspaceRoot, "docs", "plans", "foo.md")
 	reader := fakeReader{files: map[string]string{
 		source: "# Foo plan\n\n## Purpose\nDo foo.\n",
@@ -857,6 +1021,16 @@ func TestImportRelativeSourceUsesWorkspaceRoot(t *testing.T) {
 	require.Equal(t, "Foo plan", imported.Title)
 	require.NotNil(t, imported.ImportProvenance)
 	require.Equal(t, source, imported.ImportProvenance.SourcePath)
+	require.Equal(t, workspaceRoot, imported.ImportProvenance.WorkspaceRoot)
+
+	rendered, err := svc.Render(ctx, imported.ID, plans.WorkspaceScope{})
+	require.NoError(t, err)
+	require.Contains(t, rendered.Markdown, "- Workspace root: `"+workspaceRoot+"`")
+
+	roundTripped, err := plans.ParsePlanMarkdown(rendered.Markdown)
+	require.NoError(t, err)
+	require.NotNil(t, roundTripped.ImportProvenance)
+	require.Equal(t, workspaceRoot, roundTripped.ImportProvenance.WorkspaceRoot)
 }
 
 func TestImportMigratesLegacyRequiredReadingToRelevantContext(t *testing.T) {
@@ -897,7 +1071,7 @@ func TestImportMigratesLegacyRequiredReadingToRelevantContext(t *testing.T) {
 	require.Equal(t, "PM-CTX-001", imported.Phases[0].RelevantContext[0].Target)
 	require.Equal(t, plans.RelevantContextCommand, imported.Phases[0].RelevantContext[1].Kind)
 
-	rendered, err := svc.Render(ctx, imported.ID)
+	rendered, err := svc.Render(ctx, imported.ID, plans.WorkspaceScope{})
 	require.NoError(t, err)
 	require.Contains(t, rendered.Markdown, "## Global Execution Setup")
 	require.Contains(t, rendered.Markdown, "**Phase Context Setup:**")
@@ -934,7 +1108,7 @@ func TestMigrateImportsIndexedFallbackPlan(t *testing.T) {
 	require.Equal(t, "legacy-plan", migrated.Slug)
 	require.Len(t, migrated.Phases, 1)
 
-	got, err := svc.Get(ctx, migrated.ID)
+	got, err := svc.Get(ctx, migrated.ID, plans.WorkspaceScope{})
 	require.NoError(t, err)
 	require.Equal(t, migrated.ID, got.ID)
 	require.Equal(t, "Adopt this from the old store.", got.Purpose)

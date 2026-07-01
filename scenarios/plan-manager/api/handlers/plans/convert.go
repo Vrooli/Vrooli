@@ -54,6 +54,8 @@ func planFromProtoChecked(p *sharedv1.Plan) (internalplans.Plan, error) {
 		ContentHash:             p.GetContentHash(),
 		CreatedAt:               p.GetCreatedAt(),
 		UpdatedAt:               p.GetUpdatedAt(),
+		WorkspaceID:             p.GetWorkspaceId(),
+		WorkspaceRoot:           p.GetWorkspaceRoot(),
 		Purpose:                 p.GetPurpose(),
 		Scope:                   p.GetScope(),
 		Constraints:             p.GetConstraints(),

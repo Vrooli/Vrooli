@@ -1,77 +1,67 @@
 {
-  "description": "Interactive 3D world visualization for agent coordination using React Three Fiber.",
-  "module_id": "MOD-P2-021",
-  "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
-  "priority": "P2",
+  "_metadata": {
+    "last_validated_at": "2026-06-25T17:32:58-04:00"
+  },
   "requirements": [
     {
-      "category": "ui",
-      "dependencies": ["REQ-P0-016"],
-      "description": "React Three Fiber based 3D world for agent visualization",
       "id": "REQ-P2-027",
-      "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
-      "status": "complete",
       "title": "3D World Canvas",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
+      "category": "ui",
+      "description": "React Three Fiber based 3D world for agent visualization",
       "validation": [
         {
-          "notes": "WorldCanvas component renders 3D scene",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "WorldCanvas component renders 3D scene"
         },
         {
-          "notes": "Renders at 60fps on mid-tier hardware",
+          "type": "test",
           "phase": "performance",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Renders at 60fps on mid-tier hardware"
         }
       ]
     },
     {
-      "category": "ui",
-      "dependencies": ["REQ-P2-027"],
-      "description": "Geometric agent representation with appearance colors",
       "id": "REQ-P2-028",
-      "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
-      "status": "complete",
       "title": "Geometric Agent Visualization",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
+      "category": "ui",
+      "description": "Geometric agent representation with appearance colors",
       "validation": [
         {
-          "notes": "GeometricMember renders agent with body/head/accent colors",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "GeometricMember renders agent with body/head/accent colors"
         },
         {
-          "notes": "Agent appearance from API reflects in 3D world",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Agent appearance from API reflects in 3D world"
         }
       ]
     },
     {
-      "category": "ui",
-      "dependencies": ["REQ-P2-027"],
-      "description": "Zustand state management for 3D world state",
       "id": "REQ-P2-029",
-      "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
-      "status": "complete",
       "title": "3D World State Management",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
+      "category": "ui",
+      "description": "Zustand state management for 3D world state",
       "validation": [
         {
-          "notes": "cameraStore, graphicsStore, environmentStore functional",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "cameraStore, graphicsStore, environmentStore functional"
         }
       ]
     }
-  ],
-  "title": "3D world visualization for agents"
+  ]
 }

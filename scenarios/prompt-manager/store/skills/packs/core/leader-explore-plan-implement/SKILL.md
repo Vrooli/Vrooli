@@ -115,7 +115,7 @@ Invoke the `implementation-plan-authoring` methodology to design the approach.
    - Delegate when the leader has strong findings and clear requirements to hand off
    - Author personally when the leader needs to make architectural decisions during planning
 3. If delegating: send assignment using the delegation template below
-4. Review the plan against the 13 mandatory sections from `implementation-plan-authoring`
+4. Review the finalized Plan Manager plan using `plan-manager author preview`, `plan-manager author validate`, or `plan-manager plans render`
 5. Verify the plan respects all constraints discovered during exploration
 
 **Delegation message template:**
@@ -127,33 +127,26 @@ Requirements: [work request details]
 Constraints discovered: [from exploration findings]
 Hard rules: [if any, e.g., greenfield only]
 
-Deliver: Create the implementation plan with `vrooli plans add --title "[topic]" --stdin`, then return the generated plan id and saved path.
+Deliver: Author the plan with Plan Manager (`plan-manager --auto-start author start --title "[topic]"`, then follow `plan-manager author continue <session>`), finalize it, and return the plan id/slug plus the rendered review command.
 Read the skill first: prompt-manager skill read implementation-plan-authoring
 ```
 
-**Mandatory plan sections** (from `implementation-plan-authoring`):
-1. Purpose
-2. Required Reading
-3. Problem Statement
-4. Scope (in/out)
-5. Current Technical Context
-6. Target End State
-7. Implementation Strategy (phased)
-8. Contract Decisions
-9. Testing Plan
-10. Rollout/Validation Checklist
-11. Risks + Mitigations
-12. Non-goals / Prohibited Patterns
-13. Definition of Done
+**Plan readiness criteria** (from `implementation-plan-authoring`):
+- A finalized Plan Manager plan exists and has a stable id/slug
+- Scope, non-goals, constraints, and compatibility posture are explicit
+- Relevant skills/docs are accepted as Plan Manager `relevant_context`, or no-context rationale is recorded
+- Code references are accepted or an explicit `NO_CODE_REFS` rationale is recorded
+- Phases include ordered steps, validation, acceptance criteria, and implementation context
+- Plan Manager validation passes and the rendered preview is coherent
 
-**Artifacts:** Implementation plan file.
+**Artifacts:** Finalized Plan Manager implementation plan id/slug and rendered review artifact.
 
 ---
 
 ### **Gate 2: Planning → Implementation**
 
 Before proceeding to Implement, verify:
-- [ ] Plan has all 13 mandatory sections
+- [ ] Plan Manager validation passes
 - [ ] Plan respects constraints from exploration findings
 - [ ] Acceptance criteria are objective (pass/fail, not narrative)
 - [ ] Phases are ordered with explicit dependencies
@@ -228,7 +221,7 @@ Rework is cheaper than implementing a wrong plan. When signals appear, return to
 Before delegating any phase to a team member, verify:
 - [ ] Team member has access to all required context (findings, plan, skills)
 - [ ] Acceptance criteria are explicit and objective
-- [ ] Required reading commands are included
+- [ ] Plan Manager setup context and references are included
 - [ ] Expected deliverable format is specified
 - [ ] Check-in cadence is established
 - [ ] Blocking dependencies are identified
@@ -237,7 +230,7 @@ Before delegating any phase to a team member, verify:
 
 Before declaring the pipeline complete:
 - [ ] Findings report exists (from Explore or pre-existing)
-- [ ] Implementation plan exists with all 13 sections (from Plan or pre-existing)
+- [ ] Finalized Plan Manager implementation plan exists (from Plan or pre-existing)
 - [ ] All plan phases are implemented
 - [ ] Definition of Done criteria pass
 - [ ] Rework loops (if any) are documented for future reference
@@ -276,7 +269,7 @@ This pipeline covers **leader-coordinated technical work** that flows through ex
 
 When applying this pipeline, you **must** produce:
 1. **From Explore phase:** Findings report (or verify an existing one is sufficient)
-2. **From Plan phase:** Implementation plan file with all 13 mandatory sections
+2. **From Plan phase:** Finalized Plan Manager implementation plan id/slug with rendered review output
 3. **From Implement phase:** Completed deliverables matching plan acceptance criteria
 
 You **should** also:

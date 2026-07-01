@@ -35,6 +35,7 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 	resp, err := h.client.ListPlans(context.Background(), connect.NewRequest(&plansv1.ListPlansRequest{
 		Status:          planStatusFlag(ctx.Flag("status")),
 		IncludeArchived: ctx.BoolFlag("include-archived"),
+		Workspace:       workspaceScopeFromFlag(ctx.Flag("workspace")),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("list plans", err, nil)
@@ -60,7 +61,7 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 
 func (h *handlers) get(ctx cliapp.RunContext) error {
 	id := ctx.Positional("id")
-	resp, err := h.client.GetPlan(context.Background(), connect.NewRequest(&plansv1.GetPlanRequest{Id: id}))
+	resp, err := h.client.GetPlan(context.Background(), connect.NewRequest(&plansv1.GetPlanRequest{Id: id, Workspace: workspaceScopeFromFlag(ctx.Flag("workspace"))}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("get plan %q", id), err, nil)
 	}
@@ -109,7 +110,7 @@ func (h *handlers) update(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) archive(ctx cliapp.RunContext) error {
-	resp, err := h.client.ArchivePlan(context.Background(), connect.NewRequest(&plansv1.ArchivePlanRequest{Id: ctx.Positional("id")}))
+	resp, err := h.client.ArchivePlan(context.Background(), connect.NewRequest(&plansv1.ArchivePlanRequest{Id: ctx.Positional("id"), Workspace: workspaceScopeFromFlag(ctx.Flag("workspace"))}))
 	if err != nil {
 		return cliapp.WrapAPIError("archive plan", err, nil)
 	}
@@ -118,7 +119,7 @@ func (h *handlers) archive(ctx cliapp.RunContext) error {
 
 func (h *handlers) render(ctx cliapp.RunContext) error {
 	id := ctx.Positional("id")
-	resp, err := h.client.RenderMarkdown(context.Background(), connect.NewRequest(&plansv1.RenderMarkdownRequest{Id: id}))
+	resp, err := h.client.RenderMarkdown(context.Background(), connect.NewRequest(&plansv1.RenderMarkdownRequest{Id: id, Workspace: workspaceScopeFromFlag(ctx.Flag("workspace"))}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("render plan %q", id), err, nil)
 	}

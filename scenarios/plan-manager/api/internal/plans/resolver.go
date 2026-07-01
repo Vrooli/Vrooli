@@ -110,8 +110,11 @@ func (s *service) Import(ctx context.Context, sourcePath, markdown, title, slug 
 			ImportedAt:     s.now(),
 			OriginalFormat: OriginalFormatLegacyMarkdown,
 			Note:           "Adopted from markdown via plans import (non-destructive).",
+			WorkspaceID:    strings.TrimSpace(workspace.ID),
+			WorkspaceRoot:  strings.TrimSpace(workspace.Root),
 		}
 	}
+	stampCanonicalWorkspace(&parsed, workspace)
 	return s.Create(ctx, parsed)
 }
 
@@ -122,7 +125,7 @@ func (s *service) Import(ctx context.Context, sourcePath, markdown, title, slug 
 // imports it as a structured plan. The fallback source is never destructively
 // removed here.
 func (s *service) Migrate(ctx context.Context, idOrSlug string) (Plan, error) {
-	p, err := s.Get(ctx, idOrSlug)
+	p, err := s.Get(ctx, idOrSlug, WorkspaceScope{})
 	if err == nil {
 		p.UpdatedAt = s.now()
 		if err := s.repo.Save(ctx, p); err != nil {
@@ -441,9 +444,6 @@ func resolveWorkspacePath(path string, workspace WorkspaceScope) (string, error)
 	if path == "" {
 		return "", nil
 	}
-	if filepath.IsAbs(path) {
-		return filepath.Clean(path), nil
-	}
 	root := strings.TrimSpace(workspace.Root)
 	if root == "" {
 		return filepath.Clean(path), nil
@@ -452,7 +452,33 @@ func resolveWorkspacePath(path string, workspace WorkspaceScope) (string, error)
 	if err != nil {
 		return "", ErrInvalidPlan{Reason: fmt.Sprintf("invalid workspace root %q: %v", root, err)}
 	}
-	return filepath.Clean(filepath.Join(cleanRoot, path)), nil
+	cleanRoot = filepath.Clean(cleanRoot)
+	if _, err := repocontract.LoadDefault(cleanRoot); err != nil {
+		return "", ErrInvalidPlan{Reason: fmt.Sprintf("invalid workspace root %q: %v", cleanRoot, err)}
+	}
+	var resolved string
+	if filepath.IsAbs(path) {
+		resolved = filepath.Clean(path)
+	} else {
+		resolved = filepath.Clean(filepath.Join(cleanRoot, path))
+	}
+	if !pathWithin(cleanRoot, resolved) {
+		return "", ErrInvalidPlan{Reason: fmt.Sprintf("import source %q is outside workspace root %q", resolved, cleanRoot)}
+	}
+	return resolved, nil
+}
+
+func pathWithin(root, path string) bool {
+	root = filepath.Clean(root)
+	path = filepath.Clean(path)
+	if root == path {
+		return true
+	}
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return false
+	}
+	return rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator))
 }
 
 // ParsePlanMarkdown parses a markdown plan into the structured model.

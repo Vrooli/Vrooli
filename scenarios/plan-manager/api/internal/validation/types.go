@@ -69,10 +69,12 @@ type BaselineScope struct {
 // Detail when git-control-tower is unavailable or the anchor intent is still a
 // placeholder — never a fabricated capture.
 type BaselineCapture struct {
-	Captured     bool
-	Scenario     string
-	BaselineName string
-	Detail       string
+	Captured             bool
+	Scenario             string
+	BaselineName         string
+	CapturedSurfaceCount int
+	SkippedSurfaces      map[string]string
+	Detail               string
 }
 
 type CommandReferenceValidator interface {

@@ -34,6 +34,8 @@ func (h *connectHandler) ListPlans(ctx context.Context, req *connect.Request[pla
 	plans, err := h.deps.Service.List(ctx, internalplans.ListFilter{
 		Status:          planStatusFromProto(req.Msg.GetStatus()),
 		IncludeArchived: req.Msg.GetIncludeArchived(),
+		WorkspaceID:     workspaceScopeFromProto(req.Msg.GetWorkspace()).ID,
+		WorkspaceRoot:   workspaceScopeFromProto(req.Msg.GetWorkspace()).Root,
 	})
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
@@ -46,7 +48,7 @@ func (h *connectHandler) ListPlans(ctx context.Context, req *connect.Request[pla
 }
 
 func (h *connectHandler) GetPlan(ctx context.Context, req *connect.Request[plansv1.GetPlanRequest]) (*connect.Response[plansv1.GetPlanResponse], error) {
-	p, err := h.deps.Service.Get(ctx, req.Msg.GetId())
+	p, err := h.deps.Service.Get(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()))
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
@@ -78,7 +80,7 @@ func (h *connectHandler) UpdatePlan(ctx context.Context, req *connect.Request[pl
 }
 
 func (h *connectHandler) ArchivePlan(ctx context.Context, req *connect.Request[plansv1.ArchivePlanRequest]) (*connect.Response[plansv1.ArchivePlanResponse], error) {
-	p, err := h.deps.Service.Archive(ctx, req.Msg.GetId())
+	p, err := h.deps.Service.Archive(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()))
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
@@ -86,7 +88,7 @@ func (h *connectHandler) ArchivePlan(ctx context.Context, req *connect.Request[p
 }
 
 func (h *connectHandler) RenderMarkdown(ctx context.Context, req *connect.Request[plansv1.RenderMarkdownRequest]) (*connect.Response[plansv1.RenderMarkdownResponse], error) {
-	rendered, err := h.deps.Service.Render(ctx, req.Msg.GetId())
+	rendered, err := h.deps.Service.Render(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()))
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
@@ -94,6 +96,7 @@ func (h *connectHandler) RenderMarkdown(ctx context.Context, req *connect.Reques
 		Markdown: rendered.Markdown,
 		Mirror:   planproto.MirrorToProto(rendered.Mirror),
 		Repaired: rendered.Repaired,
+		Plan:     planToProto(rendered.Plan),
 	}), nil
 }
 

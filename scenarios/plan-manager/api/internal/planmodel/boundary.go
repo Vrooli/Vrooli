@@ -391,8 +391,8 @@ func BoundaryAnchorCommands(b ChangeBoundary, baselineName, headSha string) (com
 			continue
 		}
 		commands = append(commands,
-			"git-control-tower baseline snapshot status --scenario "+scenario+" --name "+name,
-			"git-control-tower baseline diff --scenario "+scenario+" --name "+name,
+			"git-control-tower baseline snapshot status --scenario "+scenario+" --name "+name+" --wait --json",
+			"git-control-tower baseline diff --scenario "+scenario+" --name "+name+" --wait",
 		)
 	}
 	if repoPaths := b.RepoPaths(); len(repoPaths) > 0 {

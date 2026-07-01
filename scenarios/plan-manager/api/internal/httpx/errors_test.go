@@ -64,6 +64,10 @@ func TestWriteError(t *testing.T) {
 
 			require.Equal(t, tc.wantStatus, rec.Code)
 			require.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+			require.Equal(t, "nosniff", rec.Header().Get("X-Content-Type-Options"))
+			require.Equal(t, "DENY", rec.Header().Get("X-Frame-Options"))
+			require.Equal(t, "0", rec.Header().Get("X-XSS-Protection"))
+			require.Contains(t, rec.Header().Get("Strict-Transport-Security"), "max-age=31536000")
 
 			var got errorsv1.ErrorEnvelope
 			err := protojson.Unmarshal(rec.Body.Bytes(), &got)

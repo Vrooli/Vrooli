@@ -1,21 +1,17 @@
 ## Practice focus: Implementation Plan Authoring
 
-Create a durable implementation plan through `vrooli plans add --stdin` by default, preserving full execution context when conversation history is about to compact. This skill standardizes how to capture the problem, constraints, execution approach, and acceptance criteria so any future agent can continue without prior chat context.
+Author durable implementation plans through Plan Manager's guided authoring
+runtime. Plan Manager is the plan-logic authority: the skill supplies the
+judgment layer, while `plan-manager author ...` owns the section order, phase
+shape, validation gates, rendered markdown, and persistence.
 
 Required reading:
-- `prompt-manager skill read plan-skill-discovery` — the canonical method for finding domain-relevant skills for this specific plan. Run its discovery process before authoring.
-
-Conditional reading (load only when the plan touches the matching surface — `plan-skill-discovery` will usually surface these automatically):
-- `cli-steer` — when the plan adds or modifies a scenario CLI command.
-- `api-steer` — when the plan adds or modifies a proto / Connect-RPC contract.
-- `utils-unification` — when the plan introduces new helpers or touches shared utilities.
-- `seam-discovery-and-enforcement` — when the plan introduces new testability seams or changes existing ones.
-- `ecosystem-fit` — when the plan creates a new scenario or significantly changes an existing one's role or interface surface. Places it in Vrooli's interfaces, functional role, and compound-value design (`path:docs/concepts/ECOSYSTEM.md`).
-
-Skip these reads entirely for plans that don't touch the corresponding surface (e.g., pure docs, UI-only, research conclusions). Reading skills that don't apply wastes context.
-
-When the plan touches a scenario, also skim:
-- `git-control-tower baseline help` — flag shape for the regression anchor captured in Step A.5.
+- `prompt-manager skill read plan-skill-discovery` — discover plan-relevant
+  skills and operational context before authoring.
+- `scenarios/plan-manager/docs/concepts/PLAN-MODEL.md` — canonical structured
+  plan and phase model.
+- `scenarios/plan-manager/docs/reference/cli-commands.md` — current
+  `plan-manager author`, `plans`, `exec`, `validate`, and `log` command surface.
 
 Optional reading:
 - `docs/agent-system/SKILL_AUTHORING.md`
@@ -23,209 +19,196 @@ Optional reading:
 
 ---
 
-### 1. When to Use This Skill
+### 1. When To Use This Skill
 
 | Situation | Use this skill? | Why |
 |---|---|---|
-| Context window is getting tight and work must continue later | Yes | Prevents loss of critical implementation reasoning |
-| User asked for a "plan file" or "implementation plan document" | Yes | Produces a reusable execution artifact |
+| Context window is tight and work must continue later | Yes | Captures executable state in Plan Manager |
+| User asked for an implementation plan | Yes | Produces a structured plan and rendered review artifact |
 | Quick one-step fix with no follow-up risk | No | Plan overhead is unnecessary |
-| Pure brainstorming with no execution intent | No | Use normal discussion flow |
+| Pure brainstorming with no execution intent | No | Use discussion or idea-workshop flow first |
 
 ---
 
 ### 2. Scope Boundaries
 
 **In scope:**
-- Create/update a single implementation plan through `vrooli plans add --stdin` unless an in-repo durable artifact is explicitly requested
-- Preserve problem statement, root causes, constraints, and action plan
-- Include explicit required reading commands for future agents
-- Include Action commands as evidence or validation steps when relevant, while keeping required-reading discovery focused on skills and methodologies
-- Define objective acceptance criteria and test/validation gates
-- Document strict constraints such as greenfield/no-compatibility when requested
+- Author a new implementation plan through `plan-manager author ...`
+- Preserve problem, target outcome, constraints, change boundary, execution
+  setup, phases, validation strategy, and Definition of Done in Plan Manager's
+  structured record
+- Curate relevant context and references by accepting/rejecting Plan Manager
+  candidates with judgment
+- Report the saved plan id/slug and rendered review command/path
 
 **Out of scope:**
-- Implementing the planned code changes
-- Replacing design docs, PRDs, or user-facing product docs
-- Writing migration guides unless explicitly requested
+- Defining a separate markdown plan format
+- Hand-editing rendered Plan Manager markdown mirrors
+- Using project-level compatibility commands as the default authoring path
+- Implementing the planned code changes during plan authoring unless the user
+  explicitly asks for both in the same turn
 
 ---
 
-### 3. Inputs
+### 3. Convergence Pattern
 
-Required:
-- The concrete problem being solved
-- The target code areas/systems involved
-- Any hard constraints (for example: greenfield only, no compatibility layers)
+Use this decision table before authoring:
 
-Optional but recommended:
-- Live command evidence showing failures or friction
-- Adjacent skills/tools that should be treated as source-of-truth
-- Blast radius: which scenario(s), if any. Drives the regression-anchor strategy in Step A.5.
+| Need | Primary path |
+|---|---|
+| New implementation plan | `plan-manager author start --title "<title>"`, then follow `plan-manager author continue <session>` |
+| Review in-progress plan | `plan-manager author preview <session>` |
+| Persist completed authoring session | `plan-manager author validate <session>`, then `plan-manager author finalize <session>` |
+| Inspect persisted plan | `plan-manager plans render <plan-id-or-slug>` |
+| Execute or resume plan work | `plan-manager exec continue <plan-or-execution>` |
+| Adopt existing legacy markdown | `plan-manager plans import --source <path> --workspace <repo-root>` |
+| Repair/adopt plan mirrors and legacy files | `plan-manager plans reconcile --dry-run --workspace <repo-root>` |
 
----
-
-### 4. Convergence Pattern
-
-Use this decision flow to keep outputs consistent:
-
-1. **Was implementation already started?**
-   - Yes: document current state, known blockers, and exact resume point.
-   - No: document baseline, risks, and first executable phase.
-
-2. **Did the user request strict architecture constraints?**
-   - Yes: add a hard-rule section (for example: "Greenfield Constraint") and repeat it in Definition of Done.
-   - No: include standard guardrails only.
-
-3. **Is there command-level evidence?**
-   - Yes: include exact command snippets and observed outputs/errors.
-   - No: label assumptions clearly and provide verification commands to replace assumptions.
-
-4. **Is work multi-component?**
-   - Yes: phase by component with explicit dependencies and ordering.
-   - No: keep phases minimal and linear.
+If a root compatibility command appears in older docs or plans, prefer the
+matching `plan-manager` command unless the user explicitly asks to test the root
+compatibility layer.
 
 ---
 
-### 5. Plan Authoring Workflow
+### 4. Authoring Workflow
 
-#### Step 0: Recall prior work (before discovery)
+#### Phase 0: Recall and discover
 
-Before authoring, run the AGENTS.md §4 "Recall prior work first" beat, scoped to planning:
+Before authoring, recall prior work:
 
 ```bash
 search-hub query "<one-sentence plan intent>" --type record,backlog,initiative,skill,doc
 ```
 
-Read the top hits. A `record` hit shows how prior work was actually *executed* — its trigger and approach — which is exactly the decision context a plan wants (not just code). Three exits: no prior art → author fresh; related prior work → cite it in §5 Current Technical Context and build on it; a near-duplicate of an already-shipped plan → stop and reconcile (supersede or extend it) rather than re-authoring. If search-hub is unavailable, fall back to `swarm-manager records search "<intent>"`.
-
-#### Step A: Establish canonical context
-
-Discover the skills that apply to *this* plan rather than reading a fixed list. Follow `plan-skill-discovery`:
+Then use plan skill discovery:
 
 ```bash
 prompt-manager skill read plan-skill-discovery
+prompt-manager discover "<concept-1>" "<concept-2>" "<concept-3>" --type skill --complexity moderate
 ```
 
-Then run its discovery process — typically:
+Keep the discovery layers separate:
+- `search-hub query ...` is broad recall across records, docs, backlog, and
+  registered providers.
+- `prompt-manager discover --type skill` is the curated, budget-aware
+  Prompt Manager skill bundle for the executor to read.
+- `plan-manager author context-discover` turns setup searches into reviewable
+  Plan Manager candidates; it does not remove the need to accept/reject with
+  judgment.
+
+Accepted discovery output should become Plan Manager relevant context, not a
+legacy markdown `Required Reading` section. Prefer accepting useful candidates
+through `plan-manager author context-discover` / `context-accept`; when the
+curated Prompt Manager output gives a concrete `prompt-manager skill read ...`
+command, submit that exact setup command with `context-submit`.
+
+#### Phase 1: Start the authoring session
 
 ```bash
-prompt-manager discover "<concept-1>" "<concept-2>" "<concept-3>" --complexity moderate
+plan-manager --auto-start author start --title "<plan title>"
 ```
 
-Keep the default **skill mode** and pass `--complexity`: skill mode is curated — discover returns the relevant topic packs (each topic's skills plus its folder's and the root's) alongside strong direct matches, which is the required-reading set a plan wants. Do not switch to `--type all` for plan authoring (that is best-match relevance for "find an existing tool", not curated packs).
+Use the returned session id for every subsequent command. Global flags such as
+`--auto-start` go before the subcommand.
 
-If the discovery output surfaces any of the conditional reads above (`cli-steer`, `api-steer`, `utils-unification`, `seam-discovery-and-enforcement`), or your plan obviously touches their surface, load them now. Otherwise skip them. Then gather implementation evidence (commands, files, observed failures) before writing.
+#### Phase 2: Follow the guided loop
 
-#### Step A.5: Anchor the regression surface
+Default to the API-owned next action:
 
-Capture a "before" anchor *before any code changes* so future agents (or you, post-implementation) can answer "did this plan introduce that failure?" without ambiguity. Pick exactly one strategy based on the plan's blast radius and record the choice in mandatory section 6a:
+```bash
+plan-manager author continue <session>
+```
 
-| Plan touches… | Strategy | Command |
+Submit exactly the current requested section or phase field. Do not submit one
+large plan blob unless Plan Manager explicitly asks for a field that contains
+multi-line content.
+
+When relevant:
+
+```bash
+plan-manager author context-discover <session> --concepts "<concepts>" --complexity moderate
+plan-manager author context-accept <session> <candidate-id>
+plan-manager author suggest-references <session>
+plan-manager author reference-accept <session> <candidate-id>
+plan-manager author autofill <session> --sources regression_anchor
+```
+
+Accept candidates only when they materially improve execution. Reject noisy
+candidates with a reason. Use explicit fallback markers only when honest:
+
+- `NO_CODE_REFS: <reason>` for plans or phases with no connected code/doc/req
+  references.
+- `NO_CONTEXT: <reason>` for global or phase setup that genuinely needs no
+  additional context.
+
+#### Phase 3: Review, validate, finalize
+
+```bash
+plan-manager author preview <session>
+plan-manager author validate <session>
+plan-manager author finalize <session>
+```
+
+Do not finalize with unresolved structure violations unless Plan Manager returns
+a typed degraded path and the user explicitly accepts the risk.
+
+#### Phase 4: Report the artifact
+
+Return:
+- plan id and slug
+- rendered review command, usually `plan-manager plans render <slug>`
+- any degraded discovery, reference, context, or anchor notes
+- the first execution command, usually `plan-manager exec continue <slug>`
+
+---
+
+### 5. Judgment Rules
+
+- A plan should be executable without this chat history.
+- The change boundary must name the paths the work may touch; do not hide scope
+  in prose.
+- `validation` is the method of checking; `acceptance` is the outcome gate.
+  They must not be identical.
+- Greenfield/Brownfield posture is derived by Plan Manager. Do not hand-author
+  contradictory compatibility language.
+- Do not accept context or reference candidates just to satisfy a gate; they must
+  be relevant.
+- Do not fabricate baseline success. Plan Manager records regression-anchor
+  intent during authoring; execution/validation captures and checks the fresh
+  baseline.
+- For out-of-scope defects found while authoring, use Plan Manager log entries
+  during execution, or load `prompt-manager skill read report-bug` if the defect
+  needs filing before execution begins.
+
+---
+
+### 6. Troubleshooting & Edge Cases
+
+| Symptom | Likely cause | First move |
 |---|---|---|
-| **One scenario** | `git-control-tower baseline` snapshot | `git-control-tower baseline snapshot --scenario <name> --name <plan-slug> --reason "<plan title>"` |
-| **Multiple scenarios** | One baseline per touched scenario | Loop the command above per scenario; record every `(scenario, plan-slug)` pair |
-| **Outside any scenario** (root tooling, `internal/`, `packages/proto`, docs-only, `.vrooli/`) | **Skip baseline; record a sha + file allowlist** | `git rev-parse HEAD` — copy the sha into section 6a along with the file paths the plan is allowed to touch |
+| `plan-manager` is unavailable | Scenario is stopped or not installed | Run `plan-manager --auto-start status`, or `vrooli scenario start plan-manager` |
+| `author continue` repeats a gate | A required section, context item, reference, phase field, or validation distinction is missing | Read `remaining_required_inputs` / human output and submit the requested field |
+| Reference discovery returns nothing | `search-hub` unavailable or no routed locator hits | Manually submit `[CODE:]`, `[DOC:]`, `[REQ:]`, or honest `NO_CODE_REFS:` |
+| Context discovery is noisy | Prompt-manager/search-hub returned broad candidates | Accept only relevant candidates; reject the rest |
+| Anchor autofill is degraded | Boundary missing or validation dependency unavailable | Submit/repair change boundary, rerun autofill, or record degraded intent only when Plan Manager permits it |
+| Need to preserve an existing markdown plan | Legacy import/adoption path | Use `plan-manager plans import --source <path> --workspace <repo-root>` |
 
-Notes:
-- Baseline captures 5 surfaces (workflows, tests, structure, visuals, rules). Use `--fast` or `--include <surfaces>` to scope; full captures can be slow.
-- Do **not** pass an arbitrary `--scenario` for outside-scenario plans — only the `visuals` surface would capture and the report misleads.
-- Diff exit codes: `0` safe, `1` regression, `2` not-comparable. Section 10's regression check should treat `1`/`2` as actionable.
-
-#### Step B: Create the scratch plan through the CLI
-
-Default behavior:
-- Use `vrooli plans add --title "<topic>" --stdin` and write the plan content to stdin.
-- Report the saved path and plan id printed by the command.
-- Do not hard-code the plan storage directory; the CLI owns the location.
-
-In-repo exceptions:
-- Use an in-repo plan only when the user explicitly asks for it, the plan is being promoted to durable documentation, or a scenario-specific workflow requires it.
-- Swarm Manager backlog items keep using their item-local `plan.md` / `conclusion.md` artifacts.
-
-#### Step C: Write the plan with mandatory sections
-
-Every plan must include:
-1. Purpose
-2. Required Reading (explicit commands — see Step D for what to embed)
-3. Problem Statement
-4. Scope (in/out)
-5. Current Technical Context (key files/components)
-6. Target End State
-6a. Regression Anchor — strategy chosen in Step A.5; for the scenario / multi-scenario cases, list each `(scenario, plan-slug)` pair and the matching `baseline diff` command; for the outside-scenario case, list the `HEAD` sha + the file-path allowlist and the matching `git diff --stat <sha> -- <paths>` command. This section is mandatory and cannot be empty.
-7. Implementation Strategy (phased)
-8. Contract Decisions (API/CLI/data model behavior)
-9. Testing Plan
-10. Rollout/Validation Checklist — must contain a "Regression check" line matching section 6a's strategy: `git-control-tower baseline diff --scenario <s> --name <plan-slug>` (per pair; exit 0 required, exit 1/2 must be triaged), or `git diff --stat <sha> -- <paths>` showing only declared files.
-11. Risks + Mitigations
-12. Non-goals / Prohibited Patterns
-13. Definition of Done — must include "Regression check from section 10 passes" alongside the other pass criteria. For plans that create a new scenario or change an existing one's role or interface surface, also include an "Ecosystem-fit considered" criterion: the scenario's served/enabled interfaces, functional role, and compound-value seams are reflected in Target End State (per `ecosystem-fit` / `path:docs/concepts/ECOSYSTEM.md`).
-
-If user requests strict constraints (for example greenfield):
-- Add a dedicated hard-rule section near the top.
-
-#### Step D: Validate quality before finishing
-
-Quality checks:
-- Another agent could execute without this chat history
-- All major claims are tied to files/commands or marked assumptions
-- Constraints are explicit, repeated where needed, and testable
-- Acceptance criteria are objective (pass/fail), not narrative
-- The plan's Required Reading block lists only the skills that actually apply to the plan's surface — not a generic fixed list
-
----
-
-### 5b. Out-of-scope defects discovered during authoring
-
-While authoring, you will spot defects unrelated to the plan's surface. Use this three-part heuristic:
-
-1. **Cheap + confident + adjacent** → fix in the plan with a one-line note in §11 Risks or §5 Current Technical Context. Criteria: ≤1 file, no API change, no new tests beyond an obvious assertion, and you can name the root cause without further investigation.
-2. **Any of**: needs investigation, unrelated files, new tests, API change, unknown ripple → load `prompt-manager skill read report-bug` and file through the workflow it provides.
-3. **Defect is the actual plan trigger** → don't sidebar it; fold it into §3 Problem Statement.
-
-When the plan itself reaches Definition of Done (executor finishes §10 checklist), write a `kind: execute` record describing the substantive decisions:
-
-```bash
-swarm-manager records create --kind execute --scenario <name> \
-  --trigger "<plan slug>" \
-  --approach "<key decisions: contract shapes, seam choices, deferred risks>" \
-  --ruled-out "<rejected alternatives>" \
-  --commit <merge-sha> --outcome shipped
-```
-
-This is the write-side of the recursive-learning loop — future plan-authoring sessions query records to learn from prior decisions, not just code.
-
----
-
-### 6. Guardrails
-
-- Do not write vague plans ("improve X", "refactor Y") without concrete deliverables.
-- Do not hide assumptions; mark unknowns and how to resolve them.
-- Do not mix implementation and plan-authoring in the same step unless explicitly asked.
-- Do not include legacy/migration/compatibility guidance when user requested greenfield-only.
-- Do not pad the plan's Required Reading with skills that don't match the plan's surface — load the conditional steers only when they apply.
-- Do not use `git stash` for "is this failure mine?" diagnosis. Concurrent agents share the working tree and stash is process-global; use the regression anchor from section 6a instead. `git-control-tower baseline` is branch-scoped and `flock`-guarded for exactly this reason.
-- Do not fake a baseline for outside-scenario plans by passing an arbitrary `--scenario`. Only the `visuals` surface would capture and the resulting report misleads — use the sha + file-allowlist strategy from Step A.5 instead.
+Repeated troubleshooting that requires prose here should be promoted into Plan
+Manager CLI guidance rather than expanded in this skill.
 
 ---
 
 ### 7. Output Expectations
 
 **Must produce:**
-- A saved implementation plan file path
-- A plan detailed enough for handoff to a future agent with no chat context
-- A Required-Reading command block tailored to the plan's actual surface. Compose it from:
-  - The conditional steers above, included only when the plan touches their surface
-  - Any domain-specific skills surfaced by `plan-skill-discovery`
-- Action validation or discovery commands only when they are directly relevant to the plan's execution path
+- A finalized Plan Manager plan id/slug, or a clear explanation of why the
+  authoring session remains unfinished
+- A rendered review command/path
+- A concise note about degraded dependencies or manual fallbacks
+- The next execution command when implementation should continue
 
-**May include:**
-- Copy-pastable command snippets
-- File-level references for targeted implementation
-- Prioritized phase ordering with dependency notes
-
-**Must not include:**
-- Placeholder-only sections with no actionable content
-- Contradictory constraints (for example greenfield + migration bridge)
-- Implicit assumptions presented as facts
-- A generic fixed required-reading list that doesn't match the plan's surface
+**Must not produce:**
+- A standalone 13-section markdown plan as the default artifact
+- A root compatibility command as the default authoring path
+- Placeholder-only phases or context entries
+- Contradictory constraints or fabricated validation evidence

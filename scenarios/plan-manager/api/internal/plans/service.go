@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -18,10 +19,10 @@ import (
 type Service interface {
 	Create(ctx context.Context, p Plan) (Plan, error)
 	Update(ctx context.Context, p Plan) (Plan, error)
-	Get(ctx context.Context, idOrSlug string) (Plan, error)
+	Get(ctx context.Context, idOrSlug string, workspace WorkspaceScope) (Plan, error)
 	List(ctx context.Context, filter ListFilter) ([]Plan, error)
-	Archive(ctx context.Context, idOrSlug string) (Plan, error)
-	Render(ctx context.Context, idOrSlug string) (RenderResult, error)
+	Archive(ctx context.Context, idOrSlug string, workspace WorkspaceScope) (Plan, error)
+	Render(ctx context.Context, idOrSlug string, workspace WorkspaceScope) (RenderResult, error)
 
 	AddPhase(ctx context.Context, planID string, phase Phase) (Plan, error)
 	UpdatePhase(ctx context.Context, planID string, phase Phase) (Plan, error)
@@ -88,8 +89,9 @@ func (s *service) Create(ctx context.Context, p Plan) (Plan, error) {
 	if p.Title == "" {
 		return Plan{}, ErrInvalidPlan{Reason: "title is required"}
 	}
+	stampCanonicalWorkspace(&p, workspaceFromPlan(p))
 	p.ID = uuid.NewString()
-	slug, err := s.uniqueSlug(ctx, p.Slug, p.Title)
+	slug, err := s.uniqueSlug(ctx, p.Slug, p.Title, workspaceFromPlan(p))
 	if err != nil {
 		return Plan{}, err
 	}
@@ -142,6 +144,8 @@ func (s *service) Update(ctx context.Context, p Plan) (Plan, error) {
 	}
 	// Preserve computed/identity fields; the caller only owns authored fields.
 	p.Slug = existing.Slug
+	p.WorkspaceID = existing.WorkspaceID
+	p.WorkspaceRoot = existing.WorkspaceRoot
 	p.CreatedAt = existing.CreatedAt
 	p.UpdatedAt = s.now()
 	if strings.TrimSpace(p.Title) == "" {
@@ -196,13 +200,10 @@ func (s *service) Update(ctx context.Context, p Plan) (Plan, error) {
 	return s.publishMirror(ctx, p)
 }
 
-func (s *service) Get(ctx context.Context, idOrSlug string) (Plan, error) {
-	p, ok, err := s.repo.Get(ctx, strings.TrimSpace(idOrSlug))
+func (s *service) Get(ctx context.Context, idOrSlug string, workspace WorkspaceScope) (Plan, error) {
+	p, err := s.resolvePlan(ctx, idOrSlug, workspace)
 	if err != nil {
 		return Plan{}, err
-	}
-	if !ok {
-		return Plan{}, ErrPlanNotFound{ID: idOrSlug}
 	}
 	p.Mirror = s.ensureMirrorPath(ctx, p)
 	return p, nil
@@ -212,8 +213,8 @@ func (s *service) List(ctx context.Context, filter ListFilter) ([]Plan, error) {
 	return s.repo.List(ctx, filter)
 }
 
-func (s *service) Archive(ctx context.Context, idOrSlug string) (Plan, error) {
-	p, err := s.Get(ctx, idOrSlug)
+func (s *service) Archive(ctx context.Context, idOrSlug string, workspace WorkspaceScope) (Plan, error) {
+	p, err := s.Get(ctx, idOrSlug, workspace)
 	if err != nil {
 		return Plan{}, err
 	}
@@ -225,15 +226,15 @@ func (s *service) Archive(ctx context.Context, idOrSlug string) (Plan, error) {
 	return s.publishMirror(ctx, p)
 }
 
-func (s *service) Render(ctx context.Context, idOrSlug string) (RenderResult, error) {
-	p, err := s.Get(ctx, idOrSlug)
+func (s *service) Render(ctx context.Context, idOrSlug string, workspace WorkspaceScope) (RenderResult, error) {
+	p, err := s.Get(ctx, idOrSlug, workspace)
 	if err != nil {
 		return RenderResult{}, err
 	}
 	data, meta, err := s.mirror.Read(ctx, p)
 	if err == nil && meta.Status == RenderedMirrorStatusFresh {
 		p.Mirror = meta
-		return RenderResult{Markdown: string(data), Mirror: meta}, nil
+		return RenderResult{Markdown: string(data), Mirror: meta, Plan: p}, nil
 	}
 	repaired, err := s.publishMirror(ctx, p)
 	if err != nil {
@@ -244,13 +245,14 @@ func (s *service) Render(ctx context.Context, idOrSlug string) (RenderResult, er
 		if meta.Status == "" {
 			meta.Status = RenderedMirrorStatusWriteFailed
 		}
-		return RenderResult{Markdown: markdown, Mirror: meta, Repaired: false}, nil
+		p.Mirror = meta
+		return RenderResult{Markdown: markdown, Mirror: meta, Repaired: false, Plan: p}, nil
 	}
-	return RenderResult{Markdown: RenderMarkdown(repaired), Mirror: repaired.Mirror, Repaired: true}, nil
+	return RenderResult{Markdown: RenderMarkdown(repaired), Mirror: repaired.Mirror, Repaired: true, Plan: repaired}, nil
 }
 
 func (s *service) AddPhase(ctx context.Context, planID string, phase Phase) (Plan, error) {
-	p, err := s.Get(ctx, planID)
+	p, err := s.Get(ctx, planID, WorkspaceScope{})
 	if err != nil {
 		return Plan{}, err
 	}
@@ -264,7 +266,7 @@ func (s *service) AddPhase(ctx context.Context, planID string, phase Phase) (Pla
 }
 
 func (s *service) UpdatePhase(ctx context.Context, planID string, phase Phase) (Plan, error) {
-	p, err := s.Get(ctx, planID)
+	p, err := s.Get(ctx, planID, WorkspaceScope{})
 	if err != nil {
 		return Plan{}, err
 	}
@@ -290,11 +292,11 @@ func (s *service) GetGraph(ctx context.Context, planID string) ([]PlanEdge, erro
 }
 
 func (s *service) LinkSupersession(ctx context.Context, supersedingID, supersededID string) (Plan, error) {
-	superseding, err := s.Get(ctx, supersedingID)
+	superseding, err := s.Get(ctx, supersedingID, WorkspaceScope{})
 	if err != nil {
 		return Plan{}, err
 	}
-	superseded, err := s.Get(ctx, supersededID)
+	superseded, err := s.Get(ctx, supersededID, WorkspaceScope{})
 	if err != nil {
 		return Plan{}, err
 	}
@@ -325,11 +327,11 @@ func (s *service) LinkSupersession(ctx context.Context, supersedingID, supersede
 }
 
 func (s *service) LinkDependency(ctx context.Context, dependingID, dependencyID string) (Plan, error) {
-	depending, err := s.Get(ctx, dependingID)
+	depending, err := s.Get(ctx, dependingID, WorkspaceScope{})
 	if err != nil {
 		return Plan{}, err
 	}
-	dependency, err := s.Get(ctx, dependencyID)
+	dependency, err := s.Get(ctx, dependencyID, WorkspaceScope{})
 	if err != nil {
 		return Plan{}, err
 	}
@@ -484,7 +486,7 @@ func (s *service) now() string { return s.clock.Now().UTC().Format(planTimeForma
 
 // uniqueSlug derives a filename-safe slug from the given slug-or-title and
 // disambiguates against existing plans by appending -2, -3, ….
-func (s *service) uniqueSlug(ctx context.Context, slug, title string) (string, error) {
+func (s *service) uniqueSlug(ctx context.Context, slug, title string, workspace WorkspaceScope) (string, error) {
 	base := slugify(slug)
 	if base == "" {
 		base = slugify(title)
@@ -494,7 +496,7 @@ func (s *service) uniqueSlug(ctx context.Context, slug, title string) (string, e
 	}
 	candidate := base
 	for i := 2; ; i++ {
-		_, ok, err := s.repo.Get(ctx, candidate)
+		ok, err := s.slugExistsInWorkspace(ctx, candidate, workspace)
 		if err != nil {
 			return "", err
 		}
@@ -503,6 +505,97 @@ func (s *service) uniqueSlug(ctx context.Context, slug, title string) (string, e
 		}
 		candidate = fmt.Sprintf("%s-%d", base, i)
 	}
+}
+
+func (s *service) resolvePlan(ctx context.Context, idOrSlug string, workspace WorkspaceScope) (Plan, error) {
+	ref := strings.TrimSpace(idOrSlug)
+	if ref == "" {
+		return Plan{}, ErrPlanNotFound{ID: idOrSlug}
+	}
+	if !workspaceSpecified(workspace) {
+		p, ok, err := s.repo.Get(ctx, ref)
+		if err != nil {
+			return Plan{}, err
+		}
+		if !ok {
+			return Plan{}, ErrPlanNotFound{ID: idOrSlug}
+		}
+		return p, nil
+	}
+	all, err := s.repo.List(ctx, ListFilter{IncludeArchived: true, WorkspaceID: workspace.ID, WorkspaceRoot: workspace.Root})
+	if err != nil {
+		return Plan{}, err
+	}
+	for _, p := range all {
+		if p.ID == ref || p.Slug == ref {
+			return p, nil
+		}
+	}
+	return Plan{}, ErrPlanNotFound{ID: idOrSlug}
+}
+
+func (s *service) slugExistsInWorkspace(ctx context.Context, slug string, workspace WorkspaceScope) (bool, error) {
+	all, err := s.repo.List(ctx, ListFilter{IncludeArchived: true})
+	if err != nil {
+		return false, err
+	}
+	for _, p := range all {
+		if p.Slug == slug && planMatchesWorkspace(p, workspace) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func workspaceFromPlan(p Plan) WorkspaceScope {
+	scope := WorkspaceScope{ID: strings.TrimSpace(p.WorkspaceID), Root: strings.TrimSpace(p.WorkspaceRoot)}
+	if !workspaceSpecified(scope) && p.ImportProvenance != nil {
+		scope.ID = strings.TrimSpace(p.ImportProvenance.WorkspaceID)
+		scope.Root = strings.TrimSpace(p.ImportProvenance.WorkspaceRoot)
+	}
+	return normalizeWorkspaceScope(scope)
+}
+
+func stampCanonicalWorkspace(p *Plan, workspace WorkspaceScope) {
+	workspace = normalizeWorkspaceScope(workspace)
+	if !workspaceSpecified(workspace) {
+		return
+	}
+	p.WorkspaceID = workspace.ID
+	p.WorkspaceRoot = workspace.Root
+	if p.ImportProvenance != nil {
+		if p.ImportProvenance.WorkspaceID == "" {
+			p.ImportProvenance.WorkspaceID = workspace.ID
+		}
+		if p.ImportProvenance.WorkspaceRoot == "" {
+			p.ImportProvenance.WorkspaceRoot = workspace.Root
+		}
+	}
+}
+
+func planMatchesWorkspace(p Plan, workspace WorkspaceScope) bool {
+	workspace = normalizeWorkspaceScope(workspace)
+	if !workspaceSpecified(workspace) {
+		return true
+	}
+	planScope := workspaceFromPlan(p)
+	if workspace.ID != "" {
+		return planScope.ID == workspace.ID
+	}
+	return planScope.Root != "" && planScope.Root == workspace.Root
+}
+
+func workspaceSpecified(workspace WorkspaceScope) bool {
+	return strings.TrimSpace(workspace.ID) != "" || strings.TrimSpace(workspace.Root) != ""
+}
+
+func normalizeWorkspaceScope(workspace WorkspaceScope) WorkspaceScope {
+	workspace.ID = strings.TrimSpace(workspace.ID)
+	workspace.Root = strings.TrimSpace(workspace.Root)
+	if workspace.Root != "" {
+		workspace.Root = filepath.Clean(workspace.Root)
+	}
+	return workspace
 }
 
 // computePlanStatus derives plan status from the phase-status set (COMPUTED;

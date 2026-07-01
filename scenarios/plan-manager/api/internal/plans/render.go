@@ -160,6 +160,12 @@ func renderImportGovernance(p Plan) string {
 		if p.ImportProvenance.ImportedAt != "" {
 			fmt.Fprintf(&b, "- Imported at: `%s`\n", p.ImportProvenance.ImportedAt)
 		}
+		if p.ImportProvenance.WorkspaceID != "" {
+			fmt.Fprintf(&b, "- Workspace ID: `%s`\n", p.ImportProvenance.WorkspaceID)
+		}
+		if p.ImportProvenance.WorkspaceRoot != "" {
+			fmt.Fprintf(&b, "- Workspace root: `%s`\n", p.ImportProvenance.WorkspaceRoot)
+		}
 		if p.ImportProvenance.Note != "" {
 			fmt.Fprintf(&b, "- Note: %s\n", p.ImportProvenance.Note)
 		}
@@ -532,6 +538,14 @@ func renderAnchor(a RegressionAnchor) string {
 			fmt.Fprintf(&b, " (name `%s`)", a.BaselineName)
 		}
 		b.WriteString("\n")
+		status := strings.TrimSpace(a.CaptureStatus)
+		if status == "" {
+			status = "requested; usable only after `git-control-tower baseline snapshot status --wait --json` reports one or more captured surfaces"
+		}
+		fmt.Fprintf(&b, "- Capture status: %s\n", status)
+		if reason := strings.TrimSpace(a.CaptureReason); reason != "" {
+			fmt.Fprintf(&b, "- Capture reason: %s\n", reason)
+		}
 	}
 	if a.Scenario == "" && a.BaselineName != "" {
 		fmt.Fprintf(&b, "- Baseline name: `%s`\n", a.BaselineName)
@@ -541,6 +555,13 @@ func renderAnchor(a RegressionAnchor) string {
 	}
 	if len(a.AllowlistPaths) > 0 {
 		fmt.Fprintf(&b, "- Allowlist: %s\n", strings.Join(a.AllowlistPaths, ", "))
+	}
+	if a.HeadSha != "" || len(a.AllowlistPaths) > 0 {
+		fallback := strings.TrimSpace(a.Fallback)
+		if fallback == "" {
+			fallback = "HEAD sha + allowlist diff is informational when the scenario baseline is unavailable or captured zero surfaces"
+		}
+		fmt.Fprintf(&b, "- Fallback: %s\n", fallback)
 	}
 	if a.CapturedAt != "" {
 		fmt.Fprintf(&b, "- Captured at: `%s`\n", a.CapturedAt)

@@ -16,6 +16,10 @@
               "description": "Filter by status (draft|active|complete|archived)"
             },
             {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup/listing"
+            },
+            {
               "name": "include-archived",
               "description": "Include archived plans",
               "bool": true
@@ -42,6 +46,12 @@
               "name": "id",
               "required": true,
               "description": "Plan id or slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
             }
           ],
           "binding": {
@@ -163,6 +173,12 @@
               "description": "Plan id or slug"
             }
           ],
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
+            }
+          ],
           "binding": {
             "kind": "connect-rpc",
             "service": "PlansService",
@@ -184,6 +200,12 @@
               "name": "id",
               "required": true,
               "description": "Plan id or slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
             }
           ],
           "binding": {

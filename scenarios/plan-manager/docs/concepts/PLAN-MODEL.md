@@ -405,8 +405,9 @@ locator never reaches the references section.
   records only intent (the `baseline_name` derived from the plan slug, a
   `head_sha` placeholder captured at execution start) — never a git-control-tower
   call, never stale. Derived commands are **tiered and labelled**:
-  - one `git-control-tower baseline snapshot status` + `baseline diff` pair per
-    affected scenario — these are verdict **oracles**;
+  - one `git-control-tower baseline snapshot status --wait --json` +
+    `git-control-tower baseline diff --wait` pair per affected scenario — these
+    are verdict **oracles**;
   - one informational `git diff --stat [<head_sha>] -- <repo paths>` for the
     non-scenario allow globs — **informational only**, never a pass/fail oracle
     until a path-baseline substrate exists.
