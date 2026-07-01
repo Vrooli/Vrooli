@@ -46,6 +46,8 @@ type fakeAuthoringService struct {
 	gotContent     string
 	gotSources     []internalauthoring.AutofillSource
 	gotPhaseID     string
+	gotBeforePhase string
+	gotAfterPhase  string
 	gotPhaseField  internalauthoring.PhaseField
 	gotContextItem internalplans.RelevantContextItem
 	gotItemID      string
@@ -152,6 +154,11 @@ func (f *fakeAuthoringService) RejectReferenceCandidate(_ context.Context, sessi
 
 func (f *fakeAuthoringService) AddPhase(_ context.Context, sessionID string, title, intent string) (internalauthoring.Session, internalauthoring.PhaseDraft, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
 	f.gotSessionID, f.gotContent = sessionID, title+"|"+intent
+	return f.session, f.phase, f.violations, f.step, f.err
+}
+
+func (f *fakeAuthoringService) MovePhase(_ context.Context, sessionID, phaseID, beforePhaseID, afterPhaseID string) (internalauthoring.Session, internalauthoring.PhaseDraft, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
+	f.gotSessionID, f.gotPhaseID, f.gotBeforePhase, f.gotAfterPhase = sessionID, phaseID, beforePhaseID, afterPhaseID
 	return f.session, f.phase, f.violations, f.step, f.err
 }
 

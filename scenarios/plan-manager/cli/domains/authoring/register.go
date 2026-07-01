@@ -39,6 +39,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"AuthoringService.AcceptReferenceCandidate":  h.referenceAccept,
 		"AuthoringService.RejectReferenceCandidate":  h.referenceReject,
 		"AuthoringService.AddPhase":                  h.phaseAdd,
+		"AuthoringService.MovePhase":                 h.phaseMove,
 		"AuthoringService.GetPhase":                  h.phaseGet,
 		"AuthoringService.SubmitPhaseField":          h.phaseSubmit,
 		"AuthoringService.NextPhase":                 h.phaseNext,

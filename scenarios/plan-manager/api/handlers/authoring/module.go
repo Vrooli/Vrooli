@@ -37,6 +37,7 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 	svc := internalauthoring.NewService(internalauthoring.Deps{
 		Store:     internalauthoring.NewSQLiteStore(db, clk),
 		Writer:    planWriter{svc: plansSvc},
+		Reader:    planWriter{svc: plansSvc},
 		Anchor:    internalauthoring.DefaultAnchorIntentDeriver(),
 		Suggester: internalauthoring.NewCommandReferenceSuggester(runner),
 		Context:   internalauthoring.NewCommandContextDiscoverer(runner),
@@ -71,6 +72,18 @@ type planWriter struct{ svc internalplans.Service }
 
 func (w planWriter) CreatePlan(ctx context.Context, p internalplans.Plan) (internalplans.Plan, error) {
 	return w.svc.Create(ctx, p)
+}
+
+func (w planWriter) GetPlan(ctx context.Context, idOrSlug string) (internalplans.Plan, error) {
+	return w.svc.Get(ctx, idOrSlug, internalplans.WorkspaceScope{})
+}
+
+func (w planWriter) RenderPlan(ctx context.Context, idOrSlug string) (string, error) {
+	rendered, err := w.svc.Render(ctx, idOrSlug, internalplans.WorkspaceScope{})
+	if err != nil {
+		return "", err
+	}
+	return rendered.Markdown, nil
 }
 
 // planRenderer adapts the plans-domain deterministic renderer to the authoring
@@ -120,6 +133,7 @@ var Endpoints = []module.EndpointDescriptor{
 	endpoint("authoring_accept_reference_candidate", authoringconnect.AuthoringServiceAcceptReferenceCandidateProcedure, "Accept reference candidate", "Promotes one pending reference candidate (with optional inline edit) into the references section; only accepted locators satisfy the references gate."),
 	endpoint("authoring_reject_reference_candidate", authoringconnect.AuthoringServiceRejectReferenceCandidateProcedure, "Reject reference candidate", "Records why a suggested reference is not relevant."),
 	endpoint("authoring_add_phase", authoringconnect.AuthoringServiceAddPhaseProcedure, "Add phase draft", "Appends one structured phase draft so agents do not submit all phases as a markdown blob."),
+	endpoint("authoring_move_phase", authoringconnect.AuthoringServiceMovePhaseProcedure, "Move phase draft", "Reorders one structured phase draft before or after another without rewriting authored phase content."),
 	endpoint("authoring_get_phase", authoringconnect.AuthoringServiceGetPhaseProcedure, "Get phase draft", "Returns one structured phase draft plus the API-owned guided step for the next missing phase field."),
 	endpoint("authoring_submit_phase_field", authoringconnect.AuthoringServiceSubmitPhaseFieldProcedure, "Submit phase field", "Records one phase-native field and validates references/acceptance immediately."),
 	endpoint("authoring_next_phase", authoringconnect.AuthoringServiceNextPhaseProcedure, "Next phase draft", "Returns the first structured phase draft that still needs author input."),

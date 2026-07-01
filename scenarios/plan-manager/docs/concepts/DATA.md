@@ -122,8 +122,11 @@ this map is the ownership contract.
 - **Reconcile/adopt legacy:** `ReconcilePlans` can dry-run or execute a bulk pass
   over the runtime-home `plans`, repo `docs/plans`, and repo `plans` fallback
   locations. It reports each source as imported, already canonical, duplicate,
-  parse failed, conflict, or source untouched; it never deletes or overwrites the
-  legacy source file.
+  parse failed, conflict, source cleanup planned, source removed, or source
+  untouched. Source cleanup is opt-in via `cleanup_adopted_sources` and only
+  removes legacy files that are already canonical, newly imported, or skipped as
+  duplicates after provenance/content checks. Parse failures and conflicts remain
+  untouched.
 - **Render/export:** render any plan to a markdown view (the human-readable
   projection). `RenderMarkdown` returns the mirror contents when fresh, repairs
   the mirror from SQLite when missing or stale, and returns the resolved plan

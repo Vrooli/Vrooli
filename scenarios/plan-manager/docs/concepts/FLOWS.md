@@ -178,9 +178,13 @@ which legacy files would be imported, and performs no writes. The CLI accepts
 CLI sends the current discovered Vrooli repo root when available. API callers
 should pass `WorkspaceScope.root` explicitly when resolving `docs/plans` or
 `plans` from a workspace. Without dry-run it repairs mirrors from SQLite and
-imports legacy markdown into new canonical records while leaving every source
-file untouched. Current mirror files under runtime-home `plans` are recognized as
-projections and skipped rather than re-imported as duplicate truth.
+imports legacy markdown into new canonical records. Source files remain untouched
+unless the caller opts into `--cleanup-adopted-sources`; with that flag,
+ReconcilePlans removes only legacy sources proven canonical, newly imported, or
+duplicate after provenance/content checks. Parse failures and conflicts always
+remain untouched for guided repair or relocation. Current mirror files under
+runtime-home `plans` are recognized as projections and skipped rather than
+re-imported as duplicate truth.
 
 **Plan lifecycle:**
 

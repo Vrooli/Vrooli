@@ -3,7 +3,9 @@ package authoring
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/vrooli/api-core/markedrefs"
 
@@ -35,6 +37,7 @@ type Service interface {
 	AcceptReferenceCandidate(ctx context.Context, sessionID, candidateID string, edit *planmodel.Reference) (Session, ReferenceCandidate, []StructureViolation, GuidedStep, error)
 	RejectReferenceCandidate(ctx context.Context, sessionID, candidateID, reason string) (Session, ReferenceCandidate, GuidedStep, error)
 	AddPhase(ctx context.Context, sessionID string, title, intent string) (Session, PhaseDraft, []StructureViolation, GuidedStep, error)
+	MovePhase(ctx context.Context, sessionID, phaseID, beforePhaseID, afterPhaseID string) (Session, PhaseDraft, []StructureViolation, GuidedStep, error)
 	GetPhase(ctx context.Context, sessionID, phaseID string) (PhaseDraft, GuidedStep, error)
 	SubmitPhaseField(ctx context.Context, sessionID, phaseID string, field PhaseField, content string) (Session, []StructureViolation, GuidedStep, error)
 	NextPhase(ctx context.Context, sessionID string) (PhaseDraft, GuidedStep, bool, error)
@@ -45,6 +48,7 @@ type Service interface {
 type service struct {
 	store        SessionStore
 	writer       PlanWriter
+	reader       PlanReader
 	anchor       AnchorIntentDeriver
 	suggester    ReferenceSuggester
 	context      ContextDiscoverer
@@ -53,6 +57,8 @@ type service struct {
 	renderer     PlanRenderer
 	posture      PosturePreparer
 	clock        clock.Clock
+	lockMu       sync.Mutex
+	sessionLocks map[string]*sync.Mutex
 }
 
 // PosturePreparer stamps the derived work posture onto a draft plan before
@@ -72,6 +78,7 @@ type PosturePreparer interface {
 type Deps struct {
 	Store          SessionStore
 	Writer         PlanWriter
+	Reader         PlanReader
 	Anchor         AnchorIntentDeriver
 	Suggester      ReferenceSuggester
 	Context        ContextDiscoverer
@@ -98,6 +105,7 @@ func NewService(d Deps) Service {
 	return &service{
 		store:        d.Store,
 		writer:       d.Writer,
+		reader:       d.Reader,
 		anchor:       d.Anchor,
 		suggester:    d.Suggester,
 		context:      d.Context,
@@ -106,6 +114,7 @@ func NewService(d Deps) Service {
 		renderer:     d.Renderer,
 		posture:      d.Posture,
 		clock:        clk,
+		sessionLocks: map[string]*sync.Mutex{},
 	}
 }
 
@@ -124,10 +133,14 @@ func (s *service) StartSession(ctx context.Context, title, slug, templateID stri
 	}
 	prefillWorkPosture(sections)
 	now := s.now()
+	sessionSlug, err := s.uniqueSessionSlug(ctx, slug, title)
+	if err != nil {
+		return Session{}, GuidedStep{}, err
+	}
 	sess := Session{
 		ID:                uuid.NewString(),
 		Title:             title,
-		Slug:              strings.TrimSpace(slug),
+		Slug:              sessionSlug,
 		Sections:          sections,
 		CurrentSectionKey: firstUnfilledMandatory(sections),
 		CreatedAt:         now,
@@ -672,6 +685,12 @@ func (s *service) AddPhase(ctx context.Context, sessionID string, title, intent 
 	if err != nil {
 		return Session{}, PhaseDraft{}, nil, GuidedStep{}, err
 	}
+	unlock := s.lockSession(sess.ID)
+	defer unlock()
+	sess, err = s.load(ctx, sess.ID)
+	if err != nil {
+		return Session{}, PhaseDraft{}, nil, GuidedStep{}, err
+	}
 	title = strings.TrimSpace(title)
 	intent = strings.TrimSpace(intent)
 	phase := PhaseDraft{
@@ -693,6 +712,66 @@ func (s *service) AddPhase(ctx context.Context, sessionID string, title, intent 
 	return sess, phase, violations, stepForPhase(sess, phase), nil
 }
 
+func (s *service) MovePhase(ctx context.Context, sessionID, phaseID, beforePhaseID, afterPhaseID string) (Session, PhaseDraft, []StructureViolation, GuidedStep, error) {
+	sess, err := s.load(ctx, sessionID)
+	if err != nil {
+		return Session{}, PhaseDraft{}, nil, GuidedStep{}, err
+	}
+	unlock := s.lockSession(sess.ID)
+	defer unlock()
+	sess, err = s.load(ctx, sess.ID)
+	if err != nil {
+		return Session{}, PhaseDraft{}, nil, GuidedStep{}, err
+	}
+	phaseID = strings.TrimSpace(phaseID)
+	beforePhaseID = strings.TrimSpace(beforePhaseID)
+	afterPhaseID = strings.TrimSpace(afterPhaseID)
+	if phaseID == "" {
+		return Session{}, PhaseDraft{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "phase id is required"}
+	}
+	if (beforePhaseID == "") == (afterPhaseID == "") {
+		return Session{}, PhaseDraft{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "provide exactly one of before or after phase id"}
+	}
+	from := indexOfDraft(sess.PhaseDrafts, phaseID)
+	if from < 0 {
+		return Session{}, PhaseDraft{}, nil, GuidedStep{}, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + phaseID}
+	}
+	targetID := firstNonEmpty(beforePhaseID, afterPhaseID)
+	target := indexOfDraft(sess.PhaseDrafts, targetID)
+	if target < 0 {
+		return Session{}, PhaseDraft{}, nil, GuidedStep{}, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + targetID}
+	}
+	if from == target {
+		phase := sess.PhaseDrafts[from]
+		return sess, phase, phaseViolations(phase), stepForPhase(sess, phase), nil
+	}
+	phase := sess.PhaseDrafts[from]
+	remaining := append([]PhaseDraft{}, sess.PhaseDrafts[:from]...)
+	remaining = append(remaining, sess.PhaseDrafts[from+1:]...)
+	target = indexOfDraft(remaining, targetID)
+	if target < 0 {
+		return Session{}, PhaseDraft{}, nil, GuidedStep{}, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + targetID}
+	}
+	insertAt := target
+	if afterPhaseID != "" {
+		insertAt = target + 1
+	}
+	reordered := append([]PhaseDraft{}, remaining[:insertAt]...)
+	reordered = append(reordered, phase)
+	reordered = append(reordered, remaining[insertAt:]...)
+	renumberPhaseDrafts(reordered)
+	sess.PhaseDrafts = reordered
+	sess.CurrentPhaseID = nextIncompletePhaseID(sess.PhaseDrafts)
+	sess = syncPhaseSection(sess)
+	sess.UpdatedAt = s.now()
+	moved, _ := findDraft(sess.PhaseDrafts, phase.ID)
+	violations := phaseViolations(moved)
+	if err := s.store.Save(ctx, sess); err != nil {
+		return Session{}, PhaseDraft{}, nil, GuidedStep{}, err
+	}
+	return sess, moved, violations, stepForPhase(sess, moved), nil
+}
+
 func (s *service) GetPhase(ctx context.Context, sessionID, phaseID string) (PhaseDraft, GuidedStep, error) {
 	sess, err := s.load(ctx, sessionID)
 	if err != nil {
@@ -707,6 +786,12 @@ func (s *service) GetPhase(ctx context.Context, sessionID, phaseID string) (Phas
 
 func (s *service) SubmitPhaseField(ctx context.Context, sessionID, phaseID string, field PhaseField, content string) (Session, []StructureViolation, GuidedStep, error) {
 	sess, err := s.load(ctx, sessionID)
+	if err != nil {
+		return Session{}, nil, GuidedStep{}, err
+	}
+	unlock := s.lockSession(sess.ID)
+	defer unlock()
+	sess, err = s.load(ctx, sess.ID)
 	if err != nil {
 		return Session{}, nil, GuidedStep{}, err
 	}
@@ -775,6 +860,19 @@ func (s *service) Finalize(ctx context.Context, sessionID string) (planmodel.Pla
 	if err != nil {
 		return planmodel.Plan{}, GuidedStep{}, err
 	}
+	unlock := s.lockSession(sess.ID)
+	defer unlock()
+	sess, err = s.load(ctx, sess.ID)
+	if err != nil {
+		return planmodel.Plan{}, GuidedStep{}, err
+	}
+	if sess.Finalized && strings.TrimSpace(sess.PlanID) != "" {
+		plan, err := s.readFinalizedPlan(ctx, planmodel.Plan{ID: sess.PlanID})
+		if err != nil {
+			return planmodel.Plan{}, GuidedStep{}, err
+		}
+		return plan, stepForFinalizedPlan(sess, plan.ID, plan.Slug), nil
+	}
 	if violations := sessionViolations(sess); len(violations) > 0 {
 		return planmodel.Plan{}, GuidedStep{}, ErrStructureGate{Violations: violations}
 	}
@@ -789,13 +887,76 @@ func (s *service) Finalize(ctx context.Context, sessionID string) (planmodel.Pla
 	if err != nil {
 		return planmodel.Plan{}, GuidedStep{}, err
 	}
+	verified, err := s.readFinalizedPlan(ctx, plan)
+	if err != nil {
+		return planmodel.Plan{}, GuidedStep{}, err
+	}
 	sess.Finalized = true
-	sess.PlanID = plan.ID
+	sess.PlanID = verified.ID
 	sess.UpdatedAt = s.now()
 	if err := s.store.Save(ctx, sess); err != nil {
 		return planmodel.Plan{}, GuidedStep{}, err
 	}
-	return plan, stepForFinalizedPlan(sess, plan.ID, plan.Slug), nil
+	return verified, stepForFinalizedPlan(sess, verified.ID, verified.Slug), nil
+}
+
+func (s *service) readFinalizedPlan(ctx context.Context, fallback planmodel.Plan) (planmodel.Plan, error) {
+	idOrSlug := fallback.ID
+	if s.reader == nil {
+		return fallback, nil
+	}
+	plan, err := s.reader.GetPlan(ctx, idOrSlug)
+	if err != nil {
+		return planmodel.Plan{}, ErrFinalizeReadback{PlanID: idOrSlug, Cause: err}
+	}
+	if strings.TrimSpace(plan.ID) == "" {
+		return planmodel.Plan{}, ErrFinalizeReadback{PlanID: idOrSlug, Cause: fmt.Errorf("resolved plan has empty id")}
+	}
+	if _, err := s.reader.RenderPlan(ctx, plan.ID); err != nil {
+		return planmodel.Plan{}, ErrFinalizeReadback{PlanID: plan.ID, Cause: err}
+	}
+	return plan, nil
+}
+
+var sessionSlugNonWord = regexp.MustCompile(`[^a-z0-9]+`)
+
+func (s *service) uniqueSessionSlug(ctx context.Context, slug, title string) (string, error) {
+	base := sessionSlugify(slug)
+	if base == "" {
+		base = sessionSlugify(title)
+	}
+	if base == "" {
+		base = "session"
+	}
+	candidate := base
+	for i := 2; ; i++ {
+		_, ok, err := s.store.Get(ctx, candidate)
+		if err != nil {
+			return "", err
+		}
+		if !ok {
+			return candidate, nil
+		}
+		candidate = fmt.Sprintf("%s-%d", base, i)
+	}
+}
+
+func sessionSlugify(v string) string {
+	v = strings.ToLower(strings.TrimSpace(v))
+	v = sessionSlugNonWord.ReplaceAllString(v, "-")
+	return strings.Trim(v, "-")
+}
+
+func (s *service) lockSession(sessionID string) func() {
+	s.lockMu.Lock()
+	mu := s.sessionLocks[sessionID]
+	if mu == nil {
+		mu = &sync.Mutex{}
+		s.sessionLocks[sessionID] = mu
+	}
+	s.lockMu.Unlock()
+	mu.Lock()
+	return mu.Unlock
 }
 
 // prefillWorkPosture marks the Work Posture section as autofilled+reviewed (never
@@ -1665,6 +1826,12 @@ func nextIncompletePhaseID(phases []PhaseDraft) string {
 		}
 	}
 	return ""
+}
+
+func renumberPhaseDrafts(phases []PhaseDraft) {
+	for i := range phases {
+		phases[i].Order = i + 1
+	}
 }
 
 // sessionToPlan maps a finalized session's sections into the structured plans

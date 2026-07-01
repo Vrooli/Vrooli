@@ -22,7 +22,9 @@ import (
 // path/filesystem concerns beyond a byte read.
 type SourceReader interface {
 	ReadFile(path string) ([]byte, error)
+	WriteFile(path string, data []byte) error
 	ListMarkdownFiles(dir string) ([]string, error)
+	RemoveFile(path string) error
 }
 
 // OSSourceReader is the production SourceReader (reads from disk).
@@ -30,6 +32,14 @@ type OSSourceReader struct{}
 
 // ReadFile reads the named file from disk.
 func (OSSourceReader) ReadFile(path string) ([]byte, error) { return os.ReadFile(path) }
+
+// WriteFile writes the named file to disk.
+func (OSSourceReader) WriteFile(path string, data []byte) error {
+	return os.WriteFile(path, data, 0o644)
+}
+
+// RemoveFile removes the named file from disk.
+func (OSSourceReader) RemoveFile(path string) error { return os.Remove(path) }
 
 // ListMarkdownFiles returns direct child markdown files in dir, excluding the
 // fallback projection index. Missing directories are treated as empty.
@@ -145,7 +155,9 @@ func (s *service) Migrate(ctx context.Context, idOrSlug string) (Plan, error) {
 }
 
 // Reconcile repairs rendered mirrors and optionally adopts legacy markdown
-// sources in bulk. Legacy sources are never deleted, moved, or overwritten.
+// sources in bulk. Legacy sources are removed only when cleanup is explicitly
+// requested and provenance/content checks prove the source is already canonical,
+// imported, or duplicate.
 func (s *service) Reconcile(ctx context.Context, req ReconcileRequest) (ReconcileResult, error) {
 	if !req.RepairMirrors && !req.AdoptLegacy {
 		req.RepairMirrors = true
@@ -169,6 +181,13 @@ func (s *service) Reconcile(ctx context.Context, req ReconcileRequest) (Reconcil
 	if err != nil {
 		return result, err
 	}
+	allExisting := existing
+	if workspace.ID != "" || workspace.Root != "" {
+		allExisting, err = s.repo.List(ctx, ListFilter{IncludeArchived: true})
+		if err != nil {
+			return result, err
+		}
+	}
 	if req.RepairMirrors {
 		for _, p := range existing {
 			if p.Status == PlanStatusArchived && !req.IncludeArchived {
@@ -178,7 +197,7 @@ func (s *service) Reconcile(ctx context.Context, req ReconcileRequest) (Reconcil
 		}
 	}
 	if req.AdoptLegacy {
-		items, err := s.reconcileLegacyItems(ctx, req, existing)
+		items, err := s.reconcileLegacyItems(ctx, req, existing, allExisting)
 		if err != nil {
 			return result, err
 		}
@@ -221,22 +240,26 @@ func (s *service) reconcileMirrorItem(ctx context.Context, p Plan, dryRun bool) 
 	return item
 }
 
-func (s *service) reconcileLegacyItems(ctx context.Context, req ReconcileRequest, existing []Plan) ([]ReconcileItem, error) {
+func (s *service) reconcileLegacyItems(ctx context.Context, req ReconcileRequest, existing, allExisting []Plan) ([]ReconcileItem, error) {
 	if s.reader == nil {
 		return nil, ErrInvalidPlan{Reason: "no source reader configured; cannot scan legacy plans"}
 	}
-	mirrorPaths := make(map[string]bool, len(existing))
-	importedSources := make(map[string]Plan, len(existing))
-	contentHashes := make(map[string]Plan, len(existing))
-	for _, p := range existing {
+	protectedMirrorPaths := make(map[string]bool, len(allExisting))
+	importedSources := make(map[string]Plan, len(allExisting))
+	contentHashes := make(map[string]Plan, len(allExisting))
+	slugs := make(map[string]Plan, len(allExisting))
+	for _, p := range allExisting {
 		if meta, err := s.mirror.PathFor(ctx, p); err == nil && strings.TrimSpace(meta.Path) != "" {
-			mirrorPaths[filepath.Clean(meta.Path)] = true
+			protectedMirrorPaths[filepath.Clean(meta.Path)] = true
 		}
 		if p.ImportProvenance != nil && strings.TrimSpace(p.ImportProvenance.SourcePath) != "" {
 			importedSources[filepath.Clean(p.ImportProvenance.SourcePath)] = p
 		}
 		if strings.TrimSpace(p.ContentHash) != "" {
 			contentHashes[p.ContentHash] = p
+		}
+		if strings.TrimSpace(p.Slug) != "" {
+			slugs[p.Slug] = p
 		}
 	}
 	var out []ReconcileItem
@@ -249,12 +272,13 @@ func (s *service) reconcileLegacyItems(ctx context.Context, req ReconcileRequest
 		}
 		for _, sourcePath := range paths {
 			clean := filepath.Clean(sourcePath)
-			if mirrorPaths[clean] {
+			if protectedMirrorPaths[clean] {
 				out = append(out, ReconcileItem{Action: ReconcileActionAlreadyCanonical, SourcePath: clean, SourceUntouched: true})
 				continue
 			}
 			if p, ok := importedSources[clean]; ok {
-				out = append(out, ReconcileItem{Action: ReconcileActionAlreadyCanonical, PlanID: p.ID, Slug: p.Slug, Title: p.Title, SourcePath: clean, Mirror: p.Mirror, SourceUntouched: true})
+				item := ReconcileItem{Action: ReconcileActionAlreadyCanonical, PlanID: p.ID, Slug: p.Slug, Title: p.Title, SourcePath: clean, Mirror: p.Mirror, SourceUntouched: true}
+				out = append(out, s.cleanupAdoptedSource(req, item, protectedMirrorPaths))
 				continue
 			}
 			raw, err := s.reader.ReadFile(clean)
@@ -273,10 +297,28 @@ func (s *service) reconcileLegacyItems(ctx context.Context, req ReconcileRequest
 				if req.ConflictPolicy == ReconcileConflictReportOnly {
 					action = ReconcileActionConflict
 				}
-				out = append(out, ReconcileItem{Action: action, PlanID: match.ID, Slug: match.Slug, Title: parsed.Title, SourcePath: clean, Mirror: match.Mirror, SourceUntouched: true})
+				item := ReconcileItem{Action: action, PlanID: match.ID, Slug: match.Slug, Title: parsed.Title, SourcePath: clean, Mirror: match.Mirror, SourceUntouched: true}
+				out = append(out, s.cleanupAdoptedSource(req, item, protectedMirrorPaths))
+				continue
+			}
+			parsedSlug := reconcileParsedSlug(parsed)
+			if match, ok := slugs[parsedSlug]; ok {
+				out = append(out, ReconcileItem{
+					Action:          ReconcileActionConflict,
+					PlanID:          match.ID,
+					Slug:            match.Slug,
+					Title:           parsed.Title,
+					SourcePath:      clean,
+					Mirror:          match.Mirror,
+					SourceUntouched: true,
+					Error:           fmt.Sprintf("plan slug %q already exists", parsedSlug),
+				})
 				continue
 			}
 			item := ReconcileItem{Action: ReconcileActionImportPlanned, Title: parsed.Title, SourcePath: clean, SourceUntouched: true}
+			if req.DryRun {
+				item = s.cleanupAdoptedSource(req, item, protectedMirrorPaths)
+			}
 			if !req.DryRun {
 				imported, err := s.Import(ctx, clean, string(raw), "", "", req.Workspace)
 				if err != nil {
@@ -290,12 +332,71 @@ func (s *service) reconcileLegacyItems(ctx context.Context, req ReconcileRequest
 					item.Mirror = imported.Mirror
 					contentHashes[imported.ContentHash] = imported
 					importedSources[clean] = imported
+					slugs[imported.Slug] = imported
+					item = s.cleanupAdoptedSource(req, item, protectedMirrorPaths)
 				}
 			}
 			out = append(out, item)
 		}
 	}
 	return out, nil
+}
+
+func (s *service) cleanupAdoptedSource(req ReconcileRequest, item ReconcileItem, protectedMirrorPaths map[string]bool) ReconcileItem {
+	if !req.CleanupAdoptedSources || strings.TrimSpace(item.SourcePath) == "" || !sourceCleanupEligible(item.Action) {
+		return item
+	}
+	clean := filepath.Clean(item.SourcePath)
+	if protectedMirrorPaths[clean] || (strings.TrimSpace(item.Mirror.Path) != "" && filepath.Clean(item.Mirror.Path) == clean) {
+		return item
+	}
+	item.SourceCleanupPlanned = true
+	if req.DryRun {
+		item.SourceUntouched = true
+		return item
+	}
+	if err := s.reader.RemoveFile(clean); err != nil {
+		item.Error = appendReconcileError(item.Error, fmt.Sprintf("source cleanup failed: %v", err))
+		item.SourceUntouched = true
+		return item
+	}
+	if err := s.removeSourceFromFallbackIndex(clean); err != nil {
+		item.Error = appendReconcileError(item.Error, fmt.Sprintf("fallback index cleanup failed: %v", err))
+		item.SourceUntouched = true
+		return item
+	}
+	item.SourcePath = clean
+	item.SourceUntouched = false
+	item.SourceRemoved = true
+	return item
+}
+
+func sourceCleanupEligible(action ReconcileAction) bool {
+	switch action {
+	case ReconcileActionAlreadyCanonical, ReconcileActionImportPlanned, ReconcileActionImported, ReconcileActionSkippedDuplicate:
+		return true
+	default:
+		return false
+	}
+}
+
+func reconcileParsedSlug(p Plan) string {
+	if slug := slugify(p.Slug); slug != "" {
+		return slug
+	}
+	return slugify(p.Title)
+}
+
+func appendReconcileError(existing, next string) string {
+	existing = strings.TrimSpace(existing)
+	next = strings.TrimSpace(next)
+	if existing == "" {
+		return next
+	}
+	if next == "" {
+		return existing
+	}
+	return existing + "; " + next
 }
 
 func (s *service) listLegacySourcePaths(root string, includeArchived bool) ([]string, error) {
@@ -316,6 +417,12 @@ func (s *service) listLegacySourcePaths(root string, includeArchived bool) ([]st
 				sourcePath = filepath.Join(root, record.Slug+".md")
 			}
 			clean := filepath.Clean(sourcePath)
+			if _, err := s.reader.ReadFile(clean); err != nil {
+				if sourceMissing(err) {
+					continue
+				}
+				return nil, fmt.Errorf("read indexed fallback plan %q: %w", clean, err)
+			}
 			if !seen[clean] {
 				seen[clean] = true
 				out = append(out, clean)
@@ -334,6 +441,54 @@ func (s *service) listLegacySourcePaths(root string, includeArchived bool) ([]st
 		}
 	}
 	return out, nil
+}
+
+func (s *service) removeSourceFromFallbackIndex(sourcePath string) error {
+	indexPath := filepath.Join(filepath.Dir(sourcePath), fallbackIndexFilename)
+	raw, err := s.reader.ReadFile(indexPath)
+	if err != nil {
+		if sourceMissing(err) {
+			return nil
+		}
+		return err
+	}
+	var idx fallbackIndex
+	if err := json.Unmarshal(raw, &idx); err != nil {
+		return fmt.Errorf("decode fallback plan index %q: %w", indexPath, err)
+	}
+	cleanSource := filepath.Clean(sourcePath)
+	kept := idx.Plans[:0]
+	changed := false
+	for _, record := range idx.Plans {
+		recordPath := fallbackRecordSourcePath(filepath.Dir(indexPath), record)
+		if filepath.Clean(recordPath) == cleanSource {
+			changed = true
+			continue
+		}
+		kept = append(kept, record)
+	}
+	if !changed {
+		return nil
+	}
+	idx.Plans = kept
+	next, err := json.MarshalIndent(idx, "", "  ")
+	if err != nil {
+		return err
+	}
+	next = append(next, '\n')
+	return s.reader.WriteFile(indexPath, next)
+}
+
+func fallbackRecordSourcePath(root string, record fallbackPlanRecord) string {
+	sourcePath := strings.TrimSpace(record.Path)
+	if sourcePath == "" {
+		return filepath.Join(root, record.Slug+".md")
+	}
+	return sourcePath
+}
+
+func sourceMissing(err error) bool {
+	return errors.Is(err, os.ErrNotExist)
 }
 
 func reconcileSourceDirs(req ReconcileRequest) []string {
@@ -458,7 +613,8 @@ func resolveWorkspacePath(path string, workspace WorkspaceScope) (string, error)
 		return "", ErrInvalidPlan{Reason: fmt.Sprintf("invalid workspace root %q: %v", root, err)}
 	}
 	cleanRoot = filepath.Clean(cleanRoot)
-	if _, err := repocontract.LoadDefault(cleanRoot); err != nil {
+	contract, err := repocontract.LoadDefault(cleanRoot)
+	if err != nil {
 		return "", ErrInvalidPlan{Reason: fmt.Sprintf("invalid workspace root %q: %v", cleanRoot, err)}
 	}
 	var resolved string
@@ -468,9 +624,27 @@ func resolveWorkspacePath(path string, workspace WorkspaceScope) (string, error)
 		resolved = filepath.Clean(filepath.Join(cleanRoot, path))
 	}
 	if !pathWithin(cleanRoot, resolved) {
+		if pathWithinRuntimeHomePlans(contract, resolved) {
+			return resolved, nil
+		}
 		return "", ErrInvalidPlan{Reason: fmt.Sprintf("import source %q is outside workspace root %q", resolved, cleanRoot)}
 	}
 	return resolved, nil
+}
+
+func pathWithinRuntimeHomePlans(contract *repocontract.Contract, path string) bool {
+	if contract == nil {
+		return false
+	}
+	home, err := os.UserHomeDir()
+	if err != nil || strings.TrimSpace(home) == "" {
+		return false
+	}
+	entry, err := contract.RuntimeHomeEntry(home, repocontract.HomeKeyPlans)
+	if err != nil {
+		return false
+	}
+	return pathWithin(entry.AbsPath, path)
 }
 
 func pathWithin(root, path string) bool {

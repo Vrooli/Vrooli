@@ -337,7 +337,7 @@ func TestPlansRequestMapping(t *testing.T) {
 		{
 			name: "reconcile maps dry-run repair adoption and source flags", group: "plans", cmd: "reconcile",
 			argv: []string{
-				"--dry-run", "--repair-mirrors", "--adopt-legacy", "--include-archived",
+				"--dry-run", "--repair-mirrors", "--adopt-legacy", "--cleanup-adopted-sources", "--include-archived",
 				"--conflict-policy", "report_only", "--source-docs-plans", "--workspace", "/workspace",
 			},
 			assert: func(t *testing.T, req proto.Message) {
@@ -345,6 +345,7 @@ func TestPlansRequestMapping(t *testing.T) {
 				require.True(t, m.GetDryRun())
 				require.True(t, m.GetRepairMirrors())
 				require.True(t, m.GetAdoptLegacy())
+				require.True(t, m.GetCleanupAdoptedSources())
 				require.True(t, m.GetIncludeArchived())
 				require.Equal(t, plansv1.ReconcileConflictPolicy_RECONCILE_CONFLICT_POLICY_REPORT_ONLY, m.GetConflictPolicy())
 				require.True(t, m.GetSourceDocsPlans())

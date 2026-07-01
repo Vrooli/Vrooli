@@ -138,9 +138,13 @@ whole `AuthoringSession`. To read the whole session graph, ask for it explicitly
 
 | Command | RPC | Purpose |
 |---|---|---|
+| `plan-manager author start --title <title> [--slug <slug>]` | `AuthoringService.StartSession` | Starts a session with a readable title-derived handle when `--slug` is omitted. UUIDs remain supported, but human guidance prefers the readable handle. |
 | `plan-manager author get-session <session>` | `AuthoringService.GetSession` | **Explicit full-state read.** Returns the whole `AuthoringSession`; use it for read-after-write when you need the full graph (mutations no longer echo it). `author preview` / `plans render` return the full rendered markdown. |
-| `plan-manager author context-update <session> <item> --kind <k> [--phase --label --reason --instruction --command --argv --target --required --repeat]` | `AuthoringService.UpdateRelevantContextItem` | Replace one accepted relevant-context item in place (by id from `author context-list`) so a bad item discovered in `author preview` is corrected **without deleting the phase/session**. Legal only before finalize. |
+| `plan-manager author context-submit <session> --kind command --label <label> --command <command> [--argv-json <json-array>]` | `AuthoringService.SubmitRelevantContextItem` | Records executable setup context. Use `--argv-json '["search-hub","query","shared drift hygiene","--type","record,doc","--json"]'` for quoting-sensitive commands; command-only fallback uses shell-compatible parsing. |
+| `plan-manager author context-update <session> <item> --kind <k> [--phase --label --reason --instruction --command --argv-json --argv --target --required --repeat]` | `AuthoringService.UpdateRelevantContextItem` | Replace one accepted relevant-context item in place (by id from `author context-list`) so a bad item discovered in `author preview` is corrected **without deleting the phase/session**. Legal only before finalize. |
 | `plan-manager author context-remove <session> <item> [--phase]` | `AuthoringService.RemoveRelevantContextItem` | Remove one accepted relevant-context item (by id) before finalize; removal recomputes structure violations so any resulting gate (e.g. removing the only phase context) is reported with its recovery action. |
+| `plan-manager author phase-move <session> <phase> --before <phase>` / `--after <phase>` | `AuthoringService.MovePhase` | Reorders a structured phase draft without rewriting its id, title, intent, steps, context, or acceptance content. |
+| `plan-manager author finalize <session> [--full]` | `AuthoringService.Finalize` | Validates, persists, verifies read-back through the plans domain, and returns compact human output by default. Re-running finalize for the same finalized session returns the existing plan. |
 
 Free-form phase `relevant_context` is classified as **notes only**:
 `author phase-submit <session> <phase> --field relevant_context` records every
@@ -203,11 +207,15 @@ resolve a relative source path from a workspace root. Use `plan-manager plans
 reconcile --dry-run --workspace <path>` to preview missing/stale mirror repairs
 and bulk legacy adoption. Run `plan-manager plans reconcile --repair-mirrors` to
 repair projections from SQLite, or add `--adopt-legacy` to import markdown from
-the documented fallback locations. Reconcile resolves repo `docs/plans` and
-`plans` scans from the workspace root when provided, defaulting to the discovered
-Vrooli repo root in the scenario CLI. Reconcile is non-destructive: source files
-are reported as untouched, skipped duplicate, parse failed, conflict, or
-imported; the command never deletes legacy markdown.
+the documented fallback locations. Add `--cleanup-adopted-sources` only when
+legacy sources that are already canonical, newly imported, or skipped as
+duplicates should be removed after provenance/content checks. Dry-runs report
+`source cleanup planned`; apply runs report `source removed` for successful
+retirement. Reconcile resolves repo `docs/plans` and `plans` scans from the
+workspace root when provided, defaulting to the discovered Vrooli repo root in
+the scenario CLI. Parse failures and conflicts are never removed by cleanup;
+repair those files until `plans import` can parse them or move non-plan notes
+out of legacy plan locations, then rerun reconcile.
 
 ## `log` — the execution-log ledger
 

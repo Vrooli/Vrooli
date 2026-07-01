@@ -235,32 +235,36 @@ func TestReconcilePlansForwardsRequest(t *testing.T) {
 	svc := &fakePlansService{reconcile: internalplans.ReconcileResult{
 		DryRun: true,
 		Items: []internalplans.ReconcileItem{{
-			Action:          internalplans.ReconcileActionImportPlanned,
-			Title:           "Legacy",
-			SourcePath:      "docs/plans/legacy.md",
-			SourceUntouched: true,
+			Action:               internalplans.ReconcileActionImportPlanned,
+			Title:                "Legacy",
+			SourcePath:           "docs/plans/legacy.md",
+			SourceUntouched:      true,
+			SourceCleanupPlanned: true,
 		}},
 	}}
 	h := newPlansHandler(svc)
 
 	resp, err := h.ReconcilePlans(context.Background(), connect.NewRequest(&plansv1.ReconcilePlansRequest{
-		DryRun:          true,
-		RepairMirrors:   true,
-		AdoptLegacy:     true,
-		ConflictPolicy:  plansv1.ReconcileConflictPolicy_RECONCILE_CONFLICT_POLICY_REPORT_ONLY,
-		SourceDocsPlans: true,
-		Workspace:       &plansv1.WorkspaceScope{Root: "/workspace"},
+		DryRun:                true,
+		RepairMirrors:         true,
+		AdoptLegacy:           true,
+		CleanupAdoptedSources: true,
+		ConflictPolicy:        plansv1.ReconcileConflictPolicy_RECONCILE_CONFLICT_POLICY_REPORT_ONLY,
+		SourceDocsPlans:       true,
+		Workspace:             &plansv1.WorkspaceScope{Root: "/workspace"},
 	}))
 	require.NoError(t, err)
 	require.True(t, svc.gotReconcile.DryRun)
 	require.True(t, svc.gotReconcile.RepairMirrors)
 	require.True(t, svc.gotReconcile.AdoptLegacy)
+	require.True(t, svc.gotReconcile.CleanupAdoptedSources)
 	require.Equal(t, internalplans.ReconcileConflictReportOnly, svc.gotReconcile.ConflictPolicy)
 	require.True(t, svc.gotReconcile.SourceDocsPlans)
 	require.Equal(t, "/workspace", svc.gotReconcile.Workspace.Root)
 	require.Len(t, resp.Msg.GetItems(), 1)
 	require.Equal(t, plansv1.ReconcileAction_RECONCILE_ACTION_IMPORT_PLANNED, resp.Msg.GetItems()[0].GetAction())
 	require.True(t, resp.Msg.GetItems()[0].GetSourceUntouched())
+	require.True(t, resp.Msg.GetItems()[0].GetSourceCleanupPlanned())
 }
 
 func TestArchivePlanSuccess(t *testing.T) {

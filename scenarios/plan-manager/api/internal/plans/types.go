@@ -241,6 +241,7 @@ type ReconcileRequest struct {
 	DryRun                 bool
 	RepairMirrors          bool
 	AdoptLegacy            bool
+	CleanupAdoptedSources  bool
 	IncludeArchived        bool
 	IncludeArchivedLegacy  bool
 	ConflictPolicy         ReconcileConflictPolicy
@@ -268,14 +269,16 @@ const (
 
 // ReconcileItem reports one inspected canonical plan or legacy source.
 type ReconcileItem struct {
-	Action          ReconcileAction
-	PlanID          string
-	Slug            string
-	Title           string
-	SourcePath      string
-	Mirror          RenderedPlanMirror
-	SourceUntouched bool
-	Error           string
+	Action               ReconcileAction
+	PlanID               string
+	Slug                 string
+	Title                string
+	SourcePath           string
+	Mirror               RenderedPlanMirror
+	SourceUntouched      bool
+	Error                string
+	SourceCleanupPlanned bool
+	SourceRemoved        bool
 }
 
 // ReconcileResult is the full bulk reconcile report.

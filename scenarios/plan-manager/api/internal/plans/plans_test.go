@@ -267,6 +267,33 @@ func TestImportRejectsAbsoluteSourceOutsideWorkspaceRoot(t *testing.T) {
 	require.Contains(t, err.Error(), "outside workspace root")
 }
 
+func TestImportAllowsRuntimeHomePlansSourceForWorkspace(t *testing.T) {
+	d, clk := newDB(t)
+	workspaceRoot := validWorkspaceRoot(t)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	runtimePlans, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyPlans)
+	require.NoError(t, err)
+	source := filepath.Join(runtimePlans, "legacy.md")
+	reader := fakeReader{files: map[string]string{
+		source: "# Runtime Legacy\n\n## Purpose\nAdopt from contract-owned runtime home.\n",
+	}}
+	svc := plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: reader,
+		Mirror: newFakeMirrorStore(t.TempDir()),
+	})
+	ctx := context.Background()
+
+	imported, err := svc.Import(ctx, source, "", "", "", plans.WorkspaceScope{Root: workspaceRoot})
+	require.NoError(t, err)
+	require.Equal(t, "Runtime Legacy", imported.Title)
+	require.NotNil(t, imported.ImportProvenance)
+	require.Equal(t, source, imported.ImportProvenance.SourcePath)
+	require.Equal(t, workspaceRoot, imported.ImportProvenance.WorkspaceRoot)
+}
+
 func TestImportRejectsInvalidWorkspaceRoot(t *testing.T) {
 	d, clk := newDB(t)
 	workspaceRoot := t.TempDir()
@@ -494,6 +521,295 @@ func TestReconcileAdoptsLegacyPlansNonDestructively(t *testing.T) {
 	require.NotEmpty(t, mirror.files[imported.Mirror.Path])
 }
 
+func TestReconcileCleanupAdoptedSourcesRemovesOnlyProvenLegacySources(t *testing.T) {
+	d, clk := newDB(t)
+	mirror := newFakeMirrorStore(t.TempDir())
+	source := filepath.Join("docs", "plans", "legacy.md")
+	reader := fakeReader{files: map[string]string{
+		source: "# Legacy plan\n\n## Purpose\nAdopt me.\n",
+	}}
+	svc := plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: reader,
+		Mirror: mirror,
+	})
+	ctx := context.Background()
+
+	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{
+		AdoptLegacy:           true,
+		CleanupAdoptedSources: true,
+		SourceDocsPlans:       true,
+	})
+	require.NoError(t, err)
+	require.Len(t, report.Items, 1)
+	require.Equal(t, plans.ReconcileActionImported, report.Items[0].Action)
+	require.True(t, report.Items[0].SourceRemoved)
+	require.False(t, report.Items[0].SourceUntouched)
+	require.NotContains(t, reader.files, source)
+
+	imported, err := svc.Get(ctx, report.Items[0].PlanID, plans.WorkspaceScope{})
+	require.NoError(t, err)
+	require.NotNil(t, imported.ImportProvenance)
+	require.Equal(t, source, imported.ImportProvenance.SourcePath)
+	require.NotEmpty(t, mirror.files[imported.Mirror.Path])
+}
+
+func TestReconcileCleanupPrunesFallbackIndexAndStaysIdempotent(t *testing.T) {
+	d, clk := newDB(t)
+	sourceDir := filepath.Join("docs", "plans")
+	source := filepath.Join(sourceDir, "legacy-alias.md")
+	reader := fakeReader{files: map[string]string{
+		filepath.Join(sourceDir, "_index.json"): `{
+  "version": 2,
+  "plans": [
+    {
+      "id": "legacy-1",
+      "title": "Legacy Alias",
+      "slug": "legacy-alias",
+      "path": "docs/plans/legacy-alias.md"
+    }
+  ]
+}`,
+		source: "# Legacy Alias\n\n## Purpose\nAdopt me.\n",
+	}}
+	svc := plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: reader,
+		Mirror: newFakeMirrorStore(t.TempDir()),
+	})
+	ctx := context.Background()
+
+	applied, err := svc.Reconcile(ctx, plans.ReconcileRequest{
+		AdoptLegacy:           true,
+		CleanupAdoptedSources: true,
+		SourceDocsPlans:       true,
+	})
+	require.NoError(t, err)
+	require.Len(t, applied.Items, 1)
+	require.Equal(t, plans.ReconcileActionImported, applied.Items[0].Action)
+	require.True(t, applied.Items[0].SourceRemoved)
+	require.NotContains(t, reader.files, source)
+
+	var idx struct {
+		Plans []struct {
+			Path string `json:"path"`
+		} `json:"plans"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(reader.files[filepath.Join(sourceDir, "_index.json")]), &idx))
+	require.Empty(t, idx.Plans, "cleanup must remove stale fallback index records for deleted sources")
+
+	dryRun, err := svc.Reconcile(ctx, plans.ReconcileRequest{
+		DryRun:                true,
+		AdoptLegacy:           true,
+		CleanupAdoptedSources: true,
+		SourceDocsPlans:       true,
+	})
+	require.NoError(t, err)
+	for _, item := range dryRun.Items {
+		require.NotEqual(t, source, item.SourcePath, "deleted index source must not be rediscovered")
+	}
+}
+
+func TestReconcileIgnoresIndexedImportedSourceThatIsAlreadyMissing(t *testing.T) {
+	d, clk := newDB(t)
+	sourceDir := filepath.Join("docs", "plans")
+	source := filepath.Join(sourceDir, "removed-alias.md")
+	reader := fakeReader{files: map[string]string{
+		filepath.Join(sourceDir, "_index.json"): `{
+  "version": 2,
+  "plans": [
+    {
+      "id": "legacy-1",
+      "title": "Removed Alias",
+      "slug": "removed-alias",
+      "path": "docs/plans/removed-alias.md"
+    }
+  ]
+}`,
+	}}
+	svc := plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: reader,
+		Mirror: newFakeMirrorStore(t.TempDir()),
+	})
+	ctx := context.Background()
+	created, err := svc.Create(ctx, plans.Plan{
+		Title: "Removed Alias",
+		ImportProvenance: &plans.ImportProvenance{
+			SourcePath: source,
+		},
+	})
+	require.NoError(t, err)
+
+	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{
+		DryRun:                true,
+		AdoptLegacy:           true,
+		CleanupAdoptedSources: true,
+		SourceDocsPlans:       true,
+	})
+	require.NoError(t, err)
+	for _, item := range report.Items {
+		require.NotEqual(t, source, item.SourcePath, "missing indexed source for imported plan must not be reported as cleanup-planned")
+	}
+	got, err := svc.Get(ctx, created.ID, plans.WorkspaceScope{})
+	require.NoError(t, err)
+	require.Equal(t, source, got.ImportProvenance.SourcePath, "reconcile should not rewrite import provenance to hide history")
+}
+
+func TestReconcileDryRunReportsSlugConflictInsteadOfImportPlanned(t *testing.T) {
+	d, clk := newDB(t)
+	workspace := plans.WorkspaceScope{Root: validWorkspaceRoot(t)}
+	source := filepath.Join(workspace.Root, "docs", "plans", "same-title.md")
+	reader := fakeReader{files: map[string]string{
+		source: "# Same Title\n\n## Purpose\nDifferent legacy content.\n",
+	}}
+	svc := plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: reader,
+		Mirror: newFakeMirrorStore(t.TempDir()),
+	})
+	ctx := context.Background()
+	existing, err := svc.Create(ctx, plans.Plan{Title: "Same Title", Purpose: "Existing canonical content."})
+	require.NoError(t, err)
+	require.Empty(t, existing.WorkspaceRoot, "fixture plan intentionally lives outside the reconcile workspace")
+
+	dryRun, err := svc.Reconcile(ctx, plans.ReconcileRequest{
+		DryRun:                true,
+		AdoptLegacy:           true,
+		CleanupAdoptedSources: true,
+		SourceDocsPlans:       true,
+		Workspace:             workspace,
+	})
+	require.NoError(t, err)
+	require.Len(t, dryRun.Items, 1)
+	require.Equal(t, plans.ReconcileActionConflict, dryRun.Items[0].Action)
+	require.Equal(t, existing.ID, dryRun.Items[0].PlanID)
+	require.False(t, dryRun.Items[0].SourceCleanupPlanned)
+	require.Contains(t, dryRun.Items[0].Error, `plan slug "same-title" already exists`)
+
+	applied, err := svc.Reconcile(ctx, plans.ReconcileRequest{
+		AdoptLegacy:           true,
+		CleanupAdoptedSources: true,
+		SourceDocsPlans:       true,
+		Workspace:             workspace,
+	})
+	require.NoError(t, err)
+	require.Len(t, applied.Items, 1)
+	require.Equal(t, plans.ReconcileActionConflict, applied.Items[0].Action)
+	require.Contains(t, reader.files, source)
+}
+
+func TestReconcileWorkspaceScopeProtectsGlobalCanonicalMirrors(t *testing.T) {
+	d, clk := newDB(t)
+	workspace := plans.WorkspaceScope{Root: validWorkspaceRoot(t)}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	runtimePlans, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyPlans)
+	require.NoError(t, err)
+
+	mirror := newFakeMirrorStore(runtimePlans)
+	svc := plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: fakeReader{files: map[string]string{}},
+		Mirror: mirror,
+	})
+	ctx := context.Background()
+	existing, err := svc.Create(ctx, plans.Plan{Title: "Global Canonical", Purpose: "Existing canonical content."})
+	require.NoError(t, err)
+	require.Empty(t, existing.WorkspaceRoot, "fixture plan intentionally lives outside the reconcile workspace")
+	mirrorPath, err := mirror.PathFor(ctx, existing)
+	require.NoError(t, err)
+
+	reader := fakeReader{files: map[string]string{
+		mirrorPath.Path: "not parseable legacy markdown",
+	}}
+	svc = plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: reader,
+		Mirror: mirror,
+	})
+
+	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{
+		DryRun:                 true,
+		AdoptLegacy:            true,
+		SourceRuntimeHomePlans: true,
+		Workspace:              workspace,
+	})
+	require.NoError(t, err)
+	require.Len(t, report.Items, 1)
+	require.Equal(t, plans.ReconcileActionAlreadyCanonical, report.Items[0].Action)
+	require.Equal(t, mirrorPath.Path, report.Items[0].SourcePath)
+	require.True(t, report.Items[0].SourceUntouched)
+	require.False(t, report.Items[0].SourceCleanupPlanned)
+}
+
+func TestReconcileCleanupDryRunReportsPlannedRemovalWithoutRemoving(t *testing.T) {
+	d, clk := newDB(t)
+	source := filepath.Join("docs", "plans", "legacy.md")
+	reader := fakeReader{files: map[string]string{
+		source: "# Legacy plan\n\n## Purpose\nAdopt me.\n",
+	}}
+	svc := plans.NewService(plans.Deps{Repo: plans.NewSQLiteRepository(d, clk), Clock: clk, Reader: reader})
+	ctx := context.Background()
+
+	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{
+		DryRun:                true,
+		AdoptLegacy:           true,
+		CleanupAdoptedSources: true,
+		SourceDocsPlans:       true,
+	})
+	require.NoError(t, err)
+	require.Len(t, report.Items, 1)
+	require.Equal(t, plans.ReconcileActionImportPlanned, report.Items[0].Action)
+	require.True(t, report.Items[0].SourceCleanupPlanned)
+	require.True(t, report.Items[0].SourceUntouched)
+	require.False(t, report.Items[0].SourceRemoved)
+	require.Contains(t, reader.files, source)
+}
+
+func TestReconcileCleanupNeverRemovesParseFailuresOrCanonicalMirrors(t *testing.T) {
+	d, clk := newDB(t)
+	mirror := newFakeMirrorStore(filepath.Join("docs", "plans"))
+	reader := fakeReader{files: map[string]string{
+		filepath.Join("docs", "plans", "bad.md"): "# Bad\n\n## Phases\n\n### Phase A — malformed\n",
+	}}
+	svc := plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: reader,
+		Mirror: mirror,
+	})
+	ctx := context.Background()
+	created, err := svc.Create(ctx, plans.Plan{Title: "Canonical Mirror", Purpose: "Protect mirror."})
+	require.NoError(t, err)
+	reader.files[created.Mirror.Path] = string(mirror.files[created.Mirror.Path])
+
+	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{
+		AdoptLegacy:           true,
+		CleanupAdoptedSources: true,
+		SourceDocsPlans:       true,
+	})
+	require.NoError(t, err)
+	paths := map[string]plans.ReconcileItem{}
+	for _, item := range report.Items {
+		paths[item.SourcePath] = item
+	}
+	badPath := filepath.Join("docs", "plans", "bad.md")
+	require.Equal(t, plans.ReconcileActionParseFailed, paths[badPath].Action)
+	require.True(t, paths[badPath].SourceUntouched)
+	require.Contains(t, reader.files, badPath)
+	require.Equal(t, plans.ReconcileActionAlreadyCanonical, paths[created.Mirror.Path].Action)
+	require.True(t, paths[created.Mirror.Path].SourceUntouched)
+	require.False(t, paths[created.Mirror.Path].SourceCleanupPlanned)
+	require.Contains(t, reader.files, created.Mirror.Path)
+}
+
 func TestReconcileAdoptsWorkspaceRelativeLegacyPlans(t *testing.T) {
 	d, clk := newDB(t)
 	mirror := newFakeMirrorStore(t.TempDir())
@@ -527,7 +843,15 @@ func (f fakeReader) ReadFile(path string) ([]byte, error) {
 	if v, ok := f.files[path]; ok {
 		return []byte(v), nil
 	}
-	return nil, sql.ErrNoRows
+	return nil, os.ErrNotExist
+}
+
+func (f fakeReader) WriteFile(path string, data []byte) error {
+	if f.files == nil {
+		f.files = map[string]string{}
+	}
+	f.files[path] = string(data)
+	return nil
 }
 
 func (f fakeReader) ListMarkdownFiles(dir string) ([]string, error) {
@@ -540,6 +864,14 @@ func (f fakeReader) ListMarkdownFiles(dir string) ([]string, error) {
 		}
 	}
 	return out, nil
+}
+
+func (f fakeReader) RemoveFile(path string) error {
+	if _, ok := f.files[path]; !ok {
+		return os.ErrNotExist
+	}
+	delete(f.files, path)
+	return nil
 }
 
 func samplePlan() plans.Plan {

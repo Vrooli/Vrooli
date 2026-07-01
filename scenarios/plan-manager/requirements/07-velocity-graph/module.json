@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P1-002 — per-plan velocity emitted as a signal, plus the plan supersession/dependency graph.",
-    "last_validated_at": "2026-07-01T09:51:53-04:00",
+    "last_validated_at": "2026-07-01T14:04:59-04:00",
     "module": "velocity-graph",
     "prd_ref": "PRD.md",
     "priority": "P1",

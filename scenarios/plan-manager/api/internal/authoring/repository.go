@@ -11,6 +11,6 @@ type SessionStore interface {
 	// Save upserts a whole session keyed by id (including its sections in the
 	// document). The service owns id/timestamp assignment.
 	Save(ctx context.Context, s Session) error
-	// Get returns the session matching an id; ok=false when absent.
-	Get(ctx context.Context, id string) (Session, bool, error)
+	// Get returns the session matching an id or readable slug; ok=false when absent.
+	Get(ctx context.Context, idOrSlug string) (Session, bool, error)
 }

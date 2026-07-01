@@ -51,7 +51,7 @@ At conversation start, assess the user's intent and proactively load the relevan
 What is the user doing?
 ├─ Brainstorming/workshopping a new idea  → prompt-manager skill read idea-workshop
 ├─ Debugging a non-obvious issue          → prompt-manager skill read scientific-debugging
-├─ Creating an implementation plan        → prompt-manager skill read plan-skill-discovery
+├─ Creating an implementation plan        → prompt-manager skill read implementation-plan-authoring
 ├─ Building/repurposing a scenario        → prompt-manager skill read ecosystem-fit
 ├─ Deploying/publishing a scenario        → prompt-manager skill read deployment-coordinator
 ├─ (add new entries as patterns emerge)

@@ -23,6 +23,14 @@ type PlanWriter interface {
 	CreatePlan(ctx context.Context, p planmodel.Plan) (planmodel.Plan, error)
 }
 
+// PlanReader is the read seam back into the plans SSOT. Finalize uses it as a
+// read-after-write guard: a successful finalize response must refer to a plan
+// that resolves through the same plans-domain paths callers use.
+type PlanReader interface {
+	GetPlan(ctx context.Context, idOrSlug string) (planmodel.Plan, error)
+	RenderPlan(ctx context.Context, idOrSlug string) (string, error)
+}
+
 // PlanRenderer renders an in-progress plan to its markdown review artifact so the
 // wizard can offer a render-preview before finalize. Production wires
 // plans.RenderMarkdown; a nil renderer disables preview (the service returns a

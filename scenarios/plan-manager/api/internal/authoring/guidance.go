@@ -8,6 +8,13 @@ import (
 	planmodel "plan-manager/internal/planmodel"
 )
 
+func sessionHandle(sess Session) string {
+	if strings.TrimSpace(sess.Slug) != "" {
+		return sess.Slug
+	}
+	return sess.ID
+}
+
 func stepForSession(sess Session) GuidedStep {
 	sec, ok := sectionByKey(sess.Sections, sess.CurrentSectionKey)
 	if !ok {
@@ -20,7 +27,7 @@ func stepForSession(sess Session) GuidedStep {
 			Kind:   NextActionRecommended,
 			Label:  "Open next authoring step",
 			Reason: "The session has been created and the API has selected the first required section.",
-			Argv:   []string{"author", "next", sess.ID},
+			Argv:   []string{"author", "next", sessionHandle(sess)},
 		},
 	}, step.NextActions...)
 	return step
@@ -35,7 +42,7 @@ func stepForSection(sess Session, sec Section) GuidedStep {
 			Kind:               NextActionRecommended,
 			Label:              "Submit " + sec.Label,
 			Reason:             "This section is the current authoring input.",
-			Argv:               []string{"author", "section-submit", sess.ID, "--section", string(sec.Key), "--content", placeholder},
+			Argv:               []string{"author", "section-submit", sessionHandle(sess), "--section", string(sec.Key), "--content", placeholder},
 			ContentPlaceholder: placeholder,
 		},
 	}
@@ -63,7 +70,7 @@ func stepForSection(sess Session, sec Section) GuidedStep {
 				Kind:               NextActionRecommended,
 				Label:              "Discover context candidates",
 				Reason:             "Relevant context should come from decomposed discovery concepts before manual acceptance.",
-				Argv:               []string{"author", "context-discover", sess.ID, "--concepts", "<concept one>,<concept two>", "--complexity", "architectural"},
+				Argv:               []string{"author", "context-discover", sessionHandle(sess), "--concepts", "<concept one>,<concept two>", "--complexity", "architectural"},
 				ContentPlaceholder: "<concept one>,<concept two>",
 			},
 			{
@@ -71,7 +78,7 @@ func stepForSection(sess Session, sec Section) GuidedStep {
 				Kind:   NextActionAlternative,
 				Label:  "Submit known context directly",
 				Reason: "Use only when the setup item is already known and has a concrete reason.",
-				Argv:   []string{"author", "context-submit", sess.ID, "--kind", "command", "--label", "<label>", "--reason", "<reason>", "--instruction", "<instruction>", "--command", "<command>", "--required"},
+				Argv:   []string{"author", "context-submit", sessionHandle(sess), "--kind", "command", "--label", "<label>", "--reason", "<reason>", "--instruction", "<instruction>", "--command", "<command>", "--required"},
 			},
 		}
 	}
@@ -82,7 +89,7 @@ func stepForSection(sess Session, sec Section) GuidedStep {
 				Kind:               NextActionRecommended,
 				Label:              "Add a structured phase",
 				Reason:             "Plans need at least one phase before finalization.",
-				Argv:               []string{"author", "phase-add", sess.ID, "--title", "<phase title>", "--intent", "<phase intent>"},
+				Argv:               []string{"author", "phase-add", sessionHandle(sess), "--title", "<phase title>", "--intent", "<phase intent>"},
 				ContentPlaceholder: "<phase title> / <phase intent>",
 			},
 			{
@@ -90,7 +97,7 @@ func stepForSection(sess Session, sec Section) GuidedStep {
 				Kind:   NextActionAlternative,
 				Label:  "Inspect next incomplete phase",
 				Reason: "Use this when phases already exist and one needs field-level completion.",
-				Argv:   []string{"author", "phase-next", sess.ID},
+				Argv:   []string{"author", "phase-next", sessionHandle(sess)},
 			},
 		}
 	}
@@ -277,14 +284,14 @@ func referencesRecoveryActions(sess Session) []NextAction {
 			Kind:   NextActionRecommended,
 			Label:  "Suggest references",
 			Reason: "Discover connected [CODE:]/[DOC:]/[REQ:] locators from search-hub, then accept/reject each suggestion.",
-			Argv:   []string{"author", "suggest-references", sess.ID},
+			Argv:   []string{"author", "suggest-references", sessionHandle(sess)},
 		},
 		{
 			ID:                 "submit-references",
 			Kind:               NextActionAlternative,
 			Label:              "Submit references manually",
 			Reason:             "List the connected [CODE:]/[DOC:]/[REQ:] locators you are touching, one per line.",
-			Argv:               []string{"author", "section-submit", sess.ID, "--section", string(SectionReferences), "--content", "[CODE: path/to/file.go]"},
+			Argv:               []string{"author", "section-submit", sessionHandle(sess), "--section", string(SectionReferences), "--content", "[CODE: path/to/file.go]"},
 			ContentPlaceholder: "[CODE: path/to/file.go]",
 		},
 		{
@@ -292,7 +299,7 @@ func referencesRecoveryActions(sess Session) []NextAction {
 			Kind:               NextActionRecovery,
 			Label:              "Record NO_CODE_REFS fallback",
 			Reason:             "Use when suggestions found no targets and there are genuinely no connected code/doc/req references — record an honest reason instead of leaving references blank.",
-			Argv:               []string{"author", "section-submit", sess.ID, "--section", string(SectionReferences), "--content", "NO_CODE_REFS: <reason there are no connected references>"},
+			Argv:               []string{"author", "section-submit", sessionHandle(sess), "--section", string(SectionReferences), "--content", "NO_CODE_REFS: <reason there are no connected references>"},
 			ContentPlaceholder: "NO_CODE_REFS: <reason there are no connected references>",
 		},
 	}
@@ -309,7 +316,7 @@ func stepForReferenceCandidates(sess Session) GuidedStep {
 		Summary:        "Review the search-hub reference suggestions and accept or reject each one. Suggestions do not enter the plan until accepted.",
 		Instructions:   []string{"Accept only locators the plan genuinely depends on or changes.", "Edit a locator's kind/target on accept if the suggestion is close but imprecise.", "Reject noisy or irrelevant suggestions with a short reason.", "If no suggestion fits and there are no connected references, record a NO_CODE_REFS reason instead."},
 		RequiredInputs: []string{"candidate decision (accept/reject) or NO_CODE_REFS reason"},
-		Examples:       []string{"author reference-accept " + sess.ID + " <candidate-id>", "author reference-reject " + sess.ID + " <candidate-id> --reason 'unrelated subsystem'"},
+		Examples:       []string{"author reference-accept " + sessionHandle(sess) + " <candidate-id>", "author reference-reject " + sessionHandle(sess) + " <candidate-id> --reason 'unrelated subsystem'"},
 		CommonMistakes: []string{"Accepting every suggestion without judgment.", "Treating a raw suggestion as if it already satisfied the references gate."},
 		NextActions: []NextAction{
 			{
@@ -317,14 +324,14 @@ func stepForReferenceCandidates(sess Session) GuidedStep {
 				Kind:   NextActionRecommended,
 				Label:  "List reference candidates",
 				Reason: "Review the suggested locators before accepting or rejecting.",
-				Argv:   []string{"author", "reference-list", sess.ID},
+				Argv:   []string{"author", "reference-list", sessionHandle(sess)},
 			},
 			{
 				ID:                 "submit-no-code-refs",
 				Kind:               NextActionRecovery,
 				Label:              "Record NO_CODE_REFS fallback",
 				Reason:             "Use when no suggestion fits and there are genuinely no connected references.",
-				Argv:               []string{"author", "section-submit", sess.ID, "--section", string(SectionReferences), "--content", "NO_CODE_REFS: <reason there are no connected references>"},
+				Argv:               []string{"author", "section-submit", sessionHandle(sess), "--section", string(SectionReferences), "--content", "NO_CODE_REFS: <reason there are no connected references>"},
 				ContentPlaceholder: "NO_CODE_REFS: <reason there are no connected references>",
 			},
 		},
@@ -352,7 +359,7 @@ func changeBoundaryActions(sess Session) []NextAction {
 			Kind:               NextActionRecommended,
 			Label:              "Submit change boundary",
 			Reason:             "Declare the repo paths this plan may change (acceptance_allow). Scenario identity and the regression anchor derive from these globs.",
-			Argv:               []string{"author", "section-submit", sess.ID, "--section", string(SectionAcceptanceBoundary), "--content", "acceptance_allow:\n- scenarios/<scenario>/**\nacceptance_deny:\n- (optional forbidden globs)"},
+			Argv:               []string{"author", "section-submit", sessionHandle(sess), "--section", string(SectionAcceptanceBoundary), "--content", "acceptance_allow:\n- scenarios/<scenario>/**\nacceptance_deny:\n- (optional forbidden globs)"},
 			ContentPlaceholder: "acceptance_allow:\n- scenarios/<scenario>/**\n- packages/<shared>/**",
 		},
 		{
@@ -360,7 +367,7 @@ func changeBoundaryActions(sess Session) []NextAction {
 			Kind:               NextActionRecovery,
 			Label:              "Record OPERATOR_ONLY boundary",
 			Reason:             "Use only when the plan is genuinely operator-only / no-code and has no editable repo paths.",
-			Argv:               []string{"author", "section-submit", sess.ID, "--section", string(SectionAcceptanceBoundary), "--content", "OPERATOR_ONLY: <reason there are no editable repo paths>"},
+			Argv:               []string{"author", "section-submit", sessionHandle(sess), "--section", string(SectionAcceptanceBoundary), "--content", "OPERATOR_ONLY: <reason there are no editable repo paths>"},
 			ContentPlaceholder: "OPERATOR_ONLY: <reason there are no editable repo paths>",
 		},
 	}
@@ -374,14 +381,14 @@ func regressionAnchorRecoveryActions(sess Session) []NextAction {
 			Kind:   NextActionRecommended,
 			Label:  "Derive the regression anchor intent",
 			Reason: "Fill the typed anchor intent (strategy, scenario, allowlist, diff command) mechanically — no snapshot, never stale.",
-			Argv:   []string{"author", "autofill", sess.ID, "--sources", "regression_anchor"},
+			Argv:   []string{"author", "autofill", sessionHandle(sess), "--sources", "regression_anchor"},
 		},
 		{
 			ID:                 "submit-anchor-intent",
 			Kind:               NextActionAlternative,
 			Label:              "Confirm/adjust the anchor intent block",
 			Reason:             "Submit the typed intent yourself, replacing the <scenario> placeholder with the real target scenario.",
-			Argv:               []string{"author", "section-submit", sess.ID, "--section", string(SectionRegressionAnchor), "--content", template},
+			Argv:               []string{"author", "section-submit", sessionHandle(sess), "--section", string(SectionRegressionAnchor), "--content", template},
 			ContentPlaceholder: template,
 		},
 	}
@@ -430,7 +437,7 @@ func stepForGlobalContextCheckpoint(sess Session) GuidedStep {
 		Summary:        "Decide the plan-wide setup context a fresh or resumed agent should load before any phase. This checkpoint cannot be skipped silently.",
 		Instructions:   []string{"Discover context candidates and accept the relevant ones, or submit a known global setup item.", "If this plan genuinely needs no plan-wide setup context, record an explicit NO_CONTEXT reason.", "Phase-specific setup belongs on the phase, not here."},
 		RequiredInputs: []string{"global relevant context item(s) or an explicit NO_CONTEXT reason"},
-		Examples:       []string{"author context-discover " + sess.ID + " --concepts 'plan-manager execution resume' --complexity architectural", "author section-submit " + sess.ID + " --section relevant_context --content 'NO_CONTEXT: single-file docs change needs no plan-wide setup.'"},
+		Examples:       []string{"author context-discover " + sessionHandle(sess) + " --concepts 'plan-manager execution resume' --complexity architectural", "author section-submit " + sessionHandle(sess) + " --section relevant_context --content 'NO_CONTEXT: single-file docs change needs no plan-wide setup.'"},
 		CommonMistakes: []string{"Skipping plan-wide context by leaving it empty.", "Putting phase-only setup in global context."},
 		NextActions: []NextAction{
 			{
@@ -438,7 +445,7 @@ func stepForGlobalContextCheckpoint(sess Session) GuidedStep {
 				Kind:               NextActionRecommended,
 				Label:              "Discover global context candidates",
 				Reason:             "Generate candidate plan-wide setup commands to accept or reject.",
-				Argv:               []string{"author", "context-discover", sess.ID, "--concepts", "<concept one>,<concept two>", "--complexity", "architectural"},
+				Argv:               []string{"author", "context-discover", sessionHandle(sess), "--concepts", "<concept one>,<concept two>", "--complexity", "architectural"},
 				ContentPlaceholder: "<concept one>,<concept two>",
 			},
 			{
@@ -446,7 +453,7 @@ func stepForGlobalContextCheckpoint(sess Session) GuidedStep {
 				Kind:               NextActionAlternative,
 				Label:              "Submit a known global context item",
 				Reason:             "Use when a plan-wide setup item is already known.",
-				Argv:               []string{"author", "context-submit", sess.ID, "--kind", "command", "--label", "<label>", "--reason", "<reason>", "--instruction", "<instruction>", "--command", "<command>", "--required"},
+				Argv:               []string{"author", "context-submit", sessionHandle(sess), "--kind", "command", "--label", "<label>", "--reason", "<reason>", "--instruction", "<instruction>", "--command", "<command>", "--required"},
 				ContentPlaceholder: "<label> / <reason> / <command>",
 			},
 			{
@@ -454,7 +461,7 @@ func stepForGlobalContextCheckpoint(sess Session) GuidedStep {
 				Kind:               NextActionAlternative,
 				Label:              "Record no global context (with reason)",
 				Reason:             "Use only when the plan genuinely needs no plan-wide setup context.",
-				Argv:               []string{"author", "section-submit", sess.ID, "--section", string(SectionRelevantContext), "--content", "NO_CONTEXT: <reason>"},
+				Argv:               []string{"author", "section-submit", sessionHandle(sess), "--section", string(SectionRelevantContext), "--content", "NO_CONTEXT: <reason>"},
 				ContentPlaceholder: "NO_CONTEXT: <reason>",
 			},
 		},
@@ -468,7 +475,7 @@ func stepForContextDiscovery(sess Session) GuidedStep {
 		Summary:        "Review discovered context candidates and accept or reject each one.",
 		Instructions:   []string{"Accept only candidates that materially reduce implementation ambiguity.", "Assign phase-specific setup to the phase where it is needed.", "Reject noisy or duplicate candidates with a short reason."},
 		RequiredInputs: []string{"candidate decision"},
-		Examples:       []string{"author context-accept " + sess.ID + " <candidate-id>", "author context-reject " + sess.ID + " <candidate-id> --reason 'duplicate of global setup'"},
+		Examples:       []string{"author context-accept " + sessionHandle(sess) + " <candidate-id>", "author context-reject " + sessionHandle(sess) + " <candidate-id> --reason 'duplicate of global setup'"},
 		CommonMistakes: []string{"Accepting every candidate.", "Leaving degraded candidates untriaged.", "Accepting a command candidate without inspecting whether it is current."},
 		NextActions: []NextAction{
 			{
@@ -476,7 +483,7 @@ func stepForContextDiscovery(sess Session) GuidedStep {
 				Kind:   NextActionRecommended,
 				Label:  "List accepted context",
 				Reason: "Use accepted context as the reviewable setup list before finalizing.",
-				Argv:   []string{"author", "context-list", sess.ID},
+				Argv:   []string{"author", "context-list", sessionHandle(sess)},
 			},
 		},
 	}
@@ -496,7 +503,7 @@ func stepForPhase(sess Session, phase PhaseDraft) GuidedStep {
 			Kind:               NextActionAlternative,
 			Label:              "Record no-code reference reason",
 			Reason:             "Use this only when the phase genuinely has no connected code, docs, or requirements.",
-			Argv:               []string{"author", "phase-submit", sess.ID, phase.ID, "--field", string(PhaseFieldNoCodeRefsReason), "--content", "NO_CODE_REFS: <reason>"},
+			Argv:               []string{"author", "phase-submit", sessionHandle(sess), phase.ID, "--field", string(PhaseFieldNoCodeRefsReason), "--content", "NO_CODE_REFS: <reason>"},
 			ContentPlaceholder: "NO_CODE_REFS: <reason>",
 		})
 		return step
@@ -513,7 +520,7 @@ func stepForPhase(sess Session, phase PhaseDraft) GuidedStep {
 			Kind:               NextActionAlternative,
 			Label:              "Submit phase context item",
 			Reason:             "Use when the phase has a concrete setup item with a relevance reason.",
-			Argv:               []string{"author", "context-submit", sess.ID, "--phase", phase.ID, "--kind", "doc", "--label", "<label>", "--reason", "<reason>", "--target", "<target>", "--required"},
+			Argv:               []string{"author", "context-submit", sessionHandle(sess), "--phase", phase.ID, "--kind", "doc", "--label", "<label>", "--reason", "<reason>", "--target", "<target>", "--required"},
 			ContentPlaceholder: "<label> / <reason> / <target>",
 		})
 		return step
@@ -523,7 +530,7 @@ func stepForPhase(sess Session, phase PhaseDraft) GuidedStep {
 			Title:          "Phase Review",
 			Summary:        "This phase has the required fields. Add relevant context or reminders if useful.",
 			Instructions:   []string{"Use context-submit or context-accept for phase-specific setup.", "Use reminders or handoff notes for phase-specific decisions/findings/records the implementation agent should be especially likely to capture.", "Move to the next incomplete phase when ready."},
-			Examples:       []string{"author phase-next " + sess.ID},
+			Examples:       []string{"author phase-next " + sessionHandle(sess)},
 			CommonMistakes: []string{"Repeating whole-plan context in every phase.", "Adding generic reminders with no phase-specific value.", "Duplicating the default Execution Feedback section in phase prose."},
 			NextActions: []NextAction{
 				{
@@ -531,7 +538,7 @@ func stepForPhase(sess Session, phase PhaseDraft) GuidedStep {
 					Kind:   NextActionRecommended,
 					Label:  "Find next incomplete phase",
 					Reason: "This phase is complete enough for review.",
-					Argv:   []string{"author", "phase-next", sess.ID},
+					Argv:   []string{"author", "phase-next", sessionHandle(sess)},
 				},
 			},
 		}
@@ -553,7 +560,7 @@ func phaseStep(sess Session, phase PhaseDraft, field PhaseField, kind, title, su
 				Kind:               NextActionRecommended,
 				Label:              "Submit phase " + string(field),
 				Reason:             "This is the next missing field for phase " + strconv.Itoa(phase.Order) + ".",
-				Argv:               []string{"author", "phase-submit", sess.ID, phase.ID, "--field", string(field), "--content", placeholder},
+				Argv:               []string{"author", "phase-submit", sessionHandle(sess), phase.ID, "--field", string(field), "--content", placeholder},
 				ContentPlaceholder: placeholder,
 			},
 		},
@@ -587,7 +594,7 @@ func stepForReview(sess Session) GuidedStep {
 		Title:          "Final Review",
 		Summary:        "All mandatory authoring inputs are present. Validate before finalizing.",
 		Instructions:   []string{"Run author validate.", "Preview the rendered markdown to review the plan as a human would, before finalizing.", "Resolve every violation instead of finalizing around it."},
-		Examples:       []string{"author validate " + sess.ID, "author preview " + sess.ID, "author finalize " + sess.ID},
+		Examples:       []string{"author validate " + sessionHandle(sess), "author preview " + sessionHandle(sess), "author finalize " + sessionHandle(sess)},
 		CommonMistakes: []string{"Finalizing before phase steps, validation, and acceptance are objective.", "Skipping the render preview and shipping an unreviewed plan."},
 		NextActions: []NextAction{
 			{
@@ -595,21 +602,21 @@ func stepForReview(sess Session) GuidedStep {
 				Kind:   NextActionRecommended,
 				Label:  "Validate structure",
 				Reason: "The session appears complete; validation is the gate before finalization.",
-				Argv:   []string{"author", "validate", sess.ID},
+				Argv:   []string{"author", "validate", sessionHandle(sess)},
 			},
 			{
 				ID:     "preview-plan",
 				Kind:   NextActionAlternative,
 				Label:  "Preview rendered plan",
 				Reason: "Review the rendered markdown review artifact before finalizing.",
-				Argv:   []string{"author", "preview", sess.ID},
+				Argv:   []string{"author", "preview", sessionHandle(sess)},
 			},
 			{
 				ID:     "finalize-session",
 				Kind:   NextActionAlternative,
 				Label:  "Finalize plan",
 				Reason: "Use after validation returns valid and the preview looks right.",
-				Argv:   []string{"author", "finalize", sess.ID},
+				Argv:   []string{"author", "finalize", sessionHandle(sess)},
 			},
 		},
 	}
@@ -628,7 +635,7 @@ func stepForValidation(sess Session, valid bool, violations []StructureViolation
 					Kind:   NextActionRecommended,
 					Label:  "Finalize plan",
 					Reason: "The structure gate passed.",
-					Argv:   []string{"author", "finalize", sess.ID},
+					Argv:   []string{"author", "finalize", sessionHandle(sess)},
 				},
 			},
 		}
@@ -653,6 +660,10 @@ func stepForValidation(sess Session, valid bool, violations []StructureViolation
 }
 
 func stepForFinalizedPlan(sess Session, planID, slug string) GuidedStep {
+	planHandle := strings.TrimSpace(slug)
+	if planHandle == "" {
+		planHandle = planID
+	}
 	return GuidedStep{
 		StepKind:     "finalized",
 		Title:        "Plan Finalized",
@@ -664,14 +675,14 @@ func stepForFinalizedPlan(sess Session, planID, slug string) GuidedStep {
 				Kind:   NextActionRecommended,
 				Label:  "View plan",
 				Reason: "Inspect the persisted structured record.",
-				Argv:   []string{"plans", "get", slug},
+				Argv:   []string{"plans", "get", planHandle},
 			},
 			{
 				ID:     "start-execution",
 				Kind:   NextActionAlternative,
 				Label:  "Start execution",
 				Reason: "Begin guided implementation for this plan.",
-				Argv:   []string{"exec", "start", planID},
+				Argv:   []string{"exec", "start", planHandle},
 			},
 			{
 				ID:     "view-session-plan",

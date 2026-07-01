@@ -282,6 +282,20 @@ func (h *connectHandler) AddPhase(ctx context.Context, req *connect.Request[auth
 	}), nil
 }
 
+func (h *connectHandler) MovePhase(ctx context.Context, req *connect.Request[authoringv1.MovePhaseRequest]) (*connect.Response[authoringv1.MovePhaseResponse], error) {
+	sess, phase, violations, step, err := h.deps.Service.MovePhase(ctx, req.Msg.GetSessionId(), req.Msg.GetPhaseId(), req.Msg.GetBeforePhaseId(), req.Msg.GetAfterPhaseId())
+	if err != nil {
+		return nil, internalauthoring.ToConnectError(err)
+	}
+	return connect.NewResponse(&authoringv1.MovePhaseResponse{
+		Phase:      phaseDraftToProto(phase),
+		Summary:    mutationSummary("phase", phase.ID, "order", internalauthoring.PhaseFieldSummary(internalauthoring.PhaseFieldTitle, phase)),
+		Progress:   progressOf(sess),
+		Violations: violationsToProto(violations),
+		Step:       guidedStepToProto(step),
+	}), nil
+}
+
 func (h *connectHandler) GetPhase(ctx context.Context, req *connect.Request[authoringv1.GetPhaseRequest]) (*connect.Response[authoringv1.GetPhaseResponse], error) {
 	phase, step, err := h.deps.Service.GetPhase(ctx, req.Msg.GetSessionId(), req.Msg.GetPhaseId())
 	if err != nil {

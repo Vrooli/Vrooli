@@ -180,11 +180,11 @@ seam, not new seams — see [`../concepts/FLOWS.md`](../concepts/FLOWS.md)
 
 | | |
 |---|---|
-| **Seam** | Legacy markdown source reads and bulk fallback-location scans |
-| **Interface** | `api/internal/plans/resolver.go::SourceReader` (`ReadFile`, `ListMarkdownFiles`) |
+| **Seam** | Legacy markdown source reads, bulk fallback-location scans, and opt-in adopted-source retirement |
+| **Interface** | `api/internal/plans/resolver.go::SourceReader` (`ReadFile`, `ListMarkdownFiles`, `RemoveFile`) |
 | **Production wiring** | `api/handlers/plans/module.go::Module` wires `internalplans.OSSourceReader{}`. Runtime-home plans resolution uses the repo-contract `plans` entry; repo fallback locations are `docs/plans` and `plans`. |
-| **Test fake** | `api/internal/plans/plans_test.go::fakeReader` keeps source markdown in memory and lists direct child `.md` files for reconcile/adoption tests. |
-| **Why it exists** | Import, migrate, and reconcile must adopt legacy files non-destructively without giving the domain arbitrary filesystem reach. The seam lets tests prove dry-run, parse-failure, duplicate, and source-untouched behavior while production can scan only the documented fallback locations. Workspace-scoped import/reconcile resolves relative paths from a repo-contract-validated workspace root and rejects absolute sources outside that root by default. |
+| **Test fake** | `api/internal/plans/plans_test.go::fakeReader` keeps source markdown in memory, lists direct child `.md` files, and removes map entries for cleanup tests. |
+| **Why it exists** | Import, migrate, and reconcile must adopt legacy files without giving the domain arbitrary filesystem reach. Cleanup is explicit and only removes sources proven canonical/imported/duplicate; dry-run, parse-failure, conflict, mirror-protection, and source-untouched behavior are testable through the seam. Workspace-scoped import/reconcile resolves relative paths from a repo-contract-validated workspace root and rejects absolute sources outside that root by default. |
 
 ### Validation dependency seams
 

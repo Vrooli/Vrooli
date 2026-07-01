@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -191,12 +192,15 @@ func newStore(t *testing.T) (authoring.SessionStore, *mocks.FakeClock) {
 // fakePlanWriter records the plan it was asked to persist and returns it with an
 // assigned id (mirroring the plans Service Create contract).
 type fakePlanWriter struct {
+	mu      sync.Mutex
 	created internalplans.Plan
 	calls   int
 	err     error
 }
 
 func (w *fakePlanWriter) CreatePlan(_ context.Context, p internalplans.Plan) (internalplans.Plan, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	w.calls++
 	if w.err != nil {
 		return internalplans.Plan{}, w.err
@@ -205,6 +209,40 @@ func (w *fakePlanWriter) CreatePlan(_ context.Context, p internalplans.Plan) (in
 	p.Status = internalplans.PlanStatusDraft
 	w.created = p
 	return p, nil
+}
+
+type fakePlanReader struct {
+	mu          sync.Mutex
+	plans       map[string]internalplans.Plan
+	getCalls    int
+	renderCalls int
+	getErr      error
+	renderErr   error
+}
+
+func (r *fakePlanReader) GetPlan(_ context.Context, idOrSlug string) (internalplans.Plan, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.getCalls++
+	if r.getErr != nil {
+		return internalplans.Plan{}, r.getErr
+	}
+	if r.plans != nil {
+		if p, ok := r.plans[idOrSlug]; ok {
+			return p, nil
+		}
+	}
+	return internalplans.Plan{}, internalplans.ErrPlanNotFound{ID: idOrSlug}
+}
+
+func (r *fakePlanReader) RenderPlan(_ context.Context, idOrSlug string) (string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.renderCalls++
+	if r.renderErr != nil {
+		return "", r.renderErr
+	}
+	return "# " + idOrSlug, nil
 }
 
 // fakeAnchor is an AnchorIntentDeriver whose returned intent block the test
@@ -383,15 +421,37 @@ func TestStartSessionSeedsSkeletonAndPointer(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, sess.ID)
 	require.Equal(t, "Improve widget", sess.Title)
+	require.Equal(t, "improve-widget", sess.Slug)
 	require.NotEmpty(t, sess.Sections)
 	// The first mandatory section is the current pointer.
 	require.Equal(t, authoring.SectionPurpose, sess.CurrentSectionKey)
 	require.Equal(t, "purpose", step.StepKind)
-	require.Equal(t, []string{"author", "next", sess.ID}, step.NextActions[0].Argv)
+	require.Equal(t, []string{"author", "next", sess.Slug}, step.NextActions[0].Argv)
 
 	// Empty title is rejected.
 	_, _, err = svc.StartSession(ctx, "  ", "", "")
 	require.Error(t, err)
+}
+
+func TestStartSessionDerivesReadableSlugAndResolvesBySlug(t *testing.T) {
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
+	ctx := context.Background()
+
+	first, _, err := svc.StartSession(ctx, "Readable Plan Handle", "", "")
+	require.NoError(t, err)
+	require.Equal(t, "readable-plan-handle", first.Slug)
+
+	second, _, err := svc.StartSession(ctx, "Readable Plan Handle", "", "")
+	require.NoError(t, err)
+	require.Equal(t, "readable-plan-handle-2", second.Slug)
+
+	got, _, err := svc.GetSession(ctx, first.Slug)
+	require.NoError(t, err)
+	require.Equal(t, first.ID, got.ID)
+
+	sec, _, err := svc.GetSection(ctx, first.Slug, authoring.SectionPurpose)
+	require.NoError(t, err)
+	require.Equal(t, authoring.SectionPurpose, sec.Key)
 }
 
 // [REQ:PM-AUTHOR-001]
@@ -407,7 +467,7 @@ func TestSessionProgressionToComplete(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, complete)
 	require.Equal(t, authoring.SectionPurpose, sec.Key)
-	require.Equal(t, []string{"author", "section-submit", sess.ID, "--section", "purpose", "--content", "<one concise purpose paragraph>"}, step.NextActions[0].Argv)
+	require.Equal(t, []string{"author", "section-submit", sess.Slug, "--section", "purpose", "--content", "<one concise purpose paragraph>"}, step.NextActions[0].Argv)
 
 	// Submitting purpose advances the pointer past it.
 	updated, violations, step, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "A purpose.")
@@ -800,7 +860,7 @@ func TestPhaseNativeAuthoringValidatesAndFinalizesStructuredPhase(t *testing.T) 
 	require.Equal(t, 1, phase.Order)
 	require.NotEmpty(t, violations, "acceptance + refs are still required")
 	require.Len(t, updated.PhaseDrafts, 1)
-	require.Equal(t, []string{"author", "phase-submit", sess.ID, phase.ID, "--field", "references", "--content", "[CODE: path/to/file.go]"}, step.NextActions[0].Argv)
+	require.Equal(t, []string{"author", "phase-submit", sess.Slug, phase.ID, "--field", "references", "--content", "[CODE: path/to/file.go]"}, step.NextActions[0].Argv)
 
 	updated, violations, _, err = svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldReferences, "[CODE: scenarios/plan-manager/api/internal/authoring/service.go]")
 	require.NoError(t, err)
@@ -891,6 +951,78 @@ func TestPhaseNativeAuthoringValidatesAndFinalizesStructuredPhase(t *testing.T) 
 	require.Equal(t, phase.ID, writer.created.Phases[0].RelevantContext[0].PhaseID)
 	require.Equal(t, internalplans.RelevantContextSourceMigrated, writer.created.Phases[0].RelevantContext[1].Source)
 	require.Equal(t, phase.ID, writer.created.Phases[0].RelevantContext[1].PhaseID)
+}
+
+func TestMovePhaseReordersWithoutRewritingPhaseContent(t *testing.T) {
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Reorder phases", "reorder-phases", "")
+	require.NoError(t, err)
+
+	_, phase1, _, _, err := svc.AddPhase(ctx, sess.ID, "One", "First intent")
+	require.NoError(t, err)
+	_, phase2, _, _, err := svc.AddPhase(ctx, sess.ID, "Two", "Second intent")
+	require.NoError(t, err)
+	_, phase3, _, _, err := svc.AddPhase(ctx, sess.ID, "Three", "Third intent")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitPhaseField(ctx, sess.ID, phase3.ID, authoring.PhaseFieldSteps, "keep step")
+	require.NoError(t, err)
+
+	updated, moved, _, _, err := svc.MovePhase(ctx, sess.Slug, phase3.ID, phase2.ID, "")
+	require.NoError(t, err)
+	require.Equal(t, phase3.ID, moved.ID)
+	require.Equal(t, "Three", moved.Title)
+	require.Equal(t, "Third intent", moved.Intent)
+	require.Equal(t, []string{"keep step"}, moved.Steps)
+	require.Equal(t, []string{phase1.ID, phase3.ID, phase2.ID}, []string{
+		updated.PhaseDrafts[0].ID,
+		updated.PhaseDrafts[1].ID,
+		updated.PhaseDrafts[2].ID,
+	})
+	require.Equal(t, []int{1, 2, 3}, []int{
+		updated.PhaseDrafts[0].Order,
+		updated.PhaseDrafts[1].Order,
+		updated.PhaseDrafts[2].Order,
+	})
+
+	updated, moved, _, _, err = svc.MovePhase(ctx, sess.Slug, phase1.ID, "", phase2.ID)
+	require.NoError(t, err)
+	require.Equal(t, phase1.ID, moved.ID)
+	require.Equal(t, []string{phase3.ID, phase2.ID, phase1.ID}, []string{
+		updated.PhaseDrafts[0].ID,
+		updated.PhaseDrafts[1].ID,
+		updated.PhaseDrafts[2].ID,
+	})
+}
+
+func TestConcurrentPhaseAddsDoNotLoseSuccessfulMutations(t *testing.T) {
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Concurrent phases", "concurrent-phases", "")
+	require.NoError(t, err)
+
+	var wg sync.WaitGroup
+	errs := make(chan error, 2)
+	for _, title := range []string{"One", "Two"} {
+		wg.Add(1)
+		go func(title string) {
+			defer wg.Done()
+			_, _, _, _, addErr := svc.AddPhase(ctx, sess.Slug, title, title+" intent")
+			errs <- addErr
+		}(title)
+	}
+	wg.Wait()
+	close(errs)
+	for addErr := range errs {
+		require.NoError(t, addErr)
+	}
+
+	got, _, err := svc.GetSession(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Len(t, got.PhaseDrafts, 2)
+	require.Equal(t, []int{1, 2}, []int{got.PhaseDrafts[0].Order, got.PhaseDrafts[1].Order})
+	titles := []string{got.PhaseDrafts[0].Title, got.PhaseDrafts[1].Title}
+	require.ElementsMatch(t, []string{"One", "Two"}, titles)
 }
 
 func TestContextDiscoveryCandidateLifecycle(t *testing.T) {
@@ -1190,6 +1322,111 @@ func TestFinalizeWritesThroughWriterWhenStructureValid(t *testing.T) {
 	got, _, err := svc.GetSection(ctx, sess.ID, authoring.SectionPurpose)
 	require.NoError(t, err)
 	require.NotEmpty(t, got.Content)
+}
+
+func TestFinalizeVerifiesReadbackAndIsIdempotent(t *testing.T) {
+	writer := &fakePlanWriter{}
+	reader := &fakePlanReader{plans: map[string]internalplans.Plan{
+		"plan-finalized": {
+			ID:          "plan-finalized",
+			Slug:        "improve-widget",
+			Title:       "Improve widget",
+			Status:      internalplans.PlanStatusDraft,
+			ContentHash: "hash-1",
+		},
+	}}
+	svc := newService(t, authoring.Deps{Writer: writer, Reader: reader})
+	ctx := context.Background()
+
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "improve-widget", "")
+	require.NoError(t, err)
+	fillMandatory(t, svc, sess.ID)
+
+	first, _, err := svc.Finalize(ctx, sess.Slug)
+	require.NoError(t, err)
+	require.Equal(t, "plan-finalized", first.ID)
+	require.Equal(t, "improve-widget", first.Slug)
+	require.Equal(t, 1, writer.calls)
+	require.Equal(t, 1, reader.getCalls)
+	require.Equal(t, 1, reader.renderCalls)
+
+	second, _, err := svc.Finalize(ctx, sess.Slug)
+	require.NoError(t, err)
+	require.Equal(t, first.ID, second.ID)
+	require.Equal(t, first.Slug, second.Slug)
+	require.Equal(t, 1, writer.calls, "retrying finalized session must not create a second plan")
+	require.Equal(t, 2, reader.getCalls)
+	require.Equal(t, 2, reader.renderCalls)
+}
+
+func TestConcurrentFinalizeDoesNotCreateDuplicatePlans(t *testing.T) {
+	writer := &fakePlanWriter{}
+	reader := &fakePlanReader{plans: map[string]internalplans.Plan{
+		"plan-finalized": {
+			ID:          "plan-finalized",
+			Slug:        "concurrent-finalize",
+			Title:       "Concurrent finalize",
+			Status:      internalplans.PlanStatusDraft,
+			ContentHash: "hash-1",
+		},
+	}}
+	svc := newService(t, authoring.Deps{Writer: writer, Reader: reader})
+	ctx := context.Background()
+
+	sess, _, err := svc.StartSession(ctx, "Concurrent finalize", "concurrent-finalize", "")
+	require.NoError(t, err)
+	fillMandatory(t, svc, sess.ID)
+
+	start := make(chan struct{})
+	errs := make(chan error, 2)
+	ids := make(chan string, 2)
+	var wg sync.WaitGroup
+	for range 2 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			plan, _, finalizeErr := svc.Finalize(ctx, sess.Slug)
+			if finalizeErr == nil {
+				ids <- plan.ID
+			}
+			errs <- finalizeErr
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	close(ids)
+
+	for finalizeErr := range errs {
+		require.NoError(t, finalizeErr)
+	}
+	for id := range ids {
+		require.Equal(t, "plan-finalized", id)
+	}
+	require.Equal(t, 1, writer.calls, "concurrent finalize must not create duplicate plans")
+}
+
+func TestFinalizeFailsWhenReadbackCannotResolvePlan(t *testing.T) {
+	writer := &fakePlanWriter{}
+	reader := &fakePlanReader{}
+	svc := newService(t, authoring.Deps{Writer: writer, Reader: reader})
+	ctx := context.Background()
+
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "improve-widget", "")
+	require.NoError(t, err)
+	fillMandatory(t, svc, sess.ID)
+
+	_, _, err = svc.Finalize(ctx, sess.ID)
+	require.Error(t, err)
+	var readback authoring.ErrFinalizeReadback
+	require.ErrorAs(t, err, &readback)
+	require.Equal(t, 1, writer.calls)
+
+	got, _, err := svc.GetSession(ctx, sess.ID)
+	require.NoError(t, err)
+	require.False(t, got.Finalized, "fake-success finalize must not mark the session finalized")
+	require.Empty(t, got.PlanID)
 }
 
 func TestFinalizeParsesStructuredRegressionAnchor(t *testing.T) {

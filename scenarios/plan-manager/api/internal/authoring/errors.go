@@ -54,6 +54,19 @@ func (e ErrAuthoredMarkup) Error() string {
 	return fmt.Sprintf("invalid authored markup in section %q: %s", e.SectionKey, e.Reason)
 }
 
+// ErrFinalizeReadback is returned when plan creation appeared to succeed but the
+// produced plan cannot be resolved and rendered through the plans SSOT.
+type ErrFinalizeReadback struct {
+	PlanID string
+	Cause  error
+}
+
+func (e ErrFinalizeReadback) Error() string {
+	return fmt.Sprintf("finalized plan %q failed read-back verification: %v", e.PlanID, e.Cause)
+}
+
+func (e ErrFinalizeReadback) Unwrap() error { return e.Cause }
+
 // ToConnectError translates authoring/plans sentinels into Connect's typed error
 // model. Unknown errors map to internal.
 func ToConnectError(err error) error {
@@ -79,6 +92,10 @@ func ToConnectError(err error) error {
 	var markup ErrAuthoredMarkup
 	if errors.As(err, &markup) {
 		return connect.NewError(connect.CodeInvalidArgument, markup)
+	}
+	var readback ErrFinalizeReadback
+	if errors.As(err, &readback) {
+		return connect.NewError(connect.CodeInternal, readback)
 	}
 	var planInvalid planmodel.ErrInvalidPlan
 	if errors.As(err, &planInvalid) {

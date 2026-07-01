@@ -372,6 +372,11 @@
               "bool": true
             },
             {
+              "name": "cleanup-adopted-sources",
+              "description": "Remove legacy source files after they are proven canonical or imported",
+              "bool": true
+            },
+            {
               "name": "include-archived",
               "description": "Include archived canonical plans when repairing mirrors",
               "bool": true
@@ -913,7 +918,14 @@
             {
               "name": "session",
               "required": true,
-              "description": "Authoring session id"
+              "description": "Authoring session id or readable alias"
+            }
+          ],
+          "flags": [
+            {
+              "name": "full",
+              "description": "Show full plan details in human output",
+              "bool": true
             }
           ],
           "binding": {
@@ -1168,6 +1180,10 @@
               "description": "Comma-separated canonical argv; defaults from command when omitted"
             },
             {
+              "name": "argv-json",
+              "description": "JSON string array canonical argv; preferred for arguments with spaces or quotes"
+            },
+            {
               "name": "target",
               "description": "Doc/code/requirement/skill target locator"
             },
@@ -1267,6 +1283,10 @@
             {
               "name": "argv",
               "description": "Comma-separated canonical argv; defaults from command when omitted"
+            },
+            {
+              "name": "argv-json",
+              "description": "JSON string array canonical argv; preferred for arguments with spaces or quotes"
             },
             {
               "name": "target",
@@ -1465,6 +1485,44 @@
           }
         },
         {
+          "name": "phase-move",
+          "description": "Move one structured phase draft before or after another without rewriting content",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id or readable alias"
+            },
+            {
+              "name": "phase",
+              "required": true,
+              "description": "Phase id or order number to move"
+            }
+          ],
+          "flags": [
+            {
+              "name": "before",
+              "description": "Move before this phase id or order number"
+            },
+            {
+              "name": "after",
+              "description": "Move after this phase id or order number"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "MovePhase"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "phase-get",
           "description": "Get one structured phase draft and its current guided step",
           "positionals": [
@@ -1585,7 +1643,14 @@
             {
               "name": "session",
               "required": true,
-              "description": "Authoring session id"
+              "description": "Authoring session id or readable alias"
+            }
+          ],
+          "flags": [
+            {
+              "name": "full",
+              "description": "Show full plan details in human output",
+              "bool": true
             }
           ],
           "binding": {

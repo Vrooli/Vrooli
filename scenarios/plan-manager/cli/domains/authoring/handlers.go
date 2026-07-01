@@ -2,8 +2,10 @@ package authoring
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
+	"unicode"
 
 	"connectrpc.com/connect"
 
@@ -37,8 +39,9 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		return cliapp.WrapAPIError("start authoring session", err, nil)
 	}
 	sess := resp.Msg.GetSession()
+	handle := firstNonEmpty(sess.GetPlanSlug(), sess.GetId())
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Started session %s for %q.", sess.GetId(), sess.GetTitle())},
+		Result:      []string{fmt.Sprintf("Started session %s for %q.", handle, sess.GetTitle())},
 		Changes:     append([]string{fmt.Sprintf("Seeded %d section(s); next: %s.", len(sess.GetSections()), nextLabel(sess.GetCurrentSectionKey()))}, formatStep(resp.Msg.GetStep())...),
 		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
 	})
@@ -164,13 +167,17 @@ func (h *handlers) autofill(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) contextSubmit(ctx cliapp.RunContext) error {
+	argv, err := parseContextArgv(ctx.Flag("argv-json"), ctx.Flag("argv"), ctx.Flag("command"))
+	if err != nil {
+		return err
+	}
 	item := &sharedv1.RelevantContextItem{
 		Kind:         parseContextKind(ctx.Flag("kind")),
 		Label:        ctx.Flag("label"),
 		Reason:       ctx.Flag("reason"),
 		Instruction:  ctx.Flag("instruction"),
 		Command:      ctx.Flag("command"),
-		Argv:         parseArgv(ctx.Flag("argv"), ctx.Flag("command")),
+		Argv:         argv,
 		Target:       ctx.Flag("target"),
 		Required:     ctx.BoolFlag("required"),
 		RepeatPolicy: parseRepeatPolicy(ctx.Flag("repeat")),
@@ -219,6 +226,10 @@ func (h *handlers) contextList(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) contextUpdate(ctx cliapp.RunContext) error {
+	argv, err := parseContextArgv(ctx.Flag("argv-json"), ctx.Flag("argv"), ctx.Flag("command"))
+	if err != nil {
+		return err
+	}
 	item := &sharedv1.RelevantContextItem{
 		Id:           ctx.Positional("item"),
 		Kind:         parseContextKind(ctx.Flag("kind")),
@@ -226,7 +237,7 @@ func (h *handlers) contextUpdate(ctx cliapp.RunContext) error {
 		Reason:       ctx.Flag("reason"),
 		Instruction:  ctx.Flag("instruction"),
 		Command:      ctx.Flag("command"),
-		Argv:         parseArgv(ctx.Flag("argv"), ctx.Flag("command")),
+		Argv:         argv,
 		Target:       ctx.Flag("target"),
 		Required:     ctx.BoolFlag("required"),
 		RepeatPolicy: parseRepeatPolicy(ctx.Flag("repeat")),
@@ -468,6 +479,29 @@ func (h *handlers) phaseAdd(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) phaseMove(ctx cliapp.RunContext) error {
+	resp, err := h.client.MovePhase(context.Background(), connect.NewRequest(&authoringv1.MovePhaseRequest{
+		SessionId:     ctx.Positional("session"),
+		PhaseId:       ctx.Positional("phase"),
+		BeforePhaseId: ctx.Flag("before"),
+		AfterPhaseId:  ctx.Flag("after"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("move phase", err, nil)
+	}
+	changes := []string{formatPhase(resp.Msg.GetPhase())}
+	changes = append(changes, formatProgress(resp.Msg.GetProgress())...)
+	if v := resp.Msg.GetViolations(); len(v) > 0 {
+		changes = append(changes, formatViolations(v)...)
+	}
+	changes = append(changes, formatStep(resp.Msg.GetStep())...)
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("%s (%d violation(s)).", summaryLine(resp.Msg.GetSummary()), len(resp.Msg.GetViolations()))},
+		Changes:     changes,
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
 func (h *handlers) phaseGet(ctx cliapp.RunContext) error {
 	resp, err := h.client.GetPhase(context.Background(), connect.NewRequest(&authoringv1.GetPhaseRequest{
 		SessionId: ctx.Positional("session"),
@@ -552,11 +586,92 @@ func (h *handlers) finalize(ctx cliapp.RunContext) error {
 		return cliapp.WrapAPIError("finalize", err, nil)
 	}
 	plan := resp.Msg.GetPlan()
+	if ctx.JSON() {
+		if ctx.BoolFlag("full") {
+			return cliapp.PrintProtoJSON(ctx.Stdout(), resp.Msg)
+		}
+		return json.NewEncoder(ctx.Stdout()).Encode(compactFinalizePlan(plan, resp.Msg.GetStep()))
+	}
+	changes := formatFinalizePlan(plan, ctx.BoolFlag("full"))
+	changes = append(changes, formatStep(resp.Msg.GetStep())...)
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Finalized into plan %s (%s).", plan.GetId(), plan.GetSlug())},
-		Changes:     append([]string{fmt.Sprintf("Persisted %d phase(s) and %d reference(s).", len(plan.GetPhases()), len(plan.GetReferences()))}, formatStep(resp.Msg.GetStep())...),
+		Result:      []string{fmt.Sprintf("Finalized plan %s.", firstNonEmpty(plan.GetSlug(), plan.GetId()))},
+		Changes:     changes,
 		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
 	})
+}
+
+type finalizePlanJSON struct {
+	ID           string   `json:"id,omitempty"`
+	Slug         string   `json:"slug,omitempty"`
+	Title        string   `json:"title,omitempty"`
+	Status       string   `json:"status,omitempty"`
+	MirrorPath   string   `json:"mirror_path,omitempty"`
+	MirrorStatus string   `json:"mirror_status,omitempty"`
+	NextCommands []string `json:"next_commands,omitempty"`
+}
+
+func compactFinalizePlan(plan *sharedv1.Plan, step *sharedv1.GuidedStep) finalizePlanJSON {
+	if plan == nil {
+		return finalizePlanJSON{NextCommands: formatRecommendedActions(step)}
+	}
+	out := finalizePlanJSON{
+		ID:           plan.GetId(),
+		Slug:         plan.GetSlug(),
+		Title:        plan.GetTitle(),
+		Status:       planStatusString(plan),
+		NextCommands: formatRecommendedActions(step),
+	}
+	if mirror := plan.GetMirror(); mirror != nil {
+		out.MirrorStatus = mirrorStatusString(mirror)
+		out.MirrorPath = firstNonEmpty(mirror.GetRelativePath(), mirror.GetPath())
+	}
+	return out
+}
+
+func formatFinalizePlan(plan *sharedv1.Plan, full bool) []string {
+	if plan == nil {
+		return nil
+	}
+	out := []string{
+		"id: " + plan.GetId(),
+		"slug: " + plan.GetSlug(),
+		"title: " + plan.GetTitle(),
+		"status: " + planStatusString(plan),
+	}
+	if mirror := plan.GetMirror(); mirror != nil {
+		status := mirrorStatusString(mirror)
+		if status != "unspecified" || mirror.GetPath() != "" || mirror.GetRelativePath() != "" {
+			out = append(out, "mirror_status: "+status)
+			if mirror.GetRelativePath() != "" {
+				out = append(out, "mirror_path: "+mirror.GetRelativePath())
+			} else if mirror.GetPath() != "" {
+				out = append(out, "mirror_path: "+mirror.GetPath())
+			}
+		}
+	}
+	if full {
+		out = append(out,
+			fmt.Sprintf("phases: %d", len(plan.GetPhases())),
+			fmt.Sprintf("references: %d", len(plan.GetReferences())),
+			"content_hash: "+plan.GetContentHash(),
+		)
+	}
+	return out
+}
+
+func planStatusString(plan *sharedv1.Plan) string {
+	if plan == nil {
+		return ""
+	}
+	return strings.TrimPrefix(strings.ToLower(plan.GetStatus().String()), "plan_status_")
+}
+
+func mirrorStatusString(mirror *sharedv1.RenderedPlanMirror) string {
+	if mirror == nil {
+		return ""
+	}
+	return strings.TrimPrefix(strings.ToLower(mirror.GetStatus().String()), "rendered_mirror_status_")
 }
 
 func formatSection(sec *authoringv1.Section) string {
@@ -871,13 +986,25 @@ func parseRepeatPolicy(raw string) sharedv1.RelevantContextRepeatPolicy {
 	}
 }
 
-func parseArgv(raw, command string) []string {
+func parseContextArgv(rawJSON, rawCSV, command string) ([]string, error) {
+	rawJSON = strings.TrimSpace(rawJSON)
+	if rawJSON != "" {
+		var out []string
+		if err := json.Unmarshal([]byte(rawJSON), &out); err != nil {
+			return nil, fmt.Errorf("invalid --argv-json: %w", err)
+		}
+		return trimEmptyArgs(out), nil
+	}
+	return parseArgv(rawCSV, command)
+}
+
+func parseArgv(raw, command string) ([]string, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		if strings.TrimSpace(command) == "" {
-			return nil
+			return nil, nil
 		}
-		return strings.Fields(command)
+		return splitShellArgs(command)
 	}
 	parts := strings.Split(raw, ",")
 	out := make([]string, 0, len(parts))
@@ -886,7 +1013,67 @@ func parseArgv(raw, command string) []string {
 			out = append(out, trimmed)
 		}
 	}
+	return out, nil
+}
+
+func trimEmptyArgs(in []string) []string {
+	out := make([]string, 0, len(in))
+	for _, arg := range in {
+		if strings.TrimSpace(arg) != "" {
+			out = append(out, arg)
+		}
+	}
 	return out
+}
+
+func splitShellArgs(command string) ([]string, error) {
+	var (
+		out         []string
+		b           strings.Builder
+		quote       rune
+		escaped     bool
+		tokenActive bool
+	)
+	for _, r := range command {
+		switch {
+		case escaped:
+			b.WriteRune(r)
+			tokenActive = true
+			escaped = false
+		case r == '\\':
+			escaped = true
+			tokenActive = true
+		case quote != 0:
+			if r == quote {
+				quote = 0
+			} else {
+				b.WriteRune(r)
+				tokenActive = true
+			}
+		case r == '\'' || r == '"':
+			quote = r
+			tokenActive = true
+		case unicode.IsSpace(r):
+			if tokenActive {
+				out = append(out, b.String())
+				b.Reset()
+				tokenActive = false
+			}
+		default:
+			b.WriteRune(r)
+			tokenActive = true
+		}
+	}
+	if escaped {
+		b.WriteRune('\\')
+	}
+	if quote != 0 {
+		return nil, fmt.Errorf("unterminated quoted argument in --command")
+	}
+	if tokenActive {
+		out = append(out, b.String())
+	}
+	return out, nil
 }
 
 func contextKindLabel(kind sharedv1.RelevantContextKind) string {

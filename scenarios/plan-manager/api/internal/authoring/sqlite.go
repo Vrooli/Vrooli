@@ -65,7 +65,7 @@ ON CONFLICT(id) DO UPDATE SET
 
 	getSessionSQL = `
 SELECT id, title, slug, finalized, plan_id, document, created_at, updated_at
-FROM authoring_sessions WHERE id = ? LIMIT 1`
+FROM authoring_sessions WHERE id = ? OR slug = ? LIMIT 1`
 )
 
 func (r *sqliteStore) Save(ctx context.Context, s Session) error {
@@ -102,13 +102,13 @@ func (r *sqliteStore) Save(ctx context.Context, s Session) error {
 	return nil
 }
 
-func (r *sqliteStore) Get(ctx context.Context, id string) (Session, bool, error) {
-	s, err := scanSession(r.db.QueryRowContext(ctx, getSessionSQL, id))
+func (r *sqliteStore) Get(ctx context.Context, idOrSlug string) (Session, bool, error) {
+	s, err := scanSession(r.db.QueryRowContext(ctx, getSessionSQL, idOrSlug, idOrSlug))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Session{}, false, nil
 	}
 	if err != nil {
-		return Session{}, false, fmt.Errorf("get authoring session %q: %w", id, err)
+		return Session{}, false, fmt.Errorf("get authoring session %q: %w", idOrSlug, err)
 	}
 	return s, true, nil
 }

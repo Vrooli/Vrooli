@@ -42,6 +42,18 @@ func (a planWriter) CreatePlan(ctx context.Context, p internalplans.Plan) (inter
 	return a.svc.Create(ctx, p)
 }
 
+func (a planWriter) GetPlan(ctx context.Context, idOrSlug string) (internalplans.Plan, error) {
+	return a.svc.Get(ctx, idOrSlug, internalplans.WorkspaceScope{})
+}
+
+func (a planWriter) RenderPlan(ctx context.Context, idOrSlug string) (string, error) {
+	rendered, err := a.svc.Render(ctx, idOrSlug, internalplans.WorkspaceScope{})
+	if err != nil {
+		return "", err
+	}
+	return rendered.Markdown, nil
+}
+
 type planSource struct{ svc internalplans.Service }
 
 func (a planSource) GetPlan(ctx context.Context, idOrSlug string) (internalplans.Plan, error) {
@@ -135,6 +147,7 @@ func newStack(t *testing.T) (*sql.DB, internalplans.Service, internalvalidation.
 	authoringSvc := internalauthoring.NewService(internalauthoring.Deps{
 		Store:  internalauthoring.NewSQLiteStore(d, clk),
 		Writer: planWriter{svc: plansSvc},
+		Reader: planWriter{svc: plansSvc},
 		Clock:  clk,
 	})
 	executionSvc := internalexecution.NewService(internalexecution.Deps{

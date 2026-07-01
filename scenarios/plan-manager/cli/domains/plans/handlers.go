@@ -193,6 +193,7 @@ func (h *handlers) reconcile(ctx cliapp.RunContext) error {
 		DryRun:                 ctx.BoolFlag("dry-run"),
 		RepairMirrors:          ctx.BoolFlag("repair-mirrors"),
 		AdoptLegacy:            ctx.BoolFlag("adopt-legacy"),
+		CleanupAdoptedSources:  ctx.BoolFlag("cleanup-adopted-sources"),
 		IncludeArchived:        ctx.BoolFlag("include-archived"),
 		IncludeArchivedLegacy:  ctx.BoolFlag("include-archived-legacy"),
 		ConflictPolicy:         reconcileConflictPolicyFlag(ctx.Flag("conflict-policy")),
@@ -571,6 +572,12 @@ func formatReconcileItem(item *plansv1.ReconcilePlanItem) string {
 	}
 	if item.GetSourceUntouched() {
 		parts = append(parts, "source untouched")
+	}
+	if item.GetSourceCleanupPlanned() {
+		parts = append(parts, "source cleanup planned")
+	}
+	if item.GetSourceRemoved() {
+		parts = append(parts, "source removed")
 	}
 	if item.GetError() != "" {
 		parts = append(parts, "error="+truncateOneLine(item.GetError(), 120))
