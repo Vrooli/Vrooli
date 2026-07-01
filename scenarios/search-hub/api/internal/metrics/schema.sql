@@ -12,9 +12,10 @@
 --   query_telemetry          — one row per federated query (latency + flags +
 --                              total result count).
 --   query_telemetry_provider — one row per (query, provider) fan-out leg,
---                              carrying that leaf's hit count. Lets Insights
---                              compute per-provider utilization with a GROUP BY
---                              instead of parsing a blob per row.
+--                              carrying that leaf's hit count, latency, and
+--                              degradation category. Lets Insights compute
+--                              per-provider health with a GROUP BY instead of
+--                              parsing a blob per row.
 --
 -- Times are RFC3339Nano strings, matching the registry/notes convention and the
 -- wire format, so the window filter is a lexical string comparison.
@@ -36,9 +37,12 @@ CREATE TABLE IF NOT EXISTS query_telemetry (
 CREATE INDEX IF NOT EXISTS idx_query_telemetry_created ON query_telemetry(created_at);
 
 CREATE TABLE IF NOT EXISTS query_telemetry_provider (
-  query_id    INTEGER NOT NULL REFERENCES query_telemetry(id) ON DELETE CASCADE,
-  provider_id TEXT NOT NULL,
-  hit_count   INTEGER NOT NULL DEFAULT 0,
+  query_id       INTEGER NOT NULL REFERENCES query_telemetry(id) ON DELETE CASCADE,
+  provider_id    TEXT NOT NULL,
+  hit_count      INTEGER NOT NULL DEFAULT 0,
+  latency_ms     INTEGER NOT NULL DEFAULT 0,
+  degraded       INTEGER NOT NULL DEFAULT 0,
+  degrade_reason TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (query_id, provider_id)
 );
 

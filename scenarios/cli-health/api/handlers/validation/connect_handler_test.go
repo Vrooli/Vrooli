@@ -117,6 +117,7 @@ func TestMaturitySpecCoversCLIHealthFindings(t *testing.T) {
 	}
 	for _, code := range []string{
 		manifestvalidation.CodeManifestMissing,
+		manifestvalidation.CodeManifestRequired,
 		manifestvalidation.CodeManifestParseError,
 		manifestvalidation.CodeManifestSchemaError,
 		manifestvalidation.CodeProtoBuildFailed,
@@ -129,10 +130,26 @@ func TestMaturitySpecCoversCLIHealthFindings(t *testing.T) {
 		manifestvalidation.CodeMeasureUnknownType,
 		manifestvalidation.CodeMeasureSchemaUnread,
 		manifestvalidation.CodeMeasureTier,
+		manifestvalidation.CodeCLIBinaryUnrunnable,
+		manifestvalidation.CodeCLIHelpFailed,
+		manifestvalidation.CodeCLICommandUndeclared,
 	} {
-		if _, ok := spec.Findings[code]; !ok {
+		mapping, ok := spec.Findings[code]
+		if !ok {
 			t.Fatalf("maturity spec does not map emitted finding code %q", code)
 		}
+		if mapping.CapabilityID == "" {
+			t.Fatalf("maturity spec finding %q must declare capability_id", code)
+		}
+		if mapping.CleanRequirement == "" {
+			t.Fatalf("maturity spec finding %q must declare clean_requirement", code)
+		}
+	}
+	if len(spec.Capabilities) != 5 {
+		t.Fatalf("capabilities = %d, want 5", len(spec.Capabilities))
+	}
+	if spec.Fallback.CapabilityID == "" {
+		t.Fatal("maturity spec fallback must declare capability_id")
 	}
 }
 

@@ -42,7 +42,8 @@ func TestQueryRecordsTelemetry(t *testing.T) {
 	require.ElementsMatch(t, []string{"command", "component", "record"}, s.RoutedTypes)
 	// cli-health(1) + ui-health(1) + swarm-manager(1) = 3 hits across the fan-out.
 	require.Equal(t, 3, s.ResultCount)
-	require.Equal(t, 1, s.ProviderHits["cli-health.commands"])
+	require.Equal(t, 1, s.ProviderResults["cli-health.commands"].HitCount)
+	require.GreaterOrEqual(t, s.ProviderResults["cli-health.commands"].LatencyMs, int64(0))
 	require.Equal(t, resp.GetLatencyMs(), s.LatencyMs)
 	require.False(t, s.Reranked)
 }
@@ -62,6 +63,9 @@ func TestQueryRecordsZeroResultAndDegraded(t *testing.T) {
 	require.Len(t, rec.samples, 1)
 	require.Equal(t, 0, rec.samples[0].ResultCount)
 	require.True(t, rec.samples[0].Degraded)
+	provider := rec.samples[0].ProviderResults["cli-health.commands"]
+	require.True(t, provider.Degraded)
+	require.Equal(t, "other", provider.DegradeReason)
 }
 
 func TestQueryNoRecorderIsNoop(t *testing.T) {

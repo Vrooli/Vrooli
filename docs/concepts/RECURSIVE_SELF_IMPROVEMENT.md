@@ -103,7 +103,7 @@ Where each lives — truth vs. judgment vs. execution vs. raw learning — is go
 This doc is **timeless canon**: it describes the loop's *shape*, never its current completeness. Live status — which projection is weakest, what's prioritized, how close the bet is — is computed, not authored:
 
 - **Coverage / readiness**: `meta-optimization-manager coverage status --json` (numbers + denominator-confidence).
-- **What's prioritized / in flight**: the active plans and backlog (e.g. `vrooli plans show …`, swarm-manager backlog).
+- **What's prioritized / in flight**: the active plans and backlog (e.g. `plan-manager plans render …`, swarm-manager backlog).
 
 If you find percentages or "N% done" in this file, treat it as drift and remove it — point to the live command instead.
 

@@ -18,6 +18,7 @@ import (
 
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
+	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/runmanager"
 	"test-genie/internal/selfhealthsnapshots"
 	sharedartifacts "test-genie/internal/shared/artifacts"
@@ -272,6 +273,10 @@ func (s *Service) FindRun(ctx context.Context, req *connect.Request[runspb.FindR
 	treeDigest := strings.TrimSpace(req.Msg.GetTreeDigest())
 	preset := strings.TrimSpace(req.Msg.GetPreset())
 	captureProfile := strings.TrimSpace(req.Msg.GetCaptureProfile())
+	phaseSetDigest := strings.TrimSpace(req.Msg.GetPhaseSetDigest())
+	if phaseSetDigest == "" && preset == phases.PresetComprehensive.String() {
+		phaseSetDigest = phases.PhaseSetDigest(phases.DefaultPresets()[phases.PresetComprehensive.String()])
+	}
 	requireClean := req.Msg.GetRequireClean()
 
 	// List() returns newest-first, so the first match is the newest.
@@ -292,6 +297,9 @@ func (s *Service) FindRun(ctx context.Context, req *connect.Request[runspb.FindR
 			continue
 		}
 		if captureProfile != "" && r.CaptureProfile != captureProfile {
+			continue
+		}
+		if phaseSetDigest != "" && r.PhaseSetDigest != phaseSetDigest {
 			continue
 		}
 		return connect.NewResponse(&runspb.FindRunResponse{Found: true, Run: toRunInfo(r)}), nil

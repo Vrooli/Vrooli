@@ -56,13 +56,37 @@ type Result struct {
 	Restarted  bool   `json:"restarted"`
 	Status     string `json:"status"`
 	Assessment struct {
-		Scenario     string `json:"scenario"`
-		Provider     string `json:"provider"`
-		Phase        string `json:"phase"`
-		Version      string `json:"version"`
-		CurrentLevel string `json:"currentLevel"`
-		NextLevel    string `json:"nextLevel,omitempty"`
+		Scenario                  string               `json:"scenario"`
+		Provider                  string               `json:"provider"`
+		Phase                     string               `json:"phase"`
+		Version                   string               `json:"version"`
+		CurrentLevel              string               `json:"currentLevel"`
+		NextLevel                 string               `json:"nextLevel,omitempty"`
+		Capabilities              []CapabilityResult   `json:"capabilities,omitempty"`
+		HighestPriorityCapability *PriorityFocusResult `json:"highestPriorityCapability,omitempty"`
 	} `json:"assessment"`
+}
+
+type CapabilityResult struct {
+	ID                   string `json:"id"`
+	Label                string `json:"label,omitempty"`
+	CurrentLevel         string `json:"currentLevel"`
+	NextLevel            string `json:"nextLevel,omitempty"`
+	CurrentSummary       string `json:"currentSummary,omitempty"`
+	NextUnlock           string `json:"nextUnlock,omitempty"`
+	Clean                bool   `json:"clean"`
+	UnknownCount         int32  `json:"unknownCount,omitempty"`
+	BlockingFindingCount int    `json:"blockingFindingCount,omitempty"`
+	PriorityRank         int32  `json:"priorityRank,omitempty"`
+	PriorityReason       string `json:"priorityReason,omitempty"`
+}
+
+type PriorityFocusResult struct {
+	CapabilityID    string `json:"capabilityId"`
+	CapabilityLabel string `json:"capabilityLabel,omitempty"`
+	CurrentLevel    string `json:"currentLevel,omitempty"`
+	NextLevel       string `json:"nextLevel,omitempty"`
+	Reason          string `json:"reason,omitempty"`
 }
 
 func Run(args []string) error {
@@ -97,6 +121,35 @@ func Run(args []string) error {
 		fmt.Printf(" -> %s", result.Assessment.NextLevel)
 	}
 	fmt.Println()
+	if focus := result.Assessment.HighestPriorityCapability; focus != nil && focus.CapabilityID != "" {
+		label := focus.CapabilityLabel
+		if label == "" {
+			label = focus.CapabilityID
+		}
+		fmt.Printf("  Focus     : %s", label)
+		if focus.NextLevel != "" {
+			fmt.Printf(" -> %s", focus.NextLevel)
+		}
+		if focus.Reason != "" {
+			fmt.Printf(" (%s)", focus.Reason)
+		}
+		fmt.Println()
+	}
+	for _, capability := range result.Assessment.Capabilities {
+		label := capability.Label
+		if label == "" {
+			label = capability.ID
+		}
+		fmt.Printf("  Capability: %s current=%s", label, capability.CurrentLevel)
+		if capability.NextLevel != "" {
+			fmt.Printf(" next=%s", capability.NextLevel)
+		}
+		fmt.Printf(" clean=%t blocking=%d", capability.Clean, capability.BlockingFindingCount)
+		if capability.UnknownCount > 0 {
+			fmt.Printf(" unknown=%d", capability.UnknownCount)
+		}
+		fmt.Println()
+	}
 	return nil
 }
 
@@ -158,7 +211,40 @@ func Check(ctx context.Context, args Args, probe Probe) (Result, error) {
 	out.Assessment.Version = assessmentMsg.GetVersion()
 	out.Assessment.CurrentLevel = assessmentMsg.GetLocal().GetCurrentLevel()
 	out.Assessment.NextLevel = assessmentMsg.GetLocal().GetNextLevel()
+	out.Assessment.Capabilities = capabilityResults(assessmentMsg.GetCapabilities())
+	if focus := assessmentMsg.GetHighestPriorityCapability(); focus != nil && strings.TrimSpace(focus.GetCapabilityId()) != "" {
+		out.Assessment.HighestPriorityCapability = &PriorityFocusResult{
+			CapabilityID:    focus.GetCapabilityId(),
+			CapabilityLabel: focus.GetCapabilityLabel(),
+			CurrentLevel:    focus.GetCurrentLevel(),
+			NextLevel:       focus.GetNextLevel(),
+			Reason:          focus.GetReason(),
+		}
+	}
 	return out, nil
+}
+
+func capabilityResults(capabilities []*commonv1.CapabilityMaturityAssessment) []CapabilityResult {
+	out := make([]CapabilityResult, 0, len(capabilities))
+	for _, capability := range capabilities {
+		if capability == nil {
+			continue
+		}
+		out = append(out, CapabilityResult{
+			ID:                   capability.GetId(),
+			Label:                capability.GetLabel(),
+			CurrentLevel:         capability.GetCurrentLevel(),
+			NextLevel:            capability.GetNextLevel(),
+			CurrentSummary:       capability.GetCurrentSummary(),
+			NextUnlock:           capability.GetNextUnlock(),
+			Clean:                capability.GetClean(),
+			UnknownCount:         capability.GetUnknownCount(),
+			BlockingFindingCount: len(capability.GetBlockingFindingCodes()),
+			PriorityRank:         capability.GetPriorityRank(),
+			PriorityReason:       capability.GetPriorityReason(),
+		})
+	}
+	return out
 }
 
 func probeAssessment(ctx context.Context, args Args, probe Probe) (*commonv1.MaturityAssessment, string, error) {

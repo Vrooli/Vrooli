@@ -100,6 +100,69 @@ func TestCheckRestartsThenValidatesAssessment(t *testing.T) {
 	}
 }
 
+func TestCheckIncludesCapabilitySummary(t *testing.T) {
+	resp := validProviderResponse("demo", "ui-health", "ui-health", "2.0.0", "L0")
+	resp.Assessment.Local.NextLevel = "L1"
+	resp.Assessment.Capabilities = []*commonv1.CapabilityMaturityAssessment{
+		{
+			Id:             "interop",
+			Label:          "Interop",
+			CurrentLevel:   "L5",
+			CurrentSummary: "Iframe and proxy interop are clean.",
+			Clean:          true,
+			PriorityRank:   2,
+			Levels: []*commonv1.LocalMaturityLevel{
+				{Id: "L0"},
+				{Id: "L5"},
+			},
+		},
+		{
+			Id:                   "pwa_native_readiness",
+			Label:                "PWA Native Readiness",
+			CurrentLevel:         "L0",
+			NextLevel:            "L1",
+			NextUnlock:           "Install metadata baseline.",
+			BlockingFindingCodes: []string{"pwa.manifest.missing"},
+			Clean:                false,
+			PriorityRank:         1,
+			PriorityReason:       "lowest current level with required/blocking findings",
+			Levels: []*commonv1.LocalMaturityLevel{
+				{Id: "L0"},
+				{Id: "L1"},
+			},
+		},
+	}
+	resp.Assessment.HighestPriorityCapability = &commonv1.PriorityFocus{
+		CapabilityId:    "pwa_native_readiness",
+		CapabilityLabel: "PWA Native Readiness",
+		CurrentLevel:    "L0",
+		NextLevel:       "L1",
+		Reason:          "lowest current level with required/blocking findings",
+	}
+	srv := newValidationServer(t, resp)
+	defer srv.Close()
+	restoreURL := stubProviderBaseURL(t, srv.URL)
+	defer restoreURL()
+
+	probe, err := ResolveProbe("ui-health")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := Check(context.Background(), Args{Target: "demo", Restart: false, Timeout: time.Second}, probe)
+	if err != nil {
+		t.Fatalf("Check returned error: %v", err)
+	}
+	if got.Assessment.HighestPriorityCapability == nil || got.Assessment.HighestPriorityCapability.CapabilityID != "pwa_native_readiness" {
+		t.Fatalf("focus = %#v, want pwa_native_readiness", got.Assessment.HighestPriorityCapability)
+	}
+	if len(got.Assessment.Capabilities) != 2 {
+		t.Fatalf("capabilities = %#v, want two", got.Assessment.Capabilities)
+	}
+	if got.Assessment.Capabilities[1].BlockingFindingCount != 1 || got.Assessment.Capabilities[1].NextUnlock == "" {
+		t.Fatalf("capability summary missing blocking count/next unlock: %#v", got.Assessment.Capabilities[1])
+	}
+}
+
 func TestCheckRejectsMissingAssessment(t *testing.T) {
 	srv := newValidationServer(t, &scenariovalidationv1.ValidateScenarioResponse{
 		Scenario: "demo",

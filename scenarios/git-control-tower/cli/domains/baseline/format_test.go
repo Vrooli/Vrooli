@@ -23,10 +23,9 @@ func TestAgentWaitBlockTimeouts(t *testing.T) {
 	}
 }
 
-// The snapshot banner must surface the run id + ETA + the quiet `runs wait
-// --json` block command up front (the agent re-attach verb), with `runs follow`
-// only as the human watch-live alternative — the anti-polling contract. It must
-// never imply a silent block.
+// The snapshot banner must surface the run id + ETA + the GCT snapshot status
+// wait command up front (the authoritative parent-workflow re-attach verb),
+// with raw test-genie commands only as diagnostics.
 func TestSnapshotBannerSurfacesHandleAndWait(t *testing.T) {
 	out := snapshotBanner(&baselinesv1.SnapshotForBaselineResponse{
 		RunId: "20260615-000000-abcd", Scenario: "web", Name: "pre-launch",
@@ -36,12 +35,12 @@ func TestSnapshotBannerSurfacesHandleAndWait(t *testing.T) {
 		"20260615-000000-abcd", // run id
 		"10m0s",                // ETA
 		"Agent wait protocol",
-		"test-genie runs wait --json --timeout=1050 web 20260615-000000-abcd", // quiet agent re-attach (primary)
-		"recommended wait timeout: 17m30s",
-		"tail --pid=<pid> -f /dev/null",
-		"baseline snapshot status --scenario web --name pre-launch --run 20260615-000000-abcd",
-		"watch live:    test-genie runs follow web 20260615-000000-abcd", // human alt
-		"pins automatically when it completes",                           // durable, no silent block
+		"git-control-tower baseline snapshot status --scenario web --name pre-launch --run 20260615-000000-abcd --wait --json",
+		"recommended client timeout: 17m30s",
+		"Raw run diagnostics",
+		"test-genie runs wait --json --timeout=1050 web 20260615-000000-abcd",
+		"test-genie runs follow web 20260615-000000-abcd",
+		"pins automatically when it completes", // durable, no silent block
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("banner missing %q:\n%s", want, out)

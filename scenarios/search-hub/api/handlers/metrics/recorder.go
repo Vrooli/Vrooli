@@ -36,10 +36,19 @@ var _ internalrouting.TelemetryRecorder = (*TelemetryBridge)(nil)
 // Record translates the router's TelemetrySample into a metrics.Sample and
 // persists it, swallowing (logging) any store error.
 func (b *TelemetryBridge) Record(ctx context.Context, s internalrouting.TelemetrySample) {
+	providerResults := make(map[string]internalmetrics.ProviderResult, len(s.ProviderResults))
+	for pid, provider := range s.ProviderResults {
+		providerResults[pid] = internalmetrics.ProviderResult{
+			HitCount:      provider.HitCount,
+			LatencyMs:     provider.LatencyMs,
+			Degraded:      provider.Degraded,
+			DegradeReason: provider.DegradeReason,
+		}
+	}
 	if err := b.store.Record(ctx, internalmetrics.Sample{
 		QueryHash:          s.QueryHash,
 		RoutedTypes:        s.RoutedTypes,
-		ProviderHits:       s.ProviderHits,
+		ProviderResults:    providerResults,
 		ResultCount:        s.ResultCount,
 		Degraded:           s.Degraded,
 		Reranked:           s.Reranked,

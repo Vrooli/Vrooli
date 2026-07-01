@@ -61,6 +61,10 @@ type Descriptor struct {
 	DefaultTimeoutSeconds int    `json:"defaultTimeoutSeconds,omitempty"`
 	DocPath               string `json:"docPath,omitempty"`
 	SkipEnvVar            string `json:"skipEnvVar,omitempty"`
+	Comparable            bool   `json:"comparable"`
+	Advisory              bool   `json:"advisory,omitempty"`
+	ArtifactBacked        bool   `json:"artifactBacked,omitempty"`
+	NonComparable         bool   `json:"nonComparable,omitempty"`
 }
 
 // Observation represents a single test observation with optional rich formatting.
@@ -233,6 +237,14 @@ type Spec struct {
 	// stamps the lower-case token onto each ExecutionResult so a downstream
 	// campaign reaudit can derive which sources a partial run actually covered.
 	FindingSource architecturev1.FindingSource
+	// NonComparable opts a phase out of baseline/run comparison. The default is
+	// comparable; catalog entries opt out only when their result cannot produce
+	// a meaningful phase verdict.
+	NonComparable bool
+	Advisory      bool
+	// ArtifactBacked marks phases whose primary comparison channel is artifact
+	// metadata or a dedicated analyzer rather than phase pass/fail status.
+	ArtifactBacked bool
 	// Delegated is present when the phase delegates to another scenario through
 	// ScenarioValidationService. It is catalog-owned metadata, not a second
 	// provider registry.

@@ -105,15 +105,31 @@ func reconcileUtilization(active []*registryv1.ProviderDescriptor, usage []inter
 	for _, p := range active {
 		u := byID[p.GetProviderId()]
 		out = append(out, &metricsv1.ProviderUtilization{
-			ProviderId:    p.GetProviderId(),
-			ProviderGroup: p.GetProviderGroup(),
-			Type:          p.GetType(),
-			TimesRouted:   u.TimesRouted,
-			TotalHits:     u.TotalHits,
-			UnderUtilized: u.TimesRouted == 0,
+			ProviderId:         p.GetProviderId(),
+			ProviderGroup:      p.GetProviderGroup(),
+			Type:               p.GetType(),
+			TimesRouted:        u.TimesRouted,
+			TotalHits:          u.TotalHits,
+			UnderUtilized:      u.TimesRouted == 0,
+			LatencyP50Ms:       u.LatencyP50Ms,
+			LatencyP95Ms:       u.LatencyP95Ms,
+			DegradedCount:      u.DegradedCount,
+			DegradationRate:    u.DegradationRate,
+			DegradationReasons: convertReasons(u.DegradationReasons),
 		})
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].GetProviderId() < out[j].GetProviderId() })
+	return out
+}
+
+func convertReasons(in []internalmetrics.ProviderDegradationReason) []*metricsv1.ProviderDegradationReason {
+	out := make([]*metricsv1.ProviderDegradationReason, 0, len(in))
+	for _, r := range in {
+		out = append(out, &metricsv1.ProviderDegradationReason{
+			Reason: r.Reason,
+			Count:  r.Count,
+		})
+	}
 	return out
 }
 

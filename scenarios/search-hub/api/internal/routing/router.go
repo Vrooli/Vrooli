@@ -592,7 +592,11 @@ func (r *Router) fanOut(ctx context.Context, targets []*registryv1.ProviderDescr
 // on any failure it returns a degraded group carrying a human-readable note
 // rather than an error, so one bad provider never sinks the query.
 func (r *Router) callProvider(ctx context.Context, d *registryv1.ProviderDescriptor, query string, limit int32) *routingv1.ProviderResultGroup {
+	start := r.deps.Now()
 	g := &routingv1.ProviderResultGroup{ProviderId: d.GetProviderId()}
+	defer func() {
+		g.LatencyMs = r.deps.Now().Sub(start).Milliseconds()
+	}()
 
 	hj := d.GetEndpoint().GetHttpJson()
 	if hj == nil {

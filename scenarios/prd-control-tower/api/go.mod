@@ -35,3 +35,5 @@ replace github.com/vrooli/vrooli => ../../..
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
 replace intent-go => ../../../packages/intent-go
+
+replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch

@@ -1,6 +1,8 @@
 package phases
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"strings"
 	"time"
 
@@ -320,6 +322,10 @@ func (c *Catalog) Descriptors() []Descriptor {
 			DefaultTimeoutSeconds: timeout,
 			DocPath:               spec.Doc,
 			SkipEnvVar:            spec.SkipEnvVar,
+			Comparable:            spec.Comparable(),
+			Advisory:              spec.Advisory,
+			ArtifactBacked:        spec.ArtifactBacked,
+			NonComparable:         spec.NonComparable,
 		})
 	}
 	return descriptors
@@ -336,6 +342,28 @@ func (c *Catalog) Lookup(raw string) (Spec, bool) {
 	}
 	spec, exists := c.specs[name]
 	return spec, exists
+}
+
+// PhaseSetDigest returns a stable digest for a planned phase shape. It changes
+// when the ordered phase set changes, so run reuse can fail closed across
+// catalog evolution instead of silently reusing an older comprehensive shape.
+func PhaseSetDigest(names []string) string {
+	normalized := make([]string, 0, len(names))
+	for _, raw := range names {
+		name, ok := NormalizeName(raw)
+		if !ok {
+			continue
+		}
+		normalized = append(normalized, name.String())
+	}
+	sum := sha256.Sum256([]byte(strings.Join(normalized, "\n")))
+	return "phase-set:" + hex.EncodeToString(sum[:])
+}
+
+// Comparable reports whether this phase participates in baseline/run
+// comparison. Default-new phases are comparable unless explicitly opted out.
+func (s Spec) Comparable() bool {
+	return !s.NonComparable
 }
 
 func skipEnvVarForPhase(name Name) string {

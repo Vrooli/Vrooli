@@ -79,7 +79,11 @@ func renderUtilization(providers []*metricsv1.ProviderUtilization) []string {
 	}
 	out := make([]string, 0, len(providers))
 	for _, p := range providers {
-		line := fmt.Sprintf("• %s — routed %d×, %d hit(s)", p.GetProviderId(), p.GetTimesRouted(), p.GetTotalHits())
+		line := fmt.Sprintf("• %s — routed %d×, %d hit(s), p95 %dms, degraded %.1f%%",
+			p.GetProviderId(), p.GetTimesRouted(), p.GetTotalHits(), p.GetLatencyP95Ms(), p.GetDegradationRate()*100)
+		if reasons := p.GetDegradationReasons(); len(reasons) > 0 {
+			line += fmt.Sprintf(" (%s)", reasons[0].GetReason())
+		}
 		if p.GetUnderUtilized() {
 			line += "  ⚠ under-utilized (never routed-to)"
 		}

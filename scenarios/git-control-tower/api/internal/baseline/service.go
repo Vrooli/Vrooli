@@ -607,6 +607,7 @@ type DiffResult struct {
 	CurrentGit   git.State
 	Staleness    Staleness
 	Surfaces     []SurfaceDiff
+	Phases       []PhaseDetail
 	Verdict      Verdict
 	DirtyWarning string // non-empty when the current tree is dirty (verdicts are most suspect then)
 }
@@ -677,7 +678,7 @@ func (s *Service) StartDiff(ctx context.Context, req StartDiffRequest) (StartDif
 	// comprehensive run that would only report "nothing to compare".
 	baseRunID := manifest.RunID()
 	if baseRunID == "" {
-		return StartDiffOutcome{}, fmt.Errorf("baseline %q has no captured run to diff against (it was created empty; snapshot or edit it first)", req.Name)
+		return StartDiffOutcome{}, errors.New(emptyBaselineDiffMessage(manifest))
 	}
 
 	cur, gerr := s.captureGit(ctx, req.RepoDir)
@@ -887,8 +888,18 @@ func (s *Service) computeDiff(ctx context.Context, manifest BaselineManifest, su
 	case curRunID == "":
 		markAll("current run produced no run id")
 	default:
-		// ONE empty-phase compare returns every phase's delta; bucket locally.
+		// ONE empty-phase compare returns every phase's delta. The phase list is
+		// authoritative for the overall verdict; named surfaces are presentation
+		// buckets over that same run, never inclusion gates.
 		cmp, cmpErr := s.runs.CompareRuns(ctx, manifest.Scenario, baseRunID, curRunID, "")
+		if cmpErr == nil {
+			res.Phases = phaseDetails(cmp, surface)
+			if surface == "" {
+				for _, p := range res.Phases {
+					res.Verdict = WorseVerdict(res.Verdict, p.Verdict)
+				}
+			}
+		}
 		bucketed := bucketPhaseDiffs(cmp)
 		for _, id := range captured {
 			if surface != "" && id != surface {
@@ -966,6 +977,28 @@ func bucketPhaseDiffs(cmp CompareResult) map[string]SurfaceDiff {
 	return out
 }
 
+func phaseDetails(cmp CompareResult, surface string) []PhaseDetail {
+	out := make([]PhaseDetail, 0, len(cmp.Phases))
+	for _, p := range cmp.Phases {
+		surfaceID := phaseSurface[p.Phase]
+		if surface != "" && surfaceID != surface {
+			continue
+		}
+		d := PhaseDetail{
+			Phase:       p.Phase,
+			SurfaceID:   surfaceID,
+			Verdict:     Verdict(p.Verdict),
+			Regressions: append([]string(nil), p.Regressions...),
+			NewFailures: append([]string(nil), p.NewFailures...),
+			Preexisting: append([]string(nil), p.Preexisting...),
+			Cleared:     append([]string(nil), p.Cleared...),
+		}
+		d.Summary = summarizePhase(d)
+		out = append(out, d)
+	}
+	return out
+}
+
 // visualsDiff compares the two runs' visual artifacts at the pixel level via
 // test-genie's CompareRunVisuals (test-genie owns the analyzer). The visuals
 // surface is purely advisory: every per-page difference is reported as a neutral
@@ -1038,6 +1071,25 @@ func summarizeVerdict(d SurfaceDiff) string {
 	return string(d.Verdict)
 }
 
+func summarizePhase(d PhaseDetail) string {
+	switch d.Verdict {
+	case VerdictClean:
+		if len(d.Cleared) > 0 {
+			return fmt.Sprintf("%s: no regressions (%d cleared)", d.Phase, len(d.Cleared))
+		}
+		return d.Phase + ": no change"
+	case VerdictRegression:
+		return fmt.Sprintf("%s: %d regression(s)", d.Phase, len(d.Regressions))
+	case VerdictNewFailure:
+		return fmt.Sprintf("%s: %d new failure(s) (added by your changes)", d.Phase, len(d.NewFailures))
+	case VerdictPreexisting:
+		return fmt.Sprintf("%s: %d preexisting failure(s) (inherited)", d.Phase, len(d.Preexisting))
+	case VerdictNotComparable:
+		return d.Phase + ": not comparable"
+	}
+	return d.Phase + ": " + string(d.Verdict)
+}
+
 // Delete removes a baseline and unpins the shared comprehensive run it pinned.
 func (s *Service) Delete(ctx context.Context, repoID int64, scenario, branch, name string) error {
 	manifest, err := s.storage.Load(repoID, scenario, branch, name)
@@ -1096,6 +1148,23 @@ func (s *Service) unpinRun(ctx context.Context, m BaselineManifest) {
 		return
 	}
 	_ = s.runs.UnpinRun(ctx, m.Scenario, runID, PinOwner(m.Name))
+}
+
+func emptyBaselineDiffMessage(m BaselineManifest) string {
+	base := fmt.Sprintf("baseline %q has no captured run to diff against", m.Name)
+	if len(m.Skipped) == 0 {
+		return base + " (it was created empty; snapshot or edit it first)"
+	}
+	parts := make([]string, 0, len(m.Skipped))
+	for _, id := range sortedSkippedIDs(m) {
+		reason := strings.TrimSpace(m.Skipped[id])
+		if reason == "" {
+			parts = append(parts, id)
+			continue
+		}
+		parts = append(parts, id+": "+reason)
+	}
+	return base + " (all captured surfaces were skipped: " + strings.Join(parts, "; ") + "; fix the skipped surfaces, then snapshot again)"
 }
 
 // sortedSkippedIDs returns the manifest's skipped surface IDs in canonical

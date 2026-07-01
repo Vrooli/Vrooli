@@ -66,7 +66,18 @@ func TestInsightsReconcilesUnderUtilized(t *testing.T) {
 			LatencyP50Ms:      120,
 			LatencyP95Ms:      400,
 			ProviderUsage: []internalmetrics.ProviderUsage{
-				{ProviderID: "cli-health.commands", TimesRouted: 5, TotalHits: 12},
+				{
+					ProviderID:      "cli-health.commands",
+					TimesRouted:     5,
+					TotalHits:       12,
+					LatencyP50Ms:    90,
+					LatencyP95Ms:    300,
+					DegradedCount:   2,
+					DegradationRate: 0.4,
+					DegradationReasons: []internalmetrics.ProviderDegradationReason{
+						{Reason: "timeout", Count: 2},
+					},
+				},
 			},
 		}},
 		Lister: &fakeLister{providers: []*registryv1.ProviderDescriptor{
@@ -91,6 +102,10 @@ func TestInsightsReconcilesUnderUtilized(t *testing.T) {
 	require.Len(t, byID, 2, "every ACTIVE leaf appears, even with no telemetry")
 	require.Equal(t, int64(5), byID["cli-health.commands"].GetTimesRouted())
 	require.False(t, byID["cli-health.commands"].GetUnderUtilized())
+	require.Equal(t, int64(300), byID["cli-health.commands"].GetLatencyP95Ms())
+	require.Equal(t, int64(2), byID["cli-health.commands"].GetDegradedCount())
+	require.InDelta(t, 0.4, byID["cli-health.commands"].GetDegradationRate(), 1e-9)
+	require.Equal(t, "timeout", byID["cli-health.commands"].GetDegradationReasons()[0].GetReason())
 	require.Equal(t, int64(0), byID["ui-health.surfaces"].GetTimesRouted())
 	require.True(t, byID["ui-health.surfaces"].GetUnderUtilized(), "registered-but-never-routed ⇒ under-utilized")
 	require.Equal(t, "component", byID["ui-health.surfaces"].GetType())

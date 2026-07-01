@@ -9,6 +9,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"test-genie/internal/orchestrator/phases"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
 
@@ -196,10 +197,13 @@ func TestGetPhaseArtifact(t *testing.T) {
 func TestFindRun(t *testing.T) {
 	svc, root := newTestService(t)
 	base := time.Now().UTC()
+	comprehensivePhases := phases.DefaultPresets()[phases.PresetComprehensive.String()]
+	comprehensiveDigest := phases.PhaseSetDigest(comprehensivePhases)
 	// A matching clean comprehensive+baseline run at sha "abc".
 	seedRecord(t, root, sharedruns.RunRecord{
 		RunID: "match", Scenario: "demo", StartedAt: base, Status: sharedruns.StatusPassed,
 		GitSha: "abc", Preset: "comprehensive", CaptureProfile: "baseline",
+		PlannedPhases: comprehensivePhases, PhaseSetDigest: comprehensiveDigest,
 	})
 	// A newer run that should NOT match: different preset.
 	seedRecord(t, root, sharedruns.RunRecord{
@@ -240,5 +244,37 @@ func TestFindRun(t *testing.T) {
 	}
 	if miss.Msg.GetFound() {
 		t.Fatalf("expected no match for an unknown sha, got %q", miss.Msg.GetRun().GetRunId())
+	}
+}
+
+func TestFindRunRequiresCurrentComprehensivePhaseSetDigest(t *testing.T) {
+	svc, root := newTestService(t)
+	base := time.Now().UTC()
+	currentPhases := phases.DefaultPresets()[phases.PresetComprehensive.String()]
+	currentDigest := phases.PhaseSetDigest(currentPhases)
+
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID: "stale-shape", Scenario: "demo", StartedAt: base, Status: sharedruns.StatusPassed,
+		GitSha: "abc", Preset: "comprehensive", CaptureProfile: "baseline",
+		PlannedPhases: []string{"structure", "unit"}, PhaseSetDigest: phases.PhaseSetDigest([]string{"structure", "unit"}),
+	})
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID: "match-shape", Scenario: "demo", StartedAt: base.Add(time.Minute), Status: sharedruns.StatusPassed,
+		GitSha: "abc", Preset: "comprehensive", CaptureProfile: "baseline",
+		PlannedPhases: currentPhases, PhaseSetDigest: currentDigest,
+	})
+
+	resp, err := svc.FindRun(context.Background(), connect.NewRequest(&runspb.FindRunRequest{
+		Scenario: "demo", GitSha: "abc", Preset: "comprehensive", CaptureProfile: "baseline",
+		Status: "passed", RequireClean: true,
+	}))
+	if err != nil {
+		t.Fatalf("FindRun: %v", err)
+	}
+	if !resp.Msg.GetFound() || resp.Msg.GetRun().GetRunId() != "match-shape" {
+		t.Fatalf("FindRun matched %#v, want current phase-set run", resp.Msg.GetRun())
+	}
+	if got := resp.Msg.GetRun().GetPhaseSetDigest(); got != currentDigest {
+		t.Fatalf("RunInfo phase_set_digest = %q, want %q", got, currentDigest)
 	}
 }

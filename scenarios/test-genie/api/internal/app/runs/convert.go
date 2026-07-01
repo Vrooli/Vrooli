@@ -31,6 +31,10 @@ func toRunInfo(r sharedruns.RunRecord) *runspb.RunInfo {
 			Name:            p.Name,
 			Status:          p.Status,
 			DurationSeconds: float64(p.DurationSeconds),
+			Comparable:      !p.NonComparable,
+			Advisory:        p.Advisory,
+			ArtifactBacked:  p.ArtifactBacked,
+			NonComparable:   p.NonComparable,
 		})
 	}
 	pins := make([]*runspb.PinInfo, 0, len(r.Pins))
@@ -64,15 +68,24 @@ func toRunInfo(r sharedruns.RunRecord) *runspb.RunInfo {
 		TreeDigest:     r.TreeDigest,
 		Preset:         r.Preset,
 		CaptureProfile: r.CaptureProfile,
+		PlannedPhases:  append([]string(nil), r.PlannedPhases...),
+		PhaseSetDigest: r.PhaseSetDigest,
 	}
 }
 
 func phaseStatusMap(r sharedruns.RunRecord) map[string]string {
 	m := make(map[string]string, len(r.Phases))
 	for _, p := range r.Phases {
+		if p.NonComparable {
+			continue
+		}
 		m[p.Name] = p.Status
 	}
 	return m
+}
+
+func phaseComparable(p sharedruns.PhaseRecord) bool {
+	return !p.NonComparable
 }
 
 // isFailed reports whether a phase status counts as a failure for diffing.
@@ -93,12 +106,18 @@ func comparePhases(a, b sharedruns.RunRecord, phaseFilter string) *runspb.Compar
 	seen := make(map[string]bool)
 	var order []string
 	for _, p := range b.Phases {
+		if !phaseComparable(p) {
+			continue
+		}
 		if !seen[p.Name] {
 			order = append(order, p.Name)
 			seen[p.Name] = true
 		}
 	}
 	for _, p := range a.Phases {
+		if !phaseComparable(p) {
+			continue
+		}
 		if !seen[p.Name] {
 			order = append(order, p.Name)
 			seen[p.Name] = true

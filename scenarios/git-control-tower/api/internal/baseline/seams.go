@@ -28,6 +28,20 @@ type SurfaceDiff struct {
 	Summary     string   // one-line human summary
 }
 
+// PhaseDetail is the authoritative per-test-genie-phase comparison. Named
+// surfaces are presentation views over these phase details; they are not the
+// inclusion gate for the overall baseline verdict.
+type PhaseDetail struct {
+	Phase       string
+	SurfaceID   string
+	Verdict     Verdict
+	Regressions []string
+	NewFailures []string
+	Preexisting []string
+	Cleared     []string
+	Summary     string
+}
+
 // Staleness reports how far the working tree has drifted from the baseline's
 // captured commit.
 type Staleness struct {

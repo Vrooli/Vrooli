@@ -98,7 +98,7 @@ lives at `docs/PROGRESS.md` (one level up).
 ## Template Adoption Status (2026-05-14)
 
 Tracking work on top of the template v1.0.0 contract. See the plan at
-`vrooli plans show web-console-react-vite-template-adoption-batches-1-3`.
+`plan-manager plans render web-console-react-vite-template-adoption-batches-1-3`.
 
 - [x] **Batch 1 — Foundation & metadata.** `.vrooli/service.json` has
       `generation.template`; `.vrooli/orientation.json` exists;

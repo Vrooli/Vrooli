@@ -122,9 +122,9 @@ func (s *Server) CreateBaseline(ctx context.Context, req *connect.Request[baseli
 //     context (WithoutCancel keeps the request's values, drops its cancellation),
 //     bounded by snapshotTailCeiling so a wedged backend can't leak a goroutine.
 //
-// The caller blocks on the durable run with `test-genie runs wait --json
-// <scenario> <run_id>` (or watches live with `runs follow`); once it completes
-// the baseline is pinned and queryable via GetBaseline.
+// The caller reattaches through GCT with `baseline snapshot status --wait
+// --json`, which finalizes the pin/manifest as the parent workflow authority.
+// Raw test-genie wait/follow commands remain diagnostic for the child run.
 func (s *Server) SnapshotForBaseline(ctx context.Context, req *connect.Request[baselinesv1.SnapshotForBaselineRequest]) (*connect.Response[baselinesv1.SnapshotForBaselineResponse], error) {
 	m := req.Msg
 	rid, repoDir, err := s.repos.Resolve(ctx, m.GetRepoId())

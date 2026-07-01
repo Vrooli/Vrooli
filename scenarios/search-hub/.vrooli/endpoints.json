@@ -450,6 +450,96 @@
       ]
     },
     {
+      "id": "metrics_measures_declarations",
+      "path": "/measures/declarations",
+      "method": "GET",
+      "summary": "List declared search-hub metrics measures",
+      "description": "Measures-go registry declarations harvested by measures-health and the central measures index.",
+      "category": "measures",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "measures-go serves a framework-neutral harvest endpoint consumed without a generated client."
+      }
+    },
+    {
+      "id": "metrics_measure_federated_latency",
+      "path": "/vrooli.search_hub.v1.measures.MeasuresService/FederatedLatency",
+      "method": "POST",
+      "summary": "Federated latency measure",
+      "description": "Returns p95 and p50 federated query latency over a canonical time window, backed by query_telemetry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "p50_ms": "int64 — p50 federated query latency",
+          "p95_ms": "int64 — p95 federated query latency"
+        }
+      }
+    },
+    {
+      "id": "metrics_measure_degraded_query_rate",
+      "path": "/vrooli.search_hub.v1.measures.MeasuresService/DegradedQueryRate",
+      "method": "POST",
+      "summary": "Degraded query rate measure",
+      "description": "Returns degraded_queries / total_queries over a canonical time window.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "degraded_queries": "int64 — degraded query count",
+          "rate": "double — degraded query rate",
+          "total_queries": "int64 — total query count"
+        }
+      }
+    },
+    {
+      "id": "metrics_measure_provider_degradation_rate",
+      "path": "/vrooli.search_hub.v1.measures.MeasuresService/ProviderDegradationRate",
+      "method": "POST",
+      "summary": "Provider degradation rate measure",
+      "description": "Returns degraded provider legs / routed provider legs over a canonical time window, optionally scoped to provider_id.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "provider_id": "string — optional provider id scope",
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "degraded_count": "int64 — degraded provider-leg count",
+          "rate": "double — provider degradation rate",
+          "times_routed": "int64 — routed provider-leg count"
+        }
+      }
+    },
+    {
+      "id": "metrics_measures_execute",
+      "path": "/measures/execute",
+      "method": "POST",
+      "summary": "Execute a declared search-hub metrics measure",
+      "description": "Measures-go registry execution endpoint used by measures-health behavioral probes and search-hub federation.",
+      "category": "measures",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "measures-go serves a uniform JSON execution endpoint shared across scenarios."
+      }
+    },
+    {
       "id": "providers_register",
       "path": "/vrooli.search_hub.v1.registry.RegistryService/RegisterProvider",
       "method": "POST",

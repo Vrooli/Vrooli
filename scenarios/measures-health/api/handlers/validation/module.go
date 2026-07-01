@@ -103,6 +103,58 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "validation_preview_fix",
+		Path:        scenariovalidationconnect.ScenarioValidationServicePreviewFixProcedure,
+		Method:      "POST",
+		Summary:     "Preview deterministic measures fixes",
+		Description: "Measures Health does not currently ship deterministic fixes; the shared RPC returns Unimplemented and is listed so module descriptors match the proto surface.",
+		Category:    "validation",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"scenario": "string (required)",
+				"rule_ids": "array<string> (optional rule filter)",
+			},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"candidates": "array<scenario_validation.v1.FixCandidate>",
+				"applied":    "bool (always false for preview)",
+				"messages":   "array<string>",
+			},
+		},
+		Examples: []module.Example{
+			{Name: "Preview fixes", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix -H 'Content-Type: application/json' -d '{\"scenario\":\"measures-health\"}'"},
+		},
+	},
+	{
+		ID:          "validation_apply_fix",
+		Path:        scenariovalidationconnect.ScenarioValidationServiceApplyFixProcedure,
+		Method:      "POST",
+		Summary:     "Apply deterministic measures fixes",
+		Description: "Measures Health does not currently ship deterministic fixes; the shared RPC returns Unimplemented and is listed so module descriptors match the proto surface.",
+		Category:    "validation",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"scenario": "string (required)",
+				"rule_ids": "array<string> (optional rule filter)",
+			},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"candidates": "array<scenario_validation.v1.FixCandidate>",
+				"applied":    "bool",
+				"messages":   "array<string>",
+			},
+		},
+		Examples: []module.Example{
+			{Name: "Apply fixes", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix -H 'Content-Type: application/json' -d '{\"scenario\":\"measures-health\"}'"},
+		},
+	},
+	{
 		ID:          "validation_list_fleet_coverage",
 		Path:        validationconnect.ValidationServiceListFleetCoverageProcedure,
 		Method:      "POST",

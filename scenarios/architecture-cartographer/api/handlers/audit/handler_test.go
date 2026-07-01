@@ -2,6 +2,8 @@ package audit
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 
@@ -99,5 +101,61 @@ func TestValidateScenarioNativeDetailPreserved(t *testing.T) {
 	// native_detail must be packed so test-genie's gate can inspect it.
 	if resp.Msg.GetNativeDetail() == nil {
 		t.Fatal("native_detail must be populated in the response")
+	}
+}
+
+func TestMaturitySpecCoversArchitectureFindings(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", ".vrooli", "maturity.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, err := assessment.ParseSpec(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := assessment.ValidateSpec(*spec); err != nil {
+		t.Fatalf("ValidateSpec: %v", err)
+	}
+	if len(spec.Capabilities) != 5 {
+		t.Fatalf("capabilities = %d, want 5", len(spec.Capabilities))
+	}
+	for _, code := range emittedArchitectureFindingCodes() {
+		mapping, ok := spec.Findings[code]
+		if !ok {
+			t.Fatalf("maturity spec does not map emitted finding code %q", code)
+		}
+		if mapping.CapabilityID == "" {
+			t.Fatalf("maturity spec finding %q must declare capability_id", code)
+		}
+		if mapping.CleanRequirement == "" {
+			t.Fatalf("maturity spec finding %q must declare clean_requirement", code)
+		}
+	}
+	if spec.Fallback.CapabilityID == "" {
+		t.Fatal("maturity spec fallback must declare capability_id")
+	}
+}
+
+func emittedArchitectureFindingCodes() []string {
+	return []string{
+		"graph.extract_failed",
+		"domain_authority/missing",
+		"domain_authority/low",
+		"domains_doc_parse_warning",
+		"cycle",
+		"cycle/cross-domain",
+		"layering",
+		"cross_scenario",
+		"coupling_smell",
+		"mislocated_file",
+		"naming",
+		"glossary_drift",
+		"convergence_drift",
+		"surface_coherence",
+		"intent.req_unowned_domain",
+		"intent.req_transport_owned",
+		"intent.domain_unrequired",
+		"intent.ot_no_domain",
+		"intent.vocab_drift",
 	}
 }

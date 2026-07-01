@@ -3,6 +3,7 @@ package metrics
 import (
 	"search-hub/internal/module"
 
+	measuresconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/measures/measures_v1connect"
 	metricsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/metrics/metrics_v1connect"
 )
 
@@ -45,6 +46,92 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "All-time insights", Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.metrics.MetricsService/Insights -H 'Content-Type: application/json' -d '{}'"},
 			{Name: "Last 7 days", Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.metrics.MetricsService/Insights -H 'Content-Type: application/json' -d '{\"window_days\":7}'"},
+		},
+	},
+	{
+		ID:          "metrics_measures_declarations",
+		Path:        "/measures/declarations",
+		Method:      "GET",
+		Summary:     "List declared search-hub metrics measures",
+		Description: "Measures-go registry declarations harvested by measures-health and the central measures index.",
+		Category:    "measures",
+		RESTException: &module.RESTException{
+			Reason: module.RESTReasonOpsProbe,
+			Note:   "measures-go serves a framework-neutral harvest endpoint consumed without a generated client.",
+		},
+	},
+	{
+		ID:          "metrics_measure_federated_latency",
+		Path:        measuresconnect.MeasuresServiceFederatedLatencyProcedure,
+		Method:      "POST",
+		Summary:     "Federated latency measure",
+		Description: "Returns p95 and p50 federated query latency over a canonical time window, backed by query_telemetry.",
+		Category:    "measures",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"p95_ms": "int64 — p95 federated query latency",
+				"p50_ms": "int64 — p50 federated query latency",
+			},
+		},
+	},
+	{
+		ID:          "metrics_measure_degraded_query_rate",
+		Path:        measuresconnect.MeasuresServiceDegradedQueryRateProcedure,
+		Method:      "POST",
+		Summary:     "Degraded query rate measure",
+		Description: "Returns degraded_queries / total_queries over a canonical time window.",
+		Category:    "measures",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"rate":             "double — degraded query rate",
+				"degraded_queries": "int64 — degraded query count",
+				"total_queries":    "int64 — total query count",
+			},
+		},
+	},
+	{
+		ID:          "metrics_measure_provider_degradation_rate",
+		Path:        measuresconnect.MeasuresServiceProviderDegradationRateProcedure,
+		Method:      "POST",
+		Summary:     "Provider degradation rate measure",
+		Description: "Returns degraded provider legs / routed provider legs over a canonical time window, optionally scoped to provider_id.",
+		Category:    "measures",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"window":      "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)",
+				"provider_id": "string — optional provider id scope",
+			},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"rate":           "double — provider degradation rate",
+				"degraded_count": "int64 — degraded provider-leg count",
+				"times_routed":   "int64 — routed provider-leg count",
+			},
+		},
+	},
+	{
+		ID:          "metrics_measures_execute",
+		Path:        "/measures/execute",
+		Method:      "POST",
+		Summary:     "Execute a declared search-hub metrics measure",
+		Description: "Measures-go registry execution endpoint used by measures-health behavioral probes and search-hub federation.",
+		Category:    "measures",
+		RESTException: &module.RESTException{
+			Reason: module.RESTReasonOpsProbe,
+			Note:   "measures-go serves a uniform JSON execution endpoint shared across scenarios.",
 		},
 	},
 }

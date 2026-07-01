@@ -17,6 +17,9 @@ func TestMaturitySpecCoversEmittedFindingCodes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(spec.Capabilities) != 5 {
+		t.Fatalf("capabilities = %d, want 5", len(spec.Capabilities))
+	}
 	for _, code := range []string{
 		"measures.architecture-fallback",
 		"measures.hollow-declaration",
@@ -28,8 +31,15 @@ func TestMaturitySpecCoversEmittedFindingCodes(t *testing.T) {
 		"measures.uncovered-domain",
 		"measures.undeclared-substrate",
 	} {
-		if _, ok := spec.Findings[code]; !ok {
+		mapping, ok := spec.Findings[code]
+		if !ok {
 			t.Fatalf("maturity spec does not map emitted finding code %q", code)
 		}
+		if mapping.CapabilityID == "" {
+			t.Fatalf("maturity spec finding %q must declare capability_id", code)
+		}
+	}
+	if spec.Fallback.CapabilityID == "" {
+		t.Fatal("maturity spec fallback must declare capability_id")
 	}
 }

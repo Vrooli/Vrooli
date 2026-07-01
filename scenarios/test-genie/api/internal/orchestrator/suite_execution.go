@@ -580,6 +580,7 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 	if digestErr != nil {
 		log.Printf("tree digest unavailable for run %s: %v", runID, digestErr)
 	}
+	plannedPhases := phaseDefinitionNames(planCtx.plan.Selected)
 	if err := sharedruns.NewIndex(planCtx.env.ScenarioDir).Append(sharedruns.RunRecord{
 		RunID:           runID,
 		Scenario:        scenario,
@@ -593,6 +594,8 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 		TreeDigest:      digest,
 		Preset:          strings.TrimSpace(req.Preset),
 		CaptureProfile:  strings.TrimSpace(req.CaptureProfile),
+		PlannedPhases:   plannedPhases,
+		PhaseSetDigest:  phases.PhaseSetDigest(plannedPhases),
 	}); err != nil {
 		log.Printf("failed to record run %s in index: %v", runID, err)
 	}
@@ -612,7 +615,7 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 			RequestedPreset:     phases.NormalizeKey(req.Preset),
 			RequestedPhases:     normalizePhaseList(req.Phases),
 			RequestedSkipPhases: normalizePhaseList(req.Skip),
-			PlannedPhases:       phaseDefinitionNames(planCtx.plan.Selected),
+			PlannedPhases:       plannedPhases,
 			FailFast:            req.FailFast,
 			Warnings:            buildPlanWarnings(planCtx.plan),
 		},
@@ -705,18 +708,28 @@ func (o *SuiteOrchestrator) finalizeRunRecord(scenarioDir, runID string, result 
 	if !result.Success {
 		status = sharedruns.StatusFailed
 	}
-	phases := make([]sharedruns.PhaseRecord, 0, len(phaseResults))
+	phaseRecords := make([]sharedruns.PhaseRecord, 0, len(phaseResults))
 	for _, p := range phaseResults {
-		phases = append(phases, sharedruns.PhaseRecord{
+		record := sharedruns.PhaseRecord{
 			Name:            p.Name,
 			Status:          p.Status,
 			DurationSeconds: p.DurationSeconds,
-		})
+			Comparable:      true,
+		}
+		if spec, ok := phases.DefaultCatalog().Lookup(p.Name); ok {
+			record.Comparable = spec.Comparable()
+			record.Advisory = spec.Advisory
+			record.ArtifactBacked = spec.ArtifactBacked
+			record.NonComparable = spec.NonComparable
+		}
+		phaseRecords = append(phaseRecords, record)
 	}
 	err := sharedruns.NewIndex(scenarioDir).Update(runID, func(r *sharedruns.RunRecord) error {
 		r.Status = status
 		r.CompletedAt = result.CompletedAt
-		r.Phases = phases
+		r.Phases = phaseRecords
+		r.PlannedPhases = append([]string(nil), result.PlannedPhases...)
+		r.PhaseSetDigest = phases.PhaseSetDigest(result.PlannedPhases)
 		return nil
 	})
 	if err != nil {

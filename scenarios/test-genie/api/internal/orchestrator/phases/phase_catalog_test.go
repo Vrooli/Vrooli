@@ -60,6 +60,38 @@ func TestPhaseCatalogDescriptors(t *testing.T) {
 	}
 }
 
+func TestPhaseCatalogComparisonMetadataDefaultsComparable(t *testing.T) {
+	catalog := NewDefaultCatalog(time.Second)
+	for _, spec := range catalog.All() {
+		if !spec.Comparable() {
+			t.Fatalf("default phase %q is not comparable; phases must opt out explicitly", spec.Name)
+		}
+	}
+
+	catalog.Register(Spec{Name: "artifact-only", NonComparable: true, ArtifactBacked: true})
+	spec, ok := catalog.Lookup("artifact-only")
+	if !ok {
+		t.Fatal("artifact-only phase was not registered")
+	}
+	if spec.Comparable() {
+		t.Fatal("explicitly non-comparable phase reported comparable")
+	}
+	descriptors := catalog.Descriptors()
+	var found bool
+	for _, d := range descriptors {
+		if d.Name != "artifact-only" {
+			continue
+		}
+		found = true
+		if d.Comparable || !d.NonComparable || !d.ArtifactBacked {
+			t.Fatalf("descriptor metadata = %+v, want non-comparable artifact-backed", d)
+		}
+	}
+	if !found {
+		t.Fatal("artifact-only descriptor missing")
+	}
+}
+
 func TestQualityPhaseTimeout(t *testing.T) {
 	catalog := NewDefaultCatalog(15 * time.Minute) // Default is 15 minutes
 	quality, ok := catalog.Lookup("quality")

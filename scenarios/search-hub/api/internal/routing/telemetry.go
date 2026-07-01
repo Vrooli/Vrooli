@@ -12,19 +12,20 @@ import (
 
 // TelemetrySample is the per-query record the router emits for the metrics
 // domain (Phase 7). QueryHash is the HASHED query text — the router never hands
-// the raw text to telemetry (the plan's privacy note). ProviderHits maps each
-// provider_id the query fanned out to → that leaf's hit count (a degraded leaf
-// records 0). This struct is owned by the consumer (routing) per seam-discovery;
+// the raw text to telemetry (the plan's privacy note). ProviderResults maps
+// each provider_id the query fanned out to → that leaf's hit count, latency, and
+// normalized degradation category. This struct is owned by the consumer
+// (routing) per seam-discovery;
 // the metrics store is bridged to it at the wiring edge so internal/metrics
 // never imports internal/routing.
 type TelemetrySample struct {
-	QueryHash    string
-	RoutedTypes  []string
-	ProviderHits map[string]int
-	ResultCount  int
-	Degraded     bool
-	Reranked     bool
-	LatencyMs    int64
+	QueryHash       string
+	RoutedTypes     []string
+	ProviderResults map[string]ProviderTelemetry
+	ResultCount     int
+	Degraded        bool
+	Reranked        bool
+	LatencyMs       int64
 	// AutoRoutedExternal is true when the automatic path folded a SCOPE_EXTERNAL
 	// provider into the fan-out because the query was judged web-shaped
 	// (OT-P2-002). Lets the metrics surface measure the auto-routed-external rate.
@@ -33,6 +34,16 @@ type TelemetrySample struct {
 	// escalated to a withheld external provider (OT-P2-002 fallback). Lets the
 	// metrics surface measure the escalation rate.
 	Escalated bool
+}
+
+// ProviderTelemetry is one provider leg's telemetry projection. DegradeReason
+// is a closed category derived from ProviderResultGroup.Note; raw notes are not
+// persisted because they are freeform provider output.
+type ProviderTelemetry struct {
+	HitCount      int
+	LatencyMs     int64
+	Degraded      bool
+	DegradeReason string
 }
 
 // TelemetryRecorder is the telemetry write seam. Production wires a bridge over
@@ -52,26 +63,55 @@ func hashQuery(query string) string {
 }
 
 // buildSample derives the telemetry row from a completed query: the unique set
-// of types actually fanned out to, the per-provider hit counts, and the
+// of types actually fanned out to, the per-provider leg telemetry, and the
 // response-level flags. It does not include the routing latency — the caller
 // stamps that from the response so recording time is never counted.
 func buildSample(query string, targets []*registryv1.ProviderDescriptor, resp *routingv1.QueryResponse) TelemetrySample {
-	providerHits := make(map[string]int, len(resp.GetGroups()))
+	providerResults := make(map[string]ProviderTelemetry, len(resp.GetGroups()))
 	total := 0
 	for _, g := range resp.GetGroups() {
 		n := len(g.GetHits())
-		providerHits[g.GetProviderId()] = n
+		degraded := g.GetDegraded()
+		reason := ""
+		if degraded {
+			reason = classifyDegradeReason(g.GetNote())
+		}
+		providerResults[g.GetProviderId()] = ProviderTelemetry{
+			HitCount:      n,
+			LatencyMs:     g.GetLatencyMs(),
+			Degraded:      degraded,
+			DegradeReason: reason,
+		}
 		total += n
 	}
 
 	return TelemetrySample{
-		QueryHash:    hashQuery(query),
-		RoutedTypes:  uniqueTypes(targets),
-		ProviderHits: providerHits,
-		ResultCount:  total,
-		Degraded:     resp.GetDegraded(),
-		Reranked:     resp.GetReranked(),
-		LatencyMs:    resp.GetLatencyMs(),
+		QueryHash:       hashQuery(query),
+		RoutedTypes:     uniqueTypes(targets),
+		ProviderResults: providerResults,
+		ResultCount:     total,
+		Degraded:        resp.GetDegraded(),
+		Reranked:        resp.GetReranked(),
+		LatencyMs:       resp.GetLatencyMs(),
+	}
+}
+
+func classifyDegradeReason(note string) string {
+	note = strings.ToLower(strings.TrimSpace(note))
+	switch {
+	case note == "":
+		return "other"
+	case strings.Contains(note, "timeout"), strings.Contains(note, "deadline exceeded"):
+		return "timeout"
+	case strings.Contains(note, "unreachable"), strings.Contains(note, "connection refused"),
+		strings.Contains(note, "no such host"), strings.Contains(note, "not running"):
+		return "unreachable"
+	case strings.Contains(note, "http "):
+		return "http_error"
+	case strings.Contains(note, "reranker"):
+		return "reranker_unavailable"
+	default:
+		return "other"
 	}
 }
 

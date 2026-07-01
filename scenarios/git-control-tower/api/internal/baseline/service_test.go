@@ -272,6 +272,40 @@ func TestServiceCreateRunFailureSkipsAllSurfaces(t *testing.T) {
 	}
 }
 
+func TestServiceDiffEmptyBaselineExplainsSkippedSurfaces(t *testing.T) {
+	svc, st := newTestService(t, nil, nil, git.State{Branch: "agi", Sha: "abc"})
+	err := st.Save(1, BaselineManifest{
+		Name:      "stt-scaling-analysis-plan",
+		Scenario:  "audio-tools",
+		Branch:    "agi",
+		CreatedAt: time.Now(),
+		Git:       git.State{Branch: "agi", Sha: "abc"},
+		Surfaces:  map[string]SurfacePointer{},
+		Skipped: map[string]string{
+			SurfaceTests: "test-genie unreachable",
+			SurfaceRules: "api-core discovery failed",
+		},
+		SchemaVersion: SchemaVersion,
+	}, CreateOnly)
+	if err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	_, err = svc.StartDiff(context.Background(), StartDiffRequest{
+		RepoID: 1, RepoDir: "/repo", Scenario: "audio-tools", Branch: "agi", Name: "stt-scaling-analysis-plan",
+	})
+	if err == nil {
+		t.Fatal("StartDiff succeeded, want empty-baseline error")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "has no captured run") ||
+		!strings.Contains(msg, "rules: api-core discovery failed") ||
+		!strings.Contains(msg, "tests: test-genie unreachable") ||
+		!strings.Contains(msg, "snapshot again") {
+		t.Fatalf("StartDiff error = %q, want skipped surface reasons", msg)
+	}
+}
+
 // Diff issues exactly ONE current run + ONE empty-phase compare and buckets the
 // per-phase deltas into surfaces locally (option-c). The multi-phase `tests`
 // surface aggregates unit+integration+smoke.
@@ -335,11 +369,58 @@ func TestServiceDiffOptionCBucketing(t *testing.T) {
 	}
 }
 
+func TestServiceDiffIncludesUnmappedPhaseInOverallVerdict(t *testing.T) {
+	exec := &fakeExecutor{result: ExecResult{Success: true, Phases: []PhaseStatus{
+		{"unit", "passed"}, {"architecture", "failed"},
+	}}}
+	runs := &fakeRuns{compare: CompareResult{
+		Verdict: "regression",
+		Phases: []PhaseDiff{
+			{Phase: "unit", Verdict: "clean"},
+			{Phase: "architecture", Verdict: "regression", Regressions: []string{"arch-drift"}},
+		},
+	}}
+	svc, _ := newTestService(t, exec, runs, git.State{Branch: "agi", Sha: "abc"})
+
+	if _, err := svc.Create(context.Background(), CreateRequest{
+		RepoID: 1, Scenario: "foo", Name: "p", Include: []string{SurfaceTests}, Capture: true,
+	}); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	res, err := runDiff(t, svc, 1, "/repo", "foo", "agi", "p", "")
+	if err != nil {
+		t.Fatalf("Diff: %v", err)
+	}
+	if res.Verdict != VerdictRegression {
+		t.Fatalf("overall verdict = %s, want regression from unmapped architecture phase", res.Verdict)
+	}
+	if len(res.Phases) != 2 {
+		t.Fatalf("expected all phase diffs to be exposed, got %+v", res.Phases)
+	}
+	var found bool
+	for _, p := range res.Phases {
+		if p.Phase == "architecture" {
+			found = true
+			if p.SurfaceID != "" {
+				t.Fatalf("unmapped phase SurfaceID = %q, want empty", p.SurfaceID)
+			}
+			if p.Verdict != VerdictRegression {
+				t.Fatalf("architecture verdict = %s, want regression", p.Verdict)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("architecture phase missing from diff details: %+v", res.Phases)
+	}
+}
+
 // A diff restricted to one surface still buckets correctly and returns only it.
 func TestServiceDiffSingleSurface(t *testing.T) {
 	exec := &fakeExecutor{result: ExecResult{Phases: []PhaseStatus{{"standards", "passed"}}}}
 	runs := &fakeRuns{compare: CompareResult{Phases: []PhaseDiff{
 		{Phase: "standards", Verdict: "regression", Regressions: []string{"PRD-001"}},
+		{Phase: "architecture", Verdict: "regression", Regressions: []string{"arch-drift"}},
 	}}}
 	svc, _ := newTestService(t, exec, runs, git.State{Branch: "agi", Sha: "abc"})
 
@@ -357,6 +438,9 @@ func TestServiceDiffSingleSurface(t *testing.T) {
 	}
 	if res.Surfaces[0].Verdict != VerdictRegression {
 		t.Fatalf("rules should be regression, got %s", res.Surfaces[0].Verdict)
+	}
+	if len(res.Phases) != 1 || res.Phases[0].Phase != "standards" || res.Phases[0].SurfaceID != SurfaceRules {
+		t.Fatalf("surface-filtered phase details should include only rules phases, got %+v", res.Phases)
 	}
 }
 

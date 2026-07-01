@@ -112,6 +112,88 @@
       ]
     },
     {
+      "name": "metrics",
+      "description": "Declared analytical measures over search-hub query telemetry",
+      "commands": [
+        {
+          "name": "federated-latency",
+          "description": "P95 and p50 federated query latency in a time window.",
+          "flags": [
+            { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "vrooli.search_hub.v1.measures.MeasuresService", "method": "FederatedLatency" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "measure": {
+            "domain": "query_telemetry",
+            "intent": "Federated search latency percentiles for search-hub in a time window.",
+            "questions": [
+              "what is search hub federated query p95 latency this week",
+              "show federated search p50 and p95 latency in the last 30 days",
+              "how slow are search-hub federated queries this month"
+            ],
+            "params": { "window": { "type": "time_window", "default": "this_week" } },
+            "result": { "kind": "scalar", "value_field": "p95_ms", "unit": "milliseconds", "summary_template": "{p95_ms}ms p95 federated latency ({window})" }
+          }
+        },
+        {
+          "name": "degraded-query-rate",
+          "description": "Fraction of federated queries that degraded in a time window.",
+          "flags": [
+            { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "vrooli.search_hub.v1.measures.MeasuresService", "method": "DegradedQueryRate" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "measure": {
+            "domain": "query_telemetry",
+            "intent": "Fraction of federated search queries that degraded in a time window.",
+            "questions": [
+              "what fraction of search hub queries degraded this week",
+              "degraded federated query rate last month",
+              "how often did search-hub federation degrade in the last 7 days"
+            ],
+            "params": { "window": { "type": "time_window", "default": "this_week" } },
+            "result": { "kind": "scalar", "value_field": "rate", "unit": "ratio", "summary_template": "{rate} degraded query rate ({window})" }
+          }
+        },
+        {
+          "name": "provider-degradation-rate",
+          "description": "Provider-leg degradation rate in a time window, optionally scoped to one provider.",
+          "flags": [
+            { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)." },
+            { "name": "provider-id", "description": "Optional provider_id to scope the rate, e.g. measures-health.measures." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "vrooli.search_hub.v1.measures.MeasuresService", "method": "ProviderDegradationRate" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "measure": {
+            "domain": "query_telemetry",
+            "intent": "Provider-leg degradation rate, optionally scoped to one provider id.",
+            "questions": [
+              "how often does provider measures-health.measures degrade this week",
+              "provider degradation rate for swarm-manager.records in the last 30 days",
+              "which provider degradation rate is search hub seeing this month"
+            ],
+            "params": {
+              "window": { "type": "time_window", "default": "this_week" },
+              "provider_id": {}
+            },
+            "result": { "kind": "scalar", "value_field": "rate", "unit": "ratio", "summary_template": "{rate} provider degradation rate ({window})" }
+          }
+        }
+      ]
+    },
+    {
       "name": "evals",
       "description": "Register provider-owned golden suites and run them to baseline search quality over time (eval domain)",
       "commands": [
@@ -288,5 +370,14 @@
       ]
     }
   ],
-  "omitted": []
+  "omitted": [],
+  "measures": {
+    "domains": [
+      {
+        "domain": "query_telemetry",
+        "stateful": true,
+        "reason": "query_telemetry and query_telemetry_provider are persisted, countable telemetry substrates for federated search latency and degradation measures."
+      }
+    ]
+  }
 }

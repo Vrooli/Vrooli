@@ -103,3 +103,5 @@ replace github.com/vrooli/api-core => ../../../packages/api-core
 replace github.com/vrooli/vrooli => ../../..
 
 replace intent-go => ../../../packages/intent-go
+
+replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch

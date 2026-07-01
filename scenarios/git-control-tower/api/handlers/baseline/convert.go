@@ -80,6 +80,9 @@ func diffResultToProto(res bl.DiffResult) *baselinesv1.DiffResult {
 	for _, d := range res.Surfaces {
 		out.Surfaces = append(out.Surfaces, surfaceDiffToProto(d))
 	}
+	for _, d := range res.Phases {
+		out.Phases = append(out.Phases, phaseDiffToProto(d))
+	}
 	return out
 }
 
@@ -92,6 +95,19 @@ func surfaceDiffToProto(d bl.SurfaceDiff) *baselinesv1.SurfaceDiff {
 		Preexisting: d.Preexisting,
 		Cleared:     d.Cleared,
 		Changed:     d.Changed,
+		Summary:     d.Summary,
+	}
+}
+
+func phaseDiffToProto(d bl.PhaseDetail) *baselinesv1.PhaseDiff {
+	return &baselinesv1.PhaseDiff{
+		Phase:       d.Phase,
+		SurfaceId:   d.SurfaceID,
+		Verdict:     string(d.Verdict),
+		Regressions: d.Regressions,
+		NewFailures: d.NewFailures,
+		Preexisting: d.Preexisting,
+		Cleared:     d.Cleared,
 		Summary:     d.Summary,
 	}
 }

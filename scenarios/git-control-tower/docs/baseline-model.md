@@ -38,10 +38,11 @@ flowchart LR
   test-genie's `ListRunVisuals`. There is no GCT-local visual storage for
   baselines.
 
-The `{surface → phase-set}` grouping is the SSOT in
-`internal/baseline/views.go`. Because the manifest only holds pointers into one
-run, capturing a baseline is one execution and the same run can back several
-baselines.
+The `{surface → phase-set}` grouping in `internal/baseline/views.go` is a
+presentation map, not the capture or verdict authority. Test Genie owns the
+full phase catalog and comparison semantics. Because the manifest only holds
+pointers into one run, capturing a baseline is one execution and the same run
+can back several baselines.
 
 ## Branch scoping (Decision 2)
 
@@ -60,31 +61,40 @@ every branch.
 
 There is no per-surface adapter layer. One executor triggers the comprehensive
 run; one comparer diffs two runs. The mapping from surface to its test-genie
-phases lives in `internal/baseline/views.go` (`surfacePhases`). To **add a new
-phase-set surface**:
+phases lives in `internal/baseline/views.go` (`surfacePhases`) only to render
+named views. To **add a new phase-set surface**:
 
 1. Add its `{surface → phase-set}` entry to `surfacePhases` in `views.go`.
 2. Add its `Surface*` constant + a slot in `AllSurfaces` (`model.go`).
 3. Add it to `BASELINE_SURFACES` in the UI (`ui/src/features/baselines/model.ts`)
    so the modal, chips, and diff routing pick it up.
 
-**Diff is option-c.** A diff resolves one current comprehensive run and issues
-**one** empty-phase `CompareRuns(baselineRun, currentRun)`. test-genie returns a
-flat `PhaseDiff[]` (every phase's delta); GCT buckets those phases back into
-surfaces **locally** via the `surfacePhases` inverse index. A multi-phase
-surface like `tests` aggregates its phases' deltas (worst verdict wins). The
-`visuals` surface is diffed at the metadata level (page set + screenshot count)
-over the two runs' `ListRunVisuals` results — no pixel diffing.
+Adding a new Test Genie phase does **not** require adding a surface. New phases
+automatically participate in unfiltered baseline comparison when Test Genie
+marks them comparable; the surface map only decides whether they appear inside
+a named legacy grouping.
+
+**Diff is option-c plus full-phase authority.** A diff resolves one current
+comprehensive run and issues **one** empty-phase
+`CompareRuns(baselineRun, currentRun)`. Test Genie returns a flat `PhaseDiff[]`
+for the comparable phase union. GCT exposes that phase list directly and
+computes the overall verdict from it, including phases that do not belong to a
+legacy named surface. GCT also buckets mapped phases back into surfaces
+**locally** via the `surfacePhases` inverse index for presentation. A
+multi-phase surface like `tests` aggregates its phases' deltas (worst verdict
+wins). The `visuals` surface is diffed at the metadata level over the two runs'
+visual comparison results and remains advisory.
 
 **Diff is durable and return-fast (mirrors snapshot).** `StartDiff` resolves the
 current run and returns **immediately** with its run id + ETA + a re-attach
-command — it never silently blocks. Snapshot/diff start banners include an
-agent wait protocol with a bounded `test-genie runs wait --json --timeout=...`
-command, ETA, recommended timeout, and interrupted-wait recovery via
-`pgrep` + `tail --pid`. The verdict is computed and **cached server-side** when
-the run completes (keyed `(repoID, scenario, branch, name, runID)`), surviving
-client disconnect; `GetDiffResult` returns it instantly. `StartDiff` also records
-a small durable intent before returning, so an interrupted wait can recover the
+command — it never silently blocks. Snapshot start banners name
+`git-control-tower baseline snapshot status --wait --json` as the authoritative
+parent-workflow wait path; raw `test-genie runs wait` is diagnostic only. Diff
+start banners include a bounded run wait and the GCT diff status resolve
+command. The verdict is computed and **cached server-side** when the run
+completes (keyed `(repoID, scenario, branch, name, runID)`), surviving client
+disconnect; `GetDiffResult` returns it instantly. `StartDiff` also records a
+small durable intent before returning, so an interrupted wait can recover the
 most recent run id for a baseline without guessing from test-genie history.
 The CLI:
 

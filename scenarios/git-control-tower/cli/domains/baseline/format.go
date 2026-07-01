@@ -53,6 +53,21 @@ func agentWaitBlock(scenario, run string, eta int32, etaKnown bool) string {
 	return b.String()
 }
 
+func snapshotStatusWaitBlock(scenario, name, run string, eta int32, etaKnown bool) string {
+	waitSeconds := recommendedWaitSeconds(eta, etaKnown)
+	etaStr := "unknown"
+	if etaKnown {
+		etaStr = (time.Duration(eta) * time.Second).String()
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "  Agent wait protocol:\n")
+	fmt.Fprintf(&b, "    Run exactly once:\n      git-control-tower baseline snapshot status --scenario %s --name %s --run %s --wait --json\n", scenario, name, run)
+	fmt.Fprintf(&b, "    Expected duration: ~%s; recommended client timeout: %s.\n", etaStr, (time.Duration(waitSeconds) * time.Second).String())
+	fmt.Fprintf(&b, "    Raw run diagnostics, if needed:\n      %s\n", waitCommand(scenario, run, waitSeconds))
+	fmt.Fprintf(&b, "      test-genie runs follow %s %s\n", scenario, run)
+	return b.String()
+}
+
 // verdictMark returns a glyph for a surface/overall verdict.
 func verdictMark(verdict string) string {
 	switch verdict {
@@ -112,8 +127,7 @@ func snapshotBanner(resp *baselinesv1.SnapshotForBaselineResponse) string {
 		fmt.Fprintf(&b, "▶ Baseline %q for %s — comprehensive run %s started\n", resp.GetName(), resp.GetScenario(), resp.GetRunId())
 	}
 	fmt.Fprintf(&b, "  estimated %s — the run is durable server-side; the baseline pins automatically when it completes.\n", eta)
-	b.WriteString(agentWaitBlock(resp.GetScenario(), resp.GetRunId(), resp.GetEstimatedTotalSeconds(), resp.GetEtaKnown()))
-	fmt.Fprintf(&b, "  watch live:    test-genie runs follow %s %s\n", resp.GetScenario(), resp.GetRunId())
+	b.WriteString(snapshotStatusWaitBlock(resp.GetScenario(), resp.GetName(), resp.GetRunId(), resp.GetEstimatedTotalSeconds(), resp.GetEtaKnown()))
 	fmt.Fprintf(&b, "  then inspect:  git-control-tower baseline snapshot status --scenario %s --name %s --run %s\n", resp.GetScenario(), resp.GetName(), resp.GetRunId())
 	if w := resp.GetDirtyWarning(); w != "" {
 		fmt.Fprintf(&b, "⚠ %s\n", w)
@@ -231,6 +245,21 @@ func printDiff(resp *baselinesv1.DiffResult) {
 		printLines("preexisting", s.GetPreexisting())
 		printLines("cleared", s.GetCleared())
 		printLines("changed — review", s.GetChanged())
+	}
+	if len(resp.GetPhases()) > 0 {
+		fmt.Println()
+		fmt.Println("Phases:")
+		for _, p := range resp.GetPhases() {
+			label := p.GetPhase()
+			if p.GetSurfaceId() != "" {
+				label += " (" + p.GetSurfaceId() + ")"
+			}
+			fmt.Printf("  %-24s %s %s\n", label, verdictMark(p.GetVerdict()), p.GetSummary())
+			printLines("regression", p.GetRegressions())
+			printLines("new", p.GetNewFailures())
+			printLines("preexisting", p.GetPreexisting())
+			printLines("cleared", p.GetCleared())
+		}
 	}
 	fmt.Println()
 	if w := resp.GetDirtyWarning(); w != "" {
