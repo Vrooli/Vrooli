@@ -135,7 +135,7 @@ func TestSafetyGates_CleanPasses(t *testing.T) {
 	hyp := Tokenize("alpha bravo charlie", opts)
 	_, ops := AlignOperations(ref, hyp)
 
-	got := EvaluateSafety(ref, hyp, ops, []CommitState{
+	got := EvaluateSafety(ops, []CommitState{
 		{Text: "alpha", AtMs: 100},
 		{Text: "alpha bravo", AtMs: 200},
 		{Text: "alpha bravo charlie", AtMs: 300},
@@ -154,7 +154,7 @@ func TestSafetyGates_DetectsCommittedTextRetraction(t *testing.T) {
 	hyp := Tokenize("alpha delta charlie", opts)
 	_, ops := AlignOperations(ref, hyp)
 
-	got := EvaluateSafety(ref, hyp, ops, []CommitState{
+	got := EvaluateSafety(ops, []CommitState{
 		{Text: "alpha bravo", AtMs: 100},
 		{Text: "alpha delta", AtMs: 200},
 	}, SafetyOptions{})
@@ -172,7 +172,7 @@ func TestSafetyGates_DetectsThresholdSizedDroppedSpan(t *testing.T) {
 	hyp := Tokenize("one six", opts)
 	_, ops := AlignOperations(ref, hyp)
 
-	got := EvaluateSafety(ref, hyp, ops, []CommitState{{Text: "one six", AtMs: 100}}, SafetyOptions{
+	got := EvaluateSafety(ops, []CommitState{{Text: "one six", AtMs: 100}}, SafetyOptions{
 		DroppedSpanThresholdWords: 4,
 	})
 

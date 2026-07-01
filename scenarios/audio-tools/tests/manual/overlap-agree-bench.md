@@ -3,7 +3,8 @@
 > **Superseded by the automated eval harness (2026-06-29).** The
 > hand-filled tables below are now produced automatically: record clips in
 > the Dictation Studio UI (or `audio-tools corpus import`), then run
-> `audio-tools eval run --realtime-repeats 5` to get WER, RTF,
+> `audio-tools experiment start --realtime-repeats 5` plus
+> `audio-tools experiment report <id>` to get WER, RTF,
 > Whisper-call count, audio-seconds, and finalization-latency p50/p95 for
 > batch + vad-segment + overlap-agree on the **same** clips — reproducibly.
 > The harness also measures the new `overlap_max_stall_rejects` lever's

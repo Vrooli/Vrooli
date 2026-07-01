@@ -142,10 +142,10 @@
       "action": {
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(() => { const text = document.body.innerText; return Boolean(document.querySelector('[data-testid=\"dictation-run-eval\"]') && text.includes('Run an eval')); })()",
+          "expression": "(() => { const text = document.body.innerText; return Boolean(document.querySelector('[data-testid=\"dictation-start-experiment\"]') && text.includes('Start experiment')); })()",
           "expected_value": true
         },
-        "metadata": { "label": "Assert the Eval tab shows its empty state and run control" }
+        "metadata": { "label": "Assert the lab tab shows its experiment start control" }
       }
     },
     {

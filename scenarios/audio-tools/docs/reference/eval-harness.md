@@ -21,12 +21,12 @@ per-case + aggregate report.
    (`~/.vrooli/data/.../corpus-blobs`) — never git, never the DB. The blob
    namespace is variant-aware, so a shadow instance's corpus never collides
    with live's.
-2. **Harness** (`EvalService`, `api/internal/eval`) — replays each clip
-   through each strategy and reports the metrics. Streaming rows
-   (`vad_segment`, `overlap_agree`) route through the production
-   `internal/stt/segmenter` path with speaker stages unbound by default,
-   so eval exercises the same ingress/selector/egress construction point as
-   live STT without reading or mutating the live stream-config row.
+2. **Harness** (`api/internal/eval`) — internal replay/report machinery used
+   by persisted experiments. Streaming rows (`vad_segment`, `overlap_agree`)
+   route through the production `internal/stt/segmenter` path with per-run
+   speaker/config snapshots, so experiments exercise the same
+   ingress/selector/egress construction point as live STT without reading or
+   mutating the live stream-config row.
 
 ## Metrics
 
@@ -55,6 +55,14 @@ final-tail approximation for long-form clips: it measures last-chunk →
 terminal transcript behavior without sleeping through minutes of prefix
 audio, but it intentionally does not model prefix backlog effects.
 
+Persisted experiments expose the per-run stream tuning levers as typed CLI
+flags, so sweeps do not need hand-written recipe JSON. `--overlap-max-window-ms`,
+`--overlap-max-stall-rejects`, `--overlap-window-ms`, and
+`--overlap-commit-runs` apply only to `overlap_agree` rows.
+`--vad-silence-ms` applies only to `vad_segment` rows. Passing
+`--overlap-max-stall-rejects 0` explicitly disables the stall fallback; omitting
+it keeps the stream-config default.
+
 > **WER normalization is a documented non-goal of parity** with OpenAI
 > Whisper's Python normalizer (number-word expansion, currency/unit rules).
 > v1 uses a small local normalizer, so absolute WER is comparable *within*
@@ -63,10 +71,10 @@ audio, but it intentionally does not model prefix backlog effects.
 
 ## Interpreting the report
 
-`EvalService.RunEval` returns both raw measurements and explanation fields.
-Consumers should prefer the backend-owned `summary`, row `verdict`, row
-`reasons`, and `warnings` fields over re-deriving strategy ranking in UI or
-CLI code.
+Persisted experiment reports return both raw measurements and explanation
+fields. Consumers should prefer the backend-owned `summary`, row `verdict`,
+row `reasons`, and `warnings` fields over re-deriving strategy ranking in UI
+or CLI code.
 
 The default ranking policy is deterministic:
 
@@ -97,6 +105,33 @@ words reaches the stored threshold (`audio-tools experiment start
 from WER so a single catastrophic omission stays visible even when the
 aggregate rate looks acceptable.
 
+## Experiment JSON contract
+
+`audio-tools experiment --json` uses proto JSON with snake_case field names.
+Unlike the default CLI proto renderer, the experiment surface emits
+zero/default scalar values so best-case metrics remain explicit: a perfect
+condition includes fields such as `"wer": 0`,
+`"finalization_latency_p95_ms": 0`, `"partial_revisions": 0`,
+`"estimated_seconds": 0`, and zero deltas. Unset message fields are still
+omitted rather than emitted as `null`.
+
+Envelope shapes are command-specific:
+
+| Command | JSON envelope |
+|---|---|
+| `experiment start` | `{experiment, estimated_seconds}` |
+| `experiment get` | `{experiment, runs}` |
+| `experiment wait` | terminal with report available: `{experiment, report, runs}`; otherwise `{experiment, runs}` |
+| `experiment report` | `{experiment, report, runs}` |
+| `experiment list` | `{experiments}` |
+| `experiment compare` | `{experiments:[{experiment, report}]}` |
+
+`report` is the canonical structured metrics payload and uses snake_case
+proto fields throughout. `ExperimentRun.metrics_json` is a persisted run-cell
+blob from the backend and remains a nested JSON string using the backend's
+camelCase keys (for example `refWords`). Prefer the `report` object for new
+automation; use `metrics_json` only for low-level run-cell debugging.
+
 ## Normalization policy
 
 WER normalization lowercases text, removes Unicode punctuation and symbols,
@@ -121,15 +156,18 @@ remain strict.
 audio-tools corpus import clip.pcm --reference "the quick brown fox" --tags news,clean
 audio-tools corpus list
 
-# 2. Run the comparison (quality only — fast):
-audio-tools eval run
+# 2. Enqueue a persisted quality-only comparison over the corpus:
+audio-tools experiment start --strategies batch,vad_segment,overlap_agree --json
+audio-tools experiment wait <experiment-id> --json
 
 # 3. Add finalization-latency measurement (slower; repeated real-time runs):
-audio-tools eval run --realtime-repeats 5 --output report.json
+audio-tools experiment start --strategies batch,vad_segment,overlap_agree --realtime-repeats 5 --json
+audio-tools experiment report <experiment-id>
 
-# 4. Tune overlap-agree experiment knobs hermetically and re-run to see
+# 4. Tune overlap-agree experiment knobs hermetically and compare reports to see
 #    latency/WER deltas without changing live STT settings:
-audio-tools eval run --strategies overlap_agree --overlap-max-window-ms 12000 --realtime-repeats 5
+audio-tools experiment start --strategies overlap_agree --overlap-max-window-ms 12000 --realtime-repeats 5 --json
+audio-tools experiment compare <baseline-id>,<tuned-id>
 
 # 5. Enqueue a persisted long-form experiment from the same corpus:
 audio-tools experiment start --long-form true --target-duration-seconds 180 --gap-ms 5000 --seed 42 --json
@@ -138,6 +176,12 @@ audio-tools experiment watch <experiment-id>
 # 5b. Measure long-form final-tail latency without pacing the full prefix:
 audio-tools experiment start --long-form true --target-duration-seconds 180 \
   --realtime-repeats 2 --latency-tail-seconds 8 --json
+
+# 5b-2. Sweep overlap-agree tail-latency knobs hermetically from flags:
+audio-tools experiment start --strategies overlap_agree \
+  --overlap-max-stall-rejects 3 --overlap-window-ms 2000 \
+  --overlap-commit-runs 2 --realtime-repeats 2 \
+  --latency-tail-seconds 8 --json
 
 # 5c. Populate the metric-vs-length CURVE in one run: a length sweep builds one
 #     seeded input per duration, so the report's length buckets get multiple
@@ -182,12 +226,12 @@ ceiling on uncommitted tail growth before force-commit. The harness answers,
 with saved numbers: *does the stall-fallback or max-window ceiling lower
 finalization latency without raising WER beyond an agreed delta?*
 
-Today the harness recommends a winning strategy and explains measured
-trade-offs. Mutating stream config remains intentionally outside
-`EvalService`; the experiment/eval knobs are a per-run `StreamConfig`
-snapshot layered over defaults, not a write to `stt_stream_config`.
-A future bounded sweep RPC should call that same writer for apply semantics
-rather than creating a second config mutation path.
+Today persisted experiment reports recommend a winning strategy and explain
+measured trade-offs. Mutating stream config remains intentionally outside the
+experiment lab; the experiment/eval knobs are a per-run `StreamConfig`
+snapshot layered over defaults, not a write to `stt_stream_config`. A future
+bounded sweep/apply operation should call the existing STT config writer for
+apply semantics rather than creating a second config mutation path.
 
 Persisted experiments can also ask the worker to build a long-form input
 from corpus clips before running the same harness. Long-form recipes store

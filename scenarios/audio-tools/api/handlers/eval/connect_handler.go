@@ -5,42 +5,12 @@ import (
 	"errors"
 	"fmt"
 
-	"connectrpc.com/connect"
-
 	inteval "audio-tools/internal/eval"
 
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval"
 )
 
-type connectHandler struct{ deps Deps }
-
-// NewConnectHandler builds the EvalService Connect handler. Deps.Logger and
-// Deps.Clock are required seams; nil values panic.
-func NewConnectHandler(d Deps) *connectHandler {
-	if d.Logger == nil {
-		panic("eval.NewConnectHandler requires Deps.Logger")
-	}
-	if d.Clock == nil {
-		panic("eval.NewConnectHandler requires Deps.Clock")
-	}
-	return &connectHandler{deps: d}
-}
-
-func (h *connectHandler) RunEval(ctx context.Context, req *connect.Request[evalv1.RunEvalRequest]) (*connect.Response[evalv1.RunEvalResponse], error) {
-	report, err := RunReport(ctx, h.deps, req.Msg.GetClipIds(), req.Msg.GetStrategies(), req.Msg.GetRealtimeRepeats(), req.Msg.GetChunkMs())
-	if err != nil {
-		var code connect.Code
-		if errors.Is(err, errEvalNotConfigured) || errors.Is(err, errEvalNoProvider) || errors.Is(err, errEvalEmptyCorpus) {
-			code = connect.CodeFailedPrecondition
-		} else if errors.Is(err, errEvalInvalidRequest) {
-			code = connect.CodeInvalidArgument
-		} else {
-			code = connect.CodeInternal
-		}
-		return nil, connect.NewError(code, err)
-	}
-	return connect.NewResponse(&evalv1.RunEvalResponse{Report: ReportToProto(report)}), nil
-}
+type reportRunner struct{ deps Deps }
 
 var (
 	errEvalNotConfigured  = errors.New("eval service not configured (no corpus/database)")
@@ -56,7 +26,7 @@ func RunReport(ctx context.Context, deps Deps, clipIDs []string, strategies []*e
 }
 
 func RunReportWithOptions(ctx context.Context, deps Deps, clipIDs []string, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs int32, opts inteval.EvalOptions) (inteval.EvalReport, error) {
-	h := &connectHandler{deps: deps}
+	h := &reportRunner{deps: deps}
 	if h.deps.Corpus == nil {
 		return inteval.EvalReport{}, errEvalNotConfigured
 	}
@@ -82,7 +52,7 @@ func RunReportForClips(ctx context.Context, deps Deps, clips []inteval.Clip, str
 }
 
 func RunReportForClipsWithOptions(ctx context.Context, deps Deps, clips []inteval.Clip, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs int32, opts inteval.EvalOptions) (inteval.EvalReport, error) {
-	h := &connectHandler{deps: deps}
+	h := &reportRunner{deps: deps}
 	if h.deps.NewProvider == nil {
 		return inteval.EvalReport{}, errEvalNoProvider
 	}
@@ -96,7 +66,7 @@ func RunReportForClipsWithOptions(ctx context.Context, deps Deps, clips []inteva
 	opts.ChunkMs = int(chunkMs)
 	opts.QualityPass = true
 	opts.RealtimeRepeats = int(realtimeRepeats)
-	return inteval.RunEval(ctx, clips, specs, opts), nil
+	return inteval.RunReport(ctx, clips, specs, opts), nil
 }
 
 func ReportToProto(r inteval.EvalReport) *evalv1.EvalReport {

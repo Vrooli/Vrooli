@@ -51,22 +51,22 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ### 2026-06-29 — Eval auto-tune sweep/apply RPC deferred
 
-**Symptom:** Dictation Studio eval reports now recommend a winning strategy,
-show corpus adequacy warnings, explain row trade-offs, and expose per-clip
-diffs. They do not yet offer a backend-owned `EvalService.Sweep`/`Tune` RPC
+**Symptom:** Dictation Studio experiment reports now recommend a winning
+strategy, show corpus adequacy warnings, explain row trade-offs, and expose
+per-clip diffs. They do not yet offer a backend-owned sweep/apply operation
 that evaluates bounded candidate stream configs and explicitly applies the
-recommended config from the eval surface.
+recommended config from the experiment surface.
 
 **Root cause:** The validated mutation path for streaming STT config is
-`STTAdminService.UpdateStreamConfig`. `EvalService` intentionally owns
-measurement and report semantics only; adding apply semantics there requires
+`STTAdminService.UpdateStreamConfig`. The experiment lab intentionally owns
+measurement and report semantics only; adding apply semantics requires
 threading the existing STT admin writer or a shared config-apply seam rather
 than creating a second JSON config writer.
 
 **Workaround:** Use the report recommendation and row warnings to pick a
 bounded lever change, then apply it through `audio-tools stt
-stream-config-set` or the STT admin UI. Re-run `audio-tools eval run
---realtime-repeats N` to compare the changed config.
+stream-config-set` or the STT admin UI. Re-run `audio-tools experiment start
+--realtime-repeats N` and compare reports to evaluate the changed config.
 
 **Real fix:** Add a preview-first bounded sweep RPC that constructs named
 candidate arms (`balanced`, `lowest_latency`, `lowest_cost`,

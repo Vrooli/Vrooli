@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"audio-tools/internal/clock"
 )
@@ -14,7 +15,11 @@ var (
 	ErrNotStarted = errors.New("experiment: manager not started")
 )
 
-const queueCap = 64
+const (
+	queueCap          = 64
+	closeWaitTimeout  = 5 * time.Second
+	cancelWaitTimeout = 2 * time.Second
+)
 
 // Logger is the narrow logging seam the Manager uses to surface persistence
 // failures it cannot return to a caller (they happen on the background worker).
@@ -101,12 +106,16 @@ func (m *Manager) Start(ctx context.Context) error {
 		return fmt.Errorf("experiment: runner is required")
 	}
 	m.baseCtx, m.cancel = context.WithCancel(ctx)
-	m.started = true
 	m.mu.Unlock()
 
 	if err := m.recover(); err != nil {
+		m.cancel()
 		return err
 	}
+
+	m.mu.Lock()
+	m.started = true
+	m.mu.Unlock()
 
 	m.wg.Add(1)
 	go m.worker()
@@ -125,7 +134,16 @@ func (m *Manager) Close() {
 	if cancel != nil {
 		cancel()
 	}
-	m.wg.Wait()
+	done := make(chan struct{})
+	go func() {
+		m.wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(closeWaitTimeout):
+		m.logger.Printf("experiment manager close timed out after %s; worker still stopping", closeWaitTimeout)
+	}
 }
 
 func (m *Manager) recover() error {
@@ -326,6 +344,12 @@ func (m *Manager) finalizeEntry(e *entry, final Experiment) {
 	e.subs = nil
 	close(e.done)
 	e.mu.Unlock()
+
+	m.mu.Lock()
+	if m.entries[final.ID] == e {
+		delete(m.entries, final.ID)
+	}
+	m.mu.Unlock()
 }
 
 func (m *Manager) emit(e *entry, status Status, progress int, message string) {
@@ -446,6 +470,25 @@ func (m *Manager) Cancel(id string) error {
 		cancel := e.cancel
 		e.mu.Unlock()
 		cancel()
+		select {
+		case <-e.done:
+			return nil
+		case <-time.After(cancelWaitTimeout):
+			now := m.clock.Now().UTC()
+			e.mu.Lock()
+			if e.exp.Status.Terminal() {
+				e.mu.Unlock()
+				return nil
+			}
+			e.exp.Status = StatusCanceled
+			e.exp.FinishedAt = &now
+			final := e.exp
+			e.mu.Unlock()
+			if err := m.service.repo.UpdateExperiment(m.baseCtx, final); err != nil {
+				m.logger.Printf("experiment %s: persist cancel-timeout status: %v", final.ID, err)
+			}
+			m.finalizeEntry(e, final)
+		}
 		return nil
 	}
 	now := m.clock.Now().UTC()

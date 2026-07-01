@@ -15,7 +15,6 @@
 | `audio-tools corpus import AUDIO_FILE --reference TEXT [--reference-file PATH] [--tags a,b] [--format pcm_s16le] [--sample-rate 16000] [--scripted]` | Import a PCM clip + ground-truth transcript into the corpus | `CorpusService.CreateClip` |
 | `audio-tools corpus get ID` | Show one clip's metadata | `CorpusService.GetClip` |
 | `audio-tools corpus delete ID` | Delete a clip (row + audio blob) | `CorpusService.DeleteClip` |
-| `audio-tools eval run [--strategies batch,vad_segment,overlap_agree] [--clip-ids …] [--realtime-repeats N] [--chunk-ms N] [--overlap-max-window-ms N] [--output FILE] [--format table\|json]` | Replay the corpus through the strategies and print the WER/compute/latency comparison table (see [`eval-harness.md`](eval-harness.md)) | `EvalService.RunEval` |
 | `audio-tools experiment start [--name LABEL] [--strategies …] [--clip-ids …] [--realtime-repeats N] [--chunk-ms N] [--dropped-span-threshold N] [--overlap-max-window-ms N] [--seed N] [--long-form true] [--target-duration-seconds N] [--gap-ms N] [--tag-contains SUBSTR] [--noise-types white,fan] [--snr-db 18,12,6] [--competing-voices af_bella] [--competing-text TEXT] [--target-profile-id ID] [--speaker-extraction true] [--speaker-verification true] [--speaker-mode filter] [--speaker-threshold 0.5] [--speaker-fallback false] [--speaker-ablation true] [--estimated-seconds N]` | Enqueue a persisted async STT experiment and return its id immediately; long-form mode concatenates selected clips with deterministic silence gaps, augmentation mixes generated noise or Kokoro voices at the SNR grid, speaker flags bind per-run extraction/verification without mutating live speaker config, and the report stores safety gates/length curves (`--dropped-span-threshold`, default 4) with condition notes | `ExperimentService.StartExperiment` |
 | `audio-tools experiment get ID` | Show one experiment's persisted lifecycle state and run cells | `ExperimentService.GetExperiment` |
 | `audio-tools experiment wait ID` | Block once until the experiment reaches a terminal state; caller cancellation does not abort the run | `ExperimentService.WaitExperiment` |
@@ -36,6 +35,10 @@
 | `audio-tools settings byok-delete --provider ID --capability stt\|tts\|summarize` | Delete a BYOK credential | `SettingsService.DeleteBYOKCredential` |
 
 Output defaults to human-readable rendering; pass `--json` for machine output (Connect-RPC wire shape).
+
+The former synchronous eval command was retired on 2026-07-01. Use
+`audio-tools experiment start` plus `experiment wait`, `experiment report`,
+and `experiment compare` for all STT evaluation runs.
 
 The scenario CLI is a thin Go wrapper over the API. Every command
 calls a single API endpoint and renders the result; there is no

@@ -4,7 +4,6 @@ const createClipRpc = vi.fn();
 const listClipsRpc = vi.fn();
 const deleteClipRpc = vi.fn();
 const getClipAudioRpc = vi.fn();
-const runEvalRpc = vi.fn();
 
 vi.mock("../api/client", () => ({ transport: {} }));
 vi.mock("@connectrpc/connect", () => ({
@@ -13,7 +12,6 @@ vi.mock("@connectrpc/connect", () => ({
     listClips: (req: unknown) => listClipsRpc(req),
     deleteClip: (req: unknown) => deleteClipRpc(req),
     getClipAudio: (req: unknown) => getClipAudioRpc(req),
-    runEval: (req: unknown) => runEvalRpc(req),
   }),
 }));
 
@@ -23,7 +21,7 @@ import {
   listClips,
   deleteClip,
   getClipAudio,
-  runEval,
+  decodeEvalReport,
 } from "./corpus";
 
 const protoClip = {
@@ -113,81 +111,76 @@ describe("listClips / deleteClip / getClipAudio", () => {
   });
 });
 
-describe("runEval", () => {
-  it("defaults overlap stall rejects to -1 and decodes the report", async () => {
-    runEvalRpc.mockResolvedValue({
-      report: {
-        perStrategy: [
-          {
-            strategy: "overlap_agree",
-            label: "",
-            wer: 0.12,
-            substitutions: 1,
-            insertions: 0,
-            deletions: 0,
-            refWords: 10,
-            whisperCalls: 3,
-            whisperAudioSeconds: 4.5,
-            rtf: 0.8,
-            finalizationLatencyP50Ms: 120,
-            finalizationLatencyP95Ms: 240,
-            partialRevisions: 2,
-            werDeltaVsWinner: 0.02,
-            p95DeltaMsVsWinner: 100,
-            callMultiplierVsWinner: 1.5,
-            verdict: "tradeoff",
-            reasons: ["Uses more calls."],
-            warnings: [{ code: "higher_compute", message: "Compute is higher.", severity: "warning" }],
-            perClip: [
-              {
-                clipId: "clip-1",
-                reference: "Hello, world!",
-                hypothesis: "hello word",
-                wer: 0.5,
-                whisperCalls: 1,
-                whisperAudioSeconds: 1.5,
-                rtf: 0.5,
-                segmentCount: 1,
-                partialRevisions: 1,
-                finalizationLatencyP50Ms: 100,
-                finalizationLatencyP95Ms: 200,
-                error: "",
-                substitutions: 1,
-                insertions: 0,
-                deletions: 0,
-                refWords: 2,
-                hypWords: 2,
-                normalizedReference: "hello world",
-                normalizedHypothesis: "hello word",
-                editOperations: [
-                  { kind: "match", referenceToken: "hello", hypothesisToken: "hello", referenceIndex: 0, hypothesisIndex: 0 },
-                  { kind: "substitution", referenceToken: "world", hypothesisToken: "word", referenceIndex: 1, hypothesisIndex: 1 },
-                ],
-              },
-            ],
-          },
-        ],
-        qualityMeasured: true,
-        latencyMeasured: true,
-        summary: {
-          winnerStrategy: "batch",
-          winnerLabel: "batch",
-          recommendation: "Prefer batch.",
-          confidence: "low",
-          reasons: ["Best WER."],
-          confidenceNotes: ["Tiny corpus."],
+describe("decodeEvalReport", () => {
+  it("decodes the report", () => {
+    const report = {
+      perStrategy: [
+        {
+          strategy: "overlap_agree",
+          label: "",
+          wer: 0.12,
+          substitutions: 1,
+          insertions: 0,
+          deletions: 0,
+          refWords: 10,
+          whisperCalls: 3,
+          whisperAudioSeconds: 4.5,
+          rtf: 0.8,
+          finalizationLatencyP50Ms: 120,
+          finalizationLatencyP95Ms: 240,
+          partialRevisions: 2,
+          werDeltaVsWinner: 0.02,
+          p95DeltaMsVsWinner: 100,
+          callMultiplierVsWinner: 1.5,
+          verdict: "tradeoff",
+          reasons: ["Uses more calls."],
+          warnings: [{ code: "higher_compute", message: "Compute is higher.", severity: "warning" }],
+          perClip: [
+            {
+              clipId: "clip-1",
+              reference: "Hello, world!",
+              hypothesis: "hello word",
+              wer: 0.5,
+              whisperCalls: 1,
+              whisperAudioSeconds: 1.5,
+              rtf: 0.5,
+              segmentCount: 1,
+              partialRevisions: 1,
+              finalizationLatencyP50Ms: 100,
+              finalizationLatencyP95Ms: 200,
+              error: "",
+              substitutions: 1,
+              insertions: 0,
+              deletions: 0,
+              refWords: 2,
+              hypWords: 2,
+              normalizedReference: "hello world",
+              normalizedHypothesis: "hello word",
+              editOperations: [
+                { kind: "match", referenceToken: "hello", hypothesisToken: "hello", referenceIndex: 0, hypothesisIndex: 0 },
+                { kind: "substitution", referenceToken: "world", hypothesisToken: "word", referenceIndex: 1, hypothesisIndex: 1 },
+              ],
+            },
+          ],
         },
-        warnings: [{ code: "tiny_corpus", message: "Only 1 clip.", severity: "warning" }],
-        normalizationPolicy: {
-          werPolicy: "WER policy.",
-          overlapAgreementPolicy: "Agreement policy.",
-        },
+      ],
+      qualityMeasured: true,
+      latencyMeasured: true,
+      summary: {
+        winnerStrategy: "batch",
+        winnerLabel: "batch",
+        recommendation: "Prefer batch.",
+        confidence: "low",
+        reasons: ["Best WER."],
+        confidenceNotes: ["Tiny corpus."],
       },
-    });
-    const out = await runEval({ strategies: [{ kind: "overlap_agree" }], realtimeRepeats: 3 });
-    const req = runEvalRpc.mock.calls[0]![0];
-    expect(req.strategies[0].overlapMaxStallRejects).toBe(-1);
-    expect(req.realtimeRepeats).toBe(3);
+      warnings: [{ code: "tiny_corpus", message: "Only 1 clip.", severity: "warning" }],
+      normalizationPolicy: {
+        werPolicy: "WER policy.",
+        overlapAgreementPolicy: "Agreement policy.",
+      },
+    } as Parameters<typeof decodeEvalReport>[0];
+    const out = decodeEvalReport(report);
     expect(out.perStrategy[0]!.label).toBe("overlap_agree");
     expect(out.perStrategy[0]!.perClip[0]!.normalizedReference).toBe("hello world");
     expect(out.perStrategy[0]!.perClip[0]!.editOperations[1]!.kind).toBe("substitution");
@@ -198,9 +191,8 @@ describe("runEval", () => {
     expect(out.qualityMeasured).toBe(true);
   });
 
-  it("returns empty defaults when the report is absent", async () => {
-    runEvalRpc.mockResolvedValue({});
-    const out = await runEval();
+  it("returns empty defaults when the report is absent", () => {
+    const out = decodeEvalReport();
     expect(out.perStrategy).toEqual([]);
     expect(out.qualityMeasured).toBe(false);
     expect(out.latencyMeasured).toBe(false);

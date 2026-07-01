@@ -82,6 +82,15 @@ export interface ExperimentRow {
 export interface RecipeSummary {
   clipIds: string[];
   strategies: string[];
+  strategyDetails?: Array<{
+    kind: string;
+    label: string;
+    overlapMaxWindowMs: number;
+    overlapMaxStallRejects: number;
+    overlapWindowMs: number;
+    overlapCommitRuns: number;
+    vadSilenceMs: number;
+  }>;
   realtimeRepeats: number;
   latencyTailSeconds: number;
   chunkMs: number;
@@ -171,6 +180,15 @@ function decodeRecipe(r?: ExperimentRecipe): RecipeSummary {
   return {
     clipIds: r?.clipIds ?? [],
     strategies: (r?.strategies ?? []).map((s) => s.kind || s.label).filter(Boolean),
+    strategyDetails: (r?.strategies ?? []).map((s) => ({
+      kind: s.kind,
+      label: s.label,
+      overlapMaxWindowMs: s.overlapMaxWindowMs,
+      overlapMaxStallRejects: s.overlapMaxStallRejects,
+      overlapWindowMs: s.overlapWindowMs,
+      overlapCommitRuns: s.overlapCommitRuns,
+      vadSilenceMs: s.vadSilenceMs,
+    })),
     realtimeRepeats: r?.realtimeRepeats ?? 0,
     latencyTailSeconds: r?.latencyTailSeconds ?? 0,
     chunkMs: r?.chunkMs ?? 0,
@@ -347,7 +365,7 @@ export async function compareExperiments(ids: string[]): Promise<ExperimentRepor
   return resp.experiments.map((row) => ({
     experiment: decodeExperiment(row.experiment),
     report: decodeEvalReport(row.report),
-    runs: [],
+    runs: ((row as { runs?: ExperimentRun[] }).runs ?? []).map(decodeRun),
   }));
 }
 

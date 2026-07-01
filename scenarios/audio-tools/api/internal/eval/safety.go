@@ -9,7 +9,7 @@ import (
 // EvaluateSafety computes the phase-7 hard gates for one clip. WER remains
 // the graded metric; these gates call out catastrophic streaming failures
 // that averages can hide.
-func EvaluateSafety(refTokens, hypTokens []string, ops []EditOperation, timeline []CommitState, opts SafetyOptions) SafetyGateReport {
+func EvaluateSafety(ops []EditOperation, timeline []CommitState, opts SafetyOptions) SafetyGateReport {
 	threshold := opts.DroppedSpanThresholdWords
 	if threshold <= 0 {
 		threshold = DefaultDroppedSpanThresholdWords
@@ -33,8 +33,6 @@ func EvaluateSafety(refTokens, hypTokens []string, ops []EditOperation, timeline
 	if out.Passed {
 		out.Reasons = append(out.Reasons, "no committed-text retractions or threshold-sized dropped spans detected")
 	}
-	_ = refTokens
-	_ = hypTokens
 	return out
 }
 

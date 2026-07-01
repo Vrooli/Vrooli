@@ -424,30 +424,8 @@
       ]
     },
     {
-      "name": "eval",
-      "description": "Run the STT strategy comparison harness over the corpus and print the WER/compute/latency report.",
-      "commands": [
-        {
-          "name": "run",
-          "description": "Replay the corpus through batch + vad-segment + overlap-agree and print the comparison table",
-          "flags": [
-            { "name": "strategies", "description": "Comma-separated strategy kinds (batch,vad_segment,overlap_agree); default all three" },
-            { "name": "clip-ids", "description": "Comma-separated clip ids to evaluate (default: whole corpus)" },
-            { "name": "realtime-repeats", "description": "Real-time-paced runs per clip for latency p50/p95 (0 = quality only)" },
-            { "name": "chunk-ms", "description": "Replay chunk size in ms (default 100)" },
-            { "name": "dropped-span-threshold", "description": "Contiguous deleted reference-word threshold for the safety gate (default 4)" },
-            { "name": "overlap-max-window-ms", "description": "Overlap-agree max uncommitted tail window in ms before force-commit (default 25000)" },
-            { "name": "output", "description": "Write the report JSON to this file" },
-            { "name": "format", "description": "Output format: table (default) or json" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "EvalService", "method": "RunEval" },
-          "governance": { "effect": "read", "run_eligible": false, "permissions": ["network:internal", "filesystem:write"] }
-        }
-      ]
-    },
-    {
       "name": "experiment",
-      "description": "Manage persisted async STT experiments: start, watch, wait, report, and compare runs.",
+      "description": "Manage persisted async STT experiments: start, watch, wait, report, and compare runs. --json uses proto snake_case and emits default scalar metrics so zero WER/latency/deltas are explicit.",
       "commands": [
         {
           "name": "start",
@@ -461,6 +439,10 @@
             { "name": "chunk-ms", "description": "Replay chunk size in ms (default 100)" },
             { "name": "dropped-span-threshold", "description": "Contiguous deleted reference-word threshold for the safety gate (default 4)" },
             { "name": "overlap-max-window-ms", "description": "Overlap-agree max uncommitted tail window in ms before force-commit (default 25000)" },
+            { "name": "overlap-max-stall-rejects", "description": "Overlap-agree stall-fallback rejected-window limit; 0 disables, absent uses stream-config default" },
+            { "name": "overlap-window-ms", "description": "Overlap-agree comparison window in ms (0 = stream-config default)" },
+            { "name": "overlap-commit-runs", "description": "Overlap-agree matching-run count required before commit (0 = stream-config default)" },
+            { "name": "vad-silence-ms", "description": "VAD segment silence threshold in ms (0 = stream-config default)" },
             { "name": "seed", "description": "Seed for deterministic long-form clip ordering (default 1 when long-form is enabled)" },
             { "name": "long-form", "description": "true|false — concatenate selected corpus clips into one seeded long-form input" },
             { "name": "target-duration-seconds", "description": "Keep concatenating seeded corpus clips until this approximate input duration is reached" },
@@ -483,7 +465,7 @@
             { "name": "recipe-file", "description": "Path to a JSON file holding an ExperimentRecipe (protojson) used as the BASE recipe; individual --flags override its fields. Mutually exclusive with --recipe-json" }
           ],
           "binding": { "kind": "connect-rpc", "service": "ExperimentService", "method": "StartExperiment" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal", "filesystem:read"] }
         },
         {
           "name": "get",
@@ -496,7 +478,7 @@
         },
         {
           "name": "wait",
-          "description": "Block once until an experiment reaches a terminal state; canceling the client does not abort the run. Example: audio-tools experiment wait <id> --json",
+          "description": "Block once until an experiment reaches a terminal state; canceling the client does not abort the run. With --json, terminal experiments include the stored report envelope (experiment, report, runs) when available; otherwise the lifecycle envelope is returned. Example: audio-tools experiment wait <id> --json",
           "positionals": [
             { "name": "id", "required": true, "description": "Experiment id" }
           ],
@@ -534,7 +516,7 @@
         },
         {
           "name": "report",
-          "description": "Fetch an experiment's stored report artifact and run-cell metrics. Example: audio-tools experiment report <id> --json",
+          "description": "Fetch an experiment's stored report artifact and run-cell metrics. --json returns {experiment, report, runs}; report metrics use snake_case with zero/default scalar fields emitted. Run-cell metrics_json remains the backend's nested camelCase JSON string. Example: audio-tools experiment report <id> --json",
           "positionals": [
             { "name": "id", "required": true, "description": "Experiment id" }
           ],
@@ -543,7 +525,7 @@
         },
         {
           "name": "compare",
-          "description": "Compare two or more experiments by id, showing each one's winning strategy, WER, p95 latency, calls, RTF, and safety gate, with deltas vs the best (lowest-WER) experiment. Ids may be space-separated AND/OR comma-separated. Experiments still running (no report) appear as a row with their status. Use --json for full recipes and reports. Example: audio-tools experiment compare <id-a> <id-b> --json",
+          "description": "Compare two or more experiments by id, showing each one's winning strategy, WER, p95 latency, calls, RTF, and safety gate, with deltas vs the best (lowest-WER) experiment. Ids may be space-separated AND/OR comma-separated. Experiments still running (no report) appear as a row with their status. Use --json for full recipes and reports with explicit zero/default scalar metrics. Example: audio-tools experiment compare <id-a> <id-b> --json",
           "positionals": [
             { "name": "ids", "required": true, "repeated": true, "description": "Experiment ids, space- and/or comma-separated (e.g. `id-a id-b` or `id-a,id-b`)" }
           ],
@@ -566,7 +548,7 @@
     { "service": "SessionService", "method": "OpenSession", "reason": "Real-time bidirectional session RPC for the UI/WebSocket bridge; no CLI command today." },
     { "service": "SessionService", "method": "CloseSession", "reason": "Real-time bidirectional session RPC for the UI/WebSocket bridge; no CLI command today." },
     { "service": "SessionService", "method": "SendText", "reason": "Real-time bidirectional session RPC for the UI/WebSocket bridge; no CLI command today." },
-    { "service": "CorpusService", "method": "GetClipAudio", "reason": "Streams raw audio bytes for UI playback and is used internally by EvalService; no standalone CLI command (use the UI to audition a clip)." },
+    { "service": "CorpusService", "method": "GetClipAudio", "reason": "Streams raw audio bytes for UI playback and internal experiment evaluation; no standalone CLI command (use the UI to audition a clip)." },
     { "service": "SessionService", "method": "SendCancel", "reason": "Real-time bidirectional session RPC for the UI/WebSocket bridge; no CLI command today." },
     { "service": "SessionService", "method": "Subscribe", "reason": "Server-streaming session feed for the UI/WebSocket bridge; no CLI command today." },
     { "service": "SettingsService", "method": "UpdateProviderConfig", "reason": "Exposed via API/UI only; no CLI command today." },

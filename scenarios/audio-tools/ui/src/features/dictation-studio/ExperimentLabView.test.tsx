@@ -33,6 +33,11 @@ vi.mock("../../services/corpus", async (importOriginal) => {
   return { ...actual, listClips: (...args: unknown[]) => listClips(...args) };
 });
 
+const getSpeakerStatus = vi.fn();
+vi.mock("../../services/speakerAdmin", () => ({
+  getSpeakerStatus: () => getSpeakerStatus(),
+}));
+
 const pushToast = vi.fn();
 vi.mock("../../components/ui/toast", () => ({
   pushToast: (...args: unknown[]) => pushToast(...args),
@@ -68,6 +73,17 @@ function experiment(over = {}) {
     recipe: {
       clipIds: [],
       strategies: ["batch", "overlap_agree"],
+      strategyDetails: [
+        {
+          kind: "overlap_agree",
+          label: "overlap agree",
+          overlapMaxWindowMs: 25000,
+          overlapMaxStallRejects: 3,
+          overlapWindowMs: 1500,
+          overlapCommitRuns: 2,
+          vadSilenceMs: 0,
+        },
+      ],
       realtimeRepeats: 0,
       latencyTailSeconds: 8,
       chunkMs: 100,
@@ -84,14 +100,19 @@ function experiment(over = {}) {
       snrDb: [12],
       competingVoiceIds: [],
       competingText: "",
-      augmentationConditions: [],
+      augmentationConditions: [
+        { id: "noise-white", kind: "noise", source: "white", snrDb: 12, skipped: false, note: "" },
+        { id: "kokoro", kind: "voice", source: "kokoro", snrDb: 0, skipped: true, note: "kokoro down" },
+      ],
       speakerTargetProfileId: "",
       speakerExtraction: false,
       speakerVerification: false,
       speakerMode: "filter",
       speakerThreshold: 0.5,
       speakerAblation: false,
-      speakerConditions: [],
+      speakerConditions: [
+        { id: "speaker-missing", extraction: true, verification: true, skipped: true, note: "profile unavailable" },
+      ],
       droppedSpanThresholdWords: 4,
     },
     ...over,
@@ -183,6 +204,26 @@ beforeEach(() => {
   cancelExperiment.mockResolvedValue(experiment({ status: "canceled" }));
   getExperimentReport.mockResolvedValue(report());
   getExperiment.mockResolvedValue({ experiment: experiment(), runs: [] });
+  getSpeakerStatus.mockResolvedValue({
+    config: {},
+    capability: "speaker_id",
+    capabilityLabel: "Speaker ID",
+    resourceReady: true,
+    profileConfigured: true,
+    profileExists: true,
+    profileCount: 1,
+    profiles: [
+      {
+        id: "profile-1",
+        displayName: "Alice",
+        createdAt: "",
+        modelName: "ecapa",
+        sampleRate: 16000,
+        clipCount: 2,
+        totalVoicedSeconds: 8,
+      },
+    ],
+  });
   streamExperimentEvents.mockImplementation(async (id: string, onEvent: (event: unknown) => void) => {
     onEvent({ experimentId: id, status: "running", progress: 45, message: "evaluating strategies", at: "" });
     await new Promise((resolve) => window.setTimeout(resolve, 25));
@@ -228,11 +269,57 @@ describe("ExperimentLabView", () => {
 
     await user.click(screen.getByTestId(selectors.dictationStudio.experimentReport({ id: "exp-1" })));
     expect(await screen.findByTestId(selectors.dictationStudio.experimentResults)).toHaveTextContent(strings.dictationStudio.safetySafe);
+    expect(screen.getByTestId(selectors.dictationStudio.lengthCurveChart)).toBeInTheDocument();
+    expect(screen.getByText(strings.dictationStudio.realizedClipsLabel)).toBeInTheDocument();
+    const conditions = screen.getByTestId(selectors.dictationStudio.experimentConditions);
+    expect(conditions).toHaveTextContent("kokoro down");
+    expect(conditions).toHaveTextContent("profile unavailable");
     expect(getExperimentReport).toHaveBeenCalledWith("exp-1");
   });
 
   it("compares experiments selected from the history list", async () => {
     listExperiments.mockResolvedValue([experiment(), experiment({ id: "exp-2", name: "New run" })]);
+    compareExperiments.mockResolvedValue([
+      report(),
+      {
+        ...report(),
+        experiment: experiment({
+          id: "exp-2",
+          name: "New run",
+          recipe: {
+            ...experiment().recipe,
+            strategyDetails: [
+              {
+                kind: "overlap_agree",
+                label: "overlap agree",
+                overlapMaxWindowMs: 25000,
+                overlapMaxStallRejects: 8,
+                overlapWindowMs: 1500,
+                overlapCommitRuns: 2,
+                vadSilenceMs: 0,
+              },
+            ],
+          },
+        }),
+        report: {
+          ...report().report,
+          perStrategy: [
+            {
+              ...report().report.perStrategy[0],
+              strategy: "overlap_agree",
+              label: "overlap agree",
+              wer: 0.08,
+              finalizationLatencyP95Ms: 24,
+            },
+          ],
+          summary: {
+            ...report().report.summary,
+            winnerStrategy: "overlap_agree",
+            winnerLabel: "overlap agree",
+          },
+        },
+      },
+    ]);
     const user = userEvent.setup();
     renderWithProviders(<ExperimentLabView />);
 
@@ -249,6 +336,10 @@ describe("ExperimentLabView", () => {
     expect(compareExperiments).toHaveBeenCalledWith(["exp-1", "exp-2"]);
     const results = await screen.findByTestId(selectors.dictationStudio.compareResults);
     expect(results).toHaveTextContent(strings.dictationStudio.safetySafe);
+    expect(results).toHaveTextContent(strings.dictationStudio.compareRecipeDiffTitle);
+    expect(results).toHaveTextContent("strategy.overlap_agree.overlap_max_stall_rejects: 3 -> 8");
+    expect(results).toHaveTextContent(strings.dictationStudio.compareStrategyAlignmentTitle);
+    expect(results).toHaveTextContent("8.0% / 24");
   });
 
   it("wires the clip picker, dropped-span threshold, and length sweep into the recipe", async () => {
@@ -275,6 +366,25 @@ describe("ExperimentLabView", () => {
           sweepDurationsCsv: "30,60,120",
         }),
       ),
+    );
+  });
+
+  it("prevents a no-input clip run and uses the speaker profile picker", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<ExperimentLabView />);
+
+    await user.click(screen.getByTestId(selectors.dictationStudio.experimentLongForm));
+    const startButton = screen.getByTestId(selectors.dictationStudio.startExperiment);
+    expect(startButton).toBeDisabled();
+    expect(screen.getByText(strings.dictationStudio.startInputRequired)).toBeInTheDocument();
+
+    await user.click(screen.getByTestId(selectors.dictationStudio.experimentLongForm));
+    await screen.findByRole("option", { name: /Alice/ });
+    await user.selectOptions(screen.getByTestId(selectors.dictationStudio.experimentSpeakerProfile), "profile-1");
+    await user.click(startButton);
+
+    await waitFor(() =>
+      expect(startExperiment).toHaveBeenCalledWith(expect.objectContaining({ speakerTargetProfileId: "profile-1" })),
     );
   });
 

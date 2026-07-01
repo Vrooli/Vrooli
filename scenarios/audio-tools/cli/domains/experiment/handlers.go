@@ -3,7 +3,9 @@ package experiment
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -16,12 +18,21 @@ import (
 	experimentconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment/experiment_v1connect"
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type handlers struct {
 	core   *cliapp.ScenarioApp
 	client experimentconnect.ExperimentServiceClient
+}
+
+var experimentProtoJSONOptions = protojson.MarshalOptions{
+	UseProtoNames:     true,
+	Multiline:         true,
+	Indent:            "  ",
+	EmitDefaultValues: true,
+	EmitUnpopulated:   false,
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
@@ -78,13 +89,63 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		req.Recipe.DroppedSpanThresholdWords = int32(n)
 	}
 	if v := strings.TrimSpace(ctx.Flag("overlap-max-window-ms")); v != "" {
-		n, err := parseIntFlag("overlap-max-window-ms", v)
+		n, err := parseNonNegativeIntFlag("overlap-max-window-ms", v)
 		if err != nil {
 			return err
 		}
 		ensureDefaultStrategies(req.Recipe)
 		for _, s := range req.Recipe.Strategies {
-			s.OverlapMaxWindowMs = int32(n)
+			if strategyUsesOverlap(s.GetKind()) {
+				s.OverlapMaxWindowMs = int32(n)
+			}
+		}
+	}
+	if v := strings.TrimSpace(ctx.Flag("overlap-max-stall-rejects")); v != "" {
+		n, err := parseNonNegativeIntFlag("overlap-max-stall-rejects", v)
+		if err != nil {
+			return err
+		}
+		ensureDefaultStrategies(req.Recipe)
+		for _, s := range req.Recipe.Strategies {
+			if strategyUsesOverlap(s.GetKind()) {
+				s.OverlapMaxStallRejects = int32(n)
+			}
+		}
+	}
+	if v := strings.TrimSpace(ctx.Flag("overlap-window-ms")); v != "" {
+		n, err := parseNonNegativeIntFlag("overlap-window-ms", v)
+		if err != nil {
+			return err
+		}
+		ensureDefaultStrategies(req.Recipe)
+		for _, s := range req.Recipe.Strategies {
+			if strategyUsesOverlap(s.GetKind()) {
+				s.OverlapWindowMs = int32(n)
+			}
+		}
+	}
+	if v := strings.TrimSpace(ctx.Flag("overlap-commit-runs")); v != "" {
+		n, err := parseNonNegativeIntFlag("overlap-commit-runs", v)
+		if err != nil {
+			return err
+		}
+		ensureDefaultStrategies(req.Recipe)
+		for _, s := range req.Recipe.Strategies {
+			if strategyUsesOverlap(s.GetKind()) {
+				s.OverlapCommitRuns = int32(n)
+			}
+		}
+	}
+	if v := strings.TrimSpace(ctx.Flag("vad-silence-ms")); v != "" {
+		n, err := parseNonNegativeIntFlag("vad-silence-ms", v)
+		if err != nil {
+			return err
+		}
+		ensureDefaultStrategies(req.Recipe)
+		for _, s := range req.Recipe.Strategies {
+			if strategyUsesVADSilence(s.GetKind()) {
+				s.VadSilenceMs = int32(n)
+			}
 		}
 	}
 	if v := strings.TrimSpace(ctx.Flag("seed")); v != "" {
@@ -225,19 +286,23 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 	if exp == nil {
 		return fmt.Errorf("server returned no experiment")
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result: []string{fmt.Sprintf("Started experiment %s (%s).", exp.GetId(), statusLabel(exp.GetStatus()))},
-		Changes: []string{
-			fmt.Sprintf("name=%q", exp.GetName()),
-			fmt.Sprintf("strategies=%s", strategyLabels(exp.GetRecipe().GetStrategies())),
-			fmt.Sprintf("clip_ids=%s", strings.Join(exp.GetRecipe().GetClipIds(), ",")),
-			fmt.Sprintf("long_form=%t", exp.GetRecipe().GetLongForm().GetEnabled()),
-			fmt.Sprintf("long_form_sweep=%s", int32sCSV(exp.GetRecipe().GetLongForm().GetSweepDurationsSeconds())),
-			fmt.Sprintf("augmentation_noise=%s", strings.Join(exp.GetRecipe().GetAugmentation().GetNoiseTypes(), ",")),
-			fmt.Sprintf("augmentation_voices=%s", strings.Join(exp.GetRecipe().GetAugmentation().GetCompetingVoiceIds(), ",")),
-			fmt.Sprintf("speaker_profile=%s", exp.GetRecipe().GetSpeaker().GetTargetProfileId()),
-			fmt.Sprintf("speaker_ablation=%t", exp.GetRecipe().GetSpeaker().GetAblationEnabled()),
-		},
+	changes := []string{
+		fmt.Sprintf("name=%q", exp.GetName()),
+		fmt.Sprintf("strategies=%s", strategyLabels(exp.GetRecipe().GetStrategies())),
+		fmt.Sprintf("clip_ids=%s", strings.Join(exp.GetRecipe().GetClipIds(), ",")),
+		fmt.Sprintf("long_form=%t", exp.GetRecipe().GetLongForm().GetEnabled()),
+		fmt.Sprintf("long_form_sweep=%s", int32sCSV(exp.GetRecipe().GetLongForm().GetSweepDurationsSeconds())),
+		fmt.Sprintf("augmentation_noise=%s", strings.Join(exp.GetRecipe().GetAugmentation().GetNoiseTypes(), ",")),
+		fmt.Sprintf("augmentation_voices=%s", strings.Join(exp.GetRecipe().GetAugmentation().GetCompetingVoiceIds(), ",")),
+		fmt.Sprintf("speaker_profile=%s", exp.GetRecipe().GetSpeaker().GetTargetProfileId()),
+		fmt.Sprintf("speaker_ablation=%t", exp.GetRecipe().GetSpeaker().GetAblationEnabled()),
+	}
+	if eta := estimatedSecondsLabel(resp.Msg.GetEstimatedSeconds()); eta != "" {
+		changes = append(changes, eta)
+	}
+	return renderExperimentProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Started experiment %s (%s).", exp.GetId(), statusLabel(exp.GetStatus()))},
+		Changes: changes,
 		NextCommand: []string{
 			fmt.Sprintf("audio-tools experiment wait %s --json", exp.GetId()),
 			fmt.Sprintf("audio-tools experiment report %s --json", exp.GetId()),
@@ -260,13 +325,13 @@ func (h *handlers) wait(ctx cliapp.RunContext) error {
 	if err != nil {
 		return cliapp.WrapAPIError("experiment-wait", err, nil)
 	}
-	if !ctx.JSON() && experimentTerminal(resp.Msg.GetExperiment()) && resp.Msg.GetExperiment().GetResultRef() != "" {
+	if experimentTerminal(resp.Msg.GetExperiment()) && resp.Msg.GetExperiment().GetResultRef() != "" {
 		reportResp, reportErr := h.client.GetExperimentReport(context.Background(), connect.NewRequest(&experimentv1.GetExperimentReportRequest{Id: id}))
 		if reportErr == nil && reportResp != nil && reportResp.Msg != nil && reportResp.Msg.GetReport() != nil {
-			exp := reportResp.Msg.GetExperiment()
-			fmt.Fprintf(ctx.Stdout(), "Experiment %s (%s)\n", exp.GetId(), statusLabel(exp.GetStatus()))
-			printReportTable(ctx, reportResp.Msg.GetReport())
-			return nil
+			if ctx.JSON() {
+				return printExperimentProtoJSON(ctx.Stdout(), reportResp.Msg)
+			}
+			return renderReport(ctx, reportResp.Msg)
 		}
 		fmt.Fprintf(ctx.Stderr(), "Report is not available yet; use `audio-tools experiment report %s` to re-attach.\n", id)
 	}
@@ -301,7 +366,7 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 		return cliapp.WrapAPIError("experiment-list", err, nil)
 	}
 	if ctx.JSON() {
-		return cliapp.PrintProtoJSON(ctx.Stdout(), resp.Msg)
+		return printExperimentProtoJSON(ctx.Stdout(), resp.Msg)
 	}
 	experiments := resp.Msg.GetExperiments()
 	if len(experiments) == 0 {
@@ -313,6 +378,7 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 		fmt.Fprintf(ctx.Stdout(), "%-38s  %-10s  %-22s  %s\n",
 			exp.GetId(), statusLabel(exp.GetStatus()), timestampLabel(exp.GetCreatedAt()), exp.GetName())
 	}
+	printExperimentErrors(ctx, experiments)
 	return nil
 }
 
@@ -326,7 +392,7 @@ func (h *handlers) cancel(ctx cliapp.RunContext) error {
 	if exp == nil {
 		return fmt.Errorf("server returned no experiment")
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+	return renderExperimentProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result: []string{fmt.Sprintf("Canceled experiment %s (%s).", exp.GetId(), statusLabel(exp.GetStatus()))},
 		NextCommand: []string{
 			fmt.Sprintf("audio-tools experiment get %s --json", exp.GetId()),
@@ -344,7 +410,7 @@ func (h *handlers) watch(ctx cliapp.RunContext) error {
 	for stream.Receive() {
 		ev := stream.Msg()
 		if ctx.JSON() {
-			if err := cliapp.PrintProtoJSON(ctx.Stdout(), ev); err != nil {
+			if err := printExperimentProtoJSON(ctx.Stdout(), ev); err != nil {
 				return err
 			}
 			continue
@@ -364,12 +430,9 @@ func (h *handlers) report(ctx cliapp.RunContext) error {
 		return cliapp.WrapAPIError("experiment-report", err, nil)
 	}
 	if ctx.JSON() {
-		return cliapp.PrintProtoJSON(ctx.Stdout(), resp.Msg)
+		return printExperimentProtoJSON(ctx.Stdout(), resp.Msg)
 	}
-	exp := resp.Msg.GetExperiment()
-	fmt.Fprintf(ctx.Stdout(), "Experiment %s (%s)\n", exp.GetId(), statusLabel(exp.GetStatus()))
-	printReportTable(ctx, resp.Msg.GetReport())
-	return nil
+	return renderReport(ctx, resp.Msg)
 }
 
 func (h *handlers) compare(ctx cliapp.RunContext) error {
@@ -384,7 +447,7 @@ func (h *handlers) compare(ctx cliapp.RunContext) error {
 		return cliapp.WrapAPIError("experiment-compare", err, nil)
 	}
 	if ctx.JSON() {
-		return cliapp.PrintProtoJSON(ctx.Stdout(), resp.Msg)
+		return printExperimentProtoJSON(ctx.Stdout(), resp.Msg)
 	}
 	printComparison(ctx, resp.Msg.GetExperiments())
 	return nil
@@ -398,11 +461,11 @@ func renderExperiment(ctx cliapp.RunContext, msg interface {
 	switch m := msg.(type) {
 	case *experimentv1.GetExperimentResponse:
 		if ctx.JSON() {
-			return cliapp.PrintProtoJSON(ctx.Stdout(), m)
+			return printExperimentProtoJSON(ctx.Stdout(), m)
 		}
 	case *experimentv1.WaitExperimentResponse:
 		if ctx.JSON() {
-			return cliapp.PrintProtoJSON(ctx.Stdout(), m)
+			return printExperimentProtoJSON(ctx.Stdout(), m)
 		}
 	}
 	exp := msg.GetExperiment()
@@ -421,6 +484,9 @@ func renderExperiment(ctx cliapp.RunContext, msg interface {
 			fmt.Sprintf("audio-tools experiment %s %s --json", op, exp.GetId()),
 		},
 	}
+	if errMsg := strings.TrimSpace(exp.GetError()); errMsg != "" {
+		report.Summary = append(report.Summary, fmt.Sprintf("error=%s", errMsg))
+	}
 	for _, run := range runs {
 		report.Results = append(report.Results, formatRunStatus(run))
 	}
@@ -428,6 +494,40 @@ func renderExperiment(ctx cliapp.RunContext, msg interface {
 		report.Results = append(report.Results, "(none yet)")
 	}
 	return ctx.RenderList(report)
+}
+
+func printExperimentProtoJSON(w io.Writer, msg proto.Message) error {
+	body, err := experimentProtoJSONOptions.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("marshal experiment proto json: %w", err)
+	}
+	if _, err := w.Write(body); err != nil {
+		return err
+	}
+	if len(body) == 0 || body[len(body)-1] != '\n' {
+		_, err = w.Write([]byte{'\n'})
+	}
+	return err
+}
+
+func renderExperimentProtoMutation(ctx cliapp.RunContext, payload proto.Message, human cliapp.MutationReport) error {
+	if ctx.JSON() {
+		return printExperimentProtoJSON(ctx.Stdout(), payload)
+	}
+	return ctx.RenderMutation(human)
+}
+
+func renderReport(ctx cliapp.RunContext, msg *experimentv1.GetExperimentReportResponse) error {
+	if msg == nil || msg.GetExperiment() == nil {
+		return fmt.Errorf("server returned no experiment")
+	}
+	exp := msg.GetExperiment()
+	fmt.Fprintf(ctx.Stdout(), "Experiment %s (%s)\n", exp.GetId(), statusLabel(exp.GetStatus()))
+	if errMsg := strings.TrimSpace(exp.GetError()); errMsg != "" {
+		fmt.Fprintf(ctx.Stdout(), "Error: %s\n", errMsg)
+	}
+	printReportTable(ctx, msg.GetReport())
+	return nil
 }
 
 func printReportTable(ctx cliapp.RunContext, report *evalv1.EvalReport) {
@@ -462,6 +562,16 @@ func printReportTable(ctx cliapp.RunContext, report *evalv1.EvalReport) {
 	}
 	printReportWarnings(ctx, report)
 	printLengthCurves(ctx, report)
+}
+
+func estimatedSecondsLabel(seconds int32) string {
+	if seconds <= 0 {
+		return ""
+	}
+	if seconds < 60 {
+		return fmt.Sprintf("estimated_seconds=%d", seconds)
+	}
+	return fmt.Sprintf("estimated_seconds=%d (~%dm%02ds)", seconds, seconds/60, seconds%60)
 }
 
 func printReportSummary(ctx cliapp.RunContext, report *evalv1.EvalReport) {
@@ -638,7 +748,226 @@ func printComparison(ctx cliapp.RunContext, experiments []*experimentv1.Compared
 	if anyMissingReport {
 		fmt.Fprintln(ctx.Stdout(), "Rows without a winner have no stored report yet (still running, or failed before reporting).")
 	}
+	printRecipeDiff(ctx, rows)
+	printStrategyAlignment(ctx, rows)
+	exps := make([]*experimentv1.Experiment, 0, len(rows))
+	for _, row := range rows {
+		exps = append(exps, row.exp)
+	}
+	printExperimentErrors(ctx, exps)
 	fmt.Fprintln(ctx.Stdout(), "Use --json for full recipes and per-experiment report payloads.")
+}
+
+func printRecipeDiff(ctx cliapp.RunContext, rows []comparisonRow) {
+	diffs := recipeDiffLines(rows)
+	if len(diffs) == 0 {
+		return
+	}
+	fmt.Fprintln(ctx.Stdout(), "\nRecipe differences:")
+	for _, line := range diffs {
+		fmt.Fprintf(ctx.Stdout(), "  - %s\n", line)
+	}
+}
+
+func recipeDiffLines(rows []comparisonRow) []string {
+	if len(rows) < 2 {
+		return nil
+	}
+	perExperiment := make([]map[string]string, 0, len(rows))
+	fieldSet := map[string]struct{}{}
+	for _, row := range rows {
+		fields := recipeFields(row.exp.GetRecipe())
+		perExperiment = append(perExperiment, fields)
+		for field := range fields {
+			fieldSet[field] = struct{}{}
+		}
+	}
+	fields := make([]string, 0, len(fieldSet))
+	for field := range fieldSet {
+		fields = append(fields, field)
+	}
+	sort.Strings(fields)
+	var out []string
+	for _, field := range fields {
+		first := perExperiment[0][field]
+		changed := false
+		for _, values := range perExperiment[1:] {
+			if values[field] != first {
+				changed = true
+				break
+			}
+		}
+		if !changed {
+			continue
+		}
+		if len(rows) == 2 {
+			out = append(out, fmt.Sprintf("%s: %s -> %s", field, valueOrDash(perExperiment[0][field]), valueOrDash(perExperiment[1][field])))
+			continue
+		}
+		parts := make([]string, 0, len(rows))
+		for i, row := range rows {
+			parts = append(parts, fmt.Sprintf("%s=%s", experimentShortID(row.exp), valueOrDash(perExperiment[i][field])))
+		}
+		out = append(out, fmt.Sprintf("%s: %s", field, strings.Join(parts, ", ")))
+	}
+	return out
+}
+
+func recipeFields(recipe *experimentv1.ExperimentRecipe) map[string]string {
+	fields := map[string]string{}
+	if recipe == nil {
+		return fields
+	}
+	fields["clip_ids"] = strings.Join(recipe.GetClipIds(), ",")
+	fields["realtime_repeats"] = strconv.Itoa(int(recipe.GetRealtimeRepeats()))
+	fields["chunk_ms"] = strconv.Itoa(int(recipe.GetChunkMs()))
+	fields["seed"] = strconv.FormatInt(recipe.GetSeed(), 10)
+	fields["dropped_span_threshold_words"] = strconv.Itoa(int(recipe.GetDroppedSpanThresholdWords()))
+	fields["latency_tail_seconds"] = strconv.Itoa(int(recipe.GetLatencyTailSeconds()))
+	if lf := recipe.GetLongForm(); lf != nil {
+		fields["long_form.enabled"] = strconv.FormatBool(lf.GetEnabled())
+		fields["long_form.target_duration_seconds"] = strconv.Itoa(int(lf.GetTargetDurationSeconds()))
+		fields["long_form.gap_ms"] = strconv.Itoa(int(lf.GetGapMs()))
+		fields["long_form.tag_contains"] = lf.GetTagContains()
+		fields["long_form.sweep_durations_seconds"] = int32sCSV(lf.GetSweepDurationsSeconds())
+	}
+	if aug := recipe.GetAugmentation(); aug != nil {
+		fields["augmentation.noise_types"] = strings.Join(aug.GetNoiseTypes(), ",")
+		fields["augmentation.snr_db"] = float64sCSV(aug.GetSnrDb())
+		fields["augmentation.competing_voice_ids"] = strings.Join(aug.GetCompetingVoiceIds(), ",")
+		fields["augmentation.competing_text"] = aug.GetCompetingText()
+	}
+	if speaker := recipe.GetSpeaker(); speaker != nil {
+		fields["speaker.target_profile_id"] = speaker.GetTargetProfileId()
+		fields["speaker.extraction_enabled"] = strconv.FormatBool(speaker.GetExtractionEnabled())
+		fields["speaker.verification_enabled"] = strconv.FormatBool(speaker.GetVerificationEnabled())
+		fields["speaker.verification_mode"] = speaker.GetVerificationMode().String()
+		fields["speaker.threshold"] = fmt.Sprintf("%.3g", speaker.GetThreshold())
+		fields["speaker.fallback_without_verification"] = strconv.FormatBool(speaker.GetFallbackWithoutVerification())
+		fields["speaker.ablation_enabled"] = strconv.FormatBool(speaker.GetAblationEnabled())
+	}
+	for _, strategy := range recipe.GetStrategies() {
+		key := strategyDiffKey(strategy, fields)
+		fields[key+".kind"] = strategy.GetKind()
+		fields[key+".overlap_max_window_ms"] = strconv.Itoa(int(strategy.GetOverlapMaxWindowMs()))
+		fields[key+".overlap_max_stall_rejects"] = strconv.Itoa(int(strategy.GetOverlapMaxStallRejects()))
+		fields[key+".overlap_window_ms"] = strconv.Itoa(int(strategy.GetOverlapWindowMs()))
+		fields[key+".overlap_commit_runs"] = strconv.Itoa(int(strategy.GetOverlapCommitRuns()))
+		fields[key+".vad_silence_ms"] = strconv.Itoa(int(strategy.GetVadSilenceMs()))
+	}
+	return fields
+}
+
+func strategyDiffKey(strategy *evalv1.EvalStrategy, fields map[string]string) string {
+	base := "strategy." + valueOrDash(strategy.GetKind())
+	key := base
+	for i := 2; ; i++ {
+		if _, exists := fields[key+".kind"]; !exists {
+			return key
+		}
+		key = fmt.Sprintf("%s[%d]", base, i)
+	}
+}
+
+func printStrategyAlignment(ctx cliapp.RunContext, rows []comparisonRow) {
+	keys := alignedStrategyKeys(rows)
+	if len(keys) == 0 {
+		return
+	}
+	fmt.Fprintln(ctx.Stdout(), "\nBy-strategy alignment:")
+	fmt.Fprintf(ctx.Stdout(), "  %-28s", "STRATEGY")
+	for _, row := range rows {
+		fmt.Fprintf(ctx.Stdout(), "  %-24s", experimentShortID(row.exp))
+	}
+	fmt.Fprintln(ctx.Stdout())
+	for _, key := range keys {
+		fmt.Fprintf(ctx.Stdout(), "  %-28s", truncate(key, 28))
+		for _, row := range rows {
+			fmt.Fprintf(ctx.Stdout(), "  %-24s", strategyMetricCell(row, key))
+		}
+		fmt.Fprintln(ctx.Stdout())
+	}
+}
+
+func alignedStrategyKeys(rows []comparisonRow) []string {
+	seen := map[string]struct{}{}
+	for _, row := range rows {
+		if row.report == nil {
+			continue
+		}
+		for _, strategy := range row.report.GetPerStrategy() {
+			seen[strategyAlignmentKey(strategy)] = struct{}{}
+		}
+	}
+	keys := make([]string, 0, len(seen))
+	for key := range seen {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func strategyMetricCell(row comparisonRow, key string) string {
+	if row.report == nil {
+		return "-"
+	}
+	for _, strategy := range row.report.GetPerStrategy() {
+		if strategyAlignmentKey(strategy) != key {
+			continue
+		}
+		p95 := "-"
+		if row.report.GetLatencyMeasured() {
+			p95 = fmt.Sprintf("%.0fms", strategy.GetFinalizationLatencyP95Ms())
+		}
+		return fmt.Sprintf("wer %.1f p95 %s", strategy.GetWer()*100, p95)
+	}
+	return "-"
+}
+
+func strategyAlignmentKey(strategy *evalv1.StrategyReport) string {
+	if strategy.GetStrategy() != "" {
+		return strings.TrimSpace(strings.SplitN(strategy.GetStrategy(), "/", 2)[0])
+	}
+	if strategy.GetLabel() != "" {
+		return strings.TrimSpace(strings.SplitN(strategy.GetLabel(), "/", 2)[0])
+	}
+	return "(unknown)"
+}
+
+func experimentShortID(exp *experimentv1.Experiment) string {
+	if exp == nil {
+		return "(nil)"
+	}
+	if name := strings.TrimSpace(exp.GetName()); name != "" {
+		return truncate(name, 18)
+	}
+	return truncate(exp.GetId(), 18)
+}
+
+func valueOrDash(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return "-"
+	}
+	return value
+}
+
+func printExperimentErrors(ctx cliapp.RunContext, experiments []*experimentv1.Experiment) {
+	var lines []string
+	for _, exp := range experiments {
+		if exp == nil {
+			continue
+		}
+		if errMsg := strings.TrimSpace(exp.GetError()); errMsg != "" {
+			lines = append(lines, fmt.Sprintf("  - %s: %s", exp.GetId(), errMsg))
+		}
+	}
+	if len(lines) == 0 {
+		return
+	}
+	fmt.Fprintln(ctx.Stdout(), "\nExperiment errors:")
+	for _, line := range lines {
+		fmt.Fprintln(ctx.Stdout(), line)
+	}
 }
 
 // winnerStrategyRow returns the report's winning strategy row, preferring the
@@ -743,6 +1072,17 @@ func parseIntFlag(name, value string) (int, error) {
 	return n, nil
 }
 
+func parseNonNegativeIntFlag(name, value string) (int, error) {
+	n, err := parseIntFlag(name, value)
+	if err != nil {
+		return 0, err
+	}
+	if n < 0 {
+		return 0, fmt.Errorf("--%s must be non-negative: %d", name, n)
+	}
+	return n, nil
+}
+
 func parseBoolFlag(name, value string) (bool, error) {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "1", "true", "yes", "on":
@@ -818,6 +1158,24 @@ func speakerHasContent(s *experimentv1.SpeakerExperimentRecipe) bool {
 		s.GetFallbackWithoutVerification() || s.GetAblationEnabled()
 }
 
+func strategyUsesOverlap(kind string) bool {
+	switch strings.ToLower(strings.TrimSpace(kind)) {
+	case "overlap_agree", "overlap":
+		return true
+	default:
+		return false
+	}
+}
+
+func strategyUsesVADSilence(kind string) bool {
+	switch strings.ToLower(strings.TrimSpace(kind)) {
+	case "vad_segment", "vad":
+		return true
+	default:
+		return false
+	}
+}
+
 // loadBaseRecipe unmarshals a full ExperimentRecipe from --recipe-json (inline)
 // or --recipe-file (path) via protojson, to be used as the base that individual
 // flags then override. Returns an empty recipe when neither is set.
@@ -877,6 +1235,17 @@ func int32sCSV(values []int32) string {
 	parts := make([]string, len(values))
 	for i, v := range values {
 		parts[i] = strconv.Itoa(int(v))
+	}
+	return strings.Join(parts, ",")
+}
+
+func float64sCSV(values []float64) string {
+	if len(values) == 0 {
+		return ""
+	}
+	parts := make([]string, len(values))
+	for i, v := range values {
+		parts[i] = strconv.FormatFloat(v, 'f', -1, 64)
 	}
 	return strings.Join(parts, ",")
 }

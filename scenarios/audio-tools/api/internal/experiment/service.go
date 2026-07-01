@@ -52,7 +52,9 @@ func (s *Service) StoreReport(ctx context.Context, exp Experiment, report []byte
 	}
 	exp.ResultRef = key
 	if err := s.repo.UpdateExperiment(ctx, exp); err != nil {
-		_ = s.blobs.Delete(ctx, key)
+		if deleteErr := s.blobs.Delete(ctx, key); deleteErr != nil {
+			return Experiment{}, fmt.Errorf("experiment: update report ref: %w; rollback delete %q: %v", err, key, deleteErr)
+		}
 		return Experiment{}, err
 	}
 	return exp, nil

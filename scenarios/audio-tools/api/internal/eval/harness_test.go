@@ -45,7 +45,7 @@ func silentPCM(sampleRate int, ms int) []byte {
 	return make([]byte, sampleRate*2*ms/1000)
 }
 
-func TestRunEval_AggregatesQualityAndCompute(t *testing.T) {
+func TestRunReport_AggregatesQualityAndCompute(t *testing.T) {
 	clips := []Clip{
 		{ID: "c1", PCM: silentPCM(16000, 1000), SampleRate: 16000, Reference: "the quick brown fox"},
 		{ID: "c2", PCM: silentPCM(16000, 2000), SampleRate: 16000, Reference: "hello world"},
@@ -69,7 +69,7 @@ func TestRunEval_AggregatesQualityAndCompute(t *testing.T) {
 		},
 	}
 
-	rep := RunEval(context.Background(), clips, []StrategySpec{perfect, lossy}, DefaultEvalOptions())
+	rep := RunReport(context.Background(), clips, []StrategySpec{perfect, lossy}, DefaultEvalOptions())
 	require.True(t, rep.QualityMeasured)
 	require.False(t, rep.LatencyMeasured)
 	require.Len(t, rep.PerStrategy, 2)
@@ -91,10 +91,10 @@ func TestRunEval_AggregatesQualityAndCompute(t *testing.T) {
 	require.InDelta(t, 2.0/6.0, l.WER, 1e-9, "micro-average WER = total edits / total ref words")
 }
 
-// TestRunEval_RealOverlapAgreePath proves the harness drives a REAL
+// TestRunReport_RealOverlapAgreePath proves the harness drives a REAL
 // OverlapAgree strategy end-to-end (replay -> strategy -> events -> WER),
 // metering the backend calls, without needing a live Whisper.
-func TestRunEval_RealOverlapAgreePath(t *testing.T) {
+func TestRunReport_RealOverlapAgreePath(t *testing.T) {
 	clip := Clip{ID: "c1", PCM: silentPCM(16000, 500), SampleRate: 16000, Reference: "hello world"}
 
 	spec := StrategySpec{
@@ -111,7 +111,7 @@ func TestRunEval_RealOverlapAgreePath(t *testing.T) {
 		},
 	}
 
-	rep := RunEval(context.Background(), []Clip{clip}, []StrategySpec{spec}, DefaultEvalOptions())
+	rep := RunReport(context.Background(), []Clip{clip}, []StrategySpec{spec}, DefaultEvalOptions())
 	require.Len(t, rep.PerStrategy, 1)
 	row := rep.PerStrategy[0]
 	require.InDelta(t, 0.0, row.WER, 1e-9, "agreement commits the full reference -> zero WER")
@@ -119,11 +119,11 @@ func TestRunEval_RealOverlapAgreePath(t *testing.T) {
 	require.Equal(t, "hello world", strings.TrimSpace(row.PerClip[0].Hypothesis))
 }
 
-// TestRunEval_RealtimeProducesLatencySamples proves the real-time pass
+// TestRunReport_RealtimeProducesLatencySamples proves the real-time pass
 // records one finalization-latency sample per repeat. Sleep is stubbed and
 // Now is a deterministic monotone counter, so the test never actually
 // sleeps and stays reproducible.
-func TestRunEval_RealtimeProducesLatencySamples(t *testing.T) {
+func TestRunReport_RealtimeProducesLatencySamples(t *testing.T) {
 	clip := Clip{ID: "c1", PCM: silentPCM(16000, 300), SampleRate: 16000, Reference: "hello world"}
 	spec := StrategySpec{
 		Kind: sttchain.StrategyOverlapAgree, Label: "overlap-agree",
@@ -137,7 +137,7 @@ func TestRunEval_RealtimeProducesLatencySamples(t *testing.T) {
 		ChunkMs: 100, QualityPass: true, RealtimeRepeats: 3,
 		Sleep: func(time.Duration) {}, // never actually sleep
 	}
-	rep := RunEval(context.Background(), []Clip{clip}, []StrategySpec{spec}, opts)
+	rep := RunReport(context.Background(), []Clip{clip}, []StrategySpec{spec}, opts)
 	require.True(t, rep.LatencyMeasured)
 	require.Len(t, rep.PerStrategy[0].PerClip, 1)
 	require.Len(t, rep.PerStrategy[0].PerClip[0].LatencySamplesMs, 3, "one latency sample per real-time repeat")
@@ -182,7 +182,7 @@ func TestReplay_RealtimeTailPacesOnlyFinalWindow(t *testing.T) {
 	require.Len(t, sleeps, 20, "zero tail preserves full real-time pacing")
 }
 
-func TestRunEval_RealtimeRepeatsRunConcurrentlyWithinBound(t *testing.T) {
+func TestRunReport_RealtimeRepeatsRunConcurrentlyWithinBound(t *testing.T) {
 	clips := []Clip{
 		{ID: "c1", PCM: silentPCM(16000, 100), SampleRate: 16000, Reference: "one"},
 		{ID: "c2", PCM: silentPCM(16000, 100), SampleRate: 16000, Reference: "two"},
@@ -220,7 +220,7 @@ func TestRunEval_RealtimeRepeatsRunConcurrentlyWithinBound(t *testing.T) {
 		mu.Unlock()
 	}
 
-	rep := RunEval(context.Background(), clips, []StrategySpec{spec}, EvalOptions{
+	rep := RunReport(context.Background(), clips, []StrategySpec{spec}, EvalOptions{
 		ChunkMs: 100, QualityPass: false, RealtimeRepeats: 1, RealtimeConcurrency: 2, Sleep: sleep,
 	})
 	require.True(t, rep.LatencyMeasured)

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	inteval "audio-tools/internal/eval"
+	exprecipe "audio-tools/internal/experiment/recipe"
 
 	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
@@ -75,5 +76,39 @@ func TestAppendUniqueReportWarnings_DeduplicatesRepeatedConditionWarnings(t *tes
 	}
 	if got[0].Code != "tiny_corpus" || got[1].Code != "short_audio" {
 		t.Fatalf("warnings = %#v", got)
+	}
+}
+
+func TestLongFormSourceDurationWarning_WhenTargetExceedsUniqueSourceAudio(t *testing.T) {
+	warning, ok := longFormSourceDurationWarning(&experimentv1.LongFormRecipe{
+		TargetDurationSeconds: 10,
+	}, []exprecipe.Clip{{
+		ID:         "clip-1",
+		PCM:        make([]byte, exprecipe.CanonicalSampleRate*2*2),
+		SampleRate: exprecipe.CanonicalSampleRate,
+	}})
+
+	if !ok {
+		t.Fatalf("expected under-target source-duration warning")
+	}
+	if warning.Code != "source_audio_under_target" {
+		t.Fatalf("warning code = %q", warning.Code)
+	}
+	if warning.Severity != "warning" {
+		t.Fatalf("warning severity = %q", warning.Severity)
+	}
+}
+
+func TestLongFormSourceDurationWarning_SuppressedWhenSourceCoversTarget(t *testing.T) {
+	_, ok := longFormSourceDurationWarning(&experimentv1.LongFormRecipe{
+		SweepDurationsSeconds: []int32{1, 2},
+	}, []exprecipe.Clip{{
+		ID:         "clip-1",
+		PCM:        make([]byte, exprecipe.CanonicalSampleRate*2*3),
+		SampleRate: exprecipe.CanonicalSampleRate,
+	}})
+
+	if ok {
+		t.Fatalf("did not expect warning when unique source audio covers the largest target")
 	}
 }

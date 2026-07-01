@@ -83,7 +83,7 @@ type Deps struct {
 func Build(ctx context.Context) (*server.Server, func() error, error) {
 	env := Load()
 
-	db, dsn, err := OpenDB(ctx, env)
+	db, _, err := OpenDB(ctx, env)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open db: %w", err)
 	}
@@ -330,12 +330,10 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 		}),
 		usageH.Module(usageH.Deps{Logger: logger, Clock: clock.System{}, Store: stores.Usage}),
 		corpusH.Module(corpusH.Deps{Logger: logger, Clock: clock.System{}, Service: corpusSvc}),
-		evalH.Module(evalDeps),
 		experimentH.Module(experimentH.Deps{Logger: logger, Manager: experimentMgr, Service: experimentSvc}),
 		diagH.Module(diagOrch, logger),
 	)
 
-	_ = dsn // retained for diagnostics if Deps is exposed; not used here.
 	cleanup := func() error {
 		if experimentMgr != nil {
 			experimentMgr.Close()
@@ -499,6 +497,9 @@ func runExperimentReport(ctx context.Context, evalDeps evalH.Deps, corpusSvc *in
 	}
 	report, err := runAugmentationSpeakerConditionReports(ctx, evalDeps, evalClips, augGroups, recipe.GetStrategies(), recipe.GetRealtimeRepeats(), recipe.GetChunkMs(), recipe.GetLatencyTailSeconds(), safetyThreshold(recipe), conditions, speakerConfigured(speaker))
 	if err == nil {
+		if warning, ok := longFormSourceDurationWarning(longForm, clips); ok {
+			report.Warnings = appendUniqueReportWarnings(report.Warnings, warning)
+		}
 		// Cross-condition ingress attribution: pair extraction-on rows with
 		// their extraction-off siblings so target-speaker-extraction word loss
 		// is no longer invisible. Runs exactly once on the fully-assembled set.
@@ -512,6 +513,50 @@ func safetyThreshold(recipe *experimentv1.ExperimentRecipe) int32 {
 		return recipe.GetDroppedSpanThresholdWords()
 	}
 	return int32(inteval.DefaultDroppedSpanThresholdWords)
+}
+
+func longFormSourceDurationWarning(longForm *experimentv1.LongFormRecipe, clips []exprecipe.Clip) (inteval.ReportWarning, bool) {
+	if longForm == nil {
+		return inteval.ReportWarning{}, false
+	}
+	targets := longForm.GetSweepDurationsSeconds()
+	if len(targets) == 0 && longForm.GetTargetDurationSeconds() > 0 {
+		targets = []int32{longForm.GetTargetDurationSeconds()}
+	}
+	var maxTargetSec int32
+	for _, target := range targets {
+		if target > maxTargetSec {
+			maxTargetSec = target
+		}
+	}
+	if maxTargetSec <= 0 {
+		return inteval.ReportWarning{}, false
+	}
+	sourceMs := sourceDurationMs(clips)
+	targetMs := int64(maxTargetSec) * int64(time.Second/time.Millisecond)
+	if sourceMs <= 0 || sourceMs >= targetMs {
+		return inteval.ReportWarning{}, false
+	}
+	return inteval.ReportWarning{
+		Code:     "source_audio_under_target",
+		Severity: "warning",
+		Message:  fmt.Sprintf("The selected corpus provides %.1f seconds of unique source audio, below the requested long-form target of %d seconds; generated inputs may reuse clips.", float64(sourceMs)/1000, maxTargetSec),
+	}, true
+}
+
+func sourceDurationMs(clips []exprecipe.Clip) int64 {
+	var total int64
+	for _, clip := range clips {
+		sampleRate := clip.SampleRate
+		if sampleRate <= 0 {
+			sampleRate = exprecipe.CanonicalSampleRate
+		}
+		if sampleRate <= 0 {
+			continue
+		}
+		total += int64(float64(len(clip.PCM)) / float64(sampleRate*2) * float64(time.Second/time.Millisecond))
+	}
+	return total
 }
 
 type speakerEvalCondition struct {

@@ -133,12 +133,12 @@ belong in [`DATA.md`](DATA.md).
 
 ### eval
 
-- Purpose: measure WER, compute cost (Whisper-calls / audio-seconds / RTF), and finalization latency (p50/p95) of batch + vad-segment + overlap-agree on the corpus, so the streaming levers can be tuned against numbers.
-- Primary archetype: measurement / deterministic replay (stateless).
-- Owns: `EvalService.RunEval`, the offline harness (`internal/eval`: WER/normalizer/metered-provider/replay/report), mirroring `packages/ai-go/search/grading.go`.
-- API: `api/handlers/eval/`. CLI: `cli/domains/eval/`. The Dictation Studio UI uses persisted experiments for operator workflows and retains the eval report renderer only as a shared report component.
-- Storage: none — reads the corpus domain.
-- Reference: [`../reference/eval-harness.md`](../reference/eval-harness.md). Requires a live Whisper backend (build-tagged integration test; deterministic fake-provider tests in the default suite).
+- Purpose: provide the internal measurement harness and shared report contract for WER, compute cost (Whisper-calls / audio-seconds / RTF), safety gates, length curves, and finalization latency (p50/p95).
+- Primary archetype: internal deterministic replay/report assembly.
+- Owns: the offline harness (`internal/eval`: WER/normalizer/metered-provider/replay/report) and shared proto report messages consumed by `ExperimentService`.
+- API: no standalone public API. The former blocking eval RPC and eval CLI were retired on 2026-07-01; persisted experiments are the only agent/operator evaluation surface. The Dictation Studio UI retains the eval report renderer only as a shared report component.
+- Storage: none — experiment runs materialize corpus inputs and persist reports in the experiment domain.
+- Reference: [`../reference/eval-harness.md`](../reference/eval-harness.md). Requires a live Whisper backend for production experiments (build-tagged integration test; deterministic fake-provider tests in the default suite).
 
 ### experiment
 

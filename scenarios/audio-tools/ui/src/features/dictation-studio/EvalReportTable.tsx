@@ -1,19 +1,12 @@
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
-
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
 import { Table, TBody, TD, TH, THead, TR } from "../../components/ui/table";
-import { ApiErrorState } from "../../components/composites/ApiErrorState";
 import { useTranslation } from "../../i18n";
 import { strings } from "../../consts/strings";
 import { selectors } from "../../consts/selectors";
 import {
-  runEval,
   type ClipReportRow,
   type EditOperationRow,
   type EvalReportData,
+  type LengthCurveRow,
   type StrategyRow,
 } from "../../services/corpus";
 
@@ -44,67 +37,13 @@ function deltaMs(value: number): string {
 function arrayOrEmpty<T>(value: T[] | undefined): T[] {
   return value ?? [];
 }
-
-// EvalReportView replays the corpus through every strategy and renders the
-// quality-vs-latency comparison table. Latency columns degrade to a dash
-// when the run did not pace clips in real time (latency_measured = false).
-export function EvalReportView() {
-  const { t } = useTranslation();
-  const [repeats, setRepeats] = useState(0);
-
-  const run = useMutation({
-    mutationFn: () => runEval({ realtimeRepeats: repeats }),
-  });
-
-  const report = run.data;
-
-  return (
-    <div className="flex flex-col gap-4">
-      <p className="text-sm text-app-muted-foreground">{t(strings.dictationStudio.reportHint)}</p>
-
-      <div className="flex flex-wrap items-end gap-3">
-        <label htmlFor="eval-repeats" className="flex flex-col gap-1 text-xs">
-          {t(strings.dictationStudio.repeatsLabel)}
-          <Input
-            id="eval-repeats"
-            data-testid={selectors.dictationStudio.repeatsInput}
-            type="number"
-            min={0}
-            max={20}
-            className="w-28"
-            value={repeats}
-            onChange={(e) => setRepeats(Math.max(0, Math.min(20, Number(e.currentTarget.value) || 0)))}
-          />
-        </label>
-        <Button
-          type="button"
-          data-testid={selectors.dictationStudio.runEval}
-          disabled={run.isPending}
-          onClick={() => run.mutate()}
-        >
-          {run.isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              {t(strings.dictationStudio.running)}
-            </>
-          ) : (
-            t(strings.dictationStudio.runEval)
-          )}
-        </Button>
-      </div>
-      <p className="text-xs text-app-muted-foreground">{t(strings.dictationStudio.repeatsHint)}</p>
-
-      {run.isError ? (
-        <ApiErrorState error={run.error} title={t(strings.dictationStudio.reportError)} onRetry={() => run.mutate()} />
-      ) : null}
-
-      {report ? (
-        <EvalReportTable report={report} />
-      ) : !run.isError ? (
-        <p className="text-sm text-app-muted-foreground">{t(strings.dictationStudio.reportEmpty)}</p>
-      ) : null}
-    </div>
-  );
+function curveX(index: number, total: number): number {
+  if (total <= 1) return 50;
+  return 8 + (index * 84) / (total - 1);
+}
+function curveY(value: number, max: number): number {
+  if (max <= 0) return 84;
+  return 84 - (value / max) * 68;
 }
 
 export function EvalReportTable({ report }: { report: EvalReportData }) {
@@ -197,13 +136,7 @@ export function EvalReportTable({ report }: { report: EvalReportData }) {
                 </p>
               ) : null}
               {arrayOrEmpty(row.lengthCurves).length > 0 ? (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {arrayOrEmpty(row.lengthCurves).map((curve) => (
-                    <span key={curve.bucket} className="rounded border border-app-border px-1.5 py-0.5 text-xs text-app-muted-foreground">
-                      {curve.bucket}: {curve.clipCount} {t(strings.dictationStudio.clipsShort)} · {t(strings.dictationStudio.colWer)} {pct(curve.wer)} · {t(strings.dictationStudio.colP95)} {latency ? ms(curve.finalizationLatencyP95Ms) : DASH} · {t(strings.dictationStudio.ttfcShort)} {latency ? ms(curve.meanTimeToFirstCommitMs) : DASH}
-                    </span>
-                  ))}
-                </div>
+                <LengthCurveChart curves={arrayOrEmpty(row.lengthCurves)} latency={latency} />
               ) : null}
             </div>
           ))}
@@ -279,6 +212,51 @@ export function EvalReportTable({ report }: { report: EvalReportData }) {
           </div>
         </section>
       ) : null}
+    </div>
+  );
+}
+
+function LengthCurveChart({ curves, latency }: { curves: LengthCurveRow[]; latency: boolean }) {
+  const { t } = useTranslation();
+  const sorted = [...curves].sort((a, b) => a.maxDurationMs - b.maxDurationMs);
+  const maxWer = Math.max(...sorted.map((curve) => curve.wer), 0.01);
+  const maxP95 = Math.max(...sorted.map((curve) => curve.finalizationLatencyP95Ms), 1);
+  const werPoints = sorted.map((curve, index) => `${curveX(index, sorted.length)},${curveY(curve.wer, maxWer)}`).join(" ");
+  const p95Points = sorted.map((curve, index) => `${curveX(index, sorted.length)},${curveY(curve.finalizationLatencyP95Ms, maxP95)}`).join(" ");
+
+  return (
+    <div data-testid={selectors.dictationStudio.lengthCurveChart} className="mt-3 rounded-control border border-app-border bg-app-surface-muted/40 p-2">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h4 className="text-xs font-semibold">{t(strings.dictationStudio.lengthCurveTitle)}</h4>
+        <div className="flex flex-wrap gap-2 text-[11px] text-app-muted-foreground">
+          <span className="inline-flex items-center gap-1"><span className="h-2 w-3 rounded-sm bg-app-accent" />{t(strings.dictationStudio.lengthCurveWer)}</span>
+          {latency ? <span className="inline-flex items-center gap-1"><span className="h-2 w-3 rounded-sm bg-app-warning" />{t(strings.dictationStudio.lengthCurveP95)}</span> : null}
+        </div>
+      </div>
+      <svg viewBox="0 0 100 92" role="img" aria-label={t(strings.dictationStudio.lengthCurveTitle)} className="h-32 w-full">
+        <line x1="8" y1="84" x2="96" y2="84" className="stroke-app-border" strokeWidth="1" />
+        <line x1="8" y1="16" x2="8" y2="84" className="stroke-app-border" strokeWidth="1" />
+        <polyline points={werPoints} fill="none" className="stroke-app-accent" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        {latency ? <polyline points={p95Points} fill="none" className="stroke-app-warning" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" /> : null}
+        {sorted.map((curve, index) => (
+          <g key={curve.bucket}>
+            <circle cx={curveX(index, sorted.length)} cy={curveY(curve.wer, maxWer)} r="1.8" className="fill-app-accent" />
+            {latency ? <circle cx={curveX(index, sorted.length)} cy={curveY(curve.finalizationLatencyP95Ms, maxP95)} r="1.8" className="fill-app-warning" /> : null}
+            <text x={curveX(index, sorted.length)} y="91" textAnchor="middle" className="fill-app-muted-foreground text-[5px]">{curve.bucket}</text>
+          </g>
+        ))}
+      </svg>
+      <div className="mt-2 grid gap-1 text-[11px] text-app-muted-foreground">
+        {sorted.map((curve) => (
+          <div key={curve.bucket} className="flex flex-wrap gap-x-2 gap-y-0.5">
+            <span className="font-medium text-app-foreground">{curve.bucket}</span>
+            <span>{curve.clipCount} {t(strings.dictationStudio.clipsShort)}</span>
+            <span>{t(strings.dictationStudio.colWer)} {pct(curve.wer)}</span>
+            <span>{t(strings.dictationStudio.colP95)} {latency ? ms(curve.finalizationLatencyP95Ms) : DASH}</span>
+            <span>{t(strings.dictationStudio.ttfcShort)} {latency ? ms(curve.meanTimeToFirstCommitMs) : DASH}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

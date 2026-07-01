@@ -16,13 +16,13 @@ import (
 
 const evalEngineID = "eval-whisper-local"
 
-// defaultStrategyKinds is the trio compared when a RunEval request lists no
+// defaultStrategyKinds is the trio compared when a RunReport request lists no
 // strategies: the batch oracle plus the two streaming strategies.
 var defaultStrategyKinds = []string{"batch", "vad_segment", "overlap_agree"}
 
 // loadClips resolves the requested clip ids (or the whole corpus) into
 // replayable eval.Clips, fetching each clip's audio from the blob store.
-func (h *connectHandler) loadClips(ctx context.Context, ids []string) ([]inteval.Clip, error) {
+func (h *reportRunner) loadClips(ctx context.Context, ids []string) ([]inteval.Clip, error) {
 	var metas []intcorpus.Clip
 	if len(ids) == 0 {
 		all, err := h.deps.Corpus.ListClips(ctx, intcorpus.ListFilter{})
@@ -58,7 +58,7 @@ func (h *connectHandler) loadClips(ctx context.Context, ids []string) ([]inteval
 // buildSpecs translates the requested EvalStrategies (or the default trio)
 // into eval.StrategySpecs, each carrying a BuildSession closure that wires a
 // fresh metered provider to the strategy.
-func (h *connectHandler) buildSpecs(reqStrategies []*evalv1.EvalStrategy) ([]inteval.StrategySpec, error) {
+func (h *reportRunner) buildSpecs(reqStrategies []*evalv1.EvalStrategy) ([]inteval.StrategySpec, error) {
 	type cfg struct {
 		kind  string
 		label string
@@ -142,11 +142,11 @@ func (h *connectHandler) buildSpecs(reqStrategies []*evalv1.EvalStrategy) ([]int
 	return specs, nil
 }
 
-func (h *connectHandler) newMeter(clip inteval.Clip) *inteval.MeteredProvider {
+func (h *reportRunner) newMeter(clip inteval.Clip) *inteval.MeteredProvider {
 	return inteval.NewMeteredProvider(h.deps.NewProvider(), float64(clip.SampleRate*2))
 }
 
-func (h *connectHandler) streamConfigFor(pref stt.StrategyPreference) stt.StreamConfig {
+func (h *reportRunner) streamConfigFor(pref stt.StrategyPreference) stt.StreamConfig {
 	cfg := h.deps.Defaults
 	if cfg.Mode == "" {
 		cfg = stt.Defaults()
@@ -161,7 +161,7 @@ func (h *connectHandler) streamConfigFor(pref stt.StrategyPreference) stt.Stream
 // Segmenter path. Speaker stages stay unbound unless a caller supplies a
 // per-run SpeakerConfig, so the public eval surface remains speaker-off while
 // experiments can exercise extraction/verification hermetically.
-func (h *connectHandler) segmenterSession(meter *inteval.MeteredProvider, cfg stt.StreamConfig, clip inteval.Clip) inteval.Session {
+func (h *reportRunner) segmenterSession(meter *inteval.MeteredProvider, cfg stt.StreamConfig, clip inteval.Clip) inteval.Session {
 	chain := sttchain.NewChain(sttchain.Options{
 		EnableLocal:  true,
 		LocalEngines: map[string]sttchain.Provider{evalEngineID: meter},

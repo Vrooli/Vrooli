@@ -235,7 +235,7 @@ func EvalClip(ctx context.Context, clip Clip, meter *MeteredProvider, opts Repla
 		AudioDurationMs:       int64(clip.Duration() / time.Millisecond),
 		Err:                   res.Err,
 	}
-	cr.Safety = EvaluateSafety(refTokens, hypTokens, editOperations, res.CommitTimeline, SafetyOptions{
+	cr.Safety = EvaluateSafety(editOperations, res.CommitTimeline, SafetyOptions{
 		DroppedSpanThresholdWords: opts.DroppedSpanThresholdWords,
 	})
 	if meter != nil {
@@ -259,7 +259,7 @@ type StrategySpec struct {
 	BuildSession func(clip Clip) (Session, *MeteredProvider)
 }
 
-// EvalOptions tunes a full RunEval over a corpus.
+// EvalOptions tunes a full RunReport over a corpus.
 type EvalOptions struct {
 	ChunkMs int
 	// QualityPass runs the deterministic WER+compute measurement (default
@@ -293,11 +293,11 @@ func (o EvalOptions) realtimeConcurrency() int {
 	return 8
 }
 
-// RunEval replays every clip through every strategy spec and assembles the
+// RunReport replays every clip through every strategy spec and assembles the
 // comparison report. The deterministic pass (when QualityPass) yields the
 // reproducible WER/compute columns; RealtimeRepeats real-time passes feed
 // the per-clip latency samples that aggregate into p50/p95.
-func RunEval(ctx context.Context, clips []Clip, specs []StrategySpec, opts EvalOptions) EvalReport {
+func RunReport(ctx context.Context, clips []Clip, specs []StrategySpec, opts EvalOptions) EvalReport {
 	report := EvalReport{
 		QualityMeasured: opts.QualityPass,
 		LatencyMeasured: opts.RealtimeRepeats > 0,

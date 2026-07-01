@@ -1,6 +1,5 @@
-// Corpus + Eval client: calls audio-tools' own CorpusService and
-// EvalService over the same-origin Connect transport. No cross-scenario
-// calls — audio-tools owns these surfaces and serves them to its own UI.
+// Corpus client: calls audio-tools' own CorpusService over the same-origin
+// Connect transport. No cross-scenario calls.
 //
 // Mirrors the thin-wrapper pattern in speakerAdmin.ts / settings.ts: the
 // generated Connect clients stay private to this module and every export
@@ -15,7 +14,6 @@ import {
   type Clip,
 } from "@vrooli/proto-types/audio-tools/v1/corpus/corpus_pb";
 import {
-  EvalService,
   type LengthBucketCurve,
   type SafetyGateReport,
   type StageAttribution,
@@ -30,7 +28,6 @@ import {
 import { transport } from "../api/client";
 
 const corpusClient = createClient(CorpusService, transport);
-const evalClient = createClient(EvalService, transport);
 
 export { ClipSource };
 
@@ -115,16 +112,6 @@ export async function getClipAudio(id: string): Promise<{ audio: Uint8Array; cli
 // =============================================================================
 // Eval
 // =============================================================================
-
-export interface EvalStrategyInput {
-  kind: string;
-  label?: string;
-  /** -1 = use the persisted default; 0 = disabled. */
-  overlapMaxStallRejects?: number;
-  overlapWindowMs?: number;
-  overlapCommitRuns?: number;
-  vadSilenceMs?: number;
-}
 
 export interface StrategyRow {
   strategy: string;
@@ -372,30 +359,6 @@ function decodeStrategy(s: StrategyReport): StrategyRow {
     commitCount: s.commitCount,
     speakerRejectionCount: s.speakerRejectionCount,
   };
-}
-
-export interface RunEvalArgs {
-  clipIds?: string[];
-  strategies?: EvalStrategyInput[];
-  realtimeRepeats?: number;
-  chunkMs?: number;
-}
-
-export async function runEval(args: RunEvalArgs = {}): Promise<EvalReportData> {
-  const resp = await evalClient.runEval({
-    clipIds: args.clipIds ?? [],
-    strategies: (args.strategies ?? []).map((s) => ({
-      kind: s.kind,
-      label: s.label ?? "",
-      overlapMaxStallRejects: s.overlapMaxStallRejects ?? -1,
-      overlapWindowMs: s.overlapWindowMs ?? 0,
-      overlapCommitRuns: s.overlapCommitRuns ?? 0,
-      vadSilenceMs: s.vadSilenceMs ?? 0,
-    })),
-    realtimeRepeats: args.realtimeRepeats ?? 0,
-    chunkMs: args.chunkMs ?? 0,
-  });
-  return decodeEvalReport(resp.report);
 }
 
 export function decodeEvalReport(report?: EvalReport): EvalReportData {

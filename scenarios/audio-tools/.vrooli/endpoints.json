@@ -241,14 +241,6 @@
       "category": "diagnostics"
     },
     {
-      "id": "eval.run_eval",
-      "path": "/vrooli.audio_tools.v1.eval.EvalService/RunEval",
-      "method": "POST",
-      "summary": "",
-      "description": "",
-      "category": "eval"
-    },
-    {
       "id": "experiment.start",
       "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/StartExperiment",
       "method": "POST",

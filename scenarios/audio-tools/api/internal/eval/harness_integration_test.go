@@ -111,7 +111,7 @@ func TestIntegration_SmokeFixtureThreeStrategies(t *testing.T) {
 	}
 
 	opts := EvalOptions{ChunkMs: 100, QualityPass: true, RealtimeRepeats: 1, Sleep: time.Sleep}
-	rep := RunEval(ctx, []Clip{clip}, specs, opts)
+	rep := RunReport(ctx, []Clip{clip}, specs, opts)
 	require.Len(t, rep.PerStrategy, 3)
 
 	var batchWER float64
