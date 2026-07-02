@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-02T14:49:40-04:00"
+    "last_validated_at": "2026-07-02T16:29:59-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P1-003",
       "title": "Expose Dense Workflow Operations Views",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-003",
       "category": "ui",
       "criticality": "P1",
@@ -15,7 +15,7 @@
         {
           "type": "test",
           "phase": "ui-health",
-          "status": "implemented",
+          "status": "failing",
           "notes": "UI tests and BAS captures verify dashboard, inventory, search, run detail, and fix preview states across desktop and mobile without overlapping controls."
         }
       ]

@@ -18,7 +18,7 @@ func TestScanScenarioCatalogsCasesFlowsActionsSeedsAndRegistryFacts(t *testing.T
 	require.Equal(t, "sample-scenario", catalog.Scenario)
 	require.True(t, catalog.Registry.Exists)
 	require.Equal(t, "observer", catalog.Registry.ExecutionMode)
-	require.Len(t, catalog.Cases, 2)
+	require.Len(t, catalog.Cases, 3)
 	require.Len(t, catalog.Flows, 1)
 	require.Len(t, catalog.Actions, 2)
 	require.Len(t, catalog.Seeds, 1)
@@ -48,6 +48,12 @@ func TestScanScenarioCatalogsCasesFlowsActionsSeedsAndRegistryFacts(t *testing.T
 	require.True(t, mutatingCase.Safety.RequiresIsolation)
 	require.True(t, mutatingCase.Safety.RequiresConfirmation)
 	require.Equal(t, "full", mutatingCase.Reset)
+
+	destructiveCase := findAsset(t, catalog.Assets, "bas/cases/03-admin/destroy-project.json")
+	require.True(t, destructiveCase.Safety.Mutating)
+	require.False(t, destructiveCase.Safety.RequiresIsolation)
+	require.False(t, destructiveCase.Safety.RequiresConfirmation)
+	require.Equal(t, "none", destructiveCase.Reset)
 
 	flow := findAsset(t, catalog.Assets, "bas/flows/01-user/onboarding.json")
 	require.Equal(t, AssetRoleAgentFlow, flow.Role)
@@ -170,7 +176,17 @@ func makeScenarioFixture(t *testing.T) string {
 				"requirements_json":     "[\"REQ-DELETE\"]",
 				"reset":                 "database",
 				"requires_confirmation": "true",
+				"routed_isolation":      "true",
 			},
+		},
+		"nodes": []map[string]any{},
+	})
+	writeJSON(t, filepath.Join(root, "bas", "cases", "03-admin", "destroy-project.json"), map[string]any{
+		"metadata": map[string]any{
+			"name":           "Destroy project",
+			"description":    "Destroys a project through an irreversible admin path.",
+			"execution_mode": "destructive",
+			"labels":         map[string]any{"reset": "none"},
 		},
 		"nodes": []map[string]any{},
 	})

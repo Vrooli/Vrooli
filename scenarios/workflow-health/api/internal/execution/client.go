@@ -103,15 +103,42 @@ func (c *ConnectClient) Timeline(ctx context.Context, executionID string) (*bast
 }
 
 func definitionToProto(definition map[string]any) (*basworkflows.WorkflowDefinitionV2, error) {
-	data, err := json.Marshal(definition)
+	data, err := json.Marshal(normalizeWorkflowDefinitionAliases(definition))
 	if err != nil {
 		return nil, fmt.Errorf("marshal workflow definition: %w", err)
 	}
 	var out basworkflows.WorkflowDefinitionV2
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(data, &out); err != nil {
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(data, &out); err != nil {
 		return nil, fmt.Errorf("decode workflow definition: %w", err)
 	}
 	return &out, nil
+}
+
+func normalizeWorkflowDefinitionAliases(definition map[string]any) map[string]any {
+	out := make(map[string]any, len(definition))
+	for key, value := range definition {
+		out[key] = value
+	}
+	metadata, ok := definition["metadata"].(map[string]any)
+	if !ok {
+		return out
+	}
+	metadataOut := make(map[string]any, len(metadata))
+	for key, value := range metadata {
+		metadataOut[key] = value
+	}
+	if mode, ok := metadataOut["execution_mode"].(string); ok {
+		switch strings.ToLower(strings.TrimSpace(mode)) {
+		case "observer":
+			metadataOut["execution_mode"] = "EXECUTION_MODE_OBSERVER"
+		case "mutating":
+			metadataOut["execution_mode"] = "EXECUTION_MODE_MUTATING"
+		case "destructive":
+			metadataOut["execution_mode"] = "EXECUTION_MODE_DESTRUCTIVE"
+		}
+	}
+	out["metadata"] = metadataOut
+	return out
 }
 
 func parametersToProto(params Parameters) *basexecution.ExecutionParameters {

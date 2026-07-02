@@ -11,17 +11,35 @@
           "name": "scenario",
           "description": "Validate a scenario's BAS workflow catalog and optional execution evidence",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Scenario id to validate" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id to validate"
+            }
           ],
           "flags": [
-            { "name": "path", "description": "Explicit scenario directory path" },
-            { "name": "include-execution", "bool": true, "description": "Execute validation cases through BAS after static validation" }
+            {
+              "name": "path",
+              "description": "Explicit scenario directory path"
+            },
+            {
+              "name": "include-execution",
+              "bool": true,
+              "description": "Execute validation cases through BAS after static validation"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "ValidateScenario" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ValidateScenario"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:read"]
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
           }
         }
       ]
@@ -34,35 +52,74 @@
           "name": "preview",
           "description": "Preview deterministic workflow fixes",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Scenario id to fix" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id to fix"
+            }
           ],
           "flags": [
-            { "name": "path", "description": "Explicit scenario directory path" },
-            { "name": "rule", "description": "Comma-separated rule ids to fix" },
-            { "name": "apply", "bool": true, "description": "Apply the previewed fixes instead of reporting only" }
+            {
+              "name": "path",
+              "description": "Explicit scenario directory path"
+            },
+            {
+              "name": "rule",
+              "description": "Comma-separated rule ids to fix"
+            },
+            {
+              "name": "apply",
+              "bool": true,
+              "description": "Apply the previewed fixes instead of reporting only"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "PreviewFix" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "PreviewFix"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:read"]
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
           }
         },
         {
           "name": "apply",
           "description": "Apply deterministic workflow fixes",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Scenario id to fix" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id to fix"
+            }
           ],
           "flags": [
-            { "name": "path", "description": "Explicit scenario directory path" },
-            { "name": "rule", "description": "Comma-separated rule ids to fix" }
+            {
+              "name": "path",
+              "description": "Explicit scenario directory path"
+            },
+            {
+              "name": "rule",
+              "description": "Comma-separated rule ids to fix"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "ApplyFix" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ApplyFix"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:read", "filesystem:write"]
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
           }
         }
       ]
@@ -75,102 +132,54 @@
           "name": "search",
           "description": "Search typed workflow leaves for agent and validation intents",
           "positionals": [
-            { "name": "query", "required": true, "description": "Natural-language workflow intent" }
-          ],
-          "flags": [
-            { "name": "scenario", "description": "Scenario id to search" },
-            { "name": "path", "description": "Explicit scenario directory path" },
-            { "name": "type", "description": "Comma-separated leaf types: workflow.flow, workflow.test, workflow.fragment" },
-            { "name": "include-fragments", "bool": true, "description": "Include workflow.fragment dependency leaves when no explicit type filter is supplied" },
-            { "name": "limit", "description": "Maximum number of results" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "WorkflowSearchService", "method": "SearchWorkflows" },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:read"]
-          }
-        }
-      ]
-    },
-    {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
-      "commands": [
-        {
-          "name": "list",
-          "description": "List all notes",
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "ListNotes" },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          }
-        },
-        {
-          "name": "create",
-          "description": "Create a note",
-          "flags": [
-            { "name": "title", "required": true, "description": "Note title" },
-            { "name": "body", "description": "Note body" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "CreateNote" },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          }
-        },
-        {
-          "name": "get",
-          "description": "Get a note by id",
-          "positionals": [
-            { "name": "id", "required": true, "description": "Note id" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "GetNote" },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          }
-        },
-        {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
-          "flags": [
-            { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "CountNotes" },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": { "type": "time_window", "default": "this_week" }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
+            {
+              "name": "query",
+              "required": true,
+              "description": "Natural-language workflow intent"
             }
+          ],
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Scenario id to search"
+            },
+            {
+              "name": "path",
+              "description": "Explicit scenario directory path"
+            },
+            {
+              "name": "type",
+              "description": "Comma-separated leaf types: workflow.flow, workflow.test, workflow.fragment"
+            },
+            {
+              "name": "include-fragments",
+              "bool": true,
+              "description": "Include workflow.fragment dependency leaves when no explicit type filter is supplied"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum number of results"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkflowSearchService",
+            "method": "SearchWorkflows"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
           }
         }
       ]
     }
   ],
   "measures": {
-    "domains": [
-      { "domain": "notes", "stateful": true, "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier." }
-    ]
+    "domains": []
   },
   "omitted": []
 }

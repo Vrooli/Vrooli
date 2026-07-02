@@ -216,10 +216,16 @@ func refusalReason(asset workflows.WorkflowAsset, opts Options) string {
 	if !asset.Safety.Mutating {
 		return ""
 	}
-	if !asset.Safety.RequiresConfirmation || !opts.ConfirmMutating {
+	if !asset.Safety.RequiresConfirmation {
+		return "mutating or destructive workflow execution requires metadata.labels.requires_confirmation=true"
+	}
+	if !opts.ConfirmMutating {
 		return "mutating workflow execution requires explicit confirmation"
 	}
-	if !asset.Safety.RequiresIsolation || !opts.RoutedIsolationProven {
+	if !asset.Safety.RequiresIsolation {
+		return "mutating or destructive workflow execution requires metadata.labels.routed_isolation=true"
+	}
+	if !opts.RoutedIsolationProven {
 		return "mutating workflow execution requires proven routed test isolation"
 	}
 	return ""

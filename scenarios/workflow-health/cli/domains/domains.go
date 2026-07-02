@@ -2,7 +2,6 @@ package domains
 
 import (
 	"workflow-health/cli/domains/fix"
-	"workflow-health/cli/domains/notes" // EXAMPLE-DOMAIN:notes
 	"workflow-health/cli/domains/validate"
 	"workflow-health/cli/domains/workflows"
 
@@ -55,12 +54,5 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, workflowsGroup)
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
-	if err != nil {
-		return nil, err
-	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
 	return groups, nil
 }

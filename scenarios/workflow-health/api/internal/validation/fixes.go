@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"workflow-health/internal/workflows"
 
@@ -84,6 +85,9 @@ func workflowsScan(root string) (catalogView, error) {
 		return catalogView{}, err
 	}
 	view := catalogView{Scenario: catalog.Scenario}
+	if isRFC3339(catalog.Registry.GeneratedAt) {
+		view.GeneratedAt = catalog.Registry.GeneratedAt
+	}
 	for _, c := range catalog.Cases {
 		if c.ParseError != "" {
 			continue
@@ -93,7 +97,9 @@ func workflowsScan(root string) (catalogView, error) {
 			Description:  c.Description,
 			Order:        c.Order,
 			Requirements: requirementIDs(c.Requirements),
+			Fixtures:     fixturePaths(c.Dependencies),
 			Reset:        c.Reset,
+			Mutating:     c.Safety.Mutating,
 		})
 	}
 	sort.Slice(view.Cases, func(i, j int) bool { return view.Cases[i].File < view.Cases[j].File })
@@ -101,8 +107,9 @@ func workflowsScan(root string) (catalogView, error) {
 }
 
 type catalogView struct {
-	Scenario string
-	Cases    []registryCase
+	Scenario    string
+	GeneratedAt string
+	Cases       []registryCase
 }
 
 type registryCase struct {
@@ -112,14 +119,26 @@ type registryCase struct {
 	Requirements []string `json:"requirements,omitempty"`
 	Fixtures     []string `json:"fixtures"`
 	Reset        string   `json:"reset,omitempty"`
+	Mutating     bool     `json:"-"`
 }
 
 func buildRegistryJSON(view catalogView) (string, error) {
+	generatedAt := view.GeneratedAt
+	if generatedAt == "" {
+		generatedAt = time.Now().UTC().Format(time.RFC3339)
+	}
+	executionMode := "observer"
+	for _, c := range view.Cases {
+		if c.Mutating {
+			executionMode = "mutating"
+			break
+		}
+	}
 	payload := map[string]any{
 		"scenario":     view.Scenario,
-		"generated_at": "managed-by-workflow-health",
+		"generated_at": generatedAt,
 		"metadata": map[string]any{
-			"execution_mode": "observer",
+			"execution_mode": executionMode,
 		},
 		"playbooks": view.Cases,
 	}
@@ -130,6 +149,14 @@ func buildRegistryJSON(view catalogView) (string, error) {
 	return string(data) + "\n", nil
 }
 
+func isRFC3339(value string) bool {
+	if strings.TrimSpace(value) == "" {
+		return false
+	}
+	_, err := time.Parse(time.RFC3339, value)
+	return err == nil
+}
+
 func requirementIDs(links []workflows.RequirementLink) []string {
 	ids := make([]string, 0, len(links))
 	for _, link := range links {
@@ -137,6 +164,18 @@ func requirementIDs(links []workflows.RequirementLink) []string {
 	}
 	sort.Strings(ids)
 	return ids
+}
+
+func fixturePaths(edges []workflows.DependencyEdge) []string {
+	fixtures := make([]string, 0, len(edges))
+	for _, edge := range edges {
+		if edge.Kind != "fixture" || strings.TrimSpace(edge.ToPath) == "" {
+			continue
+		}
+		fixtures = append(fixtures, strings.TrimSpace(edge.ToPath))
+	}
+	sort.Strings(fixtures)
+	return fixtures
 }
 
 func previewMetadataFix(root string) ([]autofix.Candidate, error) {
@@ -157,7 +196,7 @@ func previewMetadataFix(root string) ([]autofix.Candidate, error) {
 func previewExecutionModeFix(root string) ([]autofix.Candidate, error) {
 	return previewWorkflowJSONEdits(root, CodeExecutionModeInvalid, "Normalize invalid execution_mode to observer.", func(_ string, doc map[string]any) bool {
 		mode := strings.ToLower(strings.TrimSpace(getString(doc, "metadata", "execution_mode")))
-		if mode == "observer" || mode == "mutating" {
+		if mode == "observer" || mode == "mutating" || mode == "destructive" {
 			return false
 		}
 		setNestedString(doc, "observer", "metadata", "execution_mode")

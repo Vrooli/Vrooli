@@ -52,128 +52,62 @@ and mirrors `api-core/health.Response` field-for-field.
 
 ---
 
-## Domain endpoints — `<domain>`
+## Validation
 
-Each product domain exposes its endpoints under
-`POST /vrooli.workflow_health.v1.<domain>.<Domain>Service/<Method>`
-for proto-typed Connect-RPC calls, with REST exceptions (such as
-multipart uploads) mounted at explicit REST paths. Document your
-domain's endpoints here as you build them — one section per RPC, with
-its auth, request/response proto shapes, error codes, and CLI mirror.
+### `POST /scenario-validation/v1.ScenarioValidationService/ValidateScenario`
 
-The scaffold ships one fully worked CRUD vertical slice as a copyable
-reference (see the fenced example below); `vrooli scenario detemplate
-<scenario>` removes it once your real domains are green.
-
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `vrooli scenario detemplate`)
-
-The `notes` domain is the canonical worked example. Copy its layering
-when adding the first non-trivial mutation in your scenario, then
-remove it.
-
-#### `POST /vrooli.workflow_health.v1.notes.NotesService/ListNotes`
-
-List notes through the generated Connect-RPC service, newest-first.
+Validate a scenario's BAS workflow catalog and, when requested, execute
+validation cases through Browser Automation Studio.
 
 | | |
 |---|---|
-| **Auth** | None (template default; scenarios add auth as needed) |
-| **Response** | `ListNotesResponse { notes: Note[] }` (capped at 100 by `notes.Service`) |
-| **Errors** | `500 internal` — repository read failure |
-| **CLI** | `workflow-health notes list` |
+| **Auth** | None |
+| **Request** | `ValidateScenarioRequest { scenario: string, path: string, include_execution: bool }` |
+| **Response** | `ValidateScenarioResponse` with workflow maturity assessment, findings, native catalog detail, execution summary, and metrics |
+| **Errors** | `invalid_argument` for missing or unresolvable target; `internal` for maturity response construction failures |
+| **CLI** | `workflow-health validate scenario <scenario> [--path <dir>] [--include-execution]` |
 
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.workflow_health.v1.notes.NotesService/ListNotes" \
-  -H 'Content-Type: application/json' \
-  -d '{}'
-```
+### `POST /scenario-validation/v1.ScenarioValidationService/PreviewFix`
 
-UI and CLI code should normally use the generated client instead of
-calling this path by hand.
-
-#### `POST /vrooli.workflow_health.v1.notes.NotesService/CreateNote`
-
-Create a note through the generated Connect-RPC service.
+Preview deterministic fixes for workflow catalog findings.
 
 | | |
 |---|---|
-| **Auth** | None (template default) |
-| **Request** | `CreateNoteRequest { title: string (required), body: string (optional) }` |
-| **Response** | `CreateNoteResponse { note: Note }` |
-| **Errors** | `invalid_argument` — missing/whitespace-only title<br>`internal` — repository write failure |
-| **CLI** | `workflow-health notes create --title <title> [--body <body>]` |
+| **Auth** | None |
+| **Request** | `FixRequest { scenario: string, path: string, rule_ids: string[] }` |
+| **Response** | `FixResponse` with candidate diffs and `applied: false` |
+| **Errors** | `invalid_argument` for unresolvable targets or unsafe fix inputs |
+| **CLI** | `workflow-health fix preview <scenario> [--path <dir>] [--rule <ids>]` |
 
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.workflow_health.v1.notes.NotesService/CreateNote" \
-  -H 'Content-Type: application/json' \
-  -d '{"title":"first","body":"hello"}'
-```
+### `POST /scenario-validation/v1.ScenarioValidationService/ApplyFix`
 
-Title validation (non-empty after whitespace trim) lives in
-`internal/notes/service.go`, **not** the handler. The Connect handler
-only translates `notes.ErrInvalidNote` into `invalid_argument`.
-
-#### `POST /vrooli.workflow_health.v1.notes.NotesService/GetNote`
-
-Fetch a note by id through the generated Connect-RPC service.
+Apply deterministic workflow metadata and registry fixes.
 
 | | |
 |---|---|
-| **Auth** | None (template default) |
-| **Request** | `GetNoteRequest { id: string }` |
-| **Response** | `GetNoteResponse { note: Note }` |
-| **Errors** | `not_found` — no note with that id<br>`internal` — repository read failure |
-| **CLI** | `workflow-health notes get <id>` |
+| **Auth** | None |
+| **Request** | `FixRequest { scenario: string, path: string, rule_ids: string[] }` |
+| **Response** | `FixResponse` with applied candidate diffs and `applied: true` |
+| **Errors** | `invalid_argument` for unresolvable targets or unsafe fix inputs |
+| **CLI** | `workflow-health fix apply <scenario> [--path <dir>] [--rule <ids>]` |
 
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.workflow_health.v1.notes.NotesService/GetNote" \
-  -H 'Content-Type: application/json' \
-  -d '{"id":"abc123"}'
-```
+## Workflows
 
-`notes.ErrNoteNotFound` returned by the service is translated into the
-typed `not_found` Connect error at the handler edge.
+### `POST /vrooli.workflow_health.v1.workflows.WorkflowSearchService/SearchWorkflows`
 
-#### `POST /api/v1/notes/{id}/attachments`
-
-Upload opaque file bytes through the documented REST multipart exception.
-The response is still proto-typed metadata.
+Search typed workflow leaves in a scenario-owned `bas/` catalog.
 
 | | |
 |---|---|
-| **Auth** | None (template default) |
-| **Path params** | `id` — note identifier |
-| **Request** | `multipart/form-data` with `file` part |
-| **Response** | `UploadAttachmentResponse { attachment: Attachment }` |
-| **Errors** | `400 invalid_request` — malformed multipart or missing file<br>`404 not_found` — no note with that id<br>`500 internal` — blob or metadata persistence failure |
-| **CLI** | `workflow-health notes attach <id> --file <path>` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/api/v1/notes/abc123/attachments" \
-  -F file=@./example.png
-```
-
-#### `Note` shape
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | string (UUID) | Server-generated |
-| `title` | string | Required, non-empty after trim |
-| `body` | string | Optional |
-| `created_at` | `google.protobuf.Timestamp` | Server-set on create |
-| `updated_at` | `google.protobuf.Timestamp` | Server-set on create / future update |
-| `attachment_keys` | `string[]` | Keys of uploaded note attachments |
-
-Defined in `packages/proto/schemas/workflow-health/v1/notes/notes.proto`.
-<!-- EXAMPLE-DOMAIN:notes END -->
+| **Auth** | None |
+| **Request** | `SearchWorkflowsRequest { scenario: string, path: string, query: string, types: string[], include_fragments: bool, limit: int32 }` |
+| **Response** | `SearchWorkflowsResponse` with ranked `workflow.flow`, `workflow.test`, and optionally `workflow.fragment` leaves |
+| **Errors** | `invalid_argument` for missing query or unresolvable target |
+| **CLI** | `workflow-health workflows search <query> [--scenario <id>] [--path <dir>] [--type <types>] [--include-fragments] [--limit <n>]` |
 
 ---
 
 ## Adding a new endpoint
-
-For a new domain, copy the worked vertical slice in the fenced example
-above first, then replace it once your real domain is green.
 
 For an endpoint inside an existing domain:
 

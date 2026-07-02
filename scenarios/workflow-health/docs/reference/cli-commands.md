@@ -90,71 +90,43 @@ Read values back without an argument:
 workflow-health configure api_base
 ```
 
-## Scenario commands — `<domain>`
+## Scenario commands — `validate`
 
-Each product domain exposes its commands as a subcommand group
-(`workflow-health <domain> <verb>`). Every command calls a single API
-endpoint and renders the result through one of the three output
-contracts below. Document your domain's commands here as you build
-them, one row/section per command, mirroring the endpoints they call
-in [`api-endpoints.md`](api-endpoints.md).
+### `workflow-health validate scenario <scenario>`
 
-The scaffold ships one fully worked CRUD command group as a copyable
-reference (see the fenced example below); `vrooli scenario detemplate
-<scenario>` removes it once your real domains are green.
-
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `vrooli scenario detemplate`)
-
-The `notes` domain is the canonical worked example. Copy its layout
-when adding the first non-trivial domain to your scenario, then remove
-it.
-
-#### `workflow-health notes list`
-
-List notes, newest-first. Calls the generated Connect-RPC
-`Notes/List` method. Uses the
-**data-retrieval contract**: `Summary → Results → Retrieval Hints`.
+Validate a scenario's BAS workflow catalog through the shared
+ScenarioValidationService provider contract.
 
 ```bash
-workflow-health notes list
-workflow-health notes list --json
+workflow-health validate scenario my-scenario
+workflow-health validate scenario my-scenario --include-execution
+workflow-health validate scenario my-scenario --path /abs/path/to/scenario --json
 ```
 
-#### `workflow-health notes create --title <title> [--body <body>]`
+| Flag | Purpose |
+|---|---|
+| `--path <dir>` | Validate an explicit scenario directory instead of resolving by scenario id |
+| `--include-execution` | Execute validation cases through BAS after static validation |
 
-Create a note. Calls the generated Connect-RPC `Notes/Create` method. Uses the **mutation
-contract**: `Result → What Changed → Next Command`.
+## Scenario commands — `workflows`
+
+### `workflow-health workflows search <query>`
+
+Search scenario-owned BAS workflow leaves for agent and validation intents.
 
 ```bash
-workflow-health notes create --title "First note" --body "Hello world"
+workflow-health workflows search "create project" --scenario my-scenario
+workflow-health workflows search "prove dashboard renders" --scenario my-scenario --type workflow.test
+workflow-health workflows search "open settings" --path /abs/path/to/scenario --limit 5 --json
 ```
 
-`--title` is required. `--body` is optional. Validation lives in the
-API service, so an empty title surfaces as an `invalid_argument`
-Connect error rather than a CLI-side check.
-
-#### `workflow-health notes get <id>`
-
-Fetch a note by id. Calls the generated Connect-RPC `Notes/Get` method.
-
-```bash
-workflow-health notes get abc123
-```
-
-A non-existent id surfaces as `not_found`; the CLI translates the
-typed Connect code to an actionable error message.
-
-#### `workflow-health notes attach <id> --file <path>`
-
-Attach a file to a note. This is the documented REST multipart
-exception because the request body contains opaque bytes. The response
-is proto-typed attachment metadata.
-
-```bash
-workflow-health notes attach abc123 --file ./example.png
-```
-<!-- EXAMPLE-DOMAIN:notes END -->
+| Flag | Purpose |
+|---|---|
+| `--scenario <id>` | Scenario id to search |
+| `--path <dir>` | Explicit scenario directory path |
+| `--type <types>` | Comma-separated leaf types: `workflow.flow`, `workflow.test`, `workflow.fragment` |
+| `--include-fragments` | Include dependency fragments when no explicit type filter is supplied |
+| `--limit <n>` | Maximum result count |
 
 ## Output contracts
 

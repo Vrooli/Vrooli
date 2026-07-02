@@ -23,13 +23,11 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "workflow-health/handlers/health"
-	notesH "workflow-health/handlers/notes" // EXAMPLE-DOMAIN:notes
 	validationH "workflow-health/handlers/validation"
 	workflowsH "workflow-health/handlers/workflows"
 	localdb "workflow-health/internal/database"
 
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/workflow-health/v1/notes" // EXAMPLE-DOMAIN:notes
 	workflowsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/workflow-health/v1/workflows"
 )
 
@@ -40,7 +38,6 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
 	out = append(out, validationH.Endpoints...)
 	out = append(out, workflowsH.Endpoints...)
 	return out
@@ -69,7 +66,6 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_workflow_health_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
 		{Module: "validation", File: scenariovalidationv1.File_scenario_validation_v1_validation_proto},
 		{Module: "workflows", File: workflowsv1.File_workflow_health_v1_workflows_workflows_proto},
 	}
@@ -86,7 +82,6 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
 		apidb.SchemaProviderFunc(validationH.Schema),
 		apidb.SchemaProviderFunc(workflowsH.Schema),
 	}

@@ -83,6 +83,60 @@ func TestRunScenarioRefusesMutatingCaseBeforeBASWithoutIsolationProof(t *testing
 	require.Contains(t, finding.Description, "routed test isolation")
 }
 
+func TestRunScenarioRefusesMutatingCaseMissingSafetyMetadataBeforeBAS(t *testing.T) {
+	root := makeExecutionFixture(t, true)
+	writeFixtureJSON(t, filepath.Join(root, "bas", "cases", "dashboard.json"), map[string]any{
+		"metadata": map[string]any{
+			"name":           "Open dashboard",
+			"description":    "Opens the dashboard.",
+			"execution_mode": "mutating",
+			"labels":         map[string]any{"reset": "full"},
+		},
+		"nodes": []map[string]any{},
+	})
+	client := &fakeBASClient{}
+	service := NewService(client)
+
+	report, err := service.RunScenario(context.Background(), "sample", root, Options{
+		IncludeExecution:      true,
+		ConfirmMutating:       true,
+		RoutedIsolationProven: true,
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, 1, report.Summary.Refused)
+	require.Zero(t, client.validateCalls)
+	require.Zero(t, client.executeCalls)
+	require.Contains(t, report.Runs[0].Error, "requires_confirmation")
+}
+
+func TestRunScenarioRefusesDestructiveCaseMissingSafetyMetadataBeforeBAS(t *testing.T) {
+	root := makeExecutionFixture(t, false)
+	writeFixtureJSON(t, filepath.Join(root, "bas", "cases", "dashboard.json"), map[string]any{
+		"metadata": map[string]any{
+			"name":           "Delete dashboard",
+			"description":    "Deletes dashboard data.",
+			"execution_mode": "destructive",
+			"labels":         map[string]any{"reset": "none"},
+		},
+		"nodes": []map[string]any{},
+	})
+	client := &fakeBASClient{}
+	service := NewService(client)
+
+	report, err := service.RunScenario(context.Background(), "sample", root, Options{
+		IncludeExecution:      true,
+		ConfirmMutating:       true,
+		RoutedIsolationProven: true,
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, 1, report.Summary.Refused)
+	require.Zero(t, client.validateCalls)
+	require.Zero(t, client.executeCalls)
+	require.Contains(t, report.Runs[0].Error, "requires_confirmation")
+}
+
 func TestRunScenarioFailedExecutionAddsFinding(t *testing.T) {
 	root := makeExecutionFixture(t, false)
 	client := &fakeBASClient{

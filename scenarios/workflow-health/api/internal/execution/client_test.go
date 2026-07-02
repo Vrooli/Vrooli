@@ -46,3 +46,17 @@ func TestDefinitionToProtoPreservesNestedActionParams(t *testing.T) {
 		t.Fatalf("unexpected assert selector: %q", got)
 	}
 }
+
+func TestDefinitionToProtoRejectsUnknownFields(t *testing.T) {
+	def := map[string]any{
+		"metadata": map[string]any{
+			"name":           "dashboard-smoke",
+			"execution_mode": "observer",
+		},
+		"unknown_future_field": "must not be discarded",
+	}
+
+	if _, err := definitionToProto(def); err == nil {
+		t.Fatal("expected unknown workflow fields to be rejected")
+	}
+}

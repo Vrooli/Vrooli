@@ -51,9 +51,6 @@
       "title": "Fixes",
       "description": "Preview deterministic registry, metadata, and normalization changes before applying them."
     },
-    "notes": {
-      "title": "Notes"
-    },
     "settings": {
       "title": "Settings",
       "themeHeading": "Appearance",
@@ -75,24 +72,6 @@
     "summary": "{{count}} notifications",
     "summary_zero": "No notifications",
     "summary_one": "1 notification"
-  },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading.",
-    "measure": {
-      "title": "Notes this week",
-      "loading": "Counting…",
-      "thisWeek": "{{count}} notes created this week"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

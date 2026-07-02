@@ -22,11 +22,11 @@
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Workflow search and action discovery | Index `bas/flows` as agent-runnable workflow capabilities, `bas/cases` as validation evidence, and `bas/actions` as hidden dependency fragments with safety-aware ranking.
 - [ ] OT-P1-002 | Deterministic remediation | Preview and apply mechanical fixes for registry freshness, metadata normalization, docs stubs, reset metadata, and unambiguous requirement-label repair.
-- [x] OT-P1-003 | Operational workflow UI | Provide a dense production UI for inventory, maturity, search, runs, artifacts, findings, fixes, and settings.
+- [ ] OT-P1-003 | Operational workflow UI | Provide a dense production UI for inventory, maturity, search, runs, artifacts, findings, fixes, and settings.
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Workflow maturity intelligence | Track an L0-L5 workflow maturity ladder across discoverability, traceability, safety, executability, and operational richness.
-- [x] OT-P2-002 | Fleet workflow rollout evidence | Support representative scenario checks, search-hub verification, routed mutating fixtures, and baseline diffs so workflow-health can roll out without weakening existing gates.
+- [ ] OT-P2-002 | Fleet workflow rollout evidence | Support representative scenario checks, search-hub verification, routed mutating fixtures, and baseline diffs so workflow-health can roll out without weakening existing gates.
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: generated react-vite scenario with Go API, Go CLI, React/Vite/TypeScript UI, Connect RPC, maturity-go response construction, and structured JSON/proto parsing.

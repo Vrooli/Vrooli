@@ -433,7 +433,7 @@
           "requiredBy": ["generated", "implemented"],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["System", "Notes (CRUD reference)", "Adding a new endpoint", "Cross-references"],
+            "requiredHeadings": ["System", "Validation", "Workflows", "Adding a new endpoint", "Cross-references"],
             "forbiddenPlaceholders": ["[TODO]"],
             "requiredLinks": ["../../.vrooli/endpoints.json"]
           }
@@ -450,7 +450,7 @@
           "requiredBy": ["generated", "implemented"],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Global flags (provided by cli-core)", "Built-in commands (auto-provided by `cli-core`)", "Scenario commands — `notes` (CRUD reference)", "Output contracts", "Adding a new command", "Cross-references"],
+            "requiredHeadings": ["Global flags (provided by cli-core)", "Built-in commands (auto-provided by `cli-core`)", "Scenario commands — `validate`", "Scenario commands — `workflows`", "Output contracts", "Adding a new command", "Cross-references"],
             "forbiddenPlaceholders": ["[TODO]"]
           }
         },

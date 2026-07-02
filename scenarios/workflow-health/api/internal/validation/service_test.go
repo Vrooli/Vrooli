@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -82,6 +83,62 @@ func TestFixRegistryPreviewsAndAppliesMechanicalWorkflowFixes(t *testing.T) {
 	require.Empty(t, repreview)
 }
 
+func TestFixRegistryRebuildsRegistryFromCatalogedCases(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "sample-scenario")
+	writeJSON(t, filepath.Join(root, "bas", "registry.json"), map[string]any{
+		"scenario":     "sample-scenario",
+		"generated_at": "2026-07-02T12:00:00Z",
+		"metadata":     map[string]any{"execution_mode": "observer"},
+		"playbooks":    []map[string]any{},
+	})
+	writeJSON(t, filepath.Join(root, "bas", "cases", "smoke.json"), map[string]any{
+		"metadata": map[string]any{
+			"name":           "Smoke",
+			"description":    "Smoke case.",
+			"execution_mode": "observer",
+			"labels":         map[string]any{"reset": "none"},
+		},
+		"nodes": []map[string]any{},
+	})
+	writeJSON(t, filepath.Join(root, "requirements", "index.json"), map[string]any{
+		"imports": []string{"module.json"},
+	})
+	writeJSON(t, filepath.Join(root, "requirements", "module.json"), map[string]any{
+		"requirements": []map[string]any{
+			{
+				"id":         "REQ-SMOKE",
+				"validation": []map[string]any{{"ref": "bas/cases/smoke.json"}},
+			},
+		},
+	})
+
+	applied, err := NewFixRegistry().Apply(root, []string{CodeRegistryStale})
+	require.NoError(t, err)
+	require.Len(t, applied, 1)
+
+	data, err := os.ReadFile(filepath.Join(root, "bas", "registry.json"))
+	require.NoError(t, err)
+	var registry struct {
+		GeneratedAt string `json:"generated_at"`
+		Metadata    struct {
+			ExecutionMode string `json:"execution_mode"`
+		} `json:"metadata"`
+		Playbooks []struct {
+			File         string   `json:"file"`
+			Requirements []string `json:"requirements"`
+			Fixtures     []string `json:"fixtures"`
+		} `json:"playbooks"`
+	}
+	require.NoError(t, json.Unmarshal(data, &registry))
+	_, err = time.Parse(time.RFC3339, registry.GeneratedAt)
+	require.NoError(t, err)
+	require.Equal(t, "observer", registry.Metadata.ExecutionMode)
+	require.Len(t, registry.Playbooks, 1)
+	require.Equal(t, "bas/cases/smoke.json", registry.Playbooks[0].File)
+	require.Equal(t, []string{"REQ-SMOKE"}, registry.Playbooks[0].Requirements)
+	require.NotNil(t, registry.Playbooks[0].Fixtures)
+}
+
 func TestEngineReportsSurfaceAbsentForEmptyScenario(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "empty")
 	require.NoError(t, os.MkdirAll(root, 0o755))
@@ -89,6 +146,40 @@ func TestEngineReportsSurfaceAbsentForEmptyScenario(t *testing.T) {
 	report, err := NewEngine().ValidateScenario(t.Context(), "", root)
 	require.NoError(t, err)
 	require.Equal(t, []string{CodeSurfaceAbsent}, findingCodes(report.Findings))
+}
+
+func TestEngineReportsPresentRegistryThatOmitsCatalogedCase(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "sample-scenario")
+	writeJSON(t, filepath.Join(root, "bas", "registry.json"), map[string]any{
+		"scenario":     "sample-scenario",
+		"generated_at": "2026-07-02T12:00:00Z",
+		"metadata":     map[string]any{"execution_mode": "observer"},
+		"playbooks":    []map[string]any{},
+	})
+	writeJSON(t, filepath.Join(root, "bas", "cases", "smoke.json"), map[string]any{
+		"metadata": map[string]any{
+			"name":           "Smoke",
+			"description":    "Smoke case.",
+			"execution_mode": "observer",
+			"labels":         map[string]any{"reset": "none"},
+		},
+		"nodes": []map[string]any{},
+	})
+	writeJSON(t, filepath.Join(root, "requirements", "index.json"), map[string]any{
+		"imports": []string{"module.json"},
+	})
+	writeJSON(t, filepath.Join(root, "requirements", "module.json"), map[string]any{
+		"requirements": []map[string]any{
+			{
+				"id":         "REQ-SMOKE",
+				"validation": []map[string]any{{"ref": "bas/cases/smoke.json"}},
+			},
+		},
+	})
+
+	report, err := NewEngine().ValidateScenario(t.Context(), "", root)
+	require.NoError(t, err)
+	requireFinding(t, report.Findings, CodeRegistryStale, "bas/cases/smoke.json")
 }
 
 func makeValidationFixture(t *testing.T) string {
@@ -191,6 +282,17 @@ func findingCodes(findings []Finding) []string {
 		out = append(out, finding.Code)
 	}
 	return out
+}
+
+func requireFinding(t *testing.T, findings []Finding, code, path string) Finding {
+	t.Helper()
+	for _, finding := range findings {
+		if finding.Code == code && finding.FilePath == path {
+			return finding
+		}
+	}
+	require.Failf(t, "finding not found", "code %s path %s in %+v", code, path, findings)
+	return Finding{}
 }
 
 func repoRootFromTest(t *testing.T) string {

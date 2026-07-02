@@ -63,9 +63,6 @@ export const strings = {
       title: "pages.fixes.title",
       description: "pages.fixes.description",
     },
-    notes: {
-      title: "pages.notes.title",
-    },
     settings: {
       title: "pages.settings.title",
       themeHeading: "pages.settings.themeHeading",
@@ -87,24 +84,6 @@ export const strings = {
     summary: "notifications.summary",
     summary_zero: "notifications.summary_zero",
     summary_one: "notifications.summary_one",
-  },
-  notes: {
-    title: "notes.title",
-    loading: "notes.loading",
-    empty: "notes.empty",
-    create: "notes.create",
-    createdAtLabel: "notes.createdAtLabel",
-    attachmentsLabel: "notes.attachmentsLabel",
-    attachmentsLabel_one: "notes.attachmentsLabel_one",
-    uploadAttachment: "notes.uploadAttachment",
-    attachmentFileLabel: "notes.attachmentFileLabel",
-    uploadSuccess: "notes.uploadSuccess",
-    noFileSelected: "notes.noFileSelected",
-    measure: {
-      title: "notes.measure.title",
-      loading: "notes.measure.loading",
-      thisWeek: "notes.measure.thisWeek",
-    },
   },
   errors: {
     canceled: "errors.canceled",

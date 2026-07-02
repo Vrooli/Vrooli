@@ -85,6 +85,20 @@ func (e *Engine) evaluate(target string, catalog *workflows.ScenarioWorkflowCata
 	if !catalog.Registry.Exists && len(catalog.Cases) > 0 {
 		findings = append(findings, finding(CodeRegistryMissing, "bas/registry.json", "", "BAS case registry is missing.", true))
 	}
+	registryPaths := make(map[string]struct{}, len(catalog.Registry.Entries))
+	for _, entry := range catalog.Registry.Entries {
+		registryPaths[entry.File] = struct{}{}
+	}
+	if catalog.Registry.Exists {
+		for _, c := range catalog.Cases {
+			if c.ParseError != "" {
+				continue
+			}
+			if _, ok := registryPaths[c.Path]; !ok {
+				findings = append(findings, finding(CodeRegistryStale, c.Path, c.ID, "Registry omits a cataloged workflow case.", true))
+			}
+		}
+	}
 	for _, path := range catalog.RegistryOnlyPaths {
 		findings = append(findings, finding(CodeRegistryStale, path, "", "Registry references a workflow case that no longer exists.", true))
 	}
@@ -128,7 +142,7 @@ func (e *Engine) evaluateAsset(target string, asset workflows.WorkflowAsset, ass
 		}
 	}
 	if !validExecutionMode(asset.ExecutionMode) {
-		findings = append(findings, finding(CodeExecutionModeInvalid, asset.Path, asset.ID, "Workflow execution_mode must be observer or mutating.", true))
+		findings = append(findings, finding(CodeExecutionModeInvalid, asset.Path, asset.ID, "Workflow execution_mode must be observer, mutating, or destructive.", true))
 	}
 	if hasLegacyReset(target, asset.Path) {
 		findings = append(findings, finding(CodeResetLegacy, asset.Path, asset.ID, "Legacy reset value database must be normalized to full.", true))
@@ -146,7 +160,7 @@ func (e *Engine) evaluateAsset(target string, asset workflows.WorkflowAsset, ass
 }
 
 func validExecutionMode(value string) bool {
-	return value == "observer" || value == "mutating"
+	return value == "observer" || value == "mutating" || value == "destructive"
 }
 
 func hasSeedDependency(asset workflows.WorkflowAsset) bool {
@@ -213,7 +227,7 @@ func remediationForCode(code string) string {
 	case CodeMetadataIncomplete:
 		return "Add workflow metadata name and description."
 	case CodeExecutionModeInvalid:
-		return "Set metadata.execution_mode to observer or mutating."
+		return "Set metadata.execution_mode to observer, mutating, or destructive."
 	case CodeResetLegacy:
 		return "Replace metadata.labels.reset=database with full."
 	case CodeRequirementUnlinked:

@@ -119,7 +119,7 @@ belong in [`DATA.md`](DATA.md).
 - Owns: route layout, navigation, selector coverage, localized page copy, static view models for the current UI slice, responsive states, and accessibility of the operator surface.
 - Does not own: workflow catalog truth, validation logic, search ranking, execution safety, or fix semantics.
 - UI: overview, inventory, search, runs, findings, fixes, and settings routes under `ui/src/pages/`.
-- Current implementation: replaces the starter dashboard/notes route with dense workflow-health pages for scenario selection, maturity cards, asset catalog tables, typed search results, run timelines, finding remediation, and fix preview/apply affordances. API-backed hooks and BAS screenshot validation remain rollout hardening work.
+- Current implementation: replaces the starter dashboard route with dense workflow-health pages for scenario selection, maturity cards, asset catalog tables, typed search results, run timelines, finding remediation, and fix preview/apply affordances. API-backed hooks and BAS screenshot validation remain rollout hardening work.
 - Requirements: `REQ-P1-003`, `REQ-P5-001`.
 
 ## Shared Concepts

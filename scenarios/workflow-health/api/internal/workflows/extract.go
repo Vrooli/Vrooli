@@ -138,18 +138,26 @@ func normalizeWorkflowTargetPath(targetPath string) string {
 func safetyProfile(mode, reset string, labels map[string]string) SafetyProfile {
 	mode = normalizeMode(mode)
 	reset = normalizeReset(reset)
-	mutating := mode == "mutating" || reset == "full"
-	requiresConfirmation := mutating
-	if value := strings.ToLower(strings.TrimSpace(labels["requires_confirmation"])); value == "true" || value == "yes" {
-		requiresConfirmation = true
-	}
+	mutating := mode == "mutating" || mode == "destructive" || reset == "full"
+	requiresConfirmation := labelBool(labels["requires_confirmation"], "true", "yes")
+	requiresIsolation := labelBool(labels["routed_isolation"], "true", "yes", "routed")
 	return SafetyProfile{
 		ExecutionMode:        mode,
 		Reset:                reset,
 		Mutating:             mutating,
-		RequiresIsolation:    mutating,
+		RequiresIsolation:    requiresIsolation,
 		RequiresConfirmation: requiresConfirmation,
 	}
+}
+
+func labelBool(value string, truthy ...string) bool {
+	value = strings.ToLower(strings.TrimSpace(value))
+	for _, candidate := range truthy {
+		if value == candidate {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeMode(value string) string {

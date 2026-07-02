@@ -7,8 +7,7 @@
  * round-trip), the failure mode is silent: tests pass against fake data
  * that no longer matches what production code receives from the API.
  *
- * Domain-specific factories have their own self-tests next to the
- * feature (e.g. `features/notes/mocks/factories.test.ts`).
+ * Domain-specific factories have their own self-tests next to the feature.
  *
  * The shape pinned below mirrors the Go-side `fixtures/health_test.go`:
  *
