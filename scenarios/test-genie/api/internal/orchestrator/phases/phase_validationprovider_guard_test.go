@@ -27,6 +27,7 @@ func TestValidationProviderRegistryCoversDelegatingCatalogPhases(t *testing.T) {
 		Tidiness:     "tidiness-manager",
 		Performance:  "performance-health",
 		Storage:      "storage-health",
+		Workflow:     "workflow-health",
 		Branding:     "brand-manager",
 	}
 	catalog := NewDefaultCatalog(DefaultTimeout)
@@ -73,8 +74,11 @@ func TestValidationProviderRegistryCoversDelegatingCatalogPhases(t *testing.T) {
 		// Contracts asks cli-health to run its runtime CLI probe on top of the
 		// static manifest↔proto cross-check, and UIHealth drives the BAS render +
 		// iframe-bridge handshake runtime group on top of its static UI checks.
+		// Workflow executes BAS validation cases through workflow-health when
+		// requested, preserving the old playbooks runtime semantics through the
+		// shared provider contract.
 		// Every other delegate is inspection-only.
-		executionPhases := map[Name]bool{Unit: true, Measures: true, Performance: true, Contracts: true, UIHealth: true}
+		executionPhases := map[Name]bool{Unit: true, Measures: true, Performance: true, Contracts: true, UIHealth: true, Workflow: true}
 		if provider.IncludeExecution != executionPhases[phase] {
 			t.Fatalf("%s provider IncludeExecution = %v, want %v", phase, provider.IncludeExecution, executionPhases[phase])
 		}

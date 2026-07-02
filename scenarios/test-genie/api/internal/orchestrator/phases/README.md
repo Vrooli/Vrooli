@@ -160,15 +160,19 @@ diagnostics to Unit Health:
 - Uses a long provider timeout because test execution can be slow
 - Maps coverage-dimension assessment findings into `FINDING_SOURCE_COVERAGE`
 
-### playbooks
+### workflow
 
-**File:** `phase_playbooks.go`
+**File:** `phase_validationprovider.go`
 
-Executes Vrooli Ascension workflows declared in `bas/`:
+Delegates BAS workflow validation and safe execution to Workflow Health:
 
-- Reads `registry.json` for workflow definitions
-- Invokes BAS runner for each workflow
-- Validates end-to-end UI flows
+- Calls `scenario-validation/v1.ScenarioValidationService.ValidateScenario` on `workflow-health`
+- Sets `include_execution=true` so workflow-health can run eligible BAS validation cases
+- Preserves routed-isolation and explicit-confirmation guardrails for mutating or destructive workflows
+- Maps provider findings into `FINDING_SOURCE_WORKFLOW`
+
+`playbooks`, `playbook`, and `e2e` are accepted only as deprecated input
+aliases that normalize to `workflow`.
 
 ### business
 
@@ -271,7 +275,6 @@ phases/
 │
 ├── phase_structure.go      # Structure validation
 ├── phase_validationprovider.go # Shared health-provider delegation
-├── phase_playbooks.go      # BAS workflow execution
 ├── phase_business.go       # Requirements auditing
 ├── phase_performance.go    # Performance benchmarks
 │

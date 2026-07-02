@@ -275,17 +275,14 @@ The Self-Health tab is Test Genie's view of *itself* — a visual surface over t
 `RunsService.GetSelfHealth` Connect-RPC (the same data behind `test-genie health
 --json`). It renders four sections:
 
-- **Phase Catalog** — total / delegated / native phase counts and the per-phase
-  chips (native vs delegated provider).
+- **Phase Catalog** — total / delegated-provider / compatibility-native phase
+  counts and the per-phase provider chips.
 - **Provider Conformance** — a per-provider grid scoring the five adoption
   dimensions (reachable, contract, spec, identity, metrics) from a live scan.
 - **Reliability & Performance** — the reliability ledger over a recent window:
   per-phase availability, failure rate, observation/metrics-adopted counts, and
-  duration p50/p95/max. Native phases (`business`, `integration`, `performance`,
-  `playbooks`, `smoke`) now report `ExecutionMetrics` alongside the delegated
-  providers, so the performance columns are populated for every phase. The
-  rollup is scoped to live catalog phases — legacy pseudo-phases from historical
-  runs no longer appear.
+  duration p50/p95/max. Live catalog phases are provider-backed; historical
+  native/pseudo-phases from old runs no longer appear in the rollup.
 - **Trend** — the availability / run-count deltas versus the previous snapshot
   plus the recent windowed series.
 

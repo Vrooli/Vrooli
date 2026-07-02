@@ -164,7 +164,7 @@ func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Performance, Runner: noOp, Optional: true})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Unit, Runner: noOp})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Storage, Runner: noOp})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Playbooks, Runner: noOp})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Workflow, Runner: noOp})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Business, Runner: noOp})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Tidiness, Runner: noOp, Optional: true})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Security, Runner: noOp, Optional: true})
@@ -174,7 +174,7 @@ func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
 }
 
 func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
-	t.Run("[REQ:TESTGENIE-ORCH-P0] orchestrator runs go-native phases", func(t *testing.T) {
+	t.Run("[REQ:TESTGENIE-ORCH-P0] orchestrator runs catalog phases", func(t *testing.T) {
 		root := t.TempDir()
 		createScenarioLayout(t, root, "demo")
 		stubCommandLookup(t, func(name string) (string, error) {

@@ -82,6 +82,9 @@ func TestGetSelfHealthAssemblesPayload(t *testing.T) {
 		t.Fatalf("catalog totals inconsistent: total=%d delegated=%d native=%d",
 			cat.GetTotalPhases(), cat.GetDelegatedPhases(), cat.GetNativePhases())
 	}
+	if cat.GetNativePhases() != 0 {
+		t.Fatalf("default catalog should be fully provider-delegated, native=%d", cat.GetNativePhases())
+	}
 	// proto is a delegated phase; its summary entry must name its provider.
 	var foundProto bool
 	for _, p := range cat.GetPhases() {

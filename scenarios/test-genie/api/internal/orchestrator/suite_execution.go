@@ -1459,7 +1459,7 @@ func (o *SuiteOrchestrator) loadPresets(testDir string, cfg *workspacepkg.Config
 	return phases.MergePresets(defaultExecutionPresets, fileOverrides, configOverrides, allowed)
 }
 
-// DescribePhases exposes registered Go-native phases for HTTP clients.
+// DescribePhases exposes catalog phase descriptors for HTTP clients.
 func (o *SuiteOrchestrator) DescribePhases() []phases.Descriptor {
 	if o == nil || o.catalog == nil {
 		return nil

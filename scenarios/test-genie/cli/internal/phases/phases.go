@@ -63,6 +63,28 @@ func NormalizeSelection(phases []string) ([]string, error) {
 	return normalized, nil
 }
 
+// DeprecatedAliasWarnings reports user-facing migration notes for phase names
+// that are still accepted but no longer canonical.
+func DeprecatedAliasWarnings(phases []string) []string {
+	if len(phases) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, 1)
+	var warnings []string
+	for _, phase := range phases {
+		key := strings.ToLower(strings.TrimSpace(phase))
+		switch key {
+		case "playbooks", "playbook", "e2e":
+			if _, ok := seen["workflow"]; ok {
+				continue
+			}
+			seen["workflow"] = struct{}{}
+			warnings = append(warnings, "phase \"playbooks\" is deprecated; use \"workflow\"")
+		}
+	}
+	return warnings
+}
+
 // NamesFromDescriptors returns the ordered, normalized list of phase names
 // provided by the server catalog.
 func NamesFromDescriptors(descriptors []Descriptor) []string {

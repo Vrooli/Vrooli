@@ -1,10 +1,13 @@
 package phases
 
 import (
+	"context"
+	"io"
 	"testing"
 	"time"
 
 	"test-genie/internal/orchestrator/runnability"
+	"test-genie/internal/orchestrator/workspace"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
@@ -43,7 +46,7 @@ func TestObservationStringGolden(t *testing.T) {
 func TestSpecToDefinition(t *testing.T) {
 	spec := Spec{
 		Name:           Business,
-		Runner:         runPlaybooksPhase,
+		Runner:         func(context.Context, workspace.Environment, io.Writer) RunReport { return RunReport{} },
 		Optional:       true,
 		DefaultTimeout: 42 * time.Second,
 		SkipEnvVar:     "TEST_GENIE_SKIP_BUSINESS",

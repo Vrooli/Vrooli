@@ -21,6 +21,7 @@ type Args struct {
 	SkipCSV                string
 	Phases                 []string
 	Skip                   []string
+	PhaseWarnings          []string
 	RequestID              string
 	DiagnosticsPreset      string
 	FailFast               bool

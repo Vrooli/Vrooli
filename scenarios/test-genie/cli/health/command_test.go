@@ -35,7 +35,7 @@ func withFakeClient(t *testing.T, fc runs_v1connect.RunsServiceClient) {
 func sampleResponse() *runspb.GetSelfHealthResponse {
 	return &runspb.GetSelfHealthResponse{
 		SelfHealth: &runspb.SelfHealth{
-			Catalog: &runspb.CatalogSummary{TotalPhases: 12, DelegatedPhases: 10, NativePhases: 2},
+			Catalog: &runspb.CatalogSummary{TotalPhases: 12, DelegatedPhases: 12, NativePhases: 0},
 			Conformance: []*runspb.ProviderConformance{
 				{Phase: "proto", Provider: "proto-health", Reachable: true, ContractValid: true, IdentityOk: true, SpecValid: true, MetricsAdopted: true, AdoptionScore: 1.0},
 				{Phase: "contracts", Provider: "cli-health", Reachable: true, ContractValid: true, IdentityOk: true, SpecValid: true, MetricsAdopted: false, AdoptionScore: 0.8},

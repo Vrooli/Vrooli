@@ -49,6 +49,15 @@ type resourceNeeds struct {
 	SQLiteEnvVars []string
 }
 
+// isolationProvider lets tests stub seed isolation without requiring Docker.
+type isolationProvider interface {
+	Prepare(ctx context.Context) (*isolation.Result, error)
+}
+
+var isolationManagerFactory = func(cfg isolation.Config) isolationProvider {
+	return isolation.NewManager(cfg)
+}
+
 // Cleanup tears down isolation resources and restarts the scenario to normal resources.
 func (s *PlaybooksSeedSession) Cleanup(ctx context.Context) error {
 	if s == nil || s.cleanup == nil {

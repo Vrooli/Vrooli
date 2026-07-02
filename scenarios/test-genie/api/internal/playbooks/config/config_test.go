@@ -67,7 +67,18 @@ func TestLoadNoPlaybooksSection(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	testingJSON := `{"version": "1.0.0", "unit": {"languages": {"go": {}}}}`
+	testingJSON := `{
+		"version": "1.0.0",
+		"unit": {
+			"policy_profile": {
+				"version": "1.0.0",
+				"template": {"id": "react-vite", "scenario_class": "react-vite"},
+				"required_roles": [{"role": "api", "policy_class": "go_service"}],
+				"policy_classes": {"go_service": {"language": "go", "framework": "go test"}},
+				"customization": {"mode": "monotonic", "waivers": []}
+			}
+		}
+	}`
 	if err := os.WriteFile(filepath.Join(vrooliDir, "testing.json"), []byte(testingJSON), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -79,6 +90,53 @@ func TestLoadNoPlaybooksSection(t *testing.T) {
 	// Should return defaults when no playbooks section
 	if cfg.BAS.Endpoint != DefaultBASEndpoint {
 		t.Errorf("BAS.Endpoint = %q, want default %q", cfg.BAS.Endpoint, DefaultBASEndpoint)
+	}
+}
+
+func TestLoadIgnoresUnitPolicyProfile(t *testing.T) {
+	tmpDir := t.TempDir()
+	vrooliDir := filepath.Join(tmpDir, ".vrooli")
+	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	testingJSON := `{
+		"version": "1.0.0",
+		"unit": {
+			"policy_profile": {
+				"version": "1.0.0",
+				"template": {"id": "react-vite", "scenario_class": "react-vite"},
+				"required_roles": [
+					{"role": "api", "policy_class": "go_service"},
+					{"role": "cli", "policy_class": "go_cli"},
+					{"role": "ui", "policy_class": "react_vite_ui"}
+				],
+				"policy_classes": {
+					"go_service": {"language": "go", "framework": "go test"},
+					"go_cli": {"language": "go", "framework": "go test"},
+					"react_vite_ui": {"language": "typescript", "framework": "vitest"}
+				},
+				"customization": {"mode": "monotonic", "waivers": []}
+			}
+		},
+		"playbooks": {
+			"enabled": false,
+			"diagnostics": {"console": true}
+		}
+	}`
+	if err := os.WriteFile(filepath.Join(vrooliDir, "testing.json"), []byte(testingJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(tmpDir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Enabled {
+		t.Fatal("playbooks.enabled should still be parsed when unit.policy_profile is present")
+	}
+	if !cfg.Diagnostics.Console {
+		t.Fatal("playbooks diagnostics should still be parsed when unit.policy_profile is present")
 	}
 }
 

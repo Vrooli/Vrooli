@@ -6,7 +6,7 @@
 **Source**: validation-provider (`storage-health`)
 
 The storage phase owns Test Genie's storage judgment and — most importantly —
-its **test-isolation safety gate**. It runs immediately before the `playbooks`
+its **test-isolation safety gate**. It runs immediately before the `workflow`
 phase so that its verdict can decide whether destructive end-to-end flows are
 allowed to run at all.
 
@@ -46,17 +46,16 @@ Findings carry a severity; `ERROR`/`BLOCKER` findings fail the phase. The
 isolation rung (L2) is the safety core: `ROUTED_SEAMS_UNWIRED` is an `ERROR`, so
 a Go scenario whose routed-DB seams are not wired **fails the storage phase**.
 
-The playbooks phase keys its **routed-or-refuse** decision off the same L2
-verdict. When isolation is statically proven, playbooks installs a test pool on
-the live process (no restart) and runs destructive flows safely. When it cannot
-be proven — unwired seams, or a non-Go API that cannot be verified — playbooks
-**refuses** the destructive flows with a loud, instructive skip. There is no
-restart-based fallback: the unverified restart path was deleted in favour of
-this static, fail-closed gate.
+The workflow phase keys mutating execution off the same L2 verdict through
+workflow-health. When isolation is statically proven, workflow-health can run
+destructive flows safely. When it cannot be proven — unwired seams, or a non-Go
+API that cannot be verified — workflow-health refuses those flows before BAS is
+called. There is no restart-based fallback: the unverified restart path was
+deleted in favour of this static, fail-closed gate.
 
 ## Resilience
 
-Storage runs before playbooks, so it depends on the `storage-health` provider
+Storage runs before workflow, so it depends on the `storage-health` provider
 being reachable. Test Genie's delegated-phase path treats an unreachable
 provider as an environmental failure (`storage-health` is a non-optional safety
 provider; start it via `vrooli scenario start storage-health`).
@@ -65,7 +64,7 @@ provider; start it via `vrooli scenario start storage-health`).
 
 - [storage-health scenario](../../../../storage-health/) — the provider that
   backs this phase (analyzers, maturity ladder, auto-fix, fleet intelligence)
-- [Playbooks Phase](../playbooks/README.md) — the destructive E2E phase this
+- [Workflow Phase](../workflow/README.md) — the destructive E2E phase this
   gate protects
 - [Test-Isolation Contract](../../../../storage-health/docs/concepts/test-isolation-contract.md) —
   the canonical routed test-DB contract owned by storage-health
@@ -73,4 +72,4 @@ provider; start it via `vrooli scenario start storage-health`).
 ## See Also
 
 - [Phases Overview](../README.md) - All phases
-- [Playbooks Phase](../playbooks/README.md) - Next phase
+- [Workflow Phase](../workflow/README.md) - Next phase

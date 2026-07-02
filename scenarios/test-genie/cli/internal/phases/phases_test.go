@@ -13,9 +13,17 @@ func TestNormalizeSelectionNormalizesAliasesAndDedupes(t *testing.T) {
 		t.Fatalf("NormalizeSelection returned error: %v", err)
 	}
 
-	want := []string{"unit", "playbooks"}
+	want := []string{"unit", "workflow"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("expected normalized phases %v, got %v", want, got)
+	}
+}
+
+func TestDeprecatedAliasWarnings(t *testing.T) {
+	got := DeprecatedAliasWarnings([]string{"playbooks", "e2e", "unit"})
+	want := []string{"phase \"playbooks\" is deprecated; use \"workflow\""}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("DeprecatedAliasWarnings() = %v, want %v", got, want)
 	}
 }
 

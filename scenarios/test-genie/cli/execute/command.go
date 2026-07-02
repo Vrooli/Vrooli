@@ -44,6 +44,11 @@ func Run(client *Client, args []string) error {
 	if err != nil {
 		return err
 	}
+	if !parsed.JSON && !parsed.JSONL {
+		for _, warning := range parsed.PhaseWarnings {
+			fmt.Fprintf(os.Stderr, "Warning: %s\n", warning)
+		}
+	}
 
 	scenarioPath := parsed.ScenarioPath
 	if scenarioPath == "" {
@@ -170,7 +175,7 @@ func ParseArgs(args []string) (Args, error) {
 	fs.StringVar(&out.PhasesCSV, "phases", "", "Comma-separated phases to run")
 	fs.StringVar(&out.SkipCSV, "skip", "", "Comma-separated phases to skip")
 	fs.StringVar(&out.RequestID, "request-id", "", "Link to suite request")
-	fs.StringVar(&out.DiagnosticsPreset, "diagnostics-preset", "", "Playbooks diagnostics capture: none|light|full (overrides testing.json)")
+	fs.StringVar(&out.DiagnosticsPreset, "diagnostics-preset", "", "Workflow diagnostics capture: none|light|full (overrides testing.json)")
 	fs.BoolVar(&out.FailFast, "fail-fast", false, "Stop on first failure")
 	fs.BoolVar(&out.Wait, "wait", false, "Block to completion inline; never auto-background (CI / scripted use)")
 	fs.BoolVar(&out.JSONL, "jsonl", false, "Stream canonical newline-delimited phase events (run_started…run_completed) for TUIs")
@@ -209,6 +214,8 @@ func ParseArgs(args []string) (Args, error) {
 	}
 	out.Phases = normalizedPhases
 	out.Skip = normalizedSkip
+	out.PhaseWarnings = append(out.PhaseWarnings, phases.DeprecatedAliasWarnings(phaseList)...)
+	out.PhaseWarnings = append(out.PhaseWarnings, phases.DeprecatedAliasWarnings(skip)...)
 	return out, nil
 }
 

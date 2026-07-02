@@ -28,7 +28,7 @@ const (
 	Docs         Name = "docs"
 	Unit         Name = "unit"
 	Storage      Name = "storage"
-	Playbooks    Name = "playbooks"
+	Workflow     Name = "workflow"
 	Business     Name = "business"
 	Performance  Name = "performance"
 	Tidiness     Name = "tidiness"
@@ -172,7 +172,7 @@ type RunReport struct {
 	Observations          []Observation
 	FailureClassification string
 	Remediation           string
-	// Findings carries the phase's native findings normalized into the
+	// Findings carries phase findings normalized into the
 	// shared ArchitectureFinding contract. Observations remain the human
 	// view; Findings is the machine seam the cartographer campaign
 	// tracker ingests and reconciles by stable ID. Pointers (not values)
@@ -188,7 +188,7 @@ type RunReport struct {
 	FindingSource string
 }
 
-// Runner is the function signature every Go-native phase must satisfy.
+// Runner is the function signature every catalog phase must satisfy.
 type Runner func(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport
 
 // Definition is the normalized runner metadata used during plan selection.
@@ -232,8 +232,8 @@ type Spec struct {
 	// manifest; the anti-drift guard asserts surface-bearing phases declare one.
 	Capabilities runnability.PhaseCapabilities
 	// FindingSource is the architecture-finding channel this phase emits into.
-	// Leave UNSPECIFIED for phases that produce no findings (performance,
-	// playbooks). The orchestrator
+	// Leave UNSPECIFIED for phases that produce no findings (performance).
+	// The orchestrator
 	// stamps the lower-case token onto each ExecutionResult so a downstream
 	// campaign reaudit can derive which sources a partial run actually covered.
 	FindingSource architecturev1.FindingSource

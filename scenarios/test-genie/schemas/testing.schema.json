@@ -176,17 +176,17 @@
         },
         "playbooks": {
           "type": "object",
-          "description": "Playbooks structure validation configuration. Validates test/playbooks/ follows canonical layout.",
+          "description": "Legacy workflow asset structure validation configuration. Validates BAS assets follow the canonical layout.",
           "properties": {
             "enabled": {
               "type": "boolean",
               "default": true,
-              "description": "Enable playbooks structure validation. When true, validates registry.json exists, directories use NN- prefixes, and fixtures declare fixture_id."
+              "description": "Enable legacy workflow asset structure validation. When true, validates registry.json exists, directories use NN- prefixes, and fixtures declare fixture_id."
             },
             "strict": {
               "type": "boolean",
               "default": false,
-              "description": "When true, playbooks issues block the structure phase. When false (default), issues are reported as informational warnings."
+              "description": "When true, workflow asset issues block the structure phase. When false (default), issues are reported as informational warnings."
             }
           }
         }
@@ -194,12 +194,12 @@
     },
     "playbooks": {
       "type": "object",
-      "description": "Playbooks (E2E) phase configuration. Executes Vrooli Ascension workflows for end-to-end UI testing.",
+      "description": "Deprecated alias for workflow phase configuration. Prefer phases.workflow for phase controls; this block remains for BAS diagnostics and seed compatibility.",
       "properties": {
         "enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable or disable the playbooks phase"
+          "description": "Enable or disable the workflow phase through the legacy playbooks alias"
         },
         "bas": {
           "type": "object",
@@ -428,26 +428,12 @@
     },
     "unit": {
       "type": "object",
-      "description": "Unit test phase configuration. Uses convention: only define languages you want to test. Defaults: go\u2192api, node\u2192ui, python\u2192api",
+      "description": "Unit Health policy profile configuration.",
+      "additionalProperties": false,
+      "required": [
+        "policy_profile"
+      ],
       "properties": {
-        "languages": {
-          "type": "object",
-          "description": "Language-specific test configuration. Only include languages that should be tested. Presence of a language key implies enabled=true.",
-          "properties": {
-            "go": {
-              "$ref": "#/definitions/language_config",
-              "description": "Go test configuration (default dir: 'api')"
-            },
-            "node": {
-              "$ref": "#/definitions/language_config",
-              "description": "Node.js/TypeScript test configuration (default dir: 'ui')"
-            },
-            "python": {
-              "$ref": "#/definitions/language_config",
-              "description": "Python test configuration (default dir: 'api')"
-            }
-          }
-        },
         "options": {
           "type": "object",
           "description": "Global unit test options",
@@ -463,6 +449,10 @@
               "description": "Stop testing on first failure"
             }
           }
+        },
+        "policy_profile": {
+          "$ref": "#/definitions/unit_policy_profile",
+          "description": "Canonical Unit Health policy profile. Declares template-owned unit-test policy classes and required roles; Code Facts remains the source of truth for observed surfaces."
         }
       }
     },
@@ -820,7 +810,7 @@
         "storage": {
           "$ref": "#/definitions/phase_options"
         },
-        "playbooks": {
+        "workflow": {
           "$ref": "#/definitions/phase_options"
         },
         "business": {
@@ -1097,6 +1087,304 @@
           }
         }
       }
+    },
+    "unit_policy_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "template",
+        "required_roles",
+        "policy_classes",
+        "customization"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Policy-profile contract version."
+        },
+        "template": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "scenario_class"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Template id that owns this baseline policy."
+            },
+            "scenario_class": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Scenario class used by Unit Health to choose default policy semantics."
+            }
+          }
+        },
+        "required_roles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/unit_required_role"
+          },
+          "description": "Roles that must be observed through Code Facts for this template class."
+        },
+        "policy_classes": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/definitions/unit_policy_class"
+          },
+          "description": "Named policy classes referenced by required roles and additive policies."
+        },
+        "customization": {
+          "$ref": "#/definitions/unit_policy_customization"
+        }
+      }
+    },
+    "unit_required_role": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "policy_class"
+      ],
+      "properties": {
+        "role": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*$"
+        },
+        "policy_class": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*$"
+        },
+        "match": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "surface_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "kind": {
+              "type": "string",
+              "minLength": 1
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "language": {
+              "type": "string",
+              "minLength": 1
+            },
+            "framework": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "unit_policy_class": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "language": {
+          "type": "string",
+          "minLength": 1
+        },
+        "framework": {
+          "type": "string",
+          "minLength": 1
+        },
+        "package_manager": {
+          "type": "string",
+          "enum": [
+            "go",
+            "pnpm",
+            "npm",
+            "yarn",
+            "pytest",
+            "bats"
+          ]
+        },
+        "coverage": {
+          "$ref": "#/definitions/unit_coverage_policy"
+        },
+        "test_utils": {
+          "$ref": "#/definitions/unit_test_utils_policy"
+        },
+        "projection": {
+          "$ref": "#/definitions/unit_projection_policy"
+        }
+      }
+    },
+    "unit_coverage_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "minimum_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "total",
+            "per_file",
+            "both"
+          ],
+          "default": "both"
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reporters": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "unit_test_utils_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required_roots": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "production_import_ban": {
+          "type": "boolean",
+          "default": true
+        },
+        "canonical_render_helper": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "unit_projection_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required_files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required_scripts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "vitest": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "environment": {
+              "type": "string",
+              "minLength": 1
+            },
+            "setup_files": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "coverage_provider": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "unit_policy_customization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "monotonic"
+          ],
+          "description": "Scenario customizations may only be equal-or-stricter than the template baseline unless covered by a waiver."
+        },
+        "waivers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/unit_policy_waiver"
+          },
+          "default": []
+        }
+      }
+    },
+    "unit_policy_waiver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding",
+        "reason",
+        "owner"
+      ],
+      "properties": {
+        "finding": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]*$"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 12
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date"
+        },
+        "revisit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "expires_at"
+          ]
+        },
+        {
+          "required": [
+            "revisit"
+          ]
+        }
+      ]
     },
     "lighthouse_config": {
       "type": "object",

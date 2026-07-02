@@ -5,9 +5,11 @@
   "playbooks": [
     {
       "file": "bas/cases/01-smoke/bas-dashboard-loads.json",
-      "description": "Verifies browser-automation-studio dashboard loads correctly",
+      "description": "Observer smoke workflow for the Test Genie dashboard. It opens the live scenario and asserts the dashboard header so the delegated workflow phase has executable self-check evidence.",
       "order": "02.01",
-      "requirements": [],
+      "requirements": [
+        "TESTGENIE-ORCH-P0"
+      ],
       "fixtures": [],
       "reset": "none"
     }

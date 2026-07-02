@@ -141,5 +141,5 @@ The phase collects evidence from multiple sources:
 ## See Also
 
 - [Phases Overview](../README.md) - All phases
-- [Playbooks Phase](../playbooks/README.md) - Previous phase
+- [Workflow Phase](../workflow/README.md) - Previous phase
 - [Performance Phase](../performance/README.md) - Next phase

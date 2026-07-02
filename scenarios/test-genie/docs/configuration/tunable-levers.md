@@ -22,9 +22,9 @@ These are normally provided by the Vrooli lifecycle system:
 | `TEST_GENIE_EXECUTION_TIMEOUT` | CLI `execute` | `900` seconds | Blocking timeout for synchronous suite execution |
 | `TEST_GENIE_MAX_CONCURRENT_RUNS` | Run manager | `2` | GLOBAL cap on suites executing at once across ALL scenarios, shared by manually-started runs and the background fleet sweep. Requests beyond the cap are admitted as `queued` and promoted FIFO as slots free (not rejected). Floor 1. |
 | `TEST_GENIE_MAX_RUNS_PER_SCENARIO` | Run manager | `1` | Per-scenario in-progress cap. `1` is a correctness invariant (one live instance per scenario); raising it is documented-unsafe until per-run isolation lands. |
-| `TEST_GENIE_PLAYBOOKS_RETAIN` | Playbooks phase | `0` | Keep temporary isolated Postgres/Redis/SQLite resources alive after the phase for debugging |
+| `TEST_GENIE_PLAYBOOKS_RETAIN` | Workflow compatibility | `0` | Keep temporary isolated Postgres/Redis/SQLite resources alive after legacy seed/debug paths |
 | `TEST_GENIE_QUEUE_STALE_AFTER` | Queue telemetry | `24h` | How long queued/delegated requests remain part of active queue counts before they are reported as stale |
-| `TEST_GENIE_SKIP_PLAYBOOKS` | Playbooks phase | unset | Hard-disable playbooks execution for debugging or constrained environments |
+| `TEST_GENIE_SKIP_PLAYBOOKS` | Workflow compatibility | unset | Hard-disable workflow execution through the legacy playbooks alias |
 | `TEST_GENIE_STANDARDS_FAIL_ON` | Standards phase | phase default | Minimum severity that fails the phase |
 | `TEST_GENIE_STANDARDS_MIN_SEVERITY` | Standards phase | phase default | Minimum severity shown in standards output |
 | `TEST_GENIE_STANDARDS_LIMIT` | Standards phase | phase default | Maximum number of standards findings displayed |
@@ -44,23 +44,28 @@ Example:
 TEST_GENIE_QUEUE_STALE_AFTER=6h test-genie status
 ```
 
-## Playbooks
+## Workflow Compatibility
+
+These levers are retained for legacy playbooks seed/debug compatibility. New
+phase selection should use `workflow`.
 
 ### Debug retained isolation
 
 ```bash
-TEST_GENIE_PLAYBOOKS_RETAIN=1 test-genie execute my-scenario --phases playbooks
+TEST_GENIE_PLAYBOOKS_RETAIN=1 test-genie execute my-scenario --phases workflow
 ```
 
-When retention is enabled, the playbooks phase leaves its temporary isolated resources alive and prints inspection commands in the observations.
+When retention is enabled, legacy seed compatibility leaves temporary isolated
+resources alive and prints inspection commands in the observations.
 
-### Skip playbooks entirely
+### Skip workflow entirely
 
 ```bash
-TEST_GENIE_SKIP_PLAYBOOKS=1 test-genie execute my-scenario --phases playbooks
+TEST_GENIE_SKIP_PLAYBOOKS=1 test-genie execute my-scenario --phases workflow
 ```
 
-This is intended for debugging and constrained environments. It is not a substitute for fixing a broken playbooks setup.
+This is intended for debugging and constrained environments. It is not a
+substitute for fixing broken workflow assets or provider availability.
 
 ## Standards tuning
 

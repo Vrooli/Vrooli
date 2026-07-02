@@ -121,13 +121,9 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	claimsService := playbooksclaims.NewService(playbooksclaims.Config{Repo: claimsRepo})
 	runner.SetClaims(claimsService)
 
-	// Construct the routed-test-db eligibility checker once at process
-	// startup and share it between the playbooks phase and the Connect
-	// EligibilityService handler. Sharing the instance lets a CLI/GCT
-	// eligibility lookup reuse the scan cache primed by the playbooks
-	// phase (and vice versa).
+	// Construct the routed-test-db eligibility checker once at process startup
+	// for the Connect EligibilityService handler.
 	routingEligibility := eligibility.NewChecker()
-	phases.SetRoutingChecker(routingEligibility)
 	eligibilityService := appelig.NewService(routingEligibility, cfg.ScenariosRoot)
 
 	// RunsService exposes the append-only run index AND the durable run

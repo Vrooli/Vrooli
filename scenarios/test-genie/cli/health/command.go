@@ -86,7 +86,7 @@ func run(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 func printSummary(w io.Writer, sh *runspb.SelfHealth) {
 	cat := sh.GetCatalog()
 	fmt.Fprintln(w, "Test Genie self-health")
-	fmt.Fprintf(w, "  Catalog : %d phases (%d delegated, %d native)\n",
+	fmt.Fprintf(w, "  Catalog : %d phases (%d delegated providers, %d compatibility native)\n",
 		cat.GetTotalPhases(), cat.GetDelegatedPhases(), cat.GetNativePhases())
 
 	printConformance(w, sh)

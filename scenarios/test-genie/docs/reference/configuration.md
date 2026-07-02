@@ -31,6 +31,13 @@ Configure execution behavior in the target scenario's `.vrooli/testing.json`.
 }
 ```
 
+The same file may also contain `unit.policy_profile`, which is the Unit Health
+unit-infrastructure policy contract. Test Genie preserves compatibility with
+that shape but does not interpret it; the `unit` phase delegates policy,
+surface, coverage, and architecture validation to Unit Health. Test Genie owns
+only orchestration controls here: phase enablement, timeouts, presets, and
+request-time execution flags.
+
 ## Supported Planning Controls
 
 | Control | Location | Effect |

@@ -78,8 +78,8 @@ test-genie execute my-scenario --preset comprehensive
 | DOCS | Delegates docs Markdown, mermaid, link, reference, and manifest validation to knowledge-observatory through ScenarioValidationService. | 1m |
 | Performance | Delegates Go API and UI build benchmarking plus Lighthouse audits (performance, accessibility, SEO) to the performance-health scenario through ScenarioValidationService, running the measurements and gating on the result. | 5m |
 | Unit | Delegates test execution, coverage, test architecture, test quality, and flake/runtime diagnostics to the unit-health scenario, mapping coverage findings into the FINDING_SOURCE_COVERAGE channel that feeds the ecosystem-manager `coverage` dimension. | 15m |
-| Storage | Delegates storage judgment — schema layout, migration hygiene, persistence-seam adoption, and (the safety throughline) test-isolation seam-wiring — to storage-health, mapping findings into the FINDING_SOURCE_STORAGE channel. Its L2 isolation rung statically gates whether the playbooks phase may run destructive end-to-end flows against an isolated test database. | 2m |
-| Playbooks | Executes Vrooli Ascension workflows declared under bas/ to validate end-to-end UI flows. | 15m |
+| Storage | Delegates storage judgment — schema layout, migration hygiene, persistence-seam adoption, and (the safety throughline) test-isolation seam-wiring — to storage-health, mapping findings into the FINDING_SOURCE_STORAGE channel. Its L2 isolation rung statically gates whether the workflow phase may run destructive end-to-end flows against an isolated test database. | 2m |
+| Workflow | Delegates BAS workflow asset validation and safe execution to workflow-health through ScenarioValidationService. workflow-health owns workflow catalog scanning, maturity, deterministic fixes, routed-isolation guardrails, and BAS-backed evidence artifacts. | 15m |
 | Business | Delegates the business contract — PRD template conformance, requirements-registry structure, OT↔requirement linkage in both directions, and evidence traceability — to business-health through ScenarioValidationService, mapping findings into the FINDING_SOURCE_BUSINESS channel (advisory: severity capped at ERROR by the provider). | 2m |
 | Tidiness | Delegates file/function quality checks to tidiness-manager through ScenarioValidationService and maps assessment findings into the FINDING_SOURCE_TIDINESS channel. | 2m |
 | Security | Delegates security posture validation to security-health (secrets, Go SAST, Go vuln-DB, JS deps) and maps findings into the FINDING_SOURCE_SECURITY channel that gates the ecosystem-manager R1 ladder rung. | 3m |
@@ -102,7 +102,7 @@ test-genie execute my-scenario --preset comprehensive
 | Performance | No | No | No | Yes |
 | Unit | Yes | No | No | Yes |
 | Storage | No | No | No | Yes |
-| Playbooks | No | No | No | Yes |
+| Workflow | No | No | No | Yes |
 | Business | Yes | Yes | No | Yes |
 | Tidiness | No | No | No | Yes |
 | Security | No | No | No | Yes |

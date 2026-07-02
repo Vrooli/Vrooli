@@ -1,6 +1,6 @@
 # Test Genie Architecture
 
-Test Genie is a Go-native test orchestration scenario. The codebase follows screaming architecture at the package boundary: queueing, execution, playbooks, scenarios, requirements, and transport all live in packages named after the domain capability they own.
+Test Genie is a Go-native test orchestration scenario. The codebase follows screaming architecture at the package boundary: queueing, execution, provider-backed phases, workflow seed compatibility, scenarios, requirements, and transport all live in packages named after the domain capability they own.
 
 ## Runtime Shape
 
@@ -14,7 +14,8 @@ flowchart TB
     execution --> orchestrator["internal/orchestrator"]
     orchestrator --> phases["internal/orchestrator/phases"]
     orchestrator --> workspace["internal/orchestrator/workspace"]
-    phases --> playbooks["internal/playbooks"]
+    phases --> providers["ScenarioValidationService providers"]
+    phases --> playbooks["internal/playbooks compatibility"]
     phases --> requirements["internal/requirements"]
     phases --> smoke["internal/smoke"]
 
@@ -35,9 +36,9 @@ flowchart TB
 | `internal/queue` | Suite request lifecycle and queue telemetry | Owns stale-queue policy |
 | `internal/execution` | Execution records plus queue/execution coordination | Keeps queue state and persisted execution history consistent |
 | `internal/orchestrator` | Phase planning, execution, artifacts, presets | Central coordinator for phased runs |
-| `internal/orchestrator/phases` | Phase-specific orchestration adapters | Structure, quality, playbooks, business, performance, etc. |
-| `internal/playbooks` | BAS registry loading, execution, seeding, isolation | Owns BAS-specific contracts and artifacting |
-| `internal/playbooks/dbdetect` | Evidence-based DB detection (postgres/redis/sqlite) for playbooks isolation | Declarative profile table + collectors + resolver; no silent fallback, no `service.json` schema changes |
+| `internal/orchestrator/phases` | Phase-specific orchestration adapters | Structure, quality, workflow, business, performance, etc. |
+| `internal/playbooks` | Legacy BAS registry, seed, and artifact compatibility | Workflow validation/execution is delegated to workflow-health |
+| `internal/playbooks/dbdetect` | Evidence-based DB detection (postgres/redis/sqlite) for legacy seed isolation | Declarative profile table + collectors + resolver; no silent fallback, no `service.json` schema changes |
 | `internal/scenarios` | Scenario summaries and local test-run adapters | Bridges scenario metadata into API/CLI surfaces |
 | `internal/requirements` | Requirement parsing, reporting, sync, evidence | Independent of any single phase |
 | `internal/app/httpserver` requirements handlers | Requirement view projection | Loads cached requirement snapshots, enriches them from source modules, and attaches sync metadata |
@@ -57,9 +58,9 @@ The queue package decides what counts as active work. Transport surfaces only re
 
 `SuiteOrchestrator.Execute*` now shares one bootstrap/finalization path before branching into streaming vs non-streaming execution. Runtime URL detection, testing-config loading, plan creation, artifact directories, and completion bookkeeping happen once so the two execution surfaces cannot drift on setup or result-shaping policy.
 
-### Playbooks registry vs playbooks phase
+### Workflow assets vs delegated workflow phase
 
-The registry builder and loader normalize BAS metadata into a stable manifest. The playbooks phase consumes that manifest and should not guess from raw workflow JSON at execution time. Recent observer-mode fixes rely on that boundary.
+`workflow-health` owns BAS catalog scanning, maturity, safe execution, and findings. Test Genie keeps legacy registry and seed helpers for compatibility, but the catalog phase is `workflow` and it consumes provider output through `ScenarioValidationService` rather than running BAS workflows natively.
 
 ### CLI clients vs response parsing
 

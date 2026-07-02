@@ -66,7 +66,7 @@
   - UI and integration surfaces can drift if the generation/fix workflow changes without shared test coverage
   - External realtime channels such as agent-manager WebSockets are optional and should not be mistaken for Test Genie's own runtime contract
 - **Launch sequencing**:
-  1. Keep the Go-native orchestrator and queue/history surfaces stable
+  1. Keep the Go-native orchestrator, provider-backed phase catalog, and queue/history surfaces stable
   2. Tighten PRD/requirements/test traceability so standards remain actionable
   3. Restore and harden AI-assisted generation/fix flows
   4. Expand vault and coverage UX once the underlying telemetry is stable
@@ -83,4 +83,4 @@
 - `OT-P0-001` is the architectural foundation and is expected to stay complete.
 - `OT-P0-002` is still in progress because the AI generation workflow exists, but the delegation/control surfaces are not yet consistently reliable enough to treat as finished.
 - `OT-P1-003` remains planned because the current UI only partially exposes coverage and vault guidance.
-- Success means the Go-native phases remain authoritative, metadata stays truthful enough for standards to be high-signal, and operators can understand queue state, execution state, and next actions without digging through implementation details.
+- Success means the provider-backed phase catalog remains authoritative, metadata stays truthful enough for standards to be high-signal, and operators can understand queue state, execution state, and next actions without digging through implementation details.

@@ -16,13 +16,14 @@ var aliases = map[string]string{
 	"integration-test": "integration",
 	"integration_test": "integration",
 	"integrationtest":  "integration",
-	"e2e":              "playbooks",
+	"e2e":              "workflow",
 	"business-logic":   "business",
 	"business_logic":   "business",
 	"struct":           "structure",
 	"deps":             "dependencies",
 	"perf":             "performance",
-	"playbook":         "playbooks",
+	"playbook":         "workflow",
+	"playbooks":        "workflow",
 }
 
 // NormalizeKey trims, lowercases, and applies orchestrator-wide phase aliases.

@@ -350,5 +350,5 @@ Fix warnings before marking requirements as complete!
 - [Requirement Schema Reference](../reference/requirement-schema.md) - Schema details
 - [Gaming Prevention Reference](../reference/gaming-prevention.md) - How gaming is detected
 - [Phased Testing](phased-testing.md) - Test phase orchestration
-- [UI Automation with BAS](../phases/playbooks/ui-automation-with-bas.md) - E2E automation guide
+- [Workflow Phase](../phases/workflow/README.md) - E2E automation guide
 - [Scenario Unit Testing](../phases/unit/scenario-unit-testing.md) - Writing quality tests

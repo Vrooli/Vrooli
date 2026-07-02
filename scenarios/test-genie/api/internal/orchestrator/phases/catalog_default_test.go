@@ -52,9 +52,10 @@ func TestIsValidPhase(t *testing.T) {
 
 func TestNormalizeKeyResolvesAliases(t *testing.T) {
 	tests := map[string]string{
-		" E2E ":      "playbooks",
+		" E2E ":      "workflow",
 		"unit-test":  "unit",
-		"playbook":   "playbooks",
+		"playbook":   "workflow",
+		"playbooks":  "workflow",
 		"STRUCT":     "structure",
 		"custom-one": "custom-one",
 	}
@@ -67,8 +68,8 @@ func TestNormalizeKeyResolvesAliases(t *testing.T) {
 	if !ok {
 		t.Fatal("NormalizeName(e2e) returned !ok")
 	}
-	if name != Playbooks {
-		t.Fatalf("NormalizeName(e2e) = %q, want %q", name, Playbooks)
+	if name != Workflow {
+		t.Fatalf("NormalizeName(e2e) = %q, want %q", name, Workflow)
 	}
 }
 

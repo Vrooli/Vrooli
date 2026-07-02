@@ -83,7 +83,7 @@ phases:
     timeout: 900
     requirements:
       - unit_tests: passing
-      - coverage_threshold: 80
+      - unit_coverage_minimum_percent: 80
 EOF
 
 # Run with criteria
@@ -175,7 +175,7 @@ test:
   requirements:
     - unit_tests: passing              # All unit tests pass
     - integration_tests: passing       # All integration tests pass
-    - coverage_threshold: 80           # Coverage >= 80%
+    - unit_coverage_minimum_percent: 80 # Coverage >= 80%
     - no_flaky_tests: true             # No intermittent failures
 ```
 

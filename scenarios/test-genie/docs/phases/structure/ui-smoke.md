@@ -3,7 +3,7 @@
 **Status**: Active (debugging reference)
 **Last Updated**: 2026-06-23
 
-> **Moved:** The native `smoke` test-genie phase and the standalone `vrooli scenario ui-smoke` command were **retired**. BAS-driven UI render + iframe-bridge handshake validation now runs inside the **[ui-health phase](../ui-health/README.md)** (execution mode) — see `ui-health validate scenario <name>`. The `playbooks` phase also drives the bridge. This guide is retained as the iframe-bridge handshake / render-failure **debugging reference** that those phases' remediation messages point at; the legacy `.vrooli/testing.json` `structure.ui_smoke` config knob below is preserved where still honored.
+> **Moved:** The native `smoke` test-genie phase and the standalone `vrooli scenario ui-smoke` command were **retired**. BAS-driven UI render + iframe-bridge handshake validation now runs inside the **[ui-health phase](../ui-health/README.md)** (execution mode) — see `ui-health validate scenario <name>`. Workflow validation now delegates to workflow-health. This guide is retained as the iframe-bridge handshake / render-failure **debugging reference** that those phases' remediation messages point at; the legacy `.vrooli/testing.json` `structure.ui_smoke` config knob below is preserved where still honored.
 
 ---
 
@@ -11,7 +11,7 @@
 
 UI render validation checks that a scenario's UI is accessible, renders correctly, integrates with the iframe-bridge, and has no critical JavaScript errors.
 
-It is driven through the **Browser Automation Studio (BAS)** workflow engine: the ui-health phase embeds the scenario's UI in a host iframe shell, validates the iframe-bridge handshake, and captures artifacts (the `playbooks` phase drives the bridge top-level instead). The verdict is produced by the shared `internal/evidence` analyzer.
+It is driven through the **Browser Automation Studio (BAS)** workflow engine: the ui-health phase embeds the scenario's UI in a host iframe shell, validates the iframe-bridge handshake, and captures artifacts. Workflow validation is delegated to workflow-health.
 
 ## Quick Start
 
@@ -394,5 +394,5 @@ Unhandled JavaScript errors will cause the test to fail. Ensure your app has pro
 ## See Also
 
 - [Structure Phase](README.md) - Structure phase overview
-- [UI Automation with BAS](../playbooks/ui-automation-with-bas.md) - Full UI testing
+- [Workflow Phase](../workflow/README.md) - BAS workflow validation
 - [Phases Overview](../README.md) - Phase architecture

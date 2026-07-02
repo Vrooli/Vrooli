@@ -59,7 +59,7 @@ the Validate-denominator work deferred to the swarm-manager initiative.
 
 ## Known Gaps & Approaches
 
-- **Experience validation ladder (the headline gap)** — reframe the `Playbooks` phase as **Experience** (V17). The business side already has a validation ladder: operational targets (`PRD.md`) → technical requirements (`requirements/`) → linked tests → validated code. The experience side needs the parallel ladder: `DESIGN.md` (high-level UX) → a new per-page UI specification (not yet implemented) → validated via accessibility-tree + screenshot analysis. The current BAS "playbooks" (user-flow test cases) are the runtime-flow rung; the per-page UI-spec rung is the successor to build.
+- **Experience validation ladder (the headline gap)** — reframe the `workflow` phase as **Experience** (V17). The business side already has a validation ladder: operational targets (`PRD.md`) → technical requirements (`requirements/`) → linked tests → validated code. The experience side needs the parallel ladder: `DESIGN.md` (high-level UX) → a new per-page UI specification (not yet implemented) → validated via accessibility-tree + screenshot analysis. Current BAS workflow cases are the runtime-flow rung; the per-page UI-spec rung is the successor to build.
 - **Autofix `pending` set** — every phase carries an autofix intent (above); `test-genie health` `ProviderConformance.AutofixCoverage` reports the live `implemented` vs `pending` split. The `pending` set is the autofix backlog.
 - **Candidate concerns (V18–V21)** — judgment-heavy; the swarm-manager initiative owns deciding which become phases.
 

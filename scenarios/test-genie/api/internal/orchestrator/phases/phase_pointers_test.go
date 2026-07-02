@@ -1,17 +1,13 @@
 package phases
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"test-genie/internal/orchestrator/workspace"
-	"test-genie/internal/shared"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
@@ -94,118 +90,28 @@ func TestWritePhasePointerOmitsEmptyFindings(t *testing.T) {
 	}
 }
 
-func TestRunNativePhaseLoadsExpectationsWritesSummaryAndPointer(t *testing.T) {
+func TestWritePhasePointerPersistsExtras(t *testing.T) {
 	dir := t.TempDir()
 	env := workspace.Environment{
 		RunID:        "20260610-000002-testrun",
 		ScenarioName: "fixture",
 		ScenarioDir:  dir,
 	}
-	var log bytes.Buffer
-	var hookCalled bool
+	report := RunReport{Observations: []Observation{NewSuccessObservation("provider check passed")}}
+	writePhasePointer(env, "workflow", report, map[string]any{"summary": "1 check"}, io.Discard)
 
-	report := RunNativePhase(context.Background(), env, &log, Structure,
-		func(scenarioDir string) (string, error) {
-			if scenarioDir != dir {
-				t.Fatalf("scenarioDir = %q, want %q", scenarioDir, dir)
-			}
-			return "loaded", nil
-		},
-		func(expectations string) (StandardRunResult, error) {
-			if expectations != "loaded" {
-				t.Fatalf("expectations = %q, want loaded", expectations)
-			}
-			return fakeNativeResult{
-				success: true,
-				observations: []shared.Observation{
-					shared.NewSuccessObservation("native check passed"),
-				},
-				summary: "1 check",
-			}, nil
-		},
-		WithNativePhaseReportHook(func(report *RunReport, result StandardRunResult) {
-			hookCalled = true
-			if result.SummaryText() != "1 check" {
-				t.Fatalf("hook summary = %q, want 1 check", result.SummaryText())
-			}
-			report.Findings = []*architecturev1.ArchitectureFinding{{
-				Scenario: "fixture",
-				Source:   architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE,
-				Severity: architecturev1.FindingSeverity_FINDING_SEVERITY_INFO,
-				Message:  "hook attached finding",
-			}}
-		}),
-	)
-
-	if !hookCalled {
-		t.Fatal("report hook was not called")
-	}
-	if report.Err != nil {
-		t.Fatalf("report error = %v, want nil", report.Err)
-	}
-	if len(report.Observations) != 2 {
-		t.Fatalf("observations count = %d, want runner observation plus summary", len(report.Observations))
-	}
-	if got := report.Observations[1].Text; got != "Structure validation completed (1 check)" {
-		t.Fatalf("summary observation = %q", got)
-	}
-
-	raw, err := os.ReadFile(filepath.Join(dir, "coverage", "runs", env.RunID, "phase-results", "structure.json"))
+	raw, err := os.ReadFile(filepath.Join(dir, "coverage", "runs", env.RunID, "phase-results", "workflow.json"))
 	if err != nil {
 		t.Fatalf("phase pointer not written: %v", err)
 	}
 	var payload struct {
-		Summary  string                                `json:"summary"`
-		Findings []*architecturev1.ArchitectureFinding `json:"findings"`
+		Summary string `json:"summary"`
 	}
 	if err := json.Unmarshal(raw, &payload); err != nil {
 		t.Fatalf("phase pointer not decodable: %v", err)
 	}
 	if payload.Summary != "1 check" {
 		t.Fatalf("pointer summary = %q, want 1 check", payload.Summary)
-	}
-	if len(payload.Findings) != 1 {
-		t.Fatalf("pointer findings count = %d, want 1", len(payload.Findings))
-	}
-}
-
-func TestRunNativePhaseWritesPointerWhenExpectationsFail(t *testing.T) {
-	dir := t.TempDir()
-	env := workspace.Environment{
-		RunID:        "20260610-000003-testrun",
-		ScenarioName: "fixture",
-		ScenarioDir:  dir,
-	}
-
-	report := RunNativePhase(context.Background(), env, io.Discard, Business,
-		func(string) (string, error) {
-			return "", errors.New("bad expectations")
-		},
-		func(string) (StandardRunResult, error) {
-			t.Fatal("execute should not run after expectations fail")
-			return fakeNativeResult{}, nil
-		},
-	)
-
-	if report.Err == nil {
-		t.Fatal("report error = nil, want expectation load failure")
-	}
-	raw, err := os.ReadFile(filepath.Join(dir, "coverage", "runs", env.RunID, "phase-results", "business.json"))
-	if err != nil {
-		t.Fatalf("phase pointer not written: %v", err)
-	}
-	var payload struct {
-		Status       string `json:"status"`
-		FailureClass string `json:"failure_class"`
-	}
-	if err := json.Unmarshal(raw, &payload); err != nil {
-		t.Fatalf("phase pointer not decodable: %v", err)
-	}
-	if payload.Status != "failed" {
-		t.Fatalf("status = %q, want failed", payload.Status)
-	}
-	if payload.FailureClass != FailureClassMisconfiguration {
-		t.Fatalf("failure_class = %q, want %q", payload.FailureClass, FailureClassMisconfiguration)
 	}
 }
 
@@ -248,24 +154,3 @@ func TestDeriveStatus(t *testing.T) {
 type assertErr struct{}
 
 func (assertErr) Error() string { return "boom" }
-
-type fakeNativeResult struct {
-	success      bool
-	err          error
-	failureClass shared.FailureClass
-	remediation  string
-	observations []shared.Observation
-	summary      string
-}
-
-func (r fakeNativeResult) Succeeded() bool { return r.success }
-
-func (r fakeNativeResult) Err() error { return r.err }
-
-func (r fakeNativeResult) Failure() shared.FailureClass { return r.failureClass }
-
-func (r fakeNativeResult) RemediationText() string { return r.remediation }
-
-func (r fakeNativeResult) ObservationList() []shared.Observation { return r.observations }
-
-func (r fakeNativeResult) SummaryText() string { return r.summary }

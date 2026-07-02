@@ -281,9 +281,9 @@ location.
       "estimateSampleSize": 12
     },
     {
-      "name": "playbooks",
-      "description": "Executes Vrooli Ascension workflows declared under bas/.",
-      "optional": true,
+      "name": "workflow",
+      "description": "Delegates BAS workflow validation and safe execution to workflow-health.",
+      "optional": false,
       "estimatedDurationSeconds": 900,
       "timeoutSeconds": 900,
       "estimateSource": "timeout_fallback",
@@ -297,7 +297,7 @@ location.
     "timeoutSeconds": 6240
   },
   "warnings": [
-    "Phase 'playbooks' is globally disabled and was skipped by default."
+    "Phase 'workflow' is globally disabled and was skipped by default."
   ]
 }
 ```
@@ -363,10 +363,10 @@ Execute a test suite for a scenario. This is the primary endpoint for running te
 3. `dependencies` - Delegates dependency health validation to scenario-dependency-analyzer
 4. `quality` - Delegates static quality contracts to quality-health
 5. `docs` - Validates markdown, mermaid, and links
-6. `smoke` - Performs fast UI / runtime handshake validation
+6. `ui-health` - Delegates UI / runtime validation to ui-health
 7. `unit` - Runs Go, Node, Python, and shell unit suites as applicable
 8. `integration` - Exercises CLI runtime, API health, and WebSocket connectivity
-9. `playbooks` - Executes BAS browser automation workflows
+9. `workflow` - Delegates BAS workflow validation to workflow-health
 10. `business` - Audits requirement coverage and operational targets
 11. `performance` - Builds binaries and checks duration/performance budgets
 
@@ -383,7 +383,7 @@ Use `POST /api/v1/executions/plan` to see the actual selected phases, runtime es
   "preset": "comprehensive",
   "requestedPreset": "comprehensive",
   "requestedSkipPhases": ["performance"],
-  "plannedPhases": ["structure", "standards", "dependencies", "quality", "docs", "smoke", "unit", "integration", "playbooks", "business"],
+  "plannedPhases": ["structure", "standards", "dependencies", "quality", "docs", "ui-health", "unit", "integration", "workflow", "business"],
   "failFast": false,
   "phases": [
     {
@@ -456,7 +456,7 @@ List execution history.
       "startedAt": "2025-01-15T10:30:00Z",
       "completedAt": "2025-01-15T10:35:00Z",
       "preset": "comprehensive",
-      "plannedPhases": ["structure", "standards", "dependencies", "quality", "docs", "smoke", "unit", "integration", "playbooks", "business"],
+      "plannedPhases": ["structure", "standards", "dependencies", "quality", "docs", "ui-health", "unit", "integration", "workflow", "business"],
       "failFast": false
     }
   ],
@@ -609,7 +609,7 @@ Run tests for a specific scenario directly (alternative to /api/v1/executions).
 
 ### GET /api/v1/phases
 
-Returns the Go-native phase catalog with descriptions and configuration.
+Returns the provider-backed phase catalog with descriptions and configuration.
 
 **Response (abbreviated):**
 ```json
@@ -619,21 +619,21 @@ Returns the Go-native phase catalog with descriptions and configuration.
       "name": "structure",
       "optional": false,
       "description": "Validates scenario layout, manifests, and JSON health before deeper checks run.",
-      "source": "native",
+      "source": "validation-provider",
       "defaultTimeoutSeconds": 900
     },
     {
       "name": "standards",
       "optional": false,
       "description": "Runs scenario-auditor standards enforcement against the scenario workspace.",
-      "source": "native",
+      "source": "validation-provider",
       "defaultTimeoutSeconds": 60
     },
     {
-      "name": "playbooks",
-      "optional": true,
-      "description": "Executes Vrooli Ascension workflows declared under bas/.",
-      "source": "native",
+      "name": "workflow",
+      "optional": false,
+      "description": "Delegates BAS workflow validation and safe execution to workflow-health.",
+      "source": "validation-provider",
       "defaultTimeoutSeconds": 900
     }
   ],
@@ -641,7 +641,7 @@ Returns the Go-native phase catalog with descriptions and configuration.
 }
 ```
 
-The full catalog currently includes `structure`, `contracts`, `ui-health`, `standards`, `architecture`, `dependencies`, `quality`, `docs`, `performance`, `smoke`, `unit`, `integration`, `playbooks`, `business`, `coverage`, `tidiness`, `security`, `measures`, and `proto`.
+The full catalog currently includes `structure`, `contracts`, `ui-health`, `standards`, `architecture`, `dependencies`, `quality`, `docs`, `performance`, `unit`, `integration`, `storage`, `workflow`, `business`, `tidiness`, `security`, `measures`, `proto`, and `branding`.
 
 ---
 
@@ -736,10 +736,10 @@ curl -s http://localhost:8080/api/v1/phases | jq '.items[].name'
 # "dependencies"
 # "quality"
 # "docs"
-# "smoke"
+# "ui-health"
 # "unit"
 # "integration"
-# "playbooks"
+# "workflow"
 # "business"
 # "performance"
 ```

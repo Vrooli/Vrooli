@@ -23,20 +23,16 @@ func newCatalog() *Catalog {
 	return &Catalog{specs: make(map[Name]Spec)}
 }
 
-// NewDefaultCatalog seeds the catalog with the Go-native phase runners.
+// NewDefaultCatalog seeds the catalog with provider-backed phase runners.
 func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 	if defaultTimeout <= 0 {
 		defaultTimeout = DefaultTimeout
 	}
 	catalog := newCatalog()
-	const phaseSourceNative = "native"
 	register := func(spec Spec) {
 		// Only set default timeout if not explicitly specified
 		if spec.DefaultTimeout <= 0 {
 			spec.DefaultTimeout = defaultTimeout
-		}
-		if spec.Source == "" {
-			spec.Source = phaseSourceNative
 		}
 		catalog.Register(spec)
 	}
@@ -148,15 +144,13 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Timeout:       5 * time.Minute,
 		// Execution mode: performance-health actually benchmarks the Go + UI build
 		// and runs Lighthouse-if-UI, persists a perf sample, then gates on budgets
-		// + native build-time thresholds (restoring the native phase's enforcement,
-		// which readiness-only delegation had dropped). Without this the delegated
+		// + build-time thresholds. Without this the delegated
 		// phase could only PASS/SKIP.
 		IncludeExecution: true,
 		Description:      "Delegates Go API and UI build benchmarking plus Lighthouse audits (performance, accessibility, SEO) to the performance-health scenario through ScenarioValidationService, running the measurements and gating on the result.",
 	})
-	// Preserve the native phase's runnability contract: Performance needs a UI
-	// surface (Lighthouse + UI build), so the runnability gate skips it when no
-	// UI is present rather than failing it. Pinned by
+	// Performance needs a UI surface (Lighthouse + UI build), so the runnability
+	// gate skips it when no UI is present rather than failing it. Pinned by
 	// TestCapabilityManifestCoversEveryPhase.
 	performanceSpec.Capabilities = runnability.PhaseCapabilities{NeedsUI: true}
 	register(performanceSpec)
@@ -169,12 +163,12 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Description:      "Delegates test execution, coverage, test architecture, test quality, and flake/runtime diagnostics to the unit-health scenario, mapping coverage findings into the FINDING_SOURCE_COVERAGE channel that feeds the ecosystem-manager `coverage` dimension.",
 		IncludeExecution: true,
 	}))
-	// Storage runs immediately before playbooks: it delegates test-isolation +
+	// Storage runs immediately before workflow: it delegates test-isolation +
 	// storage-conventions validation to storage-health and maps findings into the
 	// FINDING_SOURCE_STORAGE channel. Its L2 isolation rung is the fail-closed
-	// precondition the playbooks phase keys its routed-or-refuse decision off of —
+	// precondition the workflow phase keys its routed-or-refuse decision off of —
 	// a scenario whose routed-DB seams are unwired (or whose API isolation cannot
-	// be statically verified) fails storage and has its destructive playbooks
+	// be statically verified) fails storage and has its destructive workflows
 	// refused before any real mutation can reach a non-isolated database.
 	register(delegatedSpec(Delegated{
 		Name:             Storage,
@@ -183,19 +177,26 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Emoji:            "🗄️",
 		DetailCommand:    "storage-health validate scenario {{scenario}}",
 		Timeout:          120 * time.Second,
-		Description:      "Delegates storage judgment — schema layout, migration hygiene, persistence-seam adoption, and (the safety throughline) test-isolation seam-wiring — to storage-health, mapping findings into the FINDING_SOURCE_STORAGE channel. Its L2 isolation rung statically gates whether the playbooks phase may run destructive end-to-end flows against an isolated test database.",
+		Description:      "Delegates storage judgment — schema layout, migration hygiene, persistence-seam adoption, and (the safety throughline) test-isolation seam-wiring — to storage-health, mapping findings into the FINDING_SOURCE_STORAGE channel. Its L2 isolation rung statically gates whether the workflow phase may run destructive end-to-end flows against an isolated test database.",
 	}))
-	register(Spec{
-		Name:        Playbooks,
-		Runner:      runPlaybooksPhase,
-		Description: "Executes Vrooli Ascension workflows declared under bas/ to validate end-to-end UI flows.",
-		Capabilities: runnability.PhaseCapabilities{
-			NeedsUI:                   true,
-			MutatesLifecycle:          true,
-			DBIsolation:               runnability.DBIsolationRouted,
-			LifecycleDecisionDeferred: true,
-		},
+	workflowSpec := delegatedSpec(Delegated{
+		Name:             Workflow,
+		ProviderScenario: "workflow-health",
+		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_WORKFLOW,
+		Emoji:            "🧭",
+		DetailCommand:    "workflow-health validate scenario {{scenario}}",
+		Timeout:          15 * time.Minute,
+		Description:      "Delegates BAS workflow asset validation and safe execution to workflow-health through ScenarioValidationService. workflow-health owns workflow catalog scanning, maturity, deterministic fixes, routed-isolation guardrails, and BAS-backed evidence artifacts.",
+		IncludeExecution: true,
 	})
+	workflowSpec.Capabilities = runnability.PhaseCapabilities{
+		NeedsUI:                   true,
+		MutatesLifecycle:          true,
+		DBIsolation:               runnability.DBIsolationRouted,
+		LifecycleDecisionDeferred: true,
+		RequiredResources:         []string{runnability.ResourceBAS},
+	}
+	register(workflowSpec)
 	register(delegatedSpec(Delegated{
 		Name:             Business,
 		ProviderScenario: "business-health",

@@ -228,9 +228,9 @@ curl -f http://localhost:${UI_PORT}
 my-scenario-cli --version
 ```
 
-### Phase 7: Playbooks (E2E) Tests
+### Phase 7: Workflow Tests
 
-**Purpose**: Validate end-to-end UI workflows via BAS playbooks.
+**Purpose**: Validate end-to-end UI workflows through workflow-health.
 
 **Requires**: Scenario + BAS running
 
@@ -239,7 +239,7 @@ my-scenario-cli --version
 - Isolation + seeds (temporary DB/Redis + `coverage/runtime/seed-state.json`)
 - Contract correctness with BAS execution + timeline responses
 
-See [Playbooks Phase](../phases/playbooks/README.md) for authoring guidance.
+See [Workflow Phase](../phases/workflow/README.md) for current behavior.
 
 ### Phase 8: Business Logic Tests
 
@@ -415,7 +415,7 @@ Before considering a scenario test-ready:
 - [Structure Phase](../phases/structure/README.md) - File and CLI validation
 - [Unit Phase](../phases/unit/README.md) - Test runners and coverage
 - [Integration Phase](../phases/integration/README.md) - CLI and API testing
-- [Playbooks Phase](../phases/playbooks/README.md) - BAS browser automation
+- [Workflow Phase](../phases/workflow/README.md) - BAS browser automation
 - [Business Phase](../phases/business/README.md) - Requirements validation
 - [Performance Phase](../phases/performance/README.md) - Build benchmarks and Lighthouse
 

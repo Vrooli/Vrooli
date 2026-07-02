@@ -112,7 +112,7 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [Docs Phase](phases/docs/README.md) - Markdown, mermaid, and link validation
 - [Unit Phase](phases/unit/README.md) - Test runners and coverage
 - [Integration Phase](phases/integration/README.md) - CLI and API testing
-- [Playbooks Phase](phases/playbooks/README.md) - BAS browser automation
+- [Workflow Phase](phases/workflow/README.md) - BAS workflow validation through workflow-health
 - [Business Phase](phases/business/README.md) - Requirements validation
 - [Performance Phase](phases/performance/README.md) - Build benchmarks and Lighthouse
 
@@ -122,7 +122,7 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [Requirements Sync](phases/business/requirements-sync.md) - Automatic requirement tracking
 - [Scenario Unit Testing](phases/unit/scenario-unit-testing.md) - Go, Node, Python unit tests
 - [UI Testability](guides/ui-testability.md) - Design testable UIs
-- [UI Automation with BAS](phases/playbooks/ui-automation-with-bas.md) - Vrooli Ascension workflows
+- [Workflow Phase](phases/workflow/README.md) - Vrooli Ascension workflow validation
 - [UI Smoke Testing](phases/structure/ui-smoke.md) - Fast UI validation on Browser Automation Studio
 - [Lighthouse Integration](phases/performance/lighthouse.md) - Performance and accessibility testing
 - [Performance Testing](phases/performance/performance-testing.md) - Build benchmarks and regression detection
@@ -247,7 +247,7 @@ START: What are you testing?
 |   +-- Database migrations --> Testing Strategy + Integration
 |
 +-- UI Testing?
-|   +-- Browser automation --> UI Automation with BAS
+|   +-- Browser automation --> Workflow Phase
 |   +-- Smoke tests --> UI Smoke Testing
 |   +-- Performance --> Lighthouse Integration
 |   +-- Design for testing --> UI Testability Guide

@@ -160,10 +160,11 @@ func ExtractPhaseFromRef(ref string) string {
 		return "integration"
 	}
 
-	// Playbook patterns
+	// Workflow patterns. `playbooks` remains an accepted user-facing alias, but
+	// requirement evidence should store the canonical Test Genie phase.
 	if strings.Contains(normalized, "playbook") ||
 		strings.HasPrefix(normalized, "bas/") {
-		return "playbooks"
+		return "workflow"
 	}
 
 	// BATS test patterns

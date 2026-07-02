@@ -395,21 +395,21 @@ Executing test suite for: my-scenario
   Preset: comprehensive
   Estimate: 3m 12s
   Timeout budget: 29m 0s
-  Planned phases: structure, standards, dependencies, quality, docs, smoke, unit, integration, playbooks, business, performance
+  Planned phases: structure, standards, dependencies, quality, docs, ui-health, unit, integration, workflow, business, performance
 
 Plan:
   structure     estimate 4s    timeout 15m  high confidence from 12 runs
-  playbooks     estimate 15m   timeout 15m  timeout fallback
+  workflow      estimate 15m   timeout 15m  timeout fallback
 
 [1/11] structure     PASSED  (5s)
 [2/11] standards     PASSED  (2s)
 [3/11] dependencies  PASSED  (12s)
 [4/11] quality       PASSED  (9s)
 [5/11] docs          PASSED  (3s)
-[6/11] smoke         PASSED  (6s)
+[6/11] ui-health     PASSED  (6s)
 [7/11] unit          PASSED  (45s)
 [8/11] integration   PASSED  (30s)
-[9/11] playbooks     PASSED  (14s)
+[9/11] workflow      PASSED  (14s)
 [10/11] business     PASSED  (8s)
 [11/11] performance  PASSED  (20s)
 
@@ -638,7 +638,7 @@ phases:
     requirements:
       - unit_tests: passing
       - integration_tests: passing
-      - coverage_threshold: 80
+      - unit_coverage_minimum_percent: 80
 ```
 
 ### Output
@@ -686,12 +686,11 @@ rate, degraded counts, skip-reason + classification histograms, duration
 p50/p95/min/max/avg, and worst-scenarios-per-phase). Compute-on-read and
 advisory — nothing here gates a build.
 
-Both delegated **and** native phases report `ExecutionMetrics`: native runners
-(`business`, `integration`, `performance`, `playbooks`, `smoke`) are measured at
-the shared `RunNativePhase` chokepoint, so `metricsAdopted` and the duration
-columns are populated for every phase. The ledger's phase rollup is scoped to
-live catalog phases — legacy pseudo-phases (`coverage`, `lint`) from historical
-runs are excluded. The same payload backs the dashboard's **Self-Health** tab.
+Provider-backed catalog phases report `ExecutionMetrics`, so `metricsAdopted`
+and duration columns are populated from delegated phase results. The ledger's
+phase rollup is scoped to live catalog phases — legacy pseudo-phases
+(`coverage`, `lint`, `playbooks`) from historical runs are excluded. The same
+payload backs the dashboard's **Self-Health** tab.
 
 ```bash
 test-genie health [--json] [--window-days N] [--skip-conformance]
@@ -936,10 +935,10 @@ standards     No        1m       Runs scenario-auditor standards checks
 dependencies  No        15m      Confirms commands, runtimes, and resources
 quality       No        120s     Delegates static quality contracts to quality-health
 docs          No        1m       Validates markdown, mermaid, and links
-smoke         No        90s      Performs fast runtime/UI handshake checks
+ui-health     No        5m       Delegates UI validation to ui-health
 unit          No        15m      Executes language-specific unit suites
 integration   No        15m      Runs CLI, API health, and WebSocket checks
-playbooks     Yes       15m      Executes BAS browser automation workflows
+workflow      No        15m      Delegates BAS workflow validation to workflow-health
 business      No        3m       Audits requirements and business validation
 performance   Yes       1m       Checks performance and duration budgets
 ```

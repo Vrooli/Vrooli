@@ -41,6 +41,11 @@ and maps the result:
 - The provider's `common.v1.MaturityAssessment` is validated (it must declare
   `provider: unit-health`, `phase: unit`) and its local maturity summary is
   written to the phase pointer.
+- Unit Health's native `unit_health.v1.validation.ValidateScenarioResponse` is
+  packed into the shared `native_detail` field. Generic Test Genie planning does
+  not interpret `unit.policy_profile`, but provider-owned tooling can unpack the
+  native detail to inspect evidence, expected/observed values, projections, and
+  remediation text for policy-profile findings.
 
 ## Failure Behavior
 
@@ -75,8 +80,11 @@ describe('projectStore [REQ:MY-PROJECT-CRUD]', () => {
 
 Coverage thresholds, canonical test frameworks (Go `go test`, React/Vite
 `vitest`, Python `pytest`), and degraded/noncanonical detection are owned by
-unit-health and documented there. Shell syntax validation is **not** part of
-the unit phase — it belongs to static quality (Quality Health).
+unit-health and documented there. In `.vrooli/testing.json`, Test Genie reads
+`phases`, `presets`, and other orchestration controls; `unit.policy_profile` is
+the Unit Health contract for required roles, policy classes, waivers, and native
+projection checks. Shell syntax validation is **not** part of the unit phase —
+it belongs to static quality (Quality Health).
 
 ## See Also
 

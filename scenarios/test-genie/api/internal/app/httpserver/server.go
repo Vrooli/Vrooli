@@ -264,7 +264,7 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve/{id}", s.handleGetRequirementsImprove).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve/{id}/stop", s.handleStopRequirementsImprove).Methods("POST")
 
-	// Playbooks-claims routes (concurrency-guard inspection / force-release)
+	// Workflow seed claim routes (legacy playbooks URL retained for clients)
 	apiRouter.HandleFunc("/playbooks/claims", s.handleListPlaybooksClaims).Methods("GET")
 	apiRouter.HandleFunc("/playbooks/claims/{scenario}", s.handleGetPlaybooksClaim).Methods("GET")
 	apiRouter.HandleFunc("/playbooks/claims/{scenario}/release", s.handleReleasePlaybooksClaim).Methods("POST")

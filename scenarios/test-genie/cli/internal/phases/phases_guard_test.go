@@ -33,15 +33,15 @@ func TestAllowedPhasesMatchCatalog(t *testing.T) {
 	}
 }
 
-// TestE2EAliasStillValidates ensures the e2e→playbooks alias still resolves even
+// TestE2EAliasStillValidates ensures the e2e→workflow alias still resolves even
 // though "e2e" is not a catalog phase name.
 func TestE2EAliasStillValidates(t *testing.T) {
 	got, err := NormalizeSelection([]string{"e2e"})
 	if err != nil {
 		t.Fatalf("e2e should validate via alias: %v", err)
 	}
-	if len(got) != 1 || got[0] != "playbooks" {
-		t.Fatalf("e2e should normalize to [playbooks], got %v", got)
+	if len(got) != 1 || got[0] != "workflow" {
+		t.Fatalf("e2e should normalize to [workflow], got %v", got)
 	}
 }
 

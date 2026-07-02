@@ -104,7 +104,7 @@ func TestCuratedPresetsIncludeProto(t *testing.T) {
 // the build instead of changing runtime behavior unnoticed.
 func TestCapabilityManifestCoversEveryPhase(t *testing.T) {
 	// Pinned expectations transcribed from the pre-refactor runtimeNeeds switch
-	// (smoke/playbooks/performance → UI) plus the playbooks
+	// (ui-health/workflow/performance → UI) plus the workflow
 	// DB-isolation/lifecycle-mutation contract.
 	type want struct {
 		ui, api, mutates, deferred bool
@@ -113,7 +113,7 @@ func TestCapabilityManifestCoversEveryPhase(t *testing.T) {
 	expected := map[Name]want{
 		UIHealth:    {ui: true},
 		Performance: {ui: true},
-		Playbooks:   {ui: true, mutates: true, deferred: true, dbiso: runnability.DBIsolationRouted},
+		Workflow:    {ui: true, mutates: true, deferred: true, dbiso: runnability.DBIsolationRouted},
 	}
 
 	catalog := DefaultCatalog()
@@ -154,7 +154,7 @@ func TestSkipEnvVarsPreservePublishedNames(t *testing.T) {
 		Docs:         "TEST_GENIE_SKIP_DOCS",
 		Unit:         "TEST_GENIE_SKIP_UNIT",
 		Storage:      "TEST_GENIE_SKIP_STORAGE",
-		Playbooks:    "TEST_GENIE_SKIP_PLAYBOOKS",
+		Workflow:     "TEST_GENIE_SKIP_WORKFLOW",
 		Business:     "TEST_GENIE_SKIP_BUSINESS",
 		Performance:  "TEST_GENIE_SKIP_PERFORMANCE",
 		Tidiness:     "TEST_GENIE_SKIP_TIDINESS",
@@ -206,6 +206,7 @@ func TestFindingSourceCoversEveryProducingPhase(t *testing.T) {
 		Measures: architecturev1.FindingSource_FINDING_SOURCE_MEASURES,
 		Proto:    architecturev1.FindingSource_FINDING_SOURCE_PROTO,
 		Storage:  architecturev1.FindingSource_FINDING_SOURCE_STORAGE,
+		Workflow: architecturev1.FindingSource_FINDING_SOURCE_WORKFLOW,
 		Branding: architecturev1.FindingSource_FINDING_SOURCE_BRANDING,
 	}
 	catalog := DefaultCatalog()
@@ -298,6 +299,99 @@ func TestTestingSchemaPhasePropertiesMatchCatalog(t *testing.T) {
 		if _, ok := phaseBlock.Properties[name]; !ok {
 			t.Errorf("testing schema missing phases.%s property", name)
 		}
+	}
+}
+
+func TestTestingSchemaDefinesUnitPolicyProfile(t *testing.T) {
+	root := scenarioRoot(t)
+	raw, err := os.ReadFile(filepath.Join(root, "schemas", "testing.schema.json"))
+	if err != nil {
+		t.Fatalf("read testing schema: %v", err)
+	}
+	var schema struct {
+		Properties map[string]struct {
+			Properties map[string]json.RawMessage `json:"properties"`
+		} `json:"properties"`
+		Definitions map[string]json.RawMessage `json:"definitions"`
+	}
+	if err := json.Unmarshal(raw, &schema); err != nil {
+		t.Fatalf("parse testing schema: %v", err)
+	}
+	unitBlock, ok := schema.Properties["unit"]
+	if !ok {
+		t.Fatal("testing schema missing properties.unit")
+	}
+	var policyRef struct {
+		Ref string `json:"$ref"`
+	}
+	if err := json.Unmarshal(unitBlock.Properties["policy_profile"], &policyRef); err != nil {
+		t.Fatalf("parse unit.policy_profile schema ref: %v", err)
+	}
+	if policyRef.Ref != "#/definitions/unit_policy_profile" {
+		t.Fatalf("unit.policy_profile ref = %q, want #/definitions/unit_policy_profile", policyRef.Ref)
+	}
+	for _, name := range []string{
+		"unit_policy_profile",
+		"unit_required_role",
+		"unit_policy_class",
+		"unit_policy_customization",
+		"unit_policy_waiver",
+	} {
+		if _, ok := schema.Definitions[name]; !ok {
+			t.Errorf("testing schema missing definitions.%s", name)
+		}
+	}
+}
+
+func TestReactViteTemplateDeclaresUnitPolicyProfile(t *testing.T) {
+	root := scenarioRoot(t)
+	templateTestingPath := filepath.Clean(filepath.Join(root, "..", "..", "templates", "scenarios", "react-vite", ".vrooli", "testing.json"))
+	raw, err := os.ReadFile(templateTestingPath)
+	if err != nil {
+		t.Fatalf("read react-vite testing.json: %v", err)
+	}
+	var doc struct {
+		Unit struct {
+			PolicyProfile struct {
+				Version       string            `json:"version"`
+				Template      map[string]string `json:"template"`
+				RequiredRoles []struct {
+					Role        string `json:"role"`
+					PolicyClass string `json:"policy_class"`
+				} `json:"required_roles"`
+				PolicyClasses map[string]json.RawMessage `json:"policy_classes"`
+				Customization struct {
+					Mode string `json:"mode"`
+				} `json:"customization"`
+			} `json:"policy_profile"`
+		} `json:"unit"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatalf("parse react-vite testing.json: %v", err)
+	}
+	if doc.Unit.PolicyProfile.Version != "1.0.0" {
+		t.Fatalf("policy profile version = %q, want 1.0.0", doc.Unit.PolicyProfile.Version)
+	}
+	if doc.Unit.PolicyProfile.Template["id"] != "react-vite" {
+		t.Fatalf("template id = %q, want react-vite", doc.Unit.PolicyProfile.Template["id"])
+	}
+	wantRoles := map[string]string{"api": "go_service", "cli": "go_cli", "ui": "react_vite_ui"}
+	for _, role := range doc.Unit.PolicyProfile.RequiredRoles {
+		if wantRoles[role.Role] != role.PolicyClass {
+			t.Errorf("unexpected required role mapping %s -> %s", role.Role, role.PolicyClass)
+		}
+		delete(wantRoles, role.Role)
+	}
+	for role := range wantRoles {
+		t.Errorf("react-vite policy profile missing required role %s", role)
+	}
+	for _, class := range []string{"go_service", "go_cli", "react_vite_ui"} {
+		if _, ok := doc.Unit.PolicyProfile.PolicyClasses[class]; !ok {
+			t.Errorf("react-vite policy profile missing policy class %s", class)
+		}
+	}
+	if doc.Unit.PolicyProfile.Customization.Mode != "monotonic" {
+		t.Fatalf("customization mode = %q, want monotonic", doc.Unit.PolicyProfile.Customization.Mode)
 	}
 }
 
