@@ -1,0 +1,264 @@
+{
+  "provider": "workflow-health",
+  "phase": "workflow",
+  "version": "2.0.0",
+  "levels": [
+    {
+      "id": "L0",
+      "name": "No workflow surface",
+      "status_label": "Unavailable",
+      "description": "No scenario-owned BAS workflow surface can be scanned.",
+      "entry_criteria": [],
+      "exit_criteria": [
+        "At least one BAS case, flow, action, seed, or registry entry is discoverable."
+      ],
+      "capability_summary": "Workflow Health cannot find a usable workflow surface.",
+      "next_unlock": "A discoverable BAS workflow catalog."
+    },
+    {
+      "id": "L1",
+      "name": "Discoverable catalog",
+      "status_label": "Cataloged",
+      "description": "Workflow assets can be discovered and parsed into stable catalog records.",
+      "entry_criteria": [
+        "Catalog scanner returns deterministic asset IDs and roles."
+      ],
+      "exit_criteria": [
+        "Validation cases are linked to requirements and registry facts are current."
+      ],
+      "capability_summary": "Workflow assets are discoverable.",
+      "next_unlock": "Requirement-traceable validation cases."
+    },
+    {
+      "id": "L2",
+      "name": "Traceable workflows",
+      "status_label": "Traceable",
+      "description": "Validation cases have requirement evidence and workflow metadata is complete enough to explain intent.",
+      "entry_criteria": [
+        "Validation cases carry requirement links.",
+        "Core metadata is present."
+      ],
+      "exit_criteria": [
+        "Subflows resolve and mutating workflows declare safety metadata."
+      ],
+      "capability_summary": "Workflow validation evidence is traceable.",
+      "next_unlock": "Safe workflow execution posture."
+    },
+    {
+      "id": "L3",
+      "name": "Safe workflows",
+      "status_label": "Safe",
+      "description": "Mutating workflows fail closed unless reset, confirmation, seed, and routed-isolation metadata are declared.",
+      "entry_criteria": [
+        "Mutating workflows declare fail-closed safety metadata."
+      ],
+      "exit_criteria": [
+        "Validation cases are executable through BAS with artifact evidence."
+      ],
+      "capability_summary": "Workflow safety posture is explicit.",
+      "next_unlock": "Executable workflow evidence."
+    },
+    {
+      "id": "L4",
+      "name": "Executable workflows",
+      "status_label": "Executable",
+      "description": "Validation cases can run through BAS and return artifact evidence.",
+      "entry_criteria": [
+        "BAS-backed execution can run selected cases safely."
+      ],
+      "exit_criteria": [
+        "Runs publish rich operational evidence and search leaves."
+      ],
+      "capability_summary": "Workflow cases can produce execution evidence.",
+      "next_unlock": "Operationally rich workflow intelligence."
+    },
+    {
+      "id": "L5",
+      "name": "Operational workflow intelligence",
+      "status_label": "Operational",
+      "description": "Workflow runs, artifacts, fixes, and search leaves are integrated for operators and agents.",
+      "entry_criteria": [
+        "Workflow Health exposes provider, execution, fix, search, and UI evidence."
+      ],
+      "exit_criteria": [],
+      "capability_summary": "Workflow Health is an operational workflow intelligence provider."
+    }
+  ],
+  "findings": {
+    "workflow.surface_absent": {
+      "local_level_impact": "L1",
+      "global_impact": "capability_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required",
+      "recommended_skill_ids": [
+        "browser-automation-studio"
+      ],
+      "fix_class": "manual",
+      "reason": "Creating useful workflow assets requires product judgment."
+    },
+    "workflow.registry_missing": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "required",
+      "recommended_skill_ids": [
+        "browser-automation-studio"
+      ],
+      "fix_class": "auto",
+      "fixer_status": "implemented"
+    },
+    "workflow.registry_stale": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "required",
+      "recommended_skill_ids": [
+        "browser-automation-studio"
+      ],
+      "fix_class": "auto",
+      "fixer_status": "implemented"
+    },
+    "workflow.parse_error": {
+      "local_level_impact": "L1",
+      "global_impact": "foundation_blocker",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required",
+      "recommended_skill_ids": [
+        "browser-automation-studio"
+      ],
+      "fix_class": "manual",
+      "reason": "Malformed workflow JSON needs source-level repair."
+    },
+    "workflow.metadata_incomplete": {
+      "local_level_impact": "L2",
+      "global_impact": "evolvability_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "required",
+      "recommended_skill_ids": [
+        "browser-automation-studio"
+      ],
+      "fix_class": "auto",
+      "fixer_status": "implemented"
+    },
+    "workflow.requirement_unlinked": {
+      "local_level_impact": "L2",
+      "global_impact": "capability_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required",
+      "recommended_skill_ids": [
+        "requirements-traceability-steer"
+      ],
+      "fix_class": "manual",
+      "reason": "Choosing the correct requirement is a product traceability decision."
+    },
+    "workflow.selector_unregistered": {
+      "local_level_impact": "L2",
+      "global_impact": "hardening_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "advisory",
+      "recommended_skill_ids": [
+        "browser-automation-studio"
+      ],
+      "fix_class": "manual",
+      "reason": "Selector registry choices depend on the UI component contract."
+    },
+    "workflow.subflow_unresolved": {
+      "local_level_impact": "L2",
+      "global_impact": "foundation_blocker",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required",
+      "recommended_skill_ids": [
+        "browser-automation-studio"
+      ],
+      "fix_class": "manual",
+      "reason": "Resolving a broken subflow may require renaming or rewriting workflow behavior."
+    },
+    "workflow.execution_mode_invalid": {
+      "local_level_impact": "L3",
+      "global_impact": "safety_blocker",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required",
+      "recommended_skill_ids": [
+        "browser-automation-studio"
+      ],
+      "fix_class": "auto",
+      "fixer_status": "implemented"
+    },
+    "workflow.reset_legacy": {
+      "local_level_impact": "L3",
+      "global_impact": "safety_blocker",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "required",
+      "recommended_skill_ids": [
+        "browser-automation-studio"
+      ],
+      "fix_class": "auto",
+      "fixer_status": "implemented"
+    },
+    "workflow.mutating_safety_missing": {
+      "local_level_impact": "L3",
+      "global_impact": "safety_blocker",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required",
+      "recommended_skill_ids": [
+        "browser-automation-studio"
+      ],
+      "fix_class": "manual",
+      "reason": "Mutating workflow safety declarations require operator confirmation."
+    },
+    "workflow.seed_missing": {
+      "local_level_impact": "L3",
+      "global_impact": "safety_blocker",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required",
+      "recommended_skill_ids": [
+        "browser-automation-studio"
+      ],
+      "fix_class": "manual",
+      "reason": "State reset and seed design must match scenario data semantics."
+    },
+    "workflow.execution_refused": {
+      "local_level_impact": "L4",
+      "global_impact": "safety_blocker",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required",
+      "recommended_skill_ids": [
+        "browser-automation-studio"
+      ],
+      "fix_class": "manual",
+      "reason": "Execution refusal is a fail-closed runtime safety outcome that needs operator proof or request changes."
+    },
+    "workflow.execution_failed": {
+      "local_level_impact": "L4",
+      "global_impact": "capability_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required",
+      "recommended_skill_ids": [
+        "browser-automation-studio"
+      ],
+      "fix_class": "manual",
+      "reason": "Execution failures require inspecting BAS validation, runtime output, and scenario-specific workflow behavior."
+    }
+  },
+  "fallback": {
+    "local_level_impact": "L1",
+    "global_impact": "unknown",
+    "dimension": "tests",
+    "severity_default": "SEVERITY_WARNING",
+    "clean_requirement": "required"
+  }
+}

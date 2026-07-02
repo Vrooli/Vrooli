@@ -1,0 +1,316 @@
+package execution
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"time"
+
+	"workflow-health/internal/artifacts"
+	"workflow-health/internal/validation"
+	"workflow-health/internal/workflows"
+
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+)
+
+type Service struct {
+	Validator *validation.Engine
+	Client    BASClient
+	Now       func() time.Time
+}
+
+func NewService(client BASClient) *Service {
+	return &Service{
+		Validator: validation.NewEngine(),
+		Client:    client,
+		Now:       func() time.Time { return time.Now().UTC() },
+	}
+}
+
+func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts Options) (Report, error) {
+	if s == nil {
+		return Report{}, fmt.Errorf("execution service is nil")
+	}
+	validator := s.Validator
+	if validator == nil {
+		validator = validation.NewEngine()
+	}
+	static, err := validator.ValidateScenario(ctx, scenario, path)
+	if err != nil {
+		return Report{}, err
+	}
+	report := Report{
+		Scenario:  static.Scenario,
+		TargetDir: static.TargetPath,
+		Static:    static,
+		Catalog:   static.Catalog,
+		Findings:  append([]validation.Finding(nil), static.Findings...),
+	}
+	selected := selectAssets(static.Catalog, opts)
+	report.Summary.Selected = len(selected)
+	if !opts.IncludeExecution {
+		report.Summary.Skipped = len(selected)
+		return report, nil
+	}
+	if s.Client == nil && !opts.DryRun {
+		return report, fmt.Errorf("BAS client is required when execution is enabled")
+	}
+	writer := artifacts.NewWriter(static.TargetPath, firstNonEmpty(opts.RunID, fmt.Sprintf("workflow-health-%d", s.now().Unix())))
+	for _, asset := range selected {
+		run := s.runAsset(ctx, writer, asset, static.TargetPath, opts)
+		report.Runs = append(report.Runs, run)
+		switch {
+		case run.Refused:
+			report.Summary.Refused++
+			report.Findings = append(report.Findings, executionFinding(validation.CodeExecutionRefused, run))
+		case run.Skipped:
+			report.Summary.Skipped++
+		case run.Success:
+			report.Summary.Executed++
+			report.Summary.Passed++
+		default:
+			report.Summary.Executed++
+			report.Summary.Failed++
+			report.Findings = append(report.Findings, executionFinding(validation.CodeExecutionFailed, run))
+		}
+	}
+	validation.SortFindings(report.Findings)
+	return report, nil
+}
+
+func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset workflows.WorkflowAsset, targetDir string, opts Options) WorkflowRun {
+	started := s.now()
+	run := WorkflowRun{Asset: asset, StartedAt: started}
+	defer func() {
+		if run.CompletedAt.IsZero() {
+			run.CompletedAt = s.now()
+		}
+	}()
+	if reason := refusalReason(asset, opts); reason != "" {
+		run.Refused = true
+		run.Status = "refused"
+		run.Error = reason
+		return run
+	}
+	definition, err := readWorkflowDefinition(filepath.Join(targetDir, asset.Path))
+	if err != nil {
+		run.Skipped = true
+		run.Status = "skipped"
+		run.Error = err.Error()
+		return run
+	}
+	if opts.DryRun {
+		run.DryRun = true
+		run.Success = true
+		run.Status = "dry_run"
+		return run
+	}
+	if validation, err := s.Client.ValidateResolved(ctx, definition); err != nil {
+		run.Status = "failed"
+		run.Error = fmt.Sprintf("BAS validation request failed: %v", err)
+		return run
+	} else if validation != nil && !validation.Valid {
+		run.Status = "failed"
+		run.Error = summarizeValidationIssues(validation.Errors)
+		return run
+	}
+	result, err := s.Client.ExecuteAdhoc(ctx, ExecuteRequest{
+		Definition:  definition,
+		Name:        asset.Name,
+		Description: asset.Description,
+		Parameters: Parameters{
+			ProjectRoot:   filepath.Join(targetDir, "bas"),
+			InitialParams: opts.InitialParams,
+			InitialStore:  opts.InitialStore,
+			Env:           opts.Env,
+			ExtraHeaders:  opts.ExtraHeaders,
+		},
+		Options: ExecuteOptions{
+			CollectConsole: opts.CollectConsole,
+			CollectNetwork: opts.CollectNetwork,
+			CollectDOM:     opts.CollectDOM,
+			RequiresVideo:  opts.RequiresVideo,
+			RequiresTrace:  opts.RequiresTrace,
+			RequiresHAR:    opts.RequiresHAR,
+		},
+	})
+	if err != nil {
+		run.Status = "failed"
+		run.Error = err.Error()
+		return run
+	}
+	run.ExecutionID = result.ExecutionID
+	run.Status = strings.ToLower(strings.TrimPrefix(result.Status.String(), "EXECUTION_STATUS_"))
+	run.Success = result.Status == basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED && strings.TrimSpace(result.Error) == ""
+	run.Error = strings.TrimSpace(result.Error)
+	if run.Status == "" || run.Status == "unspecified" {
+		if run.Success {
+			run.Status = "completed"
+		} else {
+			run.Status = "failed"
+		}
+	}
+	if result.ExecutionID != "" {
+		if timeline, err := s.Client.Timeline(ctx, result.ExecutionID); err == nil {
+			run.Timeline = timeline
+		}
+	}
+	latest := artifacts.WorkflowLatest{
+		RunID:       opts.RunID,
+		AssetID:     asset.ID,
+		AssetPath:   asset.Path,
+		ExecutionID: run.ExecutionID,
+		Status:      run.Status,
+		Success:     run.Success,
+		Error:       run.Error,
+		StartedAt:   run.StartedAt,
+		CompletedAt: s.now(),
+		DurationMs:  s.now().Sub(run.StartedAt).Milliseconds(),
+		Summary:     artifacts.Counts(run.Timeline),
+	}
+	if artifact, err := writer.WriteWorkflow(asset.ID, asset.Path, run.Timeline, latest); err == nil {
+		run.Artifact = artifact
+	}
+	return run
+}
+
+func selectAssets(catalog *workflows.ScenarioWorkflowCatalog, opts Options) []workflows.WorkflowAsset {
+	if catalog == nil {
+		return nil
+	}
+	caseSet := stringSet(opts.Selector.CasePaths)
+	flowSet := stringSet(opts.Selector.FlowPaths)
+	var out []workflows.WorkflowAsset
+	for _, c := range catalog.Cases {
+		if len(caseSet) > 0 {
+			if _, ok := caseSet[c.Path]; !ok {
+				continue
+			}
+		}
+		out = append(out, c.WorkflowAsset)
+	}
+	if opts.AllowFlowExecution || len(flowSet) > 0 {
+		for _, f := range catalog.Flows {
+			if len(flowSet) > 0 {
+				if _, ok := flowSet[f.Path]; !ok {
+					continue
+				}
+			} else if !opts.AllowFlowExecution {
+				continue
+			}
+			out = append(out, f.WorkflowAsset)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
+	return out
+}
+
+func refusalReason(asset workflows.WorkflowAsset, opts Options) string {
+	if asset.ParseError != "" {
+		return "workflow JSON did not parse; static validation must pass before execution"
+	}
+	if !asset.Safety.Mutating {
+		return ""
+	}
+	if !asset.Safety.RequiresConfirmation || !opts.ConfirmMutating {
+		return "mutating workflow execution requires explicit confirmation"
+	}
+	if !asset.Safety.RequiresIsolation || !opts.RoutedIsolationProven {
+		return "mutating workflow execution requires proven routed test isolation"
+	}
+	return ""
+}
+
+func readWorkflowDefinition(path string) (map[string]any, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read workflow %s: %w", filepath.ToSlash(path), err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, fmt.Errorf("parse workflow %s: %w", filepath.ToSlash(path), err)
+	}
+	return doc, nil
+}
+
+func summarizeValidationIssues(issues []ValidationIssue) string {
+	if len(issues) == 0 {
+		return "BAS validation failed"
+	}
+	parts := make([]string, 0, len(issues))
+	for _, issue := range issues {
+		parts = append(parts, strings.TrimSpace(firstNonEmpty(issue.Code, issue.Message)))
+	}
+	return "BAS validation failed: " + strings.Join(parts, "; ")
+}
+
+func stringSet(values []string) map[string]struct{} {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make(map[string]struct{}, len(values))
+	for _, v := range values {
+		if v = strings.TrimSpace(filepath.ToSlash(v)); v != "" {
+			out[v] = struct{}{}
+		}
+	}
+	return out
+}
+
+func executionFinding(code string, run WorkflowRun) validation.Finding {
+	description := strings.TrimSpace(run.Error)
+	if description == "" {
+		description = "Workflow execution did not complete successfully."
+	}
+	return validation.Finding{
+		Code:        code,
+		Severity:    validation.SeverityError,
+		Title:       executionTitle(code),
+		Description: description,
+		FilePath:    run.Asset.Path,
+		AssetID:     run.Asset.ID,
+		Remediation: executionRemediation(code),
+	}
+}
+
+func executionTitle(code string) string {
+	switch code {
+	case validation.CodeExecutionRefused:
+		return "Workflow execution refused"
+	case validation.CodeExecutionFailed:
+		return "Workflow execution failed"
+	default:
+		return code
+	}
+}
+
+func executionRemediation(code string) string {
+	switch code {
+	case validation.CodeExecutionRefused:
+		return "Confirm mutating execution only after routed isolation proof is present."
+	case validation.CodeExecutionFailed:
+		return "Inspect BAS validation, execution output, and workflow artifacts."
+	default:
+		return "Inspect and repair the workflow asset."
+	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v)
+		}
+	}
+	return ""
+}
+
+func (s *Service) now() time.Time {
+	if s != nil && s.Now != nil {
+		return s.Now()
+	}
+	return time.Now().UTC()
+}

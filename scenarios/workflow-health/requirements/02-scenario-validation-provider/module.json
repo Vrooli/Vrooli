@@ -1,0 +1,52 @@
+{
+  "description": "Workflow Health exposes the shared ScenarioValidationService contract for the canonical Test Genie workflow phase.",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "OT-P0-002",
+  "priority": "P0",
+  "requirements": [
+    {
+      "id": "REQ-P0-003",
+      "title": "Return Shared Validation Responses",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "provider",
+      "criticality": "P0",
+      "description": "The workflow-health API must mount `scenario-validation/v1` and return status, severity-gated findings, metrics, maturity assessment, remediation, artifact references, and packed native workflow details from `ValidateScenario`.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "ref": "",
+          "notes": "Provider handler tests assert shared response fields, maturity-go construction, native detail packing, finding severities, metrics, and artifact references."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "pending",
+          "ref": "",
+          "notes": "`test-genie provider-contract check workflow workflow-health` passes against a lifecycle-managed workflow-health instance."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-004",
+      "title": "Expose Provider CLI Commands",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "cli",
+      "criticality": "P0",
+      "description": "The workflow-health CLI must expose provider health, scenario validation, workflow list/show/search/run, and fix preview/apply commands with manifest-backed bindings and JSON output for agent use.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "contracts",
+          "status": "pending",
+          "ref": "",
+          "notes": "CLI manifest and runtime command coverage tests prove every documented provider command is discoverable and bound to the intended RPC or local operation."
+        }
+      ]
+    }
+  ],
+  "title": "Scenario validation provider"
+}
