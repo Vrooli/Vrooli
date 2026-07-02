@@ -21,10 +21,12 @@ const (
 
 // RenderResult is the read model for a rendered markdown request.
 type RenderResult struct {
-	Markdown string
-	Mirror   RenderedPlanMirror
-	Repaired bool
-	Plan     Plan
+	Markdown        string
+	Mirror          RenderedPlanMirror
+	Repaired        bool
+	Plan            Plan
+	QualityStatus   string
+	QualityFindings []string
 }
 
 // MirrorStore owns the durable file projection of canonical structured plans.

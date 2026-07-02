@@ -536,6 +536,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		orch,
 		orchestration.NewTestGenieWaiter(nil),
 		orchestration.NewGCTBaselineWaiter(nil),
+		orchestration.NewLifecycleWaiter(nil),
 	)
 	orch.SetAwaitRegistry(awaitRegistry)
 

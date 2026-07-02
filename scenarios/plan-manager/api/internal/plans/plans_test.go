@@ -407,7 +407,7 @@ func TestRenderRepairsMissingMirrorFromCanonicalPlan(t *testing.T) {
 	require.NoError(t, err)
 	delete(mirror.files, created.Mirror.Path)
 
-	rendered, err := svc.Render(ctx, created.ID, plans.WorkspaceScope{})
+	rendered, err := svc.Render(ctx, created.ID, plans.WorkspaceScope{}, plans.RenderOptions{})
 	require.NoError(t, err)
 	require.True(t, rendered.Repaired)
 	require.Equal(t, plans.RenderedMirrorStatusFresh, rendered.Mirror.Status)
@@ -429,7 +429,7 @@ func TestRenderRepairsStaleMirrorFromCanonicalPlan(t *testing.T) {
 	require.NoError(t, err)
 	mirror.files[created.Mirror.Path] = []byte("# Edited by hand\n")
 
-	rendered, err := svc.Render(ctx, created.ID, plans.WorkspaceScope{})
+	rendered, err := svc.Render(ctx, created.ID, plans.WorkspaceScope{}, plans.RenderOptions{})
 	require.NoError(t, err)
 	require.True(t, rendered.Repaired)
 	require.Equal(t, plans.RenderedMirrorStatusFresh, rendered.Mirror.Status)
@@ -1386,7 +1386,7 @@ func TestImportRelativeSourceUsesWorkspaceRoot(t *testing.T) {
 	require.Equal(t, source, imported.ImportProvenance.SourcePath)
 	require.Equal(t, workspaceRoot, imported.ImportProvenance.WorkspaceRoot)
 
-	rendered, err := svc.Render(ctx, imported.ID, plans.WorkspaceScope{})
+	rendered, err := svc.Render(ctx, imported.ID, plans.WorkspaceScope{}, plans.RenderOptions{})
 	require.NoError(t, err)
 	require.Contains(t, rendered.Markdown, "- Workspace root: `"+workspaceRoot+"`")
 
@@ -1434,7 +1434,7 @@ func TestImportMigratesLegacyRequiredReadingToRelevantContext(t *testing.T) {
 	require.Equal(t, "PM-CTX-001", imported.Phases[0].RelevantContext[0].Target)
 	require.Equal(t, plans.RelevantContextCommand, imported.Phases[0].RelevantContext[1].Kind)
 
-	rendered, err := svc.Render(ctx, imported.ID, plans.WorkspaceScope{})
+	rendered, err := svc.Render(ctx, imported.ID, plans.WorkspaceScope{}, plans.RenderOptions{})
 	require.NoError(t, err)
 	require.Contains(t, rendered.Markdown, "## Global Execution Setup")
 	require.Contains(t, rendered.Markdown, "**Phase Context Setup:**")

@@ -294,6 +294,16 @@ func noContextReason(content string) string {
 	return ""
 }
 
+func noSkillContextReason(content string) string {
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(strings.ToUpper(line), "NO_SKILL_CONTEXT:") {
+			return strings.TrimSpace(line[len("NO_SKILL_CONTEXT:"):])
+		}
+	}
+	return ""
+}
+
 // globalContextResolved reports whether the plan-wide relevant-context checkpoint
 // has been addressed: at least one accepted/submitted global context item, or an
 // explicit NO_CONTEXT skip reason recorded in the relevant-context section.
@@ -302,6 +312,20 @@ func globalContextResolved(sess Session) bool {
 		return true
 	}
 	return noContextReason(contentOf(sess.Sections, SectionRelevantContext)) != ""
+}
+
+// globalSkillContextResolved requires new authored plans to make skill setup an
+// explicit decision. Generic context does not prove the agent checked the
+// relevant internal skills, so the checkpoint is satisfied by at least one
+// global skill item, NO_SKILL_CONTEXT, or the stronger NO_CONTEXT skip.
+func globalSkillContextResolved(sess Session) bool {
+	for _, item := range sess.RelevantContext {
+		if item.Scope == planmodel.RelevantContextScopeGlobal && item.Kind == planmodel.RelevantContextSkill {
+			return true
+		}
+	}
+	content := contentOf(sess.Sections, SectionRelevantContext)
+	return noSkillContextReason(content) != "" || noContextReason(content) != ""
 }
 
 func parseReferencesContent(content string) ([]planmodel.Reference, error) {

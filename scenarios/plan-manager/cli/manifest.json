@@ -206,6 +206,11 @@
             {
               "name": "workspace",
               "description": "Workspace root used to scope slug lookup"
+            },
+            {
+              "name": "compact",
+              "bool": true,
+              "description": "Render the compact execution-facing markdown view"
             }
           ],
           "binding": {

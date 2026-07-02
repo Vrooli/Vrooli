@@ -121,7 +121,11 @@ func (h *handlers) archive(ctx cliapp.RunContext) error {
 
 func (h *handlers) render(ctx cliapp.RunContext) error {
 	id := ctx.Positional("id")
-	resp, err := h.client.RenderMarkdown(context.Background(), connect.NewRequest(&plansv1.RenderMarkdownRequest{Id: id, Workspace: workspaceScopeFromFlag(ctx.Flag("workspace"))}))
+	resp, err := h.client.RenderMarkdown(context.Background(), connect.NewRequest(&plansv1.RenderMarkdownRequest{
+		Id:        id,
+		Workspace: workspaceScopeFromFlag(ctx.Flag("workspace")),
+		Compact:   ctx.BoolFlag("compact"),
+	}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("render plan %q", id), err, nil)
 	}

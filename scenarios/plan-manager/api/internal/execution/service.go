@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -98,6 +99,9 @@ func (s *service) Start(ctx context.Context, planID, runID string) (Execution, P
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
+	if err := requireExecutionGradePlan(plan); err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
 	return s.startAtPhase(ctx, plan, "", runID, contextModeStart)
 }
 
@@ -130,6 +134,9 @@ func (s *service) startAtPhase(ctx context.Context, plan planmodel.Plan, phaseID
 func (s *service) resumeExecution(ctx context.Context, e Execution, phaseID string) (Execution, PhaseContext, GuidedStep, error) {
 	plan, err := s.plans.GetPlan(ctx, e.PlanID)
 	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	if err := requireExecutionGradePlan(plan); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
 	return s.resumeExecutionWithPlan(ctx, e, plan, phaseID)
@@ -194,6 +201,9 @@ func (s *service) Resume(ctx context.Context, planOrExecution, phaseID, runID st
 	}
 	plan, err := s.plans.GetPlan(ctx, planOrExecution)
 	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	if err := requireExecutionGradePlan(plan); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
 	if e, ok, err := s.repo.LatestExecutionForPlan(ctx, plan.ID); err != nil {
@@ -391,6 +401,40 @@ func (s *service) GetVelocity(ctx context.Context, planID string) ([]VelocityPoi
 }
 
 // --- helpers ---
+
+func requireExecutionGradePlan(plan planmodel.Plan) error {
+	report := planmodel.AssessPlanQuality(plan, "")
+	if report.ExecutionReady() {
+		return nil
+	}
+	return ErrInvalidExecution{Reason: "plan is not execution-grade; repair before starting execution: " + summarizeQualityFailures(report)}
+}
+
+func summarizeQualityFailures(report planmodel.QualityReport) string {
+	var parts []string
+	for _, finding := range report.Findings {
+		if finding.Severity != planmodel.QualitySeverityFail {
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("%s at %s", finding.Code, finding.Location))
+		if len(parts) == 4 {
+			break
+		}
+	}
+	if len(parts) == 0 {
+		return report.Status
+	}
+	remaining := 0
+	for _, finding := range report.Findings {
+		if finding.Severity == planmodel.QualitySeverityFail {
+			remaining++
+		}
+	}
+	if remaining > len(parts) {
+		parts = append(parts, fmt.Sprintf("and %d more", remaining-len(parts)))
+	}
+	return strings.Join(parts, "; ")
+}
 
 // freshenInputs runs the one-time execution-start freshen step: it captures the
 // regression-anchor's baseline snapshot fresh and recomputes reference staleness,

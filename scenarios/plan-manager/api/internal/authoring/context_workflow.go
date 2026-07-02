@@ -163,7 +163,7 @@ func (s *service) RemoveRelevantContextItem(ctx context.Context, sessionID, phas
 		return Session{}, nil, GuidedStep{}, err
 	}
 	step := stepForCurrentSessionState(sess)
-	if phaseID == "" && !globalContextResolved(sess) {
+	if phaseID == "" && (!globalContextResolved(sess) || !globalSkillContextResolved(sess)) {
 		step = stepForGlobalContextCheckpoint(sess)
 	}
 	return sess, violations, step, nil

@@ -146,16 +146,21 @@ func TestGuidedArgvAreValidManifestCommands(t *testing.T) {
 	}
 
 	// --- execution: drive start/status/transition/complete, validating argv. ---
-	plan, err := plansSvc.Create(ctx, internalplans.Plan{
-		Title: "Argv exec",
-		RelevantContext: []internalplans.RelevantContextItem{
-			{Kind: internalplans.RelevantContextCommand, Label: "setup", RepeatPolicy: internalplans.RelevantContextOncePerExecution},
+	plan, err := plansSvc.Create(ctx, executionReadyPlan("Argv exec", []internalplans.Phase{
+		{Title: "One", Acceptance: "done", Status: internalplans.PhaseStatusTodo},
+		{Title: "Two", Acceptance: "done", Status: internalplans.PhaseStatusTodo},
+	}))
+	require.NoError(t, err)
+	plan.RelevantContext = []internalplans.RelevantContextItem{
+		{
+			Kind:         internalplans.RelevantContextSkill,
+			Label:        "setup",
+			Instruction:  "Load setup before execution.",
+			RepeatPolicy: internalplans.RelevantContextOncePerExecution,
+			Required:     true,
 		},
-		Phases: []internalplans.Phase{
-			{Title: "One", Acceptance: "done", Status: internalplans.PhaseStatusTodo},
-			{Title: "Two", Acceptance: "done", Status: internalplans.PhaseStatusTodo},
-		},
-	})
+	}
+	plan, err = plansSvc.Update(ctx, plan)
 	require.NoError(t, err)
 
 	exec, _, contStep, err := executionSvc.ContinueExecution(ctx, plan.ID, "", "run-argv")

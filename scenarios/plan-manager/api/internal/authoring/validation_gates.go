@@ -96,6 +96,12 @@ func sessionViolations(sess Session) []StructureViolation {
 	out = append(out, boundaryGateViolations(contentOf(sess.Sections, SectionAcceptanceBoundary))...)
 	out = append(out, anchorPlaceholderViolations(contentOf(sess.Sections, SectionRegressionAnchor))...)
 	out = append(out, postureConflictViolations(sess)...)
+	if globalContextResolved(sess) && !globalSkillContextResolved(sess) {
+		out = append(out, StructureViolation{
+			SectionKey: SectionRelevantContext,
+			Message:    "relevant context must include at least one global skill context item, or a NO_SKILL_CONTEXT: reason when no relevant internal skill exists",
+		})
+	}
 	for _, phase := range sess.PhaseDrafts {
 		out = append(out, phaseViolations(phase)...)
 	}

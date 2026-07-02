@@ -106,6 +106,15 @@ provenance** (kept verbatim because it could not be mapped).
 | `final_validation_commands[]` | authored | The exact commands a reviewer runs at the end (scenario test, baseline diff, focused suites). |
 | `definition_of_done` | authored + verified | Objective pass/fail criteria; the regression check is mandatory. |
 
+Validation also includes an execution-grade **plan quality** pass. This is
+separate from the authoring structure gate: legacy imports remain non-destructive,
+but validation flags imported/thin phases that lack ordered steps, phase
+validation, or objective acceptance, and flags migrated setup context that still
+contains markdown-fence residue or malformed generated commands. Import should
+promote obvious legacy phase sections (`Objective`, `Checklist`, `Validation`,
+`Definition of done`) into structured phase fields before preserving any
+unmapped prose as legacy provenance.
+
 **Phases** — ordered, first-class units of work (see [Phase](#phase)).
 
 | Field | Origin | Meaning |

@@ -164,14 +164,68 @@ func newHarnessWithFreshener(t *testing.T, plan internalplans.Plan, freshener ex
 
 func threePhasePlan() internalplans.Plan {
 	return internalplans.Plan{
-		ID:    "plan-1",
-		Slug:  "plan-1",
-		Title: "Plan One",
-		Phases: []internalplans.Phase{
-			{ID: "ph-1", Order: 1, Title: "First", Status: internalplans.PhaseStatusTodo, RequiredReading: []string{"docs/a.md"}, Reminders: []string{"think first"}},
-			{ID: "ph-2", Order: 2, Title: "Second", Status: internalplans.PhaseStatusTodo},
-			{ID: "ph-3", Order: 3, Title: "Third", Status: internalplans.PhaseStatusTodo},
+		ID:                 "plan-1",
+		Slug:               "plan-1",
+		Title:              "Plan One",
+		Purpose:            "Exercise the execution runner.",
+		ProblemStatement:   "Execution tests need a valid plan fixture.",
+		TargetOutcome:      "Runner behavior is tested against execution-grade plans.",
+		Scope:              "Execution service unit tests.",
+		TechnicalApproach:  "Use an in-memory PlanStore seam.",
+		ValidationStrategy: "Run execution unit tests.",
+		DefinitionOfDone:   "Execution service behavior is deterministic.",
+		Constraints:        "NO_CODE_REFS: execution unit fixture has no plan-level connected refs.",
+		ChangeBoundary: internalplans.ChangeBoundary{
+			AcceptanceAllow: []string{"scenarios/plan-manager/**"},
 		},
+		RegressionAnchor: internalplans.RegressionAnchor{
+			Strategy: internalplans.AnchorStrategyChangeBoundary,
+		},
+		RelevantContext: []internalplans.RelevantContextItem{{
+			ID:           "ctx-global",
+			Kind:         internalplans.RelevantContextNote,
+			Scope:        internalplans.RelevantContextScopeGlobal,
+			Label:        "NO_CONTEXT: execution unit fixture has no plan-wide setup.",
+			Instruction:  "NO_CONTEXT: execution unit fixture has no plan-wide setup.",
+			Required:     true,
+			RepeatPolicy: internalplans.RelevantContextOncePerExecution,
+			Source:       internalplans.RelevantContextSourceAuthored,
+			Status:       internalplans.RelevantContextStatusReady,
+		}},
+		Phases: []internalplans.Phase{
+			validExecutionPhase("ph-1", 1, "First", []string{"docs/a.md"}, []string{"think first"}),
+			validExecutionPhase("ph-2", 2, "Second", nil, nil),
+			validExecutionPhase("ph-3", 3, "Third", nil, nil),
+		},
+	}
+}
+
+func validExecutionPhase(id string, order int, title string, requiredReading, reminders []string) internalplans.Phase {
+	reminders = append([]string(nil), reminders...)
+	reminders = append(reminders, "NO_CODE_REFS: execution unit fixture has no phase refs.")
+	return internalplans.Phase{
+		ID:              id,
+		Order:           order,
+		Title:           title,
+		Intent:          "Exercise " + title,
+		Steps:           []string{"Run the service method under test."},
+		Validation:      "go test ./internal/execution",
+		Acceptance:      "The service returns the expected state.",
+		Status:          internalplans.PhaseStatusTodo,
+		RequiredReading: append([]string(nil), requiredReading...),
+		Reminders:       reminders,
+		RelevantContext: []internalplans.RelevantContextItem{{
+			ID:           "ctx-" + id,
+			Kind:         internalplans.RelevantContextNote,
+			Scope:        internalplans.RelevantContextScopePhase,
+			PhaseID:      id,
+			Label:        "NO_CONTEXT: execution unit fixture has no phase setup.",
+			Instruction:  "NO_CONTEXT: execution unit fixture has no phase setup.",
+			Required:     true,
+			RepeatPolicy: internalplans.RelevantContextPhaseEntry,
+			Source:       internalplans.RelevantContextSourceAuthored,
+			Status:       internalplans.RelevantContextStatusReady,
+		}},
 	}
 }
 
@@ -204,8 +258,7 @@ func TestStartLinksRunAndSetsResumePointer(t *testing.T) {
 	require.False(t, e.Complete)
 	require.True(t, pctx.HasCurrent)
 	require.Equal(t, "ph-1", pctx.CurrentPhase.ID)
-	require.Len(t, pctx.RelevantContext, 1)
-	require.Equal(t, internalplans.RelevantContextDoc, pctx.RelevantContext[0].Kind)
+	require.Equal(t, []string{"ctx-global", "ctx-ph-1"}, contextIDs(pctx.RelevantContext))
 	require.Equal(t, "execution_started", step.StepKind)
 	require.Equal(t, []string{"exec", "status", e.ID}, step.NextActions[0].Argv)
 }
@@ -214,6 +267,19 @@ func TestStartRequiresPlanID(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
 	_, _, _, err := h.svc.Start(context.Background(), "  ", "")
 	require.ErrorAs(t, err, &execution.ErrInvalidExecution{})
+}
+
+func TestStartRejectsPlanThatNeedsRepair(t *testing.T) {
+	plan := threePhasePlan()
+	plan.Phases = nil
+	plan.ImportProvenance = &internalplans.ImportProvenance{SourcePath: "docs/plans/legacy.md"}
+	h := newHarness(t, plan, nil)
+
+	_, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
+
+	require.ErrorAs(t, err, &execution.ErrInvalidExecution{})
+	require.Contains(t, err.Error(), "plan is not execution-grade")
+	require.Contains(t, err.Error(), "plan_missing_phases")
 }
 
 func TestResumePointDerivationEarliestNonDone(t *testing.T) {
@@ -236,7 +302,7 @@ func TestGetStatusInjectsPhaseScopedContext(t *testing.T) {
 	require.True(t, pctx.HasCurrent)
 	require.Equal(t, "ph-1", pctx.CurrentPhase.ID)
 	require.Equal(t, []string{"docs/a.md"}, pctx.RequiredReading)
-	require.Equal(t, []string{"think first"}, pctx.Reminders)
+	require.Contains(t, pctx.Reminders, "think first")
 	require.True(t, pctx.HasNext)
 	require.Equal(t, "ph-2", pctx.NextPhase.ID)
 	require.Equal(t, "ph-1", pctx.ResumePhaseID)
@@ -391,7 +457,7 @@ func TestResumeExplicitPhasePersistsPointer(t *testing.T) {
 func TestRelevantContextRepeatPolicies(t *testing.T) {
 	plan := threePhasePlan()
 	plan.RelevantContext = []internalplans.RelevantContextItem{
-		{ID: "once", Kind: internalplans.RelevantContextCommand, Label: "once", RepeatPolicy: internalplans.RelevantContextOncePerExecution},
+		{ID: "once", Kind: internalplans.RelevantContextSkill, Label: "once", RepeatPolicy: internalplans.RelevantContextOncePerExecution},
 		{ID: "resume", Kind: internalplans.RelevantContextCommand, Label: "resume", RepeatPolicy: internalplans.RelevantContextOnResume},
 		{ID: "every", Kind: internalplans.RelevantContextCommand, Label: "every", RepeatPolicy: internalplans.RelevantContextEveryPhase},
 	}
@@ -419,7 +485,7 @@ func TestRelevantContextRepeatPolicies(t *testing.T) {
 func TestContinueFirstStartEmitsOncePerExecutionContext(t *testing.T) {
 	plan := threePhasePlan()
 	plan.RelevantContext = []internalplans.RelevantContextItem{
-		{ID: "once", Kind: internalplans.RelevantContextCommand, Label: "once", RepeatPolicy: internalplans.RelevantContextOncePerExecution},
+		{ID: "once", Kind: internalplans.RelevantContextSkill, Label: "once", RepeatPolicy: internalplans.RelevantContextOncePerExecution},
 		{ID: "resume", Kind: internalplans.RelevantContextCommand, Label: "resume", RepeatPolicy: internalplans.RelevantContextOnResume},
 	}
 	h := newHarness(t, plan, nil)

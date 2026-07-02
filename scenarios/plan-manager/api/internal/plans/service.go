@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"plan-manager/internal/clock"
+	"plan-manager/internal/planmodel"
 
 	"github.com/google/uuid"
 )
@@ -22,7 +23,7 @@ type Service interface {
 	Get(ctx context.Context, idOrSlug string, workspace WorkspaceScope) (Plan, error)
 	List(ctx context.Context, filter ListFilter) ([]Plan, error)
 	Archive(ctx context.Context, idOrSlug string, workspace WorkspaceScope) (Plan, error)
-	Render(ctx context.Context, idOrSlug string, workspace WorkspaceScope) (RenderResult, error)
+	Render(ctx context.Context, idOrSlug string, workspace WorkspaceScope, opts RenderOptions) (RenderResult, error)
 
 	AddPhase(ctx context.Context, planID string, phase Phase) (Plan, error)
 	UpdatePhase(ctx context.Context, planID string, phase Phase) (Plan, error)
@@ -83,6 +84,15 @@ func (s *service) applyPosture(ctx context.Context, p *Plan) {
 }
 
 var _ Service = (*service)(nil)
+
+func renderQualitySummary(p Plan) (string, []string) {
+	report := planmodel.AssessPlanQuality(p, "")
+	out := make([]string, 0, len(report.Findings))
+	for _, finding := range report.Findings {
+		out = append(out, fmt.Sprintf("%s %s at %s: %s", finding.Severity, finding.Code, finding.Location, finding.Message))
+	}
+	return report.Status, out
+}
 
 func (s *service) Create(ctx context.Context, p Plan) (Plan, error) {
 	p.Title = strings.TrimSpace(p.Title)
@@ -226,19 +236,29 @@ func (s *service) Archive(ctx context.Context, idOrSlug string, workspace Worksp
 	return s.publishMirror(ctx, p)
 }
 
-func (s *service) Render(ctx context.Context, idOrSlug string, workspace WorkspaceScope) (RenderResult, error) {
+func (s *service) Render(ctx context.Context, idOrSlug string, workspace WorkspaceScope, opts RenderOptions) (RenderResult, error) {
 	p, err := s.Get(ctx, idOrSlug, workspace)
 	if err != nil {
 		return RenderResult{}, err
 	}
+	qualityStatus, qualityFindings := renderQualitySummary(p)
+	if opts.Compact {
+		return RenderResult{
+			Markdown:        RenderMarkdownWithOptions(p, opts),
+			Mirror:          p.Mirror,
+			Plan:            p,
+			QualityStatus:   qualityStatus,
+			QualityFindings: qualityFindings,
+		}, nil
+	}
 	data, meta, err := s.mirror.Read(ctx, p)
 	if err == nil && meta.Status == RenderedMirrorStatusFresh {
 		p.Mirror = meta
-		return RenderResult{Markdown: string(data), Mirror: meta, Plan: p}, nil
+		return RenderResult{Markdown: string(data), Mirror: meta, Plan: p, QualityStatus: qualityStatus, QualityFindings: qualityFindings}, nil
 	}
 	repaired, err := s.publishMirror(ctx, p)
 	if err != nil {
-		markdown := RenderMarkdown(p)
+		markdown := RenderMarkdownWithOptions(p, opts)
 		if meta.Status == "" {
 			meta = repaired.Mirror
 		}
@@ -246,9 +266,9 @@ func (s *service) Render(ctx context.Context, idOrSlug string, workspace Workspa
 			meta.Status = RenderedMirrorStatusWriteFailed
 		}
 		p.Mirror = meta
-		return RenderResult{Markdown: markdown, Mirror: meta, Repaired: false, Plan: p}, nil
+		return RenderResult{Markdown: markdown, Mirror: meta, Repaired: false, Plan: p, QualityStatus: qualityStatus, QualityFindings: qualityFindings}, nil
 	}
-	return RenderResult{Markdown: RenderMarkdown(repaired), Mirror: repaired.Mirror, Repaired: true, Plan: repaired}, nil
+	return RenderResult{Markdown: RenderMarkdownWithOptions(repaired, opts), Mirror: repaired.Mirror, Repaired: true, Plan: repaired, QualityStatus: qualityStatus, QualityFindings: qualityFindings}, nil
 }
 
 func (s *service) AddPhase(ctx context.Context, planID string, phase Phase) (Plan, error) {

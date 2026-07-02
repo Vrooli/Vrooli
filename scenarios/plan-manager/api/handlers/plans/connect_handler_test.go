@@ -38,6 +38,7 @@ type fakePlansService struct {
 	gotArchiveWorkspace  internalplans.WorkspaceScope
 	gotRenderID          string
 	gotRenderWorkspace   internalplans.WorkspaceScope
+	gotRenderOptions     internalplans.RenderOptions
 	gotAddPhasePlanID    string
 	gotAddPhase          internalplans.Phase
 	gotUpdatePhasePlanID string
@@ -84,13 +85,16 @@ func (f *fakePlansService) Archive(_ context.Context, idOrSlug string, workspace
 	return f.plan, f.err
 }
 
-func (f *fakePlansService) Render(_ context.Context, idOrSlug string, workspace internalplans.WorkspaceScope) (internalplans.RenderResult, error) {
+func (f *fakePlansService) Render(_ context.Context, idOrSlug string, workspace internalplans.WorkspaceScope, opts internalplans.RenderOptions) (internalplans.RenderResult, error) {
 	f.gotRenderID = idOrSlug
 	f.gotRenderWorkspace = workspace
+	f.gotRenderOptions = opts
 	return internalplans.RenderResult{
-		Markdown: f.markdown,
-		Mirror:   internalplans.RenderedPlanMirror{Path: "/tmp/rendered.md", Status: internalplans.RenderedMirrorStatusFresh},
-		Repaired: true,
+		Markdown:        f.markdown,
+		Mirror:          internalplans.RenderedPlanMirror{Path: "/tmp/rendered.md", Status: internalplans.RenderedMirrorStatusFresh},
+		Repaired:        true,
+		QualityStatus:   "pass",
+		QualityFindings: []string{"ok"},
 	}, f.err
 }
 
@@ -282,11 +286,14 @@ func TestRenderMarkdownSuccess(t *testing.T) {
 	svc := &fakePlansService{markdown: "# Title\n"}
 	h := newPlansHandler(svc)
 
-	resp, err := h.RenderMarkdown(context.Background(), connect.NewRequest(&plansv1.RenderMarkdownRequest{Id: "p1", Workspace: &plansv1.WorkspaceScope{Root: "/workspace"}}))
+	resp, err := h.RenderMarkdown(context.Background(), connect.NewRequest(&plansv1.RenderMarkdownRequest{Id: "p1", Workspace: &plansv1.WorkspaceScope{Root: "/workspace"}, Compact: true}))
 	require.NoError(t, err)
 	require.Equal(t, "# Title\n", resp.Msg.GetMarkdown())
+	require.Equal(t, "pass", resp.Msg.GetQualityStatus())
+	require.Equal(t, []string{"ok"}, resp.Msg.GetQualityFindings())
 	require.Equal(t, "p1", svc.gotRenderID)
 	require.Equal(t, "/workspace", svc.gotRenderWorkspace.Root)
+	require.True(t, svc.gotRenderOptions.Compact)
 }
 
 func TestAddPhaseSuccess(t *testing.T) {

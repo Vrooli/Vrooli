@@ -33,6 +33,7 @@ import (
 const (
 	ProducerTestGenie = "test-genie"
 	ProducerGCT       = "git-control-tower"
+	ProducerLifecycle = "lifecycle"
 )
 
 // Waiter blocks until a producer's externally-owned async work, identified by a
@@ -160,6 +161,48 @@ func (w *gctBaselineWaiter) Wait(ctx context.Context, key string) (string, error
 		}
 		return string(out), fmt.Errorf("git-control-tower baseline diff %s/%s: %w: %s",
 			scenario, name, err, trimCommandOutput(string(out)))
+	}
+	return string(out), nil
+}
+
+// lifecycleWaiter awaits a scenario start/restart by shelling the blocking
+// `vrooli scenario wait --json <scenario>` verb. The wait attaches to the
+// in-flight start operation (or evaluates current health when none) and
+// returns exactly one JSON verdict document; run from agent-manager's
+// (non-agent) process it blocks normally rather than re-parking.
+type lifecycleWaiter struct{ runner CommandRunner }
+
+// NewLifecycleWaiter builds the production scenario-lifecycle Waiter. A nil
+// runner uses the os/exec-backed runner.
+func NewLifecycleWaiter(runner CommandRunner) Waiter {
+	if runner == nil {
+		runner = execCommandRunner{}
+	}
+	return &lifecycleWaiter{runner: runner}
+}
+
+func (w *lifecycleWaiter) Producer() string { return ProducerLifecycle }
+
+func (w *lifecycleWaiter) Wait(ctx context.Context, key string) (string, error) {
+	scenario, variant, err := splitProducerKey(key)
+	if err != nil {
+		return "", err
+	}
+	args := []string{"scenario", "wait", scenario, "--json"}
+	if variant != "" && variant != "live" {
+		args = append(args, "--instance", variant)
+	}
+	out, err := w.runner.Run(ctx, "vrooli", args...)
+	if err != nil {
+		// The wait verb exits with the VERDICT: 1 failed/not-running, 2
+		// degraded, 124 timeout ceiling. Those are resolved waits whose JSON
+		// document is the result the agent wants; only a genuine wait failure
+		// (CLI missing, registry error) is surfaced as an error.
+		if isProducerVerdictExit(err, 1, 2, 124) {
+			return string(out), nil
+		}
+		return string(out), fmt.Errorf("vrooli scenario wait %s: %w: %s",
+			key, err, trimCommandOutput(string(out)))
 	}
 	return string(out), nil
 }

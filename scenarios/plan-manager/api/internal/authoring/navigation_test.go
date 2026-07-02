@@ -33,6 +33,27 @@ func TestSelectWorkItemOrdersAuthoringStateMachine(t *testing.T) {
 	require.Equal(t, WorkItemReview, selectWorkItem(sess, nil).Kind)
 }
 
+func TestSectionCatalogSeedsSkeletonAndGuidance(t *testing.T) {
+	sections := newSkeleton()
+
+	require.Len(t, sections, len(defaultSkeleton))
+	for i, spec := range defaultSkeleton {
+		require.Equal(t, spec.Key, sections[i].Key)
+		require.Equal(t, spec.Label, sections[i].Label)
+		require.Equal(t, spec.Mandatory, sections[i].Mandatory)
+		require.NotEmpty(t, spec.StepKind, "section %s must declare a guided step kind", spec.Key)
+		require.NotEmpty(t, spec.Summary, "section %s must declare guidance summary", spec.Key)
+		require.NotEmpty(t, spec.Instructions, "section %s must declare instructions", spec.Key)
+		require.NotEmpty(t, spec.RequiredInputs, "section %s must declare required inputs", spec.Key)
+		require.NotEmpty(t, spec.Placeholder, "section %s must declare a guided content placeholder", spec.Key)
+
+		step := sectionBaseStep(spec.Key)
+		require.Equal(t, spec.StepKind, step.StepKind)
+		require.Equal(t, firstNonEmpty(spec.Title, spec.Label), step.Title)
+		require.Equal(t, spec.Placeholder, contentPlaceholderForSection(spec.Key))
+	}
+}
+
 func fillMandatorySections(sess *Session) {
 	for i := range sess.Sections {
 		if sess.Sections[i].Mandatory {

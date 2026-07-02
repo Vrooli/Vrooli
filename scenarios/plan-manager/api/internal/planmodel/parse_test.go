@@ -2,6 +2,7 @@ package planmodel
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -327,6 +328,115 @@ func TestParsePlanMarkdownMigratesLegacyRequiredReading(t *testing.T) {
 	if phase.RelevantContext[1].Kind != RelevantContextCommand ||
 		phase.RelevantContext[1].Command != "vrooli scenario requirements validate plan-manager" {
 		t.Fatalf("phase command context = %#v", phase.RelevantContext[1])
+	}
+}
+
+func TestParsePlanMarkdownMigratesLegacyRequiredReadingCommandFences(t *testing.T) {
+	t.Parallel()
+
+	plan, err := ParsePlanMarkdown(`# Legacy setup fences
+
+## Required Reading
+
+Run these before implementation:
+
+` + "```bash" + `
+prompt-manager skill read api-steer test
+sed -n '1,260p' scenarios/plan-manager/docs/concepts/PLAN-MODEL.md
+` + "```" + `
+
+Useful context:
+
+- search-hub query "plan manager import" --type record,doc
+`)
+	if err != nil {
+		t.Fatalf("ParsePlanMarkdown() error = %v", err)
+	}
+	if got := len(plan.RelevantContext); got != 3 {
+		t.Fatalf("len(plan.RelevantContext) = %d, want 3: %#v", got, plan.RelevantContext)
+	}
+	if plan.RelevantContext[0].Kind != RelevantContextSkill || plan.RelevantContext[0].Target != "api-steer test" {
+		t.Fatalf("skill context = %#v", plan.RelevantContext[0])
+	}
+	doc := plan.RelevantContext[1]
+	if doc.Kind != RelevantContextDoc || doc.Command != "sed -n '1,260p' scenarios/plan-manager/docs/concepts/PLAN-MODEL.md" ||
+		doc.Target != "scenarios/plan-manager/docs/concepts/PLAN-MODEL.md" {
+		t.Fatalf("doc command context = %#v", doc)
+	}
+	for _, item := range plan.RelevantContext {
+		if item.Label == "```bash" || item.Label == "```" || item.Label == "Run these before implementation:" {
+			t.Fatalf("legacy prose/fence leaked into setup context: %#v", plan.RelevantContext)
+		}
+	}
+}
+
+func TestRelevantContextItemFromSetupLineExtractsDocTarget(t *testing.T) {
+	item := RelevantContextItemFromSetupLine(
+		"sed -n '1,220p' scenarios/plan-manager/docs/concepts/PLAN-MODEL.md",
+		RelevantContextScopeGlobal,
+		"",
+		"test",
+	)
+	if item.Kind != RelevantContextDoc {
+		t.Fatalf("kind = %q, want doc", item.Kind)
+	}
+	if item.Target != "scenarios/plan-manager/docs/concepts/PLAN-MODEL.md" {
+		t.Fatalf("target = %q", item.Target)
+	}
+	if item.Label != item.Target {
+		t.Fatalf("label = %q, want target %q", item.Label, item.Target)
+	}
+	if strings.Contains(item.Target, "sed -n") {
+		t.Fatalf("target should not contain shell command: %q", item.Target)
+	}
+}
+
+func TestParsePlanMarkdownPromotesLegacyPhaseSections(t *testing.T) {
+	t.Parallel()
+
+	plan, err := ParsePlanMarkdown(`# Legacy phase detail
+
+## Phases
+
+### Phase 1 — Import cleanup
+
+Objective:
+Make imported setup context executable.
+
+Checklist:
+- Parse fenced command blocks.
+- Preserve useful setup commands.
+
+Expected outputs:
+- Structured relevant_context items.
+
+Validation:
+go test ./internal/planmodel
+
+Definition of done:
+Imported phases render with executable steps and validation.
+`)
+	if err != nil {
+		t.Fatalf("ParsePlanMarkdown() error = %v", err)
+	}
+	if got := len(plan.Phases); got != 1 {
+		t.Fatalf("len(plan.Phases) = %d, want 1", got)
+	}
+	phase := plan.Phases[0]
+	if phase.Intent != "Make imported setup context executable." {
+		t.Fatalf("phase.Intent = %q", phase.Intent)
+	}
+	if got := phase.Steps; len(got) != 2 || got[0] != "Parse fenced command blocks." || got[1] != "Preserve useful setup commands." {
+		t.Fatalf("phase.Steps = %#v", got)
+	}
+	if got := phase.ExpectedOutputs; len(got) != 1 || got[0] != "Structured relevant_context items." {
+		t.Fatalf("phase.ExpectedOutputs = %#v", got)
+	}
+	if phase.Validation != "go test ./internal/planmodel" {
+		t.Fatalf("phase.Validation = %q", phase.Validation)
+	}
+	if phase.Acceptance != "Imported phases render with executable steps and validation." {
+		t.Fatalf("phase.Acceptance = %q", phase.Acceptance)
 	}
 }
 

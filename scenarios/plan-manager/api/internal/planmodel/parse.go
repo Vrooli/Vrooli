@@ -418,8 +418,12 @@ func parsePhases(markdown string) ([]Phase, error) {
 			switch key {
 			case "intent":
 				ph.Intent = val
+			case "validation":
+				ph.Validation = firstNonEmpty(ph.Validation, val)
 			case "acceptance":
 				ph.Acceptance = val
+			case "definition of done":
+				ph.Acceptance = firstNonEmpty(ph.Acceptance, val)
 			case "status":
 				ph.Status = phaseStatusFromLabel(val)
 			}
@@ -432,6 +436,7 @@ func parsePhases(markdown string) ([]Phase, error) {
 		ph.Validation = extractPhaseBlock(body, markerPhaseValidation)
 		ph.HandoffNotes = extractPhaseBlock(body, markerHandoffNotes)
 		ph.ChangeBoundary = parsePhaseChangeBoundary(extractPhaseBlock(body, markerChangeBoundary))
+		applyLegacyPhaseSections(&ph, body)
 		contextBody := extractPhaseContextSetup(body)
 		if contextBody != "" {
 			context, err := parseRelevantContextBlock(contextBody, RelevantContextScopePhase, ph.ID)
@@ -530,15 +535,150 @@ func listItemsFromBlock(block string) []string {
 
 var numberedListPrefix = regexp.MustCompile(`^\d+\.\s+`)
 
+func applyLegacyPhaseSections(ph *Phase, body string) {
+	sections := legacyPhaseSections(body)
+	if ph.Intent == "" {
+		ph.Intent = strings.TrimSpace(firstNonEmpty(sections["objective"], sections["intent"]))
+	}
+	if len(ph.Steps) == 0 {
+		ph.Steps = listItemsFromBlock(firstNonEmpty(sections["checklist"], sections["steps"], sections["ordered steps"]))
+	}
+	if len(ph.ExpectedOutputs) == 0 {
+		ph.ExpectedOutputs = listItemsFromBlock(firstNonEmpty(sections["expected outputs"], sections["outputs"]))
+	}
+	if strings.TrimSpace(ph.Validation) == "" {
+		ph.Validation = strings.TrimSpace(firstNonEmpty(sections["validation"], sections["testing"]))
+	}
+	if strings.TrimSpace(ph.Acceptance) == "" {
+		ph.Acceptance = strings.TrimSpace(firstNonEmpty(sections["definition of done"], sections["acceptance"]))
+	}
+}
+
+func legacyPhaseSections(body string) map[string]string {
+	sections := map[string]string{}
+	current := ""
+	for _, line := range strings.Split(body, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			if current != "" {
+				sections[current] += "\n"
+			}
+			continue
+		}
+		if heading, ok := legacyPhaseSectionHeading(trimmed); ok {
+			current = heading
+			continue
+		}
+		if isRenderedPhaseStructureLine(trimmed) {
+			current = ""
+			continue
+		}
+		if current != "" {
+			sections[current] += line + "\n"
+		}
+	}
+	for key, value := range sections {
+		sections[key] = strings.TrimSpace(value)
+	}
+	return sections
+}
+
+func legacyPhaseSectionHeading(line string) (string, bool) {
+	trimmed := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(line, "- "), ":"))
+	key := strings.ToLower(trimmed)
+	switch key {
+	case "objective", "intent", "checklist", "steps", "ordered steps", "expected outputs", "outputs", "validation", "testing", "definition of done", "acceptance":
+		return key, true
+	default:
+		return "", false
+	}
+}
+
+func isRenderedPhaseStructureLine(line string) bool {
+	if strings.HasPrefix(line, "**") || strings.HasPrefix(line, "### ") {
+		return true
+	}
+	lower := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(line, "-")))
+	return strings.HasPrefix(lower, "status:") ||
+		strings.HasPrefix(lower, "intent:") ||
+		strings.HasPrefix(lower, "acceptance:") ||
+		strings.HasPrefix(lower, "validation:") ||
+		strings.HasPrefix(lower, "definition of done:")
+}
+
 func requiredReadingLines(block string) []string {
+	return legacySetupLines(block)
+}
+
+func legacySetupLines(block string) []string {
 	var out []string
-	for _, line := range strings.Split(block, "\n") {
-		line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "-"))
+	lines := strings.Split(block, "\n")
+	for i := 0; i < len(lines); i++ {
+		line := strings.TrimSpace(lines[i])
+		switch {
+		case line == "":
+			continue
+		case strings.HasPrefix(line, "```"):
+			fenceLines, next := collectFenceLines(lines, i+1)
+			out = append(out, splitSetupFenceCommands(fenceLines)...)
+			i = next
+		case strings.HasPrefix(line, "-"):
+			item := strings.TrimSpace(strings.TrimPrefix(line, "-"))
+			if item != "" {
+				out = append(out, item)
+			}
+		case looksLikeSetupCommand(line) || looksLikeSetupTarget(line):
+			out = append(out, line)
+		}
+	}
+	return out
+}
+
+func collectFenceLines(lines []string, start int) ([]string, int) {
+	var out []string
+	for i := start; i < len(lines); i++ {
+		if strings.HasPrefix(strings.TrimSpace(lines[i]), "```") {
+			return out, i
+		}
+		out = append(out, strings.TrimSpace(lines[i]))
+	}
+	return out, len(lines) - 1
+}
+
+func splitSetupFenceCommands(lines []string) []string {
+	var out []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
 		if line != "" {
 			out = append(out, line)
 		}
 	}
 	return out
+}
+
+func looksLikeSetupTarget(line string) bool {
+	lower := strings.ToLower(strings.TrimSpace(line))
+	return strings.HasPrefix(lower, "docs/") ||
+		strings.HasPrefix(lower, "scenarios/") ||
+		strings.HasPrefix(lower, "packages/") ||
+		strings.HasSuffix(lower, ".md") ||
+		strings.HasPrefix(lower, "[req:") ||
+		strings.HasPrefix(lower, "req:") ||
+		strings.HasPrefix(lower, "[code:") ||
+		strings.HasPrefix(lower, "code:")
+}
+
+func looksLikeSetupCommand(line string) bool {
+	fields := strings.Fields(line)
+	if len(fields) == 0 {
+		return false
+	}
+	switch fields[0] {
+	case "prompt-manager", "search-hub", "cli-health", "swarm-manager", "plan-manager", "vrooli", "test-genie", "git-control-tower", "sed":
+		return true
+	default:
+		return strings.HasPrefix(strings.ToLower(line), "cli:")
+	}
 }
 
 func migratedRelevantContextFromLines(block string, scope RelevantContextScope, phaseID string) []RelevantContextItem {
@@ -548,60 +688,17 @@ func migratedRelevantContextFromLines(block string, scope RelevantContextScope, 
 	}
 	out := make([]RelevantContextItem, 0, len(lines))
 	for _, line := range lines {
-		out = append(out, migratedRelevantContextItem(line, scope, phaseID))
+		out = append(out, RelevantContextItemFromSetupLine(line, scope, phaseID, "Migrated from legacy Required Reading."))
 	}
 	return out
 }
 
-func migratedRelevantContextItem(line string, scope RelevantContextScope, phaseID string) RelevantContextItem {
-	item := RelevantContextItem{
-		Kind:         RelevantContextNote,
-		Scope:        scope,
-		PhaseID:      phaseID,
-		Label:        line,
-		Reason:       "Migrated from legacy Required Reading.",
-		Instruction:  "Load or inspect this context before implementation work.",
-		Target:       line,
-		Required:     true,
-		RepeatPolicy: defaultRelevantContextRepeatPolicy(scope),
-		Source:       RelevantContextSourceMigrated,
-		Status:       RelevantContextStatusReady,
+func lastField(line string) string {
+	fields := strings.Fields(line)
+	if len(fields) == 0 {
+		return ""
 	}
-	if scope == RelevantContextScopePhase {
-		item.RepeatPolicy = RelevantContextPhaseEntry
-	}
-	lower := strings.ToLower(line)
-	switch {
-	case strings.HasPrefix(lower, "prompt-manager skill read "):
-		item.Kind = RelevantContextSkill
-		item.Command = line
-		item.Argv = strings.Fields(line)
-		item.Target = strings.TrimSpace(strings.TrimPrefix(line, "prompt-manager skill read "))
-		item.Instruction = "Load this internal skill before implementation."
-	case strings.HasPrefix(lower, "search-hub "):
-		item.Kind = RelevantContextSearch
-		item.Command = line
-		item.Argv = strings.Fields(line)
-		item.Instruction = "Run this discovery search before implementation."
-	case strings.HasPrefix(lower, "cli:"):
-		item.Kind = RelevantContextCommand
-		item.Command = strings.TrimSpace(line[len("cli:"):])
-		item.Argv = strings.Fields(item.Command)
-		item.Target = ""
-		item.Instruction = "Run this command before implementation."
-	case strings.HasPrefix(lower, "docs/") || strings.HasSuffix(lower, ".md"):
-		item.Kind = RelevantContextDoc
-		item.Instruction = "Read this document before implementation."
-	case strings.HasPrefix(lower, "[req:") || strings.HasPrefix(lower, "req:") || strings.Contains(lower, "requirements/"):
-		item.Kind = RelevantContextReqRef
-		item.Target = targetFromReferenceLikeLabel(line)
-		item.Instruction = "Inspect this requirement before implementation."
-	case strings.HasPrefix(lower, "[code:") || strings.HasPrefix(lower, "code:"):
-		item.Kind = RelevantContextCodeRef
-		item.Target = targetFromReferenceLikeLabel(line)
-		item.Instruction = "Inspect this code reference before implementation."
-	}
-	return item
+	return strings.Trim(fields[len(fields)-1], "`'\"")
 }
 
 func parseRelevantContextBlock(block string, scope RelevantContextScope, phaseID string) ([]RelevantContextItem, error) {

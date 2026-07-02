@@ -444,14 +444,17 @@ func (s *service) RunValidation(ctx context.Context, planID, phaseID string) (Re
 	}
 	res.Verdict, res.Detail = s.runCommands(ctx, scope.Commands)
 	structureFindings, structureVerdict, structureDetail := validateRelevantContextStructure(p, phaseID)
+	qualityFindings, qualityVerdict, qualityDetail := validatePlanQuality(p, phaseID)
 	commandFindings, commandVerdict, commandDetail := s.validatePlanCommands(ctx, p, phaseID)
 	contextRefFindings, contextRefVerdict, contextRefDetail := s.validateContextReferences(ctx, p, phaseID)
 	res.CommandFindings = append(structureFindings, commandFindings...)
 	res.CommandFindings = append(res.CommandFindings, contextRefFindings...)
+	res.CommandFindings = append(res.CommandFindings, qualityFindings...)
 	res.Verdict = combineValidationVerdicts(res.Verdict, structureVerdict)
+	res.Verdict = combineValidationVerdicts(res.Verdict, qualityVerdict)
 	res.Verdict = combineValidationVerdicts(res.Verdict, commandVerdict)
 	res.Verdict = combineValidationVerdicts(res.Verdict, contextRefVerdict)
-	res.Detail = joinDetails(res.Detail, structureDetail, commandDetail, contextRefDetail)
+	res.Detail = joinDetails(res.Detail, structureDetail, qualityDetail, commandDetail, contextRefDetail)
 	// Persist for the cheap-read context path (status/next). Best-effort: a cache
 	// write failure must not fail the live validation the agent asked for.
 	if s.results != nil {
@@ -506,7 +509,7 @@ func validatePhaseContextStructure(phase planmodel.Phase) []CommandFinding {
 		location = fmt.Sprintf("phase.%d", phase.Order)
 	}
 	findings := validateContextItems(location+".relevant_context", phase.RelevantContext)
-	if !phaseHasContextOrNoContextReason(phase) {
+	if !planmodel.HasPhaseContextOrNoContextReason(phase) {
 		findings = append(findings, CommandFinding{
 			Verdict:  string(VerdictFail),
 			Message:  "phase has no relevant context and no explicit NO_CONTEXT reason",
@@ -518,23 +521,6 @@ func validatePhaseContextStructure(phase planmodel.Phase) []CommandFinding {
 		})
 	}
 	return findings
-}
-
-func phaseHasContextOrNoContextReason(phase planmodel.Phase) bool {
-	if len(phase.RelevantContext) > 0 || len(phase.RequiredReading) > 0 {
-		return true
-	}
-	for _, reminder := range phase.Reminders {
-		if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(reminder)), "NO_CONTEXT:") {
-			return true
-		}
-	}
-	for _, item := range phase.RelevantContext {
-		if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(firstNonEmpty(item.Instruction, item.Label, item.Reason))), "NO_CONTEXT:") {
-			return true
-		}
-	}
-	return false
 }
 
 func validateContextItems(location string, items []planmodel.RelevantContextItem) []CommandFinding {
@@ -583,6 +569,56 @@ func relevantContextFindingsDetail(findings []CommandFinding) string {
 		return ""
 	}
 	lines := []string{"relevant context structure validation:"}
+	for _, finding := range findings {
+		lines = append(lines, fmt.Sprintf("%s (%s): %s", finding.Verdict, finding.Location, finding.Message))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func validatePlanQuality(p planmodel.Plan, phaseID string) ([]CommandFinding, Verdict, string) {
+	report := planmodel.AssessPlanQuality(p, phaseID)
+	findings := make([]CommandFinding, 0, len(report.Findings))
+	for _, finding := range report.Findings {
+		findings = append(findings, planQualityCommandFinding(finding))
+	}
+	if len(findings) == 0 {
+		return nil, VerdictPass, ""
+	}
+	verdict := VerdictPass
+	for _, finding := range findings {
+		switch finding.Verdict {
+		case string(VerdictFail):
+			verdict = VerdictFail
+		case string(VerdictUnknown):
+			verdict = combineValidationVerdicts(verdict, VerdictUnknown)
+		}
+	}
+	return findings, verdict, planQualityFindingsDetail(findings)
+}
+
+func planQualityCommandFinding(finding planmodel.QualityFinding) CommandFinding {
+	verdict := string(VerdictFail)
+	if finding.Severity == planmodel.QualitySeverityWarning {
+		verdict = string(VerdictUnknown)
+	}
+	guidance := []string(nil)
+	if strings.TrimSpace(finding.Guidance) != "" {
+		guidance = []string{finding.Guidance}
+	}
+	return CommandFinding{
+		Verdict:    verdict,
+		Message:    finding.Message,
+		Location:   finding.Location,
+		IssueCodes: []string{finding.Code},
+		Guidance:   guidance,
+	}
+}
+
+func planQualityFindingsDetail(findings []CommandFinding) string {
+	if len(findings) == 0 {
+		return ""
+	}
+	lines := []string{"plan quality validation:"}
 	for _, finding := range findings {
 		lines = append(lines, fmt.Sprintf("%s (%s): %s", finding.Verdict, finding.Location, finding.Message))
 	}

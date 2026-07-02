@@ -32,6 +32,7 @@ func sessionToPlan(sess Session) (planmodel.Plan, error) {
 		Phases:               parsed.Phases,
 		RelevantContext:      append([]planmodel.RelevantContextItem(nil), sess.RelevantContext...),
 	}
+	p.RelevantContext = append(p.RelevantContext, globalContextReasonNotes(contentOf(sess.Sections, SectionRelevantContext))...)
 	p.RelevantContext = append(p.RelevantContext, contextItemsFromLines(contentOf(sess.Sections, SectionRequiredReading), planmodel.RelevantContextScopeGlobal, "")...)
 	if len(sess.PhaseDrafts) > 0 {
 		p.Phases = phaseDraftsToPlanPhases(sess.PhaseDrafts)
@@ -44,6 +45,29 @@ func sessionToPlan(sess Session) (planmodel.Plan, error) {
 		p.RegressionAnchor = planmodel.ParseRegressionAnchorBlock(anchor)
 	}
 	return p, nil
+}
+
+func globalContextReasonNotes(content string) []planmodel.RelevantContextItem {
+	var out []planmodel.RelevantContextItem
+	for _, line := range splitLines(content) {
+		upper := strings.ToUpper(strings.TrimSpace(line))
+		if !strings.HasPrefix(upper, "NO_CONTEXT:") && !strings.HasPrefix(upper, "NO_SKILL_CONTEXT:") {
+			continue
+		}
+		out = append(out, planmodel.RelevantContextItem{
+			ID:           uuid.NewString(),
+			Kind:         planmodel.RelevantContextNote,
+			Scope:        planmodel.RelevantContextScopeGlobal,
+			Label:        line,
+			Reason:       line,
+			Instruction:  line,
+			Required:     true,
+			RepeatPolicy: planmodel.RelevantContextOncePerExecution,
+			Source:       planmodel.RelevantContextSourceAuthored,
+			Status:       planmodel.RelevantContextStatusReady,
+		})
+	}
+	return out
 }
 
 func phaseDraftsToPlanPhases(drafts []PhaseDraft) []planmodel.Phase {
@@ -311,49 +335,8 @@ func contextItemsFromRequiredReading(lines []string, phaseID string) []planmodel
 }
 
 func migratedContextItem(line string, scope planmodel.RelevantContextScope, phaseID string) planmodel.RelevantContextItem {
-	line = strings.TrimSpace(strings.TrimPrefix(line, "-"))
-	item := planmodel.RelevantContextItem{
-		ID:           uuid.NewString(),
-		Scope:        scope,
-		PhaseID:      phaseID,
-		Label:        line,
-		Reason:       "Migrated from required-reading authoring input.",
-		Instruction:  "Load or inspect this context before implementation work.",
-		Target:       line,
-		Required:     true,
-		RepeatPolicy: planmodel.RelevantContextPhaseEntry,
-		Source:       planmodel.RelevantContextSourceMigrated,
-		Status:       planmodel.RelevantContextStatusReady,
-	}
-	if scope == planmodel.RelevantContextScopeGlobal {
-		item.RepeatPolicy = planmodel.RelevantContextOncePerExecution
-	}
-	lower := strings.ToLower(line)
-	switch {
-	case strings.HasPrefix(lower, "prompt-manager skill read "):
-		item.Kind = planmodel.RelevantContextSkill
-		item.Command = line
-		item.Argv = strings.Fields(line)
-		item.Target = strings.TrimSpace(strings.TrimPrefix(line, "prompt-manager skill read "))
-		item.Instruction = "Load this internal skill before implementation."
-	case strings.HasPrefix(lower, "search-hub "):
-		item.Kind = planmodel.RelevantContextSearch
-		item.Command = line
-		item.Argv = strings.Fields(line)
-		item.Instruction = "Run this discovery search before implementation."
-	case strings.HasPrefix(lower, "cli:"):
-		item.Kind = planmodel.RelevantContextCommand
-		item.Command = strings.TrimSpace(line[len("cli:"):])
-		item.Argv = strings.Fields(item.Command)
-		item.Target = ""
-		item.Instruction = "Run this setup command before implementation."
-	case strings.Contains(lower, "docs/") || strings.HasSuffix(lower, ".md"):
-		item.Kind = planmodel.RelevantContextDoc
-	default:
-		item.Kind = planmodel.RelevantContextNote
-		item.Instruction = line
-		item.Target = ""
-	}
+	item := planmodel.RelevantContextItemFromSetupLine(line, scope, phaseID, "Migrated from required-reading authoring input.")
+	item.ID = uuid.NewString()
 	return item
 }
 

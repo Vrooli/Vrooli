@@ -62,7 +62,105 @@ func (f *fakeCommandValidator) ValidateCommandReference(_ context.Context, req v
 }
 
 func planWith(refs []internalplans.Reference, phases []internalplans.Phase) internalplans.Plan {
-	return internalplans.Plan{ID: "p1", Slug: "p1", Title: "P", References: refs, Phases: phases}
+	if phases == nil {
+		phases = []internalplans.Phase{validationReadyPhase("ph1")}
+	} else {
+		for i := range phases {
+			phases[i] = normalizeValidationPhase(phases[i])
+		}
+	}
+	plan := internalplans.Plan{
+		ID:                 "p1",
+		Slug:               "p1",
+		Title:              "P",
+		Purpose:            "Validate a plan.",
+		ProblemStatement:   "Validation must report command and quality issues honestly.",
+		TargetOutcome:      "Validation verdicts match the requested oracle.",
+		Scope:              "Validation service test fixture.",
+		TechnicalApproach:  "Use local seams and fakes.",
+		ValidationStrategy: "Run validation unit tests.",
+		DefinitionOfDone:   "Validation result is deterministic.",
+		Constraints:        "NO_CODE_REFS: validation unit fixture has no plan-level connected refs.",
+		ChangeBoundary: internalplans.ChangeBoundary{
+			AcceptanceAllow: []string{"scenarios/plan-manager/**"},
+		},
+		RegressionAnchor: internalplans.RegressionAnchor{
+			Strategy: internalplans.AnchorStrategyChangeBoundary,
+		},
+		References: refs,
+		RelevantContext: []internalplans.RelevantContextItem{{
+			ID:           "ctx-global",
+			Kind:         internalplans.RelevantContextNote,
+			Scope:        internalplans.RelevantContextScopeGlobal,
+			Label:        "NO_CONTEXT: validation unit fixture has no plan-wide setup.",
+			Instruction:  "NO_CONTEXT: validation unit fixture has no plan-wide setup.",
+			Required:     true,
+			RepeatPolicy: internalplans.RelevantContextOncePerExecution,
+			Source:       internalplans.RelevantContextSourceAuthored,
+			Status:       internalplans.RelevantContextStatusReady,
+		}},
+		Phases: phases,
+	}
+	return plan
+}
+
+func validationReadyPhase(id string) internalplans.Phase {
+	return normalizeValidationPhase(internalplans.Phase{
+		ID:              id,
+		Title:           "Validation fixture phase",
+		Intent:          "Exercise validation behavior.",
+		Steps:           []string{"Run validation."},
+		Validation:      "go test ./internal/validation",
+		Acceptance:      "Validation result matches expectation.",
+		RelevantContext: noContextPhaseItem(id),
+	})
+}
+
+func normalizeValidationPhase(phase internalplans.Phase) internalplans.Phase {
+	if phase.ID == "" {
+		phase.ID = "ph1"
+	}
+	if phase.Title == "" {
+		phase.Title = "Validation fixture phase"
+	}
+	hasNoCode := false
+	for _, reminder := range phase.Reminders {
+		if strings.Contains(reminder, "NO_CODE_REFS:") || strings.Contains(strings.ToLower(reminder), "no connected code references:") {
+			hasNoCode = true
+			break
+		}
+	}
+	if len(phase.References) == 0 && !hasNoCode {
+		phase.Reminders = append(phase.Reminders, "NO_CODE_REFS: validation unit fixture has no phase refs.")
+	}
+	return phase
+}
+
+func noContextPhaseItem(phaseID string) []internalplans.RelevantContextItem {
+	return []internalplans.RelevantContextItem{{
+		ID:           "ctx-" + phaseID,
+		Kind:         internalplans.RelevantContextNote,
+		Scope:        internalplans.RelevantContextScopePhase,
+		PhaseID:      phaseID,
+		Label:        "NO_CONTEXT: validation unit fixture has no phase setup.",
+		Instruction:  "NO_CONTEXT: validation unit fixture has no phase setup.",
+		Required:     true,
+		RepeatPolicy: internalplans.RelevantContextPhaseEntry,
+		Source:       internalplans.RelevantContextSourceAuthored,
+		Status:       internalplans.RelevantContextStatusReady,
+	}}
+}
+
+func requireFindingCode(t *testing.T, findings []validation.CommandFinding, code string) {
+	t.Helper()
+	for _, finding := range findings {
+		for _, got := range finding.IssueCodes {
+			if got == code {
+				return
+			}
+		}
+	}
+	t.Fatalf("finding code %q not found in %#v", code, findings)
 }
 
 // --- tests ---
@@ -451,7 +549,10 @@ func TestCaptureBaselineRejectsUnverifiableGCTBaseline(t *testing.T) {
 
 func TestRunValidationIncludesCommandReferenceFindings(t *testing.T) {
 	plan := planWith(nil, []internalplans.Phase{{
-		ID: "ph1",
+		ID:         "ph1",
+		Steps:      []string{"Validate command references."},
+		Validation: "plan-manager validate run p1 --phase ph1",
+		Acceptance: "Invalid command references are reported.",
 		Intent: strings.Join([]string{
 			"Run `cli:vrooli scenario test cli-health`.",
 			"Fix `cli:knowledge-observatory docs healt cli-health`.",
@@ -502,8 +603,11 @@ func TestRunValidationIncludesCommandReferenceFindings(t *testing.T) {
 
 func TestRunValidationFailsMalformedRelevantContextStructure(t *testing.T) {
 	plan := planWith(nil, []internalplans.Phase{{
-		ID:     "ph1",
-		Intent: "Implement the change",
+		ID:         "ph1",
+		Intent:     "Implement the change",
+		Steps:      []string{"Run the setup command."},
+		Validation: "go test ./internal/validation",
+		Acceptance: "Validation reports malformed context.",
 		RelevantContext: []internalplans.RelevantContextItem{{
 			Kind:     internalplans.RelevantContextCommand,
 			Required: true,
@@ -525,8 +629,11 @@ func TestRunValidationFailsMalformedRelevantContextStructure(t *testing.T) {
 
 func TestRunValidationRequiresPhaseContextOrExplicitNoContext(t *testing.T) {
 	noContext := planWith(nil, []internalplans.Phase{{
-		ID:     "ph1",
-		Intent: "Implement the change",
+		ID:         "ph1",
+		Intent:     "Implement the change",
+		Steps:      []string{"Implement the change."},
+		Validation: "go test ./internal/validation",
+		Acceptance: "Validation passes.",
 	}})
 	fail := validation.NewService(validation.Deps{Plans: fakePlans{plan: noContext}})
 	res, err := fail.RunValidation(context.Background(), "p1", "ph1")
@@ -535,9 +642,12 @@ func TestRunValidationRequiresPhaseContextOrExplicitNoContext(t *testing.T) {
 	require.Contains(t, res.Detail, "phase has no relevant context")
 
 	explicit := planWith(nil, []internalplans.Phase{{
-		ID:        "ph1",
-		Intent:    "Trivial metadata update",
-		Reminders: []string{"NO_CONTEXT: phase only updates generated labels."},
+		ID:         "ph1",
+		Intent:     "Trivial metadata update",
+		Steps:      []string{"Update generated labels."},
+		Validation: "go test ./internal/validation",
+		Acceptance: "Generated labels remain consistent.",
+		Reminders:  []string{"NO_CONTEXT: phase only updates generated labels."},
 	}})
 	pass := validation.NewService(validation.Deps{Plans: fakePlans{plan: explicit}})
 	res, err = pass.RunValidation(context.Background(), "p1", "ph1")
@@ -546,10 +656,70 @@ func TestRunValidationRequiresPhaseContextOrExplicitNoContext(t *testing.T) {
 	require.NotContains(t, res.Detail, "phase has no relevant context")
 }
 
+func TestRunValidationFlagsPlanQualityGaps(t *testing.T) {
+	thin := planWith(nil, []internalplans.Phase{{
+		ID:     "ph1",
+		Intent: "Only a title and intent survived import.",
+		RelevantContext: []internalplans.RelevantContextItem{{
+			Kind:         internalplans.RelevantContextNote,
+			Required:     true,
+			RepeatPolicy: internalplans.RelevantContextPhaseEntry,
+			Instruction:  "NO_CONTEXT: fixture focuses on phase quality.",
+		}},
+	}})
+	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: thin}})
+
+	res, err := svc.RunValidation(context.Background(), "p1", "ph1")
+	require.NoError(t, err)
+	require.Equal(t, validation.VerdictFail, res.Verdict)
+	require.Contains(t, res.Detail, "plan quality validation")
+	requireFindingCode(t, res.CommandFindings, "phase_missing_steps")
+	requireFindingCode(t, res.CommandFindings, "phase_missing_validation")
+	requireFindingCode(t, res.CommandFindings, "phase_missing_acceptance")
+}
+
+func TestRunValidationFlagsMalformedMigratedContextQuality(t *testing.T) {
+	plan := planWith(nil, []internalplans.Phase{{
+		ID:         "ph1",
+		Intent:     "Repair migrated setup.",
+		Steps:      []string{"Inspect setup context."},
+		Validation: "plan-manager validate run p1 --phase ph1",
+		Acceptance: "Malformed migrated setup is reported.",
+		RelevantContext: []internalplans.RelevantContextItem{
+			{
+				Kind:         internalplans.RelevantContextDoc,
+				Source:       internalplans.RelevantContextSourceMigrated,
+				Required:     true,
+				RepeatPolicy: internalplans.RelevantContextPhaseEntry,
+				Command:      "sed -n '1,220p' sed -n '1,260p' docs/concepts/PLAN-MODEL.md",
+				Target:       "docs/concepts/PLAN-MODEL.md",
+			},
+			{
+				Kind:         internalplans.RelevantContextNote,
+				Source:       internalplans.RelevantContextSourceMigrated,
+				Required:     true,
+				RepeatPolicy: internalplans.RelevantContextPhaseEntry,
+				Label:        "```bash",
+				Instruction:  "Load or inspect this context before implementation work.",
+			},
+		},
+	}})
+	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}})
+
+	res, err := svc.RunValidation(context.Background(), "p1", "ph1")
+	require.NoError(t, err)
+	require.Equal(t, validation.VerdictFail, res.Verdict)
+	requireFindingCode(t, res.CommandFindings, "migrated_context_malformed_sed")
+	requireFindingCode(t, res.CommandFindings, "migrated_context_markdown_fence")
+}
+
 func TestRunValidationChecksRelevantContextReferences(t *testing.T) {
 	plan := planWith(nil, []internalplans.Phase{{
-		ID:     "ph1",
-		Intent: "Implement the change",
+		ID:         "ph1",
+		Intent:     "Implement the change",
+		Steps:      []string{"Resolve context references."},
+		Validation: "plan-manager validate run p1 --phase ph1",
+		Acceptance: "Context references are resolved or reported.",
 		RelevantContext: []internalplans.RelevantContextItem{
 			{
 				Kind:         internalplans.RelevantContextDoc,
@@ -588,8 +758,11 @@ func TestRunValidationChecksRelevantContextReferences(t *testing.T) {
 
 func TestRunValidationUnknownWhenRelevantContextReferenceResolverUnavailable(t *testing.T) {
 	plan := planWith(nil, []internalplans.Phase{{
-		ID:     "ph1",
-		Intent: "Implement the change",
+		ID:         "ph1",
+		Intent:     "Implement the change",
+		Steps:      []string{"Resolve context references."},
+		Validation: "plan-manager validate run p1 --phase ph1",
+		Acceptance: "Resolver outage is reported as unknown.",
 		RelevantContext: []internalplans.RelevantContextItem{{
 			Kind:         internalplans.RelevantContextReqRef,
 			Target:       "PM-CTX-001",

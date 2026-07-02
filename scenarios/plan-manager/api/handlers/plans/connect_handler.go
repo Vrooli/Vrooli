@@ -88,15 +88,17 @@ func (h *connectHandler) ArchivePlan(ctx context.Context, req *connect.Request[p
 }
 
 func (h *connectHandler) RenderMarkdown(ctx context.Context, req *connect.Request[plansv1.RenderMarkdownRequest]) (*connect.Response[plansv1.RenderMarkdownResponse], error) {
-	rendered, err := h.deps.Service.Render(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()))
+	rendered, err := h.deps.Service.Render(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), internalplans.RenderOptions{Compact: req.Msg.GetCompact()})
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
 	return connect.NewResponse(&plansv1.RenderMarkdownResponse{
-		Markdown: rendered.Markdown,
-		Mirror:   planproto.MirrorToProto(rendered.Mirror),
-		Repaired: rendered.Repaired,
-		Plan:     planToProto(rendered.Plan),
+		Markdown:        rendered.Markdown,
+		Mirror:          planproto.MirrorToProto(rendered.Mirror),
+		Repaired:        rendered.Repaired,
+		Plan:            planToProto(rendered.Plan),
+		QualityStatus:   rendered.QualityStatus,
+		QualityFindings: rendered.QualityFindings,
 	}), nil
 }
 

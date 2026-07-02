@@ -79,7 +79,7 @@ func (w planWriter) GetPlan(ctx context.Context, idOrSlug string) (internalplans
 }
 
 func (w planWriter) RenderPlan(ctx context.Context, idOrSlug string) (string, error) {
-	rendered, err := w.svc.Render(ctx, idOrSlug, internalplans.WorkspaceScope{})
+	rendered, err := w.svc.Render(ctx, idOrSlug, internalplans.WorkspaceScope{}, internalplans.RenderOptions{})
 	if err != nil {
 		return "", err
 	}

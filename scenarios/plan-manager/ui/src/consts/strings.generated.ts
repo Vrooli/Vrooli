@@ -47,6 +47,16 @@ export const strings = {
     unknownDate: "common.unknownDate",
     selectPlaceholder: "common.selectPlaceholder",
   },
+  guidedStep: {
+    action: "guidedStep.action",
+    alternative: "guidedStep.alternative",
+    avoid: "guidedStep.avoid",
+    blocked: "guidedStep.blocked",
+    example: "guidedStep.example",
+    optional: "guidedStep.optional",
+    recommended: "guidedStep.recommended",
+    recovery: "guidedStep.recovery",
+  },
   planStatus: {
     unspecified: "planStatus.unspecified",
     draft: "planStatus.draft",

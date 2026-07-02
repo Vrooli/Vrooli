@@ -238,48 +238,6 @@ type ReferenceCandidate struct {
 	RejectionReason string
 }
 
-// sectionSpec is the seed shape for one section in the default skeleton.
-type sectionSpec struct {
-	Key       SectionKey
-	Label     string
-	Mandatory bool
-}
-
-// defaultSkeleton is the ordered section skeleton StartSession seeds. The
-// mandatory sections gate Finalize; the optional ones (constraints, non_goals,
-// relevant_context) may be left empty. The regression-anchor section carries
-// typed intent only when the anchor autofill supplies it; references carry only
-// reviewed (accepted) search-hub suggestions or a NO_CODE_REFS reason. phases is
-// mandatory so a plan always has work.
-var defaultSkeleton = []sectionSpec{
-	{Key: SectionPurpose, Label: "Purpose", Mandatory: true},
-	{Key: SectionProblemStatement, Label: "Problem / Need", Mandatory: true},
-	{Key: SectionTargetOutcome, Label: "Target Outcome", Mandatory: true},
-	{Key: SectionScope, Label: "Scope", Mandatory: true},
-	{Key: SectionNonGoals, Label: "Non-goals", Mandatory: false},
-	{Key: SectionAssumptions, Label: "Assumptions", Mandatory: false},
-	{Key: SectionWorkPosture, Label: "Work Posture", Mandatory: false},
-	{Key: SectionTechnicalApproach, Label: "Technical Approach", Mandatory: true},
-	{Key: SectionConstraints, Label: "Constraints", Mandatory: false},
-	{Key: SectionProhibitedApproaches, Label: "Prohibited Approaches", Mandatory: false},
-	{Key: SectionAcceptanceBoundary, Label: "Change Boundary", Mandatory: true},
-	{Key: SectionReferences, Label: "References", Mandatory: true},
-	{Key: SectionRegressionAnchor, Label: "Regression anchor", Mandatory: true},
-	{Key: SectionRelevantContext, Label: "Relevant context", Mandatory: false},
-	{Key: SectionValidationStrategy, Label: "Validation Strategy", Mandatory: true},
-	{Key: SectionDefinitionOfDone, Label: "Definition of Done", Mandatory: true},
-	{Key: SectionPhases, Label: "Phases", Mandatory: true},
-}
-
-// newSkeleton returns a fresh ordered section list from the default skeleton.
-func newSkeleton() []Section {
-	out := make([]Section, 0, len(defaultSkeleton))
-	for _, spec := range defaultSkeleton {
-		out = append(out, Section{Key: spec.Key, Label: spec.Label, Mandatory: spec.Mandatory})
-	}
-	return out
-}
-
 // PlanForSession is the resolved subset of the plans model authoring writes
 // through. It is the shared plans.Plan; aliased here so the seam signature reads
 // in authoring's vocabulary without re-importing at every call site.

@@ -378,6 +378,37 @@ func TestContinueGlobalContextResolvedByAcceptedItem(t *testing.T) {
 	require.NotEqual(t, "global_relevant_context", step.StepKind, "a submitted global context item resolves the checkpoint")
 }
 
+func TestGlobalContextRequiresSkillDecision(t *testing.T) {
+	ctx := context.Background()
+	svc := newService(t, authoring.Deps{})
+	sess, _, err := svc.StartSession(ctx, "Skill checkpoint", "skill-checkpoint", "")
+	require.NoError(t, err)
+	fillMandatory(t, svc, sess.ID)
+
+	_, _, violations, _, err := svc.SubmitRelevantContextItem(ctx, sess.ID, "", internalplans.RelevantContextItem{
+		Kind:         internalplans.RelevantContextDoc,
+		Label:        "Plan model",
+		Reason:       "Plan model shapes repair decisions.",
+		Instruction:  "Read before implementation.",
+		Target:       "scenarios/plan-manager/docs/concepts/PLAN-MODEL.md",
+		Required:     true,
+		RepeatPolicy: internalplans.RelevantContextOncePerExecution,
+	})
+	require.NoError(t, err)
+	require.Empty(t, violations)
+
+	_, _, _, ready, _, step, err := svc.ContinueAuthoring(ctx, sess.ID)
+	require.NoError(t, err)
+	require.False(t, ready)
+	require.Equal(t, "global_relevant_context", step.StepKind, "docs/search context alone does not prove skill setup was considered")
+
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRelevantContext, "NO_SKILL_CONTEXT: no internal skill applies beyond the accepted plan-model doc.")
+	require.NoError(t, err)
+	_, _, _, _, _, step, err = svc.ContinueAuthoring(ctx, sess.ID)
+	require.NoError(t, err)
+	require.NotEqual(t, "global_relevant_context", step.StepKind)
+}
+
 // fillMandatory submits non-empty content to every mandatory section + the
 // regression anchor so the structure gate passes. Returns the final session.
 func fillMandatory(t *testing.T, svc authoring.Service, sessionID string) authoring.Session {
@@ -886,6 +917,20 @@ func TestPhaseNativeAuthoringValidatesAndFinalizesStructuredPhase(t *testing.T) 
 	require.Equal(t, internalplans.RelevantContextScopeGlobal, item.Scope)
 	require.Len(t, updated.RelevantContext, 1)
 
+	updated, item, violations, _, err = svc.SubmitRelevantContextItem(ctx, sess.ID, "", internalplans.RelevantContextItem{
+		Kind:         internalplans.RelevantContextSkill,
+		Label:        "plan-skill-discovery",
+		Reason:       "Skill discovery shapes required setup context for authored plans.",
+		Instruction:  "Load before finalizing plan context.",
+		Target:       "plan-skill-discovery",
+		Required:     true,
+		RepeatPolicy: internalplans.RelevantContextOncePerExecution,
+	})
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.Equal(t, internalplans.RelevantContextSkill, item.Kind)
+	require.Len(t, updated.RelevantContext, 2)
+
 	updated, phaseItem, violations, _, err := svc.SubmitRelevantContextItem(ctx, sess.ID, phase.ID, internalplans.RelevantContextItem{
 		Kind:        internalplans.RelevantContextDoc,
 		Label:       "Plan model docs",
@@ -945,7 +990,7 @@ func TestPhaseNativeAuthoringValidatesAndFinalizesStructuredPhase(t *testing.T) 
 	require.Equal(t, phase.ID, writer.created.Phases[0].ID)
 	require.Len(t, writer.created.Phases[0].References, 1)
 	require.Len(t, writer.created.Phases[0].RequiredReading, 2)
-	require.Len(t, writer.created.RelevantContext, 1)
+	require.Len(t, writer.created.RelevantContext, 2)
 	require.Len(t, writer.created.Phases[0].RelevantContext, 3, "explicit phase context plus migrated required-reading items")
 	require.Equal(t, internalplans.RelevantContextDoc, writer.created.Phases[0].RelevantContext[0].Kind)
 	require.Equal(t, phase.ID, writer.created.Phases[0].RelevantContext[0].PhaseID)

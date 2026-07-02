@@ -39,7 +39,7 @@ func selectWorkItem(sess Session, violations []StructureViolation) WorkItem {
 			}
 		}
 	}
-	if !globalContextResolved(sess) {
+	if !globalContextResolved(sess) || !globalSkillContextResolved(sess) {
 		sec := Section{Key: SectionRelevantContext, Label: "Relevant context"}
 		if found, ok := sectionByKey(sess.Sections, SectionRelevantContext); ok {
 			sec = found

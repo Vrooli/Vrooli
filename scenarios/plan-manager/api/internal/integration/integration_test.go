@@ -47,7 +47,7 @@ func (a planWriter) GetPlan(ctx context.Context, idOrSlug string) (internalplans
 }
 
 func (a planWriter) RenderPlan(ctx context.Context, idOrSlug string) (string, error) {
-	rendered, err := a.svc.Render(ctx, idOrSlug, internalplans.WorkspaceScope{})
+	rendered, err := a.svc.Render(ctx, idOrSlug, internalplans.WorkspaceScope{}, internalplans.RenderOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -166,14 +166,108 @@ func newStack(t *testing.T) (*sql.DB, internalplans.Service, internalvalidation.
 func contentFor(key string) string {
 	switch {
 	case strings.Contains(key, "phase"):
-		return "### Phase 1 — Implement\n- Intent: build it\n- Acceptance: it builds\n\n### Phase 2 — Validate\n- Intent: check it\n- Acceptance: dod met\n"
+		return strings.Join([]string{
+			"### Phase 1 — Implement",
+			"- Intent: build it",
+			"**Ordered Steps:**",
+			"1. Implement the change",
+			"**Phase Validation:**",
+			"go test ./internal/integration",
+			"- Acceptance: it builds",
+			"**References:**",
+			"- [CODE: scenarios/plan-manager/api/internal/integration/integration_test.go]",
+			"**Phase Context Setup:**",
+			"### Operator Notes",
+			"- NO_CONTEXT: integration fixture has no extra phase setup.",
+			"",
+			"### Phase 2 — Validate",
+			"- Intent: check it",
+			"**Ordered Steps:**",
+			"1. Run validation",
+			"**Phase Validation:**",
+			"go test ./internal/integration",
+			"- Acceptance: dod met",
+			"**References:**",
+			"- [CODE: scenarios/plan-manager/api/internal/integration/integration_test.go]",
+			"**Phase Context Setup:**",
+			"### Operator Notes",
+			"- NO_CONTEXT: integration fixture has no extra phase setup.",
+			"",
+		}, "\n")
 	case strings.Contains(key, "reference"):
 		return "Touches [CODE: main.go] and [REQ: OT-P0-001]."
 	case strings.Contains(key, "anchor"):
-		return "Scenario baseline `plan-manager` name `impl`."
+		return "- Scenario baseline: `plan-manager` (name `impl`)"
+	case strings.Contains(key, "context"):
+		return "NO_CONTEXT: integration fixture needs no plan-wide setup."
 	default:
 		return "Authored content for the " + key + " section."
 	}
+}
+
+func executionReadyPlan(title string, phases []internalplans.Phase) internalplans.Plan {
+	for i := range phases {
+		phases[i] = executionReadyPhase(phases[i])
+	}
+	return internalplans.Plan{
+		Title:              title,
+		Purpose:            "Integration fixture plan.",
+		ProblemStatement:   "Cross-domain integration needs an execution-grade plan.",
+		TargetOutcome:      "Execution can start without repair.",
+		Scope:              "Plan Manager integration fixture.",
+		TechnicalApproach:  "Use real domain services over one SQLite store.",
+		ValidationStrategy: "Run integration tests.",
+		DefinitionOfDone:   "The integration flow completes.",
+		Constraints:        "NO_CODE_REFS: integration fixture has no separate plan-level code refs.",
+		ChangeBoundary: internalplans.ChangeBoundary{
+			AcceptanceAllow: []string{"scenarios/plan-manager/**"},
+		},
+		RegressionAnchor: internalplans.RegressionAnchor{
+			Strategy: internalplans.AnchorStrategyChangeBoundary,
+		},
+		RelevantContext: []internalplans.RelevantContextItem{{
+			Kind:         internalplans.RelevantContextNote,
+			Scope:        internalplans.RelevantContextScopeGlobal,
+			Label:        "NO_CONTEXT: integration fixture has no plan-wide setup.",
+			Instruction:  "NO_CONTEXT: integration fixture has no plan-wide setup.",
+			Required:     true,
+			RepeatPolicy: internalplans.RelevantContextOncePerExecution,
+			Source:       internalplans.RelevantContextSourceAuthored,
+			Status:       internalplans.RelevantContextStatusReady,
+		}},
+		Phases: phases,
+	}
+}
+
+func executionReadyPhase(phase internalplans.Phase) internalplans.Phase {
+	if phase.Intent == "" {
+		phase.Intent = "Exercise integration behavior."
+	}
+	if len(phase.Steps) == 0 {
+		phase.Steps = []string{"Run the integration flow."}
+	}
+	if phase.Validation == "" {
+		phase.Validation = "go test ./internal/integration"
+	}
+	if phase.Acceptance == "" {
+		phase.Acceptance = "Integration assertions pass."
+	}
+	if len(phase.References) == 0 {
+		phase.Reminders = append(phase.Reminders, "NO_CODE_REFS: integration fixture has no phase refs.")
+	}
+	if len(phase.RelevantContext) == 0 {
+		phase.RelevantContext = []internalplans.RelevantContextItem{{
+			Kind:         internalplans.RelevantContextNote,
+			Scope:        internalplans.RelevantContextScopePhase,
+			Label:        "NO_CONTEXT: integration fixture has no phase setup.",
+			Instruction:  "NO_CONTEXT: integration fixture has no phase setup.",
+			Required:     true,
+			RepeatPolicy: internalplans.RelevantContextPhaseEntry,
+			Source:       internalplans.RelevantContextSourceAuthored,
+			Status:       internalplans.RelevantContextStatusReady,
+		}}
+	}
+	return phase
 }
 
 // TestValidationResultPersistsForCheapContextRead pins the context-server fix:
@@ -184,20 +278,21 @@ func TestValidationResultPersistsForCheapContextRead(t *testing.T) {
 	ctx := context.Background()
 	_, plansSvc, validationSvc, _, executionSvc, _ := newStack(t)
 
-	plan, err := plansSvc.Create(ctx, internalplans.Plan{
-		Title: "Cheap context",
-		Phases: []internalplans.Phase{{
-			Title:      "Phase one",
-			Acceptance: "done",
-			Reminders:  []string{"NO_CONTEXT: validation persistence fixture does not require setup context."},
-		}},
-		References: []internalplans.Reference{
-			{Kind: internalplans.ReferenceCode, Target: "scenarios/foo/api/main.go"},
-		},
-	})
+	plan, err := plansSvc.Create(ctx, executionReadyPlan("Cheap context", []internalplans.Phase{{
+		Title:      "Phase one",
+		Steps:      []string{"Run explicit validation once."},
+		Validation: "plan-manager validate run <plan> --phase <phase>",
+		Acceptance: "done",
+		Reminders:  []string{"NO_CONTEXT: validation persistence fixture does not require setup context."},
+	}}))
 	require.NoError(t, err)
 	require.NotEmpty(t, plan.Phases)
 	phaseID := plan.Phases[0].ID
+	plan.References = []internalplans.Reference{
+		{Kind: internalplans.ReferenceCode, Target: "scenarios/foo/api/main.go"},
+	}
+	plan, err = plansSvc.Update(ctx, plan)
+	require.NoError(t, err)
 
 	exec, _, _, err := executionSvc.Start(ctx, plan.ID, "run-cheap")
 	require.NoError(t, err)
@@ -374,7 +469,7 @@ func TestSmallAgentContinueLoopsAuthorAndExecute(t *testing.T) {
 			require.NoError(t, err)
 			require.Empty(t, violations)
 		case "regression_anchor":
-			session, violations, _, err = authoringSvc.SubmitSection(ctx, session.ID, section.Key, "Baseline: plan-manager-hardening-readiness; head sha captured by test fixture.")
+			session, violations, _, err = authoringSvc.SubmitSection(ctx, session.ID, section.Key, "Scenario baseline `plan-manager` name `impl`.")
 			require.NoError(t, err)
 			require.Empty(t, violations)
 		case "definition_of_done":
@@ -454,6 +549,14 @@ func TestSmallAgentContinueLoopsAuthorAndExecute(t *testing.T) {
 	require.NotEmpty(t, finalized.ID, "authoring continue loop should finalize within guard")
 	require.Len(t, finalized.Phases, 1)
 	require.Len(t, finalized.Phases[0].RelevantContext, 1)
+	finalized.RegressionAnchor = internalplans.RegressionAnchor{
+		Strategy:     internalplans.AnchorStrategyScenarioBaseline,
+		Scenario:     "plan-manager",
+		BaselineName: "impl",
+	}
+	var updateErr error
+	finalized, updateErr = plansSvc.Update(ctx, finalized)
+	require.NoError(t, updateErr)
 
 	exec, pctx, execStep, err := executionSvc.ContinueExecution(ctx, finalized.ID, "", "run-small-agent")
 	require.NoError(t, err)

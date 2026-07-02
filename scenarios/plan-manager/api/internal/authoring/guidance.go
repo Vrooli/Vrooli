@@ -105,169 +105,24 @@ func stepForSection(sess Session, sec Section) GuidedStep {
 }
 
 func sectionBaseStep(key SectionKey) GuidedStep {
-	switch key {
-	case SectionPurpose:
+	if spec, ok := sectionSpecByKey(key); ok {
 		return GuidedStep{
-			StepKind:       "purpose",
-			Title:          "Purpose",
-			Summary:        "Explain why this plan exists and what pressure created it.",
-			Instructions:   []string{"Write one concise paragraph.", "Name the outcome, not the implementation details.", "Include enough context for a later implementation agent to understand why this work matters."},
-			RequiredInputs: []string{"purpose"},
-			Examples:       []string{"Make plan-manager authoring reliable enough for local agents by replacing large markdown submissions with guided structured steps."},
-			CommonMistakes: []string{"Listing tasks instead of explaining the need.", "Assuming the next agent remembers the originating conversation."},
+			StepKind:       spec.StepKind,
+			Title:          firstNonEmpty(spec.Title, spec.Label),
+			Summary:        spec.Summary,
+			Instructions:   append([]string(nil), spec.Instructions...),
+			RequiredInputs: append([]string(nil), spec.RequiredInputs...),
+			Examples:       append([]string(nil), spec.Examples...),
+			CommonMistakes: append([]string(nil), spec.CommonMistakes...),
 		}
-	case SectionProblemStatement:
-		return GuidedStep{
-			StepKind:       "problem_statement",
-			Title:          "Problem / Need",
-			Summary:        "State the concrete problem, gap, or need this plan closes.",
-			Instructions:   []string{"Describe what is wrong or missing today, specifically.", "Name the pain a reviewer or user feels.", "Do not describe the solution here — that is the technical approach."},
-			RequiredInputs: []string{"problem or need"},
-			Examples:       []string{"The current plan model is too thin for a human reviewer or a small implementation agent to trust as the main artifact."},
-			CommonMistakes: []string{"Describing the solution instead of the problem.", "Being so vague the need can't be verified as solved."},
-		}
-	case SectionTargetOutcome:
-		return GuidedStep{
-			StepKind:       "target_outcome",
-			Title:          "Target Outcome",
-			Summary:        "Describe the observable end state once this plan is done.",
-			Instructions:   []string{"State what is observably true when the work is complete.", "Make it concrete enough to check.", "Keep it outcome-focused, not a task list."},
-			RequiredInputs: []string{"target outcome"},
-			Examples:       []string{"A human can run `plan-manager plans render <plan>` and judge plan quality without reading DB JSON."},
-			CommonMistakes: []string{"Listing tasks instead of the end state.", "Restating the purpose."},
-		}
-	case SectionAssumptions:
-		return GuidedStep{
-			StepKind:       "assumptions",
-			Title:          "Assumptions",
-			Summary:        "Record the preconditions taken as given.",
-			Instructions:   []string{"List environment, access, or prior-work assumptions, one per line.", "Only include assumptions that, if false, change the plan."},
-			RequiredInputs: []string{"assumptions (optional)"},
-			Examples:       []string{"The regression baseline is captured before any code change."},
-			CommonMistakes: []string{"Listing requirements instead of assumptions."},
-		}
-	case SectionWorkPosture:
-		return GuidedStep{
-			StepKind:       "work_posture",
-			Title:          "Work Posture (autofilled)",
-			Summary:        "Work posture is derived automatically from scenario maturity (default greenfield). Review only — do not author the Greenfield/Brownfield block.",
-			Instructions:   []string{"You do not write this section.", "The renderer injects the Greenfield (or Brownfield) block based on the associated scenario's maturity.", "Do not put compatibility-shim/legacy-wrapper language in constraints for a greenfield plan; validation will flag the conflict."},
-			RequiredInputs: []string{"(none — autofilled)"},
-			CommonMistakes: []string{"Hand-writing a Greenfield block.", "Authoring constraints that contradict the derived posture."},
-		}
-	case SectionTechnicalApproach:
-		return GuidedStep{
-			StepKind:       "technical_approach",
-			Title:          "Technical Approach",
-			Summary:        "Explain the chosen approach and the design rationale — why this way.",
-			Instructions:   []string{"Describe the strategy at a design level, not a phase-by-phase list.", "Justify the key decisions and name the main alternatives ruled out.", "Keep it concise; the phases carry the step detail."},
-			RequiredInputs: []string{"technical approach"},
-			Examples:       []string{"Model-first contract change: expand the proto/Go plan model, then wire renderer, parser, wizard, CLI, and UI through that single contract."},
-			CommonMistakes: []string{"Turning this into the phase list.", "Stating what without why."},
-		}
-	case SectionProhibitedApproaches:
-		return GuidedStep{
-			StepKind:       "prohibited_approaches",
-			Title:          "Prohibited Approaches",
-			Summary:        "Name approaches that are explicitly off-limits, only when genuinely relevant.",
-			Instructions:   []string{"List approaches a reasonable agent might try but must not.", "Skip this section if nothing is genuinely off-limits."},
-			RequiredInputs: []string{"prohibited approaches (optional)"},
-			Examples:       []string{"Do not clone the legacy 13-section markdown format.", "Do not make markdown the source of truth."},
-			CommonMistakes: []string{"Repeating non-goals.", "Listing obvious bad practice with no plan-specific value."},
-		}
-	case SectionValidationStrategy:
-		return GuidedStep{
-			StepKind:       "validation_strategy",
-			Title:          "Validation Strategy",
-			Summary:        "Describe how the plan proves it works: baseline approach, what evidence counts, and the final validation commands.",
-			Instructions:   []string{"State the baseline/regression approach and the suites/commands that prove success.", "Distinguish per-phase validation from the final end-of-plan validation.", "Reference the exact commands a reviewer runs at the end."},
-			RequiredInputs: []string{"validation strategy"},
-			Examples:       []string{"Run focused Go/CLI/UI suites per phase; finish with `vrooli scenario test plan-manager` and a clean baseline diff against the captured anchor."},
-			CommonMistakes: []string{"Saying 'tests pass' without naming them.", "Confusing the method (validation) with the outcome (definition of done)."},
-		}
-	case SectionScope:
-		return GuidedStep{
-			StepKind:       "scope",
-			Title:          "Scope",
-			Summary:        "Draw the boundary around the work.",
-			Instructions:   []string{"State what is in scope and out of scope.", "Name affected scenarios, packages, commands, and surfaces when known.", "Keep future expansion separate from required work."},
-			RequiredInputs: []string{"scope"},
-			Examples:       []string{"In scope: authoring API/CLI/UI phase wizard. Out of scope: swarm-manager consumer inversion."},
-			CommonMistakes: []string{"Using scope as another purpose paragraph.", "Omitting explicit non-goals for tempting adjacent work."},
-		}
-	case SectionAcceptanceBoundary:
-		return GuidedStep{
-			StepKind:       "acceptance_boundary",
-			Title:          "Change Boundary",
-			Summary:        "Declare the repo paths this plan may change as acceptance_allow globs (and optional acceptance_deny guardrails). This is the source of truth for posture, the regression anchor, and validation scope.",
-			Instructions:   []string{"List one path glob per line under acceptance_allow: — e.g. scenarios/<name>/**, packages/<pkg>/**, docs/**.", "Use acceptance_deny: for paths that must NOT change (guardrails only — they never widen scope).", "Do NOT name a primary scenario — scenario identity is derived from the allow globs.", "If the plan is genuinely operator-only/no-code, record OPERATOR_ONLY: <reason> instead.", "Replace every <placeholder> with a real path before finalizing."},
-			RequiredInputs: []string{"acceptance_allow globs or an OPERATOR_ONLY reason"},
-			Examples:       []string{"acceptance_allow:\n- scenarios/plan-manager/**\n- packages/proto/**\nacceptance_deny:\n- scenarios/swarm-manager/**", "OPERATOR_ONLY: documentation-only operator decision with no editable repo paths."},
-			CommonMistakes: []string{"Naming a single primary scenario instead of listing path globs.", "Leaving a <scenario>/<path> placeholder unresolved.", "Putting forbidden paths in acceptance_allow."},
-		}
-	case SectionReferences:
-		return GuidedStep{
-			StepKind:       "references",
-			Title:          "References",
-			Summary:        "Capture connected locations so staleness and validation can be computed.",
-			Instructions:   []string{"Add one locator per line using [CODE:], [DOC:], or [REQ:].", "Include existing and proposed locations; mark future paths in prose when needed.", "If there truly are no connected code references, write NO_CODE_REFS: followed by the reason."},
-			RequiredInputs: []string{"references or NO_CODE_REFS reason"},
-			Examples:       []string{"[CODE: scenarios/plan-manager/api/internal/authoring/service.go]", "[REQ: PM-AUTHOR-002]", "NO_CODE_REFS: documentation-only operator decision."},
-			CommonMistakes: []string{"Leaving references empty.", "Using plain paths without the machine-readable marker."},
-		}
-	case SectionRegressionAnchor:
-		return GuidedStep{
-			StepKind: "regression_anchor",
-			Title:    "Regression Anchor",
-			Summary:  "Record the typed INTENT of the before-state (which scenario, allowlist, and diff command). The actual baseline snapshot is captured fresh at execution start — not here.",
-			Instructions: []string{
-				"Derive the typed anchor intent (strategy, scenario, baseline name, allowlist, diff command), then confirm or adjust it — the <scenario> placeholder must name the real target scenario.",
-				"Do not capture a baseline snapshot at authoring time; intent never goes stale and the executor snapshots the real 'before' when execution starts.",
-				"Do not claim validation passed here; this is only the before anchor.",
-			},
-			RequiredInputs: []string{"typed anchor intent (strategy / scenario / baseline name / allowlist / diff command)"},
-			Examples:       []string{"Strategy: scenario-baseline", "Allowlist: scenarios/<scenario>/**"},
-			CommonMistakes: []string{"Putting final test results in the anchor.", "Trying to capture a snapshot at authoring time instead of recording intent.", "Leaving the <scenario> placeholder unconfirmed."},
-		}
-	case SectionRelevantContext:
-		return GuidedStep{
-			StepKind:       "relevant_context",
-			Title:          "Relevant Context",
-			Summary:        "Discover setup context and accept only items with a clear relevance reason.",
-			Instructions:   []string{"Decompose the work into 2-5 search concepts.", "Run context-discover to generate candidate setup commands.", "Accept useful candidates globally or for a phase; reject noisy candidates with a reason.", "Do not add generic feedback reminders here; the rendered plan includes the default plan-manager log capture workflow."},
-			RequiredInputs: []string{"context concepts or explicit NO_CONTEXT reason in phase scope"},
-			Examples:       []string{"author context-discover <session> --concepts 'plan-manager execution resume,authoring context discovery' --complexity architectural"},
-			CommonMistakes: []string{"Accepting raw discovery output without a reason.", "Putting phase-only setup in global context.", "Relying on the legacy required_reading section as the primary model."},
-		}
-	case SectionDefinitionOfDone:
-		return GuidedStep{
-			StepKind:       "definition_of_done",
-			Title:          "Definition of Done",
-			Summary:        "Define objective plan-level success.",
-			Instructions:   []string{"Use pass/fail criteria that another agent can verify.", "Include validation expectations and adoption readiness.", "Avoid vague language like 'works' or 'complete'."},
-			RequiredInputs: []string{"definition_of_done"},
-			Examples:       []string{"Authoring API/CLI tests pass; plan-manager validate run returns PASS or documented UNKNOWN dependency gaps; scenario requirements validate green."},
-			CommonMistakes: []string{"Restating phase steps.", "Using subjective acceptance criteria."},
-		}
-	case SectionPhases:
-		return GuidedStep{
-			StepKind:       "phase_outline",
-			Title:          "Phase Outline",
-			Summary:        "Create the phase list, then fill each phase through phase-native commands.",
-			Instructions:   []string{"Use author phase-add for each phase instead of submitting one large markdown blob.", "Keep phases sequential and handoff-sized.", "Every phase needs intent, references or a no-code reason, and objective acceptance.", "Use phase handoff notes or reminders only for phase-specific capture triggers; default feedback capture is rendered automatically."},
-			RequiredInputs: []string{"phase list"},
-			Examples:       []string{"author phase-add <session> --title 'Authoring contract' --intent 'Add phase-native RPC and CLI surface.'"},
-			CommonMistakes: []string{"Making one giant implementation phase.", "Skipping per-phase references."},
-		}
-	default:
-		return GuidedStep{
-			StepKind:       string(key),
-			Title:          "Authoring Step",
-			Summary:        "Fill this section with concise, implementation-relevant information.",
-			Instructions:   []string{"Keep the content specific to this section.", "Use current command/reference markers when mentioning CLI or code locations."},
-			RequiredInputs: []string{string(key)},
-			CommonMistakes: []string{"Adding broad reminders that belong in phase guidance."},
-		}
+	}
+	return GuidedStep{
+		StepKind:       string(key),
+		Title:          "Authoring Step",
+		Summary:        "Fill this section with concise, implementation-relevant information.",
+		Instructions:   []string{"Keep the content specific to this section.", "Use current command/reference markers when mentioning CLI or code locations."},
+		RequiredInputs: []string{string(key)},
+		CommonMistakes: []string{"Adding broad reminders that belong in phase guidance."},
 	}
 }
 
@@ -428,17 +283,17 @@ func anchorBaselineName(title, slug string) string {
 
 // stepForGlobalContextCheckpoint is the explicit plan-wide relevant-context
 // checkpoint the continue loop surfaces before phase work. The agent resolves it
-// by discovering+accepting context, submitting a known item, or recording an
-// explicit NO_CONTEXT skip reason — the loop never silently bypasses it.
+// by discovering+accepting context, submitting a known item, and explicitly
+// deciding skill setup, or by recording an explicit NO_CONTEXT skip reason.
 func stepForGlobalContextCheckpoint(sess Session) GuidedStep {
 	return GuidedStep{
 		StepKind:       "global_relevant_context",
 		Title:          "Global Relevant Context",
-		Summary:        "Decide the plan-wide setup context a fresh or resumed agent should load before any phase. This checkpoint cannot be skipped silently.",
-		Instructions:   []string{"Discover context candidates and accept the relevant ones, or submit a known global setup item.", "If this plan genuinely needs no plan-wide setup context, record an explicit NO_CONTEXT reason.", "Phase-specific setup belongs on the phase, not here."},
-		RequiredInputs: []string{"global relevant context item(s) or an explicit NO_CONTEXT reason"},
-		Examples:       []string{"author context-discover " + sessionHandle(sess) + " --concepts 'plan-manager execution resume' --complexity architectural", "author section-submit " + sessionHandle(sess) + " --section relevant_context --content 'NO_CONTEXT: single-file docs change needs no plan-wide setup.'"},
-		CommonMistakes: []string{"Skipping plan-wide context by leaving it empty.", "Putting phase-only setup in global context."},
+		Summary:        "Decide the plan-wide setup context and skill setup a fresh or resumed agent should load before any phase. This checkpoint cannot be skipped silently.",
+		Instructions:   []string{"Discover context candidates and accept the relevant ones, or submit a known global setup item.", "Include at least one relevant global skill context item; if no internal skill applies, record NO_SKILL_CONTEXT with the reason.", "If this plan genuinely needs no plan-wide setup context at all, record an explicit NO_CONTEXT reason.", "Phase-specific setup belongs on the phase, not here."},
+		RequiredInputs: []string{"global relevant context item(s)", "global skill context item or explicit NO_SKILL_CONTEXT reason", "or explicit NO_CONTEXT reason"},
+		Examples:       []string{"author context-discover " + sessionHandle(sess) + " --concepts 'plan-manager execution resume' --complexity architectural", "author context-submit " + sessionHandle(sess) + " --kind skill --label implementation-plan-authoring --target implementation-plan-authoring --reason 'authoring standards shape the plan' --instruction 'Load before implementation planning' --required", "author section-submit " + sessionHandle(sess) + " --section relevant_context --content 'NO_SKILL_CONTEXT: no internal skill applies beyond accepted docs/search setup.'"},
+		CommonMistakes: []string{"Skipping plan-wide context by leaving it empty.", "Adding docs/search context but never deciding skill setup.", "Putting phase-only setup in global context."},
 		NextActions: []NextAction{
 			{
 				ID:                 "discover-context",
@@ -455,6 +310,22 @@ func stepForGlobalContextCheckpoint(sess Session) GuidedStep {
 				Reason:             "Use when a plan-wide setup item is already known.",
 				Argv:               []string{"author", "context-submit", sessionHandle(sess), "--kind", "command", "--label", "<label>", "--reason", "<reason>", "--instruction", "<instruction>", "--command", "<command>", "--required"},
 				ContentPlaceholder: "<label> / <reason> / <command>",
+			},
+			{
+				ID:                 "submit-skill-context",
+				Kind:               NextActionAlternative,
+				Label:              "Submit a global skill context item",
+				Reason:             "Use when a relevant internal skill is already known.",
+				Argv:               []string{"author", "context-submit", sessionHandle(sess), "--kind", "skill", "--label", "<skill>", "--target", "<skill>", "--reason", "<why this skill matters>", "--instruction", "Load this internal skill before implementation.", "--required"},
+				ContentPlaceholder: "<skill> / <why this skill matters>",
+			},
+			{
+				ID:                 "skip-skill-context",
+				Kind:               NextActionAlternative,
+				Label:              "Record no skill context (with reason)",
+				Reason:             "Use only when discovery found no relevant internal skill for this plan.",
+				Argv:               []string{"author", "section-submit", sessionHandle(sess), "--section", string(SectionRelevantContext), "--content", "NO_SKILL_CONTEXT: <reason>"},
+				ContentPlaceholder: "NO_SKILL_CONTEXT: <reason>",
 			},
 			{
 				ID:                 "skip-global-context",
@@ -696,42 +567,10 @@ func stepForFinalizedPlan(sess Session, planID, slug string) GuidedStep {
 }
 
 func contentPlaceholderForSection(key SectionKey) string {
-	switch key {
-	case SectionPurpose:
-		return "<one concise purpose paragraph>"
-	case SectionProblemStatement:
-		return "<the concrete problem or need this plan closes>"
-	case SectionTargetOutcome:
-		return "<the observable end state once done>"
-	case SectionAssumptions:
-		return "<preconditions taken as given>"
-	case SectionTechnicalApproach:
-		return "<chosen approach and why>"
-	case SectionProhibitedApproaches:
-		return "<approaches that are off-limits>"
-	case SectionValidationStrategy:
-		return "<how the plan proves it works + final validation commands>"
-	case SectionScope:
-		return "<in scope / out of scope>"
-	case SectionConstraints:
-		return "<hard constraints>"
-	case SectionNonGoals:
-		return "<explicit non-goals>"
-	case SectionAcceptanceBoundary:
-		return "acceptance_allow:\n- scenarios/<scenario>/**\n- packages/<shared>/**"
-	case SectionReferences:
-		return "[CODE: path/to/file.go]"
-	case SectionRegressionAnchor:
-		return "<regression anchor strategy and commands>"
-	case SectionRequiredReading:
-		return "<legacy required-reading migration input>"
-	case SectionDefinitionOfDone:
-		return "<objective definition of done>"
-	case SectionPhases:
-		return "<phase outline>"
-	default:
-		return fmt.Sprintf("<%s content>", key)
+	if spec, ok := sectionSpecByKey(key); ok && spec.Placeholder != "" {
+		return spec.Placeholder
 	}
+	return fmt.Sprintf("<%s content>", key)
 }
 
 func sectionByKey(sections []Section, key SectionKey) (Section, bool) {

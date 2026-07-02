@@ -284,12 +284,13 @@ func TestPlansRequestMapping(t *testing.T) {
 			},
 		},
 		{
-			name: "render passes id and workspace", group: "plans", cmd: "render",
-			argv: []string{"plan-r", "--workspace", "/workspace"},
+			name: "render passes id workspace and compact mode", group: "plans", cmd: "render",
+			argv: []string{"plan-r", "--workspace", "/workspace", "--compact"},
 			assert: func(t *testing.T, req proto.Message) {
 				m := req.(*plansv1.RenderMarkdownRequest)
 				require.Equal(t, "plan-r", m.GetId())
 				require.Equal(t, "/workspace", m.GetWorkspace().GetRoot())
+				require.True(t, m.GetCompact())
 			},
 		},
 		{

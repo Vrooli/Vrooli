@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P0-003 — guided execution where status/next act as a just-in-time context server.",
-    "last_validated_at": "2026-07-01T14:23:35-04:00",
+    "last_validated_at": "2026-07-01T15:41:52-04:00",
     "module": "execution-context",
     "prd_ref": "PRD.md",
     "priority": "P0",

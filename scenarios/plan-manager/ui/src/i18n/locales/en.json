@@ -35,6 +35,16 @@
     "unknownDate": "—",
     "selectPlaceholder": "Select…"
   },
+  "guidedStep": {
+    "action": "Action",
+    "alternative": "Alternative",
+    "avoid": "Avoid",
+    "blocked": "Blocked",
+    "example": "Example",
+    "optional": "Optional",
+    "recommended": "Recommended",
+    "recovery": "Recovery"
+  },
   "planStatus": {
     "unspecified": "Unspecified",
     "draft": "Draft",

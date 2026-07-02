@@ -3,7 +3,13 @@ package plans
 import (
 	"fmt"
 	"strings"
+
+	"plan-manager/internal/planmodel"
 )
+
+type RenderOptions struct {
+	Compact bool
+}
 
 // RenderMarkdown renders a structured Plan to its human-readable markdown
 // projection. The output is DETERMINISTIC — the same record always renders the
@@ -12,48 +18,81 @@ import (
 // sections are omitted so the view stays readable, but the section ordering for
 // present fields never varies.
 func RenderMarkdown(p Plan) string {
-	var b strings.Builder
+	return RenderMarkdownWithOptions(p, RenderOptions{})
+}
 
+func RenderMarkdownWithOptions(p Plan, opts RenderOptions) string {
+	var b strings.Builder
+	renderHeader(&b, p)
+	renderOverview(&b, p)
+	renderWorkPostureSection(&b, p)
+	renderScopeSections(&b, p)
+	renderExecutionModel(&b, p, opts)
+	renderReferenceBoundarySections(&b, p)
+	renderValidationModel(&b, p)
+	renderPhaseSections(&b, p)
+	renderGovernanceSections(&b, p, opts)
+	return b.String()
+}
+
+func renderHeader(b *strings.Builder, p Plan) {
 	title := p.Title
 	if title == "" {
 		title = p.Slug
 	}
-	fmt.Fprintf(&b, "# %s\n\n", title)
-	fmt.Fprintf(&b, "> Status: **%s**", statusLabel(p.Status))
+	fmt.Fprintf(b, "# %s\n\n", title)
+	fmt.Fprintf(b, "> Status: **%s**", statusLabel(p.Status))
 	if p.ContentHash != "" {
-		fmt.Fprintf(&b, " · content-hash `%s`", shortHash(p.ContentHash))
+		fmt.Fprintf(b, " · content-hash `%s`", shortHash(p.ContentHash))
 	}
 	b.WriteString("\n\n")
+	b.WriteString(renderQualityNotice(p))
+}
 
-	// Overview.
-	writeSection(&b, "Purpose", p.Purpose)
-	writeSection(&b, "Problem / Need", p.ProblemStatement)
-	writeSection(&b, "Target Outcome", p.TargetOutcome)
+func renderOverview(b *strings.Builder, p Plan) {
+	writeSection(b, "Purpose", p.Purpose)
+	writeSection(b, "Problem / Need", p.ProblemStatement)
+	writeSection(b, "Target Outcome", p.TargetOutcome)
+}
 
-	// Work Posture — ALWAYS rendered (autofilled; default greenfield).
+func renderWorkPostureSection(b *strings.Builder, p Plan) {
+	// Work Posture is always rendered (autofilled; default greenfield).
 	b.WriteString("## Work Posture\n\n")
 	b.WriteString(renderWorkPosture(p))
 	b.WriteString("\n")
+}
 
-	writeSection(&b, "Scope", p.Scope)
-	writeSection(&b, "Non-Goals", p.NonGoals)
-	writeSection(&b, "Assumptions", p.Assumptions)
+func renderScopeSections(b *strings.Builder, p Plan) {
+	writeSection(b, "Scope", p.Scope)
+	writeSection(b, "Non-Goals", p.NonGoals)
+	writeSection(b, "Assumptions", p.Assumptions)
+}
 
-	// Execution Model.
-	writeSection(&b, "Technical Approach", p.TechnicalApproach)
-	writeSection(&b, "Constraints", p.Constraints)
-	writeSection(&b, "Prohibited Approaches", p.ProhibitedApproaches)
+func renderExecutionModel(b *strings.Builder, p Plan, opts RenderOptions) {
+	writeSection(b, "Technical Approach", p.TechnicalApproach)
+	writeSection(b, "Constraints", p.Constraints)
+	writeSection(b, "Prohibited Approaches", p.ProhibitedApproaches)
+	renderGlobalExecutionSetup(b, p)
+	renderExecutionFeedbackSection(b, opts)
+}
 
+func renderGlobalExecutionSetup(b *strings.Builder, p Plan) {
 	if len(p.RelevantContext) > 0 {
 		b.WriteString("## Global Execution Setup\n\n")
 		b.WriteString(renderRelevantContext(p.RelevantContext, RelevantContextScopeGlobal))
 		b.WriteString("\n")
 	}
+}
 
-	b.WriteString("## Execution Feedback\n\n")
-	b.WriteString(renderExecutionFeedback())
-	b.WriteString("\n")
+func renderExecutionFeedbackSection(b *strings.Builder, opts RenderOptions) {
+	if !opts.Compact {
+		b.WriteString("## Execution Feedback\n\n")
+		b.WriteString(renderExecutionFeedback())
+		b.WriteString("\n")
+	}
+}
 
+func renderReferenceBoundarySections(b *strings.Builder, p Plan) {
 	// Change Boundary — the blast-radius contract, rendered before references and
 	// the regression anchor (both of which derive from it). Omitted only when the
 	// plan carries no boundary (legacy imports before the hard cutover).
@@ -70,8 +109,9 @@ func RenderMarkdown(p Plan) string {
 		}
 		b.WriteString("\n")
 	}
+}
 
-	// Validation Model.
+func renderValidationModel(b *strings.Builder, p Plan) {
 	if anchorPresent(p.RegressionAnchor) {
 		b.WriteString("## Regression Anchor\n\n")
 		b.WriteString(renderAnchor(p.RegressionAnchor))
@@ -87,38 +127,69 @@ func RenderMarkdown(p Plan) string {
 		if len(p.FinalValidationCommands) > 0 {
 			b.WriteString("\n**Final validation commands:**\n")
 			for _, c := range p.FinalValidationCommands {
-				fmt.Fprintf(&b, "- `%s`\n", c)
+				fmt.Fprintf(b, "- `%s`\n", c)
 			}
 		}
 		b.WriteString("\n")
 	}
 
-	writeSection(&b, "Definition of Done", p.DefinitionOfDone)
+	writeSection(b, "Definition of Done", p.DefinitionOfDone)
+	writeSection(b, "Risks / Hazards", p.RisksHazards)
+}
 
-	writeSection(&b, "Risks / Hazards", p.RisksHazards)
-
+func renderPhaseSections(b *strings.Builder, p Plan) {
 	if len(p.Phases) > 0 {
 		b.WriteString("## Phases\n\n")
 		for i, ph := range p.Phases {
 			b.WriteString(renderPhase(ph, i+1))
 		}
 	}
+}
 
-	// Governance: import provenance + preserved legacy sections (only when present).
-	b.WriteString(renderImportGovernance(p))
+func renderGovernanceSections(b *strings.Builder, p Plan, opts RenderOptions) {
+	if !opts.Compact {
+		// Governance: import provenance + preserved legacy sections (only when present).
+		b.WriteString(renderImportGovernance(p))
+	}
 
 	// Plan-graph edges as a trailing footnote when present.
-	if len(p.Supersedes) > 0 || len(p.SupersededBy) > 0 {
+	if !opts.Compact && (len(p.Supersedes) > 0 || len(p.SupersededBy) > 0) {
 		b.WriteString("## Plan Graph\n\n")
 		if len(p.Supersedes) > 0 {
-			fmt.Fprintf(&b, "- Supersedes: %s\n", strings.Join(p.Supersedes, ", "))
+			fmt.Fprintf(b, "- Supersedes: %s\n", strings.Join(p.Supersedes, ", "))
 		}
 		if len(p.SupersededBy) > 0 {
-			fmt.Fprintf(&b, "- Superseded by: %s\n", strings.Join(p.SupersededBy, ", "))
+			fmt.Fprintf(b, "- Superseded by: %s\n", strings.Join(p.SupersededBy, ", "))
 		}
 		b.WriteString("\n")
 	}
+}
 
+func renderQualityNotice(p Plan) string {
+	report := planmodel.AssessPlanQuality(p, "")
+	if !report.HasFindings() {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("> Plan quality: **")
+	b.WriteString(report.Status)
+	b.WriteString("**")
+	if p.Slug != "" {
+		fmt.Fprintf(&b, " · validate with `plan-manager validate run %s`", p.Slug)
+	}
+	b.WriteString("\n")
+	limit := len(report.Findings)
+	if limit > 6 {
+		limit = 6
+	}
+	for i := 0; i < limit; i++ {
+		finding := report.Findings[i]
+		fmt.Fprintf(&b, "> - %s `%s` at `%s`: %s\n", finding.Severity, finding.Code, finding.Location, finding.Message)
+	}
+	if len(report.Findings) > limit {
+		fmt.Fprintf(&b, "> - ...and %d more quality finding(s)\n", len(report.Findings)-limit)
+	}
+	b.WriteString("\n")
 	return b.String()
 }
 

@@ -6,7 +6,25 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
+
+// TestProducerKeysMatchCliutilParkProducers pins the park.go invariant: the
+// producer keys agents park with MUST match the keys these Waiters register,
+// or a parked run's await-handle would never dispatch.
+func TestProducerKeysMatchCliutilParkProducers(t *testing.T) {
+	pairs := map[string]string{
+		ProducerTestGenie: cliutil.ParkProducerTestGenie,
+		ProducerGCT:       cliutil.ParkProducerGCT,
+		ProducerLifecycle: cliutil.ParkProducerLifecycle,
+	}
+	for waiter, park := range pairs {
+		if waiter != park {
+			t.Fatalf("waiter producer %q != cliutil park producer %q", waiter, park)
+		}
+	}
+}
 
 // fakeCommandRunner records the command it was asked to run and returns canned
 // output/error so producer Waiters can be exercised without shelling binaries.
@@ -72,6 +90,55 @@ type exitCodeErr struct{ code int }
 
 func (e exitCodeErr) Error() string { return fmt.Sprintf("exit status %d", e.code) }
 func (e exitCodeErr) ExitCode() int { return e.code }
+
+func TestLifecycleWaiter_ShellsBlockingScenarioWait(t *testing.T) {
+	runner := &fakeCommandRunner{out: []byte(`{"verdict":"healthy"}`)}
+	w := NewLifecycleWaiter(runner)
+
+	if w.Producer() != ProducerLifecycle {
+		t.Fatalf("producer = %q", w.Producer())
+	}
+
+	got, err := w.Wait(context.Background(), "web-console/live")
+	if err != nil {
+		t.Fatalf("Wait: %v", err)
+	}
+	if got != `{"verdict":"healthy"}` {
+		t.Fatalf("result = %q", got)
+	}
+	wantArgs := []string{"scenario", "wait", "web-console", "--json"}
+	if runner.name != "vrooli" || strings.Join(runner.args, " ") != strings.Join(wantArgs, " ") {
+		t.Fatalf("command = %s %v", runner.name, runner.args)
+	}
+
+	// Non-live variants are addressed with --instance.
+	if _, err := w.Wait(context.Background(), "web-console/shadow"); err != nil {
+		t.Fatalf("Wait(shadow): %v", err)
+	}
+	wantArgs = []string{"scenario", "wait", "web-console", "--json", "--instance", "shadow"}
+	if strings.Join(runner.args, " ") != strings.Join(wantArgs, " ") {
+		t.Fatalf("shadow command args = %v", runner.args)
+	}
+}
+
+func TestLifecycleWaiter_VerdictExitsAreResolved(t *testing.T) {
+	for _, code := range []int{1, 2, 124} {
+		runner := &fakeCommandRunner{out: []byte(`{"verdict":"x"}`), err: exitCodeErr{code: code}}
+		w := NewLifecycleWaiter(runner)
+		got, err := w.Wait(context.Background(), "web-console/live")
+		if err != nil {
+			t.Fatalf("verdict exit %d must resolve, got error %v", code, err)
+		}
+		if got != `{"verdict":"x"}` {
+			t.Fatalf("result = %q", got)
+		}
+	}
+	// A non-verdict failure is a wait failure.
+	runner := &fakeCommandRunner{out: []byte("boom"), err: errors.New("exec: not found")}
+	if _, err := NewLifecycleWaiter(runner).Wait(context.Background(), "web-console/live"); err == nil {
+		t.Fatal("expected wait failure for non-verdict error")
+	}
+}
 
 func TestWaiter_VerdictExitCodeIsResolvedNotError(t *testing.T) {
 	// A failing test-genie suite exits 1 but the snapshot is the result.

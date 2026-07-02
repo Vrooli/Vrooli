@@ -129,6 +129,49 @@ func TestRenderShowsWorkPostureAndGreenfieldBlock(t *testing.T) {
 	}
 }
 
+func TestRenderShowsQualityNoticeForImportedThinPlans(t *testing.T) {
+	p := plans.Plan{
+		Slug:   "legacy-thin",
+		Title:  "Legacy Thin",
+		Status: plans.PlanStatusDraft,
+		ImportProvenance: &plans.ImportProvenance{
+			SourcePath:     "docs/plans/legacy.md",
+			OriginalFormat: "legacy_markdown",
+		},
+		Phases: []plans.Phase{{ID: "phase-1", Title: "Thin"}},
+	}
+	md := plans.RenderMarkdown(p)
+	for _, want := range []string{
+		"Plan quality: **fail**",
+		"`legacy_import_requires_review`",
+		"`phase_missing_steps`",
+		"`phase_missing_validation`",
+		"`phase_missing_acceptance`",
+		"plan-manager validate run legacy-thin",
+	} {
+		if !strings.Contains(md, want) {
+			t.Fatalf("rendered markdown missing %q\n---\n%s", want, md)
+		}
+	}
+}
+
+func TestCompactRenderSuppressesGovernanceNoise(t *testing.T) {
+	p := comprehensivePlan()
+	p.ImportProvenance = &plans.ImportProvenance{SourcePath: "docs/plans/legacy.md", OriginalFormat: "legacy_markdown"}
+	p.PreservedLegacySections = []plans.LegacySection{{Heading: "Legacy Notes", Content: "old text"}}
+	md := plans.RenderMarkdownWithOptions(p, plans.RenderOptions{Compact: true})
+	for _, want := range []string{"## Purpose", "## Phases", "### Phase 1", "Plan quality:"} {
+		if !strings.Contains(md, want) {
+			t.Fatalf("compact render missing %q\n---\n%s", want, md)
+		}
+	}
+	for _, notWant := range []string{"## Execution Feedback", "## Import Provenance", "## Preserved Legacy Sections", "## Plan Graph"} {
+		if strings.Contains(md, notWant) {
+			t.Fatalf("compact render unexpectedly contains %q\n---\n%s", notWant, md)
+		}
+	}
+}
+
 // TestRenderParseRecoversChangeBoundary asserts the plan-level and phase-level
 // change boundary round-trips through render -> parse without loss, including the
 // boundary-native anchor's tiered (oracle vs informational) command labels.
