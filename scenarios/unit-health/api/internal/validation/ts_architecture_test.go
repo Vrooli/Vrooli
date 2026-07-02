@@ -1,7 +1,9 @@
 package validation
 
 import (
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -38,4 +40,148 @@ func TestAnalyzeTSArchitectureCleanWithTestUtils(t *testing.T) {
 	if _, ok := findingByCode(findings, codeTestUtilMissing); ok {
 		t.Errorf("a UI surface with src/test-utils must not be flagged TEST_UTIL_MISSING, got %v", codes(findings))
 	}
+}
+
+func TestAnalyzeTSArchitectureProjectionDriftMissingSetupFile(t *testing.T) {
+	root := t.TempDir()
+	writeCanonicalUIProjection(t, root)
+	writeFile(t, filepath.Join(root, "vite.config.ts"), strings.ReplaceAll(canonicalViteConfig(), "setupFiles: ['./src/test-setup.ts'],", ""))
+
+	findings := analyzeArchitecture("demo", []Workspace{{ID: "ui", Language: "typescript", RootPath: root, Framework: "vite"}}, fixedNowStr)
+	f, ok := findingByCode(findings, codeUnitProjectionDrift)
+	if !ok {
+		t.Fatalf("expected UNIT_POLICY_PROJECTION_DRIFT, got %v", codes(findings))
+	}
+	if !strings.Contains(f.Observed, "setupFiles") {
+		t.Fatalf("expected setupFiles drift evidence, got %+v", f)
+	}
+}
+
+func TestAnalyzeTSArchitectureProjectionDriftLoweredThreshold(t *testing.T) {
+	root := t.TempDir()
+	writeCanonicalUIProjection(t, root)
+	writeFile(t, filepath.Join(root, "vite.config.ts"), strings.ReplaceAll(canonicalViteConfig(), "branches: 85", "branches: 70"))
+
+	findings := analyzeArchitecture("demo", []Workspace{{ID: "ui", Language: "typescript", RootPath: root, Framework: "vite"}}, fixedNowStr)
+	f, ok := findingByCode(findings, codeUnitProjectionDrift)
+	if !ok {
+		t.Fatalf("expected UNIT_POLICY_PROJECTION_DRIFT, got %v", codes(findings))
+	}
+	if !strings.Contains(f.Evidence, "branches=70.0") {
+		t.Fatalf("expected lowered branch threshold evidence, got %+v", f)
+	}
+}
+
+func TestAnalyzeTSArchitectureProjectionDriftMissingRenderHelper(t *testing.T) {
+	root := t.TempDir()
+	writeCanonicalUIProjection(t, root)
+	if err := os.Remove(filepath.Join(root, "src", "test-utils", "renderWithProviders.tsx")); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(root, "src", "test-utils", "index.ts"), "export const x = 1;\n")
+
+	findings := analyzeArchitecture("demo", []Workspace{{ID: "ui", Language: "typescript", RootPath: root, Framework: "vite"}}, fixedNowStr)
+	f, ok := findingByCode(findings, codeUnitProjectionDrift)
+	if !ok {
+		t.Fatalf("expected UNIT_POLICY_PROJECTION_DRIFT, got %v", codes(findings))
+	}
+	if !strings.Contains(f.Observed, "renderWithProviders") {
+		t.Fatalf("expected render helper drift, got %+v", f)
+	}
+}
+
+func TestAnalyzeTSArchitectureProjectionDriftMissingImportBan(t *testing.T) {
+	root := t.TempDir()
+	writeCanonicalUIProjection(t, root)
+	writeFile(t, filepath.Join(root, "eslint.config.js"), "export default [];\n")
+
+	findings := analyzeArchitecture("demo", []Workspace{{ID: "ui", Language: "typescript", RootPath: root, Framework: "vite"}}, fixedNowStr)
+	var sawImportBan bool
+	for _, f := range findings {
+		if f.Code == codeUnitProjectionDrift && strings.Contains(f.Observed, "production import ban") {
+			sawImportBan = true
+		}
+	}
+	if !sawImportBan {
+		t.Fatalf("expected production import-ban projection drift, got %v", codes(findings))
+	}
+}
+
+func TestAnalyzeTSArchitectureProjectionClean(t *testing.T) {
+	root := t.TempDir()
+	writeCanonicalUIProjection(t, root)
+
+	findings := analyzeArchitecture("demo", []Workspace{{ID: "ui", Language: "typescript", RootPath: root, Framework: "vite"}}, fixedNowStr)
+	if _, ok := findingByCode(findings, codeUnitProjectionDrift); ok {
+		t.Fatalf("canonical UI projection should be clean, got %+v", findings)
+	}
+}
+
+func TestAnalyzeTSArchitectureReactViteTemplateProjectionClean(t *testing.T) {
+	repoRoot := findRepoRoot(t)
+	root := filepath.Join(repoRoot, "templates", "scenarios", "react-vite", "ui")
+	if _, err := os.Stat(filepath.Join(root, "vite.config.ts")); err != nil {
+		t.Fatalf("react-vite template UI not found: %v", err)
+	}
+
+	findings := analyzeTSArchitecture("react-vite", Workspace{ID: "ui", Language: "typescript", RootPath: root, Framework: "vite"}, fixedNowStr)
+	if _, ok := findingByCode(findings, codeUnitProjectionDrift); ok {
+		t.Fatalf("react-vite template UI projection should be clean, got %+v", findings)
+	}
+}
+
+func findRepoRoot(t *testing.T) string {
+	t.Helper()
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 8; i++ {
+		if fileExists(filepath.Join(dir, "templates", "scenarios", "react-vite", ".vrooli", "testing.json")) {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	t.Fatal("repo root not found")
+	return ""
+}
+
+func writeCanonicalUIProjection(t *testing.T, root string) {
+	t.Helper()
+	writeFile(t, filepath.Join(root, "package.json"), `{
+  "scripts": {"test": "vitest run", "test:coverage": "vitest run --coverage"},
+  "devDependencies": {"vitest": "^3.0.0"}
+}`)
+	writeFile(t, filepath.Join(root, "vite.config.ts"), canonicalViteConfig())
+	writeFile(t, filepath.Join(root, "eslint.config.js"), `export default [{
+  rules: {
+    "no-restricted-imports": ["error", {patterns: [{group: ["**/test-utils", "@/test-utils/*", "**/features/*/mocks"]}]}],
+  },
+}];`)
+	writeFile(t, filepath.Join(root, "src", "test-utils", "renderWithProviders.tsx"), "export function renderWithProviders() {}\n")
+	writeFile(t, filepath.Join(root, "src", "test-utils", "index.ts"), "export { renderWithProviders } from './renderWithProviders';\n")
+	writeFile(t, filepath.Join(root, "src", "App.test.tsx"), "it('x',()=>{expect(1).toBe(1)});\n")
+}
+
+func canonicalViteConfig() string {
+	return `export default {
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test-setup.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json-summary', 'json'],
+      thresholds: {
+        lines: 85,
+        functions: 85,
+        branches: 85,
+        statements: 85,
+      },
+    },
+  },
+};`
 }

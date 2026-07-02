@@ -38,10 +38,7 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 	}
 	msg := resp.Msg
 
-	results := make([]string, 0, len(msg.GetFindings()))
-	for _, f := range msg.GetFindings() {
-		results = append(results, fmt.Sprintf("[%s] %s %s: %s", f.GetSeverity(), f.GetCode(), f.GetFilePath(), f.GetMessage()))
-	}
+	results := findingLines(msg.GetFindings())
 	if len(results) == 0 {
 		results = append(results, "No test-maturity findings.")
 	}
@@ -78,6 +75,45 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 		return fmt.Errorf("unit-health validation failed with %d error finding(s)", msg.GetCounts().GetErrors())
 	}
 	return nil
+}
+
+// findingLines keeps the first line scan-friendly while preserving the
+// policy/projection evidence operators need for remediation.
+func findingLines(findings []*validationv1.ValidationFinding) []string {
+	results := make([]string, 0, len(findings))
+	for _, f := range findings {
+		results = append(results, fmt.Sprintf("[%s] %s %s: %s", f.GetSeverity(), f.GetCode(), f.GetFilePath(), f.GetMessage()))
+		for _, line := range findingDetailLines(f) {
+			results = append(results, "  "+line)
+		}
+	}
+	return results
+}
+
+func findingDetailLines(f *validationv1.ValidationFinding) []string {
+	if f == nil {
+		return nil
+	}
+	details := []struct {
+		label string
+		value string
+	}{
+		{"evidence", f.GetEvidence()},
+		{"expected", f.GetExpected()},
+		{"observed", f.GetObserved()},
+		{"why", f.GetWhyItMatters()},
+		{"remediation", f.GetRemediation()},
+		{"source", f.GetSourceCommand()},
+	}
+	lines := make([]string, 0, len(details))
+	for _, detail := range details {
+		value := strings.TrimSpace(detail.value)
+		if value == "" {
+			continue
+		}
+		lines = append(lines, detail.label+": "+value)
+	}
+	return lines
 }
 
 // workspaceLines renders the discovered testable workspaces, their canonical

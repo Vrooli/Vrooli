@@ -71,6 +71,30 @@ func TestFromCodeFactsEmptyFallsBackToFilesystem(t *testing.T) {
 	}
 }
 
+func TestFallbackInventoryDiscoversRootNodeSurface(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "package.json"), `{"devDependencies":{"vitest":"latest","vite":"latest"}}`)
+	write(t, filepath.Join(root, "package-lock.json"), "{}\n")
+
+	inv := fallbackInventory("simple-test", "scenario", root)
+	if len(inv.Surfaces) != 1 {
+		t.Fatalf("expected one root surface, got %+v", inv.Surfaces)
+	}
+	surface := inv.Surfaces[0]
+	if surface.ID != "node" || surface.RootPath != root {
+		t.Fatalf("unexpected root surface: %+v", surface)
+	}
+	if surface.Language != "javascript" {
+		t.Errorf("language = %q, want javascript", surface.Language)
+	}
+	if surface.Framework != "vite" {
+		t.Errorf("framework = %q, want vite", surface.Framework)
+	}
+	if surface.PackageManager != "npm" {
+		t.Errorf("package manager = %q, want npm", surface.PackageManager)
+	}
+}
+
 func mkdir(t *testing.T, path string) {
 	t.Helper()
 	if err := os.MkdirAll(path, 0o755); err != nil {

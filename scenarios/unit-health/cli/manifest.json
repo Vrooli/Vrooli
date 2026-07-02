@@ -41,12 +41,12 @@
     {
       "service": "ScenarioValidationService",
       "method": "PreviewFix",
-      "reason": "Unit Health has no deterministic fixer; the shared RPC is mounted only to report unimplemented consistently."
+      "reason": "Shared deterministic fix surface consumed by Test Genie's aggregate fixer; no dedicated unit-health CLI command is exposed yet."
     },
     {
       "service": "ScenarioValidationService",
       "method": "ApplyFix",
-      "reason": "Unit Health has no deterministic fixer; the shared RPC is mounted only to report unimplemented consistently."
+      "reason": "Shared deterministic fix surface consumed by Test Genie's aggregate fixer; no dedicated unit-health CLI command is exposed yet."
     }
   ]
 }

@@ -61,6 +61,78 @@
       "capability_id": "execution_readiness",
       "clean_requirement": "required"
     },
+    "UNIT_POLICY_PROFILE_INVALID": {
+      "local_level_impact": "L0",
+      "global_impact": "foundation_blocker",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": [
+        "test",
+        "unit-testing-architecture-steer"
+      ],
+      "capability_id": "framework_config",
+      "clean_requirement": "required"
+    },
+    "UNIT_REQUIRED_ROLE_MISSING": {
+      "local_level_impact": "L0",
+      "global_impact": "foundation_blocker",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": [
+        "test",
+        "unit-testing-architecture-steer"
+      ],
+      "capability_id": "surface_discovery",
+      "clean_requirement": "required"
+    },
+    "UNIT_SURFACE_UNGOVERNED": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": [
+        "test",
+        "unit-testing-architecture-steer"
+      ],
+      "capability_id": "surface_discovery",
+      "clean_requirement": "required"
+    },
+    "UNIT_POLICY_WEAKENED": {
+      "local_level_impact": "L2",
+      "global_impact": "hardening_gap",
+      "dimension": "coverage",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": [
+        "test",
+        "unit-testing-architecture-steer"
+      ],
+      "capability_id": "framework_config",
+      "clean_requirement": "required"
+    },
+    "UNIT_POLICY_WAIVER_INVALID": {
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": [
+        "test",
+        "unit-testing-architecture-steer"
+      ],
+      "capability_id": "framework_config",
+      "clean_requirement": "required"
+    },
+    "UNIT_POLICY_PROJECTION_DRIFT": {
+      "local_level_impact": "L2",
+      "global_impact": "hardening_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": [
+        "test",
+        "unit-testing-architecture-steer"
+      ],
+      "capability_id": "framework_config",
+      "clean_requirement": "required"
+    },
     "TEST_FRAMEWORK_MISSING": {
       "local_level_impact": "L0",
       "global_impact": "foundation_blocker",

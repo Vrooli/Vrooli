@@ -172,6 +172,48 @@ describe("ScenarioValidationWorkbench", () => {
     expect(flake).toHaveTextContent("deterministic test outcome");
   });
 
+  it("renders policy and projection findings with expected and observed evidence", async () => {
+    const user = userEvent.setup();
+    mocks.validateScenario.mockResolvedValue(
+      makeValidateScenarioResponse({
+        findings: [
+          {
+            id: "policy-projection",
+            scenario: "unit-health",
+            surfaceId: "ui",
+            workspaceId: "ui",
+            language: "typescript",
+            framework: "vitest",
+            code: "UNIT_POLICY_PROJECTION_DRIFT",
+            category: "policy",
+            severity: "error",
+            filePath: "ui/vite.config.ts",
+            message: "Native test configuration drifts from the unit policy profile.",
+            evidence: "coverage.thresholds.lines=70",
+            expected: "coverage thresholds >= 85",
+            observed: "coverage thresholds below policy",
+            whyItMatters: "Template policy cannot be trusted when native config is weaker.",
+            remediation: "Restore V8 coverage thresholds to the policy baseline.",
+            sourceCommand: "unit-health validate scenario demo --json",
+            createdAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+      }),
+    );
+
+    renderWithProviders(<ScenarioValidationWorkbench />);
+    await user.click(screen.getByTestId(selectors.validationWorkbench.runButton));
+
+    const policy = await screen.findByTestId(
+      selectors.validationWorkbench.findingCategory({ category: "policy" }),
+    );
+    expect(policy).toHaveTextContent("UNIT_POLICY_PROJECTION_DRIFT");
+    expect(policy).toHaveTextContent("coverage.thresholds.lines=70");
+    expect(policy).toHaveTextContent("coverage thresholds >= 85");
+    expect(policy).toHaveTextContent("coverage thresholds below policy");
+    expect(policy).toHaveTextContent("Restore V8 coverage thresholds");
+  });
+
   it("renders diagnostics", async () => {
     await runDefault();
     const diagnostics = screen.getByTestId(selectors.validationWorkbench.diagnostics);

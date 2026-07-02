@@ -44,7 +44,7 @@ rungs directly; `maturity-go` maps these semantic impacts to the global ladder.
 | `foundation_blocker` | No reliable test surface / tests don't run at all / no framework. |
 | `safety_blocker` | Tests hang or stall (no-output watchdog), risking the host. |
 | `evolvability_gap` | Noncanonical framework, missing seams/test-utils. |
-| `hardening_gap` | Missing coverage config (an enforced L2 gate). |
+| `hardening_gap` | Missing coverage config, weakened policy, or native projection drift (enforced L2 gates). |
 | `advisory` | All L4/L5 signals: per-file/missing coverage, weak assertions, skipped/render-only tests, missing edge cases, flake, runtime growth, untagged requirements, snapshot overuse, unsupported parse units. These are measured, never gating. |
 
 ## Finding Codes
@@ -59,6 +59,12 @@ fails closed if an unmapped code is emitted).
 | `TEST_EXECUTION_FAILURE` | L1 | foundation_blocker | tests | error |
 | `TEST_DEPENDENCY_MISSING` | L1 | foundation_blocker | tests | error |
 | `TEST_TIMEOUT_HANG` | L1 | safety_blocker | tests | error |
+| `UNIT_POLICY_PROFILE_INVALID` | L0 | foundation_blocker | tests | error |
+| `UNIT_REQUIRED_ROLE_MISSING` | L0 | foundation_blocker | tests | error |
+| `UNIT_SURFACE_UNGOVERNED` | L1 | evolvability_gap | tests | warning |
+| `UNIT_POLICY_WEAKENED` | L2 | hardening_gap | coverage | error |
+| `UNIT_POLICY_WAIVER_INVALID` | L1 | hardening_gap | tests | error |
+| `UNIT_POLICY_PROJECTION_DRIFT` | L2 | hardening_gap | tests | error |
 | `TEST_FRAMEWORK_MISSING` | L2 | foundation_blocker | tests | error |
 | `TEST_FRAMEWORK_NONCANONICAL` | L2 | evolvability_gap | tests | error |
 | `COVERAGE_CONFIG_MISSING` | L2 | hardening_gap | coverage | error |

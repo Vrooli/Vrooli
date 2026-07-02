@@ -11,11 +11,12 @@ import (
 	"strings"
 )
 
-// defaultCoverageThreshold is the advisory per-file coverage gate used when the
-// target scenario declares no coverage gate in `.vrooli/testing.json`. It is a
-// non-zero advisory (operator-chosen): LOW_COVERAGE is L4/advisory in the
-// maturity ladder, so it warns and surfaces under-covered files but never gates
-// maturity. Scenarios raise or lower it via `.vrooli/testing.json`.
+// defaultCoverageThreshold is the advisory per-file coverage gate used when a
+// target has no canonical `unit.policy_profile` coverage floor for a workspace.
+// It is a non-zero advisory (operator-chosen): LOW_COVERAGE is L4/advisory in
+// the maturity ladder, so it warns and surfaces under-covered files but never
+// gates maturity. Template-derived scenarios raise it through policy classes,
+// not through legacy ad hoc coverage keys.
 const defaultCoverageThreshold = 50.0
 
 // maxPerFileCoverageFindings bounds how many per-file LOW_COVERAGE findings a
@@ -23,37 +24,28 @@ const defaultCoverageThreshold = 50.0
 // report; the per-workspace roll-up still reports the true total.
 const maxPerFileCoverageFindings = 25
 
-// testingConfig is the subset of `.vrooli/testing.json` Unit Health reads for a
-// coverage threshold. The schema does not yet standardize a coverage block, so
-// both shapes are accepted and the highest declared threshold wins.
-type testingConfig struct {
-	Coverage struct {
-		ThresholdPercent float64 `json:"threshold_percent"`
-		Threshold        float64 `json:"threshold"`
-	} `json:"coverage"`
-	Unit struct {
-		CoverageThreshold float64 `json:"coverage_threshold"`
-	} `json:"unit"`
-}
-
-// coverageThresholdPercent resolves the per-scenario coverage gate from
-// `.vrooli/testing.json`, defaulting to defaultCoverageThreshold.
-func coverageThresholdPercent(scenarioRoot string) float64 {
-	raw := readFileString(filepath.Join(scenarioRoot, ".vrooli", "testing.json"))
-	if raw == "" {
+// coverageThresholdPercent resolves the coverage gate from the canonical
+// `unit.policy_profile` class that owns the workspace. Old ad hoc coverage
+// keys are intentionally ignored: after the policy-profile cutover, legacy
+// shapes should be migrated instead of silently honored.
+func coverageThresholdPercent(scenarioRoot string, ws Workspace) float64 {
+	profile, _, ok, _ := loadUnitPolicyProfile("", scenarioRoot, "")
+	if !ok {
 		return defaultCoverageThreshold
 	}
-	var cfg testingConfig
-	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
-		return defaultCoverageThreshold
-	}
-	best := defaultCoverageThreshold
-	for _, v := range []float64{cfg.Coverage.ThresholdPercent, cfg.Coverage.Threshold, cfg.Unit.CoverageThreshold} {
-		if v > best {
-			best = v
+	for _, role := range profile.RequiredRoles {
+		class, exists := profile.PolicyClasses[role.PolicyClass]
+		if !exists {
+			continue
+		}
+		if role.Match.Path != "" && pathMatches(role.Match.Path, ws.RootPath, scenarioRoot) {
+			if class.Coverage.MinimumPercent > 0 {
+				return class.Coverage.MinimumPercent
+			}
+			return defaultCoverageThreshold
 		}
 	}
-	return best
+	return defaultCoverageThreshold
 }
 
 // fileCoverage accumulates covered/total units for one file.
@@ -73,11 +65,11 @@ func (f fileCoverage) percent() float64 {
 // turns them into per-file CoverageTargets plus LOW_COVERAGE/COVERAGE_ABSENT
 // findings. It runs only after execution, so artifacts are fresh.
 func analyzeCoverage(scenario, scenarioRoot string, workspaces []Workspace, now string) ([]CoverageTarget, []Finding) {
-	threshold := coverageThresholdPercent(scenarioRoot)
 	var targets []CoverageTarget
 	var findings []Finding
 
 	for _, ws := range workspaces {
+		threshold := coverageThresholdPercent(scenarioRoot, ws)
 		if ws.CoverageCommand == "" {
 			// Coverage was not part of the plan for this workspace; the missing
 			// coverage config is already reported by the planner.

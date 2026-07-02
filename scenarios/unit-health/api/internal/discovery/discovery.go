@@ -199,6 +199,7 @@ func fromCodeFacts(report *factsv1.CodeFactsReport, scenarioName, targetKind, ro
 
 func fallbackInventory(scenarioName, targetKind, rootPath string) Inventory {
 	inv := Inventory{Scenario: scenarioName, TargetKind: targetKind, RootPath: rootPath}
+	hasNestedSurface := false
 	for _, spec := range []struct {
 		id   string
 		kind string
@@ -210,6 +211,7 @@ func fallbackInventory(scenarioName, targetKind, rootPath string) Inventory {
 	} {
 		dir := filepath.Join(rootPath, spec.dir)
 		if st, err := os.Stat(dir); err == nil && st.IsDir() {
+			hasNestedSurface = true
 			inv.Surfaces = append(inv.Surfaces, Surface{
 				ID:             spec.id,
 				Kind:           spec.kind,
@@ -217,6 +219,30 @@ func fallbackInventory(scenarioName, targetKind, rootPath string) Inventory {
 				Framework:      frameworkFromRoot(dir),
 				RootPath:       dir,
 				PackageManager: packageManagerFromRoot(dir),
+				Status:         "known",
+				Confidence:     0.4,
+			})
+		}
+	}
+	if !hasNestedSurface {
+		switch {
+		case exists(filepath.Join(rootPath, "go.mod")):
+			inv.Surfaces = append(inv.Surfaces, Surface{
+				ID:         "go",
+				Kind:       "api",
+				Language:   "go",
+				RootPath:   rootPath,
+				Status:     "known",
+				Confidence: 0.4,
+			})
+		case exists(filepath.Join(rootPath, "package.json")):
+			inv.Surfaces = append(inv.Surfaces, Surface{
+				ID:             "node",
+				Kind:           "ui",
+				Language:       languageFromRoot(rootPath),
+				Framework:      frameworkFromRoot(rootPath),
+				RootPath:       rootPath,
+				PackageManager: packageManagerFromRoot(rootPath),
 				Status:         "known",
 				Confidence:     0.4,
 			})

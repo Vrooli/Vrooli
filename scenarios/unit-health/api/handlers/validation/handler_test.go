@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -73,7 +74,7 @@ func TestResponseToProtoMapsFields(t *testing.T) {
 		Workspaces: []internalvalidation.Workspace{{ID: "api", Language: "go"}},
 		Coverage:   []internalvalidation.CoverageTarget{{ID: "api:a.go", FilePath: "a.go", CoveragePercent: 80}},
 		Findings: []internalvalidation.Finding{
-			{Code: "TEST_NO_ASSERTION", Severity: "warning", Message: "m"},
+			{Code: "TEST_NO_ASSERTION", Severity: "warning", Message: "m", Evidence: "role=ui policy_class=react_vite_ui", Expected: "coverage thresholds >= 85", Observed: "coverage thresholds below policy", Remediation: "Restore the template policy projection."},
 			{Code: "LOW_COVERAGE", Severity: "warning", Message: "c"},
 		},
 		Maturity: internalvalidation.Maturity{Rung: 5, Label: "L5"},
@@ -94,6 +95,13 @@ func TestResponseToProtoMapsFields(t *testing.T) {
 	}
 	if len(out.GetFindings()) != 2 || len(out.GetSurfaces()) != 1 || len(out.GetWorkspaces()) != 1 {
 		t.Errorf("collections not mapped: findings=%d surfaces=%d", len(out.GetFindings()), len(out.GetSurfaces()))
+	}
+	firstFinding := out.GetFindings()[0]
+	if firstFinding.GetEvidence() != "role=ui policy_class=react_vite_ui" ||
+		firstFinding.GetExpected() != "coverage thresholds >= 85" ||
+		firstFinding.GetObserved() != "coverage thresholds below policy" ||
+		firstFinding.GetRemediation() != "Restore the template policy projection." {
+		t.Fatalf("rich finding fields not mapped: %+v", firstFinding)
 	}
 	if out.GetAssessment() == nil {
 		t.Error("maturity assessment must be built")
@@ -192,6 +200,149 @@ func TestValidateScenarioAttachesMetrics(t *testing.T) {
 	}
 	if env.GetNumCpu() != int32(runtime.NumCPU()) {
 		t.Fatalf("env num_cpu = %d, want %d", env.GetNumCpu(), runtime.NumCPU())
+	}
+}
+
+func TestValidateScenarioPacksNativeDetail(t *testing.T) {
+	h := sharedHandlerWith(t)
+	resp, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "demo"}))
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	detail := resp.Msg.GetNativeDetail()
+	if detail == nil {
+		t.Fatal("native_detail must be packed in the shared response")
+	}
+	native := &validationv1.ValidateScenarioResponse{}
+	if err := detail.UnmarshalTo(native); err != nil {
+		t.Fatalf("native_detail unmarshal failed: %v", err)
+	}
+	if native.GetScenario() != "demo" {
+		t.Fatalf("native scenario = %q, want demo", native.GetScenario())
+	}
+	if native.GetAssessment() == nil {
+		t.Fatal("native assessment must remain available beside rich findings")
+	}
+	if len(native.GetFindings()) != 0 {
+		t.Fatalf("expected clean fake scenario to have no native findings, got %d", len(native.GetFindings()))
+	}
+}
+
+func TestPreviewFixReportsDeterministicCandidatesWithoutWriting(t *testing.T) {
+	root := seedFixTarget(t)
+	h := NewSharedHandler(NewHandlerWithDeps(Deps{MaturitySpec: testSpec(t)}))
+
+	resp, err := h.PreviewFix(context.Background(), connect.NewRequest(&scenariovalidationv1.FixRequest{
+		Scenario: "demo",
+		Path:     root,
+	}))
+	if err != nil {
+		t.Fatalf("PreviewFix: %v", err)
+	}
+	if resp.Msg.GetApplied() {
+		t.Fatal("preview must not mark response applied")
+	}
+	if len(resp.Msg.GetCandidates()) != 3 {
+		t.Fatalf("candidate count = %d, want 3: %+v", len(resp.Msg.GetCandidates()), resp.Msg.GetCandidates())
+	}
+	vitePath := filepath.Join(root, "ui", "vite.config.ts")
+	got, err := os.ReadFile(vitePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(got), "setupFiles") || strings.Contains(string(got), "branches: 85") {
+		t.Fatalf("preview wrote vite config:\n%s", got)
+	}
+}
+
+func TestApplyFixWritesDeterministicCandidates(t *testing.T) {
+	root := seedFixTarget(t)
+	h := NewSharedHandler(NewHandlerWithDeps(Deps{MaturitySpec: testSpec(t)}))
+
+	resp, err := h.ApplyFix(context.Background(), connect.NewRequest(&scenariovalidationv1.FixRequest{
+		Scenario: "demo",
+		Path:     root,
+		RuleIds:  []string{"UNIT_POLICY_PROJECTION_DRIFT"},
+	}))
+	if err != nil {
+		t.Fatalf("ApplyFix: %v", err)
+	}
+	if !resp.Msg.GetApplied() {
+		t.Fatal("apply must mark response applied")
+	}
+	if len(resp.Msg.GetCandidates()) != 2 {
+		t.Fatalf("candidate count = %d, want 2", len(resp.Msg.GetCandidates()))
+	}
+	for _, c := range resp.Msg.GetCandidates() {
+		if !c.GetApplied() {
+			t.Fatalf("candidate not marked applied: %+v", c)
+		}
+	}
+	vite, err := os.ReadFile(filepath.Join(root, "ui", "vite.config.ts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(vite), "setupFiles: ['./src/test-setup.ts']") || !strings.Contains(string(vite), "branches: 85") {
+		t.Fatalf("vite config not repaired:\n%s", vite)
+	}
+	pkg, err := os.ReadFile(filepath.Join(root, "ui", "package.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(pkg), `"test": "vitest run"`) || !strings.Contains(string(pkg), `"test:coverage": "vitest run --coverage"`) {
+		t.Fatalf("package scripts not repaired:\n%s", pkg)
+	}
+}
+
+func seedFixTarget(t *testing.T) string {
+	t.Helper()
+	repo := t.TempDir()
+	writeHandlerFile(t, filepath.Join(repo, "scenarios", "test-genie", "schemas", "testing.schema.json"), "{}\n")
+	root := filepath.Join(repo, "scenarios", "demo")
+	writeHandlerFile(t, filepath.Join(root, ".vrooli", "testing.json"), `{
+  "$schema": "../../../../scripts/scenarios/testing/schemas/testing.schema.json",
+  "unit": {
+    "policy_profile": {
+      "version": "1.0.0",
+      "template": {"id": "react-vite", "scenario_class": "react-vite"},
+      "required_roles": [{"role": "ui", "policy_class": "react_vite_ui"}],
+      "policy_classes": {"react_vite_ui": {"language": "typescript", "framework": "vitest"}},
+      "customization": {"mode": "monotonic", "waivers": []}
+    }
+  }
+}`)
+	writeHandlerFile(t, filepath.Join(root, "ui", "package.json"), `{
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.0"
+  }
+}`)
+	writeHandlerFile(t, filepath.Join(root, "ui", "vite.config.ts"), `export default {
+  test: {
+    environment: 'jsdom',
+    coverage: {
+      thresholds: {
+        lines: 85,
+        functions: 85,
+        branches: 70,
+        statements: 85,
+      },
+    },
+  },
+};
+`)
+	return root
+}
+
+func writeHandlerFile(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }
 

@@ -118,27 +118,30 @@
       "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
       "method": "POST",
       "summary": "Preview unit validation fixes",
-      "description": "Returns unimplemented because Unit Health currently has no deterministic fixer.",
+      "description": "Previews deterministic low-risk Unit Health config/projection fixes without writing files.",
       "category": "validation",
       "request": {
         "type": "object",
         "properties": {
-          "finding_code": "string",
+          "path": "string",
+          "rule_ids": "string[]",
           "scenario": "string"
         }
       },
       "response": {
         "type": "object",
         "properties": {
-          "message": "string",
-          "status": "string"
+          "applied": "bool",
+          "candidates": "scenario_validation.v1.FixCandidate[]",
+          "messages": "string[]",
+          "scenario": "string"
         }
       },
       "errors": [
         {
-          "status": 501,
-          "code": "unimplemented",
-          "description": "Unit Health has no deterministic fixer"
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
         }
       ]
     },
@@ -147,27 +150,35 @@
       "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
       "method": "POST",
       "summary": "Apply unit validation fixes",
-      "description": "Returns unimplemented because Unit Health currently has no deterministic fixer.",
+      "description": "Applies deterministic low-risk Unit Health config/projection fixes with before-write drift checks.",
       "category": "validation",
       "request": {
         "type": "object",
         "properties": {
-          "finding_code": "string",
+          "path": "string",
+          "rule_ids": "string[]",
           "scenario": "string"
         }
       },
       "response": {
         "type": "object",
         "properties": {
-          "message": "string",
-          "status": "string"
+          "applied": "bool",
+          "candidates": "scenario_validation.v1.FixCandidate[]",
+          "messages": "string[]",
+          "scenario": "string"
         }
       },
       "errors": [
         {
-          "status": 501,
-          "code": "unimplemented",
-          "description": "Unit Health has no deterministic fixer"
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "A target file changed before the fix could be applied"
         }
       ]
     }

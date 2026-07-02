@@ -32,6 +32,7 @@ func analyzeArchitecture(scenario string, workspaces []Workspace, now string) []
 type goWorkspaceScan struct {
 	testFiles      int
 	hasTestUtilPkg bool
+	hasImportBan   bool
 	seamBypass     map[string]bool // seam category -> production bypasses it (AST)
 	seamDeclared   map[string]bool // seam category -> a seam interface/pkg exists
 	prodHelperUses []helperImport
@@ -57,6 +58,9 @@ func analyzeGoArchitecture(scenario string, ws Workspace, now string) []Finding 
 		switch {
 		case isGoTestFile(path):
 			scan.testFiles++
+			if filepath.Base(path) == "no_prod_import_test.go" {
+				scan.hasImportBan = true
+			}
 			// A Go test file living under a directory named tests/ or test/ is
 			// not co-located with its package.
 			parent := filepath.Base(filepath.Dir(path))
@@ -124,6 +128,18 @@ func analyzeGoArchitecture(scenario string, ws Workspace, now string) []Finding 
 			"no shared test-utility package",
 			"Without shared test utilities, setup is duplicated across tests and fakes drift out of sync.",
 			"Extract shared fixtures/fakes into an internal/testutil package.",
+		))
+	}
+
+	if scan.hasTestUtilPkg && !scan.hasImportBan {
+		findings = append(findings, projectionFinding(scenario, ws, ws.RootPath,
+			"Go testutil projection is missing the production import-ban meta-test.",
+			"testutil package present; no no_prod_import_test.go found",
+			"api/cli workspaces with testutil include no_prod_import_test.go or an equivalent AST guard.",
+			"missing production import-ban test",
+			"Without a native import-ban projection, production code can accidentally ship test-only helpers.",
+			"Add internal/testutil/no_prod_import_test.go to walk non-test Go files and reject imports from internal/testutil.",
+			now,
 		))
 	}
 
@@ -340,6 +356,7 @@ func relTo(base, path string) string {
 func analyzeTSArchitecture(scenario string, ws Workspace, now string) []Finding {
 	var testFiles int
 	var hasTestUtils bool
+	var hasRenderHelper bool
 	rogue := map[string]bool{}
 
 	walkSourceFiles(ws.RootPath, func(path string) {
@@ -356,6 +373,9 @@ func analyzeTSArchitecture(scenario string, ws Workspace, now string) []Finding 
 		dir := filepath.Base(filepath.Dir(path))
 		if dir == "test-utils" || dir == "test-util" || strings.HasPrefix(base, "setupTests.") || strings.HasPrefix(base, "test-utils.") {
 			hasTestUtils = true
+		}
+		if strings.HasPrefix(base, "renderWithProviders.") && filepath.Base(filepath.Dir(path)) == "test-utils" {
+			hasRenderHelper = true
 		}
 	})
 
@@ -391,6 +411,20 @@ func analyzeTSArchitecture(scenario string, ws Workspace, now string) []Finding 
 		))
 	}
 
+	if hasTestUtils && !hasRenderHelper {
+		findings = append(findings, projectionFinding(scenario, ws, filepath.Join(ws.RootPath, "src", "test-utils"),
+			"UI test-utils projection is missing the canonical render helper.",
+			"src/test-utils exists; no renderWithProviders helper found",
+			"src/test-utils/renderWithProviders.tsx exports the canonical provider-aware render helper.",
+			"missing renderWithProviders helper",
+			"Component tests need one provider-aware render path so QueryClient, i18n, router, and theme setup do not drift.",
+			"Add src/test-utils/renderWithProviders.tsx and re-export it from src/test-utils/index.ts.",
+			now,
+		))
+	}
+
+	findings = append(findings, analyzeVitestProjection(scenario, ws, now)...)
+
 	if len(rogue) > 0 {
 		dirs := make([]string, 0, len(rogue))
 		for d := range rogue {
@@ -408,4 +442,166 @@ func analyzeTSArchitecture(scenario string, ws Workspace, now string) []Finding 
 	}
 
 	return findings
+}
+
+func projectionFinding(scenario string, ws Workspace, file, message, evidence, expected, observed, why, remediation, now string) Finding {
+	return Finding{
+		ID:           codeUnitProjectionDrift + "-" + ws.ID + "-" + fileSlug(observed),
+		Scenario:     scenario,
+		WorkspaceID:  ws.ID,
+		Language:     ws.Language,
+		Framework:    ws.Framework,
+		Code:         codeUnitProjectionDrift,
+		Category:     "projection",
+		Severity:     codeSeverity[codeUnitProjectionDrift],
+		FilePath:     file,
+		Message:      message,
+		Evidence:     evidence,
+		Expected:     expected,
+		Observed:     observed,
+		WhyItMatters: why,
+		Remediation:  remediation,
+		CreatedAt:    now,
+	}
+}
+
+type viteProjection struct {
+	hasVitestConfig  bool
+	hasJSDOM         bool
+	hasSetupFiles    bool
+	hasV8Provider    bool
+	hasJSONSummary   bool
+	hasCoverageJSON  bool
+	thresholds       map[string]float64
+	hasImportBanRule bool
+}
+
+func analyzeVitestProjection(scenario string, ws Workspace, now string) []Finding {
+	if !fileExists(filepath.Join(ws.RootPath, "vite.config.ts")) && !fileExists(filepath.Join(ws.RootPath, "vite.config.js")) {
+		return nil
+	}
+
+	manifest, _ := loadNodeManifest(ws.RootPath)
+	cfg := readFileString(filepath.Join(ws.RootPath, "vite.config.ts"))
+	if cfg == "" {
+		cfg = readFileString(filepath.Join(ws.RootPath, "vite.config.js"))
+	}
+	eslint := readFileString(filepath.Join(ws.RootPath, "eslint.config.js"))
+	proj := parseViteProjection(cfg, eslint)
+
+	var findings []Finding
+	add := func(file, message, evidence, expected, observed, remediation string) {
+		findings = append(findings, projectionFinding(scenario, ws, file, message, evidence, expected, observed,
+			"Native config has to project the declared unit policy so scenario-local edits cannot silently weaken the test contract.",
+			remediation, now))
+	}
+
+	pkgPath := filepath.Join(ws.RootPath, "package.json")
+	vitePath := filepath.Join(ws.RootPath, "vite.config.ts")
+	if !manifest.hasDep("vitest") {
+		add(pkgPath,
+			"UI policy projection is missing the Vitest dependency.",
+			"vitest dependency not found",
+			"package.json declares vitest as the React/Vite unit-test runner.",
+			"missing vitest dependency",
+			"Add vitest through Scenario Dependency Analyzer and keep the test scripts on Vitest.")
+	}
+	if !manifest.hasScript("test") || !strings.Contains(manifest.Scripts["test"], "vitest") {
+		add(pkgPath,
+			"UI policy projection is missing a Vitest test script.",
+			fmt.Sprintf("test=%q", manifest.Scripts["test"]),
+			"package.json scripts.test runs vitest.",
+			"missing or non-Vitest test script",
+			"Set scripts.test to a Vitest command such as \"vitest run\".")
+	}
+	if !manifest.hasScript("test:coverage") || !strings.Contains(manifest.Scripts["test:coverage"], "coverage") {
+		add(pkgPath,
+			"UI policy projection is missing a coverage test script.",
+			fmt.Sprintf("test:coverage=%q", manifest.Scripts["test:coverage"]),
+			"package.json scripts.test:coverage runs Vitest coverage.",
+			"missing coverage script",
+			"Set scripts.test:coverage to a Vitest coverage command.")
+	}
+	if !proj.hasVitestConfig {
+		add(vitePath, "UI policy projection is missing the Vite test block.", "no test: block detected", "vite.config declares a test block.", "missing Vitest config", "Add test configuration to vite.config.")
+	}
+	if !proj.hasJSDOM {
+		add(vitePath, "UI policy projection is missing jsdom test environment.", "environment=jsdom not detected", "Vitest test.environment is jsdom.", "missing jsdom environment", "Set test.environment to \"jsdom\".")
+	}
+	if !proj.hasSetupFiles {
+		add(vitePath, "UI policy projection is missing setupFiles registration.", "src/test-setup not registered", "Vitest setupFiles includes src/test-setup.ts.", "missing setupFiles", "Register ./src/test-setup.ts in test.setupFiles.")
+	}
+	if !proj.hasV8Provider {
+		add(vitePath, "UI policy projection is missing V8 coverage provider.", "coverage.provider=v8 not detected", "Vitest coverage.provider is v8.", "missing V8 coverage provider", "Set coverage.provider to \"v8\".")
+	}
+	if !proj.hasJSONSummary || !proj.hasCoverageJSON {
+		add(vitePath, "UI policy projection is missing coverage reporters.", "json-summary/json reporters not both detected", "Coverage reporters include json-summary and json.", "missing coverage reporters", "Include json-summary and json in coverage.reporter.")
+	}
+	for _, key := range []string{"lines", "functions", "branches", "statements"} {
+		if v, ok := proj.thresholds[key]; !ok || v < 85 {
+			add(vitePath,
+				"UI policy projection weakens Vitest coverage thresholds.",
+				fmt.Sprintf("%s=%.1f", key, v),
+				"Vitest coverage thresholds are at least 85 for lines, functions, branches, and statements.",
+				"coverage threshold below policy",
+				"Restore the threshold to 85 or higher.")
+		}
+	}
+	if !proj.hasImportBanRule {
+		add(filepath.Join(ws.RootPath, "eslint.config.js"),
+			"UI policy projection is missing the production import ban for test helpers.",
+			"no-restricted-imports/test-utils pattern not detected",
+			"ESLint forbids production imports from src/test-utils and feature mocks.",
+			"missing production import ban",
+			"Restore the no-restricted-imports patterns for test-utils and feature mocks.")
+	}
+	return findings
+}
+
+func parseViteProjection(cfg, eslint string) viteProjection {
+	p := viteProjection{thresholds: map[string]float64{}}
+	p.hasVitestConfig = strings.Contains(cfg, "test:")
+	p.hasJSDOM = containsQuoted(cfg, "jsdom")
+	p.hasSetupFiles = strings.Contains(cfg, "setupFiles") && strings.Contains(cfg, "src/test-setup")
+	p.hasV8Provider = strings.Contains(cfg, "provider") && containsQuoted(cfg, "v8")
+	p.hasJSONSummary = containsQuoted(cfg, "json-summary")
+	p.hasCoverageJSON = containsQuoted(cfg, "json")
+	for _, key := range []string{"lines", "functions", "branches", "statements"} {
+		if v, ok := numberAfterKey(cfg, key); ok {
+			p.thresholds[key] = v
+		}
+	}
+	p.hasImportBanRule = strings.Contains(eslint, "no-restricted-imports") &&
+		strings.Contains(eslint, "test-utils") &&
+		strings.Contains(eslint, "features/*/mocks")
+	return p
+}
+
+func containsQuoted(s, value string) bool {
+	return strings.Contains(s, `"`+value+`"`) || strings.Contains(s, `'`+value+`'`)
+}
+
+func numberAfterKey(s, key string) (float64, bool) {
+	i := strings.Index(s, key)
+	if i < 0 {
+		return 0, false
+	}
+	rest := s[i+len(key):]
+	colon := strings.Index(rest, ":")
+	if colon < 0 {
+		return 0, false
+	}
+	rest = strings.TrimSpace(rest[colon+1:])
+	end := 0
+	for end < len(rest) && ((rest[end] >= '0' && rest[end] <= '9') || rest[end] == '.') {
+		end++
+	}
+	if end == 0 {
+		return 0, false
+	}
+	var v float64
+	if _, err := fmt.Sscanf(rest[:end], "%f", &v); err != nil {
+		return 0, false
+	}
+	return v, true
 }

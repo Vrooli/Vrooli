@@ -15,32 +15,44 @@ import (
 // Unit Health finding codes. These are the contract between the engine and
 // `.vrooli/maturity.json`; every code emitted here has a mapping there.
 const (
-	codeTestSurfaceAbsent      = "TEST_SURFACE_ABSENT"
-	codeUnsupportedParseUnit   = "UNSUPPORTED_PARSE_UNIT"
-	codeTestFrameworkMissing   = "TEST_FRAMEWORK_MISSING"
-	codeTestFrameworkNoncanon  = "TEST_FRAMEWORK_NONCANONICAL"
-	codeCoverageConfigMissing  = "COVERAGE_CONFIG_MISSING"
-	codePackageManagerMismatch = "PACKAGE_MANAGER_MISMATCH"
-	codeTestMisconfiguration   = "TEST_MISCONFIGURATION"
-	codeTestExecutionFailure   = "TEST_EXECUTION_FAILURE"
-	codeTestDependencyMissing  = "TEST_DEPENDENCY_MISSING"
-	codeTestTimeoutHang        = "TEST_TIMEOUT_HANG"
+	codeTestSurfaceAbsent       = "TEST_SURFACE_ABSENT"
+	codeUnsupportedParseUnit    = "UNSUPPORTED_PARSE_UNIT"
+	codeTestFrameworkMissing    = "TEST_FRAMEWORK_MISSING"
+	codeTestFrameworkNoncanon   = "TEST_FRAMEWORK_NONCANONICAL"
+	codeCoverageConfigMissing   = "COVERAGE_CONFIG_MISSING"
+	codePackageManagerMismatch  = "PACKAGE_MANAGER_MISMATCH"
+	codeTestMisconfiguration    = "TEST_MISCONFIGURATION"
+	codeTestExecutionFailure    = "TEST_EXECUTION_FAILURE"
+	codeTestDependencyMissing   = "TEST_DEPENDENCY_MISSING"
+	codeTestTimeoutHang         = "TEST_TIMEOUT_HANG"
+	codeUnitPolicyInvalid       = "UNIT_POLICY_PROFILE_INVALID"
+	codeUnitRequiredRoleMissing = "UNIT_REQUIRED_ROLE_MISSING"
+	codeUnitSurfaceUngoverned   = "UNIT_SURFACE_UNGOVERNED"
+	codeUnitPolicyWeakened      = "UNIT_POLICY_WEAKENED"
+	codeUnitWaiverInvalid       = "UNIT_POLICY_WAIVER_INVALID"
+	codeUnitProjectionDrift     = "UNIT_POLICY_PROJECTION_DRIFT"
 )
 
 // codeSeverity mirrors the severity_default of each code in
 // `.vrooli/maturity.json`. Findings carry their own severity so renderers and
 // counts do not need the spec; the maturity assessor cross-checks the mapping.
 var codeSeverity = map[string]string{
-	codeTestSurfaceAbsent:      "error",
-	codeUnsupportedParseUnit:   "info",
-	codeTestFrameworkMissing:   "error",
-	codeTestFrameworkNoncanon:  "error",
-	codeCoverageConfigMissing:  "error",
-	codePackageManagerMismatch: "warning",
-	codeTestMisconfiguration:   "warning",
-	codeTestExecutionFailure:   "error",
-	codeTestDependencyMissing:  "error",
-	codeTestTimeoutHang:        "error",
+	codeTestSurfaceAbsent:       "error",
+	codeUnsupportedParseUnit:    "info",
+	codeTestFrameworkMissing:    "error",
+	codeTestFrameworkNoncanon:   "error",
+	codeCoverageConfigMissing:   "error",
+	codePackageManagerMismatch:  "warning",
+	codeTestMisconfiguration:    "warning",
+	codeTestExecutionFailure:    "error",
+	codeTestDependencyMissing:   "error",
+	codeTestTimeoutHang:         "error",
+	codeUnitPolicyInvalid:       "error",
+	codeUnitRequiredRoleMissing: "error",
+	codeUnitSurfaceUngoverned:   "warning",
+	codeUnitPolicyWeakened:      "error",
+	codeUnitWaiverInvalid:       "error",
+	codeUnitProjectionDrift:     "error",
 
 	// Phase 5 analyzer codes (coverage, architecture, quality, diagnostics).
 	codeLowCoverage:             "warning",
@@ -103,7 +115,7 @@ func buildPlan(scenario string, inv discovery.Inventory, now string) ([]Surface,
 		})
 	}
 
-	var findings []Finding
+	findings := resolveUnitPolicyFindings(scenario, inv, now)
 	if len(inv.Surfaces) == 0 {
 		reason := inv.DegradedReason
 		if reason == "" {

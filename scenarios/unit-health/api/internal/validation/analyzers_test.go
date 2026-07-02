@@ -28,7 +28,11 @@ func TestAnalyzeCoverageGoProfile(t *testing.T) {
 		"mod/a.go:1.1,3.2 2 1\n"+
 		"mod/a.go:4.1,5.2 1 0\n"+
 		"mod/b.go:1.1,2.2 1 5\n")
-	writeFile(t, filepath.Join(root, ".vrooli", "testing.json"), `{"coverage":{"threshold_percent":80}}`)
+	profile := reactViteUnitPolicyProfile()
+	api := profile.PolicyClasses["go_service"]
+	api.Coverage.MinimumPercent = 80
+	profile.PolicyClasses["go_service"] = api
+	writeUnitPolicyProfile(t, root, profile)
 
 	ws := Workspace{ID: "api", Language: "go", RootPath: wsDir, CoverageCommand: "go test -cover ./..."}
 	targets, findings := analyzeCoverage("demo", root, []Workspace{ws}, fixedNowStr)
@@ -61,7 +65,7 @@ func TestAnalyzeCoverageVitestSummary(t *testing.T) {
 	if len(targets) != 1 || targets[0].CoveragePercent != 90 {
 		t.Fatalf("expected one 90%% target, got %+v", targets)
 	}
-	// No threshold set => no LOW_COVERAGE.
+	// The default threshold is 50%, so a 90% target is clean.
 	if _, ok := findingByCode(findings, codeLowCoverage); ok {
 		t.Errorf("did not expect LOW_COVERAGE without a threshold")
 	}
@@ -119,6 +123,37 @@ func TestAnalyzeArchitectureTestUtilMissing(t *testing.T) {
 	findings := analyzeArchitecture("demo", []Workspace{ws}, fixedNowStr)
 	if _, ok := findingByCode(findings, codeTestUtilMissing); !ok {
 		t.Errorf("expected TEST_UTIL_MISSING, got %v", codes(findings))
+	}
+}
+
+func TestAnalyzeArchitectureGoProjectionDriftMissingImportBan(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
+	writeFile(t, filepath.Join(root, "internal", "testutil", "testutil.go"), "package testutil\n")
+	writeFile(t, filepath.Join(root, "a_test.go"), "package demo\n\nimport \"testing\"\n\nfunc TestA(t *testing.T) { t.Fatal(\"x\") }\n")
+
+	ws := Workspace{ID: "api", Language: "go", RootPath: root}
+	findings := analyzeArchitecture("demo", []Workspace{ws}, fixedNowStr)
+	f, ok := findingByCode(findings, codeUnitProjectionDrift)
+	if !ok {
+		t.Fatalf("expected UNIT_POLICY_PROJECTION_DRIFT, got %v", codes(findings))
+	}
+	if f.Observed != "missing production import-ban test" {
+		t.Fatalf("unexpected projection finding: %+v", f)
+	}
+}
+
+func TestAnalyzeArchitectureGoProjectionCleanWithImportBan(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
+	writeFile(t, filepath.Join(root, "internal", "testutil", "testutil.go"), "package testutil\n")
+	writeFile(t, filepath.Join(root, "internal", "testutil", "no_prod_import_test.go"), "package testutil_test\n\nimport \"testing\"\n\nfunc TestNoProductionImports(t *testing.T) {}\n")
+	writeFile(t, filepath.Join(root, "a_test.go"), "package demo\n\nimport \"testing\"\n\nfunc TestA(t *testing.T) { t.Fatal(\"x\") }\n")
+
+	ws := Workspace{ID: "api", Language: "go", RootPath: root}
+	findings := analyzeArchitecture("demo", []Workspace{ws}, fixedNowStr)
+	if _, ok := findingByCode(findings, codeUnitProjectionDrift); ok {
+		t.Fatalf("canonical Go projection should be clean, got %+v", findings)
 	}
 }
 
