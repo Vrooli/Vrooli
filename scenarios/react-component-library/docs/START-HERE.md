@@ -60,7 +60,7 @@ passes the template test lifecycle.
 ### Gate 1 — Charter
 
 Do not hand-write the final `PRD.md` when AI generation is available.
-Use `prd-control-tower` as the canonical PRD authoring path so the file
+Drive the `business-health` wizard as the canonical PRD authoring path so the file
 matches the Vrooli PRD standard and can drive requirement generation.
 
 - [ ] Write a brief context file for the scenario:
@@ -105,7 +105,7 @@ EOF
 - [ ] Generate and publish the PRD:
 
 ```bash
-prd-control-tower prd generate react-component-library \
+business-health wizard start  # (was: prd generate) react-component-library \
   --context-file /tmp/prd_context_react-component-library.md \
   --publish \
   --json
@@ -114,7 +114,7 @@ prd-control-tower prd generate react-component-library \
 - [ ] Validate the PRD:
 
 ```bash
-prd-control-tower prd validate react-component-library --json
+vrooli scenario requirements validate react-component-library --json
 ```
 
 - [ ] Read the published `PRD.md` and confirm it captures the intended
@@ -160,7 +160,7 @@ EOF
 - [ ] Generate requirements:
 
 ```bash
-prd-control-tower requirements generate react-component-library \
+business-health wizard apply  # (was: requirements generate) react-component-library \
   --context-file /tmp/requirements_context_react-component-library.md \
   --json
 ```
@@ -168,7 +168,7 @@ prd-control-tower requirements generate react-component-library \
 - [ ] Validate requirements:
 
 ```bash
-prd-control-tower requirements validate react-component-library --json
+vrooli scenario requirements validate react-component-library --json
 ```
 
 - [ ] Confirm `requirements/index.json` imports real numbered

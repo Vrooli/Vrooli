@@ -26,13 +26,13 @@ requirement's `prd_ref` / `criticality`).
 ## Validation Commands
 ```bash
 # Validate the requirements registry (structure + PRD-target linkage)
-prd-control-tower requirements validate structure-health
+vrooli scenario requirements validate structure-health
 
 # Validate the PRD itself
-prd-control-tower prd validate structure-health
+vrooli scenario requirements validate structure-health
 
 # Regenerate requirement modules from the PRD (only when re-deriving from targets)
-prd-control-tower requirements generate structure-health
+business-health wizard apply  # (was: requirements generate) structure-health
 
 # Run the full suite (auto-syncs requirement statuses from [REQ:ID]-tagged tests)
 vrooli scenario test structure-health

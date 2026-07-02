@@ -11,7 +11,7 @@ The cross-cutting model these domains share — the attestation contract, the en
 | Domain | Responsibility | Operational targets |
 |--------|----------------|---------------------|
 | **coverage** | Read each projection's denominator (via the owner's `space --projection` verb) joined against the live registries; compute per-projection coverage + denominator-confidence; validate base-document integrity; synthesize the readiness scoreboard. | OT-P0-001, OT-P0-004, OT-P2-002 |
-| **convergence** | Measure the upstream generators: per-template fitness counts, gold-star reference health/staleness, and the convergence trend. Surfaces numbers + candidates only. | OT-P1-002 |
+| **convergence** | Measure the upstream generators: per-template fitness counts, gold-star generated-golden health/staleness, and the convergence trend. Surfaces numbers + candidates only. | OT-P1-002 |
 | **focus** | Maintain the gaps registry (qualitative notes/approaches) and rank gaps by impact × importance across all projections + convergence. | OT-P0-002, OT-P0-003 |
 | **trials** | Run the empirical local-model gate via agent-manager's sandboxed runner, evaluate the diff against a fixture oracle, record success/tokens/time history; track Guide-gate coverage. | OT-P1-001 |
 
@@ -28,7 +28,7 @@ The cross-cutting model these domains share — the attestation contract, the en
 
 ### convergence
 - **Owns**: a cached fitness-audit index (per-template counts + per-reference health verdicts + dated trend points).
-- **Proto operations**: `GetConvergenceStatus` (fitness + reference-health summary across all templates), `GetTemplateFitness` (per-replica cost, drift-surface count, comment-only-contract count, coordinated-edit count + tier), `ListReferences` (gold-star reference health/eligibility: stale-from-template, clean-on-all-tools, ≥60d stability, breadth), `GetConvergenceTrend` (per-replica-cost / coordinated-edit over dated fitness-audit records).
+- **Proto operations**: `GetConvergenceStatus` (fitness + generated-golden health summary across all templates), `GetTemplateFitness` (per-replica cost, drift-surface count, comment-only-contract count, coordinated-edit count + tier), `ListReferences` (gold-star generated-golden health/eligibility: stale-from-template, clean-on-all-tools, ≥60d stability, breadth), `GetConvergenceTrend` (per-replica-cost / coordinated-edit over dated fitness-audit records).
 - **API behavior**: compute fitness counts (delegating raw code structure to code-facts / architecture-cartographer; the add/delete coordinated-edit walkthrough is the one genuinely new mechanization); read toolchain-clean results from test-genie / scenario-auditor; never re-run the toolchain. Surface numbers + flag candidates; tiering/substrate/nomination stay agentic.
 - **CLI**: `convergence status [--json]`, `convergence fitness [--template] [--json]`, `convergence references [--eligibility] [--json]`, `convergence trend [--template] [--json]`.
 - **UI**: the convergence-trend panel (P2).

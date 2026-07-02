@@ -133,8 +133,10 @@ describe("VoiceStreamProvider empty-result contract", () => {
     const provider = new VoiceStreamProvider();
     const onResult = vi.fn();
     const onError = vi.fn();
+    const statuses: string[] = [];
     provider.onResult = onResult;
     provider.onError = onError;
+    provider.onStatus = (status) => statuses.push(status.code);
 
     await provider.start();
     await vi.advanceTimersByTimeAsync(0); // flush the WS onopen microtask
@@ -146,12 +148,43 @@ describe("VoiceStreamProvider empty-result contract", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     provider.stop(); // arms the final-timeout; no `final` will arrive
+    await vi.advanceTimersByTimeAsync(3001);
+    expect(statuses).toContain("final_pending");
     // Advance past the max final timeout (cap is 60s).
     await vi.advanceTimersByTimeAsync(61_000);
 
     expect(transcribeMock).toHaveBeenCalledTimes(1);
     expect(onResult).toHaveBeenCalledWith("the message the stream lost");
+    expect(statuses).toContain("transcription_complete");
     expect(onError).not.toHaveBeenCalled();
+    provider.dispose();
+  });
+
+  it("clears the final-pending status when the websocket final eventually arrives", async () => {
+    vi.useFakeTimers();
+    const provider = new VoiceStreamProvider();
+    const onResult = vi.fn();
+    const statuses: string[] = [];
+    provider.onResult = onResult;
+    provider.onError = vi.fn();
+    provider.onStatus = (status) => statuses.push(status.code);
+
+    await provider.start();
+    await vi.advanceTimersByTimeAsync(0);
+    const rec = FakeMediaRecorder.instances.at(-1);
+    const ws = FakeWebSocket.instances.at(-1);
+    if (!rec || !ws) throw new Error("expected recorder and websocket");
+    rec.ondataavailable?.({ data: fakeBlob(2048) });
+    await vi.advanceTimersByTimeAsync(0);
+
+    provider.stop();
+    await vi.advanceTimersByTimeAsync(3001);
+    expect(statuses).toContain("final_pending");
+
+    ws.onmessage?.({ data: JSON.stringify({ type: "final", text: "eventual transcript" }) });
+
+    expect(statuses).toContain("transcription_complete");
+    expect(onResult).toHaveBeenCalledWith("eventual transcript");
     provider.dispose();
   });
 

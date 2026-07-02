@@ -11,7 +11,7 @@ Findings:
 
 ## Related Scenarios / Resources
 
-- `scenarios/prd-control-tower/`: PRD lifecycle enforcement + operational target/requirements patterns to mirror.
+- `scenarios/business-health/`: PRD lifecycle enforcement + operational target/requirements patterns to mirror.
 - `scenarios/scenario-completeness-scoring/`: Objective completeness scoring used to guide future iterations.
 - `scenarios/scenario-auditor/`: PRD structure validation and scenario hygiene checks.
 

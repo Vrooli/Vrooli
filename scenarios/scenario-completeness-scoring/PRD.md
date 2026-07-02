@@ -1,8 +1,8 @@
 # Product Requirements Document (PRD)
 
 > **Template Version**: 2.0
-> **Canonical Reference**: `/scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md`
-> **Validation**: Enforced by `prd-control-tower` + `scenario-auditor`
+> **Canonical Reference**: `/scenarios/business-health/docs/reference/canonical-prd-template.md`
+> **Validation**: Enforced by `business-health` (the test-genie `business` phase)
 > **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
 
 ## 🎯 Overview

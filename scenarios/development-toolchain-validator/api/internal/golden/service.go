@@ -70,6 +70,13 @@ var _ Service = (*service)(nil)
 // slugs as filesystem-safe.
 var slugPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,63}$`)
 
+const (
+	MaterializationModeEphemeral = "ephemeral"
+	MaterializationStatusNever   = "never"
+	MaterializationStatusReady   = "ready"
+	MaterializationStatusFailed  = "failed"
+)
+
 func (s *service) List(ctx context.Context) ([]Golden, error) {
 	return s.repo.List(ctx)
 }
@@ -96,21 +103,34 @@ func (s *service) Register(ctx context.Context, in RegisterInput) (Golden, error
 	if strings.TrimSpace(in.TemplateVersion) == "" {
 		return Golden{}, ErrInvalidGolden{Field: "template_version", Reason: "required"}
 	}
-	if strings.TrimSpace(in.Path) == "" {
-		return Golden{}, ErrInvalidGolden{Field: "path", Reason: "required"}
+	path := strings.TrimSpace(in.Path)
+	if path == "" {
+		path = defaultLogicalRoot(slug)
 	}
-	// Disallow absolute paths so callers can't accidentally register a
-	// path outside the repository (which a later regenerate run could
-	// overwrite). Repo-relative paths only.
-	if filepath.IsAbs(in.Path) {
+	if filepath.IsAbs(path) {
 		return Golden{}, ErrInvalidGolden{Field: "path", Reason: "must be repository-relative"}
+	}
+	logicalRoot := strings.TrimSpace(in.LogicalRoot)
+	if logicalRoot == "" {
+		logicalRoot = path
+	}
+	if filepath.IsAbs(logicalRoot) {
+		return Golden{}, ErrInvalidGolden{Field: "logical_root", Reason: "must be repository-relative"}
+	}
+	mode := strings.TrimSpace(in.MaterializationMode)
+	if mode == "" {
+		mode = MaterializationModeEphemeral
 	}
 
 	return s.repo.Create(ctx, Golden{
-		Slug:                  slug,
-		TemplateID:            strings.TrimSpace(in.TemplateID),
-		TemplateVersionPinned: strings.TrimSpace(in.TemplateVersion),
-		Path:                  strings.TrimSpace(in.Path),
+		Slug:                   slug,
+		TemplateID:             strings.TrimSpace(in.TemplateID),
+		TemplateVersionPinned:  strings.TrimSpace(in.TemplateVersion),
+		Path:                   path,
+		GenerationOptionsJSON:  strings.TrimSpace(in.GenerationOptionsJSON),
+		MaterializationMode:    mode,
+		LogicalRoot:            logicalRoot,
+		LastMaterializedStatus: MaterializationStatusNever,
 	})
 }
 
@@ -129,6 +149,21 @@ func (s *service) Update(ctx context.Context, in UpdateInput) (Golden, error) {
 			return Golden{}, ErrInvalidGolden{Field: "path", Reason: "must be repository-relative"}
 		}
 		current.Path = p
+		changed = true
+	}
+	if opts := strings.TrimSpace(in.GenerationOptionsJSON); opts != "" && opts != current.GenerationOptionsJSON {
+		current.GenerationOptionsJSON = opts
+		changed = true
+	}
+	if mode := strings.TrimSpace(in.MaterializationMode); mode != "" && mode != current.MaterializationMode {
+		current.MaterializationMode = mode
+		changed = true
+	}
+	if root := strings.TrimSpace(in.LogicalRoot); root != "" && root != current.LogicalRoot {
+		if filepath.IsAbs(root) {
+			return Golden{}, ErrInvalidGolden{Field: "logical_root", Reason: "must be repository-relative"}
+		}
+		current.LogicalRoot = root
 		changed = true
 	}
 	if v := strings.TrimSpace(in.TemplateVersion); v != "" && v != current.TemplateVersionPinned {
@@ -175,4 +210,8 @@ func (s *service) Regenerate(ctx context.Context, slug string) (Golden, error) {
 	}
 	current.LastRegeneratedAt = s.clock.Now().UTC()
 	return s.repo.Update(ctx, current)
+}
+
+func defaultLogicalRoot(slug string) string {
+	return filepath.ToSlash(filepath.Join(".vrooli", "generated-goldens", slug))
 }

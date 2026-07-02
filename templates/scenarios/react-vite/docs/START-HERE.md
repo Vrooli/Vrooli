@@ -61,11 +61,14 @@ passes the template test lifecycle.
 
 ### Gate 1 — Charter
 
-Do not hand-write the final `PRD.md` when AI generation is available.
-Use `prd-control-tower` as the canonical PRD authoring path so the file
-matches the Vrooli PRD standard and can drive requirement generation.
+Do not hand-write the final `PRD.md` from a blank page. Drive the
+`business-health` wizard — the canonical PRD authoring path — so the
+file is conformant by construction (the wizard's question model derives
+from the same template definitions the validator checks; canonical
+shape: `scenarios/business-health/docs/reference/canonical-prd-template.md`).
 
-- [ ] Write a brief context file for the scenario:
+- [ ] Draft the product intent (purpose, users, targets per tier) as
+      notes; the wizard turns your answers into the conformant document:
 
 ```bash
 cat > /tmp/prd_context_{{SCENARIO_ID}}.md <<'EOF'
@@ -112,19 +115,24 @@ UX & branding:
 EOF
 ```
 
-- [ ] Generate and publish the PRD:
+- [ ] Author the PRD + requirements skeleton through the wizard
+      (interactive, resumable; or non-interactive via `--answers`):
 
 ```bash
-prd-control-tower prd generate {{SCENARIO_ID}} \
-  --context-file /tmp/prd_context_{{SCENARIO_ID}}.md \
-  --publish \
-  --json
+business-health wizard start {{SCENARIO_ID}} --interactive
+# …answer the interview, then:
+business-health wizard preview {{SCENARIO_ID}}
+business-health wizard apply {{SCENARIO_ID}}
 ```
+
+Take the wizard's capability-dedup hints seriously — "similar capability
+exists in scenario X" means consider composing that scenario instead of
+rebuilding it.
 
 - [ ] Validate the PRD:
 
 ```bash
-prd-control-tower prd validate {{SCENARIO_ID}} --json
+vrooli scenario requirements validate {{SCENARIO_ID}} --json
 ```
 
 - [ ] Read the published `PRD.md` and confirm it captures the intended
@@ -167,18 +175,16 @@ Requirement details:
 EOF
 ```
 
-- [ ] Generate requirements:
+- [ ] The wizard's apply step already scaffolded `requirements/`
+      (one module per tier, one requirement stub per target). Flesh out
+      descriptions and validation refs, then validate; deterministic
+      gaps (missing sections, orphaned targets, status vocabulary) are
+      auto-fixable:
 
 ```bash
-prd-control-tower requirements generate {{SCENARIO_ID}} \
-  --context-file /tmp/requirements_context_{{SCENARIO_ID}}.md \
-  --json
-```
-
-- [ ] Validate requirements:
-
-```bash
-prd-control-tower requirements validate {{SCENARIO_ID}} --json
+vrooli scenario requirements validate {{SCENARIO_ID}} --json
+business-health fix preview {{SCENARIO_ID}}
+business-health fix apply {{SCENARIO_ID}}
 ```
 
 - [ ] Confirm `requirements/index.json` imports real numbered
@@ -218,8 +224,8 @@ Resources and scenario-to-scenario dependencies live in
 `.vrooli/service.json`. **Third-party packages** (npm/go/pip) are
 governed separately by **Scenario Dependency Analyzer (SDA)** — the
 dependency-intelligence authority. Just as the charter gate routes PRD
-authoring through `prd-control-tower`, dependency selection routes
-through SDA. **Never hand-edit `.vrooli/dependencies/approved-dependencies.json`
+authoring through the business-health wizard, dependency selection
+routes through SDA. **Never hand-edit `.vrooli/dependencies/approved-dependencies.json`
 or run a raw `pnpm add` / `go get` / `pip install`.**
 
 - [ ] Keep SQLite unless a domain truly needs a shared resource.

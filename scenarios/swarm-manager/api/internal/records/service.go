@@ -95,6 +95,7 @@ type CreateInput struct {
 	Trigger      string
 	Approach     string
 	RuledOut     []string
+	Evidence     string
 	Commit       string
 	FilesChanged []string
 	Outcome      Outcome
@@ -123,6 +124,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (Record, error) {
 		Trigger:      strings.TrimSpace(in.Trigger),
 		Approach:     strings.TrimSpace(in.Approach),
 		RuledOut:     trimAll(in.RuledOut),
+		Evidence:     strings.TrimSpace(in.Evidence),
 		Commit:       strings.TrimSpace(in.Commit),
 		FilesChanged: trimAll(in.FilesChanged),
 		Outcome:      in.Outcome,

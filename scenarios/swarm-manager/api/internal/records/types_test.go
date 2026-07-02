@@ -151,6 +151,76 @@ func TestParseOutcomeCaseInsensitive(t *testing.T) {
 	}
 }
 
+func TestParseOutcomeAliases(t *testing.T) {
+	cases := map[string]Outcome{
+		"success":     OutcomeShipped,
+		"done":        OutcomeShipped,
+		"green":       OutcomeShipped,
+		"completed":   OutcomeShipped,
+		"fixed":       OutcomeShipped,
+		"resolved":    OutcomeShipped,
+		"implemented": OutcomeShipped,
+		"in_progress": OutcomePartial,
+		"wip":         OutcomePartial,
+		"cancelled":   OutcomeAbandoned,
+		"dupe":        OutcomeDuplicate,
+	}
+	for raw, want := range cases {
+		got, err := ParseOutcome(raw)
+		if err != nil {
+			t.Fatalf("ParseOutcome(%q): %v", raw, err)
+		}
+		if got != want {
+			t.Errorf("ParseOutcome(%q) = %q, want %q", raw, got, want)
+		}
+	}
+}
+
+func TestParseOutcomeProseRejection(t *testing.T) {
+	prose := "All validation green with ZERO regressions: baseline diff = preexisting; api go test green"
+	_, err := ParseOutcome(prose)
+	if err == nil {
+		t.Fatal("ParseOutcome accepted prose narrative")
+	}
+	msg := err.Error()
+	for _, want := range []string{"looks like a narrative", "--evidence", "--approach", "shipped"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("prose error %q missing %q", msg, want)
+		}
+	}
+	// Short multi-word values are also prose-shaped, not typos.
+	if _, err := ParseOutcome("all tests pass"); err == nil {
+		t.Error("ParseOutcome accepted multi-word value")
+	} else if !strings.Contains(err.Error(), "looks like a narrative") {
+		t.Errorf("multi-word error should use prose guidance, got %q", err.Error())
+	}
+}
+
+func TestParseOutcomeSuggestion(t *testing.T) {
+	_, err := ParseOutcome("shiped")
+	if err == nil {
+		t.Fatal("ParseOutcome accepted misspelling")
+	}
+	if !strings.Contains(err.Error(), `did you mean "shipped"?`) {
+		t.Errorf("expected did-you-mean hint, got %q", err.Error())
+	}
+	// Garbage gets the enum but no bogus suggestion.
+	_, err = ParseOutcome("zzzzzz")
+	if err == nil {
+		t.Fatal("ParseOutcome accepted garbage")
+	}
+	if strings.Contains(err.Error(), "did you mean") {
+		t.Errorf("garbage should not get a suggestion, got %q", err.Error())
+	}
+}
+
+func TestEmbeddingTextIncludesEvidence(t *testing.T) {
+	r := Record{Trigger: "t", Approach: "a", Evidence: "all suites green"}
+	if !strings.Contains(r.EmbeddingText(), "all suites green") {
+		t.Errorf("EmbeddingText missing evidence: %q", r.EmbeddingText())
+	}
+}
+
 func TestRecordHasNarrative(t *testing.T) {
 	cases := []struct {
 		name string

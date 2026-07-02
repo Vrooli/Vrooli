@@ -42,7 +42,7 @@ func newRunner(t *testing.T, fake *fakeCommandRunner, expectationsDir string) *R
 	})
 }
 
-const absGolden = "/abs/scenarios/reference-react-vite"
+const absGolden = "/tmp/vrooli-dtv-generated-goldens/reference-react-vite-run"
 
 func TestInvoke_TestGenie_AllPhasesPass(t *testing.T) {
 	fake := &fakeCommandRunner{results: []CommandResult{{

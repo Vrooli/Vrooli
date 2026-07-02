@@ -33,7 +33,7 @@ func sampleGolden(slug string) golden.Golden {
 		Slug:                  slug,
 		TemplateID:            "react-vite",
 		TemplateVersionPinned: "1.0.1",
-		Path:                  "scenarios/" + slug,
+		Path:                  ".vrooli/generated-goldens/" + slug,
 	}
 }
 
@@ -52,8 +52,41 @@ func TestSQLiteRepository_CreateAndGetRoundTrip(t *testing.T) {
 	require.Equal(t, created.ID, got.ID)
 	require.Equal(t, "react-vite", got.TemplateID)
 	require.Equal(t, "1.0.1", got.TemplateVersionPinned)
-	require.Equal(t, "scenarios/reference-react-vite", got.Path)
+	require.Equal(t, ".vrooli/generated-goldens/reference-react-vite", got.Path)
+	require.Equal(t, ".vrooli/generated-goldens/reference-react-vite", got.LogicalRoot)
+	require.Equal(t, golden.MaterializationModeEphemeral, got.MaterializationMode)
+	require.Equal(t, golden.MaterializationStatusNever, got.LastMaterializedStatus)
 	require.True(t, created.CreatedAt.Equal(got.CreatedAt))
+}
+
+func TestSQLiteRepository_EnsureColumnsBackfillsLegacyRows(t *testing.T) {
+	d := db.NewSQLite(t)
+	ctx := context.Background()
+	_, err := d.ExecContext(ctx, `
+CREATE TABLE goldens (
+  id TEXT PRIMARY KEY,
+  slug TEXT NOT NULL UNIQUE,
+  template_id TEXT NOT NULL,
+  template_version_pinned TEXT NOT NULL,
+  path TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  last_regenerated_at TEXT NOT NULL
+)`)
+	require.NoError(t, err)
+	now := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC).Format(time.RFC3339Nano)
+	_, err = d.ExecContext(ctx, `INSERT INTO goldens (id, slug, template_id, template_version_pinned, path, created_at, last_regenerated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		"id-1", "reference-react-vite", "react-vite", "1.0.1", ".vrooli/generated-goldens/reference-react-vite", now, now)
+	require.NoError(t, err)
+	require.NoError(t, golden.EnsureColumns(ctx, d))
+	require.NoError(t, golden.EnsureColumns(ctx, d))
+
+	repo := golden.NewSQLiteRepository(d, mocks.NewFakeClock(time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC)))
+	got, err := repo.Get(ctx, "reference-react-vite")
+	require.NoError(t, err)
+	require.Equal(t, ".vrooli/generated-goldens/reference-react-vite", got.Path)
+	require.Equal(t, ".vrooli/generated-goldens/reference-react-vite", got.LogicalRoot)
+	require.Equal(t, golden.MaterializationModeEphemeral, got.MaterializationMode)
+	require.Equal(t, golden.MaterializationStatusNever, got.LastMaterializedStatus)
 }
 
 func TestSQLiteRepository_GetReturnsNotFound(t *testing.T) {

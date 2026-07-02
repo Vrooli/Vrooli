@@ -198,6 +198,9 @@ message ScalingModelFit {
   double r_squared = 5;
   int32 sample_count = 6;
   string reason = 7;
+  double exponent = 8;
+  double exponent_r_squared = 9;
+  string unit = 10;
 }
 
 message ScalingAnalysis {
@@ -209,4 +212,5 @@ message ScalingAnalysis {
   repeated ReportWarning warnings = 6;
   ScalingModelFit latency_fit = 7;
   ScalingModelFit compute_fit = 8;
+  repeated ScalingModelFit metric_fits = 9;
 }

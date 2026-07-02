@@ -1,5 +1,5 @@
 // Package convergence is the API handler for the ConvergenceService — the
-// template & reference-scenario fitness domain. It is the proto translation edge
+// template & generated-golden fitness domain. It is the proto translation edge
 // over internal/convergence; all business logic lives in internal/convergence
 // behind seams.
 package convergence
@@ -53,7 +53,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        convergenceconnect.ConvergenceServiceGetConvergenceStatusProcedure,
 		Method:      "POST",
 		Summary:     "Convergence status",
-		Description: "Returns per-template four-lens fitness + gold-star reference health across all templates (OT-P1-002). Computed live; persists a dated audit record for the trend.",
+		Description: "Returns per-template four-lens fitness + gold-star generated-golden health across all templates (OT-P1-002). Computed live; persists a dated audit record for the trend.",
 		Category:    "convergence",
 		Response: &module.Schema{
 			Type:       "object",
@@ -77,7 +77,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        convergenceconnect.ConvergenceServiceListReferencesProcedure,
 		Method:      "POST",
 		Summary:     "List reference health",
-		Description: "Returns gold-star reference-scenario health + eligibility (stale-from-template, clean-on-all-tools, ≥60d stability, breadth), optionally filtered by eligibility.",
+		Description: "Returns gold-star generated-golden health + eligibility (stale-from-template, clean-on-all-tools, ≥60d stability, breadth), optionally filtered by eligibility.",
 		Category:    "convergence",
 		Response: &module.Schema{
 			Type:       "object",

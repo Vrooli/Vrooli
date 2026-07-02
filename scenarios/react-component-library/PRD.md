@@ -1,8 +1,8 @@
 # Product Requirements Document (PRD)
 
 > **Template Version**: 2.0
-> **Canonical Reference**: `/scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md`
-> **Validation**: Enforced by `prd-control-tower` + `scenario-auditor`
+> **Canonical Reference**: `/scenarios/business-health/docs/reference/canonical-prd-template.md`
+> **Validation**: Enforced by `business-health` (the test-genie `business` phase)
 > **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
 
 ## 🎯 Overview
@@ -39,12 +39,12 @@
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: Go API; React 18 + Vite + Tailwind UI; Go CLI; Monaco for the code editor; `@vrooli/iframe-bridge` for host/child postmessage protocol.
 - Data + storage expectations: SQLite via `modernc.org/sqlite` (CGO-free, pure-Go). Per-domain schema ownership (`api/internal/<dom>/schema.sql` + `schema.go`). No Postgres anywhere. No `migrations/` folder — greenfield, idempotent `CREATE TABLE IF NOT EXISTS` describes the desired clean state. Filesystem writes go through `package:api-core/storage` `NewResolver`.
-- Integration strategy: Wrap external tools in scenario CLIs (per `feedback_skills_use_cli_never_api.md`). `app-issue-tracker` and `prd-control-tower` are invoked through their scenario CLIs; AI calls go through `resource-openrouter`; iframe bridge is consumed via the shared `@vrooli/iframe-bridge` package.
+- Integration strategy: Wrap external tools in scenario CLIs (per `feedback_skills_use_cli_never_api.md`). `app-issue-tracker` and `business-health` are invoked through their scenario CLIs; AI calls go through `resource-openrouter`; iframe bridge is consumed via the shared `@vrooli/iframe-bridge` package.
 - Non-goals / guardrails: No multi-tenant cloud registry. No npm/external imports in v0. No auto-applied AI edits. No `brand-manager` coupling. No Postgres. No schema migrations folder. No central schema file. No SQL in handlers (handlers call services; services call per-domain repositories). No hard cross-domain FK constraints (soft FKs only). No PROGRESS.md "complete" claim without matching green tests.
 
 ## 🤝 Dependencies & Launch Plan
 - Required resources: None at runtime for P0 (SQLite is in-process). `resource-openrouter` required only for P2 AI editing.
-- Scenario dependencies: `app-issue-tracker` (P1 adoption issues); `flow-verifier` (build-time temporal-model lint); `prd-control-tower` (build-time PRD and requirements validation).
+- Scenario dependencies: `app-issue-tracker` (P1 adoption issues); `flow-verifier` (build-time temporal-model lint); `business-health` (build-time PRD and requirements validation).
 - Operational risks: Per-component React bundling for the preview iframe is the largest open unknown — research in `docs/RESEARCH.md` before slice 3 of Phase 4 to choose between an esbuild service, Vite SSR, or a pre-bundled harness with dynamic imports. SQLite concurrent-writer pressure is a soft risk mitigated by WAL mode; the per-domain repository interface keeps a Postgres impl available later if needed.
 - Launch sequencing: P0 vertical slices in order — (1) registry + header parsing, (2) Monaco + save, (3) live preview iframe execution, (4) multi-viewport + search, (5) adoption workflow. Then all P1 features in parallel. Usable-milestone demo: list → edit → preview in 3+ viewports with a vision filter → select element → adopt into target → bump version → status flips to "behind" → diff viewer renders. Onboarding-doc shout-out lands only after the usable milestone passes.
 

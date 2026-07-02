@@ -48,6 +48,9 @@ const (
 	// ExperimentServiceCancelExperimentProcedure is the fully-qualified name of the ExperimentService's
 	// CancelExperiment RPC.
 	ExperimentServiceCancelExperimentProcedure = "/vrooli.audio_tools.v1.experiment.ExperimentService/CancelExperiment"
+	// ExperimentServiceDeleteExperimentProcedure is the fully-qualified name of the ExperimentService's
+	// DeleteExperiment RPC.
+	ExperimentServiceDeleteExperimentProcedure = "/vrooli.audio_tools.v1.experiment.ExperimentService/DeleteExperiment"
 	// ExperimentServiceStreamExperimentEventsProcedure is the fully-qualified name of the
 	// ExperimentService's StreamExperimentEvents RPC.
 	ExperimentServiceStreamExperimentEventsProcedure = "/vrooli.audio_tools.v1.experiment.ExperimentService/StreamExperimentEvents"
@@ -67,6 +70,7 @@ type ExperimentServiceClient interface {
 	WaitExperiment(context.Context, *connect.Request[experiment.WaitExperimentRequest]) (*connect.Response[experiment.WaitExperimentResponse], error)
 	ListExperiments(context.Context, *connect.Request[experiment.ListExperimentsRequest]) (*connect.Response[experiment.ListExperimentsResponse], error)
 	CancelExperiment(context.Context, *connect.Request[experiment.CancelExperimentRequest]) (*connect.Response[experiment.CancelExperimentResponse], error)
+	DeleteExperiment(context.Context, *connect.Request[experiment.DeleteExperimentRequest]) (*connect.Response[experiment.DeleteExperimentResponse], error)
 	StreamExperimentEvents(context.Context, *connect.Request[experiment.StreamExperimentEventsRequest]) (*connect.ServerStreamForClient[experiment.ExperimentEvent], error)
 	GetExperimentReport(context.Context, *connect.Request[experiment.GetExperimentReportRequest]) (*connect.Response[experiment.GetExperimentReportResponse], error)
 	CompareExperiments(context.Context, *connect.Request[experiment.CompareExperimentsRequest]) (*connect.Response[experiment.CompareExperimentsResponse], error)
@@ -114,6 +118,12 @@ func NewExperimentServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(experimentServiceMethods.ByName("CancelExperiment")),
 			connect.WithClientOptions(opts...),
 		),
+		deleteExperiment: connect.NewClient[experiment.DeleteExperimentRequest, experiment.DeleteExperimentResponse](
+			httpClient,
+			baseURL+ExperimentServiceDeleteExperimentProcedure,
+			connect.WithSchema(experimentServiceMethods.ByName("DeleteExperiment")),
+			connect.WithClientOptions(opts...),
+		),
 		streamExperimentEvents: connect.NewClient[experiment.StreamExperimentEventsRequest, experiment.ExperimentEvent](
 			httpClient,
 			baseURL+ExperimentServiceStreamExperimentEventsProcedure,
@@ -142,6 +152,7 @@ type experimentServiceClient struct {
 	waitExperiment         *connect.Client[experiment.WaitExperimentRequest, experiment.WaitExperimentResponse]
 	listExperiments        *connect.Client[experiment.ListExperimentsRequest, experiment.ListExperimentsResponse]
 	cancelExperiment       *connect.Client[experiment.CancelExperimentRequest, experiment.CancelExperimentResponse]
+	deleteExperiment       *connect.Client[experiment.DeleteExperimentRequest, experiment.DeleteExperimentResponse]
 	streamExperimentEvents *connect.Client[experiment.StreamExperimentEventsRequest, experiment.ExperimentEvent]
 	getExperimentReport    *connect.Client[experiment.GetExperimentReportRequest, experiment.GetExperimentReportResponse]
 	compareExperiments     *connect.Client[experiment.CompareExperimentsRequest, experiment.CompareExperimentsResponse]
@@ -172,6 +183,11 @@ func (c *experimentServiceClient) CancelExperiment(ctx context.Context, req *con
 	return c.cancelExperiment.CallUnary(ctx, req)
 }
 
+// DeleteExperiment calls vrooli.audio_tools.v1.experiment.ExperimentService.DeleteExperiment.
+func (c *experimentServiceClient) DeleteExperiment(ctx context.Context, req *connect.Request[experiment.DeleteExperimentRequest]) (*connect.Response[experiment.DeleteExperimentResponse], error) {
+	return c.deleteExperiment.CallUnary(ctx, req)
+}
+
 // StreamExperimentEvents calls
 // vrooli.audio_tools.v1.experiment.ExperimentService.StreamExperimentEvents.
 func (c *experimentServiceClient) StreamExperimentEvents(ctx context.Context, req *connect.Request[experiment.StreamExperimentEventsRequest]) (*connect.ServerStreamForClient[experiment.ExperimentEvent], error) {
@@ -196,6 +212,7 @@ type ExperimentServiceHandler interface {
 	WaitExperiment(context.Context, *connect.Request[experiment.WaitExperimentRequest]) (*connect.Response[experiment.WaitExperimentResponse], error)
 	ListExperiments(context.Context, *connect.Request[experiment.ListExperimentsRequest]) (*connect.Response[experiment.ListExperimentsResponse], error)
 	CancelExperiment(context.Context, *connect.Request[experiment.CancelExperimentRequest]) (*connect.Response[experiment.CancelExperimentResponse], error)
+	DeleteExperiment(context.Context, *connect.Request[experiment.DeleteExperimentRequest]) (*connect.Response[experiment.DeleteExperimentResponse], error)
 	StreamExperimentEvents(context.Context, *connect.Request[experiment.StreamExperimentEventsRequest], *connect.ServerStream[experiment.ExperimentEvent]) error
 	GetExperimentReport(context.Context, *connect.Request[experiment.GetExperimentReportRequest]) (*connect.Response[experiment.GetExperimentReportResponse], error)
 	CompareExperiments(context.Context, *connect.Request[experiment.CompareExperimentsRequest]) (*connect.Response[experiment.CompareExperimentsResponse], error)
@@ -238,6 +255,12 @@ func NewExperimentServiceHandler(svc ExperimentServiceHandler, opts ...connect.H
 		connect.WithSchema(experimentServiceMethods.ByName("CancelExperiment")),
 		connect.WithHandlerOptions(opts...),
 	)
+	experimentServiceDeleteExperimentHandler := connect.NewUnaryHandler(
+		ExperimentServiceDeleteExperimentProcedure,
+		svc.DeleteExperiment,
+		connect.WithSchema(experimentServiceMethods.ByName("DeleteExperiment")),
+		connect.WithHandlerOptions(opts...),
+	)
 	experimentServiceStreamExperimentEventsHandler := connect.NewServerStreamHandler(
 		ExperimentServiceStreamExperimentEventsProcedure,
 		svc.StreamExperimentEvents,
@@ -268,6 +291,8 @@ func NewExperimentServiceHandler(svc ExperimentServiceHandler, opts ...connect.H
 			experimentServiceListExperimentsHandler.ServeHTTP(w, r)
 		case ExperimentServiceCancelExperimentProcedure:
 			experimentServiceCancelExperimentHandler.ServeHTTP(w, r)
+		case ExperimentServiceDeleteExperimentProcedure:
+			experimentServiceDeleteExperimentHandler.ServeHTTP(w, r)
 		case ExperimentServiceStreamExperimentEventsProcedure:
 			experimentServiceStreamExperimentEventsHandler.ServeHTTP(w, r)
 		case ExperimentServiceGetExperimentReportProcedure:
@@ -301,6 +326,10 @@ func (UnimplementedExperimentServiceHandler) ListExperiments(context.Context, *c
 
 func (UnimplementedExperimentServiceHandler) CancelExperiment(context.Context, *connect.Request[experiment.CancelExperimentRequest]) (*connect.Response[experiment.CancelExperimentResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.experiment.ExperimentService.CancelExperiment is not implemented"))
+}
+
+func (UnimplementedExperimentServiceHandler) DeleteExperiment(context.Context, *connect.Request[experiment.DeleteExperimentRequest]) (*connect.Response[experiment.DeleteExperimentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.audio_tools.v1.experiment.ExperimentService.DeleteExperiment is not implemented"))
 }
 
 func (UnimplementedExperimentServiceHandler) StreamExperimentEvents(context.Context, *connect.Request[experiment.StreamExperimentEventsRequest], *connect.ServerStream[experiment.ExperimentEvent]) error {

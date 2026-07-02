@@ -124,6 +124,9 @@ func main() {
 	if err := vr.EnsureColumns(context.Background(), db); err != nil {
 		log.Fatalf("validation_record migration failed: %v", err)
 	}
+	if err := golden.EnsureColumns(context.Background(), db); err != nil {
+		log.Fatalf("golden migration failed: %v", err)
+	}
 
 	skillCatalogSource := promptmanager.NewSkillCatalogRESTAdapter(promptmanager.Options{})
 
@@ -153,12 +156,15 @@ func main() {
 	vrRepo := vr.NewSQLiteRepository(db)
 	vrService := vr.NewService(vrRepo, clock.System{})
 	worker := vrun.NewWorker(vrun.WorkerDeps{
-		Repo:      vrunRepo,
-		Records:   vrService,
-		AgentMgr:  agentClient,
-		Tools:     devtools.New(devtools.Options{Clock: clock.System{}}),
-		Sandbox:   workspacesandbox.New(workspacesandbox.Options{}),
-		Goldens:   vrun.GoldenSourceFromRepo{Repo: golden.NewSQLiteRepository(db, clock.System{})},
+		Repo:     vrunRepo,
+		Records:  vrService,
+		AgentMgr: agentClient,
+		Tools:    devtools.New(devtools.Options{Clock: clock.System{}}),
+		Sandbox:  workspacesandbox.New(workspacesandbox.Options{}),
+		Goldens: vrun.GoldenMaterializerFromRepo{
+			Repo:   golden.NewSQLiteRepository(db, clock.System{}),
+			Runner: golden.NewSubprocessRunner("vrooli", ""),
+		},
 		Manifests: vrun.ManifestSourceFromRepo{Repo: manifest.NewSQLiteRepository(db, clock.System{})},
 		Skills:    promptmanager.NewSkillContentRESTAdapter(promptmanager.Options{}),
 		Clock:     clock.System{},

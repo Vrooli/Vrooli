@@ -14,8 +14,8 @@ Every module's `prd_ref` points at the operational target it covers (e.g. `"prd_
 
 ## Validation
 Run these from the scenario directory:
-- `prd-control-tower requirements validate vrooli-bridge --json` — validate the registry (target linkage, requirement→target coverage, PRD ref integrity).
-- `prd-control-tower prd validate vrooli-bridge --json` — validate `PRD.md` against the template + quality standards.
+- `vrooli scenario requirements validate vrooli-bridge --json` — validate the registry (target linkage, requirement→target coverage, PRD ref integrity).
+- `vrooli scenario requirements validate vrooli-bridge --json` — validate `PRD.md` against the template + quality standards.
 - `make test` (or `vrooli scenario test vrooli-bridge`) — run the test suite; the test-genie business phase auto-syncs requirement `status` from `[REQ:ID]`-tagged tests.
 - `make orient` — machine-readable initialization-gate progress, including the requirements-registry gate.
 

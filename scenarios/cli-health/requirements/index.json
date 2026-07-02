@@ -2,7 +2,7 @@
   "_metadata": {
     "entity": "cli-health",
     "generated_at": "2026-05-19T14:24:08-04:00",
-    "generator": "prd-control-tower",
+    "generator": "business-health",
     "schema_version": "1.0"
   },
   "imports": [

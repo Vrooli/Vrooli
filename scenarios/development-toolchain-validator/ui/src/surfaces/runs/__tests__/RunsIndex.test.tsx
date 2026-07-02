@@ -106,6 +106,34 @@ describe("RunsIndex", () => {
     });
   });
 
+  it("starts a forced tool run when requested", async () => {
+    const user = userEvent.setup();
+    vi.mocked(validationRunClient.start).mockResolvedValue(
+      create(StartResponseSchema, { run: makeRun("run-new", Status.QUEUED) }),
+    );
+    renderWithProviders(<RunsIndex />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.runs.startKind)).toBeInTheDocument();
+    });
+    await user.selectOptions(screen.getByTestId(selectors.runs.startKind), "tool");
+    await user.type(screen.getByTestId(selectors.runs.startSubject), "test-genie");
+    await user.type(
+      screen.getByTestId(selectors.runs.startGolden),
+      "reference-react-vite",
+    );
+    await user.click(screen.getByTestId(selectors.runs.startForce));
+    await user.click(screen.getByTestId(selectors.runs.startSubmit));
+    await waitFor(() => {
+      expect(validationRunClient.start).toHaveBeenCalledWith(
+        expect.objectContaining({
+          subjectId: "test-genie",
+          tupleKind: TupleKind.TOOL,
+          force: true,
+        }),
+      );
+    });
+  });
+
   it("renders an error when listActive fails", async () => {
     vi.mocked(validationRunClient.listActive).mockRejectedValue(
       new Error("boom"),

@@ -14,12 +14,12 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
-// ReferenceScanner computes gold-star reference-scenario health/eligibility from
+// ReferenceScanner computes gold-star generated-golden health/eligibility from
 // the REFERENCE_SCENARIOS.md registry. Production parses the registry, derives
-// stability from the Generated date, breadth from the reference's domain layout,
-// and clean-on-all-tools via a soft scenario-auditor read; tests fake it. The
-// precise stale-from-template (git last-commit vs Generated) comparison is a
-// documented refinement seam — surfaced as a conservative false until wired.
+// stability from the first-registration date, breadth from the backing template
+// layout, and clean-on-all-tools via a soft scenario-auditor read; tests fake
+// it. The precise stale-from-template comparison is a documented refinement
+// seam — surfaced as a conservative false until wired.
 type ReferenceScanner interface {
 	Scan(ctx context.Context) ([]ReferenceHealth, error)
 }
@@ -47,6 +47,7 @@ var _ ReferenceScanner = (*fsReferenceScanner)(nil)
 // the scenario name (backticked) and the Generated date column.
 var (
 	backtickName = regexp.MustCompile("`([a-z0-9][a-z0-9-]+)`")
+	backtickAny  = regexp.MustCompile("`([^`]+)`")
 	isoDate      = regexp.MustCompile(`\b(\d{4})-(\d{2})-(\d{2})\b`)
 )
 
@@ -76,7 +77,7 @@ func (s *fsReferenceScanner) Scan(ctx context.Context) ([]ReferenceHealth, error
 			}
 			h.StabilityDays = days
 		}
-		h.Breadth = breadthOf(root, r.scenario)
+		h.Breadth = breadthOf(root, r.templatePath)
 		h.CleanOnAllTools = s.cleanOnAllTools(ctx, r.scenario)
 		// stale-from-template: documented refinement seam (git last-commit vs
 		// Generated). Conservative false until wired — never a false positive.
@@ -88,14 +89,16 @@ func (s *fsReferenceScanner) Scan(ctx context.Context) ([]ReferenceHealth, error
 }
 
 type refRow struct {
-	scenario  string
-	generated time.Time
+	scenario     string
+	templatePath string
+	generated    time.Time
 }
 
-// parseReferenceRegistry extracts reference rows from the markdown table. Rows
-// without a backticked scenario name, or whose name is a placeholder, are
-// skipped. The first backticked token is the scenario; the first ISO date is the
-// Generated column.
+// parseReferenceRegistry extracts generated-golden rows from the markdown
+// table. Rows without a backticked golden slug, or whose name is a placeholder,
+// are skipped. The first non-path backticked token is the golden slug, the first
+// path: token is the source template, and the first ISO date is the first
+// registration date.
 func parseReferenceRegistry(path string) ([]refRow, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -110,21 +113,23 @@ func parseReferenceRegistry(path string) ([]refRow, error) {
 		if !strings.HasPrefix(strings.TrimSpace(line), "|") {
 			continue
 		}
-		// Only data rows that name a reference scenario (Role column is bold prose).
+		// Only data rows that name a generated golden.
 		if !strings.Contains(line, "reference") && !strings.Contains(line, "Gold-star") && !strings.Contains(line, "Secondary") {
-			// not a reference data row
-		}
-		m := backtickName.FindAllStringSubmatch(line, -1)
-		if len(m) == 0 {
 			continue
 		}
-		name := m[0][1]
-		// Skip the template path token and placeholders.
-		if name == "" || seen[name] || looksLikeTemplate(line, name) {
+		name := ""
+		if m := backtickName.FindStringSubmatch(line); len(m) > 1 {
+			name = m[1]
+		}
+		if name == "" {
+			continue
+		}
+		templatePath := rowTemplatePath(line)
+		if name == "" || seen[name] {
 			continue
 		}
 		seen[name] = true
-		row := refRow{scenario: name}
+		row := refRow{scenario: name, templatePath: templatePath}
 		if dm := isoDate.FindString(line); dm != "" {
 			if t, perr := time.Parse("2006-01-02", dm); perr == nil {
 				row.generated = t.UTC()
@@ -135,30 +140,27 @@ func parseReferenceRegistry(path string) ([]refRow, error) {
 	return out, sc.Err()
 }
 
-// looksLikeTemplate skips rows whose first backticked token is actually a
-// template path (the registry pairs scenario + template; we want the scenario).
-func looksLikeTemplate(line, name string) bool {
-	// A reference scenario name is the first backticked token in the row; the
-	// template token is prefixed by "path:" in this registry. If the first token
-	// is the template, the scenario column was empty (placeholder rows).
-	idx := strings.Index(line, "`"+name+"`")
-	if idx <= 0 {
-		return false
+func rowTemplatePath(line string) string {
+	for _, m := range backtickAny.FindAllStringSubmatch(line, -1) {
+		token := strings.TrimSpace(m[1])
+		if strings.HasPrefix(token, "path:") {
+			return strings.TrimPrefix(token, "path:")
+		}
 	}
-	return strings.Contains(line[:idx], "path:") && strings.HasSuffix(name, "vite") && strings.Contains(line[:idx], "templates")
+	return ""
 }
 
-// breadthOf counts the patterns a reference demonstrates: its API domain dirs
-// (handlers/* or api/internal/* leaf domains). Zero when the scenario dir is
-// absent (an honest "cannot measure breadth").
-func breadthOf(root, scenario string) int {
-	scenarioRoot, err := repocontract.ResolveScenarioPath(root, scenario)
-	if err != nil {
+// breadthOf counts the patterns a generated golden's template demonstrates:
+// API domain dirs under handlers/* or api/internal/*. Zero when the registry
+// lacks a template path or the path is absent.
+func breadthOf(root, templatePath string) int {
+	if strings.TrimSpace(templatePath) == "" {
 		return 0
 	}
+	templateRoot := filepath.Join(root, filepath.FromSlash(strings.Trim(strings.TrimPrefix(templatePath, "path:"), "/")))
 	count := 0
 	for _, sub := range []string{filepath.Join("api", "handlers"), filepath.Join("api", "internal")} {
-		entries, err := os.ReadDir(filepath.Join(scenarioRoot, sub))
+		entries, err := os.ReadDir(filepath.Join(templateRoot, sub))
 		if err != nil {
 			continue
 		}

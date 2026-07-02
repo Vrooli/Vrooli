@@ -2,7 +2,7 @@
   "_metadata": {
     "entity": "scenario-completeness-scoring",
     "generated_at": "2026-06-10T12:00:07-04:00",
-    "generator": "prd-control-tower",
+    "generator": "business-health",
     "schema_version": "1.0"
   },
   "imports": [

@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n.web-console/v1/capabilities/capabilities.proto\x12\"vrooli.web_console.v1.capabilities\"\x96\x02\n\x0f\x43\x61pabilityState\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12 \n\x0b\x64\x65scription\x18\x03 \x01(\tR\x0b\x64\x65scription\x12\'\n\x0f\x64\x65pendency_kind\x18\x04 \x01(\tR\x0e\x64\x65pendencyKind\x12\'\n\x0f\x64\x65pendency_slug\x18\x05 \x01(\tR\x0e\x64\x65pendencySlug\x12\x1a\n\x08\x66\x65\x61tures\x18\x06 \x03(\tR\x08\x66\x65\x61tures\x12\x16\n\x06status\x18\x07 \x01(\tR\x06status\x12\x18\n\x07message\x18\x08 \x01(\tR\x07message\x12\x1d\n\nchecked_at\x18\t \x01(\tR\tcheckedAt\"\xc5\x01\n\rBackendOption\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12!\n\x0c\x64isplay_name\x18\x02 \x01(\tR\x0b\x64isplayName\x12 \n\x0b\x64\x65scription\x18\x03 \x01(\tR\x0b\x64\x65scription\x12)\n\x10survives_restart\x18\x04 \x01(\x08R\x0fsurvivesRestart\x12\x1c\n\tavailable\x18\x05 \x01(\x08R\tavailable\x12\x16\n\x06reason\x18\x06 \x01(\tR\x06reason\"\x0c\n\nGetRequest\"\x8b\x02\n\x0bGetResponse\x12W\n\x0c\x63\x61pabilities\x18\x01 \x03(\x0b\x32\x33.vrooli.web_console.v1.capabilities.CapabilityStateR\x0c\x63\x61pabilities\x12\x1c\n\ttimestamp\x18\x02 \x01(\tR\ttimestamp\x12\\\n\x10session_backends\x18\x03 \x03(\x0b\x32\x31.vrooli.web_console.v1.capabilities.BackendOptionR\x0fsessionBackends\x12\'\n\x0f\x64\x65\x66\x61ult_backend\x18\x04 \x01(\tR\x0e\x64\x65\x66\x61ultBackend\"\x11\n\x0fLivenessRequest\"\x89\x01\n\x10LivenessResponse\x12W\n\x0c\x63\x61pabilities\x18\x01 \x03(\x0b\x32\x33.vrooli.web_console.v1.capabilities.CapabilityStateR\x0c\x63\x61pabilities\x12\x1c\n\ttimestamp\x18\x02 \x01(\tR\ttimestamp2\xf4\x01\n\x13\x43\x61pabilitiesService\x12\x66\n\x03Get\x12..vrooli.web_console.v1.capabilities.GetRequest\x1a/.vrooli.web_console.v1.capabilities.GetResponse\x12u\n\x08Liveness\x12\x33.vrooli.web_console.v1.capabilities.LivenessRequest\x1a\x34.vrooli.web_console.v1.capabilities.LivenessResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/capabilities;capabilities_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n.web-console/v1/capabilities/capabilities.proto\x12\"vrooli.web_console.v1.capabilities\"\xa6\x03\n\x0f\x43\x61pabilityState\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12 \n\x0b\x64\x65scription\x18\x03 \x01(\tR\x0b\x64\x65scription\x12\'\n\x0f\x64\x65pendency_kind\x18\x04 \x01(\tR\x0e\x64\x65pendencyKind\x12\'\n\x0f\x64\x65pendency_slug\x18\x05 \x01(\tR\x0e\x64\x65pendencySlug\x12\x1a\n\x08\x66\x65\x61tures\x18\x06 \x03(\tR\x08\x66\x65\x61tures\x12\x16\n\x06status\x18\x07 \x01(\tR\x06status\x12\x18\n\x07message\x18\x08 \x01(\tR\x07message\x12\x1d\n\nchecked_at\x18\t \x01(\tR\tcheckedAt\x12\x1f\n\x0breason_code\x18\n \x01(\tR\nreasonCode\x12\x1f\n\x0b\x61\x63tion_kind\x18\x0b \x01(\tR\nactionKind\x12!\n\x0c\x61\x63tion_label\x18\x0c \x01(\tR\x0b\x61\x63tionLabel\x12)\n\x10operator_command\x18\r \x01(\tR\x0foperatorCommand\"\xc5\x01\n\rBackendOption\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12!\n\x0c\x64isplay_name\x18\x02 \x01(\tR\x0b\x64isplayName\x12 \n\x0b\x64\x65scription\x18\x03 \x01(\tR\x0b\x64\x65scription\x12)\n\x10survives_restart\x18\x04 \x01(\x08R\x0fsurvivesRestart\x12\x1c\n\tavailable\x18\x05 \x01(\x08R\tavailable\x12\x16\n\x06reason\x18\x06 \x01(\tR\x06reason\"\x0c\n\nGetRequest\"\x8b\x02\n\x0bGetResponse\x12W\n\x0c\x63\x61pabilities\x18\x01 \x03(\x0b\x32\x33.vrooli.web_console.v1.capabilities.CapabilityStateR\x0c\x63\x61pabilities\x12\x1c\n\ttimestamp\x18\x02 \x01(\tR\ttimestamp\x12\\\n\x10session_backends\x18\x03 \x03(\x0b\x32\x31.vrooli.web_console.v1.capabilities.BackendOptionR\x0fsessionBackends\x12\'\n\x0f\x64\x65\x66\x61ult_backend\x18\x04 \x01(\tR\x0e\x64\x65\x66\x61ultBackend\"\x11\n\x0fLivenessRequest\"\x89\x01\n\x10LivenessResponse\x12W\n\x0c\x63\x61pabilities\x18\x01 \x03(\x0b\x32\x33.vrooli.web_console.v1.capabilities.CapabilityStateR\x0c\x63\x61pabilities\x12\x1c\n\ttimestamp\x18\x02 \x01(\tR\ttimestamp\"X\n\x10RunActionRequest\x12#\n\rcapability_id\x18\x01 \x01(\tR\x0c\x63\x61pabilityId\x12\x1f\n\x0b\x61\x63tion_kind\x18\x02 \x01(\tR\nactionKind\"\x9c\x02\n\x11RunActionResponse\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12\x16\n\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n\x07message\x18\x03 \x01(\tR\x07message\x12#\n\rcapability_id\x18\x04 \x01(\tR\x0c\x63\x61pabilityId\x12\x1f\n\x0b\x61\x63tion_kind\x18\x05 \x01(\tR\nactionKind\x12W\n\x0c\x63\x61pabilities\x18\x06 \x03(\x0b\x32\x33.vrooli.web_console.v1.capabilities.CapabilityStateR\x0c\x63\x61pabilities\x12\x1c\n\ttimestamp\x18\x07 \x01(\tR\ttimestamp2\xee\x02\n\x13\x43\x61pabilitiesService\x12\x66\n\x03Get\x12..vrooli.web_console.v1.capabilities.GetRequest\x1a/.vrooli.web_console.v1.capabilities.GetResponse\x12u\n\x08Liveness\x12\x33.vrooli.web_console.v1.capabilities.LivenessRequest\x1a\x34.vrooli.web_console.v1.capabilities.LivenessResponse\x12x\n\tRunAction\x12\x34.vrooli.web_console.v1.capabilities.RunActionRequest\x1a\x35.vrooli.web_console.v1.capabilities.RunActionResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/capabilities;capabilities_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,17 +33,21 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/capabilities;capabilities_v1'
   _globals['_CAPABILITYSTATE']._serialized_start=87
-  _globals['_CAPABILITYSTATE']._serialized_end=365
-  _globals['_BACKENDOPTION']._serialized_start=368
-  _globals['_BACKENDOPTION']._serialized_end=565
-  _globals['_GETREQUEST']._serialized_start=567
-  _globals['_GETREQUEST']._serialized_end=579
-  _globals['_GETRESPONSE']._serialized_start=582
-  _globals['_GETRESPONSE']._serialized_end=849
-  _globals['_LIVENESSREQUEST']._serialized_start=851
-  _globals['_LIVENESSREQUEST']._serialized_end=868
-  _globals['_LIVENESSRESPONSE']._serialized_start=871
-  _globals['_LIVENESSRESPONSE']._serialized_end=1008
-  _globals['_CAPABILITIESSERVICE']._serialized_start=1011
-  _globals['_CAPABILITIESSERVICE']._serialized_end=1255
+  _globals['_CAPABILITYSTATE']._serialized_end=509
+  _globals['_BACKENDOPTION']._serialized_start=512
+  _globals['_BACKENDOPTION']._serialized_end=709
+  _globals['_GETREQUEST']._serialized_start=711
+  _globals['_GETREQUEST']._serialized_end=723
+  _globals['_GETRESPONSE']._serialized_start=726
+  _globals['_GETRESPONSE']._serialized_end=993
+  _globals['_LIVENESSREQUEST']._serialized_start=995
+  _globals['_LIVENESSREQUEST']._serialized_end=1012
+  _globals['_LIVENESSRESPONSE']._serialized_start=1015
+  _globals['_LIVENESSRESPONSE']._serialized_end=1152
+  _globals['_RUNACTIONREQUEST']._serialized_start=1154
+  _globals['_RUNACTIONREQUEST']._serialized_end=1242
+  _globals['_RUNACTIONRESPONSE']._serialized_start=1245
+  _globals['_RUNACTIONRESPONSE']._serialized_end=1529
+  _globals['_CAPABILITIESSERVICE']._serialized_start=1532
+  _globals['_CAPABILITIESSERVICE']._serialized_end=1898
 # @@protoc_insertion_point(module_scope)

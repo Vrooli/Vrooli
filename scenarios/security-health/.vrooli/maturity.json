@@ -1,85 +1,207 @@
 {
   "provider": "security-health",
   "phase": "security",
-  "version": "1.0.0",
-  "levels": [
+  "version": "2.0.0",
+  "capabilities": [
     {
-      "id": "L0",
-      "name": "No security target",
-      "description": "The target scenario cannot be resolved or scanned as a repository scenario.",
-      "entry_criteria": ["Scenario id is provided"],
-      "exit_criteria": ["Scenario directory exists under scenarios/"]
+      "id": "target_resolution",
+      "label": "Target Resolution",
+      "description": "Scenario lookup and repository readability for security validation.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "No security target",
+          "status_label": "Unavailable",
+          "description": "The target scenario cannot be resolved or scanned as a repository scenario.",
+          "capability_summary": "Security Health has no readable scenario target.",
+          "next_unlock": "A scenario directory that exists under scenarios/ and can be inspected."
+        },
+        {
+          "id": "L1",
+          "name": "Target readable",
+          "status_label": "Foundation",
+          "description": "The target scenario resolves to a readable source tree.",
+          "capability_summary": "Security Health can inspect the target scenario.",
+          "next_unlock": "Maximum target-resolution maturity."
+        },
+        {
+          "id": "L2",
+          "name": "Target resolved",
+          "status_label": "Complete",
+          "description": "The target scenario is resolved and ready for substrate and scanner checks.",
+          "capability_summary": "The security validation target is resolved and readable."
+        }
+      ]
     },
     {
-      "id": "L1",
-      "name": "Substrates classified",
-      "description": "Security-health can detect supported and unsupported substrates and report degraded scanner context without failing availability.",
-      "entry_criteria": ["Scenario directory is readable"],
-      "exit_criteria": ["Detected Go, pnpm, and unsupported substrates are represented in the validation report"]
+      "id": "substrate_coverage",
+      "label": "Substrate Coverage",
+      "description": "Detection of supported and unsupported language/package substrates.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "Substrate unknown",
+          "status_label": "Unavailable",
+          "description": "Security Health cannot classify the target scenario's security-relevant substrates.",
+          "capability_summary": "Substrate coverage cannot be evaluated.",
+          "next_unlock": "Readable source layout and dependency metadata."
+        },
+        {
+          "id": "L1",
+          "name": "Substrates classified",
+          "status_label": "Basic",
+          "description": "Go, pnpm, and unsupported substrates are represented in the validation report.",
+          "capability_summary": "Security-relevant substrates are classified.",
+          "next_unlock": "Unsupported substrates are explicitly understood as advisory coverage gaps."
+        },
+        {
+          "id": "L2",
+          "name": "Coverage gaps explicit",
+          "status_label": "Ready",
+          "description": "Unsupported substrates are explicit and do not hide scanner blind spots.",
+          "capability_summary": "Substrate coverage gaps are visible and bounded.",
+          "next_unlock": "Maximum substrate-coverage maturity."
+        },
+        {
+          "id": "L3",
+          "name": "Substrate coverage clean",
+          "status_label": "Complete",
+          "description": "No unsupported substrate findings remain for the target scenario.",
+          "capability_summary": "Supported security substrates are fully covered."
+        }
+      ]
     },
     {
-      "id": "L2",
-      "name": "Safety blockers absent",
-      "description": "No scanner reports an ERROR-class secret, SAST, reachable vulnerability, or production dependency vulnerability.",
-      "entry_criteria": ["Substrates are classified"],
-      "exit_criteria": ["No ERROR findings are emitted by security scanners"]
+      "id": "scanner_coverage",
+      "label": "Scanner Coverage",
+      "description": "Applicable security scanners are installed, runnable, and producing parseable output.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "Scanner context unavailable",
+          "status_label": "Unavailable",
+          "description": "Security Health cannot determine scanner availability for applicable substrates.",
+          "capability_summary": "Scanner coverage cannot be evaluated.",
+          "next_unlock": "Applicable scanner binaries are discoverable or explicitly absent."
+        },
+        {
+          "id": "L1",
+          "name": "Scanner context known",
+          "status_label": "Foundation",
+          "description": "Applicable scanner classes are known and absent scanners are reported explicitly.",
+          "capability_summary": "Scanner availability is visible.",
+          "next_unlock": "Applicable scanners are installed."
+        },
+        {
+          "id": "L2",
+          "name": "Scanners available",
+          "status_label": "Ready",
+          "description": "Applicable scanner binaries are installed and can be invoked.",
+          "capability_summary": "Security scanners are available for applicable substrates.",
+          "next_unlock": "Scanners complete with parseable results."
+        },
+        {
+          "id": "L3",
+          "name": "Scanners complete",
+          "status_label": "Complete",
+          "description": "Applicable scanners complete and produce parseable findings or clean results.",
+          "capability_summary": "Scanner coverage is complete for the target scenario."
+        }
+      ]
     },
     {
-      "id": "L3",
-      "name": "Scanner coverage available",
-      "description": "Applicable scanner classes are installed or their absence is deliberately understood as degraded context.",
-      "entry_criteria": ["Safety blockers are absent"],
-      "exit_criteria": ["Absent or degraded scanners have been resolved or explicitly accepted"]
-    },
-    {
-      "id": "L4",
-      "name": "Dependency intelligence indexed",
-      "description": "Dependency exposure can be searched through the security-health dependency corpus and index surfaces.",
-      "entry_criteria": ["Scanner coverage is available"],
-      "exit_criteria": ["Dependency records are indexed and searchable through structured or semantic search"]
-    },
-    {
-      "id": "L5",
-      "name": "Continuous security posture",
-      "description": "The scenario is ready for continuous fleet security posture monitoring and badge/UI surfaces.",
-      "entry_criteria": ["Dependency intelligence is indexed"],
-      "exit_criteria": ["Validation, dependency search, and posture surfaces can support continuous fleet monitoring"]
+      "id": "security_findings",
+      "label": "Security Findings",
+      "description": "Secret exposure, SAST, reachable vulnerability, and dependency vulnerability findings emitted by scanners.",
+      "levels": [
+        {
+          "id": "L0",
+          "name": "Security findings unavailable",
+          "status_label": "Unavailable",
+          "description": "Scanner findings cannot be evaluated for the target scenario.",
+          "capability_summary": "Security findings cannot be evaluated.",
+          "next_unlock": "Scanner findings are normalized into the shared security report."
+        },
+        {
+          "id": "L1",
+          "name": "Findings normalized",
+          "status_label": "Foundation",
+          "description": "Scanner findings are normalized with severity, location, and remediation.",
+          "capability_summary": "Security findings are visible and actionable.",
+          "next_unlock": "No ERROR-class secret, SAST, reachable vulnerability, or production dependency vulnerability remains."
+        },
+        {
+          "id": "L2",
+          "name": "Safety blockers absent",
+          "status_label": "Ready",
+          "description": "No scanner reports an ERROR-class secret, SAST, reachable vulnerability, or production dependency vulnerability.",
+          "capability_summary": "Blocking security findings are absent.",
+          "next_unlock": "Advisory vulnerability intelligence is clean."
+        },
+        {
+          "id": "L3",
+          "name": "Security posture clean",
+          "status_label": "Complete",
+          "description": "Scanner findings and advisory dependency intelligence are clean enough for continuous fleet posture monitoring.",
+          "capability_summary": "Security findings are clean for continuous fleet monitoring."
+        }
+      ]
     }
   ],
   "findings": {
     "security-health.scenario-not-found": {
-      "local_level_impact": "L0",
-      "global_impact": "advisory",
-      "dimension": "security",
-      "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["ecosystem-fit"]
-    },
-    "security-health.scanner-absent": {
-      "local_level_impact": "L3",
-      "global_impact": "advisory",
-      "dimension": "security",
-      "severity_default": "SEVERITY_INFO",
-      "recommended_skill_ids": ["security"]
-    },
-    "security-health.scanner-degraded": {
-      "local_level_impact": "L3",
-      "global_impact": "advisory",
-      "dimension": "security",
-      "severity_default": "SEVERITY_INFO",
-      "recommended_skill_ids": ["scientific-debugging", "security"]
-    },
-    "security-health.substrate-unsupported": {
+      "capability_id": "target_resolution",
       "local_level_impact": "L1",
       "global_impact": "advisory",
       "dimension": "security",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "required",
+      "recommended_skill_ids": [
+        "ecosystem-fit"
+      ]
+    },
+    "security-health.scanner-absent": {
+      "capability_id": "scanner_coverage",
+      "local_level_impact": "L2",
+      "global_impact": "advisory",
+      "dimension": "security",
       "severity_default": "SEVERITY_INFO",
-      "recommended_skill_ids": ["ecosystem-fit", "security"]
+      "clean_requirement": "uncheckable",
+      "recommended_skill_ids": [
+        "security"
+      ]
+    },
+    "security-health.scanner-degraded": {
+      "capability_id": "scanner_coverage",
+      "local_level_impact": "L3",
+      "global_impact": "advisory",
+      "dimension": "security",
+      "severity_default": "SEVERITY_INFO",
+      "clean_requirement": "uncheckable",
+      "recommended_skill_ids": [
+        "scientific-debugging",
+        "security"
+      ]
+    },
+    "security-health.substrate-unsupported": {
+      "capability_id": "substrate_coverage",
+      "local_level_impact": "L2",
+      "global_impact": "advisory",
+      "dimension": "security",
+      "severity_default": "SEVERITY_INFO",
+      "clean_requirement": "advisory",
+      "recommended_skill_ids": [
+        "ecosystem-fit",
+        "security"
+      ]
     }
   },
   "fallback": {
+    "capability_id": "security_findings",
     "local_level_impact": "L2",
     "global_impact": "safety_blocker",
     "dimension": "security",
-    "severity_default": "SEVERITY_ERROR"
+    "severity_default": "SEVERITY_ERROR",
+    "clean_requirement": "required"
   }
 }

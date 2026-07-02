@@ -1,16 +1,67 @@
 {
-  "$schema": "https://vrooli.com/schemas/testing.schema.json",
+  "$schema": "../../test-genie/schemas/testing.schema.json",
   "_metadata": {
     "description": "Testing configuration for simple-test",
     "last_updated": "2025-11-06T23:58:54-05:00"
   },
   "version": "1.0.0",
   "unit": {
-    "languages": {
-      "node": {}
-    },
     "options": {
       "verbose": false
+    },
+    "policy_profile": {
+      "version": "1.0.0",
+      "template": {
+        "id": "react-vite",
+        "scenario_class": "custom"
+      },
+      "required_roles": [
+        {
+          "role": "node",
+          "policy_class": "node_vitest",
+          "match": {
+            "surface_id": "node",
+            "kind": "ui",
+            "path": ".",
+            "language": "typescript",
+            "framework": "vite"
+          }
+        }
+      ],
+      "policy_classes": {
+        "node_vitest": {
+          "language": "typescript",
+          "framework": "vitest",
+          "package_manager": "npm",
+          "coverage": {
+            "minimum_percent": 85,
+            "mode": "both",
+            "provider": "v8",
+            "reporters": [
+              "text",
+              "json-summary",
+              "json"
+            ]
+          },
+          "projection": {
+            "required_scripts": [
+              "test",
+              "test:coverage"
+            ],
+            "vitest": {
+              "environment": "jsdom",
+              "setup_files": [
+                "./src/test-setup.ts"
+              ],
+              "coverage_provider": "v8"
+            }
+          }
+        }
+      },
+      "customization": {
+        "mode": "monotonic",
+        "waivers": []
+      }
     }
   }
 }

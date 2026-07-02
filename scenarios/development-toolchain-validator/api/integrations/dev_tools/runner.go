@@ -229,11 +229,11 @@ func appendRawOutput(buf *bytes.Buffer, tool string, args []string, res CommandR
 	}
 }
 
-// resolveAbsGoldenPath turns a (possibly repo-relative) golden path into
-// an absolute host path the tools can read. Goldens are registered with
-// repo-relative paths for portability; the repo root is resolved from
-// VROOLI_SOURCE_ROOT/VROOLI_ROOT (set by the lifecycle) with a cwd
-// fallback. Mirrors agent_manager.resolveGoldenRoot.
+// resolveAbsGoldenPath turns a materialized golden path into an absolute host
+// path the tools can read. Normal runs pass an absolute temp path, while
+// retained/generated debug paths may be repo-relative. Relative paths resolve
+// from VROOLI_SOURCE_ROOT/VROOLI_ROOT with a cwd fallback. Mirrors
+// agent_manager.resolveGoldenRoot.
 func resolveAbsGoldenPath(goldenPath string) (string, error) {
 	p := strings.TrimSpace(goldenPath)
 	if p == "" {

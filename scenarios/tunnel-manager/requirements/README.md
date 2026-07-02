@@ -25,7 +25,7 @@ This registry is PRD-specific: it maps every Tunnel Manager operational target (
 
 ## Validation
 - Validate the registry structure and target linkage:
-  `prd-control-tower requirements validate tunnel-manager --json`
+  `vrooli scenario requirements validate tunnel-manager --json`
 - Auto-sync requirement status from tests by running the suite:
   `vrooli scenario test tunnel-manager`
 

@@ -255,7 +255,7 @@ func (s *Server) setupRoutes() {
 	backlogHandler := s.registerBacklogRoutes(s.dataRoot, scenarioRoot)
 	initService := s.registerInitiativeRoutes(s.dataRoot, backlogHandler)
 	s.registerCapturesRoutes(s.cacheRoot, backlogHandler)
-	s.registerRecordsRoutes(s.dataRoot)
+	s.registerRecordsRoutes(s.dataRoot, scenariosDir)
 
 	// --- Execution & review ---
 	execSvc := s.registerExecutionRoutes(s.dataRoot, scenarioRoot)
@@ -423,10 +423,19 @@ func (s *Server) registerCapturesRoutes(cacheRoot string, backlogHandler *backlo
 	s.capturesHandler = capturesHandler
 }
 
-func (s *Server) registerRecordsRoutes(dataRoot string) {
+func (s *Server) registerRecordsRoutes(dataRoot, scenariosDir string) {
 	store := records.NewFileStore(dataRoot)
 	svc := records.NewService(store, nil, nil)
 	handler := records.NewHandler(svc, nil)
+	// Warn (never block) when a record targets an off-registry slug, so typos
+	// stop fragmenting the learning corpus. Known slugs = scenario, package,
+	// and resource directories, plus "vrooli" for repo-level work.
+	repoRoot := filepath.Dir(scenariosDir)
+	handler.SetScenarioChecker(records.NewDirectoryScenarioChecker([]string{
+		scenariosDir,
+		filepath.Join(repoRoot, "packages"),
+		filepath.Join(repoRoot, "resources"),
+	}, "vrooli"))
 	handler.RegisterRoutes(s.router)
 	s.recordsService = svc
 	s.recordsHandler = handler

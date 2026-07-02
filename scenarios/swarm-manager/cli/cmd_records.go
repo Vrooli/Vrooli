@@ -23,6 +23,7 @@ type Record struct {
 	Trigger      string   `json:"trigger"`
 	Approach     string   `json:"approach"`
 	RuledOut     []string `json:"ruled_out,omitempty"`
+	Evidence     string   `json:"evidence,omitempty"`
 	Commit       string   `json:"commit,omitempty"`
 	FilesChanged []string `json:"files_changed,omitempty"`
 	Outcome      string   `json:"outcome"`
@@ -32,9 +33,11 @@ type Record struct {
 	NarrativeAt  string   `json:"narrative_at,omitempty"`
 }
 
-// RecordEnvelope wraps single-record endpoints.
+// RecordEnvelope wraps single-record endpoints. Warnings carry non-blocking
+// server advice (e.g. off-registry scenario slug) on create.
 type RecordEnvelope struct {
-	Record Record `json:"record"`
+	Record   Record   `json:"record"`
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // ListRecordsResponse wraps GET /records.
@@ -184,6 +187,9 @@ func (a *App) cmdRecordsGet(args []string) error {
 			fmt.Printf("    - %s\n", ro)
 		}
 	}
+	if r.Evidence != "" {
+		fmt.Printf("  Evidence: %s\n", r.Evidence)
+	}
 	fmt.Printf("  Outcome:  %s\n", r.Outcome)
 
 	printSection("Provenance")
@@ -231,35 +237,61 @@ func (a *App) cmdRecordsCreate(args []string) error {
 	approachFlag := fs.String("approach", "", "What was understood / built")
 	var ruledOut stringSlice
 	fs.Var(&ruledOut, "ruled-out", "Hypothesis considered and rejected (repeatable)")
+	evidenceFlag := fs.String("evidence", "", "Validation results (test suites, baseline diffs, live checks)")
 	commitFlag := fs.String("commit", "", "Commit SHA")
 	var files stringSlice
 	fs.Var(&files, "files", "Repo-relative file path (repeatable)")
 	backlogRefFlag := fs.String("backlog-ref", "", "Backlog reference (kind/name)")
 	initiativeIDFlag := fs.String("initiative-id", "", "Initiative this work belongs to (links the record back to the initiative)")
 	supersedesFlag := fs.String("supersedes", "", "Record ID this record supersedes")
-	outcomeFlag := fs.String("outcome", "shipped", "Outcome (shipped|partial|abandoned|duplicate)")
+	outcomeFlag := fs.String("outcome", "shipped", "Outcome category (shipped|partial|abandoned|duplicate)")
 	createdByFlag := fs.String("created-by", "", "Author identifier (agent id or human)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
+		return recordsFlagError(fs, err)
 	}
-	if err := requireFlags("kind", *kindFlag, "scenario", *scenarioFlag, "trigger", *triggerFlag); err != nil {
-		return fmt.Errorf("usage: records create --kind K --scenario X --trigger '...' [--approach '...'] [--ruled-out '...']... [--commit SHA] [--files PATH]... [--backlog-ref kind/name] [--initiative-id ID] [--supersedes ID] [--outcome ...] [--json]\n\n%s", err)
+
+	in := recordsCreateInput{
+		kind: *kindFlag, scenario: *scenarioFlag, trigger: *triggerFlag,
+		approach: *approachFlag, evidence: *evidenceFlag, ruledOut: ruledOut,
+		commit: *commitFlag, files: files, backlogRef: *backlogRefFlag,
+		initiativeID: *initiativeIDFlag, supersedes: *supersedesFlag,
+		outcome: *outcomeFlag, createdBy: *createdByFlag,
+	}
+
+	if extra := fs.Args(); len(extra) > 0 {
+		return fmt.Errorf("unexpected positional arguments: %q\n"+
+			"records create takes flag arguments only — stray words usually mean a quoting mistake in a long --trigger/--approach value, and silently dropping them would corrupt the record.\n\nTry:\n  %s",
+			extra, in.suggestedCommand())
+	}
+	if outcomeLooksLikeProse(in.outcome) {
+		prose := in.outcome
+		in.outcome = ""
+		if in.evidence == "" {
+			in.evidence = prose
+		}
+		return fmt.Errorf("--outcome is a category (%s), not a summary — your validation story belongs in --evidence\n\nTry:\n  %s",
+			recordsOutcomes, in.suggestedCommand())
+	}
+	if err := requireFlags("kind", in.kind, "scenario", in.scenario, "trigger", in.trigger); err != nil {
+		return fmt.Errorf("%s\n\nTry:\n  %s\n\nRun '%s' for the full flag reference",
+			err, in.suggestedCommand(), cliCommand("records", "create", "--help"))
 	}
 
 	payload, err := json.Marshal(map[string]any{
-		"kind":          *kindFlag,
-		"scenario":      *scenarioFlag,
-		"backlog_ref":   *backlogRefFlag,
-		"initiative_id": *initiativeIDFlag,
-		"supersedes":    *supersedesFlag,
-		"trigger":       *triggerFlag,
-		"approach":      *approachFlag,
-		"ruled_out":     []string(ruledOut),
-		"commit":        *commitFlag,
-		"files_changed": []string(files),
-		"outcome":       *outcomeFlag,
-		"created_by":    *createdByFlag,
+		"kind":          in.kind,
+		"scenario":      in.scenario,
+		"backlog_ref":   in.backlogRef,
+		"initiative_id": in.initiativeID,
+		"supersedes":    in.supersedes,
+		"trigger":       in.trigger,
+		"approach":      in.approach,
+		"ruled_out":     []string(in.ruledOut),
+		"evidence":      in.evidence,
+		"commit":        in.commit,
+		"files_changed": []string(in.files),
+		"outcome":       in.outcome,
+		"created_by":    in.createdBy,
 	})
 	if err != nil {
 		return fmt.Errorf("encode payload: %w", err)
@@ -284,6 +316,12 @@ func (a *App) cmdRecordsCreate(args []string) error {
 	if r.Supersedes != "" {
 		fmt.Printf("  Supersedes: %s\n", r.Supersedes)
 	}
+	if len(resp.Warnings) > 0 {
+		printSection("Warnings")
+		for _, w := range resp.Warnings {
+			fmt.Printf("  ⚠ %s\n", w)
+		}
+	}
 	printCommandListSection("Next Steps", []string{
 		cliCommand("records", "get", "--id", r.ID),
 		cliCommand("records", "search", fmt.Sprintf("'%s'", truncate(r.Trigger, 40))),
@@ -298,16 +336,20 @@ func (a *App) cmdRecordsEdit(args []string) error {
 	approachFlag := fs.String("approach", "", "What was understood / built")
 	var ruledOut stringSlice
 	fs.Var(&ruledOut, "ruled-out", "Hypothesis considered and rejected (repeatable)")
+	evidenceFlag := fs.String("evidence", "", "Validation results (test suites, baseline diffs, live checks)")
 	commitFlag := fs.String("commit", "", "Commit SHA")
 	var files stringSlice
 	fs.Var(&files, "files", "Repo-relative file path (repeatable)")
-	outcomeFlag := fs.String("outcome", "", "Outcome (shipped|partial|abandoned|duplicate)")
+	outcomeFlag := fs.String("outcome", "", "Outcome category (shipped|partial|abandoned|duplicate)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
+		return recordsFlagError(fs, err)
 	}
 	if err := requireFlag("id", *idFlag); err != nil {
-		return fmt.Errorf("usage: records edit --id ID --trigger '...' --approach '...' [--ruled-out '...']... [--commit SHA] [--files PATH]... [--outcome ...]\n\n%s", err)
+		return fmt.Errorf("usage: records edit --id ID --trigger '...' --approach '...' [--ruled-out '...']... [--evidence '...'] [--commit SHA] [--files PATH]... [--outcome %s]\n\n%s", recordsOutcomes, err)
+	}
+	if outcomeLooksLikeProse(*outcomeFlag) {
+		return fmt.Errorf("--outcome is a category (%s), not a summary — your validation story belongs in --evidence", recordsOutcomes)
 	}
 	id := strings.TrimSpace(*idFlag)
 
@@ -315,6 +357,7 @@ func (a *App) cmdRecordsEdit(args []string) error {
 		"trigger":       *triggerFlag,
 		"approach":      *approachFlag,
 		"ruled_out":     []string(ruledOut),
+		"evidence":      *evidenceFlag,
 		"commit":        *commitFlag,
 		"files_changed": []string(files),
 		"outcome":       *outcomeFlag,
@@ -441,6 +484,120 @@ func (a *App) cmdRecordsSupersede(args []string) error {
 	printSection("Result")
 	fmt.Printf("  Marked %s as superseded by %s\n", r.ID, r.SupersededBy)
 	return nil
+}
+
+// recordsOutcomes is the canonical outcome enumeration, kept in the usage
+// strings so agents never have to guess what `[--outcome ...]` elides —
+// transcript analysis showed that elision was the single largest source of
+// failed create attempts.
+const recordsOutcomes = "shipped|partial|abandoned|duplicate"
+
+// recordsCreateInput carries the parsed create flags so validation failures
+// can echo back a corrected, fully-quoted command instead of a bare usage line.
+type recordsCreateInput struct {
+	kind, scenario, trigger, approach, evidence string
+	ruledOut, files                             stringSlice
+	commit, backlogRef, initiativeID            string
+	supersedes, outcome, createdBy              string
+}
+
+// suggestedCommand renders the full create command with everything the agent
+// already provided (shell-quoted) and <placeholders> for missing required
+// flags, ready to paste after one correction.
+func (in recordsCreateInput) suggestedCommand() string {
+	parts := []string{appName, "records", "create"}
+	addReq := func(name, val, placeholder string) {
+		if strings.TrimSpace(val) == "" {
+			parts = append(parts, "--"+name, placeholder)
+		} else {
+			parts = append(parts, "--"+name, shellQuote(val))
+		}
+	}
+	addOpt := func(name, val string) {
+		if strings.TrimSpace(val) != "" {
+			parts = append(parts, "--"+name, shellQuote(val))
+		}
+	}
+	addReq("kind", in.kind, "<idea|research|fix|execute|chore>")
+	addReq("scenario", in.scenario, "<scenario>")
+	addReq("trigger", in.trigger, "'<one-line symptom/goal>'")
+	addOpt("approach", in.approach)
+	for _, ro := range in.ruledOut {
+		parts = append(parts, "--ruled-out", shellQuote(ro))
+	}
+	addOpt("evidence", in.evidence)
+	addOpt("commit", in.commit)
+	for _, f := range in.files {
+		parts = append(parts, "--files", shellQuote(f))
+	}
+	addOpt("backlog-ref", in.backlogRef)
+	addOpt("initiative-id", in.initiativeID)
+	addOpt("supersedes", in.supersedes)
+	if o := strings.TrimSpace(in.outcome); o != "" && o != "shipped" {
+		parts = append(parts, "--outcome", shellQuote(o))
+	}
+	addOpt("created-by", in.createdBy)
+	return strings.Join(parts, " ")
+}
+
+// shellQuote renders s as a single bash word, so echoed commands survive
+// apostrophes and $(...) in narrative text.
+func shellQuote(s string) string {
+	if s == "" {
+		return "''"
+	}
+	for _, c := range s {
+		switch {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+		case c == '-' || c == '_' || c == '.' || c == '/' || c == ':' || c == '@' || c == '%' || c == '+' || c == ',' || c == '=':
+		default:
+			return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+		}
+	}
+	return s
+}
+
+// outcomeLooksLikeProse mirrors the server's heuristic so misplaced narrative
+// fails fast and locally — before the full payload burns a network roundtrip.
+func outcomeLooksLikeProse(outcome string) bool {
+	o := strings.TrimSpace(outcome)
+	return len(o) > 40 || strings.ContainsAny(o, " \t\n")
+}
+
+// recordsFlagError decorates a flag-parse failure with a targeted hint.
+// Transcript analysis: --text (borrowed from `captures create`) and --title
+// were the two dominant invented flags on records create.
+func recordsFlagError(fs *flag.FlagSet, err error) error {
+	const marker = "flag provided but not defined: -"
+	msg := err.Error()
+	i := strings.Index(msg, marker)
+	if i < 0 {
+		return err
+	}
+	name := strings.TrimLeft(strings.TrimSpace(msg[i+len(marker):]), "-")
+	hint := ""
+	switch name {
+	case "text":
+		hint = "--text belongs to `" + appName + " captures create`; records take narrative in --trigger (symptom/goal), --approach (what was built), and --evidence (validation results)"
+	case "title", "summary", "subject":
+		hint = "did you mean --trigger (one-line symptom/goal)?"
+	case "description", "details", "content", "body", "notes":
+		hint = "did you mean --approach (what was understood/built)?"
+	case "file", "files-changed", "paths":
+		hint = "did you mean --files (repeatable)?"
+	case "validation", "tests", "proof":
+		hint = "did you mean --evidence (validation results)?"
+	default:
+		known := make([]string, 0, 16)
+		fs.VisitAll(func(f *flag.Flag) { known = append(known, f.Name) })
+		if nearest := cliutil.NearestString(name, known, 2); nearest != "" {
+			hint = fmt.Sprintf("did you mean --%s?", nearest)
+		}
+	}
+	if hint == "" {
+		return err
+	}
+	return fmt.Errorf("%s — %s", msg, hint)
 }
 
 func emptyDash(s string) string {

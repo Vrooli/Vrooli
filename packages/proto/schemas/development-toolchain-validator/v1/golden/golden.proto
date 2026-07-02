@@ -51,8 +51,9 @@ message Golden {
   // Template version recorded at last regeneration (e.g. "1.0.1").
   string template_version_pinned = 4;
 
-  // Filesystem path relative to the repository root
-  // (e.g. "scenarios/reference-react-vite").
+  // Stable logical root for manifest/diff semantics. Older rows used this as
+  // a committed filesystem path; new generated goldens may omit it and let the
+  // server default it from the slug.
   string path = 5;
 
   // Server time at first registration.
@@ -61,6 +62,21 @@ message Golden {
   // Server time of the most recent regeneration (equals created_at on insert
   // when registered without an explicit regenerate step).
   google.protobuf.Timestamp last_regenerated_at = 7;
+
+  // JSON-encoded generator options captured for deterministic materialization.
+  string generation_options_json = 8;
+
+  // Materialization mode, e.g. "ephemeral" for per-run temp output.
+  string materialization_mode = 9;
+
+  // Stable logical root used when normalizing generated diff paths.
+  string logical_root = 10;
+
+  // Most recent generated physical path, populated for debugging/status only.
+  string last_materialized_path = 11;
+
+  // Most recent materialization status: never, ready, or failed.
+  string last_materialized_status = 12;
 }
 
 message ListGoldensRequest {}
@@ -84,6 +100,9 @@ message RegisterGoldenRequest {
   string template_id = 2;
   string template_version = 3;
   string path = 4;
+  string generation_options_json = 5;
+  string materialization_mode = 6;
+  string logical_root = 7;
 }
 
 message RegisterGoldenResponse {
@@ -99,6 +118,11 @@ message UpdateGoldenRequest {
 
   // Optional new template version. Empty string means leave unchanged.
   string template_version = 3;
+
+  // Optional generated-golden metadata patches.
+  string generation_options_json = 4;
+  string materialization_mode = 5;
+  string logical_root = 6;
 }
 
 message UpdateGoldenResponse {

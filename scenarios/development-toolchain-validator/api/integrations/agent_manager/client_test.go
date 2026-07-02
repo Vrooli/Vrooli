@@ -37,7 +37,7 @@ func TestResolveGoldenRoot(t *testing.T) {
 	// Relative paths resolve against the repo root. The test runs inside
 	// the repo, so the cwd fallback locates it; we only assert the result
 	// is absolute and ends with the requested relative path.
-	rel := filepath.Join("scenarios", "reference-react-vite")
+	rel := filepath.Join(".vrooli", "generated-goldens", "reference-react-vite")
 	got, err = resolveGoldenRoot(rel)
 	if err != nil {
 		t.Fatalf("relative path: %v", err)

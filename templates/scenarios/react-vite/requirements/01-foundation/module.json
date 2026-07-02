@@ -23,7 +23,7 @@
         {
           "type": "manual",
           "status": "planned",
-          "notes": "Run `prd-control-tower requirements generate {{SCENARIO_ID}}` after Gate 1 in docs/START-HERE.md, then remove or replace this starter requirement."
+          "notes": "Drive `business-health wizard` per Gate 1 in docs/START-HERE.md (its apply step scaffolds real requirements modules), then remove or replace this starter requirement."
         }
       ]
     }

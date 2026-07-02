@@ -1,7 +1,11 @@
 package main
 
 import (
+	"errors"
+	"flag"
+	"io"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -306,5 +310,96 @@ func TestStringSlice(t *testing.T) {
 	}
 	if len(s) != 2 {
 		t.Errorf("len = %d, want 2", len(s))
+	}
+}
+
+func TestShellQuote(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"", "''"},
+		{"plain-word_1.go", "plain-word_1.go"},
+		{"two words", "'two words'"},
+		{"it's done", `'it'\''s done'`},
+		{"a $(cmd) `tick`", "'a $(cmd) `tick`'"},
+	}
+	for _, c := range cases {
+		if got := shellQuote(c.in); got != c.want {
+			t.Errorf("shellQuote(%q) = %s, want %s", c.in, got, c.want)
+		}
+	}
+}
+
+func TestOutcomeLooksLikeProse(t *testing.T) {
+	cases := []struct {
+		in   string
+		want bool
+	}{
+		{"shipped", false},
+		{"done", false},
+		{"", false},
+		{"all tests pass", true},
+		{"All validation green with ZERO regressions across api and cli suites", true},
+	}
+	for _, c := range cases {
+		if got := outcomeLooksLikeProse(c.in); got != c.want {
+			t.Errorf("outcomeLooksLikeProse(%q) = %v, want %v", c.in, got, c.want)
+		}
+	}
+}
+
+func TestRecordsCreateSuggestedCommand(t *testing.T) {
+	in := recordsCreateInput{
+		scenario: "web-console",
+		trigger:  "mic stayed live",
+		evidence: "ui vitest green; restart healthy",
+		files:    stringSlice{"ui/src/a.ts", "ui/src/b.ts"},
+	}
+	got := in.suggestedCommand()
+	for _, want := range []string{
+		"swarm-manager records create",
+		"--kind <idea|research|fix|execute|chore>", // missing required → placeholder
+		"--scenario web-console",
+		"--trigger 'mic stayed live'",
+		"--evidence 'ui vitest green; restart healthy'",
+		"--files ui/src/a.ts --files ui/src/b.ts",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("suggestedCommand missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "--outcome") {
+		t.Errorf("default outcome should be omitted:\n%s", got)
+	}
+}
+
+func TestRecordsFlagError(t *testing.T) {
+	fs := flag.NewFlagSet("records create", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	fs.String("trigger", "", "")
+	fs.String("scenario", "", "")
+
+	cases := []struct {
+		args     []string
+		wantHint string
+	}{
+		{[]string{"--text", "x"}, "captures create"},
+		{[]string{"--title", "x"}, "did you mean --trigger"},
+		{[]string{"--description", "x"}, "did you mean --approach"},
+		{[]string{"--scenari", "x"}, "did you mean --scenario?"},
+	}
+	for _, c := range cases {
+		err := fs.Parse(c.args)
+		if err == nil {
+			t.Fatalf("parse %v should fail", c.args)
+		}
+		got := recordsFlagError(fs, err).Error()
+		if !strings.Contains(got, c.wantHint) {
+			t.Errorf("recordsFlagError(%v) = %q, want hint %q", c.args, got, c.wantHint)
+		}
+	}
+
+	// Unrelated errors pass through untouched.
+	plain := errors.New("boom")
+	if recordsFlagError(fs, plain) != plain {
+		t.Error("non-flag error should pass through")
 	}
 }

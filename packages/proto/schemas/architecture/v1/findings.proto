@@ -108,6 +108,10 @@ enum FindingSource {
   // Deterministic rules offer PreviewFix/ApplyFix auto-fixes. Feeds the
   // ecosystem-manager `branding` ladder dimension.
   FINDING_SOURCE_BRANDING = 15;
+  // WORKFLOW: test-genie `workflow` phase — delegates BAS workflow catalog,
+  // safety, maturity, deterministic fixes, and execution evidence to the
+  // workflow-health scenario through ScenarioValidationService.
+  FINDING_SOURCE_WORKFLOW = 16;
 }
 
 // FindingSeverity is the normalized severity ladder. Every producer maps

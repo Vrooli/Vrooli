@@ -956,6 +956,678 @@ func (x *UpdatePhaseResponse) GetPlan() *shared.Plan {
 	return nil
 }
 
+type ListRelevantContextRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Workspace     *WorkspaceScope        `protobuf:"bytes,2,opt,name=workspace,proto3" json:"workspace,omitempty"`
+	PhaseId       string                 `protobuf:"bytes,3,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListRelevantContextRequest) Reset() {
+	*x = ListRelevantContextRequest{}
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRelevantContextRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRelevantContextRequest) ProtoMessage() {}
+
+func (x *ListRelevantContextRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRelevantContextRequest.ProtoReflect.Descriptor instead.
+func (*ListRelevantContextRequest) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ListRelevantContextRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ListRelevantContextRequest) GetWorkspace() *WorkspaceScope {
+	if x != nil {
+		return x.Workspace
+	}
+	return nil
+}
+
+func (x *ListRelevantContextRequest) GetPhaseId() string {
+	if x != nil {
+		return x.PhaseId
+	}
+	return ""
+}
+
+type ListRelevantContextResponse struct {
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	Items         []*shared.RelevantContextItem `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListRelevantContextResponse) Reset() {
+	*x = ListRelevantContextResponse{}
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRelevantContextResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRelevantContextResponse) ProtoMessage() {}
+
+func (x *ListRelevantContextResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRelevantContextResponse.ProtoReflect.Descriptor instead.
+func (*ListRelevantContextResponse) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ListRelevantContextResponse) GetItems() []*shared.RelevantContextItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+type UpdateRelevantContextRequest struct {
+	state         protoimpl.MessageState      `protogen:"open.v1"`
+	Id            string                      `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Workspace     *WorkspaceScope             `protobuf:"bytes,2,opt,name=workspace,proto3" json:"workspace,omitempty"`
+	PhaseId       string                      `protobuf:"bytes,3,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
+	ItemId        string                      `protobuf:"bytes,4,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
+	Item          *shared.RelevantContextItem `protobuf:"bytes,5,opt,name=item,proto3" json:"item,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateRelevantContextRequest) Reset() {
+	*x = UpdateRelevantContextRequest{}
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateRelevantContextRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateRelevantContextRequest) ProtoMessage() {}
+
+func (x *UpdateRelevantContextRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateRelevantContextRequest.ProtoReflect.Descriptor instead.
+func (*UpdateRelevantContextRequest) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *UpdateRelevantContextRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *UpdateRelevantContextRequest) GetWorkspace() *WorkspaceScope {
+	if x != nil {
+		return x.Workspace
+	}
+	return nil
+}
+
+func (x *UpdateRelevantContextRequest) GetPhaseId() string {
+	if x != nil {
+		return x.PhaseId
+	}
+	return ""
+}
+
+func (x *UpdateRelevantContextRequest) GetItemId() string {
+	if x != nil {
+		return x.ItemId
+	}
+	return ""
+}
+
+func (x *UpdateRelevantContextRequest) GetItem() *shared.RelevantContextItem {
+	if x != nil {
+		return x.Item
+	}
+	return nil
+}
+
+type UpdateRelevantContextResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Plan          *shared.Plan           `protobuf:"bytes,1,opt,name=plan,proto3" json:"plan,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateRelevantContextResponse) Reset() {
+	*x = UpdateRelevantContextResponse{}
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateRelevantContextResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateRelevantContextResponse) ProtoMessage() {}
+
+func (x *UpdateRelevantContextResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateRelevantContextResponse.ProtoReflect.Descriptor instead.
+func (*UpdateRelevantContextResponse) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *UpdateRelevantContextResponse) GetPlan() *shared.Plan {
+	if x != nil {
+		return x.Plan
+	}
+	return nil
+}
+
+type RemoveRelevantContextRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Workspace     *WorkspaceScope        `protobuf:"bytes,2,opt,name=workspace,proto3" json:"workspace,omitempty"`
+	PhaseId       string                 `protobuf:"bytes,3,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
+	ItemId        string                 `protobuf:"bytes,4,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveRelevantContextRequest) Reset() {
+	*x = RemoveRelevantContextRequest{}
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveRelevantContextRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveRelevantContextRequest) ProtoMessage() {}
+
+func (x *RemoveRelevantContextRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveRelevantContextRequest.ProtoReflect.Descriptor instead.
+func (*RemoveRelevantContextRequest) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *RemoveRelevantContextRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RemoveRelevantContextRequest) GetWorkspace() *WorkspaceScope {
+	if x != nil {
+		return x.Workspace
+	}
+	return nil
+}
+
+func (x *RemoveRelevantContextRequest) GetPhaseId() string {
+	if x != nil {
+		return x.PhaseId
+	}
+	return ""
+}
+
+func (x *RemoveRelevantContextRequest) GetItemId() string {
+	if x != nil {
+		return x.ItemId
+	}
+	return ""
+}
+
+type RemoveRelevantContextResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Plan          *shared.Plan           `protobuf:"bytes,1,opt,name=plan,proto3" json:"plan,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveRelevantContextResponse) Reset() {
+	*x = RemoveRelevantContextResponse{}
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveRelevantContextResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveRelevantContextResponse) ProtoMessage() {}
+
+func (x *RemoveRelevantContextResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveRelevantContextResponse.ProtoReflect.Descriptor instead.
+func (*RemoveRelevantContextResponse) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *RemoveRelevantContextResponse) GetPlan() *shared.Plan {
+	if x != nil {
+		return x.Plan
+	}
+	return nil
+}
+
+type ListReferencesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Workspace     *WorkspaceScope        `protobuf:"bytes,2,opt,name=workspace,proto3" json:"workspace,omitempty"`
+	PhaseId       string                 `protobuf:"bytes,3,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListReferencesRequest) Reset() {
+	*x = ListReferencesRequest{}
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListReferencesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListReferencesRequest) ProtoMessage() {}
+
+func (x *ListReferencesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListReferencesRequest.ProtoReflect.Descriptor instead.
+func (*ListReferencesRequest) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ListReferencesRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ListReferencesRequest) GetWorkspace() *WorkspaceScope {
+	if x != nil {
+		return x.Workspace
+	}
+	return nil
+}
+
+func (x *ListReferencesRequest) GetPhaseId() string {
+	if x != nil {
+		return x.PhaseId
+	}
+	return ""
+}
+
+type ListReferencesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	References    []*shared.Reference    `protobuf:"bytes,1,rep,name=references,proto3" json:"references,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListReferencesResponse) Reset() {
+	*x = ListReferencesResponse{}
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListReferencesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListReferencesResponse) ProtoMessage() {}
+
+func (x *ListReferencesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListReferencesResponse.ProtoReflect.Descriptor instead.
+func (*ListReferencesResponse) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *ListReferencesResponse) GetReferences() []*shared.Reference {
+	if x != nil {
+		return x.References
+	}
+	return nil
+}
+
+type UpdateReferenceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Workspace     *WorkspaceScope        `protobuf:"bytes,2,opt,name=workspace,proto3" json:"workspace,omitempty"`
+	PhaseId       string                 `protobuf:"bytes,3,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
+	ReferenceId   string                 `protobuf:"bytes,4,opt,name=reference_id,json=referenceId,proto3" json:"reference_id,omitempty"`
+	Reference     *shared.Reference      `protobuf:"bytes,5,opt,name=reference,proto3" json:"reference,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateReferenceRequest) Reset() {
+	*x = UpdateReferenceRequest{}
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateReferenceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateReferenceRequest) ProtoMessage() {}
+
+func (x *UpdateReferenceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateReferenceRequest.ProtoReflect.Descriptor instead.
+func (*UpdateReferenceRequest) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *UpdateReferenceRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *UpdateReferenceRequest) GetWorkspace() *WorkspaceScope {
+	if x != nil {
+		return x.Workspace
+	}
+	return nil
+}
+
+func (x *UpdateReferenceRequest) GetPhaseId() string {
+	if x != nil {
+		return x.PhaseId
+	}
+	return ""
+}
+
+func (x *UpdateReferenceRequest) GetReferenceId() string {
+	if x != nil {
+		return x.ReferenceId
+	}
+	return ""
+}
+
+func (x *UpdateReferenceRequest) GetReference() *shared.Reference {
+	if x != nil {
+		return x.Reference
+	}
+	return nil
+}
+
+type UpdateReferenceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Plan          *shared.Plan           `protobuf:"bytes,1,opt,name=plan,proto3" json:"plan,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateReferenceResponse) Reset() {
+	*x = UpdateReferenceResponse{}
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateReferenceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateReferenceResponse) ProtoMessage() {}
+
+func (x *UpdateReferenceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateReferenceResponse.ProtoReflect.Descriptor instead.
+func (*UpdateReferenceResponse) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *UpdateReferenceResponse) GetPlan() *shared.Plan {
+	if x != nil {
+		return x.Plan
+	}
+	return nil
+}
+
+type RemoveReferenceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Workspace     *WorkspaceScope        `protobuf:"bytes,2,opt,name=workspace,proto3" json:"workspace,omitempty"`
+	PhaseId       string                 `protobuf:"bytes,3,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
+	ReferenceId   string                 `protobuf:"bytes,4,opt,name=reference_id,json=referenceId,proto3" json:"reference_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveReferenceRequest) Reset() {
+	*x = RemoveReferenceRequest{}
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveReferenceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveReferenceRequest) ProtoMessage() {}
+
+func (x *RemoveReferenceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveReferenceRequest.ProtoReflect.Descriptor instead.
+func (*RemoveReferenceRequest) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *RemoveReferenceRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RemoveReferenceRequest) GetWorkspace() *WorkspaceScope {
+	if x != nil {
+		return x.Workspace
+	}
+	return nil
+}
+
+func (x *RemoveReferenceRequest) GetPhaseId() string {
+	if x != nil {
+		return x.PhaseId
+	}
+	return ""
+}
+
+func (x *RemoveReferenceRequest) GetReferenceId() string {
+	if x != nil {
+		return x.ReferenceId
+	}
+	return ""
+}
+
+type RemoveReferenceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Plan          *shared.Plan           `protobuf:"bytes,1,opt,name=plan,proto3" json:"plan,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveReferenceResponse) Reset() {
+	*x = RemoveReferenceResponse{}
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveReferenceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveReferenceResponse) ProtoMessage() {}
+
+func (x *RemoveReferenceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveReferenceResponse.ProtoReflect.Descriptor instead.
+func (*RemoveReferenceResponse) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *RemoveReferenceResponse) GetPlan() *shared.Plan {
+	if x != nil {
+		return x.Plan
+	}
+	return nil
+}
+
 type GetGraphRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional: scope the graph to one plan's neighborhood. Empty returns all.
@@ -966,7 +1638,7 @@ type GetGraphRequest struct {
 
 func (x *GetGraphRequest) Reset() {
 	*x = GetGraphRequest{}
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[16]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -978,7 +1650,7 @@ func (x *GetGraphRequest) String() string {
 func (*GetGraphRequest) ProtoMessage() {}
 
 func (x *GetGraphRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[16]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -991,7 +1663,7 @@ func (x *GetGraphRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGraphRequest.ProtoReflect.Descriptor instead.
 func (*GetGraphRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{16}
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *GetGraphRequest) GetPlanId() string {
@@ -1010,7 +1682,7 @@ type GetGraphResponse struct {
 
 func (x *GetGraphResponse) Reset() {
 	*x = GetGraphResponse{}
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[17]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1022,7 +1694,7 @@ func (x *GetGraphResponse) String() string {
 func (*GetGraphResponse) ProtoMessage() {}
 
 func (x *GetGraphResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[17]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1035,7 +1707,7 @@ func (x *GetGraphResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGraphResponse.ProtoReflect.Descriptor instead.
 func (*GetGraphResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{17}
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *GetGraphResponse) GetEdges() []*shared.PlanEdge {
@@ -1055,7 +1727,7 @@ type LinkSupersessionRequest struct {
 
 func (x *LinkSupersessionRequest) Reset() {
 	*x = LinkSupersessionRequest{}
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[18]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1067,7 +1739,7 @@ func (x *LinkSupersessionRequest) String() string {
 func (*LinkSupersessionRequest) ProtoMessage() {}
 
 func (x *LinkSupersessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[18]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1080,7 +1752,7 @@ func (x *LinkSupersessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkSupersessionRequest.ProtoReflect.Descriptor instead.
 func (*LinkSupersessionRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{18}
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *LinkSupersessionRequest) GetSupersedingPlanId() string {
@@ -1106,7 +1778,7 @@ type LinkSupersessionResponse struct {
 
 func (x *LinkSupersessionResponse) Reset() {
 	*x = LinkSupersessionResponse{}
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[19]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1118,7 +1790,7 @@ func (x *LinkSupersessionResponse) String() string {
 func (*LinkSupersessionResponse) ProtoMessage() {}
 
 func (x *LinkSupersessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[19]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1131,7 +1803,7 @@ func (x *LinkSupersessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkSupersessionResponse.ProtoReflect.Descriptor instead.
 func (*LinkSupersessionResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{19}
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *LinkSupersessionResponse) GetPlan() *shared.Plan {
@@ -1151,7 +1823,7 @@ type LinkDependencyRequest struct {
 
 func (x *LinkDependencyRequest) Reset() {
 	*x = LinkDependencyRequest{}
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[20]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1163,7 +1835,7 @@ func (x *LinkDependencyRequest) String() string {
 func (*LinkDependencyRequest) ProtoMessage() {}
 
 func (x *LinkDependencyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[20]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1176,7 +1848,7 @@ func (x *LinkDependencyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkDependencyRequest.ProtoReflect.Descriptor instead.
 func (*LinkDependencyRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{20}
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *LinkDependencyRequest) GetDependingPlanId() string {
@@ -1202,7 +1874,7 @@ type LinkDependencyResponse struct {
 
 func (x *LinkDependencyResponse) Reset() {
 	*x = LinkDependencyResponse{}
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[21]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1214,7 +1886,7 @@ func (x *LinkDependencyResponse) String() string {
 func (*LinkDependencyResponse) ProtoMessage() {}
 
 func (x *LinkDependencyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[21]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1227,7 +1899,7 @@ func (x *LinkDependencyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkDependencyResponse.ProtoReflect.Descriptor instead.
 func (*LinkDependencyResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{21}
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *LinkDependencyResponse) GetPlan() *shared.Plan {
@@ -1254,7 +1926,7 @@ type ImportPlanRequest struct {
 
 func (x *ImportPlanRequest) Reset() {
 	*x = ImportPlanRequest{}
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[22]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1266,7 +1938,7 @@ func (x *ImportPlanRequest) String() string {
 func (*ImportPlanRequest) ProtoMessage() {}
 
 func (x *ImportPlanRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[22]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1279,7 +1951,7 @@ func (x *ImportPlanRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportPlanRequest.ProtoReflect.Descriptor instead.
 func (*ImportPlanRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{22}
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *ImportPlanRequest) GetSourcePath() string {
@@ -1326,7 +1998,7 @@ type ImportPlanResponse struct {
 
 func (x *ImportPlanResponse) Reset() {
 	*x = ImportPlanResponse{}
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[23]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1338,7 +2010,7 @@ func (x *ImportPlanResponse) String() string {
 func (*ImportPlanResponse) ProtoMessage() {}
 
 func (x *ImportPlanResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[23]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1351,7 +2023,7 @@ func (x *ImportPlanResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportPlanResponse.ProtoReflect.Descriptor instead.
 func (*ImportPlanResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{23}
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *ImportPlanResponse) GetPlan() *shared.Plan {
@@ -1370,7 +2042,7 @@ type MigratePlanRequest struct {
 
 func (x *MigratePlanRequest) Reset() {
 	*x = MigratePlanRequest{}
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[24]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1382,7 +2054,7 @@ func (x *MigratePlanRequest) String() string {
 func (*MigratePlanRequest) ProtoMessage() {}
 
 func (x *MigratePlanRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[24]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1395,7 +2067,7 @@ func (x *MigratePlanRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MigratePlanRequest.ProtoReflect.Descriptor instead.
 func (*MigratePlanRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{24}
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *MigratePlanRequest) GetId() string {
@@ -1414,7 +2086,7 @@ type MigratePlanResponse struct {
 
 func (x *MigratePlanResponse) Reset() {
 	*x = MigratePlanResponse{}
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[25]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1426,7 +2098,7 @@ func (x *MigratePlanResponse) String() string {
 func (*MigratePlanResponse) ProtoMessage() {}
 
 func (x *MigratePlanResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[25]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1439,7 +2111,7 @@ func (x *MigratePlanResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MigratePlanResponse.ProtoReflect.Descriptor instead.
 func (*MigratePlanResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{25}
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *MigratePlanResponse) GetPlan() *shared.Plan {
@@ -1468,7 +2140,7 @@ type ReconcilePlansRequest struct {
 
 func (x *ReconcilePlansRequest) Reset() {
 	*x = ReconcilePlansRequest{}
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[26]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1480,7 +2152,7 @@ func (x *ReconcilePlansRequest) String() string {
 func (*ReconcilePlansRequest) ProtoMessage() {}
 
 func (x *ReconcilePlansRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[26]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1493,7 +2165,7 @@ func (x *ReconcilePlansRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconcilePlansRequest.ProtoReflect.Descriptor instead.
 func (*ReconcilePlansRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{26}
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *ReconcilePlansRequest) GetDryRun() bool {
@@ -1583,7 +2255,7 @@ type WorkspaceScope struct {
 
 func (x *WorkspaceScope) Reset() {
 	*x = WorkspaceScope{}
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[27]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1595,7 +2267,7 @@ func (x *WorkspaceScope) String() string {
 func (*WorkspaceScope) ProtoMessage() {}
 
 func (x *WorkspaceScope) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[27]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1608,7 +2280,7 @@ func (x *WorkspaceScope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkspaceScope.ProtoReflect.Descriptor instead.
 func (*WorkspaceScope) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{27}
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *WorkspaceScope) GetId() string {
@@ -1643,7 +2315,7 @@ type ReconcilePlanItem struct {
 
 func (x *ReconcilePlanItem) Reset() {
 	*x = ReconcilePlanItem{}
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[28]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1655,7 +2327,7 @@ func (x *ReconcilePlanItem) String() string {
 func (*ReconcilePlanItem) ProtoMessage() {}
 
 func (x *ReconcilePlanItem) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[28]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1668,7 +2340,7 @@ func (x *ReconcilePlanItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconcilePlanItem.ProtoReflect.Descriptor instead.
 func (*ReconcilePlanItem) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{28}
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *ReconcilePlanItem) GetAction() ReconcileAction {
@@ -1751,7 +2423,7 @@ type ReconcilePlansResponse struct {
 
 func (x *ReconcilePlansResponse) Reset() {
 	*x = ReconcilePlansResponse{}
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[29]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1763,7 +2435,7 @@ func (x *ReconcilePlansResponse) String() string {
 func (*ReconcilePlansResponse) ProtoMessage() {}
 
 func (x *ReconcilePlansResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[29]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1776,7 +2448,7 @@ func (x *ReconcilePlansResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconcilePlansResponse.ProtoReflect.Descriptor instead.
 func (*ReconcilePlansResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{29}
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *ReconcilePlansResponse) GetDryRun() bool {
@@ -1801,7 +2473,7 @@ type ListTemplatesRequest struct {
 
 func (x *ListTemplatesRequest) Reset() {
 	*x = ListTemplatesRequest{}
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[30]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1813,7 +2485,7 @@ func (x *ListTemplatesRequest) String() string {
 func (*ListTemplatesRequest) ProtoMessage() {}
 
 func (x *ListTemplatesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[30]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1826,7 +2498,7 @@ func (x *ListTemplatesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTemplatesRequest.ProtoReflect.Descriptor instead.
 func (*ListTemplatesRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{30}
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{42}
 }
 
 type ListTemplatesResponse struct {
@@ -1838,7 +2510,7 @@ type ListTemplatesResponse struct {
 
 func (x *ListTemplatesResponse) Reset() {
 	*x = ListTemplatesResponse{}
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[31]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1850,7 +2522,7 @@ func (x *ListTemplatesResponse) String() string {
 func (*ListTemplatesResponse) ProtoMessage() {}
 
 func (x *ListTemplatesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[31]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1863,7 +2535,7 @@ func (x *ListTemplatesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTemplatesResponse.ProtoReflect.Descriptor instead.
 func (*ListTemplatesResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{31}
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *ListTemplatesResponse) GetTemplates() []*PlanTemplate {
@@ -1888,7 +2560,7 @@ type PlanTemplate struct {
 
 func (x *PlanTemplate) Reset() {
 	*x = PlanTemplate{}
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[32]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1900,7 +2572,7 @@ func (x *PlanTemplate) String() string {
 func (*PlanTemplate) ProtoMessage() {}
 
 func (x *PlanTemplate) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[32]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1913,7 +2585,7 @@ func (x *PlanTemplate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanTemplate.ProtoReflect.Descriptor instead.
 func (*PlanTemplate) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{32}
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *PlanTemplate) GetId() string {
@@ -1955,7 +2627,7 @@ type CreateFromTemplateRequest struct {
 
 func (x *CreateFromTemplateRequest) Reset() {
 	*x = CreateFromTemplateRequest{}
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[33]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1967,7 +2639,7 @@ func (x *CreateFromTemplateRequest) String() string {
 func (*CreateFromTemplateRequest) ProtoMessage() {}
 
 func (x *CreateFromTemplateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[33]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1980,7 +2652,7 @@ func (x *CreateFromTemplateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateFromTemplateRequest.ProtoReflect.Descriptor instead.
 func (*CreateFromTemplateRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{33}
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *CreateFromTemplateRequest) GetTemplateId() string {
@@ -2013,7 +2685,7 @@ type CreateFromTemplateResponse struct {
 
 func (x *CreateFromTemplateResponse) Reset() {
 	*x = CreateFromTemplateResponse{}
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[34]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2025,7 +2697,7 @@ func (x *CreateFromTemplateResponse) String() string {
 func (*CreateFromTemplateResponse) ProtoMessage() {}
 
 func (x *CreateFromTemplateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[34]
+	mi := &file_plan_manager_v1_plans_plans_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2038,7 +2710,7 @@ func (x *CreateFromTemplateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateFromTemplateResponse.ProtoReflect.Descriptor instead.
 func (*CreateFromTemplateResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{34}
+	return file_plan_manager_v1_plans_plans_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *CreateFromTemplateResponse) GetPlan() *shared.Plan {
@@ -2097,6 +2769,50 @@ const file_plan_manager_v1_plans_plans_proto_rawDesc = "" +
 	"\aplan_id\x18\x01 \x01(\tR\x06planId\x12:\n" +
 	"\x05phase\x18\x02 \x01(\v2$.vrooli.plan_manager.v1.shared.PhaseR\x05phase\"N\n" +
 	"\x13UpdatePhaseResponse\x127\n" +
+	"\x04plan\x18\x01 \x01(\v2#.vrooli.plan_manager.v1.shared.PlanR\x04plan\"\x93\x01\n" +
+	"\x1aListRelevantContextRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12J\n" +
+	"\tworkspace\x18\x02 \x01(\v2,.vrooli.plan_manager.v1.plans.WorkspaceScopeR\tworkspace\x12\x19\n" +
+	"\bphase_id\x18\x03 \x01(\tR\aphaseId\"g\n" +
+	"\x1bListRelevantContextResponse\x12H\n" +
+	"\x05items\x18\x01 \x03(\v22.vrooli.plan_manager.v1.shared.RelevantContextItemR\x05items\"\xf6\x01\n" +
+	"\x1cUpdateRelevantContextRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12J\n" +
+	"\tworkspace\x18\x02 \x01(\v2,.vrooli.plan_manager.v1.plans.WorkspaceScopeR\tworkspace\x12\x19\n" +
+	"\bphase_id\x18\x03 \x01(\tR\aphaseId\x12\x17\n" +
+	"\aitem_id\x18\x04 \x01(\tR\x06itemId\x12F\n" +
+	"\x04item\x18\x05 \x01(\v22.vrooli.plan_manager.v1.shared.RelevantContextItemR\x04item\"X\n" +
+	"\x1dUpdateRelevantContextResponse\x127\n" +
+	"\x04plan\x18\x01 \x01(\v2#.vrooli.plan_manager.v1.shared.PlanR\x04plan\"\xae\x01\n" +
+	"\x1cRemoveRelevantContextRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12J\n" +
+	"\tworkspace\x18\x02 \x01(\v2,.vrooli.plan_manager.v1.plans.WorkspaceScopeR\tworkspace\x12\x19\n" +
+	"\bphase_id\x18\x03 \x01(\tR\aphaseId\x12\x17\n" +
+	"\aitem_id\x18\x04 \x01(\tR\x06itemId\"X\n" +
+	"\x1dRemoveRelevantContextResponse\x127\n" +
+	"\x04plan\x18\x01 \x01(\v2#.vrooli.plan_manager.v1.shared.PlanR\x04plan\"\x8e\x01\n" +
+	"\x15ListReferencesRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12J\n" +
+	"\tworkspace\x18\x02 \x01(\v2,.vrooli.plan_manager.v1.plans.WorkspaceScopeR\tworkspace\x12\x19\n" +
+	"\bphase_id\x18\x03 \x01(\tR\aphaseId\"b\n" +
+	"\x16ListReferencesResponse\x12H\n" +
+	"\n" +
+	"references\x18\x01 \x03(\v2(.vrooli.plan_manager.v1.shared.ReferenceR\n" +
+	"references\"\xfa\x01\n" +
+	"\x16UpdateReferenceRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12J\n" +
+	"\tworkspace\x18\x02 \x01(\v2,.vrooli.plan_manager.v1.plans.WorkspaceScopeR\tworkspace\x12\x19\n" +
+	"\bphase_id\x18\x03 \x01(\tR\aphaseId\x12!\n" +
+	"\freference_id\x18\x04 \x01(\tR\vreferenceId\x12F\n" +
+	"\treference\x18\x05 \x01(\v2(.vrooli.plan_manager.v1.shared.ReferenceR\treference\"R\n" +
+	"\x17UpdateReferenceResponse\x127\n" +
+	"\x04plan\x18\x01 \x01(\v2#.vrooli.plan_manager.v1.shared.PlanR\x04plan\"\xb2\x01\n" +
+	"\x16RemoveReferenceRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12J\n" +
+	"\tworkspace\x18\x02 \x01(\v2,.vrooli.plan_manager.v1.plans.WorkspaceScopeR\tworkspace\x12\x19\n" +
+	"\bphase_id\x18\x03 \x01(\tR\aphaseId\x12!\n" +
+	"\freference_id\x18\x04 \x01(\tR\vreferenceId\"R\n" +
+	"\x17RemoveReferenceResponse\x127\n" +
 	"\x04plan\x18\x01 \x01(\v2#.vrooli.plan_manager.v1.shared.PlanR\x04plan\"*\n" +
 	"\x0fGetGraphRequest\x12\x17\n" +
 	"\aplan_id\x18\x01 \x01(\tR\x06planId\"Q\n" +
@@ -2186,7 +2902,7 @@ const file_plan_manager_v1_plans_plans_proto_rawDesc = "" +
 	"\x19RECONCILE_ACTION_IMPORTED\x10\x06\x12&\n" +
 	"\"RECONCILE_ACTION_SKIPPED_DUPLICATE\x10\a\x12!\n" +
 	"\x1dRECONCILE_ACTION_PARSE_FAILED\x10\b\x12\x1d\n" +
-	"\x19RECONCILE_ACTION_CONFLICT\x10\t2\xe8\x0e\n" +
+	"\x19RECONCILE_ACTION_CONFLICT\x10\t2\x98\x15\n" +
 	"\fPlansService\x12l\n" +
 	"\tListPlans\x12..vrooli.plan_manager.v1.plans.ListPlansRequest\x1a/.vrooli.plan_manager.v1.plans.ListPlansResponse\x12f\n" +
 	"\aGetPlan\x12,.vrooli.plan_manager.v1.plans.GetPlanRequest\x1a-.vrooli.plan_manager.v1.plans.GetPlanResponse\x12o\n" +
@@ -2197,7 +2913,13 @@ const file_plan_manager_v1_plans_plans_proto_rawDesc = "" +
 	"\vArchivePlan\x120.vrooli.plan_manager.v1.plans.ArchivePlanRequest\x1a1.vrooli.plan_manager.v1.plans.ArchivePlanResponse\x12{\n" +
 	"\x0eRenderMarkdown\x123.vrooli.plan_manager.v1.plans.RenderMarkdownRequest\x1a4.vrooli.plan_manager.v1.plans.RenderMarkdownResponse\x12i\n" +
 	"\bAddPhase\x12-.vrooli.plan_manager.v1.plans.AddPhaseRequest\x1a..vrooli.plan_manager.v1.plans.AddPhaseResponse\x12r\n" +
-	"\vUpdatePhase\x120.vrooli.plan_manager.v1.plans.UpdatePhaseRequest\x1a1.vrooli.plan_manager.v1.plans.UpdatePhaseResponse\x12i\n" +
+	"\vUpdatePhase\x120.vrooli.plan_manager.v1.plans.UpdatePhaseRequest\x1a1.vrooli.plan_manager.v1.plans.UpdatePhaseResponse\x12\x8a\x01\n" +
+	"\x13ListRelevantContext\x128.vrooli.plan_manager.v1.plans.ListRelevantContextRequest\x1a9.vrooli.plan_manager.v1.plans.ListRelevantContextResponse\x12\x90\x01\n" +
+	"\x15UpdateRelevantContext\x12:.vrooli.plan_manager.v1.plans.UpdateRelevantContextRequest\x1a;.vrooli.plan_manager.v1.plans.UpdateRelevantContextResponse\x12\x90\x01\n" +
+	"\x15RemoveRelevantContext\x12:.vrooli.plan_manager.v1.plans.RemoveRelevantContextRequest\x1a;.vrooli.plan_manager.v1.plans.RemoveRelevantContextResponse\x12{\n" +
+	"\x0eListReferences\x123.vrooli.plan_manager.v1.plans.ListReferencesRequest\x1a4.vrooli.plan_manager.v1.plans.ListReferencesResponse\x12~\n" +
+	"\x0fUpdateReference\x124.vrooli.plan_manager.v1.plans.UpdateReferenceRequest\x1a5.vrooli.plan_manager.v1.plans.UpdateReferenceResponse\x12~\n" +
+	"\x0fRemoveReference\x124.vrooli.plan_manager.v1.plans.RemoveReferenceRequest\x1a5.vrooli.plan_manager.v1.plans.RemoveReferenceResponse\x12i\n" +
 	"\bGetGraph\x12-.vrooli.plan_manager.v1.plans.GetGraphRequest\x1a..vrooli.plan_manager.v1.plans.GetGraphResponse\x12\x81\x01\n" +
 	"\x10LinkSupersession\x125.vrooli.plan_manager.v1.plans.LinkSupersessionRequest\x1a6.vrooli.plan_manager.v1.plans.LinkSupersessionResponse\x12{\n" +
 	"\x0eLinkDependency\x123.vrooli.plan_manager.v1.plans.LinkDependencyRequest\x1a4.vrooli.plan_manager.v1.plans.LinkDependencyResponse\x12o\n" +
@@ -2221,120 +2943,160 @@ func file_plan_manager_v1_plans_plans_proto_rawDescGZIP() []byte {
 }
 
 var file_plan_manager_v1_plans_plans_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_plan_manager_v1_plans_plans_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
+var file_plan_manager_v1_plans_plans_proto_msgTypes = make([]protoimpl.MessageInfo, 47)
 var file_plan_manager_v1_plans_plans_proto_goTypes = []any{
-	(ReconcileConflictPolicy)(0),       // 0: vrooli.plan_manager.v1.plans.ReconcileConflictPolicy
-	(ReconcileAction)(0),               // 1: vrooli.plan_manager.v1.plans.ReconcileAction
-	(*ListPlansRequest)(nil),           // 2: vrooli.plan_manager.v1.plans.ListPlansRequest
-	(*ListPlansResponse)(nil),          // 3: vrooli.plan_manager.v1.plans.ListPlansResponse
-	(*GetPlanRequest)(nil),             // 4: vrooli.plan_manager.v1.plans.GetPlanRequest
-	(*GetPlanResponse)(nil),            // 5: vrooli.plan_manager.v1.plans.GetPlanResponse
-	(*CreatePlanRequest)(nil),          // 6: vrooli.plan_manager.v1.plans.CreatePlanRequest
-	(*CreatePlanResponse)(nil),         // 7: vrooli.plan_manager.v1.plans.CreatePlanResponse
-	(*UpdatePlanRequest)(nil),          // 8: vrooli.plan_manager.v1.plans.UpdatePlanRequest
-	(*UpdatePlanResponse)(nil),         // 9: vrooli.plan_manager.v1.plans.UpdatePlanResponse
-	(*ArchivePlanRequest)(nil),         // 10: vrooli.plan_manager.v1.plans.ArchivePlanRequest
-	(*ArchivePlanResponse)(nil),        // 11: vrooli.plan_manager.v1.plans.ArchivePlanResponse
-	(*RenderMarkdownRequest)(nil),      // 12: vrooli.plan_manager.v1.plans.RenderMarkdownRequest
-	(*RenderMarkdownResponse)(nil),     // 13: vrooli.plan_manager.v1.plans.RenderMarkdownResponse
-	(*AddPhaseRequest)(nil),            // 14: vrooli.plan_manager.v1.plans.AddPhaseRequest
-	(*AddPhaseResponse)(nil),           // 15: vrooli.plan_manager.v1.plans.AddPhaseResponse
-	(*UpdatePhaseRequest)(nil),         // 16: vrooli.plan_manager.v1.plans.UpdatePhaseRequest
-	(*UpdatePhaseResponse)(nil),        // 17: vrooli.plan_manager.v1.plans.UpdatePhaseResponse
-	(*GetGraphRequest)(nil),            // 18: vrooli.plan_manager.v1.plans.GetGraphRequest
-	(*GetGraphResponse)(nil),           // 19: vrooli.plan_manager.v1.plans.GetGraphResponse
-	(*LinkSupersessionRequest)(nil),    // 20: vrooli.plan_manager.v1.plans.LinkSupersessionRequest
-	(*LinkSupersessionResponse)(nil),   // 21: vrooli.plan_manager.v1.plans.LinkSupersessionResponse
-	(*LinkDependencyRequest)(nil),      // 22: vrooli.plan_manager.v1.plans.LinkDependencyRequest
-	(*LinkDependencyResponse)(nil),     // 23: vrooli.plan_manager.v1.plans.LinkDependencyResponse
-	(*ImportPlanRequest)(nil),          // 24: vrooli.plan_manager.v1.plans.ImportPlanRequest
-	(*ImportPlanResponse)(nil),         // 25: vrooli.plan_manager.v1.plans.ImportPlanResponse
-	(*MigratePlanRequest)(nil),         // 26: vrooli.plan_manager.v1.plans.MigratePlanRequest
-	(*MigratePlanResponse)(nil),        // 27: vrooli.plan_manager.v1.plans.MigratePlanResponse
-	(*ReconcilePlansRequest)(nil),      // 28: vrooli.plan_manager.v1.plans.ReconcilePlansRequest
-	(*WorkspaceScope)(nil),             // 29: vrooli.plan_manager.v1.plans.WorkspaceScope
-	(*ReconcilePlanItem)(nil),          // 30: vrooli.plan_manager.v1.plans.ReconcilePlanItem
-	(*ReconcilePlansResponse)(nil),     // 31: vrooli.plan_manager.v1.plans.ReconcilePlansResponse
-	(*ListTemplatesRequest)(nil),       // 32: vrooli.plan_manager.v1.plans.ListTemplatesRequest
-	(*ListTemplatesResponse)(nil),      // 33: vrooli.plan_manager.v1.plans.ListTemplatesResponse
-	(*PlanTemplate)(nil),               // 34: vrooli.plan_manager.v1.plans.PlanTemplate
-	(*CreateFromTemplateRequest)(nil),  // 35: vrooli.plan_manager.v1.plans.CreateFromTemplateRequest
-	(*CreateFromTemplateResponse)(nil), // 36: vrooli.plan_manager.v1.plans.CreateFromTemplateResponse
-	(shared.PlanStatus)(0),             // 37: vrooli.plan_manager.v1.shared.PlanStatus
-	(*shared.Plan)(nil),                // 38: vrooli.plan_manager.v1.shared.Plan
-	(*shared.RenderedPlanMirror)(nil),  // 39: vrooli.plan_manager.v1.shared.RenderedPlanMirror
-	(*shared.Phase)(nil),               // 40: vrooli.plan_manager.v1.shared.Phase
-	(*shared.PlanEdge)(nil),            // 41: vrooli.plan_manager.v1.shared.PlanEdge
+	(ReconcileConflictPolicy)(0),          // 0: vrooli.plan_manager.v1.plans.ReconcileConflictPolicy
+	(ReconcileAction)(0),                  // 1: vrooli.plan_manager.v1.plans.ReconcileAction
+	(*ListPlansRequest)(nil),              // 2: vrooli.plan_manager.v1.plans.ListPlansRequest
+	(*ListPlansResponse)(nil),             // 3: vrooli.plan_manager.v1.plans.ListPlansResponse
+	(*GetPlanRequest)(nil),                // 4: vrooli.plan_manager.v1.plans.GetPlanRequest
+	(*GetPlanResponse)(nil),               // 5: vrooli.plan_manager.v1.plans.GetPlanResponse
+	(*CreatePlanRequest)(nil),             // 6: vrooli.plan_manager.v1.plans.CreatePlanRequest
+	(*CreatePlanResponse)(nil),            // 7: vrooli.plan_manager.v1.plans.CreatePlanResponse
+	(*UpdatePlanRequest)(nil),             // 8: vrooli.plan_manager.v1.plans.UpdatePlanRequest
+	(*UpdatePlanResponse)(nil),            // 9: vrooli.plan_manager.v1.plans.UpdatePlanResponse
+	(*ArchivePlanRequest)(nil),            // 10: vrooli.plan_manager.v1.plans.ArchivePlanRequest
+	(*ArchivePlanResponse)(nil),           // 11: vrooli.plan_manager.v1.plans.ArchivePlanResponse
+	(*RenderMarkdownRequest)(nil),         // 12: vrooli.plan_manager.v1.plans.RenderMarkdownRequest
+	(*RenderMarkdownResponse)(nil),        // 13: vrooli.plan_manager.v1.plans.RenderMarkdownResponse
+	(*AddPhaseRequest)(nil),               // 14: vrooli.plan_manager.v1.plans.AddPhaseRequest
+	(*AddPhaseResponse)(nil),              // 15: vrooli.plan_manager.v1.plans.AddPhaseResponse
+	(*UpdatePhaseRequest)(nil),            // 16: vrooli.plan_manager.v1.plans.UpdatePhaseRequest
+	(*UpdatePhaseResponse)(nil),           // 17: vrooli.plan_manager.v1.plans.UpdatePhaseResponse
+	(*ListRelevantContextRequest)(nil),    // 18: vrooli.plan_manager.v1.plans.ListRelevantContextRequest
+	(*ListRelevantContextResponse)(nil),   // 19: vrooli.plan_manager.v1.plans.ListRelevantContextResponse
+	(*UpdateRelevantContextRequest)(nil),  // 20: vrooli.plan_manager.v1.plans.UpdateRelevantContextRequest
+	(*UpdateRelevantContextResponse)(nil), // 21: vrooli.plan_manager.v1.plans.UpdateRelevantContextResponse
+	(*RemoveRelevantContextRequest)(nil),  // 22: vrooli.plan_manager.v1.plans.RemoveRelevantContextRequest
+	(*RemoveRelevantContextResponse)(nil), // 23: vrooli.plan_manager.v1.plans.RemoveRelevantContextResponse
+	(*ListReferencesRequest)(nil),         // 24: vrooli.plan_manager.v1.plans.ListReferencesRequest
+	(*ListReferencesResponse)(nil),        // 25: vrooli.plan_manager.v1.plans.ListReferencesResponse
+	(*UpdateReferenceRequest)(nil),        // 26: vrooli.plan_manager.v1.plans.UpdateReferenceRequest
+	(*UpdateReferenceResponse)(nil),       // 27: vrooli.plan_manager.v1.plans.UpdateReferenceResponse
+	(*RemoveReferenceRequest)(nil),        // 28: vrooli.plan_manager.v1.plans.RemoveReferenceRequest
+	(*RemoveReferenceResponse)(nil),       // 29: vrooli.plan_manager.v1.plans.RemoveReferenceResponse
+	(*GetGraphRequest)(nil),               // 30: vrooli.plan_manager.v1.plans.GetGraphRequest
+	(*GetGraphResponse)(nil),              // 31: vrooli.plan_manager.v1.plans.GetGraphResponse
+	(*LinkSupersessionRequest)(nil),       // 32: vrooli.plan_manager.v1.plans.LinkSupersessionRequest
+	(*LinkSupersessionResponse)(nil),      // 33: vrooli.plan_manager.v1.plans.LinkSupersessionResponse
+	(*LinkDependencyRequest)(nil),         // 34: vrooli.plan_manager.v1.plans.LinkDependencyRequest
+	(*LinkDependencyResponse)(nil),        // 35: vrooli.plan_manager.v1.plans.LinkDependencyResponse
+	(*ImportPlanRequest)(nil),             // 36: vrooli.plan_manager.v1.plans.ImportPlanRequest
+	(*ImportPlanResponse)(nil),            // 37: vrooli.plan_manager.v1.plans.ImportPlanResponse
+	(*MigratePlanRequest)(nil),            // 38: vrooli.plan_manager.v1.plans.MigratePlanRequest
+	(*MigratePlanResponse)(nil),           // 39: vrooli.plan_manager.v1.plans.MigratePlanResponse
+	(*ReconcilePlansRequest)(nil),         // 40: vrooli.plan_manager.v1.plans.ReconcilePlansRequest
+	(*WorkspaceScope)(nil),                // 41: vrooli.plan_manager.v1.plans.WorkspaceScope
+	(*ReconcilePlanItem)(nil),             // 42: vrooli.plan_manager.v1.plans.ReconcilePlanItem
+	(*ReconcilePlansResponse)(nil),        // 43: vrooli.plan_manager.v1.plans.ReconcilePlansResponse
+	(*ListTemplatesRequest)(nil),          // 44: vrooli.plan_manager.v1.plans.ListTemplatesRequest
+	(*ListTemplatesResponse)(nil),         // 45: vrooli.plan_manager.v1.plans.ListTemplatesResponse
+	(*PlanTemplate)(nil),                  // 46: vrooli.plan_manager.v1.plans.PlanTemplate
+	(*CreateFromTemplateRequest)(nil),     // 47: vrooli.plan_manager.v1.plans.CreateFromTemplateRequest
+	(*CreateFromTemplateResponse)(nil),    // 48: vrooli.plan_manager.v1.plans.CreateFromTemplateResponse
+	(shared.PlanStatus)(0),                // 49: vrooli.plan_manager.v1.shared.PlanStatus
+	(*shared.Plan)(nil),                   // 50: vrooli.plan_manager.v1.shared.Plan
+	(*shared.RenderedPlanMirror)(nil),     // 51: vrooli.plan_manager.v1.shared.RenderedPlanMirror
+	(*shared.Phase)(nil),                  // 52: vrooli.plan_manager.v1.shared.Phase
+	(*shared.RelevantContextItem)(nil),    // 53: vrooli.plan_manager.v1.shared.RelevantContextItem
+	(*shared.Reference)(nil),              // 54: vrooli.plan_manager.v1.shared.Reference
+	(*shared.PlanEdge)(nil),               // 55: vrooli.plan_manager.v1.shared.PlanEdge
 }
 var file_plan_manager_v1_plans_plans_proto_depIdxs = []int32{
-	37, // 0: vrooli.plan_manager.v1.plans.ListPlansRequest.status:type_name -> vrooli.plan_manager.v1.shared.PlanStatus
-	29, // 1: vrooli.plan_manager.v1.plans.ListPlansRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
-	38, // 2: vrooli.plan_manager.v1.plans.ListPlansResponse.plans:type_name -> vrooli.plan_manager.v1.shared.Plan
-	29, // 3: vrooli.plan_manager.v1.plans.GetPlanRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
-	38, // 4: vrooli.plan_manager.v1.plans.GetPlanResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	38, // 5: vrooli.plan_manager.v1.plans.CreatePlanRequest.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	38, // 6: vrooli.plan_manager.v1.plans.CreatePlanResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	38, // 7: vrooli.plan_manager.v1.plans.UpdatePlanRequest.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	38, // 8: vrooli.plan_manager.v1.plans.UpdatePlanResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	29, // 9: vrooli.plan_manager.v1.plans.ArchivePlanRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
-	38, // 10: vrooli.plan_manager.v1.plans.ArchivePlanResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	29, // 11: vrooli.plan_manager.v1.plans.RenderMarkdownRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
-	39, // 12: vrooli.plan_manager.v1.plans.RenderMarkdownResponse.mirror:type_name -> vrooli.plan_manager.v1.shared.RenderedPlanMirror
-	38, // 13: vrooli.plan_manager.v1.plans.RenderMarkdownResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	40, // 14: vrooli.plan_manager.v1.plans.AddPhaseRequest.phase:type_name -> vrooli.plan_manager.v1.shared.Phase
-	38, // 15: vrooli.plan_manager.v1.plans.AddPhaseResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	40, // 16: vrooli.plan_manager.v1.plans.UpdatePhaseRequest.phase:type_name -> vrooli.plan_manager.v1.shared.Phase
-	38, // 17: vrooli.plan_manager.v1.plans.UpdatePhaseResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	41, // 18: vrooli.plan_manager.v1.plans.GetGraphResponse.edges:type_name -> vrooli.plan_manager.v1.shared.PlanEdge
-	38, // 19: vrooli.plan_manager.v1.plans.LinkSupersessionResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	38, // 20: vrooli.plan_manager.v1.plans.LinkDependencyResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	29, // 21: vrooli.plan_manager.v1.plans.ImportPlanRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
-	38, // 22: vrooli.plan_manager.v1.plans.ImportPlanResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	38, // 23: vrooli.plan_manager.v1.plans.MigratePlanResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	0,  // 24: vrooli.plan_manager.v1.plans.ReconcilePlansRequest.conflict_policy:type_name -> vrooli.plan_manager.v1.plans.ReconcileConflictPolicy
-	29, // 25: vrooli.plan_manager.v1.plans.ReconcilePlansRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
-	1,  // 26: vrooli.plan_manager.v1.plans.ReconcilePlanItem.action:type_name -> vrooli.plan_manager.v1.plans.ReconcileAction
-	39, // 27: vrooli.plan_manager.v1.plans.ReconcilePlanItem.mirror:type_name -> vrooli.plan_manager.v1.shared.RenderedPlanMirror
-	30, // 28: vrooli.plan_manager.v1.plans.ReconcilePlansResponse.items:type_name -> vrooli.plan_manager.v1.plans.ReconcilePlanItem
-	34, // 29: vrooli.plan_manager.v1.plans.ListTemplatesResponse.templates:type_name -> vrooli.plan_manager.v1.plans.PlanTemplate
-	38, // 30: vrooli.plan_manager.v1.plans.CreateFromTemplateResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	2,  // 31: vrooli.plan_manager.v1.plans.PlansService.ListPlans:input_type -> vrooli.plan_manager.v1.plans.ListPlansRequest
-	4,  // 32: vrooli.plan_manager.v1.plans.PlansService.GetPlan:input_type -> vrooli.plan_manager.v1.plans.GetPlanRequest
-	6,  // 33: vrooli.plan_manager.v1.plans.PlansService.CreatePlan:input_type -> vrooli.plan_manager.v1.plans.CreatePlanRequest
-	8,  // 34: vrooli.plan_manager.v1.plans.PlansService.UpdatePlan:input_type -> vrooli.plan_manager.v1.plans.UpdatePlanRequest
-	10, // 35: vrooli.plan_manager.v1.plans.PlansService.ArchivePlan:input_type -> vrooli.plan_manager.v1.plans.ArchivePlanRequest
-	12, // 36: vrooli.plan_manager.v1.plans.PlansService.RenderMarkdown:input_type -> vrooli.plan_manager.v1.plans.RenderMarkdownRequest
-	14, // 37: vrooli.plan_manager.v1.plans.PlansService.AddPhase:input_type -> vrooli.plan_manager.v1.plans.AddPhaseRequest
-	16, // 38: vrooli.plan_manager.v1.plans.PlansService.UpdatePhase:input_type -> vrooli.plan_manager.v1.plans.UpdatePhaseRequest
-	18, // 39: vrooli.plan_manager.v1.plans.PlansService.GetGraph:input_type -> vrooli.plan_manager.v1.plans.GetGraphRequest
-	20, // 40: vrooli.plan_manager.v1.plans.PlansService.LinkSupersession:input_type -> vrooli.plan_manager.v1.plans.LinkSupersessionRequest
-	22, // 41: vrooli.plan_manager.v1.plans.PlansService.LinkDependency:input_type -> vrooli.plan_manager.v1.plans.LinkDependencyRequest
-	24, // 42: vrooli.plan_manager.v1.plans.PlansService.ImportPlan:input_type -> vrooli.plan_manager.v1.plans.ImportPlanRequest
-	26, // 43: vrooli.plan_manager.v1.plans.PlansService.MigratePlan:input_type -> vrooli.plan_manager.v1.plans.MigratePlanRequest
-	28, // 44: vrooli.plan_manager.v1.plans.PlansService.ReconcilePlans:input_type -> vrooli.plan_manager.v1.plans.ReconcilePlansRequest
-	32, // 45: vrooli.plan_manager.v1.plans.PlansService.ListTemplates:input_type -> vrooli.plan_manager.v1.plans.ListTemplatesRequest
-	35, // 46: vrooli.plan_manager.v1.plans.PlansService.CreateFromTemplate:input_type -> vrooli.plan_manager.v1.plans.CreateFromTemplateRequest
-	3,  // 47: vrooli.plan_manager.v1.plans.PlansService.ListPlans:output_type -> vrooli.plan_manager.v1.plans.ListPlansResponse
-	5,  // 48: vrooli.plan_manager.v1.plans.PlansService.GetPlan:output_type -> vrooli.plan_manager.v1.plans.GetPlanResponse
-	7,  // 49: vrooli.plan_manager.v1.plans.PlansService.CreatePlan:output_type -> vrooli.plan_manager.v1.plans.CreatePlanResponse
-	9,  // 50: vrooli.plan_manager.v1.plans.PlansService.UpdatePlan:output_type -> vrooli.plan_manager.v1.plans.UpdatePlanResponse
-	11, // 51: vrooli.plan_manager.v1.plans.PlansService.ArchivePlan:output_type -> vrooli.plan_manager.v1.plans.ArchivePlanResponse
-	13, // 52: vrooli.plan_manager.v1.plans.PlansService.RenderMarkdown:output_type -> vrooli.plan_manager.v1.plans.RenderMarkdownResponse
-	15, // 53: vrooli.plan_manager.v1.plans.PlansService.AddPhase:output_type -> vrooli.plan_manager.v1.plans.AddPhaseResponse
-	17, // 54: vrooli.plan_manager.v1.plans.PlansService.UpdatePhase:output_type -> vrooli.plan_manager.v1.plans.UpdatePhaseResponse
-	19, // 55: vrooli.plan_manager.v1.plans.PlansService.GetGraph:output_type -> vrooli.plan_manager.v1.plans.GetGraphResponse
-	21, // 56: vrooli.plan_manager.v1.plans.PlansService.LinkSupersession:output_type -> vrooli.plan_manager.v1.plans.LinkSupersessionResponse
-	23, // 57: vrooli.plan_manager.v1.plans.PlansService.LinkDependency:output_type -> vrooli.plan_manager.v1.plans.LinkDependencyResponse
-	25, // 58: vrooli.plan_manager.v1.plans.PlansService.ImportPlan:output_type -> vrooli.plan_manager.v1.plans.ImportPlanResponse
-	27, // 59: vrooli.plan_manager.v1.plans.PlansService.MigratePlan:output_type -> vrooli.plan_manager.v1.plans.MigratePlanResponse
-	31, // 60: vrooli.plan_manager.v1.plans.PlansService.ReconcilePlans:output_type -> vrooli.plan_manager.v1.plans.ReconcilePlansResponse
-	33, // 61: vrooli.plan_manager.v1.plans.PlansService.ListTemplates:output_type -> vrooli.plan_manager.v1.plans.ListTemplatesResponse
-	36, // 62: vrooli.plan_manager.v1.plans.PlansService.CreateFromTemplate:output_type -> vrooli.plan_manager.v1.plans.CreateFromTemplateResponse
-	47, // [47:63] is the sub-list for method output_type
-	31, // [31:47] is the sub-list for method input_type
-	31, // [31:31] is the sub-list for extension type_name
-	31, // [31:31] is the sub-list for extension extendee
-	0,  // [0:31] is the sub-list for field type_name
+	49, // 0: vrooli.plan_manager.v1.plans.ListPlansRequest.status:type_name -> vrooli.plan_manager.v1.shared.PlanStatus
+	41, // 1: vrooli.plan_manager.v1.plans.ListPlansRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	50, // 2: vrooli.plan_manager.v1.plans.ListPlansResponse.plans:type_name -> vrooli.plan_manager.v1.shared.Plan
+	41, // 3: vrooli.plan_manager.v1.plans.GetPlanRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	50, // 4: vrooli.plan_manager.v1.plans.GetPlanResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	50, // 5: vrooli.plan_manager.v1.plans.CreatePlanRequest.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	50, // 6: vrooli.plan_manager.v1.plans.CreatePlanResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	50, // 7: vrooli.plan_manager.v1.plans.UpdatePlanRequest.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	50, // 8: vrooli.plan_manager.v1.plans.UpdatePlanResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	41, // 9: vrooli.plan_manager.v1.plans.ArchivePlanRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	50, // 10: vrooli.plan_manager.v1.plans.ArchivePlanResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	41, // 11: vrooli.plan_manager.v1.plans.RenderMarkdownRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	51, // 12: vrooli.plan_manager.v1.plans.RenderMarkdownResponse.mirror:type_name -> vrooli.plan_manager.v1.shared.RenderedPlanMirror
+	50, // 13: vrooli.plan_manager.v1.plans.RenderMarkdownResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	52, // 14: vrooli.plan_manager.v1.plans.AddPhaseRequest.phase:type_name -> vrooli.plan_manager.v1.shared.Phase
+	50, // 15: vrooli.plan_manager.v1.plans.AddPhaseResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	52, // 16: vrooli.plan_manager.v1.plans.UpdatePhaseRequest.phase:type_name -> vrooli.plan_manager.v1.shared.Phase
+	50, // 17: vrooli.plan_manager.v1.plans.UpdatePhaseResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	41, // 18: vrooli.plan_manager.v1.plans.ListRelevantContextRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	53, // 19: vrooli.plan_manager.v1.plans.ListRelevantContextResponse.items:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	41, // 20: vrooli.plan_manager.v1.plans.UpdateRelevantContextRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	53, // 21: vrooli.plan_manager.v1.plans.UpdateRelevantContextRequest.item:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	50, // 22: vrooli.plan_manager.v1.plans.UpdateRelevantContextResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	41, // 23: vrooli.plan_manager.v1.plans.RemoveRelevantContextRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	50, // 24: vrooli.plan_manager.v1.plans.RemoveRelevantContextResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	41, // 25: vrooli.plan_manager.v1.plans.ListReferencesRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	54, // 26: vrooli.plan_manager.v1.plans.ListReferencesResponse.references:type_name -> vrooli.plan_manager.v1.shared.Reference
+	41, // 27: vrooli.plan_manager.v1.plans.UpdateReferenceRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	54, // 28: vrooli.plan_manager.v1.plans.UpdateReferenceRequest.reference:type_name -> vrooli.plan_manager.v1.shared.Reference
+	50, // 29: vrooli.plan_manager.v1.plans.UpdateReferenceResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	41, // 30: vrooli.plan_manager.v1.plans.RemoveReferenceRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	50, // 31: vrooli.plan_manager.v1.plans.RemoveReferenceResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	55, // 32: vrooli.plan_manager.v1.plans.GetGraphResponse.edges:type_name -> vrooli.plan_manager.v1.shared.PlanEdge
+	50, // 33: vrooli.plan_manager.v1.plans.LinkSupersessionResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	50, // 34: vrooli.plan_manager.v1.plans.LinkDependencyResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	41, // 35: vrooli.plan_manager.v1.plans.ImportPlanRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	50, // 36: vrooli.plan_manager.v1.plans.ImportPlanResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	50, // 37: vrooli.plan_manager.v1.plans.MigratePlanResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	0,  // 38: vrooli.plan_manager.v1.plans.ReconcilePlansRequest.conflict_policy:type_name -> vrooli.plan_manager.v1.plans.ReconcileConflictPolicy
+	41, // 39: vrooli.plan_manager.v1.plans.ReconcilePlansRequest.workspace:type_name -> vrooli.plan_manager.v1.plans.WorkspaceScope
+	1,  // 40: vrooli.plan_manager.v1.plans.ReconcilePlanItem.action:type_name -> vrooli.plan_manager.v1.plans.ReconcileAction
+	51, // 41: vrooli.plan_manager.v1.plans.ReconcilePlanItem.mirror:type_name -> vrooli.plan_manager.v1.shared.RenderedPlanMirror
+	42, // 42: vrooli.plan_manager.v1.plans.ReconcilePlansResponse.items:type_name -> vrooli.plan_manager.v1.plans.ReconcilePlanItem
+	46, // 43: vrooli.plan_manager.v1.plans.ListTemplatesResponse.templates:type_name -> vrooli.plan_manager.v1.plans.PlanTemplate
+	50, // 44: vrooli.plan_manager.v1.plans.CreateFromTemplateResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	2,  // 45: vrooli.plan_manager.v1.plans.PlansService.ListPlans:input_type -> vrooli.plan_manager.v1.plans.ListPlansRequest
+	4,  // 46: vrooli.plan_manager.v1.plans.PlansService.GetPlan:input_type -> vrooli.plan_manager.v1.plans.GetPlanRequest
+	6,  // 47: vrooli.plan_manager.v1.plans.PlansService.CreatePlan:input_type -> vrooli.plan_manager.v1.plans.CreatePlanRequest
+	8,  // 48: vrooli.plan_manager.v1.plans.PlansService.UpdatePlan:input_type -> vrooli.plan_manager.v1.plans.UpdatePlanRequest
+	10, // 49: vrooli.plan_manager.v1.plans.PlansService.ArchivePlan:input_type -> vrooli.plan_manager.v1.plans.ArchivePlanRequest
+	12, // 50: vrooli.plan_manager.v1.plans.PlansService.RenderMarkdown:input_type -> vrooli.plan_manager.v1.plans.RenderMarkdownRequest
+	14, // 51: vrooli.plan_manager.v1.plans.PlansService.AddPhase:input_type -> vrooli.plan_manager.v1.plans.AddPhaseRequest
+	16, // 52: vrooli.plan_manager.v1.plans.PlansService.UpdatePhase:input_type -> vrooli.plan_manager.v1.plans.UpdatePhaseRequest
+	18, // 53: vrooli.plan_manager.v1.plans.PlansService.ListRelevantContext:input_type -> vrooli.plan_manager.v1.plans.ListRelevantContextRequest
+	20, // 54: vrooli.plan_manager.v1.plans.PlansService.UpdateRelevantContext:input_type -> vrooli.plan_manager.v1.plans.UpdateRelevantContextRequest
+	22, // 55: vrooli.plan_manager.v1.plans.PlansService.RemoveRelevantContext:input_type -> vrooli.plan_manager.v1.plans.RemoveRelevantContextRequest
+	24, // 56: vrooli.plan_manager.v1.plans.PlansService.ListReferences:input_type -> vrooli.plan_manager.v1.plans.ListReferencesRequest
+	26, // 57: vrooli.plan_manager.v1.plans.PlansService.UpdateReference:input_type -> vrooli.plan_manager.v1.plans.UpdateReferenceRequest
+	28, // 58: vrooli.plan_manager.v1.plans.PlansService.RemoveReference:input_type -> vrooli.plan_manager.v1.plans.RemoveReferenceRequest
+	30, // 59: vrooli.plan_manager.v1.plans.PlansService.GetGraph:input_type -> vrooli.plan_manager.v1.plans.GetGraphRequest
+	32, // 60: vrooli.plan_manager.v1.plans.PlansService.LinkSupersession:input_type -> vrooli.plan_manager.v1.plans.LinkSupersessionRequest
+	34, // 61: vrooli.plan_manager.v1.plans.PlansService.LinkDependency:input_type -> vrooli.plan_manager.v1.plans.LinkDependencyRequest
+	36, // 62: vrooli.plan_manager.v1.plans.PlansService.ImportPlan:input_type -> vrooli.plan_manager.v1.plans.ImportPlanRequest
+	38, // 63: vrooli.plan_manager.v1.plans.PlansService.MigratePlan:input_type -> vrooli.plan_manager.v1.plans.MigratePlanRequest
+	40, // 64: vrooli.plan_manager.v1.plans.PlansService.ReconcilePlans:input_type -> vrooli.plan_manager.v1.plans.ReconcilePlansRequest
+	44, // 65: vrooli.plan_manager.v1.plans.PlansService.ListTemplates:input_type -> vrooli.plan_manager.v1.plans.ListTemplatesRequest
+	47, // 66: vrooli.plan_manager.v1.plans.PlansService.CreateFromTemplate:input_type -> vrooli.plan_manager.v1.plans.CreateFromTemplateRequest
+	3,  // 67: vrooli.plan_manager.v1.plans.PlansService.ListPlans:output_type -> vrooli.plan_manager.v1.plans.ListPlansResponse
+	5,  // 68: vrooli.plan_manager.v1.plans.PlansService.GetPlan:output_type -> vrooli.plan_manager.v1.plans.GetPlanResponse
+	7,  // 69: vrooli.plan_manager.v1.plans.PlansService.CreatePlan:output_type -> vrooli.plan_manager.v1.plans.CreatePlanResponse
+	9,  // 70: vrooli.plan_manager.v1.plans.PlansService.UpdatePlan:output_type -> vrooli.plan_manager.v1.plans.UpdatePlanResponse
+	11, // 71: vrooli.plan_manager.v1.plans.PlansService.ArchivePlan:output_type -> vrooli.plan_manager.v1.plans.ArchivePlanResponse
+	13, // 72: vrooli.plan_manager.v1.plans.PlansService.RenderMarkdown:output_type -> vrooli.plan_manager.v1.plans.RenderMarkdownResponse
+	15, // 73: vrooli.plan_manager.v1.plans.PlansService.AddPhase:output_type -> vrooli.plan_manager.v1.plans.AddPhaseResponse
+	17, // 74: vrooli.plan_manager.v1.plans.PlansService.UpdatePhase:output_type -> vrooli.plan_manager.v1.plans.UpdatePhaseResponse
+	19, // 75: vrooli.plan_manager.v1.plans.PlansService.ListRelevantContext:output_type -> vrooli.plan_manager.v1.plans.ListRelevantContextResponse
+	21, // 76: vrooli.plan_manager.v1.plans.PlansService.UpdateRelevantContext:output_type -> vrooli.plan_manager.v1.plans.UpdateRelevantContextResponse
+	23, // 77: vrooli.plan_manager.v1.plans.PlansService.RemoveRelevantContext:output_type -> vrooli.plan_manager.v1.plans.RemoveRelevantContextResponse
+	25, // 78: vrooli.plan_manager.v1.plans.PlansService.ListReferences:output_type -> vrooli.plan_manager.v1.plans.ListReferencesResponse
+	27, // 79: vrooli.plan_manager.v1.plans.PlansService.UpdateReference:output_type -> vrooli.plan_manager.v1.plans.UpdateReferenceResponse
+	29, // 80: vrooli.plan_manager.v1.plans.PlansService.RemoveReference:output_type -> vrooli.plan_manager.v1.plans.RemoveReferenceResponse
+	31, // 81: vrooli.plan_manager.v1.plans.PlansService.GetGraph:output_type -> vrooli.plan_manager.v1.plans.GetGraphResponse
+	33, // 82: vrooli.plan_manager.v1.plans.PlansService.LinkSupersession:output_type -> vrooli.plan_manager.v1.plans.LinkSupersessionResponse
+	35, // 83: vrooli.plan_manager.v1.plans.PlansService.LinkDependency:output_type -> vrooli.plan_manager.v1.plans.LinkDependencyResponse
+	37, // 84: vrooli.plan_manager.v1.plans.PlansService.ImportPlan:output_type -> vrooli.plan_manager.v1.plans.ImportPlanResponse
+	39, // 85: vrooli.plan_manager.v1.plans.PlansService.MigratePlan:output_type -> vrooli.plan_manager.v1.plans.MigratePlanResponse
+	43, // 86: vrooli.plan_manager.v1.plans.PlansService.ReconcilePlans:output_type -> vrooli.plan_manager.v1.plans.ReconcilePlansResponse
+	45, // 87: vrooli.plan_manager.v1.plans.PlansService.ListTemplates:output_type -> vrooli.plan_manager.v1.plans.ListTemplatesResponse
+	48, // 88: vrooli.plan_manager.v1.plans.PlansService.CreateFromTemplate:output_type -> vrooli.plan_manager.v1.plans.CreateFromTemplateResponse
+	67, // [67:89] is the sub-list for method output_type
+	45, // [45:67] is the sub-list for method input_type
+	45, // [45:45] is the sub-list for extension type_name
+	45, // [45:45] is the sub-list for extension extendee
+	0,  // [0:45] is the sub-list for field type_name
 }
 
 func init() { file_plan_manager_v1_plans_plans_proto_init() }
@@ -2348,7 +3110,7 @@ func file_plan_manager_v1_plans_plans_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_plan_manager_v1_plans_plans_proto_rawDesc), len(file_plan_manager_v1_plans_plans_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   35,
+			NumMessages:   47,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

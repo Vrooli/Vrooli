@@ -20,6 +20,17 @@ type SandboxedRunSpec struct {
 	SkillPrompt string
 }
 
+// MaterializedGolden is the generated physical substrate for one run.
+// PhysicalPath is passed to agent-manager/tools; LogicalRoot is the
+// stable root used when normalizing paths for manifest evaluation and
+// records. Cleanup removes ephemeral output after the run.
+type MaterializedGolden struct {
+	GoldenSlug   string
+	PhysicalPath string
+	LogicalRoot  string
+	Cleanup      func() error
+}
+
 // SkillContentSource resolves a steer skill's full instruction text by
 // id. The worker uses it to build the agent prompt for a skill run so
 // the sandboxed agent has the actual skill to execute, not just its name.
@@ -61,13 +72,14 @@ type WorkspaceSandboxClient interface {
 	FetchPathContent(ctx context.Context, sandboxID, path string) (string, error)
 }
 
-// GoldenSource is the manifest-lookup seam over the local golden
-// registry. The worker uses this to resolve the on-disk path the
-// AgentManager/ToolRunner needs.
+// GoldenMaterializer is the seam over the local golden registry and
+// template generator. The worker uses this to obtain a physical path the
+// AgentManager/ToolRunner can consume without relying on committed
+// golden scenario trees.
 //
-// seam: GoldenSource
-type GoldenSource interface {
-	GoldenPath(ctx context.Context, goldenSlug string) (string, error)
+// seam: GoldenMaterializer
+type GoldenMaterializer interface {
+	Materialize(ctx context.Context, goldenSlug string) (MaterializedGolden, error)
 }
 
 // ManifestSource is the manifest-lookup seam over the local manifest

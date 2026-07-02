@@ -1616,8 +1616,8 @@ export type DiscoverContextCandidatesRequest = Message<"vrooli.plan_manager.v1.a
   sessionId: string;
 
   /**
-   * Decomposed discovery concepts (domain / technology / problem type / scenario surface lenses). Empty uses the
-   * session title as a fallback concept.
+   * Decomposed discovery concepts (domain / technology / problem type / scenario surface lenses). Empty inspects the
+   * latest/prefetched batch without creating a new one unless refresh is true.
    *
    * @generated from field: repeated string concepts = 2;
    */
@@ -1631,7 +1631,7 @@ export type DiscoverContextCandidatesRequest = Message<"vrooli.plan_manager.v1.a
   complexity: string;
 
   /**
-   * Force a fresh discovery even when a prefetched pending batch is available.
+   * Force a fresh discovery even when no concepts are supplied.
    *
    * @generated from field: bool refresh = 4;
    */

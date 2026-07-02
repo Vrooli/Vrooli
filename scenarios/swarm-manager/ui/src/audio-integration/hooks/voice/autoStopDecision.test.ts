@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 
-import { decideAutoStop } from "./autoStopDecision";
+import { decideAutoStop, decideAutoStopRing } from "./autoStopDecision";
 import type { ServerVadStateSnapshot } from "../useServerVadStateStore";
+import type { VoiceActivitySnapshot } from "./types";
 
 const STALE_MS = 250;
 const NOW = 10_000;
@@ -14,6 +15,21 @@ function snapshot(over: Partial<ServerVadStateSnapshot> = {}): ServerVadStateSna
     receivedAt: 0,
     tickSeq: 0,
     silenceTimedOut: false,
+    ...over,
+  };
+}
+
+function activity(over: Partial<VoiceActivitySnapshot> = {}): VoiceActivitySnapshot {
+  return {
+    phase: "silence",
+    audioLevel: 0,
+    rms: 0,
+    speechThreshold: 0.06,
+    silenceThreshold: 0.02,
+    silenceElapsedMs: 600,
+    silenceTimeoutMs: 1200,
+    autoStopProgress: 0.5,
+    autoStopVisible: true,
     ...over,
   };
 }
@@ -205,5 +221,87 @@ describe("decideAutoStop", () => {
       });
       expect(verdict).toEqual({ kind: "continue" });
     }
+  });
+});
+
+describe("decideAutoStopRing", () => {
+  it("hides the ring when not recording", () => {
+    expect(decideAutoStopRing({
+      isRecording: false,
+      serverVad: snapshot({
+        receivedAt: NOW - 10,
+        silenceElapsedMs: 1200,
+        silenceTimeoutMs: 1200,
+      }),
+      voiceActivity: activity(),
+      nowPerf: NOW,
+      staleTickMs: STALE_MS,
+      visualGraceMs: 300,
+    })).toEqual({ visible: false, progress: 0 });
+  });
+
+  it("uses fresh server silence progress before client activity", () => {
+    const ring = decideAutoStopRing({
+      isRecording: true,
+      serverVad: snapshot({
+        voiced: false,
+        receivedAt: NOW - 100,
+        silenceElapsedMs: 500,
+        silenceTimeoutMs: 1200,
+      }),
+      voiceActivity: activity({ phase: "speech", autoStopProgress: 0, autoStopVisible: false }),
+      nowPerf: NOW,
+      staleTickMs: STALE_MS,
+      visualGraceMs: 300,
+    });
+    expect(ring.visible).toBe(true);
+    expect(ring.progress).toBeCloseTo(0.5, 5);
+  });
+
+  it("keeps a stale latched server timeout visible and complete", () => {
+    expect(decideAutoStopRing({
+      isRecording: true,
+      serverVad: snapshot({
+        receivedAt: NOW - 5000,
+        silenceElapsedMs: 1200,
+        silenceTimeoutMs: 1200,
+        silenceTimedOut: true,
+      }),
+      voiceActivity: activity({ phase: "speech", autoStopProgress: 0, autoStopVisible: false }),
+      nowPerf: NOW,
+      staleTickMs: STALE_MS,
+      visualGraceMs: 300,
+    })).toEqual({ visible: true, progress: 1 });
+  });
+
+  it("falls back to client activity when the server tick is stale and not latched", () => {
+    expect(decideAutoStopRing({
+      isRecording: true,
+      serverVad: snapshot({
+        receivedAt: NOW - 1000,
+        silenceElapsedMs: 1100,
+        silenceTimeoutMs: 1200,
+        silenceTimedOut: false,
+      }),
+      voiceActivity: activity({ autoStopProgress: 0.25 }),
+      nowPerf: NOW,
+      staleTickMs: STALE_MS,
+      visualGraceMs: 300,
+    })).toEqual({ visible: true, progress: 0.25 });
+  });
+
+  it("hides the ring when neither server nor client has a usable timeout", () => {
+    expect(decideAutoStopRing({
+      isRecording: true,
+      serverVad: snapshot({
+        receivedAt: NOW - 10,
+        silenceElapsedMs: 500,
+        silenceTimeoutMs: 0,
+      }),
+      voiceActivity: activity({ silenceTimeoutMs: 0, autoStopVisible: true }),
+      nowPerf: NOW,
+      staleTickMs: STALE_MS,
+      visualGraceMs: 300,
+    })).toEqual({ visible: false, progress: 0 });
   });
 });

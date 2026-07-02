@@ -6,13 +6,13 @@
  * tokens. Not snapshot tests — we don't want every Tailwind class change
  * to churn the file.
  */
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 import { Badge } from "../Badge";
 import { Button } from "../Button";
-import { Card } from "../Card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../Card";
 import { Dialog, DialogTitle } from "../Dialog";
 import { Input } from "../Input";
 import { Popover } from "../Popover";
@@ -36,6 +36,18 @@ describe("Button primitive", () => {
     wrap(<Button data-testid="b">x</Button>);
     expect(screen.getByTestId("b")).toHaveAttribute("data-variant", "default");
   });
+
+  it("can render through Slot for link-styled icon buttons", () => {
+    wrap(
+      <Button asChild size="icon" data-testid="b-slot">
+        <a href="/runs">R</a>
+      </Button>,
+    );
+    const el = screen.getByTestId("b-slot");
+    expect(el.tagName.toLowerCase()).toBe("a");
+    expect(el.className).toMatch(/h-9/);
+    expect(el.className).toMatch(/w-9/);
+  });
 });
 
 describe("Badge primitive", () => {
@@ -43,12 +55,35 @@ describe("Badge primitive", () => {
     wrap(<Badge variant="verdict-pass" data-testid="bg">pass</Badge>);
     expect(screen.getByTestId("bg")).toHaveAttribute("data-variant", "verdict-pass");
   });
+
+  it("defaults to the neutral variant", () => {
+    wrap(<Badge data-testid="bg-default">neutral</Badge>);
+    expect(screen.getByTestId("bg-default")).toHaveAttribute("data-variant", "neutral");
+  });
 });
 
 describe("Card primitive", () => {
   it("emits the surface variant on data-variant", () => {
     wrap(<Card surface="raised" data-testid="c">x</Card>);
     expect(screen.getByTestId("c")).toHaveAttribute("data-variant", "raised");
+  });
+
+  it("renders every card subcomponent", () => {
+    wrap(
+      <Card data-testid="c">
+        <CardHeader data-testid="card-header">
+          <CardTitle data-testid="card-title">title</CardTitle>
+          <CardDescription data-testid="card-description">description</CardDescription>
+        </CardHeader>
+        <CardContent data-testid="card-content">content</CardContent>
+        <CardFooter data-testid="card-footer">footer</CardFooter>
+      </Card>,
+    );
+    expect(screen.getByTestId("card-header")).toBeInTheDocument();
+    expect(screen.getByTestId("card-title")).toBeInTheDocument();
+    expect(screen.getByTestId("card-description")).toBeInTheDocument();
+    expect(screen.getByTestId("card-content")).toBeInTheDocument();
+    expect(screen.getByTestId("card-footer")).toBeInTheDocument();
   });
 });
 
@@ -85,6 +120,17 @@ describe("ScrollArea primitive", () => {
     const el = screen.getByTestId("sc");
     expect(el.className).toMatch(/overflow-auto/);
     expect(el.style.maxHeight).toBe("200px");
+  });
+
+  it("preserves caller styles when max-height is omitted", () => {
+    wrap(
+      <ScrollArea data-testid="sc-style" style={{ minHeight: "40px" }}>
+        x
+      </ScrollArea>,
+    );
+    const el = screen.getByTestId("sc-style");
+    expect(el.style.minHeight).toBe("40px");
+    expect(el.style.maxHeight).toBe("");
   });
 });
 
@@ -141,6 +187,24 @@ describe("Popover primitive", () => {
     );
     expect(screen.getByTestId("popover-content")).toBeInTheDocument();
   });
+
+  it("closes on Escape and outside mouse down", () => {
+    const onOpenChange = vi.fn();
+    wrap(
+      <Popover
+        open
+        onOpenChange={onOpenChange}
+        trigger={<button type="button">open</button>}
+        align="right"
+      >
+        <span data-testid="popover-content">x</span>
+      </Popover>,
+    );
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    fireEvent.mouseDown(document.body);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
 });
 
 describe("Tooltip primitive", () => {
@@ -151,5 +215,38 @@ describe("Tooltip primitive", () => {
       </Tooltip>,
     );
     expect(screen.getByRole("tooltip")).toHaveTextContent("explain");
+  });
+
+  it("preserves trigger handlers while toggling hover and focus state", () => {
+    const onMouseEnter = vi.fn();
+    const onMouseLeave = vi.fn();
+    const onFocus = vi.fn();
+    const onBlur = vi.fn();
+    wrap(
+      <Tooltip content="explain">
+        <button
+          type="button"
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
+          onFocus={onFocus}
+          onBlur={onBlur}
+        >
+          trigger
+        </button>
+      </Tooltip>,
+    );
+    const trigger = screen.getByRole("button", { name: "trigger" });
+    fireEvent.mouseEnter(trigger);
+    expect(onMouseEnter).toHaveBeenCalled();
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+    fireEvent.mouseLeave(trigger);
+    expect(onMouseLeave).toHaveBeenCalled();
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    fireEvent.focus(trigger);
+    expect(onFocus).toHaveBeenCalled();
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+    fireEvent.blur(trigger);
+    expect(onBlur).toHaveBeenCalled();
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 });

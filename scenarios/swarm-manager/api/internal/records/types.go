@@ -162,15 +162,107 @@ const (
 // AllOutcomes is the canonical enumeration.
 var AllOutcomes = []Outcome{OutcomeShipped, OutcomePartial, OutcomeAbandoned, OutcomeDuplicate}
 
-// ParseOutcome validates a raw outcome string (case-insensitive).
+// outcomeAliases maps common improvised outcome words onto a canonical
+// Outcome, mirroring kindAliases. Transcript analysis showed agents most often
+// write "success", "done", or "green" where the enum expects "shipped"; keep
+// this list curated and finite.
+var outcomeAliases = map[string]Outcome{
+	"success":     OutcomeShipped,
+	"succeeded":   OutcomeShipped,
+	"done":        OutcomeShipped,
+	"complete":    OutcomeShipped,
+	"completed":   OutcomeShipped,
+	"finished":    OutcomeShipped,
+	"fixed":       OutcomeShipped,
+	"resolved":    OutcomeShipped,
+	"green":       OutcomeShipped,
+	"delivered":   OutcomeShipped,
+	"implemented": OutcomeShipped,
+	"wip":         OutcomePartial,
+	"in-progress": OutcomePartial,
+	"in_progress": OutcomePartial,
+	"incomplete":  OutcomePartial,
+	"cancelled":   OutcomeAbandoned,
+	"canceled":    OutcomeAbandoned,
+	"dropped":     OutcomeAbandoned,
+	"aborted":     OutcomeAbandoned,
+	"dup":         OutcomeDuplicate,
+	"dupe":        OutcomeDuplicate,
+}
+
+// outcomeProseThreshold is the length past which an unrecognized outcome value
+// is treated as misplaced narrative rather than a typo'd enum word. The
+// transcript corpus put prose outcomes at a median of 260 chars and short
+// typos well under this bound.
+const outcomeProseThreshold = 40
+
+// ParseOutcome resolves a raw outcome string to a canonical Outcome. It
+// accepts the canonical outcomes (case-insensitive) and a curated set of
+// aliases (outcomeAliases). Unrecognized values get a self-correcting error:
+// prose-shaped input (the dominant failure in transcript analysis — agents
+// passing their whole validation summary) is told which fields narrative
+// belongs in, and short near-misses get a did-you-mean hint.
 func ParseOutcome(raw string) (Outcome, error) {
-	candidate := Outcome(strings.ToLower(strings.TrimSpace(raw)))
+	candidate := strings.ToLower(strings.TrimSpace(raw))
 	for _, o := range AllOutcomes {
-		if candidate == o {
+		if candidate == string(o) {
 			return o, nil
 		}
 	}
-	return "", fmt.Errorf("invalid outcome %q (expected one of %v)", raw, AllOutcomes)
+	if canon, ok := outcomeAliases[candidate]; ok {
+		return canon, nil
+	}
+	if len(candidate) > outcomeProseThreshold || strings.ContainsAny(candidate, " \t\n") {
+		return "", fmt.Errorf("invalid outcome: value looks like a narrative (%d chars); --outcome is a category, one of %s — put validation results in --evidence and the build story in --approach",
+			len(raw), joinOutcomes(AllOutcomes))
+	}
+	return "", fmt.Errorf("invalid outcome %q (expected one of %s)%s",
+		raw, joinOutcomes(AllOutcomes), suggestOutcome(candidate))
+}
+
+// joinOutcomes renders the canonical outcomes as a comma-separated list.
+func joinOutcomes(outcomes []Outcome) string {
+	parts := make([]string, len(outcomes))
+	for i, o := range outcomes {
+		parts[i] = string(o)
+	}
+	return strings.Join(parts, ", ")
+}
+
+// suggestOutcome returns a ` (did you mean "x"?)` fragment when candidate is a
+// near miss of a canonical outcome or alias, or "" when nothing is close.
+func suggestOutcome(candidate string) string {
+	if candidate == "" {
+		return ""
+	}
+	type token struct {
+		text  string
+		canon Outcome
+	}
+	tokens := make([]token, 0, len(AllOutcomes)+len(outcomeAliases))
+	for _, o := range AllOutcomes {
+		tokens = append(tokens, token{string(o), o})
+	}
+	aliasKeys := make([]string, 0, len(outcomeAliases))
+	for a := range outcomeAliases {
+		aliasKeys = append(aliasKeys, a)
+	}
+	sort.Strings(aliasKeys)
+	for _, a := range aliasKeys {
+		tokens = append(tokens, token{a, outcomeAliases[a]})
+	}
+	best := Outcome("")
+	bestDist := -1
+	for _, t := range tokens {
+		if d := levenshtein(candidate, t.text); bestDist == -1 || d < bestDist {
+			bestDist = d
+			best = t.canon
+		}
+	}
+	if bestDist > 2 {
+		return ""
+	}
+	return fmt.Sprintf(" (did you mean %q?)", best)
 }
 
 // Record is a narrative artifact of completed work. Once Stub flips false,
@@ -187,6 +279,7 @@ type Record struct {
 	Trigger      string     `json:"trigger"`
 	Approach     string     `json:"approach"`
 	RuledOut     []string   `json:"ruled_out,omitempty"`
+	Evidence     string     `json:"evidence,omitempty"`
 	Commit       string     `json:"commit,omitempty"`
 	FilesChanged []string   `json:"files_changed,omitempty"`
 	Outcome      Outcome    `json:"outcome"`
@@ -220,5 +313,8 @@ func (r *Record) hasNarrative() bool {
 func (r *Record) EmbeddingText() string {
 	parts := []string{r.Trigger, r.Approach}
 	parts = append(parts, r.RuledOut...)
+	if r.Evidence != "" {
+		parts = append(parts, r.Evidence)
+	}
 	return strings.TrimSpace(strings.Join(parts, "\n"))
 }

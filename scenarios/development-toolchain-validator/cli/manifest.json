@@ -5,7 +5,7 @@
   "groups": [
     {
       "name": "goldens",
-      "description": "Manage template-pristine golden scenarios used by skill validation",
+      "description": "Manage generated golden substrates used by skill validation",
       "commands": [
         {
           "name": "list",
@@ -24,24 +24,24 @@
         },
         {
           "name": "register",
-          "description": "Register a template-pristine golden scenario",
+          "description": "Register a generated golden from template metadata",
           "flags": [
             { "name": "slug", "required": true, "description": "Unique golden slug (kebab-case)" },
             { "name": "template", "required": true, "description": "Template id (e.g. react-vite)" },
             { "name": "version", "required": true, "description": "Template version to pin (e.g. 1.0.1)" },
-            { "name": "path", "required": true, "description": "Repo-relative path to the golden directory" }
+            { "name": "path", "description": "Optional repo-relative logical root for stable diff paths" }
           ],
           "binding": { "kind": "connect-rpc", "service": "GoldenService", "method": "RegisterGolden" },
           "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
           "name": "update",
-          "description": "Patch a golden's path and/or template version",
+          "description": "Patch a golden's logical root and/or template version",
           "positionals": [
             { "name": "slug", "required": true, "description": "Golden slug" }
           ],
           "flags": [
-            { "name": "path", "description": "New repo-relative path" },
+            { "name": "path", "description": "New repo-relative logical root" },
             { "name": "version", "description": "New template version" }
           ],
           "binding": { "kind": "connect-rpc", "service": "GoldenService", "method": "UpdateGolden" },
@@ -49,7 +49,7 @@
         },
         {
           "name": "delete",
-          "description": "Delete a golden record (does not remove files on disk)",
+          "description": "Delete a golden record (does not remove generated history)",
           "positionals": [
             { "name": "slug", "required": true, "description": "Golden slug" }
           ],
@@ -61,7 +61,7 @@
         },
         {
           "name": "regenerate",
-          "description": "Regenerate a golden's on-disk tree from its pinned template",
+          "description": "Refresh generated-golden metadata from its pinned template",
           "positionals": [
             { "name": "slug", "required": true, "description": "Golden slug" }
           ],

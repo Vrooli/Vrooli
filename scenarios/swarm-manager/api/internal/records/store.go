@@ -39,6 +39,7 @@ type Narrative struct {
 	Trigger      string
 	Approach     string
 	RuledOut     []string
+	Evidence     string
 	Commit       string
 	FilesChanged []string
 	Outcome      Outcome
@@ -228,6 +229,9 @@ func (s *FileStore) UpdateNarrative(id string, n Narrative, now time.Time) (Reco
 	r.Trigger = strings.TrimSpace(n.Trigger)
 	r.Approach = strings.TrimSpace(n.Approach)
 	r.RuledOut = trimAll(n.RuledOut)
+	if n.Evidence != "" {
+		r.Evidence = strings.TrimSpace(n.Evidence)
+	}
 	if n.Commit != "" {
 		r.Commit = n.Commit
 	}

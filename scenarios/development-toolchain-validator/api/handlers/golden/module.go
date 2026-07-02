@@ -100,7 +100,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        goldenconnect.GoldenServiceRegisterGoldenProcedure,
 		Method:      "POST",
 		Summary:     "Register a golden",
-		Description: "Persists a new golden record. Slug must be unique. The on-disk path must exist; this RPC does not regenerate it.",
+		Description: "Persists a generated-golden record. Slug must be unique. Validation runs materialize the substrate from template metadata into a managed generated path.",
 		Category:    "golden",
 		Request: &module.Schema{
 			Type: "object",
@@ -108,7 +108,7 @@ var Endpoints = []module.EndpointDescriptor{
 				"slug":             "string (required, kebab-case)",
 				"template_id":      "string (required)",
 				"template_version": "string (required)",
-				"path":             "string (required, repo-relative)",
+				"path":             "string (optional logical root, repo-relative)",
 			},
 		},
 		Response: &module.Schema{
@@ -121,7 +121,7 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 500, Code: "internal", Description: "Repository write failure"},
 		},
 		Examples: []module.Example{
-			{Name: "Register golden", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.golden.GoldenService/RegisterGolden -H 'Content-Type: application/json' -d '{\"slug\":\"reference-react-vite\",\"template_id\":\"react-vite\",\"template_version\":\"1.0.1\",\"path\":\"scenarios/reference-react-vite\"}'"},
+			{Name: "Register generated golden", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.golden.GoldenService/RegisterGolden -H 'Content-Type: application/json' -d '{\"slug\":\"reference-react-vite\",\"template_id\":\"react-vite\",\"template_version\":\"1.0.1\"}'"},
 		},
 	},
 	{
@@ -129,7 +129,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        goldenconnect.GoldenServiceUpdateGoldenProcedure,
 		Method:      "POST",
 		Summary:     "Update a golden",
-		Description: "Patches the path and/or template_version of an existing golden. Empty fields are left unchanged.",
+		Description: "Patches the logical root and/or template_version of an existing generated golden. Empty fields are left unchanged.",
 		Category:    "golden",
 		Request: &module.Schema{
 			Type: "object",

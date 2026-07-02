@@ -1518,16 +1518,19 @@ func (x *ScalingPoint) GetRtf() float64 {
 }
 
 type ScalingModelFit struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Metric         string                 `protobuf:"bytes,1,opt,name=metric,proto3" json:"metric,omitempty"`
-	Model          string                 `protobuf:"bytes,2,opt,name=model,proto3" json:"model,omitempty"` // "constant" | "linear" | "n_log_n" | "quadratic"
-	SlopePerSecond float64                `protobuf:"fixed64,3,opt,name=slope_per_second,json=slopePerSecond,proto3" json:"slope_per_second,omitempty"`
-	Intercept      float64                `protobuf:"fixed64,4,opt,name=intercept,proto3" json:"intercept,omitempty"`
-	RSquared       float64                `protobuf:"fixed64,5,opt,name=r_squared,json=rSquared,proto3" json:"r_squared,omitempty"`
-	SampleCount    int32                  `protobuf:"varint,6,opt,name=sample_count,json=sampleCount,proto3" json:"sample_count,omitempty"`
-	Reason         string                 `protobuf:"bytes,7,opt,name=reason,proto3" json:"reason,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Metric           string                 `protobuf:"bytes,1,opt,name=metric,proto3" json:"metric,omitempty"`
+	Model            string                 `protobuf:"bytes,2,opt,name=model,proto3" json:"model,omitempty"` // "constant" | "linear" | "n_log_n" | "quadratic"
+	SlopePerSecond   float64                `protobuf:"fixed64,3,opt,name=slope_per_second,json=slopePerSecond,proto3" json:"slope_per_second,omitempty"`
+	Intercept        float64                `protobuf:"fixed64,4,opt,name=intercept,proto3" json:"intercept,omitempty"`
+	RSquared         float64                `protobuf:"fixed64,5,opt,name=r_squared,json=rSquared,proto3" json:"r_squared,omitempty"`
+	SampleCount      int32                  `protobuf:"varint,6,opt,name=sample_count,json=sampleCount,proto3" json:"sample_count,omitempty"`
+	Reason           string                 `protobuf:"bytes,7,opt,name=reason,proto3" json:"reason,omitempty"`
+	Exponent         float64                `protobuf:"fixed64,8,opt,name=exponent,proto3" json:"exponent,omitempty"`
+	ExponentRSquared float64                `protobuf:"fixed64,9,opt,name=exponent_r_squared,json=exponentRSquared,proto3" json:"exponent_r_squared,omitempty"`
+	Unit             string                 `protobuf:"bytes,10,opt,name=unit,proto3" json:"unit,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ScalingModelFit) Reset() {
@@ -1609,6 +1612,27 @@ func (x *ScalingModelFit) GetReason() string {
 	return ""
 }
 
+func (x *ScalingModelFit) GetExponent() float64 {
+	if x != nil {
+		return x.Exponent
+	}
+	return 0
+}
+
+func (x *ScalingModelFit) GetExponentRSquared() float64 {
+	if x != nil {
+		return x.ExponentRSquared
+	}
+	return 0
+}
+
+func (x *ScalingModelFit) GetUnit() string {
+	if x != nil {
+		return x.Unit
+	}
+	return ""
+}
+
 type ScalingAnalysis struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
 	Points                []*ScalingPoint        `protobuf:"bytes,1,rep,name=points,proto3" json:"points,omitempty"`
@@ -1619,6 +1643,7 @@ type ScalingAnalysis struct {
 	Warnings              []*ReportWarning       `protobuf:"bytes,6,rep,name=warnings,proto3" json:"warnings,omitempty"`
 	LatencyFit            *ScalingModelFit       `protobuf:"bytes,7,opt,name=latency_fit,json=latencyFit,proto3" json:"latency_fit,omitempty"`
 	ComputeFit            *ScalingModelFit       `protobuf:"bytes,8,opt,name=compute_fit,json=computeFit,proto3" json:"compute_fit,omitempty"`
+	MetricFits            []*ScalingModelFit     `protobuf:"bytes,9,rep,name=metric_fits,json=metricFits,proto3" json:"metric_fits,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -1705,6 +1730,13 @@ func (x *ScalingAnalysis) GetLatencyFit() *ScalingModelFit {
 func (x *ScalingAnalysis) GetComputeFit() *ScalingModelFit {
 	if x != nil {
 		return x.ComputeFit
+	}
+	return nil
+}
+
+func (x *ScalingAnalysis) GetMetricFits() []*ScalingModelFit {
+	if x != nil {
+		return x.MetricFits
 	}
 	return nil
 }
@@ -1866,7 +1898,7 @@ const file_audio_tools_v1_eval_eval_proto_rawDesc = "" +
 	"\rwhisper_calls\x18\f \x01(\x05R\fwhisperCalls\x122\n" +
 	"\x15whisper_audio_seconds\x18\r \x01(\x01R\x13whisperAudioSeconds\x12.\n" +
 	"\x13provider_latency_ms\x18\x0e \x01(\x01R\x11providerLatencyMs\x12\x10\n" +
-	"\x03rtf\x18\x0f \x01(\x01R\x03rtf\"\xdf\x01\n" +
+	"\x03rtf\x18\x0f \x01(\x01R\x03rtf\"\xbd\x02\n" +
 	"\x0fScalingModelFit\x12\x16\n" +
 	"\x06metric\x18\x01 \x01(\tR\x06metric\x12\x14\n" +
 	"\x05model\x18\x02 \x01(\tR\x05model\x12(\n" +
@@ -1874,7 +1906,11 @@ const file_audio_tools_v1_eval_eval_proto_rawDesc = "" +
 	"\tintercept\x18\x04 \x01(\x01R\tintercept\x12\x1b\n" +
 	"\tr_squared\x18\x05 \x01(\x01R\brSquared\x12!\n" +
 	"\fsample_count\x18\x06 \x01(\x05R\vsampleCount\x12\x16\n" +
-	"\x06reason\x18\a \x01(\tR\x06reason\"\xde\x03\n" +
+	"\x06reason\x18\a \x01(\tR\x06reason\x12\x1a\n" +
+	"\bexponent\x18\b \x01(\x01R\bexponent\x12,\n" +
+	"\x12exponent_r_squared\x18\t \x01(\x01R\x10exponentRSquared\x12\x12\n" +
+	"\x04unit\x18\n" +
+	" \x01(\tR\x04unit\"\xac\x04\n" +
 	"\x0fScalingAnalysis\x12@\n" +
 	"\x06points\x18\x01 \x03(\v2(.vrooli.audio_tools.v1.eval.ScalingPointR\x06points\x125\n" +
 	"\x16latency_classification\x18\x02 \x01(\tR\x15latencyClassification\x125\n" +
@@ -1887,7 +1923,9 @@ const file_audio_tools_v1_eval_eval_proto_rawDesc = "" +
 	"\vlatency_fit\x18\a \x01(\v2+.vrooli.audio_tools.v1.eval.ScalingModelFitR\n" +
 	"latencyFit\x12L\n" +
 	"\vcompute_fit\x18\b \x01(\v2+.vrooli.audio_tools.v1.eval.ScalingModelFitR\n" +
-	"computeFitBLZJgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval;eval_v1b\x06proto3"
+	"computeFit\x12L\n" +
+	"\vmetric_fits\x18\t \x03(\v2+.vrooli.audio_tools.v1.eval.ScalingModelFitR\n" +
+	"metricFitsBLZJgithub.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval;eval_v1b\x06proto3"
 
 var (
 	file_audio_tools_v1_eval_eval_proto_rawDescOnce sync.Once
@@ -1939,11 +1977,12 @@ var file_audio_tools_v1_eval_eval_proto_depIdxs = []int32{
 	5,  // 15: vrooli.audio_tools.v1.eval.ScalingAnalysis.warnings:type_name -> vrooli.audio_tools.v1.eval.ReportWarning
 	14, // 16: vrooli.audio_tools.v1.eval.ScalingAnalysis.latency_fit:type_name -> vrooli.audio_tools.v1.eval.ScalingModelFit
 	14, // 17: vrooli.audio_tools.v1.eval.ScalingAnalysis.compute_fit:type_name -> vrooli.audio_tools.v1.eval.ScalingModelFit
-	18, // [18:18] is the sub-list for method output_type
-	18, // [18:18] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	14, // 18: vrooli.audio_tools.v1.eval.ScalingAnalysis.metric_fits:type_name -> vrooli.audio_tools.v1.eval.ScalingModelFit
+	19, // [19:19] is the sub-list for method output_type
+	19, // [19:19] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_audio_tools_v1_eval_eval_proto_init() }

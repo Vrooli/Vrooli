@@ -102,11 +102,11 @@
     },
     {
       "name": "convergence",
-      "description": "Template & reference-scenario fitness — the four-lens convergence measure + trend",
+      "description": "Template & generated-golden fitness — the four-lens convergence measure + trend",
       "commands": [
         {
           "name": "status",
-          "description": "Show per-template four-lens fitness + gold-star reference health across all templates",
+          "description": "Show per-template four-lens fitness + gold-star generated-golden health across all templates",
           "binding": { "kind": "connect-rpc", "service": "ConvergenceService", "method": "GetConvergenceStatus" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         },
@@ -121,7 +121,7 @@
         },
         {
           "name": "references",
-          "description": "List gold-star reference-scenario health + eligibility",
+          "description": "List gold-star generated-golden health + eligibility",
           "flags": [
             { "name": "eligibility", "description": "Filter by eligibility (eligible|candidate|ineligible)" }
           ],

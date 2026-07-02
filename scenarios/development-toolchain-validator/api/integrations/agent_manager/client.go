@@ -128,16 +128,16 @@ func (c *Client) Initialize(ctx context.Context) (*apipb.ReconcileScenarioProfil
 // agent-manager and returns the run id. The task and run are
 // independent entities per agent-manager's contract — DTV does not
 // reuse tasks across runs because each (skill, golden) validation is
-// conceptually a fresh execution against a pristine golden.
+// conceptually a fresh execution against a pristine materialized golden.
 func (c *Client) StartSandboxedRun(ctx context.Context, spec vrun.SandboxedRunSpec) (string, error) {
 	// The sandbox overlays ProjectRoot as the writable lower layer and
 	// joins a relative ScopePath onto it. agent-manager resolves a
 	// relative ProjectRoot against ITS OWN cwd (not DTV's), so passing the
-	// repo-relative golden path previously produced an empty, doubled
-	// lowerdir and the golden was never seeded into the workspace. We
-	// resolve the golden to an absolute host path and point ProjectRoot at
-	// the golden tree itself with ScopePath "." so the overlay lower layer
-	// IS the golden and the agent's edits become the observed diff.
+	// repo-relative materialized path previously produced an empty, doubled
+	// lowerdir and the generated golden was never seeded into the workspace.
+	// We resolve the materialized golden to an absolute host path and point
+	// ProjectRoot at that tree with ScopePath "." so the overlay lower layer
+	// is the golden and the agent's edits become the observed diff.
 	goldenRoot, err := resolveGoldenRoot(spec.GoldenPath)
 	if err != nil {
 		return "", err
@@ -389,11 +389,10 @@ func buildSkillPrompt(spec vrun.SandboxedRunSpec) string {
 	return b.String()
 }
 
-// resolveGoldenRoot turns a (possibly repo-relative) golden path into an
-// absolute host path. Goldens are registered with repo-relative paths
-// (e.g. "scenarios/reference-react-vite") for portability, but the
-// sandbox needs an absolute path it can overlay. The repo root is
-// resolved from VROOLI_SOURCE_ROOT/VROOLI_ROOT (set by the lifecycle)
+// resolveGoldenRoot turns a materialized golden path into an absolute host
+// path. Normal runs pass an absolute temp path, while retained/generated
+// debug paths may be repo-relative. The sandbox needs an absolute path it can
+// overlay, so relative paths resolve from VROOLI_SOURCE_ROOT/VROOLI_ROOT
 // with a cwd/executable fallback.
 func resolveGoldenRoot(goldenPath string) (string, error) {
 	p := strings.TrimSpace(goldenPath)

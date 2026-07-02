@@ -76,6 +76,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   private finalProgressTimer: ReturnType<typeof setTimeout> | null = null;
   private serverAckReceived = false;
   private serverAckPendingNotified = false;
+  private finalProgressPendingNotified = false;
   /** True when the current WS was opened via preConnect() and hasn't been
    *  consumed by start() yet. Prevents start() from closing a pre-connected WS. */
   private isPreConnectedWs = false;
@@ -231,12 +232,25 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     this.clearFinalProgressTimer();
     this.finalProgressTimer = setTimeout(() => {
       if (!this.finalReceived && this.intentionallyStopped && sentBytes > 0) {
+        this.finalProgressPendingNotified = true;
         this.onStatus?.({
           code: "final_pending",
           message: "Speech audio was sent; waiting for the backend to finish transcription.",
         });
       }
     }, 3000);
+  }
+
+  private markFinalProgressComplete(): void {
+    const shouldClearPendingNotice = this.finalProgressPendingNotified;
+    this.finalProgressPendingNotified = false;
+    this.clearFinalProgressTimer();
+    if (shouldClearPendingNotice) {
+      this.onStatus?.({
+        code: "transcription_complete",
+        message: "Speech transcription completed.",
+      });
+    }
   }
 
   private setupWsHandlers(ws: WebSocket): void {
@@ -292,7 +306,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
           this.onPartial?.(msg.text);
         } else if (msg.type === "final") {
           this.finalReceived = true;
-          this.clearFinalProgressTimer();
+          this.markFinalProgressComplete();
           if (this.finalTimeout) {
             clearTimeout(this.finalTimeout);
             this.finalTimeout = null;
@@ -395,6 +409,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
         // must surface (retry banner) rather than leave the UI wedged on
         // "transcribing". See TranscriptionProvider.onResult contract.
         this.finalReceived = true;
+        this.markFinalProgressComplete();
         this.onResult?.(trimmed);
       })
       .catch(() => {
@@ -523,6 +538,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     this.firstPartialLogged = false;
     this.serverAckReceived = false;
     this.serverAckPendingNotified = false;
+    this.finalProgressPendingNotified = false;
     this.clearServerAckTimer();
     this.clearFinalProgressTimer();
     this.reconnectAttempt = 0;

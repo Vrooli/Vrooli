@@ -20,7 +20,7 @@ The workflow and state-transition map for **meta-optimization-manager**. Most fl
 
 **Base-doc validation** — parse each space doc's referenced skills/providers/phases → check each against the live owner registry → emit a finding per stale/broken reference; additionally flag Guide rows whose skill count ≠ 1.
 
-**Convergence scan** — for each registered template: gather raw structure (code-facts/cartographer) → compute the fitness counts (per-replica cost, drift surfaces, comment-only contracts, add/delete coordinated edits) → persist to `convergence_fitness`. For each gold-star reference: compare Generated date vs template last-commit (stale-from-template), read clean-on-all-tools from test-genie/scenario-auditor, compute stability + breadth → persist verdict.
+**Convergence scan** — for each registered template: gather raw structure (code-facts/cartographer) → compute the fitness counts (per-replica cost, drift surfaces, comment-only contracts, add/delete coordinated edits) → persist to `convergence_fitness`. For each gold-star generated golden: compare Generated date vs template last-commit (stale-from-template), read clean-on-all-tools from test-genie/scenario-auditor, compute stability + breadth → persist verdict.
 
 **Focus / gaps** — aggregate gaps from coverage + convergence + the registry → rank by impact × importance → return with qualitative context. `gaps` lists/filters the registry directly.
 

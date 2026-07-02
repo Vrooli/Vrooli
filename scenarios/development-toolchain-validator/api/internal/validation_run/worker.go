@@ -37,7 +37,7 @@ type WorkerDeps struct {
 	AgentMgr  AgentManagerClient
 	Tools     ToolRunner
 	Sandbox   WorkspaceSandboxClient // optional; nil tolerated
-	Goldens   GoldenSource
+	Goldens   GoldenMaterializer
 	Manifests ManifestSource
 	Skills    SkillContentSource // optional; nil tolerated
 	Clock     clock.Clock
@@ -133,23 +133,30 @@ func (w *Worker) processRun(ctx context.Context, r Run) {
 		return
 	}
 
-	goldenPath, err := w.deps.Goldens.GoldenPath(ctx, r.GoldenSlug)
+	materialized, err := w.deps.Goldens.Materialize(ctx, r.GoldenSlug)
 	if err != nil {
-		w.terminate(ctx, r, vr.VerdictRunFailure, "resolve golden path: "+err.Error(), RunSummary{StartedAt: now, EndedAt: w.deps.Clock.Now().UTC()})
+		w.terminate(ctx, r, vr.VerdictRunFailure, "materialize golden: "+err.Error(), RunSummary{StartedAt: now, EndedAt: w.deps.Clock.Now().UTC()})
 		return
 	}
+	defer func() {
+		if materialized.Cleanup != nil {
+			if err := materialized.Cleanup(); err != nil {
+				w.deps.Logger.Printf("validation_run.worker: cleanup materialized golden %q: %v", materialized.PhysicalPath, err)
+			}
+		}
+	}()
 
 	switch r.TupleKind {
 	case vr.TupleKindSkill:
-		w.processSkillRun(ctx, r, goldenPath, now)
+		w.processSkillRun(ctx, r, materialized, now)
 	case vr.TupleKindTool:
-		w.processToolRun(ctx, r, goldenPath, now)
+		w.processToolRun(ctx, r, materialized, now)
 	default:
 		w.terminate(ctx, r, vr.VerdictRunFailure, "unknown tuple_kind", RunSummary{StartedAt: now, EndedAt: w.deps.Clock.Now().UTC()})
 	}
 }
 
-func (w *Worker) processSkillRun(ctx context.Context, r Run, goldenPath string, startedAt time.Time) {
+func (w *Worker) processSkillRun(ctx context.Context, r Run, materialized MaterializedGolden, startedAt time.Time) {
 	// Resolve the skill's instruction text so the sandboxed agent has the
 	// actual skill to execute. A missing source or fetch error is not
 	// fatal — the adapter falls back to a generic description — but we log
@@ -165,7 +172,7 @@ func (w *Worker) processSkillRun(ctx context.Context, r Run, goldenPath string, 
 		}
 	}
 	runID, err := w.deps.AgentMgr.StartSandboxedRun(ctx, SandboxedRunSpec{
-		SkillID: r.SubjectID, GoldenSlug: r.GoldenSlug, GoldenPath: goldenPath,
+		SkillID: r.SubjectID, GoldenSlug: r.GoldenSlug, GoldenPath: materialized.PhysicalPath,
 		SkillPrompt: skillPrompt,
 	})
 	if err != nil {
@@ -189,6 +196,7 @@ func (w *Worker) processSkillRun(ctx context.Context, r Run, goldenPath string, 
 		return
 	}
 	summary.AgentManagerRunID = runID
+	summary.DiffPaths = NormalizeDiffPaths(summary.DiffPaths, materialized)
 	man, manErr := w.deps.Manifests.GetManifest(ctx, r.SubjectID, r.GoldenSlug)
 	if manErr != nil {
 		// No manifest pinned for this tuple: classify as RUN_FAILURE
@@ -200,10 +208,10 @@ func (w *Worker) processSkillRun(ctx context.Context, r Run, goldenPath string, 
 	w.persistTerminal(ctx, r, verdict.Verdict, verdict.ErrorMessage, summary, man, verdict.Violations, nil)
 }
 
-func (w *Worker) processToolRun(ctx context.Context, r Run, goldenPath string, startedAt time.Time) {
+func (w *Worker) processToolRun(ctx context.Context, r Run, materialized MaterializedGolden, startedAt time.Time) {
 	toolCtx, cancel := context.WithTimeout(ctx, w.config.ToolTimeout)
 	defer cancel()
-	res, err := w.deps.Tools.Invoke(toolCtx, r.SubjectID, r.GoldenSlug, goldenPath)
+	res, err := w.deps.Tools.Invoke(toolCtx, r.SubjectID, r.GoldenSlug, materialized.PhysicalPath)
 	if err != nil {
 		// A seam-level error means the tool could not be run at all
 		// (unknown tool, unreadable expectation config): a run failure,

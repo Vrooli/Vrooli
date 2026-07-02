@@ -10,6 +10,7 @@ import { create } from "@bufbuild/protobuf";
 import {
   GoldenSchema,
   ListGoldensResponseSchema,
+  RegisterGoldenResponseSchema,
 } from "@vrooli/proto-types/development-toolchain-validator/v1/golden/golden_pb";
 
 import { selectors } from "../../../consts/selectors";
@@ -85,6 +86,40 @@ describe("GoldensIndex", () => {
     });
     await user.click(screen.getByTestId(selectors.goldens.registerOpen));
     expect(screen.getByTestId(selectors.goldens.registerForm)).toBeInTheDocument();
+  });
+
+  it("submits the register-new sheet and routes when a row is clicked", async () => {
+    const user = userEvent.setup();
+    vi.mocked(goldenClient.registerGolden).mockResolvedValue(
+      create(RegisterGoldenResponseSchema, { golden: makeGolden("new-golden") }),
+    );
+    vi.mocked(goldenClient.listGoldens).mockResolvedValueOnce(
+      create(ListGoldensResponseSchema, {
+        goldens: [makeGolden("fixture-slug")],
+      }),
+    );
+    renderWithProviders(<GoldensIndex />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.goldens.row)).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId(selectors.goldens.row));
+
+    await user.click(screen.getByTestId(selectors.goldens.registerOpen));
+    await user.type(screen.getByTestId(selectors.goldens.registerSlug), "new-golden");
+    await user.type(screen.getByTestId(selectors.goldens.registerTemplate), "react-vite");
+    await user.type(screen.getByTestId(selectors.goldens.registerVersion), "1.4.0");
+    await user.type(screen.getByTestId(selectors.goldens.registerPath), ".vrooli/generated-goldens/new-golden");
+    await user.click(screen.getByTestId(selectors.goldens.registerSubmit));
+
+    await waitFor(() => {
+      expect(goldenClient.registerGolden).toHaveBeenCalledWith({
+        slug: "new-golden",
+        template: "react-vite",
+        version: "1.4.0",
+        path: ".vrooli/generated-goldens/new-golden",
+      });
+    });
   });
 
   it("renders an error message when the query fails", async () => {

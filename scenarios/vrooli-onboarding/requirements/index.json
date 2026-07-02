@@ -2,7 +2,7 @@
   "_metadata": {
     "entity": "vrooli-onboarding",
     "generated_at": "2026-03-18T16:40:05-04:00",
-    "generator": "prd-control-tower",
+    "generator": "business-health",
     "schema_version": "1.0"
   },
   "imports": [

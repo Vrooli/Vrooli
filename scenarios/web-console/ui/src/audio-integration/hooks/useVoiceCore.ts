@@ -1202,7 +1202,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       }
       if (provider.onStatus !== undefined) {
         provider.onStatus = ({ code, message }) => {
-          if (code === "stream_connected") {
+          if (code === "stream_connected" || code === "transcription_complete") {
             setState((s) => (s.fallbackNotice ? { ...s, fallbackNotice: null } : s));
             dismissedFallbackNoticeRef.current = null;
             return;

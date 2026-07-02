@@ -28,10 +28,10 @@ will exist once the corresponding code lands (no phantom refs).
 ## Validation Commands
 ```bash
 # Validate the requirements registry (structure + PRD-target linkage)
-prd-control-tower requirements validate performance-health
+vrooli scenario requirements validate performance-health
 
 # Validate the PRD itself
-prd-control-tower prd validate performance-health
+vrooli scenario requirements validate performance-health
 
 # Run the full suite (auto-syncs requirement statuses from [REQ:ID]-tagged tests)
 vrooli scenario test performance-health

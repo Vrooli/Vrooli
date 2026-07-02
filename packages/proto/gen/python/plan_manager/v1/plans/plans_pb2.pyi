@@ -162,6 +162,114 @@ class UpdatePhaseResponse(_message.Message):
     plan: _model_pb2.Plan
     def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
 
+class ListRelevantContextRequest(_message.Message):
+    __slots__ = ("id", "workspace", "phase_id")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    WORKSPACE_FIELD_NUMBER: _ClassVar[int]
+    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    workspace: WorkspaceScope
+    phase_id: str
+    def __init__(self, id: _Optional[str] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., phase_id: _Optional[str] = ...) -> None: ...
+
+class ListRelevantContextResponse(_message.Message):
+    __slots__ = ("items",)
+    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    items: _containers.RepeatedCompositeFieldContainer[_model_pb2.RelevantContextItem]
+    def __init__(self, items: _Optional[_Iterable[_Union[_model_pb2.RelevantContextItem, _Mapping]]] = ...) -> None: ...
+
+class UpdateRelevantContextRequest(_message.Message):
+    __slots__ = ("id", "workspace", "phase_id", "item_id", "item")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    WORKSPACE_FIELD_NUMBER: _ClassVar[int]
+    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
+    ITEM_ID_FIELD_NUMBER: _ClassVar[int]
+    ITEM_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    workspace: WorkspaceScope
+    phase_id: str
+    item_id: str
+    item: _model_pb2.RelevantContextItem
+    def __init__(self, id: _Optional[str] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., phase_id: _Optional[str] = ..., item_id: _Optional[str] = ..., item: _Optional[_Union[_model_pb2.RelevantContextItem, _Mapping]] = ...) -> None: ...
+
+class UpdateRelevantContextResponse(_message.Message):
+    __slots__ = ("plan",)
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    plan: _model_pb2.Plan
+    def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
+
+class RemoveRelevantContextRequest(_message.Message):
+    __slots__ = ("id", "workspace", "phase_id", "item_id")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    WORKSPACE_FIELD_NUMBER: _ClassVar[int]
+    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
+    ITEM_ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    workspace: WorkspaceScope
+    phase_id: str
+    item_id: str
+    def __init__(self, id: _Optional[str] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., phase_id: _Optional[str] = ..., item_id: _Optional[str] = ...) -> None: ...
+
+class RemoveRelevantContextResponse(_message.Message):
+    __slots__ = ("plan",)
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    plan: _model_pb2.Plan
+    def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
+
+class ListReferencesRequest(_message.Message):
+    __slots__ = ("id", "workspace", "phase_id")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    WORKSPACE_FIELD_NUMBER: _ClassVar[int]
+    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    workspace: WorkspaceScope
+    phase_id: str
+    def __init__(self, id: _Optional[str] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., phase_id: _Optional[str] = ...) -> None: ...
+
+class ListReferencesResponse(_message.Message):
+    __slots__ = ("references",)
+    REFERENCES_FIELD_NUMBER: _ClassVar[int]
+    references: _containers.RepeatedCompositeFieldContainer[_model_pb2.Reference]
+    def __init__(self, references: _Optional[_Iterable[_Union[_model_pb2.Reference, _Mapping]]] = ...) -> None: ...
+
+class UpdateReferenceRequest(_message.Message):
+    __slots__ = ("id", "workspace", "phase_id", "reference_id", "reference")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    WORKSPACE_FIELD_NUMBER: _ClassVar[int]
+    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
+    REFERENCE_ID_FIELD_NUMBER: _ClassVar[int]
+    REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    workspace: WorkspaceScope
+    phase_id: str
+    reference_id: str
+    reference: _model_pb2.Reference
+    def __init__(self, id: _Optional[str] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., phase_id: _Optional[str] = ..., reference_id: _Optional[str] = ..., reference: _Optional[_Union[_model_pb2.Reference, _Mapping]] = ...) -> None: ...
+
+class UpdateReferenceResponse(_message.Message):
+    __slots__ = ("plan",)
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    plan: _model_pb2.Plan
+    def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
+
+class RemoveReferenceRequest(_message.Message):
+    __slots__ = ("id", "workspace", "phase_id", "reference_id")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    WORKSPACE_FIELD_NUMBER: _ClassVar[int]
+    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
+    REFERENCE_ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    workspace: WorkspaceScope
+    phase_id: str
+    reference_id: str
+    def __init__(self, id: _Optional[str] = ..., workspace: _Optional[_Union[WorkspaceScope, _Mapping]] = ..., phase_id: _Optional[str] = ..., reference_id: _Optional[str] = ...) -> None: ...
+
+class RemoveReferenceResponse(_message.Message):
+    __slots__ = ("plan",)
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    plan: _model_pb2.Plan
+    def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
+
 class GetGraphRequest(_message.Message):
     __slots__ = ("plan_id",)
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]

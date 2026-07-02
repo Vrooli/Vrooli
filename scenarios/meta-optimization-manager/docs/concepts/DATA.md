@@ -18,7 +18,7 @@ The data-ownership and storage map for **meta-optimization-manager**. Because th
 | `trials_runs` | trials | One row per trial: suite, task, runner, model, success, tokens, wall-time, evaluator, source run id. |
 | `trial_gates` | trials | Per Guide-task gate count (for gate-coverage). |
 | `convergence_fitness` | convergence | Per-template counts (per-replica cost, drift surfaces, comment-only contracts, add/delete coordinated edits). |
-| `reference_health` | convergence | Per gold-star reference verdict (stale-from-template, clean-on-all-tools, stable-days, breadth). |
+| `reference_health` | convergence | Per gold-star generated-golden verdict (stale-from-template, clean-on-all-tools, stable-days, breadth). |
 | `coverage_snapshots` | coverage | Short-TTL cached per-projection coverage + denominator-confidence. |
 
 ## Schema Map

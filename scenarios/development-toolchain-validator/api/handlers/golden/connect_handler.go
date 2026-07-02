@@ -55,10 +55,13 @@ func (h *connectHandler) GetGolden(ctx context.Context, req *connect.Request[gol
 
 func (h *connectHandler) RegisterGolden(ctx context.Context, req *connect.Request[goldenv1.RegisterGoldenRequest]) (*connect.Response[goldenv1.RegisterGoldenResponse], error) {
 	g, err := h.deps.Service.Register(ctx, golden.RegisterInput{
-		Slug:            req.Msg.Slug,
-		TemplateID:      req.Msg.TemplateId,
-		TemplateVersion: req.Msg.TemplateVersion,
-		Path:            req.Msg.Path,
+		Slug:                  req.Msg.Slug,
+		TemplateID:            req.Msg.TemplateId,
+		TemplateVersion:       req.Msg.TemplateVersion,
+		Path:                  req.Msg.Path,
+		GenerationOptionsJSON: req.Msg.GenerationOptionsJson,
+		MaterializationMode:   req.Msg.MaterializationMode,
+		LogicalRoot:           req.Msg.LogicalRoot,
 	})
 	if err != nil {
 		connectErr := golden.ToConnectError(err)
@@ -72,9 +75,12 @@ func (h *connectHandler) RegisterGolden(ctx context.Context, req *connect.Reques
 
 func (h *connectHandler) UpdateGolden(ctx context.Context, req *connect.Request[goldenv1.UpdateGoldenRequest]) (*connect.Response[goldenv1.UpdateGoldenResponse], error) {
 	g, err := h.deps.Service.Update(ctx, golden.UpdateInput{
-		Slug:            req.Msg.Slug,
-		Path:            req.Msg.Path,
-		TemplateVersion: req.Msg.TemplateVersion,
+		Slug:                  req.Msg.Slug,
+		Path:                  req.Msg.Path,
+		TemplateVersion:       req.Msg.TemplateVersion,
+		GenerationOptionsJSON: req.Msg.GenerationOptionsJson,
+		MaterializationMode:   req.Msg.MaterializationMode,
+		LogicalRoot:           req.Msg.LogicalRoot,
 	})
 	if err != nil {
 		connectErr := golden.ToConnectError(err)

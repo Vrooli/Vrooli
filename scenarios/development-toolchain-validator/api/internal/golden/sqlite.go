@@ -19,13 +19,17 @@ const (
 	insertGoldenSQL = `
 INSERT INTO goldens (
   id, slug, template_id, template_version_pinned, path,
+  generation_options_json, materialization_mode, logical_root,
+  last_materialized_path, last_materialized_status,
   created_at, last_regenerated_at
 )
-VALUES (?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 	selectGoldenBySlugSQL = `
 SELECT id, slug, template_id, template_version_pinned, path,
+       generation_options_json, materialization_mode, logical_root,
+       last_materialized_path, last_materialized_status,
        created_at, last_regenerated_at
 FROM goldens
 WHERE slug = ?
@@ -33,6 +37,8 @@ WHERE slug = ?
 
 	listGoldensSQL = `
 SELECT id, slug, template_id, template_version_pinned, path,
+       generation_options_json, materialization_mode, logical_root,
+       last_materialized_path, last_materialized_status,
        created_at, last_regenerated_at
 FROM goldens
 ORDER BY slug ASC
@@ -40,7 +46,9 @@ ORDER BY slug ASC
 
 	updateGoldenSQL = `
 UPDATE goldens
-SET path = ?, template_version_pinned = ?, last_regenerated_at = ?
+SET path = ?, template_version_pinned = ?, generation_options_json = ?,
+    materialization_mode = ?, logical_root = ?, last_materialized_path = ?,
+    last_materialized_status = ?, last_regenerated_at = ?
 WHERE slug = ?
 `
 
@@ -73,6 +81,7 @@ func NewSQLiteRepository(db SQLExecutor, clk clock.Clock) Repository {
 var _ Repository = (*sqliteRepository)(nil)
 
 func (s *sqliteRepository) Create(ctx context.Context, g Golden) (Golden, error) {
+	g = normalizeGolden(g)
 	if g.ID == "" {
 		g.ID = uuid.NewString()
 	}
@@ -86,6 +95,8 @@ func (s *sqliteRepository) Create(ctx context.Context, g Golden) (Golden, error)
 
 	_, err := s.db.ExecContext(ctx, insertGoldenSQL,
 		g.ID, g.Slug, g.TemplateID, g.TemplateVersionPinned, g.Path,
+		g.GenerationOptionsJSON, g.MaterializationMode, g.LogicalRoot,
+		g.LastMaterializedPath, g.LastMaterializedStatus,
 		g.CreatedAt.Format(goldenTimeFormat),
 		g.LastRegeneratedAt.Format(goldenTimeFormat),
 	)
@@ -132,11 +143,14 @@ func (s *sqliteRepository) List(ctx context.Context) ([]Golden, error) {
 }
 
 func (s *sqliteRepository) Update(ctx context.Context, g Golden) (Golden, error) {
+	g = normalizeGolden(g)
 	if g.LastRegeneratedAt.IsZero() {
 		g.LastRegeneratedAt = s.clock.Now().UTC()
 	}
 	res, err := s.db.ExecContext(ctx, updateGoldenSQL,
-		g.Path, g.TemplateVersionPinned,
+		g.Path, g.TemplateVersionPinned, g.GenerationOptionsJSON,
+		g.MaterializationMode, g.LogicalRoot, g.LastMaterializedPath,
+		g.LastMaterializedStatus,
 		g.LastRegeneratedAt.Format(goldenTimeFormat),
 		g.Slug,
 	)
@@ -180,10 +194,13 @@ func scanGolden(s rowScanner) (Golden, error) {
 	)
 	if err := s.Scan(
 		&g.ID, &g.Slug, &g.TemplateID, &g.TemplateVersionPinned, &g.Path,
+		&g.GenerationOptionsJSON, &g.MaterializationMode, &g.LogicalRoot,
+		&g.LastMaterializedPath, &g.LastMaterializedStatus,
 		&createdRaw, &regenRaw,
 	); err != nil {
 		return Golden{}, err
 	}
+	g = normalizeGolden(g)
 	created, err := time.Parse(goldenTimeFormat, createdRaw)
 	if err != nil {
 		return Golden{}, fmt.Errorf("parse created_at %q: %w", createdRaw, err)
@@ -195,6 +212,19 @@ func scanGolden(s rowScanner) (Golden, error) {
 	g.CreatedAt = created
 	g.LastRegeneratedAt = regen
 	return g, nil
+}
+
+func normalizeGolden(g Golden) Golden {
+	if g.MaterializationMode == "" {
+		g.MaterializationMode = MaterializationModeEphemeral
+	}
+	if g.LogicalRoot == "" {
+		g.LogicalRoot = g.Path
+	}
+	if g.LastMaterializedStatus == "" {
+		g.LastMaterializedStatus = MaterializationStatusNever
+	}
+	return g
 }
 
 // isUniqueViolation detects modernc.org/sqlite's UNIQUE constraint error

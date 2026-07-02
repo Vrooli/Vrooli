@@ -34,12 +34,14 @@ func newWorkerDeps(t *testing.T) (vrun.WorkerDeps, vrun.Repository, *vrmocks.Fak
 	vrRepo := vrmocks.NewFakeRepository()
 	clk := mocks.NewFakeClock(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC))
 	return vrun.WorkerDeps{
-		Repo:      repo,
-		Records:   vr.NewService(vrRepo, clk),
-		AgentMgr:  &vrunmocks.FakeAgentManager{},
-		Tools:     &vrunmocks.FakeToolRunner{},
-		Sandbox:   &vrunmocks.FakeWorkspaceSandbox{},
-		Goldens:   &vrunmocks.FakeGoldenSource{Paths: map[string]string{"ref": "/tmp/ref"}},
+		Repo:     repo,
+		Records:  vr.NewService(vrRepo, clk),
+		AgentMgr: &vrunmocks.FakeAgentManager{},
+		Tools:    &vrunmocks.FakeToolRunner{},
+		Sandbox:  &vrunmocks.FakeWorkspaceSandbox{},
+		Goldens: &vrunmocks.FakeGoldenMaterializer{Goldens: map[string]vrun.MaterializedGolden{
+			"ref": {GoldenSlug: "ref", PhysicalPath: "/tmp/generated/ref", LogicalRoot: "goldens/ref"},
+		}},
 		Manifests: &vrunmocks.FakeManifestSource{Manifests: map[[2]string]manifest.Manifest{}},
 		Clock:     clk,
 		Logger:    log.New(io.Discard, "", 0),
@@ -48,10 +50,11 @@ func newWorkerDeps(t *testing.T) (vrun.WorkerDeps, vrun.Repository, *vrmocks.Fak
 
 func TestWorker_SkillRun_HappyPath(t *testing.T) {
 	deps, repo, vrRepo := newWorkerDeps(t)
-	deps.AgentMgr = &vrunmocks.FakeAgentManager{
+	agent := &vrunmocks.FakeAgentManager{
 		StartRunID: "amr-1",
 		WaitResult: vrun.RunSummary{TokensUsed: 100, CostUSDMicro: 200},
 	}
+	deps.AgentMgr = agent
 	deps.Manifests = &vrunmocks.FakeManifestSource{Manifests: map[[2]string]manifest.Manifest{
 		{"plan-skill", "ref"}: {SkillID: "plan-skill", GoldenSlug: "ref", WildcardAllowed: true},
 	}}
@@ -80,6 +83,7 @@ func TestWorker_SkillRun_HappyPath(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, vr.VerdictPass, got.TerminalVerdict)
 	require.Equal(t, "amr-1", got.AgentManagerRunID)
+	require.Equal(t, "/tmp/generated/ref", agent.LastStartSpec.GoldenPath)
 
 	// A ValidationRecord was appended.
 	res, err := deps.Records.List(context.Background(), vr.ListFilter{}, 10, "")
@@ -123,6 +127,39 @@ func TestWorker_SkillRun_UnexpectedMutation(t *testing.T) {
 	require.Equal(t, vr.VerdictUnexpectedMutation, got.TerminalVerdict)
 }
 
+func TestWorker_SkillRun_NormalizesGeneratedDiffPaths(t *testing.T) {
+	deps, repo, _ := newWorkerDeps(t)
+	deps.AgentMgr = &vrunmocks.FakeAgentManager{
+		StartRunID: "amr-1",
+		WaitResult: vrun.RunSummary{
+			DiffPaths: []manifest.DiffFile{{Path: "/tmp/generated/ref/src/App.tsx"}},
+		},
+	}
+	deps.Manifests = &vrunmocks.FakeManifestSource{Manifests: map[[2]string]manifest.Manifest{
+		{"plan-skill", "ref"}: {SkillID: "plan-skill", GoldenSlug: "ref", AllowedPaths: []string{"src/**"}},
+	}}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	require.NoError(t, repo.Create(ctx, vrun.Run{
+		ID: "r-normalize", TupleKind: vr.TupleKindSkill, SubjectID: "plan-skill", GoldenSlug: "ref",
+		Status: vrun.StatusQueued, CreatedAt: deps.Clock.Now(),
+	}))
+
+	w := vrun.NewWorker(deps, vrun.WorkerConfig{PollInterval: 50 * time.Millisecond})
+	go w.Run(ctx)
+	w.Notify()
+
+	waitFor(t, func() bool {
+		got, err := repo.Get(context.Background(), "r-normalize")
+		return err == nil && got.Status == vrun.StatusTerminal
+	}, 3*time.Second)
+	got, err := repo.Get(context.Background(), "r-normalize")
+	require.NoError(t, err)
+	require.Equal(t, vr.VerdictPass, got.TerminalVerdict)
+}
+
 func TestWorker_SkillRun_AgentManagerUnavailable(t *testing.T) {
 	deps, repo, _ := newWorkerDeps(t)
 	deps.AgentMgr = &vrunmocks.FakeAgentManager{
@@ -155,9 +192,10 @@ func TestWorker_SkillRun_AgentManagerUnavailable(t *testing.T) {
 func TestWorker_ToolRun_HappyPath(t *testing.T) {
 	deps, repo, _ := newWorkerDeps(t)
 	now := deps.Clock.Now()
-	deps.Tools = &vrunmocks.FakeToolRunner{Result: vrun.ToolResult{
+	tools := &vrunmocks.FakeToolRunner{Result: vrun.ToolResult{
 		Ran: true, ExpectationMet: true, StartedAt: now, EndedAt: now.Add(time.Second),
 	}}
+	deps.Tools = tools
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -178,6 +216,7 @@ func TestWorker_ToolRun_HappyPath(t *testing.T) {
 	got, err := repo.Get(context.Background(), "r-tool")
 	require.NoError(t, err)
 	require.Equal(t, vr.VerdictPass, got.TerminalVerdict)
+	require.Equal(t, "/tmp/generated/ref", tools.LastPath)
 }
 
 // A seam-level invoke error means the tool could not be run at all → this

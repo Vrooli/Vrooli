@@ -47,7 +47,7 @@ Use this document to answer:
 - [ ] `make test` passes including the determinism gate (`bas/fixtures/ts-*` including the load-bearing `ts-jsdoc-tags/` fixture).
 - [ ] `make test` includes the performance regression suite (small + medium project budgets).
 - [ ] `make test` includes the sidecar chaos tests (kill child mid-call, verify restart-with-backoff).
-- [ ] PRD operational targets have linked requirements (`prd-control-tower requirements validate typescript-code-graph` reports `healthy`).
+- [ ] PRD operational targets have linked requirements (`vrooli scenario requirements validate typescript-code-graph` reports `healthy`).
 - [ ] Template reference `notes` domain has been removed (Gate 7 in [`../START-HERE.md`](../START-HERE.md)).
 - [ ] `docs/manifest.json` maturity values reflect current docs state.
 - [ ] `RUNBOOK.md`, `OBSERVABILITY.md`, `SECURITY.md`, and `../business/MONETIZATION.md` are active or explicitly not-applicable.

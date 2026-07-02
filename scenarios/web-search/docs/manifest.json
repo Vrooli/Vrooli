@@ -162,7 +162,7 @@
           ],
           "completion": "required",
           "ownerSkills": [
-            "prd-control-tower"
+            "prd-authoring"
           ],
           "validation": {
             "requiredHeadings": [

@@ -3,7 +3,7 @@ import { strings } from "../consts/strings";
 import { ConvergenceBoard } from "../features/convergence/ConvergenceBoard";
 import { useTranslation } from "../i18n";
 
-/** Convergence page: per-template fitness + reference-scenario health. */
+/** Convergence page: per-template fitness + generated-golden health. */
 export function ConvergencePage() {
   const { t } = useTranslation();
   return (

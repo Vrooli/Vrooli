@@ -52,6 +52,24 @@ const (
 	// PlansServiceUpdatePhaseProcedure is the fully-qualified name of the PlansService's UpdatePhase
 	// RPC.
 	PlansServiceUpdatePhaseProcedure = "/vrooli.plan_manager.v1.plans.PlansService/UpdatePhase"
+	// PlansServiceListRelevantContextProcedure is the fully-qualified name of the PlansService's
+	// ListRelevantContext RPC.
+	PlansServiceListRelevantContextProcedure = "/vrooli.plan_manager.v1.plans.PlansService/ListRelevantContext"
+	// PlansServiceUpdateRelevantContextProcedure is the fully-qualified name of the PlansService's
+	// UpdateRelevantContext RPC.
+	PlansServiceUpdateRelevantContextProcedure = "/vrooli.plan_manager.v1.plans.PlansService/UpdateRelevantContext"
+	// PlansServiceRemoveRelevantContextProcedure is the fully-qualified name of the PlansService's
+	// RemoveRelevantContext RPC.
+	PlansServiceRemoveRelevantContextProcedure = "/vrooli.plan_manager.v1.plans.PlansService/RemoveRelevantContext"
+	// PlansServiceListReferencesProcedure is the fully-qualified name of the PlansService's
+	// ListReferences RPC.
+	PlansServiceListReferencesProcedure = "/vrooli.plan_manager.v1.plans.PlansService/ListReferences"
+	// PlansServiceUpdateReferenceProcedure is the fully-qualified name of the PlansService's
+	// UpdateReference RPC.
+	PlansServiceUpdateReferenceProcedure = "/vrooli.plan_manager.v1.plans.PlansService/UpdateReference"
+	// PlansServiceRemoveReferenceProcedure is the fully-qualified name of the PlansService's
+	// RemoveReference RPC.
+	PlansServiceRemoveReferenceProcedure = "/vrooli.plan_manager.v1.plans.PlansService/RemoveReference"
 	// PlansServiceGetGraphProcedure is the fully-qualified name of the PlansService's GetGraph RPC.
 	PlansServiceGetGraphProcedure = "/vrooli.plan_manager.v1.plans.PlansService/GetGraph"
 	// PlansServiceLinkSupersessionProcedure is the fully-qualified name of the PlansService's
@@ -98,6 +116,21 @@ type PlansServiceClient interface {
 	// UpdatePhase replaces the authored fields of a phase. Status is a typed
 	// transition — see ExecutionService.TransitionPhase for runtime transitions.
 	UpdatePhase(context.Context, *connect.Request[plans.UpdatePhaseRequest]) (*connect.Response[plans.UpdatePhaseResponse], error)
+	// ListRelevantContext returns accepted setup context for a plan or one phase.
+	ListRelevantContext(context.Context, *connect.Request[plans.ListRelevantContextRequest]) (*connect.Response[plans.ListRelevantContextResponse], error)
+	// UpdateRelevantContext replaces one structured setup item without rewriting
+	// the whole plan.
+	UpdateRelevantContext(context.Context, *connect.Request[plans.UpdateRelevantContextRequest]) (*connect.Response[plans.UpdateRelevantContextResponse], error)
+	// RemoveRelevantContext removes one structured setup item.
+	RemoveRelevantContext(context.Context, *connect.Request[plans.RemoveRelevantContextRequest]) (*connect.Response[plans.RemoveRelevantContextResponse], error)
+	// ListReferences returns structured code/doc/req references for a plan or one
+	// phase.
+	ListReferences(context.Context, *connect.Request[plans.ListReferencesRequest]) (*connect.Response[plans.ListReferencesResponse], error)
+	// UpdateReference replaces one structured reference without rewriting the
+	// whole plan.
+	UpdateReference(context.Context, *connect.Request[plans.UpdateReferenceRequest]) (*connect.Response[plans.UpdateReferenceResponse], error)
+	// RemoveReference removes one structured reference.
+	RemoveReference(context.Context, *connect.Request[plans.RemoveReferenceRequest]) (*connect.Response[plans.RemoveReferenceResponse], error)
 	// GetGraph returns the supersession/dependency edges, optionally scoped to one
 	// plan's neighborhood (OT-P1-002).
 	GetGraph(context.Context, *connect.Request[plans.GetGraphRequest]) (*connect.Response[plans.GetGraphResponse], error)
@@ -179,6 +212,42 @@ func NewPlansServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(plansServiceMethods.ByName("UpdatePhase")),
 			connect.WithClientOptions(opts...),
 		),
+		listRelevantContext: connect.NewClient[plans.ListRelevantContextRequest, plans.ListRelevantContextResponse](
+			httpClient,
+			baseURL+PlansServiceListRelevantContextProcedure,
+			connect.WithSchema(plansServiceMethods.ByName("ListRelevantContext")),
+			connect.WithClientOptions(opts...),
+		),
+		updateRelevantContext: connect.NewClient[plans.UpdateRelevantContextRequest, plans.UpdateRelevantContextResponse](
+			httpClient,
+			baseURL+PlansServiceUpdateRelevantContextProcedure,
+			connect.WithSchema(plansServiceMethods.ByName("UpdateRelevantContext")),
+			connect.WithClientOptions(opts...),
+		),
+		removeRelevantContext: connect.NewClient[plans.RemoveRelevantContextRequest, plans.RemoveRelevantContextResponse](
+			httpClient,
+			baseURL+PlansServiceRemoveRelevantContextProcedure,
+			connect.WithSchema(plansServiceMethods.ByName("RemoveRelevantContext")),
+			connect.WithClientOptions(opts...),
+		),
+		listReferences: connect.NewClient[plans.ListReferencesRequest, plans.ListReferencesResponse](
+			httpClient,
+			baseURL+PlansServiceListReferencesProcedure,
+			connect.WithSchema(plansServiceMethods.ByName("ListReferences")),
+			connect.WithClientOptions(opts...),
+		),
+		updateReference: connect.NewClient[plans.UpdateReferenceRequest, plans.UpdateReferenceResponse](
+			httpClient,
+			baseURL+PlansServiceUpdateReferenceProcedure,
+			connect.WithSchema(plansServiceMethods.ByName("UpdateReference")),
+			connect.WithClientOptions(opts...),
+		),
+		removeReference: connect.NewClient[plans.RemoveReferenceRequest, plans.RemoveReferenceResponse](
+			httpClient,
+			baseURL+PlansServiceRemoveReferenceProcedure,
+			connect.WithSchema(plansServiceMethods.ByName("RemoveReference")),
+			connect.WithClientOptions(opts...),
+		),
 		getGraph: connect.NewClient[plans.GetGraphRequest, plans.GetGraphResponse](
 			httpClient,
 			baseURL+PlansServiceGetGraphProcedure,
@@ -232,22 +301,28 @@ func NewPlansServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 
 // plansServiceClient implements PlansServiceClient.
 type plansServiceClient struct {
-	listPlans          *connect.Client[plans.ListPlansRequest, plans.ListPlansResponse]
-	getPlan            *connect.Client[plans.GetPlanRequest, plans.GetPlanResponse]
-	createPlan         *connect.Client[plans.CreatePlanRequest, plans.CreatePlanResponse]
-	updatePlan         *connect.Client[plans.UpdatePlanRequest, plans.UpdatePlanResponse]
-	archivePlan        *connect.Client[plans.ArchivePlanRequest, plans.ArchivePlanResponse]
-	renderMarkdown     *connect.Client[plans.RenderMarkdownRequest, plans.RenderMarkdownResponse]
-	addPhase           *connect.Client[plans.AddPhaseRequest, plans.AddPhaseResponse]
-	updatePhase        *connect.Client[plans.UpdatePhaseRequest, plans.UpdatePhaseResponse]
-	getGraph           *connect.Client[plans.GetGraphRequest, plans.GetGraphResponse]
-	linkSupersession   *connect.Client[plans.LinkSupersessionRequest, plans.LinkSupersessionResponse]
-	linkDependency     *connect.Client[plans.LinkDependencyRequest, plans.LinkDependencyResponse]
-	importPlan         *connect.Client[plans.ImportPlanRequest, plans.ImportPlanResponse]
-	migratePlan        *connect.Client[plans.MigratePlanRequest, plans.MigratePlanResponse]
-	reconcilePlans     *connect.Client[plans.ReconcilePlansRequest, plans.ReconcilePlansResponse]
-	listTemplates      *connect.Client[plans.ListTemplatesRequest, plans.ListTemplatesResponse]
-	createFromTemplate *connect.Client[plans.CreateFromTemplateRequest, plans.CreateFromTemplateResponse]
+	listPlans             *connect.Client[plans.ListPlansRequest, plans.ListPlansResponse]
+	getPlan               *connect.Client[plans.GetPlanRequest, plans.GetPlanResponse]
+	createPlan            *connect.Client[plans.CreatePlanRequest, plans.CreatePlanResponse]
+	updatePlan            *connect.Client[plans.UpdatePlanRequest, plans.UpdatePlanResponse]
+	archivePlan           *connect.Client[plans.ArchivePlanRequest, plans.ArchivePlanResponse]
+	renderMarkdown        *connect.Client[plans.RenderMarkdownRequest, plans.RenderMarkdownResponse]
+	addPhase              *connect.Client[plans.AddPhaseRequest, plans.AddPhaseResponse]
+	updatePhase           *connect.Client[plans.UpdatePhaseRequest, plans.UpdatePhaseResponse]
+	listRelevantContext   *connect.Client[plans.ListRelevantContextRequest, plans.ListRelevantContextResponse]
+	updateRelevantContext *connect.Client[plans.UpdateRelevantContextRequest, plans.UpdateRelevantContextResponse]
+	removeRelevantContext *connect.Client[plans.RemoveRelevantContextRequest, plans.RemoveRelevantContextResponse]
+	listReferences        *connect.Client[plans.ListReferencesRequest, plans.ListReferencesResponse]
+	updateReference       *connect.Client[plans.UpdateReferenceRequest, plans.UpdateReferenceResponse]
+	removeReference       *connect.Client[plans.RemoveReferenceRequest, plans.RemoveReferenceResponse]
+	getGraph              *connect.Client[plans.GetGraphRequest, plans.GetGraphResponse]
+	linkSupersession      *connect.Client[plans.LinkSupersessionRequest, plans.LinkSupersessionResponse]
+	linkDependency        *connect.Client[plans.LinkDependencyRequest, plans.LinkDependencyResponse]
+	importPlan            *connect.Client[plans.ImportPlanRequest, plans.ImportPlanResponse]
+	migratePlan           *connect.Client[plans.MigratePlanRequest, plans.MigratePlanResponse]
+	reconcilePlans        *connect.Client[plans.ReconcilePlansRequest, plans.ReconcilePlansResponse]
+	listTemplates         *connect.Client[plans.ListTemplatesRequest, plans.ListTemplatesResponse]
+	createFromTemplate    *connect.Client[plans.CreateFromTemplateRequest, plans.CreateFromTemplateResponse]
 }
 
 // ListPlans calls vrooli.plan_manager.v1.plans.PlansService.ListPlans.
@@ -288,6 +363,36 @@ func (c *plansServiceClient) AddPhase(ctx context.Context, req *connect.Request[
 // UpdatePhase calls vrooli.plan_manager.v1.plans.PlansService.UpdatePhase.
 func (c *plansServiceClient) UpdatePhase(ctx context.Context, req *connect.Request[plans.UpdatePhaseRequest]) (*connect.Response[plans.UpdatePhaseResponse], error) {
 	return c.updatePhase.CallUnary(ctx, req)
+}
+
+// ListRelevantContext calls vrooli.plan_manager.v1.plans.PlansService.ListRelevantContext.
+func (c *plansServiceClient) ListRelevantContext(ctx context.Context, req *connect.Request[plans.ListRelevantContextRequest]) (*connect.Response[plans.ListRelevantContextResponse], error) {
+	return c.listRelevantContext.CallUnary(ctx, req)
+}
+
+// UpdateRelevantContext calls vrooli.plan_manager.v1.plans.PlansService.UpdateRelevantContext.
+func (c *plansServiceClient) UpdateRelevantContext(ctx context.Context, req *connect.Request[plans.UpdateRelevantContextRequest]) (*connect.Response[plans.UpdateRelevantContextResponse], error) {
+	return c.updateRelevantContext.CallUnary(ctx, req)
+}
+
+// RemoveRelevantContext calls vrooli.plan_manager.v1.plans.PlansService.RemoveRelevantContext.
+func (c *plansServiceClient) RemoveRelevantContext(ctx context.Context, req *connect.Request[plans.RemoveRelevantContextRequest]) (*connect.Response[plans.RemoveRelevantContextResponse], error) {
+	return c.removeRelevantContext.CallUnary(ctx, req)
+}
+
+// ListReferences calls vrooli.plan_manager.v1.plans.PlansService.ListReferences.
+func (c *plansServiceClient) ListReferences(ctx context.Context, req *connect.Request[plans.ListReferencesRequest]) (*connect.Response[plans.ListReferencesResponse], error) {
+	return c.listReferences.CallUnary(ctx, req)
+}
+
+// UpdateReference calls vrooli.plan_manager.v1.plans.PlansService.UpdateReference.
+func (c *plansServiceClient) UpdateReference(ctx context.Context, req *connect.Request[plans.UpdateReferenceRequest]) (*connect.Response[plans.UpdateReferenceResponse], error) {
+	return c.updateReference.CallUnary(ctx, req)
+}
+
+// RemoveReference calls vrooli.plan_manager.v1.plans.PlansService.RemoveReference.
+func (c *plansServiceClient) RemoveReference(ctx context.Context, req *connect.Request[plans.RemoveReferenceRequest]) (*connect.Response[plans.RemoveReferenceResponse], error) {
+	return c.removeReference.CallUnary(ctx, req)
 }
 
 // GetGraph calls vrooli.plan_manager.v1.plans.PlansService.GetGraph.
@@ -353,6 +458,21 @@ type PlansServiceHandler interface {
 	// UpdatePhase replaces the authored fields of a phase. Status is a typed
 	// transition — see ExecutionService.TransitionPhase for runtime transitions.
 	UpdatePhase(context.Context, *connect.Request[plans.UpdatePhaseRequest]) (*connect.Response[plans.UpdatePhaseResponse], error)
+	// ListRelevantContext returns accepted setup context for a plan or one phase.
+	ListRelevantContext(context.Context, *connect.Request[plans.ListRelevantContextRequest]) (*connect.Response[plans.ListRelevantContextResponse], error)
+	// UpdateRelevantContext replaces one structured setup item without rewriting
+	// the whole plan.
+	UpdateRelevantContext(context.Context, *connect.Request[plans.UpdateRelevantContextRequest]) (*connect.Response[plans.UpdateRelevantContextResponse], error)
+	// RemoveRelevantContext removes one structured setup item.
+	RemoveRelevantContext(context.Context, *connect.Request[plans.RemoveRelevantContextRequest]) (*connect.Response[plans.RemoveRelevantContextResponse], error)
+	// ListReferences returns structured code/doc/req references for a plan or one
+	// phase.
+	ListReferences(context.Context, *connect.Request[plans.ListReferencesRequest]) (*connect.Response[plans.ListReferencesResponse], error)
+	// UpdateReference replaces one structured reference without rewriting the
+	// whole plan.
+	UpdateReference(context.Context, *connect.Request[plans.UpdateReferenceRequest]) (*connect.Response[plans.UpdateReferenceResponse], error)
+	// RemoveReference removes one structured reference.
+	RemoveReference(context.Context, *connect.Request[plans.RemoveReferenceRequest]) (*connect.Response[plans.RemoveReferenceResponse], error)
 	// GetGraph returns the supersession/dependency edges, optionally scoped to one
 	// plan's neighborhood (OT-P1-002).
 	GetGraph(context.Context, *connect.Request[plans.GetGraphRequest]) (*connect.Response[plans.GetGraphResponse], error)
@@ -430,6 +550,42 @@ func NewPlansServiceHandler(svc PlansServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(plansServiceMethods.ByName("UpdatePhase")),
 		connect.WithHandlerOptions(opts...),
 	)
+	plansServiceListRelevantContextHandler := connect.NewUnaryHandler(
+		PlansServiceListRelevantContextProcedure,
+		svc.ListRelevantContext,
+		connect.WithSchema(plansServiceMethods.ByName("ListRelevantContext")),
+		connect.WithHandlerOptions(opts...),
+	)
+	plansServiceUpdateRelevantContextHandler := connect.NewUnaryHandler(
+		PlansServiceUpdateRelevantContextProcedure,
+		svc.UpdateRelevantContext,
+		connect.WithSchema(plansServiceMethods.ByName("UpdateRelevantContext")),
+		connect.WithHandlerOptions(opts...),
+	)
+	plansServiceRemoveRelevantContextHandler := connect.NewUnaryHandler(
+		PlansServiceRemoveRelevantContextProcedure,
+		svc.RemoveRelevantContext,
+		connect.WithSchema(plansServiceMethods.ByName("RemoveRelevantContext")),
+		connect.WithHandlerOptions(opts...),
+	)
+	plansServiceListReferencesHandler := connect.NewUnaryHandler(
+		PlansServiceListReferencesProcedure,
+		svc.ListReferences,
+		connect.WithSchema(plansServiceMethods.ByName("ListReferences")),
+		connect.WithHandlerOptions(opts...),
+	)
+	plansServiceUpdateReferenceHandler := connect.NewUnaryHandler(
+		PlansServiceUpdateReferenceProcedure,
+		svc.UpdateReference,
+		connect.WithSchema(plansServiceMethods.ByName("UpdateReference")),
+		connect.WithHandlerOptions(opts...),
+	)
+	plansServiceRemoveReferenceHandler := connect.NewUnaryHandler(
+		PlansServiceRemoveReferenceProcedure,
+		svc.RemoveReference,
+		connect.WithSchema(plansServiceMethods.ByName("RemoveReference")),
+		connect.WithHandlerOptions(opts...),
+	)
 	plansServiceGetGraphHandler := connect.NewUnaryHandler(
 		PlansServiceGetGraphProcedure,
 		svc.GetGraph,
@@ -496,6 +652,18 @@ func NewPlansServiceHandler(svc PlansServiceHandler, opts ...connect.HandlerOpti
 			plansServiceAddPhaseHandler.ServeHTTP(w, r)
 		case PlansServiceUpdatePhaseProcedure:
 			plansServiceUpdatePhaseHandler.ServeHTTP(w, r)
+		case PlansServiceListRelevantContextProcedure:
+			plansServiceListRelevantContextHandler.ServeHTTP(w, r)
+		case PlansServiceUpdateRelevantContextProcedure:
+			plansServiceUpdateRelevantContextHandler.ServeHTTP(w, r)
+		case PlansServiceRemoveRelevantContextProcedure:
+			plansServiceRemoveRelevantContextHandler.ServeHTTP(w, r)
+		case PlansServiceListReferencesProcedure:
+			plansServiceListReferencesHandler.ServeHTTP(w, r)
+		case PlansServiceUpdateReferenceProcedure:
+			plansServiceUpdateReferenceHandler.ServeHTTP(w, r)
+		case PlansServiceRemoveReferenceProcedure:
+			plansServiceRemoveReferenceHandler.ServeHTTP(w, r)
 		case PlansServiceGetGraphProcedure:
 			plansServiceGetGraphHandler.ServeHTTP(w, r)
 		case PlansServiceLinkSupersessionProcedure:
@@ -551,6 +719,30 @@ func (UnimplementedPlansServiceHandler) AddPhase(context.Context, *connect.Reque
 
 func (UnimplementedPlansServiceHandler) UpdatePhase(context.Context, *connect.Request[plans.UpdatePhaseRequest]) (*connect.Response[plans.UpdatePhaseResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.plans.PlansService.UpdatePhase is not implemented"))
+}
+
+func (UnimplementedPlansServiceHandler) ListRelevantContext(context.Context, *connect.Request[plans.ListRelevantContextRequest]) (*connect.Response[plans.ListRelevantContextResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.plans.PlansService.ListRelevantContext is not implemented"))
+}
+
+func (UnimplementedPlansServiceHandler) UpdateRelevantContext(context.Context, *connect.Request[plans.UpdateRelevantContextRequest]) (*connect.Response[plans.UpdateRelevantContextResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.plans.PlansService.UpdateRelevantContext is not implemented"))
+}
+
+func (UnimplementedPlansServiceHandler) RemoveRelevantContext(context.Context, *connect.Request[plans.RemoveRelevantContextRequest]) (*connect.Response[plans.RemoveRelevantContextResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.plans.PlansService.RemoveRelevantContext is not implemented"))
+}
+
+func (UnimplementedPlansServiceHandler) ListReferences(context.Context, *connect.Request[plans.ListReferencesRequest]) (*connect.Response[plans.ListReferencesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.plans.PlansService.ListReferences is not implemented"))
+}
+
+func (UnimplementedPlansServiceHandler) UpdateReference(context.Context, *connect.Request[plans.UpdateReferenceRequest]) (*connect.Response[plans.UpdateReferenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.plans.PlansService.UpdateReference is not implemented"))
+}
+
+func (UnimplementedPlansServiceHandler) RemoveReference(context.Context, *connect.Request[plans.RemoveReferenceRequest]) (*connect.Response[plans.RemoveReferenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.plans.PlansService.RemoveReference is not implemented"))
 }
 
 func (UnimplementedPlansServiceHandler) GetGraph(context.Context, *connect.Request[plans.GetGraphRequest]) (*connect.Response[plans.GetGraphResponse], error) {

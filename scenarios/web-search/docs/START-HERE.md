@@ -60,7 +60,7 @@ passes the template test lifecycle.
 ### Gate 1 — Charter
 
 Do not hand-write the final `PRD.md` when AI generation is available.
-Use `prd-control-tower` as the canonical PRD authoring path so the file
+Drive the `business-health` wizard as the canonical PRD authoring path so the file
 matches the Vrooli PRD standard and can drive requirement generation.
 
 - [ ] Write a brief context file for the scenario:
@@ -108,7 +108,7 @@ EOF
 - [ ] Generate and publish the PRD:
 
 ```bash
-prd-control-tower prd generate web-search \
+business-health wizard start  # (was: prd generate) web-search \
   --context-file /tmp/prd_context_web-search.md \
   --publish \
   --json
@@ -117,7 +117,7 @@ prd-control-tower prd generate web-search \
 - [ ] Validate the PRD:
 
 ```bash
-prd-control-tower prd validate web-search --json
+vrooli scenario requirements validate web-search --json
 ```
 
 - [ ] Read the published `PRD.md` and confirm it captures the intended
@@ -163,7 +163,7 @@ EOF
 - [ ] Generate requirements:
 
 ```bash
-prd-control-tower requirements generate web-search \
+business-health wizard apply  # (was: requirements generate) web-search \
   --context-file /tmp/requirements_context_web-search.md \
   --json
 ```
@@ -171,7 +171,7 @@ prd-control-tower requirements generate web-search \
 - [ ] Validate requirements:
 
 ```bash
-prd-control-tower requirements validate web-search --json
+vrooli scenario requirements validate web-search --json
 ```
 
 - [ ] Confirm `requirements/index.json` imports real numbered

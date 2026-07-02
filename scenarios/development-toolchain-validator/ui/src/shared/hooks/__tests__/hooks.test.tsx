@@ -7,6 +7,7 @@ import { act, renderHook } from "@testing-library/react";
 import { useMediaQuery, useIsMobile } from "../useMediaQuery";
 import { useGlobalKeydown } from "../../../hooks/useGlobalKeydown";
 import { useLocalStorage } from "../useLocalStorage";
+import { useAppViewport } from "../useAppViewport";
 
 describe("useMediaQuery", () => {
   it("reports the current matchMedia state and updates on change", () => {
@@ -84,6 +85,21 @@ describe("useGlobalKeydown", () => {
     expect(handler).not.toHaveBeenCalled();
     input.remove();
   });
+
+  it("normalizes modifiers and ignores already-prevented events", () => {
+    const handler = vi.fn().mockReturnValue(false);
+    renderHook(() => useGlobalKeydown(handler));
+
+    const prevented = new KeyboardEvent("keydown", { key: "x", bubbles: true, cancelable: true });
+    prevented.preventDefault();
+    document.dispatchEvent(prevented);
+    expect(handler).not.toHaveBeenCalled();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", shiftKey: true }));
+    expect(handler).toHaveBeenLastCalledWith("shift+Enter", expect.any(KeyboardEvent));
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }));
+    expect(handler).toHaveBeenLastCalledWith("shift+Enter meta+k", expect.any(KeyboardEvent));
+  });
 });
 
 describe("useLocalStorage", () => {
@@ -97,10 +113,50 @@ describe("useLocalStorage", () => {
     });
     expect(result.current[0]).toBe("changed");
     expect(JSON.parse(window.localStorage.getItem("k1") ?? "")).toBe("changed");
+
+    act(() => {
+      result.current[1]((prev) => `${prev}-again`);
+    });
+    expect(result.current[0]).toBe("changed-again");
   });
 
   it("falls back to the default when storage is empty", () => {
     const { result } = renderHook(() => useLocalStorage<number>("k2", 7));
     expect(result.current[0]).toBe(7);
+  });
+
+  it("falls back to the default when stored JSON is invalid", () => {
+    window.localStorage.setItem("bad-json", "{");
+    const { result } = renderHook(() => useLocalStorage("bad-json", "fallback"));
+    expect(result.current[0]).toBe("fallback");
+  });
+});
+
+describe("useAppViewport", () => {
+  it("writes and cleans up viewport height listeners", () => {
+    const listeners = new Map<string, EventListener>();
+    const visualViewport = {
+      height: 321,
+      addEventListener: vi.fn((event: string, listener: EventListener) => {
+        listeners.set(event, listener);
+      }),
+      removeEventListener: vi.fn(),
+    };
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: visualViewport,
+    });
+
+    const { unmount } = renderHook(() => useAppViewport());
+    expect(document.documentElement.style.getPropertyValue("--app-height")).toBe("321px");
+
+    visualViewport.height = 654;
+    act(() => {
+      listeners.get("resize")?.(new Event("resize"));
+    });
+    expect(document.documentElement.style.getPropertyValue("--app-height")).toBe("654px");
+
+    unmount();
+    expect(visualViewport.removeEventListener).toHaveBeenCalled();
   });
 });

@@ -79,7 +79,7 @@
           "maturity": "stub",
           "requiredBy": ["oriented"],
           "completion": "required",
-          "ownerSkills": ["prd-control-tower"],
+          "ownerSkills": ["prd-authoring"],
           "validation": {
             "requiredHeadings": ["🎯 Overview", "🎯 Operational Targets", "🔴 P0 – Must ship for viability", "🟠 P1 – Should have post-launch", "🟢 P2 – Future / expansion", "🧱 Tech Direction Snapshot", "🤝 Dependencies & Launch Plan", "🎨 UX & Branding"],
             "forbiddenPlaceholders": []

@@ -63,7 +63,7 @@ describe('MetricChart', () => {
 
 ```bash
 # Validate requirements structure
-prd-control-tower requirements validate llm-evaluator --json
+vrooli scenario requirements validate llm-evaluator --json
 
 # Run tests and sync status
 test-genie execute llm-evaluator --preset comprehensive

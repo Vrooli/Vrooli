@@ -2,7 +2,7 @@
   "_metadata": {
     "entity": "elo-swipe",
     "generated_at": "2025-12-16T18:58:04-05:00",
-    "generator": "prd-control-tower",
+    "generator": "business-health",
     "schema_version": "1.0"
   },
   "imports": [

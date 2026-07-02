@@ -27,6 +27,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/
 service CapabilitiesService {
   rpc Get(GetRequest) returns (GetResponse);
   rpc Liveness(LivenessRequest) returns (LivenessResponse);
+  rpc RunAction(RunActionRequest) returns (RunActionResponse);
 }
 
 // CapabilityState is the runtime view of a single capability. Mirrors
@@ -43,6 +44,10 @@ message CapabilityState {
   string status = 7;
   string message = 8;
   string checked_at = 9;
+  string reason_code = 10;
+  string action_kind = 11;
+  string action_label = 12;
+  string operator_command = 13;
 }
 
 // BackendOption mirrors the api.BackendDescriptor struct. Surfaced on
@@ -71,4 +76,19 @@ message LivenessRequest {}
 message LivenessResponse {
   repeated CapabilityState capabilities = 1;
   string timestamp = 2;
+}
+
+message RunActionRequest {
+  string capability_id = 1;
+  string action_kind = 2;
+}
+
+message RunActionResponse {
+  bool success = 1;
+  string status = 2;
+  string message = 3;
+  string capability_id = 4;
+  string action_kind = 5;
+  repeated CapabilityState capabilities = 6;
+  string timestamp = 7;
 }

@@ -1,12 +1,8 @@
 {
   "schema_version": 1,
   "scenario": "agent-inbox",
-  "input_digest": "sha256:b2e1fcae6635ffa11747d02afa9bcbb651244e24f9bc3a567097258507f4dd97",
-  "input_files": [
-    "schemas/agent-inbox/v1/domain/manifest.proto",
-    "schemas/agent-inbox/v1/domain/tool.proto",
-    "schemas/common/v1/types.proto"
-  ],
+  "input_digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "input_files": [],
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
@@ -17,19 +13,5 @@
       "protoc-gen-go": "v1.36.11"
     }
   },
-  "outputs": {
-    "gen/go/agent-inbox/v1/domain/manifest.pb.go": "sha256:6b5c23581eafc367252b4333092fc85ce6adeff2f11d63dccf6112b2c2f5bb09",
-    "gen/go/agent-inbox/v1/domain/tool.pb.go": "sha256:8ebeaaefcd07a7dd7f5ceadafac03b2b5965e1b962ecb23091f7d4d1c7830adb",
-    "gen/python/agent_inbox/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/agent_inbox/v1/domain/manifest_pb2.py": "sha256:6289ac88d5825b406090715714d60404c1d7360e54ba5d7a8e063e3bc15e934a",
-    "gen/python/agent_inbox/v1/domain/manifest_pb2.pyi": "sha256:3ccc13b0ff079aa54110e8de1eb2b6465b4af38b6eafff401212568ec7821300",
-    "gen/python/agent_inbox/v1/domain/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/agent_inbox/v1/domain/tool_pb2.py": "sha256:af8d070728d1eb0c917ea1e98829b10afafe9187133fbfbfbe8fa6e628e0b9ae",
-    "gen/python/agent_inbox/v1/domain/tool_pb2.pyi": "sha256:ad2e73336f8d4d1feef5b0d6326d47c96ce02ec2045121418199cfabb625fea3",
-    "gen/python/agent_inbox/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/agent-inbox/v1/domain/manifest_pb.ts": "sha256:4c92fd898478f601cf7f239eeeed119d94bbe599852752ab11d4a3e416ccee70",
-    "gen/typescript/agent-inbox/v1/domain/tool_pb.ts": "sha256:10d193174abfbf24161328ca492c0e13f58de4833c28ec2b2c7c68e6079cedbc",
-    "gen/typescript/js/agent-inbox/v1/domain/manifest_pb.js": "sha256:8df2056faae8de3785a2d99565f531d623a8057f5aed421c6d3e7b25445ce14a",
-    "gen/typescript/js/agent-inbox/v1/domain/tool_pb.js": "sha256:e066b3edba98f220d85e88398da13f32bdcda06fe5b050e8795068f2ba38b9d2"
-  }
+  "outputs": {}
 }

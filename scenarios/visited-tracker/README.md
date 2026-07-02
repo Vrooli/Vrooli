@@ -59,37 +59,37 @@ vrooli scenario start visited-tracker
 ```bash
 # UX Phase: Track UI work with automatic campaign creation
 visited-tracker least-visited \
-  --location scenarios/prd-control-tower/ui \
+  --location scenarios/business-health/ui \
   --pattern "**/*.{ts,tsx}" \
   --tag ux \
   --limit 5
 
 # Returns: 5 least-visited UI files with staleness scores
-# Campaign auto-created if none exists for (location="scenarios/prd-control-tower/ui", tag="ux")
+# Campaign auto-created if none exists for (location="scenarios/business-health/ui", tag="ux")
 ```
 
 **Recording work with notes:**
 ```bash
 # After analyzing orientation.tsx
-visited-tracker visit scenarios/prd-control-tower/ui/src/pages/orientation.tsx \
+visited-tracker visit scenarios/business-health/ui/src/pages/orientation.tsx \
   --tag ux \
   --note "Improved Getting Started section and hero CTA. Need a Nudge component still needs work."
 
 # Record multiple files in one command (globs supported)
 visited-tracker visit \
-  --location scenarios/prd-control-tower/ui \
+  --location scenarios/business-health/ui \
   --tag ux \
   --file-note "src/pages/**/*.tsx" "Updated headings + ARIA labels" \
   --file-note "src/lib/error-utils.ts" "Replaced unsafe JSON.parse"
 
 # After completing file
-visited-tracker exclude scenarios/prd-control-tower/ui/src/pages/orientation.tsx \
+visited-tracker exclude scenarios/business-health/ui/src/pages/orientation.tsx \
   --tag ux \
   --reason "All major UX improvements complete"
 
 # Exclude multiple files with per-file reasons
 visited-tracker exclude \
-  --location scenarios/prd-control-tower/ui \
+  --location scenarios/business-health/ui \
   --tag ux \
   --file-reason "src/pages/**/*.tsx" "Already clean" \
   --file-reason "src/lib/error-utils.ts" "Non-UX utility"
@@ -99,7 +99,7 @@ visited-tracker exclude \
 ```bash
 # Store handoff context for next phase
 visited-tracker campaign note \
-  --location scenarios/prd-control-tower/ui \
+  --location scenarios/business-health/ui \
   --tag ux \
   --note "UX review complete. Focus areas for refactor: complex state management in DraftEditor, performance issues in tree rendering."
 ```
@@ -110,7 +110,7 @@ visited-tracker campaign note \
 {
   "files": [
     {
-      "path": "scenarios/prd-control-tower/ui/src/pages/orientation.tsx",
+      "path": "scenarios/business-health/ui/src/pages/orientation.tsx",
       "staleness_score": 8.3,
       "visit_count": 0,
       "last_visited": null,
@@ -118,7 +118,7 @@ visited-tracker campaign note \
       "notes": []
     },
     {
-      "path": "scenarios/prd-control-tower/ui/src/components/catalog/ScenarioDetail.tsx",
+      "path": "scenarios/business-health/ui/src/components/catalog/ScenarioDetail.tsx",
       "staleness_score": 7.1,
       "visit_count": 1,
       "last_visited": "2025-11-20T14:00:00Z",
@@ -128,7 +128,7 @@ visited-tracker campaign note \
   ],
   "campaign": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
-    "location": "scenarios/prd-control-tower/ui",
+    "location": "scenarios/business-health/ui",
     "tag": "ux",
     "total_files": 47,
     "visited_files": 12,

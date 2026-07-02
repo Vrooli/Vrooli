@@ -35,7 +35,7 @@ passes the template test lifecycle.
 ### Gate 1 — Charter
 
 Do not hand-write the final `PRD.md` when AI generation is available.
-Use `prd-control-tower` as the canonical PRD authoring path so the file
+Drive the `business-health` wizard as the canonical PRD authoring path so the file
 matches the Vrooli PRD standard and can drive requirement generation.
 
 - [ ] Write a brief context file for the scenario:
@@ -80,7 +80,7 @@ EOF
 - [ ] Generate and publish the PRD:
 
 ```bash
-prd-control-tower prd generate flow-verifier \
+business-health wizard start  # (was: prd generate) flow-verifier \
   --context-file /tmp/prd_context_flow-verifier.md \
   --publish \
   --json
@@ -89,7 +89,7 @@ prd-control-tower prd generate flow-verifier \
 - [ ] Validate the PRD:
 
 ```bash
-prd-control-tower prd validate flow-verifier --json
+vrooli scenario requirements validate flow-verifier --json
 ```
 
 - [ ] Read the published `PRD.md` and confirm it captures the intended
@@ -135,7 +135,7 @@ EOF
 - [ ] Generate requirements:
 
 ```bash
-prd-control-tower requirements generate flow-verifier \
+business-health wizard apply  # (was: requirements generate) flow-verifier \
   --context-file /tmp/requirements_context_flow-verifier.md \
   --json
 ```
@@ -143,7 +143,7 @@ prd-control-tower requirements generate flow-verifier \
 - [ ] Validate requirements:
 
 ```bash
-prd-control-tower requirements validate flow-verifier --json
+vrooli scenario requirements validate flow-verifier --json
 ```
 
 - [ ] Confirm `requirements/index.json` imports real numbered

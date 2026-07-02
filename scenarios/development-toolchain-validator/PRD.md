@@ -1,8 +1,8 @@
 # Product Requirements Document (PRD)
 
 > **Template Version**: 2.0
-> **Canonical Reference**: `/scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md`
-> **Validation**: Enforced by `prd-control-tower` + `scenario-auditor`
+> **Canonical Reference**: `/scenarios/business-health/docs/reference/canonical-prd-template.md`
+> **Validation**: Enforced by `business-health` (the test-genie `business` phase)
 > **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
 >
 > **Vision rewrite — 2026-05-18**: This PRD replaces the original 2026-03-11 PRD.
@@ -46,7 +46,7 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | Golden Registry & Regeneration | Maintain a registry of golden scenarios (one per template in `templates/scenarios/*`). Each entry records: slug, template id, pinned template version, on-disk path. Provide a regenerate operation that re-runs the template generator and bumps the pinned template version. Goldens live in `scenarios/reference-<template>/` and are committed.
+- [ ] OT-P0-001 | Golden Registry & Regeneration | Maintain a registry of generated goldens (one per template contract in `templates/scenarios/*`). Each entry records: slug, template id, pinned template version, generation metadata, and stable logical root. Validation runs materialize a fresh generated path outside `scenarios/` by default and preserve `golden_slug` for manifests and records.
 - [ ] OT-P0-002 | Skill Catalog Sync | Pull the steer-skill catalog from prompt-manager's API. Record each skill's id, current version, and content hash. Refresh on demand; surface drift since last sync.
 - [ ] OT-P0-003 | Expected-Diff Manifest | Per `(skill, golden)` tuple, store a manifest describing what the skill is *allowed* to change when run against the golden. Manifest is path-globbed with optional content rules; supports `*` wildcard for "anything goes here." Each manifest is version-pinned to a template version + skill version pair; either changing invalidates the pinning.
 - [ ] OT-P0-004 | Skill Validation Run + Diff Evaluation | Given a `(skill, golden)` tuple: spawn an agent-manager run executing the skill against the golden in sandbox mode; await completion; read the sandbox diff; evaluate the diff against the manifest. Produce a verdict: `pass` (diff fits manifest), `unexpected-mutation` (diff exceeds manifest), or `run-failure` (agent-manager run didn't complete cleanly).
@@ -89,12 +89,12 @@
   - **prompt-manager**: read-only API consumer (skill catalog, versions, content hashes). DTV does not call prompt-manager for writes.
   - **agent-manager**: spawn sandboxed runs via Connect-RPC; await completion; read sandbox diff and per-run stats (duration, tokens, cost). Sandbox is the diff capture mechanism — agent-manager already runs in accountability sandbox mode by default (per `project_sandbox_purpose_accountability`).
   - **Development helper tools** (scenario-auditor, test-genie, scenario-completeness-scoring): invoked via their CLIs; capture stdout/exit. No API coupling.
-  - **Template generator**: invoked via `vrooli scenario create` (or equivalent) when regenerating a golden.
+  - **Template generator**: invoked via `vrooli scenario generate` (or equivalent) when materializing or refreshing a generated golden.
 - **Non-goals / guardrails**:
   - Does NOT statically analyze skill prose for cross-skill conflicts (out of scope; that's a prompt-manager / skill-authoring concern)
   - Does NOT host a fleet-wide scenario health dashboard (out of scope; that's a separate scenario consuming DTV's API)
   - Does NOT enforce a deploy gate (out of scope; results are advisory until enough data exists to define meaningful thresholds)
-  - Does NOT modify goldens (read-only after regeneration; goldens are pristine template output)
+  - Does NOT maintain committed golden source trees; normal validation materializes pristine template output into managed generated paths
   - Does NOT execute non-steer skills (workflow skills like `plan-skill-discovery`, `idea-workshop`, `deployment-coordinator` are out of scope — validation is for skills that operate on scenario shape)
   - Does NOT manage skills, templates, or scenarios — it observes them
 
@@ -109,14 +109,14 @@
   - test-genie (CLI consumer)
   - scenario-completeness-scoring (CLI consumer)
 - **Template dependencies**:
-  - `templates/scenarios/react-vite` — first golden (`reference-react-vite`)
+  - `templates/scenarios/react-vite` — source template for first generated golden (`reference-react-vite`)
   - Future templates as they mature
 - **Operational risks**:
   - Each skill validation run consumes LLM tokens via agent-manager. Cost is bounded by manual triggering, but a "validate all" operation across many skills × many goldens can be expensive. P0-009 / P1-006 must enforce concurrency limits and surface estimated cost before bulk runs.
   - agent-manager's `RunSummary.tokens_used` is combined input+output today; granular cost analysis (P2-005) waits on an upstream enhancement.
-  - Goldens are committed scenarios; regeneration on template bump requires a manual review + commit step to land the regenerated tree. Automation would risk silently corrupting goldens.
+  - Golden slugs are durable, but their physical substrates are generated per run by default. Debug retention must be explicit so validation does not pollute `scenarios/` or create a second scenario-sized maintenance surface.
 - **Launch sequencing**:
-  1. P0 (this OT block): single golden (`reference-react-vite`), full skill + tool validation flow end-to-end with CLI and UI
+  1. P0 (this OT block): single generated golden (`reference-react-vite`), full skill + tool validation flow end-to-end with CLI and UI
   2. P1: trend analysis, maturity scoring, additional goldens as more templates mature
   3. P2: cost guardrails, cross-golden consistency, auto-manifest seeding
 

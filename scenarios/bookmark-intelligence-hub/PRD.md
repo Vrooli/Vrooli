@@ -189,6 +189,6 @@ After this exists, these become possible:
 
 **References**
 
-- Canonical PRD Template: scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md
+- Canonical PRD Template: scenarios/business-health/docs/reference/canonical-prd-template.md
 - Huginn Documentation: Agent-based automation patterns
 - Browserless API: Headless browser automation

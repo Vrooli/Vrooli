@@ -4,7 +4,7 @@
 
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Phase, Plan, PlanEdge, PlanStatus, RenderedPlanMirror } from "../shared/model_pb";
+import type { Phase, Plan, PlanEdge, PlanStatus, Reference, RelevantContextItem, RenderedPlanMirror } from "../shared/model_pb";
 import { file_plan_manager_v1_shared_model } from "../shared/model_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file plan-manager/v1/plans/plans.proto.
  */
 export const file_plan_manager_v1_plans_plans: GenFile = /*@__PURE__*/
-  fileDesc("CiFwbGFuLW1hbmFnZXIvdjEvcGxhbnMvcGxhbnMucHJvdG8SHHZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMiqAEKEExpc3RQbGFuc1JlcXVlc3QSOQoGc3RhdHVzGAEgASgOMikudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhblN0YXR1cxIYChBpbmNsdWRlX2FyY2hpdmVkGAIgASgIEj8KCXdvcmtzcGFjZRgDIAEoCzIsLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuV29ya3NwYWNlU2NvcGUiRwoRTGlzdFBsYW5zUmVzcG9uc2USMgoFcGxhbnMYASADKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuIl0KDkdldFBsYW5SZXF1ZXN0EgoKAmlkGAEgASgJEj8KCXdvcmtzcGFjZRgCIAEoCzIsLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuV29ya3NwYWNlU2NvcGUiRAoPR2V0UGxhblJlc3BvbnNlEjEKBHBsYW4YASABKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuIkYKEUNyZWF0ZVBsYW5SZXF1ZXN0EjEKBHBsYW4YASABKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuIkcKEkNyZWF0ZVBsYW5SZXNwb25zZRIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiJGChFVcGRhdGVQbGFuUmVxdWVzdBIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiJHChJVcGRhdGVQbGFuUmVzcG9uc2USMQoEcGxhbhgBIAEoCzIjLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW4iYQoSQXJjaGl2ZVBsYW5SZXF1ZXN0EgoKAmlkGAEgASgJEj8KCXdvcmtzcGFjZRgCIAEoCzIsLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuV29ya3NwYWNlU2NvcGUiSAoTQXJjaGl2ZVBsYW5SZXNwb25zZRIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiJ1ChVSZW5kZXJNYXJrZG93blJlcXVlc3QSCgoCaWQYASABKAkSPwoJd29ya3NwYWNlGAIgASgLMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5Xb3Jrc3BhY2VTY29wZRIPCgdjb21wYWN0GAMgASgIIuQBChZSZW5kZXJNYXJrZG93blJlc3BvbnNlEhAKCG1hcmtkb3duGAEgASgJEkEKBm1pcnJvchgCIAEoCzIxLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlbmRlcmVkUGxhbk1pcnJvchIQCghyZXBhaXJlZBgDIAEoCBIxCgRwbGFuGAQgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbhIWCg5xdWFsaXR5X3N0YXR1cxgFIAEoCRIYChBxdWFsaXR5X2ZpbmRpbmdzGAYgAygJIlcKD0FkZFBoYXNlUmVxdWVzdBIPCgdwbGFuX2lkGAEgASgJEjMKBXBoYXNlGAIgASgLMiQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGhhc2UiRQoQQWRkUGhhc2VSZXNwb25zZRIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiJaChJVcGRhdGVQaGFzZVJlcXVlc3QSDwoHcGxhbl9pZBgBIAEoCRIzCgVwaGFzZRgCIAEoCzIkLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBoYXNlIkgKE1VwZGF0ZVBoYXNlUmVzcG9uc2USMQoEcGxhbhgBIAEoCzIjLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW4iIgoPR2V0R3JhcGhSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkiSgoQR2V0R3JhcGhSZXNwb25zZRI2CgVlZGdlcxgBIAMoCzInLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW5FZGdlIlIKF0xpbmtTdXBlcnNlc3Npb25SZXF1ZXN0EhsKE3N1cGVyc2VkaW5nX3BsYW5faWQYASABKAkSGgoSc3VwZXJzZWRlZF9wbGFuX2lkGAIgASgJIk0KGExpbmtTdXBlcnNlc3Npb25SZXNwb25zZRIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiJOChVMaW5rRGVwZW5kZW5jeVJlcXVlc3QSGQoRZGVwZW5kaW5nX3BsYW5faWQYASABKAkSGgoSZGVwZW5kZW5jeV9wbGFuX2lkGAIgASgJIksKFkxpbmtEZXBlbmRlbmN5UmVzcG9uc2USMQoEcGxhbhgBIAEoCzIjLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW4imAEKEUltcG9ydFBsYW5SZXF1ZXN0EhMKC3NvdXJjZV9wYXRoGAEgASgJEhAKCG1hcmtkb3duGAIgASgJEg0KBXRpdGxlGAMgASgJEgwKBHNsdWcYBCABKAkSPwoJd29ya3NwYWNlGAUgASgLMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5Xb3Jrc3BhY2VTY29wZSJHChJJbXBvcnRQbGFuUmVzcG9uc2USMQoEcGxhbhgBIAEoCzIjLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW4iIAoSTWlncmF0ZVBsYW5SZXF1ZXN0EgoKAmlkGAEgASgJIkgKE01pZ3JhdGVQbGFuUmVzcG9uc2USMQoEcGxhbhgBIAEoCzIjLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW4inAMKFVJlY29uY2lsZVBsYW5zUmVxdWVzdBIPCgdkcnlfcnVuGAEgASgIEhYKDnJlcGFpcl9taXJyb3JzGAIgASgIEhQKDGFkb3B0X2xlZ2FjeRgDIAEoCBIYChBpbmNsdWRlX2FyY2hpdmVkGAQgASgIEh8KF2luY2x1ZGVfYXJjaGl2ZWRfbGVnYWN5GAUgASgIEk4KD2NvbmZsaWN0X3BvbGljeRgGIAEoDjI1LnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuUmVjb25jaWxlQ29uZmxpY3RQb2xpY3kSIQoZc291cmNlX3J1bnRpbWVfaG9tZV9wbGFucxgHIAEoCBIZChFzb3VyY2VfZG9jc19wbGFucxgIIAEoCBIZChFzb3VyY2VfcmVwb19wbGFucxgJIAEoCBI/Cgl3b3Jrc3BhY2UYCiABKAsyLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLldvcmtzcGFjZVNjb3BlEh8KF2NsZWFudXBfYWRvcHRlZF9zb3VyY2VzGAsgASgIIioKDldvcmtzcGFjZVNjb3BlEgoKAmlkGAEgASgJEgwKBHJvb3QYAiABKAkiuQIKEVJlY29uY2lsZVBsYW5JdGVtEj0KBmFjdGlvbhgBIAEoDjItLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuUmVjb25jaWxlQWN0aW9uEg8KB3BsYW5faWQYAiABKAkSDAoEc2x1ZxgDIAEoCRINCgV0aXRsZRgEIAEoCRITCgtzb3VyY2VfcGF0aBgFIAEoCRJBCgZtaXJyb3IYBiABKAsyMS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZW5kZXJlZFBsYW5NaXJyb3ISGAoQc291cmNlX3VudG91Y2hlZBgHIAEoCBINCgVlcnJvchgIIAEoCRIeChZzb3VyY2VfY2xlYW51cF9wbGFubmVkGAkgASgIEhYKDnNvdXJjZV9yZW1vdmVkGAogASgIImkKFlJlY29uY2lsZVBsYW5zUmVzcG9uc2USDwoHZHJ5X3J1bhgBIAEoCBI+CgVpdGVtcxgCIAMoCzIvLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuUmVjb25jaWxlUGxhbkl0ZW0iFgoUTGlzdFRlbXBsYXRlc1JlcXVlc3QiVgoVTGlzdFRlbXBsYXRlc1Jlc3BvbnNlEj0KCXRlbXBsYXRlcxgBIAMoCzIqLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuUGxhblRlbXBsYXRlIk4KDFBsYW5UZW1wbGF0ZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEg8KB3N1cmZhY2UYBCABKAkiTQoZQ3JlYXRlRnJvbVRlbXBsYXRlUmVxdWVzdBITCgt0ZW1wbGF0ZV9pZBgBIAEoCRINCgV0aXRsZRgCIAEoCRIMCgRzbHVnGAMgASgJIk8KGkNyZWF0ZUZyb21UZW1wbGF0ZVJlc3BvbnNlEjEKBHBsYW4YASABKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuKpwBChdSZWNvbmNpbGVDb25mbGljdFBvbGljeRIpCiVSRUNPTkNJTEVfQ09ORkxJQ1RfUE9MSUNZX1VOU1BFQ0lGSUVEEAASKQolUkVDT05DSUxFX0NPTkZMSUNUX1BPTElDWV9SRVBPUlRfT05MWRABEisKJ1JFQ09OQ0lMRV9DT05GTElDVF9QT0xJQ1lfU0tJUF9FWElTVElORxACKv0CCg9SZWNvbmNpbGVBY3Rpb24SIAocUkVDT05DSUxFX0FDVElPTl9VTlNQRUNJRklFRBAAEiYKIlJFQ09OQ0lMRV9BQ1RJT05fQUxSRUFEWV9DQU5PTklDQUwQARIhCh1SRUNPTkNJTEVfQUNUSU9OX01JUlJPUl9GUkVTSBACEikKJVJFQ09OQ0lMRV9BQ1RJT05fTUlSUk9SX1JFUEFJUl9ORUVERUQQAxIkCiBSRUNPTkNJTEVfQUNUSU9OX01JUlJPUl9SRVBBSVJFRBAEEiMKH1JFQ09OQ0lMRV9BQ1RJT05fSU1QT1JUX1BMQU5ORUQQBRIdChlSRUNPTkNJTEVfQUNUSU9OX0lNUE9SVEVEEAYSJgoiUkVDT05DSUxFX0FDVElPTl9TS0lQUEVEX0RVUExJQ0FURRAHEiEKHVJFQ09OQ0lMRV9BQ1RJT05fUEFSU0VfRkFJTEVEEAgSHQoZUkVDT05DSUxFX0FDVElPTl9DT05GTElDVBAJMugOCgxQbGFuc1NlcnZpY2USbAoJTGlzdFBsYW5zEi4udnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5MaXN0UGxhbnNSZXF1ZXN0Gi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5MaXN0UGxhbnNSZXNwb25zZRJmCgdHZXRQbGFuEiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5HZXRQbGFuUmVxdWVzdBotLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuR2V0UGxhblJlc3BvbnNlEm8KCkNyZWF0ZVBsYW4SLy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkNyZWF0ZVBsYW5SZXF1ZXN0GjAudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5DcmVhdGVQbGFuUmVzcG9uc2USbwoKVXBkYXRlUGxhbhIvLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuVXBkYXRlUGxhblJlcXVlc3QaMC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLlVwZGF0ZVBsYW5SZXNwb25zZRJyCgtBcmNoaXZlUGxhbhIwLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuQXJjaGl2ZVBsYW5SZXF1ZXN0GjEudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5BcmNoaXZlUGxhblJlc3BvbnNlEnsKDlJlbmRlck1hcmtkb3duEjMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5SZW5kZXJNYXJrZG93blJlcXVlc3QaNC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLlJlbmRlck1hcmtkb3duUmVzcG9uc2USaQoIQWRkUGhhc2USLS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkFkZFBoYXNlUmVxdWVzdBouLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuQWRkUGhhc2VSZXNwb25zZRJyCgtVcGRhdGVQaGFzZRIwLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuVXBkYXRlUGhhc2VSZXF1ZXN0GjEudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5VcGRhdGVQaGFzZVJlc3BvbnNlEmkKCEdldEdyYXBoEi0udnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5HZXRHcmFwaFJlcXVlc3QaLi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkdldEdyYXBoUmVzcG9uc2USgQEKEExpbmtTdXBlcnNlc3Npb24SNS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkxpbmtTdXBlcnNlc3Npb25SZXF1ZXN0GjYudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5MaW5rU3VwZXJzZXNzaW9uUmVzcG9uc2USewoOTGlua0RlcGVuZGVuY3kSMy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkxpbmtEZXBlbmRlbmN5UmVxdWVzdBo0LnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuTGlua0RlcGVuZGVuY3lSZXNwb25zZRJvCgpJbXBvcnRQbGFuEi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5JbXBvcnRQbGFuUmVxdWVzdBowLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuSW1wb3J0UGxhblJlc3BvbnNlEnIKC01pZ3JhdGVQbGFuEjAudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5NaWdyYXRlUGxhblJlcXVlc3QaMS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLk1pZ3JhdGVQbGFuUmVzcG9uc2USewoOUmVjb25jaWxlUGxhbnMSMy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLlJlY29uY2lsZVBsYW5zUmVxdWVzdBo0LnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuUmVjb25jaWxlUGxhbnNSZXNwb25zZRJ4Cg1MaXN0VGVtcGxhdGVzEjIudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5MaXN0VGVtcGxhdGVzUmVxdWVzdBozLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuTGlzdFRlbXBsYXRlc1Jlc3BvbnNlEocBChJDcmVhdGVGcm9tVGVtcGxhdGUSNy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkNyZWF0ZUZyb21UZW1wbGF0ZVJlcXVlc3QaOC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkNyZWF0ZUZyb21UZW1wbGF0ZVJlc3BvbnNlQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcGxhbi1tYW5hZ2VyL3YxL3BsYW5zO3BsYW5zX3YxYgZwcm90bzM", [file_plan_manager_v1_shared_model]);
+  fileDesc("CiFwbGFuLW1hbmFnZXIvdjEvcGxhbnMvcGxhbnMucHJvdG8SHHZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMiqAEKEExpc3RQbGFuc1JlcXVlc3QSOQoGc3RhdHVzGAEgASgOMikudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhblN0YXR1cxIYChBpbmNsdWRlX2FyY2hpdmVkGAIgASgIEj8KCXdvcmtzcGFjZRgDIAEoCzIsLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuV29ya3NwYWNlU2NvcGUiRwoRTGlzdFBsYW5zUmVzcG9uc2USMgoFcGxhbnMYASADKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuIl0KDkdldFBsYW5SZXF1ZXN0EgoKAmlkGAEgASgJEj8KCXdvcmtzcGFjZRgCIAEoCzIsLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuV29ya3NwYWNlU2NvcGUiRAoPR2V0UGxhblJlc3BvbnNlEjEKBHBsYW4YASABKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuIkYKEUNyZWF0ZVBsYW5SZXF1ZXN0EjEKBHBsYW4YASABKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuIkcKEkNyZWF0ZVBsYW5SZXNwb25zZRIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiJGChFVcGRhdGVQbGFuUmVxdWVzdBIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiJHChJVcGRhdGVQbGFuUmVzcG9uc2USMQoEcGxhbhgBIAEoCzIjLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW4iYQoSQXJjaGl2ZVBsYW5SZXF1ZXN0EgoKAmlkGAEgASgJEj8KCXdvcmtzcGFjZRgCIAEoCzIsLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuV29ya3NwYWNlU2NvcGUiSAoTQXJjaGl2ZVBsYW5SZXNwb25zZRIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiJ1ChVSZW5kZXJNYXJrZG93blJlcXVlc3QSCgoCaWQYASABKAkSPwoJd29ya3NwYWNlGAIgASgLMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5Xb3Jrc3BhY2VTY29wZRIPCgdjb21wYWN0GAMgASgIIuQBChZSZW5kZXJNYXJrZG93blJlc3BvbnNlEhAKCG1hcmtkb3duGAEgASgJEkEKBm1pcnJvchgCIAEoCzIxLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlbmRlcmVkUGxhbk1pcnJvchIQCghyZXBhaXJlZBgDIAEoCBIxCgRwbGFuGAQgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbhIWCg5xdWFsaXR5X3N0YXR1cxgFIAEoCRIYChBxdWFsaXR5X2ZpbmRpbmdzGAYgAygJIlcKD0FkZFBoYXNlUmVxdWVzdBIPCgdwbGFuX2lkGAEgASgJEjMKBXBoYXNlGAIgASgLMiQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGhhc2UiRQoQQWRkUGhhc2VSZXNwb25zZRIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiJaChJVcGRhdGVQaGFzZVJlcXVlc3QSDwoHcGxhbl9pZBgBIAEoCRIzCgVwaGFzZRgCIAEoCzIkLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBoYXNlIkgKE1VwZGF0ZVBoYXNlUmVzcG9uc2USMQoEcGxhbhgBIAEoCzIjLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW4iewoaTGlzdFJlbGV2YW50Q29udGV4dFJlcXVlc3QSCgoCaWQYASABKAkSPwoJd29ya3NwYWNlGAIgASgLMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5Xb3Jrc3BhY2VTY29wZRIQCghwaGFzZV9pZBgDIAEoCSJgChtMaXN0UmVsZXZhbnRDb250ZXh0UmVzcG9uc2USQQoFaXRlbXMYASADKAsyMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWxldmFudENvbnRleHRJdGVtItABChxVcGRhdGVSZWxldmFudENvbnRleHRSZXF1ZXN0EgoKAmlkGAEgASgJEj8KCXdvcmtzcGFjZRgCIAEoCzIsLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuV29ya3NwYWNlU2NvcGUSEAoIcGhhc2VfaWQYAyABKAkSDwoHaXRlbV9pZBgEIAEoCRJACgRpdGVtGAUgASgLMjIudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVsZXZhbnRDb250ZXh0SXRlbSJSCh1VcGRhdGVSZWxldmFudENvbnRleHRSZXNwb25zZRIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiKOAQocUmVtb3ZlUmVsZXZhbnRDb250ZXh0UmVxdWVzdBIKCgJpZBgBIAEoCRI/Cgl3b3Jrc3BhY2UYAiABKAsyLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLldvcmtzcGFjZVNjb3BlEhAKCHBoYXNlX2lkGAMgASgJEg8KB2l0ZW1faWQYBCABKAkiUgodUmVtb3ZlUmVsZXZhbnRDb250ZXh0UmVzcG9uc2USMQoEcGxhbhgBIAEoCzIjLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW4idgoVTGlzdFJlZmVyZW5jZXNSZXF1ZXN0EgoKAmlkGAEgASgJEj8KCXdvcmtzcGFjZRgCIAEoCzIsLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuV29ya3NwYWNlU2NvcGUSEAoIcGhhc2VfaWQYAyABKAkiVgoWTGlzdFJlZmVyZW5jZXNSZXNwb25zZRI8CgpyZWZlcmVuY2VzGAEgAygLMigudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVmZXJlbmNlIsoBChZVcGRhdGVSZWZlcmVuY2VSZXF1ZXN0EgoKAmlkGAEgASgJEj8KCXdvcmtzcGFjZRgCIAEoCzIsLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuV29ya3NwYWNlU2NvcGUSEAoIcGhhc2VfaWQYAyABKAkSFAoMcmVmZXJlbmNlX2lkGAQgASgJEjsKCXJlZmVyZW5jZRgFIAEoCzIoLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlZmVyZW5jZSJMChdVcGRhdGVSZWZlcmVuY2VSZXNwb25zZRIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiKNAQoWUmVtb3ZlUmVmZXJlbmNlUmVxdWVzdBIKCgJpZBgBIAEoCRI/Cgl3b3Jrc3BhY2UYAiABKAsyLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLldvcmtzcGFjZVNjb3BlEhAKCHBoYXNlX2lkGAMgASgJEhQKDHJlZmVyZW5jZV9pZBgEIAEoCSJMChdSZW1vdmVSZWZlcmVuY2VSZXNwb25zZRIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiIiCg9HZXRHcmFwaFJlcXVlc3QSDwoHcGxhbl9pZBgBIAEoCSJKChBHZXRHcmFwaFJlc3BvbnNlEjYKBWVkZ2VzGAEgAygLMicudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbkVkZ2UiUgoXTGlua1N1cGVyc2Vzc2lvblJlcXVlc3QSGwoTc3VwZXJzZWRpbmdfcGxhbl9pZBgBIAEoCRIaChJzdXBlcnNlZGVkX3BsYW5faWQYAiABKAkiTQoYTGlua1N1cGVyc2Vzc2lvblJlc3BvbnNlEjEKBHBsYW4YASABKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuIk4KFUxpbmtEZXBlbmRlbmN5UmVxdWVzdBIZChFkZXBlbmRpbmdfcGxhbl9pZBgBIAEoCRIaChJkZXBlbmRlbmN5X3BsYW5faWQYAiABKAkiSwoWTGlua0RlcGVuZGVuY3lSZXNwb25zZRIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiKYAQoRSW1wb3J0UGxhblJlcXVlc3QSEwoLc291cmNlX3BhdGgYASABKAkSEAoIbWFya2Rvd24YAiABKAkSDQoFdGl0bGUYAyABKAkSDAoEc2x1ZxgEIAEoCRI/Cgl3b3Jrc3BhY2UYBSABKAsyLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLldvcmtzcGFjZVNjb3BlIkcKEkltcG9ydFBsYW5SZXNwb25zZRIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiIgChJNaWdyYXRlUGxhblJlcXVlc3QSCgoCaWQYASABKAkiSAoTTWlncmF0ZVBsYW5SZXNwb25zZRIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbiKcAwoVUmVjb25jaWxlUGxhbnNSZXF1ZXN0Eg8KB2RyeV9ydW4YASABKAgSFgoOcmVwYWlyX21pcnJvcnMYAiABKAgSFAoMYWRvcHRfbGVnYWN5GAMgASgIEhgKEGluY2x1ZGVfYXJjaGl2ZWQYBCABKAgSHwoXaW5jbHVkZV9hcmNoaXZlZF9sZWdhY3kYBSABKAgSTgoPY29uZmxpY3RfcG9saWN5GAYgASgOMjUudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5SZWNvbmNpbGVDb25mbGljdFBvbGljeRIhChlzb3VyY2VfcnVudGltZV9ob21lX3BsYW5zGAcgASgIEhkKEXNvdXJjZV9kb2NzX3BsYW5zGAggASgIEhkKEXNvdXJjZV9yZXBvX3BsYW5zGAkgASgIEj8KCXdvcmtzcGFjZRgKIAEoCzIsLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuV29ya3NwYWNlU2NvcGUSHwoXY2xlYW51cF9hZG9wdGVkX3NvdXJjZXMYCyABKAgiKgoOV29ya3NwYWNlU2NvcGUSCgoCaWQYASABKAkSDAoEcm9vdBgCIAEoCSK5AgoRUmVjb25jaWxlUGxhbkl0ZW0SPQoGYWN0aW9uGAEgASgOMi0udnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5SZWNvbmNpbGVBY3Rpb24SDwoHcGxhbl9pZBgCIAEoCRIMCgRzbHVnGAMgASgJEg0KBXRpdGxlGAQgASgJEhMKC3NvdXJjZV9wYXRoGAUgASgJEkEKBm1pcnJvchgGIAEoCzIxLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlbmRlcmVkUGxhbk1pcnJvchIYChBzb3VyY2VfdW50b3VjaGVkGAcgASgIEg0KBWVycm9yGAggASgJEh4KFnNvdXJjZV9jbGVhbnVwX3BsYW5uZWQYCSABKAgSFgoOc291cmNlX3JlbW92ZWQYCiABKAgiaQoWUmVjb25jaWxlUGxhbnNSZXNwb25zZRIPCgdkcnlfcnVuGAEgASgIEj4KBWl0ZW1zGAIgAygLMi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5SZWNvbmNpbGVQbGFuSXRlbSIWChRMaXN0VGVtcGxhdGVzUmVxdWVzdCJWChVMaXN0VGVtcGxhdGVzUmVzcG9uc2USPQoJdGVtcGxhdGVzGAEgAygLMioudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5QbGFuVGVtcGxhdGUiTgoMUGxhblRlbXBsYXRlEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSDwoHc3VyZmFjZRgEIAEoCSJNChlDcmVhdGVGcm9tVGVtcGxhdGVSZXF1ZXN0EhMKC3RlbXBsYXRlX2lkGAEgASgJEg0KBXRpdGxlGAIgASgJEgwKBHNsdWcYAyABKAkiTwoaQ3JlYXRlRnJvbVRlbXBsYXRlUmVzcG9uc2USMQoEcGxhbhgBIAEoCzIjLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW4qnAEKF1JlY29uY2lsZUNvbmZsaWN0UG9saWN5EikKJVJFQ09OQ0lMRV9DT05GTElDVF9QT0xJQ1lfVU5TUEVDSUZJRUQQABIpCiVSRUNPTkNJTEVfQ09ORkxJQ1RfUE9MSUNZX1JFUE9SVF9PTkxZEAESKwonUkVDT05DSUxFX0NPTkZMSUNUX1BPTElDWV9TS0lQX0VYSVNUSU5HEAIq/QIKD1JlY29uY2lsZUFjdGlvbhIgChxSRUNPTkNJTEVfQUNUSU9OX1VOU1BFQ0lGSUVEEAASJgoiUkVDT05DSUxFX0FDVElPTl9BTFJFQURZX0NBTk9OSUNBTBABEiEKHVJFQ09OQ0lMRV9BQ1RJT05fTUlSUk9SX0ZSRVNIEAISKQolUkVDT05DSUxFX0FDVElPTl9NSVJST1JfUkVQQUlSX05FRURFRBADEiQKIFJFQ09OQ0lMRV9BQ1RJT05fTUlSUk9SX1JFUEFJUkVEEAQSIwofUkVDT05DSUxFX0FDVElPTl9JTVBPUlRfUExBTk5FRBAFEh0KGVJFQ09OQ0lMRV9BQ1RJT05fSU1QT1JURUQQBhImCiJSRUNPTkNJTEVfQUNUSU9OX1NLSVBQRURfRFVQTElDQVRFEAcSIQodUkVDT05DSUxFX0FDVElPTl9QQVJTRV9GQUlMRUQQCBIdChlSRUNPTkNJTEVfQUNUSU9OX0NPTkZMSUNUEAkymBUKDFBsYW5zU2VydmljZRJsCglMaXN0UGxhbnMSLi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkxpc3RQbGFuc1JlcXVlc3QaLy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkxpc3RQbGFuc1Jlc3BvbnNlEmYKB0dldFBsYW4SLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkdldFBsYW5SZXF1ZXN0Gi0udnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5HZXRQbGFuUmVzcG9uc2USbwoKQ3JlYXRlUGxhbhIvLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuQ3JlYXRlUGxhblJlcXVlc3QaMC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkNyZWF0ZVBsYW5SZXNwb25zZRJvCgpVcGRhdGVQbGFuEi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5VcGRhdGVQbGFuUmVxdWVzdBowLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuVXBkYXRlUGxhblJlc3BvbnNlEnIKC0FyY2hpdmVQbGFuEjAudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5BcmNoaXZlUGxhblJlcXVlc3QaMS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkFyY2hpdmVQbGFuUmVzcG9uc2USewoOUmVuZGVyTWFya2Rvd24SMy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLlJlbmRlck1hcmtkb3duUmVxdWVzdBo0LnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuUmVuZGVyTWFya2Rvd25SZXNwb25zZRJpCghBZGRQaGFzZRItLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuQWRkUGhhc2VSZXF1ZXN0Gi4udnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5BZGRQaGFzZVJlc3BvbnNlEnIKC1VwZGF0ZVBoYXNlEjAudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5VcGRhdGVQaGFzZVJlcXVlc3QaMS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLlVwZGF0ZVBoYXNlUmVzcG9uc2USigEKE0xpc3RSZWxldmFudENvbnRleHQSOC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkxpc3RSZWxldmFudENvbnRleHRSZXF1ZXN0GjkudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5MaXN0UmVsZXZhbnRDb250ZXh0UmVzcG9uc2USkAEKFVVwZGF0ZVJlbGV2YW50Q29udGV4dBI6LnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuVXBkYXRlUmVsZXZhbnRDb250ZXh0UmVxdWVzdBo7LnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuVXBkYXRlUmVsZXZhbnRDb250ZXh0UmVzcG9uc2USkAEKFVJlbW92ZVJlbGV2YW50Q29udGV4dBI6LnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuUmVtb3ZlUmVsZXZhbnRDb250ZXh0UmVxdWVzdBo7LnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuUmVtb3ZlUmVsZXZhbnRDb250ZXh0UmVzcG9uc2USewoOTGlzdFJlZmVyZW5jZXMSMy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkxpc3RSZWZlcmVuY2VzUmVxdWVzdBo0LnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuTGlzdFJlZmVyZW5jZXNSZXNwb25zZRJ+Cg9VcGRhdGVSZWZlcmVuY2USNC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLlVwZGF0ZVJlZmVyZW5jZVJlcXVlc3QaNS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLlVwZGF0ZVJlZmVyZW5jZVJlc3BvbnNlEn4KD1JlbW92ZVJlZmVyZW5jZRI0LnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuUmVtb3ZlUmVmZXJlbmNlUmVxdWVzdBo1LnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuUmVtb3ZlUmVmZXJlbmNlUmVzcG9uc2USaQoIR2V0R3JhcGgSLS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkdldEdyYXBoUmVxdWVzdBouLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuR2V0R3JhcGhSZXNwb25zZRKBAQoQTGlua1N1cGVyc2Vzc2lvbhI1LnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuTGlua1N1cGVyc2Vzc2lvblJlcXVlc3QaNi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkxpbmtTdXBlcnNlc3Npb25SZXNwb25zZRJ7Cg5MaW5rRGVwZW5kZW5jeRIzLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuTGlua0RlcGVuZGVuY3lSZXF1ZXN0GjQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5MaW5rRGVwZW5kZW5jeVJlc3BvbnNlEm8KCkltcG9ydFBsYW4SLy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkltcG9ydFBsYW5SZXF1ZXN0GjAudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5JbXBvcnRQbGFuUmVzcG9uc2UScgoLTWlncmF0ZVBsYW4SMC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLk1pZ3JhdGVQbGFuUmVxdWVzdBoxLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuTWlncmF0ZVBsYW5SZXNwb25zZRJ7Cg5SZWNvbmNpbGVQbGFucxIzLnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuUmVjb25jaWxlUGxhbnNSZXF1ZXN0GjQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5SZWNvbmNpbGVQbGFuc1Jlc3BvbnNlEngKDUxpc3RUZW1wbGF0ZXMSMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnBsYW5zLkxpc3RUZW1wbGF0ZXNSZXF1ZXN0GjMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5wbGFucy5MaXN0VGVtcGxhdGVzUmVzcG9uc2UShwEKEkNyZWF0ZUZyb21UZW1wbGF0ZRI3LnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuQ3JlYXRlRnJvbVRlbXBsYXRlUmVxdWVzdBo4LnZyb29saS5wbGFuX21hbmFnZXIudjEucGxhbnMuQ3JlYXRlRnJvbVRlbXBsYXRlUmVzcG9uc2VCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9wbGFuLW1hbmFnZXIvdjEvcGxhbnM7cGxhbnNfdjFiBnByb3RvMw", [file_plan_manager_v1_shared_model]);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.ListPlansRequest
@@ -364,6 +364,300 @@ export const UpdatePhaseResponseSchema: GenMessage<UpdatePhaseResponse> = /*@__P
   messageDesc(file_plan_manager_v1_plans_plans, 15);
 
 /**
+ * @generated from message vrooli.plan_manager.v1.plans.ListRelevantContextRequest
+ */
+export type ListRelevantContextRequest = Message<"vrooli.plan_manager.v1.plans.ListRelevantContextRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.plans.WorkspaceScope workspace = 2;
+   */
+  workspace?: WorkspaceScope | undefined;
+
+  /**
+   * @generated from field: string phase_id = 3;
+   */
+  phaseId: string;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.plans.ListRelevantContextRequest.
+ * Use `create(ListRelevantContextRequestSchema)` to create a new message.
+ */
+export const ListRelevantContextRequestSchema: GenMessage<ListRelevantContextRequest> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_plans_plans, 16);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.plans.ListRelevantContextResponse
+ */
+export type ListRelevantContextResponse = Message<"vrooli.plan_manager.v1.plans.ListRelevantContextResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.plan_manager.v1.shared.RelevantContextItem items = 1;
+   */
+  items: RelevantContextItem[];
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.plans.ListRelevantContextResponse.
+ * Use `create(ListRelevantContextResponseSchema)` to create a new message.
+ */
+export const ListRelevantContextResponseSchema: GenMessage<ListRelevantContextResponse> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_plans_plans, 17);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.plans.UpdateRelevantContextRequest
+ */
+export type UpdateRelevantContextRequest = Message<"vrooli.plan_manager.v1.plans.UpdateRelevantContextRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.plans.WorkspaceScope workspace = 2;
+   */
+  workspace?: WorkspaceScope | undefined;
+
+  /**
+   * @generated from field: string phase_id = 3;
+   */
+  phaseId: string;
+
+  /**
+   * @generated from field: string item_id = 4;
+   */
+  itemId: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.RelevantContextItem item = 5;
+   */
+  item?: RelevantContextItem | undefined;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.plans.UpdateRelevantContextRequest.
+ * Use `create(UpdateRelevantContextRequestSchema)` to create a new message.
+ */
+export const UpdateRelevantContextRequestSchema: GenMessage<UpdateRelevantContextRequest> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_plans_plans, 18);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.plans.UpdateRelevantContextResponse
+ */
+export type UpdateRelevantContextResponse = Message<"vrooli.plan_manager.v1.plans.UpdateRelevantContextResponse"> & {
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.Plan plan = 1;
+   */
+  plan?: Plan | undefined;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.plans.UpdateRelevantContextResponse.
+ * Use `create(UpdateRelevantContextResponseSchema)` to create a new message.
+ */
+export const UpdateRelevantContextResponseSchema: GenMessage<UpdateRelevantContextResponse> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_plans_plans, 19);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.plans.RemoveRelevantContextRequest
+ */
+export type RemoveRelevantContextRequest = Message<"vrooli.plan_manager.v1.plans.RemoveRelevantContextRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.plans.WorkspaceScope workspace = 2;
+   */
+  workspace?: WorkspaceScope | undefined;
+
+  /**
+   * @generated from field: string phase_id = 3;
+   */
+  phaseId: string;
+
+  /**
+   * @generated from field: string item_id = 4;
+   */
+  itemId: string;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.plans.RemoveRelevantContextRequest.
+ * Use `create(RemoveRelevantContextRequestSchema)` to create a new message.
+ */
+export const RemoveRelevantContextRequestSchema: GenMessage<RemoveRelevantContextRequest> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_plans_plans, 20);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.plans.RemoveRelevantContextResponse
+ */
+export type RemoveRelevantContextResponse = Message<"vrooli.plan_manager.v1.plans.RemoveRelevantContextResponse"> & {
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.Plan plan = 1;
+   */
+  plan?: Plan | undefined;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.plans.RemoveRelevantContextResponse.
+ * Use `create(RemoveRelevantContextResponseSchema)` to create a new message.
+ */
+export const RemoveRelevantContextResponseSchema: GenMessage<RemoveRelevantContextResponse> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_plans_plans, 21);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.plans.ListReferencesRequest
+ */
+export type ListReferencesRequest = Message<"vrooli.plan_manager.v1.plans.ListReferencesRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.plans.WorkspaceScope workspace = 2;
+   */
+  workspace?: WorkspaceScope | undefined;
+
+  /**
+   * @generated from field: string phase_id = 3;
+   */
+  phaseId: string;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.plans.ListReferencesRequest.
+ * Use `create(ListReferencesRequestSchema)` to create a new message.
+ */
+export const ListReferencesRequestSchema: GenMessage<ListReferencesRequest> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_plans_plans, 22);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.plans.ListReferencesResponse
+ */
+export type ListReferencesResponse = Message<"vrooli.plan_manager.v1.plans.ListReferencesResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.plan_manager.v1.shared.Reference references = 1;
+   */
+  references: Reference[];
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.plans.ListReferencesResponse.
+ * Use `create(ListReferencesResponseSchema)` to create a new message.
+ */
+export const ListReferencesResponseSchema: GenMessage<ListReferencesResponse> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_plans_plans, 23);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.plans.UpdateReferenceRequest
+ */
+export type UpdateReferenceRequest = Message<"vrooli.plan_manager.v1.plans.UpdateReferenceRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.plans.WorkspaceScope workspace = 2;
+   */
+  workspace?: WorkspaceScope | undefined;
+
+  /**
+   * @generated from field: string phase_id = 3;
+   */
+  phaseId: string;
+
+  /**
+   * @generated from field: string reference_id = 4;
+   */
+  referenceId: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.Reference reference = 5;
+   */
+  reference?: Reference | undefined;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.plans.UpdateReferenceRequest.
+ * Use `create(UpdateReferenceRequestSchema)` to create a new message.
+ */
+export const UpdateReferenceRequestSchema: GenMessage<UpdateReferenceRequest> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_plans_plans, 24);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.plans.UpdateReferenceResponse
+ */
+export type UpdateReferenceResponse = Message<"vrooli.plan_manager.v1.plans.UpdateReferenceResponse"> & {
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.Plan plan = 1;
+   */
+  plan?: Plan | undefined;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.plans.UpdateReferenceResponse.
+ * Use `create(UpdateReferenceResponseSchema)` to create a new message.
+ */
+export const UpdateReferenceResponseSchema: GenMessage<UpdateReferenceResponse> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_plans_plans, 25);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.plans.RemoveReferenceRequest
+ */
+export type RemoveReferenceRequest = Message<"vrooli.plan_manager.v1.plans.RemoveReferenceRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.plans.WorkspaceScope workspace = 2;
+   */
+  workspace?: WorkspaceScope | undefined;
+
+  /**
+   * @generated from field: string phase_id = 3;
+   */
+  phaseId: string;
+
+  /**
+   * @generated from field: string reference_id = 4;
+   */
+  referenceId: string;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.plans.RemoveReferenceRequest.
+ * Use `create(RemoveReferenceRequestSchema)` to create a new message.
+ */
+export const RemoveReferenceRequestSchema: GenMessage<RemoveReferenceRequest> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_plans_plans, 26);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.plans.RemoveReferenceResponse
+ */
+export type RemoveReferenceResponse = Message<"vrooli.plan_manager.v1.plans.RemoveReferenceResponse"> & {
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.Plan plan = 1;
+   */
+  plan?: Plan | undefined;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.plans.RemoveReferenceResponse.
+ * Use `create(RemoveReferenceResponseSchema)` to create a new message.
+ */
+export const RemoveReferenceResponseSchema: GenMessage<RemoveReferenceResponse> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_plans_plans, 27);
+
+/**
  * @generated from message vrooli.plan_manager.v1.plans.GetGraphRequest
  */
 export type GetGraphRequest = Message<"vrooli.plan_manager.v1.plans.GetGraphRequest"> & {
@@ -380,7 +674,7 @@ export type GetGraphRequest = Message<"vrooli.plan_manager.v1.plans.GetGraphRequ
  * Use `create(GetGraphRequestSchema)` to create a new message.
  */
 export const GetGraphRequestSchema: GenMessage<GetGraphRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 16);
+  messageDesc(file_plan_manager_v1_plans_plans, 28);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.GetGraphResponse
@@ -397,7 +691,7 @@ export type GetGraphResponse = Message<"vrooli.plan_manager.v1.plans.GetGraphRes
  * Use `create(GetGraphResponseSchema)` to create a new message.
  */
 export const GetGraphResponseSchema: GenMessage<GetGraphResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 17);
+  messageDesc(file_plan_manager_v1_plans_plans, 29);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.LinkSupersessionRequest
@@ -419,7 +713,7 @@ export type LinkSupersessionRequest = Message<"vrooli.plan_manager.v1.plans.Link
  * Use `create(LinkSupersessionRequestSchema)` to create a new message.
  */
 export const LinkSupersessionRequestSchema: GenMessage<LinkSupersessionRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 18);
+  messageDesc(file_plan_manager_v1_plans_plans, 30);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.LinkSupersessionResponse
@@ -436,7 +730,7 @@ export type LinkSupersessionResponse = Message<"vrooli.plan_manager.v1.plans.Lin
  * Use `create(LinkSupersessionResponseSchema)` to create a new message.
  */
 export const LinkSupersessionResponseSchema: GenMessage<LinkSupersessionResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 19);
+  messageDesc(file_plan_manager_v1_plans_plans, 31);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.LinkDependencyRequest
@@ -458,7 +752,7 @@ export type LinkDependencyRequest = Message<"vrooli.plan_manager.v1.plans.LinkDe
  * Use `create(LinkDependencyRequestSchema)` to create a new message.
  */
 export const LinkDependencyRequestSchema: GenMessage<LinkDependencyRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 20);
+  messageDesc(file_plan_manager_v1_plans_plans, 32);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.LinkDependencyResponse
@@ -475,7 +769,7 @@ export type LinkDependencyResponse = Message<"vrooli.plan_manager.v1.plans.LinkD
  * Use `create(LinkDependencyResponseSchema)` to create a new message.
  */
 export const LinkDependencyResponseSchema: GenMessage<LinkDependencyResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 21);
+  messageDesc(file_plan_manager_v1_plans_plans, 33);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.ImportPlanRequest
@@ -520,7 +814,7 @@ export type ImportPlanRequest = Message<"vrooli.plan_manager.v1.plans.ImportPlan
  * Use `create(ImportPlanRequestSchema)` to create a new message.
  */
 export const ImportPlanRequestSchema: GenMessage<ImportPlanRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 22);
+  messageDesc(file_plan_manager_v1_plans_plans, 34);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.ImportPlanResponse
@@ -537,7 +831,7 @@ export type ImportPlanResponse = Message<"vrooli.plan_manager.v1.plans.ImportPla
  * Use `create(ImportPlanResponseSchema)` to create a new message.
  */
 export const ImportPlanResponseSchema: GenMessage<ImportPlanResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 23);
+  messageDesc(file_plan_manager_v1_plans_plans, 35);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.MigratePlanRequest
@@ -554,7 +848,7 @@ export type MigratePlanRequest = Message<"vrooli.plan_manager.v1.plans.MigratePl
  * Use `create(MigratePlanRequestSchema)` to create a new message.
  */
 export const MigratePlanRequestSchema: GenMessage<MigratePlanRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 24);
+  messageDesc(file_plan_manager_v1_plans_plans, 36);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.MigratePlanResponse
@@ -571,7 +865,7 @@ export type MigratePlanResponse = Message<"vrooli.plan_manager.v1.plans.MigrateP
  * Use `create(MigratePlanResponseSchema)` to create a new message.
  */
 export const MigratePlanResponseSchema: GenMessage<MigratePlanResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 25);
+  messageDesc(file_plan_manager_v1_plans_plans, 37);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.ReconcilePlansRequest
@@ -638,7 +932,7 @@ export type ReconcilePlansRequest = Message<"vrooli.plan_manager.v1.plans.Reconc
  * Use `create(ReconcilePlansRequestSchema)` to create a new message.
  */
 export const ReconcilePlansRequestSchema: GenMessage<ReconcilePlansRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 26);
+  messageDesc(file_plan_manager_v1_plans_plans, 38);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.WorkspaceScope
@@ -660,7 +954,7 @@ export type WorkspaceScope = Message<"vrooli.plan_manager.v1.plans.WorkspaceScop
  * Use `create(WorkspaceScopeSchema)` to create a new message.
  */
 export const WorkspaceScopeSchema: GenMessage<WorkspaceScope> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 27);
+  messageDesc(file_plan_manager_v1_plans_plans, 39);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.ReconcilePlanItem
@@ -722,7 +1016,7 @@ export type ReconcilePlanItem = Message<"vrooli.plan_manager.v1.plans.ReconcileP
  * Use `create(ReconcilePlanItemSchema)` to create a new message.
  */
 export const ReconcilePlanItemSchema: GenMessage<ReconcilePlanItem> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 28);
+  messageDesc(file_plan_manager_v1_plans_plans, 40);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.ReconcilePlansResponse
@@ -744,7 +1038,7 @@ export type ReconcilePlansResponse = Message<"vrooli.plan_manager.v1.plans.Recon
  * Use `create(ReconcilePlansResponseSchema)` to create a new message.
  */
 export const ReconcilePlansResponseSchema: GenMessage<ReconcilePlansResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 29);
+  messageDesc(file_plan_manager_v1_plans_plans, 41);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.ListTemplatesRequest
@@ -757,7 +1051,7 @@ export type ListTemplatesRequest = Message<"vrooli.plan_manager.v1.plans.ListTem
  * Use `create(ListTemplatesRequestSchema)` to create a new message.
  */
 export const ListTemplatesRequestSchema: GenMessage<ListTemplatesRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 30);
+  messageDesc(file_plan_manager_v1_plans_plans, 42);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.ListTemplatesResponse
@@ -774,7 +1068,7 @@ export type ListTemplatesResponse = Message<"vrooli.plan_manager.v1.plans.ListTe
  * Use `create(ListTemplatesResponseSchema)` to create a new message.
  */
 export const ListTemplatesResponseSchema: GenMessage<ListTemplatesResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 31);
+  messageDesc(file_plan_manager_v1_plans_plans, 43);
 
 /**
  * PlanTemplate is a per-surface starter plan (CLI/proto/UI) that pre-scaffolds
@@ -811,7 +1105,7 @@ export type PlanTemplate = Message<"vrooli.plan_manager.v1.plans.PlanTemplate"> 
  * Use `create(PlanTemplateSchema)` to create a new message.
  */
 export const PlanTemplateSchema: GenMessage<PlanTemplate> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 32);
+  messageDesc(file_plan_manager_v1_plans_plans, 44);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.CreateFromTemplateRequest
@@ -838,7 +1132,7 @@ export type CreateFromTemplateRequest = Message<"vrooli.plan_manager.v1.plans.Cr
  * Use `create(CreateFromTemplateRequestSchema)` to create a new message.
  */
 export const CreateFromTemplateRequestSchema: GenMessage<CreateFromTemplateRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 33);
+  messageDesc(file_plan_manager_v1_plans_plans, 45);
 
 /**
  * @generated from message vrooli.plan_manager.v1.plans.CreateFromTemplateResponse
@@ -855,7 +1149,7 @@ export type CreateFromTemplateResponse = Message<"vrooli.plan_manager.v1.plans.C
  * Use `create(CreateFromTemplateResponseSchema)` to create a new message.
  */
 export const CreateFromTemplateResponseSchema: GenMessage<CreateFromTemplateResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_plans_plans, 34);
+  messageDesc(file_plan_manager_v1_plans_plans, 46);
 
 /**
  * @generated from enum vrooli.plan_manager.v1.plans.ReconcileConflictPolicy
@@ -1031,6 +1325,69 @@ export const PlansService: GenService<{
     methodKind: "unary";
     input: typeof UpdatePhaseRequestSchema;
     output: typeof UpdatePhaseResponseSchema;
+  },
+  /**
+   * ListRelevantContext returns accepted setup context for a plan or one phase.
+   *
+   * @generated from rpc vrooli.plan_manager.v1.plans.PlansService.ListRelevantContext
+   */
+  listRelevantContext: {
+    methodKind: "unary";
+    input: typeof ListRelevantContextRequestSchema;
+    output: typeof ListRelevantContextResponseSchema;
+  },
+  /**
+   * UpdateRelevantContext replaces one structured setup item without rewriting
+   * the whole plan.
+   *
+   * @generated from rpc vrooli.plan_manager.v1.plans.PlansService.UpdateRelevantContext
+   */
+  updateRelevantContext: {
+    methodKind: "unary";
+    input: typeof UpdateRelevantContextRequestSchema;
+    output: typeof UpdateRelevantContextResponseSchema;
+  },
+  /**
+   * RemoveRelevantContext removes one structured setup item.
+   *
+   * @generated from rpc vrooli.plan_manager.v1.plans.PlansService.RemoveRelevantContext
+   */
+  removeRelevantContext: {
+    methodKind: "unary";
+    input: typeof RemoveRelevantContextRequestSchema;
+    output: typeof RemoveRelevantContextResponseSchema;
+  },
+  /**
+   * ListReferences returns structured code/doc/req references for a plan or one
+   * phase.
+   *
+   * @generated from rpc vrooli.plan_manager.v1.plans.PlansService.ListReferences
+   */
+  listReferences: {
+    methodKind: "unary";
+    input: typeof ListReferencesRequestSchema;
+    output: typeof ListReferencesResponseSchema;
+  },
+  /**
+   * UpdateReference replaces one structured reference without rewriting the
+   * whole plan.
+   *
+   * @generated from rpc vrooli.plan_manager.v1.plans.PlansService.UpdateReference
+   */
+  updateReference: {
+    methodKind: "unary";
+    input: typeof UpdateReferenceRequestSchema;
+    output: typeof UpdateReferenceResponseSchema;
+  },
+  /**
+   * RemoveReference removes one structured reference.
+   *
+   * @generated from rpc vrooli.plan_manager.v1.plans.PlansService.RemoveReference
+   */
+  removeReference: {
+    methodKind: "unary";
+    input: typeof RemoveReferenceRequestSchema;
+    output: typeof RemoveReferenceResponseSchema;
   },
   /**
    * GetGraph returns the supersession/dependency edges, optionally scoped to one

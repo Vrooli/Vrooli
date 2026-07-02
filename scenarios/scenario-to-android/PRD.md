@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD)
 
 > **Template Version**: 2.0.0
-> **Canonical Reference**: scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md
+> **Canonical Reference**: scenarios/business-health/docs/reference/canonical-prd-template.md
 > **Last Updated**: 2025-11-27
 
 ## 🎯 Overview

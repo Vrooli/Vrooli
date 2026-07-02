@@ -40,7 +40,7 @@ The denominators are **not owned here** — they live with their owners as
 | **coverage** | `coverage status`, `coverage list-cells`, `coverage explain-cell`, `coverage validate-docs` | The readiness scoreboard, per-cell drill-down with provenance, and the base-document integrity gate (no stale/broken refs; Guide rows map to exactly one skill). |
 | **focus** | `focus next` | Ranked next-best gaps (impact × importance) across all projections. |
 | **gaps** | `gaps list`, `gaps show`, `gaps note` | The honest, durable gaps registry with notes/approaches/context. |
-| **convergence** | `convergence status`, `convergence fitness`, `convergence references`, `convergence trend` | Per-template four-lens fitness and gold-star reference-scenario health (OT-P1-002). Lens counts are **filesystem proxies** (LOC, comment-grep) — structural signals, not semantic analysis. |
+| **convergence** | `convergence status`, `convergence fitness`, `convergence references`, `convergence trend` | Per-template four-lens fitness and gold-star generated-golden health (OT-P1-002). Lens counts are **filesystem proxies** (LOC, comment-grep) — structural signals, not semantic analysis. |
 | **trials** | `trials run`, `trials list`, `trials history`, `trials show`, `trials coverage` | Empirically exercises a local model on fixture SWE tasks via agent-manager's sandboxed runner, scores the produced diff against a deterministic oracle, and records success-rate / tokens / wall-time as a trend (the real proof of readiness). |
 
 All `--json` output is typed proto-JSON. Every cross-scenario read **degrades

@@ -46,6 +46,21 @@ service PlansService {
   // UpdatePhase replaces the authored fields of a phase. Status is a typed
   // transition — see ExecutionService.TransitionPhase for runtime transitions.
   rpc UpdatePhase(UpdatePhaseRequest) returns (UpdatePhaseResponse);
+  // ListRelevantContext returns accepted setup context for a plan or one phase.
+  rpc ListRelevantContext(ListRelevantContextRequest) returns (ListRelevantContextResponse);
+  // UpdateRelevantContext replaces one structured setup item without rewriting
+  // the whole plan.
+  rpc UpdateRelevantContext(UpdateRelevantContextRequest) returns (UpdateRelevantContextResponse);
+  // RemoveRelevantContext removes one structured setup item.
+  rpc RemoveRelevantContext(RemoveRelevantContextRequest) returns (RemoveRelevantContextResponse);
+  // ListReferences returns structured code/doc/req references for a plan or one
+  // phase.
+  rpc ListReferences(ListReferencesRequest) returns (ListReferencesResponse);
+  // UpdateReference replaces one structured reference without rewriting the
+  // whole plan.
+  rpc UpdateReference(UpdateReferenceRequest) returns (UpdateReferenceResponse);
+  // RemoveReference removes one structured reference.
+  rpc RemoveReference(RemoveReferenceRequest) returns (RemoveReferenceResponse);
 
   // GetGraph returns the supersession/dependency edges, optionally scoped to one
   // plan's neighborhood (OT-P1-002).
@@ -152,6 +167,72 @@ message UpdatePhaseRequest {
 }
 
 message UpdatePhaseResponse {
+  shared.Plan plan = 1;
+}
+
+message ListRelevantContextRequest {
+  string id = 1;
+  WorkspaceScope workspace = 2;
+  string phase_id = 3;
+}
+
+message ListRelevantContextResponse {
+  repeated shared.RelevantContextItem items = 1;
+}
+
+message UpdateRelevantContextRequest {
+  string id = 1;
+  WorkspaceScope workspace = 2;
+  string phase_id = 3;
+  string item_id = 4;
+  shared.RelevantContextItem item = 5;
+}
+
+message UpdateRelevantContextResponse {
+  shared.Plan plan = 1;
+}
+
+message RemoveRelevantContextRequest {
+  string id = 1;
+  WorkspaceScope workspace = 2;
+  string phase_id = 3;
+  string item_id = 4;
+}
+
+message RemoveRelevantContextResponse {
+  shared.Plan plan = 1;
+}
+
+message ListReferencesRequest {
+  string id = 1;
+  WorkspaceScope workspace = 2;
+  string phase_id = 3;
+}
+
+message ListReferencesResponse {
+  repeated shared.Reference references = 1;
+}
+
+message UpdateReferenceRequest {
+  string id = 1;
+  WorkspaceScope workspace = 2;
+  string phase_id = 3;
+  string reference_id = 4;
+  shared.Reference reference = 5;
+}
+
+message UpdateReferenceResponse {
+  shared.Plan plan = 1;
+}
+
+message RemoveReferenceRequest {
+  string id = 1;
+  WorkspaceScope workspace = 2;
+  string phase_id = 3;
+  string reference_id = 4;
+}
+
+message RemoveReferenceResponse {
   shared.Plan plan = 1;
 }
 

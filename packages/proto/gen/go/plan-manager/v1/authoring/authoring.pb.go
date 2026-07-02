@@ -3171,12 +3171,12 @@ func (x *RemoveRelevantContextItemResponse) GetStep() *shared.GuidedStep {
 type DiscoverContextCandidatesRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	SessionId string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	// Decomposed discovery concepts (domain / technology / problem type / scenario surface lenses). Empty uses the
-	// session title as a fallback concept.
+	// Decomposed discovery concepts (domain / technology / problem type / scenario surface lenses). Empty inspects the
+	// latest/prefetched batch without creating a new one unless refresh is true.
 	Concepts []string `protobuf:"bytes,2,rep,name=concepts,proto3" json:"concepts,omitempty"`
 	// Optional prompt-manager skill discovery complexity, e.g. "architectural".
 	Complexity string `protobuf:"bytes,3,opt,name=complexity,proto3" json:"complexity,omitempty"`
-	// Force a fresh discovery even when a prefetched pending batch is available.
+	// Force a fresh discovery even when no concepts are supplied.
 	Refresh       bool `protobuf:"varint,4,opt,name=refresh,proto3" json:"refresh,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

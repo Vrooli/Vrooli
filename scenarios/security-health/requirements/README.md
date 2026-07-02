@@ -13,8 +13,8 @@ This registry links the PRD operational targets (`../PRD.md` → `## 🎯 Operat
 3. Coverage summaries land in `coverage/phase-results/` after each test phase.
 
 ## Validation commands
-- Validate this registry: `prd-control-tower requirements validate security-health --json`
-- Validate the PRD ↔ requirements linkage: `prd-control-tower prd validate security-health --json`
+- Validate this registry: `vrooli scenario requirements validate security-health --json`
+- Validate the PRD ↔ requirements linkage: `vrooli scenario requirements validate security-health --json`
 - Run the scenario's own audit (exercises tagged tests): `test-genie execute security-health --preset comprehensive`
 
 ## Contributor notes

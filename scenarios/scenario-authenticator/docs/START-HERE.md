@@ -62,7 +62,7 @@ passes the template test lifecycle.
 ### Gate 1 — Charter
 
 Do not hand-write the final `PRD.md` when AI generation is available.
-Use `prd-control-tower` as the canonical PRD authoring path so the file
+Drive the `business-health` wizard as the canonical PRD authoring path so the file
 matches the Vrooli PRD standard and can drive requirement generation.
 
 - [ ] Write a brief context file for the scenario:
@@ -110,7 +110,7 @@ EOF
 - [ ] Generate and publish the PRD:
 
 ```bash
-prd-control-tower prd generate scenario-authenticator \
+business-health wizard start  # (was: prd generate) scenario-authenticator \
   --context-file /tmp/prd_context_scenario-authenticator.md \
   --publish \
   --json
@@ -119,7 +119,7 @@ prd-control-tower prd generate scenario-authenticator \
 - [ ] Validate the PRD:
 
 ```bash
-prd-control-tower prd validate scenario-authenticator --json
+vrooli scenario requirements validate scenario-authenticator --json
 ```
 
 - [ ] Read the published `PRD.md` and confirm it captures the intended
@@ -165,7 +165,7 @@ EOF
 - [ ] Generate requirements:
 
 ```bash
-prd-control-tower requirements generate scenario-authenticator \
+business-health wizard apply  # (was: requirements generate) scenario-authenticator \
   --context-file /tmp/requirements_context_scenario-authenticator.md \
   --json
 ```
@@ -173,7 +173,7 @@ prd-control-tower requirements generate scenario-authenticator \
 - [ ] Validate requirements:
 
 ```bash
-prd-control-tower requirements validate scenario-authenticator --json
+vrooli scenario requirements validate scenario-authenticator --json
 ```
 
 - [ ] Confirm `requirements/index.json` imports real numbered
@@ -213,7 +213,7 @@ Resources and scenario-to-scenario dependencies live in
 `.vrooli/service.json`. **Third-party packages** (npm/go/pip) are
 governed separately by **Scenario Dependency Analyzer (SDA)** — the
 dependency-intelligence authority. Just as the charter gate routes PRD
-authoring through `prd-control-tower`, dependency selection routes
+authoring through the business-health wizard, dependency selection routes
 through SDA. **Never hand-edit `.vrooli/dependencies/approved-dependencies.json`
 or run a raw `pnpm add` / `go get` / `pip install`.**
 

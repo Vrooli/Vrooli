@@ -79,7 +79,7 @@
           "maturity": "active",
           "requiredBy": ["oriented"],
           "completion": "required",
-          "ownerSkills": ["prd-control-tower"],
+          "ownerSkills": ["prd-authoring"],
           "validation": {
             "requiredHeadings": ["🎯 Overview", "🎯 Operational Targets", "🧱 Tech Direction Snapshot", "🤝 Dependencies & Launch Plan", "🎨 UX & Branding"],
             "forbiddenPlaceholders": ["[Summarize the permanent capability this scenario adds]", "[Outcome title]"]

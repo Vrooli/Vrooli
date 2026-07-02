@@ -139,11 +139,26 @@ func TestService_RegisterHappyPath(t *testing.T) {
 		Slug:            "reference-react-vite",
 		TemplateID:      "react-vite",
 		TemplateVersion: "1.0.1",
-		Path:            "scenarios/reference-react-vite",
+		Path:            ".vrooli/generated-goldens/reference-react-vite",
 	})
 	require.NoError(t, err)
 	require.Equal(t, "reference-react-vite", g.Slug)
 	require.Equal(t, "1.0.1", g.TemplateVersionPinned)
+	require.Equal(t, ".vrooli/generated-goldens/reference-react-vite", g.LogicalRoot)
+	require.Equal(t, golden.MaterializationModeEphemeral, g.MaterializationMode)
+}
+
+func TestService_RegisterDefaultsGeneratedLogicalRoot(t *testing.T) {
+	svc, _, _, _ := newSvc(t)
+	g, err := svc.Register(context.Background(), golden.RegisterInput{
+		Slug:            "reference-react-vite",
+		TemplateID:      "react-vite",
+		TemplateVersion: "1.0.1",
+	})
+	require.NoError(t, err)
+	require.Equal(t, ".vrooli/generated-goldens/reference-react-vite", g.Path)
+	require.Equal(t, g.Path, g.LogicalRoot)
+	require.Equal(t, golden.MaterializationStatusNever, g.LastMaterializedStatus)
 }
 
 func TestService_RegisterValidationFailures(t *testing.T) {
@@ -156,8 +171,8 @@ func TestService_RegisterValidationFailures(t *testing.T) {
 		{"bad slug", golden.RegisterInput{Slug: "Bad Slug", TemplateID: "x", TemplateVersion: "1", Path: "p"}, "slug"},
 		{"empty template", golden.RegisterInput{Slug: "g", TemplateVersion: "1", Path: "p"}, "template_id"},
 		{"empty version", golden.RegisterInput{Slug: "g", TemplateID: "x", Path: "p"}, "template_version"},
-		{"empty path", golden.RegisterInput{Slug: "g", TemplateID: "x", TemplateVersion: "1"}, "path"},
 		{"absolute path", golden.RegisterInput{Slug: "g", TemplateID: "x", TemplateVersion: "1", Path: "/abs"}, "path"},
+		{"absolute logical root", golden.RegisterInput{Slug: "g", TemplateID: "x", TemplateVersion: "1", LogicalRoot: "/abs"}, "logical_root"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

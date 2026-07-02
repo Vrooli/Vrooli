@@ -52,7 +52,7 @@ Pre-flight gates before declaring a cartographer release ready:
 
 - [ ] `make setup` passes.
 - [ ] `make test` passes.
-- [ ] PRD operational targets have linked requirements (`prd-control-tower prd validate architecture-cartographer --json` reports `healthy`).
+- [ ] PRD operational targets have linked requirements (`vrooli scenario requirements validate architecture-cartographer --json` reports `healthy`).
 - [ ] All P0 requirements report status `complete` or `in_progress` with passing automated validations.
 - [ ] Template `notes` reference domain has been removed (Gate 7 in [`../START-HERE.md`](../START-HERE.md)).
 - [ ] `go-code-graph` and `typescript-code-graph` are both at release-ready maturity and listed as runtime dependencies in `.vrooli/service.json`.

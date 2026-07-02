@@ -5,6 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
+
+	"meta-optimization-manager/internal/testutil/mocks"
 )
 
 // writeFile is a tiny test helper.
@@ -71,5 +74,34 @@ func TestFitnessScannerTemplateFilter(t *testing.T) {
 	}
 	if len(out) != 1 || out[0].Template != "b" {
 		t.Fatalf("template filter failed: %+v", out)
+	}
+}
+
+func TestReferenceScannerUsesGeneratedGoldenTemplatePathForBreadth(t *testing.T) {
+	root := t.TempDir()
+	registry := "| Role | Golden slug | Template | First registered | Last audit | Notes |\n" +
+		"|------|-------------|----------|------------------|------------|-------|\n" +
+		"| **Gold-star (primary)** | `reference-react-vite` | `path:templates/scenarios/react-vite/` | 2026-04-24 | 2026-05-04 | generated golden |\n"
+	writeFile(t, filepath.Join(root, "docs", "agent-system", "REFERENCE_SCENARIOS.md"), registry)
+	writeFile(t, filepath.Join(root, "templates", "scenarios", "react-vite", "api", "handlers", "golden", "handler.go"), "package golden\n")
+	writeFile(t, filepath.Join(root, "templates", "scenarios", "react-vite", "api", "internal", "runs", "service.go"), "package runs\n")
+
+	clk := mocks.NewFakeClock(time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC))
+	sc := NewReferenceScannerWithDeps(root, clk, nil)
+	got, err := sc.Scan(context.Background())
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("want 1 generated golden, got %+v", got)
+	}
+	if got[0].Scenario != "reference-react-vite" {
+		t.Fatalf("slug = %q", got[0].Scenario)
+	}
+	if got[0].Breadth != 2 {
+		t.Fatalf("breadth = %d, want template-derived 2", got[0].Breadth)
+	}
+	if got[0].StabilityDays == 0 {
+		t.Fatalf("expected first-registration date to drive stability: %+v", got[0])
 	}
 }

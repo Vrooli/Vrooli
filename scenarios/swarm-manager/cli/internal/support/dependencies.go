@@ -161,3 +161,12 @@ func APICommand(name, description string, run CommandFunc) cliapp.Command {
 		Run:         run,
 	}
 }
+
+// APICommandHelp is APICommand plus a --help body (flag reference, examples).
+// Use it for commands whose flag surface is too large for the one-line
+// description — the description elides what agents then guess wrong.
+func APICommandHelp(name, description, helpText string, run CommandFunc) cliapp.Command {
+	cmd := APICommand(name, description, run)
+	cmd.HelpText = helpText
+	return cmd
+}

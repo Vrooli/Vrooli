@@ -32,7 +32,7 @@ cached artifacts, which other tools own and write:
 
 | Read Path (relative to target scenario) | Owner/Writer | Read By Domain | Notes |
 |---|---|---|---|
-| `requirements/index.json` + imported `*/module.json` | prd-control-tower / agents | signals | Requirement + operational-target pass rates. |
+| `requirements/index.json` + imported `*/module.json` | business-health / agents | signals | Requirement + operational-target pass rates. |
 | `coverage/requirements-sync/latest.json` (+ legacy fallbacks) | requirements sync tooling | signals | Preferred source for requirement/target status. |
 | `coverage/phase-results/*.json` | test-genie | signals | Findings decode (proto `ArchitectureFinding`) with legacy summary fallback; mapped to maturity-go dimensions. |
 | `coverage/runs.index.json` | test-genie (flock-guarded write side) | freshness | Read-only via `packages/freshness-go/runindex`. |

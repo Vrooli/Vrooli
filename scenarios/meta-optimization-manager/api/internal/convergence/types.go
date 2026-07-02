@@ -1,6 +1,6 @@
 // Package convergence measures the upstream generators of scenarios: per-template
 // fitness across the four reference-pattern-fitness lenses, gold-star
-// reference-scenario health/eligibility, and the convergence trend over dated
+// generated-golden health/eligibility, and the convergence trend over dated
 // fitness-audit records. It delegates raw code structure to
 // code-facts/architecture-cartographer and toolchain-clean results to
 // test-genie/scenario-auditor — it never re-runs the toolchain. It surfaces
@@ -53,7 +53,9 @@ type TemplateFitness struct {
 	Tier                     FitnessTier
 }
 
-// ReferenceHealth is the gold-star health of one reference scenario.
+// ReferenceHealth is the gold-star health of one generated golden. The Scenario
+// field name is retained for the existing proto/API contract and carries the
+// durable golden slug.
 type ReferenceHealth struct {
 	Scenario          string
 	StaleFromTemplate bool

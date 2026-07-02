@@ -1,20 +1,89 @@
 {
-  "$schema": "https://vrooli.com/schemas/testing.schema.json",
+  "$schema": "../../test-genie/schemas/testing.schema.json",
   "_metadata": {
     "description": "Testing configuration for local-info-scout",
     "last_updated": "2025-11-06T23:58:54-05:00"
   },
   "version": "1.0.0",
   "unit": {
-    "languages": {
-      "go": {
-        "coverage": {
-          "error_threshold": 50
-        }
-      }
-    },
     "options": {
       "verbose": false
+    },
+    "policy_profile": {
+      "version": "1.0.0",
+      "template": {
+        "id": "react-vite",
+        "scenario_class": "custom"
+      },
+      "required_roles": [
+        {
+          "role": "api",
+          "policy_class": "go_service",
+          "match": {
+            "surface_id": "api",
+            "kind": "api",
+            "path": "api",
+            "language": "go"
+          }
+        },
+        {
+          "role": "cli",
+          "policy_class": "go_cli",
+          "match": {
+            "surface_id": "cli",
+            "kind": "cli",
+            "path": "cli",
+            "language": "go"
+          }
+        }
+      ],
+      "policy_classes": {
+        "go_service": {
+          "language": "go",
+          "framework": "go test",
+          "package_manager": "go",
+          "coverage": {
+            "minimum_percent": 75,
+            "mode": "total"
+          },
+          "test_utils": {
+            "required_roots": [
+              "api/internal/testutil"
+            ],
+            "production_import_ban": true
+          },
+          "projection": {
+            "required_files": [
+              "api/internal/testutil/no_prod_import_test.go"
+            ]
+          }
+        },
+        "go_cli": {
+          "language": "go",
+          "framework": "go test",
+          "package_manager": "go",
+          "coverage": {
+            "minimum_percent": 75,
+            "mode": "total"
+          },
+          "test_utils": {
+            "required_roots": [
+              "cli/internal/testutil"
+            ],
+            "production_import_ban": true
+          },
+          "projection": {
+            "required_files": [
+              "cli/app_test.go",
+              "cli/internal/testutil/no_prod_import_test.go"
+            ]
+          }
+        }
+      },
+      "customization": {
+        "mode": "monotonic",
+        "waivers": []
+      }
     }
   }
 }

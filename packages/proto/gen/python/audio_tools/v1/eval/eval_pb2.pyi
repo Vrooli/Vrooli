@@ -309,7 +309,7 @@ class ScalingPoint(_message.Message):
     def __init__(self, clip_id: _Optional[str] = ..., target_duration_ms: _Optional[int] = ..., realized_duration_ms: _Optional[int] = ..., wer: _Optional[float] = ..., finalization_latency_p50_ms: _Optional[float] = ..., finalization_latency_p95_ms: _Optional[float] = ..., finalization_latency_sample_count: _Optional[int] = ..., time_to_first_commit_ms: _Optional[float] = ..., commit_count: _Optional[int] = ..., partial_revisions: _Optional[int] = ..., max_dropped_span_words: _Optional[int] = ..., whisper_calls: _Optional[int] = ..., whisper_audio_seconds: _Optional[float] = ..., provider_latency_ms: _Optional[float] = ..., rtf: _Optional[float] = ...) -> None: ...
 
 class ScalingModelFit(_message.Message):
-    __slots__ = ("metric", "model", "slope_per_second", "intercept", "r_squared", "sample_count", "reason")
+    __slots__ = ("metric", "model", "slope_per_second", "intercept", "r_squared", "sample_count", "reason", "exponent", "exponent_r_squared", "unit")
     METRIC_FIELD_NUMBER: _ClassVar[int]
     MODEL_FIELD_NUMBER: _ClassVar[int]
     SLOPE_PER_SECOND_FIELD_NUMBER: _ClassVar[int]
@@ -317,6 +317,9 @@ class ScalingModelFit(_message.Message):
     R_SQUARED_FIELD_NUMBER: _ClassVar[int]
     SAMPLE_COUNT_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
+    EXPONENT_FIELD_NUMBER: _ClassVar[int]
+    EXPONENT_R_SQUARED_FIELD_NUMBER: _ClassVar[int]
+    UNIT_FIELD_NUMBER: _ClassVar[int]
     metric: str
     model: str
     slope_per_second: float
@@ -324,10 +327,13 @@ class ScalingModelFit(_message.Message):
     r_squared: float
     sample_count: int
     reason: str
-    def __init__(self, metric: _Optional[str] = ..., model: _Optional[str] = ..., slope_per_second: _Optional[float] = ..., intercept: _Optional[float] = ..., r_squared: _Optional[float] = ..., sample_count: _Optional[int] = ..., reason: _Optional[str] = ...) -> None: ...
+    exponent: float
+    exponent_r_squared: float
+    unit: str
+    def __init__(self, metric: _Optional[str] = ..., model: _Optional[str] = ..., slope_per_second: _Optional[float] = ..., intercept: _Optional[float] = ..., r_squared: _Optional[float] = ..., sample_count: _Optional[int] = ..., reason: _Optional[str] = ..., exponent: _Optional[float] = ..., exponent_r_squared: _Optional[float] = ..., unit: _Optional[str] = ...) -> None: ...
 
 class ScalingAnalysis(_message.Message):
-    __slots__ = ("points", "latency_classification", "compute_classification", "confidence", "reasons", "warnings", "latency_fit", "compute_fit")
+    __slots__ = ("points", "latency_classification", "compute_classification", "confidence", "reasons", "warnings", "latency_fit", "compute_fit", "metric_fits")
     POINTS_FIELD_NUMBER: _ClassVar[int]
     LATENCY_CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
     COMPUTE_CLASSIFICATION_FIELD_NUMBER: _ClassVar[int]
@@ -336,6 +342,7 @@ class ScalingAnalysis(_message.Message):
     WARNINGS_FIELD_NUMBER: _ClassVar[int]
     LATENCY_FIT_FIELD_NUMBER: _ClassVar[int]
     COMPUTE_FIT_FIELD_NUMBER: _ClassVar[int]
+    METRIC_FITS_FIELD_NUMBER: _ClassVar[int]
     points: _containers.RepeatedCompositeFieldContainer[ScalingPoint]
     latency_classification: str
     compute_classification: str
@@ -344,4 +351,5 @@ class ScalingAnalysis(_message.Message):
     warnings: _containers.RepeatedCompositeFieldContainer[ReportWarning]
     latency_fit: ScalingModelFit
     compute_fit: ScalingModelFit
-    def __init__(self, points: _Optional[_Iterable[_Union[ScalingPoint, _Mapping]]] = ..., latency_classification: _Optional[str] = ..., compute_classification: _Optional[str] = ..., confidence: _Optional[str] = ..., reasons: _Optional[_Iterable[str]] = ..., warnings: _Optional[_Iterable[_Union[ReportWarning, _Mapping]]] = ..., latency_fit: _Optional[_Union[ScalingModelFit, _Mapping]] = ..., compute_fit: _Optional[_Union[ScalingModelFit, _Mapping]] = ...) -> None: ...
+    metric_fits: _containers.RepeatedCompositeFieldContainer[ScalingModelFit]
+    def __init__(self, points: _Optional[_Iterable[_Union[ScalingPoint, _Mapping]]] = ..., latency_classification: _Optional[str] = ..., compute_classification: _Optional[str] = ..., confidence: _Optional[str] = ..., reasons: _Optional[_Iterable[str]] = ..., warnings: _Optional[_Iterable[_Union[ReportWarning, _Mapping]]] = ..., latency_fit: _Optional[_Union[ScalingModelFit, _Mapping]] = ..., compute_fit: _Optional[_Union[ScalingModelFit, _Mapping]] = ..., metric_fits: _Optional[_Iterable[_Union[ScalingModelFit, _Mapping]]] = ...) -> None: ...

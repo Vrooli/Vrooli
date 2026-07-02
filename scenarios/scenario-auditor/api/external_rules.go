@@ -58,9 +58,13 @@ func registerDefaultExternalProviders() {
 			// NOTE: the app-monitor interop provider was removed — the static
 			// UI-interop rules moved to ui-health, the single UI-validation
 			// authority. scenario-auditor no longer registers interop_* rules.
-			newPRDControlTowerProvider(),
+			// The test-genie structure provider was likewise removed — the
+			// structure_* rules are owned by structure-health via test-genie's
+			// structure phase, and the delegation endpoint no longer exists.
+			// The PRD control-tower provider (prd_* rules) was removed —
+			// the business contract is owned by business-health via
+			// test-genie's business phase.
 			newStackGovernorProvider(),
-			newTestGenieProvider(),
 		} {
 			registerExternalProvider(provider)
 		}

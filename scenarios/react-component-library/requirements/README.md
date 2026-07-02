@@ -8,9 +8,9 @@ Each subfolder corresponds to one operational target in [`../PRD.md`](../PRD.md)
 3. Coverage summaries live in `coverage/phase-results/` after each test phase.
 
 ## Validation commands
-- Validate PRD shape and linkage: `prd-control-tower prd validate react-component-library`
-- Validate this registry's structure: `prd-control-tower requirements validate react-component-library`
-- AI-fix common violations: `prd-control-tower prd fix react-component-library --auto`
+- Validate PRD shape and linkage: `vrooli scenario requirements validate react-component-library`
+- Validate this registry's structure: `vrooli scenario requirements validate react-component-library`
+- AI-fix common violations: `business-health fix apply react-component-library --auto`
 - Run the scenario test suite: `vrooli scenario test react-component-library`
 
 ## Auto-sync

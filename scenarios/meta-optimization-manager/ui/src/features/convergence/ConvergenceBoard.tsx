@@ -8,7 +8,7 @@ import { eligibilityLabel, tierLabel } from "../labels";
 
 /**
  * ConvergenceBoard renders per-template four-lens fitness and gold-star
- * reference-scenario health/eligibility (OT-P1-002). Numbers + candidates only;
+ * generated-golden health/eligibility (OT-P1-002). Numbers + candidates only;
  * tiering is advisory.
  */
 export function ConvergenceBoard() {

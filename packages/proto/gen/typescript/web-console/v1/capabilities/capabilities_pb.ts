@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-console/v1/capabilities/capabilities.proto.
  */
 export const file_web_console_v1_capabilities_capabilities: GenFile = /*@__PURE__*/
-  fileDesc("Ci53ZWItY29uc29sZS92MS9jYXBhYmlsaXRpZXMvY2FwYWJpbGl0aWVzLnByb3RvEiJ2cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzIrkBCg9DYXBhYmlsaXR5U3RhdGUSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIXCg9kZXBlbmRlbmN5X2tpbmQYBCABKAkSFwoPZGVwZW5kZW5jeV9zbHVnGAUgASgJEhAKCGZlYXR1cmVzGAYgAygJEg4KBnN0YXR1cxgHIAEoCRIPCgdtZXNzYWdlGAggASgJEhIKCmNoZWNrZWRfYXQYCSABKAkigwEKDUJhY2tlbmRPcHRpb24SCgoCaWQYASABKAkSFAoMZGlzcGxheV9uYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhgKEHN1cnZpdmVzX3Jlc3RhcnQYBCABKAgSEQoJYXZhaWxhYmxlGAUgASgIEg4KBnJlYXNvbhgGIAEoCSIMCgpHZXRSZXF1ZXN0ItEBCgtHZXRSZXNwb25zZRJJCgxjYXBhYmlsaXRpZXMYASADKAsyMy52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlTdGF0ZRIRCgl0aW1lc3RhbXAYAiABKAkSSwoQc2Vzc2lvbl9iYWNrZW5kcxgDIAMoCzIxLnZyb29saS53ZWJfY29uc29sZS52MS5jYXBhYmlsaXRpZXMuQmFja2VuZE9wdGlvbhIXCg9kZWZhdWx0X2JhY2tlbmQYBCABKAkiEQoPTGl2ZW5lc3NSZXF1ZXN0InAKEExpdmVuZXNzUmVzcG9uc2USSQoMY2FwYWJpbGl0aWVzGAEgAygLMjMudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5U3RhdGUSEQoJdGltZXN0YW1wGAIgASgJMvQBChNDYXBhYmlsaXRpZXNTZXJ2aWNlEmYKA0dldBIuLnZyb29saS53ZWJfY29uc29sZS52MS5jYXBhYmlsaXRpZXMuR2V0UmVxdWVzdBovLnZyb29saS53ZWJfY29uc29sZS52MS5jYXBhYmlsaXRpZXMuR2V0UmVzcG9uc2USdQoITGl2ZW5lc3MSMy52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkxpdmVuZXNzUmVxdWVzdBo0LnZyb29saS53ZWJfY29uc29sZS52MS5jYXBhYmlsaXRpZXMuTGl2ZW5lc3NSZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1jb25zb2xlL3YxL2NhcGFiaWxpdGllcztjYXBhYmlsaXRpZXNfdjFiBnByb3RvMw");
+  fileDesc("Ci53ZWItY29uc29sZS92MS9jYXBhYmlsaXRpZXMvY2FwYWJpbGl0aWVzLnByb3RvEiJ2cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzIpMCCg9DYXBhYmlsaXR5U3RhdGUSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIXCg9kZXBlbmRlbmN5X2tpbmQYBCABKAkSFwoPZGVwZW5kZW5jeV9zbHVnGAUgASgJEhAKCGZlYXR1cmVzGAYgAygJEg4KBnN0YXR1cxgHIAEoCRIPCgdtZXNzYWdlGAggASgJEhIKCmNoZWNrZWRfYXQYCSABKAkSEwoLcmVhc29uX2NvZGUYCiABKAkSEwoLYWN0aW9uX2tpbmQYCyABKAkSFAoMYWN0aW9uX2xhYmVsGAwgASgJEhgKEG9wZXJhdG9yX2NvbW1hbmQYDSABKAkigwEKDUJhY2tlbmRPcHRpb24SCgoCaWQYASABKAkSFAoMZGlzcGxheV9uYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhgKEHN1cnZpdmVzX3Jlc3RhcnQYBCABKAgSEQoJYXZhaWxhYmxlGAUgASgIEg4KBnJlYXNvbhgGIAEoCSIMCgpHZXRSZXF1ZXN0ItEBCgtHZXRSZXNwb25zZRJJCgxjYXBhYmlsaXRpZXMYASADKAsyMy52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlTdGF0ZRIRCgl0aW1lc3RhbXAYAiABKAkSSwoQc2Vzc2lvbl9iYWNrZW5kcxgDIAMoCzIxLnZyb29saS53ZWJfY29uc29sZS52MS5jYXBhYmlsaXRpZXMuQmFja2VuZE9wdGlvbhIXCg9kZWZhdWx0X2JhY2tlbmQYBCABKAkiEQoPTGl2ZW5lc3NSZXF1ZXN0InAKEExpdmVuZXNzUmVzcG9uc2USSQoMY2FwYWJpbGl0aWVzGAEgAygLMjMudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5U3RhdGUSEQoJdGltZXN0YW1wGAIgASgJIj4KEFJ1bkFjdGlvblJlcXVlc3QSFQoNY2FwYWJpbGl0eV9pZBgBIAEoCRITCgthY3Rpb25fa2luZBgCIAEoCSLPAQoRUnVuQWN0aW9uUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIOCgZzdGF0dXMYAiABKAkSDwoHbWVzc2FnZRgDIAEoCRIVCg1jYXBhYmlsaXR5X2lkGAQgASgJEhMKC2FjdGlvbl9raW5kGAUgASgJEkkKDGNhcGFiaWxpdGllcxgGIAMoCzIzLnZyb29saS53ZWJfY29uc29sZS52MS5jYXBhYmlsaXRpZXMuQ2FwYWJpbGl0eVN0YXRlEhEKCXRpbWVzdGFtcBgHIAEoCTLuAgoTQ2FwYWJpbGl0aWVzU2VydmljZRJmCgNHZXQSLi52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkdldFJlcXVlc3QaLy52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkdldFJlc3BvbnNlEnUKCExpdmVuZXNzEjMudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5MaXZlbmVzc1JlcXVlc3QaNC52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkxpdmVuZXNzUmVzcG9uc2USeAoJUnVuQWN0aW9uEjQudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5SdW5BY3Rpb25SZXF1ZXN0GjUudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5SdW5BY3Rpb25SZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1jb25zb2xlL3YxL2NhcGFiaWxpdGllcztjYXBhYmlsaXRpZXNfdjFiBnByb3RvMw");
 
 /**
  * CapabilityState is the runtime view of a single capability. Mirrors
@@ -65,6 +65,26 @@ export type CapabilityState = Message<"vrooli.web_console.v1.capabilities.Capabi
    * @generated from field: string checked_at = 9;
    */
   checkedAt: string;
+
+  /**
+   * @generated from field: string reason_code = 10;
+   */
+  reasonCode: string;
+
+  /**
+   * @generated from field: string action_kind = 11;
+   */
+  actionKind: string;
+
+  /**
+   * @generated from field: string action_label = 12;
+   */
+  actionLabel: string;
+
+  /**
+   * @generated from field: string operator_command = 13;
+   */
+  operatorCommand: string;
 };
 
 /**
@@ -201,6 +221,75 @@ export const LivenessResponseSchema: GenMessage<LivenessResponse> = /*@__PURE__*
   messageDesc(file_web_console_v1_capabilities_capabilities, 5);
 
 /**
+ * @generated from message vrooli.web_console.v1.capabilities.RunActionRequest
+ */
+export type RunActionRequest = Message<"vrooli.web_console.v1.capabilities.RunActionRequest"> & {
+  /**
+   * @generated from field: string capability_id = 1;
+   */
+  capabilityId: string;
+
+  /**
+   * @generated from field: string action_kind = 2;
+   */
+  actionKind: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.capabilities.RunActionRequest.
+ * Use `create(RunActionRequestSchema)` to create a new message.
+ */
+export const RunActionRequestSchema: GenMessage<RunActionRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_capabilities_capabilities, 6);
+
+/**
+ * @generated from message vrooli.web_console.v1.capabilities.RunActionResponse
+ */
+export type RunActionResponse = Message<"vrooli.web_console.v1.capabilities.RunActionResponse"> & {
+  /**
+   * @generated from field: bool success = 1;
+   */
+  success: boolean;
+
+  /**
+   * @generated from field: string status = 2;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string message = 3;
+   */
+  message: string;
+
+  /**
+   * @generated from field: string capability_id = 4;
+   */
+  capabilityId: string;
+
+  /**
+   * @generated from field: string action_kind = 5;
+   */
+  actionKind: string;
+
+  /**
+   * @generated from field: repeated vrooli.web_console.v1.capabilities.CapabilityState capabilities = 6;
+   */
+  capabilities: CapabilityState[];
+
+  /**
+   * @generated from field: string timestamp = 7;
+   */
+  timestamp: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.capabilities.RunActionResponse.
+ * Use `create(RunActionResponseSchema)` to create a new message.
+ */
+export const RunActionResponseSchema: GenMessage<RunActionResponse> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_capabilities_capabilities, 7);
+
+/**
  * @generated from service vrooli.web_console.v1.capabilities.CapabilitiesService
  */
 export const CapabilitiesService: GenService<{
@@ -219,6 +308,14 @@ export const CapabilitiesService: GenService<{
     methodKind: "unary";
     input: typeof LivenessRequestSchema;
     output: typeof LivenessResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.capabilities.CapabilitiesService.RunAction
+   */
+  runAction: {
+    methodKind: "unary";
+    input: typeof RunActionRequestSchema;
+    output: typeof RunActionResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_web_console_v1_capabilities_capabilities, 0);

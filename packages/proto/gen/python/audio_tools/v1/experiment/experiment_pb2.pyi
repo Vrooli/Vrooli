@@ -162,20 +162,18 @@ class Experiment(_message.Message):
     def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., status: _Optional[_Union[ExperimentStatus, str]] = ..., recipe: _Optional[_Union[ExperimentRecipe, _Mapping]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., error: _Optional[str] = ..., result_ref: _Optional[str] = ..., machine_json: _Optional[str] = ...) -> None: ...
 
 class ExperimentRun(_message.Message):
-    __slots__ = ("id", "experiment_id", "strategy", "condition_json", "metrics_json", "created_at")
+    __slots__ = ("id", "experiment_id", "strategy", "condition_json", "created_at")
     ID_FIELD_NUMBER: _ClassVar[int]
     EXPERIMENT_ID_FIELD_NUMBER: _ClassVar[int]
     STRATEGY_FIELD_NUMBER: _ClassVar[int]
     CONDITION_JSON_FIELD_NUMBER: _ClassVar[int]
-    METRICS_JSON_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     id: str
     experiment_id: str
     strategy: str
     condition_json: str
-    metrics_json: str
     created_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., experiment_id: _Optional[str] = ..., strategy: _Optional[str] = ..., condition_json: _Optional[str] = ..., metrics_json: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., experiment_id: _Optional[str] = ..., strategy: _Optional[str] = ..., condition_json: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class ExperimentEvent(_message.Message):
     __slots__ = ("experiment_id", "status", "progress", "message", "at")
@@ -264,6 +262,20 @@ class CancelExperimentResponse(_message.Message):
     EXPERIMENT_FIELD_NUMBER: _ClassVar[int]
     experiment: Experiment
     def __init__(self, experiment: _Optional[_Union[Experiment, _Mapping]] = ...) -> None: ...
+
+class DeleteExperimentRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class DeleteExperimentResponse(_message.Message):
+    __slots__ = ("id", "deleted_report")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    DELETED_REPORT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    deleted_report: bool
+    def __init__(self, id: _Optional[str] = ..., deleted_report: _Optional[bool] = ...) -> None: ...
 
 class StreamExperimentEventsRequest(_message.Message):
     __slots__ = ("id",)

@@ -2,6 +2,7 @@ package records
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -22,9 +23,19 @@ import (
 //	POST   /api/v1/records/{id}/supersede
 //	POST   /api/v1/records/search
 type Handler struct {
-	svc    *Service
-	search Searcher
+	svc           *Service
+	search        Searcher
+	checkScenario ScenarioChecker
 }
+
+// ScenarioChecker reports whether slug names a known work target (scenario,
+// package, resource, or the repo-level "vrooli" slug) and, when it does not,
+// the nearest known slug ("" when nothing is close). Used to attach a
+// warning — never to block — so typo'd slugs stop silently fragmenting the
+// learning corpus (85 slugs in the live store, 35 of them off-registry).
+//
+// seam: records.ScenarioChecker
+type ScenarioChecker func(slug string) (known bool, nearest string)
 
 // Searcher is the semantic-search read seam used by POST /records/search.
 // Production wiring is aisearch; tests substitute a fake. Nil is a valid
@@ -63,6 +74,11 @@ func (h *Handler) SetSearcher(search Searcher) {
 	h.search = search
 }
 
+// SetScenarioChecker installs the known-slug seam. Nil disables the warning.
+func (h *Handler) SetScenarioChecker(check ScenarioChecker) {
+	h.checkScenario = check
+}
+
 // RegisterRoutes wires REST endpoints on the given router.
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/records", h.create).Methods("POST")
@@ -82,6 +98,7 @@ type createRequest struct {
 	Trigger      string   `json:"trigger"`
 	Approach     string   `json:"approach"`
 	RuledOut     []string `json:"ruled_out"`
+	Evidence     string   `json:"evidence"`
 	Commit       string   `json:"commit"`
 	FilesChanged []string `json:"files_changed"`
 	Outcome      string   `json:"outcome"`
@@ -113,6 +130,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		Trigger:      req.Trigger,
 		Approach:     req.Approach,
 		RuledOut:     req.RuledOut,
+		Evidence:     req.Evidence,
 		Commit:       req.Commit,
 		FilesChanged: req.FilesChanged,
 		Outcome:      outcome,
@@ -122,7 +140,28 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		mapServiceErr(w, "[records] create", err)
 		return
 	}
-	_ = httputil.JSONWithStatus(w, http.StatusCreated, map[string]any{"record": rec})
+	resp := map[string]any{"record": rec}
+	if warning := h.scenarioWarning(rec.Scenario); warning != "" {
+		resp["warnings"] = []string{warning}
+	}
+	_ = httputil.JSONWithStatus(w, http.StatusCreated, resp)
+}
+
+// scenarioWarning returns a warning message when the slug is off-registry, or
+// "" when the slug is known or no checker is wired.
+func (h *Handler) scenarioWarning(slug string) string {
+	if h.checkScenario == nil {
+		return ""
+	}
+	known, nearest := h.checkScenario(slug)
+	if known {
+		return ""
+	}
+	msg := fmt.Sprintf("scenario %q is not a known scenario/package/resource slug; the record is stored, but scenario-filtered recall may miss it", slug)
+	if nearest != "" {
+		msg += fmt.Sprintf(" (did you mean %q?)", nearest)
+	}
+	return msg + `; use "vrooli" for repo-level work`
 }
 
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
@@ -172,6 +211,7 @@ type narrativeRequest struct {
 	Trigger      string   `json:"trigger"`
 	Approach     string   `json:"approach"`
 	RuledOut     []string `json:"ruled_out"`
+	Evidence     string   `json:"evidence"`
 	Commit       string   `json:"commit"`
 	FilesChanged []string `json:"files_changed"`
 	Outcome      string   `json:"outcome"`
@@ -197,6 +237,7 @@ func (h *Handler) patchNarrative(w http.ResponseWriter, r *http.Request) {
 		Trigger:      req.Trigger,
 		Approach:     req.Approach,
 		RuledOut:     req.RuledOut,
+		Evidence:     req.Evidence,
 		Commit:       req.Commit,
 		FilesChanged: req.FilesChanged,
 		Outcome:      outcome,

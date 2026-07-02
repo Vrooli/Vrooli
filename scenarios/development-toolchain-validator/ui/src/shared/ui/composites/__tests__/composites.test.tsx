@@ -67,6 +67,17 @@ describe("MetricStat", () => {
     expect(screen.getByTestId("ms-label")).toBeInTheDocument();
     expect(screen.getByTestId("ms-value")).toBeInTheDocument();
   });
+
+  it("renders an optional delta line", () => {
+    render(
+      <MetricStat
+        label="coverage"
+        value="94%"
+        delta={<span data-testid="ms-delta">+3%</span>}
+      />,
+    );
+    expect(screen.getByTestId("ms-delta")).toHaveTextContent("+3%");
+  });
 });
 
 describe("MetadataList", () => {
@@ -83,6 +94,12 @@ describe("StaleBadge", () => {
   it("renders the verdict-stale variant", () => {
     render(<StaleBadge label="stale" reason="why" testId="sb" />);
     expect(screen.getByTestId("sb")).toHaveAttribute("data-variant", "verdict-stale");
+  });
+
+  it("renders directly when no reason is provided", () => {
+    render(<StaleBadge label="stale" testId="sb-direct" />);
+    expect(screen.getByTestId("sb-direct")).toHaveTextContent("stale");
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 });
 
@@ -128,6 +145,31 @@ describe("VerdictGrid", () => {
       />,
     );
     expect(screen.getByTestId("empty")).toBeInTheDocument();
+  });
+
+  it("renders the default empty state when no empty state is provided", () => {
+    render(<VerdictGrid testId="vg-default-empty" caption="No verdicts" rows={[]} />);
+    expect(screen.getByTestId("vg-default-empty-empty")).toHaveTextContent("No verdicts");
+  });
+
+  it("renders optional row sub-labels and metrics without row click behavior", () => {
+    render(
+      <VerdictGrid
+        testId="vg-static"
+        rows={[
+          {
+            id: "r1",
+            label: "Tuple",
+            subLabel: "generated root",
+            kind: "pass",
+            metric: "12ms",
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText("generated root")).toBeInTheDocument();
+    expect(screen.getByText("12ms")).toBeInTheDocument();
+    expect(screen.getByTestId("vg-static-row-r1").tagName.toLowerCase()).toBe("div");
   });
 });
 

@@ -35,16 +35,27 @@ type Golden struct {
 	TemplateId string `protobuf:"bytes,3,opt,name=template_id,json=templateId,proto3" json:"template_id,omitempty"`
 	// Template version recorded at last regeneration (e.g. "1.0.1").
 	TemplateVersionPinned string `protobuf:"bytes,4,opt,name=template_version_pinned,json=templateVersionPinned,proto3" json:"template_version_pinned,omitempty"`
-	// Filesystem path relative to the repository root
-	// (e.g. "scenarios/reference-react-vite").
+	// Stable logical root for manifest/diff semantics. Older rows used this as
+	// a committed filesystem path; new generated goldens may omit it and let the
+	// server default it from the slug.
 	Path string `protobuf:"bytes,5,opt,name=path,proto3" json:"path,omitempty"`
 	// Server time at first registration.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Server time of the most recent regeneration (equals created_at on insert
 	// when registered without an explicit regenerate step).
 	LastRegeneratedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=last_regenerated_at,json=lastRegeneratedAt,proto3" json:"last_regenerated_at,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// JSON-encoded generator options captured for deterministic materialization.
+	GenerationOptionsJson string `protobuf:"bytes,8,opt,name=generation_options_json,json=generationOptionsJson,proto3" json:"generation_options_json,omitempty"`
+	// Materialization mode, e.g. "ephemeral" for per-run temp output.
+	MaterializationMode string `protobuf:"bytes,9,opt,name=materialization_mode,json=materializationMode,proto3" json:"materialization_mode,omitempty"`
+	// Stable logical root used when normalizing generated diff paths.
+	LogicalRoot string `protobuf:"bytes,10,opt,name=logical_root,json=logicalRoot,proto3" json:"logical_root,omitempty"`
+	// Most recent generated physical path, populated for debugging/status only.
+	LastMaterializedPath string `protobuf:"bytes,11,opt,name=last_materialized_path,json=lastMaterializedPath,proto3" json:"last_materialized_path,omitempty"`
+	// Most recent materialization status: never, ready, or failed.
+	LastMaterializedStatus string `protobuf:"bytes,12,opt,name=last_materialized_status,json=lastMaterializedStatus,proto3" json:"last_materialized_status,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *Golden) Reset() {
@@ -124,6 +135,41 @@ func (x *Golden) GetLastRegeneratedAt() *timestamppb.Timestamp {
 		return x.LastRegeneratedAt
 	}
 	return nil
+}
+
+func (x *Golden) GetGenerationOptionsJson() string {
+	if x != nil {
+		return x.GenerationOptionsJson
+	}
+	return ""
+}
+
+func (x *Golden) GetMaterializationMode() string {
+	if x != nil {
+		return x.MaterializationMode
+	}
+	return ""
+}
+
+func (x *Golden) GetLogicalRoot() string {
+	if x != nil {
+		return x.LogicalRoot
+	}
+	return ""
+}
+
+func (x *Golden) GetLastMaterializedPath() string {
+	if x != nil {
+		return x.LastMaterializedPath
+	}
+	return ""
+}
+
+func (x *Golden) GetLastMaterializedStatus() string {
+	if x != nil {
+		return x.LastMaterializedStatus
+	}
+	return ""
 }
 
 type ListGoldensRequest struct {
@@ -297,13 +343,16 @@ func (x *GetGoldenResponse) GetGolden() *Golden {
 }
 
 type RegisterGoldenRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Slug            string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
-	TemplateId      string                 `protobuf:"bytes,2,opt,name=template_id,json=templateId,proto3" json:"template_id,omitempty"`
-	TemplateVersion string                 `protobuf:"bytes,3,opt,name=template_version,json=templateVersion,proto3" json:"template_version,omitempty"`
-	Path            string                 `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Slug                  string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	TemplateId            string                 `protobuf:"bytes,2,opt,name=template_id,json=templateId,proto3" json:"template_id,omitempty"`
+	TemplateVersion       string                 `protobuf:"bytes,3,opt,name=template_version,json=templateVersion,proto3" json:"template_version,omitempty"`
+	Path                  string                 `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"`
+	GenerationOptionsJson string                 `protobuf:"bytes,5,opt,name=generation_options_json,json=generationOptionsJson,proto3" json:"generation_options_json,omitempty"`
+	MaterializationMode   string                 `protobuf:"bytes,6,opt,name=materialization_mode,json=materializationMode,proto3" json:"materialization_mode,omitempty"`
+	LogicalRoot           string                 `protobuf:"bytes,7,opt,name=logical_root,json=logicalRoot,proto3" json:"logical_root,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *RegisterGoldenRequest) Reset() {
@@ -364,6 +413,27 @@ func (x *RegisterGoldenRequest) GetPath() string {
 	return ""
 }
 
+func (x *RegisterGoldenRequest) GetGenerationOptionsJson() string {
+	if x != nil {
+		return x.GenerationOptionsJson
+	}
+	return ""
+}
+
+func (x *RegisterGoldenRequest) GetMaterializationMode() string {
+	if x != nil {
+		return x.MaterializationMode
+	}
+	return ""
+}
+
+func (x *RegisterGoldenRequest) GetLogicalRoot() string {
+	if x != nil {
+		return x.LogicalRoot
+	}
+	return ""
+}
+
 type RegisterGoldenResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Golden        *Golden                `protobuf:"bytes,1,opt,name=golden,proto3" json:"golden,omitempty"`
@@ -416,8 +486,12 @@ type UpdateGoldenRequest struct {
 	Path string `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
 	// Optional new template version. Empty string means leave unchanged.
 	TemplateVersion string `protobuf:"bytes,3,opt,name=template_version,json=templateVersion,proto3" json:"template_version,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Optional generated-golden metadata patches.
+	GenerationOptionsJson string `protobuf:"bytes,4,opt,name=generation_options_json,json=generationOptionsJson,proto3" json:"generation_options_json,omitempty"`
+	MaterializationMode   string `protobuf:"bytes,5,opt,name=materialization_mode,json=materializationMode,proto3" json:"materialization_mode,omitempty"`
+	LogicalRoot           string `protobuf:"bytes,6,opt,name=logical_root,json=logicalRoot,proto3" json:"logical_root,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *UpdateGoldenRequest) Reset() {
@@ -467,6 +541,27 @@ func (x *UpdateGoldenRequest) GetPath() string {
 func (x *UpdateGoldenRequest) GetTemplateVersion() string {
 	if x != nil {
 		return x.TemplateVersion
+	}
+	return ""
+}
+
+func (x *UpdateGoldenRequest) GetGenerationOptionsJson() string {
+	if x != nil {
+		return x.GenerationOptionsJson
+	}
+	return ""
+}
+
+func (x *UpdateGoldenRequest) GetMaterializationMode() string {
+	if x != nil {
+		return x.MaterializationMode
+	}
+	return ""
+}
+
+func (x *UpdateGoldenRequest) GetLogicalRoot() string {
+	if x != nil {
+		return x.LogicalRoot
 	}
 	return ""
 }
@@ -687,7 +782,7 @@ var File_development_toolchain_validator_v1_golden_golden_proto protoreflect.Fil
 
 const file_development_toolchain_validator_v1_golden_golden_proto_rawDesc = "" +
 	"\n" +
-	"6development-toolchain-validator/v1/golden/golden.proto\x120vrooli.development_toolchain_validator.v1.golden\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa0\x02\n" +
+	"6development-toolchain-validator/v1/golden/golden.proto\x120vrooli.development_toolchain_validator.v1.golden\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9e\x04\n" +
 	"\x06Golden\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04slug\x18\x02 \x01(\tR\x04slug\x12\x1f\n" +
@@ -697,26 +792,38 @@ const file_development_toolchain_validator_v1_golden_golden_proto_rawDesc = "" +
 	"\x04path\x18\x05 \x01(\tR\x04path\x129\n" +
 	"\n" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12J\n" +
-	"\x13last_regenerated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x11lastRegeneratedAt\"\x14\n" +
+	"\x13last_regenerated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x11lastRegeneratedAt\x126\n" +
+	"\x17generation_options_json\x18\b \x01(\tR\x15generationOptionsJson\x121\n" +
+	"\x14materialization_mode\x18\t \x01(\tR\x13materializationMode\x12!\n" +
+	"\flogical_root\x18\n" +
+	" \x01(\tR\vlogicalRoot\x124\n" +
+	"\x16last_materialized_path\x18\v \x01(\tR\x14lastMaterializedPath\x128\n" +
+	"\x18last_materialized_status\x18\f \x01(\tR\x16lastMaterializedStatus\"\x14\n" +
 	"\x12ListGoldensRequest\"i\n" +
 	"\x13ListGoldensResponse\x12R\n" +
 	"\agoldens\x18\x01 \x03(\v28.vrooli.development_toolchain_validator.v1.golden.GoldenR\agoldens\"&\n" +
 	"\x10GetGoldenRequest\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\"e\n" +
 	"\x11GetGoldenResponse\x12P\n" +
-	"\x06golden\x18\x01 \x01(\v28.vrooli.development_toolchain_validator.v1.golden.GoldenR\x06golden\"\x8b\x01\n" +
+	"\x06golden\x18\x01 \x01(\v28.vrooli.development_toolchain_validator.v1.golden.GoldenR\x06golden\"\x99\x02\n" +
 	"\x15RegisterGoldenRequest\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x1f\n" +
 	"\vtemplate_id\x18\x02 \x01(\tR\n" +
 	"templateId\x12)\n" +
 	"\x10template_version\x18\x03 \x01(\tR\x0ftemplateVersion\x12\x12\n" +
-	"\x04path\x18\x04 \x01(\tR\x04path\"j\n" +
+	"\x04path\x18\x04 \x01(\tR\x04path\x126\n" +
+	"\x17generation_options_json\x18\x05 \x01(\tR\x15generationOptionsJson\x121\n" +
+	"\x14materialization_mode\x18\x06 \x01(\tR\x13materializationMode\x12!\n" +
+	"\flogical_root\x18\a \x01(\tR\vlogicalRoot\"j\n" +
 	"\x16RegisterGoldenResponse\x12P\n" +
-	"\x06golden\x18\x01 \x01(\v28.vrooli.development_toolchain_validator.v1.golden.GoldenR\x06golden\"h\n" +
+	"\x06golden\x18\x01 \x01(\v28.vrooli.development_toolchain_validator.v1.golden.GoldenR\x06golden\"\xf6\x01\n" +
 	"\x13UpdateGoldenRequest\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12)\n" +
-	"\x10template_version\x18\x03 \x01(\tR\x0ftemplateVersion\"h\n" +
+	"\x10template_version\x18\x03 \x01(\tR\x0ftemplateVersion\x126\n" +
+	"\x17generation_options_json\x18\x04 \x01(\tR\x15generationOptionsJson\x121\n" +
+	"\x14materialization_mode\x18\x05 \x01(\tR\x13materializationMode\x12!\n" +
+	"\flogical_root\x18\x06 \x01(\tR\vlogicalRoot\"h\n" +
 	"\x14UpdateGoldenResponse\x12P\n" +
 	"\x06golden\x18\x01 \x01(\v28.vrooli.development_toolchain_validator.v1.golden.GoldenR\x06golden\")\n" +
 	"\x13DeleteGoldenRequest\x12\x12\n" +

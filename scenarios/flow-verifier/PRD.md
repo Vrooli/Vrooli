@@ -1,8 +1,8 @@
 # Product Requirements Document (PRD)
 
 > **Template Version**: 2.0
-> **Canonical Reference**: `/scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md`
-> **Validation**: Enforced by `prd-control-tower` + `scenario-auditor`
+> **Canonical Reference**: `/scenarios/business-health/docs/reference/canonical-prd-template.md`
+> **Validation**: Enforced by `business-health` (the test-genie `business` phase)
 > **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
 
 ## 🎯 Overview
@@ -38,7 +38,7 @@
 
 ## 🤝 Dependencies & Launch Plan
 - Required resources: None (no Vrooli resources required).
-- Scenario dependencies: None at runtime. Uses `test-genie` for QA gating; `prd-control-tower` for PRD/requirement governance.
+- Scenario dependencies: None at runtime. Uses `test-genie` for QA gating; `business-health` for PRD/requirement governance.
 - Operational risks: Quint binary version drift between contract record and host; generated-file byte-identity drift when codegen modules move; SQLite file-path resolution across CLI invocation contexts.
 - Launch sequencing: Internal-first. Cutover deletes `templates/scenarios/react-vite/tools/temporal-model/` in the same change that flow-verifier reaches CLI parity. Template `make temporal-models` retargets to `flow-verifier verify check`.
 

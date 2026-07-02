@@ -10,7 +10,7 @@ Developer-tool aesthetic. Data-dense. Calm under load. Verdict grids are the dom
 
 - `scenarios/git-control-tower/ui/` — sticky `StatusHeader`, mobile `BottomNav`, `FileStatsBadges` dual-display pattern (`src/components/FileStatsBadges.tsx`), CVA badge variants in `src/components/ui/badge.tsx`.
 - `scenarios/web-console/ui/` — token system at `src/styles.css` (`--wc-*`) + `tailwind.config.ts` semantic mapping; `useAppViewport` hook for mobile viewport height (`src/hooks/useAppViewport.ts`); Zustand store pattern; `SessionSidebar.tsx`; CVA+Slot button (`ui/components/ui/button.tsx`).
-- `scenarios/reference-react-vite/ui/` — the template's flagship example for `ui/flow/navigation.json` + `routes.generated.ts` + React Router v6/7 wiring + responsive `Layout.tsx`.
+- `templates/scenarios/react-vite/ui/` — the template's flagship source for `ui/flow/navigation.json` + `routes.generated.ts` + React Router v6/7 wiring + responsive `Layout.tsx`.
 
 ## Default theme
 

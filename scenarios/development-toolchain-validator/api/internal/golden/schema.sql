@@ -9,6 +9,11 @@ CREATE TABLE IF NOT EXISTS goldens (
   template_id             TEXT NOT NULL,
   template_version_pinned TEXT NOT NULL,
   path                    TEXT NOT NULL,
+  generation_options_json TEXT NOT NULL DEFAULT '',
+  materialization_mode    TEXT NOT NULL DEFAULT 'ephemeral',
+  logical_root            TEXT NOT NULL DEFAULT '',
+  last_materialized_path  TEXT NOT NULL DEFAULT '',
+  last_materialized_status TEXT NOT NULL DEFAULT 'never',
   created_at              TEXT NOT NULL,
   last_regenerated_at     TEXT NOT NULL
 );

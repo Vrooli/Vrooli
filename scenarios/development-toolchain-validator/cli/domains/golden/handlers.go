@@ -43,8 +43,8 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 		Results:        results,
 		RetrievalHints: []string{
 			"`goldens get <slug>` — show a single golden",
-			"`goldens register --slug <slug> --template <id> --version <v> --path <path>` — register a new golden",
-			"`goldens regenerate <slug> --yes` — refresh a golden's on-disk tree",
+			"`goldens register --slug <slug> --template <id> --version <v>` — register a generated golden",
+			"`goldens regenerate <slug> --yes` — refresh generated-golden metadata from its pinned template",
 		},
 	})
 }
@@ -147,6 +147,10 @@ func formatGolden(g *goldenv1.Golden) string {
 	if g.LastRegeneratedAt != nil {
 		last = g.LastRegeneratedAt.AsTime().Format(time.RFC3339)
 	}
-	return fmt.Sprintf("%s — template=%s@%s path=%s last_regenerated=%s",
-		g.Slug, g.TemplateId, g.TemplateVersionPinned, g.Path, last)
+	logicalRoot := g.LogicalRoot
+	if logicalRoot == "" {
+		logicalRoot = g.Path
+	}
+	return fmt.Sprintf("%s — template=%s@%s logical_root=%s last_regenerated=%s",
+		g.Slug, g.TemplateId, g.TemplateVersionPinned, logicalRoot, last)
 }

@@ -181,4 +181,5 @@ export interface TranscriptionProvider {
   onResult: ((text: string) => void) | null;
   onError: ((error: string) => void) | null;
   onPartial?: ((text: string) => void) | null;
+  onStatus?: ((status: { code: string; message: string }) => void) | null;
 }

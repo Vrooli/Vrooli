@@ -95,19 +95,24 @@ func (f *FakeWorkspaceSandbox) FetchPathContent(_ context.Context, _, path strin
 	return c, nil
 }
 
-// FakeGoldenSource is a programmable fake for GoldenSource.
-type FakeGoldenSource struct {
-	Paths map[string]string
-	Err   error
+// FakeGoldenMaterializer is a programmable fake for GoldenMaterializer.
+type FakeGoldenMaterializer struct {
+	Goldens map[string]vrun.MaterializedGolden
+	Err     error
 }
 
-var _ vrun.GoldenSource = (*FakeGoldenSource)(nil)
+var _ vrun.GoldenMaterializer = (*FakeGoldenMaterializer)(nil)
 
-func (f *FakeGoldenSource) GoldenPath(_ context.Context, goldenSlug string) (string, error) {
+func (f *FakeGoldenMaterializer) Materialize(_ context.Context, goldenSlug string) (vrun.MaterializedGolden, error) {
 	if f.Err != nil {
-		return "", f.Err
+		return vrun.MaterializedGolden{}, f.Err
 	}
-	return f.Paths[goldenSlug], nil
+	if f.Goldens != nil {
+		if g, ok := f.Goldens[goldenSlug]; ok {
+			return g, nil
+		}
+	}
+	return vrun.MaterializedGolden{GoldenSlug: goldenSlug, PhysicalPath: "/tmp/" + goldenSlug, LogicalRoot: goldenSlug}, nil
 }
 
 // FakeManifestSource is a programmable fake for ManifestSource.

@@ -27,6 +27,7 @@ service ExperimentService {
   rpc WaitExperiment(WaitExperimentRequest) returns (WaitExperimentResponse);
   rpc ListExperiments(ListExperimentsRequest) returns (ListExperimentsResponse);
   rpc CancelExperiment(CancelExperimentRequest) returns (CancelExperimentResponse);
+  rpc DeleteExperiment(DeleteExperimentRequest) returns (DeleteExperimentResponse);
   rpc StreamExperimentEvents(StreamExperimentEventsRequest) returns (stream ExperimentEvent);
   rpc GetExperimentReport(GetExperimentReportRequest) returns (GetExperimentReportResponse);
   rpc CompareExperiments(CompareExperimentsRequest) returns (CompareExperimentsResponse);
@@ -123,11 +124,13 @@ message Experiment {
 }
 
 message ExperimentRun {
+  reserved 5;
+  reserved "metrics_json";
+
   string id = 1;
   string experiment_id = 2;
   string strategy = 3;
   string condition_json = 4;
-  string metrics_json = 5;
   google.protobuf.Timestamp created_at = 6;
 }
 
@@ -184,6 +187,15 @@ message CancelExperimentRequest {
 
 message CancelExperimentResponse {
   Experiment experiment = 1;
+}
+
+message DeleteExperimentRequest {
+  string id = 1;
+}
+
+message DeleteExperimentResponse {
+  string id = 1;
+  bool deleted_report = 2;
 }
 
 message StreamExperimentEventsRequest {
