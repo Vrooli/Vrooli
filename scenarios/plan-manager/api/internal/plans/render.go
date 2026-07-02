@@ -7,8 +7,11 @@ import (
 	"plan-manager/internal/planmodel"
 )
 
+const defaultValidationStrategy = "Baseline diff shows no unexplained regressions; expected related surfaces improve."
+
 type RenderOptions struct {
-	Compact bool
+	Compact            bool
+	AuthoringSessionID string
 }
 
 // RenderMarkdown renders a structured Plan to its human-readable markdown
@@ -28,7 +31,7 @@ func RenderMarkdown(p Plan) string {
 // grouping over the same structured fields, rendered as `###` subsections.
 func RenderMarkdownWithOptions(p Plan, opts RenderOptions) string {
 	var b strings.Builder
-	renderHeader(&b, p)
+	renderHeader(&b, p, opts)
 	writeSection(&b, "Purpose", p.Purpose)
 	writeSection(&b, "Problem", p.ProblemStatement)
 	writeSection(&b, "Outcome", p.TargetOutcome)
@@ -118,13 +121,17 @@ func renderVerificationCluster(b *strings.Builder, p Plan) {
 	b.WriteString("## Verification\n\n")
 	if anchorPresent(p.RegressionAnchor) {
 		b.WriteString("### Regression Anchor\n\n")
-		b.WriteString(renderAnchor(p.RegressionAnchor))
+		b.WriteString(renderAnchor(p.RegressionAnchor, p.ChangeBoundary))
 		b.WriteString("\n")
 	}
 	if hasStrategy {
 		b.WriteString("### Validation Strategy\n\n")
-		if strings.TrimSpace(p.ValidationStrategy) != "" {
-			b.WriteString(strings.TrimRight(p.ValidationStrategy, "\n"))
+		strategy := strings.TrimSpace(p.ValidationStrategy)
+		if strategy == "" && len(p.FinalValidationCommands) > 0 {
+			strategy = defaultValidationStrategy
+		}
+		if strategy != "" {
+			b.WriteString(strings.TrimRight(strategy, "\n"))
 			b.WriteString("\n")
 		}
 		if len(p.FinalValidationCommands) > 0 {
@@ -175,7 +182,7 @@ func writeSubSection(b *strings.Builder, heading, body string) {
 	fmt.Fprintf(b, "### %s\n\n%s\n\n", heading, strings.TrimRight(body, "\n"))
 }
 
-func renderHeader(b *strings.Builder, p Plan) {
+func renderHeader(b *strings.Builder, p Plan, opts RenderOptions) {
 	title := p.Title
 	if title == "" {
 		title = p.Slug
@@ -186,7 +193,7 @@ func renderHeader(b *strings.Builder, p Plan) {
 		fmt.Fprintf(b, " · content-hash `%s`", shortHash(p.ContentHash))
 	}
 	b.WriteString("\n\n")
-	b.WriteString(renderQualityNotice(p))
+	b.WriteString(renderQualityNotice(p, opts))
 }
 
 func renderPhaseSections(b *strings.Builder, p Plan) {
@@ -217,7 +224,7 @@ func renderGovernanceSections(b *strings.Builder, p Plan, opts RenderOptions) {
 	}
 }
 
-func renderQualityNotice(p Plan) string {
+func renderQualityNotice(p Plan, opts RenderOptions) string {
 	report := planmodel.AssessPlanQuality(p, "")
 	if !report.HasFindings() {
 		return ""
@@ -226,7 +233,9 @@ func renderQualityNotice(p Plan) string {
 	b.WriteString("> Plan quality: **")
 	b.WriteString(report.Status)
 	b.WriteString("**")
-	if p.Slug != "" {
+	if opts.AuthoringSessionID != "" {
+		fmt.Fprintf(&b, " · validate with `plan-manager author validate %s`", opts.AuthoringSessionID)
+	} else if p.Slug != "" {
 		fmt.Fprintf(&b, " · validate with `plan-manager validate run %s`", p.Slug)
 	}
 	b.WriteString("\n")
@@ -528,7 +537,12 @@ func relevantContextByKind(items []RelevantContextItem, kinds map[RelevantContex
 func renderRelevantContextItem(item RelevantContextItem) string {
 	var b strings.Builder
 	label := firstNonEmpty(item.Label, item.Target, item.Command, item.Instruction, "context")
+	label, labelNote := displayRelevantContextLabel(item, label)
 	fmt.Fprintf(&b, "- %s", label)
+	command := relevantContextCommand(item)
+	if command != "" && shouldInlineRelevantContextCommand(item) {
+		fmt.Fprintf(&b, " — `%s`", command)
+	}
 	annotations := relevantContextAnnotations(item)
 	if len(annotations) > 0 {
 		fmt.Fprintf(&b, " _(%s)_", strings.Join(annotations, ", "))
@@ -537,14 +551,14 @@ func renderRelevantContextItem(item RelevantContextItem) string {
 	// The canned authoring placeholder reason and any value that merely repeats
 	// the label/instruction add no information — omit them instead of stamping
 	// a boilerplate "Reason:" line under every note.
-	if reason := item.Reason; reason != "" && reason != planmodel.AuthoredPhaseNoteReason && reason != label && reason != item.Instruction {
-		fmt.Fprintf(&b, "  - Reason: %s\n", reason)
+	reason := firstNonEmpty(item.Reason, labelNote)
+	if reason != "" && reason != planmodel.AuthoredPhaseNoteReason && reason != label && reason != item.Instruction {
+		fmt.Fprintf(&b, "  - Reason: %s\n", compactContextReason(reason))
 	}
-	if item.Instruction != "" && item.Instruction != label {
+	if item.Instruction != "" && item.Instruction != label && !defaultRelevantContextInstruction(item) {
 		fmt.Fprintf(&b, "  - Instruction: %s\n", item.Instruction)
 	}
-	command := relevantContextCommand(item)
-	if command != "" {
+	if command != "" && !shouldInlineRelevantContextCommand(item) {
 		b.WriteString("  ```bash\n")
 		fmt.Fprintf(&b, "  %s\n", command)
 		b.WriteString("  ```\n")
@@ -575,6 +589,55 @@ func relevantContextAnnotations(item RelevantContextItem) []string {
 // relevantContextCommand delegates to the model-owned idempotent assembler.
 func relevantContextCommand(item RelevantContextItem) string {
 	return planmodel.RelevantContextCommandLine(item)
+}
+
+func displayRelevantContextLabel(item RelevantContextItem, label string) (string, string) {
+	switch item.Kind {
+	case RelevantContextSkill, RelevantContextDoc:
+		return planmodel.SplitSetupLineNoteForRender(label)
+	default:
+		return label, ""
+	}
+}
+
+func shouldInlineRelevantContextCommand(item RelevantContextItem) bool {
+	switch item.Kind {
+	case RelevantContextSkill, RelevantContextDoc, RelevantContextSearch, RelevantContextCommand:
+		return true
+	default:
+		return false
+	}
+}
+
+func defaultRelevantContextInstruction(item RelevantContextItem) bool {
+	instruction := strings.TrimSpace(item.Instruction)
+	switch item.Kind {
+	case RelevantContextSkill:
+		return instruction == "Load this internal skill before implementation."
+	case RelevantContextDoc:
+		return instruction == "Read this document before implementation."
+	case RelevantContextSearch:
+		return instruction == "Run this discovery search before implementation."
+	case RelevantContextCommand:
+		return instruction == "Run this command before implementation." ||
+			instruction == "Recall this prior-work record before implementation." ||
+			instruction == "Inspect this executable action before hand-rolling the step."
+	default:
+		return false
+	}
+}
+
+func compactContextReason(reason string) string {
+	const max = 180
+	reason = strings.Join(strings.Fields(strings.TrimSpace(reason)), " ")
+	if len(reason) <= max {
+		return reason
+	}
+	cut := max
+	if i := strings.LastIndex(reason[:max], " "); i > 80 {
+		cut = i
+	}
+	return strings.TrimSpace(reason[:cut]) + "..."
 }
 
 func repeatPolicyLabel(policy RelevantContextRepeatPolicy) string {
@@ -674,8 +737,18 @@ func backtickJoin(values []string) string {
 	return strings.Join(quoted, ", ")
 }
 
-func renderAnchor(a RegressionAnchor) string {
+func renderAnchor(a RegressionAnchor, boundary ChangeBoundary) string {
 	var b strings.Builder
+	if a.Strategy == AnchorStrategyLegacyProse {
+		b.WriteString("- Legacy anchor prose, not executable.\n")
+		if prose := strings.TrimSpace(a.BaselineName); prose != "" {
+			fmt.Fprintf(&b, "- Prose: %s\n", prose)
+		}
+		if a.Unavailable {
+			b.WriteString("- Repair required: replace with a change-boundary anchor before execution.\n")
+		}
+		return b.String()
+	}
 	if a.Unavailable {
 		b.WriteString("- _anchor autofill was unavailable; capture before changes_\n")
 	}
@@ -701,7 +774,11 @@ func renderAnchor(a RegressionAnchor) string {
 		fmt.Fprintf(&b, "- Baseline name: `%s`\n", a.BaselineName)
 	}
 	if a.HeadSha != "" {
-		fmt.Fprintf(&b, "- HEAD sha: `%s`\n", a.HeadSha)
+		if isExecutionStartHeadSentinel(a.HeadSha) {
+			b.WriteString("- HEAD sha: captured at execution start\n")
+		} else {
+			fmt.Fprintf(&b, "- HEAD sha: `%s`\n", a.HeadSha)
+		}
 	}
 	if len(a.AllowlistPaths) > 0 {
 		fmt.Fprintf(&b, "- Allowlist: %s\n", strings.Join(a.AllowlistPaths, ", "))
@@ -716,8 +793,24 @@ func renderAnchor(a RegressionAnchor) string {
 	if a.CapturedAt != "" {
 		fmt.Fprintf(&b, "- Captured at: `%s`\n", a.CapturedAt)
 	}
-	renderAnchorCommands(&b, a.Commands)
+	renderAnchorCommands(&b, renderAnchorCommandSet(a, boundary))
 	return b.String()
+}
+
+func renderAnchorCommandSet(a RegressionAnchor, boundary ChangeBoundary) []string {
+	if len(a.Commands) > 0 {
+		return a.Commands
+	}
+	if a.Strategy == AnchorStrategyChangeBoundary && !boundary.IsZero() {
+		commands, _ := planmodel.BoundaryAnchorCommands(boundary, a.BaselineName, a.HeadSha)
+		return commands
+	}
+	return planmodel.RegressionAnchorCommands(a)
+}
+
+func isExecutionStartHeadSentinel(v string) bool {
+	v = strings.Trim(strings.TrimSpace(v), "`<>")
+	return strings.EqualFold(v, "captured at execution start")
 }
 
 // renderAnchorCommands groups the anchor's derived commands into the scenario

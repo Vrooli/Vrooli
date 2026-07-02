@@ -369,7 +369,7 @@ func firstNonEmpty(values ...string) string {
 }
 
 func appendNoCodeRefsReason(constraints, reason string) string {
-	line := "No connected code references: " + reason
+	line := "NO_CODE_REFS: " + strings.TrimSpace(reason)
 	if strings.TrimSpace(constraints) == "" {
 		return line
 	}

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P0-001 — structured plan + phase record persisted to a durable, scenario-independent home store.",
-    "last_validated_at": "2026-07-01T15:41:52-04:00",
+    "last_validated_at": "2026-07-02T15:25:30-04:00",
     "module": "plan-store",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -41,6 +41,20 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Plans can be imported and migrated through the store-backed service seam."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestPersistedContextRepairMutatesStructuredPlanAndRepublishesMirror",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Finalized plans can list/update/remove structured relevant context while preserving the structured record and republishing the mirror."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestPersistedReferenceRepairMutatesStructuredPlanAndPreservesPhaseIdentity",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Finalized plans can update/remove structured references, clear computed validation annotations, and preserve phase identity."
         }
       ]
     },

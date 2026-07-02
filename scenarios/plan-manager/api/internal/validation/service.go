@@ -9,10 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vrooli/api-core/markedrefs"
-
 	"plan-manager/internal/clock"
 	planmodel "plan-manager/internal/planmodel"
+	"plan-manager/internal/readiness"
 
 	"github.com/google/uuid"
 )
@@ -443,18 +442,15 @@ func (s *service) RunValidation(ctx context.Context, planID, phaseID string) (Re
 		RanAt:       s.now(),
 	}
 	res.Verdict, res.Detail = s.runCommands(ctx, scope.Commands)
-	structureFindings, structureVerdict, structureDetail := validateRelevantContextStructure(p, phaseID)
-	qualityFindings, qualityVerdict, qualityDetail := validatePlanQuality(p, phaseID)
-	commandFindings, commandVerdict, commandDetail := s.validatePlanCommands(ctx, p, phaseID)
-	contextRefFindings, contextRefVerdict, contextRefDetail := s.validateContextReferences(ctx, p, phaseID)
-	res.CommandFindings = append(structureFindings, commandFindings...)
-	res.CommandFindings = append(res.CommandFindings, contextRefFindings...)
-	res.CommandFindings = append(res.CommandFindings, qualityFindings...)
-	res.Verdict = combineValidationVerdicts(res.Verdict, structureVerdict)
-	res.Verdict = combineValidationVerdicts(res.Verdict, qualityVerdict)
-	res.Verdict = combineValidationVerdicts(res.Verdict, commandVerdict)
-	res.Verdict = combineValidationVerdicts(res.Verdict, contextRefVerdict)
-	res.Detail = joinDetails(res.Detail, structureDetail, qualityDetail, commandDetail, contextRefDetail)
+	readinessResult := readiness.Evaluate(ctx, p, readiness.Options{
+		PhaseID:           phaseID,
+		Mode:              readiness.PreflightMode(),
+		CommandValidator:  s.readinessCommandValidator(),
+		ReferenceResolver: s.resolver,
+	})
+	res.CommandFindings = append(res.CommandFindings, commandFindingsFromReadiness(readinessResult.Findings)...)
+	res.Verdict = combineValidationVerdicts(res.Verdict, verdictFromReadiness(readinessResult.Verdict))
+	res.Detail = joinDetails(res.Detail, readinessResult.Detail)
 	// Persist for the cheap-read context path (status/next). Best-effort: a cache
 	// write failure must not fail the live validation the agent asked for.
 	if s.results != nil {
@@ -463,479 +459,78 @@ func (s *service) RunValidation(ctx context.Context, planID, phaseID string) (Re
 	return res, nil
 }
 
-func validateRelevantContextStructure(p planmodel.Plan, phaseID string) ([]CommandFinding, Verdict, string) {
-	var findings []CommandFinding
-	if phaseID == "" {
-		findings = append(findings, validateContextItems("plan.relevant_context", p.RelevantContext)...)
-		for _, phase := range p.Phases {
-			findings = append(findings, validatePhaseContextStructure(phase)...)
-		}
-	} else {
-		found := false
-		for _, phase := range p.Phases {
-			if phase.ID != phaseID {
-				continue
-			}
-			found = true
-			findings = append(findings, validatePhaseContextStructure(phase)...)
-			break
-		}
-		if !found {
-			findings = append(findings, CommandFinding{
-				Verdict:  string(VerdictUnknown),
-				Message:  fmt.Sprintf("phase %q was not found for relevant context validation", phaseID),
-				Location: "phase." + phaseID,
-			})
-		}
-	}
-	if len(findings) == 0 {
-		return nil, VerdictPass, ""
-	}
-	verdict := VerdictPass
-	for _, finding := range findings {
-		switch finding.Verdict {
-		case string(VerdictFail):
-			verdict = VerdictFail
-		case string(VerdictUnknown):
-			verdict = combineValidationVerdicts(verdict, VerdictUnknown)
-		}
-	}
-	return findings, verdict, relevantContextFindingsDetail(findings)
-}
-
-func validatePhaseContextStructure(phase planmodel.Phase) []CommandFinding {
-	location := "phase." + phase.ID
-	if strings.TrimSpace(phase.ID) == "" {
-		location = fmt.Sprintf("phase.%d", phase.Order)
-	}
-	findings := validateContextItems(location+".relevant_context", phase.RelevantContext)
-	if !planmodel.HasPhaseContextOrNoContextReason(phase) {
-		findings = append(findings, CommandFinding{
-			Verdict:  string(VerdictFail),
-			Message:  "phase has no relevant context and no explicit NO_CONTEXT reason",
-			Location: location + ".relevant_context",
-			IssueCodes: []string{
-				"missing_phase_context",
-			},
-			Guidance: []string{"Add phase relevant context or an operator note starting with NO_CONTEXT: when no setup is useful."},
-		})
-	}
-	return findings
-}
-
-func validateContextItems(location string, items []planmodel.RelevantContextItem) []CommandFinding {
-	var findings []CommandFinding
-	for i, item := range items {
-		itemLocation := fmt.Sprintf("%s[%d]", location, i)
-		if item.Required && item.RepeatPolicy == "" {
-			findings = append(findings, contextStructureFinding(itemLocation, "missing_repeat_policy", "required context item has no repeat policy"))
-		}
-		if item.Required && !contextItemHasPayload(item) {
-			findings = append(findings, contextStructureFinding(itemLocation, "missing_context_payload", "required context item has no command, argv, target, instruction, or note payload"))
-		}
-		if item.Kind == planmodel.RelevantContextCommand || item.Kind == planmodel.RelevantContextSearch {
-			if strings.TrimSpace(item.Reason) == "" {
-				findings = append(findings, contextStructureFinding(itemLocation+".reason", "missing_context_reason", "command/search context item has no reason"))
-			}
-			if strings.TrimSpace(item.Instruction) == "" {
-				findings = append(findings, contextStructureFinding(itemLocation+".instruction", "missing_context_instruction", "command/search context item has no instruction"))
-			}
-			if strings.TrimSpace(item.Command) == "" && len(item.Argv) == 0 && strings.TrimSpace(item.Target) == "" {
-				findings = append(findings, contextStructureFinding(itemLocation+".command", "missing_context_command", "command/search context item has no runnable command, argv, or target"))
-			}
-		}
-	}
-	return findings
-}
-
-func contextItemHasPayload(item planmodel.RelevantContextItem) bool {
-	if strings.TrimSpace(item.Command) != "" || len(item.Argv) > 0 || strings.TrimSpace(item.Target) != "" {
-		return true
-	}
-	return item.Kind == planmodel.RelevantContextNote && strings.TrimSpace(firstNonEmpty(item.Instruction, item.Label, item.Reason)) != ""
-}
-
-func contextStructureFinding(location, code, message string) CommandFinding {
-	return CommandFinding{
-		Verdict:    string(VerdictFail),
-		Message:    message,
-		Location:   location,
-		IssueCodes: []string{code},
-	}
-}
-
-func relevantContextFindingsDetail(findings []CommandFinding) string {
-	if len(findings) == 0 {
-		return ""
-	}
-	lines := []string{"relevant context structure validation:"}
-	for _, finding := range findings {
-		lines = append(lines, fmt.Sprintf("%s (%s): %s", finding.Verdict, finding.Location, finding.Message))
-	}
-	return strings.Join(lines, "\n")
-}
-
-func validatePlanQuality(p planmodel.Plan, phaseID string) ([]CommandFinding, Verdict, string) {
-	report := planmodel.AssessPlanQuality(p, phaseID)
-	findings := make([]CommandFinding, 0, len(report.Findings))
-	for _, finding := range report.Findings {
-		findings = append(findings, planQualityCommandFinding(finding))
-	}
-	if len(findings) == 0 {
-		return nil, VerdictPass, ""
-	}
-	verdict := VerdictPass
-	for _, finding := range findings {
-		switch finding.Verdict {
-		case string(VerdictFail):
-			verdict = VerdictFail
-		case string(VerdictUnknown):
-			verdict = combineValidationVerdicts(verdict, VerdictUnknown)
-		}
-	}
-	return findings, verdict, planQualityFindingsDetail(findings)
-}
-
-func planQualityCommandFinding(finding planmodel.QualityFinding) CommandFinding {
-	verdict := string(VerdictFail)
-	if finding.Severity == planmodel.QualitySeverityWarning {
-		verdict = string(VerdictUnknown)
-	}
-	guidance := []string(nil)
-	if strings.TrimSpace(finding.Guidance) != "" {
-		guidance = []string{finding.Guidance}
-	}
-	return CommandFinding{
-		Verdict:    verdict,
-		Message:    finding.Message,
-		Location:   finding.Location,
-		IssueCodes: []string{finding.Code},
-		Guidance:   guidance,
-	}
-}
-
-func planQualityFindingsDetail(findings []CommandFinding) string {
-	if len(findings) == 0 {
-		return ""
-	}
-	lines := []string{"plan quality validation:"}
-	for _, finding := range findings {
-		lines = append(lines, fmt.Sprintf("%s (%s): %s", finding.Verdict, finding.Location, finding.Message))
-	}
-	return strings.Join(lines, "\n")
-}
-
-func (s *service) validatePlanCommands(ctx context.Context, p planmodel.Plan, phaseID string) ([]CommandFinding, Verdict, string) {
-	refs, err := commandRefsForScope(p, phaseID)
-	if err != nil {
-		return []CommandFinding{{Verdict: string(VerdictUnknown), Message: err.Error()}}, VerdictUnknown, "command reference validation unknown: " + err.Error()
-	}
-	if len(refs) == 0 {
-		return nil, VerdictPass, ""
-	}
+func (s *service) readinessCommandValidator() readiness.CommandValidator {
 	if s.commands == nil {
-		return []CommandFinding{{Verdict: string(VerdictUnknown), Message: "CLI Health command validator unavailable"}}, VerdictUnknown, "command reference validation unknown: CLI Health command validator unavailable"
+		return nil
 	}
-	var findings []CommandFinding
-	verdict := VerdictPass
-	for _, ref := range refs {
-		if !markedrefs.RequiresExistence(ref.ref) {
-			continue
-		}
-		result, err := s.commands.ValidateCommandReference(ctx, CommandReferenceRequest{
-			CommandText: ref.ref.Value,
-			Qualifiers:  append([]string(nil), ref.ref.Qualifiers...),
-		})
-		if err != nil {
-			findings = append(findings, CommandFinding{
-				CommandText: ref.ref.Value,
-				Verdict:     string(VerdictUnknown),
-				Message:     "CLI Health unavailable: " + err.Error(),
-				Location:    ref.location,
-			})
-			verdict = combineValidationVerdicts(verdict, VerdictUnknown)
-			continue
-		}
-		finding := CommandFinding{
-			CommandText: ref.ref.Value,
-			Verdict:     result.Verdict,
-			Level:       result.ValidationLevel,
-			Message:     commandResultMessage(result),
-			Location:    ref.location,
-			IssueCodes:  commandIssueCodes(result.Issues),
-			Suggestions: append([]string(nil), result.Suggestions...),
-			Guidance:    append([]string(nil), result.Guidance...),
-		}
-		switch strings.ToLower(result.Verdict) {
-		case "valid", "skipped":
-		case "partial":
-			findings = append(findings, finding)
-		case "invalid", "unsupported":
-			findings = append(findings, finding)
-			verdict = VerdictFail
-		default:
-			findings = append(findings, finding)
-			verdict = combineValidationVerdicts(verdict, VerdictUnknown)
-		}
-	}
-	return findings, verdict, commandFindingsDetail(findings)
+	return commandValidatorAdapter{s.commands}
 }
 
-type scopedCommandRef struct {
-	ref      markedrefs.Reference
-	location string
+type commandValidatorAdapter struct {
+	validator CommandReferenceValidator
 }
 
-func commandRefsForScope(p planmodel.Plan, phaseID string) ([]scopedCommandRef, error) {
-	var out []scopedCommandRef
-	if phaseID == "" {
-		addCommandRefs(&out, "plan.purpose", p.Purpose)
-		addCommandRefs(&out, "plan.scope", p.Scope)
-		addCommandRefs(&out, "plan.constraints", p.Constraints)
-		addCommandRefs(&out, "plan.definition_of_done", p.DefinitionOfDone)
-		addContextCommandRefs(&out, "plan.relevant_context", p.RelevantContext)
-		for _, phase := range p.Phases {
-			addCommandRefs(&out, "phase."+phase.ID+".intent", phase.Intent)
-			for i, item := range phase.RequiredReading {
-				addCommandRefs(&out, fmt.Sprintf("phase.%s.required_reading[%d]", phase.ID, i), item)
-			}
-			for i, item := range phase.Reminders {
-				addCommandRefs(&out, fmt.Sprintf("phase.%s.reminders[%d]", phase.ID, i), item)
-			}
-			addCommandRefs(&out, "phase."+phase.ID+".acceptance", phase.Acceptance)
-			addContextCommandRefs(&out, "phase."+phase.ID+".relevant_context", phase.RelevantContext)
-		}
-		return out, nil
+func (a commandValidatorAdapter) ValidateCommandReference(ctx context.Context, req readiness.CommandRequest) (readiness.CommandResult, error) {
+	if a.validator == nil {
+		return readiness.CommandResult{}, fmt.Errorf("CLI Health command validator unavailable")
 	}
-	for _, phase := range p.Phases {
-		if phase.ID != phaseID {
-			continue
-		}
-		addCommandRefs(&out, "phase."+phase.ID+".intent", phase.Intent)
-		for i, item := range phase.RequiredReading {
-			addCommandRefs(&out, fmt.Sprintf("phase.%s.required_reading[%d]", phase.ID, i), item)
-		}
-		for i, item := range phase.Reminders {
-			addCommandRefs(&out, fmt.Sprintf("phase.%s.reminders[%d]", phase.ID, i), item)
-		}
-		addCommandRefs(&out, "phase."+phase.ID+".acceptance", phase.Acceptance)
-		addContextCommandRefs(&out, "phase."+phase.ID+".relevant_context", phase.RelevantContext)
-		return out, nil
-	}
-	return nil, ErrPhaseNotFound{PlanID: p.ID, PhaseID: phaseID}
-}
-
-func addCommandRefs(out *[]scopedCommandRef, location, text string) {
-	for lineNumber, line := range strings.Split(text, "\n") {
-		for _, ref := range markedrefs.ParseInlineCode(line, lineNumber+1) {
-			if ref.Marker == markedrefs.MarkerCLI {
-				*out = append(*out, scopedCommandRef{ref: ref, location: location})
-			}
-		}
-	}
-}
-
-func addContextCommandRefs(out *[]scopedCommandRef, location string, items []planmodel.RelevantContextItem) {
-	for i, item := range items {
-		itemLocation := fmt.Sprintf("%s[%d]", location, i)
-		addCommandRefs(out, itemLocation+".instruction", item.Instruction)
-		addCommandRefs(out, itemLocation+".reason", item.Reason)
-		addCommandRefs(out, itemLocation+".command", item.Command)
-		if item.Kind != planmodel.RelevantContextCommand && item.Kind != planmodel.RelevantContextSearch {
-			continue
-		}
-		command := strings.TrimSpace(item.Command)
-		if command == "" && len(item.Argv) > 0 {
-			command = strings.Join(item.Argv, " ")
-		}
-		if command == "" {
-			continue
-		}
-		*out = append(*out, scopedCommandRef{
-			ref: markedrefs.Reference{
-				Marker: markedrefs.MarkerCLI,
-				Value:  command,
-			},
-			location: itemLocation + ".command",
-		})
-	}
-}
-
-func commandResultMessage(result CommandReferenceResult) string {
-	var parts []string
-	for _, issue := range result.Issues {
-		if issue.Code != "" && issue.Message != "" {
-			parts = append(parts, issue.Code+": "+issue.Message)
-		} else if issue.Message != "" {
-			parts = append(parts, issue.Message)
-		}
-	}
-	for _, suggestion := range result.Suggestions {
-		if suggestion != "" {
-			parts = append(parts, "suggestion: "+suggestion)
-		}
-	}
-	parts = append(parts, result.Guidance...)
-	if len(parts) == 0 {
-		return strings.TrimSpace(result.Verdict + " " + result.ValidationLevel)
-	}
-	return strings.Join(parts, "; ")
-}
-
-func (s *service) validateContextReferences(ctx context.Context, p planmodel.Plan, phaseID string) ([]CommandFinding, Verdict, string) {
-	refs, err := contextReferencesForScope(p, phaseID)
+	result, err := a.validator.ValidateCommandReference(ctx, CommandReferenceRequest{
+		CommandText: req.CommandText,
+		Qualifiers:  append([]string(nil), req.Qualifiers...),
+	})
 	if err != nil {
-		return []CommandFinding{{Verdict: string(VerdictUnknown), Message: err.Error()}}, VerdictUnknown, "relevant context reference validation unknown: " + err.Error()
+		return readiness.CommandResult{}, err
 	}
-	if len(refs) == 0 {
-		return nil, VerdictPass, ""
+	issues := make([]readiness.CommandIssue, 0, len(result.Issues))
+	for _, issue := range result.Issues {
+		issues = append(issues, readiness.CommandIssue{Code: issue.Code, Message: issue.Message})
 	}
-	if s.resolver == nil {
-		return []CommandFinding{{
-			Verdict:  string(VerdictUnknown),
-			Message:  "reference resolver unavailable",
-			Location: "relevant_context",
-		}}, VerdictUnknown, "relevant context reference validation unknown: reference resolver unavailable"
-	}
-	var findings []CommandFinding
-	verdict := VerdictPass
-	for _, ref := range refs {
-		resolved, err := s.resolver.Resolve(ctx, ref.ref)
-		if err != nil {
-			findings = append(findings, CommandFinding{
-				CommandText: ref.ref.Target,
-				Verdict:     string(VerdictUnknown),
-				Message:     "reference resolver unavailable: " + err.Error(),
-				Location:    ref.location,
-				IssueCodes:  []string{"context_reference_resolver_error"},
-			})
-			verdict = combineValidationVerdicts(verdict, VerdictUnknown)
-			continue
-		}
-		switch resolved.Resolution {
-		case planmodel.ResolutionResolved, planmodel.ResolutionFuture:
-			continue
-		case planmodel.ResolutionMissing, planmodel.ResolutionUnresolved:
-			findings = append(findings, CommandFinding{
-				CommandText: ref.ref.Target,
-				Verdict:     string(VerdictFail),
-				Message:     contextReferenceMessage(resolved),
-				Location:    ref.location,
-				IssueCodes:  []string{"context_reference_unresolved"},
-			})
-			verdict = VerdictFail
-		default:
-			findings = append(findings, CommandFinding{
-				CommandText: ref.ref.Target,
-				Verdict:     string(VerdictUnknown),
-				Message:     contextReferenceMessage(resolved),
-				Location:    ref.location,
-				IssueCodes:  []string{"context_reference_unknown"},
-			})
-			verdict = combineValidationVerdicts(verdict, VerdictUnknown)
-		}
-	}
-	return findings, verdict, contextReferenceFindingsDetail(findings)
+	return readiness.CommandResult{
+		Verdict:         result.Verdict,
+		ValidationLevel: result.ValidationLevel,
+		Issues:          issues,
+		Suggestions:     append([]string(nil), result.Suggestions...),
+		Guidance:        append([]string(nil), result.Guidance...),
+	}, nil
 }
 
-type scopedContextReference struct {
-	ref      planmodel.Reference
-	location string
-}
-
-func contextReferencesForScope(p planmodel.Plan, phaseID string) ([]scopedContextReference, error) {
-	var out []scopedContextReference
-	if phaseID == "" {
-		addContextReferences(&out, "plan.relevant_context", p.RelevantContext)
-		for _, phase := range p.Phases {
-			addContextReferences(&out, "phase."+phase.ID+".relevant_context", phase.RelevantContext)
-		}
-		return out, nil
-	}
-	for _, phase := range p.Phases {
-		if phase.ID != phaseID {
-			continue
-		}
-		addContextReferences(&out, "phase."+phase.ID+".relevant_context", phase.RelevantContext)
-		return out, nil
-	}
-	return nil, ErrPhaseNotFound{PlanID: p.ID, PhaseID: phaseID}
-}
-
-func addContextReferences(out *[]scopedContextReference, location string, items []planmodel.RelevantContextItem) {
-	for i, item := range items {
-		kind, ok := contextReferenceKind(item.Kind)
-		if !ok {
-			continue
-		}
-		target := strings.TrimSpace(item.Target)
-		if target == "" {
-			continue
-		}
-		*out = append(*out, scopedContextReference{
-			ref: planmodel.Reference{
-				ID:     item.ID,
-				Kind:   kind,
-				Target: target,
-			},
-			location: fmt.Sprintf("%s[%d].target", location, i),
-		})
-	}
-}
-
-func contextReferenceKind(kind planmodel.RelevantContextKind) (planmodel.ReferenceKind, bool) {
-	switch kind {
-	case planmodel.RelevantContextCodeRef:
-		return planmodel.ReferenceCode, true
-	case planmodel.RelevantContextDoc:
-		return planmodel.ReferenceDoc, true
-	case planmodel.RelevantContextReqRef:
-		return planmodel.ReferenceReq, true
-	default:
-		return "", false
-	}
-}
-
-func contextReferenceMessage(ref planmodel.Reference) string {
-	if strings.TrimSpace(ref.Note) != "" {
-		return ref.Note
-	}
-	if ref.Resolution != "" {
-		return "relevant context reference " + string(ref.Resolution)
-	}
-	return "relevant context reference resolution unknown"
-}
-
-func contextReferenceFindingsDetail(findings []CommandFinding) string {
-	if len(findings) == 0 {
-		return ""
-	}
-	lines := []string{"relevant context reference validation:"}
+func commandFindingsFromReadiness(findings []readiness.Finding) []CommandFinding {
+	out := make([]CommandFinding, 0, len(findings))
 	for _, finding := range findings {
-		lines = append(lines, fmt.Sprintf("%s (%s): %s", finding.Verdict, finding.Location, finding.Message))
-	}
-	return strings.Join(lines, "\n")
-}
-
-func commandIssueCodes(issues []CommandIssue) []string {
-	var out []string
-	for _, issue := range issues {
-		if strings.TrimSpace(issue.Code) != "" {
-			out = append(out, issue.Code)
-		}
+		out = append(out, CommandFinding{
+			CommandText: finding.CommandText,
+			Verdict:     string(verdictForReadinessFinding(finding)),
+			Level:       finding.Level,
+			Message:     finding.Message,
+			Location:    finding.Location,
+			IssueCodes:  append([]string(nil), finding.IssueCodes...),
+			Suggestions: append([]string(nil), finding.Suggestions...),
+			Guidance:    append([]string(nil), finding.Guidance...),
+		})
 	}
 	return out
 }
 
-func commandFindingsDetail(findings []CommandFinding) string {
-	if len(findings) == 0 {
-		return ""
+func verdictForReadinessFinding(finding readiness.Finding) Verdict {
+	switch finding.Severity {
+	case readiness.SeverityFail:
+		return VerdictFail
+	case readiness.SeverityWarning, readiness.SeverityUnknown:
+		return VerdictUnknown
+	default:
+		return VerdictPass
 	}
-	lines := []string{"command reference validation:"}
-	for _, finding := range findings {
-		lines = append(lines, fmt.Sprintf("%s %s (%s): %s", finding.Verdict, finding.CommandText, finding.Location, finding.Message))
+}
+
+func verdictFromReadiness(verdict readiness.Verdict) Verdict {
+	switch verdict {
+	case readiness.VerdictFail:
+		return VerdictFail
+	case readiness.VerdictPass:
+		return VerdictPass
+	default:
+		return VerdictUnknown
 	}
-	return strings.Join(lines, "\n")
 }
 
 func combineValidationVerdicts(a, b Verdict) Verdict {
@@ -957,15 +552,6 @@ func joinDetails(parts ...string) string {
 		}
 	}
 	return strings.Join(nonEmpty, "\n")
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
 }
 
 // LastValidation returns the most recent STORED validation result for a
@@ -1172,7 +758,9 @@ func deriveScope(p planmodel.Plan, refs []planmodel.Reference, boundary planmode
 		locations = appendUnique(locations, "repo")
 		cmd := "git diff --stat"
 		if sha := strings.TrimSpace(p.RegressionAnchor.HeadSha); sha != "" && !planmodel.ContainsUnresolvedPlaceholder(sha) {
-			cmd += " " + sha
+			if strings.ToLower(sha) != "captured at execution start" {
+				cmd += " " + sha
+			}
 		}
 		if len(repoPaths) > 0 {
 			cmd += " -- " + strings.Join(repoPaths, " ")

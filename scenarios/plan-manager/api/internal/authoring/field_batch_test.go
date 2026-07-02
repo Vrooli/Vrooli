@@ -58,6 +58,20 @@ func TestSubmitFieldsMixedBatch(t *testing.T) {
 	require.Equal(t, "Batch lands in one call.", final.PhaseDrafts[1].Acceptance)
 }
 
+func TestSubmitFieldsNormalizesNumberedPhaseSteps(t *testing.T) {
+	ctx := context.Background()
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
+	sess, _, err := svc.StartSession(ctx, "Numbered steps", "", "")
+	require.NoError(t, err)
+	_, phase, _, _, err := svc.AddPhase(ctx, sess.ID, "Implement", "Normalize authored step input.")
+	require.NoError(t, err)
+
+	updated, violations, _, err := svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldSteps, "1. Add proto fields\n2. Wire the CLI\n- Run focused tests")
+	require.NoError(t, err)
+	require.NotEmpty(t, violations, "the phase is still incomplete; this assertion keeps the test focused on step parsing")
+	require.Equal(t, []string{"Add proto fields", "Wire the CLI", "Run focused tests"}, updated.PhaseDrafts[0].Steps)
+}
+
 // TestSubmitFieldsPartialRejection: invalid items are rejected with correct
 // indices while the rest of the batch lands (never all-or-nothing).
 func TestSubmitFieldsPartialRejection(t *testing.T) {
@@ -273,10 +287,10 @@ func TestSubmitFieldsAuthorsFullPlanInThreeMutations(t *testing.T) {
 		sectionWrite(authoring.SectionTechnicalApproach, "One batch RPC over the shared apply path."),
 		sectionWrite(authoring.SectionAcceptanceBoundary, "acceptance_allow:\n- scenarios/plan-manager/**"),
 		sectionWrite(authoring.SectionReferences, "NO_CODE_REFS: unit fixture with no connected production code"),
-		sectionWrite(authoring.SectionRegressionAnchor, "baseline captured at HEAD abc123"),
+		sectionWrite(authoring.SectionRegressionAnchor, "Strategy: change_boundary"),
 		sectionWrite(authoring.SectionValidationStrategy, "Run the authoring unit suite."),
 		sectionWrite(authoring.SectionDefinitionOfDone, "Finalize succeeds; plan retrievable."),
-		sectionWrite(authoring.SectionRelevantContext, "NO_CONTEXT: unit fixture needs no plan-wide setup."),
+		sectionWrite(authoring.SectionRelevantContext, "NO_CONTEXT: unit fixture needs no plan-wide setup.\nNO_SKILL_CONTEXT: unit fixture has no skill setup."),
 	})
 	require.NoError(t, err)
 	for _, result := range results {

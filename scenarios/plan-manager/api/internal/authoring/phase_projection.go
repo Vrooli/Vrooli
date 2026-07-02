@@ -2,15 +2,21 @@ package authoring
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	planmodel "plan-manager/internal/planmodel"
 )
 
+var authoredListPrefix = regexp.MustCompile(`^\d+\.\s+`)
+
 func splitLines(content string) []string {
 	var out []string
 	for _, line := range strings.Split(content, "\n") {
-		if trimmed := strings.TrimSpace(strings.TrimPrefix(line, "-")); trimmed != "" {
+		trimmed := strings.TrimSpace(line)
+		trimmed = strings.TrimSpace(authoredListPrefix.ReplaceAllString(trimmed, ""))
+		trimmed = strings.TrimSpace(strings.TrimPrefix(trimmed, "-"))
+		if trimmed != "" {
 			out = append(out, trimmed)
 		}
 	}

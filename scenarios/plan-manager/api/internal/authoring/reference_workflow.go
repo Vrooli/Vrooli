@@ -2,9 +2,11 @@ package authoring
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	planmodel "plan-manager/internal/planmodel"
+	"plan-manager/internal/readiness"
 )
 
 func (s *service) SuggestReferences(ctx context.Context, sessionID string) (Session, []ReferenceCandidate, GuidedStep, error) {
@@ -23,6 +25,7 @@ func (s *service) SuggestReferences(ctx context.Context, sessionID string) (Sess
 	}
 	for i := range candidates {
 		candidates[i] = normalizeReferenceCandidate(candidates[i])
+		candidates[i] = s.validateReferenceCandidate(ctx, candidates[i])
 	}
 	var batch DiscoveryBatch
 	sess, err = s.withSessionLock(ctx, sessionID, func(sess *Session) (bool, error) {
@@ -117,6 +120,12 @@ func (s *service) ApplyReferenceDisposition(ctx context.Context, sessionID, batc
 		if batchIdx < 0 {
 			return false, ErrInvalidSession{Reason: "pending reference discovery batch not found"}
 		}
+		if sess.ReferenceBatches[batchIdx].Status == DiscoveryBatchApplied {
+			batch := sess.ReferenceBatches[batchIdx]
+			summary.Results = append(summary.Results, skippedReferenceDispositionResults(sess.ReferenceCandidates, batch.ID, takes, drops)...)
+			summary.Batch = batch
+			return false, nil
+		}
 		if sess.ReferenceBatches[batchIdx].Status != DiscoveryBatchPending {
 			return false, ErrInvalidSession{Reason: "reference discovery batch is not pending: " + sess.ReferenceBatches[batchIdx].ID}
 		}
@@ -125,17 +134,27 @@ func (s *service) ApplyReferenceDisposition(ctx context.Context, sessionID, batc
 		dropByCandidate := map[int]ReferenceDispositionDrop{}
 		for _, take := range takes {
 			id := strings.TrimSpace(take.CandidateID)
-			idx := indexOfReferenceCandidate(sess.ReferenceCandidates, id)
-			if idx < 0 || sess.ReferenceCandidates[idx].BatchID != batch.ID || sess.ReferenceCandidates[idx].Status != ReferenceCandidatePending {
-				return false, ErrInvalidSession{Reason: "pending reference candidate not found in batch: " + id}
+			idx := indexOfReferenceCandidateInBatch(sess.ReferenceCandidates, batch.ID, id)
+			if idx < 0 {
+				summary.Results = append(summary.Results, ReferenceDispositionResult{Action: "take", Message: "reference candidate not found in batch: " + id})
+				continue
+			}
+			if sess.ReferenceCandidates[idx].Status != ReferenceCandidatePending {
+				summary.Results = append(summary.Results, skippedReferenceDispositionResult(sess.ReferenceCandidates[idx], "take"))
+				continue
 			}
 			takeByCandidate[idx] = take
 		}
 		for _, drop := range drops {
 			id := strings.TrimSpace(drop.CandidateID)
-			idx := indexOfReferenceCandidate(sess.ReferenceCandidates, id)
-			if idx < 0 || sess.ReferenceCandidates[idx].BatchID != batch.ID || sess.ReferenceCandidates[idx].Status != ReferenceCandidatePending {
-				return false, ErrInvalidSession{Reason: "pending reference candidate not found in batch: " + id}
+			idx := indexOfReferenceCandidateInBatch(sess.ReferenceCandidates, batch.ID, id)
+			if idx < 0 {
+				summary.Results = append(summary.Results, ReferenceDispositionResult{Action: "drop", Message: "reference candidate not found in batch: " + id})
+				continue
+			}
+			if sess.ReferenceCandidates[idx].Status != ReferenceCandidatePending {
+				summary.Results = append(summary.Results, skippedReferenceDispositionResult(sess.ReferenceCandidates[idx], "drop"))
+				continue
 			}
 			if _, exists := takeByCandidate[idx]; exists {
 				return false, ErrInvalidSession{Reason: "reference candidate cannot be both taken and dropped: " + id}
@@ -212,6 +231,45 @@ func (s *service) ApplyReferenceDisposition(ctx context.Context, sessionID, batc
 	return sess, summary, violations, stepForCurrentSessionState(sess), nil
 }
 
+func skippedReferenceDispositionResults(candidates []ReferenceCandidate, batchID string, takes []ReferenceDispositionTake, drops []ReferenceDispositionDrop) []ReferenceDispositionResult {
+	out := make([]ReferenceDispositionResult, 0, len(takes)+len(drops))
+	for _, take := range takes {
+		id := strings.TrimSpace(take.CandidateID)
+		idx := indexOfReferenceCandidateInBatch(candidates, batchID, id)
+		if idx < 0 {
+			out = append(out, ReferenceDispositionResult{Action: "take", Message: "reference candidate not found in batch: " + id})
+			continue
+		}
+		out = append(out, skippedReferenceDispositionResult(candidates[idx], "take"))
+	}
+	for _, drop := range drops {
+		id := strings.TrimSpace(drop.CandidateID)
+		idx := indexOfReferenceCandidateInBatch(candidates, batchID, id)
+		if idx < 0 {
+			out = append(out, ReferenceDispositionResult{Action: "drop", Message: "reference candidate not found in batch: " + id})
+			continue
+		}
+		out = append(out, skippedReferenceDispositionResult(candidates[idx], "drop"))
+	}
+	return out
+}
+
+func skippedReferenceDispositionResult(candidate ReferenceCandidate, action string) ReferenceDispositionResult {
+	status := strings.TrimSpace(string(candidate.Status))
+	if status == "" {
+		status = "already dispositioned"
+	} else {
+		status = "already " + status
+	}
+	return ReferenceDispositionResult{
+		Candidate: candidate,
+		Reference: candidate.Reference,
+		Action:    action,
+		Accepted:  true,
+		Message:   status + "; skipped",
+	}
+}
+
 func acceptReferenceCandidateAt(sess *Session, idx int, edit *planmodel.Reference) (ReferenceCandidate, planmodel.Reference, []StructureViolation, bool, error) {
 	candidate := sess.ReferenceCandidates[idx]
 	if candidate.Status == ReferenceCandidateRejected {
@@ -219,6 +277,9 @@ func acceptReferenceCandidateAt(sess *Session, idx int, edit *planmodel.Referenc
 	}
 	if candidate.Status == ReferenceCandidateAccepted {
 		return candidate, candidate.Reference, nil, false, nil
+	}
+	if violations := referenceCandidateReadinessViolations(candidate); len(violations) > 0 {
+		return candidate, candidate.Reference, violations, false, nil
 	}
 	ref := candidate.Reference
 	if edit != nil {
@@ -253,4 +314,63 @@ func rejectReferenceCandidateAt(sess *Session, idx int, reason string) Reference
 	candidate.RejectionReason = strings.TrimSpace(reason)
 	sess.ReferenceCandidates[idx] = candidate
 	return candidate
+}
+
+func (s *service) validateReferenceCandidate(ctx context.Context, candidate ReferenceCandidate) ReferenceCandidate {
+	ref := candidate.Reference
+	if ref.Kind == "" || strings.TrimSpace(ref.Target) == "" {
+		candidate.ValidationStatus = candidateValidationFailed
+		candidate.ValidationDetail = "reference candidate has no target locator"
+		return candidate
+	}
+	if msg := referenceKindMismatch(ref.Kind, ref.Target); msg != "" {
+		candidate.ValidationStatus = candidateValidationFailed
+		candidate.ValidationDetail = msg
+		return candidate
+	}
+	item := planmodel.RelevantContextItem{
+		Kind:   relevantContextKindForReference(ref.Kind),
+		Target: strings.TrimSpace(ref.Target),
+	}
+	if item.Kind == "" {
+		candidate.ValidationStatus = candidateValidationReady
+		return candidate
+	}
+	result := readiness.Evaluate(ctx, planmodel.Plan{RelevantContext: []planmodel.RelevantContextItem{item}}, readiness.Options{
+		Mode:              readiness.Mode{ContextReferences: true},
+		ReferenceResolver: s.resolver,
+	})
+	candidate.ValidationStatus, candidate.ValidationDetail = candidateValidationFromReadiness(result)
+	if candidate.ValidationStatus == candidateValidationUnknown {
+		candidate.Degraded = true
+	}
+	if candidate.Detail == "" && candidate.ValidationDetail != "" {
+		candidate.Detail = candidate.ValidationDetail
+	}
+	return candidate
+}
+
+func relevantContextKindForReference(kind planmodel.ReferenceKind) planmodel.RelevantContextKind {
+	switch kind {
+	case planmodel.ReferenceCode:
+		return planmodel.RelevantContextCodeRef
+	case planmodel.ReferenceDoc:
+		return planmodel.RelevantContextDoc
+	case planmodel.ReferenceReq:
+		return planmodel.RelevantContextReqRef
+	default:
+		return ""
+	}
+}
+
+func referenceCandidateReadinessViolations(candidate ReferenceCandidate) []StructureViolation {
+	switch candidate.ValidationStatus {
+	case candidateValidationFailed, candidateValidationUnknown:
+		return []StructureViolation{{
+			SectionKey: SectionReferences,
+			Message:    fmt.Sprintf("reference candidate %s is not ready (%s): %s", firstNonEmpty(candidate.Handle, candidate.ID), candidate.ValidationStatus, firstNonEmpty(candidate.ValidationDetail, candidate.Detail, "validation did not pass")),
+		}}
+	default:
+		return nil
+	}
 }

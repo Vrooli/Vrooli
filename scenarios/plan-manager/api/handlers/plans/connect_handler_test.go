@@ -28,6 +28,8 @@ type fakePlansService struct {
 	markdown  string
 	reconcile internalplans.ReconcileResult
 	err       error
+	context   []internalplans.RelevantContextItem
+	refs      []internalplans.Reference
 
 	gotListFilter        internalplans.ListFilter
 	gotGetID             string
@@ -43,6 +45,12 @@ type fakePlansService struct {
 	gotAddPhase          internalplans.Phase
 	gotUpdatePhasePlanID string
 	gotUpdatePhase       internalplans.Phase
+	gotRepairID          string
+	gotRepairWorkspace   internalplans.WorkspaceScope
+	gotRepairPhaseID     string
+	gotRepairItemID      string
+	gotRepairContext     internalplans.RelevantContextItem
+	gotRepairReference   internalplans.Reference
 	gotGraphPlanID       string
 	gotSupersedingID     string
 	gotSupersededID      string
@@ -107,6 +115,54 @@ func (f *fakePlansService) AddPhase(_ context.Context, planID string, phase inte
 func (f *fakePlansService) UpdatePhase(_ context.Context, planID string, phase internalplans.Phase) (internalplans.Plan, error) {
 	f.gotUpdatePhasePlanID = planID
 	f.gotUpdatePhase = phase
+	return f.plan, f.err
+}
+
+func (f *fakePlansService) ListRelevantContext(_ context.Context, idOrSlug string, workspace internalplans.WorkspaceScope, phaseID string) ([]internalplans.RelevantContextItem, error) {
+	f.gotRepairID = idOrSlug
+	f.gotRepairWorkspace = workspace
+	f.gotRepairPhaseID = phaseID
+	return f.context, f.err
+}
+
+func (f *fakePlansService) UpdateRelevantContext(_ context.Context, idOrSlug string, workspace internalplans.WorkspaceScope, phaseID, itemID string, item internalplans.RelevantContextItem) (internalplans.Plan, error) {
+	f.gotRepairID = idOrSlug
+	f.gotRepairWorkspace = workspace
+	f.gotRepairPhaseID = phaseID
+	f.gotRepairItemID = itemID
+	f.gotRepairContext = item
+	return f.plan, f.err
+}
+
+func (f *fakePlansService) RemoveRelevantContext(_ context.Context, idOrSlug string, workspace internalplans.WorkspaceScope, phaseID, itemID string) (internalplans.Plan, error) {
+	f.gotRepairID = idOrSlug
+	f.gotRepairWorkspace = workspace
+	f.gotRepairPhaseID = phaseID
+	f.gotRepairItemID = itemID
+	return f.plan, f.err
+}
+
+func (f *fakePlansService) ListReferences(_ context.Context, idOrSlug string, workspace internalplans.WorkspaceScope, phaseID string) ([]internalplans.Reference, error) {
+	f.gotRepairID = idOrSlug
+	f.gotRepairWorkspace = workspace
+	f.gotRepairPhaseID = phaseID
+	return f.refs, f.err
+}
+
+func (f *fakePlansService) UpdateReference(_ context.Context, idOrSlug string, workspace internalplans.WorkspaceScope, phaseID, referenceID string, ref internalplans.Reference) (internalplans.Plan, error) {
+	f.gotRepairID = idOrSlug
+	f.gotRepairWorkspace = workspace
+	f.gotRepairPhaseID = phaseID
+	f.gotRepairItemID = referenceID
+	f.gotRepairReference = ref
+	return f.plan, f.err
+}
+
+func (f *fakePlansService) RemoveReference(_ context.Context, idOrSlug string, workspace internalplans.WorkspaceScope, phaseID, referenceID string) (internalplans.Plan, error) {
+	f.gotRepairID = idOrSlug
+	f.gotRepairWorkspace = workspace
+	f.gotRepairPhaseID = phaseID
+	f.gotRepairItemID = referenceID
 	return f.plan, f.err
 }
 
@@ -309,6 +365,84 @@ func TestAddPhaseSuccess(t *testing.T) {
 	require.Equal(t, "p1", svc.gotAddPhasePlanID)
 	require.Equal(t, "New Phase", svc.gotAddPhase.Title)
 	require.Equal(t, internalplans.PhaseStatusTodo, svc.gotAddPhase.Status)
+}
+
+func TestRelevantContextRepairRPCs(t *testing.T) {
+	svc := &fakePlansService{
+		plan: internalplans.Plan{ID: "p1"},
+		context: []internalplans.RelevantContextItem{{
+			ID:      "ctx1",
+			Kind:    internalplans.RelevantContextCommand,
+			Command: "plan-manager author validate s1",
+		}},
+	}
+	h := newPlansHandler(svc)
+
+	listResp, err := h.ListRelevantContext(context.Background(), connect.NewRequest(&plansv1.ListRelevantContextRequest{
+		Id:        "p1",
+		Workspace: &plansv1.WorkspaceScope{Root: "/workspace"},
+		PhaseId:   "phase-1",
+	}))
+	require.NoError(t, err)
+	require.Len(t, listResp.Msg.GetItems(), 1)
+	require.Equal(t, "ctx1", listResp.Msg.GetItems()[0].GetId())
+	require.Equal(t, "p1", svc.gotRepairID)
+	require.Equal(t, "/workspace", svc.gotRepairWorkspace.Root)
+	require.Equal(t, "phase-1", svc.gotRepairPhaseID)
+
+	updateResp, err := h.UpdateRelevantContext(context.Background(), connect.NewRequest(&plansv1.UpdateRelevantContextRequest{
+		Id:      "p1",
+		PhaseId: "phase-1",
+		ItemId:  "ctx1",
+		Item: &sharedv1.RelevantContextItem{
+			Kind:    sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_COMMAND,
+			Command: "plan-manager author validate s2",
+		},
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "p1", updateResp.Msg.GetPlan().GetId())
+	require.Equal(t, "ctx1", svc.gotRepairItemID)
+	require.Equal(t, "plan-manager author validate s2", svc.gotRepairContext.Command)
+
+	_, err = h.RemoveRelevantContext(context.Background(), connect.NewRequest(&plansv1.RemoveRelevantContextRequest{Id: "p1", ItemId: "ctx1"}))
+	require.NoError(t, err)
+	require.Equal(t, "ctx1", svc.gotRepairItemID)
+}
+
+func TestReferenceRepairRPCs(t *testing.T) {
+	svc := &fakePlansService{
+		plan: internalplans.Plan{ID: "p1"},
+		refs: []internalplans.Reference{{
+			ID:     "ref1",
+			Kind:   internalplans.ReferenceCode,
+			Target: "old.go",
+		}},
+	}
+	h := newPlansHandler(svc)
+
+	listResp, err := h.ListReferences(context.Background(), connect.NewRequest(&plansv1.ListReferencesRequest{Id: "p1", PhaseId: "phase-1"}))
+	require.NoError(t, err)
+	require.Len(t, listResp.Msg.GetReferences(), 1)
+	require.Equal(t, "ref1", listResp.Msg.GetReferences()[0].GetId())
+
+	updateResp, err := h.UpdateReference(context.Background(), connect.NewRequest(&plansv1.UpdateReferenceRequest{
+		Id:          "p1",
+		PhaseId:     "phase-1",
+		ReferenceId: "ref1",
+		Reference: &sharedv1.Reference{
+			Kind:   sharedv1.ReferenceKind_REFERENCE_KIND_CODE,
+			Target: "new.go",
+		},
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "p1", updateResp.Msg.GetPlan().GetId())
+	require.Equal(t, "ref1", svc.gotRepairItemID)
+	require.Equal(t, internalplans.ReferenceCode, svc.gotRepairReference.Kind)
+	require.Equal(t, "new.go", svc.gotRepairReference.Target)
+
+	_, err = h.RemoveReference(context.Background(), connect.NewRequest(&plansv1.RemoveReferenceRequest{Id: "p1", PhaseId: "phase-1", ReferenceId: "ref1"}))
+	require.NoError(t, err)
+	require.Equal(t, "ref1", svc.gotRepairItemID)
 }
 
 func TestGetGraphSuccess(t *testing.T) {

@@ -153,6 +153,27 @@ func TestRenderShowsQualityNoticeForImportedThinPlans(t *testing.T) {
 	}
 }
 
+func TestRenderQualityNoticeCanUseAuthorValidateForDraftPreview(t *testing.T) {
+	p := plans.Plan{
+		Slug:   "draft-thin",
+		Title:  "Draft Thin",
+		Status: plans.PlanStatusDraft,
+		Phases: []plans.Phase{{ID: "phase-1", Title: "Thin"}},
+	}
+	md := plans.RenderMarkdownWithOptions(p, plans.RenderOptions{AuthoringSessionID: "sess-123"})
+	for _, want := range []string{
+		"Plan quality: **fail**",
+		"plan-manager author validate sess-123",
+	} {
+		if !strings.Contains(md, want) {
+			t.Fatalf("rendered markdown missing %q\n---\n%s", want, md)
+		}
+	}
+	if strings.Contains(md, "plan-manager validate run draft-thin") {
+		t.Fatalf("draft preview should not recommend persisted validate run\n---\n%s", md)
+	}
+}
+
 func TestCompactRenderSuppressesGovernanceNoise(t *testing.T) {
 	p := comprehensivePlan()
 	p.ImportProvenance = &plans.ImportProvenance{SourcePath: "docs/plans/legacy.md", OriginalFormat: "legacy_markdown"}
@@ -167,6 +188,122 @@ func TestCompactRenderSuppressesGovernanceNoise(t *testing.T) {
 		if strings.Contains(md, notWant) {
 			t.Fatalf("compact render unexpectedly contains %q\n---\n%s", notWant, md)
 		}
+	}
+}
+
+func TestRenderCompactsSetupContextCommands(t *testing.T) {
+	p := comprehensivePlan()
+	p.RelevantContext = []plans.RelevantContextItem{
+		{
+			Kind:         plans.RelevantContextSkill,
+			Scope:        plans.RelevantContextScopeGlobal,
+			Label:        "scientific-debugging",
+			Reason:       "for the two blocker root-causes and the live ablation proof",
+			Instruction:  "Load this internal skill before implementation.",
+			Target:       "scientific-debugging",
+			Required:     true,
+			RepeatPolicy: plans.RelevantContextOncePerExecution,
+			Source:       plans.RelevantContextSourceDiscovered,
+			Status:       plans.RelevantContextStatusReady,
+		},
+		{
+			Kind:         plans.RelevantContextDoc,
+			Scope:        plans.RelevantContextScopeGlobal,
+			Label:        "scenarios/image-tools/docs/concepts/DOMAINS.md",
+			Reason:       "async job-queue template",
+			Instruction:  "Read this document before implementation.",
+			Target:       "scenarios/image-tools/docs/concepts/DOMAINS.md",
+			RepeatPolicy: plans.RelevantContextOncePerExecution,
+			Source:       plans.RelevantContextSourceAuthored,
+			Status:       plans.RelevantContextStatusReady,
+		},
+		{
+			Kind:         plans.RelevantContextCommand,
+			Scope:        plans.RelevantContextScopeGlobal,
+			Label:        "Prior unit-health cutover record",
+			Reason:       strings.Repeat("prior details ", 40),
+			Instruction:  "Recall this prior-work record before implementation.",
+			Command:      "swarm-manager records get --id rec-123",
+			RepeatPolicy: plans.RelevantContextOncePerExecution,
+			Source:       plans.RelevantContextSourceDiscovered,
+			Status:       plans.RelevantContextStatusReady,
+		},
+	}
+	md := plans.RenderMarkdown(p)
+	for _, want := range []string{
+		"- scientific-debugging — `prompt-manager skill read scientific-debugging` _(required, discovered)_",
+		"- scenarios/image-tools/docs/concepts/DOMAINS.md — `sed -n '1,220p' scenarios/image-tools/docs/concepts/DOMAINS.md`",
+		"- Prior unit-health cutover record — `swarm-manager records get --id rec-123` _(discovered)_",
+	} {
+		if !strings.Contains(md, want) {
+			t.Fatalf("rendered markdown missing %q\n---\n%s", want, md)
+		}
+	}
+	if strings.Contains(md, "```bash\n  prompt-manager skill read") || strings.Contains(md, "```bash\n  sed -n") {
+		t.Fatalf("skill/doc setup should render inline, not fenced:\n%s", md)
+	}
+	if strings.Contains(md, strings.Repeat("prior details ", 20)) {
+		t.Fatalf("long command reason was not compacted:\n%s", md)
+	}
+	parsed, err := planmodel.ParsePlanMarkdown(md)
+	if err != nil {
+		t.Fatalf("parse compact setup render: %v\n%s", err, md)
+	}
+	md2 := plans.RenderMarkdown(parsed)
+	if md2 != md {
+		t.Fatalf("compact setup render not idempotent:\n--- md ---\n%s\n--- md2 ---\n%s", md, md2)
+	}
+}
+
+func TestRenderLegacyProseAnchorAsDegradedProvenance(t *testing.T) {
+	p := comprehensivePlan()
+	p.RegressionAnchor = plans.RegressionAnchor{
+		Strategy:     plans.AnchorStrategyLegacyProse,
+		BaselineName: "Before any code change, capture a fresh regression baseline.",
+		Unavailable:  true,
+	}
+	md := plans.RenderMarkdown(p)
+	for _, want := range []string{
+		"- Legacy anchor prose, not executable.",
+		"- Prose: Before any code change, capture a fresh regression baseline.",
+		"- Repair required: replace with a change-boundary anchor before execution.",
+	} {
+		if !strings.Contains(md, want) {
+			t.Fatalf("rendered markdown missing %q\n---\n%s", want, md)
+		}
+	}
+	if strings.Contains(md, "Baseline name: `Before any code change") {
+		t.Fatalf("legacy prose must not render as a baseline name:\n%s", md)
+	}
+}
+
+func TestRenderDerivesBoundaryAnchorCommandsWhenCommandsMissing(t *testing.T) {
+	p := comprehensivePlan()
+	p.ChangeBoundary = plans.ChangeBoundary{AcceptanceAllow: []string{"scenarios/audio-tools/**", "docs/**"}}
+	p.RegressionAnchor = plans.RegressionAnchor{
+		Strategy:     plans.AnchorStrategyChangeBoundary,
+		BaselineName: "audio-tools-baseline",
+		HeadSha:      "captured at execution start",
+	}
+	md := plans.RenderMarkdown(p)
+	for _, want := range []string{
+		"git-control-tower baseline snapshot status --scenario audio-tools --name audio-tools-baseline --wait --json",
+		"git-control-tower baseline diff --scenario audio-tools --name audio-tools-baseline --wait",
+		"git diff --stat -- docs/**",
+	} {
+		if !strings.Contains(md, want) {
+			t.Fatalf("rendered markdown missing derived command %q\n---\n%s", want, md)
+		}
+	}
+}
+
+func TestRenderDefaultValidationStrategyForBaselineOnlyPlan(t *testing.T) {
+	p := comprehensivePlan()
+	p.ValidationStrategy = ""
+	p.FinalValidationCommands = []string{"git-control-tower baseline diff --scenario plan-manager --name base --wait"}
+	md := plans.RenderMarkdown(p)
+	if !strings.Contains(md, "Baseline diff shows no unexplained regressions; expected related surfaces improve.") {
+		t.Fatalf("default validation strategy missing:\n%s", md)
 	}
 }
 

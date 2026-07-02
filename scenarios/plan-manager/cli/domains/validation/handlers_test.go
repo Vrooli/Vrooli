@@ -267,6 +267,7 @@ func TestValidationErrorHandling(t *testing.T) {
 		_, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "validate", "run"), app, "plan-1")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "run validation")
+		require.Contains(t, err.Error(), "plan-manager author validate <session>")
 	})
 
 	t.Run("missing required positional is a parser error", func(t *testing.T) {

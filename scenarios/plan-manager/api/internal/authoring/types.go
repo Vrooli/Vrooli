@@ -174,6 +174,10 @@ type CommandIssue struct {
 	Message string
 }
 
+type ReferenceResolver interface {
+	Resolve(ctx context.Context, ref planmodel.Reference) (planmodel.Reference, error)
+}
+
 // AutofillSource names one mechanical-section autofill source. The regression
 // anchor is the only mechanical autofill: references are discovered as reviewable
 // candidates (SuggestReferences) and setup context flows through context
@@ -292,26 +296,28 @@ type ReferenceDispositionSummary struct {
 
 // ContextCandidate is a discovered setup item awaiting author judgment.
 type ContextCandidate struct {
-	ID              string
-	Item            planmodel.RelevantContextItem
-	Concept         string
-	Source          string
-	Score           float64
-	Origin          string
-	SizeChars       int
-	Tags            []string
-	Title           string
-	Snippet         string
-	Corroboration   []ProbeHit
-	Handle          string
-	BatchID         string
-	Tier            string
-	HighConfidence  bool
-	SetupLine       string
-	Degraded        bool
-	Detail          string
-	Status          ContextCandidateStatus
-	RejectionReason string
+	ID               string
+	Item             planmodel.RelevantContextItem
+	Concept          string
+	Source           string
+	Score            float64
+	Origin           string
+	SizeChars        int
+	Tags             []string
+	Title            string
+	Snippet          string
+	Corroboration    []ProbeHit
+	Handle           string
+	BatchID          string
+	Tier             string
+	HighConfidence   bool
+	SetupLine        string
+	Degraded         bool
+	Detail           string
+	ValidationStatus string
+	ValidationDetail string
+	Status           ContextCandidateStatus
+	RejectionReason  string
 }
 
 type ProbeHit struct {
@@ -336,19 +342,21 @@ const (
 // references section. Mirrors ContextCandidate so the two discovery sources share
 // one curate-pattern.
 type ReferenceCandidate struct {
-	ID              string
-	Reference       planmodel.Reference
-	Source          string
-	Confidence      float64
-	Corroboration   []ProbeHit
-	Handle          string
-	BatchID         string
-	Tier            string
-	HighConfidence  bool
-	Degraded        bool
-	Detail          string
-	Status          ReferenceCandidateStatus
-	RejectionReason string
+	ID               string
+	Reference        planmodel.Reference
+	Source           string
+	Confidence       float64
+	Corroboration    []ProbeHit
+	Handle           string
+	BatchID          string
+	Tier             string
+	HighConfidence   bool
+	Degraded         bool
+	Detail           string
+	ValidationStatus string
+	ValidationDetail string
+	Status           ReferenceCandidateStatus
+	RejectionReason  string
 }
 
 // PlanForSession is the resolved subset of the plans model authoring writes

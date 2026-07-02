@@ -126,6 +126,64 @@ func (h *connectHandler) UpdatePhase(ctx context.Context, req *connect.Request[p
 	return connect.NewResponse(&plansv1.UpdatePhaseResponse{Plan: planToProto(p)}), nil
 }
 
+func (h *connectHandler) ListRelevantContext(ctx context.Context, req *connect.Request[plansv1.ListRelevantContextRequest]) (*connect.Response[plansv1.ListRelevantContextResponse], error) {
+	items, err := h.deps.Service.ListRelevantContext(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(&plansv1.ListRelevantContextResponse{Items: planproto.RelevantContextItemsToProto(items)}), nil
+}
+
+func (h *connectHandler) UpdateRelevantContext(ctx context.Context, req *connect.Request[plansv1.UpdateRelevantContextRequest]) (*connect.Response[plansv1.UpdateRelevantContextResponse], error) {
+	items := planproto.RelevantContextItemsFromProto([]*sharedRelevantContextItem{req.Msg.GetItem()})
+	var item internalplans.RelevantContextItem
+	if len(items) > 0 {
+		item = items[0]
+	}
+	p, err := h.deps.Service.UpdateRelevantContext(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId(), req.Msg.GetItemId(), item)
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(&plansv1.UpdateRelevantContextResponse{Plan: planToProto(p)}), nil
+}
+
+func (h *connectHandler) RemoveRelevantContext(ctx context.Context, req *connect.Request[plansv1.RemoveRelevantContextRequest]) (*connect.Response[plansv1.RemoveRelevantContextResponse], error) {
+	p, err := h.deps.Service.RemoveRelevantContext(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId(), req.Msg.GetItemId())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(&plansv1.RemoveRelevantContextResponse{Plan: planToProto(p)}), nil
+}
+
+func (h *connectHandler) ListReferences(ctx context.Context, req *connect.Request[plansv1.ListReferencesRequest]) (*connect.Response[plansv1.ListReferencesResponse], error) {
+	refs, err := h.deps.Service.ListReferences(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(&plansv1.ListReferencesResponse{References: planproto.ReferencesToProto(refs)}), nil
+}
+
+func (h *connectHandler) UpdateReference(ctx context.Context, req *connect.Request[plansv1.UpdateReferenceRequest]) (*connect.Response[plansv1.UpdateReferenceResponse], error) {
+	refs := planproto.ReferencesFromProto([]*sharedReference{req.Msg.GetReference()})
+	var ref internalplans.Reference
+	if len(refs) > 0 {
+		ref = refs[0]
+	}
+	p, err := h.deps.Service.UpdateReference(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId(), req.Msg.GetReferenceId(), ref)
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(&plansv1.UpdateReferenceResponse{Plan: planToProto(p)}), nil
+}
+
+func (h *connectHandler) RemoveReference(ctx context.Context, req *connect.Request[plansv1.RemoveReferenceRequest]) (*connect.Response[plansv1.RemoveReferenceResponse], error) {
+	p, err := h.deps.Service.RemoveReference(ctx, req.Msg.GetId(), workspaceScopeFromProto(req.Msg.GetWorkspace()), req.Msg.GetPhaseId(), req.Msg.GetReferenceId())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(&plansv1.RemoveReferenceResponse{Plan: planToProto(p)}), nil
+}
+
 func (h *connectHandler) GetGraph(ctx context.Context, req *connect.Request[plansv1.GetGraphRequest]) (*connect.Response[plansv1.GetGraphResponse], error) {
 	edges, err := h.deps.Service.GetGraph(ctx, req.Msg.GetPlanId())
 	if err != nil {

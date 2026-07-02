@@ -105,6 +105,72 @@ func (r *plansRecorder) RenderMarkdown(_ context.Context, req *connect.Request[p
 	return connect.NewResponse(&plansv1.RenderMarkdownResponse{}), nil
 }
 
+func (r *plansRecorder) ListRelevantContext(_ context.Context, req *connect.Request[plansv1.ListRelevantContextRequest]) (*connect.Response[plansv1.ListRelevantContextResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*plansv1.ListRelevantContextResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&plansv1.ListRelevantContextResponse{}), nil
+}
+
+func (r *plansRecorder) UpdateRelevantContext(_ context.Context, req *connect.Request[plansv1.UpdateRelevantContextRequest]) (*connect.Response[plansv1.UpdateRelevantContextResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*plansv1.UpdateRelevantContextResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&plansv1.UpdateRelevantContextResponse{Plan: &sharedv1.Plan{Id: req.Msg.GetId()}}), nil
+}
+
+func (r *plansRecorder) RemoveRelevantContext(_ context.Context, req *connect.Request[plansv1.RemoveRelevantContextRequest]) (*connect.Response[plansv1.RemoveRelevantContextResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*plansv1.RemoveRelevantContextResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&plansv1.RemoveRelevantContextResponse{Plan: &sharedv1.Plan{Id: req.Msg.GetId()}}), nil
+}
+
+func (r *plansRecorder) ListReferences(_ context.Context, req *connect.Request[plansv1.ListReferencesRequest]) (*connect.Response[plansv1.ListReferencesResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*plansv1.ListReferencesResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&plansv1.ListReferencesResponse{}), nil
+}
+
+func (r *plansRecorder) UpdateReference(_ context.Context, req *connect.Request[plansv1.UpdateReferenceRequest]) (*connect.Response[plansv1.UpdateReferenceResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*plansv1.UpdateReferenceResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&plansv1.UpdateReferenceResponse{Plan: &sharedv1.Plan{Id: req.Msg.GetId()}}), nil
+}
+
+func (r *plansRecorder) RemoveReference(_ context.Context, req *connect.Request[plansv1.RemoveReferenceRequest]) (*connect.Response[plansv1.RemoveReferenceResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*plansv1.RemoveReferenceResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&plansv1.RemoveReferenceResponse{Plan: &sharedv1.Plan{Id: req.Msg.GetId()}}), nil
+}
+
 func (r *plansRecorder) AddPhase(_ context.Context, req *connect.Request[plansv1.AddPhaseRequest]) (*connect.Response[plansv1.AddPhaseResponse], error) {
 	r.record(req.Msg)
 	if r.err != nil {
@@ -215,6 +281,7 @@ func TestPlansRequestMapping(t *testing.T) {
 		group  string
 		cmd    string
 		argv   []string
+		resp   proto.Message
 		assert func(t *testing.T, req proto.Message)
 	}{
 		{
@@ -265,13 +332,41 @@ func TestPlansRequestMapping(t *testing.T) {
 			},
 		},
 		{
-			name: "update carries id positional + flags", group: "plans", cmd: "update",
-			argv: []string{"plan-7", "--title", "T2", "--dod", "d2"},
+			name: "update patches existing plan and exposes execution-grade repair fields", group: "plans", cmd: "update",
+			resp: &plansv1.GetPlanResponse{Plan: &sharedv1.Plan{
+				Id:                      "plan-7",
+				Title:                   "Old title",
+				Purpose:                 "existing purpose",
+				TechnicalApproach:       "old approach",
+				ChangeBoundary:          &sharedv1.ChangeBoundary{AcceptanceAllow: []string{"old/**"}},
+				RegressionAnchor:        &sharedv1.RegressionAnchor{Strategy: "legacy_prose", BaselineName: "old anchor"},
+				DefinitionOfDone:        "old done",
+				ValidationStrategy:      "old validation",
+				ProblemStatement:        "old problem",
+				TargetOutcome:           "old outcome",
+				FinalValidationCommands: []string{"old command"},
+			}},
+			argv: []string{
+				"plan-7", "--title", "T2", "--dod", "d2",
+				"--technical-approach", "repaired approach",
+				"--change-allow", "scenarios/plan-manager/**,packages/proto/**",
+				"--change-deny", "scenarios/other/**",
+				"--anchor-strategy", "change_boundary",
+				"--anchor-baseline", "repaired-baseline",
+				"--anchor-command", "git diff --stat -- scenarios/plan-manager/**",
+			},
 			assert: func(t *testing.T, req proto.Message) {
 				p := req.(*plansv1.UpdatePlanRequest).GetPlan()
 				require.Equal(t, "plan-7", p.GetId())
 				require.Equal(t, "T2", p.GetTitle())
 				require.Equal(t, "d2", p.GetDefinitionOfDone())
+				require.Equal(t, "existing purpose", p.GetPurpose(), "unsupplied authored fields must survive a CLI patch")
+				require.Equal(t, "repaired approach", p.GetTechnicalApproach())
+				require.Equal(t, []string{"scenarios/plan-manager/**", "packages/proto/**"}, p.GetChangeBoundary().GetAcceptanceAllow())
+				require.Equal(t, []string{"scenarios/other/**"}, p.GetChangeBoundary().GetAcceptanceDeny())
+				require.Equal(t, "change_boundary", p.GetRegressionAnchor().GetStrategy())
+				require.Equal(t, "repaired-baseline", p.GetRegressionAnchor().GetBaselineName())
+				require.Equal(t, []string{"git diff --stat -- scenarios/plan-manager/**"}, p.GetRegressionAnchor().GetCommands())
 			},
 		},
 		{
@@ -291,6 +386,92 @@ func TestPlansRequestMapping(t *testing.T) {
 				require.Equal(t, "plan-r", m.GetId())
 				require.Equal(t, "/workspace", m.GetWorkspace().GetRoot())
 				require.True(t, m.GetCompact())
+			},
+		},
+		{
+			name: "context list passes id workspace and phase", group: "plans", cmd: "context-list",
+			argv: []string{"plan-c", "--workspace", "/workspace", "--phase", "phase-1"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*plansv1.ListRelevantContextRequest)
+				require.Equal(t, "plan-c", m.GetId())
+				require.Equal(t, "/workspace", m.GetWorkspace().GetRoot())
+				require.Equal(t, "phase-1", m.GetPhaseId())
+			},
+		},
+		{
+			name: "context update maps authored repair fields", group: "plans", cmd: "context-update",
+			argv: []string{
+				"plan-c", "item-1", "--workspace", "/workspace", "--phase", "phase-1",
+				"--kind", "command", "--label", "Validate", "--reason", "repair reason",
+				"--instruction", "Run validation", "--command", "plan-manager author validate sess-1",
+				"--required", "--repeat", "phase_entry",
+			},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*plansv1.UpdateRelevantContextRequest)
+				require.Equal(t, "plan-c", m.GetId())
+				require.Equal(t, "/workspace", m.GetWorkspace().GetRoot())
+				require.Equal(t, "phase-1", m.GetPhaseId())
+				require.Equal(t, "item-1", m.GetItemId())
+				item := m.GetItem()
+				require.Equal(t, "item-1", item.GetId())
+				require.Equal(t, sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_COMMAND, item.GetKind())
+				require.Equal(t, "Validate", item.GetLabel())
+				require.Equal(t, "repair reason", item.GetReason())
+				require.Equal(t, "Run validation", item.GetInstruction())
+				require.Equal(t, "plan-manager author validate sess-1", item.GetCommand())
+				require.True(t, item.GetRequired())
+				require.Equal(t, sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_PHASE_ENTRY, item.GetRepeatPolicy())
+				require.Equal(t, sharedv1.RelevantContextSource_RELEVANT_CONTEXT_SOURCE_AUTHORED, item.GetSource())
+				require.Equal(t, sharedv1.RelevantContextStatus_RELEVANT_CONTEXT_STATUS_READY, item.GetStatus())
+			},
+		},
+		{
+			name: "context remove passes item id", group: "plans", cmd: "context-remove",
+			argv: []string{"plan-c", "item-2", "--phase", "phase-1"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*plansv1.RemoveRelevantContextRequest)
+				require.Equal(t, "plan-c", m.GetId())
+				require.Equal(t, "item-2", m.GetItemId())
+				require.Equal(t, "phase-1", m.GetPhaseId())
+			},
+		},
+		{
+			name: "reference list passes id workspace and phase", group: "plans", cmd: "reference-list",
+			argv: []string{"plan-r", "--workspace", "/workspace", "--phase", "phase-2"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*plansv1.ListReferencesRequest)
+				require.Equal(t, "plan-r", m.GetId())
+				require.Equal(t, "/workspace", m.GetWorkspace().GetRoot())
+				require.Equal(t, "phase-2", m.GetPhaseId())
+			},
+		},
+		{
+			name: "reference update maps authored repair fields", group: "plans", cmd: "reference-update",
+			argv: []string{
+				"plan-r", "ref-1", "--phase", "phase-2",
+				"--kind", "doc", "--target", "docs/README.md", "--future", "--note", "operator note",
+			},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*plansv1.UpdateReferenceRequest)
+				require.Equal(t, "plan-r", m.GetId())
+				require.Equal(t, "phase-2", m.GetPhaseId())
+				require.Equal(t, "ref-1", m.GetReferenceId())
+				ref := m.GetReference()
+				require.Equal(t, "ref-1", ref.GetId())
+				require.Equal(t, sharedv1.ReferenceKind_REFERENCE_KIND_DOC, ref.GetKind())
+				require.Equal(t, "docs/README.md", ref.GetTarget())
+				require.True(t, ref.GetFuture())
+				require.Equal(t, "operator note", ref.GetNote())
+			},
+		},
+		{
+			name: "reference remove passes reference id", group: "plans", cmd: "reference-remove",
+			argv: []string{"plan-r", "ref-2", "--phase", "phase-2"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*plansv1.RemoveReferenceRequest)
+				require.Equal(t, "plan-r", m.GetId())
+				require.Equal(t, "ref-2", m.GetReferenceId())
+				require.Equal(t, "phase-2", m.GetPhaseId())
 			},
 		},
 		{
@@ -463,7 +644,7 @@ func TestPlansRequestMapping(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			rec := &plansRecorder{}
+			rec := &plansRecorder{resp: tc.resp}
 			app, groups := newPlansFixture(t, rec)
 			cmd := clitest.FindCommand(t, groups, tc.group, tc.cmd)
 			_, err := clitest.RunCommand(t, cmd, app, tc.argv...)

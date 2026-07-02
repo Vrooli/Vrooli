@@ -391,6 +391,97 @@ func TestRelevantContextItemFromSetupLineExtractsDocTarget(t *testing.T) {
 	}
 }
 
+func TestRelevantContextItemFromSetupLineSplitsTrailingDocNote(t *testing.T) {
+	item := RelevantContextItemFromSetupLine(
+		"scenarios/image-tools/docs/concepts/DOMAINS.md (async job-queue template)",
+		RelevantContextScopeGlobal,
+		"",
+		"",
+	)
+	if item.Kind != RelevantContextDoc {
+		t.Fatalf("kind = %q, want doc", item.Kind)
+	}
+	if item.Target != "scenarios/image-tools/docs/concepts/DOMAINS.md" {
+		t.Fatalf("target = %q", item.Target)
+	}
+	if item.Reason != "async job-queue template" {
+		t.Fatalf("reason = %q", item.Reason)
+	}
+	if got := RelevantContextCommandLine(item); got != "sed -n '1,220p' scenarios/image-tools/docs/concepts/DOMAINS.md" {
+		t.Fatalf("command = %q", got)
+	}
+}
+
+func TestRelevantContextCommandLineStripsStoredTrailingNotes(t *testing.T) {
+	skill := RelevantContextItem{
+		Kind:   RelevantContextSkill,
+		Target: "scientific-debugging (for live ablation proof)",
+	}
+	if got := RelevantContextCommandLine(skill); got != "prompt-manager skill read scientific-debugging" {
+		t.Fatalf("skill command = %q", got)
+	}
+	doc := RelevantContextItem{
+		Kind:   RelevantContextDoc,
+		Target: "scenarios/image-tools/docs/concepts/DOMAINS.md (async job-queue template)",
+	}
+	if got := RelevantContextCommandLine(doc); got != "sed -n '1,220p' scenarios/image-tools/docs/concepts/DOMAINS.md" {
+		t.Fatalf("doc command = %q", got)
+	}
+	skill.Command = "prompt-manager skill read scientific-debugging (for live ablation proof)"
+	if got := RelevantContextCommandLine(skill); got != "prompt-manager skill read scientific-debugging" {
+		t.Fatalf("stored skill command = %q", got)
+	}
+	skill.Command = "prompt-manager skill read scientific-debugging (for live ablation proof)."
+	if got := RelevantContextCommandLine(skill); got != "prompt-manager skill read scientific-debugging" {
+		t.Fatalf("stored skill command with trailing punctuation = %q", got)
+	}
+	doc.Command = "sed -n '1,220p' scenarios/image-tools/docs/concepts/DOMAINS.md (async job-queue template)"
+	if got := RelevantContextCommandLine(doc); got != "sed -n '1,220p' scenarios/image-tools/docs/concepts/DOMAINS.md" {
+		t.Fatalf("stored doc command = %q", got)
+	}
+}
+
+func TestParsePlanMarkdownRecoversInlineRelevantContextCommands(t *testing.T) {
+	t.Parallel()
+
+	plan, err := ParsePlanMarkdown(strings.Join([]string{
+		"# Compact context",
+		"",
+		"## Global Execution Setup",
+		"",
+		"### Load Skills",
+		"",
+		"- scientific-debugging — `prompt-manager skill read scientific-debugging` _(required, discovered)_",
+		"",
+		"### Read Docs",
+		"",
+		"- scenarios/audio-tools/docs/reference/eval-harness.md — `sed -n '1,220p' scenarios/audio-tools/docs/reference/eval-harness.md`",
+		"",
+		"### Run Commands",
+		"",
+		"- Prior record — `swarm-manager records get --id rec-123`",
+		"  - Reason: prior unit-health cutover details.",
+	}, "\n"))
+	if err != nil {
+		t.Fatalf("ParsePlanMarkdown() error = %v", err)
+	}
+	if got := len(plan.RelevantContext); got != 3 {
+		t.Fatalf("len(plan.RelevantContext) = %d, want 3: %#v", got, plan.RelevantContext)
+	}
+	skill := plan.RelevantContext[0]
+	if skill.Kind != RelevantContextSkill || skill.Target != "scientific-debugging" || skill.Command != "prompt-manager skill read scientific-debugging" || !skill.Required || skill.Source != RelevantContextSourceDiscovered {
+		t.Fatalf("skill = %#v", skill)
+	}
+	doc := plan.RelevantContext[1]
+	if doc.Kind != RelevantContextDoc || doc.Target != "scenarios/audio-tools/docs/reference/eval-harness.md" || doc.Command == "" {
+		t.Fatalf("doc = %#v", doc)
+	}
+	cmd := plan.RelevantContext[2]
+	if cmd.Kind != RelevantContextCommand || cmd.Command != "swarm-manager records get --id rec-123" || cmd.Reason != "prior unit-health cutover details." {
+		t.Fatalf("command = %#v", cmd)
+	}
+}
+
 func TestParsePlanMarkdownPromotesLegacyPhaseSections(t *testing.T) {
 	t.Parallel()
 

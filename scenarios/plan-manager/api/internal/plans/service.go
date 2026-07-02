@@ -27,6 +27,12 @@ type Service interface {
 
 	AddPhase(ctx context.Context, planID string, phase Phase) (Plan, error)
 	UpdatePhase(ctx context.Context, planID string, phase Phase) (Plan, error)
+	ListRelevantContext(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID string) ([]RelevantContextItem, error)
+	UpdateRelevantContext(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, itemID string, item RelevantContextItem) (Plan, error)
+	RemoveRelevantContext(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, itemID string) (Plan, error)
+	ListReferences(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID string) ([]Reference, error)
+	UpdateReference(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, referenceID string, ref Reference) (Plan, error)
+	RemoveReference(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, referenceID string) (Plan, error)
 
 	GetGraph(ctx context.Context, planID string) ([]PlanEdge, error)
 	LinkSupersession(ctx context.Context, supersedingID, supersededID string) (Plan, error)
@@ -84,6 +90,8 @@ func (s *service) applyPosture(ctx context.Context, p *Plan) {
 }
 
 var _ Service = (*service)(nil)
+
+var syntheticItemIDPattern = regexp.MustCompile(`^item-\d+$`)
 
 func renderQualitySummary(p Plan) (string, []string) {
 	report := planmodel.AssessPlanQuality(p, "")
@@ -253,6 +261,16 @@ func (s *service) Render(ctx context.Context, idOrSlug string, workspace Workspa
 	}
 	data, meta, err := s.mirror.Read(ctx, p)
 	if err == nil && meta.Status == RenderedMirrorStatusFresh {
+		current := RenderMarkdownWithOptions(p, opts)
+		if string(data) != current {
+			repaired, publishErr := s.publishMirror(ctx, p)
+			if publishErr == nil {
+				return RenderResult{Markdown: RenderMarkdownWithOptions(repaired, opts), Mirror: repaired.Mirror, Repaired: true, Plan: repaired, QualityStatus: qualityStatus, QualityFindings: qualityFindings}, nil
+			}
+			meta.Status = RenderedMirrorStatusWriteFailed
+			p.Mirror = meta
+			return RenderResult{Markdown: current, Mirror: meta, Repaired: false, Plan: p, QualityStatus: qualityStatus, QualityFindings: qualityFindings}, nil
+		}
 		p.Mirror = meta
 		return RenderResult{Markdown: string(data), Mirror: meta, Plan: p, QualityStatus: qualityStatus, QualityFindings: qualityFindings}, nil
 	}
@@ -304,6 +322,168 @@ func (s *service) UpdatePhase(ctx context.Context, planID string, phase Phase) (
 	phase.Order = p.Phases[idx].Order
 	phase.Status = defaultPhaseStatus(phase.Status)
 	p.Phases[idx] = phase
+	return s.saveRecomputed(ctx, p)
+}
+
+func (s *service) ListRelevantContext(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID string) ([]RelevantContextItem, error) {
+	p, err := s.Get(ctx, idOrSlug, workspace)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(phaseID) == "" {
+		return contextWithEffectiveIDs(p.RelevantContext), nil
+	}
+	idx := phaseIndex(p.Phases, phaseID)
+	if idx < 0 {
+		return nil, ErrPhaseNotFound{PlanID: p.ID, PhaseID: phaseID}
+	}
+	return contextWithEffectiveIDs(p.Phases[idx].RelevantContext), nil
+}
+
+func (s *service) UpdateRelevantContext(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, itemID string, item RelevantContextItem) (Plan, error) {
+	p, err := s.Get(ctx, idOrSlug, workspace)
+	if err != nil {
+		return Plan{}, err
+	}
+	itemID = strings.TrimSpace(itemID)
+	if itemID == "" {
+		return Plan{}, ErrInvalidPlan{Reason: "context item id is required"}
+	}
+	if strings.TrimSpace(item.ID) == "" {
+		item.ID = itemID
+	}
+	if strings.TrimSpace(item.ID) == "" || isSyntheticItemID(item.ID) {
+		item.ID = uuid.NewString()
+	}
+	if strings.TrimSpace(phaseID) == "" {
+		idx := contextItemIndex(p.RelevantContext, itemID)
+		if idx < 0 {
+			return Plan{}, ErrInvalidPlan{Reason: "global context item not found: " + itemID}
+		}
+		item.Scope = RelevantContextScopeGlobal
+		item.PhaseID = ""
+		p.RelevantContext[idx] = item
+		return s.saveRecomputed(ctx, p)
+	}
+	phaseIdx := phaseIndex(p.Phases, phaseID)
+	if phaseIdx < 0 {
+		return Plan{}, ErrPhaseNotFound{PlanID: p.ID, PhaseID: phaseID}
+	}
+	idx := contextItemIndex(p.Phases[phaseIdx].RelevantContext, itemID)
+	if idx < 0 {
+		return Plan{}, ErrInvalidPlan{Reason: "phase context item not found: " + itemID}
+	}
+	item.Scope = RelevantContextScopePhase
+	item.PhaseID = p.Phases[phaseIdx].ID
+	p.Phases[phaseIdx].RelevantContext[idx] = item
+	return s.saveRecomputed(ctx, p)
+}
+
+func (s *service) RemoveRelevantContext(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, itemID string) (Plan, error) {
+	p, err := s.Get(ctx, idOrSlug, workspace)
+	if err != nil {
+		return Plan{}, err
+	}
+	itemID = strings.TrimSpace(itemID)
+	if itemID == "" {
+		return Plan{}, ErrInvalidPlan{Reason: "context item id is required"}
+	}
+	if strings.TrimSpace(phaseID) == "" {
+		idx := contextItemIndex(p.RelevantContext, itemID)
+		if idx < 0 {
+			return Plan{}, ErrInvalidPlan{Reason: "global context item not found: " + itemID}
+		}
+		p.RelevantContext = append(p.RelevantContext[:idx], p.RelevantContext[idx+1:]...)
+		return s.saveRecomputed(ctx, p)
+	}
+	phaseIdx := phaseIndex(p.Phases, phaseID)
+	if phaseIdx < 0 {
+		return Plan{}, ErrPhaseNotFound{PlanID: p.ID, PhaseID: phaseID}
+	}
+	idx := contextItemIndex(p.Phases[phaseIdx].RelevantContext, itemID)
+	if idx < 0 {
+		return Plan{}, ErrInvalidPlan{Reason: "phase context item not found: " + itemID}
+	}
+	p.Phases[phaseIdx].RelevantContext = append(p.Phases[phaseIdx].RelevantContext[:idx], p.Phases[phaseIdx].RelevantContext[idx+1:]...)
+	return s.saveRecomputed(ctx, p)
+}
+
+func (s *service) ListReferences(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID string) ([]Reference, error) {
+	p, err := s.Get(ctx, idOrSlug, workspace)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(phaseID) == "" {
+		return referencesWithEffectiveIDs(p.References), nil
+	}
+	idx := phaseIndex(p.Phases, phaseID)
+	if idx < 0 {
+		return nil, ErrPhaseNotFound{PlanID: p.ID, PhaseID: phaseID}
+	}
+	return referencesWithEffectiveIDs(p.Phases[idx].References), nil
+}
+
+func (s *service) UpdateReference(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, referenceID string, ref Reference) (Plan, error) {
+	p, err := s.Get(ctx, idOrSlug, workspace)
+	if err != nil {
+		return Plan{}, err
+	}
+	referenceID = strings.TrimSpace(referenceID)
+	if referenceID == "" {
+		return Plan{}, ErrInvalidPlan{Reason: "reference id is required"}
+	}
+	if strings.TrimSpace(ref.ID) == "" {
+		ref.ID = referenceID
+	}
+	if strings.TrimSpace(ref.ID) == "" || isSyntheticItemID(ref.ID) {
+		ref.ID = uuid.NewString()
+	}
+	if strings.TrimSpace(phaseID) == "" {
+		idx := referenceIndex(p.References, referenceID)
+		if idx < 0 {
+			return Plan{}, ErrInvalidPlan{Reason: "global reference not found: " + referenceID}
+		}
+		p.References[idx] = authoredReference(ref)
+		return s.saveRecomputed(ctx, p)
+	}
+	phaseIdx := phaseIndex(p.Phases, phaseID)
+	if phaseIdx < 0 {
+		return Plan{}, ErrPhaseNotFound{PlanID: p.ID, PhaseID: phaseID}
+	}
+	idx := referenceIndex(p.Phases[phaseIdx].References, referenceID)
+	if idx < 0 {
+		return Plan{}, ErrInvalidPlan{Reason: "phase reference not found: " + referenceID}
+	}
+	p.Phases[phaseIdx].References[idx] = authoredReference(ref)
+	return s.saveRecomputed(ctx, p)
+}
+
+func (s *service) RemoveReference(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID, referenceID string) (Plan, error) {
+	p, err := s.Get(ctx, idOrSlug, workspace)
+	if err != nil {
+		return Plan{}, err
+	}
+	referenceID = strings.TrimSpace(referenceID)
+	if referenceID == "" {
+		return Plan{}, ErrInvalidPlan{Reason: "reference id is required"}
+	}
+	if strings.TrimSpace(phaseID) == "" {
+		idx := referenceIndex(p.References, referenceID)
+		if idx < 0 {
+			return Plan{}, ErrInvalidPlan{Reason: "global reference not found: " + referenceID}
+		}
+		p.References = append(p.References[:idx], p.References[idx+1:]...)
+		return s.saveRecomputed(ctx, p)
+	}
+	phaseIdx := phaseIndex(p.Phases, phaseID)
+	if phaseIdx < 0 {
+		return Plan{}, ErrPhaseNotFound{PlanID: p.ID, PhaseID: phaseID}
+	}
+	idx := referenceIndex(p.Phases[phaseIdx].References, referenceID)
+	if idx < 0 {
+		return Plan{}, ErrInvalidPlan{Reason: "phase reference not found: " + referenceID}
+	}
+	p.Phases[phaseIdx].References = append(p.Phases[phaseIdx].References[:idx], p.Phases[phaseIdx].References[idx+1:]...)
 	return s.saveRecomputed(ctx, p)
 }
 
@@ -704,6 +884,73 @@ func normalizePhases(phases []Phase) []Phase {
 		out = append(out, ph)
 	}
 	return out
+}
+
+func phaseIndex(phases []Phase, phaseID string) int {
+	phaseID = strings.TrimSpace(phaseID)
+	for i, ph := range phases {
+		if ph.ID == phaseID || fmt.Sprint(ph.Order) == phaseID {
+			return i
+		}
+	}
+	return -1
+}
+
+func contextWithEffectiveIDs(items []RelevantContextItem) []RelevantContextItem {
+	out := make([]RelevantContextItem, 0, len(items))
+	for i, item := range items {
+		if strings.TrimSpace(item.ID) == "" {
+			item.ID = syntheticItemID(i)
+		}
+		out = append(out, item)
+	}
+	return out
+}
+
+func referencesWithEffectiveIDs(refs []Reference) []Reference {
+	out := make([]Reference, 0, len(refs))
+	for i, ref := range refs {
+		if strings.TrimSpace(ref.ID) == "" {
+			ref.ID = syntheticItemID(i)
+		}
+		out = append(out, ref)
+	}
+	return out
+}
+
+func contextItemIndex(items []RelevantContextItem, id string) int {
+	id = strings.TrimSpace(id)
+	for i, item := range items {
+		if item.ID == id || syntheticItemID(i) == id {
+			return i
+		}
+	}
+	return -1
+}
+
+func referenceIndex(refs []Reference, id string) int {
+	id = strings.TrimSpace(id)
+	for i, ref := range refs {
+		if ref.ID == id || syntheticItemID(i) == id {
+			return i
+		}
+	}
+	return -1
+}
+
+func syntheticItemID(index int) string {
+	return fmt.Sprintf("item-%d", index+1)
+}
+
+func isSyntheticItemID(id string) bool {
+	return syntheticItemIDPattern.MatchString(strings.TrimSpace(id))
+}
+
+func authoredReference(ref Reference) Reference {
+	ref.Resolution = ""
+	ref.Staleness = ""
+	ref.ChangeFactor = 0
+	return ref
 }
 
 func clonePhases(phases []Phase) []Phase {

@@ -11,6 +11,7 @@ import (
 	"plan-manager/internal/clock"
 	"plan-manager/internal/module"
 	internalplans "plan-manager/internal/plans"
+	internalvalidation "plan-manager/internal/validation"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -47,6 +48,7 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, storePat
 		Suggester: internalauthoring.NewCommandReferenceSuggester(runner),
 		Context:   internalauthoring.NewCommandContextDiscoverer(runner),
 		Commands:  newCLIHealthCommandValidator(),
+		Resolver:  internalvalidation.NewFileResolver(""),
 		Renderer:  planRenderer{},
 		Posture:   posturePreparer{maturity: maturity},
 		StorePath: storePath,
@@ -99,6 +101,10 @@ type planRenderer struct{}
 
 func (planRenderer) Render(p internalplans.Plan) string {
 	return internalplans.RenderMarkdown(p)
+}
+
+func (planRenderer) RenderDraft(p internalplans.Plan, sessionID string) string {
+	return internalplans.RenderMarkdownWithOptions(p, internalplans.RenderOptions{AuthoringSessionID: sessionID})
 }
 
 // posturePreparer adapts the plans-domain posture resolver to authoring's

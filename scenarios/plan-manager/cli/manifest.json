@@ -148,6 +148,87 @@
             {
               "name": "dod",
               "description": "Definition of Done"
+            },
+            {
+              "name": "problem",
+              "description": "Problem statement"
+            },
+            {
+              "name": "outcome",
+              "description": "Target outcome"
+            },
+            {
+              "name": "assumptions",
+              "description": "Plan assumptions"
+            },
+            {
+              "name": "technical-approach",
+              "description": "Technical approach / design rationale"
+            },
+            {
+              "name": "validation-strategy",
+              "description": "Validation strategy"
+            },
+            {
+              "name": "final-validation-command",
+              "description": "Final validation command; repeat or comma-separate for multiple commands"
+            },
+            {
+              "name": "risks",
+              "description": "Risks and hazards"
+            },
+            {
+              "name": "prohibited-approaches",
+              "description": "Prohibited approaches"
+            },
+            {
+              "name": "change-allow",
+              "description": "Change-boundary acceptance_allow glob; repeat or comma-separate for multiple globs"
+            },
+            {
+              "name": "change-deny",
+              "description": "Change-boundary acceptance_deny glob; repeat or comma-separate for multiple globs"
+            },
+            {
+              "name": "operator-only",
+              "description": "Reason this plan has no editable repo path boundary"
+            },
+            {
+              "name": "anchor-strategy",
+              "description": "Regression anchor strategy, e.g. change_boundary"
+            },
+            {
+              "name": "anchor-scenario",
+              "description": "Regression anchor scenario for legacy scenario-baseline anchors"
+            },
+            {
+              "name": "anchor-baseline",
+              "description": "Regression anchor baseline name"
+            },
+            {
+              "name": "anchor-head-sha",
+              "description": "Regression anchor HEAD sha"
+            },
+            {
+              "name": "anchor-allow",
+              "description": "Regression anchor allowlist path; repeat or comma-separate for multiple paths"
+            },
+            {
+              "name": "anchor-command",
+              "description": "Regression anchor command; repeat for multiple commands"
+            },
+            {
+              "name": "anchor-captured-at",
+              "description": "Regression anchor capture timestamp"
+            },
+            {
+              "name": "anchor-unavailable",
+              "description": "Mark regression anchor capture as unavailable",
+              "bool": true
+            },
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup before patching"
             }
           ],
           "binding": {
@@ -243,6 +324,275 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "context-list",
+          "description": "List persisted relevant-context setup items for a finalized plan or phase",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id or slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
+            },
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number; omit for plan-wide context"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "ListRelevantContext"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "context-update",
+          "description": "Replace one persisted relevant-context setup item without rewriting the whole plan",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id or slug"
+            },
+            {
+              "name": "item",
+              "required": true,
+              "description": "Context item id from plans context-list"
+            }
+          ],
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
+            },
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number; omit for plan-wide context"
+            },
+            {
+              "name": "kind",
+              "description": "Context kind: command, search, doc, code_ref, req_ref, skill, note"
+            },
+            {
+              "name": "label",
+              "description": "Short human label"
+            },
+            {
+              "name": "reason",
+              "description": "Why this setup item matters"
+            },
+            {
+              "name": "instruction",
+              "description": "Instruction shown to future agents"
+            },
+            {
+              "name": "command",
+              "description": "Command/search text when kind is command or search"
+            },
+            {
+              "name": "target",
+              "description": "Reference target or skill slug"
+            },
+            {
+              "name": "required",
+              "description": "Whether the item is required",
+              "bool": true
+            },
+            {
+              "name": "repeat",
+              "description": "Repeat policy: once_per_execution, on_resume, every_phase, phase_entry, as_needed"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "UpdateRelevantContext"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "context-remove",
+          "description": "Remove one persisted relevant-context setup item from a finalized plan or phase",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id or slug"
+            },
+            {
+              "name": "item",
+              "required": true,
+              "description": "Context item id from plans context-list"
+            }
+          ],
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
+            },
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number; omit for plan-wide context"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "RemoveRelevantContext"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reference-list",
+          "description": "List persisted code/doc/req references for a finalized plan or phase",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id or slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
+            },
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number; omit for plan-wide references"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "ListReferences"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reference-update",
+          "description": "Replace one persisted code/doc/req reference without rewriting the whole plan",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id or slug"
+            },
+            {
+              "name": "reference",
+              "required": true,
+              "description": "Reference id from plans reference-list"
+            }
+          ],
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
+            },
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number; omit for plan-wide references"
+            },
+            {
+              "name": "kind",
+              "description": "Reference kind: code, doc, req"
+            },
+            {
+              "name": "target",
+              "description": "Reference target path or requirement id",
+              "required": true
+            },
+            {
+              "name": "future",
+              "description": "Mark this reference as intentionally future",
+              "bool": true
+            },
+            {
+              "name": "note",
+              "description": "Optional operator note"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "UpdateReference"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reference-remove",
+          "description": "Remove one persisted code/doc/req reference from a finalized plan or phase",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id or slug"
+            },
+            {
+              "name": "reference",
+              "required": true,
+              "description": "Reference id from plans reference-list"
+            }
+          ],
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
+            },
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number; omit for plan-wide references"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "RemoveReference"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
             "permissions": [
               "network:internal"
             ]
@@ -1435,7 +1785,7 @@
         },
         {
           "name": "context-discover",
-          "description": "Discover relevant-context candidates from decomposed concepts",
+          "description": "Discover relevant-context candidates from decomposed concepts, or inspect the latest batch when concepts are omitted",
           "positionals": [
             {
               "name": "session",
@@ -1446,7 +1796,7 @@
           "flags": [
             {
               "name": "concepts",
-              "description": "Comma-separated discovery concepts; omit to use the session title"
+              "description": "Comma-separated discovery concepts; omit to inspect the latest/prefetched batch without creating a new one"
             },
             {
               "name": "complexity",
@@ -1454,7 +1804,7 @@
             },
             {
               "name": "refresh",
-              "description": "Force a fresh discovery even when a prefetched batch is available",
+              "description": "Force a fresh discovery even when concepts are omitted",
               "bool": true
             }
           ],

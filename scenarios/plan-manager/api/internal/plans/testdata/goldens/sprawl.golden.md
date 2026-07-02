@@ -84,12 +84,8 @@ Goldens exist and reproduce current output verbatim.
 
 ### Load Skills
 
-- scientific-debugging _(required)_
+- scientific-debugging — `prompt-manager skill read scientific-debugging` _(required)_
   - Reason: State-machine bug; reproduce before fixing.
-  - Instruction: Load this internal skill before implementation.
-  ```bash
-  prompt-manager skill read scientific-debugging
-  ```
 
 ### References
 

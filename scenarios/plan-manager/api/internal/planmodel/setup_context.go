@@ -1,11 +1,20 @@
 package planmodel
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
 
 const (
 	noContextPrefix      = "NO_CONTEXT:"
 	noSkillContextPrefix = "NO_SKILL_CONTEXT:"
 	noCodeRefsPrefix     = "NO_CODE_REFS:"
+)
+
+var (
+	trailingParentheticalNoteRe = regexp.MustCompile(`^(.+?\.(?:md|txt|json|yaml|yml|toml|go|ts|tsx|js|jsx|proto|sql|sh))\s+\(([^)]*)\)\.?$`)
+	trailingSlugNoteRe          = regexp.MustCompile(`^([A-Za-z0-9_.:/@+-]+)\s+\(([^)]*)\)\.?$`)
+	sedReadCommandRe            = regexp.MustCompile(`^(sed\s+-n\s+'[^']+'\s+)(.+)$`)
 )
 
 // AuthoredPhaseNoteReason is the canned placeholder reason the authoring
@@ -19,6 +28,10 @@ const AuthoredPhaseNoteReason = "Authored phase note."
 // the same way.
 func RelevantContextItemFromSetupLine(line string, scope RelevantContextScope, phaseID, reason string) RelevantContextItem {
 	line = cleanSetupLine(line)
+	line, note := splitSetupLineNote(line)
+	if reason == "" && note != "" {
+		reason = note
+	}
 	item := RelevantContextItem{
 		Kind:         RelevantContextNote,
 		Scope:        scope,
@@ -95,7 +108,7 @@ func RelevantContextSetupLine(item RelevantContextItem) string {
 // This is the single assembler for skill/doc/search setup commands.
 func RelevantContextCommandLine(item RelevantContextItem) string {
 	if item.Command != "" {
-		return item.Command
+		return normalizeStoredContextCommand(item.Kind, item.Command)
 	}
 	if len(item.Argv) > 0 {
 		return strings.Join(item.Argv, " ")
@@ -106,11 +119,13 @@ func RelevantContextCommandLine(item RelevantContextItem) string {
 	}
 	switch item.Kind {
 	case RelevantContextSkill:
+		target, _ = splitSetupLineNote(target)
 		if strings.HasPrefix(target, "prompt-manager skill read") {
 			return target
 		}
 		return "prompt-manager skill read " + target
 	case RelevantContextDoc, RelevantContextCodeRef, RelevantContextReqRef:
+		target, _ = splitSetupLineNote(target)
 		if strings.HasPrefix(target, "sed ") {
 			return target
 		}
@@ -119,6 +134,26 @@ func RelevantContextCommandLine(item RelevantContextItem) string {
 		return target
 	}
 	return ""
+}
+
+func normalizeStoredContextCommand(kind RelevantContextKind, command string) string {
+	command = strings.TrimSpace(command)
+	switch kind {
+	case RelevantContextSkill:
+		const prefix = "prompt-manager skill read "
+		if strings.HasPrefix(command, prefix) {
+			target := strings.TrimSpace(strings.TrimPrefix(command, prefix))
+			target, _ = splitSetupLineNote(target)
+			return prefix + target
+		}
+	case RelevantContextDoc, RelevantContextCodeRef, RelevantContextReqRef:
+		m := sedReadCommandRe.FindStringSubmatch(command)
+		if len(m) == 3 {
+			target, _ := splitSetupLineNote(m[2])
+			return m[1] + target
+		}
+	}
+	return command
 }
 
 // HasGlobalContextOrNoContextReason reports whether plan-wide setup has been
@@ -224,6 +259,22 @@ func cleanSetupLine(line string) string {
 	line = strings.TrimSpace(line)
 	line = strings.Trim(line, "`")
 	return strings.TrimSpace(line)
+}
+
+// SplitSetupLineNoteForRender exposes setup-line note splitting for markdown renderers.
+func SplitSetupLineNoteForRender(line string) (target, note string) {
+	return splitSetupLineNote(line)
+}
+
+func splitSetupLineNote(line string) (target, note string) {
+	trimmed := strings.TrimSpace(line)
+	for _, re := range []*regexp.Regexp{trailingParentheticalNoteRe, trailingSlugNoteRe} {
+		m := re.FindStringSubmatch(trimmed)
+		if len(m) == 3 {
+			return strings.TrimSpace(m[1]), strings.TrimSpace(m[2])
+		}
+	}
+	return line, ""
 }
 
 func contextItemHasPrefix(item RelevantContextItem, prefix string) bool {

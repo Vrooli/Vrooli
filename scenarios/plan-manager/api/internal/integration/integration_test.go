@@ -472,7 +472,7 @@ func TestSmallAgentContinueLoopsAuthorAndExecute(t *testing.T) {
 			require.NoError(t, err)
 			require.Empty(t, violations)
 		case "regression_anchor":
-			session, violations, _, err = authoringSvc.SubmitSection(ctx, session.ID, section.Key, "Scenario baseline `plan-manager` name `impl`.")
+			session, violations, _, err = authoringSvc.SubmitSection(ctx, session.ID, section.Key, "Strategy: change_boundary")
 			require.NoError(t, err)
 			require.Empty(t, violations)
 		case "definition_of_done":

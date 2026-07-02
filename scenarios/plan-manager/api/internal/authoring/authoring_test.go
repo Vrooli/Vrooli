@@ -27,6 +27,9 @@ import (
 type testRenderer struct{}
 
 func (testRenderer) Render(p internalplans.Plan) string { return internalplans.RenderMarkdown(p) }
+func (testRenderer) RenderDraft(p internalplans.Plan, sessionID string) string {
+	return internalplans.RenderMarkdownWithOptions(p, internalplans.RenderOptions{AuthoringSessionID: sessionID})
+}
 
 // TestWizardAuthoredPlanRendersComprehensive is the wizard→render golden guard:
 // a plan authored entirely through the Service finalizes and renders to a
@@ -97,6 +100,26 @@ func TestPreviewPlanRendersWithoutPersisting(t *testing.T) {
 	require.Contains(t, md, "plan-manager log {decision,finding,bug,record,note}-add")
 	require.Contains(t, md, "## Problem")
 	require.Equal(t, "final_review", step.StepKind)
+	require.Equal(t, 0, writer.calls, "preview must not persist a plan")
+}
+
+func TestPreviewPlanQualityNoticeUsesAuthorValidateForDraft(t *testing.T) {
+	writer := &fakePlanWriter{}
+	svc := newService(t, authoring.Deps{Writer: writer, Renderer: testRenderer{}})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Thin preview", "thin-preview", "")
+	require.NoError(t, err)
+	fillMandatorySectionsOnly(t, svc, sess.ID)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRelevantContext, "NO_CONTEXT: fixture has no global setup.\nNO_SKILL_CONTEXT: fixture has no skill setup.")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPhases, "### Phase 1 — Thin\n- Intent: The legacy phase lacks execution-grade fields.\n- Context: none needed — fixture focuses on quality.")
+	require.NoError(t, err)
+
+	md, _, err := svc.PreviewPlan(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Contains(t, md, "Plan quality: **fail**")
+	require.Contains(t, md, "plan-manager author validate "+sess.ID)
+	require.NotContains(t, md, "plan-manager validate run thin-preview")
 	require.Equal(t, 0, writer.calls, "preview must not persist a plan")
 }
 
@@ -346,6 +369,25 @@ func (f *fakeCommandValidator) ValidateCommandReference(_ context.Context, req a
 	return authoring.CommandReferenceResult{Verdict: "valid", ValidationLevel: "argument_shape_validated"}, nil
 }
 
+type fakeReferenceResolver struct {
+	resolution planmodel.ReferenceResolution
+	err        error
+}
+
+func (f fakeReferenceResolver) Resolve(_ context.Context, ref planmodel.Reference) (planmodel.Reference, error) {
+	if f.err != nil {
+		return planmodel.Reference{}, f.err
+	}
+	ref.Resolution = f.resolution
+	if ref.Resolution == "" {
+		ref.Resolution = planmodel.ResolutionResolved
+	}
+	if ref.Resolution == planmodel.ResolutionMissing {
+		ref.Note = "fixture target missing"
+	}
+	return ref, nil
+}
+
 type recordingRunner struct {
 	name string
 	args []string
@@ -380,7 +422,7 @@ func TestContinueSurfacesGlobalContextCheckpoint(t *testing.T) {
 	svc := newService(t, authoring.Deps{})
 	sess, _, err := svc.StartSession(ctx, "Context checkpoint", "context-checkpoint", "")
 	require.NoError(t, err)
-	fillMandatory(t, svc, sess.ID)
+	fillMandatorySectionsOnly(t, svc, sess.ID)
 
 	_, _, _, ready, _, step, err := svc.ContinueAuthoring(ctx, sess.ID)
 	require.NoError(t, err)
@@ -388,7 +430,7 @@ func TestContinueSurfacesGlobalContextCheckpoint(t *testing.T) {
 	require.Equal(t, "global_relevant_context", step.StepKind, "continue surfaces the global context checkpoint before finishing")
 
 	// Skip with an explicit reason resolves the checkpoint.
-	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRelevantContext, "NO_CONTEXT: unit fixture needs no plan-wide setup.")
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRelevantContext, "NO_CONTEXT: unit fixture needs no plan-wide setup.\nNO_SKILL_CONTEXT: unit fixture has no skill setup.")
 	require.NoError(t, err)
 	_, _, _, _, _, step, err = svc.ContinueAuthoring(ctx, sess.ID)
 	require.NoError(t, err)
@@ -400,7 +442,7 @@ func TestContinueGlobalContextResolvedByAcceptedItem(t *testing.T) {
 	svc := newService(t, authoring.Deps{})
 	sess, _, err := svc.StartSession(ctx, "Context accept", "context-accept", "")
 	require.NoError(t, err)
-	fillMandatory(t, svc, sess.ID)
+	fillMandatorySectionsOnly(t, svc, sess.ID)
 
 	_, _, violations, _, err := svc.SubmitRelevantContextItem(ctx, sess.ID, "", internalplans.RelevantContextItem{
 		Kind:         internalplans.RelevantContextSkill,
@@ -436,7 +478,7 @@ func TestGlobalContextRequiresSkillDecision(t *testing.T) {
 	svc := newService(t, authoring.Deps{})
 	sess, _, err := svc.StartSession(ctx, "Skill checkpoint", "skill-checkpoint", "")
 	require.NoError(t, err)
-	fillMandatory(t, svc, sess.ID)
+	fillMandatorySectionsOnly(t, svc, sess.ID)
 
 	_, _, violations, _, err := svc.SubmitRelevantContextItem(ctx, sess.ID, "", internalplans.RelevantContextItem{
 		Kind:         internalplans.RelevantContextDoc,
@@ -462,9 +504,7 @@ func TestGlobalContextRequiresSkillDecision(t *testing.T) {
 	require.NotEqual(t, "global_relevant_context", step.StepKind)
 }
 
-// fillMandatory submits non-empty content to every mandatory section + the
-// regression anchor so the structure gate passes. Returns the final session.
-func fillMandatory(t *testing.T, svc authoring.Service, sessionID string) authoring.Session {
+func fillMandatorySectionsOnly(t *testing.T, svc authoring.Service, sessionID string) authoring.Session {
 	t.Helper()
 	ctx := context.Background()
 	content := []struct {
@@ -478,7 +518,7 @@ func fillMandatory(t *testing.T, svc authoring.Service, sessionID string) author
 		{authoring.SectionTechnicalApproach, "Refactor the widget core behind a seam."},
 		{authoring.SectionAcceptanceBoundary, "acceptance_allow:\n- scenarios/plan-manager/**"},
 		{authoring.SectionReferences, "NO_CODE_REFS: unit test fixture has no connected production code"},
-		{authoring.SectionRegressionAnchor, "baseline captured at HEAD abc123"},
+		{authoring.SectionRegressionAnchor, "Strategy: change_boundary"},
 		{authoring.SectionValidationStrategy, "Run the widget unit suite and compare against the baseline."},
 		{authoring.SectionDefinitionOfDone, "Tests green; baseline diff exit 0."},
 		{authoring.SectionPhases, "### Phase 1 — Anchor\n- Intent: Capture baseline\n- Status: todo\n"},
@@ -495,6 +535,44 @@ func fillMandatory(t *testing.T, svc authoring.Service, sessionID string) author
 		sess = s
 	}
 	return sess
+}
+
+// fillMandatory submits a readiness-clean minimal plan. Tests that intentionally
+// exercise pre-readiness checkpoints use fillMandatorySectionsOnly instead.
+func fillMandatory(t *testing.T, svc authoring.Service, sessionID string) authoring.Session {
+	t.Helper()
+	ctx := context.Background()
+	sess := fillMandatorySectionsOnly(t, svc, sessionID)
+	_, _, _, err := svc.SubmitSection(ctx, sessionID, authoring.SectionRelevantContext, "NO_CONTEXT: unit fixture has no plan-wide setup.\nNO_SKILL_CONTEXT: unit fixture has no internal skill setup.")
+	require.NoError(t, err)
+	if len(sess.PhaseDrafts) == 0 {
+		var phase authoring.PhaseDraft
+		var violations []authoring.StructureViolation
+		sess, phase, violations, _, err = svc.AddPhase(ctx, sessionID, "Fixture phase", "Exercise authoring behavior.")
+		require.NoError(t, err)
+		require.NotEmpty(t, violations)
+		_, _, _, err = svc.SubmitPhaseField(ctx, sessionID, phase.ID, authoring.PhaseFieldNoCodeRefsReason, "NO_CODE_REFS: unit fixture has no phase refs.")
+		require.NoError(t, err)
+		_, _, _, err = svc.SubmitPhaseField(ctx, sessionID, phase.ID, authoring.PhaseFieldSteps, "Run the focused test fixture.")
+		require.NoError(t, err)
+		_, _, _, err = svc.SubmitPhaseField(ctx, sessionID, phase.ID, authoring.PhaseFieldValidation, "go test ./internal/authoring")
+		require.NoError(t, err)
+		_, _, _, err = svc.SubmitPhaseField(ctx, sessionID, phase.ID, authoring.PhaseFieldAcceptance, "The authoring fixture passes.")
+		require.NoError(t, err)
+		sess, _, _, err = svc.SubmitPhaseField(ctx, sessionID, phase.ID, authoring.PhaseFieldRelevantContext, "NO_CONTEXT: unit fixture has no phase setup.")
+		require.NoError(t, err)
+	}
+	return sess
+}
+
+func requireViolationMessage(t *testing.T, violations []authoring.StructureViolation, want string) {
+	t.Helper()
+	for _, violation := range violations {
+		if strings.Contains(violation.Message, want) {
+			return
+		}
+	}
+	t.Fatalf("expected violation containing %q, got %#v", want, violations)
 }
 
 func TestStartSessionSeedsSkeletonAndPointer(t *testing.T) {
@@ -623,6 +701,45 @@ func TestStructureGateRejectsEmptyMandatoryAndAnchor(t *testing.T) {
 	require.Empty(t, violations)
 }
 
+func TestValidateStructureReportsPlanQualityReadinessFailures(t *testing.T) {
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Thin draft", "", "")
+	require.NoError(t, err)
+	fillMandatorySectionsOnly(t, svc, sess.ID)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRelevantContext, "NO_CONTEXT: fixture has no global setup.\nNO_SKILL_CONTEXT: fixture has no skill setup.")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPhases, "### Phase 1 — Thin\n- Intent: The legacy phase lacks execution-grade fields.\n- Context: none needed — fixture focuses on quality.")
+	require.NoError(t, err)
+
+	valid, violations, _, err := svc.ValidateStructure(ctx, sess.ID)
+	require.NoError(t, err)
+	require.False(t, valid)
+	requireViolationMessage(t, violations, "phase_missing_steps")
+	requireViolationMessage(t, violations, "phase_missing_validation")
+	requireViolationMessage(t, violations, "phase_missing_acceptance")
+}
+
+func TestFinalizeRejectsPlanQualityReadinessFailures(t *testing.T) {
+	writer := &fakePlanWriter{}
+	svc := newService(t, authoring.Deps{Writer: writer})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Thin finalize", "", "")
+	require.NoError(t, err)
+	fillMandatorySectionsOnly(t, svc, sess.ID)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRelevantContext, "NO_CONTEXT: fixture has no global setup.\nNO_SKILL_CONTEXT: fixture has no skill setup.")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPhases, "### Phase 1 — Thin\n- Intent: The legacy phase lacks execution-grade fields.\n- Context: none needed — fixture focuses on quality.")
+	require.NoError(t, err)
+
+	_, _, err = svc.Finalize(ctx, sess.ID, authoring.FinalizeOptions{})
+	require.Error(t, err)
+	var gate authoring.ErrStructureGate
+	require.True(t, errors.As(err, &gate))
+	requireViolationMessage(t, gate.Violations, "phase_missing_steps")
+	require.Equal(t, 0, writer.calls)
+}
+
 func TestSubmitSectionReportsPerSectionViolations(t *testing.T) {
 	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
 	ctx := context.Background()
@@ -692,27 +809,8 @@ func TestFinalizeRejectsInvalidCLIReferences(t *testing.T) {
 	ctx := context.Background()
 	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
 	require.NoError(t, err)
+	fillMandatory(t, svc, sess.ID)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "Run `cli:vrooli scenario tost cli-health`.")
-	require.NoError(t, err)
-	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionProblemStatement, "A problem.")
-	require.NoError(t, err)
-	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionTargetOutcome, "An outcome.")
-	require.NoError(t, err)
-	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionScope, "In: widget core.")
-	require.NoError(t, err)
-	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionTechnicalApproach, "An approach.")
-	require.NoError(t, err)
-	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionAcceptanceBoundary, "acceptance_allow:\n- scenarios/plan-manager/**")
-	require.NoError(t, err)
-	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "NO_CODE_REFS: command validation fixture exercises CLI references only")
-	require.NoError(t, err)
-	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "baseline captured at HEAD abc123")
-	require.NoError(t, err)
-	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionValidationStrategy, "Run the suite.")
-	require.NoError(t, err)
-	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionDefinitionOfDone, "Tests green.")
-	require.NoError(t, err)
-	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPhases, "### Phase 1 — Anchor\n- Intent: Capture baseline\n- Status: todo\n")
 	require.NoError(t, err)
 
 	_, _, err = svc.Finalize(ctx, sess.ID, authoring.FinalizeOptions{})
@@ -759,7 +857,7 @@ func TestSuggestReferencesIsReviewedNotAutofilled(t *testing.T) {
 	suggester := &fakeSuggester{candidates: []authoring.ReferenceCandidate{
 		{Reference: planmodel.Reference{Kind: planmodel.ReferenceCode, Target: "internal/widget/core.go"}, Source: "code-symbol", Confidence: 0.9},
 	}}
-	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Suggester: suggester})
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Suggester: suggester, Resolver: fakeReferenceResolver{}})
 	ctx := context.Background()
 	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
 	require.NoError(t, err)
@@ -791,7 +889,7 @@ func TestSuggestedReferencesSurviveFinalize(t *testing.T) {
 	suggester := &fakeSuggester{candidates: []authoring.ReferenceCandidate{
 		{Reference: planmodel.Reference{Kind: planmodel.ReferenceCode, Target: "scenarios/plan-manager/api/internal/validation/service.go"}},
 	}}
-	svc := newService(t, authoring.Deps{Writer: writer, Suggester: suggester})
+	svc := newService(t, authoring.Deps{Writer: writer, Suggester: suggester, Resolver: fakeReferenceResolver{}})
 	ctx := context.Background()
 	sess, _, err := svc.StartSession(ctx, "Improve validation", "improve-validation", "")
 	require.NoError(t, err)
@@ -841,7 +939,7 @@ func TestRejectReferenceCandidateNeverEntersSection(t *testing.T) {
 	suggester := &fakeSuggester{candidates: []authoring.ReferenceCandidate{
 		{Reference: planmodel.Reference{Kind: planmodel.ReferenceCode, Target: "internal/widget/core.go"}},
 	}}
-	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Suggester: suggester})
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Suggester: suggester, Resolver: fakeReferenceResolver{}})
 	ctx := context.Background()
 	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
 	require.NoError(t, err)
@@ -863,13 +961,60 @@ func TestRejectReferenceCandidateNeverEntersSection(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestAcceptReferenceCandidateRejectsUnresolvedLocator(t *testing.T) {
+	suggester := &fakeSuggester{candidates: []authoring.ReferenceCandidate{
+		{Reference: planmodel.Reference{Kind: planmodel.ReferenceCode, Target: "internal/widget/missing.go"}},
+	}}
+	svc := newService(t, authoring.Deps{
+		Writer:    &fakePlanWriter{},
+		Suggester: suggester,
+		Resolver:  fakeReferenceResolver{resolution: planmodel.ResolutionMissing},
+	})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Missing suggested reference", "", "")
+	require.NoError(t, err)
+	_, candidates, _, err := svc.SuggestReferences(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.Equal(t, "failed", candidates[0].ValidationStatus)
+
+	_, candidate, violations, _, err := svc.AcceptReferenceCandidate(ctx, sess.ID, candidates[0].ID, nil)
+	require.NoError(t, err)
+	require.NotEmpty(t, violations)
+	require.Contains(t, violations[0].Message, "not ready")
+	require.Equal(t, authoring.ReferenceCandidatePending, candidate.Status)
+	got, _, err := svc.GetSection(ctx, sess.ID, authoring.SectionReferences)
+	require.NoError(t, err)
+	require.Empty(t, got.Content)
+}
+
+func TestReferenceCandidateIsDegradedWhenResolverUnavailable(t *testing.T) {
+	suggester := &fakeSuggester{candidates: []authoring.ReferenceCandidate{
+		{Reference: planmodel.Reference{Kind: planmodel.ReferenceCode, Target: "internal/widget/core.go"}},
+	}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Suggester: suggester})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Unknown suggested reference", "", "")
+	require.NoError(t, err)
+	_, candidates, _, err := svc.SuggestReferences(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.Equal(t, "unknown", candidates[0].ValidationStatus)
+	require.True(t, candidates[0].Degraded)
+
+	_, candidate, violations, _, err := svc.AcceptReferenceCandidate(ctx, sess.ID, candidates[0].ID, nil)
+	require.NoError(t, err)
+	require.NotEmpty(t, violations)
+	require.Equal(t, authoring.ReferenceCandidatePending, candidate.Status)
+}
+
 // TestAcceptReferenceCandidateRejectsKindMismatch proves an inline edit that
 // mislabels a docs path as [CODE:] is rejected before it enters the section.
 func TestAcceptReferenceCandidateRejectsKindMismatch(t *testing.T) {
 	suggester := &fakeSuggester{candidates: []authoring.ReferenceCandidate{
 		{Reference: planmodel.Reference{Kind: planmodel.ReferenceCode, Target: "internal/widget/core.go"}},
 	}}
-	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Suggester: suggester})
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Suggester: suggester, Resolver: fakeReferenceResolver{}})
 	ctx := context.Background()
 	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
 	require.NoError(t, err)
@@ -893,7 +1038,7 @@ func TestReferenceDiscoveryBatchMergesAndDoesNotResurrectRejectedTargets(t *test
 		Source:     "search-hub",
 		Confidence: 0.72,
 	}}}
-	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Suggester: suggester})
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Suggester: suggester, Resolver: fakeReferenceResolver{}})
 	ctx := context.Background()
 	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
 	require.NoError(t, err)
@@ -924,12 +1069,85 @@ func TestReferenceDiscoveryBatchMergesAndDoesNotResurrectRejectedTargets(t *test
 	require.Equal(t, 1, updated.ReferenceBatches[1].CurationStats.SuppressedDispositioned)
 }
 
+func TestApplyReferenceDispositionUsesBatchScopedHandles(t *testing.T) {
+	suggester := &fakeSuggester{candidates: []authoring.ReferenceCandidate{{
+		Reference:  planmodel.Reference{Kind: planmodel.ReferenceCode, Target: "internal/widget/core.go"},
+		Source:     "search-hub",
+		Confidence: 0.72,
+	}}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Suggester: suggester, Resolver: fakeReferenceResolver{}})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Reference batch-scoped handles", "", "")
+	require.NoError(t, err)
+
+	updated, candidates, _, err := svc.SuggestReferences(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.Equal(t, "r1", candidates[0].Handle)
+	firstBatch := updated.ReferenceBatches[0].ID
+	updated, _, _, err = svc.RejectReferenceCandidate(ctx, sess.ID, "r1", "not relevant")
+	require.NoError(t, err)
+	require.Equal(t, authoring.DiscoveryBatchApplied, updated.ReferenceBatches[0].Status)
+
+	suggester.candidates = []authoring.ReferenceCandidate{{
+		Reference:  planmodel.Reference{Kind: planmodel.ReferenceDoc, Target: "docs/concepts/PLAN-MODEL.md"},
+		Source:     "search-hub",
+		Confidence: 0.73,
+	}}
+	updated, candidates, _, err = svc.SuggestReferences(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.Equal(t, "r1", candidates[0].Handle)
+	secondBatch := updated.ReferenceBatches[1].ID
+	require.NotEqual(t, firstBatch, secondBatch)
+
+	updated, summary, violations, _, err := svc.ApplyReferenceDisposition(ctx, sess.ID, secondBatch, []authoring.ReferenceDispositionTake{{CandidateID: "r1"}}, nil, "reviewed second batch", false)
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.Equal(t, authoring.DiscoveryBatchApplied, summary.Batch.Status)
+	got, _, err := svc.GetSection(ctx, sess.ID, authoring.SectionReferences)
+	require.NoError(t, err)
+	require.Contains(t, got.Content, "[DOC: docs/concepts/PLAN-MODEL.md]", "r1 must resolve within the requested batch, not the older session-global handle")
+	require.Equal(t, authoring.ReferenceCandidateRejected, updated.ReferenceCandidates[0].Status)
+	require.Equal(t, authoring.ReferenceCandidateAccepted, updated.ReferenceCandidates[1].Status)
+}
+
+func TestApplyReferenceDispositionIsIdempotentAfterBatchClosed(t *testing.T) {
+	suggester := &fakeSuggester{candidates: []authoring.ReferenceCandidate{{
+		Reference:  planmodel.Reference{Kind: planmodel.ReferenceCode, Target: "internal/widget/core.go"},
+		Source:     "search-hub",
+		Confidence: 0.72,
+	}}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Suggester: suggester, Resolver: fakeReferenceResolver{}})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Reference idempotent apply", "", "")
+	require.NoError(t, err)
+	updated, candidates, _, err := svc.SuggestReferences(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	batchID := updated.ReferenceBatches[0].ID
+
+	updated, _, _, _, err = svc.AcceptReferenceCandidate(ctx, sess.ID, "r1", nil)
+	require.NoError(t, err)
+	require.Equal(t, authoring.DiscoveryBatchApplied, updated.ReferenceBatches[0].Status)
+
+	updated, summary, violations, _, err := svc.ApplyReferenceDisposition(ctx, sess.ID, batchID, []authoring.ReferenceDispositionTake{{CandidateID: "r1"}}, nil, "reviewed again", false)
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.Equal(t, authoring.DiscoveryBatchApplied, summary.Batch.Status)
+	require.Len(t, summary.Results, 1)
+	require.Contains(t, summary.Results[0].Message, "already accepted")
+	got, _, err := svc.GetSection(ctx, sess.ID, authoring.SectionReferences)
+	require.NoError(t, err)
+	require.Equal(t, 1, strings.Count(got.Content, "[CODE: internal/widget/core.go]"), "idempotent re-apply must not duplicate accepted references")
+}
+
 func TestApplyReferenceDispositionTakesAndSweepsBatch(t *testing.T) {
 	suggester := &fakeSuggester{candidates: []authoring.ReferenceCandidate{
 		{Reference: planmodel.Reference{Kind: planmodel.ReferenceCode, Target: "internal/widget/core.go"}, Source: "search-hub", Confidence: 0.72},
 		{Reference: planmodel.Reference{Kind: planmodel.ReferenceDoc, Target: "docs/concepts/PLAN-MODEL.md"}, Source: "docs", Confidence: 0.64},
 	}}
-	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Suggester: suggester})
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Suggester: suggester, Resolver: fakeReferenceResolver{}})
 	ctx := context.Background()
 	sess, _, err := svc.StartSession(ctx, "Batch references", "", "")
 	require.NoError(t, err)
@@ -1103,7 +1321,7 @@ func TestPhaseNativeAuthoringValidatesAndFinalizesStructuredPhase(t *testing.T) 
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "[CODE: scenarios/plan-manager/api/internal/authoring/service.go]")
 	require.NoError(t, err)
-	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "baseline captured")
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "Strategy: change_boundary")
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionValidationStrategy, "Run authoring + CLI suites, then the scenario test.")
 	require.NoError(t, err)
@@ -1216,7 +1434,7 @@ func TestContextDiscoveryCandidateLifecycle(t *testing.T) {
 			Source:       internalplans.RelevantContextSourceDiscovered,
 		},
 	}}}
-	svc := newService(t, authoring.Deps{Writer: writer, Context: discovery})
+	svc := newService(t, authoring.Deps{Writer: writer, Context: discovery, Commands: &fakeCommandValidator{}})
 	ctx := context.Background()
 	sess, _, err := svc.StartSession(ctx, "Improve context", "improve-context", "")
 	require.NoError(t, err)
@@ -1240,6 +1458,100 @@ func TestContextDiscoveryCandidateLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, authoring.ContextCandidateRejected, rejected.Status)
 	require.Equal(t, "duplicate after accept", updated.ContextCandidates[0].RejectionReason)
+}
+
+func TestAcceptContextCandidateRejectsInvalidDiscoveredCommand(t *testing.T) {
+	discovery := &fakeContextDiscoverer{candidates: []authoring.ContextCandidate{{
+		ID: "bad-command",
+		Item: internalplans.RelevantContextItem{
+			Kind:        internalplans.RelevantContextCommand,
+			Label:       "Invalid command",
+			Reason:      "Fixture command should not become ready setup.",
+			Instruction: "Run the invalid command.",
+			Command:     "swarm-manager records get-style",
+			Source:      internalplans.RelevantContextSourceDiscovered,
+		},
+	}}}
+	commands := &fakeCommandValidator{results: map[string]authoring.CommandReferenceResult{
+		"swarm-manager records get-style": {
+			Verdict: "invalid",
+			Issues:  []authoring.CommandIssue{{Code: "command_not_found", Message: "unknown command"}},
+		},
+	}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Context: discovery, Commands: commands})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Invalid candidate", "", "")
+	require.NoError(t, err)
+
+	updated, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"invalid command"}, "", false)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.Equal(t, "failed", candidates[0].ValidationStatus)
+	require.Contains(t, candidates[0].ValidationDetail, "command_not_found")
+
+	updated, candidate, _, violations, _, err := svc.AcceptContextCandidate(ctx, sess.ID, "bad-command", "")
+	require.NoError(t, err)
+	require.NotEmpty(t, violations)
+	require.Contains(t, violations[0].Message, "not ready")
+	require.Equal(t, authoring.ContextCandidatePending, candidate.Status)
+	require.Empty(t, updated.RelevantContext)
+}
+
+func TestAcceptContextCandidateRejectsUnresolvedDiscoveredReference(t *testing.T) {
+	discovery := &fakeContextDiscoverer{candidates: []authoring.ContextCandidate{{
+		ID: "missing-doc",
+		Item: internalplans.RelevantContextItem{
+			Kind:   internalplans.RelevantContextDoc,
+			Label:  "Missing doc",
+			Target: "docs/missing-plan-manager-doc.md",
+			Reason: "Fixture reference should resolve before acceptance.",
+			Source: internalplans.RelevantContextSourceDiscovered,
+		},
+	}}}
+	svc := newService(t, authoring.Deps{
+		Writer:   &fakePlanWriter{},
+		Context:  discovery,
+		Resolver: fakeReferenceResolver{resolution: planmodel.ResolutionMissing},
+	})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Missing reference candidate", "", "")
+	require.NoError(t, err)
+
+	updated, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"missing doc"}, "", false)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.Equal(t, "failed", candidates[0].ValidationStatus)
+	require.Contains(t, candidates[0].ValidationDetail, "fixture target missing")
+
+	updated, candidate, _, violations, _, err := svc.AcceptContextCandidate(ctx, sess.ID, "missing-doc", "")
+	require.NoError(t, err)
+	require.NotEmpty(t, violations)
+	require.Equal(t, authoring.ContextCandidatePending, candidate.Status)
+	require.Empty(t, updated.RelevantContext)
+}
+
+func TestContextReferenceCandidateIsDegradedWhenResolverUnavailable(t *testing.T) {
+	discovery := &fakeContextDiscoverer{candidates: []authoring.ContextCandidate{{
+		ID: "unknown-doc",
+		Item: internalplans.RelevantContextItem{
+			Kind:   internalplans.RelevantContextDoc,
+			Label:  "Doc",
+			Target: "docs/README.md",
+			Reason: "Resolver availability is part of readiness.",
+			Source: internalplans.RelevantContextSourceDiscovered,
+		},
+	}}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Context: discovery, Commands: &fakeCommandValidator{}})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Unknown reference candidate", "", "")
+	require.NoError(t, err)
+
+	_, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"unknown doc"}, "", false)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.Equal(t, "unknown", candidates[0].ValidationStatus)
+	require.True(t, candidates[0].Degraded)
+	require.Contains(t, candidates[0].ValidationDetail, "reference resolver unavailable")
 }
 
 func TestContextDiscoveryDegradesWhenSeamUnavailable(t *testing.T) {
@@ -1447,7 +1759,7 @@ func TestContextDiscoveryBatchMergesAndDoesNotResurrectRejectedTargets(t *testin
 			Source:      internalplans.RelevantContextSourceDiscovered,
 		},
 	}}}
-	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Context: discovery})
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Context: discovery, Commands: &fakeCommandValidator{}})
 	ctx := context.Background()
 	sess, _, err := svc.StartSession(ctx, "Improve context", "", "")
 	require.NoError(t, err)
@@ -1513,7 +1825,7 @@ func TestAcceptContextCandidateAssignsPhaseScope(t *testing.T) {
 			Source:       internalplans.RelevantContextSourceDiscovered,
 		},
 	}}}
-	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Context: discovery})
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Context: discovery, Commands: &fakeCommandValidator{}})
 	ctx := context.Background()
 	sess, _, err := svc.StartSession(ctx, "Improve context", "", "")
 	require.NoError(t, err)
@@ -1609,6 +1921,132 @@ func TestApplyContextDispositionTakesAndSweepsBatch(t *testing.T) {
 	require.Equal(t, "swept by context-apply", updated.ContextCandidates[1].RejectionReason)
 }
 
+func TestApplyContextDispositionUsesBatchScopedHandles(t *testing.T) {
+	discovery := &fakeContextDiscoverer{candidates: []authoring.ContextCandidate{{
+		ID:     "first-candidate",
+		Score:  0.72,
+		Origin: "search",
+		Item: internalplans.RelevantContextItem{
+			Kind:        internalplans.RelevantContextSkill,
+			Label:       "First Skill",
+			Target:      "first-skill",
+			Reason:      "first pass",
+			Instruction: "Load first.",
+		},
+		Status: authoring.ContextCandidatePending,
+	}}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Context: discovery})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Batch-scoped handles", "", "")
+	require.NoError(t, err)
+
+	updated, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"first"}, "", false)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.Equal(t, "c1", candidates[0].Handle)
+	firstBatch := updated.DiscoveryBatches[0].ID
+	updated, _, _, err = svc.RejectContextCandidate(ctx, sess.ID, "c1", "not relevant")
+	require.NoError(t, err)
+	require.Equal(t, authoring.DiscoveryBatchApplied, updated.DiscoveryBatches[0].Status)
+
+	discovery.candidates = []authoring.ContextCandidate{{
+		ID:     "second-candidate",
+		Score:  0.73,
+		Origin: "search",
+		Item: internalplans.RelevantContextItem{
+			Kind:        internalplans.RelevantContextSkill,
+			Label:       "Second Skill",
+			Target:      "second-skill",
+			Reason:      "second pass",
+			Instruction: "Load second.",
+		},
+		Status: authoring.ContextCandidatePending,
+	}}
+	updated, candidates, _, err = svc.DiscoverContextCandidates(ctx, sess.ID, []string{"second"}, "", false)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.Equal(t, "c1", candidates[0].Handle)
+	secondBatch := updated.DiscoveryBatches[1].ID
+	require.NotEqual(t, firstBatch, secondBatch)
+
+	updated, summary, violations, _, err := svc.ApplyContextDisposition(ctx, sess.ID, secondBatch, []authoring.ContextDispositionTake{{CandidateID: "c1"}}, nil, "reviewed second batch", false)
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.Equal(t, authoring.DiscoveryBatchApplied, summary.Batch.Status)
+	require.Equal(t, "second-skill", updated.RelevantContext[0].Target, "c1 must resolve within the requested batch, not the older session-global handle")
+	require.Equal(t, authoring.ContextCandidateRejected, updated.ContextCandidates[0].Status)
+	require.Equal(t, authoring.ContextCandidateAccepted, updated.ContextCandidates[1].Status)
+}
+
+func TestApplyContextDispositionIsIdempotentAfterBatchClosed(t *testing.T) {
+	discovery := &fakeContextDiscoverer{candidates: []authoring.ContextCandidate{{
+		ID:     "cand-close",
+		Score:  0.72,
+		Origin: "search",
+		Item: internalplans.RelevantContextItem{
+			Kind:        internalplans.RelevantContextSkill,
+			Label:       "Implementation Plan Authoring",
+			Target:      "implementation-plan-authoring",
+			Reason:      "matches the workflow",
+			Instruction: "Load before planning.",
+		},
+		Status: authoring.ContextCandidatePending,
+	}}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Context: discovery})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Idempotent apply", "", "")
+	require.NoError(t, err)
+	updated, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"close"}, "", false)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	batchID := updated.DiscoveryBatches[0].ID
+
+	updated, _, _, _, _, err = svc.AcceptContextCandidate(ctx, sess.ID, "c1", "")
+	require.NoError(t, err)
+	require.Equal(t, authoring.DiscoveryBatchApplied, updated.DiscoveryBatches[0].Status)
+
+	updated, summary, violations, _, err := svc.ApplyContextDisposition(ctx, sess.ID, batchID, []authoring.ContextDispositionTake{{CandidateID: "c1"}}, nil, "reviewed again", false)
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.Equal(t, authoring.DiscoveryBatchApplied, summary.Batch.Status)
+	require.Len(t, summary.Results, 1)
+	require.Contains(t, summary.Results[0].Message, "already accepted")
+	require.Len(t, updated.RelevantContext, 1, "idempotent re-apply must not duplicate accepted setup")
+}
+
+func TestContextDiscoverWithoutConceptsIsReadOnlyInspection(t *testing.T) {
+	discovery := &fakeContextDiscoverer{candidates: []authoring.ContextCandidate{{
+		ID:     "cand-existing",
+		Score:  0.72,
+		Origin: "search",
+		Item: internalplans.RelevantContextItem{
+			Kind:        internalplans.RelevantContextSkill,
+			Label:       "Implementation Plan Authoring",
+			Target:      "implementation-plan-authoring",
+			Reason:      "matches the workflow",
+			Instruction: "Load before planning.",
+		},
+		Status: authoring.ContextCandidatePending,
+	}}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Context: discovery})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Read-only discovery", "", "")
+	require.NoError(t, err)
+
+	updated, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"authoring"}, "", false)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.Len(t, updated.DiscoveryBatches, 1)
+	require.Equal(t, []string{"authoring"}, discovery.gotConcept)
+
+	discovery.gotConcept = nil
+	updated, candidates, _, err = svc.DiscoverContextCandidates(ctx, sess.ID, nil, "", false)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.Len(t, updated.DiscoveryBatches, 1, "no-arg inspection must not create a phantom batch")
+	require.Nil(t, discovery.gotConcept, "no-arg inspection must not run discovery probes")
+}
+
 func TestApplyContextDispositionRequiresReasonForHighConfidenceDrop(t *testing.T) {
 	discovery := &fakeContextDiscoverer{candidates: []authoring.ContextCandidate{{
 		ID:     "cand-high",
@@ -1665,13 +2103,25 @@ func TestReferenceGateRequiresReferenceOrExplicitReason(t *testing.T) {
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionAcceptanceBoundary, "acceptance_allow:\n- scenarios/plan-manager/**")
 	require.NoError(t, err)
-	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "anchor")
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "Strategy: change_boundary")
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionValidationStrategy, "Run the suite.")
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionDefinitionOfDone, "done")
 	require.NoError(t, err)
-	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPhases, "### Phase 1 — Work\n- Intent: Work\n- Acceptance: Done\n")
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRelevantContext, "NO_CONTEXT: unit fixture needs no plan-wide setup.\nNO_SKILL_CONTEXT: unit fixture has no skill setup.")
+	require.NoError(t, err)
+	_, phase, _, _, err := svc.AddPhase(ctx, sess.ID, "Work", "Work")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldNoCodeRefsReason, "NO_CODE_REFS: fixture")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldSteps, "Do the work.")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldValidation, "go test ./internal/authoring")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldAcceptance, "The authoring fixture passes.")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldRelevantContext, "NO_CONTEXT: unit fixture has no phase setup.")
 	require.NoError(t, err)
 
 	valid, violations, _, err := svc.ValidateStructure(ctx, sess.ID)
@@ -1708,11 +2158,13 @@ func TestPhaseContextGateRequiresContextOrExplicitNoContextReason(t *testing.T) 
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "NO_CODE_REFS: fixture")
 	require.NoError(t, err)
-	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "anchor")
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "Strategy: change_boundary")
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionValidationStrategy, "Run the suite.")
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionDefinitionOfDone, "done")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRelevantContext, "NO_CONTEXT: unit fixture needs no plan-wide setup.\nNO_SKILL_CONTEXT: unit fixture has no skill setup.")
 	require.NoError(t, err)
 	_, phase, _, _, err := svc.AddPhase(ctx, sess.ID, "Implement", "Change code")
 	require.NoError(t, err)
@@ -1844,10 +2296,10 @@ func TestFinalizeWritesThroughWriterWhenStructureValid(t *testing.T) {
 	require.Equal(t, "Make widgets better.", writer.created.Purpose)
 	require.Equal(t, "Improve widget", writer.created.Title)
 	require.NotEmpty(t, writer.created.Phases, "phases section parsed into structured phases")
-	require.Equal(t, "Anchor", writer.created.Phases[0].Title)
+	require.Equal(t, "Fixture phase", writer.created.Phases[0].Title)
 	require.NotEmpty(t, writer.created.References, "references section parsed into structured references")
 	require.Equal(t, "internal/widget/core.go", writer.created.References[0].Target)
-	require.NotEmpty(t, writer.created.RegressionAnchor.BaselineName, "captured anchor carried forward")
+	require.Equal(t, planmodel.AnchorStrategyChangeBoundary, writer.created.RegressionAnchor.Strategy, "typed anchor carried forward")
 
 	// The session is marked finalized + linked to the plan.
 	got, _, err := svc.GetSection(ctx, sess.ID, authoring.SectionPurpose)
@@ -2027,7 +2479,7 @@ func TestFinalizeRejectsNonParseablePhaseMarkup(t *testing.T) {
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "NO_CODE_REFS: malformed phase markup fixture")
 	require.NoError(t, err)
-	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "baseline captured at HEAD abc123")
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "Strategy: change_boundary")
 	require.NoError(t, err)
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionValidationStrategy, "Run the widget suite.")
 	require.NoError(t, err)
@@ -2286,10 +2738,10 @@ func fillMandatorySession(t *testing.T, svc authoring.Service) authoring.Session
 		{authoring.SectionScope, "In: core."},
 		{authoring.SectionTechnicalApproach, "Approach."},
 		{authoring.SectionReferences, "NO_CODE_REFS: boundary fixture"},
-		{authoring.SectionRegressionAnchor, "anchor"},
+		{authoring.SectionRegressionAnchor, "Strategy: change_boundary"},
 		{authoring.SectionValidationStrategy, "Run the suite."},
 		{authoring.SectionDefinitionOfDone, "Done."},
-		{authoring.SectionRelevantContext, "NO_CONTEXT: boundary fixture needs no plan-wide setup."},
+		{authoring.SectionRelevantContext, "NO_CONTEXT: boundary fixture needs no plan-wide setup.\nNO_SKILL_CONTEXT: boundary fixture has no skill setup."},
 	} {
 		_, _, _, err := svc.SubmitSection(ctx, sess.ID, item.key, item.val)
 		require.NoError(t, err)

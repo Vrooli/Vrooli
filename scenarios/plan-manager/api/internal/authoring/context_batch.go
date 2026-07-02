@@ -246,6 +246,22 @@ func pendingCandidatesForBatch(candidates []ContextCandidate, batchID string) []
 	return out
 }
 
+func indexOfContextCandidateInBatch(candidates []ContextCandidate, batchID, id string) int {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return -1
+	}
+	for i := range candidates {
+		if candidates[i].BatchID != batchID {
+			continue
+		}
+		if candidates[i].ID == id || candidates[i].Handle == id {
+			return i
+		}
+	}
+	return -1
+}
+
 func closeContextBatchIfResolved(sess *Session, batchIdx int, note string) {
 	if batchIdx < 0 || batchIdx >= len(sess.DiscoveryBatches) {
 		return

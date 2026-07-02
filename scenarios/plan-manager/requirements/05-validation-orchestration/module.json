@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P0-005 — baseline-aware validation: compute the exact check set, run on request, verify DoD.",
-    "last_validated_at": "2026-07-01T15:41:52-04:00",
+    "last_validated_at": "2026-07-02T15:25:30-04:00",
     "module": "validation-orchestration",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -91,6 +91,20 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Unavailable reference resolution reports UNKNOWN instead of fabricating a pass."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/readiness/readiness_test.go::TestEvaluateDeterministicModeReportsPlanQualityFailures",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The shared readiness evaluator reports deterministic quality failures independently of caller."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/readiness/readiness_test.go::TestEvaluatePreflightModeRunsExternalChecks",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Readiness validates command setup and doc/code/requirement context targets through injected seams."
         }
       ]
     }

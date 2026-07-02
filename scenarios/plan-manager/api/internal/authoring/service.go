@@ -53,6 +53,7 @@ type service struct {
 	context         ContextDiscoverer
 	skillSteer      SkillApplicabilityResolver
 	commands        CommandReferenceValidator
+	resolver        ReferenceResolver
 	templateSeed    TemplateSeeder
 	renderer        PlanRenderer
 	posture         PosturePreparer
@@ -91,6 +92,7 @@ type Deps struct {
 	Context        ContextDiscoverer
 	SkillResolver  SkillApplicabilityResolver
 	Commands       CommandReferenceValidator
+	Resolver       ReferenceResolver
 	TemplateSeeder TemplateSeeder
 	Renderer       PlanRenderer
 	Posture        PosturePreparer
@@ -130,6 +132,7 @@ func NewService(d Deps) Service {
 		context:         d.Context,
 		skillSteer:      resolverOrNoop(d.SkillResolver),
 		commands:        d.Commands,
+		resolver:        d.Resolver,
 		templateSeed:    d.TemplateSeeder,
 		renderer:        d.Renderer,
 		posture:         d.Posture,
@@ -317,7 +320,7 @@ func (s *service) ContinueAuthoring(ctx context.Context, sessionID string) (Sess
 	}
 	work := selectWorkItem(sess, nil)
 	if work.Kind == WorkItemReview {
-		violations := sessionViolations(sess)
+		violations := s.readinessViolations(ctx, sess)
 		violations = append(violations, s.commandViolationsForSections(ctx, sess.Sections)...)
 		work = selectWorkItem(sess, violations)
 	}
@@ -329,7 +332,7 @@ func (s *service) ValidateStructure(ctx context.Context, sessionID string) (bool
 	if err != nil {
 		return false, nil, GuidedStep{}, err
 	}
-	violations := sessionViolations(sess)
+	violations := s.readinessViolations(ctx, sess)
 	violations = append(violations, s.commandViolationsForSections(ctx, sess.Sections)...)
 	valid := len(violations) == 0
 	return valid, violations, stepForValidation(sess, valid, violations), nil

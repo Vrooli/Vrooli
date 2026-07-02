@@ -93,27 +93,15 @@ swarm-manager records create --kind execute --scenario plan-manager \
 
 ### Load Skills
 
-- scientific-debugging _(required, migrated)_
-  - Instruction: Load this internal skill before implementation.
-  ```bash
-  prompt-manager skill read scientific-debugging
-  ```
+- scientific-debugging — `prompt-manager skill read scientific-debugging` _(required, migrated)_
 
 ### Read Docs
 
-- docs/TESTING.md _(required, migrated)_
-  - Instruction: Read this document before implementation.
-  ```bash
-  sed -n '1,120p' docs/TESTING.md
-  ```
+- docs/TESTING.md — `sed -n '1,120p' docs/TESTING.md` _(required, migrated)_
 
 ### Run Discovery Searches
 
-- search-hub query 'microphone ownership' --type record _(required, migrated)_
-  - Instruction: Run this discovery search before implementation.
-  ```bash
-  search-hub query 'microphone ownership' --type record
-  ```
+- search-hub query 'microphone ownership' --type record — `search-hub query 'microphone ownership' --type record` _(required, migrated)_
 
 **Ordered Steps:**
 1. Reproduce the wedge

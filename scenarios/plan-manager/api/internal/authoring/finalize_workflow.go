@@ -26,6 +26,9 @@ func (s *service) PreviewPlan(ctx context.Context, sessionID string) (string, Gu
 	if s.posture != nil {
 		draft = s.posture.PreparePosture(ctx, draft)
 	}
+	if renderer, ok := s.renderer.(DraftPlanRenderer); ok {
+		return renderer.RenderDraft(draft, sess.ID), stepForReview(sess), nil
+	}
 	return s.renderer.Render(draft), stepForReview(sess), nil
 }
 
@@ -75,7 +78,10 @@ func (s *service) Finalize(ctx context.Context, sessionID string, opts FinalizeO
 			}
 			return false, nil
 		}
-		if violations := sessionViolations(*sess); len(violations) > 0 {
+		if _, err := sessionToPlan(*sess); err != nil {
+			return false, err
+		}
+		if violations := s.readinessViolations(ctx, *sess); len(violations) > 0 {
 			return false, ErrStructureGate{Violations: violations}
 		}
 		if violations := s.commandViolationsForSections(ctx, sess.Sections); len(violations) > 0 {

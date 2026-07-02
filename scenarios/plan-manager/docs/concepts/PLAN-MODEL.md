@@ -438,6 +438,13 @@ auditable exception, not hidden prose.
 `references[]` stays separate. References are the strong validation/staleness
 locator set; relevant context is the setup checklist for execution.
 
+Finalized plans are still repairable through narrow structured mutations. Use
+the persisted `plans context-list/update/remove` and
+`plans reference-list/update/remove` commands to fix a bad setup item or locator
+without rewriting the whole plan or editing the rendered mirror. These mutations
+operate on the structured record, preserve phase identity, recompute derived
+metadata, and republish the mirror from the source of truth.
+
 Legacy `Required Reading` sections are import-only compatibility. Markdown
 import preserves phase-level raw `required_reading[]` as provenance, converts
 those lines into `relevant_context[]` with `source=migrated`, and renders future
@@ -489,6 +496,16 @@ runs when a suggested candidate is accepted with an inline edit, so a mislabeled
 locator never reaches the references section.
 
 ## Validation, Staleness, And The Regression Anchor
+
+Readiness/preflight is the shared execution-grade contract across drafts and
+persisted plans. Author `validate`, preview guidance, finalize, and persisted
+`validate run` all consume the same readiness evaluator for deterministic plan
+quality and structured setup checks. The pure quality kernel lives in
+`planmodel`; the application-level readiness layer adds optional dependency
+checks for CLI command validity and context/reference resolution. Deterministic
+quality failures block finalize before persistence. External dependency outages
+degrade honestly instead of becoming passes, so an operator can distinguish "the
+plan is thin" from "the resolver is unavailable."
 
 - **Regression anchor** — **boundary-native** typed **intent** at authoring, fresh
   **snapshot** at execution start. New plans author the `change_boundary`

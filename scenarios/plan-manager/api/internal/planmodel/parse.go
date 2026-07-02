@@ -201,7 +201,7 @@ func RegressionAnchorCommands(anchor RegressionAnchor) []string {
 			"git-control-tower baseline diff --scenario " + anchor.Scenario + " --name " + anchor.BaselineName + " --wait",
 		}
 	case "head_sha_allowlist":
-		if anchor.HeadSha == "" {
+		if anchor.HeadSha == "" || isExecutionStartHeadSentinel(anchor.HeadSha) {
 			return nil
 		}
 		cmd := "git diff --stat " + anchor.HeadSha
@@ -212,6 +212,11 @@ func RegressionAnchorCommands(anchor RegressionAnchor) []string {
 	default:
 		return nil
 	}
+}
+
+func isExecutionStartHeadSentinel(v string) bool {
+	v = strings.Trim(strings.TrimSpace(v), "`<>")
+	return strings.EqualFold(v, "captured at execution start")
 }
 
 func anchorPresent(a RegressionAnchor) bool {
@@ -931,6 +936,7 @@ func parseRelevantContextItemLine(line string, kind RelevantContextKind, scope R
 		return RelevantContextItem{}, ErrInvalidPlan{Reason: "malformed relevant context item " + strings.TrimSpace(line)}
 	}
 	label := strings.TrimSpace(m[1])
+	label, inlineCommand := splitInlineRelevantContextCommand(label)
 	item := RelevantContextItem{
 		Kind:         kind,
 		Scope:        scope,
@@ -953,7 +959,30 @@ func parseRelevantContextItemLine(line string, kind RelevantContextKind, scope R
 	for _, annotation := range strings.Split(m[2], ",") {
 		applyRelevantContextAnnotation(&item, strings.TrimSpace(annotation))
 	}
+	if inlineCommand != "" {
+		item.Command = inlineCommand
+		applyRelevantContextCommandInference(&item)
+	}
 	return item, nil
+}
+
+func splitInlineRelevantContextCommand(label string) (string, string) {
+	trimmed := strings.TrimSpace(label)
+	if !strings.HasSuffix(trimmed, "`") {
+		return label, ""
+	}
+	end := strings.LastIndex(trimmed[:len(trimmed)-1], "`")
+	if end < 0 {
+		return label, ""
+	}
+	command := strings.TrimSpace(trimmed[end+1 : len(trimmed)-1])
+	before := strings.TrimSpace(trimmed[:end])
+	before = strings.TrimSpace(strings.TrimSuffix(before, "—"))
+	before = strings.TrimSpace(strings.TrimSuffix(before, "-"))
+	if before == "" || command == "" {
+		return label, ""
+	}
+	return before, command
 }
 
 func parseContextCommandFence(lines []string, start int) (string, int, error) {

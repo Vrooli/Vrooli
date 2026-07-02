@@ -8,6 +8,7 @@ import (
 	"github.com/vrooli/api-core/markedrefs"
 
 	planmodel "plan-manager/internal/planmodel"
+	"plan-manager/internal/readiness"
 )
 
 const referencesGateMessage = "references must include at least one [CODE:], [REQ:], or [DOC:] reference, or a NO_CODE_REFS: reason"
@@ -146,6 +147,64 @@ func sessionViolations(sess Session) []StructureViolation {
 		out = append(out, phaseViolations(phase)...)
 	}
 	return out
+}
+
+func (s *service) readinessViolations(ctx context.Context, sess Session) []StructureViolation {
+	out := sessionViolations(sess)
+	if len(out) > 0 {
+		return out
+	}
+	draft, err := sessionToPlan(sess)
+	if err != nil {
+		return append(out, StructureViolation{SectionKey: SectionPhases, Message: err.Error()})
+	}
+	if s.posture != nil {
+		draft = s.posture.PreparePosture(ctx, draft)
+	}
+	result := readiness.Evaluate(ctx, draft, readiness.Options{
+		Mode: readiness.DeterministicMode(),
+	})
+	for _, finding := range result.Findings {
+		if finding.Severity != readiness.SeverityFail {
+			continue
+		}
+		out = append(out, StructureViolation{
+			SectionKey: sectionForQualityLocation(finding.Location),
+			Message:    fmt.Sprintf("readiness %s at %s: %s", finding.Code, finding.Location, finding.Message),
+		})
+	}
+	return out
+}
+
+func sectionForQualityLocation(location string) SectionKey {
+	switch {
+	case strings.HasPrefix(location, "plan.purpose"):
+		return SectionPurpose
+	case strings.HasPrefix(location, "plan.problem_statement"):
+		return SectionProblemStatement
+	case strings.HasPrefix(location, "plan.target_outcome"):
+		return SectionTargetOutcome
+	case strings.HasPrefix(location, "plan.scope"):
+		return SectionScope
+	case strings.HasPrefix(location, "plan.technical_approach"):
+		return SectionTechnicalApproach
+	case strings.HasPrefix(location, "plan.validation_strategy"):
+		return SectionValidationStrategy
+	case strings.HasPrefix(location, "plan.definition_of_done"):
+		return SectionDefinitionOfDone
+	case strings.HasPrefix(location, "plan.change_boundary"):
+		return SectionAcceptanceBoundary
+	case strings.HasPrefix(location, "plan.regression_anchor"):
+		return SectionRegressionAnchor
+	case strings.HasPrefix(location, "plan.references"):
+		return SectionReferences
+	case strings.HasPrefix(location, "plan.relevant_context"):
+		return SectionRelevantContext
+	case strings.HasPrefix(location, "phase."):
+		return SectionPhases
+	default:
+		return SectionPhases
+	}
 }
 
 // greenfieldContradictions are tokens an author should never put in a greenfield

@@ -133,7 +133,7 @@ func TestMutationDoesNotJumpToFinalReviewBeforeGlobalContext(t *testing.T) {
 	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
 	sess, _, err := svc.StartSession(ctx, "No premature review", "no-premature-review", "")
 	require.NoError(t, err)
-	fillMandatory(t, svc, sess.ID)
+	fillMandatorySectionsOnly(t, svc, sess.ID)
 
 	// Re-submit a filled section to observe the post-mutation guided step.
 	_, _, step, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "Make widgets better, again.")
@@ -150,8 +150,8 @@ func TestMutationDoesNotJumpToFinalReviewWithIncompletePhase(t *testing.T) {
 	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
 	sess, _, err := svc.StartSession(ctx, "Incomplete phase", "incomplete-phase", "")
 	require.NoError(t, err)
-	fillMandatory(t, svc, sess.ID)
-	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRelevantContext, "NO_CONTEXT: fixture needs no plan-wide setup.")
+	fillMandatorySectionsOnly(t, svc, sess.ID)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRelevantContext, "NO_CONTEXT: fixture needs no plan-wide setup.\nNO_SKILL_CONTEXT: fixture has no skill setup.")
 	require.NoError(t, err)
 	// Add an incomplete structured phase (title + intent only).
 	_, _, _, _, err = svc.AddPhase(ctx, sess.ID, "Build", "Do the work")

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P0-004 — code-reference tracking and computed staleness tiers.",
-    "last_validated_at": "2026-07-01T15:41:52-04:00",
+    "last_validated_at": "2026-07-02T15:25:30-04:00",
     "module": "reference-staleness",
     "prd_ref": "PRD.md",
     "priority": "P0",

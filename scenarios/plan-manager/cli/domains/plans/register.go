@@ -25,18 +25,24 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGro
 	h := newHandlers(core)
 
 	plansGroup, err := cliapp.LoadFromManifest(manifest, PlansGroup, map[string]func(cliapp.RunContext) error{
-		"PlansService.ListPlans":        h.list,
-		"PlansService.GetPlan":          h.get,
-		"PlansService.CreatePlan":       h.create,
-		"PlansService.UpdatePlan":       h.update,
-		"PlansService.ArchivePlan":      h.archive,
-		"PlansService.RenderMarkdown":   h.render,
-		"PlansService.GetGraph":         h.graph,
-		"PlansService.LinkSupersession": h.link,
-		"PlansService.LinkDependency":   h.depend,
-		"PlansService.ImportPlan":       h.importPlan,
-		"PlansService.MigratePlan":      h.migrate,
-		"PlansService.ReconcilePlans":   h.reconcile,
+		"PlansService.ListPlans":             h.list,
+		"PlansService.GetPlan":               h.get,
+		"PlansService.CreatePlan":            h.create,
+		"PlansService.UpdatePlan":            h.update,
+		"PlansService.ArchivePlan":           h.archive,
+		"PlansService.RenderMarkdown":        h.render,
+		"PlansService.ListRelevantContext":   h.contextList,
+		"PlansService.UpdateRelevantContext": h.contextUpdate,
+		"PlansService.RemoveRelevantContext": h.contextRemove,
+		"PlansService.ListReferences":        h.referenceList,
+		"PlansService.UpdateReference":       h.referenceUpdate,
+		"PlansService.RemoveReference":       h.referenceRemove,
+		"PlansService.GetGraph":              h.graph,
+		"PlansService.LinkSupersession":      h.link,
+		"PlansService.LinkDependency":        h.depend,
+		"PlansService.ImportPlan":            h.importPlan,
+		"PlansService.MigratePlan":           h.migrate,
+		"PlansService.ReconcilePlans":        h.reconcile,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("plans: load plans group: %w", err)

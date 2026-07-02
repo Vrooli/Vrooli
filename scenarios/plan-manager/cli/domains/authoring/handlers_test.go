@@ -477,8 +477,8 @@ func TestAuthoringRequestMapping(t *testing.T) {
 			},
 		},
 		{
-			name: "context-apply maps batch disposition", cmd: "context-apply",
-			argv: []string{"sess-1", "--batch", "batch-1", "--take", "c1,c4:phase-3", "--drop", "c2=too broad", "--note", "reviewed shortlist"},
+			name: "context-apply maps batch disposition and preserves comma reasons", cmd: "context-apply",
+			argv: []string{"sess-1", "--batch", "batch-1", "--take", "c1,c4:phase-3", "--drop", "c2=too broad, touches stale paths; skip.", "--note", "reviewed shortlist"},
 			assert: func(t *testing.T, req proto.Message) {
 				m := req.(*authoringv1.ApplyContextDispositionRequest)
 				require.Equal(t, "sess-1", m.GetSessionId())
@@ -490,12 +490,12 @@ func TestAuthoringRequestMapping(t *testing.T) {
 				require.Equal(t, "phase-3", m.GetTake()[1].GetPhaseId())
 				require.Len(t, m.GetDrop(), 1)
 				require.Equal(t, "c2", m.GetDrop()[0].GetCandidate())
-				require.Equal(t, "too broad", m.GetDrop()[0].GetReason())
+				require.Equal(t, "too broad, touches stale paths; skip.", m.GetDrop()[0].GetReason())
 			},
 		},
 		{
-			name: "reference-apply maps batch disposition", cmd: "reference-apply",
-			argv: []string{"sess-1", "--batch", "refs-1", "--take", "r1,r3", "--drop", "r2=unrelated", "--note", "reviewed references", "--take-all"},
+			name: "reference-apply maps batch disposition and preserves comma reasons", cmd: "reference-apply",
+			argv: []string{"sess-1", "--batch", "refs-1", "--take", "r1,r3", "--drop", "r2=unrelated, outdated anchor; replace.", "--note", "reviewed references", "--take-all"},
 			assert: func(t *testing.T, req proto.Message) {
 				m := req.(*authoringv1.ApplyReferenceDispositionRequest)
 				require.Equal(t, "sess-1", m.GetSessionId())
@@ -507,7 +507,7 @@ func TestAuthoringRequestMapping(t *testing.T) {
 				require.Equal(t, "r3", m.GetTake()[1].GetCandidate())
 				require.Len(t, m.GetDrop(), 1)
 				require.Equal(t, "r2", m.GetDrop()[0].GetCandidate())
-				require.Equal(t, "unrelated", m.GetDrop()[0].GetReason())
+				require.Equal(t, "unrelated, outdated anchor; replace.", m.GetDrop()[0].GetReason())
 			},
 		},
 		{

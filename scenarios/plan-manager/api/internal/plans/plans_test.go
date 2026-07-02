@@ -229,6 +229,105 @@ func TestWorkspaceScopedListAndLookup(t *testing.T) {
 	require.Error(t, err, "scoped lookup must not return a plan from another workspace")
 }
 
+func TestPersistedContextRepairMutatesStructuredPlanAndRepublishesMirror(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := context.Background()
+
+	created, err := svc.Create(ctx, plans.Plan{
+		Title: "Repair context",
+		RelevantContext: []plans.RelevantContextItem{{
+			Kind:        plans.RelevantContextCommand,
+			Label:       "Bad command",
+			Instruction: "Run stale command.",
+			Command:     "plan-manager validate run old-slug",
+			Reason:      "fixture",
+			Required:    true,
+		}},
+		Phases: []plans.Phase{{
+			Title:  "Phase",
+			Intent: "Repair phase context.",
+			RelevantContext: []plans.RelevantContextItem{{
+				ID:          "phase-context",
+				Kind:        plans.RelevantContextDoc,
+				Label:       "Old docs",
+				Target:      "docs/old.md",
+				Instruction: "Read old docs.",
+				Reason:      "fixture",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+
+	listed, err := svc.ListRelevantContext(ctx, created.ID, plans.WorkspaceScope{}, "")
+	require.NoError(t, err)
+	require.Len(t, listed, 1)
+	require.Equal(t, "item-1", listed[0].ID, "legacy/context records without ids get stable effective ids")
+
+	updated, err := svc.UpdateRelevantContext(ctx, created.ID, plans.WorkspaceScope{}, "", "item-1", plans.RelevantContextItem{
+		Kind:        plans.RelevantContextCommand,
+		Label:       "Validate draft",
+		Instruction: "Run author validation.",
+		Command:     "plan-manager author validate session-1",
+		Reason:      "repair stale persisted validation guidance",
+		Required:    true,
+	})
+	require.NoError(t, err)
+	require.Len(t, updated.RelevantContext, 1)
+	require.NotEmpty(t, updated.RelevantContext[0].ID)
+	require.Equal(t, "plan-manager author validate session-1", updated.RelevantContext[0].Command)
+	require.Equal(t, plans.RelevantContextScopeGlobal, updated.RelevantContext[0].Scope)
+
+	phaseID := updated.Phases[0].ID
+	updated, err = svc.RemoveRelevantContext(ctx, updated.ID, plans.WorkspaceScope{}, phaseID, "phase-context")
+	require.NoError(t, err)
+	require.Empty(t, updated.Phases[0].RelevantContext)
+
+	rendered, err := svc.Render(ctx, updated.ID, plans.WorkspaceScope{}, plans.RenderOptions{})
+	require.NoError(t, err)
+	require.Contains(t, rendered.Markdown, "plan-manager author validate session-1")
+	require.NotContains(t, rendered.Markdown, "docs/old.md")
+}
+
+func TestPersistedReferenceRepairMutatesStructuredPlanAndPreservesPhaseIdentity(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := context.Background()
+
+	created, err := svc.Create(ctx, plans.Plan{
+		Title:      "Repair references",
+		References: []plans.Reference{{Kind: plans.ReferenceCode, Target: "scenarios/plan-manager/api/internal/old.go"}},
+		Phases: []plans.Phase{{
+			Title:      "Phase",
+			Intent:     "Repair phase reference.",
+			References: []plans.Reference{{ID: "phase-ref", Kind: plans.ReferenceDoc, Target: "docs/old.md"}},
+		}},
+	})
+	require.NoError(t, err)
+	phaseID := created.Phases[0].ID
+
+	refs, err := svc.ListReferences(ctx, created.ID, plans.WorkspaceScope{}, "")
+	require.NoError(t, err)
+	require.Len(t, refs, 1)
+	require.Equal(t, "item-1", refs[0].ID)
+
+	updated, err := svc.UpdateReference(ctx, created.ID, plans.WorkspaceScope{}, "", "item-1", plans.Reference{
+		Kind:       plans.ReferenceCode,
+		Target:     "scenarios/plan-manager/api/internal/plans/service.go",
+		Resolution: plans.ResolutionMissing,
+		Staleness:  plans.StalenessDefinitelyStale,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, updated.References[0].ID)
+	require.Equal(t, "scenarios/plan-manager/api/internal/plans/service.go", updated.References[0].Target)
+	require.Empty(t, updated.References[0].Resolution, "repair updates authored fields and clears validation annotations")
+	require.Empty(t, updated.References[0].Staleness)
+	require.Equal(t, phaseID, updated.Phases[0].ID)
+
+	updated, err = svc.RemoveReference(ctx, updated.ID, plans.WorkspaceScope{}, phaseID, "phase-ref")
+	require.NoError(t, err)
+	require.Empty(t, updated.Phases[0].References)
+	require.Equal(t, phaseID, updated.Phases[0].ID)
+}
+
 func TestImportStampsCanonicalWorkspaceFields(t *testing.T) {
 	d, clk := newDB(t)
 	mirror := newFakeMirrorStore(t.TempDir())

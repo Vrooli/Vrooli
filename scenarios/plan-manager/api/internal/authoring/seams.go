@@ -40,6 +40,10 @@ type PlanRenderer interface {
 	Render(p planmodel.Plan) string
 }
 
+type DraftPlanRenderer interface {
+	RenderDraft(p planmodel.Plan, sessionID string) string
+}
+
 // AnchorIntentDeriver derives the typed regression-anchor INTENT for a
 // plan-in-progress — the "before" the executor will snapshot. It is pure and
 // deterministic (title/slug → typed intent fields), needs no git-control-tower,

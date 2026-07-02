@@ -95,14 +95,54 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) update(ctx cliapp.RunContext) error {
-	plan := &sharedv1.Plan{
-		Id:               ctx.Positional("id"),
-		Title:            ctx.Flag("title"),
-		Purpose:          ctx.Flag("purpose"),
-		Scope:            ctx.Flag("scope"),
-		Constraints:      ctx.Flag("constraints"),
-		NonGoals:         ctx.Flag("non-goals"),
-		DefinitionOfDone: ctx.Flag("dod"),
+	id := ctx.Positional("id")
+	got, err := h.client.GetPlan(context.Background(), connect.NewRequest(&plansv1.GetPlanRequest{
+		Id:        id,
+		Workspace: workspaceScopeFromFlag(ctx.Flag("workspace")),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("get plan %q for update", id), err, nil)
+	}
+	plan := got.Msg.GetPlan()
+	if plan == nil {
+		return fmt.Errorf("server returned no plan")
+	}
+	applyStringFlag(ctx, "title", func(v string) { plan.Title = v })
+	applyStringFlag(ctx, "purpose", func(v string) { plan.Purpose = v })
+	applyStringFlag(ctx, "problem", func(v string) { plan.ProblemStatement = v })
+	applyStringFlag(ctx, "outcome", func(v string) { plan.TargetOutcome = v })
+	applyStringFlag(ctx, "scope", func(v string) { plan.Scope = v })
+	applyStringFlag(ctx, "constraints", func(v string) { plan.Constraints = v })
+	applyStringFlag(ctx, "non-goals", func(v string) { plan.NonGoals = v })
+	applyStringFlag(ctx, "assumptions", func(v string) { plan.Assumptions = v })
+	applyStringFlag(ctx, "technical-approach", func(v string) { plan.TechnicalApproach = v })
+	applyStringFlag(ctx, "validation-strategy", func(v string) { plan.ValidationStrategy = v })
+	applyStringFlag(ctx, "risks", func(v string) { plan.RisksHazards = v })
+	applyStringFlag(ctx, "prohibited-approaches", func(v string) { plan.ProhibitedApproaches = v })
+	applyStringFlag(ctx, "dod", func(v string) { plan.DefinitionOfDone = v })
+	if values := splitPlanFlagValues(ctx.FlagValues("final-validation-command")); len(values) > 0 {
+		plan.FinalValidationCommands = values
+	}
+	if values := splitPlanFlagValues(ctx.FlagValues("change-allow")); len(values) > 0 {
+		ensureChangeBoundary(plan).AcceptanceAllow = values
+	}
+	if values := splitPlanFlagValues(ctx.FlagValues("change-deny")); len(values) > 0 {
+		ensureChangeBoundary(plan).AcceptanceDeny = values
+	}
+	applyStringFlag(ctx, "operator-only", func(v string) { ensureChangeBoundary(plan).OperatorOnlyReason = v })
+	applyStringFlag(ctx, "anchor-strategy", func(v string) { ensureRegressionAnchor(plan).Strategy = v })
+	applyStringFlag(ctx, "anchor-scenario", func(v string) { ensureRegressionAnchor(plan).Scenario = v })
+	applyStringFlag(ctx, "anchor-baseline", func(v string) { ensureRegressionAnchor(plan).BaselineName = v })
+	applyStringFlag(ctx, "anchor-head-sha", func(v string) { ensureRegressionAnchor(plan).HeadSha = v })
+	applyStringFlag(ctx, "anchor-captured-at", func(v string) { ensureRegressionAnchor(plan).CapturedAt = v })
+	if values := splitPlanFlagValues(ctx.FlagValues("anchor-allow")); len(values) > 0 {
+		ensureRegressionAnchor(plan).AllowlistPaths = values
+	}
+	if values := splitPlanFlagValues(ctx.FlagValues("anchor-command")); len(values) > 0 {
+		ensureRegressionAnchor(plan).Commands = values
+	}
+	if ctx.BoolFlag("anchor-unavailable") {
+		ensureRegressionAnchor(plan).Unavailable = true
 	}
 	resp, err := h.client.UpdatePlan(context.Background(), connect.NewRequest(&plansv1.UpdatePlanRequest{Plan: plan}))
 	if err != nil {
@@ -134,6 +174,122 @@ func (h *handlers) render(ctx cliapp.RunContext) error {
 		ResultsHeading: "Markdown",
 		Results:        []string{resp.Msg.GetMarkdown()},
 	})
+}
+
+func (h *handlers) contextList(ctx cliapp.RunContext) error {
+	resp, err := h.client.ListRelevantContext(context.Background(), connect.NewRequest(&plansv1.ListRelevantContextRequest{
+		Id:        ctx.Positional("id"),
+		Workspace: workspaceScopeFromFlag(ctx.Flag("workspace")),
+		PhaseId:   ctx.Flag("phase"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("list relevant context", err, nil)
+	}
+	results := make([]string, 0, len(resp.Msg.GetItems()))
+	for _, item := range resp.Msg.GetItems() {
+		results = append(results, formatRelevantContextItem(item))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Relevant context item(s): %d.", len(resp.Msg.GetItems()))},
+		ResultsHeading: "Relevant context",
+		Results:        results,
+	})
+}
+
+func (h *handlers) contextUpdate(ctx cliapp.RunContext) error {
+	item := &sharedv1.RelevantContextItem{
+		Id:           ctx.Positional("item"),
+		Kind:         parseContextKind(ctx.Flag("kind")),
+		Label:        ctx.Flag("label"),
+		Reason:       ctx.Flag("reason"),
+		Instruction:  ctx.Flag("instruction"),
+		Command:      ctx.Flag("command"),
+		Target:       ctx.Flag("target"),
+		Required:     ctx.BoolFlag("required"),
+		RepeatPolicy: parseRepeatPolicy(ctx.Flag("repeat")),
+		Source:       sharedv1.RelevantContextSource_RELEVANT_CONTEXT_SOURCE_AUTHORED,
+		Status:       sharedv1.RelevantContextStatus_RELEVANT_CONTEXT_STATUS_READY,
+	}
+	if item.Kind == sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_UNSPECIFIED {
+		item.Kind = inferContextKind(item)
+	}
+	resp, err := h.client.UpdateRelevantContext(context.Background(), connect.NewRequest(&plansv1.UpdateRelevantContextRequest{
+		Id:        ctx.Positional("id"),
+		Workspace: workspaceScopeFromFlag(ctx.Flag("workspace")),
+		PhaseId:   ctx.Flag("phase"),
+		ItemId:    ctx.Positional("item"),
+		Item:      item,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("update relevant context", err, nil)
+	}
+	return h.renderMutation(ctx, resp.Msg.GetPlan(), "Updated context on")
+}
+
+func (h *handlers) contextRemove(ctx cliapp.RunContext) error {
+	resp, err := h.client.RemoveRelevantContext(context.Background(), connect.NewRequest(&plansv1.RemoveRelevantContextRequest{
+		Id:        ctx.Positional("id"),
+		Workspace: workspaceScopeFromFlag(ctx.Flag("workspace")),
+		PhaseId:   ctx.Flag("phase"),
+		ItemId:    ctx.Positional("item"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("remove relevant context", err, nil)
+	}
+	return h.renderMutation(ctx, resp.Msg.GetPlan(), "Removed context from")
+}
+
+func (h *handlers) referenceList(ctx cliapp.RunContext) error {
+	resp, err := h.client.ListReferences(context.Background(), connect.NewRequest(&plansv1.ListReferencesRequest{
+		Id:        ctx.Positional("id"),
+		Workspace: workspaceScopeFromFlag(ctx.Flag("workspace")),
+		PhaseId:   ctx.Flag("phase"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("list references", err, nil)
+	}
+	results := make([]string, 0, len(resp.Msg.GetReferences()))
+	for _, ref := range resp.Msg.GetReferences() {
+		results = append(results, formatReference(ref))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Reference(s): %d.", len(resp.Msg.GetReferences()))},
+		ResultsHeading: "References",
+		Results:        results,
+	})
+}
+
+func (h *handlers) referenceUpdate(ctx cliapp.RunContext) error {
+	resp, err := h.client.UpdateReference(context.Background(), connect.NewRequest(&plansv1.UpdateReferenceRequest{
+		Id:          ctx.Positional("id"),
+		Workspace:   workspaceScopeFromFlag(ctx.Flag("workspace")),
+		PhaseId:     ctx.Flag("phase"),
+		ReferenceId: ctx.Positional("reference"),
+		Reference: &sharedv1.Reference{
+			Id:     ctx.Positional("reference"),
+			Kind:   parseReferenceKind(ctx.Flag("kind")),
+			Target: ctx.Flag("target"),
+			Future: ctx.BoolFlag("future"),
+			Note:   ctx.Flag("note"),
+		},
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("update reference", err, nil)
+	}
+	return h.renderMutation(ctx, resp.Msg.GetPlan(), "Updated reference on")
+}
+
+func (h *handlers) referenceRemove(ctx cliapp.RunContext) error {
+	resp, err := h.client.RemoveReference(context.Background(), connect.NewRequest(&plansv1.RemoveReferenceRequest{
+		Id:          ctx.Positional("id"),
+		Workspace:   workspaceScopeFromFlag(ctx.Flag("workspace")),
+		PhaseId:     ctx.Flag("phase"),
+		ReferenceId: ctx.Positional("reference"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("remove reference", err, nil)
+	}
+	return h.renderMutation(ctx, resp.Msg.GetPlan(), "Removed reference from")
 }
 
 func (h *handlers) graph(ctx cliapp.RunContext) error {
@@ -396,6 +552,17 @@ func parseContextKind(raw string) sharedv1.RelevantContextKind {
 	}
 }
 
+func inferContextKind(item *sharedv1.RelevantContextItem) sharedv1.RelevantContextKind {
+	switch {
+	case strings.TrimSpace(item.GetCommand()) != "":
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_COMMAND
+	case strings.TrimSpace(item.GetTarget()) != "":
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_DOC
+	default:
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_NOTE
+	}
+}
+
 func parseRepeatPolicy(raw string) sharedv1.RelevantContextRepeatPolicy {
 	switch strings.TrimSpace(strings.ToLower(raw)) {
 	case "once_per_execution":
@@ -410,6 +577,19 @@ func parseRepeatPolicy(raw string) sharedv1.RelevantContextRepeatPolicy {
 		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_AS_NEEDED
 	default:
 		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_UNSPECIFIED
+	}
+}
+
+func parseReferenceKind(raw string) sharedv1.ReferenceKind {
+	switch strings.TrimSpace(strings.ToLower(raw)) {
+	case "code", "code_ref", "":
+		return sharedv1.ReferenceKind_REFERENCE_KIND_CODE
+	case "doc":
+		return sharedv1.ReferenceKind_REFERENCE_KIND_DOC
+	case "req", "requirement":
+		return sharedv1.ReferenceKind_REFERENCE_KIND_REQ
+	default:
+		return sharedv1.ReferenceKind_REFERENCE_KIND_UNSPECIFIED
 	}
 }
 
@@ -557,6 +737,74 @@ func planDetail(p *sharedv1.Plan) []string {
 	return out
 }
 
+func formatRelevantContextItem(item *sharedv1.RelevantContextItem) string {
+	if item == nil {
+		return "(nil)"
+	}
+	parts := []string{firstNonEmpty(item.GetId(), "(no-id)"), relevantContextKindLabel(item.GetKind())}
+	if item.GetLabel() != "" {
+		parts = append(parts, truncateOneLine(item.GetLabel(), 64))
+	}
+	if item.GetCommand() != "" {
+		parts = append(parts, "command="+truncateOneLine(item.GetCommand(), 96))
+	}
+	if item.GetTarget() != "" {
+		parts = append(parts, "target="+item.GetTarget())
+	}
+	if item.GetReason() != "" {
+		parts = append(parts, "reason="+truncateOneLine(item.GetReason(), 96))
+	}
+	return strings.Join(parts, " ")
+}
+
+func relevantContextKindLabel(kind sharedv1.RelevantContextKind) string {
+	switch kind {
+	case sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_SKILL:
+		return "skill"
+	case sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_DOC:
+		return "doc"
+	case sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_COMMAND:
+		return "command"
+	case sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_SEARCH:
+		return "search"
+	case sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_CODE_REF:
+		return "code_ref"
+	case sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_REQ_REF:
+		return "req_ref"
+	case sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_NOTE:
+		return "note"
+	default:
+		return "unknown"
+	}
+}
+
+func formatReference(ref *sharedv1.Reference) string {
+	if ref == nil {
+		return "(nil)"
+	}
+	parts := []string{firstNonEmpty(ref.GetId(), "(no-id)"), referenceKindLabel(ref.GetKind()), ref.GetTarget()}
+	if ref.GetFuture() {
+		parts = append(parts, "future")
+	}
+	if ref.GetNote() != "" {
+		parts = append(parts, "note="+truncateOneLine(ref.GetNote(), 96))
+	}
+	return strings.Join(parts, " ")
+}
+
+func referenceKindLabel(kind sharedv1.ReferenceKind) string {
+	switch kind {
+	case sharedv1.ReferenceKind_REFERENCE_KIND_CODE:
+		return "CODE"
+	case sharedv1.ReferenceKind_REFERENCE_KIND_DOC:
+		return "DOC"
+	case sharedv1.ReferenceKind_REFERENCE_KIND_REQ:
+		return "REQ"
+	default:
+		return "UNKNOWN"
+	}
+}
+
 func formatReconcileItem(item *plansv1.ReconcilePlanItem) string {
 	if item == nil {
 		return "(nil)"
@@ -608,6 +856,15 @@ func truncateOneLine(s string, max int) string {
 	return string([]rune(s)[:max]) + "…"
 }
 
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
 func workPostureLabel(p sharedv1.WorkPosture) string {
 	switch p {
 	case sharedv1.WorkPosture_WORK_POSTURE_GREENFIELD:
@@ -634,6 +891,40 @@ func mirrorStatusLabel(s sharedv1.RenderedMirrorStatus) string {
 	default:
 		return ""
 	}
+}
+
+func applyStringFlag(ctx cliapp.RunContext, name string, apply func(string)) {
+	values := ctx.FlagValues(name)
+	if len(values) == 0 {
+		return
+	}
+	apply(values[len(values)-1])
+}
+
+func splitPlanFlagValues(values []string) []string {
+	var out []string
+	for _, value := range values {
+		for _, part := range strings.Split(value, ",") {
+			if trimmed := strings.TrimSpace(part); trimmed != "" {
+				out = append(out, trimmed)
+			}
+		}
+	}
+	return out
+}
+
+func ensureChangeBoundary(plan *sharedv1.Plan) *sharedv1.ChangeBoundary {
+	if plan.ChangeBoundary == nil {
+		plan.ChangeBoundary = &sharedv1.ChangeBoundary{}
+	}
+	return plan.ChangeBoundary
+}
+
+func ensureRegressionAnchor(plan *sharedv1.Plan) *sharedv1.RegressionAnchor {
+	if plan.RegressionAnchor == nil {
+		plan.RegressionAnchor = &sharedv1.RegressionAnchor{}
+	}
+	return plan.RegressionAnchor
 }
 
 func reconcileConflictPolicyFlag(s string) plansv1.ReconcileConflictPolicy {

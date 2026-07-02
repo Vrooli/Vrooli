@@ -18,8 +18,10 @@ import (
 // Aliases keep the connect_handler response-construction terse without it
 // importing the shared proto package directly.
 type (
-	sharedPlan     = sharedv1.Plan
-	sharedPlanEdge = sharedv1.PlanEdge
+	sharedPlan                = sharedv1.Plan
+	sharedPlanEdge            = sharedv1.PlanEdge
+	sharedReference           = sharedv1.Reference
+	sharedRelevantContextItem = sharedv1.RelevantContextItem
 )
 
 // orderToInt32 is a bounds-safe int→int32 conversion for a phase order (always

@@ -176,6 +176,16 @@ accepted-context recovery methods (`UpdateRelevantContextItem`,
 seam, not new seams — see [`../concepts/FLOWS.md`](../concepts/FLOWS.md)
 (authoring response contract).
 
+### Readiness evaluator
+
+| | |
+|---|---|
+| **Seam** | Shared plan readiness/preflight evaluation across authoring and validation. |
+| **Interface** | `api/internal/readiness::EvaluatePlan` plus the small optional dependencies it accepts for command-reference validation and context/reference resolution. |
+| **Production wiring** | Authoring projects a draft session into the same internal plan shape used by persisted plans, then calls readiness from `validate`, `continue`, preview guidance, and `finalize`. Validation calls readiness before live command execution. Production adapters reuse CLI Health command validation and the validation reference resolver. |
+| **Test fake** | `api/internal/readiness/readiness_test.go` supplies fake command validators and reference resolvers for deterministic quality, structured-context, command, context-reference, and degraded-dependency cases. Authoring and validation service tests prove their public surfaces consume the same evaluator. |
+| **Why it exists** | Draft and persisted validation used to drift: author validate could pass while preview or persisted validation failed later. The readiness evaluator keeps deterministic quality in one pure kernel (`planmodel`) and dependency-backed preflight in one application layer, so finalize blocks real quality failures and dependency outages degrade honestly. |
+
 ### Plans MirrorStore
 
 | | |

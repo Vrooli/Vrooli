@@ -86,12 +86,20 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 		PlanId: ctx.Positional("plan"), PhaseId: ctx.Flag("phase"),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("run validation", err, nil)
+		return wrapRunValidationError(err)
 	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result:  []string{fmt.Sprintf("Verdict: %s (staleness %s).", verdictLabel(resp.Msg.Result.GetVerdict()), stalenessLabel(resp.Msg.Result.GetStaleness()))},
 		Changes: []string{resp.Msg.Result.GetDetail()},
 	})
+}
+
+func wrapRunValidationError(err error) error {
+	wrapped := cliapp.WrapAPIError("run validation", err, nil)
+	if wrapped == nil {
+		return nil
+	}
+	return fmt.Errorf("%w; draft authoring sessions are validated with `plan-manager author validate <session>` before finalize", wrapped)
 }
 
 func (h *handlers) verifyDoD(ctx cliapp.RunContext) error {

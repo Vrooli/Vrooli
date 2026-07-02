@@ -1387,7 +1387,7 @@ func parseContextDispositionTakes(values []string) []*authoringv1.ContextDisposi
 
 func parseContextDispositionDrops(values []string) []*authoringv1.ContextDispositionDrop {
 	var out []*authoringv1.ContextDispositionDrop
-	for _, value := range expandCSVValues(values) {
+	for _, value := range trimFlagValues(values) {
 		candidate, reason, _ := strings.Cut(value, "=")
 		candidate = strings.TrimSpace(candidate)
 		if candidate == "" {
@@ -1415,7 +1415,7 @@ func parseReferenceDispositionTakes(values []string) []*authoringv1.ReferenceDis
 
 func parseReferenceDispositionDrops(values []string) []*authoringv1.ReferenceDispositionDrop {
 	var out []*authoringv1.ReferenceDispositionDrop
-	for _, value := range expandCSVValues(values) {
+	for _, value := range trimFlagValues(values) {
 		candidate, reason, _ := strings.Cut(value, "=")
 		candidate = strings.TrimSpace(candidate)
 		if candidate == "" {
@@ -1425,6 +1425,16 @@ func parseReferenceDispositionDrops(values []string) []*authoringv1.ReferenceDis
 			Candidate: candidate,
 			Reason:    strings.TrimSpace(reason),
 		})
+	}
+	return out
+}
+
+func trimFlagValues(values []string) []string {
+	var out []string
+	for _, value := range values {
+		if value = strings.TrimSpace(value); value != "" {
+			out = append(out, value)
+		}
 	}
 	return out
 }

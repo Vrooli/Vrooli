@@ -245,6 +245,14 @@ or phase references; the rest are swept not-taken, with reasons required only
 for high-confidence drops. `reference-accept` / `reference-reject` remain the
 one-item lane and share the same batch disposition path.
 
+`--drop <handle=reason>` is repeatable. Drop reasons are preserved as one flag
+value, so spaces, commas, semicolons, and punctuation are safe:
+
+```bash
+plan-manager author context-apply sess-1 --drop "c2=too broad, stale, and not actionable."
+plan-manager author reference-apply sess-1 --drop "r4=obsolete path, replaced by docs/reference/api.md."
+```
+
 ### `decisions` — pinned plan-time contract decisions (optional)
 
 `author section-submit <session> --section decisions --content "<title>: <statement>"`
@@ -292,6 +300,28 @@ first. The derived anchor block is `Strategy: change_boundary` / `Baseline name:
 baseline **oracle** pairs and an **informational** repo/path diff); it carries no
 `<scenario>` placeholder. The legacy `scenario_baseline` / `head_sha_allowlist`
 anchor strategies remain import/read-only for pre-cutover plans.
+
+## Persisted Plan Repair
+
+Finalized plans can be repaired without archiving/re-authoring and without
+editing the rendered markdown mirror. These commands mutate the structured
+record, preserve phase identity, recompute plan metadata, and republish the
+mirror from SQLite:
+
+| Command | RPC | Purpose |
+|---|---|---|
+| `plan-manager plans context-list <plan> [--phase <phase>] [--workspace <root>]` | `PlansService.ListRelevantContext` | List global or phase-scoped relevant-context items. Legacy records without stored ids are exposed with stable effective ids such as `item-1`. |
+| `plan-manager plans context-update <plan> <item> [--phase <phase>] --kind <k> [--label --reason --instruction --command --target --required --repeat]` | `PlansService.UpdateRelevantContext` | Replace one structured setup item. Missing/synthetic ids are replaced with durable ids on write. |
+| `plan-manager plans context-remove <plan> <item> [--phase <phase>]` | `PlansService.RemoveRelevantContext` | Remove one setup item from the selected scope. |
+| `plan-manager plans reference-list <plan> [--phase <phase>] [--workspace <root>]` | `PlansService.ListReferences` | List global or phase-scoped connected references. |
+| `plan-manager plans reference-update <plan> <reference> [--phase <phase>] --kind <code|doc|req> --target <locator> [--future] [--note <text>]` | `PlansService.UpdateReference` | Replace one connected reference and clear computed resolution/staleness annotations so validation recomputes them. |
+| `plan-manager plans reference-remove <plan> <reference> [--phase <phase>]` | `PlansService.RemoveReference` | Remove one connected reference from the selected scope. |
+
+For a draft authoring session, use the authoring repair lane
+(`author context-list/update/remove`, `author reference-accept/reject/apply`) and
+run `plan-manager author validate <session>`. `plan-manager validate run <plan>`
+is for persisted plans; if it is pointed at a draft-only handle, the CLI hints at
+the authoring validation command.
 
 ## `phase` — direct phases on a persisted plan
 

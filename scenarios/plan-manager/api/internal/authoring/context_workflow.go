@@ -2,9 +2,11 @@ package authoring
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	planmodel "plan-manager/internal/planmodel"
+	"plan-manager/internal/readiness"
 )
 
 func (s *service) SubmitRelevantContextItem(ctx context.Context, sessionID, phaseID string, item planmodel.RelevantContextItem) (Session, planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error) {
@@ -217,6 +219,9 @@ func (s *service) DiscoverContextCandidates(ctx context.Context, sessionID strin
 		return Session{}, nil, GuidedStep{}, err
 	}
 	if !refresh && len(normalizeConcepts(concepts, "")) == 0 {
+		if batch := LatestDiscoveryBatch(sess); batch.ID != "" {
+			return sess, contextCandidatesForBatch(sess.ContextCandidates, batch.ID), stepForContextDiscovery(sess), nil
+		}
 		if batch, ok := latestPendingDiscoveryBatch(sess); ok && batch.Source == "prefetch" {
 			return sess, contextCandidatesForBatch(sess.ContextCandidates, batch.ID), stepForContextDiscovery(sess), nil
 		}
@@ -231,10 +236,14 @@ func (s *service) DiscoverContextCandidates(ctx context.Context, sessionID strin
 					return refreshed, contextCandidatesForBatch(refreshed.ContextCandidates, batch.ID), stepForContextDiscovery(refreshed), nil
 				}
 				sess = refreshed
+				if batch := LatestDiscoveryBatch(sess); batch.ID != "" {
+					return sess, contextCandidatesForBatch(sess.ContextCandidates, batch.ID), stepForContextDiscovery(sess), nil
+				}
 			case <-ctx.Done():
 				return Session{}, nil, GuidedStep{}, ctx.Err()
 			}
 		}
+		return sess, nil, stepForContextDiscovery(sess), nil
 	}
 	var result ContextDiscoveryResult
 	if s.context == nil {
@@ -256,6 +265,7 @@ func (s *service) DiscoverContextCandidates(ctx context.Context, sessionID strin
 	}
 	for i := range result.Candidates {
 		result.Candidates[i] = normalizeContextCandidate(result.Candidates[i])
+		result.Candidates[i] = s.validateContextCandidate(ctx, result.Candidates[i])
 	}
 	var batch DiscoveryBatch
 	sess, err = s.withSessionLock(ctx, sessionID, func(sess *Session) (bool, error) {
@@ -335,6 +345,12 @@ func (s *service) ApplyContextDisposition(ctx context.Context, sessionID, batchI
 		if batchIdx < 0 {
 			return false, ErrInvalidSession{Reason: "pending context discovery batch not found"}
 		}
+		if sess.DiscoveryBatches[batchIdx].Status == DiscoveryBatchApplied {
+			batch := sess.DiscoveryBatches[batchIdx]
+			summary.Results = append(summary.Results, skippedContextDispositionResults(sess.ContextCandidates, batch.ID, takes, drops)...)
+			summary.Batch = batch
+			return false, nil
+		}
 		if sess.DiscoveryBatches[batchIdx].Status != DiscoveryBatchPending {
 			return false, ErrInvalidSession{Reason: "context discovery batch is not pending: " + sess.DiscoveryBatches[batchIdx].ID}
 		}
@@ -343,17 +359,27 @@ func (s *service) ApplyContextDisposition(ctx context.Context, sessionID, batchI
 		dropByCandidate := map[int]ContextDispositionDrop{}
 		for _, take := range takes {
 			id := strings.TrimSpace(take.CandidateID)
-			idx := indexOfCandidate(sess.ContextCandidates, id)
-			if idx < 0 || sess.ContextCandidates[idx].BatchID != batch.ID || sess.ContextCandidates[idx].Status != ContextCandidatePending {
-				return false, ErrInvalidSession{Reason: "pending context candidate not found in batch: " + id}
+			idx := indexOfContextCandidateInBatch(sess.ContextCandidates, batch.ID, id)
+			if idx < 0 {
+				summary.Results = append(summary.Results, ContextDispositionResult{Action: "take", Message: "context candidate not found in batch: " + id})
+				continue
+			}
+			if sess.ContextCandidates[idx].Status != ContextCandidatePending {
+				summary.Results = append(summary.Results, skippedContextDispositionResult(sess.ContextCandidates[idx], "take"))
+				continue
 			}
 			takeByCandidate[idx] = take
 		}
 		for _, drop := range drops {
 			id := strings.TrimSpace(drop.CandidateID)
-			idx := indexOfCandidate(sess.ContextCandidates, id)
-			if idx < 0 || sess.ContextCandidates[idx].BatchID != batch.ID || sess.ContextCandidates[idx].Status != ContextCandidatePending {
-				return false, ErrInvalidSession{Reason: "pending context candidate not found in batch: " + id}
+			idx := indexOfContextCandidateInBatch(sess.ContextCandidates, batch.ID, id)
+			if idx < 0 {
+				summary.Results = append(summary.Results, ContextDispositionResult{Action: "drop", Message: "context candidate not found in batch: " + id})
+				continue
+			}
+			if sess.ContextCandidates[idx].Status != ContextCandidatePending {
+				summary.Results = append(summary.Results, skippedContextDispositionResult(sess.ContextCandidates[idx], "drop"))
+				continue
 			}
 			if _, exists := takeByCandidate[idx]; exists {
 				return false, ErrInvalidSession{Reason: "context candidate cannot be both taken and dropped: " + id}
@@ -433,6 +459,45 @@ func (s *service) ApplyContextDisposition(ctx context.Context, sessionID, batchI
 	return sess, summary, violations, stepForCurrentSessionState(sess), nil
 }
 
+func skippedContextDispositionResults(candidates []ContextCandidate, batchID string, takes []ContextDispositionTake, drops []ContextDispositionDrop) []ContextDispositionResult {
+	out := make([]ContextDispositionResult, 0, len(takes)+len(drops))
+	for _, take := range takes {
+		id := strings.TrimSpace(take.CandidateID)
+		idx := indexOfContextCandidateInBatch(candidates, batchID, id)
+		if idx < 0 {
+			out = append(out, ContextDispositionResult{Action: "take", Message: "context candidate not found in batch: " + id})
+			continue
+		}
+		out = append(out, skippedContextDispositionResult(candidates[idx], "take"))
+	}
+	for _, drop := range drops {
+		id := strings.TrimSpace(drop.CandidateID)
+		idx := indexOfContextCandidateInBatch(candidates, batchID, id)
+		if idx < 0 {
+			out = append(out, ContextDispositionResult{Action: "drop", Message: "context candidate not found in batch: " + id})
+			continue
+		}
+		out = append(out, skippedContextDispositionResult(candidates[idx], "drop"))
+	}
+	return out
+}
+
+func skippedContextDispositionResult(candidate ContextCandidate, action string) ContextDispositionResult {
+	status := strings.TrimSpace(string(candidate.Status))
+	if status == "" {
+		status = "already dispositioned"
+	} else {
+		status = "already " + status
+	}
+	return ContextDispositionResult{
+		Candidate: candidate,
+		Item:      candidate.Item,
+		Action:    action,
+		Accepted:  true,
+		Message:   status + "; skipped",
+	}
+}
+
 func acceptContextCandidateAt(sess *Session, idx int, phaseID string) (ContextCandidate, planmodel.RelevantContextItem, []StructureViolation, bool, error) {
 	candidate := sess.ContextCandidates[idx]
 	if candidate.Status == ContextCandidateRejected {
@@ -440,6 +505,9 @@ func acceptContextCandidateAt(sess *Session, idx int, phaseID string) (ContextCa
 	}
 	if candidate.Status == ContextCandidateAccepted {
 		return candidate, candidate.Item, nil, false, nil
+	}
+	if violations := candidateReadinessViolations(candidate); len(violations) > 0 {
+		return candidate, candidate.Item, violations, false, nil
 	}
 	item := normalizeContextItem(candidate.Item, phaseID)
 	if phaseID != "" {
@@ -479,6 +547,94 @@ func rejectContextCandidateAt(sess *Session, idx int, reason string) ContextCand
 	candidate.RejectionReason = strings.TrimSpace(reason)
 	sess.ContextCandidates[idx] = candidate
 	return candidate
+}
+
+const (
+	candidateValidationReady   = "ready"
+	candidateValidationFailed  = "failed"
+	candidateValidationUnknown = "unknown"
+)
+
+func (s *service) validateContextCandidate(ctx context.Context, candidate ContextCandidate) ContextCandidate {
+	item := normalizeContextItem(candidate.Item, "")
+	mode := readiness.Mode{}
+	switch item.Kind {
+	case planmodel.RelevantContextCommand, planmodel.RelevantContextSearch:
+		mode.CommandReferences = true
+	case planmodel.RelevantContextCodeRef, planmodel.RelevantContextDoc, planmodel.RelevantContextReqRef:
+		mode.ContextReferences = true
+	default:
+		candidate.ValidationStatus = candidateValidationReady
+		return candidate
+	}
+	result := readiness.Evaluate(ctx, planmodel.Plan{RelevantContext: []planmodel.RelevantContextItem{item}}, readiness.Options{
+		Mode:              mode,
+		CommandValidator:  commandReadinessAdapter{s.commands},
+		ReferenceResolver: s.resolver,
+	})
+	candidate.ValidationStatus, candidate.ValidationDetail = candidateValidationFromReadiness(result)
+	if candidate.ValidationStatus == candidateValidationUnknown {
+		candidate.Degraded = true
+	}
+	if candidate.Detail == "" && candidate.ValidationDetail != "" {
+		candidate.Detail = candidate.ValidationDetail
+	}
+	return candidate
+}
+
+func candidateValidationFromReadiness(result readiness.Result) (string, string) {
+	detail := strings.TrimSpace(result.Detail)
+	if detail == "" && len(result.Findings) > 0 {
+		detail = result.Findings[0].Message
+	}
+	switch result.Verdict {
+	case readiness.VerdictFail:
+		return candidateValidationFailed, detail
+	case readiness.VerdictUnknown:
+		return candidateValidationUnknown, detail
+	default:
+		return candidateValidationReady, detail
+	}
+}
+
+func candidateReadinessViolations(candidate ContextCandidate) []StructureViolation {
+	switch candidate.ValidationStatus {
+	case candidateValidationFailed, candidateValidationUnknown:
+		return []StructureViolation{{
+			SectionKey: SectionRelevantContext,
+			Message:    fmt.Sprintf("context candidate %s is not ready (%s): %s", firstNonEmpty(candidate.Handle, candidate.ID), candidate.ValidationStatus, firstNonEmpty(candidate.ValidationDetail, candidate.Detail, "validation did not pass")),
+		}}
+	default:
+		return nil
+	}
+}
+
+type commandReadinessAdapter struct {
+	validator CommandReferenceValidator
+}
+
+func (a commandReadinessAdapter) ValidateCommandReference(ctx context.Context, req readiness.CommandRequest) (readiness.CommandResult, error) {
+	if a.validator == nil {
+		return readiness.CommandResult{}, fmt.Errorf("CLI Health command validator unavailable")
+	}
+	got, err := a.validator.ValidateCommandReference(ctx, CommandReferenceRequest{
+		CommandText: req.CommandText,
+		Qualifiers:  append([]string(nil), req.Qualifiers...),
+	})
+	if err != nil {
+		return readiness.CommandResult{}, err
+	}
+	issues := make([]readiness.CommandIssue, 0, len(got.Issues))
+	for _, issue := range got.Issues {
+		issues = append(issues, readiness.CommandIssue{Code: issue.Code, Message: issue.Message})
+	}
+	return readiness.CommandResult{
+		Verdict:         got.Verdict,
+		ValidationLevel: got.ValidationLevel,
+		Issues:          issues,
+		Suggestions:     append([]string(nil), got.Suggestions...),
+		Guidance:        append([]string(nil), got.Guidance...),
+	}, nil
 }
 
 // runAutofill runs one source against the session in place. It NEVER fabricates a

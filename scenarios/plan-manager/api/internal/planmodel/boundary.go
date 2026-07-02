@@ -398,7 +398,9 @@ func BoundaryAnchorCommands(b ChangeBoundary, baselineName, headSha string) (com
 	if repoPaths := b.RepoPaths(); len(repoPaths) > 0 {
 		cmd := "git diff --stat"
 		if sha := strings.TrimSpace(headSha); sha != "" && !ContainsUnresolvedPlaceholder(sha) {
-			cmd += " " + sha
+			if strings.ToLower(sha) != "captured at execution start" {
+				cmd += " " + sha
+			}
 		}
 		cmd += " -- " + strings.Join(repoPaths, " ")
 		commands = append(commands, cmd)

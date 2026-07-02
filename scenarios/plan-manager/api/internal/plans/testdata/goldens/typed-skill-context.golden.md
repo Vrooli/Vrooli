@@ -59,27 +59,15 @@ Goldens exist and reproduce current output verbatim.
 
 ### Load Skills
 
-- scientific-debugging _(required)_
+- scientific-debugging — `prompt-manager skill read scientific-debugging` _(required)_
   - Reason: The defect is a state-machine bug; reproduce before fixing.
-  - Instruction: Load this internal skill before implementation.
-  ```bash
-  prompt-manager skill read scientific-debugging
-  ```
-- test _(required)_
+- test — `prompt-manager skill read test` _(required)_
   - Reason: Golden-file discipline for the renderer work.
-  - Instruction: Load this internal skill before implementation.
-  ```bash
-  prompt-manager skill read test
-  ```
 
 ### Read Docs
 
-- docs/TESTING.md _(required)_
+- docs/TESTING.md — `sed -n '1,220p' docs/TESTING.md` _(required)_
   - Reason: Server-owned test runs; never poll.
-  - Instruction: Read this document before implementation.
-  ```bash
-  sed -n '1,220p' docs/TESTING.md
-  ```
 
 ### References
 
@@ -110,12 +98,8 @@ swarm-manager records create --kind execute --scenario plan-manager \
 
 ### Read Docs
 
-- docs/concepts/PLAN-MODEL.md _(required)_
+- docs/concepts/PLAN-MODEL.md — `sed -n '1,220p' docs/concepts/PLAN-MODEL.md` _(required)_
   - Reason: The renderer projects the model this doc defines.
-  - Instruction: Read this document before implementation.
-  ```bash
-  sed -n '1,220p' docs/concepts/PLAN-MODEL.md
-  ```
 
 **Ordered Steps:**
 1. Render fixtures

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P0-002 — guided section-by-section authoring with autofill and a structure-validation gate.",
-    "last_validated_at": "2026-07-01T15:41:52-04:00",
+    "last_validated_at": "2026-07-02T15:25:30-04:00",
     "module": "authoring-wizard",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -48,6 +48,27 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Relevant-context discovery persists curated batches and requires an applied batch decision or an honest no-context reason."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/authoring/authoring_test.go::TestValidateStructureReportsPlanQualityReadinessFailures",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Author validate reports deterministic readiness quality findings before finalize."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/authoring/authoring_test.go::TestFinalizeRejectsPlanQualityReadinessFailures",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Finalize blocks deterministic quality failures before persistence."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/authoring/handlers_test.go::TestAuthoringRequestMapping",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Disposition drop reasons preserve spaces, commas, semicolons, and punctuation."
         }
       ]
     },
