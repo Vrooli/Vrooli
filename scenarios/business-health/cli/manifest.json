@@ -1,0 +1,603 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "business-health",
+  "description": "Business Health CLI surface: validate, inspect, and remediate every scenario's business contract (PRD.md + requirements/). Schema-validated against cli-manifest/v1 and cross-validated against the ContractService/FleetService proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "validate",
+      "description": "Validate a scenario's business contract",
+      "commands": [
+        {
+          "name": "scenario",
+          "description": "Validate a scenario's PRD.md + requirements/ (template conformance, registry structure, intent linkage, evidence traceability) and render the assessment",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to validate"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Filesystem path to validate instead of a scenario slug"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ContractService",
+            "method": "ValidateScenario"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "matrix",
+      "description": "Traceability matrix (OT × requirement × validation × evidence)",
+      "commands": [
+        {
+          "name": "show",
+          "description": "Render the traceability matrix for one scenario: table (default), --format summary|markdown report, or --phase to inspect validations by phase",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "format",
+              "description": "Rendering: table (default) | summary | markdown"
+            },
+            {
+              "name": "phase",
+              "description": "Inspect validations restricted to one phase (unit | integration | business | performance)"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ContractService",
+            "method": "GetMatrix"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "drift",
+      "description": "Evidence drift and staleness",
+      "commands": [
+        {
+          "name": "show",
+          "description": "Report stale snapshots, expired manual attestations, unearned statuses, and unproven claims (lands with the evidence domain, plan phase 4)",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ContractService",
+            "method": "GetDrift"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "manual-log",
+      "description": "Manual-validation attestations",
+      "commands": [
+        {
+          "name": "add",
+          "description": "Append a manual-validation attestation to the scenario's ledger (lands with the evidence domain, plan phase 4)",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            },
+            {
+              "name": "requirement",
+              "required": true,
+              "description": "Requirement id the attestation covers"
+            }
+          ],
+          "flags": [
+            {
+              "name": "by",
+              "required": true,
+              "description": "Attester identity (agent id or operator string)"
+            },
+            {
+              "name": "notes",
+              "description": "What was performed and observed"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ContractService",
+            "method": "LogManualValidation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "fix",
+      "description": "Deterministic business-contract remediation (dry-run by default)",
+      "commands": [
+        {
+          "name": "preview",
+          "description": "Preview the deterministic fixes business-health can apply, as diffs (never writes)",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "rules",
+              "description": "Comma-separated finding codes to restrict the preview to"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "PreviewFix"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "apply",
+          "description": "Apply the previewed deterministic fixes (explicit apply — the write half of the dry-run-by-default pair)",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "rules",
+              "description": "Comma-separated finding codes to restrict the apply to"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ApplyFix"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "fleet",
+      "description": "Fleet-wide business-contract debt",
+      "commands": [
+        {
+          "name": "scan",
+          "description": "Grade every scenario's business contract, worst-first with as-of stamps (lands in plan phase 6)",
+          "flags": [
+            {
+              "name": "scenarios",
+              "description": "Comma-separated scenario slugs to restrict the scan to"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FleetService",
+            "method": "ScanFleet"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "wizard",
+      "description": "Deterministic contract-authoring interview (PRD.md + requirements/ scaffolding)",
+      "commands": [
+        {
+          "name": "start",
+          "description": "Start or resume the wizard session for a scenario; prints the remaining questions (--interactive runs the full TTY interview)",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to author the contract for"
+            }
+          ],
+          "flags": [
+            {
+              "name": "reset",
+              "description": "Discard any existing session and start fresh",
+              "bool": true
+            },
+            {
+              "name": "interactive",
+              "description": "Run the interview in this terminal (prompts every remaining question)",
+              "bool": true
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WizardService",
+            "method": "StartSession"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "answer",
+          "description": "Submit answers into the session (--answers file.json for the non-interactive path, or --question/--text for one answer)",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "answers",
+              "description": "Path to a JSON answers file (array of {question_id, text|targets})"
+            },
+            {
+              "name": "question",
+              "description": "Question id for a single text answer"
+            },
+            {
+              "name": "text",
+              "description": "Answer text for --question"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WizardService",
+            "method": "SubmitAnswers"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "preview",
+          "description": "Render the scaffold the current answers produce, as diffs (never writes)",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WizardService",
+            "method": "PreviewScaffold"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "apply",
+          "description": "Write the previewed scaffold (explicit apply; refuses while required questions are open) and re-validate the target",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WizardService",
+            "method": "ApplyScaffold"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "search",
+      "description": "Search the fleet-wide intent corpus (PRD purpose, operational targets, requirements; AI-first with text fallback)",
+      "commands": [
+        {
+          "name": "query",
+          "description": "Search intent by natural-language text — 'which scenario provides X', 'what is Y supposed to deliver'",
+          "positionals": [
+            {
+              "name": "text",
+              "required": true,
+              "description": "Natural-language query"
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "default": "10",
+              "description": "Maximum results to return"
+            },
+            {
+              "name": "mode",
+              "description": "Force a retrieval mode: ai | text (default lets the server choose)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchService",
+            "method": "Search"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Report search backend availability (ollama, qdrant, indexed count)",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchService",
+            "method": "Status"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "reindex",
+      "description": "Reconcile the intent corpus: rebuild Qdrant points from PRD.md + requirements/ across the fleet",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Start a reindex job",
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Limit to a single scenario; empty means all"
+            },
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Compute planned upserts/deletes without writing"
+            },
+            {
+              "name": "control-token",
+              "description": "Control token for the token-gated control plane (or set BUSINESS_HEALTH_SEARCH_CONTROL_TOKEN)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchControlService",
+            "method": "Reindex"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Poll a reindex job's progress",
+          "positionals": [
+            {
+              "name": "job_id",
+              "required": true,
+              "description": "Job id returned by `reindex run`"
+            }
+          ],
+          "flags": [
+            {
+              "name": "control-token",
+              "description": "Control token for the token-gated control plane (or set BUSINESS_HEALTH_SEARCH_CONTROL_TOKEN)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchControlService",
+            "method": "ReindexStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "cancel",
+          "description": "Request cooperative cancellation of an in-flight reindex job",
+          "positionals": [
+            {
+              "name": "job_id",
+              "required": true,
+              "description": "Job id returned by `reindex run`"
+            }
+          ],
+          "flags": [
+            {
+              "name": "control-token",
+              "description": "Control token for the token-gated control plane (or set BUSINESS_HEALTH_SEARCH_CONTROL_TOKEN)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchControlService",
+            "method": "ReindexCancel"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "omitted": [
+    {
+      "service": "ScenarioValidationService",
+      "method": "ValidateScenario",
+      "reason": "Shared cross-scenario validation surface exposed for test-genie's delegated-provider contract; the CLI 'validate scenario' command targets the scenario-local ContractService, which answers with the rich native report beside the same assessment."
+    },
+    {
+      "service": "SearchControlService",
+      "method": "WriteConfig",
+      "reason": "The search-hub sweep's token-gated write-back verb (tuning/corpus rewrite of search.json); not an interactive operator command. Mirrors cli-health's omission."
+    },
+    {
+      "service": "SearchControlService",
+      "method": "WriteCorpus",
+      "reason": "The search-hub sweep's token-gated write-back verb (tuning/corpus rewrite of search.json); not an interactive operator command. Mirrors cli-health's omission."
+    }
+  ]
+}

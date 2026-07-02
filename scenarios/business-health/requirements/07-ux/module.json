@@ -1,0 +1,145 @@
+{
+  "_metadata": {
+    "description": "The four UI surfaces — traceability matrix, fleet view, wizard, finding docs — plus i18n, selectors, and BAS coverage.",
+    "last_validated_at": "2026-07-02T05:26:48-04:00",
+    "module": "ux",
+    "prd_ref": "OT-P1-001",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BH-UX-001",
+      "title": "Traceability matrix view",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "OT × requirement grid with evidence status cells, unproven-claim emphasis, drill-in to requirement detail (validation refs, evidence history, manual attestations + expiry), and a scenario picker.",
+      "tags": [
+        "matrix",
+        "ui"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/features/matrix/MatrixPage.test.tsx",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Render + drill-in + emphasis states against fixture data."
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/traceability-matrix/matrix-render.json",
+          "phase": "business",
+          "status": "planned",
+          "notes": "BAS: deep-link matrix render happy path (grid + registry summary)."
+        }
+      ]
+    },
+    {
+      "id": "BH-UX-002",
+      "title": "Fleet view",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "Worst-first table with as-of stamps, laggard filters (starter-registry / template-version / unproven-claims), and row navigation into the per-scenario matrix.",
+      "tags": [
+        "fleet",
+        "ui"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/features/fleet/FleetPage.test.tsx",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Sorting, filters, and row navigation."
+        }
+      ]
+    },
+    {
+      "id": "BH-UX-003",
+      "title": "Wizard UI with diff preview",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "The interview flow renders with live section preview and a diff preview before apply; sessions are resumable from where the CLI left off.",
+      "tags": [
+        "wizard",
+        "ui"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/features/wizard/WizardPage.test.tsx",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Flow, preview, and resume states."
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/contract-wizard/wizard-happy-path.json",
+          "phase": "business",
+          "status": "planned",
+          "notes": "BAS: wizard happy path (pick scenario, start session, interview renders)."
+        }
+      ]
+    },
+    {
+      "id": "BH-UX-004",
+      "title": "Finding docs deep-linked with fix affordance",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "Every finding code renders its docs/findings/<code>.md remediation doc in-app; validation results link findings → docs → PreviewFix diff → explicit apply.",
+      "tags": [
+        "findings",
+        "docs",
+        "autofix"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/features/findings/FindingsPage.test.tsx",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Doc rendering per code; fix affordance flow."
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/finding-docs/fix-preview.json",
+          "phase": "business",
+          "status": "planned",
+          "notes": "BAS: finding → PreviewFix diff flow."
+        }
+      ]
+    },
+    {
+      "id": "BH-UX-005",
+      "title": "i18n, selectors, and BAS coverage",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "en/ar/ja locales with zero hardcoded strings (i18n lint clean); selectors manifest for BAS; bas/ cases + seeds for matrix render, wizard happy path, and fix preview/apply; static registration passes regardless of live-run gating.",
+      "tags": [
+        "i18n",
+        "bas",
+        "selectors"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/consts/selectors.test.ts",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Selector manifest integrity; i18n lint in the UI suite; BAS static registration via scenario test."
+        }
+      ]
+    }
+  ]
+}
