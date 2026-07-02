@@ -41,18 +41,27 @@
     }
   },
   "docs": {
-    "markdown": { "enabled": true },
-    "mermaid": { "enabled": true, "strict": true },
+    "markdown": {
+      "enabled": true
+    },
+    "mermaid": {
+      "enabled": true,
+      "strict": true
+    },
     "links": {
       "enabled": true,
-      "ignore": ["http://localhost:*"],
+      "ignore": [
+        "http://localhost:*"
+      ],
       "max_concurrency": 6,
       "timeout_ms": 5000,
       "strict_external": false
     },
     "absolute_paths": {
       "enabled": true,
-      "allow": ["/api/"]
+      "allow": [
+        "/api/"
+      ]
     }
   },
   "integration": {
@@ -77,19 +86,6 @@
       "screenshots": true,
       "dom_snapshots": true,
       "retain_on_success": false
-    }
-  },
-  "business": {
-    "checks": {
-      "endpoints": {
-        "enabled": true
-      },
-      "cli_commands": {
-        "enabled": true
-      },
-      "websockets": {
-        "enabled": true
-      }
     }
   },
   "performance": {

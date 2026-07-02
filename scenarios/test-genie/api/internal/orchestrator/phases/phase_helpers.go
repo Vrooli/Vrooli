@@ -54,10 +54,7 @@ func EnsureCommandAvailable(name string) error {
 
 // Logging functions - aliases to shared package for backwards compatibility.
 // New code should use shared.Log* directly.
-var (
-	logPhaseStep    = shared.LogStep
-	logPhaseSuccess = shared.LogSuccess
-)
+var logPhaseStep = shared.LogStep
 
 func runCommand(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
 	if err := ctx.Err(); err != nil {

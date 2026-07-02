@@ -196,12 +196,15 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 			LifecycleDecisionDeferred: true,
 		},
 	})
-	register(Spec{
-		Name:          Business,
-		Runner:        runBusinessPhase,
-		Description:   "Audits requirements modules to guarantee operational targets stay mapped.",
-		FindingSource: architecturev1.FindingSource_FINDING_SOURCE_BUSINESS,
-	})
+	register(delegatedSpec(Delegated{
+		Name:             Business,
+		ProviderScenario: "business-health",
+		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_BUSINESS,
+		Emoji:            "📋",
+		DetailCommand:    "business-health validate scenario {{scenario}}",
+		Timeout:          120 * time.Second,
+		Description:      "Delegates the business contract — PRD template conformance, requirements-registry structure, OT↔requirement linkage in both directions, and evidence traceability — to business-health through ScenarioValidationService, mapping findings into the FINDING_SOURCE_BUSINESS channel (advisory: severity capped at ERROR by the provider).",
+	}))
 	register(delegatedSpec(Delegated{
 		Name:             Tidiness,
 		ProviderScenario: "tidiness-manager",

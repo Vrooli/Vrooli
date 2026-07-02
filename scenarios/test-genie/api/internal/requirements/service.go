@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"log"
 	"path/filepath"
@@ -16,10 +15,8 @@ import (
 	"test-genie/internal/requirements/enrichment"
 	"test-genie/internal/requirements/evidence"
 	"test-genie/internal/requirements/parsing"
-	"test-genie/internal/requirements/reporting"
 	"test-genie/internal/requirements/snapshot"
 	"test-genie/internal/requirements/types"
-	"test-genie/internal/requirements/validation"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 
 	syncpkg "test-genie/internal/requirements/sync"
@@ -34,8 +31,6 @@ type Service struct {
 	loader          evidence.Loader
 	enricher        enrichment.Enricher
 	syncer          syncpkg.Syncer
-	reporter        reporting.Reporter
-	validator       validation.Validator
 	snapshotBuilder snapshot.Builder
 }
 
@@ -52,8 +47,6 @@ func NewService() *Service {
 		loader:          evidence.NewDefault(),
 		enricher:        enrichment.New(),
 		syncer:          syncpkg.NewDefault(),
-		reporter:        reporting.New(),
-		validator:       validation.NewDefault(),
 		snapshotBuilder: snapshot.New(),
 	}
 }
@@ -72,8 +65,6 @@ func NewServiceWithDeps(reader Reader, writer Writer) *Service {
 		loader:          evidence.New(reader),
 		enricher:        enrichment.New(),
 		syncer:          syncpkg.New(syncReader, syncWriter),
-		reporter:        reporting.New(),
-		validator:       validation.New(reader),
 		snapshotBuilder: snapshot.New(),
 	}
 }
@@ -319,90 +310,6 @@ func collectStatusChanges(index *parsing.ModuleIndex, changes []syncpkg.Change) 
 		})
 	}
 	return out
-}
-
-// Report generates a requirements report.
-func (s *Service) Report(ctx context.Context, scenarioDir string, opts reporting.Options, w io.Writer) error {
-	// 1. Discover requirement files
-	files, err := s.discoverer.Discover(ctx, scenarioDir)
-	if err != nil {
-		return fmt.Errorf("discovery: %w", err)
-	}
-
-	// 2. Parse all requirement files
-	index, err := s.parser.ParseAll(ctx, files)
-	if err != nil {
-		return fmt.Errorf("parsing: %w", err)
-	}
-
-	// 3. Load test evidence
-	evidenceBundle, err := s.loader.LoadAll(ctx, scenarioDir)
-	if err != nil {
-		return fmt.Errorf("loading evidence: %w", err)
-	}
-
-	// 4. Enrich requirements
-	if err := s.enricher.Enrich(ctx, index, evidenceBundle); err != nil {
-		return fmt.Errorf("enrichment: %w", err)
-	}
-
-	// 5. Compute summary
-	summary := s.enricher.ComputeSummary(index.Modules)
-
-	// 6. Generate report
-	return s.reporter.Generate(ctx, index, summary, opts, w)
-}
-
-// Validate checks requirement structure.
-func (s *Service) Validate(ctx context.Context, scenarioDir string) (*types.ValidationResult, error) {
-	// 1. Discover requirement files
-	files, err := s.discoverer.Discover(ctx, scenarioDir)
-	if err != nil {
-		if errors.Is(err, types.ErrNoRequirementsDir) || errors.Is(err, discovery.ErrNoRequirementsDir) {
-			return types.NewValidationResult(), nil
-		}
-		return nil, fmt.Errorf("discovery: %w", err)
-	}
-
-	// 2. Parse all requirement files
-	index, err := s.parser.ParseAll(ctx, files)
-	if err != nil {
-		return nil, fmt.Errorf("parsing: %w", err)
-	}
-
-	// 3. Run validation rules
-	result := s.validator.Validate(ctx, index, scenarioDir)
-
-	return result, nil
-}
-
-// GetSummary returns a summary of the requirements.
-func (s *Service) GetSummary(ctx context.Context, scenarioDir string) (enrichment.Summary, error) {
-	// 1. Discover requirement files
-	files, err := s.discoverer.Discover(ctx, scenarioDir)
-	if err != nil {
-		return enrichment.Summary{}, fmt.Errorf("discovery: %w", err)
-	}
-
-	// 2. Parse all requirement files
-	index, err := s.parser.ParseAll(ctx, files)
-	if err != nil {
-		return enrichment.Summary{}, fmt.Errorf("parsing: %w", err)
-	}
-
-	// 3. Load test evidence
-	evidenceBundle, err := s.loader.LoadAll(ctx, scenarioDir)
-	if err != nil {
-		return enrichment.Summary{}, fmt.Errorf("loading evidence: %w", err)
-	}
-
-	// 4. Enrich requirements
-	if err := s.enricher.Enrich(ctx, index, evidenceBundle); err != nil {
-		return enrichment.Summary{}, fmt.Errorf("enrichment: %w", err)
-	}
-
-	// 5. Compute and return summary
-	return s.enricher.ComputeSummary(index.Modules), nil
 }
 
 // convertPhaseResults converts orchestrator phase results to evidence.

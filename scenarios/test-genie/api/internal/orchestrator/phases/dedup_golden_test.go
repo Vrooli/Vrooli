@@ -43,7 +43,7 @@ func TestObservationStringGolden(t *testing.T) {
 func TestSpecToDefinition(t *testing.T) {
 	spec := Spec{
 		Name:           Business,
-		Runner:         runBusinessPhase,
+		Runner:         runPlaybooksPhase,
 		Optional:       true,
 		DefaultTimeout: 42 * time.Second,
 		SkipEnvVar:     "TEST_GENIE_SKIP_BUSINESS",

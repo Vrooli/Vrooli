@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD)
 
 > **Template Version**: 2.0
-> **Canonical Reference**: `/scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md`
+> **Canonical Reference**: `/scenarios/business-health/docs/reference/canonical-prd-template.md`
 > **Validation**: Enforced by `scenario-auditor`
 > **Policy**: The PRD is the product contract; requirement modules and tests should trace back to the targets defined here.
 
