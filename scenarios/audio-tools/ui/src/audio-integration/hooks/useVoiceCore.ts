@@ -1005,6 +1005,15 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           setState((s) => ({ ...s, partialTranscript: text }));
         };
       }
+      if (provider.onStatus !== undefined) {
+        provider.onStatus = ({ code, message }) => {
+          if (code === "stream_connected") {
+            setState((s) => (s.fallbackNotice ? { ...s, fallbackNotice: null } : s));
+            return;
+          }
+          setState((s) => ({ ...s, fallbackNotice: message }));
+        };
+      }
 
       // ── Stream injection (low-latency mode) ──
       // DOC: docs/internal/VOICE-LATENCY.md#stream-injection-vs-stream-acquisition
@@ -1213,6 +1222,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     provider.onResult = null;
     provider.onError = null;
     if (provider.onPartial !== undefined) provider.onPartial = null;
+    if (provider.onStatus !== undefined) provider.onStatus = null;
     if (provider instanceof VoiceStreamProvider) {
       provider.onSegmentFinal = null;
       provider.onSegmentAccepted = null;

@@ -2,9 +2,9 @@ package capabilities
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"os/exec"
-	"strings"
 	"time"
 )
 
@@ -99,9 +99,18 @@ type ScenarioChecker struct {
 }
 
 func (c *ScenarioChecker) Check(ctx context.Context) (Status, string) {
+	result := c.CheckResult(ctx)
+	return result.Status, result.Message
+}
+
+func (c *ScenarioChecker) CheckResult(ctx context.Context) CheckResult {
 	slug := c.Slug
 	if slug == "" {
-		return StatusUnavailable, "scenario slug not configured"
+		return CheckResult{
+			Status:     StatusUnavailable,
+			Message:    "scenario slug not configured",
+			ReasonCode: "scenario_slug_missing",
+		}
 	}
 	cli := c.CLIPath
 	if cli == "" {
@@ -127,29 +136,216 @@ func (c *ScenarioChecker) Check(ctx context.Context) (Status, string) {
 
 	out, err := run(probeCtx, cli, args...)
 	if err != nil {
-		// Either the CLI is missing, the scenario directory does not exist,
-		// or the scenario is not running. All three resolve to "not yet
-		// available" from web-console's perspective.
-		return StatusUnavailable, "scenario not available (run `vrooli scenario start " + slug + "` once installed)"
+		return CheckResult{
+			Status:          StatusUnavailable,
+			Message:         "scenario status unavailable; use the Vrooli lifecycle to inspect or start it",
+			ReasonCode:      "scenario_status_cli_failed",
+			ActionKind:      ActionKindOperatorCommand,
+			ActionLabel:     "Inspect scenario",
+			OperatorCommand: "vrooli scenario status " + slug + " --json",
+		}
 	}
 
-	// The vrooli CLI emits a status payload per scenario. Health is keyed by
-	// the presence of a "healthy" status field, but we accept either the
-	// new {status:"healthy"} shape or the older {health_status:"healthy"} one
-	// without coupling to either schema strictly: any successful invocation
-	// that mentions "healthy" counts as available; otherwise the scenario is
-	// installed but not running.
-	body := strings.ToLower(string(out))
-	switch {
-	case strings.Contains(body, `"healthy"`), strings.Contains(body, `"running"`):
-		return StatusAvailable, "scenario is healthy"
-	case strings.Contains(body, `"stopped"`), strings.Contains(body, `"not_running"`):
-		return StatusUnavailable, "scenario is installed but stopped"
-	default:
-		// CLI succeeded but emitted an unfamiliar status — treat as unknown so
-		// the UI does not falsely advertise the integration as active.
-		return StatusUnknown, "scenario status unrecognised"
+	return classifyScenarioStatus(slug, out)
+}
+
+type scenarioStatusPayload struct {
+	Success  bool               `json:"success"`
+	Scenario scenarioStatusItem `json:"scenario"`
+	// Legacy/list forms emitted scenario rows directly under "scenarios".
+	Scenarios []scenarioStatusItem `json:"scenarios"`
+}
+
+type scenarioStatusItem struct {
+	Name           string                  `json:"name"`
+	Status         string                  `json:"status"`
+	HealthStatus   any                     `json:"health_status"`
+	HealthError    string                  `json:"health_error"`
+	StartOperation *scenarioStartOperation `json:"start_operation"`
+}
+
+type scenarioStartOperation struct {
+	Status      string `json:"status"`
+	Verdict     string `json:"verdict"`
+	Error       string `json:"error"`
+	CurrentStep string `json:"current_step"`
+}
+
+func classifyScenarioStatus(slug string, out []byte) CheckResult {
+	var payload scenarioStatusPayload
+	if err := json.Unmarshal(out, &payload); err != nil {
+		return CheckResult{
+			Status:          StatusUnknown,
+			Message:         "scenario status response was not valid JSON",
+			ReasonCode:      "scenario_status_malformed_json",
+			ActionKind:      ActionKindOperatorCommand,
+			ActionLabel:     "Inspect scenario",
+			OperatorCommand: "vrooli scenario status " + slug + " --json",
+		}
 	}
+
+	item, ok := selectScenarioStatusItem(slug, payload)
+	if !ok {
+		return CheckResult{
+			Status:          StatusUnknown,
+			Message:         "scenario status response did not include " + slug,
+			ReasonCode:      "scenario_status_missing_scenario",
+			ActionKind:      ActionKindOperatorCommand,
+			ActionLabel:     "Inspect scenario",
+			OperatorCommand: "vrooli scenario status " + slug + " --json",
+		}
+	}
+
+	if item.StartOperation != nil {
+		switch item.StartOperation.Status {
+		case "running":
+			return CheckResult{
+				Status:          StatusUnavailable,
+				Message:         "scenario start is in progress: " + item.StartOperation.CurrentStep,
+				ReasonCode:      "scenario_start_in_progress",
+				ActionKind:      ActionKindOperatorCommand,
+				ActionLabel:     "Wait for scenario",
+				OperatorCommand: "vrooli scenario wait " + slug + " --json",
+			}
+		case "failed":
+			return CheckResult{
+				Status:          StatusUnavailable,
+				Message:         joinStatusMessage("scenario start failed", item.StartOperation.Error),
+				ReasonCode:      "scenario_start_failed",
+				ActionKind:      ActionKindScenarioRestart,
+				ActionLabel:     "Restart scenario",
+				OperatorCommand: "vrooli scenario restart " + slug + " --json",
+			}
+		case "abandoned":
+			return CheckResult{
+				Status:          StatusUnavailable,
+				Message:         joinStatusMessage("scenario start was abandoned", item.StartOperation.Error),
+				ReasonCode:      "scenario_start_abandoned",
+				ActionKind:      ActionKindScenarioStart,
+				ActionLabel:     "Start scenario",
+				OperatorCommand: "vrooli scenario start " + slug + " --json",
+			}
+		}
+	}
+
+	switch item.Status {
+	case "running":
+		return classifyScenarioHealth(slug, item)
+	case "stopped", "not_running":
+		return CheckResult{
+			Status:          StatusUnavailable,
+			Message:         "scenario is installed but stopped",
+			ReasonCode:      "scenario_stopped",
+			ActionKind:      ActionKindScenarioStart,
+			ActionLabel:     "Start scenario",
+			OperatorCommand: "vrooli scenario start " + slug + " --json",
+		}
+	case "starting":
+		return CheckResult{
+			Status:          StatusUnavailable,
+			Message:         "scenario is starting",
+			ReasonCode:      "scenario_starting",
+			ActionKind:      ActionKindOperatorCommand,
+			ActionLabel:     "Wait for scenario",
+			OperatorCommand: "vrooli scenario wait " + slug + " --json",
+		}
+	case "":
+		return CheckResult{
+			Status:     StatusUnknown,
+			Message:    "scenario status response omitted runtime status",
+			ReasonCode: "scenario_status_missing",
+		}
+	default:
+		return CheckResult{
+			Status:          StatusUnknown,
+			Message:         "scenario status unrecognised: " + item.Status,
+			ReasonCode:      "scenario_status_unknown",
+			ActionKind:      ActionKindOperatorCommand,
+			ActionLabel:     "Inspect scenario",
+			OperatorCommand: "vrooli scenario status " + slug + " --json",
+		}
+	}
+}
+
+func selectScenarioStatusItem(slug string, payload scenarioStatusPayload) (scenarioStatusItem, bool) {
+	if payload.Scenario.Name == slug || (payload.Scenario.Name == "" && len(payload.Scenarios) == 0) {
+		return payload.Scenario, payload.Scenario.Status != "" || payload.Scenario.HealthStatus != nil || payload.Scenario.StartOperation != nil
+	}
+	for _, item := range payload.Scenarios {
+		if item.Name == slug {
+			return item, true
+		}
+	}
+	return scenarioStatusItem{}, false
+}
+
+func classifyScenarioHealth(slug string, item scenarioStatusItem) CheckResult {
+	health := stringHealth(item.HealthStatus)
+	switch health {
+	case "healthy", "running":
+		return CheckResult{Status: StatusAvailable, Message: "scenario is healthy"}
+	case "degraded":
+		return CheckResult{
+			Status:          StatusUnavailable,
+			Message:         joinStatusMessage("scenario is degraded", item.HealthError),
+			ReasonCode:      "scenario_degraded",
+			ActionKind:      ActionKindScenarioRestart,
+			ActionLabel:     "Restart scenario",
+			OperatorCommand: "vrooli scenario restart " + slug + " --json",
+		}
+	case "not_running", "stopped":
+		return CheckResult{
+			Status:          StatusUnavailable,
+			Message:         "scenario health reports not running",
+			ReasonCode:      "scenario_health_not_running",
+			ActionKind:      ActionKindScenarioStart,
+			ActionLabel:     "Start scenario",
+			OperatorCommand: "vrooli scenario start " + slug + " --json",
+		}
+	case "":
+		if item.HealthError != "" {
+			return CheckResult{
+				Status:          StatusUnavailable,
+				Message:         "scenario health check failed: " + item.HealthError,
+				ReasonCode:      "scenario_health_error",
+				ActionKind:      ActionKindScenarioRestart,
+				ActionLabel:     "Restart scenario",
+				OperatorCommand: "vrooli scenario restart " + slug + " --json",
+			}
+		}
+		return CheckResult{Status: StatusAvailable, Message: "scenario is running"}
+	default:
+		return CheckResult{
+			Status:          StatusUnknown,
+			Message:         "scenario health status unrecognised: " + health,
+			ReasonCode:      "scenario_health_unknown",
+			ActionKind:      ActionKindOperatorCommand,
+			ActionLabel:     "Inspect scenario",
+			OperatorCommand: "vrooli scenario status " + slug + " --json",
+		}
+	}
+}
+
+func stringHealth(v any) string {
+	switch typed := v.(type) {
+	case string:
+		return typed
+	case map[string]any:
+		if state, ok := typed["status"].(string); ok {
+			return state
+		}
+		if state, ok := typed["state"].(string); ok {
+			return state
+		}
+	}
+	return ""
+}
+
+func joinStatusMessage(prefix, detail string) string {
+	if detail == "" {
+		return prefix
+	}
+	return prefix + ": " + detail
 }
 
 // OpenRouterChecker verifies that OpenRouter is configured and reachable.

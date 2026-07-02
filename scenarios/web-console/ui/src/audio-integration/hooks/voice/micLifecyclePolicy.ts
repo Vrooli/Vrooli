@@ -12,7 +12,7 @@
 //   1. `decideMicLifecycle` — given a page-lifecycle event and whether we are
 //      running as an installed standalone/PWA, decide which leases the registry
 //      backstop releases, whether the active recording is stopped for UI
-//      honesty, and whether to re-arm passive/prewarm.
+//      honesty.
 //   2. `selectStaleLeases` — given a metadata-only lease snapshot and the
 //      current workflow state, decide which live leases are orphaned (a live
 //      mic stream the UI is not honestly representing) and must self-heal.
@@ -29,8 +29,7 @@ export type VoiceStateLite =
   | "preparing"
   | "recording"
   | "listening"
-  | "transcribing"
-  | "passive";
+  | "transcribing";
 
 export type MicLifecycleEvent = "hidden" | "visible" | "pagehide" | "freeze";
 
@@ -46,8 +45,6 @@ export interface MicLifecycleDecision {
    * The backstop releasing tracks alone does not update React state.
    */
   stopActiveRecording: boolean;
-  /** Whether to re-arm passive wake-word / low-latency prewarm. */
-  rearm: boolean;
 }
 
 /**
@@ -60,8 +57,8 @@ export interface MicLifecycleDecision {
  *   recording is stopped for honesty/privacy.
  * - `pagehide` / `freeze`: the page is going away — release **all** leases
  *   everywhere; best-effort stop of any active recording.
- * - `visible`: release nothing; re-arm passive/prewarm (a lease release does
- *   not re-run React effects, so re-arm must be explicit).
+ * - `visible`: release nothing. Visibility alone is not mic intent, so it does
+ *   not re-arm passive wake-word or low-latency prewarm.
  */
 export function decideMicLifecycle(input: {
   event: MicLifecycleEvent;
@@ -72,13 +69,12 @@ export function decideMicLifecycle(input: {
       return {
         release: input.standalonePwa ? "all" : "non-active",
         stopActiveRecording: true,
-        rearm: false,
       };
     case "pagehide":
     case "freeze":
-      return { release: "all", stopActiveRecording: true, rearm: false };
+      return { release: "all", stopActiveRecording: true };
     case "visible":
-      return { release: "none", stopActiveRecording: false, rearm: true };
+      return { release: "none", stopActiveRecording: false };
   }
 }
 

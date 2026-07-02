@@ -14,10 +14,11 @@ import (
 	"audio-tools/internal/httpc"
 )
 
-// WhisperChecker verifies that Whisper can actually transcribe audio by
-// sending a minimal silent WAV to the /asr endpoint. This catches cases
-// where the Whisper health endpoint (GET /) responds but transcription
-// is broken (e.g. model not loaded, ffmpeg issues).
+// WhisperChecker verifies that Whisper can accept and process an ASR request by
+// sending a minimal silent WAV to the /asr endpoint. This catches cases where
+// the Whisper health endpoint (GET /) responds but the ASR path is broken
+// (e.g. model not loaded, ffmpeg issues). It is a readiness check, not a
+// transcript-quality check.
 type WhisperChecker struct {
 	BaseURL string
 	Doer    httpc.Doer
@@ -109,7 +110,7 @@ func (c *WhisperChecker) Check(ctx context.Context) (Status, string) {
 		return StatusUnavailable, "transcription response is not valid JSON"
 	}
 
-	return StatusAvailable, "resource is healthy and transcription verified"
+	return StatusAvailable, "resource is healthy and ASR readiness verified; transcript quality not assessed"
 }
 
 // KokoroChecker verifies that Kokoro can actually synthesize audio by

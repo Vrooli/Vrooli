@@ -8,6 +8,8 @@
 //	           the active default backend.
 //	Liveness — fast probe. Uses cached full-check results when fresh,
 //	           otherwise lightweight health checkers only.
+//	RunAction — explicit user-initiated scenario lifecycle action for
+//	            declared dependencies only.
 package capabilities
 
 import (
@@ -28,6 +30,7 @@ import (
 type Service interface {
 	Resolve(ctx context.Context) Snapshot
 	Liveness(ctx context.Context) Snapshot
+	RunAction(ctx context.Context, req ActionRequest) (ActionResult, error)
 }
 
 // Snapshot is the transport-neutral capabilities view. BackendOptions
@@ -41,15 +44,33 @@ type Snapshot struct {
 
 // CapabilityState mirrors the proto CapabilityState message.
 type CapabilityState struct {
-	ID             string
-	Name           string
-	Description    string
-	DependencyKind string
-	DependencySlug string
-	Features       []string
-	Status         string
-	Message        string
-	CheckedAt      string
+	ID              string
+	Name            string
+	Description     string
+	DependencyKind  string
+	DependencySlug  string
+	Features        []string
+	Status          string
+	Message         string
+	CheckedAt       string
+	ReasonCode      string
+	ActionKind      string
+	ActionLabel     string
+	OperatorCommand string
+}
+
+type ActionRequest struct {
+	CapabilityID string
+	ActionKind   string
+}
+
+type ActionResult struct {
+	Success      bool
+	Status       string
+	Message      string
+	CapabilityID string
+	ActionKind   string
+	Snapshot     Snapshot
 }
 
 // BackendOption mirrors the proto BackendOption message and the

@@ -68,7 +68,7 @@
           "maturity": "active",
           "requiredBy": ["oriented"],
           "completion": "required",
-          "ownerSkills": ["prd-control-tower"]
+          "ownerSkills": ["prd-authoring"]
         },
         {
           "path": "../DESIGN.md",

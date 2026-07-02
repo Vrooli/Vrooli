@@ -15,14 +15,14 @@
 | `audio-tools corpus import AUDIO_FILE --reference TEXT [--reference-file PATH] [--tags a,b] [--format pcm_s16le] [--sample-rate 16000] [--scripted]` | Import a PCM clip + ground-truth transcript into the corpus | `CorpusService.CreateClip` |
 | `audio-tools corpus get ID` | Show one clip's metadata | `CorpusService.GetClip` |
 | `audio-tools corpus delete ID` | Delete a clip (row + audio blob) | `CorpusService.DeleteClip` |
-| `audio-tools experiment start [--name LABEL] [--strategies …] [--clip-ids …] [--realtime-repeats N] [--chunk-ms N] [--dropped-span-threshold N] [--overlap-max-window-ms N] [--seed N] [--long-form true] [--target-duration-seconds N] [--gap-ms N] [--tag-contains SUBSTR] [--noise-types white,fan] [--snr-db 18,12,6] [--competing-voices af_bella] [--competing-text TEXT] [--target-profile-id ID] [--speaker-extraction true] [--speaker-verification true] [--speaker-mode filter] [--speaker-threshold 0.5] [--speaker-fallback false] [--speaker-ablation true] [--estimated-seconds N]` | Enqueue a persisted async STT experiment and return its id immediately; long-form mode concatenates selected clips with deterministic silence gaps, augmentation mixes generated noise or Kokoro voices at the SNR grid, speaker flags bind per-run extraction/verification without mutating live speaker config, and the report stores safety gates/length curves (`--dropped-span-threshold`, default 4) with condition notes | `ExperimentService.StartExperiment` |
+| `audio-tools experiment start [--name LABEL] [--strategies …] [--clip-ids …] [--realtime-repeats N] [--latency-tail-seconds N] [--chunk-ms N] [--dropped-span-threshold N] [--overlap-max-window-ms N] [--seed N] [--long-form true] [--target-duration-seconds N] [--sweep-durations 30,60,120] [--gap-ms N] [--tag-contains SUBSTR] [--noise-types white,fan] [--snr-db 18,12,6] [--competing-voices af_bella] [--competing-text TEXT] [--target-profile-id ID] [--speaker-extraction true] [--speaker-verification true] [--speaker-mode filter] [--speaker-threshold 0.5] [--speaker-fallback false] [--speaker-ablation true] [--estimated-seconds N]` | Enqueue a persisted async STT experiment and return its id immediately; long-form mode concatenates selected clips with deterministic silence gaps, `--sweep-durations` materializes one input per requested duration for backend-owned scaling analysis, augmentation mixes generated noise or Kokoro voices at the SNR grid, speaker flags bind per-run extraction/verification without mutating live speaker config, and the report stores safety gates/length curves/scaling warnings (`--dropped-span-threshold`, default 4) with condition notes | `ExperimentService.StartExperiment` |
 | `audio-tools experiment get ID` | Show one experiment's persisted lifecycle state and run cells | `ExperimentService.GetExperiment` |
 | `audio-tools experiment wait ID` | Block once until the experiment reaches a terminal state; caller cancellation does not abort the run | `ExperimentService.WaitExperiment` |
 | `audio-tools experiment list [--status queued\|running\|succeeded\|failed\|canceled] [--limit N] [--offset N]` | List persisted experiments newest first | `ExperimentService.ListExperiments` |
 | `audio-tools experiment cancel ID` | Cancel a queued or running experiment | `ExperimentService.CancelExperiment` |
 | `audio-tools experiment watch ID` | Stream progress events for an active experiment | `ExperimentService.StreamExperimentEvents` |
-| `audio-tools experiment report ID` | Fetch the stored experiment report artifact and run-cell metrics | `ExperimentService.GetExperimentReport` |
-| `audio-tools experiment compare ID1,ID2[,ID3…]` | Compare two or more experiments; pass `--json` for full recipes and reports | `ExperimentService.CompareExperiments` |
+| `audio-tools experiment report ID` | Fetch the stored experiment report artifact and run-cell metrics, including compact backend-owned scaling classifications when a duration sweep produced enough points | `ExperimentService.GetExperimentReport` |
+| `audio-tools experiment compare ID1,ID2[,ID3…]` | Compare two or more experiments; human output includes compact scaling verdicts when present, and `--json` carries the full recipes/reports/scaling points | `ExperimentService.CompareExperiments` |
 | `audio-tools tts synthesize --text TEXT [--voice ID] [--speed N] [--format FMT] [--out PATH]` | Synthesize speech audio | `TTSService.Synthesize` |
 | `audio-tools tts synthesize-stream --text TEXT [--voice ID] [--speed N] [--format FMT] [--out PATH]` | Stream-synthesize speech (writes frames to --out as they arrive) | `TTSService.SynthesizeStream` |
 | `audio-tools tts voices` | List canonical voices | `TTSService.ListVoices` |
@@ -35,6 +35,10 @@
 | `audio-tools settings byok-delete --provider ID --capability stt\|tts\|summarize` | Delete a BYOK credential | `SettingsService.DeleteBYOKCredential` |
 
 Output defaults to human-readable rendering; pass `--json` for machine output (Connect-RPC wire shape).
+
+`audio-tools stt transcribe-stream` uses Connect gRPC over HTTP/2. Against
+the local scenario API it uses h2c, matching the production handler wrapper,
+so the command can stream against the default cleartext development URL.
 
 The former synchronous eval command was retired on 2026-07-01. Use
 `audio-tools experiment start` plus `experiment wait`, `experiment report`,

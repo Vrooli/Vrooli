@@ -69,6 +69,7 @@ interface FloatingToolbarProps {
   voicePartialTranscript?: string;
   voiceBackend?: string;
   onVoiceStart?: (opts?: StartRecordingOpts) => void;
+  onVoicePrepare?: () => void;
   onVoiceStop?: () => void;
   /** Exit passive wake-word listening (tapping the passive mic button). */
   onVoiceExitPassive?: () => void;
@@ -101,6 +102,7 @@ export default function FloatingToolbar({
   voicePartialTranscript,
   voiceBackend,
   onVoiceStart,
+  onVoicePrepare,
   onVoiceStop,
   onVoiceExitPassive,
   onVoiceReleaseMic,
@@ -272,6 +274,7 @@ export default function FloatingToolbar({
           partialTranscript={voicePartialTranscript}
           backend={voiceBackend}
           isTtsSpeaking={isTtsSpeaking}
+          onPrepare={onVoicePrepare}
           onStart={onVoiceStart}
           onStop={onVoiceStop}
           onExitPassive={onVoiceExitPassive}

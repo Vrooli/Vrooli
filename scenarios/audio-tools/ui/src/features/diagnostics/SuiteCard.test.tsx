@@ -36,7 +36,7 @@ function passRun(): SuiteRun {
     failCount: 0,
     totalCount: 4,
     steps: [
-      { capability: "stt", ok: true, errorCode: "", errorMessage: "", startedAtUnixMs: 1000, finishedAtUnixMs: 1010, providerTier: "local", providerId: "whisper", modelId: "base", latencyMs: 12, details: {} },
+      { capability: "stt", ok: true, errorCode: "", errorMessage: "", startedAtUnixMs: 1000, finishedAtUnixMs: 1010, providerTier: "local", providerId: "whisper", modelId: "base", latencyMs: 12, details: { quality_assessed: "false" } },
       { capability: "tts", ok: true, errorCode: "", errorMessage: "", startedAtUnixMs: 1010, finishedAtUnixMs: 1020, providerTier: "local", providerId: "kokoro", modelId: "v1", latencyMs: 14, details: {} },
       { capability: "summarize", ok: true, errorCode: "", errorMessage: "", startedAtUnixMs: 1020, finishedAtUnixMs: 1030, providerTier: "local", providerId: "ollama", modelId: "l3", latencyMs: 17, details: {} },
       { capability: "transcode", ok: true, errorCode: "", errorMessage: "", startedAtUnixMs: 1030, finishedAtUnixMs: 1050, providerTier: "local", providerId: "ffmpeg", modelId: "", latencyMs: 4, details: {} },
@@ -85,6 +85,7 @@ describe("SuiteCard", () => {
     await waitFor(() => expect(screen.getByText(strings.diagnostics.suite.overallPass)).toBeInTheDocument());
     expect(onTrace).toHaveBeenCalledTimes(4);
     expect(onTrace).toHaveBeenCalledWith("stt", expect.objectContaining({ providerId: "whisper" }));
+    expect(screen.getByText(strings.diagnostics.suite.qualityNotAssessed)).toBeInTheDocument();
   });
 
   it("renders the partial state when one capability fails", async () => {

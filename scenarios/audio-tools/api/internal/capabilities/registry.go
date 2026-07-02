@@ -273,8 +273,6 @@ func (r *Registry) ResolveLiveness(ctx context.Context) []State {
 		}
 		if checker, ok := checkers[def.ID]; ok {
 			state.Status, state.Message = checker.Check(ctx)
-		} else if checker, ok := r.checkers[def.ID]; ok {
-			state.Status, state.Message = checker.Check(ctx)
 		}
 		states[i] = state
 	}

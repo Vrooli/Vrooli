@@ -135,8 +135,8 @@ Registry.ResolveLiveness(ctx)
           for each Def in defs:
               if checker := livenessCheckers[Def.ID]; ok:
                   state.Status, state.Message = checker.Check(ctx)
-              else if checker := checkers[Def.ID]; ok:
-                  fall back to full checker
+              else:
+                  Status = StatusUnknown
               (does NOT write to cache)
           return states
 ```
@@ -166,15 +166,19 @@ resource directly.
 Two production checker shapes
 (`api/internal/capabilities/checkers.go`):
 
-- **`ResourceChecker`** — GET against the resource URL with a 5 s
-  timeout. `200` or `307` → `StatusAvailable`; other codes →
+- **`ResourceChecker`** — GET against the resource URL with the caller's
+  injected `Doer` timeout. Production liveness probes use the short
+  `httpc.LivenessDoer()` timeout; readiness/full checks use the longer
+  AI-adapter timeout where appropriate. `200` or `307` → `StatusAvailable`; other codes →
   `StatusUnavailable`; transport error → `"resource is not
   responding"`.
 - **`WhisperChecker`** — sends a 0.1 s silent WAV to the Whisper
   `/asr` endpoint. Catches the case where the bare health endpoint
-  responds but transcription is broken (model not loaded, ffmpeg
-  missing inside the container). This is the canonical example of why
-  full and liveness checks are split.
+  responds but ASR request processing is broken (model not loaded,
+  ffmpeg missing inside the container). This is a readiness check, not
+  a transcript-quality check; use the eval harness for WER/accuracy.
+  This is the canonical example of why full and liveness checks are
+  split.
 
 ## Seams
 
@@ -197,13 +201,14 @@ the actual cost.
 | Database ping fails | Envelope flips to `status="unhealthy"`, HTTP `503`. Load balancers should fail the pod out of rotation. |
 | Resource URL unreachable | `ResourceChecker.Check` returns `(StatusUnavailable, "resource is not responding")`. Capability status surfaces as `unavailable` in the next `Resolve`. |
 | Resource returns 5xx | `ResourceChecker.Check` returns `(StatusUnavailable, "resource returned unexpected status")`. |
-| Whisper bare endpoint live but transcription broken | `ResourceChecker` would say healthy; `WhisperChecker` catches it by attempting a real transcription. Only the full checker (`Resolve`) catches this; `ResolveLiveness` may report healthy until cache refresh. |
+| Whisper bare endpoint live but ASR request processing broken | `ResourceChecker` would say healthy; `WhisperChecker` catches it by sending a smoke audio request to `/asr`. Only the full checker (`Resolve`) catches this; `ResolveLiveness` may report healthy until cache refresh. |
+| Whisper ASR readiness passes but transcript quality is bad | Health remains available because diagnostics only proved that the provider path accepted and processed audio. Run the STT eval harness over real audio with reference transcripts before treating quality as good. |
 | Checker missing for a registered `Def` | State returned with `Status = StatusUnknown` and blank message. |
-| Cache stale during `ResolveLiveness` with no liveness checker | Falls back to the full checker for that Def. |
+| Cache stale during `ResolveLiveness` with a liveness checker map but no checker for that Def | Returns `StatusUnknown`; liveness mode does not run full ASR/synthesis/model-readiness checks as a fallback. |
 | Concurrent `Resolve` calls during refresh | Both grab the write lock; the second sees a fresh cache and returns immediately. |
 | `livenessCheckers` not set | `ResolveLiveness` returns `Resolve(ctx)` (full check). |
 
-There is no automatic retry inside checkers — a 5 s HTTP timeout
+There is no automatic retry inside checkers — the injected HTTP timeout
 either succeeds or fails. The TTL is the implicit retry cadence.
 
 ## Capacity Notes
@@ -220,9 +225,10 @@ amortised. The cache copy returned to callers is a fresh slice so
 mutating it cannot corrupt the cached state.
 
 The Whisper full checker sends 3.2 KiB of audio per refresh — a
-30 s TTL means ~6.4 KiB/min of liveness traffic against Whisper.
+30 s TTL means ~6.4 KiB/min of readiness traffic against Whisper.
 This is negligible but worth knowing when sizing the Whisper
-container's request budget.
+container's request budget. The checked audio is a smoke input, so a
+successful response says "ASR path is ready", not "accuracy is good".
 
 `ResolveLiveness` was introduced specifically so the operator UI can
 poll quickly (1 Hz) without paying the Whisper-transcription cost

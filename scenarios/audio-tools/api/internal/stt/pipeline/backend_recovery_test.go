@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -42,6 +43,28 @@ func TestIsBackendDown(t *testing.T) {
 	}
 }
 
+func TestIsBackendTimeout(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"deadline exceeded", context.DeadlineExceeded, true},
+		{"os deadline", os.ErrDeadlineExceeded, true},
+		{"net timeout", timeoutErr{}, true},
+		{"client cancellation", context.Canceled, false},
+		{"backend down", syscall.ECONNREFUSED, false},
+		{"nil", nil, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isBackendTimeout(tc.err); got != tc.want {
+				t.Errorf("isBackendTimeout(%v) = %v, want %v", tc.err, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestBackendErrorTypingAndMessages(t *testing.T) {
 	starting := newBackendStarting("whisper")
 	if !errors.Is(starting, ErrSTTBackendUnavailable) {
@@ -63,6 +86,16 @@ func TestBackendErrorTypingAndMessages(t *testing.T) {
 	}
 	if !contains(needsOp.Error(), "vrooli resource start whisper") {
 		t.Errorf("operator message must carry the remediation command: %q", needsOp.Error())
+	}
+	degraded := newBackendDegraded("whisper")
+	if !degraded.Transient {
+		t.Error("degraded timeout error must be transient")
+	}
+	if degraded.EffectiveState() != STTBackendStateDegraded {
+		t.Errorf("degraded state = %q, want %q", degraded.EffectiveState(), STTBackendStateDegraded)
+	}
+	if contains(degraded.Error(), "deadline") || contains(degraded.Error(), "timeout") {
+		t.Errorf("degraded user message should not expose raw timeout detail: %q", degraded.Error())
 	}
 }
 
@@ -198,6 +231,47 @@ func TestTranscribeAutoEnsureDisabled(t *testing.T) {
 	}
 	if ens.calls != 0 {
 		t.Errorf("EnsureRunning called %d times with auto-ensure off, want 0", ens.calls)
+	}
+}
+
+type timeoutDoer struct {
+	calls atomic.Int32
+}
+
+func (d *timeoutDoer) Do(*http.Request) (*http.Response, error) {
+	d.calls.Add(1)
+	return nil, context.DeadlineExceeded
+}
+
+type timeoutErr struct{}
+
+func (timeoutErr) Error() string   { return "timeout" }
+func (timeoutErr) Timeout() bool   { return true }
+func (timeoutErr) Temporary() bool { return true }
+
+func TestTranscribeTimeoutReturnsDegradedWithoutEnsure(t *testing.T) {
+	doer := &timeoutDoer{}
+	ens := &fakeEnsurer{}
+	s := newRecoveryService(doer)
+	s.SetBackendEnsurer(ens, "whisper")
+	s.SetAutoEnsure(true)
+
+	_, err := s.Transcribe(context.Background(), pcmAudio, "pcm_s16le", "en", "", false)
+	var be *STTBackendError
+	if !errors.As(err, &be) {
+		t.Fatalf("err = %v, want *STTBackendError", err)
+	}
+	if be.EffectiveState() != STTBackendStateDegraded {
+		t.Fatalf("state = %q, want %q", be.EffectiveState(), STTBackendStateDegraded)
+	}
+	if !be.Transient {
+		t.Error("timeout/degraded error should be transient")
+	}
+	if ens.calls != 0 {
+		t.Errorf("EnsureRunning called %d times for timeout, want 0", ens.calls)
+	}
+	if got := doer.calls.Load(); got != 1 {
+		t.Errorf("HTTP attempts = %d, want 1", got)
 	}
 }
 

@@ -255,8 +255,10 @@ describe("ExperimentLabView", () => {
       ),
     );
     expect(pushToast).toHaveBeenCalledWith(expect.objectContaining({ title: strings.dictationStudio.experimentStarted }));
-    expect(await screen.findByTestId(selectors.dictationStudio.experimentLiveProgress)).toHaveTextContent("evaluating strategies");
     expect(streamExperimentEvents).toHaveBeenCalledWith("exp-2", expect.any(Function), expect.any(AbortSignal));
+    await waitFor(() =>
+      expect(screen.getByTestId(selectors.dictationStudio.experimentLiveProgress)).toHaveTextContent("storing report"),
+    );
     await waitFor(() => expect(getExperimentReport).toHaveBeenCalledWith("exp-2"));
   });
 

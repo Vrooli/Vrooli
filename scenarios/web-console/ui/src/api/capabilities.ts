@@ -17,6 +17,10 @@ export interface CapabilityState {
   features: string[];
   status: CapabilityStatus;
   message?: string;
+  reasonCode?: string;
+  actionKind?: string;
+  actionLabel?: string;
+  operatorCommand?: string;
   checkedAt?: string;
 }
 
@@ -25,6 +29,16 @@ export interface CapabilitiesResponse {
   timestamp: string;
   session_backends?: BackendOption[];
   default_backend?: string;
+}
+
+export interface CapabilityActionResponse {
+  success: boolean;
+  status: string;
+  message?: string;
+  capabilityId: string;
+  actionKind: string;
+  capabilities: CapabilityState[];
+  timestamp: string;
 }
 
 interface ProtoCapabilityState {
@@ -37,6 +51,10 @@ interface ProtoCapabilityState {
   status: string;
   message: string;
   checkedAt: string;
+  reasonCode?: string;
+  actionKind?: string;
+  actionLabel?: string;
+  operatorCommand?: string;
 }
 
 interface ProtoBackendOption {
@@ -70,6 +88,10 @@ function decodeCapabilitiesResponse(resp: ProtoCapabilitiesResponse): Capabiliti
       features: c.features ?? [],
       status: decodeCapabilityStatus(c.status),
       message: c.message || undefined,
+      reasonCode: c.reasonCode || undefined,
+      actionKind: c.actionKind || undefined,
+      actionLabel: c.actionLabel || undefined,
+      operatorCommand: c.operatorCommand || undefined,
       checkedAt: c.checkedAt || undefined,
     })),
     timestamp: resp.timestamp,
@@ -93,6 +115,23 @@ function decodeCapabilitiesResponse(resp: ProtoCapabilitiesResponse): Capabiliti
 export async function fetchCapabilities(): Promise<CapabilitiesResponse> {
   const resp = await capabilitiesClient.get({});
   return decodeCapabilitiesResponse(resp);
+}
+
+export async function runCapabilityAction(capabilityId: string, actionKind: string): Promise<CapabilityActionResponse> {
+  const resp = await capabilitiesClient.runAction({ capabilityId, actionKind });
+  const decoded = decodeCapabilitiesResponse({
+    capabilities: resp.capabilities,
+    timestamp: resp.timestamp,
+  });
+  return {
+    success: resp.success,
+    status: resp.status,
+    message: resp.message || undefined,
+    capabilityId: resp.capabilityId,
+    actionKind: resp.actionKind,
+    capabilities: decoded.capabilities,
+    timestamp: decoded.timestamp,
+  };
 }
 
 /** Fast liveness-only capability check (GET health only, no test transcription). */

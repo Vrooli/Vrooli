@@ -131,6 +131,16 @@ func TestPrintReportTableSurfacesDecisionSignals(t *testing.T) {
 				Wer:                 0.02,
 				MaxDroppedSpanWords: 0,
 			}},
+			Scaling: &evalv1.ScalingAnalysis{
+				LatencyClassification: "linear",
+				ComputeClassification: "flat",
+				Confidence:            "medium",
+				Points: []*evalv1.ScalingPoint{
+					{ClipId: "clip-30", RealizedDurationMs: 30_000},
+					{ClipId: "clip-60", RealizedDurationMs: 60_000},
+					{ClipId: "clip-120", RealizedDurationMs: 120_000},
+				},
+			},
 		}},
 	})
 
@@ -142,6 +152,9 @@ func TestPrintReportTableSurfacesDecisionSignals(t *testing.T) {
 	require.Contains(t, out, "info/latency_not_measured")
 	require.Contains(t, out, "Length curves:")
 	require.Contains(t, out, "short")
+	require.Contains(t, out, "Scaling analysis:")
+	require.Contains(t, out, "linear")
+	require.Contains(t, out, "flat")
 	require.NotContains(t, out, "metrics=")
 }
 
@@ -153,7 +166,12 @@ func TestPrintComparisonRendersWinnerRowsAndKeepsNilReportVisible(t *testing.T) 
 		return &evalv1.EvalReport{
 			Summary: &evalv1.EvalReportSummary{WinnerStrategy: "batch"},
 			PerStrategy: []*evalv1.StrategyReport{
-				{Strategy: "batch", Label: "batch / clean", Wer: winnerWer, Rtf: winnerRtf, WhisperCalls: 1, Safety: &evalv1.SafetyGateReport{Passed: passed}},
+				{Strategy: "batch", Label: "batch / clean", Wer: winnerWer, Rtf: winnerRtf, WhisperCalls: 1, Safety: &evalv1.SafetyGateReport{Passed: passed}, Scaling: &evalv1.ScalingAnalysis{
+					LatencyClassification: "linear",
+					ComputeClassification: "flat",
+					Confidence:            "medium",
+					Points:                []*evalv1.ScalingPoint{{ClipId: "clip-30", RealizedDurationMs: 30_000}},
+				}},
 				{Strategy: "vad_segment", Label: "vad", Wer: winnerWer + 0.05, Rtf: winnerRtf + 1},
 			},
 		}
@@ -182,6 +200,8 @@ func TestPrintComparisonRendersWinnerRowsAndKeepsNilReportVisible(t *testing.T) 
 	require.Contains(t, out, "exp-ccc", "nil-report experiment row must still render")
 	require.Contains(t, out, "running", "nil-report experiment must show its status")
 	require.Contains(t, out, "SAFE")
+	require.Contains(t, out, "SCALE")
+	require.Contains(t, out, "linear/flat")
 	require.Contains(t, out, "UNSAFE")
 	require.Contains(t, out, "* best")
 	require.Contains(t, out, "Experiment errors:")

@@ -79,6 +79,7 @@ describe("VoiceStreamProvider backend-down error", () => {
   afterEach(() => {
     provider.dispose();
     infoSpy.mockRestore();
+    vi.useRealTimers();
   });
 
   it("surfaces the clean server message and never the raw dial string", async () => {
@@ -100,5 +101,27 @@ describe("VoiceStreamProvider backend-down error", () => {
       expect(msg).not.toContain("dial tcp");
       expect(msg).not.toContain("connection refused");
     }
+  });
+
+  it("clears a pending acknowledgement notice when any later server message proves progress", async () => {
+    vi.useFakeTimers();
+    const statuses: string[] = [];
+    const results: string[] = [];
+    provider.onStatus = (status) => statuses.push(status.code);
+    provider.onResult = (text) => results.push(text);
+
+    await provider.start();
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(1501);
+    expect(statuses).toContain("server_ack_pending");
+
+    const ws = FakeWebSocket.instances.at(-1);
+    if (!ws) throw new Error("expected a WebSocket instance");
+    ws.onmessage?.({
+      data: JSON.stringify({ type: "final", text: "transcribed text" }),
+    });
+
+    expect(statuses).toContain("stream_connected");
+    expect(results).toEqual(["transcribed text"]);
   });
 });

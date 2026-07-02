@@ -56,6 +56,44 @@ const { mockSyncPaneUpdate, mockSyncPaneOrder } = vi.hoisted(() => ({
   mockSyncPaneUpdate: vi.fn(),
   mockSyncPaneOrder: vi.fn(),
 }));
+const { mockVoiceInputState } = vi.hoisted(() => ({
+  mockVoiceInputState: {
+    supported: true,
+    backend: "whisper",
+    voiceState: "idle",
+    error: null,
+    audioLevel: 0,
+    voiceActivity: undefined,
+    fallbackNotice: null as string | null,
+    partialTranscript: "",
+    voiceMode: "one-shot",
+    segments: [],
+    commandSuggestion: null,
+    wakeWordConfigured: false,
+    passiveListeningActive: false,
+    staleLiveMicLease: false,
+    rejectedAudio: null,
+    speakerVerificationEnabled: false,
+    speakerProfileConfigured: false,
+    isRecording: false,
+    isListening: false,
+    isTranscribing: false,
+    isPreparing: false,
+    isPassive: false,
+    isActive: false,
+    prepareRecording: vi.fn(),
+    startRecording: vi.fn(),
+    stopRecording: vi.fn(),
+    cancelTranscription: vi.fn(),
+    dismissCommandSuggestion: vi.fn(),
+    dismissFallbackNotice: vi.fn(),
+    dismissRejection: vi.fn(),
+    retryWithoutFilter: vi.fn(),
+    enterPassiveMode: vi.fn(),
+    exitPassiveMode: vi.fn(),
+    releaseMicrophone: vi.fn(),
+  },
+}));
 
 // Shared mutable state to let tests control the hook's return
 const hookState = {
@@ -99,6 +137,10 @@ vi.mock("../hooks/useWorkspaceSync", () => ({
 
 vi.mock("../hooks/useTouchControls", () => ({
   useTouchControls: () => touchControlsState.needsTouchControls,
+}));
+
+vi.mock("../hooks/useVoiceInput", () => ({
+  useVoiceInput: () => mockVoiceInputState,
 }));
 
 // Mock workspace store
@@ -243,6 +285,8 @@ describe("Workspace", () => {
     hookState.isHydrated = true;
     hookState.isCreating = false;
     hookState.createError = null;
+    mockVoiceInputState.fallbackNotice = null;
+    mockVoiceInputState.dismissFallbackNotice.mockClear();
     touchControlsState.needsTouchControls = false;
     mockStoreState.panes = [];
     mockStoreState.columnFractions = [];
@@ -464,6 +508,24 @@ describe("Workspace", () => {
     expect(screen.getByTestId("workspace-top-edge-fill").className).toContain("--wc-safe-top");
     expect(screen.getByTestId("workspace-top-edge-fill").className).toContain("wc-chrome-surface");
     expect(screen.getByTestId("tab-bar").className).not.toContain("--wc-safe-top");
+  });
+
+  it("renders the voice status notice as a dismissible top-edge banner", () => {
+    hookState.panes = [{ session: mockSession }];
+    mockStoreState.displayMode = "tabs";
+    mockStoreState.activePane = mockSession.id;
+    mockStoreState.panes = [
+      { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: true },
+    ];
+    mockVoiceInputState.fallbackNotice = "Waiting for the speech backend to acknowledge the stream.";
+
+    render(<Workspace />);
+
+    expect(screen.getByTestId("voice-status-banner").textContent).toContain("Waiting for the speech backend");
+    expect(screen.getByTestId("workspace-top-edge-fill").className).toContain("bg-amber-500/10");
+
+    fireEvent.click(screen.getByTestId("voice-status-dismiss"));
+    expect(mockVoiceInputState.dismissFallbackNotice).toHaveBeenCalledTimes(1);
   });
 
   it("does not double-reserve top safe area when parent already owns it", () => {

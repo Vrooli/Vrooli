@@ -136,6 +136,29 @@ func TestStreamWS_HandshakeAndTerminalDone(t *testing.T) {
 	require.True(t, sawDone, "expected a terminal done frame")
 }
 
+func TestStreamWS_EmitsInitialStatus(t *testing.T) {
+	r := mux.NewRouter()
+	r.Handle("/api/v1/voice/stream", StreamWSHandler(newNoProviderDeps(t))).Methods(http.MethodGet)
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+
+	wsURL, _ := url.Parse(srv.URL + "/api/v1/voice/stream")
+	wsURL.Scheme = "ws"
+	c, resp, err := websocket.DefaultDialer.Dial(wsURL.String(), nil)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusSwitchingProtocols, resp.StatusCode)
+	t.Cleanup(func() { _ = c.Close() })
+
+	_ = c.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, raw, err := c.ReadMessage()
+	require.NoError(t, err)
+	var m wsMessage
+	require.NoError(t, json.Unmarshal(raw, &m))
+	require.Equal(t, wsMsgStatus, m.Type)
+	require.Equal(t, "stream_connected", m.Code)
+	require.NotEmpty(t, m.Text)
+}
+
 func TestStreamWS_BinaryPCMAndDoneProducePromptSegmentFinal(t *testing.T) {
 	audio := []byte{0x01, 0x00, 0x02, 0x00, 0x03, 0x00}
 	captured := make(chan sttchain.Request, 1)

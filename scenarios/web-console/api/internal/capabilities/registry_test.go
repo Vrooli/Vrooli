@@ -17,6 +17,21 @@ func (f *fakeChecker) Check(_ context.Context) (Status, string) {
 	return f.status, f.message
 }
 
+type fakeResultChecker struct {
+	result CheckResult
+	calls  int
+}
+
+func (f *fakeResultChecker) Check(_ context.Context) (Status, string) {
+	result := f.CheckResult(context.Background())
+	return result.Status, result.Message
+}
+
+func (f *fakeResultChecker) CheckResult(_ context.Context) CheckResult {
+	f.calls++
+	return f.result
+}
+
 func TestRegistry_Resolve(t *testing.T) {
 	defs := []Def{
 		{ID: "cap-a", Name: "Cap A"},
@@ -83,6 +98,33 @@ func TestRegistry_Caching(t *testing.T) {
 	reg.Resolve(context.Background())
 	if checker.calls != 1 {
 		t.Errorf("after second Resolve (cached): calls = %d, want 1", checker.calls)
+	}
+}
+
+func TestRegistry_ResolvePreservesActionMetadata(t *testing.T) {
+	checker := &fakeResultChecker{result: CheckResult{
+		Status:          StatusUnavailable,
+		Message:         "scenario is installed but stopped",
+		ReasonCode:      "scenario_stopped",
+		ActionKind:      ActionKindScenarioStart,
+		ActionLabel:     "Start scenario",
+		OperatorCommand: "vrooli scenario start audio-tools --json",
+	}}
+	reg := NewRegistry([]Def{{ID: "audio-tools", Name: "Audio Tools"}}, map[string]Checker{"audio-tools": checker}, time.Minute)
+
+	states := reg.Resolve(context.Background())
+	if len(states) != 1 {
+		t.Fatalf("states = %d, want 1", len(states))
+	}
+	got := states[0]
+	if got.ReasonCode != checker.result.ReasonCode {
+		t.Fatalf("reason = %q, want %q", got.ReasonCode, checker.result.ReasonCode)
+	}
+	if got.ActionKind != checker.result.ActionKind {
+		t.Fatalf("action kind = %q, want %q", got.ActionKind, checker.result.ActionKind)
+	}
+	if got.OperatorCommand != checker.result.OperatorCommand {
+		t.Fatalf("operator command = %q, want %q", got.OperatorCommand, checker.result.OperatorCommand)
 	}
 }
 

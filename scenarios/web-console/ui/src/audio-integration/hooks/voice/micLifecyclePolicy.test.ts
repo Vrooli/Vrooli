@@ -11,7 +11,6 @@ describe("decideMicLifecycle", () => {
     const d = decideMicLifecycle({ event: "hidden", standalonePwa: true });
     expect(d.release).toBe("all");
     expect(d.stopActiveRecording).toBe(true);
-    expect(d.rearm).toBe(false);
   });
 
   it("releases only non-active leases on hidden in a normal desktop tab", () => {
@@ -29,11 +28,11 @@ describe("decideMicLifecycle", () => {
     },
   );
 
-  it("re-arms (and releases nothing) on visible", () => {
+  it("releases nothing on visible without arming the mic", () => {
     const d = decideMicLifecycle({ event: "visible", standalonePwa: true });
     expect(d.release).toBe("none");
     expect(d.stopActiveRecording).toBe(false);
-    expect(d.rearm).toBe(true);
+    expect(Object.prototype.hasOwnProperty.call(d, "rearm")).toBe(false);
   });
 });
 

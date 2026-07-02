@@ -8,6 +8,12 @@ quality/latency trade-offs (boundary errors, dropped sections,
 slower-than-batch finalization on hard audio) that can only be tuned
 against measured numbers, not reasoned about in the abstract.
 
+The diagnostics suite is intentionally narrower: the STT step proves ASR
+readiness by sending a bundled smoke clip through the provider chain. A
+passing diagnostics run does not assess transcript quality or WER, and
+the CLI/UI mark that step as `quality not assessed`. Use this harness for
+any quality claim.
+
 It mirrors the AI-search eval harness (`packages/ai-go/search/grading.go`
 `GradeSuite → SuiteReport`): a corpus of cases, a transcriber seam, and a
 per-case + aggregate report.
@@ -41,6 +47,7 @@ per-case + aggregate report.
 | **Safety gates** | zero-tolerance committed-text retraction gate plus configurable contiguous dropped-span gate (`default=4` reference words). Reported per row/condition, not averaged into WER. | yes |
 | **Commit metrics** | commit count and time-to-first-commit from the strategy/Segmenter event stream. | **no** for wall-clock timing; commit count is reproducible |
 | **Length curves** | WER, p95 finalization latency, mean time-to-first-commit, and max dropped span by input-length bucket (10s/30s/1m/3m/5m/>5m). | mixed; quality/drop fields yes, wall-clock latency no |
+| **Scaling analysis** | One raw point per evaluated duration plus backend-owned `flat` / `linear` / `superlinear` / `inconclusive` classifications for finalization latency and deterministic compute. | mixed; compute fields yes, wall-clock latency no |
 
 The num[sot]:two run modes are a first-class contract: the **deterministic** pass feeds
 chunks back-to-back and yields reproducible WER + compute (used for
@@ -54,6 +61,8 @@ each clip and paces only the final N seconds at 1×. This is an affordable
 final-tail approximation for long-form clips: it measures last-chunk →
 terminal transcript behavior without sleeping through minutes of prefix
 audio, but it intentionally does not model prefix backlog effects.
+Reports produced this way include a `tail_latency_approximation` warning; use
+full real-time repeats before treating latency scaling as a promotion gate.
 
 Persisted experiments expose the per-run stream tuning levers as typed CLI
 flags, so sweeps do not need hand-written recipe JSON. `--overlap-max-window-ms`,
@@ -89,6 +98,26 @@ less than num[threshold]:120 seconds of evaluated audio is useful for local debu
 too small to promote a new config without a broader corpus. If
 `realtime_repeats=0`, latency is explicitly marked as not measured and the
 recommendation is quality/cost-only.
+
+Duration sweeps add a `scaling` object to each strategy row. `scaling.points`
+keeps the raw realized-duration measurements: WER, finalization p50/p95 and
+sample count, time-to-first-commit, commits, partial revisions, dropped-span
+max, Whisper calls, backend audio seconds, provider latency, and RTF. The
+backend fits constant, linear, n-log-n, and quadratic models over positive
+durations and classifies conservatively. At least num[threshold]:3 distinct
+positive durations are required; otherwise the row gets
+`insufficient_scaling_points` and remains `inconclusive`. These classes are
+empirical for the measured machine/corpus, not formal Big-O claims. The
+compute classification uses the highest-risk fit across provider latency,
+Whisper call count, processed audio seconds, and RTF; `compute_fit.metric`
+names the metric that drove the aggregate classification.
+
+When WER is tied or effectively tied, the recommendation prefers a strategy
+with acceptable long-form scaling over a lower short-clip p95 row that shows
+superlinear growth. If no scaling data is present, the older aggregate ranking
+policy is preserved. UI and CLI surfaces render the backend-owned
+classification and warnings; they should not fit curves or re-rank rows
+client-side.
 
 Each `ClipReport` includes the raw reference/hypothesis, the normalized
 reference/hypothesis, edit counts, and a word-level alignment path with
@@ -249,6 +278,10 @@ report's per-strategy length curve (10s/30s/1m/3m/5m/>5m buckets) is populated
 with one point per swept duration. A sweep supersedes
 `--target-duration-seconds`. With `--realtime-repeats`, this yields the
 finalization-latency-vs-length curve the lab exists to produce.
+For sweep runs, the worker serializes real-time repeats internally
+(`realtime_concurrency=1` in the realized metadata) to reduce backend
+contention between duration points. Ordinary non-sweep latency experiments
+keep the default bounded concurrency so UI-triggered runs remain practical.
 
 Target-speaker experiments (`--speaker-extraction`/`--speaker-verification`/
 `--speaker-ablation`) require `--target-profile-id`; the recipe is rejected at

@@ -48,24 +48,25 @@ reasoning/prompt leakage.
 
 Sessions with default never-expire policy could accumulate unbounded transcript data in SQLite. May need eventual transcript rotation or archival strategy (deferred — not MVP).
 
-## 8a. iOS/WebKit Residual Mic-Indicator Limitation (2026-06-30)
+## 8a. Web Mic Lifecycle Wedge and iOS/WebKit Residual (2026-07-02)
 
-The microphone lifecycle hardening (capture lifecycle controller, platform-aware
-`decideMicLifecycle` policy, registry-driven self-heal, preparing/start
-cancellation) makes it structurally impossible for web-console JS to report the
-mic as off while JS still owns a live browser mic track, and releases all
-app-owned tracks as early as `visibilitychange: hidden` on standalone/PWA.
+**RESOLVED for web-console-owned JS lifecycle drift:** server-final, user stop,
+auto-stop, error, and page-lifecycle stop paths now converge on the same capture
+teardown path, and production `getUserMedia` calls are forced through the mic
+ownership registry. Persisted `lowLatencyVoice` / `wakeWordEnabled` flags no
+longer acquire the mic on mount or tab-visible; prewarm/passive arming requires
+explicit mic-control intent. Tests cover the old server-final-before-client-stop
+wedge, stale-lease self-heal, no eager acquisition, and the structural
+`getUserMedia` boundary.
 
-**Residual platform limitation we cannot fix from JS:** if iOS/WebKit fully
-freezes or kills the page's JavaScript *before* `visibilitychange: hidden`,
-`pagehide`, or `freeze` is delivered (or without delivering any of them), no
-application code can run `MediaStreamTrack.stop()`, and the OS mic indicator may
-remain active until the OS reclaims the track or the device is restarted. This is
-outside the web platform's control surface. Mitigation in place: release on the
-earliest lifecycle signal (`visibilitychange: hidden`) rather than waiting for
-`pagehide`, and treat `preparing` as capture-active so an in-flight `getUserMedia`
-is also released. A native wrapper would be required to guarantee release across
-a hard JS freeze.
+**Residual platform limitation we cannot fix from web JS:** if iOS/WebKit fully
+freezes or kills the page's JavaScript before `visibilitychange: hidden`,
+`pagehide`, or `freeze` is delivered, no application code can run
+`MediaStreamTrack.stop()`. In that narrow case the OS mic indicator may remain
+active until the OS reclaims the track. The mitigation is to release on the
+earliest delivered lifecycle signal and cancel in-flight starts; a native shell
+would only matter for this hard-freeze class, not for the now-fixed web-console
+state-machine wedge.
 
 ## 9. E2E Issues
 

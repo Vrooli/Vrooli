@@ -2,6 +2,7 @@ package eval
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -242,6 +243,7 @@ func EvalClip(ctx context.Context, clip Clip, meter *MeteredProvider, opts Repla
 		snap := meter.Snapshot()
 		cr.WhisperCalls = snap.Calls
 		cr.WhisperAudioSeconds = snap.AudioSeconds
+		cr.ProviderLatencyMs = float64(snap.ProviderLatency) / float64(time.Millisecond)
 		cr.RTF = RTF(snap.ProviderLatency, clip.Duration())
 	}
 	if opts.Mode == ModeRealtime {
@@ -302,6 +304,14 @@ func RunReport(ctx context.Context, clips []Clip, specs []StrategySpec, opts Eva
 		QualityMeasured: opts.QualityPass,
 		LatencyMeasured: opts.RealtimeRepeats > 0,
 	}
+	tailLatencyApproximation := opts.RealtimeRepeats > 0 && opts.LatencyTailSeconds > 0
+	if tailLatencyApproximation {
+		report.Warnings = append(report.Warnings, ReportWarning{
+			Code:     "tail_latency_approximation",
+			Severity: "info",
+			Message:  fmt.Sprintf("Latency repeats paced only the final %d second(s) of each clip; long-form latency reflects final-tail behavior, not full real-time playback.", opts.LatencyTailSeconds),
+		})
+	}
 	for _, spec := range specs {
 		clipResults := make([]ClipResult, len(clips))
 		for i, clip := range clips {
@@ -319,7 +329,15 @@ func RunReport(ctx context.Context, clips []Clip, specs []StrategySpec, opts Eva
 		if opts.RealtimeRepeats > 0 {
 			runRealtimeRepeats(ctx, clips, spec, opts, clipResults)
 		}
-		report.PerStrategy = append(report.PerStrategy, aggregateStrategy(spec.Kind, spec.Label, clipResults))
+		strategyReport := aggregateStrategy(spec.Kind, spec.Label, clipResults)
+		if tailLatencyApproximation {
+			strategyReport.Scaling.Warnings = append(strategyReport.Scaling.Warnings, ReportWarning{
+				Code:     "tail_latency_approximation",
+				Severity: "info",
+				Message:  "Scaling latency points use final-tail pacing; validate full long-form latency before making promotion decisions.",
+			})
+		}
+		report.PerStrategy = append(report.PerStrategy, strategyReport)
 	}
 	return explainReport(report)
 }

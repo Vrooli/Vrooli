@@ -171,9 +171,9 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   const isListening = state.voiceState === "listening";
   const isTranscribing = state.voiceState === "transcribing";
   const isPreparing = state.voiceState === "preparing";
-  // Honest passive state: driven by real passive-listener activity, NOT by a
-  // never-set voiceState === "passive". voiceState stays "idle" while passively
-  // listening (so tap-to-talk still works); the mic control reads this instead.
+  // Honest passive state: driven by real passive-listener activity, not by a
+  // workflow state. voiceState stays "idle" while passively listening (so
+  // tap-to-talk still works); the mic control reads this instead.
   const isPassive = state.passiveListeningActive;
   /** True when mic is active in either mode (excludes passive). */
   const isActive = isRecording || isListening;
@@ -234,6 +234,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
    * "couldn't transcribe" banner instead of dropping the audio silently.
    */
   const turnDeliveredTextRef = useRef(false);
+  const dismissedFallbackNoticeRef = useRef<string | null>(null);
 
   // Audio level monitoring refs -- AudioContext is reused across recording
   // sessions to avoid hitting the browser's 6-8 context limit.
@@ -256,7 +257,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   // VAD refs
   const vadRef = useRef(createVadRefs());
   const vadActiveRef = useRef(false);
-  const stopRecordingRef = useRef<((opts?: { reason?: "auto" | "user" }) => void) | null>(null);
+  const endCaptureRef = useRef<((opts?: { reason?: "auto" | "user" }) => void) | null>(null);
   const vadSilenceTimeoutRef = useRef(vadSilenceTimeoutMs);
   vadSilenceTimeoutRef.current = vadSilenceTimeoutMs;
 
@@ -271,6 +272,9 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   /** Holds the latest passive-arm reconcile so the visibility effect (which has
    *  a narrow dep list) can call it on becoming visible without going stale. */
   const reconcilePassiveRef = useRef<(() => void) | null>(null);
+  /** True only after an explicit mic-control intent in the current visible page
+   *  session. Mount/visibility alone must never acquire the microphone. */
+  const micIntentArmedRef = useRef(false);
   /** Ref for isActive so non-React callbacks can read it. */
   const isActiveRef = useRef(false);
   isActiveRef.current = isRecording || isListening;
@@ -358,20 +362,13 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   // ── Low-latency voice pre-warm ──
   // DOC: docs/internal/VOICE-LATENCY.md#visibility-based-mic-lifecycle
   //
-  // When low-latency voice is enabled, pre-warm the mic stream so pressing the
-  // button skips getUserMedia. Pre-warm only when the document is visible, no
-  // passive listener already owns a mic stream (Phase 5: never two invisible
-  // background streams), and no recording is active. Release/re-acquire on
-  // page-visibility is owned by the central lifecycle effect below, NOT here.
+  // Low-latency voice no longer acquires the mic from mount/visibility. The
+  // mic-control's intent callback arms prewarm; this effect only releases any
+  // warm lease when the feature turns off or the hook unmounts.
   useEffect(() => {
     if (!voiceEnabled) return;
 
     if (lowLatencyVoice) {
-      if (!documentHiddenRef.current && !passiveListenerRef.current && !isActiveRef.current) {
-        acquireMicStream().catch((err) => {
-          console.warn("[voice] Low-latency: initial mic pre-warm failed:", err);
-        });
-      }
       return () => {
         // Release the pre-warmed stream when low-latency is turned off / unmount.
         releaseMicStream();
@@ -550,7 +547,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
               sessionCountRef.current, vadNow - vadRef.current.recordingStart, rms);
             vadActiveRef.current = false;
             vadRef.current.state = "idle";
-            stopRecordingRef.current?.({ reason: "auto" });
+            endCaptureRef.current?.({ reason: "auto" });
             setState((s) => ({ ...s, error: "No speech detected" }));
           }
 
@@ -577,7 +574,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
                 sessionCountRef.current, verdict.source, serverAge,
                 serverSnap.silenceElapsedMs, serverSnap.silenceTimeoutMs,
                 result ?? "null");
-              stopRecordingRef.current?.({ reason: "auto" });
+              endCaptureRef.current?.({ reason: "auto" });
             }
           }
         }
@@ -865,7 +862,21 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     };
   }, [voiceEnabled]);
 
+  const prepareRecording = useCallback(() => {
+    micIntentArmedRef.current = true;
+    if (!voiceEnabled || documentHiddenRef.current || isActiveRef.current || startingRef.current) return;
+
+    if (lowLatencyVoiceRef.current && !passiveListenerRef.current && !isMicStreamAlive()) {
+      acquireMicStream().catch((err) => {
+        console.warn("[voice] Low-latency: intent mic pre-warm failed:", err);
+      });
+    }
+
+    reconcilePassiveRef.current?.();
+  }, [voiceEnabled]);
+
   const startRecording = useCallback(async (startOpts?: StartRecordingOpts) => {
+    micIntentArmedRef.current = true;
     if (state.voiceState !== "idle" || startingRef.current) return;
     startingRef.current = true;
     stopRequestedRef.current = false;
@@ -896,7 +907,13 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     console.info("[voice] S%d startRecording: backend=%s, streaming=%s, vadEnabled=%s, persistent=%s",
       sessionCountRef.current, backendRef.current, streamingAvailableRef.current,
       startOpts?.vadEnabled, persistentModeRef.current);
-    setState((s) => ({ ...s, voiceState: "preparing", error: null }));
+    dismissedFallbackNoticeRef.current = null;
+    setState((s) => ({
+      ...s,
+      voiceState: "preparing",
+      error: null,
+      fallbackNotice: null,
+    }));
 
     // ── Resume AudioContext in user gesture context ──
     // Mobile browsers (Chrome Android, Safari iOS) suspend the AudioContext for
@@ -1064,9 +1081,11 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           error: null,
           audioLevel: 0,
           voiceActivity: IDLE_VOICE_ACTIVITY,
+          fallbackNotice: null,
           partialTranscript: "",
           segments: [],
         }));
+        dismissedFallbackNoticeRef.current = null;
         // Turn ended — surface any pending rejection as a persistent banner.
         // At this point the streaming provider has already snapshotted its
         // retained audio (see VoiceStreamProvider.stop), so
@@ -1088,6 +1107,8 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         if (!turnDeliveredTextRef.current && !hadPendingRejection) {
           surfaceEmptyTranscript();
         }
+
+        controller.shutdown("manual-stop");
 
         // ── Low-latency: release-then-reacquire cycle ──
         // DOC: docs/internal/VOICE-LATENCY.md#audio-ducking-deep-dive
@@ -1163,11 +1184,31 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         // Generic error terminal path: dispose the errored provider (releasing
         // its mic lease) before returning the UI to idle.
         controller.shutdown("provider-error");
-        setState((s) => ({ ...s, voiceState: "idle", error, audioLevel: 0, voiceActivity: IDLE_VOICE_ACTIVITY }));
+        setState((s) => ({
+          ...s,
+          voiceState: "idle",
+          error,
+          audioLevel: 0,
+          voiceActivity: IDLE_VOICE_ACTIVITY,
+          fallbackNotice: null,
+        }));
+        dismissedFallbackNoticeRef.current = null;
       };
       if (provider.onPartial !== undefined) {
         provider.onPartial = (text) => {
-          setState((s) => ({ ...s, partialTranscript: text }));
+          dismissedFallbackNoticeRef.current = null;
+          setState((s) => ({ ...s, partialTranscript: text, fallbackNotice: null }));
+        };
+      }
+      if (provider.onStatus !== undefined) {
+        provider.onStatus = ({ code, message }) => {
+          if (code === "stream_connected") {
+            setState((s) => (s.fallbackNotice ? { ...s, fallbackNotice: null } : s));
+            dismissedFallbackNoticeRef.current = null;
+            return;
+          }
+          if (dismissedFallbackNoticeRef.current === message) return;
+          setState((s) => ({ ...s, fallbackNotice: message }));
         };
       }
 
@@ -1314,18 +1355,18 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     }
   }, [state.voiceState, state.backend, voiceLanguage, startLevelMonitor, stopLevelMonitor, handleSegmentFinal, surfacePendingRejection]);
 
-  const stopRecording = useCallback((opts?: { reason?: "auto" | "user" }) => {
+  const endCapture = useCallback((opts?: { reason?: "auto" | "user" }) => {
     const reason = opts?.reason ?? "user";
     // If start is in progress, signal it to abort after completing
     if (startingRef.current) {
       stopRequestedRef.current = true;
-      console.info("[voice] S%d stopRecording: deferred (start in progress)", sessionCountRef.current);
+      console.info("[voice] S%d endCapture: deferred (start in progress)", sessionCountRef.current);
       return;
     }
 
     const provider = providerRef.current;
     if (!provider || !isActive) {
-      console.warn("[voice] S%d stopRecording: no-op (provider=%s, isActive=%s)",
+      console.warn("[voice] S%d endCapture: no-op (provider=%s, isActive=%s)",
         sessionCountRef.current, !!provider, isActive);
       return;
     }
@@ -1356,6 +1397,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     vadActiveRef.current = false;
     vadRef.current.state = "idle";
     stopLevelMonitor();
+    const stopProviderSynchronously = provider instanceof WebSpeechProvider;
 
     if (isListening) {
       // Persistent mode: stop cleanly, the final segment-final will be
@@ -1384,10 +1426,16 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     if (reason === "auto") {
       provider.dropTail();
       provider.stop();
+    } else if (stopProviderSynchronously) {
+      provider.stop();
     } else {
       setTimeout(() => provider.stop(), 120);
     }
   }, [isActive, isListening, state.backend, stopLevelMonitor]);
+
+  const stopRecording = useCallback(() => {
+    endCapture({ reason: "user" });
+  }, [endCapture]);
 
   const cancelTranscription = useCallback(() => {
     const provider = providerRef.current;
@@ -1401,6 +1449,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     provider.onResult = null;
     provider.onError = null;
     if (provider.onPartial !== undefined) provider.onPartial = null;
+    if (provider.onStatus !== undefined) provider.onStatus = null;
     if (provider instanceof VoiceStreamProvider) {
       provider.onSegmentFinal = null;
       provider.onSegmentAccepted = null;
@@ -1451,6 +1500,13 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     providerRef.current?.disposeLastTurn();
     rejectedAudioRef.current = null;
     setState((s) => (s.rejectedAudio ? { ...s, rejectedAudio: null } : s));
+  }, []);
+
+  const dismissFallbackNotice = useCallback(() => {
+    setState((s) => {
+      dismissedFallbackNoticeRef.current = s.fallbackNotice;
+      return s.fallbackNotice ? { ...s, fallbackNotice: null } : s;
+    });
   }, []);
 
   /**
@@ -1541,8 +1597,8 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     }
   }, []);
 
-  // Keep the ref in sync so the tick loop can call stopRecording
-  stopRecordingRef.current = stopRecording;
+  // Keep the ref in sync so all async end triggers use the same capture funnel.
+  endCaptureRef.current = endCapture;
 
   // ── Passive wake word listening ──
   //
@@ -1684,7 +1740,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       voiceState: state.voiceState,
       listenerActive: !!passiveListenerRef.current,
       startBlocked: passiveStartBlockedRef.current,
-      documentVisible: !documentHiddenRef.current,
+      documentVisible: micIntentArmedRef.current && !documentHiddenRef.current,
     });
     if (action === "enter") {
       void enterPassiveMode();
@@ -1695,7 +1751,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   reconcilePassiveRef.current = reconcilePassive;
 
   useEffect(() => {
-    reconcilePassive();
+    if (micIntentArmedRef.current) reconcilePassive();
   }, [voiceEnabled, wakeWordEnabled, reconcilePassive]);
 
   // ── Page-lifecycle mic cleanup + coordinated re-arm ──
@@ -1710,8 +1766,8 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   //   - For iOS-PWA privacy, an ACTIVE recording is stopped on hidden (it is not
   //     a registry lease concern — stopping it keeps UI state honest and
   //     releases the mic). Surfaced via a transient notice.
-  //   - On becoming visible, re-arm passive listening and/or low-latency prewarm
-  //     explicitly (a lease release does not re-run React effects).
+  //   - On becoming visible, do not re-arm passive listening or low-latency
+  //     prewarm; visibility alone is not a mic intent.
   useEffect(() => {
     if (!voiceEnabled) return;
     // Platform-aware backstop: a standalone/PWA releases ALL leases on hidden
@@ -1730,10 +1786,11 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       if (hidden) {
         // Abort any in-flight start so a getUserMedia that resolves after we go
         // hidden releases its lease instead of entering recording (Phase 6).
+        micIntentArmedRef.current = false;
         controller.cancelStarts();
         if (isActiveRef.current) {
           console.info("[voice] Visibility: hidden during active recording — stopping (privacy)");
-          stopRecordingRef.current?.({ reason: "auto" });
+          endCaptureRef.current?.({ reason: "auto" });
           if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
           setState((s) => ({ ...s, fallbackNotice: "Recording stopped — app moved to background" }));
           fallbackTimerRef.current = setTimeout(() => {
@@ -1743,10 +1800,8 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         // Passive + prewarm leases are released by the backstop; their onRelease
         // callbacks reset passiveListeningActive / micReadiness state.
       } else {
-        reconcilePassiveRef.current?.();
-        if (lowLatencyVoiceRef.current && !isActiveRef.current && !passiveListenerRef.current) {
-          acquireMicStream().catch(() => {});
-        }
+        // Visibility alone must not acquire the microphone. A new explicit
+        // mic-control intent will re-arm passive/prewarm if needed.
       }
     };
 
@@ -1800,7 +1855,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     };
     evaluate(getActiveMicLeases());
     return subscribeMicLeases(evaluate);
-  }, [voiceEnabled]);
+  }, [voiceEnabled, state.voiceState]);
 
   // User-triggered "release microphone" recovery (mic control affordance). Frees
   // any orphaned lease and tears down active capture; safe to call anytime.
@@ -1831,10 +1886,12 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     isPreparing,
     isPassive,
     isActive,
+    prepareRecording,
     startRecording,
     stopRecording,
     cancelTranscription,
     dismissCommandSuggestion,
+    dismissFallbackNotice,
     dismissRejection,
     retryWithoutFilter,
     enterPassiveMode,

@@ -20,9 +20,10 @@ Last updated: 2026-05-16
 > preference triple. They are an enumerated REST exception
 > (RESTReasonHostHookGlue) and never cross scenario boundaries.
 >
-> The legacy seam descriptions below referring to `internal/voice/*` or
-> `internal/tts/*` paths are kept as a historical record while the
-> documentation is rewritten; the code paths themselves no longer exist.
+> The terminal workspace must boot when audio-tools is absent. Lifecycle may
+> try to start audio-tools, and Settings may show lifecycle-owned start/restart
+> commands for the scenario, but web-console must not start Whisper, Kokoro, or
+> other audio provider resources directly.
 
 ## Audio Summarize Model Catalog (added 2026-05-17)
 
@@ -483,6 +484,7 @@ Replaces the pre-Phase-3 `stripANSI` helper that lived in `package main`.
 - `voice/WhisperProvider.ts` — HTTP batch transcription provider
 - `voice/WebSpeechProvider.ts` — Browser-native fallback + SpeechRecognition types
 - `voice/vad.ts` — Voice Activity Detection pure functions
+- `voice/autoStopDecision.ts` — Pure auto-stop verdict and matching mic-button ring projection
 - `voice/audioUtils.ts` — `createAudioFilterChain` pure function
 - `voice/index.ts` — barrel re-exports
 
@@ -495,7 +497,7 @@ Replaces the pre-Phase-3 `stripANSI` helper that lived in `package main`.
 | `VoiceStreamProvider` | Starts MediaRecorder immediately on mic acquisition, buffers chunks until WebSocket connects, then streams to `/api/v1/voice/stream` | Mock WebSocket + mic + MediaRecorder |
 | `WebSpeechProvider` | Uses browser SpeechRecognition API with `continuous: true`, `interimResults: true` | Mock `window.SpeechRecognition` |
 | `TranscriptionProvider` interface | `start()`, `stop()`, `onResult`, `onError`, `onPartial` callbacks | Same interface, deterministic behavior |
-| `MediaDevicesAdapter` | `navigator.mediaDevices.getUserMedia()` | Mock that resolves/rejects for permission tests |
+| Mic ownership registry | Sole production path to `navigator.mediaDevices.getUserMedia()`; providers call `acquireMicStream(owner, constraints)` | Mock `getUserMedia`, assert lease owner/release |
 | AudioContext singleton | Reused across recording sessions; resumed if suspended | Mock constructor, assert single creation |
 | Language parameter | `voiceLanguage` from store -> `lang` (WebSpeech) / `language` (Whisper/Stream); `"auto"` omits language param for Whisper auto-detection | Set store value, assert provider property |
 | Audio buffering (VoiceStreamProvider) | Chunks buffer in `pendingChunks` before WS connects; flushed on `ws.onopen` | Mock WS in CONNECTING state, verify chunks buffered then flushed |
@@ -507,6 +509,7 @@ Replaces the pre-Phase-3 `stripANSI` helper that lived in `package main`.
 | `createAudioFilterChain` | Builds highpass (80Hz) + lowpass (8kHz) Butterworth filter chain -> `MediaStreamAudioDestinationNode` + `AnalyserNode` | Mock AudioContext with fake node factories |
 | `computeSlidingNoiseFloor` | 25th-percentile sliding window (30 samples ~= 2s at 15Hz) with asymmetric hysteresis (immediate rise, gradual decay at 0.5x/s) | Pure function, table-driven unit tests |
 | `vadTick(vad, rms, now, silenceTimeoutMs)` | Exported pure function. Drives VAD state machine; accepts `silenceTimeoutMs` parameter (default 2000ms) | Direct unit testing with synthetic VadRefs and timestamps |
+| `decideAutoStop()` / `decideAutoStopRing()` | Shared server/client authority for stopping and the countdown ring; stale-but-latched server timeout remains terminal | Pure tests + `VoiceMicButton` render tests |
 | `processedResultCount` | WebSpeechProvider instance field tracking dispatched result indices to prevent cumulative duplication; persists across spontaneous browser restarts | Controllable SpeechRecognition stub fires cumulative `onresult` events |
 | `startRecording` error guard | `try/finally` ensures `startingRef` is always cleared, preventing permanent lockout | Throw during capability check, assert subsequent recording succeeds |
 | Capability liveness check | Pre-recording debounced check uses `fetchCapabilitiesLiveness` (GET-only, no test transcription) for fast response; full check only on mount | Mock both endpoints, verify liveness is used pre-recording |
@@ -558,14 +561,16 @@ registry-vs-UI honesty check reviewable and unit-testable.
 | `controller.shutdown(reason)` | Cancel in-flight start + dispose provider + run hook capture teardown; idempotent | Double shutdown, assert one dispose + teardown ran |
 | `controller.beginStart()` / `isCurrentStart()` / `cancelStarts()` | Generation token so a late-resolving `start()` releases its lease instead of entering recording | `cancelStarts` then assert token stale |
 | `controller.recoverStaleLeases({voiceState,…})` | Release orphaned leases (`selectStaleLeases`) + dispose dangling provider + log invariant violation | Register an idle `voice-stream` lease, assert released + logged |
-| `decideMicLifecycle({event, standalonePwa})` | Pure: which leases release, stop-active, re-arm per event/platform | Matrix test (hidden PWA → all; desktop → non-active) |
+| `decideMicLifecycle({event, standalonePwa})` | Pure: which leases release and whether active capture stops per event/platform. `visible` never arms the mic by itself | Matrix test (hidden PWA → all; desktop → non-active; visible → no release/no stop) |
 | `selectStaleLeases({leases, voiceState, …})` | Pure: which live leases the workflow should not hold | Active-owner-while-idle / prewarm-off / passive-no-listener |
 | `isStandaloneDisplayMode()` | `navigator.standalone` or `display-mode: standalone` | Impure detector; the decision it feeds is the pure unit |
 
 **Key invariant**: provider cleanup is idempotent and replay-safe; an error,
 fallback, cancel, unmount, hidden, pagehide, freeze, or stale-start path always
 releases the mic track and never leaves the UI idle while a provider owns a live
-stream. `voiceState` is workflow state; the registry is hardware truth.
+stream. `voiceState` is workflow state; the registry is hardware truth. The old
+`voiceState === "passive"` branch is retired; passive wake-word listening is
+represented by `passiveListeningActive` and a `passive-wake-word` lease.
 
 ### Voice Latency — Stream Ownership Seam (UI)
 **Files**: `ui/src/audio-integration/hooks/voice/micReadiness.ts`, `ui/src/audio-integration/hooks/voice/sharedAudioContext.ts`
@@ -574,7 +579,7 @@ stream. `voiceState` is workflow state; the registry is hardware truth.
 
 | Component | Production | Test |
 |-----------|-----------|------|
-| `micReadiness.acquireStream()` | Acquires a `low-latency-prewarm` lease via the mic ownership registry, caches it | Mock `getUserMedia`, verify single call |
+| `micReadiness.acquireStream()` | Acquires a `low-latency-prewarm` lease via the mic ownership registry, caches it after explicit mic-control intent | Mock `getUserMedia`, verify mount/visibility do not call it and intent does |
 | `micReadiness.releaseStream()` | Releases the lease (stops all tracks, resets state) | Verify `track.stop()` called |
 | `sharedAudioContext.getSharedAudioContext()` | Returns singleton AudioContext | Mock constructor, assert single creation |
 | `sharedAudioContext.ensureAudioContextOnGesture()` | One-shot pointerdown/keydown listener | Simulate event, verify context created |
@@ -592,7 +597,8 @@ only the provider's own lease — never another owner's tracks.
 
 **Key invariant**: Page-lifecycle cleanup releases passive/prewarm/settings mic
 owners on hidden and ALL owners on pagehide; an active recording is stopped on
-hidden (privacy). Re-arm happens only on becoming visible.
+hidden (privacy). Re-arm happens only after explicit mic-control intent, never
+from visibility alone.
 
 ### Audio Transcoding Seam (API)
 **File**: `api/internal/audio/transcode.go`
@@ -1278,6 +1284,10 @@ the future web-console adopter will swap the local implementations for
 - **API file**: [CODE: scenarios/web-console/api/internal/capabilities/registry.go]
 - **Checker file**: [CODE: scenarios/web-console/api/internal/capabilities/checkers.go]
   (`ScenarioChecker`)
+- **Action file**: [CODE: scenarios/web-console/api/internal/capabilities/actions.go]
+  (`LifecycleActionService`)
+- **Handler file**: [CODE: scenarios/web-console/api/handlers/capabilities/connect_handler.go]
+  (`RunAction`)
 - **UI file**: [CODE: scenarios/web-console/ui/src/components/IntegrationsPanel.tsx]
 - **Purpose**: Single source of truth for which other Vrooli scenarios this
   web console adopts. Each `capabilities.Def` with `DependencyKind ==
@@ -1285,29 +1295,46 @@ the future web-console adopter will swap the local implementations for
   `capabilities.Known` so a single edit there registers a scenario across the
   capabilities Connect-RPC response, the Integrations settings panel, and any
   future feature gate.
-- **Runtime probe**: `ScenarioChecker.Check` shells out to `vrooli scenario
-  status <slug> --json` and classifies the result. The `Run` field is the
-  command-runner seam — tests substitute a closure. Following the
-  wrap-not-use principle, web-console never calls another scenario's API
-  directly; the CLI is the contract.
+- **Runtime probe**: `ScenarioChecker.CheckResult` shells out to `vrooli
+  scenario status <slug> --json` and decodes typed fields (`status`,
+  `health_status`, `health_error`, and `start_operation`). The `Run` field is
+  the command-runner seam; tests substitute a closure. Status classification
+  must not depend on substring searches over arbitrary CLI text.
+- **Recovery boundary**: Status results may carry `reason_code`,
+  `action_kind`, `action_label`, and `operator_command` for the UI. Scenario
+  recovery delegates through `LifecycleActionService`, which accepts only
+  `scenario_start`/`scenario_restart` for declared `DependencyScenario`
+  entries, invokes `vrooli scenario start|restart <slug> --json --timeout N`,
+  then blocks once with `vrooli scenario wait <slug> --json --timeout N`.
+  Commands are executed as argv, not shell strings. Resource/provider recovery
+  remains with the owning scenario/provider lifecycle; audio internals belong
+  to audio-tools.
 - **UI behaviour**: `IntegrationsPanel` groups entries by `dependencyKind`.
-  Scenario integrations render in the "Connected Scenarios" subsection with a
-  "Not yet available" badge when the scenario is missing/stopped. Resource
-  capabilities (Whisper, Kokoro, Ollama, OpenRouter) render in a separate
-  "Local Resources" subsection — they collapse into a scenario once the
-  scenario that wraps them is adopted.
+  Scenario integrations render in the "Connected Scenarios" subsection with
+  typed reason/action guidance when unavailable. Backend-supported scenario
+  actions show explicit Start/Restart buttons with progress/result/error state
+  and refresh the capabilities query after completion. Operator-only states
+  show the command but no button. Resource capabilities (Ollama, OpenRouter,
+  and future local services) render in a separate "Local Resources" subsection.
+  Whisper, Kokoro, speaker verification, and other audio providers do not
+  appear as web-console-owned resources.
 - **Audio-tools entry**: registered today with `slug: "audio-tools"`. Its
-  features list is the contract the future `scenarios/audio-tools` will fill:
+  features list is the contract audio-tools fills:
   `voice-input`, `voice-streaming`, `voice-speaker-verification`,
   `voice-enrollment`, `voice-output`, `tts-summarization`, `tts-cache`,
-  `tts-paragraph-split`, `audio-provider-routing`. The local Whisper /
-  Kokoro / speaker-verification entries remain registered alongside it during
-  extraction prep; they will be removed once web-console adopts audio-tools.
+  `tts-paragraph-split`, `audio-provider-routing`.
 - **Test files**:
   [CODE: scenarios/web-console/api/internal/capabilities/scenario_checker_test.go]
-  (5 cases — healthy / stopped / CLI missing / no slug / unknown status);
+  (typed status, legacy list shape, lifecycle operation, malformed JSON, and
+  unavailable cases);
+  [CODE: scenarios/web-console/api/internal/capabilities/actions_test.go]
+  (delegated lifecycle command construction, failures, declared-slug
+  restriction, and argv safety);
+  [CODE: scenarios/web-console/api/handlers/capabilities/connect_handler_test.go]
+  (RunAction transport mapping);
   [CODE: scenarios/web-console/ui/src/__tests__/integrations-panel.test.tsx]
-  (existing UI tests cover the grouping render path).
+  (grouping, typed reason/action metadata, delegated action success/failure,
+  and operator-only guidance).
 - **Maturity**: Stable. Future enrichment (e.g. audio-tools self-reporting
   *which* provider — Whisper vs cloud API — it's currently using) lands by
   extending `Def`/`State` or by a follow-up RPC; the current shape leaves

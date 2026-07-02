@@ -328,6 +328,10 @@ export const strings = {
     localResourcesHeading: "integrationsPanel.localResourcesHeading",
     localResourcesDescription: "integrationsPanel.localResourcesDescription",
     scenarioNotYetAvailable: "integrationsPanel.scenarioNotYetAvailable",
+    reasonLabel: "integrationsPanel.reasonLabel",
+    nextActionLabel: "integrationsPanel.nextActionLabel",
+    actionRunning: "integrationsPanel.actionRunning",
+    actionFailed: "integrationsPanel.actionFailed",
   },
   terminalHeader: {
     renameTitle: "terminalHeader.renameTitle",

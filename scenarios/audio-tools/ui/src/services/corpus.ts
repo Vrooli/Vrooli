@@ -23,6 +23,9 @@ import {
   type ReportWarning,
   type EvalReport,
   type StrategyReport,
+  type ScalingAnalysis,
+  type ScalingModelFit,
+  type ScalingPoint,
 } from "@vrooli/proto-types/audio-tools/v1/eval/eval_pb";
 
 import { transport } from "../api/client";
@@ -137,6 +140,7 @@ export interface StrategyRow {
   safety: SafetyGateRow | null;
   stageAttribution: StageAttributionRow | null;
   lengthCurves: LengthCurveRow[];
+  scaling: ScalingAnalysisRow | null;
   commitCount: number;
   speakerRejectionCount: number;
 }
@@ -191,6 +195,45 @@ export interface LengthCurveRow {
   finalizationLatencyP95Ms: number;
   meanTimeToFirstCommitMs: number;
   maxDroppedSpanWords: number;
+}
+
+export interface ScalingPointRow {
+  clipId: string;
+  targetDurationMs: number;
+  realizedDurationMs: number;
+  wer: number;
+  finalizationLatencyP50Ms: number;
+  finalizationLatencyP95Ms: number;
+  finalizationLatencySampleCount: number;
+  timeToFirstCommitMs: number;
+  commitCount: number;
+  partialRevisions: number;
+  maxDroppedSpanWords: number;
+  whisperCalls: number;
+  whisperAudioSeconds: number;
+  providerLatencyMs: number;
+  rtf: number;
+}
+
+export interface ScalingModelFitRow {
+  metric: string;
+  model: string;
+  slopePerSecond: number;
+  intercept: number;
+  rSquared: number;
+  sampleCount: number;
+  reason: string;
+}
+
+export interface ScalingAnalysisRow {
+  points: ScalingPointRow[];
+  latencyClassification: string;
+  computeClassification: string;
+  confidence: string;
+  reasons: string[];
+  warnings: WarningRow[];
+  latencyFit: ScalingModelFitRow | null;
+  computeFit: ScalingModelFitRow | null;
 }
 
 export interface EditOperationRow {
@@ -310,6 +353,53 @@ function decodeLengthCurve(c: LengthBucketCurve): LengthCurveRow {
   };
 }
 
+function decodeScalingPoint(p: ScalingPoint): ScalingPointRow {
+  return {
+    clipId: p.clipId,
+    targetDurationMs: Number(p.targetDurationMs),
+    realizedDurationMs: Number(p.realizedDurationMs),
+    wer: p.wer,
+    finalizationLatencyP50Ms: p.finalizationLatencyP50Ms,
+    finalizationLatencyP95Ms: p.finalizationLatencyP95Ms,
+    finalizationLatencySampleCount: p.finalizationLatencySampleCount,
+    timeToFirstCommitMs: p.timeToFirstCommitMs,
+    commitCount: p.commitCount,
+    partialRevisions: p.partialRevisions,
+    maxDroppedSpanWords: p.maxDroppedSpanWords,
+    whisperCalls: p.whisperCalls,
+    whisperAudioSeconds: p.whisperAudioSeconds,
+    providerLatencyMs: p.providerLatencyMs,
+    rtf: p.rtf,
+  };
+}
+
+function decodeScalingModelFit(f?: ScalingModelFit): ScalingModelFitRow | null {
+  if (!f) return null;
+  return {
+    metric: f.metric,
+    model: f.model,
+    slopePerSecond: f.slopePerSecond,
+    intercept: f.intercept,
+    rSquared: f.rSquared,
+    sampleCount: f.sampleCount,
+    reason: f.reason,
+  };
+}
+
+function decodeScaling(s?: ScalingAnalysis): ScalingAnalysisRow | null {
+  if (!s) return null;
+  return {
+    points: arrayOrEmpty(s.points).map(decodeScalingPoint),
+    latencyClassification: s.latencyClassification,
+    computeClassification: s.computeClassification,
+    confidence: s.confidence,
+    reasons: arrayOrEmpty(s.reasons),
+    warnings: arrayOrEmpty(s.warnings).map(decodeWarning),
+    latencyFit: decodeScalingModelFit(s.latencyFit),
+    computeFit: decodeScalingModelFit(s.computeFit),
+  };
+}
+
 function decodeStrategy(s: StrategyReport): StrategyRow {
   return {
     strategy: s.strategy,
@@ -356,6 +446,7 @@ function decodeStrategy(s: StrategyReport): StrategyRow {
     safety: decodeSafety(s.safety),
     stageAttribution: decodeStageAttribution(s.stageAttribution),
     lengthCurves: arrayOrEmpty(s.lengthCurves).map(decodeLengthCurve),
+    scaling: decodeScaling(s.scaling),
     commitCount: s.commitCount,
     speakerRejectionCount: s.speakerRejectionCount,
   };

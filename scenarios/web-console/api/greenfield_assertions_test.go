@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -37,6 +38,46 @@ func TestGreenfield_NoRawSetSizeOutsideGatedPaths(t *testing.T) {
 					file, i+1, enclosing, strings.TrimSpace(line))
 			}
 		}
+	}
+}
+
+func TestGreenfield_AudioToolsDependencyIsLazyDegraded(t *testing.T) {
+	type scenarioDependency struct {
+		Required         bool   `json:"required"`
+		StartupPolicy    string `json:"startup_policy"`
+		DegradedBehavior string `json:"degraded_behavior"`
+	}
+	var service struct {
+		Dependencies struct {
+			Scenarios map[string]scenarioDependency `json:"scenarios"`
+		} `json:"dependencies"`
+	}
+
+	raw, err := os.ReadFile("../.vrooli/service.json")
+	if err != nil {
+		t.Fatalf("read service metadata: %v", err)
+	}
+	if err := json.Unmarshal(raw, &service); err != nil {
+		t.Fatalf("parse service metadata: %v", err)
+	}
+	dep, ok := service.Dependencies.Scenarios["audio-tools"]
+	if !ok {
+		t.Fatalf("audio-tools dependency missing from service metadata")
+	}
+	if dep.Required {
+		t.Fatalf("audio-tools must stay optional for terminal boot")
+	}
+	if dep.StartupPolicy != "try_start" {
+		t.Fatalf("audio-tools startup_policy = %q, want try_start", dep.StartupPolicy)
+	}
+	lower := strings.ToLower(dep.DegradedBehavior)
+	for _, banned := range []string{"fail fast", "fails fast", "required at startup"} {
+		if strings.Contains(lower, banned) {
+			t.Fatalf("audio-tools degraded_behavior reintroduced fail-fast language: %q", dep.DegradedBehavior)
+		}
+	}
+	if !strings.Contains(lower, "terminal workspace boots") {
+		t.Fatalf("audio-tools degraded_behavior should state terminal boot remains available: %q", dep.DegradedBehavior)
 	}
 }
 

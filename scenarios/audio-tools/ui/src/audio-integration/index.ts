@@ -44,6 +44,7 @@ export * from "./hooks/voice/audioUtils";
 export * from "./hooks/voice/audioCues";
 export * from "./hooks/voice/activity";
 export * from "./hooks/voice/vad";
+export * from "./hooks/voice/autoStopDecision";
 export * from "./hooks/voice/sharedAudioContext";
 export * from "./hooks/voice/micReadiness";
 export { VoiceStreamProvider } from "./hooks/voice/VoiceStreamProvider";

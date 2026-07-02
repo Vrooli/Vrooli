@@ -212,7 +212,18 @@ func (s *Service) transcribe(ctx context.Context, audio []byte, format, language
 	}
 
 	res, err := TranscribeBytes(ctx, s.whisperURL, s.httpClient, s.engine, audio, format, language, initialPrompt, vadFilter)
-	if err == nil || !isBackendDown(err) {
+	if err == nil {
+		return res, err
+	}
+	if isBackendTimeout(err) {
+		resource := s.backendResource
+		if resource == "" {
+			resource = "whisper"
+		}
+		s.log().Printf("event=stt_backend_degraded resource=%q err=%v", resource, err)
+		return TranscriptionResult{}, newBackendDegraded(resource)
+	}
+	if !isBackendDown(err) {
 		return res, err
 	}
 
@@ -245,6 +256,10 @@ func (s *Service) transcribe(ctx context.Context, audio []byte, format, language
 		// shows a "starting…" state and the user retries shortly.
 		s.log().Printf("event=stt_backend_starting resource=%q err=%v", resource, err)
 		return TranscriptionResult{}, newBackendStarting(resource)
+	}
+	if isBackendTimeout(err) {
+		s.log().Printf("event=stt_backend_degraded_after_ensure resource=%q err=%v", resource, err)
+		return TranscriptionResult{}, newBackendDegraded(resource)
 	}
 	return res, err
 }

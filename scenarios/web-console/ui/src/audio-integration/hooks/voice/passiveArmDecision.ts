@@ -17,8 +17,7 @@ export type VoiceStateLite =
   | "preparing"
   | "recording"
   | "listening"
-  | "transcribing"
-  | "passive";
+  | "transcribing";
 
 export interface PassiveArmInput {
   /** Whether voice input is enabled at all. */
@@ -64,7 +63,7 @@ export function decidePassiveArm(input: PassiveArmInput): PassiveArmAction {
   } = input;
 
   if (!voiceEnabled || !wakeWordEnabled) {
-    return listenerActive || voiceState === "passive" ? "exit" : "none";
+    return listenerActive ? "exit" : "none";
   }
 
   if (wakeWordConfigured && voiceState === "idle" && documentVisible && !listenerActive && !startBlocked) {

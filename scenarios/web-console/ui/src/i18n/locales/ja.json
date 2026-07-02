@@ -312,8 +312,12 @@
     "connectedScenariosHeading": "接続済みシナリオ",
     "connectedScenariosDescription": "このウェブコンソールが採用できる他の Vrooli シナリオ。以下の機能は、シナリオがインストールおよび実行されているかに依存します。",
     "localResourcesHeading": "ローカルリソース",
-    "localResourcesDescription": "コンソールが現在直接使用しているローカルサービス。接続済みシナリオが成熟すると、これらはラップするシナリオに統合されます。",
-    "scenarioNotYetAvailable": "まだ利用できません"
+    "localResourcesDescription": "コンソールが直接所有するローカルサービス。Whisper や Kokoro などの音声プロバイダーは audio-tools が所有します。",
+    "scenarioNotYetAvailable": "まだ利用できません",
+    "reasonLabel": "理由:",
+    "nextActionLabel": "次:",
+    "actionRunning": "実行中...",
+    "actionFailed": "操作に失敗: {{message}}"
   },
   "terminalHeader": {
     "renameTitle": "クリックして名前を変更",

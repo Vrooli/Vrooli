@@ -3,7 +3,9 @@ package stt
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +16,8 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliapptest"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
@@ -26,6 +30,7 @@ type fakeSvc struct {
 	sttconnect.UnimplementedSTTServiceHandler
 	sttconnect.UnimplementedSTTAdminServiceHandler
 	transcribe       func(*sttv1.TranscribeRequest) (*sttv1.TranscribeResponse, error)
+	transcribeStream func(context.Context, *connect.BidiStream[sttv1.TranscribeStreamRequest, sttv1.TranscribeStreamEvent]) error
 	getCfg           func() (*sttv1.StreamConfig, error)
 	getFormats       func() *sttv1.GetSupportedFormatsResponse
 	updateSpeakerCfg func(*sttv1.UpdateSpeakerConfigRequest) (*sttv1.SpeakerConfig, error)
@@ -69,6 +74,13 @@ func (f *fakeSvc) Transcribe(_ context.Context, req *connect.Request[sttv1.Trans
 	return connect.NewResponse(resp), nil
 }
 
+func (f *fakeSvc) TranscribeStream(ctx context.Context, stream *connect.BidiStream[sttv1.TranscribeStreamRequest, sttv1.TranscribeStreamEvent]) error {
+	if f.transcribeStream != nil {
+		return f.transcribeStream(ctx, stream)
+	}
+	return connect.NewError(connect.CodeUnimplemented, errors.New("stream fake not configured"))
+}
+
 func (f *fakeSvc) GetStreamConfig(_ context.Context, _ *connect.Request[sttv1.GetStreamConfigRequest]) (*connect.Response[sttv1.GetStreamConfigResponse], error) {
 	cfg, err := f.getCfg()
 	if err != nil {
@@ -85,6 +97,28 @@ func mountSTT(t *testing.T, svc *fakeSvc) *cliapp.ScenarioApp {
 	mux.Handle(runtimePath, runtimeHandler)
 	mux.Handle(adminPath, adminHandler)
 	return testutil.NewTestApp(t, mux)
+}
+
+func mountSTTH2C(t *testing.T, svc *fakeSvc) *cliapp.ScenarioApp {
+	t.Helper()
+	runtimePath, runtimeHandler := sttconnect.NewSTTServiceHandler(svc)
+	adminPath, adminHandler := sttconnect.NewSTTAdminServiceHandler(svc)
+	mux := http.NewServeMux()
+	mux.Handle(runtimePath, runtimeHandler)
+	mux.Handle(adminPath, adminHandler)
+	srv := httptest.NewUnstartedServer(h2c.NewHandler(mux, &http2.Server{}))
+	srv.Start()
+	t.Cleanup(srv.Close)
+
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
+		Name:           "scenario-test",
+		Version:        "0.0.0-test",
+		Description:    "scenario CLI test",
+		DefaultAPIBase: srv.URL,
+		AllowAnonymous: true,
+	})
+	require.NoError(t, err)
+	return core
 }
 
 // Happy path: transcribe reads file bytes, defaults format to "wav",
@@ -112,6 +146,65 @@ func TestTranscribeHappyPath(t *testing.T) {
 	out := buf.String()
 	require.Contains(t, out, "Transcribed via local/whisper")
 	require.Contains(t, out, "hello")
+}
+
+func TestTranscribeStreamUsesH2CGRPCTransport(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "in.wav")
+	require.NoError(t, os.WriteFile(file, []byte("PCMDATA"), 0o600))
+
+	app := mountSTTH2C(t, &fakeSvc{
+		transcribeStream: func(_ context.Context, stream *connect.BidiStream[sttv1.TranscribeStreamRequest, sttv1.TranscribeStreamEvent]) error {
+			var sawStart, sawChunk, sawEnd bool
+			for {
+				msg, err := stream.Receive()
+				if errors.Is(err, io.EOF) {
+					break
+				}
+				require.NoError(t, err)
+				switch p := msg.GetPayload().(type) {
+				case *sttv1.TranscribeStreamRequest_Start:
+					sawStart = true
+				case *sttv1.TranscribeStreamRequest_AudioChunk:
+					sawChunk = true
+					require.Equal(t, []byte("PCMDATA"), p.AudioChunk)
+				case *sttv1.TranscribeStreamRequest_End:
+					sawEnd = true
+					require.True(t, sawStart)
+					require.True(t, sawChunk)
+					err := stream.Send(&sttv1.TranscribeStreamEvent{Event: &sttv1.TranscribeStreamEvent_Segment{
+						Segment: &sttv1.StreamSegment{
+							Text:         "hello stream",
+							ProviderTier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL,
+							ModelId:      "fake-model",
+							LatencyMs:    7,
+						},
+					}})
+					require.NoError(t, err)
+					err = stream.Send(&sttv1.TranscribeStreamEvent{Event: &sttv1.TranscribeStreamEvent_Done{
+						Done: &sttv1.StreamDone{
+							FinalText:    "hello stream",
+							ProviderTier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL,
+							ModelId:      "fake-model",
+							LatencyMs:    7,
+						},
+					}})
+					require.NoError(t, err)
+				}
+			}
+			require.True(t, sawEnd)
+			return nil
+		},
+	})
+	h := newHandlers(app)
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "file"}, {Name: "language"}, {Name: "chunk-bytes"}}}
+	ctx, buf := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"file": file, "chunk-bytes": "999"},
+	})
+	require.NoError(t, h.transcribeStream(ctx))
+	out := buf.String()
+	require.Contains(t, out, "segment [local/fake-model 7ms]: hello stream")
+	require.Contains(t, out, "done [local/fake-model 7ms]: hello stream")
 }
 
 // Happy path: stream-config get prints the resolved levers using the

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../test-utils/render";
 import IntegrationsPanel from "../components/IntegrationsPanel";
 import { strings } from "../consts/strings";
@@ -13,12 +13,14 @@ vi.mock("@vrooli/api-base", () => ({
   createScenarioConnectTransport: () => ({}),
 }));
 
-const { mockFetchCapabilities } = vi.hoisted(() => ({
+const { mockFetchCapabilities, mockRunCapabilityAction } = vi.hoisted(() => ({
   mockFetchCapabilities: vi.fn(),
+  mockRunCapabilityAction: vi.fn(),
 }));
 
 vi.mock("../api/capabilities", () => ({
   fetchCapabilities: mockFetchCapabilities,
+  runCapabilityAction: mockRunCapabilityAction,
 }));
 
 const mockCapabilities: CapabilitiesResponse = {
@@ -32,6 +34,7 @@ const mockCapabilities: CapabilitiesResponse = {
       features: ["voice-input", "voice-streaming"],
       status: "available",
       message: "scenario is healthy",
+      checkedAt: "2026-03-17T00:00:00Z",
     },
     {
       id: "kokoro-tts",
@@ -68,6 +71,7 @@ const mockCapabilities: CapabilitiesResponse = {
 
 beforeEach(() => {
   mockFetchCapabilities.mockReset();
+  mockRunCapabilityAction.mockReset();
 });
 
 describe("IntegrationsPanel", () => {
@@ -117,6 +121,200 @@ describe("IntegrationsPanel", () => {
       expect(screen.getByTestId("cap-message-kokoro-tts")).toBeTruthy();
       expect(screen.getByText("resource is not responding")).toBeTruthy();
       expect(screen.getByText("OPENROUTER_API_KEY not configured")).toBeTruthy();
+    });
+  });
+
+  it("shows typed reason and safe operator command metadata", async () => {
+    mockFetchCapabilities.mockResolvedValue({
+      ...mockCapabilities,
+      capabilities: [
+        {
+          id: "audio-tools",
+          name: "Audio Tools",
+          description: "Shared audio capability scenario",
+          dependencyKind: "scenario",
+          dependencySlug: "audio-tools",
+          features: ["voice-input"],
+          status: "unavailable",
+          message: "scenario is installed but stopped",
+          reasonCode: "scenario_stopped",
+          actionKind: "scenario_start",
+          actionLabel: "Start scenario",
+          operatorCommand: "vrooli scenario start audio-tools --json",
+        },
+      ],
+    });
+    renderWithProviders(<IntegrationsPanel open={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("cap-reason-audio-tools").textContent).toContain("scenario_stopped");
+      expect(screen.getByTestId("cap-action-audio-tools").textContent).toContain("Start scenario");
+      expect(screen.getByTestId("cap-command-audio-tools").textContent).toContain(
+        "vrooli scenario start audio-tools --json",
+      );
+    });
+  });
+
+  it("runs a supported scenario action and refreshes capabilities", async () => {
+    await i18n.changeLanguage("en");
+    const stopped: CapabilitiesResponse = {
+      capabilities: [
+        {
+          id: "audio-tools",
+          name: "Audio Tools",
+          description: "Shared audio capability scenario",
+          dependencyKind: "scenario",
+          dependencySlug: "audio-tools",
+          features: ["voice-input"],
+          status: "unavailable",
+          message: "scenario is installed but stopped",
+          reasonCode: "scenario_stopped",
+          actionKind: "scenario_start",
+          actionLabel: "Start scenario",
+          operatorCommand: "vrooli scenario start audio-tools --json",
+        },
+      ],
+      timestamp: "2026-03-17T00:00:00Z",
+    };
+    const stoppedCap = stopped.capabilities[0];
+    if (!stoppedCap) throw new Error("test fixture missing capability");
+    const refreshed: CapabilitiesResponse = {
+      capabilities: [
+        {
+          ...stoppedCap,
+          status: "available",
+          message: "scenario is healthy",
+          reasonCode: undefined,
+          actionKind: undefined,
+          actionLabel: undefined,
+          operatorCommand: undefined,
+        },
+      ],
+      timestamp: "2026-03-17T00:01:00Z",
+    };
+    mockFetchCapabilities.mockResolvedValue(refreshed);
+    mockFetchCapabilities.mockResolvedValueOnce(stopped);
+    mockRunCapabilityAction.mockResolvedValue({
+      success: true,
+      status: "healthy",
+      message: "lifecycle action completed",
+      capabilityId: "audio-tools",
+      actionKind: "scenario_start",
+      capabilities: refreshed.capabilities,
+      timestamp: refreshed.timestamp,
+    });
+    renderWithProviders(<IntegrationsPanel open={true} />);
+
+    const button = await screen.findByTestId("cap-run-action-audio-tools");
+    fireEvent.click(button);
+
+    await waitFor(() => {
+      expect(mockRunCapabilityAction).toHaveBeenCalledWith("audio-tools", "scenario_start");
+      expect(screen.getByTestId("cap-action-result-audio-tools").textContent).toContain(
+        "lifecycle action completed",
+      );
+      expect(screen.getByText("scenario is healthy")).toBeTruthy();
+    });
+  });
+
+  it("shows action failure when the delegated lifecycle call fails", async () => {
+    await i18n.changeLanguage("en");
+    mockFetchCapabilities.mockResolvedValue({
+      capabilities: [
+        {
+          id: "audio-tools",
+          name: "Audio Tools",
+          description: "Shared audio capability scenario",
+          dependencyKind: "scenario",
+          dependencySlug: "audio-tools",
+          features: ["voice-input"],
+          status: "unavailable",
+          message: "scenario start failed",
+          reasonCode: "scenario_start_failed",
+          actionKind: "scenario_restart",
+          actionLabel: "Restart scenario",
+          operatorCommand: "vrooli scenario restart audio-tools --json",
+        },
+      ],
+      timestamp: "2026-03-17T00:00:00Z",
+    });
+    mockRunCapabilityAction.mockRejectedValue(new Error("wait timed out"));
+    renderWithProviders(<IntegrationsPanel open={true} />);
+
+    const button = await screen.findByTestId("cap-run-action-audio-tools");
+    fireEvent.click(button);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("cap-action-error-audio-tools").textContent).toContain("wait timed out");
+    });
+  });
+
+  it("shows unsuccessful lifecycle results returned by the backend", async () => {
+    await i18n.changeLanguage("en");
+    const stopped: CapabilitiesResponse = {
+      capabilities: [
+        {
+          id: "audio-tools",
+          name: "Audio Tools",
+          description: "Shared audio capability scenario",
+          dependencyKind: "scenario",
+          dependencySlug: "audio-tools",
+          features: ["voice-input"],
+          status: "unavailable",
+          message: "scenario is installed but stopped",
+          reasonCode: "scenario_stopped",
+          actionKind: "scenario_start",
+          actionLabel: "Start scenario",
+          operatorCommand: "vrooli scenario start audio-tools --json",
+        },
+      ],
+      timestamp: "2026-03-17T00:00:00Z",
+    };
+    mockFetchCapabilities.mockResolvedValue(stopped);
+    mockRunCapabilityAction.mockResolvedValue({
+      success: false,
+      status: "failed",
+      message: "lifecycle wait failed: timeout",
+      capabilityId: "audio-tools",
+      actionKind: "scenario_start",
+      capabilities: stopped.capabilities,
+      timestamp: "2026-03-17T00:01:00Z",
+    });
+    renderWithProviders(<IntegrationsPanel open={true} />);
+
+    const button = await screen.findByTestId("cap-run-action-audio-tools");
+    fireEvent.click(button);
+
+    await waitFor(() => {
+      const result = screen.getByTestId("cap-action-result-audio-tools");
+      expect(result.textContent).toContain("lifecycle wait failed: timeout");
+      expect(result.className).toContain("text-red-400");
+    });
+  });
+
+  it("does not show a backend action button for operator-only guidance", async () => {
+    mockFetchCapabilities.mockResolvedValue({
+      capabilities: [
+        {
+          id: "audio-tools",
+          name: "Audio Tools",
+          description: "Shared audio capability scenario",
+          dependencyKind: "scenario",
+          dependencySlug: "audio-tools",
+          features: ["voice-input"],
+          status: "unavailable",
+          actionKind: "operator_command",
+          actionLabel: "Wait for scenario",
+          operatorCommand: "vrooli scenario wait audio-tools --json",
+        },
+      ],
+      timestamp: "2026-03-17T00:00:00Z",
+    });
+    renderWithProviders(<IntegrationsPanel open={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("cap-action-audio-tools").textContent).toContain("Wait for scenario");
+      expect(screen.queryByTestId("cap-run-action-audio-tools")).toBeNull();
     });
   });
 

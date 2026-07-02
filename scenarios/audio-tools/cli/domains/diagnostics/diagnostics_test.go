@@ -59,7 +59,7 @@ func passRun() *diagv1.RunSuiteResult {
 			Status: diagv1.SuiteOverall_STATUS_PASS, PassCount: 4, FailCount: 0, TotalCount: 4,
 		},
 		Steps: []*diagv1.SuiteStepResult{
-			{Capability: diagv1.Capability_CAPABILITY_STT, Ok: true, ProviderTier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL, ProviderId: "whisper", LatencyMs: 12},
+			{Capability: diagv1.Capability_CAPABILITY_STT, Ok: true, ProviderTier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL, ProviderId: "whisper", LatencyMs: 12, Details: map[string]string{"quality_assessed": "false"}},
 			{Capability: diagv1.Capability_CAPABILITY_TTS, Ok: true, ProviderTier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL, ProviderId: "kokoro", LatencyMs: 14},
 			{Capability: diagv1.Capability_CAPABILITY_SUMMARIZE, Ok: true, ProviderTier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL, ProviderId: "ollama", LatencyMs: 17},
 			{Capability: diagv1.Capability_CAPABILITY_TRANSCODE, Ok: true, ProviderTier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL, ProviderId: "ffmpeg", LatencyMs: 4},
@@ -80,6 +80,7 @@ func TestRun_HumanOutputShowsOverallAndSteps(t *testing.T) {
 	out := buf.String()
 	require.Contains(t, out, "Overall: PASS")
 	require.Contains(t, out, "stt")
+	require.Contains(t, out, "quality=not-assessed")
 	require.Contains(t, out, "tts")
 	require.Contains(t, out, "summarize")
 	require.Contains(t, out, "transcode")

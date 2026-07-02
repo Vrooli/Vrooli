@@ -119,7 +119,7 @@ func TestRegistry_ResolveLiveness(t *testing.T) {
 		}
 	})
 
-	t.Run("falls back to full resolve when no liveness checkers configured", func(t *testing.T) {
+	t.Run("falls back to full resolve when no liveness checker map is configured", func(t *testing.T) {
 		reg := capabilities.NewRegistry(defs, map[string]capabilities.Checker{"cap-x": fullChecker}, 0)
 
 		fullChecker.ResetCalls()
@@ -127,6 +127,46 @@ func TestRegistry_ResolveLiveness(t *testing.T) {
 		reg.ResolveLiveness(context.Background())
 		if got := fullChecker.CallCount(); got != 1 {
 			t.Errorf("should fall back to full checker, got %d calls", got)
+		}
+	})
+
+	t.Run("does not run full checker for missing liveness entries once liveness is configured", func(t *testing.T) {
+		fullOnly := mocks.NewFakeChecker(capabilities.StatusAvailable, "full-only ok")
+		reg := capabilities.NewRegistry(
+			[]capabilities.Def{
+				{ID: "cap-live", Name: "Cap Live"},
+				{ID: "cap-full", Name: "Cap Full"},
+			},
+			map[string]capabilities.Checker{
+				"cap-live": fullChecker,
+				"cap-full": fullOnly,
+			},
+			0,
+		)
+		reg.SetLivenessCheckers(map[string]capabilities.Checker{"cap-live": livenessChecker})
+
+		fullChecker.ResetCalls()
+		fullOnly.ResetCalls()
+		livenessChecker.ResetCalls()
+
+		states := reg.ResolveLiveness(context.Background())
+		if got := livenessChecker.CallCount(); got != 1 {
+			t.Errorf("liveness checker should be called once, got %d", got)
+		}
+		if got := fullChecker.CallCount(); got != 0 {
+			t.Errorf("full checker with liveness replacement should not be called, got %d", got)
+		}
+		if got := fullOnly.CallCount(); got != 0 {
+			t.Errorf("full checker without liveness replacement should not be called, got %d", got)
+		}
+		if len(states) != 2 {
+			t.Fatalf("states len = %d, want 2", len(states))
+		}
+		if states[0].Status != capabilities.StatusAvailable || states[0].Message != "liveness ok" {
+			t.Errorf("state[0] = %+v, want liveness result", states[0])
+		}
+		if states[1].Status != capabilities.StatusUnknown || states[1].Message != "" {
+			t.Errorf("state[1] = %+v, want unknown without full fallback", states[1])
 		}
 	})
 }

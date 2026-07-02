@@ -236,8 +236,8 @@ func TestWhisperChecker_HealthyAndTranscribes(t *testing.T) {
 	if status != StatusAvailable {
 		t.Errorf("status = %q, want %q", status, StatusAvailable)
 	}
-	if msg != "resource is healthy and transcription verified" {
-		t.Errorf("message = %q, want %q", msg, "resource is healthy and transcription verified")
+	if msg != "resource is healthy and ASR readiness verified; transcript quality not assessed" {
+		t.Errorf("message = %q, want %q", msg, "resource is healthy and ASR readiness verified; transcript quality not assessed")
 	}
 }
 

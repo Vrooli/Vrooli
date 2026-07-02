@@ -51,13 +51,13 @@ Additionally, on mobile, `getUserMedia` switches the OS audio session to "play-a
 - **CONSTRAINT**: A 30-second timeout closes the pre-connected WS if `start()` isn't called, preventing idle connections on the server. If the pre-connected WS errors or times out, `start()` creates a fresh one — the existing `pendingChunks` buffering handles any gap.
 - **COST**: One idle WebSocket connection while voice is enabled and streaming is available.
 
-### 5. Low-latency voice mode (opt-in, setting: `lowLatencyVoice`)
+### 5. Low-latency voice mode (opt-in, intent-armed setting: `lowLatencyVoice`)
 
 - **WHERE**: [CODE: ui/src/hooks/voice/micReadiness.ts] + [CODE: ui/src/stores/useWorkspaceStore.ts#lowLatencyVoice]
-- **WHAT**: Pre-warms `getUserMedia` so a `MediaStream` is already available when the user presses the mic button. The stream is injected into the provider via `start(preWarmedStream)`.
-- **WHY OPT-IN**: `getUserMedia` activates the OS microphone indicator (red dot on iOS, orange dot on Android, tray icon on desktop). This is a privacy signal that should require user consent.
+- **WHAT**: After explicit mic-control intent (hover/focus/press), pre-warms `getUserMedia` so a `MediaStream` can already be available when the user presses the mic button. The stream is injected into the provider via `start(preWarmedStream)`.
+- **WHY INTENT-ARMED**: `getUserMedia` activates the OS microphone indicator (red dot on iOS, orange dot on Android, tray icon on desktop) and can duck or pause other audio. Persisting the setting is not enough to open the mic; app mount and tab focus stay silent until the user approaches voice input.
 - **CONSTRAINT**: The pre-warmed stream is "provider-independent" — it is acquired by micReadiness and injected into whichever provider starts. See "Stream injection vs stream acquisition" below.
-- **COST**: One active mic stream while the setting is enabled and the tab is visible.
+- **COST**: One active mic stream after a mic-control intent, until capture starts, lifecycle cleanup releases it, or the low-latency setting turns off.
 
 ### 6. Page-lifecycle mic cleanup (always-on for ALL mic owners)
 
@@ -83,10 +83,10 @@ Additionally, on mobile, `getUserMedia` switches the OS audio session to "play-a
     — privacy and hardware release win over preserving a partial recording. MDN
     notes mobile `pagehide` is not fully reliable, so `visibilitychange` is the
     primary session-end signal and `pagehide`/`freeze` are complementary.
-  - On becoming visible again, useVoiceCore re-arms passive listening and/or the
-    low-latency prewarm (gated on toggles, a loaded template, no active
-    recording). A lease release does not re-run React effects, so re-arm is
-    explicit.
+  - On becoming visible again, useVoiceCore does **not** re-arm passive
+    listening or low-latency prewarm by itself. Visibility/focus is not a user
+    mic intent; the next mic-control hover/focus/press re-arms prewarm or
+    passive wake-word listening if the relevant setting is enabled.
 - **PREPARING / START CANCELLATION**: `getUserMedia` may resolve a live lease
   *after* the tab goes hidden (async startup). The controller stamps a
   generation token at `beginStart()`; the hidden handler calls `cancelStarts()`,
@@ -137,7 +137,9 @@ Effects:
 Mitigation strategy:
 1. Release mic tracks ASAP after recording stops (all providers do this in `stop()`)
 2. In low-latency mode, release on `visibilitychange` hidden
-3. In low-latency mode, release-then-reacquire after each recording session
+3. In low-latency mode, prewarm only after explicit mic-control intent; after a
+   user-recorded session, the release-then-reacquire cycle may warm the next
+   press because the user has already opted into voice for that session
 
 **Future**: The `navigator.audioSession` API (Chrome 132+, experimental) allows requesting `type: "play-and-record"` with hint `"playback"`, which may prevent ducking. Track at https://chromestatus.com/feature/5765444243898368. Not implemented yet due to insufficient browser support.
 
@@ -150,8 +152,8 @@ Two ownership models for the MediaStream:
 **Stream injection (low-latency)**: A pre-warmed stream from `micReadiness.ts` is passed INTO the provider's `start(preWarmedStream)` method. The micReadiness module owns acquisition; the provider uses the stream but does not stop its tracks (`retainStream = true`).
 
 Key invariants:
-- If the pre-warmed stream's tracks are ended (browser revoked access), the provider falls back to its own `getUserMedia` call
-- The provider checks `track.readyState === "live"` before using an injected stream
+- If the pre-warmed stream's tracks are ended or muted (browser revoked access, another app seized the mic, or the device changed), the provider falls back to its own `getUserMedia` call
+- The provider checks `track.readyState === "live" && !track.muted` before using an injected stream
 - Ownership is tracked by a **lease**, not the `retainStream` flag. A provider
   holds a lease only for a stream it acquired itself (via the mic ownership
   registry); an injected pre-warmed stream's lease stays with micReadiness. On

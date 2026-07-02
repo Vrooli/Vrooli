@@ -23,10 +23,9 @@ export type VoiceBackend = "whisper" | "web-speech" | "none";
 
 /** Explicit state machine replacing the old isRecording/isTranscribing boolean combo.
  *  "listening" is the persistent voice mode equivalent of "recording" — the mic
- *  stays active until the user taps it again.
- *  "passive" is the wake word listening state — mic is open but only VAD + local
- *  MFCC/DTW matching runs. No audio streams to the backend. */
-export type VoiceState = "idle" | "preparing" | "passive" | "recording" | "listening" | "transcribing";
+ *  stays active until the user taps it again. Passive wake-word listening is
+ *  represented by `passiveListeningActive`, not a workflow state. */
+export type VoiceState = "idle" | "preparing" | "recording" | "listening" | "transcribing";
 
 /** The voice input mode — one-shot records a single utterance, persistent
  *  stays active with segment-boundary detection until manually stopped. */
@@ -221,4 +220,5 @@ export interface TranscriptionProvider {
   onResult: ((text: string) => void) | null;
   onError: ((error: string) => void) | null;
   onPartial?: ((text: string) => void) | null;
+  onStatus?: ((status: { code: string; message: string }) => void) | null;
 }

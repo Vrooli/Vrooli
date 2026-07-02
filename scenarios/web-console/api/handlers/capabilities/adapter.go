@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"time"
+
 	"web-console/internal/backend"
 
 	caps "web-console/internal/capabilities"
@@ -23,6 +24,8 @@ type Adapter struct {
 	BackendRegistry *backend.Registry
 	DefaultBackend  func() string
 	Logger          *log.Logger
+	ActionRunner    caps.CommandRunner
+	CLIPath         string
 }
 
 // Resolve runs the full capability check (with cache) and includes
@@ -58,6 +61,33 @@ func (a *Adapter) Liveness(ctx context.Context) Snapshot {
 	}
 }
 
+func (a *Adapter) RunAction(ctx context.Context, req ActionRequest) (ActionResult, error) {
+	svc := caps.LifecycleActionService{
+		Defs:    caps.Known,
+		Runner:  a.ActionRunner,
+		CLIPath: a.CLIPath,
+	}
+	result, err := svc.Run(ctx, caps.LifecycleActionRequest{
+		CapabilityID: req.CapabilityID,
+		ActionKind:   caps.ActionKind(req.ActionKind),
+	})
+	if err != nil {
+		return ActionResult{}, err
+	}
+	if a.Registry != nil {
+		a.Registry.Invalidate()
+	}
+	snap := a.Resolve(ctx)
+	return ActionResult{
+		Success:      result.Success,
+		Status:       result.Status,
+		Message:      result.Message,
+		CapabilityID: result.CapabilityID,
+		ActionKind:   string(result.ActionKind),
+		Snapshot:     snap,
+	}, nil
+}
+
 func (a *Adapter) log(format string, args ...any) {
 	if a.Logger != nil {
 		a.Logger.Printf(format, args...)
@@ -70,15 +100,19 @@ func capsToTransport(in []caps.State) []CapabilityState {
 	out := make([]CapabilityState, len(in))
 	for i, c := range in {
 		out[i] = CapabilityState{
-			ID:             c.ID,
-			Name:           c.Name,
-			Description:    c.Description,
-			DependencyKind: string(c.DependencyKind),
-			DependencySlug: c.DependencySlug,
-			Features:       c.Features,
-			Status:         string(c.Status),
-			Message:        c.Message,
-			CheckedAt:      c.CheckedAt,
+			ID:              c.ID,
+			Name:            c.Name,
+			Description:     c.Description,
+			DependencyKind:  string(c.DependencyKind),
+			DependencySlug:  c.DependencySlug,
+			Features:        c.Features,
+			Status:          string(c.Status),
+			Message:         c.Message,
+			CheckedAt:       c.CheckedAt,
+			ReasonCode:      c.ReasonCode,
+			ActionKind:      string(c.ActionKind),
+			ActionLabel:     c.ActionLabel,
+			OperatorCommand: c.OperatorCommand,
 		}
 	}
 	return out

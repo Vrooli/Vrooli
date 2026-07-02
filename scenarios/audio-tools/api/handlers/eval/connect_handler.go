@@ -121,6 +121,7 @@ func strategyReportToProto(s inteval.StrategyReport) *evalv1.StrategyReport {
 		Safety:                   safetyGateToProto(s.Safety),
 		StageAttribution:         stageAttributionToProto(s.StageAttribution),
 		LengthCurves:             lengthCurvesToProto(s.LengthCurves),
+		Scaling:                  scalingAnalysisToProto(s.Scaling),
 		PerClip:                  make([]*evalv1.ClipReport, 0, len(s.PerClip)),
 	}
 	for _, c := range s.PerClip {
@@ -158,6 +159,61 @@ func strategyReportToProto(s inteval.StrategyReport) *evalv1.StrategyReport {
 		})
 	}
 	return sr
+}
+
+func scalingAnalysisToProto(in inteval.ScalingAnalysis) *evalv1.ScalingAnalysis {
+	if len(in.Points) == 0 &&
+		in.LatencyClassification == "" &&
+		in.ComputeClassification == "" &&
+		in.Confidence == "" &&
+		len(in.Reasons) == 0 &&
+		len(in.Warnings) == 0 &&
+		in.LatencyFit == (inteval.ScalingModelFit{}) &&
+		in.ComputeFit == (inteval.ScalingModelFit{}) {
+		return nil
+	}
+	out := &evalv1.ScalingAnalysis{
+		Points:                make([]*evalv1.ScalingPoint, 0, len(in.Points)),
+		LatencyClassification: in.LatencyClassification,
+		ComputeClassification: in.ComputeClassification,
+		Confidence:            in.Confidence,
+		Reasons:               append([]string(nil), in.Reasons...),
+		Warnings:              reportWarningsToProto(in.Warnings),
+		LatencyFit:            scalingModelFitToProto(in.LatencyFit),
+		ComputeFit:            scalingModelFitToProto(in.ComputeFit),
+	}
+	for _, point := range in.Points {
+		out.Points = append(out.Points, &evalv1.ScalingPoint{
+			ClipId:                         point.ClipID,
+			TargetDurationMs:               point.TargetDurationMs,
+			RealizedDurationMs:             point.RealizedDurationMs,
+			Wer:                            point.WER,
+			FinalizationLatencyP50Ms:       point.FinalizationLatencyP50Ms,
+			FinalizationLatencyP95Ms:       point.FinalizationLatencyP95Ms,
+			FinalizationLatencySampleCount: int32(point.FinalizationLatencySampleCount),
+			TimeToFirstCommitMs:            point.TimeToFirstCommitMs,
+			CommitCount:                    int32(point.CommitCount),
+			PartialRevisions:               int32(point.PartialRevisions),
+			MaxDroppedSpanWords:            int32(point.MaxDroppedSpanWords),
+			WhisperCalls:                   int32(point.WhisperCalls),
+			WhisperAudioSeconds:            point.WhisperAudioSeconds,
+			ProviderLatencyMs:              point.ProviderLatencyMs,
+			Rtf:                            point.RTF,
+		})
+	}
+	return out
+}
+
+func scalingModelFitToProto(in inteval.ScalingModelFit) *evalv1.ScalingModelFit {
+	return &evalv1.ScalingModelFit{
+		Metric:         in.Metric,
+		Model:          in.Model,
+		SlopePerSecond: in.SlopePerSecond,
+		Intercept:      in.Intercept,
+		RSquared:       in.RSquared,
+		SampleCount:    int32(in.SampleCount),
+		Reason:         in.Reason,
+	}
 }
 
 func reportWarningsToProto(in []inteval.ReportWarning) []*evalv1.ReportWarning {

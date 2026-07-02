@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -24,9 +25,19 @@ const EnvAutoEnsure = "STT_AUTO_ENSURE"
 // starting (auto-ensure ran, the retry may yet succeed) is transient →
 // CodeUnavailable ("try again shortly"); a backend that could not be started or
 // where auto-ensure is off requires operator action → CodeFailedPrecondition.
+type STTBackendState string
+
+const (
+	STTBackendStateUnknown     STTBackendState = ""
+	STTBackendStateStarting    STTBackendState = "starting"
+	STTBackendStateUnavailable STTBackendState = "unavailable"
+	STTBackendStateDegraded    STTBackendState = "degraded"
+)
+
 type STTBackendError struct {
 	Resource  string
 	Transient bool
+	State     STTBackendState
 	Message   string
 }
 
@@ -41,6 +52,7 @@ func newBackendStarting(resource string) *STTBackendError {
 	return &STTBackendError{
 		Resource:  resource,
 		Transient: true,
+		State:     STTBackendStateStarting,
 		Message:   fmt.Sprintf("Speech backend (%s) is starting — please try again in a moment.", resource),
 	}
 }
@@ -51,8 +63,46 @@ func newBackendNeedsOperator(resource string) *STTBackendError {
 	return &STTBackendError{
 		Resource:  resource,
 		Transient: false,
+		State:     STTBackendStateUnavailable,
 		Message:   fmt.Sprintf("Speech backend (%s) is unavailable — run `vrooli resource start %s` and try again.", resource, resource),
 	}
+}
+
+// newBackendDegraded is the slow/wedged case: the backend is not proven down
+// (so do not start/restart it here), but ASR did not complete within its
+// bounded request deadline. Clients should report degraded/retrying rather
+// than "resource stopped" or a raw timeout.
+func newBackendDegraded(resource string) *STTBackendError {
+	return &STTBackendError{
+		Resource:  resource,
+		Transient: true,
+		State:     STTBackendStateDegraded,
+		Message:   fmt.Sprintf("Speech backend (%s) is slow or degraded — please try again shortly.", resource),
+	}
+}
+
+func (e *STTBackendError) EffectiveState() STTBackendState {
+	if e == nil {
+		return STTBackendStateUnknown
+	}
+	if e.State != STTBackendStateUnknown {
+		return e.State
+	}
+	if e.Transient {
+		return STTBackendStateStarting
+	}
+	return STTBackendStateUnavailable
+}
+
+func isBackendTimeout(err error) bool {
+	if err == nil || errors.Is(err, context.Canceled) {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, os.ErrDeadlineExceeded) {
+		return true
+	}
+	var netErr net.Error
+	return errors.As(err, &netErr) && netErr.Timeout()
 }
 
 // isBackendDown reports whether err is a transport-level "backend is not

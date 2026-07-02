@@ -75,6 +75,9 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   private static readonly PRE_CONNECT_TIMEOUT_MS = 30_000;
   private firstPartialLogged = false;
   private preConnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private serverAckTimer: ReturnType<typeof setTimeout> | null = null;
+  private finalProgressTimer: ReturnType<typeof setTimeout> | null = null;
+  private serverAckReceived = false;
   /** True when the current WS was opened via preConnect() and hasn't been
    *  consumed by start() yet. Prevents start() from closing a pre-connected WS. */
   private isPreConnectedWs = false;
@@ -85,6 +88,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   retainStream = false;
   onResult: ((text: string) => void) | null = null;
   onError: ((error: string) => void) | null = null;
+  onStatus: ((status: { code: string; message: string }) => void) | null = null;
   onPartial: ((text: string) => void) | null = null;
   /** Fired when a segment-final transcription arrives from the backend. */
   onSegmentFinal: ((text: string, segmentIndex: number) => void) | null = null;
@@ -210,6 +214,49 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     this.doneSent = true;
   }
 
+  private clearServerAckTimer(): void {
+    if (this.serverAckTimer) {
+      clearTimeout(this.serverAckTimer);
+      this.serverAckTimer = null;
+    }
+  }
+
+  private clearFinalProgressTimer(): void {
+    if (this.finalProgressTimer) {
+      clearTimeout(this.finalProgressTimer);
+      this.finalProgressTimer = null;
+    }
+  }
+
+  private markServerProgress(): void {
+    this.serverAckReceived = true;
+    this.clearServerAckTimer();
+  }
+
+  private armServerAckWatchdog(): void {
+    this.clearServerAckTimer();
+    this.serverAckTimer = setTimeout(() => {
+      if (!this.serverAckReceived && !this.finalReceived) {
+        this.onStatus?.({
+          code: "server_ack_pending",
+          message: "Waiting for the speech backend to acknowledge the stream.",
+        });
+      }
+    }, 1500);
+  }
+
+  private armFinalProgressWatchdog(sentBytes: number): void {
+    this.clearFinalProgressTimer();
+    this.finalProgressTimer = setTimeout(() => {
+      if (!this.finalReceived && this.intentionallyStopped && sentBytes > 0) {
+        this.onStatus?.({
+          code: "final_pending",
+          message: "Speech audio was sent; waiting for the backend to finish transcription.",
+        });
+      }
+    }, 3000);
+  }
+
   private setupWsHandlers(ws: WebSocket): void {
     ws.onmessage = (event) => {
       try {
@@ -231,7 +278,13 @@ export class VoiceStreamProvider implements TranscriptionProvider {
           tickSeq?: number;
           silenceTimedOut?: boolean;
         };
-        if (msg.type === "segment-final" && msg.text !== undefined) {
+        this.markServerProgress();
+        if (msg.type === "status") {
+          this.onStatus?.({
+            code: msg.code ?? "stream_status",
+            message: msg.text ?? "Streaming transcription status updated.",
+          });
+        } else if (msg.type === "segment-final" && msg.text !== undefined) {
           this.onSegmentFinal?.(msg.text, msg.segmentIndex ?? 0);
         } else if (msg.type === "segment-accepted") {
           this.onSegmentAccepted?.(msg.segmentIndex ?? 0, msg.score ?? 0, msg.threshold ?? 0);
@@ -257,6 +310,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
           this.onPartial?.(msg.text);
         } else if (msg.type === "final") {
           this.finalReceived = true;
+          this.clearFinalProgressTimer();
           if (this.finalTimeout) {
             clearTimeout(this.finalTimeout);
             this.finalTimeout = null;
@@ -290,6 +344,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
 
     ws.onclose = () => {
       console.info("[voice] WebSocket closed, finalReceived:", this.finalReceived);
+      this.clearServerAckTimer();
       if (this.finalReceived || this.intentionallyStopped) return;
 
       // Attempt reconnect with exponential backoff if capture is still active.
@@ -306,10 +361,11 @@ export class VoiceStreamProvider implements TranscriptionProvider {
             // onclose will fire again -- next attempt or final failure
           }, delay + 2_000);
 
-          newWs.onopen = () => {
+      newWs.onopen = () => {
             clearTimeout(connTimeout);
             this.ws = newWs;
             this.setupWsHandlers(newWs);
+            this.armServerAckWatchdog();
             // Flush chunks buffered during reconnection
             this.flushPendingChunks(newWs);
             this.sendDoneIfStopped(newWs);
@@ -453,6 +509,9 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     this.wsUrl = buildVoiceStreamWsUrl(this.language);
     this.finalReceived = false;
     this.firstPartialLogged = false;
+    this.serverAckReceived = false;
+    this.clearServerAckTimer();
+    this.clearFinalProgressTimer();
     this.reconnectAttempt = 0;
     this.intentionallyStopped = false;
     this.doneSent = false;
@@ -480,12 +539,14 @@ export class VoiceStreamProvider implements TranscriptionProvider {
       this.setupWsHandlers(this.ws);
       this.ws.onopen = () => {
         console.info("[voice] Pre-connected WebSocket opened during recording, flushing %d buffered chunks", this.pendingChunks.length);
+        this.armServerAckWatchdog();
         if (this.ws) {
           this.flushPendingChunks(this.ws);
           this.sendDoneIfStopped(this.ws);
         }
       };
       if (this.ws.readyState === WebSocket.OPEN) {
+        this.armServerAckWatchdog();
         this.flushPendingChunks(this.ws);
         this.sendDoneIfStopped(this.ws);
       }
@@ -494,6 +555,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
       this.ws = new WebSocket(this.wsUrl);
       this.ws.onopen = () => {
         console.info("[voice] WebSocket connected in %dms, flushing %d buffered chunks", Date.now() - wsConnStart, this.pendingChunks.length);
+        this.armServerAckWatchdog();
         // Flush chunks that were buffered before the WebSocket connected
         if (this.ws) {
           this.flushPendingChunks(this.ws);
@@ -540,8 +602,10 @@ export class VoiceStreamProvider implements TranscriptionProvider {
       const elapsed = Date.now() - this.recordingStartTime;
       const timeout = computeFinalTimeout(elapsed);
       const sentBytes = this.totalBytesSent;
+      this.armFinalProgressWatchdog(sentBytes);
       this.finalTimeout = setTimeout(() => {
         if (!this.finalReceived) {
+          this.clearFinalProgressTimer();
           this.ws?.close();
           // Classify the timeout honestly instead of a single ambiguous
           // string. By this point the mic was granted and recording ran, so
@@ -568,6 +632,8 @@ export class VoiceStreamProvider implements TranscriptionProvider {
       clearTimeout(this.finalTimeout);
       this.finalTimeout = null;
     }
+    this.clearServerAckTimer();
+    this.clearFinalProgressTimer();
     if (this.preConnectTimer) {
       clearTimeout(this.preConnectTimer);
       this.preConnectTimer = null;

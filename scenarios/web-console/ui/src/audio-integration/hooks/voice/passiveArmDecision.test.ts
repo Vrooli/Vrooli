@@ -50,12 +50,11 @@ describe("decidePassiveArm", () => {
   });
 
   it("tears down the listener when the wake-word toggle goes off", () => {
-    expect(decidePassiveArm({ ...base, wakeWordEnabled: false, voiceState: "passive" })).toBe("exit");
     expect(decidePassiveArm({ ...base, wakeWordEnabled: false, listenerActive: true })).toBe("exit");
   });
 
   it("tears down when voice input is disabled entirely", () => {
-    expect(decidePassiveArm({ ...base, voiceEnabled: false, voiceState: "passive" })).toBe("exit");
+    expect(decidePassiveArm({ ...base, voiceEnabled: false, listenerActive: true })).toBe("exit");
   });
 
   it("is a no-op when off and nothing is listening", () => {

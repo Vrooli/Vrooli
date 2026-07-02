@@ -108,9 +108,13 @@ func mutationReportForRun(run *diagv1.RunSuiteResult) cliapp.MutationReport {
 func formatStep(s *diagv1.SuiteStepResult) string {
 	cap := capabilityLabel(s.GetCapability())
 	if s.GetOk() {
-		return fmt.Sprintf("%-10s OK     tier=%-7s provider=%-20s model=%-20s latency=%dms",
+		line := fmt.Sprintf("%-10s OK     tier=%-7s provider=%-20s model=%-20s latency=%dms",
 			cap, providerTierLabel(s.GetProviderTier()), truncate(s.GetProviderId(), 20),
 			truncate(s.GetModelId(), 20), int(s.GetLatencyMs()))
+		if s.GetCapability() == diagv1.Capability_CAPABILITY_STT && s.GetDetails()["quality_assessed"] == "false" {
+			line += " quality=not-assessed"
+		}
+		return line
 	}
 	return fmt.Sprintf("%-10s FAIL   code=%-22s message=%s",
 		cap, s.GetErrorCode(), truncate(s.GetErrorMessage(), 80))

@@ -29,6 +29,16 @@ const (
 	StatusUnknown     Status = "unknown"
 )
 
+type ActionKind string
+
+const (
+	ActionKindNone            ActionKind = ""
+	ActionKindOperatorCommand ActionKind = "operator_command"
+	ActionKindScenarioStart   ActionKind = "scenario_start"
+	ActionKindScenarioRestart ActionKind = "scenario_restart"
+	ActionKindOwnerGuidance   ActionKind = "owner_guidance"
+)
+
 type Def struct {
 	ID             string         `json:"id"`
 	Name           string         `json:"name"`
@@ -40,13 +50,34 @@ type Def struct {
 
 type State struct {
 	Def
-	Status    Status `json:"status"`
-	Message   string `json:"message,omitempty"`
-	CheckedAt string `json:"checkedAt,omitempty"`
+	Status          Status     `json:"status"`
+	Message         string     `json:"message,omitempty"`
+	ReasonCode      string     `json:"reasonCode,omitempty"`
+	ActionKind      ActionKind `json:"actionKind,omitempty"`
+	ActionLabel     string     `json:"actionLabel,omitempty"`
+	OperatorCommand string     `json:"operatorCommand,omitempty"`
+	CheckedAt       string     `json:"checkedAt,omitempty"`
 }
 
 type Checker interface {
 	Check(ctx context.Context) (Status, string)
+}
+
+type ResultChecker interface {
+	CheckResult(ctx context.Context) CheckResult
+}
+
+type CheckResult struct {
+	Status          Status
+	Message         string
+	ReasonCode      string
+	ActionKind      ActionKind
+	ActionLabel     string
+	OperatorCommand string
+}
+
+func simpleResult(status Status, message string) CheckResult {
+	return CheckResult{Status: status, Message: message}
 }
 
 // Known is the built-in capability catalogue that ships with the
@@ -153,7 +184,7 @@ func (r *Registry) Resolve(ctx context.Context) []State {
 			CheckedAt: now.Format(time.RFC3339),
 		}
 		if checker, ok := r.checkers[def.ID]; ok {
-			state.Status, state.Message = checker.Check(ctx)
+			applyResult(&state, runChecker(ctx, checker))
 		}
 		states[i] = state
 	}
@@ -196,9 +227,9 @@ func (r *Registry) ResolveLiveness(ctx context.Context) []State {
 			CheckedAt: now.Format(time.RFC3339),
 		}
 		if checker, ok := checkers[def.ID]; ok {
-			state.Status, state.Message = checker.Check(ctx)
+			applyResult(&state, runChecker(ctx, checker))
 		} else if checker, ok := r.checkers[def.ID]; ok {
-			state.Status, state.Message = checker.Check(ctx)
+			applyResult(&state, runChecker(ctx, checker))
 		}
 		states[i] = state
 	}
@@ -213,4 +244,28 @@ func (r *Registry) IsAvailable(ctx context.Context, capabilityID string) bool {
 		}
 	}
 	return false
+}
+
+func (r *Registry) Invalidate() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.cached = nil
+	r.cachedAt = time.Time{}
+}
+
+func runChecker(ctx context.Context, checker Checker) CheckResult {
+	if richer, ok := checker.(ResultChecker); ok {
+		return richer.CheckResult(ctx)
+	}
+	status, message := checker.Check(ctx)
+	return simpleResult(status, message)
+}
+
+func applyResult(state *State, result CheckResult) {
+	state.Status = result.Status
+	state.Message = result.Message
+	state.ReasonCode = result.ReasonCode
+	state.ActionKind = result.ActionKind
+	state.ActionLabel = result.ActionLabel
+	state.OperatorCommand = result.OperatorCommand
 }

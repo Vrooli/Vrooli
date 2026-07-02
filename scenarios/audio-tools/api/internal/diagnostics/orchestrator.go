@@ -237,6 +237,9 @@ func (o *Orchestrator) runSTT(ctx context.Context, started time.Time) StepResult
 	res.ProviderID = out.ProviderID
 	res.ModelID = out.ModelID
 	res.LatencyMs = float64(out.Latency.Milliseconds())
+	res.Details["diagnostic_scope"] = "asr_readiness"
+	res.Details["quality_assessed"] = "false"
+	res.Details["quality_note"] = "Bundled STT smoke audio verifies the provider path accepts and processes audio; transcript accuracy is measured by the eval harness."
 	res.Details["transcript_len"] = fmt.Sprintf("%d", len(out.Text))
 	if out.Text != "" {
 		res.Details["transcript_preview"] = previewString(out.Text, 80)

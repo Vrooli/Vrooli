@@ -8,13 +8,16 @@ import {
 import type { LastTurnAudio, TranscriptionProvider } from "./types";
 
 /** Minimal TranscriptionProvider that records dispose/stop calls. */
-function fakeProvider(): TranscriptionProvider & { disposeCount: number; stopCount: number } {
+function fakeProvider(onDispose?: () => void): TranscriptionProvider & { disposeCount: number; stopCount: number } {
   return {
     disposeCount: 0,
     stopCount: 0,
     start() {},
     stop() { this.stopCount++; },
-    dispose() { this.disposeCount++; },
+    dispose() {
+      this.disposeCount++;
+      onDispose?.();
+    },
     getStream(): MediaStream | null { return null; },
     getLastTurnAudio(): LastTurnAudio | null { return null; },
     disposeLastTurn() {},
@@ -51,7 +54,9 @@ describe("VoiceCaptureController", () => {
   it("replace() disposes the previous provider BEFORE installing the next (atomic)", () => {
     const ref: ProviderRef = { current: null };
     const controller = new VoiceCaptureController(ref);
-    const a = fakeProvider();
+    const a = fakeProvider(() => {
+      expect(ref.current).toBe(a);
+    });
     const b = fakeProvider();
     ref.current = a;
 

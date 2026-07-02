@@ -125,14 +125,11 @@ The snapshot is a self-contained ANSI byte stream that recreates the exact `(scr
 
 ### Voice Input
 
-1. User presses Alt+Space (desktop) or taps mic button (mobile toolbar)
-2. `useVoiceInput` hook in [CODE: ui/src/hooks/useVoiceInput.ts] calls `getUserMedia()` → starts `MediaRecorder`
-3. User releases key / taps stop → recording stops
-4. Hook checks transcription backend (determined on mount via `GET /api/v1/capabilities`):
-   - **Whisper available**: POST audio blob to `/api/v1/voice/transcribe` → API in [CODE: api/voice_transcribe.go] proxies to Whisper (`localhost:8090/asr`)
-   - **Whisper unavailable**: Falls back to browser Web Speech API (Chromium only)
-   - **Neither available**: Voice input disabled, mic button hidden
-5. Transcribed text injected into terminal via existing `sendInput()` path
+1. User presses Alt+Space (desktop) or taps the mic button.
+2. Web-console checks the `audio-tools` capability from [CODE: api/internal/capabilities/registry.go].
+3. When `audio-tools` is available, the UI and API use the audio-tools adoption boundary (`audioports.Remote*` and `@audio-tools/embed`) for STT, streaming, speaker verification, TTS, summarization, and provider routing.
+4. When `audio-tools` is unavailable, the terminal workspace still boots and audio features degrade in place. Capability refreshes re-enable audio paths after audio-tools returns; web-console does not run raw Whisper/Kokoro probes or start provider resources directly.
+5. Transcribed text is injected into the terminal through the existing input gate.
 
 ### Conversation Events
 
@@ -180,31 +177,31 @@ Client-side [CODE: ui/src/lib/api.ts#APIError] parses these into typed errors. T
 
 ## Audio Ownership Map
 
-Web-console currently bundles two distinct concerns: **reusable audio capability behavior** (STT, TTS, normalization, summarization, transcoding, provider mechanics) and **web-console-specific conversation/terminal glue** (auto-TTS trigger policy, listened-cursor, conversation fan-out, hook attribution). The future `scenarios/audio-tools` greenfield item will take ownership of the reusable capability layer; web-console will adopt it as a consumer.
+Web-console owns terminal/conversation glue and the same-origin adoption surface. `audio-tools` owns reusable audio capability behavior: STT, TTS, normalization, summarization, transcoding, provider mechanics, provider lifecycle, and provider recovery.
 
-This section is the contract between today's code and that future split. It is referenced by [Connected Scenarios Registry](#connected-scenarios-registry) and the audio-extraction prep plan.
+This section is the current ownership contract. The service manifest declares `audio-tools` as optional with `startup_policy: "try_start"`: lifecycle should try to bring it up, but web-console must not fail terminal boot when it is absent.
 
 ### Backend Ownership
 
 | Layer | Today's location | Future ownership | Notes |
 |---|---|---|---|
-| Reusable STT (transcribe, stream WS, VAD, speaker verification) | `api/internal/voice/` | `audio-tools` | Whisper, language passthrough, hallucination filter, segment finalization, speaker accept/reject/advisory |
-| Reusable TTS core (synthesize, voices, normalize, paragraph split, chunk) | `api/internal/tts/` | `audio-tools` | Kokoro client today; provider routing belongs to audio-tools |
-| Audio processing (transcode) | `api/internal/audio/transcode.go` | `audio-tools` | ffmpeg wrapper; resampling and codec policy migrate with it |
+| Reusable STT (transcribe, stream WS, VAD, speaker verification) | `audio-tools` | `audio-tools` | Web-console reaches this through RemoteSpeechToText / embed surfaces only |
+| Reusable TTS core (synthesize, voices, normalize, paragraph split, chunk) | `audio-tools` | `audio-tools` | Provider routing and provider lifecycle belong to audio-tools |
+| Audio processing (transcode) | `audio-tools` | `audio-tools` | ffmpeg/resampling/codec policy stay with the provider owner |
 | Capability ports (consumer-facing interfaces) | `api/internal/audioports/` | **web-console** | Stays as the adoption boundary; future audio-tools client implements these |
 | Conversation auto-TTS trigger policy | `api/conversation_router.go`, `api/conversation_store.go` | **web-console** | Decides *when* to ask for audio for which session/event |
 | TTS cache (pre-synthesis, event invalidation) | `api/tts_cache.go` | Split — provider-level cache to audio-tools; conversation-event eviction stays in web-console | `eventID`-keyed invalidation is conversation glue; raw audio caching is capability behavior |
-| TTS summarization service (cooldown, inflight dedupe) | `api/tts_summarization_service.go` | `audio-tools` | Pure summarizer + service; orchestration trigger stays in web-console |
+| TTS summarization service (cooldown, inflight dedupe) | `audio-tools` via `api/internal/audioports/` | `audio-tools` | Pure summarizer + service; orchestration trigger stays in web-console |
 | Hook attribution (Claude Stop hook, Codex tailer → ConversationEvent) | `api/tts_hook_handler.go`, `api/codex_tailer.go` | **web-console** | Per-session attribution is not an audio concern |
 | Playback ack / status snapshots | `api/tts_playback.go` | **web-console** | Tied to conversation cursor semantics |
-| Connect-RPC transport (handlers/voice, handlers/tts) | `api/handlers/{voice,tts}/` | **web-console** until adoption | Becomes a thin client of audio-tools after adoption |
+| Connect-RPC transport for audio features | `audio-tools` clients behind `api/internal/audioports/` | Split | Web-console-owned transports are only same-origin proxy/adoption seams, not raw audio provider APIs |
 
 ### Frontend Ownership
 
 | Layer | Today's location | Future ownership | Notes |
 |---|---|---|---|
 | Audio adoption boundary (re-export surface) | `ui/src/domains/audio/` | **web-console** | Single import path orchestration code uses; pointed at in-tree hooks today, swapped to audio-tools client at adoption time |
-| Mic capture, VAD, audio context, provider mechanics (Whisper/VoiceStream/WebSpeech/Kokoro/browser-TTS) | `ui/src/hooks/voice/**`, `ui/src/hooks/tts/**` | `audio-tools` | Reusable across any audio-consuming scenario |
+| Mic capture, VAD, audio context, provider mechanics | `@audio-tools/embed` / copied adoption boundary | `audio-tools` | Reusable across any audio-consuming scenario; web-console keeps only terminal targeting glue |
 | `useVoiceInput`, `useTextToSpeech` hook orchestration | `ui/src/hooks/use*.ts` | Split — generic readiness/lifecycle to audio-tools; terminal-input-gate wiring stays | See [`ui/src/domains/audio/README.md`](../../ui/src/domains/audio/README.md) for the per-file classification |
 | `tts-playback` controller (listened-cursor, auto-TTS policy) | `ui/src/domains/tts-playback/` | **web-console** | Conversation-cursor state machine is web-console concern |
 | Terminal voice command targeting + transcript injection | `ui/src/components/terminal/**`, `VoiceMicButton.tsx` | **web-console** | Routes to active pane through `TerminalInputGate` |
@@ -218,9 +215,11 @@ The single source of truth for "which other scenarios does web-console integrate
 - The features it unlocks (used by [CODE: api/internal/capabilities/checkers.go] to gate behavior).
 - The probe used to detect availability (`vrooli scenario status <slug>` for scenarios).
 
+Scenario status is decoded from typed `vrooli scenario status <slug> --json` fields. Unavailable states carry reason/action metadata for Settings. When the action is a scenario start/restart, the `RunAction` capability RPC delegates to the Vrooli lifecycle contract (`vrooli scenario start|restart <slug> --json`, then one `vrooli scenario wait <slug> --json`) and only accepts declared `DependencyScenario` entries. Operator-only states render the command without a button. Provider/resource repair remains owned by the scenario that owns the provider, notably audio-tools for Whisper/Kokoro/audio internals.
+
 `audio-tools` is registered today as a `DependencyScenario` with the 9 feature keys it will unlock when shipped. The probe shells out via the Vrooli CLI (per the [wrap-not-use principle](../../../../docs/concepts/principles/wrap-not-use.md)) and returns "not yet available" until the scenario exists.
 
-The Integrations settings tab renders this registry as two grouped subsections: **Connected Scenarios** (other Vrooli scenarios this one depends on) and **Local Resources** (Ollama/Whisper/Kokoro/Postgres/Redis). When audio-tools ships, no registry change is required — the existing checker starts returning `available`, and the dependent feature gates flip on automatically.
+The Integrations settings tab renders this registry as two grouped subsections: **Connected Scenarios** (other Vrooli scenarios this one depends on) and **Local Resources** (Ollama/OpenRouter and other directly owned local resources). When audio-tools ships, no registry change is required: the existing checker starts returning `available`, and the dependent feature gates flip on automatically.
 
 ### Capability Ports — Adoption Seam
 

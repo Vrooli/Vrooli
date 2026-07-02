@@ -41,6 +41,7 @@
 // extract once into a shared package.
 
 import type { ServerVadStateSnapshot } from "../useServerVadStateStore";
+import type { VoiceActivitySnapshot } from "./types";
 import type { VadAction } from "./vad";
 
 export interface AutoStopInputs {
@@ -56,6 +57,22 @@ export interface AutoStopInputs {
 export type AutoStopVerdict =
   | { kind: "continue" }
   | { kind: "stop"; source: "server" | "client-fallback" };
+
+export interface AutoStopRingInputs {
+  isRecording: boolean;
+  serverVad: ServerVadStateSnapshot | null | undefined;
+  voiceActivity: VoiceActivitySnapshot | null | undefined;
+  nowPerf: number;
+  staleTickMs: number;
+  visualGraceMs: number;
+}
+
+export interface AutoStopRingState {
+  visible: boolean;
+  progress: number;
+}
+
+const HIDDEN_RING: AutoStopRingState = { visible: false, progress: 0 };
 
 /**
  * Pure function — no I/O, no timers, no module-level state. Caller is
@@ -102,4 +119,44 @@ export function decideAutoStop(input: AutoStopInputs): AutoStopVerdict {
   }
 
   return { kind: "continue" };
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+/**
+ * Derive the mic-button auto-stop ring from the same server/client authority
+ * rules as decideAutoStop(). The important shared rule is that a latched server
+ * timeout remains terminal even after the final tick goes stale.
+ */
+export function decideAutoStopRing(input: AutoStopRingInputs): AutoStopRingState {
+  if (!input.isRecording) return HIDDEN_RING;
+
+  const { serverVad, voiceActivity, nowPerf, staleTickMs, visualGraceMs } = input;
+  if (serverVad && serverVad.receivedAt > 0) {
+    if (serverVad.silenceTimedOut) {
+      return serverVad.silenceTimeoutMs > 0
+        ? { visible: true, progress: 1 }
+        : HIDDEN_RING;
+    }
+
+    const serverAge = nowPerf - serverVad.receivedAt;
+    if (serverAge < staleTickMs && serverVad.silenceTimeoutMs > 0) {
+      const interpolated = Math.min(
+        serverVad.silenceElapsedMs + serverAge,
+        serverVad.silenceTimeoutMs,
+      );
+      return {
+        visible: !serverVad.voiced && interpolated >= visualGraceMs,
+        progress: clamp01(interpolated / serverVad.silenceTimeoutMs),
+      };
+    }
+  }
+
+  const progress = clamp01(voiceActivity?.autoStopProgress ?? 0);
+  const visible = voiceActivity?.phase === "silence"
+    && voiceActivity.autoStopVisible
+    && voiceActivity.silenceTimeoutMs > 0;
+  return visible ? { visible: true, progress } : HIDDEN_RING;
 }

@@ -143,6 +143,7 @@ interface MobileToolbarProps {
   voicePartialTranscript?: string;
   voiceBackend?: string;
   onVoiceStart?: (opts?: StartRecordingOpts) => void;
+  onVoicePrepare?: () => void;
   onVoiceStop?: () => void;
   /** Exit passive wake-word listening (tapping the passive mic button). */
   onVoiceExitPassive?: () => void;
@@ -194,6 +195,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   voicePartialTranscript,
   voiceBackend,
   onVoiceStart,
+  onVoicePrepare,
   onVoiceStop,
   onVoiceExitPassive,
   onVoiceReleaseMic,
@@ -736,6 +738,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               partialTranscript={voicePartialTranscript}
               backend={voiceBackend}
               isTtsSpeaking={isTtsSpeaking}
+              onPrepare={onVoicePrepare}
               onStart={onVoiceStart}
               onStop={onVoiceStop}
               onExitPassive={onVoiceExitPassive}
@@ -877,6 +880,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 partialTranscript={voicePartialTranscript}
                 backend={voiceBackend}
                 isTtsSpeaking={isTtsSpeaking}
+                onPrepare={onVoicePrepare}
                 onStart={onVoiceStart}
                 onStop={onVoiceStop}
                 onExitPassive={onVoiceExitPassive}
@@ -994,6 +998,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               partialTranscript={voicePartialTranscript}
               backend={voiceBackend}
               isTtsSpeaking={isTtsSpeaking}
+              onPrepare={onVoicePrepare}
               onStart={onVoiceStart}
               onStop={onVoiceStop}
               onExitPassive={onVoiceExitPassive}

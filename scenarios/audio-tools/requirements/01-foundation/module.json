@@ -23,7 +23,7 @@
         {
           "type": "manual",
           "status": "planned",
-          "notes": "Run `prd-control-tower requirements generate audio-tools` after Gate 1 in docs/START-HERE.md, then remove or replace this starter requirement."
+          "notes": "Run `business-health wizard apply  # (was: requirements generate) audio-tools` after Gate 1 in docs/START-HERE.md, then remove or replace this starter requirement."
         }
       ]
     }

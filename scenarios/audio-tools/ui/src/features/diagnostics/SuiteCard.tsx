@@ -255,6 +255,10 @@ function StepLog({ run }: { run: SuiteRun | null }) {
             <span className="ml-2 text-app-danger">
               {s.errorCode}{s.errorMessage ? `: ${s.errorMessage}` : ""}
             </span>
+          ) : s.capability === "stt" && s.details.quality_assessed === "false" ? (
+            <span className="ml-2 text-app-muted-foreground">
+              {tr(strings.diagnostics.suite.qualityNotAssessed)}
+            </span>
           ) : null}
         </li>
       ))}

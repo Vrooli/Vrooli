@@ -29,7 +29,7 @@ belong in [`DATA.md`](DATA.md).
 | settings | Operator configuration: provider defaults, per-capability precedence, BYOK creds (AES-GCM at rest). | CRUD / config | Provider config, BYOK secrets, voice overrides. | API, CLI, UI | OT-P0-009 | `api/internal/store/`, `api/internal/byokstore/`, `api/handlers/settings/`, `cli/domains/settings/`, `ui/src/features/configuration/`, `packages/proto/schemas/audio-tools/v1/settings/` |
 | usage | Per-operation usage + cost ledger and rollup queries for the dashboard. | Reporting / ledger | Usage rows (provider, op, ms, credits). | API, CLI, UI | OT-P0-011 | `api/internal/store/usage.go`, `api/internal/usagereport/`, `api/handlers/usage/`, `cli/domains/usage/`, `ui/src/features/usage/`, `packages/proto/schemas/audio-tools/v1/usage/` |
 | corpus | Speech-eval clip store: operator-recorded audio + corrected ground-truth transcripts for the eval harness. | CRUD / blob+metadata | Clip metadata (`corpus` SQLite domain) + audio bytes (blob store, git-ignored). | API, CLI, UI | (eval harness) | `api/internal/corpus/`, `api/handlers/corpus/`, `cli/domains/corpus/`, `ui/src/features/dictation-studio/`, `packages/proto/schemas/audio-tools/v1/corpus/` |
-| eval | STT strategy comparison harness: replays the corpus through batch/vad/overlap and reports WER, compute cost, and finalization latency. | Measurement / replay | None (reads the corpus domain; stateless). | API, CLI | (eval harness) | `api/internal/eval/`, `api/handlers/eval/`, `cli/domains/eval/`, `packages/proto/schemas/audio-tools/v1/eval/` |
+| eval | STT strategy comparison harness: replays the corpus through batch/vad/overlap and reports WER, compute cost, safety, length curves, and backend-owned duration-scaling classifications. | Measurement / replay | None (reads the corpus domain; stateless). | API, CLI, UI report renderer | (eval harness) | `api/internal/eval/`, `api/handlers/eval/`, `packages/proto/schemas/audio-tools/v1/eval/`, shared report rendering under `cli/domains/experiment/` and `ui/src/features/dictation-studio/` |
 | experiment | Persisted async STT experiment lifecycle: reproducible recipes, server-owned execution, stored reports, deterministic long-form, augmentation, speaker-dimension inputs, and comparisons. | Long-running operation / lab | Experiment metadata, lifecycle state, reproducible recipe realization, per-run metric cells, augmentation/speaker condition notes, and report blob references. | API, CLI, UI | STT experiment lab | `api/internal/experiment/`, `api/handlers/experiment/`, `cli/domains/experiment/`, `ui/src/features/dictation-studio/`, `packages/proto/schemas/audio-tools/v1/experiment/` |
 | health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/overview/`, `packages/proto/schemas/audio-tools/v1/health/` |
 
@@ -133,21 +133,21 @@ belong in [`DATA.md`](DATA.md).
 
 ### eval
 
-- Purpose: provide the internal measurement harness and shared report contract for WER, compute cost (Whisper-calls / audio-seconds / RTF), safety gates, length curves, and finalization latency (p50/p95).
+- Purpose: provide the internal measurement harness and shared report contract for WER, compute cost (Whisper-calls / audio-seconds / RTF), safety gates, length curves, duration-scaling points/classifications, and finalization latency (p50/p95).
 - Primary archetype: internal deterministic replay/report assembly.
-- Owns: the offline harness (`internal/eval`: WER/normalizer/metered-provider/replay/report) and shared proto report messages consumed by `ExperimentService`.
+- Owns: the offline harness (`internal/eval`: WER/normalizer/metered-provider/replay/report/scaling) and shared proto report messages consumed by `ExperimentService`. Scaling model fitting and strategy recommendation policy are backend-owned here; UI and CLI render the typed output and do not fit models or re-rank strategies.
 - API: no standalone public API. The former blocking eval RPC and eval CLI were retired on 2026-07-01; persisted experiments are the only agent/operator evaluation surface. The Dictation Studio UI retains the eval report renderer only as a shared report component.
 - Storage: none — experiment runs materialize corpus inputs and persist reports in the experiment domain.
 - Reference: [`../reference/eval-harness.md`](../reference/eval-harness.md). Requires a live Whisper backend for production experiments (build-tagged integration test; deterministic fake-provider tests in the default suite).
 
 ### experiment
 
-- Purpose: provide the agent-facing STT experiment lab surface: persisted recipes, async execution, wait/watch lifecycle, stored reports, and N-way comparison.
+- Purpose: provide the agent-facing STT experiment lab surface: persisted recipes, async execution, wait/watch lifecycle, stored reports, duration sweeps, and N-way comparison.
 - Primary archetype: long-running operation / lab.
 - Owns: `ExperimentService`, the `experiments` and `experiment_runs` SQLite tables, report artifact refs, deterministic long-form and augmentation recipe realization, speaker extraction/verification condition binding, safety gate configuration, and the server-lifetime async runner.
 - API: `api/handlers/experiment/`. CLI: `cli/domains/experiment/`. UI: `ui/src/features/dictation-studio/ExperimentLabView.tsx` drives builder, history, report, and compare flows through `ExperimentService`.
 - Storage: metadata and metric cells in SQLite; large reports in the variant-aware `experiment-blobs` store. Audio/report bytes do not enter git.
-- Does not own: the STT strategies, live STT/speaker config mutation, or metric computation policy; it orchestrates the eval harness with per-run config snapshots and persists its safety/curve results.
+- Does not own: the STT strategies, live STT/speaker config mutation, or metric computation/ranking policy; it orchestrates the eval harness with per-run config snapshots and persists its safety/curve/scaling results.
 
 ### health
 

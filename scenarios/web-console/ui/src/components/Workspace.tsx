@@ -2,7 +2,7 @@
 // DOC: docs/internal/SEAMS.md#1-entry--presentation
 import { useState, useCallback, useEffect, useMemo, useRef, type ChangeEvent } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { Loader2, Menu, MessageSquareText, Plus, Settings, TerminalSquare } from "lucide-react";
+import { Loader2, Menu, MessageSquareText, Plus, Settings, TerminalSquare, X } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
@@ -1262,7 +1262,11 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
   const sidebarUnreadCount = countWorkspaceUnreadMessages(orderedPanes, conversationSessions);
   const hasTopChrome = workspace.displayMode === "tabs" || workspace.displayMode === "sidebar";
   const workspaceTopSafeEnabled = !topSafeAreaReserved;
-  const statusFillClassName = hasTopChrome ? "wc-chrome-surface" : "bg-wc-surface-base";
+  const statusFillClassName = voiceInput.fallbackNotice
+    ? "bg-amber-500/10"
+    : hasTopChrome
+      ? "wc-chrome-surface"
+      : "bg-wc-surface-base";
 
   // h-wc-app maps to var(--wc-app-height, 100dvh) — the actual visible
   // viewport height set by useAppViewport(). This is the root layout
@@ -1293,6 +1297,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
         voiceActivity={voiceInput.voiceActivity}
         voicePartialTranscript={voiceInput.partialTranscript}
         voiceBackend={voiceInput.backend}
+        onVoicePrepare={voiceInput.prepareRecording}
         onVoiceStart={handleVoiceStart}
         onVoiceStop={handleVoiceStop}
         onVoiceExitPassive={voiceInput.exitPassiveMode}
@@ -1309,8 +1314,22 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
       >
         {/* Voice fallback notice */}
         {voiceInput.fallbackNotice && (
-          <div className="wc-stable-theme py-1.5 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))] text-xs text-amber-300 bg-amber-500/10 border-b border-amber-500/30">
-            {voiceInput.fallbackNotice}
+          <div
+            data-testid="voice-status-banner"
+            className="wc-stable-theme flex items-center gap-2 border-b border-amber-500/30 bg-amber-500/10 py-1.5 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))] text-xs text-amber-300"
+            role="status"
+          >
+            <span className="min-w-0 flex-1 break-words">{voiceInput.fallbackNotice}</span>
+            <button
+              type="button"
+              data-testid="voice-status-dismiss"
+              onClick={voiceInput.dismissFallbackNotice}
+              className="shrink-0 rounded border border-amber-400/40 bg-amber-500/20 p-1 text-amber-100 transition active:bg-amber-500/30"
+              aria-label={t(strings.app.connectionBanner.dismissAriaLabel)}
+              title={t(strings.app.connectionBanner.dismissAriaLabel)}
+            >
+              <X className="h-3.5 w-3.5" aria-hidden />
+            </button>
           </div>
         )}
         {voiceInput.rejectedAudio && (
@@ -1659,6 +1678,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
           voiceActivity={voiceInput.voiceActivity}
           voicePartialTranscript={voiceInput.partialTranscript}
           voiceBackend={voiceInput.backend}
+          onVoicePrepare={voiceInput.prepareRecording}
           onVoiceStart={handleVoiceStart}
           onVoiceStop={handleVoiceStop}
           onVoiceExitPassive={voiceInput.exitPassiveMode}

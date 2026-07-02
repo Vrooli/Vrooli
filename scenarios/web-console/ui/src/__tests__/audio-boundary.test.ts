@@ -17,6 +17,13 @@ const THIS_FILE: string = fileURLToPath(import.meta.url);
 const SRC_ROOT: string = resolve(THIS_FILE, "..", "..");
 
 const AUDIO_SURFACE = join(SRC_ROOT, "audio-integration");
+const MIC_OWNERSHIP_FILE = join(
+  SRC_ROOT,
+  "audio-integration",
+  "hooks",
+  "voice",
+  "micOwnership.ts",
+);
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -69,6 +76,26 @@ describe("frontend audio adoption boundary", () => {
         "Use web-console's own audio_admin / audio_runtime proto types instead. " +
         "Offenders:\n" +
         violations.map((v) => `  ${v.file}\n    -> "${v.spec}"`).join("\n"),
+    ).toEqual([]);
+  });
+
+  it("production mic acquisition goes through the ownership registry", () => {
+    const files = walk(SRC_ROOT).filter((file) => {
+      if (file === MIC_OWNERSHIP_FILE) return false;
+      if (/\.test\.(ts|tsx)$/.test(file)) return false;
+      if (file.includes(`${join("src", "__tests__")}${"/"}`)) return false;
+      return true;
+    });
+    const violations = files.filter((file) => (
+      readFileSync(file, "utf8").includes("navigator.mediaDevices.getUserMedia")
+    ));
+
+    expect(
+      violations,
+      "Production code must acquire browser mic streams only through " +
+        "audio-integration/hooks/voice/micOwnership.ts so leases are observable " +
+        "and release through the registry. Offenders:\n" +
+        violations.map((file) => `  ${file}`).join("\n"),
     ).toEqual([]);
   });
 });

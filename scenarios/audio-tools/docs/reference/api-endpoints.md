@@ -204,6 +204,12 @@ events from the chain's `Stream()` channel in one of six shapes:
 tier + provider ID + latency, and `fell_back_to_unary=true` when no
 streaming-capable provider accepted the session.
 
+Non-browser clients should call this method with the gRPC protocol over
+HTTP/2. The local development API accepts cleartext HTTP/2 (`h2c`) so CLI
+smoke tests can target the default `http://localhost:<port>` scenario URL
+without a TLS proxy. Browser dictation remains on `/api/v1/voice/stream`
+WebSocket because browser Connect bidi support is not the UI transport.
+
 ### `TTSService.SynthesizeStream` (server-stream)
 Same request shape as `Synthesize`. Server emits `AudioFrame` messages;
 intermediate frames carry only `audio`+`content_type`, the final frame

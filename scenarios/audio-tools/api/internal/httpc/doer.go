@@ -34,6 +34,13 @@ func DefaultDoer() Doer {
 	return &http.Client{Timeout: 120 * time.Second}
 }
 
+// LivenessDoer constructs a short-timeout Doer for UI/status health probes.
+// Keep expensive readiness/quality checks on DefaultDoer; liveness should
+// answer whether a dependency is reachable without waiting on model work.
+func LivenessDoer() Doer {
+	return &http.Client{Timeout: 3 * time.Second}
+}
+
 // seam: Doer is the outbound-HTTP seam (SEAMS.md row "httpc.Doer").
 // Production wires *http.Client; tests wire mocks.FakeDoer.
 //

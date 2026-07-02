@@ -135,6 +135,50 @@ describe("decodeEvalReport", () => {
           verdict: "tradeoff",
           reasons: ["Uses more calls."],
           warnings: [{ code: "higher_compute", message: "Compute is higher.", severity: "warning" }],
+          scaling: {
+            latencyClassification: "linear",
+            computeClassification: "superlinear",
+            confidence: "medium",
+            reasons: ["Provider cost grows faster than duration."],
+            warnings: [{ code: "superlinear_compute_growth", message: "Compute growth warning.", severity: "warning" }],
+            latencyFit: {
+              metric: "finalization_latency_p95_ms",
+              model: "linear",
+              slopePerSecond: 10,
+              intercept: 0,
+              rSquared: 0.98,
+              sampleCount: 3,
+              reason: "linear fit",
+            },
+            computeFit: {
+              metric: "provider_latency_ms",
+              model: "quadratic",
+              slopePerSecond: 2,
+              intercept: 0,
+              rSquared: 0.99,
+              sampleCount: 3,
+              reason: "quadratic fit",
+            },
+            points: [
+              {
+                clipId: "clip-30",
+                targetDurationMs: 30000n,
+                realizedDurationMs: 30100n,
+                wer: 0.1,
+                finalizationLatencyP50Ms: 100,
+                finalizationLatencyP95Ms: 150,
+                finalizationLatencySampleCount: 2,
+                timeToFirstCommitMs: 90,
+                commitCount: 1,
+                partialRevisions: 0,
+                maxDroppedSpanWords: 0,
+                whisperCalls: 1,
+                whisperAudioSeconds: 30,
+                providerLatencyMs: 500,
+                rtf: 0.02,
+              },
+            ],
+          },
           perClip: [
             {
               clipId: "clip-1",
@@ -185,6 +229,10 @@ describe("decodeEvalReport", () => {
     expect(out.perStrategy[0]!.perClip[0]!.normalizedReference).toBe("hello world");
     expect(out.perStrategy[0]!.perClip[0]!.editOperations[1]!.kind).toBe("substitution");
     expect(out.perStrategy[0]!.verdict).toBe("tradeoff");
+    expect(out.perStrategy[0]!.scaling?.latencyClassification).toBe("linear");
+    expect(out.perStrategy[0]!.scaling?.computeClassification).toBe("superlinear");
+    expect(out.perStrategy[0]!.scaling?.points[0]!.realizedDurationMs).toBe(30100);
+    expect(out.perStrategy[0]!.scaling?.computeFit?.model).toBe("quadratic");
     expect(out.summary?.recommendation).toBe("Prefer batch.");
     expect(out.warnings[0]!.code).toBe("tiny_corpus");
     expect(out.normalizationPolicy?.werPolicy).toBe("WER policy.");

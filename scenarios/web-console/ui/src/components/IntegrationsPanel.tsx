@@ -1,10 +1,12 @@
 // DOC: docs/internal/SEAMS.md#capability-registry-seam
 // DOC: docs/internal/SEAMS.md#connected-scenarios-registry-seam
-import { CheckCircle, AlertCircle, Circle, Boxes, Plug } from "lucide-react";
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { CheckCircle, AlertCircle, Circle, Boxes, Plug, Play, RotateCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useCapabilities } from "../hooks/useCapabilities";
 import { strings } from "../consts/strings";
-import type { CapabilityState, CapabilityStatus } from "../api/capabilities";
+import { runCapabilityAction, type CapabilityActionResponse, type CapabilityState, type CapabilityStatus } from "../api/capabilities";
 
 interface IntegrationsPanelProps {
   open: boolean;
@@ -32,10 +34,30 @@ function borderColor(status: CapabilityStatus): string {
   }
 }
 
-function CapabilityCard({ cap }: { cap: CapabilityState }) {
+interface CapabilityCardProps {
+  cap: CapabilityState;
+  actionPending: boolean;
+  actionResult?: CapabilityActionResponse;
+  actionError?: string;
+  onRunAction: (cap: CapabilityState) => void;
+}
+
+function actionIcon(kind?: string) {
+  if (kind === "scenario_restart") {
+    return <RotateCw className="h-3.5 w-3.5" />;
+  }
+  return <Play className="h-3.5 w-3.5" />;
+}
+
+function supportsBackendAction(cap: CapabilityState): boolean {
+  return cap.dependencyKind === "scenario" && (cap.actionKind === "scenario_start" || cap.actionKind === "scenario_restart");
+}
+
+function CapabilityCard({ cap, actionPending, actionResult, actionError, onRunAction }: CapabilityCardProps) {
   const { t } = useTranslation();
   const isUnavailable = cap.status === "unavailable";
   const isScenario = cap.dependencyKind === "scenario";
+  const canRunAction = supportsBackendAction(cap);
   // For scenario integrations that are unavailable, the message is a
   // CLI-install hint rather than a diagnostic. Treat the badge accordingly.
   const showNotYetBadge = isScenario && cap.status !== "available";
@@ -69,6 +91,54 @@ function CapabilityCard({ cap }: { cap: CapabilityState }) {
         </p>
       )}
 
+      {(cap.reasonCode || cap.actionLabel || cap.operatorCommand) && (
+        <div className="rounded border border-wc-default bg-wc-surface px-2 py-1.5 space-y-1">
+          {cap.reasonCode && (
+            <p data-testid={`cap-reason-${cap.id}`} className="text-[11px] text-wc-text-muted">
+              {t(strings.integrationsPanel.reasonLabel)}{" "}
+              <span className="font-mono text-wc-text-primary">{cap.reasonCode}</span>
+            </p>
+          )}
+          {cap.actionLabel && (
+            <p data-testid={`cap-action-${cap.id}`} className="text-[11px] text-wc-text-muted">
+              {t(strings.integrationsPanel.nextActionLabel)}{" "}
+              <span className="text-wc-text-primary">{cap.actionLabel}</span>
+            </p>
+          )}
+          {cap.operatorCommand && (
+            <p data-testid={`cap-command-${cap.id}`} className="text-[11px] text-wc-text-faint font-mono break-all">
+              {cap.operatorCommand}
+            </p>
+          )}
+          {canRunAction && (
+            <button
+              type="button"
+              data-testid={`cap-run-action-${cap.id}`}
+              disabled={actionPending}
+              onClick={() => onRunAction(cap)}
+              className="inline-flex h-7 items-center gap-1.5 rounded border border-wc-default bg-wc-surface-input px-2 text-[11px] text-wc-text-primary hover:bg-wc-surface disabled:cursor-wait disabled:opacity-60"
+            >
+              {actionIcon(cap.actionKind)}
+              <span>{actionPending ? t(strings.integrationsPanel.actionRunning) : cap.actionLabel}</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {actionResult && (
+        <p
+          data-testid={`cap-action-result-${cap.id}`}
+          className={`text-[11px] ${actionResult.success ? "text-emerald-400" : "text-red-400"}`}
+        >
+          {actionResult.message || actionResult.status}
+        </p>
+      )}
+      {actionError && (
+        <p data-testid={`cap-action-error-${cap.id}`} className="text-[11px] text-red-400">
+          {t(strings.integrationsPanel.actionFailed, { message: actionError })}
+        </p>
+      )}
+
       {cap.features.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-1">
           {cap.features.map((feature) => (
@@ -95,9 +165,23 @@ interface GroupProps {
   heading: string;
   description: string;
   items: CapabilityState[];
+  pendingCapabilityId?: string;
+  lastActionResult?: CapabilityActionResponse;
+  lastActionError?: { capabilityId: string; message: string };
+  onRunAction: (cap: CapabilityState) => void;
 }
 
-function IntegrationsGroup({ testId, icon, heading, description, items }: GroupProps) {
+function IntegrationsGroup({
+  testId,
+  icon,
+  heading,
+  description,
+  items,
+  pendingCapabilityId,
+  lastActionResult,
+  lastActionError,
+  onRunAction,
+}: GroupProps) {
   if (items.length === 0) return null;
   return (
     <section data-testid={testId} className="space-y-2">
@@ -108,7 +192,14 @@ function IntegrationsGroup({ testId, icon, heading, description, items }: GroupP
       <p className="text-[11px] text-wc-text-faint px-1">{description}</p>
       <div className="flex flex-col gap-2">
         {items.map((cap) => (
-          <CapabilityCard key={cap.id} cap={cap} />
+          <CapabilityCard
+            key={cap.id}
+            cap={cap}
+            actionPending={pendingCapabilityId === cap.id}
+            actionResult={lastActionResult?.capabilityId === cap.id ? lastActionResult : undefined}
+            actionError={lastActionError?.capabilityId === cap.id ? lastActionError.message : undefined}
+            onRunAction={onRunAction}
+          />
         ))}
       </div>
     </section>
@@ -118,6 +209,41 @@ function IntegrationsGroup({ testId, icon, heading, description, items }: GroupP
 export default function IntegrationsPanel({ open }: IntegrationsPanelProps) {
   const { t } = useTranslation();
   const { data, isLoading, isError, error } = useCapabilities(open);
+  const queryClient = useQueryClient();
+  const [pendingCapabilityId, setPendingCapabilityId] = useState<string>();
+  const [lastActionResult, setLastActionResult] = useState<CapabilityActionResponse>();
+  const [lastActionError, setLastActionError] = useState<{ capabilityId: string; message: string }>();
+  const actionMutation = useMutation({
+    mutationFn: (cap: CapabilityState) => {
+      if (!cap.actionKind) throw new Error("action kind missing");
+      return runCapabilityAction(cap.id, cap.actionKind);
+    },
+    onMutate: (cap) => {
+      setPendingCapabilityId(cap.id);
+      setLastActionResult(undefined);
+      setLastActionError(undefined);
+    },
+    onSuccess: (result) => {
+      setLastActionResult(result);
+      queryClient.setQueryData(["capabilities"], {
+        capabilities: result.capabilities,
+        timestamp: result.timestamp,
+      });
+    },
+    onError: (err, cap) => {
+      setLastActionError({ capabilityId: cap.id, message: err instanceof Error ? err.message : String(err) });
+    },
+    onSettled: () => {
+      setPendingCapabilityId(undefined);
+      queryClient.invalidateQueries({ queryKey: ["capabilities"] });
+    },
+  });
+
+  const handleRunAction = (cap: CapabilityState) => {
+    if (supportsBackendAction(cap) && !actionMutation.isPending) {
+      actionMutation.mutate(cap);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -162,6 +288,10 @@ export default function IntegrationsPanel({ open }: IntegrationsPanelProps) {
         heading={t(strings.integrationsPanel.connectedScenariosHeading)}
         description={t(strings.integrationsPanel.connectedScenariosDescription)}
         items={scenarios}
+        pendingCapabilityId={pendingCapabilityId}
+        lastActionResult={lastActionResult}
+        lastActionError={lastActionError}
+        onRunAction={handleRunAction}
       />
 
       <IntegrationsGroup
@@ -170,6 +300,10 @@ export default function IntegrationsPanel({ open }: IntegrationsPanelProps) {
         heading={t(strings.integrationsPanel.localResourcesHeading)}
         description={t(strings.integrationsPanel.localResourcesDescription)}
         items={resources}
+        pendingCapabilityId={pendingCapabilityId}
+        lastActionResult={lastActionResult}
+        lastActionError={lastActionError}
+        onRunAction={handleRunAction}
       />
     </div>
   );

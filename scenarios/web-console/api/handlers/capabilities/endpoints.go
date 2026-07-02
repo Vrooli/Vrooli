@@ -43,4 +43,24 @@ var Endpoints = []module.EndpointDescriptor{
 			},
 		},
 	},
+	{
+		ID:          "capabilities_run_action",
+		Path:        capabilitiesconnect.CapabilitiesServiceRunActionProcedure,
+		Method:      "POST",
+		Summary:     "Run a delegated capability recovery action",
+		Description: "Runs an explicit user-initiated lifecycle action for a declared scenario dependency, then returns a refreshed capability snapshot.",
+		Category:    "capabilities",
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"success":       "boolean",
+				"status":        "string",
+				"message":       "string",
+				"capability_id": "string",
+				"action_kind":   "string",
+				"capabilities":  "CapabilityState[]",
+				"timestamp":     "string",
+			},
+		},
+	},
 }

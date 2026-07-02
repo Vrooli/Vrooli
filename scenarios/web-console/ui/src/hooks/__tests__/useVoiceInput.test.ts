@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { apiBaseMock } from "../../test-utils";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import {
@@ -45,16 +45,18 @@ const mockCapabilities = (whisperAvailable: boolean) => {
 
 const mockMediaDevices = (success: boolean) => {
   const mockStream = {
-    getTracks: () => [{ stop: vi.fn() }],
+    getTracks: () => [{ readyState: "live", muted: false, kind: "audio", stop: vi.fn() }],
   } as unknown as MediaStream;
+  const getUserMedia = success
+    ? vi.fn().mockResolvedValue(mockStream)
+    : vi.fn().mockRejectedValue(new Error("Permission denied"));
   Object.defineProperty(navigator, "mediaDevices", {
     value: {
-      getUserMedia: success
-        ? vi.fn().mockResolvedValue(mockStream)
-        : vi.fn().mockRejectedValue(new Error("Permission denied")),
+      getUserMedia,
     },
     configurable: true,
   });
+  return { getUserMedia, mockStream };
 };
 
 /** Minimal SpeechRecognition stub */
@@ -448,5 +450,197 @@ describe("voice capture lifecycle ownership", () => {
     );
 
     warn.mockRestore();
+  });
+
+  it("does not acquire the mic on mount or visibility with persisted low-latency and wake-word flags", async () => {
+    mockCapabilities(true);
+    const media = mockMediaDevices(true);
+    useWorkspaceStore.setState({
+      voiceEnabled: true,
+      lowLatencyVoice: true,
+      wakeWordEnabled: true,
+      persistentMode: false,
+    });
+
+    const onTranscript = vi.fn();
+    const { useVoiceInput } = await import("../useVoiceInput");
+    const { result } = renderHook(() => useVoiceInput(onTranscript));
+
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    expect(result.current.backend).toBe("whisper");
+    expect(media.getUserMedia).not.toHaveBeenCalled();
+    expect(getActiveMicLeases()).toHaveLength(0);
+
+    await act(async () => {
+      Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+      document.dispatchEvent(new Event("visibilitychange"));
+      await Promise.resolve();
+    });
+
+    expect(media.getUserMedia).not.toHaveBeenCalled();
+    expect(getActiveMicLeases()).toHaveLength(0);
+  });
+
+  it("prewarms low-latency capture only after explicit mic intent", async () => {
+    mockCapabilities(true);
+    const media = mockMediaDevices(true);
+    useWorkspaceStore.setState({
+      voiceEnabled: true,
+      lowLatencyVoice: true,
+      wakeWordEnabled: false,
+      persistentMode: false,
+    });
+
+    const onTranscript = vi.fn();
+    const { useVoiceInput } = await import("../useVoiceInput");
+    const { result } = renderHook(() => useVoiceInput(onTranscript));
+
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    expect(media.getUserMedia).not.toHaveBeenCalled();
+
+    await act(async () => {
+      result.current.prepareRecording();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(media.getUserMedia).toHaveBeenCalledTimes(1));
+    expect(getActiveMicLeases().map((l) => l.owner)).toEqual(["low-latency-prewarm"]);
+  });
+});
+
+class FinalFrameWebSocket {
+  static OPEN = 1;
+  static CLOSED = 3;
+  static CONNECTING = 0;
+  static instances: FinalFrameWebSocket[] = [];
+  readyState = FinalFrameWebSocket.CONNECTING;
+  onopen: (() => void) | null = null;
+  onclose: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  onmessage: ((e: { data: string }) => void) | null = null;
+  send = vi.fn<(data: unknown) => void>();
+  close = vi.fn(() => {
+    this.readyState = FinalFrameWebSocket.CLOSED;
+    this.onclose?.();
+  });
+
+  constructor(readonly url: string) {
+    FinalFrameWebSocket.instances.push(this);
+    queueMicrotask(() => {
+      this.readyState = FinalFrameWebSocket.OPEN;
+      this.onopen?.();
+    });
+  }
+
+  emitFinal(text: string): void {
+    this.onmessage?.({ data: JSON.stringify({ type: "final", text }) });
+  }
+}
+
+class FinalFrameMediaRecorder {
+  static instances: FinalFrameMediaRecorder[] = [];
+  static isTypeSupported = vi.fn(() => true);
+  state: "inactive" | "recording" = "inactive";
+  ondataavailable: ((e: { data: Blob }) => void) | null = null;
+  onstop: (() => void) | null = null;
+  start = vi.fn(() => {
+    this.state = "recording";
+  });
+  stop = vi.fn(() => {
+    this.state = "inactive";
+    this.onstop?.();
+  });
+
+  constructor(_stream: MediaStream, _opts?: unknown) {
+    FinalFrameMediaRecorder.instances.push(this);
+  }
+}
+
+function installFinalFrameBrowserFakes() {
+  FinalFrameWebSocket.instances = [];
+  FinalFrameMediaRecorder.instances = [];
+  (globalThis as unknown as { WebSocket: typeof FinalFrameWebSocket }).WebSocket = FinalFrameWebSocket;
+  (globalThis as unknown as { MediaRecorder: typeof FinalFrameMediaRecorder }).MediaRecorder = FinalFrameMediaRecorder;
+  const tracks: Array<MediaStreamTrack & { stop: ReturnType<typeof vi.fn> }> = [];
+  const getUserMedia = vi.fn(async () => {
+    const track = {
+      kind: "audio",
+      muted: false,
+      readyState: "live" as MediaStreamTrackState,
+      stop: vi.fn(function stop(this: { readyState: MediaStreamTrackState }) {
+        this.readyState = "ended";
+      }),
+      addEventListener() {},
+      removeEventListener() {},
+    } as unknown as MediaStreamTrack & { stop: ReturnType<typeof vi.fn> };
+    tracks.push(track);
+    return {
+      active: true,
+      getTracks: () => [track],
+      getAudioTracks: () => [track],
+    } as unknown as MediaStream;
+  });
+  Object.defineProperty(navigator, "mediaDevices", {
+    configurable: true,
+    value: { getUserMedia },
+  });
+  return { getUserMedia, tracks };
+}
+
+describe("voice capture lifecycle server-final wedge", () => {
+  let originalFetch: typeof globalThis.fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    vi.clearAllMocks();
+    removeSpeechRecognition();
+    _resetMicOwnershipForTesting();
+    useWorkspaceStore.setState({
+      voiceEnabled: true,
+      lowLatencyVoice: false,
+      wakeWordEnabled: false,
+      persistentMode: false,
+    });
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    _resetMicOwnershipForTesting();
+  });
+
+  it("tears down capture when the server sends final before the client stops", async () => {
+    mockCapabilities(true);
+    const browser = installFinalFrameBrowserFakes();
+    const onTranscript = vi.fn();
+    const { useVoiceInput } = await import("../useVoiceInput");
+    const { result } = renderHook(() => useVoiceInput(onTranscript));
+
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    expect(result.current.backend).toBe("whisper");
+
+    await act(async () => { await result.current.startRecording(); });
+    await waitFor(() => expect(result.current.voiceState).toBe("recording"));
+    expect(getActiveMicLeases()).toHaveLength(1);
+    const firstRecorder = FinalFrameMediaRecorder.instances.at(-1);
+    const firstSocket = FinalFrameWebSocket.instances.at(-1);
+    if (!firstRecorder || !firstSocket) throw new Error("expected recording fakes to exist");
+    expect(firstRecorder.state).toBe("recording");
+
+    await act(async () => {
+      firstSocket.emitFinal("server finished");
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(result.current.voiceState).toBe("idle"));
+    expect(onTranscript).toHaveBeenCalledWith("server finished");
+    expect(getActiveMicLeases()).toHaveLength(0);
+    expect(firstRecorder.stop).toHaveBeenCalled();
+    expect(firstRecorder.state).toBe("inactive");
+    expect(browser.tracks[0]?.stop).toHaveBeenCalled();
+
+    await act(async () => { await result.current.startRecording(); });
+    await waitFor(() => expect(result.current.voiceState).toBe("recording"));
+    expect(browser.getUserMedia).toHaveBeenCalledTimes(2);
+    expect(getActiveMicLeases()).toHaveLength(1);
   });
 });

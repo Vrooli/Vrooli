@@ -2,14 +2,20 @@ package stt
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
+	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
+	"golang.org/x/net/http2"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -22,7 +28,31 @@ import (
 type handlers struct {
 	core   *cliapp.ScenarioApp
 	client sttconnect.STTServiceClient
+	stream sttconnect.STTServiceClient
 	admin  sttconnect.STTAdminServiceClient
+}
+
+type streamingHTTPClient struct {
+	core   *cliapp.ScenarioApp
+	client *http.Client
+}
+
+func (c streamingHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	if c.core != nil {
+		if c.core.HTTPClient != nil {
+			c.core.HTTPClient.ApplyRequestHeaders(req)
+		}
+		if c.core.APIClient != nil {
+			for k, v := range c.core.APIClient.AuthHeaders() {
+				req.Header.Set(k, v)
+			}
+		}
+	}
+	client := c.client
+	if client == nil {
+		client = http.DefaultClient
+	}
+	return client.Do(req)
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
@@ -30,8 +60,29 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	return &handlers{
 		core:   core,
 		client: sttconnect.NewSTTServiceClient(httpClient, baseURL),
+		stream: newStreamingSTTClient(core, baseURL),
 		admin:  sttconnect.NewSTTAdminServiceClient(httpClient, baseURL),
 	}
+}
+
+func newStreamingSTTClient(core *cliapp.ScenarioApp, baseURL string) sttconnect.STTServiceClient {
+	var timeout time.Duration
+	if core != nil {
+		if core.HTTPClient != nil {
+			timeout = core.HTTPClient.Timeout()
+		}
+	}
+	client := &http.Client{Timeout: timeout}
+	if parsed, err := url.Parse(baseURL); err == nil && parsed.Scheme == "http" {
+		client.Transport = &http2.Transport{
+			AllowHTTP: true,
+			DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
+				var d net.Dialer
+				return d.DialContext(ctx, network, addr)
+			},
+		}
+	}
+	return sttconnect.NewSTTServiceClient(streamingHTTPClient{core: core, client: client}, baseURL, connect.WithGRPC())
 }
 
 func audioFormatFromFlag(s string) commonv1.AudioFormat {
@@ -195,7 +246,11 @@ func (h *handlers) transcribeStream(ctx cliapp.RunContext) error {
 		chunkBytes = v
 	}
 
-	stream := h.client.TranscribeStream(context.Background())
+	streamClient := h.stream
+	if streamClient == nil {
+		streamClient = h.client
+	}
+	stream := streamClient.TranscribeStream(context.Background())
 	if err := stream.Send(&sttv1.TranscribeStreamRequest{
 		Payload: &sttv1.TranscribeStreamRequest_Start{
 			Start: &sttv1.StreamStart{Language: ctx.Flag("language")},

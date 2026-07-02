@@ -22,10 +22,14 @@ import (
 func streamErrorCode(err error) string {
 	var backendErr *sttpipeline.STTBackendError
 	if errors.As(err, &backendErr) {
-		if backendErr.Transient {
+		switch backendErr.EffectiveState() {
+		case sttpipeline.STTBackendStateDegraded:
+			return "backend_degraded"
+		case sttpipeline.STTBackendStateStarting:
 			return "backend_starting"
+		case sttpipeline.STTBackendStateUnavailable:
+			return "backend_unavailable"
 		}
-		return "backend_unavailable"
 	}
 	return "provider_failure"
 }

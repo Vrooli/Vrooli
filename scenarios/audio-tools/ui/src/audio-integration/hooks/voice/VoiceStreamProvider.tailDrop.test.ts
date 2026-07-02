@@ -224,6 +224,72 @@ describe("VoiceStreamProvider tail-drop", () => {
     }
   });
 
+  it("reports server status messages and clears the ack watchdog", async () => {
+    vi.useFakeTimers();
+    try {
+      const onStatus = vi.fn();
+      provider.onStatus = onStatus;
+      const ws = await startAndOpenWs();
+
+      ws.onmessage?.({
+        data: JSON.stringify({
+          type: "status",
+          code: "stream_connected",
+          text: "Streaming transcription connected.",
+        }),
+      });
+      await vi.advanceTimersByTimeAsync(1500);
+
+      expect(onStatus).toHaveBeenCalledWith({
+        code: "stream_connected",
+        message: "Streaming transcription connected.",
+      });
+      expect(onStatus).not.toHaveBeenCalledWith(expect.objectContaining({ code: "server_ack_pending" }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reports when the server does not acknowledge an opened stream", async () => {
+    vi.useFakeTimers();
+    try {
+      const onStatus = vi.fn();
+      provider.onStatus = onStatus;
+      await startAndOpenWs();
+
+      await vi.advanceTimersByTimeAsync(1500);
+
+      expect(onStatus).toHaveBeenCalledWith({
+        code: "server_ack_pending",
+        message: "Waiting for the speech backend to acknowledge the stream.",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reports finalization progress before the last-resort final timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      const onStatus = vi.fn();
+      provider.onStatus = onStatus;
+      vi.mocked(transcribeAudioWithRetry).mockResolvedValue("timeout fallback transcript");
+      await startAndOpenWs();
+      pushFrame();
+      provider.stop();
+
+      await vi.advanceTimersByTimeAsync(3000);
+
+      expect(onStatus).toHaveBeenCalledWith({
+        code: "final_pending",
+        message: "Speech audio was sent; waiting for the backend to finish transcription.",
+      });
+      expect(transcribeAudioWithRetry).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("falls back to HTTP transcription after WebSocket reconnects are exhausted", async () => {
     vi.useFakeTimers();
     try {

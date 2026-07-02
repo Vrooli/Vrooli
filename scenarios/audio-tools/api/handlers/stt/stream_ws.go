@@ -25,6 +25,7 @@ const (
 	wsMsgSegmentRejected = "segment-rejected"
 	wsMsgError           = "error"
 	wsMsgDone            = "done"
+	wsMsgStatus          = "status"
 	// wsMsgVadState mirrors sttchain.StreamEventVadState on the browser
 	// transport. See VadStateEvent doc + plan §7 step 3.
 	wsMsgVadState = "vad-state"
@@ -33,9 +34,10 @@ const (
 type wsMessage struct {
 	Type string `json:"type"`
 	Text string `json:"text,omitempty"`
-	// Code carries a machine-readable error class on Type==wsMsgError (e.g.
-	// "backend_starting", "backend_unavailable", "provider_failure") so the UI
-	// can render a transient "starting…" affordance vs a hard failure (plan L2).
+	// Code carries a machine-readable status/error class. On Type==wsMsgStatus
+	// it is a progress marker such as "stream_connected"; on Type==wsMsgError
+	// it is an error class such as "backend_starting", "backend_unavailable",
+	// or "provider_failure" so the UI can distinguish retryable backend states.
 	Code         string  `json:"code,omitempty"`
 	SegmentIndex int     `json:"segmentIndex,omitempty"`
 	Score        float64 `json:"score,omitempty"`
@@ -90,6 +92,7 @@ func StreamWSHandler(d Deps) http.Handler {
 			defer writeMu.Unlock()
 			_ = conn.WriteJSON(m)
 		}
+		writeJSON(wsMessage{Type: wsMsgStatus, Code: "stream_connected", Text: "Streaming transcription connected."})
 
 		start := buildStreamStart(r)
 		cfg := resolveStreamPipelineConfigFromDeps(ctx, d)

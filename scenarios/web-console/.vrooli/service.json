@@ -267,10 +267,10 @@
     },
     "scenarios": {
       "audio-tools": {
-        "required": true,
+        "required": false,
         "startup_policy": "try_start",
         "description": "All audio capabilities (TTS synthesis, voice listing, summarization, STT/transcription, speaker verification, wake word) flow through audio-tools via audioports.Remote* and @audio-tools/embed. web-console contains zero audio synthesis or transcription code.",
-        "degraded_behavior": "Required at startup — web-console fails fast if audio-tools is not reachable on boot."
+        "degraded_behavior": "Terminal workspace boots without audio-tools. Voice, TTS, summarization, speaker verification, and wake word features show degraded/unavailable until audio-tools is reachable, then recover on the next lazy resolution or capability refresh."
       }
     }
   },

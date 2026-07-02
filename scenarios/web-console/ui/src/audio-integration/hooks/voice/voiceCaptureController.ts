@@ -97,8 +97,8 @@ export class VoiceCaptureController {
   replace(next: TranscriptionProvider, reason: MicReleaseReason): TranscriptionProvider {
     const prev = this.providerRef.current;
     if (prev === next) return next;
-    this.providerRef.current = next;
     prev?.dispose();
+    this.providerRef.current = next;
     void reason; // reason is for symmetry/logging parity; dispose has no arg
     return next;
   }

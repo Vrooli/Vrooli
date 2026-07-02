@@ -6,7 +6,7 @@ import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import type { StartRecordingOpts, VoiceActivitySnapshot } from "../hooks/useVoiceInput";
 import type { ServerVadStateSnapshot } from "../audio-integration";
-import { VAD_AUTO_STOP_VISUAL_GRACE_MS, useServerVadStateStore, SERVER_VAD_STALE_MS } from "../audio-integration";
+import { VAD_AUTO_STOP_VISUAL_GRACE_MS, useServerVadStateStore, SERVER_VAD_STALE_MS, decideAutoStopRing } from "../audio-integration";
 
 /** Hold duration (ms) that distinguishes tap-to-toggle from push-to-talk. */
 const LONG_PRESS_MS = 300;
@@ -64,6 +64,8 @@ interface VoiceMicButtonProps {
   onReleaseMic?: () => void;
   /** Stop active TTS before starting voice input. Does not affect presentation. */
   onTtsStop?: () => void;
+  /** User intent to use voice soon; may warm the mic without starting capture. */
+  onPrepare?: () => void;
   /** Extra classes for the outer wrapper (e.g. to control height from a grid parent). */
   className?: string;
   /** Extra classes for the inner button element. */
@@ -140,6 +142,7 @@ function VoiceMicButtonInner({
   onExitPassive,
   onReleaseMic,
   onTtsStop,
+  onPrepare,
   className: wrapperClassName,
   buttonClassName,
 }: VoiceMicButtonProps) {
@@ -165,6 +168,11 @@ function VoiceMicButtonInner({
     transcribingAtRef.current = Date.now();
   }
   prevTranscribingRef.current = isTranscribing;
+
+  const handlePrepare = useCallback(() => {
+    if (isPreparing || isMicActive || isTranscribing || showRecovery) return;
+    onPrepare?.();
+  }, [isPreparing, isMicActive, isTranscribing, showRecovery, onPrepare]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
@@ -250,41 +258,25 @@ function VoiceMicButtonInner({
 
   if (!supported) return null;
 
-  // Prefer the server-emitted silence clock when fresh; fall back to the
-  // client VAD's autoStopProgress when stale (>250 ms since last tick) or
-  // when no server tick has arrived this stream. Formula matches plan §7
-  // step 12 with the VAD_AUTO_STOP_VISUAL_GRACE_MS gate applied to the
-  // server-derived elapsed too, so a 1-frame silence blip doesn't flash.
+  // The ring uses the same server/client precedence as the actual auto-stop
+  // verdict, including the latched server-timeout rule for stale terminal ticks.
   const nowPerf = typeof performance !== "undefined" ? performance.now() : Date.now();
-  const freshServerVad = serverVad
-    && serverVad.receivedAt > 0
-    && (nowPerf - serverVad.receivedAt) < SERVER_VAD_STALE_MS
-    ? serverVad
-    : null;
-  let autoStopProgress: number;
-  let showAutoStopRing: boolean;
-  if (freshServerVad && freshServerVad.silenceTimeoutMs > 0) {
-    const interpolated = Math.min(
-      freshServerVad.silenceElapsedMs + (nowPerf - freshServerVad.receivedAt),
-      freshServerVad.silenceTimeoutMs,
-    );
-    autoStopProgress = Math.max(0, Math.min(1, interpolated / freshServerVad.silenceTimeoutMs));
-    const autoStopVisible = !freshServerVad.voiced
-      && interpolated >= VAD_AUTO_STOP_VISUAL_GRACE_MS;
-    showAutoStopRing = isRecording && autoStopVisible;
-  } else {
-    autoStopProgress = Math.max(0, Math.min(1, voiceActivity?.autoStopProgress ?? 0));
-    showAutoStopRing = isRecording
-      && voiceActivity?.phase === "silence"
-      && voiceActivity.autoStopVisible
-      && voiceActivity.silenceTimeoutMs > 0;
-  }
+  const autoStopRing = decideAutoStopRing({
+    isRecording,
+    serverVad,
+    voiceActivity,
+    nowPerf,
+    staleTickMs: SERVER_VAD_STALE_MS,
+    visualGraceMs: VAD_AUTO_STOP_VISUAL_GRACE_MS,
+  });
 
   return (
     <div className={cn("relative shrink-0", wrapperClassName)}>
       <button
         ref={setButtonEl}
         data-testid="voice-mic-btn"
+        onPointerEnter={handlePrepare}
+        onFocus={handlePrepare}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
@@ -342,7 +334,7 @@ function VoiceMicButtonInner({
             style={{ height: `${Math.round(liveAudioLevel * 100)}%` }}
           />
         )}
-        {showAutoStopRing && (
+        {autoStopRing.visible && (
           <svg
             aria-hidden="true"
             data-testid="voice-auto-stop-ring"
@@ -358,7 +350,7 @@ function VoiceMicButtonInner({
               strokeWidth="3"
               className="text-amber-300/80"
               strokeDasharray={AUTO_STOP_RING_CIRCUMFERENCE}
-              strokeDashoffset={AUTO_STOP_RING_CIRCUMFERENCE * (1 - autoStopProgress)}
+              strokeDashoffset={AUTO_STOP_RING_CIRCUMFERENCE * (1 - autoStopRing.progress)}
               strokeLinecap="round"
             />
           </svg>

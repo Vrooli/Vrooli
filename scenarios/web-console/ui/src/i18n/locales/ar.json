@@ -313,8 +313,12 @@
     "connectedScenariosHeading": "السيناريوهات المتصلة",
     "connectedScenariosDescription": "سيناريوهات Vrooli الأخرى التي يمكن لوحدة التحكم هذه استخدامها. تعتمد الميزات أدناه على تثبيت السيناريو وتشغيله.",
     "localResourcesHeading": "الموارد المحلية",
-    "localResourcesDescription": "الخدمات المحلية (Whisper وKokoro وOllama وOpenRouter) التي تستخدمها وحدة التحكم مباشرة حاليًا. بمجرد نضوج السيناريوهات المتصلة، تنطوي هذه الموارد ضمنها.",
-    "scenarioNotYetAvailable": "غير متاح بعد"
+    "localResourcesDescription": "الخدمات المحلية التي تملكها وحدة التحكم مباشرة. يملك audio-tools مزودي الصوت مثل Whisper وKokoro.",
+    "scenarioNotYetAvailable": "غير متاح بعد",
+    "reasonLabel": "السبب:",
+    "nextActionLabel": "التالي:",
+    "actionRunning": "جارٍ التشغيل...",
+    "actionFailed": "فشل الإجراء: {{message}}"
   },
   "terminalHeader": {
     "renameTitle": "انقر لإعادة التسمية",

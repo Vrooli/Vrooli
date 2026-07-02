@@ -203,11 +203,12 @@ func isDuplicateColumnError(err error) bool {
 //
 // Audio fields: speechProcessor, sttPort, ttsPort and summarizer are audio
 // capability ports backed by the audio-tools scenario in production; tests
-// substitute via the Set* methods. audio-tools is a required dependency
-// declared in .vrooli/service.json — the lifecycle ensures it is running
-// before web-console boots. All voice/TTS synthesis, summarization, voice
-// listing, and cache logic lives in audio-tools. The web-console-side state
-// is limited to: the small Claude-hook routing diagnostics
+// substitute via the Set* methods. audio-tools is an optional try-start
+// dependency declared in .vrooli/service.json: lifecycle may bring it up, but
+// terminal workspace boot must not fail when audio-tools is absent. All
+// voice/TTS synthesis, summarization, voice listing, and cache logic lives in
+// audio-tools. The web-console-side state is limited to: the small Claude-hook
+// routing diagnostics
 // (lastTTS* fields), the Claude-hook auto/backend/startMuted preference
 // triple (ttsHookConfigState), and the auto-summarize policy cache
 // (summarizeAutoPolicy*).

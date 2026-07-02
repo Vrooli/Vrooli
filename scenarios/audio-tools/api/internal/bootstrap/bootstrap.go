@@ -95,6 +95,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 	// every capability and the STT/TTS/Summarize chains report "all
 	// providers failed" even when the underlying resources are healthy.
 	doer := httpc.DefaultDoer()
+	livenessDoer := httpc.LivenessDoer()
 	summCfg := intsumm.DefaultSummarizeConfig()
 	summCfg.Model = env.SummarizeDefaultModel
 	capsCheckers := map[string]capabilities.Checker{
@@ -105,6 +106,11 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 		}},
 	}
 	capsRegistry := capabilities.NewRegistry(capabilities.Known, capsCheckers, 30*time.Second)
+	capsRegistry.SetLivenessCheckers(map[string]capabilities.Checker{
+		"whisper-stt": &capabilities.ResourceChecker{URL: env.WhisperURL + "/", Doer: livenessDoer},
+		"kokoro-tts":  &capabilities.ResourceChecker{URL: env.KokoroURL + "/v1/audio/voices", Doer: livenessDoer},
+		"ollama":      &capabilities.ResourceChecker{URL: env.OllamaURL + "/api/tags", Doer: livenessDoer},
+	})
 	skipVerifyCount := &atomic.Int64{}
 	// audioEngine is the single audio-format substrate: one instance shared
 	// across the STT pipeline (Whisper-container handling), the streaming
@@ -370,6 +376,7 @@ func runExperimentReport(ctx context.Context, evalDeps evalH.Deps, corpusSvc *in
 	}
 	evalClips := make([]inteval.Clip, 0, len(clips))
 	realized := map[string]any{"phase": "materialized", "long_form": false}
+	realtimeConcurrency := 0
 	if longFormEnabled {
 		if longForm.GapMs <= 0 {
 			longForm.GapMs = exprecipe.DefaultGapMs
@@ -430,6 +437,8 @@ func runExperimentReport(ctx context.Context, evalDeps evalH.Deps, corpusSvc *in
 		if isSweep {
 			realized["sweep_durations_sec"] = sweep
 			realized["sweep_inputs"] = sweepRealized
+			realized["realtime_concurrency"] = 1
+			realtimeConcurrency = 1
 		} else {
 			realized["target_duration_sec"] = longForm.GetTargetDurationSeconds()
 		}
@@ -495,7 +504,7 @@ func runExperimentReport(ctx context.Context, evalDeps evalH.Deps, corpusSvc *in
 		"condition_count":              len(conditions),
 		"dropped_span_threshold_words": safetyThreshold(recipe),
 	}
-	report, err := runAugmentationSpeakerConditionReports(ctx, evalDeps, evalClips, augGroups, recipe.GetStrategies(), recipe.GetRealtimeRepeats(), recipe.GetChunkMs(), recipe.GetLatencyTailSeconds(), safetyThreshold(recipe), conditions, speakerConfigured(speaker))
+	report, err := runAugmentationSpeakerConditionReports(ctx, evalDeps, evalClips, augGroups, recipe.GetStrategies(), recipe.GetRealtimeRepeats(), recipe.GetChunkMs(), recipe.GetLatencyTailSeconds(), safetyThreshold(recipe), realtimeConcurrency, conditions, speakerConfigured(speaker))
 	if err == nil {
 		if warning, ok := longFormSourceDurationWarning(longForm, clips); ok {
 			report.Warnings = appendUniqueReportWarnings(report.Warnings, warning)
@@ -688,17 +697,18 @@ func runSpeakerConditionReportsWithOptions(ctx context.Context, evalDeps evalH.D
 	return combined, nil
 }
 
-func runAugmentationSpeakerConditionReports(ctx context.Context, evalDeps evalH.Deps, clips []inteval.Clip, augGroups []exprecipe.ConditionGroup, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs, latencyTailSeconds, droppedSpanThresholdWords int32, speakerConditions []speakerEvalCondition, speakerEnabled bool) (inteval.EvalReport, error) {
+func runAugmentationSpeakerConditionReports(ctx context.Context, evalDeps evalH.Deps, clips []inteval.Clip, augGroups []exprecipe.ConditionGroup, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs, latencyTailSeconds, droppedSpanThresholdWords int32, realtimeConcurrency int, speakerConditions []speakerEvalCondition, speakerEnabled bool) (inteval.EvalReport, error) {
 	if len(augGroups) == 0 {
 		return runSpeakerConditionReportsWithOptions(ctx, evalDeps, clips, strategies, realtimeRepeats, chunkMs, inteval.EvalOptions{
 			LatencyTailSeconds:        int(latencyTailSeconds),
 			DroppedSpanThresholdWords: int(droppedSpanThresholdWords),
+			RealtimeConcurrency:       realtimeConcurrency,
 		}, speakerConditions)
 	}
 	var combined inteval.EvalReport
 	haveMetadata := false
 	for _, group := range augGroups {
-		report, err := runSpeakerConditionReportsForAugmentation(ctx, evalDeps, group.Clips, strategies, realtimeRepeats, chunkMs, latencyTailSeconds, droppedSpanThresholdWords, speakerConditions, speakerEnabled)
+		report, err := runSpeakerConditionReportsForAugmentation(ctx, evalDeps, group.Clips, strategies, realtimeRepeats, chunkMs, latencyTailSeconds, droppedSpanThresholdWords, realtimeConcurrency, speakerConditions, speakerEnabled)
 		if err != nil {
 			return inteval.EvalReport{}, err
 		}
@@ -731,16 +741,18 @@ func runAugmentationSpeakerConditionReports(ctx context.Context, evalDeps evalH.
 	return combined, nil
 }
 
-func runSpeakerConditionReportsForAugmentation(ctx context.Context, evalDeps evalH.Deps, clips []inteval.Clip, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs, latencyTailSeconds, droppedSpanThresholdWords int32, speakerConditions []speakerEvalCondition, speakerEnabled bool) (inteval.EvalReport, error) {
+func runSpeakerConditionReportsForAugmentation(ctx context.Context, evalDeps evalH.Deps, clips []inteval.Clip, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs, latencyTailSeconds, droppedSpanThresholdWords int32, realtimeConcurrency int, speakerConditions []speakerEvalCondition, speakerEnabled bool) (inteval.EvalReport, error) {
 	if !speakerEnabled {
 		return evalH.RunReportForClipsWithOptions(ctx, evalDeps, clips, strategies, realtimeRepeats, chunkMs, inteval.EvalOptions{
 			DroppedSpanThresholdWords: int(droppedSpanThresholdWords),
 			LatencyTailSeconds:        int(latencyTailSeconds),
+			RealtimeConcurrency:       realtimeConcurrency,
 		})
 	}
 	return runSpeakerConditionReportsWithOptions(ctx, evalDeps, clips, strategies, realtimeRepeats, chunkMs, inteval.EvalOptions{
 		DroppedSpanThresholdWords: int(droppedSpanThresholdWords),
 		LatencyTailSeconds:        int(latencyTailSeconds),
+		RealtimeConcurrency:       realtimeConcurrency,
 	}, speakerConditions)
 }
 

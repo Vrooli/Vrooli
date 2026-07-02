@@ -487,6 +487,37 @@ describe("VoiceMicButton", () => {
     expect(offset).toBeLessThan(65);
   });
 
+  it("keeps the ring complete for a stale latched server timeout", () => {
+    render(
+      <VoiceMicButton
+        {...defaults}
+        isRecording
+        voiceActivity={{
+          phase: "speech",
+          audioLevel: 0.2,
+          rms: 0.1,
+          speechThreshold: 0.06,
+          silenceThreshold: 0.02,
+          silenceElapsedMs: 0,
+          silenceTimeoutMs: 1500,
+          autoStopProgress: 0,
+          autoStopVisible: false,
+        }}
+        serverVad={{
+          voiced: false,
+          silenceElapsedMs: 1500,
+          silenceTimeoutMs: 1500,
+          receivedAt: 1,
+          tickSeq: 8,
+          silenceTimedOut: true,
+        }}
+      />,
+    );
+    const ring = screen.getByTestId("voice-auto-stop-ring");
+    const offset = Number(ring.querySelector("circle")?.getAttribute("stroke-dashoffset"));
+    expect(offset).toBe(0);
+  });
+
   it("hides the ring when serverVad is fresh but silenceTimeoutMs is 0", () => {
     render(
       <VoiceMicButton

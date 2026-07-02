@@ -22,6 +22,7 @@ type ClipResult struct {
 	EditOperations        []EditOperation
 	WhisperCalls          int
 	WhisperAudioSeconds   float64
+	ProviderLatencyMs     float64
 	RTF                   float64
 	SegmentCount          int
 	PartialRevisions      int
@@ -69,6 +70,7 @@ type StrategyReport struct {
 	Safety                   SafetyGateReport
 	StageAttribution         StageAttribution
 	LengthCurves             []LengthBucketCurve
+	Scaling                  ScalingAnalysis
 
 	// Ablation identity. These let AttributeIngressByAblation pair an
 	// extraction-on row with its extraction-off sibling so word loss can be
@@ -110,7 +112,10 @@ type NormalizationPolicy struct {
 	OverlapAgreementPolicy string
 }
 
-const DefaultDroppedSpanThresholdWords = 4
+const (
+	DefaultDroppedSpanThresholdWords = 4
+	reportWERTieThreshold            = 0.0005
+)
 
 // CommitState is one committed-text snapshot emitted by the strategy or
 // Segmenter. A valid streaming strategy must only append stable text over
@@ -161,6 +166,45 @@ type LengthBucketCurve struct {
 	MaxDroppedSpanWords      int
 }
 
+type ScalingPoint struct {
+	ClipID                         string
+	TargetDurationMs               int64
+	RealizedDurationMs             int64
+	WER                            float64
+	FinalizationLatencyP50Ms       float64
+	FinalizationLatencyP95Ms       float64
+	FinalizationLatencySampleCount int
+	TimeToFirstCommitMs            float64
+	CommitCount                    int
+	PartialRevisions               int
+	MaxDroppedSpanWords            int
+	WhisperCalls                   int
+	WhisperAudioSeconds            float64
+	ProviderLatencyMs              float64
+	RTF                            float64
+}
+
+type ScalingModelFit struct {
+	Metric         string
+	Model          string
+	SlopePerSecond float64
+	Intercept      float64
+	RSquared       float64
+	SampleCount    int
+	Reason         string
+}
+
+type ScalingAnalysis struct {
+	Points                []ScalingPoint
+	LatencyClassification string
+	ComputeClassification string
+	Confidence            string
+	Reasons               []string
+	Warnings              []ReportWarning
+	LatencyFit            ScalingModelFit
+	ComputeFit            ScalingModelFit
+}
+
 // EvalReport is the top-level comparison report: one StrategyReport row
 // per (strategy, config). Mirrors the AI-search SuiteReport shape.
 type EvalReport struct {
@@ -207,6 +251,7 @@ func aggregateStrategy(kind sttchain.StrategyKind, label string, clips []ClipRes
 	r.FinalizationLatencyP95Ms = P95(latency)
 	r.StageAttribution = attributeStages(r)
 	r.LengthCurves = buildLengthCurves(clips)
+	r.Scaling = buildScalingAnalysis(clips)
 	return r
 }
 
@@ -220,6 +265,7 @@ func explainReport(report EvalReport) EvalReport {
 		return report
 	}
 
+	aggregateWinnerIndex := chooseAggregateWinner(report.PerStrategy, report.LatencyMeasured)
 	winnerIndex := chooseWinner(report.PerStrategy, report.LatencyMeasured)
 	winner := report.PerStrategy[winnerIndex]
 	totalClips := len(winner.PerClip)
@@ -260,26 +306,39 @@ func explainReport(report EvalReport) EvalReport {
 		WinnerLabel:     displayLabel(winner),
 		Recommendation:  fmt.Sprintf("Prefer %s for this corpus.", displayLabel(winner)),
 		Confidence:      confidence,
-		Reasons:         winnerReasons(winner, report.PerStrategy, report.LatencyMeasured),
+		Reasons:         winnerReasons(winner, report.PerStrategy, report.LatencyMeasured, aggregateWinnerIndex),
 		ConfidenceNotes: notes,
 	}
 	return report
 }
 
 func chooseWinner(rows []StrategyReport, latencyMeasured bool) int {
+	return chooseWinnerWithScaling(rows, latencyMeasured, true)
+}
+
+func chooseAggregateWinner(rows []StrategyReport, latencyMeasured bool) int {
+	return chooseWinnerWithScaling(rows, latencyMeasured, false)
+}
+
+func chooseWinnerWithScaling(rows []StrategyReport, latencyMeasured bool, scalingAware bool) int {
 	best := 0
 	for i := 1; i < len(rows); i++ {
-		if strategyLess(rows[i], rows[best], latencyMeasured) {
+		if strategyLess(rows[i], rows[best], latencyMeasured, scalingAware) {
 			best = i
 		}
 	}
 	return best
 }
 
-func strategyLess(a, b StrategyReport, latencyMeasured bool) bool {
-	const werTie = 0.0005
-	if math.Abs(a.WER-b.WER) > werTie {
+func strategyLess(a, b StrategyReport, latencyMeasured bool, scalingAware bool) bool {
+	if math.Abs(a.WER-b.WER) > reportWERTieThreshold {
 		return a.WER < b.WER
+	}
+	if scalingAware {
+		aRisk, bRisk := longFormScalingRisk(a.Scaling), longFormScalingRisk(b.Scaling)
+		if aRisk != bRisk {
+			return aRisk < bRisk
+		}
 	}
 	if latencyMeasured && math.Abs(a.FinalizationLatencyP95Ms-b.FinalizationLatencyP95Ms) > 25 {
 		return a.FinalizationLatencyP95Ms < b.FinalizationLatencyP95Ms
@@ -311,6 +370,8 @@ func corpusConfidence(clips int, audioSeconds float64, latencyMeasured bool) (st
 }
 
 func explainStrategy(row, winner StrategyReport, isWinner bool, latencyMeasured bool) (string, []string, []ReportWarning) {
+	scalingWarnings := append([]ReportWarning(nil), row.Scaling.Warnings...)
+	scalingRisk := longFormScalingRisk(row.Scaling)
 	if isWinner {
 		reasons := []string{"Lowest WER after deterministic normalization."}
 		if latencyMeasured {
@@ -318,10 +379,13 @@ func explainStrategy(row, winner StrategyReport, isWinner bool, latencyMeasured 
 		} else {
 			reasons = append(reasons, "Latency was not part of this run.")
 		}
-		return "winner", reasons, nil
+		if scalingRisk == 0 {
+			reasons = append(reasons, "Long-form scaling is acceptable over the measured sweep.")
+		}
+		return "winner", reasons, scalingWarnings
 	}
 	reasons := []string{}
-	warnings := []ReportWarning{}
+	warnings := scalingWarnings
 	verdict := "competitive"
 	if row.WERDeltaVsWinner > 0.005 {
 		verdict = "loser"
@@ -349,18 +413,30 @@ func explainStrategy(row, winner StrategyReport, isWinner bool, latencyMeasured 
 		reasons = append(reasons, "Shows more partial transcript revisions, so live text is less stable.")
 		warnings = append(warnings, ReportWarning{Code: "higher_revisions", Severity: "warning", Message: "Partial transcript revisions are higher than the winning strategy."})
 	}
+	if scalingRisk > longFormScalingRisk(winner.Scaling) {
+		if verdict == "competitive" {
+			verdict = "tradeoff"
+		}
+		reasons = append(reasons, scalingRiskReason(row.Scaling))
+	}
 	if len(reasons) == 0 {
 		reasons = append(reasons, "Close to the winner on measured metrics, but loses the deterministic tie-breaks.")
 	}
 	return verdict, reasons, warnings
 }
 
-func winnerReasons(winner StrategyReport, rows []StrategyReport, latencyMeasured bool) []string {
+func winnerReasons(winner StrategyReport, rows []StrategyReport, latencyMeasured bool, aggregateWinnerIndex int) []string {
 	reasons := []string{fmt.Sprintf("%s has %.1f%% WER on this corpus.", displayLabel(winner), winner.WER*100)}
 	if latencyMeasured {
 		reasons = append(reasons, fmt.Sprintf("p95 finalization is %.0f ms with %d Whisper calls.", winner.FinalizationLatencyP95Ms, winner.WhisperCalls))
 	} else {
 		reasons = append(reasons, fmt.Sprintf("Uses %d Whisper calls over %.1f seconds of audio.", winner.WhisperCalls, winner.WhisperAudioSeconds))
+	}
+	if aggregateWinnerIndex >= 0 && aggregateWinnerIndex < len(rows) && rows[aggregateWinnerIndex].Strategy != winner.Strategy {
+		reasons = append(reasons, fmt.Sprintf("Short-form aggregate tie-breaks favored %s, but %s is safer for long dictation over the measured sweep.", displayLabel(rows[aggregateWinnerIndex]), displayLabel(winner)))
+	}
+	if longFormScalingRisk(winner.Scaling) == 0 {
+		reasons = append(reasons, fmt.Sprintf("Measured scaling is latency=%s and compute=%s.", winner.Scaling.LatencyClassification, winner.Scaling.ComputeClassification))
 	}
 	for _, row := range rows {
 		if row.Strategy == "overlap_agree" && row.Strategy != winner.Strategy && row.WhisperCalls > winner.WhisperCalls {
@@ -369,6 +445,32 @@ func winnerReasons(winner StrategyReport, rows []StrategyReport, latencyMeasured
 		}
 	}
 	return reasons
+}
+
+func longFormScalingRisk(s ScalingAnalysis) int {
+	if distinctPointDurations(s.Points) < minScalingDistinctDurations {
+		return 1
+	}
+	if s.LatencyClassification == "superlinear" || s.ComputeClassification == "superlinear" {
+		return 2
+	}
+	if s.LatencyClassification == "inconclusive" || s.ComputeClassification == "inconclusive" {
+		return 1
+	}
+	return 0
+}
+
+func scalingRiskReason(s ScalingAnalysis) string {
+	if s.LatencyClassification == "superlinear" && s.ComputeClassification == "superlinear" {
+		return "Shows superlinear latency and compute growth over the measured duration sweep."
+	}
+	if s.LatencyClassification == "superlinear" {
+		return "Shows superlinear finalization-latency growth over the measured duration sweep."
+	}
+	if s.ComputeClassification == "superlinear" {
+		return "Shows superlinear compute growth over the measured duration sweep."
+	}
+	return "Scaling evidence is inconclusive for long-form dictation."
 }
 
 func callMultiplier(calls, winnerCalls int) float64 {

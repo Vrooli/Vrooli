@@ -19,6 +19,8 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 // Deps holds the cross-cutting interfaces the Server depends on
@@ -66,5 +68,5 @@ func New(d Deps, modules ...modulekit.Module) *Server {
 // middleware. This is what main.go listens on and what
 // internal/testutil/httpx.NewLiveServer wraps for handler tests.
 func (s *Server) Handler() http.Handler {
-	return handlers.RecoveryHandler()(s.router)
+	return h2c.NewHandler(handlers.RecoveryHandler()(s.router), &http2.Server{})
 }

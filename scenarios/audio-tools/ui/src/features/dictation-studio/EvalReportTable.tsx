@@ -7,6 +7,7 @@ import {
   type EditOperationRow,
   type EvalReportData,
   type LengthCurveRow,
+  type ScalingAnalysisRow,
   type StrategyRow,
 } from "../../services/corpus";
 
@@ -104,7 +105,7 @@ export function EvalReportTable({ report }: { report: EvalReportData }) {
         <p className="text-xs text-app-muted-foreground">{report.latencyHonesty}</p>
       ) : null}
 
-      {report.perStrategy.some((row) => row.safety || row.stageAttribution || arrayOrEmpty(row.lengthCurves).length > 0) ? (
+      {report.perStrategy.some((row) => row.safety || row.stageAttribution || arrayOrEmpty(row.lengthCurves).length > 0 || row.scaling) ? (
         <section className="grid gap-3 border-y border-app-border py-3 md:grid-cols-3">
           {report.perStrategy.map((row) => (
             <div key={`${row.strategy}-safety`} className="rounded-control border border-app-border p-3">
@@ -138,6 +139,7 @@ export function EvalReportTable({ report }: { report: EvalReportData }) {
               {arrayOrEmpty(row.lengthCurves).length > 0 ? (
                 <LengthCurveChart curves={arrayOrEmpty(row.lengthCurves)} latency={latency} />
               ) : null}
+              {row.scaling ? <ScalingPanel scaling={row.scaling} /> : null}
             </div>
           ))}
         </section>
@@ -266,6 +268,42 @@ function GlossaryTerm({ term, text }: { term: string; text: string }) {
     <div>
       <dt className="font-medium text-app-foreground">{term}</dt>
       <dd>{text}</dd>
+    </div>
+  );
+}
+
+function ScalingPanel({ scaling }: { scaling: ScalingAnalysisRow }) {
+  const { t } = useTranslation();
+  return (
+    <div className="mt-3 border-t border-app-border pt-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h4 className="text-xs font-semibold">{t(strings.dictationStudio.scalingTitle)}</h4>
+        <span className="text-[11px] text-app-muted-foreground">
+          {scaling.confidence || "unknown"} · {scaling.points.length} {t(strings.dictationStudio.scalingPoints)}
+        </span>
+      </div>
+      <dl className="mt-2 grid grid-cols-2 gap-2 text-xs text-app-muted-foreground">
+        <div>
+          <dt>{t(strings.dictationStudio.scalingLatency)}</dt>
+          <dd className="font-medium text-app-foreground">{scaling.latencyClassification || DASH}</dd>
+        </div>
+        <div>
+          <dt>{t(strings.dictationStudio.scalingCompute)}</dt>
+          <dd className="font-medium text-app-foreground">{scaling.computeClassification || DASH}</dd>
+        </div>
+      </dl>
+      {[...scaling.reasons, ...scaling.warnings.map((warning) => warning.message)].length > 0 ? (
+        <ul className="mt-2 list-disc pl-4 text-[11px] text-app-muted-foreground">
+          {scaling.reasons.slice(0, 2).map((reason) => (
+            <li key={reason}>{reason}</li>
+          ))}
+          {scaling.warnings.map((warning) => (
+            <li key={`${warning.code}-${warning.message}`} className={warning.severity === "warning" ? "text-app-warning" : undefined}>
+              {warning.message}
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }

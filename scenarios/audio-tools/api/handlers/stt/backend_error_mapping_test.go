@@ -23,7 +23,11 @@ func TestMapChainErrorBackendDown(t *testing.T) {
 	if code := connect.CodeOf(mapChainError(operator)); code != connect.CodeFailedPrecondition {
 		t.Errorf("operator-action backend-down code = %s, want FailedPrecondition", code)
 	}
-	for _, e := range []error{transient, operator} {
+	degraded := &sttpipeline.STTBackendError{Resource: "whisper", Transient: true, State: sttpipeline.STTBackendStateDegraded, Message: "Speech backend (whisper) is slow or degraded — please try again shortly."}
+	if code := connect.CodeOf(mapChainError(degraded)); code != connect.CodeUnavailable {
+		t.Errorf("degraded backend code = %s, want Unavailable", code)
+	}
+	for _, e := range []error{transient, operator, degraded} {
 		if msg := mapChainError(e).Error(); strings.Contains(msg, "dial") || strings.Contains(msg, "tcp") {
 			t.Errorf("mapped connect error leaked transport detail: %q", msg)
 		}
@@ -50,6 +54,11 @@ func TestProtoForEventBackendDown(t *testing.T) {
 	ev2 := protoForEvent(sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: operator})
 	if got := ev2.GetError().GetCode(); got != "backend_unavailable" {
 		t.Errorf("code = %q, want backend_unavailable", got)
+	}
+	degraded := &sttpipeline.STTBackendError{Resource: "whisper", Transient: true, State: sttpipeline.STTBackendStateDegraded, Message: "Speech backend (whisper) is slow or degraded — please try again shortly."}
+	ev3 := protoForEvent(sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: degraded})
+	if got := ev3.GetError().GetCode(); got != "backend_degraded" {
+		t.Errorf("code = %q, want backend_degraded", got)
 	}
 
 	// A generic provider error keeps the legacy code (no regression).

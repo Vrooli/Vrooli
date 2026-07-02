@@ -562,6 +562,7 @@ func printReportTable(ctx cliapp.RunContext, report *evalv1.EvalReport) {
 	}
 	printReportWarnings(ctx, report)
 	printLengthCurves(ctx, report)
+	printScalingAnalysis(ctx, report)
 }
 
 func estimatedSecondsLabel(seconds int32) string {
@@ -642,6 +643,54 @@ func printLengthCurves(ctx cliapp.RunContext, report *evalv1.EvalReport) {
 	}
 }
 
+func printScalingAnalysis(ctx cliapp.RunContext, report *evalv1.EvalReport) {
+	hasScaling := false
+	for _, s := range report.GetPerStrategy() {
+		if scalingHasSignal(s.GetScaling()) {
+			hasScaling = true
+			break
+		}
+	}
+	if !hasScaling {
+		return
+	}
+	fmt.Fprintln(ctx.Stdout(), "\nScaling analysis:")
+	fmt.Fprintf(ctx.Stdout(), "  %-22s  %-12s  %-12s  %-10s  %-8s  %s\n", "STRATEGY", "LATENCY", "COMPUTE", "CONF", "POINTS", "WARNING")
+	for _, s := range report.GetPerStrategy() {
+		scaling := s.GetScaling()
+		if !scalingHasSignal(scaling) {
+			continue
+		}
+		fmt.Fprintf(ctx.Stdout(), "  %-22s  %-12s  %-12s  %-10s  %-8d  %s\n",
+			truncate(strategyLabel(s), 22),
+			scaling.GetLatencyClassification(),
+			scaling.GetComputeClassification(),
+			scaling.GetConfidence(),
+			len(scaling.GetPoints()),
+			scalingWarningLabel(scaling))
+	}
+}
+
+func scalingHasSignal(s *evalv1.ScalingAnalysis) bool {
+	return s != nil && (len(s.GetPoints()) > 0 || s.GetLatencyClassification() != "" || s.GetComputeClassification() != "")
+}
+
+func scalingWarningLabel(s *evalv1.ScalingAnalysis) string {
+	for _, warning := range s.GetWarnings() {
+		if warning.GetCode() != "" {
+			return warning.GetCode()
+		}
+	}
+	return "-"
+}
+
+func strategyLabel(s *evalv1.StrategyReport) string {
+	if s.GetLabel() != "" {
+		return s.GetLabel()
+	}
+	return s.GetStrategy()
+}
+
 func formatRunStatus(run *experimentv1.ExperimentRun) string {
 	if run == nil {
 		return "(nil run)"
@@ -709,8 +758,8 @@ func printComparison(ctx cliapp.RunContext, experiments []*experimentv1.Compared
 		bestWinner = rows[bestIdx].winner
 	}
 
-	fmt.Fprintf(ctx.Stdout(), "%-2s %-18s %-38s %-10s %-22s %7s %8s %6s %6s %7s %7s %7s\n",
-		"", "NAME", "ID", "STATUS", "WINNER", "WER%", "P95", "CALLS", "RTF", "SAFE", "dWER%", "dRTF")
+	fmt.Fprintf(ctx.Stdout(), "%-2s %-18s %-38s %-10s %-22s %7s %8s %12s %6s %6s %7s %7s %7s\n",
+		"", "NAME", "ID", "STATUS", "WINNER", "WER%", "P95", "SCALE", "CALLS", "RTF", "SAFE", "dWER%", "dRTF")
 	for i, row := range rows {
 		mark := ""
 		if i == bestIdx {
@@ -720,15 +769,15 @@ func printComparison(ctx cliapp.RunContext, experiments []*experimentv1.Compared
 		if name == "" {
 			name = "-"
 		}
-		winnerLabel, werCol, p95Col, callsCol, rtfCol, safeCol, dWerCol, dRtfCol := "-", "-", "-", "-", "-", "-", "-", "-"
+		winnerLabel, werCol, p95Col, scaleCol, callsCol, rtfCol, safeCol, dWerCol, dRtfCol := "-", "-", "-", "-", "-", "-", "-", "-", "-"
 		if row.winner != nil {
-			winnerLabel = row.winner.GetLabel()
-			if winnerLabel == "" {
-				winnerLabel = row.winner.GetStrategy()
-			}
+			winnerLabel = strategyLabel(row.winner)
 			werCol = fmt.Sprintf("%.1f", row.winner.GetWer()*100)
 			callsCol = fmt.Sprintf("%d", row.winner.GetWhisperCalls())
 			rtfCol = fmt.Sprintf("%.2f", row.winner.GetRtf())
+			if scalingHasSignal(row.winner.GetScaling()) {
+				scaleCol = fmt.Sprintf("%s/%s", row.winner.GetScaling().GetLatencyClassification(), row.winner.GetScaling().GetComputeClassification())
+			}
 			if row.report.GetLatencyMeasured() {
 				p95Col = fmt.Sprintf("%.0fms", row.winner.GetFinalizationLatencyP95Ms())
 			}
@@ -738,9 +787,9 @@ func printComparison(ctx cliapp.RunContext, experiments []*experimentv1.Compared
 				dRtfCol = fmt.Sprintf("%+.2f", row.winner.GetRtf()-bestWinner.GetRtf())
 			}
 		}
-		fmt.Fprintf(ctx.Stdout(), "%-2s %-18s %-38s %-10s %-22s %7s %8s %6s %6s %7s %7s %7s\n",
+		fmt.Fprintf(ctx.Stdout(), "%-2s %-18s %-38s %-10s %-22s %7s %8s %12s %6s %6s %7s %7s %7s\n",
 			mark, truncate(name, 18), row.exp.GetId(), statusLabel(row.exp.GetStatus()),
-			truncate(winnerLabel, 22), werCol, p95Col, callsCol, rtfCol, safeCol, dWerCol, dRtfCol)
+			truncate(winnerLabel, 22), werCol, p95Col, truncate(scaleCol, 12), callsCol, rtfCol, safeCol, dWerCol, dRtfCol)
 	}
 	if bestIdx >= 0 {
 		fmt.Fprintf(ctx.Stdout(), "\n* best = lowest winner WER (tie-break lower RTF); deltas are vs that experiment.\n")

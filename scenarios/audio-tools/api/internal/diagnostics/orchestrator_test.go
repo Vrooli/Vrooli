@@ -61,6 +61,27 @@ func TestRunSuite_AllPass(t *testing.T) {
 	}
 }
 
+func TestRunSuite_STTPassDoesNotClaimQualityMeasured(t *testing.T) {
+	o := newOrch(okSTT(), okTTS(), okSumm(), okTranscode())
+	run, err := o.RunSuite(context.Background(), []diagnostics.Capability{diagnostics.CapabilitySTT})
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	step := run.Steps[0]
+	if !step.OK {
+		t.Fatalf("STT step should pass: %+v", step)
+	}
+	if step.Details["diagnostic_scope"] != "asr_readiness" {
+		t.Fatalf("diagnostic_scope = %q, want asr_readiness", step.Details["diagnostic_scope"])
+	}
+	if step.Details["quality_assessed"] != "false" {
+		t.Fatalf("quality_assessed = %q, want false", step.Details["quality_assessed"])
+	}
+	if step.Details["quality_note"] == "" {
+		t.Fatal("quality_note should explain that transcript accuracy is not assessed")
+	}
+}
+
 func TestRunSuite_Partial_STTProviderUnavailable(t *testing.T) {
 	stt := &mocks.STT{Err: sttchain.ErrAllProvidersFailed}
 	o := newOrch(stt, okTTS(), okSumm(), okTranscode())
