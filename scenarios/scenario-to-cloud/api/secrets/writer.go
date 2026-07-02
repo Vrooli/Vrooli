@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"scenario-to-cloud/internal/shellutil"
-	"scenario-to-cloud/ssh"
 	"strings"
 	"time"
+
+	"scenario-to-cloud/internal/shellutil"
+	"scenario-to-cloud/ssh"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 )

@@ -1,9 +1,10 @@
 package main
 
 import (
-	"app-monitor-api/config"
 	"log"
 	"os"
+
+	"app-monitor-api/config"
 
 	"github.com/vrooli/api-core/preflight"
 )

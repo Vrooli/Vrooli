@@ -10,11 +10,12 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sort"
+	"testing"
+
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/manifest"
-	"sort"
-	"testing"
 )
 
 func TestBundleBuildEndpoint_BuildsTarballArtifact(t *testing.T) {

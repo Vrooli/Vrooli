@@ -16,7 +16,6 @@ import type { TemplateEditorModalProps } from "./types";
 import { useTemplateEditorForm } from "./useTemplateEditorForm";
 import { MetadataFields } from "./MetadataFields";
 import { VariableEditor } from "./VariableEditor";
-import { SuggestedToolsEditor } from "./SuggestedToolsEditor";
 import { ContentEditor } from "./ContentEditor";
 import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 
@@ -207,16 +206,6 @@ export function TemplateEditorModal({
                   onRemove={form.removeVariable}
                 />
 
-                {/* Suggested Tools */}
-                <SuggestedToolsEditor
-                  selectedToolIds={form.selectedToolIds}
-                  toolsByScenario={form.toolsByScenario}
-                  isLoadingTools={form.isLoadingTools}
-                  expandedScenarios={form.expandedScenarios}
-                  selectedCountByScenario={form.selectedCountByScenario}
-                  onToggleToolSelection={form.toggleToolSelection}
-                  onToggleScenario={form.toggleScenario}
-                />
               </div>
 
               {/* Right Column - Content */}

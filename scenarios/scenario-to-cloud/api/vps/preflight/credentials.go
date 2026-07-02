@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
+
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
-	"strings"
 )
 
 // CredentialValidator validates credentials for a specific resource type.

@@ -140,7 +140,7 @@ func NewLiveServer(t *testing.T, h *handlers.Handlers, opts ...LiveServerOption)
 
 	// Register the production handler routes. Tool-discovery routes are
 	// intentionally not wired here; handler tests don't use them, and
-	// they would require additional fakes (toolregistry, toolexecution).
+	// they would require additional fakes for unrelated service dependencies.
 	h.RegisterRoutes(router, cfg.metricsCollector)
 
 	for _, fn := range cfg.registerExtra {

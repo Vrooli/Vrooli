@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"scenario-to-cloud/domain"
 	"strings"
 	"time"
+
+	"scenario-to-cloud/domain"
 
 	mdns "github.com/miekg/dns"
 )

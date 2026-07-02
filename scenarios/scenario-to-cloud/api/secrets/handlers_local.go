@@ -8,11 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/internal/httputil"
 	"strconv"
 	"strings"
 	"time"
+
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/httputil"
 
 	"github.com/gorilla/mux"
 	apisecrets "github.com/vrooli/api-core/secrets"

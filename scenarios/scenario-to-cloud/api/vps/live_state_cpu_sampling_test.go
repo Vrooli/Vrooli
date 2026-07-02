@@ -2,12 +2,13 @@ package vps
 
 import (
 	"context"
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/ssh"
-	"scenario-to-cloud/sshidentity"
 	"strings"
 	"sync"
 	"testing"
+
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/sshidentity"
 )
 
 type recordingSSHRunner struct {

@@ -28,13 +28,10 @@ import (
 	"test-genie/internal/requirementsimprove"
 	"test-genie/internal/runmanager"
 	"test-genie/internal/scenarios"
-	"test-genie/internal/toolexecution"
-	"test-genie/internal/toolregistry"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/eligibility/eligibility_v1connect"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
@@ -69,9 +66,6 @@ type Dependencies struct {
 	EligibilityService         *appelig.Service
 	RunsService                *apprun.Service
 	Logger                     Logger
-	// Tool Discovery Protocol support
-	ToolRegistry *toolregistry.Registry
-	ToolHandler  *toolexecution.Handler
 }
 
 type suiteRequestQueue interface {
@@ -144,9 +138,6 @@ type Server struct {
 	seedSessions               map[string]*seedSession
 	seedSessionsByScenario     map[string]string
 	seedSessionsMu             sync.Mutex
-	// Tool Discovery Protocol support
-	toolRegistry *toolregistry.Registry
-	toolHandler  *toolexecution.Handler
 }
 
 // New creates a configured HTTP server instance.
@@ -204,8 +195,6 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		runsService:                deps.RunsService,
 		seedSessions:               make(map[string]*seedSession),
 		seedSessionsByScenario:     make(map[string]string),
-		toolRegistry:               deps.ToolRegistry,
-		toolHandler:                deps.ToolHandler,
 	}
 
 	srv.setupRoutes()
@@ -302,15 +291,6 @@ func (s *Server) setupRoutes() {
 		// browser <video> element can range-request them. Consumed (proxied)
 		// by git-control-tower's WorkflowReplayService.
 		apiRouter.HandleFunc("/scenarios/{name}/runs/{runId}/artifact", s.handleGetRunArtifact).Methods("GET")
-	}
-
-	// Tool Discovery Protocol routes
-	if s.toolRegistry != nil {
-		apiRouter.HandleFunc("/tools", s.handleGetToolManifest).Methods("GET", "OPTIONS")
-		apiRouter.HandleFunc("/tools/{name}", s.handleGetTool).Methods("GET", "OPTIONS")
-	}
-	if s.toolHandler != nil {
-		apiRouter.HandleFunc("/tools/execute", s.toolHandler.Execute).Methods("POST", "OPTIONS")
 	}
 }
 
@@ -419,61 +399,4 @@ func (s *Server) serviceName() string {
 		return "Test Genie API"
 	}
 	return name
-}
-
-// -----------------------------------------------------------------------------
-// Tool Discovery Protocol Handlers
-// -----------------------------------------------------------------------------
-
-// handleGetToolManifest returns the complete tool manifest for test-genie.
-func (s *Server) handleGetToolManifest(w http.ResponseWriter, r *http.Request) {
-	if s.toolRegistry == nil {
-		http.Error(w, "tool registry not configured", http.StatusServiceUnavailable)
-		return
-	}
-
-	manifest := s.toolRegistry.GetManifest(r.Context())
-
-	w.Header().Set("Content-Type", "application/json")
-	marshaler := protojson.MarshalOptions{
-		EmitUnpopulated: true,
-		UseProtoNames:   false,
-	}
-	data, err := marshaler.Marshal(manifest)
-	if err != nil {
-		http.Error(w, "failed to marshal manifest", http.StatusInternalServerError)
-		return
-	}
-	if _, err := w.Write(data); err != nil {
-		s.log("failed to write tool manifest response", map[string]interface{}{"error": err.Error()})
-	}
-}
-
-// handleGetTool returns a specific tool by name.
-func (s *Server) handleGetTool(w http.ResponseWriter, r *http.Request) {
-	if s.toolRegistry == nil {
-		http.Error(w, "tool registry not configured", http.StatusServiceUnavailable)
-		return
-	}
-
-	name := mux.Vars(r)["name"]
-	tool := s.toolRegistry.GetTool(r.Context(), name)
-	if tool == nil {
-		http.Error(w, "tool not found", http.StatusNotFound)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	marshaler := protojson.MarshalOptions{
-		EmitUnpopulated: true,
-		UseProtoNames:   false,
-	}
-	data, err := marshaler.Marshal(tool)
-	if err != nil {
-		http.Error(w, "failed to marshal tool", http.StatusInternalServerError)
-		return
-	}
-	if _, err := w.Write(data); err != nil {
-		s.log("failed to write tool response", map[string]interface{}{"error": err.Error()})
-	}
 }

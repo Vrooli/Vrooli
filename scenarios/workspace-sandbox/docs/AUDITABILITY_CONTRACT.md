@@ -51,7 +51,6 @@ Git-control-tower auto-promotes a pending provenance record to committed when it
 | `agent-manager` UI | Run-detail diff view; approval surface for `pending-review` provenance |
 | `workspace-sandbox` service | Overlay creation, mutation tracking, acceptance evaluation, apply, teardown hooks, persistence beyond run end when `manualReview=true`, owns state transitions |
 | `workspace-sandbox` UI | Sandbox-detail diff view; approval surface |
-| `workspace-sandbox` toolregistry | Tool-level `RequiresApproval` for canonical-repo-modifying tools that bypass the sandbox (e.g. direct git commit) |
 | `internal/scenario` + `internal/scenarioexec` + `internal/cli/vroolicli` | Sandbox-aware scenario restart; scope-narrowed redirect using `VROOLI_SANDBOX_*` env vars |
 | `packages/cli-core/cliutil/sandbox.go` + `cmd/sandbox-resolve` | Path resolution for arbitrary CLIs |
 | `test-genie` CLI | Sandbox-aware test execution |

@@ -2,7 +2,7 @@
   "_metadata": {
     "entity": "measures-health",
     "generated_at": "2026-06-08T09:53:02-04:00",
-    "generator": "prd-control-tower",
+    "generator": "business-health",
     "schema_version": "1.0"
   },
   "imports": [

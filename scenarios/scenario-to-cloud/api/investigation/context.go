@@ -3,8 +3,9 @@ package investigation
 import (
 	"encoding/json"
 	"fmt"
-	"scenario-to-cloud/domain"
 	"strings"
+
+	"scenario-to-cloud/domain"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )

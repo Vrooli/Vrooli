@@ -1,8 +1,9 @@
 package ssh
 
 import (
-	"scenario-to-cloud/domain"
 	"testing"
+
+	"scenario-to-cloud/domain"
 )
 
 func TestNewConfig_DefaultValues(t *testing.T) {

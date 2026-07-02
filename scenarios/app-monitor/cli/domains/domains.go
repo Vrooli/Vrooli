@@ -9,7 +9,6 @@ import (
 	"app-monitor/cli/domains/resources"
 	"app-monitor/cli/domains/rules"
 	"app-monitor/cli/domains/system"
-	"app-monitor/cli/domains/tools"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -33,6 +32,5 @@ func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 		lighthouse.Register(core),
 		presets.Register(core),
 		resources.Register(core),
-		tools.Register(core),
 	}
 }

@@ -24,16 +24,11 @@ type MessageInputAreaState = Pick<
   | "webSearchEnabled"
   | "enableAttachments"
   | "enableWebSearch"
-  | "enableForceTools"
   | "modelSupportsImages"
   | "modelSupportsPDFs"
   | "modelSupportsWebSearch"
-  | "modelSupportsToolUse"
   | "handleImageSelect"
   | "handlePDFSelect"
-  | "handleForceTool"
-  | "forcedTool"
-  | "toolsByScenario"
   | "activeTemplate"
   | "selectedSkillIds"
   | "slashCommands"
@@ -41,7 +36,6 @@ type MessageInputAreaState = Pick<
   | "sendLogic"
   | "handleWebSearchToggle"
   | "handleKeyDown"
-  | "chatId"
   | "setWebSearchEnabled"
   | "isMerging"
 >;
@@ -63,16 +57,11 @@ export const MessageInputArea = memo(function MessageInputArea({ state, inputTes
     webSearchEnabled,
     enableAttachments,
     enableWebSearch,
-    enableForceTools,
     modelSupportsImages,
     modelSupportsPDFs,
     modelSupportsWebSearch,
-    modelSupportsToolUse,
     handleImageSelect,
     handlePDFSelect,
-    handleForceTool,
-    forcedTool,
-    toolsByScenario,
     activeTemplate,
     selectedSkillIds,
     slashCommands,
@@ -80,7 +69,6 @@ export const MessageInputArea = memo(function MessageInputArea({ state, inputTes
     sendLogic,
     handleWebSearchToggle,
     handleKeyDown,
-    chatId,
     setWebSearchEnabled,
     isMerging,
   } = state;
@@ -162,16 +150,6 @@ export const MessageInputArea = memo(function MessageInputArea({ state, inputTes
           modelSupportsImages={modelSupportsImages}
           modelSupportsPDFs={modelSupportsPDFs}
           modelSupportsWebSearch={modelSupportsWebSearch}
-          enabledToolsByScenario={
-            enableForceTools && chatId ? toolsByScenario : undefined
-          }
-          forcedTool={forcedTool}
-          onForceTool={
-            enableForceTools && chatId && modelSupportsToolUse
-              ? handleForceTool
-              : undefined
-          }
-          modelSupportsTools={modelSupportsToolUse}
           onOpenTemplateSelector={() =>
             templateActions.setShowTemplateSelector(true)
           }

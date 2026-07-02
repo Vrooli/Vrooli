@@ -4,10 +4,11 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/tasks/shared"
 	"testing"
 	"time"
+
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/tasks/shared"
 )
 
 func TestDefaultLoopConfig(t *testing.T) {

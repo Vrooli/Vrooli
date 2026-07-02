@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
 func engineSpec() engine.SessionSpec { return engine.SessionSpec{} }

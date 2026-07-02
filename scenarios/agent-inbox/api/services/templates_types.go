@@ -3,8 +3,9 @@
 package services
 
 import (
-	"agent-inbox/config"
 	"sync"
+
+	"agent-inbox/config"
 )
 
 // TemplateVariable defines a form field for template customization.
@@ -28,7 +29,6 @@ type Template struct {
 	Content           string             `json:"content"`
 	Variables         []TemplateVariable `json:"variables"`
 	SuggestedSkillIDs []string           `json:"suggestedSkillIds,omitempty"`
-	SuggestedToolIDs  []string           `json:"suggestedToolIds,omitempty"`
 	Draft             bool               `json:"draft,omitempty"` // Indicates template may not be fully working
 }
 

@@ -1,7 +1,6 @@
 package services
 
 import (
-	"app-monitor-api/repository"
 	"bufio"
 	"bytes"
 	"context"
@@ -18,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"app-monitor-api/repository"
 )
 
 // =============================================================================

@@ -3,8 +3,9 @@ package dns
 import (
 	"context"
 	"fmt"
-	"scenario-to-cloud/domain"
 	"strings"
+
+	"scenario-to-cloud/domain"
 
 	"golang.org/x/net/publicsuffix"
 )

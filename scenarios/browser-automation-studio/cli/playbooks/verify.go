@@ -1,11 +1,12 @@
 package playbooks
 
 import (
-	"browser-automation-studio/cli/internal/appctx"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
+
+	"browser-automation-studio/cli/internal/appctx"
 )
 
 var prefixPattern = regexp.MustCompile(`^[0-9]{2}-`)

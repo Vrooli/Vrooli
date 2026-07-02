@@ -18,7 +18,7 @@ System Monitor provides real-time server monitoring with threshold-based anomaly
 |                                                         |
 |  Connect handlers / REST exceptions --> services/ -> repo |
 |                                                         |
-|  collectors/  |  agentmanager/  |  toolregistry/        |
+|  collectors/  |  agentmanager/  |  services/            |
 |  middleware/  |  server/        |  config/               |
 +---------+--------+--------+--------+---+----------------+
           |        |        |        |   |
@@ -31,7 +31,7 @@ System Monitor provides real-time server monitoring with threshold-based anomaly
 The API follows clean architecture with three main layers:
 
 ### Handlers (Presentation)
-Connect-RPC is the transport for proto-owned operations. The runtime mounts generated Connect handlers on the standard library `http.ServeMux`; gorilla/mux and proto-owned manual REST routes have been removed. REST remains only for explicit exceptions: health probes, development pprof, raw logs/forensics, and the tool discovery/execution protocols. Handlers depend on narrow interfaces (`MonitorQuerier`, `InvestigationManager`, `ScriptRunner`, `ReportGenerator`, `SettingsProvider`) defined in `handlers/interfaces.go`, keeping them decoupled from concrete service types.
+Connect-RPC is the transport for proto-owned operations. The runtime mounts generated Connect handlers on the standard library `http.ServeMux`; gorilla/mux and proto-owned manual REST routes have been removed. REST remains only for explicit exceptions: health probes, development pprof, and raw logs/forensics. Handlers depend on narrow interfaces (`MonitorQuerier`, `InvestigationManager`, `ScriptRunner`, `ReportGenerator`, `SettingsProvider`) defined in `handlers/interfaces.go`, keeping them decoupled from concrete service types.
 
 `[CODE: api/internal/handlers/]`
 
@@ -69,11 +69,6 @@ Six collectors (CPU, memory, disk, network, process, GPU) implement a common int
 HTTP client for the agent-manager API. The `AgentExecutor` interface abstracts all agent-manager operations used by `InvestigationService`.
 
 `[CODE: api/internal/agentmanager/]`
-
-### Tool Registry
-Pluggable tool registration (metrics_tools, investigation_tools, configuration_tools). New tools register via a registry pattern and are exposed through the tool discovery protocol.
-
-`[CODE: api/internal/toolregistry/]`
 
 ### Server Infrastructure
 Router setup, middleware wiring, graceful shutdown, database initialization, and structured logging.

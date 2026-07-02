@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"sort"
+	"strings"
+	"time"
+
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
-	"sort"
-	"strings"
-	"time"
 
 	"github.com/gorilla/mux"
 )

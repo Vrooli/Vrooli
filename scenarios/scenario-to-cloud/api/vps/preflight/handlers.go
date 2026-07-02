@@ -5,14 +5,15 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
-	"strconv"
-	"strings"
-	"time"
 )
 
 // HandlerDeps contains dependencies for preflight handlers.

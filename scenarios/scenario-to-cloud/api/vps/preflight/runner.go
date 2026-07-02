@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"strconv"
+	"strings"
+	"time"
+
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/tlsinfo"
-	"strconv"
-	"strings"
-	"time"
 )
 
 // RunOptions configures optional behavior for VPS preflight.

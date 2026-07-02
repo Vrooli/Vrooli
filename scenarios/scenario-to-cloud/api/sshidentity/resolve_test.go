@@ -3,8 +3,9 @@ package sshidentity
 import (
 	"os"
 	"path/filepath"
-	"scenario-to-cloud/domain"
 	"testing"
+
+	"scenario-to-cloud/domain"
 )
 
 func TestDefaultResolver_PrefersManifestKeyPath(t *testing.T) {

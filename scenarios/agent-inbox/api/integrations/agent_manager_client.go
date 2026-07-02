@@ -14,6 +14,7 @@ import (
 	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -25,9 +26,10 @@ var (
 	protoUnmarshalOpts = protojson.UnmarshalOptions{DiscardUnknown: true}
 )
 
+var cliClient = vroolicli.New()
+
 // AgentManagerClient provides direct REST API access to agent-manager.
 // This client is used for reconciliation during server restart recovery.
-// Tool execution flows through the Tool Execution Protocol (ProtocolHandler) instead.
 //
 // URL Resolution: The client resolves the agent-manager URL lazily and
 // re-resolves on connection failures (e.g., after agent-manager restarts

@@ -24,8 +24,8 @@ Each requirement sets `prd_ref` to its `OT-P[012]-NNN` id; criticality is derive
 
 ## Validation commands
 - Registry schema: `vrooli scenario requirements validate meta-optimization-manager`
-- PRD ↔ requirement linkage: `prd-control-tower requirements validate meta-optimization-manager --json`
-- PRD itself: `prd-control-tower prd validate meta-optimization-manager --json`
+- PRD ↔ requirement linkage: `vrooli scenario requirements validate meta-optimization-manager --json`
+- PRD itself: `vrooli scenario requirements validate meta-optimization-manager --json`
 
 ## Contributor notes
 - One folder per PRD target; do not reuse other scenarios' module names.

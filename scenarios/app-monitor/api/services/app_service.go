@@ -1,8 +1,6 @@
 package services
 
 import (
-	"app-monitor-api/logger"
-	"app-monitor-api/repository"
 	"bytes"
 	"context"
 	"errors"
@@ -11,6 +9,9 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"app-monitor-api/logger"
+	"app-monitor-api/repository"
 
 	"github.com/vrooli/api-core/discovery"
 )

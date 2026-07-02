@@ -13,13 +13,14 @@
 package services
 
 import (
-	"agent-inbox/config"
-	"agent-inbox/integrations"
 	"context"
 	"fmt"
 	"log"
 	"sync"
 	"time"
+
+	"agent-inbox/config"
+	"agent-inbox/integrations"
 )
 
 // ModelRegistry caches model metadata from OpenRouter.

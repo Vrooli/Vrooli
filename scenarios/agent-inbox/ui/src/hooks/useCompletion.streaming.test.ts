@@ -206,57 +206,7 @@ describe("useCompletion - streaming and tool calls", () => {
     });
   });
 
-  describe("template deactivation callback", () => {
-    it("calls onTemplateDeactivated when deactivate_template is true", async () => {
-      vi.useRealTimers();
-
-      const onTemplateDeactivated = vi.fn();
-
-      vi.mocked(api.completeChat).mockImplementation(async (_chatId, options) => {
-        options?.onEvent?.({
-          type: "tool_call_start",
-          tool_id: "call_123",
-          tool_name: "suggested-tool",
-        });
-        options?.onEvent?.({
-          type: "tool_call_result",
-          tool_id: "call_123",
-          status: "completed",
-          deactivate_template: true,
-        });
-        await new Promise(resolve => setTimeout(resolve, 10));
-      });
-
-      const { result } = renderHook(() => useCompletion({ onTemplateDeactivated }));
-
-      await act(async () => {
-        await result.current.runCompletion("chat-123");
-        await new Promise(resolve => setTimeout(resolve, 20));
-      });
-
-      expect(onTemplateDeactivated).toHaveBeenCalled();
-    });
-  });
-
   describe("completion options", () => {
-    it("passes forcedTool option to API", async () => {
-      vi.useRealTimers();
-
-      vi.mocked(api.completeChat).mockResolvedValue(undefined);
-
-      const { result } = renderHook(() => useCompletion());
-
-      await act(async () => {
-        await result.current.runCompletion("chat-123", {
-          forcedTool: { scenario: "agent-manager", toolName: "spawn_coding_agent" },
-        });
-      });
-
-      expect(api.completeChat).toHaveBeenCalledWith("chat-123", expect.objectContaining({
-        forcedTool: { scenario: "agent-manager", toolName: "spawn_coding_agent" },
-      }));
-    });
-
     it("passes skills option to API", async () => {
       vi.useRealTimers();
 

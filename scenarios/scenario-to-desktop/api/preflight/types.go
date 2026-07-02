@@ -2,8 +2,9 @@ package preflight
 
 import (
 	"encoding/json"
-	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/health"
 	"time"
+
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/health"
 
 	bundleruntime "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime"
 	runtimeapi "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"

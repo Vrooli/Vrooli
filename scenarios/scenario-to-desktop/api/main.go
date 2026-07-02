@@ -45,9 +45,6 @@ import (
 	"scenario-to-desktop-api/system"
 	"scenario-to-desktop-api/tasks"
 	"scenario-to-desktop-api/telemetry"
-	"scenario-to-desktop-api/toolexecution"
-	"scenario-to-desktop-api/toolhandlers"
-	"scenario-to-desktop-api/toolregistry"
 )
 
 // Global logger for middleware and initialization code
@@ -76,9 +73,6 @@ type Server struct {
 	pipelineHandler  *pipeline.Handler
 	stateHandler     *state.Handler
 	deployHandler    *deploy.Handler
-	// Tool Discovery and Execution Protocol handlers
-	toolsHandler         *toolhandlers.ToolsHandler
-	toolExecutionHandler *toolexecution.Handler
 
 	// Task orchestration service
 	taskSvc *tasks.Service
@@ -268,44 +262,6 @@ func NewServer(port int) *Server {
 	}
 	pipelineOrchestrator, pipelineHandler, deployHandler := initPipelineStack(pipelineDeps)
 
-	// ===== Tool Discovery and Execution Protocol =====
-
-	// Initialize tool registry with scenario metadata
-	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
-		ScenarioName:        "scenario-to-desktop",
-		ScenarioVersion:     "1.0.0",
-		ScenarioDescription: "Desktop application packaging, signing, and deployment",
-	})
-
-	// Register tool providers (pipeline tools plus signing and inspection)
-	toolReg.RegisterProvider(toolregistry.NewPipelineToolProvider())
-	toolReg.RegisterProvider(toolregistry.NewSigningToolProvider())
-	toolReg.RegisterProvider(toolregistry.NewInspectionToolProvider())
-
-	// Create tool discovery handler
-	toolsHandler := toolhandlers.NewToolsHandler(toolReg)
-
-	// Create build store adapter for tool execution
-	toolBuildStore := &toolBuildStoreAdapter{store: buildStore}
-
-	// Create tool executor with service dependencies
-	toolExecutor := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
-		BuildStore: toolBuildStore,
-		PipelineOrchestrator: &toolPipelineOrchestratorAdapter{
-			orchestrator: pipelineOrchestrator,
-		},
-		VrooliRoot: vrooliRoot,
-		Logger:     logger,
-		// Other services can be wired up as adapters are created
-	})
-
-	// Create tool execution handler
-	toolExecutionHandler := toolexecution.NewHandler(toolExecutor)
-
-	logger.Info("tool protocol initialized",
-		"providers", toolReg.ProviderCount(),
-		"tools", toolReg.ToolCount(context.Background()))
-
 	// ===== Task Orchestration Service =====
 	dataRoot, err := storePaths.DataRoot()
 	if err != nil {
@@ -334,10 +290,6 @@ func NewServer(port int) *Server {
 		liveDesktopHandler: liveDesktopHandler,
 		// Captures handler
 		capturesHandler: capturesHandler,
-		// Tool Protocol handlers
-		toolsHandler:         toolsHandler,
-		toolExecutionHandler: toolExecutionHandler,
-
 		// Task orchestration
 		taskSvc: taskSvc,
 
@@ -576,13 +528,6 @@ func (s *Server) registerDomainHandlers() {
 
 	// Task orchestration - agent spawning for pipeline investigations
 	s.registerTaskRoutes()
-
-	// ===== Tool Discovery and Execution Protocol =====
-	// GET /api/v1/tools - Returns complete tool manifest
-	// GET /api/v1/tools/{name} - Returns specific tool definition
-	// POST /api/v1/tools/execute - Execute a tool
-	s.toolsHandler.RegisterRoutes(s.router)
-	s.router.HandleFunc("/api/v1/tools/execute", s.toolExecutionHandler.Execute).Methods("POST", "OPTIONS")
 
 	// ===== Legacy Routes (Not Yet Fully Migrated) =====
 	// These handlers remain on Server struct until they're migrated to domain modules

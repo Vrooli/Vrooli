@@ -61,52 +61,6 @@
       ]
     },
     {
-      "name": "tools",
-      "description": "Tool Discovery + Execution Protocol surface (cross-scenario agent integration).",
-      "commands": [
-        {
-          "name": "list",
-          "description": "List every tool this scenario advertises via the Tool Discovery Protocol.",
-          "binding": { "kind": "connect-rpc", "service": "ToolsService", "method": "List" },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          }
-        },
-        {
-          "name": "get",
-          "description": "Fetch the definition of a single tool by name.",
-          "positionals": [
-            { "name": "name", "required": true, "description": "Tool slug (e.g. execute_workflow)" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "ToolsService", "method": "Get" },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          }
-        },
-        {
-          "name": "execute",
-          "description": "Invoke a tool with JSON arguments.",
-          "positionals": [
-            { "name": "name", "required": true, "description": "Tool slug to invoke" }
-          ],
-          "flags": [
-            { "name": "args", "description": "JSON object of tool arguments (default: {})", "bind": { "field": "arguments", "kind": "json_inline" } },
-            { "name": "args-file", "description": "Path to a JSON file with tool arguments", "bind": { "field": "arguments", "kind": "json_file" } }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "ToolsService", "method": "Execute" },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          }
-        }
-      ]
-    },
-    {
       "name": "schema",
       "description": "Workflow JSON-Schema and step-definition discovery.",
       "commands": [

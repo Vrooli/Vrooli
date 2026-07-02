@@ -1,14 +1,13 @@
 package services
 
 import (
-	"agent-inbox/domain"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"time"
 
-	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
+	"agent-inbox/domain"
 )
 
 // processStatusResult updates the operation based on status tool response.
@@ -22,7 +21,12 @@ import (
 //
 // Terminal status is determined by matching the extracted status against
 // SuccessValues or FailureValues from the completion conditions.
-func (s *AsyncTrackerService) processStatusResult(op *AsyncOperation, result interface{}, conditions *toolspb.CompletionConditions) (bool, string) {
+func (s *AsyncTrackerService) processStatusResult(op *AsyncOperation, result interface{}, conditions *CompletionConditions) (bool, string) {
+	if conditions == nil {
+		log.Printf("[WARN] processStatusResult: completion conditions missing for operation %s", op.ToolCallID)
+		return false, ""
+	}
+
 	resultMap, ok := result.(map[string]interface{})
 	if !ok {
 		log.Printf("[WARN] processStatusResult: result is not a map for operation %s: %T", op.ToolCallID, result)

@@ -2,7 +2,7 @@
   "_metadata": {
     "entity": "agent-manager",
     "generated_at": "2025-12-18T19:07:07-05:00",
-    "generator": "prd-control-tower",
+    "generator": "business-health",
     "schema_version": "1.0"
   },
   "imports": [

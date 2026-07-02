@@ -2,9 +2,10 @@ package investigation
 
 import (
 	"encoding/json"
-	"scenario-to-cloud/domain"
 	"strings"
 	"testing"
+
+	"scenario-to-cloud/domain"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )

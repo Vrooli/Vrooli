@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"scenario-to-cloud/ssh"
 	"strings"
 	"testing"
+
+	"scenario-to-cloud/ssh"
 )
 
 type fakeCleanupRunner struct {

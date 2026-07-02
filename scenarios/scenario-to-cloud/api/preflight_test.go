@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
+	"strings"
+	"testing"
+	"time"
+
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/vps/preflight"
-	"strings"
-	"testing"
-	"time"
 )
 
 func TestVPSPreflightHappyPath(t *testing.T) {

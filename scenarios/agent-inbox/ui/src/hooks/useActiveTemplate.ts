@@ -2,16 +2,14 @@
  * useActiveTemplate Hook
  *
  * Manages the "active template" state at the chat level.
- * An active template has its suggested tools auto-enabled and remains
- * active until the user deactivates it OR the agent uses one of its tools.
+ * An active template remains active until the user deactivates it.
  *
  * ARCHITECTURE:
- * - State is persisted in the chat record (active_template_id, active_template_tool_ids)
+ * - State is persisted in the chat record (active_template_id)
  * - Uses react-query for synchronization with backend
- * - SSE events signal when to deactivate (tool_call_result with deactivate_template: true)
  *
  * USAGE:
- * - Call activate() when user selects a template with suggested tools
+ * - Call activate() when user selects a template
  * - Call deactivate() when user manually clears OR SSE signals tool usage
  * - Check isActive to show UI indicators
  */
@@ -23,12 +21,10 @@ import { setActiveTemplate, type Chat } from "../lib/api";
 export interface UseActiveTemplateReturn {
   /** ID of the currently active template, or null if none */
   activeTemplateId: string | null;
-  /** Tool IDs associated with the active template */
-  activeToolIds: string[];
   /** Whether a template is currently active */
   isActive: boolean;
-  /** Activate a template with its suggested tools */
-  activate: (templateId: string, toolIds: string[]) => Promise<void>;
+  /** Activate a template */
+  activate: (templateId: string) => Promise<void>;
   /** Deactivate the current template (clears active state) */
   deactivate: () => Promise<void>;
   /** Whether an activation/deactivation is in progress */
@@ -46,23 +42,8 @@ export interface UseActiveTemplateReturn {
  * const activeTemplate = useActiveTemplate(chatId, chatData?.chat);
  *
  * // Activate when user selects a template
- * const handleTemplateSelect = (template) => {
- *   if (template.suggestedToolIds?.length) {
- *     await tools.enableToolsByIds(template.suggestedToolIds);
- *     await activeTemplate.activate(template.id, template.suggestedToolIds);
- *   }
- * };
- *
- * // Deactivate when SSE signals tool usage
- * if (event.deactivate_template) {
- *   activeTemplate.deactivate();
- * }
+ * await activeTemplate.activate(template.id);
  */
-// Stable empty array to prevent creating new references on every render
-// CRITICAL: Using `?? []` creates a NEW array each time, which can cause
-// infinite re-render loops when used as a dependency in hooks.
-const EMPTY_TOOL_IDS: string[] = [];
-
 export function useActiveTemplate(
   chatId: string | undefined,
   chat?: Chat
@@ -74,22 +55,17 @@ export function useActiveTemplate(
   // but chatData hasn't been updated yet from react-query
   const isStaleData = Boolean(chatId && chat && chat.id !== chatId);
 
-  // Extract active template state from chat
-  // CRITICAL: Use stable EMPTY_TOOL_IDS instead of inline [] to prevent
-  // creating new references that could trigger re-render cascades.
-  // Return safe defaults if data is stale to prevent mismatched operations
+  // Return safe defaults if data is stale to prevent mismatched operations.
   const activeTemplateId = isStaleData ? null : (chat?.active_template_id ?? null);
-  const toolIds = isStaleData ? undefined : chat?.active_template_tool_ids;
-  const activeToolIds = toolIds && toolIds.length > 0 ? toolIds : EMPTY_TOOL_IDS;
   const isActive = Boolean(activeTemplateId);
 
   // Mutation to activate a template
   const activateMutation = useMutation({
-    mutationFn: async ({ templateId, toolIds }: { templateId: string; toolIds: string[] }) => {
+    mutationFn: async ({ templateId }: { templateId: string }) => {
       if (!chatId) throw new Error("Chat ID required to activate template");
-      return setActiveTemplate(chatId, templateId, toolIds);
+      return setActiveTemplate(chatId, templateId);
     },
-    onMutate: async ({ templateId, toolIds }) => {
+    onMutate: async ({ templateId }) => {
       // Optimistically update the chat cache
       const queryKey = ["chat", chatId];
       await queryClient.cancelQueries({ queryKey });
@@ -103,7 +79,6 @@ export function useActiveTemplate(
           chat: {
             ...old.chat,
             active_template_id: templateId,
-            active_template_tool_ids: toolIds,
           },
         };
       });
@@ -126,7 +101,7 @@ export function useActiveTemplate(
   const deactivateMutation = useMutation({
     mutationFn: async () => {
       if (!chatId) throw new Error("Chat ID required to deactivate template");
-      return setActiveTemplate(chatId, null, []);
+      return setActiveTemplate(chatId, null);
     },
     onMutate: async () => {
       // Optimistically update the chat cache
@@ -142,7 +117,6 @@ export function useActiveTemplate(
           chat: {
             ...old.chat,
             active_template_id: undefined,
-            active_template_tool_ids: undefined,
           },
         };
       });
@@ -169,9 +143,9 @@ export function useActiveTemplate(
   // the whole mutation object (which has changing properties like isPending).
   // This prevents unnecessary callback recreation when mutation state changes.
   const activate = useCallback(
-    async (templateId: string, toolIds: string[]) => {
+    async (templateId: string) => {
       if (!chatId) throw new Error("Chat ID required to activate template");
-      await activateMutation.mutateAsync({ templateId, toolIds });
+      await activateMutation.mutateAsync({ templateId });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mutateAsync identity changes but mutation object is stable
     [chatId, activateMutation.mutateAsync]
@@ -191,12 +165,11 @@ export function useActiveTemplate(
   return useMemo(
     () => ({
       activeTemplateId,
-      activeToolIds,
       isActive,
       activate,
       deactivate,
       isUpdating,
     }),
-    [activeTemplateId, activeToolIds, isActive, activate, deactivate, isUpdating]
+    [activeTemplateId, isActive, activate, deactivate, isUpdating]
   );
 }

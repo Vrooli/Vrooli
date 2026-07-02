@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
+	"strings"
+	"testing"
+
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/secrets"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/vps"
-	"strings"
-	"testing"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 )

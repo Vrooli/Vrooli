@@ -3,14 +3,15 @@ package main
 import (
 	"context"
 	"net/http"
+	"sync"
+	"time"
+
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/tlsinfo"
 	"scenario-to-cloud/vps"
-	"sync"
-	"time"
 )
 
 // handleGetDeploymentHealth runs all health checks in parallel and returns a unified health report.

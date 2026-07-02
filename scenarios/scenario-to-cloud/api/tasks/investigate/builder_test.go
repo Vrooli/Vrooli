@@ -1,10 +1,11 @@
 package investigate
 
 import (
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/tasks/shared"
 	"strings"
 	"testing"
+
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/tasks/shared"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )

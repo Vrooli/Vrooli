@@ -1,6 +1,4 @@
 import { useState, useCallback, useEffect } from "react";
-import { useTools } from "../../hooks/useTools";
-import { useYoloMode } from "../../hooks/useSettings";
 import { useSuggestionsSettings } from "../../hooks/useSuggestionsSettings";
 import { useModeHistory } from "../../hooks/useModeHistory";
 import { useAgentSettings } from "../../hooks/useAgentSettings";
@@ -16,12 +14,11 @@ import {
   updateSkill as updateSkillFromAPI,
   syncSkills as syncSkillsFromAPI,
 } from "../../data/skills";
-import type { ApprovalOverride, EffectiveTool } from "../../lib/api";
 import type { TemplateWithSource, SkillWithSource, Skill } from "../../lib/types/templates";
 import type { Theme, SettingsTab } from "./settingsTypes";
 import { DEFAULT_MODEL } from "./settingsTypes";
 
-export function useSettingsState(open: boolean, activeTab: SettingsTab, onClose: () => void, onEditTemplate?: (template: TemplateWithSource, allTemplates: TemplateWithSource[]) => void) {
+export function useSettingsState(_open: boolean, activeTab: SettingsTab, onClose: () => void, onEditTemplate?: (template: TemplateWithSource, allTemplates: TemplateWithSource[]) => void) {
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("theme");
@@ -33,14 +30,6 @@ export function useSettingsState(open: boolean, activeTab: SettingsTab, onClose:
     if (typeof window !== "undefined") return localStorage.getItem("defaultModel") || DEFAULT_MODEL;
     return DEFAULT_MODEL;
   });
-  const [selectedToolForRun, setSelectedToolForRun] = useState<EffectiveTool | null>(null);
-
-  // YOLO mode
-  const { yoloMode, isLoading: isLoadingYoloMode, isUpdating: isUpdatingYoloMode, setYoloMode } = useYoloMode(open && activeTab === "tools");
-
-  // Tools
-  const { toolsByScenario, toolSet, scenarios, enabledTools, isLoading: isLoadingTools, isSyncing: isSyncingTools, isUpdating: isUpdatingTools, error: toolsError, toggleTool, setApproval, syncDiscoveredTools } = useTools({ enabled: open && activeTab === "tools" });
-
   // Suggestions
   const { visible: suggestionsVisible, setVisible: setSuggestionsVisible, mergeModel, setMergeModel, autoSuggest, autoSuggestLoading, autoSuggestError, updateAutoSuggest } = useSuggestionsSettings();
   const { history: modeHistory, clearHistory: clearModeHistory } = useModeHistory();
@@ -134,14 +123,6 @@ export function useSettingsState(open: boolean, activeTab: SettingsTab, onClose:
     setIsCreatingSkill(false);
   }, [isCreatingSkill, editingSkill]);
 
-  const handleYoloModeToggle = useCallback((checked: boolean) => { void setYoloMode(checked); }, [setYoloMode]);
-
-  const handleSetApproval = useCallback((scenario: string, toolName: string, override: ApprovalOverride) => {
-    void setApproval(scenario, toolName, override);
-  }, [setApproval]);
-
-  const handleRunTool = useCallback((tool: EffectiveTool) => setSelectedToolForRun(tool), []);
-
   const handleSaveSuggestions = useCallback(async () => {
     setIsSavingSuggestions(true);
     setSuggestionsSaveError(null);
@@ -151,11 +132,7 @@ export function useSettingsState(open: boolean, activeTab: SettingsTab, onClose:
   }, [suggestionsDraft, updateAutoSuggest]);
 
   return {
-    theme, defaultModel, selectedToolForRun, setSelectedToolForRun,
-    yoloMode, isLoadingYoloMode, isUpdatingYoloMode,
-    toolsByScenario, toolSet, scenarios, enabledTools,
-    isLoadingTools, isSyncingTools, isUpdatingTools, toolsError,
-    toggleTool, syncDiscoveredTools,
+    theme, defaultModel,
     suggestionsVisible, setSuggestionsVisible, mergeModel, setMergeModel,
     autoSuggestLoading, autoSuggestError,
     modeHistory, clearModeHistory,
@@ -167,6 +144,6 @@ export function useSettingsState(open: boolean, activeTab: SettingsTab, onClose:
     handleThemeChange, handleDefaultModelChange,
     handleDeleteTemplate, handleResetTemplate, handleEditTemplate,
     handleDeleteSkill, handleSyncSkills, handleEditSkill, handleSaveSkill,
-    handleYoloModeToggle, handleSetApproval, handleRunTool, handleSaveSuggestions,
+    handleSaveSuggestions,
   };
 }

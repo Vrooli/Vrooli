@@ -1,11 +1,12 @@
 package fix
 
 import (
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/tasks/shared"
 	"strings"
 	"testing"
 	"time"
+
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/tasks/shared"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )

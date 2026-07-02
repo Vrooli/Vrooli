@@ -17,12 +17,13 @@
 package capture
 
 import (
-	"browser-automation-studio/cli/internal/appctx"
 	"context"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
+
+	"browser-automation-studio/cli/internal/appctx"
 
 	"connectrpc.com/connect"
 

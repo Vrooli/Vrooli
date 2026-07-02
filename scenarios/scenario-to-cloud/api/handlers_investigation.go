@@ -3,10 +3,11 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/investigation"
 	"strconv"
 	"strings"
+
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/investigation"
 
 	"github.com/gorilla/mux"
 )

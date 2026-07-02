@@ -5,8 +5,8 @@
  * injected skills, output result, and error messages.
  */
 
-import { useState, useEffect } from "react";
-import { Wrench, Loader2, Zap, ExternalLink } from "lucide-react";
+import { useState } from "react";
+import { Wrench, Zap, ExternalLink, Loader2 } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody } from "../ui/dialog";
 import { CodeBlock } from "../markdown/components/CodeBlock";
 import { SkillEditorModal } from "../settings/SkillEditorModal";
@@ -17,7 +17,7 @@ import {
   isFailedStatus,
   type SkillAttachment,
 } from "../../lib/tool-utils";
-import { fetchScenarioInfo, type ToolCall, type ToolCallRecord, type ScenarioInfo } from "../../lib/api";
+import type { ToolCall, ToolCallRecord } from "../../lib/api";
 import type { Skill } from "../../lib/types/templates";
 import type { AsyncStatusUpdate } from "../../hooks/useAsyncStatus";
 import {
@@ -50,8 +50,6 @@ export function ToolCallDetailModal({
   onOpenAsyncDrawer,
 }: ToolCallDetailModalProps) {
   const [previewSkill, setPreviewSkill] = useState<SkillAttachment | null>(null);
-  const [scenarioInfo, setScenarioInfo] = useState<ScenarioInfo | null>(null);
-  const [scenarioLoading, setScenarioLoading] = useState(false);
 
   const status = record?.status || "pending";
   const statusDisplay = getStatusDisplay(status);
@@ -62,15 +60,6 @@ export function ToolCallDetailModal({
   const asyncStatusDisplay = asyncOperation
     ? getAsyncStatusDisplay(asyncOperation.status, asyncOperation.is_terminal)
     : null;
-
-  useEffect(() => {
-    if (!open || !scenarioName) { setScenarioInfo(null); return; }
-    setScenarioLoading(true);
-    fetchScenarioInfo(scenarioName)
-      .then((info) => setScenarioInfo(info))
-      .catch((err: unknown) => { console.warn("Failed to fetch scenario info:", err); setScenarioInfo(null); })
-      .finally(() => setScenarioLoading(false));
-  }, [open, scenarioName]);
 
   const argumentsSource = record?.arguments || toolCall.function.arguments;
   const parsedInput = parseToolInput(argumentsSource);
@@ -119,7 +108,7 @@ export function ToolCallDetailModal({
             </div>
           </div>
 
-          {scenarioName && <SourceScenarioSection scenarioName={scenarioName} scenarioInfo={scenarioInfo} isLoading={scenarioLoading} />}
+          {scenarioName && <SourceScenarioSection scenarioName={scenarioName} scenarioInfo={null} isLoading={false} />}
 
           {isAsyncTool && asyncOperation && (
             <div>

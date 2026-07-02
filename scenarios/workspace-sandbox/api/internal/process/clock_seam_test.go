@@ -64,7 +64,7 @@ func (r realTicker) C() <-chan time.Time { return r.t.C }
 func (r realTicker) Stop()               { r.t.Stop() }
 
 // TestTracker_RecordExit_FillsStoppedAtFromClock pins the contract
-// that callers (handlers, toolexecution) can leave ExitInfo.StoppedAt
+// that callers can leave ExitInfo.StoppedAt
 // zero and the tracker stamps it from the injected clock. Without
 // this, every caller would need its own clock, fragmenting the time
 // source.

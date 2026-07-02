@@ -1,8 +1,8 @@
 # Ecosystem Manager — Product Requirements Document
 
 > **Template Version**: 2.0
-> **Canonical Reference**: `/scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md`
-> **Validation**: Enforced by `prd-control-tower` + `scenario-auditor`
+> **Canonical Reference**: `/scenarios/business-health/docs/reference/canonical-prd-template.md`
+> **Validation**: Enforced by `business-health` (the test-genie `business` phase)
 
 ## 🎯 Overview
 - **Purpose**: Provide the unified control plane that generates and improves Vrooli resources and scenarios — the self-improvement kernel that turns open findings into agent-driven work and learns which interventions pay off. It also serves as the reference scenario whose own migration (R0/R1 conformance + Connect-RPC) other old-template scenarios copy.

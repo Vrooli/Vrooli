@@ -8,10 +8,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"scenario-to-cloud/domain"
 	"strings"
 	"time"
 	"unicode"
+
+	"scenario-to-cloud/domain"
 
 	"github.com/vrooli/api-core/discovery"
 )

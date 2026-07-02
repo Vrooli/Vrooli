@@ -79,19 +79,3 @@ func getEnvBool(key string, defaultValue bool) bool {
 	}
 	return defaultValue
 }
-
-func getToolScenarios() []string {
-	if value := os.Getenv("TOOL_SCENARIOS"); value != "" {
-		var scenarios []string
-		for _, s := range strings.Split(value, ",") {
-			if trimmed := strings.TrimSpace(s); trimmed != "" {
-				scenarios = append(scenarios, trimmed)
-			}
-		}
-		if len(scenarios) > 0 {
-			return scenarios
-		}
-	}
-	// Default to agent-manager and scenario-to-cloud
-	return []string{"agent-manager", "scenario-to-cloud"}
-}

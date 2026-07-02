@@ -11,13 +11,12 @@
 package services
 
 import (
-	"agent-inbox/config"
-	"agent-inbox/domain"
 	"context"
 	"encoding/json"
 	"log"
 
-	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
+	"agent-inbox/config"
+	"agent-inbox/domain"
 )
 
 // NewToolExecutionResult creates a ToolExecutionResult from a record and optional error.
@@ -47,17 +46,6 @@ type SkillPayload struct {
 	TargetToolID string   `json:"targetToolId,omitempty"`
 }
 
-// ToolRegistryInterface defines the methods needed by CompletionService.
-// This interface enables dependency injection for testing.
-type ToolRegistryInterface interface {
-	// GetToolByName looks up a tool by name (across all scenarios).
-	GetToolByName(ctx context.Context, toolName string) (*toolspb.ToolDefinition, string, error)
-	// GetToolsForOpenAI returns enabled tools in OpenAI function-calling format.
-	GetToolsForOpenAI(ctx context.Context, chatID string) ([]map[string]interface{}, error)
-	// GetToolApprovalRequired checks if a tool requires approval before execution.
-	GetToolApprovalRequired(ctx context.Context, chatID, toolName string) (bool, domain.ToolConfigurationScope, error)
-}
-
 // CompletionService orchestrates AI chat completion.
 // It handles the decision flow for completing a chat with an AI model,
 // including tool execution when requested by the model.
@@ -65,13 +53,13 @@ type ToolRegistryInterface interface {
 // Dependencies are injected via interfaces to enable testing:
 // - CompletionRepository: database operations
 // - ToolExecutorInterface: tool execution
-// - ToolRegistryInterface: tool discovery and configuration
+// - CommandDiscovery: search-hub-backed command/capability discovery
 // - AsyncTrackerInterface: async operation tracking
 // - ToolPersistence: atomic tool result saving
 type CompletionService struct {
 	repo             CompletionRepository
 	executor         ToolExecutorInterface
-	toolRegistry     ToolRegistryInterface
+	commandDiscovery CommandDiscovery
 	contextManager   *ContextManager
 	messageConverter *MessageConverter
 	storage          StorageService
@@ -83,13 +71,13 @@ type CompletionService struct {
 // CompletionServiceDeps contains all dependencies for CompletionService.
 // Used by NewCompletionServiceWithDeps for full dependency injection in tests.
 type CompletionServiceDeps struct {
-	Repo            CompletionRepository
-	Executor        ToolExecutorInterface
-	Registry        ToolRegistryInterface
-	AsyncTracker    AsyncTrackerInterface
-	Storage         StorageService
-	ModelRegistry   *ModelRegistry   // Optional: if nil, a new one is created
-	ToolPersistence *ToolPersistence // Optional: for atomic tool saves
+	Repo             CompletionRepository
+	Executor         ToolExecutorInterface
+	AsyncTracker     AsyncTrackerInterface
+	Storage          StorageService
+	ModelRegistry    *ModelRegistry   // Optional: if nil, a new one is created
+	ToolPersistence  *ToolPersistence // Optional: for atomic tool saves
+	CommandDiscovery CommandDiscovery
 }
 
 // NewCompletionServiceWithDeps creates a completion service with all dependencies injected.
@@ -103,7 +91,7 @@ func NewCompletionServiceWithDeps(deps CompletionServiceDeps) *CompletionService
 	return &CompletionService{
 		repo:             deps.Repo,
 		executor:         deps.Executor,
-		toolRegistry:     deps.Registry,
+		commandDiscovery: deps.CommandDiscovery,
 		contextManager:   NewContextManager(modelRegistry, config.Default()),
 		messageConverter: NewMessageConverter(deps.Storage),
 		storage:          deps.Storage,
@@ -194,14 +182,13 @@ func (s *CompletionService) injectSkillsIntoArgs(toolName, arguments string) str
 // ChatSettings contains the settings needed for chat completion.
 type ChatSettings struct {
 	Model            string
-	ToolsEnabled     bool
 	WebSearchEnabled bool
 }
 
 // GetChatSettings retrieves settings for a chat completion.
 // Returns nil if chat doesn't exist.
 func (s *CompletionService) GetChatSettings(ctx context.Context, chatID string) (*ChatSettings, error) {
-	model, toolsEnabled, webSearchEnabled, err := s.repo.GetChatSettingsWithWebSearch(ctx, chatID)
+	model, webSearchEnabled, err := s.repo.GetChatSettingsWithWebSearch(ctx, chatID)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +197,6 @@ func (s *CompletionService) GetChatSettings(ctx context.Context, chatID string) 
 	}
 	return &ChatSettings{
 		Model:            model,
-		ToolsEnabled:     toolsEnabled,
 		WebSearchEnabled: webSearchEnabled,
 	}, nil
 }

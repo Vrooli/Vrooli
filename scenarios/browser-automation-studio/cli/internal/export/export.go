@@ -1,11 +1,12 @@
 package export
 
 import (
-	"browser-automation-studio/cli/internal/api"
-	"browser-automation-studio/cli/internal/appctx"
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"browser-automation-studio/cli/internal/api"
+	"browser-automation-studio/cli/internal/appctx"
 )
 
 // ExportExecution exports the execution results to a folder.

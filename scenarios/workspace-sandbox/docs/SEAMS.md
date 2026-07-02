@@ -1247,7 +1247,7 @@ Production-code changes Phase 2 made en route:
   shape is unchanged, only the responsibility moved.
 - `process.ExitInfo.StoppedAt` is now stamped exclusively by
   `Tracker.RecordExit` from the tracker's clock. Callers
-  (`handlers/process_start.go`, `toolexecution/adapters.go`) leave it
+  (`handlers/process_start.go`) leave it
   zero, removing a duplicated time source.
 
 [CODE: `internal/clock/clock.go`] •
@@ -1786,7 +1786,6 @@ closures and the package-level `isMountPoint` helper are gone.
 Production wiring: `process.NewOSExecStarter()` in `main.go`. Threaded
 through every constructor that spawns: `driver.Deps.Starter`,
 `sandbox.NewService(..., starter, …)`,
-`toolexecution.ProcessExecutorConfig.Starter`,
 `policy.NewHookValidationPolicy(starter, …)`,
 `policy.NewHookTeardownPolicy(starter, …)`,
 `diff.NewGitOps(starter)` / `NewGenerator(starter)` /

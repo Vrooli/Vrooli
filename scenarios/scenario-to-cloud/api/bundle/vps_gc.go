@@ -3,12 +3,13 @@ package bundle
 import (
 	"context"
 	"fmt"
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/internal/shellutil"
-	"scenario-to-cloud/ssh"
 	"sort"
 	"strings"
 	"time"
+
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/shellutil"
+	"scenario-to-cloud/ssh"
 )
 
 const (

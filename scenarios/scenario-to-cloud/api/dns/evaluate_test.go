@@ -2,9 +2,10 @@ package dns
 
 import (
 	"context"
-	"scenario-to-cloud/domain"
 	"testing"
 	"time"
+
+	"scenario-to-cloud/domain"
 )
 
 func TestEvaluateIncludesEdgeDomains(t *testing.T) {

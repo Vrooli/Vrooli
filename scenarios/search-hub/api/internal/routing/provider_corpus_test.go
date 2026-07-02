@@ -79,7 +79,6 @@ func TestProviderCorpusIDs(t *testing.T) {
 		"contract-registry.contracts",
 		"git-control-tower.git-provenance",
 		"knowledge-observatory.docs",
-		"product-manager-agent.requirements",
 		"prompt-manager.action",
 		"prompt-manager.skill",
 		"scenario-dependency-analyzer.resources",
@@ -106,7 +105,6 @@ func TestProviderCorpusLiveVsGap(t *testing.T) {
 		"command-center.metrics":                 true,
 		"contract-registry.contracts":            true,
 		"git-control-tower.git-provenance":       true,
-		"product-manager-agent.requirements":     true,
 		"vrooli-onboarding.config":               true,
 	}
 	for id, d := range loadProviderCorpus(t) {

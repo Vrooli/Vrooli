@@ -6,9 +6,10 @@ import (
 	"log/slog"
 	"net"
 	"os"
-	"scenario-to-cloud/internal/shellutil"
 	"strings"
 	"time"
+
+	"scenario-to-cloud/internal/shellutil"
 
 	gossh "golang.org/x/crypto/ssh"
 )

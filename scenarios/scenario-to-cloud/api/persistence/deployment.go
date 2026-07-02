@@ -5,8 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"scenario-to-cloud/domain"
 	"time"
+
+	"scenario-to-cloud/domain"
 )
 
 // CreateDeployment inserts a new deployment record.

@@ -12,11 +12,12 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/internal/stringutil"
 	"sort"
 	"strings"
 	"time"
+
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/stringutil"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 )

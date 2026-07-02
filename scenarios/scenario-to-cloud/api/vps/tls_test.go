@@ -2,9 +2,10 @@ package vps
 
 import (
 	"context"
-	"scenario-to-cloud/ssh"
 	"strings"
 	"testing"
+
+	"scenario-to-cloud/ssh"
 )
 
 func TestCaddyTLSRenewCommand_QuotesDomain(t *testing.T) {

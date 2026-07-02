@@ -4,8 +4,6 @@
 package services
 
 import (
-	"agent-inbox/config"
-	"agent-inbox/resilience"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +11,9 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"agent-inbox/config"
+	"agent-inbox/resilience"
 )
 
 // PromptSyncService syncs skills from prompt-manager and provides read access.

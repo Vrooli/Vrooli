@@ -12,12 +12,13 @@
 package services
 
 import (
-	"agent-inbox/domain"
-	"agent-inbox/integrations"
-	"agent-inbox/persistence"
 	"context"
 	"log"
 	"time"
+
+	"agent-inbox/domain"
+	"agent-inbox/integrations"
+	"agent-inbox/persistence"
 )
 
 // ReconciliationService handles startup reconciliation of orphaned tool calls.

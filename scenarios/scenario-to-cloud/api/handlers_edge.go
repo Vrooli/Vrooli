@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
+	"time"
+
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
@@ -12,8 +15,6 @@ import (
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/tlsinfo"
 	"scenario-to-cloud/vps"
-	"strings"
-	"time"
 
 	"github.com/gorilla/mux"
 )

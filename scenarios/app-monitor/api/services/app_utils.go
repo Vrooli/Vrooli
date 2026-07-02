@@ -1,7 +1,6 @@
 package services
 
 import (
-	"app-monitor-api/repository"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"app-monitor-api/repository"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 )

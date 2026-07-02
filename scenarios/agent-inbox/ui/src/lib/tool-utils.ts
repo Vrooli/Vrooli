@@ -76,7 +76,6 @@ export function parseToolInput(argsJson: string | undefined | null): ParsedToolI
       };
     }
 
-    // Extract _context_attachments if present
     const { _context_attachments, ...restArgs } = parsed as {
       _context_attachments?: ContextAttachment[];
       [key: string]: unknown;
@@ -86,7 +85,6 @@ export function parseToolInput(argsJson: string | undefined | null): ParsedToolI
       ? _context_attachments
       : [];
 
-    // Filter to only skill attachments
     const skills: SkillAttachment[] = allAttachments.filter(
       (att): att is SkillAttachment => att.type === "skill"
     );
@@ -99,7 +97,6 @@ export function parseToolInput(argsJson: string | undefined | null): ParsedToolI
       cleanedArgumentsJson: JSON.stringify(restArgs, null, 2),
     };
   } catch {
-    // If JSON parsing fails, return the raw string
     return {
       ...emptyResult,
       cleanedArgumentsJson: argsJson,
@@ -117,7 +114,6 @@ export function formatToolResult(result: unknown): string {
   }
 
   if (typeof result === "string") {
-    // Try to parse and re-stringify for formatting
     try {
       const parsed: unknown = JSON.parse(result);
       return JSON.stringify(parsed, null, 2);
@@ -162,7 +158,6 @@ export function getResultSummary(result: unknown, maxLength: number = 50): strin
   if (typeof result === "object") {
     const obj = result as Record<string, unknown>;
 
-    // Check for common summary fields
     if (typeof obj.message === "string") {
       return truncateText(obj.message, maxLength);
     }
@@ -173,7 +168,6 @@ export function getResultSummary(result: unknown, maxLength: number = 50): strin
       return truncateText(obj.status, maxLength);
     }
 
-    // Count items if it's a list result
     if (Array.isArray(obj.files)) {
       return `${obj.files.length} file${obj.files.length !== 1 ? "s" : ""}`;
     }

@@ -70,7 +70,7 @@ column doubles as the gap registry.
 | 19 | Invariants · Verification — "What invariants does X enforce, and how?" | `INVARIANTS.md` + `// INVARIANT` tags + proto validation | IN-REACH | DECLARED_UNVERIFIED → DERIVED | Basis depends on the enforcement mechanism (type/db/test/runtime). |
 | 20 | Archetype · Inventory / Anatomy — "What's domain X's archetype (one of the canonical fleet vocabulary: reporting / service / mutation / classification / orchestration / scoring / query)?" | `architecture-cartographer` (`InferArchetype`) | NOW | HEURISTIC → DECLARED | Live via `InferArchetype` (also folded into the domain-map provider's corpus as a metadata filter). Inferred from code shape and converged with the declared DOMAINS.md value; confidence from signal specificity; declared-vs-inferred disagreement reported as drift, never silently overridden. |
 | 21 | Persistence · Anatomy — "What's X's storage/persistence pattern (schema, migrations, seams)?" | `storage-health` + code-graph | IN-REACH | DERIVED | Read storage-health, attest. |
-| 22 | Intent · Provenance — "Why does domain X exist / when should it change?" | `PRD.md` + code comments | MISSING (pointer-only) | ABSENT | Judgment; contract forces pointer-only to PRD/comments. |
+| 22 | Intent · Provenance — "Why does domain X exist / when should it change?" | `business-health.intent` (PRD purpose/OTs/requirements corpus) | ACTIVE (pointer-only) | DERIVED | Pointer-only by contract: hits are anchors into `PRD.md`/`requirements/`, never synthesized rationale (business-health.intent, 2026-07-02). |
 
 ### G4 — Symbol / file
 
@@ -87,7 +87,7 @@ column doubles as the gap registry.
 | 31 | Scenario graph · Connection — "What does X depend on; where is X used (reverse)?" | `scenario-dependency-analyzer.scenarios` | NOW (active) | DERIVED | Live federated leaf over the interface graph: per scenario, depends-on (forward edges) + used-by (reverse edges). `SearchInterfaceGraph`. |
 | 32 | ⭐ Dependency rationale · Provenance — "Why does this cross-scenario dependency exist?" | `scenario-dependency-analyzer` (governance rationale) | MISSING (query) | DECLARED_UNVERIFIED | Rationale stored in governance records, not queryable. |
 | 33 | Resource usage · Connection — "Which scenarios use resource Y?" | `scenario-dependency-analyzer.resources` | NOW (active) | DERIVED | Live federated leaf: a fleet `service.json` scan inverted to resource → consuming-scenarios. `SearchResourceUsage`. |
-| 34 | Capability map · Inventory — "Which scenario provides capability X / where should I build Y?" | `prompt-manager` (skills/actions) + ecosystem-fit | IN-REACH (partial) | DECLARED_UNVERIFIED | Capability map is fuzzy; partly judgment. |
+| 34 | Capability map · Inventory — "Which scenario provides capability X / where should I build Y?" | `business-health.intent` (fleet PRD/requirements corpus) + `prompt-manager` (skills/actions) | ACTIVE | DERIVED | Semantic capability lookup over every scenario's stated intent (business-health.intent, 2026-07-02); prompt-manager still owns the skills/actions angle. |
 | 35 | Package deps · Connection — "What approved packages does the fleet use; security gaps?" | `scenario-dependency-analyzer.dependencies` | NOW (active) | DERIVED | Already live. |
 | 36 | Federation · Inventory / State — "Which providers are registered; what's federation health?" | `search-hub` (`providers list` / `Status`) | NOW | DERIVED | Already live; could attest. |
 
@@ -95,7 +95,7 @@ column doubles as the gap registry.
 
 The `MISSING` cells, grouped by tier:
 
-- **Scenario-internal** — #9 non-domain↔domain wiring (composition-root + import-edge provider); #16/#17 domain slice anatomy + feature flow (slice-walker; Flow is inherently `PARTIAL`); #22 intent/"why" (by design `ABSENT` → pointer to `PRD.md`/comments, never synthesized).
+- **Scenario-internal** — #9 non-domain↔domain wiring (composition-root + import-edge provider); #16/#17 domain slice anatomy + feature flow (slice-walker; Flow is inherently `PARTIAL`); #22 intent/"why" (now `DERIVED` via `business-health.intent` — still pointer-only by contract: anchors into `PRD.md`/comments, never synthesized).
 - **Project (G0)** — #24 control-plane CLI *structure* (a `cmd/vrooli` structure registry — distinct from cli-health's command search); #26 resource fleet aggregation (no fleet provider over per-`resource.json`).
 - **Ecosystem (G5)** — #32 dependency-rationale query (governance stores rationale; no query-by-rationale surface).
 

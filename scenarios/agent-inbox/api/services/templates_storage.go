@@ -3,7 +3,6 @@
 package services
 
 import (
-	"agent-inbox/config"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -11,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"agent-inbox/config"
 )
 
 // NewTemplatesService creates a new template service with the given configuration.

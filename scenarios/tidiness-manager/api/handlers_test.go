@@ -214,10 +214,23 @@ func TestTidinessMaturitySpecCoversEmittedRules(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loadTidinessMaturitySpec() error = %v", err)
 	}
-	for _, ruleID := range []string{"LONG_FILE", "TECH_DEBT_MARKERS", "HIGH_COUPLING", "HIGH_COMPLEXITY", "DUPLICATED_CODE"} {
-		if _, ok := spec.Findings[ruleID]; !ok {
+	if spec.Version != "2.0.0" {
+		t.Fatalf("version = %q, want 2.0.0", spec.Version)
+	}
+	if len(spec.Capabilities) != 4 {
+		t.Fatalf("capabilities = %d, want 4", len(spec.Capabilities))
+	}
+	for _, ruleID := range emittedTidinessRuleIDs() {
+		mapping, ok := spec.Findings[ruleID]
+		if !ok {
 			t.Fatalf("maturity spec missing emitted rule %q", ruleID)
 		}
+		if mapping.CapabilityID == "" {
+			t.Fatalf("maturity spec finding %q must declare capability_id", ruleID)
+		}
+	}
+	if spec.Fallback.CapabilityID != "scan_contract" {
+		t.Fatalf("fallback capability = %q, want scan_contract", spec.Fallback.CapabilityID)
 	}
 
 	got, err := buildTidinessMaturityAssessment("demo", []TidinessFinding{
@@ -226,8 +239,14 @@ func TestTidinessMaturitySpecCoversEmittedRules(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildTidinessMaturityAssessment() error = %v", err)
 	}
-	if got.GetLocal().GetCurrentLevel() != "L5" {
-		t.Fatalf("warning-only assessment current level = %q, want L5", got.GetLocal().GetCurrentLevel())
+	if len(got.GetCapabilities()) != 4 {
+		t.Fatalf("capabilities = %d, want 4", len(got.GetCapabilities()))
+	}
+	if got.GetFindings()[0].GetMaturity().GetCapabilityId() != "local_debt_control" {
+		t.Fatalf("long-file capability = %q, want local_debt_control", got.GetFindings()[0].GetMaturity().GetCapabilityId())
+	}
+	if got.GetHighestPriorityCapability().GetCapabilityId() != "local_debt_control" {
+		t.Fatalf("warning-only focus = %#v, want local_debt_control", got.GetHighestPriorityCapability())
 	}
 
 	blocking, err := buildTidinessMaturityAssessment("demo", []TidinessFinding{
@@ -236,8 +255,24 @@ func TestTidinessMaturitySpecCoversEmittedRules(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildTidinessMaturityAssessment(blocking) error = %v", err)
 	}
-	if blocking.GetLocal().GetCurrentLevel() != "L3" {
-		t.Fatalf("blocking assessment current level = %q, want L3", blocking.GetLocal().GetCurrentLevel())
+	if blocking.GetFindings()[0].GetMaturity().GetCapabilityId() != "duplication_control" {
+		t.Fatalf("duplicated-code capability = %q, want duplication_control", blocking.GetFindings()[0].GetMaturity().GetCapabilityId())
+	}
+	if blocking.GetHighestPriorityCapability().GetCapabilityId() != "duplication_control" {
+		t.Fatalf("blocking focus = %#v, want duplication_control", blocking.GetHighestPriorityCapability())
+	}
+	if blocking.GetLocal().GetCurrentLevel() != "L1" {
+		t.Fatalf("blocking assessment current level = %q, want L1", blocking.GetLocal().GetCurrentLevel())
+	}
+}
+
+func emittedTidinessRuleIDs() []string {
+	return []string{
+		"LONG_FILE",
+		"TECH_DEBT_MARKERS",
+		"HIGH_COUPLING",
+		"HIGH_COMPLEXITY",
+		"DUPLICATED_CODE",
 	}
 }
 

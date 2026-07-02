@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
+	"time"
+
 	"scenario-to-cloud/agentmanager"
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/persistence"
-	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"

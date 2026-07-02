@@ -1,11 +1,12 @@
 package services
 
 import (
-	"agent-inbox/domain"
 	"context"
 	"database/sql"
 	"testing"
 	"time"
+
+	"agent-inbox/domain"
 )
 
 // mockToolPersistenceRepo implements ToolPersistenceRepository for testing.

@@ -2,7 +2,7 @@
   "_metadata": {
     "entity": "go-code-graph",
     "generated_at": "2026-05-23T14:54:11-04:00",
-    "generator": "prd-control-tower",
+    "generator": "business-health",
     "schema_version": "1.0"
   },
   "imports": [

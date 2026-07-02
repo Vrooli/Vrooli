@@ -63,22 +63,6 @@ type RulesResponse struct {
 	Rules         []Rule   `json:"rules"`
 }
 
-// ToolManifest describes a tool in the tool discovery manifest.
-type ToolManifest struct {
-	Name        string          `json:"name"`
-	Description string          `json:"description,omitempty"`
-	Category    string          `json:"category,omitempty"`
-	InputSchema json.RawMessage `json:"input_schema,omitempty"`
-}
-
-// ToolsManifest is the response from /api/v1/tools.
-type ToolsManifest struct {
-	Scenario    string         `json:"scenario,omitempty"`
-	Version     string         `json:"version,omitempty"`
-	Description string         `json:"description,omitempty"`
-	Tools       []ToolManifest `json:"tools"`
-}
-
 // LighthouseMissingConfig is an entry from /api/v1/lighthouse/missing-configs.
 type LighthouseMissingConfig struct {
 	Scenario string `json:"scenario"`

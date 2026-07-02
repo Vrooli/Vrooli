@@ -1,7 +1,6 @@
 package chat
 
 import (
-	"agent-inbox/cli/internal/support"
 	"fmt"
 	"net/url"
 	"os"
@@ -9,27 +8,27 @@ import (
 	"strconv"
 	"strings"
 
+	"agent-inbox/cli/internal/support"
+
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
 type chatRecord struct {
-	ID                    string   `json:"id"`
-	Name                  string   `json:"name"`
-	Preview               string   `json:"preview"`
-	Model                 string   `json:"model"`
-	IsRead                bool     `json:"is_read"`
-	IsArchived            bool     `json:"is_archived"`
-	IsStarred             bool     `json:"is_starred"`
-	LabelIDs              []string `json:"label_ids"`
-	ToolsEnabled          bool     `json:"tools_enabled"`
-	WebSearchEnabled      bool     `json:"web_search_enabled"`
-	ChatMode              string   `json:"chat_mode"`
-	AgentRunID            string   `json:"agent_run_id"`
-	ActiveTemplateID      string   `json:"active_template_id"`
-	ActiveTemplateToolIDs []string `json:"active_template_tool_ids"`
-	CreatedAt             string   `json:"created_at"`
-	UpdatedAt             string   `json:"updated_at"`
+	ID               string   `json:"id"`
+	Name             string   `json:"name"`
+	Preview          string   `json:"preview"`
+	Model            string   `json:"model"`
+	IsRead           bool     `json:"is_read"`
+	IsArchived       bool     `json:"is_archived"`
+	IsStarred        bool     `json:"is_starred"`
+	LabelIDs         []string `json:"label_ids"`
+	WebSearchEnabled bool     `json:"web_search_enabled"`
+	ChatMode         string   `json:"chat_mode"`
+	AgentRunID       string   `json:"agent_run_id"`
+	ActiveTemplateID string   `json:"active_template_id"`
+	CreatedAt        string   `json:"created_at"`
+	UpdatedAt        string   `json:"updated_at"`
 }
 
 type toolCallRecord struct {
@@ -248,13 +247,12 @@ func runUpdate(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("chat update")
 	name := fs.String("name", "", "New chat name")
 	model := fs.String("model", "", "New model")
-	toolsEnabled := fs.String("tools-enabled", "", "Set tools enabled to true or false")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: chat update <chat-id> [--name NAME] [--model MODEL] [--tools-enabled true|false] [--json]")
+		return fmt.Errorf("usage: chat update <chat-id> [--name NAME] [--model MODEL] [--json]")
 	}
 	id := fs.Arg(0)
 
@@ -264,11 +262,6 @@ func runUpdate(core *cliapp.ScenarioApp, args []string) error {
 	}
 	if strings.TrimSpace(*model) != "" {
 		input["model"] = strings.TrimSpace(*model)
-	}
-	if value, err := support.ParseOptionalBool(*toolsEnabled); err != nil {
-		return err
-	} else if value != nil {
-		input["tools_enabled"] = *value
 	}
 	if len(input) == 0 {
 		return fmt.Errorf("at least one field must be provided")
@@ -289,7 +282,6 @@ func runUpdate(core *cliapp.ScenarioApp, args []string) error {
 		Changes: []string{
 			"Name: " + chat.Name,
 			"Model: " + chat.Model,
-			"Tools: " + support.BoolLabel(chat.ToolsEnabled),
 		},
 		NextCommand: []string{support.CLIName + " chat get " + chat.ID},
 	}

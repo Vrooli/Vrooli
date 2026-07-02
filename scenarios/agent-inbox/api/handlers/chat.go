@@ -9,12 +9,13 @@
 package handlers
 
 import (
-	"agent-inbox/config"
-	"agent-inbox/domain"
-	"agent-inbox/middleware"
 	"encoding/json"
 	"log"
 	"net/http"
+
+	"agent-inbox/config"
+	"agent-inbox/domain"
+	"agent-inbox/middleware"
 )
 
 // ListChats returns all chats matching the given filters.
@@ -156,7 +157,7 @@ func (h *Handlers) GetChat(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
-// UpdateChat updates a chat's name, model, or tools_enabled.
+// UpdateChat updates a chat's name or model.
 func (h *Handlers) UpdateChat(w http.ResponseWriter, r *http.Request) {
 	chatID := h.ParseUUID(w, r, "id")
 	if chatID == "" {
@@ -164,9 +165,8 @@ func (h *Handlers) UpdateChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Name         *string `json:"name"`
-		Model        *string `json:"model"`
-		ToolsEnabled *bool   `json:"tools_enabled"`
+		Name  *string `json:"name"`
+		Model *string `json:"model"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -174,8 +174,7 @@ func (h *Handlers) UpdateChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate using centralized validation (tools_enabled is always valid if provided)
-	if result := domain.ValidateChatUpdate(req.Name, req.Model, req.ToolsEnabled); !result.Valid {
+	if result := domain.ValidateChatUpdate(req.Name, req.Model); !result.Valid {
 		h.WriteAppError(w, r, domain.NewError(
 			domain.ErrCodeNoFieldsToUpdate,
 			domain.CategoryValidation,
@@ -185,7 +184,7 @@ func (h *Handlers) UpdateChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chat, err := h.Repo.UpdateChat(r.Context(), chatID, req.Name, req.Model, req.ToolsEnabled)
+	chat, err := h.Repo.UpdateChat(r.Context(), chatID, req.Name, req.Model)
 	if err != nil {
 		log.Printf("[ERROR] [%s] UpdateChat failed: %v", middleware.GetRequestID(r.Context()), err)
 		h.WriteAppError(w, r, domain.ErrDatabaseError("update chat", err))

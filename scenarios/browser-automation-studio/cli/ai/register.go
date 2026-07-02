@@ -11,8 +11,9 @@
 package ai
 
 import (
-	"browser-automation-studio/cli/internal/protodispatch"
 	"fmt"
+
+	"browser-automation-studio/cli/internal/protodispatch"
 
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/ai"
 

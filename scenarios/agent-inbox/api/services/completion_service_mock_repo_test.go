@@ -1,10 +1,11 @@
 package services
 
 import (
-	"agent-inbox/domain"
 	"context"
 	"strconv"
 	"sync"
+
+	"agent-inbox/domain"
 )
 
 // =============================================================================
@@ -45,7 +46,6 @@ type mockCompletionRepository struct {
 
 type repoMockChatSettings struct {
 	Model            string
-	ToolsEnabled     bool
 	WebSearchEnabled bool
 }
 
@@ -91,15 +91,15 @@ func newMockCompletionRepository() *mockCompletionRepository {
 	}
 }
 
-func (m *mockCompletionRepository) GetChatSettingsWithWebSearch(ctx context.Context, chatID string) (string, bool, bool, error) {
+func (m *mockCompletionRepository) GetChatSettingsWithWebSearch(ctx context.Context, chatID string) (string, bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	settings, ok := m.chatSettings[chatID]
 	if !ok {
-		return "", false, false, nil
+		return "", false, nil
 	}
-	return settings.Model, settings.ToolsEnabled, settings.WebSearchEnabled, nil
+	return settings.Model, settings.WebSearchEnabled, nil
 }
 
 func (m *mockCompletionRepository) UpdateChatPreview(ctx context.Context, chatID, preview string, markUnread bool) error {

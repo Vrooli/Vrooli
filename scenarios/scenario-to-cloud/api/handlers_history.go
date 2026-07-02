@@ -4,15 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/manifest"
 	"scenario-to-cloud/ssh"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/gorilla/mux"
 )

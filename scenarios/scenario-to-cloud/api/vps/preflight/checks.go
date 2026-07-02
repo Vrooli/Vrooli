@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
+	"strings"
+
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/vps/portparse"
 	"scenario-to-cloud/vps/systemmetrics"
-	"strconv"
-	"strings"
 )
 
 // ufwAllowsPort checks if a UFW rule line allows the specified port.

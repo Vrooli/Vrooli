@@ -3,23 +3,25 @@
 package services
 
 import (
-	"agent-inbox/domain"
-	"agent-inbox/integrations"
 	"context"
 	"fmt"
 	"log"
+
+	"agent-inbox/domain"
+	"agent-inbox/integrations"
 )
 
 // CompletionRequest contains validated data needed to make a completion.
 type CompletionRequest struct {
-	ChatID     string
-	Model      string
-	Messages   []integrations.OpenRouterMessage
-	Tools      []map[string]interface{}
-	ToolChoice interface{} // nil for auto, ToolChoiceFunction for forced tool
-	Plugins    []integrations.OpenRouterPlugin
-	Modalities []string // ["image", "text"] for image generation models
-	Streaming  bool
+	ChatID               string
+	Model                string
+	Messages             []integrations.OpenRouterMessage
+	Tools                []map[string]interface{}
+	ToolChoice           interface{} // nil for auto, ToolChoiceFunction for forced tool
+	Plugins              []integrations.OpenRouterPlugin
+	Modalities           []string // ["image", "text"] for image generation models
+	Streaming            bool
+	DiscoveryDiagnostics []string
 }
 
 // ShouldIncludeTools returns true if tools should be sent with the request.
@@ -40,8 +42,8 @@ func (r *CompletionRequest) ShouldIncludeModalities() bool {
 // PrepareCompletionRequest builds a validated completion request.
 //
 // Steps: load settings, load messages, fetch attachments, truncate to context window,
-// convert to OpenRouter format, inject async guidance, build plugins, resolve tools.
-func (s *CompletionService) PrepareCompletionRequest(ctx context.Context, chatID string, streaming bool, forcedTool string) (*CompletionRequest, error) {
+// convert to OpenRouter format, inject command/async guidance, and build plugins.
+func (s *CompletionService) PrepareCompletionRequest(ctx context.Context, chatID string, streaming bool, _ string) (*CompletionRequest, error) {
 	// Get chat settings
 	settings, err := s.GetChatSettings(ctx, chatID)
 	if err != nil {
@@ -72,6 +74,9 @@ func (s *CompletionService) PrepareCompletionRequest(ctx context.Context, chatID
 	// Convert messages with multimodal support
 	orMessages := s.messageConverter.ConvertToOpenRouter(ctx, messages, filteredAttachments)
 
+	var discoveryDiagnostic string
+	orMessages, discoveryDiagnostic = s.maybeInjectCommandContext(ctx, chatID, messages, orMessages)
+
 	// Inject async guidance if operations are active
 	orMessages = s.maybeInjectAsyncGuidance(chatID, orMessages)
 
@@ -88,6 +93,9 @@ func (s *CompletionService) PrepareCompletionRequest(ctx context.Context, chatID
 		Plugins:   s.messageConverter.BuildPlugins(webSearchEnabled, hasPDF),
 		Streaming: streaming,
 	}
+	if discoveryDiagnostic != "" {
+		req.DiscoveryDiagnostics = append(req.DiscoveryDiagnostics, discoveryDiagnostic)
+	}
 
 	// Debug: Log messages being sent to OpenRouter
 	logCompletionMessages(orMessages)
@@ -97,9 +105,6 @@ func (s *CompletionService) PrepareCompletionRequest(ctx context.Context, chatID
 		req.Modalities = []string{"image", "text"}
 		log.Printf("[DEBUG] Image generation enabled for model: %s (tools disabled)", settings.Model)
 	}
-
-	// Resolve tool configuration
-	s.resolveToolConfiguration(ctx, req, chatID, settings, forcedTool, isImageGen)
 
 	return req, nil
 }

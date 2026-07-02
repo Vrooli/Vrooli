@@ -3,10 +3,11 @@
 package persistence
 
 import (
-	"agent-inbox/domain"
 	"context"
 	"database/sql"
 	"fmt"
+
+	"agent-inbox/domain"
 )
 
 // Tool Call Operations

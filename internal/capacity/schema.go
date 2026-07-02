@@ -60,13 +60,7 @@ func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
 		return nil
 	}
 	if current != 0 {
-		// A stamped older version: apply the additive, row-preserving migrations
-		// up to SchemaVersion. Only purely-additive column adds are handled here;
-		// anything else is rejected loudly rather than silently dropping claims.
-		if err := s.migrateSchema(ctx, current); err != nil {
-			return err
-		}
-		return nil
+		return fmt.Errorf("capacity ledger schema_version %d -> %d requires greenfield rebuild or an operator-run temporary conversion script", current, SchemaVersion)
 	}
 	existing, err := capacitySchemaExists(ctx, s.db)
 	if err != nil {
@@ -80,75 +74,6 @@ func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
 	}
 	if _, err := s.db.ExecContext(ctx, fmt.Sprintf(`PRAGMA user_version = %d`, SchemaVersion)); err != nil {
 		return fmt.Errorf("stamp capacity ledger schema version: %w", err)
-	}
-	return nil
-}
-
-// migrateSchema applies the additive, row-preserving migrations from `from` up
-// to SchemaVersion, then re-stamps user_version. Each step is a column add (or
-// other additive change) that never drops or rewrites a live claim; a version
-// gap with no registered migration is an explicit error.
-func (s *SQLiteStore) migrateSchema(ctx context.Context, from int) error {
-	for v := from; v < SchemaVersion; v++ {
-		switch v {
-		case 1: // 1 -> 2: idle-yield opt-in column (additive).
-			if err := addColumnIfMissing(ctx, s.db, "capacity_claims", "yield_when_idle", "INTEGER NOT NULL DEFAULT 0"); err != nil {
-				return fmt.Errorf("migrate capacity ledger 1 -> 2: %w", err)
-			}
-		case 2: // 2 -> 3: observed-usage sampling + autonomous idle-unload (additive).
-			for _, col := range []struct{ name, decl string }{
-				{"observed_bytes", "INTEGER NOT NULL DEFAULT 0"},
-				{"observed_peak_bytes", "INTEGER NOT NULL DEFAULT 0"},
-				{"observed_at", "TEXT"},
-				{"idle_unload_ttl_seconds", "INTEGER NOT NULL DEFAULT 0"},
-			} {
-				if err := addColumnIfMissing(ctx, s.db, "capacity_claims", col.name, col.decl); err != nil {
-					return fmt.Errorf("migrate capacity ledger 2 -> 3: %w", err)
-				}
-			}
-		case 3: // 3 -> 4: per-claim demand-reclaim idle grace (additive).
-			if err := addColumnIfMissing(ctx, s.db, "capacity_claims", "idle_grace_seconds", "INTEGER NOT NULL DEFAULT 0"); err != nil {
-				return fmt.Errorf("migrate capacity ledger 3 -> 4: %w", err)
-			}
-		default:
-			return fmt.Errorf("capacity ledger schema_version %d -> %d has no additive migration: requires greenfield rebuild or an operator-run conversion script", v, SchemaVersion)
-		}
-	}
-	if _, err := s.db.ExecContext(ctx, fmt.Sprintf(`PRAGMA user_version = %d`, SchemaVersion)); err != nil {
-		return fmt.Errorf("re-stamp capacity ledger schema version: %w", err)
-	}
-	return nil
-}
-
-// addColumnIfMissing adds a column only when it is absent, so the migration is
-// idempotent across reruns (PRAGMA table_info is the source of truth).
-func addColumnIfMissing(ctx context.Context, db *sql.DB, table, column, decl string) error {
-	rows, err := db.QueryContext(ctx, fmt.Sprintf(`PRAGMA table_info(%s)`, table))
-	if err != nil {
-		return fmt.Errorf("inspect %s columns: %w", table, err)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var (
-			cid        int
-			name       string
-			ctype      string
-			notNull    int
-			dfltValue  sql.NullString
-			primaryKey int
-		)
-		if scanErr := rows.Scan(&cid, &name, &ctype, &notNull, &dfltValue, &primaryKey); scanErr != nil {
-			return fmt.Errorf("scan %s columns: %w", table, scanErr)
-		}
-		if name == column {
-			return rows.Err() // already present — nothing to do
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return err
-	}
-	if _, err := db.ExecContext(ctx, fmt.Sprintf(`ALTER TABLE %s ADD COLUMN %s %s`, table, column, decl)); err != nil {
-		return fmt.Errorf("add column %s.%s: %w", table, column, err)
 	}
 	return nil
 }

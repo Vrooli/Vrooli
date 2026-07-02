@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/vps/preflight"
-	"testing"
-	"time"
 )
 
 func TestVPSPreflightProxyModeRequiresDNS01(t *testing.T) {

@@ -1,7 +1,6 @@
 package services
 
 import (
-	"app-monitor-api/repository"
 	"bytes"
 	"context"
 	"errors"
@@ -13,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"app-monitor-api/repository"
 )
 
 // =============================================================================

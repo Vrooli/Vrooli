@@ -20,12 +20,19 @@ func TestEveryRuleHasMaturityMapping(t *testing.T) {
 		t.Fatalf("load maturity spec: %v", err)
 	}
 	for _, s := range specs {
-		if _, ok := spec.Findings[s.id]; !ok {
+		mapping, ok := spec.Findings[s.id]
+		if !ok {
 			t.Fatalf("rule %q has no entry in .vrooli/maturity.json findings", s.id)
 		}
+		if mapping.CapabilityID == "" {
+			t.Fatalf("rule %q has no capability_id in .vrooli/maturity.json findings", s.id)
+		}
 	}
-	if len(spec.Levels) < 7 {
-		t.Fatalf("expected the L0–L6 ladder, got %d levels", len(spec.Levels))
+	if len(spec.Capabilities) != 6 {
+		t.Fatalf("capabilities = %d, want 6", len(spec.Capabilities))
+	}
+	if spec.Fallback.CapabilityID == "" {
+		t.Fatal("fallback must declare capability_id")
 	}
 }
 
@@ -46,5 +53,17 @@ func TestMaturityAssessmentBuildsForBrandManager(t *testing.T) {
 	}
 	if got == nil || got.GetLocal() == nil {
 		t.Fatal("expected a populated maturity assessment")
+	}
+	if len(got.GetCapabilities()) != 6 {
+		t.Fatalf("capabilities = %d, want 6", len(got.GetCapabilities()))
+	}
+	if got.GetFindings()[0].GetMaturity().GetCapabilityId() != "share_and_product_surfaces" {
+		t.Fatalf("open-graph capability = %q, want share_and_product_surfaces", got.GetFindings()[0].GetMaturity().GetCapabilityId())
+	}
+	if got.GetFindings()[1].GetMaturity().GetCapabilityId() != "identity_contract" {
+		t.Fatalf("has-display-name capability = %q, want identity_contract", got.GetFindings()[1].GetMaturity().GetCapabilityId())
+	}
+	if got.GetHighestPriorityCapability().GetCapabilityId() == "" {
+		t.Fatalf("highest priority must identify a capability: %#v", got.GetHighestPriorityCapability())
 	}
 }

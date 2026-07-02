@@ -57,7 +57,6 @@ live smoke confirmed `GET /api/v1/metrics/current` returns `404`, while
 | Development profiling | `/debug/pprof/*` | Dev-only diagnostics, disabled in production. |
 | Forensics | `/api/v1/forensics/*` | Raw host diagnostics, not a typed scenario-domain contract. |
 | Logs | `/api/v1/logs*` | Raw log browsing/stream-like shapes, not covered by current proto services. |
-| Tool discovery/execution | `/api/v1/tools*`, `/api/v1/tools/execute` | Protocol-owned surface outside the system-monitor domain proto. |
 
 #### Remaining non-blocking drift
 
@@ -96,8 +95,6 @@ live smoke confirmed `GET /api/v1/metrics/current` returns `404`, while
 - **Files fixed**:
   - `services/investigation.go`: `"pending"` → `models.StatusQueued` (bug fix)
   - `services/report.go`: `"completed"` → `models.StatusCompleted`
-  - `toolexecution/executor.go`: `"stopped"` → `models.StatusStopped`
-  - `toolregistry/investigation_tools.go`: 3 literal arrays → `models.Status*` constants
 
 #### F8: Go handlers use encoding/json, not protojson (HIGH → RESOLVED)
 - All handler files used `respondWithJSON`/`respondWithError` (defined in `health.go`) or raw `json.NewEncoder(w).Encode()` and `http.Error()`.

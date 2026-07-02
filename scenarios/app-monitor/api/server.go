@@ -1,13 +1,6 @@
 package main
 
 import (
-	"app-monitor-api/config"
-	"app-monitor-api/handlers"
-	"app-monitor-api/middleware"
-	"app-monitor-api/repository"
-	"app-monitor-api/services"
-	"app-monitor-api/toolexecution"
-	"app-monitor-api/toolregistry"
 	"context"
 	"database/sql"
 	"fmt"
@@ -16,6 +9,12 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"app-monitor-api/config"
+	"app-monitor-api/handlers"
+	"app-monitor-api/middleware"
+	"app-monitor-api/repository"
+	"app-monitor-api/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/vrooli/api-core/health"
@@ -31,15 +30,13 @@ type Server struct {
 
 // Handlers holds all handler instances
 type Handlers struct {
-	health        gin.HandlerFunc
-	app           *handlers.AppHandler
-	system        *handlers.SystemHandler
-	docker        *handlers.DockerHandler
-	websocket     *handlers.WebSocketHandler
-	lighthouse    *handlers.LighthouseHandler
-	tools         *handlers.ToolsHandler
-	toolExecution *toolexecution.Handler
-	presets       *handlers.PresetHandler
+	health     gin.HandlerFunc
+	app        *handlers.AppHandler
+	system     *handlers.SystemHandler
+	docker     *handlers.DockerHandler
+	websocket  *handlers.WebSocketHandler
+	lighthouse *handlers.LighthouseHandler
+	presets    *handlers.PresetHandler
 }
 
 // NewServer creates and configures a new server instance
@@ -89,40 +86,16 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	}
 	presetService := services.NewPresetService(presetRepo)
 
-	// Initialize Tool Discovery Protocol registry
-	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
-		ScenarioName:        "app-monitor",
-		ScenarioVersion:     "1.0.0",
-		ScenarioDescription: "Centralized monitoring and control dashboard for the Vrooli ecosystem",
-	})
-
-	// Register all tool providers
-	toolReg.RegisterProvider(toolregistry.NewDiscoveryToolProvider())
-	toolReg.RegisterProvider(toolregistry.NewLifecycleToolProvider())
-	toolReg.RegisterProvider(toolregistry.NewDiagnosticsToolProvider())
-	toolReg.RegisterProvider(toolregistry.NewLogsMetricsToolProvider())
-	toolReg.RegisterProvider(toolregistry.NewIssueToolProvider())
-	toolReg.RegisterProvider(toolregistry.NewDocsToolProvider())
-	toolReg.RegisterProvider(toolregistry.NewResourceToolProvider())
-
-	// Create tool executor
-	toolExecutor := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
-		AppService:     appService,
-		MetricsService: metricsService,
-	})
-
 	// Create handlers
 	healthHandler := gin.WrapF(health.New().Version("1.0.0").Check(health.DB(db), health.Optional).Handler())
 	handlers := &Handlers{
-		health:        healthHandler,
-		app:           handlers.NewAppHandler(appService),
-		system:        handlers.NewSystemHandler(metricsService),
-		docker:        handlers.NewDockerHandler(docker),
-		websocket:     handlers.NewWebSocketHandler(middleware.SecureWebSocketUpgrader(), redis),
-		lighthouse:    handlers.NewLighthouseHandler(),
-		tools:         handlers.NewToolsHandler(toolReg),
-		toolExecution: toolexecution.NewHandler(toolExecutor),
-		presets:       handlers.NewPresetHandler(presetService),
+		health:     healthHandler,
+		app:        handlers.NewAppHandler(appService),
+		system:     handlers.NewSystemHandler(metricsService),
+		docker:     handlers.NewDockerHandler(docker),
+		websocket:  handlers.NewWebSocketHandler(middleware.SecureWebSocketUpgrader(), redis),
+		lighthouse: handlers.NewLighthouseHandler(),
+		presets:    handlers.NewPresetHandler(presetService),
 	}
 
 	// Setup router
@@ -234,10 +207,6 @@ func setupRouter(h *Handlers, cfg *config.Config, db *sql.DB) *gin.Engine {
 		v1.PUT("/workspace/presets/:id", h.presets.UpdatePreset)
 		v1.DELETE("/workspace/presets/:id", h.presets.DeletePreset)
 
-		// Tool Discovery Protocol endpoints
-		v1.GET("/tools", h.tools.GetManifest)
-		v1.GET("/tools/:name", h.tools.GetTool)
-		v1.POST("/tools/execute", h.toolExecution.Execute)
 	}
 
 	// WebSocket endpoint
@@ -279,7 +248,6 @@ func (s *Server) Run() error {
 	// Start server
 	log.Printf("🚀 App Monitor API server starting on port %s", s.config.API.Port)
 	log.Printf("📊 API endpoints available at http://localhost:%s/api/v1", s.config.API.Port)
-	log.Printf("🔧 Tool Discovery Protocol available at http://localhost:%s/api/v1/tools", s.config.API.Port)
 
 	err := srv.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {

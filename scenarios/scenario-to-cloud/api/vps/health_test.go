@@ -1,13 +1,14 @@
 package vps
 
 import (
+	"strings"
+	"testing"
+	"time"
+
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/tlsinfo"
-	"strings"
-	"testing"
-	"time"
 )
 
 func newTestDeployment(status domain.DeploymentStatus) *domain.Deployment {

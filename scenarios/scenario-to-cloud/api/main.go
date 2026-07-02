@@ -8,6 +8,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
+	"time"
+
 	"scenario-to-cloud/agentmanager"
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/deployment"
@@ -19,12 +22,7 @@ import (
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/tasks"
 	"scenario-to-cloud/tlsinfo"
-	"scenario-to-cloud/toolexecution"
-	"scenario-to-cloud/toolhandlers"
-	"scenario-to-cloud/toolregistry"
 	"scenario-to-cloud/vps"
-	"strings"
-	"time"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -57,10 +55,6 @@ type Server struct {
 	taskSvc          *tasks.Service
 	historyRecorder  deployment.HistoryRecorder
 	orchestrator     *deployment.Orchestrator
-	// Tool Discovery Protocol
-	toolRegistry *toolregistry.Registry
-	// Tool Execution Protocol
-	toolExecutor *toolexecution.ServerExecutor
 
 	// Seam: SSH command execution (defaults to ssh.ExecRunner)
 	sshRunner ssh.Runner
@@ -178,27 +172,6 @@ func NewServer() (*Server, error) {
 		HistoryRecorder:   repo,
 		ManifestRefresher: manifestRefresher,
 		Logger:            srv.log,
-	})
-
-	// Initialize Tool Discovery Protocol registry
-	srv.toolRegistry = toolregistry.NewRegistry(toolregistry.RegistryConfig{
-		ScenarioName:        "scenario-to-cloud",
-		ScenarioVersion:     "1.0.0",
-		ScenarioDescription: "Deploys scenarios to VPS targets with full lifecycle management, preflight checks, and live state inspection.",
-	})
-	// Register all tool providers
-	srv.toolRegistry.RegisterProvider(toolregistry.NewDeploymentToolProvider())
-	srv.toolRegistry.RegisterProvider(toolregistry.NewInspectionToolProvider())
-	srv.toolRegistry.RegisterProvider(toolregistry.NewValidationToolProvider())
-
-	// Initialize Tool Execution Protocol executor
-	srv.toolExecutor = toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
-		Repo:         repo,
-		Resolver:     toolregistry.NewResolver(repo),
-		Orchestrator: srv.orchestrator,
-		SSHRunner:    sshRunner,
-		DNSService:   dnsService,
-		Logger:       srv.log,
 	})
 
 	srv.setupRoutes()
@@ -333,15 +306,6 @@ func (s *Server) setupRoutes() {
 
 	// New unified task endpoints
 	s.registerTaskRoutes(api)
-
-	// Tool Discovery Protocol endpoints
-	toolsHandler := toolhandlers.NewToolsHandler(s.toolRegistry)
-	api.HandleFunc("/tools", toolsHandler.GetTools).Methods("GET", "OPTIONS")
-	api.HandleFunc("/tools/{name}", toolsHandler.GetTool).Methods("GET", "OPTIONS")
-
-	// Tool Execution Protocol endpoint
-	toolExecHandler := toolexecution.NewHandler(s.toolExecutor)
-	api.HandleFunc("/tools/execute", toolExecHandler.Execute).Methods("POST", "OPTIONS")
 }
 
 // Router returns the HTTP handler for use with server.Run

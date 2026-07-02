@@ -11,8 +11,8 @@ import (
 	"scenario-to-desktop-api/deploy"
 	"scenario-to-desktop-api/generation"
 	sharedpath "scenario-to-desktop-api/shared/path"
-	"scenario-to-desktop-api/storagepaths"
 	"scenario-to-desktop-api/shared/validation"
+	"scenario-to-desktop-api/storagepaths"
 )
 
 // DefaultOrchestrator implements the Orchestrator interface.

@@ -7,8 +7,9 @@
 package uxmetrics
 
 import (
-	"browser-automation-studio/cli/internal/protodispatch"
 	"fmt"
+
+	"browser-automation-studio/cli/internal/protodispatch"
 
 	pbsvc "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/uxmetrics"
 

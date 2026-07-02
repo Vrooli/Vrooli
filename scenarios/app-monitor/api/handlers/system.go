@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"app-monitor-api/services"
 	"context"
 	"encoding/json"
 	"errors"
@@ -13,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"app-monitor-api/services"
 
 	"github.com/gin-gonic/gin"
 	repocontract "github.com/vrooli/repo-contract-go"

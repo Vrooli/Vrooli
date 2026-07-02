@@ -1,9 +1,10 @@
 package vps
 
 import (
-	"scenario-to-cloud/domain"
 	"strings"
 	"testing"
+
+	"scenario-to-cloud/domain"
 )
 
 func TestBuildCaddyfileWithDNS01(t *testing.T) {

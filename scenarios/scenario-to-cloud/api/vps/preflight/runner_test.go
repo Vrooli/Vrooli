@@ -3,12 +3,13 @@ package preflight
 import (
 	"context"
 	"fmt"
-	"scenario-to-cloud/dns"
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/ssh"
 	"strings"
 	"testing"
 	"time"
+
+	"scenario-to-cloud/dns"
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/ssh"
 )
 
 type mapResolver struct{}

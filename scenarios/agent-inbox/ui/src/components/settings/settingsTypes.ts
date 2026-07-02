@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 
 export type Theme = "dark" | "light";
 export type ViewMode = "bubble" | "compact";
-export type SettingsTab = "general" | "ai" | "agent" | "tools" | "templates" | "suggestions" | "skills" | "data";
+export type SettingsTab = "general" | "ai" | "agent" | "templates" | "suggestions" | "skills" | "data";
 
 // Default model ROLE used when none is set. The backend resolves this OpenRouter
 // policy role to a concrete model via resource-openrouter (greenfield: no

@@ -3,12 +3,13 @@
 package services
 
 import (
-	"agent-inbox/persistence"
 	"context"
 	"fmt"
 	"log"
 	"strings"
 	"sync"
+
+	"agent-inbox/persistence"
 )
 
 // SuggestSkills generates skill suggestions based on conversation context.

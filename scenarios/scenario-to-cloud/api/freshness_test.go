@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"testing"
+
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
-	"testing"
 )
 
 func TestResolveScenarioVersionFallback(t *testing.T) {

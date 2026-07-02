@@ -12,11 +12,9 @@ CREATE TABLE IF NOT EXISTS chats (
     is_read INTEGER NOT NULL DEFAULT 0,
     is_archived INTEGER NOT NULL DEFAULT 0,
     is_starred INTEGER NOT NULL DEFAULT 0,
-    tools_enabled INTEGER DEFAULT 1,
     web_search_enabled INTEGER DEFAULT 0,
     active_leaf_message_id TEXT,
     active_template_id TEXT,
-    active_template_tool_ids TEXT,
     chat_mode TEXT DEFAULT 'llm',
     agent_run_id TEXT,
     agent_task_id TEXT,
@@ -104,22 +102,6 @@ CREATE TABLE IF NOT EXISTS usage_records (
 CREATE INDEX IF NOT EXISTS idx_usage_records_chat_id ON usage_records(chat_id);
 CREATE INDEX IF NOT EXISTS idx_usage_records_created_at ON usage_records(created_at);
 CREATE INDEX IF NOT EXISTS idx_usage_records_model ON usage_records(model);
-
-CREATE TABLE IF NOT EXISTS tool_configurations (
-    id TEXT PRIMARY KEY,
-    chat_id TEXT REFERENCES chats(id) ON DELETE CASCADE,
-    scenario TEXT NOT NULL,
-    tool_name TEXT NOT NULL,
-    enabled INTEGER NOT NULL DEFAULT 1,
-    approval_override TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE (chat_id, scenario, tool_name)
-);
-
-CREATE INDEX IF NOT EXISTS idx_tool_configurations_chat_id ON tool_configurations(chat_id);
-CREATE INDEX IF NOT EXISTS idx_tool_configurations_global ON tool_configurations(scenario, tool_name) WHERE chat_id IS NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_tool_configurations_global_unique ON tool_configurations(scenario, tool_name) WHERE chat_id IS NULL;
 
 CREATE TABLE IF NOT EXISTS user_settings (
     id TEXT PRIMARY KEY,

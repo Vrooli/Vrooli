@@ -2,9 +2,10 @@ package ssh
 
 import (
 	"fmt"
-	"scenario-to-cloud/internal/shellutil"
 	"strings"
 	"time"
+
+	"scenario-to-cloud/internal/shellutil"
 )
 
 // LocalSSHCommand builds a local SSH command string for display/logging.

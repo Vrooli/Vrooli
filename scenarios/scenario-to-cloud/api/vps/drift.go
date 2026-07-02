@@ -1,9 +1,10 @@
 package vps
 
 import (
-	"scenario-to-cloud/domain"
 	"strconv"
 	"time"
+
+	"scenario-to-cloud/domain"
 )
 
 // ComputeDrift compares manifest expectations vs actual live state.

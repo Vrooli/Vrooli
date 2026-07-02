@@ -10,7 +10,7 @@ Connect procedure paths such as
 `/api/v1/...` paths in the proto-owned sections below are HTTP annotation
 inventory and historical compatibility context; they are not mounted as manual
 REST routes after the bright-window cleanup. Runtime REST exceptions are health
-probes, development pprof, logs, forensics, and tool discovery/execution.
+probes, development pprof, logs, and forensics.
 
 ---
 
@@ -179,18 +179,6 @@ Compaction on a non-SQLite backend returns `503` (unsupported).
 Configurable fields: `runner`, `model`, `max_turns`, `timeout`, `tools`, `skip_permissions`, `requires_sandbox`, `requires_approval`
 
 `[CODE: api/internal/handlers/investigations.go]`
-
----
-
-## Tool Discovery Protocol
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/v1/tools` | Get tool manifest |
-| GET | `/api/v1/tools/{name}` | Get specific tool definition |
-| POST | `/api/v1/tools/execute` | Execute a tool |
-
-`[CODE: api/internal/toolexecution/handler.go]`
 
 ---
 

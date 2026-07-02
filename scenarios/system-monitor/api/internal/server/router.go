@@ -17,11 +17,9 @@ import (
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/handlers"
-	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/toolexecution"
-	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/toolhandlers"
 )
 
-func buildRouter(cfg *config.Config, health *handlers.HealthHandler, metrics *handlers.MetricsHandler, investigation *handlers.InvestigationHandler, report *handlers.ReportHandler, settings *handlers.SettingsHandler, maintenance *handlers.MaintenanceHandler, capacity *handlers.CapacityHandler, forensicsH *handlers.ForensicsHandler, logsH *handlers.LogsHandler, tools *toolhandlers.ToolsHandler, toolExec *toolexecution.Handler) http.Handler {
+func buildRouter(cfg *config.Config, health *handlers.HealthHandler, metrics *handlers.MetricsHandler, investigation *handlers.InvestigationHandler, report *handlers.ReportHandler, settings *handlers.SettingsHandler, maintenance *handlers.MaintenanceHandler, capacity *handlers.CapacityHandler, forensicsH *handlers.ForensicsHandler, logsH *handlers.LogsHandler) http.Handler {
 	r := http.NewServeMux()
 	mountDebugRoutes(cfg, r)
 	mountConnectRoutes(r, health, metrics, report, settings, capacity, maintenance, investigation)
@@ -37,13 +35,6 @@ func buildRouter(cfg *config.Config, health *handlers.HealthHandler, metrics *ha
 	r.HandleFunc("GET /api/v1/logs", logsH.Logs)
 	r.HandleFunc("GET /api/v1/logs/units", logsH.Units)
 	r.HandleFunc("GET /api/v1/logs/boots", logsH.Boots)
-
-	// Tool Discovery Protocol routes
-	tools.RegisterRoutes(r)
-
-	// Tool Execution Protocol route
-	r.HandleFunc("POST /api/v1/tools/execute", toolExec.Execute)
-	r.HandleFunc("OPTIONS /api/v1/tools/execute", toolExec.Execute)
 
 	return r
 }

@@ -5,6 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
+
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
@@ -15,8 +18,6 @@ import (
 	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/vps"
 	"scenario-to-cloud/vps/preflight"
-	"strings"
-	"time"
 )
 
 // progressHubAdapter adapts the deployment package's Hub to the vps.ProgressBroadcaster interface.

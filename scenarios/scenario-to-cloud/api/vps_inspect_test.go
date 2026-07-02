@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"errors"
+	"strings"
+	"testing"
+	"time"
+
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/vps"
-	"strings"
-	"testing"
-	"time"
 )
 
 func TestVPSInspectPlanAndApply(t *testing.T) {

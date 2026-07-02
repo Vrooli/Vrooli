@@ -5,8 +5,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"scenario-to-cloud/ssh"
 	"strings"
+
+	"scenario-to-cloud/ssh"
 )
 
 // SSHRunner seam for authorized-keys inspection.

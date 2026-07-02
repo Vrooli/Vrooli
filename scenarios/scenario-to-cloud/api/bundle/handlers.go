@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
+	"time"
+
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
-	"strings"
-	"time"
 )
 
 // HandleListBundles returns a handler that lists all stored bundles.

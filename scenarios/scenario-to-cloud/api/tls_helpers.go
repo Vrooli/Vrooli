@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
+	"strings"
+
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/tlsinfo"
-	"strings"
 )
 
 func buildTLSInfoResponse(domainName string, snapshot tlsinfo.Snapshot, err error) TLSInfoResponse {

@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
+
 	"scenario-to-cloud/deployment"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
-	"time"
 
 	"github.com/gorilla/mux"
 )

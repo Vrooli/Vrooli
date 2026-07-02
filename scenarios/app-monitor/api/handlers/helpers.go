@@ -1,10 +1,11 @@
 package handlers
 
 import (
-	"app-monitor-api/services"
 	"context"
 	"errors"
 	"net/http"
+
+	"app-monitor-api/services"
 
 	"github.com/gin-gonic/gin"
 )

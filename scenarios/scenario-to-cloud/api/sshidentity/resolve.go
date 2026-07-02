@@ -2,10 +2,11 @@ package sshidentity
 
 import (
 	"os"
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/ssh"
 	"strings"
 	"time"
+
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/ssh"
 )
 
 // Resolver defines the seam for canonical identity resolution.

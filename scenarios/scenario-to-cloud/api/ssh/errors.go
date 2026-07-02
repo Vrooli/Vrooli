@@ -4,8 +4,9 @@ package ssh
 import (
 	"errors"
 	"fmt"
-	"scenario-to-cloud/domain"
 	"strings"
+
+	"scenario-to-cloud/domain"
 )
 
 // Sentinel error categories for errors.Is checks.

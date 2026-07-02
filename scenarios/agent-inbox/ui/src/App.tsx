@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useChats } from "./hooks/useChats";
 import { useAsyncStatus } from "./hooks/useAsyncStatus";
-import { useTools } from "./hooks/useTools";
 import { useActiveTemplate } from "./hooks/useActiveTemplate";
 import { useChatRoute, usePopStateListener } from "./hooks/useChatRoute";
 import { useResizableSidebar } from "./hooks/useResizableSidebar";
@@ -58,9 +57,6 @@ function AppContent() {
     [setChatInUrl]
   );
 
-  const templateDeactivateRef = useRef<(() => void) | null>(null);
-  const handleTemplateDeactivated = useCallback(() => { templateDeactivateRef.current?.(); }, []);
-
   const {
     selectedChatId, currentView, isGenerating, streamingContent,
     activeToolCalls, generatedImages, isRegenerating,
@@ -73,7 +69,7 @@ function AppContent() {
     editingMessage, setEditingMessage, editMessageAndComplete, cancelEdit,
     bulkOperate, forkConversation,
     isCreatingChat, isDeletingAllChats, isBulkOperating, isForking,
-  } = useChats({ initialChatId, onChatChange: handleChatChange, onTemplateDeactivated: handleTemplateDeactivated });
+  } = useChats({ initialChatId, onChatChange: handleChatChange });
 
   const {
     operations: asyncOperations, activeOperations: activeAsyncOperations,
@@ -87,24 +83,15 @@ function AppContent() {
     hasMoreAsyncHistory, handleFetchAsyncHistory,
   } = useAsyncReferences(selectedChatId, fetchAsyncHistory);
 
-  const { enableToolsByIds } = useTools({ chatId: selectedChatId ?? undefined });
   const activeTemplate = useActiveTemplate(selectedChatId ?? undefined, chatData?.chat);
 
-  useEffect(() => {
-    templateDeactivateRef.current = () => {
-      if (selectedChatId && chatData?.chat.id === selectedChatId) void activeTemplate.deactivate();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTemplate.deactivate, selectedChatId, chatData?.chat.id]);
-
   const handleTemplateActivated = useCallback(
-    async (templateId: string, toolIds: string[]) => {
+    async (templateId: string) => {
       if (!selectedChatId) return;
-      await enableToolsByIds(toolIds);
-      await activeTemplate.activate(templateId, toolIds);
+      await activeTemplate.activate(templateId);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedChatId, enableToolsByIds, activeTemplate.activate]
+    [selectedChatId, activeTemplate.activate]
   );
 
   usePopStateListener(useCallback((chatId: string) => { selectChat(chatId); }, [selectChat]));

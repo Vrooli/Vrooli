@@ -29,11 +29,6 @@
       "icon": "book",
       "documents": [
         {
-          "path": "tool-discovery-protocol.md",
-          "title": "Tool Discovery Protocol",
-          "description": "Standardized protocol for scenario tool exposure and discovery"
-        },
-        {
           "path": "../api/domain/FAILURE_MODES.md",
           "title": "Failure Modes",
           "description": "Error categories, recovery paths, and graceful degradation strategies"

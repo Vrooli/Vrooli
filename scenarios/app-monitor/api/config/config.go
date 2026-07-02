@@ -1,13 +1,14 @@
 package config
 
 import (
-	"app-monitor-api/logger"
 	"context"
 	"database/sql"
 	"fmt"
 	"os"
 	"strconv"
 	"time"
+
+	"app-monitor-api/logger"
 
 	"github.com/docker/docker/client"
 	"github.com/go-redis/redis/v8"

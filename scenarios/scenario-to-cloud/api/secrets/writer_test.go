@@ -2,9 +2,10 @@ package secrets
 
 import (
 	"context"
-	"scenario-to-cloud/ssh"
 	"strings"
 	"testing"
+
+	"scenario-to-cloud/ssh"
 )
 
 type fakeWriterRunner struct {

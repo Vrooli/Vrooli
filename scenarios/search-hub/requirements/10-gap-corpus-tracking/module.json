@@ -95,16 +95,16 @@
     },
     {
       "id": "REQ-P1-012",
-      "title": "GAP stub: requirements corpus",
-      "status": "planned",
+      "title": "GAP stub: requirements corpus (re-homed to business-health.intent)",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "category": "gap-tracking",
-      "description": "CAPABILITY_GAP stub for the `requirements` corpus (intended_home: product-manager-agent / PRD).",
+      "description": "CAPABILITY_GAP stub for the `requirements` corpus — RESOLVED 2026-07-02: business-health.intent (BUCKET_STATE, type requirements) self-registers the fleet-wide PRD/requirements intent corpus and supersedes this stub; the stub was removed from the registry and the seed corpus.",
       "validation": [
         {
           "type": "manual",
-          "status": "planned",
-          "notes": "Stub appears in providers list/status."
+          "status": "implemented",
+          "notes": "business-health.intent appears in providers list; product-manager-agent.requirements no longer present (verified 2026-07-02)."
         }
       ]
     },

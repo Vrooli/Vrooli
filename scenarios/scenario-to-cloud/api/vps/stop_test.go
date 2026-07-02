@@ -2,10 +2,11 @@ package vps
 
 import (
 	"context"
-	"scenario-to-cloud/internal/shellutil"
-	"scenario-to-cloud/ssh"
 	"strings"
 	"testing"
+
+	"scenario-to-cloud/internal/shellutil"
+	"scenario-to-cloud/ssh"
 )
 
 // testSSHRunner implements ssh.Runner for vps package tests.

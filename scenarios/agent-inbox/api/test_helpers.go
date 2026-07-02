@@ -52,10 +52,9 @@ func setupTestServer(t *testing.T) *TestServer {
 
 	// Create shared dependencies explicitly (no nil fallbacks)
 	toolExecutor := integrations.NewToolExecutor()
-	toolRegistry := services.NewToolRegistry(repo, toolExecutor)
-	asyncTracker := services.NewAsyncTrackerService(toolRegistry, toolExecutor, nil)
+	asyncTracker := services.NewAsyncTrackerService(toolExecutor, nil)
 
-	h := handlers.New(repo, integrations.NewOllamaClient(), storage, asyncTracker, toolExecutor, toolRegistry)
+	h := handlers.New(repo, integrations.NewOllamaClient(), storage, asyncTracker, toolExecutor)
 	router := mux.NewRouter()
 	router.Use(middleware.Logging)
 	router.Use(middleware.CORS)

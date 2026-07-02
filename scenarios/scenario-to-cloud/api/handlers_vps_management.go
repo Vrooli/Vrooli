@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
+
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/manifest"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/vps"
-	"time"
 
 	"github.com/gorilla/mux"
 )

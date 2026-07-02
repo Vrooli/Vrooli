@@ -34,8 +34,6 @@ import (
 	"agent-manager/internal/repository"
 	"agent-manager/internal/stats"
 	"agent-manager/internal/storage"
-	"agent-manager/internal/toolexecution"
-	"agent-manager/internal/toolregistry"
 
 	agentconfig "agent-manager/internal/config"
 
@@ -68,7 +66,6 @@ type Server struct {
 	awaitRegistry        *orchestration.AwaitRegistry
 	recommendationWorker *orchestration.RecommendationWorker
 	modelHealthProbe     *healthstore.Probe
-	toolRegistry         *toolregistry.Registry
 	storage              storage.Service
 	statsEngine          *stats.Engine
 	healthStore          *healthstore.Store
@@ -120,14 +117,6 @@ func NewServer() (*Server, error) {
 	// Create the orchestrator with appropriate repositories and broadcaster
 	deps := createOrchestrator(db, wsHub, logger, uploadStorage, levers)
 
-	// Create tool registry for tool discovery protocol
-	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
-		ScenarioName:        "agent-manager",
-		ScenarioVersion:     "1.0.0",
-		ScenarioDescription: "Manages coding agents for software engineering tasks. Supports Claude Code, Codex, and OpenCode runners with sandboxed execution and approval workflows.",
-	})
-	toolReg.RegisterProvider(toolregistry.NewAgentToolProvider())
-
 	// UseEncodedPath tells mux to match routes against the raw URL path (e.g., keeping %2F
 	// as-is instead of decoding to /). This is required for model names containing slashes
 	// like "aion-labs/aion-1.0" which are URL-encoded to "aion-labs%2Faion-1.0".
@@ -145,7 +134,6 @@ func NewServer() (*Server, error) {
 		reconciler:           deps.reconciler,
 		awaitRegistry:        deps.awaitRegistry,
 		recommendationWorker: deps.recommendationWorker,
-		toolRegistry:         toolReg,
 		storage:              uploadStorage,
 		statsEngine:          deps.statsEngine,
 		healthStore:          deps.healthStore,
@@ -708,43 +696,11 @@ func (s *Server) setupRoutes() {
 		routesLog.Info("pricing endpoints registered", "path", "/api/v1/pricing/*")
 	}
 
-	// Register tool discovery routes
-	toolsHandler := handlers.NewToolsHandler(s.toolRegistry)
-	toolsHandler.RegisterRoutes(&muxRouteAdapter{s.router})
-
-	// Register Tool Execution Protocol endpoint
-	toolExec := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
-		Orchestrator: s.orchestrator,
-	})
-	toolExecHandler := toolexecution.NewHandler(toolExec)
-	s.router.HandleFunc("/api/v1/tools/execute", toolExecHandler.Execute).Methods("POST", "OPTIONS")
-
 	// Prometheus metrics endpoint
 	s.router.Handle("/metrics", metrics.Handler()).Methods("GET")
 
-	routesLog.Info("tool discovery endpoint registered", "path", "/api/v1/tools")
-	routesLog.Info("tool execution endpoint registered", "path", "/api/v1/tools/execute")
 	routesLog.Info("websocket endpoint registered", "path", "/api/v1/ws")
 	routesLog.Info("metrics endpoint registered", "path", "/metrics")
-}
-
-// muxRouteAdapter adapts mux.Router to the routeRegistrar interface.
-// This enables the ToolsHandler to register routes without depending on mux directly.
-type muxRouteAdapter struct {
-	router *mux.Router
-}
-
-func (a *muxRouteAdapter) HandleFunc(path string, f func(http.ResponseWriter, *http.Request)) handlers.RouteMethoder {
-	return &muxRouteMethoder{route: a.router.HandleFunc(path, f)}
-}
-
-type muxRouteMethoder struct {
-	route *mux.Route
-}
-
-func (m *muxRouteMethoder) Methods(methods ...string) handlers.RouteMethoder {
-	m.route.Methods(methods...)
-	return m
 }
 
 // Router returns the HTTP handler for use with server.Run

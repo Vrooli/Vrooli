@@ -16,7 +16,7 @@ import (
 // TestStreamAsyncStatus_SetsSSEHeaders verifies correct SSE headers are set.
 func TestStreamAsyncStatus_SetsSSEHeaders(t *testing.T) {
 	h := &Handlers{
-		AsyncTracker: services.NewAsyncTrackerService(nil, nil, nil),
+		AsyncTracker: services.NewAsyncTrackerService(nil, nil),
 	}
 
 	r := mux.NewRouter()
@@ -49,7 +49,7 @@ func TestStreamAsyncStatus_SetsSSEHeaders(t *testing.T) {
 // TestStreamAsyncStatus_SendsConnectedEvent verifies connected event is sent.
 func TestStreamAsyncStatus_SendsConnectedEvent(t *testing.T) {
 	h := &Handlers{
-		AsyncTracker: services.NewAsyncTrackerService(nil, nil, nil),
+		AsyncTracker: services.NewAsyncTrackerService(nil, nil),
 	}
 
 	r := mux.NewRouter()
@@ -75,7 +75,7 @@ func TestStreamAsyncStatus_SendsConnectedEvent(t *testing.T) {
 
 // TestStreamAsyncStatus_SendsActiveOperations verifies initial operations are sent.
 func TestStreamAsyncStatus_SendsActiveOperations(t *testing.T) {
-	tracker := services.NewAsyncTrackerService(nil, nil, nil)
+	tracker := services.NewAsyncTrackerService(nil, nil)
 	h := &Handlers{
 		AsyncTracker: tracker,
 	}
@@ -112,7 +112,7 @@ func TestStreamAsyncStatus_SendsActiveOperations(t *testing.T) {
 
 // TestStreamAsyncStatus_ClientDisconnect verifies cleanup on client disconnect.
 func TestStreamAsyncStatus_ClientDisconnect(t *testing.T) {
-	tracker := services.NewAsyncTrackerService(nil, nil, nil)
+	tracker := services.NewAsyncTrackerService(nil, nil)
 	h := &Handlers{
 		AsyncTracker: tracker,
 	}

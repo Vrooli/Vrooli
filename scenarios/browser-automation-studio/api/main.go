@@ -36,7 +36,6 @@ import (
 	schedulesconnect "github.com/vrooli/browser-automation-studio/handlers/schedules"
 	schemaconnect "github.com/vrooli/browser-automation-studio/handlers/schema"
 	sessionprofilesconnect "github.com/vrooli/browser-automation-studio/handlers/session_profiles"
-	toolsconnect "github.com/vrooli/browser-automation-studio/handlers/tools"
 	uxmetricsconnect "github.com/vrooli/browser-automation-studio/handlers/uxmetrics"
 	visionnavconnect "github.com/vrooli/browser-automation-studio/handlers/vision_navigation"
 	workflowsconnect "github.com/vrooli/browser-automation-studio/handlers/workflows"
@@ -66,9 +65,6 @@ import (
 	unifiedrecording "github.com/vrooli/browser-automation-studio/services/recording"
 	unifiedpersistence "github.com/vrooli/browser-automation-studio/services/recording/persistence"
 
-	// Tool Discovery Protocol
-	"github.com/vrooli/browser-automation-studio/internal/toolexecution"
-	"github.com/vrooli/browser-automation-studio/internal/toolregistry"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
@@ -260,26 +256,6 @@ func main() {
 	// This allows the UI to send input via WebSocket instead of HTTP POST
 	hub.SetInputForwarder(handler.CreateInputForwarder())
 
-	// Initialize Tool Discovery Protocol
-	// This enables AI agents (via agent-inbox) to discover and execute BAS tools
-	toolRegistry := toolregistry.NewRegistry(toolregistry.RegistryConfig{
-		ScenarioName:        "browser-automation-studio",
-		ScenarioVersion:     "1.0.0",
-		ScenarioDescription: "Browser automation and workflow execution engine for web testing and automation",
-	})
-	// Register all tool providers (Tiers 1-4)
-	toolRegistry.RegisterProvider(toolregistry.NewWorkflowToolProvider())  // Tier 1: Workflow execution
-	toolRegistry.RegisterProvider(toolregistry.NewProjectToolProvider())   // Tier 2: Project management
-	toolRegistry.RegisterProvider(toolregistry.NewRecordingToolProvider()) // Tier 3: Recording sessions
-	toolRegistry.RegisterProvider(toolregistry.NewAIToolProvider())        // Tier 4: AI capabilities
-
-	toolExecutor := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
-		CatalogService:   deps.CatalogService,
-		ExecutionService: deps.ExecutionService,
-		Repository:       repo,
-	})
-	log.WithField("tool_count", len(toolRegistry.ListToolNames(context.Background()))).Info("✅ Tool Discovery Protocol initialized")
-
 	// Initialize playwright-driver sidecar management
 	// This enables automatic restart on crashes, health monitoring, and recording recovery
 	var sidecarDeps *sidecar.Dependencies
@@ -359,11 +335,6 @@ func main() {
 		}),
 		scenariosconnect.Module(scenariosconnect.Deps{
 			Logger: log,
-		}),
-		toolsconnect.Module(toolsconnect.Deps{
-			Registry: toolRegistry,
-			Executor: toolExecutor,
-			Logger:   log,
 		}),
 		entitlementconnect.Module(entitlementconnect.Deps{
 			Provider: entitlementSvc,

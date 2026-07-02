@@ -122,8 +122,7 @@ func main() {
 	// The adapter bridges persistence.Repository to services.AsyncOperationRepository
 	asyncRepoAdapter := newAsyncRepoAdapter(repo)
 	toolExecutor := integrations.NewToolExecutor()
-	toolRegistry := services.NewToolRegistry(repo, toolExecutor)
-	asyncTracker := services.NewAsyncTrackerService(toolRegistry, toolExecutor, asyncRepoAdapter)
+	asyncTracker := services.NewAsyncTrackerService(toolExecutor, asyncRepoAdapter)
 
 	// Recover any active async operations from prior crash/restart
 	if err := asyncTracker.RecoverOperations(context.Background()); err != nil {
@@ -149,9 +148,9 @@ func main() {
 	// Start background sync from prompt-manager
 	skillsSvc.Start()
 
-	// Create handlers with all dependencies (pass pre-configured async tracker, shared executor, and registry)
+	// Create handlers with all dependencies (pass pre-configured async tracker and shared executor)
 	ollamaClient := integrations.NewOllamaClient()
-	h := handlers.New(repo, ollamaClient, storage, asyncTracker, toolExecutor, toolRegistry)
+	h := handlers.New(repo, ollamaClient, storage, asyncTracker, toolExecutor)
 	h.Templates = templatesSvc
 	h.Skills = skillsSvc
 

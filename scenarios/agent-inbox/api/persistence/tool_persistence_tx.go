@@ -3,9 +3,10 @@
 package persistence
 
 import (
-	"agent-inbox/domain"
 	"context"
 	"database/sql"
+
+	"agent-inbox/domain"
 )
 
 // BeginTx starts a new database transaction.

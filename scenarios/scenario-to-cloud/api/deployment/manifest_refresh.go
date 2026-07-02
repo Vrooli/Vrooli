@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
+	"time"
+
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/stringutil"
 	"scenario-to-cloud/secrets"
-	"sort"
-	"time"
 )
 
 // ManifestRefresher regenerates manifest data from current scenario state.

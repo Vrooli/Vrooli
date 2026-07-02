@@ -3,11 +3,12 @@
 package persistence
 
 import (
-	"agent-inbox/domain"
 	"context"
 	"database/sql"
 	"fmt"
 	"strings"
+
+	"agent-inbox/domain"
 )
 
 // Label Operations

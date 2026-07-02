@@ -25,9 +25,6 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/autoheal"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/forensics"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/journal"
-	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/toolexecution"
-	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/toolhandlers"
-	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/toolregistry"
 )
 
 // shellExec is a minimal CommandExecutor wrapping exec.CommandContext for
@@ -106,29 +103,7 @@ func Run(cfg *config.Config) error {
 	forensicsHandler := handlers.NewForensicsHandler(forensicsSvc, autohealClient, apiLog.With("handler", "forensics"))
 	logsHandler := handlers.NewLogsHandler(journalReader, apiLog.With("handler", "logs"))
 
-	// Initialize Tool Discovery Protocol registry
-	toolRegistry := toolregistry.NewRegistry(toolregistry.RegistryConfig{
-		ScenarioName:        "system-monitor",
-		ScenarioVersion:     cfg.Server.Version,
-		ScenarioDescription: "Real-time system monitoring with AI-driven anomaly detection and automated root cause analysis",
-	})
-	toolRegistry.RegisterProvider(toolregistry.NewMetricsToolProvider())
-	toolRegistry.RegisterProvider(toolregistry.NewInvestigationToolProvider())
-	toolRegistry.RegisterProvider(toolregistry.NewConfigurationToolProvider())
-	slog.Info("Tool registry initialized", "providers", toolRegistry.ProviderCount(), "tools", len(toolRegistry.ListToolNames(context.Background())))
-
-	// Initialize Tool Execution Protocol executor
-	toolExecutor := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
-		MonitorSvc:       monitorSvc,
-		InvestigationSvc: investigationSvc,
-		ReportSvc:        reportSvc,
-		SettingsMgr:      settingsMgr,
-		Logger:           slog.Default(),
-	})
-	toolExecHandler := toolexecution.NewHandler(toolExecutor, slog.Default())
-	toolsHandler := toolhandlers.NewToolsHandler(toolRegistry, slog.Default())
-
-	router := buildRouter(cfg, healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler, maintenanceHandler, capacityHandler, forensicsHandler, logsHandler, toolsHandler, toolExecHandler)
+	router := buildRouter(cfg, healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler, maintenanceHandler, capacityHandler, forensicsHandler, logsHandler)
 	rootMux := http.NewServeMux()
 	if routedDB != nil {
 		devrouting.Register(rootMux, routedDB)

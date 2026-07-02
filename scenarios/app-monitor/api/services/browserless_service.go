@@ -1,7 +1,6 @@
 package services
 
 import (
-	"app-monitor-api/logger"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"app-monitor-api/logger"
 )
 
 // BrowserlessConsoleLog represents a console log entry captured by browserless

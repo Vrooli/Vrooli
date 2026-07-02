@@ -17,8 +17,6 @@
 
 - **Infrastructure Provider** (`api/internal/infrastructure/provider.go`): Injected into `MonitorService` via `infrastructure.Provider` interface. Collects database pool, HTTP pool, message queue, and storage I/O metrics. Testability: high — mock the `Provider` interface. [CODE: api/internal/infrastructure/provider.go]
 
-- **Tool Registry** (`api/internal/toolregistry/`): Pluggable tool registration (metrics_tools, investigation_tools, configuration_tools). New tools register via registry pattern. Testability: high — tools are independent units. [CODE: api/internal/toolregistry/registry.go]
-
 - **Clock** (`api/internal/services/clock.go`): `Clock` interface (`Now()`, `Since()`) abstracts time operations. `RealClock` for production, `StubClock` for deterministic testing with `Advance(d)` and `Set(t)` methods. Injected into all five services (MonitorService, InvestigationService, AlertService, ReportService, SettingsManager) via functional options (`WithMonitorClock`, `WithInvestigationClock`, etc.). Testability: high — eliminates flaky time-dependent tests and enables deterministic cooldown/ID testing. [CODE: api/internal/services/clock.go]
 
 - **ConfigStore** (`api/internal/services/configstore.go`): `ConfigStore` interface abstracts configuration file I/O (read/write). `FileConfigStore` reads/writes from disk; `MemoryConfigStore` provides an in-memory implementation for tests. Injected into `InvestigationService` (via `WithConfigStore`) and `SettingsManager` (via `WithSettingsConfigStore`). A separate `promptStore` field on `InvestigationService` (via `WithPromptStore`) abstracts prompt template loading. Testability: high — inject `MemoryConfigStore` to test config read/write without filesystem. [CODE: api/internal/services/configstore.go]
@@ -31,7 +29,7 @@
 
 ## Responsibility Zones
 
-- **Entry/presentation**: `api/internal/handlers/` — HTTP request parsing, response formatting. `api/internal/toolhandlers/` for tool discovery. `api/internal/middleware/` for CORS, logging, auth.
+- **Entry/presentation**: `api/internal/handlers/` — HTTP request parsing, response formatting. `api/internal/middleware/` for CORS, logging, auth.
 - **Coordination/orchestration**: `api/internal/services/` — MonitorService, InvestigationService, ReportService, AlertService, SettingsService coordinate business logic.
 - **Domain rules**: `api/internal/models/` — Data structures, threshold definitions, investigation state machine.
 - **Integrations/infrastructure**: `api/internal/agentmanager/` (external agent-manager API), `api/internal/repository/` (storage), `api/internal/collectors/` (OS-level metric collection), `api/internal/infrastructure/` (infrastructure monitoring).
@@ -60,10 +58,8 @@
 - Clean architecture with handler → service → repository layers.
 - All service-layer dependencies flow through interfaces (`MetricsSource`, `AgentExecutor`, `HTTPDoer`, `infrastructure.Provider`, `repository.*`, `Clock`, `ConfigStore`, `CommandRunner`), enabling isolated unit testing.
 - Handler layer uses narrow interfaces (`MonitorQuerier`, `InvestigationManager`, `ScriptRunner`, `ReportGenerator`, `SettingsProvider`) defined in `api/internal/handlers/interfaces.go`, decoupling handlers from concrete service types.
-- Tool execution layer (`api/internal/toolexecution/executor.go`) also uses local interfaces (`MonitorSvc`, `InvestigationSvc`, `ReportSvc`, `SettingsMgr`) to avoid concrete service dependencies.
 - In-memory default keeps startup simple but means data is lost on restart.
 - Agent-manager integration is well-isolated in its own package.
-- Tool discovery protocol adds agent-composability surface.
 - UI uses HTTP polling (not WebSocket) — simpler but higher latency.
 
 ## Exploration Log

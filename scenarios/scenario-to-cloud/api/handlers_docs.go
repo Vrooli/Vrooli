@@ -5,9 +5,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/internal/httputil"
-	"strings"
 )
 
 // DocsManifest represents the structure of the docs manifest.json file

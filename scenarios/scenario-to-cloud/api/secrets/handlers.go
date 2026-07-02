@@ -2,8 +2,9 @@ package secrets
 
 import (
 	"net/http"
-	"scenario-to-cloud/internal/httputil"
 	"strings"
+
+	"scenario-to-cloud/internal/httputil"
 
 	"github.com/gorilla/mux"
 )

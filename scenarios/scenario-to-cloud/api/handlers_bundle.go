@@ -2,11 +2,12 @@ package main
 
 import (
 	"net/http"
+	"time"
+
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/manifest"
-	"time"
 )
 
 // handleManifestValidate validates a domain.CloudManifest and returns normalized output.

@@ -4,7 +4,6 @@
 package services
 
 import (
-	"agent-inbox/resilience"
 	"bytes"
 	"context"
 	"fmt"
@@ -13,6 +12,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"agent-inbox/resilience"
 
 	"github.com/vrooli/api-core/discovery"
 )

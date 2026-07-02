@@ -7,12 +7,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"testing"
+	"time"
+
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/tlsinfo"
 	"scenario-to-cloud/vps"
-	"testing"
-	"time"
 
 	"github.com/gorilla/mux"
 )

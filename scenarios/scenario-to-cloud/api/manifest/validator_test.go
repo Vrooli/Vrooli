@@ -1,8 +1,9 @@
 package manifest
 
 import (
-	"scenario-to-cloud/domain"
 	"testing"
+
+	"scenario-to-cloud/domain"
 )
 
 func TestHasBlockingIssues(t *testing.T) {

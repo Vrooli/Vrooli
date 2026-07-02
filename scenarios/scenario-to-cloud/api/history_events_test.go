@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	"scenario-to-cloud/deployment"
-	"scenario-to-cloud/domain"
 	"strings"
 	"testing"
+
+	"scenario-to-cloud/deployment"
+	"scenario-to-cloud/domain"
 )
 
 type fakeHistoryRecorder struct {

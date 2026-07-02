@@ -2,9 +2,10 @@ package shared
 
 import (
 	"encoding/json"
-	"scenario-to-cloud/domain"
 	"strings"
 	"testing"
+
+	"scenario-to-cloud/domain"
 )
 
 func TestParseManifest(t *testing.T) {

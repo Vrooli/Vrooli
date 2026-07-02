@@ -3,11 +3,12 @@
 package persistence
 
 import (
-	"agent-inbox/domain"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+
+	"agent-inbox/domain"
 )
 
 // Message Operations

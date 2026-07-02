@@ -16,10 +16,7 @@ interface UseTemplateActionsOptions {
   ) => Promise<string>;
   /** From useTemplatesAndSkills */
   setActiveTemplate: (template: Template) => void;
-  onTemplateActivated?: (
-    templateId: string,
-    toolIds: string[],
-  ) => Promise<void>;
+  onTemplateActivated?: (templateId: string) => Promise<void>;
   /** From useTemplatesAndSkills */
   addSkill: (id: string) => void;
   toggleSuggestionsVisible: () => void;
@@ -55,7 +52,6 @@ export function useTemplateActions({
   // Modal state
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [showSkillSelector, setShowSkillSelector] = useState(false);
-  const [showToolSelector, setShowToolSelector] = useState(false);
   const [showVariableForm, setShowVariableForm] = useState(true);
   const [shouldFocusTemplateForm, setShouldFocusTemplateForm] = useState(false);
 
@@ -83,8 +79,8 @@ export function useTemplateActions({
         setShowVariableForm(true);
         setShouldFocusTemplateForm(true);
 
-        if (template.suggestedToolIds?.length && onTemplateActivated) {
-          await onTemplateActivated(template.id, template.suggestedToolIds);
+        if (onTemplateActivated) {
+          await onTemplateActivated(template.id);
         }
       }
     },
@@ -103,11 +99,8 @@ export function useTemplateActions({
           setShowVariableForm(true);
           setShouldFocusTemplateForm(true);
 
-          if (pendingTemplate.suggestedToolIds?.length && onTemplateActivated) {
-            await onTemplateActivated(
-              pendingTemplate.id,
-              pendingTemplate.suggestedToolIds,
-            );
+          if (onTemplateActivated) {
+            await onTemplateActivated(pendingTemplate.id);
           }
           break;
         case "merge":
@@ -127,14 +120,8 @@ export function useTemplateActions({
               setShowVariableForm(true);
               setShouldFocusTemplateForm(true);
 
-              if (
-                pendingTemplate.suggestedToolIds?.length &&
-                onTemplateActivated
-              ) {
-                await onTemplateActivated(
-                  pendingTemplate.id,
-                  pendingTemplate.suggestedToolIds,
-                );
+              if (onTemplateActivated) {
+                await onTemplateActivated(pendingTemplate.id);
               }
             }
           }
@@ -192,8 +179,6 @@ export function useTemplateActions({
         case "tool":
           if (command.id === "suggestions") {
             toggleSuggestionsVisible();
-          } else {
-            setShowToolSelector(true);
           }
           break;
       }
@@ -258,8 +243,6 @@ export function useTemplateActions({
     setShowTemplateSelector,
     showSkillSelector,
     setShowSkillSelector,
-    showToolSelector,
-    setShowToolSelector,
     showVariableForm,
     setShowVariableForm,
     shouldFocusTemplateForm,

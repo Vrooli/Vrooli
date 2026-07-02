@@ -3,11 +3,12 @@
 package services
 
 import (
-	"agent-inbox/domain"
 	"context"
 	"fmt"
 	"log"
 	"time"
+
+	"agent-inbox/domain"
 )
 
 // ApprovalResult contains the result of approving a tool call.

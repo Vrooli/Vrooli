@@ -1,8 +1,9 @@
 package services
 
 import (
-	"app-monitor-api/repository"
 	"context"
+
+	"app-monitor-api/repository"
 )
 
 type mockAppRepository struct {
@@ -31,24 +32,31 @@ func (m *mockAppRepository) DeleteApp(ctx context.Context, id string) error { re
 func (m *mockAppRepository) CreateAppStatus(ctx context.Context, status *repository.AppStatus) error {
 	return nil
 }
+
 func (m *mockAppRepository) GetAppStatus(ctx context.Context, appID string) (*repository.AppStatus, error) {
 	return nil, nil
 }
+
 func (m *mockAppRepository) GetAppStatusHistory(ctx context.Context, appID string, hours int) ([]repository.AppStatus, error) {
 	return nil, nil
 }
+
 func (m *mockAppRepository) CreateAppLog(ctx context.Context, log *repository.AppLog) error {
 	return nil
 }
+
 func (m *mockAppRepository) GetAppLogs(ctx context.Context, appID string, limit, offset int) ([]repository.AppLog, error) {
 	return nil, nil
 }
+
 func (m *mockAppRepository) GetAppLogsByLevel(ctx context.Context, appID string, level string, limit int) ([]repository.AppLog, error) {
 	return nil, nil
 }
+
 func (m *mockAppRepository) RecordAppView(ctx context.Context, scenarioName string) (*repository.AppViewStats, error) {
 	return nil, nil
 }
+
 func (m *mockAppRepository) GetAppViewStats(ctx context.Context) (map[string]repository.AppViewStats, error) {
 	return map[string]repository.AppViewStats{}, nil
 }

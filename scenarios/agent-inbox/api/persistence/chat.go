@@ -3,11 +3,12 @@
 package persistence
 
 import (
-	"agent-inbox/domain"
 	"context"
 	"database/sql"
 	"fmt"
 	"strings"
+
+	"agent-inbox/domain"
 )
 
 // Chat Operations
@@ -15,7 +16,7 @@ import (
 // ListChats returns all chats matching the given filters.
 func (r *Repository) ListChats(ctx context.Context, archived, starred bool) ([]domain.Chat, error) {
 	query := `
-		SELECT c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.tools_enabled, c.chat_mode, c.agent_run_id, c.agent_task_id, c.created_at, c.updated_at,
+		SELECT c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.chat_mode, c.agent_run_id, c.agent_task_id, c.created_at, c.updated_at,
 			COALESCE(GROUP_CONCAT(cl.label_id), '') as label_ids
 		FROM chats c
 		LEFT JOIN chat_labels cl ON c.id = cl.chat_id
@@ -41,7 +42,7 @@ func (r *Repository) ListChats(ctx context.Context, archived, starred bool) ([]d
 		var labelIDs string
 		var chatMode sql.NullString
 		var agentRunID, agentTaskID sql.NullString
-		if err := rows.Scan(&c.ID, &c.Name, &c.Preview, &c.Model, &c.ViewMode, &c.IsRead, &c.IsArchived, &c.IsStarred, &c.ToolsEnabled, &chatMode, &agentRunID, &agentTaskID, scanTime(&c.CreatedAt), scanTime(&c.UpdatedAt), &labelIDs); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &c.Preview, &c.Model, &c.ViewMode, &c.IsRead, &c.IsArchived, &c.IsStarred, &chatMode, &agentRunID, &agentTaskID, scanTime(&c.CreatedAt), scanTime(&c.UpdatedAt), &labelIDs); err != nil {
 			continue
 		}
 		c.LabelIDs = parseArrayString(labelIDs)
@@ -69,18 +70,17 @@ func (r *Repository) GetChat(ctx context.Context, chatID string) (*domain.Chat, 
 	var activeLeafMessageID sql.NullString
 	var webSearchEnabled sql.NullBool
 	var activeTemplateID sql.NullString
-	var activeTemplateToolIDs sql.NullString
 	var chatMode sql.NullString
 	var agentRunID, agentTaskID sql.NullString
 
 	err := r.db.QueryRowContext(ctx, `
-		SELECT c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.tools_enabled, c.web_search_enabled, c.active_leaf_message_id, c.active_template_id, COALESCE(c.active_template_tool_ids, '[]'), c.chat_mode, c.agent_run_id, c.agent_task_id, c.created_at, c.updated_at,
+		SELECT c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.web_search_enabled, c.active_leaf_message_id, c.active_template_id, c.chat_mode, c.agent_run_id, c.agent_task_id, c.created_at, c.updated_at,
 			COALESCE(GROUP_CONCAT(cl.label_id), '') as label_ids
 		FROM chats c
 		LEFT JOIN chat_labels cl ON c.id = cl.chat_id
 		WHERE c.id = $1
 		GROUP BY c.id
-	`, chatID).Scan(&chat.ID, &chat.Name, &chat.Preview, &chat.Model, &chat.ViewMode, &chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.ToolsEnabled, &webSearchEnabled, &activeLeafMessageID, &activeTemplateID, &activeTemplateToolIDs, &chatMode, &agentRunID, &agentTaskID, scanTime(&chat.CreatedAt), scanTime(&chat.UpdatedAt), &labelIDs)
+	`, chatID).Scan(&chat.ID, &chat.Name, &chat.Preview, &chat.Model, &chat.ViewMode, &chat.IsRead, &chat.IsArchived, &chat.IsStarred, &webSearchEnabled, &activeLeafMessageID, &activeTemplateID, &chatMode, &agentRunID, &agentTaskID, scanTime(&chat.CreatedAt), scanTime(&chat.UpdatedAt), &labelIDs)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -98,11 +98,6 @@ func (r *Repository) GetChat(ctx context.Context, chatID string) (*domain.Chat, 
 	}
 	if activeTemplateID.Valid {
 		chat.ActiveTemplateID = activeTemplateID.String
-	}
-	if activeTemplateToolIDs.Valid {
-		chat.ActiveTemplateToolIDs = parseArrayString(activeTemplateToolIDs.String)
-	} else {
-		chat.ActiveTemplateToolIDs = []string{}
 	}
 	if chatMode.Valid {
 		chat.ChatMode = chatMode.String
@@ -132,10 +127,10 @@ func (r *Repository) CreateChat(ctx context.Context, name, model, viewMode, chat
 	err := r.db.QueryRowContext(ctx, `
 		INSERT INTO chats (id, name, model, view_mode, chat_mode)
 		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, name, preview, model, view_mode, is_read, is_archived, is_starred, tools_enabled, chat_mode, created_at, updated_at
+		RETURNING id, name, preview, model, view_mode, is_read, is_archived, is_starred, chat_mode, created_at, updated_at
 	`, id, name, model, viewMode, chatMode).Scan(
 		&chat.ID, &chat.Name, &chat.Preview, &chat.Model, &chat.ViewMode,
-		&chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.ToolsEnabled, &chat.ChatMode, scanTime(&chat.CreatedAt), scanTime(&chat.UpdatedAt),
+		&chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.ChatMode, scanTime(&chat.CreatedAt), scanTime(&chat.UpdatedAt),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create chat: %w", err)
@@ -144,8 +139,8 @@ func (r *Repository) CreateChat(ctx context.Context, name, model, viewMode, chat
 	return &chat, nil
 }
 
-// UpdateChat updates a chat's name, model, and/or tools_enabled.
-func (r *Repository) UpdateChat(ctx context.Context, chatID string, name, model *string, toolsEnabled *bool) (*domain.Chat, error) {
+// UpdateChat updates a chat's name and/or model.
+func (r *Repository) UpdateChat(ctx context.Context, chatID string, name, model *string) (*domain.Chat, error) {
 	updates := []string{}
 	args := []interface{}{}
 	argNum := 1
@@ -160,12 +155,6 @@ func (r *Repository) UpdateChat(ctx context.Context, chatID string, name, model 
 		args = append(args, *model)
 		argNum++
 	}
-	if toolsEnabled != nil {
-		updates = append(updates, fmt.Sprintf("tools_enabled = $%d", argNum))
-		args = append(args, *toolsEnabled)
-		argNum++
-	}
-
 	if len(updates) == 0 {
 		return nil, fmt.Errorf("no fields to update")
 	}
@@ -173,13 +162,13 @@ func (r *Repository) UpdateChat(ctx context.Context, chatID string, name, model 
 	updates = append(updates, "updated_at = datetime('now')")
 	args = append(args, chatID)
 
-	query := fmt.Sprintf("UPDATE chats SET %s WHERE id = $%d RETURNING id, name, preview, model, view_mode, is_read, is_archived, is_starred, tools_enabled, created_at, updated_at",
+	query := fmt.Sprintf("UPDATE chats SET %s WHERE id = $%d RETURNING id, name, preview, model, view_mode, is_read, is_archived, is_starred, created_at, updated_at",
 		strings.Join(updates, ", "), argNum)
 
 	var chat domain.Chat
 	err := r.db.QueryRowContext(ctx, query, args...).Scan(
 		&chat.ID, &chat.Name, &chat.Preview, &chat.Model, &chat.ViewMode,
-		&chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.ToolsEnabled, scanTime(&chat.CreatedAt), scanTime(&chat.UpdatedAt),
+		&chat.IsRead, &chat.IsArchived, &chat.IsStarred, scanTime(&chat.CreatedAt), scanTime(&chat.UpdatedAt),
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil

@@ -59,7 +59,7 @@ interface MainContentProps {
   asyncReferences: AsyncResultReference[];
   handleInsertAsyncReference: (op: AsyncStatusUpdate) => void;
   handleRemoveAsyncReference: (toolCallId: string) => void;
-  handleTemplateActivated: (templateId: string, toolIds: string[]) => Promise<void>;
+  handleTemplateActivated: (templateId: string) => Promise<void>;
   activeTemplateId: string | null;
   onTemplateDeactivate: () => void;
   handleOpenAgentSettings: () => void;

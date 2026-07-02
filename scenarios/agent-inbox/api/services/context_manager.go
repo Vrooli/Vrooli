@@ -12,11 +12,12 @@
 package services
 
 import (
-	"agent-inbox/config"
-	"agent-inbox/domain"
 	"context"
 	"log"
 	"strings"
+
+	"agent-inbox/config"
+	"agent-inbox/domain"
 
 	tiktoken "github.com/pkoukk/tiktoken-go"
 )

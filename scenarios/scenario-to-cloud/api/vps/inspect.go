@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/internal/shellutil"
-	"scenario-to-cloud/ssh"
 	"strconv"
 	"strings"
 	"time"
+
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/shellutil"
+	"scenario-to-cloud/ssh"
 )
 
 // InspectRequest is the request body for VPS inspection.

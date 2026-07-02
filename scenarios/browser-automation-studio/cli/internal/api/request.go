@@ -1,7 +1,6 @@
 package api
 
 import (
-	"browser-automation-studio/cli/internal/appctx"
 	"bytes"
 	"fmt"
 	"io"
@@ -9,6 +8,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"browser-automation-studio/cli/internal/appctx"
 )
 
 func Do(ctx *appctx.Context, method, path string, query url.Values, body []byte, headers map[string]string) (int, []byte, error) {

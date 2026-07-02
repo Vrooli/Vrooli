@@ -3,11 +3,12 @@ package bundle
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
+
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
-	"strings"
-	"time"
 )
 
 // ListVPSBundles lists bundles under <workdir>/.vrooli/cloud/bundles on the target VPS.

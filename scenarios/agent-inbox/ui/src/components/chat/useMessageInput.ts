@@ -6,7 +6,6 @@
  */
 import { useState, useCallback, useDeferredValue, useRef, useEffect } from "react";
 import { useAttachments } from "../../hooks/useAttachments";
-import { useTools } from "../../hooks/useTools";
 import { useTemplatesAndSkills } from "../../hooks/useTemplatesAndSkills";
 import { useSuggestionsSettings } from "../../hooks/useSuggestionsSettings";
 import { useAutoSuggestSkills } from "../../hooks/useAutoSuggestSkills";
@@ -32,7 +31,6 @@ export function useMessageInput(props: MessageInputProps) {
     isLoading,
     enableAttachments = true,
     enableWebSearch = true,
-    enableForceTools = true,
     autoFocus = false,
     currentModel = null,
     chatId,
@@ -106,18 +104,9 @@ export function useMessageInput(props: MessageInputProps) {
   } = useAttachments(customUploadFn);
 
   const {
-    forcedTool,
-    setForcedTool,
     handleImageSelect,
     handlePDFSelect,
-    handleForceTool,
-    handleClearForcedTool,
   } = useAttachmentHandlers({ addAttachment });
-
-  const { toolsByScenario } = useTools({
-    chatId: enableForceTools && chatId ? chatId : undefined,
-    enabled: enableForceTools && !!chatId,
-  });
 
   // -- Templates & skills --
   const {
@@ -217,8 +206,6 @@ export function useMessageInput(props: MessageInputProps) {
     webSearchEnabled,
     setWebSearchEnabled,
     chatWebSearchDefault,
-    forcedTool,
-    setForcedTool,
     loading,
     isEditMode,
     onSend,
@@ -265,13 +252,12 @@ export function useMessageInput(props: MessageInputProps) {
     textareaRef, placeholder, webSearchEnabled, setWebSearchEnabled,
 
     // Capabilities
-    enableAttachments, enableWebSearch, enableForceTools,
+    enableAttachments, enableWebSearch,
     ...capabilities,
 
     // Attachments
-    removeAttachment, isUploading, forcedTool,
-    handleImageSelect, handlePDFSelect, handleForceTool,
-    handleClearForcedTool, toolsByScenario,
+    removeAttachment, isUploading,
+    handleImageSelect, handlePDFSelect,
 
     // Templates & skills
     templates, skills, skillsLoading, syncSkills,

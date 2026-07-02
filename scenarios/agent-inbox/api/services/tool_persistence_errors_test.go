@@ -1,10 +1,11 @@
 package services
 
 import (
-	"agent-inbox/domain"
 	"context"
 	"errors"
 	"testing"
+
+	"agent-inbox/domain"
 )
 
 func TestSaveToolResult_RecordFails_RollsBack(t *testing.T) {

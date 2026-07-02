@@ -6,10 +6,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
+
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
-	"strings"
 )
 
 type remotePlatform struct {

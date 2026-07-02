@@ -16,11 +16,6 @@ import { useMessageInput } from "./useMessageInput";
 export type { MessagePayload } from "./MessageInput.types";
 
 export function MessageInput(props: MessageInputProps) {
-  const {
-    activeTemplateId,
-    onTemplateDeactivate,
-  } = props;
-
   const messageInputTestIds = {
     container:
       selectorsManifest.selectors["messageInput.container"]?.testId ??
@@ -49,17 +44,13 @@ export function MessageInput(props: MessageInputProps) {
     setWebSearchEnabled,
     enableAttachments,
     enableWebSearch,
-    enableForceTools,
     modelSupportsImages,
     modelSupportsPDFs,
     modelSupportsWebSearch,
-    modelSupportsToolUse,
     effectiveAttachments,
     hasIncompatibleAttachments,
     removeAttachment,
     isUploading,
-    forcedTool,
-    handleClearForcedTool,
     templates,
     skills,
     skillsLoading,
@@ -91,11 +82,8 @@ export function MessageInput(props: MessageInputProps) {
     templateActions,
     sendLogic,
     loading,
-    handleForceTool,
     handleImageSelect,
     handlePDFSelect,
-    handleClearForcedTool: _hcft,
-    toolsByScenario,
     setMessageState,
     onCancelEdit,
     handleWebSearchToggle,
@@ -115,16 +103,11 @@ export function MessageInput(props: MessageInputProps) {
     webSearchEnabled,
     enableAttachments,
     enableWebSearch,
-    enableForceTools,
     modelSupportsImages,
     modelSupportsPDFs,
     modelSupportsWebSearch,
-    modelSupportsToolUse,
     handleImageSelect,
     handlePDFSelect,
-    handleForceTool,
-    forcedTool,
-    toolsByScenario,
     activeTemplate,
     selectedSkillIds,
     slashCommands,
@@ -140,10 +123,7 @@ export function MessageInput(props: MessageInputProps) {
     chatId,
     draft,
     enableAttachments,
-    enableForceTools,
     enableWebSearch,
-    forcedTool,
-    handleForceTool,
     handleImageSelect,
     handleKeyDown,
     handlePDFSelect,
@@ -154,7 +134,6 @@ export function MessageInput(props: MessageInputProps) {
     message,
     modelSupportsImages,
     modelSupportsPDFs,
-    modelSupportsToolUse,
     modelSupportsWebSearch,
     placeholder,
     selectedSkillIds,
@@ -164,7 +143,6 @@ export function MessageInput(props: MessageInputProps) {
     slashCommands,
     templateActions,
     textareaRef,
-    toolsByScenario,
     webSearchEnabled,
   ]);
 
@@ -267,13 +245,9 @@ export function MessageInput(props: MessageInputProps) {
         modelSupportsWebSearch={modelSupportsWebSearch}
         webSearchEnabled={webSearchEnabled}
         setWebSearchEnabled={setWebSearchEnabled}
-        forcedTool={forcedTool}
-        handleClearForcedTool={handleClearForcedTool}
         activeTemplate={activeTemplate}
         clearTemplate={clearTemplate}
         setShowVariableForm={templateActions.setShowVariableForm}
-        activeTemplateId={activeTemplateId}
-        onTemplateDeactivate={onTemplateDeactivate}
         selectedSkillIds={selectedSkillIds}
         getSelectedSkills={getSelectedSkills}
         removeSkill={removeSkill}
@@ -309,15 +283,6 @@ export function MessageInput(props: MessageInputProps) {
         onToggleSkill={toggleSkill}
         onSyncSkills={syncSkills}
         isSyncing={skillsLoading}
-        showToolSelector={templateActions.showToolSelector}
-        onCloseToolSelector={() => {
-          templateActions.setShowToolSelector(false);
-          textareaRef.current?.focus();
-        }}
-        toolsByScenario={toolsByScenario}
-        forcedTool={forcedTool}
-        onSelectTool={handleForceTool}
-        onClearTool={handleClearForcedTool}
         showTemplateEditor={templateActions.showTemplateEditor}
         onCloseTemplateEditor={templateActions.handleCloseTemplateEditor}
         editingTemplate={templateActions.editingTemplate}

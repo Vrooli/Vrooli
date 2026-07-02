@@ -46,13 +46,6 @@ func Default() *Config {
 				Timeout:             30 * time.Second,
 				FallbackName:        "New Conversation",
 			},
-			ToolDiscovery: ToolDiscoveryConfig{
-				AutoDiscovery:    getEnvBool("TOOL_AUTO_DISCOVERY", true),
-				Scenarios:        getToolScenarios(),
-				DiscoveryTimeout: 10 * time.Second,
-				CacheTTL:         60 * time.Second,
-				RefreshOnStartup: true,
-			},
 		},
 		Resilience: ResilienceConfig{
 			RetryAttempts:           3,

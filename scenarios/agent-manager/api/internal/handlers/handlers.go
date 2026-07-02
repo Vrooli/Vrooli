@@ -238,6 +238,10 @@ func writeJSON(w http.ResponseWriter, status int, payload interface{}) {
 	_ = json.NewEncoder(w).Encode(payload)
 }
 
+func writeJSONError(w http.ResponseWriter, status int, message string) {
+	writeJSON(w, status, map[string]string{"error": message})
+}
+
 func (h *Handler) validateProto(w http.ResponseWriter, r *http.Request, msg proto.Message) bool {
 	if h.validator == nil {
 		return true

@@ -3,10 +3,11 @@
 package services
 
 import (
-	"agent-inbox/domain"
 	"context"
 	"fmt"
 	"log"
+
+	"agent-inbox/domain"
 )
 
 // ToolExecutionOutcome represents the result of attempting to execute tool calls.
@@ -62,7 +63,7 @@ func (s *CompletionService) ExecuteToolCalls(ctx context.Context, chatID, messag
 	return outcome, nil
 }
 
-// executeSingleToolCall handles one tool call: approval check, execution, persistence.
+// executeSingleToolCall handles one runtime tool call: execution and persistence.
 // Returns the execution result, the tool message ID (if saved), and any error.
 func (s *CompletionService) executeSingleToolCall(
 	ctx context.Context,
@@ -71,17 +72,6 @@ func (s *CompletionService) executeSingleToolCall(
 	parentMessageID string,
 	outcome *ToolExecutionOutcome,
 ) (domain.ToolExecutionResult, string, error) {
-	// Check if this tool requires approval
-	requiresApproval, _, err := s.toolRegistry.GetToolApprovalRequired(ctx, chatID, tc.Function.Name)
-	if err != nil {
-		log.Printf("warning: failed to check approval requirement for %s: %v", tc.Function.Name, err)
-		requiresApproval = false
-	}
-
-	if requiresApproval {
-		return s.handlePendingApproval(ctx, chatID, messageID, tc, outcome), "", nil
-	}
-
 	return s.executeAndPersistToolCall(ctx, chatID, messageID, tc, parentMessageID, outcome)
 }
 

@@ -11,8 +11,9 @@
 package scenarios
 
 import (
-	"browser-automation-studio/cli/internal/protodispatch"
 	"fmt"
+
+	"browser-automation-studio/cli/internal/protodispatch"
 
 	scenariosv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/scenarios"
 

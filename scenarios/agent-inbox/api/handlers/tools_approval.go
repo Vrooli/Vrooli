@@ -1,10 +1,9 @@
 // Package handlers provides HTTP handlers for the Agent Inbox API.
 //
-// This file provides tool approval and manual execution endpoints.
+// This file provides runtime tool-call approval endpoints.
 package handlers
 
 import (
-	"agent-inbox/domain"
 	"encoding/json"
 	"net/http"
 
@@ -117,111 +116,5 @@ func (h *Handlers) RejectToolCall(w http.ResponseWriter, r *http.Request) {
 		"tool_call_id": toolCallID,
 		"rejected":     true,
 		"reason":       req.Reason,
-	}, http.StatusOK)
-}
-
-// ExecuteToolManually executes a tool directly without going through AI.
-// POST /api/v1/tools/execute
-//
-//	Body: {
-//	  "scenario": "agent-manager",
-//	  "tool_name": "spawn_coding_agent",
-//	  "arguments": { ... tool parameters ... },
-//	  "chat_id": "optional - if provided, adds result to chat history"
-//	}
-func (h *Handlers) ExecuteToolManually(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Scenario  string                 `json:"scenario"`
-		ToolName  string                 `json:"tool_name"`
-		Arguments map[string]interface{} `json:"arguments"`
-		ChatID    string                 `json:"chat_id,omitempty"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.JSONError(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	if req.Scenario == "" || req.ToolName == "" {
-		h.JSONError(w, "scenario and tool_name are required", http.StatusBadRequest)
-		return
-	}
-
-	// Validate the tool exists
-	tool, err := h.ToolRegistry.GetTool(r.Context(), req.Scenario, req.ToolName)
-	if err != nil || tool == nil {
-		h.JSONError(w, "Tool not found", http.StatusNotFound)
-		return
-	}
-
-	// Execute the tool via completion service
-	svc := h.NewCompletionService()
-	result, err := svc.ExecuteToolManually(r.Context(), req.ChatID, req.Scenario, req.ToolName, req.Arguments)
-	if err != nil {
-		h.JSONResponse(w, map[string]interface{}{
-			"success":           false,
-			"status":            "failed",
-			"error":             err.Error(),
-			"execution_time_ms": 0,
-		}, http.StatusOK)
-		return
-	}
-
-	response := map[string]interface{}{
-		"success":           true,
-		"result":            result.Result,
-		"status":            result.Status,
-		"execution_time_ms": result.ExecutionTimeMs,
-	}
-
-	if result.ToolCallRecord != nil {
-		response["tool_call_record"] = map[string]interface{}{
-			"id":         result.ToolCallRecord.ID,
-			"message_id": result.ToolCallRecord.MessageID,
-		}
-	}
-
-	h.JSONResponse(w, response, http.StatusOK)
-}
-
-// SetToolApproval updates the approval override for a tool.
-// POST /api/v1/tools/config/approval
-// Body: { "chat_id": "optional", "scenario": "agent-manager", "tool_name": "spawn_coding_agent", "approval_override": "require"|"skip"|"" }
-func (h *Handlers) SetToolApproval(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		ChatID           string `json:"chat_id"`
-		Scenario         string `json:"scenario"`
-		ToolName         string `json:"tool_name"`
-		ApprovalOverride string `json:"approval_override"` // "", "require", "skip"
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.JSONError(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	if req.Scenario == "" || req.ToolName == "" {
-		h.JSONError(w, "scenario and tool_name are required", http.StatusBadRequest)
-		return
-	}
-
-	// Validate approval_override value
-	override := domain.ApprovalOverride(req.ApprovalOverride)
-	if override != "" && override != domain.ApprovalRequire && override != domain.ApprovalSkip {
-		h.JSONError(w, "approval_override must be '', 'require', or 'skip'", http.StatusBadRequest)
-		return
-	}
-
-	if err := h.ToolRegistry.SetToolApprovalOverride(r.Context(), req.ChatID, req.Scenario, req.ToolName, override); err != nil {
-		h.JSONError(w, "Failed to update tool approval configuration", http.StatusInternalServerError)
-		return
-	}
-
-	h.JSONResponse(w, map[string]interface{}{
-		"success":           true,
-		"chat_id":           req.ChatID,
-		"scenario":          req.Scenario,
-		"tool_name":         req.ToolName,
-		"approval_override": req.ApprovalOverride,
 	}, http.StatusOK)
 }

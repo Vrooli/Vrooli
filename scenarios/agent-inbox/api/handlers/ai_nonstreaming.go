@@ -1,11 +1,12 @@
 package handlers
 
 import (
+	"log"
+	"net/http"
+
 	"agent-inbox/domain"
 	"agent-inbox/integrations"
 	"agent-inbox/services"
-	"log"
-	"net/http"
 )
 
 // handleNonStreamingResponse processes a non-streaming AI response.
@@ -141,10 +142,6 @@ func (h *Handlers) handleToolCallsNonStreaming(w http.ResponseWriter, r *http.Re
 		assistantMessageID = msg.ID
 	}
 
-	// Fetch active template tool IDs for template deactivation detection
-	activeTemplateToolIDs, _ := h.Repo.GetActiveTemplateToolIDs(ctx, chatID)
-	templateDeactivated := false
-
 	// Execute all tool calls
 	outcome, toolErr := svc.ExecuteToolCalls(ctx, chatID, messageID, result.ToolCalls, assistantMessageID)
 	if toolErr != nil {
@@ -156,15 +153,7 @@ func (h *Handlers) handleToolCallsNonStreaming(w http.ResponseWriter, r *http.Re
 	var pendingApprovalsMap []map[string]interface{}
 
 	if outcome != nil {
-		for i, tr := range outcome.Results {
-			// Check if this tool matches an active template's suggested tool
-			if !templateDeactivated && len(activeTemplateToolIDs) > 0 {
-				templateDeactivated = checkAndDeactivateTemplate(
-					ctx, h.Repo, chatID, tr.ToolName,
-					activeTemplateToolIDs, &outcome.Results[i],
-				)
-			}
-
+		for _, tr := range outcome.Results {
 			m := map[string]interface{}{
 				"tool_id":   tr.ToolCallID,
 				"tool_name": tr.ToolName,
@@ -174,9 +163,6 @@ func (h *Handlers) handleToolCallsNonStreaming(w http.ResponseWriter, r *http.Re
 				m["error"] = tr.Error
 			} else {
 				m["result"] = tr.Result
-			}
-			if outcome.Results[i].DeactivateTemplate {
-				m["deactivate_template"] = true
 			}
 			resultsMap = append(resultsMap, m)
 		}

@@ -339,17 +339,6 @@ The Investigation subsystem integrates with the **agent-manager** scenario to ru
 
 Tasks support configurable focus (harness/subject), effort levels (logs/inspect/code), and permission scopes (immediate/permanent/prevention).
 
-## Tool Discovery & Execution Protocol
-
-> [CODE: api/toolregistry/, api/toolhandlers/, api/toolexecution/]
-
-The Tool Protocol enables other agents and scenarios to programmatically discover and invoke scenario-to-cloud capabilities:
-
-- **Tool Discovery** (`GET /tools`): Returns all available tools with JSON Schema input specifications, organized by category (deployment, inspection, validation).
-- **Tool Execution** (`POST /tools/execute`): Executes a named tool with arguments. The `toolexecution.ServerExecutor` resolves deployment references and delegates to the appropriate internal service.
-
-Registered tool providers: `DeploymentToolProvider`, `InspectionToolProvider`, `ValidationToolProvider`.
-
 ## SSE Progress Streaming
 
 > [CODE: api/deployment/progress.go]

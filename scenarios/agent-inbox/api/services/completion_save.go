@@ -3,11 +3,11 @@
 package services
 
 import (
-	"agent-inbox/domain"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
+
+	"agent-inbox/domain"
 )
 
 // SaveCompletionResult persists a completion result to the database.
@@ -72,53 +72,5 @@ func (s *CompletionService) UpdateChatPreview(ctx context.Context, chatID string
 // maybeStartAsyncTracking checks if a tool has AsyncBehavior and starts tracking if so.
 // Returns AsyncOperationInfo if tracking started successfully, nil otherwise.
 func (s *CompletionService) maybeStartAsyncTracking(ctx context.Context, chatID, toolCallID, toolName string, record *domain.ToolCallRecord) *domain.AsyncOperationInfo {
-	tool, scenario, err := s.toolRegistry.GetToolByName(ctx, toolName)
-	if err != nil {
-		log.Printf("[DEBUG] Could not look up tool %s for async tracking: %v", toolName, err)
-		return nil
-	}
-
-	if tool.Metadata == nil || tool.Metadata.AsyncBehavior == nil {
-		return nil
-	}
-
-	asyncBehavior := tool.Metadata.AsyncBehavior
-	if asyncBehavior.StatusPolling == nil {
-		log.Printf("[DEBUG] Tool %s has AsyncBehavior but no StatusPolling configured", toolName)
-		return nil
-	}
-
-	var resultData interface{}
-	if err := json.Unmarshal([]byte(record.Result), &resultData); err != nil {
-		log.Printf("[WARN] Failed to parse tool result for async tracking: %v", err)
-		return nil
-	}
-
-	if err := s.asyncTracker.StartTracking(
-		context.Background(),
-		toolCallID,
-		chatID,
-		toolName,
-		scenario,
-		resultData,
-		asyncBehavior,
-	); err != nil {
-		log.Printf("[WARN] Failed to start async tracking for %s: %v", toolName, err)
-		return nil
-	}
-
-	op := s.asyncTracker.GetOperation(toolCallID)
-	if op == nil {
-		log.Printf("[WARN] Async tracking started but operation not found: %s", toolCallID)
-		return nil
-	}
-
-	log.Printf("[DEBUG] Async operation started: tool=%s, toolCallID=%s, runID=%s", toolName, toolCallID, op.ExternalRunID)
-
-	return &domain.AsyncOperationInfo{
-		ToolCallID: toolCallID,
-		ToolName:   toolName,
-		RunID:      op.ExternalRunID,
-		Scenario:   scenario,
-	}
+	return nil
 }

@@ -4,10 +4,11 @@ import (
 	"context"
 	"net"
 	"reflect"
-	"scenario-to-cloud/domain"
 	"strings"
 	"testing"
 	"time"
+
+	"scenario-to-cloud/domain"
 )
 
 func TestDNSServiceResolveHostNormalizes(t *testing.T) {

@@ -1,5 +1,4 @@
 import { useCallback } from "react";
-import type { ForcedTool } from "./AttachmentButton";
 import type { MessagePayload } from "./MessageInput.types";
 import type { AttachmentState } from "../../hooks/useAttachments";
 
@@ -19,13 +18,11 @@ interface UseSendMessageOptions {
   webSearchEnabled: boolean;
   setWebSearchEnabled: (enabled: boolean) => void;
   chatWebSearchDefault: boolean;
-  forcedTool: ForcedTool | null;
-  setForcedTool: (tool: ForcedTool | null) => void;
   loading: boolean;
   isEditMode: boolean;
   onSend: (payload: MessagePayload) => void;
   onSubmitEdit?: (payload: MessagePayload) => void;
-  activeTemplate: { template: { suggestedToolIds?: string[] } } | null;
+  activeTemplate: { template: unknown } | null;
   getFilledTemplateContent: () => string;
   isTemplateValid: () => boolean;
   getTemplateMissingFields: () => string[];
@@ -53,8 +50,6 @@ export function useSendMessage({
   webSearchEnabled,
   setWebSearchEnabled,
   chatWebSearchDefault,
-  forcedTool,
-  setForcedTool,
   loading,
   isEditMode,
   onSend,
@@ -106,13 +101,11 @@ export function useSendMessage({
       content: finalContent.trim(),
       attachmentIds: enableAttachments ? getUploadedIds() : [],
       webSearchEnabled: enableWebSearch ? webSearchEnabled : false,
-      forcedTool: forcedTool ?? undefined,
       skillIds: selectedSkillIds.length > 0 ? selectedSkillIds : undefined,
       skills:
         selectedSkillIds.length > 0
           ? buildSkillPayloads(selectedSkillIds)
           : undefined,
-      suggestedToolIds: activeTemplate?.template.suggestedToolIds,
     };
 
     if (isEditMode && onSubmitEdit) {
@@ -125,7 +118,6 @@ export function useSendMessage({
     clearDraft();
     if (enableAttachments) clearAttachments();
     if (enableWebSearch) setWebSearchEnabled(chatWebSearchDefault);
-    setForcedTool(null);
     resetTemplatesAndSkills();
 
     if (textareaRef.current) {
@@ -134,7 +126,6 @@ export function useSendMessage({
   }, [
     getUploadedIds,
     webSearchEnabled,
-    forcedTool,
     onSend,
     clearAttachments,
     clearDraft,
@@ -150,7 +141,6 @@ export function useSendMessage({
     resetTemplatesAndSkills,
     setMessageState,
     setWebSearchEnabled,
-    setForcedTool,
     textareaRef,
     canSendMessage,
   ]);

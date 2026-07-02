@@ -6,7 +6,6 @@ import {
   ChevronDown,
   Settings2,
   Cpu,
-  Wrench,
   Database,
 } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody } from "../ui/dialog";
@@ -16,12 +15,10 @@ import { TemplatesSettingsTab } from "./TemplatesSettingsTab";
 import { SkillsSettingsTab } from "./SkillsSettingsTab";
 import { SkillEditorModal } from "./SkillEditorModal";
 import { AgentModeSettings } from "./AgentModeSettings";
-import { ManualToolDialog } from "../tools/ManualToolDialog";
 import { SettingsSection } from "./SettingsControls";
 import { GeneralSettingsTab } from "./GeneralSettingsTab";
 import { SuggestionsSettingsTab } from "./SuggestionsSettingsTab";
 import { DataSettingsTab } from "./DataSettingsTab";
-import { ToolsSettingsTab } from "./ToolsSettingsTab";
 import { useSettingsState } from "./useSettingsState";
 import { getAllSkills } from "../../data/skills";
 import type { Model } from "../../lib/api";
@@ -44,7 +41,6 @@ const SETTINGS_TABS: SettingsTabDef[] = [
   { value: "general", label: "General", icon: Settings2 },
   { value: "ai", label: "AI", icon: Cpu },
   { value: "agent", label: "Agent", icon: Bot },
-  { value: "tools", label: "Tools", icon: Wrench },
   { value: "templates", label: "Templates", icon: Lightbulb },
   { value: "suggestions", label: "Suggestions", icon: Lightbulb },
   { value: "skills", label: "Skills", icon: BookOpen },
@@ -112,20 +108,6 @@ export function Settings({
         );
       case "agent":
         return <AgentModeSettings settings={s.agentSettings} onSettingsChange={s.setAgentSettings} onReset={s.resetAgentSettings} />;
-      case "tools":
-        return (
-          <ToolsSettingsTab
-            yoloMode={s.yoloMode} isLoadingYoloMode={s.isLoadingYoloMode} isUpdatingYoloMode={s.isUpdatingYoloMode}
-            onYoloModeToggle={(checked) => { s.handleYoloModeToggle(checked); }}
-            toolsByScenario={s.toolsByScenario} categories={s.toolSet?.categories ?? []} scenarioStatuses={s.scenarios}
-            isLoadingTools={s.isLoadingTools} isSyncingTools={s.isSyncingTools} isUpdatingTools={s.isUpdatingTools}
-            toolsError={s.toolsError?.message}
-            onToggleTool={s.toggleTool}
-            onSetApproval={(scenario, toolName, override) => { s.handleSetApproval(scenario, toolName, override); }}
-            onSyncTools={() => { void s.syncDiscoveredTools(); }}
-            onRunTool={s.handleRunTool} enabledCount={s.enabledTools.length} totalCount={s.toolSet?.tools.length ?? 0}
-          />
-        );
       case "templates":
         return <TemplatesSettingsTab templates={s.templates} onEditTemplate={s.handleEditTemplate} onDeleteTemplate={s.handleDeleteTemplate} onResetTemplate={s.handleResetTemplate} modeHistory={s.modeHistory} onClearHistory={s.clearModeHistory} isLoading={s.isLoadingTemplates} />;
       case "suggestions":
@@ -193,10 +175,6 @@ export function Settings({
               {renderTabContent()}
             </div>
           </div>
-
-          {s.selectedToolForRun && (
-            <ManualToolDialog open={!!s.selectedToolForRun} onClose={() => s.setSelectedToolForRun(null)} tool={s.selectedToolForRun} />
-          )}
         </DialogBody>
       </Dialog>
 

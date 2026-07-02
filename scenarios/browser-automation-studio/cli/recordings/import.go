@@ -1,7 +1,6 @@
 package recordings
 
 import (
-	"browser-automation-studio/cli/internal/appctx"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -12,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"browser-automation-studio/cli/internal/appctx"
 )
 
 type importResponse struct {

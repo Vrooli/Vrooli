@@ -3,12 +3,13 @@ package vps
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
+
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/vps/systemmetrics"
-	"sync"
-	"time"
 )
 
 // RunSystemMetricsDebug executes all system metrics commands and returns both

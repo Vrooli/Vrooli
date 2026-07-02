@@ -3,11 +3,12 @@
 package persistence
 
 import (
-	"agent-inbox/domain"
 	"context"
 	"database/sql"
 	"fmt"
 	"time"
+
+	"agent-inbox/domain"
 )
 
 // SaveUsageRecord persists a usage record to the database.

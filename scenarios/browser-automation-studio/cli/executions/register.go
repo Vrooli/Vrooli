@@ -15,8 +15,9 @@
 package executions
 
 import (
-	"browser-automation-studio/cli/internal/protodispatch"
 	"fmt"
+
+	"browser-automation-studio/cli/internal/protodispatch"
 
 	apiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 

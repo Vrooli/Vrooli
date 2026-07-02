@@ -1,9 +1,10 @@
 package main
 
 import (
+	"path/filepath"
+
 	"browser-automation-studio/cli/domains"
 	"browser-automation-studio/cli/internal/appctx"
-	"path/filepath"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"

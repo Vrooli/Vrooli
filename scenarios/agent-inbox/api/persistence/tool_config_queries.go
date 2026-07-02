@@ -1,72 +1,15 @@
 // Package persistence provides database operations for the Agent Inbox scenario.
 //
-// This file provides query helpers and lookup operations for tool configurations.
+// This file provides lookup operations for runtime tool-call approvals.
 package persistence
 
 import (
-	"agent-inbox/domain"
 	"context"
 	"database/sql"
 	"fmt"
+
+	"agent-inbox/domain"
 )
-
-// GetEffectiveToolEnabled determines if a tool is enabled for a chat.
-// It checks chat-specific config first, then falls back to global config,
-// then to the tool's default enabled state.
-func (r *Repository) GetEffectiveToolEnabled(ctx context.Context, chatID, scenario, toolName string, defaultEnabled bool) (bool, domain.ToolConfigurationScope, error) {
-	// First check for chat-specific configuration
-	if chatID != "" {
-		cfg, err := r.GetToolConfiguration(ctx, chatID, scenario, toolName)
-		if err != nil {
-			return false, "", err
-		}
-		if cfg != nil {
-			return cfg.Enabled, domain.ScopeChat, nil
-		}
-	}
-
-	// Fall back to global configuration
-	cfg, err := r.GetToolConfiguration(ctx, "", scenario, toolName)
-	if err != nil {
-		return false, "", err
-	}
-	if cfg != nil {
-		return cfg.Enabled, domain.ScopeGlobal, nil
-	}
-
-	// Use tool's default
-	return defaultEnabled, "", nil
-}
-
-// GetEffectiveToolApproval determines if a tool requires approval.
-// It checks: YOLO mode > chat-specific override > global override > tool metadata default.
-// Returns the effective approval requirement and its source.
-func (r *Repository) GetEffectiveToolApproval(ctx context.Context, chatID, scenario, toolName string, metadataDefault bool) (bool, domain.ToolConfigurationScope, error) {
-	// First check for chat-specific configuration
-	if chatID != "" {
-		cfg, err := r.GetToolConfiguration(ctx, chatID, scenario, toolName)
-		if err != nil {
-			return false, "", err
-		}
-		if cfg != nil && cfg.ApprovalOverride != "" {
-			requiresApproval := cfg.ApprovalOverride == domain.ApprovalRequire
-			return requiresApproval, domain.ScopeChat, nil
-		}
-	}
-
-	// Fall back to global configuration
-	cfg, err := r.GetToolConfiguration(ctx, "", scenario, toolName)
-	if err != nil {
-		return false, "", err
-	}
-	if cfg != nil && cfg.ApprovalOverride != "" {
-		requiresApproval := cfg.ApprovalOverride == domain.ApprovalRequire
-		return requiresApproval, domain.ScopeGlobal, nil
-	}
-
-	// Use tool's default metadata
-	return metadataDefault, "", nil
-}
 
 // GetPendingApprovals returns all tool calls pending approval for a chat.
 func (r *Repository) GetPendingApprovals(ctx context.Context, chatID string) ([]*domain.ToolCallRecord, error) {

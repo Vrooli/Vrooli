@@ -39,7 +39,7 @@ This requirements registry tracks coverage against the PRD operational targets d
 Requirement statuses can be synced against the codebase using:
 
 ```bash
-prd-control-tower requirements validate scenario-to-desktop --json
+vrooli scenario requirements validate scenario-to-desktop --json
 ```
 
 This compares `module.json` status fields against actual test results and code presence. After syncing, PRD checkboxes may auto-update to reflect validated completion.
@@ -47,7 +47,7 @@ This compares `module.json` status fields against actual test results and code p
 To regenerate requirements from PRD targets:
 
 ```bash
-prd-control-tower requirements generate scenario-to-desktop --context-file scenarios/scenario-to-desktop/PRD.md --json
+business-health wizard apply  # (was: requirements generate) scenario-to-desktop --context-file scenarios/scenario-to-desktop/PRD.md --json
 ```
 
 ## Requirements Status

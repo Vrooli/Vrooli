@@ -6,8 +6,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"scenario-to-cloud/internal/httputil"
 	"testing"
+
+	"scenario-to-cloud/internal/httputil"
 )
 
 func TestPackagerAPISurface_DeploymentManagerContract(t *testing.T) {

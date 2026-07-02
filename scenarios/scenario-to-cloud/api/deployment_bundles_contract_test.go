@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/ssh"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/ssh"
 )
 
 func TestDeploymentVPSBundles_ListAndGCContract(t *testing.T) {

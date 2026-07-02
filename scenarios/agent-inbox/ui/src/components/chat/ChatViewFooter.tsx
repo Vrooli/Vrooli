@@ -21,7 +21,7 @@ interface ChatViewFooterProps {
   editingMessage?: Message | null;
   onCancelEdit?: () => void;
   onSubmitEdit?: (payload: MessagePayload) => void;
-  onTemplateActivated?: (templateId: string, toolIds: string[]) => Promise<void>;
+  onTemplateActivated?: (templateId: string) => Promise<void>;
   activeTemplateId?: string | null;
   onTemplateDeactivate?: () => void;
 }

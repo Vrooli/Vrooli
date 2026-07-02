@@ -1,12 +1,13 @@
 package api
 
 import (
-	"browser-automation-studio/cli/internal/appctx"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"browser-automation-studio/cli/internal/appctx"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

@@ -26,7 +26,7 @@ Searched for existing scenarios that might overlap with tidiness-manager's core 
    - **Differentiation**: SIGNIFICANT OVERLAP. code-smell focuses on **pattern-based violations** (bad practices, anti-patterns, smell patterns). tidiness-manager focuses on **structural issues** (length, organization, dead code, duplication).
    - **Integration Opportunity**: These should likely work together - code-smell detects WHAT is wrong (patterns), tidiness-manager detects WHERE things are getting messy (structure). tidiness-manager could call code-smell for deep pattern analysis.
 
-4. **prd-control-tower** (`/scenarios/prd-control-tower/`)
+4. **the retired PRD control-tower** (absorbed into `/scenarios/business-health/`)
    - **Purpose**: PRD and requirements management with quality metrics
    - **Overlap**: Quality scoring, validation
    - **Differentiation**: Focused on documentation and requirements, not code. No overlap.

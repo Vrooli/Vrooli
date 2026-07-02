@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"scenario-to-cloud/domain"
 	"sort"
 	"strings"
 	"time"
+
+	"scenario-to-cloud/domain"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 )

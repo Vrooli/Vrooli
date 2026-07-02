@@ -44,20 +44,19 @@ schemaless map decode rather than per-method typed request hydration
 
 1. `CaptureService` — handlers/capture
 2. `ScenariosService` — handlers/scenarios
-3. `ToolsService` — handlers/tools
-4. `EntitlementService` — handlers/entitlement
-5. `ProjectFilesService` — handlers/project_files
-6. `ProjectsService` — handlers/projects
-7. `ExecutionsService` — handlers/executions
-8. `ReplayConfigService` — handlers/replay_config
-9. `UXMetricsService` — handlers/uxmetrics
-10. `SchedulesService` — handlers/schedules
-11. `SessionProfilesService` — handlers/session_profiles
-12. `RecordingsService` — handlers/recordings (storage/cookies/history/tabs read-side)
-13. `AIService` — handlers/ai_service
-14. `WorkflowsService` — handlers/workflows
-15. `ExportsService` — handlers/export (binary mounted under `exports_service`)
-16. `ObservabilityService` — handlers/observability
+3. `EntitlementService` — handlers/entitlement
+4. `ProjectFilesService` — handlers/project_files
+5. `ProjectsService` — handlers/projects
+6. `ExecutionsService` — handlers/executions
+7. `ReplayConfigService` — handlers/replay_config
+8. `UXMetricsService` — handlers/uxmetrics
+9. `SchedulesService` — handlers/schedules
+10. `SessionProfilesService` — handlers/session_profiles
+11. `RecordingsService` — handlers/recordings (storage/cookies/history/tabs read-side)
+12. `AIService` — handlers/ai_service
+13. `WorkflowsService` — handlers/workflows
+14. `ExportsService` — handlers/export (binary mounted under `exports_service`)
+15. `ObservabilityService` — handlers/observability
 17. `VisionNavigationService` — handlers/vision_navigation
 18. `SchemaService` — handlers/schema (optional; gated by handler init)
 

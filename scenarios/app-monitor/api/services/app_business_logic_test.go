@@ -1,7 +1,6 @@
 package services
 
 import (
-	"app-monitor-api/repository"
 	"bytes"
 	"context"
 	"errors"
@@ -10,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"app-monitor-api/repository"
 )
 
 // =============================================================================

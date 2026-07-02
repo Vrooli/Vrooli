@@ -12,7 +12,6 @@ Real-time server monitoring with threshold-based anomaly detection, AI-driven in
 - **Infrastructure Monitoring**: Database pools, HTTP pools, message queues, storage I/O
 - **Automated Reports**: Daily/weekly report generation with executive summaries and trend analysis
 - **Dark Cyberpunk UI**: Matrix-themed React dashboard with animated grid backgrounds, neon green styling
-- **Tool Discovery Protocol**: Exposes tools manifest for agent integration
 
 ## Architecture
 
@@ -28,7 +27,7 @@ Real-time server monitoring with threshold-based anomaly detection, AI-driven in
 │  API (Go)   Port: dynamic (lifecycle)                            │
 │  Handlers → Services → Repository (in-memory / PostgreSQL)       │
 │  6 Metric Collectors │ Agent-Manager Integration                 │
-│  Tool Registry       │ Settings Manager                          │
+│  Settings Manager                                            │
 └──────┬──────┬────────┬──────┬────────┬──────────────────────────┘
        │      │        │      │        │
        ▼      ▼        ▼      ▼        ▼
@@ -64,7 +63,6 @@ REST API with 40+ endpoints across these groups:
 - **Settings**: get/update/reset
 - **Maintenance**: state get/set
 - **Agent Config**: config, runners, status
-- **Tools**: manifest, tool definitions, execute
 
 ### UI (React + Vite + TypeScript)
 Matrix-themed dashboard with 7 routes:
@@ -169,7 +167,6 @@ Other scenarios can leverage system-monitor for:
 - Real-time system metrics (via API endpoints)
 - Anomaly detection and investigation (via investigation triggers)
 - System health checks (via `/health` endpoint)
-- Tool discovery (via `/api/v1/tools` endpoint)
 - Process management (via process kill endpoint)
 - Infrastructure monitoring (database pools, queues, storage)
 

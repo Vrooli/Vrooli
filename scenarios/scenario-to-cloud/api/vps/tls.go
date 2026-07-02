@@ -3,9 +3,10 @@ package vps
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
-	"strings"
 )
 
 // TLSRenewResult captures the outcome of a Caddy TLS renewal attempt.

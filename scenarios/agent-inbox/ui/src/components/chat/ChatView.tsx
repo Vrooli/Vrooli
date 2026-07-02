@@ -63,7 +63,7 @@ interface ChatViewProps {
   asyncReferences?: AsyncResultReference[];
   onInsertAsyncReference?: (operation: AsyncStatusUpdate) => void;
   onRemoveAsyncReference?: (toolCallId: string) => void;
-  onTemplateActivated?: (templateId: string, toolIds: string[]) => Promise<void>;
+  onTemplateActivated?: (templateId: string) => Promise<void>;
   activeTemplateId?: string | null;
   onTemplateDeactivate?: () => void;
   onRefreshChat?: () => void;

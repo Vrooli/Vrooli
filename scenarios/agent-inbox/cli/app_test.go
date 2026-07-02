@@ -17,11 +17,11 @@ func TestAppCommandsAgainstAPI(t *testing.T) {
 			_, _ = io.WriteString(w, `{"status":"healthy","service":"agent-inbox"}`)
 		case r.URL.Path == "/api/v1/chats" && r.Method == http.MethodGet:
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = io.WriteString(w, `[{"id":"chat-1","name":"Inbox Zero","preview":"follow up","model":"anthropic/claude","is_read":false,"is_archived":false,"is_starred":true,"label_ids":["label-1"],"tools_enabled":true,"web_search_enabled":false,"chat_mode":"llm","created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-02T00:00:00Z"}]`)
+			_, _ = io.WriteString(w, `[{"id":"chat-1","name":"Inbox Zero","preview":"follow up","model":"anthropic/claude","is_read":false,"is_archived":false,"is_starred":true,"label_ids":["label-1"],"web_search_enabled":false,"chat_mode":"llm","created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-02T00:00:00Z"}]`)
 		case r.URL.Path == "/api/v1/chats" && r.Method == http.MethodPost:
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
-			_, _ = io.WriteString(w, `{"id":"chat-2","name":"New Chat","model":"anthropic/claude","is_read":true,"is_archived":false,"is_starred":false,"label_ids":[],"tools_enabled":true,"web_search_enabled":false,"chat_mode":"llm","created_at":"2025-01-02T00:00:00Z","updated_at":"2025-01-02T00:00:00Z"}`)
+			_, _ = io.WriteString(w, `{"id":"chat-2","name":"New Chat","model":"anthropic/claude","is_read":true,"is_archived":false,"is_starred":false,"label_ids":[],"web_search_enabled":false,"chat_mode":"llm","created_at":"2025-01-02T00:00:00Z","updated_at":"2025-01-02T00:00:00Z"}`)
 		case r.URL.Path == "/api/v1/agent-runs":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = io.WriteString(w, `{"runs":[{"run_id":"run-1","task_id":"task-1","status":"running","phase":"coding","progress_percent":25,"created_at":"2025-01-01T00:00:00Z","updated_at":"2025-01-01T00:01:00Z"}],"total":1,"has_more":false}`)

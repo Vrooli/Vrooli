@@ -18,7 +18,7 @@ You are executing a **scenario generation** task for the Ecosystem Manager.
    - Related scenarios/resources + external references
 2. **Scenario skeleton** – scaffold via the CLI template (see below) and keep the generated structure untouched except for configuration updates.
 3. **Configuration & metadata** – `.vrooli/` directory populated so `vrooli scenario status {{TARGET}}` succeeds (service.json, endpoints.json, testing/lighthouse configs as required by the template).
-4. **Operational Targets PRD** – `{{PROJECT_PATH}}/scenarios/{{TARGET}}/PRD.md` generated via `prd-control-tower`.
+4. **Operational Targets PRD** – `{{PROJECT_PATH}}/scenarios/{{TARGET}}/PRD.md` authored via the `business-health` wizard.
 5. **Requirements registry** – `{{PROJECT_PATH}}/scenarios/{{TARGET}}/requirements/index.json` plus numbered operational-target folders (`01-<first-target-name>`, `02-<second-target-name>`, etc.) and a concise `requirements/README.md` explaining the mapping.
 6. **Documentation set** – README.md, docs/PROGRESS.md, docs/PROBLEMS.md, docs/RESEARCH.md initialized with baseline entries and instructions for future agents.
 
@@ -33,17 +33,10 @@ You are executing a **scenario generation** task for the Ecosystem Manager.
 4. Follow the template’s post-generation checklist (dependency installs, go mod tidy, etc.) and note anything you skip.
 5. All files now live at `{{PROJECT_PATH}}/scenarios/{{TARGET}}/`; run the rest of the steps from that directory.
 
-## PRD Generation
-Do not hand-write `PRD.md`. Always generate and publish `{{PROJECT_PATH}}/scenarios/{{TARGET}}/PRD.md` through `prd-control-tower` by using the guide below:
+## PRD Authoring
+Do not hand-write `PRD.md` from a blank page. Author `{{PROJECT_PATH}}/scenarios/{{TARGET}}/PRD.md` through the `business-health` wizard — a deterministic interview whose output is conformant by construction (canonical shape: `scenarios/business-health/docs/reference/canonical-prd-template.md`):
 
-1. Write a free-form PRD brief:
-```bash
-cat > /tmp/prd_context_{{TARGET}}.md <<'EOF'
-<your multi-line brief here>
-EOF
-```
-
-No strict format required, but include:
+1. Draft the product intent yourself. No strict format required, but decide:
 - Overview: purpose, target users/verticals, deployment surfaces, value proposition
 - P0 operational targets list: Without these targets, the scenario fails (core capability)
 - P1 operational targets list: Important enhancements enabling scale, security, multi-user flows, and other professional and mature features
@@ -58,44 +51,28 @@ Make sure you *do*:
 Make sure you *do not:*
 - Reference requirements
 
-2. Generate the PRD.md file:
+2. Drive the wizard (interactive TTY, or supply the answers as JSON):
 ```bash
-prd-control-tower prd generate {{TARGET}} --context-file /tmp/prd_context_{{TARGET}}.md --publish --json
+business-health wizard start {{TARGET}} --interactive
+# or non-interactive: business-health wizard answer {{TARGET}} --answers /tmp/wizard_answers_{{TARGET}}.json
+business-health wizard preview {{TARGET}}
+business-health wizard apply {{TARGET}}
 ```
 
-## Requirements Registry Generation
+Take the wizard's capability-dedup hints seriously — "similar capability exists in scenario X" means compose that scenario rather than rebuilding it.
 
-After PRD generation, create the requirements registry from the operational targets:
+## Requirements Registry
 
-1. Optionally write a requirements context file with additional guidance:
-```bash
-cat > /tmp/requirements_context_{{TARGET}}.md <<'EOF'
-## Validation Approach
-- Describe testing strategy (unit, integration, performance tests)
-- Note any specific validation criteria
-
-## Technical Constraints
-- Note any technical limitations or requirements
-- Specify dependencies between requirements
-
-## Requirement Details
-- Add details for specific operational targets that need clarification
-EOF
-```
-
-2. Generate the requirements files:
-```bash
-prd-control-tower requirements generate {{TARGET}} --context-file /tmp/requirements_context_{{TARGET}}.md --json
-```
-
-This creates:
+The wizard's apply step already scaffolded the registry from your operational targets:
 - `requirements/index.json` - Module registry linking to PRD targets
 - `requirements/README.md` - Documentation with auto-sync guidance and validation commands
-- `requirements/01-<target-name>/module.json` - Per-target requirement definitions
+- `requirements/<nn>-<tier>/module.json` - Per-target requirement stubs
 
-3. Validate the generated requirements:
+Flesh out requirement descriptions and validation refs, then validate (deterministic gaps are auto-fixable):
 ```bash
-prd-control-tower requirements validate {{TARGET}} --json
+vrooli scenario requirements validate {{TARGET}} --json
+business-health fix preview {{TARGET}}
+business-health fix apply {{TARGET}}
 ```
 
 ## `.vrooli/` Setup Checklist
@@ -104,7 +81,7 @@ prd-control-tower requirements validate {{TARGET}} --json
 - Document any required environment variables or secrets in README.md.
 
 ## Requirements Registry (Reference)
-The requirements registry is generated automatically by `prd-control-tower requirements generate` (see above). The structure created is:
+The requirements registry is scaffolded automatically by `business-health wizard apply` (see above). The structure created is:
 - `requirements/index.json` - Module registry with metadata
 - `requirements/README.md` - Documentation with validation commands and test tagging guidance
 - `requirements/01-<target-name>/module.json` - Per-target requirements

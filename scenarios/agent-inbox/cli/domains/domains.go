@@ -6,7 +6,6 @@ import (
 	"agent-inbox/cli/domains/label"
 	"agent-inbox/cli/domains/model"
 	"agent-inbox/cli/domains/settings"
-	"agent-inbox/cli/domains/tool"
 	"agent-inbox/cli/domains/usage"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -63,7 +62,6 @@ func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 		chat.Register(core),
 		label.Register(core),
 		model.Register(core),
-		tool.Register(core),
 		agent.Register(core),
 		settings.Register(core),
 		usage.Register(core),

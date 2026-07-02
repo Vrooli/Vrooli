@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/sshidentity"
 )

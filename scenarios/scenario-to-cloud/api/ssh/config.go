@@ -1,9 +1,10 @@
 package ssh
 
 import (
-	"scenario-to-cloud/domain"
 	"strings"
 	"time"
+
+	"scenario-to-cloud/domain"
 )
 
 // Config holds SSH connection parameters.

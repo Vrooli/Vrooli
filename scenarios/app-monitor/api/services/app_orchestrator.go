@@ -1,8 +1,6 @@
 package services
 
 import (
-	"app-monitor-api/logger"
-	"app-monitor-api/repository"
 	"context"
 	"encoding/json"
 	"errors"
@@ -10,6 +8,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"app-monitor-api/logger"
+	"app-monitor-api/repository"
 
 	vroolicli "github.com/vrooli/vrooli-cli-go"
 )

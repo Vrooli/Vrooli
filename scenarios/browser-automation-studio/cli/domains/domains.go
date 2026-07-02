@@ -10,6 +10,9 @@
 package domains
 
 import (
+	"fmt"
+	"os"
+
 	"browser-automation-studio/cli/ai"
 	"browser-automation-studio/cli/capture"
 	"browser-automation-studio/cli/entitlement"
@@ -27,11 +30,8 @@ import (
 	"browser-automation-studio/cli/schema"
 	"browser-automation-studio/cli/session_profiles"
 	"browser-automation-studio/cli/status"
-	"browser-automation-studio/cli/tools"
 	"browser-automation-studio/cli/uxmetrics"
 	"browser-automation-studio/cli/workflows"
-	"fmt"
-	"os"
 
 	visionnavigation "browser-automation-studio/cli/vision_navigation"
 
@@ -65,7 +65,6 @@ func SubcommandGroups(ctx *appctx.Context, manifest []byte) []cliapp.SubcommandG
 		fn   registerFn
 	}{
 		{"scenarios", scenarios.Register},
-		{"tools", tools.Register},
 		{"schema", schema.Register},
 		{"entitlement", entitlement.Register},
 		{"projects", projects.Register},

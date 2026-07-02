@@ -28,10 +28,8 @@ Stable seams worth canonical test doubles:
 - `sandbox.Provider`: workspace-sandbox lifecycle, diff, apply, validation, and exec behavior.
 - `event.Store`: append/get/stream/count/delete for run event assertions.
 - `repository.StatsRepository`: aggregation inputs and canned analytics output for HTTP and orchestration tests.
-- `toolregistry.ToolProvider`: manifest and tool lookup tests.
 - `runner.Runner`: already has production test helpers in the runner package; only add a shared fake if existing runner helpers cannot express a boundary test.
 - Model registry and pricing providers: small seam-specific fakes are useful when tests need error knobs and call inspection.
-- `toolexecution.Orchestrator`: shared fake for server executor tests, kept in a narrow `mocks/toolexecution` subpackage so the root mocks package does not import orchestration and create cycles.
 - `runner.Launcher` and `runner.SandboxLauncherFactory`: shared fakes for protected-mode routing boundary tests.
 - `runner.TranscriptParser`: shared transcript replay runner for recovery and restart-resume tests.
 - `phases.ModelChainResolver`: shared fixed-chain resolver for model fallback tests.
@@ -51,7 +49,7 @@ Production code must not import `agent-manager/internal/testutil` or any child p
 ## Prioritized Migration Order
 
 1. Done: Establish package documentation and the production-import guard.
-2. Done: Move duplicated tool provider test doubles to `testutil/mocks`.
+2. Done: Move duplicated provider test doubles to `testutil/mocks`.
 3. Done: Add a fake stats repository and migrate handler-level stats tests.
 4. Done: Add event store and sandbox provider fakes, then migrate finalize tests.
 5. Done: Migrate the run executor sandbox fake after finalize coverage proves the shared fake has the needed call inspection and error knobs.
@@ -60,7 +58,7 @@ Production code must not import `agent-manager/internal/testutil` or any child p
 8. Done: Add a shared model prober fake and migrate model health tests.
 9. Done: Migrate the sandbox CWD integration contract to the shared sandbox fake and add workspace-path call inspection.
 10. Done: Add package-neutral `httpx` helpers and migrate prompt-manager HTTP client tests away from a local doer stub.
-11. Done: Add a package-neutral fake orchestrator and migrate tool execution tests.
+11. Done: Add a package-neutral fake orchestrator for package-neutral orchestration tests.
 12. Done: Add shared runner launcher/factory fakes and migrate launcher selector tests to an external test package.
 13. Done: Add shared transcript replay runner and model-chain resolver fakes, then migrate recovery, restart-resume, and execute fallback tests.
 14. Done: Add `ui/tests/testutil/runEvents.ts` and migrate repeated `RunEvent` builders in run event store and timeline tests.

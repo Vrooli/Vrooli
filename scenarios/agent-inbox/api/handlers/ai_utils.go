@@ -1,14 +1,15 @@
 package handlers
 
 import (
-	"agent-inbox/domain"
-	"agent-inbox/integrations"
 	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"strings"
 	"time"
+
+	"agent-inbox/domain"
+	"agent-inbox/integrations"
 )
 
 // fetchAndSaveGenerationStats asynchronously fetches usage/cost data from OpenRouter
@@ -127,28 +128,6 @@ func (h *Handlers) ListModels(w http.ResponseWriter, r *http.Request) {
 	h.JSONResponse(w, models, http.StatusOK)
 }
 
-// ListTools returns available tools for AI.
-// Uses the dynamic ToolRegistry to fetch tools from all configured scenarios.
-func (h *Handlers) ListTools(w http.ResponseWriter, r *http.Request) {
-	tools, err := h.ToolRegistry.GetEffectiveTools(r.Context(), "")
-	if err != nil {
-		log.Printf("warning: failed to get tools from registry: %v", err)
-		// Return empty array on error for graceful degradation
-		h.JSONResponse(w, []interface{}{}, http.StatusOK)
-		return
-	}
-
-	// Convert to OpenAI format for backward compatibility
-	openAITools := make([]map[string]interface{}, len(tools))
-	for i, tool := range tools {
-		if tool.Enabled {
-			openAITools[i] = domain.ToOpenAIFunction(tool.Tool)
-		}
-	}
-
-	h.JSONResponse(w, openAITools, http.StatusOK)
-}
-
 // ListChatToolCalls returns tool calls for a chat.
 func (h *Handlers) ListChatToolCalls(w http.ResponseWriter, r *http.Request) {
 	chatID := h.ParseUUID(w, r, "id")
@@ -196,7 +175,7 @@ func (h *Handlers) AutoName(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update the chat
-	chat, err := h.Repo.UpdateChat(r.Context(), chatID, &name, nil, nil)
+	chat, err := h.Repo.UpdateChat(r.Context(), chatID, &name, nil)
 	if err != nil {
 		h.JSONError(w, "Failed to update chat name", http.StatusInternalServerError)
 		return
@@ -223,27 +202,4 @@ func buildConversationSummary(messages []domain.Message, maxMessages, maxContent
 		summary.WriteString(fmt.Sprintf("%s: %s\n", m.Role, content))
 	}
 	return summary.String()
-}
-
-// checkAndDeactivateTemplate checks if a tool call matches an active template's
-// suggested tool and deactivates the template if so. Returns true if template was deactivated.
-func checkAndDeactivateTemplate(
-	ctx context.Context,
-	repo interface {
-		ClearActiveTemplate(ctx context.Context, chatID string) error
-	},
-	chatID, toolName string,
-	activeTemplateToolIDs []string,
-	toolResult *domain.ToolExecutionResult,
-) bool {
-	for _, templateToolID := range activeTemplateToolIDs {
-		if strings.HasSuffix(templateToolID, ":"+toolName) || templateToolID == toolName {
-			toolResult.DeactivateTemplate = true
-			if clearErr := repo.ClearActiveTemplate(ctx, chatID); clearErr != nil {
-				log.Printf("warning: failed to clear active template: %v", clearErr)
-			}
-			return true
-		}
-	}
-	return false
 }

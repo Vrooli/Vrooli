@@ -9,11 +9,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/manifest"
 	"strings"
 	"sync"
 	"time"
+
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/manifest"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"

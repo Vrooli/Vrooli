@@ -1,8 +1,9 @@
 package bundle
 
 import (
-	"scenario-to-cloud/domain"
 	"testing"
+
+	"scenario-to-cloud/domain"
 )
 
 func TestPlanVPSBundleGC_DefaultKeepAndProtect(t *testing.T) {

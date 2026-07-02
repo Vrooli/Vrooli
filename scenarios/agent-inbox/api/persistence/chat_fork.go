@@ -3,10 +3,11 @@
 package persistence
 
 import (
-	"agent-inbox/domain"
 	"context"
 	"database/sql"
 	"fmt"
+
+	"agent-inbox/domain"
 )
 
 // messageForFork holds message data temporarily during fork operation.
@@ -36,10 +37,10 @@ func (r *Repository) ForkChat(ctx context.Context, sourceChatID, upToMessageID, 
 	err = tx.QueryRowContext(ctx, `
 		INSERT INTO chats (id, name, model, view_mode)
 		VALUES ($1, $2, $3, 'bubble')
-		RETURNING id, name, preview, model, view_mode, is_read, is_archived, is_starred, tools_enabled, created_at, updated_at
+		RETURNING id, name, preview, model, view_mode, is_read, is_archived, is_starred, created_at, updated_at
 	`, chatID, newName, model).Scan(
 		&newChat.ID, &newChat.Name, &newChat.Preview, &newChat.Model, &newChat.ViewMode,
-		&newChat.IsRead, &newChat.IsArchived, &newChat.IsStarred, &newChat.ToolsEnabled, scanTime(&newChat.CreatedAt), scanTime(&newChat.UpdatedAt),
+		&newChat.IsRead, &newChat.IsArchived, &newChat.IsStarred, scanTime(&newChat.CreatedAt), scanTime(&newChat.UpdatedAt),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create forked chat: %w", err)

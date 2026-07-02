@@ -5,10 +5,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"scenario-to-cloud/internal/shellutil"
-	"scenario-to-cloud/ssh"
 	"strings"
 	"testing"
+
+	"scenario-to-cloud/internal/shellutil"
+	"scenario-to-cloud/ssh"
 )
 
 type fakeSCPRunner struct {

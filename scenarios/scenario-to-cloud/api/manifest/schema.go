@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"scenario-to-cloud/domain"
 	"strings"
+
+	"scenario-to-cloud/domain"
 )
 
 //go:embed schema.json
