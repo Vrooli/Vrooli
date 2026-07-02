@@ -66,6 +66,7 @@ func AssessPlanQuality(p Plan, phaseID string) QualityReport {
 		}
 		findings = append(findings, assessPlanStructureQuality(p)...)
 		findings = append(findings, assessContextQuality("plan.relevant_context", p.RelevantContext)...)
+		findings = append(findings, assessSingleHomeQuality(p)...)
 	} else {
 		found := false
 		for _, phase := range p.Phases {
@@ -132,9 +133,85 @@ func assessPlanStructureQuality(p Plan) []QualityFinding {
 		findings = append(findings, qualityFailure("plan.relevant_context", "plan_missing_global_context", "plan has no global setup context and no NO_CONTEXT reason"))
 	}
 	if !HasGlobalSkillContextOrNoSkillReason(p.RelevantContext) {
-		findings = append(findings, qualityFailure("plan.relevant_context", "plan_missing_skill_context", "plan has no global skill setup item and no NO_SKILL_CONTEXT/NO_CONTEXT reason"))
+		findings = append(findings, qualityFailure("plan.relevant_context", "plan_missing_skill_context", "plan carries no evidence of a skill sweep: no global skill setup item and no NO_SKILL_CONTEXT/NO_CONTEXT skip reason"))
 	}
 	return findings
+}
+
+// purposeWordTarget is the soft length target for the Purpose section: an
+// abstract, not a second problem statement. Exceeding it is a warning only
+// (single-home rule D9 — discipline is advisory, never a hard gate).
+const purposeWordTarget = 120
+
+// singleHomeDuplicateMinLength guards the near-duplicate warnings against
+// trivially short strings ("go test ./...") that legitimately repeat.
+const singleHomeDuplicateMinLength = 40
+
+// assessSingleHomeQuality emits the soft single-home warnings (D9): every fact
+// should live in exactly one section. Warnings only — never failures.
+func assessSingleHomeQuality(p Plan) []QualityFinding {
+	var findings []QualityFinding
+	if len(strings.Fields(p.Purpose)) > purposeWordTarget {
+		findings = append(findings, qualityWarning("plan.purpose", "purpose_over_length_target",
+			fmt.Sprintf("purpose is %d words (target <= %d); keep it an abstract — if it restates Problem or Outcome, delete it here", len(strings.Fields(p.Purpose)), purposeWordTarget)))
+	}
+	strategy := normalizeForNearDuplicate(p.ValidationStrategy)
+	for _, phase := range p.Phases {
+		validation := normalizeForNearDuplicate(phase.Validation)
+		if nearDuplicate(validation, strategy) {
+			findings = append(findings, qualityWarning(PhaseQualityLocation(phase)+".validation", "phase_validation_duplicates_strategy",
+				"phase validation restates the global validation strategy; phases should state only their delta"))
+		}
+	}
+	dodLines := normalizedDoDLines(p.DefinitionOfDone)
+	for _, phase := range p.Phases {
+		acceptance := normalizeForNearDuplicate(phase.Acceptance)
+		if len(acceptance) < singleHomeDuplicateMinLength/2 {
+			continue
+		}
+		for _, line := range dodLines {
+			if line == acceptance {
+				findings = append(findings, qualityWarning("plan.definition_of_done", "dod_restates_phase_acceptance",
+					"a definition-of-done item restates the acceptance of "+PhaseQualityLocation(phase)+"; DoD carries plan-level gates only"))
+				break
+			}
+		}
+	}
+	return findings
+}
+
+// normalizeForNearDuplicate lowercases, strips list/checkbox markers and
+// punctuation-adjacent whitespace so cosmetic differences don't hide a
+// restated fact.
+func normalizeForNearDuplicate(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	s = strings.TrimPrefix(s, "- ")
+	s = strings.TrimPrefix(s, "[ ] ")
+	s = strings.TrimPrefix(s, "[x] ")
+	return strings.Join(strings.Fields(s), " ")
+}
+
+// nearDuplicate reports whether two normalized strings restate each other:
+// equal, or one contains the other (both long enough to be meaningful).
+func nearDuplicate(a, b string) bool {
+	if len(a) < singleHomeDuplicateMinLength || len(b) < singleHomeDuplicateMinLength {
+		return false
+	}
+	return a == b || strings.Contains(a, b) || strings.Contains(b, a)
+}
+
+func normalizedDoDLines(dod string) []string {
+	var out []string
+	for _, line := range strings.Split(dod, "\n") {
+		line = strings.TrimSpace(line)
+		line = strings.TrimPrefix(line, "- ")
+		line = strings.TrimPrefix(line, "[ ]")
+		line = strings.TrimPrefix(line, "[x]")
+		if normalized := normalizeForNearDuplicate(line); normalized != "" {
+			out = append(out, normalized)
+		}
+	}
+	return out
 }
 
 func assessPlanPhasePresence(p Plan) []QualityFinding {
@@ -193,10 +270,17 @@ func anchorExecutionGrade(anchor RegressionAnchor) bool {
 func assessContextQuality(location string, items []RelevantContextItem) []QualityFinding {
 	var findings []QualityFinding
 	for i, item := range items {
+		itemLocation := fmt.Sprintf("%s[%d]", location, i)
+		// A doubled `prompt-manager skill read` prefix renders an unrunnable
+		// command, whatever path wrote the item — check every source, not just
+		// migrated items (the historical corruption arrived via authored
+		// submissions too).
+		if contextHasDuplicatedSkillRead(item) {
+			findings = append(findings, qualityFailure(itemLocation, "context_duplicated_skill_read", "skill setup command repeats the prompt-manager skill read prefix and is not runnable"))
+		}
 		if item.Source != RelevantContextSourceMigrated {
 			continue
 		}
-		itemLocation := fmt.Sprintf("%s[%d]", location, i)
 		if migratedContextLooksLikeMarkdownFence(item) {
 			findings = append(findings, qualityFailure(itemLocation, "migrated_context_markdown_fence", "migrated setup context contains markdown fence text instead of a usable setup item"))
 		}
@@ -222,6 +306,23 @@ func migratedContextHasDuplicatedSed(item RelevantContextItem) bool {
 		command = strings.Join(item.Argv, " ")
 	}
 	return strings.Count(command, "sed -n") > 1
+}
+
+// contextHasDuplicatedSkillRead reports whether a context item would produce
+// (or already carries) a doubled `prompt-manager skill read` prefix: a stored
+// command with the prefix literally repeated is corruption, and a skill item
+// whose Target contains the prefix at all is malformed — Target must be a bare
+// skill slug, since a command-assembling consumer prefixes it.
+func contextHasDuplicatedSkillRead(item RelevantContextItem) bool {
+	const prefix = "prompt-manager skill read"
+	command := strings.TrimSpace(item.Command)
+	if command == "" && len(item.Argv) > 0 {
+		command = strings.Join(item.Argv, " ")
+	}
+	if strings.Count(command, prefix) > 1 {
+		return true
+	}
+	return item.Kind == RelevantContextSkill && strings.Contains(item.Target, prefix)
 }
 
 func PhaseQualityLocation(phase Phase) string {

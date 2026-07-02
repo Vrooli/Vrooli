@@ -1,0 +1,61 @@
+{
+  "metadata": {
+    "name": "plan-board-open-decision-drawer",
+    "description": "Open the Plan lens board, open the decision drawer via the ?drawer=decisions deep link, and verify the drawer renders (question stream or honest empty state)",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[]"
+    },
+    "execution_mode": "read_only"
+  },
+  "settings": {
+    "viewport_width": 1600,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "open-plan-board",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "url": "/graph/plan?drawer=decisions"
+        },
+        "metadata": {
+          "label": "Open Plan lens with decisions drawer deep link"
+        }
+      }
+    },
+    {
+      "id": "wait-board",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/plan.board",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Board renders"
+        }
+      }
+    },
+    {
+      "id": "wait-drawer",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/plan.decisionDrawer",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Decision drawer opens from the deep link"
+        }
+      }
+    }
+  ],
+  "edges": [
+    { "from": "open-plan-board", "to": "wait-board" },
+    { "from": "wait-board", "to": "wait-drawer" }
+  ]
+}

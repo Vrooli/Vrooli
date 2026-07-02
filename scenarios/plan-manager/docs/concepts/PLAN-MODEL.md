@@ -70,6 +70,7 @@ provenance** (kept verbatim because it could not be mapped).
 | `scope` | authored | In-scope / out-of-scope. |
 | `non_goals` | authored | Explicit exclusions. |
 | `assumptions` | authored | Preconditions taken as given (environment, prior work, access). |
+| `assumption_risks[]` | authored (optional) | Structured assumptions with an "if wrong → then" `mitigation` each, rendered as the two-column table under **Assumptions & Risks**. Authored as `assumptions` lines carrying an `-> <mitigation>` suffix. Empty renders nothing. |
 
 **Work Posture** — automatic Greenfield/Brownfield derivation (never hand-authored).
 
@@ -96,6 +97,7 @@ provenance** (kept verbatim because it could not be mapped).
 | `constraints` | authored | Hard rules. The Greenfield block is **not** authored here — it is injected by posture. |
 | `prohibited_approaches` | authored (optional) | Approaches that are explicitly off-limits, only when genuinely relevant. |
 | `technical_approach` | authored | Design rationale: the chosen approach and why, not a phase list. Mandatory for implementation plans. |
+| `decisions[]` | authored (optional) | Pinned plan-time contract decisions (`title` + `statement`), rendered `D1..Dn` under **Approach & Decisions** — do not relitigate during execution. Distinct from execution-time `log decision-add` entries. Empty renders nothing. |
 
 **Validation Model** — how regressions and done-ness are proven.
 
@@ -290,28 +292,31 @@ professional, coherent, and complete enough that a human can judge whether the
 plan is better than a legacy plan without reading raw JSON, proto, or authoring
 session internals. It is a deterministic *view* — never parsed back into truth.
 
-**Plan render order** (present sections only; Work Posture is always shown):
+**Plan render order** — nine reader-question clusters in fixed order (present
+sections only; Work Posture is always shown). Field identity is unchanged:
+clusters are a render grouping over the same structured fields, emitted as
+`###` subsections. The wizard asks in the same order the artifact renders.
 
 1. Title / status / content-hash
-2. Purpose
-3. Problem / Need
-4. Target Outcome
-5. Work Posture
-6. Scope
-7. Non-Goals
-8. Assumptions
-9. Technical Approach
-10. Constraints
-11. Prohibited Approaches
-12. Global Execution Setup
-13. Change Boundary (always shown for implementation plans)
-14. References
-15. Regression Anchor
-16. Validation Strategy
-17. Definition of Done
-18. Phases
-19. Import Provenance / Preserved Legacy Sections (only when present)
-20. Plan Graph
+2. Purpose — why does this plan exist? (an abstract, not a restated Problem)
+3. Problem — what is wrong today?
+4. Outcome — what is observably true when done?
+5. Approach & Decisions — the technical approach / design rationale (and, when
+   present, pinned plan-time contract decisions)
+6. Boundaries — what may I touch, what must I not do? Subsections: Scope,
+   Non-Goals, Constraints, Prohibited Approaches, Work Posture (always shown),
+   Change Boundary (always shown for implementation plans)
+7. Assumptions & Risks — subsections: Assumptions, Risks / Hazards
+8. Verification — how do we prove it works? Subsections: Regression Anchor,
+   Validation Strategy, Definition of Done (plan-level gates only; phase
+   acceptances are not restated there)
+9. Execution Setup — what do I load before starting? The global setup context
+   groups (Load Skills / Read Docs / Run Discovery Searches / Run Commands /
+   Inspect References / Operator Notes), References, and the one-line
+   Execution Feedback pointer at the typed `plan-manager log` commands
+10. Phases
+11. Import Provenance / Preserved Legacy Sections (only when present)
+12. Plan Graph
 
 **Phase render order:** heading → status → intent → affected areas → phase context
 setup → ordered steps → expected outputs → phase validation → acceptance criteria →
@@ -328,6 +333,20 @@ this document cannot silently drift apart.
 `RelevantContextItem` is the execution-facing context contract. It replaces a
 flat required-reading list with typed setup instructions that can be rendered by
 API, CLI, UI, and Markdown without asking a small agent to infer intent.
+
+**Discovery executes server-side.** `author context-discover` runs the
+prompt-manager (skills, actions) and search-hub (records, docs, skills) probes
+itself — concurrently, each bounded by a per-probe timeout (default 20s) — and
+returns deduplicated, provenance-tagged candidates. A failed probe degrades
+independently into a typed note; the step always returns.
+
+**Skill checkpoint gate v2 (evidence of a sweep).** Finalize requires that
+discovery ran for the submitted concepts AND every returned candidate was
+dispositioned — accepted, or rejected with a reason (a direct `context-submit`
+of the same target counts as a disposition) — OR an explicit
+`NO_SKILL_CONTEXT: <reason>` / `NO_CONTEXT: <reason>` skip. No minimum skill
+count is imposed: the gate demands the sweep, not a quota. Steered suggestions
+from the `SkillApplicabilityResolver` seam flow through the same disposition.
 
 Context items may be global or phase-scoped and are classified as `skill`,
 `doc`, `command`, `search`, `code_ref`, `req_ref`, or `note`. Required items

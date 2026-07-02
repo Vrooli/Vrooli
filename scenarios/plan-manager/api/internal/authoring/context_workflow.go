@@ -41,6 +41,11 @@ func (s *service) SubmitRelevantContextItem(ctx context.Context, sessionID, phas
 			sess = syncContextSection(sess)
 		}
 	}
+	if len(violations) == 0 {
+		// D4: a direct submit disposes any pending discovered candidate for the
+		// same target — the author decided about it by submitting it.
+		sess = acceptMatchingPendingCandidates(sess, item)
+	}
 	sess.UpdatedAt = s.now()
 	if len(violations) == 0 {
 		if err := s.store.Save(ctx, sess); err != nil {
@@ -48,6 +53,46 @@ func (s *service) SubmitRelevantContextItem(ctx context.Context, sessionID, phas
 		}
 	}
 	return sess, item, violations, stepForCurrentSessionState(sess), nil
+}
+
+// acceptMatchingPendingCandidates marks pending discovered candidates whose
+// (kind, target/command) matches a directly submitted item as accepted, so a
+// direct submit counts as a disposition (contract decision D4).
+func acceptMatchingPendingCandidates(sess Session, item planmodel.RelevantContextItem) Session {
+	key := contextDedupeKey(item)
+	for i := range sess.ContextCandidates {
+		if sess.ContextCandidates[i].Status != ContextCandidatePending {
+			continue
+		}
+		if contextDedupeKey(sess.ContextCandidates[i].Item) == key {
+			sess.ContextCandidates[i].Status = ContextCandidateAccepted
+		}
+	}
+	return sess
+}
+
+// steeredSkillCandidate converts one resolver suggestion into an ordinary
+// pending candidate (bare-slug target; the renderer derives the read command).
+func steeredSkillCandidate(suggestion SkillSuggestion) (ContextCandidate, bool) {
+	slug := strings.TrimSpace(suggestion.Slug)
+	if slug == "" {
+		return ContextCandidate{}, false
+	}
+	return ContextCandidate{
+		Item: planmodel.RelevantContextItem{
+			Kind:        planmodel.RelevantContextSkill,
+			Scope:       planmodel.RelevantContextScopeGlobal,
+			Label:       slug,
+			Reason:      strings.TrimSpace(suggestion.Reason),
+			Instruction: "Load this internal skill before implementation.",
+			Target:      slug,
+			Source:      planmodel.RelevantContextSourceDiscovered,
+			Status:      planmodel.RelevantContextStatusReady,
+		},
+		Concept: "skill-applicability",
+		Source:  "skill-applicability-resolver",
+		Status:  ContextCandidatePending,
+	}, true
 }
 
 func (s *service) ListRelevantContext(ctx context.Context, sessionID, phaseID string) ([]planmodel.RelevantContextItem, GuidedStep, error) {
@@ -183,6 +228,13 @@ func (s *service) DiscoverContextCandidates(ctx context.Context, sessionID strin
 			candidates = degradedContextCandidates(sess.Title, concepts, err.Error())
 		}
 	}
+	// D7: steered suggestions from the skill-applicability resolver enter the
+	// same accept/reject disposition flow as probe-discovered candidates.
+	for _, suggestion := range s.skillSteer.SuggestSkills(ctx, sessionBoundary(sess)) {
+		if candidate, ok := steeredSkillCandidate(suggestion); ok {
+			candidates = append(candidates, candidate)
+		}
+	}
 	for i := range candidates {
 		candidates[i] = normalizeContextCandidate(candidates[i])
 	}
@@ -253,6 +305,11 @@ func (s *service) RejectContextCandidate(ctx context.Context, sessionID, candida
 	idx := indexOfCandidate(sess.ContextCandidates, candidateID)
 	if idx < 0 {
 		return Session{}, ContextCandidate{}, GuidedStep{}, ErrInvalidSession{Reason: "context candidate not found: " + candidateID}
+	}
+	// D4: a rejection is a disposition and must carry its judgment — an empty
+	// reason would turn the sweep evidence into a rubber stamp.
+	if strings.TrimSpace(reason) == "" {
+		return Session{}, ContextCandidate{}, GuidedStep{}, ErrInvalidSession{Reason: "candidate rejection requires a --reason"}
 	}
 	candidate := sess.ContextCandidates[idx]
 	candidate.Status = ContextCandidateRejected

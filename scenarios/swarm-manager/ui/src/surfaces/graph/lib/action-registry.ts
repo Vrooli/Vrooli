@@ -7,13 +7,8 @@
 
 import type { LucideIcon } from "lucide-react";
 import {
-  RotateCcw,
   ListPlus,
-  Eye,
-  FileSearch,
   ClipboardCheck,
-  XCircle,
-  RefreshCw,
   Pencil,
   Trash2,
   PlusCircle,
@@ -47,31 +42,6 @@ export interface InspectorAction {
 
 type ActionRegistry = Record<GraphLens, Partial<Record<EntityType, InspectorAction[]>>>;
 
-/** Check if a node is in a terminal execution state eligible for follow-up. */
-function isTerminalExecution(node: GraphNode): boolean {
-  const status = getGraphNodeStatus(node);
-  return status === "completed" || status === "failed" || status === "needs_fixup" || status === "canceled";
-}
-
-function canFollowUpExecution(node: GraphNode): boolean {
-  return isTerminalExecution(node);
-}
-
-function canRetryExecution(node: GraphNode): boolean {
-  return getGraphNodeStatus(node) === "failed";
-}
-
-function canRunPostRunChecksExecution(node: GraphNode): boolean {
-  const status = getGraphNodeStatus(node);
-  return status === "completed" || status === "failed" || status === "needs_fixup";
-}
-
-/** Check if execution is active (can be cancelled). */
-function isActiveExecution(node: GraphNode): boolean {
-  const status = getGraphNodeStatus(node);
-  return status === "pending" || status === "starting" || status === "in_progress" || status === "running" || status === "needs_review" || status === "validating";
-}
-
 // ---------------------------------------------------------------------------
 // Action factory helpers
 // ---------------------------------------------------------------------------
@@ -93,114 +63,6 @@ function makeQueueAction(): InspectorAction {
       const parsed = parseNodeId(node.id);
       if (!parsed?.kind || !parsed?.name) throw new Error("Cannot determine backlog item identity");
       await defaultApiClient.post(API_ENDPOINTS.backlogQueue(parsed.kind, parsed.name), {});
-    },
-  };
-}
-
-function makeViewBacklogDetailsAction(): InspectorAction {
-  return {
-    id: "view-backlog-details",
-    label: "View Details",
-    icon: Eye,
-    variant: "default",
-    async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed?.kind || !parsed?.name) return null;
-      return { entityType: "backlog", kind: parsed.kind, name: parsed.name };
-    },
-  };
-}
-
-function makeViewExecutionDetailsAction(): InspectorAction {
-  return {
-    id: "view-execution-details",
-    label: "View Details",
-    icon: Eye,
-    variant: "default",
-    async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed) return null;
-      return { entityType: "execution", identifier: parsed.identifier };
-    },
-  };
-}
-
-function makeViewPromptTraceAction(): InspectorAction {
-  return {
-    id: "view-prompt-trace",
-    label: "Prompt Trace",
-    icon: FileSearch,
-    variant: "default",
-    async handler() { /* navigation handled by navigateTo */ },
-    navigateTo(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed) return null;
-      return { entityType: "execution", identifier: parsed.identifier };
-    },
-  };
-}
-
-function makeFollowUpAction(): InspectorAction {
-  return {
-    id: "follow-up",
-    label: "Follow-up",
-    icon: RefreshCw,
-    variant: "default",
-    enabled: canFollowUpExecution,
-    async handler(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed) throw new Error("Cannot determine execution identity");
-      await defaultApiClient.post(API_ENDPOINTS.executionFollowUp(parsed.identifier), {
-        followUpType: "followup",
-        runMode: "new",
-      });
-    },
-  };
-}
-
-function makeRetryAction(): InspectorAction {
-  return {
-    id: "retry",
-    label: "Retry",
-    icon: RotateCcw,
-    variant: "default",
-    enabled: canRetryExecution,
-    async handler(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed) throw new Error("Cannot determine execution identity");
-      await defaultApiClient.post(API_ENDPOINTS.executionRetry(parsed.identifier), {});
-    },
-  };
-}
-
-function makeTriggerReviewAction(): InspectorAction {
-  return {
-    id: "trigger-review",
-    label: "Run Post-Run Checks",
-    icon: ClipboardCheck,
-    variant: "default",
-    enabled: canRunPostRunChecksExecution,
-    async handler(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed) throw new Error("Cannot determine execution identity");
-      await defaultApiClient.post(API_ENDPOINTS.executionTriggerReview(parsed.identifier), {});
-    },
-  };
-}
-
-function makeCancelExecutionAction(): InspectorAction {
-  return {
-    id: "cancel",
-    label: "Cancel",
-    icon: XCircle,
-    variant: "destructive",
-    enabled: isActiveExecution,
-    async handler(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed) throw new Error("Cannot determine execution identity");
-      await defaultApiClient.post(API_ENDPOINTS.executionCancel(parsed.identifier), {});
     },
   };
 }
@@ -414,6 +276,9 @@ function makeScenarioEditMetadataAction(): InspectorAction {
 // ---------------------------------------------------------------------------
 
 export const actionRegistry: ActionRegistry = {
+  // The plan lens renders the kanban board, not the node canvas — no
+  // inspector actions apply.
+  plan: {},
   focus: {
     capture: [
       makeCaptureClassifyAction(),
@@ -460,22 +325,6 @@ export const actionRegistry: ActionRegistry = {
     scenario: [
       makeScenarioViewFilesAction(),
       makeScenarioEditMetadataAction(),
-    ],
-  },
-  operations: {
-    backlog: [
-      makeQueueAction(),
-      makeBacklogWorkshopAction(),
-      makeBacklogViewFilesAction(),
-      makeViewBacklogDetailsAction(),
-    ],
-    execution: [
-      makeViewExecutionDetailsAction(),
-      makeViewPromptTraceAction(),
-      makeFollowUpAction(),
-      makeRetryAction(),
-      makeTriggerReviewAction(),
-      makeCancelExecutionAction(),
     ],
   },
 };

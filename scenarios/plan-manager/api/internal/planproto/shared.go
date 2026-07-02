@@ -59,7 +59,53 @@ func PlanToProto(p planmodel.Plan) *sharedv1.Plan {
 		PreservedLegacySections: LegacySectionsToProto(p.PreservedLegacySections),
 		ChangeBoundary:          ChangeBoundaryToProto(p.ChangeBoundary),
 		Mirror:                  MirrorToProto(p.Mirror),
+		Decisions:               PlanDecisionsToProto(p.Decisions),
+		AssumptionRisks:         PlanAssumptionsToProto(p.AssumptionRisks),
 	}
+}
+
+func PlanDecisionsToProto(items []planmodel.PlanDecision) []*sharedv1.PlanDecision {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]*sharedv1.PlanDecision, 0, len(items))
+	for _, d := range items {
+		out = append(out, &sharedv1.PlanDecision{Title: d.Title, Statement: d.Statement})
+	}
+	return out
+}
+
+func PlanDecisionsFromProto(items []*sharedv1.PlanDecision) []planmodel.PlanDecision {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]planmodel.PlanDecision, 0, len(items))
+	for _, d := range items {
+		out = append(out, planmodel.PlanDecision{Title: d.GetTitle(), Statement: d.GetStatement()})
+	}
+	return out
+}
+
+func PlanAssumptionsToProto(items []planmodel.PlanAssumption) []*sharedv1.PlanAssumption {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]*sharedv1.PlanAssumption, 0, len(items))
+	for _, a := range items {
+		out = append(out, &sharedv1.PlanAssumption{Statement: a.Statement, Mitigation: a.Mitigation})
+	}
+	return out
+}
+
+func PlanAssumptionsFromProto(items []*sharedv1.PlanAssumption) []planmodel.PlanAssumption {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]planmodel.PlanAssumption, 0, len(items))
+	for _, a := range items {
+		out = append(out, planmodel.PlanAssumption{Statement: a.GetStatement(), Mitigation: a.GetMitigation()})
+	}
+	return out
 }
 
 func PlanFromProto(p *sharedv1.Plan) planmodel.Plan {
@@ -102,6 +148,8 @@ func PlanFromProto(p *sharedv1.Plan) planmodel.Plan {
 		PreservedLegacySections: LegacySectionsFromProto(p.GetPreservedLegacySections()),
 		ChangeBoundary:          ChangeBoundaryFromProto(p.GetChangeBoundary()),
 		Mirror:                  MirrorFromProto(p.GetMirror()),
+		Decisions:               PlanDecisionsFromProto(p.GetDecisions()),
+		AssumptionRisks:         PlanAssumptionsFromProto(p.GetAssumptionRisks()),
 	}
 }
 

@@ -2,6 +2,7 @@ package authoring
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	planmodel "plan-manager/internal/planmodel"
@@ -22,7 +23,6 @@ func sessionToPlan(sess Session) (planmodel.Plan, error) {
 		TargetOutcome:        contentOf(sess.Sections, SectionTargetOutcome),
 		Scope:                contentOf(sess.Sections, SectionScope),
 		NonGoals:             contentOf(sess.Sections, SectionNonGoals),
-		Assumptions:          contentOf(sess.Sections, SectionAssumptions),
 		TechnicalApproach:    contentOf(sess.Sections, SectionTechnicalApproach),
 		Constraints:          contentOf(sess.Sections, SectionConstraints),
 		ProhibitedApproaches: contentOf(sess.Sections, SectionProhibitedApproaches),
@@ -32,6 +32,8 @@ func sessionToPlan(sess Session) (planmodel.Plan, error) {
 		Phases:               parsed.Phases,
 		RelevantContext:      append([]planmodel.RelevantContextItem(nil), sess.RelevantContext...),
 	}
+	p.Decisions = decisionsFromContent(contentOf(sess.Sections, SectionDecisions))
+	p.Assumptions, p.AssumptionRisks = splitAssumptionsContent(contentOf(sess.Sections, SectionAssumptions))
 	p.RelevantContext = append(p.RelevantContext, globalContextReasonNotes(contentOf(sess.Sections, SectionRelevantContext))...)
 	p.RelevantContext = append(p.RelevantContext, contextItemsFromLines(contentOf(sess.Sections, SectionRequiredReading), planmodel.RelevantContextScopeGlobal, "")...)
 	if len(sess.PhaseDrafts) > 0 {
@@ -147,6 +149,29 @@ func normalizeContextItem(item planmodel.RelevantContextItem, phaseID string) pl
 	if item.Label == "" {
 		item.Label = firstNonEmpty(item.Target, item.Command, item.Instruction, string(item.Kind))
 	}
+	item = normalizeSkillContextTarget(item)
+	return item
+}
+
+// normalizeSkillContextTarget repairs a skill context item whose Target was
+// submitted as the full `prompt-manager skill read <slug>` command instead of
+// the bare slug. The full command moves to Command (when empty) and Target
+// keeps only the slug, so no downstream command assembly can double the prefix
+// (contract decision D6).
+func normalizeSkillContextTarget(item planmodel.RelevantContextItem) planmodel.RelevantContextItem {
+	const prefix = "prompt-manager skill read "
+	if item.Kind != planmodel.RelevantContextSkill || !strings.HasPrefix(item.Target, prefix) {
+		return item
+	}
+	full := item.Target
+	item.Target = strings.TrimSpace(strings.TrimPrefix(full, prefix))
+	if item.Command == "" && len(item.Argv) == 0 {
+		item.Command = full
+		item.Argv = strings.Fields(full)
+	}
+	if item.Label == full {
+		item.Label = item.Target
+	}
 	return item
 }
 
@@ -252,12 +277,13 @@ func noteContextItemsFromLines(content, phaseID string) []planmodel.RelevantCont
 	var out []planmodel.RelevantContextItem
 	for _, line := range splitLines(content) {
 		item := planmodel.RelevantContextItem{
-			ID:           uuid.NewString(),
-			Kind:         planmodel.RelevantContextNote,
-			Scope:        planmodel.RelevantContextScopePhase,
-			PhaseID:      phaseID,
-			Label:        line,
-			Reason:       "Authored phase note.",
+			ID:      uuid.NewString(),
+			Kind:    planmodel.RelevantContextNote,
+			Scope:   planmodel.RelevantContextScopePhase,
+			PhaseID: phaseID,
+			Label:   line,
+			// No canned Reason: a free-form note's line IS its content; a
+			// placeholder reason only adds rendered boilerplate.
 			Instruction:  line,
 			Required:     false,
 			RepeatPolicy: planmodel.RelevantContextPhaseEntry,
@@ -420,4 +446,61 @@ func markupSectionForError(refsContent, phasesContent, reason string) SectionKey
 		return SectionPhases
 	}
 	return SectionPhases
+}
+
+// decisionsFromContent parses the authored decisions section: one pinned
+// plan-time decision per line as `<title>: <statement>` (a leading `- ` or
+// `D<n> —` label is tolerated). Lines without a separator are kept as a
+// statement-only decision so nothing is silently dropped; the decisions gate
+// rejects them at submit time with an actionable message.
+func decisionsFromContent(content string) []planmodel.PlanDecision {
+	var out []planmodel.PlanDecision
+	for _, line := range splitLines(content) {
+		line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "-"))
+		line = decisionLabelPrefixRe.ReplaceAllString(line, "")
+		if line == "" {
+			continue
+		}
+		title, statement, found := strings.Cut(line, ":")
+		if !found {
+			out = append(out, planmodel.PlanDecision{Statement: strings.TrimSpace(line)})
+			continue
+		}
+		out = append(out, planmodel.PlanDecision{Title: strings.TrimSpace(title), Statement: strings.TrimSpace(statement)})
+	}
+	return out
+}
+
+// decisionLabelPrefixRe strips an explicit `D<n> —`/`D<n>:` label so authored
+// numbering never fights the render-time D1..Dn ordering.
+var decisionLabelPrefixRe = regexp.MustCompile(`^\*{0,2}D\d+\*{0,2}\s*[—:-]\s*`)
+
+// splitAssumptionsContent separates the assumptions section into prose
+// assumptions and structured assumption/mitigation pairs: a line containing an
+// `->` (or `→`) separator becomes a table row ("if wrong -> then"), everything
+// else stays prose.
+func splitAssumptionsContent(content string) (string, []planmodel.PlanAssumption) {
+	var prose []string
+	var structured []planmodel.PlanAssumption
+	for _, raw := range strings.Split(content, "\n") {
+		line := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), "-"))
+		statement, mitigation, found := cutAssumptionSeparator(line)
+		if !found || statement == "" {
+			if strings.TrimSpace(raw) != "" {
+				prose = append(prose, raw)
+			}
+			continue
+		}
+		structured = append(structured, planmodel.PlanAssumption{Statement: statement, Mitigation: mitigation})
+	}
+	return strings.Join(prose, "\n"), structured
+}
+
+func cutAssumptionSeparator(line string) (string, string, bool) {
+	for _, sep := range []string{"->", "→"} {
+		if before, after, found := strings.Cut(line, sep); found {
+			return strings.TrimSpace(before), strings.TrimSpace(after), true
+		}
+	}
+	return line, "", false
 }

@@ -155,6 +155,6 @@ func (h *Handler) handleLifecycleAction(w http.ResponseWriter, r *http.Request, 
 			"name":   scenario.Name,
 			"status": string(scenario.Status),
 		})
-		h.eventDispatcher.DispatchInvalidate("topology", "operations")
+		h.eventDispatcher.DispatchInvalidate("topology")
 	}
 }

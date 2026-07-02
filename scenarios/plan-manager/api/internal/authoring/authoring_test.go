@@ -62,16 +62,14 @@ func TestWizardAuthoredPlanRendersComprehensive(t *testing.T) {
 
 	md := internalplans.RenderMarkdown(writer.created)
 	for _, want := range []string{
-		"## Work Posture",
+		"### Work Posture",
 		"**This is greenfield work.**",
-		"## Execution Feedback",
-		"plan-manager log decision-add",
-		"plan-manager log finding-add",
-		"plan-manager log record-add",
-		"## Problem / Need",
-		"## Target Outcome",
-		"## Technical Approach",
-		"## Validation Strategy",
+		"### Execution Feedback",
+		"plan-manager log {decision,finding,bug,record,note}-add",
+		"## Problem",
+		"## Outcome",
+		"## Approach & Decisions",
+		"### Validation Strategy",
 		"**Ordered Steps:**",
 		"**Phase Validation:**",
 		"**Affected Areas:**",
@@ -93,11 +91,11 @@ func TestPreviewPlanRendersWithoutPersisting(t *testing.T) {
 
 	md, step, err := svc.PreviewPlan(ctx, sess.ID)
 	require.NoError(t, err)
-	require.Contains(t, md, "## Work Posture")
+	require.Contains(t, md, "### Work Posture")
 	require.Contains(t, md, "**This is greenfield work.**")
-	require.Contains(t, md, "## Execution Feedback")
-	require.Contains(t, md, "plan-manager log decision-add")
-	require.Contains(t, md, "## Problem / Need")
+	require.Contains(t, md, "### Execution Feedback")
+	require.Contains(t, md, "plan-manager log {decision,finding,bug,record,note}-add")
+	require.Contains(t, md, "## Problem")
 	require.Equal(t, "final_review", step.StepKind)
 	require.Equal(t, 0, writer.calls, "preview must not persist a plan")
 }
@@ -373,9 +371,22 @@ func TestContinueGlobalContextResolvedByAcceptedItem(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, violations)
 
+	// Gate v2 (D4): a direct item alone is not evidence of a sweep.
 	_, _, _, _, _, step, err := svc.ContinueAuthoring(ctx, sess.ID)
 	require.NoError(t, err)
-	require.NotEqual(t, "global_relevant_context", step.StepKind, "a submitted global context item resolves the checkpoint")
+	require.Equal(t, "global_relevant_context", step.StepKind, "direct submit without a sweep must not resolve the checkpoint")
+
+	// Running discovery and dispositioning every candidate resolves it.
+	_, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"context accept"}, "minor")
+	require.NoError(t, err)
+	require.NotEmpty(t, candidates)
+	for _, c := range candidates {
+		_, _, _, err := svc.RejectContextCandidate(ctx, sess.ID, c.ID, "reviewed: submitted item already covers setup")
+		require.NoError(t, err)
+	}
+	_, _, _, _, _, step, err = svc.ContinueAuthoring(ctx, sess.ID)
+	require.NoError(t, err)
+	require.NotEqual(t, "global_relevant_context", step.StepKind, "a dispositioned sweep resolves the checkpoint")
 }
 
 func TestGlobalContextRequiresSkillDecision(t *testing.T) {
@@ -898,7 +909,7 @@ func TestPhaseNativeAuthoringValidatesAndFinalizesStructuredPhase(t *testing.T) 
 	require.NotEmpty(t, violations, "acceptance is still missing")
 	require.Len(t, updated.PhaseDrafts[0].References, 1)
 
-	updated, violations, _, err = svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldRequiredReading, "docs/concepts/PLAN-MODEL.md\nprompt-manager skill read plan-skill-discovery")
+	updated, violations, _, err = svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldRequiredReading, "docs/concepts/PLAN-MODEL.md\nprompt-manager skill read scientific-debugging")
 	require.NoError(t, err)
 	require.NotEmpty(t, violations)
 	require.Len(t, updated.PhaseDrafts[0].RequiredReading, 2)
@@ -919,10 +930,10 @@ func TestPhaseNativeAuthoringValidatesAndFinalizesStructuredPhase(t *testing.T) 
 
 	updated, item, violations, _, err = svc.SubmitRelevantContextItem(ctx, sess.ID, "", internalplans.RelevantContextItem{
 		Kind:         internalplans.RelevantContextSkill,
-		Label:        "plan-skill-discovery",
-		Reason:       "Skill discovery shapes required setup context for authored plans.",
+		Label:        "implementation-plan-authoring",
+		Reason:       "Authoring standards shape the finalized plan context.",
 		Instruction:  "Load before finalizing plan context.",
-		Target:       "plan-skill-discovery",
+		Target:       "implementation-plan-authoring",
 		Required:     true,
 		RepeatPolicy: internalplans.RelevantContextOncePerExecution,
 	})
@@ -930,6 +941,15 @@ func TestPhaseNativeAuthoringValidatesAndFinalizesStructuredPhase(t *testing.T) 
 	require.Empty(t, violations)
 	require.Equal(t, internalplans.RelevantContextSkill, item.Kind)
 	require.Len(t, updated.RelevantContext, 2)
+
+	// Gate v2 (D4): disposition a discovery sweep so the skill checkpoint is
+	// satisfied by evidence, not by the mere presence of a skill item.
+	_, sweepCandidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"authoring wizard phases"}, "moderate")
+	require.NoError(t, err)
+	for _, c := range sweepCandidates {
+		_, _, _, err := svc.RejectContextCandidate(ctx, sess.ID, c.ID, "reviewed: the submitted setup items already cover this")
+		require.NoError(t, err)
+	}
 
 	updated, phaseItem, violations, _, err := svc.SubmitRelevantContextItem(ctx, sess.ID, phase.ID, internalplans.RelevantContextItem{
 		Kind:        internalplans.RelevantContextDoc,
@@ -1630,7 +1650,7 @@ func TestPreviewShowsChangeBoundary(t *testing.T) {
 
 	md, _, err := svc.PreviewPlan(ctx, sess.ID)
 	require.NoError(t, err)
-	require.Contains(t, md, "## Change Boundary", "preview must render the change boundary")
+	require.Contains(t, md, "### Change Boundary", "preview must render the change boundary")
 	require.Contains(t, md, "scenarios/plan-manager/**", "preview must show the authored allow glob")
 }
 

@@ -375,9 +375,8 @@ describe("InitiativeDetailsPage", () => {
     await waitFor(() => {
       expect(screen.getByTestId("lens-bar")).toBeInTheDocument();
     });
+    expect(screen.getByTestId("lens-bar-plan")).toBeInTheDocument();
     expect(screen.getByTestId("lens-bar-focus")).toBeInTheDocument();
-    expect(screen.getByTestId("lens-bar-topology")).toBeInTheDocument();
-    expect(screen.getByTestId("lens-bar-operations")).toBeInTheDocument();
   });
 
   it("nav button uses route back on desktop", async () => {

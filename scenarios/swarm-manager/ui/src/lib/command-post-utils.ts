@@ -4,7 +4,7 @@
  * Pure functions that aggregate actionable items across backlog, executions, and captures.
  * Composes existing utilities — does NOT duplicate logic.
  *
- * DOC: docs/concepts/ARCHITECTURE.md#command-post
+ * DOC: docs/concepts/ARCHITECTURE.md#graph-lenses (Plan board classification substrate)
  */
 
 import type {

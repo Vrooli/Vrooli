@@ -11,12 +11,22 @@
  */
 
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { getProxyInfo } from "@vrooli/api-base";
 import { ErrorBoundary } from "./components/ui/error-boundary";
 import { PageErrorBoundary } from "./components/ui/page-error-boundary";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { AppShell } from "./app/shell/AppShell";
+
+/**
+ * Redirect that carries the query string along — old /operations filter
+ * links (status/lane/owner_type/q/window_seconds/view) use the same param
+ * names the Plan board reads, so shared bookmarks keep their filters.
+ */
+function RedirectPreservingSearch({ to }: { to: string }) {
+  const location = useLocation();
+  return <Navigate to={`${to}${location.search}`} replace />;
+}
 
 const GraphWorkspace = lazy(() =>
   import("./surfaces/graph/components/GraphWorkspace").then((m) => ({
@@ -49,15 +59,6 @@ const SessionDetailsPage = lazy(() =>
 );
 const OperatingModeDetailsPage = lazy(() =>
   import("./pages/OperatingModeDetailsPage").then((m) => ({ default: m.OperatingModeDetailsPage })),
-);
-const CommandPostPage = lazy(() =>
-  import("./pages/command-post/CommandPostPage").then((m) => ({ default: m.CommandPostPage })),
-);
-const DecisionStreamPage = lazy(() =>
-  import("./pages/command-post/DecisionStreamPage").then((m) => ({ default: m.DecisionStreamPage })),
-);
-const OperationsCenterPage = lazy(() =>
-  import("./pages/OperationsCenterPage").then((m) => ({ default: m.OperationsCenterPage })),
 );
 
 /**
@@ -96,7 +97,7 @@ export default function App() {
               <Route path="/graph" element={<PageErrorBoundary pageName="Graph"><GraphWorkspace /></PageErrorBoundary>} />
               <Route path="/graph/:lens" element={<PageErrorBoundary pageName="Graph"><GraphWorkspace /></PageErrorBoundary>} />
 
-              <Route index element={<Navigate to="/graph" replace />} />
+              <Route index element={<Navigate to="/graph/plan" replace />} />
 
               <Route path="backlog/:kind/:name" element={<PageErrorBoundary pageName="Backlog Details"><BacklogDetailsPage /></PageErrorBoundary>} />
               <Route path="scenarios/:name" element={<PageErrorBoundary pageName="Scenario Details"><ScenarioDetailsPage /></PageErrorBoundary>} />
@@ -107,9 +108,11 @@ export default function App() {
               <Route path="records/:recordId" element={<PageErrorBoundary pageName="Record Details"><RecordDetailsPage /></PageErrorBoundary>} />
               <Route path="sessions/:sessionId" element={<PageErrorBoundary pageName="Session Details"><SessionDetailsPage /></PageErrorBoundary>} />
               <Route path="operating-modes/:mode" element={<PageErrorBoundary pageName="Operating Mode Details"><OperatingModeDetailsPage /></PageErrorBoundary>} />
-              <Route path="command-post" element={<PageErrorBoundary pageName="Command Post"><CommandPostPage /></PageErrorBoundary>} />
-              <Route path="command-post/decisions" element={<PageErrorBoundary pageName="Decision Stream"><DecisionStreamPage /></PageErrorBoundary>} />
-              <Route path="operations" element={<PageErrorBoundary pageName="Operations Center"><OperationsCenterPage /></PageErrorBoundary>} />
+              {/* Retired surfaces — absorbed by the Plan lens board. Old
+                  deep links and bookmarks redirect rather than 404. */}
+              <Route path="command-post" element={<Navigate to="/graph/plan" replace />} />
+              <Route path="command-post/decisions" element={<Navigate to="/graph/plan?drawer=decisions" replace />} />
+              <Route path="operations" element={<RedirectPreservingSearch to="/graph/plan" />} />
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />

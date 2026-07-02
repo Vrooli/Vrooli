@@ -101,8 +101,9 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 
 5. **Graph workspace projection**
    ```
-   GET /graph?lens={topology|focus|operations}[&focus_node_id=...] -> proto GraphResponse -> typed graph store -> React Flow canvas + inspector
-   WS /ws/graph invalidate/node-update -> silent refresh + runtime node pulse
+   GET /api/v1/plan -> proto PlanBoardResponse -> plan store -> Now/Next/Later/Done board
+   GET /graph?lens=topology -> proto GraphResponse -> typed graph store -> Focus lens (client-side attention filter) on the React Flow canvas
+   WS /ws/graph invalidate (lenses incl. "plan") -> silent refresh + runtime node pulse
    ```
 
 6. **Native agent sessions**
@@ -113,17 +114,17 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 
 7. **UI route navigation**
    ```
-   /graph[/focus|/topology|/operations] -> graph workspace
+   /graph/plan -> Plan lens board (default landing; ?drawer=decisions opens the decision drawer)
+   /graph/focus -> Focus lens (attention-filtered graph)
    /backlog/:kind/:name -> backlog detail
    /scenarios/:name -> scenario detail
    /executions/:executionId -> execution detail
    /initiatives/:name -> initiative detail
    /captures/:captureId -> capture detail
-   /command-post -> command summary
-   /command-post/decisions -> decision stream
+   /operations, /command-post, /command-post/decisions -> redirects to /graph/plan (Command Post and the Operations Center were absorbed by the Plan board)
    ```
 
-   Fullscreen operator surfaces are first-class routes inside a shared app shell. The shell owns the global sidebar, so details, Command Post, and Decision Stream all expose a hamburger action for navigation. Page close/back controls use route-aware history with a direct-load fallback to `/graph/topology`; child routes such as Decision Stream replace themselves when returning to their parent to avoid browser-history loops.
+   Fullscreen operator surfaces are first-class routes inside a shared app shell. The shell owns the global sidebar. Page close/back controls use route-aware history with a direct-load fallback to `/graph/plan`.
 
 8. **Global sidebar shell**
    ```
@@ -134,34 +135,30 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 
 ## Graph Lenses
 
-The graph workspace uses three **lenses** — contextual projections of the same underlying data that emphasize different aspects of the system. Topology is the primary "atlas" view; Flow and Operations are contextual drill-downs.
+The graph workspace has two **lenses**. Plan is the primary control surface; Focus is the graph drill-down. (The former Topology and Operations lens UIs, the Operations Center page, and the Command Post were consolidated into the Plan board; the topology *projection endpoint* survives as the Focus lens's data source.)
 
-### Topology (Atlas)
-**Purpose:** Structural view of all planned work and relationships — the "home" view.
+### Plan (default)
+**Purpose:** One forward-looking board answering "what is running, what is actionable, in what order will the rest happen, and where am I needed."
 
-Shows: non-completed backlog items, initiatives (with rollup counts), captures (with classifications), scenarios (only those targeted by active items). Backlog nodes are annotated with cross-lens execution status badges (e.g., "running", "needs_review") so operators can see runtime state without switching lenses.
+Four columns computed by the server plan projection (`GET /api/v1/plan`, `internal/planview`):
+
+- **Now** — in-flight agent runs (cards from `GET /api/v1/operations` via the proven polling path) with lane utilization bars, queue chip, group-by initiative/phase, select-mode bulk stop, spawn and refresh actions.
+- **Next** — actionable immediately: human gate cards (decide / review / classify, from the `internal/gates` read-model) plus runnable and needs-workshop item cards at dependency wave 0. Header bulk actions: Run all ready (threshold-confirmed) and Answer all (decision drawer).
+- **Later** — not yet actionable, grouped by nearest blocker (gate-blocked groups sort above item-blocked), with honest ordinal wave badges from `depgraph.Waves` frontier peeling. Waves deeper than 5 collapse into a "beyond horizon" rollup; dependency cycles surface as diagnostics.
+- **Done** — window-capped recent outcomes (1h–24h picker on the column header).
+
+Filters (search / status / owner-type / lane / group-by / show-snoozed) live in a shared drawer and persist in URL query params. Snooze remains client-side (localStorage). The decision drawer hosts the full decision stream (`?drawer=decisions` deep link) and per-item scoped answering from decide gate cards. No drag: columns are derived, so cards act through explicit menus mapped to real levers (run / workshop / finalize / archive / status / snooze / focus).
+
+**Navigation:** Default landing for `/`, `/graph`, and all retired-surface redirects. Keyboard shortcut: `1`.
+
+### Focus
+**Purpose:** Attention-filtered graph neighborhood — items needing operator input plus their structural context.
+
+A client-side filter over the topology projection (`GET /api/v1/graph?lens=topology`): nodes pass `computeNodeAttention` (pending decisions, review-ready, failures) and their initiative/scenario context is re-attached via `member_of`/`targets` edges. Node click applies BFS visual focus; the inspector panel offers per-entity actions.
+
+**Navigation:** Lens tab, the board's per-card "Focus on graph" action (`/graph/focus?select=<node>`), or detail-page lens bars. Keyboard shortcut: `2`.
 
 **Edges:** `depends_on`, `member_of`, `classified_as`, `targets`
-
-### Focus (Focused History)
-**Purpose:** Execution history drill-down for a specific entity.
-
-Requires a `focus_node_id` parameter. Without one, returns an empty graph with a hint.
-
-- **Focus = backlog item:** Shows the item + all its execution records + agent activities + runs (full execution tree).
-- **Focus = initiative:** Shows the initiative + member backlog items with execution status summaries.
-- **Focus = scenario:** Shows the scenario + all backlog items targeting it with execution status summaries.
-
-**Navigation:** Accessed by clicking "View History" in the Inspector for a topology node. Breadcrumb navigation returns to Topology.
-
-### Operations (Attention Dashboard)
-**Purpose:** Everything in-flight or needing operator attention.
-
-Shows: backlog items in `researching`, `ready`, `queued`, or `in_progress` status, active executions (pending through needs_fixup), active agent activities, scenarios with `running`/`error` status.
-
-Supports optional `focus_node_id` for filtered view of a single entity's operations.
-
-**Navigation:** Accessible via the Operations tab or "View Operations" in the Inspector. Keyboard shortcut: `3`.
 
 9. **Scenario lifecycle control**
    ```
@@ -195,7 +192,7 @@ Supports optional `focus_node_id` for filtered view of a single entity's operati
 
 | Layer | Status | Notes |
 |-------|--------|-------|
-| Presentation | Functional | Shared app shell owns global navigation; graph-first workspace is primary (`/graph`), with canonical detail routes for backlog, initiatives, scenarios, executions, captures, Command Post, and Decision Stream plus a sidebar Sessions tab |
+| Presentation | Functional | Shared app shell owns global navigation; the Plan board is primary (`/graph/plan`), with the Focus lens and canonical detail routes for backlog, initiatives, scenarios, executions, and captures plus a sidebar Sessions tab |
 | API Gateway | Implemented | Health, graph, backlog (incl. batch), agent sessions, scenarios, settings, queue, execution, prompts, initiatives, overview, captures, agent-manager status |
 | Domain Logic | Implemented | CRUD, archive, queue, research, batch ops, dependency graph, initiatives, agent sessions, overview aggregation, execution scheduling and run control |
 | Integration | Implemented | Discovery-based clients (agent-manager, prompt-manager) and CLI-backed scenario operations |
@@ -274,7 +271,8 @@ api/internal/
 - `/api/v1/initiatives/*` - initiative CRUD with rollup status from member items
 - `/api/v1/overview` - aggregated view (backlog, initiatives, dependency graph, summary stats)
 - `/api/v1/operations/brief` - bounded current operations briefing for CLI, UI, and Swarm operations session prompts
-- `/api/v1/graph?lens=topology|flow|operations[&focus_node_id=...]` - graph projection with lens-specific filtering and optional focus-based drill-down
+- `/api/v1/graph?lens=topology` - the topology projection (the Focus lens filters it client-side)
+- `/api/v1/plan?window_seconds=...` - the Plan board projection (waves + gates read-model)
 - `/ws/graph` - graph invalidation and node pulse websocket
 - `/api/v1/captures/*` - capture CRUD and AI classification
 - `/api/v1/scenarios/*` - scenario list/detail/lifecycle/delete/archive

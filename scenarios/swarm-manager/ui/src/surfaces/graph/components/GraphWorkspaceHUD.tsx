@@ -10,45 +10,35 @@
  */
 
 import { BarChart3, HelpCircle, Menu, Settings } from "lucide-react";
-import { CommandPostButton } from "../../../components/command-post";
 import { OpsTriggerButton } from "../../../components/operations/OpsTriggerButton";
 import { LensNav } from "./LensNav";
 import { GraphNavControls } from "./GraphNavControls";
+import type { AppGraphLens } from "../../../app/routes/route-paths";
 import type { GraphLens } from "../stores/graph-data-store";
 
 export interface GraphWorkspaceHUDProps {
   /** Current active lens */
   lens: GraphLens;
-  /** Label for the focused node (breadcrumb display) */
-  focusNodeLabel: string | null;
   /** Whether the sidebar is collapsed */
   sidebarCollapsed: boolean;
   /** Whether on-screen nav controls are enabled */
   showNavControls: boolean;
-  /** Badge count for command post button */
-  commandPostBadgeCount: number;
   onToggleSidebar: () => void;
-  onToggleCommandPost: () => void;
   onToggleStats: () => void;
   onToggleSettings: () => void;
   onToggleHelp: () => void;
-  onLensChange: (lens: GraphLens) => void;
-  onReturnToAtlas: () => void;
+  onLensChange: (lens: AppGraphLens) => void;
 }
 
 export function GraphWorkspaceHUD({
   lens,
-  focusNodeLabel,
   sidebarCollapsed,
   showNavControls,
-  commandPostBadgeCount,
   onToggleSidebar,
-  onToggleCommandPost,
   onToggleStats,
   onToggleSettings,
   onToggleHelp,
   onLensChange,
-  onReturnToAtlas,
 }: GraphWorkspaceHUDProps) {
   return (
     <div
@@ -72,21 +62,12 @@ export function GraphWorkspaceHUD({
           )}
           {/* Lens nav inline on large screens */}
           <div className="hidden lg:block">
-            <LensNav
-              activeLens={lens}
-              focusNodeLabel={focusNodeLabel}
-              onLensChange={onLensChange}
-              onReturnToAtlas={onReturnToAtlas}
-            />
+            <LensNav activeLens={lens} onLensChange={onLensChange} />
           </div>
         </div>
 
-        {/* Right: Command Post + Stats + Settings + Help + Operations trigger */}
+        {/* Right: Stats + Settings + Help + agents chip */}
         <div className="flex items-center gap-1.5">
-          <CommandPostButton
-            count={commandPostBadgeCount}
-            onClick={onToggleCommandPost}
-          />
           <button
             type="button"
             onClick={onToggleStats}
@@ -128,12 +109,7 @@ export function GraphWorkspaceHUD({
 
       {/* Row 2: Lens navigation (small/medium screens only — inlined into row 1 on lg) */}
       <div className="lg:hidden">
-        <LensNav
-          activeLens={lens}
-          focusNodeLabel={focusNodeLabel}
-          onLensChange={onLensChange}
-          onReturnToAtlas={onReturnToAtlas}
-        />
+        <LensNav activeLens={lens} onLensChange={onLensChange} />
       </div>
 
       {/* Row 3: On-screen pan/zoom for TV and accessibility (toggled via Settings) */}

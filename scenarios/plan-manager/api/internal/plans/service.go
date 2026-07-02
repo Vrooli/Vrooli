@@ -738,6 +738,8 @@ func contentHash(p Plan) string {
 		ValidationStrategy      string                `json:"validation_strategy"`
 		FinalValidationCommands []string              `json:"final_validation_commands"`
 		RisksHazards            string                `json:"risks_hazards"`
+		Decisions               []PlanDecision        `json:"decisions"`
+		AssumptionRisks         []PlanAssumption      `json:"assumption_risks"`
 		DefinitionOfDone        string                `json:"definition_of_done"`
 		References              []Reference           `json:"references"`
 		Phases                  []Phase               `json:"phases"`
@@ -756,6 +758,8 @@ func contentHash(p Plan) string {
 		ValidationStrategy:      p.ValidationStrategy,
 		FinalValidationCommands: p.FinalValidationCommands,
 		RisksHazards:            p.RisksHazards,
+		Decisions:               p.Decisions,
+		AssumptionRisks:         p.AssumptionRisks,
 		DefinitionOfDone:        p.DefinitionOfDone,
 		References:              stripRefIDs(p.References),
 		Phases:                  stripPhaseIDs(p.Phases),

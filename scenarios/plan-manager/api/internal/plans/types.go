@@ -130,6 +130,12 @@ type Reference = planmodel.Reference
 // RelevantContextItem is the execution-facing setup contract.
 type RelevantContextItem = planmodel.RelevantContextItem
 
+// PlanDecision is one pinned plan-time contract decision (D1..Dn).
+type PlanDecision = planmodel.PlanDecision
+
+// PlanAssumption is one structured assumption with its mitigation.
+type PlanAssumption = planmodel.PlanAssumption
+
 // RegressionAnchor is the "before" anchor captured prior to changes. AUTO-FILLED
 // by the authoring wizard (delegating to git-control-tower).
 type RegressionAnchor = planmodel.RegressionAnchor

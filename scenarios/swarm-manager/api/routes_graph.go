@@ -30,9 +30,6 @@ func (s *Server) registerGraphRoutes(scenarioRoot string) *graph.Materializer {
 	if s.executionSvc != nil {
 		projCfg.Execution = graph.NewExecutionAdapter(s.executionSvc)
 	}
-	if s.agentActivitySvc != nil {
-		projCfg.Activity = graph.NewAgentActivityAdapter(s.agentActivitySvc)
-	}
 	projSvc := graph.NewProjectionService(projCfg)
 	s.graphProjection = projSvc
 	projectionCache := graph.NewProjectionCache(graph.ProjectionCacheConfig{

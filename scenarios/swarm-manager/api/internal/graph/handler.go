@@ -24,10 +24,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/graph", h.GetGraph).Methods("GET")
 }
 
-// validFocusPrefixes are the node ID prefixes that support focus-based drill-down.
-var validFocusPrefixes = []string{"backlog-item/", "initiative/", "scenario/"}
-
-// GetGraph handles GET /api/v1/graph?lens=topology|flow|operations[&focus_node_id=...].
+// GetGraph handles GET /api/v1/graph?lens=topology.
 func (h *Handler) GetGraph(w http.ResponseWriter, r *http.Request) {
 	lensParam := r.URL.Query().Get("lens")
 	if lensParam == "" {
@@ -35,28 +32,12 @@ func (h *Handler) GetGraph(w http.ResponseWriter, r *http.Request) {
 	}
 	lens := Lens(lensParam)
 	if !ValidateLens(lens) {
-		apierr.MapError(w, "[graph]", apierr.BadRequest("invalid lens: must be topology, flow, or operations"))
+		apierr.MapError(w, "[graph]", apierr.BadRequest("invalid lens: must be topology"))
 		return
 	}
 
-	focusNodeID := r.URL.Query().Get("focus_node_id")
-	if focusNodeID != "" {
-		valid := false
-		for _, prefix := range validFocusPrefixes {
-			if len(focusNodeID) > len(prefix) && focusNodeID[:len(prefix)] == prefix {
-				valid = true
-				break
-			}
-		}
-		if !valid {
-			apierr.MapError(w, "[graph]", apierr.BadRequest("invalid focus_node_id: must start with backlog-item/, initiative/, or scenario/"))
-			return
-		}
-	}
-
 	params := ProjectionParams{
-		Lens:        lens,
-		FocusNodeID: focusNodeID,
+		Lens: lens,
 	}
 
 	resp, err := h.projector.Project(r.Context(), params)

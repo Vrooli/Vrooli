@@ -112,63 +112,6 @@ describe("GraphCanvas", () => {
     vi.stubGlobal("cancelAnimationFrame", vi.fn());
   });
 
-  it("renders initiative clusters collapsed on the first paint", async () => {
-    useGraphSettingsStore.setState((state) => ({
-      ...state,
-      activeLens: "topology",
-      settingsByLens: {
-        ...state.settingsByLens,
-        topology: {
-          ...state.settingsByLens.topology,
-          groupingMode: "initiative",
-        },
-      },
-    }));
-    useGraphDataStore.setState((state) => ({
-      ...state,
-      lens: "topology",
-      nodes: [
-        makeInitiativeNode("initiative/graph-adoption", {
-          label: "Graph Adoption",
-          status: "active",
-          rollup: { total: 2, completed: 0, in_progress: 1, failed: 0, pending: 1 },
-        }),
-        makeBacklogNode("backlog-item/execute/task-a", {
-          label: "Task A",
-          status: "queued",
-        }),
-        makeBacklogNode("backlog-item/execute/task-b", {
-          label: "Task B",
-          status: "queued",
-        }),
-      ],
-      edges: [
-        makeGraphEdge(
-          "member_of:a",
-          "backlog-item/execute/task-a",
-          "initiative/graph-adoption",
-          "member_of",
-        ),
-        makeGraphEdge(
-          "member_of:b",
-          "backlog-item/execute/task-b",
-          "initiative/graph-adoption",
-          "member_of",
-        ),
-      ],
-    }));
-
-    render(<GraphCanvas />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId("rendered-node-ids").textContent).toContain("initiative/graph-adoption");
-    });
-
-    const renderedNodeIds = screen.getByTestId("rendered-node-ids").textContent ?? "";
-    expect(renderedNodeIds).not.toContain("backlog-item/execute/task-a");
-    expect(renderedNodeIds).not.toContain("backlog-item/execute/task-b");
-  });
-
   it("keeps backlog items visible in flat topology view", async () => {
     useGraphSettingsStore.setState((state) => ({
       ...state,
@@ -177,7 +120,6 @@ describe("GraphCanvas", () => {
         ...state.settingsByLens,
         topology: {
           ...state.settingsByLens.topology,
-          groupingMode: "none",
         },
       },
     }));
@@ -277,7 +219,7 @@ describe("GraphCanvas", () => {
 
     useGraphDataStore.setState((state) => ({
       ...state,
-      lens: "operations",
+      lens: "focus",
       nodes: [
         makeExecutionNode("execution-record/exec-1", {
           label: "Execution 1",
@@ -303,13 +245,13 @@ describe("GraphCanvas", () => {
       ...state,
       viewportIntentByLens: {
         ...state.viewportIntentByLens,
-        operations: { nodeId: "execution-record/exec-1", zoom: 1.4 },
+        focus: { nodeId: "execution-record/exec-1", zoom: 1.4 },
       },
     }));
 
     useGraphDataStore.setState((state) => ({
       ...state,
-      lens: "operations",
+      lens: "focus",
       nodes: [
         makeExecutionNode("execution-record/exec-1", {
           label: "Execution 1",
@@ -340,7 +282,7 @@ describe("GraphCanvas", () => {
 
     useGraphDataStore.setState((state) => ({
       ...state,
-      lens: "operations",
+      lens: "focus",
       nodes: [
         makeExecutionNode("execution-record/exec-1", {
           label: "Execution 1",
@@ -368,7 +310,6 @@ describe("GraphCanvas", () => {
         ...state.settingsByLens,
         topology: {
           ...state.settingsByLens.topology,
-          groupingMode: "none",
         },
       },
     }));
@@ -420,7 +361,6 @@ describe("GraphCanvas", () => {
         ...state.settingsByLens,
         topology: {
           ...state.settingsByLens.topology,
-          groupingMode: "none",
         },
       },
     }));
@@ -464,7 +404,6 @@ describe("GraphCanvas", () => {
         ...state.settingsByLens,
         topology: {
           ...state.settingsByLens.topology,
-          groupingMode: "none",
         },
       },
     }));

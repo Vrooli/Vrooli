@@ -458,3 +458,31 @@ func TestParsePlanMarkdownRejectsMalformedRelevantContextBlock(t *testing.T) {
 		t.Fatalf("ParsePlanMarkdown() error = %v, want ErrInvalidPlan", err)
 	}
 }
+
+// TestParseCollapsesDoubledSkillReadCommand pins the deterministic repair for
+// mirrors written by the old doubled-prefix renderer defect: re-importing such
+// a mirror yields a single-prefix runnable command and a bare-slug target.
+func TestParseCollapsesDoubledSkillReadCommand(t *testing.T) {
+	md := "# Doubled prefix repair\n\n" +
+		"## Global Execution Setup\n\n" +
+		"### Load Skills\n\n" +
+		"- Scientific debugging skill\n" +
+		"  - Reason: state-machine bug.\n" +
+		"  ```bash\n" +
+		"  prompt-manager skill read prompt-manager skill read scientific-debugging\n" +
+		"  ```\n"
+	p, err := ParsePlanMarkdown(md)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(p.RelevantContext) != 1 {
+		t.Fatalf("expected 1 context item, got %d", len(p.RelevantContext))
+	}
+	item := p.RelevantContext[0]
+	if item.Command != "prompt-manager skill read scientific-debugging" {
+		t.Fatalf("command not repaired: %q", item.Command)
+	}
+	if item.Target != "scientific-debugging" {
+		t.Fatalf("target not the bare slug: %q", item.Target)
+	}
+}

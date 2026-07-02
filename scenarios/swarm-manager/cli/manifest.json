@@ -181,6 +181,11 @@
         "reason": "operations is a computed operations-briefing summary derived on read from other domains, not a persisted entity with its own rows."
       },
       {
+        "domain": "plan",
+        "stateful": false,
+        "reason": "plan is the Plan-lens board projection (dependency waves + gates read-model) computed on read from backlog/execution/capture state; it owns no persisted rows of its own."
+      },
+      {
         "domain": "scenario",
         "stateful": false,
         "reason": "scenario is a read-through catalog of the scenarios/ directory (configuration metadata), not swarm-manager-owned persisted state."

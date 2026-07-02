@@ -37,7 +37,7 @@ export interface ActivityRowProps {
    * When true, render a leading checkbox the operator can use to add the
    * row to bulk-action selection. Selection state, the in-flight
    * `isStopping` flag, and the toggle action are read from
-   * `useOperationsStore` so the view tree (ByInitiativeView, ByPhaseView)
+   * `useOperationsStore` so the rendering view tree (the Plan board Now column groups)
    * does not need to thread props down. Pages that render ActivityRow
    * outside the Operations Center leave this off and the row stays
    * read-only.

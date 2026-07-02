@@ -200,6 +200,8 @@ func contentFor(key string) string {
 		return "- Scenario baseline: `plan-manager` (name `impl`)"
 	case strings.Contains(key, "context"):
 		return "NO_CONTEXT: integration fixture needs no plan-wide setup."
+	case key == "decisions":
+		return "Storage shape: one SQLite store shared by every domain service."
 	default:
 		return "Authored content for the " + key + " section."
 	}
@@ -478,8 +480,10 @@ func TestSmallAgentContinueLoopsAuthorAndExecute(t *testing.T) {
 			require.Empty(t, violations)
 		case "global_relevant_context":
 			// The continue loop surfaces the plan-wide context checkpoint and does
-			// not bypass it silently. A small agent resolves it by accepting a
-			// global setup item (here a known one via context-submit).
+			// not bypass it silently. Gate v2 (D4): the small agent submits a known
+			// setup item AND dispositions a discovery sweep (the recommended
+			// context-discover action; unwired probes degrade to typed notes that
+			// still demand explicit decisions).
 			require.Equal(t, "discover-context", step.NextActions[0].ID)
 			session, _, violations, _, err = authoringSvc.SubmitRelevantContextItem(ctx, session.ID, "", internalplans.RelevantContextItem{
 				Kind:         internalplans.RelevantContextSkill,
@@ -492,6 +496,13 @@ func TestSmallAgentContinueLoopsAuthorAndExecute(t *testing.T) {
 			})
 			require.NoError(t, err)
 			require.Empty(t, violations)
+			var sweep []internalauthoring.ContextCandidate
+			session, sweep, _, err = authoringSvc.DiscoverContextCandidates(ctx, session.ID, []string{"guided authoring loop"}, "moderate")
+			require.NoError(t, err)
+			for _, c := range sweep {
+				session, _, _, err = authoringSvc.RejectContextCandidate(ctx, session.ID, c.ID, "reviewed: submitted steer skill covers plan-wide setup")
+				require.NoError(t, err)
+			}
 		case "phase_outline":
 			require.Equal(t, "add-phase", step.NextActions[0].ID)
 			session, phase, violations, _, err = authoringSvc.AddPhase(ctx, session.ID, "Implement loop", "Exercise guided authoring and execution handoff.")

@@ -21,18 +21,158 @@ func RenderMarkdown(p Plan) string {
 	return RenderMarkdownWithOptions(p, RenderOptions{})
 }
 
+// RenderMarkdownWithOptions renders the nine reader-question clusters in fixed
+// order (contract decision D1): Purpose / Problem / Outcome / Approach &
+// Decisions / Boundaries / Assumptions & Risks / Verification / Execution
+// Setup / Phases. Field identity is preserved (D2) — clusters are a render
+// grouping over the same structured fields, rendered as `###` subsections.
 func RenderMarkdownWithOptions(p Plan, opts RenderOptions) string {
 	var b strings.Builder
 	renderHeader(&b, p)
-	renderOverview(&b, p)
-	renderWorkPostureSection(&b, p)
-	renderScopeSections(&b, p)
-	renderExecutionModel(&b, p, opts)
-	renderReferenceBoundarySections(&b, p)
-	renderValidationModel(&b, p)
+	writeSection(&b, "Purpose", p.Purpose)
+	writeSection(&b, "Problem", p.ProblemStatement)
+	writeSection(&b, "Outcome", p.TargetOutcome)
+	renderApproachCluster(&b, p)
+	renderBoundariesCluster(&b, p)
+	renderAssumptionsRisksCluster(&b, p)
+	renderVerificationCluster(&b, p)
+	renderExecutionSetupCluster(&b, p, opts)
 	renderPhaseSections(&b, p)
 	renderGovernanceSections(&b, p, opts)
 	return b.String()
+}
+
+// renderApproachCluster renders the Approach & Decisions cluster: the technical
+// approach prose (design rationale) directly under the cluster heading, then
+// the pinned plan-time contract decisions as an ordered D1..Dn list (D3).
+func renderApproachCluster(b *strings.Builder, p Plan) {
+	hasApproach := strings.TrimSpace(p.TechnicalApproach) != ""
+	if !hasApproach && len(p.Decisions) == 0 {
+		return
+	}
+	b.WriteString("## Approach & Decisions\n\n")
+	if hasApproach {
+		b.WriteString(strings.TrimRight(p.TechnicalApproach, "\n"))
+		b.WriteString("\n\n")
+	}
+	if len(p.Decisions) > 0 {
+		b.WriteString("### Decisions\n\n")
+		b.WriteString("_Pinned at plan time; do not relitigate during execution._\n\n")
+		for i, d := range p.Decisions {
+			fmt.Fprintf(b, "- **D%d — %s:** %s\n", i+1, strings.TrimSpace(d.Title), strings.TrimSpace(d.Statement))
+		}
+		b.WriteString("\n")
+	}
+}
+
+// renderBoundariesCluster answers "what may I touch, what must I not do?" in
+// one place: scope, non-goals, constraints, prohibited approaches, the derived
+// work posture, and the acceptance change boundary.
+func renderBoundariesCluster(b *strings.Builder, p Plan) {
+	b.WriteString("## Boundaries\n\n")
+	writeSubSection(b, "Scope", p.Scope)
+	writeSubSection(b, "Non-Goals", p.NonGoals)
+	writeSubSection(b, "Constraints", p.Constraints)
+	writeSubSection(b, "Prohibited Approaches", p.ProhibitedApproaches)
+	// Posture is always rendered (autofilled; default greenfield).
+	b.WriteString("### Work Posture\n\n")
+	b.WriteString(renderWorkPosture(p))
+	b.WriteString("\n")
+	if !p.ChangeBoundary.IsZero() {
+		b.WriteString("### Change Boundary\n\n")
+		b.WriteString(renderChangeBoundary(p.ChangeBoundary))
+		b.WriteString("\n")
+	}
+}
+
+func renderAssumptionsRisksCluster(b *strings.Builder, p Plan) {
+	if strings.TrimSpace(p.Assumptions) == "" && strings.TrimSpace(p.RisksHazards) == "" && len(p.AssumptionRisks) == 0 {
+		return
+	}
+	b.WriteString("## Assumptions & Risks\n\n")
+	if len(p.AssumptionRisks) > 0 {
+		b.WriteString("| Assumption | If wrong → mitigation |\n|---|---|\n")
+		for _, a := range p.AssumptionRisks {
+			fmt.Fprintf(b, "| %s | %s |\n", escapeTableCell(a.Statement), escapeTableCell(a.Mitigation))
+		}
+		b.WriteString("\n")
+	}
+	writeSubSection(b, "Assumptions", p.Assumptions)
+	writeSubSection(b, "Risks / Hazards", p.RisksHazards)
+}
+
+// escapeTableCell keeps a markdown table row well-formed: pipes are escaped and
+// newlines collapse to spaces (a cell is one line by construction).
+func escapeTableCell(v string) string {
+	v = strings.Join(strings.Fields(strings.TrimSpace(v)), " ")
+	return strings.ReplaceAll(v, "|", "\\|")
+}
+
+// renderVerificationCluster answers "how do we prove it works?" in one place:
+// the regression anchor, the validation strategy, and the definition of done.
+func renderVerificationCluster(b *strings.Builder, p Plan) {
+	hasStrategy := strings.TrimSpace(p.ValidationStrategy) != "" || len(p.FinalValidationCommands) > 0
+	if !anchorPresent(p.RegressionAnchor) && !hasStrategy && strings.TrimSpace(p.DefinitionOfDone) == "" {
+		return
+	}
+	b.WriteString("## Verification\n\n")
+	if anchorPresent(p.RegressionAnchor) {
+		b.WriteString("### Regression Anchor\n\n")
+		b.WriteString(renderAnchor(p.RegressionAnchor))
+		b.WriteString("\n")
+	}
+	if hasStrategy {
+		b.WriteString("### Validation Strategy\n\n")
+		if strings.TrimSpace(p.ValidationStrategy) != "" {
+			b.WriteString(strings.TrimRight(p.ValidationStrategy, "\n"))
+			b.WriteString("\n")
+		}
+		if len(p.FinalValidationCommands) > 0 {
+			b.WriteString("\n**Final validation commands:**\n")
+			for _, c := range p.FinalValidationCommands {
+				fmt.Fprintf(b, "- `%s`\n", c)
+			}
+		}
+		b.WriteString("\n")
+	}
+	writeSubSection(b, "Definition of Done", p.DefinitionOfDone)
+}
+
+// renderExecutionSetupCluster answers "what do I load before starting?" in one
+// place: the global setup context (skills/docs/searches/commands), the
+// connected references, and the one-line execution-feedback pointer.
+func renderExecutionSetupCluster(b *strings.Builder, p Plan, opts RenderOptions) {
+	hasContext := len(p.RelevantContext) > 0
+	hasRefs := len(p.References) > 0
+	if !hasContext && !hasRefs && opts.Compact {
+		return
+	}
+	b.WriteString("## Execution Setup\n\n")
+	if hasContext {
+		b.WriteString(renderRelevantContext(p.RelevantContext, RelevantContextScopeGlobal))
+		b.WriteString("\n")
+	}
+	if hasRefs {
+		b.WriteString("### References\n\n")
+		for _, ref := range p.References {
+			b.WriteString(renderReference(ref))
+		}
+		b.WriteString("\n")
+	}
+	if !opts.Compact {
+		b.WriteString("### Execution Feedback\n\n")
+		b.WriteString(renderExecutionFeedback())
+		b.WriteString("\n")
+	}
+}
+
+// writeSubSection renders one `###` subsection inside a cluster, omitted when
+// empty.
+func writeSubSection(b *strings.Builder, heading, body string) {
+	if strings.TrimSpace(body) == "" {
+		return
+	}
+	fmt.Fprintf(b, "### %s\n\n%s\n\n", heading, strings.TrimRight(body, "\n"))
 }
 
 func renderHeader(b *strings.Builder, p Plan) {
@@ -47,94 +187,6 @@ func renderHeader(b *strings.Builder, p Plan) {
 	}
 	b.WriteString("\n\n")
 	b.WriteString(renderQualityNotice(p))
-}
-
-func renderOverview(b *strings.Builder, p Plan) {
-	writeSection(b, "Purpose", p.Purpose)
-	writeSection(b, "Problem / Need", p.ProblemStatement)
-	writeSection(b, "Target Outcome", p.TargetOutcome)
-}
-
-func renderWorkPostureSection(b *strings.Builder, p Plan) {
-	// Work Posture is always rendered (autofilled; default greenfield).
-	b.WriteString("## Work Posture\n\n")
-	b.WriteString(renderWorkPosture(p))
-	b.WriteString("\n")
-}
-
-func renderScopeSections(b *strings.Builder, p Plan) {
-	writeSection(b, "Scope", p.Scope)
-	writeSection(b, "Non-Goals", p.NonGoals)
-	writeSection(b, "Assumptions", p.Assumptions)
-}
-
-func renderExecutionModel(b *strings.Builder, p Plan, opts RenderOptions) {
-	writeSection(b, "Technical Approach", p.TechnicalApproach)
-	writeSection(b, "Constraints", p.Constraints)
-	writeSection(b, "Prohibited Approaches", p.ProhibitedApproaches)
-	renderGlobalExecutionSetup(b, p)
-	renderExecutionFeedbackSection(b, opts)
-}
-
-func renderGlobalExecutionSetup(b *strings.Builder, p Plan) {
-	if len(p.RelevantContext) > 0 {
-		b.WriteString("## Global Execution Setup\n\n")
-		b.WriteString(renderRelevantContext(p.RelevantContext, RelevantContextScopeGlobal))
-		b.WriteString("\n")
-	}
-}
-
-func renderExecutionFeedbackSection(b *strings.Builder, opts RenderOptions) {
-	if !opts.Compact {
-		b.WriteString("## Execution Feedback\n\n")
-		b.WriteString(renderExecutionFeedback())
-		b.WriteString("\n")
-	}
-}
-
-func renderReferenceBoundarySections(b *strings.Builder, p Plan) {
-	// Change Boundary — the blast-radius contract, rendered before references and
-	// the regression anchor (both of which derive from it). Omitted only when the
-	// plan carries no boundary (legacy imports before the hard cutover).
-	if !p.ChangeBoundary.IsZero() {
-		b.WriteString("## Change Boundary\n\n")
-		b.WriteString(renderChangeBoundary(p.ChangeBoundary))
-		b.WriteString("\n")
-	}
-
-	if len(p.References) > 0 {
-		b.WriteString("## References\n\n")
-		for _, ref := range p.References {
-			b.WriteString(renderReference(ref))
-		}
-		b.WriteString("\n")
-	}
-}
-
-func renderValidationModel(b *strings.Builder, p Plan) {
-	if anchorPresent(p.RegressionAnchor) {
-		b.WriteString("## Regression Anchor\n\n")
-		b.WriteString(renderAnchor(p.RegressionAnchor))
-		b.WriteString("\n")
-	}
-
-	if strings.TrimSpace(p.ValidationStrategy) != "" || len(p.FinalValidationCommands) > 0 {
-		b.WriteString("## Validation Strategy\n\n")
-		if strings.TrimSpace(p.ValidationStrategy) != "" {
-			b.WriteString(strings.TrimRight(p.ValidationStrategy, "\n"))
-			b.WriteString("\n")
-		}
-		if len(p.FinalValidationCommands) > 0 {
-			b.WriteString("\n**Final validation commands:**\n")
-			for _, c := range p.FinalValidationCommands {
-				fmt.Fprintf(b, "- `%s`\n", c)
-			}
-		}
-		b.WriteString("\n")
-	}
-
-	writeSection(b, "Definition of Done", p.DefinitionOfDone)
-	writeSection(b, "Risks / Hazards", p.RisksHazards)
 }
 
 func renderPhaseSections(b *strings.Builder, p Plan) {
@@ -194,21 +246,11 @@ func renderQualityNotice(p Plan) string {
 }
 
 // renderExecutionFeedback renders the default capture policy every plan carries
-// while executing. It is renderer-owned guidance, not mutable plan truth: the
-// typed work products themselves live in the log ledger.
+// while executing: a one-line pointer at the typed log commands. The full
+// command list lives in the plan-manager CLI reference, not stamped into every
+// plan.
 func renderExecutionFeedback() string {
-	lines := []string{
-		"Capture typed work products as they happen; do not wait for the final handoff.",
-		"",
-		"- Design decision: `plan-manager log decision-add <plan-or-execution> --phase <phase> --title <summary> --detail <detail>`",
-		"- Candidate finding (possible bug): `plan-manager log finding-add <plan-or-execution> --phase <phase> --title <title> --detail <detail>`",
-		"- Confirmed defect: `plan-manager log bug-add <plan-or-execution> --phase <phase> --title <title> --detail <detail>`",
-		"- Reusable learning or completed work: `plan-manager log record-add <plan-or-execution> --phase <phase> --title <title> --detail <detail>`",
-		"- Lightweight progress/context note: `plan-manager log note-add <plan-or-execution> --phase <phase> --title <title> --detail <detail>`",
-		"",
-		"Candidate findings are unvalidated until triaged or promoted with `plan-manager log promote <finding-id> --to bug|record`. Bug reports and records are forwarded internally; retry degraded forwarding with `plan-manager log sync <entry-id>`.",
-	}
-	return strings.Join(lines, "\n") + "\n"
+	return "Log typed work products as they happen via `plan-manager log {decision,finding,bug,record,note}-add <plan-or-execution> --phase <n> ...` (full command list: plan-manager CLI reference).\n"
 }
 
 // renderWorkPosture renders the always-present Work Posture section: a source/
@@ -322,7 +364,11 @@ func renderPhase(ph Phase, fallbackOrder int) string {
 		b.WriteString(renderPhaseChangeBoundary(ph.ChangeBoundary))
 	}
 	context := phaseRelevantContext(ph)
-	if len(context) > 0 {
+	if reason, ok := noContextOnlyReason(context); ok {
+		// A phase whose only setup context is an explicit NO_CONTEXT skip renders
+		// one honest line, not a full context-setup block around a note.
+		fmt.Fprintf(&b, "- Context: none needed — %s\n\n", reason)
+	} else if len(context) > 0 {
 		b.WriteString("**Phase Context Setup:**\n\n")
 		b.WriteString(renderRelevantContext(context, RelevantContextScopePhase))
 		b.WriteString("\n")
@@ -367,6 +413,40 @@ func renderPhase(ph Phase, fallbackOrder int) string {
 	return b.String()
 }
 
+// phaseRelevantContext migrates a legacy phase's raw RequiredReading lines into
+// typed context items via the model-owned parser — the SSOT for setup-line
+// classification — so a skill line's Target carries only the skill slug and the
+// full runnable command lands in Command/Argv. A renderer-local classifier here
+// once stored the whole command in Target, which the command renderer then
+// re-prefixed into `prompt-manager skill read prompt-manager skill read <x>`.
+// noContextOnlyReason reports whether every context item of a phase is a typed
+// NO_CONTEXT skip note, returning the (first) skip reason for the compact
+// single-line render. Any concrete setup item keeps the full block.
+func noContextOnlyReason(items []RelevantContextItem) (string, bool) {
+	if len(items) == 0 {
+		return "", false
+	}
+	reason := ""
+	for _, item := range items {
+		if !planmodel.IsNoContextItem(item) {
+			return "", false
+		}
+		if reason == "" {
+			for _, value := range []string{item.Label, item.Instruction, item.Reason} {
+				value = strings.TrimSpace(value)
+				if strings.HasPrefix(strings.ToUpper(value), "NO_CONTEXT:") {
+					reason = strings.TrimSpace(value[len("NO_CONTEXT:"):])
+					break
+				}
+			}
+		}
+	}
+	if reason == "" {
+		reason = "no phase-specific setup context."
+	}
+	return reason, true
+}
+
 func phaseRelevantContext(ph Phase) []RelevantContextItem {
 	if len(ph.RelevantContext) > 0 {
 		return ph.RelevantContext
@@ -380,36 +460,11 @@ func phaseRelevantContext(ph Phase) []RelevantContextItem {
 		if raw == "" {
 			continue
 		}
-		items = append(items, RelevantContextItem{
-			ID:           fmt.Sprintf("%s-required-reading-%d", ph.ID, i+1),
-			Kind:         migratedReadingKind(raw),
-			Scope:        RelevantContextScopePhase,
-			PhaseID:      ph.ID,
-			Label:        raw,
-			Instruction:  raw,
-			Target:       raw,
-			Required:     true,
-			RepeatPolicy: RelevantContextPhaseEntry,
-			Source:       RelevantContextSourceMigrated,
-			Status:       RelevantContextStatusReady,
-		})
+		item := planmodel.RelevantContextItemFromSetupLine(raw, RelevantContextScopePhase, ph.ID, "")
+		item.ID = fmt.Sprintf("%s-required-reading-%d", ph.ID, i+1)
+		items = append(items, item)
 	}
 	return items
-}
-
-func migratedReadingKind(raw string) RelevantContextKind {
-	switch {
-	case strings.HasPrefix(raw, "prompt-manager skill read"):
-		return RelevantContextSkill
-	case strings.HasPrefix(raw, "search-hub query"):
-		return RelevantContextSearch
-	case strings.HasPrefix(raw, "cli:"):
-		return RelevantContextCommand
-	case strings.Contains(raw, ".md") || strings.HasPrefix(raw, "docs/"):
-		return RelevantContextDoc
-	default:
-		return RelevantContextNote
-	}
 }
 
 func renderRelevantContext(items []RelevantContextItem, defaultScope RelevantContextScope) string {
@@ -461,8 +516,11 @@ func renderRelevantContextItem(item RelevantContextItem) string {
 		fmt.Fprintf(&b, " _(%s)_", strings.Join(annotations, ", "))
 	}
 	b.WriteString("\n")
-	if item.Reason != "" {
-		fmt.Fprintf(&b, "  - Reason: %s\n", item.Reason)
+	// The canned authoring placeholder reason and any value that merely repeats
+	// the label/instruction add no information — omit them instead of stamping
+	// a boilerplate "Reason:" line under every note.
+	if reason := item.Reason; reason != "" && reason != planmodel.AuthoredPhaseNoteReason && reason != label && reason != item.Instruction {
+		fmt.Fprintf(&b, "  - Reason: %s\n", reason)
 	}
 	if item.Instruction != "" && item.Instruction != label {
 		fmt.Fprintf(&b, "  - Instruction: %s\n", item.Instruction)
@@ -496,6 +554,12 @@ func relevantContextAnnotations(item RelevantContextItem) []string {
 	return out
 }
 
+// relevantContextCommand derives the runnable command for one context item. It
+// is the ONLY place a `prompt-manager skill read`/`sed` command may be
+// assembled from a bare target (contract decision D6), and it is idempotent: a
+// Target that already carries the full command is returned verbatim, never
+// re-prefixed — defense in depth for data written before targets were
+// normalized to bare slugs/paths.
 func relevantContextCommand(item RelevantContextItem) string {
 	if item.Command != "" {
 		return item.Command
@@ -503,19 +567,23 @@ func relevantContextCommand(item RelevantContextItem) string {
 	if len(item.Argv) > 0 {
 		return strings.Join(item.Argv, " ")
 	}
+	target := strings.TrimSpace(item.Target)
+	if target == "" {
+		return ""
+	}
 	switch item.Kind {
 	case RelevantContextSkill:
-		if item.Target != "" {
-			return "prompt-manager skill read " + item.Target
+		if strings.HasPrefix(target, "prompt-manager skill read") {
+			return target
 		}
+		return "prompt-manager skill read " + target
 	case RelevantContextDoc, RelevantContextCodeRef, RelevantContextReqRef:
-		if item.Target != "" {
-			return "sed -n '1,220p' " + item.Target
+		if strings.HasPrefix(target, "sed ") {
+			return target
 		}
+		return "sed -n '1,220p' " + target
 	case RelevantContextSearch:
-		if item.Target != "" {
-			return item.Target
-		}
+		return target
 	}
 	return ""
 }

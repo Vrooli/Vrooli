@@ -139,6 +139,12 @@ func TestStorageRoundTripsNewProfessionalFields(t *testing.T) {
 		FinalValidationCommands: []string{"vrooli scenario test plan-manager"},
 		RisksHazards:            "A risk.",
 		ProhibitedApproaches:    "No shims.",
+		Decisions: []plans.PlanDecision{
+			{Title: "Storage shape", Statement: "One JSON document per plan."},
+		},
+		AssumptionRisks: []plans.PlanAssumption{
+			{Statement: "SQLite is available", Mitigation: "fail closed with a typed error"},
+		},
 		Phases: []plans.Phase{{
 			Title:           "P1",
 			Intent:          "do",
@@ -164,6 +170,8 @@ func TestStorageRoundTripsNewProfessionalFields(t *testing.T) {
 	require.Equal(t, []string{"vrooli scenario test plan-manager"}, got.FinalValidationCommands)
 	require.Equal(t, "A risk.", got.RisksHazards)
 	require.Equal(t, "No shims.", got.ProhibitedApproaches)
+	require.Equal(t, []plans.PlanDecision{{Title: "Storage shape", Statement: "One JSON document per plan."}}, got.Decisions)
+	require.Equal(t, []plans.PlanAssumption{{Statement: "SQLite is available", Mitigation: "fail closed with a typed error"}}, got.AssumptionRisks)
 	// Work posture is autofilled on save (default greenfield — no scenario signal).
 	require.Equal(t, plans.WorkPostureGreenfield, got.WorkPosture)
 	require.NotEmpty(t, got.WorkPostureSource)
@@ -1137,7 +1145,7 @@ func TestRenderMarkdownDeterministic(t *testing.T) {
 	require.Contains(t, first, "[REQ: OT-P0-001]")
 	require.Contains(t, first, "### Phase 1 — Anchor")
 	require.Contains(t, first, "_(future)_", "future references are annotated")
-	require.Contains(t, first, "## Regression Anchor")
+	require.Contains(t, first, "### Regression Anchor")
 }
 
 func TestSupersessionResolution(t *testing.T) {
@@ -1436,7 +1444,7 @@ func TestImportMigratesLegacyRequiredReadingToRelevantContext(t *testing.T) {
 
 	rendered, err := svc.Render(ctx, imported.ID, plans.WorkspaceScope{}, plans.RenderOptions{})
 	require.NoError(t, err)
-	require.Contains(t, rendered.Markdown, "## Global Execution Setup")
+	require.Contains(t, rendered.Markdown, "## Execution Setup")
 	require.Contains(t, rendered.Markdown, "**Phase Context Setup:**")
 	require.Contains(t, rendered.Markdown, "_(required, migrated)_")
 	require.NotContains(t, rendered.Markdown, "## Required Reading")

@@ -89,14 +89,14 @@ func (h *Handler) invalidateTopologyGraph() {
 	if h.eventDispatcher == nil {
 		return
 	}
-	h.eventDispatcher.DispatchInvalidate("topology")
+	h.eventDispatcher.DispatchInvalidate("topology", "plan")
 }
 
 func (h *Handler) invalidateAllGraphLenses() {
 	if h.eventDispatcher == nil {
 		return
 	}
-	h.eventDispatcher.DispatchInvalidate("topology", "flow", "operations")
+	h.eventDispatcher.DispatchInvalidate("topology", "plan")
 }
 
 // RegisterRoutes registers capture endpoints on the given router.

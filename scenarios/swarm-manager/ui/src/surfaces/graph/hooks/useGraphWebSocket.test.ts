@@ -108,7 +108,7 @@ describe("useGraphWebSocket", () => {
 
   it("refreshes only when the current lens is invalidated", async () => {
     const fetchGraphSpy = resetStore();
-    renderHook(() => useGraphWebSocket({ enabled: true, lens: "operations" }));
+    renderHook(() => useGraphWebSocket({ enabled: true, lens: "focus" }));
     const ws = getFirstSocket();
 
     await vi.advanceTimersByTimeAsync(0);
@@ -127,13 +127,13 @@ describe("useGraphWebSocket", () => {
     act(() => {
       ws.simulateMessage({
         type: "invalidate",
-        data: { lenses: ["topology", "operations"] },
+        data: { lenses: ["topology", "focus"] },
         timestamp: Date.now(),
       });
     });
 
     await vi.advanceTimersByTimeAsync(150);
-    expect(fetchGraphSpy).toHaveBeenCalledWith("operations", { silent: true, force: true });
+    expect(fetchGraphSpy).toHaveBeenCalledWith("focus", { silent: true, force: true });
   });
 
   it("ignores heartbeat messages", async () => {
@@ -158,7 +158,7 @@ describe("useGraphWebSocket", () => {
   it("pulses updated nodes without forcing a refresh on node events alone", async () => {
     const fetchGraphSpy = resetStore();
     const pulseSpy = vi.fn();
-    renderHook(() => useGraphWebSocket({ enabled: true, lens: "operations", onNodePulse: pulseSpy }));
+    renderHook(() => useGraphWebSocket({ enabled: true, lens: "focus", onNodePulse: pulseSpy }));
     const ws = getFirstSocket();
 
     await vi.advanceTimersByTimeAsync(0);
@@ -178,7 +178,7 @@ describe("useGraphWebSocket", () => {
 
   it("refreshes the current lens before reconnecting after close", async () => {
     const fetchGraphSpy = resetStore();
-    renderHook(() => useGraphWebSocket({ enabled: true, lens: "operations" }));
+    renderHook(() => useGraphWebSocket({ enabled: true, lens: "focus" }));
     const ws = getFirstSocket();
 
     await vi.advanceTimersByTimeAsync(0);
@@ -189,7 +189,7 @@ describe("useGraphWebSocket", () => {
 
     expect(fetchGraphSpy).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1000);
-    expect(fetchGraphSpy).toHaveBeenCalledWith("operations", { silent: true, force: true });
+    expect(fetchGraphSpy).toHaveBeenCalledWith("focus", { silent: true, force: true });
     expect(MockWebSocket.instances).toHaveLength(2);
   });
 

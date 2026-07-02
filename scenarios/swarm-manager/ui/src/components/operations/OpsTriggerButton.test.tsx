@@ -108,13 +108,13 @@ describe("OpsTriggerButton", () => {
       expect(active.className).toContain("bg-emerald-500/15");
     });
 
-    it("links to /operations and exposes an a11y label", () => {
+    it("links to /graph/plan and exposes an a11y label", () => {
       setStoreCount(3);
       renderButton("compact");
 
       const trigger = screen.getByTestId(selectors.layout.opsTriggerButton);
       expect(trigger.tagName).toBe("A");
-      expect(trigger.getAttribute("href")).toBe("/operations");
+      expect(trigger.getAttribute("href")).toBe("/graph/plan");
       expect(trigger.getAttribute("aria-label")).toBe(
         "Operations Center · 3 agents",
       );
@@ -142,13 +142,13 @@ describe("OpsTriggerButton", () => {
       expect(trigger).toHaveTextContent("agents");
     });
 
-    it("links to /operations", () => {
+    it("links to /graph/plan", () => {
       setStoreCount(2);
       renderButton("hud");
 
       const trigger = screen.getByTestId(selectors.layout.opsTriggerButton);
       expect(trigger.tagName).toBe("A");
-      expect(trigger.getAttribute("href")).toBe("/operations");
+      expect(trigger.getAttribute("href")).toBe("/graph/plan");
     });
 
     it("forwards className so callers can apply responsive visibility utilities", () => {

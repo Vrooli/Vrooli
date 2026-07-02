@@ -7,25 +7,19 @@
 
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { graphPath } from "../app/routes/route-paths";
-import type { GraphLens } from "../surfaces/graph/stores/graph-data-store";
+import { graphPath, type AppGraphLens } from "../app/routes/route-paths";
 
 export function useDrillToLens() {
   const navigate = useNavigate();
   const drillToLens = useCallback(
-    (nodeId: string, lens: GraphLens) => navigate(graphPath({ lens, focus: nodeId, select: nodeId })),
+    (nodeId: string, lens: AppGraphLens) => navigate(graphPath({ lens, focus: nodeId, select: nodeId })),
     [navigate],
   );
 
-  const drillToOperations = useCallback(
-    (nodeId: string) => drillToLens(nodeId, "operations"),
+  const drillToFocus = useCallback(
+    (nodeId: string) => drillToLens(nodeId, "focus"),
     [drillToLens],
   );
 
-  const drillToTopology = useCallback(
-    (nodeId: string) => drillToLens(nodeId, "topology"),
-    [drillToLens],
-  );
-
-  return { drillToLens, drillToTopology, drillToOperations };
+  return { drillToLens, drillToFocus };
 }

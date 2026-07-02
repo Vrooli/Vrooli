@@ -60,6 +60,27 @@ func anchorPlaceholderViolations(content string) []StructureViolation {
 	return out
 }
 
+// decisionsGateViolations enforces the pinned-decision line format at submit
+// time: every non-empty line needs `<title>: <statement>` with both sides
+// present, so a rendered D-list is never missing its handle or its content.
+func decisionsGateViolations(content string) []StructureViolation {
+	var out []StructureViolation
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "-"))
+		if line == "" {
+			continue
+		}
+		title, statement, found := strings.Cut(line, ":")
+		if !found || strings.TrimSpace(title) == "" || strings.TrimSpace(statement) == "" {
+			out = append(out, StructureViolation{
+				SectionKey: SectionDecisions,
+				Message:    fmt.Sprintf("decision line %q must be '<title>: <statement>' with both parts present", line),
+			})
+		}
+	}
+	return out
+}
+
 func structureViolations(sections []Section) []StructureViolation {
 	var out []StructureViolation
 	for _, sec := range sections {
@@ -96,10 +117,16 @@ func sessionViolations(sess Session) []StructureViolation {
 	out = append(out, boundaryGateViolations(contentOf(sess.Sections, SectionAcceptanceBoundary))...)
 	out = append(out, anchorPlaceholderViolations(contentOf(sess.Sections, SectionRegressionAnchor))...)
 	out = append(out, postureConflictViolations(sess)...)
+	if n := pendingContextCandidates(sess); n > 0 {
+		out = append(out, StructureViolation{
+			SectionKey: SectionRelevantContext,
+			Message:    fmt.Sprintf("%d discovery candidate(s) are undispositioned; accept (context-accept) or reject with a reason (context-reject) every candidate before finalizing", n),
+		})
+	}
 	if globalContextResolved(sess) && !globalSkillContextResolved(sess) {
 		out = append(out, StructureViolation{
 			SectionKey: SectionRelevantContext,
-			Message:    "relevant context must include at least one global skill context item, or a NO_SKILL_CONTEXT: reason when no relevant internal skill exists",
+			Message:    "skill setup needs evidence of a sweep: run context-discover for 2-5 decomposed concepts and disposition every candidate, or record NO_SKILL_CONTEXT: <reason> when no relevant internal skill exists",
 		})
 	}
 	for _, phase := range sess.PhaseDrafts {
@@ -212,6 +239,9 @@ func violationsForSection(sec Section) []StructureViolation {
 		// The boundary uses its own gate (which allows an OPERATOR_ONLY: reason and
 		// rejects unresolved placeholders) rather than the generic empty message.
 		return boundaryGateViolations(sec.Content)
+	}
+	if sec.Key == SectionDecisions {
+		return decisionsGateViolations(sec.Content)
 	}
 	if sec.Mandatory && empty {
 		out = append(out, StructureViolation{

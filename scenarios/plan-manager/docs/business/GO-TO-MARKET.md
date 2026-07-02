@@ -28,7 +28,7 @@ Use this document to answer:
 
 - In-ecosystem discovery: the `plan-manager` CLI, the scenario UI, and
   Connect-RPC consumers within other scenarios.
-- Skill discovery: plan-skill-discovery via prompt-manager surfaces
+- Skill discovery: server-side context discovery over prompt-manager/search-hub probes
   plan-manager to agents at the moment they need to plan.
 - External channels (marketplace, website, docs site): deferred — not
   applicable until an external SKU exists.

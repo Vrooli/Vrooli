@@ -171,7 +171,7 @@ Child throws during render
 | Feature | Status | Configuration |
 |---------|--------|---------------|
 | Automatic refetch | ✅ Enabled | On window focus |
-| Polling | ❌ Not implemented | N/A |
+| Polling | ✅ Store-driven | Operations 4s (board Now column) + 8s global (agents chip); plan board 60s safety poll |
 | Manual retry | ✅ Available | Via `refetch()` |
 | Exponential backoff | ✅ Enabled | `1s * 2^attempt` |
 
@@ -187,6 +187,34 @@ retryDelay: (attemptIndex: number) =>
 ```
 
 **Note**: No explicit cap on delay beyond retry count. With `retryCount: 2`, max total wait is ~7 seconds (1s + 2s + 4s) before error.
+
+### Plan Board Refresh Flow (added 2026-07-02)
+
+The Plan lens board (`/graph/plan`) has three freshness inputs, ordered by
+authority:
+
+```
+mutation (backlog / captures / execution / agentactivity / initiatives)
+  -> DispatchInvalidate(..., "plan")
+  -> /ws/graph invalidate payload {lenses: [..., "plan"]}
+  -> useGraphWebSocket (150ms debounce)
+  -> graph-data-store.fetchGraph("plan")   // delegation shim
+  -> plan-data-store.fetchBoard({silent, force})
+  -> GET /api/v1/plan (rebuilt per request; no server cache)
+```
+
+1. **WS invalidation** (above) is the primary path — any board-relevant
+   mutation refreshes within ~150ms + one round-trip.
+2. **Now column** rides the separate operations polling path
+   (`useOperationsPolling`, 4s while the board is mounted; AppShell keeps an
+   8s global poll for the agents chip; the store serializes the dual poll).
+3. **Safety poll**: `usePlanData` refetches silently every 60s to cover
+   out-of-band filesystem changes the socket can't see. The store also
+   applies a 30s staleness gate so remounts don't refetch fresh data.
+
+Request semantics in `plan-data-store`: concurrent fetches dedupe to the
+in-flight promise; a `force` fetch aborts and supersedes it (sequence-token
+guarded, so stale responses never overwrite newer ones).
 
 ### Operating Mode Phase Lifecycle
 

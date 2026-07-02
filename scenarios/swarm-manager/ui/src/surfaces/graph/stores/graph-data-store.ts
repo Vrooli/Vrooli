@@ -62,9 +62,9 @@ export interface GraphDataState {
 const GRAPH_SNAPSHOT_STALE_MS = 30_000;
 
 const graphRequestSequence: Record<GraphLens, number> = {
+  plan: 0,
   focus: 0,
   topology: 0,
-  operations: 0,
 };
 
 const graphAbortControllers = new Map<GraphLens, AbortController>();
@@ -135,7 +135,7 @@ export function createGraphDataInitialState() {
     meta: null as GraphProjectionMeta | null,
     loading: false,
     error: null as string | null,
-    lens: "topology" as GraphLens,
+    lens: "plan" as GraphLens,
     focusNodeId: null as string | null,
     returnLens: null as GraphLens | null,
     graphsByLens: createEmptyGraphsByLens(),
@@ -150,9 +150,9 @@ export function resetGraphRequestState(): void {
   }
   graphAbortControllers.clear();
   graphInFlightRequests.clear();
+  graphRequestSequence.plan = 0;
   graphRequestSequence.focus = 0;
   graphRequestSequence.topology = 0;
-  graphRequestSequence.operations = 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -201,6 +201,16 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
 
   fetchGraph: async (lensArg, options) => {
     const lens = lensArg ?? get().lens;
+
+    // Plan lens: the kanban board owns its data (plan-data-store fetching
+    // GET /api/v1/plan). Delegating here lets the shared /ws/graph
+    // invalidation path ("plan" in the lens payload) refresh the board
+    // without a second socket.
+    if (lens === "plan") {
+      const { usePlanDataStore } = await import("../../plan/stores/plan-data-store");
+      await usePlanDataStore.getState().fetchBoard({ silent: true, force: true });
+      return;
+    }
 
     // Focus lens: client-side filter from topology data.
     if (lens === "focus") {
@@ -327,11 +337,9 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
       })),
     );
 
-    const focusNodeId = get().focusNodeId;
     const requestPromise = graphService
       .getGraph(lens, {
         signal: controller.signal,
-        focusNodeId: lens === "operations" ? (focusNodeId ?? undefined) : undefined,
       })
       .then((graph) => {
         if (graphRequestSequence[lens] !== requestId) {

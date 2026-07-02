@@ -62,6 +62,10 @@ export {
 } from "./graph-contracts";
 
 export {
+  planBoardResponseSchema,
+} from "./plan-contracts";
+
+export {
   listAgentSessionsResponseSchema,
   getAgentSessionResponseSchema,
   getAgentSessionStartupBriefResponseSchema,

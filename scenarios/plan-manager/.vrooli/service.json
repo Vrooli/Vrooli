@@ -130,12 +130,12 @@
       "steps": [
         {
           "name": "build-api",
-          "run": "cd api \u0026\u0026 GOWORK=off go mod download \u0026\u0026 GOWORK=off go build -o plan-manager-api .",
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o plan-manager-api .",
           "description": "Build Go API server"
         },
         {
           "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
@@ -143,7 +143,7 @@
         },
         {
           "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
           "description": "Build production UI bundle"
         }
       ]
@@ -153,7 +153,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api \u0026\u0026 ./plan-manager-api",
+          "run": "cd api && ./plan-manager-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -162,7 +162,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui \u0026\u0026 node server.js",
+          "run": "cd ui && node server.js",
           "description": "Serve production UI bundle",
           "background": true,
           "condition": {
@@ -235,8 +235,8 @@
         "enabled": true,
         "required": false,
         "startup_policy": "try_start",
-        "description": "Provides `plan-skill-discovery` for required-reading autofill during authoring.",
-        "degraded_behavior": "Required-reading is left for the author to fill; the structure gate still applies."
+        "description": "Executes the skill/action discovery probes behind authoring's server-side context discovery (`prompt-manager discover --json`).",
+        "degraded_behavior": "The affected discovery probes return typed degraded candidates; the wizard continues and the author can submit context directly or record an honest skip."
       },
       "meta-optimization-manager": {
         "type": "scenario",
@@ -253,6 +253,14 @@
         "startup_policy": "try_start",
         "description": "Provides the run-id attribution contract (VROOLI_AGENT_MANAGER_RUN_ID) used to dedup handoff actions. Owns the prose-handoff capture (it holds the transcript); plan-manager links to it by reference and never reads transcripts.",
         "degraded_behavior": "Handoff dedup falls back to content-based best-effort; structured handoff still assembles."
+      },
+      "search-hub": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Executes the recall probe behind authoring's server-side context discovery (`search-hub query --json`) and reference suggestion.",
+        "degraded_behavior": "The recall probe returns a typed degraded candidate (per-probe timeout bounds slow queries); the wizard continues without recall results."
       }
     }
   },

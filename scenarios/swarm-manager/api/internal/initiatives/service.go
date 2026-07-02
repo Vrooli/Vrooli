@@ -95,7 +95,7 @@ func (s *Service) invalidateTopologyGraph() {
 	if s.eventDispatcher == nil {
 		return
 	}
-	s.eventDispatcher.DispatchInvalidate("topology")
+	s.eventDispatcher.DispatchInvalidate("topology", "plan")
 }
 
 // Create creates a new initiative.

@@ -19,7 +19,6 @@ export interface UseGraphAutoFitOptions {
   lens: GraphLens;
   layoutMode: string;
   layoutDirection: string;
-  groupingMode: string;
   showSecondaryEdges: boolean;
   autoFitOnChange: boolean;
   processedNodes: GraphNode[];
@@ -38,7 +37,6 @@ export function useGraphAutoFit({
   lens,
   layoutMode,
   layoutDirection,
-  groupingMode,
   showSecondaryEdges,
   autoFitOnChange,
   processedNodes,
@@ -66,7 +64,7 @@ export function useGraphAutoFit({
     () => processedEdges.map((e) => e.id).join("\0"),
     [processedEdges],
   );
-  const autoFitFingerprint = `${lens}|${layoutMode}|${layoutDirection}|${groupingMode}|${showSecondaryEdges}|${nodeFingerprint}|${edgeFingerprint}`;
+  const autoFitFingerprint = `${lens}|${layoutMode}|${layoutDirection}|${showSecondaryEdges}|${nodeFingerprint}|${edgeFingerprint}`;
 
   useEffect(() => {
     if (!flowRef.current || styledNodesLength === 0) {

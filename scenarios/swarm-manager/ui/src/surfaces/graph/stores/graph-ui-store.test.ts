@@ -77,31 +77,31 @@ describe("graphUIStore", () => {
 
     it("persists viewport intent per lens", () => {
       const intent = { nodeId: "backlog-item/execute/task-a", zoom: 1.2 };
-      useGraphUIStore.getState().setViewportIntentForLens("operations", intent);
+      useGraphUIStore.getState().setViewportIntentForLens("focus", intent);
 
       // Store state is updated synchronously.
-      expect(useGraphUIStore.getState().viewportIntentByLens.operations).toEqual(intent);
+      expect(useGraphUIStore.getState().viewportIntentByLens.focus).toEqual(intent);
 
       // localStorage write is debounced — flush the timer.
       vi.advanceTimersByTime(600);
       expect(window.localStorage.getItem("swarm-manager.graph.viewport-intent.v1")).toBe(
         JSON.stringify({
-          focus: null,
+          plan: null,
+          focus: intent,
           topology: null,
-          operations: intent,
         }),
       );
     });
 
     it("keeps lens intents isolated from each other", () => {
       const topologyIntent = { nodeId: "scenario/swarm-manager", zoom: 1.2 };
-      const operationsIntent = { nodeId: "execution-record/exec-1", zoom: 0.75 };
+      const focusIntent = { nodeId: "execution-record/exec-1", zoom: 0.75 };
 
       useGraphUIStore.getState().setViewportIntentForLens("topology", topologyIntent);
-      useGraphUIStore.getState().setViewportIntentForLens("operations", operationsIntent);
+      useGraphUIStore.getState().setViewportIntentForLens("focus", focusIntent);
 
       expect(useGraphUIStore.getState().viewportIntentByLens.topology).toEqual(topologyIntent);
-      expect(useGraphUIStore.getState().viewportIntentByLens.operations).toEqual(operationsIntent);
+      expect(useGraphUIStore.getState().viewportIntentByLens.focus).toEqual(focusIntent);
     });
 
     it("accepts intent with null nodeId (pan/zoom without selection)", () => {
@@ -137,25 +137,4 @@ describe("graphUIStore", () => {
     });
   });
 
-  describe("topology cluster expansion", () => {
-    it("starts with no expanded topology clusters", () => {
-      expect(useGraphUIStore.getState().expandedTopologyClusters.size).toBe(0);
-    });
-
-    it("toggles a topology cluster", () => {
-      useGraphUIStore.getState().toggleTopologyCluster("initiative/graph");
-      expect(useGraphUIStore.getState().expandedTopologyClusters.has("initiative/graph")).toBe(true);
-
-      useGraphUIStore.getState().toggleTopologyCluster("initiative/graph");
-      expect(useGraphUIStore.getState().expandedTopologyClusters.has("initiative/graph")).toBe(false);
-    });
-
-    it("can collapse and expand all topology clusters", () => {
-      useGraphUIStore.getState().expandTopologyClusters(["initiative/one", "initiative/two"]);
-      expect(useGraphUIStore.getState().expandedTopologyClusters.size).toBe(2);
-
-      useGraphUIStore.getState().collapseAllTopologyClusters();
-      expect(useGraphUIStore.getState().expandedTopologyClusters.size).toBe(0);
-    });
-  });
 });

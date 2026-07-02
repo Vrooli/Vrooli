@@ -2,7 +2,7 @@ import type { BacklogKind } from "../../types";
 import type { GraphLens } from "../../surfaces/graph/stores/graph-data-store";
 import { parseNodeId } from "../../surfaces/graph/lib/node-id-parser";
 
-export const GRAPH_LENSES = ["focus", "topology", "operations"] as const satisfies readonly GraphLens[];
+export const GRAPH_LENSES = ["plan", "focus"] as const satisfies readonly GraphLens[];
 
 export type AppGraphLens = (typeof GRAPH_LENSES)[number];
 export type DetailEntityType = "backlog" | "scenario" | "execution" | "initiative" | "capture" | "session" | "operatingMode";
@@ -75,14 +75,6 @@ export function sessionDetailPath(sessionId: string, query?: QueryParams): strin
 
 export function operatingModeDetailPath(mode: string, query?: QueryParams): string {
   return appendQuery(`/operating-modes/${enc(mode)}`, query);
-}
-
-export function commandPostPath(query?: QueryParams): string {
-  return appendQuery("/command-post", query);
-}
-
-export function decisionStreamPath(query?: QueryParams): string {
-  return appendQuery("/command-post/decisions", query);
 }
 
 export function detailPath(target: DetailRouteTarget): string | null {

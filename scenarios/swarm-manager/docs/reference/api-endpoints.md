@@ -87,6 +87,33 @@ Returns bounded session-owned Agent Manager run events. Draft/no-run sessions
 return `events: []`. Tool inputs/outputs and raw fallbacks are truncated by the
 API boundary.
 
+## Plan Board
+
+`GET /api/v1/plan`
+
+Returns the Plan-lens board projection (`PlanBoardResponse`): a Now header
+summary (active count, queue depth, lane utilization), Next/Later/Done card
+columns, and meta (generated_at, effective `window_seconds`, max dependency
+wave, cycle diagnostics). Next mixes human gate cards (decide / review /
+classify from the gates read-model) with runnable and needs-workshop item
+cards at dependency wave 0; Later groups blocked items by nearest blocker
+with ordinal wave badges from `depgraph.Waves` frontier peeling; Done carries
+window-capped recent outcomes. Now-column *cards* come from
+`GET /api/v1/operations` — this endpoint only carries the header counts.
+
+Query parameters:
+- `window_seconds`: Done-column window in seconds, clamped to [60, 86400],
+  default 86400
+
+Board refreshes ride `/ws/graph`: mutating services include the
+dispatch-only `plan` lens in invalidation payloads.
+
+`GET /api/v1/graph?lens=topology`
+
+Returns the topology projection (nodes/edges/meta). Topology is the only
+graph lens; the UI Focus lens filters it client-side. Any other `lens`
+value returns an invalid-lens error.
+
 ## Operations
 
 `GET /api/v1/operations`

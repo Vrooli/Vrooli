@@ -146,6 +146,40 @@ whole `AuthoringSession`. To read the whole session graph, ask for it explicitly
 | `plan-manager author phase-move <session> <phase> --before <phase>` / `--after <phase>` | `AuthoringService.MovePhase` | Reorders a structured phase draft without rewriting its id, title, intent, steps, context, or acceptance content. |
 | `plan-manager author finalize <session> [--full]` | `AuthoringService.Finalize` | Validates, persists, verifies read-back through the plans domain, and returns compact human output by default. Re-running finalize for the same finalized session returns the existing plan. |
 
+### `context-discover` — server-side discovery execution
+
+`plan-manager author context-discover <session> --concepts "<c1>,<c2>" --complexity <minor|moderate|major|architectural>`
+EXECUTES the discovery probes itself and returns reviewed-ready candidates —
+the agent supplies concepts and judgment; the code runs the probes. Per
+(concept, probe) pair it runs, concurrently and each bounded by a per-probe
+timeout (default 20s):
+
+- `prompt-manager discover <concept> --type skill --json [--complexity <c>]` — curated skill candidates (bare-slug targets),
+- `prompt-manager discover <concept> --type all --json` — executable action candidates (their `showCommand` verbatim),
+- `search-hub query <concept> --type record,skill,doc --json` — prior-work records (as `swarm-manager records get` commands), docs, and skills.
+
+Results are deduplicated by (kind, target) with provenance (probe, score) on
+each candidate. A failed/slow/unparseable probe degrades **independently** into
+a typed degraded note that still requires a disposition — the step always
+returns and the wizard never blocks on a down dependency.
+
+**Skill checkpoint gate v2:** finalize requires evidence of a sweep — discovery
+ran and EVERY candidate was dispositioned (`context-accept`, or
+`context-reject --reason <why>`; a rejection without a reason is refused; a
+direct `context-submit` of the same target counts as a disposition) — or an
+explicit `NO_SKILL_CONTEXT: <reason>` / `NO_CONTEXT: <reason>` skip. No minimum
+skill count is imposed.
+
+### `decisions` — pinned plan-time contract decisions (optional)
+
+`author section-submit <session> --section decisions --content "<title>: <statement>"`
+records pinned plan-time decisions, one per line as `<title>: <statement>`
+(rendered `D1..Dn` under **Approach & Decisions**). Assumption lines submitted
+to the `assumptions` section may carry an `-> <mitigation>` suffix ("if wrong →
+then"); those render as the two-column table under **Assumptions & Risks**.
+Both are optional — empty renders nothing. Execution-time decisions are
+different: capture those with `plan-manager log decision-add` as they happen.
+
 Free-form phase `relevant_context` is classified as **notes only**:
 `author phase-submit <session> <phase> --field relevant_context` records every
 prose line as a note (`NO_CONTEXT:` reasons preserved) — it never turns prose

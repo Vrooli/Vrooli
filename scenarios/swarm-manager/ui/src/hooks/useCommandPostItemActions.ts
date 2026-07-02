@@ -3,7 +3,7 @@
  *
  * Encapsulates workshop/archive/status mutations, active run tracking,
  * stepper completion state, and summary data derivation. Used by both
- * the sidebar BacklogTab and the Command Post SummaryView.
+ * the sidebar BacklogTab and the Plan board card menus.
  */
 
 import { useCallback, useMemo, useRef, useState } from "react";

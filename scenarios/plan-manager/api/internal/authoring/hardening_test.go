@@ -2,10 +2,13 @@ package authoring_test
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"plan-manager/internal/authoring"
+	"plan-manager/internal/planmodel"
 	internalplans "plan-manager/internal/plans"
 
 	"github.com/stretchr/testify/require"
@@ -255,4 +258,228 @@ func TestPhaseAddSummaryNamesTitleAndIntent(t *testing.T) {
 	summary := authoring.PhaseAddSummary(authoring.PhaseDraft{Order: 2, Title: "Wire converters", Intent: "Map every new field"})
 	require.Contains(t, summary, "Wire converters")
 	require.Contains(t, summary, "Map every new field")
+}
+
+// TestSubmitSkillContextNormalizesFullCommandTarget pins the entry-point repair
+// for the doubled skill-read defect: a skill context item submitted with the
+// full `prompt-manager skill read <slug>` command as its Target is normalized
+// to a bare-slug Target with the runnable command in Command/Argv, so no
+// downstream command assembly can double the prefix (contract decision D6).
+func TestSubmitSkillContextNormalizesFullCommandTarget(t *testing.T) {
+	ctx := context.Background()
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
+	sess, _, err := svc.StartSession(ctx, "Skill target normalization", "skill-target-normalization", "")
+	require.NoError(t, err)
+
+	_, item, violations, _, err := svc.SubmitRelevantContextItem(ctx, sess.ID, "", planmodel.RelevantContextItem{
+		Kind:        planmodel.RelevantContextSkill,
+		Label:       "Scientific debugging skill",
+		Reason:      "State-machine bug; reproduce before fixing.",
+		Instruction: "Load this internal skill before implementation.",
+		Target:      "prompt-manager skill read scientific-debugging",
+		Required:    true,
+	})
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.Equal(t, "scientific-debugging", item.Target, "target must be normalized to the bare slug")
+	require.Equal(t, "prompt-manager skill read scientific-debugging", item.Command, "the full command must move to Command")
+	require.Equal(t, []string{"prompt-manager", "skill", "read", "scientific-debugging"}, item.Argv)
+}
+
+// TestDecisionsAndAssumptionMitigationsFlowIntoPlan pins the optional D3
+// authoring path: a decisions section of '<title>: <statement>' lines and
+// assumption lines carrying an '-> mitigation' suffix land as structured
+// fields on the finalized plan; a malformed decision line is rejected at
+// submit time; both sections stay optional (no gate demands them).
+func TestDecisionsAndAssumptionMitigationsFlowIntoPlan(t *testing.T) {
+	ctx := context.Background()
+	writer := &fakePlanWriter{}
+	svc := newService(t, authoring.Deps{Writer: writer})
+	sess, _, err := svc.StartSession(ctx, "Decisions flow", "decisions-flow", "")
+	require.NoError(t, err)
+	fillMandatory(t, svc, sess.ID)
+
+	_, violations, _, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionDecisions, "just a statement with no separator")
+	require.NoError(t, err)
+	require.NotEmpty(t, violations, "a decision line without '<title>: <statement>' must be rejected")
+
+	_, violations, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionDecisions,
+		"Cluster order: nine clusters, wizard asks in render order.\nDependency posture: search-hub is required:false.")
+	require.NoError(t, err)
+	require.Empty(t, violations)
+
+	_, violations, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionAssumptions,
+		"The baseline is captured first.\nprompt-manager JSON is stable -> pin parsing behind the probe seam.")
+	require.NoError(t, err)
+	require.Empty(t, violations)
+
+	_, _, err = svc.Finalize(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Equal(t, []planmodel.PlanDecision{
+		{Title: "Cluster order", Statement: "nine clusters, wizard asks in render order."},
+		{Title: "Dependency posture", Statement: "search-hub is required:false."},
+	}, writer.created.Decisions)
+	require.Equal(t, []planmodel.PlanAssumption{
+		{Statement: "prompt-manager JSON is stable", Mitigation: "pin parsing behind the probe seam."},
+	}, writer.created.AssumptionRisks)
+	require.Equal(t, "The baseline is captured first.", writer.created.Assumptions)
+}
+
+// TestDiscoverContextExecutesProbesAndDeduplicates pins the server-side
+// discovery contract (D5/D6): DiscoverContextCandidates executes the probes
+// through the runner seam, deduplicates by target with provenance preserved,
+// carries bare-slug skill targets, and converts failed probes into typed
+// degraded notes without ever blocking the wizard.
+func TestDiscoverContextExecutesProbesAndDeduplicates(t *testing.T) {
+	ctx := context.Background()
+	skillJSON := `{"results":[
+		{"type":"skill","id":"scientific-debugging","description":"reproduce first","score":0.9},
+		{"type":"skill","id":"test","description":"testing discipline","score":0.5}]}`
+	recallJSON := `{"ranked":[
+		{"type":"skill","id":"scientific-debugging","title":"Scientific Debugging","snippet":"reproduce first","path":"scientific-debugging","score":0.3,"rerank_score":0.4}]}`
+	runner := func(_ context.Context, name string, args ...string) ([]byte, error) {
+		argv := strings.Join(args, " ")
+		switch {
+		case name == "prompt-manager" && strings.Contains(argv, "--type skill"):
+			return []byte(skillJSON), nil
+		case name == "prompt-manager" && strings.Contains(argv, "--type all"):
+			return nil, errors.New("prompt-manager actions probe is down")
+		case name == "search-hub":
+			return []byte(recallJSON), nil
+		default:
+			return nil, errors.New("unexpected probe " + argv)
+		}
+	}
+	svc := newService(t, authoring.Deps{
+		Writer:  &fakePlanWriter{},
+		Context: authoring.NewCommandContextDiscovererWithTimeout(runner, time.Second),
+	})
+	sess, _, err := svc.StartSession(ctx, "Probe discovery", "probe-discovery", "")
+	require.NoError(t, err)
+
+	_, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"microphone lifecycle"}, "architectural")
+	require.NoError(t, err)
+
+	var skills, actions, degraded []authoring.ContextCandidate
+	for _, c := range candidates {
+		switch {
+		case c.Degraded:
+			degraded = append(degraded, c)
+		case c.Item.Kind == planmodel.RelevantContextSkill:
+			skills = append(skills, c)
+		case c.Item.Kind == planmodel.RelevantContextCommand:
+			actions = append(actions, c)
+		}
+	}
+	// scientific-debugging appears in both prompt-manager probes: deduplicated
+	// to one candidate (the higher-scored), provenance from both preserved.
+	require.Len(t, skills, 2, "duplicate skill across probes must deduplicate")
+	var sci authoring.ContextCandidate
+	for _, c := range skills {
+		if c.Item.Target == "scientific-debugging" {
+			sci = c
+		}
+		require.Empty(t, c.Item.Command, "skill candidates must carry bare slugs, not assembled commands (D6)")
+	}
+	require.Contains(t, sci.Detail, "score 0.900")
+	require.Contains(t, sci.Detail, "also:")
+
+	require.Empty(t, actions, "the down actions probe yields no fabricated candidates")
+
+	require.Len(t, degraded, 1, "the down actions probe degrades independently")
+	require.Equal(t, "prompt-manager-actions", degraded[0].Source)
+	require.Contains(t, degraded[0].Detail, "prompt-manager actions probe is down")
+	require.Equal(t, planmodel.RelevantContextStatusDegraded, degraded[0].Item.Status)
+
+	// All-down: the step still returns a usable (empty + noted) result.
+	svcDown := newService(t, authoring.Deps{
+		Writer:  &fakePlanWriter{},
+		Context: authoring.NewCommandContextDiscovererWithTimeout(nil, time.Second),
+	})
+	sessDown, _, err := svcDown.StartSession(ctx, "All down", "all-down", "")
+	require.NoError(t, err)
+	_, downCandidates, _, err := svcDown.DiscoverContextCandidates(ctx, sessDown.ID, []string{"anything"}, "")
+	require.NoError(t, err, "discovery must never block or fail the wizard when dependencies are down")
+	require.Len(t, downCandidates, 3)
+	for _, c := range downCandidates {
+		require.True(t, c.Degraded)
+	}
+}
+
+// fakeSkillResolver returns canned steered suggestions (the D7 seam's future
+// data-driven sources stand in behind this fake).
+type fakeSkillResolver struct{ suggestions []authoring.SkillSuggestion }
+
+func (f fakeSkillResolver) SuggestSkills(context.Context, planmodel.ChangeBoundary) []authoring.SkillSuggestion {
+	return f.suggestions
+}
+
+// TestSkillCheckpointGateV2 pins the D4 gate end to end: undispositioned
+// candidates block finalize with a clear message; dispositioning all of them
+// unblocks; an honest NO_SKILL_CONTEXT skip passes without discovery; a
+// rejection without a reason is refused; and resolver suggestions flow through
+// disposition like any discovered candidate (D7).
+func TestSkillCheckpointGateV2(t *testing.T) {
+	ctx := context.Background()
+	resolver := fakeSkillResolver{suggestions: []authoring.SkillSuggestion{
+		{Slug: "react-coherence", Reason: "The boundary touches a React UI."},
+	}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, SkillResolver: resolver})
+	sess, _, err := svc.StartSession(ctx, "Gate v2", "gate-v2", "")
+	require.NoError(t, err)
+	fillMandatory(t, svc, sess.ID)
+
+	_, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"gate semantics"}, "minor")
+	require.NoError(t, err)
+	require.NotEmpty(t, candidates)
+
+	var steered *authoring.ContextCandidate
+	for i := range candidates {
+		if candidates[i].Source == "skill-applicability-resolver" {
+			steered = &candidates[i]
+		}
+	}
+	require.NotNil(t, steered, "resolver suggestions must appear as ordinary candidates")
+	require.Equal(t, "react-coherence", steered.Item.Target)
+
+	// Undispositioned candidates block finalize with an actionable message.
+	valid, violations, _, err := svc.ValidateStructure(ctx, sess.ID)
+	require.NoError(t, err)
+	require.False(t, valid)
+	var sawPending bool
+	for _, v := range violations {
+		if strings.Contains(v.Message, "undispositioned") {
+			sawPending = true
+		}
+	}
+	require.True(t, sawPending, "pending candidates must be called out, got %#v", violations)
+
+	// A rejection without a reason is refused (D4: reject requires judgment).
+	_, _, _, err = svc.RejectContextCandidate(ctx, sess.ID, candidates[0].ID, "  ")
+	require.Error(t, err)
+
+	// Disposition everything: accept the steered suggestion, reject the rest.
+	for _, c := range candidates {
+		if c.ID == steered.ID {
+			_, _, _, _, _, err := svc.AcceptContextCandidate(ctx, sess.ID, c.ID, "")
+			require.NoError(t, err)
+			continue
+		}
+		_, _, _, err := svc.RejectContextCandidate(ctx, sess.ID, c.ID, "degraded probe; concept covered elsewhere")
+		require.NoError(t, err)
+	}
+	valid, violations, _, err = svc.ValidateStructure(ctx, sess.ID)
+	require.NoError(t, err)
+	require.True(t, valid, "all-dispositioned sweep must pass, got %#v", violations)
+
+	// Honest skip path: a fresh session with NO_SKILL_CONTEXT passes without
+	// any discovery.
+	sessSkip, _, err := svc.StartSession(ctx, "Gate v2 skip", "gate-v2-skip", "")
+	require.NoError(t, err)
+	fillMandatory(t, svc, sessSkip.ID)
+	_, _, _, err = svc.SubmitSection(ctx, sessSkip.ID, authoring.SectionRelevantContext, "NO_SKILL_CONTEXT: no internal skill applies to this fixture.")
+	require.NoError(t, err)
+	valid, violations, _, err = svc.ValidateStructure(ctx, sessSkip.ID)
+	require.NoError(t, err)
+	require.True(t, valid, "honest skip must pass, got %#v", violations)
 }

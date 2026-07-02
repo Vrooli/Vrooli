@@ -314,18 +314,31 @@ func globalContextResolved(sess Session) bool {
 	return noContextReason(contentOf(sess.Sections, SectionRelevantContext)) != ""
 }
 
-// globalSkillContextResolved requires new authored plans to make skill setup an
-// explicit decision. Generic context does not prove the agent checked the
-// relevant internal skills, so the checkpoint is satisfied by at least one
-// global skill item, NO_SKILL_CONTEXT, or the stronger NO_CONTEXT skip.
+// globalSkillContextResolved is the skill checkpoint gate v2 (contract
+// decision D4): it demands EVIDENCE OF A SWEEP, not a quota. Satisfied when
+// discovery ran for the submitted concepts AND every returned candidate was
+// dispositioned (accepted, or rejected with a reason — direct context-submit
+// items count as dispositions via acceptMatchingPendingCandidates), OR when an
+// explicit NO_SKILL_CONTEXT/NO_CONTEXT skip reason is recorded. A skill item
+// alone, without the sweep or a skip reason, no longer satisfies it.
 func globalSkillContextResolved(sess Session) bool {
-	for _, item := range sess.RelevantContext {
-		if item.Scope == planmodel.RelevantContextScopeGlobal && item.Kind == planmodel.RelevantContextSkill {
-			return true
-		}
+	if len(sess.ContextCandidates) > 0 && pendingContextCandidates(sess) == 0 {
+		return true
 	}
 	content := contentOf(sess.Sections, SectionRelevantContext)
 	return noSkillContextReason(content) != "" || noContextReason(content) != ""
+}
+
+// pendingContextCandidates counts discovery candidates still awaiting an
+// accept/reject decision.
+func pendingContextCandidates(sess Session) int {
+	n := 0
+	for _, c := range sess.ContextCandidates {
+		if c.Status == ContextCandidatePending {
+			n++
+		}
+	}
+	return n
 }
 
 func parseReferencesContent(content string) ([]planmodel.Reference, error) {

@@ -27,7 +27,7 @@ func TestConnectCreateItem_FilesFixWithOriginTag(t *testing.T) {
 		Title:           "Scenario X is broken",
 		Kind:            "fix",
 		Description:     strPtr("It does not start"),
-		Tags:            []string{"origin:prd-control-tower", "user-initiated"},
+		Tags:            []string{"origin:business-health", "user-initiated"},
 		AcceptanceAllow: []string{"scenarios/scenario-x/**"},
 	})
 
@@ -45,7 +45,7 @@ func TestConnectCreateItem_FilesFixWithOriginTag(t *testing.T) {
 	// origin tag round-trips and the dedup signature tag was added.
 	var hasOrigin, hasSig bool
 	for _, tag := range item.Tags {
-		if tag == "origin:prd-control-tower" {
+		if tag == "origin:business-health" {
 			hasOrigin = true
 		}
 		if len(tag) > 4 && tag[:4] == "sig:" {

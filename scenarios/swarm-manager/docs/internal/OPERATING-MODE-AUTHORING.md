@@ -170,7 +170,7 @@ Use `initiativePhaseSpec` for each phase:
 | Field | Use |
 |---|---|
 | `Phase` | Stable phase token used in routes, rounds, stats, and UI |
-| `Kind` | **Required.** One of `PhaseKindInvestigate \| Execute \| Review \| Reconcile`. Drives Operations Center column placement, lane utilization, and per-lane metrics. The validator rejects empty values. |
+| `Kind` | **Required.** One of `PhaseKindInvestigate \| Execute \| Review \| Reconcile`. Drives Plan-board Now-column lane placement, lane utilization, and per-lane metrics. The validator rejects empty values. |
 | `AutoStartAfter` | Optional. Length ≤ 1. When set, names the predecessor phase whose successful completion auto-starts this phase via the round refresher. Multi-predecessor races are out of scope in v1. |
 | `Purpose` | Lowercase snake-case audit token for agent activity |
 | `LockPurpose` | Optional lowercase snake-case token; defaults to `Purpose` |

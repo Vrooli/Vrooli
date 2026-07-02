@@ -7,7 +7,7 @@
  * visible at a glance.
  *
  * Lays out tightly so four bars fit comfortably on desktop in one row;
- * the parent `OpsHeader` collapses these into a horizontally scrolling
+ * the Plan board Now column stacks these in a vertically scrolling
  * strip on narrow viewports.
  */
 

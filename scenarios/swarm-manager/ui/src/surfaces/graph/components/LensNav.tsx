@@ -1,37 +1,29 @@
 /**
- * LensNav - Hierarchical lens navigation with Topology as the primary "atlas" tab.
- * Flow and Operations are contextual sub-views that may require a focus node.
+ * LensNav - Two-tab lens navigation: Plan (the default kanban board) and
+ * Focus (the attention-filtered graph neighborhood).
  */
 
 import { cn } from "../../../lib/utils";
-import { Breadcrumb } from "./Breadcrumb";
+import type { AppGraphLens } from "../../../app/routes/route-paths";
 import type { GraphLens } from "../stores/graph-data-store";
 
 interface LensNavProps {
   activeLens: GraphLens;
-  focusNodeLabel: string | null;
-  onLensChange: (lens: GraphLens) => void;
-  onReturnToAtlas: () => void;
+  onLensChange: (lens: AppGraphLens) => void;
 }
 
 const LENSES: Array<{
-  id: GraphLens;
+  id: AppGraphLens;
   label: string;
   shortLabel: string;
   shortcut: string;
   primary?: boolean;
 }> = [
-  { id: "focus", label: "Focus", shortLabel: "Focus", shortcut: "1", primary: true },
-  { id: "topology", label: "Topology", shortLabel: "Topo", shortcut: "2" },
-  { id: "operations", label: "Operations", shortLabel: "Ops", shortcut: "3" },
+  { id: "plan", label: "Plan", shortLabel: "Plan", shortcut: "1", primary: true },
+  { id: "focus", label: "Focus", shortLabel: "Focus", shortcut: "2" },
 ];
 
-export function LensNav({
-  activeLens,
-  focusNodeLabel,
-  onLensChange,
-  onReturnToAtlas,
-}: LensNavProps) {
+export function LensNav({ activeLens, onLensChange }: LensNavProps) {
   return (
     <div className="flex w-fit flex-col gap-1" data-testid="lens-nav">
       <div
@@ -63,11 +55,6 @@ export function LensNav({
             </button>
         ))}
       </div>
-      <Breadcrumb
-        lens={activeLens}
-        focusNodeLabel={focusNodeLabel}
-        onNavigateHome={onReturnToAtlas}
-      />
     </div>
   );
 }

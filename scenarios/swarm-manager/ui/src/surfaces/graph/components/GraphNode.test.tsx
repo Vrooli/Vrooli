@@ -67,7 +67,7 @@ describe("GraphNode — actionable badge", () => {
   );
 
   it("does NOT show actionable-badge in operations lens", () => {
-    useGraphDataStore.setState({ lens: "operations" });
+    useGraphDataStore.setState({ lens: "focus" });
     const node = makeBacklogNode("backlog/execute/test", { status: "backlog" as BacklogStatus });
     renderGraphNode(node.data);
     expect(screen.queryByTestId("actionable-badge")).not.toBeInTheDocument();

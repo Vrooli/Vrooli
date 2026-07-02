@@ -15,7 +15,12 @@ import (
 )
 
 const (
-	RendererVersion     = "plan-manager-renderer-v1"
+	// RendererVersion v2: the nine-cluster section model (Purpose/Problem/Outcome/
+	// Approach & Decisions/Boundaries/Assumptions & Risks/Verification/Execution
+	// Setup/Phases), compact NO_CONTEXT phase lines, one-line execution feedback,
+	// decisions + assumption/mitigation rendering. Bumping this marks every
+	// mirror rendered by v1 stale so reconcile re-renders it.
+	RendererVersion     = "plan-manager-renderer-v2"
 	mirrorIndexFilename = "_index.json"
 )
 

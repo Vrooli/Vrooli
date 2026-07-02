@@ -24,8 +24,6 @@ export interface GraphProjectionMeta {
   edgeCount: number;
   generatedAt: string;
   agentManagerAvailable: boolean | null;
-  focusNodeId: string | null;
-  focusNodeType: string | null;
   hint: string | null;
 }
 
@@ -37,7 +35,6 @@ export interface GraphProjection {
 
 export interface GraphRequestOptions {
   signal?: AbortSignal;
-  focusNodeId?: string;
 }
 
 export interface IGraphService {
@@ -301,8 +298,6 @@ function normalizeMeta(meta: {
   edgeCount: number;
   generatedAt: string;
   agentManagerAvailable?: boolean;
-  focusNodeId?: string;
-  focusNodeType?: string;
   hint?: string;
 }): GraphProjectionMeta {
   return {
@@ -312,8 +307,6 @@ function normalizeMeta(meta: {
     generatedAt: meta.generatedAt,
     agentManagerAvailable:
       typeof meta.agentManagerAvailable === "boolean" ? meta.agentManagerAvailable : null,
-    focusNodeId: meta.focusNodeId ?? null,
-    focusNodeType: meta.focusNodeType ?? null,
     hint: meta.hint ?? null,
   };
 }
@@ -321,10 +314,7 @@ function normalizeMeta(meta: {
 export function createGraphService(apiClient: IApiClient = defaultApiClient): IGraphService {
   return {
     async getGraph(lens: GraphLens, options?: GraphRequestOptions): Promise<GraphProjection> {
-      let url = `${API_ENDPOINTS.graph}?lens=${encodeURIComponent(lens)}`;
-      if (options?.focusNodeId) {
-        url += `&focus_node_id=${encodeURIComponent(options.focusNodeId)}`;
-      }
+      const url = `${API_ENDPOINTS.graph}?lens=${encodeURIComponent(lens)}`;
       const data = await apiClient.get<unknown>(url, { signal: options?.signal });
       const parsed = parseProtoResponse(graphResponseSchema, data, "graph");
 

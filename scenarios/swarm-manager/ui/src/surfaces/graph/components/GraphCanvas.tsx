@@ -5,13 +5,12 @@
  * Dagre layout before rendering.
  */
 
-import { Profiler, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Profiler, memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { onProfilerRender } from "../../../lib/profiler";
 import { useGraphAutoFit } from "../hooks/useGraphAutoFit";
 import {
   Background,
   BackgroundVariant,
-  MiniMap,
   ReactFlow,
   useEdgesState,
   useNodesState,
@@ -29,21 +28,10 @@ import { useGraphSettingsStore } from "../stores/graph-settings-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import { applyDagreLayout } from "../lib/layout-utils";
 import { buildGraphPresentation } from "../lib/graph-presentation";
-import {
-  FILTER_SUGGESTION_THRESHOLD,
-  getEdgeMarker,
-  getEdgeStyle,
-  STRAIGHT_EDGE_THRESHOLD,
-} from "../lib/edge-styles";
+import { getEdgeMarker, getEdgeStyle } from "../lib/edge-styles";
 import { GRAPH_ENTITY_TYPES } from "../lib/entity-shapes";
-import { getStatusRgb } from "../lib/status-colors";
 import { computeVisualFocus, clearVisualFocus } from "../lib/visual-focus";
-import {
-  getGraphNodeData,
-  type GraphEdge,
-  type GraphNode,
-} from "../types";
-import { ClusterNode } from "./ClusterNode";
+import type { GraphEdge, GraphNode } from "../types";
 import { EdgeLegend } from "./EdgeLegend";
 import { FocusEmptyState } from "./FocusEmptyState";
 import { GraphNode as GraphNodeComponent } from "./GraphNode";
@@ -51,7 +39,6 @@ import { GraphNode as GraphNodeComponent } from "./GraphNode";
 /** Derived from ENTITY_REGISTRY — adding a new entity type automatically registers it here. */
 const nodeTypes: NodeTypes = {
   ...Object.fromEntries(GRAPH_ENTITY_TYPES.map((t) => [t, GraphNodeComponent])),
-  cluster: ClusterNode,
 } as NodeTypes;
 
 const baseEdgeOptions: DefaultEdgeOptions = {
@@ -70,21 +57,17 @@ const GraphCanvasImpl = memo(function GraphCanvasImpl() {
   const storeNodes = useGraphDataStore((s) => s.nodes);
   const storeEdges = useGraphDataStore((s) => s.edges);
   const lens = useGraphDataStore((s) => s.lens);
-  const meta = useGraphDataStore((s) => s.meta);
   const loading = useGraphDataStore((s) => s.loading);
   const error = useGraphDataStore((s) => s.error);
   const settings = useGraphSettingsStore((s) => s.settingsByLens[s.activeLens]);
-  const groupingMode = settings.groupingMode;
   const autoFitOnChange = settings.autoFitOnChange;
 
   const layoutMode = useGraphUIStore((s) => s.layoutMode);
   const layoutDirection = useGraphUIStore((s) => s.layoutDirection);
   const highlightState = useGraphUIStore((s) => s.highlightState);
-  const expandedTopologyClusters = useGraphUIStore((s) => s.expandedTopologyClusters);
   const selectNode = useGraphUIStore((s) => s.selectNode);
   const setHighlightState = useGraphUIStore((s) => s.setHighlightState);
   const setViewportIntentForLens = useGraphUIStore((s) => s.setViewportIntentForLens);
-  const toggleTopologyCluster = useGraphUIStore((s) => s.toggleTopologyCluster);
 
   const selectedNodeId = useGraphUIStore((s) => s.selectedNodeId);
   const focusNodeId = useGraphDataStore((s) => s.focusNodeId);
@@ -97,23 +80,20 @@ const GraphCanvasImpl = memo(function GraphCanvasImpl() {
       nodes: storeNodes,
       edges: storeEdges,
       settings,
-      expandedTopologyClusters,
     });
-  }, [expandedTopologyClusters, lens, settings, storeEdges, storeNodes]);
+  }, [lens, settings, storeEdges, storeNodes]);
 
   // PERF: Split edge styling into two layers:
   // 1. Base styling (type-based colors, markers) — only changes when edges change.
   // 2. Highlight overlay (opacity) — only changes when highlight state changes.
   // This prevents recomputing base styles when only the highlight changes.
   const baseStyledEdges = useMemo<GraphEdge[]>(() => {
-    const useStraightEdges = processedEdges.length > STRAIGHT_EDGE_THRESHOLD;
     return processedEdges.map((edge) => ({
       ...edge,
       data: {
         ...(edge.data ?? {}),
         relationshipType: edge.type,
       },
-      type: useStraightEdges ? "straight" : undefined,
       style: getEdgeStyle(edge.type ?? undefined),
       markerEnd: getEdgeMarker(edge.type ?? undefined),
     }));
@@ -226,7 +206,6 @@ const GraphCanvasImpl = memo(function GraphCanvasImpl() {
     lens,
     layoutMode,
     layoutDirection,
-    groupingMode,
     showSecondaryEdges: settings.showSecondaryEdges,
     autoFitOnChange,
     processedNodes,
@@ -278,23 +257,6 @@ const GraphCanvasImpl = memo(function GraphCanvasImpl() {
 
   const handleNodeClick: NodeMouseHandler = useCallback(
     (_event, node) => {
-      // Cluster nodes toggle expansion on click.
-      if (node.type === "cluster") {
-        toggleTopologyCluster(node.id);
-
-        // Cluster nodes backed by an initiative also get visual focus
-        // so the inspector panel can show initiative info.
-        const data = getGraphNodeData(node as GraphNode);
-        if ("isUnassigned" in data && !data.isUnassigned) {
-          const focus = computeVisualFocus(node.id, processedNodes, styledEdges);
-          if (focus) {
-            selectNode(focus.selectedNodeId);
-            setHighlightState(focus.highlightState);
-          }
-        }
-        return;
-      }
-
       // All node clicks apply visual focus (BFS highlight/dim).
       // The NodeInspectorPanel reads selectedNodeId from the store
       // and shows entity info + navigation buttons.
@@ -304,7 +266,7 @@ const GraphCanvasImpl = memo(function GraphCanvasImpl() {
         setHighlightState(focus.highlightState);
       }
     },
-    [processedNodes, selectNode, setHighlightState, styledEdges, toggleTopologyCluster],
+    [processedNodes, selectNode, setHighlightState, styledEdges],
   );
 
   const handlePaneClick = useCallback(() => {
@@ -344,28 +306,6 @@ const GraphCanvasImpl = memo(function GraphCanvasImpl() {
     [setFlowInstance],
   );
 
-  const showMiniMap = settings.showMiniMap;
-  const overFilterThreshold = processedEdges.length > FILTER_SUGGESTION_THRESHOLD;
-  const [filterSuggestionDismissed, setFilterSuggestionDismissed] = useState(false);
-
-  // Reset dismissal when edge count drops back below threshold, so the banner
-  // can reappear if edge count spikes again later.
-  useEffect(() => {
-    if (!overFilterThreshold && filterSuggestionDismissed) {
-      setFilterSuggestionDismissed(false);
-    }
-  }, [overFilterThreshold, filterSuggestionDismissed]);
-
-  const showFilterSuggestion = overFilterThreshold && !filterSuggestionDismissed;
-
-  // PERF: Stable callback reference so MiniMap doesn't re-render on every
-  // GraphCanvas render. Without this, the inline arrow function creates a
-  // new reference each render, causing MiniMap to redraw all node colors.
-  const miniMapNodeColor = useCallback(
-    (node: { data?: unknown }) => getStatusRgb(getGraphNodeData(node).status),
-    [],
-  );
-
   return (
     <div className="h-full w-full" data-testid="graph-canvas">
       <ReactFlow
@@ -394,21 +334,6 @@ const GraphCanvasImpl = memo(function GraphCanvasImpl() {
         elementsSelectable={false}
       >
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="rgb(51 65 85 / 0.4)" />
-        {showMiniMap && (
-          <MiniMap
-            style={{
-              width: 140,
-              height: 100,
-              backgroundColor: "rgb(15 23 42 / 0.8)",
-              borderRadius: 8,
-              border: "1px solid rgb(51 65 85 / 0.5)",
-            }}
-            nodeStrokeWidth={2}
-            nodeColor={miniMapNodeColor}
-            maskColor="rgb(2 6 23 / 0.7)"
-            className="!bottom-3 !right-3"
-          />
-        )}
       </ReactFlow>
 
       {visibleEdgeTypes.length > 0 && <EdgeLegend edgeTypes={visibleEdgeTypes} />}
@@ -445,34 +370,7 @@ const GraphCanvasImpl = memo(function GraphCanvasImpl() {
         )
       )}
 
-      {lens === "operations" && meta?.agentManagerAvailable === false && (
-        <div
-          className="absolute bottom-3 left-3 z-20 rounded-lg border border-amber-500/30 bg-amber-950/90 px-4 py-2 text-xs text-amber-200 shadow-lg"
-          data-testid="operations-agent-manager-warning"
-        >
-          Agent manager is unavailable, so run nodes may be missing from this view.
-        </div>
-      )}
 
-      {showFilterSuggestion && (
-        <div
-          className="absolute left-1/2 top-24 z-20 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-950/90 px-4 py-2 text-xs text-amber-200 shadow-lg"
-          data-testid="filter-suggestion"
-        >
-          <span>
-            High edge count ({processedEdges.length}). Use graph controls to filter entity types, statuses, or secondary edges.
-          </span>
-          <button
-            type="button"
-            onClick={() => setFilterSuggestionDismissed(true)}
-            aria-label="Dismiss high edge count notice"
-            className="-mr-1 rounded px-1.5 py-0.5 text-amber-300 transition hover:bg-amber-500/20 hover:text-amber-100"
-            data-testid="filter-suggestion-dismiss"
-          >
-            ×
-          </button>
-        </div>
-      )}
     </div>
   );
 });

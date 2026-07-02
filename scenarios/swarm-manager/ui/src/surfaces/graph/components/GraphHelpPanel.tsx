@@ -152,9 +152,8 @@ export function GraphHelpPanel({ isOpen, onClose }: GraphHelpPanelProps) {
         <section>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Lenses</h3>
           <div className="space-y-1.5 text-[11px] text-slate-400">
-            <p><strong className="text-slate-300">Topology</strong> — Dependencies, initiatives, and relationships between all items</p>
-            <p><strong className="text-slate-300">Flow</strong> — Execution flow from backlog to completion</p>
-            <p><strong className="text-slate-300">Operations</strong> — Active agent runs and their activities</p>
+            <p><strong className="text-slate-300">Plan</strong> — Now / Next / Later / Done board: what is running, what is actionable, and what each blocker unblocks</p>
+            <p><strong className="text-slate-300">Focus</strong> — Attention-filtered graph neighborhood: items needing input plus their structural context</p>
           </div>
         </section>
       </div>

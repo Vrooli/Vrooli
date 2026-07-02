@@ -18,7 +18,7 @@ import { useResizablePanel } from "../../hooks/useResizablePanel";
 import { useIsMobile } from "../../hooks/useMediaQuery";
 import { BacklogItemsProvider } from "../../components/backlog/backlog-items-context";
 import { AppShellContext } from "./AppShellContext";
-import { commandPostPath, detailPathFromNodeId, graphPath } from "../routes/route-paths";
+import { detailPathFromNodeId, graphPath } from "../routes/route-paths";
 import type { FeedbackItem, MaturityItem } from "../../lib/feed";
 
 export function AppShell() {
@@ -106,7 +106,7 @@ export function AppShell() {
   }, [isMobile, setSidebarCollapsed]);
 
   const navigateToNode = useCallback(
-    (nodeId: string, fallbackLens: "topology" | "operations" = "topology") => {
+    (nodeId: string, fallbackLens: "plan" | "focus" = "focus") => {
       selectNode(nodeId);
       closeSidebarOnMobile();
 
@@ -123,7 +123,7 @@ export function AppShell() {
 
   const handleGoHome = useCallback(() => {
     closeSidebarOnMobile();
-    navigate(graphPath({ lens: "topology" }));
+    navigate(graphPath({ lens: "plan" }));
   }, [closeSidebarOnMobile, navigate]);
 
   const handleSidebarItemClick = useCallback(
@@ -135,7 +135,8 @@ export function AppShell() {
 
   const handleOpenCommandPost = useCallback(() => {
     closeSidebarOnMobile();
-    navigate(commandPostPath());
+    // Command Post is retired; decisions live in the Plan board's drawer.
+    navigate(`${graphPath({ lens: "plan" })}?drawer=decisions`);
   }, [closeSidebarOnMobile, navigate]);
 
   const handleCloseSettingsDrawer = useCallback(() => setShowSettingsDrawer(false), []);

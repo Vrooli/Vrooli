@@ -23,7 +23,7 @@ import { StatusBadge } from "./StatusBadge";
 import { TitlePopover } from "./TitlePopover";
 import { LensBar } from "./LensBar";
 import type { LensOption } from "./lens-options";
-import type { GraphLens } from "../../surfaces/graph/stores/graph-data-store";
+import type { AppGraphLens } from "../../app/routes/route-paths";
 import type { BacklogStatus } from "../../types";
 
 export interface DetailPageHeaderProps {
@@ -78,7 +78,7 @@ export function DetailPageHeader({
     goBack();
   };
 
-  const handleDrillToLens = (id: string, lens: GraphLens) => {
+  const handleDrillToLens = (id: string, lens: AppGraphLens) => {
     navigate(graphPath({ lens, focus: id, select: id }));
   };
 

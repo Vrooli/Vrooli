@@ -91,6 +91,8 @@ type planDocument struct {
 	FinalValidationCommands []string           `json:"final_validation_commands,omitempty"`
 	RisksHazards            string             `json:"risks_hazards,omitempty"`
 	ProhibitedApproaches    string             `json:"prohibited_approaches,omitempty"`
+	Decisions               []PlanDecision     `json:"decisions,omitempty"`
+	AssumptionRisks         []PlanAssumption   `json:"assumption_risks,omitempty"`
 	WorkPosture             WorkPosture        `json:"work_posture,omitempty"`
 	WorkPostureSource       WorkPostureSource  `json:"work_posture_source,omitempty"`
 	WorkPostureDetail       string             `json:"work_posture_detail,omitempty"`
@@ -158,6 +160,8 @@ func (r *sqliteRepository) Save(ctx context.Context, p Plan) error {
 		FinalValidationCommands: p.FinalValidationCommands,
 		RisksHazards:            p.RisksHazards,
 		ProhibitedApproaches:    p.ProhibitedApproaches,
+		Decisions:               p.Decisions,
+		AssumptionRisks:         p.AssumptionRisks,
 		WorkPosture:             p.WorkPosture,
 		WorkPostureSource:       p.WorkPostureSource,
 		WorkPostureDetail:       p.WorkPostureDetail,
@@ -304,6 +308,8 @@ func scanPlan(s rowScanner) (Plan, error) {
 	p.FinalValidationCommands = doc.FinalValidationCommands
 	p.RisksHazards = doc.RisksHazards
 	p.ProhibitedApproaches = doc.ProhibitedApproaches
+	p.Decisions = doc.Decisions
+	p.AssumptionRisks = doc.AssumptionRisks
 	p.WorkPosture = doc.WorkPosture
 	p.WorkPostureSource = doc.WorkPostureSource
 	p.WorkPostureDetail = doc.WorkPostureDetail

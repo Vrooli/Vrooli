@@ -568,12 +568,8 @@ export const literalSelectors = {
     versions: "prompts-versions",
     preview: "prompts-preview",
   },
-  // Command Post selectors
+  // Decision stream (hosted in the Plan board's decision drawer).
   commandPost: {
-    page: "command-post-page",
-    header: "command-post-header",
-    back: "command-post-back",
-    summary: "command-post-summary",
     decisionStream: {
       container: "ds-container",
       header: "ds-header",
@@ -616,37 +612,61 @@ export const literalSelectors = {
     zoomOut: "graph-nav-zoom-out",
     fitView: "graph-nav-fit-view",
   },
-  // Operations Center selectors. Single-page surface for agentic
-  // activity; the trigger lives under `layout.opsTriggerButton`.
+  // Plan lens board (/graph/plan): Now/Next/Later/Done kanban.
+  plan: {
+    board: "plan-board",
+    boardLoading: "plan-board-loading",
+    boardError: "plan-board-error",
+    boardRefresh: "plan-board-refresh",
+    cycleWarning: "plan-cycle-warning",
+    columnNow: "plan-column-now",
+    columnNowHeader: "plan-column-now-header",
+    columnNext: "plan-column-next",
+    columnLater: "plan-column-later",
+    columnDone: "plan-column-done",
+    nowEmpty: "plan-now-empty",
+    nowSpawnCta: "plan-now-spawn-cta",
+    nextEmpty: "plan-next-empty",
+    laterEmpty: "plan-later-empty",
+    doneEmpty: "plan-done-empty",
+    doneWindow: "plan-done-window",
+    beyondHorizon: "plan-beyond-horizon",
+    groupToggle: "plan-group-toggle",
+    cardGateBadge: "plan-card-gate-badge",
+    cardWaveBadge: "plan-card-wave-badge",
+    cardOutcomeGlyph: "plan-card-outcome-glyph",
+    boardFilters: "plan-board-filters",
+    snoozedHiddenCount: "plan-snoozed-hidden-count",
+    nowSelectToggle: "plan-now-select-toggle",
+    nowRefresh: "plan-now-refresh",
+    nowSpawn: "plan-now-spawn",
+    filterDrawer: "plan-filter-drawer",
+    filterSearch: "plan-filter-search",
+    filterStatus: "plan-filter-status",
+    filterLane: "plan-filter-lane",
+    filterOwnerType: "plan-filter-owner-type",
+    filterGroupBy: "plan-filter-group-by",
+    filterShowSnoozed: "plan-filter-show-snoozed",
+    filterReset: "plan-filter-reset",
+    decisionDrawer: "plan-decision-drawer",
+    decisionDrawerEmpty: "plan-decision-drawer-empty",
+    nextRunAll: "plan-next-run-all",
+    nextAnswerAll: "plan-next-answer-all",
+    cardMenu: "plan-card-menu",
+    cardMenuOpen: "plan-card-menu-open",
+    cardMenuAnswer: "plan-card-menu-answer",
+    cardMenuRun: "plan-card-menu-run",
+    cardMenuWorkshop: "plan-card-menu-workshop",
+    cardMenuFinalize: "plan-card-menu-finalize",
+    cardMenuArchive: "plan-card-menu-archive",
+  },
+  // Live-activity primitives shared with the Plan board's Now column
+  // (ActivityRow, LaneBar, OpsBulkActions). The standalone Operations
+  // Center page is retired; the agents chip lives under
+  // `layout.opsTriggerButton` and targets /graph/plan.
   operationsCenter: {
-    page: "operations-center-page",
-    header: "operations-center-header",
-    filterBar: "operations-center-filter-bar",
-    body: "operations-center-body",
-    viewToggleByInitiative: "operations-center-view-by-initiative",
-    viewToggleByPhase: "operations-center-view-by-phase",
     laneBar: "operations-center-lane-bar",
-    queueChip: "operations-center-queue-chip",
-    finishedChip: "operations-center-finished-chip",
-    refreshButton: "operations-center-refresh",
     activityRow: "operations-center-activity-row",
-    initiativeCard: "operations-center-initiative-card",
-    standaloneBucket: "operations-center-standalone-bucket",
-    byPhaseBoard: "operations-center-by-phase-board",
-    byPhaseColumn: "operations-center-by-phase-column",
-    byPhaseColumnHeader: "operations-center-by-phase-column-header",
-    byPhaseColumnEmpty: "operations-center-by-phase-column-empty",
-    emptyState: "operations-center-empty-state",
-    errorState: "operations-center-error-state",
-    searchInput: "operations-center-search",
-    statusSelect: "operations-center-status-select",
-    laneSelect: "operations-center-lane-select",
-    ownerTypeSelect: "operations-center-owner-type-select",
-    windowSelect: "operations-center-window-select",
-    resetFilters: "operations-center-reset-filters",
-    // Bulk-action selectors (P7b). Row checkbox is rendered inside
-    // ActivityRow when selectable=true; the bulk-action bar appears at the
-    // bottom of the page when selection.size > 0.
     activityRowCheckbox: "operations-center-activity-row-checkbox",
     bulkActionBar: "operations-center-bulk-action-bar",
     bulkStopSelected: "operations-center-bulk-stop-selected",
@@ -655,19 +675,6 @@ export const literalSelectors = {
     bulkStopConfirmDialog: "operations-center-bulk-stop-confirm",
     bulkStopAllConfirmDialog: "operations-center-bulk-stop-all-confirm",
     bulkStopOutcomeToast: "operations-center-bulk-stop-outcome",
-    // Selection-mode toggle that lives next to the view tabs. When off,
-    // row checkboxes and the bulk-action bar are hidden.
-    selectionModeToggle: "operations-center-selection-mode-toggle",
-    // Page-level navigation chrome (sidebar toggle + close). Distinct from
-    // `header`, which is the stats strip below the nav bar.
-    navHeader: "operations-center-nav-header",
-    backButton: "operations-center-back",
-    // Spawn affordances that route the operator to the Command Post.
-    // The header button is always visible; the empty-state CTAs only
-    // render when activities + queue + recentlyFinished are all empty.
-    spawnButton: "operations-center-spawn-button",
-    emptyStateSpawnCta: "operations-center-empty-state-spawn-cta",
-    emptyStateResetFilters: "operations-center-empty-state-reset-filters",
   },
   // Evidence renderer selectors
   evidence: {
@@ -724,6 +731,28 @@ export const dynamicSelectorDefinitions = {
         kind: { type: "enum", values: ["idea", "research", "fix", "execute", "chore"] },
         name: { type: "string" },
       },
+    }),
+  },
+  plan: {
+    cardById: defineDynamicSelector({
+      description: "Plan board card by canonical node id",
+      testIdPattern: "plan-card-${id}",
+      params: { id: { type: "string" } },
+    }),
+    groupById: defineDynamicSelector({
+      description: "Plan column card group by group id",
+      testIdPattern: "plan-group-${id}",
+      params: { id: { type: "string" } },
+    }),
+    nowGroup: defineDynamicSelector({
+      description: "Now column group (initiative name or 'standalone')",
+      testIdPattern: "plan-now-group-${key}",
+      params: { key: { type: "string" } },
+    }),
+    doneWindowChoice: defineDynamicSelector({
+      description: "Done column window preset button",
+      testIdPattern: "plan-done-window-${label}",
+      params: { label: { type: "enum", values: ["1h", "6h", "24h"] } },
     }),
   },
   scenarios: {

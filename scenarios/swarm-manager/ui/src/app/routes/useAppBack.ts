@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { graphPath } from "./route-paths";
 
-const DEFAULT_FALLBACK = graphPath({ lens: "topology" });
+const DEFAULT_FALLBACK = graphPath({ lens: "plan" });
 
 function hasInAppHistory(): boolean {
   const state = window.history.state as { idx?: unknown } | null;

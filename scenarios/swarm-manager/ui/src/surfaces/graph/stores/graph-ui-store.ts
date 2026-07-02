@@ -91,9 +91,9 @@ function saveLayoutDirection(direction: LayoutDirection): void {
 
 function createEmptyViewportIntentByLens(): ViewportIntentByLens {
   return {
+    plan: null,
     focus: null,
     topology: null,
-    operations: null,
   };
 }
 
@@ -122,9 +122,6 @@ function loadViewportIntentByLens(): ViewportIntentByLens {
     }
     if (isViewportIntent(parsed.topology)) {
       next.topology = parsed.topology;
-    }
-    if (isViewportIntent(parsed.operations)) {
-      next.operations = parsed.operations;
     }
 
     return next;
@@ -173,7 +170,6 @@ export interface GraphUIState {
   fitViewNonce: number;
   viewportIntentByLens: ViewportIntentByLens;
   sidebarCollapsed: boolean;
-  expandedTopologyClusters: Set<string>;
   focusNodeLabel: string | null;
   /** Runtime-only ref to the React Flow instance. NOT persisted to localStorage.
    *  Set by GraphCanvas on init; consumed by GraphNavControls for viewport manipulation. */
@@ -190,9 +186,6 @@ export interface GraphUIState {
   setViewportIntentForLens: (lens: GraphLens, intent: ViewportIntent | null) => void;
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
-  toggleTopologyCluster: (clusterId: string) => void;
-  collapseAllTopologyClusters: () => void;
-  expandTopologyClusters: (clusterIds: string[]) => void;
   setFocusNodeLabel: (label: string | null) => void;
   setFlowInstance: (instance: ReactFlowInstance<GraphNode> | null) => void;
 }
@@ -211,7 +204,6 @@ export const graphUIInitialState = {
   fitViewNonce: 0,
   viewportIntentByLens: initialViewportIntentByLens,
   sidebarCollapsed: initialSidebarCollapsed,
-  expandedTopologyClusters: new Set<string>(),
   focusNodeLabel: null as string | null,
   flowInstance: null as ReactFlowInstance<GraphNode> | null,
 };
@@ -312,21 +304,6 @@ export const useGraphUIStore = create<GraphUIState>((set, get) => ({
     set({ sidebarCollapsed: collapsed });
   },
 
-  toggleTopologyCluster: (clusterId) =>
-    set((state) => {
-      const next = new Set(state.expandedTopologyClusters);
-      if (next.has(clusterId)) {
-        next.delete(clusterId);
-      } else {
-        next.add(clusterId);
-      }
-      return { expandedTopologyClusters: next };
-    }),
-
-  collapseAllTopologyClusters: () => set({ expandedTopologyClusters: new Set<string>() }),
-
-  expandTopologyClusters: (clusterIds) => set({ expandedTopologyClusters: new Set(clusterIds) }),
-
   setFocusNodeLabel: (label) => set({ focusNodeLabel: label }),
 
   setFlowInstance: (instance) => set({ flowInstance: instance }),
@@ -341,11 +318,10 @@ export function cloneGraphUIInitialState(): typeof graphUIInitialState {
     },
     layoutPreferences: { ...graphUIInitialState.layoutPreferences },
     viewportIntentByLens: {
+      plan: graphUIInitialState.viewportIntentByLens.plan ? { ...graphUIInitialState.viewportIntentByLens.plan } : null,
       focus: graphUIInitialState.viewportIntentByLens.focus ? { ...graphUIInitialState.viewportIntentByLens.focus } : null,
       topology: graphUIInitialState.viewportIntentByLens.topology ? { ...graphUIInitialState.viewportIntentByLens.topology } : null,
-      operations: graphUIInitialState.viewportIntentByLens.operations ? { ...graphUIInitialState.viewportIntentByLens.operations } : null,
     },
-    expandedTopologyClusters: new Set(graphUIInitialState.expandedTopologyClusters),
     // Runtime-only — always null in clones (tests, resets).
     flowInstance: null,
   };

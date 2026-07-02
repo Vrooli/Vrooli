@@ -387,7 +387,7 @@ func (s *Service) dispatchStatusUpdate(record Record) {
 		"mode":         string(record.Mode),
 		"run_id":       record.RunID,
 	})
-	s.eventDispatcher.DispatchInvalidate("topology", "flow", "operations")
+	s.eventDispatcher.DispatchInvalidate("topology", "plan")
 }
 
 // logExecutionEvent emits an event log entry for an execution status transition.

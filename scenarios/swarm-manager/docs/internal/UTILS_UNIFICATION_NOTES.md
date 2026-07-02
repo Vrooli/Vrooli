@@ -342,3 +342,41 @@ Remaining consolidation candidates:
 Use it for positive eventual conditions such as index notifications, graph materialization drains, background reindex completion, and dispatch hook rebuilds. Do not use it to hide absence checks; tests that intentionally validate "nothing happened after a short window" should keep a narrow fixed sleep with a comment naming that real-time contract.
 
 Recent migrations removed local polling loops from AI search integration tests, AI search reindex tests, graph materializer scheduling tests, the root graph materialization integration helper, and the root initiative feedback/review integration helpers. Remaining direct sleeps are limited to the shared `Eventually` polling interval, explicitly commented negative absence checks, and fake upstream latency used to pin singleton semantics.
+
+## Plan-Lens Consolidation Audit (2026-07-02)
+
+Utils audit of the surfaces touched by the Plan-lens consolidation (Operations
+Center + Command Post + Topology/Operations lens retirement):
+
+**Consolidated / rehomed**
+- `components/cards/BoardCard.tsx` is the single card primitive for board
+  surfaces (status dot, title, meta, badge/action slots); all Plan board card
+  variants (`PlanCardView`, gate cards, outcome cards) render on it. The
+  live-activity row keeps `components/operations/ActivityRow.tsx` — it is a
+  self-contained store-connected component reused verbatim by the Now column,
+  not a second primitive.
+- Board grouping/sorting/labeling lives in pure `surfaces/plan/lib/` modules
+  (`plan-presentation.ts`, `plan-url-state.ts`), unit-tested without React.
+  Server-side grouping/sorting lives in `internal/planview` (mirroring the
+  Command Post ordering via the pre-existing `backlogrank` package — no new
+  ranking implementation was written).
+- The Operations Center URL-filter vocabulary was extracted into
+  `plan-url-state.ts` instead of duplicating the page-local helpers it
+  replaced; old `/operations?...` links keep working through the redirect.
+- `lib/command-post-utils.ts` (groupActionItems etc.) survives with its three
+  remaining consumers (SidebarTabs, badge hook, board menus via
+  `useCommandPostItemActions`); the server `internal/gates` read-model is the
+  authoritative reimplementation of the same predicates, and the two are kept
+  aligned by the parity tests in `gates_test.go`.
+
+**Deleted rather than unified** (single-consumer code that died with its page):
+`OpsHeader`, `OpsFilterBar`, `OpsBody`, `ByInitiativeView`, `ByPhaseView`,
+`SummaryView`, `ActionGroupCard`, `RecentSection`, `SnoozedSection`,
+`EmptyState`, `ExecutionCaptureCard`, `CommandPostButton`, `Breadcrumb`,
+`ClusterNode`, `clustering-utils`, the edge-count perf guards, MiniMap wiring,
+`getStatusRgb`, the graph-service focus plumbing, and the server
+flow/operations projection with its node builders.
+
+**Known intentional duplication**: date/status formatting on board cards uses
+the shared `formatRelativeTime` / status label helpers already in `lib/`; no
+new formatters were introduced.

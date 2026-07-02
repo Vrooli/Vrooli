@@ -8,8 +8,7 @@
  * or stop-run plumbing.
  */
 
-import { Home, PanelLeft, Settings, X } from "lucide-react";
-import { CommandPostButton } from "../../../../components/command-post/CommandPostButton";
+import { Home, Inbox, PanelLeft, Settings, X } from "lucide-react";
 import { OpsTriggerButton } from "../../../../components/operations/OpsTriggerButton";
 import { useCommandPostBadgeCount } from "../../../../hooks/useCommandPostBadgeCount";
 
@@ -44,14 +43,23 @@ export function SidebarHeader({
         <span className="text-sm font-semibold text-slate-200">Swarm Manager</span>
       </div>
 
-      {/* Right: Command Post (mobile) + Operations trigger + Settings + Collapse/Close */}
+      {/* Right: decisions inbox (mobile) + agents chip + Settings + Collapse/Close */}
       <div className="flex items-center gap-1">
         {onOpenCommandPost && (
-          <CommandPostButton
-            count={commandPostBadgeCount}
+          <button
+            type="button"
             onClick={onOpenCommandPost}
-            className="md:hidden border-0 bg-transparent p-1.5"
-          />
+            className="flex items-center gap-1 rounded p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200 md:hidden"
+            aria-label="Open decisions"
+            data-testid="sidebar-decisions-button"
+          >
+            <Inbox className="h-4 w-4" />
+            {commandPostBadgeCount > 0 && (
+              <span className="rounded-full bg-cyan-500/20 px-1.5 py-0.5 text-xs text-cyan-200">
+                {commandPostBadgeCount}
+              </span>
+            )}
+          </button>
         )}
         <OpsTriggerButton variant="compact" />
         <button

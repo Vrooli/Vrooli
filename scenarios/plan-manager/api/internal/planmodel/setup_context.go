@@ -8,6 +8,11 @@ const (
 	noCodeRefsPrefix     = "NO_CODE_REFS:"
 )
 
+// AuthoredPhaseNoteReason is the canned placeholder reason the authoring
+// projection once stamped on free-form phase notes. It carries no information,
+// so the renderer omits it rather than emitting a boilerplate Reason line.
+const AuthoredPhaseNoteReason = "Authored phase note."
+
 // RelevantContextItemFromSetupLine converts a legacy/free-form setup line into
 // the typed execution-context contract. It is intentionally model-owned so
 // import, authoring projection, validation, and rendering classify setup items

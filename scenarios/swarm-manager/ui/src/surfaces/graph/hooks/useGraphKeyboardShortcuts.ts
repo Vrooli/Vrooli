@@ -1,7 +1,7 @@
 /**
  * Graph workspace keyboard shortcuts.
  *
- * 1-3: switch lenses
+ * 1-2: switch lenses
  * L: cycle layout mode
  * Esc: deselect graph node
  * Ctrl+K: preserved for host switcher
@@ -15,7 +15,7 @@ import {
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import { useGlobalKeyDown } from "../../../hooks/useGlobalKeyDown";
-import type { GraphLens } from "../stores/graph-data-store";
+import type { AppGraphLens } from "../../../app/routes/route-paths";
 
 function isInputElement(el: HTMLElement): boolean {
   return (
@@ -26,14 +26,13 @@ function isInputElement(el: HTMLElement): boolean {
   );
 }
 
-const LENS_MAP: Record<string, GraphLens> = {
-  "1": "focus",
-  "2": "topology",
-  "3": "operations",
+const LENS_MAP: Record<string, AppGraphLens> = {
+  "1": "plan",
+  "2": "focus",
 };
 
 interface GraphShortcutHandlers {
-  onLensChange: (lens: GraphLens) => void;
+  onLensChange: (lens: AppGraphLens) => void;
   onDeselectNode: () => void;
   onSettingsToggle: () => void;
   onReturnToAtlas: () => void;
@@ -65,7 +64,7 @@ export function useGraphKeyboardShortcuts(handlers: GraphShortcutHandlers): void
         return;
       }
 
-      // Number keys 1-3 — Lens switching
+      // Number keys 1-2 — Lens switching
       if (!mod && event.key in LENS_MAP) {
         const nextLens = LENS_MAP[event.key];
         if (nextLens) {

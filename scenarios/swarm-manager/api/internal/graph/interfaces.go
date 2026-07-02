@@ -3,7 +3,6 @@ package graph
 import (
 	"context"
 
-	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
 )
@@ -62,12 +61,6 @@ type ExecutionLister interface {
 	List(ctx context.Context, filters execution.ListFilters) ([]execution.Record, error)
 }
 
-// AgentActivityLister retrieves tracked agent activity records.
-type AgentActivityLister interface {
-	List(ctx context.Context, filters agentactivity.ListFilters) ([]agentactivity.Record, error)
-	IsAvailable(ctx context.Context) bool
-}
-
 // OperatingModeActiveRound is the per-initiative active-round shape the
 // graph projection consumes. It mirrors operatingmode.ActiveRoundSummary
 // but is declared in the graph package so the projection has no compile
@@ -97,7 +90,6 @@ type EventDispatcher interface {
 	DispatchNodeUpdate(nodeType, nodeID string, data any)
 	DispatchEdgeChange(action string, edge Edge)
 	DispatchInvalidate(lenses ...string)
-	DispatchInvalidateWithFocus(focusNodeID string)
 }
 
 // Projector builds or serves graph projections for a lens.
@@ -108,5 +100,4 @@ type Projector interface {
 // CacheInvalidator clears cached graph projections for one or more lenses.
 type CacheInvalidator interface {
 	Invalidate(lenses ...Lens)
-	InvalidateFocus(focusNodeID string)
 }

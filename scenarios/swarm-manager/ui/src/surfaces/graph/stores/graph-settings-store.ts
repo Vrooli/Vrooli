@@ -1,8 +1,8 @@
 /**
  * Graph Settings Store
  *
- * Per-lens display settings: entity/status filtering, grouping mode, and
- * boolean toggles (mini-map, nav controls, etc.). Settings are persisted to
+ * Per-lens display settings: entity/status filtering and boolean toggles
+ * (nav controls, highlight). Settings are persisted to
  * localStorage and restored on load.
  */
 
@@ -11,7 +11,6 @@ import { GRAPH_ENTITY_TYPES } from "../lib/entity-shapes";
 import {
   ENTITY_STATUS_REGISTRY,
   type GraphEntityType,
-  type GraphGroupingMode,
   type GraphLens,
 } from "../types";
 
@@ -25,10 +24,8 @@ export interface GraphLensSettings {
   entityFilters: Record<EntityType, boolean>;
   /** Per-entity-type status visibility. Outer key = entity type, inner key = status string. */
   statusFilters: Record<string, Record<string, boolean>>;
-  groupingMode: GraphGroupingMode;
   showSecondaryEdges: boolean;
   autoFitOnChange: boolean;
-  showMiniMap: boolean;
   /** Show on-screen pan/zoom controls for TV and accessibility. */
   showNavControls: boolean;
   /** Pulse nodes that need attention (via computeNodeAttention). Not applicable to focus lens. */
@@ -44,9 +41,7 @@ export interface GraphSettingsState {
   setStatusVisibility: (entityType: string, status: string, visible: boolean) => void;
   clearStatusFilter: (entityType: string, status: string) => void;
   setEntityStatusGroupVisibility: (entityType: string, statuses: readonly string[], visible: boolean) => void;
-  setGroupingMode: (mode: GraphGroupingMode) => void;
   setShowSecondaryEdges: (visible: boolean) => void;
-  setShowMiniMap: (visible: boolean) => void;
   setShowNavControls: (visible: boolean) => void;
   setAutoFitOnChange: (enabled: boolean) => void;
   setHighlightActionableNodes: (enabled: boolean) => void;
@@ -90,10 +85,8 @@ export function createDefaultLensSettings(lens: GraphLens): GraphLensSettings {
   return {
     entityFilters: cloneEntityFilters(),
     statusFilters: {},
-    groupingMode: lens === "topology" ? "initiative" : "none",
     showSecondaryEdges: lens !== "focus",
     autoFitOnChange: true,
-    showMiniMap: false,
     showNavControls: false,
     highlightActionableNodes: lens !== "focus",
   };
@@ -101,9 +94,9 @@ export function createDefaultLensSettings(lens: GraphLens): GraphLensSettings {
 
 export function createDefaultSettingsByLens(): Record<GraphLens, GraphLensSettings> {
   return {
+    plan: createDefaultLensSettings("plan"),
     focus: createDefaultLensSettings("focus"),
     topology: createDefaultLensSettings("topology"),
-    operations: createDefaultLensSettings("operations"),
   };
 }
 
@@ -111,10 +104,8 @@ export function cloneLensSettings(settings: GraphLensSettings): GraphLensSetting
   return {
     entityFilters: { ...settings.entityFilters },
     statusFilters: { ...settings.statusFilters },
-    groupingMode: settings.groupingMode,
     showSecondaryEdges: settings.showSecondaryEdges,
     autoFitOnChange: settings.autoFitOnChange,
-    showMiniMap: settings.showMiniMap,
     showNavControls: settings.showNavControls,
     highlightActionableNodes: settings.highlightActionableNodes,
   };
@@ -124,9 +115,9 @@ export function cloneSettingsByLens(
   settingsByLens: Record<GraphLens, GraphLensSettings>,
 ): Record<GraphLens, GraphLensSettings> {
   return {
+    plan: cloneLensSettings(settingsByLens.plan),
     focus: cloneLensSettings(settingsByLens.focus),
     topology: cloneLensSettings(settingsByLens.topology),
-    operations: cloneLensSettings(settingsByLens.operations),
   };
 }
 
@@ -143,12 +134,10 @@ export function loadPersistedSettings(): Record<GraphLens, GraphLensSettings> {
 
   try {
     let raw = window.localStorage.getItem(GRAPH_SETTINGS_STORAGE_KEY);
-    let migratingLegacySettings = false;
     if (!raw) {
       for (const key of LEGACY_GRAPH_SETTINGS_STORAGE_KEYS) {
         raw = window.localStorage.getItem(key);
         if (raw) {
-          migratingLegacySettings = true;
           break;
         }
       }
@@ -158,7 +147,7 @@ export function loadPersistedSettings(): Record<GraphLens, GraphLensSettings> {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const next = createDefaultSettingsByLens();
 
-    for (const lens of ["focus", "topology", "operations"] as const) {
+    for (const lens of ["plan", "focus", "topology"] as const) {
       const lensValue = parsed[lens];
       if (typeof lensValue !== "object" || lensValue === null) {
         continue;
@@ -208,11 +197,6 @@ export function loadPersistedSettings(): Record<GraphLens, GraphLensSettings> {
       next[lens] = {
         entityFilters,
         statusFilters,
-        groupingMode:
-          !migratingLegacySettings &&
-          (record.groupingMode === "initiative" || record.groupingMode === "none")
-            ? record.groupingMode
-            : defaults[lens].groupingMode,
         showSecondaryEdges:
           typeof record.showSecondaryEdges === "boolean"
             ? record.showSecondaryEdges
@@ -221,10 +205,6 @@ export function loadPersistedSettings(): Record<GraphLens, GraphLensSettings> {
           typeof record.autoFitOnChange === "boolean"
             ? record.autoFitOnChange
             : defaults[lens].autoFitOnChange,
-        showMiniMap:
-          typeof record.showMiniMap === "boolean"
-            ? record.showMiniMap
-            : defaults[lens].showMiniMap,
         showNavControls:
           typeof record.showNavControls === "boolean"
             ? record.showNavControls
@@ -358,27 +338,11 @@ export const useGraphSettingsStore = create<GraphSettingsState>((set) => ({
       }),
     ),
 
-  setGroupingMode: (mode) =>
-    set((state) =>
-      updateLensSettings(state, (settings) => ({
-        ...settings,
-        groupingMode: mode,
-      })),
-    ),
-
   setShowSecondaryEdges: (visible) =>
     set((state) =>
       updateLensSettings(state, (settings) => ({
         ...settings,
         showSecondaryEdges: visible,
-      })),
-    ),
-
-  setShowMiniMap: (visible) =>
-    set((state) =>
-      updateLensSettings(state, (settings) => ({
-        ...settings,
-        showMiniMap: visible,
       })),
     ),
 

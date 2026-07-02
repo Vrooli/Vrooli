@@ -101,23 +101,21 @@ func TestRenderParseRenderIdempotent(t *testing.T) {
 func TestRenderShowsWorkPostureAndGreenfieldBlock(t *testing.T) {
 	md := plans.RenderMarkdown(comprehensivePlan())
 	for _, want := range []string{
-		"## Work Posture",
+		"### Work Posture",
 		"- Posture: **greenfield**",
 		"**This is greenfield work.** Do not include compatibility shims, legacy wrappers, dead code, unused re-exports, `// removed` comments, or renamed `_unused` variables.",
-		"## Problem / Need",
-		"## Target Outcome",
-		"## Technical Approach",
-		"## Execution Feedback",
-		"plan-manager log decision-add",
-		"plan-manager log finding-add",
-		"plan-manager log bug-add",
-		"plan-manager log record-add",
-		"plan-manager log note-add",
-		"## Validation Strategy",
+		"## Problem",
+		"## Outcome",
+		"## Approach & Decisions",
+		"## Boundaries",
+		"### Execution Feedback",
+		"plan-manager log {decision,finding,bug,record,note}-add",
+		"## Verification",
+		"### Validation Strategy",
 		"**Ordered Steps:**",
 		"**Affected Areas:**",
 		"**Phase Validation:**",
-		"## Change Boundary",
+		"### Change Boundary",
 		"**Acceptance allow:**",
 		"- `scenarios/plan-manager/**`",
 		"**Acceptance deny:**",
@@ -165,7 +163,7 @@ func TestCompactRenderSuppressesGovernanceNoise(t *testing.T) {
 			t.Fatalf("compact render missing %q\n---\n%s", want, md)
 		}
 	}
-	for _, notWant := range []string{"## Execution Feedback", "## Import Provenance", "## Preserved Legacy Sections", "## Plan Graph"} {
+	for _, notWant := range []string{"### Execution Feedback", "## Import Provenance", "## Preserved Legacy Sections", "## Plan Graph"} {
 		if strings.Contains(md, notWant) {
 			t.Fatalf("compact render unexpectedly contains %q\n---\n%s", notWant, md)
 		}

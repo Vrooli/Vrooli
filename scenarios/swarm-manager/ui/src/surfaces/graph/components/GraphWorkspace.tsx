@@ -21,9 +21,11 @@ import { useGraphUIStore } from "../stores/graph-ui-store";
 import { useGraphKeyboardShortcuts } from "../hooks/useGraphKeyboardShortcuts";
 import { useGraphStateSync } from "../hooks/useGraphStateSync";
 import { useGraphWebSocket } from "../hooks/useGraphWebSocket";
+import { useQueryClient } from "@tanstack/react-query";
 import { GraphCanvas } from "./GraphCanvas";
 import { CapturePanel } from "./CapturePanel";
-import { useCommandPostBadgeCount } from "../../../hooks/useCommandPostBadgeCount";
+import { PlanBoard } from "../../plan";
+import { ClarificationPanel } from "../../../components/backlog/clarification-panel";
 import { useSpatialNav } from "../../../hooks/useSpatialNav";
 import { SpatialGroup } from "../../../hooks/SpatialGroup";
 import { SpatialNavProvider } from "../../../hooks/SpatialNavContext";
@@ -35,13 +37,14 @@ import { GraphHelpPanel } from "./GraphHelpPanel";
 import { CanvasErrorBoundary } from "./CanvasErrorBoundary";
 import { GraphWorkspaceHUD } from "./GraphWorkspaceHUD";
 import { GraphActionLauncher } from "./GraphActionLauncher";
-import { commandPostPath, sessionDetailPath } from "../../../app/routes/route-paths";
+import { graphPath, sessionDetailPath } from "../../../app/routes/route-paths";
 import { useAppShell } from "../../../app/shell/AppShellContext";
 import type { AgentSessionKind } from "../../../types";
 import { SESSION_CREATE_TITLES } from "../../../components/session/session-view-model";
 
 export function GraphWorkspace() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
   const [showStatsPanel, setShowStatsPanel] = useState(false);
   const [showHelpPanel, setShowHelpPanel] = useState(false);
@@ -49,7 +52,6 @@ export function GraphWorkspace() {
   const [launcherError, setLauncherError] = useState<string | null>(null);
   const [launcherStatus, setLauncherStatus] = useState<string | null>(null);
 
-  const commandPostBadgeCount = useCommandPostBadgeCount();
   const { openSidebar } = useAppShell();
 
   // --- Graph state sync (URL ↔ store) ---
@@ -62,7 +64,6 @@ export function GraphWorkspace() {
   const lens = useGraphDataStore((s) => s.lens);
   const setNodePulsing = useGraphDataStore((s) => s.setNodePulsing);
   const focusNodeId = useGraphDataStore((s) => s.focusNodeId);
-  const focusNodeLabel = useGraphUIStore((s) => s.focusNodeLabel);
 
   const showNavControls = useGraphSettingsStore((s) => s.settingsByLens[s.activeLens].showNavControls);
 
@@ -88,7 +89,8 @@ export function GraphWorkspace() {
     onDeselectNode: handleDeselectNode,
     onSettingsToggle: () => setShowSettingsDrawer((prev) => !prev),
     onReturnToAtlas: handleReturnToAtlas,
-    onToggleCommandPost: () => navigate(commandPostPath()),
+    // Command Post is retired: the shortcut opens the board's decision drawer.
+    onToggleCommandPost: () => navigate(`${graphPath({ lens: "plan" })}?drawer=decisions`),
     focusNodeId,
   });
 
@@ -134,27 +136,28 @@ export function GraphWorkspace() {
     <div className="flex h-screen bg-slate-950 text-slate-50" data-testid="graph-workspace">
       {/* Main canvas area with HUD overlays */}
       <div className="relative flex-1">
-        {/* Graph canvas — passthrough for panning/zooming */}
-        <SpatialGroup controllerRef={spatialNav} mode="passthrough">
-          <CanvasErrorBoundary>
-            <GraphCanvas />
-          </CanvasErrorBoundary>
-        </SpatialGroup>
+        {/* Plan lens renders the kanban board; other lenses render the
+            node/edge canvas. Both sit under the same HUD. */}
+        {lens === "plan" ? (
+          <PlanBoard />
+        ) : (
+          <SpatialGroup controllerRef={spatialNav} mode="passthrough">
+            <CanvasErrorBoundary>
+              <GraphCanvas />
+            </CanvasErrorBoundary>
+          </SpatialGroup>
+        )}
 
         {/* HUD — two rows at top */}
         <GraphWorkspaceHUD
           lens={lens}
-          focusNodeLabel={focusNodeLabel}
           sidebarCollapsed={sidebarCollapsed}
           showNavControls={showNavControls}
-          commandPostBadgeCount={commandPostBadgeCount}
           onToggleSidebar={openSidebar}
-          onToggleCommandPost={() => navigate(commandPostPath())}
           onToggleStats={() => setShowStatsPanel((prev) => !prev)}
           onToggleSettings={() => setShowSettingsDrawer((prev) => !prev)}
           onToggleHelp={() => setShowHelpPanel((prev) => !prev)}
           onLensChange={handleLensChange}
-          onReturnToAtlas={handleReturnToAtlas}
         />
 
         {/* Floating panels */}
@@ -178,6 +181,20 @@ export function GraphWorkspace() {
         />
 
         <CapturePanel isOpen={showCapturePanel} onClose={() => setShowCapturePanel(false)} />
+
+        {/* Single workspace mount for the clarification thread (workshop
+            questions answered from the Plan board's decision drawer). */}
+        <ClarificationPanel
+          onAction={(action) => {
+            if (
+              action === "invalidate_round" ||
+              action === "remove_decision" ||
+              action === "update_decision"
+            ) {
+              void queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
+            }
+          }}
+        />
       </div>
 
       <StatsPanel isOpen={showStatsPanel} onClose={() => setShowStatsPanel(false)} />

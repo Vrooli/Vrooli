@@ -193,6 +193,22 @@ type Reference struct {
 	Note         string
 }
 
+// PlanDecision is one pinned plan-time contract decision (rendered D1..Dn under
+// Approach & Decisions). AUTHORED and optional; distinct from execution-time
+// log decisions, which live in the log ledger.
+type PlanDecision struct {
+	Title     string
+	Statement string
+}
+
+// PlanAssumption is one structured assumption with its "if wrong -> then"
+// mitigation, rendered as the Assumptions & Risks table. AUTHORED and optional;
+// prose assumptions without mitigations stay in Plan.Assumptions.
+type PlanAssumption struct {
+	Statement  string
+	Mitigation string
+}
+
 // RelevantContextItem is the execution-facing setup contract.
 type RelevantContextItem struct {
 	ID           string
@@ -313,6 +329,10 @@ type Plan struct {
 	FinalValidationCommands []string
 	RisksHazards            string
 	ProhibitedApproaches    string
+	// AUTHORED optional plan-time contract decisions (D1..Dn) and structured
+	// assumptions with mitigations (contract decision D3). Empty renders nothing.
+	Decisions       []PlanDecision
+	AssumptionRisks []PlanAssumption
 	// AUTOFILLED/COMPUTED work posture (never agent-authored).
 	WorkPosture       WorkPosture
 	WorkPostureSource WorkPostureSource

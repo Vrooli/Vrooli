@@ -37,6 +37,8 @@ func (s *Server) registerOperationsRoutes() {
 	if err != nil {
 		log.Fatalf("operations: failed to build Aggregator: %v", err)
 	}
+	// Stashed for the plan-board projection's Now-column summary counts.
+	s.opsAggregator = aggregator
 	projectRoot := filepath.Dir(filepath.Dir(s.scenarioRoot))
 	briefingBuilder, err := operations.NewBriefingBuilder(operations.BriefingBuilderConfig{
 		Aggregator: aggregator,

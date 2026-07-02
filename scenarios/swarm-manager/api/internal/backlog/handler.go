@@ -312,7 +312,7 @@ func (h *Handler) invalidateAllGraphLenses() {
 	if h.eventDispatcher == nil {
 		return
 	}
-	h.eventDispatcher.DispatchInvalidate("topology", "flow", "operations")
+	h.eventDispatcher.DispatchInvalidate("topology", "plan")
 }
 
 func (h *Handler) validateInitiativeReference(name string) error {

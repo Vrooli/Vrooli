@@ -43,7 +43,6 @@ import {
   type BacklogGraphNodeData,
   type InitiativeGraphNodeData,
 } from "../types";
-import type { GraphLens } from "../stores/graph-data-store";
 import { detailPathFromNodeId, graphPath } from "../../../app/routes/route-paths";
 
 function getLensesForEntity(entityType: GraphEntityType): LensOption[] {
@@ -194,7 +193,7 @@ export function NodeInspectorPanel() {
     if (path) navigate(path);
   };
 
-  const handleDrillToLens = (lens: GraphLens) => {
+  const handleDrillToLens = (lens: import("../../../app/routes/route-paths").AppGraphLens) => {
     if (!selectedNodeId) return;
     navigate(graphPath({ lens, focus: selectedNodeId, select: selectedNodeId }));
   };

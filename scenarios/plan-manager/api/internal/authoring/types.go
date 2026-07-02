@@ -40,6 +40,7 @@ const (
 	SectionAssumptions          SectionKey = "assumptions"
 	SectionWorkPosture          SectionKey = "work_posture"
 	SectionTechnicalApproach    SectionKey = "technical_approach"
+	SectionDecisions            SectionKey = "decisions"
 	SectionConstraints          SectionKey = "constraints"
 	SectionProhibitedApproaches SectionKey = "prohibited_approaches"
 	SectionAcceptanceBoundary   SectionKey = "acceptance_boundary"

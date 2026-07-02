@@ -1,0 +1,197 @@
+{
+  "results": [
+    {
+      "id": "implementation-plan-authoring",
+      "name": "Implementation Plan Authoring",
+      "description": "Author durable implementation plans through Plan Manager's guided structured-plan runtime, preserving context, constraints, phases, validation strategy, and execution handoff",
+      "tags": [
+        "planning",
+        "handoff",
+        "implementation",
+        "documentation",
+        "execution"
+      ],
+      "modes": [
+        "practice"
+      ],
+      "score": 0.72032744,
+      "scorePercent": 72,
+      "source": "search",
+      "contentChars": 8844
+    },
+    {
+      "id": "plan-skill-discovery",
+      "name": "Plan Skill Discovery",
+      "description": "Methodology for selecting curated, budget-aware Prompt Manager skill bundles for Plan Manager implementation plans while using Search Hub for broad recall and Plan Manager for context acceptance.",
+      "tags": [
+        "practice",
+        "planning",
+        "skill-discovery",
+        "methodology",
+        "automation"
+      ],
+      "modes": [
+        "practice"
+      ],
+      "score": 0.6563896,
+      "scorePercent": 65,
+      "source": "search",
+      "contentChars": 12269
+    },
+    {
+      "id": "swarm-manager-phased-plan-prepare",
+      "name": "Swarm Manager Phased Plan Prepare",
+      "description": "Create or update the stable phased plan for phased-plan-drain mode.",
+      "tags": [
+        "swarm-manager",
+        "initiative",
+        "operating-mode",
+        "phased-plan-drain"
+      ],
+      "modes": [
+        "tools"
+      ],
+      "score": 0.6043084,
+      "scorePercent": 60,
+      "source": "search",
+      "contentChars": 1212
+    },
+    {
+      "id": "idea-workshop",
+      "name": "Idea Workshop",
+      "description": "Collaborative brainstorming methodology for shaping vague intuitions into coherent, structured ideas ready for swarm-manager's idea agent pipeline. Guides the conversation from raw brain-dump through synthesis, sharpening questions, and iteration to a complete backlog submission.",
+      "tags": [
+        "practice",
+        "brainstorming",
+        "ideation",
+        "collaboration",
+        "methodology"
+      ],
+      "modes": [
+        "practice"
+      ],
+      "score": 0.58053744,
+      "scorePercent": 58,
+      "source": "search",
+      "contentChars": 12589
+    },
+    {
+      "id": "swarm-manager-phased-plan-execute-next",
+      "name": "Swarm Manager Phased Plan Execute Next",
+      "description": "Execute the earliest unfinished contiguous phases in phased-plan-drain mode.",
+      "tags": [
+        "swarm-manager",
+        "initiative",
+        "operating-mode",
+        "phased-plan-drain",
+        "execution"
+      ],
+      "modes": [
+        "tools"
+      ],
+      "score": 0.5783416,
+      "scorePercent": 57,
+      "source": "search",
+      "contentChars": 1541
+    },
+    {
+      "id": "swarm-manager-phased-plan-review",
+      "name": "Swarm Manager Phased Plan Review",
+      "description": "Review phased-plan-drain results against the phased plan and acceptance criteria.",
+      "tags": [
+        "swarm-manager",
+        "initiative",
+        "operating-mode",
+        "phased-plan-drain",
+        "review"
+      ],
+      "modes": [
+        "tools"
+      ],
+      "score": 0.57563674,
+      "scorePercent": 57,
+      "source": "search",
+      "contentChars": 984
+    },
+    {
+      "id": "swarm-manager-phased-plan-classify-progress",
+      "name": "Swarm Manager Phased Plan Classify Progress",
+      "description": "Classify phased-plan-drain progress as continue, blocked, replan, or complete.",
+      "tags": [
+        "swarm-manager",
+        "initiative",
+        "operating-mode",
+        "phased-plan-drain",
+        "classification"
+      ],
+      "modes": [
+        "tools"
+      ],
+      "score": 0.56186634,
+      "scorePercent": 56,
+      "source": "search",
+      "contentChars": 1386
+    },
+    {
+      "id": "ecosystem-fit",
+      "name": "Ecosystem Fit",
+      "description": "Decision-time lens for placing a scenario in Vrooli's self-improving ecosystem: which interfaces it serves or enables, what functional role it plays, and how it is built for compound value. Translates the vision into concrete 'what does done mean' obligations during planning, building, and refactoring. Cites docs/concepts/ECOSYSTEM.md.",
+      "tags": [
+        "practice",
+        "planning",
+        "ecosystem",
+        "architecture",
+        "scenario-design",
+        "methodology"
+      ],
+      "modes": [
+        "practice"
+      ],
+      "score": 0.56082857,
+      "scorePercent": 56,
+      "source": "search",
+      "contentChars": 9148
+    },
+    {
+      "id": "cognitive-load-reduction",
+      "name": "Cognitive Load Reduction",
+      "description": "Simplify code to reduce mental overhead for developers",
+      "tags": [
+        "skill",
+        "audit-technique"
+      ],
+      "modes": [
+        "steer",
+        "simplification"
+      ],
+      "score": 0.55308867,
+      "scorePercent": 55,
+      "source": "search",
+      "contentChars": 19709
+    },
+    {
+      "id": "intent-clarification",
+      "name": "Intent Clarification",
+      "description": "Make code intent explicit and self-documenting",
+      "tags": [
+        "skill"
+      ],
+      "modes": [
+        "steer",
+        "documentation"
+      ],
+      "score": 0.5468159,
+      "scorePercent": 54,
+      "source": "search",
+      "contentChars": 5351
+    }
+  ],
+  "total": 10,
+  "query": "plan authoring",
+  "method": "ai",
+  "totalContentChars": 73033,
+  "readCommand": "prompt-manager skill read implementation-plan-authoring plan-skill-discovery swarm-manager-phased-plan-prepare idea-workshop swarm-manager-phased-plan-execute-next swarm-manager-phased-plan-review swarm-manager-phased-plan-classify-progress ecosystem-fit cognitive-load-reduction intent-clarification",
+  "budgetChars": 75000,
+  "budgetStatus": "under",
+  "complexity": "moderate"
+}

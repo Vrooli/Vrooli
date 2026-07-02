@@ -10,6 +10,7 @@ import (
 	"time"
 
 	planmodel "plan-manager/internal/planmodel"
+	"plan-manager/internal/probes"
 
 	"github.com/google/uuid"
 )
@@ -280,95 +281,179 @@ func firstRequirementID(values ...string) string {
 	return ""
 }
 
-type cmdContextDiscoverer struct{ run CommandRunner }
+// cmdContextDiscoverer is the production ContextDiscoverer: it EXECUTES the
+// discovery probes server-side through the probes package (concurrent,
+// per-probe timeout, per-probe typed degradation) and converts the outcomes
+// into reviewable candidates. The agent supplies concepts and judgment; the
+// code runs the probes (contract decision D5).
+type cmdContextDiscoverer struct {
+	run     CommandRunner
+	timeout time.Duration
+}
 
+// NewCommandContextDiscoverer wires the production ContextDiscoverer over the
+// given CommandRunner with the default per-probe timeout. A nil runner
+// degrades every probe honestly.
 func NewCommandContextDiscoverer(run CommandRunner) ContextDiscoverer {
-	return cmdContextDiscoverer{run: run}
+	return NewCommandContextDiscovererWithTimeout(run, probes.DefaultProbeTimeout)
+}
+
+// NewCommandContextDiscovererWithTimeout wires the production ContextDiscoverer
+// with an explicit per-probe timeout (D5: default 20s, configurable).
+func NewCommandContextDiscovererWithTimeout(run CommandRunner, timeout time.Duration) ContextDiscoverer {
+	return cmdContextDiscoverer{run: run, timeout: timeout}
 }
 
 func (d cmdContextDiscoverer) DiscoverContext(ctx context.Context, title string, concepts []string, complexity string) ([]ContextCandidate, error) {
-	if len(concepts) == 0 {
-		concepts = []string{title}
-	}
-	var out []ContextCandidate
+	cleaned := make([]string, 0, len(concepts))
 	for _, concept := range concepts {
-		concept = strings.TrimSpace(concept)
-		if concept == "" {
+		if concept = strings.TrimSpace(concept); concept != "" {
+			cleaned = append(cleaned, concept)
+		}
+	}
+	if len(cleaned) == 0 {
+		if title = strings.TrimSpace(title); title == "" {
+			return nil, fmt.Errorf("no non-empty context concepts supplied")
+		}
+		cleaned = []string{title}
+	}
+	outcomes := probes.Discover(ctx, probes.Runner(d.run), cleaned, complexity, probes.Options{Timeout: d.timeout})
+	return candidatesFromProbeOutcomes(outcomes), nil
+}
+
+// candidatesFromProbeOutcomes converts probe outcomes to reviewable candidates:
+// deterministic merge, deduplicated by (kind, target-or-command) keeping the
+// best-scored occurrence, provenance (probe, score) preserved on each
+// candidate, and one typed degraded note per failed probe. The step always
+// returns a usable (possibly empty + noted) result.
+func candidatesFromProbeOutcomes(outcomes []probes.Outcome) []ContextCandidate {
+	var out []ContextCandidate
+	bestByKey := map[string]int{}
+	for _, outcome := range outcomes {
+		if outcome.Degraded {
+			out = append(out, degradedProbeCandidate(outcome))
 			continue
 		}
-		out = append(out,
-			d.commandCandidate(ctx, concept, "prompt-manager-skill-discovery", planmodel.RelevantContextSkill, promptManagerSkillDiscoveryArgv(concept, complexity), "Discover and load relevant prompt-manager skills before implementation."),
-			d.commandCandidate(ctx, concept, "prompt-manager-actions", planmodel.RelevantContextCommand, []string{"prompt-manager", "discover", concept, "--type", "all"}, "Find executable actions and operational tools before hand-rolling steps."),
-			d.commandCandidate(ctx, concept, "search-hub-recall", planmodel.RelevantContextSearch, []string{"search-hub", "query", concept, "--type", "record,skill,doc"}, "Recall prior records, skills, and docs connected to this concept."),
-			d.commandCandidate(ctx, concept, "cli-health-search", planmodel.RelevantContextSearch, []string{"cli-health", "search", concept}, "Find current CLI commands related to this concept."),
-		)
+		for _, discovered := range outcome.Items {
+			key := contextDedupeKey(discovered.Item)
+			candidate := ContextCandidate{
+				ID:      uuid.NewString(),
+				Item:    discovered.Item,
+				Concept: outcome.Concept,
+				Source:  outcome.Probe,
+				Detail:  fmt.Sprintf("%s score %.3f", outcome.Probe, discovered.Score),
+				Status:  ContextCandidatePending,
+			}
+			candidate.Item.ID = uuid.NewString()
+			if pos, seen := bestByKey[key]; seen {
+				if probeCandidateScore(out[pos].Detail) < discovered.Score {
+					candidate.Detail += "; also: " + out[pos].Detail
+					out[pos] = candidate
+				} else {
+					out[pos].Detail += "; also: " + candidate.Detail
+				}
+				continue
+			}
+			bestByKey[key] = len(out)
+			out = append(out, candidate)
+		}
 	}
-	if len(out) == 0 {
-		return nil, fmt.Errorf("no non-empty context concepts supplied")
-	}
-	return out, nil
+	return out
 }
 
-func (d cmdContextDiscoverer) commandCandidate(ctx context.Context, concept, source string, kind planmodel.RelevantContextKind, argv []string, reason string) ContextCandidate {
-	item := planmodel.RelevantContextItem{
-		ID:           uuid.NewString(),
-		Kind:         kind,
-		Scope:        planmodel.RelevantContextScopeGlobal,
-		Label:        source + ": " + concept,
-		Reason:       reason,
-		Instruction:  "Run this during context setup; inspect the output and keep only relevant findings.",
-		Command:      shellJoin(argv),
-		Argv:         append([]string(nil), argv...),
-		Required:     true,
-		RepeatPolicy: planmodel.RelevantContextOncePerExecution,
-		Source:       planmodel.RelevantContextSourceDiscovered,
-		Status:       planmodel.RelevantContextStatusReady,
+// contextDedupeKey identifies one discovered setup target across probes.
+func contextDedupeKey(item planmodel.RelevantContextItem) string {
+	target := strings.ToLower(strings.TrimSpace(item.Target))
+	if target == "" {
+		target = strings.ToLower(strings.TrimSpace(item.Command))
 	}
-	candidate := ContextCandidate{
-		ID:      uuid.NewString(),
-		Item:    item,
-		Concept: concept,
-		Source:  source,
-		Status:  ContextCandidatePending,
-	}
-	if d.run == nil {
-		candidate.Degraded = true
-		candidate.Detail = source + " unavailable"
-		candidate.Item.Status = planmodel.RelevantContextStatusDegraded
-		return candidate
-	}
-	if _, err := d.run(ctx, argv[0], argv[1:]...); err != nil {
-		candidate.Degraded = true
-		candidate.Detail = err.Error()
-		candidate.Item.Status = planmodel.RelevantContextStatusDegraded
-	}
-	return candidate
+	return string(item.Kind) + "\x00" + target
 }
 
-func promptManagerSkillDiscoveryArgv(concept, complexity string) []string {
-	argv := []string{"prompt-manager", "discover", concept}
-	if strings.TrimSpace(complexity) != "" {
-		argv = append(argv, "--complexity", strings.TrimSpace(complexity))
+// probeCandidateScore recovers the score from a candidate's provenance detail
+// ("<probe> score <s>"); 0 when absent.
+func probeCandidateScore(detail string) float64 {
+	idx := strings.LastIndex(detail, " score ")
+	if idx < 0 {
+		return 0
 	}
-	return argv
+	rest := detail[idx+len(" score "):]
+	if end := strings.IndexAny(rest, "; "); end >= 0 {
+		rest = rest[:end]
+	}
+	var score float64
+	_, _ = fmt.Sscanf(rest, "%f", &score)
+	return score
 }
 
-func shellJoin(argv []string) string {
-	parts := make([]string, 0, len(argv))
-	for _, arg := range argv {
-		parts = append(parts, shellQuote(arg))
+// degradedProbeCandidate is the typed per-probe degradation note (D5): the
+// probe that failed, why, and what to run manually — never a silent drop and
+// never a fabricated result.
+func degradedProbeCandidate(outcome probes.Outcome) ContextCandidate {
+	label := fmt.Sprintf("Context discovery degraded: %s (%s)", outcome.Probe, outcome.Concept)
+	return ContextCandidate{
+		ID: uuid.NewString(),
+		Item: planmodel.RelevantContextItem{
+			ID:           uuid.NewString(),
+			Kind:         planmodel.RelevantContextNote,
+			Scope:        planmodel.RelevantContextScopeGlobal,
+			Label:        label,
+			Reason:       outcome.Detail,
+			Instruction:  "This probe could not run; re-run discovery when the dependency is healthy, or run it manually for this concept.",
+			Required:     false,
+			RepeatPolicy: planmodel.RelevantContextAsNeeded,
+			Source:       planmodel.RelevantContextSourceDiscovered,
+			Status:       planmodel.RelevantContextStatusDegraded,
+		},
+		Concept:  outcome.Concept,
+		Source:   outcome.Probe,
+		Degraded: true,
+		Detail:   outcome.Detail,
+		Status:   ContextCandidatePending,
 	}
-	return strings.Join(parts, " ")
 }
 
-func shellQuote(arg string) string {
-	if arg == "" {
-		return "''"
+// SkillSuggestion is one steered skill candidate from the applicability
+// resolver: a bare skill slug plus the concrete reason it applies.
+type SkillSuggestion struct {
+	Slug   string
+	Reason string
+}
+
+// seam: SkillApplicabilityResolver proposes skills that APPLY to a plan's
+// change boundary (its blast radius) rather than merely matching its text —
+// e.g. "this plan touches a React UI, load react-coherence". It is invoked at
+// the global skill checkpoint alongside probe discovery; suggestions flow
+// through the same accept/reject disposition as any discovered candidate.
+//
+// Production currently wires NoopSkillApplicabilityResolver: the boundary→skill
+// applicability sources this seam is designed for are still landing elsewhere.
+// Future wiring (contract decision D7):
+//   - health scenarios' self-declared applicability rules (each health scenario
+//     declares which surfaces its steer skill applies to), and
+//   - the maturity system's phase→skill links.
+//
+// Whatever the source, it must stay DATA-DRIVEN — a hard-coded path→skill table
+// in this repo is prohibited; that is why the seam ships no-op instead of a
+// heuristic.
+type SkillApplicabilityResolver interface {
+	// SuggestSkills returns steered skill suggestions for the plan's change
+	// boundary. Failures degrade to no suggestions; never block the wizard.
+	SuggestSkills(ctx context.Context, boundary planmodel.ChangeBoundary) []SkillSuggestion
+}
+
+// NoopSkillApplicabilityResolver is the production placeholder for the D7 seam.
+type NoopSkillApplicabilityResolver struct{}
+
+func (NoopSkillApplicabilityResolver) SuggestSkills(context.Context, planmodel.ChangeBoundary) []SkillSuggestion {
+	return nil
+}
+
+// resolverOrNoop keeps the service's resolver non-nil so call sites never
+// nil-check the seam.
+func resolverOrNoop(r SkillApplicabilityResolver) SkillApplicabilityResolver {
+	if r == nil {
+		return NoopSkillApplicabilityResolver{}
 	}
-	if strings.IndexFunc(arg, func(r rune) bool {
-		return r == ' ' || r == '\t' || r == '\n' || r == '\'' || r == '"' || r == '<' || r == '>' || r == '[' || r == ']' || r == ':' || r == ';' || r == '|' || r == '&' || r == ','
-	}) < 0 {
-		return arg
-	}
-	return "'" + strings.ReplaceAll(arg, "'", "'\\''") + "'"
+	return r
 }

@@ -48,6 +48,7 @@ type service struct {
 	anchor       AnchorIntentDeriver
 	suggester    ReferenceSuggester
 	context      ContextDiscoverer
+	skillSteer   SkillApplicabilityResolver
 	commands     CommandReferenceValidator
 	templateSeed TemplateSeeder
 	renderer     PlanRenderer
@@ -78,6 +79,7 @@ type Deps struct {
 	Anchor         AnchorIntentDeriver
 	Suggester      ReferenceSuggester
 	Context        ContextDiscoverer
+	SkillResolver  SkillApplicabilityResolver
 	Commands       CommandReferenceValidator
 	TemplateSeeder TemplateSeeder
 	Renderer       PlanRenderer
@@ -105,6 +107,7 @@ func NewService(d Deps) Service {
 		anchor:       d.Anchor,
 		suggester:    d.Suggester,
 		context:      d.Context,
+		skillSteer:   resolverOrNoop(d.SkillResolver),
 		commands:     d.Commands,
 		templateSeed: d.TemplateSeeder,
 		renderer:     d.Renderer,

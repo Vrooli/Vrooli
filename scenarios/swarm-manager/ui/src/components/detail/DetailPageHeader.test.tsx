@@ -9,8 +9,8 @@ import { installMatchMediaMock, renderWithProviders } from "../../test-utils";
 import { useGraphUIStore } from "../../surfaces/graph/stores/graph-ui-store";
 
 const testLenses: LensOption[] = [
-  { lens: "topology", label: "View Topology", icon: Network, iconColorClass: "text-indigo-400" },
-  { lens: "operations", label: "View Operations", icon: Activity, iconColorClass: "text-amber-400" },
+  { lens: "plan", label: "View Plan", icon: Network, iconColorClass: "text-indigo-400" },
+  { lens: "focus", label: "View Focus", icon: Activity, iconColorClass: "text-amber-400" },
 ];
 
 beforeEach(() => {
@@ -78,8 +78,8 @@ describe("DetailPageHeader", () => {
     renderHeader();
 
     expect(screen.getByTestId("lens-bar")).toBeInTheDocument();
-    expect(screen.getByTestId("lens-bar-topology")).toBeInTheDocument();
-    expect(screen.getByTestId("lens-bar-operations")).toBeInTheDocument();
+    expect(screen.getByTestId("lens-bar-plan")).toBeInTheDocument();
+    expect(screen.getByTestId("lens-bar-focus")).toBeInTheDocument();
   });
 
   it("does not render LensBar when nodeId is null or lenses are empty", () => {

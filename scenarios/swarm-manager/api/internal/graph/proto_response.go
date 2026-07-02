@@ -37,12 +37,6 @@ func encodeGraphResponse(resp GraphResponse) (*apipb.GraphResponse, error) {
 	if resp.Meta.AgentManagerAvailable != nil {
 		meta.AgentManagerAvailable = proto.Bool(*resp.Meta.AgentManagerAvailable)
 	}
-	if resp.Meta.FocusNodeID != "" {
-		meta.FocusNodeId = proto.String(resp.Meta.FocusNodeID)
-	}
-	if resp.Meta.FocusNodeType != "" {
-		meta.FocusNodeType = proto.String(resp.Meta.FocusNodeType)
-	}
 	if resp.Meta.Hint != "" {
 		meta.Hint = proto.String(resp.Meta.Hint)
 	}

@@ -2,7 +2,7 @@
  * Tests for SidebarHeader.
  *
  * Verifies home, settings, and collapse handlers fire, and pins that the
- * Operations Center trigger pill renders and links to /operations.
+ * Operations Center trigger pill renders and links to /graph/plan.
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -74,7 +74,7 @@ describe("SidebarHeader", () => {
     const trigger = screen.getByTestId(selectors.layout.opsTriggerButton);
     expect(trigger).toBeInTheDocument();
     expect(trigger.getAttribute("data-variant")).toBe("compact");
-    expect(trigger.getAttribute("href")).toBe("/operations");
+    expect(trigger.getAttribute("href")).toBe("/graph/plan");
   });
 
   it("does not render the legacy agents dropdown", () => {

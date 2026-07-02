@@ -410,9 +410,9 @@ func TestMaterializer_DispatchHookWiring(t *testing.T) {
 	})
 
 	// Firing DispatchInvalidate with a non-topology lens must NOT trigger
-	// materialization — otherwise the hook would over-run on every focus
-	// update.
-	dispatch.DispatchInvalidate(string(LensOperations))
+	// materialization — otherwise the hook would over-run on every plan
+	// refresh.
+	dispatch.DispatchInvalidate(string(LensPlan))
 	// Fixed sleep intentionally validates the absence of spurious asynchronous
 	// work after a non-topology invalidation.
 	time.Sleep(50 * time.Millisecond)

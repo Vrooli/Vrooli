@@ -56,7 +56,7 @@ export function OpsTriggerButton({ variant, className }: OpsTriggerButtonProps) 
   if (variant === "compact") {
     return (
       <Link
-        to="/operations"
+        to="/graph/plan"
         className={cn(
           "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors",
           count > 0
@@ -80,7 +80,7 @@ export function OpsTriggerButton({ variant, className }: OpsTriggerButtonProps) 
 
   return (
     <Link
-      to="/operations"
+      to="/graph/plan"
       className={cn(
         "flex items-center gap-1.5 rounded-lg border border-slate-700/60 bg-slate-900/80 px-2.5 py-1.5 text-sm text-slate-100 transition-colors hover:bg-slate-800/80",
         className,

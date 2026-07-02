@@ -10,18 +10,23 @@ import "time"
 type Lens string
 
 const (
-	LensTopology   Lens = "topology"
-	LensOperations Lens = "operations"
+	LensTopology Lens = "topology"
+	// LensPlan is dispatch-only: it identifies the plan-board projection
+	// (GET /api/v1/plan) in WebSocket invalidation payloads so the Plan
+	// lens UI refetches on mutations. It is not a graph projection —
+	// /api/v1/graph rejects it.
+	LensPlan Lens = "plan"
 )
 
-// ValidateLens returns true if l is a known lens value.
+// ValidateLens returns true if l is a lens the graph endpoint can project.
 func ValidateLens(l Lens) bool {
-	switch l {
-	case LensTopology, LensOperations:
-		return true
-	default:
-		return false
-	}
+	return l == LensTopology
+}
+
+// dispatchableLens returns true if l may appear in invalidation payloads:
+// every projectable lens plus the dispatch-only plan lens.
+func dispatchableLens(l Lens) bool {
+	return ValidateLens(l) || l == LensPlan
 }
 
 // GraphBacklogNodeData describes a backlog item node payload.
@@ -140,8 +145,6 @@ type Meta struct {
 	EdgeCount             int    `json:"edge_count"`
 	GeneratedAt           string `json:"generated_at"`
 	AgentManagerAvailable *bool  `json:"agent_manager_available,omitempty"`
-	FocusNodeID           string `json:"focus_node_id,omitempty"`
-	FocusNodeType         string `json:"focus_node_type,omitempty"`
 	Hint                  string `json:"hint,omitempty"`
 }
 
@@ -181,14 +184,12 @@ type WSMessage struct {
 
 // ProjectionParams holds all parameters for a projection request.
 type ProjectionParams struct {
-	Lens        Lens
-	FocusNodeID string // Optional for operations lens.
+	Lens Lens
 }
 
 // InvalidationPayload identifies which graph lenses should refresh.
 type InvalidationPayload struct {
-	Lenses      []Lens `json:"lenses"`
-	FocusNodeID string `json:"focus_node_id,omitempty"`
+	Lenses []Lens `json:"lenses"`
 }
 
 // WebSocket message types.

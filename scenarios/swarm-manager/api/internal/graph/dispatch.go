@@ -83,24 +83,6 @@ func (d *Dispatch) DispatchInvalidate(lenses ...string) {
 	})
 }
 
-// DispatchInvalidateWithFocus clears cached flow/operations projections for a
-// specific focus node and broadcasts a focus-aware invalidation message.
-func (d *Dispatch) DispatchInvalidateWithFocus(focusNodeID string) {
-	if focusNodeID == "" {
-		return
-	}
-	if d.invalidator != nil {
-		d.invalidator.InvalidateFocus(focusNodeID)
-	}
-	if d.broadcaster == nil {
-		return
-	}
-	d.broadcaster.BroadcastUpdate(WSInvalidate, InvalidationPayload{
-		Lenses:      []Lens{LensOperations},
-		FocusNodeID: focusNodeID,
-	})
-}
-
 func normalizeLensStrings(values []string) []Lens {
 	if len(values) == 0 {
 		return nil
@@ -110,7 +92,7 @@ func normalizeLensStrings(values []string) []Lens {
 	result := make([]Lens, 0, len(values))
 	for _, raw := range values {
 		lens := Lens(raw)
-		if !ValidateLens(lens) {
+		if !dispatchableLens(lens) {
 			continue
 		}
 		if _, exists := seen[lens]; exists {

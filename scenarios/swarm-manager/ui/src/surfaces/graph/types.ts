@@ -18,7 +18,13 @@ import {
   type ExecutionStatus,
 } from "../../types";
 
-export type GraphLens = "focus" | "topology" | "operations";
+/**
+ * Graph lens identifiers. "plan" and "focus" are the routable lenses
+ * (LensNav / /graph/:lens); "topology" survives only as the internal data
+ * source the Focus lens filters (GET /api/v1/graph?lens=topology) — it is
+ * not routable and has no tab.
+ */
+export type GraphLens = "plan" | "focus" | "topology";
 
 export type GraphEntityType =
   | "backlog"
@@ -29,7 +35,6 @@ export type GraphEntityType =
   | "agent-run"
   | "initiative";
 
-export type GraphGroupingMode = "initiative" | "none";
 
 /**
  * Maps each entity type to its known status values.

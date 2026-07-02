@@ -33,7 +33,7 @@
       "status": "not_implemented",
       "prd_ref": "OT-P0-008",
       "category": "ui",
-      "description": "RETIRED: the separate mobile bottom navigation bar described here was never shipped. The reorganized UI uses a single collapsible sidebar (REQ-P0-009-DESKTOP) on every breakpoint rather than a distinct mobile bottom-nav. OT-P0-008's mobile-bottom-nav clause is unsatisfied by design; re-scoping it to the responsive sidebar is a prd-control-tower decision, not a registry edit.",
+      "description": "RETIRED: the separate mobile bottom navigation bar described here was never shipped. The reorganized UI uses a single collapsible sidebar (REQ-P0-009-DESKTOP) on every breakpoint rather than a distinct mobile bottom-nav. OT-P0-008's mobile-bottom-nav clause is unsatisfied by design; re-scoping it to the responsive sidebar is a PRD decision (business-health contract change), not a registry edit.",
       "validation": [
         {
           "type": "manual",

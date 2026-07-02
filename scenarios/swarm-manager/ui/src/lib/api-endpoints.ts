@@ -145,6 +145,7 @@ export const API_ENDPOINTS = {
   operatingModes: "/operating-modes",
   operatingMode: (mode: string) => `/operating-modes/${encodeURIComponent(mode)}`,
   graph: "/graph",
+  plan: "/plan",
   overview: "/overview",
   stats: "/stats",
   health: "/health",

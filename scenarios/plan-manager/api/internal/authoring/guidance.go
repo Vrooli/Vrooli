@@ -287,11 +287,20 @@ func anchorBaselineName(title, slug string) string {
 // deciding skill setup, or by recording an explicit NO_CONTEXT skip reason.
 func stepForGlobalContextCheckpoint(sess Session) GuidedStep {
 	return GuidedStep{
-		StepKind:       "global_relevant_context",
-		Title:          "Global Relevant Context",
-		Summary:        "Decide the plan-wide setup context and skill setup a fresh or resumed agent should load before any phase. This checkpoint cannot be skipped silently.",
-		Instructions:   []string{"Discover context candidates and accept the relevant ones, or submit a known global setup item.", "Include at least one relevant global skill context item; if no internal skill applies, record NO_SKILL_CONTEXT with the reason.", "If this plan genuinely needs no plan-wide setup context at all, record an explicit NO_CONTEXT reason.", "Phase-specific setup belongs on the phase, not here."},
-		RequiredInputs: []string{"global relevant context item(s)", "global skill context item or explicit NO_SKILL_CONTEXT reason", "or explicit NO_CONTEXT reason"},
+		StepKind: "global_relevant_context",
+		Title:    "Global Relevant Context",
+		Summary:  "Decide the plan-wide setup context and skill setup a fresh or resumed agent should load before any phase. The skill checkpoint demands evidence of a sweep: discovery ran for your concepts and every candidate got an explicit accept/reject decision — or an honest NO_SKILL_CONTEXT skip.",
+		Instructions: []string{
+			"Decompose the work into 2-5 discovery concepts using four lenses: domain area, technology/stack, problem type, and scenario surface (e.g. a mic bug in a React UI → 'web-console voice', 'react state machines', 'debugging', 'ui hooks').",
+			"Phrase each concept as activity + surface ('refactor duplicated CLI rendering'), not a bare noun.",
+			"Pick the complexity that matches the work: minor = bug fix/small tweak; moderate = new feature/refactor; major = multi-file feature/new endpoint; architectural = cross-scenario/new system design.",
+			"Run context-discover with those concepts — the probes execute server-side and return reviewed-ready candidates (degraded probes surface as typed notes).",
+			"Disposition EVERY candidate: accept it only if you can articulate the concrete way it improves execution (vague relevance is insufficient); reject the rest with a short reason.",
+			"If discovery finds no applicable internal skill, record NO_SKILL_CONTEXT with the reason instead of accepting filler.",
+			"If this plan genuinely needs no plan-wide setup context at all, record an explicit NO_CONTEXT reason.",
+			"Phase-specific setup belongs on the phase, not here.",
+		},
+		RequiredInputs: []string{"2-5 decomposed discovery concepts + complexity", "an accept/reject decision for every candidate", "or explicit NO_SKILL_CONTEXT / NO_CONTEXT reason"},
 		Examples:       []string{"author context-discover " + sessionHandle(sess) + " --concepts 'plan-manager execution resume' --complexity architectural", "author context-submit " + sessionHandle(sess) + " --kind skill --label implementation-plan-authoring --target implementation-plan-authoring --reason 'authoring standards shape the plan' --instruction 'Load before implementation planning' --required", "author section-submit " + sessionHandle(sess) + " --section relevant_context --content 'NO_SKILL_CONTEXT: no internal skill applies beyond accepted docs/search setup.'"},
 		CommonMistakes: []string{"Skipping plan-wide context by leaving it empty.", "Adding docs/search context but never deciding skill setup.", "Putting phase-only setup in global context."},
 		NextActions: []NextAction{

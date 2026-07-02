@@ -25,9 +25,10 @@ func TestPlanModelDocNamesRenderSections(t *testing.T) {
 
 	// The professional section names the renderer emits (and the doc must name).
 	sections := []string{
-		"Purpose", "Problem / Need", "Target Outcome", "Work Posture", "Scope",
-		"Non-Goals", "Assumptions", "Technical Approach", "Constraints",
-		"Prohibited Approaches", "Global Execution Setup", "Execution Feedback", "References",
+		"Purpose", "Problem", "Outcome", "Approach & Decisions", "Boundaries",
+		"Assumptions & Risks", "Verification", "Execution Setup", "Phases", "Decisions",
+		"Work Posture", "Scope", "Non-Goals", "Assumptions", "Constraints",
+		"Prohibited Approaches", "Execution Feedback", "References",
 		"Regression Anchor", "Validation Strategy", "Definition of Done",
 		"Import Provenance", "Preserved Legacy Sections",
 		"Affected Areas", "Ordered Steps", "Expected Outputs", "Phase Validation",
@@ -46,9 +47,10 @@ func TestPlanModelDocNamesRenderSections(t *testing.T) {
 func TestRenderEmitsDocumentedSections(t *testing.T) {
 	md := plans.RenderMarkdown(comprehensivePlan())
 	for _, h := range []string{
-		"## Purpose", "## Problem / Need", "## Target Outcome", "## Work Posture",
-		"## Scope", "## Technical Approach", "## Execution Feedback", "## Validation Strategy",
-		"## Definition of Done",
+		"## Purpose", "## Problem", "## Outcome", "## Approach & Decisions",
+		"## Boundaries", "## Assumptions & Risks", "## Verification", "## Execution Setup",
+		"## Phases", "### Work Posture", "### Scope", "### Execution Feedback",
+		"### Validation Strategy", "### Definition of Done",
 	} {
 		if !strings.Contains(md, h) {
 			t.Errorf("renderer did not emit documented heading %q", h)

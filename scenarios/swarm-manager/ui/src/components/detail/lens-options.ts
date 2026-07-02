@@ -1,31 +1,19 @@
-import { Activity, Crosshair, Network, type LucideIcon } from "lucide-react";
-import type { GraphLens } from "../../surfaces/graph/stores/graph-data-store";
+import { Crosshair, KanbanSquare, type LucideIcon } from "lucide-react";
+import type { AppGraphLens } from "../../app/routes/route-paths";
 
 export interface LensOption {
-  lens: GraphLens;
+  lens: AppGraphLens;
   label: string;
   icon: LucideIcon;
   iconColorClass: string;
 }
 
-export const BACKLOG_LENSES: LensOption[] = [
+const PLAN_FOCUS_LENSES: LensOption[] = [
+  { lens: "plan", label: "Plan", icon: KanbanSquare, iconColorClass: "text-cyan-400" },
   { lens: "focus", label: "Focus", icon: Crosshair, iconColorClass: "text-emerald-400" },
-  { lens: "topology", label: "Topology", icon: Network, iconColorClass: "text-indigo-400" },
-  { lens: "operations", label: "Operations", icon: Activity, iconColorClass: "text-amber-400" },
 ];
 
-export const INITIATIVE_LENSES: LensOption[] = [
-  { lens: "focus", label: "Focus", icon: Crosshair, iconColorClass: "text-emerald-400" },
-  { lens: "topology", label: "Topology", icon: Network, iconColorClass: "text-indigo-400" },
-  { lens: "operations", label: "Operations", icon: Activity, iconColorClass: "text-amber-400" },
-];
-
-export const EXECUTION_LENSES: LensOption[] = [
-  { lens: "operations", label: "Operations", icon: Activity, iconColorClass: "text-amber-400" },
-];
-
-export const SCENARIO_LENSES: LensOption[] = [
-  { lens: "focus", label: "Focus", icon: Crosshair, iconColorClass: "text-emerald-400" },
-  { lens: "topology", label: "Topology", icon: Network, iconColorClass: "text-indigo-400" },
-  { lens: "operations", label: "Operations", icon: Activity, iconColorClass: "text-amber-400" },
-];
+export const BACKLOG_LENSES: LensOption[] = PLAN_FOCUS_LENSES;
+export const INITIATIVE_LENSES: LensOption[] = PLAN_FOCUS_LENSES;
+export const EXECUTION_LENSES: LensOption[] = PLAN_FOCUS_LENSES;
+export const SCENARIO_LENSES: LensOption[] = PLAN_FOCUS_LENSES;

@@ -41,6 +41,10 @@ func ParsePlanMarkdown(markdown string) (Plan, error) {
 	for _, entry := range ordered {
 		sections[entry.lower] = entry.body
 	}
+	// 9-cluster render shape: clusters carry their fields as `###` subsections.
+	// Splitting them here lets the same field lookups below serve both the
+	// current cluster shape and pre-cluster/legacy flat headings.
+	applyClusterSubSections(sections)
 	p.Purpose = sections["purpose"]
 	p.Scope = sections["scope"]
 	p.Constraints = sections["constraints"]
@@ -56,13 +60,15 @@ func ParsePlanMarkdown(markdown string) (Plan, error) {
 	}
 
 	// Professional plan structure (see docs/concepts/PLAN-MODEL.md).
-	p.ProblemStatement = firstNonEmpty(sections["problem / need"], sections["problem/need"], sections["problem need"])
-	p.TargetOutcome = sections["target outcome"]
+	p.ProblemStatement = firstNonEmpty(sections["problem"], sections["problem / need"], sections["problem/need"], sections["problem need"])
+	p.TargetOutcome = firstNonEmpty(sections["outcome"], sections["target outcome"])
 	p.Assumptions = sections["assumptions"]
-	p.TechnicalApproach = firstNonEmpty(sections["technical approach"], sections["technical approach / design rationale"])
+	p.TechnicalApproach = firstNonEmpty(sections["approach & decisions"], sections["technical approach"], sections["technical approach / design rationale"])
 	p.ProhibitedApproaches = sections["prohibited approaches"]
 	p.RisksHazards = firstNonEmpty(sections["risks / hazards"], sections["risks/hazards"])
 	p.ValidationStrategy, p.FinalValidationCommands = parseValidationStrategy(firstNonEmpty(sections["validation strategy"], sections["validation model"]))
+	p.Decisions = parsePlanDecisions(sections["decisions"])
+	p.AssumptionRisks = parseAssumptionTable(sections["assumptions & risks"])
 	p.WorkPosture, p.WorkPostureSource, p.WorkPostureDetail = parseWorkPostureBlock(sections["work posture"])
 	p.ImportProvenance = parseImportProvenanceBlock(sections["import provenance"])
 	p.PreservedLegacySections = parsePreservedLegacyBlock(sections["preserved legacy sections"])
@@ -361,6 +367,128 @@ func extractOrderedSections(markdown string) []sectionEntry {
 	return out
 }
 
+// clusterHeadings are the 9-cluster render headings whose fields arrive as
+// `###` subsections. Their subsection bodies are lifted into the flat section
+// map so field lookups serve both the cluster shape and legacy flat headings.
+var clusterHeadings = []string{"boundaries", "assumptions & risks", "verification", "approach & decisions", "execution setup"}
+
+// applyClusterSubSections lifts each cluster's `###` subsections into the flat
+// section map (never clobbering an existing flat section). The Approach &
+// Decisions cluster keeps its leading prose as its own body (the technical
+// approach); Execution Setup aliases to the pre-cluster global-execution-setup
+// key so the relevant-context block parser reads it unchanged.
+func applyClusterSubSections(sections map[string]string) {
+	for _, cluster := range clusterHeadings {
+		body, ok := sections[cluster]
+		if !ok {
+			continue
+		}
+		lead, subs := splitSubSections(body)
+		if cluster == "approach & decisions" || cluster == "assumptions & risks" {
+			// These clusters own their leading prose: the technical approach and
+			// the assumption/mitigation table respectively.
+			sections[cluster] = strings.TrimSpace(lead)
+		}
+		if cluster == "execution setup" {
+			if strings.TrimSpace(sections["global execution setup"]) == "" {
+				sections["global execution setup"] = body
+			}
+			continue
+		}
+		for _, sub := range subs {
+			key := normalizeSectionKey(sub.heading)
+			if _, exists := sections[key]; !exists {
+				sections[key] = sub.body
+			}
+		}
+	}
+}
+
+// parsePlanDecisions recovers the ordered D1..Dn list rendered under
+// Approach & Decisions → Decisions: `- **D<n> — <title>:** <statement>`.
+// Order comes from list position; the D-number label is presentation.
+func parsePlanDecisions(block string) []PlanDecision {
+	block = strings.TrimSpace(block)
+	if block == "" {
+		return nil
+	}
+	var out []PlanDecision
+	for _, line := range strings.Split(block, "\n") {
+		m := planDecisionLineRe.FindStringSubmatch(strings.TrimSpace(line))
+		if m == nil {
+			continue
+		}
+		out = append(out, PlanDecision{Title: strings.TrimSpace(m[1]), Statement: strings.TrimSpace(m[2])})
+	}
+	return out
+}
+
+var planDecisionLineRe = regexp.MustCompile(`^-\s*\*\*D\d+\s*[—:-]\s*(.+?):\*\*\s*(.+)$`)
+
+// parseAssumptionTable recovers the two-column Assumptions & Risks table:
+// `| <assumption> | <if wrong → mitigation> |` rows (header/divider skipped).
+func parseAssumptionTable(block string) []PlanAssumption {
+	block = strings.TrimSpace(block)
+	if block == "" {
+		return nil
+	}
+	var out []PlanAssumption
+	for _, line := range strings.Split(block, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "|") {
+			continue
+		}
+		cells := splitTableRow(line)
+		if len(cells) != 2 {
+			continue
+		}
+		if strings.EqualFold(cells[0], "assumption") || strings.HasPrefix(cells[0], "---") {
+			continue
+		}
+		out = append(out, PlanAssumption{Statement: cells[0], Mitigation: cells[1]})
+	}
+	return out
+}
+
+// splitTableRow splits one `| a | b |` row into unescaped cells.
+func splitTableRow(line string) []string {
+	line = strings.TrimSuffix(strings.TrimPrefix(strings.TrimSpace(line), "|"), "|")
+	placeholder := "\x00"
+	line = strings.ReplaceAll(line, "\\|", placeholder)
+	parts := strings.Split(line, "|")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(strings.ReplaceAll(part, placeholder, "|"))
+		out = append(out, part)
+	}
+	return out
+}
+
+// splitSubSections splits a cluster body into its leading prose and ordered
+// `###` subsections.
+func splitSubSections(body string) (string, []sectionEntry) {
+	locs := subHeadingRe.FindAllStringSubmatchIndex(body, -1)
+	if len(locs) == 0 {
+		return body, nil
+	}
+	lead := body[:locs[0][0]]
+	out := make([]sectionEntry, 0, len(locs))
+	for i, loc := range locs {
+		heading := strings.TrimSpace(body[loc[2]:loc[3]])
+		bodyStart := loc[1]
+		bodyEnd := len(body)
+		if i+1 < len(locs) {
+			bodyEnd = locs[i+1][0]
+		}
+		out = append(out, sectionEntry{
+			heading: heading,
+			lower:   normalizeSectionKey(heading),
+			body:    strings.TrimSpace(body[bodyStart:bodyEnd]),
+		})
+	}
+	return lead, out
+}
+
 func normalizeSectionKey(heading string) string {
 	heading = strings.TrimSpace(heading)
 	heading = sectionNumberPrefixRe.ReplaceAllString(heading, "")
@@ -426,6 +554,13 @@ func parsePhases(markdown string) ([]Phase, error) {
 				ph.Acceptance = firstNonEmpty(ph.Acceptance, val)
 			case "status":
 				ph.Status = phaseStatusFromLabel(val)
+			case "context":
+				// The compact NO_CONTEXT render: `- Context: none needed — <reason>`.
+				// Reconstruct the typed skip note so the quality gate still sees an
+				// explicit NO_CONTEXT decision and re-render reproduces the line.
+				if item, ok := noContextItemFromCompactLine(val, ph.ID); ok {
+					ph.RelevantContext = append(ph.RelevantContext, item)
+				}
 			}
 		}
 		ph.References = parseReferences(body)
@@ -480,7 +615,7 @@ var phaseBlockMarkers = []string{
 // phaseScalarBulletTerminators are the scalar phase bullets (rendered between
 // blocks, e.g. "- Acceptance:") that must also terminate a preceding text block
 // so a multi-line block (Phase Validation) never absorbs a following bullet.
-var phaseScalarBulletTerminators = []string{"\n- Acceptance:", "\n- Status:", "\n- Intent:"}
+var phaseScalarBulletTerminators = []string{"\n- Acceptance:", "\n- Status:", "\n- Intent:", "\n- Context:"}
 
 // extractPhaseBlock returns the content of one bold-header block in a phase body,
 // terminated by the next phase block marker or scalar bullet (so adjacent
@@ -506,6 +641,32 @@ func extractPhaseBlock(body, marker string) string {
 		}
 	}
 	return strings.TrimSpace(rest[:end])
+}
+
+// noContextItemFromCompactLine reconstructs the typed NO_CONTEXT skip note from
+// the compact `- Context: none needed — <reason>` phase line.
+func noContextItemFromCompactLine(value, phaseID string) (RelevantContextItem, bool) {
+	value = strings.TrimSpace(value)
+	lower := strings.ToLower(value)
+	const marker = "none needed"
+	if !strings.HasPrefix(lower, marker) {
+		return RelevantContextItem{}, false
+	}
+	reason := strings.TrimSpace(strings.TrimLeft(value[len(marker):], " —–-:"))
+	if reason == "" {
+		reason = "no phase-specific setup context."
+	}
+	label := "NO_CONTEXT: " + reason
+	return RelevantContextItem{
+		Kind:         RelevantContextNote,
+		Scope:        RelevantContextScopePhase,
+		PhaseID:      phaseID,
+		Label:        label,
+		Instruction:  label,
+		RepeatPolicy: RelevantContextPhaseEntry,
+		Source:       RelevantContextSourceAuthored,
+		Status:       RelevantContextStatusReady,
+	}, true
 }
 
 func extractPhaseContextSetup(body string) string {
@@ -863,6 +1024,13 @@ func applyRelevantContextAnnotation(item *RelevantContextItem, annotation string
 }
 
 func applyRelevantContextCommandInference(item *RelevantContextItem) {
+	if item.Kind == RelevantContextSkill {
+		// A repeated `prompt-manager skill read` prefix is unambiguous corruption
+		// (a skill slug is a single token and can never contain the prefix): a
+		// renderer defect once emitted the doubled command into mirrors, so
+		// re-importing such a mirror repairs it deterministically here.
+		item.Command = collapseRepeatedSkillReadPrefix(item.Command)
+	}
 	fields := strings.Fields(item.Command)
 	if len(fields) == 0 {
 		return
@@ -878,6 +1046,22 @@ func applyRelevantContextCommandInference(item *RelevantContextItem) {
 	if item.Kind == RelevantContextSearch && item.Target == "" {
 		item.Target = item.Command
 	}
+}
+
+// collapseRepeatedSkillReadPrefix rewrites `prompt-manager skill read
+// prompt-manager skill read <slug>` (any repetition depth) to a single-prefix
+// command. Only the exact repeated-prefix shape is touched.
+func collapseRepeatedSkillReadPrefix(command string) string {
+	const prefix = "prompt-manager skill read "
+	trimmed := strings.TrimSpace(command)
+	if !strings.HasPrefix(trimmed, prefix) {
+		return command
+	}
+	rest := strings.TrimPrefix(trimmed, prefix)
+	for strings.HasPrefix(rest, prefix) {
+		rest = strings.TrimPrefix(rest, prefix)
+	}
+	return prefix + rest
 }
 
 func targetFromReferenceLikeLabel(label string) string {
@@ -1054,6 +1238,9 @@ var canonicalConsumedHeadings = map[string]bool{
 	"definition of done": true, "definition-of-done": true, "risks / hazards": true,
 	"risks/hazards": true, "import provenance": true, "preserved legacy sections": true,
 	"plan graph": true, "phases": true, "required reading": true,
+	// 9-cluster headings (contract decision D1).
+	"problem": true, "outcome": true, "approach & decisions": true, "boundaries": true,
+	"assumptions & risks": true, "verification": true, "execution setup": true,
 }
 
 // applyLegacyImport maps recognized legacy headings into canonical fields and

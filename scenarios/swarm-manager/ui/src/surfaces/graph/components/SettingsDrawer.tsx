@@ -6,14 +6,11 @@ import { lazy, Suspense, useMemo, useState } from "react";
 import {
   ChevronRight,
   Eye,
-  FolderTree,
   Gamepad2,
   LayoutGrid,
-  Map as MapIcon,
   Maximize2,
   RefreshCw,
   RotateCcw,
-  Rows3,
 } from "lucide-react";
 import { FloatingPanel } from "../../../components/ui/floating-panel";
 import { cn } from "../../../lib/utils";
@@ -22,7 +19,7 @@ import { useGraphSettingsStore } from "../stores/graph-settings-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import { ENTITY_REGISTRY, GRAPH_ENTITY_TYPES } from "../lib/entity-shapes";
 import { ENTITY_STATUS_REGISTRY, getGraphNodeEntityType, getGraphNodeStatus } from "../types";
-import type { GraphEntityType, GraphGroupingMode } from "../types";
+import type { GraphEntityType } from "../types";
 import type { EntityType } from "../stores/graph-settings-store";
 import type { LayoutMode } from "../stores/graph-ui-store";
 
@@ -59,9 +56,7 @@ function GraphControlsContent() {
   const setStatusVisibility = useGraphSettingsStore((s) => s.setStatusVisibility);
   const clearStatusFilter = useGraphSettingsStore((s) => s.clearStatusFilter);
   const setEntityStatusGroupVisibility = useGraphSettingsStore((s) => s.setEntityStatusGroupVisibility);
-  const setGroupingMode = useGraphSettingsStore((s) => s.setGroupingMode);
   const setShowSecondaryEdges = useGraphSettingsStore((s) => s.setShowSecondaryEdges);
-  const setShowMiniMap = useGraphSettingsStore((s) => s.setShowMiniMap);
   const setShowNavControls = useGraphSettingsStore((s) => s.setShowNavControls);
   const setAutoFitOnChange = useGraphSettingsStore((s) => s.setAutoFitOnChange);
   const setHighlightActionableNodes = useGraphSettingsStore((s) => s.setHighlightActionableNodes);
@@ -72,7 +67,6 @@ function GraphControlsContent() {
   const setLayoutForLens = useGraphUIStore((s) => s.setLayoutForLens);
   const setLayoutDirection = useGraphUIStore((s) => s.setLayoutDirection);
   const requestFitView = useGraphUIStore((s) => s.requestFitView);
-  const collapseAllTopologyClusters = useGraphUIStore((s) => s.collapseAllTopologyClusters);
 
   interface StatusGroup {
     entityType: GraphEntityType;
@@ -140,9 +134,6 @@ function GraphControlsContent() {
 
   const resetCurrentLens = () => {
     resetLensSettings(lens);
-    if (lens === "topology") {
-      collapseAllTopologyClusters();
-    }
     requestFitView();
   };
 
@@ -251,28 +242,6 @@ function GraphControlsContent() {
         </section>
       )}
 
-      {lens === "topology" && (
-        <section>
-          <div className="mb-3">
-            <h3 className="text-sm font-medium text-slate-100">Grouping</h3>
-            <p className="text-xs text-slate-500">Flat view shows every backlog item. Initiative view compresses backlog under initiative buckets.</p>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {([
-              { id: "none", label: "Flat Graph", icon: Rows3 },
-              { id: "initiative", label: "Compact by Initiative", icon: FolderTree },
-            ] as const).map((option) =>
-              renderToggleButton(
-                option.label,
-                settings.groupingMode === option.id,
-                () => setGroupingMode(option.id as GraphGroupingMode),
-                option.icon,
-              ),
-            )}
-          </div>
-        </section>
-      )}
-
       <section>
         <div className="mb-3">
           <h3 className="text-sm font-medium text-slate-100">Edges</h3>
@@ -290,12 +259,6 @@ function GraphControlsContent() {
             settings.autoFitOnChange,
             () => setAutoFitOnChange(!settings.autoFitOnChange),
             Maximize2,
-          )}
-          {renderToggleButton(
-            "Show Mini Map",
-            settings.showMiniMap,
-            () => setShowMiniMap(!settings.showMiniMap),
-            MapIcon,
           )}
           {renderToggleButton(
             "Show Nav Controls",

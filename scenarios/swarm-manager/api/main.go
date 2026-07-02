@@ -41,6 +41,7 @@ import (
 	"swarm-manager/internal/initiativereview"
 	"swarm-manager/internal/initiatives"
 	"swarm-manager/internal/operatingmode"
+	"swarm-manager/internal/operations"
 	"swarm-manager/internal/overview"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptmanager"
@@ -108,6 +109,7 @@ type Server struct {
 	feedbackSweeperStop chan struct{}
 	reviewSweeperStop   chan struct{}
 	audioToolsResolver  audiotools.URLResolver
+	opsAggregator       *operations.Aggregator
 
 	// Audio ports — all backed by audio-tools. Mirrors web-console's
 	// audio integration: the UI talks same-origin to swarm-manager's own
@@ -277,6 +279,7 @@ func (s *Server) setupRoutes() {
 	s.registerInitiativeReviewRoutes(materializer)
 	s.registerOperatingModeRoutes(scenarioRoot, materializer)
 	s.registerOperationsRoutes()
+	s.registerPlanRoutes(scenarioRoot)
 	s.registerPromptRoutes(scenarioRoot)
 	s.registerAgentManagerRoutes()
 

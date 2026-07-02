@@ -7,20 +7,19 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { graphPath, isGraphLens as isRouteGraphLens } from "../../../app/routes/route-paths";
+import { graphPath, isGraphLens as isRouteGraphLens, type AppGraphLens } from "../../../app/routes/route-paths";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import { clearVisualFocus } from "../lib/visual-focus";
 import { getGraphNodeLabel } from "../types";
-import type { GraphLens } from "../stores/graph-data-store";
 
-export function isGraphLens(value: string | null): value is GraphLens {
+export function isGraphLens(value: string | null): value is AppGraphLens {
   return isRouteGraphLens(value ?? undefined);
 }
 
 export interface UseGraphStateSyncResult {
-  urlLens: GraphLens;
-  handleLensChange: (newLens: GraphLens) => void;
+  urlLens: AppGraphLens;
+  handleLensChange: (newLens: AppGraphLens) => void;
   handleReturnToAtlas: () => void;
   handleDeselectNode: () => void;
 }
@@ -37,7 +36,7 @@ export function useGraphStateSync(): UseGraphStateSyncResult {
   const params = useParams<{ lens?: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const urlLens: GraphLens = isRouteGraphLens(params.lens) ? params.lens : "topology";
+  const urlLens: AppGraphLens = isRouteGraphLens(params.lens) ? params.lens : "plan";
   const urlSelect = searchParams.get("select");
   const urlFocus = searchParams.get("focus");
   const urlReturnLens = searchParams.get("returnLens");
@@ -101,7 +100,7 @@ export function useGraphStateSync(): UseGraphStateSyncResult {
   }, [selectedNodeId, selectNode, urlSelect]);
 
   const handleLensChange = useCallback(
-    (newLens: GraphLens) => {
+    (newLens: AppGraphLens) => {
       navigate(graphPath({
         lens: newLens,
         focus: searchParams.get("focus"),
@@ -113,7 +112,7 @@ export function useGraphStateSync(): UseGraphStateSyncResult {
   );
 
   const handleReturnToAtlas = useCallback(() => {
-    const target = returnLens ?? "topology";
+    const target = returnLens && isRouteGraphLens(returnLens) ? returnLens : "plan";
     navigate(graphPath({ lens: target }));
   }, [navigate, returnLens]);
 
