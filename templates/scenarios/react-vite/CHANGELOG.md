@@ -155,6 +155,7 @@ flag-discipline-dependent, and trues up the template's own lockfile.
       `1.1.0`.
 
 
+## 1.3.0 — 2026-06-30
 
 Adds baseline PWA install metadata and placeholder icons to generated
 React/Vite scenarios.
@@ -173,6 +174,10 @@ React/Vite scenarios.
 - `README.md` and `docs/START-HERE.md` now call out the seeded PWA
   branding surface as durable scaffolding that should be replaced with
   scenario-specific branding when available.
+- PWA/native-readiness baseline uses relative install asset and
+  service-worker cache URLs for proxy/tunnel deployments, and the
+  translucent iOS status-bar metadata now has matching viewport-fit and
+  safe-area CSS tokens.
 
 ### Migration (for agents updating older scenarios)
 - [ ] Add a web app manifest under `ui/public/site.webmanifest` using
@@ -184,6 +189,11 @@ React/Vite scenarios.
       should replace it later.
 - [ ] Add the manifest, icon, theme-color, and iOS standalone meta tags
       to `ui/index.html`, then rebuild the UI bundle.
+- [ ] If `apple-mobile-web-app-status-bar-style` is `black-translucent`,
+      include `viewport-fit=cover` and real `env(safe-area-inset-*)`
+      usage in UI CSS.
+- [ ] Update `.vrooli/service.json::generation.template.version` to
+      `1.3.0`.
 
 ## 1.0.0 — 2026-05-12
 

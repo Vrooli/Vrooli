@@ -95,6 +95,89 @@ message ScenarioStatusItem {
 
   // Health probe error detail; empty on success.
   string health_error = 12;
+
+  // Latest start/restart operation record for the scenario (in-flight
+  // progress or last terminal outcome); absent when never started or the
+  // runtime registry is unavailable. Single-scenario status only.
+  ScenarioStartOperation start_operation = 13;
+}
+
+// ScenarioStartOperation is the reader view of one durable start/restart
+// operation record (lifecycle.StartOperationView): honest in-flight progress
+// for `scenario status`/`scenario wait`, terminal outcome afterwards.
+message ScenarioStartOperation {
+  // Registry-unique operation id.
+  string operation_id = 1;
+
+  // Scenario slug.
+  string scenario = 2;
+
+  // Instance variant ("live" unless a named variant was started).
+  string variant = 3;
+
+  // Verb that created the record: "start" or "restart".
+  string operation = 4;
+
+  // running | succeeded | failed | abandoned. A stored running record whose
+  // initiator process is dead is reported abandoned.
+  string status = 5;
+
+  // Health verdict on success (healthy | degraded | running); empty otherwise.
+  string verdict = 6;
+
+  // Failure detail on failed/abandoned; empty otherwise.
+  string error = 7;
+
+  // Step currently executing (stop | dependencies | setup | develop |
+  // health); empty when terminal.
+  string current_step = 8;
+
+  // Dependency currently being ensured; empty outside the dependency step.
+  string dependency_current = 9;
+
+  // 1-based position of dependency_current among the direct dependencies.
+  int32 dependency_index = 10;
+
+  // Direct dependency count.
+  int32 dependency_total = 11;
+
+  // Operation start time as RFC3339Nano.
+  string started_at = 12;
+
+  // Terminal time as RFC3339Nano; empty while running.
+  string finished_at = 13;
+
+  // Whole seconds from start to finish (terminal) or to now (running).
+  int32 elapsed_seconds = 14;
+
+  // Recorded steps in execution order.
+  repeated ScenarioStartOperationStep steps = 15;
+
+  // True when phase-duration history supports an honest remaining-time
+  // estimate. When false, eta_seconds is meaningless (never fabricated).
+  bool eta_known = 16;
+
+  // Estimated remaining seconds; meaningful only when eta_known.
+  int32 eta_seconds = 17;
+
+  // Single sanctioned re-check cadence for agents: 0 when terminal (stop
+  // checking), 30 when the ETA is unknown, else remaining clamped to [5, 60].
+  int32 recommended_next_check_seconds = 18;
+}
+
+// ScenarioStartOperationStep is one recorded step of a start operation.
+message ScenarioStartOperationStep {
+  // Step name (stop | dependencies | setup | develop | health).
+  string name = 1;
+
+  // running | done | failed.
+  string status = 2;
+
+  // Step start time as RFC3339Nano.
+  string started_at = 3;
+
+  // Step end time as RFC3339Nano; empty while running.
+  string ended_at = 4;
 }
 
 // -----------------------------------------------------------------------------
@@ -475,6 +558,49 @@ message ScenarioLifecycleItem {
 
   // Resources that failed to come up; empty when none.
   repeated string failed_resources = 7;
+
+  // Health verdict backing the exit code (healthy | degraded | running);
+  // distinguishes the degraded-after-timeout success (exit 2) from full
+  // health (exit 0).
+  string verdict = 8;
+
+  // The durable operation record for this start/restart (per-step timings,
+  // operation id); absent when the runtime registry was unavailable.
+  ScenarioStartOperation operation = 9;
+}
+
+// -----------------------------------------------------------------------------
+// `scenario wait`
+// -----------------------------------------------------------------------------
+
+// ScenarioWaitResponse is the single JSON document of `vrooli scenario wait
+// --json`: attach to an in-flight start (or evaluate current health when
+// none) and return once with the verdict. Exit codes: 0 healthy/running,
+// 1 failed, 2 degraded, 124 timeout ceiling (the awaited start continues).
+message ScenarioWaitResponse {
+  // True when the awaited operation (or current runtime) is healthy enough
+  // to use (verdict healthy | degraded | running).
+  bool success = 1;
+
+  // Scenario slug.
+  string scenario = 2;
+
+  // healthy | degraded | running | failed | abandoned | timeout.
+  string verdict = 3;
+
+  // Exit code the CLI returns for this verdict (0 | 1 | 2 | 124).
+  int32 exit_code = 4;
+
+  // How the verdict was obtained: "attached" (waited on an in-flight
+  // operation) or "registry" (no in-flight start; current runtime health).
+  string source = 5;
+
+  // Seconds this wait call blocked.
+  int32 waited_seconds = 6;
+
+  // The operation record the wait attached to (or the latest terminal one);
+  // absent when none exists.
+  ScenarioStartOperation operation = 7;
 }
 
 // ScenarioEndpoint is one reachable endpoint for a running scenario

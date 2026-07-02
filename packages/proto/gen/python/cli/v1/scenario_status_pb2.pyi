@@ -32,7 +32,7 @@ class ScenarioStatusSummary(_message.Message):
     def __init__(self, total_scenarios: _Optional[int] = ..., running: _Optional[int] = ..., stopped: _Optional[int] = ...) -> None: ...
 
 class ScenarioStatusItem(_message.Message):
-    __slots__ = ("name", "display_name", "description", "tags", "status", "processes", "runtime", "started_at", "ports", "port_bindings", "health_status", "health_error")
+    __slots__ = ("name", "display_name", "description", "tags", "status", "processes", "runtime", "started_at", "ports", "port_bindings", "health_status", "health_error", "start_operation")
     class PortsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -52,6 +52,7 @@ class ScenarioStatusItem(_message.Message):
     PORT_BINDINGS_FIELD_NUMBER: _ClassVar[int]
     HEALTH_STATUS_FIELD_NUMBER: _ClassVar[int]
     HEALTH_ERROR_FIELD_NUMBER: _ClassVar[int]
+    START_OPERATION_FIELD_NUMBER: _ClassVar[int]
     name: str
     display_name: str
     description: str
@@ -64,7 +65,60 @@ class ScenarioStatusItem(_message.Message):
     port_bindings: _containers.RepeatedCompositeFieldContainer[_scenario_list_pb2.ScenarioPort]
     health_status: _struct_pb2.Value
     health_error: str
-    def __init__(self, name: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., status: _Optional[str] = ..., processes: _Optional[int] = ..., runtime: _Optional[str] = ..., started_at: _Optional[str] = ..., ports: _Optional[_Mapping[str, int]] = ..., port_bindings: _Optional[_Iterable[_Union[_scenario_list_pb2.ScenarioPort, _Mapping]]] = ..., health_status: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., health_error: _Optional[str] = ...) -> None: ...
+    start_operation: ScenarioStartOperation
+    def __init__(self, name: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., status: _Optional[str] = ..., processes: _Optional[int] = ..., runtime: _Optional[str] = ..., started_at: _Optional[str] = ..., ports: _Optional[_Mapping[str, int]] = ..., port_bindings: _Optional[_Iterable[_Union[_scenario_list_pb2.ScenarioPort, _Mapping]]] = ..., health_status: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., health_error: _Optional[str] = ..., start_operation: _Optional[_Union[ScenarioStartOperation, _Mapping]] = ...) -> None: ...
+
+class ScenarioStartOperation(_message.Message):
+    __slots__ = ("operation_id", "scenario", "variant", "operation", "status", "verdict", "error", "current_step", "dependency_current", "dependency_index", "dependency_total", "started_at", "finished_at", "elapsed_seconds", "steps", "eta_known", "eta_seconds", "recommended_next_check_seconds")
+    OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    VARIANT_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_STEP_FIELD_NUMBER: _ClassVar[int]
+    DEPENDENCY_CURRENT_FIELD_NUMBER: _ClassVar[int]
+    DEPENDENCY_INDEX_FIELD_NUMBER: _ClassVar[int]
+    DEPENDENCY_TOTAL_FIELD_NUMBER: _ClassVar[int]
+    STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    FINISHED_AT_FIELD_NUMBER: _ClassVar[int]
+    ELAPSED_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    STEPS_FIELD_NUMBER: _ClassVar[int]
+    ETA_KNOWN_FIELD_NUMBER: _ClassVar[int]
+    ETA_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    RECOMMENDED_NEXT_CHECK_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    operation_id: str
+    scenario: str
+    variant: str
+    operation: str
+    status: str
+    verdict: str
+    error: str
+    current_step: str
+    dependency_current: str
+    dependency_index: int
+    dependency_total: int
+    started_at: str
+    finished_at: str
+    elapsed_seconds: int
+    steps: _containers.RepeatedCompositeFieldContainer[ScenarioStartOperationStep]
+    eta_known: bool
+    eta_seconds: int
+    recommended_next_check_seconds: int
+    def __init__(self, operation_id: _Optional[str] = ..., scenario: _Optional[str] = ..., variant: _Optional[str] = ..., operation: _Optional[str] = ..., status: _Optional[str] = ..., verdict: _Optional[str] = ..., error: _Optional[str] = ..., current_step: _Optional[str] = ..., dependency_current: _Optional[str] = ..., dependency_index: _Optional[int] = ..., dependency_total: _Optional[int] = ..., started_at: _Optional[str] = ..., finished_at: _Optional[str] = ..., elapsed_seconds: _Optional[int] = ..., steps: _Optional[_Iterable[_Union[ScenarioStartOperationStep, _Mapping]]] = ..., eta_known: _Optional[bool] = ..., eta_seconds: _Optional[int] = ..., recommended_next_check_seconds: _Optional[int] = ...) -> None: ...
+
+class ScenarioStartOperationStep(_message.Message):
+    __slots__ = ("name", "status", "started_at", "ended_at")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    ENDED_AT_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    status: str
+    started_at: str
+    ended_at: str
+    def __init__(self, name: _Optional[str] = ..., status: _Optional[str] = ..., started_at: _Optional[str] = ..., ended_at: _Optional[str] = ...) -> None: ...
 
 class ScenarioStatusSingle(_message.Message):
     __slots__ = ("success", "scenario", "info", "runtime")
@@ -331,7 +385,7 @@ class ScenarioLifecycleResponse(_message.Message):
     def __init__(self, success: _Optional[bool] = ..., scenarios: _Optional[_Iterable[_Union[ScenarioLifecycleItem, _Mapping]]] = ...) -> None: ...
 
 class ScenarioLifecycleItem(_message.Message):
-    __slots__ = ("name", "status", "health", "ports", "endpoints", "failed_dependencies", "failed_resources")
+    __slots__ = ("name", "status", "health", "ports", "endpoints", "failed_dependencies", "failed_resources", "verdict", "operation")
     class PortsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -346,6 +400,8 @@ class ScenarioLifecycleItem(_message.Message):
     ENDPOINTS_FIELD_NUMBER: _ClassVar[int]
     FAILED_DEPENDENCIES_FIELD_NUMBER: _ClassVar[int]
     FAILED_RESOURCES_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
     name: str
     status: str
     health: str
@@ -353,7 +409,27 @@ class ScenarioLifecycleItem(_message.Message):
     endpoints: _containers.RepeatedCompositeFieldContainer[ScenarioEndpoint]
     failed_dependencies: _containers.RepeatedScalarFieldContainer[str]
     failed_resources: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, name: _Optional[str] = ..., status: _Optional[str] = ..., health: _Optional[str] = ..., ports: _Optional[_Mapping[str, int]] = ..., endpoints: _Optional[_Iterable[_Union[ScenarioEndpoint, _Mapping]]] = ..., failed_dependencies: _Optional[_Iterable[str]] = ..., failed_resources: _Optional[_Iterable[str]] = ...) -> None: ...
+    verdict: str
+    operation: ScenarioStartOperation
+    def __init__(self, name: _Optional[str] = ..., status: _Optional[str] = ..., health: _Optional[str] = ..., ports: _Optional[_Mapping[str, int]] = ..., endpoints: _Optional[_Iterable[_Union[ScenarioEndpoint, _Mapping]]] = ..., failed_dependencies: _Optional[_Iterable[str]] = ..., failed_resources: _Optional[_Iterable[str]] = ..., verdict: _Optional[str] = ..., operation: _Optional[_Union[ScenarioStartOperation, _Mapping]] = ...) -> None: ...
+
+class ScenarioWaitResponse(_message.Message):
+    __slots__ = ("success", "scenario", "verdict", "exit_code", "source", "waited_seconds", "operation")
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    EXIT_CODE_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    WAITED_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    success: bool
+    scenario: str
+    verdict: str
+    exit_code: int
+    source: str
+    waited_seconds: int
+    operation: ScenarioStartOperation
+    def __init__(self, success: _Optional[bool] = ..., scenario: _Optional[str] = ..., verdict: _Optional[str] = ..., exit_code: _Optional[int] = ..., source: _Optional[str] = ..., waited_seconds: _Optional[int] = ..., operation: _Optional[_Union[ScenarioStartOperation, _Mapping]] = ...) -> None: ...
 
 class ScenarioEndpoint(_message.Message):
     __slots__ = ("name", "key", "description", "port", "url")

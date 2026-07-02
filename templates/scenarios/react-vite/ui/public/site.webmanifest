@@ -1,4 +1,5 @@
 {
+  "id": ".",
   "name": "{{SCENARIO_DISPLAY_NAME}}",
   "short_name": "{{SCENARIO_ID}}",
   "description": "{{SCENARIO_DESCRIPTION}}",

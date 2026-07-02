@@ -29,9 +29,10 @@ the standard full-stack Vrooli scenario shape:
 - UI/CLI guardrails for i18n, accessibility, API base resolution,
   declarative command args, generated Connect clients, and report-shaped
   output.
-- Baseline PWA branding metadata: web app manifest, standalone-mode
-  mobile tags, and generic placeholder icons ready for scenario-specific
-  replacement.
+- Baseline PWA/native-readiness metadata: web app manifest,
+  standalone-mode mobile tags, proxy-safe relative install asset URLs,
+  a minimal app-shell service worker, safe-area CSS tokens, and generic
+  placeholder icons ready for scenario-specific replacement.
 - Root-level `DESIGN.md` plus generated UI token assets from the
   selected design kit.
 - A documentation contract in `docs/manifest.json`, with stubs for

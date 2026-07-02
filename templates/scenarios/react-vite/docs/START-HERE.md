@@ -102,8 +102,13 @@ UX & branding:
 - Voice and messaging:
 - Branding hooks:
 - PWA install surface: keep the seeded `ui/public/site.webmanifest`,
-  `apple-icon-180.png`, `favicon-196.png`, and maskable manifest icons
-  valid; replace the generic icons when final product branding exists.
+  `sw.js`, `apple-icon-180.png`, `favicon-196.png`, maskable manifest
+  icons, relative install asset URLs, and safe-area CSS tokens valid;
+  replace the generic icons when final product branding exists. The
+  service worker is a minimal app-shell baseline; tune dynamic caching
+  only when the product needs offline data behavior. Treat shortcuts,
+  share targets, protocol handlers, file handlers, and push flows as
+  product decisions, not default template obligations.
 EOF
 ```
 
