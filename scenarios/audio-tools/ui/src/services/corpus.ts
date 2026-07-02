@@ -217,11 +217,14 @@ export interface ScalingPointRow {
 
 export interface ScalingModelFitRow {
   metric: string;
+  unit: string;
   model: string;
   slopePerSecond: number;
   intercept: number;
   rSquared: number;
   sampleCount: number;
+  exponent: number;
+  exponentRSquared: number;
   reason: string;
 }
 
@@ -234,6 +237,7 @@ export interface ScalingAnalysisRow {
   warnings: WarningRow[];
   latencyFit: ScalingModelFitRow | null;
   computeFit: ScalingModelFitRow | null;
+  metricFits: ScalingModelFitRow[];
 }
 
 export interface EditOperationRow {
@@ -377,11 +381,14 @@ function decodeScalingModelFit(f?: ScalingModelFit): ScalingModelFitRow | null {
   if (!f) return null;
   return {
     metric: f.metric,
+    unit: f.unit,
     model: f.model,
     slopePerSecond: f.slopePerSecond,
     intercept: f.intercept,
     rSquared: f.rSquared,
     sampleCount: f.sampleCount,
+    exponent: f.exponent,
+    exponentRSquared: f.exponentRSquared,
     reason: f.reason,
   };
 }
@@ -397,6 +404,7 @@ function decodeScaling(s?: ScalingAnalysis): ScalingAnalysisRow | null {
     warnings: arrayOrEmpty(s.warnings).map(decodeWarning),
     latencyFit: decodeScalingModelFit(s.latencyFit),
     computeFit: decodeScalingModelFit(s.computeFit),
+    metricFits: arrayOrEmpty(s.metricFits).map(decodeScalingModelFit).filter((fit): fit is ScalingModelFitRow => Boolean(fit)),
   };
 }
 

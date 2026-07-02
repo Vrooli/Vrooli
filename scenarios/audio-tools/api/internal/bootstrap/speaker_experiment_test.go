@@ -1,10 +1,18 @@
 package bootstrap
 
 import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	evalH "audio-tools/handlers/eval"
+	"audio-tools/internal/ai/sttchain"
 	inteval "audio-tools/internal/eval"
 	exprecipe "audio-tools/internal/experiment/recipe"
+	sttpkg "audio-tools/internal/stt"
+	sttpipeline "audio-tools/internal/stt/pipeline"
 
 	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
@@ -63,6 +71,79 @@ func TestBuildSpeakerConditions_SkipsMissingTargetProfile(t *testing.T) {
 	}
 }
 
+func TestExperimentEvalDeps_CarriesSpeakerResource(t *testing.T) {
+	client := &sttpipeline.SpeakerClient{}
+	deps := newExperimentEvalDeps(nil, nil, func() sttchain.Provider { return nil }, sttpkg.Defaults(), client)
+
+	if deps.SpeakerResource != client {
+		t.Fatalf("SpeakerResource not wired into experiment eval deps")
+	}
+}
+
+func TestApplySpeakerResourceAvailability_SkipsEnabledConditionsWhenResourceMissing(t *testing.T) {
+	conditions := []speakerEvalCondition{
+		{ID: "extract_off_verify_off"},
+		{ID: "extract_on_verify_off", ExtractionEnabled: true},
+		{ID: "extract_off_verify_on", VerificationEnabled: true},
+	}
+
+	got := applySpeakerResourceAvailability(context.Background(), conditions, nil)
+
+	if got[0].Skipped {
+		t.Fatalf("speaker-off condition should remain runnable")
+	}
+	for i := 1; i < len(got); i++ {
+		if !got[i].Skipped {
+			t.Fatalf("condition %s should be skipped when speaker resource is missing", got[i].ID)
+		}
+		if got[i].Note == "" {
+			t.Fatalf("condition %s should explain the skipped resource", got[i].ID)
+		}
+	}
+}
+
+func TestApplySpeakerResourceAvailability_TreatsOKReadyStatusAsReady(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/ready" {
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"ok","model_loaded":true,"profile_store_ok":true,"temp_dir_ok":true}`))
+	}))
+	defer srv.Close()
+	client := &sttpipeline.SpeakerClient{BaseURL: srv.URL, Doer: srv.Client()}
+	conditions := []speakerEvalCondition{{
+		ID:                "extract_on_verify_on",
+		ExtractionEnabled: true,
+	}}
+
+	got := applySpeakerResourceAvailability(context.Background(), conditions, client)
+
+	if got[0].Skipped {
+		t.Fatalf("status=ok with all readiness booleans true should be treated as ready: %#v", got[0])
+	}
+}
+
+func TestRunSpeakerConditionReportsWithOptions_AllSkippedReturnsWarningReport(t *testing.T) {
+	report, err := runSpeakerConditionReportsWithOptions(context.Background(), evalDepsNoop(), nil, nil, 0, 0, inteval.EvalOptions{}, []speakerEvalCondition{{
+		ID:      "speaker_recipe",
+		Skipped: true,
+		Note:    "speaker condition skipped: speaker resource is not configured",
+	}}, "", nil)
+	if err != nil {
+		t.Fatalf("all-skipped speaker conditions should return a warning report, got error: %v", err)
+	}
+	if len(report.PerStrategy) != 0 {
+		t.Fatalf("all-skipped report should not emit clean strategy rows: %#v", report.PerStrategy)
+	}
+	if len(report.Warnings) != 1 || report.Warnings[0].Code != "speaker_condition_skipped" {
+		t.Fatalf("warnings = %#v", report.Warnings)
+	}
+	if report.Summary.Confidence != "low" {
+		t.Fatalf("summary confidence = %q, want low", report.Summary.Confidence)
+	}
+}
+
 func TestAppendUniqueReportWarnings_DeduplicatesRepeatedConditionWarnings(t *testing.T) {
 	warning := inteval.ReportWarning{Severity: "warning", Code: "tiny_corpus", Message: "Only 1 clips were evaluated"}
 	got := appendUniqueReportWarnings([]inteval.ReportWarning{warning}, warning, inteval.ReportWarning{
@@ -77,6 +158,57 @@ func TestAppendUniqueReportWarnings_DeduplicatesRepeatedConditionWarnings(t *tes
 	if got[0].Code != "tiny_corpus" || got[1].Code != "short_audio" {
 		t.Fatalf("warnings = %#v", got)
 	}
+}
+
+func TestExperimentRunsForReportStoresPerCellConditions(t *testing.T) {
+	report := inteval.EvalReport{PerStrategy: []inteval.StrategyReport{
+		{
+			Strategy:            sttchain.StrategyKind("batch/extract_off_verify_off/clean"),
+			BaseStrategy:        sttchain.StrategyKind("batch"),
+			Label:               "Batch / extract_off_verify_off / clean",
+			ConditionGroup:      "clean",
+			ExtractionEnabled:   false,
+			VerificationEnabled: false,
+		},
+		{
+			Strategy:            sttchain.StrategyKind("batch/extract_on_verify_on/noisy"),
+			BaseStrategy:        sttchain.StrategyKind("batch"),
+			Label:               "Batch / extract_on_verify_on / noisy",
+			ConditionGroup:      "noisy",
+			ExtractionEnabled:   true,
+			VerificationEnabled: true,
+		},
+	}}
+	realized := map[string]any{"phase": "materialized", "clip_count": 2}
+	runs, err := experimentRunsForReport(report, evalH.ReportToProto(report), realized)
+	if err != nil {
+		t.Fatalf("experimentRunsForReport: %v", err)
+	}
+	if len(runs) != 2 {
+		t.Fatalf("run count = %d, want 2", len(runs))
+	}
+	var first, second map[string]any
+	if err := json.Unmarshal(runs[0].ConditionJSON, &first); err != nil {
+		t.Fatalf("unmarshal first condition: %v", err)
+	}
+	if err := json.Unmarshal(runs[1].ConditionJSON, &second); err != nil {
+		t.Fatalf("unmarshal second condition: %v", err)
+	}
+	if first["condition_group"] == second["condition_group"] {
+		t.Fatalf("condition groups should differ: first=%v second=%v", first, second)
+	}
+	firstSpeaker := first["speaker"].(map[string]any)
+	secondSpeaker := second["speaker"].(map[string]any)
+	if firstSpeaker["extraction_enabled"].(bool) || firstSpeaker["verification_enabled"].(bool) {
+		t.Fatalf("first speaker condition should be disabled: %v", firstSpeaker)
+	}
+	if !secondSpeaker["extraction_enabled"].(bool) || !secondSpeaker["verification_enabled"].(bool) {
+		t.Fatalf("second speaker condition should be enabled: %v", secondSpeaker)
+	}
+}
+
+func evalDepsNoop() evalH.Deps {
+	return evalH.Deps{}
 }
 
 func TestLongFormSourceDurationWarning_WhenTargetExceedsUniqueSourceAudio(t *testing.T) {

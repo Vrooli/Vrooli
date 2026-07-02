@@ -2,8 +2,12 @@ package experiment
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"runtime"
 
 	"connectrpc.com/connect"
 
@@ -31,9 +35,10 @@ type ExperimentManager interface {
 }
 
 type Deps struct {
-	Logger  logx.Logger
-	Manager ExperimentManager
-	Service *intexp.Service
+	Logger              logx.Logger
+	Manager             ExperimentManager
+	Service             *intexp.Service
+	EstimateClipSeconds func(context.Context, []string) (int32, error)
 }
 
 type connectHandler struct{ deps Deps }
@@ -66,18 +71,126 @@ func (h *connectHandler) StartExperiment(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	estimatedSeconds, err := h.estimateExperimentSeconds(ctx, recipe, req.Msg.GetEstimatedSeconds())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	exp, err := h.deps.Manager.Submit(ctx, intexp.SubmitSpec{
 		Name:             req.Msg.GetName(),
 		RecipeJSON:       recipeJSON,
-		EstimatedSeconds: int(req.Msg.GetEstimatedSeconds()),
+		MachineJSON:      experimentMachineJSON(recipeJSON),
+		EstimatedSeconds: int(estimatedSeconds),
 	})
 	if err != nil {
 		return nil, experimentError(err, h.deps.Logger, "StartExperiment")
 	}
 	return connect.NewResponse(&experimentv1.StartExperimentResponse{
 		Experiment:       domainToProto(exp),
-		EstimatedSeconds: req.Msg.GetEstimatedSeconds(),
+		EstimatedSeconds: estimatedSeconds,
 	}), nil
+}
+
+func (h *connectHandler) estimateExperimentSeconds(ctx context.Context, recipe *experimentv1.ExperimentRecipe, clientOverride int32) (int32, error) {
+	if clientOverride > 0 {
+		return clientOverride, nil
+	}
+	if recipe == nil {
+		return 0, nil
+	}
+	durationSeconds := estimatedRecipeDurationSeconds(recipe)
+	if durationSeconds <= 0 && h.deps.EstimateClipSeconds != nil {
+		estimated, err := h.deps.EstimateClipSeconds(ctx, recipe.GetClipIds())
+		if err != nil {
+			return 0, err
+		}
+		durationSeconds = estimated
+	}
+	if durationSeconds <= 0 {
+		return 0, nil
+	}
+	strategies := len(recipe.GetStrategies())
+	if strategies == 0 {
+		strategies = 3
+	}
+	repeats := int(recipe.GetRealtimeRepeats()) + 1
+	if repeats < 1 {
+		repeats = 1
+	}
+	conditions := estimatedConditionCount(recipe)
+	total := durationSeconds * int32(strategies) * int32(repeats) * int32(conditions)
+	if total < 1 {
+		return 1, nil
+	}
+	return total, nil
+}
+
+func estimatedRecipeDurationSeconds(recipe *experimentv1.ExperimentRecipe) int32 {
+	if recipe.GetRealizedDurationMs() > 0 {
+		return int32((recipe.GetRealizedDurationMs() + 999) / 1000)
+	}
+	longForm := recipe.GetLongForm()
+	if longForm == nil {
+		return 0
+	}
+	if sweep := longForm.GetSweepDurationsSeconds(); len(sweep) > 0 {
+		var total int32
+		for _, seconds := range sweep {
+			if seconds > 0 {
+				total += seconds
+			}
+		}
+		return total
+	}
+	if longForm.GetEnabled() && longForm.GetTargetDurationSeconds() > 0 {
+		return longForm.GetTargetDurationSeconds()
+	}
+	return 0
+}
+
+func estimatedConditionCount(recipe *experimentv1.ExperimentRecipe) int {
+	count := 1
+	if realized := len(recipe.GetRealizedAugmentationConditions()); realized > 0 {
+		count *= realized
+	} else if aug := recipe.GetAugmentation(); aug != nil {
+		noise := len(aug.GetNoiseTypes())
+		snr := len(aug.GetSnrDb())
+		voices := len(aug.GetCompetingVoiceIds())
+		switch {
+		case noise > 0 && snr > 0:
+			count *= noise * snr
+		case noise > 0:
+			count *= noise
+		case snr > 0:
+			count *= snr
+		}
+		if voices > 0 {
+			count *= voices
+		}
+	}
+	if realized := len(recipe.GetRealizedSpeakerConditions()); realized > 0 {
+		count *= realized
+	} else if speaker := recipe.GetSpeaker(); speaker != nil && speaker.GetAblationEnabled() {
+		count *= 4
+	}
+	if count < 1 {
+		return 1
+	}
+	return count
+}
+
+func experimentMachineJSON(recipeJSON []byte) []byte {
+	host, _ := os.Hostname()
+	sum := sha256.Sum256(recipeJSON)
+	data, err := json.Marshal(map[string]any{
+		"host":          host,
+		"goos":          runtime.GOOS,
+		"goarch":        runtime.GOARCH,
+		"recipe_sha256": fmt.Sprintf("%x", sum[:]),
+	})
+	if err != nil {
+		return []byte("{}")
+	}
+	return data
 }
 
 func (h *connectHandler) GetExperiment(ctx context.Context, req *connect.Request[experimentv1.GetExperimentRequest]) (*connect.Response[experimentv1.GetExperimentResponse], error) {
@@ -144,6 +257,24 @@ func (h *connectHandler) CancelExperiment(ctx context.Context, req *connect.Requ
 		return nil, experimentError(err, h.deps.Logger, "CancelExperiment")
 	}
 	return connect.NewResponse(&experimentv1.CancelExperimentResponse{Experiment: domainToProto(exp)}), nil
+}
+
+func (h *connectHandler) DeleteExperiment(ctx context.Context, req *connect.Request[experimentv1.DeleteExperimentRequest]) (*connect.Response[experimentv1.DeleteExperimentResponse], error) {
+	if h.deps.Manager == nil || h.deps.Service == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errServiceNotConfigured)
+	}
+	exp, err := h.deps.Manager.Get(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, experimentError(err, h.deps.Logger, "DeleteExperiment")
+	}
+	if !exp.Status.Terminal() {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("cannot delete experiment %s while status is %s", exp.ID, exp.Status))
+	}
+	deletedReport, err := h.deps.Service.DeleteExperiment(ctx, exp)
+	if err != nil {
+		return nil, experimentError(err, h.deps.Logger, "DeleteExperiment")
+	}
+	return connect.NewResponse(&experimentv1.DeleteExperimentResponse{Id: exp.ID, DeletedReport: deletedReport}), nil
 }
 
 func (h *connectHandler) StreamExperimentEvents(ctx context.Context, req *connect.Request[experimentv1.StreamExperimentEventsRequest], stream *connect.ServerStream[experimentv1.ExperimentEvent]) error {

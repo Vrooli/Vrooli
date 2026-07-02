@@ -195,6 +195,44 @@ function report() {
   };
 }
 
+function unsafeRecommendedReport() {
+  const base = report();
+  return {
+    ...base,
+    report: {
+      ...base.report,
+      perStrategy: [
+        {
+          ...base.report.perStrategy[0],
+          safety: {
+            passed: false,
+            retractionFree: false,
+            droppedSpanFree: false,
+            maxDroppedSpanWords: 4,
+            droppedSpanThresholdWords: 4,
+            retractionEvents: [],
+            reasons: ["dropped span threshold exceeded"],
+          },
+          verdict: "recommended-despite-safety-failure",
+          warnings: [
+            {
+              code: "safety_failed",
+              severity: "error",
+              message: "Safety gate failed for every evaluated strategy; this winner is diagnostic only.",
+            },
+          ],
+        },
+      ],
+      summary: {
+        ...base.report.summary,
+        recommendation: "Prefer batch for this corpus, recommended despite safety failure.",
+        confidence: "low",
+        confidenceNotes: ["Every evaluated strategy failed the safety gate; treat this only as the least-bad diagnostic result."],
+      },
+    },
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   listExperiments.mockResolvedValue([experiment()]);
@@ -277,6 +315,19 @@ describe("ExperimentLabView", () => {
     expect(conditions).toHaveTextContent("kokoro down");
     expect(conditions).toHaveTextContent("profile unavailable");
     expect(getExperimentReport).toHaveBeenCalledWith("exp-1");
+  });
+
+  it("warns when the recommended strategy is unsafe", async () => {
+    getExperimentReport.mockResolvedValue(unsafeRecommendedReport());
+    const user = userEvent.setup();
+    renderWithProviders(<ExperimentLabView />);
+
+    await user.click(await screen.findByTestId(selectors.dictationStudio.experimentReport({ id: "exp-1" })));
+
+    const summary = await screen.findByTestId(selectors.dictationStudio.evalSummary);
+    expect(summary).toHaveTextContent("recommended despite safety failure");
+    expect(summary).toHaveTextContent("low");
+    expect(await screen.findByTestId(selectors.dictationStudio.experimentResults)).toHaveTextContent(strings.dictationStudio.safetyUnsafe);
   });
 
   it("compares experiments selected from the history list", async () => {

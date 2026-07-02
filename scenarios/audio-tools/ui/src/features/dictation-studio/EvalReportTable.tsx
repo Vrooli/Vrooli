@@ -8,22 +8,18 @@ import {
   type EvalReportData,
   type LengthCurveRow,
   type ScalingAnalysisRow,
+  type ScalingModelFitRow,
   type StrategyRow,
 } from "../../services/corpus";
+import { ms, pct } from "./ExperimentLabFormat";
 
 const DASH = "—";
 
-function pct(value: number): string {
-  return `${(value * 100).toFixed(1)}%`;
-}
 function ratio(value: number): string {
   return value.toFixed(2);
 }
 function seconds(value: number): string {
   return value.toFixed(1);
-}
-function ms(value: number): string {
-  return String(Math.round(value));
 }
 function deltaPct(value: number): string {
   if (Math.abs(value) < 0.0005) return "0.0 pp";
@@ -38,18 +34,29 @@ function deltaMs(value: number): string {
 function arrayOrEmpty<T>(value: T[] | undefined): T[] {
   return value ?? [];
 }
-function curveX(index: number, total: number): number {
-  if (total <= 1) return 50;
-  return 8 + (index * 84) / (total - 1);
-}
 function curveY(value: number, max: number): number {
   if (max <= 0) return 84;
   return 84 - (value / max) * 68;
+}
+function durationCenterMs(curve: LengthCurveRow): number {
+  if (curve.maxDurationMs > 0 && curve.minDurationMs > 0) {
+    return (curve.minDurationMs + curve.maxDurationMs) / 2;
+  }
+  return Math.max(curve.maxDurationMs, curve.minDurationMs, 1);
+}
+function durationCurveX(durationMs: number, minDurationMs: number, maxDurationMs: number): number {
+  if (maxDurationMs <= minDurationMs || durationMs <= 0) return 50;
+  const minLog = Math.log(Math.max(minDurationMs, 1));
+  const maxLog = Math.log(Math.max(maxDurationMs, minDurationMs + 1));
+  const valueLog = Math.log(Math.max(durationMs, 1));
+  return 8 + ((valueLog - minLog) / (maxLog - minLog)) * 84;
 }
 
 export function EvalReportTable({ report }: { report: EvalReportData }) {
   const { t } = useTranslation();
   const latency = report.latencyMeasured;
+  const recommendedRow = report.perStrategy.find((row) => row.strategy === report.summary?.winnerStrategy);
+  const recommendedUnsafe = recommendedRow?.safety?.passed === false;
   const worstClips = report.perStrategy.flatMap((strategy) =>
     strategy.perClip
       .map((clip) => ({ strategy, clip }))
@@ -65,16 +72,24 @@ export function EvalReportTable({ report }: { report: EvalReportData }) {
   return (
     <div className="flex flex-col gap-4">
       {report.summary ? (
-        <section data-testid={selectors.dictationStudio.evalSummary} className="border-y border-app-border py-3">
+        <section
+          data-testid={selectors.dictationStudio.evalSummary}
+          className={recommendedUnsafe ? "border-y border-app-warning bg-app-warning/10 py-3" : "border-y border-app-border py-3"}
+        >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="text-sm font-semibold">{t(strings.dictationStudio.recommendationTitle)}</h3>
-              <p className="text-sm text-app-foreground">{report.summary.recommendation}</p>
+              <p className={recommendedUnsafe ? "text-sm font-medium text-app-warning" : "text-sm text-app-foreground"}>
+                {report.summary.recommendation}
+              </p>
             </div>
             <span className="rounded border border-app-border px-2 py-1 text-xs text-app-muted-foreground">
               {t(strings.dictationStudio.confidenceLabel)}: {report.summary.confidence}
             </span>
           </div>
+          {recommendedUnsafe ? (
+            <p className="mt-2 text-xs font-medium text-app-warning">{t(strings.dictationStudio.recommendedDespiteSafetyFailure)}</p>
+          ) : null}
           <ul className="mt-2 list-disc pl-5 text-xs text-app-muted-foreground">
             {report.summary.reasons.map((reason) => (
               <li key={reason}>{reason}</li>
@@ -221,10 +236,13 @@ export function EvalReportTable({ report }: { report: EvalReportData }) {
 function LengthCurveChart({ curves, latency }: { curves: LengthCurveRow[]; latency: boolean }) {
   const { t } = useTranslation();
   const sorted = [...curves].sort((a, b) => a.maxDurationMs - b.maxDurationMs);
+  const durations = sorted.map(durationCenterMs);
+  const minDurationMs = Math.min(...durations);
+  const maxDurationMs = Math.max(...durations);
   const maxWer = Math.max(...sorted.map((curve) => curve.wer), 0.01);
   const maxP95 = Math.max(...sorted.map((curve) => curve.finalizationLatencyP95Ms), 1);
-  const werPoints = sorted.map((curve, index) => `${curveX(index, sorted.length)},${curveY(curve.wer, maxWer)}`).join(" ");
-  const p95Points = sorted.map((curve, index) => `${curveX(index, sorted.length)},${curveY(curve.finalizationLatencyP95Ms, maxP95)}`).join(" ");
+  const werPoints = sorted.map((curve) => `${durationCurveX(durationCenterMs(curve), minDurationMs, maxDurationMs)},${curveY(curve.wer, maxWer)}`).join(" ");
+  const p95Points = sorted.map((curve) => `${durationCurveX(durationCenterMs(curve), minDurationMs, maxDurationMs)},${curveY(curve.finalizationLatencyP95Ms, maxP95)}`).join(" ");
 
   return (
     <div data-testid={selectors.dictationStudio.lengthCurveChart} className="mt-3 rounded-control border border-app-border bg-app-surface-muted/40 p-2">
@@ -238,13 +256,15 @@ function LengthCurveChart({ curves, latency }: { curves: LengthCurveRow[]; laten
       <svg viewBox="0 0 100 92" role="img" aria-label={t(strings.dictationStudio.lengthCurveTitle)} className="h-32 w-full">
         <line x1="8" y1="84" x2="96" y2="84" className="stroke-app-border" strokeWidth="1" />
         <line x1="8" y1="16" x2="8" y2="84" className="stroke-app-border" strokeWidth="1" />
+        <text x="2" y="18" className="fill-app-muted-foreground text-[5px]">{t(strings.dictationStudio.colWer)}</text>
+        <text x="96" y="90" textAnchor="end" className="fill-app-muted-foreground text-[5px]">{t(strings.dictationStudio.durationAxisLabel)}</text>
         <polyline points={werPoints} fill="none" className="stroke-app-accent" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
         {latency ? <polyline points={p95Points} fill="none" className="stroke-app-warning" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" /> : null}
-        {sorted.map((curve, index) => (
+        {sorted.map((curve) => (
           <g key={curve.bucket}>
-            <circle cx={curveX(index, sorted.length)} cy={curveY(curve.wer, maxWer)} r="1.8" className="fill-app-accent" />
-            {latency ? <circle cx={curveX(index, sorted.length)} cy={curveY(curve.finalizationLatencyP95Ms, maxP95)} r="1.8" className="fill-app-warning" /> : null}
-            <text x={curveX(index, sorted.length)} y="91" textAnchor="middle" className="fill-app-muted-foreground text-[5px]">{curve.bucket}</text>
+            <circle cx={durationCurveX(durationCenterMs(curve), minDurationMs, maxDurationMs)} cy={curveY(curve.wer, maxWer)} r="1.8" className="fill-app-accent" />
+            {latency ? <circle cx={durationCurveX(durationCenterMs(curve), minDurationMs, maxDurationMs)} cy={curveY(curve.finalizationLatencyP95Ms, maxP95)} r="1.8" className="fill-app-warning" /> : null}
+            <text x={durationCurveX(durationCenterMs(curve), minDurationMs, maxDurationMs)} y="91" textAnchor="middle" className="fill-app-muted-foreground text-[5px]">{curve.bucket}</text>
           </g>
         ))}
       </svg>
@@ -274,6 +294,10 @@ function GlossaryTerm({ term, text }: { term: string; text: string }) {
 
 function ScalingPanel({ scaling }: { scaling: ScalingAnalysisRow }) {
   const { t } = useTranslation();
+  const summaryFitMetrics = new Set([scaling.latencyFit?.metric, scaling.computeFit?.metric].filter(Boolean));
+  const detailFits = scaling.metricFits
+    .filter((fit) => fit.model && fit.model !== "none" && !summaryFitMetrics.has(fit.metric))
+    .slice(0, 5);
   return (
     <div className="mt-3 border-t border-app-border pt-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -292,6 +316,13 @@ function ScalingPanel({ scaling }: { scaling: ScalingAnalysisRow }) {
           <dd className="font-medium text-app-foreground">{scaling.computeClassification || DASH}</dd>
         </div>
       </dl>
+      <div className="mt-2 grid gap-1 text-[11px] text-app-muted-foreground">
+        <ScalingFitLine label={t(strings.dictationStudio.scalingLatencyFit)} fit={scaling.latencyFit} />
+        <ScalingFitLine label={t(strings.dictationStudio.scalingComputeFit)} fit={scaling.computeFit} />
+        {detailFits.map((fit) => (
+          <ScalingFitLine key={fit.metric} label={fit.metric} fit={fit} />
+        ))}
+      </div>
       {[...scaling.reasons, ...scaling.warnings.map((warning) => warning.message)].length > 0 ? (
         <ul className="mt-2 list-disc pl-4 text-[11px] text-app-muted-foreground">
           {scaling.reasons.slice(0, 2).map((reason) => (
@@ -304,6 +335,20 @@ function ScalingPanel({ scaling }: { scaling: ScalingAnalysisRow }) {
           ))}
         </ul>
       ) : null}
+    </div>
+  );
+}
+
+function ScalingFitLine({ label, fit }: { label: string; fit: ScalingModelFitRow | null }) {
+  const { t } = useTranslation();
+  if (!fit || !fit.model || fit.model === "none") return null;
+  return (
+    <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+      <span className="font-medium text-app-foreground">{label}</span>
+      <span>{fit.model}</span>
+      <span>{t(strings.dictationStudio.scalingRSquared)} {fit.rSquared.toFixed(2)}</span>
+      <span>{t(strings.dictationStudio.scalingSlope)} {fit.slopePerSecond.toFixed(2)}{fit.unit ? ` ${fit.unit}/s` : "/s"}</span>
+      {fit.exponent > 0 ? <span>{t(strings.dictationStudio.scalingExponent)} {fit.exponent.toFixed(2)}</span> : null}
     </div>
   );
 }

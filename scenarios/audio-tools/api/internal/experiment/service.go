@@ -35,6 +35,22 @@ func (s *Service) ListRuns(ctx context.Context, experimentID string) ([]Run, err
 	return s.repo.ListRuns(ctx, experimentID)
 }
 
+func (s *Service) DeleteExperiment(ctx context.Context, exp Experiment) (bool, error) {
+	if !exp.Status.Terminal() {
+		return false, fmt.Errorf("experiment: cannot delete %q while status is %s", exp.ID, exp.Status)
+	}
+	if err := s.repo.DeleteExperiment(ctx, exp.ID); err != nil {
+		return false, err
+	}
+	if exp.ResultRef == "" {
+		return false, nil
+	}
+	if err := s.blobs.Delete(ctx, exp.ResultRef); err != nil {
+		return false, fmt.Errorf("experiment: delete report %q: %w", exp.ResultRef, err)
+	}
+	return true, nil
+}
+
 func (s *Service) GetReport(ctx context.Context, exp Experiment) ([]byte, error) {
 	if exp.ResultRef == "" {
 		return nil, fmt.Errorf("experiment: %q has no report", exp.ID)
@@ -46,9 +62,9 @@ func (s *Service) StoreReport(ctx context.Context, exp Experiment, report []byte
 	if exp.ID == "" {
 		return Experiment{}, fmt.Errorf("experiment: StoreReport requires experiment id")
 	}
-	key := fmt.Sprintf("reports/%s/%s.json", now.UTC().Format("2006-01"), exp.ID)
-	if err := s.blobs.Put(ctx, key, report, mime); err != nil {
-		return Experiment{}, fmt.Errorf("experiment: store report: %w", err)
+	key, err := s.storeReportBlob(ctx, exp, report, mime, now)
+	if err != nil {
+		return Experiment{}, err
 	}
 	exp.ResultRef = key
 	if err := s.repo.UpdateExperiment(ctx, exp); err != nil {
@@ -58,4 +74,15 @@ func (s *Service) StoreReport(ctx context.Context, exp Experiment, report []byte
 		return Experiment{}, err
 	}
 	return exp, nil
+}
+
+func (s *Service) storeReportBlob(ctx context.Context, exp Experiment, report []byte, mime string, now time.Time) (string, error) {
+	if exp.ID == "" {
+		return "", fmt.Errorf("experiment: StoreReport requires experiment id")
+	}
+	key := fmt.Sprintf("reports/%s/%s.json", now.UTC().Format("2006-01"), exp.ID)
+	if err := s.blobs.Put(ctx, key, report, mime); err != nil {
+		return "", fmt.Errorf("experiment: store report: %w", err)
+	}
+	return key, nil
 }

@@ -24,6 +24,7 @@ type fakeExperimentSvc struct {
 	startFn  func(*experimentv1.StartExperimentRequest) (*experimentv1.StartExperimentResponse, error)
 	waitFn   func(*experimentv1.WaitExperimentRequest) (*experimentv1.WaitExperimentResponse, error)
 	reportFn func(*experimentv1.GetExperimentReportRequest) (*experimentv1.GetExperimentReportResponse, error)
+	deleteFn func(*experimentv1.DeleteExperimentRequest) (*experimentv1.DeleteExperimentResponse, error)
 }
 
 func (f *fakeExperimentSvc) StartExperiment(_ context.Context, req *connect.Request[experimentv1.StartExperimentRequest]) (*connect.Response[experimentv1.StartExperimentResponse], error) {
@@ -44,6 +45,14 @@ func (f *fakeExperimentSvc) WaitExperiment(_ context.Context, req *connect.Reque
 
 func (f *fakeExperimentSvc) GetExperimentReport(_ context.Context, req *connect.Request[experimentv1.GetExperimentReportRequest]) (*connect.Response[experimentv1.GetExperimentReportResponse], error) {
 	resp, err := f.reportFn(req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (f *fakeExperimentSvc) DeleteExperiment(_ context.Context, req *connect.Request[experimentv1.DeleteExperimentRequest]) (*connect.Response[experimentv1.DeleteExperimentResponse], error) {
+	resp, err := f.deleteFn(req.Msg)
 	if err != nil {
 		return nil, err
 	}
@@ -267,10 +276,9 @@ func TestPrintComparisonRendersRecipeDiffAndStrategyAlignment(t *testing.T) {
 	require.Contains(t, out, "wer 2.0 p95 700ms")
 }
 
-func TestFormatRunStatusDoesNotDumpMetricsJSON(t *testing.T) {
+func TestFormatRunStatusUsesConditionOnly(t *testing.T) {
 	line := formatRunStatus(&experimentv1.ExperimentRun{
 		Strategy:      "batch",
-		MetricsJson:   `{"wer":0.12}`,
 		ConditionJson: `{}`,
 	})
 
@@ -413,7 +421,7 @@ func TestWaitJSONReturnsTerminalReportEnvelope(t *testing.T) {
 
 	require.NoError(t, h.wait(ctx))
 	var envelope map[string]any
-	require.NoError(t, json.Unmarshal([]byte(buf.String()), &envelope))
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &envelope))
 	require.Contains(t, envelope, "experiment")
 	require.Contains(t, envelope, "report")
 	require.Contains(t, envelope, "runs")
@@ -425,6 +433,45 @@ func TestWaitJSONReturnsTerminalReportEnvelope(t *testing.T) {
 	row, ok := rows[0].(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, float64(0), row["wer"])
+}
+
+func TestDeleteRequiresYes(t *testing.T) {
+	app := mountExperiment(t, &fakeExperimentSvc{
+		deleteFn: func(*experimentv1.DeleteExperimentRequest) (*experimentv1.DeleteExperimentResponse, error) {
+			t.Fatal("DeleteExperiment should not be called without --yes")
+			return nil, nil
+		},
+	})
+	h := newHandlers(app)
+	ctx, _ := cliapptest.NewCapturedRunContext(app,
+		cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true}}, Flags: []cliapp.Flag{{Name: "yes", Bool: true}}},
+		cliapptest.TestRunContextOptions{Positionals: map[string]string{"id": "exp-1"}},
+	)
+
+	err := h.delete(ctx)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "--yes")
+}
+
+func TestDeleteJSON(t *testing.T) {
+	app := mountExperiment(t, &fakeExperimentSvc{
+		deleteFn: func(req *experimentv1.DeleteExperimentRequest) (*experimentv1.DeleteExperimentResponse, error) {
+			require.Equal(t, "exp-1", req.GetId())
+			return &experimentv1.DeleteExperimentResponse{Id: req.GetId(), DeletedReport: true}, nil
+		},
+	})
+	h := newHandlers(app)
+	ctx, buf := cliapptest.NewCapturedRunContext(app,
+		cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true}}, Flags: []cliapp.Flag{{Name: "yes", Bool: true}}},
+		cliapptest.TestRunContextOptions{JSON: true, Positionals: map[string]string{"id": "exp-1"}, BoolFlags: map[string]bool{"yes": true}},
+	)
+
+	require.NoError(t, h.delete(ctx))
+	var envelope map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &envelope))
+	require.Equal(t, "exp-1", envelope["id"])
+	require.Equal(t, true, envelope["deleted_report"])
 }
 
 func TestStartAppliesTuningFlagsOnlyToRelevantStrategies(t *testing.T) {

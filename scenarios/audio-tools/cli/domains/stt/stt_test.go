@@ -2,6 +2,7 @@ package stt
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -430,6 +431,35 @@ func TestSpeakerStatusWhisperCaveat(t *testing.T) {
 	require.Contains(t, out, "my-voice")
 	require.Contains(t, out, "[active]")
 	require.Contains(t, out, "Kyutai streaming engine emits no per-segment audio")
+}
+
+func TestSpeakerStatusJSONUsesProtoShape(t *testing.T) {
+	app := mountSTT(t, &fakeSvc{
+		getSpeakerStatus: func() *sttv1.SpeakerStatus {
+			return &sttv1.SpeakerStatus{
+				Config: &sttv1.SpeakerConfig{
+					Enabled: true,
+					Mode:    sttv1.SpeakerMode_SPEAKER_MODE_FILTER,
+				},
+				Capability:      "available",
+				CapabilityLabel: "Speaker store",
+				ResourceReady:   true,
+				ProfileCount:    1,
+				Profiles:        []*sttv1.SpeakerProfile{{Id: "my-voice", DisplayName: "Me"}},
+			}
+		},
+	})
+	h := newHandlers(app)
+	ctx, buf := cliapptest.NewCapturedRunContext(app, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{JSON: true})
+
+	require.NoError(t, h.speakerStatus(ctx))
+	out := buf.String()
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal([]byte(out), &payload))
+	require.Equal(t, "available", payload["capability"])
+	require.Equal(t, true, payload["resource_ready"])
+	require.NotEmpty(t, payload["profiles"])
+	require.NotContains(t, out, "Speaker verification:")
 }
 
 // formats prints the capability matrix as human-readable lines and surfaces

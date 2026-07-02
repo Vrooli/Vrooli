@@ -141,6 +141,92 @@ func TestExplainReport_DoesNotTrustDuplicateDurationScalingEvidence(t *testing.T
 	require.Contains(t, got.PerStrategy[1].Reasons, "Scaling evidence is inconclusive for long-form dictation.")
 }
 
+func TestExplainReport_SafetyGateBeatsLowerWER(t *testing.T) {
+	report := EvalReport{
+		QualityMeasured: true,
+		LatencyMeasured: false,
+		PerStrategy: []StrategyReport{
+			{
+				Strategy: "batch", Label: "batch", WER: 0.010,
+				WhisperCalls: 1, WhisperAudioSeconds: 30,
+				Safety:  safetyFail("committed text retracted"),
+				PerClip: []ClipResult{{ClipID: "c1"}},
+			},
+			{
+				Strategy: "vad_segment", Label: "vad_segment", WER: 0.030,
+				WhisperCalls: 3, WhisperAudioSeconds: 30,
+				Safety:  safetyPass(),
+				PerClip: []ClipResult{{ClipID: "c1"}},
+			},
+		},
+	}
+
+	got := explainReport(report)
+
+	require.Equal(t, "vad_segment", got.Summary.WinnerStrategy)
+	require.Equal(t, "winner", got.PerStrategy[1].Verdict)
+	require.NotEqual(t, "winner", got.PerStrategy[0].Verdict)
+	require.Contains(t, got.PerStrategy[0].Warnings, ReportWarning{
+		Code:     "safety_failed",
+		Severity: "error",
+		Message:  "Safety gate failed; this strategy is not eligible while any safe strategy exists.",
+	})
+}
+
+func TestExplainReport_AllUnsafeWinnerIsExplicitlyFlagged(t *testing.T) {
+	report := EvalReport{
+		QualityMeasured: true,
+		LatencyMeasured: false,
+		PerStrategy: []StrategyReport{
+			{
+				Strategy: "batch", Label: "batch", WER: 0.010,
+				WhisperCalls: 1, WhisperAudioSeconds: 30,
+				Safety:  safetyFail("committed text retracted"),
+				PerClip: []ClipResult{{ClipID: "c1"}},
+			},
+			{
+				Strategy: "vad_segment", Label: "vad_segment", WER: 0.030,
+				WhisperCalls: 3, WhisperAudioSeconds: 30,
+				Safety:  safetyFail("dropped span threshold exceeded"),
+				PerClip: []ClipResult{{ClipID: "c1"}},
+			},
+		},
+	}
+
+	got := explainReport(report)
+
+	require.Equal(t, "batch", got.Summary.WinnerStrategy)
+	require.Equal(t, "recommended-despite-safety-failure", got.PerStrategy[0].Verdict)
+	require.Contains(t, got.Summary.Recommendation, "recommended despite safety failure")
+	require.Contains(t, got.Summary.ConfidenceNotes, "Every evaluated strategy failed the safety gate; treat this only as the least-bad diagnostic result.")
+}
+
+func TestExplainReport_SafeRowsPreserveWERFirstOrdering(t *testing.T) {
+	report := EvalReport{
+		QualityMeasured: true,
+		LatencyMeasured: false,
+		PerStrategy: []StrategyReport{
+			{
+				Strategy: "batch", Label: "batch", WER: 0.030,
+				WhisperCalls: 1, WhisperAudioSeconds: 30,
+				Safety:  safetyPass(),
+				PerClip: []ClipResult{{ClipID: "c1"}},
+			},
+			{
+				Strategy: "vad_segment", Label: "vad_segment", WER: 0.010,
+				WhisperCalls: 3, WhisperAudioSeconds: 30,
+				Safety:  safetyPass(),
+				PerClip: []ClipResult{{ClipID: "c1"}},
+			},
+		},
+	}
+
+	got := explainReport(report)
+
+	require.Equal(t, "vad_segment", got.Summary.WinnerStrategy)
+	require.Equal(t, "winner", got.PerStrategy[1].Verdict)
+}
+
 func reportScaling(latency, compute string) ScalingAnalysis {
 	return ScalingAnalysis{
 		Points: []ScalingPoint{
@@ -151,5 +237,25 @@ func reportScaling(latency, compute string) ScalingAnalysis {
 		LatencyClassification: latency,
 		ComputeClassification: compute,
 		Confidence:            "medium",
+	}
+}
+
+func safetyPass() SafetyGateReport {
+	return SafetyGateReport{
+		Passed:              true,
+		RetractionFree:      true,
+		DroppedSpanFree:     true,
+		MaxDroppedSpanWords: 0,
+	}
+}
+
+func safetyFail(reason string) SafetyGateReport {
+	return SafetyGateReport{
+		Passed:                    false,
+		RetractionFree:            false,
+		DroppedSpanFree:           false,
+		MaxDroppedSpanWords:       DefaultDroppedSpanThresholdWords,
+		DroppedSpanThresholdWords: DefaultDroppedSpanThresholdWords,
+		Reasons:                   []string{reason},
 	}
 }

@@ -50,7 +50,6 @@ type Run struct {
 	ExperimentID  string
 	Strategy      string
 	ConditionJSON []byte
-	MetricsJSON   []byte
 	CreatedAt     time.Time
 }
 
@@ -104,8 +103,10 @@ type Repository interface {
 	CreateExperiment(ctx context.Context, exp Experiment) (Experiment, error)
 	GetExperiment(ctx context.Context, id string) (Experiment, error)
 	UpdateExperiment(ctx context.Context, exp Experiment) error
+	CompleteSucceeded(ctx context.Context, exp Experiment, runs []Run) error
 	ListExperiments(ctx context.Context, filter ListFilter) ([]Experiment, error)
 	ListNonTerminal(ctx context.Context) ([]Experiment, error)
+	DeleteExperiment(ctx context.Context, id string) error
 	CreateRun(ctx context.Context, run Run) (Run, error)
 	ListRuns(ctx context.Context, experimentID string) ([]Run, error)
 }

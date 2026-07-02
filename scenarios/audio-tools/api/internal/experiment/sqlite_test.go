@@ -119,7 +119,6 @@ func TestRepository_RunsRoundTrip(t *testing.T) {
 		ExperimentID:  exp.ID,
 		Strategy:      "overlap_agree",
 		ConditionJSON: []byte(`{"snr_db":12}`),
-		MetricsJSON:   []byte(`{"wer":0.1}`),
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, run.ID)
@@ -129,7 +128,52 @@ func TestRepository_RunsRoundTrip(t *testing.T) {
 	require.Len(t, runs, 1)
 	require.Equal(t, "overlap_agree", runs[0].Strategy)
 	require.Equal(t, []byte(`{"snr_db":12}`), runs[0].ConditionJSON)
-	require.Equal(t, []byte(`{"wer":0.1}`), runs[0].MetricsJSON)
+}
+
+func TestRepository_CompleteSucceededPersistsRunsAndTerminalStatusAtomically(t *testing.T) {
+	ctx := context.Background()
+	repo, _ := newRepo(t)
+	exp, err := repo.CreateExperiment(ctx, experiment.Experiment{Name: "complete"})
+	require.NoError(t, err)
+	exp.Status = experiment.StatusSucceeded
+
+	err = repo.CompleteSucceeded(ctx, exp, []experiment.Run{
+		{Strategy: "batch", ConditionJSON: []byte(`{"strategy":"batch"}`)},
+		{Strategy: "vad_segment", ConditionJSON: []byte(`{"strategy":"vad_segment"}`)},
+	})
+	require.NoError(t, err)
+
+	got, err := repo.GetExperiment(ctx, exp.ID)
+	require.NoError(t, err)
+	require.Equal(t, experiment.StatusSucceeded, got.Status)
+	runs, err := repo.ListRuns(ctx, exp.ID)
+	require.NoError(t, err)
+	require.Len(t, runs, 2)
+	conditionsByStrategy := map[string][]byte{}
+	for _, run := range runs {
+		conditionsByStrategy[run.Strategy] = run.ConditionJSON
+	}
+	require.Equal(t, []byte(`{"strategy":"batch"}`), conditionsByStrategy["batch"])
+	require.Equal(t, []byte(`{"strategy":"vad_segment"}`), conditionsByStrategy["vad_segment"])
+}
+
+func TestRepository_ForeignKeysCascadeRunRows(t *testing.T) {
+	ctx := context.Background()
+	d := newSchemaDB(t)
+	repo := experiment.NewSQLiteRepository(d, mocks.NewFakeClock(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC)))
+	exp, err := repo.CreateExperiment(ctx, experiment.Experiment{Name: "cascade"})
+	require.NoError(t, err)
+	_, err = repo.CreateRun(ctx, experiment.Run{
+		ExperimentID:  exp.ID,
+		Strategy:      "batch",
+		ConditionJSON: []byte(`{"strategy":"batch"}`),
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, repo.DeleteExperiment(ctx, exp.ID))
+	runs, err := repo.ListRuns(ctx, exp.ID)
+	require.NoError(t, err)
+	require.Empty(t, runs)
 }
 
 func TestRepository_NotFound(t *testing.T) {

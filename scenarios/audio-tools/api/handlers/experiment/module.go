@@ -31,6 +31,7 @@ var Endpoints = []modulekit.EndpointDescriptor{
 	{ID: "experiment.wait", Path: experimentconnect.ExperimentServiceWaitExperimentProcedure, Method: "POST", Category: "experiment"},
 	{ID: "experiment.list", Path: experimentconnect.ExperimentServiceListExperimentsProcedure, Method: "POST", Category: "experiment"},
 	{ID: "experiment.cancel", Path: experimentconnect.ExperimentServiceCancelExperimentProcedure, Method: "POST", Category: "experiment"},
+	{ID: "experiment.delete", Path: experimentconnect.ExperimentServiceDeleteExperimentProcedure, Method: "POST", Category: "experiment"},
 	{ID: "experiment.stream", Path: experimentconnect.ExperimentServiceStreamExperimentEventsProcedure, Method: "POST", Category: "experiment"},
 	{ID: "experiment.report", Path: experimentconnect.ExperimentServiceGetExperimentReportProcedure, Method: "POST", Category: "experiment"},
 	{ID: "experiment.compare", Path: experimentconnect.ExperimentServiceCompareExperimentsProcedure, Method: "POST", Category: "experiment"},

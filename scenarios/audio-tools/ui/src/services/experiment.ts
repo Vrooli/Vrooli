@@ -123,7 +123,6 @@ export interface ExperimentRunRow {
   experimentId: string;
   strategy: string;
   conditionJson: string;
-  metricsJson: string;
   createdAt: string;
 }
 
@@ -252,7 +251,6 @@ function decodeRun(r: ExperimentRun): ExperimentRunRow {
     experimentId: r.experimentId,
     strategy: r.strategy,
     conditionJson: r.conditionJson,
-    metricsJson: r.metricsJson,
     createdAt: tsToISO(r.createdAt),
   };
 }

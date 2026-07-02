@@ -67,7 +67,7 @@ func TestClassifyScaling_RequiresDistinctMetricDurations(t *testing.T) {
 		{ClipID: "same-a", RealizedDurationMs: 30_000, FinalizationLatencyP95Ms: 300, FinalizationLatencySampleCount: 1},
 		{ClipID: "same-b", RealizedDurationMs: 30_000, FinalizationLatencyP95Ms: 320, FinalizationLatencySampleCount: 1},
 		{ClipID: "same-c", RealizedDurationMs: 30_000, FinalizationLatencyP95Ms: 340, FinalizationLatencySampleCount: 1},
-	}, metricFinalizationP95)
+	}, testScalingMetric(metricFinalizationP95))
 
 	require.Equal(t, "inconclusive", classification)
 	require.Equal(t, "none", fit.Model)
@@ -87,6 +87,7 @@ func TestBuildScalingAnalysis_ClassifiesLinearScaling(t *testing.T) {
 	require.Equal(t, "medium", got.Confidence)
 	require.Equal(t, "linear", got.LatencyFit.Model)
 	require.Greater(t, got.LatencyFit.RSquared, 0.99)
+	require.InDelta(t, 1, got.LatencyFit.Exponent, 0.05)
 	require.Empty(t, got.Warnings)
 }
 
@@ -101,8 +102,61 @@ func TestBuildScalingAnalysis_ClassifiesSuperlinearScaling(t *testing.T) {
 	require.Equal(t, "superlinear", got.LatencyClassification)
 	require.Equal(t, "superlinear", got.ComputeClassification)
 	require.Equal(t, "quadratic", got.LatencyFit.Model)
+	require.InDelta(t, 2, got.LatencyFit.Exponent, 0.05)
 	require.Equal(t, "superlinear_latency_growth", got.Warnings[0].Code)
 	require.Equal(t, "superlinear_compute_growth", got.Warnings[1].Code)
+}
+
+func TestBuildScalingAnalysis_JitteredLinearDoesNotClassifySuperlinear(t *testing.T) {
+	got := buildScalingAnalysis([]ClipResult{
+		scalingClip("30s", 30_000, 305, 610),
+		scalingClip("60s", 60_000, 590, 1_220),
+		scalingClip("120s", 120_000, 1_230, 2_330),
+		scalingClip("240s", 240_000, 2_350, 4_870),
+	})
+
+	require.NotEqual(t, "superlinear", got.LatencyClassification)
+	require.NotEqual(t, "superlinear", got.ComputeClassification)
+	require.Empty(t, got.Warnings)
+}
+
+func TestBuildScalingAnalysis_ThreeDurationsRefuseSuperlinearVerdict(t *testing.T) {
+	got := buildScalingAnalysis([]ClipResult{
+		scalingClip("30s", 30_000, 90, 180),
+		scalingClip("60s", 60_000, 360, 720),
+		scalingClip("120s", 120_000, 1_440, 2_880),
+	})
+
+	require.NotEqual(t, "superlinear", got.LatencyClassification)
+	require.NotEqual(t, "superlinear", got.ComputeClassification)
+	require.Empty(t, got.Warnings)
+}
+
+func TestBuildScalingAnalysis_SingleLatencySamplesCapConfidence(t *testing.T) {
+	got := buildScalingAnalysis([]ClipResult{
+		singleSampleScalingClip("30s", 30_000, 300, 600),
+		singleSampleScalingClip("60s", 60_000, 600, 1_200),
+		singleSampleScalingClip("120s", 120_000, 1_200, 2_400),
+		singleSampleScalingClip("240s", 240_000, 2_400, 4_800),
+	})
+
+	require.Equal(t, "linear", got.LatencyClassification)
+	require.Equal(t, "linear", got.ComputeClassification)
+	require.Equal(t, "low", got.Confidence)
+}
+
+func TestBuildScalingAnalysis_RegistryFitsQualityAndSafetyMetrics(t *testing.T) {
+	got := buildScalingAnalysis([]ClipResult{
+		scalingClipWithQuality("30s", 30_000, 300, 600, 1, 1),
+		scalingClipWithQuality("60s", 60_000, 600, 1_200, 2, 2),
+		scalingClipWithQuality("120s", 120_000, 1_200, 2_400, 4, 4),
+		scalingClipWithQuality("240s", 240_000, 2_400, 4_800, 8, 8),
+	})
+
+	require.NotEmpty(t, got.MetricFits)
+	requireFitMetric(t, got.MetricFits, metricWER)
+	requireFitMetric(t, got.MetricFits, metricTTFC)
+	requireFitMetric(t, got.MetricFits, metricDroppedSpan)
 }
 
 func TestBuildScalingAnalysis_ComputeClassificationUsesWorstComputeMetric(t *testing.T) {
@@ -137,6 +191,16 @@ func TestBuildScalingAnalysis_ComputeClassificationUsesWorstComputeMetric(t *tes
 			RTF:                 0.16,
 			WER:                 WERResult{RefWords: 10},
 		},
+		{
+			ClipID:              "240s",
+			AudioDurationMs:     240_000,
+			LatencySamplesMs:    []float64{2_400},
+			ProviderLatencyMs:   4_800,
+			WhisperCalls:        8,
+			WhisperAudioSeconds: 240,
+			RTF:                 0.64,
+			WER:                 WERResult{RefWords: 10},
+		},
 	})
 
 	require.Equal(t, "linear", got.LatencyClassification)
@@ -158,14 +222,50 @@ func TestBuildScalingAnalysis_ClassifiesFlatScaling(t *testing.T) {
 }
 
 func scalingClip(id string, durationMs int64, latencyP95Ms float64, providerLatencyMs float64) ClipResult {
+	latencySamples := []float64{latencyP95Ms * 0.98, latencyP95Ms, latencyP95Ms * 1.02}
 	return ClipResult{
 		ClipID:              id,
 		AudioDurationMs:     durationMs,
-		LatencySamplesMs:    []float64{latencyP95Ms},
+		LatencySamplesMs:    latencySamples,
+		TimeToFirstCommitMs: latencyP95Ms / 2,
 		ProviderLatencyMs:   providerLatencyMs,
 		WhisperCalls:        int(durationMs / 30_000),
 		WhisperAudioSeconds: float64(durationMs) / 1000,
 		RTF:                 providerLatencyMs / float64(durationMs),
 		WER:                 WERResult{RefWords: 10},
 	}
+}
+
+func singleSampleScalingClip(id string, durationMs int64, latencyP95Ms float64, providerLatencyMs float64) ClipResult {
+	clip := scalingClip(id, durationMs, latencyP95Ms, providerLatencyMs)
+	clip.LatencySamplesMs = []float64{latencyP95Ms}
+	return clip
+}
+
+func scalingClipWithQuality(id string, durationMs int64, latencyP95Ms float64, providerLatencyMs float64, werErrors int, droppedWords int) ClipResult {
+	clip := scalingClip(id, durationMs, latencyP95Ms, providerLatencyMs)
+	clip.WER = WERResult{EditCounts: EditCounts{Substitutions: werErrors}, RefWords: 100}
+	clip.Safety = SafetyGateReport{MaxDroppedSpanWords: droppedWords}
+	return clip
+}
+
+func testScalingMetric(name scalingMetric) scalingMetricDef {
+	for _, metric := range scalingMetricRegistry {
+		if metric.name == name {
+			return metric
+		}
+	}
+	panic("missing scaling metric")
+}
+
+func requireFitMetric(t *testing.T, fits []ScalingModelFit, metric scalingMetric) {
+	t.Helper()
+	for _, fit := range fits {
+		if fit.Metric == string(metric) {
+			require.NotEmpty(t, fit.Model)
+			require.Greater(t, fit.SampleCount, 0)
+			return
+		}
+	}
+	require.Failf(t, "missing metric fit", "metric %s was not fitted", metric)
 }

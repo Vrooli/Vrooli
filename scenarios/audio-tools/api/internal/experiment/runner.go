@@ -56,6 +56,7 @@ type subscriber struct {
 }
 
 type entry struct {
+	id     string
 	mu     sync.Mutex
 	exp    Experiment
 	cancel context.CancelFunc
@@ -182,7 +183,7 @@ func (m *Manager) Submit(ctx context.Context, spec SubmitSpec) (Experiment, erro
 		return Experiment{}, err
 	}
 
-	e := &entry{exp: saved, done: make(chan struct{})}
+	e := &entry{id: saved.ID, exp: saved, done: make(chan struct{})}
 	m.mu.Lock()
 	m.entries[saved.ID] = e
 	m.queued = append(m.queued, e)
@@ -273,32 +274,12 @@ func (m *Manager) execute(e *entry) {
 		if len(result.RecipeJSON) > 0 {
 			final.RecipeJSON = result.RecipeJSON
 		}
-		// Run rows are part of the success contract: a "succeeded" experiment
-		// must have every metrics cell persisted, otherwise GetExperiment/
-		// report-by-runs would silently return a partial result. If any insert
-		// fails we downgrade to failed rather than reporting a false success.
-		var runErr error
-		for _, run := range result.Runs {
-			run.ExperimentID = final.ID
-			if _, err := m.service.repo.CreateRun(m.baseCtx, run); err != nil {
-				runErr = err
-				m.logger.Printf("experiment %s: persist run %q: %v", final.ID, run.Strategy, err)
-			}
-		}
-		switch {
-		case runErr != nil:
-			final.Status = StatusFailed
-			final.Error = fmt.Sprintf("persist run metrics: %v", runErr)
-			final.ResultRef = ""
-			if err := m.service.repo.UpdateExperiment(m.baseCtx, final); err != nil {
-				m.logger.Printf("experiment %s: persist run-failure status: %v", final.ID, err)
-			}
-		case len(result.Report) > 0:
+		if len(result.Report) > 0 {
 			mime := result.ReportMIME
 			if mime == "" {
 				mime = "application/json"
 			}
-			stored, storeErr := m.service.StoreReport(m.baseCtx, final, result.Report, mime, finished)
+			key, storeErr := m.service.storeReportBlob(m.baseCtx, final, result.Report, mime, finished)
 			if storeErr != nil {
 				m.logger.Printf("experiment %s: store report: %v", final.ID, storeErr)
 				final.Status = StatusFailed
@@ -308,11 +289,26 @@ func (m *Manager) execute(e *entry) {
 					m.logger.Printf("experiment %s: persist report-failure status: %v", final.ID, err)
 				}
 			} else {
-				final = stored
+				final.ResultRef = key
+				if err := m.service.repo.CompleteSucceeded(m.baseCtx, final, result.Runs); err != nil {
+					_ = m.service.blobs.Delete(m.baseCtx, key)
+					m.logger.Printf("experiment %s: persist successful result: %v", final.ID, err)
+					final.Status = StatusFailed
+					final.Error = fmt.Sprintf("persist successful result: %v", err)
+					final.ResultRef = ""
+					if updateErr := m.service.repo.UpdateExperiment(m.baseCtx, final); updateErr != nil {
+						m.logger.Printf("experiment %s: persist result-failure status: %v", final.ID, updateErr)
+					}
+				}
 			}
-		default:
-			if err := m.service.repo.UpdateExperiment(m.baseCtx, final); err != nil {
-				m.logger.Printf("experiment %s: persist terminal status: %v", final.ID, err)
+		} else {
+			if err := m.service.repo.CompleteSucceeded(m.baseCtx, final, result.Runs); err != nil {
+				m.logger.Printf("experiment %s: persist successful result: %v", final.ID, err)
+				final.Status = StatusFailed
+				final.Error = fmt.Sprintf("persist successful result: %v", err)
+				if updateErr := m.service.repo.UpdateExperiment(m.baseCtx, final); updateErr != nil {
+					m.logger.Printf("experiment %s: persist result-failure status: %v", final.ID, updateErr)
+				}
 			}
 		}
 	} else {
@@ -353,7 +349,7 @@ func (m *Manager) finalizeEntry(e *entry, final Experiment) {
 }
 
 func (m *Manager) emit(e *entry, status Status, progress int, message string) {
-	ev := ProgressEvent{ExperimentID: e.exp.ID, Status: status, Progress: progress, Message: message, At: m.clock.Now().UTC()}
+	ev := ProgressEvent{ExperimentID: e.id, Status: status, Progress: progress, Message: message, At: m.clock.Now().UTC()}
 	e.mu.Lock()
 	e.last = &ev
 	for _, sub := range e.subs {

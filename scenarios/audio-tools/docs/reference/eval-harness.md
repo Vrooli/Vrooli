@@ -47,7 +47,7 @@ per-case + aggregate report.
 | **Safety gates** | zero-tolerance committed-text retraction gate plus configurable contiguous dropped-span gate (`default=4` reference words). Reported per row/condition, not averaged into WER. | yes |
 | **Commit metrics** | commit count and time-to-first-commit from the strategy/Segmenter event stream. | **no** for wall-clock timing; commit count is reproducible |
 | **Length curves** | WER, p95 finalization latency, mean time-to-first-commit, and max dropped span by input-length bucket (10s/30s/1m/3m/5m/>5m). | mixed; quality/drop fields yes, wall-clock latency no |
-| **Scaling analysis** | One raw point per evaluated duration plus backend-owned `flat` / `linear` / `superlinear` / `inconclusive` classifications for finalization latency and deterministic compute. | mixed; compute fields yes, wall-clock latency no |
+| **Scaling analysis** | One raw point per evaluated duration plus backend-owned `flat` / `linear` / `superlinear` / `inconclusive` classifications, fitted model stats, units, and log-log growth exponents for every registered metric. | mixed; compute fields yes, wall-clock latency no |
 
 The num[sot]:two run modes are a first-class contract: the **deterministic** pass feeds
 chunks back-to-back and yields reproducible WER + compute (used for
@@ -85,13 +85,21 @@ fields. Consumers should prefer the backend-owned `summary`, row `verdict`,
 row `reasons`, and `warnings` fields over re-deriving strategy ranking in UI
 or CLI code.
 
-The default ranking policy is deterministic:
+The default ranking policy is deterministic and safety-gated:
 
-1. lowest WER wins;
-2. if WER is effectively tied, lower p95 finalization latency wins when
+1. a row that passes the safety gates always ranks ahead of a row that fails;
+2. among rows with the same safety outcome, lowest WER wins;
+3. if WER is effectively tied, acceptable long-form scaling wins over a
+   superlinear row when scaling was measured;
+4. if still tied, lower p95 finalization latency wins when
    latency was measured;
-3. if still tied, fewer Whisper calls wins;
-4. final tie-break is the stable strategy id.
+5. if still tied, fewer Whisper calls wins;
+6. final tie-break is the stable strategy id.
+
+If every evaluated row fails the safety gates, the report still selects a
+deterministic least-bad diagnostic row, but marks it
+`recommended-despite-safety-failure` and emits a safety warning. Treat that
+state as a corpus/config debugging result, not as a promotion recommendation.
 
 The report also includes corpus adequacy warnings. Fewer than num[threshold]:10 clips or
 less than num[threshold]:120 seconds of evaluated audio is useful for local debugging but
@@ -104,13 +112,19 @@ keeps the raw realized-duration measurements: WER, finalization p50/p95 and
 sample count, time-to-first-commit, commits, partial revisions, dropped-span
 max, Whisper calls, backend audio seconds, provider latency, and RTF. The
 backend fits constant, linear, n-log-n, and quadratic models over positive
-durations and classifies conservatively. At least num[threshold]:3 distinct
-positive durations are required; otherwise the row gets
-`insufficient_scaling_points` and remains `inconclusive`. These classes are
-empirical for the measured machine/corpus, not formal Big-O claims. The
-compute classification uses the highest-risk fit across provider latency,
-Whisper call count, processed audio seconds, and RTF; `compute_fit.metric`
-names the metric that drove the aggregate classification.
+durations, then adds a weighted log-log fit that reports `exponent` and
+`exponent_r_squared`. `metric_fits` contains one fit per registered metric:
+finalization p95, time-to-first-commit, WER, max dropped span, provider
+latency, Whisper calls, backend audio seconds, and RTF. At least
+num[threshold]:3 distinct positive durations are required to fit; otherwise
+the row gets `insufficient_scaling_points` and remains `inconclusive`.
+Superlinear classification is stricter: it requires at least
+num[threshold]:4 distinct durations, an exponent above the linear margin, a
+useful fit, and adequate latency samples. Single-sample latency evidence caps
+confidence low. These classes are empirical for the measured machine/corpus,
+not formal Big-O claims. The compute classification uses the highest-risk fit
+across provider latency, Whisper call count, processed audio seconds, and RTF;
+`compute_fit.metric` names the metric that drove the aggregate classification.
 
 When WER is tied or effectively tied, the recommendation prefers a strategy
 with acceptable long-form scaling over a lower short-clip p95 row that shows
@@ -124,15 +138,14 @@ reference/hypothesis, edit counts, and a word-level alignment path with
 `match`, `substitution`, `insertion`, and `deletion` operations. This is the
 debug surface for answering why a strategy lost on specific clips.
 
-Persisted experiment reports also include Phase-7 safety fields. The
-committed-text timeline is derived from `SegmentEvent`/terminal `Done`
-states; a later state must preserve every previously committed normalized
-token as a prefix or the retraction gate fails. Dropped-span detection uses
-the final word alignment and fails when a contiguous run of deleted reference
-words reaches the stored threshold (`audio-tools experiment start
---dropped-span-threshold`, default 4). These gates are deliberately separate
-from WER so a single catastrophic omission stays visible even when the
-aggregate rate looks acceptable.
+Persisted experiment reports include safety fields. The committed-text
+timeline is derived from `SegmentEvent`/terminal `Done` states; a later state
+must preserve every previously committed normalized token as a prefix or the
+retraction gate fails. Dropped-span detection uses the final word alignment and
+fails when a contiguous run of deleted reference words reaches the stored
+threshold (`audio-tools experiment start --dropped-span-threshold`, default 4).
+These gates are deliberately separate from WER so a single catastrophic
+omission stays visible even when the aggregate rate looks acceptable.
 
 ## Experiment JSON contract
 
@@ -154,12 +167,14 @@ Envelope shapes are command-specific:
 | `experiment report` | `{experiment, report, runs}` |
 | `experiment list` | `{experiments}` |
 | `experiment compare` | `{experiments:[{experiment, report}]}` |
+| `experiment delete` | `{id, deleted_report}` |
 
 `report` is the canonical structured metrics payload and uses snake_case
-proto fields throughout. `ExperimentRun.metrics_json` is a persisted run-cell
-blob from the backend and remains a nested JSON string using the backend's
-camelCase keys (for example `refWords`). Prefer the `report` object for new
-automation; use `metrics_json` only for low-level run-cell debugging.
+proto fields throughout. Experiment run rows persist their per-cell
+`condition_json` identity only; they do not carry a second metrics blob, so new
+automation should read metrics from `report`. `experiment.machine_json` stores
+server-side provenance captured at submit time, such as host/runtime and recipe
+digest information; it is not a metrics source.
 
 ## Normalization policy
 
@@ -188,6 +203,10 @@ audio-tools corpus list
 # 2. Enqueue a persisted quality-only comparison over the corpus:
 audio-tools experiment start --strategies batch,vad_segment,overlap_agree --json
 audio-tools experiment wait <experiment-id> --json
+
+# Optional: stream server-owned progress while the worker runs. Canceling this
+# client does not abort the experiment.
+audio-tools experiment watch <experiment-id>
 
 # 3. Add finalization-latency measurement (slower; repeated real-time runs):
 audio-tools experiment start --strategies batch,vad_segment,overlap_agree --realtime-repeats 5 --json
@@ -222,12 +241,18 @@ audio-tools experiment start --sweep-durations 30,60,120,300 \
 audio-tools experiment start --long-form true --target-duration-seconds 180 --seed 42 \
   --noise-types white,fan --snr-db 18,12,6 --json
 
-# 7. Add target-speaker extraction / verification ablations over a mixed input:
+# 7. Check/enroll speaker profiles, then add target-speaker extraction /
+#    verification ablations over a mixed input:
+audio-tools stt speaker-status --json
 audio-tools experiment start --long-form true --target-duration-seconds 180 --seed 42 \
   --competing-voices af_bella --snr-db 12 --target-profile-id my-voice \
   --speaker-extraction true --speaker-verification true --speaker-mode filter \
   --dropped-span-threshold 4 \
   --speaker-ablation true --json
+
+# 8. Delete terminal experiment artifacts when they are no longer useful.
+#    Running/queued experiments must be canceled or allowed to finish first.
+audio-tools experiment delete <experiment-id> --yes
 ```
 
 A live Whisper backend is required (the harness is an integration tool, not
@@ -287,10 +312,11 @@ Target-speaker experiments (`--speaker-extraction`/`--speaker-verification`/
 `--speaker-ablation`) require `--target-profile-id`; the recipe is rejected at
 `StartExperiment` with an actionable message otherwise. Enroll a profile with
 `audio-tools stt speaker-enroll --file <clip> --activate true` and list ids via
-`audio-tools stt speaker-status`. Extraction only does observable work when the
-input actually contains a competing voice, so pair it with `--competing-voices`.
-Word loss attributable to the extraction (ingress) stage is filled by comparing
-each extraction-on row against its extraction-off ablation sibling, so run with
+`audio-tools stt speaker-status` or `audio-tools stt speaker-status --json`.
+Extraction only does observable work when the input actually contains a
+competing voice, so pair it with `--competing-voices`. Word loss attributable
+to the extraction (ingress) stage is filled by comparing each extraction-on row
+against its extraction-off ablation sibling, so run with
 `--speaker-ablation true` to see ingress attribution in the report.
 
 Experiments can also realize augmentation conditions before replay. The
@@ -311,9 +337,12 @@ snapshot from `target_profile_id`, extraction/verification toggles, mode,
 threshold, and fallback settings, then binds the same production adapters used
 by live STT into the eval `Segmenter`. With `--speaker-ablation true`, the
 same realized inputs are evaluated under extraction/verification off/on
-conditions; current reports expose those as condition-suffixed strategy rows,
-while Phase 7 promotes attribution and safety envelopes to first-class fields.
-The live speaker config cell is not read or written by experiment runs.
+conditions and reports expose those as condition-suffixed strategy rows. If a
+condition requests extraction or verification while the speaker resource is not
+configured or not ready, that condition is marked skipped with a report warning
+instead of producing a clean green zero-effect row. Ingress attribution is only
+computed when both sibling cells actually ran. The live speaker config cell is
+not read or written by experiment runs.
 
 Persisted experiments run through `experiment.Manager`, not the request
 context, so closing the CLI/UI does not cancel server-side work. The manager
@@ -322,7 +351,11 @@ local resources; queue visibility comes from lifecycle events instead of
 parallelism by default. `StreamExperimentEvents` emits `queued; N experiments
 ahead` while a run is waiting, updates that message as earlier jobs start or
 are canceled, then emits normal running progress (`loading corpus`, eval
-steps, `storing report`) and a terminal event. The Dictation Studio lab
+per-condition/per-strategy/per-clip quality and latency steps,
+`storing report`) and a terminal event. The `StartExperiment` response carries
+a server-computed `estimated_seconds` value from realized clip duration,
+strategy count, condition count, and repeat settings unless the client
+explicitly supplies an override. The Dictation Studio lab
 subscribes to that stream and falls back to `GetExperiment` polling only when
 the browser transport cannot stream.
 

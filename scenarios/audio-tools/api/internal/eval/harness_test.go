@@ -91,6 +91,37 @@ func TestRunReport_AggregatesQualityAndCompute(t *testing.T) {
 	require.InDelta(t, 2.0/6.0, l.WER, 1e-9, "micro-average WER = total edits / total ref words")
 }
 
+func TestRunReport_EmitsPerClipProgress(t *testing.T) {
+	clips := []Clip{
+		{ID: "c1", PCM: silentPCM(16000, 1000), SampleRate: 16000, Reference: "one"},
+		{ID: "c2", PCM: silentPCM(16000, 1000), SampleRate: 16000, Reference: "two"},
+	}
+	spec := StrategySpec{
+		Kind: sttchain.StrategyBuffered, Label: "batch",
+		BuildSession: func(clip Clip) (Session, *MeteredProvider) {
+			meter := NewMeteredProvider(fakeProv("x", 0), float64(clip.bytesPerSecond()))
+			return controlledSession(meter, clip.Reference), meter
+		},
+	}
+	var progress []EvalProgress
+	RunReport(context.Background(), clips, []StrategySpec{spec}, EvalOptions{
+		ChunkMs:       100,
+		QualityPass:   true,
+		ProgressScope: "condition clean",
+		Progress: func(update EvalProgress) {
+			progress = append(progress, update)
+		},
+	})
+
+	require.Len(t, progress, 2)
+	require.Equal(t, "condition clean", progress[0].Scope)
+	require.Equal(t, "quality", progress[0].Phase)
+	require.Equal(t, string(sttchain.StrategyBuffered), progress[0].Strategy)
+	require.Equal(t, "c1", progress[0].ClipID)
+	require.Equal(t, 1, progress[0].ClipIndex)
+	require.Equal(t, 2, progress[1].ClipIndex)
+}
+
 // TestRunReport_RealOverlapAgreePath proves the harness drives a REAL
 // OverlapAgree strategy end-to-end (replay -> strategy -> events -> WER),
 // metering the backend calls, without needing a live Whisper.

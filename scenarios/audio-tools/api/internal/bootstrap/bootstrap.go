@@ -211,13 +211,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 	// evalProvider builds a fresh Local (Whisper) provider per replay; the
 	// eval handler wraps each in a metered decorator.
 	evalProvider := func() sttchain.Provider { return sttchain.NewLocalProvider(voiceSvc) }
-	evalDeps := evalH.Deps{
-		Logger:      logger,
-		Clock:       clock.System{},
-		Corpus:      corpusSvc,
-		NewProvider: evalProvider,
-		Defaults:    sttpkg.Defaults(),
-	}
+	evalDeps := newExperimentEvalDeps(logger, corpusSvc, evalProvider, sttpkg.Defaults(), speakerClient)
 	if experimentSvc != nil {
 		experimentMgr = intexp.NewManager(intexp.Config{
 			Service: experimentSvc,
@@ -231,7 +225,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 					}
 				}
 				emit(5, "loading corpus")
-				report, realized, err := runExperimentReport(runCtx, evalDeps, corpusSvc, ttsSvc, audioEngine, recipe)
+				report, realized, err := runExperimentReport(runCtx, evalDeps, corpusSvc, ttsSvc, audioEngine, recipe, emit)
 				if err != nil {
 					return intexp.RunResult{}, err
 				}
@@ -244,18 +238,9 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 				if err != nil {
 					return intexp.RunResult{}, fmt.Errorf("marshal report: %w", err)
 				}
-				runs := make([]intexp.Run, 0, len(reportProto.GetPerStrategy()))
-				for _, strategyReport := range reportProto.GetPerStrategy() {
-					metrics, err := protojson.Marshal(strategyReport)
-					if err != nil {
-						return intexp.RunResult{}, fmt.Errorf("marshal strategy metrics: %w", err)
-					}
-					condition, _ := json.Marshal(realized)
-					runs = append(runs, intexp.Run{
-						Strategy:      strategyReport.GetStrategy(),
-						ConditionJSON: condition,
-						MetricsJSON:   metrics,
-					})
+				runs, err := experimentRunsForReport(report, reportProto, realized)
+				if err != nil {
+					return intexp.RunResult{}, err
 				}
 				emit(95, "storing report")
 				return intexp.RunResult{Report: reportJSON, ReportMIME: "application/json", Runs: runs, RecipeJSON: recipeJSON}, nil
@@ -336,7 +321,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 		}),
 		usageH.Module(usageH.Deps{Logger: logger, Clock: clock.System{}, Store: stores.Usage}),
 		corpusH.Module(corpusH.Deps{Logger: logger, Clock: clock.System{}, Service: corpusSvc}),
-		experimentH.Module(experimentH.Deps{Logger: logger, Manager: experimentMgr, Service: experimentSvc}),
+		experimentH.Module(experimentH.Deps{Logger: logger, Manager: experimentMgr, Service: experimentSvc, EstimateClipSeconds: estimateClipSeconds(corpusSvc)}),
 		diagH.Module(diagOrch, logger),
 	)
 
@@ -349,7 +334,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 	return srv, cleanup, nil
 }
 
-func runExperimentReport(ctx context.Context, evalDeps evalH.Deps, corpusSvc *intcorpus.Service, ttsSvc *inttts.Service, audioEngine *audioformat.Engine, recipe *experimentv1.ExperimentRecipe) (inteval.EvalReport, map[string]any, error) {
+func runExperimentReport(ctx context.Context, evalDeps evalH.Deps, corpusSvc *intcorpus.Service, ttsSvc *inttts.Service, audioEngine *audioformat.Engine, recipe *experimentv1.ExperimentRecipe, emit func(int, string)) (inteval.EvalReport, map[string]any, error) {
 	longForm := recipe.GetLongForm()
 	augmentation := recipe.GetAugmentation()
 	speaker := recipe.GetSpeaker()
@@ -357,10 +342,15 @@ func runExperimentReport(ctx context.Context, evalDeps evalH.Deps, corpusSvc *in
 	augmentationEnabled := augmentation != nil && (len(augmentation.GetNoiseTypes()) > 0 || len(augmentation.GetCompetingVoiceIds()) > 0)
 	speakerEnabled := speaker != nil && speakerConfigured(speaker)
 	if !longFormEnabled && !augmentationEnabled && !speakerEnabled {
-		report, err := evalH.RunReportWithOptions(ctx, evalDeps, recipe.GetClipIds(), recipe.GetStrategies(), recipe.GetRealtimeRepeats(), recipe.GetChunkMs(), inteval.EvalOptions{
+		progress := newExperimentProgress(evalWorkUnits(len(recipe.GetClipIds()), recipe.GetStrategies(), recipe.GetRealtimeRepeats()), emit)
+		opts := inteval.EvalOptions{
 			DroppedSpanThresholdWords: int(safetyThreshold(recipe)),
 			LatencyTailSeconds:        int(recipe.GetLatencyTailSeconds()),
-		})
+		}
+		if progress != nil {
+			opts = progress.options("condition default", opts)
+		}
+		report, err := evalH.RunReportWithOptions(ctx, evalDeps, recipe.GetClipIds(), recipe.GetStrategies(), recipe.GetRealtimeRepeats(), recipe.GetChunkMs(), opts)
 		return report, map[string]any{"phase": "default", "long_form": false}, err
 	}
 	if corpusSvc == nil {
@@ -485,7 +475,7 @@ func runExperimentReport(ctx context.Context, evalDeps evalH.Deps, corpusSvc *in
 			"skipped_condition": countSkippedConditions(conditions),
 		}
 	}
-	conditions := buildSpeakerConditions(speaker)
+	conditions := applySpeakerResourceAvailability(ctx, buildSpeakerConditions(speaker), evalDeps.SpeakerResource)
 	recipe.RealizedSpeakerConditions = recipe.RealizedSpeakerConditions[:0]
 	for _, cond := range conditions {
 		recipe.RealizedSpeakerConditions = append(recipe.RealizedSpeakerConditions, &experimentv1.SpeakerCondition{
@@ -504,7 +494,8 @@ func runExperimentReport(ctx context.Context, evalDeps evalH.Deps, corpusSvc *in
 		"condition_count":              len(conditions),
 		"dropped_span_threshold_words": safetyThreshold(recipe),
 	}
-	report, err := runAugmentationSpeakerConditionReports(ctx, evalDeps, evalClips, augGroups, recipe.GetStrategies(), recipe.GetRealtimeRepeats(), recipe.GetChunkMs(), recipe.GetLatencyTailSeconds(), safetyThreshold(recipe), realtimeConcurrency, conditions, speakerConfigured(speaker))
+	progress := newExperimentProgress(experimentWorkUnits(evalClips, augGroups, recipe.GetStrategies(), recipe.GetRealtimeRepeats(), conditions, speakerConfigured(speaker)), emit)
+	report, err := runAugmentationSpeakerConditionReports(ctx, evalDeps, evalClips, augGroups, recipe.GetStrategies(), recipe.GetRealtimeRepeats(), recipe.GetChunkMs(), recipe.GetLatencyTailSeconds(), safetyThreshold(recipe), realtimeConcurrency, conditions, speakerConfigured(speaker), progress)
 	if err == nil {
 		if warning, ok := longFormSourceDurationWarning(longForm, clips); ok {
 			report.Warnings = appendUniqueReportWarnings(report.Warnings, warning)
@@ -522,6 +513,184 @@ func safetyThreshold(recipe *experimentv1.ExperimentRecipe) int32 {
 		return recipe.GetDroppedSpanThresholdWords()
 	}
 	return int32(inteval.DefaultDroppedSpanThresholdWords)
+}
+
+type experimentProgress struct {
+	total     int64
+	completed atomic.Int64
+	emit      func(int, string)
+}
+
+func newExperimentProgress(total int64, emit func(int, string)) *experimentProgress {
+	if total <= 0 || emit == nil {
+		return nil
+	}
+	return &experimentProgress{total: total, emit: emit}
+}
+
+func (p *experimentProgress) options(scope string, opts inteval.EvalOptions) inteval.EvalOptions {
+	opts.ProgressScope = scope
+	opts.Progress = p.step
+	return opts
+}
+
+func (p *experimentProgress) step(update inteval.EvalProgress) {
+	done := p.completed.Add(1)
+	if done > p.total {
+		done = p.total
+	}
+	progress := 5 + int(done*85/p.total)
+	if progress > 94 {
+		progress = 94
+	}
+	p.emit(progress, experimentProgressMessage(done, p.total, update))
+}
+
+func experimentProgressMessage(done, total int64, update inteval.EvalProgress) string {
+	scope := strings.TrimSpace(update.Scope)
+	if scope == "" {
+		scope = "condition default"
+	}
+	phase := update.Phase
+	if phase == "" {
+		phase = "eval"
+	}
+	strategy := update.Strategy
+	if strategy == "" {
+		strategy = "strategy"
+	}
+	clip := update.ClipID
+	if clip == "" {
+		clip = "clip"
+	}
+	message := fmt.Sprintf("running %d/%d %s %s: strategy %s %d/%d, clip %s %d/%d",
+		done, total, scope, phase, strategy, update.StrategyIndex, update.StrategyTotal, clip, update.ClipIndex, update.ClipTotal)
+	if update.RepeatTotal > 0 {
+		message += fmt.Sprintf(", repeat %d/%d", update.RepeatIndex, update.RepeatTotal)
+	}
+	return message
+}
+
+func experimentWorkUnits(clips []inteval.Clip, augGroups []exprecipe.ConditionGroup, strategies []*evalv1.EvalStrategy, realtimeRepeats int32, speakerConditions []speakerEvalCondition, speakerEnabled bool) int64 {
+	if len(augGroups) == 0 {
+		return evalWorkUnits(len(clips), strategies, realtimeRepeats) * int64(evaluatedSpeakerConditionCount(speakerConditions, speakerEnabled))
+	}
+	var total int64
+	for _, group := range augGroups {
+		total += evalWorkUnits(len(group.Clips), strategies, realtimeRepeats) * int64(evaluatedSpeakerConditionCount(speakerConditions, speakerEnabled))
+	}
+	return total
+}
+
+func evaluatedSpeakerConditionCount(conditions []speakerEvalCondition, speakerEnabled bool) int {
+	if !speakerEnabled || len(conditions) == 0 {
+		return 1
+	}
+	count := 0
+	for _, cond := range conditions {
+		if !cond.Skipped {
+			count++
+		}
+	}
+	return count
+}
+
+func evalWorkUnits(clipCount int, strategies []*evalv1.EvalStrategy, realtimeRepeats int32) int64 {
+	if clipCount <= 0 {
+		return 0
+	}
+	strategyCount := len(strategies)
+	if strategyCount == 0 {
+		strategyCount = 3
+	}
+	repeats := int(realtimeRepeats)
+	if repeats < 0 {
+		repeats = 0
+	}
+	return int64(clipCount * strategyCount * (1 + repeats))
+}
+
+func estimateClipSeconds(corpusSvc *intcorpus.Service) func(context.Context, []string) (int32, error) {
+	if corpusSvc == nil {
+		return nil
+	}
+	return func(ctx context.Context, clipIDs []string) (int32, error) {
+		var clips []intcorpus.Clip
+		var err error
+		if len(clipIDs) == 0 {
+			clips, err = corpusSvc.ListClips(ctx, intcorpus.ListFilter{})
+			if err != nil {
+				return 0, err
+			}
+		} else {
+			clips = make([]intcorpus.Clip, 0, len(clipIDs))
+			for _, id := range clipIDs {
+				clip, err := corpusSvc.GetClip(ctx, id)
+				if err != nil {
+					return 0, err
+				}
+				clips = append(clips, clip)
+			}
+		}
+		var totalMs int64
+		for _, clip := range clips {
+			if clip.DurationMs > 0 {
+				totalMs += clip.DurationMs
+			}
+		}
+		if totalMs <= 0 {
+			return 0, nil
+		}
+		return int32((totalMs + 999) / 1000), nil
+	}
+}
+
+func newExperimentEvalDeps(logger logx.Logger, corpusSvc *intcorpus.Service, evalProvider func() sttchain.Provider, defaults sttpkg.StreamConfig, speakerClient *sttpipeline.SpeakerClient) evalH.Deps {
+	return evalH.Deps{
+		Logger:          logger,
+		Clock:           clock.System{},
+		Corpus:          corpusSvc,
+		NewProvider:     evalProvider,
+		Defaults:        defaults,
+		SpeakerResource: speakerClient,
+	}
+}
+
+func experimentRunsForReport(report inteval.EvalReport, reportProto *evalv1.EvalReport, realized map[string]any) ([]intexp.Run, error) {
+	protoRows := reportProto.GetPerStrategy()
+	if len(report.PerStrategy) != len(protoRows) {
+		return nil, fmt.Errorf("experiment report row mismatch: internal=%d proto=%d", len(report.PerStrategy), len(protoRows))
+	}
+	runs := make([]intexp.Run, 0, len(protoRows))
+	for i, strategyReport := range protoRows {
+		condition, err := experimentRunConditionJSON(report.PerStrategy[i], realized)
+		if err != nil {
+			return nil, fmt.Errorf("marshal strategy condition: %w", err)
+		}
+		runs = append(runs, intexp.Run{
+			Strategy:      strategyReport.GetStrategy(),
+			ConditionJSON: condition,
+		})
+	}
+	return runs, nil
+}
+
+func experimentRunConditionJSON(row inteval.StrategyReport, realized map[string]any) ([]byte, error) {
+	baseStrategy := row.BaseStrategy
+	if baseStrategy == "" {
+		baseStrategy = row.Strategy
+	}
+	return json.Marshal(map[string]any{
+		"strategy":        string(row.Strategy),
+		"base_strategy":   string(baseStrategy),
+		"label":           row.Label,
+		"condition_group": row.ConditionGroup,
+		"speaker": map[string]any{
+			"extraction_enabled":   row.ExtractionEnabled,
+			"verification_enabled": row.VerificationEnabled,
+		},
+		"realized": realized,
+	})
 }
 
 func longFormSourceDurationWarning(longForm *experimentv1.LongFormRecipe, clips []exprecipe.Clip) (inteval.ReportWarning, bool) {
@@ -597,6 +766,41 @@ func buildSpeakerConditions(s *experimentv1.SpeakerExperimentRecipe) []speakerEv
 	}
 }
 
+func applySpeakerResourceAvailability(ctx context.Context, conditions []speakerEvalCondition, client *sttpipeline.SpeakerClient) []speakerEvalCondition {
+	needsResource := false
+	for _, cond := range conditions {
+		if cond.Skipped {
+			continue
+		}
+		if cond.ExtractionEnabled || cond.VerificationEnabled {
+			needsResource = true
+			break
+		}
+	}
+	if !needsResource {
+		return conditions
+	}
+	note := ""
+	if client == nil {
+		note = "speaker condition skipped: speaker resource is not configured"
+	} else if ready, err := client.Ready(ctx); err != nil {
+		note = "speaker condition skipped: speaker resource unreachable: " + err.Error()
+	} else if (ready.Status != "ready" && ready.Status != "ok") || !ready.ModelLoaded || !ready.ProfileStoreOK || !ready.TempDirOK {
+		note = fmt.Sprintf("speaker condition skipped: speaker resource not ready (status=%s model_loaded=%t profile_store_ok=%t temp_dir_ok=%t)", ready.Status, ready.ModelLoaded, ready.ProfileStoreOK, ready.TempDirOK)
+	}
+	if note == "" {
+		return conditions
+	}
+	for i := range conditions {
+		if conditions[i].Skipped || (!conditions[i].ExtractionEnabled && !conditions[i].VerificationEnabled) {
+			continue
+		}
+		conditions[i].Skipped = true
+		conditions[i].Note = note
+	}
+	return conditions
+}
+
 func speakerConditionFromRecipe(id string, s *experimentv1.SpeakerExperimentRecipe, extraction bool, verification bool) speakerEvalCondition {
 	mode := s.GetVerificationMode()
 	modeStr := protomap.SpeakerModeFromProto(mode)
@@ -644,15 +848,23 @@ func speakerConditionFromRecipe(id string, s *experimentv1.SpeakerExperimentReci
 	}
 }
 
-func runSpeakerConditionReportsWithOptions(ctx context.Context, evalDeps evalH.Deps, clips []inteval.Clip, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs int32, opts inteval.EvalOptions, conditions []speakerEvalCondition) (inteval.EvalReport, error) {
+func runSpeakerConditionReportsWithOptions(ctx context.Context, evalDeps evalH.Deps, clips []inteval.Clip, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs int32, opts inteval.EvalOptions, conditions []speakerEvalCondition, progressScope string, progress *experimentProgress) (inteval.EvalReport, error) {
 	if len(conditions) == 0 {
+		if progress != nil {
+			opts = progress.options(conditionScope(progressScope, "condition default"), opts)
+		}
 		return evalH.RunReportForClipsWithOptions(ctx, evalDeps, clips, strategies, realtimeRepeats, chunkMs, opts)
 	}
 	var combined inteval.EvalReport
 	haveMetadata := false
 	for _, cond := range conditions {
 		if cond.Skipped {
+			combined.Warnings = appendUniqueReportWarnings(combined.Warnings, speakerConditionSkippedWarning(cond))
 			continue
+		}
+		condOpts := opts
+		if progress != nil {
+			condOpts = progress.options(conditionScope(progressScope, "speaker "+cond.ID), opts)
 		}
 		deps := evalDeps
 		if cond.ExtractionEnabled || cond.VerificationEnabled {
@@ -665,7 +877,7 @@ func runSpeakerConditionReportsWithOptions(ctx context.Context, evalDeps evalH.D
 			deps.SpeakerExtractionEnabled = false
 			deps.SpeakerVerificationEnabled = false
 		}
-		report, err := evalH.RunReportForClipsWithOptions(ctx, deps, clips, strategies, realtimeRepeats, chunkMs, opts)
+		report, err := evalH.RunReportForClipsWithOptions(ctx, deps, clips, strategies, realtimeRepeats, chunkMs, condOpts)
 		if err != nil {
 			return inteval.EvalReport{}, err
 		}
@@ -692,23 +904,40 @@ func runSpeakerConditionReportsWithOptions(ctx context.Context, evalDeps evalH.D
 		}
 	}
 	if len(combined.PerStrategy) == 0 {
-		return inteval.EvalReport{}, fmt.Errorf("all speaker experiment conditions were skipped")
+		combined.Summary = inteval.EvalReportSummary{
+			Recommendation:  "No speaker experiment conditions were evaluated.",
+			Confidence:      "low",
+			ConfidenceNotes: []string{"Every requested speaker condition was skipped before evaluation."},
+		}
+		return combined, nil
 	}
 	return combined, nil
 }
 
-func runAugmentationSpeakerConditionReports(ctx context.Context, evalDeps evalH.Deps, clips []inteval.Clip, augGroups []exprecipe.ConditionGroup, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs, latencyTailSeconds, droppedSpanThresholdWords int32, realtimeConcurrency int, speakerConditions []speakerEvalCondition, speakerEnabled bool) (inteval.EvalReport, error) {
+func speakerConditionSkippedWarning(cond speakerEvalCondition) inteval.ReportWarning {
+	message := cond.Note
+	if message == "" {
+		message = "speaker condition skipped"
+	}
+	return inteval.ReportWarning{
+		Code:     "speaker_condition_skipped",
+		Severity: "warning",
+		Message:  fmt.Sprintf("%s: %s", cond.ID, message),
+	}
+}
+
+func runAugmentationSpeakerConditionReports(ctx context.Context, evalDeps evalH.Deps, clips []inteval.Clip, augGroups []exprecipe.ConditionGroup, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs, latencyTailSeconds, droppedSpanThresholdWords int32, realtimeConcurrency int, speakerConditions []speakerEvalCondition, speakerEnabled bool, progress *experimentProgress) (inteval.EvalReport, error) {
 	if len(augGroups) == 0 {
 		return runSpeakerConditionReportsWithOptions(ctx, evalDeps, clips, strategies, realtimeRepeats, chunkMs, inteval.EvalOptions{
 			LatencyTailSeconds:        int(latencyTailSeconds),
 			DroppedSpanThresholdWords: int(droppedSpanThresholdWords),
 			RealtimeConcurrency:       realtimeConcurrency,
-		}, speakerConditions)
+		}, speakerConditions, "", progress)
 	}
 	var combined inteval.EvalReport
 	haveMetadata := false
 	for _, group := range augGroups {
-		report, err := runSpeakerConditionReportsForAugmentation(ctx, evalDeps, group.Clips, strategies, realtimeRepeats, chunkMs, latencyTailSeconds, droppedSpanThresholdWords, realtimeConcurrency, speakerConditions, speakerEnabled)
+		report, err := runSpeakerConditionReportsForAugmentation(ctx, evalDeps, group.Clips, strategies, realtimeRepeats, chunkMs, latencyTailSeconds, droppedSpanThresholdWords, realtimeConcurrency, speakerConditions, speakerEnabled, group.ID, progress)
 		if err != nil {
 			return inteval.EvalReport{}, err
 		}
@@ -741,19 +970,33 @@ func runAugmentationSpeakerConditionReports(ctx context.Context, evalDeps evalH.
 	return combined, nil
 }
 
-func runSpeakerConditionReportsForAugmentation(ctx context.Context, evalDeps evalH.Deps, clips []inteval.Clip, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs, latencyTailSeconds, droppedSpanThresholdWords int32, realtimeConcurrency int, speakerConditions []speakerEvalCondition, speakerEnabled bool) (inteval.EvalReport, error) {
+func runSpeakerConditionReportsForAugmentation(ctx context.Context, evalDeps evalH.Deps, clips []inteval.Clip, strategies []*evalv1.EvalStrategy, realtimeRepeats, chunkMs, latencyTailSeconds, droppedSpanThresholdWords int32, realtimeConcurrency int, speakerConditions []speakerEvalCondition, speakerEnabled bool, augmentationID string, progress *experimentProgress) (inteval.EvalReport, error) {
 	if !speakerEnabled {
-		return evalH.RunReportForClipsWithOptions(ctx, evalDeps, clips, strategies, realtimeRepeats, chunkMs, inteval.EvalOptions{
+		opts := inteval.EvalOptions{
 			DroppedSpanThresholdWords: int(droppedSpanThresholdWords),
 			LatencyTailSeconds:        int(latencyTailSeconds),
 			RealtimeConcurrency:       realtimeConcurrency,
-		})
+		}
+		if progress != nil {
+			opts = progress.options("augmentation "+augmentationID, opts)
+		}
+		return evalH.RunReportForClipsWithOptions(ctx, evalDeps, clips, strategies, realtimeRepeats, chunkMs, opts)
 	}
 	return runSpeakerConditionReportsWithOptions(ctx, evalDeps, clips, strategies, realtimeRepeats, chunkMs, inteval.EvalOptions{
 		DroppedSpanThresholdWords: int(droppedSpanThresholdWords),
 		LatencyTailSeconds:        int(latencyTailSeconds),
 		RealtimeConcurrency:       realtimeConcurrency,
-	}, speakerConditions)
+	}, speakerConditions, "augmentation "+augmentationID, progress)
+}
+
+func conditionScope(prefix, scope string) string {
+	if prefix == "" {
+		return scope
+	}
+	if scope == "" {
+		return prefix
+	}
+	return prefix + " / " + scope
 }
 
 func appendUniqueReportWarnings(dst []inteval.ReportWarning, src ...inteval.ReportWarning) []inteval.ReportWarning {

@@ -34,7 +34,6 @@ func runToProto(run intexp.Run) *experimentv1.ExperimentRun {
 		ExperimentId:  run.ExperimentID,
 		Strategy:      run.Strategy,
 		ConditionJson: string(run.ConditionJSON),
-		MetricsJson:   string(run.MetricsJSON),
 		CreatedAt:     timestamppb.New(run.CreatedAt),
 	}
 }

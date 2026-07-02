@@ -280,6 +280,23 @@ type EvalOptions struct {
 	Sleep                     func(time.Duration)
 	Now                       func() time.Time
 	DroppedSpanThresholdWords int
+	Progress                  func(EvalProgress)
+	ProgressScope             string
+}
+
+// EvalProgress reports one completed eval work unit. It is intentionally
+// callback-only so synchronous eval callers keep the same report contract.
+type EvalProgress struct {
+	Scope         string
+	Phase         string
+	Strategy      string
+	StrategyIndex int
+	StrategyTotal int
+	ClipID        string
+	ClipIndex     int
+	ClipTotal     int
+	RepeatIndex   int
+	RepeatTotal   int
 }
 
 // DefaultEvalOptions is the deterministic-only configuration used by the
@@ -312,7 +329,7 @@ func RunReport(ctx context.Context, clips []Clip, specs []StrategySpec, opts Eva
 			Message:  fmt.Sprintf("Latency repeats paced only the final %d second(s) of each clip; long-form latency reflects final-tail behavior, not full real-time playback.", opts.LatencyTailSeconds),
 		})
 	}
-	for _, spec := range specs {
+	for strategyIndex, spec := range specs {
 		clipResults := make([]ClipResult, len(clips))
 		for i, clip := range clips {
 			var cr ClipResult
@@ -321,13 +338,23 @@ func RunReport(ctx context.Context, clips []Clip, specs []StrategySpec, opts Eva
 				cr = EvalClip(ctx, clip, meter, ReplayOptions{
 					Mode: ModeDeterministic, ChunkMs: opts.ChunkMs, Sleep: opts.Sleep, Now: opts.Now, DroppedSpanThresholdWords: opts.DroppedSpanThresholdWords,
 				}, session)
+				opts.emitProgress(EvalProgress{
+					Scope:         opts.ProgressScope,
+					Phase:         "quality",
+					Strategy:      string(spec.Kind),
+					StrategyIndex: strategyIndex + 1,
+					StrategyTotal: len(specs),
+					ClipID:        clip.ID,
+					ClipIndex:     i + 1,
+					ClipTotal:     len(clips),
+				})
 			} else {
 				cr = ClipResult{ClipID: clip.ID, Reference: clip.Reference, AudioDurationMs: int64(clip.Duration() / time.Millisecond)}
 			}
 			clipResults[i] = cr
 		}
 		if opts.RealtimeRepeats > 0 {
-			runRealtimeRepeats(ctx, clips, spec, opts, clipResults)
+			runRealtimeRepeats(ctx, clips, spec, strategyIndex, len(specs), opts, clipResults)
 		}
 		strategyReport := aggregateStrategy(spec.Kind, spec.Label, clipResults)
 		if tailLatencyApproximation {
@@ -342,13 +369,20 @@ func RunReport(ctx context.Context, clips []Clip, specs []StrategySpec, opts Eva
 	return explainReport(report)
 }
 
+func (o EvalOptions) emitProgress(progress EvalProgress) {
+	if o.Progress == nil {
+		return
+	}
+	o.Progress(progress)
+}
+
 type realtimeResult struct {
 	clipIndex int
 	repeat    int
 	result    ClipResult
 }
 
-func runRealtimeRepeats(ctx context.Context, clips []Clip, spec StrategySpec, opts EvalOptions, clipResults []ClipResult) {
+func runRealtimeRepeats(ctx context.Context, clips []Clip, spec StrategySpec, strategyIndex, strategyTotal int, opts EvalOptions, clipResults []ClipResult) {
 	total := len(clips) * opts.RealtimeRepeats
 	if total == 0 {
 		return
@@ -375,6 +409,18 @@ func runRealtimeRepeats(ctx context.Context, clips []Clip, spec StrategySpec, op
 				rt := EvalClip(ctx, clip, meter, ReplayOptions{
 					Mode: ModeRealtime, ChunkMs: opts.ChunkMs, LatencyTailSeconds: opts.LatencyTailSeconds, Sleep: opts.Sleep, Now: opts.Now, DroppedSpanThresholdWords: opts.DroppedSpanThresholdWords,
 				}, session)
+				opts.emitProgress(EvalProgress{
+					Scope:         opts.ProgressScope,
+					Phase:         "latency",
+					Strategy:      string(spec.Kind),
+					StrategyIndex: strategyIndex + 1,
+					StrategyTotal: strategyTotal,
+					ClipID:        clip.ID,
+					ClipIndex:     clipIndex + 1,
+					ClipTotal:     len(clips),
+					RepeatIndex:   repeat + 1,
+					RepeatTotal:   opts.RealtimeRepeats,
+				})
 				results <- realtimeResult{clipIndex: clipIndex, repeat: repeat, result: rt}
 			}(clipIndex, repeat, clip)
 		}

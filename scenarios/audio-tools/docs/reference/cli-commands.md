@@ -21,7 +21,7 @@
 | `audio-tools experiment list [--status queued\|running\|succeeded\|failed\|canceled] [--limit N] [--offset N]` | List persisted experiments newest first | `ExperimentService.ListExperiments` |
 | `audio-tools experiment cancel ID` | Cancel a queued or running experiment | `ExperimentService.CancelExperiment` |
 | `audio-tools experiment watch ID` | Stream progress events for an active experiment | `ExperimentService.StreamExperimentEvents` |
-| `audio-tools experiment report ID` | Fetch the stored experiment report artifact and run-cell metrics, including compact backend-owned scaling classifications when a duration sweep produced enough points | `ExperimentService.GetExperimentReport` |
+| `audio-tools experiment report ID` | Fetch the stored experiment report artifact and run-cell condition rows, including compact backend-owned scaling classifications when a duration sweep produced enough points | `ExperimentService.GetExperimentReport` |
 | `audio-tools experiment compare ID1,ID2[,ID3…]` | Compare two or more experiments; human output includes compact scaling verdicts when present, and `--json` carries the full recipes/reports/scaling points | `ExperimentService.CompareExperiments` |
 | `audio-tools tts synthesize --text TEXT [--voice ID] [--speed N] [--format FMT] [--out PATH]` | Synthesize speech audio | `TTSService.Synthesize` |
 | `audio-tools tts synthesize-stream --text TEXT [--voice ID] [--speed N] [--format FMT] [--out PATH]` | Stream-synthesize speech (writes frames to --out as they arrive) | `TTSService.SynthesizeStream` |

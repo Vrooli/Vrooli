@@ -23,7 +23,6 @@ CREATE TABLE IF NOT EXISTS experiment_runs (
   experiment_id TEXT NOT NULL,
   strategy TEXT NOT NULL,
   condition_json TEXT NOT NULL DEFAULT '{}',
-  metrics_json TEXT NOT NULL DEFAULT '{}',
   created_at TEXT NOT NULL,
   FOREIGN KEY (experiment_id) REFERENCES experiments(id) ON DELETE CASCADE
 );

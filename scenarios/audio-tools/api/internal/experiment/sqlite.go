@@ -17,6 +17,7 @@ type SQLExecutor interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
 }
 
 type sqliteRepository struct {
@@ -26,6 +27,7 @@ type sqliteRepository struct {
 
 // NewSQLiteRepository constructs the production experiment Repository.
 func NewSQLiteRepository(db SQLExecutor, clk clock.Clock) Repository {
+	_, _ = db.ExecContext(context.Background(), "PRAGMA foreign_keys = ON")
 	return &sqliteRepository{db: db, clock: clk}
 }
 
@@ -45,10 +47,10 @@ WHERE id = ?
 `
 	selectExperimentColumns = `id, name, status, recipe_json, created_at, started_at, finished_at, error, result_ref, machine_json`
 	insertRunSQL            = `
-INSERT INTO experiment_runs (id, experiment_id, strategy, condition_json, metrics_json, created_at)
-VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO experiment_runs (id, experiment_id, strategy, condition_json, created_at)
+VALUES (?, ?, ?, ?, ?)
 `
-	selectRunColumns = `id, experiment_id, strategy, condition_json, metrics_json, created_at`
+	selectRunColumns = `id, experiment_id, strategy, condition_json, created_at`
 )
 
 func (s *sqliteRepository) CreateExperiment(ctx context.Context, exp Experiment) (Experiment, error) {
@@ -76,12 +78,9 @@ func (s *sqliteRepository) GetExperiment(ctx context.Context, id string) (Experi
 
 func (s *sqliteRepository) UpdateExperiment(ctx context.Context, exp Experiment) error {
 	exp = s.withExperimentDefaults(exp)
-	res, err := s.db.ExecContext(ctx, updateExperimentSQL,
-		exp.Name, string(exp.Status), string(exp.RecipeJSON), formatTimePtr(exp.StartedAt),
-		formatTimePtr(exp.FinishedAt), exp.Error, exp.ResultRef, string(exp.MachineJSON), exp.ID,
-	)
+	res, err := s.updateExperiment(ctx, s.db, exp)
 	if err != nil {
-		return fmt.Errorf("experiment: update %q: %w", exp.ID, err)
+		return err
 	}
 	n, err := res.RowsAffected()
 	if err != nil {
@@ -89,6 +88,36 @@ func (s *sqliteRepository) UpdateExperiment(ctx context.Context, exp Experiment)
 	}
 	if n == 0 {
 		return ErrNotFound{ID: exp.ID}
+	}
+	return nil
+}
+
+func (s *sqliteRepository) CompleteSucceeded(ctx context.Context, exp Experiment, runs []Run) error {
+	exp = s.withExperimentDefaults(exp)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("experiment: begin complete %q: %w", exp.ID, err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	for _, run := range runs {
+		run.ExperimentID = exp.ID
+		if _, err := s.createRun(ctx, tx, run); err != nil {
+			return err
+		}
+	}
+	res, err := s.updateExperiment(ctx, tx, exp)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("experiment: update %q rows: %w", exp.ID, err)
+	}
+	if n == 0 {
+		return ErrNotFound{ID: exp.ID}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("experiment: commit complete %q: %w", exp.ID, err)
 	}
 	return nil
 }
@@ -135,7 +164,26 @@ func (s *sqliteRepository) ListNonTerminal(ctx context.Context) ([]Experiment, e
 	return scanExperiments(rows)
 }
 
+func (s *sqliteRepository) DeleteExperiment(ctx context.Context, id string) error {
+	res, err := s.db.ExecContext(ctx, "DELETE FROM experiments WHERE id = ?", id)
+	if err != nil {
+		return fmt.Errorf("experiment: delete %q: %w", id, err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("experiment: delete %q rows: %w", id, err)
+	}
+	if n == 0 {
+		return ErrNotFound{ID: id}
+	}
+	return nil
+}
+
 func (s *sqliteRepository) CreateRun(ctx context.Context, run Run) (Run, error) {
+	return s.createRun(ctx, s.db, run)
+}
+
+func (s *sqliteRepository) createRun(ctx context.Context, db SQLRunner, run Run) (Run, error) {
 	if run.ID == "" {
 		run.ID = uuid.NewString()
 	}
@@ -145,16 +193,28 @@ func (s *sqliteRepository) CreateRun(ctx context.Context, run Run) (Run, error) 
 	if len(run.ConditionJSON) == 0 {
 		run.ConditionJSON = []byte("{}")
 	}
-	if len(run.MetricsJSON) == 0 {
-		run.MetricsJSON = []byte("{}")
-	}
-	if _, err := s.db.ExecContext(ctx, insertRunSQL,
-		run.ID, run.ExperimentID, run.Strategy, string(run.ConditionJSON), string(run.MetricsJSON),
-		run.CreatedAt.Format(experimentTimeFormat),
+	if _, err := db.ExecContext(ctx, insertRunSQL,
+		run.ID, run.ExperimentID, run.Strategy, string(run.ConditionJSON), run.CreatedAt.Format(experimentTimeFormat),
 	); err != nil {
 		return Run{}, fmt.Errorf("experiment: insert run %q: %w", run.ID, err)
 	}
 	return run, nil
+}
+
+type SQLRunner interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+func (s *sqliteRepository) updateExperiment(ctx context.Context, db SQLRunner, exp Experiment) (sql.Result, error) {
+	exp = s.withExperimentDefaults(exp)
+	res, err := db.ExecContext(ctx, updateExperimentSQL,
+		exp.Name, string(exp.Status), string(exp.RecipeJSON), formatTimePtr(exp.StartedAt),
+		formatTimePtr(exp.FinishedAt), exp.Error, exp.ResultRef, string(exp.MachineJSON), exp.ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("experiment: update %q: %w", exp.ID, err)
+	}
+	return res, nil
 }
 
 func (s *sqliteRepository) ListRuns(ctx context.Context, experimentID string) ([]Run, error) {
@@ -250,14 +310,12 @@ func scanRun(sc scanner) (Run, error) {
 	var (
 		run       Run
 		condition string
-		metrics   string
 		createdAt string
 	)
-	if err := sc.Scan(&run.ID, &run.ExperimentID, &run.Strategy, &condition, &metrics, &createdAt); err != nil {
+	if err := sc.Scan(&run.ID, &run.ExperimentID, &run.Strategy, &condition, &createdAt); err != nil {
 		return Run{}, fmt.Errorf("experiment: scan run: %w", err)
 	}
 	run.ConditionJSON = []byte(condition)
-	run.MetricsJSON = []byte(metrics)
 	created, err := time.Parse(experimentTimeFormat, createdAt)
 	if err != nil {
 		return Run{}, fmt.Errorf("experiment: parse run created_at %q: %w", createdAt, err)

@@ -25,13 +25,25 @@ func TestReportToProto_MapsScalingAnalysis(t *testing.T) {
 				}},
 				LatencyFit: inteval.ScalingModelFit{
 					Metric:         "finalization_latency_p95_ms",
+					Unit:           "ms",
 					Model:          "linear",
 					SlopePerSecond: 12,
 					Intercept:      40,
 					RSquared:       0.91,
 					SampleCount:    3,
+					Exponent:       1.05,
+					ExponentR2:     0.89,
 					Reason:         "linear fit was strongest",
 				},
+				MetricFits: []inteval.ScalingModelFit{{
+					Metric:      "wer",
+					Unit:        "rate",
+					Model:       "linear",
+					RSquared:    0.82,
+					SampleCount: 3,
+					Exponent:    1.1,
+					ExponentR2:  0.8,
+				}},
 				Points: []inteval.ScalingPoint{{
 					ClipID:                         "long-form-60s",
 					RealizedDurationMs:             60_000,
@@ -58,6 +70,11 @@ func TestReportToProto_MapsScalingAnalysis(t *testing.T) {
 	require.Equal(t, "superlinear_compute_growth", scaling.GetWarnings()[0].GetCode())
 	require.Equal(t, "finalization_latency_p95_ms", scaling.GetLatencyFit().GetMetric())
 	require.InDelta(t, 12, scaling.GetLatencyFit().GetSlopePerSecond(), 1e-9)
+	require.Equal(t, "ms", scaling.GetLatencyFit().GetUnit())
+	require.InDelta(t, 1.05, scaling.GetLatencyFit().GetExponent(), 1e-9)
+	require.InDelta(t, 0.89, scaling.GetLatencyFit().GetExponentRSquared(), 1e-9)
+	require.Len(t, scaling.GetMetricFits(), 1)
+	require.Equal(t, "wer", scaling.GetMetricFits()[0].GetMetric())
 	require.Len(t, scaling.GetPoints(), 1)
 	point := scaling.GetPoints()[0]
 	require.Equal(t, "long-form-60s", point.GetClipId())

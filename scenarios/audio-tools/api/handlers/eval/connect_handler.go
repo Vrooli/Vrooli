@@ -169,7 +169,8 @@ func scalingAnalysisToProto(in inteval.ScalingAnalysis) *evalv1.ScalingAnalysis 
 		len(in.Reasons) == 0 &&
 		len(in.Warnings) == 0 &&
 		in.LatencyFit == (inteval.ScalingModelFit{}) &&
-		in.ComputeFit == (inteval.ScalingModelFit{}) {
+		in.ComputeFit == (inteval.ScalingModelFit{}) &&
+		len(in.MetricFits) == 0 {
 		return nil
 	}
 	out := &evalv1.ScalingAnalysis{
@@ -181,6 +182,10 @@ func scalingAnalysisToProto(in inteval.ScalingAnalysis) *evalv1.ScalingAnalysis 
 		Warnings:              reportWarningsToProto(in.Warnings),
 		LatencyFit:            scalingModelFitToProto(in.LatencyFit),
 		ComputeFit:            scalingModelFitToProto(in.ComputeFit),
+		MetricFits:            make([]*evalv1.ScalingModelFit, 0, len(in.MetricFits)),
+	}
+	for _, fit := range in.MetricFits {
+		out.MetricFits = append(out.MetricFits, scalingModelFitToProto(fit))
 	}
 	for _, point := range in.Points {
 		out.Points = append(out.Points, &evalv1.ScalingPoint{
@@ -206,13 +211,16 @@ func scalingAnalysisToProto(in inteval.ScalingAnalysis) *evalv1.ScalingAnalysis 
 
 func scalingModelFitToProto(in inteval.ScalingModelFit) *evalv1.ScalingModelFit {
 	return &evalv1.ScalingModelFit{
-		Metric:         in.Metric,
-		Model:          in.Model,
-		SlopePerSecond: in.SlopePerSecond,
-		Intercept:      in.Intercept,
-		RSquared:       in.RSquared,
-		SampleCount:    int32(in.SampleCount),
-		Reason:         in.Reason,
+		Metric:           in.Metric,
+		Model:            in.Model,
+		SlopePerSecond:   in.SlopePerSecond,
+		Intercept:        in.Intercept,
+		RSquared:         in.RSquared,
+		SampleCount:      int32(in.SampleCount),
+		Reason:           in.Reason,
+		Exponent:         in.Exponent,
+		ExponentRSquared: in.ExponentR2,
+		Unit:             in.Unit,
 	}
 }
 

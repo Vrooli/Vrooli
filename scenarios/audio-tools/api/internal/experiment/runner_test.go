@@ -65,7 +65,6 @@ func TestManager_SubmitWaitStoresReportAndRuns(t *testing.T) {
 			Runs: []experiment.Run{{
 				Strategy:      "batch",
 				ConditionJSON: []byte(`{"clean":true}`),
-				MetricsJSON:   []byte(`{"wer":0}`),
 			}},
 		}, nil
 	})
@@ -229,6 +228,10 @@ func (failRunRepo) CreateRun(context.Context, experiment.Run) (experiment.Run, e
 	return experiment.Run{}, errors.New("disk full")
 }
 
+func (failRunRepo) CompleteSucceeded(context.Context, experiment.Experiment, []experiment.Run) error {
+	return errors.New("disk full")
+}
+
 func TestManager_RunPersistFailureMarksFailed(t *testing.T) {
 	clk := mocks.NewFakeClock(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC))
 	repo := failRunRepo{experiment.NewSQLiteRepository(newSchemaDB(t), clk)}
@@ -236,7 +239,7 @@ func TestManager_RunPersistFailureMarksFailed(t *testing.T) {
 	mgr := experiment.NewManager(experiment.Config{Service: svc, Clock: clk, Runner: func(context.Context, experiment.Experiment, func(int, string)) (experiment.RunResult, error) {
 		return experiment.RunResult{
 			Report: []byte(`{"ok":true}`),
-			Runs:   []experiment.Run{{Strategy: "batch", MetricsJSON: []byte(`{"wer":0}`)}},
+			Runs:   []experiment.Run{{Strategy: "batch", ConditionJSON: []byte(`{"strategy":"batch"}`)}},
 		}, nil
 	}})
 	require.NoError(t, mgr.Start(context.Background()))
@@ -250,12 +253,44 @@ func TestManager_RunPersistFailureMarksFailed(t *testing.T) {
 	// A run-row insert failure must NOT be reported as success; the report blob
 	// without its backing metrics rows would be a silent partial result.
 	require.Equal(t, experiment.StatusFailed, done.Status)
-	require.Contains(t, done.Error, "persist run metrics")
+	require.Contains(t, done.Error, "persist successful result")
 	require.Empty(t, done.ResultRef)
 
 	stored, err := repo.GetExperiment(context.Background(), exp.ID)
 	require.NoError(t, err)
 	require.Equal(t, experiment.StatusFailed, stored.Status)
+}
+
+func TestService_DeleteExperimentDeletesTerminalRowsAndBlob(t *testing.T) {
+	ctx := context.Background()
+	clk := mocks.NewFakeClock(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC))
+	repo := experiment.NewSQLiteRepository(newSchemaDB(t), clk)
+	blobs := &memBlobs{}
+	svc := experiment.NewService(repo, blobs)
+	exp, err := repo.CreateExperiment(ctx, experiment.Experiment{Name: "delete-me"})
+	require.NoError(t, err)
+	now := clk.Now().UTC()
+	exp.Status = experiment.StatusSucceeded
+	exp.FinishedAt = &now
+	stored, err := svc.StoreReport(ctx, exp, []byte(`{"ok":true}`), "application/json", now)
+	require.NoError(t, err)
+	_, err = repo.CreateRun(ctx, experiment.Run{
+		ExperimentID:  stored.ID,
+		Strategy:      "batch",
+		ConditionJSON: []byte(`{"strategy":"batch"}`),
+	})
+	require.NoError(t, err)
+
+	deletedReport, err := svc.DeleteExperiment(ctx, stored)
+	require.NoError(t, err)
+	require.True(t, deletedReport)
+	_, err = repo.GetExperiment(ctx, stored.ID)
+	require.ErrorAs(t, err, &experiment.ErrNotFound{})
+	runs, err := repo.ListRuns(ctx, stored.ID)
+	require.NoError(t, err)
+	require.Empty(t, runs)
+	_, err = blobs.Get(ctx, stored.ResultRef)
+	require.Error(t, err)
 }
 
 func requireEvent(t *testing.T, ch <-chan experiment.ProgressEvent) experiment.ProgressEvent {

@@ -186,11 +186,14 @@ type ScalingPoint struct {
 
 type ScalingModelFit struct {
 	Metric         string
+	Unit           string
 	Model          string
 	SlopePerSecond float64
 	Intercept      float64
 	RSquared       float64
 	SampleCount    int
+	Exponent       float64
+	ExponentR2     float64
 	Reason         string
 }
 
@@ -203,6 +206,7 @@ type ScalingAnalysis struct {
 	Warnings              []ReportWarning
 	LatencyFit            ScalingModelFit
 	ComputeFit            ScalingModelFit
+	MetricFits            []ScalingModelFit
 }
 
 // EvalReport is the top-level comparison report: one StrategyReport row
@@ -309,6 +313,11 @@ func explainReport(report EvalReport) EvalReport {
 		Reasons:         winnerReasons(winner, report.PerStrategy, report.LatencyMeasured, aggregateWinnerIndex),
 		ConfidenceNotes: notes,
 	}
+	if !strategySafetyPassed(winner) {
+		report.Summary.Recommendation = fmt.Sprintf("Prefer %s for this corpus, recommended despite safety failure.", displayLabel(winner))
+		report.Summary.Confidence = "low"
+		report.Summary.ConfidenceNotes = append(report.Summary.ConfidenceNotes, "Every evaluated strategy failed the safety gate; treat this only as the least-bad diagnostic result.")
+	}
 	return report
 }
 
@@ -331,6 +340,9 @@ func chooseWinnerWithScaling(rows []StrategyReport, latencyMeasured bool, scalin
 }
 
 func strategyLess(a, b StrategyReport, latencyMeasured bool, scalingAware bool) bool {
+	if strategySafetyPassed(a) != strategySafetyPassed(b) {
+		return strategySafetyPassed(a)
+	}
 	if math.Abs(a.WER-b.WER) > reportWERTieThreshold {
 		return a.WER < b.WER
 	}
@@ -373,6 +385,11 @@ func explainStrategy(row, winner StrategyReport, isWinner bool, latencyMeasured 
 	scalingWarnings := append([]ReportWarning(nil), row.Scaling.Warnings...)
 	scalingRisk := longFormScalingRisk(row.Scaling)
 	if isWinner {
+		if !strategySafetyPassed(row) {
+			return "recommended-despite-safety-failure", []string{
+				"All evaluated strategies failed the safety gate; this is the least-bad diagnostic result, not a promotion recommendation.",
+			}, append(scalingWarnings, safetyFailureWarning(false))
+		}
 		reasons := []string{"Lowest WER after deterministic normalization."}
 		if latencyMeasured {
 			reasons = append(reasons, "Best tie-break balance of p95 finalization latency and compute cost.")
@@ -387,6 +404,11 @@ func explainStrategy(row, winner StrategyReport, isWinner bool, latencyMeasured 
 	reasons := []string{}
 	warnings := scalingWarnings
 	verdict := "competitive"
+	if !strategySafetyPassed(row) {
+		verdict = "loser"
+		reasons = append(reasons, "Safety gate failed while at least one evaluated strategy passed.")
+		warnings = append(warnings, safetyFailureWarning(true))
+	}
 	if row.WERDeltaVsWinner > 0.005 {
 		verdict = "loser"
 		reasons = append(reasons, fmt.Sprintf("WER is %.1f percentage points worse than the winner.", row.WERDeltaVsWinner*100))
@@ -427,6 +449,9 @@ func explainStrategy(row, winner StrategyReport, isWinner bool, latencyMeasured 
 
 func winnerReasons(winner StrategyReport, rows []StrategyReport, latencyMeasured bool, aggregateWinnerIndex int) []string {
 	reasons := []string{fmt.Sprintf("%s has %.1f%% WER on this corpus.", displayLabel(winner), winner.WER*100)}
+	if !strategySafetyPassed(winner) {
+		reasons = append(reasons, "Every evaluated strategy failed the safety gate; the winner is recommended despite safety failure.")
+	}
 	if latencyMeasured {
 		reasons = append(reasons, fmt.Sprintf("p95 finalization is %.0f ms with %d Whisper calls.", winner.FinalizationLatencyP95Ms, winner.WhisperCalls))
 	} else {
@@ -445,6 +470,28 @@ func winnerReasons(winner StrategyReport, rows []StrategyReport, latencyMeasured
 		}
 	}
 	return reasons
+}
+
+func strategySafetyPassed(row StrategyReport) bool {
+	if row.Safety.Passed {
+		return true
+	}
+	return len(row.Safety.Reasons) == 0 &&
+		len(row.Safety.RetractionEvents) == 0 &&
+		row.Safety.MaxDroppedSpanWords == 0 &&
+		row.Safety.DroppedSpanThresholdWords == 0
+}
+
+func safetyFailureWarning(safeAlternativeExists bool) ReportWarning {
+	message := "Safety gate failed; this strategy is not eligible while any safe strategy exists."
+	if !safeAlternativeExists {
+		message = "Safety gate failed for every evaluated strategy; this winner is diagnostic only."
+	}
+	return ReportWarning{
+		Code:     "safety_failed",
+		Severity: "error",
+		Message:  message,
+	}
 }
 
 func longFormScalingRisk(s ScalingAnalysis) int {

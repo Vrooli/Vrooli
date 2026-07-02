@@ -21,6 +21,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ExperimentService.WaitExperiment":         h.wait,
 		"ExperimentService.ListExperiments":        h.list,
 		"ExperimentService.CancelExperiment":       h.cancel,
+		"ExperimentService.DeleteExperiment":       h.delete,
 		"ExperimentService.StreamExperimentEvents": h.watch,
 		"ExperimentService.GetExperimentReport":    h.report,
 		"ExperimentService.CompareExperiments":     h.compare,

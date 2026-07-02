@@ -678,6 +678,9 @@ func (h *handlers) speakerStatus(ctx cliapp.RunContext) error {
 	if st == nil {
 		return fmt.Errorf("server returned no speaker status")
 	}
+	if ctx.JSON() {
+		return cliapp.PrintProtoJSON(ctx.Stdout(), st)
+	}
 	cfg := st.GetConfig()
 	fmt.Fprintf(ctx.Stdout(), "Speaker verification:\n")
 	fmt.Fprintf(ctx.Stdout(), "  capability      = %s (%s)\n", st.GetCapability(), st.GetCapabilityLabel())

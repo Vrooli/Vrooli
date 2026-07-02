@@ -506,6 +506,18 @@
           "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
         },
         {
+          "name": "delete",
+          "description": "Delete a terminal experiment, its run rows, and its stored report blob. Requires --yes confirmation.",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Experiment id" }
+          ],
+          "flags": [
+            { "name": "yes", "bool": true, "description": "Confirm deletion" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ExperimentService", "method": "DeleteExperiment" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
           "name": "watch",
           "description": "Stream in-memory progress events for one active experiment.",
           "positionals": [
@@ -516,7 +528,7 @@
         },
         {
           "name": "report",
-          "description": "Fetch an experiment's stored report artifact and run-cell metrics. --json returns {experiment, report, runs}; report metrics use snake_case with zero/default scalar fields emitted. Run-cell metrics_json remains the backend's nested camelCase JSON string. Example: audio-tools experiment report <id> --json",
+          "description": "Fetch an experiment's stored report artifact and run-cell condition rows. --json returns {experiment, report, runs}; report metrics use snake_case with zero/default scalar fields emitted. Example: audio-tools experiment report <id> --json",
           "positionals": [
             { "name": "id", "required": true, "description": "Experiment id" }
           ],
