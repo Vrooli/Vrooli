@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "swarm-manager/v1/domain/plan.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+// =============================================================================
+// PLAN API
+// =============================================================================
+//
+// @layer 5
+// @domain api
+// @imports plan
+// @stability beta
+//
+// HTTP API contract for the Swarm Manager Plan lens board projection
+// (GET /api/v1/plan). Now-column cards come from GET /api/v1/operations;
+// this response carries Now header counts plus the Next/Later/Done columns.
+//
+// =============================================================================
+
+// PlanBoardResponse is the full Plan-lens board projection.
+message PlanBoardResponse {
+  PlanNowSummary now = 1;
+  PlanColumn next = 2;
+  PlanColumn later = 3;
+  PlanColumn done = 4;
+  PlanBoardMeta meta = 5;
+}

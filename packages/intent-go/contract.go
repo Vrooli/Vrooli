@@ -64,3 +64,16 @@ const (
 	CodeSemanticGap       = "intent.semantic_coverage_gap"
 	CodeResponsibility    = "intent.responsibility_mismatch"
 )
+
+// PRD template-contract codes. These are NOT part of the intent.* alignment
+// invariant registry (docs/reference/intent-alignment.md) — they are the
+// document-shape vocabulary absorbed from the retired PRD control-tower's template
+// engine, emitted through business-health's `business` dimension. They live
+// here because intent-go is the single parser of PRD.md and the checks are
+// pure functions over its extraction.
+const (
+	CodeTemplateSections           = "prd_template_sections"
+	CodeTemplateUnexpectedSections = "prd_template_unexpected_sections"
+	CodeTemplateContent            = "prd_template_content"
+	CodeOTIDFormat                 = "prd_ot_id_format"
+)

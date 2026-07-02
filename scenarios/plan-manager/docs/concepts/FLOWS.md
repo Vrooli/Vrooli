@@ -22,8 +22,24 @@ determine whether a small/local model can drive plan work.
 
 ### Authoring (Composer)
 
-The wizard walks the **professional section sequence** in order, returning one
-guided step at a time so a small/local model never submits a giant blob:
+The session is a **form with a derived cursor, not a wizard with state**. The
+guided `continue` loop remains the novice spine (one recommended action at a
+time for small/local models), but nothing is order-gated: every guided step
+carries a full-disclosure **checklist** (every requirement for the touched
+scope with `filled`/`missing`/`violation` status), fields accept submission in
+any order, and the batch `SubmitFields` RPC (`author submit --set …`,
+`phase-submit --set …`, `phase-add --set …`) lands one field, a whole phase, or
+the whole plan in one call with per-item accepted/rejected results. An agent
+that already knows its content authors a complete N-phase plan in ≤ 3+N
+mutation calls. Both context paths satisfy the context gates: typed
+`context-submit` items and prose `relevant_context` notes / `NO_CONTEXT:`
+reasons. Finalize reports honest persistence: the physical SQLite store path,
+the stamped workspace, and the **computed** mirror publish result (`fresh` or
+a loud `write_failed` warning — never a default `unknown`); re-running finalize
+says `Already finalized` explicitly.
+
+The guided spine walks the **professional section sequence** in order,
+returning one recommended step at a time:
 
 > purpose → problem/need → target outcome → scope → non-goals → assumptions →
 > work posture checkpoint (autofilled, reviewed — not authored) → technical
@@ -46,11 +62,14 @@ genuinely safe.
    Greenfield block (see
    [PLAN-MODEL.md](PLAN-MODEL.md#work-posture--greenfieldbrownfield)).
 2. As each section is reached, the wizard captures mechanical context behind
-   seams: regression anchor (git-control-tower), code references (code-facts),
-   and relevant-context candidate discovery (prompt-manager/search-hub/cli-health).
-   Discovery stores pending candidates; the author accepts useful candidates into
-   global or phase-scoped setup, or rejects noisy candidates with a reason. If a
-   source is down, the candidate is marked degraded instead of being false-filled.
+   seams: regression-anchor intent (derived from the change boundary), reference
+   proposals (search-hub), and relevant-context discovery
+   (prompt-manager/search-hub/cli-health). Context discovery stores a curated
+   batch proposal: the author reviews shortlist handles, takes useful candidates
+   into global or phase-scoped setup with one `context-apply`, and sweeps the
+   rest. Reference suggestions follow the same `reference-apply` batch shape.
+   If a source is down, the batch records a degraded note instead of creating
+   fake work items.
 3. The author creates phase drafts through phase-native steps: title/intent,
    affected areas, ordered steps, expected outputs, references or an explicit
    `NO_CODE_REFS:` reason, phase-scoped relevant context, phase validation,
@@ -80,8 +99,10 @@ never has to carry the whole session graph:
 1. **Mutation acknowledgement → focused progress + summary.** Normal mutations
    (`section-submit`, `phase-submit`, `phase-add`, `autofill`, `context-submit`,
    `context-update`, `context-remove`, `context-accept`, `context-reject`,
-   `context-discover`) **no longer return the full `AuthoringSession`**. They
-   return a compact `AuthoringProgress` (session id, current section/phase,
+   `context-discover`, `context-apply`, `suggest-references`,
+   `reference-accept`, `reference-reject`, `reference-apply`) **no longer
+   return the full `AuthoringSession`**. They return a compact
+   `AuthoringProgress` (session id, current section/phase,
    mandatory-sections filled/total, phases complete/total,
    `remaining_required_inputs[]`, `ready_to_finalize`), an
    `AuthoringMutationSummary` that names exactly what changed (object kind/id,

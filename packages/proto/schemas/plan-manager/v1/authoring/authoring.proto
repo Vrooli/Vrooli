@@ -39,6 +39,13 @@ service AuthoringService {
   rpc GetSection(GetSectionRequest) returns (GetSectionResponse);
   // SubmitSection records authored content for a section and re-validates it.
   rpc SubmitSection(SubmitSectionRequest) returns (SubmitSectionResponse);
+  // SubmitFields applies a BATCH of section/phase-field writes under one
+  // session lock with one save — one call can carry a single field, a whole
+  // phase, or the whole plan. Items apply independently (never
+  // all-or-nothing): each returns accepted/rejected + violations + a one-line
+  // parse summary. The single-field RPCs (SubmitSection/SubmitPhaseField)
+  // remain as wrappers over the same apply path.
+  rpc SubmitFields(SubmitFieldsRequest) returns (SubmitFieldsResponse);
   // Next returns the next section that still needs author input (or signals the
   // session is structurally complete).
   rpc Next(NextRequest) returns (NextResponse);
@@ -75,6 +82,10 @@ service AuthoringService {
   rpc AcceptContextCandidate(AcceptContextCandidateRequest) returns (AcceptContextCandidateResponse);
   // RejectContextCandidate records why a discovered candidate is not relevant.
   rpc RejectContextCandidate(RejectContextCandidateRequest) returns (RejectContextCandidateResponse);
+  // ApplyContextDisposition closes a pending discovery batch in one call:
+  // named takes are accepted, named drops are rejected, and remaining shortlist
+  // items are swept unless they require a high-confidence drop reason.
+  rpc ApplyContextDisposition(ApplyContextDispositionRequest) returns (ApplyContextDispositionResponse);
   // SuggestReferences queries search-hub's Answer projection from the session's
   // title + scope + technical approach and stores reviewable reference candidates
   // (routed by locator shape — only hits resolving to a [CODE:]/[DOC:]/[REQ:]
@@ -90,6 +101,10 @@ service AuthoringService {
   rpc AcceptReferenceCandidate(AcceptReferenceCandidateRequest) returns (AcceptReferenceCandidateResponse);
   // RejectReferenceCandidate records why a suggested reference is not relevant.
   rpc RejectReferenceCandidate(RejectReferenceCandidateRequest) returns (RejectReferenceCandidateResponse);
+  // ApplyReferenceDisposition closes a pending reference discovery batch in one
+  // call: named takes are accepted, named drops are rejected, and remaining
+  // shortlist items are swept unless they require a high-confidence drop reason.
+  rpc ApplyReferenceDisposition(ApplyReferenceDispositionRequest) returns (ApplyReferenceDispositionResponse);
   // AddPhase appends one structured phase draft to the session.
   rpc AddPhase(AddPhaseRequest) returns (AddPhaseResponse);
   // MovePhase reorders a structured phase draft before or after another draft
@@ -142,6 +157,8 @@ message AuthoringSession {
   repeated shared.RelevantContextItem relevant_context = 10;
   repeated ContextCandidate context_candidates = 11;
   repeated ReferenceCandidate reference_candidates = 12;
+  repeated DiscoveryBatch discovery_batches = 13;
+  repeated DiscoveryBatch reference_batches = 14;
 }
 
 // StructureViolation is one structure-gate failure (e.g. empty mandatory section
@@ -176,6 +193,51 @@ message ContextCandidate {
   string detail = 6;
   string status = 7; // pending | accepted | rejected
   string rejection_reason = 8;
+  double score = 9;
+  string origin = 10;
+  int32 size_chars = 11;
+  repeated string tags = 12;
+  string title = 13;
+  string snippet = 14;
+  repeated ProbeHit corroboration = 15;
+  string handle = 16;
+  string batch_id = 17;
+  string tier = 18;
+  bool high_confidence = 19;
+  string setup_line = 20;
+}
+
+message ProbeHit {
+  string probe = 1;
+  string concept = 2;
+  double score = 3;
+}
+
+message ProbeNote {
+  string probe = 1;
+  string concept = 2;
+  bool degraded = 3;
+  string detail = 4;
+}
+
+message CurationStats {
+  int32 suppressed_dispositioned = 1;
+  int32 omitted_below_threshold = 2;
+  int32 omitted_topic_filler = 3;
+  int32 omitted_by_cap = 4;
+}
+
+message DiscoveryBatch {
+  string id = 1;
+  repeated string concepts = 2;
+  string complexity = 3;
+  repeated ProbeNote probe_notes = 4;
+  CurationStats curation_stats = 5;
+  string status = 6; // pending | applied | superseded
+  string applied_note = 7;
+  int32 created_seq = 8;
+  // interactive | prefetch
+  string source = 9;
 }
 
 // ReferenceCandidate is a discovered but not-yet-accepted code/doc/req reference.
@@ -196,6 +258,11 @@ message ReferenceCandidate {
   bool degraded = 6;
   string detail = 7;
   string rejection_reason = 8;
+  repeated ProbeHit corroboration = 9;
+  string handle = 10;
+  string batch_id = 11;
+  string tier = 12;
+  bool high_confidence = 13;
 }
 
 // PhaseDraft is the structured pre-finalize phase object owned by an authoring
@@ -302,6 +369,49 @@ message SubmitSectionResponse {
   shared.GuidedStep step = 4;
 }
 
+// PhaseFieldRef addresses one phase-native field.
+message PhaseFieldRef {
+  // Phase id or authored order number.
+  string phase_ref = 1;
+  // Phase field name (same vocabulary as SubmitPhaseFieldRequest.field).
+  string field = 2;
+}
+
+// FieldWrite is one item in a batch submission: exactly one of a whole
+// session section or one phase-native field.
+message FieldWrite {
+  oneof scope {
+    string section_key = 1;
+    PhaseFieldRef phase = 2;
+  }
+  string content = 3;
+}
+
+message SubmitFieldsRequest {
+  string session_id = 1;
+  // Applied in order under one session lock; must not be empty.
+  repeated FieldWrite items = 2;
+}
+
+// FieldWriteResult is the per-item outcome: each line names exactly what was
+// parsed, or why the item was rejected (unknown target, unparsable content,
+// or a field-level quality violation). Rejected items are NOT applied; the
+// rest of the batch still lands.
+message FieldWriteResult {
+  int32 index = 1;
+  bool accepted = 2;
+  string summary = 3;
+  repeated StructureViolation violations = 4;
+}
+
+message SubmitFieldsResponse {
+  repeated FieldWriteResult results = 1;
+  AuthoringProgress progress = 2;
+  // Guided step for the resulting session state, carrying the
+  // full-disclosure checklist.
+  shared.GuidedStep step = 3;
+}
+
 message NextRequest {
   string session_id = 1;
 }
@@ -365,6 +475,10 @@ message SubmitRelevantContextItemResponse {
   AuthoringProgress progress = 3;
   repeated StructureViolation violations = 4;
   shared.GuidedStep step = 5;
+  // True only when the item was actually appended to the session. A submission
+  // rejected by content violations leaves the session unchanged and the phase
+  // gate open — accepted=false makes that unmissable (the CLI exits non-zero).
+  bool accepted = 6;
 }
 
 message ListRelevantContextRequest {
@@ -410,17 +524,20 @@ message RemoveRelevantContextItemResponse {
 
 message DiscoverContextCandidatesRequest {
   string session_id = 1;
-  // Decomposed concepts from plan-skill-discovery methodology. Empty uses the
+  // Decomposed discovery concepts (domain / technology / problem type / scenario surface lenses). Empty uses the
   // session title as a fallback concept.
   repeated string concepts = 2;
   // Optional prompt-manager skill discovery complexity, e.g. "architectural".
   string complexity = 3;
+  // Force a fresh discovery even when a prefetched pending batch is available.
+  bool refresh = 4;
 }
 
 message DiscoverContextCandidatesResponse {
   repeated ContextCandidate candidates = 1;
   AuthoringProgress progress = 2;
   shared.GuidedStep step = 3;
+  DiscoveryBatch batch = 4;
 }
 
 message AcceptContextCandidateRequest {
@@ -449,6 +566,44 @@ message RejectContextCandidateResponse {
   ContextCandidate candidate = 1;
   AuthoringProgress progress = 2;
   shared.GuidedStep step = 3;
+}
+
+message ApplyContextDispositionRequest {
+  string session_id = 1;
+  string batch_id = 2;
+  repeated ContextDispositionTake take = 3;
+  repeated ContextDispositionDrop drop = 4;
+  string sweep_note = 5;
+  bool take_all = 6;
+}
+
+message ContextDispositionTake {
+  string candidate = 1;
+  // Optional phase id or order number. Empty accepts as global context.
+  string phase_id = 2;
+  string reason = 3;
+}
+
+message ContextDispositionDrop {
+  string candidate = 1;
+  string reason = 2;
+}
+
+message ContextDispositionResult {
+  ContextCandidate candidate = 1;
+  shared.RelevantContextItem item = 2;
+  string action = 3; // take | drop
+  bool accepted = 4;
+  string message = 5;
+  repeated StructureViolation violations = 6;
+}
+
+message ApplyContextDispositionResponse {
+  repeated ContextDispositionResult results = 1;
+  DiscoveryBatch batch = 2;
+  AuthoringProgress progress = 3;
+  repeated StructureViolation violations = 4;
+  shared.GuidedStep step = 5;
 }
 
 message SuggestReferencesRequest {
@@ -496,6 +651,41 @@ message RejectReferenceCandidateResponse {
   ReferenceCandidate candidate = 1;
   AuthoringProgress progress = 2;
   shared.GuidedStep step = 3;
+}
+
+message ApplyReferenceDispositionRequest {
+  string session_id = 1;
+  string batch_id = 2;
+  repeated ReferenceDispositionTake take = 3;
+  repeated ReferenceDispositionDrop drop = 4;
+  string sweep_note = 5;
+  bool take_all = 6;
+}
+
+message ReferenceDispositionTake {
+  string candidate = 1;
+}
+
+message ReferenceDispositionDrop {
+  string candidate = 1;
+  string reason = 2;
+}
+
+message ReferenceDispositionResult {
+  ReferenceCandidate candidate = 1;
+  shared.Reference reference = 2;
+  string action = 3; // take | drop
+  bool accepted = 4;
+  string message = 5;
+  repeated StructureViolation violations = 6;
+}
+
+message ApplyReferenceDispositionResponse {
+  repeated ReferenceDispositionResult results = 1;
+  DiscoveryBatch batch = 2;
+  AuthoringProgress progress = 3;
+  repeated StructureViolation violations = 4;
+  shared.GuidedStep step = 5;
 }
 
 message AddPhaseRequest {
@@ -586,9 +776,27 @@ message PreviewPlanResponse {
 
 message FinalizeRequest {
   string session_id = 1;
+  // Workspace root to stamp on the produced plan (usually the caller's repo
+  // root) so workspace-scoped reads (`plans get`/`list` run from that root)
+  // resolve it. Empty leaves the plan unscoped.
+  string workspace_root = 2;
 }
 
 message FinalizeResponse {
   shared.Plan plan = 1;
   shared.GuidedStep step = 2;
+  // Honest persistence report: the resolved physical SQLite path the plan row
+  // was written to. Empty only when the server was wired without a store path.
+  string store_path = 3;
+  // COMPUTED mirror publish result, threaded from the write itself — never the
+  // read-model default. For a plan this call just created the status is one of
+  // fresh/write_failed/missing/stale, never unknown.
+  shared.RenderedPlanMirror mirror = 4;
+  // True when the session was already finalized and this call short-circuited
+  // idempotently (no new plan row was written).
+  bool already_finalized = 5;
+  // Session timestamp of the finalize that persisted the plan.
+  string finalized_at = 6;
+  // Canonical workspace root stamped on the persisted plan ("" = unscoped).
+  string workspace_root = 7;
 }

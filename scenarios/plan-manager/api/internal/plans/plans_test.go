@@ -1484,3 +1484,55 @@ func TestMigrateImportsIndexedFallbackPlan(t *testing.T) {
 	require.Equal(t, migrated.ID, got.ID)
 	require.Equal(t, "Adopt this from the old store.", got.Purpose)
 }
+
+// TestCreateCapsDerivedSlugAndLegacyLongSlugsResolve: newly derived slugs are
+// word-boundary capped at 60 chars; a stored plan with a longer (legacy) slug
+// still resolves by that slug.
+func TestCreateCapsDerivedSlugAndLegacyLongSlugsResolve(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := context.Background()
+
+	longTitle := "An extremely long plan title that would previously produce an untypeable one hundred plus character slug handle"
+	created, err := svc.Create(ctx, plans.Plan{Title: longTitle})
+	require.NoError(t, err)
+	require.LessOrEqual(t, len(created.Slug), 60, "derived slug must be capped: %q", created.Slug)
+	require.False(t, strings.HasSuffix(created.Slug, "-"))
+
+	// Same title again: collision suffix applies AFTER truncation.
+	second, err := svc.Create(ctx, plans.Plan{Title: longTitle})
+	require.NoError(t, err)
+	require.True(t, strings.HasPrefix(second.Slug, created.Slug))
+	require.LessOrEqual(t, len(second.Slug), 63)
+
+	// Explicit slugs are ALSO capped at derivation time.
+	legacyPlan, err := svc.Create(ctx, plans.Plan{Title: "Legacy", Slug: strings.Repeat("legacy-", 20) + "end"})
+	require.NoError(t, err)
+	require.LessOrEqual(t, len(legacyPlan.Slug), 60)
+
+	resolved, err := svc.Get(ctx, created.Slug, plans.WorkspaceScope{})
+	require.NoError(t, err)
+	require.Equal(t, created.ID, resolved.ID)
+}
+
+// TestStoredLegacyLongSlugStillResolves: a pre-cap row whose slug exceeds 60
+// chars (written before the cap existed) keeps resolving by that slug — the
+// cap is derivation-time only.
+func TestStoredLegacyLongSlugStillResolves(t *testing.T) {
+	d, clk := newDB(t)
+	repo := plans.NewSQLiteRepository(d, clk)
+	svc := plans.NewService(plans.Deps{Repo: repo, Clock: clk, Reader: fakeReader{}, Mirror: newFakeMirrorStore(t.TempDir())})
+	ctx := context.Background()
+
+	legacySlug := strings.Repeat("pre-cap-slug-", 8) + "tail" // 108 chars
+	require.Greater(t, len(legacySlug), 100)
+	require.NoError(t, repo.Save(ctx, plans.Plan{
+		ID:    "legacy-plan-id",
+		Slug:  legacySlug,
+		Title: "Legacy row written before the cap",
+	}))
+
+	resolved, err := svc.Get(ctx, legacySlug, plans.WorkspaceScope{})
+	require.NoError(t, err)
+	require.Equal(t, "legacy-plan-id", resolved.ID)
+	require.Equal(t, legacySlug, resolved.Slug, "the stored slug must not be rewritten")
+}

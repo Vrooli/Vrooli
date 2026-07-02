@@ -1,8 +1,8 @@
 # Product Requirements Document (PRD)
 
 > **Template Version**: 2.0
-> **Canonical Reference**: `/scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md`
-> **Validation**: Enforced by `prd-control-tower` + `scenario-auditor`
+> **Canonical Reference**: `/scenarios/business-health/docs/reference/canonical-prd-template.md`
+> **Validation**: Enforced by `business-health` (the test-genie `business` phase)
 > **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
 
 ## 🎯 Overview
@@ -15,7 +15,7 @@
 
 ### 🔴 P0 – Must ship for viability
 - [x] OT-P0-001 | Structured plan store | A plan is a first-class structured record (meta + global sections + ordered first-class phases; each phase carries its own relevant context, reminders, baseline scope, acceptance, and **computed** status), persisted to the scenario-independent home store (`~/.vrooli`, file/SQLite) so plans stay readable with the server down; CRUD + a rendered markdown view; phase status is a runtime transition, never agent-edited markdown. (Implemented in the `plans` domain; not yet validated by a green test-genie run.)
-- [x] OT-P0-002 | Guided authoring wizard | A section-by-section flow validates structure as it goes, captures mechanical context (regression anchor via `git-control-tower baseline`, relevant-context candidates via prompt-manager/search-hub/cli-health, code references via `code-facts`), and requires explicit accept/reject decisions for discovered setup so a small model only supplies genuine prose and judgment; a structure-validation gate rejects empty mandatory sections. (Implemented in the `authoring` domain; seams degrade gracefully when a source is down; not yet validated by a green test-genie run.)
+- [x] OT-P0-002 | Guided authoring wizard | A section-by-section flow validates structure as it goes, captures mechanical context (boundary-derived regression-anchor intent, curated relevant-context batches via prompt-manager/search-hub/cli-health, curated reference batches via search-hub/code locators), and requires one reviewed apply decision for discovered setup/references so a small model only supplies genuine prose and judgment; a structure-validation gate rejects empty mandatory sections. (Implemented in the `authoring` domain; seams degrade gracefully when a source is down; not yet validated by a green test-genie run.)
 - [x] OT-P0-003 | Guided execution + context injection | `start`/`status`/`context`/`resume`/`next` act as a context server — returning the current phase, what is next, structured setup context + reminders, last validation results, and staleness — just-in-time, so the agent does not carry it. Full-vs-partial completion and the resume point are computed from phase status, not narrated. (Implemented in the `execution` domain; not yet validated by a green test-genie run.)
 - [x] OT-P0-004 | Code-reference tracking + staleness | Every referenced location (existing **and** proposed code) is recorded via the machine-readable grammar (`[CODE:]`, `[REQ:]`) + `code-facts`; the scenario computes staleness tiers (fresh / lightly-stale on small diffs / definitely-stale when referenced locations moved or were deleted) so a plan that has sat around has a known validity. (Implemented in the `validation` domain; not yet validated by a green test-genie run.)
 - [x] OT-P0-005 | Baseline-aware validation orchestration | Given a plan's connected code, compute the **exact** baseline/validation command set across all affected locations (not just scenarios) and run it on request with the agent in the loop, returning results + staleness; Definition-of-Done is verified against the regression anchor as an oracle, not narrated. (Implemented in the `validation` domain; not yet validated by a green test-genie run.)

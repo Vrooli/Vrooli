@@ -137,7 +137,7 @@ func TestGuidedArgvAreValidManifestCommands(t *testing.T) {
 			_, _, _, err = authoringSvc.SubmitSection(ctx, session.ID, internalauthoring.SectionReferences, "NO_CODE_REFS: guard fixture.")
 			require.NoError(t, err)
 		case "final_review":
-			_, fstep, ferr := authoringSvc.Finalize(ctx, session.ID)
+			_, fstep, ferr := authoringSvc.Finalize(ctx, session.ID, internalauthoring.FinalizeOptions{})
 			require.NoError(t, ferr)
 			idx.validateAuthorStep(t, "author finalize", fstep)
 		default:

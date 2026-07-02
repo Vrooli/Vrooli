@@ -8,49 +8,46 @@ import (
 )
 
 func (s *service) SubmitRelevantContextItem(ctx context.Context, sessionID, phaseID string, item planmodel.RelevantContextItem) (Session, planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error) {
-	sess, err := s.load(ctx, sessionID)
-	if err != nil {
-		return Session{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, err
-	}
 	item = normalizeContextItem(item, phaseID)
 	var violations []StructureViolation
-	if phaseID != "" {
-		idx := indexOfDraft(sess.PhaseDrafts, phaseID)
-		if idx < 0 {
-			return Session{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + phaseID}
+	sess, err := s.withSessionLock(ctx, sessionID, func(sess *Session) (bool, error) {
+		if phaseID != "" {
+			idx := indexOfDraft(sess.PhaseDrafts, phaseID)
+			if idx < 0 {
+				return false, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + phaseID}
+			}
+			item.Scope = planmodel.RelevantContextScopePhase
+			item.PhaseID = sess.PhaseDrafts[idx].ID
+			// A phase-scoped item repeats on phase entry, not once-per-execution —
+			// apply the scope default here (mirrors AcceptContextCandidate) so an unset
+			// or contradictory once_per_execution policy is corrected at submit time.
+			item.RepeatPolicy = defaultRepeatForScope(item.Scope, item.RepeatPolicy)
+			violations = contextItemViolations(item)
+			if len(violations) == 0 {
+				sess.PhaseDrafts[idx].RelevantContext = append(sess.PhaseDrafts[idx].RelevantContext, item)
+			}
+			sess.CurrentPhaseID = nextIncompletePhaseID(sess.PhaseDrafts)
+			*sess = syncPhaseSection(*sess)
+		} else {
+			item.Scope = planmodel.RelevantContextScopeGlobal
+			item.PhaseID = ""
+			item.RepeatPolicy = defaultRepeatForScope(item.Scope, item.RepeatPolicy)
+			violations = contextItemViolations(item)
+			if len(violations) == 0 {
+				sess.RelevantContext = append(sess.RelevantContext, item)
+				*sess = syncContextSection(*sess)
+			}
 		}
-		item.Scope = planmodel.RelevantContextScopePhase
-		item.PhaseID = sess.PhaseDrafts[idx].ID
-		// A phase-scoped item repeats on phase entry, not once-per-execution —
-		// apply the scope default here (mirrors AcceptContextCandidate) so an unset
-		// or contradictory once_per_execution policy is corrected at submit time.
-		item.RepeatPolicy = defaultRepeatForScope(item.Scope, item.RepeatPolicy)
-		violations = contextItemViolations(item)
-		if len(violations) == 0 {
-			sess.PhaseDrafts[idx].RelevantContext = append(sess.PhaseDrafts[idx].RelevantContext, item)
+		if len(violations) > 0 {
+			return false, nil
 		}
-		sess.CurrentPhaseID = nextIncompletePhaseID(sess.PhaseDrafts)
-		sess = syncPhaseSection(sess)
-	} else {
-		item.Scope = planmodel.RelevantContextScopeGlobal
-		item.PhaseID = ""
-		item.RepeatPolicy = defaultRepeatForScope(item.Scope, item.RepeatPolicy)
-		violations = contextItemViolations(item)
-		if len(violations) == 0 {
-			sess.RelevantContext = append(sess.RelevantContext, item)
-			sess = syncContextSection(sess)
-		}
-	}
-	if len(violations) == 0 {
 		// D4: a direct submit disposes any pending discovered candidate for the
 		// same target — the author decided about it by submitting it.
-		sess = acceptMatchingPendingCandidates(sess, item)
-	}
-	sess.UpdatedAt = s.now()
-	if len(violations) == 0 {
-		if err := s.store.Save(ctx, sess); err != nil {
-			return Session{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, err
-		}
+		*sess = acceptMatchingPendingCandidates(*sess, item)
+		return true, nil
+	})
+	if err != nil {
+		return Session{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, err
 	}
 	return sess, item, violations, stepForCurrentSessionState(sess), nil
 }
@@ -115,96 +112,93 @@ func (s *service) ListRelevantContext(ctx context.Context, sessionID, phaseID st
 // phase/session. Legal only before finalize. On a content violation the session
 // is left unchanged (mirrors SubmitRelevantContextItem).
 func (s *service) UpdateRelevantContextItem(ctx context.Context, sessionID, phaseID, itemID string, item planmodel.RelevantContextItem) (Session, planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error) {
-	sess, err := s.load(ctx, sessionID)
-	if err != nil {
-		return Session{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, err
-	}
-	if sess.Finalized {
-		return Session{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "relevant context cannot be edited after finalize"}
-	}
 	itemID = strings.TrimSpace(itemID)
 	if itemID == "" {
 		return Session{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "item_id is required"}
 	}
 	item.ID = itemID
 	item = normalizeContextItem(item, phaseID)
-	if phaseID != "" {
-		phaseIdx := indexOfDraft(sess.PhaseDrafts, phaseID)
-		if phaseIdx < 0 {
-			return Session{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + phaseID}
+	var violations []StructureViolation
+	sess, err := s.withSessionLock(ctx, sessionID, func(sess *Session) (bool, error) {
+		if sess.Finalized {
+			return false, ErrInvalidSession{Reason: "relevant context cannot be edited after finalize"}
 		}
-		item.Scope = planmodel.RelevantContextScopePhase
-		item.PhaseID = sess.PhaseDrafts[phaseIdx].ID
-		item.RepeatPolicy = defaultRepeatForScope(item.Scope, item.RepeatPolicy)
-		pos := indexOfContextItem(sess.PhaseDrafts[phaseIdx].RelevantContext, itemID)
-		if pos < 0 {
-			return Session{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "phase context item not found: " + itemID}
+		if phaseID != "" {
+			phaseIdx := indexOfDraft(sess.PhaseDrafts, phaseID)
+			if phaseIdx < 0 {
+				return false, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + phaseID}
+			}
+			item.Scope = planmodel.RelevantContextScopePhase
+			item.PhaseID = sess.PhaseDrafts[phaseIdx].ID
+			item.RepeatPolicy = defaultRepeatForScope(item.Scope, item.RepeatPolicy)
+			pos := indexOfContextItem(sess.PhaseDrafts[phaseIdx].RelevantContext, itemID)
+			if pos < 0 {
+				return false, ErrInvalidSession{Reason: "phase context item not found: " + itemID}
+			}
+			if violations = contextItemViolations(item); len(violations) > 0 {
+				return false, nil
+			}
+			sess.PhaseDrafts[phaseIdx].RelevantContext[pos] = item
+			*sess = syncPhaseSection(*sess)
+		} else {
+			item.Scope = planmodel.RelevantContextScopeGlobal
+			item.PhaseID = ""
+			item.RepeatPolicy = defaultRepeatForScope(item.Scope, item.RepeatPolicy)
+			pos := indexOfContextItem(sess.RelevantContext, itemID)
+			if pos < 0 {
+				return false, ErrInvalidSession{Reason: "global context item not found: " + itemID}
+			}
+			if violations = contextItemViolations(item); len(violations) > 0 {
+				return false, nil
+			}
+			sess.RelevantContext[pos] = item
+			*sess = syncContextSection(*sess)
 		}
-		if violations := contextItemViolations(item); len(violations) > 0 {
-			return sess, item, violations, stepForCurrentSessionState(sess), nil
-		}
-		sess.PhaseDrafts[phaseIdx].RelevantContext[pos] = item
-		sess = syncPhaseSection(sess)
-	} else {
-		item.Scope = planmodel.RelevantContextScopeGlobal
-		item.PhaseID = ""
-		item.RepeatPolicy = defaultRepeatForScope(item.Scope, item.RepeatPolicy)
-		pos := indexOfContextItem(sess.RelevantContext, itemID)
-		if pos < 0 {
-			return Session{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "global context item not found: " + itemID}
-		}
-		if violations := contextItemViolations(item); len(violations) > 0 {
-			return sess, item, violations, stepForCurrentSessionState(sess), nil
-		}
-		sess.RelevantContext[pos] = item
-		sess = syncContextSection(sess)
-	}
-	sess.UpdatedAt = s.now()
-	if err := s.store.Save(ctx, sess); err != nil {
+		return true, nil
+	})
+	if err != nil {
 		return Session{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, err
 	}
-	return sess, item, nil, stepForCurrentSessionState(sess), nil
+	return sess, item, violations, stepForCurrentSessionState(sess), nil
 }
 
 // RemoveRelevantContextItem deletes one accepted context item (by id) before
 // finalize, recomputing structure violations so a resulting gate (e.g. a phase
 // left with no context) is reported with its recovery step.
 func (s *service) RemoveRelevantContextItem(ctx context.Context, sessionID, phaseID, itemID string) (Session, []StructureViolation, GuidedStep, error) {
-	sess, err := s.load(ctx, sessionID)
-	if err != nil {
-		return Session{}, nil, GuidedStep{}, err
-	}
-	if sess.Finalized {
-		return Session{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "relevant context cannot be edited after finalize"}
-	}
 	itemID = strings.TrimSpace(itemID)
 	if itemID == "" {
 		return Session{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "item_id is required"}
 	}
 	var violations []StructureViolation
-	if phaseID != "" {
-		phaseIdx := indexOfDraft(sess.PhaseDrafts, phaseID)
-		if phaseIdx < 0 {
-			return Session{}, nil, GuidedStep{}, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + phaseID}
+	sess, err := s.withSessionLock(ctx, sessionID, func(sess *Session) (bool, error) {
+		if sess.Finalized {
+			return false, ErrInvalidSession{Reason: "relevant context cannot be edited after finalize"}
 		}
-		pos := indexOfContextItem(sess.PhaseDrafts[phaseIdx].RelevantContext, itemID)
-		if pos < 0 {
-			return Session{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "phase context item not found: " + itemID}
+		if phaseID != "" {
+			phaseIdx := indexOfDraft(sess.PhaseDrafts, phaseID)
+			if phaseIdx < 0 {
+				return false, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + phaseID}
+			}
+			pos := indexOfContextItem(sess.PhaseDrafts[phaseIdx].RelevantContext, itemID)
+			if pos < 0 {
+				return false, ErrInvalidSession{Reason: "phase context item not found: " + itemID}
+			}
+			sess.PhaseDrafts[phaseIdx].RelevantContext = removeContextItemAt(sess.PhaseDrafts[phaseIdx].RelevantContext, pos)
+			sess.CurrentPhaseID = nextIncompletePhaseID(sess.PhaseDrafts)
+			*sess = syncPhaseSection(*sess)
+			violations = phaseViolations(sess.PhaseDrafts[phaseIdx])
+		} else {
+			pos := indexOfContextItem(sess.RelevantContext, itemID)
+			if pos < 0 {
+				return false, ErrInvalidSession{Reason: "global context item not found: " + itemID}
+			}
+			sess.RelevantContext = removeContextItemAt(sess.RelevantContext, pos)
+			*sess = syncContextSection(*sess)
 		}
-		sess.PhaseDrafts[phaseIdx].RelevantContext = removeContextItemAt(sess.PhaseDrafts[phaseIdx].RelevantContext, pos)
-		sess.CurrentPhaseID = nextIncompletePhaseID(sess.PhaseDrafts)
-		sess = syncPhaseSection(sess)
-		violations = phaseViolations(sess.PhaseDrafts[phaseIdx])
-	} else {
-		pos := indexOfContextItem(sess.RelevantContext, itemID)
-		if pos < 0 {
-			return Session{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "global context item not found: " + itemID}
-		}
-		sess.RelevantContext = removeContextItemAt(sess.RelevantContext, pos)
-		sess = syncContextSection(sess)
-	}
-	sess.UpdatedAt = s.now()
-	if err := s.store.Save(ctx, sess); err != nil {
+		return true, nil
+	})
+	if err != nil {
 		return Session{}, nil, GuidedStep{}, err
 	}
 	step := stepForCurrentSessionState(sess)
@@ -214,112 +208,277 @@ func (s *service) RemoveRelevantContextItem(ctx context.Context, sessionID, phas
 	return sess, violations, step, nil
 }
 
-func (s *service) DiscoverContextCandidates(ctx context.Context, sessionID string, concepts []string, complexity string) (Session, []ContextCandidate, GuidedStep, error) {
+func (s *service) DiscoverContextCandidates(ctx context.Context, sessionID string, concepts []string, complexity string, refresh bool) (Session, []ContextCandidate, GuidedStep, error) {
+	// Discovery shells out (probes, resolver) and can take tens of seconds — run
+	// it against a pre-lock read so a slow probe never holds the session lock;
+	// only the append happens under the lock.
 	sess, err := s.load(ctx, sessionID)
 	if err != nil {
 		return Session{}, nil, GuidedStep{}, err
 	}
-	var candidates []ContextCandidate
+	if !refresh && len(normalizeConcepts(concepts, "")) == 0 {
+		if batch, ok := latestPendingDiscoveryBatch(sess); ok && batch.Source == "prefetch" {
+			return sess, contextCandidatesForBatch(sess.ContextCandidates, batch.ID), stepForContextDiscovery(sess), nil
+		}
+		if done := s.pendingContextPrefetch(sessionID); done != nil {
+			select {
+			case <-done:
+				refreshed, err := s.load(ctx, sessionID)
+				if err != nil {
+					return Session{}, nil, GuidedStep{}, err
+				}
+				if batch, ok := latestPendingDiscoveryBatch(refreshed); ok && batch.Source == "prefetch" {
+					return refreshed, contextCandidatesForBatch(refreshed.ContextCandidates, batch.ID), stepForContextDiscovery(refreshed), nil
+				}
+				sess = refreshed
+			case <-ctx.Done():
+				return Session{}, nil, GuidedStep{}, ctx.Err()
+			}
+		}
+	}
+	var result ContextDiscoveryResult
 	if s.context == nil {
-		candidates = degradedContextCandidates(sess.Title, concepts, "context discovery unavailable")
+		result.ProbeNotes = degradedContextProbeNotes(sess.Title, concepts, "context-discovery", "context discovery unavailable")
 	} else {
-		candidates, err = s.context.DiscoverContext(ctx, sess.Title, concepts, complexity)
+		result, err = s.context.DiscoverContext(ctx, sess.Title, concepts, complexity)
 		if err != nil {
-			candidates = degradedContextCandidates(sess.Title, concepts, err.Error())
+			result = ContextDiscoveryResult{
+				ProbeNotes: degradedContextProbeNotes(sess.Title, concepts, "context-discovery", err.Error()),
+			}
 		}
 	}
 	// D7: steered suggestions from the skill-applicability resolver enter the
 	// same accept/reject disposition flow as probe-discovered candidates.
 	for _, suggestion := range s.skillSteer.SuggestSkills(ctx, sessionBoundary(sess)) {
 		if candidate, ok := steeredSkillCandidate(suggestion); ok {
-			candidates = append(candidates, candidate)
+			result.Candidates = append(result.Candidates, candidate)
 		}
 	}
-	for i := range candidates {
-		candidates[i] = normalizeContextCandidate(candidates[i])
+	for i := range result.Candidates {
+		result.Candidates[i] = normalizeContextCandidate(result.Candidates[i])
 	}
-	sess.ContextCandidates = append(sess.ContextCandidates, candidates...)
-	sess.UpdatedAt = s.now()
-	if err := s.store.Save(ctx, sess); err != nil {
+	var batch DiscoveryBatch
+	sess, err = s.withSessionLock(ctx, sessionID, func(sess *Session) (bool, error) {
+		batch = mergeContextDiscoveryBatch(sess, concepts, complexity, result)
+		return true, nil
+	})
+	if err != nil {
 		return Session{}, nil, GuidedStep{}, err
 	}
-	return sess, candidates, stepForContextDiscovery(sess), nil
+	return sess, contextCandidatesForBatch(sess.ContextCandidates, batch.ID), stepAfterContextDiscovery(sess), nil
 }
 
 func (s *service) AcceptContextCandidate(ctx context.Context, sessionID, candidateID, phaseID string) (Session, ContextCandidate, planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error) {
-	sess, err := s.load(ctx, sessionID)
+	var (
+		candidate  ContextCandidate
+		item       planmodel.RelevantContextItem
+		violations []StructureViolation
+	)
+	sess, err := s.withSessionLock(ctx, sessionID, func(sess *Session) (bool, error) {
+		idx := indexOfCandidate(sess.ContextCandidates, candidateID)
+		if idx < 0 {
+			return false, ErrInvalidSession{Reason: "context candidate not found: " + candidateID}
+		}
+		var changed bool
+		var acceptErr error
+		candidate, item, violations, changed, acceptErr = acceptContextCandidateAt(sess, idx, phaseID)
+		if acceptErr != nil || len(violations) > 0 {
+			return false, acceptErr
+		}
+		if changed {
+			if batchIdx := indexOfDiscoveryBatch(sess.DiscoveryBatches, candidate.BatchID); batchIdx >= 0 {
+				closeContextBatchIfResolved(sess, batchIdx, "applied item-by-item")
+			}
+		}
+		return changed, nil
+	})
 	if err != nil {
 		return Session{}, ContextCandidate{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, err
 	}
-	idx := indexOfCandidate(sess.ContextCandidates, candidateID)
-	if idx < 0 {
-		return Session{}, ContextCandidate{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "context candidate not found: " + candidateID}
-	}
-	candidate := sess.ContextCandidates[idx]
-	if candidate.Status == ContextCandidateRejected {
-		return Session{}, ContextCandidate{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "context candidate was rejected: " + candidateID}
-	}
-	item := normalizeContextItem(candidate.Item, phaseID)
-	var violations []StructureViolation
-	if phaseID != "" {
-		phaseIdx := indexOfDraft(sess.PhaseDrafts, phaseID)
-		if phaseIdx < 0 {
-			return Session{}, ContextCandidate{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + phaseID}
-		}
-		item.Scope = planmodel.RelevantContextScopePhase
-		item.PhaseID = sess.PhaseDrafts[phaseIdx].ID
-		item.RepeatPolicy = defaultRepeatForScope(item.Scope, item.RepeatPolicy)
-		violations = contextItemViolations(item)
-		if len(violations) == 0 {
-			sess.PhaseDrafts[phaseIdx].RelevantContext = append(sess.PhaseDrafts[phaseIdx].RelevantContext, item)
-			sess = syncPhaseSection(sess)
-		}
-	} else {
-		item.Scope = planmodel.RelevantContextScopeGlobal
-		item.PhaseID = ""
-		item.RepeatPolicy = defaultRepeatForScope(item.Scope, item.RepeatPolicy)
-		violations = contextItemViolations(item)
-		if len(violations) == 0 {
-			sess.RelevantContext = append(sess.RelevantContext, item)
-			sess = syncContextSection(sess)
-		}
-	}
 	if len(violations) > 0 {
 		return sess, candidate, item, violations, stepForContextDiscovery(sess), nil
-	}
-	candidate.Status = ContextCandidateAccepted
-	candidate.Item = item
-	sess.ContextCandidates[idx] = candidate
-	sess.UpdatedAt = s.now()
-	if err := s.store.Save(ctx, sess); err != nil {
-		return Session{}, ContextCandidate{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, err
 	}
 	return sess, candidate, item, nil, stepForCurrentSessionState(sess), nil
 }
 
 func (s *service) RejectContextCandidate(ctx context.Context, sessionID, candidateID, reason string) (Session, ContextCandidate, GuidedStep, error) {
-	sess, err := s.load(ctx, sessionID)
-	if err != nil {
-		return Session{}, ContextCandidate{}, GuidedStep{}, err
-	}
-	idx := indexOfCandidate(sess.ContextCandidates, candidateID)
-	if idx < 0 {
-		return Session{}, ContextCandidate{}, GuidedStep{}, ErrInvalidSession{Reason: "context candidate not found: " + candidateID}
-	}
 	// D4: a rejection is a disposition and must carry its judgment — an empty
 	// reason would turn the sweep evidence into a rubber stamp.
 	if strings.TrimSpace(reason) == "" {
 		return Session{}, ContextCandidate{}, GuidedStep{}, ErrInvalidSession{Reason: "candidate rejection requires a --reason"}
 	}
+	var candidate ContextCandidate
+	sess, err := s.withSessionLock(ctx, sessionID, func(sess *Session) (bool, error) {
+		idx := indexOfCandidate(sess.ContextCandidates, candidateID)
+		if idx < 0 {
+			return false, ErrInvalidSession{Reason: "context candidate not found: " + candidateID}
+		}
+		candidate = rejectContextCandidateAt(sess, idx, strings.TrimSpace(reason))
+		if batchIdx := indexOfDiscoveryBatch(sess.DiscoveryBatches, candidate.BatchID); batchIdx >= 0 {
+			closeContextBatchIfResolved(sess, batchIdx, "applied item-by-item")
+		}
+		return true, nil
+	})
+	if err != nil {
+		return Session{}, ContextCandidate{}, GuidedStep{}, err
+	}
+	return sess, candidate, stepForContextDiscovery(sess), nil
+}
+
+func (s *service) ApplyContextDisposition(ctx context.Context, sessionID, batchID string, takes []ContextDispositionTake, drops []ContextDispositionDrop, sweepNote string, takeAll bool) (Session, ContextDispositionSummary, []StructureViolation, GuidedStep, error) {
+	var (
+		summary    ContextDispositionSummary
+		violations []StructureViolation
+	)
+	sess, err := s.withSessionLock(ctx, sessionID, func(sess *Session) (bool, error) {
+		batchIdx := targetContextBatchIndex(*sess, batchID)
+		if batchIdx < 0 {
+			return false, ErrInvalidSession{Reason: "pending context discovery batch not found"}
+		}
+		if sess.DiscoveryBatches[batchIdx].Status != DiscoveryBatchPending {
+			return false, ErrInvalidSession{Reason: "context discovery batch is not pending: " + sess.DiscoveryBatches[batchIdx].ID}
+		}
+		batch := sess.DiscoveryBatches[batchIdx]
+		takeByCandidate := map[int]ContextDispositionTake{}
+		dropByCandidate := map[int]ContextDispositionDrop{}
+		for _, take := range takes {
+			id := strings.TrimSpace(take.CandidateID)
+			idx := indexOfCandidate(sess.ContextCandidates, id)
+			if idx < 0 || sess.ContextCandidates[idx].BatchID != batch.ID || sess.ContextCandidates[idx].Status != ContextCandidatePending {
+				return false, ErrInvalidSession{Reason: "pending context candidate not found in batch: " + id}
+			}
+			takeByCandidate[idx] = take
+		}
+		for _, drop := range drops {
+			id := strings.TrimSpace(drop.CandidateID)
+			idx := indexOfCandidate(sess.ContextCandidates, id)
+			if idx < 0 || sess.ContextCandidates[idx].BatchID != batch.ID || sess.ContextCandidates[idx].Status != ContextCandidatePending {
+				return false, ErrInvalidSession{Reason: "pending context candidate not found in batch: " + id}
+			}
+			if _, exists := takeByCandidate[idx]; exists {
+				return false, ErrInvalidSession{Reason: "context candidate cannot be both taken and dropped: " + id}
+			}
+			dropByCandidate[idx] = drop
+		}
+
+		changed := false
+		for _, idx := range pendingShortlistCandidatesForBatch(sess.ContextCandidates, batch.ID) {
+			candidate := sess.ContextCandidates[idx]
+			if takeAll {
+				if _, explicitlyDropped := dropByCandidate[idx]; !explicitlyDropped {
+					takeByCandidate[idx] = ContextDispositionTake{CandidateID: firstNonEmpty(candidate.Handle, candidate.ID)}
+				}
+			}
+			if take, ok := takeByCandidate[idx]; ok {
+				accepted, item, itemViolations, itemChanged, err := acceptContextCandidateAt(sess, idx, take.PhaseID)
+				result := ContextDispositionResult{
+					Candidate:  accepted,
+					Item:       item,
+					Action:     "take",
+					Accepted:   itemChanged && len(itemViolations) == 0 && err == nil,
+					Violations: itemViolations,
+				}
+				if err != nil {
+					result.Message = err.Error()
+				}
+				if result.Accepted && strings.TrimSpace(take.Reason) != "" {
+					result.Message = strings.TrimSpace(take.Reason)
+				}
+				summary.Results = append(summary.Results, result)
+				if err != nil {
+					return false, err
+				}
+				if len(itemViolations) > 0 {
+					violations = append(violations, itemViolations...)
+					continue
+				}
+				changed = changed || itemChanged
+				continue
+			}
+
+			drop, explicitDrop := dropByCandidate[idx]
+			reason := strings.TrimSpace(drop.Reason)
+			if candidate.HighConfidence && reason == "" {
+				summary.Results = append(summary.Results, ContextDispositionResult{
+					Candidate: candidate,
+					Action:    "drop",
+					Accepted:  false,
+					Message:   "high-confidence context candidate requires a drop reason",
+				})
+				continue
+			}
+			if reason == "" {
+				if explicitDrop {
+					reason = "dropped by context-apply"
+				} else {
+					reason = "swept by context-apply"
+				}
+			}
+			dropped := rejectContextCandidateAt(sess, idx, reason)
+			summary.Results = append(summary.Results, ContextDispositionResult{
+				Candidate: dropped,
+				Action:    "drop",
+				Accepted:  true,
+				Message:   reason,
+			})
+			changed = true
+		}
+		closeContextBatchIfResolved(sess, batchIdx, sweepNote)
+		summary.Batch = sess.DiscoveryBatches[batchIdx]
+		return changed || summary.Batch.Status == DiscoveryBatchApplied, nil
+	})
+	if err != nil {
+		return Session{}, ContextDispositionSummary{}, nil, GuidedStep{}, err
+	}
+	return sess, summary, violations, stepForCurrentSessionState(sess), nil
+}
+
+func acceptContextCandidateAt(sess *Session, idx int, phaseID string) (ContextCandidate, planmodel.RelevantContextItem, []StructureViolation, bool, error) {
+	candidate := sess.ContextCandidates[idx]
+	if candidate.Status == ContextCandidateRejected {
+		return candidate, planmodel.RelevantContextItem{}, nil, false, ErrInvalidSession{Reason: "context candidate was rejected: " + firstNonEmpty(candidate.Handle, candidate.ID)}
+	}
+	if candidate.Status == ContextCandidateAccepted {
+		return candidate, candidate.Item, nil, false, nil
+	}
+	item := normalizeContextItem(candidate.Item, phaseID)
+	if phaseID != "" {
+		phaseIdx := indexOfDraft(sess.PhaseDrafts, phaseID)
+		if phaseIdx < 0 {
+			return candidate, item, nil, false, ErrSectionNotFound{SessionID: sess.ID, SectionKey: "phase:" + phaseID}
+		}
+		item.Scope = planmodel.RelevantContextScopePhase
+		item.PhaseID = sess.PhaseDrafts[phaseIdx].ID
+		item.RepeatPolicy = defaultRepeatForScope(item.Scope, item.RepeatPolicy)
+		violations := contextItemViolations(item)
+		if len(violations) > 0 {
+			return candidate, item, violations, false, nil
+		}
+		sess.PhaseDrafts[phaseIdx].RelevantContext = append(sess.PhaseDrafts[phaseIdx].RelevantContext, item)
+		*sess = syncPhaseSection(*sess)
+	} else {
+		item.Scope = planmodel.RelevantContextScopeGlobal
+		item.PhaseID = ""
+		item.RepeatPolicy = defaultRepeatForScope(item.Scope, item.RepeatPolicy)
+		violations := contextItemViolations(item)
+		if len(violations) > 0 {
+			return candidate, item, violations, false, nil
+		}
+		sess.RelevantContext = append(sess.RelevantContext, item)
+		*sess = syncContextSection(*sess)
+	}
+	candidate.Status = ContextCandidateAccepted
+	candidate.Item = item
+	sess.ContextCandidates[idx] = candidate
+	return candidate, item, nil, true, nil
+}
+
+func rejectContextCandidateAt(sess *Session, idx int, reason string) ContextCandidate {
 	candidate := sess.ContextCandidates[idx]
 	candidate.Status = ContextCandidateRejected
 	candidate.RejectionReason = strings.TrimSpace(reason)
 	sess.ContextCandidates[idx] = candidate
-	sess.UpdatedAt = s.now()
-	if err := s.store.Save(ctx, sess); err != nil {
-		return Session{}, ContextCandidate{}, GuidedStep{}, err
-	}
-	return sess, candidate, stepForContextDiscovery(sess), nil
+	return candidate
 }
 
 // runAutofill runs one source against the session in place. It NEVER fabricates a

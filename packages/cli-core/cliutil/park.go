@@ -30,6 +30,10 @@ import (
 const (
 	ParkProducerTestGenie = "test-genie"
 	ParkProducerGCT       = "git-control-tower"
+	// ParkProducerLifecycle awaits a scenario start/restart via the blocking
+	// `vrooli scenario wait --json <scenario>` verb. Key encoding is
+	// "<scenario>/<variant>" ("live" for the canonical instance).
+	ParkProducerLifecycle = "lifecycle"
 )
 
 // ParkRequest describes externally-owned async work the current run wants to

@@ -313,7 +313,7 @@ func TestDecisionsAndAssumptionMitigationsFlowIntoPlan(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, violations)
 
-	_, _, err = svc.Finalize(ctx, sess.ID)
+	_, _, err = svc.Finalize(ctx, sess.ID, authoring.FinalizeOptions{})
 	require.NoError(t, err)
 	require.Equal(t, []planmodel.PlanDecision{
 		{Title: "Cluster order", Statement: "nine clusters, wizard asks in render order."},
@@ -357,14 +357,12 @@ func TestDiscoverContextExecutesProbesAndDeduplicates(t *testing.T) {
 	sess, _, err := svc.StartSession(ctx, "Probe discovery", "probe-discovery", "")
 	require.NoError(t, err)
 
-	_, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"microphone lifecycle"}, "architectural")
+	updated, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"microphone lifecycle"}, "architectural", false)
 	require.NoError(t, err)
 
-	var skills, actions, degraded []authoring.ContextCandidate
+	var skills, actions []authoring.ContextCandidate
 	for _, c := range candidates {
 		switch {
-		case c.Degraded:
-			degraded = append(degraded, c)
 		case c.Item.Kind == planmodel.RelevantContextSkill:
 			skills = append(skills, c)
 		case c.Item.Kind == planmodel.RelevantContextCommand:
@@ -386,10 +384,10 @@ func TestDiscoverContextExecutesProbesAndDeduplicates(t *testing.T) {
 
 	require.Empty(t, actions, "the down actions probe yields no fabricated candidates")
 
-	require.Len(t, degraded, 1, "the down actions probe degrades independently")
-	require.Equal(t, "prompt-manager-actions", degraded[0].Source)
-	require.Contains(t, degraded[0].Detail, "prompt-manager actions probe is down")
-	require.Equal(t, planmodel.RelevantContextStatusDegraded, degraded[0].Item.Status)
+	require.Len(t, updated.DiscoveryBatches, 1)
+	require.Len(t, updated.DiscoveryBatches[0].ProbeNotes, 1, "the down actions probe degrades independently")
+	require.Equal(t, "prompt-manager-actions", updated.DiscoveryBatches[0].ProbeNotes[0].Probe)
+	require.Contains(t, updated.DiscoveryBatches[0].ProbeNotes[0].Detail, "prompt-manager actions probe is down")
 
 	// All-down: the step still returns a usable (empty + noted) result.
 	svcDown := newService(t, authoring.Deps{
@@ -398,12 +396,14 @@ func TestDiscoverContextExecutesProbesAndDeduplicates(t *testing.T) {
 	})
 	sessDown, _, err := svcDown.StartSession(ctx, "All down", "all-down", "")
 	require.NoError(t, err)
-	_, downCandidates, _, err := svcDown.DiscoverContextCandidates(ctx, sessDown.ID, []string{"anything"}, "")
+	updatedDown, downCandidates, stepDown, err := svcDown.DiscoverContextCandidates(ctx, sessDown.ID, []string{"anything"}, "", false)
 	require.NoError(t, err, "discovery must never block or fail the wizard when dependencies are down")
-	require.Len(t, downCandidates, 3)
-	for _, c := range downCandidates {
-		require.True(t, c.Degraded)
-	}
+	require.Empty(t, downCandidates)
+	require.Len(t, updatedDown.DiscoveryBatches, 1)
+	require.Len(t, updatedDown.DiscoveryBatches[0].ProbeNotes, 3)
+	require.Equal(t, authoring.DiscoveryBatchApplied, updatedDown.DiscoveryBatches[0].Status)
+	require.NotEqual(t, "context_discovery", stepDown.StepKind, "empty auto-applied batches should not ask for context-apply")
+	require.NotContains(t, stepDown.RequiredInputs, "context-apply for the pending batch")
 }
 
 // fakeSkillResolver returns canned steered suggestions (the D7 seam's future
@@ -414,12 +414,12 @@ func (f fakeSkillResolver) SuggestSkills(context.Context, planmodel.ChangeBounda
 	return f.suggestions
 }
 
-// TestSkillCheckpointGateV2 pins the D4 gate end to end: undispositioned
-// candidates block finalize with a clear message; dispositioning all of them
+// TestSkillCheckpointGateV3 pins the batch-applied gate end to end: an unapplied
+// discovery batch blocks finalize with one clear message; applying the batch
 // unblocks; an honest NO_SKILL_CONTEXT skip passes without discovery; a
-// rejection without a reason is refused; and resolver suggestions flow through
-// disposition like any discovered candidate (D7).
-func TestSkillCheckpointGateV2(t *testing.T) {
+// rejection without a reason is refused in the single-item lane; and resolver
+// suggestions flow through disposition like any discovered candidate (D7).
+func TestSkillCheckpointGateV3(t *testing.T) {
 	ctx := context.Background()
 	resolver := fakeSkillResolver{suggestions: []authoring.SkillSuggestion{
 		{Slug: "react-coherence", Reason: "The boundary touches a React UI."},
@@ -429,7 +429,7 @@ func TestSkillCheckpointGateV2(t *testing.T) {
 	require.NoError(t, err)
 	fillMandatory(t, svc, sess.ID)
 
-	_, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"gate semantics"}, "minor")
+	_, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"gate semantics"}, "minor", false)
 	require.NoError(t, err)
 	require.NotEmpty(t, candidates)
 
@@ -442,23 +442,25 @@ func TestSkillCheckpointGateV2(t *testing.T) {
 	require.NotNil(t, steered, "resolver suggestions must appear as ordinary candidates")
 	require.Equal(t, "react-coherence", steered.Item.Target)
 
-	// Undispositioned candidates block finalize with an actionable message.
+	// An unapplied batch blocks finalize with one actionable message.
 	valid, violations, _, err := svc.ValidateStructure(ctx, sess.ID)
 	require.NoError(t, err)
 	require.False(t, valid)
-	var sawPending bool
+	var sawPendingBatch bool
 	for _, v := range violations {
-		if strings.Contains(v.Message, "undispositioned") {
-			sawPending = true
+		if strings.Contains(v.Message, "context discovery batch") && strings.Contains(v.Message, "context-apply") {
+			sawPendingBatch = true
 		}
 	}
-	require.True(t, sawPending, "pending candidates must be called out, got %#v", violations)
+	require.True(t, sawPendingBatch, "pending batch must be called out, got %#v", violations)
 
 	// A rejection without a reason is refused (D4: reject requires judgment).
 	_, _, _, err = svc.RejectContextCandidate(ctx, sess.ID, candidates[0].ID, "  ")
 	require.Error(t, err)
 
-	// Disposition everything: accept the steered suggestion, reject the rest.
+	// Disposition everything through the single-item lane: accept the steered
+	// suggestion, reject the rest. The batch auto-closes when its shortlist is
+	// fully dispositioned.
 	for _, c := range candidates {
 		if c.ID == steered.ID {
 			_, _, _, _, _, err := svc.AcceptContextCandidate(ctx, sess.ID, c.ID, "")

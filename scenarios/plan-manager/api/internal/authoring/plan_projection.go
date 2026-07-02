@@ -188,45 +188,11 @@ func normalizeContextCandidate(candidate ContextCandidate) ContextCandidate {
 		candidate.Status = ContextCandidatePending
 	}
 	candidate.Item = normalizeContextItem(candidate.Item, "")
+	candidate.SetupLine = planmodel.RelevantContextSetupLine(candidate.Item)
 	if candidate.Degraded && candidate.Item.Status == planmodel.RelevantContextStatusReady {
 		candidate.Item.Status = planmodel.RelevantContextStatusDegraded
 	}
 	return candidate
-}
-
-func degradedContextCandidates(title string, concepts []string, detail string) []ContextCandidate {
-	if len(concepts) == 0 {
-		concepts = []string{title}
-	}
-	out := make([]ContextCandidate, 0, len(concepts))
-	for _, concept := range concepts {
-		concept = strings.TrimSpace(concept)
-		if concept == "" {
-			continue
-		}
-		item := planmodel.RelevantContextItem{
-			ID:           uuid.NewString(),
-			Kind:         planmodel.RelevantContextNote,
-			Scope:        planmodel.RelevantContextScopeGlobal,
-			Label:        "Context discovery degraded: " + concept,
-			Reason:       "Automated relevant-context discovery could not run.",
-			Instruction:  "Manually run prompt-manager/search-hub/cli-health discovery for this concept before accepting setup context.",
-			Required:     false,
-			RepeatPolicy: planmodel.RelevantContextAsNeeded,
-			Source:       planmodel.RelevantContextSourceDiscovered,
-			Status:       planmodel.RelevantContextStatusDegraded,
-		}
-		out = append(out, ContextCandidate{
-			ID:       uuid.NewString(),
-			Item:     item,
-			Concept:  concept,
-			Source:   "context-discovery",
-			Degraded: true,
-			Detail:   strings.TrimSpace(detail),
-			Status:   ContextCandidatePending,
-		})
-	}
-	return out
 }
 
 func defaultRepeatForScope(scope planmodel.RelevantContextScope, current planmodel.RelevantContextRepeatPolicy) planmodel.RelevantContextRepeatPolicy {
@@ -239,10 +205,24 @@ func defaultRepeatForScope(scope planmodel.RelevantContextScope, current planmod
 	return planmodel.RelevantContextOncePerExecution
 }
 
+func degradedContextProbeNotes(title string, concepts []string, probe string, detail string) []ProbeNote {
+	concepts = normalizeConcepts(concepts, title)
+	out := make([]ProbeNote, 0, len(concepts))
+	for _, concept := range concepts {
+		out = append(out, ProbeNote{
+			Probe:    strings.TrimSpace(probe),
+			Concept:  concept,
+			Degraded: true,
+			Detail:   strings.TrimSpace(detail),
+		})
+	}
+	return out
+}
+
 func indexOfCandidate(candidates []ContextCandidate, id string) int {
 	id = strings.TrimSpace(id)
 	for i := range candidates {
-		if candidates[i].ID == id {
+		if candidates[i].ID == id || (id != "" && candidates[i].Handle == id) {
 			return i
 		}
 	}

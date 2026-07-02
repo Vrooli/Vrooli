@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+
+	planmodel "plan-manager/internal/planmodel"
 )
 
 var sessionSlugNonWord = regexp.MustCompile(`[^a-z0-9]+`)
@@ -18,6 +20,10 @@ func (s *service) uniqueSessionSlug(ctx context.Context, slug, title string) (st
 	if base == "" {
 		base = "session"
 	}
+	// Cap DERIVED handles at a typeable length (word-boundary truncation);
+	// the collision suffix below may exceed it by its own length only.
+	// Existing long slugs are untouched and keep resolving.
+	base = planmodel.TruncateSlug(base, planmodel.MaxSlugLength)
 	candidate := base
 	for i := 2; ; i++ {
 		_, ok, err := s.store.Get(ctx, candidate)
@@ -47,6 +53,38 @@ func (s *service) lockSession(sessionID string) func() {
 	s.lockMu.Unlock()
 	mu.Lock()
 	return mu.Unlock
+}
+
+// withSessionLock is the single mutation discipline for authoring sessions:
+// resolve the session by id-or-slug, take its per-session lock, reload the
+// authoritative state under the lock, run fn against it, and save exactly once
+// when fn reports the session changed. Every authoring mutation goes through
+// here so lock-reload-modify-save is structural — a mutation cannot forget the
+// lock (the lost-write hole SubmitSection used to have). fn mutates sess in
+// place; save=false means "session unchanged, do not persist" (e.g. a
+// violation-rejected item). An fn error aborts without saving.
+func (s *service) withSessionLock(ctx context.Context, sessionID string, fn func(sess *Session) (save bool, err error)) (Session, error) {
+	sess, err := s.load(ctx, sessionID)
+	if err != nil {
+		return Session{}, err
+	}
+	unlock := s.lockSession(sess.ID)
+	defer unlock()
+	sess, err = s.load(ctx, sess.ID)
+	if err != nil {
+		return Session{}, err
+	}
+	save, err := fn(&sess)
+	if err != nil {
+		return Session{}, err
+	}
+	if save {
+		sess.UpdatedAt = s.now()
+		if err := s.store.Save(ctx, sess); err != nil {
+			return Session{}, err
+		}
+	}
+	return sess, nil
 }
 
 // prefillWorkPosture marks the Work Posture section as autofilled+reviewed (never

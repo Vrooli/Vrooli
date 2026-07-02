@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -72,6 +73,21 @@ func TestDiscoverParsesContractFixtures(t *testing.T) {
 	if first.Score == 0 {
 		t.Fatal("score must pass through")
 	}
+	if first.Origin != "search" {
+		t.Fatalf("prompt-manager source must pass through as origin, got %q", first.Origin)
+	}
+	if first.SizeChars == 0 {
+		t.Fatal("prompt-manager contentChars must pass through")
+	}
+	if len(first.Tags) == 0 {
+		t.Fatal("prompt-manager tags must pass through")
+	}
+	if first.Title != "Implementation Plan Authoring" {
+		t.Fatalf("prompt-manager name must pass through as title, got %q", first.Title)
+	}
+	if !strings.Contains(first.Snippet, "Author durable implementation plans") {
+		t.Fatalf("prompt-manager description must pass through as snippet, got %q", first.Snippet)
+	}
 
 	actions := byProbe[ProbePromptManagerActions]
 	var sawAction bool
@@ -90,16 +106,26 @@ func TestDiscoverParsesContractFixtures(t *testing.T) {
 
 	recall := byProbe[ProbeSearchHubRecall]
 	kinds := map[planmodel.RelevantContextKind]int{}
+	var sawDocWithTitle bool
 	for _, it := range recall.Items {
 		kinds[it.Item.Kind]++
 		if it.Item.Kind == planmodel.RelevantContextCommand && !strings.HasPrefix(it.Item.Command, "swarm-manager records get --id rec-") {
 			t.Fatalf("record recall command malformed: %q", it.Item.Command)
+		}
+		if it.Origin == "" {
+			t.Fatalf("search-hub provider group must pass through as origin: %+v", it)
+		}
+		if it.Title != "" && it.Snippet != "" && it.Item.Kind == planmodel.RelevantContextDoc {
+			sawDocWithTitle = true
 		}
 	}
 	for _, kind := range []planmodel.RelevantContextKind{planmodel.RelevantContextSkill, planmodel.RelevantContextDoc, planmodel.RelevantContextCommand} {
 		if kinds[kind] == 0 {
 			t.Fatalf("search-hub fixture should yield %s items, got %v", kind, kinds)
 		}
+	}
+	if !sawDocWithTitle {
+		t.Fatal("search-hub doc title and snippet must both survive parsing")
 	}
 }
 
@@ -175,5 +201,33 @@ func TestDiscoverRunsProbesConcurrently(t *testing.T) {
 	}
 	if elapsed > 150*time.Millisecond {
 		t.Fatalf("6 probes at 40ms each should overlap, took %s (serial would be ~240ms)", elapsed)
+	}
+}
+
+func TestDiscoverCapsConcurrentProbeFanout(t *testing.T) {
+	var inFlight int32
+	var maxSeen int32
+	slowRunner := func(ctx context.Context, _ string, _ ...string) ([]byte, error) {
+		current := atomic.AddInt32(&inFlight, 1)
+		for {
+			seen := atomic.LoadInt32(&maxSeen)
+			if current <= seen || atomic.CompareAndSwapInt32(&maxSeen, seen, current) {
+				break
+			}
+		}
+		defer atomic.AddInt32(&inFlight, -1)
+		select {
+		case <-time.After(30 * time.Millisecond):
+			return []byte(`{"results":[]}`), nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	outcomes := Discover(context.Background(), slowRunner, []string{"a", "b", "c"}, "", Options{Timeout: time.Second, MaxConcurrent: 2})
+	if len(outcomes) != 9 {
+		t.Fatalf("expected 9 outcomes, got %d", len(outcomes))
+	}
+	if got := atomic.LoadInt32(&maxSeen); got > 2 {
+		t.Fatalf("max in-flight probes = %d, want <= 2", got)
 	}
 }

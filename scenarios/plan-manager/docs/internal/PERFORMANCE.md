@@ -18,15 +18,16 @@ Use this document to answer:
   numeric latency/throughput targets now would be inventing detail for an
   unimplemented system.
 - Intended budget shape: interactive plan reads/writes via the API and the
-  `plan-manager` CLI should feel instant against the local
-  SQLite store, and any fan-out to other scenarios (staleness, baseline)
+  `plan-manager` CLI should feel instant against the local SQLite store, and
+  any fan-out to other scenarios (context discovery, staleness, baseline)
   must stay bounded so the UI/CLI never blocks on a slow integration.
 
 ## Current Measurements
 
-- None. This scenario is pre-implementation (documentation-first), so no
-  measurements exist yet. This section will be populated once the first
-  slice is built and instrumented.
+- Focused unit, race, lint, type-check, and UI test runs have validated the
+  current context-discovery implementation, but no stable latency budget has
+  been captured yet. Treat live timing observations as diagnostic evidence
+  until a repeatable benchmark is added.
 
 ## Known Constraints
 
@@ -35,6 +36,12 @@ Use this document to answer:
   scenario-validation). These calls can be slow or unavailable, so reads
   must be bounded (timeouts/limits) and degrade gracefully rather than hang
   — a missing integration must not block plan reads.
+- Context discovery fan-out is capped at six in-flight probe subprocesses by
+  default, with each probe still bounded by the 20s per-probe ceiling. Author
+  session start also launches a best-effort background prefetch from the title;
+  `context-discover` without explicit concepts can reuse that pending batch,
+  while `--refresh` or explicit concepts supersede it through the normal batch
+  merge path.
 - Local SQLite store: reads/writes go to the shared `~/.vrooli` store; this
   keeps plans available even when the server is down, but it means
   performance is tied to local disk and single-writer SQLite semantics.
@@ -49,8 +56,8 @@ Use this document to answer:
 - Intended procedure: run the scenario test suite via
   `vrooli scenario test plan-manager`, compare per-plan velocity and read
   latency against the recorded baseline, and treat a meaningful regression
-  (especially unbounded fan-out latency) as a failure to investigate before
-  release.
+  (especially a return to unbounded fan-out latency) as a failure to
+  investigate before release.
 
 ## Cross-References
 

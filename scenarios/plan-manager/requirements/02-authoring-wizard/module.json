@@ -47,7 +47,7 @@
           "ref": "api/internal/authoring/authoring_test.go::TestContextDiscoveryCandidateLifecycle",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Relevant-context discovery persists pending candidates and requires explicit accept/reject decisions."
+          "notes": "Relevant-context discovery persists curated batches and requires an applied batch decision or an honest no-context reason."
         }
       ]
     },
@@ -57,7 +57,7 @@
       "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "authoring",
-      "description": "The wizard auto-fills deterministic setup where possible — regression anchor (via git-control-tower baseline), relevant-context candidates (via prompt-manager/search-hub/cli-health), and code references (via code-facts) — degrading gracefully when a source is unavailable, so genuine prose and final context judgment are left for the agent.",
+      "description": "The wizard auto-fills deterministic setup where possible — boundary-derived regression-anchor intent, curated relevant-context batches (via prompt-manager/search-hub/cli-health), and curated code-reference batches (via search-hub/code locators) — degrading gracefully when a source is unavailable, so genuine prose and final context judgment are left for the agent.",
       "tags": [
         "authoring",
         "autofill",

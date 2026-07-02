@@ -83,7 +83,13 @@ func normalizeReferenceCandidate(candidate ReferenceCandidate) ReferenceCandidat
 	candidate.Reference.Target = strings.TrimSpace(candidate.Reference.Target)
 	candidate.Source = strings.TrimSpace(candidate.Source)
 	candidate.Detail = strings.TrimSpace(candidate.Detail)
+	candidate.Handle = strings.TrimSpace(candidate.Handle)
+	candidate.BatchID = strings.TrimSpace(candidate.BatchID)
+	candidate.Tier = strings.TrimSpace(candidate.Tier)
 	candidate.RejectionReason = strings.TrimSpace(candidate.RejectionReason)
+	if len(candidate.Corroboration) == 0 && (candidate.Source != "" || candidate.Confidence != 0) {
+		candidate.Corroboration = []ProbeHit{{Probe: candidate.Source, Score: candidate.Confidence}}
+	}
 	if candidate.Status == "" {
 		candidate.Status = ReferenceCandidatePending
 	}
@@ -93,7 +99,7 @@ func normalizeReferenceCandidate(candidate ReferenceCandidate) ReferenceCandidat
 func indexOfReferenceCandidate(candidates []ReferenceCandidate, id string) int {
 	id = strings.TrimSpace(id)
 	for i := range candidates {
-		if candidates[i].ID == id {
+		if candidates[i].ID == id || candidates[i].Handle == id {
 			return i
 		}
 	}
@@ -314,27 +320,29 @@ func globalContextResolved(sess Session) bool {
 	return noContextReason(contentOf(sess.Sections, SectionRelevantContext)) != ""
 }
 
-// globalSkillContextResolved is the skill checkpoint gate v2 (contract
-// decision D4): it demands EVIDENCE OF A SWEEP, not a quota. Satisfied when
-// discovery ran for the submitted concepts AND every returned candidate was
-// dispositioned (accepted, or rejected with a reason — direct context-submit
-// items count as dispositions via acceptMatchingPendingCandidates), OR when an
-// explicit NO_SKILL_CONTEXT/NO_CONTEXT skip reason is recorded. A skill item
-// alone, without the sweep or a skip reason, no longer satisfies it.
+// globalSkillContextResolved is the skill checkpoint gate v3: it demands
+// evidence of a batch-level sweep, not per-candidate bookkeeping. Satisfied when
+// the latest discovery batch was applied, when legacy pre-batch candidates were
+// fully dispositioned, or when an explicit NO_SKILL_CONTEXT/NO_CONTEXT skip
+// reason is recorded.
 func globalSkillContextResolved(sess Session) bool {
-	if len(sess.ContextCandidates) > 0 && pendingContextCandidates(sess) == 0 {
+	if _, ok := latestAppliedDiscoveryBatch(sess); ok {
+		return true
+	}
+	if len(sess.DiscoveryBatches) == 0 && len(sess.ContextCandidates) > 0 && pendingLegacyContextCandidates(sess) == 0 {
 		return true
 	}
 	content := contentOf(sess.Sections, SectionRelevantContext)
 	return noSkillContextReason(content) != "" || noContextReason(content) != ""
 }
 
-// pendingContextCandidates counts discovery candidates still awaiting an
-// accept/reject decision.
-func pendingContextCandidates(sess Session) int {
+// pendingLegacyContextCandidates counts pre-batch discovery candidates still
+// awaiting an accept/reject decision. Current batches are gated by batch status,
+// and longlist candidates are intentionally not disposition-required.
+func pendingLegacyContextCandidates(sess Session) int {
 	n := 0
 	for _, c := range sess.ContextCandidates {
-		if c.Status == ContextCandidatePending {
+		if c.BatchID == "" && c.Status == ContextCandidatePending {
 			n++
 		}
 	}

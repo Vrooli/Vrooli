@@ -79,7 +79,7 @@ func remainingRequiredInputs(sess Session) []string {
 		out = append(out, "Relevant context: accept/add a global item or record a NO_CONTEXT: reason")
 	}
 	if globalContextResolved(sess) && !globalSkillContextResolved(sess) {
-		out = append(out, "Skill context: add at least one global skill context item or record a NO_SKILL_CONTEXT: reason")
+		out = append(out, "Skill context: apply a context discovery batch or record a NO_SKILL_CONTEXT: reason")
 	}
 	if len(sess.PhaseDrafts) == 0 {
 		out = append(out, "Phases: add at least one structured phase")

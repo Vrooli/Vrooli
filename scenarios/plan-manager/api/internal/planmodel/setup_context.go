@@ -81,6 +81,46 @@ func RelevantContextItemFromSetupLine(line string, scope RelevantContextScope, p
 	return item
 }
 
+// RelevantContextSetupLine returns the compact setup line an agent should run
+// or inspect for one context item. It is intentionally idempotent: stored full
+// commands are returned as-is, while bare skill/doc targets are assembled once.
+func RelevantContextSetupLine(item RelevantContextItem) string {
+	if command := RelevantContextCommandLine(item); command != "" {
+		return command
+	}
+	return firstNonEmpty(item.Target, item.Label, item.Instruction)
+}
+
+// RelevantContextCommandLine derives the runnable command for one context item.
+// This is the single assembler for skill/doc/search setup commands.
+func RelevantContextCommandLine(item RelevantContextItem) string {
+	if item.Command != "" {
+		return item.Command
+	}
+	if len(item.Argv) > 0 {
+		return strings.Join(item.Argv, " ")
+	}
+	target := strings.TrimSpace(item.Target)
+	if target == "" {
+		return ""
+	}
+	switch item.Kind {
+	case RelevantContextSkill:
+		if strings.HasPrefix(target, "prompt-manager skill read") {
+			return target
+		}
+		return "prompt-manager skill read " + target
+	case RelevantContextDoc, RelevantContextCodeRef, RelevantContextReqRef:
+		if strings.HasPrefix(target, "sed ") {
+			return target
+		}
+		return "sed -n '1,220p' " + target
+	case RelevantContextSearch:
+		return target
+	}
+	return ""
+}
+
 // HasGlobalContextOrNoContextReason reports whether plan-wide setup has been
 // explicitly addressed by concrete context or by a NO_CONTEXT reason.
 func HasGlobalContextOrNoContextReason(items []RelevantContextItem) bool {

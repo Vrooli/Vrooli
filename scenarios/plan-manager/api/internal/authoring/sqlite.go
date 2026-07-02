@@ -48,7 +48,9 @@ type sessionDocument struct {
 	CurrentPhaseID      string                          `json:"current_phase_id,omitempty"`
 	RelevantContext     []planmodel.RelevantContextItem `json:"relevant_context,omitempty"`
 	ContextCandidates   []ContextCandidate              `json:"context_candidates,omitempty"`
+	DiscoveryBatches    []DiscoveryBatch                `json:"discovery_batches,omitempty"`
 	ReferenceCandidates []ReferenceCandidate            `json:"reference_candidates,omitempty"`
+	ReferenceBatches    []DiscoveryBatch                `json:"reference_batches,omitempty"`
 }
 
 const (
@@ -76,7 +78,9 @@ func (r *sqliteStore) Save(ctx context.Context, s Session) error {
 		CurrentPhaseID:      s.CurrentPhaseID,
 		RelevantContext:     s.RelevantContext,
 		ContextCandidates:   s.ContextCandidates,
+		DiscoveryBatches:    s.DiscoveryBatches,
 		ReferenceCandidates: s.ReferenceCandidates,
+		ReferenceBatches:    s.ReferenceBatches,
 	}
 	raw, err := json.Marshal(doc)
 	if err != nil {
@@ -138,6 +142,8 @@ func scanSession(sc rowScanner) (Session, error) {
 	s.CurrentPhaseID = doc.CurrentPhaseID
 	s.RelevantContext = doc.RelevantContext
 	s.ContextCandidates = doc.ContextCandidates
+	s.DiscoveryBatches = doc.DiscoveryBatches
 	s.ReferenceCandidates = doc.ReferenceCandidates
+	s.ReferenceBatches = doc.ReferenceBatches
 	return s, nil
 }

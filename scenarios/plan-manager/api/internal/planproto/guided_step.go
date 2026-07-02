@@ -18,7 +18,22 @@ func GuidedStepToProto(g planmodel.GuidedStep) *sharedv1.GuidedStep {
 		Examples:       append([]string(nil), g.Examples...),
 		CommonMistakes: append([]string(nil), g.CommonMistakes...),
 		NextActions:    NextActionsToProto(g.NextActions),
+		Checklist:      ChecklistToProto(g.Checklist),
 	}
+}
+
+// ChecklistToProto maps the full-disclosure checklist to the wire shape.
+func ChecklistToProto(items []planmodel.ChecklistItem) []*sharedv1.ChecklistItem {
+	out := make([]*sharedv1.ChecklistItem, 0, len(items))
+	for _, item := range items {
+		out = append(out, &sharedv1.ChecklistItem{
+			Key:    item.Key,
+			Label:  item.Label,
+			State:  string(item.State),
+			Detail: item.Detail,
+		})
+	}
+	return out
 }
 
 // NextActionsToProto maps shared guided-flow actions to proto actions.

@@ -8,6 +8,8 @@ import (
 )
 
 func (s *service) SuggestReferences(ctx context.Context, sessionID string) (Session, []ReferenceCandidate, GuidedStep, error) {
+	// The suggester shells out to search-hub — run it against a pre-lock read so
+	// a slow query never holds the session lock; only the append is locked.
 	sess, err := s.load(ctx, sessionID)
 	if err != nil {
 		return Session{}, nil, GuidedStep{}, err
@@ -22,12 +24,15 @@ func (s *service) SuggestReferences(ctx context.Context, sessionID string) (Sess
 	for i := range candidates {
 		candidates[i] = normalizeReferenceCandidate(candidates[i])
 	}
-	sess.ReferenceCandidates = append(sess.ReferenceCandidates, candidates...)
-	sess.UpdatedAt = s.now()
-	if err := s.store.Save(ctx, sess); err != nil {
+	var batch DiscoveryBatch
+	sess, err = s.withSessionLock(ctx, sessionID, func(sess *Session) (bool, error) {
+		batch = mergeReferenceDiscoveryBatch(sess, candidates)
+		return true, nil
+	})
+	if err != nil {
 		return Session{}, nil, GuidedStep{}, err
 	}
-	return sess, candidates, stepForReferenceCandidates(sess), nil
+	return sess, referenceCandidatesForBatch(sess.ReferenceCandidates, batch.ID), stepForReferenceCandidates(sess), nil
 }
 
 // ListReferenceCandidates returns the session's reference candidates without
@@ -46,17 +51,174 @@ func (s *service) ListReferenceCandidates(ctx context.Context, sessionID string)
 // section for [CODE:]/[DOC:]/[REQ:] locators) passes only on reviewed state. A
 // kind/path mismatch is rejected before the locator enters the section.
 func (s *service) AcceptReferenceCandidate(ctx context.Context, sessionID, candidateID string, edit *planmodel.Reference) (Session, ReferenceCandidate, []StructureViolation, GuidedStep, error) {
-	sess, err := s.load(ctx, sessionID)
+	var (
+		candidate  ReferenceCandidate
+		violations []StructureViolation
+	)
+	sess, err := s.withSessionLock(ctx, sessionID, func(sess *Session) (bool, error) {
+		idx := indexOfReferenceCandidate(sess.ReferenceCandidates, candidateID)
+		if idx < 0 {
+			return false, ErrInvalidSession{Reason: "reference candidate not found: " + candidateID}
+		}
+		var changed bool
+		var acceptErr error
+		candidate, _, violations, changed, acceptErr = acceptReferenceCandidateAt(sess, idx, edit)
+		if acceptErr != nil || len(violations) > 0 {
+			return false, acceptErr
+		}
+		if changed {
+			if batchIdx := indexOfDiscoveryBatch(sess.ReferenceBatches, candidate.BatchID); batchIdx >= 0 {
+				closeReferenceBatchIfResolved(sess, batchIdx, "applied item-by-item")
+			}
+		}
+		return changed, nil
+	})
 	if err != nil {
 		return Session{}, ReferenceCandidate{}, nil, GuidedStep{}, err
 	}
-	idx := indexOfReferenceCandidate(sess.ReferenceCandidates, candidateID)
-	if idx < 0 {
-		return Session{}, ReferenceCandidate{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "reference candidate not found: " + candidateID}
+	if len(violations) > 0 {
+		return sess, candidate, violations, stepForReferenceCandidates(sess), nil
 	}
+	return sess, candidate, nil, stepForCurrentSessionState(sess), nil
+}
+
+// RejectReferenceCandidate records why a suggested reference is not relevant. The
+// rejected candidate stays as an authoring audit trail; it never enters the
+// references section.
+func (s *service) RejectReferenceCandidate(ctx context.Context, sessionID, candidateID, reason string) (Session, ReferenceCandidate, GuidedStep, error) {
+	if strings.TrimSpace(reason) == "" {
+		return Session{}, ReferenceCandidate{}, GuidedStep{}, ErrInvalidSession{Reason: "reference candidate rejection requires a --reason"}
+	}
+	var candidate ReferenceCandidate
+	sess, err := s.withSessionLock(ctx, sessionID, func(sess *Session) (bool, error) {
+		idx := indexOfReferenceCandidate(sess.ReferenceCandidates, candidateID)
+		if idx < 0 {
+			return false, ErrInvalidSession{Reason: "reference candidate not found: " + candidateID}
+		}
+		candidate = rejectReferenceCandidateAt(sess, idx, strings.TrimSpace(reason))
+		if batchIdx := indexOfDiscoveryBatch(sess.ReferenceBatches, candidate.BatchID); batchIdx >= 0 {
+			closeReferenceBatchIfResolved(sess, batchIdx, "applied item-by-item")
+		}
+		return true, nil
+	})
+	if err != nil {
+		return Session{}, ReferenceCandidate{}, GuidedStep{}, err
+	}
+	return sess, candidate, stepForReferenceCandidates(sess), nil
+}
+
+func (s *service) ApplyReferenceDisposition(ctx context.Context, sessionID, batchID string, takes []ReferenceDispositionTake, drops []ReferenceDispositionDrop, sweepNote string, takeAll bool) (Session, ReferenceDispositionSummary, []StructureViolation, GuidedStep, error) {
+	var (
+		summary    ReferenceDispositionSummary
+		violations []StructureViolation
+	)
+	sess, err := s.withSessionLock(ctx, sessionID, func(sess *Session) (bool, error) {
+		batchIdx := targetReferenceBatchIndex(*sess, batchID)
+		if batchIdx < 0 {
+			return false, ErrInvalidSession{Reason: "pending reference discovery batch not found"}
+		}
+		if sess.ReferenceBatches[batchIdx].Status != DiscoveryBatchPending {
+			return false, ErrInvalidSession{Reason: "reference discovery batch is not pending: " + sess.ReferenceBatches[batchIdx].ID}
+		}
+		batch := sess.ReferenceBatches[batchIdx]
+		takeByCandidate := map[int]ReferenceDispositionTake{}
+		dropByCandidate := map[int]ReferenceDispositionDrop{}
+		for _, take := range takes {
+			id := strings.TrimSpace(take.CandidateID)
+			idx := indexOfReferenceCandidate(sess.ReferenceCandidates, id)
+			if idx < 0 || sess.ReferenceCandidates[idx].BatchID != batch.ID || sess.ReferenceCandidates[idx].Status != ReferenceCandidatePending {
+				return false, ErrInvalidSession{Reason: "pending reference candidate not found in batch: " + id}
+			}
+			takeByCandidate[idx] = take
+		}
+		for _, drop := range drops {
+			id := strings.TrimSpace(drop.CandidateID)
+			idx := indexOfReferenceCandidate(sess.ReferenceCandidates, id)
+			if idx < 0 || sess.ReferenceCandidates[idx].BatchID != batch.ID || sess.ReferenceCandidates[idx].Status != ReferenceCandidatePending {
+				return false, ErrInvalidSession{Reason: "pending reference candidate not found in batch: " + id}
+			}
+			if _, exists := takeByCandidate[idx]; exists {
+				return false, ErrInvalidSession{Reason: "reference candidate cannot be both taken and dropped: " + id}
+			}
+			dropByCandidate[idx] = drop
+		}
+
+		changed := false
+		for _, idx := range pendingShortlistReferencesForBatch(sess.ReferenceCandidates, batch.ID) {
+			candidate := sess.ReferenceCandidates[idx]
+			if takeAll {
+				if _, explicitlyDropped := dropByCandidate[idx]; !explicitlyDropped {
+					takeByCandidate[idx] = ReferenceDispositionTake{CandidateID: firstNonEmpty(candidate.Handle, candidate.ID)}
+				}
+			}
+			if _, ok := takeByCandidate[idx]; ok {
+				accepted, ref, itemViolations, itemChanged, err := acceptReferenceCandidateAt(sess, idx, nil)
+				result := ReferenceDispositionResult{
+					Candidate:  accepted,
+					Reference:  ref,
+					Action:     "take",
+					Accepted:   itemChanged && len(itemViolations) == 0 && err == nil,
+					Violations: itemViolations,
+				}
+				if err != nil {
+					result.Message = err.Error()
+				}
+				summary.Results = append(summary.Results, result)
+				if err != nil {
+					return false, err
+				}
+				if len(itemViolations) > 0 {
+					violations = append(violations, itemViolations...)
+					continue
+				}
+				changed = changed || itemChanged
+				continue
+			}
+
+			drop, explicitDrop := dropByCandidate[idx]
+			reason := strings.TrimSpace(drop.Reason)
+			if candidate.HighConfidence && reason == "" {
+				summary.Results = append(summary.Results, ReferenceDispositionResult{
+					Candidate: candidate,
+					Action:    "drop",
+					Message:   "high-confidence reference candidate requires a drop reason",
+				})
+				continue
+			}
+			if reason == "" {
+				if explicitDrop {
+					reason = "dropped by reference-apply"
+				} else {
+					reason = "swept by reference-apply"
+				}
+			}
+			dropped := rejectReferenceCandidateAt(sess, idx, reason)
+			summary.Results = append(summary.Results, ReferenceDispositionResult{
+				Candidate: dropped,
+				Reference: dropped.Reference,
+				Action:    "drop",
+				Accepted:  true,
+				Message:   reason,
+			})
+			changed = true
+		}
+		closeReferenceBatchIfResolved(sess, batchIdx, sweepNote)
+		summary.Batch = sess.ReferenceBatches[batchIdx]
+		return changed || summary.Batch.Status == DiscoveryBatchApplied, nil
+	})
+	if err != nil {
+		return Session{}, ReferenceDispositionSummary{}, nil, GuidedStep{}, err
+	}
+	return sess, summary, violations, stepForCurrentSessionState(sess), nil
+}
+
+func acceptReferenceCandidateAt(sess *Session, idx int, edit *planmodel.Reference) (ReferenceCandidate, planmodel.Reference, []StructureViolation, bool, error) {
 	candidate := sess.ReferenceCandidates[idx]
 	if candidate.Status == ReferenceCandidateRejected {
-		return Session{}, ReferenceCandidate{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "reference candidate was rejected: " + candidateID}
+		return candidate, planmodel.Reference{}, nil, false, ErrInvalidSession{Reason: "reference candidate was rejected: " + firstNonEmpty(candidate.Handle, candidate.ID)}
+	}
+	if candidate.Status == ReferenceCandidateAccepted {
+		return candidate, candidate.Reference, nil, false, nil
 	}
 	ref := candidate.Reference
 	if edit != nil {
@@ -72,42 +234,23 @@ func (s *service) AcceptReferenceCandidate(ctx context.Context, sessionID, candi
 		ref.Kind = planmodel.ReferenceCode
 	}
 	if strings.TrimSpace(ref.Target) == "" {
-		return sess, candidate, []StructureViolation{{SectionKey: SectionReferences, Message: "reference candidate has no target locator"}}, stepForReferenceCandidates(sess), nil
+		return candidate, ref, []StructureViolation{{SectionKey: SectionReferences, Message: "reference candidate has no target locator"}}, false, nil
 	}
 	if msg := referenceKindMismatch(ref.Kind, ref.Target); msg != "" {
-		return sess, candidate, []StructureViolation{{SectionKey: SectionReferences, Message: msg}}, stepForReferenceCandidates(sess), nil
+		return candidate, ref, []StructureViolation{{SectionKey: SectionReferences, Message: msg}}, false, nil
 	}
 	candidate.Reference = ref
 	candidate.Status = ReferenceCandidateAccepted
 	sess.ReferenceCandidates[idx] = candidate
-	appendAcceptedReference(&sess, ref)
+	appendAcceptedReference(sess, ref)
 	sess.CurrentSectionKey = firstUnfilledMandatory(sess.Sections)
-	sess.UpdatedAt = s.now()
-	if err := s.store.Save(ctx, sess); err != nil {
-		return Session{}, ReferenceCandidate{}, nil, GuidedStep{}, err
-	}
-	return sess, candidate, nil, stepForCurrentSessionState(sess), nil
+	return candidate, ref, nil, true, nil
 }
 
-// RejectReferenceCandidate records why a suggested reference is not relevant. The
-// rejected candidate stays as an authoring audit trail; it never enters the
-// references section.
-func (s *service) RejectReferenceCandidate(ctx context.Context, sessionID, candidateID, reason string) (Session, ReferenceCandidate, GuidedStep, error) {
-	sess, err := s.load(ctx, sessionID)
-	if err != nil {
-		return Session{}, ReferenceCandidate{}, GuidedStep{}, err
-	}
-	idx := indexOfReferenceCandidate(sess.ReferenceCandidates, candidateID)
-	if idx < 0 {
-		return Session{}, ReferenceCandidate{}, GuidedStep{}, ErrInvalidSession{Reason: "reference candidate not found: " + candidateID}
-	}
+func rejectReferenceCandidateAt(sess *Session, idx int, reason string) ReferenceCandidate {
 	candidate := sess.ReferenceCandidates[idx]
 	candidate.Status = ReferenceCandidateRejected
 	candidate.RejectionReason = strings.TrimSpace(reason)
 	sess.ReferenceCandidates[idx] = candidate
-	sess.UpdatedAt = s.now()
-	if err := s.store.Save(ctx, sess); err != nil {
-		return Session{}, ReferenceCandidate{}, GuidedStep{}, err
-	}
-	return sess, candidate, stepForReferenceCandidates(sess), nil
+	return candidate
 }

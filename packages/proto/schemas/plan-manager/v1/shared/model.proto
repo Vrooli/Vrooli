@@ -236,6 +236,20 @@ message NextAction {
   repeated string blocked_by = 7;
 }
 
+// ChecklistItem is one requirement in a guided step's full-disclosure
+// checklist: the COMPLETE requirement set for the touched scope with live
+// status, so an agent never has to submit a field just to learn the next one.
+message ChecklistItem {
+  // Stable requirement key, e.g. "steps", "purpose", "phase:2".
+  string key = 1;
+  string label = 2;
+  // Live status: "filled" | "missing" | "violation".
+  string state = 3;
+  // Short qualifier — a parse summary for filled items, the violation message
+  // for violations, or the accepted escape (e.g. "NO_CODE_REFS recorded").
+  string detail = 4;
+}
+
 // GuidedStep is the API-owned steering contract for Plan Manager wizard flows.
 // Authoring, execution, CLI, UI, and future scenario consumers all read this
 // shape instead of re-deriving workflow order.
@@ -248,6 +262,11 @@ message GuidedStep {
   repeated string examples = 6;
   repeated string common_mistakes = 7;
   repeated NextAction next_actions = 8;
+  // Full-disclosure checklist for the touched scope: every requirement (phase
+  // fields for a phase step, mandatory inputs for section/review steps) with
+  // filled/missing/violation status — a superset of required_inputs, which
+  // stays for compatibility.
+  repeated ChecklistItem checklist = 9;
 }
 
 // Reference is one connected-code locator on a plan or phase. AUTHORED (kind +
@@ -530,6 +549,22 @@ message Phase {
   ChangeBoundary change_boundary = 19;
 }
 
+// PlanDecision is one pinned plan-time contract decision (rendered D1..Dn under
+// Approach & Decisions). AUTHORED and optional; distinct from execution-time
+// log decisions, which live in the log ledger.
+message PlanDecision {
+  string title = 1; // short handle, e.g. "Cluster names and order"
+  string statement = 2; // the pinned decision; do not relitigate during execution
+}
+
+// PlanAssumption is one structured assumption with its "if wrong -> then"
+// mitigation, rendered as the Assumptions & Risks table. AUTHORED and optional;
+// prose assumptions without mitigations stay in Plan.assumptions.
+message PlanAssumption {
+  string statement = 1;
+  string mitigation = 2; // what changes if the assumption is wrong
+}
+
 // Plan is the top-level structured record. See docs/concepts/PLAN-MODEL.md for
 // the authored/computed split per field.
 message Plan {
@@ -577,6 +612,12 @@ message Plan {
   string workspace_id = 34;
   // Canonical absolute workspace root used for filesystem-scoped plans.
   string workspace_root = 35;
+  // AUTHORED optional plan-time contract decisions, rendered D1..Dn under
+  // Approach & Decisions (contract decision D3).
+  repeated PlanDecision decisions = 36;
+  // AUTHORED optional structured assumptions with mitigations, rendered as the
+  // Assumptions & Risks table (contract decision D3).
+  repeated PlanAssumption assumption_risks = 37;
 }
 
 // PlanEdge is one supersession/dependency edge between two plans (the plan

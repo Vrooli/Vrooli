@@ -17,6 +17,7 @@ type Service interface {
 	GetSession(ctx context.Context, sessionID string) (Session, GuidedStep, error)
 	GetSection(ctx context.Context, sessionID string, key SectionKey) (Section, GuidedStep, error)
 	SubmitSection(ctx context.Context, sessionID string, key SectionKey, content string) (Session, []StructureViolation, GuidedStep, error)
+	SubmitFields(ctx context.Context, sessionID string, writes []FieldWrite) (Session, []FieldWriteResult, GuidedStep, error)
 	Next(ctx context.Context, sessionID string) (Section, GuidedStep, bool, error)
 	ContinueAuthoring(ctx context.Context, sessionID string) (Session, Section, PhaseDraft, bool, []StructureViolation, GuidedStep, error)
 	ValidateStructure(ctx context.Context, sessionID string) (bool, []StructureViolation, GuidedStep, error)
@@ -25,37 +26,46 @@ type Service interface {
 	ListRelevantContext(ctx context.Context, sessionID, phaseID string) ([]planmodel.RelevantContextItem, GuidedStep, error)
 	UpdateRelevantContextItem(ctx context.Context, sessionID, phaseID, itemID string, item planmodel.RelevantContextItem) (Session, planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error)
 	RemoveRelevantContextItem(ctx context.Context, sessionID, phaseID, itemID string) (Session, []StructureViolation, GuidedStep, error)
-	DiscoverContextCandidates(ctx context.Context, sessionID string, concepts []string, complexity string) (Session, []ContextCandidate, GuidedStep, error)
+	DiscoverContextCandidates(ctx context.Context, sessionID string, concepts []string, complexity string, refresh bool) (Session, []ContextCandidate, GuidedStep, error)
+	ApplyContextDisposition(ctx context.Context, sessionID, batchID string, takes []ContextDispositionTake, drops []ContextDispositionDrop, sweepNote string, takeAll bool) (Session, ContextDispositionSummary, []StructureViolation, GuidedStep, error)
 	AcceptContextCandidate(ctx context.Context, sessionID, candidateID, phaseID string) (Session, ContextCandidate, planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error)
 	RejectContextCandidate(ctx context.Context, sessionID, candidateID, reason string) (Session, ContextCandidate, GuidedStep, error)
 	SuggestReferences(ctx context.Context, sessionID string) (Session, []ReferenceCandidate, GuidedStep, error)
 	ListReferenceCandidates(ctx context.Context, sessionID string) ([]ReferenceCandidate, GuidedStep, error)
 	AcceptReferenceCandidate(ctx context.Context, sessionID, candidateID string, edit *planmodel.Reference) (Session, ReferenceCandidate, []StructureViolation, GuidedStep, error)
 	RejectReferenceCandidate(ctx context.Context, sessionID, candidateID, reason string) (Session, ReferenceCandidate, GuidedStep, error)
+	ApplyReferenceDisposition(ctx context.Context, sessionID, batchID string, takes []ReferenceDispositionTake, drops []ReferenceDispositionDrop, sweepNote string, takeAll bool) (Session, ReferenceDispositionSummary, []StructureViolation, GuidedStep, error)
 	AddPhase(ctx context.Context, sessionID string, title, intent string) (Session, PhaseDraft, []StructureViolation, GuidedStep, error)
 	MovePhase(ctx context.Context, sessionID, phaseID, beforePhaseID, afterPhaseID string) (Session, PhaseDraft, []StructureViolation, GuidedStep, error)
 	GetPhase(ctx context.Context, sessionID, phaseID string) (PhaseDraft, GuidedStep, error)
 	SubmitPhaseField(ctx context.Context, sessionID, phaseID string, field PhaseField, content string) (Session, []StructureViolation, GuidedStep, error)
 	NextPhase(ctx context.Context, sessionID string) (PhaseDraft, GuidedStep, bool, error)
 	PreviewPlan(ctx context.Context, sessionID string) (string, GuidedStep, error)
-	Finalize(ctx context.Context, sessionID string) (planmodel.Plan, GuidedStep, error)
+	Finalize(ctx context.Context, sessionID string, opts FinalizeOptions) (FinalizeResult, GuidedStep, error)
 }
 
 type service struct {
-	store        SessionStore
-	writer       PlanWriter
-	reader       PlanReader
-	anchor       AnchorIntentDeriver
-	suggester    ReferenceSuggester
-	context      ContextDiscoverer
-	skillSteer   SkillApplicabilityResolver
-	commands     CommandReferenceValidator
-	templateSeed TemplateSeeder
-	renderer     PlanRenderer
-	posture      PosturePreparer
-	clock        clock.Clock
-	lockMu       sync.Mutex
-	sessionLocks map[string]*sync.Mutex
+	store           SessionStore
+	writer          PlanWriter
+	reader          PlanReader
+	anchor          AnchorIntentDeriver
+	suggester       ReferenceSuggester
+	context         ContextDiscoverer
+	skillSteer      SkillApplicabilityResolver
+	commands        CommandReferenceValidator
+	templateSeed    TemplateSeeder
+	renderer        PlanRenderer
+	posture         PosturePreparer
+	storePath       string
+	clock           clock.Clock
+	lockMu          sync.Mutex
+	sessionLocks    map[string]*sync.Mutex
+	lifecycleCtx    context.Context
+	lifecycleCancel context.CancelFunc
+	prefetchWG      sync.WaitGroup
+	prefetchMu      sync.Mutex
+	prefetchDone    map[string]chan struct{}
+	prefetchEnabled bool
 }
 
 // PosturePreparer stamps the derived work posture onto a draft plan before
@@ -84,7 +94,17 @@ type Deps struct {
 	TemplateSeeder TemplateSeeder
 	Renderer       PlanRenderer
 	Posture        PosturePreparer
-	Clock          clock.Clock
+	// DisableContextPrefetch is for deterministic tests and special embedders.
+	// Production leaves this false so StartSession warms the context-discovery
+	// batch in the background.
+	DisableContextPrefetch bool
+	// StorePath is the resolved physical path of the plans SQLite store this
+	// process writes through. Finalize reports it so a successful response
+	// names WHERE the plan row lives (store identity, not just an id). Empty
+	// (tests, unwired callers) degrades to "unknown" in the response — never a
+	// fabricated path.
+	StorePath string
+	Clock     clock.Clock
 }
 
 // TemplateSeeder pre-scaffolds the section skeleton from a template id. Optional;
@@ -100,20 +120,26 @@ func NewService(d Deps) Service {
 	if clk == nil {
 		clk = clock.System{}
 	}
+	lifecycleCtx, lifecycleCancel := context.WithCancel(context.Background())
 	return &service{
-		store:        d.Store,
-		writer:       d.Writer,
-		reader:       d.Reader,
-		anchor:       d.Anchor,
-		suggester:    d.Suggester,
-		context:      d.Context,
-		skillSteer:   resolverOrNoop(d.SkillResolver),
-		commands:     d.Commands,
-		templateSeed: d.TemplateSeeder,
-		renderer:     d.Renderer,
-		posture:      d.Posture,
-		clock:        clk,
-		sessionLocks: map[string]*sync.Mutex{},
+		store:           d.Store,
+		writer:          d.Writer,
+		reader:          d.Reader,
+		anchor:          d.Anchor,
+		suggester:       d.Suggester,
+		context:         d.Context,
+		skillSteer:      resolverOrNoop(d.SkillResolver),
+		commands:        d.Commands,
+		templateSeed:    d.TemplateSeeder,
+		renderer:        d.Renderer,
+		posture:         d.Posture,
+		storePath:       strings.TrimSpace(d.StorePath),
+		clock:           clk,
+		sessionLocks:    map[string]*sync.Mutex{},
+		lifecycleCtx:    lifecycleCtx,
+		lifecycleCancel: lifecycleCancel,
+		prefetchDone:    map[string]chan struct{}{},
+		prefetchEnabled: !d.DisableContextPrefetch,
 	}
 }
 
@@ -148,7 +174,75 @@ func (s *service) StartSession(ctx context.Context, title, slug, templateID stri
 	if err := s.store.Save(ctx, sess); err != nil {
 		return Session{}, GuidedStep{}, err
 	}
+	s.prefetchContextDiscovery(sess.ID)
 	return sess, stepForSession(sess), nil
+}
+
+func (s *service) prefetchContextDiscovery(sessionID string) {
+	if !s.prefetchEnabled || s.context == nil {
+		return
+	}
+	done := make(chan struct{})
+	s.prefetchMu.Lock()
+	s.prefetchDone[sessionID] = done
+	s.prefetchMu.Unlock()
+	s.prefetchWG.Add(1)
+	go func() {
+		defer s.prefetchWG.Done()
+		defer func() {
+			s.prefetchMu.Lock()
+			if s.prefetchDone[sessionID] == done {
+				delete(s.prefetchDone, sessionID)
+			}
+			close(done)
+			s.prefetchMu.Unlock()
+		}()
+		ctx, cancel := context.WithCancel(s.lifecycleCtx)
+		defer cancel()
+		sess, err := s.load(ctx, sessionID)
+		if err != nil {
+			return
+		}
+		result, err := s.context.DiscoverContext(ctx, sess.Title, nil, "")
+		if err != nil {
+			return
+		}
+		for _, suggestion := range s.skillSteer.SuggestSkills(ctx, sessionBoundary(sess)) {
+			if candidate, ok := steeredSkillCandidate(suggestion); ok {
+				result.Candidates = append(result.Candidates, candidate)
+			}
+		}
+		for i := range result.Candidates {
+			result.Candidates[i] = normalizeContextCandidate(result.Candidates[i])
+		}
+		_, _ = s.withSessionLock(ctx, sessionID, func(sess *Session) (bool, error) {
+			if _, ok := latestPendingDiscoveryBatch(*sess); ok {
+				return false, nil
+			}
+			mergeContextDiscoveryBatchWithSource(sess, nil, "", result, "prefetch")
+			return true, nil
+		})
+	}()
+}
+
+func (s *service) pendingContextPrefetch(sessionID string) <-chan struct{} {
+	s.prefetchMu.Lock()
+	defer s.prefetchMu.Unlock()
+	return s.prefetchDone[sessionID]
+}
+
+// WaitForContextPrefetch is a test hook for the asynchronous author-start
+// prefetch worker. It is intentionally not part of the public Service interface.
+func (s *service) WaitForContextPrefetch() {
+	s.prefetchWG.Wait()
+}
+
+// CancelContextPrefetch is a test/shutdown hook for background discovery.
+func (s *service) CancelContextPrefetch() {
+	if s.lifecycleCancel != nil {
+		s.lifecycleCancel()
+	}
+	s.prefetchWG.Wait()
 }
 
 // GetSession is the explicit full-state read. Mutations return only focused
@@ -175,25 +269,32 @@ func (s *service) GetSection(ctx context.Context, sessionID string, key SectionK
 }
 
 func (s *service) SubmitSection(ctx context.Context, sessionID string, key SectionKey, content string) (Session, []StructureViolation, GuidedStep, error) {
-	sess, err := s.load(ctx, sessionID)
+	var violations []StructureViolation
+	sess, err := s.withSessionLock(ctx, sessionID, func(sess *Session) (bool, error) {
+		idx := indexOf(sess.Sections, key)
+		if idx < 0 {
+			return false, ErrSectionNotFound{SessionID: sessionID, SectionKey: string(key)}
+		}
+		violations = s.applySection(ctx, sess, idx, content)
+		return true, nil
+	})
 	if err != nil {
 		return Session{}, nil, GuidedStep{}, err
 	}
-	idx := indexOf(sess.Sections, key)
-	if idx < 0 {
-		return Session{}, nil, GuidedStep{}, ErrSectionNotFound{SessionID: sessionID, SectionKey: string(key)}
-	}
+	return sess, violations, stepForCurrentSessionState(sess), nil
+}
+
+// applySection writes one section's content in place and returns its
+// violations. Shared by SubmitSection and the batch SubmitFields path so both
+// apply identical semantics.
+func (s *service) applySection(ctx context.Context, sess *Session, idx int, content string) []StructureViolation {
 	sess.Sections[idx].Content = content
 	sess.Sections[idx].Filled = strings.TrimSpace(content) != ""
 	sess.Sections[idx].Autofilled = false // an author submission supersedes any autofill
 	violations := violationsForSection(sess.Sections[idx])
 	violations = append(violations, s.commandViolationsForSection(ctx, sess.Sections[idx])...)
 	sess.CurrentSectionKey = firstUnfilledMandatory(sess.Sections)
-	sess.UpdatedAt = s.now()
-	if err := s.store.Save(ctx, sess); err != nil {
-		return Session{}, nil, GuidedStep{}, err
-	}
-	return sess, violations, stepForCurrentSessionState(sess), nil
+	return violations
 }
 
 func (s *service) Next(ctx context.Context, sessionID string) (Section, GuidedStep, bool, error) {
@@ -235,20 +336,19 @@ func (s *service) ValidateStructure(ctx context.Context, sessionID string) (bool
 }
 
 func (s *service) Autofill(ctx context.Context, sessionID string, sources []AutofillSource) (Session, []AutofillResult, GuidedStep, error) {
-	sess, err := s.load(ctx, sessionID)
-	if err != nil {
-		return Session{}, nil, GuidedStep{}, err
-	}
 	if len(sources) == 0 {
 		sources = []AutofillSource{AutofillRegressionAnchor}
 	}
-	results := make([]AutofillResult, 0, len(sources))
-	for _, src := range sources {
-		results = append(results, s.runAutofill(ctx, &sess, src))
-	}
-	sess.CurrentSectionKey = firstUnfilledMandatory(sess.Sections)
-	sess.UpdatedAt = s.now()
-	if err := s.store.Save(ctx, sess); err != nil {
+	var results []AutofillResult
+	sess, err := s.withSessionLock(ctx, sessionID, func(sess *Session) (bool, error) {
+		results = make([]AutofillResult, 0, len(sources))
+		for _, src := range sources {
+			results = append(results, s.runAutofill(ctx, sess, src))
+		}
+		sess.CurrentSectionKey = firstUnfilledMandatory(sess.Sections)
+		return true, nil
+	})
+	if err != nil {
 		return Session{}, nil, GuidedStep{}, err
 	}
 	return sess, results, stepForCurrentSessionState(sess), nil

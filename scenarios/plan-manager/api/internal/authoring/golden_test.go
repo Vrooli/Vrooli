@@ -116,7 +116,7 @@ func TestGoldenAuthoringWizardHardening(t *testing.T) {
 	// run discovery for the decomposed concepts and disposition every candidate
 	// (here: discovery is unwired, so each probe degrades to a typed note that
 	// still requires an explicit decision).
-	_, sweepCandidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"plan-manager execution logging"}, "moderate")
+	_, sweepCandidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"plan-manager execution logging"}, "moderate", false)
 	require.NoError(t, err)
 	for _, c := range sweepCandidates {
 		_, _, _, err := svc.RejectContextCandidate(ctx, sess.ID, c.ID, "reviewed: no additional setup beyond the submitted items")
@@ -169,7 +169,8 @@ func TestGoldenAuthoringWizardHardening(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, preview, "Unify the ledger")
 
-	plan, _, err := svc.Finalize(ctx, sess.ID)
+	result, _, err := svc.Finalize(ctx, sess.ID, authoring.FinalizeOptions{})
+	plan := result.Plan
 	require.NoError(t, err)
 	require.Equal(t, 1, writer.calls)
 	require.Len(t, plan.Phases, 1)

@@ -70,7 +70,7 @@ type ReferenceSuggester interface {
 // concepts. It discovers candidates only; acceptance remains an authoring
 // decision in the Service.
 type ContextDiscoverer interface {
-	DiscoverContext(ctx context.Context, title string, concepts []string, complexity string) ([]ContextCandidate, error)
+	DiscoverContext(ctx context.Context, title string, concepts []string, complexity string) (ContextDiscoveryResult, error)
 }
 
 // CommandRunner is the exec seam shared by the production discovery sources (the
@@ -287,8 +287,9 @@ func firstRequirementID(values ...string) string {
 // into reviewable candidates. The agent supplies concepts and judgment; the
 // code runs the probes (contract decision D5).
 type cmdContextDiscoverer struct {
-	run     CommandRunner
-	timeout time.Duration
+	run           CommandRunner
+	timeout       time.Duration
+	maxConcurrent int
 }
 
 // NewCommandContextDiscoverer wires the production ContextDiscoverer over the
@@ -301,10 +302,14 @@ func NewCommandContextDiscoverer(run CommandRunner) ContextDiscoverer {
 // NewCommandContextDiscovererWithTimeout wires the production ContextDiscoverer
 // with an explicit per-probe timeout (D5: default 20s, configurable).
 func NewCommandContextDiscovererWithTimeout(run CommandRunner, timeout time.Duration) ContextDiscoverer {
-	return cmdContextDiscoverer{run: run, timeout: timeout}
+	return NewCommandContextDiscovererWithOptions(run, timeout, 0)
 }
 
-func (d cmdContextDiscoverer) DiscoverContext(ctx context.Context, title string, concepts []string, complexity string) ([]ContextCandidate, error) {
+func NewCommandContextDiscovererWithOptions(run CommandRunner, timeout time.Duration, maxConcurrent int) ContextDiscoverer {
+	return cmdContextDiscoverer{run: run, timeout: timeout, maxConcurrent: maxConcurrent}
+}
+
+func (d cmdContextDiscoverer) DiscoverContext(ctx context.Context, title string, concepts []string, complexity string) (ContextDiscoveryResult, error) {
 	cleaned := make([]string, 0, len(concepts))
 	for _, concept := range concepts {
 		if concept = strings.TrimSpace(concept); concept != "" {
@@ -313,52 +318,63 @@ func (d cmdContextDiscoverer) DiscoverContext(ctx context.Context, title string,
 	}
 	if len(cleaned) == 0 {
 		if title = strings.TrimSpace(title); title == "" {
-			return nil, fmt.Errorf("no non-empty context concepts supplied")
+			return ContextDiscoveryResult{}, fmt.Errorf("no non-empty context concepts supplied")
 		}
 		cleaned = []string{title}
 	}
-	outcomes := probes.Discover(ctx, probes.Runner(d.run), cleaned, complexity, probes.Options{Timeout: d.timeout})
+	outcomes := probes.Discover(ctx, probes.Runner(d.run), cleaned, complexity, probes.Options{Timeout: d.timeout, MaxConcurrent: d.maxConcurrent})
 	return candidatesFromProbeOutcomes(outcomes), nil
 }
 
-// candidatesFromProbeOutcomes converts probe outcomes to reviewable candidates:
-// deterministic merge, deduplicated by (kind, target-or-command) keeping the
-// best-scored occurrence, provenance (probe, score) preserved on each
-// candidate, and one typed degraded note per failed probe. The step always
-// returns a usable (possibly empty + noted) result.
-func candidatesFromProbeOutcomes(outcomes []probes.Outcome) []ContextCandidate {
+// candidatesFromProbeOutcomes converts probe outcomes to reviewable candidates
+// plus batch-level probe notes: deterministic merge, deduplicated by (kind,
+// target-or-command) keeping the best-scored occurrence, provenance preserved,
+// and degraded probes surfaced as metadata instead of work items.
+func candidatesFromProbeOutcomes(outcomes []probes.Outcome) ContextDiscoveryResult {
 	var out []ContextCandidate
+	var notes []ProbeNote
 	bestByKey := map[string]int{}
 	for _, outcome := range outcomes {
 		if outcome.Degraded {
-			out = append(out, degradedProbeCandidate(outcome))
+			notes = append(notes, ProbeNote{
+				Probe:    strings.TrimSpace(outcome.Probe),
+				Concept:  strings.TrimSpace(outcome.Concept),
+				Degraded: true,
+				Detail:   strings.TrimSpace(outcome.Detail),
+			})
 			continue
 		}
 		for _, discovered := range outcome.Items {
 			key := contextDedupeKey(discovered.Item)
 			candidate := ContextCandidate{
-				ID:      uuid.NewString(),
-				Item:    discovered.Item,
-				Concept: outcome.Concept,
-				Source:  outcome.Probe,
-				Detail:  fmt.Sprintf("%s score %.3f", outcome.Probe, discovered.Score),
-				Status:  ContextCandidatePending,
+				ID:        uuid.NewString(),
+				Item:      discovered.Item,
+				Concept:   outcome.Concept,
+				Source:    outcome.Probe,
+				Score:     discovered.Score,
+				Origin:    discovered.Origin,
+				SizeChars: discovered.SizeChars,
+				Tags:      append([]string(nil), discovered.Tags...),
+				Title:     discovered.Title,
+				Snippet:   discovered.Snippet,
+				Corroboration: []ProbeHit{{
+					Probe:   outcome.Probe,
+					Concept: outcome.Concept,
+					Score:   discovered.Score,
+				}},
+				Detail: fmt.Sprintf("%s score %.3f", outcome.Probe, discovered.Score),
+				Status: ContextCandidatePending,
 			}
 			candidate.Item.ID = uuid.NewString()
 			if pos, seen := bestByKey[key]; seen {
-				if probeCandidateScore(out[pos].Detail) < discovered.Score {
-					candidate.Detail += "; also: " + out[pos].Detail
-					out[pos] = candidate
-				} else {
-					out[pos].Detail += "; also: " + candidate.Detail
-				}
+				out[pos] = mergeContextCandidate(out[pos], candidate)
 				continue
 			}
 			bestByKey[key] = len(out)
 			out = append(out, candidate)
 		}
 	}
-	return out
+	return ContextDiscoveryResult{Candidates: out, ProbeNotes: notes}
 }
 
 // contextDedupeKey identifies one discovered setup target across probes.
@@ -370,47 +386,15 @@ func contextDedupeKey(item planmodel.RelevantContextItem) string {
 	return string(item.Kind) + "\x00" + target
 }
 
-// probeCandidateScore recovers the score from a candidate's provenance detail
-// ("<probe> score <s>"); 0 when absent.
-func probeCandidateScore(detail string) float64 {
-	idx := strings.LastIndex(detail, " score ")
-	if idx < 0 {
-		return 0
+func mergeContextCandidate(existing ContextCandidate, incoming ContextCandidate) ContextCandidate {
+	existing.Corroboration = append(existing.Corroboration, incoming.Corroboration...)
+	if incoming.Score > existing.Score {
+		incoming.Corroboration = existing.Corroboration
+		incoming.Detail = incoming.Detail + "; also: " + existing.Detail
+		return incoming
 	}
-	rest := detail[idx+len(" score "):]
-	if end := strings.IndexAny(rest, "; "); end >= 0 {
-		rest = rest[:end]
-	}
-	var score float64
-	_, _ = fmt.Sscanf(rest, "%f", &score)
-	return score
-}
-
-// degradedProbeCandidate is the typed per-probe degradation note (D5): the
-// probe that failed, why, and what to run manually — never a silent drop and
-// never a fabricated result.
-func degradedProbeCandidate(outcome probes.Outcome) ContextCandidate {
-	label := fmt.Sprintf("Context discovery degraded: %s (%s)", outcome.Probe, outcome.Concept)
-	return ContextCandidate{
-		ID: uuid.NewString(),
-		Item: planmodel.RelevantContextItem{
-			ID:           uuid.NewString(),
-			Kind:         planmodel.RelevantContextNote,
-			Scope:        planmodel.RelevantContextScopeGlobal,
-			Label:        label,
-			Reason:       outcome.Detail,
-			Instruction:  "This probe could not run; re-run discovery when the dependency is healthy, or run it manually for this concept.",
-			Required:     false,
-			RepeatPolicy: planmodel.RelevantContextAsNeeded,
-			Source:       planmodel.RelevantContextSourceDiscovered,
-			Status:       planmodel.RelevantContextStatusDegraded,
-		},
-		Concept:  outcome.Concept,
-		Source:   outcome.Probe,
-		Degraded: true,
-		Detail:   outcome.Detail,
-		Status:   ContextCandidatePending,
-	}
+	existing.Detail += "; also: " + incoming.Detail
+	return existing
 }
 
 // SkillSuggestion is one steered skill candidate from the applicability

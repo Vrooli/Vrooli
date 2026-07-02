@@ -23,6 +23,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"AuthoringService.GetSession":                h.getSession,
 		"AuthoringService.GetSection":                h.sectionGet,
 		"AuthoringService.SubmitSection":             h.sectionSubmit,
+		"AuthoringService.SubmitFields":              h.submit,
 		"AuthoringService.Next":                      h.next,
 		"AuthoringService.ContinueAuthoring":         h.continueAuthoring,
 		"AuthoringService.ValidateStructure":         h.validate,
@@ -34,10 +35,12 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"AuthoringService.DiscoverContextCandidates": h.contextDiscover,
 		"AuthoringService.AcceptContextCandidate":    h.contextAccept,
 		"AuthoringService.RejectContextCandidate":    h.contextReject,
+		"AuthoringService.ApplyContextDisposition":   h.contextApply,
 		"AuthoringService.SuggestReferences":         h.suggestReferences,
 		"AuthoringService.ListReferenceCandidates":   h.referenceCandidates,
 		"AuthoringService.AcceptReferenceCandidate":  h.referenceAccept,
 		"AuthoringService.RejectReferenceCandidate":  h.referenceReject,
+		"AuthoringService.ApplyReferenceDisposition": h.referenceApply,
 		"AuthoringService.AddPhase":                  h.phaseAdd,
 		"AuthoringService.MovePhase":                 h.phaseMove,
 		"AuthoringService.GetPhase":                  h.phaseGet,
@@ -48,6 +51,14 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("authoring: load author group: %w", err)
+	}
+	// `author status` is the alias agents guess for "show me the session" —
+	// wire it explicitly to preview (the manifest schema binds each RPC once,
+	// so the alias lives here rather than as a second manifest command).
+	for i := range group.Subcommands {
+		if group.Subcommands[i].Name == "preview" {
+			group.Subcommands[i].Aliases = append(group.Subcommands[i].Aliases, "status")
+		}
 	}
 	return group, nil
 }

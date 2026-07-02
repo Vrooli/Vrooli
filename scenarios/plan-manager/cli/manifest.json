@@ -917,6 +917,39 @@
           }
         },
         {
+          "name": "submit",
+          "description": "Batch-submit sections and phase fields in ONE call: repeated --set <section_key>=<content> and/or --set <phase-ref>.<field>=<content>. Per-item accepted/rejected results; for an already-written plan document use `plans import`",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id or readable alias"
+            }
+          ],
+          "flags": [
+            {
+              "name": "set",
+              "description": "Repeated <key>=<content> pair; key is a section key or <phase-ref>.<field>"
+            },
+            {
+              "name": "set-file",
+              "description": "Repeated <key>=<path> pair (path may be @-prefixed); the file's contents become the field content \u2014 for long content"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "SubmitFields"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "next",
           "description": "Return the next section that still needs author input",
           "positionals": [
@@ -1135,6 +1168,52 @@
             "kind": "connect-rpc",
             "service": "AuthoringService",
             "method": "RejectReferenceCandidate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reference-apply",
+          "description": "Apply a curated reference discovery batch in one call: take selected handles and sweep the rest",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "batch",
+              "description": "Reference discovery batch id; defaults to the latest pending batch"
+            },
+            {
+              "name": "take",
+              "description": "Comma-separated reference handles/ids to accept (e.g. --take r1,r3)"
+            },
+            {
+              "name": "drop",
+              "description": "Comma-separated reference handles/ids to reject with optional reason as handle=reason."
+            },
+            {
+              "name": "note",
+              "description": "Batch-level sweep note"
+            },
+            {
+              "name": "take-all",
+              "description": "Accept every non-dropped shortlist candidate",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "ApplyReferenceDisposition"
           },
           "governance": {
             "effect": "write",
@@ -1372,6 +1451,11 @@
             {
               "name": "complexity",
               "description": "Optional prompt-manager skill discovery complexity, e.g. architectural"
+            },
+            {
+              "name": "refresh",
+              "description": "Force a fresh discovery even when a prefetched batch is available",
+              "bool": true
             }
           ],
           "binding": {
@@ -1456,6 +1540,52 @@
           }
         },
         {
+          "name": "context-apply",
+          "description": "Apply a context discovery batch in one call by taking selected handles and sweeping the rest",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "batch",
+              "description": "Discovery batch id; omitted uses the latest pending batch"
+            },
+            {
+              "name": "take",
+              "description": "Comma-separated candidate handles/ids to accept. Use handle:phase-id for phase-scoped context."
+            },
+            {
+              "name": "drop",
+              "description": "Comma-separated candidate handles/ids to drop with optional reason as handle=reason."
+            },
+            {
+              "name": "note",
+              "description": "Batch-level sweep note"
+            },
+            {
+              "name": "take-all",
+              "description": "Accept every pending shortlist item except explicit drops",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "ApplyContextDisposition"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "phase-add",
           "description": "Append one structured phase draft to an authoring session",
           "positionals": [
@@ -1474,6 +1604,14 @@
             {
               "name": "intent",
               "description": "Phase intent"
+            },
+            {
+              "name": "set",
+              "description": "Optional repeated <field>=<content> pair applied to the new phase in one batch call, so add+fill is one command"
+            },
+            {
+              "name": "set-file",
+              "description": "Repeated <key>=<path> pair (path may be @-prefixed); the file's contents become the field content \u2014 for long content"
             }
           ],
           "binding": {
@@ -1557,7 +1695,7 @@
         },
         {
           "name": "phase-submit",
-          "description": "Submit one structured phase field and re-validate the phase",
+          "description": "Submit one or many structured phase fields (batch via repeated --set) and re-validate the phase",
           "positionals": [
             {
               "name": "session",
@@ -1573,13 +1711,19 @@
           "flags": [
             {
               "name": "field",
-              "required": true,
-              "description": "Phase field: title, intent, affected_areas, references, steps, expected_outputs, validation, acceptance, risks_hazards, handoff_notes, relevant_context, reminders, no_code_refs_reason. required_reading is accepted only as legacy migration input."
+              "description": "Phase field: title, intent, affected_areas, references, steps, expected_outputs, validation, acceptance, risks_hazards, handoff_notes, relevant_context, reminders, no_code_refs_reason. required_reading is accepted only as legacy migration input. Optional when using --set pairs"
             },
             {
               "name": "content",
-              "required": true,
-              "description": "Field content"
+              "description": "Field content (single-field form; use --set for batches)"
+            },
+            {
+              "name": "set",
+              "description": "Repeated <key>=<content> pair; on phase commands the key is a phase field name. Batched into ONE SubmitFields call with per-item results"
+            },
+            {
+              "name": "set-file",
+              "description": "Repeated <key>=<path> pair (path may be @-prefixed); the file's contents become the field content \u2014 for long content"
             }
           ],
           "binding": {
@@ -1656,6 +1800,10 @@
               "name": "full",
               "description": "Show full plan details in human output",
               "bool": true
+            },
+            {
+              "name": "workspace",
+              "description": "Workspace root to stamp on the produced plan (default: the resolved repo root) so workspace-scoped `plans get/list` resolve it"
             }
           ],
           "binding": {

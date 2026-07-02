@@ -88,6 +88,16 @@ func sqliteDSN() (string, error) {
 	return sqliteFileDSN(path)
 }
 
+// sqlitePathFromDSN recovers the physical file path from a sqlite DSN so
+// finalize can report the store identity it wrote to.
+func sqlitePathFromDSN(dsn string) string {
+	path := strings.TrimPrefix(dsn, "file:")
+	if i := strings.IndexByte(path, '?'); i >= 0 {
+		path = path[:i]
+	}
+	return path
+}
+
 func sqliteFileDSN(path string) (string, error) {
 	if strings.HasPrefix(path, "file:") {
 		return path, nil
@@ -132,7 +142,7 @@ func main() {
 		healthH.Module(db, "plan-manager-api", "1.0.0"),
 		plansH.Module(db, clock.System{}, log.Default()),
 		validationH.Module(db, clock.System{}, log.Default()),
-		authoringH.Module(db, clock.System{}, log.Default()),
+		authoringH.Module(db, clock.System{}, log.Default(), sqlitePathFromDSN(dsn)),
 		executionH.Module(db, clock.System{}, log.Default()),
 		planlogH.Module(db, clock.System{}, log.Default(), newPlanLogResolver(db, clock.System{})),
 	)

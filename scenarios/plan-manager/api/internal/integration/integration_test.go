@@ -345,7 +345,8 @@ func TestCrossDomainAuthorToExecuteToHandoff(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, valid, "structure gate should pass once all mandatory sections are filled; violations=%v", violations)
 
-	plan, _, err := authoringSvc.Finalize(ctx, session.ID)
+	finalizeResult, _, err := authoringSvc.Finalize(ctx, session.ID, internalauthoring.FinalizeOptions{})
+	plan := finalizeResult.Plan
 	require.NoError(t, err)
 	require.NotEmpty(t, plan.ID)
 	require.NotEmpty(t, plan.Phases, "phases section parsed into structured phases")
@@ -497,7 +498,7 @@ func TestSmallAgentContinueLoopsAuthorAndExecute(t *testing.T) {
 			require.NoError(t, err)
 			require.Empty(t, violations)
 			var sweep []internalauthoring.ContextCandidate
-			session, sweep, _, err = authoringSvc.DiscoverContextCandidates(ctx, session.ID, []string{"guided authoring loop"}, "moderate")
+			session, sweep, _, err = authoringSvc.DiscoverContextCandidates(ctx, session.ID, []string{"guided authoring loop"}, "moderate", false)
 			require.NoError(t, err)
 			for _, c := range sweep {
 				session, _, _, err = authoringSvc.RejectContextCandidate(ctx, session.ID, c.ID, "reviewed: submitted steer skill covers plan-wide setup")
@@ -550,7 +551,8 @@ func TestSmallAgentContinueLoopsAuthorAndExecute(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, valid, "continue should only reach final review after structure is valid: %v", violations)
 			require.Equal(t, "finalize-session", step.NextActions[0].ID)
-			finalized, step, err = authoringSvc.Finalize(ctx, session.ID)
+			finalizedResult, fstep, ferr2 := authoringSvc.Finalize(ctx, session.ID, internalauthoring.FinalizeOptions{})
+			finalized, step, err = finalizedResult.Plan, fstep, ferr2
 			require.NoError(t, err)
 			require.Equal(t, "finalized", step.StepKind)
 		default:

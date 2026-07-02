@@ -514,6 +514,11 @@ func (s *service) uniqueSlug(ctx context.Context, slug, title string, workspace 
 	if base == "" {
 		base = "plan"
 	}
+	// Cap DERIVED slugs at a typeable length (word-boundary truncation); the
+	// collision suffix below may exceed it by its own length only. The cap is
+	// derivation-time only — stored long slugs keep resolving and keep their
+	// mirror paths (slugify itself is uncapped).
+	base = planmodel.TruncateSlug(base, planmodel.MaxSlugLength)
 	candidate := base
 	for i := 2; ; i++ {
 		ok, err := s.slugExistsInWorkspace(ctx, candidate, workspace)

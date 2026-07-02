@@ -39,3 +39,13 @@ func TestShellQuote(t *testing.T) {
 	require.Equal(t, "'needs review'", ShellQuote("needs review"))
 	require.Equal(t, "'it'\\''s'", ShellQuote("it's"))
 }
+
+func TestChecklistLine(t *testing.T) {
+	require.Empty(t, ChecklistLine(nil))
+	line := ChecklistLine([]*sharedv1.ChecklistItem{
+		{Key: "steps", State: "filled", Detail: "2 step(s)"},
+		{Key: "validation", State: "violation", Detail: "duplicates acceptance"},
+		{Key: "relevant_context", State: "missing"},
+	})
+	require.Equal(t, "Checklist: ✔ steps · ✖ validation (duplicates acceptance) · – relevant_context", line)
+}

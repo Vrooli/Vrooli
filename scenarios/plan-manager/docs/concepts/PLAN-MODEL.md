@@ -182,6 +182,41 @@ checkpoint is computed from the log ledger, not authored onto the phase.
 **Resume point** = the earliest phase whose `status` is not `done`. Full vs.
 partial completion is derived from the phase-status set — never narrated.
 
+## Authoring Interaction Contract — Form, Not Wizard
+
+The authoring session is a **form with a derived cursor, not a wizard with
+state**. The write layer is order-free: any section or phase field may be
+submitted at any time, and the "current" position is always derived
+(`firstUnfilledMandatory` / `nextIncompletePhaseID`), never stored as a stage.
+
+- **Full disclosure.** Every guided step carries a `checklist` — the complete
+  requirement set for the touched scope (all 7 phase fields on a phase step;
+  the session-wide mandatory/gate map on section and review steps) with live
+  `filled`/`missing`/`violation` status. No requirement is ever revealed only
+  after submitting the previous one.
+- **Batch granularity.** `SubmitFields` carries one field, a whole phase, or
+  the whole plan in one call under one session lock and one save. Items apply
+  independently (never all-or-nothing); each returns accepted/rejected +
+  violations + a one-line parse summary. The single-field RPCs
+  (`SubmitSection`, `SubmitPhaseField`) are wrappers over the same apply path.
+- **No stage gating.** Quality enforcement stays at field-level validators
+  (acceptance ≠ validation, reference-kind routing, `NO_CONTEXT:` reasons,
+  boundary globs) and the `validate`/`finalize` structure gate. A
+  quality-rejected write is **not applied** and says so loudly.
+- **Both context paths satisfy the context gates**: typed `context-submit`
+  items (executable/loadable setup) and prose `relevant_context` notes /
+  `NO_CONTEXT:` skip reasons. A violation-rejected context item reports
+  `accepted: false` and leaves the gate open — never success-shaped output.
+- **Honest finalize.** The finalize response names the physical store (SQLite
+  path), the stamped workspace, and the **computed** mirror publish result
+  threaded from the write itself — `fresh` or `write_failed` (+ reason), never
+  the read-model default `unknown`. An unretrievable read-back is a hard
+  error; an idempotent re-run is flagged `already_finalized`.
+
+Concurrency: every authoring mutation runs lock → reload → modify → save on a
+per-session lock (`withSessionLock`), so pipelined or parallel CLI calls
+cannot lose writes.
+
 ## Change Boundary — acceptance_allow / acceptance_deny
 
 A plan is **general over repository change boundaries**: it can target one
@@ -336,17 +371,32 @@ API, CLI, UI, and Markdown without asking a small agent to infer intent.
 
 **Discovery executes server-side.** `author context-discover` runs the
 prompt-manager (skills, actions) and search-hub (records, docs, skills) probes
-itself — concurrently, each bounded by a per-probe timeout (default 20s) — and
-returns deduplicated, provenance-tagged candidates. A failed probe degrades
-independently into a typed note; the step always returns.
+itself — concurrently with capped fan-out, each bounded by a per-probe timeout
+(default 20s) — and returns a curated proposal, not an adjudication queue.
+Author session start prefetches a title-derived batch in the background; a
+no-concept discover can reuse it, while explicit concepts or `--refresh`
+supersede it through the normal merge path. A failed probe degrades
+independently into a batch note; the step always returns.
 
-**Skill checkpoint gate v2 (evidence of a sweep).** Finalize requires that
-discovery ran for the submitted concepts AND every returned candidate was
-dispositioned — accepted, or rejected with a reason (a direct `context-submit`
-of the same target counts as a disposition) — OR an explicit
-`NO_SKILL_CONTEXT: <reason>` / `NO_CONTEXT: <reason>` skip. No minimum skill
-count is imposed: the gate demands the sweep, not a quota. Steered suggestions
-from the `SkillApplicabilityResolver` seam flow through the same disposition.
+Discovery batches are first-class authoring state. Candidates are deduplicated
+by kind+target across concepts, probes, and prior runs; accepted or rejected
+targets do not resurrect as pending on rediscovery. The shortlist carries
+batch-scoped handles (`c1`, `c2`, ...), final-form setup lines, score, origin,
+cost when known, tags, snippets, and corroborating probe/concept hits. The
+longlist remains auditable with `context-list --all` but does not block
+finalize.
+
+**Skill checkpoint gate v3 (applied batch evidence).** Finalize requires the
+latest discovery batch to be applied by `context-apply`, or an explicit
+`NO_SKILL_CONTEXT: <reason>` / `NO_CONTEXT: <reason>` skip. `context-apply`
+takes useful shortlist items, sweeps noise with an optional batch note, sweeps
+the longlist implicitly, and requires a per-item drop reason only for
+high-confidence drops. A direct `context-submit` of the same target counts as a
+disposition, and `context-accept` / `context-reject` remain a one-item lane over
+the same apply path for small agents and legacy sessions. No minimum skill count
+is imposed: the gate demands evidence of a sweep, not a quota. Steered
+suggestions from the `SkillApplicabilityResolver` seam flow through the same
+disposition.
 
 Context items may be global or phase-scoped and are classified as `skill`,
 `doc`, `command`, `search`, `code_ref`, `req_ref`, or `note`. Required items
@@ -365,9 +415,10 @@ honored. A `command`/`search` item must carry an `instruction` (and a `reason`)
 before it is accepted, never after.
 
 During authoring, discovered context starts as `ContextCandidate` session state.
-Candidates carry the proposed `RelevantContextItem`, discovery concept, source,
-degraded detail, and pending/accepted/rejected status. Only accepted candidates
-finalize into plan or phase `relevant_context[]`; rejected candidates remain an
+Candidates carry the proposed `RelevantContextItem`, discovery concepts, typed
+provenance, batch handle, curation tier, confidence, and
+pending/accepted/rejected/swept status. Only accepted candidates finalize into
+plan or phase `relevant_context[]`; rejected and swept candidates remain an
 authoring audit trail and do not affect execution.
 
 Execution injects relevant context through `start`, `status`, `context`,
@@ -407,13 +458,16 @@ connected locations from `search-hub`'s **Answer projection** (the
 where-in-the-code projection of the meta-optimization-manager coverage model) and
 routes the hits by locator shape — only a hit that resolves to a
 `[CODE:]/[DOC:]/[REQ:]` locator becomes a reference candidate; every other hit is
-dropped. Suggestions are **reviewable candidates** (`ReferenceCandidate`:
-pending / accepted / rejected), mirroring the relevant-context candidate flow: a
-raw suggestion never enters the plan, and the references gate is satisfied only by
-a **reviewed** state — at least one accepted locator (with an optional inline
-edit) or an explicit `NO_CODE_REFS: <reason>`. Discovery degrades honestly:
-search-hub down/empty ⇒ no candidates, and the references step still offers manual
-locator entry or the `NO_CODE_REFS:` fallback instead of a dead end. As more
+dropped. Suggestions are **reviewable candidates** grouped into reference
+batches, mirroring the relevant-context proposal flow: a raw suggestion never
+enters the plan, and the references gate is satisfied only by a **reviewed**
+state — a `reference-apply` decision that takes at least one locator (with
+optional inline edits through the one-item lane) or an explicit
+`NO_CODE_REFS: <reason>`. Shortlist handles (`r1`, `r2`, ...) are the normal
+disposition surface; longlist suggestions are auditable but not required work.
+Discovery degrades honestly: search-hub down/empty ⇒ no candidates, and the
+references step still offers manual locator entry or the `NO_CODE_REFS:`
+fallback instead of a dead end. As more
 Answer-projection providers (architecture-cartographer AI search, symbol/slice/
 coupling leaves) register with search-hub, discovery silently improves with no
 plan-manager change. The not-yet-built **unified code identifier** is a planned

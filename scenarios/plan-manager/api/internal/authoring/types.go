@@ -136,7 +136,9 @@ type Session struct {
 	CurrentPhaseID      string
 	RelevantContext     []planmodel.RelevantContextItem
 	ContextCandidates   []ContextCandidate
+	DiscoveryBatches    []DiscoveryBatch
 	ReferenceCandidates []ReferenceCandidate
+	ReferenceBatches    []DiscoveryBatch
 	Finalized           bool
 	PlanID              string
 	CreatedAt           string
@@ -201,16 +203,121 @@ const (
 	ContextCandidateRejected ContextCandidateStatus = "rejected"
 )
 
+type DiscoveryBatchStatus string
+
+const (
+	DiscoveryBatchPending    DiscoveryBatchStatus = "pending"
+	DiscoveryBatchApplied    DiscoveryBatchStatus = "applied"
+	DiscoveryBatchSuperseded DiscoveryBatchStatus = "superseded"
+)
+
+type ProbeNote struct {
+	Probe    string
+	Concept  string
+	Degraded bool
+	Detail   string
+}
+
+type CurationStats struct {
+	SuppressedDispositioned int
+	OmittedBelowThreshold   int
+	OmittedTopicFiller      int
+	OmittedByCap            int
+}
+
+type DiscoveryBatch struct {
+	ID            string
+	Concepts      []string
+	Complexity    string
+	Source        string
+	ProbeNotes    []ProbeNote
+	CurationStats CurationStats
+	Status        DiscoveryBatchStatus
+	AppliedNote   string
+	CreatedSeq    int
+}
+
+type ContextDiscoveryResult struct {
+	Candidates []ContextCandidate
+	ProbeNotes []ProbeNote
+}
+
+type ContextDispositionTake struct {
+	CandidateID string
+	PhaseID     string
+	Reason      string
+}
+
+type ContextDispositionDrop struct {
+	CandidateID string
+	Reason      string
+}
+
+type ContextDispositionResult struct {
+	Candidate  ContextCandidate
+	Item       planmodel.RelevantContextItem
+	Action     string
+	Accepted   bool
+	Message    string
+	Violations []StructureViolation
+}
+
+type ContextDispositionSummary struct {
+	Results []ContextDispositionResult
+	Batch   DiscoveryBatch
+}
+
+type ReferenceDispositionTake struct {
+	CandidateID string
+}
+
+type ReferenceDispositionDrop struct {
+	CandidateID string
+	Reason      string
+}
+
+type ReferenceDispositionResult struct {
+	Candidate  ReferenceCandidate
+	Reference  planmodel.Reference
+	Action     string
+	Accepted   bool
+	Message    string
+	Violations []StructureViolation
+}
+
+type ReferenceDispositionSummary struct {
+	Results []ReferenceDispositionResult
+	Batch   DiscoveryBatch
+}
+
 // ContextCandidate is a discovered setup item awaiting author judgment.
 type ContextCandidate struct {
 	ID              string
 	Item            planmodel.RelevantContextItem
 	Concept         string
 	Source          string
+	Score           float64
+	Origin          string
+	SizeChars       int
+	Tags            []string
+	Title           string
+	Snippet         string
+	Corroboration   []ProbeHit
+	Handle          string
+	BatchID         string
+	Tier            string
+	HighConfidence  bool
+	SetupLine       string
 	Degraded        bool
 	Detail          string
 	Status          ContextCandidateStatus
 	RejectionReason string
+}
+
+type ProbeHit struct {
+	Probe   string
+	Concept string
+	Score   float64
 }
 
 // ReferenceCandidateStatus mirrors ContextCandidateStatus for the reference
@@ -233,6 +340,11 @@ type ReferenceCandidate struct {
 	Reference       planmodel.Reference
 	Source          string
 	Confidence      float64
+	Corroboration   []ProbeHit
+	Handle          string
+	BatchID         string
+	Tier            string
+	HighConfidence  bool
 	Degraded        bool
 	Detail          string
 	Status          ReferenceCandidateStatus

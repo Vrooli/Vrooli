@@ -4,12 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"unicode"
 
 	"plan-manager/cli/internal/steprender"
 
 	"connectrpc.com/connect"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 
 	authoringv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/authoring"
 	authoringconnect "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/authoring/authoring_v1connect"
@@ -194,14 +198,26 @@ func (h *handlers) contextSubmit(ctx cliapp.RunContext) error {
 	if err != nil {
 		return cliapp.WrapAPIError("submit relevant context", err, nil)
 	}
+	// A violation-rejected item is NOT appended — the gate is still open. That
+	// must be unmissable: violations lead, the result says NOT accepted, and
+	// the command exits non-zero.
+	if len(resp.Msg.GetViolations()) > 0 && !resp.Msg.GetAccepted() {
+		changes := formatViolations(resp.Msg.GetViolations())
+		changes = append(changes, formatStep(resp.Msg.GetStep())...)
+		if renderErr := cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+			Result:      []string{"NOT accepted — the context item was rejected and the phase requirement is still unmet."},
+			Changes:     changes,
+			NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
+		}); renderErr != nil {
+			return renderErr
+		}
+		return fmt.Errorf("context item rejected with %d violation(s); the gate is still open", len(resp.Msg.GetViolations()))
+	}
 	changes := []string{formatContextItem(resp.Msg.GetItem())}
 	changes = append(changes, formatProgress(resp.Msg.GetProgress())...)
-	if v := resp.Msg.GetViolations(); len(v) > 0 {
-		changes = append(changes, formatViolations(v)...)
-	}
 	changes = append(changes, formatStep(resp.Msg.GetStep())...)
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Submitted relevant context item (%d violation(s)).", len(resp.Msg.GetViolations()))},
+		Result:      []string{"Accepted relevant context item."},
 		Changes:     changes,
 		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
 	})
@@ -314,6 +330,7 @@ func (h *handlers) contextDiscover(ctx cliapp.RunContext) error {
 		SessionId:  ctx.Positional("session"),
 		Concepts:   parseList(ctx.Flag("concepts")),
 		Complexity: ctx.Flag("complexity"),
+		Refresh:    ctx.BoolFlag("refresh"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("discover context candidates", err, nil)
@@ -321,6 +338,9 @@ func (h *handlers) contextDiscover(ctx cliapp.RunContext) error {
 	candidates := make([]string, 0, len(resp.Msg.GetCandidates()))
 	for _, candidate := range resp.Msg.GetCandidates() {
 		candidates = append(candidates, formatContextCandidate(candidate))
+	}
+	if batch := resp.Msg.GetBatch(); batch != nil {
+		candidates = append(candidates, formatDiscoveryBatch(batch)...)
 	}
 	candidates = append(candidates, formatProgress(resp.Msg.GetProgress())...)
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
@@ -365,6 +385,39 @@ func (h *handlers) contextReject(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result:      []string{fmt.Sprintf("Rejected context candidate %s.", ctx.Positional("candidate"))},
 		Changes:     append(changes, formatStep(resp.Msg.GetStep())...),
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
+func (h *handlers) contextApply(ctx cliapp.RunContext) error {
+	takes := parseContextDispositionTakes(ctx.FlagValues("take"))
+	drops := parseContextDispositionDrops(ctx.FlagValues("drop"))
+	resp, err := h.client.ApplyContextDisposition(context.Background(), connect.NewRequest(&authoringv1.ApplyContextDispositionRequest{
+		SessionId: ctx.Positional("session"),
+		BatchId:   ctx.Flag("batch"),
+		Take:      takes,
+		Drop:      drops,
+		SweepNote: ctx.Flag("note"),
+		TakeAll:   ctx.BoolFlag("take-all"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("apply context disposition", err, nil)
+	}
+	changes := make([]string, 0, len(resp.Msg.GetResults())+8)
+	for _, result := range resp.Msg.GetResults() {
+		changes = append(changes, formatContextDispositionResult(result))
+	}
+	if batch := resp.Msg.GetBatch(); batch != nil {
+		changes = append(changes, formatDiscoveryBatch(batch)...)
+	}
+	if v := resp.Msg.GetViolations(); len(v) > 0 {
+		changes = append(changes, formatViolations(v)...)
+	}
+	changes = append(changes, formatProgress(resp.Msg.GetProgress())...)
+	changes = append(changes, formatStep(resp.Msg.GetStep())...)
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("Applied context disposition for %d candidate(s).", len(resp.Msg.GetResults()))},
+		Changes:     changes,
 		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
 	})
 }
@@ -454,6 +507,37 @@ func (h *handlers) referenceReject(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) referenceApply(ctx cliapp.RunContext) error {
+	resp, err := h.client.ApplyReferenceDisposition(context.Background(), connect.NewRequest(&authoringv1.ApplyReferenceDispositionRequest{
+		SessionId: ctx.Positional("session"),
+		BatchId:   ctx.Flag("batch"),
+		Take:      parseReferenceDispositionTakes(ctx.FlagValues("take")),
+		Drop:      parseReferenceDispositionDrops(ctx.FlagValues("drop")),
+		SweepNote: ctx.Flag("note"),
+		TakeAll:   ctx.BoolFlag("take-all"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("apply reference disposition", err, nil)
+	}
+	changes := make([]string, 0, len(resp.Msg.GetResults())+8)
+	for _, result := range resp.Msg.GetResults() {
+		changes = append(changes, formatReferenceDispositionResult(result))
+	}
+	if batch := resp.Msg.GetBatch(); batch != nil {
+		changes = append(changes, formatReferenceBatch(batch)...)
+	}
+	if v := resp.Msg.GetViolations(); len(v) > 0 {
+		changes = append(changes, formatViolations(v)...)
+	}
+	changes = append(changes, formatProgress(resp.Msg.GetProgress())...)
+	changes = append(changes, formatStep(resp.Msg.GetStep())...)
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("Applied reference disposition for %d candidate(s).", len(resp.Msg.GetResults()))},
+		Changes:     changes,
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
 func (h *handlers) phaseAdd(ctx cliapp.RunContext) error {
 	resp, err := h.client.AddPhase(context.Background(), connect.NewRequest(&authoringv1.AddPhaseRequest{
 		SessionId: ctx.Positional("session"),
@@ -464,6 +548,20 @@ func (h *handlers) phaseAdd(ctx cliapp.RunContext) error {
 		return cliapp.WrapAPIError("add phase", err, nil)
 	}
 	phase := resp.Msg.GetPhase()
+	// Optional --set pairs make add+fill one command: the new phase's fields
+	// land in a single batch call right after the add.
+	if items, batchErr := batchFieldWrites(ctx, phase.GetId()); batchErr != nil {
+		return batchErr
+	} else if len(items) > 0 {
+		batchResp, batchErr := h.client.SubmitFields(context.Background(), connect.NewRequest(&authoringv1.SubmitFieldsRequest{
+			SessionId: ctx.Positional("session"),
+			Items:     items,
+		}))
+		if batchErr != nil {
+			return cliapp.WrapAPIError("fill added phase", batchErr, nil)
+		}
+		return renderSubmitFields(ctx, fmt.Sprintf("Added phase %d (%s); field batch", phase.GetOrder(), phase.GetId()), items, batchResp)
+	}
 	changes := []string{formatPhase(phase)}
 	changes = append(changes, formatProgress(resp.Msg.GetProgress())...)
 	if v := resp.Msg.GetViolations(); len(v) > 0 {
@@ -520,10 +618,144 @@ func (h *handlers) phaseGet(ctx cliapp.RunContext) error {
 	})
 }
 
+// batchFieldWrites parses repeated --set / --set-file flag values into
+// FieldWrite items. Key grammar: with a phaseRef the key is a bare phase field
+// name; session-scope keys are either a section key or `<phase-ref>.<field>`.
+// A --set-file value is `key=path` (optionally `key=@path`); the file's
+// contents become the field content — the escape hatch for long content.
+func batchFieldWrites(ctx cliapp.RunContext, phaseRef string) ([]*authoringv1.FieldWrite, error) {
+	var items []*authoringv1.FieldWrite
+	appendPair := func(raw string, fromFile bool) error {
+		flag := "--set"
+		if fromFile {
+			flag = "--set-file"
+		}
+		key, val, ok := strings.Cut(raw, "=")
+		key = strings.TrimSpace(key)
+		if !ok || key == "" {
+			return fmt.Errorf("%s %q: expected <key>=<content>", flag, raw)
+		}
+		if fromFile {
+			path := strings.TrimPrefix(strings.TrimSpace(val), "@")
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return fmt.Errorf("%s %s: %w", flag, key, err)
+			}
+			val = string(data)
+		}
+		item := &authoringv1.FieldWrite{Content: val}
+		switch {
+		case phaseRef != "":
+			item.Scope = &authoringv1.FieldWrite_Phase{Phase: &authoringv1.PhaseFieldRef{PhaseRef: phaseRef, Field: key}}
+		case strings.Contains(key, "."):
+			ref, field, _ := strings.Cut(key, ".")
+			item.Scope = &authoringv1.FieldWrite_Phase{Phase: &authoringv1.PhaseFieldRef{PhaseRef: ref, Field: field}}
+		default:
+			item.Scope = &authoringv1.FieldWrite_SectionKey{SectionKey: key}
+		}
+		items = append(items, item)
+		return nil
+	}
+	for _, raw := range ctx.FlagValues("set") {
+		if err := appendPair(raw, false); err != nil {
+			return nil, err
+		}
+	}
+	for _, raw := range ctx.FlagValues("set-file") {
+		if err := appendPair(raw, true); err != nil {
+			return nil, err
+		}
+	}
+	return items, nil
+}
+
+// fieldWriteLabel names one batch item for the per-item result line.
+func fieldWriteLabel(item *authoringv1.FieldWrite) string {
+	if phase := item.GetPhase(); phase != nil {
+		return phase.GetPhaseRef() + "." + phase.GetField()
+	}
+	return item.GetSectionKey()
+}
+
+// renderSubmitFields renders the per-item batch outcome: every accepted and
+// rejected field named on its own line, then progress and the guided step.
+func renderSubmitFields(ctx cliapp.RunContext, verb string, items []*authoringv1.FieldWrite, resp *connect.Response[authoringv1.SubmitFieldsResponse]) error {
+	results := resp.Msg.GetResults()
+	accepted := 0
+	lines := make([]string, 0, len(results))
+	for _, result := range results {
+		label := ""
+		if i := int(result.GetIndex()); i >= 0 && i < len(items) {
+			label = fieldWriteLabel(items[i])
+		}
+		if result.GetAccepted() {
+			accepted++
+			lines = append(lines, fmt.Sprintf("✔ %s — %s", label, result.GetSummary()))
+			continue
+		}
+		line := fmt.Sprintf("✖ %s — REJECTED: %s", label, result.GetSummary())
+		lines = append(lines, line)
+		for _, violation := range result.GetViolations() {
+			if msg := violation.GetMessage(); msg != "" && !strings.Contains(line, msg) {
+				lines = append(lines, "    "+msg)
+			}
+		}
+	}
+	changes := lines
+	changes = append(changes, formatProgress(resp.Msg.GetProgress())...)
+	changes = append(changes, formatStep(resp.Msg.GetStep())...)
+	result := fmt.Sprintf("%s: %d of %d field write(s) accepted.", verb, accepted, len(results))
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{result},
+		Changes:     changes,
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
+// submit is the session-scope batch: repeated --set section_key=content and/or
+// --set <phase-ref>.<field>=content in ONE call. For an already-written plan
+// document, `plans import` remains the whole-document path.
+func (h *handlers) submit(ctx cliapp.RunContext) error {
+	items, err := batchFieldWrites(ctx, "")
+	if err != nil {
+		return err
+	}
+	if len(items) == 0 {
+		return fmt.Errorf("provide at least one --set <key>=<content> (section key or <phase-ref>.<field>); for a whole already-written plan document use `plans import`")
+	}
+	resp, err := h.client.SubmitFields(context.Background(), connect.NewRequest(&authoringv1.SubmitFieldsRequest{
+		SessionId: ctx.Positional("session"),
+		Items:     items,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("submit fields", err, nil)
+	}
+	return renderSubmitFields(ctx, "Batch submit", items, resp)
+}
+
 func (h *handlers) phaseSubmit(ctx cliapp.RunContext) error {
+	phaseRef := ctx.Positional("phase")
+	if items, err := batchFieldWrites(ctx, phaseRef); err != nil {
+		return err
+	} else if len(items) > 0 {
+		if ctx.Flag("field") != "" || ctx.Flag("content") != "" {
+			return fmt.Errorf("use either --set pairs or the single --field/--content form, not both")
+		}
+		resp, err := h.client.SubmitFields(context.Background(), connect.NewRequest(&authoringv1.SubmitFieldsRequest{
+			SessionId: ctx.Positional("session"),
+			Items:     items,
+		}))
+		if err != nil {
+			return cliapp.WrapAPIError("submit phase fields", err, nil)
+		}
+		return renderSubmitFields(ctx, fmt.Sprintf("Phase %s batch", phaseRef), items, resp)
+	}
+	if ctx.Flag("field") == "" {
+		return fmt.Errorf("provide --field/--content or one or more --set <field>=<content> pairs")
+	}
 	resp, err := h.client.SubmitPhaseField(context.Background(), connect.NewRequest(&authoringv1.SubmitPhaseFieldRequest{
 		SessionId: ctx.Positional("session"),
-		PhaseId:   ctx.Positional("phase"),
+		PhaseId:   phaseRef,
 		Field:     ctx.Flag("field"),
 		Content:   ctx.Flag("content"),
 	}))
@@ -582,56 +814,136 @@ func (h *handlers) preview(ctx cliapp.RunContext) error {
 
 func (h *handlers) finalize(ctx cliapp.RunContext) error {
 	resp, err := h.client.Finalize(context.Background(), connect.NewRequest(&authoringv1.FinalizeRequest{
-		SessionId: ctx.Positional("session"),
+		SessionId:     ctx.Positional("session"),
+		WorkspaceRoot: finalizeWorkspaceRoot(ctx.Flag("workspace")),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("finalize", err, nil)
 	}
-	plan := resp.Msg.GetPlan()
 	if ctx.JSON() {
 		if ctx.BoolFlag("full") {
 			return cliapp.PrintProtoJSON(ctx.Stdout(), resp.Msg)
 		}
-		return json.NewEncoder(ctx.Stdout()).Encode(compactFinalizePlan(plan, resp.Msg.GetStep()))
+		return json.NewEncoder(ctx.Stdout()).Encode(compactFinalizePlan(resp.Msg))
 	}
-	changes := formatFinalizePlan(plan, ctx.BoolFlag("full"))
+	changes := formatFinalizePlan(resp.Msg, ctx.BoolFlag("full"))
 	changes = append(changes, formatStep(resp.Msg.GetStep())...)
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Finalized plan %s.", firstNonEmpty(plan.GetSlug(), plan.GetId()))},
+		Result:      finalizeResultLines(resp.Msg),
 		Changes:     changes,
 		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
 	})
 }
 
-type finalizePlanJSON struct {
-	ID           string   `json:"id,omitempty"`
-	Slug         string   `json:"slug,omitempty"`
-	Title        string   `json:"title,omitempty"`
-	Status       string   `json:"status,omitempty"`
-	MirrorPath   string   `json:"mirror_path,omitempty"`
-	MirrorStatus string   `json:"mirror_status,omitempty"`
-	NextCommands []string `json:"next_commands,omitempty"`
+// finalizeWorkspaceRoot resolves the workspace root to stamp on the finalized
+// plan: the explicit --workspace flag, else the resolved repo root (matching
+// how the plans commands scope reads), else empty (unscoped).
+func finalizeWorkspaceRoot(raw string) string {
+	root := strings.TrimSpace(raw)
+	if root == "" {
+		resolved, err := repocontract.ResolveRepoRoot()
+		if err != nil {
+			return ""
+		}
+		root = resolved
+	}
+	abs, err := filepath.Abs(root)
+	if err != nil {
+		return filepath.Clean(root)
+	}
+	return filepath.Clean(abs)
 }
 
-func compactFinalizePlan(plan *sharedv1.Plan, step *sharedv1.GuidedStep) finalizePlanJSON {
-	if plan == nil {
-		return finalizePlanJSON{NextCommands: formatRecommendedActions(step)}
+// finalizeResultLines leads with the honest persistence report: where the plan
+// row lives, then identity, then the mirror outcome. An idempotent re-run and a
+// failed mirror write are called out loudly instead of blending into happy
+// output.
+func finalizeResultLines(msg *authoringv1.FinalizeResponse) []string {
+	plan := msg.GetPlan()
+	handle := firstNonEmpty(plan.GetSlug(), plan.GetId())
+	var out []string
+	if msg.GetAlreadyFinalized() {
+		out = append(out, fmt.Sprintf("Already finalized at %s → plan %s (no new plan written).",
+			firstNonEmpty(msg.GetFinalizedAt(), "an earlier run"), handle))
+	} else {
+		out = append(out, fmt.Sprintf("Finalized plan %s.", handle))
 	}
-	out := finalizePlanJSON{
-		ID:           plan.GetId(),
-		Slug:         plan.GetSlug(),
-		Title:        plan.GetTitle(),
-		Status:       planStatusString(plan),
-		NextCommands: formatRecommendedActions(step),
-	}
-	if mirror := plan.GetMirror(); mirror != nil {
-		out.MirrorStatus = mirrorStatusString(mirror)
-		out.MirrorPath = firstNonEmpty(mirror.GetRelativePath(), mirror.GetPath())
+	store := firstNonEmpty(msg.GetStorePath(), "unknown (server did not report a store path)")
+	workspace := firstNonEmpty(msg.GetWorkspaceRoot(), "unscoped")
+	out = append(out, fmt.Sprintf("plan persisted: %s (workspace %s)", store, workspace))
+	if mirror := msg.GetMirror(); mirror != nil {
+		status := mirrorStatusString(mirror)
+		switch status {
+		case "fresh":
+			out = append(out, "mirror: fresh — "+firstNonEmpty(mirror.GetPath(), mirror.GetRelativePath()))
+		case "write_failed":
+			out = append(out,
+				"WARNING: mirror write FAILED — the plan IS persisted in SQLite (source of truth) but its markdown mirror was not written.",
+				"  reason: "+firstNonEmpty(mirror.GetLastError(), "not reported"),
+				"  recover: plan-manager plans reconcile --repair-mirrors",
+			)
+		default:
+			if status != "" && status != "unspecified" {
+				out = append(out, "mirror: "+status)
+			}
+		}
 	}
 	return out
 }
 
-func formatFinalizePlan(plan *sharedv1.Plan, full bool) []string {
+type finalizePlanJSON struct {
+	ID               string   `json:"id,omitempty"`
+	Slug             string   `json:"slug,omitempty"`
+	Title            string   `json:"title,omitempty"`
+	Status           string   `json:"status,omitempty"`
+	StorePath        string   `json:"store_path,omitempty"`
+	Workspace        string   `json:"workspace,omitempty"`
+	AlreadyFinalized bool     `json:"already_finalized,omitempty"`
+	FinalizedAt      string   `json:"finalized_at,omitempty"`
+	MirrorPath       string   `json:"mirror_path,omitempty"`
+	MirrorStatus     string   `json:"mirror_status,omitempty"`
+	MirrorError      string   `json:"mirror_error,omitempty"`
+	NextCommands     []string `json:"next_commands,omitempty"`
+}
+
+func compactFinalizePlan(msg *authoringv1.FinalizeResponse) finalizePlanJSON {
+	plan := msg.GetPlan()
+	step := msg.GetStep()
+	if plan == nil {
+		return finalizePlanJSON{NextCommands: formatRecommendedActions(step)}
+	}
+	out := finalizePlanJSON{
+		ID:               plan.GetId(),
+		Slug:             plan.GetSlug(),
+		Title:            plan.GetTitle(),
+		Status:           planStatusString(plan),
+		StorePath:        msg.GetStorePath(),
+		Workspace:        msg.GetWorkspaceRoot(),
+		AlreadyFinalized: msg.GetAlreadyFinalized(),
+		FinalizedAt:      msg.GetFinalizedAt(),
+		NextCommands:     formatRecommendedActions(step),
+	}
+	if mirror := firstMirror(msg.GetMirror(), plan.GetMirror()); mirror != nil {
+		out.MirrorStatus = mirrorStatusString(mirror)
+		out.MirrorPath = firstNonEmpty(mirror.GetRelativePath(), mirror.GetPath())
+		out.MirrorError = mirror.GetLastError()
+	}
+	return out
+}
+
+// firstMirror prefers the response-level computed mirror (threaded from the
+// write) over the plan echo's read-model state.
+func firstMirror(candidates ...*sharedv1.RenderedPlanMirror) *sharedv1.RenderedPlanMirror {
+	for _, m := range candidates {
+		if m != nil {
+			return m
+		}
+	}
+	return nil
+}
+
+func formatFinalizePlan(msg *authoringv1.FinalizeResponse, full bool) []string {
+	plan := msg.GetPlan()
 	if plan == nil {
 		return nil
 	}
@@ -641,7 +953,7 @@ func formatFinalizePlan(plan *sharedv1.Plan, full bool) []string {
 		"title: " + plan.GetTitle(),
 		"status: " + planStatusString(plan),
 	}
-	if mirror := plan.GetMirror(); mirror != nil {
+	if mirror := firstMirror(msg.GetMirror(), plan.GetMirror()); mirror != nil {
 		status := mirrorStatusString(mirror)
 		if status != "unspecified" || mirror.GetPath() != "" || mirror.GetRelativePath() != "" {
 			out = append(out, "mirror_status: "+status)
@@ -759,12 +1071,165 @@ func formatContextCandidate(candidate *authoringv1.ContextCandidate) string {
 	if candidate == nil {
 		return ""
 	}
-	parts := []string{fmt.Sprintf("%s [%s] %s", candidate.GetId(), candidate.GetStatus(), formatContextItem(candidate.GetItem()))}
+	id := firstNonEmpty(candidate.GetHandle(), candidate.GetId())
+	item := candidate.GetItem()
+	kind := contextKindLabel(item.GetKind())
+	label := firstNonEmpty(item.GetLabel(), item.GetTarget(), item.GetCommand(), item.GetInstruction(), "context")
+	score := "score=n/a"
+	if candidate.GetScore() != 0 {
+		score = fmt.Sprintf("score=%.3f", candidate.GetScore())
+	}
+	summary := []string{
+		id,
+		"[" + candidate.GetStatus() + "]",
+		kind,
+		label,
+		score,
+	}
+	if candidate.GetTier() != "" {
+		summary = append(summary, "tier="+candidate.GetTier())
+	}
+	if candidate.GetOrigin() != "" {
+		summary = append(summary, "origin="+candidate.GetOrigin())
+	}
+	summary = append(summary, fmt.Sprintf("hits=%d", contextCandidateHitCount(candidate)))
+	if candidate.GetSizeChars() > 0 {
+		summary = append(summary, "size="+formatSizeChars(candidate.GetSizeChars()))
+	}
+	if candidate.GetHighConfidence() {
+		summary = append(summary, "high_confidence=true")
+	}
+
+	lines := []string{strings.Join(summary, " | ")}
+	if setup := firstNonEmpty(candidate.GetSetupLine(), item.GetCommand(), item.GetTarget()); setup != "" {
+		lines = append(lines, "  setup: "+setup)
+	}
+	var evidence []string
 	if candidate.GetConcept() != "" {
-		parts = append(parts, "concept="+candidate.GetConcept())
+		evidence = append(evidence, "concept="+candidate.GetConcept())
 	}
 	if candidate.GetSource() != "" {
+		evidence = append(evidence, "source="+candidate.GetSource())
+	}
+	if candidate.GetTitle() != "" {
+		evidence = append(evidence, "title="+candidate.GetTitle())
+	}
+	if len(candidate.GetTags()) > 0 {
+		evidence = append(evidence, "tags="+strings.Join(candidate.GetTags(), ","))
+	}
+	if len(evidence) > 0 {
+		lines = append(lines, "  evidence: "+strings.Join(evidence, " | "))
+	}
+	if candidate.GetSnippet() != "" {
+		lines = append(lines, "  snippet: "+truncateOneLine(candidate.GetSnippet(), 180))
+	}
+	if candidate.GetDegraded() && candidate.GetDetail() != "" {
+		lines = append(lines, "  degraded: "+candidate.GetDetail())
+	}
+	if candidate.GetRejectionReason() != "" {
+		lines = append(lines, "  rejected: "+candidate.GetRejectionReason())
+	}
+	return strings.Join(lines, "\n")
+}
+
+func formatDiscoveryBatch(batch *authoringv1.DiscoveryBatch) []string {
+	if batch == nil {
+		return nil
+	}
+	out := []string{fmt.Sprintf("batch=%s status=%s source=%s", batch.GetId(), batch.GetStatus(), batch.GetSource())}
+	if stats := batch.GetCurationStats(); stats != nil {
+		if stats.GetSuppressedDispositioned() > 0 {
+			out = append(out, fmt.Sprintf("suppressed_dispositioned=%d", stats.GetSuppressedDispositioned()))
+		}
+		if stats.GetOmittedBelowThreshold() > 0 {
+			out = append(out, fmt.Sprintf("omitted_below_threshold=%d", stats.GetOmittedBelowThreshold()))
+		}
+		if stats.GetOmittedTopicFiller() > 0 {
+			out = append(out, fmt.Sprintf("omitted_topic_filler=%d", stats.GetOmittedTopicFiller()))
+		}
+		if stats.GetOmittedByCap() > 0 {
+			out = append(out, fmt.Sprintf("omitted_by_cap=%d", stats.GetOmittedByCap()))
+		}
+	}
+	for _, note := range batch.GetProbeNotes() {
+		if note.GetDegraded() {
+			out = append(out, fmt.Sprintf("probe degraded: %s (%s): %s", note.GetProbe(), note.GetConcept(), note.GetDetail()))
+		}
+	}
+	if batch.GetStatus() == "pending" {
+		out = append(out, fmt.Sprintf("review: take handles with author context-apply <session> --batch %s --take c1 --note \"reviewed shortlist\" (or use context-accept/context-reject with handles)", batch.GetId()))
+	}
+	return out
+}
+
+func formatContextDispositionResult(result *authoringv1.ContextDispositionResult) string {
+	if result == nil {
+		return ""
+	}
+	candidate := result.GetCandidate()
+	id := ""
+	if candidate != nil {
+		id = firstNonEmpty(candidate.GetHandle(), candidate.GetId())
+	}
+	status := "rejected"
+	if result.GetAccepted() {
+		status = "accepted"
+	}
+	parts := []string{result.GetAction(), id, status}
+	if result.GetMessage() != "" {
+		parts = append(parts, result.GetMessage())
+	}
+	if len(result.GetViolations()) > 0 {
+		parts = append(parts, fmt.Sprintf("%d violation(s)", len(result.GetViolations())))
+	}
+	return strings.Join(parts, " | ")
+}
+
+func contextCandidateHitCount(candidate *authoringv1.ContextCandidate) int {
+	if candidate == nil || len(candidate.GetCorroboration()) == 0 {
+		return 1
+	}
+	return len(candidate.GetCorroboration())
+}
+
+func formatSizeChars(chars int32) string {
+	if chars >= 1000 {
+		return fmt.Sprintf("%.1fk", float64(chars)/1000)
+	}
+	return fmt.Sprintf("%d", chars)
+}
+
+func truncateOneLine(value string, limit int) string {
+	value = strings.Join(strings.Fields(value), " ")
+	if limit <= 0 || len(value) <= limit {
+		return value
+	}
+	if limit <= 3 {
+		return value[:limit]
+	}
+	return value[:limit-3] + "..."
+}
+
+func formatReferenceCandidate(candidate *authoringv1.ReferenceCandidate) string {
+	if candidate == nil {
+		return ""
+	}
+	ref := candidate.GetReference()
+	locator := fmt.Sprintf("[%s: %s]", referenceMarkerLabel(ref.GetKind()), ref.GetTarget())
+	id := firstNonEmpty(candidate.GetHandle(), candidate.GetId())
+	parts := []string{id, "[" + candidate.GetStatus() + "]", locator}
+	if candidate.GetSource() != "" {
 		parts = append(parts, "source="+candidate.GetSource())
+	}
+	if candidate.GetConfidence() > 0 {
+		parts = append(parts, fmt.Sprintf("score=%.3f", candidate.GetConfidence()))
+	}
+	if candidate.GetTier() != "" {
+		parts = append(parts, "tier="+candidate.GetTier())
+	}
+	parts = append(parts, fmt.Sprintf("hits=%d", referenceCandidateHitCount(candidate)))
+	if candidate.GetHighConfidence() {
+		parts = append(parts, "high_confidence=true")
 	}
 	if candidate.GetDegraded() {
 		parts = append(parts, "degraded="+candidate.GetDetail())
@@ -775,24 +1240,45 @@ func formatContextCandidate(candidate *authoringv1.ContextCandidate) string {
 	return strings.Join(parts, " | ")
 }
 
-func formatReferenceCandidate(candidate *authoringv1.ReferenceCandidate) string {
-	if candidate == nil {
+func referenceCandidateHitCount(candidate *authoringv1.ReferenceCandidate) int {
+	if candidate == nil || len(candidate.GetCorroboration()) == 0 {
+		return 1
+	}
+	return len(candidate.GetCorroboration())
+}
+
+func formatReferenceBatch(batch *authoringv1.DiscoveryBatch) []string {
+	out := formatDiscoveryBatch(batch)
+	for i := range out {
+		out[i] = strings.Replace(out[i], "context-apply", "reference-apply", 1)
+		out[i] = strings.Replace(out[i], "--take c1", "--take r1", 1)
+		out[i] = strings.Replace(out[i], "context candidate", "reference candidate", 1)
+	}
+	return out
+}
+
+func formatReferenceDispositionResult(result *authoringv1.ReferenceDispositionResult) string {
+	if result == nil {
 		return ""
 	}
-	ref := candidate.GetReference()
-	locator := fmt.Sprintf("[%s: %s]", referenceMarkerLabel(ref.GetKind()), ref.GetTarget())
-	parts := []string{fmt.Sprintf("%s [%s] %s", candidate.GetId(), candidate.GetStatus(), locator)}
-	if candidate.GetSource() != "" {
-		parts = append(parts, "source="+candidate.GetSource())
+	candidate := result.GetCandidate()
+	id := ""
+	if candidate != nil {
+		id = firstNonEmpty(candidate.GetHandle(), candidate.GetId())
 	}
-	if candidate.GetConfidence() > 0 {
-		parts = append(parts, fmt.Sprintf("score=%.2f", candidate.GetConfidence()))
+	status := "rejected"
+	if result.GetAccepted() {
+		status = "accepted"
 	}
-	if candidate.GetDegraded() {
-		parts = append(parts, "degraded="+candidate.GetDetail())
+	parts := []string{result.GetAction(), id, status}
+	if ref := result.GetReference(); ref != nil && ref.GetTarget() != "" {
+		parts = append(parts, fmt.Sprintf("[%s: %s]", referenceMarkerLabel(ref.GetKind()), ref.GetTarget()))
 	}
-	if candidate.GetRejectionReason() != "" {
-		parts = append(parts, "rejected="+candidate.GetRejectionReason())
+	if result.GetMessage() != "" {
+		parts = append(parts, result.GetMessage())
+	}
+	if len(result.GetViolations()) > 0 {
+		parts = append(parts, fmt.Sprintf("%d violation(s)", len(result.GetViolations())))
 	}
 	return strings.Join(parts, " | ")
 }
@@ -878,6 +1364,78 @@ func parseList(raw string) []string {
 	for _, p := range parts {
 		if s := strings.TrimSpace(p); s != "" {
 			out = append(out, s)
+		}
+	}
+	return out
+}
+
+func parseContextDispositionTakes(values []string) []*authoringv1.ContextDispositionTake {
+	var out []*authoringv1.ContextDispositionTake
+	for _, value := range expandCSVValues(values) {
+		candidate, phase, _ := strings.Cut(value, ":")
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" {
+			continue
+		}
+		out = append(out, &authoringv1.ContextDispositionTake{
+			Candidate: candidate,
+			PhaseId:   strings.TrimSpace(phase),
+		})
+	}
+	return out
+}
+
+func parseContextDispositionDrops(values []string) []*authoringv1.ContextDispositionDrop {
+	var out []*authoringv1.ContextDispositionDrop
+	for _, value := range expandCSVValues(values) {
+		candidate, reason, _ := strings.Cut(value, "=")
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" {
+			continue
+		}
+		out = append(out, &authoringv1.ContextDispositionDrop{
+			Candidate: candidate,
+			Reason:    strings.TrimSpace(reason),
+		})
+	}
+	return out
+}
+
+func parseReferenceDispositionTakes(values []string) []*authoringv1.ReferenceDispositionTake {
+	var out []*authoringv1.ReferenceDispositionTake
+	for _, value := range expandCSVValues(values) {
+		candidate := strings.TrimSpace(value)
+		if candidate == "" {
+			continue
+		}
+		out = append(out, &authoringv1.ReferenceDispositionTake{Candidate: candidate})
+	}
+	return out
+}
+
+func parseReferenceDispositionDrops(values []string) []*authoringv1.ReferenceDispositionDrop {
+	var out []*authoringv1.ReferenceDispositionDrop
+	for _, value := range expandCSVValues(values) {
+		candidate, reason, _ := strings.Cut(value, "=")
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" {
+			continue
+		}
+		out = append(out, &authoringv1.ReferenceDispositionDrop{
+			Candidate: candidate,
+			Reason:    strings.TrimSpace(reason),
+		})
+	}
+	return out
+}
+
+func expandCSVValues(values []string) []string {
+	var out []string
+	for _, value := range values {
+		for _, part := range strings.Split(value, ",") {
+			if part = strings.TrimSpace(part); part != "" {
+				out = append(out, part)
+			}
 		}
 	}
 	return out

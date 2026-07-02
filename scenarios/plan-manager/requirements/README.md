@@ -30,8 +30,8 @@ structure aligned with the "what" in `PRD.md`. Folder numbers preserve ordering 
 ## Validation commands
 
 ```bash
-prd-control-tower prd validate plan-manager --json
-prd-control-tower requirements validate plan-manager --json
+vrooli scenario requirements validate plan-manager --json
+vrooli scenario requirements validate plan-manager --json
 ```
 
 `auto_sync_enabled` in `index.json` lets Test Genie flip requirement status from

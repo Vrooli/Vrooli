@@ -72,6 +72,16 @@ Goldens exist and reproduce current output verbatim.
 
 Log typed work products as they happen via `plan-manager log {decision,finding,bug,record,note}-add <plan-or-execution> --phase <n> ...` (full command list: plan-manager CLI reference).
 
+On completion, write the learning-loop record — copy, fill the `<...>` placeholders, run:
+
+```bash
+swarm-manager records create --kind execute --scenario plan-manager \
+  --trigger 'Legacy required reading: <one-line goal>' \
+  --approach '<what was built + key decisions>' \
+  --evidence '<suites/baselines/live checks that prove it>' \
+  --outcome shipped
+```
+
 ## Phases
 
 ### Phase 1 — Wedge fix

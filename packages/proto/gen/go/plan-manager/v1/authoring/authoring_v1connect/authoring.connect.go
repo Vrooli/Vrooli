@@ -45,6 +45,9 @@ const (
 	// AuthoringServiceSubmitSectionProcedure is the fully-qualified name of the AuthoringService's
 	// SubmitSection RPC.
 	AuthoringServiceSubmitSectionProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/SubmitSection"
+	// AuthoringServiceSubmitFieldsProcedure is the fully-qualified name of the AuthoringService's
+	// SubmitFields RPC.
+	AuthoringServiceSubmitFieldsProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/SubmitFields"
 	// AuthoringServiceNextProcedure is the fully-qualified name of the AuthoringService's Next RPC.
 	AuthoringServiceNextProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/Next"
 	// AuthoringServiceContinueAuthoringProcedure is the fully-qualified name of the AuthoringService's
@@ -77,6 +80,9 @@ const (
 	// AuthoringServiceRejectContextCandidateProcedure is the fully-qualified name of the
 	// AuthoringService's RejectContextCandidate RPC.
 	AuthoringServiceRejectContextCandidateProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/RejectContextCandidate"
+	// AuthoringServiceApplyContextDispositionProcedure is the fully-qualified name of the
+	// AuthoringService's ApplyContextDisposition RPC.
+	AuthoringServiceApplyContextDispositionProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/ApplyContextDisposition"
 	// AuthoringServiceSuggestReferencesProcedure is the fully-qualified name of the AuthoringService's
 	// SuggestReferences RPC.
 	AuthoringServiceSuggestReferencesProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/SuggestReferences"
@@ -89,6 +95,9 @@ const (
 	// AuthoringServiceRejectReferenceCandidateProcedure is the fully-qualified name of the
 	// AuthoringService's RejectReferenceCandidate RPC.
 	AuthoringServiceRejectReferenceCandidateProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/RejectReferenceCandidate"
+	// AuthoringServiceApplyReferenceDispositionProcedure is the fully-qualified name of the
+	// AuthoringService's ApplyReferenceDisposition RPC.
+	AuthoringServiceApplyReferenceDispositionProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/ApplyReferenceDisposition"
 	// AuthoringServiceAddPhaseProcedure is the fully-qualified name of the AuthoringService's AddPhase
 	// RPC.
 	AuthoringServiceAddPhaseProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/AddPhase"
@@ -128,6 +137,13 @@ type AuthoringServiceClient interface {
 	GetSection(context.Context, *connect.Request[authoring.GetSectionRequest]) (*connect.Response[authoring.GetSectionResponse], error)
 	// SubmitSection records authored content for a section and re-validates it.
 	SubmitSection(context.Context, *connect.Request[authoring.SubmitSectionRequest]) (*connect.Response[authoring.SubmitSectionResponse], error)
+	// SubmitFields applies a BATCH of section/phase-field writes under one
+	// session lock with one save — one call can carry a single field, a whole
+	// phase, or the whole plan. Items apply independently (never
+	// all-or-nothing): each returns accepted/rejected + violations + a one-line
+	// parse summary. The single-field RPCs (SubmitSection/SubmitPhaseField)
+	// remain as wrappers over the same apply path.
+	SubmitFields(context.Context, *connect.Request[authoring.SubmitFieldsRequest]) (*connect.Response[authoring.SubmitFieldsResponse], error)
 	// Next returns the next section that still needs author input (or signals the
 	// session is structurally complete).
 	Next(context.Context, *connect.Request[authoring.NextRequest]) (*connect.Response[authoring.NextResponse], error)
@@ -164,6 +180,10 @@ type AuthoringServiceClient interface {
 	AcceptContextCandidate(context.Context, *connect.Request[authoring.AcceptContextCandidateRequest]) (*connect.Response[authoring.AcceptContextCandidateResponse], error)
 	// RejectContextCandidate records why a discovered candidate is not relevant.
 	RejectContextCandidate(context.Context, *connect.Request[authoring.RejectContextCandidateRequest]) (*connect.Response[authoring.RejectContextCandidateResponse], error)
+	// ApplyContextDisposition closes a pending discovery batch in one call:
+	// named takes are accepted, named drops are rejected, and remaining shortlist
+	// items are swept unless they require a high-confidence drop reason.
+	ApplyContextDisposition(context.Context, *connect.Request[authoring.ApplyContextDispositionRequest]) (*connect.Response[authoring.ApplyContextDispositionResponse], error)
 	// SuggestReferences queries search-hub's Answer projection from the session's
 	// title + scope + technical approach and stores reviewable reference candidates
 	// (routed by locator shape — only hits resolving to a [CODE:]/[DOC:]/[REQ:]
@@ -179,6 +199,10 @@ type AuthoringServiceClient interface {
 	AcceptReferenceCandidate(context.Context, *connect.Request[authoring.AcceptReferenceCandidateRequest]) (*connect.Response[authoring.AcceptReferenceCandidateResponse], error)
 	// RejectReferenceCandidate records why a suggested reference is not relevant.
 	RejectReferenceCandidate(context.Context, *connect.Request[authoring.RejectReferenceCandidateRequest]) (*connect.Response[authoring.RejectReferenceCandidateResponse], error)
+	// ApplyReferenceDisposition closes a pending reference discovery batch in one
+	// call: named takes are accepted, named drops are rejected, and remaining
+	// shortlist items are swept unless they require a high-confidence drop reason.
+	ApplyReferenceDisposition(context.Context, *connect.Request[authoring.ApplyReferenceDispositionRequest]) (*connect.Response[authoring.ApplyReferenceDispositionResponse], error)
 	// AddPhase appends one structured phase draft to the session.
 	AddPhase(context.Context, *connect.Request[authoring.AddPhaseRequest]) (*connect.Response[authoring.AddPhaseResponse], error)
 	// MovePhase reorders a structured phase draft before or after another draft
@@ -234,6 +258,12 @@ func NewAuthoringServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+AuthoringServiceSubmitSectionProcedure,
 			connect.WithSchema(authoringServiceMethods.ByName("SubmitSection")),
+			connect.WithClientOptions(opts...),
+		),
+		submitFields: connect.NewClient[authoring.SubmitFieldsRequest, authoring.SubmitFieldsResponse](
+			httpClient,
+			baseURL+AuthoringServiceSubmitFieldsProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("SubmitFields")),
 			connect.WithClientOptions(opts...),
 		),
 		next: connect.NewClient[authoring.NextRequest, authoring.NextResponse](
@@ -302,6 +332,12 @@ func NewAuthoringServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(authoringServiceMethods.ByName("RejectContextCandidate")),
 			connect.WithClientOptions(opts...),
 		),
+		applyContextDisposition: connect.NewClient[authoring.ApplyContextDispositionRequest, authoring.ApplyContextDispositionResponse](
+			httpClient,
+			baseURL+AuthoringServiceApplyContextDispositionProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("ApplyContextDisposition")),
+			connect.WithClientOptions(opts...),
+		),
 		suggestReferences: connect.NewClient[authoring.SuggestReferencesRequest, authoring.SuggestReferencesResponse](
 			httpClient,
 			baseURL+AuthoringServiceSuggestReferencesProcedure,
@@ -324,6 +360,12 @@ func NewAuthoringServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+AuthoringServiceRejectReferenceCandidateProcedure,
 			connect.WithSchema(authoringServiceMethods.ByName("RejectReferenceCandidate")),
+			connect.WithClientOptions(opts...),
+		),
+		applyReferenceDisposition: connect.NewClient[authoring.ApplyReferenceDispositionRequest, authoring.ApplyReferenceDispositionResponse](
+			httpClient,
+			baseURL+AuthoringServiceApplyReferenceDispositionProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("ApplyReferenceDisposition")),
 			connect.WithClientOptions(opts...),
 		),
 		addPhase: connect.NewClient[authoring.AddPhaseRequest, authoring.AddPhaseResponse](
@@ -377,6 +419,7 @@ type authoringServiceClient struct {
 	getSession                *connect.Client[authoring.GetSessionRequest, authoring.GetSessionResponse]
 	getSection                *connect.Client[authoring.GetSectionRequest, authoring.GetSectionResponse]
 	submitSection             *connect.Client[authoring.SubmitSectionRequest, authoring.SubmitSectionResponse]
+	submitFields              *connect.Client[authoring.SubmitFieldsRequest, authoring.SubmitFieldsResponse]
 	next                      *connect.Client[authoring.NextRequest, authoring.NextResponse]
 	continueAuthoring         *connect.Client[authoring.ContinueAuthoringRequest, authoring.ContinueAuthoringResponse]
 	validateStructure         *connect.Client[authoring.ValidateStructureRequest, authoring.ValidateStructureResponse]
@@ -388,10 +431,12 @@ type authoringServiceClient struct {
 	discoverContextCandidates *connect.Client[authoring.DiscoverContextCandidatesRequest, authoring.DiscoverContextCandidatesResponse]
 	acceptContextCandidate    *connect.Client[authoring.AcceptContextCandidateRequest, authoring.AcceptContextCandidateResponse]
 	rejectContextCandidate    *connect.Client[authoring.RejectContextCandidateRequest, authoring.RejectContextCandidateResponse]
+	applyContextDisposition   *connect.Client[authoring.ApplyContextDispositionRequest, authoring.ApplyContextDispositionResponse]
 	suggestReferences         *connect.Client[authoring.SuggestReferencesRequest, authoring.SuggestReferencesResponse]
 	listReferenceCandidates   *connect.Client[authoring.ListReferenceCandidatesRequest, authoring.ListReferenceCandidatesResponse]
 	acceptReferenceCandidate  *connect.Client[authoring.AcceptReferenceCandidateRequest, authoring.AcceptReferenceCandidateResponse]
 	rejectReferenceCandidate  *connect.Client[authoring.RejectReferenceCandidateRequest, authoring.RejectReferenceCandidateResponse]
+	applyReferenceDisposition *connect.Client[authoring.ApplyReferenceDispositionRequest, authoring.ApplyReferenceDispositionResponse]
 	addPhase                  *connect.Client[authoring.AddPhaseRequest, authoring.AddPhaseResponse]
 	movePhase                 *connect.Client[authoring.MovePhaseRequest, authoring.MovePhaseResponse]
 	getPhase                  *connect.Client[authoring.GetPhaseRequest, authoring.GetPhaseResponse]
@@ -419,6 +464,11 @@ func (c *authoringServiceClient) GetSection(ctx context.Context, req *connect.Re
 // SubmitSection calls vrooli.plan_manager.v1.authoring.AuthoringService.SubmitSection.
 func (c *authoringServiceClient) SubmitSection(ctx context.Context, req *connect.Request[authoring.SubmitSectionRequest]) (*connect.Response[authoring.SubmitSectionResponse], error) {
 	return c.submitSection.CallUnary(ctx, req)
+}
+
+// SubmitFields calls vrooli.plan_manager.v1.authoring.AuthoringService.SubmitFields.
+func (c *authoringServiceClient) SubmitFields(ctx context.Context, req *connect.Request[authoring.SubmitFieldsRequest]) (*connect.Response[authoring.SubmitFieldsResponse], error) {
+	return c.submitFields.CallUnary(ctx, req)
 }
 
 // Next calls vrooli.plan_manager.v1.authoring.AuthoringService.Next.
@@ -482,6 +532,12 @@ func (c *authoringServiceClient) RejectContextCandidate(ctx context.Context, req
 	return c.rejectContextCandidate.CallUnary(ctx, req)
 }
 
+// ApplyContextDisposition calls
+// vrooli.plan_manager.v1.authoring.AuthoringService.ApplyContextDisposition.
+func (c *authoringServiceClient) ApplyContextDisposition(ctx context.Context, req *connect.Request[authoring.ApplyContextDispositionRequest]) (*connect.Response[authoring.ApplyContextDispositionResponse], error) {
+	return c.applyContextDisposition.CallUnary(ctx, req)
+}
+
 // SuggestReferences calls vrooli.plan_manager.v1.authoring.AuthoringService.SuggestReferences.
 func (c *authoringServiceClient) SuggestReferences(ctx context.Context, req *connect.Request[authoring.SuggestReferencesRequest]) (*connect.Response[authoring.SuggestReferencesResponse], error) {
 	return c.suggestReferences.CallUnary(ctx, req)
@@ -503,6 +559,12 @@ func (c *authoringServiceClient) AcceptReferenceCandidate(ctx context.Context, r
 // vrooli.plan_manager.v1.authoring.AuthoringService.RejectReferenceCandidate.
 func (c *authoringServiceClient) RejectReferenceCandidate(ctx context.Context, req *connect.Request[authoring.RejectReferenceCandidateRequest]) (*connect.Response[authoring.RejectReferenceCandidateResponse], error) {
 	return c.rejectReferenceCandidate.CallUnary(ctx, req)
+}
+
+// ApplyReferenceDisposition calls
+// vrooli.plan_manager.v1.authoring.AuthoringService.ApplyReferenceDisposition.
+func (c *authoringServiceClient) ApplyReferenceDisposition(ctx context.Context, req *connect.Request[authoring.ApplyReferenceDispositionRequest]) (*connect.Response[authoring.ApplyReferenceDispositionResponse], error) {
+	return c.applyReferenceDisposition.CallUnary(ctx, req)
 }
 
 // AddPhase calls vrooli.plan_manager.v1.authoring.AuthoringService.AddPhase.
@@ -556,6 +618,13 @@ type AuthoringServiceHandler interface {
 	GetSection(context.Context, *connect.Request[authoring.GetSectionRequest]) (*connect.Response[authoring.GetSectionResponse], error)
 	// SubmitSection records authored content for a section and re-validates it.
 	SubmitSection(context.Context, *connect.Request[authoring.SubmitSectionRequest]) (*connect.Response[authoring.SubmitSectionResponse], error)
+	// SubmitFields applies a BATCH of section/phase-field writes under one
+	// session lock with one save — one call can carry a single field, a whole
+	// phase, or the whole plan. Items apply independently (never
+	// all-or-nothing): each returns accepted/rejected + violations + a one-line
+	// parse summary. The single-field RPCs (SubmitSection/SubmitPhaseField)
+	// remain as wrappers over the same apply path.
+	SubmitFields(context.Context, *connect.Request[authoring.SubmitFieldsRequest]) (*connect.Response[authoring.SubmitFieldsResponse], error)
 	// Next returns the next section that still needs author input (or signals the
 	// session is structurally complete).
 	Next(context.Context, *connect.Request[authoring.NextRequest]) (*connect.Response[authoring.NextResponse], error)
@@ -592,6 +661,10 @@ type AuthoringServiceHandler interface {
 	AcceptContextCandidate(context.Context, *connect.Request[authoring.AcceptContextCandidateRequest]) (*connect.Response[authoring.AcceptContextCandidateResponse], error)
 	// RejectContextCandidate records why a discovered candidate is not relevant.
 	RejectContextCandidate(context.Context, *connect.Request[authoring.RejectContextCandidateRequest]) (*connect.Response[authoring.RejectContextCandidateResponse], error)
+	// ApplyContextDisposition closes a pending discovery batch in one call:
+	// named takes are accepted, named drops are rejected, and remaining shortlist
+	// items are swept unless they require a high-confidence drop reason.
+	ApplyContextDisposition(context.Context, *connect.Request[authoring.ApplyContextDispositionRequest]) (*connect.Response[authoring.ApplyContextDispositionResponse], error)
 	// SuggestReferences queries search-hub's Answer projection from the session's
 	// title + scope + technical approach and stores reviewable reference candidates
 	// (routed by locator shape — only hits resolving to a [CODE:]/[DOC:]/[REQ:]
@@ -607,6 +680,10 @@ type AuthoringServiceHandler interface {
 	AcceptReferenceCandidate(context.Context, *connect.Request[authoring.AcceptReferenceCandidateRequest]) (*connect.Response[authoring.AcceptReferenceCandidateResponse], error)
 	// RejectReferenceCandidate records why a suggested reference is not relevant.
 	RejectReferenceCandidate(context.Context, *connect.Request[authoring.RejectReferenceCandidateRequest]) (*connect.Response[authoring.RejectReferenceCandidateResponse], error)
+	// ApplyReferenceDisposition closes a pending reference discovery batch in one
+	// call: named takes are accepted, named drops are rejected, and remaining
+	// shortlist items are swept unless they require a high-confidence drop reason.
+	ApplyReferenceDisposition(context.Context, *connect.Request[authoring.ApplyReferenceDispositionRequest]) (*connect.Response[authoring.ApplyReferenceDispositionResponse], error)
 	// AddPhase appends one structured phase draft to the session.
 	AddPhase(context.Context, *connect.Request[authoring.AddPhaseRequest]) (*connect.Response[authoring.AddPhaseResponse], error)
 	// MovePhase reorders a structured phase draft before or after another draft
@@ -657,6 +734,12 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 		AuthoringServiceSubmitSectionProcedure,
 		svc.SubmitSection,
 		connect.WithSchema(authoringServiceMethods.ByName("SubmitSection")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authoringServiceSubmitFieldsHandler := connect.NewUnaryHandler(
+		AuthoringServiceSubmitFieldsProcedure,
+		svc.SubmitFields,
+		connect.WithSchema(authoringServiceMethods.ByName("SubmitFields")),
 		connect.WithHandlerOptions(opts...),
 	)
 	authoringServiceNextHandler := connect.NewUnaryHandler(
@@ -725,6 +808,12 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 		connect.WithSchema(authoringServiceMethods.ByName("RejectContextCandidate")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authoringServiceApplyContextDispositionHandler := connect.NewUnaryHandler(
+		AuthoringServiceApplyContextDispositionProcedure,
+		svc.ApplyContextDisposition,
+		connect.WithSchema(authoringServiceMethods.ByName("ApplyContextDisposition")),
+		connect.WithHandlerOptions(opts...),
+	)
 	authoringServiceSuggestReferencesHandler := connect.NewUnaryHandler(
 		AuthoringServiceSuggestReferencesProcedure,
 		svc.SuggestReferences,
@@ -747,6 +836,12 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 		AuthoringServiceRejectReferenceCandidateProcedure,
 		svc.RejectReferenceCandidate,
 		connect.WithSchema(authoringServiceMethods.ByName("RejectReferenceCandidate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authoringServiceApplyReferenceDispositionHandler := connect.NewUnaryHandler(
+		AuthoringServiceApplyReferenceDispositionProcedure,
+		svc.ApplyReferenceDisposition,
+		connect.WithSchema(authoringServiceMethods.ByName("ApplyReferenceDisposition")),
 		connect.WithHandlerOptions(opts...),
 	)
 	authoringServiceAddPhaseHandler := connect.NewUnaryHandler(
@@ -801,6 +896,8 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 			authoringServiceGetSectionHandler.ServeHTTP(w, r)
 		case AuthoringServiceSubmitSectionProcedure:
 			authoringServiceSubmitSectionHandler.ServeHTTP(w, r)
+		case AuthoringServiceSubmitFieldsProcedure:
+			authoringServiceSubmitFieldsHandler.ServeHTTP(w, r)
 		case AuthoringServiceNextProcedure:
 			authoringServiceNextHandler.ServeHTTP(w, r)
 		case AuthoringServiceContinueAuthoringProcedure:
@@ -823,6 +920,8 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 			authoringServiceAcceptContextCandidateHandler.ServeHTTP(w, r)
 		case AuthoringServiceRejectContextCandidateProcedure:
 			authoringServiceRejectContextCandidateHandler.ServeHTTP(w, r)
+		case AuthoringServiceApplyContextDispositionProcedure:
+			authoringServiceApplyContextDispositionHandler.ServeHTTP(w, r)
 		case AuthoringServiceSuggestReferencesProcedure:
 			authoringServiceSuggestReferencesHandler.ServeHTTP(w, r)
 		case AuthoringServiceListReferenceCandidatesProcedure:
@@ -831,6 +930,8 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 			authoringServiceAcceptReferenceCandidateHandler.ServeHTTP(w, r)
 		case AuthoringServiceRejectReferenceCandidateProcedure:
 			authoringServiceRejectReferenceCandidateHandler.ServeHTTP(w, r)
+		case AuthoringServiceApplyReferenceDispositionProcedure:
+			authoringServiceApplyReferenceDispositionHandler.ServeHTTP(w, r)
 		case AuthoringServiceAddPhaseProcedure:
 			authoringServiceAddPhaseHandler.ServeHTTP(w, r)
 		case AuthoringServiceMovePhaseProcedure:
@@ -868,6 +969,10 @@ func (UnimplementedAuthoringServiceHandler) GetSection(context.Context, *connect
 
 func (UnimplementedAuthoringServiceHandler) SubmitSection(context.Context, *connect.Request[authoring.SubmitSectionRequest]) (*connect.Response[authoring.SubmitSectionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.SubmitSection is not implemented"))
+}
+
+func (UnimplementedAuthoringServiceHandler) SubmitFields(context.Context, *connect.Request[authoring.SubmitFieldsRequest]) (*connect.Response[authoring.SubmitFieldsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.SubmitFields is not implemented"))
 }
 
 func (UnimplementedAuthoringServiceHandler) Next(context.Context, *connect.Request[authoring.NextRequest]) (*connect.Response[authoring.NextResponse], error) {
@@ -914,6 +1019,10 @@ func (UnimplementedAuthoringServiceHandler) RejectContextCandidate(context.Conte
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.RejectContextCandidate is not implemented"))
 }
 
+func (UnimplementedAuthoringServiceHandler) ApplyContextDisposition(context.Context, *connect.Request[authoring.ApplyContextDispositionRequest]) (*connect.Response[authoring.ApplyContextDispositionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.ApplyContextDisposition is not implemented"))
+}
+
 func (UnimplementedAuthoringServiceHandler) SuggestReferences(context.Context, *connect.Request[authoring.SuggestReferencesRequest]) (*connect.Response[authoring.SuggestReferencesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.SuggestReferences is not implemented"))
 }
@@ -928,6 +1037,10 @@ func (UnimplementedAuthoringServiceHandler) AcceptReferenceCandidate(context.Con
 
 func (UnimplementedAuthoringServiceHandler) RejectReferenceCandidate(context.Context, *connect.Request[authoring.RejectReferenceCandidateRequest]) (*connect.Response[authoring.RejectReferenceCandidateResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.RejectReferenceCandidate is not implemented"))
+}
+
+func (UnimplementedAuthoringServiceHandler) ApplyReferenceDisposition(context.Context, *connect.Request[authoring.ApplyReferenceDispositionRequest]) (*connect.Response[authoring.ApplyReferenceDispositionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.ApplyReferenceDisposition is not implemented"))
 }
 
 func (UnimplementedAuthoringServiceHandler) AddPhase(context.Context, *connect.Request[authoring.AddPhaseRequest]) (*connect.Response[authoring.AddPhaseResponse], error) {

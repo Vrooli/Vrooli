@@ -5,6 +5,7 @@ import (
 	"log"
 
 	internalauthoring "plan-manager/internal/authoring"
+	"plan-manager/internal/planproto"
 
 	"connectrpc.com/connect"
 
@@ -69,6 +70,38 @@ func (h *connectHandler) SubmitSection(ctx context.Context, req *connect.Request
 		Progress:   progressOf(sess),
 		Violations: violationsToProto(violations),
 		Step:       guidedStepToProto(step),
+	}), nil
+}
+
+func (h *connectHandler) SubmitFields(ctx context.Context, req *connect.Request[authoringv1.SubmitFieldsRequest]) (*connect.Response[authoringv1.SubmitFieldsResponse], error) {
+	writes := make([]internalauthoring.FieldWrite, 0, len(req.Msg.GetItems()))
+	for _, item := range req.Msg.GetItems() {
+		write := internalauthoring.FieldWrite{Content: item.GetContent()}
+		if phase := item.GetPhase(); phase != nil {
+			write.PhaseRef = phase.GetPhaseRef()
+			write.PhaseField = internalauthoring.PhaseField(phase.GetField())
+		} else {
+			write.SectionKey = internalauthoring.SectionKey(item.GetSectionKey())
+		}
+		writes = append(writes, write)
+	}
+	sess, results, step, err := h.deps.Service.SubmitFields(ctx, req.Msg.GetSessionId(), writes)
+	if err != nil {
+		return nil, internalauthoring.ToConnectError(err)
+	}
+	out := make([]*authoringv1.FieldWriteResult, 0, len(results))
+	for _, result := range results {
+		out = append(out, &authoringv1.FieldWriteResult{
+			Index:      int32(result.Index),
+			Accepted:   result.Accepted,
+			Summary:    result.Summary,
+			Violations: violationsToProto(result.Violations),
+		})
+	}
+	return connect.NewResponse(&authoringv1.SubmitFieldsResponse{
+		Results:  out,
+		Progress: progressOf(sess),
+		Step:     guidedStepToProto(step),
 	}), nil
 }
 
@@ -139,6 +172,7 @@ func (h *connectHandler) SubmitRelevantContextItem(ctx context.Context, req *con
 		Progress:   progressOf(sess),
 		Violations: violationsToProto(violations),
 		Step:       guidedStepToProto(step),
+		Accepted:   len(violations) == 0,
 	}), nil
 }
 
@@ -181,7 +215,7 @@ func (h *connectHandler) RemoveRelevantContextItem(ctx context.Context, req *con
 }
 
 func (h *connectHandler) DiscoverContextCandidates(ctx context.Context, req *connect.Request[authoringv1.DiscoverContextCandidatesRequest]) (*connect.Response[authoringv1.DiscoverContextCandidatesResponse], error) {
-	sess, candidates, step, err := h.deps.Service.DiscoverContextCandidates(ctx, req.Msg.GetSessionId(), req.Msg.GetConcepts(), req.Msg.GetComplexity())
+	sess, candidates, step, err := h.deps.Service.DiscoverContextCandidates(ctx, req.Msg.GetSessionId(), req.Msg.GetConcepts(), req.Msg.GetComplexity(), req.Msg.GetRefresh())
 	if err != nil {
 		return nil, internalauthoring.ToConnectError(err)
 	}
@@ -189,6 +223,7 @@ func (h *connectHandler) DiscoverContextCandidates(ctx context.Context, req *con
 		Candidates: contextCandidatesToProto(candidates),
 		Progress:   progressOf(sess),
 		Step:       guidedStepToProto(step),
+		Batch:      discoveryBatchToProto(internalauthoring.LatestDiscoveryBatch(sess)),
 	}), nil
 }
 
@@ -216,6 +251,28 @@ func (h *connectHandler) RejectContextCandidate(ctx context.Context, req *connec
 		Candidate: contextCandidateToProto(candidate),
 		Progress:  progressOf(sess),
 		Step:      guidedStepToProto(step),
+	}), nil
+}
+
+func (h *connectHandler) ApplyContextDisposition(ctx context.Context, req *connect.Request[authoringv1.ApplyContextDispositionRequest]) (*connect.Response[authoringv1.ApplyContextDispositionResponse], error) {
+	sess, summary, violations, step, err := h.deps.Service.ApplyContextDisposition(
+		ctx,
+		req.Msg.GetSessionId(),
+		req.Msg.GetBatchId(),
+		contextDispositionTakesFromProto(req.Msg.GetTake()),
+		contextDispositionDropsFromProto(req.Msg.GetDrop()),
+		req.Msg.GetSweepNote(),
+		req.Msg.GetTakeAll(),
+	)
+	if err != nil {
+		return nil, internalauthoring.ToConnectError(err)
+	}
+	return connect.NewResponse(&authoringv1.ApplyContextDispositionResponse{
+		Results:    contextDispositionResultsToProto(summary.Results),
+		Batch:      discoveryBatchToProto(summary.Batch),
+		Progress:   progressOf(sess),
+		Violations: violationsToProto(violations),
+		Step:       guidedStepToProto(step),
 	}), nil
 }
 
@@ -265,6 +322,20 @@ func (h *connectHandler) RejectReferenceCandidate(ctx context.Context, req *conn
 		Candidate: referenceCandidateToProto(candidate),
 		Progress:  progressOf(sess),
 		Step:      guidedStepToProto(step),
+	}), nil
+}
+
+func (h *connectHandler) ApplyReferenceDisposition(ctx context.Context, req *connect.Request[authoringv1.ApplyReferenceDispositionRequest]) (*connect.Response[authoringv1.ApplyReferenceDispositionResponse], error) {
+	sess, summary, violations, step, err := h.deps.Service.ApplyReferenceDisposition(ctx, req.Msg.GetSessionId(), req.Msg.GetBatchId(), referenceDispositionTakesFromProto(req.Msg.GetTake()), referenceDispositionDropsFromProto(req.Msg.GetDrop()), req.Msg.GetSweepNote(), req.Msg.GetTakeAll())
+	if err != nil {
+		return nil, internalauthoring.ToConnectError(err)
+	}
+	return connect.NewResponse(&authoringv1.ApplyReferenceDispositionResponse{
+		Results:    referenceDispositionResultsToProto(summary.Results),
+		Batch:      discoveryBatchToProto(summary.Batch),
+		Progress:   progressOf(sess),
+		Violations: violationsToProto(violations),
+		Step:       guidedStepToProto(step),
 	}), nil
 }
 
@@ -344,9 +415,19 @@ func (h *connectHandler) PreviewPlan(ctx context.Context, req *connect.Request[a
 }
 
 func (h *connectHandler) Finalize(ctx context.Context, req *connect.Request[authoringv1.FinalizeRequest]) (*connect.Response[authoringv1.FinalizeResponse], error) {
-	plan, step, err := h.deps.Service.Finalize(ctx, req.Msg.GetSessionId())
+	result, step, err := h.deps.Service.Finalize(ctx, req.Msg.GetSessionId(), internalauthoring.FinalizeOptions{
+		WorkspaceRoot: req.Msg.GetWorkspaceRoot(),
+	})
 	if err != nil {
 		return nil, internalauthoring.ToConnectError(err)
 	}
-	return connect.NewResponse(&authoringv1.FinalizeResponse{Plan: planToProto(plan), Step: guidedStepToProto(step)}), nil
+	return connect.NewResponse(&authoringv1.FinalizeResponse{
+		Plan:             planToProto(result.Plan),
+		Step:             guidedStepToProto(step),
+		StorePath:        result.StorePath,
+		Mirror:           planproto.MirrorToProto(result.Mirror),
+		AlreadyFinalized: result.AlreadyFinalized,
+		FinalizedAt:      result.FinalizedAt,
+		WorkspaceRoot:    result.Plan.WorkspaceRoot,
+	}), nil
 }

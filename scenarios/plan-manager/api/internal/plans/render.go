@@ -161,7 +161,7 @@ func renderExecutionSetupCluster(b *strings.Builder, p Plan, opts RenderOptions)
 	}
 	if !opts.Compact {
 		b.WriteString("### Execution Feedback\n\n")
-		b.WriteString(renderExecutionFeedback())
+		b.WriteString(renderExecutionFeedback(p))
 		b.WriteString("\n")
 	}
 }
@@ -246,11 +246,29 @@ func renderQualityNotice(p Plan) string {
 }
 
 // renderExecutionFeedback renders the default capture policy every plan carries
-// while executing: a one-line pointer at the typed log commands. The full
-// command list lives in the plan-manager CLI reference, not stamped into every
-// plan.
-func renderExecutionFeedback() string {
-	return "Log typed work products as they happen via `plan-manager log {decision,finding,bug,record,note}-add <plan-or-execution> --phase <n> ...` (full command list: plan-manager CLI reference).\n"
+// while executing: a one-line pointer at the typed log commands, plus the
+// pre-filled completion-record command. The command is stamped concretely —
+// scenario and title filled in — because transcript analysis showed agents
+// reconstructing it from memory at end-of-plan was a dominant failure source.
+func renderExecutionFeedback(p Plan) string {
+	var b strings.Builder
+	b.WriteString("Log typed work products as they happen via `plan-manager log {decision,finding,bug,record,note}-add <plan-or-execution> --phase <n> ...` (full command list: plan-manager CLI reference).\n\n")
+	b.WriteString("On completion, write the learning-loop record — copy, fill the `<...>` placeholders, run:\n\n")
+
+	scenario := "<scenario>"
+	if affected := p.ChangeBoundary.AffectedScenarios(); len(affected) > 0 {
+		scenario = affected[0]
+	}
+	trigger := "<one-line goal>"
+	if title := strings.TrimSpace(strings.ReplaceAll(p.Title, "'", "")); title != "" {
+		trigger = title + ": <one-line goal>"
+	}
+	fmt.Fprintf(&b, "```bash\nswarm-manager records create --kind execute --scenario %s \\\n"+
+		"  --trigger '%s' \\\n"+
+		"  --approach '<what was built + key decisions>' \\\n"+
+		"  --evidence '<suites/baselines/live checks that prove it>' \\\n"+
+		"  --outcome shipped\n```\n", scenario, trigger)
+	return b.String()
 }
 
 // renderWorkPosture renders the always-present Work Posture section: a source/
@@ -554,38 +572,9 @@ func relevantContextAnnotations(item RelevantContextItem) []string {
 	return out
 }
 
-// relevantContextCommand derives the runnable command for one context item. It
-// is the ONLY place a `prompt-manager skill read`/`sed` command may be
-// assembled from a bare target (contract decision D6), and it is idempotent: a
-// Target that already carries the full command is returned verbatim, never
-// re-prefixed — defense in depth for data written before targets were
-// normalized to bare slugs/paths.
+// relevantContextCommand delegates to the model-owned idempotent assembler.
 func relevantContextCommand(item RelevantContextItem) string {
-	if item.Command != "" {
-		return item.Command
-	}
-	if len(item.Argv) > 0 {
-		return strings.Join(item.Argv, " ")
-	}
-	target := strings.TrimSpace(item.Target)
-	if target == "" {
-		return ""
-	}
-	switch item.Kind {
-	case RelevantContextSkill:
-		if strings.HasPrefix(target, "prompt-manager skill read") {
-			return target
-		}
-		return "prompt-manager skill read " + target
-	case RelevantContextDoc, RelevantContextCodeRef, RelevantContextReqRef:
-		if strings.HasPrefix(target, "sed ") {
-			return target
-		}
-		return "sed -n '1,220p' " + target
-	case RelevantContextSearch:
-		return target
-	}
-	return ""
+	return planmodel.RelevantContextCommandLine(item)
 }
 
 func repeatPolicyLabel(policy RelevantContextRepeatPolicy) string {

@@ -126,10 +126,17 @@ before the done transition.
 
 ## `author` — the guided composer wizard
 
+`author status <session>` is an alias of `author preview`. Global flags
+(`--auto-start`, `--api-base`, `--instance`, `--dry-run`) go **before** the
+subcommand (`plan-manager --auto-start author continue <s>`); a misplaced one
+after the subcommand gets a placement hint at the point of error.
+
 The authoring response contract is **focused for small/local models**: normal
 mutations (`section-submit`, `phase-submit`, `phase-add`, `autofill`,
 `context-submit`, `context-update`, `context-remove`, `context-accept`,
-`context-reject`, `context-discover`) **do not echo the full session**. With
+`context-reject`, `context-discover`, `context-apply`, `suggest-references`,
+`reference-accept`, `reference-reject`, `reference-apply`) **do not echo the
+full session**. With
 `--json` you get a compact `AuthoringProgress` (current section/phase,
 mandatory-sections + phases counts, `remaining_required_inputs[]`,
 `ready_to_finalize`), an `AuthoringMutationSummary` (what changed), the single
@@ -144,31 +151,99 @@ whole `AuthoringSession`. To read the whole session graph, ask for it explicitly
 | `plan-manager author context-update <session> <item> --kind <k> [--phase --label --reason --instruction --command --argv-json --argv --target --required --repeat]` | `AuthoringService.UpdateRelevantContextItem` | Replace one accepted relevant-context item in place (by id from `author context-list`) so a bad item discovered in `author preview` is corrected **without deleting the phase/session**. Legal only before finalize. |
 | `plan-manager author context-remove <session> <item> [--phase]` | `AuthoringService.RemoveRelevantContextItem` | Remove one accepted relevant-context item (by id) before finalize; removal recomputes structure violations so any resulting gate (e.g. removing the only phase context) is reported with its recovery action. |
 | `plan-manager author phase-move <session> <phase> --before <phase>` / `--after <phase>` | `AuthoringService.MovePhase` | Reorders a structured phase draft without rewriting its id, title, intent, steps, context, or acceptance content. |
-| `plan-manager author finalize <session> [--full]` | `AuthoringService.Finalize` | Validates, persists, verifies read-back through the plans domain, and returns compact human output by default. Re-running finalize for the same finalized session returns the existing plan. |
+| `plan-manager author finalize <session> [--full] [--workspace <root>]` | `AuthoringService.Finalize` | Validates, persists, verifies read-back through the plans domain, and reports the honest persistence state: the physical SQLite store path, the workspace stamped on the plan (default: the resolved repo root), and the **computed** mirror publish result (`fresh` / a loud `write_failed` warning — never a default `unknown`). Re-running finalize on a finalized session says `Already finalized at <ts>` explicitly. |
+
+### Batch submission — the form, not the wizard
+
+The session is a **form with a derived cursor, not a wizard with state**: every
+guided step carries a full-disclosure `checklist` (every requirement for the
+touched scope with `filled`/`missing`/`violation` status), fields may be
+submitted **in any order**, and one call can carry one field, a whole phase, or
+the whole plan. An agent that already knows its content authors a complete
+N-phase plan in ≤ 3+N mutation calls: `start` → one `submit` sections batch →
+one `phase-add --set …` per phase → `finalize`.
+
+| Command | RPC | Purpose |
+|---|---|---|
+| `plan-manager author submit <session> --set <section_key>=<content> --set <phase-ref>.<field>=<content> …` | `AuthoringService.SubmitFields` | Session-scope batch: repeated `--set` pairs land in ONE call under one session lock/save. Items apply independently (never all-or-nothing); each returns an accepted/rejected line naming exactly what was parsed or why it was rejected. `--set-file <key>=<path>` reads long content from a file. |
+| `plan-manager author phase-submit <session> <phase> --set <field>=<content> …` | `AuthoringService.SubmitFields` | Phase-scope batch: keys are bare phase field names. The single-field `--field`/`--content` form remains for one-off edits (same apply path — no drift). |
+| `plan-manager author phase-add <session> --title <t> --intent <i> --set <field>=<content> …` | `AuthoringService.AddPhase` + `SubmitFields` | Add+fill in one command: the optional `--set` pairs apply to the just-created phase in one batch. The response checklist shows all 7 phase fields with live status the moment the phase exists. |
+
+A rejected item (unknown section/phase/field, unparsable references markup, or
+acceptance duplicating validation) is **not applied** — the line says so and the
+rest of the batch still lands. For an already-written plan **document**, `plans
+import` remains the whole-document path; batch submission is for composing
+through the authoring session.
 
 ### `context-discover` — server-side discovery execution
 
-`plan-manager author context-discover <session> --concepts "<c1>,<c2>" --complexity <minor|moderate|major|architectural>`
-EXECUTES the discovery probes itself and returns reviewed-ready candidates —
-the agent supplies concepts and judgment; the code runs the probes. Per
-(concept, probe) pair it runs, concurrently and each bounded by a per-probe
-timeout (default 20s):
+`plan-manager author context-discover <session> [--concepts "<c1>,<c2>"] [--complexity <minor|moderate|major|architectural>] [--refresh]`
+EXECUTES the discovery probes itself and returns a curated proposal — the agent
+supplies concepts and judgment; the code runs the probes, deduplicates,
+curates, and formats final setup lines. Per (concept, probe) pair it runs,
+concurrently and each bounded by a per-probe timeout (default 20s) with capped
+fan-out. `author start` launches a best-effort title-derived prefetch; with no
+`--concepts`, `context-discover` can reuse that batch immediately. Explicit
+concepts or `--refresh` force a fresh run that supersedes/merges through the
+normal no-resurrection path.
 
 - `prompt-manager discover <concept> --type skill --json [--complexity <c>]` — curated skill candidates (bare-slug targets),
 - `prompt-manager discover <concept> --type all --json` — executable action candidates (their `showCommand` verbatim),
 - `search-hub query <concept> --type record,skill,doc --json` — prior-work records (as `swarm-manager records get` commands), docs, and skills.
 
-Results are deduplicated by (kind, target) with provenance (probe, score) on
-each candidate. A failed/slow/unparseable probe degrades **independently** into
-a typed degraded note that still requires a disposition — the step always
-returns and the wizard never blocks on a down dependency.
+Results are deduplicated by (kind, target) across the pending batch and prior
+accepted/rejected history, so rediscovery does not duplicate or resurrect a
+rejected target. The response shows a shortlist with handles (`c1`, `c2`, ...),
+tier, score, origin, size when known, hit/corroboration count, setup line,
+evidence, tags, snippets, and batch-level probe notes. Lower-ranked longlist
+items are auditable with `context-list --all`, but they are not
+disposition-required. A failed/slow/unparseable probe degrades
+**independently** into a typed note on the batch, not a candidate — the step
+always returns and the wizard never blocks on a down dependency.
 
-**Skill checkpoint gate v2:** finalize requires evidence of a sweep — discovery
-ran and EVERY candidate was dispositioned (`context-accept`, or
-`context-reject --reason <why>`; a rejection without a reason is refused; a
-direct `context-submit` of the same target counts as a disposition) — or an
-explicit `NO_SKILL_CONTEXT: <reason>` / `NO_CONTEXT: <reason>` skip. No minimum
-skill count is imposed.
+### `context-apply` — one-call context disposition
+
+`plan-manager author context-apply <session> [--batch <id>] [--take <handle[:phase]>]... [--drop <handle=reason>]... [--take-all] [--note <text>]`
+
+Applies the latest pending curated context batch as one decision. Take only the
+items whose concrete implementation improvement you can articulate; omitted
+shortlist items are swept as not taken, and longlist items are implicitly swept.
+Use `--drop <handle=reason>` only when a high-confidence candidate should not
+land, or when recording an explicit reason is useful. `--take c1:phase-id`
+accepts a candidate as phase-scoped setup; bare `--take c1` accepts it as
+global setup. `--take-all` is available for trusted tiny batches, but it should
+not replace review.
+
+`context-accept` and `context-reject` remain the small-agent one-item lane and
+accept either the stable candidate id or the batch handle. They share the same
+internal disposition path as `context-apply`; when the last shortlist item is
+handled one by one, the batch auto-closes. Prefer `context-apply` for normal
+authoring because the context checkpoint is budgeted as at most two calls:
+`context-discover` (or zero calls when the prefetch is sufficient) plus one
+`context-apply`.
+
+**Skill checkpoint gate v3:** finalize requires the latest context discovery
+batch to be applied, or an explicit `NO_SKILL_CONTEXT: <reason>` /
+`NO_CONTEXT: <reason>` skip when no relevant setup exists. Legacy sessions with
+pre-batch pending candidates still satisfy the gate through the one-item lane.
+No minimum skill count is imposed: the gate demands evidence of a sweep, not a
+quota.
+
+### `suggest-references` / `reference-apply` — reviewed code/document locators
+
+`plan-manager author suggest-references <session>` queries search-hub's Answer
+projection, keeps only `[CODE:]`, `[DOC:]`, and `[REQ:]` locator-shaped hits,
+and returns a curated reference proposal with handles (`r1`, `r2`, ...),
+shortlist/longlist tiers, scores/evidence where available, and batch metadata.
+Search-hub down or empty results leave the author with manual reference submit
+or an honest `NO_CODE_REFS: <reason>` path; degraded lookup metadata never
+becomes a fake reference.
+
+`plan-manager author reference-apply <session> [--batch <id>] [--take <handle>]... [--drop <handle=reason>]... [--take-all] [--note <text>]`
+applies the pending reference batch in one call. Taken locators enter the plan
+or phase references; the rest are swept not-taken, with reasons required only
+for high-confidence drops. `reference-accept` / `reference-reject` remain the
+one-item lane and share the same batch disposition path.
 
 ### `decisions` — pinned plan-time contract decisions (optional)
 

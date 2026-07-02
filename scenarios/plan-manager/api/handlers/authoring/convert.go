@@ -27,6 +27,8 @@ func sessionToProto(s internalauthoring.Session) *authoringv1.AuthoringSession {
 		RelevantContext:     planproto.RelevantContextItemsToProto(s.RelevantContext),
 		ContextCandidates:   contextCandidatesToProto(s.ContextCandidates),
 		ReferenceCandidates: referenceCandidatesToProto(s.ReferenceCandidates),
+		DiscoveryBatches:    discoveryBatchesToProto(s.DiscoveryBatches),
+		ReferenceBatches:    discoveryBatchesToProto(s.ReferenceBatches),
 	}
 }
 
@@ -91,6 +93,18 @@ func contextCandidateToProto(candidate internalauthoring.ContextCandidate) *auth
 		Item:            relevantContextItemToProto(candidate.Item),
 		Concept:         candidate.Concept,
 		Source:          candidate.Source,
+		Score:           candidate.Score,
+		Origin:          candidate.Origin,
+		SizeChars:       int32(candidate.SizeChars),
+		Tags:            append([]string(nil), candidate.Tags...),
+		Title:           candidate.Title,
+		Snippet:         candidate.Snippet,
+		Corroboration:   probeHitsToProto(candidate.Corroboration),
+		Handle:          candidate.Handle,
+		BatchId:         candidate.BatchID,
+		Tier:            candidate.Tier,
+		HighConfidence:  candidate.HighConfidence,
+		SetupLine:       candidate.SetupLine,
 		Degraded:        candidate.Degraded,
 		Detail:          candidate.Detail,
 		Status:          string(candidate.Status),
@@ -112,11 +126,159 @@ func referenceCandidateToProto(candidate internalauthoring.ReferenceCandidate) *
 		Reference:       referenceToProto(candidate.Reference),
 		Source:          candidate.Source,
 		Confidence:      candidate.Confidence,
+		Corroboration:   probeHitsToProto(candidate.Corroboration),
+		Handle:          candidate.Handle,
+		BatchId:         candidate.BatchID,
+		Tier:            candidate.Tier,
+		HighConfidence:  candidate.HighConfidence,
 		Status:          string(candidate.Status),
 		Degraded:        candidate.Degraded,
 		Detail:          candidate.Detail,
 		RejectionReason: candidate.RejectionReason,
 	}
+}
+
+func probeHitsToProto(hits []internalauthoring.ProbeHit) []*authoringv1.ProbeHit {
+	out := make([]*authoringv1.ProbeHit, 0, len(hits))
+	for _, hit := range hits {
+		out = append(out, &authoringv1.ProbeHit{
+			Probe:   hit.Probe,
+			Concept: hit.Concept,
+			Score:   hit.Score,
+		})
+	}
+	return out
+}
+
+func probeNotesToProto(notes []internalauthoring.ProbeNote) []*authoringv1.ProbeNote {
+	out := make([]*authoringv1.ProbeNote, 0, len(notes))
+	for _, note := range notes {
+		out = append(out, &authoringv1.ProbeNote{
+			Probe:    note.Probe,
+			Concept:  note.Concept,
+			Degraded: note.Degraded,
+			Detail:   note.Detail,
+		})
+	}
+	return out
+}
+
+func curationStatsToProto(stats internalauthoring.CurationStats) *authoringv1.CurationStats {
+	return &authoringv1.CurationStats{
+		SuppressedDispositioned: int32(stats.SuppressedDispositioned),
+		OmittedBelowThreshold:   int32(stats.OmittedBelowThreshold),
+		OmittedTopicFiller:      int32(stats.OmittedTopicFiller),
+		OmittedByCap:            int32(stats.OmittedByCap),
+	}
+}
+
+func discoveryBatchToProto(batch internalauthoring.DiscoveryBatch) *authoringv1.DiscoveryBatch {
+	if batch.ID == "" {
+		return nil
+	}
+	return &authoringv1.DiscoveryBatch{
+		Id:            batch.ID,
+		Concepts:      append([]string(nil), batch.Concepts...),
+		Complexity:    batch.Complexity,
+		ProbeNotes:    probeNotesToProto(batch.ProbeNotes),
+		CurationStats: curationStatsToProto(batch.CurationStats),
+		Status:        string(batch.Status),
+		AppliedNote:   batch.AppliedNote,
+		CreatedSeq:    int32(batch.CreatedSeq),
+		Source:        batch.Source,
+	}
+}
+
+func discoveryBatchesToProto(batches []internalauthoring.DiscoveryBatch) []*authoringv1.DiscoveryBatch {
+	out := make([]*authoringv1.DiscoveryBatch, 0, len(batches))
+	for _, batch := range batches {
+		if pb := discoveryBatchToProto(batch); pb != nil {
+			out = append(out, pb)
+		}
+	}
+	return out
+}
+
+func contextDispositionTakesFromProto(takes []*authoringv1.ContextDispositionTake) []internalauthoring.ContextDispositionTake {
+	out := make([]internalauthoring.ContextDispositionTake, 0, len(takes))
+	for _, take := range takes {
+		out = append(out, internalauthoring.ContextDispositionTake{
+			CandidateID: take.GetCandidate(),
+			PhaseID:     take.GetPhaseId(),
+			Reason:      take.GetReason(),
+		})
+	}
+	return out
+}
+
+func contextDispositionDropsFromProto(drops []*authoringv1.ContextDispositionDrop) []internalauthoring.ContextDispositionDrop {
+	out := make([]internalauthoring.ContextDispositionDrop, 0, len(drops))
+	for _, drop := range drops {
+		out = append(out, internalauthoring.ContextDispositionDrop{
+			CandidateID: drop.GetCandidate(),
+			Reason:      drop.GetReason(),
+		})
+	}
+	return out
+}
+
+func contextDispositionResultToProto(result internalauthoring.ContextDispositionResult) *authoringv1.ContextDispositionResult {
+	return &authoringv1.ContextDispositionResult{
+		Candidate:  contextCandidateToProto(result.Candidate),
+		Item:       relevantContextItemToProto(result.Item),
+		Action:     result.Action,
+		Accepted:   result.Accepted,
+		Message:    result.Message,
+		Violations: violationsToProto(result.Violations),
+	}
+}
+
+func contextDispositionResultsToProto(results []internalauthoring.ContextDispositionResult) []*authoringv1.ContextDispositionResult {
+	out := make([]*authoringv1.ContextDispositionResult, 0, len(results))
+	for _, result := range results {
+		out = append(out, contextDispositionResultToProto(result))
+	}
+	return out
+}
+
+func referenceDispositionTakesFromProto(takes []*authoringv1.ReferenceDispositionTake) []internalauthoring.ReferenceDispositionTake {
+	out := make([]internalauthoring.ReferenceDispositionTake, 0, len(takes))
+	for _, take := range takes {
+		if take == nil {
+			continue
+		}
+		out = append(out, internalauthoring.ReferenceDispositionTake{CandidateID: take.GetCandidate()})
+	}
+	return out
+}
+
+func referenceDispositionDropsFromProto(drops []*authoringv1.ReferenceDispositionDrop) []internalauthoring.ReferenceDispositionDrop {
+	out := make([]internalauthoring.ReferenceDispositionDrop, 0, len(drops))
+	for _, drop := range drops {
+		if drop == nil {
+			continue
+		}
+		out = append(out, internalauthoring.ReferenceDispositionDrop{
+			CandidateID: drop.GetCandidate(),
+			Reason:      drop.GetReason(),
+		})
+	}
+	return out
+}
+
+func referenceDispositionResultsToProto(results []internalauthoring.ReferenceDispositionResult) []*authoringv1.ReferenceDispositionResult {
+	out := make([]*authoringv1.ReferenceDispositionResult, 0, len(results))
+	for _, result := range results {
+		out = append(out, &authoringv1.ReferenceDispositionResult{
+			Candidate:  referenceCandidateToProto(result.Candidate),
+			Reference:  referenceToProto(result.Reference),
+			Action:     result.Action,
+			Accepted:   result.Accepted,
+			Message:    result.Message,
+			Violations: violationsToProto(result.Violations),
+		})
+	}
+	return out
 }
 
 func referenceCandidatesToProto(candidates []internalauthoring.ReferenceCandidate) []*authoringv1.ReferenceCandidate {

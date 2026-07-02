@@ -40,13 +40,23 @@ const (
 type Options struct {
 	// Timeout bounds each probe individually; zero means DefaultProbeTimeout.
 	Timeout time.Duration
+	// MaxConcurrent caps in-flight probe subprocesses. Zero uses the default
+	// interactive cap; negative means no cap.
+	MaxConcurrent int
 }
+
+const defaultMaxConcurrentProbes = 6
 
 // Item is one typed setup candidate discovered by a probe, with its source
 // score passed through untouched.
 type Item struct {
-	Item  planmodel.RelevantContextItem
-	Score float64
+	Item      planmodel.RelevantContextItem
+	Score     float64
+	Origin    string
+	SizeChars int
+	Tags      []string
+	Title     string
+	Snippet   string
 }
 
 // Outcome is the result of one (probe, concept) execution. Degraded outcomes
@@ -104,10 +114,22 @@ func Discover(ctx context.Context, run Runner, concepts []string, complexity str
 	}
 	out := make([]Outcome, len(slots))
 	var wg sync.WaitGroup
+	maxConcurrent := opts.MaxConcurrent
+	if maxConcurrent == 0 {
+		maxConcurrent = defaultMaxConcurrentProbes
+	}
+	var sem chan struct{}
+	if maxConcurrent > 0 && maxConcurrent < len(slots) {
+		sem = make(chan struct{}, maxConcurrent)
+	}
 	for _, s := range slots {
 		wg.Add(1)
 		go func(s slot) {
 			defer wg.Done()
+			if sem != nil {
+				sem <- struct{}{}
+				defer func() { <-sem }()
+			}
 			out[s.index] = runProbe(ctx, run, s.concept, s.spec, timeout)
 		}(s)
 	}
@@ -157,11 +179,16 @@ type promptManagerDiscoverResponse struct {
 }
 
 type promptManagerResult struct {
-	Type        string  `json:"type"`
-	ID          string  `json:"id"`
-	Name        string  `json:"name"`
-	Description string  `json:"description"`
-	Score       float64 `json:"score"`
+	Type         string   `json:"type"`
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description"`
+	Tags         []string `json:"tags"`
+	Modes        []string `json:"modes"`
+	Score        float64  `json:"score"`
+	Source       string   `json:"source"`
+	TopicID      string   `json:"topicId"`
+	ContentChars int      `json:"contentChars"`
 	// ShowCommand is prompt-manager's own runnable inspect command for an
 	// action result; carried verbatim (never assembled here).
 	ShowCommand string `json:"showCommand"`
@@ -178,7 +205,7 @@ func parsePromptManagerSkills(raw []byte) ([]Item, error) {
 			continue
 		}
 		if item, ok := skillItem(r.ID, r.Description); ok {
-			out = append(out, Item{Item: item, Score: r.Score})
+			out = append(out, probeItem(item, r.Score, r.Source, r.ContentChars, r.Tags, r.Name, r.Description))
 		}
 	}
 	return out, nil
@@ -195,22 +222,32 @@ func parsePromptManagerActions(raw []byte) ([]Item, error) {
 			continue
 		}
 		command := strings.TrimSpace(r.ShowCommand)
-		out = append(out, Item{
-			Item: planmodel.RelevantContextItem{
-				Kind:        planmodel.RelevantContextCommand,
-				Scope:       planmodel.RelevantContextScopeGlobal,
-				Label:       strings.TrimSpace(firstNonEmpty(r.Name, r.ID)),
-				Reason:      strings.TrimSpace(r.Description),
-				Instruction: "Inspect this executable action before hand-rolling the step.",
-				Command:     command,
-				Argv:        strings.Fields(command),
-				Source:      planmodel.RelevantContextSourceDiscovered,
-				Status:      planmodel.RelevantContextStatusReady,
-			},
-			Score: r.Score,
-		})
+		item := planmodel.RelevantContextItem{
+			Kind:        planmodel.RelevantContextCommand,
+			Scope:       planmodel.RelevantContextScopeGlobal,
+			Label:       strings.TrimSpace(firstNonEmpty(r.Name, r.ID)),
+			Reason:      strings.TrimSpace(r.Description),
+			Instruction: "Inspect this executable action before hand-rolling the step.",
+			Command:     command,
+			Argv:        strings.Fields(command),
+			Source:      planmodel.RelevantContextSourceDiscovered,
+			Status:      planmodel.RelevantContextStatusReady,
+		}
+		out = append(out, probeItem(item, r.Score, r.Source, r.ContentChars, r.Tags, r.Name, r.Description))
 	}
 	return out, nil
+}
+
+func probeItem(item planmodel.RelevantContextItem, score float64, origin string, sizeChars int, tags []string, title string, snippet string) Item {
+	return Item{
+		Item:      item,
+		Score:     score,
+		Origin:    strings.TrimSpace(origin),
+		SizeChars: sizeChars,
+		Tags:      append([]string(nil), tags...),
+		Title:     strings.TrimSpace(title),
+		Snippet:   strings.TrimSpace(snippet),
+	}
 }
 
 // skillItem builds the typed skill candidate: Target carries ONLY the bare
@@ -246,14 +283,16 @@ type searchHubResponse struct {
 }
 
 type searchHubHit struct {
-	Type             string  `json:"type"`
-	ID               string  `json:"id"`
-	Title            string  `json:"title"`
-	Snippet          string  `json:"snippet"`
-	Path             string  `json:"path"`
-	Score            float64 `json:"score"`
-	RerankScore      float64 `json:"rerank_score"`
-	RerankScoreCamel float64 `json:"rerankScore"`
+	Type               string  `json:"type"`
+	ID                 string  `json:"id"`
+	Title              string  `json:"title"`
+	Snippet            string  `json:"snippet"`
+	Path               string  `json:"path"`
+	ProviderGroup      string  `json:"provider_group"`
+	ProviderGroupCamel string  `json:"providerGroup"`
+	Score              float64 `json:"score"`
+	RerankScore        float64 `json:"rerank_score"`
+	RerankScoreCamel   float64 `json:"rerankScore"`
 }
 
 func (h searchHubHit) bestScore() float64 {
@@ -282,9 +321,13 @@ func parseSearchHubRecall(raw []byte) ([]Item, error) {
 		if !ok {
 			continue
 		}
-		out = append(out, Item{Item: item, Score: hit.bestScore()})
+		out = append(out, probeItem(item, hit.bestScore(), hit.origin(), 0, nil, hit.Title, hit.Snippet))
 	}
 	return out, nil
+}
+
+func (h searchHubHit) origin() string {
+	return strings.TrimSpace(firstNonEmpty(h.ProviderGroup, h.ProviderGroupCamel, strings.ToLower(strings.TrimSpace(h.Type))))
 }
 
 func searchHubItem(hit searchHubHit) (planmodel.RelevantContextItem, bool) {

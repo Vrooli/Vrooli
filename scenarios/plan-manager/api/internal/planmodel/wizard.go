@@ -31,6 +31,28 @@ type NextAction struct {
 	BlockedBy          []string
 }
 
+// ChecklistState is the live status of one checklist requirement.
+type ChecklistState string
+
+const (
+	ChecklistFilled    ChecklistState = "filled"
+	ChecklistMissing   ChecklistState = "missing"
+	ChecklistViolation ChecklistState = "violation"
+)
+
+// ChecklistItem is one requirement in a guided step's full-disclosure
+// checklist: the COMPLETE requirement set for the touched scope with live
+// status, so an agent never has to submit a field just to learn the next one.
+type ChecklistItem struct {
+	// Key is the stable requirement key, e.g. "steps", "purpose", "phase:2".
+	Key   string
+	Label string
+	State ChecklistState
+	// Detail is a short qualifier — a parse summary for filled items, the
+	// violation message for violations, or the accepted escape.
+	Detail string
+}
+
 // GuidedStep is deterministic just-in-time steering for a guided flow.
 type GuidedStep struct {
 	StepKind       string
@@ -41,6 +63,9 @@ type GuidedStep struct {
 	Examples       []string
 	CommonMistakes []string
 	NextActions    []NextAction
+	// Checklist is the full-disclosure requirement set for the touched scope —
+	// a superset of RequiredInputs (which stays for compatibility).
+	Checklist []ChecklistItem
 }
 
 // OnlyRecommended returns a copy of step with only its recommended action. If a

@@ -2,7 +2,6 @@ package authoring
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	planmodel "plan-manager/internal/planmodel"
@@ -30,11 +29,19 @@ func stepForSession(sess Session) GuidedStep {
 			Argv:   []string{"author", "next", sessionHandle(sess)},
 		},
 	}, step.NextActions...)
+	step.NextActions = append(step.NextActions, NextAction{
+		ID:     "plans-import",
+		Kind:   NextActionOptional,
+		Label:  "Import an already-written plan document instead",
+		Reason: "If the plan already exists as a markdown document, `plans import` ingests it wholesale — no need to re-author it section by section.",
+		Argv:   []string{"plans", "import", "--file", "<plan.md>"},
+	})
 	return step
 }
 
 func stepForSection(sess Session, sec Section) GuidedStep {
 	step := sectionBaseStep(sec.Key)
+	step.Checklist = sessionChecklist(sess)
 	placeholder := contentPlaceholderForSection(sec.Key)
 	step.NextActions = []NextAction{
 		{
@@ -138,7 +145,7 @@ func referencesRecoveryActions(sess Session) []NextAction {
 			ID:     "suggest-references",
 			Kind:   NextActionRecommended,
 			Label:  "Suggest references",
-			Reason: "Discover connected [CODE:]/[DOC:]/[REQ:] locators from search-hub, then accept/reject each suggestion.",
+			Reason: "Discover connected [CODE:]/[DOC:]/[REQ:] locators from search-hub, then apply the curated batch.",
 			Argv:   []string{"author", "suggest-references", sessionHandle(sess)},
 		},
 		{
@@ -161,35 +168,60 @@ func referencesRecoveryActions(sess Session) []NextAction {
 }
 
 // stepForReferenceCandidates is the guided step after SuggestReferences (mirrors
-// stepForContextDiscovery): review each suggested locator and accept or reject
-// it. Raw suggestions never satisfy the references gate — only accepted locators
+// stepForContextDiscovery): review the curated locator batch and apply it. Raw
+// suggestions never satisfy the references gate — only accepted locators
 // (written into the references section) do.
 func stepForReferenceCandidates(sess Session) GuidedStep {
-	return GuidedStep{
-		StepKind:       "reference_candidates",
-		Title:          "Reference Candidates",
-		Summary:        "Review the search-hub reference suggestions and accept or reject each one. Suggestions do not enter the plan until accepted.",
-		Instructions:   []string{"Accept only locators the plan genuinely depends on or changes.", "Edit a locator's kind/target on accept if the suggestion is close but imprecise.", "Reject noisy or irrelevant suggestions with a short reason.", "If no suggestion fits and there are no connected references, record a NO_CODE_REFS reason instead."},
-		RequiredInputs: []string{"candidate decision (accept/reject) or NO_CODE_REFS reason"},
-		Examples:       []string{"author reference-accept " + sessionHandle(sess) + " <candidate-id>", "author reference-reject " + sessionHandle(sess) + " <candidate-id> --reason 'unrelated subsystem'"},
-		CommonMistakes: []string{"Accepting every suggestion without judgment.", "Treating a raw suggestion as if it already satisfied the references gate."},
-		NextActions: []NextAction{
+	batch, _ := latestPendingReferenceBatch(sess)
+	summary := "No reference candidates are pending. Record connected references manually, or record NO_CODE_REFS when none exist."
+	requiredInputs := []string{"references or NO_CODE_REFS reason"}
+	examples := []string{"author section-submit " + sessionHandle(sess) + " --section references --content '[CODE: path/to/file.go]'", "author section-submit " + sessionHandle(sess) + " --section references --content 'NO_CODE_REFS: <reason>'"}
+	actions := []NextAction{{
+		ID:                 "submit-references",
+		Kind:               NextActionRecommended,
+		Label:              "Submit references manually",
+		Reason:             "List the connected [CODE:]/[DOC:]/[REQ:] locators you are touching, one per line.",
+		Argv:               []string{"author", "section-submit", sessionHandle(sess), "--section", string(SectionReferences), "--content", "[CODE: path/to/file.go]"},
+		ContentPlaceholder: "[CODE: path/to/file.go]",
+	}}
+	if batch.ID != "" {
+		summary = "Review the curated search-hub reference suggestions and apply the batch. Suggestions do not enter the plan until accepted."
+		requiredInputs = []string{"reference-apply decision or NO_CODE_REFS reason"}
+		examples = []string{"author reference-apply " + sessionHandle(sess) + " --take r1 --note 'reviewed references'", "author reference-reject " + sessionHandle(sess) + " r1 --reason 'unrelated subsystem'"}
+		actions = []NextAction{
 			{
 				ID:     "list-reference-candidates",
 				Kind:   NextActionRecommended,
 				Label:  "List reference candidates",
-				Reason: "Review the suggested locators before accepting or rejecting.",
+				Reason: "Review the suggested locators before applying the batch.",
 				Argv:   []string{"author", "reference-list", sessionHandle(sess)},
 			},
 			{
-				ID:                 "submit-no-code-refs",
-				Kind:               NextActionRecovery,
-				Label:              "Record NO_CODE_REFS fallback",
-				Reason:             "Use when no suggestion fits and there are genuinely no connected references.",
-				Argv:               []string{"author", "section-submit", sessionHandle(sess), "--section", string(SectionReferences), "--content", "NO_CODE_REFS: <reason there are no connected references>"},
-				ContentPlaceholder: "NO_CODE_REFS: <reason there are no connected references>",
+				ID:     "apply-reference-candidates",
+				Kind:   NextActionRecommended,
+				Label:  "Apply reference batch",
+				Reason: "Accept selected reference handles and sweep the remaining shortlist in one call.",
+				Argv:   []string{"author", "reference-apply", sessionHandle(sess), "--batch", batch.ID, "--take", "r1", "--note", "reviewed shortlist"},
 			},
-		},
+		}
+	}
+	actions = append(actions, NextAction{
+		ID:                 "submit-no-code-refs",
+		Kind:               NextActionRecovery,
+		Label:              "Record NO_CODE_REFS fallback",
+		Reason:             "Use when no suggestion fits and there are genuinely no connected references.",
+		Argv:               []string{"author", "section-submit", sessionHandle(sess), "--section", string(SectionReferences), "--content", "NO_CODE_REFS: <reason there are no connected references>"},
+		ContentPlaceholder: "NO_CODE_REFS: <reason there are no connected references>",
+	})
+	return GuidedStep{
+		StepKind:       "reference_candidates",
+		Title:          "Reference Candidates",
+		Summary:        summary,
+		Instructions:   []string{"Take only locators the plan genuinely depends on or changes.", "Use a drop reason only for high-confidence suggestions that should not land.", "If no suggestion fits and there are no connected references, record a NO_CODE_REFS reason instead."},
+		RequiredInputs: requiredInputs,
+		Examples:       examples,
+		CommonMistakes: []string{"Accepting every suggestion without judgment.", "Treating a raw suggestion as if it already satisfied the references gate."},
+		NextActions:    actions,
 	}
 }
 
@@ -289,26 +321,27 @@ func stepForGlobalContextCheckpoint(sess Session) GuidedStep {
 	return GuidedStep{
 		StepKind: "global_relevant_context",
 		Title:    "Global Relevant Context",
-		Summary:  "Decide the plan-wide setup context and skill setup a fresh or resumed agent should load before any phase. The skill checkpoint demands evidence of a sweep: discovery ran for your concepts and every candidate got an explicit accept/reject decision — or an honest NO_SKILL_CONTEXT skip.",
+		Summary:  "Decide the plan-wide setup context and skill setup a fresh or resumed agent should load before any phase. The skill checkpoint demands evidence of a sweep: discovery ran for your concepts and the curated batch was applied — or an honest NO_SKILL_CONTEXT skip.",
 		Instructions: []string{
 			"Decompose the work into 2-5 discovery concepts using four lenses: domain area, technology/stack, problem type, and scenario surface (e.g. a mic bug in a React UI → 'web-console voice', 'react state machines', 'debugging', 'ui hooks').",
 			"Phrase each concept as activity + surface ('refactor duplicated CLI rendering'), not a bare noun.",
 			"Pick the complexity that matches the work: minor = bug fix/small tweak; moderate = new feature/refactor; major = multi-file feature/new endpoint; architectural = cross-scenario/new system design.",
-			"Run context-discover with those concepts — the probes execute server-side and return reviewed-ready candidates (degraded probes surface as typed notes).",
-			"Disposition EVERY candidate: accept it only if you can articulate the concrete way it improves execution (vague relevance is insufficient); reject the rest with a short reason.",
+			"Run context-discover with those concepts — the probes execute server-side and return a curated shortlist plus degraded probe notes.",
+			"Review the proposal, then run context-apply once: take only items whose concrete improvement you can articulate; sweep the rest with an optional note. High-confidence drops need a reason.",
 			"If discovery finds no applicable internal skill, record NO_SKILL_CONTEXT with the reason instead of accepting filler.",
 			"If this plan genuinely needs no plan-wide setup context at all, record an explicit NO_CONTEXT reason.",
 			"Phase-specific setup belongs on the phase, not here.",
 		},
-		RequiredInputs: []string{"2-5 decomposed discovery concepts + complexity", "an accept/reject decision for every candidate", "or explicit NO_SKILL_CONTEXT / NO_CONTEXT reason"},
-		Examples:       []string{"author context-discover " + sessionHandle(sess) + " --concepts 'plan-manager execution resume' --complexity architectural", "author context-submit " + sessionHandle(sess) + " --kind skill --label implementation-plan-authoring --target implementation-plan-authoring --reason 'authoring standards shape the plan' --instruction 'Load before implementation planning' --required", "author section-submit " + sessionHandle(sess) + " --section relevant_context --content 'NO_SKILL_CONTEXT: no internal skill applies beyond accepted docs/search setup.'"},
+		RequiredInputs: []string{"2-5 decomposed discovery concepts + complexity", "an applied context discovery batch", "or explicit NO_SKILL_CONTEXT / NO_CONTEXT reason"},
+		Checklist:      sessionChecklist(sess),
+		Examples:       []string{"author context-discover " + sessionHandle(sess) + " --concepts 'plan-manager execution resume' --complexity architectural", "author context-apply " + sessionHandle(sess) + " --take c1 --note 'reviewed shortlist'", "author context-submit " + sessionHandle(sess) + " --kind skill --label implementation-plan-authoring --target implementation-plan-authoring --reason 'authoring standards shape the plan' --instruction 'Load before implementation planning' --required", "author section-submit " + sessionHandle(sess) + " --section relevant_context --content 'NO_SKILL_CONTEXT: no internal skill applies beyond accepted docs/search setup.'"},
 		CommonMistakes: []string{"Skipping plan-wide context by leaving it empty.", "Adding docs/search context but never deciding skill setup.", "Putting phase-only setup in global context."},
 		NextActions: []NextAction{
 			{
 				ID:                 "discover-context",
 				Kind:               NextActionRecommended,
 				Label:              "Discover global context candidates",
-				Reason:             "Generate candidate plan-wide setup commands to accept or reject.",
+				Reason:             "Generate a curated plan-wide setup proposal to review and apply.",
 				Argv:               []string{"author", "context-discover", sessionHandle(sess), "--concepts", "<concept one>,<concept two>", "--complexity", "architectural"},
 				ContentPlaceholder: "<concept one>,<concept two>",
 			},
@@ -349,24 +382,33 @@ func stepForGlobalContextCheckpoint(sess Session) GuidedStep {
 }
 
 func stepForContextDiscovery(sess Session) GuidedStep {
+	batch, _ := latestPendingDiscoveryBatch(sess)
+	batchID := batch.ID
 	return GuidedStep{
 		StepKind:       "context_discovery",
 		Title:          "Context Discovery",
-		Summary:        "Review discovered context candidates and accept or reject each one.",
-		Instructions:   []string{"Accept only candidates that materially reduce implementation ambiguity.", "Assign phase-specific setup to the phase where it is needed.", "Reject noisy or duplicate candidates with a short reason."},
-		RequiredInputs: []string{"candidate decision"},
-		Examples:       []string{"author context-accept " + sessionHandle(sess) + " <candidate-id>", "author context-reject " + sessionHandle(sess) + " <candidate-id> --reason 'duplicate of global setup'"},
-		CommonMistakes: []string{"Accepting every candidate.", "Leaving degraded candidates untriaged.", "Accepting a command candidate without inspecting whether it is current."},
+		Summary:        "Review the curated context proposal, then apply the batch in one call.",
+		Instructions:   []string{"Take only candidates that materially reduce implementation ambiguity.", "Use handle:phase-id for phase-specific setup.", "Sweep noisy or duplicate candidates with the batch note; give a reason when dropping a high-confidence candidate."},
+		RequiredInputs: []string{"context-apply for the pending batch"},
+		Examples:       []string{"author context-apply " + sessionHandle(sess) + " --batch " + batchID + " --take c1 --note 'reviewed shortlist'", "author context-apply " + sessionHandle(sess) + " --batch " + batchID + " --take c2:phase-1 --drop c3='covered by c2'"},
+		CommonMistakes: []string{"Accepting every candidate.", "Leaving a curated batch unapplied.", "Accepting a command candidate without inspecting whether it is current."},
 		NextActions: []NextAction{
 			{
-				ID:     "list-context",
+				ID:     "apply-context-batch",
 				Kind:   NextActionRecommended,
-				Label:  "List accepted context",
-				Reason: "Use accepted context as the reviewable setup list before finalizing.",
-				Argv:   []string{"author", "context-list", sessionHandle(sess)},
+				Label:  "Apply context discovery batch",
+				Reason: "Close the curated proposal by taking selected handles and sweeping the rest.",
+				Argv:   []string{"author", "context-apply", sessionHandle(sess), "--batch", batchID, "--take", "<handle>", "--note", "reviewed shortlist"},
 			},
 		},
 	}
+}
+
+func stepAfterContextDiscovery(sess Session) GuidedStep {
+	if _, ok := latestPendingDiscoveryBatch(sess); ok {
+		return stepForContextDiscovery(sess)
+	}
+	return stepForCurrentSessionState(sess)
 }
 
 func stepForPhase(sess Session, phase PhaseDraft) GuidedStep {
@@ -394,12 +436,12 @@ func stepForPhase(sess Session, phase PhaseDraft) GuidedStep {
 	case PhaseFieldAcceptance:
 		return phaseStep(sess, phase, field, "phase_acceptance", "Phase Acceptance", "Define the objective pass/fail OUTCOME for this phase (not the commands — that is validation).", []string{"acceptance"}, []string{"Generated proto compiles and the converter round-trips every new field."}, "<phase acceptance criteria>")
 	case PhaseFieldRelevantContext:
-		step := phaseStep(sess, phase, field, "phase_relevant_context", "Phase Relevant Context", "Attach phase-scoped setup context or record why no setup context exists.", []string{"relevant_context or NO_CONTEXT reason"}, []string{"prompt-manager skill read api-steer", "NO_CONTEXT: docs-only review phase has no extra setup."}, "NO_CONTEXT: <reason>")
+		step := phaseStep(sess, phase, field, "phase_relevant_context", "Phase Relevant Context", "Attach phase-scoped setup context or record why no setup context exists. BOTH paths satisfy this gate: `context-submit --phase` for a TYPED item (executable/loadable setup — command, skill, doc target), or `phase-submit --field relevant_context` for prose notes and the NO_CONTEXT: skip reason. Use the typed path whenever the setup is runnable.", []string{"relevant_context or NO_CONTEXT reason"}, []string{"prompt-manager skill read api-steer", "NO_CONTEXT: docs-only review phase has no extra setup."}, "NO_CONTEXT: <reason>")
 		step.NextActions = append(step.NextActions, NextAction{
 			ID:                 "phase-context-submit",
 			Kind:               NextActionAlternative,
-			Label:              "Submit phase context item",
-			Reason:             "Use when the phase has a concrete setup item with a relevance reason.",
+			Label:              "Submit typed phase context item",
+			Reason:             "Equally valid gate path: use for a concrete setup item (command/skill/doc) with a relevance reason; a violation-rejected item is NOT accepted and leaves this gate open.",
 			Argv:               []string{"author", "context-submit", sessionHandle(sess), "--phase", phase.ID, "--kind", "doc", "--label", "<label>", "--reason", "<reason>", "--target", "<target>", "--required"},
 			ContentPlaceholder: "<label> / <reason> / <target>",
 		})
@@ -412,6 +454,7 @@ func stepForPhase(sess Session, phase PhaseDraft) GuidedStep {
 			Instructions:   []string{"Use context-submit or context-accept for phase-specific setup.", "Use reminders or handoff notes for phase-specific decisions/findings/records the implementation agent should be especially likely to capture.", "Move to the next incomplete phase when ready."},
 			Examples:       []string{"author phase-next " + sessionHandle(sess)},
 			CommonMistakes: []string{"Repeating whole-plan context in every phase.", "Adding generic reminders with no phase-specific value.", "Duplicating the default Execution Feedback section in phase prose."},
+			Checklist:      phaseChecklist(phase),
 			NextActions: []NextAction{
 				{
 					ID:     "next-phase",
@@ -426,25 +469,47 @@ func stepForPhase(sess Session, phase PhaseDraft) GuidedStep {
 }
 
 func phaseStep(sess Session, phase PhaseDraft, field PhaseField, kind, title, summary string, required, examples []string, placeholder string) GuidedStep {
-	return GuidedStep{
-		StepKind:       kind,
-		Title:          title,
-		Summary:        summary,
-		Instructions:   []string{"Submit only this field's content.", "Keep it concrete enough for a later agent to act on without reading the whole conversation."},
+	step := GuidedStep{
+		StepKind: kind,
+		Title:    title,
+		Summary:  summary,
+		Instructions: []string{
+			"A phase needs all of: title, intent, references (or no_code_refs_reason), steps, validation, acceptance, relevant_context (or NO_CONTEXT: reason) — the checklist shows live status for every field.",
+			"Fields may be submitted in any order; if you already know the content, submit the remaining fields without waiting for per-field prompts.",
+			"Keep each field concrete enough for a later agent to act on without reading the whole conversation.",
+		},
 		RequiredInputs: required,
 		Examples:       examples,
-		CommonMistakes: []string{"Bundling multiple phase fields into one response.", "Using vague prose that cannot be validated."},
+		CommonMistakes: []string{"Using vague prose that cannot be validated.", "Waiting for a prompt per field when the checklist already lists everything still missing."},
+		Checklist:      phaseChecklist(phase),
 		NextActions: []NextAction{
 			{
 				ID:                 "submit-phase-" + string(field),
 				Kind:               NextActionRecommended,
 				Label:              "Submit phase " + string(field),
-				Reason:             "This is the next missing field for phase " + strconv.Itoa(phase.Order) + ".",
+				Reason:             fmt.Sprintf("Next missing field %q for phase %d (%s).", field, phase.Order, phase.ID),
 				Argv:               []string{"author", "phase-submit", sessionHandle(sess), phase.ID, "--field", string(field), "--content", placeholder},
 				ContentPlaceholder: placeholder,
 			},
 		},
 	}
+	// When the checklist shows more than one gap, advertise the batched form —
+	// a competent agent lands the whole phase in one call instead of walking
+	// the per-field prompts.
+	if missing := missingPhaseChecklistFields(phase); len(missing) > 1 {
+		argv := []string{"author", "phase-submit", sessionHandle(sess), phase.ID}
+		for _, missingField := range missing {
+			argv = append(argv, "--set", fmt.Sprintf("%s=<%s>", missingField, missingField))
+		}
+		step.NextActions = append(step.NextActions, NextAction{
+			ID:     "batch-submit-phase",
+			Kind:   NextActionAlternative,
+			Label:  "Batch-submit the remaining fields",
+			Reason: fmt.Sprintf("%d fields are still missing for phase %d — submit them all in ONE call.", len(missing), phase.Order),
+			Argv:   argv,
+		})
+	}
+	return step
 }
 
 func nextMissingPhaseField(phase PhaseDraft) PhaseField {
@@ -476,6 +541,7 @@ func stepForReview(sess Session) GuidedStep {
 		Instructions:   []string{"Run author validate.", "Preview the rendered markdown to review the plan as a human would, before finalizing.", "Resolve every violation instead of finalizing around it."},
 		Examples:       []string{"author validate " + sessionHandle(sess), "author preview " + sessionHandle(sess), "author finalize " + sessionHandle(sess)},
 		CommonMistakes: []string{"Finalizing before phase steps, validation, and acceptance are objective.", "Skipping the render preview and shipping an unreviewed plan."},
+		Checklist:      sessionChecklist(sess),
 		NextActions: []NextAction{
 			{
 				ID:     "validate-session",
@@ -509,6 +575,7 @@ func stepForValidation(sess Session, valid bool, violations []StructureViolation
 			Title:        "Validation Passed",
 			Summary:      "The authoring session is structurally valid and can be finalized.",
 			Instructions: []string{"Finalize the plan, then inspect the persisted record."},
+			Checklist:    sessionChecklist(sess),
 			NextActions: []NextAction{
 				{
 					ID:     "finalize-session",

@@ -14,6 +14,9 @@ func StepLines(step *sharedv1.GuidedStep) []string {
 		return nil
 	}
 	out := []string{fmt.Sprintf("Current Step (%s): %s", step.GetStepKind(), step.GetSummary())}
+	if line := ChecklistLine(step.GetChecklist()); line != "" {
+		out = append(out, line)
+	}
 	for _, input := range step.GetRequiredInputs() {
 		out = append(out, "Required input: "+input)
 	}
@@ -30,6 +33,31 @@ func StepLines(step *sharedv1.GuidedStep) []string {
 		out = append(out, fmt.Sprintf("%s: `%s` — %s", ActionKindLabel(action.GetKind()), ShellCommand(action.GetArgv()), action.GetReason()))
 	}
 	return out
+}
+
+// ChecklistLine renders the step's full-disclosure checklist as one compact
+// line: `✔` filled, `✖` violation (with its reason), `–` missing. Empty when
+// the step carries no checklist.
+func ChecklistLine(items []*sharedv1.ChecklistItem) string {
+	if len(items) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(items))
+	for _, item := range items {
+		mark := "–"
+		switch item.GetState() {
+		case "filled":
+			mark = "✔"
+		case "violation":
+			mark = "✖"
+		}
+		part := mark + " " + item.GetKey()
+		if detail := strings.TrimSpace(item.GetDetail()); detail != "" && item.GetState() != "filled" {
+			part += " (" + detail + ")"
+		}
+		parts = append(parts, part)
+	}
+	return "Checklist: " + strings.Join(parts, " · ")
 }
 
 // RecommendedActions renders recommended next commands for CLI hints.

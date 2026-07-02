@@ -323,8 +323,20 @@ class NextAction(_message.Message):
     blocked_by: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, id: _Optional[str] = ..., kind: _Optional[_Union[NextActionKind, str]] = ..., label: _Optional[str] = ..., reason: _Optional[str] = ..., argv: _Optional[_Iterable[str]] = ..., content_placeholder: _Optional[str] = ..., blocked_by: _Optional[_Iterable[str]] = ...) -> None: ...
 
+class ChecklistItem(_message.Message):
+    __slots__ = ("key", "label", "state", "detail")
+    KEY_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    key: str
+    label: str
+    state: str
+    detail: str
+    def __init__(self, key: _Optional[str] = ..., label: _Optional[str] = ..., state: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
+
 class GuidedStep(_message.Message):
-    __slots__ = ("step_kind", "title", "summary", "instructions", "required_inputs", "examples", "common_mistakes", "next_actions")
+    __slots__ = ("step_kind", "title", "summary", "instructions", "required_inputs", "examples", "common_mistakes", "next_actions", "checklist")
     STEP_KIND_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     SUMMARY_FIELD_NUMBER: _ClassVar[int]
@@ -333,6 +345,7 @@ class GuidedStep(_message.Message):
     EXAMPLES_FIELD_NUMBER: _ClassVar[int]
     COMMON_MISTAKES_FIELD_NUMBER: _ClassVar[int]
     NEXT_ACTIONS_FIELD_NUMBER: _ClassVar[int]
+    CHECKLIST_FIELD_NUMBER: _ClassVar[int]
     step_kind: str
     title: str
     summary: str
@@ -341,7 +354,8 @@ class GuidedStep(_message.Message):
     examples: _containers.RepeatedScalarFieldContainer[str]
     common_mistakes: _containers.RepeatedScalarFieldContainer[str]
     next_actions: _containers.RepeatedCompositeFieldContainer[NextAction]
-    def __init__(self, step_kind: _Optional[str] = ..., title: _Optional[str] = ..., summary: _Optional[str] = ..., instructions: _Optional[_Iterable[str]] = ..., required_inputs: _Optional[_Iterable[str]] = ..., examples: _Optional[_Iterable[str]] = ..., common_mistakes: _Optional[_Iterable[str]] = ..., next_actions: _Optional[_Iterable[_Union[NextAction, _Mapping]]] = ...) -> None: ...
+    checklist: _containers.RepeatedCompositeFieldContainer[ChecklistItem]
+    def __init__(self, step_kind: _Optional[str] = ..., title: _Optional[str] = ..., summary: _Optional[str] = ..., instructions: _Optional[_Iterable[str]] = ..., required_inputs: _Optional[_Iterable[str]] = ..., examples: _Optional[_Iterable[str]] = ..., common_mistakes: _Optional[_Iterable[str]] = ..., next_actions: _Optional[_Iterable[_Union[NextAction, _Mapping]]] = ..., checklist: _Optional[_Iterable[_Union[ChecklistItem, _Mapping]]] = ...) -> None: ...
 
 class Reference(_message.Message):
     __slots__ = ("id", "kind", "target", "future", "resolution", "staleness", "change_factor", "note")
@@ -607,8 +621,24 @@ class Phase(_message.Message):
     change_boundary: ChangeBoundary
     def __init__(self, id: _Optional[str] = ..., order: _Optional[int] = ..., title: _Optional[str] = ..., intent: _Optional[str] = ..., required_reading: _Optional[_Iterable[str]] = ..., reminders: _Optional[_Iterable[str]] = ..., baseline_scope: _Optional[_Iterable[str]] = ..., acceptance: _Optional[str] = ..., status: _Optional[_Union[PhaseStatus, str]] = ..., last_validation: _Optional[_Union[ValidationResult, _Mapping]] = ..., references: _Optional[_Iterable[_Union[Reference, _Mapping]]] = ..., relevant_context: _Optional[_Iterable[_Union[RelevantContextItem, _Mapping]]] = ..., affected_areas: _Optional[_Iterable[str]] = ..., steps: _Optional[_Iterable[str]] = ..., expected_outputs: _Optional[_Iterable[str]] = ..., validation: _Optional[str] = ..., handoff_notes: _Optional[str] = ..., risks_hazards: _Optional[_Iterable[str]] = ..., change_boundary: _Optional[_Union[ChangeBoundary, _Mapping]] = ...) -> None: ...
 
+class PlanDecision(_message.Message):
+    __slots__ = ("title", "statement")
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    STATEMENT_FIELD_NUMBER: _ClassVar[int]
+    title: str
+    statement: str
+    def __init__(self, title: _Optional[str] = ..., statement: _Optional[str] = ...) -> None: ...
+
+class PlanAssumption(_message.Message):
+    __slots__ = ("statement", "mitigation")
+    STATEMENT_FIELD_NUMBER: _ClassVar[int]
+    MITIGATION_FIELD_NUMBER: _ClassVar[int]
+    statement: str
+    mitigation: str
+    def __init__(self, statement: _Optional[str] = ..., mitigation: _Optional[str] = ...) -> None: ...
+
 class Plan(_message.Message):
-    __slots__ = ("id", "slug", "title", "status", "content_hash", "created_at", "updated_at", "purpose", "scope", "constraints", "non_goals", "references", "regression_anchor", "definition_of_done", "phases", "supersedes", "superseded_by", "relevant_context", "problem_statement", "target_outcome", "assumptions", "technical_approach", "validation_strategy", "final_validation_commands", "risks_hazards", "prohibited_approaches", "work_posture", "work_posture_source", "work_posture_detail", "import_provenance", "preserved_legacy_sections", "change_boundary", "mirror", "workspace_id", "workspace_root")
+    __slots__ = ("id", "slug", "title", "status", "content_hash", "created_at", "updated_at", "purpose", "scope", "constraints", "non_goals", "references", "regression_anchor", "definition_of_done", "phases", "supersedes", "superseded_by", "relevant_context", "problem_statement", "target_outcome", "assumptions", "technical_approach", "validation_strategy", "final_validation_commands", "risks_hazards", "prohibited_approaches", "work_posture", "work_posture_source", "work_posture_detail", "import_provenance", "preserved_legacy_sections", "change_boundary", "mirror", "workspace_id", "workspace_root", "decisions", "assumption_risks")
     ID_FIELD_NUMBER: _ClassVar[int]
     SLUG_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -644,6 +674,8 @@ class Plan(_message.Message):
     MIRROR_FIELD_NUMBER: _ClassVar[int]
     WORKSPACE_ID_FIELD_NUMBER: _ClassVar[int]
     WORKSPACE_ROOT_FIELD_NUMBER: _ClassVar[int]
+    DECISIONS_FIELD_NUMBER: _ClassVar[int]
+    ASSUMPTION_RISKS_FIELD_NUMBER: _ClassVar[int]
     id: str
     slug: str
     title: str
@@ -679,7 +711,9 @@ class Plan(_message.Message):
     mirror: RenderedPlanMirror
     workspace_id: str
     workspace_root: str
-    def __init__(self, id: _Optional[str] = ..., slug: _Optional[str] = ..., title: _Optional[str] = ..., status: _Optional[_Union[PlanStatus, str]] = ..., content_hash: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., purpose: _Optional[str] = ..., scope: _Optional[str] = ..., constraints: _Optional[str] = ..., non_goals: _Optional[str] = ..., references: _Optional[_Iterable[_Union[Reference, _Mapping]]] = ..., regression_anchor: _Optional[_Union[RegressionAnchor, _Mapping]] = ..., definition_of_done: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[Phase, _Mapping]]] = ..., supersedes: _Optional[_Iterable[str]] = ..., superseded_by: _Optional[_Iterable[str]] = ..., relevant_context: _Optional[_Iterable[_Union[RelevantContextItem, _Mapping]]] = ..., problem_statement: _Optional[str] = ..., target_outcome: _Optional[str] = ..., assumptions: _Optional[str] = ..., technical_approach: _Optional[str] = ..., validation_strategy: _Optional[str] = ..., final_validation_commands: _Optional[_Iterable[str]] = ..., risks_hazards: _Optional[str] = ..., prohibited_approaches: _Optional[str] = ..., work_posture: _Optional[_Union[WorkPosture, str]] = ..., work_posture_source: _Optional[_Union[WorkPostureSource, str]] = ..., work_posture_detail: _Optional[str] = ..., import_provenance: _Optional[_Union[ImportProvenance, _Mapping]] = ..., preserved_legacy_sections: _Optional[_Iterable[_Union[LegacySection, _Mapping]]] = ..., change_boundary: _Optional[_Union[ChangeBoundary, _Mapping]] = ..., mirror: _Optional[_Union[RenderedPlanMirror, _Mapping]] = ..., workspace_id: _Optional[str] = ..., workspace_root: _Optional[str] = ...) -> None: ...
+    decisions: _containers.RepeatedCompositeFieldContainer[PlanDecision]
+    assumption_risks: _containers.RepeatedCompositeFieldContainer[PlanAssumption]
+    def __init__(self, id: _Optional[str] = ..., slug: _Optional[str] = ..., title: _Optional[str] = ..., status: _Optional[_Union[PlanStatus, str]] = ..., content_hash: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., purpose: _Optional[str] = ..., scope: _Optional[str] = ..., constraints: _Optional[str] = ..., non_goals: _Optional[str] = ..., references: _Optional[_Iterable[_Union[Reference, _Mapping]]] = ..., regression_anchor: _Optional[_Union[RegressionAnchor, _Mapping]] = ..., definition_of_done: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[Phase, _Mapping]]] = ..., supersedes: _Optional[_Iterable[str]] = ..., superseded_by: _Optional[_Iterable[str]] = ..., relevant_context: _Optional[_Iterable[_Union[RelevantContextItem, _Mapping]]] = ..., problem_statement: _Optional[str] = ..., target_outcome: _Optional[str] = ..., assumptions: _Optional[str] = ..., technical_approach: _Optional[str] = ..., validation_strategy: _Optional[str] = ..., final_validation_commands: _Optional[_Iterable[str]] = ..., risks_hazards: _Optional[str] = ..., prohibited_approaches: _Optional[str] = ..., work_posture: _Optional[_Union[WorkPosture, str]] = ..., work_posture_source: _Optional[_Union[WorkPostureSource, str]] = ..., work_posture_detail: _Optional[str] = ..., import_provenance: _Optional[_Union[ImportProvenance, _Mapping]] = ..., preserved_legacy_sections: _Optional[_Iterable[_Union[LegacySection, _Mapping]]] = ..., change_boundary: _Optional[_Union[ChangeBoundary, _Mapping]] = ..., mirror: _Optional[_Union[RenderedPlanMirror, _Mapping]] = ..., workspace_id: _Optional[str] = ..., workspace_root: _Optional[str] = ..., decisions: _Optional[_Iterable[_Union[PlanDecision, _Mapping]]] = ..., assumption_risks: _Optional[_Iterable[_Union[PlanAssumption, _Mapping]]] = ...) -> None: ...
 
 class PlanEdge(_message.Message):
     __slots__ = ("from_plan_id", "to_plan_id", "kind")

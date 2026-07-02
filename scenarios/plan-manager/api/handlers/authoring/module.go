@@ -26,11 +26,16 @@ import (
 // absent), and a PlanWriter adapter that writes the produced plan
 // THROUGH the plans domain. All wired here at the production edge; never imported
 // into internal/authoring.
-func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, storePath string) module.Module {
 	maturity := internalplans.NewFilesystemMaturityReader()
 	plansSvc := internalplans.NewService(internalplans.Deps{
-		Repo:     internalplans.NewSQLiteRepository(db, clk),
-		Clock:    clk,
+		Repo:  internalplans.NewSQLiteRepository(db, clk),
+		Clock: clk,
+		// The SAME mirror store the plans module wires: finalize publishes the
+		// durable markdown mirror exactly like a direct plans Create. Omitting
+		// it here was the silent-mirror hole — wizard-finalized plans got no
+		// mirror file and a default "unknown" status.
+		Mirror:   internalplans.NewDefaultOSMirrorStore(),
 		Maturity: maturity,
 	})
 	runner := internalauthoring.DefaultRunner()
@@ -44,6 +49,7 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 		Commands:  newCLIHealthCommandValidator(),
 		Renderer:  planRenderer{},
 		Posture:   posturePreparer{maturity: maturity},
+		StorePath: storePath,
 		Clock:     clk,
 	})
 	connectPath, connectHandler := authoringconnect.NewAuthoringServiceHandler(NewConnectHandler(Deps{
@@ -117,6 +123,7 @@ var Endpoints = []module.EndpointDescriptor{
 	endpoint("authoring_get_session", authoringconnect.AuthoringServiceGetSessionProcedure, "Get full session state", "Explicit full-state read: returns the whole authoring session graph. Normal mutations return only focused progress + a mutation summary, so callers hydrate full state deliberately here."),
 	endpoint("authoring_get_section", authoringconnect.AuthoringServiceGetSectionProcedure, "Get a section", "Returns one section's current state."),
 	endpoint("authoring_submit_section", authoringconnect.AuthoringServiceSubmitSectionProcedure, "Submit a section", "Records authored content for a section and re-validates it (PM-AUTHOR-002)."),
+	endpoint("authoring_submit_fields", authoringconnect.AuthoringServiceSubmitFieldsProcedure, "Submit fields in batch", "Applies a batch of section/phase-field writes under one session lock with one save: per-item independent apply with accepted/rejected + violations + a parse summary per item — one call can carry a single field, a whole phase, or the whole plan."),
 	endpoint("authoring_next", authoringconnect.AuthoringServiceNextProcedure, "Next section", "Returns the next section that still needs author input, or signals the session is structurally complete."),
 	endpoint("authoring_continue", authoringconnect.AuthoringServiceContinueAuthoringProcedure, "Continue authoring", "Returns the single recommended next wizard action across sections, phases, validation review, and finalize states."),
 	endpoint("authoring_validate_structure", authoringconnect.AuthoringServiceValidateStructureProcedure, "Validate structure", "Runs the structure-validation gate over the whole session — rejects empty mandatory sections + an empty regression anchor (PM-AUTHOR-002)."),
@@ -128,10 +135,12 @@ var Endpoints = []module.EndpointDescriptor{
 	endpoint("authoring_discover_context_candidates", authoringconnect.AuthoringServiceDiscoverContextCandidatesProcedure, "Discover context candidates", "Runs guided context discovery for decomposed concepts and stores pending candidates."),
 	endpoint("authoring_accept_context_candidate", authoringconnect.AuthoringServiceAcceptContextCandidateProcedure, "Accept context candidate", "Promotes a pending context candidate into global or phase-scoped relevant context."),
 	endpoint("authoring_reject_context_candidate", authoringconnect.AuthoringServiceRejectContextCandidateProcedure, "Reject context candidate", "Records why a discovered context candidate is not relevant."),
+	endpoint("authoring_apply_context_disposition", authoringconnect.AuthoringServiceApplyContextDispositionProcedure, "Apply context discovery batch", "Closes a pending context discovery batch by accepting selected handles and sweeping the rest."),
 	endpoint("authoring_suggest_references", authoringconnect.AuthoringServiceSuggestReferencesProcedure, "Suggest references", "Queries search-hub's Answer projection from the session title/scope/approach and stores reviewable reference candidates (routed by locator shape). Degrades to no candidates, never a fabricated reference."),
 	endpoint("authoring_list_reference_candidates", authoringconnect.AuthoringServiceListReferenceCandidatesProcedure, "List reference candidates", "Returns the session's reference candidates without changing wizard position."),
 	endpoint("authoring_accept_reference_candidate", authoringconnect.AuthoringServiceAcceptReferenceCandidateProcedure, "Accept reference candidate", "Promotes one pending reference candidate (with optional inline edit) into the references section; only accepted locators satisfy the references gate."),
 	endpoint("authoring_reject_reference_candidate", authoringconnect.AuthoringServiceRejectReferenceCandidateProcedure, "Reject reference candidate", "Records why a suggested reference is not relevant."),
+	endpoint("authoring_apply_reference_disposition", authoringconnect.AuthoringServiceApplyReferenceDispositionProcedure, "Apply reference disposition", "Closes a pending reference discovery batch in one call by accepting selected handles and sweeping the rest."),
 	endpoint("authoring_add_phase", authoringconnect.AuthoringServiceAddPhaseProcedure, "Add phase draft", "Appends one structured phase draft so agents do not submit all phases as a markdown blob."),
 	endpoint("authoring_move_phase", authoringconnect.AuthoringServiceMovePhaseProcedure, "Move phase draft", "Reorders one structured phase draft before or after another without rewriting authored phase content."),
 	endpoint("authoring_get_phase", authoringconnect.AuthoringServiceGetPhaseProcedure, "Get phase draft", "Returns one structured phase draft plus the API-owned guided step for the next missing phase field."),

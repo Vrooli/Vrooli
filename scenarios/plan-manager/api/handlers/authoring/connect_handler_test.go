@@ -20,41 +20,57 @@ import (
 
 // fakeAuthoringService is a minimal stand-in for internalauthoring.Service.
 type fakeAuthoringService struct {
-	session         internalauthoring.Session
-	section         internalauthoring.Section
-	violations      []internalauthoring.StructureViolation
-	results         []internalauthoring.AutofillResult
-	phase           internalauthoring.PhaseDraft
-	contextItem     internalplans.RelevantContextItem
-	contextItems    []internalplans.RelevantContextItem
-	candidate       internalauthoring.ContextCandidate
-	candidates      []internalauthoring.ContextCandidate
-	refCandidate    internalauthoring.ReferenceCandidate
-	refCandidates   []internalauthoring.ReferenceCandidate
-	step            internalauthoring.GuidedStep
-	valid           bool
-	complete        bool
-	plan            internalplans.Plan
-	previewMarkdown string
-	err             error
+	session          internalauthoring.Session
+	section          internalauthoring.Section
+	violations       []internalauthoring.StructureViolation
+	results          []internalauthoring.AutofillResult
+	phase            internalauthoring.PhaseDraft
+	contextItem      internalplans.RelevantContextItem
+	contextItems     []internalplans.RelevantContextItem
+	candidate        internalauthoring.ContextCandidate
+	candidates       []internalauthoring.ContextCandidate
+	disposition      internalauthoring.ContextDispositionSummary
+	refCandidate     internalauthoring.ReferenceCandidate
+	refCandidates    []internalauthoring.ReferenceCandidate
+	refDisposition   internalauthoring.ReferenceDispositionSummary
+	step             internalauthoring.GuidedStep
+	valid            bool
+	complete         bool
+	plan             internalplans.Plan
+	previewMarkdown  string
+	alreadyFinalized bool
+	finalizedAt      string
+	storePath        string
+	err              error
 
-	gotTitle       string
-	gotSlug        string
-	gotTemplateID  string
-	gotSessionID   string
-	gotSectionKey  internalauthoring.SectionKey
-	gotContent     string
-	gotSources     []internalauthoring.AutofillSource
-	gotPhaseID     string
-	gotBeforePhase string
-	gotAfterPhase  string
-	gotPhaseField  internalauthoring.PhaseField
-	gotContextItem internalplans.RelevantContextItem
-	gotItemID      string
-	gotCandidateID string
-	gotConcepts    []string
-	gotComplexity  string
-	gotReason      string
+	gotTitle         string
+	gotSlug          string
+	gotTemplateID    string
+	gotSessionID     string
+	gotWorkspaceRoot string
+	gotFieldWrites   []internalauthoring.FieldWrite
+	fieldResults     []internalauthoring.FieldWriteResult
+	gotSectionKey    internalauthoring.SectionKey
+	gotContent       string
+	gotSources       []internalauthoring.AutofillSource
+	gotPhaseID       string
+	gotBeforePhase   string
+	gotAfterPhase    string
+	gotPhaseField    internalauthoring.PhaseField
+	gotContextItem   internalplans.RelevantContextItem
+	gotItemID        string
+	gotCandidateID   string
+	gotBatchID       string
+	gotTakes         []internalauthoring.ContextDispositionTake
+	gotDrops         []internalauthoring.ContextDispositionDrop
+	gotRefTakes      []internalauthoring.ReferenceDispositionTake
+	gotRefDrops      []internalauthoring.ReferenceDispositionDrop
+	gotSweepNote     string
+	gotTakeAll       bool
+	gotConcepts      []string
+	gotComplexity    string
+	gotRefresh       bool
+	gotReason        string
 }
 
 func (f *fakeAuthoringService) StartSession(_ context.Context, title, slug, templateID string) (internalauthoring.Session, internalauthoring.GuidedStep, error) {
@@ -70,6 +86,12 @@ func (f *fakeAuthoringService) GetSession(_ context.Context, sessionID string) (
 func (f *fakeAuthoringService) GetSection(_ context.Context, sessionID string, key internalauthoring.SectionKey) (internalauthoring.Section, internalauthoring.GuidedStep, error) {
 	f.gotSessionID, f.gotSectionKey = sessionID, key
 	return f.section, f.step, f.err
+}
+
+func (f *fakeAuthoringService) SubmitFields(_ context.Context, sessionID string, writes []internalauthoring.FieldWrite) (internalauthoring.Session, []internalauthoring.FieldWriteResult, internalauthoring.GuidedStep, error) {
+	f.gotSessionID = sessionID
+	f.gotFieldWrites = append([]internalauthoring.FieldWrite(nil), writes...)
+	return f.session, f.fieldResults, f.step, f.err
 }
 
 func (f *fakeAuthoringService) SubmitSection(_ context.Context, sessionID string, key internalauthoring.SectionKey, content string) (internalauthoring.Session, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
@@ -117,8 +139,8 @@ func (f *fakeAuthoringService) RemoveRelevantContextItem(_ context.Context, sess
 	return f.session, f.violations, f.step, f.err
 }
 
-func (f *fakeAuthoringService) DiscoverContextCandidates(_ context.Context, sessionID string, concepts []string, complexity string) (internalauthoring.Session, []internalauthoring.ContextCandidate, internalauthoring.GuidedStep, error) {
-	f.gotSessionID, f.gotConcepts, f.gotComplexity = sessionID, append([]string(nil), concepts...), complexity
+func (f *fakeAuthoringService) DiscoverContextCandidates(_ context.Context, sessionID string, concepts []string, complexity string, refresh bool) (internalauthoring.Session, []internalauthoring.ContextCandidate, internalauthoring.GuidedStep, error) {
+	f.gotSessionID, f.gotConcepts, f.gotComplexity, f.gotRefresh = sessionID, append([]string(nil), concepts...), complexity, refresh
 	return f.session, f.candidates, f.step, f.err
 }
 
@@ -130,6 +152,13 @@ func (f *fakeAuthoringService) AcceptContextCandidate(_ context.Context, session
 func (f *fakeAuthoringService) RejectContextCandidate(_ context.Context, sessionID, candidateID, reason string) (internalauthoring.Session, internalauthoring.ContextCandidate, internalauthoring.GuidedStep, error) {
 	f.gotSessionID, f.gotCandidateID, f.gotReason = sessionID, candidateID, reason
 	return f.session, f.candidate, f.step, f.err
+}
+
+func (f *fakeAuthoringService) ApplyContextDisposition(_ context.Context, sessionID, batchID string, takes []internalauthoring.ContextDispositionTake, drops []internalauthoring.ContextDispositionDrop, sweepNote string, takeAll bool) (internalauthoring.Session, internalauthoring.ContextDispositionSummary, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
+	f.gotSessionID, f.gotBatchID = sessionID, batchID
+	f.gotTakes, f.gotDrops = append([]internalauthoring.ContextDispositionTake(nil), takes...), append([]internalauthoring.ContextDispositionDrop(nil), drops...)
+	f.gotSweepNote, f.gotTakeAll = sweepNote, takeAll
+	return f.session, f.disposition, f.violations, f.step, f.err
 }
 
 func (f *fakeAuthoringService) SuggestReferences(_ context.Context, sessionID string) (internalauthoring.Session, []internalauthoring.ReferenceCandidate, internalauthoring.GuidedStep, error) {
@@ -150,6 +179,13 @@ func (f *fakeAuthoringService) AcceptReferenceCandidate(_ context.Context, sessi
 func (f *fakeAuthoringService) RejectReferenceCandidate(_ context.Context, sessionID, candidateID, reason string) (internalauthoring.Session, internalauthoring.ReferenceCandidate, internalauthoring.GuidedStep, error) {
 	f.gotSessionID, f.gotCandidateID, f.gotReason = sessionID, candidateID, reason
 	return f.session, f.refCandidate, f.step, f.err
+}
+
+func (f *fakeAuthoringService) ApplyReferenceDisposition(_ context.Context, sessionID, batchID string, takes []internalauthoring.ReferenceDispositionTake, drops []internalauthoring.ReferenceDispositionDrop, sweepNote string, takeAll bool) (internalauthoring.Session, internalauthoring.ReferenceDispositionSummary, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
+	f.gotSessionID, f.gotBatchID = sessionID, batchID
+	f.gotRefTakes, f.gotRefDrops = append([]internalauthoring.ReferenceDispositionTake(nil), takes...), append([]internalauthoring.ReferenceDispositionDrop(nil), drops...)
+	f.gotSweepNote, f.gotTakeAll = sweepNote, takeAll
+	return f.session, f.refDisposition, f.violations, f.step, f.err
 }
 
 func (f *fakeAuthoringService) AddPhase(_ context.Context, sessionID string, title, intent string) (internalauthoring.Session, internalauthoring.PhaseDraft, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
@@ -182,9 +218,16 @@ func (f *fakeAuthoringService) PreviewPlan(_ context.Context, sessionID string) 
 	return f.previewMarkdown, f.step, f.err
 }
 
-func (f *fakeAuthoringService) Finalize(_ context.Context, sessionID string) (internalplans.Plan, internalauthoring.GuidedStep, error) {
+func (f *fakeAuthoringService) Finalize(_ context.Context, sessionID string, opts internalauthoring.FinalizeOptions) (internalauthoring.FinalizeResult, internalauthoring.GuidedStep, error) {
 	f.gotSessionID = sessionID
-	return f.plan, f.step, f.err
+	f.gotWorkspaceRoot = opts.WorkspaceRoot
+	return internalauthoring.FinalizeResult{
+		Plan:             f.plan,
+		Mirror:           f.plan.Mirror,
+		AlreadyFinalized: f.alreadyFinalized,
+		FinalizedAt:      f.finalizedAt,
+		StorePath:        f.storePath,
+	}, f.step, f.err
 }
 
 var _ internalauthoring.Service = (*fakeAuthoringService)(nil)
@@ -607,14 +650,134 @@ func TestRejectReferenceCandidateSuccess(t *testing.T) {
 	require.Equal(t, "noise", svc.gotReason)
 }
 
+func TestApplyReferenceDispositionSuccess(t *testing.T) {
+	svc := &fakeAuthoringService{
+		session: internalauthoring.Session{ID: "s1"},
+		refDisposition: internalauthoring.ReferenceDispositionSummary{
+			Batch: internalauthoring.DiscoveryBatch{ID: "rb1", Status: internalauthoring.DiscoveryBatchApplied},
+			Results: []internalauthoring.ReferenceDispositionResult{{
+				Candidate: internalauthoring.ReferenceCandidate{ID: "rc1", Handle: "r1", Reference: internalplans.Reference{Kind: internalplans.ReferenceCode, Target: "x.go"}, Status: internalauthoring.ReferenceCandidateAccepted},
+				Reference: internalplans.Reference{Kind: internalplans.ReferenceCode, Target: "x.go"},
+				Action:    "take",
+				Accepted:  true,
+			}},
+		},
+	}
+	h := newAuthoringHandler(svc)
+
+	resp, err := h.ApplyReferenceDisposition(context.Background(), connect.NewRequest(&authoringv1.ApplyReferenceDispositionRequest{
+		SessionId: "s1",
+		BatchId:   "rb1",
+		Take:      []*authoringv1.ReferenceDispositionTake{{Candidate: "r1"}},
+		Drop:      []*authoringv1.ReferenceDispositionDrop{{Candidate: "r2", Reason: "noise"}},
+		SweepNote: "reviewed",
+		TakeAll:   true,
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "rb1", svc.gotBatchID)
+	require.Equal(t, []internalauthoring.ReferenceDispositionTake{{CandidateID: "r1"}}, svc.gotRefTakes)
+	require.Equal(t, []internalauthoring.ReferenceDispositionDrop{{CandidateID: "r2", Reason: "noise"}}, svc.gotRefDrops)
+	require.True(t, svc.gotTakeAll)
+	require.Equal(t, "reviewed", svc.gotSweepNote)
+	require.Equal(t, "applied", resp.Msg.GetBatch().GetStatus())
+	require.Len(t, resp.Msg.GetResults(), 1)
+	require.Equal(t, "r1", resp.Msg.GetResults()[0].GetCandidate().GetHandle())
+}
+
+// TestSubmitRelevantContextItemAcceptedFlag: the response says explicitly
+// whether the item entered the session — a violation-rejected submission must
+// never look success-shaped.
+func TestSubmitRelevantContextItemAcceptedFlag(t *testing.T) {
+	t.Run("accepted", func(t *testing.T) {
+		h := newAuthoringHandler(&fakeAuthoringService{})
+		resp, err := h.SubmitRelevantContextItem(context.Background(), connect.NewRequest(&authoringv1.SubmitRelevantContextItemRequest{SessionId: "s1"}))
+		require.NoError(t, err)
+		require.True(t, resp.Msg.GetAccepted())
+	})
+	t.Run("rejected", func(t *testing.T) {
+		h := newAuthoringHandler(&fakeAuthoringService{violations: []internalauthoring.StructureViolation{
+			{SectionKey: internalauthoring.SectionRelevantContext, Message: "reason must not be empty"},
+		}})
+		resp, err := h.SubmitRelevantContextItem(context.Background(), connect.NewRequest(&authoringv1.SubmitRelevantContextItemRequest{SessionId: "s1"}))
+		require.NoError(t, err)
+		require.False(t, resp.Msg.GetAccepted())
+		require.NotEmpty(t, resp.Msg.GetViolations())
+	})
+}
+
+func TestSubmitFieldsRoundTrip(t *testing.T) {
+	svc := &fakeAuthoringService{
+		fieldResults: []internalauthoring.FieldWriteResult{
+			{Index: 0, Accepted: true, Summary: "submitted section \"purpose\""},
+			{Index: 1, Accepted: false, Summary: "unknown phase field \"bogus\"", Violations: []internalauthoring.StructureViolation{{SectionKey: internalauthoring.SectionPhases, Message: "unknown phase field"}}},
+		},
+	}
+	h := newAuthoringHandler(svc)
+
+	resp, err := h.SubmitFields(context.Background(), connect.NewRequest(&authoringv1.SubmitFieldsRequest{
+		SessionId: "s1",
+		Items: []*authoringv1.FieldWrite{
+			{Scope: &authoringv1.FieldWrite_SectionKey{SectionKey: "purpose"}, Content: "Purpose."},
+			{Scope: &authoringv1.FieldWrite_Phase{Phase: &authoringv1.PhaseFieldRef{PhaseRef: "1", Field: "bogus"}}, Content: "x"},
+		},
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "s1", svc.gotSessionID)
+	require.Len(t, svc.gotFieldWrites, 2)
+	require.Equal(t, internalauthoring.SectionKey("purpose"), svc.gotFieldWrites[0].SectionKey)
+	require.Equal(t, "1", svc.gotFieldWrites[1].PhaseRef)
+	require.Equal(t, internalauthoring.PhaseField("bogus"), svc.gotFieldWrites[1].PhaseField)
+
+	results := resp.Msg.GetResults()
+	require.Len(t, results, 2)
+	require.True(t, results[0].GetAccepted())
+	require.False(t, results[1].GetAccepted())
+	require.Equal(t, int32(1), results[1].GetIndex())
+	require.NotEmpty(t, results[1].GetViolations())
+}
+
 func TestFinalizeSuccess(t *testing.T) {
-	svc := &fakeAuthoringService{plan: internalplans.Plan{ID: "plan-1", Status: internalplans.PlanStatusDraft}}
+	svc := &fakeAuthoringService{
+		plan: internalplans.Plan{
+			ID:            "plan-1",
+			Status:        internalplans.PlanStatusDraft,
+			WorkspaceRoot: "/repo/root",
+			Mirror: internalplans.RenderedPlanMirror{
+				Path:   "/home/user/.vrooli/plans/plan-1.md",
+				Status: internalplans.RenderedMirrorStatusFresh,
+			},
+		},
+		storePath:   "/data/plan-manager.db",
+		finalizedAt: "2026-07-02T00:00:00Z",
+	}
+	h := newAuthoringHandler(svc)
+
+	resp, err := h.Finalize(context.Background(), connect.NewRequest(&authoringv1.FinalizeRequest{
+		SessionId:     "s1",
+		WorkspaceRoot: "/repo/root",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "plan-1", resp.Msg.GetPlan().GetId())
+	require.Equal(t, "s1", svc.gotSessionID)
+	require.Equal(t, "/repo/root", svc.gotWorkspaceRoot, "workspace root must reach the service")
+	require.Equal(t, "/data/plan-manager.db", resp.Msg.GetStorePath())
+	require.Equal(t, "/repo/root", resp.Msg.GetWorkspaceRoot())
+	require.Equal(t, "2026-07-02T00:00:00Z", resp.Msg.GetFinalizedAt())
+	require.False(t, resp.Msg.GetAlreadyFinalized())
+	require.Equal(t, sharedv1.RenderedMirrorStatus_RENDERED_MIRROR_STATUS_FRESH, resp.Msg.GetMirror().GetStatus())
+	require.Equal(t, "/home/user/.vrooli/plans/plan-1.md", resp.Msg.GetMirror().GetPath())
+}
+
+func TestFinalizeAlreadyFinalizedFlag(t *testing.T) {
+	svc := &fakeAuthoringService{
+		plan:             internalplans.Plan{ID: "plan-1", Status: internalplans.PlanStatusDraft},
+		alreadyFinalized: true,
+	}
 	h := newAuthoringHandler(svc)
 
 	resp, err := h.Finalize(context.Background(), connect.NewRequest(&authoringv1.FinalizeRequest{SessionId: "s1"}))
 	require.NoError(t, err)
-	require.Equal(t, "plan-1", resp.Msg.GetPlan().GetId())
-	require.Equal(t, "s1", svc.gotSessionID)
+	require.True(t, resp.Msg.GetAlreadyFinalized())
 }
 
 // TestAuthoringErrorMapping asserts each authoring/plans sentinel maps to the

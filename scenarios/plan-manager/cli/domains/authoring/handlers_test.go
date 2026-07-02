@@ -77,6 +77,21 @@ func (r *authRecorder) SubmitSection(_ context.Context, req *connect.Request[aut
 	}), nil
 }
 
+func (r *authRecorder) SubmitFields(_ context.Context, req *connect.Request[authoringv1.SubmitFieldsRequest]) (*connect.Response[authoringv1.SubmitFieldsResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*authoringv1.SubmitFieldsResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	results := make([]*authoringv1.FieldWriteResult, 0, len(req.Msg.GetItems()))
+	for i := range req.Msg.GetItems() {
+		results = append(results, &authoringv1.FieldWriteResult{Index: int32(i), Accepted: true, Summary: "applied"})
+	}
+	return connect.NewResponse(&authoringv1.SubmitFieldsResponse{Results: results}), nil
+}
+
 func (r *authRecorder) Next(_ context.Context, req *connect.Request[authoringv1.NextRequest]) (*connect.Response[authoringv1.NextResponse], error) {
 	r.record(req.Msg)
 	if r.err != nil {
@@ -118,7 +133,7 @@ func (r *authRecorder) SubmitRelevantContextItem(_ context.Context, req *connect
 	if m, ok := r.resp.(*authoringv1.SubmitRelevantContextItemResponse); ok && m != nil {
 		return connect.NewResponse(m), nil
 	}
-	return connect.NewResponse(&authoringv1.SubmitRelevantContextItemResponse{Item: req.Msg.GetItem()}), nil
+	return connect.NewResponse(&authoringv1.SubmitRelevantContextItemResponse{Item: req.Msg.GetItem(), Accepted: true}), nil
 }
 
 func (r *authRecorder) ListRelevantContext(_ context.Context, req *connect.Request[authoringv1.ListRelevantContextRequest]) (*connect.Response[authoringv1.ListRelevantContextResponse], error) {
@@ -196,6 +211,28 @@ func (r *authRecorder) RejectContextCandidate(_ context.Context, req *connect.Re
 		return connect.NewResponse(m), nil
 	}
 	return connect.NewResponse(&authoringv1.RejectContextCandidateResponse{Candidate: &authoringv1.ContextCandidate{Id: req.Msg.GetCandidateId(), Status: "rejected", RejectionReason: req.Msg.GetReason()}}), nil
+}
+
+func (r *authRecorder) ApplyContextDisposition(_ context.Context, req *connect.Request[authoringv1.ApplyContextDispositionRequest]) (*connect.Response[authoringv1.ApplyContextDispositionResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*authoringv1.ApplyContextDispositionResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&authoringv1.ApplyContextDispositionResponse{Batch: &authoringv1.DiscoveryBatch{Id: req.Msg.GetBatchId(), Status: "applied"}}), nil
+}
+
+func (r *authRecorder) ApplyReferenceDisposition(_ context.Context, req *connect.Request[authoringv1.ApplyReferenceDispositionRequest]) (*connect.Response[authoringv1.ApplyReferenceDispositionResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*authoringv1.ApplyReferenceDispositionResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&authoringv1.ApplyReferenceDispositionResponse{Batch: &authoringv1.DiscoveryBatch{Id: req.Msg.GetBatchId(), Status: "applied"}}), nil
 }
 
 func (r *authRecorder) Finalize(_ context.Context, req *connect.Request[authoringv1.FinalizeRequest]) (*connect.Response[authoringv1.FinalizeResponse], error) {
@@ -409,13 +446,14 @@ func TestAuthoringRequestMapping(t *testing.T) {
 			},
 		},
 		{
-			name: "context-discover maps concepts and complexity", cmd: "context-discover",
-			argv: []string{"sess-1", "--concepts", "a,b", "--complexity", "architectural"},
+			name: "context-discover maps concepts complexity and refresh", cmd: "context-discover",
+			argv: []string{"sess-1", "--concepts", "a,b", "--complexity", "architectural", "--refresh"},
 			assert: func(t *testing.T, req proto.Message) {
 				m := req.(*authoringv1.DiscoverContextCandidatesRequest)
 				require.Equal(t, "sess-1", m.GetSessionId())
 				require.Equal(t, []string{"a", "b"}, m.GetConcepts())
 				require.Equal(t, "architectural", m.GetComplexity())
+				require.True(t, m.GetRefresh())
 			},
 		},
 		{
@@ -436,6 +474,40 @@ func TestAuthoringRequestMapping(t *testing.T) {
 				require.Equal(t, "sess-1", m.GetSessionId())
 				require.Equal(t, "cand1", m.GetCandidateId())
 				require.Equal(t, "duplicate", m.GetReason())
+			},
+		},
+		{
+			name: "context-apply maps batch disposition", cmd: "context-apply",
+			argv: []string{"sess-1", "--batch", "batch-1", "--take", "c1,c4:phase-3", "--drop", "c2=too broad", "--note", "reviewed shortlist"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*authoringv1.ApplyContextDispositionRequest)
+				require.Equal(t, "sess-1", m.GetSessionId())
+				require.Equal(t, "batch-1", m.GetBatchId())
+				require.Equal(t, "reviewed shortlist", m.GetSweepNote())
+				require.Len(t, m.GetTake(), 2)
+				require.Equal(t, "c1", m.GetTake()[0].GetCandidate())
+				require.Equal(t, "c4", m.GetTake()[1].GetCandidate())
+				require.Equal(t, "phase-3", m.GetTake()[1].GetPhaseId())
+				require.Len(t, m.GetDrop(), 1)
+				require.Equal(t, "c2", m.GetDrop()[0].GetCandidate())
+				require.Equal(t, "too broad", m.GetDrop()[0].GetReason())
+			},
+		},
+		{
+			name: "reference-apply maps batch disposition", cmd: "reference-apply",
+			argv: []string{"sess-1", "--batch", "refs-1", "--take", "r1,r3", "--drop", "r2=unrelated", "--note", "reviewed references", "--take-all"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*authoringv1.ApplyReferenceDispositionRequest)
+				require.Equal(t, "sess-1", m.GetSessionId())
+				require.Equal(t, "refs-1", m.GetBatchId())
+				require.Equal(t, "reviewed references", m.GetSweepNote())
+				require.True(t, m.GetTakeAll())
+				require.Len(t, m.GetTake(), 2)
+				require.Equal(t, "r1", m.GetTake()[0].GetCandidate())
+				require.Equal(t, "r3", m.GetTake()[1].GetCandidate())
+				require.Len(t, m.GetDrop(), 1)
+				require.Equal(t, "r2", m.GetDrop()[0].GetCandidate())
+				require.Equal(t, "unrelated", m.GetDrop()[0].GetReason())
 			},
 		},
 		{
@@ -473,6 +545,34 @@ func TestAuthoringRequestMapping(t *testing.T) {
 			argv: []string{"sess-1"},
 			assert: func(t *testing.T, req proto.Message) {
 				require.Equal(t, "sess-1", req.(*authoringv1.FinalizeRequest).GetSessionId())
+			},
+		},
+		{
+			name: "submit maps repeated --set pairs to a single batch", cmd: "submit",
+			argv: []string{"sess-1", "--set", "purpose=Make it fast.", "--set", "2.steps=one\ntwo", "--set", "ph-id.validation=go test"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*authoringv1.SubmitFieldsRequest)
+				require.Equal(t, "sess-1", m.GetSessionId())
+				require.Len(t, m.GetItems(), 3)
+				require.Equal(t, "purpose", m.GetItems()[0].GetSectionKey())
+				require.Equal(t, "Make it fast.", m.GetItems()[0].GetContent())
+				require.Equal(t, "2", m.GetItems()[1].GetPhase().GetPhaseRef())
+				require.Equal(t, "steps", m.GetItems()[1].GetPhase().GetField())
+				require.Equal(t, "ph-id", m.GetItems()[2].GetPhase().GetPhaseRef())
+				require.Equal(t, "validation", m.GetItems()[2].GetPhase().GetField())
+			},
+		},
+		{
+			name: "phase-submit --set maps to a phase-scoped batch", cmd: "phase-submit",
+			argv: []string{"sess-1", "ph1", "--set", "steps=one\ntwo", "--set", "validation=go test ./..."},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*authoringv1.SubmitFieldsRequest)
+				require.Equal(t, "sess-1", m.GetSessionId())
+				require.Len(t, m.GetItems(), 2)
+				require.Equal(t, "ph1", m.GetItems()[0].GetPhase().GetPhaseRef())
+				require.Equal(t, "steps", m.GetItems()[0].GetPhase().GetField())
+				require.Equal(t, "ph1", m.GetItems()[1].GetPhase().GetPhaseRef())
+				require.Equal(t, "validation", m.GetItems()[1].GetPhase().GetField())
 			},
 		},
 		{
@@ -605,6 +705,100 @@ func TestAuthoringOutputRendering(t *testing.T) {
 		require.Contains(t, out, "All mandatory sections are filled.")
 	})
 
+	t.Run("context-submit rejection is loud and exits non-zero", func(t *testing.T) {
+		rec := &authRecorder{resp: &authoringv1.SubmitRelevantContextItemResponse{
+			Accepted: false,
+			Violations: []*authoringv1.StructureViolation{
+				{SectionKey: "relevant_context", Message: "context item reason must not be empty"},
+			},
+		}}
+		app, groups := newAuthFixture(t, rec)
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "author", "context-submit"), app,
+			"sess-1", "--kind", "doc", "--label", "L", "--target", "docs/x.md")
+		require.Error(t, err, "a rejected context item must exit non-zero")
+		require.Contains(t, err.Error(), "gate is still open")
+		require.Contains(t, out, "NOT accepted")
+		require.Contains(t, out, "context item reason must not be empty")
+	})
+
+	t.Run("context-submit acceptance renders accepted result", func(t *testing.T) {
+		rec := &authRecorder{}
+		app, groups := newAuthFixture(t, rec)
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "author", "context-submit"), app,
+			"sess-1", "--kind", "doc", "--label", "L", "--reason", "R", "--instruction", "read", "--target", "docs/x.md")
+		require.NoError(t, err)
+		require.Contains(t, out, "Accepted relevant context item.")
+	})
+
+	t.Run("context candidate proposal renders evidence", func(t *testing.T) {
+		candidate := &authoringv1.ContextCandidate{
+			Id:             "cand-1",
+			Handle:         "c1",
+			Status:         "pending",
+			Score:          0.72032744,
+			Origin:         "search",
+			SizeChars:      8844,
+			Tags:           []string{"planning", "handoff"},
+			Title:          "Implementation Plan Authoring",
+			Snippet:        "Author durable implementation plans through Plan Manager's guided structured-plan runtime.",
+			Concept:        "plan authoring",
+			Source:         "prompt-manager-skills",
+			Tier:           "shortlist",
+			HighConfidence: true,
+			SetupLine:      "prompt-manager skill read implementation-plan-authoring",
+			Corroboration: []*authoringv1.ProbeHit{{
+				Probe:   "prompt-manager-skills",
+				Concept: "plan authoring",
+				Score:   0.72032744,
+			}},
+			Item: &sharedv1.RelevantContextItem{
+				Kind:   sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_SKILL,
+				Label:  "implementation-plan-authoring",
+				Target: "implementation-plan-authoring",
+			},
+		}
+
+		got := formatContextCandidate(candidate)
+
+		require.Contains(t, got, "c1")
+		require.Contains(t, got, "score=0.720")
+		require.Contains(t, got, "origin=search")
+		require.Contains(t, got, "size=8.8k")
+		require.Contains(t, got, "setup: prompt-manager skill read implementation-plan-authoring")
+		require.Contains(t, got, "concept=plan authoring")
+		require.Contains(t, got, "title=Implementation Plan Authoring")
+		require.Contains(t, got, "tags=planning,handoff")
+		require.Contains(t, got, "snippet: Author durable implementation plans")
+	})
+
+	t.Run("phase-add with --set adds then batch-fills in one command", func(t *testing.T) {
+		rec := &authRecorder{}
+		app, groups := newAuthFixture(t, rec)
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "author", "phase-add"), app,
+			"sess-1", "--title", "Contract", "--intent", "Add RPCs", "--set", "steps=one", "--set", "validation=go test")
+		require.NoError(t, err)
+		m := rec.lastRequest().(*authoringv1.SubmitFieldsRequest)
+		require.Len(t, m.GetItems(), 2)
+		require.Equal(t, "ph1", m.GetItems()[0].GetPhase().GetPhaseRef(), "the batch must target the phase AddPhase just created")
+		require.Contains(t, out, "2 of 2 field write(s) accepted")
+	})
+
+	t.Run("submit renders per-item accepted and rejected lines", func(t *testing.T) {
+		rec := &authRecorder{resp: &authoringv1.SubmitFieldsResponse{
+			Results: []*authoringv1.FieldWriteResult{
+				{Index: 0, Accepted: true, Summary: "submitted section \"purpose\""},
+				{Index: 1, Accepted: false, Summary: "unknown phase field \"bogus\"", Violations: []*authoringv1.StructureViolation{{SectionKey: "phases", Message: "unknown phase field \"bogus\""}}},
+			},
+		}}
+		app, groups := newAuthFixture(t, rec)
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "author", "submit"), app,
+			"sess-1", "--set", "purpose=P.", "--set", "1.bogus=x")
+		require.NoError(t, err)
+		require.Contains(t, out, "1 of 2 field write(s) accepted")
+		require.Contains(t, out, "✔ purpose — submitted section")
+		require.Contains(t, out, "✖ 1.bogus — REJECTED: unknown phase field")
+	})
+
 	t.Run("finalize renders persisted plan", func(t *testing.T) {
 		rec := &authRecorder{resp: &authoringv1.FinalizeResponse{Plan: &sharedv1.Plan{
 			Id: "plan-final", Slug: "pf", Title: "Readable Plan", Status: sharedv1.PlanStatus_PLAN_STATUS_DRAFT,
@@ -646,6 +840,62 @@ func TestAuthoringOutputRendering(t *testing.T) {
 		var fullPayload map[string]any
 		require.NoError(t, json.Unmarshal([]byte(fullJSON), &fullPayload))
 		require.Contains(t, fullPayload, "plan")
+	})
+
+	t.Run("finalize leads with honest persistence report", func(t *testing.T) {
+		rec := &authRecorder{resp: &authoringv1.FinalizeResponse{
+			Plan:          &sharedv1.Plan{Id: "plan-final", Slug: "pf", Title: "Readable Plan", Status: sharedv1.PlanStatus_PLAN_STATUS_DRAFT},
+			StorePath:     "/data/plan-manager.db",
+			WorkspaceRoot: "/repo/root",
+			FinalizedAt:   "2026-07-02T00:00:00Z",
+			Mirror:        &sharedv1.RenderedPlanMirror{Path: "/plans/pf.md", Status: sharedv1.RenderedMirrorStatus_RENDERED_MIRROR_STATUS_FRESH},
+		}}
+		app, groups := newAuthFixture(t, rec)
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "author", "finalize"), app, "sess-1")
+		require.NoError(t, err)
+		require.Contains(t, out, "plan persisted: /data/plan-manager.db (workspace /repo/root)")
+		require.Contains(t, out, "mirror: fresh — /plans/pf.md")
+
+		compactJSON, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "author", "finalize"), app, "sess-1", "--json")
+		require.NoError(t, err)
+		var compact map[string]any
+		require.NoError(t, json.Unmarshal([]byte(compactJSON), &compact))
+		require.Equal(t, "/data/plan-manager.db", compact["store_path"])
+		require.Equal(t, "/repo/root", compact["workspace"])
+		require.Equal(t, "fresh", compact["mirror_status"])
+	})
+
+	t.Run("finalize warns loudly on mirror write failure", func(t *testing.T) {
+		rec := &authRecorder{resp: &authoringv1.FinalizeResponse{
+			Plan:      &sharedv1.Plan{Id: "plan-final", Slug: "pf", Status: sharedv1.PlanStatus_PLAN_STATUS_DRAFT},
+			StorePath: "/data/plan-manager.db",
+			Mirror: &sharedv1.RenderedPlanMirror{
+				Path:      "/plans/pf.md",
+				Status:    sharedv1.RenderedMirrorStatus_RENDERED_MIRROR_STATUS_WRITE_FAILED,
+				LastError: "permission denied",
+			},
+		}}
+		app, groups := newAuthFixture(t, rec)
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "author", "finalize"), app, "sess-1")
+		require.NoError(t, err)
+		require.Contains(t, out, "WARNING: mirror write FAILED")
+		require.Contains(t, out, "permission denied")
+		require.Contains(t, out, "plans reconcile --repair-mirrors")
+		require.Contains(t, out, "plan persisted: /data/plan-manager.db (workspace unscoped)")
+	})
+
+	t.Run("finalize re-run announces already finalized", func(t *testing.T) {
+		rec := &authRecorder{resp: &authoringv1.FinalizeResponse{
+			Plan:             &sharedv1.Plan{Id: "plan-final", Slug: "pf", Status: sharedv1.PlanStatus_PLAN_STATUS_DRAFT},
+			AlreadyFinalized: true,
+			FinalizedAt:      "2026-07-01T12:00:00Z",
+			StorePath:        "/data/plan-manager.db",
+		}}
+		app, groups := newAuthFixture(t, rec)
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "author", "finalize"), app, "sess-1")
+		require.NoError(t, err)
+		require.Contains(t, out, "Already finalized at 2026-07-01T12:00:00Z → plan pf (no new plan written).")
+		require.NotContains(t, out, "Finalized plan pf.")
 	})
 }
 
@@ -702,3 +952,20 @@ func errBoom() error { return &boomError{} }
 type boomError struct{}
 
 func (*boomError) Error() string { return "boom" }
+
+// TestAuthorStatusAliasAndAutoStartHint covers the two discoverability
+// papercuts: `author status` resolves as an alias of preview, and a misplaced
+// (post-subcommand) --auto-start yields the placement hint, not a bare
+// unknown-option error.
+func TestAuthorStatusAliasAndAutoStartHint(t *testing.T) {
+	rec := &authRecorder{resp: &authoringv1.PreviewPlanResponse{Markdown: "# Plan"}}
+	app, groups := newAuthFixture(t, rec)
+
+	preview := clitest.FindCommand(t, groups, "author", "preview")
+	require.Contains(t, preview.Aliases, "status", "author status must be an explicit alias of preview")
+
+	_, err := clitest.RunCommand(t, preview, app, "sess-1", "--auto-start")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "global flag", "misplaced --auto-start must yield the placement hint")
+	require.Contains(t, err.Error(), "BEFORE")
+}

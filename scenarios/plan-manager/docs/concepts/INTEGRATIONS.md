@@ -69,11 +69,12 @@ failing the flow:
 - **search-hub** — the reference **discovery** source at authoring (read-only
   `query --json`, the Answer projection). The wizard sends the rich
   title+scope+approach query, routes the hits by locator shape, and offers the
-  `[CODE:]/[DOC:]/[REQ:]` hits as **reviewable** candidates the author accepts or
-  rejects. Plan Manager consumes whatever search-hub federates today and improves
-  automatically as more Answer-projection providers register; it never builds those
-  providers. If down/empty: no candidates — the references step falls back to
-  manual locator entry or a `NO_CODE_REFS:` reason (never a fabricated reference).
+  `[CODE:]/[DOC:]/[REQ:]` hits as a curated reference batch the author applies in
+  one `reference-apply` decision. Plan Manager consumes whatever search-hub
+  federates today and improves automatically as more Answer-projection providers
+  register; it never builds those providers. If down/empty: no candidates — the
+  references step falls back to manual locator entry or a `NO_CODE_REFS:` reason
+  (never a fabricated reference).
 - **code-facts** — resolves reference evidence at validation where its current
   surface can express the locator. If down: references remain recorded; validation
   falls back to filesystem resolution for CODE/DOC refs and marks unresolved gaps
@@ -103,10 +104,10 @@ failing the flow:
   skill/action discovery contract; Search Hub contributes broad recall candidates
   across records/docs/skills; CLI Health contributes command-surface discovery.
   This Guide/setup flow is distinct from the search-hub Answer projection that
-  feeds references. Authoring stores discovered setup as pending candidates; the
-  author must accept useful candidates or reject noisy ones before finalization.
-  If a source is down: candidates are marked degraded or left for the author to
-  supply explicitly.
+  feeds references. Authoring stores discovered setup in a curated discovery
+  batch; the author applies the batch by taking useful shortlist items and
+  sweeping the rest. If a source is down: the batch carries degraded probe notes
+  and leaves the author free to supply context explicitly.
 - **meta-optimization-manager** — velocity sink. If down: velocity is retained
   locally and emit is retried/skipped; no flow blocks.
 - **agent-manager** — provides the run-id attribution contract

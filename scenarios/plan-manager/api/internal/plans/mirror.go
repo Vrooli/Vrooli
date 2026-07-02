@@ -17,10 +17,14 @@ import (
 const (
 	// RendererVersion v2: the nine-cluster section model (Purpose/Problem/Outcome/
 	// Approach & Decisions/Boundaries/Assumptions & Risks/Verification/Execution
-	// Setup/Phases), compact NO_CONTEXT phase lines, one-line execution feedback,
-	// decisions + assumption/mitigation rendering. Bumping this marks every
-	// mirror rendered by v1 stale so reconcile re-renders it.
-	RendererVersion     = "plan-manager-renderer-v2"
+	// Setup/Phases), compact NO_CONTEXT phase lines, decisions +
+	// assumption/mitigation rendering. Bumping this marks every mirror rendered
+	// by the previous version stale so reconcile re-renders it.
+	//
+	// v3: Execution Feedback now stamps the pre-filled completion-record
+	// command (`swarm-manager records create ...` with scenario/title filled),
+	// so end-of-plan agents paste instead of reconstructing it from memory.
+	RendererVersion     = "plan-manager-renderer-v3"
 	mirrorIndexFilename = "_index.json"
 )
 

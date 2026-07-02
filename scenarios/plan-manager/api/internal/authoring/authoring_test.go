@@ -57,7 +57,7 @@ func TestWizardAuthoredPlanRendersComprehensive(t *testing.T) {
 	_, _, _, err = svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldRelevantContext, "NO_CONTEXT: covered by global setup.")
 	require.NoError(t, err)
 
-	_, _, err = svc.Finalize(ctx, sess.ID)
+	_, _, err = svc.Finalize(ctx, sess.ID, authoring.FinalizeOptions{})
 	require.NoError(t, err)
 
 	md := internalplans.RenderMarkdown(writer.created)
@@ -194,6 +194,9 @@ type fakePlanWriter struct {
 	created internalplans.Plan
 	calls   int
 	err     error
+	// mirror, when set, is stamped on the created plan — the computed publish
+	// result Create threads back (mirrors the production plans service).
+	mirror internalplans.RenderedPlanMirror
 }
 
 func (w *fakePlanWriter) CreatePlan(_ context.Context, p internalplans.Plan) (internalplans.Plan, error) {
@@ -205,6 +208,7 @@ func (w *fakePlanWriter) CreatePlan(_ context.Context, p internalplans.Plan) (in
 	}
 	p.ID = "plan-finalized"
 	p.Status = internalplans.PlanStatusDraft
+	p.Mirror = w.mirror
 	w.created = p
 	return p, nil
 }
@@ -271,20 +275,58 @@ func (f *fakeSuggester) Suggest(_ context.Context, query string) ([]authoring.Re
 
 type fakeContextDiscoverer struct {
 	candidates []authoring.ContextCandidate
+	notes      []authoring.ProbeNote
 	err        error
 	gotTitle   string
 	gotConcept []string
 	gotComplex string
 }
 
-func (f *fakeContextDiscoverer) DiscoverContext(_ context.Context, title string, concepts []string, complexity string) ([]authoring.ContextCandidate, error) {
+func (f *fakeContextDiscoverer) DiscoverContext(_ context.Context, title string, concepts []string, complexity string) (authoring.ContextDiscoveryResult, error) {
 	f.gotTitle = title
 	f.gotConcept = append([]string(nil), concepts...)
 	f.gotComplex = complexity
 	if f.err != nil {
-		return nil, f.err
+		return authoring.ContextDiscoveryResult{}, f.err
 	}
-	return append([]authoring.ContextCandidate(nil), f.candidates...), nil
+	return authoring.ContextDiscoveryResult{
+		Candidates: append([]authoring.ContextCandidate(nil), f.candidates...),
+		ProbeNotes: append([]authoring.ProbeNote(nil), f.notes...),
+	}, nil
+}
+
+type prefetchContextDiscoverer struct {
+	mu         sync.Mutex
+	calls      int
+	gotConcept [][]string
+	candidates []authoring.ContextCandidate
+	started    chan struct{}
+	release    chan struct{}
+	startOnce  sync.Once
+}
+
+func (f *prefetchContextDiscoverer) DiscoverContext(ctx context.Context, _ string, concepts []string, _ string) (authoring.ContextDiscoveryResult, error) {
+	f.mu.Lock()
+	f.calls++
+	f.gotConcept = append(f.gotConcept, append([]string(nil), concepts...))
+	f.mu.Unlock()
+	if f.started != nil {
+		f.startOnce.Do(func() { close(f.started) })
+	}
+	if f.release != nil {
+		select {
+		case <-f.release:
+		case <-ctx.Done():
+			return authoring.ContextDiscoveryResult{}, ctx.Err()
+		}
+	}
+	return authoring.ContextDiscoveryResult{Candidates: append([]authoring.ContextCandidate(nil), f.candidates...)}, nil
+}
+
+func (f *prefetchContextDiscoverer) callCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.calls
 }
 
 type fakeCommandValidator struct {
@@ -326,6 +368,7 @@ func newService(t *testing.T, d authoring.Deps) authoring.Service {
 	if d.Clock == nil {
 		d.Clock = clk
 	}
+	d.DisableContextPrefetch = true
 	return authoring.NewService(d)
 }
 
@@ -377,9 +420,8 @@ func TestContinueGlobalContextResolvedByAcceptedItem(t *testing.T) {
 	require.Equal(t, "global_relevant_context", step.StepKind, "direct submit without a sweep must not resolve the checkpoint")
 
 	// Running discovery and dispositioning every candidate resolves it.
-	_, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"context accept"}, "minor")
+	_, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"context accept"}, "minor", false)
 	require.NoError(t, err)
-	require.NotEmpty(t, candidates)
 	for _, c := range candidates {
 		_, _, _, err := svc.RejectContextCandidate(ctx, sess.ID, c.ID, "reviewed: submitted item already covers setup")
 		require.NoError(t, err)
@@ -673,7 +715,7 @@ func TestFinalizeRejectsInvalidCLIReferences(t *testing.T) {
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPhases, "### Phase 1 — Anchor\n- Intent: Capture baseline\n- Status: todo\n")
 	require.NoError(t, err)
 
-	_, _, err = svc.Finalize(ctx, sess.ID)
+	_, _, err = svc.Finalize(ctx, sess.ID, authoring.FinalizeOptions{})
 	require.Error(t, err)
 	var gate authoring.ErrStructureGate
 	require.True(t, errors.As(err, &gate))
@@ -762,7 +804,7 @@ func TestSuggestedReferencesSurviveFinalize(t *testing.T) {
 	require.Empty(t, violations)
 
 	fillMandatory(t, svc, sess.ID)
-	_, _, err = svc.Finalize(ctx, sess.ID)
+	_, _, err = svc.Finalize(ctx, sess.ID, authoring.FinalizeOptions{})
 	require.NoError(t, err)
 	require.Len(t, writer.created.References, 1)
 	require.Equal(t, "scenarios/plan-manager/api/internal/validation/service.go", writer.created.References[0].Target)
@@ -843,6 +885,72 @@ func TestAcceptReferenceCandidateRejectsKindMismatch(t *testing.T) {
 	got, _, err := svc.GetSection(ctx, sess.ID, authoring.SectionReferences)
 	require.NoError(t, err)
 	require.Empty(t, got.Content, "a kind-mismatched locator must not enter the references section")
+}
+
+func TestReferenceDiscoveryBatchMergesAndDoesNotResurrectRejectedTargets(t *testing.T) {
+	suggester := &fakeSuggester{candidates: []authoring.ReferenceCandidate{{
+		Reference:  planmodel.Reference{Kind: planmodel.ReferenceCode, Target: "internal/widget/core.go"},
+		Source:     "search-hub",
+		Confidence: 0.72,
+	}}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Suggester: suggester})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
+	require.NoError(t, err)
+
+	updated, candidates, _, err := svc.SuggestReferences(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.Equal(t, "r1", candidates[0].Handle)
+	require.Len(t, updated.ReferenceBatches, 1)
+	firstBatch := updated.ReferenceBatches[0].ID
+
+	updated, rejected, _, err := svc.RejectReferenceCandidate(ctx, sess.ID, "r1", "not touched")
+	require.NoError(t, err)
+	require.Equal(t, authoring.ReferenceCandidateRejected, rejected.Status)
+	require.Equal(t, authoring.DiscoveryBatchApplied, updated.ReferenceBatches[0].Status)
+
+	suggester.candidates = []authoring.ReferenceCandidate{
+		{Reference: planmodel.Reference{Kind: planmodel.ReferenceCode, Target: "internal/widget/core.go"}, Source: "search-hub", Confidence: 0.95},
+		{Reference: planmodel.Reference{Kind: planmodel.ReferenceDoc, Target: "docs/concepts/PLAN-MODEL.md"}, Source: "docs", Confidence: 0.7},
+	}
+	updated, candidates, _, err = svc.SuggestReferences(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.Equal(t, "docs/concepts/PLAN-MODEL.md", candidates[0].Reference.Target)
+	require.Len(t, updated.ReferenceBatches, 2)
+	require.Equal(t, firstBatch, updated.ReferenceCandidates[0].BatchID)
+	require.Equal(t, authoring.ReferenceCandidateRejected, updated.ReferenceCandidates[0].Status)
+	require.Equal(t, 1, updated.ReferenceBatches[1].CurationStats.SuppressedDispositioned)
+}
+
+func TestApplyReferenceDispositionTakesAndSweepsBatch(t *testing.T) {
+	suggester := &fakeSuggester{candidates: []authoring.ReferenceCandidate{
+		{Reference: planmodel.Reference{Kind: planmodel.ReferenceCode, Target: "internal/widget/core.go"}, Source: "search-hub", Confidence: 0.72},
+		{Reference: planmodel.Reference{Kind: planmodel.ReferenceDoc, Target: "docs/concepts/PLAN-MODEL.md"}, Source: "docs", Confidence: 0.64},
+	}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Suggester: suggester})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Batch references", "", "")
+	require.NoError(t, err)
+	updated, candidates, _, err := svc.SuggestReferences(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Len(t, candidates, 2)
+	require.Equal(t, authoring.DiscoveryBatchPending, updated.ReferenceBatches[0].Status)
+
+	updated, summary, violations, _, err := svc.ApplyReferenceDisposition(ctx, sess.ID, "", []authoring.ReferenceDispositionTake{{CandidateID: "r1"}}, nil, "reviewed references", false)
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.Len(t, summary.Results, 2)
+	require.Equal(t, authoring.DiscoveryBatchApplied, summary.Batch.Status)
+	require.Equal(t, "reviewed references", summary.Batch.AppliedNote)
+	require.Equal(t, authoring.ReferenceCandidateAccepted, updated.ReferenceCandidates[0].Status)
+	require.Equal(t, authoring.ReferenceCandidateRejected, updated.ReferenceCandidates[1].Status)
+	require.Equal(t, "swept by reference-apply", updated.ReferenceCandidates[1].RejectionReason)
+	got, _, err := svc.GetSection(ctx, sess.ID, authoring.SectionReferences)
+	require.NoError(t, err)
+	require.Contains(t, got.Content, "[CODE: internal/widget/core.go]")
+	require.NotContains(t, got.Content, "PLAN-MODEL.md")
 }
 
 func TestAutofillDegradesPerSourceNeverFalseFill(t *testing.T) {
@@ -944,7 +1052,7 @@ func TestPhaseNativeAuthoringValidatesAndFinalizesStructuredPhase(t *testing.T) 
 
 	// Gate v2 (D4): disposition a discovery sweep so the skill checkpoint is
 	// satisfied by evidence, not by the mere presence of a skill item.
-	_, sweepCandidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"authoring wizard phases"}, "moderate")
+	_, sweepCandidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"authoring wizard phases"}, "moderate", false)
 	require.NoError(t, err)
 	for _, c := range sweepCandidates {
 		_, _, _, err := svc.RejectContextCandidate(ctx, sess.ID, c.ID, "reviewed: the submitted setup items already cover this")
@@ -1002,7 +1110,8 @@ func TestPhaseNativeAuthoringValidatesAndFinalizesStructuredPhase(t *testing.T) 
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionDefinitionOfDone, "Scenario tests pass.")
 	require.NoError(t, err)
 
-	plan, _, err := svc.Finalize(ctx, sess.ID)
+	result, _, err := svc.Finalize(ctx, sess.ID, authoring.FinalizeOptions{})
+	plan := result.Plan
 	require.NoError(t, err)
 	require.Equal(t, "plan-finalized", plan.ID)
 	require.Len(t, writer.created.Phases, 1)
@@ -1112,7 +1221,7 @@ func TestContextDiscoveryCandidateLifecycle(t *testing.T) {
 	sess, _, err := svc.StartSession(ctx, "Improve context", "improve-context", "")
 	require.NoError(t, err)
 
-	updated, candidates, step, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"plan-manager relevant context"}, "architectural")
+	updated, candidates, step, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"plan-manager relevant context"}, "architectural", false)
 	require.NoError(t, err)
 	require.Len(t, candidates, 1)
 	require.Len(t, updated.ContextCandidates, 1)
@@ -1139,12 +1248,253 @@ func TestContextDiscoveryDegradesWhenSeamUnavailable(t *testing.T) {
 	sess, _, err := svc.StartSession(ctx, "Improve context", "", "")
 	require.NoError(t, err)
 
-	updated, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"context discovery"}, "")
+	updated, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"context discovery"}, "", false)
+	require.NoError(t, err)
+	require.Empty(t, candidates)
+	require.Empty(t, updated.ContextCandidates)
+	require.Len(t, updated.DiscoveryBatches, 1)
+	require.Len(t, updated.DiscoveryBatches[0].ProbeNotes, 1)
+	require.True(t, updated.DiscoveryBatches[0].ProbeNotes[0].Degraded)
+}
+
+func TestStartSessionPrefetchReturnedByFirstNoConceptDiscover(t *testing.T) {
+	store, clk := newStore(t)
+	discovery := &prefetchContextDiscoverer{
+		candidates: []authoring.ContextCandidate{{
+			ID:      "prefetch-cand",
+			Concept: "prefetched title",
+			Source:  "prompt-manager-skills",
+			Score:   0.9,
+			Origin:  "search",
+			Item: internalplans.RelevantContextItem{
+				Kind:        internalplans.RelevantContextSkill,
+				Label:       "Implementation steer",
+				Reason:      "Prefetched before the checkpoint.",
+				Instruction: "Load before implementing.",
+				Target:      "implementation-plan-authoring",
+				Source:      internalplans.RelevantContextSourceDiscovered,
+			},
+		}},
+	}
+	svc := authoring.NewService(authoring.Deps{
+		Store:   store,
+		Writer:  &fakePlanWriter{},
+		Context: discovery,
+		Clock:   clk,
+	})
+	waiter := svc.(interface{ WaitForContextPrefetch() })
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Prefetch Context", "prefetch-context", "")
+	require.NoError(t, err)
+	waiter.WaitForContextPrefetch()
+
+	updated, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, nil, "", false)
 	require.NoError(t, err)
 	require.Len(t, candidates, 1)
-	require.True(t, candidates[0].Degraded)
-	require.Equal(t, internalplans.RelevantContextStatusDegraded, candidates[0].Item.Status)
+	require.Equal(t, "prefetch", updated.DiscoveryBatches[0].Source)
+	require.Equal(t, 1, discovery.callCount(), "no-concept discover should reuse the prefetched batch")
+}
+
+func TestContextDiscoverRefreshSupersedesPrefetch(t *testing.T) {
+	store, clk := newStore(t)
+	discovery := &prefetchContextDiscoverer{
+		candidates: []authoring.ContextCandidate{{
+			ID:      "refresh-cand",
+			Concept: "shared",
+			Source:  "prompt-manager-skills",
+			Score:   0.9,
+			Origin:  "search",
+			Item: internalplans.RelevantContextItem{
+				Kind:        internalplans.RelevantContextSkill,
+				Label:       "Shared steer",
+				Reason:      "Shared target.",
+				Instruction: "Load it.",
+				Target:      "implementation-plan-authoring",
+				Source:      internalplans.RelevantContextSourceDiscovered,
+			},
+		}},
+	}
+	svc := authoring.NewService(authoring.Deps{
+		Store:   store,
+		Writer:  &fakePlanWriter{},
+		Context: discovery,
+		Clock:   clk,
+	})
+	waiter := svc.(interface{ WaitForContextPrefetch() })
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Refresh Context", "refresh-context", "")
+	require.NoError(t, err)
+	waiter.WaitForContextPrefetch()
+
+	updated, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, nil, "", true)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.Len(t, updated.DiscoveryBatches, 2)
+	require.Equal(t, authoring.DiscoveryBatchSuperseded, updated.DiscoveryBatches[0].Status)
+	require.Equal(t, "interactive", updated.DiscoveryBatches[1].Source)
+	require.Equal(t, 2, discovery.callCount())
+}
+
+func TestNoConceptDiscoverWaitsForInFlightPrefetch(t *testing.T) {
+	store, clk := newStore(t)
+	discovery := &prefetchContextDiscoverer{
+		candidates: []authoring.ContextCandidate{{
+			ID:      "inflight-cand",
+			Concept: "prefetched title",
+			Source:  "prompt-manager-skills",
+			Score:   0.9,
+			Origin:  "search",
+			Item: internalplans.RelevantContextItem{
+				Kind:        internalplans.RelevantContextSkill,
+				Label:       "In-flight steer",
+				Reason:      "Prefetched before the checkpoint.",
+				Instruction: "Load before implementing.",
+				Target:      "implementation-plan-authoring",
+				Source:      internalplans.RelevantContextSourceDiscovered,
+			},
+		}},
+		started: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	svc := authoring.NewService(authoring.Deps{
+		Store:   store,
+		Writer:  &fakePlanWriter{},
+		Context: discovery,
+		Clock:   clk,
+	})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "In-flight Prefetch", "inflight-prefetch", "")
+	require.NoError(t, err)
+	select {
+	case <-discovery.started:
+	case <-time.After(time.Second):
+		t.Fatal("prefetch did not start")
+	}
+
+	type discoverResult struct {
+		session    authoring.Session
+		candidates []authoring.ContextCandidate
+		err        error
+	}
+	done := make(chan discoverResult, 1)
+	go func() {
+		updated, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, nil, "", false)
+		done <- discoverResult{session: updated, candidates: candidates, err: err}
+	}()
+	select {
+	case <-done:
+		t.Fatal("no-concept discover returned before in-flight prefetch completed")
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(discovery.release)
+	var got discoverResult
+	select {
+	case got = <-done:
+	case <-time.After(time.Second):
+		t.Fatal("no-concept discover did not return after prefetch completed")
+	}
+	require.NoError(t, got.err)
+	require.Len(t, got.candidates, 1)
+	require.Equal(t, "prefetch", got.session.DiscoveryBatches[0].Source)
+	require.Equal(t, 1, discovery.callCount(), "discover should wait for prefetch instead of launching duplicate probes")
+}
+
+func TestCancelContextPrefetchCancelsInFlightDiscovery(t *testing.T) {
+	store, clk := newStore(t)
+	discovery := &prefetchContextDiscoverer{
+		started: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	svc := authoring.NewService(authoring.Deps{
+		Store:   store,
+		Writer:  &fakePlanWriter{},
+		Context: discovery,
+		Clock:   clk,
+	})
+	canceller := svc.(interface{ CancelContextPrefetch() })
+	ctx := context.Background()
+	_, _, err := svc.StartSession(ctx, "Cancel Prefetch", "cancel-prefetch", "")
+	require.NoError(t, err)
+	select {
+	case <-discovery.started:
+	case <-time.After(time.Second):
+		t.Fatal("prefetch did not start")
+	}
+	done := make(chan struct{})
+	go func() {
+		canceller.CancelContextPrefetch()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("prefetch cancellation did not return")
+	}
+}
+
+func TestContextDiscoveryBatchMergesAndDoesNotResurrectRejectedTargets(t *testing.T) {
+	discovery := &fakeContextDiscoverer{candidates: []authoring.ContextCandidate{{
+		ID:      "cand-first",
+		Concept: "initial",
+		Source:  "prompt-manager-skills",
+		Score:   0.41,
+		Item: internalplans.RelevantContextItem{
+			Kind:        internalplans.RelevantContextSkill,
+			Label:       "Load API steer",
+			Reason:      "Initial weak match.",
+			Instruction: "Load before API changes.",
+			Target:      "api-steer",
+			Source:      internalplans.RelevantContextSourceDiscovered,
+		},
+	}}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Context: discovery})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Improve context", "", "")
+	require.NoError(t, err)
+
+	updated, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"initial"}, "", false)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
 	require.Len(t, updated.ContextCandidates, 1)
+	require.Len(t, updated.DiscoveryBatches, 1)
+	firstBatch := updated.DiscoveryBatches[0].ID
+	require.Equal(t, firstBatch, candidates[0].BatchID)
+
+	discovery.candidates = []authoring.ContextCandidate{{
+		ID:      "cand-second",
+		Concept: "refined",
+		Source:  "search-hub-recall",
+		Score:   0.92,
+		Item: internalplans.RelevantContextItem{
+			Kind:        internalplans.RelevantContextSkill,
+			Label:       "Load API steer",
+			Reason:      "Stronger refined match.",
+			Instruction: "Load before API changes.",
+			Target:      "api-steer",
+			Source:      internalplans.RelevantContextSourceDiscovered,
+		},
+	}}
+	updated, candidates, _, err = svc.DiscoverContextCandidates(ctx, sess.ID, []string{"refined"}, "", false)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.Len(t, updated.ContextCandidates, 1, "overlapping rediscovery must merge, not append")
+	require.Len(t, updated.DiscoveryBatches, 2)
+	require.Equal(t, authoring.DiscoveryBatchSuperseded, updated.DiscoveryBatches[0].Status)
+	require.Equal(t, authoring.DiscoveryBatchPending, updated.DiscoveryBatches[1].Status)
+	require.Equal(t, "cand-first", updated.ContextCandidates[0].ID, "merge keeps the stable candidate id")
+	require.Equal(t, 0.92, updated.ContextCandidates[0].Score)
+	require.Equal(t, updated.DiscoveryBatches[1].ID, updated.ContextCandidates[0].BatchID)
+
+	updated, rejected, _, err := svc.RejectContextCandidate(ctx, sess.ID, "cand-first", "not useful enough")
+	require.NoError(t, err)
+	require.Equal(t, authoring.ContextCandidateRejected, rejected.Status)
+
+	updated, candidates, _, err = svc.DiscoverContextCandidates(ctx, sess.ID, []string{"third pass"}, "", false)
+	require.NoError(t, err)
+	require.Empty(t, candidates, "rejected targets must not resurrect as pending")
+	require.Len(t, updated.ContextCandidates, 1)
+	require.Equal(t, authoring.ContextCandidateRejected, updated.ContextCandidates[0].Status)
+	require.Equal(t, 1, updated.DiscoveryBatches[len(updated.DiscoveryBatches)-1].CurationStats.SuppressedDispositioned)
 }
 
 func TestAcceptContextCandidateAssignsPhaseScope(t *testing.T) {
@@ -1169,7 +1519,7 @@ func TestAcceptContextCandidateAssignsPhaseScope(t *testing.T) {
 	require.NoError(t, err)
 	_, phase, _, _, err := svc.AddPhase(ctx, sess.ID, "Phase context", "Wire candidate assignment.")
 	require.NoError(t, err)
-	_, _, _, err = svc.DiscoverContextCandidates(ctx, sess.ID, []string{"phase context"}, "")
+	_, _, _, err = svc.DiscoverContextCandidates(ctx, sess.ID, []string{"phase context"}, "", false)
 	require.NoError(t, err)
 
 	updated, _, item, violations, _, err := svc.AcceptContextCandidate(ctx, sess.ID, "cand-phase", phase.ID)
@@ -1179,6 +1529,121 @@ func TestAcceptContextCandidateAssignsPhaseScope(t *testing.T) {
 	require.Equal(t, phase.ID, item.PhaseID)
 	require.Equal(t, internalplans.RelevantContextPhaseEntry, item.RepeatPolicy)
 	require.Len(t, updated.PhaseDrafts[0].RelevantContext, 1)
+}
+
+func TestAcceptContextCandidateAcceptsBatchHandle(t *testing.T) {
+	discovery := &fakeContextDiscoverer{candidates: []authoring.ContextCandidate{{
+		ID:     "cand-handle",
+		Score:  0.91,
+		Origin: "search",
+		Item: internalplans.RelevantContextItem{
+			Kind:   internalplans.RelevantContextSkill,
+			Label:  "Implementation Plan Authoring",
+			Target: "implementation-plan-authoring",
+			Reason: "matches the authoring workflow",
+		},
+		Status: authoring.ContextCandidatePending,
+	}}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Context: discovery})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Handle accept", "", "")
+	require.NoError(t, err)
+	_, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"handle accept"}, "", false)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.Equal(t, "c1", candidates[0].Handle)
+
+	updated, accepted, item, violations, _, err := svc.AcceptContextCandidate(ctx, sess.ID, "c1", "")
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.Equal(t, authoring.ContextCandidateAccepted, accepted.Status)
+	require.Equal(t, "implementation-plan-authoring", item.Target)
+	require.Equal(t, authoring.ContextCandidateAccepted, updated.ContextCandidates[0].Status)
+}
+
+func TestApplyContextDispositionTakesAndSweepsBatch(t *testing.T) {
+	discovery := &fakeContextDiscoverer{candidates: []authoring.ContextCandidate{
+		{
+			ID:     "cand-take",
+			Score:  0.72,
+			Origin: "search",
+			Item: internalplans.RelevantContextItem{
+				Kind:   internalplans.RelevantContextSkill,
+				Label:  "Implementation Plan Authoring",
+				Target: "implementation-plan-authoring",
+				Reason: "shapes the plan-manager workflow",
+			},
+			Status: authoring.ContextCandidatePending,
+		},
+		{
+			ID:     "cand-sweep",
+			Score:  0.64,
+			Origin: "search",
+			Item: internalplans.RelevantContextItem{
+				Kind:   internalplans.RelevantContextDoc,
+				Label:  "General docs",
+				Target: "docs/README.md",
+				Reason: "broad background",
+			},
+			Status: authoring.ContextCandidatePending,
+		},
+	}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Context: discovery})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Batch apply", "", "")
+	require.NoError(t, err)
+	_, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"batch apply"}, "", false)
+	require.NoError(t, err)
+	require.Len(t, candidates, 2)
+
+	updated, summary, violations, _, err := svc.ApplyContextDisposition(ctx, sess.ID, "", []authoring.ContextDispositionTake{{CandidateID: "c1"}}, nil, "reviewed shortlist", false)
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.Len(t, summary.Results, 2)
+	require.Equal(t, authoring.DiscoveryBatchApplied, summary.Batch.Status)
+	require.Equal(t, "reviewed shortlist", summary.Batch.AppliedNote)
+	require.Len(t, updated.RelevantContext, 1)
+	require.Equal(t, "implementation-plan-authoring", updated.RelevantContext[0].Target)
+	require.Equal(t, authoring.ContextCandidateAccepted, updated.ContextCandidates[0].Status)
+	require.Equal(t, authoring.ContextCandidateRejected, updated.ContextCandidates[1].Status)
+	require.Equal(t, "swept by context-apply", updated.ContextCandidates[1].RejectionReason)
+}
+
+func TestApplyContextDispositionRequiresReasonForHighConfidenceDrop(t *testing.T) {
+	discovery := &fakeContextDiscoverer{candidates: []authoring.ContextCandidate{{
+		ID:     "cand-high",
+		Score:  0.91,
+		Origin: "search",
+		Item: internalplans.RelevantContextItem{
+			Kind:   internalplans.RelevantContextSkill,
+			Label:  "Implementation Plan Authoring",
+			Target: "implementation-plan-authoring",
+			Reason: "strong match",
+		},
+		Status: authoring.ContextCandidatePending,
+	}}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Context: discovery})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "High confidence apply", "", "")
+	require.NoError(t, err)
+	_, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"high confidence"}, "", false)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.True(t, candidates[0].HighConfidence)
+
+	updated, summary, _, _, err := svc.ApplyContextDisposition(ctx, sess.ID, "", nil, nil, "reviewed shortlist", false)
+	require.NoError(t, err)
+	require.Len(t, summary.Results, 1)
+	require.False(t, summary.Results[0].Accepted)
+	require.Contains(t, summary.Results[0].Message, "requires a drop reason")
+	require.Equal(t, authoring.DiscoveryBatchPending, summary.Batch.Status)
+	require.Equal(t, authoring.ContextCandidatePending, updated.ContextCandidates[0].Status)
+
+	updated, summary, _, _, err = svc.ApplyContextDisposition(ctx, sess.ID, "", nil, []authoring.ContextDispositionDrop{{CandidateID: "c1", Reason: "covered by explicit context"}}, "reviewed shortlist", false)
+	require.NoError(t, err)
+	require.Equal(t, authoring.DiscoveryBatchApplied, summary.Batch.Status)
+	require.Equal(t, authoring.ContextCandidateRejected, updated.ContextCandidates[0].Status)
+	require.Equal(t, "covered by explicit context", updated.ContextCandidates[0].RejectionReason)
 }
 
 func TestReferenceGateRequiresReferenceOrExplicitReason(t *testing.T) {
@@ -1369,7 +1834,8 @@ func TestFinalizeWritesThroughWriterWhenStructureValid(t *testing.T) {
 	require.NoError(t, err)
 	fillMandatory(t, svc, sess.ID)
 
-	plan, _, err := svc.Finalize(ctx, sess.ID)
+	result, _, err := svc.Finalize(ctx, sess.ID, authoring.FinalizeOptions{})
+	plan := result.Plan
 	require.NoError(t, err)
 	require.Equal(t, 1, writer.calls)
 	require.Equal(t, "plan-finalized", plan.ID)
@@ -1407,7 +1873,8 @@ func TestFinalizeVerifiesReadbackAndIsIdempotent(t *testing.T) {
 	require.NoError(t, err)
 	fillMandatory(t, svc, sess.ID)
 
-	first, _, err := svc.Finalize(ctx, sess.Slug)
+	firstResult, _, err := svc.Finalize(ctx, sess.Slug, authoring.FinalizeOptions{})
+	first := firstResult.Plan
 	require.NoError(t, err)
 	require.Equal(t, "plan-finalized", first.ID)
 	require.Equal(t, "improve-widget", first.Slug)
@@ -1415,7 +1882,8 @@ func TestFinalizeVerifiesReadbackAndIsIdempotent(t *testing.T) {
 	require.Equal(t, 1, reader.getCalls)
 	require.Equal(t, 1, reader.renderCalls)
 
-	second, _, err := svc.Finalize(ctx, sess.Slug)
+	secondResult, _, err := svc.Finalize(ctx, sess.Slug, authoring.FinalizeOptions{})
+	second := secondResult.Plan
 	require.NoError(t, err)
 	require.Equal(t, first.ID, second.ID)
 	require.Equal(t, first.Slug, second.Slug)
@@ -1451,7 +1919,8 @@ func TestConcurrentFinalizeDoesNotCreateDuplicatePlans(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start
-			plan, _, finalizeErr := svc.Finalize(ctx, sess.Slug)
+			finalizeResult, _, finalizeErr := svc.Finalize(ctx, sess.Slug, authoring.FinalizeOptions{})
+			plan := finalizeResult.Plan
 			if finalizeErr == nil {
 				ids <- plan.ID
 			}
@@ -1482,7 +1951,7 @@ func TestFinalizeFailsWhenReadbackCannotResolvePlan(t *testing.T) {
 	require.NoError(t, err)
 	fillMandatory(t, svc, sess.ID)
 
-	_, _, err = svc.Finalize(ctx, sess.ID)
+	_, _, err = svc.Finalize(ctx, sess.ID, authoring.FinalizeOptions{})
 	require.Error(t, err)
 	var readback authoring.ErrFinalizeReadback
 	require.ErrorAs(t, err, &readback)
@@ -1509,7 +1978,7 @@ func TestFinalizeParsesStructuredRegressionAnchor(t *testing.T) {
 	require.NoError(t, err)
 	fillMandatory(t, svc, sess.ID)
 
-	_, _, err = svc.Finalize(ctx, sess.ID)
+	_, _, err = svc.Finalize(ctx, sess.ID, authoring.FinalizeOptions{})
 	require.NoError(t, err)
 	require.Equal(t, "scenario_baseline", writer.created.RegressionAnchor.Strategy)
 	require.Equal(t, "plan-manager", writer.created.RegressionAnchor.Scenario)
@@ -1529,7 +1998,7 @@ func TestFinalizeRejectsMalformedAuthoredReferences(t *testing.T) {
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "[CODE:]")
 	require.NoError(t, err)
 
-	_, _, err = svc.Finalize(ctx, sess.ID)
+	_, _, err = svc.Finalize(ctx, sess.ID, authoring.FinalizeOptions{})
 	require.Error(t, err)
 	var markup authoring.ErrAuthoredMarkup
 	require.True(t, errors.As(err, &markup), "malformed reference markup is a typed authoring error")
@@ -1567,7 +2036,7 @@ func TestFinalizeRejectsNonParseablePhaseMarkup(t *testing.T) {
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPhases, "Phase 1 - missing markdown heading")
 	require.NoError(t, err)
 
-	_, _, err = svc.Finalize(ctx, sess.ID)
+	_, _, err = svc.Finalize(ctx, sess.ID, authoring.FinalizeOptions{})
 	require.Error(t, err)
 	var markup authoring.ErrAuthoredMarkup
 	require.True(t, errors.As(err, &markup), "non-empty phase markup that parses to zero phases is rejected")
@@ -1587,7 +2056,7 @@ func TestFinalizeRejectsWhenStructureInvalid(t *testing.T) {
 	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "A purpose.")
 	require.NoError(t, err)
 
-	_, _, err = svc.Finalize(ctx, sess.ID)
+	_, _, err = svc.Finalize(ctx, sess.ID, authoring.FinalizeOptions{})
 	require.Error(t, err)
 	var gate authoring.ErrStructureGate
 	require.True(t, errors.As(err, &gate), "structure gate failure is typed")
@@ -1772,7 +2241,8 @@ func TestBoundaryGateRequiresAllowOrOperatorOnly(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, violations)
 
-	plan, _, err := svc.Finalize(ctx, sess.ID)
+	result, _, err := svc.Finalize(ctx, sess.ID, authoring.FinalizeOptions{})
+	plan := result.Plan
 	require.NoError(t, err)
 	require.Equal(t, []string{"packages/proto/**", "scenarios/plan-manager/**"}, plan.ChangeBoundary.AcceptanceAllow)
 	require.Equal(t, []string{"scenarios/swarm-manager/**"}, plan.ChangeBoundary.AcceptanceDeny)
@@ -1791,7 +2261,8 @@ func TestBoundaryOperatorOnlyEscape(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, violations)
 
-	plan, _, err := svc.Finalize(ctx, sess.ID)
+	result, _, err := svc.Finalize(ctx, sess.ID, authoring.FinalizeOptions{})
+	plan := result.Plan
 	require.NoError(t, err)
 	require.Empty(t, plan.ChangeBoundary.AcceptanceAllow)
 	require.Contains(t, plan.ChangeBoundary.OperatorOnlyReason, "documentation-only")
