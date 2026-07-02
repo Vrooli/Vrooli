@@ -71,15 +71,15 @@ reference (see the fenced example below); `vrooli scenario detemplate
 
 `POST /vrooli.plan_manager.v1.plans.PlansService/ReconcilePlans`
 
-Repairs rendered markdown mirrors and bulk-adopts legacy markdown sources. The
-request supports dry-run mode, mirror repair, legacy adoption, archived-plan
+Repairs rendered markdown mirrors and canonicalizes misplaced markdown sources. The
+request supports dry-run mode, mirror repair, source intake, archived-plan
 inclusion, conflict policy (`report_only` or `skip_existing`), and source
 selection for runtime-home `plans`, repo `docs/plans`, and repo `plans`.
 
 The response returns per-item actions (`mirror_fresh`, `mirror_repair_needed`,
 `mirror_repaired`, `import_planned`, `imported`, `skipped_duplicate`,
 `parse_failed`, `conflict`, `already_canonical`) plus source path, mirror
-metadata, and `source_untouched`. The operation is non-destructive to legacy
+metadata, and `source_untouched`. The operation is non-destructive to source
 markdown sources. CLI mirror: `plan-manager plans reconcile`.
 
 ## PlansService RenderMarkdown

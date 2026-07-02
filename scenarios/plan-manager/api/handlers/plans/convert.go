@@ -189,10 +189,10 @@ func reconcileRequestFromProto(req *plansv1.ReconcilePlansRequest) internalplans
 	return internalplans.ReconcileRequest{
 		DryRun:                 req.GetDryRun(),
 		RepairMirrors:          req.GetRepairMirrors(),
-		AdoptLegacy:            req.GetAdoptLegacy(),
-		CleanupAdoptedSources:  req.GetCleanupAdoptedSources(),
+		SourceIntake:           req.GetSourceIntake(),
+		RetireSources:          req.GetRetireSources(),
 		IncludeArchived:        req.GetIncludeArchived(),
-		IncludeArchivedLegacy:  req.GetIncludeArchivedLegacy(),
+		IncludeArchivedSources: req.GetIncludeArchivedSources(),
 		ConflictPolicy:         reconcileConflictPolicyFromProto(req.GetConflictPolicy()),
 		Workspace:              workspaceScopeFromProto(req.GetWorkspace()),
 		SourceRuntimeHomePlans: req.GetSourceRuntimeHomePlans(),
@@ -218,16 +218,16 @@ func reconcileResultToProto(result internalplans.ReconcileResult) *plansv1.Recon
 	}
 	for _, item := range result.Items {
 		resp.Items = append(resp.Items, &plansv1.ReconcilePlanItem{
-			Action:               reconcileActionToProto(item.Action),
-			PlanId:               item.PlanID,
-			Slug:                 item.Slug,
-			Title:                item.Title,
-			SourcePath:           item.SourcePath,
-			Mirror:               planproto.MirrorToProto(item.Mirror),
-			SourceUntouched:      item.SourceUntouched,
-			Error:                item.Error,
-			SourceCleanupPlanned: item.SourceCleanupPlanned,
-			SourceRemoved:        item.SourceRemoved,
+			Action:                  reconcileActionToProto(item.Action),
+			PlanId:                  item.PlanID,
+			Slug:                    item.Slug,
+			Title:                   item.Title,
+			SourcePath:              item.SourcePath,
+			Mirror:                  planproto.MirrorToProto(item.Mirror),
+			SourceUntouched:         item.SourceUntouched,
+			Error:                   item.Error,
+			SourceRetirementPlanned: item.SourceRetirementPlanned,
+			SourceRemoved:           item.SourceRemoved,
 		})
 	}
 	return resp

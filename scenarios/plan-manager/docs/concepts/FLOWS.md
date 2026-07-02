@@ -194,14 +194,14 @@ truth.
 
 `plans reconcile` is the operator bulk path. With `--dry-run` it reads canonical
 plans and fallback markdown sources, reports which mirrors would be repaired and
-which legacy files would be imported, and performs no writes. The CLI accepts
+which source files would be imported, and performs no writes. The CLI accepts
 `--workspace <path>` for repo-relative fallback scans; without it the scenario
 CLI sends the current discovered Vrooli repo root when available. API callers
 should pass `WorkspaceScope.root` explicitly when resolving `docs/plans` or
 `plans` from a workspace. Without dry-run it repairs mirrors from SQLite and
-imports legacy markdown into new canonical records. Source files remain untouched
-unless the caller opts into `--cleanup-adopted-sources`; with that flag,
-ReconcilePlans removes only legacy sources proven canonical, newly imported, or
+imports markdown sources into new canonical records. Source files remain untouched
+unless the caller opts into `--retire-sources`; with that flag,
+ReconcilePlans removes only sources proven canonical, newly imported, or
 duplicate after provenance/content checks. Parse failures and conflicts always
 remain untouched for guided repair or relocation. Current mirror files under
 runtime-home `plans` are recognized as projections and skipped rather than

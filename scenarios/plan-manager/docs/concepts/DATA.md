@@ -20,11 +20,11 @@ scenario-private database.
 - **Plan-source resolver (compatibility mechanism):** the `plans` domain owns a
   resolver (`internal/plans/resolver.go`) that treats the hygiene-blessed
   **fallback** locations — `~/.vrooli/plans`, the project `plans/` dir, and
-  `docs/plans/` — as valid read/import locations. `ImportPlan` adopts a markdown
+  `docs/plans/` — as valid read/import locations. `ImportPlan` canonicalizes a markdown
   plan from a fallback source into the structured model; `MigratePlan` ensures a
   resolved plan resides in the canonical store. The fallback sources are **never
   mutated destructively** without an explicit step. This resolver — not a shared
-  raw directory — is how plan-manager coexists with legacy markdown plan data and
+  raw directory — is how plan-manager coexists with existing markdown plan data and
   how the future consumer-inversion (OT-P2-002) delegates plan-location logic here.
 - **Why:** plans must remain durable outside the plan-manager server process.
   plan-manager owns the schema, validation, and logic; the home store is the
@@ -117,14 +117,14 @@ this map is the ownership contract.
 
 ## Import / Export
 
-- **Import:** adopt existing markdown plans via `plan-manager plans import`
+- **Import:** canonicalize existing markdown plans via `plan-manager plans import`
   into the structured model; references are parsed from `[CODE:]`/`[REQ:]`.
-- **Reconcile/adopt legacy:** `ReconcilePlans` can dry-run or execute a bulk pass
+- **Source intake:** `ReconcilePlans` can dry-run or execute a bulk pass
   over the runtime-home `plans`, repo `docs/plans`, and repo `plans` fallback
   locations. It reports each source as imported, already canonical, duplicate,
-  parse failed, conflict, source cleanup planned, source removed, or source
-  untouched. Source cleanup is opt-in via `cleanup_adopted_sources` and only
-  removes legacy files that are already canonical, newly imported, or skipped as
+  parse failed, conflict, source retirement planned, source removed, or source
+  untouched. Source retirement is opt-in via `retire_sources` and only
+  removes source files that are already canonical, newly imported, or skipped as
   duplicates after provenance/content checks. Parse failures and conflicts remain
   untouched.
 - **Render/export:** render any plan to a markdown view (the human-readable

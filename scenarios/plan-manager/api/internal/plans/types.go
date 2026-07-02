@@ -192,7 +192,7 @@ type RenderedPlanMirror = planmodel.RenderedPlanMirror
 // LegacySection is one imported markdown section preserved as provenance.
 type LegacySection = planmodel.LegacySection
 
-// ImportProvenance records that a plan was adopted from a legacy markdown source.
+// ImportProvenance records that a plan was canonicalized from a markdown source.
 type ImportProvenance = planmodel.ImportProvenance
 
 const (
@@ -232,7 +232,7 @@ type WorkspaceScope struct {
 	Root string
 }
 
-// ReconcileConflictPolicy controls how bulk legacy adoption handles plans that
+// ReconcileConflictPolicy controls how source intake handles plans that
 // appear to already exist.
 type ReconcileConflictPolicy string
 
@@ -241,15 +241,15 @@ const (
 	ReconcileConflictSkipExisting ReconcileConflictPolicy = "skip_existing"
 )
 
-// ReconcileRequest describes one bulk mirror/adoption pass. DryRun reports the
+// ReconcileRequest describes one bulk mirror/source-intake pass. DryRun reports the
 // same item decisions without mutating SQLite or mirror files.
 type ReconcileRequest struct {
 	DryRun                 bool
 	RepairMirrors          bool
-	AdoptLegacy            bool
-	CleanupAdoptedSources  bool
+	SourceIntake           bool
+	RetireSources          bool
 	IncludeArchived        bool
-	IncludeArchivedLegacy  bool
+	IncludeArchivedSources bool
 	ConflictPolicy         ReconcileConflictPolicy
 	Workspace              WorkspaceScope
 	SourceRuntimeHomePlans bool
@@ -273,18 +273,18 @@ const (
 	ReconcileActionConflict           ReconcileAction = "conflict"
 )
 
-// ReconcileItem reports one inspected canonical plan or legacy source.
+// ReconcileItem reports one inspected canonical plan or import source.
 type ReconcileItem struct {
-	Action               ReconcileAction
-	PlanID               string
-	Slug                 string
-	Title                string
-	SourcePath           string
-	Mirror               RenderedPlanMirror
-	SourceUntouched      bool
-	Error                string
-	SourceCleanupPlanned bool
-	SourceRemoved        bool
+	Action                  ReconcileAction
+	PlanID                  string
+	Slug                    string
+	Title                   string
+	SourcePath              string
+	Mirror                  RenderedPlanMirror
+	SourceUntouched         bool
+	Error                   string
+	SourceRetirementPlanned bool
+	SourceRemoved           bool
 }
 
 // ReconcileResult is the full bulk reconcile report.

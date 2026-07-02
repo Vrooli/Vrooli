@@ -51,7 +51,7 @@ Provenance](#import-provenance--preserved-legacy-sections)).
 
 Each field is marked **authored** (a small/local model supplies prose),
 **autofilled/computed** (the runtime derives it; the agent never types it),
-**imported** (recovered from a legacy Markdown import), or **preserved legacy
+**imported** (recovered from markdown import), or **unmapped import
 provenance** (kept verbatim because it could not be mapped).
 
 **Overview** — why the work exists and what success looks like.
@@ -130,7 +130,7 @@ unmapped prose as legacy provenance.
 |---|---|---|
 | `supersedes`, `superseded_by` | authored | Plan graph edges. |
 | `import_provenance` | imported | Where an imported plan came from + original format (see Import Provenance). |
-| `preserved_legacy_sections[]` | preserved legacy | Unmapped legacy import sections kept verbatim, never silently dropped. |
+| `preserved_legacy_sections[]` | unmapped import | Unmapped import sections kept verbatim, never silently dropped. |
 
 ## Phase
 
@@ -302,21 +302,21 @@ If an author submits constraints that contradict the derived posture (e.g. a
 greenfield plan that asks for compatibility shims), validation **flags the
 conflict** rather than rendering contradictory guidance.
 
-## Import Provenance & Preserved Legacy Sections
+## Import Provenance & Unmapped Import Sections
 
-Markdown import is an **adoption path**, never a lossy one. When a legacy plan is
+Markdown import is a **canonicalization path**, never a lossy one. When a markdown plan is
 imported:
 
 - `import_provenance` records the `source_path`, `imported_at`, and
   `original_format` (e.g. `legacy_markdown`) so a reviewer knows the plan was
-  adopted, not authored fresh.
-- Legacy sections that map cleanly become first-class fields (e.g. *Problem
+  imported, not authored fresh.
+- Import sections that map cleanly become first-class fields (e.g. *Problem
   Statement* → `problem_statement`, *Target End State* → `target_outcome`,
   *Testing Plan* → `validation_strategy`, *Risks + Mitigations* → `risks_hazards`).
 - Sections that do **not** map are preserved verbatim in
   `preserved_legacy_sections[]`, each carrying `heading`, `content`, an optional
   `mapped_to`, and `preservation_reason = "unmapped_legacy_section"`. They render
-  under a **Preserved Legacy Sections** block so nothing silently disappears.
+  under an **Unmapped Import Sections** block so nothing silently disappears.
 
 Import is **non-destructive**: the source Markdown file is never moved or deleted.
 

@@ -79,7 +79,7 @@ var FallbackReadLocations = []string{
 
 const fallbackIndexFilename = "_index.json"
 
-// Import adopts a markdown plan (from one of the fallback read locations) into
+// Import canonicalizes a markdown plan (from one of the configured source locations) into
 // the structured model and persists it through Create. When markdown is empty,
 // the source is read from sourcePath via the SourceReader seam. References are
 // parsed from the [CODE:]/[REQ:]/[DOC:] grammar. The fallback source is NOT
@@ -112,14 +112,14 @@ func (s *service) Import(ctx context.Context, sourcePath, markdown, title, slug 
 	if override := slugify(slug); override != "" {
 		parsed.Slug = override
 	}
-	// Record import provenance (adoption bookkeeping) unless the markdown already
+	// Record import provenance unless the markdown already
 	// carried it. Import is non-destructive: the source file is never mutated.
 	if parsed.ImportProvenance == nil {
 		parsed.ImportProvenance = &ImportProvenance{
 			SourcePath:     strings.TrimSpace(sourcePath),
 			ImportedAt:     s.now(),
 			OriginalFormat: OriginalFormatLegacyMarkdown,
-			Note:           "Adopted from markdown via plans import (non-destructive).",
+			Note:           "Canonicalized from markdown via plans import (non-destructive).",
 			WorkspaceID:    strings.TrimSpace(workspace.ID),
 			WorkspaceRoot:  strings.TrimSpace(workspace.Root),
 		}
@@ -130,7 +130,7 @@ func (s *service) Import(ctx context.Context, sourcePath, markdown, title, slug 
 
 // Migrate ensures a plan resolved from a fallback location is present in the
 // canonical home store. If the plan is already canonical it is idempotently
-// touched; otherwise the resolver reads the legacy ~/.vrooli/plans index (plus
+// touched; otherwise the resolver reads the fallback ~/.vrooli/plans index (plus
 // the documented fallback locations), parses the referenced markdown, and
 // imports it as a structured plan. The fallback source is never destructively
 // removed here.
@@ -154,14 +154,14 @@ func (s *service) Migrate(ctx context.Context, idOrSlug string) (Plan, error) {
 	return s.Import(ctx, sourcePath, markdown, "", "", WorkspaceScope{})
 }
 
-// Reconcile repairs rendered mirrors and optionally adopts legacy markdown
-// sources in bulk. Legacy sources are removed only when cleanup is explicitly
+// Reconcile repairs rendered mirrors and optionally canonicalizes misplaced
+// markdown sources in bulk. Source files are retired only when explicitly
 // requested and provenance/content checks prove the source is already canonical,
 // imported, or duplicate.
 func (s *service) Reconcile(ctx context.Context, req ReconcileRequest) (ReconcileResult, error) {
-	if !req.RepairMirrors && !req.AdoptLegacy {
+	if !req.RepairMirrors && !req.SourceIntake {
 		req.RepairMirrors = true
-		req.AdoptLegacy = true
+		req.SourceIntake = true
 	}
 	if req.ConflictPolicy == "" {
 		req.ConflictPolicy = ReconcileConflictSkipExisting
@@ -196,8 +196,8 @@ func (s *service) Reconcile(ctx context.Context, req ReconcileRequest) (Reconcil
 			result.Items = append(result.Items, s.reconcileMirrorItem(ctx, p, req.DryRun))
 		}
 	}
-	if req.AdoptLegacy {
-		items, err := s.reconcileLegacyItems(ctx, req, allExisting)
+	if req.SourceIntake {
+		items, err := s.reconcileSourceIntakeItems(ctx, req, allExisting)
 		if err != nil {
 			return result, err
 		}
@@ -240,27 +240,27 @@ func (s *service) reconcileMirrorItem(ctx context.Context, p Plan, dryRun bool) 
 	return item
 }
 
-func (s *service) reconcileLegacyItems(ctx context.Context, req ReconcileRequest, allExisting []Plan) ([]ReconcileItem, error) {
+func (s *service) reconcileSourceIntakeItems(ctx context.Context, req ReconcileRequest, allExisting []Plan) ([]ReconcileItem, error) {
 	if s.reader == nil {
-		return nil, ErrInvalidPlan{Reason: "no source reader configured; cannot scan legacy plans"}
+		return nil, ErrInvalidPlan{Reason: "no source reader configured; cannot scan plan sources"}
 	}
-	index := s.buildLegacyReconcileIndex(ctx, allExisting)
+	index := s.buildSourceIntakeIndex(ctx, allExisting)
 	var out []ReconcileItem
 	for _, dir := range reconcileSourceDirs(req) {
-		out = append(out, s.reconcileLegacyDir(ctx, req, expandPlanLocation(dir), index)...)
+		out = append(out, s.reconcileSourceIntakeDir(ctx, req, expandPlanLocation(dir), index)...)
 	}
 	return out, nil
 }
 
-type legacyReconcileIndex struct {
+type sourceIntakeIndex struct {
 	protectedMirrorPaths map[string]bool
 	importedSources      map[string]Plan
 	contentHashes        map[string]Plan
 	slugs                map[string]Plan
 }
 
-func (s *service) buildLegacyReconcileIndex(ctx context.Context, plans []Plan) *legacyReconcileIndex {
-	index := &legacyReconcileIndex{
+func (s *service) buildSourceIntakeIndex(ctx context.Context, plans []Plan) *sourceIntakeIndex {
+	index := &sourceIntakeIndex{
 		protectedMirrorPaths: make(map[string]bool, len(plans)),
 		importedSources:      make(map[string]Plan, len(plans)),
 		contentHashes:        make(map[string]Plan, len(plans)),
@@ -283,25 +283,25 @@ func (s *service) buildLegacyReconcileIndex(ctx context.Context, plans []Plan) *
 	return index
 }
 
-func (s *service) reconcileLegacyDir(ctx context.Context, req ReconcileRequest, root string, index *legacyReconcileIndex) []ReconcileItem {
-	paths, err := s.listLegacySourcePaths(root, req.IncludeArchivedLegacy)
+func (s *service) reconcileSourceIntakeDir(ctx context.Context, req ReconcileRequest, root string, index *sourceIntakeIndex) []ReconcileItem {
+	paths, err := s.listIntakeSourcePaths(root, req.IncludeArchivedSources)
 	if err != nil {
 		return []ReconcileItem{{Action: ReconcileActionConflict, SourcePath: root, SourceUntouched: true, Error: err.Error()}}
 	}
 	out := make([]ReconcileItem, 0, len(paths))
 	for _, sourcePath := range paths {
-		out = append(out, s.reconcileLegacySource(ctx, req, filepath.Clean(sourcePath), index))
+		out = append(out, s.reconcileIntakeSource(ctx, req, filepath.Clean(sourcePath), index))
 	}
 	return out
 }
 
-func (s *service) reconcileLegacySource(ctx context.Context, req ReconcileRequest, clean string, index *legacyReconcileIndex) ReconcileItem {
+func (s *service) reconcileIntakeSource(ctx context.Context, req ReconcileRequest, clean string, index *sourceIntakeIndex) ReconcileItem {
 	if index.protectedMirrorPaths[clean] {
 		return ReconcileItem{Action: ReconcileActionAlreadyCanonical, SourcePath: clean, SourceUntouched: true}
 	}
 	if p, ok := index.importedSources[clean]; ok {
 		item := ReconcileItem{Action: ReconcileActionAlreadyCanonical, PlanID: p.ID, Slug: p.Slug, Title: p.Title, SourcePath: clean, Mirror: p.Mirror, SourceUntouched: true}
-		return s.cleanupAdoptedSource(req, item, index.protectedMirrorPaths)
+		return s.retireSourceIfEligible(req, item, index.protectedMirrorPaths)
 	}
 	raw, err := s.reader.ReadFile(clean)
 	if err != nil {
@@ -313,21 +313,21 @@ func (s *service) reconcileLegacySource(ctx context.Context, req ReconcileReques
 	}
 	parsed.ContentHash = contentHash(parsed)
 	if match, ok := index.contentHashes[parsed.ContentHash]; ok {
-		return s.reconcileDuplicateLegacySource(req, clean, parsed, match, index)
+		return s.reconcileDuplicateIntakeSource(req, clean, parsed, match, index)
 	}
 	if match, ok := index.slugs[reconcileParsedSlug(parsed)]; ok {
 		return reconcileSlugConflict(clean, parsed, match)
 	}
-	return s.importLegacySource(ctx, req, clean, raw, parsed, index)
+	return s.importIntakeSource(ctx, req, clean, raw, parsed, index)
 }
 
-func (s *service) reconcileDuplicateLegacySource(req ReconcileRequest, clean string, parsed, match Plan, index *legacyReconcileIndex) ReconcileItem {
+func (s *service) reconcileDuplicateIntakeSource(req ReconcileRequest, clean string, parsed, match Plan, index *sourceIntakeIndex) ReconcileItem {
 	action := ReconcileActionSkippedDuplicate
 	if req.ConflictPolicy == ReconcileConflictReportOnly {
 		action = ReconcileActionConflict
 	}
 	item := ReconcileItem{Action: action, PlanID: match.ID, Slug: match.Slug, Title: parsed.Title, SourcePath: clean, Mirror: match.Mirror, SourceUntouched: true}
-	return s.cleanupAdoptedSource(req, item, index.protectedMirrorPaths)
+	return s.retireSourceIfEligible(req, item, index.protectedMirrorPaths)
 }
 
 func reconcileSlugConflict(clean string, parsed, match Plan) ReconcileItem {
@@ -344,10 +344,10 @@ func reconcileSlugConflict(clean string, parsed, match Plan) ReconcileItem {
 	}
 }
 
-func (s *service) importLegacySource(ctx context.Context, req ReconcileRequest, clean string, raw []byte, parsed Plan, index *legacyReconcileIndex) ReconcileItem {
+func (s *service) importIntakeSource(ctx context.Context, req ReconcileRequest, clean string, raw []byte, parsed Plan, index *sourceIntakeIndex) ReconcileItem {
 	item := ReconcileItem{Action: ReconcileActionImportPlanned, Title: parsed.Title, SourcePath: clean, SourceUntouched: true}
 	if req.DryRun {
-		return s.cleanupAdoptedSource(req, item, index.protectedMirrorPaths)
+		return s.retireSourceIfEligible(req, item, index.protectedMirrorPaths)
 	}
 	imported, err := s.Import(ctx, clean, string(raw), "", "", req.Workspace)
 	if err != nil {
@@ -363,24 +363,24 @@ func (s *service) importLegacySource(ctx context.Context, req ReconcileRequest, 
 	index.contentHashes[imported.ContentHash] = imported
 	index.importedSources[clean] = imported
 	index.slugs[imported.Slug] = imported
-	return s.cleanupAdoptedSource(req, item, index.protectedMirrorPaths)
+	return s.retireSourceIfEligible(req, item, index.protectedMirrorPaths)
 }
 
-func (s *service) cleanupAdoptedSource(req ReconcileRequest, item ReconcileItem, protectedMirrorPaths map[string]bool) ReconcileItem {
-	if !req.CleanupAdoptedSources || strings.TrimSpace(item.SourcePath) == "" || !sourceCleanupEligible(item.Action) {
+func (s *service) retireSourceIfEligible(req ReconcileRequest, item ReconcileItem, protectedMirrorPaths map[string]bool) ReconcileItem {
+	if !req.RetireSources || strings.TrimSpace(item.SourcePath) == "" || !sourceRetirementEligible(item.Action) {
 		return item
 	}
 	clean := filepath.Clean(item.SourcePath)
 	if protectedMirrorPaths[clean] || (strings.TrimSpace(item.Mirror.Path) != "" && filepath.Clean(item.Mirror.Path) == clean) {
 		return item
 	}
-	item.SourceCleanupPlanned = true
+	item.SourceRetirementPlanned = true
 	if req.DryRun {
 		item.SourceUntouched = true
 		return item
 	}
 	if err := s.reader.RemoveFile(clean); err != nil {
-		item.Error = appendReconcileError(item.Error, fmt.Sprintf("source cleanup failed: %v", err))
+		item.Error = appendReconcileError(item.Error, fmt.Sprintf("source retirement failed: %v", err))
 		item.SourceUntouched = true
 		return item
 	}
@@ -395,7 +395,7 @@ func (s *service) cleanupAdoptedSource(req ReconcileRequest, item ReconcileItem,
 	return item
 }
 
-func sourceCleanupEligible(action ReconcileAction) bool {
+func sourceRetirementEligible(action ReconcileAction) bool {
 	switch action {
 	case ReconcileActionAlreadyCanonical, ReconcileActionImportPlanned, ReconcileActionImported, ReconcileActionSkippedDuplicate:
 		return true
@@ -423,7 +423,7 @@ func appendReconcileError(existing, next string) string {
 	return existing + "; " + next
 }
 
-func (s *service) listLegacySourcePaths(root string, includeArchived bool) ([]string, error) {
+func (s *service) listIntakeSourcePaths(root string, includeArchived bool) ([]string, error) {
 	seen := map[string]bool{}
 	var out []string
 	indexPath := filepath.Join(root, fallbackIndexFilename)

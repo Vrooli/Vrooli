@@ -354,10 +354,10 @@ func (h *handlers) reconcile(ctx cliapp.RunContext) error {
 	resp, err := h.client.ReconcilePlans(context.Background(), connect.NewRequest(&plansv1.ReconcilePlansRequest{
 		DryRun:                 ctx.BoolFlag("dry-run"),
 		RepairMirrors:          ctx.BoolFlag("repair-mirrors"),
-		AdoptLegacy:            ctx.BoolFlag("adopt-legacy"),
-		CleanupAdoptedSources:  ctx.BoolFlag("cleanup-adopted-sources"),
+		SourceIntake:           ctx.BoolFlag("source-intake"),
+		RetireSources:          ctx.BoolFlag("retire-sources"),
 		IncludeArchived:        ctx.BoolFlag("include-archived"),
-		IncludeArchivedLegacy:  ctx.BoolFlag("include-archived-legacy"),
+		IncludeArchivedSources: ctx.BoolFlag("include-archived-sources"),
 		ConflictPolicy:         reconcileConflictPolicyFlag(ctx.Flag("conflict-policy")),
 		SourceRuntimeHomePlans: ctx.BoolFlag("source-runtime-home-plans"),
 		SourceDocsPlans:        ctx.BoolFlag("source-docs-plans"),
@@ -380,7 +380,7 @@ func (h *handlers) reconcile(ctx cliapp.RunContext) error {
 		ResultsHeading: "Reconcile results",
 		Results:        results,
 		RetrievalHints: []string{
-			"`plans reconcile --dry-run` — preview mirror repair and legacy adoption",
+			"`plans reconcile --dry-run` — preview mirror repair and source intake",
 			"`plans reconcile --repair-mirrors` — repair rendered markdown mirrors",
 		},
 	})
@@ -725,7 +725,7 @@ func planDetail(p *sharedv1.Plan) []string {
 		out = append(out, fmt.Sprintf("imported from: %s", p.GetImportProvenance().GetSourcePath()))
 	}
 	if n := len(p.GetPreservedLegacySections()); n > 0 {
-		out = append(out, fmt.Sprintf("preserved legacy sections: %d", n))
+		out = append(out, fmt.Sprintf("unmapped import sections: %d", n))
 	}
 	for i, ph := range p.Phases {
 		out = append(out, fmt.Sprintf("  phase %d: %s [%s] (id=%s)", i+1, ph.Title, statusconv.PlanPhaseStatusLabel(ph.Status), ph.Id))
@@ -827,8 +827,8 @@ func formatReconcileItem(item *plansv1.ReconcilePlanItem) string {
 	if item.GetSourceUntouched() {
 		parts = append(parts, "source untouched")
 	}
-	if item.GetSourceCleanupPlanned() {
-		parts = append(parts, "source cleanup planned")
+	if item.GetSourceRetirementPlanned() {
+		parts = append(parts, "source retirement planned")
 	}
 	if item.GetSourceRemoved() {
 		parts = append(parts, "source removed")

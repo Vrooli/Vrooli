@@ -344,17 +344,17 @@ returns the resolved plan metadata in JSON. Use
 `plan-manager plans import --source docs/plans/example.md --workspace <path>` to
 resolve a relative source path from a workspace root. Use `plan-manager plans
 reconcile --dry-run --workspace <path>` to preview missing/stale mirror repairs
-and bulk legacy adoption. Run `plan-manager plans reconcile --repair-mirrors` to
-repair projections from SQLite, or add `--adopt-legacy` to import markdown from
-the documented fallback locations. Add `--cleanup-adopted-sources` only when
-legacy sources that are already canonical, newly imported, or skipped as
+and source intake. Run `plan-manager plans reconcile --repair-mirrors` to
+repair projections from SQLite, or add `--source-intake` to import markdown from
+the documented source locations. Add `--retire-sources` only when
+sources that are already canonical, newly imported, or skipped as
 duplicates should be removed after provenance/content checks. Dry-runs report
-`source cleanup planned`; apply runs report `source removed` for successful
+`source retirement planned`; apply runs report `source removed` for successful
 retirement. Reconcile resolves repo `docs/plans` and `plans` scans from the
 workspace root when provided, defaulting to the discovered Vrooli repo root in
 the scenario CLI. Parse failures and conflicts are never removed by cleanup;
 repair those files until `plans import` can parse them or move non-plan notes
-out of legacy plan locations, then rerun reconcile.
+out of plan source locations, then rerun reconcile.
 
 ## `log` — the execution-log ledger
 

@@ -709,7 +709,7 @@
         },
         {
           "name": "reconcile",
-          "description": "Repair rendered mirrors and non-destructively adopt legacy markdown plans in bulk",
+          "description": "Repair rendered mirrors and non-destructively canonicalize misplaced markdown plan sources",
           "flags": [
             {
               "name": "dry-run",
@@ -722,13 +722,13 @@
               "bool": true
             },
             {
-              "name": "adopt-legacy",
-              "description": "Scan fallback legacy plan locations and import missing markdown plans",
+              "name": "source-intake",
+              "description": "Scan configured plan source locations and import missing markdown plans",
               "bool": true
             },
             {
-              "name": "cleanup-adopted-sources",
-              "description": "Remove legacy source files after they are proven canonical or imported",
+              "name": "retire-sources",
+              "description": "Remove source files after they are proven canonical, imported, or duplicate",
               "bool": true
             },
             {
@@ -737,8 +737,8 @@
               "bool": true
             },
             {
-              "name": "include-archived-legacy",
-              "description": "Include archived legacy index records when adopting",
+              "name": "include-archived-sources",
+              "description": "Include archived source index records during intake",
               "bool": true
             },
             {

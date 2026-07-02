@@ -613,7 +613,7 @@ func TestReconcileAdoptsLegacyPlansNonDestructively(t *testing.T) {
 	})
 	ctx := context.Background()
 
-	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{AdoptLegacy: true, SourceDocsPlans: true})
+	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{SourceIntake: true, SourceDocsPlans: true})
 	require.NoError(t, err)
 	require.Len(t, report.Items, 1)
 	require.Equal(t, plans.ReconcileActionImported, report.Items[0].Action)
@@ -628,7 +628,7 @@ func TestReconcileAdoptsLegacyPlansNonDestructively(t *testing.T) {
 	require.NotEmpty(t, mirror.files[imported.Mirror.Path])
 }
 
-func TestReconcileCleanupAdoptedSourcesRemovesOnlyProvenLegacySources(t *testing.T) {
+func TestReconcileRetireSourcesRemovesOnlyProvenLegacySources(t *testing.T) {
 	d, clk := newDB(t)
 	mirror := newFakeMirrorStore(t.TempDir())
 	source := filepath.Join("docs", "plans", "legacy.md")
@@ -644,9 +644,9 @@ func TestReconcileCleanupAdoptedSourcesRemovesOnlyProvenLegacySources(t *testing
 	ctx := context.Background()
 
 	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{
-		AdoptLegacy:           true,
-		CleanupAdoptedSources: true,
-		SourceDocsPlans:       true,
+		SourceIntake:    true,
+		RetireSources:   true,
+		SourceDocsPlans: true,
 	})
 	require.NoError(t, err)
 	require.Len(t, report.Items, 1)
@@ -689,9 +689,9 @@ func TestReconcileCleanupPrunesFallbackIndexAndStaysIdempotent(t *testing.T) {
 	ctx := context.Background()
 
 	applied, err := svc.Reconcile(ctx, plans.ReconcileRequest{
-		AdoptLegacy:           true,
-		CleanupAdoptedSources: true,
-		SourceDocsPlans:       true,
+		SourceIntake:    true,
+		RetireSources:   true,
+		SourceDocsPlans: true,
 	})
 	require.NoError(t, err)
 	require.Len(t, applied.Items, 1)
@@ -708,10 +708,10 @@ func TestReconcileCleanupPrunesFallbackIndexAndStaysIdempotent(t *testing.T) {
 	require.Empty(t, idx.Plans, "cleanup must remove stale fallback index records for deleted sources")
 
 	dryRun, err := svc.Reconcile(ctx, plans.ReconcileRequest{
-		DryRun:                true,
-		AdoptLegacy:           true,
-		CleanupAdoptedSources: true,
-		SourceDocsPlans:       true,
+		DryRun:          true,
+		SourceIntake:    true,
+		RetireSources:   true,
+		SourceDocsPlans: true,
 	})
 	require.NoError(t, err)
 	for _, item := range dryRun.Items {
@@ -752,10 +752,10 @@ func TestReconcileIgnoresIndexedImportedSourceThatIsAlreadyMissing(t *testing.T)
 	require.NoError(t, err)
 
 	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{
-		DryRun:                true,
-		AdoptLegacy:           true,
-		CleanupAdoptedSources: true,
-		SourceDocsPlans:       true,
+		DryRun:          true,
+		SourceIntake:    true,
+		RetireSources:   true,
+		SourceDocsPlans: true,
 	})
 	require.NoError(t, err)
 	for _, item := range report.Items {
@@ -785,24 +785,24 @@ func TestReconcileDryRunReportsSlugConflictInsteadOfImportPlanned(t *testing.T) 
 	require.Empty(t, existing.WorkspaceRoot, "fixture plan intentionally lives outside the reconcile workspace")
 
 	dryRun, err := svc.Reconcile(ctx, plans.ReconcileRequest{
-		DryRun:                true,
-		AdoptLegacy:           true,
-		CleanupAdoptedSources: true,
-		SourceDocsPlans:       true,
-		Workspace:             workspace,
+		DryRun:          true,
+		SourceIntake:    true,
+		RetireSources:   true,
+		SourceDocsPlans: true,
+		Workspace:       workspace,
 	})
 	require.NoError(t, err)
 	require.Len(t, dryRun.Items, 1)
 	require.Equal(t, plans.ReconcileActionConflict, dryRun.Items[0].Action)
 	require.Equal(t, existing.ID, dryRun.Items[0].PlanID)
-	require.False(t, dryRun.Items[0].SourceCleanupPlanned)
+	require.False(t, dryRun.Items[0].SourceRetirementPlanned)
 	require.Contains(t, dryRun.Items[0].Error, `plan slug "same-title" already exists`)
 
 	applied, err := svc.Reconcile(ctx, plans.ReconcileRequest{
-		AdoptLegacy:           true,
-		CleanupAdoptedSources: true,
-		SourceDocsPlans:       true,
-		Workspace:             workspace,
+		SourceIntake:    true,
+		RetireSources:   true,
+		SourceDocsPlans: true,
+		Workspace:       workspace,
 	})
 	require.NoError(t, err)
 	require.Len(t, applied.Items, 1)
@@ -844,7 +844,7 @@ func TestReconcileWorkspaceScopeProtectsGlobalCanonicalMirrors(t *testing.T) {
 
 	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{
 		DryRun:                 true,
-		AdoptLegacy:            true,
+		SourceIntake:           true,
 		SourceRuntimeHomePlans: true,
 		Workspace:              workspace,
 	})
@@ -853,7 +853,7 @@ func TestReconcileWorkspaceScopeProtectsGlobalCanonicalMirrors(t *testing.T) {
 	require.Equal(t, plans.ReconcileActionAlreadyCanonical, report.Items[0].Action)
 	require.Equal(t, mirrorPath.Path, report.Items[0].SourcePath)
 	require.True(t, report.Items[0].SourceUntouched)
-	require.False(t, report.Items[0].SourceCleanupPlanned)
+	require.False(t, report.Items[0].SourceRetirementPlanned)
 }
 
 func TestReconcileCleanupDryRunReportsPlannedRemovalWithoutRemoving(t *testing.T) {
@@ -866,15 +866,15 @@ func TestReconcileCleanupDryRunReportsPlannedRemovalWithoutRemoving(t *testing.T
 	ctx := context.Background()
 
 	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{
-		DryRun:                true,
-		AdoptLegacy:           true,
-		CleanupAdoptedSources: true,
-		SourceDocsPlans:       true,
+		DryRun:          true,
+		SourceIntake:    true,
+		RetireSources:   true,
+		SourceDocsPlans: true,
 	})
 	require.NoError(t, err)
 	require.Len(t, report.Items, 1)
 	require.Equal(t, plans.ReconcileActionImportPlanned, report.Items[0].Action)
-	require.True(t, report.Items[0].SourceCleanupPlanned)
+	require.True(t, report.Items[0].SourceRetirementPlanned)
 	require.True(t, report.Items[0].SourceUntouched)
 	require.False(t, report.Items[0].SourceRemoved)
 	require.Contains(t, reader.files, source)
@@ -898,9 +898,9 @@ func TestReconcileCleanupNeverRemovesParseFailuresOrCanonicalMirrors(t *testing.
 	reader.files[created.Mirror.Path] = string(mirror.files[created.Mirror.Path])
 
 	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{
-		AdoptLegacy:           true,
-		CleanupAdoptedSources: true,
-		SourceDocsPlans:       true,
+		SourceIntake:    true,
+		RetireSources:   true,
+		SourceDocsPlans: true,
 	})
 	require.NoError(t, err)
 	paths := map[string]plans.ReconcileItem{}
@@ -913,7 +913,7 @@ func TestReconcileCleanupNeverRemovesParseFailuresOrCanonicalMirrors(t *testing.
 	require.Contains(t, reader.files, badPath)
 	require.Equal(t, plans.ReconcileActionAlreadyCanonical, paths[created.Mirror.Path].Action)
 	require.True(t, paths[created.Mirror.Path].SourceUntouched)
-	require.False(t, paths[created.Mirror.Path].SourceCleanupPlanned)
+	require.False(t, paths[created.Mirror.Path].SourceRetirementPlanned)
 	require.Contains(t, reader.files, created.Mirror.Path)
 }
 
@@ -934,7 +934,7 @@ func TestReconcileAdoptsWorkspaceRelativeLegacyPlans(t *testing.T) {
 	ctx := context.Background()
 
 	report, err := svc.Reconcile(ctx, plans.ReconcileRequest{
-		AdoptLegacy:     true,
+		SourceIntake:    true,
 		SourceDocsPlans: true,
 		Workspace:       plans.WorkspaceScope{Root: workspaceRoot},
 	})
