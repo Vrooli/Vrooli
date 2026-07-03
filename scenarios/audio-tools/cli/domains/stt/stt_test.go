@@ -17,8 +17,6 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliapptest"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
@@ -107,7 +105,10 @@ func mountSTTH2C(t *testing.T, svc *fakeSvc) *cliapp.ScenarioApp {
 	mux := http.NewServeMux()
 	mux.Handle(runtimePath, runtimeHandler)
 	mux.Handle(adminPath, adminHandler)
-	srv := httptest.NewUnstartedServer(h2c.NewHandler(mux, &http2.Server{}))
+	srv := httptest.NewUnstartedServer(mux)
+	srv.Config.Protocols = new(http.Protocols)
+	srv.Config.Protocols.SetHTTP1(true)
+	srv.Config.Protocols.SetUnencryptedHTTP2(true)
 	srv.Start()
 	t.Cleanup(srv.Close)
 

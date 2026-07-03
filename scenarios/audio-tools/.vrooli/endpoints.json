@@ -281,6 +281,14 @@
       "category": "experiment"
     },
     {
+      "id": "experiment.delete",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/DeleteExperiment",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
       "id": "experiment.stream",
       "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/StreamExperimentEvents",
       "method": "POST",
