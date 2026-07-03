@@ -10,7 +10,7 @@
     {
       "id": "APIH-RUN-001",
       "title": "Outbound HTTP calls are bounded and closed",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "api",
       "criticality": "P0",
@@ -20,15 +20,16 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned ref: api/internal/validation/http_client_test.go. AST fixtures for timeout clients, context requests, missing Close, test exemptions, and helper ownership transfer."
+          "status": "implemented",
+          "ref": "api/internal/validation/runtime_hygiene_test.go",
+          "notes": "Implemented ref: api/internal/validation/runtime_hygiene_test.go. Fixtures cover missing client timeout/default client usage, response body Close, bounded client/request context, and test-file exclusions."
         }
       ]
     },
     {
       "id": "APIH-RUN-002",
       "title": "Request context propagates into API-runtime work",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "api",
       "criticality": "P0",
@@ -38,15 +39,16 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned ref: api/internal/validation/context_test.go. Fixtures for r.Context propagation, context.WithTimeout, helper parameters, and non-request startup contexts."
+          "status": "implemented",
+          "ref": "api/internal/validation/runtime_hygiene_test.go",
+          "notes": "Implemented ref: api/internal/validation/runtime_hygiene_test.go. Fixtures cover dropped context via http.NewRequest/context.Background and accepted r.Context-derived timeout propagation."
         }
       ]
     },
     {
       "id": "APIH-RUN-003",
       "title": "Long-lived goroutines are cancellable",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "api",
       "criticality": "P0",
@@ -56,15 +58,16 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned ref: api/internal/validation/goroutine_test.go. Fixtures for long loops, context cancellation, done channels, short goroutines, and tests."
+          "status": "implemented",
+          "ref": "api/internal/validation/runtime_hygiene_test.go",
+          "notes": "Implemented ref: api/internal/validation/runtime_hygiene_test.go. Fixtures cover long-lived loop goroutines without cancellation and context-cancellable loop goroutines."
         }
       ]
     },
     {
       "id": "APIH-RUN-004",
       "title": "API service paths use structured logging",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "api",
       "criticality": "P0",
@@ -74,8 +77,9 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned ref: api/internal/validation/logging_test.go. Fixtures for slog/zap/custom structured wrappers, raw logging, fmt.Errorf/Sprintf exemptions, and main startup output."
+          "status": "implemented",
+          "ref": "api/internal/validation/runtime_hygiene_test.go",
+          "notes": "Implemented ref: api/internal/validation/runtime_hygiene_test.go. Fixtures cover raw log.Printf findings and slog.InfoContext structured logging evidence."
         }
       ]
     }

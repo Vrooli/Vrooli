@@ -33,11 +33,15 @@
  */
 import { vi } from "vitest";
 
-import { makeHealthResponse } from "../factories";
+import { makeFixResponse, makeHealthResponse, makeValidationReport } from "../factories";
 
 export interface ApiMocks {
   /** vi.fn() resolving to a healthy default; override via vi.mocked(...). */
   fetchHealth: ReturnType<typeof vi.fn>;
+  /** vi.fn() resolving to a representative validation report. */
+  validateScenario: ReturnType<typeof vi.fn>;
+  /** vi.fn() resolving to a deterministic fix preview. */
+  previewFix: ReturnType<typeof vi.fn>;
 }
 
 /**
@@ -46,4 +50,6 @@ export interface ApiMocks {
  */
 export const makeApiMocks = (): ApiMocks => ({
   fetchHealth: vi.fn().mockResolvedValue(makeHealthResponse()),
+  validateScenario: vi.fn().mockResolvedValue(makeValidationReport()),
+  previewFix: vi.fn().mockResolvedValue(makeFixResponse()),
 });

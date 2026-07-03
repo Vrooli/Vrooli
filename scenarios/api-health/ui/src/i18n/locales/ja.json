@@ -6,10 +6,11 @@
     "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
   },
   "layout": {
-    "sidebarLabel": "メインナビゲーション",
-    "bottomNavLabel": "メインナビゲーション",
+    "sidebarLabel": "サイドバーナビゲーション",
+    "bottomNavLabel": "下部ナビゲーション",
     "nav": {
       "dashboard": "ダッシュボード",
+      "validation": "検証",
       "settings": "設定"
     }
   },
@@ -26,6 +27,38 @@
       "title": "ダッシュボード",
       "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
       "statPlaceholderLabel": "指標"
+    },
+    "validation": {
+      "title": "検証",
+      "description": "プロバイダー応答から API readiness を確認します。静的な検出結果、ライブプローブ証跡、決定的な修正プレビューを含みます。",
+      "scenarioLabel": "シナリオ",
+      "pathLabel": "パス上書き",
+      "executionLabel": "ライブプローブ",
+      "validate": "検証",
+      "validating": "検証中",
+      "previewFixes": "修正をプレビュー",
+      "summaryTitle": "ターゲット概要",
+      "targetLabel": "ターゲット",
+      "resolutionLabel": "解決",
+      "apiKindLabel": "API 種別",
+      "findingsLabel": "エラー / 警告 / 情報",
+      "probeTitle": "ライブヘルスプローブ",
+      "probeSkipped": "実行証跡を収集するにはライブプローブを有効にして実行してください。",
+      "probeUrlLabel": "URL",
+      "probeStatusLabel": "HTTP ステータス",
+      "probeSchemaLabel": "スキーマ有効",
+      "probeElapsedLabel": "経過時間",
+      "probePayloadLabel": "ペイロード状態",
+      "capabilitiesTitle": "ケイパビリティラダー",
+      "noCapabilities": "ケイパビリティ証跡はまだありません。",
+      "findingsTitle": "検出結果",
+      "severityColumn": "重要度",
+      "codeColumn": "コード",
+      "messageColumn": "メッセージ",
+      "fixColumn": "修正",
+      "noFindings": "検出結果はありません。",
+      "fixPreviewTitle": "修正プレビュー",
+      "noFixes": "決定的な修正はありません。"
     },
     "settings": {
       "title": "設定",

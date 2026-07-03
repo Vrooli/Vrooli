@@ -10,7 +10,7 @@
     {
       "id": "APIH-HTTP-001",
       "title": "Status code checks avoid brittle error guessing",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "api",
       "criticality": "P0",
@@ -20,15 +20,15 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned ref: api/internal/validation/status_codes_test.go. Fixtures cover raw constants, http.Error, json error responses, Connect handlers, and explicit non-applicability."
+          "status": "passing",
+          "notes": "Implemented ref: api/internal/validation/http_semantics_test.go. Fixtures cover raw status literals and implicit stdlib JSON error success without speculative call-graph guesses."
         }
       ]
     },
     {
       "id": "APIH-HTTP-002",
       "title": "Content type checks are response-pattern aware",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "api",
       "criticality": "P0",
@@ -38,15 +38,15 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned ref: api/internal/validation/content_type_test.go. Fixtures for stdlib, Connect/non-applicable paths, helper responders, downloads, and streams."
+          "status": "passing",
+          "notes": "Implemented ref: api/internal/validation/http_semantics_test.go. Fixtures cover obvious stdlib JSON response writes, explicit Content-Type headers, framework-owned responses, and test-file exclusions."
         }
       ]
     },
     {
       "id": "APIH-HTTP-003",
       "title": "Feature endpoints are versioned and ops probes exempted",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "api",
       "criticality": "P0",
@@ -56,8 +56,8 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned ref: api/internal/validation/versioned_endpoints_test.go. Fixtures cover /api/v1 routes, /health exemption, Connect routes, REST exceptions, and unversioned feature paths."
+          "status": "passing",
+          "notes": "Implemented ref: api/internal/validation/http_semantics_test.go. Fixtures cover /api/v1 subrouters, /health, endpoint metadata rest_exception, and unversioned REST feature paths."
         }
       ]
     }

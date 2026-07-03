@@ -456,6 +456,23 @@
           }
         },
         {
+          "path": "reference/scenario-auditor-api-migration.md",
+          "docType": "migration-reference",
+          "title": "Scenario-Auditor API Migration",
+          "aliases": ["scenario-auditor-api-migration", "legacy-api-rules", "migration-ledger"],
+          "description": "Ledger for legacy scenario-auditor API rule decisions and API Health ownership mappings",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["legacy-api-rule-migration", "api-health-boundary"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": ["Decision Meanings", "Migration Ledger", "Parity Evidence", "Residual Cutover Notes"],
+            "forbiddenPlaceholders": ["[TODO]"],
+            "requiredLinks": ["scenario-auditor"]
+          }
+        },
+        {
           "path": "reference/ui-manifest.md",
           "docType": "ui-manifest-reference",
           "title": "UI Manifest",

@@ -1,5 +1,5 @@
 /**
- * Routing smoke — for each canonical path (`/`, `/settings`) the
+ * Routing smoke — for each canonical path (`/`, `/validation`, `/settings`) the
  * matching page selector is in the document. Page-internal behaviour is
  * exercised in per-page tests; this file's job is to assert the router config.
  */
@@ -23,5 +23,10 @@ describe("AppRouter", () => {
   it("renders the settings page at /settings", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
     expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument();
+  });
+
+  it("renders the validation page at /validation", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/validation"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.validation)).toBeInTheDocument();
   });
 });

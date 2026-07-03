@@ -34,7 +34,7 @@ future agents more capable. Full vision: VISION.md.
    work → `swarm-manager records create` (the write side of the learning loop).
 6. **Recall → Discover → Capture** (reflex, not a checklist):
    - Recall: before non-trivial work, `search-hub query "<intent>" --type record,skill,doc`.
-   - Discover: before hand-rolling ops, `prompt-manager discover "<need>" --type all`.
+   - Discover: before hand-rolling ops, `prompt-manager discover "<operation-1>" "<operation-2>" --type all`; decompose broad work into generic reusable operations/capabilities, not scenario-specific plan titles.
    - Capture: reusable win → `prompt-manager action create …`; messy/partial → `swarm-manager
      captures create …`.
 7. **Dependencies**: ALL dependency work flows through **Scenario Dependency Analyzer** —

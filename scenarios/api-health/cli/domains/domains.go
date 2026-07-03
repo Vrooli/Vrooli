@@ -2,6 +2,8 @@ package domains
 
 import (
 	"github.com/vrooli/cli-core/cliapp"
+
+	"api-health/cli/domains/validate"
 )
 
 // CommandGroups aggregates flat command groups from domain packages.
@@ -34,6 +36,9 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	groups := []cliapp.SubcommandGroup{}
-	return groups, nil
+	group, err := validate.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{group}, nil
 }

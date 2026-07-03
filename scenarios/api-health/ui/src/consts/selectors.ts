@@ -324,7 +324,21 @@ const literalSelectors = {
   },
   pages: {
     dashboard: "page-dashboard",
+    validation: "page-validation",
     settings: "page-settings",
+  },
+  validation: {
+    form: "validation-form",
+    scenarioInput: "validation-scenario-input",
+    pathInput: "validation-path-input",
+    executionToggle: "validation-execution-toggle",
+    fixPreviewButton: "validation-fix-preview-button",
+    error: "validation-error",
+    summary: "validation-summary",
+    probe: "validation-probe",
+    capabilities: "validation-capabilities",
+    findings: "validation-findings",
+    fixPreview: "validation-fix-preview",
   },
   errorBoundary: {
     root: "error-boundary-root",
@@ -357,6 +371,7 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
+            "validation",
             "settings",
           ] as const,
         },
@@ -370,6 +385,7 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
+            "validation",
             "settings",
           ] as const,
         },

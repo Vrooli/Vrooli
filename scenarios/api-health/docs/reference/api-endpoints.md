@@ -40,17 +40,41 @@ detail.
 | **Response** | `scenario-validation/v1.ValidateScenarioResponse` |
 | **CLI** | `api-health validate scenario <target>` |
 
-Native detail is planned to include target resolution, capability summaries,
-static findings, live probe evidence, migration accounting, and optional fix
-preview metadata.
+Native detail includes target resolution, lifecycle evidence, health probe
+evidence when execution is requested, HTTP semantics evidence, runtime hygiene
+evidence, and summary counts. Migration accounting remains planned.
+
+### `ScenarioValidationService.PreviewFix`
+
+Shared dry-run fix RPC. Returns deterministic local file edits API Health can
+apply for mechanical findings without writing.
+
+| | |
+|---|---|
+| **Auth** | Local scenario transport |
+| **Request** | `scenario-validation/v1.FixRequest` |
+| **Response** | `scenario-validation/v1.FixResponse` |
+| **CLI** | `api-health validate fix-preview <target> [rule_id ...]` |
+
+### `ScenarioValidationService.ApplyFix`
+
+Shared explicit-write fix RPC. Applies the same deterministic candidates exposed
+by `PreviewFix`.
+
+| | |
+|---|---|
+| **Auth** | Local scenario transport |
+| **Request** | `scenario-validation/v1.FixRequest` |
+| **Response** | `scenario-validation/v1.FixResponse` |
+| **CLI** | `api-health validate fix-apply <target> [rule_id ...]` |
 
 ## Planned Native Endpoints
 
 | Domain | Endpoint | Purpose | Status |
 |---|---|---|---|
-| validation | `ValidationService.ValidateScenarioDetail` | UI/CLI detail view over the same engine as the shared provider RPC. | planned |
+| validation | shared `ScenarioValidationService.ValidateScenario` | UI/CLI detail view over the same engine as the shared provider RPC, including provider-native target/probe evidence. | implemented |
 | probe | `ProbeService.ProbeHealth` | Run one bounded live health probe and return evidence. | planned |
-| remediation | shared `PreviewFix` / `ApplyFix` | Preview/apply deterministic fixes. | planned |
+| remediation | native fix workbench endpoint | Provider-specific fix grouping and UI confirmation metadata over the shared Fix RPC. | planned |
 
 ## Adding a new endpoint
 

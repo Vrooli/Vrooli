@@ -10,7 +10,7 @@
     {
       "id": "APIH-FIX-001",
       "title": "Fix registry previews before writing",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "autofix",
       "criticality": "P0",
@@ -20,15 +20,15 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned ref: api/internal/autofix/autofix_test.go. Assert dry-run no writes, apply writes expected patch, second apply idempotent, and unsupported rules produce clear messages."
+          "status": "passing",
+          "notes": "Implemented refs: api/internal/validation/fixes_test.go and api/handlers/validation/connect_handler_test.go. Assert dry-run no writes, apply writes expected patches, second apply is idempotent, empty previews report a clear message, and shared Fix RPC candidates expose rule_id/file_path/before/after/applied."
         }
       ]
     },
     {
       "id": "APIH-FIX-002",
       "title": "Only unambiguous repairs are auto-fixable",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "autofix",
       "criticality": "P0",
@@ -38,15 +38,15 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned ref: api/internal/validation/fixability_test.go. Cross-check maturity.json fix_class declarations against implemented fixers and manual reasons."
+          "status": "passing",
+          "notes": "Implemented refs: .vrooli/maturity.json and api/internal/validation/fixes.go. Mechanical findings with deterministic fixers are marked implemented; lifecycle, health-schema, endpoint-versioning, context, logging, and timeout architecture changes are manual with explicit reasons."
         }
       ]
     },
     {
       "id": "APIH-MIG-001",
       "title": "Scenario-auditor API migration is parity-or-better",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "category": "migration",
       "criticality": "P1",
@@ -56,8 +56,8 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned ref: api/internal/migration/parity_test.go plus docs/reference/scenario-auditor-api-migration.md. Assert every old API rule ID appears exactly once in the migration ledger."
+          "status": "passing",
+          "notes": "Implemented refs: api/internal/migration/ledger_test.go plus docs/reference/scenario-auditor-api-migration.md. Assert every production legacy API rule file appears exactly once in the migration ledger, decisions are valid, and delegated boundary decisions remain explicit."
         }
       ]
     },
@@ -82,7 +82,7 @@
     {
       "id": "APIH-CUT-001",
       "title": "Test Genie cutover preserves unrelated standards ownership",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "category": "integration",
       "criticality": "P1",
@@ -92,8 +92,8 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned ref: scenarios/test-genie/api/internal/orchestrator/phases/api_health_cutover_test.go. Assert phase catalog routing and finding source behavior after the delegated API Health phase is introduced."
+          "status": "passing",
+          "notes": "Implemented ref: scenarios/test-genie/api/internal/orchestrator/phases/api_health_cutover_test.go. Asserts Test Genie registers a dedicated api phase backed by api-health over shared ScenarioValidationService, keeps standards backed by scenario-auditor for remaining non-API rules, orders api before standards, maps API findings into the existing standards source until a dedicated API source exists, and includes api-health in curated presets."
         }
       ]
     },
@@ -154,7 +154,7 @@
     {
       "id": "APIH-UX-001",
       "title": "Operator workbench separates static findings from live evidence",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-003",
       "category": "ui",
       "criticality": "P1",
@@ -164,8 +164,8 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned refs: ui/src/features/validation/ApiHealthWorkbench.test.tsx and cli/domains/validate/handlers_test.go. Assert grouping, probe evidence labels, and dry-run fix preview copy."
+          "status": "passing",
+          "notes": "Implemented refs: ui/src/pages/ValidationPage.tsx, ui/src/api/validation.ts, ui/src/pages/ValidationPage.test.tsx, and ui/src/api/validation.test.ts. Assert provider-backed target summary, capability ladder, findings table, live probe evidence, execution-mode input, and dry-run fix preview candidates render without duplicating validation logic in the UI."
         }
       ]
     }

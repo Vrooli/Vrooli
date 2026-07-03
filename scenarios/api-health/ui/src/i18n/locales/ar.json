@@ -6,10 +6,11 @@
     "description": "واجهة المستخدم البدائية هذه بسيطة عن قصد. استبدلها بتجربة خاصة بالسيناريو مع الحفاظ على اتفاقيات التصميم (Tailwind + shadcn) وتوصيل API كما هو."
   },
   "layout": {
-    "sidebarLabel": "التنقل الرئيسي",
-    "bottomNavLabel": "التنقل الرئيسي",
+    "sidebarLabel": "تنقل الشريط الجانبي",
+    "bottomNavLabel": "التنقل السفلي",
     "nav": {
       "dashboard": "لوحة التحكم",
+      "validation": "التحقق",
       "settings": "الإعدادات"
     }
   },
@@ -26,6 +27,38 @@
       "title": "لوحة التحكم",
       "description": "نظرة عامة على حالة السيناريو والمقاييس الرئيسية. استبدل هذه البطاقات بأسطح حقيقية مع نمو منتجك.",
       "statPlaceholderLabel": "إحصائية"
+    },
+    "validation": {
+      "title": "التحقق",
+      "description": "افحص جاهزية API من استجابة المزوّد، بما في ذلك النتائج الثابتة ودليل الفحص الحي ومعاينات الإصلاح الحتمية.",
+      "scenarioLabel": "السيناريو",
+      "pathLabel": "تجاوز المسار",
+      "executionLabel": "فحص حي",
+      "validate": "تحقق",
+      "validating": "جارٍ التحقق",
+      "previewFixes": "معاينة الإصلاحات",
+      "summaryTitle": "ملخص الهدف",
+      "targetLabel": "الهدف",
+      "resolutionLabel": "الحل",
+      "apiKindLabel": "نوع API",
+      "findingsLabel": "أخطاء / تحذيرات / معلومات",
+      "probeTitle": "فحص الصحة الحي",
+      "probeSkipped": "شغّل التحقق مع الفحص الحي لجمع دليل التنفيذ.",
+      "probeUrlLabel": "URL",
+      "probeStatusLabel": "حالة HTTP",
+      "probeSchemaLabel": "المخطط صالح",
+      "probeElapsedLabel": "المدة",
+      "probePayloadLabel": "حالة الحمولة",
+      "capabilitiesTitle": "سلم القدرات",
+      "noCapabilities": "لا يوجد دليل قدرات بعد.",
+      "findingsTitle": "النتائج",
+      "severityColumn": "الشدة",
+      "codeColumn": "الرمز",
+      "messageColumn": "الرسالة",
+      "fixColumn": "الإصلاح",
+      "noFindings": "لا توجد نتائج.",
+      "fixPreviewTitle": "معاينة الإصلاح",
+      "noFixes": "لا توجد إصلاحات حتمية متاحة."
     },
     "settings": {
       "title": "الإعدادات",

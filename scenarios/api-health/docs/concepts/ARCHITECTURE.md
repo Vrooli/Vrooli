@@ -132,12 +132,13 @@ used by unrelated domains or surfaces.
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| Foundation docs | Active | PRD, requirements, domains, architecture, maturity spec. | Implementation domains are planned but not yet built. |
-| Provider contract | Planned | `.vrooli/maturity.json` and PRD target OT-P0-001. | Validation RPC and native detail still generated scaffold. |
-| API lifecycle checks | Planned | Requirements `APIH-LIFE-*`. | Rule engine and fixtures not implemented. |
-| Live health probe | Planned | Requirements `APIH-HEALTH-*`. | Probe service and execution mode not implemented. |
-| HTTP/runtime checks | Planned | Requirements `APIH-HTTP-*`, `APIH-RUN-*`. | Validators need first-principles implementation. |
-| Autofix | Planned | Requirements `APIH-FIX-*`. | Fix registry not implemented. |
+| Foundation docs | Active | PRD, requirements, domains, architecture, maturity spec. | Keep specs aligned as Test Genie cutover lands. |
+| Provider contract | Active | Shared `ScenarioValidationService`, target resolver, maturity assessment, metrics, and native detail. | Test Genie is not yet cut over to consume API Health for API readiness. |
+| API lifecycle checks | Active | Requirements `APIH-LIFE-*`, lifecycle AST fixtures, and service metadata validation. | Broader endpoint inventory reconciliation remains planned under `APIH-MIG-002`. |
+| Live health probe | Active | Requirements `APIH-HEALTH-*`, bounded execution-mode `/health` probe, and httptest coverage. | Representative endpoint probe packs remain opt-in future work. |
+| HTTP/runtime checks | Active | Requirements `APIH-HTTP-*`, `APIH-RUN-*`, HTTP semantics fixtures, and runtime hygiene fixtures. | Generic security/storage/quality concerns stay delegated to neighboring providers. |
+| Autofix | Active | Requirements `APIH-FIX-*`, shared fix RPCs, CLI fix commands, and deterministic fixer tests. | Design-bearing repairs stay manual until a safe rewrite is proven. |
+| Operator UI | Active | Requirement `APIH-UX-001`, validation workbench route, typed validation API wrapper, and UI tests. | Fleet/API facts reporting remains planned future work. |
 
 ## Intentional Deviations
 

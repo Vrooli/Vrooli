@@ -1,3 +1,4 @@
+// INTEROP-CRITICAL: interop-sensitive configuration below — do not remove without checking host-frame embedding.
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";

@@ -10,7 +10,7 @@
     {
       "id": "APIH-HEALTH-001",
       "title": "Root health endpoint exists and is an ops probe",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "api",
       "criticality": "P0",
@@ -20,15 +20,15 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned ref: api/internal/validation/health_static_test.go. Fixtures for root health, only versioned health, healthz only, comments-only false positives, and endpoint descriptor tags."
+          "status": "passing",
+          "notes": "Covered by api/internal/validation/lifecycle_test.go and service health metadata checks: root /health must be declared as the API lifecycle endpoint and HTTP health check target."
         }
       ]
     },
     {
       "id": "APIH-HEALTH-002",
       "title": "Live health probe validates bounded schema",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "execution",
       "criticality": "P0",
@@ -38,15 +38,15 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned ref: api/internal/validation/health_probe_test.go. httptest cases for healthy, degraded, unhealthy, timeout, non-JSON, malformed JSON, and unreachable service."
+          "status": "passing",
+          "notes": "Implemented in api/internal/validation/health_probe.go with httptest coverage in api/internal/validation/health_probe_test.go for healthy, degraded, unhealthy, timeout, non-JSON, malformed JSON, and unreachable service."
         }
       ]
     },
     {
       "id": "APIH-HEALTH-003",
       "title": "Readiness semantics are consistent with status",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "api",
       "criticality": "P0",
@@ -56,8 +56,8 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
-          "notes": "Planned ref: api/internal/validation/health_schema_test.go. Schema fixtures for status/readiness combinations and dependency maps."
+          "status": "passing",
+          "notes": "Covered by api/internal/validation/health_probe_test.go schema-invalid cases; the probe validates status/readiness consistency, RFC3339 timestamp, service, expected HTTP status, and disconnected dependency error details."
         }
       ]
     }

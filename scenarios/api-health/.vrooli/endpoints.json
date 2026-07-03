@@ -10,7 +10,7 @@
       "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
       "category": "system",
       "response": {
-        "type": "object",
+        "type": "Response",
         "properties": {
           "dependencies": "object",
           "readiness": "boolean",
@@ -32,12 +32,12 @@
             "conformance": "none"
           },
           "response": {
-            "proto_full_name": "vrooli.api_health.v1.health.Response",
+            "proto_full_name": "vrooli.api_health.v1.shared.Response",
             "transport": "json",
             "conformance": "protojson"
           },
           "error": {
-            "proto_full_name": "vrooli.api_health.v1.errors.ErrorEnvelope",
+            "proto_full_name": "vrooli.api_health.v1.shared.ErrorEnvelope",
             "transport": "json",
             "conformance": "protojson"
           }
@@ -45,209 +45,119 @@
       }
     },
     {
-      "id": "notes_list",
-      "path": "/vrooli.api_health.v1.notes.NotesService/ListNotes",
+      "id": "validation_validate_scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
       "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "response": {
-        "type": "object",
-        "properties": {
-          "notes": "array<Note>"
-        }
-      },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.api_health.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_create",
-      "path": "/vrooli.api_health.v1.notes.NotesService/CreateNote",
-      "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
+      "summary": "Validate a scenario's API readiness",
+      "description": "Resolves a target scenario, classifies API applicability, optionally probes live /health, and returns API Health findings through the shared scenario-validation response.",
+      "category": "validation",
       "request": {
         "type": "object",
         "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
+          "include_execution": "bool",
+          "path": "string",
+          "scenario": "string"
         }
       },
       "response": {
         "type": "object",
         "properties": {
-          "note": "Note"
+          "assessment": "common.v1.MaturityAssessment",
+          "metrics": "common.v1.ExecutionMetrics",
+          "native_detail": "google.protobuf.Any",
+          "scenario": "string",
+          "status": "scenario_validation.v1.ValidationStatus"
         }
       },
       "errors": [
         {
           "status": 400,
           "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
+          "description": "Missing target or invalid target path"
         }
       ],
       "examples": [
         {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.api_health.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
+          "name": "Validate scenario",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"api-health\",\"include_execution\":true}'"
         }
       ]
     },
     {
-      "id": "notes_get",
-      "path": "/vrooli.api_health.v1.notes.NotesService/GetNote",
+      "id": "validation_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
       "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
+      "summary": "Preview deterministic API Health fixes",
+      "description": "Dry-run deterministic API Health repairs for local mechanical findings.",
+      "category": "validation",
       "request": {
         "type": "object",
         "properties": {
-          "id": "string"
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
         }
       },
       "response": {
         "type": "object",
         "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.api_health.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_count",
-      "path": "/vrooli.api_health.v1.notes.NotesService/CountNotes",
-      "method": "POST",
-      "summary": "Count notes in a time window",
-      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "count": "int64 (notes created in the window)"
+          "applied": "bool",
+          "candidates": "array<scenario_validation.v1.FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
         }
       },
       "errors": [
         {
           "status": 400,
           "code": "invalid_argument",
-          "description": "Unresolvable or malformed time window"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
+          "description": "Missing target or invalid fix request"
         }
       ],
       "examples": [
         {
-          "name": "Count this week",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.api_health.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
+          "name": "Preview fixes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix -H 'Content-Type: application/json' -d '{\"scenario\":\"api-health\",\"rule_ids\":[\"api_health.raw_status_code\"]}'"
         }
       ]
     },
     {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
+      "id": "validation_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
       "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
+      "summary": "Apply deterministic API Health fixes",
+      "description": "Apply deterministic API Health repairs selected explicitly by the caller.",
+      "category": "validation",
       "request": {
-        "type": "multipart/form-data",
+        "type": "object",
         "properties": {
-          "file": "file (required)"
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
         }
       },
       "response": {
         "type": "object",
         "properties": {
-          "attachment": "Attachment"
+          "applied": "bool",
+          "candidates": "array<scenario_validation.v1.FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
         }
       },
       "errors": [
         {
           "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
+          "code": "invalid_argument",
+          "description": "Missing target or invalid fix request"
         }
       ],
       "examples": [
         {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
+          "name": "Apply fixes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix -H 'Content-Type: application/json' -d '{\"scenario\":\"api-health\",\"rule_ids\":[\"api_health.raw_status_code\"]}'"
         }
-      ],
-      "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
-        "proto_payloads": {
-          "request": {
-            "transport": "multipart/form-data",
-            "conformance": "transport_only"
-          },
-          "response": {
-            "proto_full_name": "vrooli.api_health.v1.notes.UploadAttachmentResponse",
-            "transport": "json",
-            "conformance": "protojson"
-          },
-          "error": {
-            "proto_full_name": "vrooli.api_health.v1.errors.ErrorEnvelope",
-            "transport": "json",
-            "conformance": "protojson"
-          }
-        }
-      }
+      ]
     }
   ]
 }

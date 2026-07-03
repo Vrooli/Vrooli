@@ -51,7 +51,21 @@ new path automatically.
 4. Scenarios with no manifest fall through to a heuristic (scan for the slot's
    expected dir name) and then a final fallback
    (`ui/src/components/<ComponentName>.tsx`). Both flag warnings on the
-   resulting adoption record.
+resulting adoption record.
+
+## Current Routes
+
+| Route | Surface | Data source |
+|---|---|---|
+| `/` | Scenario health dashboard | Local `/health` response rendered by `HealthCard`. |
+| `/validation` | API readiness workbench | Shared `ScenarioValidationService.ValidateScenario` and `PreviewFix`; the UI decodes provider-native `Struct` evidence but does not reimplement validation rules. |
+| `/settings` | Locale and theme settings | Browser-local preference state. |
+
+The validation workbench is the operator evidence surface for API Health:
+target summary, capability ladder, static findings, execution-mode `/health`
+probe evidence, and dry-run fix candidates all come from provider responses.
+Adding new validation decisions belongs in `api/internal/validation`, not in
+React components.
 
 ## Extending The Manifest
 

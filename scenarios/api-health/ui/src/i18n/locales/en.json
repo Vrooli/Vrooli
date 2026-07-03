@@ -6,10 +6,11 @@
     "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
   },
   "layout": {
-    "sidebarLabel": "Primary navigation",
-    "bottomNavLabel": "Primary navigation",
+    "sidebarLabel": "Sidebar navigation",
+    "bottomNavLabel": "Bottom navigation",
     "nav": {
       "dashboard": "Dashboard",
+      "validation": "Validation",
       "settings": "Settings"
     }
   },
@@ -26,6 +27,38 @@
       "title": "Dashboard",
       "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
       "statPlaceholderLabel": "Stat"
+    },
+    "validation": {
+      "title": "Validation",
+      "description": "Inspect API readiness from the provider response, including static findings, live probe evidence, and deterministic fix previews.",
+      "scenarioLabel": "Scenario",
+      "pathLabel": "Path override",
+      "executionLabel": "Live probe",
+      "validate": "Validate",
+      "validating": "Validating",
+      "previewFixes": "Preview fixes",
+      "summaryTitle": "Target summary",
+      "targetLabel": "Target",
+      "resolutionLabel": "Resolution",
+      "apiKindLabel": "API kind",
+      "findingsLabel": "Errors / warnings / infos",
+      "probeTitle": "Live health probe",
+      "probeSkipped": "Run with live probe enabled to collect execution evidence.",
+      "probeUrlLabel": "URL",
+      "probeStatusLabel": "HTTP status",
+      "probeSchemaLabel": "Schema valid",
+      "probeElapsedLabel": "Elapsed",
+      "probePayloadLabel": "Payload status",
+      "capabilitiesTitle": "Capability ladder",
+      "noCapabilities": "No capability evidence yet.",
+      "findingsTitle": "Findings",
+      "severityColumn": "Severity",
+      "codeColumn": "Code",
+      "messageColumn": "Message",
+      "fixColumn": "Fix",
+      "noFindings": "No findings.",
+      "fixPreviewTitle": "Fix preview",
+      "noFixes": "No deterministic fixes available."
     },
     "settings": {
       "title": "Settings",

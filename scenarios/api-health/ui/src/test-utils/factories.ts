@@ -25,10 +25,23 @@
  * schema makes it instantly available without editing this file.
  */
 import { create, type MessageInitShape } from "@bufbuild/protobuf";
+import { MaturityAssessmentSchema } from "@vrooli/proto-types/common/v1/maturity_pb";
 import { ResponseSchema } from "@vrooli/proto-types/api-health/v1/shared/health_pb";
 import type { Response as HealthResponse } from "@vrooli/proto-types/api-health/v1/shared/health_pb";
+import {
+  FixResponseSchema,
+  ValidateScenarioResponseSchema,
+  ValidationStatus,
+} from "@vrooli/proto-types/scenario-validation/v1/validation_pb";
+import type {
+  FixResponse,
+  ValidateScenarioResponse,
+} from "@vrooli/proto-types/scenario-validation/v1/validation_pb";
+
+import type { ValidationNativeDetail, ValidationReport } from "../api/validation";
 
 export type { HealthResponse };
+export type { FixResponse, ValidateScenarioResponse, ValidationReport };
 
 // MessageInitShape<typeof ResponseSchema> is the @bufbuild/protobuf-provided
 // type for the optional fields you can pass to `create()`. Using it instead
@@ -44,5 +57,107 @@ export const makeHealthResponse = (
     timestamp: "2026-01-01T00:00:00.000Z",
     readiness: true,
     version: "1.0.0",
+    ...overrides,
+  });
+
+export const makeValidationResponse = (
+  overrides: MessageInitShape<typeof ValidateScenarioResponseSchema> = {},
+): ValidateScenarioResponse =>
+  create(ValidateScenarioResponseSchema, {
+    scenario: "api-health",
+    status: ValidationStatus.FAILED,
+    assessment: create(MaturityAssessmentSchema, {
+      scenario: "api-health",
+      provider: "api-health",
+      phase: "api-health",
+      findings: [
+        {
+          code: "APIH_LIFE_MISSING_HEALTH_METADATA",
+          severity: "SEVERITY_ERROR",
+          title: "Missing health metadata",
+          message: "service.json does not declare API health metadata",
+          location: ".vrooli/service.json",
+          remediation: "Declare the API health path and check URL.",
+          autofixAvailable: true,
+          fixClass: "autofix",
+        },
+      ],
+      findingsBySeverity: {
+        SEVERITY_ERROR: 1,
+        SEVERITY_WARNING: 0,
+        SEVERITY_INFO: 0,
+      },
+      capabilities: [
+        {
+          id: "api-lifecycle",
+          label: "API lifecycle",
+          currentLevel: "L1",
+          nextLevel: "L2",
+          blockingFindingCodes: ["APIH_LIFE_MISSING_HEALTH_METADATA"],
+        },
+      ],
+    }),
+    ...overrides,
+  });
+
+export const makeValidationNativeDetail = (
+  overrides: ValidationNativeDetail = {},
+): ValidationNativeDetail => ({
+  scenario: "api-health",
+  target: {
+    scenario: "api-health",
+    resolution: "resolved",
+    api_kind: "go-api",
+    health_probe: {
+      requested: true,
+      url: "http://127.0.0.1:15001/health",
+      status_code: 503,
+      content_type: "application/json",
+      elapsed_millis: 17,
+      failure_class: "degraded",
+      schema_valid: true,
+      payload: {
+        status: "degraded",
+        service: "api-health",
+        timestamp: "2026-01-01T00:00:00Z",
+        readiness: false,
+        dependency_count: 1,
+      },
+    },
+  },
+  summary: {
+    errors: 1,
+    warnings: 0,
+    infos: 0,
+    passed: false,
+  },
+  ...overrides,
+});
+
+export const makeValidationReport = (
+  overrides: {
+    response?: MessageInitShape<typeof ValidateScenarioResponseSchema>;
+    nativeDetail?: ValidationNativeDetail;
+  } = {},
+): ValidationReport => ({
+  response: makeValidationResponse(overrides.response),
+  nativeDetail: makeValidationNativeDetail(overrides.nativeDetail),
+});
+
+export const makeFixResponse = (
+  overrides: MessageInitShape<typeof FixResponseSchema> = {},
+): FixResponse =>
+  create(FixResponseSchema, {
+    scenario: "api-health",
+    applied: false,
+    candidates: [
+      {
+        ruleId: "APIH_LIFE_MISSING_HEALTH_METADATA",
+        filePath: ".vrooli/service.json",
+        description: "Add /health API metadata",
+        before: "{}",
+        after: "{\"health\":\"/health\"}",
+      },
+    ],
     ...overrides,
   });

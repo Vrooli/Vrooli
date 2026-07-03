@@ -58,8 +58,19 @@ export { expectNoA11yViolations } from "./a11y";
 // re-exported here — they live next to the feature they double for
 // (for example, `features/validation/mocks/factories.ts`) so deleting a feature
 // folder takes them along.
-export { makeHealthResponse } from "./factories";
-export type { HealthResponse } from "./factories";
+export {
+  makeFixResponse,
+  makeHealthResponse,
+  makeValidationNativeDetail,
+  makeValidationReport,
+  makeValidationResponse,
+} from "./factories";
+export type {
+  FixResponse,
+  HealthResponse,
+  ValidateScenarioResponse,
+  ValidationReport,
+} from "./factories";
 export {
   assertTransitionMatrix,
   validateTransitionMatrix,

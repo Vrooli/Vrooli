@@ -43,14 +43,14 @@ api-health configure api_base http://localhost:15001/api/v1
 api-health configure token <token>
 ```
 
-## Scenario commands — planned
+## Scenario commands
 
 | Command | Domain | Purpose | Status |
 |---|---|---|---|
-| `api-health validate scenario <target>` | validation | Validate target API readiness and render capability findings. | planned |
+| `api-health validate scenario <target> [--path <path>] [--include-execution]` | validation | Validate target API readiness and render capability findings. | implemented |
+| `api-health validate fix-preview <target> [rule_id ...] [--path <path>]` | validation | Preview deterministic fixes without writing. | implemented |
+| `api-health validate fix-apply <target> [rule_id ...] [--path <path>]` | validation | Apply explicit deterministic fixes. | implemented |
 | `api-health probe health <target>` | probe | Run one bounded live health probe and render evidence. | planned |
-| `api-health fix preview <target>` | remediation | Preview deterministic fixes without writing. | planned |
-| `api-health fix apply <target>` | remediation | Apply explicit deterministic fixes. | planned |
 | `api-health migration ledger` | migration | Show scenario-auditor API rule migration accounting. | planned |
 
 ## Output contracts
