@@ -18,14 +18,16 @@ import (
 )
 
 func TestExternalRules_StackGovernorRegistered(t *testing.T) {
-	if !isExternalRule("GO_CLI_WORKSPACE_INDEPENDENCE") {
-		t.Fatalf("expected GO_CLI_WORKSPACE_INDEPENDENCE to be registered as an external rule")
-	}
 	if !isExternalRule("REACT_VITE_UI_INSTALLS_DEPENDENCIES") {
 		t.Fatalf("expected REACT_VITE_UI_INSTALLS_DEPENDENCIES to be registered as an external rule")
 	}
 	if !isExternalRule("PACKAGE_GOVERNANCE_SCENARIO_ADOPTION") {
 		t.Fatalf("expected PACKAGE_GOVERNANCE_SCENARIO_ADOPTION to be registered as an external rule")
+	}
+	for _, ruleID := range []string{"GO_CLI_WORKSPACE_INDEPENDENCE", "MAKEFILE_STRUCTURE", "MAKEFILE_LIFECYCLE", "MAKEFILE_QUALITY"} {
+		if isExternalRule(ruleID) {
+			t.Fatalf("expected superseded rule %s to be removed from stack-governor external rules", ruleID)
+		}
 	}
 }
 
@@ -123,7 +125,7 @@ func TestStackGovernorFix_Success(t *testing.T) {
 		if len(req.ScenarioNames) != 1 || req.ScenarioNames[0] != "test-scenario" {
 			t.Errorf("unexpected scenario_names: %v", req.ScenarioNames)
 		}
-		if len(req.RuleIDs) != 1 || req.RuleIDs[0] != "MAKEFILE_STRUCTURE" {
+		if len(req.RuleIDs) != 1 || req.RuleIDs[0] != "REACT_VITE_UI_INSTALLS_DEPENDENCIES" {
 			t.Errorf("unexpected rule_ids: %v", req.RuleIDs)
 		}
 		if req.DryRun {
@@ -134,11 +136,11 @@ func TestStackGovernorFix_Success(t *testing.T) {
 			Results: []stackGovernorFixResult{
 				{
 					ScenarioName: "test-scenario",
-					RuleID:       "MAKEFILE_STRUCTURE",
+					RuleID:       "REACT_VITE_UI_INSTALLS_DEPENDENCIES",
 					Fixed:        true,
-					FilePath:     "scenarios/test-scenario/Makefile",
+					FilePath:     "scenarios/test-scenario/ui/package.json",
 					Changes: []stackGovernorFixChange{
-						{Type: "add_target", Detail: "Added missing 'test' target"},
+						{Type: "dependency_install", Detail: "Installed UI dependencies"},
 					},
 				},
 			},
@@ -151,7 +153,7 @@ func TestStackGovernorFix_Success(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	results, err := fixViaURL(srv.Client(), srv.URL, context.Background(), []string{"test-scenario"}, []string{"MAKEFILE_STRUCTURE"}, false)
+	results, err := fixViaURL(srv.Client(), srv.URL, context.Background(), []string{"test-scenario"}, []string{"REACT_VITE_UI_INSTALLS_DEPENDENCIES"}, false)
 	if err != nil {
 		t.Fatalf("Fix returned error: %v", err)
 	}
@@ -163,8 +165,8 @@ func TestStackGovernorFix_Success(t *testing.T) {
 	if r.ScenarioName != "test-scenario" {
 		t.Errorf("expected scenario_name=test-scenario, got %s", r.ScenarioName)
 	}
-	if r.RuleID != "MAKEFILE_STRUCTURE" {
-		t.Errorf("expected rule_id=MAKEFILE_STRUCTURE, got %s", r.RuleID)
+	if r.RuleID != "REACT_VITE_UI_INSTALLS_DEPENDENCIES" {
+		t.Errorf("expected rule_id=REACT_VITE_UI_INSTALLS_DEPENDENCIES, got %s", r.RuleID)
 	}
 	if !r.Fixed {
 		t.Error("expected fixed=true")
@@ -172,8 +174,8 @@ func TestStackGovernorFix_Success(t *testing.T) {
 	if len(r.Changes) != 1 {
 		t.Fatalf("expected 1 change, got %d", len(r.Changes))
 	}
-	if r.Changes[0].Type != "add_target" {
-		t.Errorf("expected change type=add_target, got %s", r.Changes[0].Type)
+	if r.Changes[0].Type != "dependency_install" {
+		t.Errorf("expected change type=dependency_install, got %s", r.Changes[0].Type)
 	}
 }
 
@@ -183,7 +185,7 @@ func TestStackGovernorFix_ServerError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	_, err := fixViaURL(srv.Client(), srv.URL, context.Background(), []string{"test-scenario"}, []string{"MAKEFILE_STRUCTURE"}, false)
+	_, err := fixViaURL(srv.Client(), srv.URL, context.Background(), []string{"test-scenario"}, []string{"REACT_VITE_UI_INSTALLS_DEPENDENCIES"}, false)
 	if err == nil {
 		t.Fatal("expected error for 500 response")
 	}
@@ -194,7 +196,7 @@ func TestStackGovernorFix_ServerError(t *testing.T) {
 
 func TestStackGovernorFix_Unavailable(t *testing.T) {
 	client := &http.Client{Timeout: 1 * time.Second}
-	_, err := fixViaURL(client, "http://127.0.0.1:1", context.Background(), []string{"test-scenario"}, []string{"MAKEFILE_STRUCTURE"}, false)
+	_, err := fixViaURL(client, "http://127.0.0.1:1", context.Background(), []string{"test-scenario"}, []string{"REACT_VITE_UI_INSTALLS_DEPENDENCIES"}, false)
 	if err == nil {
 		t.Fatal("expected error for unavailable server")
 	}

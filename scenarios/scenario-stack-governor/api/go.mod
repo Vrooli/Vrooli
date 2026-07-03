@@ -7,8 +7,6 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
-	golang.org/x/mod v0.34.0
-	golang.org/x/sync v0.20.0
 )
 
 require (

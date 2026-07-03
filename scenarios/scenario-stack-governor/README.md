@@ -17,8 +17,8 @@ make start
 ```bash
 scenario-stack-governor status
 scenario-stack-governor rules list
-scenario-stack-governor rules get MAKEFILE_STRUCTURE
-scenario-stack-governor rules disable MAKEFILE_QUALITY
+scenario-stack-governor rules get REACT_VITE_UI_INSTALLS_DEPENDENCIES
+scenario-stack-governor rules disable REACT_VITE_UI_INSTALLS_DEPENDENCIES
 scenario-stack-governor scenarios list
 scenario-stack-governor run --scenario scenario-auditor
 scenario-stack-governor fix --scenario scenario-auditor --dry-run
@@ -38,8 +38,8 @@ The Go CLI follows the standard `cli-core` contract:
 - `PUT /api/v1/config`
 - `POST /api/v1/run`
 
-## First rule (MVP)
-- `GO_CLI_WORKSPACE_INDEPENDENCE`: verifies Go-based scenario CLIs build with `GOWORK=off`, and flags missing `go.mod` wiring for common non-transitive `replace` pitfalls across scenario modules that depend on shared Vrooli Go packages.
+## Rules
+- `REACT_VITE_UI_INSTALLS_DEPENDENCIES`: verifies React/Vite scenario UIs install dependencies in the scenario-local UI directory.
 
 ## Package governance
 - `PACKAGE_GOVERNANCE_SCENARIO_ADOPTION`: delegates to `vrooli package audit --all` and turns scenario-scoped package governance issues into stack-governor findings.

@@ -11,18 +11,11 @@ import (
 
 // setupTestServer creates a Server backed by a temp directory that satisfies
 // FindRepoRoot (has .vrooli/, scenarios/, resources/ markers) and a fresh
-// ConfigStore with only MAKEFILE_* rules enabled.
+// ConfigStore with expensive/external command rules disabled.
 func setupTestServer(t *testing.T) (*Server, string) {
 	t.Helper()
 
-	root := t.TempDir()
-
-	// Create repo-root markers that the shared repo contract requires.
-	for _, dir := range []string{".vrooli", "templates", "scenarios", "resources", "packages", "cmd", "internal"} {
-		mkdirAll(t, filepath.Join(root, dir))
-	}
-	writeRepoContractFixture(t, root)
-	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.com/test\n\ngo 1.25.0\n")
+	root := setupFixTestDir(t)
 
 	// ConfigStore in a temp config dir.
 	configDir := filepath.Join(root, "config")
@@ -30,17 +23,12 @@ func setupTestServer(t *testing.T) (*Server, string) {
 	configPath := filepath.Join(configDir, "rules.json")
 	cs := NewConfigStore(configPath)
 
-	// Seed config with only MAKEFILE_* rules enabled so GO_CLI and
-	// REACT_VITE rules don't fire on bare test scenarios.
+	// Seed config so command-running rules don't fire on bare test scenarios.
 	cfg := RulesConfig{
 		Version: "1.0.0",
 		EnabledRules: map[string]bool{
-			"GO_CLI_WORKSPACE_INDEPENDENCE":        false,
 			"PACKAGE_GOVERNANCE_SCENARIO_ADOPTION": false,
 			"REACT_VITE_UI_INSTALLS_DEPENDENCIES":  false,
-			"MAKEFILE_STRUCTURE":                   true,
-			"MAKEFILE_LIFECYCLE":                   true,
-			"MAKEFILE_QUALITY":                     true,
 		},
 	}
 	if err := cs.Save(t.Context(), cfg); err != nil {
@@ -56,6 +44,19 @@ func setupTestServer(t *testing.T) (*Server, string) {
 	srv.setupRoutes()
 
 	return srv, root
+}
+
+func setupFixTestDir(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+
+	// Create repo-root markers that the shared repo contract requires.
+	for _, dir := range []string{".vrooli", "templates", "scenarios", "resources", "packages", "cmd", "internal"} {
+		mkdirAll(t, filepath.Join(root, dir))
+	}
+	writeRepoContractFixture(t, root)
+	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.com/test\n\ngo 1.25.0\n")
+	return root
 }
 
 // mkdirAll is a test helper that creates a directory and fails the test on error.

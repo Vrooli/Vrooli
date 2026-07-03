@@ -228,8 +228,7 @@ func (s *Server) handleFix(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Track which fixer groups have already been called for this scenario
-		// to avoid calling shared fixers (like FixMakefileAll) multiple times.
+		// Track which fixer groups have already been called for this scenario.
 		calledGroups := map[string]struct{}{}
 
 		for _, entry := range entriesToFix {

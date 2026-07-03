@@ -17,7 +17,6 @@
 - [ ] OT-P0-001 | Rule enablement config | Persist which rules are enabled in a human-editable config file (and editable via UI/API).
 - [ ] OT-P0-002 | Rule catalog UX | Provide an intuitive UI that lists each rule, explains what it checks and why it matters, and lets operators toggle rules.
 - [ ] OT-P0-003 | Run rules + results | Run enabled rules on demand and return actionable, evidence-backed results.
-- [ ] OT-P0-004 | Go workspace independence | Enforce that Go-based scenario CLIs build with `GOWORK=off` (no dependency on a repo-level `go.work`).
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Scenario-auditor integration | Expose this scenario as an external rule pack consumable by `scenario-auditor` (JSON contract + remediation hints).
@@ -36,8 +35,8 @@
 ## 🤝 Dependencies & Launch Plan
 - Required resources: none for MVP (rule runs operate on the repo filesystem + local toolchains).
 - Scenario dependencies: `scenario-auditor` (integration target), `scenario-completeness-scoring` (quality telemetry).
-- Operational risks: Rules that run builds can be slow; keep checks scoped and time-bounded, and make rule toggles explicit.
-- Launch sequencing: MVP ships Go rule + config + UI toggles; then wire into `scenario-auditor`; then expand rule packs.
+- Operational risks: Rules that run external commands can be slow; keep checks scoped and time-bounded, and make rule toggles explicit.
+- Launch sequencing: MVP ships config + UI toggles; then wire into `scenario-auditor`; then expand rule packs.
 
 ## 🎨 UX & Branding
 - Look & feel: “control tower” clarity—rule cards with concise summaries, expandable “why this matters”, and obvious toggle/run affordances.

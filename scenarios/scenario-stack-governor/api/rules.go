@@ -9,8 +9,7 @@ import (
 // RuleRunner executes a rule check against a scenario.
 type RuleRunner func(ctx context.Context, repoRoot, scenarioName string) RuleResult
 
-// RuleFixer applies an auto-fix for a rule. Returns one or more results
-// (e.g. FixMakefileAll returns one per MAKEFILE_* rule ID).
+// RuleFixer applies an auto-fix for a rule.
 type RuleFixer func(ctx context.Context, repoRoot, scenarioName string, dryRun bool) []FixResult
 
 // RuleDefinition describes a governance rule.
@@ -42,20 +41,6 @@ func AllRules() []RuleEntry {
 	return []RuleEntry{
 		{
 			Definition: RuleDefinition{
-				ID:             "GO_CLI_WORKSPACE_INDEPENDENCE",
-				Title:          "Go scenario modules are workspace-independent",
-				Summary:        "Ensures Go-based scenario CLIs build with `GOWORK=off` and that scenario modules using shared Vrooli packages declare the non-transitive requirements, checksums, and local `replace` directives they need.",
-				WhyImportant:   "A single bad `go.work` entry can break every `go` command in the repo. This rule enforces that scenario modules remain self-contained via their own `go.mod` and `go.sum`, including explicit local wiring for dependencies like `cli-core`, `packages/proto`, and `packages/repo-contract-go`, plus local API wiring when a CLI imports scenario API packages.",
-				Category:       "go",
-				Severity:       "error",
-				DefaultEnabled: true,
-				Fixable:        true,
-			},
-			Runner: RunGoCliWorkspaceIndependence,
-			Fixer:  FixGoCliWorkspaceIndependence,
-		},
-		{
-			Definition: RuleDefinition{
 				ID:             "REACT_VITE_UI_INSTALLS_DEPENDENCIES",
 				Title:          "React/Vite UI installs dependencies correctly",
 				Summary:        "Ensures React/Vite scenario UIs install `ui/package.json` dependencies using `pnpm install --ignore-workspace` so `pnpm run build` can find tools like `vite`.",
@@ -80,51 +65,6 @@ func AllRules() []RuleEntry {
 				Fixable:        false,
 			},
 			Runner: RunPackageGovernanceScenarioAdoption,
-		},
-		{
-			Definition: RuleDefinition{
-				ID:             "MAKEFILE_STRUCTURE",
-				Title:          "Makefile follows canonical structure",
-				Summary:        "Enforces canonical Makefile structure with STRICT consistency for interoperability. All scenarios must follow identical structure including fmt-go/lint-go/fmt-ui/lint-ui targets.",
-				WhyImportant:   "STRICT consistency ensures agents and humans can rely on standard targets across all scenarios. Any deviation breaks tooling and creates confusion.",
-				Category:       "makefile",
-				Severity:       "error",
-				DefaultEnabled: true,
-				Fixable:        true,
-			},
-			Runner:     RunMakefileStructure,
-			Fixer:      FixMakefileAll,
-			FixerGroup: "makefile",
-		},
-		{
-			Definition: RuleDefinition{
-				ID:             "MAKEFILE_LIFECYCLE",
-				Title:          "Makefile lifecycle targets use Vrooli CLI",
-				Summary:        "Ensures lifecycle targets (start, stop, test, logs, status) call the Vrooli CLI with canonical messaging.",
-				WhyImportant:   "Keeps lifecycle orchestration consistent and prevents direct execution regressions. Every scenario must delegate to `vrooli scenario <verb>` so process naming, port allocation, and health checks work correctly.",
-				Category:       "makefile",
-				Severity:       "error",
-				DefaultEnabled: true,
-				Fixable:        true,
-			},
-			Runner:     RunMakefileLifecycle,
-			Fixer:      FixMakefileAll,
-			FixerGroup: "makefile",
-		},
-		{
-			Definition: RuleDefinition{
-				ID:             "MAKEFILE_QUALITY",
-				Title:          "Makefile quality targets have proper guards",
-				Summary:        "Validates fmt/lint/check targets invoke canonical sub-commands and enforce strict Go formatting/linting logic with proper guards and fallbacks.",
-				WhyImportant:   "Keeps code quality workflows discoverable and consistent across scenarios. Guards prevent failures when api/ directory is absent; fallbacks ensure formatting works even without gofumpt.",
-				Category:       "makefile",
-				Severity:       "warning",
-				DefaultEnabled: true,
-				Fixable:        true,
-			},
-			Runner:     RunMakefileQuality,
-			Fixer:      FixMakefileAll,
-			FixerGroup: "makefile",
 		},
 	}
 }

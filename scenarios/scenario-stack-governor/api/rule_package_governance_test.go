@@ -9,7 +9,7 @@ import (
 )
 
 func TestPackageGovernanceRule_FiltersToScenarioPaths(t *testing.T) {
-	root := setupRuleGoCliTestRepo(t)
+	root := setupPackageGovernanceTestRepo(t)
 	script := filepath.Join(t.TempDir(), "fake-vrooli")
 	writeTestFile(t, script, `#!/usr/bin/env bash
 set -e
@@ -57,7 +57,7 @@ JSON
 }
 
 func TestPackageGovernanceRule_ScansAllScenariosWhenUnscoped(t *testing.T) {
-	root := setupRuleGoCliTestRepo(t)
+	root := setupPackageGovernanceTestRepo(t)
 	script := filepath.Join(t.TempDir(), "fake-vrooli")
 	writeTestFile(t, script, `#!/usr/bin/env bash
 set -e
@@ -99,7 +99,7 @@ JSON
 }
 
 func TestPackageGovernanceRule_ReportsCommandFailure(t *testing.T) {
-	root := setupRuleGoCliTestRepo(t)
+	root := setupPackageGovernanceTestRepo(t)
 	script := filepath.Join(t.TempDir(), "fake-vrooli")
 	writeTestFile(t, script, "#!/usr/bin/env bash\nset -e\nprintf 'boom\\n' >&2\nexit 12\n")
 	if err := os.Chmod(script, 0o755); err != nil {
@@ -120,7 +120,7 @@ func TestPackageGovernanceRule_ReportsCommandFailure(t *testing.T) {
 }
 
 func TestPackageGovernanceRule_ReportsBudgetExceededMetadata(t *testing.T) {
-	root := setupRuleGoCliTestRepo(t)
+	root := setupPackageGovernanceTestRepo(t)
 	script := filepath.Join(t.TempDir(), "fake-vrooli")
 	writeTestFile(t, script, `#!/usr/bin/env bash
 set -e
@@ -159,7 +159,7 @@ JSON
 }
 
 func TestPackageGovernanceRule_TimesOutAuditCommand(t *testing.T) {
-	root := setupRuleGoCliTestRepo(t)
+	root := setupPackageGovernanceTestRepo(t)
 	script := filepath.Join(t.TempDir(), "fake-vrooli")
 	writeTestFile(t, script, "#!/usr/bin/env bash\nsleep 5\n")
 	if err := os.Chmod(script, 0o755); err != nil {
@@ -180,4 +180,13 @@ func TestPackageGovernanceRule_TimesOutAuditCommand(t *testing.T) {
 	if !strings.Contains(result.Findings[0].Message, "timed out") {
 		t.Fatalf("unexpected timeout message: %q", result.Findings[0].Message)
 	}
+}
+
+func setupPackageGovernanceTestRepo(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	for _, dir := range []string{".vrooli", "scenarios", "resources"} {
+		mkdirAll(t, filepath.Join(root, dir))
+	}
+	return root
 }
