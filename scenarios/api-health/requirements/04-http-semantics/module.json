@@ -1,0 +1,65 @@
+{
+  "_metadata": {
+    "module": "http-semantics",
+    "description": "First-party HTTP response semantics for API handlers and route registration.",
+    "prd_ref": "OT-P0-004",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "APIH-HTTP-001",
+      "title": "Status code checks avoid brittle error guessing",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "api",
+      "criticality": "P0",
+      "description": "The validator reports raw numeric status literals and clearly implicit success on direct error responses while avoiding speculative call-graph guesses that would create false positives.",
+      "tags": ["status-codes", "http"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/validation/status_codes_test.go. Fixtures cover raw constants, http.Error, json error responses, Connect handlers, and explicit non-applicability."
+        }
+      ]
+    },
+    {
+      "id": "APIH-HTTP-002",
+      "title": "Content type checks are response-pattern aware",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "api",
+      "criticality": "P0",
+      "description": "The validator detects missing content types for obvious JSON encoders, text/html, text/plain, text/csv, application/pdf, binary downloads, XML, and server-sent event streams without requiring every handler to duplicate framework-provided headers.",
+      "tags": ["content-type", "downloads", "streaming"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/validation/content_type_test.go. Fixtures for stdlib, Connect/non-applicable paths, helper responders, downloads, and streams."
+        }
+      ]
+    },
+    {
+      "id": "APIH-HTTP-003",
+      "title": "Feature endpoints are versioned and ops probes exempted",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Route registration and endpoint metadata distinguish public feature APIs, Connect procedure paths, static assets, and operational probes so versioning findings only apply to first-party REST feature endpoints.",
+      "tags": ["versioning", "routes", "rest-exception"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/validation/versioned_endpoints_test.go. Fixtures cover /api/v1 routes, /health exemption, Connect routes, REST exceptions, and unversioned feature paths."
+        }
+      ]
+    }
+  ]
+}

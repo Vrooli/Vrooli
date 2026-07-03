@@ -1,0 +1,65 @@
+{
+  "_metadata": {
+    "module": "health-endpoint",
+    "description": "Static and live validation of the standard /health API readiness surface.",
+    "prd_ref": "OT-P0-003",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "APIH-HEALTH-001",
+      "title": "Root health endpoint exists and is an ops probe",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Static validation confirms the API exposes root /health as the lifecycle probe and treats optional /api/v1/health as additional client convenience, not a replacement.",
+      "tags": ["health", "ops-probe"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/validation/health_static_test.go. Fixtures for root health, only versioned health, healthz only, comments-only false positives, and endpoint descriptor tags."
+        }
+      ]
+    },
+    {
+      "id": "APIH-HEALTH-002",
+      "title": "Live health probe validates bounded schema",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "execution",
+      "criticality": "P0",
+      "description": "When execution is requested, API Health resolves the target through lifecycle, calls the configured API health URL once within a timeout, validates JSON content type and the api-core health response fields, and records probe evidence in native detail.",
+      "tags": ["live-probe", "schema", "execution"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/validation/health_probe_test.go. httptest cases for healthy, degraded, unhealthy, timeout, non-JSON, malformed JSON, and unreachable service."
+        }
+      ]
+    },
+    {
+      "id": "APIH-HEALTH-003",
+      "title": "Readiness semantics are consistent with status",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "api",
+      "criticality": "P0",
+      "description": "The validator reports inconsistent health payloads, such as status=unhealthy with readiness=true or missing dependency details for declared critical resources.",
+      "tags": ["readiness", "dependencies"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/validation/health_schema_test.go. Schema fixtures for status/readiness combinations and dependency maps."
+        }
+      ]
+    }
+  ]
+}

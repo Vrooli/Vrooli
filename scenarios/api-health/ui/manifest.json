@@ -1,0 +1,91 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-ui-manifest.schema.json",
+  "title": "react-vite template UI manifest",
+  "description": "Declares where UI building blocks live in scenarios generated from the react-vite template. Consumed by react-component-library's adoption resolver to compute canonical filesystem paths for adopted components.",
+  "contract": {
+    "kind": "scenario-ui",
+    "schema": "scenario-ui-manifest/v1",
+    "template": "react-vite",
+    "extensionRule": "Scenarios may override individual slot `dir` values inside their own .vrooli/ui-manifest.json overlay. New slot names must be added to the template manifest, not the overlay."
+  },
+  "slots": {
+    "ui-primitive": {
+      "dir": "ui/src/components/ui",
+      "description": "Headless primitives (button, input, textarea) that other components compose. Kebab-case filenames.",
+      "pathPattern": "{dir}/{kebab-name}.tsx"
+    },
+    "shared-component": {
+      "dir": "ui/src/components",
+      "description": "Cross-cutting components used by multiple features or layouts (e.g. ErrorBoundary).",
+      "pathPattern": "{dir}/{ComponentName}.tsx"
+    },
+    "layout-shell": {
+      "dir": "ui/src/layout",
+      "description": "App shell (AppShell, root container components). Shares the layout dir with layout-nav by design.",
+      "pathPattern": "{dir}/{ComponentName}.tsx",
+      "multiFile": true
+    },
+    "layout-nav": {
+      "dir": "ui/src/layout",
+      "description": "Navigation surfaces inside the shell (Sidebar, TopBar, BottomNav). Shares the layout dir with layout-shell by design.",
+      "pathPattern": "{dir}/{ComponentName}.tsx",
+      "multiFile": true
+    },
+    "page": {
+      "dir": "ui/src/pages",
+      "description": "Routed pages mounted under the shell's Outlet.",
+      "pathPattern": "{dir}/{ComponentName}.tsx"
+    },
+    "feature": {
+      "dir": "ui/src/features/{feature}",
+      "description": "Feature folder. Owns its own components, hooks, API client wrapper, and tests.",
+      "pathPattern": "{dir}",
+      "multiFile": true,
+      "requiresFeature": true
+    },
+    "feature-component": {
+      "dir": "ui/src/features/{feature}",
+      "description": "A single component inside a feature folder.",
+      "pathPattern": "{dir}/{ComponentName}.tsx",
+      "requiresFeature": true
+    },
+    "hook": {
+      "dir": "ui/src/hooks",
+      "description": "React hooks reusable across features.",
+      "pathPattern": "{dir}/{camelName}.ts"
+    },
+    "api-client": {
+      "dir": "ui/src/api",
+      "description": "Connect-RPC client modules and small API wrappers.",
+      "pathPattern": "{dir}/{camelName}.ts"
+    },
+    "lib-util": {
+      "dir": "ui/src/lib",
+      "description": "Framework-agnostic utility modules.",
+      "pathPattern": "{dir}/{camelName}.ts"
+    },
+    "consts": {
+      "dir": "ui/src/consts",
+      "description": "Compile-time constants (selectors, strings registry).",
+      "pathPattern": "{dir}/{camelName}.ts"
+    },
+    "i18n-strings": {
+      "dir": "ui/src/i18n/locales",
+      "description": "i18next catalog JSON files. One per locale.",
+      "pathPattern": "{dir}/{locale}.json"
+    },
+    "theme-token": {
+      "dir": "ui/src/theme",
+      "description": "Theme provider + CSS custom-property tokens.",
+      "pathPattern": "{dir}/{kebab-name}.css"
+    },
+    "test-util": {
+      "dir": "ui/src/test-utils",
+      "description": "Test-only helpers (renderWithProviders, factories, a11y).",
+      "pathPattern": "{dir}/{camelName}.ts"
+    }
+  },
+  "defaults": {
+    "slot": "shared-component"
+  }
+}

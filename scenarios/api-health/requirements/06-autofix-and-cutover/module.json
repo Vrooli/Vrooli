@@ -1,0 +1,83 @@
+{
+  "_metadata": {
+    "module": "autofix-and-cutover",
+    "description": "Deterministic remediation, scenario-auditor migration accounting, operator workbench, and Test Genie cutover.",
+    "prd_ref": "OT-P0-006",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "APIH-FIX-001",
+      "title": "Fix registry previews before writing",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "autofix",
+      "criticality": "P0",
+      "description": "PreviewFix and ApplyFix are mounted through the shared validation RPC; preview is dry-run, apply requires explicit invocation, and every candidate reports rule_id, file_path, before, after, and applied status.",
+      "tags": ["autofix", "preview", "apply"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/autofix/autofix_test.go. Assert dry-run no writes, apply writes expected patch, second apply idempotent, and unsupported rules produce clear messages."
+        }
+      ]
+    },
+    {
+      "id": "APIH-FIX-002",
+      "title": "Only unambiguous repairs are auto-fixable",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "autofix",
+      "criticality": "P0",
+      "description": "Auto fixes are limited to local mechanical edits; design-bearing changes such as endpoint versioning strategy, error envelope redesign, logging architecture, and context propagation remain manual with explicit reasons.",
+      "tags": ["fix-class", "manual-reason"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/validation/fixability_test.go. Cross-check maturity.json fix_class declarations against implemented fixers and manual reasons."
+        }
+      ]
+    },
+    {
+      "id": "APIH-MIG-001",
+      "title": "Scenario-auditor API migration is parity-or-better",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "migration",
+      "criticality": "P1",
+      "description": "Each scenario-auditor API rule is accounted for as kept, redesigned, delegated to another provider, deferred, or rejected; migrated findings are compared against fixture scenarios before cutover.",
+      "tags": ["scenario-auditor", "migration", "parity"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/migration/parity_test.go plus docs/reference/scenario-auditor-api-migration.md. Assert every old API rule ID appears exactly once in the migration ledger."
+        }
+      ]
+    },
+    {
+      "id": "APIH-UX-001",
+      "title": "Operator workbench separates static findings from live evidence",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "The UI and human CLI reports group findings by capability, show live probe evidence as timestamped evidence rather than static debt, and provide fix previews without writing by default.",
+      "tags": ["ui", "cli", "workbench"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned refs: ui/src/features/validation/ApiHealthWorkbench.test.tsx and cli/domains/validate/handlers_test.go. Assert grouping, probe evidence labels, and dry-run fix preview copy."
+        }
+      ]
+    }
+  ]
+}

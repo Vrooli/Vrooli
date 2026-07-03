@@ -1,0 +1,25 @@
+{
+  "id": ".",
+  "name": "API Health",
+  "short_name": "api-health",
+  "description": "Validates Vrooli scenario API lifecycle, health, HTTP semantics, and runtime hygiene as a delegated Test Genie health provider.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "manifest-icon-192.maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "manifest-icon-512.maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

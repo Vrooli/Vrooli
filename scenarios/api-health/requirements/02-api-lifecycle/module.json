@@ -1,0 +1,65 @@
+{
+  "_metadata": {
+    "module": "api-lifecycle",
+    "description": "Static API lifecycle compatibility checks: service metadata, preflight, api-core server use, and health endpoint declarations.",
+    "prd_ref": "OT-P0-002",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "APIH-LIFE-001",
+      "title": "Service manifest declares API health path",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "lifecycle",
+      "criticality": "P0",
+      "description": "The validator checks .vrooli/service.json for an API port, lifecycle health endpoint, and HTTP health check target that can be resolved through Vrooli lifecycle metadata.",
+      "tags": ["service-json", "health-path"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/validation/lifecycle_manifest_test.go. Fixtures cover missing endpoint, nonstandard endpoint, missing API port, and valid config."
+        }
+      ]
+    },
+    {
+      "id": "APIH-LIFE-002",
+      "title": "API preflight runs before service initialization",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "lifecycle",
+      "criticality": "P0",
+      "description": "The validator proves api/main.go calls api-core/preflight before business logic and with the target scenario name, without depending on scenario-auditor's old line-window heuristics.",
+      "tags": ["preflight", "startup"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/validation/preflight_test.go. AST fixtures for missing import, wrong scenario name, late preflight, and compliant Run/MustRun patterns."
+        }
+      ]
+    },
+    {
+      "id": "APIH-LIFE-003",
+      "title": "API server uses graceful lifecycle runner",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "lifecycle",
+      "criticality": "P0",
+      "description": "Long-running API services use api-core/server rather than direct http.ListenAndServe or Server.ListenAndServe calls, so shutdown and signal handling stay consistent.",
+      "tags": ["server-run", "graceful-shutdown"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/validation/server_run_test.go. AST fixtures for compliant server.Run, direct ListenAndServe, TLS server, and test-file exemptions."
+        }
+      ]
+    }
+  ]
+}
