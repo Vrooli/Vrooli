@@ -59,6 +59,7 @@ var Endpoints = []module.EndpointDescriptor{
 	endpoint("log_list", logconnect.LogServiceListEntriesProcedure, "List log entries", "Lists ledger entries for a plan/execution/phase with a compact summary."),
 	endpoint("log_get", logconnect.LogServiceGetEntryProcedure, "Get a log entry", "Returns one ledger entry by id, including its downstream reference."),
 	endpoint("log_update", logconnect.LogServiceUpdateEntryProcedure, "Update a log entry", "Edits an entry's title/detail/severity/triage and appends evidence."),
+	endpoint("log_reassign", logconnect.LogServiceReassignEntryProcedure, "Reassign a log entry", "Moves an existing log entry to another phase by phase id or ordinal."),
 	endpoint("log_promote", logconnect.LogServicePromoteEntryProcedure, "Promote a finding", "Promotes a finding into a bug report or record, preserving the original finding."),
 	endpoint("log_sync", logconnect.LogServiceSyncEntryProcedure, "Retry downstream sync", "Retries downstream forwarding for a pending/failed bug or record entry."),
 }

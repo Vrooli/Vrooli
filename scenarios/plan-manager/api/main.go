@@ -12,6 +12,7 @@ import (
 	"plan-manager/internal/clock"
 	internalexecution "plan-manager/internal/execution"
 	"plan-manager/internal/modules"
+	internalplanlog "plan-manager/internal/planlog"
 	internalplans "plan-manager/internal/plans"
 	"plan-manager/internal/server"
 
@@ -186,15 +187,35 @@ func newPlanLogResolver(db *database.RoutedDB, clk clock.Clock) planLogResolver 
 	}
 }
 
-func (r planLogResolver) Resolve(ctx context.Context, handle string) (planID, executionID string, ok bool, err error) {
+func (r planLogResolver) Resolve(ctx context.Context, handle string) (internalplanlog.Scope, bool, error) {
 	if e, found, gerr := r.executions.GetExecution(ctx, handle); gerr != nil {
-		return "", "", false, gerr
+		return internalplanlog.Scope{}, false, gerr
 	} else if found {
-		return e.PlanID, e.ID, true, nil
+		plan, perr := r.plans.Get(ctx, e.PlanID, internalplans.WorkspaceScope{})
+		if perr != nil {
+			return internalplanlog.Scope{}, false, perr
+		}
+		return internalplanlog.Scope{
+			PlanID:         e.PlanID,
+			ExecutionID:    e.ID,
+			CurrentPhaseID: e.CurrentPhaseID,
+			Phases:         logPhaseRefs(plan.Phases),
+		}, true, nil
 	}
 	plan, gerr := r.plans.Get(ctx, handle, internalplans.WorkspaceScope{})
 	if gerr != nil {
-		return "", "", false, nil
+		return internalplanlog.Scope{}, false, nil
 	}
-	return plan.ID, "", true, nil
+	return internalplanlog.Scope{
+		PlanID: plan.ID,
+		Phases: logPhaseRefs(plan.Phases),
+	}, true, nil
+}
+
+func logPhaseRefs(phases []internalplans.Phase) []internalplanlog.PhaseRef {
+	out := make([]internalplanlog.PhaseRef, 0, len(phases))
+	for _, ph := range phases {
+		out = append(out, internalplanlog.PhaseRef{ID: ph.ID, Order: ph.Order, Title: ph.Title})
+	}
+	return out
 }

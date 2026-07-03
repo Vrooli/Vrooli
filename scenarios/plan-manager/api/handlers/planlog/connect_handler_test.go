@@ -28,6 +28,7 @@ type fakeLogService struct {
 
 	gotInputs  internalplanlog.AddInputs
 	gotID      string
+	gotPhase   string
 	gotUpdate  internalplanlog.UpdateInputs
 	gotPromote planmodel.LogEntryType
 	gotFilter  internalplanlog.Filter
@@ -70,6 +71,11 @@ func (f *fakeLogService) GetEntry(_ context.Context, id string) (internalplanlog
 
 func (f *fakeLogService) UpdateEntry(_ context.Context, id string, in internalplanlog.UpdateInputs) (internalplanlog.Entry, internalplanlog.GuidedStep, error) {
 	f.gotID, f.gotUpdate = id, in
+	return f.entry, internalplanlog.GuidedStep{}, f.err
+}
+
+func (f *fakeLogService) ReassignEntry(_ context.Context, id string, phaseID string) (internalplanlog.Entry, internalplanlog.GuidedStep, error) {
+	f.gotID, f.gotPhase = id, phaseID
 	return f.entry, internalplanlog.GuidedStep{}, f.err
 }
 
@@ -154,6 +160,18 @@ func TestUpdateEntryForwardsTriage(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, planmodel.TriageDismissed, svc.gotUpdate.Triage)
 	require.Equal(t, []string{"x"}, svc.gotUpdate.AddEvidence)
+}
+
+func TestReassignEntryForwardsPhase(t *testing.T) {
+	svc := &fakeLogService{entry: internalplanlog.Entry{ID: "le-1", PhaseID: "ph-2"}}
+	h := newLogHandler(svc)
+	resp, err := h.ReassignEntry(context.Background(), connect.NewRequest(&logv1.ReassignEntryRequest{
+		Id: "le-1", PhaseId: "2",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "le-1", svc.gotID)
+	require.Equal(t, "2", svc.gotPhase)
+	require.Equal(t, "ph-2", resp.Msg.GetEntry().GetPhaseId())
 }
 
 func TestPromoteEntryForwardsType(t *testing.T) {

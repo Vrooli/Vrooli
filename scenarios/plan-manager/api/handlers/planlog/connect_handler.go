@@ -160,6 +160,14 @@ func (h *connectHandler) UpdateEntry(ctx context.Context, req *connect.Request[l
 	return connect.NewResponse(&logv1.GetEntryResponse{Entry: entryToProto(entry), Step: guidedStepToProto(step)}), nil
 }
 
+func (h *connectHandler) ReassignEntry(ctx context.Context, req *connect.Request[logv1.ReassignEntryRequest]) (*connect.Response[logv1.GetEntryResponse], error) {
+	entry, step, err := h.deps.Service.ReassignEntry(ctx, req.Msg.GetId(), req.Msg.GetPhaseId())
+	if err != nil {
+		return nil, internalplanlog.ToConnectError(err)
+	}
+	return connect.NewResponse(&logv1.GetEntryResponse{Entry: entryToProto(entry), Step: guidedStepToProto(step)}), nil
+}
+
 func (h *connectHandler) PromoteEntry(ctx context.Context, req *connect.Request[logv1.PromoteEntryRequest]) (*connect.Response[logv1.PromoteEntryResponse], error) {
 	m := req.Msg
 	entry, source, step, err := h.deps.Service.PromoteEntry(ctx, m.GetId(),

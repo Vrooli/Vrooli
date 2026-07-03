@@ -109,7 +109,7 @@ func TestRenderShowsWorkPostureAndGreenfieldBlock(t *testing.T) {
 		"## Approach & Decisions",
 		"## Boundaries",
 		"### Execution Feedback",
-		"plan-manager log {decision,finding,bug,record,note}-add",
+		"plan-manager log decision-add <execution-id> --phase <phase-id> --title",
 		"## Verification",
 		"### Validation Strategy",
 		"**Ordered Steps:**",

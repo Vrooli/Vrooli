@@ -21,16 +21,15 @@ import (
 // --- fakes ---
 
 type fakeResolver struct {
-	planID string
-	execID string
-	ok     bool
+	scope planlog.Scope
+	ok    bool
 }
 
-func (f fakeResolver) Resolve(context.Context, string) (string, string, bool, error) {
+func (f fakeResolver) Resolve(context.Context, string) (planlog.Scope, bool, error) {
 	if !f.ok {
-		return "", "", false, nil
+		return planlog.Scope{}, false, nil
 	}
-	return f.planID, f.execID, true, nil
+	return f.scope, true, nil
 }
 
 // recordingSink is a configurable BugReporter + RecordWriter for sync tests.
@@ -64,8 +63,8 @@ func (s *countingBugSink) FileBug(context.Context, planlog.Entry) (planlog.Downs
 // distinct plans.
 type planEchoResolver struct{}
 
-func (planEchoResolver) Resolve(_ context.Context, handle string) (string, string, bool, error) {
-	return handle, "", true, nil
+func (planEchoResolver) Resolve(_ context.Context, handle string) (planlog.Scope, bool, error) {
+	return planlog.Scope{PlanID: handle}, true, nil
 }
 
 func newService(t *testing.T, d planlog.Deps) (planlog.Service, planlog.Repository) {
@@ -80,9 +79,20 @@ func newService(t *testing.T, d planlog.Deps) (planlog.Service, planlog.Reposito
 	d.Repo = repo
 	d.Clock = clk
 	if d.Resolver == nil {
-		d.Resolver = fakeResolver{planID: "plan-1", execID: "exec-1", ok: true}
+		d.Resolver = fakeResolver{scope: defaultScope(), ok: true}
 	}
 	return planlog.NewService(d), repo
+}
+
+func defaultScope() planlog.Scope {
+	return planlog.Scope{
+		PlanID:      "plan-1",
+		ExecutionID: "exec-1",
+		Phases: []planlog.PhaseRef{
+			{ID: "ph-1", Order: 1, Title: "First"},
+			{ID: "ph-2", Order: 2, Title: "Second"},
+		},
+	}
 }
 
 // --- tests ---
@@ -97,7 +107,36 @@ func TestAddDecisionAndResolveScope(t *testing.T) {
 	require.Equal(t, planmodel.LogEntryDecision, e.Type)
 	require.Equal(t, "plan-1", e.PlanID, "resolver binds the entry to the canonical plan")
 	require.Equal(t, "exec-1", e.ExecutionID)
+	require.Equal(t, "ph-1", e.PhaseID)
 	require.Equal(t, planmodel.LogSyncLocal, e.SyncStatus, "decisions are local-only")
+}
+
+func TestAddDecisionResolvesPhaseOrdinal(t *testing.T) {
+	svc, _ := newService(t, planlog.Deps{})
+	e, _, _, err := svc.AddDecision(context.Background(), planlog.AddInputs{
+		PlanOrExecution: "exec-1", PhaseID: "2", Title: "use adapter seam",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "ph-2", e.PhaseID)
+}
+
+func TestAddDecisionInfersCurrentPhaseForExecutionHandle(t *testing.T) {
+	scope := defaultScope()
+	scope.CurrentPhaseID = "ph-2"
+	svc, _ := newService(t, planlog.Deps{Resolver: fakeResolver{scope: scope, ok: true}})
+	e, _, _, err := svc.AddDecision(context.Background(), planlog.AddInputs{
+		PlanOrExecution: "exec-1", Title: "current phase decision",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "ph-2", e.PhaseID)
+}
+
+func TestAddDecisionRejectsUnknownPhase(t *testing.T) {
+	svc, _ := newService(t, planlog.Deps{})
+	_, _, _, err := svc.AddDecision(context.Background(), planlog.AddInputs{
+		PlanOrExecution: "exec-1", PhaseID: "9", Title: "bad phase",
+	})
+	require.ErrorAs(t, err, &planlog.ErrInvalidEntry{})
 }
 
 func TestAddFindingFilesCandidate(t *testing.T) {
@@ -265,6 +304,17 @@ func TestUpdateEntryTriageAndEvidence(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, planmodel.TriageDismissed, updated.Triage)
 	require.Equal(t, []string{"a", "b", "c"}, updated.Evidence)
+}
+
+func TestReassignEntryResolvesOrdinal(t *testing.T) {
+	svc, _ := newService(t, planlog.Deps{})
+	e, _, _, err := svc.AddDecision(context.Background(), planlog.AddInputs{
+		PlanOrExecution: "exec-1", PhaseID: "ph-1", Title: "needs move",
+	})
+	require.NoError(t, err)
+	updated, _, err := svc.ReassignEntry(context.Background(), e.ID, "2")
+	require.NoError(t, err)
+	require.Equal(t, "ph-2", updated.PhaseID)
 }
 
 func TestListEntriesAndSummary(t *testing.T) {

@@ -172,6 +172,25 @@ func (h *handlers) update(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) reassign(ctx cliapp.RunContext) error {
+	resp, err := h.client.ReassignEntry(context.Background(), connect.NewRequest(&logv1.ReassignEntryRequest{
+		Id:      ctx.Positional("id"),
+		PhaseId: ctx.Flag("phase"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("reassign log entry", err, nil)
+	}
+	e := resp.Msg.GetEntry()
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result: []string{fmt.Sprintf("Reassigned %s entry %s.", entryTypeLabel(e.GetType()), e.GetId())},
+		Changes: append([]string{
+			entryLine(e),
+			scopeLine(e),
+		}, formatStep(resp.Msg.GetStep())...),
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
 func (h *handlers) promote(ctx cliapp.RunContext) error {
 	resp, err := h.client.PromoteEntry(context.Background(), connect.NewRequest(&logv1.PromoteEntryRequest{
 		Id:       ctx.Positional("id"),
@@ -217,7 +236,7 @@ func renderAdd(ctx cliapp.RunContext, msg *logv1.AddEntryResponse) error {
 	if msg.GetDeduplicated() {
 		result = fmt.Sprintf("Returned existing %s entry %s (deduplicated).", entryTypeLabel(e.GetType()), e.GetId())
 	}
-	changes := []string{entryLine(e)}
+	changes := []string{entryLine(e), scopeLine(e)}
 	if e.GetSyncStatus() != sharedv1.LogSyncStatus_LOG_SYNC_STATUS_LOCAL && e.GetSyncStatus() != sharedv1.LogSyncStatus_LOG_SYNC_STATUS_UNSPECIFIED {
 		changes = append(changes, fmt.Sprintf("downstream sync: %s", syncStatusLabel(e.GetSyncStatus())))
 	}
@@ -254,14 +273,28 @@ func entryLine(e *sharedv1.LogEntry) string {
 	return line
 }
 
+func scopeLine(e *sharedv1.LogEntry) string {
+	if e == nil {
+		return ""
+	}
+	parts := []string{"scope: plan " + orNone(e.GetPlanId())}
+	if e.GetExecutionId() != "" {
+		parts = append(parts, "execution "+e.GetExecutionId())
+	}
+	if e.GetPhaseId() != "" {
+		parts = append(parts, "phase "+e.GetPhaseId())
+	} else {
+		parts = append(parts, "phase (plan-wide)")
+	}
+	return strings.Join(parts, ", ")
+}
+
 func entryDetail(e *sharedv1.LogEntry) []string {
 	if e == nil {
 		return nil
 	}
 	out := make([]string, 0, 6)
-	if e.GetPhaseId() != "" {
-		out = append(out, "phase: "+e.GetPhaseId())
-	}
+	out = append(out, scopeLine(e))
 	if e.GetDetail() != "" {
 		out = append(out, "detail: "+e.GetDetail())
 	}

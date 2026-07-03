@@ -68,7 +68,7 @@ func TestWizardAuthoredPlanRendersComprehensive(t *testing.T) {
 		"### Work Posture",
 		"**This is greenfield work.**",
 		"### Execution Feedback",
-		"plan-manager log {decision,finding,bug,record,note}-add",
+		"plan-manager log decision-add <execution-id> --phase <phase-id> --title",
 		"## Problem",
 		"## Outcome",
 		"## Approach & Decisions",
@@ -97,7 +97,7 @@ func TestPreviewPlanRendersWithoutPersisting(t *testing.T) {
 	require.Contains(t, md, "### Work Posture")
 	require.Contains(t, md, "**This is greenfield work.**")
 	require.Contains(t, md, "### Execution Feedback")
-	require.Contains(t, md, "plan-manager log {decision,finding,bug,record,note}-add")
+	require.Contains(t, md, "plan-manager log decision-add <execution-id> --phase <phase-id> --title")
 	require.Contains(t, md, "## Problem")
 	require.Equal(t, "final_review", step.StepKind)
 	require.Equal(t, 0, writer.calls, "preview must not persist a plan")

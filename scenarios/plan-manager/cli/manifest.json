@@ -2486,7 +2486,7 @@
           "flags": [
             {
               "name": "phase",
-              "description": "Phase id this entry is scoped to"
+              "description": "Phase id or 1-based ordinal; omit with an execution id to use its current phase"
             },
             {
               "name": "title",
@@ -2540,7 +2540,7 @@
           "flags": [
             {
               "name": "phase",
-              "description": "Phase id this entry is scoped to"
+              "description": "Phase id or 1-based ordinal; omit with an execution id to use its current phase"
             },
             {
               "name": "title",
@@ -2598,7 +2598,7 @@
           "flags": [
             {
               "name": "phase",
-              "description": "Phase id this entry is scoped to"
+              "description": "Phase id or 1-based ordinal; omit with an execution id to use its current phase"
             },
             {
               "name": "title",
@@ -2656,7 +2656,7 @@
           "flags": [
             {
               "name": "phase",
-              "description": "Phase id this entry is scoped to"
+              "description": "Phase id or 1-based ordinal; omit with an execution id to use its current phase"
             },
             {
               "name": "title",
@@ -2710,7 +2710,7 @@
           "flags": [
             {
               "name": "phase",
-              "description": "Phase id this entry is scoped to"
+              "description": "Phase id or 1-based ordinal; omit with an execution id to use its current phase"
             },
             {
               "name": "title",
@@ -2851,6 +2851,36 @@
             "kind": "connect-rpc",
             "service": "LogService",
             "method": "UpdateEntry"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reassign",
+          "description": "Move a ledger entry to another phase",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Log entry id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Phase id or 1-based ordinal in the entry's plan",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "ReassignEntry"
           },
           "governance": {
             "effect": "write",

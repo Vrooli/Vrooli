@@ -375,16 +375,22 @@ external scenario CLI from the plan workflow.
 
 | Command | RPC | Purpose |
 |---|---|---|
-| `log decision-add <plan-or-execution> --title <t> [--phase --detail --evidence --source-command --idempotency-key --run-id]` | `LogService.AddDecision` | Record an in-flow design decision (feeds the handoff). |
-| `log finding-add <plan-or-execution> --title <t> [--severity --phase --detail --evidence --source-command --idempotency-key --run-id]` | `LogService.AddFinding` | Record a CANDIDATE finding (a possible bug; never auto-promoted). |
-| `log bug-add <plan-or-execution> --title <t> [--severity --phase --detail --evidence --source-command --idempotency-key --run-id]` | `LogService.AddBug` | File a bug report; forwarded to the issue tracker (scenario-qa) through an internal seam. v1 default is a pending stub (production adapter deferred), so the entry persists `pending` and is retried via `log sync`. |
-| `log record-add <plan-or-execution> --title <t> [--phase --detail --evidence --source-command --idempotency-key --run-id]` | `LogService.AddRecord` | Capture a reusable record; forwarded to Swarm Manager through an internal seam. v1 default is a pending stub (production adapter deferred), so the entry persists `pending` and is retried via `log sync`. |
-| `log note-add <plan-or-execution> --title <t> [--phase --detail --evidence --source-command --idempotency-key --run-id]` | `LogService.AddNote` | Record a lightweight progress/context note (local-only). |
+| `log decision-add <plan-or-execution> --title <t> [--phase <phase-id\|ordinal> --detail --evidence --source-command --idempotency-key --run-id]` | `LogService.AddDecision` | Record an in-flow design decision (feeds the handoff). |
+| `log finding-add <plan-or-execution> --title <t> [--severity --phase <phase-id\|ordinal> --detail --evidence --source-command --idempotency-key --run-id]` | `LogService.AddFinding` | Record a CANDIDATE finding (a possible bug; never auto-promoted). |
+| `log bug-add <plan-or-execution> --title <t> [--severity --phase <phase-id\|ordinal> --detail --evidence --source-command --idempotency-key --run-id]` | `LogService.AddBug` | File a bug report; forwarded to the issue tracker (scenario-qa) through an internal seam. v1 default is a pending stub (production adapter deferred), so the entry persists `pending` and is retried via `log sync`. |
+| `log record-add <plan-or-execution> --title <t> [--phase <phase-id\|ordinal> --detail --evidence --source-command --idempotency-key --run-id]` | `LogService.AddRecord` | Capture a reusable record; forwarded to Swarm Manager through an internal seam. v1 default is a pending stub (production adapter deferred), so the entry persists `pending` and is retried via `log sync`. |
+| `log note-add <plan-or-execution> --title <t> [--phase <phase-id\|ordinal> --detail --evidence --source-command --idempotency-key --run-id]` | `LogService.AddNote` | Record a lightweight progress/context note (local-only). |
 | `log list [<plan-or-execution>] [--phase --type --triage --sync-status]` | `LogService.ListEntries` | List ledger entries with a compact summary. `--type` = `decision\|finding\|bug_report\|record\|note`; `--triage` = `candidate\|promoted\|dismissed`; `--sync-status` = `local\|pending\|synced\|sync_failed`. |
 | `log get <id>` | `LogService.GetEntry` | Get one ledger entry by id, including its downstream reference. |
 | `log update <id> [--title --detail --severity --triage --add-evidence]` | `LogService.UpdateEntry` | Update mutable fields; empty/unspecified leaves a field unchanged; `--add-evidence` appends. |
+| `log reassign <id> --phase <phase-id\|ordinal>` | `LogService.ReassignEntry` | Move a ledger entry to another phase when the computed scope is not what you intended. |
 | `log promote <id> --to <bug\|record> [--title --detail --severity]` | `LogService.PromoteEntry` | Promote a finding into a bug report or record, preserving the original finding (marked promoted) and linking the new entry back to it. |
 | `log sync <id>` | `LogService.SyncEntry` | Retry downstream forwarding for a `pending`/`sync_failed` bug or record. |
+
+For add commands, `--phase` accepts the canonical phase id or a 1-based phase
+ordinal. When `<plan-or-execution>` is an execution id and `--phase` is omitted,
+Plan Manager records the entry against that execution's current phase and the
+CLI prints the computed plan/execution/phase scope.
 
 `--idempotency-key` makes retries safe (a retry with the same key returns the
 existing entry); findings/decisions also dedup by

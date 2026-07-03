@@ -99,17 +99,34 @@ type logResolver struct {
 	executions internalexecution.Repository
 }
 
-func (a logResolver) Resolve(ctx context.Context, handle string) (string, string, bool, error) {
+func (a logResolver) Resolve(ctx context.Context, handle string) (internalplanlog.Scope, bool, error) {
 	if e, ok, err := a.executions.GetExecution(ctx, handle); err != nil {
-		return "", "", false, err
+		return internalplanlog.Scope{}, false, err
 	} else if ok {
-		return e.PlanID, e.ID, true, nil
+		plan, perr := a.plans.Get(ctx, e.PlanID, internalplans.WorkspaceScope{})
+		if perr != nil {
+			return internalplanlog.Scope{}, false, perr
+		}
+		return internalplanlog.Scope{
+			PlanID:         e.PlanID,
+			ExecutionID:    e.ID,
+			CurrentPhaseID: e.CurrentPhaseID,
+			Phases:         integrationPhaseRefs(plan.Phases),
+		}, true, nil
 	}
 	plan, err := a.plans.Get(ctx, handle, internalplans.WorkspaceScope{})
 	if err != nil {
-		return "", "", false, nil
+		return internalplanlog.Scope{}, false, nil
 	}
-	return plan.ID, "", true, nil
+	return internalplanlog.Scope{PlanID: plan.ID, Phases: integrationPhaseRefs(plan.Phases)}, true, nil
+}
+
+func integrationPhaseRefs(phases []internalplans.Phase) []internalplanlog.PhaseRef {
+	out := make([]internalplanlog.PhaseRef, 0, len(phases))
+	for _, ph := range phases {
+		out = append(out, internalplanlog.PhaseRef{ID: ph.ID, Order: ph.Order, Title: ph.Title})
+	}
+	return out
 }
 
 func newStack(t *testing.T) (*sql.DB, internalplans.Service, internalvalidation.Service, internalauthoring.Service, internalexecution.Service, internalplanlog.Service) {

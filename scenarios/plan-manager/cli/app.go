@@ -36,17 +36,18 @@ func NewApp() (*App, error) {
 		return groups
 	}
 	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
-		Name:             appName,
-		Version:          appVersion,
-		Description:      "Plan Manager CLI",
-		DefaultAPIBase:   defaultAPIBase,
-		ExtraAPIEnvVars:  []string{"API_BASE_URL", "VITE_API_BASE_URL"},
-		BuildFingerprint: buildFingerprint,
-		BuildTimestamp:   buildTimestamp,
-		BuildSourceRoot:  buildSourceRoot,
-		AllowAnonymous:   true,
-		CommandGroups:    domains.CommandGroups,
-		SubcommandGroups: subcommandGroups,
+		Name:               appName,
+		Version:            appVersion,
+		Description:        "Plan Manager CLI",
+		DefaultAPIBase:     defaultAPIBase,
+		ExtraAPIEnvVars:    []string{"API_BASE_URL", "VITE_API_BASE_URL"},
+		BuildFingerprint:   buildFingerprint,
+		BuildTimestamp:     buildTimestamp,
+		BuildSourceRoot:    buildSourceRoot,
+		AllowAnonymous:     true,
+		CommandGroups:      domains.CommandGroups,
+		SubcommandGroups:   subcommandGroups,
+		UnknownCommandHint: planManagerCommandHint,
 	})
 	if err != nil {
 		return nil, err

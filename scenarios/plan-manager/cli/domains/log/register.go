@@ -19,16 +19,17 @@ const GroupName = "log"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, map[string]func(cliapp.RunContext) error{
-		"LogService.AddDecision":  h.decisionAdd,
-		"LogService.AddFinding":   h.findingAdd,
-		"LogService.AddBug":       h.bugAdd,
-		"LogService.AddRecord":    h.recordAdd,
-		"LogService.AddNote":      h.noteAdd,
-		"LogService.ListEntries":  h.list,
-		"LogService.GetEntry":     h.get,
-		"LogService.UpdateEntry":  h.update,
-		"LogService.PromoteEntry": h.promote,
-		"LogService.SyncEntry":    h.sync,
+		"LogService.AddDecision":   h.decisionAdd,
+		"LogService.AddFinding":    h.findingAdd,
+		"LogService.AddBug":        h.bugAdd,
+		"LogService.AddRecord":     h.recordAdd,
+		"LogService.AddNote":       h.noteAdd,
+		"LogService.ListEntries":   h.list,
+		"LogService.GetEntry":      h.get,
+		"LogService.UpdateEntry":   h.update,
+		"LogService.ReassignEntry": h.reassign,
+		"LogService.PromoteEntry":  h.promote,
+		"LogService.SyncEntry":     h.sync,
 	})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("log: load log group: %w", err)

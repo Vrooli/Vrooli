@@ -46,6 +46,62 @@ func TestRunHelp(t *testing.T) {
 	}
 }
 
+func TestLogRecoveryHints(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     []string
+		contains []string
+	}{
+		{
+			name: "nested log add shape",
+			args: []string{"log", "decision", "add"},
+			contains: []string{
+				"Unknown subcommand: log decision",
+				"Did you mean:",
+				"plan-manager log decision-add <plan-or-execution> --title <title>",
+			},
+		},
+		{
+			name: "moved exec write",
+			args: []string{"exec", "decision-add"},
+			contains: []string{
+				"Unknown subcommand: exec decision-add",
+				"This command moved to the log ledger.",
+				"plan-manager log decision-add <plan-or-execution> --title <title>",
+			},
+		},
+		{
+			name: "literal brace shorthand",
+			args: []string{"log", "{decision,finding,bug,record,note}-add"},
+			contains: []string{
+				"Brace expansion is shell syntax",
+				"plan-manager log decision-add <plan-or-execution> --title <title>",
+				"plan-manager log finding-add <plan-or-execution> --title <title>",
+				"plan-manager log bug-add <plan-or-execution> --title <title>",
+				"plan-manager log record-add <plan-or-execution> --title <title>",
+				"plan-manager log note-add <plan-or-execution> --title <title>",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app, err := NewApp()
+			if err != nil {
+				t.Fatalf("NewApp() error: %v", err)
+			}
+			err = app.Run(tt.args)
+			if err == nil {
+				t.Fatalf("expected recovery-hinted error for %v", tt.args)
+			}
+			for _, want := range tt.contains {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("expected error to contain %q, got:\n%v", want, err)
+				}
+			}
+		})
+	}
+}
+
 // TestMetadata pins the values app.go declares — appName must match the
 // scenario id (post-substitution), appVersion must be non-empty.
 // Catches accidental edits that decouple the binary identity from the

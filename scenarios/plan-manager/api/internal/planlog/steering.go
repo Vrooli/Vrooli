@@ -21,6 +21,13 @@ func stepForEntry(e Entry) GuidedStep {
 			Label:  "Inspect this entry",
 			Reason: "Read the full entry, including any downstream reference.",
 			Argv:   []string{"log", "get", e.ID},
+		}, {
+			ID:                 "log-reassign",
+			Kind:               NextActionRecovery,
+			Label:              "Move this entry to another phase",
+			Reason:             "Use this if the computed phase scope is not the phase you intended.",
+			Argv:               []string{"log", "reassign", e.ID, "--phase", "<phase-id-or-ordinal>"},
+			ContentPlaceholder: "--phase <phase-id-or-ordinal>",
 		}},
 	}
 	switch e.Type {

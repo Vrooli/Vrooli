@@ -67,7 +67,13 @@ Goldens exist and reproduce current output verbatim.
 
 ### Execution Feedback
 
-Log typed work products as they happen via `plan-manager log {decision,finding,bug,record,note}-add <plan-or-execution> --phase <n> ...` (full command list: plan-manager CLI reference).
+Log typed work products as they happen. Example:
+
+```bash
+plan-manager log decision-add <execution-id> --phase <phase-id> --title "..." --detail "..."
+```
+
+Other variants: `finding-add`, `bug-add`, `record-add`, `note-add`. When the handle is an execution id, omitting `--phase` uses that execution's current phase; `--phase` also accepts a phase id or 1-based ordinal. If the computed scope is wrong, run `plan-manager log reassign <entry-id> --phase <phase-id-or-ordinal>`.
 
 On completion, write the learning-loop record — copy, fill the `<...>` placeholders, run:
 

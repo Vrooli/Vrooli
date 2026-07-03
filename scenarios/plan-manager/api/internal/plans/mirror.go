@@ -24,7 +24,13 @@ const (
 	// v3: Execution Feedback now stamps the pre-filled completion-record
 	// command (`swarm-manager records create ...` with scenario/title filled),
 	// so end-of-plan agents paste instead of reconstructing it from memory.
-	RendererVersion     = "plan-manager-renderer-v3"
+	//
+	// v4: Execution Feedback spells out concrete log add commands, phase ordinal
+	// support, current-phase inference, and the log reassign recovery command.
+	//
+	// v5: Execution Feedback replaces compact command alternatives with a
+	// concrete decision-add example and a short variant list.
+	RendererVersion     = "plan-manager-renderer-v5"
 	mirrorIndexFilename = "_index.json"
 )
 

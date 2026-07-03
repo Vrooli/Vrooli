@@ -261,7 +261,9 @@ func renderQualityNotice(p Plan, opts RenderOptions) string {
 // reconstructing it from memory at end-of-plan was a dominant failure source.
 func renderExecutionFeedback(p Plan) string {
 	var b strings.Builder
-	b.WriteString("Log typed work products as they happen via `plan-manager log {decision,finding,bug,record,note}-add <plan-or-execution> --phase <n> ...` (full command list: plan-manager CLI reference).\n\n")
+	b.WriteString("Log typed work products as they happen. Example:\n\n")
+	b.WriteString("```bash\nplan-manager log decision-add <execution-id> --phase <phase-id> --title \"...\" --detail \"...\"\n```\n\n")
+	b.WriteString("Other variants: `finding-add`, `bug-add`, `record-add`, `note-add`. When the handle is an execution id, omitting `--phase` uses that execution's current phase; `--phase` also accepts a phase id or 1-based ordinal. If the computed scope is wrong, run `plan-manager log reassign <entry-id> --phase <phase-id-or-ordinal>`.\n\n")
 	b.WriteString("On completion, write the learning-loop record — copy, fill the `<...>` placeholders, run:\n\n")
 
 	scenario := "<scenario>"

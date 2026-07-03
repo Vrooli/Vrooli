@@ -2,15 +2,32 @@ package planlog
 
 import "context"
 
+// PhaseRef is the small phase view the log domain needs for phase flag
+// normalization without importing the plans domain.
+type PhaseRef struct {
+	ID    string
+	Order int
+	Title string
+}
+
+// Scope is the resolved plan/execution context for a log entry.
+type Scope struct {
+	PlanID         string
+	ExecutionID    string
+	CurrentPhaseID string
+	Phases         []PhaseRef
+}
+
 // Resolver maps a `plan_or_execution` handle to the canonical plan id and (when
-// the handle was an execution) the execution id, so a ledger entry binds to the
-// right scope. Production wraps the plans Service (slug→id) and the execution
-// store (execution id → plan id); tests inject a fake. A nil Resolver degrades
-// to treating the handle verbatim as a plan id (no execution binding).
+// the handle was an execution) the execution id/current phase, so a ledger entry
+// binds to the right scope. Production wraps the plans Service (slug→id) and the
+// execution store (execution id → plan id/current phase); tests inject a fake. A
+// nil Resolver degrades to treating the handle verbatim as a plan id (no
+// execution binding).
 type Resolver interface {
-	// Resolve returns (planID, executionID). ok=false when the handle resolves to
+	// Resolve returns the canonical scope. ok=false when the handle resolves to
 	// neither a known plan nor a known execution.
-	Resolve(ctx context.Context, planOrExecution string) (planID, executionID string, ok bool, err error)
+	Resolve(ctx context.Context, planOrExecution string) (Scope, bool, error)
 }
 
 // BugReporter forwards a bug_report entry to the downstream issue tracker

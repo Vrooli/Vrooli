@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strconv"
 	"strings"
 
 	"plan-manager/internal/clock"
@@ -30,6 +31,7 @@ type Service interface {
 	ListEntries(ctx context.Context, f Filter) ([]Entry, Summary, GuidedStep, error)
 	GetEntry(ctx context.Context, id string) (Entry, GuidedStep, error)
 	UpdateEntry(ctx context.Context, id string, in UpdateInputs) (Entry, GuidedStep, error)
+	ReassignEntry(ctx context.Context, id string, phaseID string) (Entry, GuidedStep, error)
 	PromoteEntry(ctx context.Context, id string, toType EntryType, title, detail string, severity Severity) (Entry, Entry, GuidedStep, error)
 	SyncEntry(ctx context.Context, id string) (Entry, GuidedStep, error)
 
@@ -108,7 +110,11 @@ func (s *service) addEntry(ctx context.Context, typ EntryType, in AddInputs) (En
 	if title == "" {
 		return Entry{}, false, GuidedStep{}, ErrInvalidEntry{Reason: string(typ) + " title is required"}
 	}
-	planID, executionID, err := s.resolve(ctx, in.PlanOrExecution)
+	scope, err := s.resolve(ctx, in.PlanOrExecution)
+	if err != nil {
+		return Entry{}, false, GuidedStep{}, err
+	}
+	phaseID, err := normalizePhaseID(scope, in.PhaseID)
 	if err != nil {
 		return Entry{}, false, GuidedStep{}, err
 	}
@@ -120,7 +126,7 @@ func (s *service) addEntry(ctx context.Context, typ EntryType, in AddInputs) (En
 
 	// Idempotency + attribution dedup: a retry returns the existing entry rather
 	// than a duplicate. The unique indexes are the cross-process backstop.
-	if existing, ok, derr := s.findDuplicate(ctx, planID, executionID, typ, title, key, runID); derr != nil {
+	if existing, ok, derr := s.findDuplicate(ctx, scope.PlanID, scope.ExecutionID, typ, title, key, runID); derr != nil {
 		return Entry{}, false, GuidedStep{}, derr
 	} else if ok {
 		return existing, true, stepForEntry(existing), nil
@@ -130,9 +136,9 @@ func (s *service) addEntry(ctx context.Context, typ EntryType, in AddInputs) (En
 	e := Entry{
 		ID:               uuid.NewString(),
 		Type:             typ,
-		PlanID:           planID,
-		ExecutionID:      executionID,
-		PhaseID:          strings.TrimSpace(in.PhaseID),
+		PlanID:           scope.PlanID,
+		ExecutionID:      scope.ExecutionID,
+		PhaseID:          phaseID,
 		Title:            title,
 		Detail:           strings.TrimSpace(in.Detail),
 		Severity:         in.Severity,
@@ -153,7 +159,7 @@ func (s *service) addEntry(ctx context.Context, typ EntryType, in AddInputs) (En
 
 	if err := s.repo.SaveEntry(ctx, e); err != nil {
 		if isUniqueViolation(err) {
-			if winner, ok, derr := s.findDuplicate(ctx, planID, executionID, typ, title, key, runID); derr == nil && ok {
+			if winner, ok, derr := s.findDuplicate(ctx, scope.PlanID, scope.ExecutionID, typ, title, key, runID); derr == nil && ok {
 				return winner, true, stepForEntry(winner), nil
 			}
 		}
@@ -201,6 +207,31 @@ func (s *service) UpdateEntry(ctx context.Context, id string, in UpdateInputs) (
 		e.Triage = in.Triage
 	}
 	e.Evidence = append(e.Evidence, trimmedNonEmpty(in.AddEvidence)...)
+	e.UpdatedAt = s.now()
+	if err := s.repo.SaveEntry(ctx, e); err != nil {
+		return Entry{}, GuidedStep{}, err
+	}
+	return e, stepForEntry(e), nil
+}
+
+func (s *service) ReassignEntry(ctx context.Context, id string, phaseID string) (Entry, GuidedStep, error) {
+	e, err := s.load(ctx, id)
+	if err != nil {
+		return Entry{}, GuidedStep{}, err
+	}
+	handle := e.PlanID
+	if e.ExecutionID != "" {
+		handle = e.ExecutionID
+	}
+	scope, err := s.resolve(ctx, handle)
+	if err != nil {
+		return Entry{}, GuidedStep{}, err
+	}
+	normalized, err := normalizePhaseID(scope, phaseID)
+	if err != nil {
+		return Entry{}, GuidedStep{}, err
+	}
+	e.PhaseID = normalized
 	e.UpdatedAt = s.now()
 	if err := s.repo.SaveEntry(ctx, e); err != nil {
 		return Entry{}, GuidedStep{}, err
@@ -368,22 +399,28 @@ func (s *service) findPromotion(ctx context.Context, src Entry) (Entry, bool, er
 	return Entry{}, false, nil
 }
 
-func (s *service) resolve(ctx context.Context, handle string) (planID, executionID string, err error) {
+func (s *service) resolve(ctx context.Context, handle string) (Scope, error) {
 	handle = strings.TrimSpace(handle)
 	if handle == "" {
-		return "", "", ErrInvalidEntry{Reason: "a plan id/slug or execution id is required"}
+		return Scope{}, ErrInvalidEntry{Reason: "a plan id/slug or execution id is required"}
 	}
 	if s.resolver == nil {
-		return handle, "", nil
+		return Scope{PlanID: handle}, nil
 	}
-	planID, executionID, ok, err := s.resolver.Resolve(ctx, handle)
+	scope, ok, err := s.resolver.Resolve(ctx, handle)
 	if err != nil {
-		return "", "", err
+		return Scope{}, err
 	}
 	if !ok {
-		return "", "", ErrInvalidEntry{Reason: "plan or execution not found: " + handle}
+		return Scope{}, ErrInvalidEntry{Reason: "plan or execution not found: " + handle}
 	}
-	return planID, executionID, nil
+	if strings.TrimSpace(scope.PlanID) == "" {
+		return Scope{}, ErrInvalidEntry{Reason: "plan or execution not found: " + handle}
+	}
+	scope.PlanID = strings.TrimSpace(scope.PlanID)
+	scope.ExecutionID = strings.TrimSpace(scope.ExecutionID)
+	scope.CurrentPhaseID = strings.TrimSpace(scope.CurrentPhaseID)
+	return scope, nil
 }
 
 // resolveFilter resolves the filter's PlanID handle (which may be a slug or an
@@ -393,19 +430,50 @@ func (s *service) resolveFilter(ctx context.Context, f Filter) (Filter, error) {
 	if handle == "" || s.resolver == nil {
 		return f, nil
 	}
-	planID, executionID, ok, err := s.resolver.Resolve(ctx, handle)
+	scope, ok, err := s.resolver.Resolve(ctx, handle)
 	if err != nil {
 		return Filter{}, err
 	}
 	if !ok {
 		return f, nil // leave the handle as a literal plan id filter
 	}
-	f.PlanID = planID
-	if executionID != "" && f.ExecutionID == "" {
-		f.ExecutionID = executionID
+	f.PlanID = scope.PlanID
+	if scope.ExecutionID != "" && f.ExecutionID == "" {
+		f.ExecutionID = scope.ExecutionID
 		f.PlanID = "" // an execution scope is more specific than the plan
 	}
 	return f, nil
+}
+
+func normalizePhaseID(scope Scope, raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		if scope.ExecutionID != "" {
+			return strings.TrimSpace(scope.CurrentPhaseID), nil
+		}
+		return "", nil
+	}
+	for _, ph := range scope.Phases {
+		if raw == strings.TrimSpace(ph.ID) {
+			return strings.TrimSpace(ph.ID), nil
+		}
+	}
+	if n, err := strconv.Atoi(raw); err == nil {
+		if n <= 0 {
+			return "", ErrInvalidEntry{Reason: "phase ordinal must be 1 or greater"}
+		}
+		for i, ph := range scope.Phases {
+			order := ph.Order
+			if order <= 0 {
+				order = i + 1
+			}
+			if order == n {
+				return strings.TrimSpace(ph.ID), nil
+			}
+		}
+		return "", ErrInvalidEntry{Reason: "phase ordinal " + raw + " is not present on plan " + scope.PlanID}
+	}
+	return "", ErrInvalidEntry{Reason: "phase not found on plan " + scope.PlanID + ": " + raw}
 }
 
 func (s *service) load(ctx context.Context, id string) (Entry, error) {
