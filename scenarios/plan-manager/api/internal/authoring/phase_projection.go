@@ -65,7 +65,7 @@ func applyPhaseField(phase *PhaseDraft, field PhaseField, content string) error 
 	case PhaseFieldRelevantContext:
 		// Free-form phase context lines are classified as notes only — prose must
 		// never become an executable command argv. Executable setup context flows
-		// through typed context-submit/candidate acceptance.
+		// through typed context-submit.
 		phase.RelevantContext = append(phase.RelevantContext, noteContextItemsFromLines(content, phase.ID)...)
 	default:
 		return ErrInvalidSession{Reason: "unknown phase field " + string(field)}

@@ -26,15 +26,7 @@ type Service interface {
 	ListRelevantContext(ctx context.Context, sessionID, phaseID string) ([]planmodel.RelevantContextItem, GuidedStep, error)
 	UpdateRelevantContextItem(ctx context.Context, sessionID, phaseID, itemID string, item planmodel.RelevantContextItem) (Session, planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error)
 	RemoveRelevantContextItem(ctx context.Context, sessionID, phaseID, itemID string) (Session, []StructureViolation, GuidedStep, error)
-	DiscoverContextCandidates(ctx context.Context, sessionID string, concepts []string, complexity string, refresh bool) (Session, []ContextCandidate, GuidedStep, error)
-	ApplyContextDisposition(ctx context.Context, sessionID, batchID string, takes []ContextDispositionTake, drops []ContextDispositionDrop, sweepNote string, takeAll bool) (Session, ContextDispositionSummary, []StructureViolation, GuidedStep, error)
-	AcceptContextCandidate(ctx context.Context, sessionID, candidateID, phaseID string) (Session, ContextCandidate, planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error)
-	RejectContextCandidate(ctx context.Context, sessionID, candidateID, reason string) (Session, ContextCandidate, GuidedStep, error)
-	SuggestReferences(ctx context.Context, sessionID string) (Session, []ReferenceCandidate, GuidedStep, error)
-	ListReferenceCandidates(ctx context.Context, sessionID string) ([]ReferenceCandidate, GuidedStep, error)
-	AcceptReferenceCandidate(ctx context.Context, sessionID, candidateID string, edit *planmodel.Reference) (Session, ReferenceCandidate, []StructureViolation, GuidedStep, error)
-	RejectReferenceCandidate(ctx context.Context, sessionID, candidateID, reason string) (Session, ReferenceCandidate, GuidedStep, error)
-	ApplyReferenceDisposition(ctx context.Context, sessionID, batchID string, takes []ReferenceDispositionTake, drops []ReferenceDispositionDrop, sweepNote string, takeAll bool) (Session, ReferenceDispositionSummary, []StructureViolation, GuidedStep, error)
+	DiscoverSkillPack(ctx context.Context, sessionID string, concepts []string, complexity string) (Session, SkillPackResult, []planmodel.RelevantContextItem, []planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error)
 	AddPhase(ctx context.Context, sessionID string, title, intent string) (Session, PhaseDraft, []StructureViolation, GuidedStep, error)
 	MovePhase(ctx context.Context, sessionID, phaseID, beforePhaseID, afterPhaseID string) (Session, PhaseDraft, []StructureViolation, GuidedStep, error)
 	GetPhase(ctx context.Context, sessionID, phaseID string) (PhaseDraft, GuidedStep, error)
@@ -49,8 +41,7 @@ type service struct {
 	writer          PlanWriter
 	reader          PlanReader
 	anchor          AnchorIntentDeriver
-	suggester       ReferenceSuggester
-	context         ContextDiscoverer
+	skills          SkillPackDiscoverer
 	skillSteer      SkillApplicabilityResolver
 	commands        CommandReferenceValidator
 	resolver        ReferenceResolver
@@ -63,10 +54,6 @@ type service struct {
 	sessionLocks    map[string]*sync.Mutex
 	lifecycleCtx    context.Context
 	lifecycleCancel context.CancelFunc
-	prefetchWG      sync.WaitGroup
-	prefetchMu      sync.Mutex
-	prefetchDone    map[string]chan struct{}
-	prefetchEnabled bool
 }
 
 // PosturePreparer stamps the derived work posture onto a draft plan before
@@ -88,18 +75,13 @@ type Deps struct {
 	Writer         PlanWriter
 	Reader         PlanReader
 	Anchor         AnchorIntentDeriver
-	Suggester      ReferenceSuggester
-	Context        ContextDiscoverer
+	Skills         SkillPackDiscoverer
 	SkillResolver  SkillApplicabilityResolver
 	Commands       CommandReferenceValidator
 	Resolver       ReferenceResolver
 	TemplateSeeder TemplateSeeder
 	Renderer       PlanRenderer
 	Posture        PosturePreparer
-	// DisableContextPrefetch is for deterministic tests and special embedders.
-	// Production leaves this false so StartSession warms the context-discovery
-	// batch in the background.
-	DisableContextPrefetch bool
 	// StorePath is the resolved physical path of the plans SQLite store this
 	// process writes through. Finalize reports it so a successful response
 	// names WHERE the plan row lives (store identity, not just an id). Empty
@@ -128,8 +110,7 @@ func NewService(d Deps) Service {
 		writer:          d.Writer,
 		reader:          d.Reader,
 		anchor:          d.Anchor,
-		suggester:       d.Suggester,
-		context:         d.Context,
+		skills:          d.Skills,
 		skillSteer:      resolverOrNoop(d.SkillResolver),
 		commands:        d.Commands,
 		resolver:        d.Resolver,
@@ -141,8 +122,6 @@ func NewService(d Deps) Service {
 		sessionLocks:    map[string]*sync.Mutex{},
 		lifecycleCtx:    lifecycleCtx,
 		lifecycleCancel: lifecycleCancel,
-		prefetchDone:    map[string]chan struct{}{},
-		prefetchEnabled: !d.DisableContextPrefetch,
 	}
 }
 
@@ -177,75 +156,7 @@ func (s *service) StartSession(ctx context.Context, title, slug, templateID stri
 	if err := s.store.Save(ctx, sess); err != nil {
 		return Session{}, GuidedStep{}, err
 	}
-	s.prefetchContextDiscovery(sess.ID)
 	return sess, stepForSession(sess), nil
-}
-
-func (s *service) prefetchContextDiscovery(sessionID string) {
-	if !s.prefetchEnabled || s.context == nil {
-		return
-	}
-	done := make(chan struct{})
-	s.prefetchMu.Lock()
-	s.prefetchDone[sessionID] = done
-	s.prefetchMu.Unlock()
-	s.prefetchWG.Add(1)
-	go func() {
-		defer s.prefetchWG.Done()
-		defer func() {
-			s.prefetchMu.Lock()
-			if s.prefetchDone[sessionID] == done {
-				delete(s.prefetchDone, sessionID)
-			}
-			close(done)
-			s.prefetchMu.Unlock()
-		}()
-		ctx, cancel := context.WithCancel(s.lifecycleCtx)
-		defer cancel()
-		sess, err := s.load(ctx, sessionID)
-		if err != nil {
-			return
-		}
-		result, err := s.context.DiscoverContext(ctx, sess.Title, nil, "")
-		if err != nil {
-			return
-		}
-		for _, suggestion := range s.skillSteer.SuggestSkills(ctx, sessionBoundary(sess)) {
-			if candidate, ok := steeredSkillCandidate(suggestion); ok {
-				result.Candidates = append(result.Candidates, candidate)
-			}
-		}
-		for i := range result.Candidates {
-			result.Candidates[i] = normalizeContextCandidate(result.Candidates[i])
-		}
-		_, _ = s.withSessionLock(ctx, sessionID, func(sess *Session) (bool, error) {
-			if _, ok := latestPendingDiscoveryBatch(*sess); ok {
-				return false, nil
-			}
-			mergeContextDiscoveryBatchWithSource(sess, nil, "", result, "prefetch")
-			return true, nil
-		})
-	}()
-}
-
-func (s *service) pendingContextPrefetch(sessionID string) <-chan struct{} {
-	s.prefetchMu.Lock()
-	defer s.prefetchMu.Unlock()
-	return s.prefetchDone[sessionID]
-}
-
-// WaitForContextPrefetch is a test hook for the asynchronous author-start
-// prefetch worker. It is intentionally not part of the public Service interface.
-func (s *service) WaitForContextPrefetch() {
-	s.prefetchWG.Wait()
-}
-
-// CancelContextPrefetch is a test/shutdown hook for background discovery.
-func (s *service) CancelContextPrefetch() {
-	if s.lifecycleCancel != nil {
-		s.lifecycleCancel()
-	}
-	s.prefetchWG.Wait()
 }
 
 // GetSession is the explicit full-state read. Mutations return only focused

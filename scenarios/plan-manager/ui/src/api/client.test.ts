@@ -121,12 +121,24 @@ describe("Connect API wrapper helpers", () => {
     const violation = { sectionKey: "purpose" };
     const result = { source: "references" };
     const item = { id: "ctx-1" };
-    const candidate = { id: "candidate-1" };
     const plan = { id: "plan-1" };
     // Focused response contract: mutations return progress + a summary, never the
     // full session. Full state is read explicitly via getSession.
     const progress = { sessionId: "session-1" };
     const summary = { objectKind: "section" };
+    const skillPack = {
+      addedItems: [item],
+      keptItems: [],
+      readCommand: "prompt-manager skill read implementation-plan-authoring",
+      recommendedReadCommand: "prompt-manager skill read implementation-plan-authoring",
+      budgetStatus: "ok",
+      resultsSummary: "prompt-manager returned 1 skill(s)",
+      degraded: false,
+      degradedReason: "",
+      progress,
+      violations: [violation],
+      step,
+    };
     const client = {
       startSession: vi.fn().mockResolvedValue({ session, step }),
       getSession: vi.fn().mockResolvedValue({ session, step }),
@@ -139,13 +151,7 @@ describe("Connect API wrapper helpers", () => {
       listRelevantContext: vi.fn().mockResolvedValue({ items: [item], step }),
       updateRelevantContextItem: vi.fn().mockResolvedValue({ item, summary, progress, violations: [violation], step }),
       removeRelevantContextItem: vi.fn().mockResolvedValue({ summary, progress, violations: [violation], step }),
-      discoverContextCandidates: vi.fn().mockResolvedValue({ candidates: [candidate], progress, step }),
-      acceptContextCandidate: vi.fn().mockResolvedValue({ candidate, item, summary, progress, violations: [violation], step }),
-      rejectContextCandidate: vi.fn().mockResolvedValue({ candidate, progress, step }),
-      suggestReferences: vi.fn().mockResolvedValue({ candidates: [candidate], progress, step }),
-      listReferenceCandidates: vi.fn().mockResolvedValue({ candidates: [candidate], step }),
-      acceptReferenceCandidate: vi.fn().mockResolvedValue({ candidate, summary, progress, violations: [violation], step }),
-      rejectReferenceCandidate: vi.fn().mockResolvedValue({ candidate, progress, step }),
+      discoverSkillPack: vi.fn().mockResolvedValue(skillPack),
       addPhase: vi.fn().mockResolvedValue({ phase, summary, progress, violations: [violation], step }),
       getPhase: vi.fn().mockResolvedValue({ phase, step }),
       submitPhaseField: vi.fn().mockResolvedValue({ phase, summary, progress, violations: [violation], step }),
@@ -167,13 +173,7 @@ describe("Connect API wrapper helpers", () => {
     await expect(authoring.listRelevantContext("session-1", "phase-1")).resolves.toEqual({ items: [item], step });
     await expect(authoring.updateRelevantContextItem("session-1", "phase-1", "ctx-1", item as never)).resolves.toEqual({ item, summary, progress, violations: [violation], step });
     await expect(authoring.removeRelevantContextItem("session-1", "phase-1", "ctx-1")).resolves.toEqual({ summary, progress, violations: [violation], step });
-    await expect(authoring.discoverContextCandidates("session-1", ["context"], "architectural")).resolves.toEqual({ candidates: [candidate], progress, step });
-    await expect(authoring.acceptContextCandidate("session-1", "candidate-1", "phase-1")).resolves.toEqual({ candidate, item, summary, progress, violations: [violation], step });
-    await expect(authoring.rejectContextCandidate("session-1", "candidate-1", "duplicate")).resolves.toEqual({ candidate, progress, step });
-    await expect(authoring.suggestReferences("session-1")).resolves.toEqual({ candidates: [candidate], progress, step });
-    await expect(authoring.listReferenceCandidates("session-1")).resolves.toEqual({ candidates: [candidate], step });
-    await expect(authoring.acceptReferenceCandidate("session-1", "candidate-1")).resolves.toEqual({ candidate, summary, progress, violations: [violation], step });
-    await expect(authoring.rejectReferenceCandidate("session-1", "candidate-1", "unrelated")).resolves.toEqual({ candidate, progress, step });
+    await expect(authoring.discoverSkillPack("session-1", ["context"], "architectural")).resolves.toEqual(skillPack);
     await expect(authoring.addPhase("session-1", "Title", "Intent")).resolves.toEqual({ phase, summary, progress, violations: [violation], step });
     await expect(authoring.getPhase("session-1", "phase-1")).resolves.toEqual({ phase, step });
     await expect(authoring.submitPhaseField("session-1", "phase-1", "acceptance", "Done")).resolves.toEqual({ phase, summary, progress, violations: [violation], step });
@@ -192,13 +192,7 @@ describe("Connect API wrapper helpers", () => {
     expect(client.getSession).toHaveBeenCalledWith({ sessionId: "session-1" });
     expect(client.updateRelevantContextItem).toHaveBeenCalledWith({ sessionId: "session-1", phaseId: "phase-1", itemId: "ctx-1", item });
     expect(client.removeRelevantContextItem).toHaveBeenCalledWith({ sessionId: "session-1", phaseId: "phase-1", itemId: "ctx-1" });
-    expect(client.discoverContextCandidates).toHaveBeenCalledWith({ sessionId: "session-1", concepts: ["context"], complexity: "architectural" });
-    expect(client.acceptContextCandidate).toHaveBeenCalledWith({ sessionId: "session-1", candidateId: "candidate-1", phaseId: "phase-1" });
-    expect(client.rejectContextCandidate).toHaveBeenCalledWith({ sessionId: "session-1", candidateId: "candidate-1", reason: "duplicate" });
-    expect(client.suggestReferences).toHaveBeenCalledWith({ sessionId: "session-1" });
-    expect(client.listReferenceCandidates).toHaveBeenCalledWith({ sessionId: "session-1" });
-    expect(client.acceptReferenceCandidate).toHaveBeenCalledWith({ sessionId: "session-1", candidateId: "candidate-1", reference: undefined });
-    expect(client.rejectReferenceCandidate).toHaveBeenCalledWith({ sessionId: "session-1", candidateId: "candidate-1", reason: "unrelated" });
+    expect(client.discoverSkillPack).toHaveBeenCalledWith({ sessionId: "session-1", concepts: ["context"], complexity: "architectural" });
     expect(client.addPhase).toHaveBeenCalledWith({ sessionId: "session-1", title: "Title", intent: "Intent" });
     expect(client.getPhase).toHaveBeenCalledWith({ sessionId: "session-1", phaseId: "phase-1" });
     expect(client.submitPhaseField).toHaveBeenCalledWith({ sessionId: "session-1", phaseId: "phase-1", field: "acceptance", content: "Done" });

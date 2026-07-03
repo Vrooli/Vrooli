@@ -175,26 +175,6 @@ func normalizeSkillContextTarget(item planmodel.RelevantContextItem) planmodel.R
 	return item
 }
 
-func normalizeContextCandidate(candidate ContextCandidate) ContextCandidate {
-	candidate.ID = strings.TrimSpace(candidate.ID)
-	if candidate.ID == "" {
-		candidate.ID = uuid.NewString()
-	}
-	candidate.Concept = strings.TrimSpace(candidate.Concept)
-	candidate.Source = strings.TrimSpace(candidate.Source)
-	candidate.Detail = strings.TrimSpace(candidate.Detail)
-	candidate.RejectionReason = strings.TrimSpace(candidate.RejectionReason)
-	if candidate.Status == "" {
-		candidate.Status = ContextCandidatePending
-	}
-	candidate.Item = normalizeContextItem(candidate.Item, "")
-	candidate.SetupLine = planmodel.RelevantContextSetupLine(candidate.Item)
-	if candidate.Degraded && candidate.Item.Status == planmodel.RelevantContextStatusReady {
-		candidate.Item.Status = planmodel.RelevantContextStatusDegraded
-	}
-	return candidate
-}
-
 func defaultRepeatForScope(scope planmodel.RelevantContextScope, current planmodel.RelevantContextRepeatPolicy) planmodel.RelevantContextRepeatPolicy {
 	if current != "" && !(scope == planmodel.RelevantContextScopePhase && current == planmodel.RelevantContextOncePerExecution) {
 		return current
@@ -203,30 +183,6 @@ func defaultRepeatForScope(scope planmodel.RelevantContextScope, current planmod
 		return planmodel.RelevantContextPhaseEntry
 	}
 	return planmodel.RelevantContextOncePerExecution
-}
-
-func degradedContextProbeNotes(title string, concepts []string, probe string, detail string) []ProbeNote {
-	concepts = normalizeConcepts(concepts, title)
-	out := make([]ProbeNote, 0, len(concepts))
-	for _, concept := range concepts {
-		out = append(out, ProbeNote{
-			Probe:    strings.TrimSpace(probe),
-			Concept:  concept,
-			Degraded: true,
-			Detail:   strings.TrimSpace(detail),
-		})
-	}
-	return out
-}
-
-func indexOfCandidate(candidates []ContextCandidate, id string) int {
-	id = strings.TrimSpace(id)
-	for i := range candidates {
-		if candidates[i].ID == id || (id != "" && candidates[i].Handle == id) {
-			return i
-		}
-	}
-	return -1
 }
 
 func indexOfContextItem(items []planmodel.RelevantContextItem, id string) int {
@@ -239,6 +195,30 @@ func indexOfContextItem(items []planmodel.RelevantContextItem, id string) int {
 	return -1
 }
 
+func indexOfContextItemByKey(items []planmodel.RelevantContextItem, item planmodel.RelevantContextItem) int {
+	key := contextItemKey(item)
+	if key == "" {
+		return -1
+	}
+	for i := range items {
+		if contextItemKey(items[i]) == key {
+			return i
+		}
+	}
+	return -1
+}
+
+func contextItemKey(item planmodel.RelevantContextItem) string {
+	target := strings.ToLower(strings.TrimSpace(item.Target))
+	if target == "" {
+		target = strings.ToLower(strings.TrimSpace(item.Command))
+	}
+	if target == "" {
+		return ""
+	}
+	return string(item.Kind) + "\x00" + target
+}
+
 func removeContextItemAt(items []planmodel.RelevantContextItem, pos int) []planmodel.RelevantContextItem {
 	out := make([]planmodel.RelevantContextItem, 0, len(items)-1)
 	out = append(out, items[:pos]...)
@@ -249,10 +229,9 @@ func removeContextItemAt(items []planmodel.RelevantContextItem, pos int) []planm
 // noteContextItemsFromLines classifies every free-form line of a phase
 // relevant_context submission as a NOTE (never an executable skill/command), so
 // prose can no longer silently become a bad `prompt-manager skill read ...` argv.
-// Executable setup context must flow through typed context-submit/candidate
-// acceptance, which carries an explicit kind/command (contract decision §6). A
-// NO_CONTEXT: line is preserved verbatim so the no-context checkpoint still
-// recognizes it.
+// Executable setup context must flow through typed context-submit, which carries
+// an explicit kind/command. A NO_CONTEXT: line is preserved verbatim so the
+// no-context checkpoint still recognizes it.
 func noteContextItemsFromLines(content, phaseID string) []planmodel.RelevantContextItem {
 	var out []planmodel.RelevantContextItem
 	for _, line := range splitLines(content) {

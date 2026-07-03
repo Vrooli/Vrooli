@@ -73,11 +73,11 @@ func stepForSection(sess Session, sec Section) GuidedStep {
 	if sec.Key == SectionRelevantContext {
 		step.NextActions = []NextAction{
 			{
-				ID:                 "discover-context",
+				ID:                 "discover-skill-pack",
 				Kind:               NextActionRecommended,
-				Label:              "Discover context candidates",
-				Reason:             "Relevant context should come from decomposed discovery concepts before manual acceptance.",
-				Argv:               []string{"author", "context-discover", sessionHandle(sess), "--concepts", "<concept one>,<concept two>", "--complexity", "architectural"},
+				Label:              "Discover skill pack",
+				Reason:             "Bootstrap a professional prompt-manager skill pack; keep most returned skills unless clearly irrelevant.",
+				Argv:               []string{"author", "skill-pack", sessionHandle(sess), "--concepts", "<concept one>,<concept two>", "--complexity", "architectural"},
 				ContentPlaceholder: "<concept one>,<concept two>",
 			},
 			{
@@ -134,19 +134,16 @@ func sectionBaseStep(key SectionKey) GuidedStep {
 }
 
 // referencesRecoveryActions are the concrete actions surfaced for the references
-// section. Suggesting from search-hub is recommended (the Answer projection
-// discovers connected locations); manual submission is the alternative when the
-// author already knows the touched files; and an explicit NO_CODE_REFS fallback
-// ensures an empty suggestion result or a genuinely doc-only plan still has an
-// exact next command instead of a dead end.
+// section. Plan-manager no longer mirrors search-hub suggestions; agents should
+// run search-hub directly when attribution/confidence matters, then submit the
+// useful durable locators here.
 func referencesRecoveryActions(sess Session) []NextAction {
 	return []NextAction{
 		{
-			ID:     "suggest-references",
+			ID:     "search-references",
 			Kind:   NextActionRecommended,
-			Label:  "Suggest references",
-			Reason: "Discover connected [CODE:]/[DOC:]/[REQ:] locators from search-hub, then apply the curated batch.",
-			Argv:   []string{"author", "suggest-references", sessionHandle(sess)},
+			Label:  "Run search-hub directly",
+			Reason: "Run `search-hub query \"<intent>\" --type record,doc,skill`, inspect native confidence and attribution, then submit only durable [CODE:]/[DOC:]/[REQ:] locators that matter.",
 		},
 		{
 			ID:                 "submit-references",
@@ -160,68 +157,10 @@ func referencesRecoveryActions(sess Session) []NextAction {
 			ID:                 "submit-no-code-refs",
 			Kind:               NextActionRecovery,
 			Label:              "Record NO_CODE_REFS fallback",
-			Reason:             "Use when suggestions found no targets and there are genuinely no connected code/doc/req references — record an honest reason instead of leaving references blank.",
+			Reason:             "Use when direct search found no targets and there are genuinely no connected code/doc/req references — record an honest reason instead of leaving references blank.",
 			Argv:               []string{"author", "section-submit", sessionHandle(sess), "--section", string(SectionReferences), "--content", "NO_CODE_REFS: <reason there are no connected references>"},
 			ContentPlaceholder: "NO_CODE_REFS: <reason there are no connected references>",
 		},
-	}
-}
-
-// stepForReferenceCandidates is the guided step after SuggestReferences (mirrors
-// stepForContextDiscovery): review the curated locator batch and apply it. Raw
-// suggestions never satisfy the references gate — only accepted locators
-// (written into the references section) do.
-func stepForReferenceCandidates(sess Session) GuidedStep {
-	batch, _ := latestPendingReferenceBatch(sess)
-	summary := "No reference candidates are pending. Record connected references manually, or record NO_CODE_REFS when none exist."
-	requiredInputs := []string{"references or NO_CODE_REFS reason"}
-	examples := []string{"author section-submit " + sessionHandle(sess) + " --section references --content '[CODE: path/to/file.go]'", "author section-submit " + sessionHandle(sess) + " --section references --content 'NO_CODE_REFS: <reason>'"}
-	actions := []NextAction{{
-		ID:                 "submit-references",
-		Kind:               NextActionRecommended,
-		Label:              "Submit references manually",
-		Reason:             "List the connected [CODE:]/[DOC:]/[REQ:] locators you are touching, one per line.",
-		Argv:               []string{"author", "section-submit", sessionHandle(sess), "--section", string(SectionReferences), "--content", "[CODE: path/to/file.go]"},
-		ContentPlaceholder: "[CODE: path/to/file.go]",
-	}}
-	if batch.ID != "" {
-		summary = "Review the curated search-hub reference suggestions and apply the batch. Suggestions do not enter the plan until accepted."
-		requiredInputs = []string{"reference-apply decision or NO_CODE_REFS reason"}
-		examples = []string{"author reference-apply " + sessionHandle(sess) + " --take r1 --note 'reviewed references'", "author reference-reject " + sessionHandle(sess) + " r1 --reason 'unrelated subsystem'"}
-		actions = []NextAction{
-			{
-				ID:     "list-reference-candidates",
-				Kind:   NextActionRecommended,
-				Label:  "List reference candidates",
-				Reason: "Review the suggested locators before applying the batch.",
-				Argv:   []string{"author", "reference-list", sessionHandle(sess)},
-			},
-			{
-				ID:     "apply-reference-candidates",
-				Kind:   NextActionRecommended,
-				Label:  "Apply reference batch",
-				Reason: "Accept selected reference handles and sweep the remaining shortlist in one call.",
-				Argv:   []string{"author", "reference-apply", sessionHandle(sess), "--batch", batch.ID, "--take", "r1", "--note", "reviewed shortlist"},
-			},
-		}
-	}
-	actions = append(actions, NextAction{
-		ID:                 "submit-no-code-refs",
-		Kind:               NextActionRecovery,
-		Label:              "Record NO_CODE_REFS fallback",
-		Reason:             "Use when no suggestion fits and there are genuinely no connected references.",
-		Argv:               []string{"author", "section-submit", sessionHandle(sess), "--section", string(SectionReferences), "--content", "NO_CODE_REFS: <reason there are no connected references>"},
-		ContentPlaceholder: "NO_CODE_REFS: <reason there are no connected references>",
-	})
-	return GuidedStep{
-		StepKind:       "reference_candidates",
-		Title:          "Reference Candidates",
-		Summary:        summary,
-		Instructions:   []string{"Take only locators the plan genuinely depends on or changes.", "Use a drop reason only for high-confidence suggestions that should not land.", "If no suggestion fits and there are no connected references, record a NO_CODE_REFS reason instead."},
-		RequiredInputs: requiredInputs,
-		Examples:       examples,
-		CommonMistakes: []string{"Accepting every suggestion without judgment.", "Treating a raw suggestion as if it already satisfied the references gate."},
-		NextActions:    actions,
 	}
 }
 
@@ -313,37 +252,42 @@ func anchorBaselineName(title, slug string) string {
 	return base + "-baseline"
 }
 
-// stepForGlobalContextCheckpoint is the explicit plan-wide relevant-context
-// checkpoint the continue loop surfaces before phase work. The agent resolves it
-// by discovering+accepting context, submitting a known item, and explicitly
-// deciding skill setup, or by recording an explicit NO_CONTEXT skip reason.
+// stepForGlobalContextCheckpoint is advisory plan-wide setup guidance. It
+// bootstraps a prompt-manager skill pack and lets agents add any durable context
+// they decide matters after direct search-hub discovery.
 func stepForGlobalContextCheckpoint(sess Session) GuidedStep {
 	return GuidedStep{
 		StepKind: "global_relevant_context",
 		Title:    "Global Relevant Context",
-		Summary:  "Decide the plan-wide setup context and skill setup a fresh or resumed agent should load before any phase. The skill checkpoint demands evidence of a sweep: discovery ran for your concepts and the curated batch was applied — or an honest NO_SKILL_CONTEXT skip.",
+		Summary:  "Bootstrap a plan-wide prompt-manager skill pack and add any durable setup context that will help a fresh or resumed agent.",
 		Instructions: []string{
 			"Decompose the work into 2-5 discovery concepts using four lenses: domain area, technology/stack, problem type, and scenario surface (e.g. a mic bug in a React UI → 'web-console voice', 'react state machines', 'debugging', 'ui hooks').",
 			"Phrase each concept as activity + surface ('refactor duplicated CLI rendering'), not a bare noun.",
 			"Pick the complexity that matches the work: minor = bug fix/small tweak; moderate = new feature/refactor; major = multi-file feature/new endpoint; architectural = cross-scenario/new system design.",
-			"Run context-discover with those concepts — the probes execute server-side and return a curated shortlist plus degraded probe notes.",
-			"Review the proposal, then run context-apply once: take only items whose concrete improvement you can articulate; sweep the rest with an optional note. High-confidence drops need a reason.",
-			"If discovery finds no applicable internal skill, record NO_SKILL_CONTEXT with the reason instead of accepting filler.",
-			"If this plan genuinely needs no plan-wide setup context at all, record an explicit NO_CONTEXT reason.",
+			"Run skill-pack with those concepts; prompt-manager returns a broad professional skill pack and plan-manager auto-adds it as global relevant context.",
+			"Keep most returned skills unless clearly irrelevant. These skills improve execution quality; they do not have to be narrowly task-literal.",
+			"Use search-hub directly for docs/records/code when useful, inspect its native confidence and attribution, then submit only durable context or references.",
 			"Phase-specific setup belongs on the phase, not here.",
 		},
-		RequiredInputs: []string{"2-5 decomposed discovery concepts + complexity", "an applied context discovery batch", "or explicit NO_SKILL_CONTEXT / NO_CONTEXT reason"},
+		RequiredInputs: []string{"recommended: skill-pack with 2-5 decomposed concepts"},
 		Checklist:      sessionChecklist(sess),
-		Examples:       []string{"author context-discover " + sessionHandle(sess) + " --concepts 'plan-manager execution resume' --complexity architectural", "author context-apply " + sessionHandle(sess) + " --take c1 --note 'reviewed shortlist'", "author context-submit " + sessionHandle(sess) + " --kind skill --label implementation-plan-authoring --target implementation-plan-authoring --reason 'authoring standards shape the plan' --instruction 'Load before implementation planning' --required", "author section-submit " + sessionHandle(sess) + " --section relevant_context --content 'NO_SKILL_CONTEXT: no internal skill applies beyond accepted docs/search setup.'"},
-		CommonMistakes: []string{"Skipping plan-wide context by leaving it empty.", "Adding docs/search context but never deciding skill setup.", "Putting phase-only setup in global context."},
+		Examples:       []string{"author skill-pack " + sessionHandle(sess) + " --concepts 'plan-manager execution resume, prompt-manager skill discovery, authoring validation' --complexity architectural", "search-hub query 'plan-manager execution resume authoring validation' --type record,doc,skill", "author context-submit " + sessionHandle(sess) + " --kind skill --label implementation-plan-authoring --target implementation-plan-authoring --reason 'authoring standards shape the plan' --instruction 'Load before implementation planning' --required"},
+		CommonMistakes: []string{"Treating skill results as if only one can be kept.", "Only accepting skills that literally name the task.", "Putting phase-only setup in global context."},
 		NextActions: []NextAction{
 			{
-				ID:                 "discover-context",
+				ID:                 "discover-skill-pack",
 				Kind:               NextActionRecommended,
-				Label:              "Discover global context candidates",
-				Reason:             "Generate a curated plan-wide setup proposal to review and apply.",
-				Argv:               []string{"author", "context-discover", sessionHandle(sess), "--concepts", "<concept one>,<concept two>", "--complexity", "architectural"},
+				Label:              "Discover skill pack",
+				Reason:             "Auto-add a broad prompt-manager skill pack for professional implementation quality.",
+				Argv:               []string{"author", "skill-pack", sessionHandle(sess), "--concepts", "<concept one>,<concept two>", "--complexity", "architectural"},
 				ContentPlaceholder: "<concept one>,<concept two>",
+			},
+			{
+				ID:                 "search-context-directly",
+				Kind:               NextActionAlternative,
+				Label:              "Run search-hub directly",
+				Reason:             "Run `search-hub query \"<intent>\" --type record,doc,skill`, inspect native confidence and attribution for docs/records/code, then submit only durable context.",
+				ContentPlaceholder: "<intent>",
 			},
 			{
 				ID:                 "submit-global-context",
@@ -361,54 +305,8 @@ func stepForGlobalContextCheckpoint(sess Session) GuidedStep {
 				Argv:               []string{"author", "context-submit", sessionHandle(sess), "--kind", "skill", "--label", "<skill>", "--target", "<skill>", "--reason", "<why this skill matters>", "--instruction", "Load this internal skill before implementation.", "--required"},
 				ContentPlaceholder: "<skill> / <why this skill matters>",
 			},
-			{
-				ID:                 "skip-skill-context",
-				Kind:               NextActionAlternative,
-				Label:              "Record no skill context (with reason)",
-				Reason:             "Use only when discovery found no relevant internal skill for this plan.",
-				Argv:               []string{"author", "section-submit", sessionHandle(sess), "--section", string(SectionRelevantContext), "--content", "NO_SKILL_CONTEXT: <reason>"},
-				ContentPlaceholder: "NO_SKILL_CONTEXT: <reason>",
-			},
-			{
-				ID:                 "skip-global-context",
-				Kind:               NextActionAlternative,
-				Label:              "Record no global context (with reason)",
-				Reason:             "Use only when the plan genuinely needs no plan-wide setup context.",
-				Argv:               []string{"author", "section-submit", sessionHandle(sess), "--section", string(SectionRelevantContext), "--content", "NO_CONTEXT: <reason>"},
-				ContentPlaceholder: "NO_CONTEXT: <reason>",
-			},
 		},
 	}
-}
-
-func stepForContextDiscovery(sess Session) GuidedStep {
-	batch, _ := latestPendingDiscoveryBatch(sess)
-	batchID := batch.ID
-	return GuidedStep{
-		StepKind:       "context_discovery",
-		Title:          "Context Discovery",
-		Summary:        "Review the curated context proposal, then apply the batch in one call.",
-		Instructions:   []string{"Take only candidates that materially reduce implementation ambiguity.", "Use handle:phase-id for phase-specific setup.", "Sweep noisy or duplicate candidates with the batch note; give a reason when dropping a high-confidence candidate."},
-		RequiredInputs: []string{"context-apply for the pending batch"},
-		Examples:       []string{"author context-apply " + sessionHandle(sess) + " --batch " + batchID + " --take c1 --note 'reviewed shortlist'", "author context-apply " + sessionHandle(sess) + " --batch " + batchID + " --take c2:phase-1 --drop c3='covered by c2'"},
-		CommonMistakes: []string{"Accepting every candidate.", "Leaving a curated batch unapplied.", "Accepting a command candidate without inspecting whether it is current."},
-		NextActions: []NextAction{
-			{
-				ID:     "apply-context-batch",
-				Kind:   NextActionRecommended,
-				Label:  "Apply context discovery batch",
-				Reason: "Close the curated proposal by taking selected handles and sweeping the rest.",
-				Argv:   []string{"author", "context-apply", sessionHandle(sess), "--batch", batchID, "--take", "<handle>", "--note", "reviewed shortlist"},
-			},
-		},
-	}
-}
-
-func stepAfterContextDiscovery(sess Session) GuidedStep {
-	if _, ok := latestPendingDiscoveryBatch(sess); ok {
-		return stepForContextDiscovery(sess)
-	}
-	return stepForCurrentSessionState(sess)
 }
 
 func stepForPhase(sess Session, phase PhaseDraft) GuidedStep {
@@ -451,7 +349,7 @@ func stepForPhase(sess Session, phase PhaseDraft) GuidedStep {
 			StepKind:       "phase_review",
 			Title:          "Phase Review",
 			Summary:        "This phase has the required fields. Add relevant context or reminders if useful.",
-			Instructions:   []string{"Use context-submit or context-accept for phase-specific setup.", "Use reminders or handoff notes for phase-specific decisions/findings/records the implementation agent should be especially likely to capture.", "Move to the next incomplete phase when ready."},
+			Instructions:   []string{"Use context-submit for phase-specific setup.", "Use reminders or handoff notes for phase-specific decisions/findings/records the implementation agent should be especially likely to capture.", "Move to the next incomplete phase when ready."},
 			Examples:       []string{"author phase-next " + sessionHandle(sess)},
 			CommonMistakes: []string{"Repeating whole-plan context in every phase.", "Adding generic reminders with no phase-specific value.", "Duplicating the default Execution Feedback section in phase prose."},
 			Checklist:      phaseChecklist(phase),

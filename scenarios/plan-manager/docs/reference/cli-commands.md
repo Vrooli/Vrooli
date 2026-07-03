@@ -133,9 +133,7 @@ after the subcommand gets a placement hint at the point of error.
 
 The authoring response contract is **focused for small/local models**: normal
 mutations (`section-submit`, `phase-submit`, `phase-add`, `autofill`,
-`context-submit`, `context-update`, `context-remove`, `context-accept`,
-`context-reject`, `context-discover`, `context-apply`, `suggest-references`,
-`reference-accept`, `reference-reject`, `reference-apply`) **do not echo the
+`skill-pack`, `context-submit`, `context-update`, `context-remove`) **do not echo the
 full session**. With
 `--json` you get a compact `AuthoringProgress` (current section/phase,
 mandatory-sections + phases counts, `remaining_required_inputs[]`,
@@ -147,6 +145,7 @@ whole `AuthoringSession`. To read the whole session graph, ask for it explicitly
 |---|---|---|
 | `plan-manager author start --title <title> [--slug <slug>]` | `AuthoringService.StartSession` | Starts a session with a readable title-derived handle when `--slug` is omitted. UUIDs remain supported, but human guidance prefers the readable handle. |
 | `plan-manager author get-session <session>` | `AuthoringService.GetSession` | **Explicit full-state read.** Returns the whole `AuthoringSession`; use it for read-after-write when you need the full graph (mutations no longer echo it). `author preview` / `plans render` return the full rendered markdown. |
+| `plan-manager author skill-pack <session> --concepts "<c1>,<c2>" [--complexity architectural]` | `AuthoringService.DiscoverSkillPack` | Runs `prompt-manager discover --type skill --json`, auto-adds the returned skills as global relevant context, and prints the `prompt-manager skill read ...` command plus budget status. Keep most returned skills unless clearly irrelevant. |
 | `plan-manager author context-submit <session> --kind command --label <label> --command <command> [--argv-json <json-array>]` | `AuthoringService.SubmitRelevantContextItem` | Records executable setup context. Use `--argv-json '["search-hub","query","shared drift hygiene","--type","record,doc","--json"]'` for quoting-sensitive commands; command-only fallback uses shell-compatible parsing. |
 | `plan-manager author context-update <session> <item> --kind <k> [--phase --label --reason --instruction --command --argv-json --argv --target --required --repeat]` | `AuthoringService.UpdateRelevantContextItem` | Replace one accepted relevant-context item in place (by id from `author context-list`) so a bad item discovered in `author preview` is corrected **without deleting the phase/session**. Legal only before finalize. |
 | `plan-manager author context-remove <session> <item> [--phase]` | `AuthoringService.RemoveRelevantContextItem` | Remove one accepted relevant-context item (by id) before finalize; removal recomputes structure violations so any resulting gate (e.g. removing the only phase context) is reported with its recovery action. |
@@ -175,83 +174,42 @@ rest of the batch still lands. For an already-written plan **document**, `plans
 import` remains the whole-document path; batch submission is for composing
 through the authoring session.
 
-### `context-discover` — server-side discovery execution
+### `skill-pack` — prompt-manager skill discovery
 
-`plan-manager author context-discover <session> [--concepts "<c1>,<c2>"] [--complexity <minor|moderate|major|architectural>] [--refresh]`
-EXECUTES the discovery probes itself and returns a curated proposal — the agent
-supplies concepts and judgment; the code runs the probes, deduplicates,
-curates, and formats final setup lines. Per (concept, probe) pair it runs,
-concurrently and each bounded by a per-probe timeout (default 20s) with capped
-fan-out. `author start` launches a best-effort title-derived prefetch; with no
-`--concepts`, `context-discover` can reuse that batch immediately. Explicit
-concepts or `--refresh` force a fresh run that supersedes/merges through the
-normal no-resurrection path.
+`plan-manager author skill-pack <session> --concepts "<c1>,<c2>" [--complexity <minor|moderate|major|architectural>]`
 
-- `prompt-manager discover <concept> --type skill --json [--complexity <c>]` — curated skill candidates (bare-slug targets),
-- `prompt-manager discover <concept> --type all --json` — executable action candidates (their `showCommand` verbatim),
-- `search-hub query <concept> --type record,skill,doc --json` — prior-work records (as `swarm-manager records get` commands), docs, and skills.
+Runs prompt-manager skill discovery only, then upserts the returned skill pack
+directly into global relevant context. There is no candidate queue, batch
+handle, accept/reject pass, or high-confidence drop paperwork. The response
+prints:
 
-Results are deduplicated by (kind, target) across the pending batch and prior
-accepted/rejected history, so rediscovery does not duplicate or resurrect a
-rejected target. The response shows a shortlist with handles (`c1`, `c2`, ...),
-tier, score, origin, size when known, hit/corroboration count, setup line,
-evidence, tags, snippets, and batch-level probe notes. Lower-ranked longlist
-items are auditable with `context-list --all`, but they are not
-disposition-required. A failed/slow/unparseable probe degrades
-**independently** into a typed note on the batch, not a candidate — the step
-always returns and the wizard never blocks on a down dependency.
+- skills newly added;
+- skills already present;
+- the exact `prompt-manager skill read ...` command;
+- budget status and result summary;
+- edit commands (`context-submit`, `context-update`, `context-remove`) for
+  manual correction.
 
-### `context-apply` — one-call context disposition
+The intended default is a **broad professional skill pack**. Skills may support
+implementation quality, testing, documentation, ecosystem fit, or code hygiene;
+they do not need to be literal noun matches for the task. Remove a skill only
+when it is clearly irrelevant.
 
-`plan-manager author context-apply <session> [--batch <id>] [--take <handle[:phase]>]... [--drop <handle=reason>]... [--take-all] [--note <text>]`
+### Direct Search-Hub Discovery
 
-Applies the latest pending curated context batch as one decision. Take only the
-items whose concrete implementation improvement you can articulate; omitted
-shortlist items are swept as not taken, and longlist items are implicitly swept.
-Use `--drop <handle=reason>` only when a high-confidence candidate should not
-land, or when recording an explicit reason is useful. `--take c1:phase-id`
-accepts a candidate as phase-scoped setup; bare `--take c1` accepts it as
-global setup. `--take-all` is available for trusted tiny batches, but it should
-not replace review.
-
-`context-accept` and `context-reject` remain the small-agent one-item lane and
-accept either the stable candidate id or the batch handle. They share the same
-internal disposition path as `context-apply`; when the last shortlist item is
-handled one by one, the batch auto-closes. Prefer `context-apply` for normal
-authoring because the context checkpoint is budgeted as at most two calls:
-`context-discover` (or zero calls when the prefetch is sufficient) plus one
-`context-apply`.
-
-**Skill checkpoint gate v3:** finalize requires the latest context discovery
-batch to be applied, or an explicit `NO_SKILL_CONTEXT: <reason>` /
-`NO_CONTEXT: <reason>` skip when no relevant setup exists. Legacy sessions with
-pre-batch pending candidates still satisfy the gate through the one-item lane.
-No minimum skill count is imposed: the gate demands evidence of a sweep, not a
-quota.
-
-### `suggest-references` / `reference-apply` — reviewed code/document locators
-
-`plan-manager author suggest-references <session>` queries search-hub's Answer
-projection, keeps only `[CODE:]`, `[DOC:]`, and `[REQ:]` locator-shaped hits,
-and returns a curated reference proposal with handles (`r1`, `r2`, ...),
-shortlist/longlist tiers, scores/evidence where available, and batch metadata.
-Search-hub down or empty results leave the author with manual reference submit
-or an honest `NO_CODE_REFS: <reason>` path; degraded lookup metadata never
-becomes a fake reference.
-
-`plan-manager author reference-apply <session> [--batch <id>] [--take <handle>]... [--drop <handle=reason>]... [--take-all] [--note <text>]`
-applies the pending reference batch in one call. Taken locators enter the plan
-or phase references; the rest are swept not-taken, with reasons required only
-for high-confidence drops. `reference-accept` / `reference-reject` remain the
-one-item lane and share the same batch disposition path.
-
-`--drop <handle=reason>` is repeatable. Drop reasons are preserved as one flag
-value, so spaces, commas, semicolons, and punctuation are safe:
+Plan-manager no longer mirrors search-hub output into reference/context
+candidates. When docs, records, code locations, or prior work would help, run
+search-hub directly:
 
 ```bash
-plan-manager author context-apply sess-1 --drop "c2=too broad, stale, and not actionable."
-plan-manager author reference-apply sess-1 --drop "r4=obsolete path, replaced by docs/reference/api.md."
+search-hub query "<intent>" --type record,doc,skill
 ```
+
+Inspect the native confidence, attribution, and result shape there. Then submit
+only durable plan facts back to plan-manager: `[CODE:]`, `[DOC:]`, `[REQ:]`
+references, or accepted setup context via `context-submit`. If direct discovery
+finds no connected locators, record `NO_CODE_REFS: <reason>` instead of leaving
+references blank.
 
 ### `decisions` — pinned plan-time contract decisions (optional)
 
@@ -318,7 +276,7 @@ mirror from SQLite:
 | `plan-manager plans reference-remove <plan> <reference> [--phase <phase>]` | `PlansService.RemoveReference` | Remove one connected reference from the selected scope. |
 
 For a draft authoring session, use the authoring repair lane
-(`author context-list/update/remove`, `author reference-accept/reject/apply`) and
+(`author context-list/update/remove` and section/phase reference submission) and
 run `plan-manager author validate <session>`. `plan-manager validate run <plan>`
 is for persisted plans; if it is pointed at a draft-only handle, the CLI hints at
 the authoring validation command.

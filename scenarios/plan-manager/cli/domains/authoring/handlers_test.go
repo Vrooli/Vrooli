@@ -180,59 +180,24 @@ func (r *authRecorder) RemoveRelevantContextItem(_ context.Context, req *connect
 	return connect.NewResponse(&authoringv1.RemoveRelevantContextItemResponse{Summary: &authoringv1.AuthoringMutationSummary{ObjectKind: "context", ObjectId: req.Msg.GetItemId()}}), nil
 }
 
-func (r *authRecorder) DiscoverContextCandidates(_ context.Context, req *connect.Request[authoringv1.DiscoverContextCandidatesRequest]) (*connect.Response[authoringv1.DiscoverContextCandidatesResponse], error) {
+func (r *authRecorder) DiscoverSkillPack(_ context.Context, req *connect.Request[authoringv1.DiscoverSkillPackRequest]) (*connect.Response[authoringv1.DiscoverSkillPackResponse], error) {
 	r.record(req.Msg)
 	if r.err != nil {
 		return nil, r.err
 	}
-	if m, ok := r.resp.(*authoringv1.DiscoverContextCandidatesResponse); ok && m != nil {
+	if m, ok := r.resp.(*authoringv1.DiscoverSkillPackResponse); ok && m != nil {
 		return connect.NewResponse(m), nil
 	}
-	return connect.NewResponse(&authoringv1.DiscoverContextCandidatesResponse{}), nil
-}
-
-func (r *authRecorder) AcceptContextCandidate(_ context.Context, req *connect.Request[authoringv1.AcceptContextCandidateRequest]) (*connect.Response[authoringv1.AcceptContextCandidateResponse], error) {
-	r.record(req.Msg)
-	if r.err != nil {
-		return nil, r.err
-	}
-	if m, ok := r.resp.(*authoringv1.AcceptContextCandidateResponse); ok && m != nil {
-		return connect.NewResponse(m), nil
-	}
-	return connect.NewResponse(&authoringv1.AcceptContextCandidateResponse{Candidate: &authoringv1.ContextCandidate{Id: req.Msg.GetCandidateId(), Status: "accepted"}}), nil
-}
-
-func (r *authRecorder) RejectContextCandidate(_ context.Context, req *connect.Request[authoringv1.RejectContextCandidateRequest]) (*connect.Response[authoringv1.RejectContextCandidateResponse], error) {
-	r.record(req.Msg)
-	if r.err != nil {
-		return nil, r.err
-	}
-	if m, ok := r.resp.(*authoringv1.RejectContextCandidateResponse); ok && m != nil {
-		return connect.NewResponse(m), nil
-	}
-	return connect.NewResponse(&authoringv1.RejectContextCandidateResponse{Candidate: &authoringv1.ContextCandidate{Id: req.Msg.GetCandidateId(), Status: "rejected", RejectionReason: req.Msg.GetReason()}}), nil
-}
-
-func (r *authRecorder) ApplyContextDisposition(_ context.Context, req *connect.Request[authoringv1.ApplyContextDispositionRequest]) (*connect.Response[authoringv1.ApplyContextDispositionResponse], error) {
-	r.record(req.Msg)
-	if r.err != nil {
-		return nil, r.err
-	}
-	if m, ok := r.resp.(*authoringv1.ApplyContextDispositionResponse); ok && m != nil {
-		return connect.NewResponse(m), nil
-	}
-	return connect.NewResponse(&authoringv1.ApplyContextDispositionResponse{Batch: &authoringv1.DiscoveryBatch{Id: req.Msg.GetBatchId(), Status: "applied"}}), nil
-}
-
-func (r *authRecorder) ApplyReferenceDisposition(_ context.Context, req *connect.Request[authoringv1.ApplyReferenceDispositionRequest]) (*connect.Response[authoringv1.ApplyReferenceDispositionResponse], error) {
-	r.record(req.Msg)
-	if r.err != nil {
-		return nil, r.err
-	}
-	if m, ok := r.resp.(*authoringv1.ApplyReferenceDispositionResponse); ok && m != nil {
-		return connect.NewResponse(m), nil
-	}
-	return connect.NewResponse(&authoringv1.ApplyReferenceDispositionResponse{Batch: &authoringv1.DiscoveryBatch{Id: req.Msg.GetBatchId(), Status: "applied"}}), nil
+	return connect.NewResponse(&authoringv1.DiscoverSkillPackResponse{
+		ReadCommand:    "prompt-manager skill read implementation-plan-authoring",
+		BudgetStatus:   "ok",
+		ResultsSummary: "prompt-manager returned 1 skill(s)",
+		AddedItems: []*sharedv1.RelevantContextItem{{
+			Kind:   sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_SKILL,
+			Label:  "implementation-plan-authoring",
+			Target: "implementation-plan-authoring",
+		}},
+	}), nil
 }
 
 func (r *authRecorder) Finalize(_ context.Context, req *connect.Request[authoringv1.FinalizeRequest]) (*connect.Response[authoringv1.FinalizeResponse], error) {
@@ -446,68 +411,13 @@ func TestAuthoringRequestMapping(t *testing.T) {
 			},
 		},
 		{
-			name: "context-discover maps concepts complexity and refresh", cmd: "context-discover",
-			argv: []string{"sess-1", "--concepts", "a,b", "--complexity", "architectural", "--refresh"},
+			name: "skill-pack maps concepts and complexity", cmd: "skill-pack",
+			argv: []string{"sess-1", "--concepts", "a,b", "--complexity", "architectural"},
 			assert: func(t *testing.T, req proto.Message) {
-				m := req.(*authoringv1.DiscoverContextCandidatesRequest)
+				m := req.(*authoringv1.DiscoverSkillPackRequest)
 				require.Equal(t, "sess-1", m.GetSessionId())
 				require.Equal(t, []string{"a", "b"}, m.GetConcepts())
 				require.Equal(t, "architectural", m.GetComplexity())
-				require.True(t, m.GetRefresh())
-			},
-		},
-		{
-			name: "context-accept maps candidate and phase", cmd: "context-accept",
-			argv: []string{"sess-1", "cand1", "--phase", "ph1"},
-			assert: func(t *testing.T, req proto.Message) {
-				m := req.(*authoringv1.AcceptContextCandidateRequest)
-				require.Equal(t, "sess-1", m.GetSessionId())
-				require.Equal(t, "cand1", m.GetCandidateId())
-				require.Equal(t, "ph1", m.GetPhaseId())
-			},
-		},
-		{
-			name: "context-reject maps candidate and reason", cmd: "context-reject",
-			argv: []string{"sess-1", "cand1", "--reason", "duplicate"},
-			assert: func(t *testing.T, req proto.Message) {
-				m := req.(*authoringv1.RejectContextCandidateRequest)
-				require.Equal(t, "sess-1", m.GetSessionId())
-				require.Equal(t, "cand1", m.GetCandidateId())
-				require.Equal(t, "duplicate", m.GetReason())
-			},
-		},
-		{
-			name: "context-apply maps batch disposition and preserves comma reasons", cmd: "context-apply",
-			argv: []string{"sess-1", "--batch", "batch-1", "--take", "c1,c4:phase-3", "--drop", "c2=too broad, touches stale paths; skip.", "--note", "reviewed shortlist"},
-			assert: func(t *testing.T, req proto.Message) {
-				m := req.(*authoringv1.ApplyContextDispositionRequest)
-				require.Equal(t, "sess-1", m.GetSessionId())
-				require.Equal(t, "batch-1", m.GetBatchId())
-				require.Equal(t, "reviewed shortlist", m.GetSweepNote())
-				require.Len(t, m.GetTake(), 2)
-				require.Equal(t, "c1", m.GetTake()[0].GetCandidate())
-				require.Equal(t, "c4", m.GetTake()[1].GetCandidate())
-				require.Equal(t, "phase-3", m.GetTake()[1].GetPhaseId())
-				require.Len(t, m.GetDrop(), 1)
-				require.Equal(t, "c2", m.GetDrop()[0].GetCandidate())
-				require.Equal(t, "too broad, touches stale paths; skip.", m.GetDrop()[0].GetReason())
-			},
-		},
-		{
-			name: "reference-apply maps batch disposition and preserves comma reasons", cmd: "reference-apply",
-			argv: []string{"sess-1", "--batch", "refs-1", "--take", "r1,r3", "--drop", "r2=unrelated, outdated anchor; replace.", "--note", "reviewed references", "--take-all"},
-			assert: func(t *testing.T, req proto.Message) {
-				m := req.(*authoringv1.ApplyReferenceDispositionRequest)
-				require.Equal(t, "sess-1", m.GetSessionId())
-				require.Equal(t, "refs-1", m.GetBatchId())
-				require.Equal(t, "reviewed references", m.GetSweepNote())
-				require.True(t, m.GetTakeAll())
-				require.Len(t, m.GetTake(), 2)
-				require.Equal(t, "r1", m.GetTake()[0].GetCandidate())
-				require.Equal(t, "r3", m.GetTake()[1].GetCandidate())
-				require.Len(t, m.GetDrop(), 1)
-				require.Equal(t, "r2", m.GetDrop()[0].GetCandidate())
-				require.Equal(t, "unrelated, outdated anchor; replace.", m.GetDrop()[0].GetReason())
 			},
 		},
 		{
@@ -730,45 +640,16 @@ func TestAuthoringOutputRendering(t *testing.T) {
 		require.Contains(t, out, "Accepted relevant context item.")
 	})
 
-	t.Run("context candidate proposal renders evidence", func(t *testing.T) {
-		candidate := &authoringv1.ContextCandidate{
-			Id:             "cand-1",
-			Handle:         "c1",
-			Status:         "pending",
-			Score:          0.72032744,
-			Origin:         "search",
-			SizeChars:      8844,
-			Tags:           []string{"planning", "handoff"},
-			Title:          "Implementation Plan Authoring",
-			Snippet:        "Author durable implementation plans through Plan Manager's guided structured-plan runtime.",
-			Concept:        "plan authoring",
-			Source:         "prompt-manager-skills",
-			Tier:           "shortlist",
-			HighConfidence: true,
-			SetupLine:      "prompt-manager skill read implementation-plan-authoring",
-			Corroboration: []*authoringv1.ProbeHit{{
-				Probe:   "prompt-manager-skills",
-				Concept: "plan authoring",
-				Score:   0.72032744,
-			}},
-			Item: &sharedv1.RelevantContextItem{
-				Kind:   sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_SKILL,
-				Label:  "implementation-plan-authoring",
-				Target: "implementation-plan-authoring",
-			},
-		}
-
-		got := formatContextCandidate(candidate)
-
-		require.Contains(t, got, "c1")
-		require.Contains(t, got, "score=0.720")
-		require.Contains(t, got, "origin=search")
-		require.Contains(t, got, "size=8.8k")
-		require.Contains(t, got, "setup: prompt-manager skill read implementation-plan-authoring")
-		require.Contains(t, got, "concept=plan authoring")
-		require.Contains(t, got, "title=Implementation Plan Authoring")
-		require.Contains(t, got, "tags=planning,handoff")
-		require.Contains(t, got, "snippet: Author durable implementation plans")
+	t.Run("skill-pack renders read command and auto-added item", func(t *testing.T) {
+		rec := &authRecorder{}
+		app, groups := newAuthFixture(t, rec)
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "author", "skill-pack"), app,
+			"sess-1", "--concepts", "plan authoring,skill discovery")
+		require.NoError(t, err)
+		require.Contains(t, out, "Skill pack: 1 added, 0 already present.")
+		require.Contains(t, out, "prompt-manager skill read implementation-plan-authoring")
+		require.Contains(t, out, "added: skill: implementation-plan-authoring")
+		require.Contains(t, out, "search-hub query")
 	})
 
 	t.Run("phase-add with --set adds then batch-fills in one command", func(t *testing.T) {

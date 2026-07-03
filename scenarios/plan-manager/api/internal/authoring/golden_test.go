@@ -86,12 +86,12 @@ func TestGoldenAuthoringWizardHardening(t *testing.T) {
 	require.Equal(t, "Introduce a single log_entries table and LogService.", phase.Intent)
 
 	// Friction 2: all mandatory sections filled and a phase exists, but global
-	// context is unresolved → the continue loop surfaces the checkpoint, NOT final
-	// review.
+	// context is unresolved. Context is advisory after the skill-pack cutover, so
+	// the loop moves to the incomplete phase instead of a global-context gate.
 	_, _, _, ready, _, step, err := svc.ContinueAuthoring(ctx, sess.ID)
 	require.NoError(t, err)
-	require.False(t, ready, "must not be ready while global context is unresolved")
-	require.Equal(t, "global_relevant_context", step.StepKind)
+	require.False(t, ready, "must not be ready while the phase is incomplete")
+	require.Equal(t, "phase_references", step.StepKind)
 
 	// Resolve global context with a real plan-wide setup item (once_per_execution).
 	_, globalItem, violations, _, err := svc.SubmitRelevantContextItem(ctx, sess.ID, "", internalplans.RelevantContextItem{
@@ -105,25 +105,7 @@ func TestGoldenAuthoringWizardHardening(t *testing.T) {
 	require.Empty(t, violations)
 	require.Equal(t, internalplans.RelevantContextOncePerExecution, globalItem.RepeatPolicy)
 
-	// Gate v2 (D4): the direct submit alone is NOT sweep evidence — the
-	// checkpoint still surfaces until discovery ran and every candidate is
-	// dispositioned (or an explicit skip reason is recorded).
-	_, _, _, _, _, step, err = svc.ContinueAuthoring(ctx, sess.ID)
-	require.NoError(t, err)
-	require.Equal(t, "global_relevant_context", step.StepKind, "direct submit without a sweep must not resolve the v2 checkpoint")
-
-	// Gate v2 (D4): a direct skill submit alone is not evidence of a sweep —
-	// run discovery for the decomposed concepts and disposition every candidate
-	// (here: discovery is unwired, so each probe degrades to a typed note that
-	// still requires an explicit decision).
-	_, sweepCandidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"plan-manager execution logging"}, "moderate", false)
-	require.NoError(t, err)
-	for _, c := range sweepCandidates {
-		_, _, _, err := svc.RejectContextCandidate(ctx, sess.ID, c.ID, "reviewed: no additional setup beyond the submitted items")
-		require.NoError(t, err)
-	}
-
-	// Friction 2 (cont.): global context resolved but the phase is still
+	// Friction 2 (cont.): global context is advisory and the phase is still
 	// incomplete → still not final review.
 	_, _, _, ready, _, step, err = svc.ContinueAuthoring(ctx, sess.ID)
 	require.NoError(t, err)

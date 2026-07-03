@@ -2,10 +2,8 @@ package authoring_test
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
-	"time"
 
 	"plan-manager/internal/authoring"
 	"plan-manager/internal/planmodel"
@@ -125,10 +123,9 @@ func TestCommandContextRequiresInstructionBeforeAcceptance(t *testing.T) {
 
 // --- Phase 2: no premature final review ---
 
-// TestMutationDoesNotJumpToFinalReviewBeforeGlobalContext proves a mutation that
-// fills the last mandatory section reports the global-context checkpoint, not
-// final_review, while plan-wide context is unresolved.
-func TestMutationDoesNotJumpToFinalReviewBeforeGlobalContext(t *testing.T) {
+// TestMutationCanReachFinalReviewWithoutGlobalContext proves plan-wide context
+// is advisory after the skill-pack cutover, not a hard navigation checkpoint.
+func TestMutationCanReachFinalReviewWithoutGlobalContext(t *testing.T) {
 	ctx := context.Background()
 	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
 	sess, _, err := svc.StartSession(ctx, "No premature review", "no-premature-review", "")
@@ -138,8 +135,8 @@ func TestMutationDoesNotJumpToFinalReviewBeforeGlobalContext(t *testing.T) {
 	// Re-submit a filled section to observe the post-mutation guided step.
 	_, _, step, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "Make widgets better, again.")
 	require.NoError(t, err)
-	require.Equal(t, "global_relevant_context", step.StepKind,
-		"all mandatory sections filled but global context unresolved must surface the checkpoint, not final review")
+	require.Equal(t, "final_review", step.StepKind,
+		"all mandatory sections filled may reach final review even when global context is unresolved")
 }
 
 // TestMutationDoesNotJumpToFinalReviewWithIncompletePhase proves that once global
@@ -177,27 +174,9 @@ func TestReferencesStepOffersSuggestAndNoCodeRefsRecovery(t *testing.T) {
 	for _, a := range step.NextActions {
 		ids[a.ID] = true
 	}
-	require.True(t, ids["suggest-references"], "references step offers search-hub suggestion")
+	require.True(t, ids["search-references"], "references step offers direct search-hub guidance")
 	require.True(t, ids["submit-references"], "references step offers manual submission")
 	require.True(t, ids["submit-no-code-refs"], "references step offers a NO_CODE_REFS fallback")
-}
-
-func TestSuggestReferencesStepOffersNoCodeRefsFallback(t *testing.T) {
-	ctx := context.Background()
-	// No Suggester seam wired -> suggestion degrades to no candidates, but the
-	// guided step still names the NO_CODE_REFS fallback so the agent is never stuck.
-	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
-	sess, _, err := svc.StartSession(ctx, "Refs degrade", "refs-degrade", "")
-	require.NoError(t, err)
-
-	_, candidates, step, err := svc.SuggestReferences(ctx, sess.ID)
-	require.NoError(t, err)
-	require.Empty(t, candidates)
-	ids := map[string]bool{}
-	for _, a := range step.NextActions {
-		ids[a.ID] = true
-	}
-	require.True(t, ids["submit-no-code-refs"], "a degraded suggestion still names the exact NO_CODE_REFS fallback")
 }
 
 // --- Phase 4: phase context repeat default + summaries ---
@@ -325,85 +304,70 @@ func TestDecisionsAndAssumptionMitigationsFlowIntoPlan(t *testing.T) {
 	require.Equal(t, "The baseline is captured first.", writer.created.Assumptions)
 }
 
-// TestDiscoverContextExecutesProbesAndDeduplicates pins the server-side
-// discovery contract (D5/D6): DiscoverContextCandidates executes the probes
-// through the runner seam, deduplicates by target with provenance preserved,
-// carries bare-slug skill targets, and converts failed probes into typed
-// degraded notes without ever blocking the wizard.
-func TestDiscoverContextExecutesProbesAndDeduplicates(t *testing.T) {
+// TestDiscoverSkillPackExecutesPromptManagerAndIsIdempotent pins the simplified
+// discovery contract: prompt-manager skills are added directly as global
+// relevant context, without a candidate queue or batch disposition step.
+func TestDiscoverSkillPackExecutesPromptManagerAndIsIdempotent(t *testing.T) {
 	ctx := context.Background()
 	skillJSON := `{"results":[
-		{"type":"skill","id":"scientific-debugging","description":"reproduce first","score":0.9},
-		{"type":"skill","id":"test","description":"testing discipline","score":0.5}]}`
-	recallJSON := `{"ranked":[
-		{"type":"skill","id":"scientific-debugging","title":"Scientific Debugging","snippet":"reproduce first","path":"scientific-debugging","score":0.3,"rerank_score":0.4}]}`
+		{"type":"skill","id":"scientific-debugging","name":"Scientific debugging","description":"reproduce first","score":0.9},
+		{"type":"skill","id":"test","name":"Testing discipline","description":"test the expected behavior","score":0.5}],
+		"readCommand":"prompt-manager skill read scientific-debugging test",
+		"recommendedReadCommand":"prompt-manager skill read scientific-debugging test",
+		"budgetStatus":"ok"}`
 	runner := func(_ context.Context, name string, args ...string) ([]byte, error) {
-		argv := strings.Join(args, " ")
-		switch {
-		case name == "prompt-manager" && strings.Contains(argv, "--type skill"):
-			return []byte(skillJSON), nil
-		case name == "prompt-manager" && strings.Contains(argv, "--type all"):
-			return nil, errors.New("prompt-manager actions probe is down")
-		case name == "search-hub":
-			return []byte(recallJSON), nil
-		default:
-			return nil, errors.New("unexpected probe " + argv)
+		require.Equal(t, "prompt-manager", name)
+		require.Contains(t, args, "discover")
+		require.Contains(t, args, "--type")
+		require.Contains(t, args, "skill")
+		if !strings.Contains(strings.Join(args, " "), "microphone lifecycle") {
+			t.Fatalf("concepts not passed to prompt-manager: %#v", args)
 		}
+		return []byte(skillJSON), nil
 	}
 	svc := newService(t, authoring.Deps{
-		Writer:  &fakePlanWriter{},
-		Context: authoring.NewCommandContextDiscovererWithTimeout(runner, time.Second),
+		Writer: &fakePlanWriter{},
+		Skills: authoring.NewCommandSkillPackDiscoverer(runner),
 	})
 	sess, _, err := svc.StartSession(ctx, "Probe discovery", "probe-discovery", "")
 	require.NoError(t, err)
 
-	updated, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"microphone lifecycle"}, "architectural", false)
+	updated, result, added, kept, violations, _, err := svc.DiscoverSkillPack(ctx, sess.ID, []string{"microphone lifecycle"}, "architectural")
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.False(t, result.Degraded)
+	require.Equal(t, "prompt-manager skill read scientific-debugging test", result.ReadCommand)
+	require.Len(t, added, 2)
+	require.Empty(t, kept)
+	require.Len(t, updated.RelevantContext, 2)
+	require.Equal(t, planmodel.RelevantContextSkill, updated.RelevantContext[0].Kind)
+	require.Equal(t, "scientific-debugging", updated.RelevantContext[0].Target)
+	require.Equal(t, planmodel.RelevantContextScopeGlobal, updated.RelevantContext[0].Scope)
+	require.Equal(t, planmodel.RelevantContextOncePerExecution, updated.RelevantContext[0].RepeatPolicy)
+
+	updated, _, added, kept, violations, _, err = svc.DiscoverSkillPack(ctx, sess.ID, []string{"microphone lifecycle"}, "architectural")
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.Empty(t, added)
+	require.Len(t, kept, 2)
+	require.Len(t, updated.RelevantContext, 2)
+}
+
+func TestDiscoverSkillPackDegradesWithoutBlocking(t *testing.T) {
+	ctx := context.Background()
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
+	sess, _, err := svc.StartSession(ctx, "All down", "all-down", "")
 	require.NoError(t, err)
 
-	var skills, actions []authoring.ContextCandidate
-	for _, c := range candidates {
-		switch {
-		case c.Item.Kind == planmodel.RelevantContextSkill:
-			skills = append(skills, c)
-		case c.Item.Kind == planmodel.RelevantContextCommand:
-			actions = append(actions, c)
-		}
-	}
-	// scientific-debugging appears in both prompt-manager probes: deduplicated
-	// to one candidate (the higher-scored), provenance from both preserved.
-	require.Len(t, skills, 2, "duplicate skill across probes must deduplicate")
-	var sci authoring.ContextCandidate
-	for _, c := range skills {
-		if c.Item.Target == "scientific-debugging" {
-			sci = c
-		}
-		require.Empty(t, c.Item.Command, "skill candidates must carry bare slugs, not assembled commands (D6)")
-	}
-	require.Contains(t, sci.Detail, "score 0.900")
-	require.Contains(t, sci.Detail, "also:")
-
-	require.Empty(t, actions, "the down actions probe yields no fabricated candidates")
-
-	require.Len(t, updated.DiscoveryBatches, 1)
-	require.Len(t, updated.DiscoveryBatches[0].ProbeNotes, 1, "the down actions probe degrades independently")
-	require.Equal(t, "prompt-manager-actions", updated.DiscoveryBatches[0].ProbeNotes[0].Probe)
-	require.Contains(t, updated.DiscoveryBatches[0].ProbeNotes[0].Detail, "prompt-manager actions probe is down")
-
-	// All-down: the step still returns a usable (empty + noted) result.
-	svcDown := newService(t, authoring.Deps{
-		Writer:  &fakePlanWriter{},
-		Context: authoring.NewCommandContextDiscovererWithTimeout(nil, time.Second),
-	})
-	sessDown, _, err := svcDown.StartSession(ctx, "All down", "all-down", "")
-	require.NoError(t, err)
-	updatedDown, downCandidates, stepDown, err := svcDown.DiscoverContextCandidates(ctx, sessDown.ID, []string{"anything"}, "", false)
-	require.NoError(t, err, "discovery must never block or fail the wizard when dependencies are down")
-	require.Empty(t, downCandidates)
-	require.Len(t, updatedDown.DiscoveryBatches, 1)
-	require.Len(t, updatedDown.DiscoveryBatches[0].ProbeNotes, 3)
-	require.Equal(t, authoring.DiscoveryBatchApplied, updatedDown.DiscoveryBatches[0].Status)
-	require.NotEqual(t, "context_discovery", stepDown.StepKind, "empty auto-applied batches should not ask for context-apply")
-	require.NotContains(t, stepDown.RequiredInputs, "context-apply for the pending batch")
+	updated, result, added, kept, violations, step, err := svc.DiscoverSkillPack(ctx, sess.ID, []string{"anything"}, "")
+	require.NoError(t, err, "skill-pack discovery must never block authoring when prompt-manager is unavailable")
+	require.True(t, result.Degraded)
+	require.Contains(t, result.DegradedReason, "unavailable")
+	require.Empty(t, added)
+	require.Empty(t, kept)
+	require.Empty(t, violations)
+	require.Empty(t, updated.RelevantContext)
+	require.NotEqual(t, "context_discovery", step.StepKind)
 }
 
 // fakeSkillResolver returns canned steered suggestions (the D7 seam's future
@@ -414,74 +378,34 @@ func (f fakeSkillResolver) SuggestSkills(context.Context, planmodel.ChangeBounda
 	return f.suggestions
 }
 
-// TestSkillCheckpointGateV3 pins the batch-applied gate end to end: an unapplied
-// discovery batch blocks finalize with one clear message; applying the batch
-// unblocks; an honest NO_SKILL_CONTEXT skip passes without discovery; a
-// rejection without a reason is refused in the single-item lane; and resolver
-// suggestions flow through disposition like any discovered candidate (D7).
-func TestSkillCheckpointGateV3(t *testing.T) {
+// TestSkillContextIsAdvisoryAndResolverSuggestionsAutoAdd verifies that skill
+// resolver hints are directly added during skill-pack discovery, while missing
+// skill context remains advisory instead of a finalization blocker.
+func TestSkillContextIsAdvisoryAndResolverSuggestionsAutoAdd(t *testing.T) {
 	ctx := context.Background()
 	resolver := fakeSkillResolver{suggestions: []authoring.SkillSuggestion{
 		{Slug: "react-coherence", Reason: "The boundary touches a React UI."},
 	}}
 	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, SkillResolver: resolver})
-	sess, _, err := svc.StartSession(ctx, "Gate v2", "gate-v2", "")
+	sess, _, err := svc.StartSession(ctx, "Gate v3", "gate-v3", "")
 	require.NoError(t, err)
 	fillMandatory(t, svc, sess.ID)
 
-	_, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"gate semantics"}, "minor", false)
+	updated, _, added, _, violations, _, err := svc.DiscoverSkillPack(ctx, sess.ID, []string{"gate semantics"}, "minor")
 	require.NoError(t, err)
-	require.NotEmpty(t, candidates)
+	require.Empty(t, violations)
+	require.Len(t, added, 1)
+	require.Equal(t, "react-coherence", added[0].Target)
+	require.Len(t, updated.RelevantContext, 1)
 
-	var steered *authoring.ContextCandidate
-	for i := range candidates {
-		if candidates[i].Source == "skill-applicability-resolver" {
-			steered = &candidates[i]
-		}
-	}
-	require.NotNil(t, steered, "resolver suggestions must appear as ordinary candidates")
-	require.Equal(t, "react-coherence", steered.Item.Target)
-
-	// An unapplied batch blocks finalize with one actionable message.
 	valid, violations, _, err := svc.ValidateStructure(ctx, sess.ID)
 	require.NoError(t, err)
-	require.False(t, valid)
-	var sawPendingBatch bool
-	for _, v := range violations {
-		if strings.Contains(v.Message, "context discovery batch") && strings.Contains(v.Message, "context-apply") {
-			sawPendingBatch = true
-		}
-	}
-	require.True(t, sawPendingBatch, "pending batch must be called out, got %#v", violations)
+	require.True(t, valid, "auto-added resolver skill should keep structure valid, got %#v", violations)
 
-	// A rejection without a reason is refused (D4: reject requires judgment).
-	_, _, _, err = svc.RejectContextCandidate(ctx, sess.ID, candidates[0].ID, "  ")
-	require.Error(t, err)
-
-	// Disposition everything through the single-item lane: accept the steered
-	// suggestion, reject the rest. The batch auto-closes when its shortlist is
-	// fully dispositioned.
-	for _, c := range candidates {
-		if c.ID == steered.ID {
-			_, _, _, _, _, err := svc.AcceptContextCandidate(ctx, sess.ID, c.ID, "")
-			require.NoError(t, err)
-			continue
-		}
-		_, _, _, err := svc.RejectContextCandidate(ctx, sess.ID, c.ID, "degraded probe; concept covered elsewhere")
-		require.NoError(t, err)
-	}
-	valid, violations, _, err = svc.ValidateStructure(ctx, sess.ID)
-	require.NoError(t, err)
-	require.True(t, valid, "all-dispositioned sweep must pass, got %#v", violations)
-
-	// Honest skip path: a fresh session with NO_SKILL_CONTEXT passes without
-	// any discovery.
-	sessSkip, _, err := svc.StartSession(ctx, "Gate v2 skip", "gate-v2-skip", "")
+	sessSkip, _, err := svc.StartSession(ctx, "Gate v3 skip", "gate-v3-skip", "")
 	require.NoError(t, err)
 	fillMandatory(t, svc, sessSkip.ID)
-	_, _, _, err = svc.SubmitSection(ctx, sessSkip.ID, authoring.SectionRelevantContext, "NO_SKILL_CONTEXT: no internal skill applies to this fixture.")
-	require.NoError(t, err)
 	valid, violations, _, err = svc.ValidateStructure(ctx, sessSkip.ID)
 	require.NoError(t, err)
-	require.True(t, valid, "honest skip must pass, got %#v", violations)
+	require.True(t, valid, "missing skill context is advisory, not a hard blocker; got %#v", violations)
 }

@@ -1,18 +1,15 @@
 // Package authoring is the guided-composer domain. It walks a plan's sections in
 // order, runs a structure-validation gate as it goes (rejecting empty mandatory
 // sections and an empty regression anchor), captures mechanical context behind
-// seams, and drives relevant-context candidate discovery so a small local model
-// supplies only genuine prose and final context judgment (OT-P0-002). The
-// produced plan is written THROUGH the plans domain; this service does not own
-// the record.
+// seams, and bootstraps a prompt-manager skill pack into accepted relevant
+// context. The produced plan is written THROUGH the plans domain; this service
+// does not own the record.
 //
 // Layering mirrors the canonical domain pattern:
 //
 //	handler → Service → {SessionStore, PlanWriter, AnchorIntentDeriver,
-//	            ↑            ↑ owned store    ↑ plans domain   ContextDiscoverer,
-//	        (proto edge)   (faked in tests)                   ReferenceSuggester}
-//	                                                          ↑ all behind seams,
-//	                                                            all degrade gracefully
+//	            ↑            ↑ owned store    ↑ plans domain   SkillPackDiscoverer}
+//	        (proto edge)   (faked in tests)                   ↑ degrades gracefully
 //
 // Every autofill source degrades honestly: a nil seam or an error leaves that
 // section for the author and marks the result degraded — NEVER a false fill. The
@@ -127,22 +124,18 @@ type PhaseDraft struct {
 // CLI calls via the SessionStore. The plan it produces is owned by the plans
 // domain (PlanID is set after Finalize).
 type Session struct {
-	ID                  string
-	Title               string
-	Slug                string
-	Sections            []Section
-	CurrentSectionKey   SectionKey
-	PhaseDrafts         []PhaseDraft
-	CurrentPhaseID      string
-	RelevantContext     []planmodel.RelevantContextItem
-	ContextCandidates   []ContextCandidate
-	DiscoveryBatches    []DiscoveryBatch
-	ReferenceCandidates []ReferenceCandidate
-	ReferenceBatches    []DiscoveryBatch
-	Finalized           bool
-	PlanID              string
-	CreatedAt           string
-	UpdatedAt           string
+	ID                string
+	Title             string
+	Slug              string
+	Sections          []Section
+	CurrentSectionKey SectionKey
+	PhaseDrafts       []PhaseDraft
+	CurrentPhaseID    string
+	RelevantContext   []planmodel.RelevantContextItem
+	Finalized         bool
+	PlanID            string
+	CreatedAt         string
+	UpdatedAt         string
 }
 
 // StructureViolation is one structure/authoring-gate failure (an empty mandatory
@@ -179,9 +172,8 @@ type ReferenceResolver interface {
 }
 
 // AutofillSource names one mechanical-section autofill source. The regression
-// anchor is the only mechanical autofill: references are discovered as reviewable
-// candidates (SuggestReferences) and setup context flows through context
-// discovery/acceptance.
+// anchor is the only mechanical autofill: references are authored, and setup
+// skills flow through DiscoverSkillPack's auto-upsert path.
 type AutofillSource string
 
 const (
@@ -199,164 +191,14 @@ type AutofillResult struct {
 	Detail     string
 }
 
-type ContextCandidateStatus string
-
-const (
-	ContextCandidatePending  ContextCandidateStatus = "pending"
-	ContextCandidateAccepted ContextCandidateStatus = "accepted"
-	ContextCandidateRejected ContextCandidateStatus = "rejected"
-)
-
-type DiscoveryBatchStatus string
-
-const (
-	DiscoveryBatchPending    DiscoveryBatchStatus = "pending"
-	DiscoveryBatchApplied    DiscoveryBatchStatus = "applied"
-	DiscoveryBatchSuperseded DiscoveryBatchStatus = "superseded"
-)
-
-type ProbeNote struct {
-	Probe    string
-	Concept  string
-	Degraded bool
-	Detail   string
-}
-
-type CurationStats struct {
-	SuppressedDispositioned int
-	OmittedBelowThreshold   int
-	OmittedTopicFiller      int
-	OmittedByCap            int
-}
-
-type DiscoveryBatch struct {
-	ID            string
-	Concepts      []string
-	Complexity    string
-	Source        string
-	ProbeNotes    []ProbeNote
-	CurationStats CurationStats
-	Status        DiscoveryBatchStatus
-	AppliedNote   string
-	CreatedSeq    int
-}
-
-type ContextDiscoveryResult struct {
-	Candidates []ContextCandidate
-	ProbeNotes []ProbeNote
-}
-
-type ContextDispositionTake struct {
-	CandidateID string
-	PhaseID     string
-	Reason      string
-}
-
-type ContextDispositionDrop struct {
-	CandidateID string
-	Reason      string
-}
-
-type ContextDispositionResult struct {
-	Candidate  ContextCandidate
-	Item       planmodel.RelevantContextItem
-	Action     string
-	Accepted   bool
-	Message    string
-	Violations []StructureViolation
-}
-
-type ContextDispositionSummary struct {
-	Results []ContextDispositionResult
-	Batch   DiscoveryBatch
-}
-
-type ReferenceDispositionTake struct {
-	CandidateID string
-}
-
-type ReferenceDispositionDrop struct {
-	CandidateID string
-	Reason      string
-}
-
-type ReferenceDispositionResult struct {
-	Candidate  ReferenceCandidate
-	Reference  planmodel.Reference
-	Action     string
-	Accepted   bool
-	Message    string
-	Violations []StructureViolation
-}
-
-type ReferenceDispositionSummary struct {
-	Results []ReferenceDispositionResult
-	Batch   DiscoveryBatch
-}
-
-// ContextCandidate is a discovered setup item awaiting author judgment.
-type ContextCandidate struct {
-	ID               string
-	Item             planmodel.RelevantContextItem
-	Concept          string
-	Source           string
-	Score            float64
-	Origin           string
-	SizeChars        int
-	Tags             []string
-	Title            string
-	Snippet          string
-	Corroboration    []ProbeHit
-	Handle           string
-	BatchID          string
-	Tier             string
-	HighConfidence   bool
-	SetupLine        string
-	Degraded         bool
-	Detail           string
-	ValidationStatus string
-	ValidationDetail string
-	Status           ContextCandidateStatus
-	RejectionReason  string
-}
-
-type ProbeHit struct {
-	Probe   string
-	Concept string
-	Score   float64
-}
-
-// ReferenceCandidateStatus mirrors ContextCandidateStatus for the reference
-// review lifecycle.
-type ReferenceCandidateStatus string
-
-const (
-	ReferenceCandidatePending  ReferenceCandidateStatus = "pending"
-	ReferenceCandidateAccepted ReferenceCandidateStatus = "accepted"
-	ReferenceCandidateRejected ReferenceCandidateStatus = "rejected"
-)
-
-// ReferenceCandidate is a discovered code/doc/req locator awaiting author
-// judgment. The suggester proposes it from search-hub's Answer projection
-// (routed by locator shape); only accepted candidates finalize into the
-// references section. Mirrors ContextCandidate so the two discovery sources share
-// one curate-pattern.
-type ReferenceCandidate struct {
-	ID               string
-	Reference        planmodel.Reference
-	Source           string
-	Confidence       float64
-	Corroboration    []ProbeHit
-	Handle           string
-	BatchID          string
-	Tier             string
-	HighConfidence   bool
-	Degraded         bool
-	Detail           string
-	ValidationStatus string
-	ValidationDetail string
-	Status           ReferenceCandidateStatus
-	RejectionReason  string
+type SkillPackResult struct {
+	Items                  []planmodel.RelevantContextItem
+	ReadCommand            string
+	RecommendedReadCommand string
+	BudgetStatus           string
+	Summary                string
+	Degraded               bool
+	DegradedReason         string
 }
 
 // PlanForSession is the resolved subset of the plans model authoring writes

@@ -66,15 +66,13 @@ follow-up once a second cross-scenario consumer needs it.
 All soft; each is reached through a seam and degrades to a marked gap rather than
 failing the flow:
 
-- **search-hub** — the reference **discovery** source at authoring (read-only
-  `query --json`, the Answer projection). The wizard sends the rich
-  title+scope+approach query, routes the hits by locator shape, and offers the
-  `[CODE:]/[DOC:]/[REQ:]` hits as a curated reference batch the author applies in
-  one `reference-apply` decision. Plan Manager consumes whatever search-hub
-  federates today and improves automatically as more Answer-projection providers
-  register; it never builds those providers. If down/empty: no candidates — the
-  references step falls back to manual locator entry or a `NO_CODE_REFS:` reason
-  (never a fabricated reference).
+- **search-hub** — direct authoring discovery for records, docs, skills, and
+  code/requirement context. Plan Manager recommends
+  `search-hub query "<intent>" --type record,doc,skill`, but does not mirror the
+  output into candidate state. The agent/operator inspects native confidence and
+  attribution, then submits durable `[CODE:]/[DOC:]/[REQ:]` locators or context
+  items. If down/empty: use manual locator entry or `NO_CODE_REFS:` (never a
+  fabricated reference).
 - **code-facts** — resolves reference evidence at validation where its current
   surface can express the locator. If down: references remain recorded; validation
   falls back to filesystem resolution for CODE/DOC refs and marks unresolved gaps

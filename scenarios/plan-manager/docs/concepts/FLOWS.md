@@ -62,14 +62,11 @@ genuinely safe.
    Greenfield block (see
    [PLAN-MODEL.md](PLAN-MODEL.md#work-posture--greenfieldbrownfield)).
 2. As each section is reached, the wizard captures mechanical context behind
-   seams: regression-anchor intent (derived from the change boundary), reference
-   proposals (search-hub), and relevant-context discovery
-   (prompt-manager/search-hub/cli-health). Context discovery stores a curated
-   batch proposal: the author reviews shortlist handles, takes useful candidates
-   into global or phase-scoped setup with one `context-apply`, and sweeps the
-   rest. Reference suggestions follow the same `reference-apply` batch shape.
-   If a source is down, the batch records a degraded note instead of creating
-   fake work items.
+   seams: regression-anchor intent (derived from the change boundary) and
+   prompt-manager skill-pack discovery. `author skill-pack` auto-adds returned
+   skills as global setup context. Search-hub stays direct: the agent runs
+   `search-hub query "<intent>" --type record,doc,skill` when docs/records/code
+   context is useful, then submits only durable references or context.
 3. The author creates phase drafts through phase-native steps: title/intent,
    affected areas, ordered steps, expected outputs, references or an explicit
    `NO_CODE_REFS:` reason, phase-scoped relevant context, phase validation,
@@ -77,13 +74,9 @@ genuinely safe.
    step so the agent does not need the full authoring skill in context. The
    renderer then projects these phase fields in a fixed review order (see
    [PLAN-MODEL.md](PLAN-MODEL.md#rendered-markdown--stable-review-artifact)).
-4. After the mandatory sections and before phase work, `author continue` surfaces
-   an explicit **global relevant-context checkpoint** (step kind
-   `global_relevant_context`). The continue loop will not silently bypass
-   plan-wide setup context: the agent resolves it by accepting/submitting at
-   least one global context item, or by recording an explicit no-context reason
-   (`author section-submit <session> --section relevant_context --content
-   "NO_CONTEXT: <reason>"`).
+4. Global relevant context is advisory, not a hard navigation checkpoint. The
+   guided step recommends `author skill-pack` and direct search-hub discovery,
+   but finalization is blocked only by executable plan-shape gates.
 5. The structure-validation gate refuses to finalize while a mandatory section is
    empty, a plan/phase has neither references nor a no-code reason, a phase's
    acceptance, ordered steps, or phase validation is empty, a phase's acceptance
@@ -98,9 +91,7 @@ never has to carry the whole session graph:
 
 1. **Mutation acknowledgement → focused progress + summary.** Normal mutations
    (`section-submit`, `phase-submit`, `phase-add`, `autofill`, `context-submit`,
-   `context-update`, `context-remove`, `context-accept`, `context-reject`,
-   `context-discover`, `context-apply`, `suggest-references`,
-   `reference-accept`, `reference-reject`, `reference-apply`) **no longer
+   `context-update`, `context-remove`, `skill-pack`) **no longer
    return the full `AuthoringSession`**. They return a compact
    `AuthoringProgress` (session id, current section/phase,
    mandatory-sections filled/total, phases complete/total,

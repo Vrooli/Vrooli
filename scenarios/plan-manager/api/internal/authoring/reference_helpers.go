@@ -5,8 +5,6 @@ import (
 	"strings"
 
 	planmodel "plan-manager/internal/planmodel"
-
-	"github.com/google/uuid"
 )
 
 func hasMandatoryViolation(violations []StructureViolation, key SectionKey) bool {
@@ -47,63 +45,6 @@ func contentOf(sections []Section, key SectionKey) string {
 
 func degraded(src AutofillSource, key SectionKey, detail string) AutofillResult {
 	return AutofillResult{Source: src, SectionKey: key, Filled: false, Degraded: true, Detail: detail}
-}
-
-// referenceSuggestionQuery builds the broad search-hub query for reference
-// discovery from the rich authoring inputs (title + scope + technical approach).
-// Broad on purpose: search-hub federates/ranks and the locator-shape routing is
-// the Answer-projection filter, so we never need a brittle taxonomy gate here.
-func referenceSuggestionQuery(sess Session) string {
-	parts := []string{sess.Title}
-	parts = append(parts, contentOf(sess.Sections, SectionScope))
-	parts = append(parts, contentOf(sess.Sections, SectionTechnicalApproach))
-	var b strings.Builder
-	for _, part := range parts {
-		if p := strings.TrimSpace(part); p != "" {
-			if b.Len() > 0 {
-				b.WriteString(" ")
-			}
-			b.WriteString(p)
-		}
-	}
-	return b.String()
-}
-
-// normalizeReferenceCandidate fills ids and the pending default so a suggester
-// (or test fake) need not set bookkeeping fields.
-func normalizeReferenceCandidate(candidate ReferenceCandidate) ReferenceCandidate {
-	candidate.ID = strings.TrimSpace(candidate.ID)
-	if candidate.ID == "" {
-		candidate.ID = uuid.NewString()
-	}
-	candidate.Reference.ID = strings.TrimSpace(candidate.Reference.ID)
-	if candidate.Reference.ID == "" {
-		candidate.Reference.ID = uuid.NewString()
-	}
-	candidate.Reference.Target = strings.TrimSpace(candidate.Reference.Target)
-	candidate.Source = strings.TrimSpace(candidate.Source)
-	candidate.Detail = strings.TrimSpace(candidate.Detail)
-	candidate.Handle = strings.TrimSpace(candidate.Handle)
-	candidate.BatchID = strings.TrimSpace(candidate.BatchID)
-	candidate.Tier = strings.TrimSpace(candidate.Tier)
-	candidate.RejectionReason = strings.TrimSpace(candidate.RejectionReason)
-	if len(candidate.Corroboration) == 0 && (candidate.Source != "" || candidate.Confidence != 0) {
-		candidate.Corroboration = []ProbeHit{{Probe: candidate.Source, Score: candidate.Confidence}}
-	}
-	if candidate.Status == "" {
-		candidate.Status = ReferenceCandidatePending
-	}
-	return candidate
-}
-
-func indexOfReferenceCandidate(candidates []ReferenceCandidate, id string) int {
-	id = strings.TrimSpace(id)
-	for i := range candidates {
-		if candidates[i].ID == id || candidates[i].Handle == id {
-			return i
-		}
-	}
-	return -1
 }
 
 // appendAcceptedReference appends one reviewed locator line to the references
@@ -310,43 +251,27 @@ func noSkillContextReason(content string) string {
 	return ""
 }
 
-// globalContextResolved reports whether the plan-wide relevant-context checkpoint
-// has been addressed: at least one accepted/submitted global context item, or an
-// explicit NO_CONTEXT skip reason recorded in the relevant-context section.
+// globalContextResolved is intentionally lenient: missing plan-wide context is
+// advisory, not a finalization blocker. Accepted context still renders and
+// executes, but authors are no longer forced through NO_CONTEXT paperwork.
 func globalContextResolved(sess Session) bool {
-	if len(sess.RelevantContext) > 0 {
-		return true
-	}
-	return noContextReason(contentOf(sess.Sections, SectionRelevantContext)) != ""
+	return true
 }
 
-// globalSkillContextResolved is the skill checkpoint gate v3: it demands
-// evidence of a batch-level sweep, not per-candidate bookkeeping. Satisfied when
-// the latest discovery batch was applied, when legacy pre-batch candidates were
-// fully dispositioned, or when an explicit NO_SKILL_CONTEXT/NO_CONTEXT skip
-// reason is recorded.
+// globalSkillContextResolved is intentionally lenient: DiscoverSkillPack is the
+// preferred low-friction path, but missing skill context is advisory rather than
+// a hard authoring gate.
 func globalSkillContextResolved(sess Session) bool {
-	if _, ok := latestAppliedDiscoveryBatch(sess); ok {
-		return true
-	}
-	if len(sess.DiscoveryBatches) == 0 && len(sess.ContextCandidates) > 0 && pendingLegacyContextCandidates(sess) == 0 {
-		return true
-	}
-	content := contentOf(sess.Sections, SectionRelevantContext)
-	return noSkillContextReason(content) != "" || noContextReason(content) != ""
+	return true
 }
 
-// pendingLegacyContextCandidates counts pre-batch discovery candidates still
-// awaiting an accept/reject decision. Current batches are gated by batch status,
-// and longlist candidates are intentionally not disposition-required.
-func pendingLegacyContextCandidates(sess Session) int {
-	n := 0
-	for _, c := range sess.ContextCandidates {
-		if c.BatchID == "" && c.Status == ContextCandidatePending {
-			n++
+func hasSkillContext(items []planmodel.RelevantContextItem) bool {
+	for _, item := range items {
+		if item.Kind == planmodel.RelevantContextSkill {
+			return true
 		}
 	}
-	return n
+	return false
 }
 
 func parseReferencesContent(content string) ([]planmodel.Reference, error) {

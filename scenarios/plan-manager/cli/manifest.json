@@ -1388,7 +1388,7 @@
           "flags": [
             {
               "name": "sources",
-              "description": "Comma-separated autofill source(s) to run; omit to run the default source (regression_anchor). References are discovered via `author suggest-references`, not autofill."
+              "description": "Comma-separated autofill source(s) to run; omit to run the default source (regression_anchor). References come from direct search-hub discovery, not autofill."
             }
           ],
           "binding": {
@@ -1405,131 +1405,8 @@
           }
         },
         {
-          "name": "suggest-references",
-          "description": "Discover reviewable code/doc/req reference candidates from search-hub's Answer projection (routed by locator shape)",
-          "positionals": [
-            {
-              "name": "session",
-              "required": true,
-              "description": "Authoring session id"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AuthoringService",
-            "method": "SuggestReferences"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "reference-list",
-          "description": "List the session's discovered reference candidates (pending/accepted/rejected)",
-          "positionals": [
-            {
-              "name": "session",
-              "required": true,
-              "description": "Authoring session id"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AuthoringService",
-            "method": "ListReferenceCandidates"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "reference-accept",
-          "description": "Accept a suggested reference candidate into the references section (with an optional inline locator edit)",
-          "positionals": [
-            {
-              "name": "session",
-              "required": true,
-              "description": "Authoring session id"
-            },
-            {
-              "name": "candidate",
-              "required": true,
-              "description": "Reference candidate id"
-            }
-          ],
-          "flags": [
-            {
-              "name": "kind",
-              "description": "Optional inline edit: locator kind (code, doc, req)"
-            },
-            {
-              "name": "target",
-              "description": "Optional inline edit: locator target (path or requirement id)"
-            },
-            {
-              "name": "future",
-              "description": "Mark the locator as proposed (not-yet-existing) code",
-              "bool": true
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AuthoringService",
-            "method": "AcceptReferenceCandidate"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "reference-reject",
-          "description": "Reject a suggested reference candidate with a reason",
-          "positionals": [
-            {
-              "name": "session",
-              "required": true,
-              "description": "Authoring session id"
-            },
-            {
-              "name": "candidate",
-              "required": true,
-              "description": "Reference candidate id"
-            }
-          ],
-          "flags": [
-            {
-              "name": "reason",
-              "description": "Why this suggestion is not relevant"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AuthoringService",
-            "method": "RejectReferenceCandidate"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "reference-apply",
-          "description": "Apply a curated reference discovery batch in one call: take selected handles and sweep the rest",
+          "name": "skill-pack",
+          "description": "Discover a prompt-manager skill pack from 2-5 concepts and auto-add the skills as global relevant context",
           "positionals": [
             {
               "name": "session",
@@ -1539,31 +1416,19 @@
           ],
           "flags": [
             {
-              "name": "batch",
-              "description": "Reference discovery batch id; defaults to the latest pending batch"
+              "name": "concepts",
+              "required": true,
+              "description": "Comma-separated skill discovery concepts"
             },
             {
-              "name": "take",
-              "description": "Comma-separated reference handles/ids to accept (e.g. --take r1,r3)"
-            },
-            {
-              "name": "drop",
-              "description": "Comma-separated reference handles/ids to reject with optional reason as handle=reason."
-            },
-            {
-              "name": "note",
-              "description": "Batch-level sweep note"
-            },
-            {
-              "name": "take-all",
-              "description": "Accept every non-dropped shortlist candidate",
-              "bool": true
+              "name": "complexity",
+              "description": "Optional prompt-manager discovery complexity, e.g. architectural"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
             "service": "AuthoringService",
-            "method": "ApplyReferenceDisposition"
+            "method": "DiscoverSkillPack"
           },
           "governance": {
             "effect": "write",
@@ -1774,158 +1639,6 @@
             "kind": "connect-rpc",
             "service": "AuthoringService",
             "method": "RemoveRelevantContextItem"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "context-discover",
-          "description": "Discover relevant-context candidates from decomposed concepts, or inspect the latest batch when concepts are omitted",
-          "positionals": [
-            {
-              "name": "session",
-              "required": true,
-              "description": "Authoring session id"
-            }
-          ],
-          "flags": [
-            {
-              "name": "concepts",
-              "description": "Comma-separated discovery concepts; omit to inspect the latest/prefetched batch without creating a new one"
-            },
-            {
-              "name": "complexity",
-              "description": "Optional prompt-manager skill discovery complexity, e.g. architectural"
-            },
-            {
-              "name": "refresh",
-              "description": "Force a fresh discovery even when concepts are omitted",
-              "bool": true
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AuthoringService",
-            "method": "DiscoverContextCandidates"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "context-accept",
-          "description": "Accept a discovered context candidate into global or phase-scoped setup context",
-          "positionals": [
-            {
-              "name": "session",
-              "required": true,
-              "description": "Authoring session id"
-            },
-            {
-              "name": "candidate",
-              "required": true,
-              "description": "Context candidate id"
-            }
-          ],
-          "flags": [
-            {
-              "name": "phase",
-              "description": "Optional phase id or order number for phase-scoped context"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AuthoringService",
-            "method": "AcceptContextCandidate"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "context-reject",
-          "description": "Reject a discovered context candidate with a reason",
-          "positionals": [
-            {
-              "name": "session",
-              "required": true,
-              "description": "Authoring session id"
-            },
-            {
-              "name": "candidate",
-              "required": true,
-              "description": "Context candidate id"
-            }
-          ],
-          "flags": [
-            {
-              "name": "reason",
-              "description": "Why this candidate is not relevant"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AuthoringService",
-            "method": "RejectContextCandidate"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "context-apply",
-          "description": "Apply a context discovery batch in one call by taking selected handles and sweeping the rest",
-          "positionals": [
-            {
-              "name": "session",
-              "required": true,
-              "description": "Authoring session id"
-            }
-          ],
-          "flags": [
-            {
-              "name": "batch",
-              "description": "Discovery batch id; omitted uses the latest pending batch"
-            },
-            {
-              "name": "take",
-              "description": "Comma-separated candidate handles/ids to accept. Use handle:phase-id for phase-scoped context."
-            },
-            {
-              "name": "drop",
-              "description": "Comma-separated candidate handles/ids to drop with optional reason as handle=reason."
-            },
-            {
-              "name": "note",
-              "description": "Batch-level sweep note"
-            },
-            {
-              "name": "take-all",
-              "description": "Accept every pending shortlist item except explicit drops",
-              "bool": true
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "AuthoringService",
-            "method": "ApplyContextDisposition"
           },
           "governance": {
             "effect": "write",

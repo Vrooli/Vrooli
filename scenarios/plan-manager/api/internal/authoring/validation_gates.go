@@ -112,37 +112,12 @@ func sessionViolations(sess Session) []StructureViolation {
 	out := structureViolations(sess.Sections)
 	refsContent := contentOf(sess.Sections, SectionReferences)
 	if !hasReferencesOrNoCodeReason(refsContent) {
-		out = append(out, StructureViolation{SectionKey: SectionReferences, Message: referencesGateMessage})
-	}
-	if !hasReferencesOrNoCodeReason(refsContent) {
-		if batch, ok := latestPendingReferenceBatch(sess); ok {
-			out = append(out, StructureViolation{
-				SectionKey: SectionReferences,
-				Message:    fmt.Sprintf("reference discovery batch %s is unapplied; run reference-apply %s --batch %s --take <handle> --note \"reviewed shortlist\" or record NO_CODE_REFS: <reason>", batch.ID, sess.ID, batch.ID),
-			})
-		}
+		out = append(out, StructureViolation{SectionKey: SectionReferences, Message: "add [CODE:]/[DOC:]/[REQ:] references, run search-hub directly and submit useful locators, or record NO_CODE_REFS: <reason>"})
 	}
 	out = append(out, referencesContentKindViolations(refsContent)...)
 	out = append(out, boundaryGateViolations(contentOf(sess.Sections, SectionAcceptanceBoundary))...)
 	out = append(out, anchorPlaceholderViolations(contentOf(sess.Sections, SectionRegressionAnchor))...)
 	out = append(out, postureConflictViolations(sess)...)
-	if batch, ok := latestPendingDiscoveryBatch(sess); ok {
-		out = append(out, StructureViolation{
-			SectionKey: SectionRelevantContext,
-			Message:    fmt.Sprintf("context discovery batch %s is unapplied; run context-apply %s --batch %s --take <handle> --note \"reviewed shortlist\" or record NO_SKILL_CONTEXT: <reason>", batch.ID, sess.ID, batch.ID),
-		})
-	} else if n := pendingLegacyContextCandidates(sess); n > 0 {
-		out = append(out, StructureViolation{
-			SectionKey: SectionRelevantContext,
-			Message:    fmt.Sprintf("%d legacy discovery candidate(s) are undispositioned; accept (context-accept) or reject with a reason (context-reject) before finalizing", n),
-		})
-	}
-	if globalContextResolved(sess) && !globalSkillContextResolved(sess) {
-		out = append(out, StructureViolation{
-			SectionKey: SectionRelevantContext,
-			Message:    "skill setup needs evidence of a sweep: run context-discover for 2-5 decomposed concepts and then context-apply the batch, or record NO_SKILL_CONTEXT: <reason> when no relevant internal skill exists",
-		})
-	}
 	for _, phase := range sess.PhaseDrafts {
 		out = append(out, phaseViolations(phase)...)
 	}

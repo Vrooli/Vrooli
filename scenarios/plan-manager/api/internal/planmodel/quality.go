@@ -130,10 +130,10 @@ func assessPlanStructureQuality(p Plan) []QualityFinding {
 		findings = append(findings, qualityFailure("plan.references", "plan_missing_references", "plan has no connected references and no NO_CODE_REFS/operator-only reason"))
 	}
 	if !HasGlobalContextOrNoContextReason(p.RelevantContext) {
-		findings = append(findings, qualityFailure("plan.relevant_context", "plan_missing_global_context", "plan has no global setup context and no NO_CONTEXT reason"))
+		findings = append(findings, qualityWarning("plan.relevant_context", "plan_missing_global_context", "plan has no global setup context and no NO_CONTEXT reason"))
 	}
 	if !HasGlobalSkillContextOrNoSkillReason(p.RelevantContext) {
-		findings = append(findings, qualityFailure("plan.relevant_context", "plan_missing_skill_context", "plan carries no evidence of a skill sweep: no global skill setup item and no NO_SKILL_CONTEXT/NO_CONTEXT skip reason"))
+		findings = append(findings, qualityWarning("plan.relevant_context", "plan_missing_skill_context", "plan carries no evidence of a skill sweep: no global skill setup item and no NO_SKILL_CONTEXT/NO_CONTEXT skip reason"))
 	}
 	return findings
 }

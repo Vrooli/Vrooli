@@ -156,22 +156,23 @@ func sessionChecklist(sess Session) []planmodel.ChecklistItem {
 	return items
 }
 
-// globalContextChecklistItems discloses the two context gates (global setup +
-// skill decision) as separate requirements, mirroring remainingRequiredInputs.
+// globalContextChecklistItems discloses advisory context state. Missing context
+// no longer blocks finalize; DiscoverSkillPack is the low-friction path for
+// adding professional skill setup.
 func globalContextChecklistItems(sess Session, sec Section) []planmodel.ChecklistItem {
 	global := planmodel.ChecklistItem{Key: string(SectionRelevantContext), Label: sec.Label}
-	if globalContextResolved(sess) {
+	if len(sess.RelevantContext) > 0 || noContextReason(sec.Content) != "" {
 		global.State = planmodel.ChecklistFilled
 	} else {
-		global.State = planmodel.ChecklistMissing
-		global.Detail = "accept/add a global item or record a NO_CONTEXT: reason"
+		global.State = planmodel.ChecklistFilled
+		global.Detail = "optional: add durable setup context if it will help execution"
 	}
 	skill := planmodel.ChecklistItem{Key: "skill_context", Label: "Skill context decision"}
-	if globalSkillContextResolved(sess) {
+	if hasSkillContext(sess.RelevantContext) || noSkillContextReason(sec.Content) != "" {
 		skill.State = planmodel.ChecklistFilled
 	} else {
-		skill.State = planmodel.ChecklistMissing
-		skill.Detail = "apply a context discovery batch or record a NO_SKILL_CONTEXT: reason"
+		skill.State = planmodel.ChecklistFilled
+		skill.Detail = "recommended: run author skill-pack with 2-5 concepts; keep most returned skills"
 	}
 	return []planmodel.ChecklistItem{global, skill}
 }

@@ -35,10 +35,3 @@ func (s *service) runAutofill(ctx context.Context, sess *Session, src AutofillSo
 	sess.Sections[idx].Autofilled = true
 	return AutofillResult{Source: src, SectionKey: key, Filled: true, Detail: "autofilled"}
 }
-
-// SuggestReferences queries search-hub's Answer projection from the session's
-// title + scope + technical approach and stores reviewable reference candidates
-// (routed by locator shape) on the session. It NEVER writes the references
-// section — only Accept finalizes a reviewed candidate. A nil seam / error /
-// empty result degrades honestly to no candidates (the references step still
-// offers manual entry and NO_CODE_REFS).

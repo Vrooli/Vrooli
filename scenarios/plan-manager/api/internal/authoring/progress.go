@@ -79,7 +79,7 @@ func remainingRequiredInputs(sess Session) []string {
 		out = append(out, "Relevant context: accept/add a global item or record a NO_CONTEXT: reason")
 	}
 	if globalContextResolved(sess) && !globalSkillContextResolved(sess) {
-		out = append(out, "Skill context: apply a context discovery batch or record a NO_SKILL_CONTEXT: reason")
+		out = append(out, "Skill context: run author skill-pack or add a skill item")
 	}
 	if len(sess.PhaseDrafts) == 0 {
 		out = append(out, "Phases: add at least one structured phase")
@@ -189,9 +189,4 @@ func FindPhaseDraft(sess Session, phaseID string) (PhaseDraft, bool) {
 func ContextItemSummary(item planmodel.RelevantContextItem) string {
 	label := firstNonEmpty(item.Label, item.Target, item.Command, item.Instruction, string(item.Kind))
 	return fmt.Sprintf("%s context %q", item.Kind, label)
-}
-
-// ReferenceCandidateSummary describes a reference-candidate mutation.
-func ReferenceCandidateSummary(candidate ReferenceCandidate) string {
-	return fmt.Sprintf("[%s: %s]", referenceMarker(candidate.Reference.Kind), candidate.Reference.Target)
 }

@@ -17,7 +17,7 @@ func TestSelectWorkItemOrdersAuthoringStateMachine(t *testing.T) {
 	require.Equal(t, SectionPurpose, selectWorkItem(sess, nil).Section.Key)
 
 	fillMandatorySections(&sess)
-	require.Equal(t, WorkItemGlobalContext, selectWorkItem(sess, nil).Kind)
+	require.Equal(t, WorkItemPhase, selectWorkItem(sess, nil).Kind)
 
 	_, idx := sectionForTest(sess.Sections, SectionRelevantContext)
 	sess.Sections[idx].Content = "NO_CONTEXT: fixture"

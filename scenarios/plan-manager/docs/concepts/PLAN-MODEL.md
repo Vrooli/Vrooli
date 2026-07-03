@@ -369,34 +369,18 @@ this document cannot silently drift apart.
 flat required-reading list with typed setup instructions that can be rendered by
 API, CLI, UI, and Markdown without asking a small agent to infer intent.
 
-**Discovery executes server-side.** `author context-discover` runs the
-prompt-manager (skills, actions) and search-hub (records, docs, skills) probes
-itself — concurrently with capped fan-out, each bounded by a per-probe timeout
-(default 20s) — and returns a curated proposal, not an adjudication queue.
-Author session start prefetches a title-derived batch in the background; a
-no-concept discover can reuse it, while explicit concepts or `--refresh`
-supersede it through the normal merge path. A failed probe degrades
-independently into a batch note; the step always returns.
+**Skill-pack discovery is direct relevant context.** `author skill-pack` runs
+`prompt-manager discover <concepts...> --type skill --json`, parses the returned
+skills/read command/budget status, and upserts those skills as global
+`RelevantContextItem`s. There is no candidate queue, discovery batch, accept/reject
+pass, or finalization blocker. Missing skill context is a warning/advisory; the
+hard execution-grade gates remain boundary, regression anchor, references (or
+`NO_CODE_REFS`), and phases.
 
-Discovery batches are first-class authoring state. Candidates are deduplicated
-by kind+target across concepts, probes, and prior runs; accepted or rejected
-targets do not resurrect as pending on rediscovery. The shortlist carries
-batch-scoped handles (`c1`, `c2`, ...), final-form setup lines, score, origin,
-cost when known, tags, snippets, and corroborating probe/concept hits. The
-longlist remains auditable with `context-list --all` but does not block
-finalize.
-
-**Skill checkpoint gate v3 (applied batch evidence).** Finalize requires the
-latest discovery batch to be applied by `context-apply`, or an explicit
-`NO_SKILL_CONTEXT: <reason>` / `NO_CONTEXT: <reason>` skip. `context-apply`
-takes useful shortlist items, sweeps noise with an optional batch note, sweeps
-the longlist implicitly, and requires a per-item drop reason only for
-high-confidence drops. A direct `context-submit` of the same target counts as a
-disposition, and `context-accept` / `context-reject` remain a one-item lane over
-the same apply path for small agents and legacy sessions. No minimum skill count
-is imposed: the gate demands evidence of a sweep, not a quota. Steered
-suggestions from the `SkillApplicabilityResolver` seam flow through the same
-disposition.
+Search-hub is intentionally direct. When docs, records, code locations, or prior
+work would help, the agent runs `search-hub query "<intent>" --type record,doc,skill`
+itself, inspects the native confidence/attribution, and submits only durable
+references or setup context back into plan-manager.
 
 Context items may be global or phase-scoped and are classified as `skill`,
 `doc`, `command`, `search`, `code_ref`, `req_ref`, or `note`. Required items
@@ -414,12 +398,9 @@ contradictory and is corrected to `phase_entry`; other explicit policies are
 honored. A `command`/`search` item must carry an `instruction` (and a `reason`)
 before it is accepted, never after.
 
-During authoring, discovered context starts as `ContextCandidate` session state.
-Candidates carry the proposed `RelevantContextItem`, discovery concepts, typed
-provenance, batch handle, curation tier, confidence, and
-pending/accepted/rejected/swept status. Only accepted candidates finalize into
-plan or phase `relevant_context[]`; rejected and swept candidates remain an
-authoring audit trail and do not affect execution.
+During authoring, discovered skill-pack items are already accepted relevant
+context. Manually submitted context uses the same item model and can be updated
+or removed before finalization.
 
 Execution injects relevant context through `start`, `status`, `context`,
 `resume`, `continue`, and `next`. `context` can inspect a requested phase
@@ -460,21 +441,12 @@ Every connected code location is captured with the machine-readable grammar from
   `future` so staleness does not flag it as "deleted".
 - `[REQ: OT-…]` — links a plan/phase to a requirement.
 
-References are **discovered**, not regex-scraped. The authoring wizard suggests
-connected locations from `search-hub`'s **Answer projection** (the
-where-in-the-code projection of the meta-optimization-manager coverage model) and
-routes the hits by locator shape — only a hit that resolves to a
-`[CODE:]/[DOC:]/[REQ:]` locator becomes a reference candidate; every other hit is
-dropped. Suggestions are **reviewable candidates** grouped into reference
-batches, mirroring the relevant-context proposal flow: a raw suggestion never
-enters the plan, and the references gate is satisfied only by a **reviewed**
-state — a `reference-apply` decision that takes at least one locator (with
-optional inline edits through the one-item lane) or an explicit
-`NO_CODE_REFS: <reason>`. Shortlist handles (`r1`, `r2`, ...) are the normal
-disposition surface; longlist suggestions are auditable but not required work.
-Discovery degrades honestly: search-hub down/empty ⇒ no candidates, and the
-references step still offers manual locator entry or the `NO_CODE_REFS:`
-fallback instead of a dead end. As more
+References are **connected locators**, not regex-scraped prose. The authoring
+wizard recommends direct `search-hub query "<intent>" --type record,doc,skill`
+when discovery would help, but it does not mirror search-hub results into
+authoring state. The author inspects native search-hub confidence/attribution
+and submits durable `[CODE:]`, `[DOC:]`, or `[REQ:]` locators manually, or records
+`NO_CODE_REFS: <reason>` when there are genuinely no connected references. As more
 Answer-projection providers (architecture-cartographer AI search, symbol/slice/
 coupling leaves) register with search-hub, discovery silently improves with no
 plan-manager change. The not-yet-built **unified code identifier** is a planned

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P0-002 — guided section-by-section authoring with autofill and a structure-validation gate.",
-    "last_validated_at": "2026-07-02T15:25:30-04:00",
+    "last_validated_at": "2026-07-02T21:19:14-04:00",
     "module": "authoring-wizard",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "PM-AUTHOR-001",
       "title": "Guided section-by-section authoring with a structure-validation gate",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "authoring",
       "description": "The wizard walks the plan's sections in order, validates structure as it goes, accepts structured global and phase-scoped relevant context, and refuses to finalize while a mandatory section (or a phase's acceptance) is empty. The flow is followable by a small model with minimal context.",
@@ -25,49 +25,49 @@
           "type": "test",
           "ref": "api/internal/authoring/authoring_test.go::TestStructureGateRejectsEmptyMandatoryAndAnchor",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Structure-validation gate rejects empty mandatory sections and missing anchors."
         },
         {
           "type": "test",
           "ref": "api/internal/authoring/authoring_test.go::TestSessionProgressionToComplete",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Section-by-section progression exposes the next required section until complete."
         },
         {
           "type": "test",
           "ref": "api/internal/authoring/authoring_test.go::TestPhaseNativeAuthoringValidatesAndFinalizesStructuredPhase",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Authoring stores global and phase-scoped relevant context and migrates legacy required-reading lines into structured context on finalize."
         },
         {
           "type": "test",
           "ref": "api/internal/authoring/authoring_test.go::TestContextDiscoveryCandidateLifecycle",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Relevant-context discovery persists curated batches and requires an applied batch decision or an honest no-context reason."
         },
         {
           "type": "test",
           "ref": "api/internal/authoring/authoring_test.go::TestValidateStructureReportsPlanQualityReadinessFailures",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Author validate reports deterministic readiness quality findings before finalize."
         },
         {
           "type": "test",
           "ref": "api/internal/authoring/authoring_test.go::TestFinalizeRejectsPlanQualityReadinessFailures",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Finalize blocks deterministic quality failures before persistence."
         },
         {
           "type": "test",
           "ref": "cli/domains/authoring/handlers_test.go::TestAuthoringRequestMapping",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Disposition drop reasons preserve spaces, commas, semicolons, and punctuation."
         }
       ]
@@ -75,7 +75,7 @@
     {
       "id": "PM-AUTHOR-002",
       "title": "Auto-fill the mechanical sections so the model only supplies prose",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "authoring",
       "description": "The wizard auto-fills deterministic setup where possible — boundary-derived regression-anchor intent, curated relevant-context batches (via prompt-manager/search-hub/cli-health), and curated code-reference batches (via search-hub/code locators) — degrading gracefully when a source is unavailable, so genuine prose and final context judgment are left for the agent.",
@@ -89,21 +89,21 @@
           "type": "test",
           "ref": "api/internal/authoring/authoring_test.go::TestAutofillFillsWhenSeamsHealthy",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Autofill fills mechanical sections when substrate seams are healthy."
         },
         {
           "type": "test",
           "ref": "api/internal/authoring/authoring_test.go::TestAutofilledReferencesSurviveFinalize",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Autofilled references round-trip through finalize into structured plan references."
         },
         {
           "type": "test",
           "ref": "api/internal/authoring/authoring_test.go::TestContextDiscoveryDegradesWhenSeamUnavailable",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Context discovery degrades honestly when the discovery seam is unavailable."
         }
       ]

@@ -214,128 +214,23 @@ func (h *connectHandler) RemoveRelevantContextItem(ctx context.Context, req *con
 	}), nil
 }
 
-func (h *connectHandler) DiscoverContextCandidates(ctx context.Context, req *connect.Request[authoringv1.DiscoverContextCandidatesRequest]) (*connect.Response[authoringv1.DiscoverContextCandidatesResponse], error) {
-	sess, candidates, step, err := h.deps.Service.DiscoverContextCandidates(ctx, req.Msg.GetSessionId(), req.Msg.GetConcepts(), req.Msg.GetComplexity(), req.Msg.GetRefresh())
+func (h *connectHandler) DiscoverSkillPack(ctx context.Context, req *connect.Request[authoringv1.DiscoverSkillPackRequest]) (*connect.Response[authoringv1.DiscoverSkillPackResponse], error) {
+	sess, result, added, kept, violations, step, err := h.deps.Service.DiscoverSkillPack(ctx, req.Msg.GetSessionId(), req.Msg.GetConcepts(), req.Msg.GetComplexity())
 	if err != nil {
 		return nil, internalauthoring.ToConnectError(err)
 	}
-	return connect.NewResponse(&authoringv1.DiscoverContextCandidatesResponse{
-		Candidates: contextCandidatesToProto(candidates),
-		Progress:   progressOf(sess),
-		Step:       guidedStepToProto(step),
-		Batch:      discoveryBatchToProto(internalauthoring.LatestDiscoveryBatch(sess)),
-	}), nil
-}
-
-func (h *connectHandler) AcceptContextCandidate(ctx context.Context, req *connect.Request[authoringv1.AcceptContextCandidateRequest]) (*connect.Response[authoringv1.AcceptContextCandidateResponse], error) {
-	sess, candidate, item, violations, step, err := h.deps.Service.AcceptContextCandidate(ctx, req.Msg.GetSessionId(), req.Msg.GetCandidateId(), req.Msg.GetPhaseId())
-	if err != nil {
-		return nil, internalauthoring.ToConnectError(err)
-	}
-	return connect.NewResponse(&authoringv1.AcceptContextCandidateResponse{
-		Candidate:  contextCandidateToProto(candidate),
-		Item:       relevantContextItemToProto(item),
-		Summary:    mutationSummary("candidate", candidate.ID, "", "accepted "+internalauthoring.ContextItemSummary(item)),
-		Progress:   progressOf(sess),
-		Violations: violationsToProto(violations),
-		Step:       guidedStepToProto(step),
-	}), nil
-}
-
-func (h *connectHandler) RejectContextCandidate(ctx context.Context, req *connect.Request[authoringv1.RejectContextCandidateRequest]) (*connect.Response[authoringv1.RejectContextCandidateResponse], error) {
-	sess, candidate, step, err := h.deps.Service.RejectContextCandidate(ctx, req.Msg.GetSessionId(), req.Msg.GetCandidateId(), req.Msg.GetReason())
-	if err != nil {
-		return nil, internalauthoring.ToConnectError(err)
-	}
-	return connect.NewResponse(&authoringv1.RejectContextCandidateResponse{
-		Candidate: contextCandidateToProto(candidate),
-		Progress:  progressOf(sess),
-		Step:      guidedStepToProto(step),
-	}), nil
-}
-
-func (h *connectHandler) ApplyContextDisposition(ctx context.Context, req *connect.Request[authoringv1.ApplyContextDispositionRequest]) (*connect.Response[authoringv1.ApplyContextDispositionResponse], error) {
-	sess, summary, violations, step, err := h.deps.Service.ApplyContextDisposition(
-		ctx,
-		req.Msg.GetSessionId(),
-		req.Msg.GetBatchId(),
-		contextDispositionTakesFromProto(req.Msg.GetTake()),
-		contextDispositionDropsFromProto(req.Msg.GetDrop()),
-		req.Msg.GetSweepNote(),
-		req.Msg.GetTakeAll(),
-	)
-	if err != nil {
-		return nil, internalauthoring.ToConnectError(err)
-	}
-	return connect.NewResponse(&authoringv1.ApplyContextDispositionResponse{
-		Results:    contextDispositionResultsToProto(summary.Results),
-		Batch:      discoveryBatchToProto(summary.Batch),
-		Progress:   progressOf(sess),
-		Violations: violationsToProto(violations),
-		Step:       guidedStepToProto(step),
-	}), nil
-}
-
-func (h *connectHandler) SuggestReferences(ctx context.Context, req *connect.Request[authoringv1.SuggestReferencesRequest]) (*connect.Response[authoringv1.SuggestReferencesResponse], error) {
-	sess, candidates, step, err := h.deps.Service.SuggestReferences(ctx, req.Msg.GetSessionId())
-	if err != nil {
-		return nil, internalauthoring.ToConnectError(err)
-	}
-	return connect.NewResponse(&authoringv1.SuggestReferencesResponse{
-		Candidates: referenceCandidatesToProto(candidates),
-		Progress:   progressOf(sess),
-		Step:       guidedStepToProto(step),
-	}), nil
-}
-
-func (h *connectHandler) ListReferenceCandidates(ctx context.Context, req *connect.Request[authoringv1.ListReferenceCandidatesRequest]) (*connect.Response[authoringv1.ListReferenceCandidatesResponse], error) {
-	candidates, step, err := h.deps.Service.ListReferenceCandidates(ctx, req.Msg.GetSessionId())
-	if err != nil {
-		return nil, internalauthoring.ToConnectError(err)
-	}
-	return connect.NewResponse(&authoringv1.ListReferenceCandidatesResponse{
-		Candidates: referenceCandidatesToProto(candidates),
-		Step:       guidedStepToProto(step),
-	}), nil
-}
-
-func (h *connectHandler) AcceptReferenceCandidate(ctx context.Context, req *connect.Request[authoringv1.AcceptReferenceCandidateRequest]) (*connect.Response[authoringv1.AcceptReferenceCandidateResponse], error) {
-	sess, candidate, violations, step, err := h.deps.Service.AcceptReferenceCandidate(ctx, req.Msg.GetSessionId(), req.Msg.GetCandidateId(), referenceEditFromProto(req.Msg.GetReference()))
-	if err != nil {
-		return nil, internalauthoring.ToConnectError(err)
-	}
-	return connect.NewResponse(&authoringv1.AcceptReferenceCandidateResponse{
-		Candidate:  referenceCandidateToProto(candidate),
-		Summary:    mutationSummary("reference_candidate", candidate.ID, "", "accepted "+internalauthoring.ReferenceCandidateSummary(candidate)),
-		Progress:   progressOf(sess),
-		Violations: violationsToProto(violations),
-		Step:       guidedStepToProto(step),
-	}), nil
-}
-
-func (h *connectHandler) RejectReferenceCandidate(ctx context.Context, req *connect.Request[authoringv1.RejectReferenceCandidateRequest]) (*connect.Response[authoringv1.RejectReferenceCandidateResponse], error) {
-	sess, candidate, step, err := h.deps.Service.RejectReferenceCandidate(ctx, req.Msg.GetSessionId(), req.Msg.GetCandidateId(), req.Msg.GetReason())
-	if err != nil {
-		return nil, internalauthoring.ToConnectError(err)
-	}
-	return connect.NewResponse(&authoringv1.RejectReferenceCandidateResponse{
-		Candidate: referenceCandidateToProto(candidate),
-		Progress:  progressOf(sess),
-		Step:      guidedStepToProto(step),
-	}), nil
-}
-
-func (h *connectHandler) ApplyReferenceDisposition(ctx context.Context, req *connect.Request[authoringv1.ApplyReferenceDispositionRequest]) (*connect.Response[authoringv1.ApplyReferenceDispositionResponse], error) {
-	sess, summary, violations, step, err := h.deps.Service.ApplyReferenceDisposition(ctx, req.Msg.GetSessionId(), req.Msg.GetBatchId(), referenceDispositionTakesFromProto(req.Msg.GetTake()), referenceDispositionDropsFromProto(req.Msg.GetDrop()), req.Msg.GetSweepNote(), req.Msg.GetTakeAll())
-	if err != nil {
-		return nil, internalauthoring.ToConnectError(err)
-	}
-	return connect.NewResponse(&authoringv1.ApplyReferenceDispositionResponse{
-		Results:    referenceDispositionResultsToProto(summary.Results),
-		Batch:      discoveryBatchToProto(summary.Batch),
-		Progress:   progressOf(sess),
-		Violations: violationsToProto(violations),
-		Step:       guidedStepToProto(step),
+	return connect.NewResponse(&authoringv1.DiscoverSkillPackResponse{
+		AddedItems:             relevantContextItemsToProto(added),
+		KeptItems:              relevantContextItemsToProto(kept),
+		ReadCommand:            result.ReadCommand,
+		RecommendedReadCommand: result.RecommendedReadCommand,
+		BudgetStatus:           result.BudgetStatus,
+		ResultsSummary:         result.Summary,
+		Progress:               progressOf(sess),
+		Step:                   guidedStepToProto(step),
+		Violations:             violationsToProto(violations),
+		Degraded:               result.Degraded,
+		DegradedReason:         result.DegradedReason,
 	}), nil
 }
 

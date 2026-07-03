@@ -5,16 +5,13 @@ import {
   type AuthoringProgress,
   type AuthoringSession,
   type AutofillResult,
-  type ContextCandidate,
   type PhaseDraft,
-  type ReferenceCandidate,
   type Section,
   type StructureViolation,
 } from "@vrooli/proto-types/plan-manager/v1/authoring/authoring_pb";
 import {
   type GuidedStep,
   type Plan,
-  type Reference,
   type RelevantContextItem,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 
@@ -147,103 +144,37 @@ export async function listRelevantContext(
   return { items: resp.items, step: resp.step };
 }
 
-export async function discoverContextCandidates(
+export async function discoverSkillPack(
   sessionId: string,
   concepts: string[],
   complexity = "",
 ): Promise<{
-  candidates: ContextCandidate[];
-  progress: AuthoringProgress | undefined;
-  step: GuidedStep | undefined;
-}> {
-  const resp = await authoringClient.discoverContextCandidates({ sessionId, concepts, complexity });
-  return { candidates: resp.candidates, progress: resp.progress, step: resp.step };
-}
-
-export async function acceptContextCandidate(
-  sessionId: string,
-  candidateId: string,
-  phaseId = "",
-): Promise<{
-  candidate: ContextCandidate | undefined;
-  item: RelevantContextItem | undefined;
-  summary: AuthoringMutationSummary | undefined;
+  addedItems: RelevantContextItem[];
+  keptItems: RelevantContextItem[];
+  readCommand: string;
+  recommendedReadCommand: string;
+  budgetStatus: string;
+  resultsSummary: string;
+  degraded: boolean;
+  degradedReason: string;
   progress: AuthoringProgress | undefined;
   violations: StructureViolation[];
   step: GuidedStep | undefined;
 }> {
-  const resp = await authoringClient.acceptContextCandidate({ sessionId, candidateId, phaseId });
+  const resp = await authoringClient.discoverSkillPack({ sessionId, concepts, complexity });
   return {
-    candidate: resp.candidate,
-    item: resp.item,
-    summary: resp.summary,
+    addedItems: resp.addedItems,
+    keptItems: resp.keptItems,
+    readCommand: resp.readCommand,
+    recommendedReadCommand: resp.recommendedReadCommand,
+    budgetStatus: resp.budgetStatus,
+    resultsSummary: resp.resultsSummary,
+    degraded: resp.degraded,
+    degradedReason: resp.degradedReason,
     progress: resp.progress,
     violations: resp.violations,
     step: resp.step,
   };
-}
-
-export async function rejectContextCandidate(
-  sessionId: string,
-  candidateId: string,
-  reason: string,
-): Promise<{
-  candidate: ContextCandidate | undefined;
-  progress: AuthoringProgress | undefined;
-  step: GuidedStep | undefined;
-}> {
-  const resp = await authoringClient.rejectContextCandidate({ sessionId, candidateId, reason });
-  return { candidate: resp.candidate, progress: resp.progress, step: resp.step };
-}
-
-export async function suggestReferences(sessionId: string): Promise<{
-  candidates: ReferenceCandidate[];
-  progress: AuthoringProgress | undefined;
-  step: GuidedStep | undefined;
-}> {
-  const resp = await authoringClient.suggestReferences({ sessionId });
-  return { candidates: resp.candidates, progress: resp.progress, step: resp.step };
-}
-
-export async function listReferenceCandidates(
-  sessionId: string,
-): Promise<{ candidates: ReferenceCandidate[]; step: GuidedStep | undefined }> {
-  const resp = await authoringClient.listReferenceCandidates({ sessionId });
-  return { candidates: resp.candidates, step: resp.step };
-}
-
-export async function acceptReferenceCandidate(
-  sessionId: string,
-  candidateId: string,
-  reference?: Reference,
-): Promise<{
-  candidate: ReferenceCandidate | undefined;
-  summary: AuthoringMutationSummary | undefined;
-  progress: AuthoringProgress | undefined;
-  violations: StructureViolation[];
-  step: GuidedStep | undefined;
-}> {
-  const resp = await authoringClient.acceptReferenceCandidate({ sessionId, candidateId, reference });
-  return {
-    candidate: resp.candidate,
-    summary: resp.summary,
-    progress: resp.progress,
-    violations: resp.violations,
-    step: resp.step,
-  };
-}
-
-export async function rejectReferenceCandidate(
-  sessionId: string,
-  candidateId: string,
-  reason: string,
-): Promise<{
-  candidate: ReferenceCandidate | undefined;
-  progress: AuthoringProgress | undefined;
-  step: GuidedStep | undefined;
-}> {
-  const resp = await authoringClient.rejectReferenceCandidate({ sessionId, candidateId, reason });
-  return { candidate: resp.candidate, progress: resp.progress, step: resp.step };
 }
 
 export async function finalize(sessionId: string): Promise<{ plan: Plan | undefined; step: GuidedStep | undefined }> {

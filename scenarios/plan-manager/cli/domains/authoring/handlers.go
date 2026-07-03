@@ -325,214 +325,46 @@ func (h *handlers) getSession(ctx cliapp.RunContext) error {
 	})
 }
 
-func (h *handlers) contextDiscover(ctx cliapp.RunContext) error {
-	resp, err := h.client.DiscoverContextCandidates(context.Background(), connect.NewRequest(&authoringv1.DiscoverContextCandidatesRequest{
+func (h *handlers) skillPack(ctx cliapp.RunContext) error {
+	resp, err := h.client.DiscoverSkillPack(context.Background(), connect.NewRequest(&authoringv1.DiscoverSkillPackRequest{
 		SessionId:  ctx.Positional("session"),
 		Concepts:   parseList(ctx.Flag("concepts")),
 		Complexity: ctx.Flag("complexity"),
-		Refresh:    ctx.BoolFlag("refresh"),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("discover context candidates", err, nil)
+		return cliapp.WrapAPIError("discover skill pack", err, nil)
 	}
-	candidates := make([]string, 0, len(resp.Msg.GetCandidates()))
-	for _, candidate := range resp.Msg.GetCandidates() {
-		candidates = append(candidates, formatContextCandidate(candidate))
+	changes := make([]string, 0, len(resp.Msg.GetAddedItems())+len(resp.Msg.GetKeptItems())+12)
+	if summary := strings.TrimSpace(resp.Msg.GetResultsSummary()); summary != "" {
+		changes = append(changes, summary)
 	}
-	if batch := resp.Msg.GetBatch(); batch != nil {
-		candidates = append(candidates, formatDiscoveryBatch(batch)...)
-	}
-	candidates = append(candidates, formatProgress(resp.Msg.GetProgress())...)
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Discovered %d context candidate(s).", len(resp.Msg.GetCandidates()))},
-		Changes:     append(candidates, formatStep(resp.Msg.GetStep())...),
-		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
-	})
-}
-
-func (h *handlers) contextAccept(ctx cliapp.RunContext) error {
-	resp, err := h.client.AcceptContextCandidate(context.Background(), connect.NewRequest(&authoringv1.AcceptContextCandidateRequest{
-		SessionId:   ctx.Positional("session"),
-		CandidateId: ctx.Positional("candidate"),
-		PhaseId:     ctx.Flag("phase"),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("accept context candidate", err, nil)
-	}
-	changes := []string{formatContextCandidate(resp.Msg.GetCandidate()), formatContextItem(resp.Msg.GetItem())}
-	changes = append(changes, formatProgress(resp.Msg.GetProgress())...)
-	if v := resp.Msg.GetViolations(); len(v) > 0 {
-		changes = append(changes, formatViolations(v)...)
-	}
-	changes = append(changes, formatStep(resp.Msg.GetStep())...)
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Accepted context candidate %s (%d violation(s)).", ctx.Positional("candidate"), len(resp.Msg.GetViolations()))},
-		Changes:     changes,
-		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
-	})
-}
-
-func (h *handlers) contextReject(ctx cliapp.RunContext) error {
-	resp, err := h.client.RejectContextCandidate(context.Background(), connect.NewRequest(&authoringv1.RejectContextCandidateRequest{
-		SessionId:   ctx.Positional("session"),
-		CandidateId: ctx.Positional("candidate"),
-		Reason:      ctx.Flag("reason"),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("reject context candidate", err, nil)
-	}
-	changes := append([]string{formatContextCandidate(resp.Msg.GetCandidate())}, formatProgress(resp.Msg.GetProgress())...)
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Rejected context candidate %s.", ctx.Positional("candidate"))},
-		Changes:     append(changes, formatStep(resp.Msg.GetStep())...),
-		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
-	})
-}
-
-func (h *handlers) contextApply(ctx cliapp.RunContext) error {
-	takes := parseContextDispositionTakes(ctx.FlagValues("take"))
-	drops := parseContextDispositionDrops(ctx.FlagValues("drop"))
-	resp, err := h.client.ApplyContextDisposition(context.Background(), connect.NewRequest(&authoringv1.ApplyContextDispositionRequest{
-		SessionId: ctx.Positional("session"),
-		BatchId:   ctx.Flag("batch"),
-		Take:      takes,
-		Drop:      drops,
-		SweepNote: ctx.Flag("note"),
-		TakeAll:   ctx.BoolFlag("take-all"),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("apply context disposition", err, nil)
-	}
-	changes := make([]string, 0, len(resp.Msg.GetResults())+8)
-	for _, result := range resp.Msg.GetResults() {
-		changes = append(changes, formatContextDispositionResult(result))
-	}
-	if batch := resp.Msg.GetBatch(); batch != nil {
-		changes = append(changes, formatDiscoveryBatch(batch)...)
+	if budget := strings.TrimSpace(resp.Msg.GetBudgetStatus()); budget != "" {
+		changes = append(changes, "budget: "+budget)
 	}
 	if v := resp.Msg.GetViolations(); len(v) > 0 {
 		changes = append(changes, formatViolations(v)...)
 	}
-	changes = append(changes, formatProgress(resp.Msg.GetProgress())...)
-	changes = append(changes, formatStep(resp.Msg.GetStep())...)
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Applied context disposition for %d candidate(s).", len(resp.Msg.GetResults()))},
-		Changes:     changes,
-		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
-	})
-}
-
-func (h *handlers) suggestReferences(ctx cliapp.RunContext) error {
-	resp, err := h.client.SuggestReferences(context.Background(), connect.NewRequest(&authoringv1.SuggestReferencesRequest{
-		SessionId: ctx.Positional("session"),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("suggest references", err, nil)
+	if resp.Msg.GetDegraded() {
+		changes = append(changes, "degraded: "+resp.Msg.GetDegradedReason())
 	}
-	candidates := make([]string, 0, len(resp.Msg.GetCandidates()))
-	for _, candidate := range resp.Msg.GetCandidates() {
-		candidates = append(candidates, formatReferenceCandidate(candidate))
+	if read := strings.TrimSpace(resp.Msg.GetReadCommand()); read != "" {
+		changes = append(changes, "read: "+read)
 	}
-	candidates = append(candidates, formatProgress(resp.Msg.GetProgress())...)
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Suggested %d reference candidate(s) from search-hub.", len(resp.Msg.GetCandidates()))},
-		Changes:     append(candidates, formatStep(resp.Msg.GetStep())...),
-		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
-	})
-}
-
-func (h *handlers) referenceCandidates(ctx cliapp.RunContext) error {
-	resp, err := h.client.ListReferenceCandidates(context.Background(), connect.NewRequest(&authoringv1.ListReferenceCandidatesRequest{
-		SessionId: ctx.Positional("session"),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("list reference candidates", err, nil)
+	if recommended := strings.TrimSpace(resp.Msg.GetRecommendedReadCommand()); recommended != "" && recommended != resp.Msg.GetReadCommand() {
+		changes = append(changes, "recommended read: "+recommended)
 	}
-	candidates := make([]string, 0, len(resp.Msg.GetCandidates()))
-	for _, candidate := range resp.Msg.GetCandidates() {
-		candidates = append(candidates, formatReferenceCandidate(candidate))
+	for _, item := range resp.Msg.GetAddedItems() {
+		changes = append(changes, "added: "+formatContextItem(item))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Reference candidate(s): %d.", len(resp.Msg.GetCandidates()))},
-		ResultsHeading: "Candidates",
-		Results:        candidates,
-		RetrievalHints: append(formatRecommendedActions(resp.Msg.GetStep()), formatStep(resp.Msg.GetStep())...),
-	})
-}
-
-func (h *handlers) referenceAccept(ctx cliapp.RunContext) error {
-	var edit *sharedv1.Reference
-	if kind, target := ctx.Flag("kind"), ctx.Flag("target"); strings.TrimSpace(kind) != "" || strings.TrimSpace(target) != "" || ctx.BoolFlag("future") {
-		edit = &sharedv1.Reference{
-			Kind:   parseReferenceKind(kind),
-			Target: strings.TrimSpace(target),
-			Future: ctx.BoolFlag("future"),
-		}
-	}
-	resp, err := h.client.AcceptReferenceCandidate(context.Background(), connect.NewRequest(&authoringv1.AcceptReferenceCandidateRequest{
-		SessionId:   ctx.Positional("session"),
-		CandidateId: ctx.Positional("candidate"),
-		Reference:   edit,
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("accept reference candidate", err, nil)
-	}
-	changes := []string{formatReferenceCandidate(resp.Msg.GetCandidate())}
-	changes = append(changes, formatProgress(resp.Msg.GetProgress())...)
-	if v := resp.Msg.GetViolations(); len(v) > 0 {
-		changes = append(changes, formatViolations(v)...)
-	}
-	changes = append(changes, formatStep(resp.Msg.GetStep())...)
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Accepted reference candidate %s (%d violation(s)).", ctx.Positional("candidate"), len(resp.Msg.GetViolations()))},
-		Changes:     changes,
-		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
-	})
-}
-
-func (h *handlers) referenceReject(ctx cliapp.RunContext) error {
-	resp, err := h.client.RejectReferenceCandidate(context.Background(), connect.NewRequest(&authoringv1.RejectReferenceCandidateRequest{
-		SessionId:   ctx.Positional("session"),
-		CandidateId: ctx.Positional("candidate"),
-		Reason:      ctx.Flag("reason"),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("reject reference candidate", err, nil)
-	}
-	changes := append([]string{formatReferenceCandidate(resp.Msg.GetCandidate())}, formatProgress(resp.Msg.GetProgress())...)
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Rejected reference candidate %s.", ctx.Positional("candidate"))},
-		Changes:     append(changes, formatStep(resp.Msg.GetStep())...),
-		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
-	})
-}
-
-func (h *handlers) referenceApply(ctx cliapp.RunContext) error {
-	resp, err := h.client.ApplyReferenceDisposition(context.Background(), connect.NewRequest(&authoringv1.ApplyReferenceDispositionRequest{
-		SessionId: ctx.Positional("session"),
-		BatchId:   ctx.Flag("batch"),
-		Take:      parseReferenceDispositionTakes(ctx.FlagValues("take")),
-		Drop:      parseReferenceDispositionDrops(ctx.FlagValues("drop")),
-		SweepNote: ctx.Flag("note"),
-		TakeAll:   ctx.BoolFlag("take-all"),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("apply reference disposition", err, nil)
-	}
-	changes := make([]string, 0, len(resp.Msg.GetResults())+8)
-	for _, result := range resp.Msg.GetResults() {
-		changes = append(changes, formatReferenceDispositionResult(result))
-	}
-	if batch := resp.Msg.GetBatch(); batch != nil {
-		changes = append(changes, formatReferenceBatch(batch)...)
-	}
-	if v := resp.Msg.GetViolations(); len(v) > 0 {
-		changes = append(changes, formatViolations(v)...)
+	for _, item := range resp.Msg.GetKeptItems() {
+		changes = append(changes, "kept: "+formatContextItem(item))
 	}
 	changes = append(changes, formatProgress(resp.Msg.GetProgress())...)
+	changes = append(changes, "search-hub: run `search-hub query \"<intent>\" --type record,doc,skill` directly for docs/records/code, then add only durable context or references.")
+	changes = append(changes, "edit: use author context-submit/context-update/context-remove to adjust relevant context.")
 	changes = append(changes, formatStep(resp.Msg.GetStep())...)
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Applied reference disposition for %d candidate(s).", len(resp.Msg.GetResults()))},
+		Result:      []string{fmt.Sprintf("Skill pack: %d added, %d already present.", len(resp.Msg.GetAddedItems()), len(resp.Msg.GetKeptItems()))},
 		Changes:     changes,
 		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
 	})
@@ -1067,246 +899,6 @@ func formatContextItem(item *sharedv1.RelevantContextItem) string {
 	return strings.Join(parts, " | ")
 }
 
-func formatContextCandidate(candidate *authoringv1.ContextCandidate) string {
-	if candidate == nil {
-		return ""
-	}
-	id := firstNonEmpty(candidate.GetHandle(), candidate.GetId())
-	item := candidate.GetItem()
-	kind := contextKindLabel(item.GetKind())
-	label := firstNonEmpty(item.GetLabel(), item.GetTarget(), item.GetCommand(), item.GetInstruction(), "context")
-	score := "score=n/a"
-	if candidate.GetScore() != 0 {
-		score = fmt.Sprintf("score=%.3f", candidate.GetScore())
-	}
-	summary := []string{
-		id,
-		"[" + candidate.GetStatus() + "]",
-		kind,
-		label,
-		score,
-	}
-	if candidate.GetTier() != "" {
-		summary = append(summary, "tier="+candidate.GetTier())
-	}
-	if candidate.GetOrigin() != "" {
-		summary = append(summary, "origin="+candidate.GetOrigin())
-	}
-	summary = append(summary, fmt.Sprintf("hits=%d", contextCandidateHitCount(candidate)))
-	if candidate.GetSizeChars() > 0 {
-		summary = append(summary, "size="+formatSizeChars(candidate.GetSizeChars()))
-	}
-	if candidate.GetHighConfidence() {
-		summary = append(summary, "high_confidence=true")
-	}
-
-	lines := []string{strings.Join(summary, " | ")}
-	if setup := firstNonEmpty(candidate.GetSetupLine(), item.GetCommand(), item.GetTarget()); setup != "" {
-		lines = append(lines, "  setup: "+setup)
-	}
-	var evidence []string
-	if candidate.GetConcept() != "" {
-		evidence = append(evidence, "concept="+candidate.GetConcept())
-	}
-	if candidate.GetSource() != "" {
-		evidence = append(evidence, "source="+candidate.GetSource())
-	}
-	if candidate.GetTitle() != "" {
-		evidence = append(evidence, "title="+candidate.GetTitle())
-	}
-	if len(candidate.GetTags()) > 0 {
-		evidence = append(evidence, "tags="+strings.Join(candidate.GetTags(), ","))
-	}
-	if len(evidence) > 0 {
-		lines = append(lines, "  evidence: "+strings.Join(evidence, " | "))
-	}
-	if candidate.GetSnippet() != "" {
-		lines = append(lines, "  snippet: "+truncateOneLine(candidate.GetSnippet(), 180))
-	}
-	if candidate.GetDegraded() && candidate.GetDetail() != "" {
-		lines = append(lines, "  degraded: "+candidate.GetDetail())
-	}
-	if candidate.GetRejectionReason() != "" {
-		lines = append(lines, "  rejected: "+candidate.GetRejectionReason())
-	}
-	return strings.Join(lines, "\n")
-}
-
-func formatDiscoveryBatch(batch *authoringv1.DiscoveryBatch) []string {
-	if batch == nil {
-		return nil
-	}
-	out := []string{fmt.Sprintf("batch=%s status=%s source=%s", batch.GetId(), batch.GetStatus(), batch.GetSource())}
-	if stats := batch.GetCurationStats(); stats != nil {
-		if stats.GetSuppressedDispositioned() > 0 {
-			out = append(out, fmt.Sprintf("suppressed_dispositioned=%d", stats.GetSuppressedDispositioned()))
-		}
-		if stats.GetOmittedBelowThreshold() > 0 {
-			out = append(out, fmt.Sprintf("omitted_below_threshold=%d", stats.GetOmittedBelowThreshold()))
-		}
-		if stats.GetOmittedTopicFiller() > 0 {
-			out = append(out, fmt.Sprintf("omitted_topic_filler=%d", stats.GetOmittedTopicFiller()))
-		}
-		if stats.GetOmittedByCap() > 0 {
-			out = append(out, fmt.Sprintf("omitted_by_cap=%d", stats.GetOmittedByCap()))
-		}
-	}
-	for _, note := range batch.GetProbeNotes() {
-		if note.GetDegraded() {
-			out = append(out, fmt.Sprintf("probe degraded: %s (%s): %s", note.GetProbe(), note.GetConcept(), note.GetDetail()))
-		}
-	}
-	if batch.GetStatus() == "pending" {
-		out = append(out, fmt.Sprintf("review: take handles with author context-apply <session> --batch %s --take c1 --note \"reviewed shortlist\" (or use context-accept/context-reject with handles)", batch.GetId()))
-	}
-	return out
-}
-
-func formatContextDispositionResult(result *authoringv1.ContextDispositionResult) string {
-	if result == nil {
-		return ""
-	}
-	candidate := result.GetCandidate()
-	id := ""
-	if candidate != nil {
-		id = firstNonEmpty(candidate.GetHandle(), candidate.GetId())
-	}
-	status := "rejected"
-	if result.GetAccepted() {
-		status = "accepted"
-	}
-	parts := []string{result.GetAction(), id, status}
-	if result.GetMessage() != "" {
-		parts = append(parts, result.GetMessage())
-	}
-	if len(result.GetViolations()) > 0 {
-		parts = append(parts, fmt.Sprintf("%d violation(s)", len(result.GetViolations())))
-	}
-	return strings.Join(parts, " | ")
-}
-
-func contextCandidateHitCount(candidate *authoringv1.ContextCandidate) int {
-	if candidate == nil || len(candidate.GetCorroboration()) == 0 {
-		return 1
-	}
-	return len(candidate.GetCorroboration())
-}
-
-func formatSizeChars(chars int32) string {
-	if chars >= 1000 {
-		return fmt.Sprintf("%.1fk", float64(chars)/1000)
-	}
-	return fmt.Sprintf("%d", chars)
-}
-
-func truncateOneLine(value string, limit int) string {
-	value = strings.Join(strings.Fields(value), " ")
-	if limit <= 0 || len(value) <= limit {
-		return value
-	}
-	if limit <= 3 {
-		return value[:limit]
-	}
-	return value[:limit-3] + "..."
-}
-
-func formatReferenceCandidate(candidate *authoringv1.ReferenceCandidate) string {
-	if candidate == nil {
-		return ""
-	}
-	ref := candidate.GetReference()
-	locator := fmt.Sprintf("[%s: %s]", referenceMarkerLabel(ref.GetKind()), ref.GetTarget())
-	id := firstNonEmpty(candidate.GetHandle(), candidate.GetId())
-	parts := []string{id, "[" + candidate.GetStatus() + "]", locator}
-	if candidate.GetSource() != "" {
-		parts = append(parts, "source="+candidate.GetSource())
-	}
-	if candidate.GetConfidence() > 0 {
-		parts = append(parts, fmt.Sprintf("score=%.3f", candidate.GetConfidence()))
-	}
-	if candidate.GetTier() != "" {
-		parts = append(parts, "tier="+candidate.GetTier())
-	}
-	parts = append(parts, fmt.Sprintf("hits=%d", referenceCandidateHitCount(candidate)))
-	if candidate.GetHighConfidence() {
-		parts = append(parts, "high_confidence=true")
-	}
-	if candidate.GetDegraded() {
-		parts = append(parts, "degraded="+candidate.GetDetail())
-	}
-	if candidate.GetRejectionReason() != "" {
-		parts = append(parts, "rejected="+candidate.GetRejectionReason())
-	}
-	return strings.Join(parts, " | ")
-}
-
-func referenceCandidateHitCount(candidate *authoringv1.ReferenceCandidate) int {
-	if candidate == nil || len(candidate.GetCorroboration()) == 0 {
-		return 1
-	}
-	return len(candidate.GetCorroboration())
-}
-
-func formatReferenceBatch(batch *authoringv1.DiscoveryBatch) []string {
-	out := formatDiscoveryBatch(batch)
-	for i := range out {
-		out[i] = strings.Replace(out[i], "context-apply", "reference-apply", 1)
-		out[i] = strings.Replace(out[i], "--take c1", "--take r1", 1)
-		out[i] = strings.Replace(out[i], "context candidate", "reference candidate", 1)
-	}
-	return out
-}
-
-func formatReferenceDispositionResult(result *authoringv1.ReferenceDispositionResult) string {
-	if result == nil {
-		return ""
-	}
-	candidate := result.GetCandidate()
-	id := ""
-	if candidate != nil {
-		id = firstNonEmpty(candidate.GetHandle(), candidate.GetId())
-	}
-	status := "rejected"
-	if result.GetAccepted() {
-		status = "accepted"
-	}
-	parts := []string{result.GetAction(), id, status}
-	if ref := result.GetReference(); ref != nil && ref.GetTarget() != "" {
-		parts = append(parts, fmt.Sprintf("[%s: %s]", referenceMarkerLabel(ref.GetKind()), ref.GetTarget()))
-	}
-	if result.GetMessage() != "" {
-		parts = append(parts, result.GetMessage())
-	}
-	if len(result.GetViolations()) > 0 {
-		parts = append(parts, fmt.Sprintf("%d violation(s)", len(result.GetViolations())))
-	}
-	return strings.Join(parts, " | ")
-}
-
-func referenceMarkerLabel(kind sharedv1.ReferenceKind) string {
-	switch kind {
-	case sharedv1.ReferenceKind_REFERENCE_KIND_REQ:
-		return "REQ"
-	case sharedv1.ReferenceKind_REFERENCE_KIND_DOC:
-		return "DOC"
-	default:
-		return "CODE"
-	}
-}
-
-func parseReferenceKind(raw string) sharedv1.ReferenceKind {
-	switch strings.TrimSpace(strings.ToLower(raw)) {
-	case "req", "req_ref", "requirement":
-		return sharedv1.ReferenceKind_REFERENCE_KIND_REQ
-	case "doc", "docs":
-		return sharedv1.ReferenceKind_REFERENCE_KIND_DOC
-	case "code", "code_ref":
-		return sharedv1.ReferenceKind_REFERENCE_KIND_CODE
-	default:
-		return sharedv1.ReferenceKind_REFERENCE_KIND_UNSPECIFIED
-	}
-}
-
 func formatPhase(phase *authoringv1.PhaseDraft) string {
 	return fmt.Sprintf("Phase %d [%s]: %s — %s", phase.GetOrder(), phase.GetId(), phase.GetTitle(), phase.GetIntent())
 }
@@ -1364,88 +956,6 @@ func parseList(raw string) []string {
 	for _, p := range parts {
 		if s := strings.TrimSpace(p); s != "" {
 			out = append(out, s)
-		}
-	}
-	return out
-}
-
-func parseContextDispositionTakes(values []string) []*authoringv1.ContextDispositionTake {
-	var out []*authoringv1.ContextDispositionTake
-	for _, value := range expandCSVValues(values) {
-		candidate, phase, _ := strings.Cut(value, ":")
-		candidate = strings.TrimSpace(candidate)
-		if candidate == "" {
-			continue
-		}
-		out = append(out, &authoringv1.ContextDispositionTake{
-			Candidate: candidate,
-			PhaseId:   strings.TrimSpace(phase),
-		})
-	}
-	return out
-}
-
-func parseContextDispositionDrops(values []string) []*authoringv1.ContextDispositionDrop {
-	var out []*authoringv1.ContextDispositionDrop
-	for _, value := range trimFlagValues(values) {
-		candidate, reason, _ := strings.Cut(value, "=")
-		candidate = strings.TrimSpace(candidate)
-		if candidate == "" {
-			continue
-		}
-		out = append(out, &authoringv1.ContextDispositionDrop{
-			Candidate: candidate,
-			Reason:    strings.TrimSpace(reason),
-		})
-	}
-	return out
-}
-
-func parseReferenceDispositionTakes(values []string) []*authoringv1.ReferenceDispositionTake {
-	var out []*authoringv1.ReferenceDispositionTake
-	for _, value := range expandCSVValues(values) {
-		candidate := strings.TrimSpace(value)
-		if candidate == "" {
-			continue
-		}
-		out = append(out, &authoringv1.ReferenceDispositionTake{Candidate: candidate})
-	}
-	return out
-}
-
-func parseReferenceDispositionDrops(values []string) []*authoringv1.ReferenceDispositionDrop {
-	var out []*authoringv1.ReferenceDispositionDrop
-	for _, value := range trimFlagValues(values) {
-		candidate, reason, _ := strings.Cut(value, "=")
-		candidate = strings.TrimSpace(candidate)
-		if candidate == "" {
-			continue
-		}
-		out = append(out, &authoringv1.ReferenceDispositionDrop{
-			Candidate: candidate,
-			Reason:    strings.TrimSpace(reason),
-		})
-	}
-	return out
-}
-
-func trimFlagValues(values []string) []string {
-	var out []string
-	for _, value := range values {
-		if value = strings.TrimSpace(value); value != "" {
-			out = append(out, value)
-		}
-	}
-	return out
-}
-
-func expandCSVValues(values []string) []string {
-	var out []string
-	for _, value := range values {
-		for _, part := range strings.Split(value, ",") {
-			if part = strings.TrimSpace(part); part != "" {
-				out = append(out, part)
-			}
 		}
 	}
 	return out

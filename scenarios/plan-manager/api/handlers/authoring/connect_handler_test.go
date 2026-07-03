@@ -27,12 +27,9 @@ type fakeAuthoringService struct {
 	phase            internalauthoring.PhaseDraft
 	contextItem      internalplans.RelevantContextItem
 	contextItems     []internalplans.RelevantContextItem
-	candidate        internalauthoring.ContextCandidate
-	candidates       []internalauthoring.ContextCandidate
-	disposition      internalauthoring.ContextDispositionSummary
-	refCandidate     internalauthoring.ReferenceCandidate
-	refCandidates    []internalauthoring.ReferenceCandidate
-	refDisposition   internalauthoring.ReferenceDispositionSummary
+	skillPackResult  internalauthoring.SkillPackResult
+	addedItems       []internalplans.RelevantContextItem
+	keptItems        []internalplans.RelevantContextItem
 	step             internalauthoring.GuidedStep
 	valid            bool
 	complete         bool
@@ -59,18 +56,8 @@ type fakeAuthoringService struct {
 	gotPhaseField    internalauthoring.PhaseField
 	gotContextItem   internalplans.RelevantContextItem
 	gotItemID        string
-	gotCandidateID   string
-	gotBatchID       string
-	gotTakes         []internalauthoring.ContextDispositionTake
-	gotDrops         []internalauthoring.ContextDispositionDrop
-	gotRefTakes      []internalauthoring.ReferenceDispositionTake
-	gotRefDrops      []internalauthoring.ReferenceDispositionDrop
-	gotSweepNote     string
-	gotTakeAll       bool
 	gotConcepts      []string
 	gotComplexity    string
-	gotRefresh       bool
-	gotReason        string
 }
 
 func (f *fakeAuthoringService) StartSession(_ context.Context, title, slug, templateID string) (internalauthoring.Session, internalauthoring.GuidedStep, error) {
@@ -139,53 +126,9 @@ func (f *fakeAuthoringService) RemoveRelevantContextItem(_ context.Context, sess
 	return f.session, f.violations, f.step, f.err
 }
 
-func (f *fakeAuthoringService) DiscoverContextCandidates(_ context.Context, sessionID string, concepts []string, complexity string, refresh bool) (internalauthoring.Session, []internalauthoring.ContextCandidate, internalauthoring.GuidedStep, error) {
-	f.gotSessionID, f.gotConcepts, f.gotComplexity, f.gotRefresh = sessionID, append([]string(nil), concepts...), complexity, refresh
-	return f.session, f.candidates, f.step, f.err
-}
-
-func (f *fakeAuthoringService) AcceptContextCandidate(_ context.Context, sessionID, candidateID, phaseID string) (internalauthoring.Session, internalauthoring.ContextCandidate, internalplans.RelevantContextItem, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
-	f.gotSessionID, f.gotCandidateID, f.gotPhaseID = sessionID, candidateID, phaseID
-	return f.session, f.candidate, f.contextItem, f.violations, f.step, f.err
-}
-
-func (f *fakeAuthoringService) RejectContextCandidate(_ context.Context, sessionID, candidateID, reason string) (internalauthoring.Session, internalauthoring.ContextCandidate, internalauthoring.GuidedStep, error) {
-	f.gotSessionID, f.gotCandidateID, f.gotReason = sessionID, candidateID, reason
-	return f.session, f.candidate, f.step, f.err
-}
-
-func (f *fakeAuthoringService) ApplyContextDisposition(_ context.Context, sessionID, batchID string, takes []internalauthoring.ContextDispositionTake, drops []internalauthoring.ContextDispositionDrop, sweepNote string, takeAll bool) (internalauthoring.Session, internalauthoring.ContextDispositionSummary, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
-	f.gotSessionID, f.gotBatchID = sessionID, batchID
-	f.gotTakes, f.gotDrops = append([]internalauthoring.ContextDispositionTake(nil), takes...), append([]internalauthoring.ContextDispositionDrop(nil), drops...)
-	f.gotSweepNote, f.gotTakeAll = sweepNote, takeAll
-	return f.session, f.disposition, f.violations, f.step, f.err
-}
-
-func (f *fakeAuthoringService) SuggestReferences(_ context.Context, sessionID string) (internalauthoring.Session, []internalauthoring.ReferenceCandidate, internalauthoring.GuidedStep, error) {
-	f.gotSessionID = sessionID
-	return f.session, f.refCandidates, f.step, f.err
-}
-
-func (f *fakeAuthoringService) ListReferenceCandidates(_ context.Context, sessionID string) ([]internalauthoring.ReferenceCandidate, internalauthoring.GuidedStep, error) {
-	f.gotSessionID = sessionID
-	return f.refCandidates, f.step, f.err
-}
-
-func (f *fakeAuthoringService) AcceptReferenceCandidate(_ context.Context, sessionID, candidateID string, edit *internalplans.Reference) (internalauthoring.Session, internalauthoring.ReferenceCandidate, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
-	f.gotSessionID, f.gotCandidateID = sessionID, candidateID
-	return f.session, f.refCandidate, f.violations, f.step, f.err
-}
-
-func (f *fakeAuthoringService) RejectReferenceCandidate(_ context.Context, sessionID, candidateID, reason string) (internalauthoring.Session, internalauthoring.ReferenceCandidate, internalauthoring.GuidedStep, error) {
-	f.gotSessionID, f.gotCandidateID, f.gotReason = sessionID, candidateID, reason
-	return f.session, f.refCandidate, f.step, f.err
-}
-
-func (f *fakeAuthoringService) ApplyReferenceDisposition(_ context.Context, sessionID, batchID string, takes []internalauthoring.ReferenceDispositionTake, drops []internalauthoring.ReferenceDispositionDrop, sweepNote string, takeAll bool) (internalauthoring.Session, internalauthoring.ReferenceDispositionSummary, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
-	f.gotSessionID, f.gotBatchID = sessionID, batchID
-	f.gotRefTakes, f.gotRefDrops = append([]internalauthoring.ReferenceDispositionTake(nil), takes...), append([]internalauthoring.ReferenceDispositionDrop(nil), drops...)
-	f.gotSweepNote, f.gotTakeAll = sweepNote, takeAll
-	return f.session, f.refDisposition, f.violations, f.step, f.err
+func (f *fakeAuthoringService) DiscoverSkillPack(_ context.Context, sessionID string, concepts []string, complexity string) (internalauthoring.Session, internalauthoring.SkillPackResult, []internalplans.RelevantContextItem, []internalplans.RelevantContextItem, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
+	f.gotSessionID, f.gotConcepts, f.gotComplexity = sessionID, append([]string(nil), concepts...), complexity
+	return f.session, f.skillPackResult, f.addedItems, f.keptItems, f.violations, f.step, f.err
 }
 
 func (f *fakeAuthoringService) AddPhase(_ context.Context, sessionID string, title, intent string) (internalauthoring.Session, internalauthoring.PhaseDraft, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
@@ -419,80 +362,46 @@ func TestRelevantContextHandlers(t *testing.T) {
 		require.Equal(t, "ph1", svc.gotPhaseID)
 		require.Equal(t, "ctx1", svc.gotItemID)
 	})
+}
 
-	t.Run("discover context candidates", func(t *testing.T) {
-		svc := &fakeAuthoringService{
-			session: internalauthoring.Session{ID: "s1"},
-			candidates: []internalauthoring.ContextCandidate{{
-				ID:      "cand1",
-				Concept: "plan-manager context",
-				Source:  "search-hub-recall",
-				Status:  internalauthoring.ContextCandidatePending,
-				Item: internalplans.RelevantContextItem{
-					ID:      "ctx1",
-					Kind:    internalplans.RelevantContextSearch,
-					Command: "search-hub query plan-manager --type record,skill,doc",
-				},
-			}},
-		}
-		h := newAuthoringHandler(svc)
-		resp, err := h.DiscoverContextCandidates(context.Background(), connect.NewRequest(&authoringv1.DiscoverContextCandidatesRequest{
-			SessionId:  "s1",
-			Concepts:   []string{"plan-manager context"},
-			Complexity: "architectural",
-		}))
-		require.NoError(t, err)
-		require.Len(t, resp.Msg.GetCandidates(), 1)
-		require.Equal(t, "cand1", resp.Msg.GetCandidates()[0].GetId())
-		require.Equal(t, []string{"plan-manager context"}, svc.gotConcepts)
-		require.Equal(t, "architectural", svc.gotComplexity)
-	})
+func TestDiscoverSkillPackSuccess(t *testing.T) {
+	svc := &fakeAuthoringService{
+		session: internalauthoring.Session{ID: "s1"},
+		skillPackResult: internalauthoring.SkillPackResult{
+			ReadCommand:            "prompt-manager skill read implementation-plan-authoring",
+			RecommendedReadCommand: "prompt-manager skill read implementation-plan-authoring ecosystem-fit",
+			BudgetStatus:           "ok",
+			Summary:                "prompt-manager returned 2 skill(s)",
+		},
+		addedItems: []internalplans.RelevantContextItem{{
+			ID:     "ctx1",
+			Kind:   internalplans.RelevantContextSkill,
+			Target: "implementation-plan-authoring",
+			Label:  "Implementation Plan Authoring",
+		}},
+		keptItems: []internalplans.RelevantContextItem{{
+			ID:     "ctx2",
+			Kind:   internalplans.RelevantContextSkill,
+			Target: "ecosystem-fit",
+			Label:  "Ecosystem Fit",
+		}},
+		step: internalauthoring.GuidedStep{StepKind: "phase_outline"},
+	}
+	h := newAuthoringHandler(svc)
 
-	t.Run("accept context candidate", func(t *testing.T) {
-		svc := &fakeAuthoringService{
-			session: internalauthoring.Session{ID: "s1"},
-			candidate: internalauthoring.ContextCandidate{
-				ID:     "cand1",
-				Status: internalauthoring.ContextCandidateAccepted,
-			},
-			contextItem: internalplans.RelevantContextItem{
-				ID:      "ctx1",
-				Kind:    internalplans.RelevantContextSearch,
-				Scope:   internalplans.RelevantContextScopePhase,
-				PhaseID: "ph1",
-			},
-		}
-		h := newAuthoringHandler(svc)
-		resp, err := h.AcceptContextCandidate(context.Background(), connect.NewRequest(&authoringv1.AcceptContextCandidateRequest{
-			SessionId:   "s1",
-			CandidateId: "cand1",
-			PhaseId:     "ph1",
-		}))
-		require.NoError(t, err)
-		require.Equal(t, "ctx1", resp.Msg.GetItem().GetId())
-		require.Equal(t, "cand1", svc.gotCandidateID)
-		require.Equal(t, "ph1", svc.gotPhaseID)
-	})
-
-	t.Run("reject context candidate", func(t *testing.T) {
-		svc := &fakeAuthoringService{
-			session: internalauthoring.Session{ID: "s1"},
-			candidate: internalauthoring.ContextCandidate{
-				ID:              "cand1",
-				Status:          internalauthoring.ContextCandidateRejected,
-				RejectionReason: "duplicate",
-			},
-		}
-		h := newAuthoringHandler(svc)
-		resp, err := h.RejectContextCandidate(context.Background(), connect.NewRequest(&authoringv1.RejectContextCandidateRequest{
-			SessionId:   "s1",
-			CandidateId: "cand1",
-			Reason:      "duplicate",
-		}))
-		require.NoError(t, err)
-		require.Equal(t, "duplicate", resp.Msg.GetCandidate().GetRejectionReason())
-		require.Equal(t, "duplicate", svc.gotReason)
-	})
+	resp, err := h.DiscoverSkillPack(context.Background(), connect.NewRequest(&authoringv1.DiscoverSkillPackRequest{
+		SessionId:  "s1",
+		Concepts:   []string{"plan-manager discovery", "skill pack"},
+		Complexity: "architectural",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, []string{"plan-manager discovery", "skill pack"}, svc.gotConcepts)
+	require.Equal(t, "architectural", svc.gotComplexity)
+	require.Len(t, resp.Msg.GetAddedItems(), 1)
+	require.Len(t, resp.Msg.GetKeptItems(), 1)
+	require.Equal(t, "prompt-manager skill read implementation-plan-authoring", resp.Msg.GetReadCommand())
+	require.Equal(t, "prompt-manager returned 2 skill(s)", resp.Msg.GetResultsSummary())
+	require.Equal(t, "phase_outline", resp.Msg.GetStep().GetStepKind())
 }
 
 func TestPhaseNativeHandlers(t *testing.T) {
@@ -603,85 +512,6 @@ func TestAutofillSuccess(t *testing.T) {
 	require.Len(t, resp.Msg.GetResults(), 1)
 	require.True(t, resp.Msg.GetResults()[0].GetDegraded())
 	require.Equal(t, []internalauthoring.AutofillSource{internalauthoring.AutofillRegressionAnchor}, svc.gotSources)
-}
-
-func TestSuggestReferencesSuccess(t *testing.T) {
-	svc := &fakeAuthoringService{
-		session: internalauthoring.Session{ID: "s1"},
-		refCandidates: []internalauthoring.ReferenceCandidate{
-			{ID: "rc1", Reference: internalplans.Reference{Kind: internalplans.ReferenceCode, Target: "x.go"}, Source: "code-symbol", Confidence: 0.9, Status: internalauthoring.ReferenceCandidatePending},
-		},
-		step: internalauthoring.GuidedStep{StepKind: "reference_candidates"},
-	}
-	h := newAuthoringHandler(svc)
-
-	resp, err := h.SuggestReferences(context.Background(), connect.NewRequest(&authoringv1.SuggestReferencesRequest{SessionId: "s1"}))
-	require.NoError(t, err)
-	require.Len(t, resp.Msg.GetCandidates(), 1)
-	require.Equal(t, "x.go", resp.Msg.GetCandidates()[0].GetReference().GetTarget())
-	require.Equal(t, "code-symbol", resp.Msg.GetCandidates()[0].GetSource())
-	require.Equal(t, "reference_candidates", resp.Msg.GetStep().GetStepKind())
-}
-
-func TestAcceptReferenceCandidateSuccess(t *testing.T) {
-	svc := &fakeAuthoringService{
-		session:      internalauthoring.Session{ID: "s1"},
-		refCandidate: internalauthoring.ReferenceCandidate{ID: "rc1", Reference: internalplans.Reference{Kind: internalplans.ReferenceCode, Target: "x.go"}, Status: internalauthoring.ReferenceCandidateAccepted},
-	}
-	h := newAuthoringHandler(svc)
-
-	resp, err := h.AcceptReferenceCandidate(context.Background(), connect.NewRequest(&authoringv1.AcceptReferenceCandidateRequest{SessionId: "s1", CandidateId: "rc1"}))
-	require.NoError(t, err)
-	require.Equal(t, "accepted", resp.Msg.GetCandidate().GetStatus())
-	require.Equal(t, "rc1", svc.gotCandidateID)
-	require.Equal(t, "reference_candidate", resp.Msg.GetSummary().GetObjectKind())
-}
-
-func TestRejectReferenceCandidateSuccess(t *testing.T) {
-	svc := &fakeAuthoringService{
-		session:      internalauthoring.Session{ID: "s1"},
-		refCandidate: internalauthoring.ReferenceCandidate{ID: "rc1", Status: internalauthoring.ReferenceCandidateRejected, RejectionReason: "noise"},
-	}
-	h := newAuthoringHandler(svc)
-
-	resp, err := h.RejectReferenceCandidate(context.Background(), connect.NewRequest(&authoringv1.RejectReferenceCandidateRequest{SessionId: "s1", CandidateId: "rc1", Reason: "noise"}))
-	require.NoError(t, err)
-	require.Equal(t, "rejected", resp.Msg.GetCandidate().GetStatus())
-	require.Equal(t, "noise", svc.gotReason)
-}
-
-func TestApplyReferenceDispositionSuccess(t *testing.T) {
-	svc := &fakeAuthoringService{
-		session: internalauthoring.Session{ID: "s1"},
-		refDisposition: internalauthoring.ReferenceDispositionSummary{
-			Batch: internalauthoring.DiscoveryBatch{ID: "rb1", Status: internalauthoring.DiscoveryBatchApplied},
-			Results: []internalauthoring.ReferenceDispositionResult{{
-				Candidate: internalauthoring.ReferenceCandidate{ID: "rc1", Handle: "r1", Reference: internalplans.Reference{Kind: internalplans.ReferenceCode, Target: "x.go"}, Status: internalauthoring.ReferenceCandidateAccepted},
-				Reference: internalplans.Reference{Kind: internalplans.ReferenceCode, Target: "x.go"},
-				Action:    "take",
-				Accepted:  true,
-			}},
-		},
-	}
-	h := newAuthoringHandler(svc)
-
-	resp, err := h.ApplyReferenceDisposition(context.Background(), connect.NewRequest(&authoringv1.ApplyReferenceDispositionRequest{
-		SessionId: "s1",
-		BatchId:   "rb1",
-		Take:      []*authoringv1.ReferenceDispositionTake{{Candidate: "r1"}},
-		Drop:      []*authoringv1.ReferenceDispositionDrop{{Candidate: "r2", Reason: "noise"}},
-		SweepNote: "reviewed",
-		TakeAll:   true,
-	}))
-	require.NoError(t, err)
-	require.Equal(t, "rb1", svc.gotBatchID)
-	require.Equal(t, []internalauthoring.ReferenceDispositionTake{{CandidateID: "r1"}}, svc.gotRefTakes)
-	require.Equal(t, []internalauthoring.ReferenceDispositionDrop{{CandidateID: "r2", Reason: "noise"}}, svc.gotRefDrops)
-	require.True(t, svc.gotTakeAll)
-	require.Equal(t, "reviewed", svc.gotSweepNote)
-	require.Equal(t, "applied", resp.Msg.GetBatch().GetStatus())
-	require.Len(t, resp.Msg.GetResults(), 1)
-	require.Equal(t, "r1", resp.Msg.GetResults()[0].GetCandidate().GetHandle())
 }
 
 // TestSubmitRelevantContextItemAcceptedFlag: the response says explicitly
