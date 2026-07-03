@@ -119,7 +119,7 @@ export const LegacySectionSchema: GenMessage<LegacySection> = /*@__PURE__*/
   messageDesc(file_plan_manager_v1_shared_model, 1);
 
 /**
- * ImportProvenance records that a plan was adopted from a legacy markdown source
+ * ImportProvenance records that a plan was canonicalized from a markdown source
  * rather than authored fresh. Import is non-destructive (the source is never
  * moved/deleted); this is the bookkeeping that records where it came from.
  *

@@ -15,42 +15,75 @@ Use this document to answer:
 - Which tests prove workflow correctness?
 - Which flows are known but not modeled yet?
 
-Plain CRUD with no meaningful ordering constraints does not need a
-workflow model.
-
 ## Flow Inventory
-
-`health` is a stateless reporting domain and ships no workflows. List
-each real stateful flow your domains add below, with its owner, trigger,
-outcome, statefulness, and validation level.
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
-| _(your flow)_ | _(owning domain)_ | What starts it. | What it produces. | States, retries, cancellation, stale completion. | Target maturity level. |
+| Validate target scenario | validation | CLI/API/Test Genie calls `ValidateScenario`. | Assessment, native detail, and optional fixability metadata. | Request-scoped; no durable state. | Unit and provider-contract tests planned. |
+| Live health probe | probe | Validation request includes execution or CLI runs `probe health`. | Timestamped probe evidence and schema findings. | Request-scoped with timeout/cancel; no retry loop. | httptest and lifecycle-discovery tests planned. |
+| Fix preview/apply | remediation | CLI/API calls PreviewFix or ApplyFix with rule IDs. | Dry-run candidates or explicit target-file edits. | Request-scoped mutation with idempotency requirement. | Autofix tests planned. |
+| Scenario-auditor migration accounting | migration | Developer updates migration ledger or parity fixtures. | Every legacy API rule classified exactly once. | Version-controlled ledger; no runtime state. | Ledger completeness test planned. |
 
 ## Flow Details
 
-Document each real flow here with its owner domain, trigger, inputs,
-ordered steps, outputs, failure modes, retry/cancel behavior, tests, and
-generated subpackages. The worked example below shows the expected shape.
+### Validate target scenario
+
+1. Resolve target scenario path and service metadata.
+2. Classify API applicability.
+3. Load API source surfaces and endpoint metadata where present.
+4. Run static validators grouped by capability.
+5. Optionally call the live health probe flow.
+6. Map findings through `.vrooli/maturity.json`.
+7. Return shared assessment, native detail, status, and metrics.
+
+Failures are reported as findings when target evidence is readable but
+non-compliant, and as provider `ERROR` only when API Health itself cannot
+execute the validation contract.
+
+### Live health probe
+
+1. Resolve the target API health URL through lifecycle metadata.
+2. Build an HTTP request with a strict timeout and request context.
+3. Execute exactly one probe; no polling and no process start outside lifecycle.
+4. Validate status code, JSON content type, and health response schema.
+5. Attach bounded evidence to native detail.
+
+The probe never becomes a performance benchmark and never exercises product
+endpoints by default.
+
+### Fix preview/apply
+
+1. Select fixers by requested rule IDs.
+2. Recompute current findings and candidate edits.
+3. Preview returns diffs without writing.
+4. Apply writes only explicit candidates and reports what changed.
+5. Second apply should be a no-op for the same candidate.
+
+### Scenario-auditor migration accounting
+
+1. Inventory old API rule IDs from `scenarios/scenario-auditor/api/rules/api/`.
+2. Classify each as kept, redesigned, delegated, deferred, or rejected.
+3. Add fixture coverage for migrated expectations.
+4. Cut old rules only after API Health coverage is documented and verified.
 
 ## State Machines
 
-List each modeled flow's states, illegal transitions, and how they are
-enforced. Plain CRUD with no ordering constraints does not appear here.
+The current P0 flows are request-scoped and do not require a formal state
+machine. Fix apply has an idempotency invariant but no durable lifecycle state.
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
-| _(your flow)_ | The ordered/terminal states. | Transitions the contract forbids. | `*.flow.json` contract, generated Quint model, replay tests. |
+| remediation/fix | previewed, applied, skipped | apply without explicit request; second apply changing files again | planned autofix tests |
 
 ## Maturity Ladder
 
-Temporal workflows mature in layers. Do not skip the executable layers
-to add a standalone formal document.
+Temporal workflows mature in layers. API Health starts with request-scoped
+flows; add formal flow models only if durable state or retry/cancel complexity
+appears.
 
 | Level | Name | What exists |
 |---|---|---|
-| 0 | Unmodeled risk | Lifecycle behavior exists only inside handlers, components, callbacks, or jobs. |
+| 0 | Unmodeled risk | Lifecycle behavior exists only inside handlers, callbacks, or jobs. |
 | 1 | Inventory | The flow is listed here with owner, source links, risk, and next step. |
 | 2 | Workflow model | State/status values, event values, `Transition`, and `CheckInvariants` live beside the owning domain or feature. |
 | 3 | Matrix + traces | Tests cover every state/event pair and replay representative traces against production transition logic. |
@@ -59,123 +92,17 @@ to add a standalone formal document.
 
 ## Production Shape
 
-Three (Go) or four (UI) files per flow at the top of the feature folder,
-plus one `generated/` sibling. Everything in `generated/` is codegen output.
-
-Every flow lives in a `flow/` subdirectory next to its consumer with
-conventional file names. API domains that own durable lifecycle state use:
-
-```text
-api/internal/<domain>/
-  flow/
-    flow.json                   # hand: source of truth (schema v6)
-    transition.go               # hand: wrapper (package flow)
-    flow_test.go                # hand: thin replay delegation (package flow)
-    generated/
-      model.qnt
-      artifact.json
-      runtime.go                # package generated
-      replay.go
-```
-
-UI features that own client-side modes use:
-
-```text
-ui/src/features/<domain>/
-  flow/
-    flow.json                   # hand: source of truth (schema v6)
-    transition.ts               # hand: wrapper
-    fixtures.ts                 # hand: replay fixtures
-    flow.test.ts                # hand: thin replay delegation
-    generated/
-      model.qnt
-      artifact.json
-      runtime.ts
-      replay.helper.ts
-```
-
-Every flow uses the same file names. The `flow/` directory IS the unit;
-the contract no longer declares any output paths or module names.
-
-The workflow owns state/status values, events, `Transition`, and
-`CheckInvariants`. It should be pure or nearly pure. Effects live
-outside the workflow behind seams: repositories, BlobStore, clocks,
-timers, HTTP clients, or UI API modules.
-
-The `*.flow.json` contract is the source of truth. Level 5 generated
-Quint models, formal artifacts, and Go/TypeScript declarations are
-checked-in source artifacts for reviewability, but they are refreshed
-and checked by the `flow-verifier` scenario CLI; the
-scenario lifecycle runs `make temporal-models` (which calls
-`flow-verifier verify check`) before the normal test
-suite. A Quint file by itself is not accepted: the model must typecheck,
-test, verify named invariants, emit deterministic artifacts, and those
-artifacts must replay against the production Go/TypeScript transition
-functions.
-
-The generated declarations keep state/event topology and formal
-freshness metadata out of hand-maintained test lists. They also provide
-pure status-transition helpers generated from the `*.flow.json`
-transition matrix. For TypeScript flows, the same declarations can own
-the discriminated state/event union shape and replay fixture contract.
-Production workflow wrappers call those helpers for abstract validity
-and next-status outcomes, while keeping payload validation, side-effect
-orchestration, and rich state construction in hand-authored code. API
-replay tests get expected paths, hashes, invariants, and generated checks
-from `generated/<folder>/runtime.go`; UI replay tests import the same metadata
-from `generated/<folder>/runtime.ts`. The generated `replay.{go,helper.ts}`
-files own the assertion calls; the hand-authored top-level test simply binds
-the wrapper's transition function and the fixtures and invokes
-`RunReplay`/`runFormalReplay` once.
-
-Formal artifacts use schema v6 coverage metadata. Matrix completeness,
-terminal transition checks, named trace coverage, and generated MBT trace
-coverage are separate fields. Do not treat generated trace
-`allPairsCovered` as required proof of correctness; replay tests require
-the complete transition matrix and named traces, while generated trace
-coverage reports how much the model explorer happened to visit.
-
-Schema v6 `flow.json` files carry no path or module information. The
-`replay` block declares only `transition.function` (plus
-`transition.statusAccessor` for TS or `transition.stateType` /
-`transition.statusField` for Go). Everything else is derived from the
-flow directory.
-
-Go flows emit `flow/generated/replay.go` and require a hand-authored
-`flow/flow_test.go` (package `flow`) that calls `generated.RunReplay`.
-TypeScript flows emit `flow/generated/replay.helper.ts` and require a
-hand-authored `flow/flow.test.ts` that calls
-`runFormalReplay({ transition, fixtures })` at module top level.
-`flow-verifier verify check` byte-compares every generated file and runs an
-AST-level lint over the hand-authored test, so a silent bypass — missing
-import, stubbed transition, or call buried inside a guarded block —
-fails the check.
-
-To scaffold a new flow:
-
-```bash
-flow-verifier flows new ui/src/features/<feature> --flow-id <flow-id> --lang ts --root .
-flow-verifier flows new api/internal/<domain>     --flow-id <flow-id> --lang go --root .
-```
-
-The scaffold writes the hand-authored files and immediately runs
-`generate`, so `check` is green from the moment it returns.
-
-To add or rename a state/event:
-
-1. Edit the owning `*.flow.json`.
-2. Regenerate that flow with `flow-verifier verify run --flow <flow-id>`.
-3. Update only payload-specific wrapper branches that need new runtime
-   data; the abstract transition table is generated.
-4. Update the UI replay fixture module. The generated formal replay fixture
-   interface should make missing state/event fixtures a type error.
-5. Run `make temporal-models` and the scenario tests.
+If a future domain introduces durable workflow state, place its `flow/`
+subdirectory beside that domain or UI feature and follow the standard
+flow-verifier layout. Until then, keep validation, probe, and fix flows as
+plain service tests rather than adding unnecessary formal artifacts.
 
 ## Deferred / Unmodeled Flows
 
 | Flow | Risk | Next Step |
 |---|---|---|
-| None yet. | Generated scaffold. | Add real scenario workflows when domains have stateful behavior. |
+| Fleet readiness sweep | Could need background scheduling or persisted history. | Model when OT-P2-001 starts. |
+| Probe history retention | Could introduce stale evidence and deletion semantics. | Model before persisting probe results. |
 
 ## Cross-References
 

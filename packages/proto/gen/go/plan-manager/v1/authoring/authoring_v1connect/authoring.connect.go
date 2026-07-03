@@ -71,33 +71,9 @@ const (
 	// AuthoringServiceRemoveRelevantContextItemProcedure is the fully-qualified name of the
 	// AuthoringService's RemoveRelevantContextItem RPC.
 	AuthoringServiceRemoveRelevantContextItemProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/RemoveRelevantContextItem"
-	// AuthoringServiceDiscoverContextCandidatesProcedure is the fully-qualified name of the
-	// AuthoringService's DiscoverContextCandidates RPC.
-	AuthoringServiceDiscoverContextCandidatesProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/DiscoverContextCandidates"
-	// AuthoringServiceAcceptContextCandidateProcedure is the fully-qualified name of the
-	// AuthoringService's AcceptContextCandidate RPC.
-	AuthoringServiceAcceptContextCandidateProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/AcceptContextCandidate"
-	// AuthoringServiceRejectContextCandidateProcedure is the fully-qualified name of the
-	// AuthoringService's RejectContextCandidate RPC.
-	AuthoringServiceRejectContextCandidateProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/RejectContextCandidate"
-	// AuthoringServiceApplyContextDispositionProcedure is the fully-qualified name of the
-	// AuthoringService's ApplyContextDisposition RPC.
-	AuthoringServiceApplyContextDispositionProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/ApplyContextDisposition"
-	// AuthoringServiceSuggestReferencesProcedure is the fully-qualified name of the AuthoringService's
-	// SuggestReferences RPC.
-	AuthoringServiceSuggestReferencesProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/SuggestReferences"
-	// AuthoringServiceListReferenceCandidatesProcedure is the fully-qualified name of the
-	// AuthoringService's ListReferenceCandidates RPC.
-	AuthoringServiceListReferenceCandidatesProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/ListReferenceCandidates"
-	// AuthoringServiceAcceptReferenceCandidateProcedure is the fully-qualified name of the
-	// AuthoringService's AcceptReferenceCandidate RPC.
-	AuthoringServiceAcceptReferenceCandidateProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/AcceptReferenceCandidate"
-	// AuthoringServiceRejectReferenceCandidateProcedure is the fully-qualified name of the
-	// AuthoringService's RejectReferenceCandidate RPC.
-	AuthoringServiceRejectReferenceCandidateProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/RejectReferenceCandidate"
-	// AuthoringServiceApplyReferenceDispositionProcedure is the fully-qualified name of the
-	// AuthoringService's ApplyReferenceDisposition RPC.
-	AuthoringServiceApplyReferenceDispositionProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/ApplyReferenceDisposition"
+	// AuthoringServiceDiscoverSkillPackProcedure is the fully-qualified name of the AuthoringService's
+	// DiscoverSkillPack RPC.
+	AuthoringServiceDiscoverSkillPackProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/DiscoverSkillPack"
 	// AuthoringServiceAddPhaseProcedure is the fully-qualified name of the AuthoringService's AddPhase
 	// RPC.
 	AuthoringServiceAddPhaseProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/AddPhase"
@@ -172,37 +148,11 @@ type AuthoringServiceClient interface {
 	// resulting gate (e.g. removing the only phase context) is reported with its
 	// recovery action.
 	RemoveRelevantContextItem(context.Context, *connect.Request[authoring.RemoveRelevantContextItemRequest]) (*connect.Response[authoring.RemoveRelevantContextItemResponse], error)
-	// DiscoverContextCandidates runs the guided context-discovery seams for one
-	// or more concepts and stores pending candidates on the authoring session.
-	DiscoverContextCandidates(context.Context, *connect.Request[authoring.DiscoverContextCandidatesRequest]) (*connect.Response[authoring.DiscoverContextCandidatesResponse], error)
-	// AcceptContextCandidate promotes one pending discovery candidate into the
-	// session's global or phase-scoped relevant-context list.
-	AcceptContextCandidate(context.Context, *connect.Request[authoring.AcceptContextCandidateRequest]) (*connect.Response[authoring.AcceptContextCandidateResponse], error)
-	// RejectContextCandidate records why a discovered candidate is not relevant.
-	RejectContextCandidate(context.Context, *connect.Request[authoring.RejectContextCandidateRequest]) (*connect.Response[authoring.RejectContextCandidateResponse], error)
-	// ApplyContextDisposition closes a pending discovery batch in one call:
-	// named takes are accepted, named drops are rejected, and remaining shortlist
-	// items are swept unless they require a high-confidence drop reason.
-	ApplyContextDisposition(context.Context, *connect.Request[authoring.ApplyContextDispositionRequest]) (*connect.Response[authoring.ApplyContextDispositionResponse], error)
-	// SuggestReferences queries search-hub's Answer projection from the session's
-	// title + scope + technical approach and stores reviewable reference candidates
-	// (routed by locator shape — only hits resolving to a [CODE:]/[DOC:]/[REQ:]
-	// locator are kept) on the session. Degrades honestly to no candidates when
-	// search-hub is down/empty; suggestions never auto-fill the references section.
-	SuggestReferences(context.Context, *connect.Request[authoring.SuggestReferencesRequest]) (*connect.Response[authoring.SuggestReferencesResponse], error)
-	// ListReferenceCandidates returns the session's reference candidates without
-	// changing wizard position.
-	ListReferenceCandidates(context.Context, *connect.Request[authoring.ListReferenceCandidatesRequest]) (*connect.Response[authoring.ListReferenceCandidatesResponse], error)
-	// AcceptReferenceCandidate promotes one pending reference candidate into the
-	// references section (with an optional inline edit of the locator). Only
-	// accepted candidates satisfy the references gate.
-	AcceptReferenceCandidate(context.Context, *connect.Request[authoring.AcceptReferenceCandidateRequest]) (*connect.Response[authoring.AcceptReferenceCandidateResponse], error)
-	// RejectReferenceCandidate records why a suggested reference is not relevant.
-	RejectReferenceCandidate(context.Context, *connect.Request[authoring.RejectReferenceCandidateRequest]) (*connect.Response[authoring.RejectReferenceCandidateResponse], error)
-	// ApplyReferenceDisposition closes a pending reference discovery batch in one
-	// call: named takes are accepted, named drops are rejected, and remaining
-	// shortlist items are swept unless they require a high-confidence drop reason.
-	ApplyReferenceDisposition(context.Context, *connect.Request[authoring.ApplyReferenceDispositionRequest]) (*connect.Response[authoring.ApplyReferenceDispositionResponse], error)
+	// DiscoverSkillPack runs prompt-manager skill discovery for one or more
+	// concepts and auto-upserts the returned skill pack into global relevant
+	// context. Search-hub is intentionally not mirrored here; agents should run it
+	// directly and submit durable references/context when useful.
+	DiscoverSkillPack(context.Context, *connect.Request[authoring.DiscoverSkillPackRequest]) (*connect.Response[authoring.DiscoverSkillPackResponse], error)
 	// AddPhase appends one structured phase draft to the session.
 	AddPhase(context.Context, *connect.Request[authoring.AddPhaseRequest]) (*connect.Response[authoring.AddPhaseResponse], error)
 	// MovePhase reorders a structured phase draft before or after another draft
@@ -314,58 +264,10 @@ func NewAuthoringServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(authoringServiceMethods.ByName("RemoveRelevantContextItem")),
 			connect.WithClientOptions(opts...),
 		),
-		discoverContextCandidates: connect.NewClient[authoring.DiscoverContextCandidatesRequest, authoring.DiscoverContextCandidatesResponse](
+		discoverSkillPack: connect.NewClient[authoring.DiscoverSkillPackRequest, authoring.DiscoverSkillPackResponse](
 			httpClient,
-			baseURL+AuthoringServiceDiscoverContextCandidatesProcedure,
-			connect.WithSchema(authoringServiceMethods.ByName("DiscoverContextCandidates")),
-			connect.WithClientOptions(opts...),
-		),
-		acceptContextCandidate: connect.NewClient[authoring.AcceptContextCandidateRequest, authoring.AcceptContextCandidateResponse](
-			httpClient,
-			baseURL+AuthoringServiceAcceptContextCandidateProcedure,
-			connect.WithSchema(authoringServiceMethods.ByName("AcceptContextCandidate")),
-			connect.WithClientOptions(opts...),
-		),
-		rejectContextCandidate: connect.NewClient[authoring.RejectContextCandidateRequest, authoring.RejectContextCandidateResponse](
-			httpClient,
-			baseURL+AuthoringServiceRejectContextCandidateProcedure,
-			connect.WithSchema(authoringServiceMethods.ByName("RejectContextCandidate")),
-			connect.WithClientOptions(opts...),
-		),
-		applyContextDisposition: connect.NewClient[authoring.ApplyContextDispositionRequest, authoring.ApplyContextDispositionResponse](
-			httpClient,
-			baseURL+AuthoringServiceApplyContextDispositionProcedure,
-			connect.WithSchema(authoringServiceMethods.ByName("ApplyContextDisposition")),
-			connect.WithClientOptions(opts...),
-		),
-		suggestReferences: connect.NewClient[authoring.SuggestReferencesRequest, authoring.SuggestReferencesResponse](
-			httpClient,
-			baseURL+AuthoringServiceSuggestReferencesProcedure,
-			connect.WithSchema(authoringServiceMethods.ByName("SuggestReferences")),
-			connect.WithClientOptions(opts...),
-		),
-		listReferenceCandidates: connect.NewClient[authoring.ListReferenceCandidatesRequest, authoring.ListReferenceCandidatesResponse](
-			httpClient,
-			baseURL+AuthoringServiceListReferenceCandidatesProcedure,
-			connect.WithSchema(authoringServiceMethods.ByName("ListReferenceCandidates")),
-			connect.WithClientOptions(opts...),
-		),
-		acceptReferenceCandidate: connect.NewClient[authoring.AcceptReferenceCandidateRequest, authoring.AcceptReferenceCandidateResponse](
-			httpClient,
-			baseURL+AuthoringServiceAcceptReferenceCandidateProcedure,
-			connect.WithSchema(authoringServiceMethods.ByName("AcceptReferenceCandidate")),
-			connect.WithClientOptions(opts...),
-		),
-		rejectReferenceCandidate: connect.NewClient[authoring.RejectReferenceCandidateRequest, authoring.RejectReferenceCandidateResponse](
-			httpClient,
-			baseURL+AuthoringServiceRejectReferenceCandidateProcedure,
-			connect.WithSchema(authoringServiceMethods.ByName("RejectReferenceCandidate")),
-			connect.WithClientOptions(opts...),
-		),
-		applyReferenceDisposition: connect.NewClient[authoring.ApplyReferenceDispositionRequest, authoring.ApplyReferenceDispositionResponse](
-			httpClient,
-			baseURL+AuthoringServiceApplyReferenceDispositionProcedure,
-			connect.WithSchema(authoringServiceMethods.ByName("ApplyReferenceDisposition")),
+			baseURL+AuthoringServiceDiscoverSkillPackProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("DiscoverSkillPack")),
 			connect.WithClientOptions(opts...),
 		),
 		addPhase: connect.NewClient[authoring.AddPhaseRequest, authoring.AddPhaseResponse](
@@ -428,15 +330,7 @@ type authoringServiceClient struct {
 	listRelevantContext       *connect.Client[authoring.ListRelevantContextRequest, authoring.ListRelevantContextResponse]
 	updateRelevantContextItem *connect.Client[authoring.UpdateRelevantContextItemRequest, authoring.UpdateRelevantContextItemResponse]
 	removeRelevantContextItem *connect.Client[authoring.RemoveRelevantContextItemRequest, authoring.RemoveRelevantContextItemResponse]
-	discoverContextCandidates *connect.Client[authoring.DiscoverContextCandidatesRequest, authoring.DiscoverContextCandidatesResponse]
-	acceptContextCandidate    *connect.Client[authoring.AcceptContextCandidateRequest, authoring.AcceptContextCandidateResponse]
-	rejectContextCandidate    *connect.Client[authoring.RejectContextCandidateRequest, authoring.RejectContextCandidateResponse]
-	applyContextDisposition   *connect.Client[authoring.ApplyContextDispositionRequest, authoring.ApplyContextDispositionResponse]
-	suggestReferences         *connect.Client[authoring.SuggestReferencesRequest, authoring.SuggestReferencesResponse]
-	listReferenceCandidates   *connect.Client[authoring.ListReferenceCandidatesRequest, authoring.ListReferenceCandidatesResponse]
-	acceptReferenceCandidate  *connect.Client[authoring.AcceptReferenceCandidateRequest, authoring.AcceptReferenceCandidateResponse]
-	rejectReferenceCandidate  *connect.Client[authoring.RejectReferenceCandidateRequest, authoring.RejectReferenceCandidateResponse]
-	applyReferenceDisposition *connect.Client[authoring.ApplyReferenceDispositionRequest, authoring.ApplyReferenceDispositionResponse]
+	discoverSkillPack         *connect.Client[authoring.DiscoverSkillPackRequest, authoring.DiscoverSkillPackResponse]
 	addPhase                  *connect.Client[authoring.AddPhaseRequest, authoring.AddPhaseResponse]
 	movePhase                 *connect.Client[authoring.MovePhaseRequest, authoring.MovePhaseResponse]
 	getPhase                  *connect.Client[authoring.GetPhaseRequest, authoring.GetPhaseResponse]
@@ -514,57 +408,9 @@ func (c *authoringServiceClient) RemoveRelevantContextItem(ctx context.Context, 
 	return c.removeRelevantContextItem.CallUnary(ctx, req)
 }
 
-// DiscoverContextCandidates calls
-// vrooli.plan_manager.v1.authoring.AuthoringService.DiscoverContextCandidates.
-func (c *authoringServiceClient) DiscoverContextCandidates(ctx context.Context, req *connect.Request[authoring.DiscoverContextCandidatesRequest]) (*connect.Response[authoring.DiscoverContextCandidatesResponse], error) {
-	return c.discoverContextCandidates.CallUnary(ctx, req)
-}
-
-// AcceptContextCandidate calls
-// vrooli.plan_manager.v1.authoring.AuthoringService.AcceptContextCandidate.
-func (c *authoringServiceClient) AcceptContextCandidate(ctx context.Context, req *connect.Request[authoring.AcceptContextCandidateRequest]) (*connect.Response[authoring.AcceptContextCandidateResponse], error) {
-	return c.acceptContextCandidate.CallUnary(ctx, req)
-}
-
-// RejectContextCandidate calls
-// vrooli.plan_manager.v1.authoring.AuthoringService.RejectContextCandidate.
-func (c *authoringServiceClient) RejectContextCandidate(ctx context.Context, req *connect.Request[authoring.RejectContextCandidateRequest]) (*connect.Response[authoring.RejectContextCandidateResponse], error) {
-	return c.rejectContextCandidate.CallUnary(ctx, req)
-}
-
-// ApplyContextDisposition calls
-// vrooli.plan_manager.v1.authoring.AuthoringService.ApplyContextDisposition.
-func (c *authoringServiceClient) ApplyContextDisposition(ctx context.Context, req *connect.Request[authoring.ApplyContextDispositionRequest]) (*connect.Response[authoring.ApplyContextDispositionResponse], error) {
-	return c.applyContextDisposition.CallUnary(ctx, req)
-}
-
-// SuggestReferences calls vrooli.plan_manager.v1.authoring.AuthoringService.SuggestReferences.
-func (c *authoringServiceClient) SuggestReferences(ctx context.Context, req *connect.Request[authoring.SuggestReferencesRequest]) (*connect.Response[authoring.SuggestReferencesResponse], error) {
-	return c.suggestReferences.CallUnary(ctx, req)
-}
-
-// ListReferenceCandidates calls
-// vrooli.plan_manager.v1.authoring.AuthoringService.ListReferenceCandidates.
-func (c *authoringServiceClient) ListReferenceCandidates(ctx context.Context, req *connect.Request[authoring.ListReferenceCandidatesRequest]) (*connect.Response[authoring.ListReferenceCandidatesResponse], error) {
-	return c.listReferenceCandidates.CallUnary(ctx, req)
-}
-
-// AcceptReferenceCandidate calls
-// vrooli.plan_manager.v1.authoring.AuthoringService.AcceptReferenceCandidate.
-func (c *authoringServiceClient) AcceptReferenceCandidate(ctx context.Context, req *connect.Request[authoring.AcceptReferenceCandidateRequest]) (*connect.Response[authoring.AcceptReferenceCandidateResponse], error) {
-	return c.acceptReferenceCandidate.CallUnary(ctx, req)
-}
-
-// RejectReferenceCandidate calls
-// vrooli.plan_manager.v1.authoring.AuthoringService.RejectReferenceCandidate.
-func (c *authoringServiceClient) RejectReferenceCandidate(ctx context.Context, req *connect.Request[authoring.RejectReferenceCandidateRequest]) (*connect.Response[authoring.RejectReferenceCandidateResponse], error) {
-	return c.rejectReferenceCandidate.CallUnary(ctx, req)
-}
-
-// ApplyReferenceDisposition calls
-// vrooli.plan_manager.v1.authoring.AuthoringService.ApplyReferenceDisposition.
-func (c *authoringServiceClient) ApplyReferenceDisposition(ctx context.Context, req *connect.Request[authoring.ApplyReferenceDispositionRequest]) (*connect.Response[authoring.ApplyReferenceDispositionResponse], error) {
-	return c.applyReferenceDisposition.CallUnary(ctx, req)
+// DiscoverSkillPack calls vrooli.plan_manager.v1.authoring.AuthoringService.DiscoverSkillPack.
+func (c *authoringServiceClient) DiscoverSkillPack(ctx context.Context, req *connect.Request[authoring.DiscoverSkillPackRequest]) (*connect.Response[authoring.DiscoverSkillPackResponse], error) {
+	return c.discoverSkillPack.CallUnary(ctx, req)
 }
 
 // AddPhase calls vrooli.plan_manager.v1.authoring.AuthoringService.AddPhase.
@@ -653,37 +499,11 @@ type AuthoringServiceHandler interface {
 	// resulting gate (e.g. removing the only phase context) is reported with its
 	// recovery action.
 	RemoveRelevantContextItem(context.Context, *connect.Request[authoring.RemoveRelevantContextItemRequest]) (*connect.Response[authoring.RemoveRelevantContextItemResponse], error)
-	// DiscoverContextCandidates runs the guided context-discovery seams for one
-	// or more concepts and stores pending candidates on the authoring session.
-	DiscoverContextCandidates(context.Context, *connect.Request[authoring.DiscoverContextCandidatesRequest]) (*connect.Response[authoring.DiscoverContextCandidatesResponse], error)
-	// AcceptContextCandidate promotes one pending discovery candidate into the
-	// session's global or phase-scoped relevant-context list.
-	AcceptContextCandidate(context.Context, *connect.Request[authoring.AcceptContextCandidateRequest]) (*connect.Response[authoring.AcceptContextCandidateResponse], error)
-	// RejectContextCandidate records why a discovered candidate is not relevant.
-	RejectContextCandidate(context.Context, *connect.Request[authoring.RejectContextCandidateRequest]) (*connect.Response[authoring.RejectContextCandidateResponse], error)
-	// ApplyContextDisposition closes a pending discovery batch in one call:
-	// named takes are accepted, named drops are rejected, and remaining shortlist
-	// items are swept unless they require a high-confidence drop reason.
-	ApplyContextDisposition(context.Context, *connect.Request[authoring.ApplyContextDispositionRequest]) (*connect.Response[authoring.ApplyContextDispositionResponse], error)
-	// SuggestReferences queries search-hub's Answer projection from the session's
-	// title + scope + technical approach and stores reviewable reference candidates
-	// (routed by locator shape — only hits resolving to a [CODE:]/[DOC:]/[REQ:]
-	// locator are kept) on the session. Degrades honestly to no candidates when
-	// search-hub is down/empty; suggestions never auto-fill the references section.
-	SuggestReferences(context.Context, *connect.Request[authoring.SuggestReferencesRequest]) (*connect.Response[authoring.SuggestReferencesResponse], error)
-	// ListReferenceCandidates returns the session's reference candidates without
-	// changing wizard position.
-	ListReferenceCandidates(context.Context, *connect.Request[authoring.ListReferenceCandidatesRequest]) (*connect.Response[authoring.ListReferenceCandidatesResponse], error)
-	// AcceptReferenceCandidate promotes one pending reference candidate into the
-	// references section (with an optional inline edit of the locator). Only
-	// accepted candidates satisfy the references gate.
-	AcceptReferenceCandidate(context.Context, *connect.Request[authoring.AcceptReferenceCandidateRequest]) (*connect.Response[authoring.AcceptReferenceCandidateResponse], error)
-	// RejectReferenceCandidate records why a suggested reference is not relevant.
-	RejectReferenceCandidate(context.Context, *connect.Request[authoring.RejectReferenceCandidateRequest]) (*connect.Response[authoring.RejectReferenceCandidateResponse], error)
-	// ApplyReferenceDisposition closes a pending reference discovery batch in one
-	// call: named takes are accepted, named drops are rejected, and remaining
-	// shortlist items are swept unless they require a high-confidence drop reason.
-	ApplyReferenceDisposition(context.Context, *connect.Request[authoring.ApplyReferenceDispositionRequest]) (*connect.Response[authoring.ApplyReferenceDispositionResponse], error)
+	// DiscoverSkillPack runs prompt-manager skill discovery for one or more
+	// concepts and auto-upserts the returned skill pack into global relevant
+	// context. Search-hub is intentionally not mirrored here; agents should run it
+	// directly and submit durable references/context when useful.
+	DiscoverSkillPack(context.Context, *connect.Request[authoring.DiscoverSkillPackRequest]) (*connect.Response[authoring.DiscoverSkillPackResponse], error)
 	// AddPhase appends one structured phase draft to the session.
 	AddPhase(context.Context, *connect.Request[authoring.AddPhaseRequest]) (*connect.Response[authoring.AddPhaseResponse], error)
 	// MovePhase reorders a structured phase draft before or after another draft
@@ -790,58 +610,10 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 		connect.WithSchema(authoringServiceMethods.ByName("RemoveRelevantContextItem")),
 		connect.WithHandlerOptions(opts...),
 	)
-	authoringServiceDiscoverContextCandidatesHandler := connect.NewUnaryHandler(
-		AuthoringServiceDiscoverContextCandidatesProcedure,
-		svc.DiscoverContextCandidates,
-		connect.WithSchema(authoringServiceMethods.ByName("DiscoverContextCandidates")),
-		connect.WithHandlerOptions(opts...),
-	)
-	authoringServiceAcceptContextCandidateHandler := connect.NewUnaryHandler(
-		AuthoringServiceAcceptContextCandidateProcedure,
-		svc.AcceptContextCandidate,
-		connect.WithSchema(authoringServiceMethods.ByName("AcceptContextCandidate")),
-		connect.WithHandlerOptions(opts...),
-	)
-	authoringServiceRejectContextCandidateHandler := connect.NewUnaryHandler(
-		AuthoringServiceRejectContextCandidateProcedure,
-		svc.RejectContextCandidate,
-		connect.WithSchema(authoringServiceMethods.ByName("RejectContextCandidate")),
-		connect.WithHandlerOptions(opts...),
-	)
-	authoringServiceApplyContextDispositionHandler := connect.NewUnaryHandler(
-		AuthoringServiceApplyContextDispositionProcedure,
-		svc.ApplyContextDisposition,
-		connect.WithSchema(authoringServiceMethods.ByName("ApplyContextDisposition")),
-		connect.WithHandlerOptions(opts...),
-	)
-	authoringServiceSuggestReferencesHandler := connect.NewUnaryHandler(
-		AuthoringServiceSuggestReferencesProcedure,
-		svc.SuggestReferences,
-		connect.WithSchema(authoringServiceMethods.ByName("SuggestReferences")),
-		connect.WithHandlerOptions(opts...),
-	)
-	authoringServiceListReferenceCandidatesHandler := connect.NewUnaryHandler(
-		AuthoringServiceListReferenceCandidatesProcedure,
-		svc.ListReferenceCandidates,
-		connect.WithSchema(authoringServiceMethods.ByName("ListReferenceCandidates")),
-		connect.WithHandlerOptions(opts...),
-	)
-	authoringServiceAcceptReferenceCandidateHandler := connect.NewUnaryHandler(
-		AuthoringServiceAcceptReferenceCandidateProcedure,
-		svc.AcceptReferenceCandidate,
-		connect.WithSchema(authoringServiceMethods.ByName("AcceptReferenceCandidate")),
-		connect.WithHandlerOptions(opts...),
-	)
-	authoringServiceRejectReferenceCandidateHandler := connect.NewUnaryHandler(
-		AuthoringServiceRejectReferenceCandidateProcedure,
-		svc.RejectReferenceCandidate,
-		connect.WithSchema(authoringServiceMethods.ByName("RejectReferenceCandidate")),
-		connect.WithHandlerOptions(opts...),
-	)
-	authoringServiceApplyReferenceDispositionHandler := connect.NewUnaryHandler(
-		AuthoringServiceApplyReferenceDispositionProcedure,
-		svc.ApplyReferenceDisposition,
-		connect.WithSchema(authoringServiceMethods.ByName("ApplyReferenceDisposition")),
+	authoringServiceDiscoverSkillPackHandler := connect.NewUnaryHandler(
+		AuthoringServiceDiscoverSkillPackProcedure,
+		svc.DiscoverSkillPack,
+		connect.WithSchema(authoringServiceMethods.ByName("DiscoverSkillPack")),
 		connect.WithHandlerOptions(opts...),
 	)
 	authoringServiceAddPhaseHandler := connect.NewUnaryHandler(
@@ -914,24 +686,8 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 			authoringServiceUpdateRelevantContextItemHandler.ServeHTTP(w, r)
 		case AuthoringServiceRemoveRelevantContextItemProcedure:
 			authoringServiceRemoveRelevantContextItemHandler.ServeHTTP(w, r)
-		case AuthoringServiceDiscoverContextCandidatesProcedure:
-			authoringServiceDiscoverContextCandidatesHandler.ServeHTTP(w, r)
-		case AuthoringServiceAcceptContextCandidateProcedure:
-			authoringServiceAcceptContextCandidateHandler.ServeHTTP(w, r)
-		case AuthoringServiceRejectContextCandidateProcedure:
-			authoringServiceRejectContextCandidateHandler.ServeHTTP(w, r)
-		case AuthoringServiceApplyContextDispositionProcedure:
-			authoringServiceApplyContextDispositionHandler.ServeHTTP(w, r)
-		case AuthoringServiceSuggestReferencesProcedure:
-			authoringServiceSuggestReferencesHandler.ServeHTTP(w, r)
-		case AuthoringServiceListReferenceCandidatesProcedure:
-			authoringServiceListReferenceCandidatesHandler.ServeHTTP(w, r)
-		case AuthoringServiceAcceptReferenceCandidateProcedure:
-			authoringServiceAcceptReferenceCandidateHandler.ServeHTTP(w, r)
-		case AuthoringServiceRejectReferenceCandidateProcedure:
-			authoringServiceRejectReferenceCandidateHandler.ServeHTTP(w, r)
-		case AuthoringServiceApplyReferenceDispositionProcedure:
-			authoringServiceApplyReferenceDispositionHandler.ServeHTTP(w, r)
+		case AuthoringServiceDiscoverSkillPackProcedure:
+			authoringServiceDiscoverSkillPackHandler.ServeHTTP(w, r)
 		case AuthoringServiceAddPhaseProcedure:
 			authoringServiceAddPhaseHandler.ServeHTTP(w, r)
 		case AuthoringServiceMovePhaseProcedure:
@@ -1007,40 +763,8 @@ func (UnimplementedAuthoringServiceHandler) RemoveRelevantContextItem(context.Co
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.RemoveRelevantContextItem is not implemented"))
 }
 
-func (UnimplementedAuthoringServiceHandler) DiscoverContextCandidates(context.Context, *connect.Request[authoring.DiscoverContextCandidatesRequest]) (*connect.Response[authoring.DiscoverContextCandidatesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.DiscoverContextCandidates is not implemented"))
-}
-
-func (UnimplementedAuthoringServiceHandler) AcceptContextCandidate(context.Context, *connect.Request[authoring.AcceptContextCandidateRequest]) (*connect.Response[authoring.AcceptContextCandidateResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.AcceptContextCandidate is not implemented"))
-}
-
-func (UnimplementedAuthoringServiceHandler) RejectContextCandidate(context.Context, *connect.Request[authoring.RejectContextCandidateRequest]) (*connect.Response[authoring.RejectContextCandidateResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.RejectContextCandidate is not implemented"))
-}
-
-func (UnimplementedAuthoringServiceHandler) ApplyContextDisposition(context.Context, *connect.Request[authoring.ApplyContextDispositionRequest]) (*connect.Response[authoring.ApplyContextDispositionResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.ApplyContextDisposition is not implemented"))
-}
-
-func (UnimplementedAuthoringServiceHandler) SuggestReferences(context.Context, *connect.Request[authoring.SuggestReferencesRequest]) (*connect.Response[authoring.SuggestReferencesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.SuggestReferences is not implemented"))
-}
-
-func (UnimplementedAuthoringServiceHandler) ListReferenceCandidates(context.Context, *connect.Request[authoring.ListReferenceCandidatesRequest]) (*connect.Response[authoring.ListReferenceCandidatesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.ListReferenceCandidates is not implemented"))
-}
-
-func (UnimplementedAuthoringServiceHandler) AcceptReferenceCandidate(context.Context, *connect.Request[authoring.AcceptReferenceCandidateRequest]) (*connect.Response[authoring.AcceptReferenceCandidateResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.AcceptReferenceCandidate is not implemented"))
-}
-
-func (UnimplementedAuthoringServiceHandler) RejectReferenceCandidate(context.Context, *connect.Request[authoring.RejectReferenceCandidateRequest]) (*connect.Response[authoring.RejectReferenceCandidateResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.RejectReferenceCandidate is not implemented"))
-}
-
-func (UnimplementedAuthoringServiceHandler) ApplyReferenceDisposition(context.Context, *connect.Request[authoring.ApplyReferenceDispositionRequest]) (*connect.Response[authoring.ApplyReferenceDispositionResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.ApplyReferenceDisposition is not implemented"))
+func (UnimplementedAuthoringServiceHandler) DiscoverSkillPack(context.Context, *connect.Request[authoring.DiscoverSkillPackRequest]) (*connect.Response[authoring.DiscoverSkillPackResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.DiscoverSkillPack is not implemented"))
 }
 
 func (UnimplementedAuthoringServiceHandler) AddPhase(context.Context, *connect.Request[authoring.AddPhaseRequest]) (*connect.Response[authoring.AddPhaseResponse], error) {

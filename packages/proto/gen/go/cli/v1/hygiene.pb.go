@@ -586,7 +586,7 @@ type HygienePlanReconcileOutcome struct {
 	// Per-item error detail, when present.
 	Error string `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`
 	// True when a dry-run would remove the adopted legacy source.
-	SourceCleanupPlanned bool `protobuf:"varint,7,opt,name=source_cleanup_planned,json=sourceCleanupPlanned,proto3" json:"source_cleanup_planned,omitempty"`
+	SourceRetirementPlanned bool `protobuf:"varint,7,opt,name=source_retirement_planned,json=sourceRetirementPlanned,proto3" json:"source_retirement_planned,omitempty"`
 	// True when Plan Manager removed the adopted legacy source.
 	SourceRemoved bool `protobuf:"varint,8,opt,name=source_removed,json=sourceRemoved,proto3" json:"source_removed,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -665,9 +665,9 @@ func (x *HygienePlanReconcileOutcome) GetError() string {
 	return ""
 }
 
-func (x *HygienePlanReconcileOutcome) GetSourceCleanupPlanned() bool {
+func (x *HygienePlanReconcileOutcome) GetSourceRetirementPlanned() bool {
 	if x != nil {
-		return x.SourceCleanupPlanned
+		return x.SourceRetirementPlanned
 	}
 	return false
 }
@@ -911,15 +911,15 @@ const file_cli_v1_hygiene_proto_rawDesc = "" +
 	"\x06source\x18\x01 \x01(\tR\x06source\x124\n" +
 	"\x04plan\x18\x02 \x01(\v2 .vrooli.cli.v1.HygienePlanRecordR\x04plan\x12\x16\n" +
 	"\x06action\x18\x03 \x01(\tR\x06action\x124\n" +
-	"\x06mirror\x18\x04 \x01(\v2\x1c.vrooli.cli.v1.HygieneMirrorR\x06mirror\"\xd7\x02\n" +
+	"\x06mirror\x18\x04 \x01(\v2\x1c.vrooli.cli.v1.HygieneMirrorR\x06mirror\"\xdd\x02\n" +
 	"\x1bHygienePlanReconcileOutcome\x12\x16\n" +
 	"\x06action\x18\x01 \x01(\tR\x06action\x12\x16\n" +
 	"\x06source\x18\x02 \x01(\tR\x06source\x124\n" +
 	"\x04plan\x18\x03 \x01(\v2 .vrooli.cli.v1.HygienePlanRecordR\x04plan\x124\n" +
 	"\x06mirror\x18\x04 \x01(\v2\x1c.vrooli.cli.v1.HygieneMirrorR\x06mirror\x12)\n" +
 	"\x10source_untouched\x18\x05 \x01(\bR\x0fsourceUntouched\x12\x14\n" +
-	"\x05error\x18\x06 \x01(\tR\x05error\x124\n" +
-	"\x16source_cleanup_planned\x18\a \x01(\bR\x14sourceCleanupPlanned\x12%\n" +
+	"\x05error\x18\x06 \x01(\tR\x05error\x12:\n" +
+	"\x19source_retirement_planned\x18\a \x01(\bR\x17sourceRetirementPlanned\x12%\n" +
 	"\x0esource_removed\x18\b \x01(\bR\rsourceRemoved\";\n" +
 	"\rHygieneMirror\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +

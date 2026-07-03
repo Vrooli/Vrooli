@@ -171,7 +171,7 @@ message HygienePlanReconcileOutcome {
   string error = 6;
 
   // True when a dry-run would remove the adopted legacy source.
-  bool source_cleanup_planned = 7;
+  bool source_retirement_planned = 7;
 
   // True when Plan Manager removed the adopted legacy source.
   bool source_removed = 8;

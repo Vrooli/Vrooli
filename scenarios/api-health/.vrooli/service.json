@@ -208,7 +208,25 @@
       ]
     }
   },
-  "dependencies": {},
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "test-genie": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Consumes API Health as a delegated validation provider after cutover; API Health can also use Test Genie provider-contract checks during self-validation.",
+        "degraded_behavior": "Local validation and CLI/UI inspection remain available; delegated phase cutover and provider-contract verification wait until test-genie is running."
+      },
+      "scenario-auditor": {
+        "enabled": false,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Migration source only for legacy API rule intent. API Health must not depend on scenario-auditor at runtime.",
+        "degraded_behavior": "No degradation; legacy rules are read from source during development and retired after migration."
+      }
+    }
+  },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/api-health.db"
   }

@@ -1,21 +1,15 @@
 # Architecture — API Health
 
-This document is the scenario's system map. It explains the invariant
-shape inherited from the `react-vite` template, then points to the
-specialized documents that own product domains, workflows, data,
-integrations, deployment, operations, and business strategy.
-
-Keep this file high-signal. Do not turn it into a warehouse for every
-domain, endpoint, workflow, or decision. If a concern has a dedicated
-document below, update that document and link it here.
+This document defines API Health's system shape, provider boundary, data flow,
+extension rules, and cutover responsibilities.
 
 ## Purpose Of This Document
 
 This document owns:
 
-- the scenario's system shape,
+- the scenario's provider architecture,
 - the role of each surface,
-- how contracts and data flow between surfaces,
+- how validation data flows between target scenario, provider, CLI, UI, and Test Genie,
 - the shared infrastructure boundary,
 - extension rules for future code,
 - architecture maturity and intentional deviations.
@@ -27,227 +21,155 @@ This document does not own:
 - storage details and retention: [`DATA.md`](DATA.md),
 - resource and scenario dependencies: [`INTEGRATIONS.md`](INTEGRATIONS.md),
 - test seams and fakes: [`../internal/SEAMS.md`](../internal/SEAMS.md),
-- test strategy: [`../internal/TESTING.md`](../internal/TESTING.md),
-- deployment and operations: [`../operations/DEPLOYMENT.md`](../operations/DEPLOYMENT.md),
-- commercial strategy: [`../business/MONETIZATION.md`](../business/MONETIZATION.md).
+- test strategy: [`../internal/TESTING.md`](../internal/TESTING.md).
 
 ## Scenario Shape
 
-A scenario is one product expressed through three coordinated surfaces
-and one canonical contract layer.
+API Health is a meta/provider scenario. Its core loop is:
 
-```
-                       ┌─────────────────────────────┐
-                       │  Generated proto types      │
-                       │  packages/proto/schemas/    │
-                       │   api-health/v1/...    │
-                       └──────────────┬──────────────┘
-                                      │ canonical wire shape
-              ┌───────────────────────┼───────────────────────┐
-              │                       │                       │
-              ▼                       ▼                       ▼
-        ┌──────────┐            ┌──────────┐            ┌──────────┐
-        │   ui/    │ Connect-JSON│  api/   │ Connect-JSON│  cli/   │
-        │ React    │ ◀────────▶ │   Go     │ ◀────────▶ │   Go     │
-        │ + Vite   │            │ HTTP     │            │ cli-core │
-        └──────────┘            └────┬─────┘            └──────────┘
-                                     │
-                                     ▼
-                                ┌─────────┐
-                                │ SQLite  │
-                                │ (local) │
-                                └─────────┘
+```text
+Target scenario tree + lifecycle metadata
+  -> API Health validation engine
+      -> capability findings
+      -> common.v1.MaturityAssessment
+      -> native API Health detail
+      -> optional live /health probe evidence
+      -> optional deterministic fix candidates
+  -> CLI / UI / Test Genie delegated phase
 ```
 
 | Surface | Role | Owns | Does Not Own |
 |---|---|---|---|
-| API (`api/`) | Scenario core | Business rules, persistence, integrations, transport edge | Browser state, CLI formatting |
-| UI (`ui/`) | Browser presentation | Components, i18n, accessibility, browser interaction | Business rules, persistence policy |
-| CLI (`cli/`) | Operator/agent wrapper | Argument parsing, output formatting, API invocation | Business rules, duplicated validation |
-| Contracts (`packages/proto/schemas/api-health/`) | Wire shape | Proto messages/services and generated clients | Hand-written route/type mirrors |
+| API (`api/`) | Provider engine | Target resolution, validation rules, probe execution, assessment mapping, fix registry | CLI formatting, browser state, adjacent provider policy |
+| CLI (`cli/`) | Agent/operator wrapper | Arguments, API invocation, human/JSON reports | Validation decisions or duplicated rule logic |
+| UI (`ui/`) | Operator inspection console | Capability summary, findings, probe evidence, fix preview | Independent validation model |
+| Proto/contracts | Wire shape | Shared validation RPC plus native detail messages | Hand-written DTO mirrors |
+| `.vrooli/maturity.json` | Provider maturity source | Capability ladders, finding mappings, fixability declarations | Runtime finding construction |
 
-The load-bearing principle: the API is the only surface that contains
-business logic. UI and CLI translate user/operator intent into API
-calls. Proto types flow from one source of truth so wire-shape drift
-between surfaces is impossible.
+The load-bearing invariant: **all finding codes are declared in
+`.vrooli/maturity.json` before implementation emits them**. The provider can
+change rule internals freely, but the maturity contract is stable and reviewable.
 
 ## System Boundaries
 
-The scenario owns:
+API Health owns:
 
-- source code under `api/`, `ui/`, and `cli/`,
-- generated-scenario docs under `docs/`,
-- scenario lifecycle metadata under `.vrooli/`,
-- scenario-specific requirements under `requirements/`,
-- scenario proto schemas relocated to
-  `packages/proto/schemas/api-health/`.
+- API readiness validation for Vrooli scenarios,
+- target resolution and API surface classification,
+- static lifecycle checks for `.vrooli/service.json`, `api-core/preflight`, and `api-core/server`,
+- static and live `/health` contract checks,
+- low-ambiguity HTTP response checks,
+- API-runtime hygiene checks,
+- deterministic fixes for local, unambiguous repairs,
+- migration accounting for legacy scenario-auditor API rules.
 
-The scenario does not own:
+API Health does not own:
 
-- shared package implementation under `packages/`,
-- Vrooli resource implementation,
-- scenario dependencies it calls,
-- generated proto outputs under `packages/proto/gen/`.
-
-Document dependency and resource decisions in
-[`INTEGRATIONS.md`](INTEGRATIONS.md), not here.
+- lint/type/config quality: `quality-health`,
+- security headers/CORS/scanners: `security-health`,
+- CLI manifest/runtime conformance: `cli-health`,
+- proto breaking changes or generated-code freshness: `proto-health`,
+- UI rendering/interop: `ui-health`,
+- storage isolation/migrations: `storage-health`,
+- performance/load budgets: `performance-health`,
+- generic file-handle hygiene outside API-runtime scope.
 
 ## Contracts And Data Flow
 
-Wire shapes do not live in TypeScript interfaces, Go structs, or
-hand-written JSON schemas. They live in `.proto` files. For
-proto-typed API calls, the `.proto` file also declares the service
-block that generates Connect handlers and clients.
+The provider API uses the shared validation contract:
 
-```
-packages/proto/schemas/api-health/v1/<domain>/<file>.proto
-       │
-       ▼
-       make generate
-       │
-       ├──▶ packages/proto/gen/go/api-health/v1/...              (api, cli)
-       ├──▶ packages/proto/gen/go/api-health/v1/...connect       (Connect-Go)
-       ├──▶ packages/proto/gen/typescript/js/api-health/v1/...   (ui)
-       └──▶ packages/proto/gen/python/api_health/v1/...    (future tools)
+```text
+scenario-validation/v1.ScenarioValidationService.ValidateScenario
 ```
 
-Use Connect-RPC by default:
+The response carries:
 
-- UI to API for proto-typed payloads,
-- CLI to API for proto-typed payloads,
-- API to API / inter-scenario calls with Vrooli-owned protos.
+- `status`: canonical pass/fail/error/degraded status for Test Genie.
+- `assessment`: common maturity assessment built from `.vrooli/maturity.json`.
+- `native_detail`: API Health's own report: target summary, capability summaries, static findings, live probe evidence, migration decisions, and fix preview metadata.
+- `metrics`: real execution metrics collected by the provider.
 
-REST is allowed only for four enumerated reasons, defined as
-`RESTReason` constants in `api/internal/module/module.go`:
+Validation phases:
 
-| Reason | When it applies |
-|---|---|
-| `RESTReasonMultipartUpload` | Opaque file bytes via `multipart/form-data`. A binary/blob attachment-upload endpoint is the canonical case. |
-| `RESTReasonWebhookReceiver` | Endpoint shape is dictated by a third-party system (Stripe, GitHub, etc.) we do not own. |
-| `RESTReasonThirdPartyShape` | Request or response is an externally-defined contract (OAuth callbacks, OpenAPI passthrough). |
-| `RESTReasonOpsProbe` | Lifecycle systems, load balancers, and `curl` must reach the endpoint without a generated client (plain `GET /health`, static iframe-facing HTML wrappers). |
+1. Resolve target scenario and classify API applicability.
+2. Load service/lifecycle metadata and API source surfaces.
+3. Run static lifecycle, health, HTTP semantics, and runtime hygiene checks.
+4. If `include_execution` is true, run exactly one bounded live health probe through lifecycle-discovered URL.
+5. Normalize findings, map them to maturity capabilities, and build native detail.
+6. Optionally preview deterministic fixes through the shared Fix RPC.
 
-Mechanical enforcement: `cmd/gen-endpoints` rejects any
-`EndpointDescriptor.Path` that is not a generated Connect procedure
-constant (i.e. does not start with `/vrooli.`) unless the descriptor
-carries a `RESTException` with one of the four reasons. A REST
-endpoint without that tag fails `make endpoints`, which fails
-`make test`, which fails CI. The fix is either to author a proto
-service method (the preferred path) or to tag the exception
-explicitly. There is no "internal endpoint, REST is fine" path —
-that rationalization is exactly what the validation pass prevents.
-
-Note: even for REST exceptions, the **payload shape** stays
-proto-typed wherever possible. A multipart attachment-upload handler
-should return a proto-typed metadata message (e.g.
-`UploadAttachmentResponse`); only the request transport is multipart.
-Drift between API/UI/CLI is eliminated as long as the wire payload type
-is shared.
+REST endpoints inside API Health itself are limited to the standard health probe
+and generated template exceptions. Provider validation, probe reports, and fix
+operations should be Connect-RPC.
 
 ## Shared Infrastructure
 
-Shared infrastructure is allowed only when the code is
-business-vocabulary-free and used by unrelated domains or surfaces.
+Shared infrastructure is allowed only when it is business-vocabulary-free and
+used by unrelated domains or surfaces.
 
 | Package/Folder | Purpose | Why Not Domain-Owned | Consumers |
 |---|---|---|---|
-| `api/internal/server/` | Compose modules and middleware into one HTTP server. | Server lifecycle is not a product capability. | API entrypoint and handler modules. |
+| `api/internal/server/` | Compose modules and middleware into one HTTP server. | Server lifecycle is not an API Health product capability. | API entrypoint and handler modules. |
 | `api/internal/module/` | Shared module and endpoint descriptor types. | Domain modules return this common shape. | Handler packages, server, endpoint codegen. |
 | `api/internal/modules/` | Thin registry for schemas and endpoints. | Boot/codegen need central lists; logic stays domain-owned. | `main.go`, `gen-endpoints`. |
-| `api/internal/database/` | System schema and DB reachability seam. | Cross-cutting DB infrastructure, not one domain's data. | API boot, health. |
-| `api/internal/clock/` | Deterministic time seam. | Time is cross-cutting and test-substitutable. | Middleware, repositories. |
-| `api/internal/testutil/` | Cross-domain test harnesses and fakes. | Used by unrelated domains; domain fakes stay domain-local. | API tests. |
-| `ui/src/test-utils/` | Cross-feature render helpers, a11y helpers, and model tests. | Used by unrelated UI features. | UI tests. |
-
-If shared infrastructure starts using product vocabulary, move that
-piece back into the owning domain or split a new domain first.
+| `api/internal/database/` | Provider-local database bootstrap. | Cross-cutting persistence infrastructure. | API boot, health, future probe history. |
+| `api/internal/clock/` | Deterministic time seam. | Time is cross-cutting and test-substitutable. | Probe timestamps, metrics, reports. |
+| `api/internal/testutil/` | Cross-domain test harnesses and fakes. | Used by unrelated domains. | API tests. |
+| `ui/src/test-utils/` | Cross-feature render and a11y helpers. | Used by unrelated UI features. | UI tests. |
 
 ## Extension Rules
 
-Add product behavior by adding or updating the owning domain, not by
-growing generic buckets.
-
-For a normal proto-backed domain:
-
-1. Add proto messages and service methods under
-   `packages/proto/schemas/api-health/v1/<domain>/`.
-2. Add API domain code under `api/internal/<domain>/`.
-3. Add transport code under `api/handlers/<domain>/`.
-4. Register schemas/endpoints in `api/internal/modules/registry.go`
-   and mount the module in `api/main.go`.
-5. Add CLI commands under `cli/domains/<domain>/`.
-6. Add UI API wrappers under `ui/src/api/<domain>.ts` and UI feature
-   code under `ui/src/features/<domain>/`.
-7. Update selectors, strings, endpoints, tests, and the docs contract
-   in `docs/manifest.json`.
-
-For detailed product ownership, update [`DOMAINS.md`](DOMAINS.md).
-For persistence and retention, update [`DATA.md`](DATA.md). For
-temporal behavior, update [`FLOWS.md`](FLOWS.md).
+1. Add or update `.vrooli/maturity.json` before emitting a new finding code.
+2. Add proto messages before adding new API/CLI/UI payload shapes.
+3. Keep CLI commands thin over API calls.
+4. Render UI from native API Health detail; do not invent frontend-only finding categories.
+5. Add fixture tests for every validator, including at least one false-positive guard.
+6. Auto-fix only local, deterministic repairs; otherwise declare `fix_class: manual` with a reason.
+7. Use lifecycle-discovered URLs for live probes; do not run target binaries directly.
+8. When migrating scenario-auditor rules, preserve useful contract intent and redesign flawed implementation logic.
 
 ## Architecture Maturity
 
-Generated scenarios start with a mature template shape and starter
-reference domains. Replace this table as the scenario becomes real.
-
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Reference-ready | Domain-owned vertical-slice stack, module registry, per-domain schema, documented seams. | Starter domains must be replaced with scenario-specific capabilities. |
-| UI | Reference-ready | Feature folders, typed API clients, selector/i18n registries, modeltest helpers. | Real scenarios may need routing/state patterns once multiple screens exist. |
-| CLI | Reference-ready | Domain command groups wrap API calls and render reports. | New domains must add commands intentionally; CLI should remain thin. |
-| Docs | Contract-ready | Manifest v2 registers docs, maturity, stages, and validation hints. | Scenario-specific stubs must be filled or marked not-applicable. |
-
-Use `docs/manifest.json` as the documentation contract. The declared
-`maturity` values are expected to be maintained by agents and later
-grounded by Knowledge Observatory validation.
+| Foundation docs | Active | PRD, requirements, domains, architecture, maturity spec. | Implementation domains are planned but not yet built. |
+| Provider contract | Planned | `.vrooli/maturity.json` and PRD target OT-P0-001. | Validation RPC and native detail still generated scaffold. |
+| API lifecycle checks | Planned | Requirements `APIH-LIFE-*`. | Rule engine and fixtures not implemented. |
+| Live health probe | Planned | Requirements `APIH-HEALTH-*`. | Probe service and execution mode not implemented. |
+| HTTP/runtime checks | Planned | Requirements `APIH-HTTP-*`, `APIH-RUN-*`. | Validators need first-principles implementation. |
+| Autofix | Planned | Requirements `APIH-FIX-*`. | Fix registry not implemented. |
 
 ## Intentional Deviations
 
-Record deviations from the template or from Vrooli scenario standards
-when they are deliberate and durable.
-
 | Date | Deviation | Reason | Revisit Trigger |
 |---|---|---|---|
-| 2026-07-03 | None yet. | Generated from `react-vite`. | Update when the scenario intentionally diverges. |
+| 2026-07-03 | `requirements/index.json` has `auto_sync_enabled=false`. | Planned validations reference future tests; enabling sync now could fake completion before implementation exists. | Re-enable when validation refs point at real tests. |
+| 2026-07-03 | `scenario-auditor` listed disabled in dependencies. | It is a migration source, not a runtime dependency. | Remove after API rule migration ledger is complete. |
 
 ## Documentation Architecture
 
-Scenario docs follow the same ownership rule as code: one durable
-question, one canonical home.
-
 | Concern | Canonical Document |
 |---|---|
-| System map and extension rules | `docs/concepts/ARCHITECTURE.md` |
-| Product capabilities and bounded contexts | `docs/concepts/DOMAINS.md` |
-| Workflows and state transitions | `docs/concepts/FLOWS.md` |
-| Data ownership, retention, and migrations | `docs/concepts/DATA.md` |
-| Resources, scenarios, and external services | `docs/concepts/INTEGRATIONS.md` |
-| Monetization and packaging | `docs/business/MONETIZATION.md` |
-| Go-to-market strategy | `docs/business/GO-TO-MARKET.md` |
-| Deployment tiers and readiness | `docs/operations/DEPLOYMENT.md` |
-| Operator procedures | `docs/operations/RUNBOOK.md` |
-| Telemetry, metrics, and alerts | `docs/operations/OBSERVABILITY.md` |
-| Seams and test doubles | `docs/internal/SEAMS.md` |
-| Testing strategy | `docs/internal/TESTING.md` |
-| Known drift and deferred work | `docs/internal/PROBLEMS.md` |
-| Change history | `docs/internal/PROGRESS.md` |
-
-Every durable scenario document should be registered in
-`docs/manifest.json`. Put deep domain-specific documentation under
-`docs/domains/<domain>/` when `DOMAINS.md` would become noisy.
+| Product targets | `PRD.md` |
+| Domain ownership | `docs/concepts/DOMAINS.md` |
+| System architecture | `docs/concepts/ARCHITECTURE.md` |
+| Workflows and states | `docs/concepts/FLOWS.md` |
+| Data ownership | `docs/concepts/DATA.md` |
+| Dependencies | `docs/concepts/INTEGRATIONS.md` |
+| API endpoints | `docs/reference/api-endpoints.md` |
+| CLI commands | `docs/reference/cli-commands.md` |
+| Test seams | `docs/internal/SEAMS.md` |
+| Known gaps | `docs/internal/PROBLEMS.md` |
+| Progress log | `docs/internal/PROGRESS.md` |
 
 ## Cross-References
 
-- [`START-HERE.md`](../START-HERE.md) — first implementation workflow
-- [`QUICKSTART.md`](../QUICKSTART.md) — clone-to-running flow
+- [`START-HERE.md`](../START-HERE.md) — generated scenario orientation
 - [`DOMAINS.md`](DOMAINS.md) — bounded contexts and ownership
 - [`FLOWS.md`](FLOWS.md) — workflow and state-transition map
 - [`DATA.md`](DATA.md) — data ownership and storage
 - [`INTEGRATIONS.md`](INTEGRATIONS.md) — dependency contracts
-- [`../business/MONETIZATION.md`](../business/MONETIZATION.md) — commercial story
-- [`../operations/DEPLOYMENT.md`](../operations/DEPLOYMENT.md) — deployment readiness
 - [`../internal/SEAMS.md`](../internal/SEAMS.md) — seam registry
 - [`../internal/TESTING.md`](../internal/TESTING.md) — test patterns
-- [`../internal/ERROR-HANDLING.md`](../internal/ERROR-HANDLING.md) — error semantics
-- [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) — known issues / tech debt
+- [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) — known issues and deferred work
 - [`../internal/PROGRESS.md`](../internal/PROGRESS.md) — lifecycle log

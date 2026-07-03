@@ -17,7 +17,7 @@ Use this document to answer:
 
 | Data | Sensitivity | Owner | Details |
 |---|---|---|---|
-| _(your product data)_ | classify per PRD | owning domain | Replace with real scenario data classification. |
+| Target source snippets and health payload evidence | internal development data; may include dependency names or error text | validation/probe | Do not persist probe bodies by default; redact secrets before any future history storage. |
 
 ## Auth And Authorization
 

@@ -49,6 +49,9 @@ const (
 	LogServiceGetEntryProcedure = "/vrooli.plan_manager.v1.log.LogService/GetEntry"
 	// LogServiceUpdateEntryProcedure is the fully-qualified name of the LogService's UpdateEntry RPC.
 	LogServiceUpdateEntryProcedure = "/vrooli.plan_manager.v1.log.LogService/UpdateEntry"
+	// LogServiceReassignEntryProcedure is the fully-qualified name of the LogService's ReassignEntry
+	// RPC.
+	LogServiceReassignEntryProcedure = "/vrooli.plan_manager.v1.log.LogService/ReassignEntry"
 	// LogServicePromoteEntryProcedure is the fully-qualified name of the LogService's PromoteEntry RPC.
 	LogServicePromoteEntryProcedure = "/vrooli.plan_manager.v1.log.LogService/PromoteEntry"
 	// LogServiceSyncEntryProcedure is the fully-qualified name of the LogService's SyncEntry RPC.
@@ -77,6 +80,9 @@ type LogServiceClient interface {
 	// UpdateEntry edits an entry's mutable fields (title/detail/severity/triage,
 	// append evidence). Empty/UNSPECIFIED fields are left unchanged.
 	UpdateEntry(context.Context, *connect.Request[log.UpdateEntryRequest]) (*connect.Response[log.GetEntryResponse], error)
+	// ReassignEntry moves an existing entry to another phase. The phase may be a
+	// canonical phase id or a 1-based ordinal in the entry's plan.
+	ReassignEntry(context.Context, *connect.Request[log.ReassignEntryRequest]) (*connect.Response[log.GetEntryResponse], error)
 	// PromoteEntry promotes a finding into a bug_report or record, preserving the
 	// original finding (marked promoted) and linking the new entry back to it.
 	PromoteEntry(context.Context, *connect.Request[log.PromoteEntryRequest]) (*connect.Response[log.PromoteEntryResponse], error)
@@ -143,6 +149,12 @@ func NewLogServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(logServiceMethods.ByName("UpdateEntry")),
 			connect.WithClientOptions(opts...),
 		),
+		reassignEntry: connect.NewClient[log.ReassignEntryRequest, log.GetEntryResponse](
+			httpClient,
+			baseURL+LogServiceReassignEntryProcedure,
+			connect.WithSchema(logServiceMethods.ByName("ReassignEntry")),
+			connect.WithClientOptions(opts...),
+		),
 		promoteEntry: connect.NewClient[log.PromoteEntryRequest, log.PromoteEntryResponse](
 			httpClient,
 			baseURL+LogServicePromoteEntryProcedure,
@@ -160,16 +172,17 @@ func NewLogServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 
 // logServiceClient implements LogServiceClient.
 type logServiceClient struct {
-	addDecision  *connect.Client[log.AddDecisionRequest, log.AddEntryResponse]
-	addFinding   *connect.Client[log.AddFindingRequest, log.AddEntryResponse]
-	addBug       *connect.Client[log.AddBugRequest, log.AddEntryResponse]
-	addRecord    *connect.Client[log.AddRecordRequest, log.AddEntryResponse]
-	addNote      *connect.Client[log.AddNoteRequest, log.AddEntryResponse]
-	listEntries  *connect.Client[log.ListEntriesRequest, log.ListEntriesResponse]
-	getEntry     *connect.Client[log.GetEntryRequest, log.GetEntryResponse]
-	updateEntry  *connect.Client[log.UpdateEntryRequest, log.GetEntryResponse]
-	promoteEntry *connect.Client[log.PromoteEntryRequest, log.PromoteEntryResponse]
-	syncEntry    *connect.Client[log.SyncEntryRequest, log.GetEntryResponse]
+	addDecision   *connect.Client[log.AddDecisionRequest, log.AddEntryResponse]
+	addFinding    *connect.Client[log.AddFindingRequest, log.AddEntryResponse]
+	addBug        *connect.Client[log.AddBugRequest, log.AddEntryResponse]
+	addRecord     *connect.Client[log.AddRecordRequest, log.AddEntryResponse]
+	addNote       *connect.Client[log.AddNoteRequest, log.AddEntryResponse]
+	listEntries   *connect.Client[log.ListEntriesRequest, log.ListEntriesResponse]
+	getEntry      *connect.Client[log.GetEntryRequest, log.GetEntryResponse]
+	updateEntry   *connect.Client[log.UpdateEntryRequest, log.GetEntryResponse]
+	reassignEntry *connect.Client[log.ReassignEntryRequest, log.GetEntryResponse]
+	promoteEntry  *connect.Client[log.PromoteEntryRequest, log.PromoteEntryResponse]
+	syncEntry     *connect.Client[log.SyncEntryRequest, log.GetEntryResponse]
 }
 
 // AddDecision calls vrooli.plan_manager.v1.log.LogService.AddDecision.
@@ -212,6 +225,11 @@ func (c *logServiceClient) UpdateEntry(ctx context.Context, req *connect.Request
 	return c.updateEntry.CallUnary(ctx, req)
 }
 
+// ReassignEntry calls vrooli.plan_manager.v1.log.LogService.ReassignEntry.
+func (c *logServiceClient) ReassignEntry(ctx context.Context, req *connect.Request[log.ReassignEntryRequest]) (*connect.Response[log.GetEntryResponse], error) {
+	return c.reassignEntry.CallUnary(ctx, req)
+}
+
 // PromoteEntry calls vrooli.plan_manager.v1.log.LogService.PromoteEntry.
 func (c *logServiceClient) PromoteEntry(ctx context.Context, req *connect.Request[log.PromoteEntryRequest]) (*connect.Response[log.PromoteEntryResponse], error) {
 	return c.promoteEntry.CallUnary(ctx, req)
@@ -244,6 +262,9 @@ type LogServiceHandler interface {
 	// UpdateEntry edits an entry's mutable fields (title/detail/severity/triage,
 	// append evidence). Empty/UNSPECIFIED fields are left unchanged.
 	UpdateEntry(context.Context, *connect.Request[log.UpdateEntryRequest]) (*connect.Response[log.GetEntryResponse], error)
+	// ReassignEntry moves an existing entry to another phase. The phase may be a
+	// canonical phase id or a 1-based ordinal in the entry's plan.
+	ReassignEntry(context.Context, *connect.Request[log.ReassignEntryRequest]) (*connect.Response[log.GetEntryResponse], error)
 	// PromoteEntry promotes a finding into a bug_report or record, preserving the
 	// original finding (marked promoted) and linking the new entry back to it.
 	PromoteEntry(context.Context, *connect.Request[log.PromoteEntryRequest]) (*connect.Response[log.PromoteEntryResponse], error)
@@ -306,6 +327,12 @@ func NewLogServiceHandler(svc LogServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(logServiceMethods.ByName("UpdateEntry")),
 		connect.WithHandlerOptions(opts...),
 	)
+	logServiceReassignEntryHandler := connect.NewUnaryHandler(
+		LogServiceReassignEntryProcedure,
+		svc.ReassignEntry,
+		connect.WithSchema(logServiceMethods.ByName("ReassignEntry")),
+		connect.WithHandlerOptions(opts...),
+	)
 	logServicePromoteEntryHandler := connect.NewUnaryHandler(
 		LogServicePromoteEntryProcedure,
 		svc.PromoteEntry,
@@ -336,6 +363,8 @@ func NewLogServiceHandler(svc LogServiceHandler, opts ...connect.HandlerOption) 
 			logServiceGetEntryHandler.ServeHTTP(w, r)
 		case LogServiceUpdateEntryProcedure:
 			logServiceUpdateEntryHandler.ServeHTTP(w, r)
+		case LogServiceReassignEntryProcedure:
+			logServiceReassignEntryHandler.ServeHTTP(w, r)
 		case LogServicePromoteEntryProcedure:
 			logServicePromoteEntryHandler.ServeHTTP(w, r)
 		case LogServiceSyncEntryProcedure:
@@ -379,6 +408,10 @@ func (UnimplementedLogServiceHandler) GetEntry(context.Context, *connect.Request
 
 func (UnimplementedLogServiceHandler) UpdateEntry(context.Context, *connect.Request[log.UpdateEntryRequest]) (*connect.Response[log.GetEntryResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.log.LogService.UpdateEntry is not implemented"))
+}
+
+func (UnimplementedLogServiceHandler) ReassignEntry(context.Context, *connect.Request[log.ReassignEntryRequest]) (*connect.Response[log.GetEntryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.log.LogService.ReassignEntry is not implemented"))
 }
 
 func (UnimplementedLogServiceHandler) PromoteEntry(context.Context, *connect.Request[log.PromoteEntryRequest]) (*connect.Response[log.PromoteEntryResponse], error) {

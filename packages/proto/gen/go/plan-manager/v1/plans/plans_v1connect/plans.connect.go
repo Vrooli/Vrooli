@@ -138,13 +138,13 @@ type PlansServiceClient interface {
 	LinkSupersession(context.Context, *connect.Request[plans.LinkSupersessionRequest]) (*connect.Response[plans.LinkSupersessionResponse], error)
 	// LinkDependency records that one plan depends on another.
 	LinkDependency(context.Context, *connect.Request[plans.LinkDependencyRequest]) (*connect.Response[plans.LinkDependencyResponse], error)
-	// ImportPlan adopts a markdown plan from a fallback read location into the
+	// ImportPlan canonicalizes a markdown plan from a configured source location into the
 	// structured model (references parsed from the [CODE:]/[REQ:] grammar).
 	ImportPlan(context.Context, *connect.Request[plans.ImportPlanRequest]) (*connect.Response[plans.ImportPlanResponse], error)
-	// MigratePlan moves a fallback-resolved plan into the canonical home store
-	// (non-destructive to the source unless explicitly requested).
+	// MigratePlan canonicalizes a fallback-resolved plan into the home store
+	// (non-destructive to the source).
 	MigratePlan(context.Context, *connect.Request[plans.MigratePlanRequest]) (*connect.Response[plans.MigratePlanResponse], error)
-	// ReconcilePlans repairs rendered mirrors and bulk-adopts legacy markdown
+	// ReconcilePlans repairs rendered mirrors and canonicalizes misplaced markdown
 	// sources non-destructively.
 	ReconcilePlans(context.Context, *connect.Request[plans.ReconcilePlansRequest]) (*connect.Response[plans.ReconcilePlansResponse], error)
 	// ListTemplates returns the per-surface plan templates (CLI/proto/UI).
@@ -480,13 +480,13 @@ type PlansServiceHandler interface {
 	LinkSupersession(context.Context, *connect.Request[plans.LinkSupersessionRequest]) (*connect.Response[plans.LinkSupersessionResponse], error)
 	// LinkDependency records that one plan depends on another.
 	LinkDependency(context.Context, *connect.Request[plans.LinkDependencyRequest]) (*connect.Response[plans.LinkDependencyResponse], error)
-	// ImportPlan adopts a markdown plan from a fallback read location into the
+	// ImportPlan canonicalizes a markdown plan from a configured source location into the
 	// structured model (references parsed from the [CODE:]/[REQ:] grammar).
 	ImportPlan(context.Context, *connect.Request[plans.ImportPlanRequest]) (*connect.Response[plans.ImportPlanResponse], error)
-	// MigratePlan moves a fallback-resolved plan into the canonical home store
-	// (non-destructive to the source unless explicitly requested).
+	// MigratePlan canonicalizes a fallback-resolved plan into the home store
+	// (non-destructive to the source).
 	MigratePlan(context.Context, *connect.Request[plans.MigratePlanRequest]) (*connect.Response[plans.MigratePlanResponse], error)
-	// ReconcilePlans repairs rendered mirrors and bulk-adopts legacy markdown
+	// ReconcilePlans repairs rendered mirrors and canonicalizes misplaced markdown
 	// sources non-destructively.
 	ReconcilePlans(context.Context, *connect.Request[plans.ReconcilePlansRequest]) (*connect.Response[plans.ReconcilePlansResponse], error)
 	// ListTemplates returns the per-surface plan templates (CLI/proto/UI).

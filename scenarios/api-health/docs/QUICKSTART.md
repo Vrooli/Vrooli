@@ -51,7 +51,7 @@ vrooli scenario port api-health UI_PORT
 ```
 
 You should see the example UI rendering live `/health` data and a
-worked example feature pane backed by the local SQLite store.
+provider status pane backed by the local API health endpoint.
 
 ## 4 — Talk to the API
 
@@ -60,7 +60,7 @@ automatically):
 
 ```bash
 api-health status
-api-health <domain> <command>   # e.g. list/create commands for your domain
+api-health validate scenario <target>   # planned provider command
 ```
 
 Or directly via HTTP:

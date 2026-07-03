@@ -922,8 +922,13 @@ type StartExperimentRequest struct {
 	Name             string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Recipe           *ExperimentRecipe      `protobuf:"bytes,2,opt,name=recipe,proto3" json:"recipe,omitempty"`
 	EstimatedSeconds int32                  `protobuf:"varint,3,opt,name=estimated_seconds,json=estimatedSeconds,proto3" json:"estimated_seconds,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// When true the server validates and resolves the recipe (applying the same
+	// checks a real start performs) and returns the resolved preview WITHOUT
+	// enqueuing anything. Lets an agent confirm a recipe before committing to a
+	// run. The response Experiment has no id and status UNSPECIFIED.
+	DryRun        bool `protobuf:"varint,4,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StartExperimentRequest) Reset() {
@@ -977,12 +982,22 @@ func (x *StartExperimentRequest) GetEstimatedSeconds() int32 {
 	return 0
 }
 
+func (x *StartExperimentRequest) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
 type StartExperimentResponse struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Experiment       *Experiment            `protobuf:"bytes,1,opt,name=experiment,proto3" json:"experiment,omitempty"`
 	EstimatedSeconds int32                  `protobuf:"varint,2,opt,name=estimated_seconds,json=estimatedSeconds,proto3" json:"estimated_seconds,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Echoes the request's dry_run: true means nothing was enqueued and the
+	// Experiment is a validated preview, not a persisted run.
+	DryRun        bool `protobuf:"varint,3,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StartExperimentResponse) Reset() {
@@ -1027,6 +1042,13 @@ func (x *StartExperimentResponse) GetEstimatedSeconds() int32 {
 		return x.EstimatedSeconds
 	}
 	return 0
+}
+
+func (x *StartExperimentResponse) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
 }
 
 type GetExperimentRequest struct {
@@ -1892,16 +1914,18 @@ const file_audio_tools_v1_experiment_experiment_proto_rawDesc = "" +
 	"\x06status\x18\x02 \x01(\x0e22.vrooli.audio_tools.v1.experiment.ExperimentStatusR\x06status\x12\x1a\n" +
 	"\bprogress\x18\x03 \x01(\x05R\bprogress\x12\x18\n" +
 	"\amessage\x18\x04 \x01(\tR\amessage\x12*\n" +
-	"\x02at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\"\xa5\x01\n" +
+	"\x02at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\"\xbe\x01\n" +
 	"\x16StartExperimentRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12J\n" +
 	"\x06recipe\x18\x02 \x01(\v22.vrooli.audio_tools.v1.experiment.ExperimentRecipeR\x06recipe\x12+\n" +
-	"\x11estimated_seconds\x18\x03 \x01(\x05R\x10estimatedSeconds\"\x94\x01\n" +
+	"\x11estimated_seconds\x18\x03 \x01(\x05R\x10estimatedSeconds\x12\x17\n" +
+	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"\xad\x01\n" +
 	"\x17StartExperimentResponse\x12L\n" +
 	"\n" +
 	"experiment\x18\x01 \x01(\v2,.vrooli.audio_tools.v1.experiment.ExperimentR\n" +
 	"experiment\x12+\n" +
-	"\x11estimated_seconds\x18\x02 \x01(\x05R\x10estimatedSeconds\"&\n" +
+	"\x11estimated_seconds\x18\x02 \x01(\x05R\x10estimatedSeconds\x12\x17\n" +
+	"\adry_run\x18\x03 \x01(\bR\x06dryRun\"&\n" +
 	"\x14GetExperimentRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\xaa\x01\n" +
 	"\x15GetExperimentResponse\x12L\n" +

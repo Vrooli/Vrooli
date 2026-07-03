@@ -70,13 +70,13 @@ service PlansService {
   // LinkDependency records that one plan depends on another.
   rpc LinkDependency(LinkDependencyRequest) returns (LinkDependencyResponse);
 
-  // ImportPlan adopts a markdown plan from a fallback read location into the
+  // ImportPlan canonicalizes a markdown plan from a configured source location into the
   // structured model (references parsed from the [CODE:]/[REQ:] grammar).
   rpc ImportPlan(ImportPlanRequest) returns (ImportPlanResponse);
-  // MigratePlan moves a fallback-resolved plan into the canonical home store
-  // (non-destructive to the source unless explicitly requested).
+  // MigratePlan canonicalizes a fallback-resolved plan into the home store
+  // (non-destructive to the source).
   rpc MigratePlan(MigratePlanRequest) returns (MigratePlanResponse);
-  // ReconcilePlans repairs rendered mirrors and bulk-adopts legacy markdown
+  // ReconcilePlans repairs rendered mirrors and canonicalizes misplaced markdown
   // sources non-destructively.
   rpc ReconcilePlans(ReconcilePlansRequest) returns (ReconcilePlansResponse);
 
@@ -268,9 +268,9 @@ message ImportPlanRequest {
   string source_path = 1;
   // Raw markdown to import; when empty the server reads source_path.
   string markdown = 2;
-  // Optional title override used by CLI adoption/import flows.
+  // Optional title override used by CLI import flows.
   string title = 3;
-  // Optional slug override used by CLI adoption/import flows.
+  // Optional slug override used by CLI import flows.
   string slug = 4;
   WorkspaceScope workspace = 5;
 }
@@ -309,15 +309,15 @@ enum ReconcileAction {
 message ReconcilePlansRequest {
   bool dry_run = 1;
   bool repair_mirrors = 2;
-  bool adopt_legacy = 3;
+  bool source_intake = 3;
   bool include_archived = 4;
-  bool include_archived_legacy = 5;
+  bool include_archived_sources = 5;
   ReconcileConflictPolicy conflict_policy = 6;
   bool source_runtime_home_plans = 7;
   bool source_docs_plans = 8;
   bool source_repo_plans = 9;
   WorkspaceScope workspace = 10;
-  bool cleanup_adopted_sources = 11;
+  bool retire_sources = 11;
 }
 
 message WorkspaceScope {
@@ -334,7 +334,7 @@ message ReconcilePlanItem {
   shared.RenderedPlanMirror mirror = 6;
   bool source_untouched = 7;
   string error = 8;
-  bool source_cleanup_planned = 9;
+  bool source_retirement_planned = 9;
   bool source_removed = 10;
 }
 

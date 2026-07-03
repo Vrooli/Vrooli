@@ -1310,7 +1310,7 @@ func (x *LegacySection) GetPreservationReason() string {
 	return ""
 }
 
-// ImportProvenance records that a plan was adopted from a legacy markdown source
+// ImportProvenance records that a plan was canonicalized from a markdown source
 // rather than authored fresh. Import is non-destructive (the source is never
 // moved/deleted); this is the bookkeeping that records where it came from.
 type ImportProvenance struct {

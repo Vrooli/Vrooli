@@ -1915,9 +1915,9 @@ type ImportPlanRequest struct {
 	SourcePath string `protobuf:"bytes,1,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`
 	// Raw markdown to import; when empty the server reads source_path.
 	Markdown string `protobuf:"bytes,2,opt,name=markdown,proto3" json:"markdown,omitempty"`
-	// Optional title override used by CLI adoption/import flows.
+	// Optional title override used by CLI import flows.
 	Title string `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
-	// Optional slug override used by CLI adoption/import flows.
+	// Optional slug override used by CLI import flows.
 	Slug          string          `protobuf:"bytes,4,opt,name=slug,proto3" json:"slug,omitempty"`
 	Workspace     *WorkspaceScope `protobuf:"bytes,5,opt,name=workspace,proto3" json:"workspace,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -2125,15 +2125,15 @@ type ReconcilePlansRequest struct {
 	state                  protoimpl.MessageState  `protogen:"open.v1"`
 	DryRun                 bool                    `protobuf:"varint,1,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
 	RepairMirrors          bool                    `protobuf:"varint,2,opt,name=repair_mirrors,json=repairMirrors,proto3" json:"repair_mirrors,omitempty"`
-	AdoptLegacy            bool                    `protobuf:"varint,3,opt,name=adopt_legacy,json=adoptLegacy,proto3" json:"adopt_legacy,omitempty"`
+	SourceIntake           bool                    `protobuf:"varint,3,opt,name=source_intake,json=sourceIntake,proto3" json:"source_intake,omitempty"`
 	IncludeArchived        bool                    `protobuf:"varint,4,opt,name=include_archived,json=includeArchived,proto3" json:"include_archived,omitempty"`
-	IncludeArchivedLegacy  bool                    `protobuf:"varint,5,opt,name=include_archived_legacy,json=includeArchivedLegacy,proto3" json:"include_archived_legacy,omitempty"`
+	IncludeArchivedSources bool                    `protobuf:"varint,5,opt,name=include_archived_sources,json=includeArchivedSources,proto3" json:"include_archived_sources,omitempty"`
 	ConflictPolicy         ReconcileConflictPolicy `protobuf:"varint,6,opt,name=conflict_policy,json=conflictPolicy,proto3,enum=vrooli.plan_manager.v1.plans.ReconcileConflictPolicy" json:"conflict_policy,omitempty"`
 	SourceRuntimeHomePlans bool                    `protobuf:"varint,7,opt,name=source_runtime_home_plans,json=sourceRuntimeHomePlans,proto3" json:"source_runtime_home_plans,omitempty"`
 	SourceDocsPlans        bool                    `protobuf:"varint,8,opt,name=source_docs_plans,json=sourceDocsPlans,proto3" json:"source_docs_plans,omitempty"`
 	SourceRepoPlans        bool                    `protobuf:"varint,9,opt,name=source_repo_plans,json=sourceRepoPlans,proto3" json:"source_repo_plans,omitempty"`
 	Workspace              *WorkspaceScope         `protobuf:"bytes,10,opt,name=workspace,proto3" json:"workspace,omitempty"`
-	CleanupAdoptedSources  bool                    `protobuf:"varint,11,opt,name=cleanup_adopted_sources,json=cleanupAdoptedSources,proto3" json:"cleanup_adopted_sources,omitempty"`
+	RetireSources          bool                    `protobuf:"varint,11,opt,name=retire_sources,json=retireSources,proto3" json:"retire_sources,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -2182,9 +2182,9 @@ func (x *ReconcilePlansRequest) GetRepairMirrors() bool {
 	return false
 }
 
-func (x *ReconcilePlansRequest) GetAdoptLegacy() bool {
+func (x *ReconcilePlansRequest) GetSourceIntake() bool {
 	if x != nil {
-		return x.AdoptLegacy
+		return x.SourceIntake
 	}
 	return false
 }
@@ -2196,9 +2196,9 @@ func (x *ReconcilePlansRequest) GetIncludeArchived() bool {
 	return false
 }
 
-func (x *ReconcilePlansRequest) GetIncludeArchivedLegacy() bool {
+func (x *ReconcilePlansRequest) GetIncludeArchivedSources() bool {
 	if x != nil {
-		return x.IncludeArchivedLegacy
+		return x.IncludeArchivedSources
 	}
 	return false
 }
@@ -2238,9 +2238,9 @@ func (x *ReconcilePlansRequest) GetWorkspace() *WorkspaceScope {
 	return nil
 }
 
-func (x *ReconcilePlansRequest) GetCleanupAdoptedSources() bool {
+func (x *ReconcilePlansRequest) GetRetireSources() bool {
 	if x != nil {
-		return x.CleanupAdoptedSources
+		return x.RetireSources
 	}
 	return false
 }
@@ -2298,19 +2298,19 @@ func (x *WorkspaceScope) GetRoot() string {
 }
 
 type ReconcilePlanItem struct {
-	state                protoimpl.MessageState     `protogen:"open.v1"`
-	Action               ReconcileAction            `protobuf:"varint,1,opt,name=action,proto3,enum=vrooli.plan_manager.v1.plans.ReconcileAction" json:"action,omitempty"`
-	PlanId               string                     `protobuf:"bytes,2,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
-	Slug                 string                     `protobuf:"bytes,3,opt,name=slug,proto3" json:"slug,omitempty"`
-	Title                string                     `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
-	SourcePath           string                     `protobuf:"bytes,5,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`
-	Mirror               *shared.RenderedPlanMirror `protobuf:"bytes,6,opt,name=mirror,proto3" json:"mirror,omitempty"`
-	SourceUntouched      bool                       `protobuf:"varint,7,opt,name=source_untouched,json=sourceUntouched,proto3" json:"source_untouched,omitempty"`
-	Error                string                     `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
-	SourceCleanupPlanned bool                       `protobuf:"varint,9,opt,name=source_cleanup_planned,json=sourceCleanupPlanned,proto3" json:"source_cleanup_planned,omitempty"`
-	SourceRemoved        bool                       `protobuf:"varint,10,opt,name=source_removed,json=sourceRemoved,proto3" json:"source_removed,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state                   protoimpl.MessageState     `protogen:"open.v1"`
+	Action                  ReconcileAction            `protobuf:"varint,1,opt,name=action,proto3,enum=vrooli.plan_manager.v1.plans.ReconcileAction" json:"action,omitempty"`
+	PlanId                  string                     `protobuf:"bytes,2,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
+	Slug                    string                     `protobuf:"bytes,3,opt,name=slug,proto3" json:"slug,omitempty"`
+	Title                   string                     `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
+	SourcePath              string                     `protobuf:"bytes,5,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`
+	Mirror                  *shared.RenderedPlanMirror `protobuf:"bytes,6,opt,name=mirror,proto3" json:"mirror,omitempty"`
+	SourceUntouched         bool                       `protobuf:"varint,7,opt,name=source_untouched,json=sourceUntouched,proto3" json:"source_untouched,omitempty"`
+	Error                   string                     `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
+	SourceRetirementPlanned bool                       `protobuf:"varint,9,opt,name=source_retirement_planned,json=sourceRetirementPlanned,proto3" json:"source_retirement_planned,omitempty"`
+	SourceRemoved           bool                       `protobuf:"varint,10,opt,name=source_removed,json=sourceRemoved,proto3" json:"source_removed,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *ReconcilePlanItem) Reset() {
@@ -2399,9 +2399,9 @@ func (x *ReconcilePlanItem) GetError() string {
 	return ""
 }
 
-func (x *ReconcilePlanItem) GetSourceCleanupPlanned() bool {
+func (x *ReconcilePlanItem) GetSourceRetirementPlanned() bool {
 	if x != nil {
-		return x.SourceCleanupPlanned
+		return x.SourceRetirementPlanned
 	}
 	return false
 }
@@ -2840,23 +2840,23 @@ const file_plan_manager_v1_plans_plans_proto_rawDesc = "" +
 	"\x12MigratePlanRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"N\n" +
 	"\x13MigratePlanResponse\x127\n" +
-	"\x04plan\x18\x01 \x01(\v2#.vrooli.plan_manager.v1.shared.PlanR\x04plan\"\xd4\x04\n" +
+	"\x04plan\x18\x01 \x01(\v2#.vrooli.plan_manager.v1.shared.PlanR\x04plan\"\xc7\x04\n" +
 	"\x15ReconcilePlansRequest\x12\x17\n" +
 	"\adry_run\x18\x01 \x01(\bR\x06dryRun\x12%\n" +
-	"\x0erepair_mirrors\x18\x02 \x01(\bR\rrepairMirrors\x12!\n" +
-	"\fadopt_legacy\x18\x03 \x01(\bR\vadoptLegacy\x12)\n" +
-	"\x10include_archived\x18\x04 \x01(\bR\x0fincludeArchived\x126\n" +
-	"\x17include_archived_legacy\x18\x05 \x01(\bR\x15includeArchivedLegacy\x12^\n" +
+	"\x0erepair_mirrors\x18\x02 \x01(\bR\rrepairMirrors\x12#\n" +
+	"\rsource_intake\x18\x03 \x01(\bR\fsourceIntake\x12)\n" +
+	"\x10include_archived\x18\x04 \x01(\bR\x0fincludeArchived\x128\n" +
+	"\x18include_archived_sources\x18\x05 \x01(\bR\x16includeArchivedSources\x12^\n" +
 	"\x0fconflict_policy\x18\x06 \x01(\x0e25.vrooli.plan_manager.v1.plans.ReconcileConflictPolicyR\x0econflictPolicy\x129\n" +
 	"\x19source_runtime_home_plans\x18\a \x01(\bR\x16sourceRuntimeHomePlans\x12*\n" +
 	"\x11source_docs_plans\x18\b \x01(\bR\x0fsourceDocsPlans\x12*\n" +
 	"\x11source_repo_plans\x18\t \x01(\bR\x0fsourceRepoPlans\x12J\n" +
 	"\tworkspace\x18\n" +
-	" \x01(\v2,.vrooli.plan_manager.v1.plans.WorkspaceScopeR\tworkspace\x126\n" +
-	"\x17cleanup_adopted_sources\x18\v \x01(\bR\x15cleanupAdoptedSources\"4\n" +
+	" \x01(\v2,.vrooli.plan_manager.v1.plans.WorkspaceScopeR\tworkspace\x12%\n" +
+	"\x0eretire_sources\x18\v \x01(\bR\rretireSources\"4\n" +
 	"\x0eWorkspaceScope\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04root\x18\x02 \x01(\tR\x04root\"\xa7\x03\n" +
+	"\x04root\x18\x02 \x01(\tR\x04root\"\xad\x03\n" +
 	"\x11ReconcilePlanItem\x12E\n" +
 	"\x06action\x18\x01 \x01(\x0e2-.vrooli.plan_manager.v1.plans.ReconcileActionR\x06action\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12\x12\n" +
@@ -2866,8 +2866,8 @@ const file_plan_manager_v1_plans_plans_proto_rawDesc = "" +
 	"sourcePath\x12I\n" +
 	"\x06mirror\x18\x06 \x01(\v21.vrooli.plan_manager.v1.shared.RenderedPlanMirrorR\x06mirror\x12)\n" +
 	"\x10source_untouched\x18\a \x01(\bR\x0fsourceUntouched\x12\x14\n" +
-	"\x05error\x18\b \x01(\tR\x05error\x124\n" +
-	"\x16source_cleanup_planned\x18\t \x01(\bR\x14sourceCleanupPlanned\x12%\n" +
+	"\x05error\x18\b \x01(\tR\x05error\x12:\n" +
+	"\x19source_retirement_planned\x18\t \x01(\bR\x17sourceRetirementPlanned\x12%\n" +
 	"\x0esource_removed\x18\n" +
 	" \x01(\bR\rsourceRemoved\"x\n" +
 	"\x16ReconcilePlansResponse\x12\x17\n" +

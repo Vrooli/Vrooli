@@ -190,22 +190,26 @@ class ExperimentEvent(_message.Message):
     def __init__(self, experiment_id: _Optional[str] = ..., status: _Optional[_Union[ExperimentStatus, str]] = ..., progress: _Optional[int] = ..., message: _Optional[str] = ..., at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class StartExperimentRequest(_message.Message):
-    __slots__ = ("name", "recipe", "estimated_seconds")
+    __slots__ = ("name", "recipe", "estimated_seconds", "dry_run")
     NAME_FIELD_NUMBER: _ClassVar[int]
     RECIPE_FIELD_NUMBER: _ClassVar[int]
     ESTIMATED_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
     name: str
     recipe: ExperimentRecipe
     estimated_seconds: int
-    def __init__(self, name: _Optional[str] = ..., recipe: _Optional[_Union[ExperimentRecipe, _Mapping]] = ..., estimated_seconds: _Optional[int] = ...) -> None: ...
+    dry_run: bool
+    def __init__(self, name: _Optional[str] = ..., recipe: _Optional[_Union[ExperimentRecipe, _Mapping]] = ..., estimated_seconds: _Optional[int] = ..., dry_run: _Optional[bool] = ...) -> None: ...
 
 class StartExperimentResponse(_message.Message):
-    __slots__ = ("experiment", "estimated_seconds")
+    __slots__ = ("experiment", "estimated_seconds", "dry_run")
     EXPERIMENT_FIELD_NUMBER: _ClassVar[int]
     ESTIMATED_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
     experiment: Experiment
     estimated_seconds: int
-    def __init__(self, experiment: _Optional[_Union[Experiment, _Mapping]] = ..., estimated_seconds: _Optional[int] = ...) -> None: ...
+    dry_run: bool
+    def __init__(self, experiment: _Optional[_Union[Experiment, _Mapping]] = ..., estimated_seconds: _Optional[int] = ..., dry_run: _Optional[bool] = ...) -> None: ...
 
 class GetExperimentRequest(_message.Message):
     __slots__ = ("id",)

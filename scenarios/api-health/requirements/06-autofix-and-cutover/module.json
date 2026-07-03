@@ -62,6 +62,96 @@
       ]
     },
     {
+      "id": "APIH-MIG-002",
+      "title": "Endpoint inventory reconciliation is scoped to API Health",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "migration",
+      "criticality": "P1",
+      "description": "Registered handlers, endpoint descriptors, .vrooli/endpoints.json, CLI manifest mappings, and REST exception tags are reconciled for API readiness without taking over proto-health or cli-health ownership.",
+      "tags": ["endpoints", "inventory", "boundaries"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/validation/endpoint_inventory_test.go. Fixtures cover missing endpoint descriptors, stale endpoint manifests, REST exception tags, and explicit delegation to cli-health/proto-health."
+        }
+      ]
+    },
+    {
+      "id": "APIH-CUT-001",
+      "title": "Test Genie cutover preserves unrelated standards ownership",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "Test Genie can delegate API readiness to API Health while unrelated scenario-auditor standards remain owned by their replacement providers or legacy path until separately migrated.",
+      "tags": ["test-genie", "cutover", "provider"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: scenarios/test-genie/api/internal/orchestrator/phases/api_health_cutover_test.go. Assert phase catalog routing and finding source behavior after the delegated API Health phase is introduced."
+        }
+      ]
+    },
+    {
+      "id": "APIH-FLEET-001",
+      "title": "Fleet readiness view ranks API debt with as-of stamps",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "reporting",
+      "criticality": "P2",
+      "description": "A future fleet view ranks scenarios by API-readiness debt, stale live-probe evidence, missing health-schema adoption, and fixable finding gaps, with every aggregate carrying captured-at/as-of metadata.",
+      "tags": ["fleet", "reporting", "as-of"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/fleet/fleet_test.go. Fixtures cover debt ordering, stale evidence, clean scenarios, and no-run/as-of handling."
+        }
+      ]
+    },
+    {
+      "id": "APIH-PROBE-001",
+      "title": "Contract-aware probe packs are opt-in",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "execution",
+      "criticality": "P2",
+      "description": "Future representative endpoint probes are scenario-declared, safe by default, bounded by budgets, and never inferred from product APIs without an explicit probe-pack contract.",
+      "tags": ["probe-pack", "execution", "budgets"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/probe/pack_test.go. Fixtures cover opt-in declaration, unsupported methods, timeout budgets, and disabled execution."
+        }
+      ]
+    },
+    {
+      "id": "APIH-FACT-001",
+      "title": "Cross-provider API facts are published only with consumers",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "integration",
+      "criticality": "P2",
+      "description": "API Health may publish normalized API-surface facts for neighboring providers only after a consumer contract exists, preventing speculative data products.",
+      "tags": ["facts", "cross-provider", "boundary"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/facts/export_test.go. Assert exported fact schema stability and consumer-gated registration."
+        }
+      ]
+    },
+    {
       "id": "APIH-UX-001",
       "title": "Operator workbench separates static findings from live evidence",
       "status": "planned",

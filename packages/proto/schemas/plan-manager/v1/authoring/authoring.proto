@@ -14,15 +14,13 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager
 //
 // AuthoringService walks a plan's sections in order, validates structure as it
 // goes (a structure-validation gate rejects empty mandatory sections), captures
-// the regression anchor and code references behind seams, and discovers
-// relevant-context candidates that authors explicitly accept or reject so a
-// small model supplies only genuine prose and context judgment (OT-P0-002). The
-// produced plan is written through the plans domain; this service does not own
-// the record.
-// Autofill covers only the mechanical regression-anchor intent. References are
-// discovered from search-hub (SuggestReferences) as reviewable candidates, and
-// relevant context flows through candidate discovery and explicit acceptance. See
-// docs/concepts/DOMAINS.md (authoring) and docs/concepts/FLOWS.md.
+// the regression anchor behind seams, and bootstraps relevant-context skills as
+// an auto-added prompt-manager skill pack. The produced plan is written through
+// the plans domain; this service does not own the record.
+// Autofill covers only the mechanical regression-anchor intent. References stay
+// authored: agents run search-hub directly when they need native confidence and
+// attribution, then submit durable references or context with the existing CRUD.
+// See docs/concepts/DOMAINS.md (authoring) and docs/concepts/FLOWS.md.
 // =============================================================================
 
 service AuthoringService {
@@ -74,37 +72,11 @@ service AuthoringService {
   // resulting gate (e.g. removing the only phase context) is reported with its
   // recovery action.
   rpc RemoveRelevantContextItem(RemoveRelevantContextItemRequest) returns (RemoveRelevantContextItemResponse);
-  // DiscoverContextCandidates runs the guided context-discovery seams for one
-  // or more concepts and stores pending candidates on the authoring session.
-  rpc DiscoverContextCandidates(DiscoverContextCandidatesRequest) returns (DiscoverContextCandidatesResponse);
-  // AcceptContextCandidate promotes one pending discovery candidate into the
-  // session's global or phase-scoped relevant-context list.
-  rpc AcceptContextCandidate(AcceptContextCandidateRequest) returns (AcceptContextCandidateResponse);
-  // RejectContextCandidate records why a discovered candidate is not relevant.
-  rpc RejectContextCandidate(RejectContextCandidateRequest) returns (RejectContextCandidateResponse);
-  // ApplyContextDisposition closes a pending discovery batch in one call:
-  // named takes are accepted, named drops are rejected, and remaining shortlist
-  // items are swept unless they require a high-confidence drop reason.
-  rpc ApplyContextDisposition(ApplyContextDispositionRequest) returns (ApplyContextDispositionResponse);
-  // SuggestReferences queries search-hub's Answer projection from the session's
-  // title + scope + technical approach and stores reviewable reference candidates
-  // (routed by locator shape — only hits resolving to a [CODE:]/[DOC:]/[REQ:]
-  // locator are kept) on the session. Degrades honestly to no candidates when
-  // search-hub is down/empty; suggestions never auto-fill the references section.
-  rpc SuggestReferences(SuggestReferencesRequest) returns (SuggestReferencesResponse);
-  // ListReferenceCandidates returns the session's reference candidates without
-  // changing wizard position.
-  rpc ListReferenceCandidates(ListReferenceCandidatesRequest) returns (ListReferenceCandidatesResponse);
-  // AcceptReferenceCandidate promotes one pending reference candidate into the
-  // references section (with an optional inline edit of the locator). Only
-  // accepted candidates satisfy the references gate.
-  rpc AcceptReferenceCandidate(AcceptReferenceCandidateRequest) returns (AcceptReferenceCandidateResponse);
-  // RejectReferenceCandidate records why a suggested reference is not relevant.
-  rpc RejectReferenceCandidate(RejectReferenceCandidateRequest) returns (RejectReferenceCandidateResponse);
-  // ApplyReferenceDisposition closes a pending reference discovery batch in one
-  // call: named takes are accepted, named drops are rejected, and remaining
-  // shortlist items are swept unless they require a high-confidence drop reason.
-  rpc ApplyReferenceDisposition(ApplyReferenceDispositionRequest) returns (ApplyReferenceDispositionResponse);
+  // DiscoverSkillPack runs prompt-manager skill discovery for one or more
+  // concepts and auto-upserts the returned skill pack into global relevant
+  // context. Search-hub is intentionally not mirrored here; agents should run it
+  // directly and submit durable references/context when useful.
+  rpc DiscoverSkillPack(DiscoverSkillPackRequest) returns (DiscoverSkillPackResponse);
   // AddPhase appends one structured phase draft to the session.
   rpc AddPhase(AddPhaseRequest) returns (AddPhaseResponse);
   // MovePhase reorders a structured phase draft before or after another draft
@@ -155,10 +127,6 @@ message AuthoringSession {
   repeated PhaseDraft phase_drafts = 8;
   string current_phase_id = 9;
   repeated shared.RelevantContextItem relevant_context = 10;
-  repeated ContextCandidate context_candidates = 11;
-  repeated ReferenceCandidate reference_candidates = 12;
-  repeated DiscoveryBatch discovery_batches = 13;
-  repeated DiscoveryBatch reference_batches = 14;
 }
 
 // StructureViolation is one structure-gate failure (e.g. empty mandatory section
@@ -171,7 +139,7 @@ message StructureViolation {
 // AutofillResult reports the outcome of one autofill source.
 message AutofillResult {
   // "regression_anchor" — the only mechanical autofill source. References are
-  // discovered through SuggestReferences (reviewable candidates), not autofill.
+  // provided by the author after direct search-hub discovery, not autofill.
   string source = 1;
   string section_key = 2;
   bool filled = 3;
@@ -179,90 +147,6 @@ message AutofillResult {
   // author (never a false "filled").
   bool degraded = 4;
   string detail = 5;
-}
-
-// ContextCandidate is a discovered but not-yet-accepted relevant-context item.
-// Candidates are intentionally reviewable: the wizard stores the proposed setup
-// command plus the reason/source, but the author must accept or reject it.
-message ContextCandidate {
-  string id = 1;
-  shared.RelevantContextItem item = 2;
-  string concept = 3;
-  string source = 4;
-  bool degraded = 5;
-  string detail = 6;
-  string status = 7; // pending | accepted | rejected
-  string rejection_reason = 8;
-  double score = 9;
-  string origin = 10;
-  int32 size_chars = 11;
-  repeated string tags = 12;
-  string title = 13;
-  string snippet = 14;
-  repeated ProbeHit corroboration = 15;
-  string handle = 16;
-  string batch_id = 17;
-  string tier = 18;
-  bool high_confidence = 19;
-  string setup_line = 20;
-}
-
-message ProbeHit {
-  string probe = 1;
-  string concept = 2;
-  double score = 3;
-}
-
-message ProbeNote {
-  string probe = 1;
-  string concept = 2;
-  bool degraded = 3;
-  string detail = 4;
-}
-
-message CurationStats {
-  int32 suppressed_dispositioned = 1;
-  int32 omitted_below_threshold = 2;
-  int32 omitted_topic_filler = 3;
-  int32 omitted_by_cap = 4;
-}
-
-message DiscoveryBatch {
-  string id = 1;
-  repeated string concepts = 2;
-  string complexity = 3;
-  repeated ProbeNote probe_notes = 4;
-  CurationStats curation_stats = 5;
-  string status = 6; // pending | applied | superseded
-  string applied_note = 7;
-  int32 created_seq = 8;
-  // interactive | prefetch
-  string source = 9;
-}
-
-// ReferenceCandidate is a discovered but not-yet-accepted code/doc/req reference.
-// Like ContextCandidate, candidates are reviewable: the suggester proposes a
-// locator discovered from search-hub's Answer projection (routed by locator
-// shape) plus its provider provenance and retrieval score, but the author must
-// accept or reject it. Only accepted candidates finalize into references[].
-message ReferenceCandidate {
-  string id = 1;
-  // The proposed locator ([CODE:]/[DOC:]/[REQ:]). Authored kind/target only;
-  // resolution/staleness are filled later by the validation domain.
-  shared.Reference reference = 2;
-  // Originating search-hub provider id (provenance).
-  string source = 3;
-  // Normalized retrieval score in [0,1] (provenance; never a gate).
-  double confidence = 4;
-  string status = 5; // pending | accepted | rejected
-  bool degraded = 6;
-  string detail = 7;
-  string rejection_reason = 8;
-  repeated ProbeHit corroboration = 9;
-  string handle = 10;
-  string batch_id = 11;
-  string tier = 12;
-  bool high_confidence = 13;
 }
 
 // PhaseDraft is the structured pre-finalize phase object owned by an authoring
@@ -314,9 +198,9 @@ message AuthoringProgress {
 // AuthoringMutationSummary acknowledges exactly what one mutation changed without
 // echoing accumulated session state.
 message AuthoringMutationSummary {
-  // section | phase | context | candidate | autofill
+  // section | phase | context | autofill
   string object_kind = 1;
-  // section key, phase id, or item/candidate id.
+  // section key, phase id, or context item id.
   string object_id = 2;
   // field name when the mutation targeted one field (e.g. "steps").
   string field = 3;
@@ -522,170 +406,27 @@ message RemoveRelevantContextItemResponse {
   shared.GuidedStep step = 4;
 }
 
-message DiscoverContextCandidatesRequest {
+message DiscoverSkillPackRequest {
   string session_id = 1;
-  // Decomposed discovery concepts (domain / technology / problem type / scenario surface lenses). Empty inspects the
-  // latest/prefetched batch without creating a new one unless refresh is true.
+  // Decomposed discovery concepts (domain / technology / problem type /
+  // scenario surface lenses). Empty falls back to the plan title.
   repeated string concepts = 2;
-  // Optional prompt-manager skill discovery complexity, e.g. "architectural".
+  // Optional prompt-manager discovery complexity, e.g. "architectural".
   string complexity = 3;
-  // Force a fresh discovery even when no concepts are supplied.
-  bool refresh = 4;
 }
 
-message DiscoverContextCandidatesResponse {
-  repeated ContextCandidate candidates = 1;
-  AuthoringProgress progress = 2;
-  shared.GuidedStep step = 3;
-  DiscoveryBatch batch = 4;
-}
-
-message AcceptContextCandidateRequest {
-  string session_id = 1;
-  string candidate_id = 2;
-  // Optional phase id or order number. Empty accepts as global context.
-  string phase_id = 3;
-}
-
-message AcceptContextCandidateResponse {
-  ContextCandidate candidate = 1;
-  shared.RelevantContextItem item = 2;
-  AuthoringMutationSummary summary = 3;
-  AuthoringProgress progress = 4;
-  repeated StructureViolation violations = 5;
-  shared.GuidedStep step = 6;
-}
-
-message RejectContextCandidateRequest {
-  string session_id = 1;
-  string candidate_id = 2;
-  string reason = 3;
-}
-
-message RejectContextCandidateResponse {
-  ContextCandidate candidate = 1;
-  AuthoringProgress progress = 2;
-  shared.GuidedStep step = 3;
-}
-
-message ApplyContextDispositionRequest {
-  string session_id = 1;
-  string batch_id = 2;
-  repeated ContextDispositionTake take = 3;
-  repeated ContextDispositionDrop drop = 4;
-  string sweep_note = 5;
-  bool take_all = 6;
-}
-
-message ContextDispositionTake {
-  string candidate = 1;
-  // Optional phase id or order number. Empty accepts as global context.
-  string phase_id = 2;
-  string reason = 3;
-}
-
-message ContextDispositionDrop {
-  string candidate = 1;
-  string reason = 2;
-}
-
-message ContextDispositionResult {
-  ContextCandidate candidate = 1;
-  shared.RelevantContextItem item = 2;
-  string action = 3; // take | drop
-  bool accepted = 4;
-  string message = 5;
-  repeated StructureViolation violations = 6;
-}
-
-message ApplyContextDispositionResponse {
-  repeated ContextDispositionResult results = 1;
-  DiscoveryBatch batch = 2;
-  AuthoringProgress progress = 3;
-  repeated StructureViolation violations = 4;
-  shared.GuidedStep step = 5;
-}
-
-message SuggestReferencesRequest {
-  string session_id = 1;
-}
-
-message SuggestReferencesResponse {
-  repeated ReferenceCandidate candidates = 1;
-  AuthoringProgress progress = 2;
-  shared.GuidedStep step = 3;
-}
-
-message ListReferenceCandidatesRequest {
-  string session_id = 1;
-}
-
-message ListReferenceCandidatesResponse {
-  repeated ReferenceCandidate candidates = 1;
-  shared.GuidedStep step = 2;
-}
-
-message AcceptReferenceCandidateRequest {
-  string session_id = 1;
-  string candidate_id = 2;
-  // Optional inline edit: when set, overrides the candidate's locator before it
-  // is finalized into the references section.
-  shared.Reference reference = 3;
-}
-
-message AcceptReferenceCandidateResponse {
-  ReferenceCandidate candidate = 1;
-  AuthoringMutationSummary summary = 2;
-  AuthoringProgress progress = 3;
-  repeated StructureViolation violations = 4;
-  shared.GuidedStep step = 5;
-}
-
-message RejectReferenceCandidateRequest {
-  string session_id = 1;
-  string candidate_id = 2;
-  string reason = 3;
-}
-
-message RejectReferenceCandidateResponse {
-  ReferenceCandidate candidate = 1;
-  AuthoringProgress progress = 2;
-  shared.GuidedStep step = 3;
-}
-
-message ApplyReferenceDispositionRequest {
-  string session_id = 1;
-  string batch_id = 2;
-  repeated ReferenceDispositionTake take = 3;
-  repeated ReferenceDispositionDrop drop = 4;
-  string sweep_note = 5;
-  bool take_all = 6;
-}
-
-message ReferenceDispositionTake {
-  string candidate = 1;
-}
-
-message ReferenceDispositionDrop {
-  string candidate = 1;
-  string reason = 2;
-}
-
-message ReferenceDispositionResult {
-  ReferenceCandidate candidate = 1;
-  shared.Reference reference = 2;
-  string action = 3; // take | drop
-  bool accepted = 4;
-  string message = 5;
-  repeated StructureViolation violations = 6;
-}
-
-message ApplyReferenceDispositionResponse {
-  repeated ReferenceDispositionResult results = 1;
-  DiscoveryBatch batch = 2;
-  AuthoringProgress progress = 3;
-  repeated StructureViolation violations = 4;
-  shared.GuidedStep step = 5;
+message DiscoverSkillPackResponse {
+  repeated shared.RelevantContextItem added_items = 1;
+  repeated shared.RelevantContextItem kept_items = 2;
+  string read_command = 3;
+  string recommended_read_command = 4;
+  string budget_status = 5;
+  string results_summary = 6;
+  AuthoringProgress progress = 7;
+  shared.GuidedStep step = 8;
+  repeated StructureViolation violations = 9;
+  bool degraded = 10;
+  string degraded_reason = 11;
 }
 
 message AddPhaseRequest {

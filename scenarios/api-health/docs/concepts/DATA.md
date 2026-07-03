@@ -16,67 +16,61 @@ Use this document to answer:
 
 ## Storage Overview
 
-The template default is embedded SQLite through `modernc.org/sqlite`.
-The lifecycle sets `SQLITE_PATH` through `.vrooli/service.json`, and
-the API applies schemas on startup through `api-core/database`.
+API Health starts with embedded SQLite through the generated template. The
+lifecycle sets `SQLITE_PATH` through `.vrooli/service.json`, and the API applies
+system schemas on startup.
 
-External storage resources should be introduced only when a real
-domain needs them. Document those decisions in
-[`INTEGRATIONS.md`](INTEGRATIONS.md) before editing
-`.vrooli/service.json`.
+Initial provider validation is compute-on-read over target scenario files and
+optional live probe responses. Persisted product data is intentionally minimal.
 
 ## Data Ownership
 
-Each domain owns its own tables and is the source of truth for its data.
-The `health` domain owns no product data — it only probes configured
-database reachability. As you build real domains, add a row per data
-shape they persist: name it, name the owning domain, the storage backend,
-the schema file that is the source of truth, the retention rule, and any
-remarks. Keep blob/opaque bytes outside proto payloads, behind a seam
-such as BlobStore.
-
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
-| _(your data)_ | _(owning domain)_ | SQLite (default) | `api/internal/<domain>/schema.sql` | Product-defined delete trigger. | Per-domain ownership. |
+| Provider system tables | infrastructure | SQLite | `api/internal/database/system.sql` | Until scenario data directory is removed. | Template bootstrap only. |
+| Probe evidence | probe | response-local initially; optional SQLite later | Native validation detail | Not persisted in v1. | If P2 fleet/probe history lands, add retention before storing. |
+| Fix sessions | remediation | response-local initially; optional SQLite later | Fix RPC response | Not persisted in v1. | Apply writes target scenario files only on explicit request. |
+| Migration ledger | migration | repository docs/tests | `docs/reference/scenario-auditor-api-migration.md` and fixtures | Version-controlled until migration retired. | Planned document, not database state. |
 
 ## Schema Map
 
-Each domain's schema file lives beside the code that interprets it. The
-`system schema` is the only cross-cutting, non-domain table set.
-
 | Table/File/Object | Owner | Defined In | Used By |
 |---|---|---|---|
-| _(your domain tables)_ | _(owning domain)_ | `api/internal/<domain>/schema.sql` | That domain's repository/service/handlers |
-| system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
+| system schema | infrastructure | `api/internal/database/system.sql` | API boot and health |
+| `.vrooli/maturity.json` | validation | `.vrooli/maturity.json` | assessment mapping, provider conformance |
+| target scenario source files | target scenario | target repo tree | validation and probe domains, read-only |
 
 ## Migrations And Compatibility
 
-The generated template uses idempotent schema bootstrap. Domain schema
-files should use `CREATE TABLE IF NOT EXISTS` and live beside the code
-that interprets them.
+The current persisted schema is generated infrastructure only. Any future probe
+history, fix session, or fleet-readiness table must ship with:
 
-For production data migrations that need column drops, renames, or data
-backfills, add a scenario-specific migration plan here and update
-[`../internal/DECISIONS.md`](../internal/DECISIONS.md) with the tradeoff.
+- a domain-owned schema file,
+- migration tests,
+- retention policy in this document,
+- privacy/security review in `docs/internal/SECURITY.md`.
 
 ## Import / Export
 
 | Path | Format | Owner | Status |
 |---|---|---|---|
-| None yet. | n/a | n/a | Add when product requirements include import/export. |
+| Validation report JSON | proto JSON | validation | Planned CLI/API output, not persisted. |
+| Fix preview JSON | proto JSON | remediation | Planned CLI/API output, not persisted. |
 
 ## Retention And Deletion
 
 | Data | Delete Trigger | Retention Rule | Current Gap |
 |---|---|---|---|
-| _(your data)_ | What removes it. | How long it is kept. | Real scenarios must define product-specific deletion semantics. |
+| Provider SQLite system data | Scenario data cleanup. | Keep while scenario is installed. | None. |
+| Live probe evidence | Not persisted in v1. | Response-local only. | Define before adding history. |
+| Fix preview/apply evidence | Not persisted in v1. | Response-local only. | Define before adding history. |
 
 ## Privacy Notes
 
-Generated template data is local development data. If a scenario stores
-personal, regulated, customer, financial, or sensitive business data,
-update this document and [`../internal/SECURITY.md`](../internal/SECURITY.md)
-before implementation expands.
+API Health reads source files and may capture live `/health` payloads from local
+scenarios. Health payloads can include dependency names, database names, and
+error strings. Reports should avoid storing probe bodies by default and should
+redact secrets if future persistence is introduced.
 
 ## Cross-References
 

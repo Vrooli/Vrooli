@@ -10,7 +10,7 @@ work lands, not while work is still speculative.
 
 | Date | Author | Status | Summary |
 |---|---|---|---|
-| _No progress entries yet._ |  |  |  |
+| 2026-07-03 | Codex | done | Generated API Health from `react-vite` with `vrooli-default`, removed the template notes example domain, authored the provider PRD, requirements registry, maturity spec, and core concept/reference docs as the foundation for implementation. |
 
 ## Entry Template
 

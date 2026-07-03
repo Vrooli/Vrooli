@@ -146,11 +146,19 @@ message StartExperimentRequest {
   string name = 1;
   ExperimentRecipe recipe = 2;
   int32 estimated_seconds = 3;
+  // When true the server validates and resolves the recipe (applying the same
+  // checks a real start performs) and returns the resolved preview WITHOUT
+  // enqueuing anything. Lets an agent confirm a recipe before committing to a
+  // run. The response Experiment has no id and status UNSPECIFIED.
+  bool dry_run = 4;
 }
 
 message StartExperimentResponse {
   Experiment experiment = 1;
   int32 estimated_seconds = 2;
+  // Echoes the request's dry_run: true means nothing was enqueued and the
+  // Experiment is a validated preview, not a persisted run.
+  bool dry_run = 3;
 }
 
 message GetExperimentRequest {

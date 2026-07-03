@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "unit-health",
-  "input_digest": "sha256:ad95ed6f65aaa563f80845ce22bdacdc961bc938ff71da4ee7843d4ec7a15860",
+  "input_digest": "sha256:a7cbed29552ead21e98bbddcb7a50f84bee4316159cacf01760f6b0a08e782e1",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/unit-health/v1/errors/errors.proto",
@@ -21,7 +21,7 @@
   "outputs": {
     "gen/go/unit-health/v1/errors/errors.pb.go": "sha256:a716b73969e349f4da078eeca93eb3463db8f00472d360cbdc82c9f6f5c2ec9f",
     "gen/go/unit-health/v1/health/health.pb.go": "sha256:8e22bd0f0b3758e39a212cd6c7b7e4a2ca68f88d96513091d5e1c1444b1dfcbe",
-    "gen/go/unit-health/v1/validation/validation.pb.go": "sha256:7a56a06d600d9ff13f14b5cf8a5c90ca04fb9a3218be2ea8f440a4f465f4909b",
+    "gen/go/unit-health/v1/validation/validation.pb.go": "sha256:1072fc4e6259639a24391f64be529c595389537e00e8622b11b7eb32c16fc3b6",
     "gen/go/unit-health/v1/validation/validation_v1connect/validation.connect.go": "sha256:689dfc2dd6f6e3c4fcaaecd2a02d5e00e6eecf3fb031a657591c77c10cb6adef",
     "gen/python/unit_health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/unit_health/v1/errors/errors_pb2.py": "sha256:c04aa579da179352574b6af1964469b0e8311e74e8b140c98645916470708c2c",
@@ -32,13 +32,13 @@
     "gen/python/unit_health/v1/health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/unit_health/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/unit_health/v1/validation/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/unit_health/v1/validation/validation_pb2.py": "sha256:0f89c648bdcd749564da3ba1f90095174ed89648dc5aa4c5c1b0a89675302fcc",
-    "gen/python/unit_health/v1/validation/validation_pb2.pyi": "sha256:bf9878fe0f01e49dd4ad17711b008c2ea20e1250e4678d83fafb9e829a30f911",
+    "gen/python/unit_health/v1/validation/validation_pb2.py": "sha256:15421e9faa02a5d38bd89ad69f128312dc4b7c3c9900df15e72a05b394655842",
+    "gen/python/unit_health/v1/validation/validation_pb2.pyi": "sha256:b0e617faaef9064119cc64f4b7c8f5ee2be1c4a460824ea2483a0f7d63b76bbc",
     "gen/typescript/js/unit-health/v1/errors/errors_pb.js": "sha256:0ef9706ef132f92a67bf639a655fde3fb30b25de95b3e25d5ca959e89da4a7e5",
     "gen/typescript/js/unit-health/v1/health/health_pb.js": "sha256:3def99bfd938155aba575a2ff92f573043a1d02cbfbd8bc95d8ce27e7fe560f5",
-    "gen/typescript/js/unit-health/v1/validation/validation_pb.js": "sha256:4bd3b7799ebc030b0db9ef53aa78d01d463d09a7b391ec49043f68a436c5733a",
+    "gen/typescript/js/unit-health/v1/validation/validation_pb.js": "sha256:15fc4f198590ede311c13bc54a4b381931903b3175bf204fe4acb33d024c9ffc",
     "gen/typescript/unit-health/v1/errors/errors_pb.ts": "sha256:9fe39efdf21d0ecedc80e72f2a12a496dae81899a073bbb33478465a4803c60b",
     "gen/typescript/unit-health/v1/health/health_pb.ts": "sha256:3018fb2531b02a92c737efbaef4f6540349f95ce45be758e0c53288b3cb09f2a",
-    "gen/typescript/unit-health/v1/validation/validation_pb.ts": "sha256:ac77cfe93ab08ccfe015a67464fa6a62664464b74b38c66b11fb04d615b95525"
+    "gen/typescript/unit-health/v1/validation/validation_pb.ts": "sha256:1e0a5a163d805b77eef0870bfbf0e91c0393f4516bc6248c9ac016cd3d05ffd3"
   }
 }

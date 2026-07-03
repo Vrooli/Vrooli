@@ -175,6 +175,14 @@ class UpdateEntryRequest(_message.Message):
     add_evidence: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., detail: _Optional[str] = ..., severity: _Optional[_Union[_model_pb2.LogSeverity, str]] = ..., triage: _Optional[_Union[_model_pb2.FindingTriage, str]] = ..., add_evidence: _Optional[_Iterable[str]] = ...) -> None: ...
 
+class ReassignEntryRequest(_message.Message):
+    __slots__ = ("id", "phase_id")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    phase_id: str
+    def __init__(self, id: _Optional[str] = ..., phase_id: _Optional[str] = ...) -> None: ...
+
 class PromoteEntryRequest(_message.Message):
     __slots__ = ("id", "to_type", "title", "detail", "severity")
     ID_FIELD_NUMBER: _ClassVar[int]

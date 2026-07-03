@@ -53,6 +53,9 @@ service LogService {
   // UpdateEntry edits an entry's mutable fields (title/detail/severity/triage,
   // append evidence). Empty/UNSPECIFIED fields are left unchanged.
   rpc UpdateEntry(UpdateEntryRequest) returns (GetEntryResponse);
+  // ReassignEntry moves an existing entry to another phase. The phase may be a
+  // canonical phase id or a 1-based ordinal in the entry's plan.
+  rpc ReassignEntry(ReassignEntryRequest) returns (GetEntryResponse);
   // PromoteEntry promotes a finding into a bug_report or record, preserving the
   // original finding (marked promoted) and linking the new entry back to it.
   rpc PromoteEntry(PromoteEntryRequest) returns (PromoteEntryResponse);
@@ -175,6 +178,12 @@ message UpdateEntryRequest {
   shared.FindingTriage triage = 5;
   // Evidence locators to append.
   repeated string add_evidence = 6;
+}
+
+message ReassignEntryRequest {
+  string id = 1;
+  // Phase id or 1-based ordinal in the entry's plan.
+  string phase_id = 2;
 }
 
 message PromoteEntryRequest {

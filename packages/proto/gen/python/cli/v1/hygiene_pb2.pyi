@@ -105,14 +105,14 @@ class HygienePlanFix(_message.Message):
     def __init__(self, source: _Optional[str] = ..., plan: _Optional[_Union[HygienePlanRecord, _Mapping]] = ..., action: _Optional[str] = ..., mirror: _Optional[_Union[HygieneMirror, _Mapping]] = ...) -> None: ...
 
 class HygienePlanReconcileOutcome(_message.Message):
-    __slots__ = ("action", "source", "plan", "mirror", "source_untouched", "error", "source_cleanup_planned", "source_removed")
+    __slots__ = ("action", "source", "plan", "mirror", "source_untouched", "error", "source_retirement_planned", "source_removed")
     ACTION_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     PLAN_FIELD_NUMBER: _ClassVar[int]
     MIRROR_FIELD_NUMBER: _ClassVar[int]
     SOURCE_UNTOUCHED_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
-    SOURCE_CLEANUP_PLANNED_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_RETIREMENT_PLANNED_FIELD_NUMBER: _ClassVar[int]
     SOURCE_REMOVED_FIELD_NUMBER: _ClassVar[int]
     action: str
     source: str
@@ -120,9 +120,9 @@ class HygienePlanReconcileOutcome(_message.Message):
     mirror: HygieneMirror
     source_untouched: bool
     error: str
-    source_cleanup_planned: bool
+    source_retirement_planned: bool
     source_removed: bool
-    def __init__(self, action: _Optional[str] = ..., source: _Optional[str] = ..., plan: _Optional[_Union[HygienePlanRecord, _Mapping]] = ..., mirror: _Optional[_Union[HygieneMirror, _Mapping]] = ..., source_untouched: _Optional[bool] = ..., error: _Optional[str] = ..., source_cleanup_planned: _Optional[bool] = ..., source_removed: _Optional[bool] = ...) -> None: ...
+    def __init__(self, action: _Optional[str] = ..., source: _Optional[str] = ..., plan: _Optional[_Union[HygienePlanRecord, _Mapping]] = ..., mirror: _Optional[_Union[HygieneMirror, _Mapping]] = ..., source_untouched: _Optional[bool] = ..., error: _Optional[str] = ..., source_retirement_planned: _Optional[bool] = ..., source_removed: _Optional[bool] = ...) -> None: ...
 
 class HygieneMirror(_message.Message):
     __slots__ = ("path", "status")
