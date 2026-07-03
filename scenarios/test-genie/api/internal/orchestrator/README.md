@@ -136,9 +136,11 @@ Phase selection follows this precedence:
 2. **Preset** — If `request.Preset` is provided, expand to its phase list
 3. **All phases** — If neither, run all discovered phases
 
-Phase discovery merges:
-- **Catalog phases** — Go-native runners from `phases.NewDefaultCatalog()`
-- **Script phases** — `coverage/phases/test-*.sh` files in the scenario
+Phase discovery is catalog-only. `phases.NewDefaultCatalog()` declares the
+provider-backed phases, their order, timeout, skip environment variable,
+runnability contract, and finding source. Scenario-local
+`coverage/phases/test-*.sh` files are ignored by suite planning; add or change a
+phase by changing the catalog and its validation provider.
 
 After selection, `request.Skip` filters out unwanted phases.
 

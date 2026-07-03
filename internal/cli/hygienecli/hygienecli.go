@@ -41,7 +41,7 @@ func CommandSpec() commandtree.Spec[string] {
 		Args: commandtree.ArgSchema{
 			Options: []commandtree.OptionArg{
 				{Name: "--fix-safe", Description: "Apply safe, non-destructive fixes"},
-				{Name: "--plans", Description: "Ask Plan Manager to reconcile plan mirrors and legacy markdown during --fix-safe"},
+				{Name: "--plans", Description: "Ask Plan Manager to reconcile plan mirrors and source markdown during --fix-safe"},
 				{Name: "--fail-on", ValueName: "severity", Description: "Exit non-zero on warning or error"},
 				{Name: "--summary", Description: "Show compact status, findings, and plan counts"},
 				{Name: "--details", Description: "Show full findings, checks, and plan candidate lists"},
@@ -372,7 +372,7 @@ func renderPlanSummary(w io.Writer, candidates []hygieneapp.PlanCandidate, mode 
 			untracked = append(untracked, candidate.Path)
 		case "parse_failed", "conflict":
 			invalid = append(invalid, candidate)
-		case "source_cleanup_planned":
+		case "source_retirement_planned":
 			cleanupPlanned = append(cleanupPlanned, candidate)
 		}
 	}
@@ -400,11 +400,11 @@ func renderPlanSummary(w io.Writer, candidates []hygieneapp.PlanCandidate, mode 
 		}
 	}
 	if len(invalid) > 0 {
-		_, _ = fmt.Fprintln(w, "\nInvalid legacy plan candidates:")
+		_, _ = fmt.Fprintln(w, "\nInvalid plan sources:")
 		renderPlanCandidatesWithReasons(w, invalid, mode)
 	}
 	if len(cleanupPlanned) > 0 && mode == OutputModeDetails {
-		_, _ = fmt.Fprintln(w, "\nLegacy plan sources ready for cleanup:")
+		_, _ = fmt.Fprintln(w, "\nPlan sources ready for retirement:")
 		renderPlanCandidatesWithReasons(w, cleanupPlanned, mode)
 	}
 }

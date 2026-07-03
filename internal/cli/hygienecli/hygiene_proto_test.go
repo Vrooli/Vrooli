@@ -50,13 +50,13 @@ func TestRenderHygieneJSONContract(t *testing.T) {
 		},
 		PlanReconcileOutcomes: []hygieneapp.PlanReconcileOutcome{
 			{
-				Source:               "plans/foo.md",
-				Action:               "skipped_duplicate",
-				Plan:                 hygieneapp.HygienePlan{ID: "p1", Title: "Foo", Slug: "foo"},
-				Mirror:               hygieneapp.HygieneMirror{Path: "/repo/.vrooli/plans/foo.md", Status: "fresh"},
-				SourceUntouched:      true,
-				SourceCleanupPlanned: true,
-				SourceRemoved:        false,
+				Source:                  "plans/foo.md",
+				Action:                  "skipped_duplicate",
+				Plan:                    hygieneapp.HygienePlan{ID: "p1", Title: "Foo", Slug: "foo"},
+				Mirror:                  hygieneapp.HygieneMirror{Path: "/repo/.vrooli/plans/foo.md", Status: "fresh"},
+				SourceUntouched:         true,
+				SourceRetirementPlanned: true,
+				SourceRemoved:           false,
 			},
 		},
 		ConfigFixes: []string{"fixed pnpm workspace"},
@@ -138,7 +138,7 @@ func TestRenderHygieneJSONContract(t *testing.T) {
 	}
 	outcomes := got["plan_reconcile_outcomes"].([]any)
 	outcome := outcomes[0].(map[string]any)
-	if outcome["action"] != "skipped_duplicate" || outcome["source_untouched"] != true || outcome["source_cleanup_planned"] != true {
+	if outcome["action"] != "skipped_duplicate" || outcome["source_untouched"] != true || outcome["source_retirement_planned"] != true {
 		t.Errorf("plan_reconcile_outcomes mismatch: %v", outcome)
 	}
 

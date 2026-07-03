@@ -59,6 +59,7 @@ type ScenarioOptions struct {
 	APIBaseKeys        []string
 	TokenEnvVars       []string
 	Preflight          func(cmd Command, global GlobalOptions, app *ScenarioApp) error
+	UnknownCommandHint func(args []string) string
 	BuildFingerprint   string
 	BuildTimestamp     string
 	BuildSourceRoot    string
@@ -98,6 +99,7 @@ type StandardScenarioOptions struct {
 	ColorEnabled            *bool
 	OnColor                 func(enabled bool)
 	Preflight               func(cmd Command, global GlobalOptions, app *ScenarioApp) error
+	UnknownCommandHint      func(args []string) string
 	BuildFingerprint        string
 	BuildTimestamp          string
 	BuildSourceRoot         string
@@ -228,6 +230,7 @@ func NewStandardScenarioApp(opts StandardScenarioOptions) (*ScenarioApp, error) 
 		OnColor:            opts.OnColor,
 		TokenEnvVars:       env.TokenEnvVars,
 		Preflight:          opts.Preflight,
+		UnknownCommandHint: opts.UnknownCommandHint,
 		BuildFingerprint:   opts.BuildFingerprint,
 		BuildTimestamp:     opts.BuildTimestamp,
 		BuildSourceRoot:    opts.BuildSourceRoot,
@@ -298,16 +301,17 @@ func (a *ScenarioApp) SetCommandsWithSubgroups(commands []CommandGroup, subcomma
 	}
 
 	a.CLI = NewApp(AppOptions{
-		Name:             a.options.Name,
-		Version:          a.options.Version,
-		Description:      a.options.Description,
-		Commands:         commands,
-		SubcommandGroups: subcommandGroups,
-		APIOverride:      &a.APIOverride,
-		ColorEnabled:     colorEnabled,
-		OnColor:          a.options.OnColor,
-		StaleChecker:     a.StaleChecker,
-		Preflight:        preflight,
+		Name:               a.options.Name,
+		Version:            a.options.Version,
+		Description:        a.options.Description,
+		Commands:           commands,
+		SubcommandGroups:   subcommandGroups,
+		APIOverride:        &a.APIOverride,
+		ColorEnabled:       colorEnabled,
+		OnColor:            a.options.OnColor,
+		StaleChecker:       a.StaleChecker,
+		Preflight:          preflight,
+		UnknownCommandHint: a.options.UnknownCommandHint,
 	})
 	a.CLI.AttachScenario(a)
 }

@@ -279,7 +279,7 @@ decoupled from the request/process lifecycle:
   (`TEST_GENIE_AUTOBACKGROUND_ON_UNKNOWN_ETA=0` disables that behavior).
   Shorter known-ETA runs are followed inline (still cancel-survivable).
 - `--wait` always blocks to completion inline regardless of ETA (used by CI and
-  the `vrooli` lifecycle test phase, which need the real exit code).
+  callers that need the real exit code inline).
 - Background and busy-run output includes an **Agent wait protocol** block with
   the exact quiet `runs wait --json --timeout=<seconds>` command, the expected
   duration, the recommended wait timeout, and interruption recovery commands.

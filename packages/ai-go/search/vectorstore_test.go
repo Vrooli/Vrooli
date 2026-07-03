@@ -216,7 +216,11 @@ func TestEnsureCollectionSchemaGuardWrongRole(t *testing.T) {
 	}
 }
 
-func TestEnsureCollectionBackfillsMissingRoleMetadata(t *testing.T) {
+// TestEnsureCollectionRejectsMissingRoleMetadata: a sentinel missing a field
+// the spec asserts was written by an older engine version; there is no in-place
+// backfill — the collection is derived data, so the remediation is a deliberate
+// drop-and-reindex.
+func TestEnsureCollectionRejectsMissingRoleMetadata(t *testing.T) {
 	doer := &capturingDoer{respond: func(req capturedReq) (int, string) {
 		switch {
 		case isCollectionInfoGet(req):
@@ -231,35 +235,10 @@ func TestEnsureCollectionBackfillsMissingRoleMetadata(t *testing.T) {
 		DenseSize: fixtureDenseSize, DenseDistance: "Cosine",
 		Model: "fixture-embed-model:latest", Role: "embedding.default", PolicySchemaVersion: "fixture-v1",
 	})
-	if err != nil {
-		t.Fatalf("expected missing role metadata to be backfilled, got %v", err)
+	if !errors.Is(err, ErrCollectionSchemaMismatch) {
+		t.Fatalf("expected schema mismatch on missing role metadata, got %v", err)
 	}
-	var sawSentinel bool
-	for _, r := range doer.requests {
-		if !strings.Contains(r.url, "/points") {
-			continue
-		}
-		pts, _ := r.body["points"].([]any)
-		for _, p := range pts {
-			m, _ := p.(map[string]any)
-			pl, _ := m["payload"].(map[string]any)
-			if pl == nil {
-				continue
-			}
-			if _, ok := pl["__aisearch_meta__"]; ok {
-				sawSentinel = true
-				if pl["role"] != "embedding.default" {
-					t.Fatalf("backfilled sentinel must record spec.Role, got %v", pl["role"])
-				}
-				if pl["policy_schema_version"] != "fixture-v1" {
-					t.Fatalf("backfilled sentinel must preserve policy schema version, got %v", pl["policy_schema_version"])
-				}
-			}
-		}
-	}
-	if !sawSentinel {
-		t.Fatal("expected a meta sentinel backfill upsert for missing role metadata")
-	}
+	assertNoSentinelWrite(t, doer)
 }
 
 func TestEnsureCollectionSchemaGuardWrongPolicySchemaVersion(t *testing.T) {
@@ -305,60 +284,57 @@ func TestEnsureCollectionMatchingIsIdempotent(t *testing.T) {
 	}
 }
 
-// TestEnsureCollectionBackfillsSentinelWhenAbsent covers WS1 case (a)+(c): a
-// layout-compatible collection that lacks a sentinel gets one backfilled (an
-// upsert recording spec.Model) and the backfill never issues a delete.
-func TestEnsureCollectionBackfillsSentinelWhenAbsent(t *testing.T) {
+// TestEnsureCollectionRejectsSentinelWhenAbsent: a layout-compatible collection
+// with no meta sentinel was not created by this engine version. It is rejected
+// with the mismatch error (drop-and-reindex remediation) — never backfilled,
+// never deleted, never recreated.
+func TestEnsureCollectionRejectsSentinelWhenAbsent(t *testing.T) {
 	doer := &capturingDoer{respond: func(req capturedReq) (int, string) {
 		switch {
 		case isCollectionInfoGet(req):
 			return http.StatusOK, matchingDenseInfo(fixtureDenseSize, "Cosine")
 		case isPointGet(req):
-			return http.StatusNotFound, "{}" // no sentinel yet — guard disarmed
+			return http.StatusNotFound, "{}" // no sentinel — pre-engine collection
 		}
 		return http.StatusOK, "{}"
 	}}
 	store := NewVectorStoreWithClient("http://q", "", "cli-health-commands", doer)
-	if err := store.EnsureCollection(context.Background(), CollectionSpec{DenseSize: fixtureDenseSize, DenseDistance: "Cosine", Model: "fixture-embed-model:latest", Role: "embedding.default", PolicySchemaVersion: "fixture-v1"}); err != nil {
-		t.Fatalf("layout-compatible sentinel-less collection must be accepted (backfill), got %v", err)
+	err := store.EnsureCollection(context.Background(), CollectionSpec{DenseSize: fixtureDenseSize, DenseDistance: "Cosine", Model: "fixture-embed-model:latest", Role: "embedding.default", PolicySchemaVersion: "fixture-v1"})
+	if !errors.Is(err, ErrCollectionSchemaMismatch) {
+		t.Fatalf("expected schema mismatch on missing sentinel, got %v", err)
 	}
 
-	var sawSentinel bool
 	for _, r := range doer.requests {
-		// (c) backfill must never delete.
+		// The guard must never remediate on its own: no delete, no recreate.
 		if strings.Contains(r.url, "/points/delete") {
-			t.Fatalf("backfill must not delete, saw %s %s", r.method, r.url)
+			t.Fatalf("guard must not delete, saw %s %s", r.method, r.url)
 		}
-		// The collection already exists, so no create PUT may be issued.
 		if r.method == http.MethodPut && strings.HasSuffix(strings.Split(r.url, "?")[0], "/collections/cli-health-commands") {
-			t.Fatalf("backfill must not recreate the collection, saw %s %s", r.method, r.url)
-		}
-		// (a) the sentinel upsert recording spec.Model must occur.
-		if strings.Contains(r.url, "/points") {
-			pts, _ := r.body["points"].([]any)
-			for _, p := range pts {
-				m, _ := p.(map[string]any)
-				pl, _ := m["payload"].(map[string]any)
-				if pl == nil {
-					continue
-				}
-				if _, ok := pl["__aisearch_meta__"]; ok {
-					sawSentinel = true
-					if pl["model"] != "fixture-embed-model:latest" {
-						t.Fatalf("backfilled sentinel must record spec.Model, got %v", pl["model"])
-					}
-					if pl["role"] != "embedding.default" {
-						t.Fatalf("backfilled sentinel must record spec.Role, got %v", pl["role"])
-					}
-					if pl["policy_schema_version"] != "fixture-v1" {
-						t.Fatalf("backfilled sentinel must record policy schema version, got %v", pl["policy_schema_version"])
-					}
-				}
-			}
+			t.Fatalf("guard must not recreate the collection, saw %s %s", r.method, r.url)
 		}
 	}
-	if !sawSentinel {
-		t.Fatal("expected a meta sentinel backfill upsert for the sentinel-less collection")
+	assertNoSentinelWrite(t, doer)
+}
+
+// assertNoSentinelWrite fails if any request wrote a meta-sentinel point: the
+// guard is read-only on existing collections (no backfill remains in-code).
+func assertNoSentinelWrite(t *testing.T, doer *capturingDoer) {
+	t.Helper()
+	for _, r := range doer.requests {
+		if !strings.Contains(r.url, "/points") {
+			continue
+		}
+		pts, _ := r.body["points"].([]any)
+		for _, p := range pts {
+			m, _ := p.(map[string]any)
+			pl, _ := m["payload"].(map[string]any)
+			if pl == nil {
+				continue
+			}
+			if _, ok := pl["__aisearch_meta__"]; ok {
+				t.Fatalf("guard must not write a meta sentinel, saw %s %s", r.method, r.url)
+			}
+		}
 	}
 }
 

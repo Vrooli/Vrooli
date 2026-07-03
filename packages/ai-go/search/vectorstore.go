@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -425,11 +424,11 @@ func (v *qdrantVectorStore) EnsureCollection(ctx context.Context, spec Collectio
 }
 
 // checkLayout compares a discovered layout against the requested spec and
-// returns a *CollectionSchemaMismatchError on the first disagreement. When the
-// vector layout is compatible but the collection carries no meta sentinel (e.g.
-// one created before this guard shipped), the sentinel is backfilled with
-// spec.Model so the model guard is armed for the next EnsureCollection — a
-// migrated collection no longer leaves the guard permanently disarmed.
+// returns a *CollectionSchemaMismatchError on the first disagreement. A
+// collection whose sentinel is absent (or missing a field the spec asserts)
+// was not created by this engine version and is rejected the same way: vector
+// stores are derived data, so the remediation is a deliberate drop-and-reindex,
+// never an in-place backfill.
 func (v *qdrantVectorStore) checkLayout(ctx context.Context, spec CollectionSpec, size int, distance string, layout collectionLayout) error {
 	mismatch := func(field, want, got string) error {
 		return &CollectionSchemaMismatchError{Collection: v.collection, Field: field, Want: want, Got: got}
@@ -454,22 +453,13 @@ func (v *qdrantVectorStore) checkLayout(ctx context.Context, spec CollectionSpec
 		return err
 	}
 	if !ok {
-		if strings.TrimSpace(spec.Model) != "" {
-			log.Printf("[aisearch] backfilled meta sentinel for %s: model=%s role=%s policy_schema_version=%s", v.collection, spec.Model, spec.Role, spec.PolicySchemaVersion)
-			return v.writeMetaSentinel(ctx, spec, size, distance)
-		}
-		return nil
+		return mismatch("meta sentinel", "present (collection created by this engine)", "absent")
 	}
 	if want := strings.TrimSpace(spec.Model); want != "" && !sameModelRef(meta.Model, want) {
 		return mismatch("embedding model", want, meta.Model)
 	}
-	needsBackfill := false
-	if want := strings.TrimSpace(spec.Role); want != "" {
-		if meta.Role == "" {
-			needsBackfill = true
-		} else if meta.Role != want {
-			return mismatch("embedding role", want, meta.Role)
-		}
+	if want := strings.TrimSpace(spec.Role); want != "" && meta.Role != want {
+		return mismatch("embedding role", want, meta.Role)
 	}
 	if meta.DenseSize > 0 && meta.DenseSize != size {
 		return mismatch("metadata dense_size", fmt.Sprintf("%d", size), fmt.Sprintf("%d", meta.DenseSize))
@@ -477,19 +467,11 @@ func (v *qdrantVectorStore) checkLayout(ctx context.Context, spec CollectionSpec
 	if meta.DenseDistance != "" && !strings.EqualFold(meta.DenseDistance, distance) {
 		return mismatch("metadata dense_distance", distance, meta.DenseDistance)
 	}
-	if want := strings.TrimSpace(spec.PolicySchemaVersion); want != "" {
-		if meta.PolicySchemaVersion == "" {
-			needsBackfill = true
-		} else if meta.PolicySchemaVersion != want {
-			return mismatch("policy schema version", want, meta.PolicySchemaVersion)
-		}
+	if want := strings.TrimSpace(spec.PolicySchemaVersion); want != "" && meta.PolicySchemaVersion != want {
+		return mismatch("policy schema version", want, meta.PolicySchemaVersion)
 	}
 	if meta.EngineSchemaVersion > 0 && meta.EngineSchemaVersion != engineSchemaVersion {
 		return mismatch("engine schema version", fmt.Sprintf("%d", engineSchemaVersion), fmt.Sprintf("%d", meta.EngineSchemaVersion))
-	}
-	if needsBackfill {
-		log.Printf("[aisearch] backfilled meta sentinel for %s: model=%s role=%s policy_schema_version=%s", v.collection, spec.Model, spec.Role, spec.PolicySchemaVersion)
-		return v.writeMetaSentinel(ctx, spec, size, distance)
 	}
 	return nil
 }

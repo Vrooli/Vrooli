@@ -173,6 +173,26 @@ func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Branding, Runner: noOp, Optional: true})
 }
 
+func TestDiscoverPhaseDefinitionsIgnoresScenarioLocalScripts(t *testing.T) {
+	testDir := t.TempDir()
+	phaseDir := filepath.Join(testDir, "phases")
+	if err := os.MkdirAll(phaseDir, 0o755); err != nil {
+		t.Fatalf("create phase dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(phaseDir, "test-unit.sh"), []byte("#!/usr/bin/env bash\nexit 0\n"), 0o755); err != nil {
+		t.Fatalf("write script phase: %v", err)
+	}
+
+	orchestrator := &SuiteOrchestrator{phaseTimeout: time.Minute}
+	defs, err := orchestrator.discoverPhaseDefinitions(workspacepkg.Environment{TestDir: testDir})
+	if err != nil {
+		t.Fatalf("discover phases: %v", err)
+	}
+	if len(defs) != 0 {
+		t.Fatalf("script phases must be ignored, got %d definitions: %#v", len(defs), defs)
+	}
+}
+
 func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] orchestrator runs catalog phases", func(t *testing.T) {
 		root := t.TempDir()

@@ -171,6 +171,69 @@ func TestAppUnknownCommand(t *testing.T) {
 	}
 }
 
+func TestAppUnknownCommandSuggestsNearest(t *testing.T) {
+	app := NewApp(AppOptions{
+		Name:    "demo",
+		Version: "0.0.1",
+		SubcommandGroups: []SubcommandGroup{{
+			Name:        "records",
+			Description: "records group",
+			Subcommands: []Command{
+				{Name: "create", Description: "create", Run: func(args []string) error { return nil }},
+			},
+		}},
+		ColorEnabled: DefaultColorEnabled(),
+	})
+
+	// Singular/plural miss on a group name — the corpus's `record create`.
+	err := app.Run([]string{"record", "create"})
+	if err == nil || !strings.Contains(err.Error(), `did you mean "records"?`) {
+		t.Fatalf("expected records suggestion, got %v", err)
+	}
+
+	// Unknown subcommand within a known group.
+	err = app.Run([]string{"records", "creat"})
+	if err == nil || !strings.Contains(err.Error(), `did you mean "create"?`) {
+		t.Fatalf("expected create suggestion, got %v", err)
+	}
+
+	// Distant garbage gets no suggestion.
+	err = app.Run([]string{"zzzzzzzz"})
+	if err == nil || strings.Contains(err.Error(), "did you mean") {
+		t.Fatalf("expected no suggestion for garbage, got %v", err)
+	}
+}
+
+func TestAppUnknownCommandUsesRecoveryHint(t *testing.T) {
+	app := NewApp(AppOptions{
+		Name: "demo",
+		SubcommandGroups: []SubcommandGroup{{
+			Name:        "log",
+			Description: "log group",
+			Subcommands: []Command{
+				{Name: "decision-add", Description: "add", Run: func(args []string) error { return nil }},
+			},
+		}},
+		UnknownCommandHint: func(args []string) string {
+			if strings.Join(args, " ") == "log decision add" {
+				return "Did you mean:\n  demo log decision-add"
+			}
+			return ""
+		},
+	})
+
+	err := app.Run([]string{"log", "decision", "add"})
+	if err == nil {
+		t.Fatalf("expected unknown subcommand error")
+	}
+	if !strings.Contains(err.Error(), "Unknown subcommand: log decision") {
+		t.Fatalf("expected unknown subcommand, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "demo log decision-add") {
+		t.Fatalf("expected recovery hint, got %v", err)
+	}
+}
+
 func TestAppPreflightRuns(t *testing.T) {
 	preflightCalled := false
 	group := CommandGroup{

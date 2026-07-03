@@ -110,7 +110,7 @@ Key principle (from `STRATEGY.md`): the subscription buys **convenience and inte
 
 ## How this is wired in
 
-- **Light, always-on:** the CLAUDE.md *Situational Skill Loading* table routes scenario-building intent to the `ecosystem-fit` skill; `plan-skill-discovery` points new-scenario / refactor work here; `implementation-plan-authoring` carries an ecosystem-fit consideration in its Definition of Done for scenario-creating or role-changing plans.
+- **Light, always-on:** the CLAUDE.md *Situational Skill Loading* table routes scenario-building intent to the `ecosystem-fit` skill; the plan-manager authoring wizard's context checkpoint points new-scenario / refactor work here; `implementation-plan-authoring` carries an ecosystem-fit consideration in its Definition of Done for scenario-creating or role-changing plans.
 - **Deep, on demand:** `prompt-manager skill read ecosystem-fit` walks the full lens with a depth decision tree, the taxonomy, and the optional `tech-tree-designer` hook.
 
 ## Related

@@ -9,7 +9,6 @@ import (
 	"log"
 	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -901,40 +900,11 @@ func (o *SuiteOrchestrator) syncRequirementsIfNeeded(
 	return outcome
 }
 
-func (o *SuiteOrchestrator) discoverPhaseDefinitions(env workspacepkg.Environment) ([]phases.Definition, error) {
-	phaseDir := filepath.Join(env.TestDir, "phases")
-	var entries []os.DirEntry
-	if dirEntries, err := os.ReadDir(phaseDir); err == nil {
-		entries = dirEntries
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return nil, fmt.Errorf("failed to read phase directory: %w", err)
-	}
+func (o *SuiteOrchestrator) discoverPhaseDefinitions(_ workspacepkg.Environment) ([]phases.Definition, error) {
 	definitions := make(map[string]phases.Definition)
 	if o.catalog != nil {
 		for _, spec := range o.catalog.All() {
 			definitions[spec.Name.Key()] = spec.ToDefinition()
-		}
-	}
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		if !strings.HasPrefix(name, "test-") || !strings.HasSuffix(name, ".sh") {
-			continue
-		}
-		phaseName := strings.TrimSuffix(strings.TrimPrefix(name, "test-"), ".sh")
-		normalized, ok := phases.NormalizeName(phaseName)
-		if !ok {
-			continue
-		}
-		if _, exists := definitions[normalized.Key()]; exists {
-			continue
-		}
-		definitions[normalized.Key()] = phases.Definition{
-			Name:    normalized,
-			Runner:  o.scriptPhaseRunner(filepath.Join(phaseDir, name)),
-			Timeout: o.phaseTimeout,
 		}
 	}
 	var defs []phases.Definition
@@ -1029,22 +999,6 @@ func selectPhases(defs []phases.Definition, presets map[string][]string, req Sui
 	filtered, requestedSkipNotices := applySkipFilters(resolved, req.Skip)
 	notices.Skipped = append(notices.Skipped, requestedSkipNotices...)
 	return filtered, presetUsed, notices, nil
-}
-
-func (o *SuiteOrchestrator) scriptPhaseRunner(scriptPath string) phases.Runner {
-	return func(ctx context.Context, env workspacepkg.Environment, logWriter io.Writer) phases.RunReport {
-		cmd := exec.CommandContext(ctx, "bash", scriptPath)
-		cmd.Dir = env.TestDir
-		cmd.Env = append(
-			os.Environ(),
-			fmt.Sprintf("TEST_GENIE_SCENARIO_DIR=%s", env.ScenarioDir),
-			fmt.Sprintf("TEST_GENIE_REPO_ROOT=%s", env.AppRoot),
-			fmt.Sprintf("VROOLI_ROOT=%s", env.AppRoot),
-		)
-		cmd.Stdout = logWriter
-		cmd.Stderr = logWriter
-		return phases.RunReport{Err: cmd.Run()}
-	}
 }
 
 // runPhaseWithEvents runs a single phase, emitting observation events during

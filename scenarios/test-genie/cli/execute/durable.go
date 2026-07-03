@@ -33,7 +33,7 @@ const (
 // DurableOptions configures the durable execute flow.
 type DurableOptions struct {
 	// Wait forces a block-to-completion inline follow regardless of ETA (used by
-	// CI and the lifecycle test phase).
+	// CI and callers that need the real exit code inline).
 	Wait bool
 	// JSONL emits the canonical newline-delimited event stream to stdout instead
 	// of human rendering.

@@ -56,14 +56,14 @@ func HygieneReportMessage(report hygieneapp.Report) *cliv1.HygieneReport {
 	}
 	for _, outcome := range report.PlanReconcileOutcomes {
 		msg.PlanReconcileOutcomes = append(msg.PlanReconcileOutcomes, &cliv1.HygienePlanReconcileOutcome{
-			Action:               outcome.Action,
-			Source:               outcome.Source,
-			Plan:                 hygienePlanRecordMessage(outcome.Plan),
-			Mirror:               hygieneMirrorMessage(outcome.Mirror),
-			SourceUntouched:      outcome.SourceUntouched,
-			SourceCleanupPlanned: outcome.SourceCleanupPlanned,
-			SourceRemoved:        outcome.SourceRemoved,
-			Error:                outcome.Error,
+			Action:                  outcome.Action,
+			Source:                  outcome.Source,
+			Plan:                    hygienePlanRecordMessage(outcome.Plan),
+			Mirror:                  hygieneMirrorMessage(outcome.Mirror),
+			SourceUntouched:         outcome.SourceUntouched,
+			SourceRetirementPlanned: outcome.SourceRetirementPlanned,
+			SourceRemoved:           outcome.SourceRemoved,
+			Error:                   outcome.Error,
 		})
 	}
 	return msg

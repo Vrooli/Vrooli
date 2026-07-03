@@ -7,8 +7,8 @@ import (
 	"test-genie/internal/orchestrator/phases"
 )
 
-// catalogDefinitions mirrors discoverPhaseDefinitions' catalog path: the full
-// set of registered phases with their Optional flags, which is what the sync
+// catalogDefinitions mirrors discoverPhaseDefinitions: the full set of
+// registered catalog phases with their Optional flags, which is what the sync
 // decision treats as "required coverage".
 func catalogDefinitions(t *testing.T) []phases.Definition {
 	t.Helper()

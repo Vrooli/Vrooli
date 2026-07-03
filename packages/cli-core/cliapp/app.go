@@ -70,6 +70,10 @@ type AppOptions struct {
 	OnColor          func(enabled bool)
 	StaleChecker     *cliutil.StaleChecker
 	Preflight        func(cmd Command, global GlobalOptions) error
+	// UnknownCommandHint, when set, returns extra recovery text for known bad
+	// command shapes. It is advisory only; the dispatcher still returns an
+	// unknown-command error and never executes a replacement command.
+	UnknownCommandHint func(args []string) string
 }
 
 // GlobalOptions holds parsed global flags that all scenario CLIs share.
@@ -148,7 +152,7 @@ func (a *App) Run(args []string) error {
 
 	cmd, ok := a.commandLookup[remaining[0]]
 	if !ok {
-		return fmt.Errorf("Unknown command: %s", remaining[0])
+		return fmt.Errorf("Unknown command: %s%s%s", remaining[0], a.suggestCommand(remaining[0]), a.unknownCommandHint(remaining))
 	}
 	if cmd.RunCtx == nil && wantsHelp(remaining[1:]) {
 		a.printCommandHelp(a.opts.Name, cmd)
@@ -209,7 +213,9 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 		return a.dispatchCommand(strings.TrimSpace(a.opts.Name+" "+group.Name), *cmd, args)
 	}
 	if cmd == nil {
-		return fmt.Errorf("Unknown subcommand: %s %s\nRun '%s %s help' for available subcommands", group.Name, args[0], a.opts.Name, group.Name)
+		path := append([]string{group.Name}, args...)
+		return fmt.Errorf("Unknown subcommand: %s %s%s%s\nRun '%s %s help' for available subcommands",
+			group.Name, args[0], suggestSubcommand(group, args[0]), a.unknownCommandHint(path), a.opts.Name, group.Name)
 	}
 	if cmd.RunCtx == nil && wantsHelp(args[1:]) {
 		a.printCommandHelp(strings.TrimSpace(a.opts.Name+" "+group.Name), *cmd)
@@ -453,6 +459,50 @@ func ParseGlobalFlags(args []string, global *GlobalOptions, apiOverrideTarget *s
 		}
 	}
 	return remaining, nil
+}
+
+// suggestCommand returns a ` (did you mean "x"?)` fragment naming the nearest
+// command or subcommand group, or "" when nothing is close. Covers the common
+// singular/plural miss (e.g. `record create` → `records create`) so agents get
+// a one-retry correction instead of a dead end.
+func (a *App) suggestCommand(candidate string) string {
+	options := make([]string, 0, len(a.commandLookup)+len(a.subcommandGroupLookup))
+	for name := range a.commandLookup {
+		if !strings.HasPrefix(name, "-") { // skip --help/-v style aliases
+			options = append(options, name)
+		}
+	}
+	for name := range a.subcommandGroupLookup {
+		options = append(options, name)
+	}
+	if nearest := cliutil.NearestString(candidate, options, 2); nearest != "" {
+		return fmt.Sprintf(" (did you mean %q?)", nearest)
+	}
+	return ""
+}
+
+func (a *App) unknownCommandHint(args []string) string {
+	if a.opts.UnknownCommandHint == nil {
+		return ""
+	}
+	hint := strings.TrimSpace(a.opts.UnknownCommandHint(append([]string(nil), args...)))
+	if hint == "" {
+		return ""
+	}
+	return "\n\n" + hint
+}
+
+// suggestSubcommand is suggestCommand scoped to one group's subcommands.
+func suggestSubcommand(group *SubcommandGroup, candidate string) string {
+	options := make([]string, 0, len(group.Subcommands))
+	for _, sub := range group.Subcommands {
+		options = append(options, sub.Name)
+		options = append(options, sub.Aliases...)
+	}
+	if nearest := cliutil.NearestString(candidate, options, 2); nearest != "" {
+		return fmt.Sprintf(" (did you mean %q?)", nearest)
+	}
+	return ""
 }
 
 func isHelpToken(arg string) bool {

@@ -224,12 +224,12 @@ func TestRenderShowsInvalidLegacyPlanReasons(t *testing.T) {
 		Warnings: 1,
 		Findings: []hygieneapp.Finding{{
 			Severity:   hygieneapp.SeverityWarning,
-			Code:       "invalid_legacy_plan_sources",
-			Message:    "1 invalid legacy plan source(s) need guided remediation",
+			Code:       "invalid_plan_sources",
+			Message:    "1 invalid plan source(s) need guided remediation",
 			Fixability: hygieneapp.FixabilityGuided,
 			NextActions: []hygieneapp.Action{{
-				Code:       "inspect_invalid_legacy_plans",
-				Message:    "List the invalid legacy plan files and Plan Manager parser or conflict reason.",
+				Code:       "inspect_invalid_plan_sources",
+				Message:    "List the invalid plan source files and Plan Manager parser or conflict reason.",
 				Command:    "vrooli hygiene --plans-only --details",
 				Fixability: hygieneapp.FixabilityGuided,
 			}},
@@ -244,10 +244,10 @@ func TestRenderShowsInvalidLegacyPlanReasons(t *testing.T) {
 	}
 	text := out.String()
 	for _, want := range []string{
-		"invalid_legacy_plan_sources [guided]",
+		"invalid_plan_sources [guided]",
 		"Plan candidates: 1",
 		"- 1 parse_failed",
-		"Invalid legacy plan candidates:",
+		"Invalid plan sources:",
 		"docs/plans/broken.md: missing phase heading",
 		"vrooli hygiene --plans-only --details",
 	} {
@@ -293,23 +293,23 @@ func TestRenderNextListsAutomaticAndInvalidLegacyActions(t *testing.T) {
 				Message:  "1 plan hygiene item(s) can be reconciled automatically",
 				NextActions: []hygieneapp.Action{{
 					Code:    "reconcile_plan_manager_plans",
-					Message: "Ask Plan Manager to repair rendered mirrors, adopt parseable legacy plan files, and remove adopted/proven legacy sources.",
+					Message: "Ask Plan Manager to repair rendered mirrors, canonicalize parseable plan source files, and retire proven sources.",
 					Command: "vrooli hygiene --fix-safe --plans",
 				}},
 			},
 			{
 				Severity: hygieneapp.SeverityWarning,
-				Code:     "invalid_legacy_plan_sources",
-				Message:  "1 invalid legacy plan source(s) need guided remediation",
+				Code:     "invalid_plan_sources",
+				Message:  "1 invalid plan source(s) need guided remediation",
 				NextActions: []hygieneapp.Action{
 					{
-						Code:    "inspect_invalid_legacy_plans",
-						Message: "List the invalid legacy plan files and Plan Manager parser or conflict reason.",
+						Code:    "inspect_invalid_plan_sources",
+						Message: "List the invalid plan source files and Plan Manager parser or conflict reason.",
 						Command: "vrooli hygiene --plans-only --details",
 					},
 					{
 						Code:    "preview_plan_manager_reconcile",
-						Message: "Preview Plan Manager's authoritative reconcile report before and after repairing legacy plan markdown.",
+						Message: "Preview Plan Manager's authoritative reconcile report before and after repairing plan source markdown.",
 						Command: "plan-manager plans reconcile --dry-run --workspace \"/repo\"",
 					},
 				},

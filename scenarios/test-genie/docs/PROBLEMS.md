@@ -12,7 +12,7 @@
 # Failure Topography (2025-12-03)
 - **Critical flows mapped**
   - *Suite request ingestion*: depends on API payload validation and embedded SQLite writes. Failure modes: invalid requested types/priority (client) vs. DB access failures (infra). Current mitigation: validation errors stay 400 and non-validation paths now emit structured logging; storage failures still bubble a 500—documented for follow-up.
-  - *Suite execution orchestrator*: preflight includes Go-native structure + dependency phases, scenario script registry, and artifact persistence. Dependencies: filesystem layout, `.vrooli/service.json`, toolchain availability (`bash`, `curl`, `jq`, language runtimes, package managers), and manifest-declared resources.
+  - *Suite execution orchestrator*: preflight includes provider-backed catalog phases and artifact persistence. Dependencies: filesystem layout, `.vrooli/service.json`, provider availability, language runtimes, package managers, and manifest-declared resources.
 - **Observed failure modes**
   - Missing directories or manifest drift silently mapped to 500s before this loop. They are now classified as `misconfiguration` with remediation text so UI/API callers can render contextual actions.
   - Dependency gaps were previously reported one-at-a-time; now the Go phase aggregates all missing commands and surfaces a single actionable error plus per-phase observations to avoid repeated API calls.

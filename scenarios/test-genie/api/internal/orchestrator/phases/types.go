@@ -52,7 +52,7 @@ const (
 )
 
 // Descriptor surfaces metadata about registered phases so the UI/CLI can
-// describe the orchestration flow without scraping bash scripts.
+// describe the orchestration flow from the catalog.
 type Descriptor struct {
 	Name                  string `json:"name"`
 	Optional              bool   `json:"optional"`

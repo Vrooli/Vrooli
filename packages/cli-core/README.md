@@ -112,8 +112,8 @@ replace <scenario-api-module> => ../api
 Go `replace` directives and `go.sum` entries are not transitive. A consumer's
 own `go.mod` and `go.sum` must be refreshed after `cli-core/go.mod` changes.
 Run `GOWORK=off go mod tidy` in the consumer module, then verify with
-`GOWORK=off go build ./...`. Scenario Stack Governor's
-`GO_CLI_WORKSPACE_INDEPENDENCE` rule enforces this contract for scenario CLIs.
+`GOWORK=off go build ./...`. Scenario Dependency Analyzer's dependency-health
+provider enforces this contract for scenario Go surfaces.
 
 `cli-core` is also governed as a leaf shared Go package. It must not introduce
 new local governed package dependencies that would force downstream CLIs to add
