@@ -63,7 +63,20 @@ func testSpec(t *testing.T) *assessment.Spec {
 
 func TestResponseToProtoMapsFields(t *testing.T) {
 	spec := testSpec(t)
-	in := internalvalidation.Response{
+	out, err := responseToProto(protoMappingFixture(), spec)
+	if err != nil {
+		t.Fatalf("responseToProto: %v", err)
+	}
+
+	assertResponseScalars(t, out)
+	assertResponseCollections(t, out)
+	assertResponseProjectionChecks(t, out)
+	assertResponseFindingDetails(t, out)
+	assertResponseArtifacts(t, out)
+}
+
+func protoMappingFixture() internalvalidation.Response {
+	return internalvalidation.Response{
 		RunID:      "uh-123",
 		Status:     "passed",
 		Scenario:   "demo",
@@ -73,6 +86,19 @@ func TestResponseToProtoMapsFields(t *testing.T) {
 		Surfaces:   []internalvalidation.Surface{{ID: "api", Kind: "api", Language: "go"}},
 		Workspaces: []internalvalidation.Workspace{{ID: "api", Language: "go"}},
 		Coverage:   []internalvalidation.CoverageTarget{{ID: "api:a.go", FilePath: "a.go", CoveragePercent: 80}},
+		ProjectionChecks: []internalvalidation.ProjectionCheck{{
+			ID:          "api:testutil.production_import_ban",
+			WorkspaceID: "api",
+			SurfaceID:   "api",
+			Key:         "testutil.production_import_ban",
+			Owner:       "go test native guard",
+			FilePath:    "api/internal/testutil/no_prod_import_test.go",
+			PolicyValue: "true",
+			NativeValue: "false",
+			Status:      "missing",
+			Remediation: "Add the import-ban meta-test.",
+			FindingCode: "UNIT_POLICY_PROJECTION_DRIFT",
+		}},
 		Findings: []internalvalidation.Finding{
 			{Code: "TEST_NO_ASSERTION", Severity: "warning", Message: "m", Evidence: "role=ui policy_class=react_vite_ui", Expected: "coverage thresholds >= 85", Observed: "coverage thresholds below policy", Remediation: "Restore the template policy projection."},
 			{Code: "LOW_COVERAGE", Severity: "warning", Message: "c"},
@@ -83,25 +109,15 @@ func TestResponseToProtoMapsFields(t *testing.T) {
 			{Label: "Coverage (api)", Kind: "coverage", Reference: "/x/api"},
 		},
 	}
-	out, err := responseToProto(in, spec)
-	if err != nil {
-		t.Fatalf("responseToProto: %v", err)
-	}
+}
+
+func assertResponseScalars(t *testing.T, out *validationv1.ValidateScenarioResponse) {
+	t.Helper()
 	if out.GetRunId() != "uh-123" || out.GetStatus() != "passed" || out.GetScenario() != "demo" {
 		t.Errorf("scalar fields not mapped: %+v", out)
 	}
 	if out.GetCounts().GetWarnings() != 2 || out.GetCounts().GetSurfaces() != 1 || out.GetCounts().GetCoverageTargets() != 1 {
 		t.Errorf("counts wrong: %+v", out.GetCounts())
-	}
-	if len(out.GetFindings()) != 2 || len(out.GetSurfaces()) != 1 || len(out.GetWorkspaces()) != 1 {
-		t.Errorf("collections not mapped: findings=%d surfaces=%d", len(out.GetFindings()), len(out.GetSurfaces()))
-	}
-	firstFinding := out.GetFindings()[0]
-	if firstFinding.GetEvidence() != "role=ui policy_class=react_vite_ui" ||
-		firstFinding.GetExpected() != "coverage thresholds >= 85" ||
-		firstFinding.GetObserved() != "coverage thresholds below policy" ||
-		firstFinding.GetRemediation() != "Restore the template policy projection." {
-		t.Fatalf("rich finding fields not mapped: %+v", firstFinding)
 	}
 	if out.GetAssessment() == nil {
 		t.Error("maturity assessment must be built")
@@ -109,6 +125,39 @@ func TestResponseToProtoMapsFields(t *testing.T) {
 	if out.GetMaturity().GetRung() != 5 {
 		t.Errorf("maturity rung = %d, want 5", out.GetMaturity().GetRung())
 	}
+}
+
+func assertResponseCollections(t *testing.T, out *validationv1.ValidateScenarioResponse) {
+	t.Helper()
+	if len(out.GetFindings()) != 2 || len(out.GetSurfaces()) != 1 || len(out.GetWorkspaces()) != 1 {
+		t.Errorf("collections not mapped: findings=%d surfaces=%d", len(out.GetFindings()), len(out.GetSurfaces()))
+	}
+}
+
+func assertResponseProjectionChecks(t *testing.T, out *validationv1.ValidateScenarioResponse) {
+	t.Helper()
+	if len(out.GetProjectionChecks()) != 1 {
+		t.Fatalf("projection checks not mapped: got %d, want 1", len(out.GetProjectionChecks()))
+	}
+	got := out.GetProjectionChecks()[0]
+	if got.GetPolicyValue() != "true" || got.GetNativeValue() != "false" || got.GetStatus() != "missing" {
+		t.Fatalf("projection check fields not mapped: %+v", got)
+	}
+}
+
+func assertResponseFindingDetails(t *testing.T, out *validationv1.ValidateScenarioResponse) {
+	t.Helper()
+	firstFinding := out.GetFindings()[0]
+	if firstFinding.GetEvidence() != "role=ui policy_class=react_vite_ui" ||
+		firstFinding.GetExpected() != "coverage thresholds >= 85" ||
+		firstFinding.GetObserved() != "coverage thresholds below policy" ||
+		firstFinding.GetRemediation() != "Restore the template policy projection." {
+		t.Fatalf("rich finding fields not mapped: %+v", firstFinding)
+	}
+}
+
+func assertResponseArtifacts(t *testing.T, out *validationv1.ValidateScenarioResponse) {
+	t.Helper()
 	if len(out.GetArtifacts()) != 2 {
 		t.Fatalf("artifacts not mapped: got %d, want 2", len(out.GetArtifacts()))
 	}
@@ -291,6 +340,140 @@ func TestApplyFixWritesDeterministicCandidates(t *testing.T) {
 	}
 	if !strings.Contains(string(pkg), `"test": "vitest run"`) || !strings.Contains(string(pkg), `"test:coverage": "vitest run --coverage"`) {
 		t.Fatalf("package scripts not repaired:\n%s", pkg)
+	}
+}
+
+func TestApplyFixRaisesCoverageThresholdsToPolicyFloor(t *testing.T) {
+	root := seedFixTarget(t)
+	writeHandlerFile(t, filepath.Join(root, ".vrooli", "testing.json"), `{
+  "$schema": "../../../../scenarios/test-genie/schemas/testing.schema.json",
+  "unit": {
+    "policy_profile": {
+      "version": "1.0.0",
+      "template": {"id": "react-vite", "scenario_class": "react-vite"},
+      "required_roles": [{"role": "ui", "policy_class": "react_vite_ui"}],
+      "policy_classes": {
+        "react_vite_ui": {
+          "language": "typescript",
+          "framework": "vitest",
+          "coverage": {"minimum_percent": 90}
+        }
+      },
+      "customization": {"mode": "monotonic", "waivers": []}
+    }
+  }
+}`)
+	h := NewSharedHandler(NewHandlerWithDeps(Deps{MaturitySpec: testSpec(t)}))
+
+	_, err := h.ApplyFix(context.Background(), connect.NewRequest(&scenariovalidationv1.FixRequest{
+		Scenario: "demo",
+		Path:     root,
+		RuleIds:  []string{"UNIT_POLICY_PROJECTION_DRIFT"},
+	}))
+	if err != nil {
+		t.Fatalf("ApplyFix: %v", err)
+	}
+	vite, err := os.ReadFile(filepath.Join(root, "ui", "vite.config.ts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(vite), "branches: 90") {
+		t.Fatalf("vite config threshold not raised to policy floor:\n%s", vite)
+	}
+}
+
+func TestApplyFixRepairsVitestProjectionFieldsFromPolicy(t *testing.T) {
+	root := seedFixTarget(t)
+	writeHandlerFile(t, filepath.Join(root, ".vrooli", "testing.json"), `{
+  "$schema": "../../../../scenarios/test-genie/schemas/testing.schema.json",
+  "unit": {
+    "policy_profile": {
+      "version": "1.0.0",
+      "template": {"id": "react-vite", "scenario_class": "react-vite"},
+      "required_roles": [{"role": "ui", "policy_class": "react_vite_ui"}],
+      "policy_classes": {
+        "react_vite_ui": {
+          "language": "typescript",
+          "framework": "vitest",
+          "coverage": {
+            "minimum_percent": 88,
+            "provider": "v8",
+            "reporters": ["text", "json-summary", "json"]
+          },
+          "projection": {
+            "vitest": {
+              "environment": "jsdom",
+              "setup_files": ["./src/test-setup.ts"]
+            }
+          }
+        }
+      },
+      "customization": {"mode": "monotonic", "waivers": []}
+    }
+  }
+}`)
+	writeHandlerFile(t, filepath.Join(root, "ui", "package.json"), `{
+  "scripts": {
+    "test": "vitest run",
+    "test:coverage": "jest --coverage"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.0"
+  }
+}`)
+	writeHandlerFile(t, filepath.Join(root, "ui", "vite.config.ts"), `export default {
+  test: {
+    environment: 'node',
+    setupFiles: ['./src/legacy-setup.ts'],
+    coverage: {
+      provider: 'istanbul',
+      reporter: ['text'],
+      thresholds: {
+        lines: 80,
+        functions: 80,
+        branches: 80,
+        statements: 80,
+      },
+    },
+  },
+};
+`)
+	h := NewSharedHandler(NewHandlerWithDeps(Deps{MaturitySpec: testSpec(t)}))
+
+	_, err := h.ApplyFix(context.Background(), connect.NewRequest(&scenariovalidationv1.FixRequest{
+		Scenario: "demo",
+		Path:     root,
+		RuleIds:  []string{"UNIT_POLICY_PROJECTION_DRIFT"},
+	}))
+	if err != nil {
+		t.Fatalf("ApplyFix: %v", err)
+	}
+
+	pkg, err := os.ReadFile(filepath.Join(root, "ui", "package.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(pkg), `"test:coverage": "vitest run --coverage"`) {
+		t.Fatalf("package coverage script was not repaired:\n%s", pkg)
+	}
+	vite, err := os.ReadFile(filepath.Join(root, "ui", "vite.config.ts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	viteText := string(vite)
+	for _, want := range []string{
+		"environment: 'jsdom'",
+		"setupFiles: ['./src/test-setup.ts']",
+		"provider: 'v8'",
+		"reporter: ['text', 'json-summary', 'json']",
+		"lines: 88",
+		"functions: 88",
+		"branches: 88",
+		"statements: 88",
+	} {
+		if !strings.Contains(viteText, want) {
+			t.Fatalf("vite config missing %q after repair:\n%s", want, viteText)
+		}
 	}
 }
 

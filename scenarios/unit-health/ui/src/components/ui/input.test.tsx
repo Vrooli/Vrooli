@@ -17,21 +17,22 @@
  */
 import { useRef } from "react";
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import { renderWithProviders } from "../../test-utils";
 import { Input } from "./input";
 
 describe("Input", () => {
   it("emits the base className chunk so the cn() merge contract holds", () => {
-    render(<Input data-testid="i" />);
+    renderWithProviders(<Input data-testid="i" />);
     const el = screen.getByTestId("i");
     expect(el.className).toMatch(/rounded-md/);
     expect(el.className).toMatch(/border/);
   });
 
   it("merges a custom className with the base classes via cn()", () => {
-    render(<Input data-testid="i" className="custom-extra" />);
+    renderWithProviders(<Input data-testid="i" className="custom-extra" />);
     const el = screen.getByTestId("i");
     expect(el.className).toMatch(/custom-extra/);
     expect(el.className).toMatch(/rounded-md/);
@@ -57,13 +58,13 @@ describe("Input", () => {
         </>
       );
     };
-    render(<Capture />);
+    renderWithProviders(<Capture />);
     screen.getByTestId("probe").click();
     expect(screen.getByTestId("i")).toHaveAttribute("data-ref-ok", "true");
   });
 
   it("passes through arbitrary input attributes (type, placeholder, disabled)", () => {
-    render(
+    renderWithProviders(
       <Input
         data-testid="i"
         type="email"
@@ -79,7 +80,7 @@ describe("Input", () => {
 
   it("registers user typing through the native input value", async () => {
     const user = userEvent.setup();
-    render(<Input data-testid="i" />);
+    renderWithProviders(<Input data-testid="i" />);
     const el = screen.getByTestId<HTMLInputElement>("i");
 
     await user.type(el, "abc");

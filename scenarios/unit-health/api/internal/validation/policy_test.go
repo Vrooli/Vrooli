@@ -93,6 +93,71 @@ func TestResolveUnitPolicyProfileInvalidWaiver(t *testing.T) {
 	}
 }
 
+func TestResolveUnitPolicyProfileExpiredWaiver(t *testing.T) {
+	root := t.TempDir()
+	profile := reactViteUnitPolicyProfile()
+	profile.Customization.Waivers = []unitPolicyWaiver{{
+		Finding:   codeUnitPolicyWeakened,
+		Reason:    "temporary policy exception while migrating generated tests",
+		Owner:     "unit-health",
+		ExpiresAt: "2026-06-01",
+		Evidence:  "rec-123",
+	}}
+	writeUnitPolicyProfile(t, root, profile)
+	inv := discovery.Inventory{Scenario: "demo", RootPath: root}
+
+	findings := resolveUnitPolicyFindings("demo", inv, fixedNowStr)
+	f, ok := findingByCode(findings, codeUnitWaiverInvalid)
+	if !ok {
+		t.Fatalf("expected UNIT_POLICY_WAIVER_INVALID, got %v", codes(findings))
+	}
+	if !strings.Contains(f.Evidence, "expired") {
+		t.Fatalf("expected expired waiver evidence, got %+v", f)
+	}
+}
+
+func TestResolveUnitPolicyProfileValidWaiver(t *testing.T) {
+	root := t.TempDir()
+	profile := reactViteUnitPolicyProfile()
+	profile.Customization.Waivers = []unitPolicyWaiver{{
+		Finding:   codeUnitPolicyWeakened,
+		Reason:    "temporary policy exception while generated scenarios migrate",
+		Owner:     "unit-health",
+		ExpiresAt: "2026-07-01T00:00:00Z",
+		Evidence:  "rec-123",
+	}}
+	writeUnitPolicyProfile(t, root, profile)
+	inv := discovery.Inventory{Scenario: "demo", RootPath: root}
+
+	findings := resolveUnitPolicyFindings("demo", inv, fixedNowStr)
+	if _, ok := findingByCode(findings, codeUnitWaiverInvalid); ok {
+		t.Fatalf("valid waiver should be clean, got %+v", findings)
+	}
+}
+
+func TestResolveUnitPolicyProfileUnknownWaiverFinding(t *testing.T) {
+	root := t.TempDir()
+	profile := reactViteUnitPolicyProfile()
+	profile.Customization.Waivers = []unitPolicyWaiver{{
+		Finding:  "NOT_A_FINDING",
+		Reason:   "temporary policy exception",
+		Owner:    "unit-health",
+		Revisit:  "after generated scenarios migrate",
+		Evidence: "rec-123",
+	}}
+	writeUnitPolicyProfile(t, root, profile)
+	inv := discovery.Inventory{Scenario: "demo", RootPath: root}
+
+	findings := resolveUnitPolicyFindings("demo", inv, fixedNowStr)
+	f, ok := findingByCode(findings, codeUnitWaiverInvalid)
+	if !ok {
+		t.Fatalf("expected UNIT_POLICY_WAIVER_INVALID, got %v", codes(findings))
+	}
+	if !strings.Contains(f.Evidence, "unknown finding") {
+		t.Fatalf("expected unknown finding evidence, got %+v", f)
+	}
+}
+
 func TestResolveUnitPolicyProfileUngovernedUnsupportedSurface(t *testing.T) {
 	root := t.TempDir()
 	writeUnitPolicyProfile(t, root, reactViteUnitPolicyProfile())

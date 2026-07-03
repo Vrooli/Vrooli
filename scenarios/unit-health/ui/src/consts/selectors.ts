@@ -331,6 +331,8 @@ const literalSelectors = {
     executionEmpty: "validation-workbench-execution-empty",
     coverage: "validation-workbench-coverage",
     coverageEmpty: "validation-workbench-coverage-empty",
+    projections: "validation-workbench-projections",
+    projectionsEmpty: "validation-workbench-projections-empty",
     diagnostics: "validation-workbench-diagnostics",
     diagnosticsEmpty: "validation-workbench-diagnostics-empty",
     globalImpact: "validation-workbench-global-impact",
@@ -443,6 +445,11 @@ const dynamicSelectorDefinitions = {
       description: "Findings category group by category name",
       testIdPattern: "validation-workbench-finding-category-${category}",
       params: { category: { type: "string" } },
+    }),
+    projectionRow: defineDynamicSelector({
+      description: "Unit policy projection row by stable projection id",
+      testIdPattern: "validation-workbench-projection-${id}",
+      params: { id: { type: "string" } },
     }),
     impactRow: defineDynamicSelector({
       description: "Global-impact grouping row by impact key",

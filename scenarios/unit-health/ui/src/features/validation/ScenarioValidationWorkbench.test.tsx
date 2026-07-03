@@ -159,6 +159,25 @@ describe("ScenarioValidationWorkbench", () => {
     expect(row).toHaveTextContent("below");
   });
 
+  it("renders unit infrastructure projection checks with policy and native values", async () => {
+    await runDefault();
+
+    const pass = screen.getByTestId(
+      selectors.validationWorkbench.projectionRow({ id: "ui:vitest.environment" }),
+    );
+    expect(pass).toHaveTextContent("pass");
+    expect(pass).toHaveTextContent("vitest.environment");
+    expect(pass).toHaveTextContent("jsdom");
+
+    const drift = screen.getByTestId(
+      selectors.validationWorkbench.projectionRow({ id: "ui:coverage.threshold.lines" }),
+    );
+    expect(drift).toHaveTextContent("drift");
+    expect(drift).toHaveTextContent("85");
+    expect(drift).toHaveTextContent("70");
+    expect(drift).toHaveTextContent("Restore the lines threshold");
+  });
+
   it("renders findings grouped by category with remediation context", async () => {
     await runDefault();
 
@@ -277,6 +296,7 @@ describe("ScenarioValidationWorkbench", () => {
         plan: undefined,
         commandResults: [],
         coverage: [],
+        projectionChecks: [],
         findings: [],
         diagnostics: [],
         maturity: undefined,
@@ -303,6 +323,7 @@ describe("ScenarioValidationWorkbench", () => {
     expect(screen.getByTestId(selectors.validationWorkbench.testPlanEmpty)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.validationWorkbench.executionEmpty)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.validationWorkbench.coverageEmpty)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.validationWorkbench.projectionsEmpty)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.validationWorkbench.empty)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.validationWorkbench.diagnosticsEmpty)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.validationWorkbench.globalImpactEmpty)).toBeInTheDocument();

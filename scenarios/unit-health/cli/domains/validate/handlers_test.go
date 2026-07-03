@@ -52,3 +52,25 @@ func TestFindingDetailLinesOmitsEmptyFields(t *testing.T) {
 		"expected: Code Facts observes the cli role.",
 	}, lines)
 }
+
+func TestProjectionLinesShowsPolicyNativeAndRemediation(t *testing.T) {
+	lines := projectionLines([]*validationv1.ProjectionCheck{{
+		Status:      "drift",
+		WorkspaceId: "ui",
+		Key:         "coverage.threshold.lines",
+		Owner:       "vite.config.ts test.coverage.thresholds",
+		FilePath:    "ui/vite.config.ts",
+		PolicyValue: "85",
+		NativeValue: "70",
+		Remediation: "Restore the lines threshold.",
+	}})
+
+	require.Equal(t, []string{
+		"Unit infrastructure projections (1):",
+		"  • [drift] ui coverage.threshold.lines (vite.config.ts test.coverage.thresholds)",
+		"    file: ui/vite.config.ts",
+		"    policy: 85",
+		"    native: 70",
+		"    remediation: Restore the lines threshold.",
+	}, lines)
+}

@@ -16,14 +16,17 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { errorMessage } from "../../lib/errorMessage";
-import { MaturitySummary } from "./components/MaturitySummary";
-import { TestPlanTable } from "./components/TestPlanTable";
-import { ExecutionResults } from "./components/ExecutionResults";
-import { CoverageDashboard } from "./components/CoverageDashboard";
-import { FindingsPanel } from "./components/FindingsPanel";
-import { DiagnosticsPanel } from "./components/DiagnosticsPanel";
-import { ImpactAndSkillsPanel } from "./components/ImpactAndSkillsPanel";
-import { Metric } from "./components/shared";
+import {
+  CoverageDashboard,
+  DiagnosticsPanel,
+  ExecutionResults,
+  FindingsPanel,
+  ImpactAndSkillsPanel,
+  MaturitySummary,
+  Metric,
+  ProjectionPanel,
+  TestPlanTable,
+} from "./components";
 import { normalize } from "./components/tone";
 
 const DEFAULT_SCENARIO = "unit-health";
@@ -255,6 +258,7 @@ export function ScenarioValidationWorkbench() {
           <TestPlanTable workspaces={data.workspaces} plan={data.plan} />
           <ExecutionResults results={data.commandResults} />
           <CoverageDashboard coverage={data.coverage} />
+          <ProjectionPanel checks={data.projectionChecks} />
           <FindingsPanel findings={findings} />
           <DiagnosticsPanel diagnostics={data.diagnostics} />
           <ImpactAndSkillsPanel assessment={data.assessment} nextSteps={data.nextSteps} />

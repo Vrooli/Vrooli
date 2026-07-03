@@ -90,6 +90,53 @@ func TestAnalyzeTSArchitectureProjectionDriftMissingRenderHelper(t *testing.T) {
 	}
 }
 
+func TestAnalyzeTSArchitectureProjectionDriftDirectTestingLibraryRender(t *testing.T) {
+	root := t.TempDir()
+	writeCanonicalUIProjection(t, root)
+	writeFile(t, filepath.Join(root, "src", "App.test.tsx"), `
+import { render, screen } from "@testing-library/react";
+import App from "./App";
+
+it("renders", () => {
+  render(<App />);
+  expect(screen.getByText("x")).toBeInTheDocument();
+});
+`)
+
+	findings := analyzeArchitecture("demo", []Workspace{{ID: "ui", Language: "typescript", RootPath: root, Framework: "vite"}}, fixedNowStr)
+	var sawDirectRender bool
+	for _, f := range findings {
+		if f.Code == codeUnitProjectionDrift && strings.Contains(f.Observed, "direct Testing Library render") {
+			sawDirectRender = true
+		}
+	}
+	if !sawDirectRender {
+		t.Fatalf("expected direct render projection drift, got %+v", findings)
+	}
+}
+
+func TestAnalyzeTSArchitectureProjectionAllowsRenderWithProviders(t *testing.T) {
+	root := t.TempDir()
+	writeCanonicalUIProjection(t, root)
+	writeFile(t, filepath.Join(root, "src", "App.test.tsx"), `
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "./test-utils";
+import App from "./App";
+
+it("renders", () => {
+  renderWithProviders(<App />);
+  expect(screen.getByText("x")).toBeInTheDocument();
+});
+`)
+
+	findings := analyzeArchitecture("demo", []Workspace{{ID: "ui", Language: "typescript", RootPath: root, Framework: "vite"}}, fixedNowStr)
+	for _, f := range findings {
+		if f.Code == codeUnitProjectionDrift && strings.Contains(f.Observed, "direct Testing Library render") {
+			t.Fatalf("renderWithProviders path should not be flagged as direct render drift: %+v", findings)
+		}
+	}
+}
+
 func TestAnalyzeTSArchitectureProjectionDriftMissingImportBan(t *testing.T) {
 	root := t.TempDir()
 	writeCanonicalUIProjection(t, root)
@@ -114,6 +161,99 @@ func TestAnalyzeTSArchitectureProjectionClean(t *testing.T) {
 	findings := analyzeArchitecture("demo", []Workspace{{ID: "ui", Language: "typescript", RootPath: root, Framework: "vite"}}, fixedNowStr)
 	if _, ok := findingByCode(findings, codeUnitProjectionDrift); ok {
 		t.Fatalf("canonical UI projection should be clean, got %+v", findings)
+	}
+}
+
+func TestAnalyzeTSArchitectureProjectionUsesPolicyCoverageFloor(t *testing.T) {
+	scenarioRoot := t.TempDir()
+	uiRoot := filepath.Join(scenarioRoot, "ui")
+	profile := reactViteUnitPolicyProfile()
+	uiClass := profile.PolicyClasses["react_vite_ui"]
+	uiClass.Coverage.MinimumPercent = 90
+	profile.PolicyClasses["react_vite_ui"] = uiClass
+	writeUnitPolicyProfile(t, scenarioRoot, profile)
+	writeCanonicalUIProjection(t, uiRoot)
+
+	findings := analyzeArchitecture("demo", []Workspace{{ID: "ui", Language: "typescript", RootPath: uiRoot, Framework: "vite"}}, fixedNowStr)
+	f, ok := findingByCode(findings, codeUnitProjectionDrift)
+	if !ok {
+		t.Fatalf("expected stricter policy floor to flag 85%% native thresholds, got %v", codes(findings))
+	}
+	if !strings.Contains(f.Expected, "90.0") {
+		t.Fatalf("expected policy floor in finding detail, got %+v", f)
+	}
+}
+
+func TestBuildProjectionChecksReportsPolicyAndNativeValues(t *testing.T) {
+	scenarioRoot := t.TempDir()
+	uiRoot := filepath.Join(scenarioRoot, "ui")
+	profile := reactViteUnitPolicyProfile()
+	uiClass := profile.PolicyClasses["react_vite_ui"]
+	uiClass.Coverage.MinimumPercent = 90
+	profile.PolicyClasses["react_vite_ui"] = uiClass
+	writeUnitPolicyProfile(t, scenarioRoot, profile)
+	writeCanonicalUIProjection(t, uiRoot)
+
+	checks := buildProjectionChecks(scenarioRoot, []Workspace{{ID: "ui", Language: "typescript", RootPath: uiRoot, Framework: "vite"}})
+	byID := map[string]ProjectionCheck{}
+	for _, check := range checks {
+		byID[check.ID] = check
+	}
+
+	env := byID["ui:vitest.environment"]
+	if env.Status != "pass" || env.PolicyValue != "jsdom" || env.NativeValue != "jsdom" {
+		t.Fatalf("environment projection = %+v, want pass jsdom/jsdom", env)
+	}
+	threshold := byID["ui:coverage.threshold.branches"]
+	if threshold.Status != "drift" || threshold.PolicyValue != "90" || threshold.NativeValue != "85" {
+		t.Fatalf("threshold projection = %+v, want drift 90/85", threshold)
+	}
+	if threshold.FindingCode != codeUnitProjectionDrift {
+		t.Fatalf("threshold finding code = %q, want %s", threshold.FindingCode, codeUnitProjectionDrift)
+	}
+}
+
+func TestAnalyzeTSArchitectureProjectionCleanWithEquivalentConfigShape(t *testing.T) {
+	root := t.TempDir()
+	writeCanonicalUIProjection(t, root)
+	writeFile(t, filepath.Join(root, "vite.config.ts"), `export default defineConfig({
+  "test": {
+    // Comments mentioning setupFiles or branches: 0 must not drive parsing.
+    "environment": "jsdom",
+    "setupFiles": [
+      "./src/test-setup.ts",
+    ],
+    "coverage": {
+      "provider": "v8",
+      "reporter": [
+        "text",
+        "json-summary",
+        "json",
+      ],
+      "thresholds": {
+        "lines": 85,
+        "functions": 85,
+        "branches": 85,
+        "statements": 85,
+      },
+    },
+  },
+});
+`)
+	writeFile(t, filepath.Join(root, "eslint.config.js"), `export default [{
+  rules: {
+    "no-restricted-imports": ["error", {
+      patterns: [{ group: [
+        "@/test-utils",
+        "@/features/*/mocks/*",
+      ] }],
+    }],
+  },
+}];`)
+
+	findings := analyzeArchitecture("demo", []Workspace{{ID: "ui", Language: "typescript", RootPath: root, Framework: "vite"}}, fixedNowStr)
+	if _, ok := findingByCode(findings, codeUnitProjectionDrift); ok {
+		t.Fatalf("equivalent quoted/multiline projection should be clean, got %+v", findings)
 	}
 }
 
@@ -164,7 +304,7 @@ func writeCanonicalUIProjection(t *testing.T, root string) {
 }];`)
 	writeFile(t, filepath.Join(root, "src", "test-utils", "renderWithProviders.tsx"), "export function renderWithProviders() {}\n")
 	writeFile(t, filepath.Join(root, "src", "test-utils", "index.ts"), "export { renderWithProviders } from './renderWithProviders';\n")
-	writeFile(t, filepath.Join(root, "src", "App.test.tsx"), "it('x',()=>{expect(1).toBe(1)});\n")
+	writeFile(t, filepath.Join(root, "src", "App.test.tsx"), "import { renderWithProviders } from './test-utils';\nit('x',()=>{renderWithProviders(null); expect(1).toBe(1)});\n")
 }
 
 func canonicalViteConfig() string {

@@ -60,23 +60,24 @@ type Request struct {
 // Response is the engine's normalized result. It maps one-to-one onto
 // validationv1.ValidateScenarioResponse.
 type Response struct {
-	RunID          string
-	Status         string
-	Summary        string
-	Scenario       string
-	TargetKind     string
-	TargetPath     string
-	DegradedReason string
-	Surfaces       []Surface
-	Workspaces     []Workspace
-	Plan           ExecutionPlan
-	CommandResults []CommandResult
-	Coverage       []CoverageTarget
-	Findings       []Finding
-	Diagnostics    []Diagnostic
-	Maturity       Maturity
-	NextSteps      []string
-	Artifacts      []Artifact
+	RunID            string
+	Status           string
+	Summary          string
+	Scenario         string
+	TargetKind       string
+	TargetPath       string
+	DegradedReason   string
+	Surfaces         []Surface
+	Workspaces       []Workspace
+	Plan             ExecutionPlan
+	CommandResults   []CommandResult
+	Coverage         []CoverageTarget
+	ProjectionChecks []ProjectionCheck
+	Findings         []Finding
+	Diagnostics      []Diagnostic
+	Maturity         Maturity
+	NextSteps        []string
+	Artifacts        []Artifact
 }
 
 // Artifact is a labeled, typed reference into a run's outputs (the run id, a
@@ -170,6 +171,22 @@ type CoverageTarget struct {
 	Status          string
 }
 
+// ProjectionCheck compares one resolved unit policy expectation with the
+// native file/config evidence that should project it.
+type ProjectionCheck struct {
+	ID          string
+	WorkspaceID string
+	SurfaceID   string
+	Key         string
+	Owner       string
+	FilePath    string
+	PolicyValue string
+	NativeValue string
+	Status      string
+	Remediation string
+	FindingCode string
+}
+
 // Finding is a normalized Unit Health finding. Code maps to a
 // `.vrooli/maturity.json` entry.
 type Finding struct {
@@ -257,6 +274,7 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 
 	static := collector.Stage("static-analysis")
 	surfaces, workspaces, plan, findings := buildPlan(scenario, inv, nowStr)
+	projectionChecks := buildProjectionChecks(inv.RootPath, workspaces)
 
 	// Static analyzers run regardless of execution: they read source facts only.
 	findings = append(findings, analyzeArchitecture(scenario, workspaces, nowStr)...)
@@ -294,18 +312,19 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 	findings = append(findings, diagFindings...)
 
 	resp := Response{
-		RunID:          runID,
-		Scenario:       scenario,
-		TargetKind:     orDefault(inv.TargetKind, "scenario"),
-		TargetPath:     inv.RootPath,
-		DegradedReason: inv.DegradedReason,
-		Surfaces:       surfaces,
-		Workspaces:     workspaces,
-		Plan:           plan,
-		CommandResults: commandResults,
-		Coverage:       coverage,
-		Diagnostics:    diagnostics,
-		Findings:       findings,
+		RunID:            runID,
+		Scenario:         scenario,
+		TargetKind:       orDefault(inv.TargetKind, "scenario"),
+		TargetPath:       inv.RootPath,
+		DegradedReason:   inv.DegradedReason,
+		Surfaces:         surfaces,
+		Workspaces:       workspaces,
+		Plan:             plan,
+		CommandResults:   commandResults,
+		Coverage:         coverage,
+		ProjectionChecks: projectionChecks,
+		Diagnostics:      diagnostics,
+		Findings:         findings,
 	}
 	resp.Status = deriveStatus(inv, findings)
 	resp.Maturity = s.assessMaturity(findings)

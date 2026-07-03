@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"unit-health/internal/discovery"
 )
@@ -187,12 +188,73 @@ func validateUnitPolicyProfile(scenario, path string, profile unitPolicyProfile,
 			findings = append(findings, policyFileFinding(scenario, codeUnitPolicyWeakened, path, fmt.Sprintf("policy_class=%s minimum_percent=%.1f", name, class.Coverage.MinimumPercent), fmt.Sprintf("coverage minimum >= %.1f", min), "weaker coverage minimum", now))
 		}
 	}
-	for _, waiver := range profile.Customization.Waivers {
-		if waiver.Finding == "" || waiver.Reason == "" || waiver.Owner == "" || (waiver.ExpiresAt == "" && waiver.Revisit == "") {
-			findings = append(findings, policyFileFinding(scenario, codeUnitWaiverInvalid, path, "waiver missing finding/reason/owner/expiry-or-revisit", "waiver with finding, reason, owner, and expiry or revisit trigger", "invalid waiver", now))
-		}
+	for i, waiver := range profile.Customization.Waivers {
+		findings = append(findings, validateUnitPolicyWaiver(scenario, path, waiver, i, now)...)
 	}
 	return findings
+}
+
+func validateUnitPolicyWaiver(scenario, path string, waiver unitPolicyWaiver, index int, now string) []Finding {
+	var problems []string
+	if strings.TrimSpace(waiver.Finding) == "" {
+		problems = append(problems, "missing finding")
+	} else if _, ok := codeSeverity[waiver.Finding]; !ok {
+		problems = append(problems, "unknown finding="+waiver.Finding)
+	}
+	if strings.TrimSpace(waiver.Reason) == "" {
+		problems = append(problems, "missing reason")
+	}
+	if weakFreeText(waiver.Owner) {
+		problems = append(problems, "missing accountable owner")
+	}
+	if weakFreeText(waiver.Evidence) {
+		problems = append(problems, "missing evidence reference")
+	}
+	if strings.TrimSpace(waiver.ExpiresAt) == "" && strings.TrimSpace(waiver.Revisit) == "" {
+		problems = append(problems, "missing expires_at or revisit")
+	}
+	if strings.TrimSpace(waiver.ExpiresAt) != "" {
+		expires, err := parseWaiverTime(waiver.ExpiresAt)
+		if err != nil {
+			problems = append(problems, "invalid expires_at="+waiver.ExpiresAt)
+		} else if current, ok := parseCurrentTime(now); ok && !expires.After(current) {
+			problems = append(problems, "expired at "+waiver.ExpiresAt)
+		}
+	}
+	if len(problems) == 0 {
+		return nil
+	}
+	evidence := fmt.Sprintf("waiver[%d] %s", index, strings.Join(problems, "; "))
+	return []Finding{policyFileFinding(scenario, codeUnitWaiverInvalid, path, evidence, "waiver with known finding, reason, owner, evidence, and future expires_at or concrete revisit trigger", "invalid waiver", now)}
+}
+
+func weakFreeText(value string) bool {
+	value = strings.ToLower(strings.TrimSpace(value))
+	switch value {
+	case "", "todo", "tbd", "unknown", "none", "n/a":
+		return true
+	default:
+		return false
+	}
+}
+
+func parseCurrentTime(value string) (time.Time, bool) {
+	if value == "" {
+		return time.Time{}, false
+	}
+	t, err := time.Parse(time.RFC3339, value)
+	return t, err == nil
+}
+
+func parseWaiverTime(value string) (time.Time, error) {
+	value = strings.TrimSpace(value)
+	if t, err := time.Parse(time.RFC3339, value); err == nil {
+		return t, nil
+	}
+	if t, err := time.Parse("2006-01-02", value); err == nil {
+		return t, nil
+	}
+	return time.Time{}, fmt.Errorf("expected RFC3339 timestamp or YYYY-MM-DD date")
 }
 
 func findRoleSurface(role unitPolicyRequiredRole, inv discovery.Inventory) (discovery.Surface, bool) {

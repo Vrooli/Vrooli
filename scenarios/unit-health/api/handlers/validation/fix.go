@@ -149,7 +149,7 @@ func packageJSONCandidates(root string) []*scenariovalidationv1.FixCandidate {
 		scripts["test"] = "vitest run"
 		changed = true
 	}
-	if scriptValue(scripts["test:coverage"]) == "" || !strings.Contains(scriptValue(scripts["test:coverage"]), "coverage") {
+	if scriptValue(scripts["test:coverage"]) == "" || !strings.Contains(scriptValue(scripts["test:coverage"]), "vitest") || !strings.Contains(scriptValue(scripts["test:coverage"]), "coverage") {
 		scripts["test:coverage"] = "vitest run --coverage"
 		changed = true
 	}
@@ -180,31 +180,167 @@ func viteConfigCandidates(root string) []*scenariovalidationv1.FixCandidate {
 		}
 	}
 	after := before
-	after = ensureSetupFiles(after)
-	after = raiseCoverageThresholds(after)
+	expect := unitVitestFixProjection(root)
+	after = ensureVitestEnvironment(after, expect.environment)
+	after = ensureSetupFiles(after, expect.setupFiles)
+	after = ensureCoverageProvider(after, expect.coverageProvider)
+	after = ensureCoverageReporters(after, expect.coverageReporters)
+	after = raiseCoverageThresholds(after, expect.coverageFloor)
 	if after == before {
 		return nil
 	}
-	return []*scenariovalidationv1.FixCandidate{candidate(codeUnitProjectionDrift, path, "Restore canonical Vitest setupFiles and minimum 85% coverage thresholds where the test block already exists.", before, after)}
+	return []*scenariovalidationv1.FixCandidate{candidate(codeUnitProjectionDrift, path, "Restore policy-declared Vitest environment, setupFiles, coverage provider/reporters, and minimum thresholds where the test block already exists.", before, after)}
 }
 
-func ensureSetupFiles(src string) string {
-	if strings.Contains(src, "setupFiles") || !strings.Contains(src, "test:") || !strings.Contains(src, "environment") || !strings.Contains(src, "jsdom") {
+type vitestFixProjection struct {
+	environment       string
+	setupFiles        []string
+	coverageProvider  string
+	coverageReporters []string
+	coverageFloor     float64
+}
+
+func unitVitestFixProjection(root string) vitestFixProjection {
+	expect := vitestFixProjection{
+		environment:       "jsdom",
+		setupFiles:        []string{"./src/test-setup.ts"},
+		coverageProvider:  "v8",
+		coverageReporters: []string{"text", "json-summary", "json"},
+		coverageFloor:     85,
+	}
+	raw, err := os.ReadFile(filepath.Join(root, ".vrooli", "testing.json"))
+	if err != nil {
+		return expect
+	}
+	var doc struct {
+		Unit struct {
+			PolicyProfile struct {
+				RequiredRoles []struct {
+					Role        string `json:"role"`
+					PolicyClass string `json:"policy_class"`
+				} `json:"required_roles"`
+				PolicyClasses map[string]struct {
+					Coverage struct {
+						MinimumPercent float64  `json:"minimum_percent"`
+						Provider       string   `json:"provider"`
+						Reporters      []string `json:"reporters"`
+					} `json:"coverage"`
+					Projection struct {
+						Vitest struct {
+							Environment string   `json:"environment"`
+							SetupFiles  []string `json:"setup_files"`
+						} `json:"vitest"`
+					} `json:"projection"`
+				} `json:"policy_classes"`
+			} `json:"policy_profile"`
+		} `json:"unit"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return expect
+	}
+	for _, role := range doc.Unit.PolicyProfile.RequiredRoles {
+		if role.Role != "ui" {
+			continue
+		}
+		class, ok := doc.Unit.PolicyProfile.PolicyClasses[role.PolicyClass]
+		if !ok {
+			return expect
+		}
+		if class.Projection.Vitest.Environment != "" {
+			expect.environment = class.Projection.Vitest.Environment
+		}
+		if len(class.Projection.Vitest.SetupFiles) > 0 {
+			expect.setupFiles = class.Projection.Vitest.SetupFiles
+		}
+		if class.Coverage.Provider != "" {
+			expect.coverageProvider = class.Coverage.Provider
+		}
+		if len(class.Coverage.Reporters) > 0 {
+			expect.coverageReporters = class.Coverage.Reporters
+		}
+		if class.Coverage.MinimumPercent > 0 {
+			expect.coverageFloor = class.Coverage.MinimumPercent
+		}
+		return expect
+	}
+	return expect
+}
+
+func ensureVitestEnvironment(src, environment string) string {
+	if environment == "" || !strings.Contains(src, "test:") {
 		return src
+	}
+	re := regexp.MustCompile(`(environment\s*:\s*)['"][^'"]+['"]`)
+	if re.MatchString(src) {
+		return re.ReplaceAllString(src, "${1}'"+environment+"'")
+	}
+	return insertAfterObjectOpen(src, "test", "environment: '"+environment+"',")
+}
+
+func ensureSetupFiles(src string, setupFiles []string) string {
+	if len(setupFiles) == 0 || !strings.Contains(src, "test:") {
+		return src
+	}
+	value := formatStringArray(setupFiles)
+	re := regexp.MustCompile(`(?s)(setupFiles\s*:\s*)(\[[^\]]*\]|['"][^'"]+['"])`)
+	if re.MatchString(src) {
+		return re.ReplaceAllString(src, "${1}"+value)
 	}
 	lines := strings.SplitAfter(src, "\n")
 	for i, line := range lines {
-		if !strings.Contains(line, "environment") || !strings.Contains(line, "jsdom") {
+		if !strings.Contains(line, "environment") {
 			continue
 		}
 		indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
-		lines = append(lines[:i+1], append([]string{indent + "setupFiles: ['./src/test-setup.ts'],\n"}, lines[i+1:]...)...)
+		lines = append(lines[:i+1], append([]string{indent + "setupFiles: " + value + ",\n"}, lines[i+1:]...)...)
 		return strings.Join(lines, "")
 	}
-	return src
+	return insertAfterObjectOpen(src, "test", "setupFiles: "+value+",")
 }
 
-func raiseCoverageThresholds(src string) string {
+func ensureCoverageProvider(src, provider string) string {
+	if provider == "" || !strings.Contains(src, "coverage:") {
+		return src
+	}
+	re := regexp.MustCompile(`(provider\s*:\s*)['"][^'"]+['"]`)
+	if re.MatchString(src) {
+		return re.ReplaceAllString(src, "${1}'"+provider+"'")
+	}
+	return insertAfterObjectOpen(src, "coverage", "provider: '"+provider+"',")
+}
+
+func ensureCoverageReporters(src string, reporters []string) string {
+	if len(reporters) == 0 || !strings.Contains(src, "coverage:") {
+		return src
+	}
+	value := formatStringArray(reporters)
+	re := regexp.MustCompile(`(?s)(reporter\s*:\s*)(\[[^\]]*\]|['"][^'"]+['"])`)
+	if re.MatchString(src) {
+		return re.ReplaceAllString(src, "${1}"+value)
+	}
+	return insertAfterObjectOpen(src, "coverage", "reporter: "+value+",")
+}
+
+func insertAfterObjectOpen(src, objectName, propertyLine string) string {
+	re := regexp.MustCompile(`(?m)^([ \t]*)` + regexp.QuoteMeta(objectName) + `\s*:\s*\{\s*$`)
+	loc := re.FindStringSubmatchIndex(src)
+	if loc == nil {
+		return src
+	}
+	indent := src[loc[2]:loc[3]] + "  "
+	insertAt := loc[1]
+	return src[:insertAt] + "\n" + indent + propertyLine + src[insertAt:]
+}
+
+func formatStringArray(values []string) string {
+	quoted := make([]string, 0, len(values))
+	for _, value := range values {
+		quoted = append(quoted, "'"+strings.ReplaceAll(value, "'", `\'`)+"'")
+	}
+	return "[" + strings.Join(quoted, ", ") + "]"
+}
+
+func raiseCoverageThresholds(src string, floor float64) string {
 	for _, key := range []string{"lines", "functions", "branches", "statements"} {
 		re := regexp.MustCompile(`(` + key + `\s*:\s*)([0-9]+(?:\.[0-9]+)?)`)
 		src = re.ReplaceAllStringFunc(src, func(match string) string {
@@ -213,13 +349,20 @@ func raiseCoverageThresholds(src string) string {
 				return match
 			}
 			v, err := strconv.ParseFloat(parts[2], 64)
-			if err != nil || v >= 85 {
+			if err != nil || v >= floor {
 				return match
 			}
-			return parts[1] + "85"
+			return parts[1] + formatCoverageFloor(floor)
 		})
 	}
 	return src
+}
+
+func formatCoverageFloor(floor float64) string {
+	if floor == float64(int64(floor)) {
+		return strconv.FormatInt(int64(floor), 10)
+	}
+	return strconv.FormatFloat(floor, 'f', -1, 64)
 }
 
 func applyCandidate(c *scenariovalidationv1.FixCandidate) error {

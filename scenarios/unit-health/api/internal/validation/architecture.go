@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -357,11 +358,15 @@ func analyzeTSArchitecture(scenario string, ws Workspace, now string) []Finding 
 	var testFiles int
 	var hasTestUtils bool
 	var hasRenderHelper bool
+	directRenderFiles := map[string]bool{}
 	rogue := map[string]bool{}
 
 	walkSourceFiles(ws.RootPath, func(path string) {
 		if isTSTestFile(path) {
 			testFiles++
+			if importsTestingLibraryRender(readFileString(path)) {
+				directRenderFiles[path] = true
+			}
 			parent := filepath.Base(filepath.Dir(path))
 			if parent == "__tests__" || parent == "tests" || parent == "test" {
 				if !strings.Contains(path, string(filepath.Separator)+"src"+string(filepath.Separator)) {
@@ -422,6 +427,22 @@ func analyzeTSArchitecture(scenario string, ws Workspace, now string) []Finding 
 			now,
 		))
 	}
+	if hasRenderHelper && len(directRenderFiles) > 0 {
+		files := make([]string, 0, len(directRenderFiles))
+		for path := range directRenderFiles {
+			files = append(files, relTo(ws.RootPath, path))
+		}
+		sort.Strings(files)
+		findings = append(findings, projectionFinding(scenario, ws, ws.RootPath,
+			"UI tests bypass the canonical renderWithProviders helper.",
+			"direct Testing Library render imports: "+strings.Join(truncateList(files, 10), ", "),
+			"Component tests import renderWithProviders from src/test-utils so provider setup stays centralized.",
+			"direct Testing Library render import",
+			"Bypassing the canonical render helper lets QueryClient, i18n, router, and theme setup drift between tests.",
+			"Replace direct Testing Library render imports with renderWithProviders from src/test-utils, unless the test documents a narrow provider-free exception.",
+			now,
+		))
+	}
 
 	findings = append(findings, analyzeVitestProjection(scenario, ws, now)...)
 
@@ -442,6 +463,24 @@ func analyzeTSArchitecture(scenario string, ws Workspace, now string) []Finding 
 	}
 
 	return findings
+}
+
+var testingLibraryRenderImportRe = regexp.MustCompile(`(?s)import\s*\{([^}]*)\}\s*from\s*["']@testing-library/react["']`)
+
+func importsTestingLibraryRender(src string) bool {
+	for _, m := range testingLibraryRenderImportRe.FindAllStringSubmatch(src, -1) {
+		for _, part := range strings.Split(m[1], ",") {
+			name := strings.TrimSpace(part)
+			if strings.HasPrefix(name, "type ") {
+				continue
+			}
+			fields := strings.Fields(name)
+			if len(fields) > 0 && fields[0] == "render" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func projectionFinding(scenario string, ws Workspace, file, message, evidence, expected, observed, why, remediation, now string) Finding {
@@ -465,15 +504,78 @@ func projectionFinding(scenario string, ws Workspace, file, message, evidence, e
 	}
 }
 
+type projectionExpectation struct {
+	coverageFloor     float64
+	vitestEnv         string
+	setupFiles        []string
+	coverageProvider  string
+	coverageReporters []string
+}
+
+func resolveProjectionExpectation(ws Workspace) projectionExpectation {
+	expect := projectionExpectation{
+		coverageFloor:     minimumCoverageForPolicyClass("react_vite_ui", unitPolicyClass{Framework: "vitest"}),
+		vitestEnv:         "jsdom",
+		setupFiles:        []string{"./src/test-setup.ts"},
+		coverageProvider:  "v8",
+		coverageReporters: []string{"json-summary", "json"},
+	}
+	root := scenarioRootForWorkspace(ws.RootPath)
+	if root == "" {
+		return expect
+	}
+	profile, _, ok, _ := loadUnitPolicyProfile("", root, "")
+	if !ok {
+		return expect
+	}
+	for _, role := range profile.RequiredRoles {
+		class, exists := profile.PolicyClasses[role.PolicyClass]
+		if !exists || !pathMatches(role.Match.Path, ws.RootPath, root) {
+			continue
+		}
+		if class.Coverage.MinimumPercent > 0 {
+			expect.coverageFloor = class.Coverage.MinimumPercent
+		}
+		if class.Coverage.Provider != "" {
+			expect.coverageProvider = class.Coverage.Provider
+		}
+		if len(class.Coverage.Reporters) > 0 {
+			expect.coverageReporters = class.Coverage.Reporters
+		}
+		if class.Projection.Vitest.Environment != "" {
+			expect.vitestEnv = class.Projection.Vitest.Environment
+		}
+		if len(class.Projection.Vitest.SetupFiles) > 0 {
+			expect.setupFiles = class.Projection.Vitest.SetupFiles
+		}
+		return expect
+	}
+	return expect
+}
+
+func scenarioRootForWorkspace(root string) string {
+	dir := filepath.Clean(root)
+	for i := 0; i < 8 && dir != "" && dir != string(filepath.Separator); i++ {
+		if fileExists(filepath.Join(dir, ".vrooli", "testing.json")) {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return ""
+}
+
 type viteProjection struct {
-	hasVitestConfig  bool
-	hasJSDOM         bool
-	hasSetupFiles    bool
-	hasV8Provider    bool
-	hasJSONSummary   bool
-	hasCoverageJSON  bool
-	thresholds       map[string]float64
-	hasImportBanRule bool
+	hasVitestConfig   bool
+	environment       string
+	setupFiles        []string
+	coverageProvider  string
+	coverageReporters []string
+	thresholds        map[string]float64
+	hasImportBanRule  bool
 }
 
 func analyzeVitestProjection(scenario string, ws Workspace, now string) []Finding {
@@ -481,6 +583,7 @@ func analyzeVitestProjection(scenario string, ws Workspace, now string) []Findin
 		return nil
 	}
 
+	expect := resolveProjectionExpectation(ws)
 	manifest, _ := loadNodeManifest(ws.RootPath)
 	cfg := readFileString(filepath.Join(ws.RootPath, "vite.config.ts"))
 	if cfg == "" {
@@ -525,26 +628,26 @@ func analyzeVitestProjection(scenario string, ws Workspace, now string) []Findin
 	if !proj.hasVitestConfig {
 		add(vitePath, "UI policy projection is missing the Vite test block.", "no test: block detected", "vite.config declares a test block.", "missing Vitest config", "Add test configuration to vite.config.")
 	}
-	if !proj.hasJSDOM {
-		add(vitePath, "UI policy projection is missing jsdom test environment.", "environment=jsdom not detected", "Vitest test.environment is jsdom.", "missing jsdom environment", "Set test.environment to \"jsdom\".")
+	if proj.environment != expect.vitestEnv {
+		add(vitePath, "UI policy projection is missing jsdom test environment.", "environment="+expect.vitestEnv+" not detected", "Vitest test.environment is "+expect.vitestEnv+".", "missing jsdom environment", "Set test.environment to "+fmt.Sprintf("%q", expect.vitestEnv)+".")
 	}
-	if !proj.hasSetupFiles {
-		add(vitePath, "UI policy projection is missing setupFiles registration.", "src/test-setup not registered", "Vitest setupFiles includes src/test-setup.ts.", "missing setupFiles", "Register ./src/test-setup.ts in test.setupFiles.")
+	if !containsAllSetupFiles(proj.setupFiles, expect.setupFiles) {
+		add(vitePath, "UI policy projection is missing setupFiles registration.", "setupFiles="+strings.Join(expect.setupFiles, ",")+" not detected", "Vitest setupFiles includes "+strings.Join(expect.setupFiles, ", ")+".", "missing setupFiles", "Register the policy-declared setup file(s) in test.setupFiles.")
 	}
-	if !proj.hasV8Provider {
-		add(vitePath, "UI policy projection is missing V8 coverage provider.", "coverage.provider=v8 not detected", "Vitest coverage.provider is v8.", "missing V8 coverage provider", "Set coverage.provider to \"v8\".")
+	if proj.coverageProvider != expect.coverageProvider {
+		add(vitePath, "UI policy projection is missing V8 coverage provider.", "coverage.provider="+expect.coverageProvider+" not detected", "Vitest coverage.provider is "+expect.coverageProvider+".", "missing V8 coverage provider", "Set coverage.provider to "+fmt.Sprintf("%q", expect.coverageProvider)+".")
 	}
-	if !proj.hasJSONSummary || !proj.hasCoverageJSON {
-		add(vitePath, "UI policy projection is missing coverage reporters.", "json-summary/json reporters not both detected", "Coverage reporters include json-summary and json.", "missing coverage reporters", "Include json-summary and json in coverage.reporter.")
+	if !containsAllStrings(proj.coverageReporters, expect.coverageReporters) {
+		add(vitePath, "UI policy projection is missing coverage reporters.", strings.Join(expect.coverageReporters, "/")+" reporters not all detected", "Coverage reporters include "+strings.Join(expect.coverageReporters, ", ")+".", "missing coverage reporters", "Include the policy-declared reporters in coverage.reporter.")
 	}
 	for _, key := range []string{"lines", "functions", "branches", "statements"} {
-		if v, ok := proj.thresholds[key]; !ok || v < 85 {
+		if v, ok := proj.thresholds[key]; !ok || v < expect.coverageFloor {
 			add(vitePath,
 				"UI policy projection weakens Vitest coverage thresholds.",
 				fmt.Sprintf("%s=%.1f", key, v),
-				"Vitest coverage thresholds are at least 85 for lines, functions, branches, and statements.",
+				fmt.Sprintf("Vitest coverage thresholds are at least %.1f for lines, functions, branches, and statements.", expect.coverageFloor),
 				"coverage threshold below policy",
-				"Restore the threshold to 85 or higher.")
+				fmt.Sprintf("Restore the threshold to %.1f or higher.", expect.coverageFloor))
 		}
 	}
 	if !proj.hasImportBanRule {
@@ -560,48 +663,364 @@ func analyzeVitestProjection(scenario string, ws Workspace, now string) []Findin
 
 func parseViteProjection(cfg, eslint string) viteProjection {
 	p := viteProjection{thresholds: map[string]float64{}}
-	p.hasVitestConfig = strings.Contains(cfg, "test:")
-	p.hasJSDOM = containsQuoted(cfg, "jsdom")
-	p.hasSetupFiles = strings.Contains(cfg, "setupFiles") && strings.Contains(cfg, "src/test-setup")
-	p.hasV8Provider = strings.Contains(cfg, "provider") && containsQuoted(cfg, "v8")
-	p.hasJSONSummary = containsQuoted(cfg, "json-summary")
-	p.hasCoverageJSON = containsQuoted(cfg, "json")
+	clean := stripJSComments(cfg)
+	testBlock, ok := objectValueBlock(clean, "test")
+	p.hasVitestConfig = ok
+	coverageBlock, _ := objectValueBlock(testBlock, "coverage")
+	if values := stringArrayPropertyValues(testBlock, "environment"); len(values) == 1 {
+		p.environment = values[0]
+	}
+	p.setupFiles = stringArrayPropertyValues(testBlock, "setupFiles")
+	if values := stringArrayPropertyValues(coverageBlock, "provider"); len(values) == 1 {
+		p.coverageProvider = values[0]
+	}
+	p.coverageReporters = stringArrayPropertyValues(coverageBlock, "reporter")
+	thresholdBlock, _ := objectValueBlock(coverageBlock, "thresholds")
 	for _, key := range []string{"lines", "functions", "branches", "statements"} {
-		if v, ok := numberAfterKey(cfg, key); ok {
+		if v, ok := numericProperty(thresholdBlock, key); ok {
 			p.thresholds[key] = v
 		}
 	}
-	p.hasImportBanRule = strings.Contains(eslint, "no-restricted-imports") &&
-		strings.Contains(eslint, "test-utils") &&
-		strings.Contains(eslint, "features/*/mocks")
+	p.hasImportBanRule = hasESLintImportBanProjection(eslint)
 	return p
 }
 
-func containsQuoted(s, value string) bool {
-	return strings.Contains(s, `"`+value+`"`) || strings.Contains(s, `'`+value+`'`)
+func containsAllStrings(have, want []string) bool {
+	for _, value := range want {
+		if !containsString(have, value) {
+			return false
+		}
+	}
+	return true
 }
 
-func numberAfterKey(s, key string) (float64, bool) {
-	i := strings.Index(s, key)
-	if i < 0 {
+func containsAllSetupFiles(have, want []string) bool {
+	for _, value := range want {
+		found := false
+		for _, candidate := range have {
+			if normalizeSetupPath(candidate) == normalizeSetupPath(value) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
+func normalizeSetupPath(path string) string {
+	path = strings.TrimPrefix(filepath.ToSlash(strings.TrimSpace(path)), "./")
+	return path
+}
+
+func hasESLintImportBanProjection(src string) bool {
+	lits := stringLiterals(stripJSComments(src))
+	hasRule := false
+	hasTestUtils := false
+	hasFeatureMocks := false
+	for _, lit := range lits {
+		if lit == "no-restricted-imports" {
+			hasRule = true
+		}
+		if strings.Contains(lit, "test-utils") {
+			hasTestUtils = true
+		}
+		if strings.Contains(lit, "features/*/mocks") {
+			hasFeatureMocks = true
+		}
+	}
+	return hasRule && hasTestUtils && hasFeatureMocks
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+func stripJSComments(src string) string {
+	var b strings.Builder
+	inLineComment := false
+	inBlockComment := false
+	var quote byte
+	escaped := false
+	for i := 0; i < len(src); i++ {
+		c := src[i]
+		if inLineComment {
+			if c == '\n' {
+				inLineComment = false
+				b.WriteByte(c)
+			}
+			continue
+		}
+		if inBlockComment {
+			if c == '*' && i+1 < len(src) && src[i+1] == '/' {
+				inBlockComment = false
+				i++
+			}
+			continue
+		}
+		if quote != 0 {
+			b.WriteByte(c)
+			if escaped {
+				escaped = false
+				continue
+			}
+			if c == '\\' {
+				escaped = true
+				continue
+			}
+			if c == quote {
+				quote = 0
+			}
+			continue
+		}
+		if c == '/' && i+1 < len(src) {
+			switch src[i+1] {
+			case '/':
+				inLineComment = true
+				i++
+				continue
+			case '*':
+				inBlockComment = true
+				i++
+				continue
+			}
+		}
+		if c == '\'' || c == '"' || c == '`' {
+			quote = c
+		}
+		b.WriteByte(c)
+	}
+	return b.String()
+}
+
+func objectValueBlock(src, key string) (string, bool) {
+	i, ok := propertyValueIndex(src, key)
+	if !ok {
+		return "", false
+	}
+	i = skipSpace(src, i)
+	if i >= len(src) || src[i] != '{' {
+		return "", false
+	}
+	end := matchingDelimiter(src, i, '{', '}')
+	if end <= i {
+		return "", false
+	}
+	return src[i+1 : end], true
+}
+
+func stringPropertyEquals(src, key, want string) bool {
+	values := stringArrayPropertyValues(src, key)
+	return len(values) == 1 && values[0] == want
+}
+
+func stringArrayPropertyContains(src, key, wantSubstr string) bool {
+	for _, value := range stringArrayPropertyValues(src, key) {
+		if strings.Contains(value, wantSubstr) {
+			return true
+		}
+	}
+	return false
+}
+
+func stringArrayPropertyValues(src, key string) []string {
+	i, ok := propertyValueIndex(src, key)
+	if !ok {
+		return nil
+	}
+	i = skipSpace(src, i)
+	if i >= len(src) {
+		return nil
+	}
+	if src[i] == '[' {
+		end := matchingDelimiter(src, i, '[', ']')
+		if end <= i {
+			return nil
+		}
+		return stringLiterals(src[i+1 : end])
+	}
+	if src[i] == '\'' || src[i] == '"' || src[i] == '`' {
+		value, _, ok := readStringLiteral(src, i)
+		if ok {
+			return []string{value}
+		}
+	}
+	return nil
+}
+
+func numericProperty(src, key string) (float64, bool) {
+	i, ok := propertyValueIndex(src, key)
+	if !ok {
 		return 0, false
 	}
-	rest := s[i+len(key):]
-	colon := strings.Index(rest, ":")
-	if colon < 0 {
-		return 0, false
+	i = skipSpace(src, i)
+	start := i
+	for i < len(src) && ((src[i] >= '0' && src[i] <= '9') || src[i] == '.') {
+		i++
 	}
-	rest = strings.TrimSpace(rest[colon+1:])
-	end := 0
-	for end < len(rest) && ((rest[end] >= '0' && rest[end] <= '9') || rest[end] == '.') {
-		end++
-	}
-	if end == 0 {
+	if i == start {
 		return 0, false
 	}
 	var v float64
-	if _, err := fmt.Sscanf(rest[:end], "%f", &v); err != nil {
+	if _, err := fmt.Sscanf(src[start:i], "%f", &v); err != nil {
 		return 0, false
 	}
 	return v, true
+}
+
+func propertyValueIndex(src, key string) (int, bool) {
+	for i := 0; i < len(src); {
+		i = skipSpaceAndCommas(src, i)
+		if i >= len(src) {
+			return 0, false
+		}
+		prop, next, ok := readPropertyName(src, i)
+		if !ok {
+			i++
+			continue
+		}
+		next = skipSpace(src, next)
+		if next >= len(src) || src[next] != ':' {
+			i = next
+			continue
+		}
+		if prop == key {
+			return next + 1, true
+		}
+		i = next + 1
+	}
+	return 0, false
+}
+
+func readPropertyName(src string, i int) (string, int, bool) {
+	if i >= len(src) {
+		return "", i, false
+	}
+	if src[i] == '\'' || src[i] == '"' || src[i] == '`' {
+		value, next, ok := readStringLiteral(src, i)
+		return value, next, ok
+	}
+	if !isIdentStart(src[i]) {
+		return "", i, false
+	}
+	start := i
+	i++
+	for i < len(src) && isIdentPart(src[i]) {
+		i++
+	}
+	return src[start:i], i, true
+}
+
+func stringLiterals(src string) []string {
+	var out []string
+	for i := 0; i < len(src); i++ {
+		if src[i] != '\'' && src[i] != '"' && src[i] != '`' {
+			continue
+		}
+		value, next, ok := readStringLiteral(src, i)
+		if ok {
+			out = append(out, value)
+			i = next - 1
+		}
+	}
+	return out
+}
+
+func readStringLiteral(src string, i int) (string, int, bool) {
+	if i >= len(src) {
+		return "", i, false
+	}
+	quote := src[i]
+	if quote != '\'' && quote != '"' && quote != '`' {
+		return "", i, false
+	}
+	var b strings.Builder
+	escaped := false
+	for j := i + 1; j < len(src); j++ {
+		c := src[j]
+		if escaped {
+			b.WriteByte(c)
+			escaped = false
+			continue
+		}
+		if c == '\\' {
+			escaped = true
+			continue
+		}
+		if c == quote {
+			return b.String(), j + 1, true
+		}
+		b.WriteByte(c)
+	}
+	return "", i, false
+}
+
+func matchingDelimiter(src string, start int, open, close byte) int {
+	if start >= len(src) || src[start] != open {
+		return -1
+	}
+	depth := 0
+	var quote byte
+	escaped := false
+	for i := start; i < len(src); i++ {
+		c := src[i]
+		if quote != 0 {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if c == '\\' {
+				escaped = true
+				continue
+			}
+			if c == quote {
+				quote = 0
+			}
+			continue
+		}
+		if c == '\'' || c == '"' || c == '`' {
+			quote = c
+			continue
+		}
+		if c == open {
+			depth++
+			continue
+		}
+		if c == close {
+			depth--
+			if depth == 0 {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
+func skipSpace(src string, i int) int {
+	for i < len(src) && (src[i] == ' ' || src[i] == '\t' || src[i] == '\n' || src[i] == '\r') {
+		i++
+	}
+	return i
+}
+
+func skipSpaceAndCommas(src string, i int) int {
+	for i < len(src) && (src[i] == ' ' || src[i] == '\t' || src[i] == '\n' || src[i] == '\r' || src[i] == ',') {
+		i++
+	}
+	return i
+}
+
+func isIdentStart(c byte) bool {
+	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_' || c == '$'
+}
+
+func isIdentPart(c byte) bool {
+	return isIdentStart(c) || (c >= '0' && c <= '9') || c == '-'
 }

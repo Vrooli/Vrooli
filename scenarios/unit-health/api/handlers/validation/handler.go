@@ -168,6 +168,9 @@ func responseToProto(in internalvalidation.Response, spec *assessment.Spec) (*va
 	for _, c := range in.Coverage {
 		out.Coverage = append(out.Coverage, coverageToProto(c))
 	}
+	for _, p := range in.ProjectionChecks {
+		out.ProjectionChecks = append(out.ProjectionChecks, projectionCheckToProto(p))
+	}
 	for _, f := range in.Findings {
 		out.Findings = append(out.Findings, findingToProto(f))
 	}
@@ -255,6 +258,10 @@ func commandToProto(in internalvalidation.CommandResult) *validationv1.CommandRe
 
 func coverageToProto(in internalvalidation.CoverageTarget) *validationv1.CoverageTarget {
 	return &validationv1.CoverageTarget{Id: in.ID, Language: in.Language, SurfaceId: in.SurfaceID, FilePath: in.FilePath, CoveredLines: in.CoveredLines, TotalLines: in.TotalLines, CoveragePercent: in.CoveragePercent, Threshold: in.Threshold, Status: in.Status}
+}
+
+func projectionCheckToProto(in internalvalidation.ProjectionCheck) *validationv1.ProjectionCheck {
+	return &validationv1.ProjectionCheck{Id: in.ID, WorkspaceId: in.WorkspaceID, SurfaceId: in.SurfaceID, Key: in.Key, Owner: in.Owner, FilePath: in.FilePath, PolicyValue: in.PolicyValue, NativeValue: in.NativeValue, Status: in.Status, Remediation: in.Remediation, FindingCode: in.FindingCode}
 }
 
 func findingToProto(in internalvalidation.Finding) *validationv1.ValidationFinding {

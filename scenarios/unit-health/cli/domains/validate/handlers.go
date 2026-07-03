@@ -54,6 +54,7 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 	}
 	summary = append(summary, workspaceLines(msg.GetWorkspaces())...)
 	summary = append(summary, planLines(msg.GetPlan())...)
+	summary = append(summary, projectionLines(msg.GetProjectionChecks())...)
 	summary = append(summary, executionLines(msg.GetCommandResults())...)
 	summary = append(summary, coverageLines(msg.GetCoverage())...)
 	summary = append(summary, diagnosticLines(msg.GetDiagnostics())...)
@@ -151,6 +152,38 @@ func planLines(plan *validationv1.ExecutionPlan) []string {
 		lines = append(lines, "Plan notes: "+notes)
 	}
 	return lines
+}
+
+// projectionLines renders policy-vs-native unit-infrastructure checks so
+// operators can see healthy projections as well as drift findings.
+func projectionLines(checks []*validationv1.ProjectionCheck) []string {
+	if len(checks) == 0 {
+		return nil
+	}
+	lines := []string{fmt.Sprintf("Unit infrastructure projections (%d):", len(checks))}
+	for _, c := range checks {
+		line := fmt.Sprintf("  • [%s] %s %s", c.GetStatus(), c.GetWorkspaceId(), c.GetKey())
+		if owner := strings.TrimSpace(c.GetOwner()); owner != "" {
+			line += " (" + owner + ")"
+		}
+		lines = append(lines, line)
+		if file := strings.TrimSpace(c.GetFilePath()); file != "" {
+			lines = append(lines, "    file: "+file)
+		}
+		lines = append(lines, "    policy: "+orEmpty(c.GetPolicyValue()))
+		lines = append(lines, "    native: "+orEmpty(c.GetNativeValue()))
+		if remediation := strings.TrimSpace(c.GetRemediation()); remediation != "" {
+			lines = append(lines, "    remediation: "+remediation)
+		}
+	}
+	return lines
+}
+
+func orEmpty(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return "<empty>"
+	}
+	return value
 }
 
 // executionLines renders the outcome of any executed test commands so failing,

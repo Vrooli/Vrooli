@@ -252,6 +252,11 @@ Waivers do not change Code Facts discovery. They only explain why a specific
 policy violation is temporarily accepted, and expired or malformed waivers are
 reported as policy findings.
 
+Unit Health validates waiver governance as part of the profile contract:
+`finding` must name a known finding code, `reason`, `owner`, and `evidence`
+must be concrete, and a waiver must either carry a future `expires_at`
+timestamp/date or a specific `revisit` trigger.
+
 ### Native projections
 
 The profile is the desired policy. Native files prove whether the workspace
@@ -259,7 +264,7 @@ actually projects that policy:
 
 | Surface | Projection examples |
 |---|---|
-| UI | `package.json` Vitest dependency and `test`/`test:coverage` scripts, `vite.config.ts` jsdom/setupFiles/V8 coverage/reporters/thresholds, `src/test-utils`, canonical render helper, production import ban. |
+| UI | `package.json` Vitest dependency and `test`/`test:coverage` scripts, `vite.config.ts` jsdom/setupFiles/V8 coverage/reporters/thresholds, `src/test-utils`, canonical render helper, tests using that helper instead of direct Testing Library `render`, production import ban. |
 | API | `go test` coverage command compatibility, `internal/testutil` root, test helper production-import guard, injectable seam coverage. |
 | CLI | `go test` coverage command compatibility, `cli/internal/testutil`, CLI production-import guard, smoke tests for app/help/version. |
 
