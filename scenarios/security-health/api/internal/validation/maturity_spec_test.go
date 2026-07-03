@@ -9,11 +9,7 @@ import (
 )
 
 func TestMaturitySpecCoversSecurityHealthFindings(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("..", "..", "..", ".vrooli", "maturity.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	spec, err := assessment.ParseSpec(raw)
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join("..", "..", ".."))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,8 +23,8 @@ func TestMaturitySpecCoversSecurityHealthFindings(t *testing.T) {
 	if spec.Version != "2.0.0" {
 		t.Fatalf("version = %q, want 2.0.0", spec.Version)
 	}
-	if len(spec.Capabilities) != 4 {
-		t.Fatalf("capabilities = %d, want 4", len(spec.Capabilities))
+	if len(spec.Capabilities) != 5 {
+		t.Fatalf("capabilities = %d, want 5", len(spec.Capabilities))
 	}
 	for _, code := range emittedSecurityHealthRuleIDs() {
 		mapping, ok := spec.Findings[code]
@@ -68,5 +64,9 @@ func emittedSecurityHealthRuleIDs() []string {
 		"security-health.scanner-absent",
 		"security-health.scanner-degraded",
 		"security-health.substrate-unsupported",
+		"security-health.security-headers-degraded",
+		CodeSecurityHeadersMissing,
+		CodeSecurityHeadersCORS,
+		CodeSecurityHeadersLegacy,
 	}
 }

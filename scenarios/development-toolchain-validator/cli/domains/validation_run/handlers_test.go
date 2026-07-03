@@ -73,7 +73,7 @@ func connectAPI(t *testing.T, svc *fakeService) http.Handler {
 func sampleRun() *vrunv1.ValidationRun {
 	return &vrunv1.ValidationRun{
 		Id: "r1", TupleKind: vrv1.TupleKind_TUPLE_KIND_SKILL,
-		SubjectId: "plan-skill-discovery", GoldenSlug: "reference-react-vite",
+		SubjectId: "implementation-plan-authoring", GoldenSlug: "reference-react-vite",
 		Status:    vrunv1.Status_STATUS_QUEUED,
 		CreatedAt: timestamppb.New(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC)),
 	}
@@ -93,12 +93,12 @@ func TestStart_SkillFlag(t *testing.T) {
 			{Name: "wait-timeout", Default: "300"},
 		},
 	}, cliapptest.TestRunContextOptions{Flags: map[string]string{
-		"skill":  "plan-skill-discovery",
+		"skill":  "implementation-plan-authoring",
 		"golden": "reference-react-vite",
 	}})
 	require.NoError(t, h.start(ctx))
 	require.Equal(t, vrv1.TupleKind_TUPLE_KIND_SKILL, svc.startReq.TupleKind)
-	require.Equal(t, "plan-skill-discovery", svc.startReq.SubjectId)
+	require.Equal(t, "implementation-plan-authoring", svc.startReq.SubjectId)
 	require.Contains(t, out.String(), "Queued run r1.")
 }
 

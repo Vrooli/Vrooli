@@ -114,7 +114,7 @@ func TestList_RendersResults(t *testing.T) {
 }
 
 func TestGet_PassesPositionals(t *testing.T) {
-	svc := &fakeService{getResp: &manifestv1.GetManifestResponse{Manifest: sample("plan-skill-discovery", "reference-react-vite")}}
+	svc := &fakeService{getResp: &manifestv1.GetManifestResponse{Manifest: sample("implementation-plan-authoring", "reference-react-vite")}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
@@ -123,11 +123,11 @@ func TestGet_PassesPositionals(t *testing.T) {
 			{Name: "golden_slug", Required: true},
 		},
 	}, cliapptest.TestRunContextOptions{Positionals: map[string]string{
-		"skill_id":    "plan-skill-discovery",
+		"skill_id":    "implementation-plan-authoring",
 		"golden_slug": "reference-react-vite",
 	}})
 	require.NoError(t, h.get(ctx))
-	require.Equal(t, "plan-skill-discovery", svc.getReq.SkillId)
+	require.Equal(t, "implementation-plan-authoring", svc.getReq.SkillId)
 	require.Equal(t, "reference-react-vite", svc.getReq.GoldenSlug)
 	require.Contains(t, out.String(), "Fetched manifest")
 }
@@ -151,7 +151,7 @@ func TestGet_NotFoundSurfaced(t *testing.T) {
 }
 
 func TestUpsert_BuildsRequestFromFlags(t *testing.T) {
-	svc := &fakeService{upsertResp: &manifestv1.UpsertManifestResponse{Manifest: sample("plan-skill-discovery", "reference-react-vite")}}
+	svc := &fakeService{upsertResp: &manifestv1.UpsertManifestResponse{Manifest: sample("implementation-plan-authoring", "reference-react-vite")}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
@@ -166,7 +166,7 @@ func TestUpsert_BuildsRequestFromFlags(t *testing.T) {
 		},
 	}, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{
-			"skill":            "plan-skill-discovery",
+			"skill":            "implementation-plan-authoring",
 			"golden":           "reference-react-vite",
 			"allow":            "src/**, docs/**",
 			"wildcard-allowed": "true",
@@ -177,7 +177,7 @@ func TestUpsert_BuildsRequestFromFlags(t *testing.T) {
 	})
 	require.NoError(t, h.upsert(ctx))
 	require.NotNil(t, svc.upsertReq)
-	require.Equal(t, "plan-skill-discovery", svc.upsertReq.Manifest.SkillId)
+	require.Equal(t, "implementation-plan-authoring", svc.upsertReq.Manifest.SkillId)
 	require.True(t, svc.upsertReq.Manifest.WildcardAllowed)
 	require.Equal(t, []string{"src/**", "docs/**"}, svc.upsertReq.Manifest.AllowedPaths)
 	require.Equal(t, manifestv1.ConvergenceTarget_CONVERGENCE_TARGET_EMPTY_DIFF, svc.upsertReq.Manifest.ConvergenceTarget)
@@ -193,11 +193,11 @@ func TestClearStale_PassesArgs(t *testing.T) {
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Flags: []cliapp.Flag{{Name: "skill"}, {Name: "golden"}},
 	}, cliapptest.TestRunContextOptions{Flags: map[string]string{
-		"skill":  "plan-skill-discovery",
+		"skill":  "implementation-plan-authoring",
 		"golden": "reference-react-vite",
 	}})
 	require.NoError(t, h.clearStale(ctx))
-	require.Equal(t, "plan-skill-discovery", svc.clearReq.SkillId)
+	require.Equal(t, "implementation-plan-authoring", svc.clearReq.SkillId)
 	require.Equal(t, "reference-react-vite", svc.clearReq.GoldenSlug)
 	require.Contains(t, out.String(), "Cleared staleness")
 }

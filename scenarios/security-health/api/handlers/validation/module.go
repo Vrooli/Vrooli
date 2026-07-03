@@ -81,6 +81,7 @@ var Endpoints = []module.EndpointDescriptor{
 				"status":        "scenario_validation.v1.ValidationStatus",
 				"assessment":    "common.v1.MaturityAssessment",
 				"native_detail": "google.protobuf.Any",
+				"metrics":       "common.v1.ExecutionMetrics",
 			},
 		},
 		Errors: []module.ErrorDesc{
@@ -89,5 +90,27 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Validate scenario", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"security-health\"}'"},
 		},
+	},
+	{
+		ID:          "validation_preview_fix",
+		Path:        scenariovalidationconnect.ScenarioValidationServicePreviewFixProcedure,
+		Method:      "POST",
+		Summary:     "Preview deterministic security fixes",
+		Description: "Returns safe deterministic security remediations, currently limited to generated-Go API security headers middleware edits, without writing files.",
+		Category:    "validation",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "rule_ids": "array<string>"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "applied": "bool", "candidates": "array<FixCandidate>", "messages": "array<string>"}},
+		Examples:    []module.Example{{Name: "Preview fixes", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix -H 'Content-Type: application/json' -d '{\"scenario\":\"security-health\",\"rule_ids\":[\"security-health.security-headers-missing\"]}'"}},
+	},
+	{
+		ID:          "validation_apply_fix",
+		Path:        scenariovalidationconnect.ScenarioValidationServiceApplyFixProcedure,
+		Method:      "POST",
+		Summary:     "Apply deterministic security fixes",
+		Description: "Applies safe deterministic security remediations selected by rule id and reports the file edits written.",
+		Category:    "validation",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "rule_ids": "array<string>"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "applied": "bool", "candidates": "array<FixCandidate>", "messages": "array<string>"}},
+		Examples:    []module.Example{{Name: "Apply fixes", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix -H 'Content-Type: application/json' -d '{\"scenario\":\"security-health\",\"rule_ids\":[\"security-health.security-headers-missing\"]}'"}},
 	},
 }

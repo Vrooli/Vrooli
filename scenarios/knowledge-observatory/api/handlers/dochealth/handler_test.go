@@ -90,13 +90,9 @@ func newServiceFixture(t *testing.T) (*dochealth.Service, string) {
 
 func testMaturitySpec(t *testing.T) *assessment.Spec {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("..", "..", "..", ".vrooli", "maturity.json"))
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join("..", "..", ".."))
 	if err != nil {
-		t.Fatalf("read maturity spec: %v", err)
-	}
-	spec, err := assessment.ParseSpec(raw)
-	if err != nil {
-		t.Fatalf("parse maturity spec: %v", err)
+		t.Fatalf("load descriptor maturity: %v", err)
 	}
 	return spec
 }

@@ -4423,7 +4423,7 @@
     ]
   },
   {
-    "nodeId": "plan-skill-discovery",
+    "nodeId": "implementation-plan-authoring",
     "score": 0.2,
     "factors": {
       "action-command": 0.5,

@@ -253,6 +253,7 @@
         "type": "object",
         "properties": {
           "assessment": "common.v1.MaturityAssessment",
+          "metrics": "common.v1.ExecutionMetrics",
           "native_detail": "google.protobuf.Any",
           "scenario": "string",
           "status": "scenario_validation.v1.ValidationStatus"
@@ -269,6 +270,68 @@
         {
           "name": "Validate scenario",
           "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"security-health\"}'"
+        }
+      ]
+    },
+    {
+      "id": "validation_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview deterministic security fixes",
+      "description": "Returns safe deterministic security remediations, currently limited to generated-Go API security headers middleware edits, without writing files.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Preview fixes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix -H 'Content-Type: application/json' -d '{\"scenario\":\"security-health\",\"rule_ids\":[\"security-health.security-headers-missing\"]}'"
+        }
+      ]
+    },
+    {
+      "id": "validation_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply deterministic security fixes",
+      "description": "Applies safe deterministic security remediations selected by rule id and reports the file edits written.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Apply fixes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix -H 'Content-Type: application/json' -d '{\"scenario\":\"security-health\",\"rule_ids\":[\"security-health.security-headers-missing\"]}'"
         }
       ]
     }

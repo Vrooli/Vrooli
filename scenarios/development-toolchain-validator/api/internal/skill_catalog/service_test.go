@@ -22,7 +22,7 @@ func newSvc(t *testing.T, source skillcatalog.SkillCatalogSource) (skillcatalog.
 
 func TestSync_AddsNewSkills(t *testing.T) {
 	source := &scmocks.FakeSource{Skills: []skillcatalog.Skill{
-		{ID: "plan-skill-discovery", Version: "v1", ContentHash: "h1"},
+		{ID: "implementation-plan-authoring", Version: "v1", ContentHash: "h1"},
 		{ID: "test", Version: "v1", ContentHash: "h2"},
 	}}
 	svc, _, _ := newSvc(t, source)
@@ -37,7 +37,7 @@ func TestSync_AddsNewSkills(t *testing.T) {
 
 func TestSync_UpdatesChangedSkills(t *testing.T) {
 	source := &scmocks.FakeSource{Skills: []skillcatalog.Skill{
-		{ID: "plan-skill-discovery", Version: "v1", ContentHash: "h1"},
+		{ID: "implementation-plan-authoring", Version: "v1", ContentHash: "h1"},
 	}}
 	svc, _, _ := newSvc(t, source)
 	_, err := svc.Sync(context.Background())

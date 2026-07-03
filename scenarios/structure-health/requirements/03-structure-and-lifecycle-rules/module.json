@@ -40,10 +40,13 @@
       "prd_ref": "OT-P0-002",
       "category": "api",
       "criticality": "P0",
-      "description": "Each declared surface must have a build(setup)→start(develop)→port/env→health-check chain; a missing health check or lifecycle step in that chain is a finding.",
-      "tags": ["lifecycle-wiring", "health-check", "api"],
+      "description": "Each declared surface must have a build(setup)→start(develop)→port/env→health-check chain; API surfaces must expose root /health, declare a critical ${API_PORT}/health lifecycle probe, and run api-core preflight before service initialization.",
+      "tags": ["lifecycle-wiring", "health-check", "preflight", "api"],
       "validation": [
-        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts a surface without a health check emits HEALTH_CHECK_MISSING."}
+        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts a surface without a health check emits HEALTH_CHECK_MISSING."},
+        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts malformed health targets emit HEALTH_CHECK_MALFORMED."},
+        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts prefixed-only health routes emit HEALTH_ENDPOINT_MISSING."},
+        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts missing or malformed API preflight emits API_PREFLIGHT_* findings."}
       ]
     },
     {
@@ -53,10 +56,11 @@
       "prd_ref": "OT-P0-002",
       "category": "api",
       "criticality": "P0",
-      "description": "A UI surface's develop step must serve the built production bundle (NODE_ENV=production, conditioned on dist) rather than a dev server, preserving the hashed-asset caching guarantee; a dev-server develop step is a finding.",
-      "tags": ["production-serving", "ui", "api"],
+      "description": "A UI surface's develop step must serve the built production bundle (NODE_ENV=production, conditioned on dist) rather than a dev server, and API services must use api-core/server.Run instead of direct ListenAndServe calls.",
+      "tags": ["production-serving", "ui", "api", "server-run"],
       "validation": [
-        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts a dev-server UI develop step emits PRODUCTION_SERVE_NONCONFORMANT."}
+        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts a dev-server UI develop step emits PRODUCTION_SERVE_NONCONFORMANT."},
+        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts direct ListenAndServe emits API_SERVER_RUN_NONCONFORMANT."}
       ]
     },
     {

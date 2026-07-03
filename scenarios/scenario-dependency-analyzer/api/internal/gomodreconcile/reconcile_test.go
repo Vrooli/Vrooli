@@ -18,7 +18,11 @@ func writeModule(t *testing.T, dir, gomod string, files map[string]string) {
 		t.Fatal(err)
 	}
 	for name, body := range files {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+		path := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -109,6 +113,33 @@ func TestPlanFlagsTransitiveInRepoRequireMissingReplace(t *testing.T) {
 	}
 }
 
+func TestPlanFlagsImportedSiblingAPIModuleMissingRequireAndReplace(t *testing.T) {
+	root := t.TempDir()
+	apiDir := filepath.Join(root, "scenarios", "demo", "api")
+	cliDir := filepath.Join(root, "scenarios", "demo", "cli")
+	writeModule(t, apiDir, "module demo\n\ngo 1.25.0\n", map[string]string{
+		filepath.Join("models", "model.go"): "package models\n\ntype Model struct{}\n",
+	})
+	writeModule(t, cliDir, "module demo/cli\n\ngo 1.25.0\n", map[string]string{
+		"main.go": "package main\n\nimport \"demo/models\"\n\nfunc main() { _ = models.Model{} }\n",
+	})
+	topo := Topology{
+		"demo":     apiDir,
+		"demo/cli": cliDir,
+	}
+
+	missing, err := Plan(context.Background(), filepath.Join(cliDir, "go.mod"), topo)
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	if len(missing) != 1 {
+		t.Fatalf("missing = %#v", missing)
+	}
+	if missing[0].Module != "demo" || missing[0].RelPath != "../api" || !missing[0].AddRequire {
+		t.Fatalf("missing[0] = %#v", missing[0])
+	}
+}
+
 func TestPreviewSurfaceProducesDeterministicAfter(t *testing.T) {
 	root := t.TempDir()
 	leafDir := filepath.Join(root, "packages", "leaf")
@@ -132,6 +163,34 @@ func TestPreviewSurfaceProducesDeterministicAfter(t *testing.T) {
 	onDisk, _ := os.ReadFile(goModPath)
 	if string(onDisk) != cand.Before {
 		t.Fatal("PreviewSurface mutated the original go.mod")
+	}
+}
+
+func TestPreviewSurfaceAddsRequireForImportedInRepoModule(t *testing.T) {
+	root := t.TempDir()
+	apiDir := filepath.Join(root, "scenarios", "demo", "api")
+	cliDir := filepath.Join(root, "scenarios", "demo", "cli")
+	writeModule(t, apiDir, "module demo\n\ngo 1.25.0\n", map[string]string{
+		filepath.Join("models", "model.go"): "package models\n\ntype Model struct{}\n",
+	})
+	goModPath := filepath.Join(cliDir, "go.mod")
+	writeModule(t, cliDir, "module demo/cli\n\ngo 1.25.0\n", map[string]string{
+		"main.go": "package main\n\nimport \"demo/models\"\n\nfunc main() { _ = models.Model{} }\n",
+	})
+	topo := Topology{"demo": apiDir, "demo/cli": cliDir}
+
+	cand, err := PreviewSurface(context.Background(), goModPath, topo)
+	if err != nil {
+		t.Fatalf("PreviewSurface: %v", err)
+	}
+	if cand == nil {
+		t.Fatal("expected a candidate, got nil")
+	}
+	if !strings.Contains(cand.After, "require demo v0.0.0") {
+		t.Fatalf("after missing require:\n%s", cand.After)
+	}
+	if !strings.Contains(cand.After, "replace demo => ../api") {
+		t.Fatalf("after missing replace:\n%s", cand.After)
 	}
 }
 

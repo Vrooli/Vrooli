@@ -23,12 +23,12 @@ func newSvc(t *testing.T) (manifest.Service, *mmocks.FakeRepository, *mocks.Fake
 func TestUpsert_HappyPath(t *testing.T) {
 	svc, _, clk := newSvc(t)
 	got, err := svc.Upsert(context.Background(), manifest.UpsertInput{
-		SkillID:         "plan-skill-discovery",
+		SkillID:         "implementation-plan-authoring",
 		GoldenSlug:      "reference-react-vite",
 		WildcardAllowed: true,
 	})
 	require.NoError(t, err)
-	require.Equal(t, "plan-skill-discovery", got.SkillID)
+	require.Equal(t, "implementation-plan-authoring", got.SkillID)
 	require.Equal(t, clk.Now(), got.UpdatedAt)
 	require.Equal(t, manifest.ConvergenceTargetNone, got.ConvergenceTarget, "unspecified must default to none")
 }
@@ -47,7 +47,7 @@ func TestUpsert_RejectsBadSkillID(t *testing.T) {
 func TestUpsert_RejectsBadGoldenSlug(t *testing.T) {
 	svc, _, _ := newSvc(t)
 	_, err := svc.Upsert(context.Background(), manifest.UpsertInput{
-		SkillID:    "plan-skill-discovery",
+		SkillID:    "implementation-plan-authoring",
 		GoldenSlug: "UPPERCASE!",
 	})
 	var invalid manifest.ErrInvalidManifest
@@ -58,7 +58,7 @@ func TestUpsert_RejectsBadGoldenSlug(t *testing.T) {
 func TestUpsert_RequiresAllowedOrWildcard(t *testing.T) {
 	svc, _, _ := newSvc(t)
 	_, err := svc.Upsert(context.Background(), manifest.UpsertInput{
-		SkillID:    "plan-skill-discovery",
+		SkillID:    "implementation-plan-authoring",
 		GoldenSlug: "reference-react-vite",
 		// no wildcard, no allowed_paths, no content_rules
 	})
@@ -69,7 +69,7 @@ func TestUpsert_RequiresAllowedOrWildcard(t *testing.T) {
 func TestUpsert_RejectsBlankAllowedEntry(t *testing.T) {
 	svc, _, _ := newSvc(t)
 	_, err := svc.Upsert(context.Background(), manifest.UpsertInput{
-		SkillID:      "plan-skill-discovery",
+		SkillID:      "implementation-plan-authoring",
 		GoldenSlug:   "reference-react-vite",
 		AllowedPaths: []string{"src/**", "  "},
 	})
@@ -80,7 +80,7 @@ func TestUpsert_RejectsBlankAllowedEntry(t *testing.T) {
 func TestUpsert_RejectsBlankContentRuleGlob(t *testing.T) {
 	svc, _, _ := newSvc(t)
 	_, err := svc.Upsert(context.Background(), manifest.UpsertInput{
-		SkillID:      "plan-skill-discovery",
+		SkillID:      "implementation-plan-authoring",
 		GoldenSlug:   "reference-react-vite",
 		AllowedPaths: []string{"src/**"},
 		ContentRules: []manifest.ContentRule{{PathGlob: " "}},
@@ -107,10 +107,10 @@ func TestGet_EmptyArgsRejected(t *testing.T) {
 
 func TestClearStale_RecordsTimestamp(t *testing.T) {
 	svc, repo, clk := newSvc(t)
-	at, err := svc.ClearStale(context.Background(), "plan-skill-discovery", "reference-react-vite")
+	at, err := svc.ClearStale(context.Background(), "implementation-plan-authoring", "reference-react-vite")
 	require.NoError(t, err)
 	require.Equal(t, clk.Now(), at)
-	stored, err := repo.GetStaleOverride(context.Background(), "plan-skill-discovery", "reference-react-vite")
+	stored, err := repo.GetStaleOverride(context.Background(), "implementation-plan-authoring", "reference-react-vite")
 	require.NoError(t, err)
 	require.Equal(t, clk.Now(), stored)
 }

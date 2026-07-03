@@ -99,6 +99,24 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	var findings []Finding
 	var skipped []string
 
+	headers := collector.Stage("security-headers")
+	headerFindings, err := runSecurityHeaderChecks(scenarioDir)
+	headers.Gauge("findings", float64(len(headerFindings)))
+	headers.End()
+	if err != nil {
+		s.logger.Printf("[security-health] security headers check degraded for %q: %v", scenario, err)
+		findings = append(findings, Finding{
+			RuleID:      "security-health.security-headers-degraded",
+			Severity:    SeverityInfo,
+			Title:       "Security headers check could not complete",
+			Description: fmt.Sprintf("The in-process security headers validator could not inspect the target API: %v", err),
+			Remediation: "Inspect the target API tree and rerun Security Health after filesystem/read errors are resolved.",
+			Scanner:     "security-headers",
+		})
+	} else {
+		findings = append(findings, headerFindings...)
+	}
+
 	scan := collector.Stage("scan")
 	for _, sc := range s.scanners {
 		if !sc.Applies(sub) {

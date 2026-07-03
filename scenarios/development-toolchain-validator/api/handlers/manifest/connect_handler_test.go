@@ -74,14 +74,14 @@ func TestList_PassesThrough(t *testing.T) {
 }
 
 func TestGet_PassesSkillAndGolden(t *testing.T) {
-	svc := &fakeService{GetOut: manifest.Manifest{SkillID: "plan-skill-discovery", GoldenSlug: "reference-react-vite"}}
+	svc := &fakeService{GetOut: manifest.Manifest{SkillID: "implementation-plan-authoring", GoldenSlug: "reference-react-vite"}}
 	client := newClient(t, svc)
 	resp, err := client.GetManifest(context.Background(), connect.NewRequest(&manifestv1.GetManifestRequest{
-		SkillId: "plan-skill-discovery", GoldenSlug: "reference-react-vite",
+		SkillId: "implementation-plan-authoring", GoldenSlug: "reference-react-vite",
 	}))
 	require.NoError(t, err)
-	require.Equal(t, "plan-skill-discovery", resp.Msg.Manifest.SkillId)
-	require.Equal(t, "plan-skill-discovery", svc.GetSkillID)
+	require.Equal(t, "implementation-plan-authoring", resp.Msg.Manifest.SkillId)
+	require.Equal(t, "implementation-plan-authoring", svc.GetSkillID)
 	require.Equal(t, "reference-react-vite", svc.GetGolden)
 }
 
@@ -110,13 +110,13 @@ func TestUpsert_RequiresManifest(t *testing.T) {
 
 func TestUpsert_RoundTripsConvergenceTarget(t *testing.T) {
 	svc := &fakeService{UpsertOut: manifest.Manifest{
-		SkillID: "plan-skill-discovery", GoldenSlug: "reference-react-vite",
+		SkillID: "implementation-plan-authoring", GoldenSlug: "reference-react-vite",
 		ConvergenceTarget: manifest.ConvergenceTargetEmptyDiff, WildcardAllowed: true,
 	}}
 	client := newClient(t, svc)
 	resp, err := client.UpsertManifest(context.Background(), connect.NewRequest(&manifestv1.UpsertManifestRequest{
 		Manifest: &manifestv1.Manifest{
-			SkillId: "plan-skill-discovery", GoldenSlug: "reference-react-vite",
+			SkillId: "implementation-plan-authoring", GoldenSlug: "reference-react-vite",
 			WildcardAllowed:   true,
 			ConvergenceTarget: manifestv1.ConvergenceTarget_CONVERGENCE_TARGET_EMPTY_DIFF,
 		},
@@ -130,7 +130,7 @@ func TestClearStale_ReturnsTimestamp(t *testing.T) {
 	now := time.Date(2026, 5, 18, 13, 0, 0, 0, time.UTC)
 	client := newClient(t, &fakeService{ClearOut: now})
 	resp, err := client.ClearStale(context.Background(), connect.NewRequest(&manifestv1.ClearStaleRequest{
-		SkillId: "plan-skill-discovery", GoldenSlug: "reference-react-vite",
+		SkillId: "implementation-plan-authoring", GoldenSlug: "reference-react-vite",
 	}))
 	require.NoError(t, err)
 	require.NotNil(t, resp.Msg.ClearedAt)

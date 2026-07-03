@@ -25,6 +25,25 @@ func (s stubValidator) ValidateScenario(context.Context, string) (validation.Rep
 	return s.report, s.err
 }
 
+type stubFixer struct {
+	scenario   string
+	candidates []validation.SecurityHeaderFixCandidate
+	messages   []string
+	err        error
+}
+
+func (s stubFixer) PreviewFix(context.Context, string, string, []string) (string, []validation.SecurityHeaderFixCandidate, []string, error) {
+	return s.scenario, s.candidates, s.messages, s.err
+}
+
+func (s stubFixer) ApplyFix(context.Context, string, string, []string) (string, []validation.SecurityHeaderFixCandidate, []string, error) {
+	out := append([]validation.SecurityHeaderFixCandidate(nil), s.candidates...)
+	for i := range out {
+		out[i].Applied = true
+	}
+	return s.scenario, out, s.messages, s.err
+}
+
 func TestValidateScenario_MapsReport(t *testing.T) {
 	h := NewConnectHandler(Deps{Validator: stubValidator{report: validation.Report{
 		Scenario: "demo",
@@ -118,6 +137,40 @@ func TestValidateScenarioAttachesMetrics(t *testing.T) {
 	}
 	if env.GetNumCpu() != int32(runtime.NumCPU()) {
 		t.Fatalf("env num_cpu = %d, want %d", env.GetNumCpu(), runtime.NumCPU())
+	}
+}
+
+func TestPreviewAndApplyFixMapCandidates(t *testing.T) {
+	fixer := stubFixer{
+		scenario: "demo",
+		candidates: []validation.SecurityHeaderFixCandidate{{
+			RuleID:      validation.CodeSecurityHeadersMissing,
+			FilePath:    "api/internal/server/server.go",
+			Description: "register middleware",
+			Before:      "before",
+			After:       "after",
+		}},
+	}
+	h := NewConnectHandler(Deps{Validator: stubValidator{}, Fixer: fixer})
+	req := connect.NewRequest(&scenariovalidationv1.FixRequest{Scenario: "demo", RuleIds: []string{validation.CodeSecurityHeadersMissing}})
+
+	preview, err := h.PreviewFix(context.Background(), req)
+	if err != nil {
+		t.Fatalf("PreviewFix: %v", err)
+	}
+	if preview.Msg.GetApplied() {
+		t.Fatal("preview must not be marked applied")
+	}
+	if len(preview.Msg.GetCandidates()) != 1 || preview.Msg.GetCandidates()[0].GetApplied() {
+		t.Fatalf("preview candidates wrong: %+v", preview.Msg.GetCandidates())
+	}
+
+	applied, err := h.ApplyFix(context.Background(), req)
+	if err != nil {
+		t.Fatalf("ApplyFix: %v", err)
+	}
+	if !applied.Msg.GetApplied() || !applied.Msg.GetCandidates()[0].GetApplied() {
+		t.Fatalf("apply response wrong: %+v", applied.Msg)
 	}
 }
 

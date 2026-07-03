@@ -17,9 +17,7 @@ import (
 
 func newTestService(t *testing.T, deps Deps) *Service {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("..", "..", "..", ".vrooli", "maturity.json"))
-	require.NoError(t, err)
-	spec, err := assessment.ParseSpec(raw)
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join("..", "..", ".."))
 	require.NoError(t, err)
 	catalog, err := NewFindingCatalog(spec)
 	require.NoError(t, err)

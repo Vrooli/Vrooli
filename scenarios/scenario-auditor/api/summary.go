@@ -187,12 +187,7 @@ func loadStandardsMaturitySpec() (*assessment.Spec, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve repo root for standards maturity spec: %w", err)
 	}
-	path := filepath.Join(ctx.RepoRoot(), "scenarios", "scenario-auditor", ".vrooli", "maturity.json")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read standards maturity spec: %w", err)
-	}
-	return assessment.ParseSpec(raw)
+	return assessment.LoadSpecFromScenario(filepath.Join(ctx.RepoRoot(), "scenarios", "scenario-auditor"))
 }
 
 func standardsSeverityToAssessment(severity string) string {

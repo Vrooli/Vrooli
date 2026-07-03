@@ -64,6 +64,14 @@ func (h *connectHandler) evaluateGoModReplace(ctx context.Context, scenario stri
 		}
 		for _, m := range missing {
 			id := strings.Join([]string{"gomod-replace", slug(surfaceID(surface)), slug(m.Module)}, ".")
+			observed := fmt.Sprintf("require %s without a local replace", m.Module)
+			expected := fmt.Sprintf("replace %s => %s", m.Module, m.RelPath)
+			remediation := fmt.Sprintf("Run `%s deps reconcile --scenario %s --apply` to add `replace %s => %s`.", reconcileCLIName, scenario, m.Module, m.RelPath)
+			if m.AddRequire {
+				observed = fmt.Sprintf("import %s without require or local replace", m.Module)
+				expected = fmt.Sprintf("require %s v0.0.0 and replace %s => %s", m.Module, m.Module, m.RelPath)
+				remediation = fmt.Sprintf("Run `%s deps reconcile --scenario %s --apply` to add `require %s v0.0.0` and `replace %s => %s`.", reconcileCLIName, scenario, m.Module, m.Module, m.RelPath)
+			}
 			ids = append(ids, id)
 			findings = append(findings, &healthv1.DependencyHealthFinding{
 				Id:           id,
@@ -71,11 +79,11 @@ func (h *connectHandler) evaluateGoModReplace(ctx context.Context, scenario stri
 				SourceDomain: "gomod-replace",
 				Title:        "Missing in-repo module replace",
 				Description:  fmt.Sprintf("Surface %s requires in-repo module %s without a local replace; go build (and scenario restart) will fail with a missing go.sum entry.", surfaceID(surface), m.Module),
-				Remediation:  fmt.Sprintf("Run `%s deps reconcile --scenario %s --apply` to add `replace %s => %s`.", reconcileCLIName, scenario, m.Module, m.RelPath),
+				Remediation:  remediation,
 				FilePath:     relScenarioPath(goModPath),
 				RuleId:       goModReplaceRuleID,
-				Observed:     fmt.Sprintf("require %s without a local replace", m.Module),
-				Expected:     fmt.Sprintf("replace %s => %s", m.Module, m.RelPath),
+				Observed:     observed,
+				Expected:     expected,
 			})
 		}
 	}

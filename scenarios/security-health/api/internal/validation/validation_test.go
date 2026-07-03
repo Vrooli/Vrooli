@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -323,6 +324,129 @@ func TestService_SecretFailsScenario(t *testing.T) {
 	// ERROR findings sort first.
 	if rep.Findings[0].Severity != SeverityError {
 		t.Errorf("ERROR findings must sort first, got %v", rep.Findings[0].Severity)
+	}
+}
+
+// [REQ:REQ-P0-020]
+func TestService_SecurityHeadersMissingFailsScenario(t *testing.T) {
+	repoRoot, dir := newScenarioTree(t, "demo")
+	writeFile(t, filepath.Join(dir, "api", "internal", "server", "server.go"), `package server
+
+import (
+	"net/http"
+
+	"github.com/gorilla/mux"
+)
+
+func New() http.Handler {
+	r := mux.NewRouter()
+	r.HandleFunc("/api/v1/demo", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	return r
+}
+`)
+	cmd := stubCommander{
+		present: map[string]bool{"gitleaks": true},
+		out:     map[string]stubOut{"gitleaks": {stdout: []byte(`[]`)}},
+	}
+	svc := New(Deps{RepoRoot: repoRoot, Commander: cmd})
+	rep, err := svc.ValidateScenario(context.Background(), "demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep.Passed {
+		t.Fatalf("missing security headers must fail the scenario: %+v", rep.Findings)
+	}
+	found := false
+	for _, f := range rep.Findings {
+		if f.RuleID == CodeSecurityHeadersMissing && f.Severity == SeverityError {
+			found = true
+			if f.Scanner != "security-headers" {
+				t.Fatalf("scanner = %q, want security-headers", f.Scanner)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected %s finding, got %+v", CodeSecurityHeadersMissing, rep.Findings)
+	}
+}
+
+// [REQ:REQ-P0-020]
+func TestSecurityHeadersCheckFlagsOnlyUnsafeCORS(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "api", "main.go"), `package main
+
+import "net/http"
+
+func securityHeaders(w http.ResponseWriter) {
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("X-XSS-Protection", "0")
+	w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+}
+`)
+	findings, err := runSecurityHeaderChecks(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 1 || findings[0].RuleID != CodeSecurityHeadersCORS {
+		t.Fatalf("expected only unsafe CORS finding, got %+v", findings)
+	}
+}
+
+// [REQ:REQ-P0-021]
+func TestSecurityHeadersFixPreviewAndApplyGeneratedServerShape(t *testing.T) {
+	repoRoot, dir := newScenarioTree(t, "demo")
+	serverPath := filepath.Join(dir, "api", "internal", "server", "server.go")
+	writeFile(t, serverPath, `package server
+
+import (
+	"log"
+
+	"demo/internal/middleware"
+
+	"github.com/gorilla/mux"
+)
+
+func New(logger *log.Logger) *Server {
+	s := &Server{router: mux.NewRouter()}
+	s.router.Use(middleware.NewLoggingMiddleware(nil, logger))
+	return s
+}
+`)
+	svc := New(Deps{RepoRoot: repoRoot, Commander: stubCommander{}})
+	scenario, candidates, messages, err := svc.PreviewFix(context.Background(), "demo", "", []string{CodeSecurityHeadersMissing})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if scenario != "demo" || len(messages) != 0 {
+		t.Fatalf("scenario/messages = %q/%v", scenario, messages)
+	}
+	if len(candidates) != 2 {
+		t.Fatalf("expected middleware+server candidates, got %d: %+v", len(candidates), candidates)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "api", "internal", "middleware", "securityheaders.go")); !os.IsNotExist(err) {
+		t.Fatalf("preview should not write securityheaders.go, stat err=%v", err)
+	}
+
+	_, applied, _, err := svc.ApplyFix(context.Background(), "demo", "", []string{CodeSecurityHeadersMissing})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range applied {
+		if !c.Applied {
+			t.Fatalf("applied candidate not marked applied: %+v", c)
+		}
+	}
+	serverAfter, err := os.ReadFile(serverPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(serverAfter), "NewSecurityHeadersMiddleware") {
+		t.Fatalf("ApplyFix did not register security middleware:\n%s", serverAfter)
 	}
 }
 

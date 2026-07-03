@@ -21,7 +21,7 @@ func hygieneAnalyzers() []Analyzer {
 }
 
 // findRepoRoot walks up from the test's working directory (the package dir)
-// until it finds a directory whose scenarios/storage-health/.vrooli/maturity.json
+// until it finds a directory whose scenarios/storage-health/.vrooli/test-genie.json
 // exists — the repo root. Returns "" if not found (the test then skips).
 func findRepoRoot() string {
 	dir, err := os.Getwd()
@@ -29,7 +29,7 @@ func findRepoRoot() string {
 		return ""
 	}
 	for {
-		marker := filepath.Join(dir, "scenarios", "storage-health", ".vrooli", "maturity.json")
+		marker := filepath.Join(dir, "scenarios", "storage-health", ".vrooli", "test-genie.json")
 		if _, err := os.Stat(marker); err == nil {
 			return dir
 		}

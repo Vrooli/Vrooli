@@ -72,6 +72,58 @@ func TestAnalyzeTSArchitectureProjectionDriftLoweredThreshold(t *testing.T) {
 	}
 }
 
+func TestAnalyzeTSArchitectureProjectionDriftNonVitestCoverageScript(t *testing.T) {
+	root := t.TempDir()
+	writeCanonicalUIProjection(t, root)
+	writeFile(t, filepath.Join(root, "package.json"), `{
+  "scripts": {"test": "vitest run", "test:coverage": "jest --coverage"},
+  "devDependencies": {"vitest": "^3.0.0"}
+}`)
+
+	findings := analyzeArchitecture("demo", []Workspace{{ID: "ui", Language: "typescript", RootPath: root, Framework: "vite"}}, fixedNowStr)
+	var sawCoverageScript bool
+	for _, f := range findings {
+		if f.Code == codeUnitProjectionDrift && strings.Contains(f.Observed, "non-Vitest coverage script") {
+			sawCoverageScript = true
+		}
+	}
+	if !sawCoverageScript {
+		t.Fatalf("expected non-Vitest coverage script drift, got %+v", findings)
+	}
+}
+
+func TestAnalyzeTSArchitectureProjectionDriftMissingCoverageDenominator(t *testing.T) {
+	root := t.TempDir()
+	writeCanonicalUIProjection(t, root)
+	writeFile(t, filepath.Join(root, "vite.config.ts"), strings.ReplaceAll(canonicalViteConfig(), "      include: ['src/**/*.{ts,tsx}'],\n", ""))
+
+	findings := analyzeArchitecture("demo", []Workspace{{ID: "ui", Language: "typescript", RootPath: root, Framework: "vite"}}, fixedNowStr)
+	f, ok := findingByCode(findings, codeUnitProjectionDrift)
+	if !ok {
+		t.Fatalf("expected UNIT_POLICY_PROJECTION_DRIFT, got %v", codes(findings))
+	}
+	if !strings.Contains(f.Observed, "source coverage include") {
+		t.Fatalf("expected coverage include drift evidence, got %+v", f)
+	}
+}
+
+func TestAnalyzeTSArchitectureProjectionDriftMissingReportOnFailure(t *testing.T) {
+	root := t.TempDir()
+	writeCanonicalUIProjection(t, root)
+	writeFile(t, filepath.Join(root, "vite.config.ts"), strings.ReplaceAll(canonicalViteConfig(), "      reportOnFailure: true,\n", ""))
+
+	findings := analyzeArchitecture("demo", []Workspace{{ID: "ui", Language: "typescript", RootPath: root, Framework: "vite"}}, fixedNowStr)
+	var sawReportOnFailure bool
+	for _, f := range findings {
+		if f.Code == codeUnitProjectionDrift && strings.Contains(f.Observed, "reportOnFailure") {
+			sawReportOnFailure = true
+		}
+	}
+	if !sawReportOnFailure {
+		t.Fatalf("expected reportOnFailure projection drift, got %+v", findings)
+	}
+}
+
 func TestAnalyzeTSArchitectureProjectionDriftMissingRenderHelper(t *testing.T) {
 	root := t.TempDir()
 	writeCanonicalUIProjection(t, root)
@@ -230,6 +282,21 @@ func TestAnalyzeTSArchitectureProjectionCleanWithEquivalentConfigShape(t *testin
         "json-summary",
         "json",
       ],
+      "reportOnFailure": true,
+      "include": [
+        "src/**/*.{ts,tsx}",
+      ],
+      "exclude": [
+        "src/**/*.test.{ts,tsx}",
+        "src/**/*.spec.{ts,tsx}",
+        "src/**/*.d.ts",
+        "src/main.tsx",
+        "src/test-setup.ts",
+        "src/test-utils/**",
+        "src/consts/strings.generated.ts",
+        "src/i18n/locales/**",
+        "src/**/generated/**",
+      ],
       "thresholds": {
         "lines": 85,
         "functions": 85,
@@ -315,6 +382,19 @@ func canonicalViteConfig() string {
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary', 'json'],
+      reportOnFailure: true,
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/**/*.spec.{ts,tsx}',
+        'src/**/*.d.ts',
+        'src/main.tsx',
+        'src/test-setup.ts',
+        'src/test-utils/**',
+        'src/consts/strings.generated.ts',
+        'src/i18n/locales/**',
+        'src/**/generated/**',
+      ],
       thresholds: {
         lines: 85,
         functions: 85,

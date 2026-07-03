@@ -92,11 +92,15 @@ func writeMaturitySpec(t *testing.T, repoRoot string) {
 			SeverityDefault:  "SEVERITY_WARNING",
 		},
 	}
-	raw, err := json.Marshal(spec)
+	raw, err := json.Marshal(map[string]any{
+		"scenario": "brand-manager",
+		"phase":    "branding",
+		"maturity": spec,
+	})
 	if err != nil {
-		t.Fatalf("marshal maturity spec: %v", err)
+		t.Fatalf("marshal descriptor: %v", err)
 	}
-	writeFile(t, filepath.Join(repoRoot, "scenarios", "brand-manager"), ".vrooli/maturity.json", string(raw))
+	writeFile(t, filepath.Join(repoRoot, "scenarios", "brand-manager"), ".vrooli/test-genie.json", string(raw))
 }
 
 func writeFile(t *testing.T, root, rel, content string) {

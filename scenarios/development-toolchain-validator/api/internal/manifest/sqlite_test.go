@@ -44,9 +44,9 @@ func sample(skillID, goldenSlug string) manifest.Manifest {
 func TestUpsert_InsertsAndRoundTrips(t *testing.T) {
 	repo, _ := newRepo(t)
 	ctx := context.Background()
-	got, err := repo.Upsert(ctx, sample("plan-skill-discovery", "reference-react-vite"))
+	got, err := repo.Upsert(ctx, sample("implementation-plan-authoring", "reference-react-vite"))
 	require.NoError(t, err)
-	require.Equal(t, "plan-skill-discovery", got.SkillID)
+	require.Equal(t, "implementation-plan-authoring", got.SkillID)
 	require.Equal(t, "reference-react-vite", got.GoldenSlug)
 	require.Equal(t, []string{"src/**", "docs/**"}, got.AllowedPaths)
 	require.Len(t, got.ContentRules, 1)
@@ -58,10 +58,10 @@ func TestUpsert_InsertsAndRoundTrips(t *testing.T) {
 func TestUpsert_ReplacesExisting(t *testing.T) {
 	repo, _ := newRepo(t)
 	ctx := context.Background()
-	_, err := repo.Upsert(ctx, sample("plan-skill-discovery", "reference-react-vite"))
+	_, err := repo.Upsert(ctx, sample("implementation-plan-authoring", "reference-react-vite"))
 	require.NoError(t, err)
 
-	updated := sample("plan-skill-discovery", "reference-react-vite")
+	updated := sample("implementation-plan-authoring", "reference-react-vite")
 	updated.WildcardAllowed = true
 	updated.AllowedPaths = nil
 	updated.ContentRules = nil

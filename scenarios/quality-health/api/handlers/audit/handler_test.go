@@ -1,7 +1,6 @@
 package audit
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -62,9 +61,7 @@ func TestResponseToProtoRequiresMaturitySpec(t *testing.T) {
 
 func testMaturitySpec(t *testing.T) *assessment.Spec {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("..", "..", "..", ".vrooli", "maturity.json"))
-	require.NoError(t, err)
-	spec, err := assessment.ParseSpec(raw)
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join("..", "..", ".."))
 	require.NoError(t, err)
 	return spec
 }

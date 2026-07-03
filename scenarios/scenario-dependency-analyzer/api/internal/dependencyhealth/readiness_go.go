@@ -29,6 +29,14 @@ func (h *connectHandler) checkGoSurface(ctx context.Context, runner commandRunne
 		}
 		findings = append(findings, readinessFinding("go."+surfaceID(surface)+".tidy-diff", "ERROR", "Go module metadata is not tidy", "go mod tidy -diff reported module metadata drift or failed.", "Run `cd "+filepath.ToSlash(root)+" && GOWORK=off go mod tidy`, then rerun dependency health.", surface, "dependency.go.tidy", observed, "go mod tidy -diff exits cleanly"))
 	}
+	out, err = runner.Run(ctx, root, "go", "build", "./...")
+	if err != nil {
+		observed := strings.TrimSpace(out)
+		if observed == "" {
+			observed = err.Error()
+		}
+		findings = append(findings, readinessFinding("go."+surfaceID(surface)+".build", "ERROR", "Go surface does not build with workspace disabled", "`GOWORK=off go build ./...` failed for this dependency surface.", "Fix the reported compile or module resolution error, then rerun dependency health.", surface, "dependency.go.build", observed, "GOWORK=off go build ./... exits cleanly"))
+	}
 	return findings
 }
 

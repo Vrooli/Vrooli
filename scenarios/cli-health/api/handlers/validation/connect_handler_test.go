@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -107,11 +106,7 @@ func TestBuildMaturityAssessmentMapsCLIFindings(t *testing.T) {
 }
 
 func TestMaturitySpecCoversCLIHealthFindings(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("..", "..", "..", ".vrooli", "maturity.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	spec, err := assessment.ParseSpec(raw)
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join("..", "..", ".."))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,6 +128,8 @@ func TestMaturitySpecCoversCLIHealthFindings(t *testing.T) {
 		manifestvalidation.CodeCLIBinaryUnrunnable,
 		manifestvalidation.CodeCLIHelpFailed,
 		manifestvalidation.CodeCLICommandUndeclared,
+		manifestvalidation.CodeCLIMainUnreadable,
+		manifestvalidation.CodeCLIMainHeavy,
 	} {
 		mapping, ok := spec.Findings[code]
 		if !ok {
@@ -145,8 +142,11 @@ func TestMaturitySpecCoversCLIHealthFindings(t *testing.T) {
 			t.Fatalf("maturity spec finding %q must declare clean_requirement", code)
 		}
 	}
-	if len(spec.Capabilities) != 5 {
-		t.Fatalf("capabilities = %d, want 5", len(spec.Capabilities))
+	if len(spec.Capabilities) != 6 {
+		t.Fatalf("capabilities = %d, want 6", len(spec.Capabilities))
+	}
+	if len(spec.Levels) == 0 {
+		t.Fatal("maturity spec must declare local levels")
 	}
 	if spec.Fallback.CapabilityID == "" {
 		t.Fatal("maturity spec fallback must declare capability_id")

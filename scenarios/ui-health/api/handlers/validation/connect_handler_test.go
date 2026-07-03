@@ -46,11 +46,7 @@ func TestBuildMaturityAssessmentMapsUIFindings(t *testing.T) {
 }
 
 func TestMaturitySpecCoversUIHealthFindings(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("..", "..", "..", ".vrooli", "maturity.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	spec, err := assessment.ParseSpec(raw)
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join("..", "..", ".."))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,11 +95,7 @@ func TestMaturitySpecCoversUIHealthFindings(t *testing.T) {
 }
 
 func TestMaturitySpecEmitsCapabilityAssessment(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("..", "..", "..", ".vrooli", "maturity.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	spec, err := assessment.ParseSpec(raw)
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join("..", "..", ".."))
 	if err != nil {
 		t.Fatal(err)
 	}

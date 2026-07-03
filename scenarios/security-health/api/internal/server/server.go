@@ -43,7 +43,7 @@ type Server struct {
 	router *mux.Router
 }
 
-// New builds a Server with logging middleware applied and every module's
+// New builds a Server with security/logging middleware applied and every module's
 // Mount invoked. Logger defaults to log.Default() if nil; Clock has no
 // default and is required so the logging middleware never hides its time seam.
 //
@@ -59,6 +59,7 @@ func New(d Deps, modules ...module.Module) *Server {
 		panic("server.New requires Deps.Clock")
 	}
 	s := &Server{deps: d, router: mux.NewRouter()}
+	s.router.Use(middleware.NewSecurityHeadersMiddleware())
 	s.router.Use(middleware.NewLoggingMiddleware(d.Clock, d.Logger))
 	for _, m := range modules {
 		m.Mount(s.router)

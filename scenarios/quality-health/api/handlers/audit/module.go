@@ -3,7 +3,6 @@ package audit
 import (
 	"fmt"
 	"log"
-	"os"
 	"path/filepath"
 
 	internalaudit "quality-health/internal/audit"
@@ -38,12 +37,11 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 }
 
 func loadMaturitySpec(repoRoot string) (*assessment.Spec, error) {
-	path := filepath.Join(repoRoot, "scenarios", "quality-health", ".vrooli", "maturity.json")
-	raw, err := os.ReadFile(path)
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", "quality-health"))
 	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
+		return nil, fmt.Errorf("load quality-health descriptor maturity: %w", err)
 	}
-	return assessment.ParseSpec(raw)
+	return spec, nil
 }
 
 func Schema() string { return "" }

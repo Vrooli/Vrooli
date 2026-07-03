@@ -1,0 +1,322 @@
+{
+  "schemaVersion": "1.0.0",
+  "scenario": "security-health",
+  "phase": "security",
+  "description": "Validates secrets, Go SAST, Go vulnerability data, and JavaScript dependencies through security-health.",
+  "source": "validation-provider",
+  "orderHint": 15,
+  "timeout": "180s",
+  "findingSource": "security",
+  "validation": {
+    "contract": "scenario-validation/v1"
+  },
+  "applicability": {
+    "default": "applies"
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "best_effort",
+    "providerLifecycle": "start_if_needed",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "skip_without_failing"
+  },
+  "runnability": {},
+  "docs": {
+    "path": "scenarios/test-genie/docs/phases/security/README.md"
+  },
+  "maturity": {
+    "version": "2.0.0",
+    "capabilities": [
+      {
+        "id": "target_resolution",
+        "label": "Target Resolution",
+        "description": "Scenario lookup and repository readability for security validation.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "No security target",
+            "status_label": "Unavailable",
+            "description": "The target scenario cannot be resolved or scanned as a repository scenario.",
+            "capability_summary": "Security Health has no readable scenario target.",
+            "next_unlock": "A scenario directory that exists under scenarios/ and can be inspected."
+          },
+          {
+            "id": "L1",
+            "name": "Target readable",
+            "status_label": "Foundation",
+            "description": "The target scenario resolves to a readable source tree.",
+            "capability_summary": "Security Health can inspect the target scenario.",
+            "next_unlock": "Maximum target-resolution maturity."
+          },
+          {
+            "id": "L2",
+            "name": "Target resolved",
+            "status_label": "Complete",
+            "description": "The target scenario is resolved and ready for substrate and scanner checks.",
+            "capability_summary": "The security validation target is resolved and readable."
+          }
+        ]
+      },
+      {
+        "id": "substrate_coverage",
+        "label": "Substrate Coverage",
+        "description": "Detection of supported and unsupported language/package substrates.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Substrate unknown",
+            "status_label": "Unavailable",
+            "description": "Security Health cannot classify the target scenario's security-relevant substrates.",
+            "capability_summary": "Substrate coverage cannot be evaluated.",
+            "next_unlock": "Readable source layout and dependency metadata."
+          },
+          {
+            "id": "L1",
+            "name": "Substrates classified",
+            "status_label": "Basic",
+            "description": "Go, pnpm, and unsupported substrates are represented in the validation report.",
+            "capability_summary": "Security-relevant substrates are classified.",
+            "next_unlock": "Unsupported substrates are explicitly understood as advisory coverage gaps."
+          },
+          {
+            "id": "L2",
+            "name": "Coverage gaps explicit",
+            "status_label": "Ready",
+            "description": "Unsupported substrates are explicit and do not hide scanner blind spots.",
+            "capability_summary": "Substrate coverage gaps are visible and bounded.",
+            "next_unlock": "Maximum substrate-coverage maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Substrate coverage clean",
+            "status_label": "Complete",
+            "description": "No unsupported substrate findings remain for the target scenario.",
+            "capability_summary": "Supported security substrates are fully covered."
+          }
+        ]
+      },
+      {
+        "id": "scanner_coverage",
+        "label": "Scanner Coverage",
+        "description": "Applicable security scanners are installed, runnable, and producing parseable output.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Scanner context unavailable",
+            "status_label": "Unavailable",
+            "description": "Security Health cannot determine scanner availability for applicable substrates.",
+            "capability_summary": "Scanner coverage cannot be evaluated.",
+            "next_unlock": "Applicable scanner binaries are discoverable or explicitly absent."
+          },
+          {
+            "id": "L1",
+            "name": "Scanner context known",
+            "status_label": "Foundation",
+            "description": "Applicable scanner classes are known and absent scanners are reported explicitly.",
+            "capability_summary": "Scanner availability is visible.",
+            "next_unlock": "Applicable scanners are installed."
+          },
+          {
+            "id": "L2",
+            "name": "Scanners available",
+            "status_label": "Ready",
+            "description": "Applicable scanner binaries are installed and can be invoked.",
+            "capability_summary": "Security scanners are available for applicable substrates.",
+            "next_unlock": "Scanners complete with parseable results."
+          },
+          {
+            "id": "L3",
+            "name": "Scanners complete",
+            "status_label": "Complete",
+            "description": "Applicable scanners complete and produce parseable findings or clean results.",
+            "capability_summary": "Scanner coverage is complete for the target scenario."
+          }
+        ]
+      },
+      {
+        "id": "security_findings",
+        "label": "Security Findings",
+        "description": "Secret exposure, SAST, reachable vulnerability, and dependency vulnerability findings emitted by scanners.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Security findings unavailable",
+            "status_label": "Unavailable",
+            "description": "Scanner findings cannot be evaluated for the target scenario.",
+            "capability_summary": "Security findings cannot be evaluated.",
+            "next_unlock": "Scanner findings are normalized into the shared security report."
+          },
+          {
+            "id": "L1",
+            "name": "Findings normalized",
+            "status_label": "Foundation",
+            "description": "Scanner findings are normalized with severity, location, and remediation.",
+            "capability_summary": "Security findings are visible and actionable.",
+            "next_unlock": "No ERROR-class secret, SAST, reachable vulnerability, or production dependency vulnerability remains."
+          },
+          {
+            "id": "L2",
+            "name": "Safety blockers absent",
+            "status_label": "Ready",
+            "description": "No scanner reports an ERROR-class secret, SAST, reachable vulnerability, or production dependency vulnerability.",
+            "capability_summary": "Blocking security findings are absent.",
+            "next_unlock": "Advisory vulnerability intelligence is clean."
+          },
+          {
+            "id": "L3",
+            "name": "Security posture clean",
+            "status_label": "Complete",
+            "description": "Scanner findings and advisory dependency intelligence are clean enough for continuous fleet posture monitoring.",
+            "capability_summary": "Security findings are clean for continuous fleet monitoring."
+          }
+        ]
+      },
+      {
+        "id": "response_header_policy",
+        "label": "Response Header Policy",
+        "description": "First-party Go API response headers and unsafe CORS policy validation.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Header policy unavailable",
+            "status_label": "Unavailable",
+            "description": "Security Health cannot inspect first-party API response header posture.",
+            "capability_summary": "Response header policy cannot be evaluated.",
+            "next_unlock": "A readable first-party API surface."
+          },
+          {
+            "id": "L1",
+            "name": "Header policy detected",
+            "status_label": "Foundation",
+            "description": "Security Health can detect whether a first-party API has a centralized response-header policy.",
+            "capability_summary": "Response header policy is visible.",
+            "next_unlock": "Baseline security headers are centralized at the API router boundary."
+          },
+          {
+            "id": "L2",
+            "name": "Baseline headers centralized",
+            "status_label": "Ready",
+            "description": "The API stamps baseline security headers in one central middleware or server boundary.",
+            "capability_summary": "Baseline response security headers are centralized.",
+            "next_unlock": "Unsafe CORS patterns are absent."
+          },
+          {
+            "id": "L3",
+            "name": "Header posture clean",
+            "status_label": "Complete",
+            "description": "Baseline security headers are centralized and credentialed wildcard CORS is absent.",
+            "capability_summary": "API response header posture is clean."
+          }
+        ]
+      }
+    ],
+    "findings": {
+      "security-health.scenario-not-found": {
+        "capability_id": "target_resolution",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "security",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ]
+      },
+      "security-health.scanner-absent": {
+        "capability_id": "scanner_coverage",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "security",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "uncheckable",
+        "recommended_skill_ids": [
+          "security"
+        ]
+      },
+      "security-health.scanner-degraded": {
+        "capability_id": "scanner_coverage",
+        "local_level_impact": "L3",
+        "global_impact": "advisory",
+        "dimension": "security",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "uncheckable",
+        "recommended_skill_ids": [
+          "scientific-debugging",
+          "security"
+        ]
+      },
+      "security-health.substrate-unsupported": {
+        "capability_id": "substrate_coverage",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "security",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "ecosystem-fit",
+          "security"
+        ]
+      },
+      "security-health.security-headers-degraded": {
+        "capability_id": "response_header_policy",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "security",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "uncheckable",
+        "recommended_skill_ids": [
+          "scientific-debugging",
+          "security"
+        ]
+      },
+      "security-health.security-headers-missing": {
+        "capability_id": "response_header_policy",
+        "local_level_impact": "L2",
+        "global_impact": "safety_blocker",
+        "dimension": "security",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "recommended_skill_ids": [
+          "security"
+        ]
+      },
+      "security-health.insecure-cors": {
+        "capability_id": "response_header_policy",
+        "local_level_impact": "L3",
+        "global_impact": "safety_blocker",
+        "dimension": "security",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Credentialed CORS needs scenario-specific origin and credential policy; a generic rewrite would be unsafe.",
+        "recommended_skill_ids": [
+          "security"
+        ]
+      },
+      "security-health.security-headers-legacy-xss": {
+        "capability_id": "response_header_policy",
+        "local_level_impact": "L3",
+        "global_impact": "advisory",
+        "dimension": "security",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "recommended_skill_ids": [
+          "security"
+        ]
+      }
+    },
+    "fallback": {
+      "capability_id": "security_findings",
+      "local_level_impact": "L2",
+      "global_impact": "safety_blocker",
+      "dimension": "security",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    }
+  }
+}

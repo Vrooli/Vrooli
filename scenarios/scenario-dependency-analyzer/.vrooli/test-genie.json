@@ -1,0 +1,639 @@
+{
+  "schemaVersion": "1.0.0",
+  "scenario": "scenario-dependency-analyzer",
+  "phase": "dependencies",
+  "description": "Validates dependency readiness, governance, runtime status, release-age policy, and graph drift.",
+  "source": "validation-provider",
+  "orderHint": 6,
+  "timeout": "900s",
+  "findingSource": "dependency",
+  "validation": {
+    "contract": "scenario-validation/v1"
+  },
+  "applicability": {
+    "default": "applies"
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "required_when_applicable",
+    "providerLifecycle": "start_if_needed",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "fail"
+  },
+  "runnability": {},
+  "docs": {
+    "path": "scenarios/test-genie/docs/phases/dependencies/README.md"
+  },
+  "maturity": {
+    "version": "2.0.0",
+    "capabilities": [
+      {
+        "id": "surface_inventory",
+        "label": "Surface Inventory",
+        "description": "Dependency surface discovery and language/package-root classification.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "No dependency target",
+            "status_label": "Unavailable",
+            "description": "SDA cannot resolve a readable target scenario or dependency surface.",
+            "capability_summary": "No readable dependency target is available.",
+            "next_unlock": "A readable scenario with discoverable dependency surfaces."
+          },
+          {
+            "id": "L1",
+            "name": "Target readable",
+            "status_label": "Foundation",
+            "description": "The target scenario is readable enough for SDA to attempt dependency discovery.",
+            "capability_summary": "The scenario can be inspected for dependency surfaces.",
+            "next_unlock": "Supported dependency surfaces with language and package-root evidence."
+          },
+          {
+            "id": "L2",
+            "name": "Surfaces classified",
+            "status_label": "Ready",
+            "description": "Dependency surfaces are discovered and classified as supported or explicitly unsupported.",
+            "capability_summary": "Dependency surfaces are known and unsupported cases are explicit.",
+            "next_unlock": "Maximum surface-inventory maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Inventory clean",
+            "status_label": "Complete",
+            "description": "Surface discovery is clean enough for runtime, package, and governance checks.",
+            "capability_summary": "Dependency surface inventory is clean and ready for downstream checks."
+          }
+        ]
+      },
+      {
+        "id": "runtime_dependencies",
+        "label": "Runtime Dependencies",
+        "description": "Required resources and required scenario dependencies are declared, running, and healthy.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Runtime manifest unavailable",
+            "status_label": "Unavailable",
+            "description": "SDA cannot read the target runtime dependency manifest.",
+            "capability_summary": "Runtime dependencies cannot be evaluated.",
+            "next_unlock": "Readable service dependency manifest."
+          },
+          {
+            "id": "L1",
+            "name": "Manifest readable",
+            "status_label": "Foundation",
+            "description": "The target service manifest can be read and dependency declarations can be inspected.",
+            "capability_summary": "Runtime dependency declarations are readable.",
+            "next_unlock": "Required resources and scenarios are present in the local runtime catalog."
+          },
+          {
+            "id": "L2",
+            "name": "Dependencies present",
+            "status_label": "Basic",
+            "description": "Required resources and scenarios are present in local runtime status.",
+            "capability_summary": "Required runtime dependencies are known locally.",
+            "next_unlock": "Required resources and scenarios are running."
+          },
+          {
+            "id": "L3",
+            "name": "Dependencies running",
+            "status_label": "Ready",
+            "description": "Required resources and scenarios are running.",
+            "capability_summary": "Required runtime dependencies are running.",
+            "next_unlock": "Required resources and scenarios are healthy."
+          },
+          {
+            "id": "L4",
+            "name": "Dependencies healthy",
+            "status_label": "Complete",
+            "description": "Required runtime resources and scenario dependencies are healthy.",
+            "capability_summary": "Runtime dependencies are present, running, and healthy."
+          }
+        ]
+      },
+      {
+        "id": "package_readiness",
+        "label": "Package Readiness",
+        "description": "Package-manager command availability, version checks, Go module readiness, Node lockfile state, and local Go replace reconciliation.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Package checks unavailable",
+            "status_label": "Unavailable",
+            "description": "Required dependency toolchain commands are unavailable.",
+            "capability_summary": "Package metadata cannot be evaluated.",
+            "next_unlock": "Required package manager commands are available."
+          },
+          {
+            "id": "L1",
+            "name": "Toolchain available",
+            "status_label": "Foundation",
+            "description": "Required package manager commands can be resolved and version-checked.",
+            "capability_summary": "Dependency toolchain commands are available.",
+            "next_unlock": "Language-specific package metadata is present."
+          },
+          {
+            "id": "L2",
+            "name": "Metadata present",
+            "status_label": "Basic",
+            "description": "Go and Node dependency surfaces declare the expected package metadata files.",
+            "capability_summary": "Package metadata files are present for discovered surfaces.",
+            "next_unlock": "Lockfiles, Go replaces, and local install state are coherent."
+          },
+          {
+            "id": "L3",
+            "name": "Metadata coherent",
+            "status_label": "Ready",
+            "description": "Go module state, local replaces, Node lockfiles, and local install state are coherent.",
+            "capability_summary": "Package metadata is coherent enough for local validation and restart.",
+            "next_unlock": "Maximum package-readiness maturity."
+          },
+          {
+            "id": "L4",
+            "name": "Package ready",
+            "status_label": "Complete",
+            "description": "Package metadata and local dependency state are clean.",
+            "capability_summary": "Package readiness is clean across discovered dependency surfaces."
+          }
+        ]
+      },
+      {
+        "id": "release_age_policy",
+        "label": "Release Age Policy",
+        "description": "pnpm minimum-release-age policy and governed exceptions for JavaScript/TypeScript surfaces.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Release policy unreadable",
+            "status_label": "Unavailable",
+            "description": "SDA cannot read a required pnpm release-age policy.",
+            "capability_summary": "Release-age policy cannot be evaluated.",
+            "next_unlock": "Readable pnpm workspace release-age policy."
+          },
+          {
+            "id": "L1",
+            "name": "Policy readable",
+            "status_label": "Foundation",
+            "description": "pnpm release-age policy files are readable.",
+            "capability_summary": "Release-age policy files can be parsed.",
+            "next_unlock": "Minimum release-age gate is configured."
+          },
+          {
+            "id": "L2",
+            "name": "Minimum configured",
+            "status_label": "Basic",
+            "description": "pnpm release-age policy declares a minimum age gate.",
+            "capability_summary": "A minimum release-age gate is present.",
+            "next_unlock": "Minimum age meets Vrooli's default cooldown."
+          },
+          {
+            "id": "L3",
+            "name": "Cooldown enforced",
+            "status_label": "Ready",
+            "description": "The configured release-age minimum meets the Vrooli default cooldown.",
+            "capability_summary": "New package versions are held behind the default cooldown.",
+            "next_unlock": "Release-age exclusions are governed."
+          },
+          {
+            "id": "L4",
+            "name": "Exceptions governed",
+            "status_label": "Complete",
+            "description": "Release-age exclusions have approved governance records with rationale and review metadata.",
+            "capability_summary": "Release-age policy and exceptions are governed."
+          }
+        ]
+      },
+      {
+        "id": "dependency_governance",
+        "label": "Dependency Governance",
+        "description": "Approved dependency registry readability and observed dependency approval/denial/deprecation posture.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Registry unavailable",
+            "status_label": "Unavailable",
+            "description": "The approved dependency registry cannot be read or parsed.",
+            "capability_summary": "Dependency governance cannot be evaluated.",
+            "next_unlock": "Readable approved dependency registry."
+          },
+          {
+            "id": "L1",
+            "name": "Registry readable",
+            "status_label": "Foundation",
+            "description": "The approved dependency registry is readable and parseable.",
+            "capability_summary": "Dependency governance records are available.",
+            "next_unlock": "Observed direct dependencies are covered by governance decisions."
+          },
+          {
+            "id": "L2",
+            "name": "Observed dependencies governed",
+            "status_label": "Ready",
+            "description": "Observed direct dependencies have valid governance state: approved, constrained, denied, deprecated, or needs-review.",
+            "capability_summary": "Observed dependencies are checked against governance decisions.",
+            "next_unlock": "Maximum dependency-governance maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Governance clean",
+            "status_label": "Complete",
+            "description": "Observed dependency governance has no blocking findings.",
+            "capability_summary": "Dependency governance is clean for the target scenario."
+          }
+        ]
+      },
+      {
+        "id": "graph_accuracy",
+        "label": "Graph Accuracy",
+        "description": "Declared scenario dependencies match observed interface/import evidence.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Graph evidence unavailable",
+            "status_label": "Unavailable",
+            "description": "SDA cannot evaluate dependency graph evidence.",
+            "capability_summary": "Declared dependency graph accuracy cannot be evaluated.",
+            "next_unlock": "Import/interface evidence can be compared with service declarations."
+          },
+          {
+            "id": "L1",
+            "name": "Graph comparable",
+            "status_label": "Foundation",
+            "description": "Declared scenario dependencies can be compared with observed evidence.",
+            "capability_summary": "Declared dependencies can be checked against interface evidence.",
+            "next_unlock": "No undeclared usage or stale declarations remain."
+          },
+          {
+            "id": "L2",
+            "name": "Graph aligned",
+            "status_label": "Complete",
+            "description": "Declared scenario dependencies align with observed interface/import evidence or documented runtime-only rationale.",
+            "capability_summary": "Declared dependency graph matches observed evidence."
+          }
+        ]
+      }
+    ],
+    "findings": {
+      "dependency.surfaces.none": {
+        "capability_id": "surface_inventory",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "storage-steer",
+          "ecosystem-fit"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.surface.unsupported": {
+        "capability_id": "surface_inventory",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "clean_requirement": "advisory"
+      },
+      "dependency.surface.unsupported_language": {
+        "capability_id": "surface_inventory",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "clean_requirement": "advisory"
+      },
+      "dependency.runtime.manifest_readable": {
+        "capability_id": "runtime_dependencies",
+        "local_level_impact": "L0",
+        "global_impact": "foundation_blocker",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "cross-platform-readiness"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.runtime.resource_present": {
+        "capability_id": "runtime_dependencies",
+        "local_level_impact": "L2",
+        "global_impact": "foundation_blocker",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "storage-steer",
+          "cross-platform-readiness"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.runtime.resource_running": {
+        "capability_id": "runtime_dependencies",
+        "local_level_impact": "L3",
+        "global_impact": "foundation_blocker",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "cross-platform-readiness"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.runtime.resource_healthy": {
+        "capability_id": "runtime_dependencies",
+        "local_level_impact": "L4",
+        "global_impact": "foundation_blocker",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "cross-platform-readiness"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.runtime.scenario_running": {
+        "capability_id": "runtime_dependencies",
+        "local_level_impact": "L3",
+        "global_impact": "foundation_blocker",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "ecosystem-fit",
+          "cross-platform-readiness"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.runtime.scenario_healthy": {
+        "capability_id": "runtime_dependencies",
+        "local_level_impact": "L4",
+        "global_impact": "foundation_blocker",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "ecosystem-fit",
+          "cross-platform-readiness"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.runtime.version": {
+        "capability_id": "package_readiness",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_INFO",
+        "recommended_skill_ids": [
+          "cross-platform-readiness"
+        ],
+        "clean_requirement": "advisory"
+      },
+      "dependency.command.available": {
+        "capability_id": "package_readiness",
+        "local_level_impact": "L0",
+        "global_impact": "hardening_gap",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "cross-platform-readiness"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.go.mod_present": {
+        "capability_id": "package_readiness",
+        "local_level_impact": "L2",
+        "global_impact": "foundation_blocker",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "go",
+          "storage-steer"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.go.local_replace_resolves": {
+        "capability_id": "package_readiness",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "go",
+          "cross-platform-readiness"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.go.tidy": {
+        "capability_id": "package_readiness",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "go",
+          "test"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.go.build": {
+        "capability_id": "package_readiness",
+        "local_level_impact": "L3",
+        "global_impact": "foundation_blocker",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "go",
+          "test"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.gomod.replace.missing": {
+        "capability_id": "package_readiness",
+        "local_level_impact": "L3",
+        "global_impact": "foundation_blocker",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
+        "recommended_skill_ids": [
+          "go",
+          "cross-platform-readiness"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.node.package_json_present": {
+        "capability_id": "package_readiness",
+        "local_level_impact": "L2",
+        "global_impact": "foundation_blocker",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "cross-platform-readiness"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.node.lockfile_present": {
+        "capability_id": "package_readiness",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "test",
+          "cross-platform-readiness"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.node.single_lockfile": {
+        "capability_id": "package_readiness",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "cross-platform-readiness"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.node.install_state": {
+        "capability_id": "package_readiness",
+        "local_level_impact": "L3",
+        "global_impact": "advisory",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "cross-platform-readiness"
+        ],
+        "clean_requirement": "advisory"
+      },
+      "dependency.release_age.policy_readable": {
+        "capability_id": "release_age_policy",
+        "local_level_impact": "L0",
+        "global_impact": "hardening_gap",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "security",
+          "cross-platform-readiness"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.release_age.minimum_configured": {
+        "capability_id": "release_age_policy",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "security",
+          "cross-platform-readiness"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.release_age.minimum_value": {
+        "capability_id": "release_age_policy",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "security",
+          "cross-platform-readiness"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.release_age.exclude_governed": {
+        "capability_id": "release_age_policy",
+        "local_level_impact": "L4",
+        "global_impact": "safety_blocker",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "security",
+          "cross-platform-readiness"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.governance.registry_readable": {
+        "capability_id": "dependency_governance",
+        "local_level_impact": "L0",
+        "global_impact": "safety_blocker",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "security",
+          "ecosystem-fit"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.governance.approved_dependency": {
+        "capability_id": "dependency_governance",
+        "local_level_impact": "L2",
+        "global_impact": "safety_blocker",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "security",
+          "ecosystem-fit"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.undeclared-but-used": {
+        "capability_id": "graph_accuracy",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "dependency-accuracy",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "ecosystem-fit",
+          "architecture"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.declared-without-import-evidence": {
+        "capability_id": "graph_accuracy",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "dependency-accuracy",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "ecosystem-fit",
+          "architecture"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.graph.undeclared": {
+        "capability_id": "graph_accuracy",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "dependency-accuracy",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "ecosystem-fit",
+          "architecture"
+        ],
+        "clean_requirement": "required"
+      },
+      "dependency.graph.stale_declaration": {
+        "capability_id": "graph_accuracy",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "dependency-accuracy",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "ecosystem-fit",
+          "architecture"
+        ],
+        "clean_requirement": "required"
+      }
+    },
+    "fallback": {
+      "capability_id": "runtime_dependencies",
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    }
+  }
+}

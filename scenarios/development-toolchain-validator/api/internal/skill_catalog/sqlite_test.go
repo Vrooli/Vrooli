@@ -40,7 +40,7 @@ func TestUpsert_InsertsNewRow(t *testing.T) {
 	repo, _ := newRepo(t)
 	ctx := context.Background()
 
-	inserted, changed, err := repo.Upsert(ctx, sampleSkill("plan-skill-discovery"))
+	inserted, changed, err := repo.Upsert(ctx, sampleSkill("implementation-plan-authoring"))
 	require.NoError(t, err)
 	require.True(t, inserted, "first upsert must report insert")
 	require.True(t, changed, "first upsert must report changed")
@@ -49,10 +49,10 @@ func TestUpsert_InsertsNewRow(t *testing.T) {
 func TestUpsert_UpdatesExistingRow(t *testing.T) {
 	repo, _ := newRepo(t)
 	ctx := context.Background()
-	_, _, err := repo.Upsert(ctx, sampleSkill("plan-skill-discovery"))
+	_, _, err := repo.Upsert(ctx, sampleSkill("implementation-plan-authoring"))
 	require.NoError(t, err)
 
-	updated := sampleSkill("plan-skill-discovery")
+	updated := sampleSkill("implementation-plan-authoring")
 	updated.ContentHash = "def456"
 	inserted, changed, err := repo.Upsert(ctx, updated)
 	require.NoError(t, err)
@@ -63,10 +63,10 @@ func TestUpsert_UpdatesExistingRow(t *testing.T) {
 func TestUpsert_IdempotentReturnsUnchanged(t *testing.T) {
 	repo, _ := newRepo(t)
 	ctx := context.Background()
-	_, _, err := repo.Upsert(ctx, sampleSkill("plan-skill-discovery"))
+	_, _, err := repo.Upsert(ctx, sampleSkill("implementation-plan-authoring"))
 	require.NoError(t, err)
 
-	inserted, changed, err := repo.Upsert(ctx, sampleSkill("plan-skill-discovery"))
+	inserted, changed, err := repo.Upsert(ctx, sampleSkill("implementation-plan-authoring"))
 	require.NoError(t, err)
 	require.False(t, inserted)
 	require.False(t, changed, "repeat upsert with same fields must report unchanged")

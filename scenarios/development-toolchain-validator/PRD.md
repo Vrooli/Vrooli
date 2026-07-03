@@ -95,7 +95,7 @@
   - Does NOT host a fleet-wide scenario health dashboard (out of scope; that's a separate scenario consuming DTV's API)
   - Does NOT enforce a deploy gate (out of scope; results are advisory until enough data exists to define meaningful thresholds)
   - Does NOT maintain committed golden source trees; normal validation materializes pristine template output into managed generated paths
-  - Does NOT execute non-steer skills (workflow skills like `plan-skill-discovery`, `idea-workshop`, `deployment-coordinator` are out of scope — validation is for skills that operate on scenario shape)
+  - Does NOT execute non-steer skills (workflow skills like `implementation-plan-authoring`, `idea-workshop`, `deployment-coordinator` are out of scope — validation is for skills that operate on scenario shape)
   - Does NOT manage skills, templates, or scenarios — it observes them
 
 ## 🤝 Dependencies & Launch Plan

@@ -78,7 +78,7 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 500, Code: "internal", Description: "Repository write failure"},
 		},
 		Examples: []module.Example{
-			{Name: "Start skill run", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.validation_run.ValidationRunService/Start -H 'Content-Type: application/json' -d '{\"tuple_kind\":1,\"subject_id\":\"plan-skill-discovery\",\"golden_slug\":\"reference-react-vite\"}'"},
+			{Name: "Start skill run", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.validation_run.ValidationRunService/Start -H 'Content-Type: application/json' -d '{\"tuple_kind\":1,\"subject_id\":\"implementation-plan-authoring\",\"golden_slug\":\"reference-react-vite\"}'"},
 		},
 	},
 	{

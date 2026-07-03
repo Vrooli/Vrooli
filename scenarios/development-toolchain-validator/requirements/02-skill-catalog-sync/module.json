@@ -9,7 +9,7 @@
       "id": "REQ-P0-003",
       "prd_ref": "OT-P0-002",
       "title": "prompt-manager API client",
-      "description": "Read-only client (Connect-RPC if exposed, otherwise CLI shell-out) that lists steer skills with version + content hash. Filters out non-steer skills (workflow skills like plan-skill-discovery, idea-workshop, deployment-coordinator, skill-authoring).",
+      "description": "Read-only client (Connect-RPC if exposed, otherwise CLI shell-out) that lists steer skills with version + content hash. Filters out non-steer skills (workflow skills like implementation-plan-authoring, idea-workshop, deployment-coordinator, skill-authoring).",
       "category": "integration",
       "status": "done",
       "validation": [

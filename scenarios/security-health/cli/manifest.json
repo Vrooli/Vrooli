@@ -23,6 +23,46 @@
       ]
     },
     {
+      "name": "fix",
+      "description": "Preview or apply deterministic security posture fixes",
+      "commands": [
+        {
+          "name": "preview",
+          "description": "Preview safe deterministic security fixes without writing files",
+          "positionals": [
+            { "name": "scenario", "required": true, "description": "Scenario id (directory name under scenarios/)" }
+          ],
+          "flags": [
+            { "name": "rule", "description": "Restrict fixes to a rule id; repeat or comma-separate values" },
+            { "name": "json", "bool": true, "description": "Emit JSON output" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "PreviewFix" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": ["filesystem:read", "network:internal"]
+          }
+        },
+        {
+          "name": "apply",
+          "description": "Apply safe deterministic security fixes",
+          "positionals": [
+            { "name": "scenario", "required": true, "description": "Scenario id (directory name under scenarios/)" }
+          ],
+          "flags": [
+            { "name": "rule", "description": "Restrict fixes to a rule id; repeat or comma-separate values" },
+            { "name": "json", "bool": true, "description": "Emit JSON output" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "ApplyFix" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["filesystem:read", "filesystem:write", "network:internal"]
+          }
+        }
+      ]
+    },
+    {
       "name": "deps",
       "description": "Query the fleet dependency & vulnerability intelligence index",
       "commands": [

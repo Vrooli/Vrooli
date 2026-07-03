@@ -34,7 +34,7 @@ func TestStart_QueuesRun(t *testing.T) {
 	svc, repo, clk := newSvc(t)
 	r, err := svc.Start(context.Background(), vrun.StartInput{
 		TupleKind:  vr.TupleKindSkill,
-		SubjectID:  "plan-skill-discovery",
+		SubjectID:  "implementation-plan-authoring",
 		GoldenSlug: "reference-react-vite",
 	})
 	require.NoError(t, err)

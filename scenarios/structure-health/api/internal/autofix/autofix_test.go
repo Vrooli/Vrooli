@@ -88,6 +88,30 @@ const serviceJSONBandBinaryServe = `{
 }
 `
 
+const serviceJSONMalformedHealth = `{
+  "service": {
+    "name": "demo"
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999"
+    }
+  },
+  "lifecycle": {
+    "health": {
+      "checks": [
+        {
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/api/v1/health",
+          "critical": false
+        }
+      ]
+    }
+  }
+}
+`
+
 func writeScenario(t *testing.T, body string) string {
 	t.Helper()
 	root := t.TempDir()
@@ -213,6 +237,29 @@ func TestApplyRuleFilterScopesEdits(t *testing.T) {
 	raw, _ := os.ReadFile(filepath.Join(root, ".vrooli", "service.json"))
 	if strings.Contains(string(raw), `"type": "http"`) {
 		t.Fatalf("health check applied despite rule filter")
+	}
+}
+
+// [REQ:SH-FIX-003]
+func TestApplyNormalizesMalformedHealthCheck(t *testing.T) {
+	root := writeScenario(t, serviceJSONMalformedHealth)
+	applied, err := Apply(root, []string{RuleHealthCheckMalformed})
+	if err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if len(applied) != 1 || applied[0].RuleID != RuleHealthCheckMalformed {
+		t.Fatalf("expected malformed-health candidate, got %+v", applied)
+	}
+	raw, _ := os.ReadFile(filepath.Join(root, ".vrooli", "service.json"))
+	out := string(raw)
+	for _, want := range []string{
+		`"name": "api_endpoint"`,
+		`"target": "http://localhost:${API_PORT}/health"`,
+		`"critical": true`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("health fix missing %q:\n%s", want, out)
+		}
 	}
 }
 
@@ -350,7 +397,7 @@ func TestPortBandFilterLeavesDevelopStepsUntouched(t *testing.T) {
 
 // [REQ:SH-FIX-003]
 func TestFixClassFor(t *testing.T) {
-	for _, code := range []string{RuleServiceNameMismatch, RuleHealthCheckMissing, RuleFreshnessMissing, RuleSurfaceDirMissing, RuleRequiredFileMissing, RulePortBand, RuleAPIBinaryName, RuleProductionServe} {
+	for _, code := range []string{RuleServiceNameMismatch, RuleHealthCheckMissing, RuleHealthCheckMalformed, RuleFreshnessMissing, RuleSurfaceDirMissing, RuleRequiredFileMissing, RulePortBand, RuleAPIBinaryName, RuleProductionServe} {
 		if !FixClassFor(code).Autofixable() {
 			t.Fatalf("%s should be autofixable", code)
 		}

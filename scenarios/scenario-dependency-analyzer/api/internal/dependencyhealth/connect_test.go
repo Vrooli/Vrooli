@@ -68,6 +68,12 @@ func (r routedCommandRunner) Run(_ context.Context, _ string, name string, args 
 	return "", errors.New("unexpected command: " + key)
 }
 
+type commandRunnerFunc func(context.Context, string, string, ...string) (string, error)
+
+func (f commandRunnerFunc) Run(ctx context.Context, dir string, name string, args ...string) (string, error) {
+	return f(ctx, dir, name, args...)
+}
+
 type fakeRuntimeStatusFetcher struct {
 	resources     *cliv1.ResourceStatusesResponse
 	resourceErr   error
@@ -617,6 +623,44 @@ func TestReadinessUsesParseUnitPackageRoots(t *testing.T) {
 	}
 }
 
+func TestReadinessReportsGoBuildFailure(t *testing.T) {
+	tmp := t.TempDir()
+	apiRoot := filepath.Join(tmp, "api")
+	if err := mkdirAll(apiRoot); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(apiRoot, "go.mod"), "module example.com/api\n")
+
+	runner := commandRunnerFunc(func(_ context.Context, _ string, name string, args ...string) (string, error) {
+		key := strings.Join(append([]string{name}, args...), " ")
+		switch key {
+		case "go mod tidy -diff":
+			return "", nil
+		case "go build ./...":
+			return "missing go.sum entry for module", errors.New("exit status 1")
+		default:
+			return "go version go1.25.0 linux/amd64", nil
+		}
+	})
+	handler := &connectHandler{
+		commandLookup: func(name string) (string, error) {
+			return "/usr/bin/" + name, nil
+		},
+		commandRunner: runner,
+	}
+
+	findings, _ := handler.checkReadiness(context.Background(), "fixture", []*healthv1.DependencyHealthSurface{
+		{Id: "api", Language: "go", RootPath: apiRoot},
+	})
+
+	if !containsFinding(findings, "readiness.go-api-build") {
+		t.Fatalf("go build finding missing: %v", findingIDs(findings, ""))
+	}
+	if statusFromFindings(findings, "readiness") != "fail" {
+		t.Fatalf("status = %s, want fail", statusFromFindings(findings, "readiness"))
+	}
+}
+
 func TestReadinessReportsUnsupportedSurfaceAndMissingCommand(t *testing.T) {
 	handler := &connectHandler{
 		commandLookup: func(name string) (string, error) {
@@ -711,6 +755,7 @@ func emittedDependencyHealthRuleIDs() []string {
 		"dependency.go.mod_present",
 		"dependency.go.local_replace_resolves",
 		"dependency.go.tidy",
+		"dependency.go.build",
 		"dependency.gomod.replace.missing",
 		"dependency.node.package_json_present",
 		"dependency.node.lockfile_present",
@@ -749,13 +794,9 @@ func writeFile(t *testing.T, path, content string) {
 
 func testMaturitySpec(t *testing.T) *assessment.Spec {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("..", "..", "..", ".vrooli", "maturity.json"))
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join("..", "..", ".."))
 	if err != nil {
-		t.Fatalf("read maturity spec: %v", err)
-	}
-	spec, err := assessment.ParseSpec(raw)
-	if err != nil {
-		t.Fatalf("parse maturity spec: %v", err)
+		t.Fatalf("load descriptor maturity: %v", err)
 	}
 	return spec
 }

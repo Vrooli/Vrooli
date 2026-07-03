@@ -85,7 +85,7 @@ func sampleProto(id string) *skillcatalogv1.Skill {
 
 func TestSync_ReportsCounts(t *testing.T) {
 	svc := &fakeService{syncResp: &skillcatalogv1.SyncResponse{
-		Skills: []*skillcatalogv1.Skill{sampleProto("plan-skill-discovery")},
+		Skills: []*skillcatalogv1.Skill{sampleProto("implementation-plan-authoring")},
 		Added:  1, Updated: 0, Removed: 0,
 	}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
@@ -121,15 +121,15 @@ func TestList_RendersResults(t *testing.T) {
 }
 
 func TestGet_PassesID(t *testing.T) {
-	svc := &fakeService{getResp: &skillcatalogv1.GetSkillResponse{Skill: sampleProto("plan-skill-discovery")}}
+	svc := &fakeService{getResp: &skillcatalogv1.GetSkillResponse{Skill: sampleProto("implementation-plan-authoring")}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "id", Required: true}},
-	}, cliapptest.TestRunContextOptions{Positionals: map[string]string{"id": "plan-skill-discovery"}})
+	}, cliapptest.TestRunContextOptions{Positionals: map[string]string{"id": "implementation-plan-authoring"}})
 	require.NoError(t, h.get(ctx))
-	require.Equal(t, []string{"plan-skill-discovery"}, svc.getIDs)
-	require.Contains(t, out.String(), "Fetched skill plan-skill-discovery.")
+	require.Equal(t, []string{"implementation-plan-authoring"}, svc.getIDs)
+	require.Contains(t, out.String(), "Fetched skill implementation-plan-authoring.")
 }
 
 func TestGet_SurfacesNotFound(t *testing.T) {

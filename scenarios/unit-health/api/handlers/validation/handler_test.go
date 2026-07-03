@@ -50,13 +50,9 @@ func goSurfaceInventory(t *testing.T) discovery.Inventory {
 
 func testSpec(t *testing.T) *assessment.Spec {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("..", "..", "..", ".vrooli", "maturity.json"))
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join("..", "..", ".."))
 	if err != nil {
-		t.Fatalf("read maturity.json: %v", err)
-	}
-	spec, err := assessment.ParseSpec(raw)
-	if err != nil {
-		t.Fatalf("parse spec: %v", err)
+		t.Fatalf("load descriptor maturity: %v", err)
 	}
 	return spec
 }
@@ -291,8 +287,8 @@ func TestPreviewFixReportsDeterministicCandidatesWithoutWriting(t *testing.T) {
 	if resp.Msg.GetApplied() {
 		t.Fatal("preview must not mark response applied")
 	}
-	if len(resp.Msg.GetCandidates()) != 3 {
-		t.Fatalf("candidate count = %d, want 3: %+v", len(resp.Msg.GetCandidates()), resp.Msg.GetCandidates())
+	if len(resp.Msg.GetCandidates()) != 6 {
+		t.Fatalf("candidate count = %d, want 6: %+v", len(resp.Msg.GetCandidates()), resp.Msg.GetCandidates())
 	}
 	vitePath := filepath.Join(root, "ui", "vite.config.ts")
 	got, err := os.ReadFile(vitePath)
@@ -319,8 +315,8 @@ func TestApplyFixWritesDeterministicCandidates(t *testing.T) {
 	if !resp.Msg.GetApplied() {
 		t.Fatal("apply must mark response applied")
 	}
-	if len(resp.Msg.GetCandidates()) != 2 {
-		t.Fatalf("candidate count = %d, want 2", len(resp.Msg.GetCandidates()))
+	if len(resp.Msg.GetCandidates()) != 5 {
+		t.Fatalf("candidate count = %d, want 5", len(resp.Msg.GetCandidates()))
 	}
 	for _, c := range resp.Msg.GetCandidates() {
 		if !c.GetApplied() {
@@ -331,7 +327,11 @@ func TestApplyFixWritesDeterministicCandidates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(vite), "setupFiles: ['./src/test-setup.ts']") || !strings.Contains(string(vite), "branches: 85") {
+	if !strings.Contains(string(vite), "setupFiles: ['./src/test-setup.ts']") ||
+		!strings.Contains(string(vite), "branches: 85") ||
+		!strings.Contains(string(vite), "reportOnFailure: true") ||
+		!strings.Contains(string(vite), "include: ['src/**/*.{ts,tsx}']") ||
+		!strings.Contains(string(vite), "'src/test-utils/**'") {
 		t.Fatalf("vite config not repaired:\n%s", vite)
 	}
 	pkg, err := os.ReadFile(filepath.Join(root, "ui", "package.json"))
@@ -340,6 +340,20 @@ func TestApplyFixWritesDeterministicCandidates(t *testing.T) {
 	}
 	if !strings.Contains(string(pkg), `"test": "vitest run"`) || !strings.Contains(string(pkg), `"test:coverage": "vitest run --coverage"`) {
 		t.Fatalf("package scripts not repaired:\n%s", pkg)
+	}
+	renderHelper, err := os.ReadFile(filepath.Join(root, "ui", "src", "test-utils", "renderWithProviders.tsx"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(renderHelper), "renderWithProviders") {
+		t.Fatalf("render helper not repaired:\n%s", renderHelper)
+	}
+	eslint, err := os.ReadFile(filepath.Join(root, "ui", "eslint.config.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(eslint), "no-restricted-imports") || !strings.Contains(string(eslint), "@/features/*/mocks/*") {
+		t.Fatalf("eslint import ban not repaired:\n%s", eslint)
 	}
 }
 
@@ -466,6 +480,9 @@ func TestApplyFixRepairsVitestProjectionFieldsFromPolicy(t *testing.T) {
 		"setupFiles: ['./src/test-setup.ts']",
 		"provider: 'v8'",
 		"reporter: ['text', 'json-summary', 'json']",
+		"reportOnFailure: true",
+		"include: ['src/**/*.{ts,tsx}']",
+		"'src/test-utils/**'",
 		"lines: 88",
 		"functions: 88",
 		"branches: 88",
@@ -474,6 +491,33 @@ func TestApplyFixRepairsVitestProjectionFieldsFromPolicy(t *testing.T) {
 		if !strings.Contains(viteText, want) {
 			t.Fatalf("vite config missing %q after repair:\n%s", want, viteText)
 		}
+	}
+}
+
+func TestApplyFixDoesNotTreatCommentedImportBanAsRepaired(t *testing.T) {
+	root := seedFixTarget(t)
+	writeHandlerFile(t, filepath.Join(root, "ui", "eslint.config.js"), `export default [{
+  rules: {
+    // "no-restricted-imports" "@/test-utils/*" "@/features/*/mocks/*"
+  },
+}];
+`)
+	h := NewSharedHandler(NewHandlerWithDeps(Deps{MaturitySpec: testSpec(t)}))
+
+	_, err := h.ApplyFix(context.Background(), connect.NewRequest(&scenariovalidationv1.FixRequest{
+		Scenario: "demo",
+		Path:     root,
+		RuleIds:  []string{"UNIT_POLICY_PROJECTION_DRIFT"},
+	}))
+	if err != nil {
+		t.Fatalf("ApplyFix: %v", err)
+	}
+	eslint, err := os.ReadFile(filepath.Join(root, "ui", "eslint.config.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(eslint), `"no-restricted-imports": ["error"`) {
+		t.Fatalf("commented import ban was not repaired:\n%s", eslint)
 	}
 }
 

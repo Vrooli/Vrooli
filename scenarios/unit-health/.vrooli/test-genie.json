@@ -1,0 +1,586 @@
+{
+  "schemaVersion": "1.0.0",
+  "scenario": "unit-health",
+  "phase": "unit",
+  "description": "Validates test execution, coverage, architecture, quality, and runtime diagnostics through unit-health.",
+  "source": "validation-provider",
+  "orderHint": 10,
+  "timeout": "900s",
+  "findingSource": "coverage",
+  "validation": {
+    "contract": "scenario-validation/v1",
+    "includeExecution": true
+  },
+  "applicability": {
+    "default": "applies"
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "required_when_applicable",
+    "providerLifecycle": "start_if_needed",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "fail"
+  },
+  "runnability": {},
+  "docs": {
+    "path": "scenarios/test-genie/docs/phases/unit/README.md"
+  },
+  "maturity": {
+    "version": "2.0.0",
+    "findings": {
+      "TEST_SURFACE_ABSENT": {
+        "local_level_impact": "L0",
+        "global_impact": "foundation_blocker",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "test",
+          "unit-testing-architecture-steer"
+        ],
+        "capability_id": "surface_discovery",
+        "clean_requirement": "required"
+      },
+      "UNSUPPORTED_PARSE_UNIT": {
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_INFO",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "capability_id": "surface_discovery",
+        "clean_requirement": "advisory"
+      },
+      "TEST_EXECUTION_FAILURE": {
+        "local_level_impact": "L2",
+        "global_impact": "foundation_blocker",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "test",
+          "scientific-debugging"
+        ],
+        "capability_id": "execution_readiness",
+        "clean_requirement": "required"
+      },
+      "TEST_DEPENDENCY_MISSING": {
+        "local_level_impact": "L0",
+        "global_impact": "foundation_blocker",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "capability_id": "execution_readiness",
+        "clean_requirement": "required"
+      },
+      "TEST_TIMEOUT_HANG": {
+        "local_level_impact": "L2",
+        "global_impact": "safety_blocker",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "test",
+          "scientific-debugging"
+        ],
+        "capability_id": "execution_readiness",
+        "clean_requirement": "required"
+      },
+      "UNIT_POLICY_PROFILE_INVALID": {
+        "local_level_impact": "L0",
+        "global_impact": "foundation_blocker",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "test",
+          "unit-testing-architecture-steer"
+        ],
+        "capability_id": "framework_config",
+        "clean_requirement": "required"
+      },
+      "UNIT_REQUIRED_ROLE_MISSING": {
+        "local_level_impact": "L0",
+        "global_impact": "foundation_blocker",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "test",
+          "unit-testing-architecture-steer"
+        ],
+        "capability_id": "surface_discovery",
+        "clean_requirement": "required"
+      },
+      "UNIT_SURFACE_UNGOVERNED": {
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "test",
+          "unit-testing-architecture-steer"
+        ],
+        "capability_id": "surface_discovery",
+        "clean_requirement": "required"
+      },
+      "UNIT_POLICY_WEAKENED": {
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "coverage",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "test",
+          "unit-testing-architecture-steer"
+        ],
+        "capability_id": "framework_config",
+        "clean_requirement": "required"
+      },
+      "UNIT_POLICY_WAIVER_INVALID": {
+        "local_level_impact": "L1",
+        "global_impact": "hardening_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "test",
+          "unit-testing-architecture-steer"
+        ],
+        "capability_id": "framework_config",
+        "clean_requirement": "required"
+      },
+      "UNIT_POLICY_PROJECTION_DRIFT": {
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "test",
+          "unit-testing-architecture-steer"
+        ],
+        "capability_id": "framework_config",
+        "clean_requirement": "required"
+      },
+      "TEST_FRAMEWORK_MISSING": {
+        "local_level_impact": "L0",
+        "global_impact": "foundation_blocker",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "test",
+          "unit-testing-architecture-steer"
+        ],
+        "capability_id": "framework_config",
+        "clean_requirement": "required"
+      },
+      "TEST_FRAMEWORK_NONCANONICAL": {
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "test",
+          "unit-testing-architecture-steer"
+        ],
+        "capability_id": "framework_config",
+        "clean_requirement": "required"
+      },
+      "COVERAGE_CONFIG_MISSING": {
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "coverage",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "capability_id": "framework_config",
+        "clean_requirement": "required"
+      },
+      "PACKAGE_MANAGER_MISMATCH": {
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "capability_id": "framework_config",
+        "clean_requirement": "required"
+      },
+      "TEST_MISCONFIGURATION": {
+        "local_level_impact": "L1",
+        "global_impact": "hardening_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "capability_id": "execution_readiness",
+        "clean_requirement": "required"
+      },
+      "TEST_NOT_COLOCATED": {
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "unit-testing-architecture-steer"
+        ],
+        "capability_id": "test_architecture",
+        "clean_requirement": "required"
+      },
+      "TEST_UTIL_MISSING": {
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "unit-testing-architecture-steer"
+        ],
+        "capability_id": "test_architecture",
+        "clean_requirement": "required"
+      },
+      "TEST_HELPER_FROM_PRODUCTION": {
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "unit-testing-architecture-steer"
+        ],
+        "capability_id": "test_architecture",
+        "clean_requirement": "required"
+      },
+      "MISSING_INJECTABLE_SEAM": {
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "unit-testing-architecture-steer",
+          "seam-discovery-and-enforcement"
+        ],
+        "capability_id": "test_architecture",
+        "clean_requirement": "required"
+      },
+      "LOW_COVERAGE": {
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "coverage",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "capability_id": "coverage_quality",
+        "clean_requirement": "advisory"
+      },
+      "COVERAGE_ABSENT": {
+        "local_level_impact": "L0",
+        "global_impact": "advisory",
+        "dimension": "coverage",
+        "severity_default": "SEVERITY_INFO",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "capability_id": "coverage_quality",
+        "clean_requirement": "advisory"
+      },
+      "TEST_SKIPPED_OR_ONLY": {
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "capability_id": "coverage_quality",
+        "clean_requirement": "advisory"
+      },
+      "TEST_NO_ASSERTION": {
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "capability_id": "coverage_quality",
+        "clean_requirement": "advisory"
+      },
+      "TEST_RENDER_ONLY": {
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "test",
+          "unit-testing-architecture-steer"
+        ],
+        "capability_id": "coverage_quality",
+        "clean_requirement": "advisory"
+      },
+      "TEST_EXCESSIVE_SNAPSHOTS": {
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_INFO",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "capability_id": "coverage_quality",
+        "clean_requirement": "advisory"
+      },
+      "TEST_MISSING_EDGE_CASES": {
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "test",
+          "unit-testing-architecture-steer"
+        ],
+        "capability_id": "coverage_quality",
+        "clean_requirement": "advisory"
+      },
+      "TEST_FLAKE_SUSPECTED": {
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "test",
+          "scientific-debugging"
+        ],
+        "capability_id": "stability_traceability",
+        "clean_requirement": "advisory"
+      },
+      "TEST_RUNTIME_GROWTH": {
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_INFO",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "capability_id": "stability_traceability",
+        "clean_requirement": "advisory"
+      },
+      "TEST_UNTAGGED_REQUIREMENT": {
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "test",
+          "requirements-traceability-steer"
+        ],
+        "capability_id": "stability_traceability",
+        "clean_requirement": "advisory"
+      }
+    },
+    "fallback": {
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_WARNING",
+      "capability_id": "execution_readiness",
+      "clean_requirement": "advisory"
+    },
+    "capabilities": [
+      {
+        "id": "surface_discovery",
+        "label": "Surface Discovery",
+        "description": "Readable target discovery, workspace detection, and supported parse-unit classification.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "No reliable test surface",
+            "status_label": "Unavailable",
+            "description": "The target scenario cannot be resolved or has no discoverable test surface.",
+            "capability_summary": "No reliable test surface is available.",
+            "next_unlock": "At least one testable workspace is discoverable."
+          },
+          {
+            "id": "L1",
+            "name": "Test surfaces discovered",
+            "status_label": "Ready",
+            "description": "Unit Health can enumerate testable workspaces and explicitly report unsupported parse units.",
+            "capability_summary": "Test surfaces are known and unsupported parse units are explicit.",
+            "next_unlock": "Maximum surface-discovery maturity."
+          },
+          {
+            "id": "L2",
+            "name": "Discovery clean",
+            "status_label": "Complete",
+            "description": "Test surface discovery is clean enough for framework and execution checks.",
+            "capability_summary": "Test surface discovery is clean."
+          }
+        ]
+      },
+      {
+        "id": "execution_readiness",
+        "label": "Execution Readiness",
+        "description": "Dependency installation, test command execution, timeout detection, and execution misconfiguration.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Execution unavailable",
+            "status_label": "Unavailable",
+            "description": "Required test dependencies or commands cannot be prepared.",
+            "capability_summary": "Tests cannot be executed reliably.",
+            "next_unlock": "Required test dependencies and commands are available."
+          },
+          {
+            "id": "L1",
+            "name": "Commands runnable",
+            "status_label": "Foundation",
+            "description": "Planned test commands can start without dependency or configuration blockers.",
+            "capability_summary": "Test commands are runnable.",
+            "next_unlock": "Commands complete without failures or hangs."
+          },
+          {
+            "id": "L2",
+            "name": "Execution clean",
+            "status_label": "Complete",
+            "description": "Test commands complete without execution failures, hangs, or execution misconfiguration.",
+            "capability_summary": "Test execution is clean."
+          }
+        ]
+      },
+      {
+        "id": "framework_config",
+        "label": "Framework Config",
+        "description": "Canonical test frameworks, coverage-capable configuration, package manager alignment, and local test misconfiguration.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Framework missing",
+            "status_label": "Unavailable",
+            "description": "A testable workspace lacks a recognized test framework.",
+            "capability_summary": "Framework configuration is missing.",
+            "next_unlock": "A supported test framework is configured."
+          },
+          {
+            "id": "L1",
+            "name": "Framework configured",
+            "status_label": "Foundation",
+            "description": "A supported framework is present for each workspace.",
+            "capability_summary": "Test frameworks are configured.",
+            "next_unlock": "Frameworks are canonical and coverage-capable."
+          },
+          {
+            "id": "L2",
+            "name": "Canonical and coverage-capable",
+            "status_label": "Ready",
+            "description": "Workspaces use canonical Vrooli frameworks with coverage-capable configuration.",
+            "capability_summary": "Framework and coverage configuration is coherent.",
+            "next_unlock": "Package manager and local test configuration are aligned."
+          },
+          {
+            "id": "L3",
+            "name": "Framework config clean",
+            "status_label": "Complete",
+            "description": "Framework, package manager, coverage config, and local test configuration are clean.",
+            "capability_summary": "Framework configuration is clean."
+          }
+        ]
+      },
+      {
+        "id": "test_architecture",
+        "label": "Test Architecture",
+        "description": "Co-location, shared test utilities, production/test helper boundaries, and injectable seam coverage.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Architecture contracts unavailable",
+            "status_label": "Unavailable",
+            "description": "Test architecture conventions cannot be evaluated.",
+            "capability_summary": "Test architecture posture is unavailable.",
+            "next_unlock": "Test files and helper boundaries can be scanned."
+          },
+          {
+            "id": "L1",
+            "name": "Architecture comparable",
+            "status_label": "Foundation",
+            "description": "Test files, helpers, and production seams can be evaluated.",
+            "capability_summary": "Test architecture can be compared with policy.",
+            "next_unlock": "Test co-location and shared utilities are aligned."
+          },
+          {
+            "id": "L2",
+            "name": "Layout aligned",
+            "status_label": "Ready",
+            "description": "Tests are co-located and shared test utilities are present.",
+            "capability_summary": "Test layout and utilities are aligned.",
+            "next_unlock": "Production helper boundaries and injectable seams are clean."
+          },
+          {
+            "id": "L3",
+            "name": "Architecture clean",
+            "status_label": "Complete",
+            "description": "Tests avoid production helper leakage and exercise injectable seams.",
+            "capability_summary": "Test architecture is clean."
+          }
+        ]
+      },
+      {
+        "id": "coverage_quality",
+        "label": "Coverage Quality",
+        "description": "Coverage artifacts, per-file coverage, assertion strength, skipped tests, render-only tests, snapshot volume, and edge-case depth.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Coverage unavailable",
+            "status_label": "Unavailable",
+            "description": "Coverage artifacts are absent or unavailable.",
+            "capability_summary": "Coverage depth cannot be evaluated.",
+            "next_unlock": "Coverage artifacts are produced."
+          },
+          {
+            "id": "L1",
+            "name": "Coverage measured",
+            "status_label": "Measured",
+            "description": "Coverage artifacts are available and per-file thresholds can be evaluated.",
+            "capability_summary": "Coverage is measured.",
+            "next_unlock": "Coverage and assertion-quality findings are addressed."
+          },
+          {
+            "id": "L2",
+            "name": "Quality depth clean",
+            "status_label": "Complete",
+            "description": "Coverage, assertion strength, skipped/only tests, render-only tests, snapshot volume, and edge-case depth are clean.",
+            "capability_summary": "Coverage and test-quality depth are clean."
+          }
+        ]
+      },
+      {
+        "id": "stability_traceability",
+        "label": "Stability Traceability",
+        "description": "Cross-run flake suspicion, runtime-growth drift, and requirement linkage.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "History unavailable",
+            "status_label": "Unavailable",
+            "description": "Run history or requirement linkage cannot be evaluated.",
+            "capability_summary": "Stability and traceability cannot be fully evaluated.",
+            "next_unlock": "Run history and requirement references are available."
+          },
+          {
+            "id": "L1",
+            "name": "History measured",
+            "status_label": "Measured",
+            "description": "Run history and requirement linkage can be evaluated.",
+            "capability_summary": "Stability and traceability are measured.",
+            "next_unlock": "Flake, runtime-growth, and requirement-linkage findings are addressed."
+          },
+          {
+            "id": "L2",
+            "name": "Stable and linked",
+            "status_label": "Complete",
+            "description": "No flake suspicion, runtime-growth drift, or missing requirement linkage remains.",
+            "capability_summary": "Test stability and requirement traceability are clean."
+          }
+        ]
+      }
+    ]
+  }
+}

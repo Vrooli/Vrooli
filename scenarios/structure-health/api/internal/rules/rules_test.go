@@ -27,6 +27,30 @@ func conformantRoot(t *testing.T) string {
 			t.Fatal(err)
 		}
 	}
+	mustWrite(t, filepath.Join(root, "api", "main.go"), `package main
+
+import (
+	"log"
+	"net/http"
+
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/preflight"
+	apiserver "github.com/vrooli/api-core/server"
+)
+
+func main() {
+	if preflight.Run(preflight.Config{ScenarioName: "demo"}) {
+		return
+	}
+	r := mux.NewRouter()
+	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}).Methods(http.MethodGet)
+	if err := apiserver.Run(apiserver.Config{Handler: r}); err != nil {
+		log.Fatal(err)
+	}
+}
+`)
 	mustWrite(t, filepath.Join(root, ".vrooli", "service.json"), "{}")
 	return root
 }
@@ -40,7 +64,7 @@ func conformantIntent() intent.Intent {
 			"ui":  {EnvVar: "UI_PORT", Range: "20000-24999"},
 		},
 		Lifecycle: intent.Lifecycle{
-			Health: intent.Health{Checks: []intent.HealthCheck{{Type: "http", Critical: true}}},
+			Health: intent.Health{Checks: []intent.HealthCheck{{Type: "http", Target: "http://localhost:${API_PORT}/health", Critical: true}}},
 			Setup: intent.Phase{
 				Steps: []intent.Step{{Name: "build-api", Run: "cd api && go build ."}, {Name: "build-ui", Run: "cd ui && pnpm build"}},
 				Condition: &intent.Condition{Checks: []intent.FreshCheck{
@@ -135,6 +159,139 @@ func TestMissingHealthCheck(t *testing.T) {
 	got := evalAt(root, in, fullProfile())
 	if codes(got)["HEALTH_CHECK_MISSING"] == 0 {
 		t.Fatalf("expected HEALTH_CHECK_MISSING, got %+v", got)
+	}
+}
+
+// [REQ:SH-RULE-003]
+func TestMalformedHealthCheckTarget(t *testing.T) {
+	root := conformantRoot(t)
+	in := conformantIntent()
+	in.Lifecycle.Health.Checks = []intent.HealthCheck{{Type: "http", Target: "http://localhost:${API_PORT}/api/v1/health", Critical: true}}
+	got := evalAt(root, in, fullProfile())
+	if codes(got)[CodeHealthCheckMalformed] == 0 {
+		t.Fatalf("expected %s, got %+v", CodeHealthCheckMalformed, got)
+	}
+}
+
+// [REQ:SH-RULE-003]
+func TestMissingRootHealthEndpoint(t *testing.T) {
+	root := conformantRoot(t)
+	mustWrite(t, filepath.Join(root, "api", "main.go"), `package main
+
+import (
+	"log"
+	"net/http"
+
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/preflight"
+	apiserver "github.com/vrooli/api-core/server"
+)
+
+func main() {
+	if preflight.Run(preflight.Config{ScenarioName: "demo"}) {
+		return
+	}
+	r := mux.NewRouter()
+	api := r.PathPrefix("/api").Subrouter()
+	api.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}).Methods(http.MethodGet)
+	if err := apiserver.Run(apiserver.Config{Handler: r}); err != nil {
+		log.Fatal(err)
+	}
+}
+`)
+	got := evalAt(root, conformantIntent(), fullProfile())
+	if codes(got)[CodeHealthEndpointMissing] == 0 {
+		t.Fatalf("expected %s, got %+v", CodeHealthEndpointMissing, got)
+	}
+}
+
+// [REQ:SH-RULE-003]
+func TestMissingAPIPreflight(t *testing.T) {
+	root := conformantRoot(t)
+	mustWrite(t, filepath.Join(root, "api", "main.go"), `package main
+
+import (
+	"log"
+	"net/http"
+
+	"github.com/gorilla/mux"
+	apiserver "github.com/vrooli/api-core/server"
+)
+
+func main() {
+	r := mux.NewRouter()
+	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}).Methods(http.MethodGet)
+	if err := apiserver.Run(apiserver.Config{Handler: r}); err != nil {
+		log.Fatal(err)
+	}
+}
+`)
+	got := evalAt(root, conformantIntent(), fullProfile())
+	if codes(got)[CodeAPIPreflightMissing] == 0 {
+		t.Fatalf("expected %s, got %+v", CodeAPIPreflightMissing, got)
+	}
+}
+
+// [REQ:SH-RULE-003]
+func TestMalformedAPIPreflight(t *testing.T) {
+	root := conformantRoot(t)
+	mustWrite(t, filepath.Join(root, "api", "main.go"), `package main
+
+import (
+	"log"
+	"net/http"
+
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/preflight"
+	apiserver "github.com/vrooli/api-core/server"
+)
+
+func main() {
+	preflight.Run(preflight.Config{ScenarioName: "demo"})
+	r := mux.NewRouter()
+	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}).Methods(http.MethodGet)
+	if err := apiserver.Run(apiserver.Config{Handler: r}); err != nil {
+		log.Fatal(err)
+	}
+}
+`)
+	got := evalAt(root, conformantIntent(), fullProfile())
+	if codes(got)[CodeAPIPreflightMalformed] == 0 {
+		t.Fatalf("expected %s, got %+v", CodeAPIPreflightMalformed, got)
+	}
+}
+
+// [REQ:SH-RULE-004]
+func TestAPIServerRunNonconformant(t *testing.T) {
+	root := conformantRoot(t)
+	mustWrite(t, filepath.Join(root, "api", "main.go"), `package main
+
+import (
+	"log"
+	"net/http"
+
+	"github.com/vrooli/api-core/preflight"
+)
+
+func main() {
+	if preflight.Run(preflight.Config{ScenarioName: "demo"}) {
+		return
+	}
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+`)
+	got := evalAt(root, conformantIntent(), fullProfile())
+	if codes(got)[CodeAPIServerRunNonconformant] == 0 {
+		t.Fatalf("expected %s, got %+v", CodeAPIServerRunNonconformant, got)
 	}
 }
 

@@ -86,6 +86,8 @@ func collectFixCandidates(root string, ruleIDs []string) ([]*scenariovalidationv
 	if allow(codeUnitProjectionDrift) {
 		candidates = append(candidates, packageJSONCandidates(root)...)
 		candidates = append(candidates, viteConfigCandidates(root)...)
+		candidates = append(candidates, testUtilsCandidates(root)...)
+		candidates = append(candidates, eslintImportBanCandidates(root)...)
 	}
 	sort.SliceStable(candidates, func(i, j int) bool {
 		if candidates[i].FilePath != candidates[j].FilePath {
@@ -185,6 +187,9 @@ func viteConfigCandidates(root string) []*scenariovalidationv1.FixCandidate {
 	after = ensureSetupFiles(after, expect.setupFiles)
 	after = ensureCoverageProvider(after, expect.coverageProvider)
 	after = ensureCoverageReporters(after, expect.coverageReporters)
+	after = ensureCoverageStringArray(after, "include", expect.coverageInclude)
+	after = ensureCoverageStringArray(after, "exclude", expect.coverageExclude)
+	after = ensureCoverageBoolean(after, "reportOnFailure", expect.reportOnFailure)
 	after = raiseCoverageThresholds(after, expect.coverageFloor)
 	if after == before {
 		return nil
@@ -197,6 +202,9 @@ type vitestFixProjection struct {
 	setupFiles        []string
 	coverageProvider  string
 	coverageReporters []string
+	coverageInclude   []string
+	coverageExclude   []string
+	reportOnFailure   bool
 	coverageFloor     float64
 }
 
@@ -206,7 +214,20 @@ func unitVitestFixProjection(root string) vitestFixProjection {
 		setupFiles:        []string{"./src/test-setup.ts"},
 		coverageProvider:  "v8",
 		coverageReporters: []string{"text", "json-summary", "json"},
-		coverageFloor:     85,
+		coverageInclude:   []string{"src/**/*.{ts,tsx}"},
+		coverageExclude: []string{
+			"src/**/*.test.{ts,tsx}",
+			"src/**/*.spec.{ts,tsx}",
+			"src/**/*.d.ts",
+			"src/main.tsx",
+			"src/test-setup.ts",
+			"src/test-utils/**",
+			"src/consts/strings.generated.ts",
+			"src/i18n/locales/**",
+			"src/**/generated/**",
+		},
+		reportOnFailure: true,
+		coverageFloor:   85,
 	}
 	raw, err := os.ReadFile(filepath.Join(root, ".vrooli", "testing.json"))
 	if err != nil {
@@ -313,12 +334,31 @@ func ensureCoverageReporters(src string, reporters []string) string {
 	if len(reporters) == 0 || !strings.Contains(src, "coverage:") {
 		return src
 	}
-	value := formatStringArray(reporters)
-	re := regexp.MustCompile(`(?s)(reporter\s*:\s*)(\[[^\]]*\]|['"][^'"]+['"])`)
+	return ensureCoverageStringArray(src, "reporter", reporters)
+}
+
+func ensureCoverageStringArray(src, property string, values []string) string {
+	if len(values) == 0 || !strings.Contains(src, "coverage:") {
+		return src
+	}
+	value := formatStringArray(values)
+	re := regexp.MustCompile(`(?s)(` + regexp.QuoteMeta(property) + `\s*:\s*)(\[[^\]]*\]|['"][^'"]+['"])`)
 	if re.MatchString(src) {
 		return re.ReplaceAllString(src, "${1}"+value)
 	}
-	return insertAfterObjectOpen(src, "coverage", "reporter: "+value+",")
+	return insertAfterObjectOpen(src, "coverage", property+": "+value+",")
+}
+
+func ensureCoverageBoolean(src, property string, value bool) string {
+	if !strings.Contains(src, "coverage:") {
+		return src
+	}
+	rendered := strconv.FormatBool(value)
+	re := regexp.MustCompile(`(` + regexp.QuoteMeta(property) + `\s*:\s*)(true|false)`)
+	if re.MatchString(src) {
+		return re.ReplaceAllString(src, "${1}"+rendered)
+	}
+	return insertAfterObjectOpen(src, "coverage", property+": "+rendered+",")
 }
 
 func insertAfterObjectOpen(src, objectName, propertyLine string) string {
@@ -358,6 +398,213 @@ func raiseCoverageThresholds(src string, floor float64) string {
 	return src
 }
 
+func testUtilsCandidates(root string) []*scenariovalidationv1.FixCandidate {
+	var candidates []*scenariovalidationv1.FixCandidate
+	renderPath := filepath.Join(root, "ui", "src", "test-utils", "renderWithProviders.tsx")
+	before, exists := readFixFile(renderPath)
+	if !exists {
+		candidates = append(candidates, candidate(codeUnitProjectionDrift, renderPath, "Create the canonical provider-aware render helper.", "", canonicalRenderWithProviders()))
+	} else if !strings.Contains(before, "renderWithProviders") {
+		candidates = append(candidates, candidate(codeUnitProjectionDrift, renderPath, "Restore the canonical renderWithProviders export.", before, canonicalRenderWithProviders()))
+	}
+
+	indexPath := filepath.Join(root, "ui", "src", "test-utils", "index.ts")
+	indexBefore, indexExists := readFixFile(indexPath)
+	indexAfter := indexBefore
+	if !strings.Contains(indexAfter, "renderWithProviders") {
+		if strings.TrimSpace(indexAfter) != "" && !strings.HasSuffix(indexAfter, "\n") {
+			indexAfter += "\n"
+		}
+		indexAfter += "export { renderWithProviders } from \"./renderWithProviders\";\n"
+		indexAfter += "export type { ProviderRenderOptions, ProviderRenderResult } from \"./renderWithProviders\";\n"
+	}
+	if !indexExists || indexAfter != indexBefore {
+		candidates = append(candidates, candidate(codeUnitProjectionDrift, indexPath, "Re-export the canonical render helper from src/test-utils.", indexBefore, indexAfter))
+	}
+	return candidates
+}
+
+func canonicalRenderWithProviders() string {
+	return `import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { type RenderOptions, type RenderResult, render } from "@testing-library/react";
+import type { ReactElement, ReactNode } from "react";
+import { I18nextProvider } from "react-i18next";
+import { MemoryRouter } from "react-router-dom";
+
+import { i18n } from "../i18n";
+import { ThemeProvider, type ThemeChoice } from "../theme/ThemeProvider";
+
+export interface ProviderRenderOptions extends Omit<RenderOptions, "wrapper"> {
+  queryClient?: QueryClient;
+  routerEntries?: string[];
+  initialTheme?: ThemeChoice;
+  withoutRouter?: boolean;
+}
+
+export interface ProviderRenderResult extends RenderResult {
+  queryClient: QueryClient;
+}
+
+const buildClient = (): QueryClient =>
+  new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+export function renderWithProviders(
+  ui: ReactElement,
+  options: ProviderRenderOptions = {},
+): ProviderRenderResult {
+  const {
+    queryClient = buildClient(),
+    routerEntries = ["/"],
+    initialTheme = "light",
+    withoutRouter = false,
+    ...rest
+  } = options;
+
+  const Wrapper = ({ children }: { children: ReactNode }) => {
+    const themed = (
+      <ThemeProvider initialChoice={initialTheme}>{children}</ThemeProvider>
+    );
+    const routed = withoutRouter ? themed : (
+      <MemoryRouter initialEntries={routerEntries}>{themed}</MemoryRouter>
+    );
+    return (
+      <QueryClientProvider client={queryClient}>
+        <I18nextProvider i18n={i18n}>{routed}</I18nextProvider>
+      </QueryClientProvider>
+    );
+  };
+
+  return { ...render(ui, { wrapper: Wrapper, ...rest }), queryClient };
+}
+`
+}
+
+func eslintImportBanCandidates(root string) []*scenariovalidationv1.FixCandidate {
+	path := filepath.Join(root, "ui", "eslint.config.js")
+	before, exists := readFixFile(path)
+	if !exists {
+		return []*scenariovalidationv1.FixCandidate{candidate(codeUnitProjectionDrift, path, "Create the production import ban for test-only UI helpers.", "", canonicalESLintImportBanConfig())}
+	}
+	if hasCanonicalESLintImportBan(before) {
+		return nil
+	}
+	after := insertNoRestrictedImportsRule(before)
+	if after == before {
+		return nil
+	}
+	return []*scenariovalidationv1.FixCandidate{candidate(codeUnitProjectionDrift, path, "Restore the production import ban for test-only UI helpers.", before, after)}
+}
+
+func canonicalESLintImportBanConfig() string {
+	return `export default [{
+  rules: {
+    "no-restricted-imports": ["error", {
+      patterns: [{
+        group: [
+          "**/test-utils",
+          "**/test-utils/*",
+          "@/test-utils",
+          "@/test-utils/*",
+          "**/features/*/mocks",
+          "**/features/*/mocks/*",
+          "@/features/*/mocks",
+          "@/features/*/mocks/*",
+        ],
+      }],
+    }],
+  },
+}];
+`
+}
+
+func insertNoRestrictedImportsRule(src string) string {
+	re := regexp.MustCompile(`(?m)^([ \t]*)rules\s*:\s*\{\s*$`)
+	loc := re.FindStringSubmatchIndex(src)
+	if loc == nil {
+		return src
+	}
+	indent := src[loc[2]:loc[3]] + "  "
+	insertAt := loc[1]
+	return src[:insertAt] + "\n" + indent + `"no-restricted-imports": ["error", { patterns: [{ group: ["**/test-utils", "**/test-utils/*", "@/test-utils", "@/test-utils/*", "**/features/*/mocks", "**/features/*/mocks/*", "@/features/*/mocks", "@/features/*/mocks/*"] }] }],` + src[insertAt:]
+}
+
+func hasCanonicalESLintImportBan(src string) bool {
+	clean := stripFixJSComments(src)
+	return containsQuotedFixLiteral(clean, "no-restricted-imports") &&
+		containsQuotedFixLiteral(clean, "**/test-utils") &&
+		containsQuotedFixLiteral(clean, "@/test-utils/*") &&
+		containsQuotedFixLiteral(clean, "**/features/*/mocks") &&
+		containsQuotedFixLiteral(clean, "@/features/*/mocks/*")
+}
+
+func containsQuotedFixLiteral(src, value string) bool {
+	return strings.Contains(src, `"`+value+`"`) ||
+		strings.Contains(src, `'`+value+`'`) ||
+		strings.Contains(src, "`"+value+"`")
+}
+
+func stripFixJSComments(src string) string {
+	var b strings.Builder
+	inLineComment := false
+	inBlockComment := false
+	var quote byte
+	escaped := false
+	for i := 0; i < len(src); i++ {
+		c := src[i]
+		if inLineComment {
+			if c == '\n' {
+				inLineComment = false
+				b.WriteByte(c)
+			}
+			continue
+		}
+		if inBlockComment {
+			if c == '*' && i+1 < len(src) && src[i+1] == '/' {
+				inBlockComment = false
+				i++
+			}
+			continue
+		}
+		if quote != 0 {
+			b.WriteByte(c)
+			if escaped {
+				escaped = false
+				continue
+			}
+			if c == '\\' {
+				escaped = true
+				continue
+			}
+			if c == quote {
+				quote = 0
+			}
+			continue
+		}
+		if c == '/' && i+1 < len(src) {
+			switch src[i+1] {
+			case '/':
+				inLineComment = true
+				i++
+				continue
+			case '*':
+				inBlockComment = true
+				i++
+				continue
+			}
+		}
+		if c == '\'' || c == '"' || c == '`' {
+			quote = c
+		}
+		b.WriteByte(c)
+	}
+	return b.String()
+}
+
 func formatCoverageFloor(floor float64) string {
 	if floor == float64(int64(floor)) {
 		return strconv.FormatInt(int64(floor), 10)
@@ -367,11 +614,14 @@ func formatCoverageFloor(floor float64) string {
 
 func applyCandidate(c *scenariovalidationv1.FixCandidate) error {
 	current, err := os.ReadFile(c.GetFilePath())
-	if err != nil {
+	if err != nil && !(os.IsNotExist(err) && c.GetBefore() == "") {
 		return fmt.Errorf("read %s before applying fix: %w", c.GetFilePath(), err)
 	}
 	if string(current) != c.GetBefore() {
 		return fmt.Errorf("refusing to apply fix for %s: file changed since preview", c.GetFilePath())
+	}
+	if err := os.MkdirAll(filepath.Dir(c.GetFilePath()), 0o755); err != nil {
+		return fmt.Errorf("create parent for %s: %w", c.GetFilePath(), err)
 	}
 	if err := os.WriteFile(c.GetFilePath(), []byte(c.GetAfter()), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", c.GetFilePath(), err)

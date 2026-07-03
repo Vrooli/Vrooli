@@ -1,0 +1,458 @@
+{
+  "schemaVersion": "1.0.0",
+  "scenario": "architecture-cartographer",
+  "phase": "architecture",
+  "description": "Validates structural cohesion through architecture-cartographer.",
+  "source": "validation-provider",
+  "orderHint": 5,
+  "timeout": "120s",
+  "findingSource": "architecture",
+  "validation": {
+    "contract": "scenario-validation/v1"
+  },
+  "applicability": {
+    "default": "applies"
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "best_effort",
+    "providerLifecycle": "start_if_needed",
+    "freshness": "require_live_contract",
+    "resultGating": "high_confidence_gating",
+    "unavailable": "skip_without_failing"
+  },
+  "runnability": {},
+  "docs": {
+    "path": "scenarios/test-genie/docs/phases/architecture/README.md"
+  },
+  "maturity": {
+    "version": "2.0.0",
+    "capabilities": [
+      {
+        "id": "graph_extraction",
+        "label": "Graph Extraction",
+        "description": "Source graph extraction, audit orchestration, and usable architecture snapshots.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "No architecture target",
+            "status_label": "Unavailable",
+            "description": "Architecture Cartographer cannot resolve or extract a graph for the target scenario.",
+            "capability_summary": "No usable architecture graph is available.",
+            "next_unlock": "Readable scenario source and graph extraction without tool errors."
+          },
+          {
+            "id": "L1",
+            "name": "Graph extraction available",
+            "status_label": "Foundation",
+            "description": "The provider can produce a graph snapshot and run audit orchestration.",
+            "capability_summary": "A graph snapshot can be extracted for architecture checks.",
+            "next_unlock": "Fresh snapshots and audit evidence suitable for downstream detectors."
+          },
+          {
+            "id": "L2",
+            "name": "Audit evidence usable",
+            "status_label": "Ready",
+            "description": "Graph extraction and audit evidence are usable for boundary, surface, and intent checks.",
+            "capability_summary": "Architecture evidence is available for provider-owned checks.",
+            "next_unlock": "Maximum graph-extraction maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Graph posture clean",
+            "status_label": "Complete",
+            "description": "Graph extraction has no provider-owned blocking findings.",
+            "capability_summary": "Graph extraction is clean enough for recurring audit use."
+          }
+        ]
+      },
+      {
+        "id": "domain_authority",
+        "label": "Domain Authority",
+        "description": "Curated domain authority, trust ladder confidence, and parseable domain documentation.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Authority missing",
+            "status_label": "Unavailable",
+            "description": "The target scenario lacks enough domain authority for architecture findings to be interpreted against an intentional map.",
+            "capability_summary": "Architecture ownership cannot be trusted yet.",
+            "next_unlock": "A readable domain authority source such as docs/concepts/DOMAINS.md."
+          },
+          {
+            "id": "L1",
+            "name": "Authority discovered",
+            "status_label": "Foundation",
+            "description": "Domain authority exists or can be inferred, but confidence or parse quality is still weak.",
+            "capability_summary": "Architecture ownership can be inspected with caveats.",
+            "next_unlock": "Curated or high-confidence domain authority."
+          },
+          {
+            "id": "L2",
+            "name": "Authority trusted",
+            "status_label": "Ready",
+            "description": "Domain authority is curated or sufficiently high-confidence for architecture findings.",
+            "capability_summary": "Architecture findings can be routed to intentional domain owners.",
+            "next_unlock": "Maximum domain-authority maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Authority clean",
+            "status_label": "Complete",
+            "description": "Domain authority is readable, trusted, and free of provider-owned parse warnings.",
+            "capability_summary": "Domain authority is clean enough for recurring drift monitoring."
+          }
+        ]
+      },
+      {
+        "id": "boundary_integrity",
+        "label": "Boundary Integrity",
+        "description": "Import cycles, layering violations, cross-scenario private imports, coupling smells, and mislocated files.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Boundary checks unavailable",
+            "status_label": "Unavailable",
+            "description": "Boundary detectors cannot run against usable graph and domain evidence.",
+            "capability_summary": "Boundary integrity cannot be evaluated.",
+            "next_unlock": "Graph and domain evidence sufficient for deterministic boundary checks."
+          },
+          {
+            "id": "L1",
+            "name": "Boundary drift visible",
+            "status_label": "Foundation",
+            "description": "Boundary detectors can surface stable findings with codes, locations, and domains.",
+            "capability_summary": "Boundary drift is visible and routeable.",
+            "next_unlock": "Deterministic blocker and error boundary findings resolved."
+          },
+          {
+            "id": "L2",
+            "name": "Deterministic boundaries controlled",
+            "status_label": "Ready",
+            "description": "No deterministic blocker or error architecture findings remain in active code paths.",
+            "capability_summary": "Deterministic architecture boundaries are controlled.",
+            "next_unlock": "Heuristic boundary debt eliminated or deliberately suppressed."
+          },
+          {
+            "id": "L3",
+            "name": "Boundary posture clean",
+            "status_label": "Complete",
+            "description": "Boundary integrity has no provider-owned blocking or debt findings.",
+            "capability_summary": "Architecture boundaries are clean enough for fleet validation."
+          }
+        ]
+      },
+      {
+        "id": "surface_coherence",
+        "label": "Surface Coherence",
+        "description": "Declared API, CLI, UI, and implementation surfaces agree with domain authority and archetype expectations.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Surface comparison unavailable",
+            "status_label": "Unavailable",
+            "description": "Surface evidence cannot be compared across domain authority, implementation folders, CLI groups, and UI features.",
+            "capability_summary": "Cross-surface architecture drift cannot be evaluated.",
+            "next_unlock": "Comparable domain and surface evidence."
+          },
+          {
+            "id": "L1",
+            "name": "Surface drift visible",
+            "status_label": "Foundation",
+            "description": "Convergence and surface-coherence findings are stable enough to route.",
+            "capability_summary": "Cross-surface drift is visible.",
+            "next_unlock": "Missing, stale, or undeclared surfaces reconciled."
+          },
+          {
+            "id": "L2",
+            "name": "Surfaces aligned",
+            "status_label": "Ready",
+            "description": "Declared and observed surfaces agree with domain authority.",
+            "capability_summary": "API, CLI, UI, and implementation surfaces are aligned.",
+            "next_unlock": "Maximum surface-coherence maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Surface posture clean",
+            "status_label": "Complete",
+            "description": "Surface coherence has no provider-owned drift findings.",
+            "capability_summary": "Surface coherence is clean enough for recurring drift monitoring."
+          }
+        ]
+      },
+      {
+        "id": "intent_alignment",
+        "label": "Intent Alignment",
+        "description": "PRD and requirement intent claims align with owned domains, operational targets, and domain vocabulary.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Intent checks unavailable",
+            "status_label": "Unavailable",
+            "description": "Intent claims or domain authority are unavailable for alignment checks.",
+            "capability_summary": "Intent alignment cannot be evaluated.",
+            "next_unlock": "Requirement and PRD claims plus trusted domain authority."
+          },
+          {
+            "id": "L1",
+            "name": "Intent drift visible",
+            "status_label": "Foundation",
+            "description": "Intent alignment findings are stable enough to route to domains and requirements.",
+            "capability_summary": "Intent drift is visible across requirements and domains.",
+            "next_unlock": "Requirements, operational targets, and domain vocabulary reconciled."
+          },
+          {
+            "id": "L2",
+            "name": "Intent aligned",
+            "status_label": "Ready",
+            "description": "Intent claims align with product domains and operational targets.",
+            "capability_summary": "Requirements and domain ownership are aligned.",
+            "next_unlock": "Maximum intent-alignment maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Intent posture clean",
+            "status_label": "Complete",
+            "description": "Intent alignment has no provider-owned drift findings.",
+            "capability_summary": "Intent alignment is clean enough for recurring architecture audits."
+          }
+        ]
+      }
+    ],
+    "findings": {
+      "graph.extract_failed": {
+        "capability_id": "graph_extraction",
+        "local_level_impact": "L0",
+        "global_impact": "foundation_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "screaming-architecture-audit",
+          "scientific-debugging"
+        ]
+      },
+      "domain_authority/missing": {
+        "capability_id": "domain_authority",
+        "local_level_impact": "L0",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "screaming-architecture-audit",
+          "architecture-cartographer"
+        ]
+      },
+      "domain_authority/low": {
+        "capability_id": "domain_authority",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "screaming-architecture-audit"
+        ]
+      },
+      "domains_doc_parse_warning": {
+        "capability_id": "domain_authority",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "screaming-architecture-audit",
+          "documentation-health"
+        ]
+      },
+      "cycle": {
+        "capability_id": "boundary_integrity",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "cycles",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "screaming-architecture-audit",
+          "boundary-of-responsibility-enforcement"
+        ]
+      },
+      "cycle/cross-domain": {
+        "capability_id": "boundary_integrity",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "cycles",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "screaming-architecture-audit",
+          "boundary-of-responsibility-enforcement"
+        ]
+      },
+      "layering": {
+        "capability_id": "boundary_integrity",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "boundary-of-responsibility-enforcement",
+          "screaming-architecture-audit"
+        ]
+      },
+      "cross_scenario": {
+        "capability_id": "boundary_integrity",
+        "local_level_impact": "L2",
+        "global_impact": "safety_blocker",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "boundary-of-responsibility-enforcement",
+          "api-steer"
+        ]
+      },
+      "coupling_smell": {
+        "capability_id": "boundary_integrity",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "screaming-architecture-audit",
+          "cognitive-load-reduction"
+        ]
+      },
+      "mislocated_file": {
+        "capability_id": "boundary_integrity",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "screaming-architecture-audit",
+          "boundary-of-responsibility-enforcement"
+        ]
+      },
+      "naming": {
+        "capability_id": "boundary_integrity",
+        "local_level_impact": "L3",
+        "global_impact": "advisory",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "screaming-architecture-audit",
+          "intent-clarification"
+        ]
+      },
+      "glossary_drift": {
+        "capability_id": "boundary_integrity",
+        "local_level_impact": "L3",
+        "global_impact": "advisory",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "screaming-architecture-audit",
+          "intent-clarification"
+        ]
+      },
+      "convergence_drift": {
+        "capability_id": "surface_coherence",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "screaming-architecture-audit"
+        ]
+      },
+      "surface_coherence": {
+        "capability_id": "surface_coherence",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "screaming-architecture-audit",
+          "boundary-of-responsibility-enforcement"
+        ]
+      },
+      "intent.req_unowned_domain": {
+        "capability_id": "intent_alignment",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "requirements-traceability-steer",
+          "boundary-of-responsibility-enforcement"
+        ]
+      },
+      "intent.req_transport_owned": {
+        "capability_id": "intent_alignment",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "requirements-traceability-steer"
+        ]
+      },
+      "intent.domain_unrequired": {
+        "capability_id": "intent_alignment",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "requirements-traceability-steer",
+          "screaming-architecture-audit"
+        ]
+      },
+      "intent.ot_no_domain": {
+        "capability_id": "intent_alignment",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "requirements-traceability-steer",
+          "screaming-architecture-audit"
+        ]
+      },
+      "intent.vocab_drift": {
+        "capability_id": "intent_alignment",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "requirements-traceability-steer",
+          "intent-clarification"
+        ]
+      }
+    },
+    "fallback": {
+      "capability_id": "boundary_integrity",
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "advisory"
+    }
+  }
+}

@@ -10,6 +10,7 @@ import (
 	"business-health/internal/extraction"
 
 	"github.com/stretchr/testify/require"
+	maturity "github.com/vrooli/maturity-go/assessment"
 	intent "intent-go"
 )
 
@@ -313,12 +314,8 @@ func (s stubCheck) Run(context.Context, extraction.Contract) []intent.Finding {
 
 func loadSpec(t *testing.T) map[string]struct{} {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join(scenarioRootFromTest(t), ".vrooli", "maturity.json"))
+	spec, err := maturity.LoadSpecFromScenario(scenarioRootFromTest(t))
 	require.NoError(t, err)
-	var spec struct {
-		Findings map[string]any `json:"findings"`
-	}
-	require.NoError(t, jsonUnmarshal(data, &spec))
 	out := make(map[string]struct{}, len(spec.Findings))
 	for code := range spec.Findings {
 		out[code] = struct{}{}

@@ -118,6 +118,12 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	}
 	parse.End()
 
+	entrypoint := collector.Stage("entrypoint-structure")
+	mainFindings := entrypointFindings(path)
+	findings = append(findings, mainFindings...)
+	entrypoint.Gauge("findings", float64(len(mainFindings)))
+	entrypoint.End()
+
 	loadProto := collector.Stage("load-proto")
 	surface, protoErr := s.protos.Load(ctx, scenario)
 	if protoErr != nil {

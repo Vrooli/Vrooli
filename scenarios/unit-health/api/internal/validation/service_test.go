@@ -24,20 +24,16 @@ func (f fakeDiscoverer) Discover(context.Context, string, string, bool) (discove
 
 func loadSpec(t *testing.T) *assessment.Spec {
 	t.Helper()
-	// Resolve repo root by walking up to the scenario maturity.json.
+	// Resolve repo root by walking up to the scenario descriptor.
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("getwd: %v", err)
 	}
 	// .../scenarios/unit-health/api/internal/validation -> .../scenarios/unit-health
 	root := filepath.Clean(filepath.Join(wd, "..", "..", ".."))
-	raw, err := os.ReadFile(filepath.Join(root, ".vrooli", "maturity.json"))
+	spec, err := assessment.LoadSpecFromScenario(root)
 	if err != nil {
-		t.Fatalf("read maturity.json: %v", err)
-	}
-	spec, err := assessment.ParseSpec(raw)
-	if err != nil {
-		t.Fatalf("parse spec: %v", err)
+		t.Fatalf("load descriptor maturity: %v", err)
 	}
 	return spec
 }

@@ -1,7 +1,6 @@
 package validation
 
 import (
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -12,9 +11,7 @@ import (
 )
 
 func TestMaturitySpecCoversProtoHealthFindings(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("..", "..", "..", ".vrooli", "maturity.json"))
-	require.NoError(t, err)
-	spec, err := assessment.ParseSpec(raw)
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join("..", "..", ".."))
 	require.NoError(t, err)
 
 	require.Equal(t, "proto-health", spec.Provider)
@@ -45,9 +42,7 @@ func TestMaturitySpecCoversProtoHealthFindings(t *testing.T) {
 }
 
 func TestMaturitySpecKeepsEveryLocalRungReachable(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("..", "..", "..", ".vrooli", "maturity.json"))
-	require.NoError(t, err)
-	spec, err := assessment.ParseSpec(raw)
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join("..", "..", ".."))
 	require.NoError(t, err)
 
 	gatingCodeByCapabilityLevel := map[string]string{}

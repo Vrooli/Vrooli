@@ -24,7 +24,7 @@ func TestAppend_StampsAndAssignsID(t *testing.T) {
 	svc, _, clk := newSvc(t)
 	r, err := svc.Append(context.Background(), vr.AppendInput{
 		TupleKind:  vr.TupleKindSkill,
-		SubjectID:  "plan-skill-discovery",
+		SubjectID:  "implementation-plan-authoring",
 		GoldenSlug: "reference-react-vite",
 		Verdict:    vr.VerdictPass,
 	})

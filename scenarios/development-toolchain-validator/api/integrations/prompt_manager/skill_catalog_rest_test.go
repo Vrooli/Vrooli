@@ -20,7 +20,7 @@ import (
 
 const happyPath = `{
   "skills": [
-    {"id":"plan-skill-discovery","content":"hello","updatedAt":"2026-05-01T00:00:00Z"},
+    {"id":"implementation-plan-authoring","content":"hello","updatedAt":"2026-05-01T00:00:00Z"},
     {"id":"test","content":"world","updatedAt":"2026-05-02T00:00:00Z"}
   ],
   "lastUpdated":"2026-05-02T00:00:00Z",
@@ -50,7 +50,7 @@ func TestFetch_HappyPath(t *testing.T) {
 	got, err := adapter.Fetch(context.Background())
 	require.NoError(t, err)
 	require.Len(t, got, 2)
-	require.Equal(t, "plan-skill-discovery", got[0].ID)
+	require.Equal(t, "implementation-plan-authoring", got[0].ID)
 	require.NotEmpty(t, got[0].ContentHash, "content_hash must be computed from response.content")
 	require.Equal(t, "2026-05-01T00:00:00Z", got[0].Version)
 }

@@ -74,7 +74,7 @@ func TestAuditorClient_GetJobStatus(t *testing.T) {
 					Status:       "completed",
 					FilesScanned: 42,
 					Violations: []AuditorViolation{
-						{ID: "v1", Type: "MAKEFILE_STRUCTURE", Severity: "high", Title: "Missing target", Source: "scenario-stack-governor"},
+						{ID: "v1", Type: "PACKAGE_GOVERNANCE_SCENARIO_ADOPTION", Severity: "high", Title: "Workspace package drift", Source: "scenario-stack-governor"},
 					},
 				},
 			})
@@ -106,8 +106,8 @@ func TestAuditorClient_ListRules(t *testing.T) {
 			httpx.AssertMethod(t, r, http.MethodGet)
 			httpx.WriteJSON(t, w, http.StatusOK, AuditorRulesListResponse{
 				Rules: map[string]AuditorRule{
-					"MAKEFILE_STRUCTURE": {ID: "MAKEFILE_STRUCTURE", Name: "Makefile Structure", Category: "makefile", Severity: "high", Enabled: true},
-					"GO_CLI_WORKSPACE":   {ID: "GO_CLI_WORKSPACE", Name: "Go CLI Workspace", Category: "go", Severity: "high", Enabled: true},
+					"PACKAGE_GOVERNANCE_SCENARIO_ADOPTION": {ID: "PACKAGE_GOVERNANCE_SCENARIO_ADOPTION", Name: "Package Governance", Category: "packages", Severity: "high", Enabled: true},
+					"GO_CLI_WORKSPACE_INDEPENDENCE":        {ID: "GO_CLI_WORKSPACE_INDEPENDENCE", Name: "Go CLI Workspace", Category: "go", Severity: "high", Enabled: true},
 				},
 				Count: 2,
 				Total: 2,
@@ -134,7 +134,7 @@ func TestAuditorClient_ApplyFix(t *testing.T) {
 			httpx.AssertMethod(t, r, http.MethodPost)
 			httpx.WriteJSON(t, w, http.StatusOK, AuditorFixResponse{
 				Results: []AuditorFixResult{
-					{ScenarioName: "my-scenario", RuleID: "MAKEFILE_STRUCTURE", Fixed: true, FilePath: "Makefile", Changes: []AuditorFixChange{{Type: "line", Detail: "Added start target"}}},
+					{ScenarioName: "my-scenario", RuleID: "GO_CLI_WORKSPACE_INDEPENDENCE", Fixed: true, FilePath: "cli/go.mod", Changes: []AuditorFixChange{{Type: "replace", Detail: "Added local replace"}}},
 				},
 				Count: 1,
 			})
@@ -145,7 +145,7 @@ func TestAuditorClient_ApplyFix(t *testing.T) {
 
 	result, err := client.ApplyFix(context.Background(), AuditorFixRequest{
 		ScenarioNames: []string{"my-scenario"},
-		RuleIDs:       []string{"MAKEFILE_STRUCTURE"},
+		RuleIDs:       []string{"GO_CLI_WORKSPACE_INDEPENDENCE"},
 		DryRun:        true,
 	})
 	if err != nil {
@@ -171,7 +171,7 @@ func TestAuditorClient_GetViolations(t *testing.T) {
 			}
 			httpx.WriteJSON(t, w, http.StatusOK, AuditorViolationsResponse{
 				Violations: []AuditorViolation{
-					{ID: "v1", ScenarioName: "my-scenario", Type: "MAKEFILE_STRUCTURE", Severity: "high", Title: "Missing target"},
+					{ID: "v1", ScenarioName: "my-scenario", Type: "PACKAGE_GOVERNANCE_SCENARIO_ADOPTION", Severity: "high", Title: "Workspace package drift"},
 				},
 			})
 		},

@@ -45,6 +45,14 @@ const (
 	CodeCLIBinaryUnrunnable  = "cli.binary_unrunnable"  // declared CLI surface but binary cannot be resolved in this run context
 	CodeCLIHelpFailed        = "cli.help_failed"        // binary resolves but `--help` errors / produces nothing
 	CodeCLICommandUndeclared = "cli.command_undeclared" // runtime command surface diverges from the manifest
+
+	// CLI entrypoint-structure codes. These are static Go checks over cli/main.go,
+	// scoped to the process boundary only. They do not replace architecture or
+	// tidiness providers; they enforce the CLI-specific contract that main()
+	// delegates to the scenario app/command runner instead of owning business or
+	// server setup directly.
+	CodeCLIMainUnreadable = "cli.main_unreadable"
+	CodeCLIMainHeavy      = "cli.main_heavy"
 )
 
 // Finding is a single validation result.

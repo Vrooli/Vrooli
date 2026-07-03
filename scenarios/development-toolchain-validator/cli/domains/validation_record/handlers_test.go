@@ -69,7 +69,7 @@ func sample(id string) *vrv1.ValidationRecord {
 	return &vrv1.ValidationRecord{
 		Id:         id,
 		TupleKind:  vrv1.TupleKind_TUPLE_KIND_SKILL,
-		SubjectId:  "plan-skill-discovery",
+		SubjectId:  "implementation-plan-authoring",
 		GoldenSlug: "reference-react-vite",
 		EndedAt:    timestamppb.New(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC)),
 		Verdict:    vrv1.Verdict_VERDICT_PASS,

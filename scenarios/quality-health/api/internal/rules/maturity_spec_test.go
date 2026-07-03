@@ -1,7 +1,6 @@
 package rules
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -10,9 +9,7 @@ import (
 )
 
 func TestMaturitySpecCoversQualityHealthFindings(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("..", "..", "..", ".vrooli", "maturity.json"))
-	require.NoError(t, err)
-	spec, err := assessment.ParseSpec(raw)
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join("..", "..", ".."))
 	require.NoError(t, err)
 	require.Len(t, spec.Capabilities, 5)
 

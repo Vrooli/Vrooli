@@ -5,8 +5,10 @@ package validation
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -24,10 +26,16 @@ type Validator interface {
 	ValidateScenario(ctx context.Context, scenario string) (validation.Report, error)
 }
 
+type Fixer interface {
+	PreviewFix(ctx context.Context, scenario, path string, ruleIDs []string) (string, []validation.SecurityHeaderFixCandidate, []string, error)
+	ApplyFix(ctx context.Context, scenario, path string, ruleIDs []string) (string, []validation.SecurityHeaderFixCandidate, []string, error)
+}
+
 // Deps wires the seams the Connect validation handler needs.
 type Deps struct {
 	Logger       *log.Logger
 	Validator    Validator
+	Fixer        Fixer
 	MaturitySpec *assessment.Spec
 	// Environment is the host CaptureEnvironment captured once at module init
 	// (os/arch/cpu/mem/present-GPUs). nil is safe — the metrics collector
@@ -42,6 +50,11 @@ type connectHandler struct {
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
+	}
+	if d.Fixer == nil {
+		if fixer, ok := d.Validator.(Fixer); ok {
+			d.Fixer = fixer
+		}
 	}
 	return &connectHandler{deps: d}
 }
@@ -103,4 +116,63 @@ func severityToken(s validation.Severity) string {
 	default:
 		return "SEVERITY_UNSPECIFIED"
 	}
+}
+
+// PreviewFix reports deterministic Security Health remediations without
+// writing. Today that covers only the low-risk generated-Go API security
+// headers middleware shape; other security findings remain manual by design.
+func (h *connectHandler) PreviewFix(ctx context.Context, req *connect.Request[scenariovalidationv1.FixRequest]) (*connect.Response[scenariovalidationv1.FixResponse], error) {
+	return h.fix(ctx, req, false)
+}
+
+// ApplyFix writes deterministic Security Health remediations selected by
+// PreviewFix. Callers must opt into this RPC explicitly.
+func (h *connectHandler) ApplyFix(ctx context.Context, req *connect.Request[scenariovalidationv1.FixRequest]) (*connect.Response[scenariovalidationv1.FixResponse], error) {
+	return h.fix(ctx, req, true)
+}
+
+func (h *connectHandler) fix(ctx context.Context, req *connect.Request[scenariovalidationv1.FixRequest], apply bool) (*connect.Response[scenariovalidationv1.FixResponse], error) {
+	if h.deps.Fixer == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("security validation fixer not wired"))
+	}
+	if req == nil || req.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("fix request is required"))
+	}
+	if strings.TrimSpace(req.Msg.GetScenario()) == "" && strings.TrimSpace(req.Msg.GetPath()) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario or path is required"))
+	}
+	var (
+		scenario   string
+		candidates []validation.SecurityHeaderFixCandidate
+		messages   []string
+		err        error
+	)
+	if apply {
+		scenario, candidates, messages, err = h.deps.Fixer.ApplyFix(ctx, req.Msg.GetScenario(), req.Msg.GetPath(), req.Msg.GetRuleIds())
+	} else {
+		scenario, candidates, messages, err = h.deps.Fixer.PreviewFix(ctx, req.Msg.GetScenario(), req.Msg.GetPath(), req.Msg.GetRuleIds())
+	}
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(securityFixResponse(scenario, apply, candidates, messages)), nil
+}
+
+func securityFixResponse(scenario string, applied bool, candidates []validation.SecurityHeaderFixCandidate, messages []string) *scenariovalidationv1.FixResponse {
+	out := &scenariovalidationv1.FixResponse{
+		Scenario: scenario,
+		Applied:  applied,
+		Messages: messages,
+	}
+	for _, c := range candidates {
+		out.Candidates = append(out.Candidates, &scenariovalidationv1.FixCandidate{
+			RuleId:      c.RuleID,
+			FilePath:    c.FilePath,
+			Description: c.Description,
+			Before:      c.Before,
+			After:       c.After,
+			Applied:     c.Applied,
+		})
+	}
+	return out
 }

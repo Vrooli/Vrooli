@@ -510,6 +510,9 @@ type projectionExpectation struct {
 	setupFiles        []string
 	coverageProvider  string
 	coverageReporters []string
+	coverageInclude   []string
+	coverageExclude   []string
+	reportOnFailure   bool
 }
 
 func resolveProjectionExpectation(ws Workspace) projectionExpectation {
@@ -519,6 +522,19 @@ func resolveProjectionExpectation(ws Workspace) projectionExpectation {
 		setupFiles:        []string{"./src/test-setup.ts"},
 		coverageProvider:  "v8",
 		coverageReporters: []string{"json-summary", "json"},
+		coverageInclude:   []string{"src/**/*.{ts,tsx}"},
+		coverageExclude: []string{
+			"src/**/*.test.{ts,tsx}",
+			"src/**/*.spec.{ts,tsx}",
+			"src/**/*.d.ts",
+			"src/main.tsx",
+			"src/test-setup.ts",
+			"src/test-utils/**",
+			"src/consts/strings.generated.ts",
+			"src/i18n/locales/**",
+			"src/**/generated/**",
+		},
+		reportOnFailure: true,
 	}
 	root := scenarioRootForWorkspace(ws.RootPath)
 	if root == "" {
@@ -569,13 +585,17 @@ func scenarioRootForWorkspace(root string) string {
 }
 
 type viteProjection struct {
-	hasVitestConfig   bool
-	environment       string
-	setupFiles        []string
-	coverageProvider  string
-	coverageReporters []string
-	thresholds        map[string]float64
-	hasImportBanRule  bool
+	hasVitestConfig    bool
+	environment        string
+	setupFiles         []string
+	coverageProvider   string
+	coverageReporters  []string
+	coverageInclude    []string
+	coverageExclude    []string
+	reportOnFailure    bool
+	hasReportOnFailure bool
+	thresholds         map[string]float64
+	hasImportBanRule   bool
 }
 
 func analyzeVitestProjection(scenario string, ws Workspace, now string) []Finding {
@@ -617,13 +637,13 @@ func analyzeVitestProjection(scenario string, ws Workspace, now string) []Findin
 			"missing or non-Vitest test script",
 			"Set scripts.test to a Vitest command such as \"vitest run\".")
 	}
-	if !manifest.hasScript("test:coverage") || !strings.Contains(manifest.Scripts["test:coverage"], "coverage") {
+	if !manifest.hasScript("test:coverage") || !strings.Contains(manifest.Scripts["test:coverage"], "vitest") || !strings.Contains(manifest.Scripts["test:coverage"], "coverage") {
 		add(pkgPath,
 			"UI policy projection is missing a coverage test script.",
 			fmt.Sprintf("test:coverage=%q", manifest.Scripts["test:coverage"]),
 			"package.json scripts.test:coverage runs Vitest coverage.",
-			"missing coverage script",
-			"Set scripts.test:coverage to a Vitest coverage command.")
+			"missing or non-Vitest coverage script",
+			"Set scripts.test:coverage to a Vitest coverage command such as \"vitest run --coverage\".")
 	}
 	if !proj.hasVitestConfig {
 		add(vitePath, "UI policy projection is missing the Vite test block.", "no test: block detected", "vite.config declares a test block.", "missing Vitest config", "Add test configuration to vite.config.")
@@ -639,6 +659,15 @@ func analyzeVitestProjection(scenario string, ws Workspace, now string) []Findin
 	}
 	if !containsAllStrings(proj.coverageReporters, expect.coverageReporters) {
 		add(vitePath, "UI policy projection is missing coverage reporters.", strings.Join(expect.coverageReporters, "/")+" reporters not all detected", "Coverage reporters include "+strings.Join(expect.coverageReporters, ", ")+".", "missing coverage reporters", "Include the policy-declared reporters in coverage.reporter.")
+	}
+	if !containsAllStrings(proj.coverageInclude, expect.coverageInclude) {
+		add(vitePath, "UI policy projection is missing an explicit source coverage include set.", "coverage.include="+strings.Join(proj.coverageInclude, ", "), "Coverage include contains "+strings.Join(expect.coverageInclude, ", ")+".", "missing source coverage include", "Set coverage.include so coverage denominators stay scoped to production source files.")
+	}
+	if !containsAllStrings(proj.coverageExclude, expect.coverageExclude) {
+		add(vitePath, "UI policy projection is missing canonical coverage exclusions.", "coverage.exclude="+strings.Join(proj.coverageExclude, ", "), "Coverage exclude contains test scaffolding, generated files, boot files, and locale catalogs.", "missing coverage exclusions", "Restore the canonical coverage.exclude entries without weakening production-source coverage.")
+	}
+	if expect.reportOnFailure && (!proj.hasReportOnFailure || !proj.reportOnFailure) {
+		add(vitePath, "UI policy projection is missing coverage reporting on test failure.", "coverage.reportOnFailure=true not detected", "Vitest coverage.reportOnFailure is true.", "missing coverage reportOnFailure", "Set coverage.reportOnFailure to true so failed coverage runs remain interpretable.")
 	}
 	for _, key := range []string{"lines", "functions", "branches", "statements"} {
 		if v, ok := proj.thresholds[key]; !ok || v < expect.coverageFloor {
@@ -675,6 +704,9 @@ func parseViteProjection(cfg, eslint string) viteProjection {
 		p.coverageProvider = values[0]
 	}
 	p.coverageReporters = stringArrayPropertyValues(coverageBlock, "reporter")
+	p.coverageInclude = stringArrayPropertyValues(coverageBlock, "include")
+	p.coverageExclude = stringArrayPropertyValues(coverageBlock, "exclude")
+	p.reportOnFailure, p.hasReportOnFailure = booleanProperty(coverageBlock, "reportOnFailure")
 	thresholdBlock, _ := objectValueBlock(coverageBlock, "thresholds")
 	for _, key := range []string{"lines", "functions", "branches", "statements"} {
 		if v, ok := numericProperty(thresholdBlock, key); ok {
@@ -873,6 +905,21 @@ func numericProperty(src, key string) (float64, bool) {
 		return 0, false
 	}
 	return v, true
+}
+
+func booleanProperty(src, key string) (bool, bool) {
+	i, ok := propertyValueIndex(src, key)
+	if !ok {
+		return false, false
+	}
+	i = skipSpace(src, i)
+	if strings.HasPrefix(src[i:], "true") {
+		return true, true
+	}
+	if strings.HasPrefix(src[i:], "false") {
+		return false, true
+	}
+	return false, false
 }
 
 func propertyValueIndex(src, key string) (int, bool) {

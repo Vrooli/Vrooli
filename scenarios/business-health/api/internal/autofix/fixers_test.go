@@ -11,6 +11,7 @@ import (
 	"business-health/internal/extraction"
 
 	"github.com/stretchr/testify/require"
+	maturity "github.com/vrooli/maturity-go/assessment"
 	intent "intent-go"
 )
 
@@ -229,25 +230,18 @@ func TestApplyAllOnCleanTreeIsNoop(t *testing.T) {
 // registered fixer, and every registered fixer maps to an auto code —
 // the accounting cannot drift.
 func TestFixerAccountingMatchesSpec(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join(specRoot(t), ".vrooli", "maturity.json"))
+	spec, err := maturity.LoadSpecFromScenario(specRoot(t))
 	require.NoError(t, err)
-	var spec struct {
-		Findings map[string]struct {
-			FixClass    string `json:"fix_class"`
-			FixerStatus string `json:"fixer_status"`
-		} `json:"findings"`
-	}
-	require.NoError(t, jsonUnmarshal(data, &spec))
 
 	registered := map[string]struct{}{}
 	for _, rule := range RuleIDs() {
 		registered[rule] = struct{}{}
 	}
 	for code, m := range spec.Findings {
-		if m.FixClass == "auto" {
+		if m.FixClass == maturity.FixClassAuto {
 			_, ok := registered[code]
 			require.True(t, ok, "auto code %q has no registered fixer", code)
-			require.Equal(t, "implemented", m.FixerStatus, "auto code %q fixer_status", code)
+			require.Equal(t, maturity.FixerStatusImplemented, m.FixerStatus, "auto code %q fixer_status", code)
 		} else {
 			_, ok := registered[code]
 			require.False(t, ok, "manual code %q must not have a fixer", code)

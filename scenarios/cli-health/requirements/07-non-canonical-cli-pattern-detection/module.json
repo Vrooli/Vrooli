@@ -1,5 +1,5 @@
 {
-  "description": "A `packages/cli-core` usage check across scenarios flags any scenario whose CLI does not follow the canonical pattern, surfacing findings as warnings in validation output.",
+  "description": "A CLI entrypoint-structure check flags scenarios whose `cli/main.go` owns command or infrastructure setup instead of staying a thin process boundary.",
   "module_id": "MOD-P1-007",
   "prd_ref": "OT-P1-002",
   "priority": "P1",
@@ -9,44 +9,44 @@
       "dependencies": [
         "REQ-P0-001"
       ],
-      "description": "The `cli-health validate \u003cscenario\u003e` command (and optionally a standalone audit sub-command) must inspect each scenario's CLI entry point to verify it uses the canonical `packages/cli-core` pattern. Scenarios whose CLI does not import or delegate to `cli-core` in the expected manner must produce a warning-level finding with code NON_CANONICAL_CLI_PATTERN, including the scenario name and the detected pattern deviation. These findings must not fail validation (exit code remains 0) but must appear in the validation output.",
+      "description": "The `cli-health validate \u003cscenario\u003e` command must inspect each scenario's `cli/main.go` entrypoint and verify it delegates to `NewApp`/`app.Run`, `cmd.Execute`, or an equivalent CLI runner. Scenarios whose `main()` performs direct infrastructure setup or accumulates non-delegating command/business logic must produce a warning-level `cli.main_heavy` finding. These findings must not fail validation by themselves, but they must appear in the maturity assessment and validation output.",
       "id": "REQ-P1-002",
       "prd_ref": "OT-P1-002",
       "status": "draft",
       "title": "Non-Canonical CLI Pattern Detection Across Scenarios",
       "validation": [
         {
-          "notes": "Given a scenario CLI entry point that does not import cli-core, validate returns NON_CANONICAL_CLI_PATTERN at warning severity",
+          "notes": "A direct server setup in cli/main.go returns cli.main_heavy at warning severity.",
           "phase": "unit",
-          "ref": "",
+          "ref": "api/internal/services/manifestvalidation/entrypoint_test.go::TestEntrypointFindings_DirectServerSetupFails",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Given a scenario CLI entry point that correctly uses cli-core, validate returns zero NON_CANONICAL_CLI_PATTERN findings",
+          "notes": "The current scenario-app pattern (NewApp plus app.Run) returns no entrypoint finding.",
           "phase": "unit",
-          "ref": "",
+          "ref": "api/internal/services/manifestvalidation/entrypoint_test.go::TestEntrypointFindings_CurrentScenarioAppMainPasses",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Given a NON_CANONICAL_CLI_PATTERN warning and no error-level findings, exit code is 0",
+          "notes": "A lifecycle guard plus app delegation returns no entrypoint finding.",
           "phase": "unit",
-          "ref": "",
+          "ref": "api/internal/services/manifestvalidation/entrypoint_test.go::TestEntrypointFindings_LifecycleGuardMainPasses",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Run `cli-health validate` across all 6 adopting scenarios; assert all pass (exit 0) and any NON_CANONICAL_CLI_PATTERN warnings are reported for non-conformant scenarios",
+          "notes": "A non-delegating busy main() returns cli.main_heavy without relying on raw line-count heuristics.",
           "phase": "integration",
-          "ref": "",
+          "ref": "api/internal/services/manifestvalidation/entrypoint_test.go::TestEntrypointFindings_NonDelegatingBusyMainFails",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Introduce a synthetic scenario with a hand-rolled CLI bypassing cli-core; assert NON_CANONICAL_CLI_PATTERN warning is produced",
+          "notes": "The validator reads cli/main.go next to the manifest path used by ValidateScenario.",
           "phase": "integration",
-          "ref": "",
+          "ref": "api/internal/services/manifestvalidation/entrypoint_test.go::TestEntrypointFindings_ReadsMainNextToManifest",
           "status": "pending",
           "type": "test"
         },

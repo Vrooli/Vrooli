@@ -49,7 +49,7 @@ func Evaluate(in Input) []Finding {
 	out = append(out, surfaceDirRules(in)...)
 	out = append(out, lifecycleWiringRules(in)...)
 	out = append(out, freshnessRules(in)...)
-	out = append(out, healthCheckRules(in)...)
+	out = append(out, apiEntrypointRules(in)...)
 	out = append(out, dependencyRules(in)...)
 	out = append(out, portBandRules(in)...)
 	out = append(out, apiBinaryNameRules(in)...)
@@ -231,27 +231,6 @@ func freshnessRules(in Input) []Finding {
 		}
 	}
 	return out
-}
-
-// healthCheckRules asserts a critical http health check exists for the api.
-func healthCheckRules(in Input) []Finding {
-	health := in.Model.Intent.Lifecycle.Health
-	if !apiDeclared(in.Model) {
-		return nil
-	}
-	for _, c := range health.Checks {
-		if strings.EqualFold(c.Type, "http") {
-			return nil
-		}
-	}
-	return []Finding{{
-		Code:        "HEALTH_CHECK_MISSING",
-		Severity:    sevError,
-		Title:       "no http health check",
-		Message:     "The scenario declares an API surface but no lifecycle.health http check; the lifecycle cannot confirm readiness.",
-		Location:    ".vrooli/service.json",
-		Remediation: "Add a lifecycle.health.checks entry of type http targeting the API /health endpoint.",
-	}}
 }
 
 // dependencyRules asserts dependency declarations use valid enums and no edge

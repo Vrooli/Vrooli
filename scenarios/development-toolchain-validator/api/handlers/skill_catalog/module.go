@@ -117,7 +117,7 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 500, Code: "internal", Description: "Repository read failure"},
 		},
 		Examples: []module.Example{
-			{Name: "Get skill", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.skill_catalog.SkillCatalogService/GetSkill -H 'Content-Type: application/json' -d '{\"id\":\"plan-skill-discovery\"}'"},
+			{Name: "Get skill", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.skill_catalog.SkillCatalogService/GetSkill -H 'Content-Type: application/json' -d '{\"id\":\"implementation-plan-authoring\"}'"},
 		},
 	},
 }

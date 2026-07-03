@@ -124,6 +124,10 @@ func describeMissing(missing []gomodreconcile.MissingReplace) string {
 	}
 	parts := make([]string, 0, len(missing))
 	for _, m := range missing {
+		if m.AddRequire {
+			parts = append(parts, "require "+m.Module+" v0.0.0 and replace "+m.Module+" => "+m.RelPath)
+			continue
+		}
 		parts = append(parts, "replace "+m.Module+" => "+m.RelPath)
 	}
 	return "Add " + strings.Join(parts, "; ")

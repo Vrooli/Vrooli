@@ -26,6 +26,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"go/parser"
+	"go/token"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -62,6 +64,10 @@ type MissingReplace struct {
 	// RelPath is the surface-relative path to the module directory that the
 	// replace must point at (e.g. ../../../packages/cli-core).
 	RelPath string
+	// AddRequire is true when the surface imports the in-repo module but go.mod
+	// does not yet require it. The deterministic fix adds require v0.0.0 first,
+	// then the local replace.
+	AddRequire bool
 }
 
 // Candidate is a proposed (or applied) reconcile edit for a single surface
@@ -130,16 +136,20 @@ func readModulePath(goModPath string) string {
 	return ""
 }
 
-// Plan computes the missing in-repo replaces for a single surface go.mod without
-// mutating anything. It only considers modules the surface actually requires
-// (direct or indirect) — the minimal, idempotent signal that matches the
-// long-standing package-go-module-replace-required detection.
+// Plan computes the missing in-repo require/replace wiring for a single surface
+// go.mod without mutating anything. It covers both modules already present in
+// the dependency graph and in-repo modules imported by source files but not yet
+// declared in go.mod (for example a scenario CLI importing its sibling API).
 func Plan(ctx context.Context, goModPath string, topo Topology) ([]MissingReplace, error) {
 	view, err := parseGoMod(ctx, goModPath)
 	if err != nil {
 		return nil, err
 	}
 	moduleDir := filepath.Dir(goModPath)
+	requiredDirect := make(map[string]struct{}, len(view.Require))
+	for _, req := range view.Require {
+		requiredDirect[req.Path] = struct{}{}
+	}
 	replaced := make(map[string]struct{}, len(view.Replace))
 	for _, r := range view.Replace {
 		replaced[r.Old.Path] = struct{}{}
@@ -148,8 +158,24 @@ func Plan(ctx context.Context, goModPath string, topo Topology) ([]MissingReplac
 	if err != nil {
 		return nil, err
 	}
-	var missing []MissingReplace
+	imported, err := importedInRepoModules(moduleDir, view.Module.Path, topo)
+	if err != nil {
+		return nil, err
+	}
+	candidates := make(map[string]bool)
 	for _, path := range required {
+		candidates[path] = false
+	}
+	for _, path := range imported {
+		if _, ok := requiredDirect[path]; !ok {
+			candidates[path] = true
+		} else if _, ok := candidates[path]; !ok {
+			candidates[path] = false
+		}
+	}
+
+	var missing []MissingReplace
+	for _, path := range sortedBoolKeys(candidates) {
 		if path == view.Module.Path {
 			continue
 		}
@@ -157,7 +183,8 @@ func Plan(ctx context.Context, goModPath string, topo Topology) ([]MissingReplac
 		if !inRepo {
 			continue // third-party — governed by approved-dependencies, not here
 		}
-		if _, ok := replaced[path]; ok {
+		addRequire := candidates[path]
+		if _, ok := replaced[path]; ok && !addRequire {
 			continue
 		}
 		rel, err := filepath.Rel(moduleDir, dir)
@@ -166,7 +193,7 @@ func Plan(ctx context.Context, goModPath string, topo Topology) ([]MissingReplac
 			// flag it (caller surfaces a finding) but never guess a path.
 			continue
 		}
-		missing = append(missing, MissingReplace{Module: path, RelPath: filepath.ToSlash(rel)})
+		missing = append(missing, MissingReplace{Module: path, RelPath: filepath.ToSlash(rel), AddRequire: addRequire})
 	}
 	sort.Slice(missing, func(i, j int) bool { return missing[i].Module < missing[j].Module })
 	return missing, nil
@@ -212,6 +239,92 @@ func requiredInRepoModules(ctx context.Context, view goModView, topo Topology) (
 	}
 	sort.Strings(out)
 	return out, nil
+}
+
+func importedInRepoModules(moduleDir, selfModule string, topo Topology) ([]string, error) {
+	modules := sortedTopologyModules(topo)
+	seen := map[string]struct{}{}
+	skipDir := map[string]struct{}{
+		".git": {}, "node_modules": {}, "vendor": {}, "data": {},
+		"dist": {}, "build": {}, ".cache": {}, "coverage": {},
+	}
+	err := filepath.WalkDir(moduleDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if _, skip := skipDir[d.Name()]; skip {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") {
+			return nil
+		}
+		file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
+		if err != nil {
+			return nil
+		}
+		for _, spec := range file.Imports {
+			importPath := strings.Trim(spec.Path.Value, `"`)
+			if importPath == "" || importPathMatchesModule(importPath, selfModule) {
+				continue
+			}
+			if module := matchingInRepoModule(importPath, modules); module != "" {
+				seen[module] = struct{}{}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(seen))
+	for module := range seen {
+		out = append(out, module)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+func matchingInRepoModule(importPath string, modules []string) string {
+	for _, module := range modules {
+		if importPathMatchesModule(importPath, module) {
+			return module
+		}
+	}
+	return ""
+}
+
+func importPathMatchesModule(importPath, module string) bool {
+	module = strings.TrimSuffix(strings.TrimSpace(module), "/")
+	if module == "" {
+		return false
+	}
+	return importPath == module || strings.HasPrefix(importPath, module+"/")
+}
+
+func sortedTopologyModules(topo Topology) []string {
+	modules := make([]string, 0, len(topo))
+	for module := range topo {
+		modules = append(modules, module)
+	}
+	sort.Slice(modules, func(i, j int) bool {
+		if len(modules[i]) == len(modules[j]) {
+			return modules[i] < modules[j]
+		}
+		return len(modules[i]) > len(modules[j])
+	})
+	return modules
+}
+
+func sortedBoolKeys(values map[string]bool) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // PreviewSurface returns the deterministic before/after for adding the currently
@@ -268,6 +381,9 @@ func ApplySurface(ctx context.Context, goModPath string, topo Topology) (*Candid
 		}
 		args := []string{"mod", "edit"}
 		for _, m := range missing {
+			if m.AddRequire {
+				args = append(args, "-require="+m.Module+"@v0.0.0")
+			}
 			args = append(args, "-replace="+m.Module+"="+m.RelPath)
 		}
 		if err := runGo(ctx, moduleDir, args...); err != nil {
@@ -307,6 +423,9 @@ func editedGoMod(ctx context.Context, goModPath, content string, missing []Missi
 	}
 	args := []string{"mod", "edit"}
 	for _, m := range missing {
+		if m.AddRequire {
+			args = append(args, "-require="+m.Module+"@v0.0.0")
+		}
 		args = append(args, "-replace="+m.Module+"="+m.RelPath)
 	}
 	args = append(args, "-fmt", tmp)

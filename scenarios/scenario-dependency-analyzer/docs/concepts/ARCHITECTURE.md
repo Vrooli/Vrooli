@@ -60,7 +60,7 @@ Dependency freshness is evaluated per discovered dependency surface. Code Facts
 is the preferred inventory source because it can report every package root; SDA
 falls back to conventional `api`, `cli`, and `ui` roots only as degraded
 behavior. Go readiness checks cover `go.mod` presence, local replace targets,
-`go mod tidy -diff`, and optional build freshness. Node readiness checks cover
+`go mod tidy -diff`, and workspace-disabled `go build ./...`. Node readiness checks cover
 `package.json`, exactly one supported lockfile, and local install state.
 
 Fleet/touched freshness is an aggregation mode over the same findings, not a

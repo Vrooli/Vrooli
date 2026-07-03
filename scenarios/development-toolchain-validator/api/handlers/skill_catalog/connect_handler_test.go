@@ -63,14 +63,14 @@ func newClient(t *testing.T, svc skillcatalog.Service) skillcatalogconnect.Skill
 func TestSync_ReturnsCatalogAndCounts(t *testing.T) {
 	now := time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC)
 	client := newClient(t, &fakeService{SyncOut: skillcatalog.SyncResult{
-		Skills: []skillcatalog.Skill{{ID: "plan-skill-discovery", Version: "v1", ContentHash: "h1", SyncedAt: now}},
+		Skills: []skillcatalog.Skill{{ID: "implementation-plan-authoring", Version: "v1", ContentHash: "h1", SyncedAt: now}},
 		Added:  1, Updated: 0, Removed: 0,
 	}})
 	resp, err := client.Sync(context.Background(), connect.NewRequest(&skillcatalogv1.SyncRequest{}))
 	require.NoError(t, err)
 	require.Len(t, resp.Msg.Skills, 1)
 	require.Equal(t, int32(1), resp.Msg.Added)
-	require.Equal(t, "plan-skill-discovery", resp.Msg.Skills[0].Id)
+	require.Equal(t, "implementation-plan-authoring", resp.Msg.Skills[0].Id)
 }
 
 func TestSync_NotReadyMapsToUnavailable(t *testing.T) {

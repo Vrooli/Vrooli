@@ -1,7 +1,6 @@
 package validation
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -9,11 +8,7 @@ import (
 )
 
 func TestMaturitySpecCoversEmittedFindingCodes(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join(ResolveRepoRoot(), "scenarios", "measures-health", ".vrooli", "maturity.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	spec, err := assessment.ParseSpec(raw)
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join(ResolveRepoRoot(), "scenarios", "measures-health"))
 	if err != nil {
 		t.Fatal(err)
 	}

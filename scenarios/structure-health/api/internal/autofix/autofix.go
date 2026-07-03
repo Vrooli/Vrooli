@@ -25,19 +25,21 @@ type Candidate = autofixcore.Candidate
 // Finding/rule codes structure-health can auto-remediate. These mirror the codes
 // emitted by internal/rules and listed in .vrooli/maturity.json.
 const (
-	RuleServiceNameMismatch = "SERVICE_NAME_MISMATCH"
-	RuleHealthCheckMissing  = "HEALTH_CHECK_MISSING"
-	RuleFreshnessMissing    = "FRESHNESS_CHECK_MISSING"
-	RuleSurfaceDirMissing   = "SURFACE_DIR_MISSING"
-	RuleRequiredFileMissing = "REQUIRED_FILE_MISSING"
-	RulePortBand            = "PORT_BAND_NONCONFORMANT"
-	RuleAPIBinaryName       = "API_BINARY_NAME_NONCONFORMANT"
-	RuleProductionServe     = "PRODUCTION_SERVE_NONCONFORMANT"
+	RuleServiceNameMismatch  = "SERVICE_NAME_MISMATCH"
+	RuleHealthCheckMissing   = "HEALTH_CHECK_MISSING"
+	RuleHealthCheckMalformed = "HEALTH_CHECK_MALFORMED"
+	RuleFreshnessMissing     = "FRESHNESS_CHECK_MISSING"
+	RuleSurfaceDirMissing    = "SURFACE_DIR_MISSING"
+	RuleRequiredFileMissing  = "REQUIRED_FILE_MISSING"
+	RulePortBand             = "PORT_BAND_NONCONFORMANT"
+	RuleAPIBinaryName        = "API_BINARY_NAME_NONCONFORMANT"
+	RuleProductionServe      = "PRODUCTION_SERVE_NONCONFORMANT"
 )
 
 var registry = autofixcore.NewRegistry(
 	autofixcore.Fixer{RuleID: RuleServiceNameMismatch, Preview: previewServiceName, CanFix: canFix(previewServiceName)},
 	autofixcore.Fixer{RuleID: RuleHealthCheckMissing, Preview: previewHealthCheck, CanFix: canFix(previewHealthCheck)},
+	autofixcore.Fixer{RuleID: RuleHealthCheckMalformed, Preview: previewMalformedHealthCheck, CanFix: canFix(previewMalformedHealthCheck)},
 	autofixcore.Fixer{RuleID: RuleFreshnessMissing, Preview: previewFreshnessChecks, CanFix: canFix(previewFreshnessChecks)},
 	autofixcore.Fixer{RuleID: RuleSurfaceDirMissing, Preview: previewSurfaceDirs, CanFix: canFix(previewSurfaceDirs)},
 	autofixcore.Fixer{RuleID: RuleRequiredFileMissing, Preview: previewRequiredFiles, CanFix: canFix(previewRequiredFiles)},
@@ -101,7 +103,7 @@ func CanFix(root, ruleID, findingPath string) bool {
 // fixer is registered for it, detection_only otherwise.
 func FixClassFor(code string) autofixcore.FixClass {
 	switch code {
-	case RuleServiceNameMismatch, RuleHealthCheckMissing, RuleFreshnessMissing, RuleSurfaceDirMissing, RuleRequiredFileMissing,
+	case RuleServiceNameMismatch, RuleHealthCheckMissing, RuleHealthCheckMalformed, RuleFreshnessMissing, RuleSurfaceDirMissing, RuleRequiredFileMissing,
 		RulePortBand, RuleAPIBinaryName, RuleProductionServe:
 		return autofixcore.FixClassAutofix
 	default:
@@ -120,7 +122,10 @@ func canFix(preview func(root string) ([]Candidate, error)) func(root, findingPa
 
 // --- service.json fixers --------------------------------------------------
 
-const serviceJSONRel = ".vrooli/service.json"
+const (
+	serviceJSONRel           = ".vrooli/service.json"
+	canonicalAPIHealthTarget = "http://localhost:${API_PORT}/health"
+)
 
 // loadServiceJSON reads + parses the target service.json into an editable doc,
 // returning the original bytes for the candidate's Before snapshot.
@@ -135,6 +140,14 @@ func loadServiceJSON(root string) (*svcedit.Doc, []byte, error) {
 		return nil, nil, err
 	}
 	return doc, raw, nil
+}
+
+func isCanonicalHealthTarget(target string) bool {
+	target = strings.TrimSpace(target)
+	if target == canonicalAPIHealthTarget {
+		return true
+	}
+	return strings.HasSuffix(target, "${API_PORT}/health") || strings.HasSuffix(target, ":${API_PORT}/health")
 }
 
 // previewServiceName rewrites service.name to the scenario directory name.
@@ -204,6 +217,61 @@ func previewHealthCheck(root string) ([]Candidate, error) {
 		RuleID:      RuleHealthCheckMissing,
 		FilePath:    filepath.Join(root, filepath.FromSlash(serviceJSONRel)),
 		Description: "Add an http lifecycle.health check targeting the API /health endpoint.",
+		Before:      string(before),
+		After:       string(after),
+	}}, nil
+}
+
+// previewMalformedHealthCheck normalizes the first existing HTTP health check
+// onto the canonical API readiness probe. It does not create checks; the missing
+// check fixer owns that case.
+func previewMalformedHealthCheck(root string) ([]Candidate, error) {
+	in, err := intent.Load(root)
+	if err != nil {
+		return nil, nil
+	}
+	api, _, _ := declaredSurfaces(in)
+	if !api {
+		return nil, nil
+	}
+	hasHTTP := false
+	for _, c := range in.Lifecycle.Health.Checks {
+		if strings.EqualFold(c.Type, "http") {
+			hasHTTP = true
+			if isCanonicalHealthTarget(c.Target) && c.Critical {
+				return nil, nil
+			}
+			break
+		}
+	}
+	if !hasHTTP {
+		return nil, nil
+	}
+	doc, before, err := loadServiceJSON(root)
+	if err != nil {
+		return nil, nil
+	}
+	health := svcedit.EnsureMap(svcedit.EnsureMap(doc.Root(), "lifecycle"), "health")
+	check, ok := svcedit.FindMapInSlice(health, "checks", func(m *svcedit.Map) bool {
+		return strings.EqualFold(strings.TrimSpace(svcedit.StringField(m, "type")), "http")
+	})
+	if !ok {
+		return nil, nil
+	}
+	if strings.TrimSpace(svcedit.StringField(check, "name")) == "" {
+		check.Set("name", "api_endpoint")
+	}
+	check.Set("type", "http")
+	check.Set("target", canonicalAPIHealthTarget)
+	check.Set("critical", true)
+	after, err := doc.Bytes()
+	if err != nil {
+		return nil, err
+	}
+	return []Candidate{{
+		RuleID:      RuleHealthCheckMalformed,
+		FilePath:    filepath.Join(root, filepath.FromSlash(serviceJSONRel)),
+		Description: "Normalize the API lifecycle health check to the canonical critical /health probe.",
 		Before:      string(before),
 		After:       string(after),
 	}}, nil

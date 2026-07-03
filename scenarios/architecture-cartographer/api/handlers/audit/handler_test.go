@@ -105,11 +105,7 @@ func TestValidateScenarioNativeDetailPreserved(t *testing.T) {
 }
 
 func TestMaturitySpecCoversArchitectureFindings(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("..", "..", "..", ".vrooli", "maturity.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	spec, err := assessment.ParseSpec(raw)
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join("..", "..", ".."))
 	if err != nil {
 		t.Fatal(err)
 	}
