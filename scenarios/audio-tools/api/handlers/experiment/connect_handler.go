@@ -6,12 +6,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"runtime"
+	"strings"
 
 	"connectrpc.com/connect"
 
 	intexp "audio-tools/internal/experiment"
+	exprecipe "audio-tools/internal/experiment/recipe"
 	"audio-tools/internal/logx"
 
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval"
@@ -22,6 +25,14 @@ import (
 var (
 	errServiceNotConfigured   = errors.New("experiment service not configured")
 	errSpeakerProfileRequired = errors.New("speaker experiments require a target_profile_id; enroll a voice profile with `audio-tools stt speaker-enroll --file <clip> --activate true` and list profile ids with `audio-tools stt speaker-status`")
+)
+
+// SNR augmentation bounds. dB is an amplitude ratio, so values well outside this
+// window carry no useful signal; the guard only rejects nonsense, not the
+// legitimate 0 dB / negative-dB hard conditions.
+const (
+	minSNRDB = -80.0
+	maxSNRDB = 80.0
 )
 
 // ExperimentManager is the handler-owned seam over internal/experiment.Manager.
@@ -74,6 +85,22 @@ func (h *connectHandler) StartExperiment(ctx context.Context, req *connect.Reque
 	estimatedSeconds, err := h.estimateExperimentSeconds(ctx, recipe, req.Msg.GetEstimatedSeconds())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if req.Msg.GetDryRun() {
+		// Resolve + validate only: return the recipe preview without enqueuing.
+		// The preview mirrors what a real start would persist (pre-materialization),
+		// with no id and an unspecified status so it can't be mistaken for a run.
+		preview := &experimentv1.Experiment{
+			Name:        req.Msg.GetName(),
+			Status:      experimentv1.ExperimentStatus_EXPERIMENT_STATUS_UNSPECIFIED,
+			Recipe:      recipe,
+			MachineJson: string(experimentMachineJSON(recipeJSON)),
+		}
+		return connect.NewResponse(&experimentv1.StartExperimentResponse{
+			Experiment:       preview,
+			EstimatedSeconds: estimatedSeconds,
+			DryRun:           true,
+		}), nil
 	}
 	exp, err := h.deps.Manager.Submit(ctx, intexp.SubmitSpec{
 		Name:             req.Msg.GetName(),
@@ -411,8 +438,24 @@ func validateRecipe(recipe *experimentv1.ExperimentRecipe) error {
 	}
 	if aug := recipe.GetAugmentation(); aug != nil {
 		for i, snr := range aug.GetSnrDb() {
-			if snr < 0 {
-				return fmt.Errorf("augmentation.snr_db[%d] must be non-negative", i)
+			// SNR in dB is routinely zero or negative: 0 dB means the noise is
+			// as loud as the speech and negative dB means it is louder — the
+			// canonical hard conditions this lab exists to measure. Only reject
+			// non-finite or absurd values.
+			if math.IsNaN(snr) || math.IsInf(snr, 0) {
+				return fmt.Errorf("augmentation.snr_db[%d] must be a finite number", i)
+			}
+			if snr < minSNRDB || snr > maxSNRDB {
+				return fmt.Errorf("augmentation.snr_db[%d]=%g is out of range (%g..%g dB)", i, snr, minSNRDB, maxSNRDB)
+			}
+		}
+		for i, noiseType := range aug.GetNoiseTypes() {
+			if strings.TrimSpace(noiseType) == "" {
+				continue
+			}
+			if !exprecipe.IsKnownNoiseType(noiseType) {
+				return fmt.Errorf("augmentation.noise_types[%d] %q is not a supported noise bed; use one of: %s",
+					i, noiseType, strings.Join(exprecipe.KnownNoiseTypes(), ", "))
 			}
 		}
 	}

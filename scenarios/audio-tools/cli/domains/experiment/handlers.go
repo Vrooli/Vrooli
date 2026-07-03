@@ -2,6 +2,7 @@ package experiment
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -52,14 +53,29 @@ func (h *handlers) wait(ctx cliapp.RunContext) error {
 	if err != nil {
 		return cliapp.WrapAPIError("experiment-wait", err, nil)
 	}
+	// Build one stable {experiment, report, runs} envelope so `wait --json`
+	// parses to a fixed shape regardless of whether the run produced a report.
+	envelope := &experimentv1.GetExperimentReportResponse{
+		Experiment: resp.Msg.GetExperiment(),
+		Runs:       resp.Msg.GetRuns(),
+	}
+	reportReady := false
 	if experimentTerminal(resp.Msg.GetExperiment()) && resp.Msg.GetExperiment().GetResultRef() != "" {
 		reportResp, reportErr := h.client.GetExperimentReport(context.Background(), connect.NewRequest(&experimentv1.GetExperimentReportRequest{Id: id}))
 		if reportErr == nil && reportResp != nil && reportResp.Msg != nil && reportResp.Msg.GetReport() != nil {
-			if ctx.JSON() {
-				return printExperimentProtoJSON(ctx.Stdout(), reportResp.Msg)
-			}
-			return renderReport(ctx, reportResp.Msg)
+			envelope.Experiment = reportResp.Msg.GetExperiment()
+			envelope.Report = reportResp.Msg.GetReport()
+			envelope.Runs = reportResp.Msg.GetRuns()
+			reportReady = true
 		}
+	}
+	if ctx.JSON() {
+		return printExperimentWaitJSON(ctx.Stdout(), envelope)
+	}
+	if reportReady {
+		return renderReport(ctx, envelope)
+	}
+	if experimentTerminal(resp.Msg.GetExperiment()) && resp.Msg.GetExperiment().GetResultRef() != "" {
 		fmt.Fprintf(ctx.Stderr(), "Report is not available yet; use `audio-tools experiment report %s` to re-attach.\n", id)
 	}
 	return renderExperiment(ctx, resp.Msg, "wait")
@@ -242,6 +258,32 @@ func renderExperiment(ctx cliapp.RunContext, msg interface {
 		report.Results = append(report.Results, "(none yet)")
 	}
 	return ctx.RenderList(report)
+}
+
+// printExperimentWaitJSON emits a stable {experiment, report, runs} object.
+// protojson omits nil singular message fields, so when the run has not produced
+// a report yet the `report` key would silently disappear and the parsed shape
+// would shift by server timing. We normalize through a generic map and inject an
+// explicit report:null so an agent can always parse `.report` unconditionally.
+func printExperimentWaitJSON(w io.Writer, env *experimentv1.GetExperimentReportResponse) error {
+	body, err := experimentProtoJSONOptions.Marshal(env)
+	if err != nil {
+		return fmt.Errorf("marshal wait envelope: %w", err)
+	}
+	var obj map[string]any
+	if err := json.Unmarshal(body, &obj); err != nil {
+		return fmt.Errorf("normalize wait envelope: %w", err)
+	}
+	if _, ok := obj["report"]; !ok {
+		obj["report"] = nil
+	}
+	out, err := json.MarshalIndent(obj, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode wait envelope: %w", err)
+	}
+	out = append(out, '\n')
+	_, err = w.Write(out)
+	return err
 }
 
 func printExperimentProtoJSON(w io.Writer, msg proto.Message) error {

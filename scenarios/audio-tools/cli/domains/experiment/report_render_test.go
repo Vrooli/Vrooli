@@ -102,10 +102,11 @@ func experimentStartSchema() cliapp.ArgSchema {
 		"recipe-json",
 		"recipe-file",
 	}
-	flags := make([]cliapp.Flag, 0, len(names))
+	flags := make([]cliapp.Flag, 0, len(names)+1)
 	for _, name := range names {
 		flags = append(flags, cliapp.Flag{Name: name})
 	}
+	flags = append(flags, cliapp.Flag{Name: "dry-run", Bool: true})
 	return cliapp.ArgSchema{Flags: flags}
 }
 
@@ -433,6 +434,70 @@ func TestWaitJSONReturnsTerminalReportEnvelope(t *testing.T) {
 	row, ok := rows[0].(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, float64(0), row["wer"])
+}
+
+func TestWaitJSONReturnsStableEnvelopeWhenReportMissing(t *testing.T) {
+	app := mountExperiment(t, &fakeExperimentSvc{
+		waitFn: func(req *experimentv1.WaitExperimentRequest) (*experimentv1.WaitExperimentResponse, error) {
+			return &experimentv1.WaitExperimentResponse{
+				Experiment: &experimentv1.Experiment{
+					Id:     "exp-failed",
+					Status: experimentv1.ExperimentStatus_EXPERIMENT_STATUS_FAILED,
+					Error:  "boom",
+				},
+				Runs: []*experimentv1.ExperimentRun{},
+			}, nil
+		},
+	})
+	h := newHandlers(app)
+	ctx, buf := cliapptest.NewCapturedRunContext(app,
+		cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true}}},
+		cliapptest.TestRunContextOptions{JSON: true, Positionals: map[string]string{"id": "exp-failed"}},
+	)
+
+	require.NoError(t, h.wait(ctx))
+	var envelope map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &envelope))
+	// Stable shape: experiment + runs + an explicit null report, regardless of
+	// whether the run produced one.
+	require.Contains(t, envelope, "experiment")
+	require.Contains(t, envelope, "runs")
+	require.Contains(t, envelope, "report")
+	require.Nil(t, envelope["report"], "report must be explicit null when absent")
+}
+
+func TestStartDryRunDoesNotSubmitAndEchoesRecipe(t *testing.T) {
+	var gotDryRun bool
+	app := mountExperiment(t, &fakeExperimentSvc{
+		startFn: func(req *experimentv1.StartExperimentRequest) (*experimentv1.StartExperimentResponse, error) {
+			gotDryRun = req.GetDryRun()
+			// Mirror the server's dry-run contract: echo the recipe, no id.
+			return &experimentv1.StartExperimentResponse{
+				DryRun:           req.GetDryRun(),
+				EstimatedSeconds: 42,
+				Experiment: &experimentv1.Experiment{
+					Name:   req.GetName(),
+					Status: experimentv1.ExperimentStatus_EXPERIMENT_STATUS_UNSPECIFIED,
+					Recipe: req.GetRecipe(),
+				},
+			}, nil
+		},
+	})
+	h := newHandlers(app)
+	ctx, buf := cliapptest.NewCapturedRunContext(app, experimentStartSchema(), cliapptest.TestRunContextOptions{
+		JSON:      true,
+		Flags:     map[string]string{"name": "preview", "snr-db": "-5", "noise-types": "white"},
+		BoolFlags: map[string]bool{"dry-run": true},
+	})
+
+	require.NoError(t, h.start(ctx))
+	require.True(t, gotDryRun, "handler must forward dry_run to the server")
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &resp))
+	require.Equal(t, true, resp["dry_run"])
+	exp, ok := resp["experiment"].(map[string]any)
+	require.True(t, ok)
+	require.Empty(t, exp["id"], "dry-run preview has no persisted id")
 }
 
 func TestDeleteRequiresYes(t *testing.T) {

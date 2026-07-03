@@ -2,6 +2,7 @@ package experiment
 
 import (
 	"context"
+	"math"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -47,11 +48,18 @@ func TestValidateRecipeRejectsInvalidInputs(t *testing.T) {
 			want: "long_form.sweep_durations_seconds[1]",
 		},
 		{
-			name: "negative snr",
+			name: "snr out of range",
 			recipe: &experimentv1.ExperimentRecipe{Augmentation: &experimentv1.AugmentationRecipe{
-				SnrDb: []float64{12, -3},
+				SnrDb: []float64{12, 500},
 			}},
 			want: "augmentation.snr_db[1]",
+		},
+		{
+			name: "unknown noise type",
+			recipe: &experimentv1.ExperimentRecipe{Augmentation: &experimentv1.AugmentationRecipe{
+				NoiseTypes: []string{"white", "whooosh"},
+			}},
+			want: "augmentation.noise_types[1]",
 		},
 		{
 			name: "speaker without profile",
@@ -77,6 +85,74 @@ func TestValidateRecipeAllowsDefaultsAndOverlapStallDefault(t *testing.T) {
 		OverlapMaxStallRejects: -1,
 	}}})
 	require.NoError(t, err)
+}
+
+// Zero and negative SNR (noise as loud as / louder than speech) are the
+// canonical hard conditions the robustness lab exists to measure and must be
+// accepted, not rejected.
+func TestValidateRecipeAllowsZeroAndNegativeSNR(t *testing.T) {
+	for _, snr := range []float64{0, -5, -10, minSNRDB, maxSNRDB} {
+		err := validateRecipe(&experimentv1.ExperimentRecipe{Augmentation: &experimentv1.AugmentationRecipe{
+			NoiseTypes: []string{"white"},
+			SnrDb:      []float64{snr},
+		}})
+		require.NoErrorf(t, err, "snr_db=%g should be accepted", snr)
+	}
+}
+
+func TestValidateRecipeRejectsNonFiniteSNR(t *testing.T) {
+	err := validateRecipe(&experimentv1.ExperimentRecipe{Augmentation: &experimentv1.AugmentationRecipe{
+		SnrDb: []float64{math.Inf(1)},
+	}})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "finite")
+}
+
+func TestValidateRecipeAllowsKnownNoiseAliases(t *testing.T) {
+	err := validateRecipe(&experimentv1.ExperimentRecipe{Augmentation: &experimentv1.AugmentationRecipe{
+		NoiseTypes: []string{"white", "fan", "percussive", "music", "constant_fan", "dynamic", "music_like"},
+	}})
+	require.NoError(t, err)
+}
+
+// A dry run validates and resolves the recipe but must not enqueue anything.
+func TestStartExperimentDryRunDoesNotSubmit(t *testing.T) {
+	mgr := &captureSubmitManager{}
+	h := NewConnectHandler(Deps{
+		Logger:  logx.Std{},
+		Manager: mgr,
+		Service: &intexp.Service{},
+	})
+
+	resp, err := h.StartExperiment(context.Background(), connect.NewRequest(&experimentv1.StartExperimentRequest{
+		Name:   "preview",
+		DryRun: true,
+		Recipe: &experimentv1.ExperimentRecipe{
+			Strategies:   []*evalv1.EvalStrategy{{Kind: "batch"}},
+			Augmentation: &experimentv1.AugmentationRecipe{NoiseTypes: []string{"white"}, SnrDb: []float64{-5}},
+		},
+	}))
+
+	require.NoError(t, err)
+	require.True(t, resp.Msg.GetDryRun())
+	require.Empty(t, mgr.spec.Name, "dry run must not call Submit")
+	require.Empty(t, resp.Msg.GetExperiment().GetId(), "preview has no persisted id")
+	require.Equal(t, "preview", resp.Msg.GetExperiment().GetName())
+	require.Equal(t, []float64{-5}, resp.Msg.GetExperiment().GetRecipe().GetAugmentation().GetSnrDb())
+}
+
+func TestStartExperimentDryRunStillValidates(t *testing.T) {
+	mgr := &captureSubmitManager{}
+	h := NewConnectHandler(Deps{Logger: logx.Std{}, Manager: mgr, Service: &intexp.Service{}})
+
+	_, err := h.StartExperiment(context.Background(), connect.NewRequest(&experimentv1.StartExperimentRequest{
+		DryRun: true,
+		Recipe: &experimentv1.ExperimentRecipe{Augmentation: &experimentv1.AugmentationRecipe{NoiseTypes: []string{"whooosh"}}},
+	}))
+
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	require.Contains(t, err.Error(), "noise_types")
+	require.Empty(t, mgr.spec.Name, "invalid dry run must not submit")
 }
 
 type noOpManager struct{}

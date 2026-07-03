@@ -249,6 +249,8 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 	// default trio at run time when none are given) so `start --json` is honest.
 	ensureDefaultStrategies(req.Recipe)
 
+	req.DryRun = ctx.BoolFlag("dry-run")
+
 	resp, err := h.client.StartExperiment(context.Background(), connect.NewRequest(req))
 	if err != nil {
 		return cliapp.WrapAPIError("experiment-start", err, nil)
@@ -270,6 +272,13 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 	}
 	if eta := estimatedSecondsLabel(resp.Msg.GetEstimatedSeconds()); eta != "" {
 		changes = append(changes, eta)
+	}
+	if resp.Msg.GetDryRun() {
+		// Nothing was enqueued: report the validated preview and how to commit it.
+		return renderExperimentProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+			Result:  []string{"Dry run: recipe validated, nothing was enqueued.", "Re-run without --dry-run to start the experiment."},
+			Changes: changes,
+		})
 	}
 	return renderExperimentProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result:  []string{fmt.Sprintf("Started experiment %s (%s).", exp.GetId(), statusLabel(exp.GetStatus()))},

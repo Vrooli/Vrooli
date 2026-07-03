@@ -37,6 +37,61 @@ func TestAttributeIngressByAblation_PairsExtractionSiblings(t *testing.T) {
 	}
 }
 
+func TestAttributeStages_PartitionsWithoutRejections(t *testing.T) {
+	got := attributeStages(StrategyReport{EditCounts: EditCounts{Substitutions: 2, Deletions: 3}})
+	if got.StrategyLostWords != 5 || got.EgressLostWords != 0 || got.IngressLostWords != 0 {
+		t.Fatalf("unexpected attribution %+v, want strategy=5 egress=0 ingress=0", got)
+	}
+}
+
+func TestAttributeStages_MovesDeletionsToEgressOnRejection(t *testing.T) {
+	got := attributeStages(StrategyReport{
+		EditCounts:            EditCounts{Substitutions: 2, Deletions: 3},
+		SpeakerRejectionCount: 1,
+	})
+	// Deletions belong to egress; strategy keeps only substitutions. The buckets
+	// must partition subs+dels with no double count.
+	if got.StrategyLostWords != 2 || got.EgressLostWords != 3 {
+		t.Fatalf("unexpected attribution %+v, want strategy=2 egress=3", got)
+	}
+	if sum := got.IngressLostWords + got.StrategyLostWords + got.EgressLostWords; sum != 5 {
+		t.Fatalf("buckets sum to %d, want 5 (subs+dels)", sum)
+	}
+}
+
+func TestAttributeIngressByAblation_ReclaimsFromEgressOnRejection(t *testing.T) {
+	report := &EvalReport{PerStrategy: []StrategyReport{
+		{
+			BaseStrategy: "batch", ConditionGroup: "clean", VerificationEnabled: true,
+			EditCounts:       EditCounts{Deletions: 2},
+			StageAttribution: attributeStages(StrategyReport{EditCounts: EditCounts{Deletions: 2}, SpeakerRejectionCount: 1}),
+		},
+		{
+			BaseStrategy: "batch", ConditionGroup: "clean", VerificationEnabled: true, ExtractionEnabled: true,
+			EditCounts:       EditCounts{Substitutions: 1, Deletions: 5},
+			StageAttribution: attributeStages(StrategyReport{EditCounts: EditCounts{Substitutions: 1, Deletions: 5}, SpeakerRejectionCount: 1}),
+		},
+	}}
+
+	AttributeIngressByAblation(report)
+
+	on := report.PerStrategy[1].StageAttribution
+	// surplus = 5 - 2 = 3 attributed to ingress, reclaimed from egress (5 - 3 = 2)
+	// where attributeStages parked the deletions, not double-counted.
+	if on.IngressLostWords != 3 {
+		t.Fatalf("IngressLostWords = %d, want 3", on.IngressLostWords)
+	}
+	if on.EgressLostWords != 2 {
+		t.Fatalf("EgressLostWords = %d, want 2 (surplus reclaimed from egress)", on.EgressLostWords)
+	}
+	if on.StrategyLostWords != 1 {
+		t.Fatalf("StrategyLostWords = %d, want 1 (substitutions untouched)", on.StrategyLostWords)
+	}
+	if sum := on.IngressLostWords + on.StrategyLostWords + on.EgressLostWords; sum != 6 {
+		t.Fatalf("buckets sum to %d, want 6 (subs+dels)", sum)
+	}
+}
+
 func TestAttributeIngressByAblation_NoSiblingLeavesZero(t *testing.T) {
 	report := &EvalReport{PerStrategy: []StrategyReport{{
 		Strategy:          "batch/extract_on_verify_off",

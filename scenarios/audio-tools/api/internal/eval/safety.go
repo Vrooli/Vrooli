@@ -123,16 +123,26 @@ func aggregateSafety(clips []ClipResult) SafetyGateReport {
 	return out
 }
 
+// attributeStages partitions a row's lost words (substitutions + deletions)
+// across the pipeline stages. The buckets are a genuine partition: ingress +
+// strategy + egress always sums to substitutions + deletions, so a consumer can
+// add them without double-counting. Ingress starts at zero here because a single
+// row cannot observe extraction loss; AttributeIngressByAblation fills it later
+// by reclaiming from whichever bucket currently holds the surplus deletions.
 func attributeStages(row StrategyReport) StageAttribution {
-	out := StageAttribution{
-		StrategyLostWords:  row.EditCounts.Substitutions + row.EditCounts.Deletions,
-		EgressRejectEvents: row.SpeakerRejectionCount,
-	}
+	subs := row.EditCounts.Substitutions
+	dels := row.EditCounts.Deletions
+	out := StageAttribution{EgressRejectEvents: row.SpeakerRejectionCount}
 	if row.SpeakerRejectionCount > 0 {
-		out.EgressLostWords = row.EditCounts.Deletions
-		out.Notes = append(out.Notes, "speaker rejection events occurred; deletion attribution is conservative because rejected segment text is not emitted")
-	}
-	if row.SpeakerRejectionCount == 0 {
+		// Egress rejected segments are never emitted, so their words surface as
+		// deletions. Conservatively attribute the deletions to egress; the
+		// strategy retains only the substitutions. This keeps the two buckets
+		// disjoint (previously deletions were counted in both).
+		out.EgressLostWords = dels
+		out.StrategyLostWords = subs
+		out.Notes = append(out.Notes, "speaker rejection events occurred; deletions are attributed to egress because rejected segment text is not emitted")
+	} else {
+		out.StrategyLostWords = subs + dels
 		out.Notes = append(out.Notes, "no speaker rejection events were observed; lost recognized words are attributed to the strategy/input path")
 	}
 	return out
@@ -177,8 +187,17 @@ func AttributeIngressByAblation(report *EvalReport) {
 			surplus = 0
 		}
 		row.StageAttribution.IngressLostWords = surplus
-		if surplus > 0 && row.StageAttribution.StrategyLostWords >= surplus {
-			row.StageAttribution.StrategyLostWords -= surplus
+		// Reclaim the surplus deletions from whichever bucket currently holds
+		// them so ingress + strategy + egress stays a partition: egress first
+		// (attributeStages parks deletions there when rejections occurred),
+		// otherwise the strategy bucket.
+		remaining := surplus
+		if take := min(remaining, row.StageAttribution.EgressLostWords); take > 0 {
+			row.StageAttribution.EgressLostWords -= take
+			remaining -= take
+		}
+		if remaining > 0 {
+			row.StageAttribution.StrategyLostWords -= min(remaining, row.StageAttribution.StrategyLostWords)
 		}
 		row.StageAttribution.Notes = append(row.StageAttribution.Notes,
 			fmt.Sprintf("ingress attribution from ablation: %d extra deleted word(s) vs the extraction-off sibling are attributed to target-speaker extraction", surplus))

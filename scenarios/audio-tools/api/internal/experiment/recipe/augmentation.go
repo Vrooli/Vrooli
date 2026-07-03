@@ -14,6 +14,33 @@ import (
 
 const defaultCompetingText = "This is a competing speaker in the background during the dictation experiment."
 
+// knownNoiseTypes is the set of noise beds GenerateNoise renders distinctly
+// (canonical user-facing names plus documented aliases). Anything else silently
+// falls through to the white-noise default branch, so the recipe validator
+// rejects unknown types up front rather than running a mislabeled condition.
+var knownNoiseTypes = map[string]struct{}{
+	"white":        {},
+	"fan":          {},
+	"constant_fan": {},
+	"percussive":   {},
+	"dynamic":      {},
+	"music":        {},
+	"music_like":   {},
+}
+
+// KnownNoiseTypes returns the canonical, user-facing noise bed names in a stable
+// order for help text and validation messages.
+func KnownNoiseTypes() []string {
+	return []string{"white", "fan", "percussive", "music"}
+}
+
+// IsKnownNoiseType reports whether kind names a supported noise bed (canonical
+// name or documented alias), case- and whitespace-insensitive.
+func IsKnownNoiseType(kind string) bool {
+	_, ok := knownNoiseTypes[strings.ToLower(strings.TrimSpace(kind))]
+	return ok
+}
+
 // AugmentationSpec describes deterministic audio overlays for experiment
 // inputs. Noise is generated locally; competing voices are supplied as
 // canonical PCM by the caller so this package stays pure/testable.
