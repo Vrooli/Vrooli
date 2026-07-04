@@ -45,7 +45,7 @@ func TestAPIHealthCutoverUsesSharedValidationProvider(t *testing.T) {
 
 func TestCuratedPresetsIncludeAPIHealth(t *testing.T) {
 	presets := DefaultPresets()
-	for _, preset := range []Preset{PresetSmoke, PresetArchitectureAudit, PresetComprehensive} {
+	for _, preset := range []Preset{PresetArchitectureAudit, PresetComprehensive} {
 		names, ok := presets[preset.String()]
 		if !ok {
 			t.Fatalf("preset %q missing from DefaultPresets", preset)
@@ -53,6 +53,9 @@ func TestCuratedPresetsIncludeAPIHealth(t *testing.T) {
 		if !containsPhase(names, API.String()) {
 			t.Fatalf("preset %q must include api phase after API Health cutover, got %v", preset, names)
 		}
+	}
+	if _, ok := AdaptiveProfile(PresetSmoke.String()); !ok {
+		t.Fatalf("smoke must remain an adaptive profile so API Health can participate through applicability and budget planning")
 	}
 }
 

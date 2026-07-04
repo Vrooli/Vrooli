@@ -1154,6 +1154,27 @@ func TestSelectPhases(t *testing.T) {
 	})
 }
 
+func TestValidateTestingConfigPhasesReportsUnknownKeys(t *testing.T) {
+	defs := []phaseDefinition{
+		{Name: PhaseStructure},
+		{Name: PhaseUnit},
+	}
+	cfg := &workspacepkg.Config{Phases: map[string]workspacepkg.PhaseSettings{
+		"strcuture": {},
+	}}
+
+	err := validateTestingConfigPhases(defs, cfg)
+	if err == nil {
+		t.Fatal("expected unknown phase error")
+	}
+	msg := err.Error()
+	for _, needle := range []string{`unknown phase "strcuture"`, "available phases: structure, unit"} {
+		if !strings.Contains(msg, needle) {
+			t.Fatalf("error %q missing %q", msg, needle)
+		}
+	}
+}
+
 func boolPtr(value bool) *bool {
 	v := value
 	return &v

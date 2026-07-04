@@ -35,6 +35,13 @@ const (
 	CaptureType_CAPTURE_TYPE_VIDEO        CaptureType = 4
 	CaptureType_CAPTURE_TYPE_DOM          CaptureType = 5
 	CaptureType_CAPTURE_TYPE_PERFORMANCE  CaptureType = 6
+	// Accessibility-tree JSON snapshot. The driver walks the Chromium
+	// accessibility tree (CDP Accessibility.getFullAXTree) after the page
+	// settles, joins per-node geometry + data-testid, and writes the
+	// result to accessibility.json normalized to the frozen contract
+	// `bas-accessibility-snapshot/v1`. Failure to capture degrades
+	// gracefully (the artifact is absent, the capture still succeeds).
+	CaptureType_CAPTURE_TYPE_ACCESSIBILITY CaptureType = 7
 )
 
 // Enum value maps for CaptureType.
@@ -47,15 +54,17 @@ var (
 		4: "CAPTURE_TYPE_VIDEO",
 		5: "CAPTURE_TYPE_DOM",
 		6: "CAPTURE_TYPE_PERFORMANCE",
+		7: "CAPTURE_TYPE_ACCESSIBILITY",
 	}
 	CaptureType_value = map[string]int32{
-		"CAPTURE_TYPE_UNSPECIFIED":  0,
-		"CAPTURE_TYPE_SCREENSHOT":   1,
-		"CAPTURE_TYPE_CONSOLE_LOGS": 2,
-		"CAPTURE_TYPE_NETWORK":      3,
-		"CAPTURE_TYPE_VIDEO":        4,
-		"CAPTURE_TYPE_DOM":          5,
-		"CAPTURE_TYPE_PERFORMANCE":  6,
+		"CAPTURE_TYPE_UNSPECIFIED":   0,
+		"CAPTURE_TYPE_SCREENSHOT":    1,
+		"CAPTURE_TYPE_CONSOLE_LOGS":  2,
+		"CAPTURE_TYPE_NETWORK":       3,
+		"CAPTURE_TYPE_VIDEO":         4,
+		"CAPTURE_TYPE_DOM":           5,
+		"CAPTURE_TYPE_PERFORMANCE":   6,
+		"CAPTURE_TYPE_ACCESSIBILITY": 7,
 	}
 )
 
@@ -351,6 +360,15 @@ type CaptureRequest struct {
 	// against the executor's manifest root, which is NOT the target scenario on
 	// this path — perf flows must use literal `[data-testid=…]` selectors.
 	InteractionFlowJson string `protobuf:"bytes,8,opt,name=interaction_flow_json,json=interactionFlowJson,proto3" json:"interaction_flow_json,omitempty"`
+	// When true, the normalized accessibility-tree snapshot JSON
+	// (bas-accessibility-snapshot/v1) is returned inline in
+	// CaptureResponse.accessibility_json. This is the remote-friendly way to
+	// consume the snapshot: artifact paths in CaptureArtifact are
+	// server-filesystem paths, useless to callers on another host. Mirrors
+	// inline_dom: it independently drives the AX capture (a caller need not
+	// also list CAPTURE_TYPE_ACCESSIBILITY), and the server caps the inline
+	// payload (currently 2 MiB) and truncates beyond it.
+	InlineAccessibility bool `protobuf:"varint,9,opt,name=inline_accessibility,json=inlineAccessibility,proto3" json:"inline_accessibility,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -439,6 +457,13 @@ func (x *CaptureRequest) GetInteractionFlowJson() string {
 		return x.InteractionFlowJson
 	}
 	return ""
+}
+
+func (x *CaptureRequest) GetInlineAccessibility() bool {
+	if x != nil {
+		return x.InlineAccessibility
+	}
+	return false
 }
 
 type CaptureArtifact struct {
@@ -531,9 +556,16 @@ type CaptureResponse struct {
 	// capture itself still succeeds — callers needing the DOM must treat
 	// empty as a failed fetch). Size-capped server-side (2 MiB); truncation
 	// is silent, which readable-text extractors tolerate by design.
-	DomHtml       string `protobuf:"bytes,6,opt,name=dom_html,json=domHtml,proto3" json:"dom_html,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	DomHtml string `protobuf:"bytes,6,opt,name=dom_html,json=domHtml,proto3" json:"dom_html,omitempty"`
+	// Normalized accessibility-tree snapshot JSON
+	// (bas-accessibility-snapshot/v1), populated only when
+	// CaptureRequest.inline_accessibility was set. Empty on dry-run or when
+	// the AX capture failed (the capture itself still succeeds — callers
+	// needing the snapshot must treat empty as a failed capture).
+	// Size-capped server-side (2 MiB); truncation is silent.
+	AccessibilityJson string `protobuf:"bytes,7,opt,name=accessibility_json,json=accessibilityJson,proto3" json:"accessibility_json,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *CaptureResponse) Reset() {
@@ -608,6 +640,13 @@ func (x *CaptureResponse) GetDomHtml() string {
 	return ""
 }
 
+func (x *CaptureResponse) GetAccessibilityJson() string {
+	if x != nil {
+		return x.AccessibilityJson
+	}
+	return ""
+}
+
 var File_browser_automation_studio_v1_capture_capture_proto protoreflect.FileDescriptor
 
 const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
@@ -629,7 +668,7 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"\vnetworkidle\x18\x02 \x01(\bH\x00R\vnetworkidle\x12\x1f\n" +
 	"\n" +
 	"timeout_ms\x18\x03 \x01(\x05H\x00R\ttimeoutMsB\x06\n" +
-	"\x04spec\"\x98\x03\n" +
+	"\x04spec\"\xcb\x03\n" +
 	"\x0eCaptureRequest\x12\x19\n" +
 	"\x03url\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03url\x12M\n" +
 	"\bcaptures\x18\x02 \x03(\x0e21.browser_automation_studio.v1.capture.CaptureTypeR\bcaptures\x12P\n" +
@@ -641,7 +680,8 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"\x05label\x18\x06 \x01(\tR\x05label\x12\x1d\n" +
 	"\n" +
 	"inline_dom\x18\a \x01(\bR\tinlineDom\x122\n" +
-	"\x15interaction_flow_json\x18\b \x01(\tR\x13interactionFlowJson\"\xa9\x02\n" +
+	"\x15interaction_flow_json\x18\b \x01(\tR\x13interactionFlowJson\x121\n" +
+	"\x14inline_accessibility\x18\t \x01(\bR\x13inlineAccessibility\"\xa9\x02\n" +
 	"\x0fCaptureArtifact\x12E\n" +
 	"\x04type\x18\x01 \x01(\x0e21.browser_automation_studio.v1.capture.CaptureTypeR\x04type\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x1d\n" +
@@ -650,7 +690,7 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"\bmetadata\x18\x04 \x03(\v2C.browser_automation_studio.v1.capture.CaptureArtifact.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xf7\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa6\x02\n" +
 	"\x0fCaptureResponse\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x17\n" +
 	"\aout_dir\x18\x02 \x01(\tR\x06outDir\x12S\n" +
@@ -658,7 +698,8 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"\vduration_ms\x18\x04 \x01(\x03R\n" +
 	"durationMs\x12\x17\n" +
 	"\adry_run\x18\x05 \x01(\bR\x06dryRun\x12\x19\n" +
-	"\bdom_html\x18\x06 \x01(\tR\adomHtml*\xcd\x01\n" +
+	"\bdom_html\x18\x06 \x01(\tR\adomHtml\x12-\n" +
+	"\x12accessibility_json\x18\a \x01(\tR\x11accessibilityJson*\xed\x01\n" +
 	"\vCaptureType\x12\x1c\n" +
 	"\x18CAPTURE_TYPE_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17CAPTURE_TYPE_SCREENSHOT\x10\x01\x12\x1d\n" +
@@ -666,7 +707,8 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"\x14CAPTURE_TYPE_NETWORK\x10\x03\x12\x16\n" +
 	"\x12CAPTURE_TYPE_VIDEO\x10\x04\x12\x14\n" +
 	"\x10CAPTURE_TYPE_DOM\x10\x05\x12\x1c\n" +
-	"\x18CAPTURE_TYPE_PERFORMANCE\x10\x06*\x90\x01\n" +
+	"\x18CAPTURE_TYPE_PERFORMANCE\x10\x06\x12\x1e\n" +
+	"\x1aCAPTURE_TYPE_ACCESSIBILITY\x10\a*\x90\x01\n" +
 	"\x10DimensionsPreset\x12!\n" +
 	"\x1dDIMENSIONS_PRESET_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18DIMENSIONS_PRESET_MOBILE\x10\x01\x12\x1c\n" +

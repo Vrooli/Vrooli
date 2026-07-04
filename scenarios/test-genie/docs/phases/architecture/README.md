@@ -8,8 +8,9 @@ normalizes the findings into the shared `ArchitectureFinding` contract that
 every test-genie phase now emits.
 
 This is the **cohesion axis** of the audit battery. The per-surface phases
-(`contracts`, `ui-health`, `docs`, `standards`) ask "is each surface built
-right?"; the `architecture` phase asks "does the whole scenario cohere?".
+(`contracts`, `ui-health`, `api`, `docs`, `quality`, `proto`) ask "is each
+surface built right?"; the `architecture` phase asks "does the whole scenario
+cohere?".
 
 ## How It Runs
 
@@ -62,7 +63,7 @@ screaming-architecture audit skill points at:
 
 ```bash
 vrooli scenario test <scenario> --preset architecture-audit
-# runs: structure, contracts, ui-health, docs, standards, architecture
+# runs: structure, contracts, ui-health, api, docs, architecture, proto
 ```
 
 ## Summary Metrics

@@ -360,6 +360,11 @@ const (
 	// Custom user-defined artifact type.
 	// Content type and structure defined by the producer.
 	ArtifactType_ARTIFACT_TYPE_CUSTOM ArtifactType = 7
+	// Normalized accessibility-tree snapshot (JSON) captured at a settled
+	// point in the page's lifecycle, per the bas-accessibility-snapshot/v1
+	// contract. Reserves the multi-step timeline attachment slot; per-step
+	// timeline wiring is deferred (v1 is the single-location capture path).
+	ArtifactType_ARTIFACT_TYPE_ACCESSIBILITY_SNAPSHOT ArtifactType = 8
 )
 
 // Enum value maps for ArtifactType.
@@ -373,16 +378,18 @@ var (
 		5: "ARTIFACT_TYPE_DOM_SNAPSHOT",
 		6: "ARTIFACT_TYPE_TRACE",
 		7: "ARTIFACT_TYPE_CUSTOM",
+		8: "ARTIFACT_TYPE_ACCESSIBILITY_SNAPSHOT",
 	}
 	ArtifactType_value = map[string]int32{
-		"ARTIFACT_TYPE_UNSPECIFIED":    0,
-		"ARTIFACT_TYPE_TIMELINE_FRAME": 1,
-		"ARTIFACT_TYPE_CONSOLE_LOG":    2,
-		"ARTIFACT_TYPE_NETWORK_EVENT":  3,
-		"ARTIFACT_TYPE_SCREENSHOT":     4,
-		"ARTIFACT_TYPE_DOM_SNAPSHOT":   5,
-		"ARTIFACT_TYPE_TRACE":          6,
-		"ARTIFACT_TYPE_CUSTOM":         7,
+		"ARTIFACT_TYPE_UNSPECIFIED":            0,
+		"ARTIFACT_TYPE_TIMELINE_FRAME":         1,
+		"ARTIFACT_TYPE_CONSOLE_LOG":            2,
+		"ARTIFACT_TYPE_NETWORK_EVENT":          3,
+		"ARTIFACT_TYPE_SCREENSHOT":             4,
+		"ARTIFACT_TYPE_DOM_SNAPSHOT":           5,
+		"ARTIFACT_TYPE_TRACE":                  6,
+		"ARTIFACT_TYPE_CUSTOM":                 7,
+		"ARTIFACT_TYPE_ACCESSIBILITY_SNAPSHOT": 8,
 	}
 )
 
@@ -1647,7 +1654,7 @@ const file_browser_automation_studio_v1_base_shared_proto_rawDesc = "" +
 	"\x0fLOG_LEVEL_DEBUG\x10\x01\x12\x12\n" +
 	"\x0eLOG_LEVEL_INFO\x10\x02\x12\x12\n" +
 	"\x0eLOG_LEVEL_WARN\x10\x03\x12\x13\n" +
-	"\x0fLOG_LEVEL_ERROR\x10\x04*\x80\x02\n" +
+	"\x0fLOG_LEVEL_ERROR\x10\x04*\xaa\x02\n" +
 	"\fArtifactType\x12\x1d\n" +
 	"\x19ARTIFACT_TYPE_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cARTIFACT_TYPE_TIMELINE_FRAME\x10\x01\x12\x1d\n" +
@@ -1656,7 +1663,8 @@ const file_browser_automation_studio_v1_base_shared_proto_rawDesc = "" +
 	"\x18ARTIFACT_TYPE_SCREENSHOT\x10\x04\x12\x1e\n" +
 	"\x1aARTIFACT_TYPE_DOM_SNAPSHOT\x10\x05\x12\x17\n" +
 	"\x13ARTIFACT_TYPE_TRACE\x10\x06\x12\x18\n" +
-	"\x14ARTIFACT_TYPE_CUSTOM\x10\a*\x99\x01\n" +
+	"\x14ARTIFACT_TYPE_CUSTOM\x10\a\x12(\n" +
+	"$ARTIFACT_TYPE_ACCESSIBILITY_SNAPSHOT\x10\b*\x99\x01\n" +
 	"\fExportStatus\x12\x1d\n" +
 	"\x19EXPORT_STATUS_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13EXPORT_STATUS_READY\x10\x01\x12\x19\n" +

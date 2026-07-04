@@ -90,5 +90,5 @@ it belongs to static quality (Quality Health).
 
 - [Phases Overview](../README.md) — All phases
 - [Dependencies Phase](../dependencies/README.md) — Previous phase
-- [Integration Phase](../integration/README.md) — Next phase
+- [Storage Phase](../storage/README.md) — Next phase
 - `unit-health` scenario — the test-maturity provider this phase delegates to

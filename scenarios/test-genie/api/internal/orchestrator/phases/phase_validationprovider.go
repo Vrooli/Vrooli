@@ -30,6 +30,7 @@ type Delegated struct {
 	DetailCommand    string
 	Optional         bool
 	Timeout          time.Duration
+	DisplayName      string
 	Description      string
 	IncludeExecution bool
 	GateEnvVar       string
@@ -55,6 +56,7 @@ func delegatedSpec(delegated Delegated) Spec {
 		Optional:       delegated.Optional,
 		DefaultTimeout: delegated.Timeout,
 		SkipEnvVar:     delegated.SkipEnvVar,
+		DisplayName:    delegated.DisplayName,
 		Description:    delegated.Description,
 		Source:         phaseSourceValidationProvider,
 		FindingSource:  delegated.FindingSource,
@@ -85,6 +87,7 @@ func ValidationProviderSpecFromDescriptor(descriptor providerdescriptor.Descript
 		FindingSource:    findingSource,
 		Optional:         legacyOptional(descriptor.Policy.Policy),
 		Timeout:          descriptor.TimeoutValue,
+		DisplayName:      descriptor.DisplayName,
 		Description:      descriptor.Description,
 		IncludeExecution: descriptor.Validation.IncludeExecution,
 	}

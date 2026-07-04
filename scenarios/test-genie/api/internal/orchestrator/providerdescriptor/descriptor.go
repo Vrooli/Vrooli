@@ -25,6 +25,7 @@ type Descriptor struct {
 	SchemaVersion string           `json:"schemaVersion"`
 	Scenario      string           `json:"scenario"`
 	Phase         string           `json:"phase"`
+	DisplayName   string           `json:"displayName"`
 	Description   string           `json:"description"`
 	Source        string           `json:"source"`
 	OrderHint     int              `json:"orderHint,omitempty"`

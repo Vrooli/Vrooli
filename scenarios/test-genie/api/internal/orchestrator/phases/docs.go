@@ -45,7 +45,7 @@ func RenderPhasesMarkdown(catalog *Catalog) string {
 	for index, spec := range catalog.All() {
 		b.WriteString(fmt.Sprintf("| %d | [%s](%s) | %s | `%s` | `%s` | `%s` | %s | %s | %s |\n",
 			index+1,
-			displayName(spec.Name.String()),
+			phaseDisplayName(spec),
 			docLink(spec.Doc),
 			formatDuration(spec.DefaultTimeout),
 			escapeMarkdown(string(spec.Policy.Selection)),
@@ -68,7 +68,7 @@ func RenderPhasesMarkdown(catalog *Catalog) string {
 	b.WriteString("## Configuration\n\n")
 	b.WriteString("Per-phase overrides live in `.vrooli/testing.json` under `phases.<phase>` and are validated by [`schemas/testing.schema.json`](../../schemas/testing.schema.json).\n\n")
 	b.WriteString("## Presets\n\n")
-	b.WriteString("Preset membership is generated from the same effective registry and documented in [Presets Reference](../reference/presets.md).\n")
+	b.WriteString("Preset and profile definitions are documented in [Presets Reference](../reference/presets.md). Quick and smoke are adaptive profiles; concrete preset membership is generated from the effective registry.\n")
 	return b.String()
 }
 
@@ -86,20 +86,29 @@ func RenderPresetsMarkdown(catalog *Catalog) string {
 	order := []Preset{PresetQuick, PresetSmoke, PresetArchitectureAudit, PresetComprehensive}
 	var b strings.Builder
 	b.WriteString("# Test Presets Reference\n\n")
-	b.WriteString("Test Genie presets bundle effective registry phases for common validation loops. This document is generated from descriptor-backed phase specs plus Test Genie-owned preset declarations; edit provider `.vrooli/test-genie.json` descriptors or preset code instead of hand-editing these tables.\n\n")
-	b.WriteString("Timeout values are runtime budgets, not estimates. Runtime estimates are calculated from recent per-phase history when available.\n\n")
+	b.WriteString("Test Genie presets define common validation loops. Quick and smoke are adaptive budget profiles selected from applicable phases and recent measured history; architecture-audit and comprehensive have concrete registry-derived membership. This document is generated from descriptor-backed phase specs plus Test Genie-owned preset declarations; edit provider `.vrooli/test-genie.json` descriptors or preset/profile code instead of hand-editing these tables.\n\n")
+	b.WriteString("Timeout values are runtime budgets, not estimates. Runtime estimates are calculated from recent per-phase history when available. Use `test-genie phases plan <scenario> --preset <name>` to inspect selected and omitted phases before execution.\n\n")
 	b.WriteString("## Available Presets\n\n")
 	for _, preset := range order {
-		names, ok := presets[preset.String()]
-		if !ok {
+		names := presets[preset.String()]
+		_, hasProfile := AdaptiveProfile(preset.String())
+		if len(names) == 0 && !hasProfile {
 			continue
 		}
-		b.WriteString(fmt.Sprintf("### %s\n\n", displayName(preset.String())))
+		b.WriteString(fmt.Sprintf("### %s\n\n", displayNameFromKey(preset.String())))
 		b.WriteString(presetPurpose(preset))
 		b.WriteString("\n\n")
 		b.WriteString("```bash\n")
 		b.WriteString(fmt.Sprintf("test-genie execute my-scenario --preset %s\n", preset))
 		b.WriteString("```\n\n")
+		if profile, ok := AdaptiveProfile(preset.String()); ok {
+			b.WriteString(fmt.Sprintf("- Strategy: `%s`\n", profile.Strategy))
+			b.WriteString(fmt.Sprintf("- Budget: %s\n", formatDurationSeconds(profile.BudgetSeconds)))
+			b.WriteString("- Candidates: applicable descriptor-backed phases after `.vrooli/testing.json` enablement and skip filters.\n")
+			b.WriteString("- Selection: required/gating phases first, then budget-fitting phases using conservative measured duration estimates.\n")
+			b.WriteString("- Omitted phases: reported by plan output with stable reason codes such as `omitted_budget_exceeded` or `omitted_unknown_estimate`.\n\n")
+			continue
+		}
 		b.WriteString("| Phase | Description | Timeout |\n")
 		b.WriteString("|-------|-------------|---------|\n")
 		for _, name := range names {
@@ -108,7 +117,7 @@ func RenderPresetsMarkdown(catalog *Catalog) string {
 				continue
 			}
 			b.WriteString(fmt.Sprintf("| %s | %s | %s |\n",
-				displayName(name),
+				phaseDisplayName(spec),
 				escapeMarkdown(spec.Description),
 				formatDuration(spec.DefaultTimeout),
 			))
@@ -120,9 +129,9 @@ func RenderPresetsMarkdown(catalog *Catalog) string {
 	b.WriteString("|-------|-------|-------|--------------------|---------------|\n")
 	for _, spec := range catalog.All() {
 		b.WriteString(fmt.Sprintf("| %s | %s | %s | %s | %s |\n",
-			displayName(spec.Name.String()),
-			markPreset(presets, PresetQuick, spec.Name.String()),
-			markPreset(presets, PresetSmoke, spec.Name.String()),
+			phaseDisplayName(spec),
+			markPresetOrProfile(presets, PresetQuick, spec.Name.String()),
+			markPresetOrProfile(presets, PresetSmoke, spec.Name.String()),
 			markPreset(presets, PresetArchitectureAudit, spec.Name.String()),
 			markPreset(presets, PresetComprehensive, spec.Name.String()),
 		))
@@ -147,7 +156,7 @@ func writePhaseList(b *strings.Builder, catalog *Catalog, runtime bool) {
 			continue
 		}
 		wrote = true
-		b.WriteString(fmt.Sprintf("- [%s](%s) - %s\n", displayName(spec.Name.String()), docLink(spec.Doc), escapeMarkdown(spec.Description)))
+		b.WriteString(fmt.Sprintf("- [%s](%s) - %s\n", phaseDisplayName(spec), docLink(spec.Doc), escapeMarkdown(spec.Description)))
 	}
 	if !wrote {
 		b.WriteString("- None\n")
@@ -169,6 +178,13 @@ func formatDuration(d time.Duration) string {
 	return fmt.Sprintf("%ds", int(d/time.Second))
 }
 
+func formatDurationSeconds(seconds int) string {
+	if seconds <= 0 {
+		return "0s"
+	}
+	return formatDuration(time.Duration(seconds) * time.Second)
+}
+
 func yesNo(v bool) string {
 	if v {
 		return "Yes"
@@ -176,7 +192,14 @@ func yesNo(v bool) string {
 	return "No"
 }
 
-func displayName(raw string) string {
+func phaseDisplayName(spec Spec) string {
+	if strings.TrimSpace(spec.DisplayName) != "" {
+		return spec.DisplayName
+	}
+	return displayNameFromKey(spec.Name.String())
+}
+
+func displayNameFromKey(raw string) string {
 	parts := strings.FieldsFunc(raw, func(r rune) bool { return r == '-' || r == '_' })
 	for i, part := range parts {
 		if part == "" {
@@ -228,4 +251,11 @@ func markPreset(presets map[string][]string, preset Preset, phase string) string
 		}
 	}
 	return "No"
+}
+
+func markPresetOrProfile(presets map[string][]string, preset Preset, phase string) string {
+	if _, ok := AdaptiveProfile(preset.String()); ok {
+		return "Adaptive"
+	}
+	return markPreset(presets, preset, phase)
 }

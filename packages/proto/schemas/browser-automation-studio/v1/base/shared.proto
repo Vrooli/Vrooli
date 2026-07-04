@@ -287,6 +287,12 @@ enum ArtifactType {
   // Custom user-defined artifact type.
   // Content type and structure defined by the producer.
   ARTIFACT_TYPE_CUSTOM = 7;
+
+  // Normalized accessibility-tree snapshot (JSON) captured at a settled
+  // point in the page's lifecycle, per the bas-accessibility-snapshot/v1
+  // contract. Reserves the multi-step timeline attachment slot; per-step
+  // timeline wiring is deferred (v1 is the single-location capture path).
+  ARTIFACT_TYPE_ACCESSIBILITY_SNAPSHOT = 8;
 }
 
 // ExportStatus indicates readiness for execution replay export.

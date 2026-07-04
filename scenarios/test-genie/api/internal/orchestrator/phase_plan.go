@@ -33,6 +33,9 @@ func (o *SuiteOrchestrator) buildPhasePlan(env workspacepkg.Environment, cfg *wo
 	if err != nil {
 		return nil, err
 	}
+	if err := validateTestingConfigPhases(defs, cfg); err != nil {
+		return nil, err
+	}
 	defs = o.applyTestingConfig(defs, cfg)
 	if len(defs) == 0 {
 		return nil, fmt.Errorf("scenario '%s' has no enabled phase definitions", env.ScenarioName)
@@ -98,6 +101,29 @@ func (o *SuiteOrchestrator) buildPhasePlan(env workspacepkg.Environment, cfg *wo
 		DisabledByDefault:     notices.Skipped,
 		ExplicitDisabled:      notices.Explicit,
 	}, nil
+}
+
+func validateTestingConfigPhases(defs []phases.Definition, cfg *workspacepkg.Config) error {
+	if cfg == nil || len(cfg.Phases) == 0 {
+		return nil
+	}
+	available := make(map[string]struct{}, len(defs))
+	names := make([]string, 0, len(defs))
+	for _, def := range defs {
+		key := def.Name.Key()
+		if key == "" {
+			continue
+		}
+		available[key] = struct{}{}
+		names = append(names, key)
+	}
+	for name := range cfg.Phases {
+		if _, ok := available[name]; ok {
+			continue
+		}
+		return shared.NewValidationError(fmt.Sprintf("unknown phase %q in .vrooli/testing.json phases; available phases: %s", name, strings.Join(names, ", ")))
+	}
+	return nil
 }
 
 type phaseDisableNotice struct {

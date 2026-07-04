@@ -778,65 +778,9 @@
     },
     "phases": {
       "type": "object",
-      "description": "Per-phase execution overrides such as timeout targets",
-      "properties": {
-        "structure": {
-          "$ref": "#/definitions/phase_options"
-        },
-        "contracts": {
-          "$ref": "#/definitions/phase_options"
-        },
-        "ui-health": {
-          "$ref": "#/definitions/phase_options"
-        },
-        "api": {
-          "$ref": "#/definitions/phase_options"
-        },
-        "architecture": {
-          "$ref": "#/definitions/phase_options"
-        },
-        "dependencies": {
-          "$ref": "#/definitions/phase_options"
-        },
-        "quality": {
-          "$ref": "#/definitions/phase_options"
-        },
-        "docs": {
-          "$ref": "#/definitions/phase_options"
-        },
-        "unit": {
-          "$ref": "#/definitions/phase_options"
-        },
-        "storage": {
-          "$ref": "#/definitions/phase_options"
-        },
-        "workflow": {
-          "$ref": "#/definitions/phase_options"
-        },
-        "business": {
-          "$ref": "#/definitions/phase_options"
-        },
-        "performance": {
-          "$ref": "#/definitions/phase_options"
-        },
-        "tidiness": {
-          "$ref": "#/definitions/phase_options"
-        },
-        "security": {
-          "$ref": "#/definitions/phase_options"
-        },
-        "measures": {
-          "$ref": "#/definitions/phase_options"
-        },
-        "proto": {
-          "$ref": "#/definitions/phase_options"
-        },
-        "branding": {
-          "$ref": "#/definitions/phase_options"
-        },
-        "search": {
-          "$ref": "#/definitions/phase_options"
-        }
+      "description": "Per-phase execution overrides keyed by descriptor-backed phase name. The schema validates the common options shape; Test Genie validates keys against the live phase registry at runtime.",
+      "propertyNames": {
+        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
       },
       "additionalProperties": {
         "$ref": "#/definitions/phase_options"

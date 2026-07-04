@@ -101,7 +101,8 @@ Commands:
   status   <scenario> <runID> [--json]                           Live snapshot (status, phase, ETA,
                                                                  recommended next-check backoff)
   abort    <scenario> <runID> [--json]                           Cancel a running run (→ aborted)
-  freshness --scenario <s> [--phases a,b]                        Check whether required phases ran
+  freshness --scenario <s> [--phases a,b]                        Check whether required freshness
+                                                                 phases ran
                                                                  against the scenario's current tree
                                                                  (exit 1 if any phase is stale/unknown;
                                                                  digest scope is the scenario dir only —
@@ -394,7 +395,7 @@ func runFreshness(apiClient *cliutil.APIClient, args []string, w io.Writer) erro
 	fs := flag.NewFlagSet("runs freshness", flag.ContinueOnError)
 	fs.SetOutput(w)
 	scenario := fs.String("scenario", "", "Scenario slug")
-	phasesCSV := fs.String("phases", "", "Comma-separated phases to check (default: the required set = quick preset)")
+	phasesCSV := fs.String("phases", "", "Comma-separated phases to check (default: required freshness profile)")
 	changed := fs.Bool("changed", false, "Check every scenario touched by the current git change-set (advisory: degrades to checked=false, never errors)")
 	jsonOut := fs.Bool("json", false, "Emit JSON")
 	if err := fs.Parse(args); err != nil {

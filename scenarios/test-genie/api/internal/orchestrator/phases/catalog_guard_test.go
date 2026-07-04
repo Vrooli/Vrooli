@@ -64,6 +64,19 @@ func TestCatalogSourceDoesNotDuplicateProviderMetadata(t *testing.T) {
 	}
 }
 
+func TestRepositoryDescriptorsOwnDisplayNames(t *testing.T) {
+	for _, spec := range DefaultCatalog().All() {
+		if strings.TrimSpace(spec.DisplayName) == "" {
+			t.Fatalf("phase %q missing descriptor-owned displayName", spec.Name)
+		}
+		for _, descriptor := range DefaultCatalog().Descriptors() {
+			if descriptor.Name == spec.Name.String() && descriptor.DisplayName != spec.DisplayName {
+				t.Fatalf("phase %q descriptor displayName = %q, want %q", spec.Name, descriptor.DisplayName, spec.DisplayName)
+			}
+		}
+	}
+}
+
 func TestMergePresetsPrecedenceAndFiltering(t *testing.T) {
 	allowed := map[string]struct{}{
 		Structure.String(): {},
@@ -97,7 +110,7 @@ func TestMergePresetsPrecedenceAndFiltering(t *testing.T) {
 
 func TestCuratedPresetsIncludeProto(t *testing.T) {
 	presets := DefaultPresets()
-	for _, preset := range []Preset{PresetQuick, PresetSmoke, PresetArchitectureAudit} {
+	for _, preset := range []Preset{PresetArchitectureAudit} {
 		names, ok := presets[preset.String()]
 		if !ok {
 			t.Fatalf("preset %q missing from DefaultPresets", preset)
@@ -111,6 +124,36 @@ func TestCuratedPresetsIncludeProto(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("preset %q must include %q for proto contract feedback, got %v", preset, Proto, names)
+		}
+	}
+}
+
+func TestQuickAndSmokeAreNotFixedPhaseBundles(t *testing.T) {
+	presets := DefaultPresets()
+	for _, preset := range []Preset{PresetQuick, PresetSmoke} {
+		if _, ok := presets[preset.String()]; ok {
+			t.Fatalf("preset %q must be planned through AdaptiveProfile, not DefaultPresets fixed membership", preset)
+		}
+		if _, ok := AdaptiveProfile(preset.String()); !ok {
+			t.Fatalf("preset %q missing adaptive profile definition", preset)
+		}
+	}
+}
+
+func TestQuickAndSmokeHaveAdaptiveProfileDefinitions(t *testing.T) {
+	for _, preset := range []Preset{PresetQuick, PresetSmoke} {
+		profile, ok := AdaptiveProfile(preset.String())
+		if !ok {
+			t.Fatalf("preset %q must have an adaptive profile definition", preset)
+		}
+		if profile.Name != preset {
+			t.Fatalf("profile name = %q, want %q", profile.Name, preset)
+		}
+		if profile.BudgetSeconds <= 0 {
+			t.Fatalf("profile %q budget must be positive, got %d", preset, profile.BudgetSeconds)
+		}
+		if strings.TrimSpace(profile.Strategy) == "" {
+			t.Fatalf("profile %q strategy must be declared", preset)
 		}
 	}
 }
@@ -290,7 +333,7 @@ func assertGeneratedDoc(t *testing.T, path string, want string) {
 	}
 }
 
-func TestTestingSchemaPhasePropertiesMatchCatalog(t *testing.T) {
+func TestTestingSchemaPhaseOverridesAreRegistryDriven(t *testing.T) {
 	root := scenarioRoot(t)
 	raw, err := os.ReadFile(filepath.Join(root, "schemas", "testing.schema.json"))
 	if err != nil {
@@ -298,7 +341,11 @@ func TestTestingSchemaPhasePropertiesMatchCatalog(t *testing.T) {
 	}
 	var schema struct {
 		Properties map[string]struct {
-			Properties map[string]json.RawMessage `json:"properties"`
+			Properties    map[string]json.RawMessage `json:"properties"`
+			PropertyNames struct {
+				Pattern string `json:"pattern"`
+			} `json:"propertyNames"`
+			AdditionalProperties json.RawMessage `json:"additionalProperties"`
 		} `json:"properties"`
 	}
 	if err := json.Unmarshal(raw, &schema); err != nil {
@@ -308,17 +355,20 @@ func TestTestingSchemaPhasePropertiesMatchCatalog(t *testing.T) {
 	if !ok {
 		t.Fatal("testing schema missing properties.phases")
 	}
-	if len(phaseBlock.Properties) == 0 {
-		t.Fatal("testing schema properties.phases.properties is empty")
+	if len(phaseBlock.Properties) != 0 {
+		t.Fatalf("testing schema phases block must not enumerate phase keys, got %d entries", len(phaseBlock.Properties))
 	}
-	want := ValidPhaseNames()
-	if len(phaseBlock.Properties) != len(want) {
-		t.Fatalf("testing schema phase property count = %d, want %d (%v)", len(phaseBlock.Properties), len(want), want)
+	if phaseBlock.PropertyNames.Pattern != "^[a-z0-9]+(?:-[a-z0-9]+)*$" {
+		t.Fatalf("testing schema phase key pattern = %q", phaseBlock.PropertyNames.Pattern)
 	}
-	for _, name := range want {
-		if _, ok := phaseBlock.Properties[name]; !ok {
-			t.Errorf("testing schema missing phases.%s property", name)
-		}
+	var ref struct {
+		Ref string `json:"$ref"`
+	}
+	if err := json.Unmarshal(phaseBlock.AdditionalProperties, &ref); err != nil {
+		t.Fatalf("parse phases additionalProperties: %v", err)
+	}
+	if ref.Ref != "#/definitions/phase_options" {
+		t.Fatalf("phases additionalProperties ref = %q, want #/definitions/phase_options", ref.Ref)
 	}
 }
 
@@ -337,9 +387,14 @@ func TestTestingSchemaDefinesUnitPolicyProfile(t *testing.T) {
 	if err := json.Unmarshal(raw, &schema); err != nil {
 		t.Fatalf("parse testing schema: %v", err)
 	}
+	if phasesBlock, ok := schema.Properties["phases"]; ok {
+		if len(phasesBlock.Properties) != 0 {
+			t.Fatalf("testing schema phases block must not enumerate phase keys, got %d entries", len(phasesBlock.Properties))
+		}
+	}
 	unitBlock, ok := schema.Properties["unit"]
 	if !ok {
-		t.Fatal("testing schema missing properties.unit")
+		t.Fatal("testing schema missing legacy properties.unit")
 	}
 	var policyRef struct {
 		Ref string `json:"$ref"`

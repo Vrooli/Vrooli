@@ -4,7 +4,7 @@
     "structure",
     "contracts",
     "ui-health",
-    "standards",
+    "api",
     "architecture",
     "dependencies",
     "quality",
@@ -12,12 +12,13 @@
     "performance",
     "unit",
     "storage",
-    "playbooks",
+    "workflow",
     "business",
     "tidiness",
     "security",
     "measures",
     "proto",
-    "branding"
+    "branding",
+    "search"
   ]
 }

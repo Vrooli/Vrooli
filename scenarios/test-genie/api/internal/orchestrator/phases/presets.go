@@ -2,10 +2,18 @@ package phases
 
 import "fmt"
 
-// Preset is a named bundle of phases for a common use case (fast feedback,
-// pre-push, full validation). Preset identity is centralized here so callers
-// reference typed constants instead of bare strings.
+// Preset is a named validation loop. Some presets are adaptive profiles and
+// some are concrete phase bundles. Preset identity is centralized here so
+// callers reference typed constants instead of bare strings.
 type Preset string
+
+// ProfileDefinition describes a budgeted adaptive preset. Profiles select from
+// applicable phases at plan time; they are not curated phase bundles.
+type ProfileDefinition struct {
+	Name          Preset
+	BudgetSeconds int
+	Strategy      string
+}
 
 // Canonical preset names.
 const (
@@ -15,26 +23,42 @@ const (
 	PresetArchitectureAudit Preset = "architecture-audit"
 )
 
+const (
+	ProfileStrategyBudgetFastFeedback = "budget_fast_feedback"
+	ProfileStrategyBudgetSmoke        = "budget_smoke"
+)
+
+var adaptiveProfiles = map[Preset]ProfileDefinition{
+	PresetQuick: {
+		Name:          PresetQuick,
+		BudgetSeconds: 180,
+		Strategy:      ProfileStrategyBudgetFastFeedback,
+	},
+	PresetSmoke: {
+		Name:          PresetSmoke,
+		BudgetSeconds: 420,
+		Strategy:      ProfileStrategyBudgetSmoke,
+	},
+}
+
 // String returns the preset's wire name.
 func (p Preset) String() string { return string(p) }
 
-// curatedPresets declares the hand-picked preset → phase compositions using
+func AdaptiveProfile(name string) (ProfileDefinition, bool) {
+	profile, ok := adaptiveProfiles[Preset(NormalizeKey(name))]
+	return profile, ok
+}
+
+// curatedPresets declares concrete preset → phase compositions using
 // typed phase Names so a stale or misspelled phase is a compile error rather
 // than a silent runtime miss. Validate against the catalog via ValidatePresets.
 //
 // PresetComprehensive is intentionally absent: it is computed from the catalog
 // (every registered phase) in DefaultPresets, so adding a phase auto-joins
-// comprehensive and it can never silently drift from the catalog. The curated
-// presets below are deliberate subsets and stay explicit.
+// comprehensive and it can never silently drift from the catalog. Adaptive
+// presets such as quick and smoke are intentionally absent: profileplanner
+// selects them from applicable phases and measured history at plan time.
 var curatedPresets = map[Preset][]Name{
-	// Business is read-only requirements-registry validation (no runtime deps,
-	// seconds of wall time) and is deliberately part of every curated preset so
-	// requirements drift surfaces on fast feedback loops, not just comprehensive.
-	// It never triggers the requirements *sync* (which gates on all non-Optional
-	// phases — see orchestrator/requirements_decision.go), so quick/smoke stay
-	// side-effect-free.
-	PresetQuick: {Structure, Docs, Business, Unit, Proto},
-	PresetSmoke: {Structure, API, Quality, Docs, Business, Proto},
 	// architecture-audit is the per-surface conformance battery plus the
 	// structural cohesion axis — the single command the screaming-
 	// architecture skill points at. Excludes runtime phases (unit,
@@ -46,19 +70,21 @@ var curatedPresets = map[Preset][]Name{
 	},
 }
 
+var freshnessRequired = []Name{Structure, Docs, Business, Unit, Proto}
+
 // FreshnessRequired returns the global required-phase set for run-freshness
-// checks (RunsService.CheckFreshness, the GCT advisory pre-commit step). It is
-// DEFINED as the quick preset's phase list — derived, never duplicated — so
-// "required" always means "what a quick run executes".
+// checks (RunsService.CheckFreshness, the hygiene advisory pre-commit step).
+// Freshness is deliberately independent from adaptive quick/smoke profiles:
+// adaptive profiles can vary by applicability, budget, and measured history,
+// while freshness needs a stable repo-wide evidence contract.
 //
 // This is deliberately a code-level SSOT and NOT configurable per scenario
 // (operator decision): a `.vrooli/testing.json` knob would let an agent delete
 // required phases to silence the freshness checker instead of running tests.
-// A repo-global change, if ever needed, is a code change to the quick preset.
+// A repo-global change, if ever needed, is a code change to freshnessRequired.
 func FreshnessRequired() []string {
-	names := curatedPresets[PresetQuick]
-	out := make([]string, 0, len(names))
-	for _, n := range names {
+	out := make([]string, 0, len(freshnessRequired))
+	for _, n := range freshnessRequired {
 		out = append(out, n.String())
 	}
 	return out

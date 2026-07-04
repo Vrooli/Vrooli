@@ -54,6 +54,9 @@ func TestPhaseCatalogDescriptors(t *testing.T) {
 		if descriptor.Name == "" {
 			t.Fatalf("descriptor missing name: %#v", descriptor)
 		}
+		if descriptor.DisplayName == "" {
+			t.Fatalf("descriptor missing displayName: %#v", descriptor)
+		}
 		if descriptor.Source == "" {
 			t.Fatalf("descriptor missing source: %#v", descriptor)
 		}

@@ -57,6 +57,7 @@ const (
 // describe the orchestration flow from the catalog.
 type Descriptor struct {
 	Name                  string                        `json:"name"`
+	DisplayName           string                        `json:"displayName,omitempty"`
 	Optional              bool                          `json:"optional"`
 	Description           string                        `json:"description,omitempty"`
 	Source                string                        `json:"source"`
@@ -204,6 +205,9 @@ type Definition struct {
 	Runner   Runner
 	Timeout  time.Duration
 	Optional bool
+	// DisplayName is descriptor-owned presentation metadata. Name remains the
+	// stable machine key used in API payloads, run records, and commands.
+	DisplayName string
 	// ProviderScenario is set for delegated provider-backed phases. Empty means
 	// the phase has no external provider readiness work.
 	ProviderScenario string
@@ -226,7 +230,10 @@ type Definition struct {
 
 // Spec captures metadata for a catalog entry.
 type Spec struct {
-	Name           Name
+	Name Name
+	// DisplayName is presentation metadata sourced from provider descriptors.
+	// Name remains the stable machine key.
+	DisplayName    string
 	Runner         Runner
 	Optional       bool
 	DefaultTimeout time.Duration
@@ -280,6 +287,7 @@ func (s Spec) ToDefinition() Definition {
 		Runner:        s.Runner,
 		Timeout:       s.DefaultTimeout,
 		Optional:      s.Optional,
+		DisplayName:   s.DisplayName,
 		Policy:        s.Policy,
 		SkipEnvVar:    s.SkipEnvVar,
 		Capabilities:  s.Capabilities,

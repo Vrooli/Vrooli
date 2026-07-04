@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/runmanager"
 	"test-genie/internal/shared"
@@ -75,11 +76,12 @@ func (s *Server) handleExecuteSuiteStream(w http.ResponseWriter, r *http.Request
 
 	// Synchronous plan validation + ETA. A malformed request (bad preset/phase)
 	// is reported as an SSE error before the run starts.
-	eta, err := s.previewPlanETA(r.Context(), input.Request)
+	preview, eta, err := s.previewExecutionPlan(r.Context(), input.Request)
 	if err != nil {
 		s.writeSSEError(w, flusher, err.Error())
 		return
 	}
+	applyPreviewPhaseSelection(&input, preview)
 
 	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, EstimatedTotalSeconds: eta})
 	if err != nil {
@@ -103,24 +105,42 @@ func (s *Server) handleExecuteSuiteStream(w http.ResponseWriter, r *http.Request
 	}
 }
 
-// previewPlanETA resolves the summed plan estimate and surfaces plan validation
-// errors. A non-fatal preview error (no timing history) yields ETA 0.
-func (s *Server) previewPlanETA(ctx context.Context, req orchestrator.SuiteExecutionRequest) (int, error) {
+// previewExecutionPlan resolves the summed plan estimate and surfaces plan
+// validation errors. A non-fatal preview error yields ETA 0 and no mutation.
+func (s *Server) previewExecutionPlan(ctx context.Context, req orchestrator.SuiteExecutionRequest) (*execution.ExecutionPlanPreview, int, error) {
 	if s.executionPlanner == nil {
-		return 0, nil
+		return nil, 0, nil
 	}
 	preview, err := s.executionPlanner.Preview(ctx, req)
 	if err != nil {
 		var vErr shared.ValidationError
 		if errors.As(err, &vErr) {
-			return 0, vErr
+			return nil, 0, vErr
 		}
-		return 0, nil
+		return nil, 0, nil
 	}
 	if preview == nil {
-		return 0, nil
+		return nil, 0, nil
 	}
-	return preview.Summary.EstimatedDurationSeconds, nil
+	return preview, preview.Summary.EstimatedDurationSeconds, nil
+}
+
+func applyPreviewPhaseSelection(input *execution.SuiteExecutionInput, preview *execution.ExecutionPlanPreview) {
+	if input == nil || preview == nil || preview.Profile == nil || len(input.Request.Phases) > 0 {
+		return
+	}
+	if len(preview.Phases) == 0 {
+		return
+	}
+	names := make([]string, 0, len(preview.Phases))
+	for _, phase := range preview.Phases {
+		if phase.Name != "" {
+			names = append(names, phase.Name)
+		}
+	}
+	if len(names) > 0 {
+		input.Request.Phases = names
+	}
 }
 
 // writeCanonicalSSE maps one canonical run event onto the browser's SSE wire

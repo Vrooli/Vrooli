@@ -17,6 +17,7 @@ class CaptureType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CAPTURE_TYPE_VIDEO: _ClassVar[CaptureType]
     CAPTURE_TYPE_DOM: _ClassVar[CaptureType]
     CAPTURE_TYPE_PERFORMANCE: _ClassVar[CaptureType]
+    CAPTURE_TYPE_ACCESSIBILITY: _ClassVar[CaptureType]
 
 class DimensionsPreset(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -31,6 +32,7 @@ CAPTURE_TYPE_NETWORK: CaptureType
 CAPTURE_TYPE_VIDEO: CaptureType
 CAPTURE_TYPE_DOM: CaptureType
 CAPTURE_TYPE_PERFORMANCE: CaptureType
+CAPTURE_TYPE_ACCESSIBILITY: CaptureType
 DIMENSIONS_PRESET_UNSPECIFIED: DimensionsPreset
 DIMENSIONS_PRESET_MOBILE: DimensionsPreset
 DIMENSIONS_PRESET_TABLET: DimensionsPreset
@@ -59,7 +61,7 @@ class WaitFor(_message.Message):
     def __init__(self, selector: _Optional[str] = ..., networkidle: _Optional[bool] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
 
 class CaptureRequest(_message.Message):
-    __slots__ = ("url", "captures", "dimensions", "wait_for", "out_dir", "label", "inline_dom", "interaction_flow_json")
+    __slots__ = ("url", "captures", "dimensions", "wait_for", "out_dir", "label", "inline_dom", "interaction_flow_json", "inline_accessibility")
     URL_FIELD_NUMBER: _ClassVar[int]
     CAPTURES_FIELD_NUMBER: _ClassVar[int]
     DIMENSIONS_FIELD_NUMBER: _ClassVar[int]
@@ -68,6 +70,7 @@ class CaptureRequest(_message.Message):
     LABEL_FIELD_NUMBER: _ClassVar[int]
     INLINE_DOM_FIELD_NUMBER: _ClassVar[int]
     INTERACTION_FLOW_JSON_FIELD_NUMBER: _ClassVar[int]
+    INLINE_ACCESSIBILITY_FIELD_NUMBER: _ClassVar[int]
     url: str
     captures: _containers.RepeatedScalarFieldContainer[CaptureType]
     dimensions: Dimensions
@@ -76,7 +79,8 @@ class CaptureRequest(_message.Message):
     label: str
     inline_dom: bool
     interaction_flow_json: str
-    def __init__(self, url: _Optional[str] = ..., captures: _Optional[_Iterable[_Union[CaptureType, str]]] = ..., dimensions: _Optional[_Union[Dimensions, _Mapping]] = ..., wait_for: _Optional[_Union[WaitFor, _Mapping]] = ..., out_dir: _Optional[str] = ..., label: _Optional[str] = ..., inline_dom: _Optional[bool] = ..., interaction_flow_json: _Optional[str] = ...) -> None: ...
+    inline_accessibility: bool
+    def __init__(self, url: _Optional[str] = ..., captures: _Optional[_Iterable[_Union[CaptureType, str]]] = ..., dimensions: _Optional[_Union[Dimensions, _Mapping]] = ..., wait_for: _Optional[_Union[WaitFor, _Mapping]] = ..., out_dir: _Optional[str] = ..., label: _Optional[str] = ..., inline_dom: _Optional[bool] = ..., interaction_flow_json: _Optional[str] = ..., inline_accessibility: _Optional[bool] = ...) -> None: ...
 
 class CaptureArtifact(_message.Message):
     __slots__ = ("type", "path", "size_bytes", "metadata")
@@ -98,17 +102,19 @@ class CaptureArtifact(_message.Message):
     def __init__(self, type: _Optional[_Union[CaptureType, str]] = ..., path: _Optional[str] = ..., size_bytes: _Optional[int] = ..., metadata: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class CaptureResponse(_message.Message):
-    __slots__ = ("execution_id", "out_dir", "artifacts", "duration_ms", "dry_run", "dom_html")
+    __slots__ = ("execution_id", "out_dir", "artifacts", "duration_ms", "dry_run", "dom_html", "accessibility_json")
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     OUT_DIR_FIELD_NUMBER: _ClassVar[int]
     ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
     DURATION_MS_FIELD_NUMBER: _ClassVar[int]
     DRY_RUN_FIELD_NUMBER: _ClassVar[int]
     DOM_HTML_FIELD_NUMBER: _ClassVar[int]
+    ACCESSIBILITY_JSON_FIELD_NUMBER: _ClassVar[int]
     execution_id: str
     out_dir: str
     artifacts: _containers.RepeatedCompositeFieldContainer[CaptureArtifact]
     duration_ms: int
     dry_run: bool
     dom_html: str
-    def __init__(self, execution_id: _Optional[str] = ..., out_dir: _Optional[str] = ..., artifacts: _Optional[_Iterable[_Union[CaptureArtifact, _Mapping]]] = ..., duration_ms: _Optional[int] = ..., dry_run: _Optional[bool] = ..., dom_html: _Optional[str] = ...) -> None: ...
+    accessibility_json: str
+    def __init__(self, execution_id: _Optional[str] = ..., out_dir: _Optional[str] = ..., artifacts: _Optional[_Iterable[_Union[CaptureArtifact, _Mapping]]] = ..., duration_ms: _Optional[int] = ..., dry_run: _Optional[bool] = ..., dom_html: _Optional[str] = ..., accessibility_json: _Optional[str] = ...) -> None: ...

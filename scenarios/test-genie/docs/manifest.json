@@ -49,7 +49,6 @@
         { "path": "phases/quality/README.md", "title": "Quality Phase", "description": "Static quality contracts via quality-health" },
         { "path": "phases/docs/README.md", "title": "Docs Phase", "description": "Markdown, mermaid, and link validation" },
         { "path": "phases/unit/README.md", "title": "Unit Phase", "description": "Delegates test execution, coverage, and test maturity to unit-health" },
-        { "path": "phases/integration/README.md", "title": "Integration Phase", "description": "API, CLI, and WebSocket connectivity testing" },
         { "path": "phases/workflow/README.md", "title": "Workflow Phase", "description": "Delegated BAS workflow validation via workflow-health" },
         { "path": "phases/playbooks/README.md", "title": "Playbooks Alias", "description": "Deprecated alias for the workflow phase" },
         { "path": "phases/playbooks/directory-structure.md", "title": "Workflow Asset Layout Alias", "description": "Deprecated redirect to workflow-health BAS asset layout guidance" },

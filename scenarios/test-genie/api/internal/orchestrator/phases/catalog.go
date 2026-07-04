@@ -151,6 +151,9 @@ func (c *Catalog) Register(spec Spec) {
 	if spec.Doc == "" {
 		spec.Doc = docPathConvention(name)
 	}
+	if strings.TrimSpace(spec.DisplayName) == "" {
+		spec.DisplayName = displayNameFromKey(name.String())
+	}
 	if spec.SkipEnvVar == "" {
 		spec.SkipEnvVar = skipEnvVarForPhase(name)
 	}
@@ -198,6 +201,7 @@ func (c *Catalog) Descriptors() []Descriptor {
 		}
 		descriptors = append(descriptors, Descriptor{
 			Name:                  spec.Name.String(),
+			DisplayName:           spec.DisplayName,
 			Optional:              spec.Optional,
 			Description:           spec.Description,
 			Source:                spec.Source,

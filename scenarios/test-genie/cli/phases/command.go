@@ -29,6 +29,7 @@ type phaseList struct {
 
 type phaseDescriptor struct {
 	Name                  string         `json:"name"`
+	DisplayName           string         `json:"displayName,omitempty"`
 	Provider              string         `json:"provider,omitempty"`
 	Source                string         `json:"source"`
 	Description           string         `json:"description,omitempty"`
@@ -95,7 +96,7 @@ func runList(api *cliutil.APIClient, args []string, w io.Writer) error {
 		if provider == "" {
 			provider = phase.Source
 		}
-		fmt.Fprintf(w, "  %-16s %-28s %s\n", phase.Name, provider, phase.Description)
+		fmt.Fprintf(w, "  %-28s %-28s %s\n", phaseLabel(phase.Name, phase.DisplayName), provider, phase.Description)
 	}
 	return nil
 }
@@ -210,8 +211,11 @@ func runPlan(api *cliutil.APIClient, args []string, w io.Writer) error {
 	var payload struct {
 		ScenarioName        string         `json:"scenarioName"`
 		PresetUsed          string         `json:"presetUsed"`
+		Profile             *profilePlan   `json:"profile,omitempty"`
 		Phases              []plannedPhase `json:"phases"`
+		OmittedPhases       []plannedPhase `json:"omittedPhases"`
 		NotApplicablePhases []plannedPhase `json:"notApplicablePhases"`
+		Summary             planSummary    `json:"summary"`
 	}
 	if err := json.Unmarshal(raw, &payload); err != nil {
 		return fmt.Errorf("parse execution plan: %w", err)
@@ -221,7 +225,18 @@ func runPlan(api *cliutil.APIClient, args []string, w io.Writer) error {
 		fmt.Fprintf(w, " (%s)", payload.PresetUsed)
 	}
 	fmt.Fprintln(w)
+	if payload.Profile != nil {
+		fmt.Fprintf(w, "  profile: %s strategy=%s budget=%ds estimated=%ds\n",
+			payload.Profile.Name,
+			payload.Profile.Strategy,
+			payload.Profile.BudgetSeconds,
+			payload.Summary.EstimatedDurationSeconds,
+		)
+	}
 	for _, phase := range payload.Phases {
+		printPlannedPhase(w, phase)
+	}
+	for _, phase := range payload.OmittedPhases {
 		printPlannedPhase(w, phase)
 	}
 	for _, phase := range payload.NotApplicablePhases {
@@ -230,16 +245,32 @@ func runPlan(api *cliutil.APIClient, args []string, w io.Writer) error {
 	return nil
 }
 
+type profilePlan struct {
+	Name          string `json:"name"`
+	Strategy      string `json:"strategy"`
+	BudgetSeconds int    `json:"budgetSeconds"`
+}
+
+type planSummary struct {
+	EstimatedDurationSeconds int `json:"estimatedDurationSeconds"`
+}
+
 type plannedPhase struct {
-	Name                 string   `json:"name"`
-	Description          string   `json:"description,omitempty"`
-	SelectionStatus      string   `json:"selectionStatus,omitempty"`
-	ApplicabilityStatus  string   `json:"applicabilityStatus,omitempty"`
-	ApplicabilityReasons []reason `json:"applicabilityReasons,omitempty"`
-	ProviderReadiness    string   `json:"providerReadiness,omitempty"`
-	Freshness            string   `json:"freshness,omitempty"`
-	TimeoutSeconds       int      `json:"timeoutSeconds,omitempty"`
-	DescriptorPath       string   `json:"descriptorPath,omitempty"`
+	Name                     string   `json:"name"`
+	DisplayName              string   `json:"displayName,omitempty"`
+	Description              string   `json:"description,omitempty"`
+	EstimatedDurationSeconds int      `json:"estimatedDurationSeconds,omitempty"`
+	EstimateSource           string   `json:"estimateSource,omitempty"`
+	EstimateUnknown          bool     `json:"estimateUnknown,omitempty"`
+	SelectionStatus          string   `json:"selectionStatus,omitempty"`
+	SelectionReasons         []string `json:"selectionReasons,omitempty"`
+	OmissionReasons          []string `json:"omissionReasons,omitempty"`
+	ApplicabilityStatus      string   `json:"applicabilityStatus,omitempty"`
+	ApplicabilityReasons     []reason `json:"applicabilityReasons,omitempty"`
+	ProviderReadiness        string   `json:"providerReadiness,omitempty"`
+	Freshness                string   `json:"freshness,omitempty"`
+	TimeoutSeconds           int      `json:"timeoutSeconds,omitempty"`
+	DescriptorPath           string   `json:"descriptorPath,omitempty"`
 }
 
 type reason struct {
@@ -248,7 +279,7 @@ type reason struct {
 }
 
 func printPhase(w io.Writer, phase phaseDescriptor) {
-	fmt.Fprintf(w, "%s\n", phase.Name)
+	fmt.Fprintf(w, "%s\n", phaseLabel(phase.Name, phase.DisplayName))
 	if phase.Provider != "" {
 		fmt.Fprintf(w, "  provider: %s\n", phase.Provider)
 	}
@@ -271,7 +302,7 @@ func printPlannedPhase(w io.Writer, phase plannedPhase) {
 	if status == "" {
 		status = phase.SelectionStatus
 	}
-	fmt.Fprintf(w, "  %-16s %s", phase.Name, status)
+	fmt.Fprintf(w, "  %-28s %s", phaseLabel(phase.Name, phase.DisplayName), status)
 	if phase.SelectionStatus != "" && phase.SelectionStatus != status {
 		fmt.Fprintf(w, " selection=%s", phase.SelectionStatus)
 	}
@@ -281,10 +312,34 @@ func printPlannedPhase(w io.Writer, phase plannedPhase) {
 	if phase.Freshness != "" {
 		fmt.Fprintf(w, " freshness=%s", phase.Freshness)
 	}
+	if phase.EstimatedDurationSeconds > 0 {
+		fmt.Fprintf(w, " estimate=%ds", phase.EstimatedDurationSeconds)
+		if phase.EstimateSource != "" {
+			fmt.Fprintf(w, " source=%s", phase.EstimateSource)
+		}
+		if phase.EstimateUnknown {
+			fmt.Fprint(w, " unknown")
+		}
+	}
 	fmt.Fprintln(w)
+	for _, reason := range phase.SelectionReasons {
+		fmt.Fprintf(w, "      - selected: %s\n", reason)
+	}
+	for _, reason := range phase.OmissionReasons {
+		fmt.Fprintf(w, "      - omitted: %s\n", reason)
+	}
 	for _, reason := range phase.ApplicabilityReasons {
 		fmt.Fprintf(w, "      - %s: %s\n", reason.Code, reason.Message)
 	}
+}
+
+func phaseLabel(name, displayName string) string {
+	name = strings.TrimSpace(name)
+	displayName = strings.TrimSpace(displayName)
+	if displayName == "" || displayName == name {
+		return name
+	}
+	return fmt.Sprintf("%s (%s)", displayName, name)
 }
 
 func writeJSON(w io.Writer, raw []byte) {

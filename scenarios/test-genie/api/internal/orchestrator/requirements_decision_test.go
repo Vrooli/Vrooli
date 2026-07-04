@@ -36,48 +36,37 @@ func passedResults(names []string) []PhaseExecutionResult {
 	return results
 }
 
-// TestRequirementsSyncStillGatedOnCuratedPresets pins the invariant that
-// promoting the business phase into the quick/smoke presets does NOT enable
-// the requirements syncer (which mutates tracked files: requirements/*.json,
-// PRD.md checkboxes). Sync only runs when every non-Optional catalog phase is
-// present; the curated presets are deliberate subsets, so they must stay
-// side-effect-free.
-func TestRequirementsSyncStillGatedOnCuratedPresets(t *testing.T) {
+// TestRequirementsSyncStillGatedOnProfileSubsets pins the invariant that
+// adaptive quick/smoke selections, even when they include business, do NOT
+// enable the requirements syncer (which mutates tracked files:
+// requirements/*.json, PRD.md checkboxes). Sync only runs when every
+// non-Optional catalog phase is present; budgeted profile selections are
+// deliberate subsets, so they must stay side-effect-free.
+func TestRequirementsSyncStillGatedOnProfileSubsets(t *testing.T) {
 	defs := catalogDefinitions(t)
-	presets := phases.DefaultPresets()
+	profileSubset := []string{
+		phases.Structure.String(),
+		phases.Docs.String(),
+		phases.Business.String(),
+		phases.Unit.String(),
+		phases.Proto.String(),
+	}
 
-	for _, preset := range []string{"quick", "smoke"} {
-		preset := preset
-		t.Run(preset, func(t *testing.T) {
-			names, ok := presets[preset]
-			if !ok {
-				t.Fatalf("preset %q missing from DefaultPresets", preset)
-			}
-
-			// Pin WS-B itself: the business phase is part of the preset.
-			found := false
-			for _, n := range names {
-				if n == phases.Business.String() {
-					found = true
-					break
-				}
-			}
-			if !found {
-				t.Fatalf("preset %q must include the business phase, got %v", preset, names)
-			}
-
-			plan := &phasePlan{Definitions: defs, PresetUsed: preset}
+	for _, profile := range []string{"quick", "smoke"} {
+		profile := profile
+		t.Run(profile, func(t *testing.T) {
+			plan := &phasePlan{Definitions: defs, PresetUsed: profile}
 			for _, def := range defs {
-				for _, n := range names {
+				for _, n := range profileSubset {
 					if def.Name.String() == n {
 						plan.Selected = append(plan.Selected, def)
 					}
 				}
 			}
 
-			decision := newRequirementsSyncDecision(nil, plan, passedResults(names))
+			decision := newRequirementsSyncDecision(nil, plan, passedResults(profileSubset))
 			if decision.Execute {
-				t.Fatalf("requirements sync must stay gated on preset %q (reason=%q)", preset, decision.Reason)
+				t.Fatalf("requirements sync must stay gated on profile %q (reason=%q)", profile, decision.Reason)
 			}
 			if !strings.Contains(decision.Reason, "missing required phases") {
 				t.Fatalf("expected gating reason to name missing phases, got %q", decision.Reason)

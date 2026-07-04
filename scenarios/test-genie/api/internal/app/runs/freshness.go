@@ -20,11 +20,11 @@ var digestFn = treedigest.Compute
 
 // CheckFreshness reports, per phase, whether some recorded run executed that
 // phase (status passed) against the scenario's CURRENT working-tree digest.
-// Empty phases default to the global required set (the quick preset —
-// phases.FreshnessRequired, a code-level SSOT that is deliberately not
-// per-scenario configurable). Read-only. The verdict semantics live in the
-// shared freshness-go package; this RPC only resolves inputs and converts the
-// report to the wire shape.
+// Empty phases default to phases.FreshnessRequired: a stable repo-wide evidence
+// contract that is deliberately independent from adaptive quick/smoke profile
+// planning and not per-scenario configurable. Read-only. The verdict semantics
+// live in the shared freshness-go package; this RPC only resolves inputs and
+// converts the report to the wire shape.
 func (s *Service) CheckFreshness(ctx context.Context, req *connect.Request[runspb.CheckFreshnessRequest]) (*connect.Response[runspb.CheckFreshnessResponse], error) {
 	dir, err := s.scenarioDir(req.Msg.GetScenario())
 	if err != nil {

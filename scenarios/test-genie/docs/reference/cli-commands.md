@@ -214,7 +214,7 @@ Supported probes include descriptor-backed providers such as `cli-health`, `api-
 test-genie provider-contract check contracts my-scenario
 test-genie provider-contract check api my-scenario --json
 test-genie provider-contract check cli-health my-scenario --json
-test-genie provider-contract check standards my-scenario
+test-genie provider-contract check quality my-scenario
 test-genie provider-contract check architecture my-scenario --json
 test-genie provider-contract check docs my-scenario
 test-genie provider-contract check tidiness-manager my-scenario --json
@@ -402,30 +402,38 @@ Executing test suite for: my-scenario
   Preset: comprehensive
   Estimate: 3m 12s
   Timeout budget: 29m 0s
-  Planned phases: structure, standards, dependencies, quality, docs, ui-health, unit, integration, workflow, business, performance
+  Planned phases: structure, contracts, ui-health, api, architecture, dependencies, quality, docs, performance, unit, storage, workflow, business, tidiness, security, measures, proto, branding, search
 
 Plan:
-  structure     estimate 4s    timeout 15m  high confidence from 12 runs
-  workflow      estimate 15m   timeout 15m  timeout fallback
+  Structure     estimate 4s    timeout 1m   high confidence from 12 runs
+  Workflow      estimate 15m   timeout 15m  unknown estimate
 
-[1/11] structure     PASSED  (5s)
-[2/11] standards     PASSED  (2s)
-[3/11] dependencies  PASSED  (12s)
-[4/11] quality       PASSED  (9s)
-[5/11] docs          PASSED  (3s)
-[6/11] ui-health     PASSED  (6s)
-[7/11] unit          PASSED  (45s)
-[8/11] integration   PASSED  (30s)
-[9/11] workflow      PASSED  (14s)
-[10/11] business     PASSED  (8s)
-[11/11] performance  PASSED  (20s)
+[1/19] structure     PASSED  (5s)
+[2/19] contracts     PASSED  (2s)
+[3/19] ui-health     PASSED  (6s)
+[4/19] api           PASSED  (7s)
+[5/19] architecture  PASSED  (4s)
+[6/19] dependencies  PASSED  (12s)
+[7/19] quality       PASSED  (9s)
+[8/19] docs          PASSED  (3s)
+[9/19] performance   PASSED  (20s)
+[10/19] unit         PASSED  (45s)
+[11/19] storage      PASSED  (5s)
+[12/19] workflow     PASSED  (14s)
+[13/19] business     PASSED  (8s)
+[14/19] tidiness     PASSED  (4s)
+[15/19] security     PASSED  (8s)
+[16/19] measures     PASSED  (3s)
+[17/19] proto        PASSED  (3s)
+[18/19] branding     PASSED  (4s)
+[19/19] search       PASSED  (2s)
 
 Summary:
   Status: PASSED
   Duration: 2m 14s
   Estimate: 3m 12s
   Timeout budget: 29m 0s
-  Phases: 11 passed, 0 failed
+  Phases: 19 passed, 0 failed
   Execution ID: 660e8400-e29b-41d4-a716-446655440001
 
 Log: /tmp/test-genie/logs/my-scenario-comprehensive.log

@@ -14,6 +14,7 @@ import (
 // PlannedPhase describes a selected phase before execution starts.
 type PlannedPhase struct {
 	Name                 string                 `json:"name"`
+	DisplayName          string                 `json:"displayName,omitempty"`
 	Description          string                 `json:"description,omitempty"`
 	Optional             bool                   `json:"optional"`
 	TimeoutSeconds       int                    `json:"timeoutSeconds"`
@@ -108,6 +109,7 @@ func (o *SuiteOrchestrator) plannedPhasePreview(def phases.Definition, plan *pha
 	}
 	phasePreview := PlannedPhase{
 		Name:              def.Name.String(),
+		DisplayName:       def.DisplayName,
 		Optional:          def.Optional,
 		TimeoutSeconds:    int(timeout.Seconds()),
 		SelectionStatus:   selectionStatus,
@@ -122,6 +124,9 @@ func (o *SuiteOrchestrator) plannedPhasePreview(def phases.Definition, plan *pha
 	}
 	if o.catalog != nil {
 		if spec, ok := o.catalog.Lookup(def.Name.String()); ok {
+			if phasePreview.DisplayName == "" {
+				phasePreview.DisplayName = spec.DisplayName
+			}
 			phasePreview.Description = spec.Description
 		}
 	}

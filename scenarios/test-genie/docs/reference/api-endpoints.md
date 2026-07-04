@@ -358,16 +358,13 @@ Execute a test suite for a scenario. This is the primary endpoint for running te
 | `failFast` | bool | No | `false` | Stop on first failure |
 
 **Available Phases:**
-1. `structure` - Validates scenario layout, manifests, and JSON health
-2. `api` - Delegates API readiness validation to api-health
-3. `dependencies` - Delegates dependency health validation to scenario-dependency-analyzer
-4. `quality` - Delegates static quality contracts to quality-health
-5. `docs` - Validates markdown, mermaid, and links
-7. `ui-health` - Delegates UI / runtime validation to ui-health
-8. `unit` - Runs Go, Node, Python, and shell unit suites as applicable
-9. `workflow` - Delegates BAS workflow validation to workflow-health
-10. `business` - Audits requirement coverage and operational targets
-11. `performance` - Builds binaries and checks duration/performance budgets
+
+The live catalog is descriptor-backed. Use `GET /api/v1/phases` or
+`test-genie phases list` for the exact phase set and provider metadata. Common
+provider-backed phases include `structure`, `contracts`, `ui-health`, `api`,
+`architecture`, `dependencies`, `quality`, `docs`, `unit`, `storage`,
+`workflow`, `business`, `performance`, `tidiness`, `security`, `measures`,
+`proto`, `branding`, and `search`.
 
 Use `POST /api/v1/executions/plan` to see the actual selected phases, runtime estimate, and timeout budget before executing.
 
@@ -382,7 +379,7 @@ Use `POST /api/v1/executions/plan` to see the actual selected phases, runtime es
   "preset": "comprehensive",
   "requestedPreset": "comprehensive",
   "requestedSkipPhases": ["performance"],
-  "plannedPhases": ["structure", "standards", "dependencies", "quality", "docs", "ui-health", "unit", "integration", "workflow", "business"],
+  "plannedPhases": ["structure", "contracts", "ui-health", "api", "architecture", "dependencies", "quality", "docs", "performance", "unit", "storage", "workflow", "business", "tidiness", "security", "measures", "proto", "branding", "search"],
   "failFast": false,
   "phases": [
     {
@@ -455,7 +452,7 @@ List execution history.
       "startedAt": "2025-01-15T10:30:00Z",
       "completedAt": "2025-01-15T10:35:00Z",
       "preset": "comprehensive",
-      "plannedPhases": ["structure", "standards", "dependencies", "quality", "docs", "ui-health", "unit", "integration", "workflow", "business"],
+      "plannedPhases": ["structure", "contracts", "ui-health", "api", "architecture", "dependencies", "quality", "docs", "performance", "unit", "storage", "workflow", "business", "tidiness", "security", "measures", "proto", "branding", "search"],
       "failFast": false
     }
   ],
@@ -640,7 +637,11 @@ Returns the provider-backed phase catalog with descriptions and configuration.
 }
 ```
 
-The full catalog currently includes `structure`, `contracts`, `ui-health`, `standards`, `architecture`, `dependencies`, `quality`, `docs`, `performance`, `unit`, `integration`, `storage`, `workflow`, `business`, `tidiness`, `security`, `measures`, `proto`, and `branding`.
+The full catalog is descriptor-backed. Use `GET /api/v1/phases` for the current
+list; current in-repo descriptors include `structure`, `contracts`, `ui-health`,
+`api`, `architecture`, `dependencies`, `quality`, `docs`, `performance`, `unit`,
+`storage`, `workflow`, `business`, `tidiness`, `security`, `measures`, `proto`,
+`branding`, and `search`.
 
 ---
 
@@ -731,13 +732,14 @@ curl -s http://localhost:8080/health | jq '.status'
 ```bash
 curl -s http://localhost:8080/api/v1/phases | jq '.items[].name'
 # "structure"
-# "standards"
+# "contracts"
+# "ui-health"
+# "api"
+# "architecture"
 # "dependencies"
 # "quality"
 # "docs"
-# "ui-health"
 # "unit"
-# "integration"
 # "workflow"
 # "business"
 # "performance"

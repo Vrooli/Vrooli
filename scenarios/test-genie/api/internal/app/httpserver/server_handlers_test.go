@@ -336,6 +336,7 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 		name       string
 		body       string
 		executor   *stubSuiteExecutor
+		planner    *fakeExecutionPlanner
 		wantStatus int
 		assert     func(t *testing.T, exec *stubSuiteExecutor)
 	}{
@@ -363,6 +364,50 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 				}
 				if exec.input.Request.APIURL != "http://localhost:17551" {
 					t.Fatalf("expected apiUrl to pass through, got %s", exec.input.Request.APIURL)
+				}
+			},
+		},
+		{
+			name: "adaptive profile selection is expanded before run start",
+			body: `{"scenarioName":"demo","preset":"quick"}`,
+			executor: &stubSuiteExecutor{
+				result: &orchestrator.SuiteExecutionResult{
+					ExecutionID:  uuid.New(),
+					ScenarioName: "demo",
+					StartedAt:    time.Now(),
+					CompletedAt:  time.Now(),
+				},
+			},
+			planner: &fakeExecutionPlanner{
+				result: &execution.ExecutionPlanPreview{
+					ScenarioName: "demo",
+					PresetUsed:   "quick",
+					Profile: &execution.ProfilePlan{
+						Name:          "quick",
+						Strategy:      "budget_fast_feedback",
+						BudgetSeconds: 180,
+					},
+					Phases: []execution.PlannedPhase{
+						{Name: "structure", EstimatedDurationSeconds: 10},
+						{Name: "unit", EstimatedDurationSeconds: 40},
+					},
+					OmittedPhases: []execution.PlannedPhase{
+						{Name: "performance", OmissionReasons: []string{"omitted_budget_exceeded"}},
+					},
+					Summary: execution.ExecutionPlanSummary{
+						PhaseCount:               2,
+						EstimatedDurationSeconds: 50,
+						BudgetSeconds:            180,
+					},
+				},
+			},
+			wantStatus: http.StatusOK,
+			assert: func(t *testing.T, exec *stubSuiteExecutor) {
+				if got := strings.Join(exec.input.Request.Phases, ","); got != "structure,unit" {
+					t.Fatalf("execution phases = %s, want adaptive preview selection", got)
+				}
+				if exec.input.Request.Preset != "quick" {
+					t.Fatalf("preset should remain quick for run metadata, got %q", exec.input.Request.Preset)
 				}
 			},
 		},
@@ -398,6 +443,9 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 				router:     mux.NewRouter(),
 				runManager: runmanager.New(tt.executor, ""),
 				logger:     log.New(io.Discard, "", 0),
+			}
+			if tt.planner != nil {
+				server.executionPlanner = tt.planner
 			}
 
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/executions", strings.NewReader(tt.body))

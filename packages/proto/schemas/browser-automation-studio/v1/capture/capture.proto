@@ -43,6 +43,13 @@ enum CaptureType {
   CAPTURE_TYPE_VIDEO = 4;
   CAPTURE_TYPE_DOM = 5;
   CAPTURE_TYPE_PERFORMANCE = 6;
+  // Accessibility-tree JSON snapshot. The driver walks the Chromium
+  // accessibility tree (CDP Accessibility.getFullAXTree) after the page
+  // settles, joins per-node geometry + data-testid, and writes the
+  // result to accessibility.json normalized to the frozen contract
+  // `bas-accessibility-snapshot/v1`. Failure to capture degrades
+  // gracefully (the artifact is absent, the capture still succeeds).
+  CAPTURE_TYPE_ACCESSIBILITY = 7;
 }
 
 // DimensionsPreset names common viewport sizes so callers do not have to
@@ -129,6 +136,16 @@ message CaptureRequest {
   // against the executor's manifest root, which is NOT the target scenario on
   // this path — perf flows must use literal `[data-testid=…]` selectors.
   string interaction_flow_json = 8;
+
+  // When true, the normalized accessibility-tree snapshot JSON
+  // (bas-accessibility-snapshot/v1) is returned inline in
+  // CaptureResponse.accessibility_json. This is the remote-friendly way to
+  // consume the snapshot: artifact paths in CaptureArtifact are
+  // server-filesystem paths, useless to callers on another host. Mirrors
+  // inline_dom: it independently drives the AX capture (a caller need not
+  // also list CAPTURE_TYPE_ACCESSIBILITY), and the server caps the inline
+  // payload (currently 2 MiB) and truncates beyond it.
+  bool inline_accessibility = 9;
 }
 
 message CaptureArtifact {
@@ -161,4 +178,12 @@ message CaptureResponse {
   // empty as a failed fetch). Size-capped server-side (2 MiB); truncation
   // is silent, which readable-text extractors tolerate by design.
   string dom_html = 6;
+
+  // Normalized accessibility-tree snapshot JSON
+  // (bas-accessibility-snapshot/v1), populated only when
+  // CaptureRequest.inline_accessibility was set. Empty on dry-run or when
+  // the AX capture failed (the capture itself still succeeds — callers
+  // needing the snapshot must treat empty as a failed capture).
+  // Size-capped server-side (2 MiB); truncation is silent.
+  string accessibility_json = 7;
 }

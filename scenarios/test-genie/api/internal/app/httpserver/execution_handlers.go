@@ -107,7 +107,7 @@ func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Synchronous plan validation (bad preset/phase → 400) + ETA.
-	eta, err := s.previewPlanETA(r.Context(), input.Request)
+	preview, eta, err := s.previewExecutionPlan(r.Context(), input.Request)
 	if err != nil {
 		var vErr shared.ValidationError
 		if errors.As(err, &vErr) {
@@ -115,6 +115,7 @@ func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	applyPreviewPhaseSelection(&input, preview)
 
 	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, EstimatedTotalSeconds: eta})
 	if err != nil {

@@ -9,11 +9,11 @@ Test Genie phases are generated from the effective descriptor-backed registry. P
 | 1 | [Structure](structure/README.md) | 1m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates scenario skeleton and lifecycle wiring through structure-health. |
 | 2 | [Contracts](contracts/README.md) | 90s | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates CLI manifest, proto bindings, and runtime CLI surface through cli-health. |
 | 3 | [UI Health](ui-health/README.md) | 5m | `default_when_applicable` | `required_when_applicable` | `gating` | Yes | validation-provider | Validates UI manifests, interop, standards, and BAS runtime evidence through ui-health. |
-| 4 | [API](api/README.md) | 2m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates API readiness, health contracts, route semantics, and runtime hygiene through api-health. |
+| 4 | [API Health](api/README.md) | 2m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates API readiness, health contracts, route semantics, and runtime hygiene through api-health. |
 | 5 | [Architecture](architecture/README.md) | 2m | `default_when_applicable` | `best_effort` | `high_confidence_gating` | No | validation-provider | Validates structural cohesion through architecture-cartographer. |
 | 6 | [Dependencies](dependencies/README.md) | 15m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates dependency readiness, governance, runtime status, release-age policy, and graph drift. |
 | 7 | [Quality](quality/README.md) | 2m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates static quality contracts, lint and type policy, and strict config through quality-health. |
-| 8 | [DOCS](docs/README.md) | 1m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory. |
+| 8 | [Documentation](docs/README.md) | 1m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory. |
 | 9 | [Performance](performance/README.md) | 5m | `default_when_applicable` | `best_effort` | `gating` | Yes | validation-provider | Validates API/UI build performance and Lighthouse budgets through performance-health. |
 | 10 | [Unit](unit/README.md) | 15m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates test execution, coverage, architecture, quality, and runtime diagnostics through unit-health. |
 | 11 | [Storage](storage/README.md) | 2m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates storage conventions, migration hygiene, persistence seams, and test isolation through storage-health. |
@@ -30,11 +30,11 @@ Test Genie phases are generated from the effective descriptor-backed registry. P
 
 - [Structure](structure/README.md) - Validates scenario skeleton and lifecycle wiring through structure-health.
 - [Contracts](contracts/README.md) - Validates CLI manifest, proto bindings, and runtime CLI surface through cli-health.
-- [API](api/README.md) - Validates API readiness, health contracts, route semantics, and runtime hygiene through api-health.
+- [API Health](api/README.md) - Validates API readiness, health contracts, route semantics, and runtime hygiene through api-health.
 - [Architecture](architecture/README.md) - Validates structural cohesion through architecture-cartographer.
 - [Dependencies](dependencies/README.md) - Validates dependency readiness, governance, runtime status, release-age policy, and graph drift.
 - [Quality](quality/README.md) - Validates static quality contracts, lint and type policy, and strict config through quality-health.
-- [DOCS](docs/README.md) - Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory.
+- [Documentation](docs/README.md) - Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory.
 - [Unit](unit/README.md) - Validates test execution, coverage, architecture, quality, and runtime diagnostics through unit-health.
 - [Storage](storage/README.md) - Validates storage conventions, migration hygiene, persistence seams, and test isolation through storage-health.
 - [Business](business/README.md) - Validates PRD, requirements registry, OT linkage, and evidence traceability through business-health.
@@ -64,4 +64,4 @@ Per-phase overrides live in `.vrooli/testing.json` under `phases.<phase>` and ar
 
 ## Presets
 
-Preset membership is generated from the same effective registry and documented in [Presets Reference](../reference/presets.md).
+Preset and profile definitions are documented in [Presets Reference](../reference/presets.md). Quick and smoke are adaptive profiles; concrete preset membership is generated from the effective registry.

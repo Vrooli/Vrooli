@@ -89,6 +89,47 @@ message ValidateScenarioResponse {
   // "where is this run / where are its outputs" without reconstructing paths
   // from the other fields. Derived from the response; never authoritative state.
   repeated Artifact artifacts = 19;
+
+  // Inspectable unit-infrastructure policy projections. These rows compare the
+  // resolved unit.policy_profile expectation against the native file/config
+  // evidence Unit Health observed, including passing rows so operators can see
+  // which parts of the testing contract are actually enforced.
+  repeated ProjectionCheck projection_checks = 20;
+}
+
+// ProjectionCheck is one policy-vs-native comparison for unit-test
+// infrastructure.
+message ProjectionCheck {
+  // Stable row id, e.g. "ui:vitest.environment".
+  string id = 1;
+
+  // Workspace/surface this projection belongs to.
+  string workspace_id = 2;
+  string surface_id = 3;
+
+  // Short machine label for the projected setting.
+  string key = 4;
+
+  // Owning native config surface, e.g. "vite.config.ts test.coverage".
+  string owner = 5;
+
+  // File containing the native projection, or the expected file when missing.
+  string file_path = 6;
+
+  // Expected value from unit.policy_profile or Unit Health's default resolver.
+  string policy_value = 7;
+
+  // Observed value in the native config/filesystem.
+  string native_value = 8;
+
+  // Canonical statuses: pass, drift, missing, unknown.
+  string status = 9;
+
+  // Human-readable remediation hint for non-pass rows.
+  string remediation = 10;
+
+  // Finding code emitted when this row is enforcement-relevant.
+  string finding_code = 11;
 }
 
 // Artifact is a labeled, typed reference into a validation run's outputs.

@@ -21,6 +21,9 @@ func TestLoadValidDescriptor(t *testing.T) {
 	if got.Scenario != "search-hub" || got.Phase != "search" {
 		t.Fatalf("identity = %s/%s, want search-hub/search", got.Scenario, got.Phase)
 	}
+	if got.DisplayName != "Search" {
+		t.Fatalf("displayName = %q, want Search", got.DisplayName)
+	}
 	if got.TimeoutValue == 0 {
 		t.Fatal("timeout was not parsed")
 	}
@@ -115,6 +118,11 @@ func TestRepositoryDescriptorsLoadWithoutRetiredMaturityFiles(t *testing.T) {
 	if len(result.Descriptors) < 19 {
 		t.Fatalf("repository descriptor count = %d, want at least 19 provider-backed phases", len(result.Descriptors))
 	}
+	for _, descriptor := range result.Descriptors {
+		if strings.TrimSpace(descriptor.DisplayName) == "" {
+			t.Fatalf("%s descriptor missing displayName", descriptor.Path)
+		}
+	}
 	leftovers, err := filepath.Glob(filepath.Join(repoRoot, "scenarios", "*", ".vrooli", "maturity.json"))
 	if err != nil {
 		t.Fatalf("glob retired maturity specs: %v", err)
@@ -152,6 +160,7 @@ func validDescriptor(scenario, phase string) string {
   "schemaVersion":"1.0.0",
   "scenario":"` + scenario + `",
   "phase":"` + phase + `",
+  "displayName":"Search",
   "description":"Validates search registration.",
   "source":"validation-provider",
   "orderHint":100,

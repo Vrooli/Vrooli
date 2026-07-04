@@ -41,15 +41,15 @@ func TestToFreshnessResponseConvertsAllFields(t *testing.T) {
 	}
 }
 
-func TestFreshnessDefaultSetIsQuickPreset(t *testing.T) {
-	want := phases.DefaultPresets()["quick"]
+func TestFreshnessDefaultSetIsStableRequiredEvidenceProfile(t *testing.T) {
+	want := []string{"structure", "docs", "business", "unit", "proto"}
 	got := phases.FreshnessRequired()
 	if len(got) != len(want) {
-		t.Fatalf("FreshnessRequired = %v, want quick preset %v", got, want)
+		t.Fatalf("FreshnessRequired = %v, want %v", got, want)
 	}
 	for i := range want {
 		if got[i] != want[i] {
-			t.Fatalf("FreshnessRequired = %v, want quick preset %v", got, want)
+			t.Fatalf("FreshnessRequired = %v, want %v", got, want)
 		}
 	}
 	// The promoted business phase must be part of the required set — that is
@@ -62,23 +62,5 @@ func TestFreshnessDefaultSetIsQuickPreset(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("required set must include the business phase")
-	}
-}
-
-// TestRequiredSetMatchesFreshnessGo pins test-genie's quick-preset-derived
-// required set to the shared freshness-go mirror that no-service consumers
-// (scenario-completeness-scoring) use. If the quick preset changes, this fails
-// until freshness.RequiredPhases() is updated in lockstep — drift between the
-// two would make "stale" mean different things in different surfaces.
-func TestRequiredSetMatchesFreshnessGo(t *testing.T) {
-	want := phases.FreshnessRequired()
-	got := freshness.RequiredPhases()
-	if len(got) != len(want) {
-		t.Fatalf("freshness.RequiredPhases() = %v, want %v (test-genie quick preset)", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("freshness.RequiredPhases() = %v, want %v (test-genie quick preset)", got, want)
-		}
 	}
 }

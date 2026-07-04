@@ -1,0 +1,84 @@
+package profileplanner
+
+import (
+	"strings"
+	"testing"
+
+	"test-genie/internal/orchestrator/phasepolicy"
+)
+
+func TestPlanProfileSelectsRequiredAndBudgetFit(t *testing.T) {
+	estimator := NewEstimator("demo", []Sample{
+		{ScenarioName: "demo", PhaseName: "unit", Status: "passed", DurationSeconds: 40},
+		{ScenarioName: "demo", PhaseName: "performance", Status: "passed", DurationSeconds: 200},
+	})
+	plan := PlanProfile(Profile{
+		Name:          "quick",
+		BudgetSeconds: 100,
+		Strategy:      StrategyBudgetFastFeedback,
+	}, []Candidate{
+		{Name: "performance", TimeoutSeconds: 900, Policy: phasepolicy.BestEffortProviderPolicy(), Order: 2},
+		{Name: "structure", TimeoutSeconds: 20, Policy: phasepolicy.RequiredProviderPolicy(), Order: 0},
+		{Name: "unit", TimeoutSeconds: 120, Policy: phasepolicy.BestEffortProviderPolicy(), Order: 1},
+	}, estimator)
+
+	if got := decisionNames(plan.Selected); got != "structure,unit" {
+		t.Fatalf("selected = %s, want structure,unit", got)
+	}
+	if got := decisionNames(plan.Omitted); got != "performance" {
+		t.Fatalf("omitted = %s, want performance", got)
+	}
+	if plan.Omitted[0].Reasons[0] != ReasonOmittedBudget {
+		t.Fatalf("omission reason = %#v, want budget", plan.Omitted[0].Reasons)
+	}
+}
+
+func TestPlanProfileOmitsUnknownOptionalCandidates(t *testing.T) {
+	estimator := NewEstimator("demo", nil)
+	plan := PlanProfile(Profile{
+		Name:          "quick",
+		BudgetSeconds: 100,
+		Strategy:      StrategyBudgetFastFeedback,
+	}, []Candidate{
+		{Name: "structure", TimeoutSeconds: 20, Policy: phasepolicy.RequiredProviderPolicy()},
+		{Name: "security", TimeoutSeconds: 300, Policy: phasepolicy.BestEffortProviderPolicy(), Order: 1},
+		{Name: "manual", TimeoutSeconds: 60, Policy: phasepolicy.Policy{
+			Selection:         phasepolicy.SelectionExplicitOnly,
+			ProviderReadiness: phasepolicy.ProviderReadinessBestEffort,
+			ProviderLifecycle: phasepolicy.ProviderLifecycleCheckOnly,
+			Freshness:         phasepolicy.FreshnessRequireReachable,
+			ResultGating:      phasepolicy.ResultGatingAdvisory,
+			Unavailable:       phasepolicy.UnavailableAdvisory,
+		}, Order: 2},
+	}, estimator)
+
+	if got := decisionNames(plan.Selected); got != "structure" {
+		t.Fatalf("selected = %s, want structure", got)
+	}
+	if got := reasonFor(plan.Omitted, "security"); got != ReasonOmittedUnknown {
+		t.Fatalf("security reason = %q, want unknown", got)
+	}
+	if got := reasonFor(plan.Omitted, "manual"); got != ReasonOmittedExplicitOnly {
+		t.Fatalf("manual reason = %q, want explicit-only", got)
+	}
+	if plan.UnknownEstimateCount != 3 || plan.SelectedUnknownEstimates != 1 {
+		t.Fatalf("unexpected unknown counts: %#v", plan)
+	}
+}
+
+func decisionNames(decisions []Decision) string {
+	names := make([]string, 0, len(decisions))
+	for _, decision := range decisions {
+		names = append(names, decision.Candidate.Name)
+	}
+	return strings.Join(names, ",")
+}
+
+func reasonFor(decisions []Decision, name string) string {
+	for _, decision := range decisions {
+		if decision.Candidate.Name == name && len(decision.Reasons) > 0 {
+			return decision.Reasons[0]
+		}
+	}
+	return ""
+}
