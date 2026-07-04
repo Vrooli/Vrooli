@@ -1,0 +1,57 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "experience-manager",
+  "description": "Experience spec for experience-manager itself — the self-spec dogfood (OT-P0-005). All pages are draft: intent is authored ahead of the build, so reconciliation runs advisory until each page flips to active as it is implemented.",
+  "pages": [
+    {
+      "id": "fleet",
+      "path": "pages/fleet.json",
+      "title": "Fleet",
+      "status": "draft"
+    },
+    {
+      "id": "scenario-explorer",
+      "path": "pages/scenario-explorer.json",
+      "title": "Scenario Explorer",
+      "status": "draft"
+    },
+    {
+      "id": "evidence",
+      "path": "pages/evidence.json",
+      "title": "Evidence",
+      "status": "draft"
+    },
+    {
+      "id": "studio",
+      "path": "pages/studio.json",
+      "title": "Studio",
+      "status": "draft"
+    },
+    {
+      "id": "findings",
+      "path": "pages/findings.json",
+      "title": "Findings & Fixes",
+      "status": "draft"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "triage-experience-debt",
+      "path": "journeys/triage-experience-debt.json",
+      "title": "Triage experience debt",
+      "status": "draft"
+    },
+    {
+      "id": "author-first-spec",
+      "path": "journeys/author-first-spec.json",
+      "title": "Author a first spec",
+      "status": "draft"
+    }
+  ]
+}

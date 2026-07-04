@@ -1,0 +1,93 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "findings",
+    "title": "Findings & Fixes",
+    "routes": ["/findings"],
+    "purpose": "Show what diverged from declared experience intent and let an operator preview and apply the fixes that can be made mechanically.",
+    "prd_refs": ["OT-P0-002", "OT-P1-003"]
+  },
+  "priorities": [
+    { "statement": "Severity and what-diverged are readable before anything else." },
+    { "statement": "A fix is always previewed before it is applied." },
+    { "statement": "Findings speak in next-unlock language: what diverged, what is still safe, what unlocks the next level." }
+  ],
+  "states": [
+    { "id": "default", "description": "Findings listed most-severe first." },
+    { "id": "loading" },
+    { "id": "empty", "description": "All green: explicit no-divergence content, celebrated honestly — not blank space." },
+    { "id": "request-error" }
+  ],
+  "elements": [
+    { "id": "findings-list", "role": "list", "name": "Experience findings" },
+    { "id": "severity-label", "role": "note", "description": "Textual severity on every finding row." },
+    { "id": "evidence-link", "role": "link", "description": "Per-finding link to the Evidence view." },
+    { "id": "preview-action", "role": "button", "name": "Preview fix" },
+    { "id": "apply-action", "role": "button", "name": "Apply fix" }
+  ],
+  "claims": [
+    {
+      "id": "findings-perceivable",
+      "type": "element-present",
+      "statement": "Findings are exposed as a list with an accessible name.",
+      "tier": "machine",
+      "elements": ["findings-list"],
+      "states": ["default"]
+    },
+    {
+      "id": "severity-in-text",
+      "type": "element-present",
+      "statement": "Severity is stated in text on every finding — never conveyed by color alone.",
+      "tier": "machine",
+      "elements": ["severity-label"],
+      "states": ["default"]
+    },
+    {
+      "id": "preview-precedes-apply",
+      "type": "reading-order",
+      "statement": "Preview precedes Apply in reading order wherever both appear — the safe act is met first.",
+      "tier": "machine",
+      "elements": ["preview-action", "apply-action"],
+      "states": ["default"]
+    },
+    {
+      "id": "finding-links-evidence",
+      "type": "keyboard-reachable",
+      "statement": "Every finding's evidence link is keyboard reachable.",
+      "tier": "machine",
+      "elements": ["evidence-link"],
+      "states": ["default"]
+    },
+    {
+      "id": "all-green-honest",
+      "type": "state-covered",
+      "statement": "The all-green state renders explicit no-divergence content instead of an empty list.",
+      "tier": "machine",
+      "states": ["empty"]
+    },
+    {
+      "id": "next-unlock-language",
+      "type": "custom",
+      "statement": "Finding copy states what diverged from declared intent and what unlocks the next maturity level, mirroring business-health's ladder language.",
+      "tier": "manual"
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "findings-list": { "testid": "findings-list" },
+      "severity-label": { "testid": "findings-severity" },
+      "evidence-link": { "testid": "findings-evidence-link" },
+      "preview-action": { "testid": "findings-preview-fix" },
+      "apply-action": { "testid": "findings-apply-fix" }
+    }
+  },
+  "sketch": {
+    "viewport": "desktop",
+    "regions": [
+      { "id": "list-main", "grid": { "x": 0, "y": 0, "w": 8, "h": 10 }, "elements": ["findings-list", "severity-label", "evidence-link"] },
+      { "id": "fix-rail", "grid": { "x": 8, "y": 0, "w": 4, "h": 10 }, "elements": ["preview-action", "apply-action"] }
+    ]
+  }
+}

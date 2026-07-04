@@ -1,0 +1,102 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "fleet",
+    "title": "Fleet",
+    "routes": ["/"],
+    "purpose": "Show an operator where the fleet's experience debt is worst and route them into the offending scenario in one glance.",
+    "prd_refs": ["OT-P1-005"]
+  },
+  "priorities": [
+    { "statement": "The worst-scoring scenarios are the first thing read." },
+    { "statement": "Fleet-wide spec coverage and depth are summarizable at a glance." },
+    { "statement": "Every row visibly leads somewhere — drilling in is the obvious next act." }
+  ],
+  "states": [
+    { "id": "default", "description": "Scenarios ranked worst-first by experience debt." },
+    { "id": "loading", "description": "Sweep in progress; skeleton rows, no layout shift on arrival." },
+    { "id": "empty", "description": "No scenario has an experience/ folder yet — the day-one state. Guidance, not blank space." },
+    { "id": "stale", "description": "Sweep data older than its freshness budget; shown but visibly dated." },
+    { "id": "request-error", "description": "Sweep failed; what happened and the retry affordance." }
+  ],
+  "elements": [
+    { "id": "debt-table", "role": "table", "name": "Experience debt", "description": "Scenarios ranked worst-first: coverage, depth distribution, debt score." },
+    { "id": "depth-summary", "role": "region", "name": "Fleet depth", "description": "Aggregate L0–L4 depth distribution across the fleet." },
+    { "id": "coverage-meter", "role": "meter", "name": "Spec coverage", "description": "Share of scenarios with any experience spec." },
+    { "id": "scenario-link", "role": "link", "description": "Per-row drill-in to the Scenario Explorer." },
+    { "id": "refresh-action", "role": "button", "name": "Refresh sweep" }
+  ],
+  "claims": [
+    {
+      "id": "debt-table-perceivable",
+      "type": "element-present",
+      "statement": "The experience-debt table is exposed as a real table with its accessible name, in every viewport.",
+      "tier": "machine",
+      "elements": ["debt-table"],
+      "states": ["default", "stale"]
+    },
+    {
+      "id": "summary-before-table",
+      "type": "reading-order",
+      "statement": "The fleet summary (depth + coverage) precedes the debt table in reading order, so the aggregate lands before the detail.",
+      "tier": "machine",
+      "elements": ["depth-summary", "debt-table"],
+      "states": ["default"]
+    },
+    {
+      "id": "drill-in-keyboard",
+      "type": "keyboard-reachable",
+      "statement": "Every scenario row's drill-in link is keyboard reachable.",
+      "tier": "machine",
+      "elements": ["scenario-link"],
+      "states": ["default", "stale"]
+    },
+    {
+      "id": "empty-state-guides",
+      "type": "state-covered",
+      "statement": "The empty state renders dedicated guidance toward authoring a first spec — never blank space.",
+      "tier": "machine",
+      "states": ["empty"]
+    },
+    {
+      "id": "stale-visibly-dated",
+      "type": "state-distinct",
+      "statement": "Stale sweep data is distinguishable from fresh data without reading timestamps closely.",
+      "tier": "machine",
+      "states": ["stale", "default"]
+    },
+    {
+      "id": "worst-first-ordering",
+      "type": "custom",
+      "statement": "Rows are ordered worst-first; the top row is always the scenario with the highest experience debt.",
+      "tier": "manual",
+      "elements": ["debt-table"],
+      "rationale": "Data-dependent ordering; machine-checkable only with seeded fixtures. Promotion candidate once the fleet sweep exposes a deterministic fixture mode."
+    },
+    {
+      "id": "read-first-page",
+      "type": "custom",
+      "statement": "No action competes with reading the table; the page is read-first and the only prominent affordances are drill-in and refresh.",
+      "tier": "aspirational",
+      "rationale": "Becomes checkable via saliency importance ranking in the P2 perception tier."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "debt-table": { "testid": "fleet-debt-table" },
+      "depth-summary": { "testid": "fleet-depth-summary" },
+      "coverage-meter": { "testid": "fleet-coverage-meter" },
+      "scenario-link": { "testid": "fleet-scenario-link" },
+      "refresh-action": { "testid": "fleet-refresh" }
+    }
+  },
+  "sketch": {
+    "viewport": "desktop",
+    "regions": [
+      { "id": "summary-band", "grid": { "x": 0, "y": 0, "w": 12, "h": 2 }, "elements": ["depth-summary", "coverage-meter", "refresh-action"] },
+      { "id": "debt-list", "grid": { "x": 0, "y": 2, "w": 12, "h": 8 }, "elements": ["debt-table", "scenario-link"] }
+    ]
+  }
+}

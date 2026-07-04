@@ -1,0 +1,85 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P0",
+      "description": "Validate `experience/` (index, pages, journeys) against `.vrooli/schemas/scenario-experience-spec.schema.json` plus parser checks: unique IDs, resolvable references (routes, PRD OTs, DESIGN.md states, bindings), enforcement-tier rules, and open-world semantics, with a frozen finding-code vocabulary.",
+      "id": "EXPERIEN-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "planned",
+      "title": "Experience spec contract",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P0-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Implement `ScenarioValidationService` for the canonical `experience` phase with findings, metrics, maturity ladders, and fix preview/apply, discovered by Test Genie through `.vrooli/test-genie.json` with presence-keyed applicability.",
+      "id": "EXPERIEN-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "planned",
+      "title": "Scenario validation provider",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P0-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Drive Browser Automation Studio to capture a screenshot plus accessibility tree per declared page/state and check every machine-tier claim against the captured tree, persisting per-claim evidence; BAS unavailability yields skipped findings, never failures.",
+      "id": "EXPERIEN-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "planned",
+      "title": "Structure reconciliation",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P0-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Form-based spec authoring with live validation and CLI parity, satisfying the round-trip property: a spec saved through the studio re-validates to zero contract findings.",
+      "id": "EXPERIEN-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "planned",
+      "title": "Authoring studio",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P0-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Experience Manager ships its own `experience/` folder at L3+ depth and validates green, serving as the first real proof of the spec schema on its own surfaces.",
+      "id": "EXPERIEN-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "planned",
+      "title": "Self-spec dogfood",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P0-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,233 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "experience-manager",
+    "displayName": "Experience Manager",
+    "description": "Experience-axis authority: machine-checkable UX spec contract (experience/), form-based authoring and workshop studio, and validation of built UIs against declared experience intent.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.4.0"
+    },
+    "generated_at": "2026-07-04T05:06:30Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "9d2078da47d8cc4a420033c4bcb994c3868c0c4f4e4be7e8b7891fc51781f35c",
+    "content_sha": "a67b3fb4f2c5e59e409ad424fdc8bb030cc5924807a4efd335929338597bf118"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "experience-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "experience-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/experience-manager-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "experience-manager"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o experience-manager-api .",
+          "description": "Build Go API server"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI bundle"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Launch API and Vite dev server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./experience-manager-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/experience-manager-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Serve production UI bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "build": {},
+    "deploy": {},
+    "clean": {},
+    "test": {
+      "description": "Execute phased test suite via test-genie",
+      "steps": [
+        {
+          "name": "check-temporal-models",
+          "run": "flow-verifier verify check --root .",
+          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
+        },
+        {
+          "name": "run-tests",
+          "run": "test-genie execute experience-manager --preset comprehensive",
+          "description": "Run all test phases via test-genie"
+        }
+      ]
+    },
+    "backup": {},
+    "restore": {},
+    "production": {},
+    "stop": {
+      "description": "Stop background processes",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'experience-manager-api' || true",
+          "description": "Stop Go API"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "scenarios": {
+      "browser-automation-studio": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Capture engine for structure reconciliation: drives scenario UIs and captures per-page/state screenshots plus accessibility trees that machine-tier claims are checked against.",
+        "degraded_behavior": "Reconciliation checks report skipped (resource unavailable), never failed; spec contract validation, authoring studio, and fleet views work fully without it."
+      },
+      "image-tools": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Optional AI-image rendering of spec pages in the workshop (openrouter-image BYOK provider). Deterministic wireframe rendering does not use it.",
+        "degraded_behavior": "AI-image render option is unavailable; wireframe rendering and variant compare are unaffected."
+      }
+    },
+    "resources": {}
+  },
+  "environment": {
+    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/experience-manager.db"
+  }
+}

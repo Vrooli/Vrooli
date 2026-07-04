@@ -1,0 +1,85 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "Deterministic wireframe rendering of any spec page with claim annotations, side-by-side variant compare with promote-to-spec, and an optional AI-image render mode composing image-tools.",
+      "id": "EXPERIEN-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "Render and workshop",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P1-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Derive `bas/cases` stubs from spec entries (routes to navigation, claims to assertions, bindings to selectors) for workflow-health governance, with spec-to-case reference-integrity findings in both directions.",
+      "id": "EXPERIEN-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "title": "BAS case scaffolding",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P1-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Preview and apply mechanical fixes for binding drift, index normalization, missing state stubs, and finding-doc stubs with accounting of fixed versus remaining findings.",
+      "id": "EXPERIEN-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "planned",
+      "title": "Deterministic autofix",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P1-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Manual-tier claims are attested with an expiry; expired attestations surface as findings so human-verified experience promises decay honestly instead of staying green forever.",
+      "id": "EXPERIEN-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "planned",
+      "title": "Manual attestation ledger",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P1-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Compute-on-read sweep of spec coverage and depth across all scenarios, scored worst-first so experience debt is visible and prioritized fleet-wide.",
+      "id": "EXPERIEN-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "planned",
+      "title": "Fleet sweep",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P1-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}
