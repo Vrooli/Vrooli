@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "scenario": "api-health",
   "phase": "api",
+  "displayName": "API Health",
   "description": "Validates API readiness, health contracts, route semantics, and runtime hygiene through api-health.",
   "source": "validation-provider",
   "orderHint": 3,

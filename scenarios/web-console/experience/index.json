@@ -1,0 +1,23 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "web-console",
+  "description": "Experience spec seed for web-console, authored as spike page 3/3 for the scenario-experience-spec/v1 vocabulary — deliberately the hostile case: a single-surface SPA with no router (one route, overlays and display modes instead of pages), terminal panes with no native ARIA role, and no root DESIGN.md to seed the state contract. The workspace page is 'active' (not draft): the operator verdict is that this UX is exceptional, so machine-tier claims are expected to PASS reconciliation — the mirror image of the business-health calibration. Settings/appearance modals and the messages view are deliberate coverage debt.",
+  "pages": [
+    {
+      "id": "workspace",
+      "path": "pages/workspace.json",
+      "title": "Terminal Workspace",
+      "status": "active"
+    }
+  ],
+  "x-spike": {
+    "no-design-md": "web-console has no root DESIGN.md; the experience-manager parser must degrade state-contract coverage checks gracefully when the seed source is absent (spike learning, not an error here).",
+    "single-surface": "No react-router: the only route is /. Modal surfaces (launcher, settings) and per-pane view modes are modeled as page states and x- extensions, not as separate route-bearing pages."
+  }
+}

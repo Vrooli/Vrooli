@@ -71,11 +71,13 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Workaround:** n/a — this is a deliberate gate, not a defect.
 
-**Real fix:** Before promoting the phase beyond presence-keyed applicability, the schema must express three pages naturally at useful depth: business-health's Matrix (dense conventional), web-console's terminal/chat surface (hostile to descriptive schemas), and this scenario's own Studio (self-referential dogfood, OT-P0-005 — **done 2026-07-04**: `experience/pages/studio.json`, expressed naturally, no vocabulary fights). Vocabulary gets fixed before rollout if either remaining page fights it.
+**Real fix:** Before promoting the phase beyond presence-keyed applicability, the schema must express three pages naturally at useful depth: business-health's Matrix (dense conventional), web-console's terminal/chat surface (hostile to descriptive schemas), and this scenario's own Studio (self-referential dogfood, OT-P0-005).
+
+**RESOLVED 2026-07-04 — gate CLOSED 3/3, zero schema changes needed.** Studio (1/3), business-health Matrix (2/3: `scenarios/business-health/experience/`, authored to intent with 8 expected reconciliation failures as the detection-calibration list — see its `x-spike` block), web-console workspace (3/3: `scenarios/web-console/experience/`, the hostile case — routerless SPA, `x-terminal` custom role, no DESIGN.md, orthogonal display modes — all absorbed by open-world `x-` semantics). Two vocabulary learnings recorded as DECISIONS.md rows (display-mode `x-` scoping; DESIGN.md-absent graceful degradation). Rollout is no longer blocked on vocabulary. Entry retained only until the Go parser (OT-P0-001) reproduces the scratch validator's checks; delete it then.
 
 **Owner:** unassigned.
 
-**Refs:** DECISIONS rows on claim schema, open-world semantics, maturity ladder.
+**Refs:** DECISIONS rows on claim schema, open-world semantics, maturity ladder, display-mode scoping, DESIGN.md-absent degradation.
 
 ### 2026-07-04 — requirements auto-sync disabled until real validation refs exist
 

@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "scenario": "cli-health",
   "phase": "contracts",
+  "displayName": "Contracts",
   "description": "Validates CLI manifest, proto bindings, and runtime CLI surface through cli-health.",
   "source": "validation-provider",
   "orderHint": 1,

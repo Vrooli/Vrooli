@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "scenario": "performance-health",
   "phase": "performance",
+  "displayName": "Performance",
   "description": "Validates API/UI build performance and Lighthouse budgets through performance-health.",
   "source": "validation-provider",
   "orderHint": 9,

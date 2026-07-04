@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "scenario": "brand-manager",
   "phase": "branding",
+  "displayName": "Branding",
   "description": "Validates brand identity, design tokens, typography, logos, favicons, contrast, and applied brand markers through brand-manager.",
   "source": "validation-provider",
   "orderHint": 18,

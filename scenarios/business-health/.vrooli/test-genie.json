@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "scenario": "business-health",
   "phase": "business",
+  "displayName": "Business",
   "description": "Validates PRD, requirements registry, OT linkage, and evidence traceability through business-health.",
   "source": "validation-provider",
   "orderHint": 13,

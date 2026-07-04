@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "scenario": "workflow-health",
   "phase": "workflow",
+  "displayName": "Workflow",
   "description": "Validates BAS workflow assets and safe execution through workflow-health.",
   "source": "validation-provider",
   "orderHint": 12,
