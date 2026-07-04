@@ -29,7 +29,7 @@ from `test-genie health` + `test-genie fleet status`, not stored here.
 |---|---|---|---|---|---|
 | V1 | Structure | `structure-health` | NOW | mechanical | Skeleton + lifecycle wiring vs `service.json`. |
 | V2 | Contracts | `cli-health` | NOW | partial | cli/manifest.json bound to proto descriptors — the SSOT that keeps API/CLI/UI surfaces in agreement (surface-parity is already solved here). |
-| V3 | Standards | `scenario-auditor` | NOW | partial | PRD/service.json/proxy/lifecycle rules. |
+| V3 | Focused health validators | provider-owned health scenarios | NOW | active | PRD/service.json/proxy/lifecycle rules are moving to focused providers. |
 | V4 | Architecture | `architecture-cartographer` | NOW | partial | Structural cohesion; gates only at high-confidence authority. |
 | V5 | Dependencies | `scenario-dependency-analyzer` | NOW | partial | Readiness, governance, release-age, security index, graph drift. |
 | V6 | Quality | `quality-health` | NOW | mechanical | Lint/type policy, strict config. |

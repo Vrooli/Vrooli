@@ -33,8 +33,8 @@ var curatedPresets = map[Preset][]Name{
 	// It never triggers the requirements *sync* (which gates on all non-Optional
 	// phases — see orchestrator/requirements_decision.go), so quick/smoke stay
 	// side-effect-free.
-	PresetQuick: {Structure, Standards, Docs, Business, Unit, Proto},
-	PresetSmoke: {Structure, Standards, Quality, Docs, Business, Proto},
+	PresetQuick: {Structure, Docs, Business, Unit, Proto},
+	PresetSmoke: {Structure, API, Quality, Docs, Business, Proto},
 	// architecture-audit is the per-surface conformance battery plus the
 	// structural cohesion axis — the single command the screaming-
 	// architecture skill points at. Excludes runtime phases (unit,
@@ -42,7 +42,7 @@ var curatedPresets = map[Preset][]Name{
 	// for low-confidence authority, but high-confidence blocker findings
 	// gate by default.
 	PresetArchitectureAudit: {
-		Structure, Contracts, UIHealth, Docs, Standards, Architecture, Proto,
+		Structure, Contracts, UIHealth, API, Docs, Architecture, Proto,
 	},
 }
 

@@ -206,12 +206,13 @@ test-genie provider-contract check <phase|provider> <scenario-name> [--json]
 
 Use `--no-restart` only for diagnostics when lifecycle freshness is already guaranteed.
 
-Supported probes include CLI-backed providers (`cli-health`, `ui-health`, `quality-health`, `scenario-dependency-analyzer`, `security-health`, `measures-health`, `proto-health`, `scenario-auditor`, `architecture-cartographer`), the `knowledge-observatory` DocHealth RPC wrapper, and the `tidiness-manager` HTTP tidiness scan endpoint discovered through lifecycle.
+Supported probes include descriptor-backed providers such as `cli-health`, `api-health`, `ui-health`, `quality-health`, `scenario-dependency-analyzer`, `security-health`, `measures-health`, `proto-health`, `architecture-cartographer`, `knowledge-observatory`, and `tidiness-manager`.
 
 ### Examples
 
 ```bash
 test-genie provider-contract check contracts my-scenario
+test-genie provider-contract check api my-scenario --json
 test-genie provider-contract check cli-health my-scenario --json
 test-genie provider-contract check standards my-scenario
 test-genie provider-contract check architecture my-scenario --json
@@ -227,7 +228,7 @@ Sweep every delegated provider phase in the catalog and score how correctly each
 test-genie provider-contract scan [--json] [--target <fixture-scenario>] [--timeout <dur>]
 ```
 
-Per provider it reports `reachable`, `contract_valid`, `identity_ok`, `spec_valid`, `metrics_adopted` (advisory), a `violations[]` list, and an `adoption_score`. The default target is `test-genie` with `include_execution=false` to bound probe cost. The command exits non-zero only for a mis-specified provider (`spec_valid=false`) or a contract/identity break among reachable providers; unreachability and missing metrics never fail the gate.
+Per provider it reports `reachable`, `contract_valid`, `identity_ok`, `spec_valid`, `metrics_adopted`, a `violations[]` list, and an `adoption_score`. `spec_valid` means the provider-owned `.vrooli/test-genie.json` descriptor loads, its embedded `maturity` block validates, and descriptor/provider/phase identity is coherent. The default target is `test-genie` with `include_execution=false` to bound probe cost. The command exits non-zero for a mis-specified provider (`spec_valid=false`) or a contract, identity, or metrics-adoption break among reachable providers; unreachability remains an environmental signal and does not fail the gate.
 
 ```bash
 test-genie provider-contract scan --json
@@ -323,16 +324,22 @@ validation.
 | Phase | Description |
 |-------|-------------|
 | `structure` | Validates scenario layout, manifests, and JSON health |
-| `standards` | Runs scenario-auditor standards enforcement |
+| `api` | Delegates API readiness validation to api-health |
 | `dependencies` | Delegates dependency health validation to scenario-dependency-analyzer |
 | `quality` | Delegates static quality contracts to quality-health |
 | `docs` | Validates markdown, mermaid, and links |
-| `smoke` | Performs fast runtime / UI handshake checks |
+| `ui-health` | Delegates UI manifest, interoperability, and runtime render checks to ui-health |
 | `unit` | Executes language-specific unit tests |
-| `integration` | Runs CLI runtime, API health, and WebSocket connectivity checks |
-| `playbooks` | Executes BAS browser automation workflows |
+| `storage` | Delegates storage and test-isolation checks to storage-health |
+| `workflow` | Delegates BAS workflow validation to workflow-health |
 | `business` | Audits requirement coverage and business validation |
-| `performance` | Builds binaries and checks performance budgets (optional) |
+| `performance` | Builds binaries and checks performance budgets |
+| `tidiness` | Delegates file/function quality checks to tidiness-manager |
+| `security` | Delegates security posture validation to security-health |
+| `measures` | Delegates measures coverage validation to measures-health |
+| `proto` | Delegates Protocol Buffer contract validation to proto-health |
+| `branding` | Delegates brand identity validation to brand-manager |
+| `search` | Applies only to search-enabled scenarios and delegates search maturity to search-hub |
 
 ### Timing Preview
 
@@ -899,49 +906,39 @@ browser-automation      Yes     30m ago      failed
 
 ## phases
 
-List available test phases and their configuration.
+Inspect the descriptor-backed phase registry, target applicability, and execution planning decisions.
 
 ```bash
-test-genie phases [options]
+test-genie phases <list|inspect|applicability|plan> [options]
 ```
 
-### Options
+### Commands
+
+| Command | Purpose |
+|---------|---------|
+| `list` | List effective registry phases from provider `.vrooli/test-genie.json` descriptors plus Test Genie runner bindings |
+| `inspect <phase>` | Show one phase's provider, descriptor path, policy, runnability, finding source, and docs path |
+| `applicability <target>` | Preview which phases apply to a target and why |
+| `plan <target>` | Preview selected phases, non-applicable phases, provider readiness policy, and runnability posture for a run |
+
+### Common Options
 
 | Option | Description |
 |--------|-------------|
-| `--detailed` | Show full descriptions |
-| `--json` | Output as JSON |
+| `--json` | Output machine-readable JSON |
+| `--phase <phase>` | Narrow applicability/plan output to one phase |
+| `--preset <preset>` | Select a preset for `plan` |
 
 ### Examples
 
 ```bash
-# List phases
-test-genie phases
-
-# Detailed view
-test-genie phases --detailed
+test-genie phases list --json
+test-genie phases inspect search --json
+test-genie phases applicability measures-health --phase search --json
+test-genie phases plan my-scenario --preset comprehensive --json
 ```
 
-### Output
-
-```
-Test Phases
-===========
-
-Name          Optional  Timeout  Description
-----          --------  -------  -----------
-structure     No        15m      Validates scenario layout and manifests
-standards     No        1m       Runs scenario-auditor standards checks
-dependencies  No        15m      Confirms commands, runtimes, and resources
-quality       No        120s     Delegates static quality contracts to quality-health
-docs          No        1m       Validates markdown, mermaid, and links
-ui-health     No        5m       Delegates UI validation to ui-health
-unit          No        15m      Executes language-specific unit suites
-integration   No        15m      Runs CLI, API health, and WebSocket checks
-workflow      No        15m      Delegates BAS workflow validation to workflow-health
-business      No        3m       Audits requirements and business validation
-performance   Yes       1m       Checks performance and duration budgets
-```
+`applicability` answers whether a phase should judge the target. `plan` then layers preset/explicit selection, provider readiness policy, and runnability on top. Non-applicable phases are omitted from normal execution output but remain visible in JSON previews and explicit phase requests.
 
 ---
 

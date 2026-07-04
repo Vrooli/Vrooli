@@ -32,7 +32,7 @@ func TestWriteFindingsArtifact(t *testing.T) {
 		{
 			// A zero-finding phase that ran (passed) — must still appear, with
 			// its source, so reaudit knows the source was covered.
-			Name:          "standards",
+			Name:          "quality",
 			Status:        "passed",
 			FindingSource: "standards",
 			Findings:      nil,
@@ -67,11 +67,11 @@ func TestWriteFindingsArtifact(t *testing.T) {
 		if len(art.Phases) != 3 {
 			t.Fatalf("%s: want 3 phases (zero-finding included), got %d", path, len(art.Phases))
 		}
-		if art.Phases[1].Name != "standards" || art.Phases[1].FindingSource != "standards" {
-			t.Errorf("%s: zero-finding standards phase missing or unsourced: %+v", path, art.Phases[1])
+		if art.Phases[1].Name != "quality" || art.Phases[1].FindingSource != "standards" {
+			t.Errorf("%s: zero-finding quality phase missing or unsourced: %+v", path, art.Phases[1])
 		}
 		if len(art.Phases[1].Findings) != 0 {
-			t.Errorf("%s: standards phase should have empty findings, got %d", path, len(art.Phases[1].Findings))
+			t.Errorf("%s: quality phase should have empty findings, got %d", path, len(art.Phases[1].Findings))
 		}
 		if art.Phases[2].FindingSource != "" {
 			t.Errorf("%s: non-producing unit phase should have no findingSource, got %q", path, art.Phases[2].FindingSource)

@@ -156,7 +156,7 @@ func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Structure, Runner: noOp})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Contracts, Runner: noOp})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.UIHealth, Runner: noOp})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Standards, Runner: noOp})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.API, Runner: noOp})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Architecture, Runner: noOp, Optional: true})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Dependencies, Runner: noOp})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Quality, Runner: noOp})
@@ -209,8 +209,8 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 		})
 		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
 			switch {
-			case name == "scenario-auditor":
-				return `{"security":null,"standards":{"summary":{"total":0,"by_severity":{},"highest_severity":"","top_violations":[]}}}`, nil
+			case isAPIHealthCommand(name, args):
+				return apiHealthStubOutput(args[2]), nil
 			case isDependencyHealthCommand(name, args):
 				return dependencyHealthStubOutput(args[1]), nil
 			case strings.Contains(name, filepath.Join("cli", "demo")) && len(args) > 0 && args[0] == "version":
@@ -239,13 +239,10 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 		if !result.Success {
 			t.Fatalf("expected success, got failure: %#v", result)
 		}
-		// Derive expectations from the orchestrator's own catalog (the single
-		// source of truth) rather than a hard-coded count and name list, so that
-		// adding/removing/reordering a phase updates this assertion automatically.
-		expected := make([]string, 0)
-		for _, spec := range orchestrator.catalog.All() {
-			expected = append(expected, spec.Name.String())
-		}
+		// Derive expectations from the execution plan so descriptor applicability
+		// changes, such as search applying only to search-enabled scenarios, do
+		// not require a hand-maintained fixture list.
+		expected := append([]string(nil), result.PlannedPhases...)
 		if len(result.Phases) != len(expected) {
 			t.Fatalf("expected %d phases, got %d", len(expected), len(result.Phases))
 		}
@@ -358,6 +355,65 @@ func TestSuiteOrchestratorPreviewExecutionUsesConfiguredTimeouts(t *testing.T) {
 	})
 }
 
+func TestSuiteOrchestratorPreviewExecutionAppliesDescriptorApplicability(t *testing.T) {
+	t.Run("[REQ:TESTGENIE-ORCH-PREVIEW-P0] descriptor phase is omitted when target is not applicable", func(t *testing.T) {
+		repoRoot := t.TempDir()
+		root := filepath.Join(repoRoot, "scenarios")
+		createScenarioLayout(t, root, "demo")
+		writeTestGenieDescriptor(t, root, "search-hub", searchDescriptor("search-hub"))
+
+		orchestrator, err := NewSuiteOrchestrator(root)
+		if err != nil {
+			t.Fatalf("failed to init orchestrator: %v", err)
+		}
+
+		preview, err := orchestrator.PreviewExecution(SuiteExecutionRequest{ScenarioName: "demo"})
+		if err != nil {
+			t.Fatalf("preview failed: %v", err)
+		}
+		if hasPlannedPhase(preview.Phases, "search") {
+			t.Fatalf("search phase should not be selected for non-search target: %#v", preview.Phases)
+		}
+		search, ok := plannedPhase(preview.NotApplicablePhases, "search")
+		if !ok {
+			t.Fatalf("search phase should be reported as not applicable: %#v", preview.NotApplicablePhases)
+		}
+		if search.ApplicabilityStatus != "not_applicable" {
+			t.Fatalf("search applicability = %q, want not_applicable", search.ApplicabilityStatus)
+		}
+	})
+
+	t.Run("[REQ:TESTGENIE-ORCH-PREVIEW-P0] descriptor phase is selected when target applicability matches", func(t *testing.T) {
+		repoRoot := t.TempDir()
+		root := filepath.Join(repoRoot, "scenarios")
+		scenarioDir := createScenarioLayout(t, root, "demo")
+		if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "search.json"), []byte(`{"enabled":true}`), 0o644); err != nil {
+			t.Fatalf("failed to seed search config: %v", err)
+		}
+		writeTestGenieDescriptor(t, root, "search-hub", searchDescriptor("search-hub"))
+
+		orchestrator, err := NewSuiteOrchestrator(root)
+		if err != nil {
+			t.Fatalf("failed to init orchestrator: %v", err)
+		}
+
+		preview, err := orchestrator.PreviewExecution(SuiteExecutionRequest{ScenarioName: "demo"})
+		if err != nil {
+			t.Fatalf("preview failed: %v", err)
+		}
+		search, ok := plannedPhase(preview.Phases, "search")
+		if !ok {
+			t.Fatalf("search phase should be selected for search target: %#v", preview.Phases)
+		}
+		if search.ApplicabilityStatus != "applies" {
+			t.Fatalf("search applicability = %q, want applies", search.ApplicabilityStatus)
+		}
+		if search.ProviderReadiness != "required_when_applicable" {
+			t.Fatalf("provider readiness = %q, want required_when_applicable", search.ProviderReadiness)
+		}
+	})
+}
+
 func TestSuiteOrchestratorExecuteCapturesSelectionMetadata(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-META-P0] execution results retain requested and planned phase metadata", func(t *testing.T) {
 		root := t.TempDir()
@@ -418,6 +474,73 @@ func TestSuiteOrchestratorExecuteCapturesSelectionMetadata(t *testing.T) {
 	})
 }
 
+func writeTestGenieDescriptor(t *testing.T, root, scenario, body string) {
+	t.Helper()
+	dir := filepath.Join(root, scenario, ".vrooli")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "test-genie.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func searchDescriptor(scenario string) string {
+	return `{
+  "schemaVersion":"1.0.0",
+  "scenario":"` + scenario + `",
+  "phase":"search",
+  "description":"Validates search registration.",
+  "source":"validation-provider",
+  "orderHint":2000,
+  "timeout":"120s",
+  "validation":{"contract":"scenario-validation/v1","includeExecution":true},
+  "applicability":{"default":"not_applicable","any":[{"fileExists":".vrooli/search.json"},{"serviceCapability":"search"}]},
+  "policy":{
+    "selection":"default_when_applicable",
+    "providerReadiness":"required_when_applicable",
+    "providerLifecycle":"start_if_needed",
+    "freshness":"require_live_contract",
+    "resultGating":"gating",
+    "unavailable":"fail"
+  },
+  "runnability":{"needsUI":false,"needsAPI":false,"requiredResources":[]},
+  "docs":{"path":"scenarios/test-genie/docs/phases/search/README.md"},
+  "maturity":{
+    "version":"2.0.0",
+    "capabilities":[{"id":"registration","label":"Search registration","levels":[{"id":"L0","name":"Missing","description":"Missing search registration.","entry_criteria":[],"exit_criteria":[]}]}],
+    "findings":{
+      "SEARCH_REGISTRATION_MISSING":{
+        "capability_id":"registration",
+        "local_level_impact":"L0",
+        "global_impact":"capability_gap",
+        "dimension":"operational-targets",
+        "severity_default":"SEVERITY_ERROR",
+        "recommended_skill_ids":["search"],
+        "clean_requirement":"required",
+        "fix_class":"manual",
+        "reason":"Requires provider-specific judgment."
+      }
+    },
+    "fallback":{"capability_id":"registration","local_level_impact":"L0","global_impact":"unknown","dimension":"operational-targets","severity_default":"SEVERITY_WARNING","clean_requirement":"advisory"}
+  }
+}`
+}
+
+func hasPlannedPhase(phases []PlannedPhase, name string) bool {
+	_, ok := plannedPhase(phases, name)
+	return ok
+}
+
+func plannedPhase(phases []PlannedPhase, name string) (PlannedPhase, bool) {
+	for _, phase := range phases {
+		if phase.Name == name {
+			return phase, true
+		}
+	}
+	return PlannedPhase{}, false
+}
+
 func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] full suites trigger requirement sync", func(t *testing.T) {
 		root := t.TempDir()
@@ -434,8 +557,8 @@ func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 		})
 		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
 			switch {
-			case name == "scenario-auditor":
-				return `{"security":null,"standards":{"summary":{"total":0,"by_severity":{},"highest_severity":"","top_violations":[]}}}`, nil
+			case isAPIHealthCommand(name, args):
+				return apiHealthStubOutput(args[2]), nil
 			case isDependencyHealthCommand(name, args):
 				return dependencyHealthStubOutput(args[1]), nil
 			case strings.Contains(name, filepath.Join("cli", "demo")) && len(args) > 0 && args[0] == "version":
@@ -604,8 +727,8 @@ func TestSuiteOrchestratorPresetFromFile(t *testing.T) {
 			return nil
 		})
 		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
-			if name == "scenario-auditor" {
-				return `{"security":null,"standards":{"summary":{"total":0,"by_severity":{},"highest_severity":"","top_violations":[]}}}`, nil
+			if isAPIHealthCommand(name, args) {
+				return apiHealthStubOutput(args[2]), nil
 			}
 			if isDependencyHealthCommand(name, args) {
 				return dependencyHealthStubOutput(args[1]), nil
@@ -687,10 +810,10 @@ func TestSuiteOrchestratorHonorsTestingConfigPhaseToggles(t *testing.T) {
 				t.Fatalf("expected docs phase to be disabled via testing config")
 			}
 		}
-		// All catalog phases run except the one disabled via testing config
-		// (docs). Derive the expected count from the catalog so adding
-		// a phase doesn't require a hand-edit here.
-		expectedPhases := len(phasespkg.DefaultCatalog().All()) - 1
+		// All applicable planned phases run except the one disabled via testing
+		// config (docs). Descriptor-only non-applicable phases, such as search on
+		// a non-search target, are omitted before execution.
+		expectedPhases := len(result.PlannedPhases)
 		if len(result.Phases) != expectedPhases {
 			t.Fatalf("expected %d phases after disabling docs, got %d", expectedPhases, len(result.Phases))
 		}
@@ -1042,6 +1165,30 @@ func isDependencyHealthCommand(name string, args []string) bool {
 		args[0] == "health" &&
 		args[1] != "" &&
 		args[2] == "--json"
+}
+
+func isAPIHealthCommand(name string, args []string) bool {
+	return name == "api-health" &&
+		len(args) >= 4 &&
+		args[0] == "validate" &&
+		args[1] == "scenario" &&
+		args[2] != "" &&
+		args[3] == "--json"
+}
+
+func apiHealthStubOutput(scenario string) string {
+	return fmt.Sprintf(`{
+		"scenario": %q,
+		"status": "VALIDATION_STATUS_PASSED",
+		"assessment": {
+			"scenario": %q,
+			"provider": "api-health",
+			"phase": "api",
+			"version": "1.0.0",
+			"local": {"currentLevel": "L5", "nextLevel": ""}
+		},
+		"metrics": {"wallClockMs": "1"}
+	}`, scenario, scenario)
 }
 
 func dependencyHealthStubOutput(scenario string) string {

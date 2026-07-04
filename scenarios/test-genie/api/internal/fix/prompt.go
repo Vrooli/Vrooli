@@ -55,7 +55,6 @@ func BuildPrompt(cfg PromptConfig) string {
 	sb.WriteString("| Phase | Purpose | Timeout | Test Location |\n")
 	sb.WriteString("|-------|---------|---------|---------------|\n")
 	sb.WriteString("| structure | Files, config, CLI validation | 15s | `__test/phases/structure/` |\n")
-	sb.WriteString("| standards | scenario-auditor rules | 60s | N/A (automated) |\n")
 	sb.WriteString("| dependencies | Tools and resources | 30s | `__test/phases/dependencies/` |\n")
 	sb.WriteString("| quality | Static quality contracts via quality-health | 120s | N/A (automated) |\n")
 	sb.WriteString("| docs | Markdown/link validation | 60s | `__test/phases/docs/` |\n")

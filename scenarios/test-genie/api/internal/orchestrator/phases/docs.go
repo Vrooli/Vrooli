@@ -38,17 +38,19 @@ func RenderPhasesMarkdown(catalog *Catalog) string {
 	}
 	var b strings.Builder
 	b.WriteString("# Test Genie Phases\n\n")
-	b.WriteString("Test Genie phases are declared in the catalog at [`api/internal/orchestrator/phases/catalog.go`](../../api/internal/orchestrator/phases/catalog.go). This document is generated from that catalog; edit the catalog when phase metadata changes.\n\n")
+	b.WriteString("Test Genie phases are generated from the effective descriptor-backed registry. Provider-backed phase metadata lives in each provider's `.vrooli/test-genie.json`; Test Genie code owns runner bindings, preset composition, and registry validation.\n\n")
 	b.WriteString("## Phase Summary\n\n")
-	b.WriteString("| Order | Phase | Timeout | Optional | Runtime | Source | Purpose |\n")
-	b.WriteString("|-------|-------|---------|----------|---------|--------|---------|\n")
+	b.WriteString("| Order | Phase | Timeout | Selection | Provider Readiness | Gating | Runtime | Source | Purpose |\n")
+	b.WriteString("|-------|-------|---------|-----------|--------------------|--------|---------|--------|---------|\n")
 	for index, spec := range catalog.All() {
-		b.WriteString(fmt.Sprintf("| %d | [%s](%s) | %s | %s | %s | %s | %s |\n",
+		b.WriteString(fmt.Sprintf("| %d | [%s](%s) | %s | `%s` | `%s` | `%s` | %s | %s | %s |\n",
 			index+1,
 			displayName(spec.Name.String()),
 			docLink(spec.Doc),
 			formatDuration(spec.DefaultTimeout),
-			yesNo(spec.Optional),
+			escapeMarkdown(string(spec.Policy.Selection)),
+			escapeMarkdown(string(spec.Policy.ProviderReadiness)),
+			escapeMarkdown(string(spec.Policy.ResultGating)),
 			yesNo(requiresRuntime(spec)),
 			escapeMarkdown(spec.Source),
 			escapeMarkdown(spec.Description),
@@ -66,7 +68,7 @@ func RenderPhasesMarkdown(catalog *Catalog) string {
 	b.WriteString("## Configuration\n\n")
 	b.WriteString("Per-phase overrides live in `.vrooli/testing.json` under `phases.<phase>` and are validated by [`schemas/testing.schema.json`](../../schemas/testing.schema.json).\n\n")
 	b.WriteString("## Presets\n\n")
-	b.WriteString("Preset membership is generated from the same catalog and documented in [Presets Reference](../reference/presets.md).\n")
+	b.WriteString("Preset membership is generated from the same effective registry and documented in [Presets Reference](../reference/presets.md).\n")
 	return b.String()
 }
 
@@ -84,7 +86,7 @@ func RenderPresetsMarkdown(catalog *Catalog) string {
 	order := []Preset{PresetQuick, PresetSmoke, PresetArchitectureAudit, PresetComprehensive}
 	var b strings.Builder
 	b.WriteString("# Test Presets Reference\n\n")
-	b.WriteString("Test Genie presets bundle catalog phases for common validation loops. This document is generated from `api/internal/orchestrator/phases`; edit the catalog or preset declarations instead of hand-editing these tables.\n\n")
+	b.WriteString("Test Genie presets bundle effective registry phases for common validation loops. This document is generated from descriptor-backed phase specs plus Test Genie-owned preset declarations; edit provider `.vrooli/test-genie.json` descriptors or preset code instead of hand-editing these tables.\n\n")
 	b.WriteString("Timeout values are runtime budgets, not estimates. Runtime estimates are calculated from recent per-phase history when available.\n\n")
 	b.WriteString("## Available Presets\n\n")
 	for _, preset := range order {

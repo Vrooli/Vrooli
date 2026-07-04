@@ -6,6 +6,7 @@ import (
 	"test-genie/cli/fleet"
 	"test-genie/cli/health"
 	"test-genie/cli/internal/deps"
+	phasecmd "test-genie/cli/phases"
 	"test-genie/cli/playbooksseed"
 	"test-genie/cli/providercontract"
 	"test-genie/cli/registry"
@@ -63,6 +64,12 @@ func Register(runtime deps.Runtime) cliapp.CommandGroup {
 				NeedsAPI:    true,
 				Description: "Show Test Genie self-health: catalog, provider conformance, reliability ledger",
 				Run:         func(args []string) error { return health.Run(runtime.APIClient, args) },
+			},
+			{
+				Name:        "phases",
+				NeedsAPI:    true,
+				Description: "Inspect phase catalog, applicability, and execution plans",
+				Run:         func(args []string) error { return phasecmd.Run(runtime.APIClient, args) },
 			},
 			{
 				Name:        "fix",

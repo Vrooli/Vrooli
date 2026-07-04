@@ -13,7 +13,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
-	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/maturity-go/assessment"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
@@ -39,43 +38,6 @@ func DefaultPhaseMeta() map[string]PhaseMeta {
 		}
 	}
 	return meta
-}
-
-// AuditorProviderScenario is the one delegated provider (the standards phase)
-// with no Connect ScenarioValidationService. Its conformance scorecard is
-// synthesized client-side rather than probed over Connect (A2-thin).
-const AuditorProviderScenario = "scenario-auditor"
-
-// resolveAuditorURL reports scenario-auditor's lifecycle reachability. It is a
-// package var so tests can simulate a running/absent auditor without live
-// discovery. A non-nil error means "not reachable" (environmental).
-var resolveAuditorURL = func(ctx context.Context) (string, error) {
-	return discovery.ResolveScenarioURLDefault(ctx, AuditorProviderScenario)
-}
-
-// synthesizeAuditorScorecard builds scenario-auditor's ValidateScenarioResponse
-// client-side: it confirms the auditor is reachable (lifecycle presence), loads
-// its shipped maturity.json, and assembles a contract-valid assessment plus
-// client-synthesized ExecutionMetrics (gauge client_synthesized=1). The metrics
-// reflect the test-genie-side synthesis cost, not the auditor's internal work —
-// the honest caveat documented for A2-thin.
-func synthesizeAuditorScorecard(ctx context.Context, repoRoot, target string) (*scenariovalidationv1.ValidateScenarioResponse, error) {
-	spec, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", AuditorProviderScenario))
-	if err != nil {
-		return nil, fmt.Errorf("load scenario-auditor maturity spec: %w", err)
-	}
-	if _, err := resolveAuditorURL(ctx); err != nil {
-		return nil, fmt.Errorf("scenario-auditor not reachable: %w", err)
-	}
-	collector := metrics.Start()
-	collector.Gauge("client_synthesized", 1)
-	a, err := assessment.BuildProtoAssessment(assessment.BuildInput{Scenario: target, Spec: *spec})
-	if err != nil {
-		collector.Stop()
-		return nil, fmt.Errorf("build scenario-auditor assessment: %w", err)
-	}
-	execMetrics := collector.Stop()
-	return assessment.BuildValidationResponse(target, a, nil, execMetrics)
 }
 
 // DefaultScanTarget is the fixture scenario every provider is asked to validate
@@ -168,7 +130,7 @@ func (r ConformanceReport) HardViolations() []string {
 // `provider-contract scan` verb and the API GetSelfHealth endpoint.
 type ConformanceScanner struct {
 	// RepoRoot is the repository root used to load each provider's shipped
-	// maturity.json (scenarios/<provider>/.vrooli/maturity.json).
+	// descriptor (scenarios/<provider>/.vrooli/test-genie.json).
 	RepoRoot string
 	// Target is the fixture scenario each provider validates (DefaultScanTarget
 	// when empty).
@@ -249,10 +211,10 @@ func scanProvider(ctx context.Context, probe ConformanceProbe, repoRoot, target,
 	spec, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", provider))
 	switch {
 	case err != nil:
-		pr.Violations = append(pr.Violations, fmt.Sprintf("maturity spec invalid: %v", err))
+		pr.Violations = append(pr.Violations, fmt.Sprintf("descriptor maturity invalid: %v", err))
 	case spec.Provider != provider || spec.Phase != phase:
 		pr.Violations = append(pr.Violations, fmt.Sprintf(
-			"maturity spec identity mismatch: provider=%q phase=%q, want provider=%q phase=%q",
+			"descriptor maturity identity mismatch: provider=%q phase=%q, want provider=%q phase=%q",
 			spec.Provider, spec.Phase, provider, phase))
 	default:
 		pr.SpecValid = true
@@ -263,21 +225,7 @@ func scanProvider(ctx context.Context, probe ConformanceProbe, repoRoot, target,
 		pr.Autofix = assessment.ComputeAutofixCoverage(*spec)
 	}
 
-	// scenario-auditor (the standards phase) has no Connect ScenarioValidationService
-	// — it is REST/Postgres. The generic Connect probe cannot reach it, so we
-	// synthesize its scorecard client-side (A2-thin): reachability is its
-	// lifecycle presence, and the response (assessment + client-synthesized
-	// metrics) is built from its shipped maturity.json. This lets standards
-	// participate in the metrics-required gate without a REST→Connect rewrite.
-	var (
-		resp     *scenariovalidationv1.ValidateScenarioResponse
-		probeErr error
-	)
-	if provider == AuditorProviderScenario {
-		resp, probeErr = synthesizeAuditorScorecard(ctx, repoRoot, target)
-	} else {
-		resp, probeErr = probe(ctx, provider, target, timeout)
-	}
+	resp, probeErr := probe(ctx, provider, target, timeout)
 	if probeErr != nil {
 		pr.Violations = append(pr.Violations, fmt.Sprintf("unreachable: %v", probeErr))
 		pr.AdoptionScore = adoptionScore(pr)
@@ -302,8 +250,8 @@ func scanProvider(ctx context.Context, probe ConformanceProbe, repoRoot, target,
 	}
 
 	// metrics_adopted is a hard requirement among reachable providers (Plan 3
-	// Part B). For scenario-auditor it is client-synthesized; for the Connect
-	// fleet it is provider-emitted.
+	// Part B). The provider fleet emits it through the shared
+	// ScenarioValidationService contract.
 	pr.MetricsAdopted = resp.GetMetrics() != nil
 
 	pr.AdoptionScore = adoptionScore(pr)

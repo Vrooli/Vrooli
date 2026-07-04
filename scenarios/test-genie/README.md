@@ -18,7 +18,7 @@ test-genie status --executions
 
 ## What Test Genie Does
 
-- **Executes tests** via a phase pipeline (structure → standards → dependencies → quality → docs → smoke → unit → integration → playbooks → business → performance, plus optional health providers)
+- **Executes tests** via a descriptor-backed health-provider phase pipeline
 - **Tracks requirements** by auto-syncing `[REQ:ID]` tags from test results
 - **Provides APIs** for agent automation (REST + CLI)
 - **Queues test generation** requests for downstream AI agents
@@ -38,7 +38,6 @@ test-genie/
 | Phase | Timeout | Purpose |
 |-------|---------|---------|
 | Structure | 15s | Validate files, JSON configs |
-| Standards | 60s | Run scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config) |
 | Dependencies | 30s | Dependency health via scenario-dependency-analyzer |
 | Quality | 120s | Static quality contracts via quality-health |
 | Docs | 60s | Validate Markdown, mermaid, links, portability |
@@ -53,18 +52,15 @@ test-genie/
 
 | Preset | Phases | Use Case |
 |--------|--------|----------|
-| `quick` | Structure, Standards, Docs, Unit | Fast sanity check |
-| `smoke` | Structure, Standards, Quality, Docs, Integration | Pre-commit validation |
+| `quick` | Structure, Docs, Business, Unit, Proto | Fast sanity check |
+| `smoke` | Structure, API, Quality, Docs, Business, Proto | Pre-commit validation |
 | `comprehensive` | Every registered phase, including Quality | Full CI/CD validation |
 
 ```bash
 test-genie execute my-scenario --preset smoke
 ```
 
-Opt out per run:
-```bash
-test-genie execute my-scenario --skip standards
-```
+Opt out per run with `--skip <phase>`.
 
 ## CLI Usage
 

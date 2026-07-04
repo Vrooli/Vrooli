@@ -10,13 +10,17 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
 
 	"test-genie/internal/basprobe"
 	"test-genie/internal/captureprofile"
+	"test-genie/internal/orchestrator/phaseregistry"
 	"test-genie/internal/orchestrator/phases"
+	"test-genie/internal/orchestrator/providerdescriptor"
+	"test-genie/internal/orchestrator/providerreadiness"
 	"test-genie/internal/orchestrator/requirements"
 	"test-genie/internal/orchestrator/runnability"
 	"test-genie/internal/orchestrator/targetruntime"
@@ -62,7 +66,6 @@ const (
 	failureClassTimeout           = phases.FailureClassTimeout
 	failureClassSystem            = phases.FailureClassSystem
 	PhaseStructure                = phases.Structure
-	PhaseStandards                = phases.Standards
 	PhaseDependencies             = phases.Dependencies
 	PhaseQuality                  = phases.Quality
 	PhaseDocs                     = phases.Docs
@@ -77,12 +80,13 @@ const MaxExecutionHistory = 50
 // skip flow into requirements sync as a non-executed phase rather than a
 // failure.
 const (
-	phaseStatusPassed        = "passed"
-	phaseStatusFailed        = "failed"
-	phaseStatusSkipped       = "skipped"
-	phaseStatusMissing       = "missing"
-	phaseStatusNotExecutable = "not_executable"
-	phaseStatusNotRun        = "not_run"
+	phaseStatusPassed              = "passed"
+	phaseStatusFailed              = "failed"
+	phaseStatusSkipped             = "skipped"
+	phaseStatusMissing             = "missing"
+	phaseStatusNotExecutable       = "not_executable"
+	phaseStatusNotRun              = "not_run"
+	phaseStatusProviderUnavailable = "provider_unavailable"
 )
 
 func isSkippedPhaseStatus(status string) bool {
@@ -111,9 +115,11 @@ type SuiteOrchestrator struct {
 	projectRoot   string
 	phaseTimeout  time.Duration
 	catalog       *phases.Catalog
+	registry      *phaseregistry.Registry
 	requirements  requirements.Syncer
 	phaseToggles  *phaseToggleStore
 	newRuntime    func(name, scenarioDir string) *targetruntime.Manager
+	readiness     *providerreadiness.Manager
 	claims        *playbooksclaims.Service
 	retentionGC   func(context.Context, string)
 }
@@ -191,17 +197,18 @@ type SuiteExecutionResult struct {
 	// backward compatibility and is true for both PASS and PARTIAL (only FAIL is
 	// a non-zero exit), so a self-test that skips an unrunnable phase is honestly
 	// reported without failing CI.
-	Verdict             string                 `json:"verdict,omitempty"`
-	PresetUsed          string                 `json:"preset,omitempty"`
-	RequestedPreset     string                 `json:"requestedPreset,omitempty"`
-	RequestedPhases     []string               `json:"requestedPhases,omitempty"`
-	RequestedSkipPhases []string               `json:"requestedSkipPhases,omitempty"`
-	PlannedPhases       []string               `json:"plannedPhases,omitempty"`
-	FailFast            bool                   `json:"failFast"`
-	Phases              []PhaseExecutionResult `json:"phases"`
-	PhaseSummary        PhaseSummary           `json:"phaseSummary"`
-	Warnings            []string               `json:"warnings,omitempty"`
-	WarningSummary      WarningSummary         `json:"warningSummary"`
+	Verdict             string                      `json:"verdict,omitempty"`
+	PresetUsed          string                      `json:"preset,omitempty"`
+	RequestedPreset     string                      `json:"requestedPreset,omitempty"`
+	RequestedPhases     []string                    `json:"requestedPhases,omitempty"`
+	RequestedSkipPhases []string                    `json:"requestedSkipPhases,omitempty"`
+	PlannedPhases       []string                    `json:"plannedPhases,omitempty"`
+	FailFast            bool                        `json:"failFast"`
+	Phases              []PhaseExecutionResult      `json:"phases"`
+	PhaseSummary        PhaseSummary                `json:"phaseSummary"`
+	ProviderReadiness   []providerreadiness.Outcome `json:"providerReadiness,omitempty"`
+	Warnings            []string                    `json:"warnings,omitempty"`
+	WarningSummary      WarningSummary              `json:"warningSummary"`
 	// CampaignNudge is present only when the audit finding load exceeded the
 	// single-pass threshold, steering the agent to open a tracked
 	// improvement campaign. Nil otherwise.
@@ -318,15 +325,57 @@ func NewSuiteOrchestrator(scenariosRoot string) (*SuiteOrchestrator, error) {
 	if !info.IsDir() {
 		return nil, fmt.Errorf("scenarios root must be a directory: %s", absRoot)
 	}
-	catalog := phases.NewDefaultCatalog(defaultPhaseTimeout)
-	if err := phases.ValidatePresets(catalog); err != nil {
-		return nil, fmt.Errorf("invalid default presets: %w", err)
+	repoRoot := filepath.Dir(absRoot)
+	repoBacked := looksLikeVrooliRepoRoot(repoRoot)
+	descriptorLoad := providerdescriptor.Load(providerdescriptor.LoadOptions{RepoRoot: repoRoot})
+	if err := descriptorLoad.Err(); err != nil {
+		return nil, fmt.Errorf("load provider descriptors: %w", err)
+	}
+	var (
+		catalog  *phases.Catalog
+		registry *phaseregistry.Registry
+	)
+	if len(descriptorLoad.Descriptors) == 0 {
+		if repoBacked {
+			return nil, fmt.Errorf("load provider descriptors: no %s files found under %s", providerdescriptor.RelPath, repoRoot)
+		}
+		catalog = phases.NewDefaultCatalog(defaultPhaseTimeout)
+		defaultDescriptorLoad := providerdescriptor.Load(providerdescriptor.LoadOptions{RepoRoot: sourceRepoRoot()})
+		if err := defaultDescriptorLoad.Err(); err != nil {
+			return nil, fmt.Errorf("load default provider descriptors: %w", err)
+		}
+		registryResult := phaseregistry.Build(defaultDescriptorLoad.Descriptors, phaseregistry.Options{})
+		if len(registryResult.Diagnostics) > 0 {
+			return nil, fmt.Errorf("build default descriptor phase registry: %s", formatRegistryDiagnostics(registryResult.Diagnostics))
+		}
+		registry = registryResult.Registry
+		if err := phases.ValidatePresets(catalog); err != nil {
+			return nil, fmt.Errorf("invalid default presets: %w", err)
+		}
+	} else {
+		registryResult := phaseregistry.Build(descriptorLoad.Descriptors, phaseregistry.Options{})
+		if len(registryResult.Diagnostics) > 0 {
+			return nil, fmt.Errorf("build descriptor phase registry: %s", formatRegistryDiagnostics(registryResult.Diagnostics))
+		}
+		registry = registryResult.Registry
+		if repoBacked {
+			catalog = phases.NewCatalogFromSpecs(defaultPhaseTimeout, registry.Specs()...)
+		} else {
+			catalog = phases.NewDefaultCatalog(defaultPhaseTimeout)
+			for _, spec := range registry.Specs() {
+				catalog.Register(spec)
+			}
+		}
+		if err := phases.ValidatePresets(catalog); err != nil {
+			return nil, fmt.Errorf("invalid descriptor-backed presets: %w", err)
+		}
 	}
 	return &SuiteOrchestrator{
 		scenariosRoot: absRoot,
-		projectRoot:   filepath.Dir(absRoot),
+		projectRoot:   repoRoot,
 		phaseTimeout:  defaultPhaseTimeout,
 		catalog:       catalog,
+		registry:      registry,
 		// Use NewSyncer (not NewNodeSyncer): NewNodeSyncer returns a nil Syncer
 		// when the legacy scripts/requirements/report.js is absent — which it is
 		// in current installs — leaving requirements sync a silent no-op on every
@@ -335,8 +384,17 @@ func NewSuiteOrchestrator(scenariosRoot string) (*SuiteOrchestrator, error) {
 		requirements: requirements.NewSyncer(filepath.Dir(absRoot)),
 		phaseToggles: newPhaseToggleStore(),
 		newRuntime:   targetruntime.New,
+		readiness:    providerreadiness.NewManager(),
 		retentionGC:  runRetentionGC,
 	}, nil
+}
+
+func sourceRepoRoot() string {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		return ""
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", "..", ".."))
 }
 
 // Execute performs a phased test run and returns the recorded result.
@@ -358,7 +416,10 @@ func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionReque
 	if err != nil {
 		return nil, err
 	}
-	env, runCtx, runtimeLease, runtimeManager, err := o.prepareTargetRuntime(ctx, prepared.env, prepared.plan.Selected, req, nil)
+	readiness := o.checkProviderReadiness(ctx, prepared.env, prepared.plan.Selected, nil)
+	prepared.result.ProviderReadiness = readiness.Outcomes
+
+	env, runCtx, runtimeLease, runtimeManager, err := o.prepareTargetRuntime(ctx, prepared.env, readiness.Active, req, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -377,6 +438,7 @@ func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionReque
 		runCtx,
 		prepared.runLogDir,
 		prepared.plan.Selected,
+		readiness.Blocked,
 		req.FailFast,
 		emit,
 		buildPhaseWarningMap(prepared.plan),
@@ -781,6 +843,7 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(
 	runCtx runnability.RunContext,
 	runLogDir string,
 	defs []phases.Definition,
+	readiness map[string]providerreadiness.Outcome,
 	failFast bool,
 	emit ExecutionEventCallback,
 	warnings map[string][]phases.Observation,
@@ -804,9 +867,10 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(
 			})
 		}
 
-		verdict := resolvePhaseVerdict(phase, runCtx)
 		var phaseResult PhaseExecutionResult
-		if verdict.IsSkip() {
+		if outcome, blocked := readiness[phase.Name.Key()]; blocked {
+			phaseResult = o.newProviderReadinessPhaseResult(phase, runLogDir, outcome)
+		} else if verdict := resolvePhaseVerdict(phase, runCtx); verdict.IsSkip() {
 			phaseResult = o.newSkippedPhaseResult(phase, runLogDir, verdict)
 		} else {
 			phaseResult = o.runPhaseWithEvents(ctx, env, runLogDir, phase, emit, mergeRunnabilityObservations(verdict, warnings[phase.Name.Key()]))
@@ -825,11 +889,11 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(
 			})
 		}
 
-		if phaseResult.Status == phaseStatusFailed {
+		if phaseResult.Status == phaseStatusFailed || phaseResult.Status == phaseStatusProviderUnavailable {
 			anyFailure = true
 		}
 		results = append(results, phaseResult)
-		if failFast && phaseResult.Status == phaseStatusFailed {
+		if failFast && (phaseResult.Status == phaseStatusFailed || phaseResult.Status == phaseStatusProviderUnavailable) {
 			break
 		}
 	}
@@ -856,7 +920,7 @@ func (o *SuiteOrchestrator) syncRequirementsIfNeeded(
 	input := requirements.SyncInput{
 		ScenarioName:     env.ScenarioName,
 		ScenarioDir:      env.ScenarioDir,
-		PhaseDefinitions: plan.Definitions,
+		PhaseDefinitions: planCoverageDefinitions(plan),
 		PhaseResults:     phaseResults,
 		CommandHistory:   history,
 	}
@@ -900,8 +964,23 @@ func (o *SuiteOrchestrator) syncRequirementsIfNeeded(
 	return outcome
 }
 
+func planCoverageDefinitions(plan *phasePlan) []phases.Definition {
+	if plan == nil {
+		return nil
+	}
+	if len(plan.Applicable) > 0 {
+		return plan.Applicable
+	}
+	return plan.Definitions
+}
+
 func (o *SuiteOrchestrator) discoverPhaseDefinitions(_ workspacepkg.Environment) ([]phases.Definition, error) {
 	definitions := make(map[string]phases.Definition)
+	if o.registry != nil {
+		for _, entry := range o.registry.All() {
+			definitions[entry.Spec.Name.Key()] = entry.Spec.ToDefinition()
+		}
+	}
 	if o.catalog != nil {
 		for _, spec := range o.catalog.All() {
 			definitions[spec.Name.Key()] = spec.ToDefinition()
@@ -920,6 +999,59 @@ func (o *SuiteOrchestrator) discoverPhaseDefinitions(_ workspacepkg.Environment)
 		return left < right
 	})
 	return defs, nil
+}
+
+func (o *SuiteOrchestrator) descriptorEntry(phase string) (phaseregistry.Entry, bool) {
+	if o == nil || o.registry == nil {
+		return phaseregistry.Entry{}, false
+	}
+	return o.registry.Lookup(phase)
+}
+
+func (o *SuiteOrchestrator) descriptorPredicates() []providerdescriptor.Predicate {
+	if o == nil || o.registry == nil {
+		return nil
+	}
+	var predicates []providerdescriptor.Predicate
+	for _, entry := range o.registry.All() {
+		predicates = append(predicates, entry.Descriptor.Applicability.Any...)
+		predicates = append(predicates, entry.Descriptor.Applicability.All...)
+	}
+	return predicates
+}
+
+func formatRegistryDiagnostics(diagnostics []phaseregistry.Diagnostic) string {
+	if len(diagnostics) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(diagnostics))
+	for _, diagnostic := range diagnostics {
+		prefix := diagnostic.Code
+		if diagnostic.Phase != "" {
+			prefix = diagnostic.Phase + ":" + prefix
+		}
+		if diagnostic.Path != "" {
+			prefix = diagnostic.Path + ":" + prefix
+		}
+		parts = append(parts, prefix+": "+diagnostic.Message)
+	}
+	return strings.Join(parts, "; ")
+}
+
+func looksLikeVrooliRepoRoot(root string) bool {
+	if strings.TrimSpace(root) == "" {
+		return false
+	}
+	for _, rel := range []string{
+		"AGENTS.md",
+		filepath.Join("scenarios", "test-genie"),
+		filepath.Join("packages", "maturity-go"),
+	} {
+		if _, err := os.Stat(filepath.Join(root, rel)); err != nil {
+			return false
+		}
+	}
+	return true
 }
 
 type phaseSelectionNotices struct {
@@ -1372,7 +1504,7 @@ func summarizePhaseViews(phases []phaseResultView) PhaseSummary {
 		switch strings.ToLower(phase.Status) {
 		case phaseStatusPassed:
 			summary.Passed++
-		case phaseStatusFailed:
+		case phaseStatusFailed, phaseStatusProviderUnavailable:
 			summary.Failed++
 		case phaseStatusSkipped:
 			summary.Skipped++
@@ -1418,7 +1550,50 @@ func (o *SuiteOrchestrator) DescribePhases() []phases.Descriptor {
 	if o == nil || o.catalog == nil {
 		return nil
 	}
-	return o.catalog.Descriptors()
+	descriptors := o.catalog.Descriptors()
+	indexByName := make(map[string]int, len(descriptors))
+	for i, descriptor := range descriptors {
+		indexByName[phases.NormalizeKey(descriptor.Name)] = i
+	}
+	if o.registry != nil {
+		for _, entry := range o.registry.All() {
+			descriptor := descriptorFromRegistryEntry(entry)
+			key := phases.NormalizeKey(descriptor.Name)
+			if index, ok := indexByName[key]; ok {
+				descriptors[index] = descriptor
+				continue
+			}
+			indexByName[key] = len(descriptors)
+			descriptors = append(descriptors, descriptor)
+		}
+	}
+	return descriptors
+}
+
+func descriptorFromRegistryEntry(entry phaseregistry.Entry) phases.Descriptor {
+	spec := entry.Spec
+	provider := ""
+	if spec.Delegated != nil {
+		provider = spec.Delegated.ProviderScenario
+	}
+	return phases.Descriptor{
+		Name:                  spec.Name.String(),
+		Optional:              spec.Optional,
+		Description:           spec.Description,
+		Source:                spec.Source,
+		Provider:              provider,
+		DefaultTimeoutSeconds: int(spec.DefaultTimeout.Seconds()),
+		DocPath:               spec.Doc,
+		DescriptorPath:        entry.Descriptor.Path,
+		SkipEnvVar:            spec.SkipEnvVar,
+		Comparable:            spec.Comparable(),
+		Advisory:              spec.Advisory,
+		ArtifactBacked:        spec.ArtifactBacked,
+		NonComparable:         spec.NonComparable,
+		Policy:                spec.Policy,
+		Runnability:           spec.Capabilities,
+		FindingSource:         findingid.SourceToken(spec.FindingSource),
+	}
 }
 
 // GlobalPhaseToggles returns the persisted global phase toggle configuration.

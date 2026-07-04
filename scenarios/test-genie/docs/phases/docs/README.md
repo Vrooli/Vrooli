@@ -11,7 +11,7 @@ The docs phase validates Markdown health before any runtime-dependent tests run.
 
 ```
 ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐  ┌──────────────────┐
-│Structure │→ │Standards │→ │   Deps   │→ │Quality │→ │      DOCS        │
+│Structure │→ │Contracts │→ │   Deps   │→ │Quality │→ │      DOCS        │
 │ weight:10│  │ weight:20│  │weight:30 │  │weight:50│  │   weight: 60     │
 └──────────┘  └──────────┘  └──────────┘  └────────┘  └────────┬─────────┘
                                                                ↓

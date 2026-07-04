@@ -56,8 +56,7 @@ type IsolationFinding struct {
 }
 
 // Eligibility is the outcome of a routing-eligibility check, now sourced from
-// storage-health's L2 (isolation-safe) verdict rather than scenario-auditor
-// rules.
+// storage-health's L2 (isolation-safe) verdict.
 type Eligibility struct {
 	// Routed is true when storage-health statically proved test-DB isolation
 	// (no ROUTED_SEAMS_UNWIRED, no STORAGE_ISOLATION_UNVERIFIED). The playbooks
@@ -185,4 +184,13 @@ func decideFromAssessment(a *commonv1.MaturityAssessment) Eligibility {
 		}
 	}
 	return elig
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }

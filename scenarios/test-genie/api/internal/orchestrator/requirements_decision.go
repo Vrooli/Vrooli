@@ -38,7 +38,7 @@ func newRequirementsSyncDecision(cfg *workspacepkg.Config, plan *phasePlan, resu
 	}
 
 	forced := envBool("TESTING_REQUIREMENTS_SYNC_FORCE")
-	missing, skipped := summarizePhaseCoverage(plan.Definitions, results)
+	missing, skipped := summarizePhaseCoverage(planCoverageDefinitions(plan), results)
 
 	var gatingReason string
 	if len(missing) > 0 {
@@ -62,7 +62,7 @@ func summarizePhaseCoverage(defs []phases.Definition, results []PhaseExecutionRe
 	if len(defs) == 0 {
 		return nil, nil
 	}
-	optional := optionalLookup(defs)
+	optional := legacyOptionalLookup(defs)
 	resultLookup := make(map[string]PhaseExecutionResult, len(results))
 	for _, result := range results {
 		key := phases.NormalizeKey(result.Name)
@@ -86,6 +86,14 @@ func summarizePhaseCoverage(defs []phases.Definition, results []PhaseExecutionRe
 		}
 	}
 	return missing, skipped
+}
+
+func legacyOptionalLookup(defs []phases.Definition) map[string]bool {
+	optional := make(map[string]bool, len(defs))
+	for _, def := range defs {
+		optional[def.Name.Key()] = def.Optional
+	}
+	return optional
 }
 
 func disabledByEnv(key string) bool {

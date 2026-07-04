@@ -3,12 +3,17 @@ package phases
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
+	"path/filepath"
+	"runtime"
+	"sort"
 	"strings"
 	"time"
 
-	"test-genie/internal/orchestrator/phases/validationprovider"
-	"test-genie/internal/orchestrator/runnability"
+	"test-genie/internal/orchestrator/phasepolicy"
+	"test-genie/internal/orchestrator/providerdescriptor"
 
+	"github.com/vrooli/vrooli/packages/proto/architecture/findingid"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
@@ -23,245 +28,111 @@ func newCatalog() *Catalog {
 	return &Catalog{specs: make(map[Name]Spec)}
 }
 
-// NewDefaultCatalog seeds the catalog with provider-backed phase runners.
-func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
+// NewCatalogFromSpecs builds a catalog from already-materialized phase specs.
+// Descriptor-backed orchestration uses this after phaseregistry has validated
+// provider-owned descriptors and bound them to Test Genie runner implementations.
+func NewCatalogFromSpecs(defaultTimeout time.Duration, specs ...Spec) *Catalog {
 	if defaultTimeout <= 0 {
 		defaultTimeout = DefaultTimeout
 	}
 	catalog := newCatalog()
-	register := func(spec Spec) {
-		// Only set default timeout if not explicitly specified
+	for _, spec := range specs {
 		if spec.DefaultTimeout <= 0 {
 			spec.DefaultTimeout = defaultTimeout
 		}
 		catalog.Register(spec)
 	}
-
-	register(delegatedSpec(Delegated{
-		Name:             Structure,
-		ProviderScenario: "structure-health",
-		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE,
-		Emoji:            "🏗️",
-		DetailCommand:    "structure-health validate scenario {{scenario}}",
-		Timeout:          60 * time.Second,
-		Description:      "Delegates scenario skeleton + lifecycle-wiring validation to structure-health, which reconciles code-facts ground truth against declared service.json intent (profile-aware) and maps findings into the FINDING_SOURCE_STRUCTURE channel before any tests run.",
-	}))
-	register(delegatedSpec(Delegated{
-		Name:             Contracts,
-		ProviderScenario: "cli-health",
-		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_CLI,
-		Emoji:            "📑",
-		Timeout:          90 * time.Second,
-		Description:      "Validates cli/manifest.json bindings against proto descriptors via cli-health, and (with execution requested) reconciles the binary's runtime CLI surface against the manifest.",
-		// Opt into execution so cli-health runs its runtime CLI probe (resolve +
-		// `--help`-tree walk) on top of the static manifest↔proto cross-check.
-		// Degrades to a warning when the scenario's binary is absent in the run
-		// context, so this never false-fails an uninstalled CLI.
-		IncludeExecution: true,
-	}))
-	// ui-health is the single UI-validation authority. Its static groups
-	// (manifest/slot/overlay, UI-interop, net-new UI standards) always run and
-	// gate; with execution requested it additionally drives the BAS render +
-	// iframe-bridge handshake runtime group (folded from the retired smoke
-	// phase). NeedsUI + RequiredResources:[BAS] let the runnability gate SKIP
-	// (never fail) the phase when no UI surface or BAS is present, mirroring the
-	// performance phase's execution-mode contract; ui-health additionally
-	// degrades its runtime group internally so a reachable-but-UI-less run still
-	// returns the static report.
-	uiHealthSpec := delegatedSpec(Delegated{
-		Name:             UIHealth,
-		ProviderScenario: "ui-health",
-		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_UI,
-		Emoji:            "🎨",
-		Timeout:          5 * time.Minute,
-		IncludeExecution: true,
-		Description:      "Delegates all UI validation to ui-health: static ui/manifest.json + slot/overlay rules, static UI-interop, and net-new UI standards (always run and gate), plus a BAS-driven runtime render + iframe-bridge handshake group when execution is requested. Runtime checks degrade to skipped (never failed) when BAS or the UI surface is unavailable.",
-	})
-	uiHealthSpec.Capabilities = runnability.PhaseCapabilities{
-		NeedsUI:           true,
-		RequiredResources: []string{runnability.ResourceBAS},
-	}
-	register(uiHealthSpec)
-	register(delegatedSpec(Delegated{
-		Name:             Standards,
-		ProviderScenario: "scenario-auditor",
-		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
-		Emoji:            "📏",
-		DetailCommand:    "scenario-auditor standards scan {{scenario}} --wait",
-		Timeout:          60 * time.Second,
-		Description:      "Runs scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config).",
-		Client:           standardsDelegatedClient,
-	}))
-	register(delegatedSpec(Delegated{
-		Name:             Architecture,
-		ProviderScenario: "architecture-cartographer",
-		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
-		Emoji:            "🏛️",
-		DetailCommand:    "architecture-cartographer audit run {{scenario}}",
-		Optional:         true,
-		Timeout:          120 * time.Second,
-		Description:      "Delegates structural-cohesion validation to architecture-cartographer through ScenarioValidationService; blocker findings gate only when the architecture authority is high-confidence unless TEST_GENIE_ARCHITECTURE_GATE overrides rollout mode.",
-		GateEnvVar:       "TEST_GENIE_ARCHITECTURE_GATE",
-		DefaultGateMode:  validationprovider.GateModeHighConfidence,
-	}))
-	register(delegatedSpec(Delegated{
-		Name:             Dependencies,
-		ProviderScenario: "scenario-dependency-analyzer",
-		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY,
-		Emoji:            "📦",
-		DetailCommand:    "scenario-dependency-analyzer health {{scenario}}",
-		Timeout:          defaultTimeout,
-		Description:      "Delegates dependency readiness, runtime dependency status, governance, release-age policy, security index availability, and graph drift to scenario-dependency-analyzer through ScenarioValidationService.",
-	}))
-	register(delegatedSpec(Delegated{
-		Name:             Quality,
-		ProviderScenario: "quality-health",
-		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
-		Emoji:            "🧭",
-		DetailCommand:    "quality-health audit run {{scenario}}",
-		Timeout:          120 * time.Second,
-		Description:      "Delegates static quality contracts, lint/type policy, and strict config validation to quality-health.",
-	}))
-	register(delegatedSpec(Delegated{
-		Name:             Docs,
-		ProviderScenario: "knowledge-observatory",
-		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_DOCS,
-		Emoji:            "📄",
-		DetailCommand:    "knowledge-observatory docs health {{scenario}}",
-		Timeout:          60 * time.Second,
-		Description:      "Delegates docs Markdown, mermaid, link, reference, and manifest validation to knowledge-observatory through ScenarioValidationService.",
-	}))
-	performanceSpec := delegatedSpec(Delegated{
-		Name:             Performance,
-		ProviderScenario: "performance-health",
-		// Performance produces no machine-readable findings into a campaign
-		// channel; it stays a non-producing phase (guarded by
-		// TestFindingSourceCoversEveryProducingPhase).
-		FindingSource: architecturev1.FindingSource_FINDING_SOURCE_UNSPECIFIED,
-		Emoji:         "⚡",
-		DetailCommand: "performance-health audit {{scenario}}",
-		Optional:      true,
-		Timeout:       5 * time.Minute,
-		// Execution mode: performance-health actually benchmarks the Go + UI build
-		// and runs Lighthouse-if-UI, persists a perf sample, then gates on budgets
-		// + build-time thresholds. Without this the delegated
-		// phase could only PASS/SKIP.
-		IncludeExecution: true,
-		Description:      "Delegates Go API and UI build benchmarking plus Lighthouse audits (performance, accessibility, SEO) to the performance-health scenario through ScenarioValidationService, running the measurements and gating on the result.",
-	})
-	// Performance needs a UI surface (Lighthouse + UI build), so the runnability
-	// gate skips it when no UI is present rather than failing it. Pinned by
-	// TestCapabilityManifestCoversEveryPhase.
-	performanceSpec.Capabilities = runnability.PhaseCapabilities{NeedsUI: true}
-	register(performanceSpec)
-	register(delegatedSpec(Delegated{
-		Name:             Unit,
-		ProviderScenario: "unit-health",
-		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_COVERAGE,
-		Emoji:            "🧪",
-		Timeout:          15 * time.Minute,
-		Description:      "Delegates test execution, coverage, test architecture, test quality, and flake/runtime diagnostics to the unit-health scenario, mapping coverage findings into the FINDING_SOURCE_COVERAGE channel that feeds the ecosystem-manager `coverage` dimension.",
-		IncludeExecution: true,
-	}))
-	// Storage runs immediately before workflow: it delegates test-isolation +
-	// storage-conventions validation to storage-health and maps findings into the
-	// FINDING_SOURCE_STORAGE channel. Its L2 isolation rung is the fail-closed
-	// precondition the workflow phase keys its routed-or-refuse decision off of —
-	// a scenario whose routed-DB seams are unwired (or whose API isolation cannot
-	// be statically verified) fails storage and has its destructive workflows
-	// refused before any real mutation can reach a non-isolated database.
-	register(delegatedSpec(Delegated{
-		Name:             Storage,
-		ProviderScenario: "storage-health",
-		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_STORAGE,
-		Emoji:            "🗄️",
-		DetailCommand:    "storage-health validate scenario {{scenario}}",
-		Timeout:          120 * time.Second,
-		Description:      "Delegates storage judgment — schema layout, migration hygiene, persistence-seam adoption, and (the safety throughline) test-isolation seam-wiring — to storage-health, mapping findings into the FINDING_SOURCE_STORAGE channel. Its L2 isolation rung statically gates whether the workflow phase may run destructive end-to-end flows against an isolated test database.",
-	}))
-	workflowSpec := delegatedSpec(Delegated{
-		Name:             Workflow,
-		ProviderScenario: "workflow-health",
-		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_WORKFLOW,
-		Emoji:            "🧭",
-		DetailCommand:    "workflow-health validate scenario {{scenario}}",
-		Timeout:          15 * time.Minute,
-		Description:      "Delegates BAS workflow asset validation and safe execution to workflow-health through ScenarioValidationService. workflow-health owns workflow catalog scanning, maturity, deterministic fixes, routed-isolation guardrails, and BAS-backed evidence artifacts.",
-		IncludeExecution: true,
-	})
-	workflowSpec.Capabilities = runnability.PhaseCapabilities{
-		NeedsUI:                   true,
-		MutatesLifecycle:          true,
-		DBIsolation:               runnability.DBIsolationRouted,
-		LifecycleDecisionDeferred: true,
-		RequiredResources:         []string{runnability.ResourceBAS},
-	}
-	register(workflowSpec)
-	register(delegatedSpec(Delegated{
-		Name:             Business,
-		ProviderScenario: "business-health",
-		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_BUSINESS,
-		Emoji:            "📋",
-		DetailCommand:    "business-health validate scenario {{scenario}}",
-		Timeout:          120 * time.Second,
-		Description:      "Delegates the business contract — PRD template conformance, requirements-registry structure, OT↔requirement linkage in both directions, and evidence traceability — to business-health through ScenarioValidationService, mapping findings into the FINDING_SOURCE_BUSINESS channel (advisory: severity capped at ERROR by the provider).",
-	}))
-	register(delegatedSpec(Delegated{
-		Name:             Tidiness,
-		ProviderScenario: "tidiness-manager",
-		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_TIDINESS,
-		Emoji:            "🧹",
-		DetailCommand:    "tidiness-manager scan {{scenario}} --type tidiness",
-		Optional:         true,
-		Timeout:          120 * time.Second,
-		Description:      "Delegates file/function quality checks to tidiness-manager through ScenarioValidationService and maps assessment findings into the FINDING_SOURCE_TIDINESS channel.",
-	}))
-	register(delegatedSpec(Delegated{
-		Name:             Security,
-		ProviderScenario: "security-health",
-		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_SECURITY,
-		Emoji:            "🔐",
-		Optional:         true,
-		Timeout:          180 * time.Second,
-		Description:      "Delegates security posture validation to security-health (secrets, Go SAST, Go vuln-DB, JS deps) and maps findings into the FINDING_SOURCE_SECURITY channel that gates the ecosystem-manager R1 ladder rung.",
-	}))
-	register(delegatedSpec(Delegated{
-		Name:             Measures,
-		ProviderScenario: "measures-health",
-		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_MEASURES,
-		Emoji:            "📐",
-		Optional:         true,
-		Timeout:          180 * time.Second,
-		Description:      "Delegates measures-coverage validation to measures-health (stateful-domain coverage + per-measure tier) and maps findings into the FINDING_SOURCE_MEASURES channel that feeds the ecosystem-manager soft `measures` ladder dimension.",
-		IncludeExecution: true,
-	}))
-	register(delegatedSpec(Delegated{
-		Name:             Proto,
-		ProviderScenario: "proto-health",
-		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_PROTO,
-		Emoji:            "🧬",
-		Optional:         true,
-		Timeout:          120 * time.Second,
-		Description:      "Delegates proto contract validation to proto-health and maps findings into the FINDING_SOURCE_PROTO channel that feeds the ecosystem-manager soft `proto-health` R2 ladder dimension.",
-	}))
-	// Branding delegates brand-identity validation to the brand-manager scenario
-	// (the single scenario that both authors and validates branding) through
-	// ScenarioValidationService, mapping per-rule findings (display-name,
-	// color-system, typography, logo, favicon, WCAG-AA contrast, applied brand
-	// markers) into the FINDING_SOURCE_BRANDING channel and climbing a branding
-	// maturity ladder. Deterministic rules expose PreviewFix/ApplyFix auto-fixes.
-	// Optional so an absent brand-manager skips (never fails) the phase.
-	register(delegatedSpec(Delegated{
-		Name:             Branding,
-		ProviderScenario: "brand-manager",
-		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_BRANDING,
-		Emoji:            "🎨",
-		DetailCommand:    "test-genie execute {{scenario}} branding --wait",
-		Optional:         true,
-		Timeout:          120 * time.Second,
-		Description:      "Delegates brand-identity validation to brand-manager through ScenarioValidationService (display-name, canonical design-token contract, typography, logo, favicon, WCAG-AA contrast, applied brand markers) and maps findings into the FINDING_SOURCE_BRANDING channel that feeds the ecosystem-manager soft `branding` ladder dimension.",
-	}))
 	return catalog
+}
+
+// NewDefaultCatalog builds the default provider-backed catalog from
+// provider-owned descriptors. Test Genie owns only the descriptor validation and
+// runner binding; provider metadata lives in scenarios/*/.vrooli/test-genie.json.
+func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
+	if defaultTimeout <= 0 {
+		defaultTimeout = DefaultTimeout
+	}
+	catalog, err := loadDefaultCatalogFromDescriptors(defaultTimeout)
+	if err != nil {
+		panic(err)
+	}
+	return catalog
+}
+
+func loadDefaultCatalogFromDescriptors(defaultTimeout time.Duration) (*Catalog, error) {
+	repoRoot, err := defaultRepoRoot()
+	if err != nil {
+		return nil, err
+	}
+	load := providerdescriptor.Load(providerdescriptor.LoadOptions{RepoRoot: repoRoot})
+	if err := load.Err(); err != nil {
+		return nil, fmt.Errorf("load provider descriptors: %w", err)
+	}
+	if len(load.Descriptors) == 0 {
+		return nil, fmt.Errorf("load provider descriptors: no %s files found under %s", providerdescriptor.RelPath, repoRoot)
+	}
+	sort.SliceStable(load.Descriptors, func(i, j int) bool {
+		if load.Descriptors[i].OrderHint != load.Descriptors[j].OrderHint {
+			return load.Descriptors[i].OrderHint < load.Descriptors[j].OrderHint
+		}
+		return load.Descriptors[i].Phase < load.Descriptors[j].Phase
+	})
+
+	catalog := newCatalog()
+	for _, descriptor := range load.Descriptors {
+		findingSource, ok := parseDescriptorFindingSource(descriptor.FindingSource)
+		if !ok {
+			return nil, fmt.Errorf("%s: invalid findingSource %q", descriptor.Path, descriptor.FindingSource)
+		}
+		spec, err := ValidationProviderSpecFromDescriptor(descriptor, findingSource)
+		if err != nil {
+			return nil, fmt.Errorf("%s: bind descriptor phase: %w", descriptor.Path, err)
+		}
+		if spec.DefaultTimeout <= 0 {
+			spec.DefaultTimeout = defaultTimeout
+		}
+		catalog.Register(spec)
+	}
+	return catalog, nil
+}
+
+func defaultRepoRoot() (string, error) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		return "", fmt.Errorf("runtime.Caller failed")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", "..", "..", "..")), nil
+}
+
+func parseDescriptorFindingSource(token string) (architecturev1.FindingSource, bool) {
+	token = strings.ToLower(strings.TrimSpace(token))
+	if token == "" {
+		return architecturev1.FindingSource_FINDING_SOURCE_UNSPECIFIED, true
+	}
+	for _, source := range []architecturev1.FindingSource{
+		architecturev1.FindingSource_FINDING_SOURCE_UNSPECIFIED,
+		architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE,
+		architecturev1.FindingSource_FINDING_SOURCE_CLI,
+		architecturev1.FindingSource_FINDING_SOURCE_UI,
+		architecturev1.FindingSource_FINDING_SOURCE_DOCS,
+		architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
+		architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
+		architecturev1.FindingSource_FINDING_SOURCE_TIDINESS,
+		architecturev1.FindingSource_FINDING_SOURCE_COVERAGE,
+		architecturev1.FindingSource_FINDING_SOURCE_SECURITY,
+		architecturev1.FindingSource_FINDING_SOURCE_MEASURES,
+		architecturev1.FindingSource_FINDING_SOURCE_BUSINESS,
+		architecturev1.FindingSource_FINDING_SOURCE_PROTO,
+		architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY,
+		architecturev1.FindingSource_FINDING_SOURCE_STORAGE,
+		architecturev1.FindingSource_FINDING_SOURCE_BRANDING,
+		architecturev1.FindingSource_FINDING_SOURCE_WORKFLOW,
+	} {
+		if findingid.SourceToken(source) == token {
+			return source, true
+		}
+	}
+	return architecturev1.FindingSource_FINDING_SOURCE_UNSPECIFIED, false
 }
 
 // Register inserts or replaces a phase specification in the catalog.
@@ -282,6 +153,9 @@ func (c *Catalog) Register(spec Spec) {
 	}
 	if spec.SkipEnvVar == "" {
 		spec.SkipEnvVar = skipEnvVarForPhase(name)
+	}
+	if spec.Policy.IsZero() {
+		spec.Policy = phasepolicy.FromLegacyCatalog(spec.Optional, spec.Advisory)
 	}
 	// Keep the capability manifest in lockstep with the catalog identity: the
 	// phase name and Optional flag are owned by the Spec, so mirror them into
@@ -318,11 +192,16 @@ func (c *Catalog) Descriptors() []Descriptor {
 	descriptors := make([]Descriptor, 0, len(specs))
 	for _, spec := range specs {
 		timeout := int(spec.DefaultTimeout.Seconds())
+		provider := ""
+		if spec.Delegated != nil {
+			provider = spec.Delegated.ProviderScenario
+		}
 		descriptors = append(descriptors, Descriptor{
 			Name:                  spec.Name.String(),
 			Optional:              spec.Optional,
 			Description:           spec.Description,
 			Source:                spec.Source,
+			Provider:              provider,
 			DefaultTimeoutSeconds: timeout,
 			DocPath:               spec.Doc,
 			SkipEnvVar:            spec.SkipEnvVar,
@@ -330,6 +209,9 @@ func (c *Catalog) Descriptors() []Descriptor {
 			Advisory:              spec.Advisory,
 			ArtifactBacked:        spec.ArtifactBacked,
 			NonComparable:         spec.NonComparable,
+			Policy:                spec.Policy,
+			Runnability:           spec.Capabilities,
+			FindingSource:         findingid.SourceToken(spec.FindingSource),
 		})
 	}
 	return descriptors

@@ -32,11 +32,14 @@ type ScanArgs struct {
 // ProviderReport is one provider's adoption scorecard. The snake_case JSON shape
 // is the stable CLI contract; it is mapped from the shared selfhealth core.
 type ProviderReport struct {
-	Provider       string        `json:"provider"`
-	Phase          string        `json:"phase"`
-	Reachable      bool          `json:"reachable"`
-	ContractValid  bool          `json:"contract_valid"`
-	IdentityOK     bool          `json:"identity_ok"`
+	Provider      string `json:"provider"`
+	Phase         string `json:"phase"`
+	Reachable     bool   `json:"reachable"`
+	ContractValid bool   `json:"contract_valid"`
+	IdentityOK    bool   `json:"identity_ok"`
+	// SpecValid means the provider-owned Test Genie descriptor loads, its
+	// embedded maturity block validates, and descriptor/provider/phase identity
+	// is coherent. The JSON key remains `spec_valid` for CLI compatibility.
 	SpecValid      bool          `json:"spec_valid"`
 	MetricsAdopted bool          `json:"metrics_adopted"`
 	AdoptionScore  float64       `json:"adoption_score"`
@@ -59,8 +62,21 @@ type AutofixReport struct {
 
 // ScanReport is the fleet-wide conformance report.
 type ScanReport struct {
-	Target    string           `json:"target"`
+	Target   string          `json:"target"`
+	Restarts []RestartReport `json:"restarts,omitempty"`
+
 	Providers []ProviderReport `json:"providers"`
+}
+
+// RestartReport records the optional lifecycle restart pass that can precede a
+// provider contract scan. It is advisory because the scan still reports the
+// authoritative live contract state after restart attempts finish.
+type RestartReport struct {
+	Provider string  `json:"provider"`
+	Phase    string  `json:"phase"`
+	Duration float64 `json:"duration_seconds"`
+	OK       bool    `json:"ok"`
+	Error    string  `json:"error,omitempty"`
 }
 
 // RunScan parses args, runs the scan via the shared selfhealth conformance core,
@@ -103,7 +119,7 @@ func ParseScanArgs(args []string) (ScanArgs, error) {
 	}
 	fs := flag.NewFlagSet("provider-contract scan", flag.ContinueOnError)
 	fs.SetOutput(flag.CommandLine.Output())
-	out := ScanArgs{Target: selfhealth.DefaultScanTarget, Timeout: 30 * time.Second}
+	out := ScanArgs{Target: selfhealth.DefaultScanTarget, Timeout: time.Minute}
 	fs.BoolVar(&out.JSON, "json", false, "Output JSON")
 	fs.StringVar(&out.Target, "target", out.Target, "Fixture scenario each provider validates")
 	fs.DurationVar(&out.Timeout, "timeout", out.Timeout, "Default per-provider probe timeout")
@@ -132,8 +148,9 @@ func ParseScanArgs(args []string) (ScanArgs, error) {
 // Scan runs the shared conformance core and maps the result to the CLI report
 // shape.
 func Scan(ctx context.Context, args ScanArgs) ScanReport {
+	var restarts []RestartReport
 	if args.Restart {
-		restartScanProviders(ctx, args.Timeout, args.Subject)
+		restarts = restartScanProviders(ctx, args.Timeout, args.Subject)
 	}
 	report := selfhealth.ConformanceScanner{
 		RepoRoot: scanResolveRepoRoot(),
@@ -142,7 +159,7 @@ func Scan(ctx context.Context, args ScanArgs) ScanReport {
 		Timeout:  args.Timeout,
 	}.Scan(ctx)
 
-	out := ScanReport{Target: report.Target}
+	out := ScanReport{Target: report.Target, Restarts: restarts}
 	for _, pr := range report.Providers {
 		out.Providers = append(out.Providers, ProviderReport{
 			Provider:       pr.Provider,
@@ -169,9 +186,10 @@ func Scan(ctx context.Context, args ScanArgs) ScanReport {
 	return out
 }
 
-func restartScanProviders(ctx context.Context, timeout time.Duration, subject string) {
+func restartScanProviders(ctx context.Context, timeout time.Duration, subject string) []RestartReport {
 	subject = catalog.NormalizeKey(subject)
 	seen := map[string]bool{}
+	var out []RestartReport
 	for _, probe := range Probes() {
 		if subject != "" && subject != probe.Phase && subject != catalog.NormalizeKey(probe.Provider) {
 			continue
@@ -180,8 +198,22 @@ func restartScanProviders(ctx context.Context, timeout time.Duration, subject st
 			continue
 		}
 		seen[probe.Provider] = true
-		_, _ = commandRunner(ctx, timeout, "", "vrooli", "scenario", "restart", probe.Provider)
+		fmt.Fprintf(os.Stderr, "restarting provider %s for phase %s\n", probe.Provider, probe.Phase)
+		started := time.Now()
+		_, err := commandRunner(ctx, timeout, "", "vrooli", "scenario", "restart", probe.Provider)
+		report := RestartReport{
+			Provider: probe.Provider,
+			Phase:    probe.Phase,
+			Duration: time.Since(started).Seconds(),
+			OK:       err == nil,
+		}
+		if err != nil {
+			report.Error = err.Error()
+			fmt.Fprintf(os.Stderr, "restart provider %s failed: %v\n", probe.Provider, err)
+		}
+		out = append(out, report)
 	}
+	return out
 }
 
 func printScanReport(report ScanReport) {

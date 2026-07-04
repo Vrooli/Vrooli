@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"test-genie/internal/orchestrator/phasepolicy"
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/orchestrator/runnability"
 	"test-genie/internal/orchestrator/targetruntime"
@@ -116,33 +117,40 @@ func annotatePhaseRunnability(result *PhaseExecutionResult, v runnability.Verdic
 	}
 }
 
-// computeSuiteVerdict derives the tri-state suite verdict from the per-phase
-// results and the selected definitions (for Optional lookup). FAIL dominates;
-// otherwise a non-optional skip degrades the run to PARTIAL; an optional skip
-// stays PASS.
+// computeSuiteVerdict derives the tri-state suite verdict from per-phase
+// results and selected phase policies. Optional is only a legacy projection:
+// definitions without explicit policy are mapped through phasepolicy's legacy
+// adapter so current catalog behavior remains stable during descriptor cutover.
 func computeSuiteVerdict(results []PhaseExecutionResult, defs []phases.Definition) string {
-	optional := optionalLookup(defs)
-	partial := false
+	policies := policyLookup(defs)
+	inputs := make([]phasepolicy.ExecutionInput, 0, len(results))
 	for _, r := range results {
-		if strings.ToLower(strings.TrimSpace(r.Status)) == phaseStatusFailed {
-			return SuiteVerdictFail
-		}
-		if isSkippedPhaseStatus(r.Status) {
-			if !optional[phases.NormalizeKey(r.Name)] {
-				partial = true
-			}
-		}
+		key := phases.NormalizeKey(r.Name)
+		inputs = append(inputs, phasepolicy.ExecutionInput{
+			Phase:                 r.Name,
+			Status:                r.Status,
+			FailureClassification: r.Classification,
+			Policy:                policies[key],
+		})
 	}
-	if partial {
+	switch phasepolicy.SuiteVerdictForExecution(inputs) {
+	case phasepolicy.SuiteVerdictFail:
+		return SuiteVerdictFail
+	case phasepolicy.SuiteVerdictPartial:
 		return SuiteVerdictPartial
+	default:
+		return SuiteVerdictPass
 	}
-	return SuiteVerdictPass
 }
 
-func optionalLookup(defs []phases.Definition) map[string]bool {
-	optional := make(map[string]bool, len(defs))
+func policyLookup(defs []phases.Definition) map[string]phasepolicy.Policy {
+	policies := make(map[string]phasepolicy.Policy, len(defs))
 	for _, def := range defs {
-		optional[def.Name.Key()] = def.Optional
+		policy := def.Policy
+		if policy.IsZero() {
+			policy = phasepolicy.FromLegacyCatalog(def.Optional, false)
+		}
+		policies[def.Name.Key()] = policy
 	}
-	return optional
+	return policies
 }

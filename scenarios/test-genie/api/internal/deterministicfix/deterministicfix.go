@@ -4,12 +4,7 @@
 // provider to PreviewFix/ApplyFix its own registered remediations and merges the
 // candidates into a single report. Providers that ship no deterministic fixer
 // return Unimplemented and are recorded as "no_fixer" rather than failing the
-// aggregate; unreachable providers are recorded as "skipped".
-//
-// scenario-auditor is the one delegated provider with no Connect
-// ScenarioValidationService (it is REST-only), so it is reached through its
-// existing deterministic-fix REST endpoint via the AuditorFix seam — noted debt
-// until scenario-auditor adopts the shared Connect contract.
+// aggregate; unreachable providers are recorded as "unreachable".
 package deterministicfix
 
 import (
@@ -24,10 +19,6 @@ import (
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
-
-// AuditorProviderScenario is the REST-only standards provider reached via the
-// AuditorFix seam rather than the shared Connect Fix RPC.
-const AuditorProviderScenario = "scenario-auditor"
 
 // Provider-level outcome statuses.
 const (
@@ -84,8 +75,6 @@ type Runner struct {
 	ResolveBaseURL func(ctx context.Context, scenario string) (string, error)
 	// NewClient builds a shared Fix client for a resolved base URL.
 	NewClient func(timeout time.Duration, baseURL string) FixClient
-	// AuditorFix reaches scenario-auditor's REST deterministic-fix endpoint.
-	AuditorFix func(ctx context.Context, baseURL, scenario string, ruleIDs []string, apply bool) (ProviderReport, error)
 	// Timeout bounds each provider call (DefaultTimeout when zero).
 	Timeout time.Duration
 }
@@ -97,7 +86,6 @@ func NewRunner() *Runner {
 		NewClient: func(timeout time.Duration, baseURL string) FixClient {
 			return scenariovalidationconnect.NewScenarioValidationServiceClient(&http.Client{Timeout: timeout}, baseURL)
 		},
-		AuditorFix: auditorRESTFix,
 	}
 }
 
@@ -125,18 +113,6 @@ func (r *Runner) runProvider(ctx context.Context, provider, scenario string, app
 	baseURL, err := r.ResolveBaseURL(ctx, provider)
 	if err != nil {
 		return ProviderReport{Provider: provider, Status: StatusUnreachable, Error: err.Error()}
-	}
-
-	if provider == AuditorProviderScenario {
-		if r.AuditorFix == nil {
-			return ProviderReport{Provider: provider, Status: StatusNoFixer}
-		}
-		pr, ferr := r.AuditorFix(ctx, baseURL, scenario, ruleIDs, apply)
-		if ferr != nil {
-			return ProviderReport{Provider: provider, Status: StatusError, Error: ferr.Error()}
-		}
-		pr.Provider = provider
-		return pr
 	}
 
 	client := r.NewClient(timeout, baseURL)
@@ -191,7 +167,7 @@ func DefaultProviders() []string {
 	names := delegatedProviderScenarios()
 	if len(names) == 0 {
 		// Defensive fallback: the known fixer-capable providers.
-		return []string{"structure-health", "quality-health", "knowledge-observatory", AuditorProviderScenario}
+		return []string{"structure-health", "quality-health", "knowledge-observatory"}
 	}
 	return names
 }

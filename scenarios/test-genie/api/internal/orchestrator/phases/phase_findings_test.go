@@ -8,8 +8,6 @@ import (
 	"github.com/vrooli/maturity-go/assessment"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-
-	"test-genie/internal/eligibility"
 )
 
 // TestNormalizeFindingSeverity is the R3 anti-drift guard: every severity
@@ -55,33 +53,6 @@ func TestUIHealthArchFindings(t *testing.T) {
 	}
 	if got[0].StableId == "" {
 		t.Errorf("missing stable id")
-	}
-}
-
-func TestStandardsArchFindings(t *testing.T) {
-	summary := &eligibility.ViolationSummary{
-		Total: 3,
-		TopViolations: []eligibility.ViolationExcerpt{
-			{Severity: "high", RuleID: "type-safety", Title: "as-cast", FilePath: "api/x.ts", LineNumber: 4},
-			{Severity: "medium", RuleID: "lint", Title: "", FilePath: "api/y.ts"},
-		},
-	}
-	got := standardsArchFindings("demo", summary)
-	if len(got) != 2 {
-		t.Fatalf("want 2 standards findings, got %d", len(got))
-	}
-	if got[0].Source != architecturev1.FindingSource_FINDING_SOURCE_STANDARDS {
-		t.Errorf("source = %v, want STANDARDS", got[0].Source)
-	}
-	if got[0].Code != "type-safety" || got[0].Locations[0] != "api/x.ts:4" {
-		t.Errorf("unexpected mapping: %+v", got[0])
-	}
-	if got[0].Severity != architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR { // high → ERROR
-		t.Errorf("high should map to ERROR, got %v", got[0].Severity)
-	}
-	// blank title falls back to rule id as the message.
-	if got[1].Message != "lint" {
-		t.Errorf("blank title should fall back to rule id, got %q", got[1].Message)
 	}
 }
 

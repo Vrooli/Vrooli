@@ -2,7 +2,7 @@
 
 > **Template Version**: 2.0
 > **Canonical Reference**: `/scenarios/business-health/docs/reference/canonical-prd-template.md`
-> **Validation**: Enforced by `scenario-auditor`
+> **Validation**: Enforced by Test Genie health-provider phases
 > **Policy**: The PRD is the product contract; requirement modules and tests should trace back to the targets defined here.
 
 ## 🎯 Overview
@@ -60,14 +60,14 @@
   - PostgreSQL
 - **Scenario dependencies**:
   - `agent-manager` for optional AI-assisted generation/fix workflows
-  - `scenario-auditor` for standards validation
+  - health-provider scenarios for descriptor-backed phase validation
 - **Operational risks**:
   - Metadata drift between PRD, requirements, and actual tests makes the system harder to trust
   - UI and integration surfaces can drift if the generation/fix workflow changes without shared test coverage
   - External realtime channels such as agent-manager WebSockets are optional and should not be mistaken for Test Genie's own runtime contract
 - **Launch sequencing**:
   1. Keep the Go-native orchestrator, provider-backed phase catalog, and queue/history surfaces stable
-  2. Tighten PRD/requirements/test traceability so standards remain actionable
+  2. Tighten PRD/requirements/test traceability so health findings remain actionable
   3. Restore and harden AI-assisted generation/fix flows
   4. Expand vault and coverage UX once the underlying telemetry is stable
 

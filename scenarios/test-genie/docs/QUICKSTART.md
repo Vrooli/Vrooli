@@ -56,19 +56,19 @@ Results are available via:
 
 | Preset | Phases | Time | Use Case |
 |--------|--------|------|----------|
-| **Quick** | Structure, Standards, Docs, Business, Unit, Proto | Scenario-aware | Fast sanity check |
-| **Smoke** | Structure, Standards, Quality, Docs, Business, Integration, Proto | Scenario-aware | Pre-push validation |
-| **Architecture Audit** | Structure, Contracts, UI Health, Docs, Standards, Architecture, Proto | Scenario-aware | Surface and architecture review |
-| **Comprehensive** | All catalog phases | Scenario-aware | Full coverage |
+| **Quick** | Structure, Docs, Business, Unit, Proto | Scenario-aware | Fast sanity check |
+| **Smoke** | Structure, API, Quality, Docs, Business, Proto | Scenario-aware | Pre-push validation |
+| **Architecture Audit** | Structure, Contracts, UI Health, Docs, Architecture, Proto | Scenario-aware | Surface and architecture review |
+| **Comprehensive** | All applicable registry phases | Scenario-aware | Full coverage |
 
 See [Presets Reference](reference/presets.md) for details.
 
 ## Test Phases
 
-Test Genie uses a catalog-driven testing architecture:
+Test Genie uses a descriptor-backed testing architecture. Provider phase metadata, applicability, policy, runnability capabilities, docs path, and maturity mappings live in provider-owned `.vrooli/test-genie.json` descriptors.
 
 ```
-Structure → Contracts → UI Health → Standards → Architecture → Dependencies → Quality → Docs → Performance → Smoke → Unit → Integration → Playbooks → Business → Coverage → Tidiness → Security → Measures → Proto
+Structure → Contracts → UI Health → API → Architecture → Dependencies → Quality → Docs → Performance → Unit → Storage → Workflow → Business → Tidiness → Security → Measures → Proto → Branding → Search
 ```
 
 | Phase | Purpose | Timeout |
@@ -76,22 +76,22 @@ Structure → Contracts → UI Health → Standards → Architecture → Depende
 | **Structure** | Validate files and config | 15s |
 | **Contracts** | Validate CLI manifest bindings | 60s |
 | **UI Health** | Validate UI manifest bindings | 60s |
-| **Standards** | scenario-auditor standards rules | 60s |
+| **API** | API readiness via api-health | 120s |
 | **Architecture** | Structural cohesion audit | 120s |
 | **Dependencies** | Check tools and resources | 30s |
 | **Quality** | Static quality contracts via quality-health | 120s |
 | **Docs** | Markdown, mermaid, link validation | 60s |
 | **Performance** | Run benchmarks (optional) | 60s |
-| **Smoke** | UI load + iframe-bridge | 90s |
 | **Unit** | Run unit tests (Go, Node, Python) | 60s |
-| **Integration** | Test API/UI connectivity | 120s |
-| **Playbooks** | Execute BAS browser automation workflows | 120s |
+| **Storage** | Validate storage and test-isolation seams | 120s |
+| **Workflow** | Execute BAS browser automation workflows | 120s |
 | **Business** | Validate workflows and rules | 180s |
-| **Coverage** | Parse coverage artifacts | 30s |
 | **Tidiness** | File/function quality checks | 120s |
 | **Security** | Security posture validation | 180s |
 | **Measures** | Measures coverage validation | 180s |
 | **Proto** | Protocol Buffer contract validation | 120s |
+| **Branding** | Brand identity validation | 120s |
+| **Search** | Search maturity for search-enabled scenarios | 90s |
 
 See [Phased Testing Guide](guides/phased-testing.md) for the complete architecture.
 
@@ -106,18 +106,17 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 ### Phase Documentation
 - [Phases Overview](phases/README.md) - phase architecture with mermaid diagrams
 - [Structure Phase](phases/structure/README.md) - File and CLI validation
-- [Standards Phase](phases/standards/README.md) - Standards enforcement via scenario-auditor
+- [API Phase](phases/api/README.md) - API readiness validation via api-health
 - [Dependencies Phase](phases/dependencies/README.md) - Runtime and tool checks
 - [Quality Phase](phases/quality/README.md) - Static quality contracts
 - [Docs Phase](phases/docs/README.md) - Markdown, mermaid, and link validation
 - [Unit Phase](phases/unit/README.md) - Test runners and coverage
-- [Integration Phase](phases/integration/README.md) - CLI and API testing
 - [Workflow Phase](phases/workflow/README.md) - BAS workflow validation through workflow-health
 - [Business Phase](phases/business/README.md) - Requirements validation
 - [Performance Phase](phases/performance/README.md) - Build benchmarks and Lighthouse
 
 ### Guides (How-To)
-- [Phased Testing](guides/phased-testing.md) - Understanding the catalog-driven phase architecture
+- [Phased Testing](guides/phased-testing.md) - Understanding the descriptor-backed phase architecture
 - [Test Generation](guides/test-generation.md) - AI-powered test creation
 - [Requirements Sync](phases/business/requirements-sync.md) - Automatic requirement tracking
 - [Scenario Unit Testing](phases/unit/scenario-unit-testing.md) - Go, Node, Python unit tests

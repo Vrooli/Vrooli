@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"test-genie/internal/orchestrator/phasekeys"
+	"test-genie/internal/orchestrator/phasepolicy"
 	"test-genie/internal/orchestrator/runnability"
 	"test-genie/internal/orchestrator/workspace"
 
@@ -21,7 +22,7 @@ const (
 	Structure    Name = "structure"
 	Contracts    Name = "contracts"
 	UIHealth     Name = "ui-health"
-	Standards    Name = "standards"
+	API          Name = "api"
 	Architecture Name = "architecture"
 	Dependencies Name = "dependencies"
 	Quality      Name = "quality"
@@ -36,6 +37,7 @@ const (
 	Measures     Name = "measures"
 	Proto        Name = "proto"
 	Branding     Name = "branding"
+	Search       Name = "search"
 )
 
 const (
@@ -54,17 +56,22 @@ const (
 // Descriptor surfaces metadata about registered phases so the UI/CLI can
 // describe the orchestration flow from the catalog.
 type Descriptor struct {
-	Name                  string `json:"name"`
-	Optional              bool   `json:"optional"`
-	Description           string `json:"description,omitempty"`
-	Source                string `json:"source"`
-	DefaultTimeoutSeconds int    `json:"defaultTimeoutSeconds,omitempty"`
-	DocPath               string `json:"docPath,omitempty"`
-	SkipEnvVar            string `json:"skipEnvVar,omitempty"`
-	Comparable            bool   `json:"comparable"`
-	Advisory              bool   `json:"advisory,omitempty"`
-	ArtifactBacked        bool   `json:"artifactBacked,omitempty"`
-	NonComparable         bool   `json:"nonComparable,omitempty"`
+	Name                  string                        `json:"name"`
+	Optional              bool                          `json:"optional"`
+	Description           string                        `json:"description,omitempty"`
+	Source                string                        `json:"source"`
+	Provider              string                        `json:"provider,omitempty"`
+	DefaultTimeoutSeconds int                           `json:"defaultTimeoutSeconds,omitempty"`
+	DocPath               string                        `json:"docPath,omitempty"`
+	DescriptorPath        string                        `json:"descriptorPath,omitempty"`
+	SkipEnvVar            string                        `json:"skipEnvVar,omitempty"`
+	Comparable            bool                          `json:"comparable"`
+	Advisory              bool                          `json:"advisory,omitempty"`
+	ArtifactBacked        bool                          `json:"artifactBacked,omitempty"`
+	NonComparable         bool                          `json:"nonComparable,omitempty"`
+	Policy                phasepolicy.Policy            `json:"policy,omitempty"`
+	Runnability           runnability.PhaseCapabilities `json:"runnability,omitempty"`
+	FindingSource         string                        `json:"findingSource,omitempty"`
 }
 
 // Observation represents a single test observation with optional rich formatting.
@@ -197,6 +204,12 @@ type Definition struct {
 	Runner   Runner
 	Timeout  time.Duration
 	Optional bool
+	// ProviderScenario is set for delegated provider-backed phases. Empty means
+	// the phase has no external provider readiness work.
+	ProviderScenario string
+	// Policy is the explicit internal replacement for the overloaded Optional
+	// flag. Optional remains on external descriptors as a legacy projection.
+	Policy phasepolicy.Policy
 	// SkipEnvVar is the catalog-owned environment switch that disables this
 	// phase during selection. Runners must not inspect it.
 	SkipEnvVar string
@@ -231,6 +244,10 @@ type Spec struct {
 	// embedded Phase/Optional fields so every catalog entry carries a complete
 	// manifest; the anti-drift guard asserts surface-bearing phases declare one.
 	Capabilities runnability.PhaseCapabilities
+	// Policy is the explicit internal replacement for the overloaded Optional
+	// flag. Descriptor-backed registry construction should populate it directly;
+	// legacy catalog registration derives it from Optional/Advisory.
+	Policy phasepolicy.Policy
 	// FindingSource is the architecture-finding channel this phase emits into.
 	// Leave UNSPECIFIED for phases that produce no findings (performance).
 	// The orchestrator
@@ -258,15 +275,20 @@ type Spec struct {
 // serialized view — so this single converter is the only place Spec→Definition
 // fields are copied, keeping the layers from drifting.
 func (s Spec) ToDefinition() Definition {
-	return Definition{
+	def := Definition{
 		Name:          s.Name,
 		Runner:        s.Runner,
 		Timeout:       s.DefaultTimeout,
 		Optional:      s.Optional,
+		Policy:        s.Policy,
 		SkipEnvVar:    s.SkipEnvVar,
 		Capabilities:  s.Capabilities,
 		FindingSource: s.FindingSource,
 	}
+	if s.Delegated != nil {
+		def.ProviderScenario = s.Delegated.ProviderScenario
+	}
+	return def
 }
 
 // ExecutionResult captures per-phase outcome information.

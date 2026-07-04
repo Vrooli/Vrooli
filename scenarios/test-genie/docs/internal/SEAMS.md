@@ -16,7 +16,7 @@ not documented below.
 
 | Seam | Declaration | Production impl | Test double | Why |
 |---|---|---|---|---|
-| `DelegatedClient` | `orchestrator/phases/phase_validationprovider.go` (`DelegatedClient` type) | Default client calls `ScenarioValidationService`; standards uses `standardsDelegatedClient` for scenario-auditor's standards API | Standards phase tests override the scenario-auditor base URL and execute through the catalog runner | Keeps every delegated phase on the same provider result, finding, summary, and pointer-writing path while allowing a provider-specific client only when the provider does not expose `ScenarioValidationService`. |
+| `DelegatedClient` | `orchestrator/phases/phase_validationprovider.go` (`DelegatedClient` type) | Default client calls `ScenarioValidationService` | Validation-provider tests inject fake clients through catalog specs | Keeps delegated phases on the same provider result, finding, summary, and pointer-writing path while preserving a narrow test seam. |
 | `MergePresets` | `orchestrator/phases/presets.go` (`MergePresets`) | Orchestrator `loadPresets` supplies file/testing.json/default preset maps and the available-phase set | `TestMergePresetsPrecedenceAndFiltering` pins replacement, deletion, filtering, and default fill behavior | Keeps preset precedence beside the catalog-owned preset declarations so selection does not carry a second preset policy. |
 
 ## UI smoke (BAS workflow capture)
@@ -43,8 +43,6 @@ not documented below.
 
 | Seam | Declaration | Production impl | Test double | Why |
 |---|---|---|---|---|
-| `eligibility.ResolveBaseURL` | `eligibility/auditor.go` | `discovery.ResolveScenarioURLDefault(ctx, "scenario-auditor")` | tests override the package var | scenario-auditor discovery indirection. |
-| `eligibility.HTTPClient` | `eligibility/auditor.go` | `&http.Client{Timeout: 10s}` | tests can override | HTTP client used by auditor calls. |
 | `eligibility.FetchRegisteredRules` | `eligibility/path_decision.go` | `GET /api/v1/rules` via `RequestJSON` | tests override to return a canned `map[string]struct{}` | Used by `AssertRulesObserved` to verify the routing rules are registered + enabled in the auditor. |
 | `eligibility.Checker.Invalidate` | `eligibility/router.go` | per-scenario cache eviction | unit-tested in `path_decision_test.go` | Lets routing eligibility tests and handlers pick up code fixes in the same test-genie process. |
 

@@ -789,7 +789,7 @@
         "ui-health": {
           "$ref": "#/definitions/phase_options"
         },
-        "standards": {
+        "api": {
           "$ref": "#/definitions/phase_options"
         },
         "architecture": {
@@ -832,6 +832,9 @@
           "$ref": "#/definitions/phase_options"
         },
         "branding": {
+          "$ref": "#/definitions/phase_options"
+        },
+        "search": {
           "$ref": "#/definitions/phase_options"
         }
       },

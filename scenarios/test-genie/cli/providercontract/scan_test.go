@@ -20,8 +20,8 @@ func TestParseScanArgsDefaults(t *testing.T) {
 	if args.Target != selfhealth.DefaultScanTarget {
 		t.Fatalf("default target = %q, want %q", args.Target, selfhealth.DefaultScanTarget)
 	}
-	if args.Timeout != 30*time.Second {
-		t.Fatalf("default timeout = %v, want 30s", args.Timeout)
+	if args.Timeout != time.Minute {
+		t.Fatalf("default timeout = %v, want 1m", args.Timeout)
 	}
 	if args.JSON {
 		t.Fatal("JSON should default to false")

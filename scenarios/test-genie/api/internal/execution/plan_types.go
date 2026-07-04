@@ -1,6 +1,11 @@
 package execution
 
-import "time"
+import (
+	"time"
+
+	"test-genie/internal/orchestrator/applicability"
+	"test-genie/internal/orchestrator/phasepolicy"
+)
 
 // EstimateSource describes where a phase estimate came from.
 type EstimateSource string
@@ -23,14 +28,21 @@ const (
 
 // PlannedPhase describes a selected phase with timing guidance for operators.
 type PlannedPhase struct {
-	Name                     string             `json:"name"`
-	Description              string             `json:"description,omitempty"`
-	Optional                 bool               `json:"optional"`
-	EstimatedDurationSeconds int                `json:"estimatedDurationSeconds"`
-	TimeoutSeconds           int                `json:"timeoutSeconds"`
-	EstimateSource           EstimateSource     `json:"estimateSource"`
-	EstimateConfidence       EstimateConfidence `json:"estimateConfidence"`
-	EstimateSampleSize       int                `json:"estimateSampleSize"`
+	Name                     string                 `json:"name"`
+	Description              string                 `json:"description,omitempty"`
+	Optional                 bool                   `json:"optional"`
+	EstimatedDurationSeconds int                    `json:"estimatedDurationSeconds"`
+	TimeoutSeconds           int                    `json:"timeoutSeconds"`
+	EstimateSource           EstimateSource         `json:"estimateSource"`
+	EstimateConfidence       EstimateConfidence     `json:"estimateConfidence"`
+	EstimateSampleSize       int                    `json:"estimateSampleSize"`
+	SelectionStatus          string                 `json:"selectionStatus,omitempty"`
+	ApplicabilityStatus      applicability.Status   `json:"applicabilityStatus,omitempty"`
+	ApplicabilityReasons     []applicability.Reason `json:"applicabilityReasons,omitempty"`
+	ProviderReadiness        string                 `json:"providerReadiness,omitempty"`
+	Freshness                string                 `json:"freshness,omitempty"`
+	Policy                   phasepolicy.Policy     `json:"policy,omitempty"`
+	DescriptorPath           string                 `json:"descriptorPath,omitempty"`
 }
 
 // ExecutionPlanSummary captures total timing guidance for a plan.
@@ -42,11 +54,12 @@ type ExecutionPlanSummary struct {
 
 // ExecutionPlanPreview is the scenario-aware preflight response for CLI/UI surfaces.
 type ExecutionPlanPreview struct {
-	ScenarioName string               `json:"scenarioName"`
-	PresetUsed   string               `json:"presetUsed,omitempty"`
-	Phases       []PlannedPhase       `json:"phases"`
-	Summary      ExecutionPlanSummary `json:"summary"`
-	Warnings     []string             `json:"warnings,omitempty"`
+	ScenarioName        string               `json:"scenarioName"`
+	PresetUsed          string               `json:"presetUsed,omitempty"`
+	Phases              []PlannedPhase       `json:"phases"`
+	NotApplicablePhases []PlannedPhase       `json:"notApplicablePhases,omitempty"`
+	Summary             ExecutionPlanSummary `json:"summary"`
+	Warnings            []string             `json:"warnings,omitempty"`
 }
 
 // PhaseDurationSample is a flattened historical duration observation for one phase.

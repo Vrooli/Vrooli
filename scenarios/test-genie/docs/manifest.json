@@ -37,15 +37,14 @@
       "id": "phases",
       "title": "Phases",
       "icon": "layers",
-      "description": "Catalog-driven phase architecture documentation",
+      "description": "Descriptor-backed phase architecture documentation",
       "documents": [
-        { "path": "phases/README.md", "title": "Phases Overview", "description": "Catalog-driven phase architecture with execution flow" },
+        { "path": "phases/README.md", "title": "Phases Overview", "description": "Descriptor-backed phase architecture with execution flow" },
         { "path": "phases/structure/README.md", "title": "Structure Phase", "description": "File and configuration validation" },
         { "path": "phases/structure/cli-approaches.md", "title": "CLI Manifest Contract", "description": "Manifest-driven scenario CLI adapter validation" },
         { "path": "phases/structure/ui-smoke.md", "title": "UI Smoke Testing", "description": "Fast UI validation on Browser Automation Studio" },
         { "path": "phases/contracts/README.md", "title": "Contracts Phase", "description": "cli/manifest.json proto-binding validation via cli-health" },
         { "path": "phases/ui-health/README.md", "title": "UI Health Phase", "description": "All UI validation via ui-health: manifest/slot/overlay rules, static UI-interop, net-new UI standards, UI-bundle freshness, and a BAS-driven runtime render + iframe-bridge handshake group (execution mode)" },
-        { "path": "phases/standards/README.md", "title": "Standards Phase", "description": "Standards enforcement via scenario-auditor" },
         { "path": "phases/dependencies/README.md", "title": "Dependencies Phase", "description": "Runtime and tool availability checks" },
         { "path": "phases/quality/README.md", "title": "Quality Phase", "description": "Static quality contracts via quality-health" },
         { "path": "phases/docs/README.md", "title": "Docs Phase", "description": "Markdown, mermaid, and link validation" },
@@ -59,7 +58,8 @@
         { "path": "phases/business/requirements-sync.md", "title": "Requirements Sync", "description": "Automatic requirement tracking from tests" },
         { "path": "phases/performance/README.md", "title": "Performance Phase", "description": "Benchmarks and performance testing" },
         { "path": "phases/performance/lighthouse.md", "title": "Lighthouse Integration", "description": "Performance and accessibility testing" },
-        { "path": "phases/performance/performance-testing.md", "title": "Performance Testing", "description": "Build benchmarks and regression detection" }
+        { "path": "phases/performance/performance-testing.md", "title": "Performance Testing", "description": "Build benchmarks and regression detection" },
+        { "path": "phases/search/README.md", "title": "Search Phase", "description": "Search maturity validation for search-enabled scenarios" }
       ]
     },
     {
@@ -75,7 +75,7 @@
       "icon": "book",
       "description": "In-depth guides for testing workflows",
       "documents": [
-        { "path": "guides/phased-testing.md", "title": "Phased Testing", "description": "Understanding the catalog-driven phase architecture" },
+        { "path": "guides/phased-testing.md", "title": "Phased Testing", "description": "Understanding the descriptor-backed phase architecture" },
         { "path": "guides/test-generation.md", "title": "Test Generation", "description": "AI-powered test generation with Test Genie" },
         { "path": "guides/ui-testability.md", "title": "Writing Testable UIs", "description": "Design UIs for browser automation" },
         { "path": "guides/custom-presets.md", "title": "Custom Presets", "description": "Create tailored test presets for CI/CD" },

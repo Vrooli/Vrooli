@@ -132,10 +132,10 @@ func TestCampaignNudge_BoundaryActionableIs15IsNil(t *testing.T) {
 }
 
 // TestCampaignNudge_FiresOnNonArchitectureBattery is the decoupled-trigger
-// regression: a heavy STANDARDS-only audit (no architecture phase) must
-// still nudge, because any battery crossing the threshold is worth tracking.
+// regression: a heavy quality-only audit (no architecture phase) must still
+// nudge, because any battery crossing the threshold is worth tracking.
 func TestCampaignNudge_FiresOnNonArchitectureBattery(t *testing.T) {
-	res := resultsFor(phases.Standards.String(),
+	res := resultsFor(phases.Quality.String(),
 		repeatFindings(architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR, 20))
 	n := nudge("demo", res)
 	if n == nil {

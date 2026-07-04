@@ -130,6 +130,22 @@ sequenceDiagram
 
 ## Phase Planning
 
+### Phase Vocabulary
+
+The descriptor-backed registry work separates decisions that were historically
+folded into catalog metadata:
+
+- **Applicability**: should this phase judge this target at all?
+- **Selection**: is this applicable phase included by preset, explicit request,
+  or target testing config?
+- **Provider readiness**: can the selected provider be used for this execution?
+- **Freshness**: is the provider current enough to trust for this run?
+- **Runnability**: can this applicable selected phase execute in the current
+  environment after target surfaces and resources are known?
+- **Gating**: does this phase's result affect the suite verdict?
+- **Unavailable behavior**: what should happen when the provider cannot be
+  reached or fails its readiness contract?
+
 Phase selection follows this precedence:
 
 1. **Explicit phases** — If `request.Phases` is provided, use those

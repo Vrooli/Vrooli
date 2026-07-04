@@ -1,6 +1,6 @@
 # Test Presets Reference
 
-Test Genie presets bundle catalog phases for common validation loops. This document is generated from `api/internal/orchestrator/phases`; edit the catalog or preset declarations instead of hand-editing these tables.
+Test Genie presets bundle effective registry phases for common validation loops. This document is generated from descriptor-backed phase specs plus Test Genie-owned preset declarations; edit provider `.vrooli/test-genie.json` descriptors or preset code instead of hand-editing these tables.
 
 Timeout values are runtime budgets, not estimates. Runtime estimates are calculated from recent per-phase history when available.
 
@@ -16,12 +16,11 @@ test-genie execute my-scenario --preset quick
 
 | Phase | Description | Timeout |
 |-------|-------------|---------|
-| Structure | Delegates scenario skeleton + lifecycle-wiring validation to structure-health, which reconciles code-facts ground truth against declared service.json intent (profile-aware) and maps findings into the FINDING_SOURCE_STRUCTURE channel before any tests run. | 1m |
-| Standards | Runs scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config). | 1m |
-| DOCS | Delegates docs Markdown, mermaid, link, reference, and manifest validation to knowledge-observatory through ScenarioValidationService. | 1m |
-| Business | Delegates the business contract — PRD template conformance, requirements-registry structure, OT↔requirement linkage in both directions, and evidence traceability — to business-health through ScenarioValidationService, mapping findings into the FINDING_SOURCE_BUSINESS channel (advisory: severity capped at ERROR by the provider). | 2m |
-| Unit | Delegates test execution, coverage, test architecture, test quality, and flake/runtime diagnostics to the unit-health scenario, mapping coverage findings into the FINDING_SOURCE_COVERAGE channel that feeds the ecosystem-manager `coverage` dimension. | 15m |
-| Proto | Delegates proto contract validation to proto-health and maps findings into the FINDING_SOURCE_PROTO channel that feeds the ecosystem-manager soft `proto-health` R2 ladder dimension. | 2m |
+| Structure | Validates scenario skeleton and lifecycle wiring through structure-health. | 1m |
+| DOCS | Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory. | 1m |
+| Business | Validates PRD, requirements registry, OT linkage, and evidence traceability through business-health. | 2m |
+| Unit | Validates test execution, coverage, architecture, quality, and runtime diagnostics through unit-health. | 15m |
+| Proto | Validates proto contracts through proto-health. | 2m |
 
 ### Smoke
 
@@ -33,12 +32,12 @@ test-genie execute my-scenario --preset smoke
 
 | Phase | Description | Timeout |
 |-------|-------------|---------|
-| Structure | Delegates scenario skeleton + lifecycle-wiring validation to structure-health, which reconciles code-facts ground truth against declared service.json intent (profile-aware) and maps findings into the FINDING_SOURCE_STRUCTURE channel before any tests run. | 1m |
-| Standards | Runs scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config). | 1m |
-| Quality | Delegates static quality contracts, lint/type policy, and strict config validation to quality-health. | 2m |
-| DOCS | Delegates docs Markdown, mermaid, link, reference, and manifest validation to knowledge-observatory through ScenarioValidationService. | 1m |
-| Business | Delegates the business contract — PRD template conformance, requirements-registry structure, OT↔requirement linkage in both directions, and evidence traceability — to business-health through ScenarioValidationService, mapping findings into the FINDING_SOURCE_BUSINESS channel (advisory: severity capped at ERROR by the provider). | 2m |
-| Proto | Delegates proto contract validation to proto-health and maps findings into the FINDING_SOURCE_PROTO channel that feeds the ecosystem-manager soft `proto-health` R2 ladder dimension. | 2m |
+| Structure | Validates scenario skeleton and lifecycle wiring through structure-health. | 1m |
+| API | Validates API readiness, health contracts, route semantics, and runtime hygiene through api-health. | 2m |
+| Quality | Validates static quality contracts, lint and type policy, and strict config through quality-health. | 2m |
+| DOCS | Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory. | 1m |
+| Business | Validates PRD, requirements registry, OT linkage, and evidence traceability through business-health. | 2m |
+| Proto | Validates proto contracts through proto-health. | 2m |
 
 ### Architecture Audit
 
@@ -50,13 +49,13 @@ test-genie execute my-scenario --preset architecture-audit
 
 | Phase | Description | Timeout |
 |-------|-------------|---------|
-| Structure | Delegates scenario skeleton + lifecycle-wiring validation to structure-health, which reconciles code-facts ground truth against declared service.json intent (profile-aware) and maps findings into the FINDING_SOURCE_STRUCTURE channel before any tests run. | 1m |
-| Contracts | Validates cli/manifest.json bindings against proto descriptors via cli-health, and (with execution requested) reconciles the binary's runtime CLI surface against the manifest. | 90s |
-| UI Health | Delegates all UI validation to ui-health: static ui/manifest.json + slot/overlay rules, static UI-interop, and net-new UI standards (always run and gate), plus a BAS-driven runtime render + iframe-bridge handshake group when execution is requested. Runtime checks degrade to skipped (never failed) when BAS or the UI surface is unavailable. | 5m |
-| DOCS | Delegates docs Markdown, mermaid, link, reference, and manifest validation to knowledge-observatory through ScenarioValidationService. | 1m |
-| Standards | Runs scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config). | 1m |
-| Architecture | Delegates structural-cohesion validation to architecture-cartographer through ScenarioValidationService; blocker findings gate only when the architecture authority is high-confidence unless TEST_GENIE_ARCHITECTURE_GATE overrides rollout mode. | 2m |
-| Proto | Delegates proto contract validation to proto-health and maps findings into the FINDING_SOURCE_PROTO channel that feeds the ecosystem-manager soft `proto-health` R2 ladder dimension. | 2m |
+| Structure | Validates scenario skeleton and lifecycle wiring through structure-health. | 1m |
+| Contracts | Validates CLI manifest, proto bindings, and runtime CLI surface through cli-health. | 90s |
+| UI Health | Validates UI manifests, interop, standards, and BAS runtime evidence through ui-health. | 5m |
+| API | Validates API readiness, health contracts, route semantics, and runtime hygiene through api-health. | 2m |
+| DOCS | Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory. | 1m |
+| Architecture | Validates structural cohesion through architecture-cartographer. | 2m |
+| Proto | Validates proto contracts through proto-health. | 2m |
 
 ### Comprehensive
 
@@ -68,24 +67,25 @@ test-genie execute my-scenario --preset comprehensive
 
 | Phase | Description | Timeout |
 |-------|-------------|---------|
-| Structure | Delegates scenario skeleton + lifecycle-wiring validation to structure-health, which reconciles code-facts ground truth against declared service.json intent (profile-aware) and maps findings into the FINDING_SOURCE_STRUCTURE channel before any tests run. | 1m |
-| Contracts | Validates cli/manifest.json bindings against proto descriptors via cli-health, and (with execution requested) reconciles the binary's runtime CLI surface against the manifest. | 90s |
-| UI Health | Delegates all UI validation to ui-health: static ui/manifest.json + slot/overlay rules, static UI-interop, and net-new UI standards (always run and gate), plus a BAS-driven runtime render + iframe-bridge handshake group when execution is requested. Runtime checks degrade to skipped (never failed) when BAS or the UI surface is unavailable. | 5m |
-| Standards | Runs scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config). | 1m |
-| Architecture | Delegates structural-cohesion validation to architecture-cartographer through ScenarioValidationService; blocker findings gate only when the architecture authority is high-confidence unless TEST_GENIE_ARCHITECTURE_GATE overrides rollout mode. | 2m |
-| Dependencies | Delegates dependency readiness, runtime dependency status, governance, release-age policy, security index availability, and graph drift to scenario-dependency-analyzer through ScenarioValidationService. | 15m |
-| Quality | Delegates static quality contracts, lint/type policy, and strict config validation to quality-health. | 2m |
-| DOCS | Delegates docs Markdown, mermaid, link, reference, and manifest validation to knowledge-observatory through ScenarioValidationService. | 1m |
-| Performance | Delegates Go API and UI build benchmarking plus Lighthouse audits (performance, accessibility, SEO) to the performance-health scenario through ScenarioValidationService, running the measurements and gating on the result. | 5m |
-| Unit | Delegates test execution, coverage, test architecture, test quality, and flake/runtime diagnostics to the unit-health scenario, mapping coverage findings into the FINDING_SOURCE_COVERAGE channel that feeds the ecosystem-manager `coverage` dimension. | 15m |
-| Storage | Delegates storage judgment — schema layout, migration hygiene, persistence-seam adoption, and (the safety throughline) test-isolation seam-wiring — to storage-health, mapping findings into the FINDING_SOURCE_STORAGE channel. Its L2 isolation rung statically gates whether the workflow phase may run destructive end-to-end flows against an isolated test database. | 2m |
-| Workflow | Delegates BAS workflow asset validation and safe execution to workflow-health through ScenarioValidationService. workflow-health owns workflow catalog scanning, maturity, deterministic fixes, routed-isolation guardrails, and BAS-backed evidence artifacts. | 15m |
-| Business | Delegates the business contract — PRD template conformance, requirements-registry structure, OT↔requirement linkage in both directions, and evidence traceability — to business-health through ScenarioValidationService, mapping findings into the FINDING_SOURCE_BUSINESS channel (advisory: severity capped at ERROR by the provider). | 2m |
-| Tidiness | Delegates file/function quality checks to tidiness-manager through ScenarioValidationService and maps assessment findings into the FINDING_SOURCE_TIDINESS channel. | 2m |
-| Security | Delegates security posture validation to security-health (secrets, Go SAST, Go vuln-DB, JS deps) and maps findings into the FINDING_SOURCE_SECURITY channel that gates the ecosystem-manager R1 ladder rung. | 3m |
-| Measures | Delegates measures-coverage validation to measures-health (stateful-domain coverage + per-measure tier) and maps findings into the FINDING_SOURCE_MEASURES channel that feeds the ecosystem-manager soft `measures` ladder dimension. | 3m |
-| Proto | Delegates proto contract validation to proto-health and maps findings into the FINDING_SOURCE_PROTO channel that feeds the ecosystem-manager soft `proto-health` R2 ladder dimension. | 2m |
-| Branding | Delegates brand-identity validation to brand-manager through ScenarioValidationService (display-name, canonical design-token contract, typography, logo, favicon, WCAG-AA contrast, applied brand markers) and maps findings into the FINDING_SOURCE_BRANDING channel that feeds the ecosystem-manager soft `branding` ladder dimension. | 2m |
+| Structure | Validates scenario skeleton and lifecycle wiring through structure-health. | 1m |
+| Contracts | Validates CLI manifest, proto bindings, and runtime CLI surface through cli-health. | 90s |
+| UI Health | Validates UI manifests, interop, standards, and BAS runtime evidence through ui-health. | 5m |
+| API | Validates API readiness, health contracts, route semantics, and runtime hygiene through api-health. | 2m |
+| Architecture | Validates structural cohesion through architecture-cartographer. | 2m |
+| Dependencies | Validates dependency readiness, governance, runtime status, release-age policy, and graph drift. | 15m |
+| Quality | Validates static quality contracts, lint and type policy, and strict config through quality-health. | 2m |
+| DOCS | Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory. | 1m |
+| Performance | Validates API/UI build performance and Lighthouse budgets through performance-health. | 5m |
+| Unit | Validates test execution, coverage, architecture, quality, and runtime diagnostics through unit-health. | 15m |
+| Storage | Validates storage conventions, migration hygiene, persistence seams, and test isolation through storage-health. | 2m |
+| Workflow | Validates BAS workflow assets and safe execution through workflow-health. | 15m |
+| Business | Validates PRD, requirements registry, OT linkage, and evidence traceability through business-health. | 2m |
+| Tidiness | Validates file and function quality checks through tidiness-manager. | 2m |
+| Security | Validates secrets, Go SAST, Go vulnerability data, and JavaScript dependencies through security-health. | 3m |
+| Measures | Validates measures coverage and per-measure tiering through measures-health. | 3m |
+| Proto | Validates proto contracts through proto-health. | 2m |
+| Branding | Validates brand identity, design tokens, typography, logos, favicons, contrast, and applied brand markers through brand-manager. | 2m |
+| Search | Validates search-enabled scenarios through Search Hub's search maturity contract. | 90s |
 
 ## Preset Comparison
 
@@ -94,7 +94,7 @@ test-genie execute my-scenario --preset comprehensive
 | Structure | Yes | Yes | Yes | Yes |
 | Contracts | No | No | Yes | Yes |
 | UI Health | No | No | Yes | Yes |
-| Standards | Yes | Yes | Yes | Yes |
+| API | No | Yes | Yes | Yes |
 | Architecture | No | No | Yes | Yes |
 | Dependencies | No | No | No | Yes |
 | Quality | No | Yes | No | Yes |
@@ -109,6 +109,7 @@ test-genie execute my-scenario --preset comprehensive
 | Measures | No | No | No | Yes |
 | Proto | Yes | Yes | Yes | Yes |
 | Branding | No | No | No | Yes |
+| Search | No | No | No | Yes |
 
 ## Custom Presets
 

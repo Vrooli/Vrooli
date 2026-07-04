@@ -35,9 +35,9 @@ func TestWritePhasePointerPersistsFindings(t *testing.T) {
 		},
 	}
 
-	writePhasePointer(env, "standards", report, nil, io.Discard)
+	writePhasePointer(env, "quality", report, nil, io.Discard)
 
-	raw, err := os.ReadFile(filepath.Join(dir, "coverage", "runs", env.RunID, "phase-results", "standards.json"))
+	raw, err := os.ReadFile(filepath.Join(dir, "coverage", "runs", env.RunID, "phase-results", "quality.json"))
 	if err != nil {
 		t.Fatalf("phase pointer not written: %v", err)
 	}

@@ -12,7 +12,7 @@ import (
 // normalizeSeverity maps the heterogeneous severity vocabularies of the
 // per-surface validators into the shared FindingSeverity ladder. This is
 // the ONE normalization table; every producer routes through it so
-// severity semantics stay consistent across CLI/UI/docs/standards/
+// severity semantics stay consistent across CLI/UI/docs/quality/
 // structure/architecture. (R3 in the plan: drift across four producers is
 // guarded by a table-driven test over every enum value.)
 //

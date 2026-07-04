@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "title": "Test Genie Provider Phase Descriptor",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "scenario",
+    "phase",
+    "description",
+    "source",
+    "timeout",
+    "validation",
+    "applicability",
+    "policy",
+    "runnability",
+    "maturity"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "scenario": { "type": "string", "minLength": 1 },
+    "phase": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "description": { "type": "string", "minLength": 1 },
+    "source": { "enum": ["validation-provider"] },
+    "orderHint": { "type": "integer" },
+    "timeout": { "type": "string", "minLength": 1 },
+    "findingSource": { "type": "string" },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract"],
+      "properties": {
+        "contract": { "const": "scenario-validation/v1" },
+        "includeExecution": { "type": "boolean" }
+      }
+    },
+    "applicability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default"],
+      "properties": {
+        "default": { "enum": ["applies", "not_applicable", "unknown"] },
+        "any": { "type": "array", "items": { "$ref": "#/$defs/predicate" } },
+        "all": { "type": "array", "items": { "$ref": "#/$defs/predicate" } },
+        "applicabilityRpc": { "type": "string" }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection",
+        "providerReadiness",
+        "providerLifecycle",
+        "freshness",
+        "resultGating",
+        "unavailable"
+      ],
+      "properties": {
+        "selection": { "enum": ["default_when_applicable", "comprehensive_when_applicable", "explicit_only", "never_by_default"] },
+        "providerReadiness": { "enum": ["none", "required_when_applicable", "best_effort"] },
+        "providerLifecycle": { "enum": ["none", "check_only", "start_if_needed", "restart_before_probe"] },
+        "freshness": { "enum": ["none", "require_reachable", "require_live_contract", "require_fresh_binary"] },
+        "resultGating": { "enum": ["gating", "advisory", "high_confidence_gating"] },
+        "unavailable": { "enum": ["fail", "partial", "skip_without_failing", "advisory"] }
+      }
+    },
+    "runnability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "needsUI": { "type": "boolean" },
+        "needsAPI": { "type": "boolean" },
+        "mutatesLifecycle": { "type": "boolean" },
+        "lifecycleDecisionDeferred": { "type": "boolean" },
+        "dbIsolation": { "enum": ["none", "routed"] },
+        "requiredResources": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "docs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string" }
+      }
+    },
+    "maturity": { "type": "object" }
+  },
+  "$defs": {
+    "predicate": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "fileExists": { "type": "string", "minLength": 1 },
+        "serviceCapability": { "type": "string", "minLength": 1 },
+        "hasUI": { "type": "boolean" },
+        "hasAPI": { "type": "boolean" },
+        "testingConfigSection": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

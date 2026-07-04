@@ -14,7 +14,7 @@ func TestValidationProviderRegistryCoversDelegatingCatalogPhases(t *testing.T) {
 		Structure:    "structure-health",
 		Business:     "business-health",
 		Contracts:    "cli-health",
-		Standards:    "scenario-auditor",
+		API:          "api-health",
 		Proto:        "proto-health",
 		UIHealth:     "ui-health",
 		Security:     "security-health",
@@ -29,6 +29,7 @@ func TestValidationProviderRegistryCoversDelegatingCatalogPhases(t *testing.T) {
 		Storage:      "storage-health",
 		Workflow:     "workflow-health",
 		Branding:     "brand-manager",
+		Search:       "search-hub",
 	}
 	catalog := NewDefaultCatalog(DefaultTimeout)
 	delegatedCount := 0

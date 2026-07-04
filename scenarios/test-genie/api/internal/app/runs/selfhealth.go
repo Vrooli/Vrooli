@@ -100,7 +100,7 @@ func (s *Service) GetSelfHealth(ctx context.Context, req *connect.Request[runspb
 }
 
 // repoRoot derives the repository root from scenariosRoot (its parent) so the
-// conformance scan can load each provider's shipped maturity.json.
+// conformance scan can load each provider's shipped Test Genie descriptor.
 func (s *Service) repoRoot() string {
 	return filepath.Dir(s.scenariosRoot)
 }

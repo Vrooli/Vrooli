@@ -396,10 +396,6 @@ func runCommand(ctx context.Context, timeout time.Duration, dir string, name str
 	return out, nil
 }
 
-var probeInvocationOverrides = map[catalog.Name][]string{
-	catalog.Standards: {"scenario-auditor", "standards", "scan", "{{target}}", "--wait", "--json"},
-}
-
 func Probes() []Probe {
 	specs := catalog.DefaultCatalog().All()
 	probes := make([]Probe, 0, len(specs))
@@ -411,9 +407,6 @@ func Probes() []Probe {
 			Phase:       spec.Name.String(),
 			Provider:    spec.Delegated.ProviderScenario,
 			Restartable: true,
-		}
-		if invocation, ok := probeInvocationOverrides[spec.Name]; ok {
-			probe.Invocation = append([]string(nil), invocation...)
 		}
 		probes = append(probes, probe)
 	}

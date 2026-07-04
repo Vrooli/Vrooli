@@ -39,16 +39,13 @@ func TestRunAggregatesAcrossProviders(t *testing.T) {
 		"tidiness-manager": {err: connect.NewError(connect.CodeUnavailable, errors.New("down"))},
 	}
 	runner := &Runner{
-		Providers: []string{"quality-health", "structure-health", "knowledge-observatory", "tidiness-manager", AuditorProviderScenario},
+		Providers: []string{"quality-health", "structure-health", "knowledge-observatory", "tidiness-manager"},
 		ResolveBaseURL: func(_ context.Context, scenario string) (string, error) {
 			return "http://" + scenario, nil
 		},
 		NewClient: func(_ time.Duration, baseURL string) FixClient {
 			name := baseURL[len("http://"):]
 			return clients[name]
-		},
-		AuditorFix: func(_ context.Context, _, _ string, ruleIDs []string, _ bool) (ProviderReport, error) {
-			return ProviderReport{Status: StatusSkipped, Messages: []string{"needs rules"}}, nil
 		},
 	}
 
@@ -69,9 +66,6 @@ func TestRunAggregatesAcrossProviders(t *testing.T) {
 	if statuses["tidiness-manager"] != StatusUnreachable {
 		t.Fatalf("tidiness-manager status = %q, want unreachable", statuses["tidiness-manager"])
 	}
-	if statuses[AuditorProviderScenario] != StatusSkipped {
-		t.Fatalf("scenario-auditor status = %q, want skipped", statuses[AuditorProviderScenario])
-	}
 }
 
 func TestRunResolveFailureIsUnreachable(t *testing.T) {
@@ -90,7 +84,7 @@ func TestRunResolveFailureIsUnreachable(t *testing.T) {
 
 func TestDefaultProvidersIncludeFixers(t *testing.T) {
 	got := DefaultProviders()
-	want := map[string]bool{"quality-health": false, "structure-health": false, "knowledge-observatory": false, AuditorProviderScenario: false}
+	want := map[string]bool{"quality-health": false, "structure-health": false, "knowledge-observatory": false}
 	for _, p := range got {
 		if _, ok := want[p]; ok {
 			want[p] = true

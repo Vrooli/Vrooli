@@ -25,9 +25,6 @@ These are normally provided by the Vrooli lifecycle system:
 | `TEST_GENIE_PLAYBOOKS_RETAIN` | Workflow compatibility | `0` | Keep temporary isolated Postgres/Redis/SQLite resources alive after legacy seed/debug paths |
 | `TEST_GENIE_QUEUE_STALE_AFTER` | Queue telemetry | `24h` | How long queued/delegated requests remain part of active queue counts before they are reported as stale |
 | `TEST_GENIE_SKIP_PLAYBOOKS` | Workflow compatibility | unset | Hard-disable workflow execution through the legacy playbooks alias |
-| `TEST_GENIE_STANDARDS_FAIL_ON` | Standards phase | phase default | Minimum severity that fails the phase |
-| `TEST_GENIE_STANDARDS_MIN_SEVERITY` | Standards phase | phase default | Minimum severity shown in standards output |
-| `TEST_GENIE_STANDARDS_LIMIT` | Standards phase | phase default | Maximum number of standards findings displayed |
 | `TEST_GENIE_DOCS_DIR` | Docs handlers | scenario default | Override docs directory served by the API |
 
 ## Queue telemetry
@@ -66,17 +63,6 @@ TEST_GENIE_SKIP_PLAYBOOKS=1 test-genie execute my-scenario --phases workflow
 
 This is intended for debugging and constrained environments. It is not a
 substitute for fixing broken workflow assets or provider availability.
-
-## Standards tuning
-
-These levers tune the standards phase without modifying scenario config:
-
-```bash
-TEST_GENIE_STANDARDS_FAIL_ON=critical \
-TEST_GENIE_STANDARDS_MIN_SEVERITY=high \
-TEST_GENIE_STANDARDS_LIMIT=20 \
-test-genie execute my-scenario --phases standards
-```
 
 ## CLI timeout tuning
 

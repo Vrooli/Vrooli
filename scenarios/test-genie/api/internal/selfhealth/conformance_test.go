@@ -33,12 +33,12 @@ func writeSpec(t *testing.T, repoRoot, provider, phase string) {
 			SeverityDefault:  "WARNING",
 		},
 	}
-	raw, err := json.Marshal(spec)
+	raw, err := json.Marshal(testGenieDescriptor(provider, phase, spec))
 	if err != nil {
-		t.Fatalf("marshal spec: %v", err)
+		t.Fatalf("marshal descriptor: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "maturity.json"), raw, 0o644); err != nil {
-		t.Fatalf("write spec: %v", err)
+	if err := os.WriteFile(filepath.Join(dir, "test-genie.json"), raw, 0o644); err != nil {
+		t.Fatalf("write descriptor: %v", err)
 	}
 }
 
@@ -66,8 +66,9 @@ func probeFn(resp *scenariovalidationv1.ValidateScenarioResponse, err error) Con
 	}
 }
 
-// writeSpecWithFindings writes a maturity spec carrying explicit fixability
-// declarations so the autofix-coverage lens has real data to roll up.
+// writeSpecWithFindings writes a descriptor-embedded maturity spec carrying
+// explicit fixability declarations so the autofix-coverage lens has real data
+// to roll up.
 func writeSpecWithFindings(t *testing.T, repoRoot, provider, phase string, findings map[string]assessment.FindingMapping) {
 	t.Helper()
 	dir := filepath.Join(repoRoot, "scenarios", provider, ".vrooli")
@@ -87,12 +88,20 @@ func writeSpecWithFindings(t *testing.T, repoRoot, provider, phase string, findi
 			SeverityDefault:  "WARNING",
 		},
 	}
-	raw, err := json.Marshal(spec)
+	raw, err := json.Marshal(testGenieDescriptor(provider, phase, spec))
 	if err != nil {
-		t.Fatalf("marshal spec: %v", err)
+		t.Fatalf("marshal descriptor: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "maturity.json"), raw, 0o644); err != nil {
-		t.Fatalf("write spec: %v", err)
+	if err := os.WriteFile(filepath.Join(dir, "test-genie.json"), raw, 0o644); err != nil {
+		t.Fatalf("write descriptor: %v", err)
+	}
+}
+
+func testGenieDescriptor(provider, phase string, spec assessment.Spec) map[string]any {
+	return map[string]any{
+		"scenario": provider,
+		"phase":    phase,
+		"maturity": spec,
 	}
 }
 
@@ -167,59 +176,18 @@ func TestScanProviderMetricsRequired(t *testing.T) {
 	}
 }
 
-func TestScanProviderScenarioAuditorSynthesized(t *testing.T) {
-	// scenario-auditor (standards) has no Connect service: its scorecard is
-	// synthesized client-side from the shipped maturity.json + a reachability
-	// check. When reachable it must be fully adopted (incl. metrics) and not a
-	// hard violation; the injected probe is never consulted for it.
-	repo := t.TempDir()
-	writeSpec(t, repo, "scenario-auditor", "standards")
-
-	prev := resolveAuditorURL
-	resolveAuditorURL = func(context.Context) (string, error) { return "http://127.0.0.1:9", nil }
-	t.Cleanup(func() { resolveAuditorURL = prev })
-
-	failProbe := probeFn(nil, errors.New("connect probe must not be used for scenario-auditor"))
-	pr := scanProvider(context.Background(), failProbe, repo, "test-genie", "standards", "scenario-auditor", time.Second)
-	if !pr.Reachable || !pr.ContractValid || !pr.IdentityOK || !pr.SpecValid || !pr.MetricsAdopted {
-		t.Fatalf("expected full synthesized adoption, got %+v", pr)
-	}
-	if pr.HasHardViolation() {
-		t.Fatalf("synthesized scenario-auditor scorecard must not be a hard violation: %+v", pr)
-	}
-}
-
-func TestScanProviderScenarioAuditorUnreachable(t *testing.T) {
-	// When scenario-auditor is not running, it degrades to environmental
-	// unreachability (reported, not a hard violation) — never a metrics gate fail.
-	repo := t.TempDir()
-	writeSpec(t, repo, "scenario-auditor", "standards")
-
-	prev := resolveAuditorURL
-	resolveAuditorURL = func(context.Context) (string, error) { return "", errors.New("not running") }
-	t.Cleanup(func() { resolveAuditorURL = prev })
-
-	pr := scanProvider(context.Background(), probeFn(nil, nil), repo, "test-genie", "standards", "scenario-auditor", time.Second)
-	if pr.Reachable {
-		t.Fatal("expected unreachable when auditor is absent")
-	}
-	if pr.HasHardViolation() {
-		t.Fatalf("unreachable scenario-auditor (valid spec) must not be a hard violation: %+v", pr)
-	}
-}
-
 func TestScanProviderBrokenSpec(t *testing.T) {
 	repo := t.TempDir()
 	dir := filepath.Join(repo, "scenarios", "proto-health", ".vrooli")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "maturity.json"), []byte(`{"provider":""}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "test-genie.json"), []byte(`{"scenario":"proto-health","phase":"proto","maturity":{"provider":""}}`), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	pr := scanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second)
 	if pr.SpecValid {
-		t.Fatal("expected spec_valid=false for broken maturity.json")
+		t.Fatal("expected spec_valid=false for broken descriptor maturity")
 	}
 	if !pr.HasHardViolation() {
 		t.Fatal("broken spec must be a hard violation")

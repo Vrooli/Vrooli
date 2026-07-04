@@ -45,6 +45,25 @@ func TestPresetsResolveAgainstCatalog(t *testing.T) {
 	}
 }
 
+func TestCatalogSourceDoesNotDuplicateProviderMetadata(t *testing.T) {
+	dir := phasePackageDir(t)
+	path := filepath.Join(dir, "catalog.go")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read catalog.go: %v", err)
+	}
+	source := string(raw)
+	for _, forbidden := range []string{
+		"ProviderScenario:",
+		"delegatedSpec(Delegated{",
+		"ValidationProviderSpec(Delegated{",
+	} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("catalog.go contains %q; provider-backed phase metadata must live in provider descriptors", forbidden)
+		}
+	}
+}
+
 func TestMergePresetsPrecedenceAndFiltering(t *testing.T) {
 	allowed := map[string]struct{}{
 		Structure.String(): {},
@@ -147,7 +166,7 @@ func TestSkipEnvVarsPreservePublishedNames(t *testing.T) {
 		Structure:    "TEST_GENIE_SKIP_STRUCTURE",
 		Contracts:    "TEST_GENIE_SKIP_CONTRACTS",
 		UIHealth:     "TEST_GENIE_SKIP_UI_HEALTH",
-		Standards:    "TEST_GENIE_SKIP_STANDARDS",
+		API:          "TEST_GENIE_SKIP_API",
 		Architecture: "TEST_GENIE_SKIP_ARCHITECTURE",
 		Dependencies: "TEST_GENIE_SKIP_DEPENDENCIES",
 		Quality:      "TEST_GENIE_SKIP_QUALITY",
@@ -162,6 +181,7 @@ func TestSkipEnvVarsPreservePublishedNames(t *testing.T) {
 		Measures:     "TEST_GENIE_SKIP_MEASURES",
 		Proto:        "TEST_GENIE_SKIP_PROTO",
 		Branding:     "TEST_GENIE_SKIP_BRANDING",
+		Search:       "TEST_GENIE_SKIP_SEARCH",
 	}
 	catalog := DefaultCatalog()
 	for _, spec := range catalog.All() {
@@ -191,7 +211,7 @@ func TestFindingSourceCoversEveryProducingPhase(t *testing.T) {
 		Structure:    architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE,
 		Contracts:    architecturev1.FindingSource_FINDING_SOURCE_CLI,
 		UIHealth:     architecturev1.FindingSource_FINDING_SOURCE_UI,
-		Standards:    architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
+		API:          architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
 		Quality:      architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
 		Architecture: architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
 		Dependencies: architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY,

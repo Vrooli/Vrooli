@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"test-genie/internal/orchestrator"
+	"test-genie/internal/orchestrator/applicability"
 )
 
 const (
@@ -54,14 +55,11 @@ func (s *ExecutionPlanService) Preview(ctx context.Context, req orchestrator.Sui
 	}
 
 	preview := &ExecutionPlanPreview{
-		ScenarioName: basePlan.ScenarioName,
-		PresetUsed:   basePlan.PresetUsed,
-		Warnings:     append([]string(nil), basePlan.Warnings...),
-		Phases:       make([]PlannedPhase, 0, len(basePlan.Phases)),
-	}
-
-	if len(basePlan.Phases) == 0 {
-		return preview, nil
+		ScenarioName:        basePlan.ScenarioName,
+		PresetUsed:          basePlan.PresetUsed,
+		Warnings:            append([]string(nil), basePlan.Warnings...),
+		Phases:              make([]PlannedPhase, 0, len(basePlan.Phases)),
+		NotApplicablePhases: make([]PlannedPhase, 0, len(basePlan.NotApplicablePhases)),
 	}
 
 	phaseNames := make([]string, 0, len(basePlan.Phases))
@@ -70,9 +68,13 @@ func (s *ExecutionPlanService) Preview(ctx context.Context, req orchestrator.Sui
 	}
 
 	since := s.now().UTC().Add(-planHistoryWindow)
-	phaseSamples, err := s.samples.ListPhaseSamples(ctx, phaseNames, since, maxHistoryRows)
-	if err != nil {
-		return nil, err
+	var phaseSamples []PhaseDurationSample
+	if len(phaseNames) > 0 {
+		var err error
+		phaseSamples, err = s.samples.ListPhaseSamples(ctx, phaseNames, since, maxHistoryRows)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	scenarioBuckets, globalBuckets := bucketPhaseSamples(basePlan.ScenarioName, phaseSamples)
@@ -92,11 +94,33 @@ func (s *ExecutionPlanService) Preview(ctx context.Context, req orchestrator.Sui
 			EstimateSource:           estimate.source,
 			EstimateConfidence:       estimate.confidence,
 			EstimateSampleSize:       estimate.sampleSize,
+			SelectionStatus:          phase.SelectionStatus,
+			ApplicabilityStatus:      phase.ApplicabilityStatus,
+			ApplicabilityReasons:     append([]applicability.Reason(nil), phase.ApplicabilityReasons...),
+			ProviderReadiness:        phase.ProviderReadiness,
+			Freshness:                phase.Freshness,
+			Policy:                   phase.Policy,
+			DescriptorPath:           phase.DescriptorPath,
 		}
 		preview.Phases = append(preview.Phases, previewPhase)
 		preview.Summary.PhaseCount++
 		preview.Summary.EstimatedDurationSeconds += previewPhase.EstimatedDurationSeconds
 		preview.Summary.TimeoutSeconds += previewPhase.TimeoutSeconds
+	}
+	for _, phase := range basePlan.NotApplicablePhases {
+		preview.NotApplicablePhases = append(preview.NotApplicablePhases, PlannedPhase{
+			Name:                 phase.Name,
+			Description:          phase.Description,
+			Optional:             phase.Optional,
+			TimeoutSeconds:       clampNonNegative(phase.TimeoutSeconds),
+			SelectionStatus:      phase.SelectionStatus,
+			ApplicabilityStatus:  phase.ApplicabilityStatus,
+			ApplicabilityReasons: append([]applicability.Reason(nil), phase.ApplicabilityReasons...),
+			ProviderReadiness:    phase.ProviderReadiness,
+			Freshness:            phase.Freshness,
+			Policy:               phase.Policy,
+			DescriptorPath:       phase.DescriptorPath,
+		})
 	}
 
 	return preview, nil

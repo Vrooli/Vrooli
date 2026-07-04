@@ -4,77 +4,23 @@ This guide explains Vrooli's comprehensive phased testing architecture and how t
 
 ## Overview
 
-Vrooli uses a **catalog-driven testing architecture** that progressively validates scenarios from basic structure through producer-backed health phases. Test Genie orchestrates these phases through its Go-native API.
+Vrooli uses a **descriptor-backed testing architecture** that progressively validates scenarios from basic structure through provider-backed health phases. Test Genie orchestrates planning, applicability, provider readiness, lifecycle, run records, and reporting; each health provider owns its phase metadata and maturity contract in `scenarios/<provider>/.vrooli/test-genie.json`.
 
 ## The Phase Architecture
 
-```mermaid
-graph TB
-    subgraph "Static Phases (No Runtime)"
-        P1[Phase 1: Structure<br/>15s<br/>Files & config]
-        P2[Phase 2: Contracts<br/>60s<br/>CLI bindings]
-        P3[Phase 3: UI Health<br/>60s<br/>UI manifest]
-        P4[Phase 4: Standards<br/>60s<br/>scenario-auditor rules]
-        P5[Phase 5: Architecture<br/>120s<br/>Structural cohesion]
-        P6[Phase 6: Dependencies<br/>30s<br/>Packages & resources]
-        P7[Phase 7: Quality<br/>120s<br/>Static quality]
-        P8[Phase 8: Docs<br/>60s<br/>Markdown, links]
-    end
+The effective phase registry is built from checked-in provider descriptors plus Test Genie-owned runner bindings. A run follows this order:
 
-    subgraph "Runtime Phases (Scenario Running)"
-        P9[Phase 9: Performance<br/>60s<br/>Benchmarks & load]
-        P10[Phase 10: Smoke<br/>90s<br/>UI load, iframe-bridge]
-        P11[Phase 11: Unit<br/>60s<br/>Go, Node, Python]
-        P12[Phase 12: Integration<br/>120s<br/>API, CLI, WebSocket]
-        P13[Phase 13: Playbooks<br/>120s<br/>BAS browser automation]
-        P14[Phase 14: Business<br/>180s<br/>Requirements & coverage]
-    end
+1. Load provider descriptors from `scenarios/*/.vrooli/test-genie.json`.
+2. Evaluate target applicability from cheap declarative facts such as files, capabilities, UI/API presence, and testing config sections.
+3. Select phases from the requested preset or explicit phase list against applicable phases.
+4. Check or start selected providers according to descriptor policy.
+5. Start target runtime surfaces only when selected phases need them.
+6. Apply runnability gates for the current environment.
+7. Execute provider validations and record findings, observations, metrics, and phase status.
 
-    subgraph "Producer Health Phases"
-        P15[Phase 15: Coverage<br/>30s<br/>Coverage artifacts]
-        P16[Phase 16: Tidiness<br/>120s<br/>Code quality]
-        P17[Phase 17: Security<br/>180s<br/>Security posture]
-        P18[Phase 18: Measures<br/>180s<br/>Measures coverage]
-        P19[Phase 19: Proto<br/>120s<br/>Proto contracts]
-    end
+Applicability answers "should this phase judge this target?" Runnability answers "can this already-applicable phase execute in this environment?" Provider readiness answers "is the selected provider usable for this execution?" These are separate states in JSON previews and run records.
 
-    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10 --> P11 --> P12 --> P13 --> P14 --> P15 --> P16 --> P17 --> P18 --> P19
-
-    style P1 fill:#fff3e0
-    style P2 fill:#f3e5f5
-    style P3 fill:#e8f5e9
-    style P4 fill:#e3f2fd
-    style P5 fill:#fff9c4
-    style P6 fill:#fff3e0
-    style P7 fill:#e1f5fe
-    style P8 fill:#e1f5fe
-    style P9 fill:#ffe0b2
-    style P10 fill:#f8bbd0
-```
-
-| Phase | Timeout | Purpose | Requires Runtime |
-|-------|---------|---------|------------------|
-| **Structure** | 15s | Validate files and configuration | No |
-| **Contracts** | 60s | Validate CLI manifest bindings | No |
-| **UI Health** | 60s | Validate UI manifest bindings | No |
-| **Standards** | 60s | scenario-auditor standards rules | No |
-| **Architecture** | 120s | Audit structural cohesion | No |
-| **Dependencies** | 30s | Check tools and resources | No |
-| **Quality** | 120s | Static quality contracts via quality-health | No |
-| **Docs** | 60s | Validate Markdown, mermaid, links, portability | No |
-| **Performance** | 60s | Run benchmarks (optional) | Yes |
-| **Smoke** | 90s | UI load and iframe-bridge validation | Yes |
-| **Unit** | 60s | Run unit tests (Go, Node, Python) | No |
-| **Integration** | 120s | Test API endpoints and CLI commands | Yes |
-| **Playbooks** | 120s | Execute BAS browser automation workflows | Yes |
-| **Business** | 180s | Validate requirements coverage | Yes |
-| **Coverage** | 30s | Parse coverage artifacts | No |
-| **Tidiness** | 120s | Delegate file/function quality checks | No |
-| **Security** | 180s | Delegate security posture validation | No |
-| **Measures** | 180s | Delegate measures coverage validation | No |
-| **Proto** | 120s | Delegate Protocol Buffer contract validation | No |
-
-See [Phases Overview](../phases/README.md) for detailed phase definitions.
+See [Phases Overview](../phases/README.md) for the generated effective registry, policy dimensions, and phase definitions.
 
 ## Running Tests with Test Genie
 
@@ -95,10 +41,10 @@ test-genie execute my-scenario --preset comprehensive
 
 | Preset | Phases | Use Case |
 |--------|--------|----------|
-| **Quick** | Structure, Standards, Docs, Business, Unit, Proto | Fast feedback during development |
-| **Smoke** | Structure, Standards, Quality, Docs, Business, Integration, Proto | Pre-push validation |
-| **Architecture Audit** | Structure, Contracts, UI Health, Docs, Standards, Architecture, Proto | Surface and architecture review |
-| **Comprehensive** | All catalog phases | Full coverage before release |
+| **Quick** | Structure, Docs, Business, Unit, Proto | Fast feedback during development |
+| **Smoke** | Structure, Quality, Docs, Business, Integration, Proto | Pre-push validation |
+| **Architecture Audit** | Structure, Contracts, UI Health, Docs, Architecture, Proto | Surface and architecture review |
+| **Comprehensive** | All applicable registry phases | Full coverage before release |
 
 See [Presets Reference](../reference/presets.md) for detailed preset definitions.
 

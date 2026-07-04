@@ -359,13 +359,12 @@ Execute a test suite for a scenario. This is the primary endpoint for running te
 
 **Available Phases:**
 1. `structure` - Validates scenario layout, manifests, and JSON health
-2. `standards` - Runs scenario-auditor standards enforcement
+2. `api` - Delegates API readiness validation to api-health
 3. `dependencies` - Delegates dependency health validation to scenario-dependency-analyzer
 4. `quality` - Delegates static quality contracts to quality-health
 5. `docs` - Validates markdown, mermaid, and links
-6. `ui-health` - Delegates UI / runtime validation to ui-health
-7. `unit` - Runs Go, Node, Python, and shell unit suites as applicable
-8. `integration` - Exercises CLI runtime, API health, and WebSocket connectivity
+7. `ui-health` - Delegates UI / runtime validation to ui-health
+8. `unit` - Runs Go, Node, Python, and shell unit suites as applicable
 9. `workflow` - Delegates BAS workflow validation to workflow-health
 10. `business` - Audits requirement coverage and operational targets
 11. `performance` - Builds binaries and checks duration/performance budgets
@@ -623,11 +622,11 @@ Returns the provider-backed phase catalog with descriptions and configuration.
       "defaultTimeoutSeconds": 900
     },
     {
-      "name": "standards",
+      "name": "api",
       "optional": false,
-      "description": "Runs scenario-auditor standards enforcement against the scenario workspace.",
+      "description": "Delegates API readiness validation to api-health through ScenarioValidationService.",
       "source": "validation-provider",
-      "defaultTimeoutSeconds": 60
+      "defaultTimeoutSeconds": 120
     },
     {
       "name": "workflow",
@@ -637,7 +636,7 @@ Returns the provider-backed phase catalog with descriptions and configuration.
       "defaultTimeoutSeconds": 900
     }
   ],
-  "count": 11
+  "count": 19
 }
 ```
 

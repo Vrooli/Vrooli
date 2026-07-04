@@ -198,25 +198,6 @@ func TestCheckRejectsStaleProviderIdentity(t *testing.T) {
 	}
 }
 
-func TestCheckStandardsValidatesAssessmentFromNonZeroProviderOutput(t *testing.T) {
-	restore := stubCommandRunner(t, func(name string, args ...string) ([]byte, error) {
-		return []byte(`{"result":{"summary":` + validProviderJSON("demo", "scenario-auditor", "standards", "2026-06-16", "L2") + `}}`), errors.New("exit status 1")
-	})
-	defer restore()
-
-	probe, err := ResolveProbe("standards")
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := Check(context.Background(), Args{Target: "demo", Restart: false, Timeout: time.Second}, probe)
-	if err != nil {
-		t.Fatalf("Check returned error: %v", err)
-	}
-	if got.Provider != "scenario-auditor" || got.Assessment.CurrentLevel != "L2" {
-		t.Fatalf("unexpected result: %#v", got)
-	}
-}
-
 func TestCheckDocsProviderRestartsThenValidatesRPCWrapperAssessment(t *testing.T) {
 	restore := stubCommandRunner(t, func(name string, args ...string) ([]byte, error) {
 		joined := name + " " + strings.Join(args, " ")
@@ -243,32 +224,6 @@ func TestCheckDocsProviderRestartsThenValidatesRPCWrapperAssessment(t *testing.T
 		t.Fatalf("Check returned error: %v", err)
 	}
 	if !got.Restarted || got.Provider != "knowledge-observatory" || got.Assessment.Phase != "docs" {
-		t.Fatalf("unexpected result: %#v", got)
-	}
-}
-
-func TestCheckStandardsProviderAcceptsNestedSummaryAssessment(t *testing.T) {
-	restore := stubCommandRunner(t, func(name string, args ...string) ([]byte, error) {
-		joined := name + " " + strings.Join(args, " ")
-		switch joined {
-		case "scenario-auditor standards scan demo --wait --json":
-			return []byte(`{"result":{"summary":` + validProviderJSON("demo", "scenario-auditor", "standards", "2026-06-16", "L2") + `}}`), nil
-		default:
-			t.Fatalf("unexpected command: %s", joined)
-			return nil, nil
-		}
-	})
-	defer restore()
-
-	probe, err := ResolveProbe("standards")
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := Check(context.Background(), Args{Target: "demo", Restart: false, Timeout: time.Second}, probe)
-	if err != nil {
-		t.Fatalf("Check returned error: %v", err)
-	}
-	if got.Provider != "scenario-auditor" || got.Assessment.CurrentLevel != "L2" {
 		t.Fatalf("unexpected result: %#v", got)
 	}
 }

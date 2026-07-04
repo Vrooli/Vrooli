@@ -4,9 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
+	"test-genie/internal/orchestrator/phasepolicy"
 	"test-genie/internal/orchestrator/phases/validationprovider"
+	"test-genie/internal/orchestrator/providerdescriptor"
+	"test-genie/internal/orchestrator/runnability"
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/shared"
 
@@ -55,6 +59,71 @@ func delegatedSpec(delegated Delegated) Spec {
 		Source:         phaseSourceValidationProvider,
 		FindingSource:  delegated.FindingSource,
 		Delegated:      &delegated,
+	}
+}
+
+// ValidationProviderSpec binds a descriptor-backed phase to the shared
+// ScenarioValidationService runner. Descriptor registry construction owns the
+// provider metadata; this exported seam keeps the runner implementation in the
+// phases package instead of duplicating it in registry code.
+func ValidationProviderSpec(delegated Delegated) Spec {
+	return delegatedSpec(delegated)
+}
+
+// ValidationProviderSpecFromDescriptor binds a provider-owned Test Genie
+// descriptor to the Test Genie-owned validation-provider runner. Descriptor
+// files own phase metadata; this function owns the Spec projection needed by
+// the orchestrator.
+func ValidationProviderSpecFromDescriptor(descriptor providerdescriptor.Descriptor, findingSource architecturev1.FindingSource) (Spec, error) {
+	name, ok := NormalizeName(descriptor.Phase)
+	if !ok {
+		return Spec{}, fmt.Errorf("invalid phase %q", descriptor.Phase)
+	}
+	delegated := Delegated{
+		Name:             name,
+		ProviderScenario: descriptor.Scenario,
+		FindingSource:    findingSource,
+		Optional:         legacyOptional(descriptor.Policy.Policy),
+		Timeout:          descriptor.TimeoutValue,
+		Description:      descriptor.Description,
+		IncludeExecution: descriptor.Validation.IncludeExecution,
+	}
+	spec := delegatedSpec(delegated)
+	spec.Description = descriptor.Description
+	spec.Source = descriptor.Source
+	spec.DefaultTimeout = descriptor.TimeoutValue
+	spec.Doc = descriptor.Docs.Path
+	spec.Policy = descriptor.Policy.Policy
+	spec.Optional = legacyOptional(spec.Policy)
+	spec.FindingSource = findingSource
+	spec.Capabilities = runnability.PhaseCapabilities{
+		Phase:                     name.String(),
+		NeedsUI:                   descriptor.Runnability.NeedsUI,
+		NeedsAPI:                  descriptor.Runnability.NeedsAPI,
+		MutatesLifecycle:          descriptor.Runnability.MutatesLifecycle,
+		LifecycleDecisionDeferred: descriptor.Runnability.LifecycleDecisionDeferred,
+		DBIsolation:               parseDescriptorDBIsolation(descriptor.Runnability.DBIsolation),
+		RequiredResources:         append([]string(nil), descriptor.Runnability.RequiredResources...),
+		Optional:                  spec.Optional,
+	}
+	return spec, nil
+}
+
+func legacyOptional(policy phasepolicy.Policy) bool {
+	switch policy.Unavailable {
+	case phasepolicy.UnavailableSkipWithoutFailing, phasepolicy.UnavailableAdvisory:
+		return true
+	default:
+		return policy.ProviderReadiness == phasepolicy.ProviderReadinessBestEffort
+	}
+}
+
+func parseDescriptorDBIsolation(value string) runnability.DBIsolation {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "routed":
+		return runnability.DBIsolationRouted
+	default:
+		return runnability.DBIsolationNone
 	}
 }
 

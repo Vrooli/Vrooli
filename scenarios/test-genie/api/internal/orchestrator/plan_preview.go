@@ -3,6 +3,9 @@ package orchestrator
 import (
 	"strings"
 
+	"test-genie/internal/orchestrator/applicability"
+	"test-genie/internal/orchestrator/phasepolicy"
+	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/shared"
 
 	workspacepkg "test-genie/internal/orchestrator/workspace"
@@ -10,18 +13,26 @@ import (
 
 // PlannedPhase describes a selected phase before execution starts.
 type PlannedPhase struct {
-	Name           string `json:"name"`
-	Description    string `json:"description,omitempty"`
-	Optional       bool   `json:"optional"`
-	TimeoutSeconds int    `json:"timeoutSeconds"`
+	Name                 string                 `json:"name"`
+	Description          string                 `json:"description,omitempty"`
+	Optional             bool                   `json:"optional"`
+	TimeoutSeconds       int                    `json:"timeoutSeconds"`
+	SelectionStatus      string                 `json:"selectionStatus,omitempty"`
+	ApplicabilityStatus  applicability.Status   `json:"applicabilityStatus,omitempty"`
+	ApplicabilityReasons []applicability.Reason `json:"applicabilityReasons,omitempty"`
+	ProviderReadiness    string                 `json:"providerReadiness,omitempty"`
+	Freshness            string                 `json:"freshness,omitempty"`
+	Policy               phasepolicy.Policy     `json:"policy,omitempty"`
+	DescriptorPath       string                 `json:"descriptorPath,omitempty"`
 }
 
 // ExecutionPlanPreview captures the actual selected phase plan for a request.
 type ExecutionPlanPreview struct {
-	ScenarioName string         `json:"scenarioName"`
-	PresetUsed   string         `json:"presetUsed,omitempty"`
-	Phases       []PlannedPhase `json:"phases"`
-	Warnings     []string       `json:"warnings,omitempty"`
+	ScenarioName        string         `json:"scenarioName"`
+	PresetUsed          string         `json:"presetUsed,omitempty"`
+	Phases              []PlannedPhase `json:"phases"`
+	NotApplicablePhases []PlannedPhase `json:"notApplicablePhases,omitempty"`
+	Warnings            []string       `json:"warnings,omitempty"`
 }
 
 type executionPlanContext struct {
@@ -81,25 +92,66 @@ func (o *SuiteOrchestrator) PreviewExecution(req SuiteExecutionRequest) (*Execut
 	}
 
 	for _, def := range ctx.plan.Selected {
-		timeout := def.Timeout
-		if timeout <= 0 {
-			timeout = o.phaseTimeout
-		}
-
-		phasePreview := PlannedPhase{
-			Name:           def.Name.String(),
-			Optional:       def.Optional,
-			TimeoutSeconds: int(timeout.Seconds()),
-		}
-
-		if o.catalog != nil {
-			if spec, ok := o.catalog.Lookup(def.Name.String()); ok {
-				phasePreview.Description = spec.Description
-			}
-		}
-
-		preview.Phases = append(preview.Phases, phasePreview)
+		preview.Phases = append(preview.Phases, o.plannedPhasePreview(def, ctx.plan, "selected"))
+	}
+	for _, notice := range ctx.plan.NotApplicable {
+		preview.NotApplicablePhases = append(preview.NotApplicablePhases, o.notApplicablePhasePreview(notice))
 	}
 
 	return preview, nil
+}
+
+func (o *SuiteOrchestrator) plannedPhasePreview(def phases.Definition, plan *phasePlan, selectionStatus string) PlannedPhase {
+	timeout := def.Timeout
+	if timeout <= 0 {
+		timeout = o.phaseTimeout
+	}
+	phasePreview := PlannedPhase{
+		Name:              def.Name.String(),
+		Optional:          def.Optional,
+		TimeoutSeconds:    int(timeout.Seconds()),
+		SelectionStatus:   selectionStatus,
+		Policy:            def.Policy,
+		ProviderReadiness: string(def.Policy.ProviderReadiness),
+		Freshness:         string(def.Policy.Freshness),
+	}
+	if notice, ok := planApplicabilityNotice(plan, def.Name.Key()); ok {
+		phasePreview.ApplicabilityStatus = notice.Result.Status
+		phasePreview.ApplicabilityReasons = append([]applicability.Reason(nil), notice.Result.Reasons...)
+		phasePreview.DescriptorPath = notice.Descriptor.Path
+	}
+	if o.catalog != nil {
+		if spec, ok := o.catalog.Lookup(def.Name.String()); ok {
+			phasePreview.Description = spec.Description
+		}
+	}
+	if phasePreview.Description == "" {
+		if entry, ok := o.descriptorEntry(def.Name.String()); ok {
+			phasePreview.Description = entry.Spec.Description
+		}
+	}
+	return phasePreview
+}
+
+func (o *SuiteOrchestrator) notApplicablePhasePreview(notice phaseApplicabilityNotice) PlannedPhase {
+	preview := o.plannedPhasePreview(notice.Definition, &phasePlan{NotApplicable: []phaseApplicabilityNotice{notice}}, "not_applicable")
+	preview.ApplicabilityStatus = notice.Result.Status
+	preview.ApplicabilityReasons = append([]applicability.Reason(nil), notice.Result.Reasons...)
+	preview.DescriptorPath = notice.Descriptor.Path
+	return preview
+}
+
+func planApplicabilityNotice(plan *phasePlan, key string) (phaseApplicabilityNotice, bool) {
+	if plan == nil {
+		return phaseApplicabilityNotice{}, false
+	}
+	if notice, ok := plan.Applicability[key]; ok {
+		return notice, true
+	}
+	for _, notice := range plan.NotApplicable {
+		if notice.Definition.Name.Key() == key {
+			return notice, true
+		}
+	}
+	return phaseApplicabilityNotice{}, false
 }

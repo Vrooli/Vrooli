@@ -5,6 +5,7 @@ import (
 	"io"
 	"testing"
 
+	"test-genie/internal/orchestrator/phasepolicy"
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/orchestrator/runnability"
 	workspacepkg "test-genie/internal/orchestrator/workspace"
@@ -36,6 +37,7 @@ func TestComputeSuiteVerdict(t *testing.T) {
 	defs := []phases.Definition{
 		{Name: phases.Structure},
 		{Name: phases.Performance, Optional: true},
+		{Name: phases.Measures, Policy: phasepolicy.AdvisoryProviderPolicy()},
 		{Name: phases.Unit},
 	}
 	cases := []struct {
@@ -76,6 +78,13 @@ func TestComputeSuiteVerdict(t *testing.T) {
 			want: SuiteVerdictPass,
 		},
 		{
+			name: "advisory failure stays PASS",
+			results: []PhaseExecutionResult{
+				{Name: "measures", Status: phaseStatusFailed},
+			},
+			want: SuiteVerdictPass,
+		},
+		{
 			name: "failure dominates a skip",
 			results: []PhaseExecutionResult{
 				{Name: "unit", Status: phaseStatusSkipped},
@@ -108,7 +117,7 @@ func TestRunSelectedPhasesSkipsUnrunnableSurfacePhaseOnSelf(t *testing.T) {
 	// start that would SIGTERM the suite, so it must skip.
 	rc := runnability.RunContext{TargetIsSelf: true, LiveSurfaces: runnability.Surfaces{}}
 
-	results, anyFailure := o.runSelectedPhasesWithEvents(context.Background(), workspacepkg.Environment{}, rc, runLogDir, defs, false, nil, nil)
+	results, anyFailure := o.runSelectedPhasesWithEvents(context.Background(), workspacepkg.Environment{}, rc, runLogDir, defs, nil, false, nil, nil)
 	if anyFailure {
 		t.Fatal("a runnability skip must not be reported as a failure")
 	}
@@ -143,7 +152,7 @@ func TestRunSelectedPhasesRunsSurfacePhaseWhenLive(t *testing.T) {
 	defs := []phases.Definition{surfaceDef(phases.Performance)}
 	rc := runnability.RunContext{TargetIsSelf: true, LiveSurfaces: runnability.Surfaces{UI: true}}
 
-	results, anyFailure := o.runSelectedPhasesWithEvents(context.Background(), workspacepkg.Environment{}, rc, runLogDir, defs, false, nil, nil)
+	results, anyFailure := o.runSelectedPhasesWithEvents(context.Background(), workspacepkg.Environment{}, rc, runLogDir, defs, nil, false, nil, nil)
 	if anyFailure {
 		t.Fatal("unexpected failure")
 	}

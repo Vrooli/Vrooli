@@ -116,8 +116,8 @@ func TestQualityPhaseIsRegistered(t *testing.T) {
 	if quality.Optional {
 		t.Fatalf("quality phase should not be optional")
 	}
-	if !strings.Contains(quality.Description, "quality-health") || !strings.Contains(quality.Description, "lint/type") {
-		t.Errorf("quality phase description should mention quality-health and lint/type, got: %s", quality.Description)
+	if !strings.Contains(quality.Description, "quality-health") || !strings.Contains(quality.Description, "lint") {
+		t.Errorf("quality phase description should mention quality-health and lint, got: %s", quality.Description)
 	}
 }
 
@@ -133,7 +133,7 @@ func TestDocsPhaseIsRegistered(t *testing.T) {
 	if docsPhase.Optional {
 		t.Fatalf("docs phase should not be optional")
 	}
-	if !strings.Contains(strings.ToLower(docsPhase.Description), "docs") {
-		t.Errorf("docs phase description should mention docs, got: %s", docsPhase.Description)
+	if !strings.Contains(strings.ToLower(docsPhase.Description), "documentation") {
+		t.Errorf("docs phase description should mention documentation, got: %s", docsPhase.Description)
 	}
 }
