@@ -103,6 +103,118 @@ The scaffold ships one fully worked CRUD command group as a copyable
 reference (see the fenced example below); `vrooli scenario detemplate
 <scenario>` removes it once your real domains are green.
 
+### `experience-manager spec validate <scenario>`
+
+Parse and validate a scenario's `experience/` contract against
+`scenario-experience-spec/v1`, including index parity, cross-document
+references, PRD operational-target references, tier semantics, and binding
+integrity.
+
+```bash
+experience-manager spec validate experience-manager
+experience-manager spec validate web-console --json
+experience-manager spec validate custom --path /path/to/scenario
+```
+
+### `experience-manager spec list <scenario>`
+
+List pages and journeys declared in a scenario's `experience/index.json`.
+
+```bash
+experience-manager spec list experience-manager
+experience-manager spec list custom --path /path/to/scenario --json
+```
+
+### `experience-manager spec show <scenario> <page>`
+
+Render one page spec document.
+
+```bash
+experience-manager spec show experience-manager studio
+```
+
+### `experience-manager spec render <scenario> <page>`
+
+Render one page spec into deterministic workshop HTML and write the artifact
+under `coverage/wireframes/<scenario>/`.
+
+```bash
+experience-manager spec render experience-manager studio
+experience-manager spec render business-health matrix --mode image
+```
+
+`--mode image` is allowed, but degrades to wireframe output when `image-tools`
+is not available.
+
+### `experience-manager spec compare-variants <scenario> <page>`
+
+Render page-form variants side by side as deterministic workshop HTML. The
+`--file` payload may be either a JSON array of `SpecVariant` objects or an
+object with a `variants` array.
+
+```bash
+experience-manager spec compare-variants experience-manager studio --file /tmp/studio-variants.json
+experience-manager spec compare-variants business-health matrix --mode image --file /tmp/matrix-variants.json
+```
+
+### `experience-manager spec promote-variant <scenario> <page>`
+
+Promote one reviewed variant into the target `experience/` page. The selected
+variant is written only after the parser-clean preview succeeds, and the command
+returns the resulting diffs plus validation status.
+
+```bash
+experience-manager spec promote-variant experience-manager studio --file /tmp/selected-studio-variant.json
+```
+
+### `experience-manager spec suggest-bindings <scenario> <page>`
+
+Suggest page bindings from existing spec bindings and the latest stored
+reconciliation evidence.
+
+```bash
+experience-manager spec suggest-bindings web-console home --limit 20
+```
+
+### `experience-manager author start <scenario>`
+
+Start a persisted authoring session.
+
+```bash
+experience-manager author start experience-manager
+```
+
+### `experience-manager author submit <session>`
+
+Submit a typed page form into a session. Use `--file` for scripted PageForm
+JSON, or flags for compact manual entry.
+
+```bash
+experience-manager author submit expauth-abc123 --file /tmp/page-form.json
+```
+
+### `experience-manager author preview|apply|discard <session>`
+
+Preview computes diffs plus parser validation without writing the target tree.
+Apply writes only after the preview has zero parser error findings. Discard
+removes the persisted session.
+
+```bash
+experience-manager author preview expauth-abc123
+experience-manager author apply expauth-abc123
+experience-manager author discard expauth-abc123
+```
+
+### `experience-manager provider validate <scenario>`
+
+Render the same parser-backed validation through the shared
+`ScenarioValidationService` contract consumed by Test Genie.
+
+```bash
+experience-manager provider validate experience-manager
+experience-manager provider validate experience-manager --json
+```
+
 ## Output contracts
 
 Every scenario command should render through one of three human

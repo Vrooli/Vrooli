@@ -1,5 +1,5 @@
 /**
- * Routing smoke — for each canonical path (`/`, `/notes`, `/settings`) the
+ * Routing smoke — for each canonical path the
  * matching page selector is in the document. Page-internal behaviour is
  * exercised in per-page tests; this file's job is to assert the router config.
  */
@@ -15,14 +15,34 @@ describe("AppRouter", () => {
     cleanup();
   });
 
-  it("renders the dashboard at /", () => {
+  it("renders the fleet page at /", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/"]} />, { withoutRouter: true });
-    expect(screen.getByTestId(selectors.pages.dashboard)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.pages.fleet)).toBeInTheDocument();
   });
 
-  it("renders the notes page at /notes", () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/notes"]} />, { withoutRouter: true });
-    expect(screen.getByTestId(selectors.pages.notes)).toBeInTheDocument();
+  it("renders the scenario explorer page", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/scenarios/experience-manager"]} />, {
+      withoutRouter: true,
+    });
+    expect(screen.getByTestId(selectors.pages.explorer)).toBeInTheDocument();
+  });
+
+  it("renders the evidence page", () => {
+    renderWithProviders(
+      <TestAppRouter initialEntries={["/scenarios/experience-manager/pages/fleet/evidence"]} />,
+      { withoutRouter: true },
+    );
+    expect(screen.getByTestId(selectors.pages.evidence)).toBeInTheDocument();
+  });
+
+  it("renders the studio page", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/studio"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.studio)).toBeInTheDocument();
+  });
+
+  it("renders the findings page", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/findings"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.findings)).toBeInTheDocument();
   });
 
   it("renders the settings page at /settings", () => {

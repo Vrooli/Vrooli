@@ -48,8 +48,8 @@ test-genie execute my-scenario --preset architecture-audit
 | Contracts | Validates CLI manifest, proto bindings, and runtime CLI surface through cli-health. | 90s |
 | UI Health | Validates UI manifests, interop, standards, and BAS runtime evidence through ui-health. | 5m |
 | API Health | Validates API readiness, health contracts, route semantics, and runtime hygiene through api-health. | 2m |
-| Documentation | Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory. | 1m |
 | Architecture | Validates structural cohesion through architecture-cartographer. | 2m |
+| Documentation | Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory. | 1m |
 | Proto | Validates proto contracts through proto-health. | 2m |
 
 ### Comprehensive
@@ -81,6 +81,7 @@ test-genie execute my-scenario --preset comprehensive
 | Proto | Validates proto contracts through proto-health. | 2m |
 | Branding | Validates brand identity, design tokens, typography, logos, favicons, contrast, and applied brand markers through brand-manager. | 2m |
 | Search | Validates search-enabled scenarios through Search Hub's search maturity contract. | 90s |
+| Provider Conformance | Validates Test Genie phase-provider descriptors: descriptor structure, embedded maturity, policy safety, stale-file absence, and live provider-contract conformance. | 90s |
 
 ## Preset Comparison
 
@@ -105,6 +106,7 @@ test-genie execute my-scenario --preset comprehensive
 | Proto | Adaptive | Adaptive | Yes | Yes |
 | Branding | Adaptive | Adaptive | No | Yes |
 | Search | Adaptive | Adaptive | No | Yes |
+| Provider Conformance | Adaptive | Adaptive | No | Yes |
 
 ## Custom Presets
 

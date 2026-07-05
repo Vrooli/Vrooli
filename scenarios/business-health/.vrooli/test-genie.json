@@ -108,7 +108,7 @@
       {
         "id": "intent_linkage",
         "label": "Intent Linkage",
-        "description": "The OT \u2194 requirement \u2194 validation spine holds in both directions: every prd_ref resolves to a real operational target, every P0/P1 target has requirements, every validation ref exists on disk.",
+        "description": "The OT ↔ requirement ↔ validation spine holds in both directions: every prd_ref resolves to a real operational target, every P0/P1 target has requirements, every validation ref exists on disk.",
         "levels": [
           {
             "id": "L0",
@@ -261,7 +261,7 @@
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "fix_class": "manual",
-        "reason": "Which duplicate keeps the ID is meaningful \u2014 evidence history and prd_refs hang off it."
+        "reason": "Which duplicate keeps the ID is meaningful — evidence history and prd_refs hang off it."
       },
       "business_import_cycle": {
         "capability_id": "requirements_registry",
@@ -422,5 +422,12 @@
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "advisory"
     }
-  }
+  },
+  "profileMembership": [],
+  "freshnessRequirement": "when_applicable",
+  "phaseClass": "runtime",
+  "runtimeClass": "execution",
+  "dimensions": [
+    "business"
+  ]
 }

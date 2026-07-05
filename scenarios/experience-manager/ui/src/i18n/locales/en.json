@@ -9,7 +9,11 @@
     "sidebarLabel": "Primary navigation",
     "bottomNavLabel": "Primary navigation",
     "nav": {
-      "dashboard": "Dashboard",
+      "fleet": "Fleet",
+      "explorer": "Explorer",
+      "evidence": "Evidence",
+      "studio": "Studio",
+      "findings": "Findings",
       "settings": "Settings"
     }
   },
@@ -31,6 +35,61 @@
       "title": "Settings",
       "themeHeading": "Appearance",
       "localeHeading": "Language"
+    }
+  },
+  "experience": {
+    "common": {
+      "scenario": "Scenario",
+      "page": "Page",
+      "depth": "Depth",
+      "debt": "Debt",
+      "status": "Status",
+      "claims": "Claims",
+      "viewEvidence": "View evidence"
+    },
+    "fleet": {
+      "title": "Fleet",
+      "description": "Worst-first experience debt across scenarios, with depth and coverage visible before detail.",
+      "depthLabel": "Fleet depth",
+      "specCoverage": "Spec coverage",
+      "depthDistribution": "Depth distribution",
+      "refresh": "Refresh sweep",
+      "tableLabel": "Experience debt"
+    },
+    "explorer": {
+      "title": "Scenario Explorer",
+      "description": "Declared pages, states, gaps, claims, and handoffs for one scenario.",
+      "gridLabel": "Pages by state",
+      "gapsLabel": "Coverage gaps",
+      "gapsCopy": "All declared dogfood routes have active default-state structure coverage.",
+      "openStudio": "Open in Studio",
+      "claimsLabel": "Claims"
+    },
+    "evidence": {
+      "title": "Evidence",
+      "description": "Capture and accessibility-tree evidence for every verdict.",
+      "captureLabel": "Page capture",
+      "treeLabel": "Accessibility tree",
+      "verdictsLabel": "Claim verdicts",
+      "recapture": "Recapture"
+    },
+    "studio": {
+      "title": "Studio",
+      "description": "Author a spec in a form beside a deterministic preview and variant rail.",
+      "formLabel": "Spec editor",
+      "validationLabel": "Validation summary",
+      "validationCopy": "No contract findings in the current draft.",
+      "wireframeLabel": "Wireframe preview",
+      "variantsLabel": "Variants",
+      "save": "Save spec",
+      "promote": "Promote variant"
+    },
+    "findings": {
+      "title": "Findings & Fixes",
+      "description": "Experience divergences with evidence links and preview-before-apply fixes.",
+      "listLabel": "Experience findings",
+      "preview": "Preview fix",
+      "apply": "Apply fix"
     }
   },
   "health": {

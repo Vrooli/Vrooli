@@ -26,52 +26,53 @@ import (
 // The test is opinionated: any import whose path begins with
 // `<module>/internal/testutil` from a non-`_test.go` file fails.
 func TestNoProductionImports(t *testing.T) {
-	module := readModuleName(t)
-	prefix := module + "/internal/testutil"
-
-	root := "../"
-	fset := token.NewFileSet()
-	violations := []string{}
-
-	walk(t, root, func(path string) {
-		if !strings.HasSuffix(path, ".go") {
-			return
-		}
-		if strings.HasSuffix(path, "_test.go") {
-			return
-		}
-		rel := strings.TrimPrefix(path, root)
-		if strings.Contains(rel, "/vendor/") {
-			return
-		}
-		// mocks/ holds test-only fakes that lack the _test.go suffix (so sibling
-		// _test.go files in other packages can import them); generated/ holds
-		// temporal-model output (replay.go, runtime.go) that legitimately bridges
-		// production transition functions into the modeltest harness. Both are test
-		// scaffolding by directory-shape, exempt from the testutil-import rule.
-		if pathHasDir(rel, "mocks") || pathHasDir(rel, "generated") {
-			return
-		}
-
-		file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
-		if err != nil {
-			t.Errorf("parse %s: %v", path, err)
-			return
-		}
-		for _, imp := range file.Imports {
-			ip := strings.Trim(imp.Path.Value, `"`)
-			if strings.HasPrefix(ip, prefix) {
-				violations = append(violations, rel+" imports "+ip)
-			}
-		}
-	})
-
+	prefix := readModuleName(t) + "/internal/testutil"
+	violations := productionTestutilImportViolations(t, "../", prefix)
 	if len(violations) > 0 {
 		t.Errorf("production code must not import %s/...", prefix)
 		for _, v := range violations {
 			t.Errorf("  %s", v)
 		}
 	}
+}
+
+func productionTestutilImportViolations(t *testing.T, root, forbiddenPrefix string) []string {
+	t.Helper()
+	fset := token.NewFileSet()
+	violations := []string{}
+	walkGoSources(t, root, func(path, rel string) {
+		if apiTestScaffoldPath(rel) {
+			return
+		}
+		for _, importPath := range parsedImports(t, fset, path) {
+			if strings.HasPrefix(importPath, forbiddenPrefix) {
+				violations = append(violations, rel+" imports "+importPath)
+			}
+		}
+	})
+	return violations
+}
+
+func parsedImports(t *testing.T, fset *token.FileSet, path string) []string {
+	t.Helper()
+	file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
+	if err != nil {
+		t.Errorf("parse %s: %v", path, err)
+		return nil
+	}
+	imports := make([]string, 0, len(file.Imports))
+	for _, imp := range file.Imports {
+		imports = append(imports, strings.Trim(imp.Path.Value, `"`))
+	}
+	return imports
+}
+
+func apiTestScaffoldPath(rel string) bool {
+	// mocks/ holds test-only fakes that lack the _test.go suffix (so sibling
+	// _test.go files in other packages can import them); generated/ holds
+	// temporal-model output that legitimately bridges production transition
+	// functions into the modeltest harness.
+	return pathHasDir(rel, "mocks") || pathHasDir(rel, "generated")
 }
 
 // readModuleName returns the module path declared in the api root's
@@ -98,10 +99,16 @@ func readModuleName(t *testing.T) string {
 	return ""
 }
 
-// walk iterates every .go file under root, calling fn for each. The
-// testutil subtree itself is skipped because it legitimately holds
-// internal references that would otherwise self-flag.
-func walk(t *testing.T, root string, fn func(path string)) {
+// walkGoSources iterates every non-test Go file under root, calling fn with
+// both absolute-ish path and root-relative path. The testutil subtree itself is
+// skipped because it legitimately holds internal references that would
+// otherwise self-flag.
+func walkGoSources(t *testing.T, root string, fn func(path, rel string)) {
+	t.Helper()
+	walkGoSourcesFrom(t, root, root, fn)
+}
+
+func walkGoSourcesFrom(t *testing.T, baseRoot, root string, fn func(path, rel string)) {
 	t.Helper()
 	entries, err := os.ReadDir(root)
 	if err != nil {
@@ -113,10 +120,12 @@ func walk(t *testing.T, root string, fn func(path string)) {
 			if filepath.Base(full) == "testutil" {
 				continue
 			}
-			walk(t, full, fn)
+			walkGoSourcesFrom(t, baseRoot, full, fn)
 			continue
 		}
-		fn(full)
+		if strings.HasSuffix(full, ".go") && !strings.HasSuffix(full, "_test.go") {
+			fn(full, strings.TrimPrefix(full, baseRoot))
+		}
 	}
 }
 

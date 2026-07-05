@@ -2,6 +2,11 @@ package domains
 
 import (
 	"github.com/vrooli/cli-core/cliapp"
+
+	"experience-manager/cli/domains/contract"
+	"experience-manager/cli/domains/fix"
+	"experience-manager/cli/domains/provider"
+	"experience-manager/cli/domains/studio"
 )
 
 // CommandGroups aggregates flat command groups from domain packages.
@@ -35,5 +40,25 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
+	contractGroup, err := contract.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, contractGroup)
+	providerGroup, err := provider.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, providerGroup)
+	fixGroup, err := fix.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, fixGroup)
+	studioGroup, err := studio.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, studioGroup)
 	return groups, nil
 }

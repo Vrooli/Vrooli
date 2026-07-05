@@ -122,7 +122,8 @@ var impactDimensions = map[GlobalImpact][]dimensions.Dimension{
 	ImpactUnknown:           nil,
 }
 
-// Spec is the `.vrooli/maturity.json` schema shared by health scenarios.
+// Spec is the maturity block schema embedded in provider-owned Test Genie
+// descriptors.
 type Spec struct {
 	Provider     string                    `json:"provider"`
 	Phase        string                    `json:"phase"`
@@ -977,8 +978,6 @@ func normalizeFinding(spec Spec, finding Finding, defaultID string) FindingAsses
 	if strings.TrimSpace(mapping.Dimension) == "" {
 		if dim, ok := dimensions.ForSource(finding.Source); ok {
 			mapping.Dimension = string(dim)
-		} else if dim, ok := dimensions.ForPhase(finding.Phase); ok {
-			mapping.Dimension = string(dim)
 		}
 	}
 	severity := normalizeSeverity(finding.Severity)
@@ -1094,6 +1093,9 @@ func capabilityMaturity(capability CapabilitySpec, assessed []FindingAssessment)
 	currentIdx := len(capability.Levels) - 1
 	if lowestBlocked < len(capability.Levels) {
 		currentIdx = lowestBlocked - 1
+		if currentIdx < 0 {
+			currentIdx = 0
+		}
 	}
 	current := ""
 	currentSummary := ""

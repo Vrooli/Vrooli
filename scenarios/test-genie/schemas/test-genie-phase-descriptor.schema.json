@@ -16,6 +16,7 @@
     "applicability",
     "policy",
     "runnability",
+    "docs",
     "maturity"
   ],
   "properties": {
@@ -27,7 +28,20 @@
     "source": { "enum": ["validation-provider"] },
     "orderHint": { "type": "integer" },
     "timeout": { "type": "string", "minLength": 1 },
-    "findingSource": { "type": "string" },
+    "findingSource": { "type": ["string", "null"] },
+    "profileMembership": {
+      "type": "array",
+      "items": { "enum": ["architecture-audit"] },
+      "uniqueItems": true
+    },
+    "freshnessRequirement": { "enum": ["never", "always", "when_applicable"] },
+    "phaseClass": { "enum": ["quality", "architecture", "runtime", "provider-contract", "capability"] },
+    "runtimeClass": { "enum": ["static", "execution", "lifecycle"] },
+    "dimensions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
     "validation": {
       "type": "object",
       "additionalProperties": false,
@@ -83,8 +97,9 @@
     "docs": {
       "type": "object",
       "additionalProperties": false,
+      "required": ["path"],
       "properties": {
-        "path": { "type": "string" }
+        "path": { "type": "string", "minLength": 1 }
       }
     },
     "maturity": { "type": "object" }

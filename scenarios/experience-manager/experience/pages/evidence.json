@@ -22,7 +22,7 @@
     { "id": "request-error" }
   ],
   "elements": [
-    { "id": "capture-image", "role": "img", "name": "Page capture", "description": "The BAS screenshot for the selected page/state." },
+    { "id": "capture-image", "role": "image", "name": "Page capture", "description": "The BAS screenshot for the selected page/state." },
     { "id": "tree-panel", "role": "region", "name": "Accessibility tree", "description": "The captured a11y tree, focusable per node." },
     { "id": "verdict-list", "role": "list", "name": "Claim verdicts", "description": "Per-claim verdict with tier and timestamp." },
     { "id": "evidence-link", "role": "link", "description": "Per-verdict link that focuses the tree node / capture region that produced it." },
@@ -65,8 +65,9 @@
       "id": "stale-marked",
       "type": "state-distinct",
       "statement": "Evidence that predates the current spec revision is distinguishable from current evidence.",
-      "tier": "machine",
-      "states": ["stale", "default"]
+      "tier": "manual",
+      "states": ["stale", "default"],
+      "rationale": "Requires a seeded stale evidence state; default live reconciliation cannot make stale captures reachable yet."
     },
     {
       "id": "empty-explains-skips",

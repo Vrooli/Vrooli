@@ -14,6 +14,7 @@ import en from "../i18n/locales/en.json";
 import ja from "../i18n/locales/ja.json";
 import ar from "../i18n/locales/ar.json";
 import { TestAppRouter } from "../app/routes";
+import { NAV_ITEMS } from "./navItems";
 
 const renderShell = () =>
   renderWithProviders(<TestAppRouter initialEntries={["/"]} />, { withoutRouter: true });
@@ -43,7 +44,7 @@ describe("AppShell structure (cimode)", () => {
 
   it("renders the canonical nav links in both sidebar and bottom nav", () => {
     renderShell();
-    for (const key of ["dashboard", "notes", "settings"] as const) {
+    for (const { key } of NAV_ITEMS) {
       expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();
       expect(screen.getByTestId(selectors.layout.bottomNavLink({ key }))).toBeInTheDocument();
     }
@@ -62,7 +63,7 @@ describe("Locale switching through the shell (real locales)", () => {
   it("renders English copy by default and reflects it on <html>", async () => {
     renderShell();
     // Sidebar + bottom-nav both render the label, so there will be ≥1 match.
-    expect((await screen.findAllByText(en.layout.nav.dashboard)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(en.layout.nav.fleet)).length).toBeGreaterThan(0);
     expect(document.documentElement.lang).toBe("en");
     expect(document.documentElement.dir).toBe("ltr");
   });
@@ -73,7 +74,7 @@ describe("Locale switching through the shell (real locales)", () => {
     await user.click(screen.getByTestId(selectors.locale.toggle({ code: "ja" })));
 
     await waitFor(() => {
-      expect(screen.getAllByText(ja.layout.nav.dashboard).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(ja.layout.nav.fleet).length).toBeGreaterThan(0);
     });
     expect(document.documentElement.lang).toBe("ja");
   });
@@ -85,7 +86,7 @@ describe("Locale switching through the shell (real locales)", () => {
 
     await waitFor(() => {
       expect(document.documentElement.dir).toBe("rtl");
-      expect(screen.getAllByText(ar.layout.nav.dashboard).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(ar.layout.nav.fleet).length).toBeGreaterThan(0);
     });
   });
 });

@@ -28,7 +28,14 @@ belong in [`DATA.md`](DATA.md).
 | Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
 |---|---|---|---|---|---|---|---|
 | health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | No product data. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/experience-manager/v1/shared/health.proto` |
-| _(your domain)_ | What product capability it owns. | Why the capability exists for users or operators. | Its tables, if any. | service | — | DomainVocabulary | `api/internal/<domain>/` |
+| spec | Parse and validate `experience/` specs. | Make UX intent a machine-checkable contract. | No product data in Phase 1. | validation | query | ExperienceSpec, Finding | `api/internal/spec/`, `.vrooli/schemas/scenario-experience-spec.schema.json` |
+| checks | Compose experience finding checks and severity policy. | Keep parser output and provider findings behind a stable engine seam. | No product data. | validation | scoring | Check, Engine, Registry | `api/internal/checks/` |
+| reconcile | Join parsed machine-tier claims to captured accessibility-tree evidence. | Close the INTENT-STRUCTURE edge without owning a browser harness. | Per-claim reconciliation evidence. | validation | reporting | AccessibilitySnapshot, ClaimVerdict | `api/internal/reconcile/` |
+| studio | Persist form-shaped spec authoring sessions and apply parser-clean drafts. | Let agents and the UI author `experience/` files through a validated contract instead of hand-editing JSON. | Authoring sessions and page drafts. | mutation | service | AuthoringSession, PageForm, FileDiff | `api/internal/authoring/`, `api/handlers/studio/`, `cli/domains/studio/` |
+| render | Produce deterministic wireframes and variant comparisons from parsed page specs. | Make experience specs visually workshoppable before implementation. | Wireframe artifacts under coverage output. | reporting | authoring | WireframeRender, VariantPreview | `api/internal/render/`, `api/handlers/studio/`, `cli/domains/contract/` |
+| assessment | Map experience findings into shared maturity assessments. | Make local experience maturity consumable by Test Genie and fleet reports. | No product data. | scoring | provider | MaturityAssessment | `api/internal/assessment/` |
+| autofix | Register deterministic experience remediations. | Keep write-capable repairs explicit and dry-run-first. | Fix candidates only. | mutation | validation | FixCandidate, Fixer | `api/internal/autofix/` |
+| validation | Mount shared and native validation services. | Expose experience validation to Test Genie, CLI, UI, and agents. | No product data in Phase 1. | provider | validation | ScenarioValidationService, ContractService | `api/handlers/validation/`, `cli/domains/contract/`, `cli/domains/provider/`, `cli/domains/fix/`, `packages/proto/schemas/experience-manager/v1/contract/contract.proto` |
 
 ## Domain Details
 
@@ -49,6 +56,116 @@ belong in [`DATA.md`](DATA.md).
 - Tests: handler, module, UI feature, and accessibility tests.
 - Related docs: [`../reference/api-endpoints.md`](../reference/api-endpoints.md).
 
+### spec
+
+- Purpose: parse `experience/` folders and own the scenario-experience-spec/v1
+  contract model.
+- Primary archetype: validation.
+- Owns: parser-facing reports, findings, and target spec vocabulary.
+- Does not own: service transport, CLI rendering, or live UI capture.
+- API: `api/internal/spec/`.
+- CLI: consumed through the validation domain.
+- Storage: none.
+- Requirements: OT-P0-001.
+- Tests: parser golden fixtures land with Phase 2.
+
+### checks
+
+- Purpose: compose registered experience checks and enforce the advisory cap at
+  ERROR.
+- Primary archetype: validation / scoring.
+- Owns: check registry, engine seam, severity normalization.
+- Does not own: JSON parsing or maturity rendering.
+- API: `api/internal/checks/`.
+- CLI: none directly.
+- Storage: none.
+- Requirements: OT-P0-001, OT-P0-002.
+
+### reconcile
+
+- Purpose: compare active page claims with `bas-accessibility-snapshot/v1`
+  evidence from Browser Automation Studio.
+- Primary archetype: validation / evidence.
+- Owns: AX snapshot parsing, binding-to-node matching, and structure claim
+  verdicts.
+- Does not own: browser automation, screenshot capture, JSON spec parsing, or
+  studio authoring.
+- API: `api/internal/reconcile/`, registered through `api/internal/checks/`.
+- CLI: rendered through validation commands.
+- Storage: `api/internal/reconcile/schema.sql` owns the
+  `reconcile_evidence` table. The reconciler stores one row per active
+  default-state machine claim verdict, including skipped rows when BAS capture
+  is unavailable.
+- Requirements: OT-P0-003.
+
+### studio
+
+- Purpose: provide the form-shaped authoring API/CLI for `experience/` specs.
+- Primary archetype: mutation / authoring.
+- Owns: persisted authoring sessions, page-form drafts, preview diffs,
+  parser-clean apply semantics, spec list/show, and binding suggestions.
+- Does not own: parser rules, live UI implementation, wireframe rendering, or
+  deterministic autofix.
+- API: `api/handlers/studio/`, `api/internal/authoring/`.
+- CLI: `author start|submit|preview|apply|discard`, plus read-only
+  `spec list|show|suggest-bindings`.
+- Storage: `api/internal/authoring/schema.sql` owns `authoring_sessions` and
+  `authoring_pages`.
+- Requirements: OT-P0-004.
+- Tests: authoring round-trip applies a submitted page and re-parses with zero
+  contract error findings.
+
+### render
+
+- Purpose: render one parsed page spec or a side-by-side variant set into stable
+  HTML for workshop review.
+- Primary archetype: reporting / authoring.
+- Owns: wireframe HTML generation, variant comparison layout, claim annotation
+  layout, stable artifact paths, and graceful image-mode degradation.
+- Does not own: parser rules, AI image generation, BAS execution, or persisted
+  authoring sessions.
+- API: `api/internal/render/`, exposed through `StudioSessionService.RenderSpec`.
+- CLI: `spec render`, `spec compare-variants`, `spec promote-variant`.
+- Storage: writes deterministic review artifacts to `coverage/wireframes/`.
+- Requirements: OT-P1-001.
+- Tests: byte-stability, variant artifact writing, promotion validation, and
+  image-mode degradation.
+
+### assessment
+
+- Purpose: translate neutral findings into the shared maturity assessment
+  envelope.
+- Primary archetype: scoring.
+- Owns: maturity builder and finding-to-capability mapping.
+- Does not own: the Test Genie phase descriptor itself.
+- API: `api/internal/assessment/`.
+- CLI: rendered through validation commands.
+- Storage: none.
+- Requirements: OT-P0-002.
+
+### autofix
+
+- Purpose: host deterministic fixers on the shared maturity-go registry.
+- Primary archetype: mutation.
+- Owns: fixer registration and future apply-order policy.
+- Does not own: judgment-heavy authoring decisions.
+- API: `api/internal/autofix/`.
+- CLI: `fix preview`, `fix apply`.
+- Storage: writes only when a future fixer is explicitly applied.
+- Requirements: OT-P1-003.
+
+### validation
+
+- Purpose: mount the shared `ScenarioValidationService` and native
+  `ContractService` off one validation pipeline.
+- Primary archetype: provider.
+- Owns: Connect-RPC handlers, endpoint descriptors, CLI command bindings.
+- Does not own: parser rules or maturity ladder semantics.
+- API: `api/handlers/validation/`.
+- CLI: `spec validate`, `provider validate`, `fix preview`, `fix apply`.
+- Storage: none in Phase 1.
+- Requirements: OT-P0-001, OT-P0-002.
+
 ## Shared Concepts
 
 | Concept | Meaning | Owner |
@@ -65,11 +182,6 @@ are real enough to affect architecture or requirements.
 
 | Candidate Domain | Why Deferred | Revisit Trigger |
 |---|---|---|
-| `spec` | Experience spec contract: parser for `experience/` (index, pages, journeys), JSON-schema + cross-file reference validation, tier/open-world semantics, frozen finding codes. The keystone domain — everything else consumes it. | OT-P0-001 implementation start. |
-| `provider` | `ScenarioValidationService` mount for the `experience` phase: findings, metrics, maturity ladders, fix preview/apply; declarative discovery via `.vrooli/test-genie.json`. | OT-P0-002. |
-| `reconcile` | BAS-driven capture (screenshot + a11y tree per page/state) and machine-tier claim checks with per-claim evidence; skipped-never-failed degradation. | OT-P0-003, after BAS ships a11y-tree capture. |
-| `studio` | Form-based spec authoring sessions with live validation and the zero-findings round-trip property; CLI parity. | OT-P0-004. |
-| `render` | Deterministic wireframe rendering with claim annotations, N-variant compare, promote-to-spec; optional AI-image mode composing image-tools. | OT-P1-001. |
 | `scaffold` | Derive `bas/cases` stubs from spec entries for workflow-health governance; spec↔case reference-integrity findings both directions. | OT-P1-002. |
 | `attest` | Manual-tier claim attestation ledger with expiry; expired attestations surface as findings. | OT-P1-004. |
 | `fleet` | Compute-on-read sweep of spec coverage/depth across all scenarios, worst-first. | OT-P1-005. |

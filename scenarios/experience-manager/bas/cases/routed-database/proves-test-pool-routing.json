@@ -1,14 +1,16 @@
 {
   "metadata": {
-    "name": "routed-smoke",
-    "description": "End-to-end proof that test-genie's routed test-database path actually works: navigates to a page served by the live scenario that reads from the database, and asserts that a fixture slug seeded into the per-run test pool ('routed-smoke-001') is rendered. The slug exists only in the test pool; if the API failed to route the request to the test pool (e.g., X-Vrooli-Test-Mode header not attached, TestModeMiddleware missing, RoutedDB.pick(ctx) returning the primary), the assertion fails.\n\nCustomize this for your scenario: replace the scenario_path with your DB-backed list view, the @selector/notes.list selector with your real list selector, and the slug with whatever bas/seeds/seed.go inserts into the test pool.",
-    "requirement": "REQ-ROUTED-DB-E2E",
+    "name": "experience-manager-shell-smoke",
+    "description": "Observer smoke workflow for the Experience Manager operator UI. It opens the live scenario, waits for the app shell, and asserts the application title so Test Genie's workflow phase has an executable self-check without relying on removed notes-template selectors.",
+    "requirement": "REQ-EXPERIENCE-MANAGER-SMOKE",
     "version": "1",
     "labels": {
       "reset": "none",
-      "purpose": "routed-test-db-proof"
+      "purpose": "operator-ui-smoke",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
     },
-    "execution_mode": "mutating"
+    "execution_mode": "observer"
   },
   "settings": {
     "viewport_width": 1280,
@@ -16,44 +18,44 @@
   },
   "nodes": [
     {
-      "id": "navigate-list-view",
+      "id": "navigate-shell",
       "action": {
         "type": "ACTION_TYPE_NAVIGATE",
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
-          "scenario": "@scenario/self",
+          "scenario": "experience-manager",
           "scenario_path": "/",
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
           "timeout_ms": 30000
         },
-        "metadata": { "label": "Navigate to DB-backed list view" }
+        "metadata": { "label": "Navigate to Experience Manager" }
       }
     },
     {
-      "id": "wait-list",
+      "id": "wait-shell",
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/notes.list",
+          "selector": "@selector/layout.shell",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "List container visible" }
+        "metadata": { "label": "App shell visible" }
       }
     },
     {
-      "id": "assert-routed-slug-present",
+      "id": "assert-title",
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "@selector/notes.list",
+          "selector": "@selector/app.title",
           "mode": "ASSERTION_MODE_TEXT_CONTAINS",
-          "expected": { "stringValue": "routed-smoke-001" },
+          "expected": { "stringValue": "Experience Manager" },
           "case_sensitive": true,
           "timeout_ms": 10000,
-          "failure_message": "Seeded fixture 'routed-smoke-001' not visible in the list — the UI->API request did not reach the routed test pool. Check that X-Vrooli-Test-Mode is being attached by Playwright (browser_profile.extra_headers), that TestModeMiddleware is mounted, and that the list's repository uses *database.RoutedDB."
+          "failure_message": "Experience Manager title did not render on the operator shell."
         },
-        "metadata": { "label": "Assert seeded slug is rendered (proves routing end-to-end)" }
+        "metadata": { "label": "Assert operator title renders" }
       }
     }
   ]

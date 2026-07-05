@@ -1,0 +1,132 @@
+package reconcile
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"strings"
+	"time"
+)
+
+// SQLExecutor is the narrow database surface the repository depends on.
+// Both *sql.DB in tests and *database.RoutedDB in production satisfy it.
+type SQLExecutor interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
+type sqliteRepository struct {
+	db SQLExecutor
+}
+
+// NewSQLiteRepository constructs the production evidence repository.
+func NewSQLiteRepository(db SQLExecutor) EvidenceRepository {
+	return &sqliteRepository{db: db}
+}
+
+var _ EvidenceRepository = (*sqliteRepository)(nil)
+
+const evidenceTimeFormat = time.RFC3339Nano
+
+const (
+	insertEvidenceSQL = `
+INSERT INTO reconcile_evidence (
+  id, scenario, page_id, route, state_id, claim_id, claim_type, verdict,
+  capture_ref, ax_node_json, message, checked_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+  scenario=excluded.scenario,
+  page_id=excluded.page_id,
+  route=excluded.route,
+  state_id=excluded.state_id,
+  claim_id=excluded.claim_id,
+  claim_type=excluded.claim_type,
+  verdict=excluded.verdict,
+  capture_ref=excluded.capture_ref,
+  ax_node_json=excluded.ax_node_json,
+  message=excluded.message,
+  checked_at=excluded.checked_at`
+
+	evidenceColumns = `id, scenario, page_id, route, state_id, claim_id, claim_type, verdict, capture_ref, ax_node_json, message, checked_at`
+)
+
+func (r *sqliteRepository) SaveEvidence(ctx context.Context, evidence Evidence) error {
+	if strings.TrimSpace(evidence.ID) == "" {
+		return fmt.Errorf("reconcile evidence requires id")
+	}
+	if _, err := r.db.ExecContext(ctx, insertEvidenceSQL,
+		evidence.ID,
+		evidence.Scenario,
+		evidence.PageID,
+		evidence.Route,
+		evidence.StateID,
+		evidence.ClaimID,
+		evidence.ClaimType,
+		evidence.Verdict,
+		evidence.CaptureRef,
+		evidence.AXNodeJSON,
+		evidence.Message,
+		evidence.CheckedAt,
+	); err != nil {
+		return fmt.Errorf("save reconcile evidence %q: %w", evidence.ID, err)
+	}
+	return nil
+}
+
+func (r *sqliteRepository) ListEvidence(ctx context.Context, filter EvidenceFilter) ([]Evidence, error) {
+	query := `SELECT ` + evidenceColumns + ` FROM reconcile_evidence`
+	var clauses []string
+	var args []any
+	if filter.Scenario != "" {
+		clauses = append(clauses, "scenario = ?")
+		args = append(args, filter.Scenario)
+	}
+	if filter.PageID != "" {
+		clauses = append(clauses, "page_id = ?")
+		args = append(args, filter.PageID)
+	}
+	if filter.ClaimID != "" {
+		clauses = append(clauses, "claim_id = ?")
+		args = append(args, filter.ClaimID)
+	}
+	if len(clauses) > 0 {
+		query += " WHERE " + strings.Join(clauses, " AND ")
+	}
+	query += " ORDER BY checked_at DESC, id DESC"
+	if filter.Limit > 0 {
+		query += " LIMIT ?"
+		args = append(args, filter.Limit)
+	}
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list reconcile evidence: %w", err)
+	}
+	defer rows.Close()
+
+	var out []Evidence
+	for rows.Next() {
+		var e Evidence
+		if err := rows.Scan(
+			&e.ID,
+			&e.Scenario,
+			&e.PageID,
+			&e.Route,
+			&e.StateID,
+			&e.ClaimID,
+			&e.ClaimType,
+			&e.Verdict,
+			&e.CaptureRef,
+			&e.AXNodeJSON,
+			&e.Message,
+			&e.CheckedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan reconcile evidence: %w", err)
+		}
+		out = append(out, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate reconcile evidence: %w", err)
+	}
+	return out, nil
+}

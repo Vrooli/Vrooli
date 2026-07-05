@@ -22,6 +22,21 @@ Applicability answers "should this phase judge this target?" Runnability answers
 
 See [Phases Overview](../phases/README.md) for the generated effective registry, policy dimensions, and phase definitions.
 
+## Provider Descriptor Contract
+
+Each provider-backed phase is declared by `scenarios/<provider>/.vrooli/test-genie.json`. The descriptor must include provider and phase identity, `source: "validation-provider"`, a positive timeout, validation contract `scenario-validation/v1`, declarative applicability, policy, runnability, `docs.path`, and an embedded `maturity` block. Retired `.vrooli/maturity.json` files are rejected so maturity cannot drift from the phase descriptor.
+
+Operators can inspect the effective descriptor projection without reading code:
+
+```bash
+test-genie phases inspect <phase> --json
+test-genie phases applicability <scenario> --phase <phase> --json
+test-genie phases plan <scenario> --preset comprehensive --json
+test-genie provider-contract scan --json
+```
+
+The phase inspection and plan surfaces expose provider, descriptor path, docs path, policy, runnability, applicability reasons, freshness requirement, profile membership, phase/runtime class, dimensions, and finding source.
+
 ## Running Tests with Test Genie
 
 ### Using Test Presets

@@ -40,6 +40,11 @@ type phaseDescriptor struct {
 	Policy                map[string]any `json:"policy,omitempty"`
 	Runnability           map[string]any `json:"runnability,omitempty"`
 	FindingSource         string         `json:"findingSource,omitempty"`
+	ProfileMembership     []string       `json:"profileMembership,omitempty"`
+	FreshnessRequirement  string         `json:"freshnessRequirement,omitempty"`
+	PhaseClass            string         `json:"phaseClass,omitempty"`
+	RuntimeClass          string         `json:"runtimeClass,omitempty"`
+	Dimensions            []string       `json:"dimensions,omitempty"`
 }
 
 type inspectResponse struct {
@@ -259,6 +264,8 @@ type plannedPhase struct {
 	Name                     string   `json:"name"`
 	DisplayName              string   `json:"displayName,omitempty"`
 	Description              string   `json:"description,omitempty"`
+	Provider                 string   `json:"provider,omitempty"`
+	Source                   string   `json:"source,omitempty"`
 	EstimatedDurationSeconds int      `json:"estimatedDurationSeconds,omitempty"`
 	EstimateSource           string   `json:"estimateSource,omitempty"`
 	EstimateUnknown          bool     `json:"estimateUnknown,omitempty"`
@@ -270,7 +277,14 @@ type plannedPhase struct {
 	ProviderReadiness        string   `json:"providerReadiness,omitempty"`
 	Freshness                string   `json:"freshness,omitempty"`
 	TimeoutSeconds           int      `json:"timeoutSeconds,omitempty"`
+	DocPath                  string   `json:"docPath,omitempty"`
 	DescriptorPath           string   `json:"descriptorPath,omitempty"`
+	FindingSource            string   `json:"findingSource,omitempty"`
+	ProfileMembership        []string `json:"profileMembership,omitempty"`
+	FreshnessRequirement     string   `json:"freshnessRequirement,omitempty"`
+	PhaseClass               string   `json:"phaseClass,omitempty"`
+	RuntimeClass             string   `json:"runtimeClass,omitempty"`
+	Dimensions               []string `json:"dimensions,omitempty"`
 }
 
 type reason struct {
@@ -292,6 +306,21 @@ func printPhase(w io.Writer, phase phaseDescriptor) {
 	if phase.FindingSource != "" {
 		fmt.Fprintf(w, "  findingSource: %s\n", phase.FindingSource)
 	}
+	if phase.FreshnessRequirement != "" {
+		fmt.Fprintf(w, "  freshnessRequirement: %s\n", phase.FreshnessRequirement)
+	}
+	if phase.PhaseClass != "" || phase.RuntimeClass != "" {
+		fmt.Fprintf(w, "  class: phase=%s runtime=%s\n", phase.PhaseClass, phase.RuntimeClass)
+	}
+	if len(phase.ProfileMembership) > 0 {
+		fmt.Fprintf(w, "  profiles: %s\n", strings.Join(phase.ProfileMembership, ", "))
+	}
+	if len(phase.Dimensions) > 0 {
+		fmt.Fprintf(w, "  dimensions: %s\n", strings.Join(phase.Dimensions, ", "))
+	}
+	if phase.DocPath != "" {
+		fmt.Fprintf(w, "  docs: %s\n", phase.DocPath)
+	}
 	if phase.DescriptorPath != "" {
 		fmt.Fprintf(w, "  descriptor: %s\n", phase.DescriptorPath)
 	}
@@ -311,6 +340,12 @@ func printPlannedPhase(w io.Writer, phase plannedPhase) {
 	}
 	if phase.Freshness != "" {
 		fmt.Fprintf(w, " freshness=%s", phase.Freshness)
+	}
+	if phase.Provider != "" {
+		fmt.Fprintf(w, " provider=%s", phase.Provider)
+	}
+	if phase.PhaseClass != "" || phase.RuntimeClass != "" {
+		fmt.Fprintf(w, " class=%s/%s", phase.PhaseClass, phase.RuntimeClass)
 	}
 	if phase.EstimatedDurationSeconds > 0 {
 		fmt.Fprintf(w, " estimate=%ds", phase.EstimatedDurationSeconds)

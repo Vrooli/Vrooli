@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -99,8 +100,37 @@ func writeSpecWithFindings(t *testing.T, repoRoot, provider, phase string, findi
 
 func testGenieDescriptor(provider, phase string, spec assessment.Spec) map[string]any {
 	return map[string]any{
-		"scenario": provider,
-		"phase":    phase,
+		"schemaVersion": "1.0.0",
+		"scenario":      provider,
+		"phase":         phase,
+		"displayName":   phase,
+		"description":   "Fixture descriptor for provider conformance tests.",
+		"source":        "validation-provider",
+		"orderHint":     100,
+		"timeout":       "30s",
+		"findingSource": phase,
+		"validation": map[string]any{
+			"contract": "scenario-validation/v1",
+		},
+		"applicability": map[string]any{
+			"default": "applies",
+		},
+		"policy": map[string]any{
+			"selection":         "default_when_applicable",
+			"providerReadiness": "required_when_applicable",
+			"providerLifecycle": "start_if_needed",
+			"freshness":         "require_live_contract",
+			"resultGating":      "gating",
+			"unavailable":       "fail",
+		},
+		"runnability": map[string]any{
+			"needsUI":           false,
+			"needsAPI":          false,
+			"requiredResources": []string{},
+		},
+		"docs": map[string]any{
+			"path": "scenarios/test-genie/docs/phases/" + phase + "/README.md",
+		},
 		"maturity": spec,
 	}
 }
@@ -112,7 +142,7 @@ func TestScanProviderAutofixCoverage(t *testing.T) {
 		"GAP":     {GlobalImpact: assessment.ImpactAdvisory, FixClass: assessment.FixClassAuto, FixerStatus: assessment.FixerStatusPending},
 		"BY_HAND": {GlobalImpact: assessment.ImpactAdvisory, FixClass: assessment.FixClassManual, FixReason: "needs judgment"},
 	})
-	pr := scanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second)
+	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second)
 	if pr.Autofix.Implemented != 1 || pr.Autofix.Pending != 1 || pr.Autofix.Manual != 1 {
 		t.Fatalf("coverage = %+v, want implemented=1 pending=1 manual=1", pr.Autofix)
 	}
@@ -132,7 +162,7 @@ func TestScanProviderAutofixCoverageWhenUnreachable(t *testing.T) {
 	writeSpecWithFindings(t, repo, "proto-health", "proto", map[string]assessment.FindingMapping{
 		"GAP": {GlobalImpact: assessment.ImpactAdvisory, FixClass: assessment.FixClassAuto, FixerStatus: assessment.FixerStatusPending},
 	})
-	pr := scanProvider(context.Background(), probeFn(nil, errors.New("connection refused")), repo, "test-genie", "proto", "proto-health", time.Second)
+	pr := ScanProvider(context.Background(), probeFn(nil, errors.New("connection refused")), repo, "test-genie", "proto", "proto-health", time.Second)
 	if pr.Reachable {
 		t.Fatal("expected unreachable")
 	}
@@ -144,7 +174,7 @@ func TestScanProviderAutofixCoverageWhenUnreachable(t *testing.T) {
 func TestScanProviderFullAdoption(t *testing.T) {
 	repo := t.TempDir()
 	writeSpec(t, repo, "proto-health", "proto")
-	pr := scanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second)
+	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second)
 	if !pr.Reachable || !pr.ContractValid || !pr.IdentityOK || !pr.SpecValid || !pr.MetricsAdopted {
 		t.Fatalf("expected full adoption, got %+v", pr)
 	}
@@ -164,7 +194,7 @@ func TestScanProviderMetricsRequired(t *testing.T) {
 	// provider whose response carries no ExecutionMetrics is a hard violation.
 	repo := t.TempDir()
 	writeSpec(t, repo, "cli-health", "contracts")
-	pr := scanProvider(context.Background(), probeFn(validProbeResponse("cli-health", "contracts", false), nil), repo, "test-genie", "contracts", "cli-health", time.Second)
+	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("cli-health", "contracts", false), nil), repo, "test-genie", "contracts", "cli-health", time.Second)
 	if pr.MetricsAdopted {
 		t.Fatal("expected metrics_adopted=false when the response carries no metrics")
 	}
@@ -185,7 +215,7 @@ func TestScanProviderBrokenSpec(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "test-genie.json"), []byte(`{"scenario":"proto-health","phase":"proto","maturity":{"provider":""}}`), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	pr := scanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second)
+	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second)
 	if pr.SpecValid {
 		t.Fatal("expected spec_valid=false for broken descriptor maturity")
 	}
@@ -194,10 +224,54 @@ func TestScanProviderBrokenSpec(t *testing.T) {
 	}
 }
 
+func TestScanProviderDescriptorPolicyViolationIsHard(t *testing.T) {
+	repo := t.TempDir()
+	writeSpec(t, repo, "proto-health", "proto")
+	path := filepath.Join(repo, "scenarios", "proto-health", ".vrooli", "test-genie.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read descriptor: %v", err)
+	}
+	raw = []byte(strings.Replace(string(raw), `"providerLifecycle":"start_if_needed"`, `"providerLifecycle":"maybe"`, 1))
+	if err := os.WriteFile(path, raw, 0o644); err != nil {
+		t.Fatalf("write descriptor: %v", err)
+	}
+
+	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second)
+	if pr.SpecValid {
+		t.Fatal("expected spec_valid=false for invalid descriptor policy")
+	}
+	if !pr.HasHardViolation() {
+		t.Fatal("descriptor policy violations must be hard violations")
+	}
+	if !containsViolation(pr.Violations, "code=invalid_provider_lifecycle_policy") {
+		t.Fatalf("violations = %v, want invalid_provider_lifecycle_policy", pr.Violations)
+	}
+}
+
+func TestScanProviderRetiredMaturityFileIsHard(t *testing.T) {
+	repo := t.TempDir()
+	writeSpec(t, repo, "proto-health", "proto")
+	if err := os.WriteFile(filepath.Join(repo, "scenarios", "proto-health", ".vrooli", "maturity.json"), []byte(`{}`), 0o644); err != nil {
+		t.Fatalf("write retired maturity file: %v", err)
+	}
+
+	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second)
+	if pr.SpecValid {
+		t.Fatal("expected spec_valid=false while retired maturity.json remains")
+	}
+	if !pr.HasHardViolation() {
+		t.Fatal("retired maturity.json must be a hard descriptor violation")
+	}
+	if !containsViolation(pr.Violations, "code=leftover_maturity_json") {
+		t.Fatalf("violations = %v, want leftover_maturity_json", pr.Violations)
+	}
+}
+
 func TestScanProviderUnreachableNotHard(t *testing.T) {
 	repo := t.TempDir()
 	writeSpec(t, repo, "proto-health", "proto")
-	pr := scanProvider(context.Background(), probeFn(nil, errors.New("connection refused")), repo, "test-genie", "proto", "proto-health", time.Second)
+	pr := ScanProvider(context.Background(), probeFn(nil, errors.New("connection refused")), repo, "test-genie", "proto", "proto-health", time.Second)
 	if pr.Reachable {
 		t.Fatal("expected unreachable")
 	}
@@ -212,7 +286,7 @@ func TestScanProviderUnreachableNotHard(t *testing.T) {
 func TestScanProviderIdentityMismatch(t *testing.T) {
 	repo := t.TempDir()
 	writeSpec(t, repo, "proto-health", "proto")
-	pr := scanProvider(context.Background(), probeFn(validProbeResponse("imposter", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second)
+	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("imposter", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second)
 	if pr.IdentityOK {
 		t.Fatal("expected identity mismatch")
 	}
@@ -258,4 +332,13 @@ func TestConformanceScannerFiltersBySubject(t *testing.T) {
 	if got := report.Providers[0]; got.Phase != "branding" || got.Provider != "brand-manager" {
 		t.Fatalf("unexpected provider: %+v", got)
 	}
+}
+
+func containsViolation(violations []string, needle string) bool {
+	for _, violation := range violations {
+		if strings.Contains(violation, needle) {
+			return true
+		}
+	}
+	return false
 }

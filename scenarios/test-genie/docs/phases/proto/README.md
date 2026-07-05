@@ -69,5 +69,5 @@ code-facts happens to be running.
 - `packages/proto/STYLE_GUIDE.md` — the proto organization standard.
 - `packages/proto/schemas/architecture/v1/findings.proto` —
   `FINDING_SOURCE_PROTO = 12`.
-- `packages/maturity-go/dimensions/dimensions.json` — the `proto-health`
-  dimension plus test-genie source and phase maps.
+- `scenarios/proto-health/.vrooli/test-genie.json` — the descriptor-owned
+  `proto-health` dimension and phase coverage metadata.

@@ -57,5 +57,5 @@ never on the producer's availability.
 - `packages/measures-go/` — the shared measure contract library.
 - `packages/proto/schemas/architecture/v1/findings.proto` —
   `FINDING_SOURCE_MEASURES = 10`.
-- `scenarios/ecosystem-manager/api/pkg/dimensions/dimensions.json` — the
-  `measures` dimension + `testgenie_source_map` / `testgenie_phase_map` wiring.
+- `scenarios/measures-health/.vrooli/test-genie.json` — the descriptor-owned
+  `measures` dimension and phase coverage metadata.

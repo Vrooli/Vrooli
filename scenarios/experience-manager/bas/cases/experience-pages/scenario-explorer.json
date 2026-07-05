@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "name": "experience-scenario-explorer-page",
+    "description": "Dogfood experience page smoke: opens Scenario Explorer and asserts the page-state grid binding renders.",
+    "requirement": "OT-P0-005",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "experience-scenario-explorer"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-explorer",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "experience-manager",
+          "scenario_path": "/scenarios/experience-manager",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open Scenario Explorer" }
+      }
+    },
+    {
+      "id": "wait-depth-grid",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/experience.explorer.depthGrid",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Depth grid visible" }
+      }
+    }
+  ]
+}

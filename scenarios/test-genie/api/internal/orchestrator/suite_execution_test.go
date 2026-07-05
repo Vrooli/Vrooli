@@ -360,6 +360,7 @@ func TestSuiteOrchestratorPreviewExecutionAppliesDescriptorApplicability(t *test
 		repoRoot := t.TempDir()
 		root := filepath.Join(repoRoot, "scenarios")
 		createScenarioLayout(t, root, "demo")
+		writeTestGenieDescriptor(t, root, "unit-health", testPhaseDescriptor("unit-health", "unit", `"applicability":{"default":"applies"}`))
 		writeTestGenieDescriptor(t, root, "search-hub", searchDescriptor("search-hub"))
 
 		orchestrator, err := NewSuiteOrchestrator(root)
@@ -390,6 +391,7 @@ func TestSuiteOrchestratorPreviewExecutionAppliesDescriptorApplicability(t *test
 		if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "search.json"), []byte(`{"enabled":true}`), 0o644); err != nil {
 			t.Fatalf("failed to seed search config: %v", err)
 		}
+		writeTestGenieDescriptor(t, root, "unit-health", testPhaseDescriptor("unit-health", "unit", `"applicability":{"default":"applies"}`))
 		writeTestGenieDescriptor(t, root, "search-hub", searchDescriptor("search-hub"))
 
 		orchestrator, err := NewSuiteOrchestrator(root)
@@ -412,6 +414,27 @@ func TestSuiteOrchestratorPreviewExecutionAppliesDescriptorApplicability(t *test
 			t.Fatalf("provider readiness = %q, want required_when_applicable", search.ProviderReadiness)
 		}
 	})
+}
+
+func TestSuiteOrchestratorPhasePlanRequiresDescriptorMetadata(t *testing.T) {
+	catalog := phasespkg.NewCatalogFromSpecs(time.Minute, phasespkg.Spec{
+		Name:        phasespkg.Search,
+		Description: "catalog-only fixture",
+		Source:      "validation-provider",
+		Delegated:   &phasespkg.Delegated{ProviderScenario: "search-hub"},
+	})
+	orchestrator := &SuiteOrchestrator{catalog: catalog}
+
+	_, err := orchestrator.buildPhasePlan(workspacepkg.Environment{
+		ScenarioName: "demo",
+		ScenarioDir:  t.TempDir(),
+	}, &workspacepkg.Config{}, SuiteExecutionRequest{})
+	if err == nil {
+		t.Fatal("buildPhasePlan succeeded without descriptor metadata")
+	}
+	if !strings.Contains(err.Error(), "phase_applicability_descriptor_missing") {
+		t.Fatalf("error = %q, want phase_applicability_descriptor_missing", err.Error())
+	}
 }
 
 func TestSuiteOrchestratorExecuteCapturesSelectionMetadata(t *testing.T) {
@@ -523,6 +546,48 @@ func searchDescriptor(scenario string) string {
       }
     },
     "fallback":{"capability_id":"registration","local_level_impact":"L0","global_impact":"unknown","dimension":"operational-targets","severity_default":"SEVERITY_WARNING","clean_requirement":"advisory"}
+  }
+}`
+}
+
+func testPhaseDescriptor(scenario, phase, applicability string) string {
+	return `{
+  "schemaVersion":"1.0.0",
+  "scenario":"` + scenario + `",
+  "phase":"` + phase + `",
+  "description":"Validates ` + phase + ` health.",
+  "source":"validation-provider",
+  "orderHint":100,
+  "timeout":"120s",
+  "validation":{"contract":"scenario-validation/v1","includeExecution":true},
+  ` + applicability + `,
+  "policy":{
+    "selection":"default_when_applicable",
+    "providerReadiness":"required_when_applicable",
+    "providerLifecycle":"start_if_needed",
+    "freshness":"require_live_contract",
+    "resultGating":"gating",
+    "unavailable":"fail"
+  },
+  "runnability":{"needsUI":false,"needsAPI":false,"requiredResources":[]},
+  "docs":{"path":"scenarios/test-genie/docs/phases/` + phase + `/README.md"},
+  "maturity":{
+    "version":"2.0.0",
+    "capabilities":[{"id":"contract","label":"Contract","levels":[{"id":"L0","name":"Missing","description":"Missing contract.","entry_criteria":[],"exit_criteria":[]}]}],
+    "findings":{
+      "TEST_FINDING":{
+        "capability_id":"contract",
+        "local_level_impact":"L0",
+        "global_impact":"capability_gap",
+        "dimension":"operational-targets",
+        "severity_default":"SEVERITY_ERROR",
+        "recommended_skill_ids":["test"],
+        "clean_requirement":"required",
+        "fix_class":"manual",
+        "reason":"Requires provider-specific judgment."
+      }
+    },
+    "fallback":{"capability_id":"contract","local_level_impact":"L0","global_impact":"unknown","dimension":"operational-targets","severity_default":"SEVERITY_WARNING","clean_requirement":"advisory"}
   }
 }`
 }

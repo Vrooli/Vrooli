@@ -22,6 +22,8 @@ import (
 	_ "modernc.org/sqlite"
 
 	healthH "experience-manager/handlers/health"
+	studioH "experience-manager/handlers/studio"
+	validationH "experience-manager/handlers/validation"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -86,6 +88,24 @@ func sqliteFileDSN(path string) (string, error) {
 	), nil
 }
 
+// repoRoot resolves the Vrooli repo root: REPO_ROOT env when set, else walking
+// up from the scenario directory this binary serves.
+func repoRoot() string {
+	if root := strings.TrimSpace(os.Getenv("REPO_ROOT")); root != "" {
+		return root
+	}
+	if dir, err := os.Getwd(); err == nil {
+		for d := dir; d != "/"; d = filepath.Dir(d) {
+			if _, err := os.Stat(filepath.Join(d, "scenarios")); err == nil {
+				if _, err := os.Stat(filepath.Join(d, "packages")); err == nil {
+					return d
+				}
+			}
+		}
+	}
+	return "."
+}
+
 func main() {
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
@@ -115,6 +135,8 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "experience-manager-api", "1.0.0"),
+		studioH.Module(log.Default(), repoRoot(), studioH.WithDatabase(db)),
+		validationH.Module(log.Default(), repoRoot(), nil, validationH.WithDatabase(db)),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

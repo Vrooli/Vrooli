@@ -9,7 +9,11 @@
     "sidebarLabel": "メインナビゲーション",
     "bottomNavLabel": "メインナビゲーション",
     "nav": {
-      "dashboard": "ダッシュボード",
+      "fleet": "フリート",
+      "explorer": "エクスプローラー",
+      "evidence": "エビデンス",
+      "studio": "スタジオ",
+      "findings": "検出事項",
       "settings": "設定"
     }
   },
@@ -31,6 +35,61 @@
       "title": "設定",
       "themeHeading": "外観",
       "localeHeading": "言語"
+    }
+  },
+  "experience": {
+    "common": {
+      "scenario": "シナリオ",
+      "page": "ページ",
+      "depth": "深度",
+      "debt": "負債",
+      "status": "状態",
+      "claims": "クレーム",
+      "viewEvidence": "エビデンスを見る"
+    },
+    "fleet": {
+      "title": "フリート",
+      "description": "シナリオ全体の体験負債を悪い順に表示し、詳細より前に深度とカバレッジを示します。",
+      "depthLabel": "フリート深度",
+      "specCoverage": "仕様カバレッジ",
+      "depthDistribution": "深度分布",
+      "refresh": "スイープを更新",
+      "tableLabel": "体験負債"
+    },
+    "explorer": {
+      "title": "シナリオエクスプローラー",
+      "description": "1 つのシナリオの宣言済みページ、状態、ギャップ、クレーム、引き継ぎを表示します。",
+      "gridLabel": "状態別ページ",
+      "gapsLabel": "カバレッジギャップ",
+      "gapsCopy": "宣言済みのドッグフードルートはすべて、既定状態の構造カバレッジを持っています。",
+      "openStudio": "スタジオで開く",
+      "claimsLabel": "クレーム"
+    },
+    "evidence": {
+      "title": "エビデンス",
+      "description": "すべての判定に対するキャプチャとアクセシビリティツリーのエビデンス。",
+      "captureLabel": "ページキャプチャ",
+      "treeLabel": "アクセシビリティツリー",
+      "verdictsLabel": "クレーム判定",
+      "recapture": "再キャプチャ"
+    },
+    "studio": {
+      "title": "スタジオ",
+      "description": "決定的プレビューとバリアントレールの横で、フォームから仕様を作成します。",
+      "formLabel": "仕様エディター",
+      "validationLabel": "検証サマリー",
+      "validationCopy": "現在のドラフトには契約検出事項がありません。",
+      "wireframeLabel": "ワイヤーフレームプレビュー",
+      "variantsLabel": "バリアント",
+      "save": "仕様を保存",
+      "promote": "バリアントを昇格"
+    },
+    "findings": {
+      "title": "検出事項と修正",
+      "description": "エビデンスリンクとプレビュー優先の修正を含む体験の差分。",
+      "listLabel": "体験の検出事項",
+      "preview": "修正をプレビュー",
+      "apply": "修正を適用"
     }
   },
   "health": {

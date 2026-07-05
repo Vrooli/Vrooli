@@ -75,6 +75,12 @@ func TestLoadRejectsDescriptorErrors(t *testing.T) {
 			want:     "invalid_maturity",
 			scenario: "search-hub",
 		},
+		{
+			name:     "missing docs path",
+			body:     strings.Replace(validDescriptor("search-hub", "search"), `  "docs":{"path":"scenarios/test-genie/docs/phases/search/README.md"},`+"\n", "", 1),
+			want:     "missing_docs_path",
+			scenario: "search-hub",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

@@ -38,9 +38,10 @@ such as BlobStore.
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
 | Experience specs (`experience/` per target scenario) | `spec` (planned) | In-repo JSON files in each **target** scenario | The target scenario's `experience/` folder, validated by `.vrooli/schemas/scenario-experience-spec.schema.json` | Versioned with the target repo tree; never stored here | This scenario reads/writes them via studio + validation; it is not the storage owner. Intent sections are stable; `bindings` sections are the volatile selector SSOT. |
-| Studio authoring sessions | `studio` (planned) | SQLite | `api/internal/studio/schema.sql` (planned) | Deleted on apply or explicit discard; stale sessions swept | Resumable form state + diff previews before any file write. |
+| Wireframe and variant review artifacts | `render` | Local coverage artifacts | `api/internal/render/` output | Disposable per local run | HTML artifacts under `coverage/wireframes/<scenario>/`; variant promotion writes only the selected `experience/` JSON, not the review artifact. |
+| Studio authoring sessions | `studio` | SQLite | `api/internal/authoring/schema.sql` | Explicit discard; apply leaves the session available for audit/resume until discarded. | Resumable form state + diff previews before any file write. |
 | Attestation ledger | `attest` (planned) | SQLite, append-only | `api/internal/attest/schema.sql` (planned) | Append-only; expiry is a validity attribute, not deletion | Manual-tier claim attestations with expiry timestamps; expired ⇒ finding. |
-| Capture evidence references | `reconcile` (planned) | SQLite + artifact refs | `api/internal/reconcile/schema.sql` (planned) | Latest N runs per page/state; older evidence pruned | Screenshot + a11y-tree pairs per claim check. Labeled (a11y reliability, verdict), never aesthetics-filtered — see DECISIONS on the training-data byproduct. |
+| Capture evidence references | `reconcile` | SQLite + artifact refs | `api/internal/reconcile/schema.sql` | Per validation run; pruning policy deferred until evidence volume is known | Screenshot + a11y-tree pairs per claim check. Labeled (a11y reliability, verdict), never aesthetics-filtered — see DECISIONS on the training-data byproduct. |
 
 ## Schema Map
 
@@ -49,7 +50,9 @@ Each domain's schema file lives beside the code that interprets it. The
 
 | Table/File/Object | Owner | Defined In | Used By |
 |---|---|---|---|
-| _(your domain tables)_ | _(owning domain)_ | `api/internal/<domain>/schema.sql` | That domain's repository/service/handlers |
+| `authoring_sessions` | `studio` | `api/internal/authoring/schema.sql` | Studio API/CLI session lifecycle |
+| `authoring_pages` | `studio` | `api/internal/authoring/schema.sql` | Studio page-form drafts, preview, and apply |
+| `reconcile_evidence` | `reconcile` | `api/internal/reconcile/schema.sql` | Reconciliation checks and future evidence surfaces |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
 
 ## Migrations And Compatibility
@@ -72,7 +75,8 @@ backfills, add a scenario-specific migration plan here and update
 
 | Data | Delete Trigger | Retention Rule | Current Gap |
 |---|---|---|---|
-| _(your data)_ | What removes it. | How long it is kept. | Real scenarios must define product-specific deletion semantics. |
+| Studio authoring sessions | `author discard <session>` or future stale-session pruning. | Retained until explicit discard; stale-session pruning is deferred. | No automatic stale-session sweep yet. |
+| Reconcile evidence | Future evidence pruning job or explicit scenario reset. | Retained until pruning lands; rows are labeled by scenario/page/state/claim/capture. | Latest-N pruning is still deferred. |
 
 ## Privacy Notes
 

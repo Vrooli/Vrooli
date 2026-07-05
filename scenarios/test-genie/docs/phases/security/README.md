@@ -56,5 +56,5 @@ rather than a failure. The phase stays green; the gap is visible but advisory.
 - `scenarios/security-health/` — the producer scenario.
 - `packages/proto/schemas/architecture/v1/findings.proto` —
   `FINDING_SOURCE_SECURITY = 9`.
-- `scenarios/ecosystem-manager/api/pkg/dimensions/dimensions.json` — the
-  `security` dimension + `testgenie_source_map` / `testgenie_phase_map` wiring.
+- `scenarios/security-health/.vrooli/test-genie.json` — the descriptor-owned
+  `security` dimension and phase coverage metadata.

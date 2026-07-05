@@ -16,7 +16,7 @@ export function BottomNav() {
   return (
     <nav
       data-testid={selectors.layout.bottomNav}
-      aria-label={t(strings.layout.bottomNavLabel)}
+      aria-label={`${t(strings.layout.bottomNavLabel)} mobile`}
       className="flex shrink-0 items-stretch justify-around border-t border-app-border bg-app-surface md:hidden"
     >
       {NAV_ITEMS.map((item) => (

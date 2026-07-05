@@ -10,7 +10,7 @@
       "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
       "category": "system",
       "response": {
-        "type": "object",
+        "type": "Response",
         "properties": {
           "dependencies": "object",
           "readiness": "boolean",
@@ -32,12 +32,12 @@
             "conformance": "none"
           },
           "response": {
-            "proto_full_name": "vrooli.experience_manager.v1.health.Response",
+            "proto_full_name": "vrooli.experience_manager.v1.shared.Response",
             "transport": "json",
             "conformance": "protojson"
           },
           "error": {
-            "proto_full_name": "vrooli.experience_manager.v1.errors.ErrorEnvelope",
+            "proto_full_name": "vrooli.experience_manager.v1.shared.ErrorEnvelope",
             "transport": "json",
             "conformance": "protojson"
           }
@@ -45,209 +45,376 @@
       }
     },
     {
-      "id": "notes_list",
-      "path": "/vrooli.experience_manager.v1.notes.NotesService/ListNotes",
+      "id": "studio_start_authoring_session",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/StartAuthoringSession",
       "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "response": {
-        "type": "object",
-        "properties": {
-          "notes": "array<Note>"
-        }
-      },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.experience_manager.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_create",
-      "path": "/vrooli.experience_manager.v1.notes.NotesService/CreateNote",
-      "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
+      "summary": "Start an experience spec authoring session",
+      "description": "Creates a persisted authoring session for form-shaped experience/ edits.",
+      "category": "studio",
       "request": {
         "type": "object",
         "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
+          "path": "string",
+          "scenario": "string"
         }
       },
       "response": {
         "type": "object",
         "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.experience_manager.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_get",
-      "path": "/vrooli.experience_manager.v1.notes.NotesService/GetNote",
-      "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "id": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.experience_manager.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_count",
-      "path": "/vrooli.experience_manager.v1.notes.NotesService/CountNotes",
-      "method": "POST",
-      "summary": "Count notes in a time window",
-      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "count": "int64 (notes created in the window)"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Unresolvable or malformed time window"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Count this week",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.experience_manager.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
-      "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
-      "request": {
-        "type": "multipart/form-data",
-        "properties": {
-          "file": "file (required)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "attachment": "Attachment"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
-        }
-      ],
-      "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
-        "proto_payloads": {
-          "request": {
-            "transport": "multipart/form-data",
-            "conformance": "transport_only"
-          },
-          "response": {
-            "proto_full_name": "vrooli.experience_manager.v1.notes.UploadAttachmentResponse",
-            "transport": "json",
-            "conformance": "protojson"
-          },
-          "error": {
-            "proto_full_name": "vrooli.experience_manager.v1.errors.ErrorEnvelope",
-            "transport": "json",
-            "conformance": "protojson"
-          }
+          "session": "AuthoringSession"
         }
       }
+    },
+    {
+      "id": "studio_submit_page",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/SubmitPage",
+      "method": "POST",
+      "summary": "Submit a page form into an authoring session",
+      "description": "Stores a typed PageForm draft for preview/apply.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "page": "PageForm",
+          "session_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "page": "PageDraft",
+          "session": "AuthoringSession"
+        }
+      }
+    },
+    {
+      "id": "studio_preview_session",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/PreviewSession",
+      "method": "POST",
+      "summary": "Preview authoring session diffs",
+      "description": "Computes file diffs and parser validation for the session without touching the target tree.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "session_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "diffs": "array<FileDiff>",
+          "validation": "ValidateScenarioResponse"
+        }
+      }
+    },
+    {
+      "id": "studio_apply_session",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/ApplySession",
+      "method": "POST",
+      "summary": "Apply an authoring session",
+      "description": "Writes previewed experience/ files only after the parser reports zero error findings.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "session_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "diffs": "array<FileDiff>",
+          "validation": "ValidateScenarioResponse"
+        }
+      }
+    },
+    {
+      "id": "studio_discard_session",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/DiscardSession",
+      "method": "POST",
+      "summary": "Discard an authoring session",
+      "description": "Deletes the persisted authoring session and its page drafts.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "session_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "discarded": "boolean"
+        }
+      }
+    },
+    {
+      "id": "studio_list_spec",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/ListSpec",
+      "method": "POST",
+      "summary": "List experience spec documents",
+      "description": "Lists pages and journeys from a scenario's parsed experience index.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "journeys": "array<SpecDocument>",
+          "pages": "array<SpecDocument>"
+        }
+      }
+    },
+    {
+      "id": "studio_show_spec",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/ShowSpec",
+      "method": "POST",
+      "summary": "Show a page spec",
+      "description": "Returns one page document as JSON.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "page": "string",
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "json": "string"
+        }
+      }
+    },
+    {
+      "id": "studio_suggest_bindings",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/SuggestBindings",
+      "method": "POST",
+      "summary": "Suggest page bindings",
+      "description": "Suggests testid/role bindings from existing spec bindings and latest reconciliation evidence.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int",
+          "page": "string",
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "suggestions": "array<BindingSuggestion>"
+        }
+      }
+    },
+    {
+      "id": "studio_render_spec",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/RenderSpec",
+      "method": "POST",
+      "summary": "Render a deterministic page wireframe",
+      "description": "Renders one page spec to stable HTML for workshop review. Image mode degrades to wireframe-only when image-tools is unavailable.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "mode": "string",
+          "page": "string",
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "artifact_path": "string",
+          "degraded_reason": "string",
+          "html": "string"
+        }
+      }
+    },
+    {
+      "id": "studio_compare_variants",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/CompareVariants",
+      "method": "POST",
+      "summary": "Compare rendered page variants",
+      "description": "Renders supplied page-form variants side by side as deterministic workshop HTML.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "mode": "string",
+          "page": "string",
+          "path": "string",
+          "scenario": "string",
+          "variants": "array<SpecVariant>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "artifact_path": "string",
+          "html": "string",
+          "variants": "array<RenderedVariant>"
+        }
+      }
+    },
+    {
+      "id": "studio_promote_variant",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/PromoteVariant",
+      "method": "POST",
+      "summary": "Promote a page variant into the spec",
+      "description": "Writes the selected variant through parser-clean apply semantics and returns diffs plus validation.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "page": "string",
+          "path": "string",
+          "scenario": "string",
+          "variant": "SpecVariant"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "diffs": "array<FileDiff>",
+          "validation": "ValidateScenarioResponse",
+          "variant": "RenderedVariant"
+        }
+      }
+    },
+    {
+      "id": "validation_validate_scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate a scenario's experience contract (shared mount)",
+      "description": "Parser-backed Test Genie ScenarioValidationService mount for scenario-experience-spec/v1 contracts.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string (optional resolved path)",
+          "scenario": "string (required, scenario slug)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "native_detail": "google.protobuf.Any (experience_manager.v1.contract.ExperienceContractReport)",
+          "scenario": "string",
+          "status": "scenario_validation.v1.ValidationStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario path or experience contract cannot be parsed."
+        }
+      ]
+    },
+    {
+      "id": "validation_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview deterministic experience-contract fixes",
+      "description": "Phase 1 mount for deterministic fix previews. Returns Unimplemented until fixers land.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "rule_ids": "array<string> (optional filter)",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "boolean",
+          "candidates": "array<FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Autofix lands in a later phase"
+        }
+      ]
+    },
+    {
+      "id": "validation_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply deterministic experience-contract fixes",
+      "description": "Phase 1 mount for deterministic fixes. Returns Unimplemented until fixers land.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "rule_ids": "array<string> (optional filter)",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "boolean",
+          "candidates": "array<FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Autofix lands in a later phase"
+        }
+      ]
+    },
+    {
+      "id": "contract_validate_scenario",
+      "path": "/vrooli.experience_manager.v1.contract.ContractService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate a scenario's experience contract (native detail)",
+      "description": "Native experience contract validation for scenario-experience-spec/v1 contracts.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string (optional resolved path)",
+          "scenario": "string (required, scenario slug)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "report": "ExperienceContractReport",
+          "scenario": "string",
+          "status": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario path or experience contract cannot be parsed."
+        }
+      ]
     }
   ]
 }

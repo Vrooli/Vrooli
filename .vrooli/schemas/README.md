@@ -52,6 +52,9 @@ The most important source-of-truth rule is:
 - `scenario-ui-manifest.schema.json`
   Defines `templates/scenarios/<id>/ui/manifest.json` (and any scenario-level overrides) — the contract that declares where UI building blocks (`layout-shell`, `page`, `ui-primitive`, etc.) live inside a scenario's UI source tree. Owned by the template the scenario was generated from. Consumed by `react-component-library`'s adoptions resolver to compute canonical filesystem paths for adopted components. `$id: scenario-ui-manifest/v1`.
 
+- `scenario-experience-spec.schema.json`
+  Defines a scenario's root `experience/` folder (`index.json` + `pages/*.json` + `journeys/*.json`) — the experience-axis UX spec: claim-based, open-world assertions about perceivable outcomes with per-claim enforcement tiers (machine/manual/aspirational), WAI-ARIA element vocabulary, and a stable-intent vs. volatile-bindings split. One schema covers all three document kinds, discriminated by the top-level `kind` field. Owned by `scenarios/experience-manager` (doctrine in its `docs/internal/DECISIONS.md`; cross-file semantics enforced by its parser). `$id: scenario-experience-spec/v1`.
+
 ### Generated Artifacts
 
 - `resource-definitions.json`

@@ -2,6 +2,8 @@
 
 Test Genie phases are generated from the effective descriptor-backed registry. Provider-backed phase metadata lives in each provider's `.vrooli/test-genie.json`; Test Genie code owns runner bindings, preset composition, and registry validation.
 
+Use `test-genie phases inspect <phase> --json` or `/api/v1/phases/<phase>` to inspect the effective descriptor projection, including provider, descriptor path, docs path, policy, runnability, applicability vocabulary, freshness requirement, profile membership, phase/runtime class, dimensions, and finding source. Provider descriptors must declare `docs.path`; retired `.vrooli/maturity.json` files are rejected.
+
 ## Phase Summary
 
 | Order | Phase | Timeout | Selection | Provider Readiness | Gating | Runtime | Source | Purpose |
@@ -25,6 +27,7 @@ Test Genie phases are generated from the effective descriptor-backed registry. P
 | 17 | [Proto](proto/README.md) | 2m | `default_when_applicable` | `best_effort` | `gating` | No | validation-provider | Validates proto contracts through proto-health. |
 | 18 | [Branding](branding/README.md) | 2m | `default_when_applicable` | `best_effort` | `gating` | No | validation-provider | Validates brand identity, design tokens, typography, logos, favicons, contrast, and applied brand markers through brand-manager. |
 | 19 | [Search](search/README.md) | 90s | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates search-enabled scenarios through Search Hub's search maturity contract. |
+| 20 | [Provider Conformance](provider-conformance/README.md) | 90s | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates Test Genie phase-provider descriptors: descriptor structure, embedded maturity, policy safety, stale-file absence, and live provider-contract conformance. |
 
 ## Static Phases
 
@@ -44,6 +47,7 @@ Test Genie phases are generated from the effective descriptor-backed registry. P
 - [Proto](proto/README.md) - Validates proto contracts through proto-health.
 - [Branding](branding/README.md) - Validates brand identity, design tokens, typography, logos, favicons, contrast, and applied brand markers through brand-manager.
 - [Search](search/README.md) - Validates search-enabled scenarios through Search Hub's search maturity contract.
+- [Provider Conformance](provider-conformance/README.md) - Validates Test Genie phase-provider descriptors: descriptor structure, embedded maturity, policy safety, stale-file absence, and live provider-contract conformance.
 
 ## Runtime Phases
 

@@ -64,8 +64,9 @@
       "id": "stale-visibly-dated",
       "type": "state-distinct",
       "statement": "Stale sweep data is distinguishable from fresh data without reading timestamps closely.",
-      "tier": "machine",
-      "states": ["stale", "default"]
+      "tier": "manual",
+      "states": ["stale", "default"],
+      "rationale": "Requires a seeded stale sweep state; default live reconciliation cannot make stale data reachable yet."
     },
     {
       "id": "worst-first-ordering",

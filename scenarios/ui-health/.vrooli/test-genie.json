@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "scenario": "ui-health",
   "phase": "ui-health",
+  "displayName": "UI Health",
   "description": "Validates UI manifests, interop, standards, and BAS runtime evidence through ui-health.",
   "source": "validation-provider",
   "orderHint": 2,
@@ -1226,5 +1227,14 @@
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "required"
     }
-  }
+  },
+  "profileMembership": [
+    "architecture-audit"
+  ],
+  "freshnessRequirement": "never",
+  "phaseClass": "architecture",
+  "runtimeClass": "static",
+  "dimensions": [
+    "ui"
+  ]
 }

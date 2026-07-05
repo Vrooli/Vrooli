@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/vrooli/maturity-go/assessment"
+	"github.com/vrooli/maturity-go/dimensions"
 
 	"test-genie/internal/orchestrator/phasekeys"
 	"test-genie/internal/orchestrator/phasepolicy"
@@ -22,24 +23,46 @@ const (
 )
 
 type Descriptor struct {
-	SchemaVersion string           `json:"schemaVersion"`
-	Scenario      string           `json:"scenario"`
-	Phase         string           `json:"phase"`
-	DisplayName   string           `json:"displayName"`
-	Description   string           `json:"description"`
-	Source        string           `json:"source"`
-	OrderHint     int              `json:"orderHint,omitempty"`
-	Timeout       string           `json:"timeout"`
-	FindingSource string           `json:"findingSource,omitempty"`
-	Validation    Validation       `json:"validation"`
-	Applicability Applicability    `json:"applicability"`
-	Policy        Policy           `json:"policy"`
-	Runnability   Runnability      `json:"runnability"`
-	Docs          Docs             `json:"docs,omitempty"`
-	Maturity      json.RawMessage  `json:"maturity"`
-	Path          string           `json:"-"`
-	TimeoutValue  time.Duration    `json:"-"`
-	MaturitySpec  *assessment.Spec `json:"-"`
+	SchemaVersion        string           `json:"schemaVersion"`
+	Scenario             string           `json:"scenario"`
+	Phase                string           `json:"phase"`
+	DisplayName          string           `json:"displayName"`
+	Description          string           `json:"description"`
+	Source               string           `json:"source"`
+	OrderHint            int              `json:"orderHint,omitempty"`
+	Timeout              string           `json:"timeout"`
+	FindingSource        string           `json:"findingSource,omitempty"`
+	ProfileMembership    []string         `json:"profileMembership,omitempty"`
+	FreshnessRequirement string           `json:"freshnessRequirement,omitempty"`
+	PhaseClass           string           `json:"phaseClass,omitempty"`
+	RuntimeClass         string           `json:"runtimeClass,omitempty"`
+	Dimensions           []string         `json:"dimensions,omitempty"`
+	Validation           Validation       `json:"validation"`
+	Applicability        Applicability    `json:"applicability"`
+	Policy               Policy           `json:"policy"`
+	Runnability          Runnability      `json:"runnability"`
+	Docs                 Docs             `json:"docs,omitempty"`
+	Maturity             json.RawMessage  `json:"maturity"`
+	Path                 string           `json:"-"`
+	TimeoutValue         time.Duration    `json:"-"`
+	MaturitySpec         *assessment.Spec `json:"-"`
+}
+
+func (d *Descriptor) UnmarshalJSON(raw []byte) error {
+	type alias Descriptor
+	aux := struct {
+		*alias
+		FindingSource *string `json:"findingSource"`
+	}{alias: (*alias)(d)}
+	if err := json.Unmarshal(raw, &aux); err != nil {
+		return err
+	}
+	if aux.FindingSource == nil {
+		d.FindingSource = ""
+	} else {
+		d.FindingSource = strings.TrimSpace(*aux.FindingSource)
+	}
+	return nil
 }
 
 type Validation struct {
@@ -258,10 +281,76 @@ func validateDescriptor(d *Descriptor) []Diagnostic {
 	if !oneOf(d.Runnability.DBIsolation, "", "none", "routed") {
 		add("invalid_db_isolation", "runnability.dbIsolation must be none or routed")
 	}
+	if strings.TrimSpace(d.Docs.Path) == "" {
+		add("missing_docs_path", "docs.path is required")
+	}
+	normalizeOrchestrationDefaults(d)
+	out = append(out, validateOrchestration(d)...)
 	out = append(out, validateApplicability(d)...)
 	out = append(out, validatePolicy(d)...)
 	if len(d.Maturity) == 0 || string(d.Maturity) == "null" {
 		add("missing_maturity", "maturity is required")
+	}
+	return out
+}
+
+func normalizeOrchestrationDefaults(d *Descriptor) {
+	if strings.TrimSpace(d.FreshnessRequirement) == "" {
+		d.FreshnessRequirement = "never"
+	}
+	if strings.TrimSpace(d.PhaseClass) == "" {
+		d.PhaseClass = "quality"
+	}
+	if strings.TrimSpace(d.RuntimeClass) == "" {
+		d.RuntimeClass = "static"
+	}
+	for i, profile := range d.ProfileMembership {
+		d.ProfileMembership[i] = phasekeys.NormalizeKey(profile)
+	}
+	for i, dim := range d.Dimensions {
+		d.Dimensions[i] = strings.TrimSpace(dim)
+	}
+}
+
+func validateOrchestration(d *Descriptor) []Diagnostic {
+	var out []Diagnostic
+	add := func(code, msg string) {
+		out = append(out, Diagnostic{Path: d.Path, Code: code, Message: msg})
+	}
+	seenProfiles := map[string]struct{}{}
+	for _, profile := range d.ProfileMembership {
+		if !oneOf(profile, "architecture-audit") {
+			add("invalid_profile_membership", fmt.Sprintf("profileMembership contains unsupported profile %q", profile))
+			continue
+		}
+		if _, exists := seenProfiles[profile]; exists {
+			add("duplicate_profile_membership", fmt.Sprintf("profileMembership contains duplicate profile %q", profile))
+		}
+		seenProfiles[profile] = struct{}{}
+	}
+	if !oneOf(d.FreshnessRequirement, "never", "always", "when_applicable") {
+		add("invalid_freshness_requirement", "freshnessRequirement must be never, always, or when_applicable")
+	}
+	if !oneOf(d.PhaseClass, "quality", "architecture", "runtime", "provider-contract", "capability") {
+		add("invalid_phase_class", "phaseClass must be quality, architecture, runtime, provider-contract, or capability")
+	}
+	if !oneOf(d.RuntimeClass, "static", "execution", "lifecycle") {
+		add("invalid_runtime_class", "runtimeClass must be static, execution, or lifecycle")
+	}
+	seenDims := map[string]struct{}{}
+	for _, raw := range d.Dimensions {
+		if raw == "" {
+			add("invalid_dimension", "dimensions cannot contain empty values")
+			continue
+		}
+		if !dimensions.IsValid(dimensions.Dimension(raw)) {
+			add("invalid_dimension", fmt.Sprintf("dimension %q is not in dimensions.json", raw))
+			continue
+		}
+		if _, exists := seenDims[raw]; exists {
+			add("duplicate_dimension", fmt.Sprintf("dimensions contains duplicate dimension %q", raw))
+		}
+		seenDims[raw] = struct{}{}
 	}
 	return out
 }

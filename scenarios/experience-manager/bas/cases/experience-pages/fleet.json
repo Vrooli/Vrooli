@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "name": "experience-fleet-page",
+    "description": "Dogfood experience page smoke: opens Fleet and asserts the debt table binding renders.",
+    "requirement": "OT-P0-005",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "experience-fleet"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-fleet",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "experience-manager",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open Experience Manager Fleet" }
+      }
+    },
+    {
+      "id": "wait-debt-table",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/experience.fleet.debtTable",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Debt table visible" }
+      }
+    }
+  ]
+}

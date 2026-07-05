@@ -33,7 +33,7 @@
           "completion": "required",
           "validation": {
             "requiredHeadings": ["What You Get", "Documentation Map", "Customize Safely"],
-            "forbiddenPlaceholders": ["[TODO]", "[Summarize]"]
+            "forbiddenPlaceholders": ["\u005bTODO\u005d", "[Summarize]"]
           }
         },
         {
@@ -50,7 +50,7 @@
           "ownerSkills": ["scenario-generation"],
           "validation": {
             "requiredHeadings": ["Initialization Protocol", "Architecture Rules", "Replacing The Example Domain"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"]
           }
         },
         {
@@ -65,7 +65,7 @@
           "requiredBy": ["generated"],
           "completion": "required",
           "validation": {
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"]
           }
         },
         {
@@ -99,7 +99,7 @@
           "ownerSkills": ["react-coherence", "ux"],
           "validation": {
             "requiredHeadings": ["Intent", "Feedback & State", "Request Lifecycle"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"]
           }
         },
         {
@@ -115,7 +115,7 @@
           "completion": "required",
           "validation": {
             "requiredHeadings": ["Prerequisites", "1 — Setup", "2 — Start", "3 — Open", "5 — Run the tests"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"]
           }
         }
       ]
@@ -142,7 +142,7 @@
           "ownerSkills": ["screaming-architecture-audit"],
           "validation": {
             "requiredHeadings": ["Purpose Of This Document", "Scenario Shape", "System Boundaries", "Contracts And Data Flow", "Shared Infrastructure", "Extension Rules", "Architecture Maturity", "Intentional Deviations", "Documentation Architecture", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"],
             "requiredLinks": ["DOMAINS.md", "FLOWS.md", "DATA.md", "INTEGRATIONS.md", "../internal/SEAMS.md", "../internal/TESTING.md"]
           }
         },
@@ -160,7 +160,7 @@
           "ownerSkills": ["screaming-architecture-audit"],
           "validation": {
             "requiredHeadings": ["Purpose Of This Document", "Domain Inventory", "Domain Details", "Shared Concepts", "Deferred Domains", "Non-Domains", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"],
             "requiredLinks": ["ARCHITECTURE.md", "FLOWS.md", "DATA.md", "../internal/SEAMS.md"],
             "tableContracts": [
               {
@@ -205,7 +205,7 @@
           "ownerSkills": ["temporal-flow-audit"],
           "validation": {
             "requiredHeadings": ["Purpose Of This Document", "Flow Inventory", "Flow Details", "State Machines", "Maturity Ladder", "Production Shape", "Deferred / Unmodeled Flows", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"],
             "allowNotApplicable": true
           }
         },
@@ -223,7 +223,7 @@
           "ownerSkills": ["storage-steer"],
           "validation": {
             "requiredHeadings": ["Purpose Of This Document", "Storage Overview", "Data Ownership", "Schema Map", "Migrations And Compatibility", "Import / Export", "Retention And Deletion", "Privacy Notes", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"]
           }
         },
         {
@@ -240,7 +240,7 @@
           "ownerSkills": ["interoperability-steer", "cross-platform-readiness"],
           "validation": {
             "requiredHeadings": ["Purpose Of This Document", "Dependency Inventory", "Vrooli Resources", "Scenario Dependencies", "Third-Party Services", "Failure Modes", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"],
             "requiredLinks": ["../reference/configuration.md"]
           }
         },
@@ -257,7 +257,7 @@
           "completion": "optional",
           "validation": {
             "requiredHeadings": ["Purpose Of This Document", "Source Layout", "Slots Are A Contract", "Adoption Resolver Flow", "Extending The Manifest", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"]
           }
         }
       ]
@@ -285,7 +285,7 @@
           "ownerSkills": ["monetization-signal-classifier", "market-validation-triage"],
           "validation": {
             "requiredHeadings": ["Purpose Of This Document", "Role In Vrooli", "Customer / Buyer", "Packaging", "Pricing Hypothesis", "Validation Plan", "Current Status", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"],
             "allowNotApplicable": true
           }
         },
@@ -304,7 +304,7 @@
           "ownerSkills": ["marketing-signal-classifier", "market-validation-triage"],
           "validation": {
             "requiredHeadings": ["Purpose Of This Document", "Audience And Positioning", "Channels", "Launch Motion", "Messaging", "Validation Experiments", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"],
             "allowNotApplicable": true
           }
         }
@@ -332,7 +332,7 @@
           "ownerSkills": ["deployment-coordinator", "cross-platform-readiness"],
           "validation": {
             "requiredHeadings": ["Purpose Of This Document", "Supported Tiers", "Runtime Requirements", "Packaging", "Release Checklist", "Rollback", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"]
           }
         },
         {
@@ -349,7 +349,7 @@
           "ownerSkills": ["deployment-coordinator"],
           "validation": {
             "requiredHeadings": ["Purpose Of This Document", "Start / Stop / Status", "Common Incidents", "Backup / Restore", "Maintenance Tasks", "Escalation", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"]
           }
         },
         {
@@ -366,7 +366,7 @@
           "ownerSkills": ["deployment-coordinator", "performance"],
           "validation": {
             "requiredHeadings": ["Purpose Of This Document", "Signals", "Logs", "Metrics", "Alerts / Health", "Telemetry Gaps", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"]
           }
         }
       ]
@@ -392,7 +392,7 @@
           "completion": "required",
           "validation": {
             "requiredHeadings": ["Lifecycle and ports", "API and CLI", "Build and dependencies", "Tests", "Storage", "Proto codegen", "When to add a new entry here", "Cross-references"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"]
           }
         }
       ]
@@ -418,7 +418,7 @@
           "completion": "required",
           "validation": {
             "requiredHeadings": ["System", "Notes (CRUD reference)", "Adding a new endpoint", "Cross-references"],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"],
             "requiredLinks": ["../../.vrooli/endpoints.json"]
           }
         },
@@ -435,7 +435,7 @@
           "completion": "required",
           "validation": {
             "requiredHeadings": ["Global flags (provided by cli-core)", "Built-in commands (auto-provided by `cli-core`)", "Scenario commands — `notes` (CRUD reference)", "Output contracts", "Adding a new command", "Cross-references"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"]
           }
         },
         {
@@ -451,7 +451,7 @@
           "completion": "required",
           "validation": {
             "requiredHeadings": ["Environment variables", "Service manifest (`.vrooli/service.json`)", "Schema bootstrap", "CLI config file", "API-base resolution precedence", "Test/CI configuration", "Cross-references"],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"],
             "requiredLinks": [".vrooli/service.json"]
           }
         },
@@ -468,7 +468,7 @@
           "completion": "optional",
           "validation": {
             "requiredHeadings": ["Contract", "Slots (v1)", "Path-Pattern Tokens", "Resolution Order (Adoption Resolver)", "Overlays", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"]
           }
         }
       ]
@@ -496,7 +496,7 @@
           "ownerSkills": ["seam-discovery-and-enforcement", "screaming-architecture-audit"],
           "validation": {
             "requiredHeadings": ["Wire contracts live in proto, not seams", "Workflow transitions are not seams", "Current seams", "Adding a new seam", "Architecture Alignment Notes", "UI-side seams", "What is NOT a seam", "API contract manifest", "Cross-references"],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"],
             "requiredLinks": ["../concepts/FLOWS.md"]
           }
         },
@@ -514,7 +514,7 @@
           "ownerSkills": ["error-semantics-recovery-path-design"],
           "validation": {
             "requiredHeadings": ["Proto-Typed Operations", "Sentinel Mapping", "Multipart REST Exceptions"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"]
           }
         },
         {
@@ -531,7 +531,7 @@
           "ownerSkills": ["test", "unit-testing-architecture-steer"],
           "validation": {
             "requiredHeadings": ["TL;DR — the canonical examples", "API testing", "UI testing", "CLI testing", "How to add a new proto", "E2E binary smoke gate", "Coverage thresholds", "Common patterns and anti-patterns", "Cross-references"],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"],
             "requiredLinks": ["../concepts/FLOWS.md"]
           }
         },
@@ -549,7 +549,7 @@
           "ownerSkills": ["security-posture"],
           "validation": {
             "requiredHeadings": ["Purpose Of This Document", "Data Sensitivity", "Auth And Authorization", "Secrets", "Threat Model", "Security Gaps", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"],
             "allowNotApplicable": true
           }
         },
@@ -568,7 +568,7 @@
           "ownerSkills": ["performance"],
           "validation": {
             "requiredHeadings": ["Purpose Of This Document", "Budgets", "Current Measurements", "Known Constraints", "Regression Procedure", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"],
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"],
             "allowNotApplicable": true
           }
         },
@@ -585,7 +585,7 @@
           "completion": "required",
           "validation": {
             "requiredHeadings": ["Purpose Of This Document", "Decision Log", "Superseded Decisions", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"]
           }
         },
         {
@@ -615,7 +615,7 @@
           },
           "validation": {
             "requiredHeadings": ["What belongs here", "What does NOT belong here", "Entry template", "Entries", "Architecture Drift", "Cross-references"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"]
           }
         },
         {
@@ -645,8 +645,210 @@
           },
           "validation": {
             "requiredHeadings": ["Progress Log"],
-            "forbiddenPlaceholders": ["[TODO]"]
+            "forbiddenPlaceholders": ["\u005bTODO\u005d"]
           }
+        }
+      ]
+    },
+    {
+      "id": "findings",
+      "title": "Finding Remediation",
+      "icon": "wrench",
+      "description": "One remediation doc per finding code in the frozen experience vocabulary",
+      "purpose": "Make every experience finding code addressable: what it means, how to fix it, and where it is emitted.",
+      "extensionPolicy": "Exactly one document per finding code declared by the experience alignment doctrine.",
+      "documents": [
+        {
+          "path": "findings/experience.schema_invalid.md",
+          "docType": "finding-experience-schema-invalid",
+          "title": "experience.schema_invalid",
+          "description": "Remediation doc for the `experience.schema_invalid` finding",
+          "audience": ["agents", "developers"],
+          "maturity": "draft",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"requiredHeadings": ["What it means", "How to fix it", "Provenance"], "forbiddenPlaceholders": ["\u005bTODO\u005d"]},
+          "aliases": ["experience.schema_invalid"]
+        },
+        {
+          "path": "findings/experience.index_parity.md",
+          "docType": "finding-experience-index-parity",
+          "title": "experience.index_parity",
+          "description": "Remediation doc for the `experience.index_parity` finding",
+          "audience": ["agents", "developers"],
+          "maturity": "draft",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"requiredHeadings": ["What it means", "How to fix it", "Provenance"], "forbiddenPlaceholders": ["\u005bTODO\u005d"]},
+          "aliases": ["experience.index_parity"]
+        },
+        {
+          "path": "findings/experience.ref_unresolved.md",
+          "docType": "finding-experience-ref-unresolved",
+          "title": "experience.ref_unresolved",
+          "description": "Remediation doc for the `experience.ref_unresolved` finding",
+          "audience": ["agents", "developers"],
+          "maturity": "draft",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"requiredHeadings": ["What it means", "How to fix it", "Provenance"], "forbiddenPlaceholders": ["\u005bTODO\u005d"]},
+          "aliases": ["experience.ref_unresolved"]
+        },
+        {
+          "path": "findings/experience.prd_ref_unmatched.md",
+          "docType": "finding-experience-prd-ref-unmatched",
+          "title": "experience.prd_ref_unmatched",
+          "description": "Remediation doc for the `experience.prd_ref_unmatched` finding",
+          "audience": ["agents", "developers"],
+          "maturity": "draft",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"requiredHeadings": ["What it means", "How to fix it", "Provenance"], "forbiddenPlaceholders": ["\u005bTODO\u005d"]},
+          "aliases": ["experience.prd_ref_unmatched"]
+        },
+        {
+          "path": "findings/experience.binding_orphan.md",
+          "docType": "finding-experience-binding-orphan",
+          "title": "experience.binding_orphan",
+          "description": "Remediation doc for the `experience.binding_orphan` finding",
+          "audience": ["agents", "developers"],
+          "maturity": "draft",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"requiredHeadings": ["What it means", "How to fix it", "Provenance"], "forbiddenPlaceholders": ["\u005bTODO\u005d"]},
+          "aliases": ["experience.binding_orphan"]
+        },
+        {
+          "path": "findings/experience.tier_violation.md",
+          "docType": "finding-experience-tier-violation",
+          "title": "experience.tier_violation",
+          "description": "Remediation doc for the `experience.tier_violation` finding",
+          "audience": ["agents", "developers"],
+          "maturity": "draft",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"requiredHeadings": ["What it means", "How to fix it", "Provenance"], "forbiddenPlaceholders": ["\u005bTODO\u005d"]},
+          "aliases": ["experience.tier_violation"]
+        },
+        {
+          "path": "findings/experience.route_unspecced.md",
+          "docType": "finding-experience-route-unspecced",
+          "title": "experience.route_unspecced",
+          "description": "Remediation doc for the `experience.route_unspecced` finding",
+          "audience": ["agents", "developers"],
+          "maturity": "draft",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"requiredHeadings": ["What it means", "How to fix it", "Provenance"], "forbiddenPlaceholders": ["\u005bTODO\u005d"]},
+          "aliases": ["experience.route_unspecced"]
+        },
+        {
+          "path": "findings/experience.state_missing.md",
+          "docType": "finding-experience-state-missing",
+          "title": "experience.state_missing",
+          "description": "Remediation doc for the `experience.state_missing` finding",
+          "audience": ["agents", "developers"],
+          "maturity": "draft",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"requiredHeadings": ["What it means", "How to fix it", "Provenance"], "forbiddenPlaceholders": ["\u005bTODO\u005d"]},
+          "aliases": ["experience.state_missing"]
+        },
+        {
+          "path": "findings/experience.binding_unresolved.md",
+          "docType": "finding-experience-binding-unresolved",
+          "title": "experience.binding_unresolved",
+          "description": "Remediation doc for the `experience.binding_unresolved` finding",
+          "audience": ["agents", "developers"],
+          "maturity": "draft",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"requiredHeadings": ["What it means", "How to fix it", "Provenance"], "forbiddenPlaceholders": ["\u005bTODO\u005d"]},
+          "aliases": ["experience.binding_unresolved"]
+        },
+        {
+          "path": "findings/experience.claim_failed.md",
+          "docType": "finding-experience-claim-failed",
+          "title": "experience.claim_failed",
+          "description": "Remediation doc for the `experience.claim_failed` finding",
+          "audience": ["agents", "developers"],
+          "maturity": "draft",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"requiredHeadings": ["What it means", "How to fix it", "Provenance"], "forbiddenPlaceholders": ["\u005bTODO\u005d"]},
+          "aliases": ["experience.claim_failed"]
+        },
+        {
+          "path": "findings/experience.claim_unverifiable.md",
+          "docType": "finding-experience-claim-unverifiable",
+          "title": "experience.claim_unverifiable",
+          "description": "Remediation doc for the `experience.claim_unverifiable` finding",
+          "audience": ["agents", "developers"],
+          "maturity": "draft",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"requiredHeadings": ["What it means", "How to fix it", "Provenance"], "forbiddenPlaceholders": ["\u005bTODO\u005d"]},
+          "aliases": ["experience.claim_unverifiable"]
+        },
+        {
+          "path": "findings/experience.capture_unavailable.md",
+          "docType": "finding-experience-capture-unavailable",
+          "title": "experience.capture_unavailable",
+          "description": "Remediation doc for the `experience.capture_unavailable` finding",
+          "audience": ["agents", "developers"],
+          "maturity": "draft",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"requiredHeadings": ["What it means", "How to fix it", "Provenance"], "forbiddenPlaceholders": ["\u005bTODO\u005d"]},
+          "aliases": ["experience.capture_unavailable"]
+        },
+        {
+          "path": "findings/experience.attestation_expired.md",
+          "docType": "finding-experience-attestation-expired",
+          "title": "experience.attestation_expired",
+          "description": "Remediation doc for the `experience.attestation_expired` finding",
+          "audience": ["agents", "developers"],
+          "maturity": "draft",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"requiredHeadings": ["What it means", "How to fix it", "Provenance"], "forbiddenPlaceholders": ["\u005bTODO\u005d"]},
+          "aliases": ["experience.attestation_expired"]
+        },
+        {
+          "path": "findings/experience.claim_unproven.md",
+          "docType": "finding-experience-claim-unproven",
+          "title": "experience.claim_unproven",
+          "description": "Remediation doc for the `experience.claim_unproven` finding",
+          "audience": ["agents", "developers"],
+          "maturity": "draft",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"requiredHeadings": ["What it means", "How to fix it", "Provenance"], "forbiddenPlaceholders": ["\u005bTODO\u005d"]},
+          "aliases": ["experience.claim_unproven"]
+        },
+        {
+          "path": "findings/experience.importance_mismatch.md",
+          "docType": "finding-experience-importance-mismatch",
+          "title": "experience.importance_mismatch",
+          "description": "Remediation doc for the `experience.importance_mismatch` finding",
+          "audience": ["agents", "developers"],
+          "maturity": "draft",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"requiredHeadings": ["What it means", "How to fix it", "Provenance"], "forbiddenPlaceholders": ["\u005bTODO\u005d"]},
+          "aliases": ["experience.importance_mismatch"]
+        },
+        {
+          "path": "findings/experience.glance_judge_mismatch.md",
+          "docType": "finding-experience-glance-judge-mismatch",
+          "title": "experience.glance_judge_mismatch",
+          "description": "Remediation doc for the `experience.glance_judge_mismatch` finding",
+          "audience": ["agents", "developers"],
+          "maturity": "draft",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"requiredHeadings": ["What it means", "How to fix it", "Provenance"], "forbiddenPlaceholders": ["\u005bTODO\u005d"]},
+          "aliases": ["experience.glance_judge_mismatch"]
         }
       ]
     }

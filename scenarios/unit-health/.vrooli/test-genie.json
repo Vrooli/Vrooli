@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "scenario": "unit-health",
   "phase": "unit",
+  "displayName": "Unit",
   "description": "Validates test execution, coverage, architecture, quality, and runtime diagnostics through unit-health.",
   "source": "validation-provider",
   "orderHint": 10,
@@ -582,5 +583,13 @@
         ]
       }
     ]
-  }
+  },
+  "profileMembership": [],
+  "freshnessRequirement": "when_applicable",
+  "phaseClass": "runtime",
+  "runtimeClass": "execution",
+  "dimensions": [
+    "tests",
+    "coverage"
+  ]
 }

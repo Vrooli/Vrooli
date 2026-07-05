@@ -18,6 +18,7 @@ import (
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 
 	catalog "test-genie/internal/orchestrator/phases"
+	"test-genie/internal/orchestrator/providerdescriptor"
 )
 
 // DefaultPhaseMeta builds the phase→meta attribution map from the default phase
@@ -193,7 +194,7 @@ func (s ConformanceScanner) Scan(ctx context.Context) ConformanceReport {
 		go func(i int, j job) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			results[i] = scanProvider(ctx, probe, s.RepoRoot, target, j.phase, j.provider, j.timeout)
+			results[i] = ScanProvider(ctx, probe, s.RepoRoot, target, j.phase, j.provider, j.timeout)
 		}(i, j)
 	}
 	wg.Wait()
@@ -202,16 +203,17 @@ func (s ConformanceScanner) Scan(ctx context.Context) ConformanceReport {
 	return ConformanceReport{Target: target, Providers: results}
 }
 
-// scanProvider scores one provider: spec validity (local), then reachability +
-// contract + identity + metrics adoption (live probe).
-func scanProvider(ctx context.Context, probe ConformanceProbe, repoRoot, target, phase, provider string, timeout time.Duration) ProviderConformance {
+// ScanProvider scores one provider: spec validity (local), then reachability +
+// contract + identity + metrics adoption (live probe). It is exported so the
+// provider-conformance validation phase reuses the exact same adoption rules
+// the fleet scan applies (no second implementation to drift).
+func ScanProvider(ctx context.Context, probe ConformanceProbe, repoRoot, target, phase, provider string, timeout time.Duration) ProviderConformance {
 	pr := ProviderConformance{Provider: provider, Phase: phase}
 
 	// spec_valid is a local check, independent of whether the provider is live.
-	spec, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", provider))
+	spec := loadProviderDescriptorSpec(&pr, repoRoot, provider)
 	switch {
-	case err != nil:
-		pr.Violations = append(pr.Violations, fmt.Sprintf("descriptor maturity invalid: %v", err))
+	case spec == nil:
 	case spec.Provider != provider || spec.Phase != phase:
 		pr.Violations = append(pr.Violations, fmt.Sprintf(
 			"descriptor maturity identity mismatch: provider=%q phase=%q, want provider=%q phase=%q",
@@ -258,6 +260,20 @@ func scanProvider(ctx context.Context, probe ConformanceProbe, repoRoot, target,
 	return pr
 }
 
+func loadProviderDescriptorSpec(pr *ProviderConformance, repoRoot, provider string) *assessment.Spec {
+	path := filepath.Join(repoRoot, "scenarios", provider, filepath.FromSlash(providerdescriptor.RelPath))
+	load := providerdescriptor.Load(providerdescriptor.LoadOptions{Paths: []string{path}})
+	for _, diagnostic := range load.Diagnostics {
+		pr.Violations = append(pr.Violations, fmt.Sprintf(
+			"descriptor invalid: code=%s path=%s detail=%s",
+			diagnostic.Code, diagnostic.Path, diagnostic.Message))
+	}
+	if len(load.Diagnostics) > 0 || len(load.Descriptors) != 1 {
+		return nil
+	}
+	return load.Descriptors[0].MaturitySpec
+}
+
 // adoptionScore is the fraction of the five adoption dimensions satisfied.
 func adoptionScore(r ProviderConformance) float64 {
 	satisfied := 0
@@ -267,6 +283,14 @@ func adoptionScore(r ProviderConformance) float64 {
 		}
 	}
 	return float64(satisfied) / 5.0
+}
+
+// DefaultConformanceProbe is the live Connect probe used when no seam is
+// injected: resolve the provider's URL through discovery and call
+// ValidateScenario with include_execution=false. Exported for the
+// provider-conformance validation phase, which shares the probe path.
+func DefaultConformanceProbe(ctx context.Context, provider, target string, timeout time.Duration) (*scenariovalidationv1.ValidateScenarioResponse, error) {
+	return defaultConformanceProbe(ctx, provider, target, timeout)
 }
 
 func defaultConformanceProbe(ctx context.Context, provider, target string, timeout time.Duration) (*scenariovalidationv1.ValidateScenarioResponse, error) {

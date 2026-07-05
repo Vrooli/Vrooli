@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "scenario": "tidiness-manager",
   "phase": "tidiness",
+  "displayName": "Tidiness",
   "description": "Validates file and function quality checks through tidiness-manager.",
   "source": "validation-provider",
   "orderHint": 14,
@@ -244,5 +245,12 @@
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "required"
     }
-  }
+  },
+  "profileMembership": [],
+  "freshnessRequirement": "never",
+  "phaseClass": "quality",
+  "runtimeClass": "static",
+  "dimensions": [
+    "tidiness"
+  ]
 }

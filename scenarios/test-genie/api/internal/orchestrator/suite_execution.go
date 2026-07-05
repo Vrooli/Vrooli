@@ -344,30 +344,29 @@ func NewSuiteOrchestrator(scenariosRoot string) (*SuiteOrchestrator, error) {
 		if err := defaultDescriptorLoad.Err(); err != nil {
 			return nil, fmt.Errorf("load default provider descriptors: %w", err)
 		}
-		registryResult := phaseregistry.Build(defaultDescriptorLoad.Descriptors, phaseregistry.Options{})
-		if len(registryResult.Diagnostics) > 0 {
-			return nil, fmt.Errorf("build default descriptor phase registry: %s", formatRegistryDiagnostics(registryResult.Diagnostics))
+		builtRegistry, err := phases.BuildDescriptorRegistry(defaultDescriptorLoad.Descriptors)
+		if err != nil {
+			return nil, fmt.Errorf("build default descriptor phase registry: %w", err)
 		}
-		registry = registryResult.Registry
+		registry = builtRegistry
 		if err := phases.ValidatePresets(catalog); err != nil {
 			return nil, fmt.Errorf("invalid default presets: %w", err)
 		}
 	} else {
-		registryResult := phaseregistry.Build(descriptorLoad.Descriptors, phaseregistry.Options{})
-		if len(registryResult.Diagnostics) > 0 {
-			return nil, fmt.Errorf("build descriptor phase registry: %s", formatRegistryDiagnostics(registryResult.Diagnostics))
+		builtRegistry, err := phases.BuildDescriptorRegistry(descriptorLoad.Descriptors)
+		if err != nil {
+			return nil, err
 		}
-		registry = registryResult.Registry
+		registry = builtRegistry
 		if repoBacked {
-			catalog = phases.NewCatalogFromSpecs(defaultPhaseTimeout, registry.Specs()...)
+			catalog = phases.NewCatalogFromSpecs(defaultPhaseTimeout, phases.SpecsFromRegistry(registry)...)
 		} else {
-			catalog = phases.NewDefaultCatalog(defaultPhaseTimeout)
-			for _, spec := range registry.Specs() {
-				catalog.Register(spec)
-			}
+			catalog = phases.NewCatalogFromSpecs(defaultPhaseTimeout, phases.SpecsFromRegistry(registry)...)
 		}
-		if err := phases.ValidatePresets(catalog); err != nil {
-			return nil, fmt.Errorf("invalid descriptor-backed presets: %w", err)
+		if repoBacked {
+			if err := phases.ValidatePresets(catalog); err != nil {
+				return nil, fmt.Errorf("invalid descriptor-backed presets: %w", err)
+			}
 		}
 	}
 	return &SuiteOrchestrator{
@@ -978,7 +977,11 @@ func (o *SuiteOrchestrator) discoverPhaseDefinitions(_ workspacepkg.Environment)
 	definitions := make(map[string]phases.Definition)
 	if o.registry != nil {
 		for _, entry := range o.registry.All() {
-			definitions[entry.Spec.Name.Key()] = entry.Spec.ToDefinition()
+			spec, ok := phases.SpecFromRegistryEntry(entry)
+			if !ok {
+				continue
+			}
+			definitions[spec.Name.Key()] = spec.ToDefinition()
 		}
 	}
 	if o.catalog != nil {
@@ -1571,13 +1574,17 @@ func (o *SuiteOrchestrator) DescribePhases() []phases.Descriptor {
 }
 
 func descriptorFromRegistryEntry(entry phaseregistry.Entry) phases.Descriptor {
-	spec := entry.Spec
+	spec, ok := phases.SpecFromRegistryEntry(entry)
+	if !ok {
+		return phases.Descriptor{}
+	}
 	provider := ""
 	if spec.Delegated != nil {
 		provider = spec.Delegated.ProviderScenario
 	}
 	return phases.Descriptor{
 		Name:                  spec.Name.String(),
+		DisplayName:           spec.DisplayName,
 		Optional:              spec.Optional,
 		Description:           spec.Description,
 		Source:                spec.Source,
@@ -1593,6 +1600,11 @@ func descriptorFromRegistryEntry(entry phaseregistry.Entry) phases.Descriptor {
 		Policy:                spec.Policy,
 		Runnability:           spec.Capabilities,
 		FindingSource:         findingid.SourceToken(spec.FindingSource),
+		ProfileMembership:     append([]string(nil), spec.ProfileMembership...),
+		FreshnessRequirement:  spec.FreshnessRequirement,
+		PhaseClass:            spec.PhaseClass,
+		RuntimeClass:          spec.RuntimeClass,
+		Dimensions:            append([]string(nil), spec.Dimensions...),
 	}
 }
 

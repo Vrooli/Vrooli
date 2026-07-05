@@ -23,7 +23,11 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "experience-manager/handlers/health"
+	studioH "experience-manager/handlers/studio"
+	validationH "experience-manager/handlers/validation"
+	"experience-manager/internal/authoring"
 	localdb "experience-manager/internal/database"
+	"experience-manager/internal/reconcile"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -33,6 +37,8 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, studioH.Endpoints...)
+	out = append(out, validationH.Endpoints...)
 	return out
 }
 
@@ -58,7 +64,11 @@ type ProtoFileEntry struct {
 // AllProtoFiles returns the proto FileDescriptor backing each
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
-	return []ProtoFileEntry{}
+	return []ProtoFileEntry{
+		{Module: "studio", File: studioH.ProtoFile},
+		{Module: "validation", File: validationH.ProtoFile},
+		{Module: "validation", File: validationH.ScenarioValidationProtoFile},
+	}
 }
 
 // AllSchemas returns every domain's schema provider plus the system
@@ -71,6 +81,9 @@ func AllProtoFiles() []ProtoFileEntry {
 func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(authoring.Schema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(reconcile.Schema),
+		apidb.SchemaProviderFunc(validationH.Schema),
 	}
 }
