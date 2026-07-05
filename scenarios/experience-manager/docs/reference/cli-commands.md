@@ -116,6 +116,28 @@ experience-manager spec validate web-console --json
 experience-manager spec validate custom --path /path/to/scenario
 ```
 
+### `experience-manager spec fleet`
+
+Compute experience-spec coverage and debt across all scenarios, sorted
+worst-first. The sweep is live and does not read a persisted cache.
+
+```bash
+experience-manager spec fleet
+experience-manager spec fleet --json
+```
+
+### `experience-manager spec attest <scenario> <page> <claim>`
+
+Append manual evidence for a manual-tier claim. The ledger is append-only:
+refreshing evidence creates a new row with a fresh expiry instead of mutating
+the previous attestation.
+
+```bash
+experience-manager spec attest experience-manager fleet debt-table-perceivable \
+  --author operator --rationale "Reviewed against current design" \
+  --expires-at 2027-01-01T00:00:00Z
+```
+
 ### `experience-manager spec list <scenario>`
 
 List pages and journeys declared in a scenario's `experience/index.json`.
@@ -174,6 +196,27 @@ reconciliation evidence.
 
 ```bash
 experience-manager spec suggest-bindings web-console home --limit 20
+```
+
+### `experience-manager spec scaffold <scenario>`
+
+Derive BAS case stubs from active page specs. Use `--dry-run` to preview the
+same deterministic changes without writing files.
+
+```bash
+experience-manager spec scaffold experience-manager --dry-run
+experience-manager spec scaffold custom --path /path/to/scenario
+```
+
+### `experience-manager fix preview|apply <scenario>`
+
+Preview or apply deterministic remediations through the shared
+`ScenarioValidationService` fix contract. Use `--rules` to target one rule.
+The BAS scaffold rule is `experience.case_scaffold`.
+
+```bash
+experience-manager fix preview experience-manager --rules experience.case_scaffold
+experience-manager fix apply custom --path /path/to/scenario --rules experience.binding_orphan
 ```
 
 ### `experience-manager author start <scenario>`

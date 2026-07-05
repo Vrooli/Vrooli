@@ -11,13 +11,36 @@
       "description": "Deterministic wireframe rendering of any spec page with claim annotations, side-by-side variant compare with promote-to-spec, and an optional AI-image render mode composing image-tools.",
       "id": "EXPERIEN-P1-001",
       "prd_ref": "OT-P1-001",
-      "status": "planned",
+      "status": "complete",
       "title": "Render and workshop",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P1-001] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "phase": "unit",
+          "ref": "api/internal/render/render_test.go::TestRenderPageIsByteStable",
+          "notes": "Proves deterministic page-to-wireframe rendering is byte-stable and includes claim annotations.",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "phase": "unit",
+          "ref": "api/internal/render/render_test.go::TestCompareVariantsWritesStableArtifact",
+          "notes": "Proves stable side-by-side variant rendering artifacts.",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "phase": "unit",
+          "ref": "api/internal/authoring/service_test.go::TestPromoteVariantAppliesParserCleanPage",
+          "notes": "Promotes a selected variant through parser-clean apply semantics.",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "phase": "unit",
+          "ref": "api/internal/render/render_test.go::TestImageModeDegradesToWireframe",
+          "notes": "Pins optional image mode degradation when image-tools is unavailable.",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -26,13 +49,22 @@
       "description": "Derive `bas/cases` stubs from spec entries (routes to navigation, claims to assertions, bindings to selectors) for workflow-health governance, with spec-to-case reference-integrity findings in both directions.",
       "id": "EXPERIEN-P1-002",
       "prd_ref": "OT-P1-002",
-      "status": "planned",
+      "status": "complete",
       "title": "BAS case scaffolding",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P1-002] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "phase": "unit",
+          "ref": "api/internal/autofix/autofix_test.go::TestCaseScaffoldPreviewApplyAndIdempotency",
+          "notes": "Derives BAS case stubs and registry entries from active page specs with spec_entry_id linkage and idempotent apply.",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "phase": "unit",
+          "ref": "api/handlers/validation/connect_handler_test.go::TestScaffoldCasesUsesCaseScaffoldFixer",
+          "notes": "Proves the native ScaffoldCases RPC uses the deterministic case-scaffold fixer path for dry-run and apply.",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -41,13 +73,29 @@
       "description": "Preview and apply mechanical fixes for binding drift, index normalization, missing state stubs, and finding-doc stubs with accounting of fixed versus remaining findings.",
       "id": "EXPERIEN-P1-003",
       "prd_ref": "OT-P1-003",
-      "status": "planned",
+      "status": "complete",
       "title": "Deterministic autofix",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P1-003] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "phase": "unit",
+          "ref": "api/internal/autofix/autofix_test.go::TestCaseScaffoldPreviewApplyAndIdempotency",
+          "notes": "Checks preview/apply accounting and idempotency for deterministic sequential fix application.",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "phase": "unit",
+          "ref": "api/internal/autofix/autofix_test.go::TestBindingDriftRepairAddsDeterministicPlaceholders",
+          "notes": "Covers deterministic binding drift placeholder repair.",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "phase": "unit",
+          "ref": "api/handlers/validation/connect_handler_test.go::TestFixRPCsPreviewAndApplyLiveRegistry",
+          "notes": "Proves shared PreviewFix and ApplyFix RPCs use the live registry.",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -56,13 +104,22 @@
       "description": "Manual-tier claims are attested with an expiry; expired attestations surface as findings so human-verified experience promises decay honestly instead of staying green forever.",
       "id": "EXPERIEN-P1-004",
       "prd_ref": "OT-P1-004",
-      "status": "planned",
+      "status": "complete",
       "title": "Manual attestation ledger",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P1-004] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "phase": "unit",
+          "ref": "api/internal/attestation/check_test.go::TestCheckEmitsExpiredAttestationFinding",
+          "notes": "Expired manual-tier attestations emit experience.attestation_expired findings.",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "phase": "unit",
+          "ref": "api/internal/attestation/sqlite_test.go::TestSQLiteRepositoryHasSingleWriteSeam",
+          "notes": "AST guard proves the SQLite ledger has exactly one write seam: AppendAttestation.",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -71,13 +128,15 @@
       "description": "Compute-on-read sweep of spec coverage and depth across all scenarios, scored worst-first so experience debt is visible and prioritized fleet-wide.",
       "id": "EXPERIEN-P1-005",
       "prd_ref": "OT-P1-005",
-      "status": "planned",
+      "status": "complete",
       "title": "Fleet sweep",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P1-005] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "phase": "unit",
+          "ref": "api/internal/fleet/fleet_test.go::TestSweepComputesWorstFirstDebt",
+          "notes": "Proves compute-on-read fleet sweep includes scenarios without experience specs and sorts debt worst-first.",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     }

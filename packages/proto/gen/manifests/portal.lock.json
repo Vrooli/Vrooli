@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "scenario": "portal",
+  "input_digest": "sha256:d1bf66607940ee6b715023a0c5b01377d3dc6bc5f37060f369fc5f9863538dd2",
+  "input_files": [
+    "schemas/portal/v1/shared/errors.proto",
+    "schemas/portal/v1/shared/health.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/portal/v1/shared/errors.pb.go": "sha256:2d17e47d80bcf7f701e4930123ac3ce5d4ccee7071bf4e7c79cfbc92d62913b8",
+    "gen/go/portal/v1/shared/health.pb.go": "sha256:865b115ac66254344e28acfeee01335609cf380bc9811f410e79ec13e4478b7b",
+    "gen/go/portal/v1/shared/shared_v1connect/health.connect.go": "sha256:201e01ab9503a5a3a4d6f1cb7f968b5bb54e062c0fd46888e5243ce7dbbe1280",
+    "gen/python/portal/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/portal/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/portal/v1/shared/errors_pb2.py": "sha256:44ee257381dbef4edaaf9803a0628248eb7efc9f0640fe5c075bc769b8d2310b",
+    "gen/python/portal/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/portal/v1/shared/health_pb2.py": "sha256:754dfe4cd9ef507344eb3af58b5b13dce865d318d5983374e72c92af646a70df",
+    "gen/python/portal/v1/shared/health_pb2.pyi": "sha256:38ef842f3d15ce075ca789542193ac1bd5b27dedda782c79fd1b4ce870ce6e11",
+    "gen/python/portal/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/js/portal/v1/shared/errors_pb.js": "sha256:938fda0ce9bde143ad703cecf31ed3778cc2a7a814dd1a0538709aaa8129dea7",
+    "gen/typescript/js/portal/v1/shared/health_pb.js": "sha256:253e49853fc3930348a5d1f8f4866ea248c430d4fb0909faa31d286f61271dd2",
+    "gen/typescript/portal/v1/shared/errors_pb.ts": "sha256:4a9f37f46e88950fda8bb5f8f1c2f30eda9a3cec26fdbff4cc7e1715ed67e6c7",
+    "gen/typescript/portal/v1/shared/health_pb.ts": "sha256:95717066a4d69e10ec91bfeee314229aaf90f0ab2b138bc12377ad4d7a079522"
+  }
+}

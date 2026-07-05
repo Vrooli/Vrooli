@@ -6,7 +6,8 @@
     "version": "1",
     "labels": {
       "reset": "none",
-      "surface": "experience-evidence"
+      "surface": "experience-evidence",
+      "spec_entry_id": "evidence"
     },
     "execution_mode": "observer"
   },

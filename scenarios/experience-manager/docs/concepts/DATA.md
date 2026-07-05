@@ -38,9 +38,11 @@ such as BlobStore.
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
 | Experience specs (`experience/` per target scenario) | `spec` (planned) | In-repo JSON files in each **target** scenario | The target scenario's `experience/` folder, validated by `.vrooli/schemas/scenario-experience-spec.schema.json` | Versioned with the target repo tree; never stored here | This scenario reads/writes them via studio + validation; it is not the storage owner. Intent sections are stable; `bindings` sections are the volatile selector SSOT. |
+| Generated BAS case stubs | `autofix` | In-repo JSON files in each target scenario's `bas/cases/experience-spec/` | Derived from active page specs, with `metadata.labels.spec_entry_id` linking back to the page id | Versioned with the target repo tree | workflow-health owns cataloging and execution; experience-manager only derives stubs and checks spec↔case references. |
 | Wireframe and variant review artifacts | `render` | Local coverage artifacts | `api/internal/render/` output | Disposable per local run | HTML artifacts under `coverage/wireframes/<scenario>/`; variant promotion writes only the selected `experience/` JSON, not the review artifact. |
 | Studio authoring sessions | `studio` | SQLite | `api/internal/authoring/schema.sql` | Explicit discard; apply leaves the session available for audit/resume until discarded. | Resumable form state + diff previews before any file write. |
-| Attestation ledger | `attest` (planned) | SQLite, append-only | `api/internal/attest/schema.sql` (planned) | Append-only; expiry is a validity attribute, not deletion | Manual-tier claim attestations with expiry timestamps; expired ⇒ finding. |
+| Attestation ledger | `attest` | SQLite, append-only | `api/internal/attestation/schema.sql` | Append-only; expiry is a validity attribute, not deletion | Manual-tier claim attestations with expiry timestamps; expired attestations emit `experience.attestation_expired`. |
+| Fleet sweep | `fleet` | None | `api/internal/fleet/` | Compute-on-read; no cache to prune | Reads the scenario tree and parser depths live for worst-first debt visibility. |
 | Capture evidence references | `reconcile` | SQLite + artifact refs | `api/internal/reconcile/schema.sql` | Per validation run; pruning policy deferred until evidence volume is known | Screenshot + a11y-tree pairs per claim check. Labeled (a11y reliability, verdict), never aesthetics-filtered — see DECISIONS on the training-data byproduct. |
 
 ## Schema Map
@@ -52,6 +54,7 @@ Each domain's schema file lives beside the code that interprets it. The
 |---|---|---|---|
 | `authoring_sessions` | `studio` | `api/internal/authoring/schema.sql` | Studio API/CLI session lifecycle |
 | `authoring_pages` | `studio` | `api/internal/authoring/schema.sql` | Studio page-form drafts, preview, and apply |
+| `manual_attestations` | `attest` | `api/internal/attestation/schema.sql` | Manual-tier evidence freshness checks |
 | `reconcile_evidence` | `reconcile` | `api/internal/reconcile/schema.sql` | Reconciliation checks and future evidence surfaces |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
 
@@ -76,6 +79,7 @@ backfills, add a scenario-specific migration plan here and update
 | Data | Delete Trigger | Retention Rule | Current Gap |
 |---|---|---|---|
 | Studio authoring sessions | `author discard <session>` or future stale-session pruning. | Retained until explicit discard; stale-session pruning is deferred. | No automatic stale-session sweep yet. |
+| Manual attestations | None. | Append-only; superseding evidence appends a new row with a later expiry. | No pruning by design for v1 auditability. |
 | Reconcile evidence | Future evidence pruning job or explicit scenario reset. | Retained until pruning lands; rows are labeled by scenario/page/state/claim/capture. | Latest-N pruning is still deferred. |
 
 ## Privacy Notes

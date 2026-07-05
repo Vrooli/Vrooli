@@ -97,14 +97,14 @@ type ScenarioSpec struct {
 }
 
 type IndexDocument struct {
-	Kind          string        `json:"kind"`
-	Contract      Contract      `json:"contract"`
-	SchemaVersion string        `json:"schemaVersion"`
-	Scenario      string        `json:"scenario"`
-	Description   string        `json:"description"`
-	Pages         []DocumentRef `json:"pages"`
-	Journeys      []DocumentRef `json:"journeys"`
-	Extensions    map[string]json.RawMessage
+	Kind          string                     `json:"kind"`
+	Contract      Contract                   `json:"contract"`
+	SchemaVersion string                     `json:"schemaVersion"`
+	Scenario      string                     `json:"scenario"`
+	Description   string                     `json:"description"`
+	Pages         []DocumentRef              `json:"pages"`
+	Journeys      []DocumentRef              `json:"journeys"`
+	Extensions    map[string]json.RawMessage `json:"-"`
 }
 
 type Contract struct {
@@ -120,16 +120,16 @@ type DocumentRef struct {
 }
 
 type PageDocument struct {
-	Kind          string       `json:"kind"`
-	SchemaVersion string       `json:"schemaVersion"`
-	Page          PageIdentity `json:"page"`
-	Priorities    []Priority   `json:"priorities"`
-	States        []State      `json:"states"`
-	Elements      []Element    `json:"elements"`
-	Claims        []Claim      `json:"claims"`
-	Bindings      Bindings     `json:"bindings"`
-	Sketch        Sketch       `json:"sketch"`
-	Extensions    map[string]json.RawMessage
+	Kind          string                     `json:"kind"`
+	SchemaVersion string                     `json:"schemaVersion"`
+	Page          PageIdentity               `json:"page"`
+	Priorities    []Priority                 `json:"priorities"`
+	States        []State                    `json:"states"`
+	Elements      []Element                  `json:"elements"`
+	Claims        []Claim                    `json:"claims"`
+	Bindings      Bindings                   `json:"bindings"`
+	Sketch        Sketch                     `json:"sketch"`
+	Extensions    map[string]json.RawMessage `json:"-"`
 }
 
 type PageIdentity struct {
@@ -158,17 +158,17 @@ type Element struct {
 }
 
 type Claim struct {
-	ID         string         `json:"id"`
-	Type       string         `json:"type"`
-	Statement  string         `json:"statement"`
-	Tier       string         `json:"tier"`
-	Elements   []string       `json:"elements"`
-	States     []string       `json:"states"`
-	Viewports  []string       `json:"viewports"`
-	Locales    []string       `json:"locales"`
-	Params     map[string]any `json:"params"`
-	Rationale  string         `json:"rationale"`
-	Extensions map[string]json.RawMessage
+	ID         string                     `json:"id"`
+	Type       string                     `json:"type"`
+	Statement  string                     `json:"statement"`
+	Tier       string                     `json:"tier"`
+	Elements   []string                   `json:"elements"`
+	States     []string                   `json:"states"`
+	Viewports  []string                   `json:"viewports"`
+	Locales    []string                   `json:"locales"`
+	Params     map[string]any             `json:"params"`
+	Rationale  string                     `json:"rationale"`
+	Extensions map[string]json.RawMessage `json:"-"`
 }
 
 func (c *Claim) UnmarshalJSON(data []byte) error {
@@ -206,12 +206,12 @@ type SketchRegion struct {
 }
 
 type JourneyDocument struct {
-	Kind          string          `json:"kind"`
-	SchemaVersion string          `json:"schemaVersion"`
-	Journey       JourneyIdentity `json:"journey"`
-	Steps         []JourneyStep   `json:"steps"`
-	Claims        []Claim         `json:"claims"`
-	Extensions    map[string]json.RawMessage
+	Kind          string                     `json:"kind"`
+	SchemaVersion string                     `json:"schemaVersion"`
+	Journey       JourneyIdentity            `json:"journey"`
+	Steps         []JourneyStep              `json:"steps"`
+	Claims        []Claim                    `json:"claims"`
+	Extensions    map[string]json.RawMessage `json:"-"`
 }
 
 type JourneyIdentity struct {

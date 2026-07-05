@@ -17,7 +17,7 @@ func TestRegisterLoadsSpecGroup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
-	if group.Name != GroupName || len(group.Subcommands) != 7 {
+	if group.Name != GroupName || len(group.Subcommands) != 10 {
 		t.Fatalf("unexpected group: %+v", group)
 	}
 }

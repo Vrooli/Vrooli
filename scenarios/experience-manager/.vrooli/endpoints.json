@@ -328,11 +328,12 @@
       "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
       "method": "POST",
       "summary": "Preview deterministic experience-contract fixes",
-      "description": "Phase 1 mount for deterministic fix previews. Returns Unimplemented until fixers land.",
+      "description": "Previews deterministic spec, BAS scaffold, and documentation fixes without writing.",
       "category": "validation",
       "request": {
         "type": "object",
         "properties": {
+          "path": "string",
           "rule_ids": "array<string> (optional filter)",
           "scenario": "string"
         }
@@ -345,25 +346,19 @@
           "messages": "array<string>",
           "scenario": "string"
         }
-      },
-      "errors": [
-        {
-          "status": 501,
-          "code": "unimplemented",
-          "description": "Autofix lands in a later phase"
-        }
-      ]
+      }
     },
     {
       "id": "validation_apply_fix",
       "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
       "method": "POST",
       "summary": "Apply deterministic experience-contract fixes",
-      "description": "Phase 1 mount for deterministic fixes. Returns Unimplemented until fixers land.",
+      "description": "Applies deterministic spec, BAS scaffold, and documentation fixes with sequential re-preview semantics.",
       "category": "validation",
       "request": {
         "type": "object",
         "properties": {
+          "path": "string",
           "rule_ids": "array<string> (optional filter)",
           "scenario": "string"
         }
@@ -376,14 +371,7 @@
           "messages": "array<string>",
           "scenario": "string"
         }
-      },
-      "errors": [
-        {
-          "status": 501,
-          "code": "unimplemented",
-          "description": "Autofix lands in a later phase"
-        }
-      ]
+      }
     },
     {
       "id": "contract_validate_scenario",
@@ -413,6 +401,105 @@
           "status": 400,
           "code": "invalid_argument",
           "description": "Scenario path or experience contract cannot be parsed."
+        }
+      ]
+    },
+    {
+      "id": "contract_list_fleet",
+      "path": "/vrooli.experience_manager.v1.contract.ContractService/ListFleet",
+      "method": "POST",
+      "summary": "List fleet-wide experience depth and debt",
+      "description": "Computes experience/ presence, page depth, parser findings, and debt score across scenarios without persisted fleet state.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "repo_root": "string (optional repo root override)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "scenario_count": "int32",
+          "scenarios": "array<FleetScenario>",
+          "total_pages": "int32",
+          "with_experience_count": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Repo root cannot be swept."
+        }
+      ]
+    },
+    {
+      "id": "contract_append_attestation",
+      "path": "/vrooli.experience_manager.v1.contract.ContractService/AppendAttestation",
+      "method": "POST",
+      "summary": "Append manual experience attestation",
+      "description": "Records one append-only manual attestation for a manual-tier claim with author, rationale, and expiry.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "author": "string",
+          "claim": "string",
+          "expires_at": "string (RFC3339)",
+          "page": "string",
+          "rationale": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "attestation": "ManualAttestation"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Attestation fields are incomplete or malformed."
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Attestation repository is not configured."
+        }
+      ]
+    },
+    {
+      "id": "contract_scaffold_cases",
+      "path": "/vrooli.experience_manager.v1.contract.ContractService/ScaffoldCases",
+      "method": "POST",
+      "summary": "Scaffold BAS cases from experience specs",
+      "description": "Derives workflow-health-governed BAS case stubs from active experience page specs through the deterministic case-scaffold fixer.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "dry_run": "boolean",
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "boolean",
+          "diffs": "array<FileDiff>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario path cannot be resolved."
         }
       ]
     }

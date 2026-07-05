@@ -6,7 +6,8 @@
     "version": "1",
     "labels": {
       "reset": "none",
-      "surface": "experience-scenario-explorer"
+      "surface": "experience-scenario-explorer",
+      "spec_entry_id": "scenario-explorer"
     },
     "execution_mode": "observer"
   },

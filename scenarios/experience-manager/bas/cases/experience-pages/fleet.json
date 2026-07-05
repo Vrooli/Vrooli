@@ -6,7 +6,8 @@
     "version": "1",
     "labels": {
       "reset": "none",
-      "surface": "experience-fleet"
+      "surface": "experience-fleet",
+      "spec_entry_id": "fleet"
     },
     "execution_mode": "observer"
   },

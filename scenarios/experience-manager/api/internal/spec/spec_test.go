@@ -32,7 +32,7 @@ func TestReportCarriesParserContractFields(t *testing.T) {
 	}
 }
 
-func TestParseScenarioFixturesContractGreen(t *testing.T) {
+func TestParseScenarioFixturesContractGreen(t *testing.T) { // [REQ:EXPERIEN-P0-001]
 	root := repoRoot(t)
 	for _, scenario := range []string{"experience-manager", "business-health", "web-console"} {
 		t.Run(scenario, func(t *testing.T) {
@@ -96,7 +96,7 @@ func TestParseScenarioComputesDepths(t *testing.T) {
 	}
 }
 
-func TestParseScenarioFindsContractViolations(t *testing.T) {
+func TestParseScenarioFindsContractViolations(t *testing.T) { // [REQ:EXPERIEN-P0-001]
 	root := t.TempDir()
 	scenario := filepath.Join(root, "demo")
 	mustWrite(t, filepath.Join(scenario, "PRD.md"), "## Operational Targets\n- [ ] OT-P0-001 | Demo | Demo target\n")

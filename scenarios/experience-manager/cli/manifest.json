@@ -41,8 +41,125 @@
               "network:internal"
             ]
           }
-        }
-        ,
+        },
+        {
+          "name": "fleet",
+          "description": "List fleet-wide experience depth and debt, worst-first.",
+          "flags": [
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ContractService",
+            "method": "ListFleet"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "attest",
+          "description": "Append manual evidence for a manual-tier experience claim.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            },
+            {
+              "name": "page",
+              "required": true,
+              "description": "Page id"
+            },
+            {
+              "name": "claim",
+              "required": true,
+              "description": "Claim id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "author",
+              "description": "Attestation author"
+            },
+            {
+              "name": "rationale",
+              "description": "Evidence rationale"
+            },
+            {
+              "name": "expires-at",
+              "description": "RFC3339 expiry timestamp"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ContractService",
+            "method": "AppendAttestation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "scaffold",
+          "description": "Derive BAS case stubs from active experience page specs.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Filesystem path to scaffold instead of a scenario slug"
+            },
+            {
+              "name": "dry-run",
+              "description": "Preview scaffold changes without writing",
+              "bool": true
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ContractService",
+            "method": "ScaffoldCases"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
         {
           "name": "list",
           "description": "List pages and journeys declared in a scenario's experience/ index.",
@@ -577,6 +694,10 @@
           ],
           "flags": [
             {
+              "name": "path",
+              "description": "Filesystem path to fix instead of a scenario slug"
+            },
+            {
               "name": "rules",
               "description": "Comma-separated finding codes to restrict the preview to"
             },
@@ -611,6 +732,10 @@
             }
           ],
           "flags": [
+            {
+              "name": "path",
+              "description": "Filesystem path to fix instead of a scenario slug"
+            },
             {
               "name": "rules",
               "description": "Comma-separated finding codes to restrict the apply to"

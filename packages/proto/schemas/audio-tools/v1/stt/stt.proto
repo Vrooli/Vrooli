@@ -127,6 +127,14 @@ message TranscribeResponse {
   string provider_id = 5;
   string model_id = 6;
   double latency_ms = 7;
+
+  // Post-recognition quality policy result. When filtered is true, text is
+  // intentionally empty because the configured STT egress policy suppressed a
+  // known silence hallucination, low-confidence silence/noise, or equivalent
+  // non-user-facing output.
+  bool filtered = 8;
+  string filter_reason = 9;
+  map<string, string> policy_details = 10;
 }
 
 // -----------------------------------------------------------------------------

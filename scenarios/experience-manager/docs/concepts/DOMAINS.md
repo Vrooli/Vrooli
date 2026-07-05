@@ -31,6 +31,8 @@ belong in [`DATA.md`](DATA.md).
 | spec | Parse and validate `experience/` specs. | Make UX intent a machine-checkable contract. | No product data in Phase 1. | validation | query | ExperienceSpec, Finding | `api/internal/spec/`, `.vrooli/schemas/scenario-experience-spec.schema.json` |
 | checks | Compose experience finding checks and severity policy. | Keep parser output and provider findings behind a stable engine seam. | No product data. | validation | scoring | Check, Engine, Registry | `api/internal/checks/` |
 | reconcile | Join parsed machine-tier claims to captured accessibility-tree evidence. | Close the INTENT-STRUCTURE edge without owning a browser harness. | Per-claim reconciliation evidence. | validation | reporting | AccessibilitySnapshot, ClaimVerdict | `api/internal/reconcile/` |
+| attest | Record and check manual-tier claim attestations. | Keep human-reviewed experience claims honest with explicit expiry semantics. | Append-only manual attestations. | mutation | evidence | ManualAttestation | `api/internal/attestation/`, `cli/domains/contract/` |
+| fleet | Compute experience coverage and debt across scenarios. | Make experience-spec adoption visible without persisted fleet state. | No persisted data. | reporting | query | FleetScenario, DebtScore | `api/internal/fleet/`, `ui/src/pages/ExperiencePages.tsx`, `cli/domains/contract/` |
 | studio | Persist form-shaped spec authoring sessions and apply parser-clean drafts. | Let agents and the UI author `experience/` files through a validated contract instead of hand-editing JSON. | Authoring sessions and page drafts. | mutation | service | AuthoringSession, PageForm, FileDiff | `api/internal/authoring/`, `api/handlers/studio/`, `cli/domains/studio/` |
 | render | Produce deterministic wireframes and variant comparisons from parsed page specs. | Make experience specs visually workshoppable before implementation. | Wireframe artifacts under coverage output. | reporting | authoring | WireframeRender, VariantPreview | `api/internal/render/`, `api/handlers/studio/`, `cli/domains/contract/` |
 | assessment | Map experience findings into shared maturity assessments. | Make local experience maturity consumable by Test Genie and fleet reports. | No product data. | scoring | provider | MaturityAssessment | `api/internal/assessment/` |
@@ -98,6 +100,32 @@ belong in [`DATA.md`](DATA.md).
   is unavailable.
 - Requirements: OT-P0-003.
 
+### attest
+
+- Purpose: record manual-tier claim evidence with author, rationale, and expiry.
+- Primary archetype: mutation / evidence.
+- Owns: append-only manual attestation storage and expiry findings.
+- Does not own: parser shape, machine reconciliation, or fleet scoring.
+- API: `api/internal/attestation/`, registered through `api/internal/checks/`.
+- CLI: `spec attest` appends the sole external write path.
+- Storage: `api/internal/attestation/schema.sql` owns the
+  `manual_attestations` table. Rows are append-only; refreshing evidence appends
+  a new row instead of mutating old rows.
+- Requirements: OT-P1-004.
+
+### fleet
+
+- Purpose: compute experience depth and debt across the scenario tree on read.
+- Primary archetype: reporting / query.
+- Owns: scenario sweep, depth summaries, debt sorting, and Fleet page data.
+- Does not own: persistent caches, parser rules, or scenario generation.
+- API: `api/internal/fleet/`, exposed through `ContractService.ListFleet`.
+- CLI: `spec fleet`.
+- UI: Fleet page reads the live sweep and falls back to static rows only when
+  the API is unavailable.
+- Storage: none.
+- Requirements: OT-P1-005.
+
 ### studio
 
 - Purpose: provide the form-shaped authoring API/CLI for `experience/` specs.
@@ -147,11 +175,12 @@ belong in [`DATA.md`](DATA.md).
 
 - Purpose: host deterministic fixers on the shared maturity-go registry.
 - Primary archetype: mutation.
-- Owns: fixer registration and future apply-order policy.
+- Owns: fixer registration, sequential apply-order policy, BAS scaffold stubs,
+  binding placeholder repair, index normalization, and finding-doc stubs.
 - Does not own: judgment-heavy authoring decisions.
 - API: `api/internal/autofix/`.
-- CLI: `fix preview`, `fix apply`.
-- Storage: writes only when a future fixer is explicitly applied.
+- CLI: `spec scaffold`, `fix preview`, `fix apply`.
+- Storage: writes only when a fixer is explicitly applied.
 - Requirements: OT-P1-003.
 
 ### validation
@@ -183,8 +212,6 @@ are real enough to affect architecture or requirements.
 | Candidate Domain | Why Deferred | Revisit Trigger |
 |---|---|---|
 | `scaffold` | Derive `bas/cases` stubs from spec entries for workflow-health governance; spec↔case reference-integrity findings both directions. | OT-P1-002. |
-| `attest` | Manual-tier claim attestation ledger with expiry; expired attestations surface as findings. | OT-P1-004. |
-| `fleet` | Compute-on-read sweep of spec coverage/depth across all scenarios, worst-first. | OT-P1-005. |
 | `perception` | Pixel-side parsing + saliency importance vs. declared communication priorities; advisory before gating, off the CI hot path. Engine home (here vs. image-tools) deliberately undecided. | OT-P2-001. |
 
 ## Non-Domains

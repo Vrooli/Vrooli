@@ -15,7 +15,7 @@ describe("AppRouter", () => {
     cleanup();
   });
 
-  it("renders the fleet page at /", () => {
+  it("renders the fleet page at / [REQ:EXPERIEN-P0-005]", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/"]} />, { withoutRouter: true });
     expect(screen.getByTestId(selectors.pages.fleet)).toBeInTheDocument();
   });

@@ -327,10 +327,17 @@ type TranscribeResponse struct {
 	DurationSeconds  float64                `protobuf:"fixed64,3,opt,name=duration_seconds,json=durationSeconds,proto3" json:"duration_seconds,omitempty"`
 	// Provider trace surface. model_id is the concrete model identifier
 	// the provider used.
-	ProviderTier  common.ProviderTier `protobuf:"varint,4,opt,name=provider_tier,json=providerTier,proto3,enum=vrooli.audio_tools.v1.common.ProviderTier" json:"provider_tier,omitempty"`
-	ProviderId    string              `protobuf:"bytes,5,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
-	ModelId       string              `protobuf:"bytes,6,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
-	LatencyMs     float64             `protobuf:"fixed64,7,opt,name=latency_ms,json=latencyMs,proto3" json:"latency_ms,omitempty"`
+	ProviderTier common.ProviderTier `protobuf:"varint,4,opt,name=provider_tier,json=providerTier,proto3,enum=vrooli.audio_tools.v1.common.ProviderTier" json:"provider_tier,omitempty"`
+	ProviderId   string              `protobuf:"bytes,5,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	ModelId      string              `protobuf:"bytes,6,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
+	LatencyMs    float64             `protobuf:"fixed64,7,opt,name=latency_ms,json=latencyMs,proto3" json:"latency_ms,omitempty"`
+	// Post-recognition quality policy result. When filtered is true, text is
+	// intentionally empty because the configured STT egress policy suppressed a
+	// known silence hallucination, low-confidence silence/noise, or equivalent
+	// non-user-facing output.
+	Filtered      bool              `protobuf:"varint,8,opt,name=filtered,proto3" json:"filtered,omitempty"`
+	FilterReason  string            `protobuf:"bytes,9,opt,name=filter_reason,json=filterReason,proto3" json:"filter_reason,omitempty"`
+	PolicyDetails map[string]string `protobuf:"bytes,10,rep,name=policy_details,json=policyDetails,proto3" json:"policy_details,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -412,6 +419,27 @@ func (x *TranscribeResponse) GetLatencyMs() float64 {
 		return x.LatencyMs
 	}
 	return 0
+}
+
+func (x *TranscribeResponse) GetFiltered() bool {
+	if x != nil {
+		return x.Filtered
+	}
+	return false
+}
+
+func (x *TranscribeResponse) GetFilterReason() string {
+	if x != nil {
+		return x.FilterReason
+	}
+	return ""
+}
+
+func (x *TranscribeResponse) GetPolicyDetails() map[string]string {
+	if x != nil {
+		return x.PolicyDetails
+	}
+	return nil
 }
 
 type StreamConfig struct {
@@ -4292,7 +4320,7 @@ const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	"\x06format\x18\x02 \x01(\x0e2).vrooli.audio_tools.v1.common.AudioFormatB\b\xbaH\x05\x82\x01\x02 \x00R\x06format\x12\x1a\n" +
 	"\blanguage\x18\x03 \x01(\tR\blanguage\x12:\n" +
 	"\x19skip_speaker_verification\x18\x04 \x01(\bR\x17skipSpeakerVerification\x12%\n" +
-	"\x0einitial_prompt\x18\x05 \x01(\tR\rinitialPrompt\"\xac\x02\n" +
+	"\x0einitial_prompt\x18\x05 \x01(\tR\rinitialPrompt\"\x98\x04\n" +
 	"\x12TranscribeResponse\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x12+\n" +
 	"\x11detected_language\x18\x02 \x01(\tR\x10detectedLanguage\x12)\n" +
@@ -4302,7 +4330,14 @@ const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	"providerId\x12\x19\n" +
 	"\bmodel_id\x18\x06 \x01(\tR\amodelId\x12\x1d\n" +
 	"\n" +
-	"latency_ms\x18\a \x01(\x01R\tlatencyMs\"\x9b\b\n" +
+	"latency_ms\x18\a \x01(\x01R\tlatencyMs\x12\x1a\n" +
+	"\bfiltered\x18\b \x01(\bR\bfiltered\x12#\n" +
+	"\rfilter_reason\x18\t \x01(\tR\ffilterReason\x12g\n" +
+	"\x0epolicy_details\x18\n" +
+	" \x03(\v2@.vrooli.audio_tools.v1.stt.TranscribeResponse.PolicyDetailsEntryR\rpolicyDetails\x1a@\n" +
+	"\x12PolicyDetailsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x9b\b\n" +
 	"\fStreamConfig\x12*\n" +
 	"\x11flush_interval_ms\x18\x01 \x01(\x05R\x0fflushIntervalMs\x12&\n" +
 	"\x0fmin_delta_bytes\x18\x02 \x01(\x05R\rminDeltaBytes\x12#\n" +
@@ -4638,7 +4673,7 @@ func file_audio_tools_v1_stt_stt_proto_rawDescGZIP() []byte {
 }
 
 var file_audio_tools_v1_stt_stt_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_audio_tools_v1_stt_stt_proto_msgTypes = make([]protoimpl.MessageInfo, 61)
+var file_audio_tools_v1_stt_stt_proto_msgTypes = make([]protoimpl.MessageInfo, 62)
 var file_audio_tools_v1_stt_stt_proto_goTypes = []any{
 	(SpeakerMode)(0),                           // 0: vrooli.audio_tools.v1.stt.SpeakerMode
 	(RejectBehavior)(0),                        // 1: vrooli.audio_tools.v1.stt.RejectBehavior
@@ -4705,80 +4740,82 @@ var file_audio_tools_v1_stt_stt_proto_goTypes = []any{
 	(*StreamError)(nil),                        // 62: vrooli.audio_tools.v1.stt.StreamError
 	(*StreamVadState)(nil),                     // 63: vrooli.audio_tools.v1.stt.StreamVadState
 	(*StreamDone)(nil),                         // 64: vrooli.audio_tools.v1.stt.StreamDone
-	(common.AudioFormat)(0),                    // 65: vrooli.audio_tools.v1.common.AudioFormat
-	(common.ProviderTier)(0),                   // 66: vrooli.audio_tools.v1.common.ProviderTier
-	(*fieldmaskpb.FieldMask)(nil),              // 67: google.protobuf.FieldMask
-	(*timestamppb.Timestamp)(nil),              // 68: google.protobuf.Timestamp
+	nil,                                        // 65: vrooli.audio_tools.v1.stt.TranscribeResponse.PolicyDetailsEntry
+	(common.AudioFormat)(0),                    // 66: vrooli.audio_tools.v1.common.AudioFormat
+	(common.ProviderTier)(0),                   // 67: vrooli.audio_tools.v1.common.ProviderTier
+	(*fieldmaskpb.FieldMask)(nil),              // 68: google.protobuf.FieldMask
+	(*timestamppb.Timestamp)(nil),              // 69: google.protobuf.Timestamp
 }
 var file_audio_tools_v1_stt_stt_proto_depIdxs = []int32{
-	65, // 0: vrooli.audio_tools.v1.stt.TranscribeRequest.format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
-	66, // 1: vrooli.audio_tools.v1.stt.TranscribeResponse.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
-	2,  // 2: vrooli.audio_tools.v1.stt.StreamConfig.streaming_mode:type_name -> vrooli.audio_tools.v1.stt.StreamingMode
-	3,  // 3: vrooli.audio_tools.v1.stt.StreamConfig.strategy_preference:type_name -> vrooli.audio_tools.v1.stt.StrategyPreference
-	6,  // 4: vrooli.audio_tools.v1.stt.GetStreamConfigResponse.config:type_name -> vrooli.audio_tools.v1.stt.StreamConfig
-	65, // 5: vrooli.audio_tools.v1.stt.GetSupportedFormatsResponse.accepted_formats:type_name -> vrooli.audio_tools.v1.common.AudioFormat
-	12, // 6: vrooli.audio_tools.v1.stt.ListEnginesResponse.engines:type_name -> vrooli.audio_tools.v1.stt.EngineInfo
-	15, // 7: vrooli.audio_tools.v1.stt.GetEngineSwitchImpactResponse.consumers:type_name -> vrooli.audio_tools.v1.stt.ScenarioResourceConsumer
-	67, // 8: vrooli.audio_tools.v1.stt.UpdateStreamConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
-	6,  // 9: vrooli.audio_tools.v1.stt.UpdateStreamConfigRequest.config:type_name -> vrooli.audio_tools.v1.stt.StreamConfig
-	6,  // 10: vrooli.audio_tools.v1.stt.UpdateStreamConfigResponse.config:type_name -> vrooli.audio_tools.v1.stt.StreamConfig
-	65, // 11: vrooli.audio_tools.v1.stt.WakeWordSample.format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
-	19, // 12: vrooli.audio_tools.v1.stt.WakeWordTemplate.samples:type_name -> vrooli.audio_tools.v1.stt.WakeWordSample
-	68, // 13: vrooli.audio_tools.v1.stt.WakeWordTemplate.updated_at:type_name -> google.protobuf.Timestamp
-	20, // 14: vrooli.audio_tools.v1.stt.WakeWordConfig.template:type_name -> vrooli.audio_tools.v1.stt.WakeWordTemplate
-	21, // 15: vrooli.audio_tools.v1.stt.GetWakeWordConfigResponse.config:type_name -> vrooli.audio_tools.v1.stt.WakeWordConfig
-	20, // 16: vrooli.audio_tools.v1.stt.UpdateWakeWordTemplateRequest.template:type_name -> vrooli.audio_tools.v1.stt.WakeWordTemplate
-	21, // 17: vrooli.audio_tools.v1.stt.UpdateWakeWordTemplateResponse.config:type_name -> vrooli.audio_tools.v1.stt.WakeWordConfig
-	21, // 18: vrooli.audio_tools.v1.stt.DeleteWakeWordTemplateResponse.config:type_name -> vrooli.audio_tools.v1.stt.WakeWordConfig
-	0,  // 19: vrooli.audio_tools.v1.stt.SpeakerConfig.mode:type_name -> vrooli.audio_tools.v1.stt.SpeakerMode
-	1,  // 20: vrooli.audio_tools.v1.stt.SpeakerConfig.reject_behavior:type_name -> vrooli.audio_tools.v1.stt.RejectBehavior
-	28, // 21: vrooli.audio_tools.v1.stt.GetSpeakerConfigResponse.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
-	67, // 22: vrooli.audio_tools.v1.stt.UpdateSpeakerConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
-	28, // 23: vrooli.audio_tools.v1.stt.UpdateSpeakerConfigRequest.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
-	28, // 24: vrooli.audio_tools.v1.stt.UpdateSpeakerConfigResponse.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
-	68, // 25: vrooli.audio_tools.v1.stt.SpeakerProfile.created_at:type_name -> google.protobuf.Timestamp
-	68, // 26: vrooli.audio_tools.v1.stt.SpeakerProfile.updated_at:type_name -> google.protobuf.Timestamp
-	68, // 27: vrooli.audio_tools.v1.stt.SpeakerProfileClip.created_at:type_name -> google.protobuf.Timestamp
-	28, // 28: vrooli.audio_tools.v1.stt.SpeakerStatus.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
-	33, // 29: vrooli.audio_tools.v1.stt.SpeakerStatus.profiles:type_name -> vrooli.audio_tools.v1.stt.SpeakerProfile
-	35, // 30: vrooli.audio_tools.v1.stt.SpeakerStatus.info:type_name -> vrooli.audio_tools.v1.stt.SpeakerResourceInfo
-	68, // 31: vrooli.audio_tools.v1.stt.SpeakerStatus.checked_at:type_name -> google.protobuf.Timestamp
-	36, // 32: vrooli.audio_tools.v1.stt.GetSpeakerStatusResponse.status:type_name -> vrooli.audio_tools.v1.stt.SpeakerStatus
-	33, // 33: vrooli.audio_tools.v1.stt.ListSpeakerProfilesResponse.profiles:type_name -> vrooli.audio_tools.v1.stt.SpeakerProfile
-	68, // 34: vrooli.audio_tools.v1.stt.SpeakerEnrollment.created_at:type_name -> google.protobuf.Timestamp
-	65, // 35: vrooli.audio_tools.v1.stt.EnrollSpeakerProfileRequest.format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
-	41, // 36: vrooli.audio_tools.v1.stt.EnrollSpeakerProfileResponse.enrollment:type_name -> vrooli.audio_tools.v1.stt.SpeakerEnrollment
-	28, // 37: vrooli.audio_tools.v1.stt.EnrollSpeakerProfileResponse.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
-	28, // 38: vrooli.audio_tools.v1.stt.ClearSpeakerProfileBindingResponse.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
-	28, // 39: vrooli.audio_tools.v1.stt.UnbindSpeakerProfileResponse.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
-	28, // 40: vrooli.audio_tools.v1.stt.DeleteSpeakerProfileResponse.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
-	34, // 41: vrooli.audio_tools.v1.stt.ListSpeakerProfileClipsResponse.clips:type_name -> vrooli.audio_tools.v1.stt.SpeakerProfileClip
-	55, // 42: vrooli.audio_tools.v1.stt.TranscribeStreamRequest.start:type_name -> vrooli.audio_tools.v1.stt.StreamStart
-	56, // 43: vrooli.audio_tools.v1.stt.TranscribeStreamRequest.end:type_name -> vrooli.audio_tools.v1.stt.StreamEnd
-	6,  // 44: vrooli.audio_tools.v1.stt.StreamStart.config:type_name -> vrooli.audio_tools.v1.stt.StreamConfig
-	65, // 45: vrooli.audio_tools.v1.stt.StreamStart.input_format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
-	58, // 46: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.segment:type_name -> vrooli.audio_tools.v1.stt.StreamSegment
-	59, // 47: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.partial:type_name -> vrooli.audio_tools.v1.stt.StreamPartial
-	60, // 48: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.wake_word:type_name -> vrooli.audio_tools.v1.stt.StreamWakeWord
-	61, // 49: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.speaker_rejection:type_name -> vrooli.audio_tools.v1.stt.StreamSpeakerRejection
-	62, // 50: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.error:type_name -> vrooli.audio_tools.v1.stt.StreamError
-	64, // 51: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.done:type_name -> vrooli.audio_tools.v1.stt.StreamDone
-	63, // 52: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.vad_state:type_name -> vrooli.audio_tools.v1.stt.StreamVadState
-	66, // 53: vrooli.audio_tools.v1.stt.StreamSegment.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
-	66, // 54: vrooli.audio_tools.v1.stt.StreamDone.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
-	4,  // 55: vrooli.audio_tools.v1.stt.STTService.Transcribe:input_type -> vrooli.audio_tools.v1.stt.TranscribeRequest
-	54, // 56: vrooli.audio_tools.v1.stt.STTService.TranscribeStream:input_type -> vrooli.audio_tools.v1.stt.TranscribeStreamRequest
-	9,  // 57: vrooli.audio_tools.v1.stt.STTService.GetSupportedFormats:input_type -> vrooli.audio_tools.v1.stt.GetSupportedFormatsRequest
-	11, // 58: vrooli.audio_tools.v1.stt.STTService.ListEngines:input_type -> vrooli.audio_tools.v1.stt.ListEnginesRequest
-	5,  // 59: vrooli.audio_tools.v1.stt.STTService.Transcribe:output_type -> vrooli.audio_tools.v1.stt.TranscribeResponse
-	57, // 60: vrooli.audio_tools.v1.stt.STTService.TranscribeStream:output_type -> vrooli.audio_tools.v1.stt.TranscribeStreamEvent
-	10, // 61: vrooli.audio_tools.v1.stt.STTService.GetSupportedFormats:output_type -> vrooli.audio_tools.v1.stt.GetSupportedFormatsResponse
-	13, // 62: vrooli.audio_tools.v1.stt.STTService.ListEngines:output_type -> vrooli.audio_tools.v1.stt.ListEnginesResponse
-	59, // [59:63] is the sub-list for method output_type
-	55, // [55:59] is the sub-list for method input_type
-	55, // [55:55] is the sub-list for extension type_name
-	55, // [55:55] is the sub-list for extension extendee
-	0,  // [0:55] is the sub-list for field type_name
+	66, // 0: vrooli.audio_tools.v1.stt.TranscribeRequest.format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	67, // 1: vrooli.audio_tools.v1.stt.TranscribeResponse.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
+	65, // 2: vrooli.audio_tools.v1.stt.TranscribeResponse.policy_details:type_name -> vrooli.audio_tools.v1.stt.TranscribeResponse.PolicyDetailsEntry
+	2,  // 3: vrooli.audio_tools.v1.stt.StreamConfig.streaming_mode:type_name -> vrooli.audio_tools.v1.stt.StreamingMode
+	3,  // 4: vrooli.audio_tools.v1.stt.StreamConfig.strategy_preference:type_name -> vrooli.audio_tools.v1.stt.StrategyPreference
+	6,  // 5: vrooli.audio_tools.v1.stt.GetStreamConfigResponse.config:type_name -> vrooli.audio_tools.v1.stt.StreamConfig
+	66, // 6: vrooli.audio_tools.v1.stt.GetSupportedFormatsResponse.accepted_formats:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	12, // 7: vrooli.audio_tools.v1.stt.ListEnginesResponse.engines:type_name -> vrooli.audio_tools.v1.stt.EngineInfo
+	15, // 8: vrooli.audio_tools.v1.stt.GetEngineSwitchImpactResponse.consumers:type_name -> vrooli.audio_tools.v1.stt.ScenarioResourceConsumer
+	68, // 9: vrooli.audio_tools.v1.stt.UpdateStreamConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
+	6,  // 10: vrooli.audio_tools.v1.stt.UpdateStreamConfigRequest.config:type_name -> vrooli.audio_tools.v1.stt.StreamConfig
+	6,  // 11: vrooli.audio_tools.v1.stt.UpdateStreamConfigResponse.config:type_name -> vrooli.audio_tools.v1.stt.StreamConfig
+	66, // 12: vrooli.audio_tools.v1.stt.WakeWordSample.format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	19, // 13: vrooli.audio_tools.v1.stt.WakeWordTemplate.samples:type_name -> vrooli.audio_tools.v1.stt.WakeWordSample
+	69, // 14: vrooli.audio_tools.v1.stt.WakeWordTemplate.updated_at:type_name -> google.protobuf.Timestamp
+	20, // 15: vrooli.audio_tools.v1.stt.WakeWordConfig.template:type_name -> vrooli.audio_tools.v1.stt.WakeWordTemplate
+	21, // 16: vrooli.audio_tools.v1.stt.GetWakeWordConfigResponse.config:type_name -> vrooli.audio_tools.v1.stt.WakeWordConfig
+	20, // 17: vrooli.audio_tools.v1.stt.UpdateWakeWordTemplateRequest.template:type_name -> vrooli.audio_tools.v1.stt.WakeWordTemplate
+	21, // 18: vrooli.audio_tools.v1.stt.UpdateWakeWordTemplateResponse.config:type_name -> vrooli.audio_tools.v1.stt.WakeWordConfig
+	21, // 19: vrooli.audio_tools.v1.stt.DeleteWakeWordTemplateResponse.config:type_name -> vrooli.audio_tools.v1.stt.WakeWordConfig
+	0,  // 20: vrooli.audio_tools.v1.stt.SpeakerConfig.mode:type_name -> vrooli.audio_tools.v1.stt.SpeakerMode
+	1,  // 21: vrooli.audio_tools.v1.stt.SpeakerConfig.reject_behavior:type_name -> vrooli.audio_tools.v1.stt.RejectBehavior
+	28, // 22: vrooli.audio_tools.v1.stt.GetSpeakerConfigResponse.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
+	68, // 23: vrooli.audio_tools.v1.stt.UpdateSpeakerConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
+	28, // 24: vrooli.audio_tools.v1.stt.UpdateSpeakerConfigRequest.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
+	28, // 25: vrooli.audio_tools.v1.stt.UpdateSpeakerConfigResponse.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
+	69, // 26: vrooli.audio_tools.v1.stt.SpeakerProfile.created_at:type_name -> google.protobuf.Timestamp
+	69, // 27: vrooli.audio_tools.v1.stt.SpeakerProfile.updated_at:type_name -> google.protobuf.Timestamp
+	69, // 28: vrooli.audio_tools.v1.stt.SpeakerProfileClip.created_at:type_name -> google.protobuf.Timestamp
+	28, // 29: vrooli.audio_tools.v1.stt.SpeakerStatus.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
+	33, // 30: vrooli.audio_tools.v1.stt.SpeakerStatus.profiles:type_name -> vrooli.audio_tools.v1.stt.SpeakerProfile
+	35, // 31: vrooli.audio_tools.v1.stt.SpeakerStatus.info:type_name -> vrooli.audio_tools.v1.stt.SpeakerResourceInfo
+	69, // 32: vrooli.audio_tools.v1.stt.SpeakerStatus.checked_at:type_name -> google.protobuf.Timestamp
+	36, // 33: vrooli.audio_tools.v1.stt.GetSpeakerStatusResponse.status:type_name -> vrooli.audio_tools.v1.stt.SpeakerStatus
+	33, // 34: vrooli.audio_tools.v1.stt.ListSpeakerProfilesResponse.profiles:type_name -> vrooli.audio_tools.v1.stt.SpeakerProfile
+	69, // 35: vrooli.audio_tools.v1.stt.SpeakerEnrollment.created_at:type_name -> google.protobuf.Timestamp
+	66, // 36: vrooli.audio_tools.v1.stt.EnrollSpeakerProfileRequest.format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	41, // 37: vrooli.audio_tools.v1.stt.EnrollSpeakerProfileResponse.enrollment:type_name -> vrooli.audio_tools.v1.stt.SpeakerEnrollment
+	28, // 38: vrooli.audio_tools.v1.stt.EnrollSpeakerProfileResponse.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
+	28, // 39: vrooli.audio_tools.v1.stt.ClearSpeakerProfileBindingResponse.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
+	28, // 40: vrooli.audio_tools.v1.stt.UnbindSpeakerProfileResponse.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
+	28, // 41: vrooli.audio_tools.v1.stt.DeleteSpeakerProfileResponse.config:type_name -> vrooli.audio_tools.v1.stt.SpeakerConfig
+	34, // 42: vrooli.audio_tools.v1.stt.ListSpeakerProfileClipsResponse.clips:type_name -> vrooli.audio_tools.v1.stt.SpeakerProfileClip
+	55, // 43: vrooli.audio_tools.v1.stt.TranscribeStreamRequest.start:type_name -> vrooli.audio_tools.v1.stt.StreamStart
+	56, // 44: vrooli.audio_tools.v1.stt.TranscribeStreamRequest.end:type_name -> vrooli.audio_tools.v1.stt.StreamEnd
+	6,  // 45: vrooli.audio_tools.v1.stt.StreamStart.config:type_name -> vrooli.audio_tools.v1.stt.StreamConfig
+	66, // 46: vrooli.audio_tools.v1.stt.StreamStart.input_format:type_name -> vrooli.audio_tools.v1.common.AudioFormat
+	58, // 47: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.segment:type_name -> vrooli.audio_tools.v1.stt.StreamSegment
+	59, // 48: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.partial:type_name -> vrooli.audio_tools.v1.stt.StreamPartial
+	60, // 49: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.wake_word:type_name -> vrooli.audio_tools.v1.stt.StreamWakeWord
+	61, // 50: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.speaker_rejection:type_name -> vrooli.audio_tools.v1.stt.StreamSpeakerRejection
+	62, // 51: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.error:type_name -> vrooli.audio_tools.v1.stt.StreamError
+	64, // 52: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.done:type_name -> vrooli.audio_tools.v1.stt.StreamDone
+	63, // 53: vrooli.audio_tools.v1.stt.TranscribeStreamEvent.vad_state:type_name -> vrooli.audio_tools.v1.stt.StreamVadState
+	67, // 54: vrooli.audio_tools.v1.stt.StreamSegment.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
+	67, // 55: vrooli.audio_tools.v1.stt.StreamDone.provider_tier:type_name -> vrooli.audio_tools.v1.common.ProviderTier
+	4,  // 56: vrooli.audio_tools.v1.stt.STTService.Transcribe:input_type -> vrooli.audio_tools.v1.stt.TranscribeRequest
+	54, // 57: vrooli.audio_tools.v1.stt.STTService.TranscribeStream:input_type -> vrooli.audio_tools.v1.stt.TranscribeStreamRequest
+	9,  // 58: vrooli.audio_tools.v1.stt.STTService.GetSupportedFormats:input_type -> vrooli.audio_tools.v1.stt.GetSupportedFormatsRequest
+	11, // 59: vrooli.audio_tools.v1.stt.STTService.ListEngines:input_type -> vrooli.audio_tools.v1.stt.ListEnginesRequest
+	5,  // 60: vrooli.audio_tools.v1.stt.STTService.Transcribe:output_type -> vrooli.audio_tools.v1.stt.TranscribeResponse
+	57, // 61: vrooli.audio_tools.v1.stt.STTService.TranscribeStream:output_type -> vrooli.audio_tools.v1.stt.TranscribeStreamEvent
+	10, // 62: vrooli.audio_tools.v1.stt.STTService.GetSupportedFormats:output_type -> vrooli.audio_tools.v1.stt.GetSupportedFormatsResponse
+	13, // 63: vrooli.audio_tools.v1.stt.STTService.ListEngines:output_type -> vrooli.audio_tools.v1.stt.ListEnginesResponse
+	60, // [60:64] is the sub-list for method output_type
+	56, // [56:60] is the sub-list for method input_type
+	56, // [56:56] is the sub-list for extension type_name
+	56, // [56:56] is the sub-list for extension extendee
+	0,  // [0:56] is the sub-list for field type_name
 }
 
 func init() { file_audio_tools_v1_stt_stt_proto_init() }
@@ -4807,7 +4844,7 @@ func file_audio_tools_v1_stt_stt_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_audio_tools_v1_stt_stt_proto_rawDesc), len(file_audio_tools_v1_stt_stt_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   61,
+			NumMessages:   62,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

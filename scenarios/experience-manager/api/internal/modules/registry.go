@@ -25,6 +25,7 @@ import (
 	healthH "experience-manager/handlers/health"
 	studioH "experience-manager/handlers/studio"
 	validationH "experience-manager/handlers/validation"
+	"experience-manager/internal/attestation"
 	"experience-manager/internal/authoring"
 	localdb "experience-manager/internal/database"
 	"experience-manager/internal/reconcile"
@@ -81,6 +82,7 @@ func AllProtoFiles() []ProtoFileEntry {
 func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(attestation.Schema),
 		apidb.SchemaProviderFunc(authoring.Schema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(reconcile.Schema),

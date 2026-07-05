@@ -9,9 +9,16 @@ import (
 	"experience-manager/internal/spec"
 )
 
-func TestRegistryContainsReconciliationCheck(t *testing.T) {
-	if got := Registry(); len(got) != 1 || got[0].Name() != "reconcile.structure" {
-		t.Fatalf("registry = %#v, want structure reconciliation check", got)
+func TestRegistryContainsPhaseEightChecks(t *testing.T) {
+	got := Registry()
+	names := map[string]bool{}
+	for _, check := range got {
+		names[check.Name()] = true
+	}
+	for _, name := range []string{"bas.reference_integrity", "reconcile.structure"} {
+		if !names[name] {
+			t.Fatalf("registry = %#v, missing %s", got, name)
+		}
 	}
 }
 

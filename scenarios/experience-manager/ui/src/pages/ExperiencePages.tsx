@@ -1,15 +1,17 @@
+import { useQuery } from "@tanstack/react-query";
 import {
-  AlertTriangle,
-  ClipboardCheck,
-  FileSearch,
+	AlertTriangle,
+	ClipboardCheck,
+	FileSearch,
   Gauge,
   GitCompare,
   RefreshCw,
-  Save,
-  Wand2,
+	Save,
+	Wand2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { fetchFleet } from "../api/experience";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
@@ -82,6 +84,21 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 export function FleetPage() {
   const { t } = useTranslation();
+  const { data, refetch } = useQuery({
+    queryKey: ["experience-fleet"],
+    queryFn: fetchFleet,
+  });
+  const rows =
+    data?.scenarios.map((scenario) => ({
+      name: scenario.scenario,
+      coverage: scenario.maxDepth,
+      debt: Number(scenario.debtScore),
+      pages: Number(scenario.pageCount),
+      status: scenario.status,
+    })) ?? scenarios;
+  const covered = data ? Number(data.withExperienceCount) : scenarios.length;
+  const total = data ? Number(data.scenarioCount) : scenarios.length;
+  const coveragePercent = total > 0 ? Math.round((covered / total) * 100) : 0;
 
   return (
     <PageFrame
@@ -95,25 +112,31 @@ export function FleetPage() {
         aria-label={t(strings.experience.fleet.depthLabel)}
         className="grid gap-3 md:grid-cols-[1fr_1fr_auto]"
       >
-        <Metric label={t(strings.experience.fleet.specCoverage)} value="3 / 3" />
+        <Metric label={t(strings.experience.fleet.specCoverage)} value={`${covered} / ${total}`} />
         <div
           data-testid={selectors.experience.fleet.coverageMeter}
           role="meter"
           aria-label={t(strings.experience.fleet.specCoverage)}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-valuenow={100}
+          aria-valuenow={coveragePercent}
           className="rounded-panel border border-app-border bg-app-surface p-4"
         >
           <p className="text-xs font-semibold uppercase text-app-muted-foreground">
             {t(strings.experience.fleet.depthDistribution)}
           </p>
           <div className="mt-3 h-3 rounded-full bg-app-surface-muted">
-            <div className="h-3 w-full rounded-full bg-app-primary" />
+            <div className="h-3 rounded-full bg-app-primary" style={{ width: `${coveragePercent}%` }} />
           </div>
-          <p className="mt-2 text-sm text-app-muted-foreground">L2-L3 active coverage</p>
+          <p className="mt-2 text-sm text-app-muted-foreground">
+            {data ? `${data.totalPages} pages tracked` : "Loading fleet data"}
+          </p>
         </div>
-        <Button data-testid={selectors.experience.fleet.refreshAction} type="button">
+        <Button
+          data-testid={selectors.experience.fleet.refreshAction}
+          type="button"
+          onClick={() => void refetch()}
+        >
           <RefreshCw className="mr-2 size-4" aria-hidden="true" />
           {t(strings.experience.fleet.refresh)}
         </Button>
@@ -133,7 +156,7 @@ export function FleetPage() {
             </tr>
           </thead>
           <tbody>
-            {scenarios.map((scenario) => (
+            {rows.map((scenario) => (
               <tr key={scenario.name} className="border-t border-app-border">
                 <td className="px-4 py-3">
                   <Link

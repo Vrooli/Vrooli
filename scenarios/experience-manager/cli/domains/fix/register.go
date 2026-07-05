@@ -58,6 +58,7 @@ func ruleIDs(ctx cliapp.RunContext) []string {
 func (h *handlers) preview(ctx cliapp.RunContext) error {
 	resp, err := h.client.PreviewFix(context.Background(), connect.NewRequest(&scenariovalidationv1.FixRequest{
 		Scenario: ctx.Positional("scenario"),
+		Path:     ctx.Flag("path"),
 		RuleIds:  ruleIDs(ctx),
 	}))
 	if err != nil {
@@ -69,6 +70,7 @@ func (h *handlers) preview(ctx cliapp.RunContext) error {
 func (h *handlers) apply(ctx cliapp.RunContext) error {
 	resp, err := h.client.ApplyFix(context.Background(), connect.NewRequest(&scenariovalidationv1.FixRequest{
 		Scenario: ctx.Positional("scenario"),
+		Path:     ctx.Flag("path"),
 		RuleIds:  ruleIDs(ctx),
 	}))
 	if err != nil {

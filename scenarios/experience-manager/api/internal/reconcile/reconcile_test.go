@@ -26,7 +26,7 @@ func (f fakeCapturer) CaptureAccessibility(context.Context, CaptureTarget) (Snap
 	return f.snapshot, f.err
 }
 
-func TestDraftCalibrationEmitsExpectedMatrixFailuresOnly(t *testing.T) {
+func TestDraftCalibrationEmitsExpectedMatrixFailuresOnly(t *testing.T) { // [REQ:EXPERIEN-P0-003]
 	report, err := spec.ParseScenario(filepath.Join(repoRoot(t), "scenarios", "business-health"))
 	if err != nil {
 		t.Fatalf("ParseScenario: %v", err)
@@ -52,7 +52,7 @@ func TestDraftCalibrationEmitsExpectedMatrixFailuresOnly(t *testing.T) {
 	}
 }
 
-func TestActivePageReconcilesAgainstAccessibilitySnapshot(t *testing.T) {
+func TestActivePageReconcilesAgainstAccessibilitySnapshot(t *testing.T) { // [REQ:EXPERIEN-P0-003]
 	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
 	page := report.Spec.Pages["home"]
 	page.Elements = append(page.Elements, spec.Element{ID: "summary", Role: "status"})
@@ -68,7 +68,7 @@ func TestActivePageReconcilesAgainstAccessibilitySnapshot(t *testing.T) {
 	}
 }
 
-func TestActivePagePersistsPerClaimEvidence(t *testing.T) {
+func TestActivePagePersistsPerClaimEvidence(t *testing.T) { // [REQ:EXPERIEN-P0-003]
 	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
 	db := testdb.NewSQLite(t)
 	if err := apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(Schema)); err != nil {

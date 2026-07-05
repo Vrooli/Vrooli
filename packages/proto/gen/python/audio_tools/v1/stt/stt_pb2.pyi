@@ -70,7 +70,14 @@ class TranscribeRequest(_message.Message):
     def __init__(self, audio: _Optional[bytes] = ..., format: _Optional[_Union[_common_pb2.AudioFormat, str]] = ..., language: _Optional[str] = ..., skip_speaker_verification: _Optional[bool] = ..., initial_prompt: _Optional[str] = ...) -> None: ...
 
 class TranscribeResponse(_message.Message):
-    __slots__ = ("text", "detected_language", "duration_seconds", "provider_tier", "provider_id", "model_id", "latency_ms")
+    __slots__ = ("text", "detected_language", "duration_seconds", "provider_tier", "provider_id", "model_id", "latency_ms", "filtered", "filter_reason", "policy_details")
+    class PolicyDetailsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     TEXT_FIELD_NUMBER: _ClassVar[int]
     DETECTED_LANGUAGE_FIELD_NUMBER: _ClassVar[int]
     DURATION_SECONDS_FIELD_NUMBER: _ClassVar[int]
@@ -78,6 +85,9 @@ class TranscribeResponse(_message.Message):
     PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     MODEL_ID_FIELD_NUMBER: _ClassVar[int]
     LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
+    FILTERED_FIELD_NUMBER: _ClassVar[int]
+    FILTER_REASON_FIELD_NUMBER: _ClassVar[int]
+    POLICY_DETAILS_FIELD_NUMBER: _ClassVar[int]
     text: str
     detected_language: str
     duration_seconds: float
@@ -85,7 +95,10 @@ class TranscribeResponse(_message.Message):
     provider_id: str
     model_id: str
     latency_ms: float
-    def __init__(self, text: _Optional[str] = ..., detected_language: _Optional[str] = ..., duration_seconds: _Optional[float] = ..., provider_tier: _Optional[_Union[_common_pb2.ProviderTier, str]] = ..., provider_id: _Optional[str] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ...) -> None: ...
+    filtered: bool
+    filter_reason: str
+    policy_details: _containers.ScalarMap[str, str]
+    def __init__(self, text: _Optional[str] = ..., detected_language: _Optional[str] = ..., duration_seconds: _Optional[float] = ..., provider_tier: _Optional[_Union[_common_pb2.ProviderTier, str]] = ..., provider_id: _Optional[str] = ..., model_id: _Optional[str] = ..., latency_ms: _Optional[float] = ..., filtered: _Optional[bool] = ..., filter_reason: _Optional[str] = ..., policy_details: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class StreamConfig(_message.Message):
     __slots__ = ("flush_interval_ms", "min_delta_bytes", "overlap_bytes", "persistent_mode", "wake_word_enabled", "wake_word_threshold", "segment_silence_ms", "streaming_mode", "strategy_preference", "vad_silence_ms", "overlap_window_ms", "overlap_commit_runs", "hallucination_filter_enabled", "vad_filter_enabled", "no_speech_threshold", "logprob_threshold", "engine_id", "denoise_enabled", "overlap_max_stall_rejects")

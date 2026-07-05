@@ -20,6 +20,9 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	h := newHandlers(core)
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, map[string]func(cliapp.RunContext) error{
 		"ContractService.ValidateScenario":     h.validateScenario,
+		"ContractService.ListFleet":            h.listFleet,
+		"ContractService.AppendAttestation":    h.appendAttestation,
+		"ContractService.ScaffoldCases":        h.scaffoldCases,
 		"StudioSessionService.ListSpec":        h.listSpec,
 		"StudioSessionService.ShowSpec":        h.showSpec,
 		"StudioSessionService.SuggestBindings": h.suggestBindings,
@@ -46,6 +49,71 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 		client:       contractconnect.NewContractServiceClient(httpClient, baseURL),
 		studioClient: contractconnect.NewStudioSessionServiceClient(httpClient, baseURL),
 	}
+}
+
+func (h *handlers) listFleet(ctx cliapp.RunContext) error {
+	resp, err := h.client.ListFleet(context.Background(), connect.NewRequest(&contractv1.ListFleetRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("list experience fleet", err, nil)
+	}
+	results := make([]string, 0, len(resp.Msg.GetScenarios()))
+	for _, row := range resp.Msg.GetScenarios() {
+		results = append(results, fmt.Sprintf("%s %s pages=%d debt=%d status=%s", row.GetScenario(), row.GetMaxDepth(), row.GetPageCount(), row.GetDebtScore(), row.GetStatus()))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary: []string{fmt.Sprintf("%d scenarios, %d with experience/, %d pages",
+			resp.Msg.GetScenarioCount(), resp.Msg.GetWithExperienceCount(), resp.Msg.GetTotalPages())},
+		ResultsHeading: "Experience Fleet",
+		Results:        results,
+	})
+}
+
+func (h *handlers) appendAttestation(ctx cliapp.RunContext) error {
+	resp, err := h.client.AppendAttestation(context.Background(), connect.NewRequest(&contractv1.AppendAttestationRequest{
+		Scenario:  ctx.Positional("scenario"),
+		Page:      ctx.Positional("page"),
+		Claim:     ctx.Positional("claim"),
+		Author:    ctx.Flag("author"),
+		Rationale: ctx.Flag("rationale"),
+		ExpiresAt: ctx.Flag("expires-at"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("append experience attestation", err, nil)
+	}
+	a := resp.Msg.GetAttestation()
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("%s/%s/%s attested until %s", a.GetScenario(), a.GetPage(), a.GetClaim(), a.GetExpiresAt())},
+		ResultsHeading: "Attestation",
+		Results:        []string{fmt.Sprintf("%s by %s: %s", a.GetId(), a.GetAuthor(), a.GetRationale())},
+	})
+}
+
+func (h *handlers) scaffoldCases(ctx cliapp.RunContext) error {
+	resp, err := h.client.ScaffoldCases(context.Background(), connect.NewRequest(&contractv1.ScaffoldCasesRequest{
+		Scenario: ctx.Positional("scenario"),
+		Path:     ctx.Flag("path"),
+		DryRun:   ctx.BoolFlag("dry-run"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("scaffold experience BAS cases", err, nil)
+	}
+	verb := "Applied"
+	if !resp.Msg.GetApplied() {
+		verb = "Previewed"
+	}
+	results := make([]string, 0, len(resp.Msg.GetDiffs())+len(resp.Msg.GetMessages()))
+	for _, diff := range resp.Msg.GetDiffs() {
+		results = append(results, fmt.Sprintf("%s %s", diff.GetAction(), diff.GetPath()))
+	}
+	results = append(results, resp.Msg.GetMessages()...)
+	if len(results) == 0 {
+		results = append(results, "No BAS case scaffolds needed.")
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("%s %d BAS scaffold change(s) for %s.", verb, len(resp.Msg.GetDiffs()), resp.Msg.GetScenario())},
+		ResultsHeading: "Scaffolds",
+		Results:        results,
+	})
 }
 
 func (h *handlers) validateScenario(ctx cliapp.RunContext) error {

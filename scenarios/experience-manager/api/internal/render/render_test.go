@@ -10,7 +10,7 @@ import (
 	"experience-manager/internal/spec"
 )
 
-func TestRenderPageIsByteStable(t *testing.T) {
+func TestRenderPageIsByteStable(t *testing.T) { // [REQ:EXPERIEN-P1-001]
 	page := fixturePage()
 	first := RenderPage("demo", page)
 	second := RenderPage("demo", page)
@@ -32,7 +32,7 @@ func TestRenderWritesWireframeArtifact(t *testing.T) {
 	require.Equal(t, result.HTML, string(data))
 }
 
-func TestImageModeDegradesToWireframe(t *testing.T) {
+func TestImageModeDegradesToWireframe(t *testing.T) { // [REQ:EXPERIEN-P1-001]
 	dir := writeScenario(t)
 	result, err := Render(Request{ScenarioDir: dir, PageID: "home", Mode: ModeImage})
 	require.NoError(t, err)
@@ -40,7 +40,7 @@ func TestImageModeDegradesToWireframe(t *testing.T) {
 	require.Contains(t, result.DegradedReason, "image-tools unavailable")
 }
 
-func TestCompareVariantsWritesStableArtifact(t *testing.T) {
+func TestCompareVariantsWritesStableArtifact(t *testing.T) { // [REQ:EXPERIEN-P1-001]
 	dir := writeScenario(t)
 	variants := []Variant{
 		{ID: "compact", Title: "Compact", Page: fixturePage()},

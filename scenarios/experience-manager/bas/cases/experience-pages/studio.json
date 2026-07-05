@@ -6,7 +6,8 @@
     "version": "1",
     "labels": {
       "reset": "none",
-      "surface": "experience-studio"
+      "surface": "experience-studio",
+      "spec_entry_id": "studio"
     },
     "execution_mode": "observer"
   },

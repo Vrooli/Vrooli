@@ -11,13 +11,22 @@
       "description": "Validate `experience/` (index, pages, journeys) against `.vrooli/schemas/scenario-experience-spec.schema.json` plus parser checks: unique IDs, resolvable references (routes, PRD OTs, DESIGN.md states, bindings), enforcement-tier rules, and open-world semantics, with a frozen finding-code vocabulary.",
       "id": "EXPERIEN-P0-001",
       "prd_ref": "OT-P0-001",
-      "status": "planned",
+      "status": "complete",
       "title": "Experience spec contract",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P0-001] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "phase": "unit",
+          "ref": "api/internal/spec/spec_test.go::TestParseScenarioFixturesContractGreen",
+          "notes": "Parses the three golden fixture scenarios through the Go parser with contract-green verdicts. Last full scenario suite evidence: 20260705-222420-97ab2e55 experience phase PASS.",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "phase": "unit",
+          "ref": "api/internal/spec/spec_test.go::TestParseScenarioFindsContractViolations",
+          "notes": "Covers cross-file parser checks and emitted contract finding codes for unresolved refs, PRD mismatch, tier violations, and orphan bindings.",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -26,13 +35,22 @@
       "description": "Implement `ScenarioValidationService` for the canonical `experience` phase with findings, metrics, maturity ladders, and fix preview/apply, discovered by Test Genie through `.vrooli/test-genie.json` with presence-keyed applicability.",
       "id": "EXPERIEN-P0-002",
       "prd_ref": "OT-P0-002",
-      "status": "planned",
+      "status": "complete",
       "title": "Scenario validation provider",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P0-002] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "phase": "unit",
+          "ref": "api/handlers/validation/connect_handler_test.go::TestSharedValidateScenarioUsesParserReport",
+          "notes": "Proves the shared ScenarioValidationService response is sourced from the parser report and includes maturity assessment data.",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "phase": "unit",
+          "ref": "api/handlers/validation/connect_handler_test.go::TestSharedValidateScenarioHonorsExperienceGate",
+          "notes": "Proves the EXPERIENCE_ALIGNMENT_GATE strict knob controls shared provider status while advisory mode remains non-gating.",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -41,13 +59,29 @@
       "description": "Drive Browser Automation Studio to capture a screenshot plus accessibility tree per declared page/state and check every machine-tier claim against the captured tree, persisting per-claim evidence; BAS unavailability yields skipped findings, never failures.",
       "id": "EXPERIEN-P0-003",
       "prd_ref": "OT-P0-003",
-      "status": "planned",
+      "status": "complete",
       "title": "Structure reconciliation",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P0-003] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "phase": "unit",
+          "ref": "api/internal/reconcile/reconcile_test.go::TestDraftCalibrationEmitsExpectedMatrixFailuresOnly",
+          "notes": "Pins the business-health Matrix calibration to exactly eight advisory reconciliation findings.",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "phase": "unit",
+          "ref": "api/internal/reconcile/reconcile_test.go::TestActivePageReconcilesAgainstAccessibilitySnapshot",
+          "notes": "Checks machine-tier claims against the BAS accessibility snapshot model for an active page.",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "phase": "unit",
+          "ref": "api/internal/reconcile/reconcile_test.go::TestActivePagePersistsPerClaimEvidence",
+          "notes": "Persists per-claim reconciliation evidence for passed active-page verdicts.",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -56,13 +90,22 @@
       "description": "Form-based spec authoring with live validation and CLI parity, satisfying the round-trip property: a spec saved through the studio re-validates to zero contract findings.",
       "id": "EXPERIEN-P0-004",
       "prd_ref": "OT-P0-004",
-      "status": "planned",
+      "status": "complete",
       "title": "Authoring studio",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P0-004] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "phase": "unit",
+          "ref": "api/internal/authoring/service_test.go::TestAuthoringRoundTripAppliesParserCleanPage",
+          "notes": "Proves submit -> preview -> apply writes a page draft that re-parses with zero contract error findings.",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "phase": "unit",
+          "ref": "api/internal/authoring/service_test.go::TestSuggestBindingsIncludesExistingSpecBindings",
+          "notes": "Covers the binding suggestion helper used by the studio authoring flow.",
+          "status": "implemented",
+          "type": "test"
         }
       ]
     },
@@ -71,13 +114,24 @@
       "description": "Experience Manager ships its own `experience/` folder at L3+ depth and validates green, serving as the first real proof of the spec schema on its own surfaces.",
       "id": "EXPERIEN-P0-005",
       "prd_ref": "OT-P0-005",
-      "status": "planned",
+      "status": "complete",
       "title": "Self-spec dogfood",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P0-005] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "phase": "unit",
+          "ref": "ui/src/app/routes.test.tsx::AppRouter renders the fleet page at /",
+          "notes": "Routes the dogfood Fleet page through the UI shell using the spec-backed selector set; full self-validation evidence: experience-manager experience phase 20260705-222420-97ab2e55 PASS.",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "folder": "bas/cases/experience-pages",
+          "phase": "structure",
+          "ref": "bas/cases/experience-pages/fleet.json",
+          "notes": "Dogfood BAS cases cover all five active Experience Manager pages; latest full scenario suite evidence: 20260705-212724-bbb0868e PASS and follow-up experience phase 20260705-222420-97ab2e55 PASS.",
+          "status": "implemented",
+          "type": "automation",
+          "workflow_id": "experience-fleet-page"
         }
       ]
     }

@@ -7,6 +7,7 @@ import (
 	"github.com/vrooli/api-core/connectx"
 	apidb "github.com/vrooli/api-core/database"
 
+	"experience-manager/internal/attestation"
 	localautofix "experience-manager/internal/autofix"
 	"experience-manager/internal/checks"
 	"experience-manager/internal/module"
@@ -24,7 +25,8 @@ var (
 )
 
 type moduleConfig struct {
-	evidenceRepository reconcile.EvidenceRepository
+	evidenceRepository    reconcile.EvidenceRepository
+	attestationRepository attestation.Repository
 }
 
 // Option configures the validation module.
@@ -35,6 +37,7 @@ func WithDatabase(db *apidb.RoutedDB) Option {
 	return func(cfg *moduleConfig) {
 		if db != nil {
 			cfg.evidenceRepository = reconcile.NewSQLiteRepository(db)
+			cfg.attestationRepository = attestation.NewSQLiteRepository(db)
 		}
 	}
 }
@@ -54,13 +57,17 @@ func Module(logger *log.Logger, repoRoot string, engine *checks.Engine, opts ...
 		}
 	}
 	if engine == nil {
-		engine = NewEngine(repoRoot, checks.RegistryDeps{EvidenceRepository: cfg.evidenceRepository})
+		engine = NewEngine(repoRoot, checks.RegistryDeps{
+			EvidenceRepository:    cfg.evidenceRepository,
+			AttestationRepository: cfg.attestationRepository,
+		})
 	}
 	core := NewConnectHandler(Deps{
-		Logger:   logger,
-		Engine:   engine,
-		Fixers:   localautofix.NewRegistry(),
-		RepoRoot: repoRoot,
+		Logger:                logger,
+		Engine:                engine,
+		Fixers:                localautofix.NewRegistry(),
+		RepoRoot:              repoRoot,
+		AttestationRepository: cfg.attestationRepository,
 	})
 	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(core)
 	contractPath, contractHandler := contractconnect.NewContractServiceHandler(newContractService(core))
@@ -79,10 +86,6 @@ func Module(logger *log.Logger, repoRoot string, engine *checks.Engine, opts ...
 
 func Schema() string { return "" }
 
-func unimplementedError(description string) []module.ErrorDesc {
-	return []module.ErrorDesc{{Status: 501, Code: "unimplemented", Description: description}}
-}
-
 func scenarioRequestSchema() *module.Schema {
 	return &module.Schema{
 		Type:       "object",
@@ -90,8 +93,40 @@ func scenarioRequestSchema() *module.Schema {
 	}
 }
 
+func fleetRequestSchema() *module.Schema {
+	return &module.Schema{Type: "object", Properties: map[string]string{"repo_root": "string (optional repo root override)"}}
+}
+
+func attestationRequestSchema() *module.Schema {
+	return &module.Schema{Type: "object", Properties: map[string]string{
+		"scenario":   "string",
+		"page":       "string",
+		"claim":      "string",
+		"author":     "string",
+		"rationale":  "string",
+		"expires_at": "string (RFC3339)",
+	}}
+}
+
+func scaffoldCasesRequestSchema() *module.Schema {
+	return &module.Schema{Type: "object", Properties: map[string]string{
+		"scenario": "string",
+		"path":     "string",
+		"dry_run":  "boolean",
+	}}
+}
+
+func scaffoldCasesResponseSchema() *module.Schema {
+	return &module.Schema{Type: "object", Properties: map[string]string{
+		"scenario": "string",
+		"applied":  "boolean",
+		"diffs":    "array<FileDiff>",
+		"messages": "array<string>",
+	}}
+}
+
 func fixRequestSchema() *module.Schema {
-	return &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "rule_ids": "array<string> (optional filter)"}}
+	return &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "rule_ids": "array<string> (optional filter)"}}
 }
 
 func fixResponseSchema() *module.Schema {
@@ -123,22 +158,20 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        scenariovalidationconnect.ScenarioValidationServicePreviewFixProcedure,
 		Method:      "POST",
 		Summary:     "Preview deterministic experience-contract fixes",
-		Description: "Phase 1 mount for deterministic fix previews. Returns Unimplemented until fixers land.",
+		Description: "Previews deterministic spec, BAS scaffold, and documentation fixes without writing.",
 		Category:    "validation",
 		Request:     fixRequestSchema(),
 		Response:    fixResponseSchema(),
-		Errors:      unimplementedError("Autofix lands in a later phase"),
 	},
 	{
 		ID:          "validation_apply_fix",
 		Path:        scenariovalidationconnect.ScenarioValidationServiceApplyFixProcedure,
 		Method:      "POST",
 		Summary:     "Apply deterministic experience-contract fixes",
-		Description: "Phase 1 mount for deterministic fixes. Returns Unimplemented until fixers land.",
+		Description: "Applies deterministic spec, BAS scaffold, and documentation fixes with sequential re-preview semantics.",
 		Category:    "validation",
 		Request:     fixRequestSchema(),
 		Response:    fixResponseSchema(),
-		Errors:      unimplementedError("Autofix lands in a later phase"),
 	},
 	{
 		ID:          "contract_validate_scenario",
@@ -158,5 +191,46 @@ var Endpoints = []module.EndpointDescriptor{
 			},
 		},
 		Errors: []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Scenario path or experience contract cannot be parsed."}},
+	},
+	{
+		ID:          "contract_list_fleet",
+		Path:        contractconnect.ContractServiceListFleetProcedure,
+		Method:      "POST",
+		Summary:     "List fleet-wide experience depth and debt",
+		Description: "Computes experience/ presence, page depth, parser findings, and debt score across scenarios without persisted fleet state.",
+		Category:    "validation",
+		Request:     fleetRequestSchema(),
+		Response: &module.Schema{Type: "object", Properties: map[string]string{
+			"scenarios":             "array<FleetScenario>",
+			"scenario_count":        "int32",
+			"with_experience_count": "int32",
+			"total_pages":           "int32",
+		}},
+		Errors: []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Repo root cannot be swept."}},
+	},
+	{
+		ID:          "contract_append_attestation",
+		Path:        contractconnect.ContractServiceAppendAttestationProcedure,
+		Method:      "POST",
+		Summary:     "Append manual experience attestation",
+		Description: "Records one append-only manual attestation for a manual-tier claim with author, rationale, and expiry.",
+		Category:    "validation",
+		Request:     attestationRequestSchema(),
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"attestation": "ManualAttestation"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Attestation fields are incomplete or malformed."},
+			{Status: 412, Code: "failed_precondition", Description: "Attestation repository is not configured."},
+		},
+	},
+	{
+		ID:          "contract_scaffold_cases",
+		Path:        contractconnect.ContractServiceScaffoldCasesProcedure,
+		Method:      "POST",
+		Summary:     "Scaffold BAS cases from experience specs",
+		Description: "Derives workflow-health-governed BAS case stubs from active experience page specs through the deterministic case-scaffold fixer.",
+		Category:    "validation",
+		Request:     scaffoldCasesRequestSchema(),
+		Response:    scaffoldCasesResponseSchema(),
+		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Scenario path cannot be resolved."}},
 	},
 }

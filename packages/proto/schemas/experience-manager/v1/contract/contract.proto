@@ -1,0 +1,396 @@
+syntax = "proto3";
+
+package vrooli.experience_manager.v1.contract;
+
+import "common/v1/maturity.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract;contract_v1";
+
+// =============================================================================
+// EXPERIENCE CONTRACT SERVICE
+// =============================================================================
+//
+// @layer 0
+// @domain experience-manager
+// @stability beta
+//
+// ContractService is experience-manager's native validation contract over a
+// scenario's experience/ folder. It validates the parser-owned spec contract and
+// returns the rich native report used by the scenario's own CLI and UI.
+//
+// The shared scenario-validation/v1 ScenarioValidationService is mounted beside
+// this native service for Test Genie. Both surfaces answer from the same
+// validate pipeline in the API.
+// =============================================================================
+
+service ContractService {
+  // ValidateScenario validates one scenario's experience/ contract.
+  rpc ValidateScenario(ValidateScenarioRequest) returns (ValidateScenarioResponse);
+  // ListFleet computes experience coverage and debt across the repo's scenarios.
+  rpc ListFleet(ListFleetRequest) returns (ListFleetResponse);
+  // AppendAttestation records manual evidence for one manual-tier claim.
+  rpc AppendAttestation(AppendAttestationRequest) returns (AppendAttestationResponse);
+  // ScaffoldCases derives BAS case stubs from active experience page specs.
+  rpc ScaffoldCases(ScaffoldCasesRequest) returns (ScaffoldCasesResponse);
+}
+
+// StudioSessionService is the form-shaped authoring surface for experience/
+// specs. Sessions are persisted server-side, previewed as file diffs, and
+// applied only after the parser re-validates the resulting contract.
+service StudioSessionService {
+  rpc StartAuthoringSession(StartAuthoringSessionRequest) returns (StartAuthoringSessionResponse);
+  rpc SubmitPage(SubmitPageRequest) returns (SubmitPageResponse);
+  rpc PreviewSession(PreviewSessionRequest) returns (PreviewSessionResponse);
+  rpc ApplySession(ApplySessionRequest) returns (ApplySessionResponse);
+  rpc DiscardSession(DiscardSessionRequest) returns (DiscardSessionResponse);
+  rpc ListSpec(ListSpecRequest) returns (ListSpecResponse);
+  rpc ShowSpec(ShowSpecRequest) returns (ShowSpecResponse);
+  rpc SuggestBindings(SuggestBindingsRequest) returns (SuggestBindingsResponse);
+  rpc RenderSpec(RenderSpecRequest) returns (RenderSpecResponse);
+  rpc CompareVariants(CompareVariantsRequest) returns (CompareVariantsResponse);
+  rpc PromoteVariant(PromoteVariantRequest) returns (PromoteVariantResponse);
+}
+
+message ValidateScenarioRequest {
+  // Scenario slug, normally the directory name under scenarios/.
+  string scenario = 1;
+  // Optional explicit scenario path for callers that already resolved it.
+  string path = 2;
+  // Reserved for parity with scenario-validation/v1. The parser phase ignores
+  // this; reconciliation phases may use it for live structure checks.
+  bool include_execution = 3;
+}
+
+message ValidateScenarioResponse {
+  string scenario = 1;
+  // Provider verdict string ("PASSED"/"FAILED"/"DEGRADED"/"ERROR"/"SKIPPED").
+  string status = 2;
+  string summary = 3;
+  string target_path = 4;
+  // Non-empty when validation ran degraded.
+  string degraded_reason = 5;
+  ExperienceContractReport report = 6;
+  common.v1.MaturityAssessment assessment = 7;
+  repeated string next_steps = 8;
+}
+
+message ListFleetRequest {
+  // Optional explicit repo root. Defaults to the API's configured repo root.
+  string repo_root = 1;
+}
+
+message ListFleetResponse {
+  repeated FleetScenario scenarios = 1;
+  int32 scenario_count = 2;
+  int32 with_experience_count = 3;
+  int32 total_pages = 4;
+}
+
+message FleetScenario {
+  string scenario = 1;
+  bool has_experience = 2;
+  string max_depth = 3;
+  int32 max_depth_value = 4;
+  int32 page_count = 5;
+  int32 finding_count = 6;
+  int32 debt_score = 7;
+  string status = 8;
+}
+
+message AppendAttestationRequest {
+  string scenario = 1;
+  string page = 2;
+  string claim = 3;
+  string author = 4;
+  string rationale = 5;
+  // RFC3339 timestamp after which the attestation is stale.
+  string expires_at = 6;
+}
+
+message AppendAttestationResponse {
+  ManualAttestation attestation = 1;
+}
+
+message ScaffoldCasesRequest {
+  string scenario = 1;
+  string path = 2;
+  // When true, returns the files that would change without writing them.
+  bool dry_run = 3;
+}
+
+message ScaffoldCasesResponse {
+  string scenario = 1;
+  bool applied = 2;
+  repeated FileDiff diffs = 3;
+  repeated string messages = 4;
+}
+
+message ManualAttestation {
+  string id = 1;
+  string scenario = 2;
+  string page = 3;
+  string claim = 4;
+  string author = 5;
+  string rationale = 6;
+  string expires_at = 7;
+  string created_at = 8;
+}
+
+message ExperienceContractReport {
+  repeated ExperienceFinding findings = 1;
+}
+
+message ExperienceFinding {
+  string code = 1;
+  string severity = 2;
+  string title = 3;
+  string message = 4;
+  string location = 5;
+  string remediation = 6;
+  bool autofix_available = 7;
+  string fix_class = 8;
+}
+
+message StartAuthoringSessionRequest {
+  string scenario = 1;
+  string path = 2;
+}
+
+message StartAuthoringSessionResponse {
+  AuthoringSession session = 1;
+}
+
+message SubmitPageRequest {
+  string session_id = 1;
+  PageForm page = 2;
+}
+
+message SubmitPageResponse {
+  AuthoringSession session = 1;
+  PageDraft page = 2;
+}
+
+message PreviewSessionRequest {
+  string session_id = 1;
+}
+
+message PreviewSessionResponse {
+  AuthoringSession session = 1;
+  repeated FileDiff diffs = 2;
+  ValidateScenarioResponse validation = 3;
+}
+
+message ApplySessionRequest {
+  string session_id = 1;
+}
+
+message ApplySessionResponse {
+  AuthoringSession session = 1;
+  repeated FileDiff diffs = 2;
+  ValidateScenarioResponse validation = 3;
+}
+
+message DiscardSessionRequest {
+  string session_id = 1;
+}
+
+message DiscardSessionResponse {
+  string session_id = 1;
+  bool discarded = 2;
+}
+
+message ListSpecRequest {
+  string scenario = 1;
+  string path = 2;
+}
+
+message ListSpecResponse {
+  string scenario = 1;
+  repeated SpecDocument pages = 2;
+  repeated SpecDocument journeys = 3;
+}
+
+message ShowSpecRequest {
+  string scenario = 1;
+  string path = 2;
+  string page = 3;
+}
+
+message ShowSpecResponse {
+  string scenario = 1;
+  string page = 2;
+  string json = 3;
+}
+
+message SuggestBindingsRequest {
+  string scenario = 1;
+  string path = 2;
+  string page = 3;
+  int32 limit = 4;
+}
+
+message SuggestBindingsResponse {
+  string scenario = 1;
+  string page = 2;
+  repeated BindingSuggestion suggestions = 3;
+}
+
+message RenderSpecRequest {
+  string scenario = 1;
+  string path = 2;
+  string page = 3;
+  // "wireframe" is deterministic and always available. "image" degrades to
+  // wireframe when image-tools is unavailable.
+  string mode = 4;
+}
+
+message RenderSpecResponse {
+  string scenario = 1;
+  string page = 2;
+  string mode = 3;
+  string html = 4;
+  string artifact_path = 5;
+  string degraded_reason = 6;
+}
+
+message CompareVariantsRequest {
+  string scenario = 1;
+  string path = 2;
+  string page = 3;
+  // "wireframe" is deterministic and always available. "image" degrades to
+  // wireframe when image-tools is unavailable.
+  string mode = 4;
+  repeated SpecVariant variants = 5;
+}
+
+message CompareVariantsResponse {
+  string scenario = 1;
+  string page = 2;
+  string mode = 3;
+  string html = 4;
+  string artifact_path = 5;
+  string degraded_reason = 6;
+  repeated RenderedVariant variants = 7;
+}
+
+message PromoteVariantRequest {
+  string scenario = 1;
+  string path = 2;
+  string page = 3;
+  SpecVariant variant = 4;
+}
+
+message PromoteVariantResponse {
+  string scenario = 1;
+  string page = 2;
+  RenderedVariant variant = 3;
+  repeated FileDiff diffs = 4;
+  ValidateScenarioResponse validation = 5;
+}
+
+message SpecVariant {
+  string id = 1;
+  string title = 2;
+  PageForm page = 3;
+}
+
+message RenderedVariant {
+  string id = 1;
+  string title = 2;
+  string html = 3;
+}
+
+message AuthoringSession {
+  string id = 1;
+  string scenario = 2;
+  string target_path = 3;
+  string status = 4;
+  int32 page_count = 5;
+  string created_at = 6;
+  string updated_at = 7;
+}
+
+message PageDraft {
+  string id = 1;
+  string path = 2;
+  string title = 3;
+  string status = 4;
+}
+
+message FileDiff {
+  string path = 1;
+  string action = 2;
+  string before = 3;
+  string after = 4;
+}
+
+message SpecDocument {
+  string id = 1;
+  string path = 2;
+  string title = 3;
+  string status = 4;
+}
+
+message BindingSuggestion {
+  string element_id = 1;
+  string testid = 2;
+  string role = 3;
+  string accessible_name = 4;
+  string source = 5;
+}
+
+message PageForm {
+  string id = 1;
+  string title = 2;
+  string purpose = 3;
+  repeated string routes = 4;
+  repeated string prd_refs = 5;
+  string status = 6;
+  repeated PriorityForm priorities = 7;
+  repeated StateForm states = 8;
+  repeated ElementForm elements = 9;
+  repeated ClaimForm claims = 10;
+  repeated BindingForm bindings = 11;
+  repeated SketchRegionForm sketch_regions = 12;
+}
+
+message PriorityForm {
+  string statement = 1;
+  string notes = 2;
+}
+
+message StateForm {
+  string id = 1;
+  string description = 2;
+}
+
+message ElementForm {
+  string id = 1;
+  string role = 2;
+  string name = 3;
+  string description = 4;
+}
+
+message ClaimForm {
+  string id = 1;
+  string type = 2;
+  string statement = 3;
+  string tier = 4;
+  repeated string elements = 5;
+  repeated string states = 6;
+  repeated string viewports = 7;
+  repeated string locales = 8;
+  string rationale = 9;
+}
+
+message BindingForm {
+  string element_id = 1;
+  string testid = 2;
+  string selector = 3;
+  string note = 4;
+}
+
+message SketchRegionForm {
+  string id = 1;
+  repeated string elements = 2;
+}

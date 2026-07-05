@@ -15,7 +15,7 @@ import (
 	"experience-manager/internal/testutil/db"
 )
 
-func TestAuthoringRoundTripAppliesParserCleanPage(t *testing.T) {
+func TestAuthoringRoundTripAppliesParserCleanPage(t *testing.T) { // [REQ:EXPERIEN-P0-004]
 	ctx := context.Background()
 	handle := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(ctx, handle, apidb.SchemaProviderFunc(Schema)))
@@ -48,7 +48,7 @@ func TestAuthoringRoundTripAppliesParserCleanPage(t *testing.T) {
 	require.Empty(t, errorFindings(report.Findings))
 }
 
-func TestSuggestBindingsIncludesExistingSpecBindings(t *testing.T) {
+func TestSuggestBindingsIncludesExistingSpecBindings(t *testing.T) { // [REQ:EXPERIEN-P0-004]
 	ctx := context.Background()
 	handle := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(ctx, handle, apidb.SchemaProviderFunc(Schema)))
@@ -63,7 +63,7 @@ func TestSuggestBindingsIncludesExistingSpecBindings(t *testing.T) {
 	require.Equal(t, "spec", suggestions[0].Source)
 }
 
-func TestCompareVariantsRendersSideBySide(t *testing.T) {
+func TestCompareVariantsRendersSideBySide(t *testing.T) { // [REQ:EXPERIEN-P1-001]
 	ctx := context.Background()
 	scenarioDir := writeScenario(t)
 	service := Service{}
@@ -78,7 +78,7 @@ func TestCompareVariantsRendersSideBySide(t *testing.T) {
 	require.FileExists(t, result.ArtifactPath)
 }
 
-func TestPromoteVariantAppliesParserCleanPage(t *testing.T) {
+func TestPromoteVariantAppliesParserCleanPage(t *testing.T) { // [REQ:EXPERIEN-P1-001]
 	ctx := context.Background()
 	scenarioDir := writeScenario(t)
 	service := Service{}

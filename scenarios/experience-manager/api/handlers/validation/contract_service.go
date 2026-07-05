@@ -25,3 +25,27 @@ func (s *contractService) ValidateScenario(ctx context.Context, req *connect.Req
 	}
 	return connect.NewResponse(resp), nil
 }
+
+func (s *contractService) ListFleet(ctx context.Context, req *connect.Request[contractv1.ListFleetRequest]) (*connect.Response[contractv1.ListFleetResponse], error) {
+	resp, err := s.core.listFleet(ctx, req.Msg.GetRepoRoot())
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (s *contractService) AppendAttestation(ctx context.Context, req *connect.Request[contractv1.AppendAttestationRequest]) (*connect.Response[contractv1.AppendAttestationResponse], error) {
+	resp, err := s.core.appendAttestation(ctx, req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (s *contractService) ScaffoldCases(_ context.Context, req *connect.Request[contractv1.ScaffoldCasesRequest]) (*connect.Response[contractv1.ScaffoldCasesResponse], error) {
+	resp, err := s.core.scaffoldCases(req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(resp), nil
+}
