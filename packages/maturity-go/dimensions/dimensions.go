@@ -1,7 +1,7 @@
 // Package dimensions is the single source of truth for the controller's
-// improvement-dimension vocabulary. Both test-genie findings (by FindingSource
-// and by phase name) and skill target_dimensions declarations map into this
-// vocabulary; the controller's selection policy matches the two.
+// improvement-dimension vocabulary. Test Genie findings (by FindingSource) and
+// skill target_dimensions declarations map into this vocabulary; the
+// controller's selection policy matches the two.
 //
 // The vocabulary and its mapping tables live in dimensions.json (embedded
 // below) so the data is machine-readable and shared with the prose in
@@ -33,8 +33,6 @@ type catalog struct {
 	Dimensions []dimensionEntry `json:"dimensions"`
 	// SourceMap keys are architecture.v1.FindingSource proto enum NAMES.
 	SourceMap map[string]string `json:"testgenie_source_map"`
-	// PhaseMap keys are test-genie catalog phase names.
-	PhaseMap map[string]string `json:"testgenie_phase_map"`
 }
 
 var (
@@ -42,7 +40,6 @@ var (
 	byID        map[Dimension]string // dimension -> description
 	ordered     []Dimension          // declaration order
 	bySourceDim map[string]Dimension // proto enum name -> dimension
-	byPhaseDim  map[string]Dimension // phase name -> dimension
 )
 
 func init() {
@@ -71,15 +68,6 @@ func init() {
 			panic(fmt.Sprintf("dimensions: source %q maps to unknown dimension %q", src, dimID))
 		}
 		bySourceDim[src] = dim
-	}
-
-	byPhaseDim = make(map[string]Dimension, len(loaded.PhaseMap))
-	for phase, dimID := range loaded.PhaseMap {
-		dim := Dimension(dimID)
-		if _, ok := byID[dim]; !ok {
-			panic(fmt.Sprintf("dimensions: phase %q maps to unknown dimension %q", phase, dimID))
-		}
-		byPhaseDim[phase] = dim
 	}
 }
 
@@ -112,55 +100,12 @@ func ForSource(src architecturev1.FindingSource) (Dimension, bool) {
 	return dim, ok
 }
 
-// ForPhase resolves a test-genie phase name to its dimension. The bool is false
-// for any phase absent from the SSOT map.
-func ForPhase(phase string) (Dimension, bool) {
-	dim, ok := byPhaseDim[phase]
-	return dim, ok
-}
-
 // MappedSources returns the proto enum names that carry a dimension mapping,
 // sorted for stability. Used by the anti-drift guard.
 func MappedSources() []string {
 	out := make([]string, 0, len(bySourceDim))
 	for name := range bySourceDim {
 		out = append(out, name)
-	}
-	sort.Strings(out)
-	return out
-}
-
-// MappedPhases returns the test-genie phase names that carry a dimension
-// mapping, sorted for stability. Used by the anti-drift guard.
-func MappedPhases() []string {
-	out := make([]string, 0, len(byPhaseDim))
-	for name := range byPhaseDim {
-		out = append(out, name)
-	}
-	sort.Strings(out)
-	return out
-}
-
-// PhasesForDimensions returns the test-genie phase names whose findings map to
-// any of the given dimensions, sorted and de-duplicated. This is the reverse of
-// the phase map and drives targeted re-audit: run only the phases that can move
-// the dimensions a chosen skill targets.
-func PhasesForDimensions(dims ...Dimension) []string {
-	want := make(map[Dimension]struct{}, len(dims))
-	for _, d := range dims {
-		want[d] = struct{}{}
-	}
-	seen := make(map[string]struct{})
-	out := make([]string, 0)
-	for phase, dim := range byPhaseDim {
-		if _, ok := want[dim]; !ok {
-			continue
-		}
-		if _, dup := seen[phase]; dup {
-			continue
-		}
-		seen[phase] = struct{}{}
-		out = append(out, phase)
 	}
 	sort.Strings(out)
 	return out

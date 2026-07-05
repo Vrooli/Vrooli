@@ -83,7 +83,15 @@ func (s *service) Capture(
 			opts.RequiresVideo = true
 		case capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE:
 			opts.RequiresPerfTrace = true
+		case capturev1.CaptureType_CAPTURE_TYPE_ACCESSIBILITY:
+			opts.RequiresAccessibility = true
 		}
+	}
+	// inline_accessibility independently drives the AX capture (mirrors how
+	// inline_dom injects its own read regardless of the captures list), so a
+	// caller can request the inline snapshot without also listing ACCESSIBILITY.
+	if msg.GetInlineAccessibility() {
+		opts.RequiresAccessibility = true
 	}
 
 	resp, err := s.deps.Executor.ExecuteAdhocWorkflowAPIWithOptions(ctx, adhocReq, opts)
@@ -118,13 +126,27 @@ func (s *service) Capture(
 		}
 	}
 
+	// Inline accessibility is best-effort: a missing/failed AX capture
+	// degrades to an empty accessibility_json (documented on the proto field)
+	// rather than failing a capture whose other artifacts are on disk. The
+	// snapshot the driver produced is written by ExportToFolder as
+	// accessibility.json in the execution out dir, so we read it back here.
+	accessibilityJSON := ""
+	if msg.GetInlineAccessibility() {
+		accessibilityJSON, err = s.deps.InlineAccessibility.readInlineAccessibility(executionOutDir)
+		if err != nil && s.deps.Logger != nil {
+			s.deps.Logger.WithError(err).Warn("capture: inline accessibility read failed")
+		}
+	}
+
 	return connect.NewResponse(&capturev1.CaptureResponse{
-		ExecutionId: execID,
-		OutDir:      executionOutDir,
-		Artifacts:   artifacts,
-		DurationMs:  s.deps.Now().Sub(start).Milliseconds(),
-		DryRun:      false,
-		DomHtml:     domHTML,
+		ExecutionId:       execID,
+		OutDir:            executionOutDir,
+		Artifacts:         artifacts,
+		DurationMs:        s.deps.Now().Sub(start).Milliseconds(),
+		DryRun:            false,
+		DomHtml:           domHTML,
+		AccessibilityJson: accessibilityJSON,
 	}), nil
 }
 

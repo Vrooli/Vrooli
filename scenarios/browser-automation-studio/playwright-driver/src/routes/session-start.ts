@@ -30,22 +30,31 @@ export async function handleSessionStart(
 
     // Validate required fields
     if (!request.execution_id || typeof request.execution_id !== 'string') {
-      throw new InvalidInstructionError('Missing or invalid execution_id: must be a non-empty string', {
-        field: 'execution_id',
-        received: typeof request.execution_id,
-      });
+      throw new InvalidInstructionError(
+        'Missing or invalid execution_id: must be a non-empty string',
+        {
+          field: 'execution_id',
+          received: typeof request.execution_id,
+        }
+      );
     }
     if (!request.workflow_id || typeof request.workflow_id !== 'string') {
-      throw new InvalidInstructionError('Missing or invalid workflow_id: must be a non-empty string', {
-        field: 'workflow_id',
-        received: typeof request.workflow_id,
-      });
+      throw new InvalidInstructionError(
+        'Missing or invalid workflow_id: must be a non-empty string',
+        {
+          field: 'workflow_id',
+          received: typeof request.workflow_id,
+        }
+      );
     }
     if (!request.viewport || typeof request.viewport !== 'object') {
-      throw new InvalidInstructionError('Missing or invalid viewport: must be an object with width and height', {
-        field: 'viewport',
-        received: typeof request.viewport,
-      });
+      throw new InvalidInstructionError(
+        'Missing or invalid viewport: must be an object with width and height',
+        {
+          field: 'viewport',
+          received: typeof request.viewport,
+        }
+      );
     }
     if (typeof request.viewport.width !== 'number' || request.viewport.width <= 0) {
       throw new InvalidInstructionError('Invalid viewport.width: must be a positive number', {
@@ -63,18 +72,27 @@ export async function handleSessionStart(
     // Validate reuse_mode if provided
     const validReuseModes = ['fresh', 'clean', 'reuse'];
     if (request.reuse_mode && !validReuseModes.includes(request.reuse_mode)) {
-      throw new InvalidInstructionError(`Invalid reuse_mode: must be one of ${validReuseModes.join(', ')}`, {
-        field: 'reuse_mode',
-        received: request.reuse_mode,
-        valid: validReuseModes,
-      });
+      throw new InvalidInstructionError(
+        `Invalid reuse_mode: must be one of ${validReuseModes.join(', ')}`,
+        {
+          field: 'reuse_mode',
+          received: request.reuse_mode,
+          valid: validReuseModes,
+        }
+      );
     }
 
-    if (requiresArtifactRoot(request.required_capabilities) && !request.artifact_paths?.root?.trim()) {
-      throw new InvalidInstructionError('artifact_paths.root is required when recording video/trace/HAR artifacts', {
-        field: 'artifact_paths.root',
-        required_for: request.required_capabilities,
-      });
+    if (
+      requiresArtifactRoot(request.required_capabilities) &&
+      !request.artifact_paths?.root?.trim()
+    ) {
+      throw new InvalidInstructionError(
+        'artifact_paths.root is required when recording video/trace/HAR artifacts',
+        {
+          field: 'artifact_paths.root',
+          required_for: request.required_capabilities,
+        }
+      );
     }
 
     // Build session spec
@@ -92,7 +110,8 @@ export async function handleSessionStart(
     };
 
     // Start session - returns session info including whether it was reused and actual viewport
-    const { sessionId, reused, createdAt, actualViewport } = await sessionManager.startSession(spec);
+    const { sessionId, reused, createdAt, actualViewport } =
+      await sessionManager.startSession(spec);
 
     // Start frame streaming if requested (for record mode live preview)
     // Wait for pipeline to be ready first to ensure recording infrastructure is initialized
@@ -123,11 +142,17 @@ export async function handleSessionStart(
   }
 }
 
-function requiresArtifactRoot(capabilities?: StartSessionRequest['required_capabilities']): boolean {
+function requiresArtifactRoot(
+  capabilities?: StartSessionRequest['required_capabilities']
+): boolean {
   if (!capabilities) {
     return false;
   }
   return Boolean(
-    capabilities.video || capabilities.har || capabilities.tracing || capabilities.performance_trace
+    capabilities.video ||
+    capabilities.har ||
+    capabilities.tracing ||
+    capabilities.performance_trace ||
+    capabilities.accessibility
   );
 }

@@ -59,9 +59,11 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Real fix:** File the cross-scenario feature request to BAS (a11y-tree snapshot alongside each step screenshot) before reconciliation work starts; the `bas-screenshot-api-audit` backlog item already touches this capture surface.
 
+**RESOLVED 2026-07-04 — BAS now captures the accessibility tree.** BAS ships `CAPTURE_TYPE_ACCESSIBILITY` (capture proto value 7), which walks the Chromium AX tree via CDP `Accessibility.getFullAXTree` at a settled point, joins per-node geometry + `data-testid`, and emits `accessibility.json` normalized to the frozen contract **`bas-accessibility-snapshot/v1`** (role/name/description/value/states/bounds/`dom.{testid,tag}`/children; ignored nodes pruned, empty fields omitted, main-frame-only in v1). `inline_accessibility` returns it inline in `CaptureResponse.accessibility_json`. Validated live against a Vrooli UI: 355 nodes, roles+names+bounds present, real `data-testid`s surfaced. Reconciliation (OT-P0-003) can now consume this contract. **Scope note:** v1 delivers the *single-location* capture (one snapshot per capture, at the final settled page — the point the final screenshot fires). *Per-step timeline attachment* is deferred; BAS reserved the multi-step slot as `ARTIFACT_TYPE_ACCESSIBILITY_SNAPSHOT` (base proto value 8) but has not wired per-step emission — if reconciliation needs an AX snapshot on *every* step (not just the terminal state), that per-step wiring is a follow-up. Contract seam: `scenarios/browser-automation-studio/docs/SEAMS.md` §30.
+
 **Owner:** unassigned.
 
-**Refs:** `docs/internal/DECISIONS.md` (single-capture-engine decision), `scenarios/ui-health/api/internal/uiruntime/`.
+**Refs:** `docs/internal/DECISIONS.md` (single-capture-engine decision), `scenarios/ui-health/api/internal/uiruntime/`, `scenarios/browser-automation-studio/docs/SEAMS.md` §30 (`bas-accessibility-snapshot/v1`), `packages/proto/schemas/browser-automation-studio/v1/capture/capture.proto`.
 
 ### 2026-07-04 — Spec schema spike gate before broad rollout
 

@@ -50,6 +50,47 @@ func (s *WorkflowService) ExportToFolder(ctx context.Context, executionID uuid.U
 		return fmt.Errorf("export performance artifacts: %w", err)
 	}
 
+	// The accessibility-tree snapshot is likewise driver-written into the
+	// artifact root. Copy it flat into the export folder as accessibility.json
+	// so the capture handler's accessibility fileProducer (and inline read)
+	// can surface it.
+	if err := s.exportAccessibilityArtifacts(ctx, executionID, outputDir, storageClient); err != nil {
+		return fmt.Errorf("export accessibility artifacts: %w", err)
+	}
+
+	return nil
+}
+
+// accessibilitySnapshotFile is the canonical filename the driver emits into
+// the execution's artifacts/accessibility directory, and the flat name the
+// capture handler reads back from the export folder.
+const accessibilitySnapshotFile = "accessibility.json"
+
+// exportAccessibilityArtifacts copies the driver-written AX-tree snapshot from
+// the execution artifact root into outputDir/accessibility.json (flat, matching
+// the accessibility fileProducer) and uploads it to object storage. A missing
+// source is not an error (the run did not request an AX snapshot, or the
+// capture degraded gracefully).
+func (s *WorkflowService) exportAccessibilityArtifacts(ctx context.Context, executionID uuid.UUID, outputDir string, storageClient storage.StorageInterface) error {
+	if strings.TrimSpace(s.executionDataRoot) == "" {
+		return nil
+	}
+	srcPath := filepath.Join(s.executionDataRoot, executionID.String(), "artifacts", "accessibility", accessibilitySnapshotFile)
+	if _, err := os.Stat(srcPath); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("stat accessibility snapshot: %w", err)
+	}
+
+	if err := copyFile(srcPath, filepath.Join(outputDir, accessibilitySnapshotFile)); err != nil {
+		return fmt.Errorf("copy accessibility snapshot: %w", err)
+	}
+	if storageClient != nil {
+		if _, err := storageClient.StoreArtifactFromFile(ctx, executionID, "accessibility/accessibility", srcPath, "application/json"); err != nil && s.log != nil {
+			s.log.WithError(err).WithField("execution_id", executionID).Warn("failed to upload accessibility artifact to storage")
+		}
+	}
 	return nil
 }
 

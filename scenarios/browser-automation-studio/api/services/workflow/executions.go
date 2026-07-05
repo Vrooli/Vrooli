@@ -91,6 +91,11 @@ type ExecuteOptions struct {
 	// PerformanceTracer to the session and emits performance.json +
 	// performance.web-vitals.json into the execution's artifact root.
 	RequiresPerfTrace bool
+	// RequiresAccessibility forces a CDP accessibility-tree snapshot on the
+	// execution plan metadata. The driver walks the AX tree after the page
+	// settles and writes the normalized accessibility.json
+	// (bas-accessibility-snapshot/v1) into the execution's artifact root.
+	RequiresAccessibility bool
 }
 
 // ExecuteWorkflowAPI starts a workflow execution using proto request/response types.
@@ -434,6 +439,12 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 			plan.Metadata = make(map[string]any)
 		}
 		plan.Metadata["requiresPerformanceTrace"] = true
+	}
+	if opts != nil && opts.RequiresAccessibility {
+		if plan.Metadata == nil {
+			plan.Metadata = make(map[string]any)
+		}
+		plan.Metadata["requiresAccessibility"] = true
 	}
 
 	// Inject frame streaming config into plan metadata if enabled.

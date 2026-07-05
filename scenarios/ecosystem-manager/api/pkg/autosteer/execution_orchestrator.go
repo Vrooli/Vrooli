@@ -14,6 +14,7 @@ import (
 	"github.com/ecosystem-manager/api/pkg/findings"
 	"github.com/ecosystem-manager/api/pkg/skillmap"
 	"github.com/vrooli/maturity-go/dimensions"
+	"github.com/vrooli/maturity-go/phasecoverage"
 )
 
 // defaultAuditPreset is used when a profile does not pin one.
@@ -381,7 +382,11 @@ func (o *ExecutionOrchestrator) reaudit(ctx context.Context, scenarioName string
 	}
 
 	skillDims := o.resolver().DimensionsForSkill(state.CurrentSkill)
-	phases := dimensions.PhasesForDimensions(skillDims...)
+	coverage, err := phasecoverage.Load(findings.FindRepoRoot())
+	if err != nil {
+		return o.fullAudit(ctx, scenarioName, profile)
+	}
+	phases := coverage.PhasesForDimensions(skillDims...)
 	if len(phases) == 0 {
 		// No targeted phases resolvable; fall back to a full audit.
 		return o.fullAudit(ctx, scenarioName, profile)

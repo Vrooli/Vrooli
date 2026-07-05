@@ -43,7 +43,7 @@ func Commands(ctx *appctx.Context) cliapp.CommandGroup {
 			{
 				Name:        "capture",
 				NeedsAPI:    true,
-				Description: "Capture screenshot/console/network/video/DOM/performance artifacts from a single page load",
+				Description: "Capture screenshot/console/network/video/DOM/performance/accessibility artifacts from a single page load",
 				Args:        captureArgSchema(),
 				RunCtx: func(rc cliapp.RunContext) error {
 					return runCaptureRC(ctx, rc)
@@ -61,7 +61,7 @@ func captureArgSchema() cliapp.ArgSchema {
 	return cliapp.ArgSchema{
 		Flags: []cliapp.Flag{
 			{Name: "url", Required: true, Description: "http(s) URL OR `scenario=<slug>,path=<path>` shorthand"},
-			{Name: "capture", Description: "Comma-separated artifact types: screenshot,console-logs,network,video,dom,performance (default: screenshot)"},
+			{Name: "capture", Description: "Comma-separated artifact types: screenshot,console-logs,network,video,dom,performance,accessibility (default: screenshot)"},
 			{Name: "dimensions", Description: "Preset viewport: mobile (390x844) | tablet (768x1024) | desktop (1440x900)"},
 			{Name: "width", Description: "Explicit viewport width (overrides preset)"},
 			{Name: "height", Description: "Explicit viewport height (overrides preset)"},
@@ -69,26 +69,28 @@ func captureArgSchema() cliapp.ArgSchema {
 			{Name: "wait-for", Description: "Readiness: CSS selector | 'networkidle' | timeout in ms"},
 			{Name: "out", Description: "Server-relative output directory for artifact files"},
 			{Name: "label", Description: "Label echoed into the artifact bundle"},
+			{Name: "inline-accessibility", Bool: true, Description: "Return the normalized accessibility-tree snapshot JSON inline (drives the AX capture; independent of --capture)"},
 			{Name: "dry-run", Bool: true, Description: "Send X-Dry-Run header; server validates without producing artifacts"},
 		},
 	}
 }
 
 type captureFlags struct {
-	url               string
-	captures          []string
-	dimensions        string // "mobile" | "tablet" | "desktop" | ""
-	width             int
-	height            int
-	deviceScaleFactor float64
-	hasWidth          bool
-	hasHeight         bool
-	hasDeviceScale    bool
-	waitFor           string
-	outDir            string
-	label             string
-	json              bool
-	dryRun            bool
+	url                 string
+	captures            []string
+	dimensions          string // "mobile" | "tablet" | "desktop" | ""
+	width               int
+	height              int
+	deviceScaleFactor   float64
+	hasWidth            bool
+	hasHeight           bool
+	hasDeviceScale      bool
+	waitFor             string
+	outDir              string
+	label               string
+	inlineAccessibility bool
+	json                bool
+	dryRun              bool
 }
 
 // flagsFromContext lifts a captureFlags out of a parsed RunContext.
@@ -96,13 +98,14 @@ type captureFlags struct {
 // unchanged.
 func flagsFromContext(rc cliapp.RunContext) (captureFlags, error) {
 	f := captureFlags{
-		url:        strings.TrimSpace(rc.Flag("url")),
-		dimensions: strings.ToLower(strings.TrimSpace(rc.Flag("dimensions"))),
-		waitFor:    rc.Flag("wait-for"),
-		outDir:     rc.Flag("out"),
-		label:      rc.Flag("label"),
-		json:       rc.JSON(),
-		dryRun:     rc.BoolFlag("dry-run"),
+		url:                 strings.TrimSpace(rc.Flag("url")),
+		dimensions:          strings.ToLower(strings.TrimSpace(rc.Flag("dimensions"))),
+		waitFor:             rc.Flag("wait-for"),
+		outDir:              rc.Flag("out"),
+		label:               rc.Flag("label"),
+		inlineAccessibility: rc.BoolFlag("inline-accessibility"),
+		json:                rc.JSON(),
+		dryRun:              rc.BoolFlag("dry-run"),
 	}
 	if csv := rc.Flag("capture"); csv != "" {
 		for _, tok := range strings.Split(csv, ",") {
@@ -268,6 +271,8 @@ func parseCaptureFlags(args []string) (captureFlags, error) {
 			}
 			f.label = v
 			i++
+		case "--inline-accessibility":
+			f.inlineAccessibility = true
 		case "--json":
 			f.json = true
 		case "--dry-run":
@@ -281,9 +286,10 @@ func parseCaptureFlags(args []string) (captureFlags, error) {
 
 func buildCaptureRequest(f captureFlags) (*capturev1.CaptureRequest, error) {
 	req := &capturev1.CaptureRequest{
-		Url:    f.url,
-		OutDir: f.outDir,
-		Label:  f.label,
+		Url:                 f.url,
+		OutDir:              f.outDir,
+		Label:               f.label,
+		InlineAccessibility: f.inlineAccessibility,
 	}
 
 	for _, tok := range f.captures {
@@ -403,11 +409,18 @@ func protoToJSON(m *capturev1.CaptureResponse) map[string]interface{} {
 			"metadata":   a.Metadata,
 		})
 	}
-	return map[string]interface{}{
+	out := map[string]interface{}{
 		"execution_id": m.ExecutionId,
 		"out_dir":      m.OutDir,
 		"duration_ms":  m.DurationMs,
 		"dry_run":      m.DryRun,
 		"artifacts":    arts,
 	}
+	// Surface the inline accessibility snapshot when requested — it is the
+	// remote-friendly payload (artifact paths are server-local). Omitted when
+	// empty to keep default/dry-run output clean.
+	if strings.TrimSpace(m.AccessibilityJson) != "" {
+		out["accessibility_json"] = m.AccessibilityJson
+	}
+	return out
 }

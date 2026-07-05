@@ -53,6 +53,7 @@ func DefaultProducerRegistry() *ProducerRegistry {
 		screenshotProducer{},
 		fileProducer{captureType: capturev1.CaptureType_CAPTURE_TYPE_CONSOLE_LOGS, file: "console-logs.md"},
 		fileProducer{captureType: capturev1.CaptureType_CAPTURE_TYPE_NETWORK, file: "network-activity.md"},
+		fileProducer{captureType: capturev1.CaptureType_CAPTURE_TYPE_ACCESSIBILITY, file: "accessibility.json"},
 		unavailableProducer{captureType: capturev1.CaptureType_CAPTURE_TYPE_VIDEO},
 		unavailableProducer{captureType: capturev1.CaptureType_CAPTURE_TYPE_DOM},
 		performanceProducer{},

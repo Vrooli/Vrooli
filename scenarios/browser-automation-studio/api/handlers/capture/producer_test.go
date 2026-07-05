@@ -91,11 +91,44 @@ func TestUnavailableProducer_AlwaysUnavailable(t *testing.T) {
 	require.Contains(t, arts[0].Path, canonicalFileName(capturev1.CaptureType_CAPTURE_TYPE_VIDEO))
 }
 
+func TestAccessibilityProducer_PresentAndMissing(t *testing.T) {
+	dir := t.TempDir()
+	const snapshot = `{"contract":"bas-accessibility-snapshot/v1","node_count":3}`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "accessibility.json"), []byte(snapshot), 0o644))
+
+	p := fileProducer{captureType: capturev1.CaptureType_CAPTURE_TYPE_ACCESSIBILITY, file: "accessibility.json"}
+	arts, err := p.Produce(dir)
+	require.NoError(t, err)
+	require.Len(t, arts, 1)
+	require.Equal(t, capturev1.CaptureType_CAPTURE_TYPE_ACCESSIBILITY, arts[0].Type)
+	require.EqualValues(t, len(snapshot), arts[0].SizeBytes)
+	require.NotEqual(t, "true", arts[0].Metadata["unavailable"])
+
+	// Absent file degrades to a single unavailable artifact, never an error.
+	arts, err = p.Produce(t.TempDir())
+	require.NoError(t, err)
+	require.Len(t, arts, 1)
+	require.Equal(t, "true", arts[0].Metadata["unavailable"])
+	require.Contains(t, arts[0].Path, "accessibility.json")
+}
+
+func TestDefaultProducerRegistry_AccessibilityIsRealProducer(t *testing.T) {
+	r := DefaultProducerRegistry()
+	p, ok := r.producers[capturev1.CaptureType_CAPTURE_TYPE_ACCESSIBILITY]
+	require.True(t, ok)
+	_, isUnavailable := p.(unavailableProducer)
+	require.False(t, isUnavailable, "accessibility must be a real fileProducer, not the unavailable placeholder")
+}
+
 func TestMetadata_PerformanceAvailable(t *testing.T) {
 	// P2 contract: PERFORMANCE is now produced by the driver tracer.
 	require.True(t, metaFor(capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE).available)
 	require.True(t, metaFor(capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT).available)
 	require.Equal(t, "performance.json", canonicalFileName(capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE))
+
+	// Accessibility is a driver-produced, available artifact.
+	require.True(t, metaFor(capturev1.CaptureType_CAPTURE_TYPE_ACCESSIBILITY).available)
+	require.Equal(t, "accessibility.json", canonicalFileName(capturev1.CaptureType_CAPTURE_TYPE_ACCESSIBILITY))
 }
 
 func TestPerformanceProducer_TraceAndVitals(t *testing.T) {

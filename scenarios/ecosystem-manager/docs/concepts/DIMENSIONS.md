@@ -82,32 +82,13 @@ test-genie surfaces two distinct signals, and the controller ingests both:
    **names** to a dimension. `FINDING_SOURCE_UNSPECIFIED` is intentionally
    unmapped.
 2. **Phase pass/fail** — phases that emit no structured findings (e.g. `unit`,
-   `integration`, `lint`, `performance`) still report a status.
-   `testgenie_phase_map` keys each test-genie catalog phase name to a
-   dimension so a failing-but-findingless phase contributes a synthetic finding
-   in its dimension.
+   `performance`) still report a status. Provider-owned
+   `scenarios/*/.vrooli/test-genie.json` descriptors declare each phase's
+   `dimensions`, so a failing-but-findingless phase contributes a synthetic
+   finding through descriptor coverage.
 
 A finding's dimension is therefore resolved by `Source` when one is present and
-falls back to the producing phase otherwise. Both `ForSource` and `ForPhase`
-return exactly one dimension by map construction.
-
-### Phase → dimension (v0)
-
-| test-genie phase | dimension |
-|---|---|
-| `structure` | `structure` |
-| `contracts` | `contracts` |
-| `ui-health` | `ui` |
-| `standards`, `lint` | `standards` |
-| `architecture` | `cycles` |
-| `dependencies` | `dependencies` |
-| `docs` | `docs` |
-| `smoke`, `playbooks` | `visual` |
-| `unit`, `integration` | `tests` |
-| `business` | `business` |
-| `performance` | `performance` |
-| `security` | `security` |
-| `measures` | `measures` |
+falls back to descriptor coverage for the producing phase otherwise.
 
 ### Source → dimension (v0)
 
@@ -132,8 +113,7 @@ return exactly one dimension by map construction.
   or renaming a source in test-genie's proto fails the build until the SSOT is
   updated;
 - a captured audit fixture (`testdata/testgenie_audit_fixture.json`, a recorded
-  copy of test-genie's `--json` output) exercises every source, and every
-  `plannedPhases` entry maps with no stale phase mappings left behind.
+  copy of test-genie's `--json` output) exercises every source.
 
-When test-genie adds a phase, re-capture the fixture; the phase-map test then
-fails until `dimensions.json` is extended.
+When test-genie adds or reclassifies a phase, update that provider's
+`.vrooli/test-genie.json` descriptor instead of `dimensions.json`.

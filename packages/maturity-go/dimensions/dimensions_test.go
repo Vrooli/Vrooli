@@ -14,18 +14,12 @@ import (
 // the full parse shape; here we only need phase names and finding sources.
 type fixtureAudit struct {
 	Phases []struct {
-		Name     string `json:"name"`
 		Findings []struct {
 			Source   int32  `json:"source"`
 			Code     string `json:"code"`
 			StableID string `json:"stable_id"`
 		} `json:"findings"`
 	} `json:"phases"`
-}
-
-type testgeniePhaseArtifact struct {
-	Source string   `json:"source"`
-	Phases []string `json:"phases"`
 }
 
 func loadFixture(t *testing.T) fixtureAudit {
@@ -39,19 +33,6 @@ func loadFixture(t *testing.T) fixtureAudit {
 		t.Fatalf("parse fixture: %v", err)
 	}
 	return fx
-}
-
-func loadTestgeniePhaseArtifact(t *testing.T) testgeniePhaseArtifact {
-	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("testdata", "testgenie_phase_names.json"))
-	if err != nil {
-		t.Fatalf("read test-genie phase artifact: %v", err)
-	}
-	var artifact testgeniePhaseArtifact
-	if err := json.Unmarshal(raw, &artifact); err != nil {
-		t.Fatalf("parse test-genie phase artifact: %v", err)
-	}
-	return artifact
 }
 
 // TestEverySourceMapsToValidDimension is the anti-drift guard over test-genie's
@@ -89,11 +70,11 @@ func TestFixtureFindingsMapToExactlyOneDimension(t *testing.T) {
 			seenSources[f.Source] = true
 			dim, ok := ForSource(architecturev1.FindingSource(f.Source))
 			if !ok {
-				t.Errorf("phase %q finding %q: source %d unmapped", ph.Name, f.Code, f.Source)
+				t.Errorf("finding %q: source %d unmapped", f.Code, f.Source)
 				continue
 			}
 			if !IsValid(dim) {
-				t.Errorf("phase %q finding %q: dimension %q not in vocabulary", ph.Name, f.Code, dim)
+				t.Errorf("finding %q: dimension %q not in vocabulary", f.Code, dim)
 			}
 		}
 	}
@@ -104,47 +85,6 @@ func TestFixtureFindingsMapToExactlyOneDimension(t *testing.T) {
 		}
 		if !seenSources[int32(val)] {
 			t.Errorf("fixture does not exercise FindingSource %q (%d); add a finding so the mapping is proven", name, val)
-		}
-	}
-}
-
-// TestPhaseMapMatchesTestGenieCatalogArtifact is the anti-drift guard over
-// test-genie's phase catalog. The artifact is emitted from
-// phases.ValidPhaseNames; every catalog phase must map, and no stale phase
-// mapping may linger.
-func TestPhaseMapMatchesTestGenieCatalogArtifact(t *testing.T) {
-	artifact := loadTestgeniePhaseArtifact(t)
-	if len(artifact.Phases) == 0 {
-		t.Fatal("test-genie phase artifact is empty")
-	}
-
-	planned := map[string]bool{}
-	for _, p := range artifact.Phases {
-		planned[p] = true
-		dim, ok := ForPhase(p)
-		if !ok {
-			t.Errorf("test-genie phase %q has no dimension mapping in dimensions.json", p)
-			continue
-		}
-		if !IsValid(dim) {
-			t.Errorf("phase %q maps to non-vocabulary dimension %q", p, dim)
-		}
-	}
-
-	for _, mapped := range MappedPhases() {
-		if !planned[mapped] {
-			t.Errorf("dimensions.json maps phase %q that the test-genie catalog artifact no longer plans; remove the stale mapping", mapped)
-		}
-	}
-}
-
-// TestEveryPhaseInFixtureMaps asserts each phase actually present in the audit
-// resolves — covering the executed-phase path.
-func TestEveryPhaseInFixtureMaps(t *testing.T) {
-	fx := loadFixture(t)
-	for _, ph := range fx.Phases {
-		if _, ok := ForPhase(ph.Name); !ok {
-			t.Errorf("executed phase %q has no dimension mapping", ph.Name)
 		}
 	}
 }

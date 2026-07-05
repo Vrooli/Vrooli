@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "scenario": "knowledge-observatory",
   "phase": "docs",
+  "displayName": "Documentation",
   "description": "Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory.",
   "source": "validation-provider",
   "orderHint": 8,
@@ -1159,5 +1160,14 @@
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "required"
     }
-  }
+  },
+  "profileMembership": [
+    "architecture-audit"
+  ],
+  "freshnessRequirement": "when_applicable",
+  "phaseClass": "architecture",
+  "runtimeClass": "static",
+  "dimensions": [
+    "docs"
+  ]
 }

@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/vrooli/vrooli/internal/logx"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
@@ -25,12 +24,8 @@ type dependencyDecision struct {
 	continueOnFailure bool
 }
 
-const (
-	resourceDependencyReadyTimeout  = 30 * time.Second
-	resourceDependencyReadyInterval = 500 * time.Millisecond
-	dependencyLockWaitTimeout       = 2 * time.Minute
-	dependencyLockWaitInterval      = 500 * time.Millisecond
-)
+// Timeout/interval values for the dependency waits live in the lifecycle
+// policy table (await.go: resourceReadyPolicy, dependencyLockPolicy).
 
 // dependencyRestartReason explains why a dependency is being (re)started rather
 // than reused. It is only ever called once the reuse fast-path has been
@@ -83,7 +78,7 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 	}
 	sort.Strings(names)
 
-	for _, dependencyName := range names {
+	for index, dependencyName := range names {
 		dependency := item.Manifest.Dependencies.Scenarios[dependencyName]
 		decision := resolveDependencyDecision(dependency, opts.BestEffort)
 		if decision.skip {
@@ -149,7 +144,7 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 		strictHealthy := r.isRegistryRuntimeHealthy(dependencyItem, dependencyView)
 		dependencyRunning := dependencyView.Authoritative
 		if dependencyRunning && strictHealthy && !freshnessStale {
-			r.progressf("%s: dependency %s already running; reusing existing process", item.Slug, dependencyName)
+			r.publish(ProgressEvent{Kind: EventDependencyReused, Scenario: item.Slug, Dependency: dependencyName, Index: index + 1, Total: len(names)})
 			r.logDebug("Dependency already running and healthy", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
 			ready[dependencyName] = struct{}{}
 			continue
@@ -180,7 +175,7 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 		}
 
 		reason := dependencyRestartReason(dependencyRunning, strictHealthy, freshnessStale, freshnessReasons)
-		r.progressf("%s: starting dependency %s (%s)", item.Slug, dependencyName, reason)
+		r.publish(ProgressEvent{Kind: EventDependencyStarting, Scenario: item.Slug, Dependency: dependencyName, Reason: reason, Index: index + 1, Total: len(names)})
 		r.logInfo("Dependency start required",
 			logx.AttrScenario, item.Slug,
 			logx.AttrDependency, dependencyName,
@@ -238,7 +233,7 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 			return nil, lockErr
 		}
 		if reusedAfterWait {
-			r.progressf("%s: dependency %s became ready while another invocation held its lifecycle lock; reusing existing process", item.Slug, dependencyName)
+			r.publish(ProgressEvent{Kind: EventDependencyReused, Scenario: item.Slug, Dependency: dependencyName, AfterLockWait: true, Index: index + 1, Total: len(names)})
 			ready[dependencyName] = struct{}{}
 			continue
 		}
@@ -272,23 +267,28 @@ func (r *Runner) acquireDependencyScenarioLock(dependencyName string, dependency
 		return nil, false, err
 	}
 
-	deps := r.runtimeDeps()
-	deadline := deps.now().Add(dependencyLockWaitTimeout)
 	lastErr := err
 	r.logInfo("Dependency lifecycle lock is busy; waiting for concurrent invocation to finish",
 		logx.AttrDependency, dependencyName,
-		"wait_timeout", dependencyLockWaitTimeout.String(),
+		"wait_timeout", dependencyLockPolicy.Timeout.String(),
 		"error", err.Error(),
 	)
 
-	for {
+	var acquired func()
+	reused := false
+	// The caller just failed an acquire; re-attempts are spaced one interval
+	// apart, so the first tick only checks readiness and the first re-acquire
+	// happens after the first sleep.
+	firstTick := true
+	awaitErr := Await(r.awaitClock(), dependencyLockPolicy, func() (bool, error) {
 		if dependencyReady != nil {
 			ready, readyErr := dependencyReady()
 			if readyErr == nil && ready {
 				r.logInfo("Dependency became ready while lifecycle lock was held",
 					logx.AttrDependency, dependencyName,
 				)
-				return nil, true, nil
+				reused = true
+				return true, nil
 			}
 			if readyErr != nil {
 				r.logDebug("Dependency readiness check failed while waiting for lifecycle lock",
@@ -297,21 +297,31 @@ func (r *Runner) acquireDependencyScenarioLock(dependencyName string, dependency
 				)
 			}
 		}
-
-		if !deps.now().Before(deadline) {
-			return nil, false, fmt.Errorf("dependency %q lifecycle lock remained busy for %s: %w", dependencyName, dependencyLockWaitTimeout, lastErr)
+		if firstTick {
+			firstTick = false
+			return false, nil
 		}
-		deps.sleep(dependencyLockWaitInterval)
-
-		release, err = r.acquireScenarioLock(dependencyName)
-		if err == nil {
-			return release, false, nil
+		release, acquireErr := r.acquireScenarioLock(dependencyName)
+		if acquireErr == nil {
+			acquired = release
+			return true, nil
 		}
-		if !errors.Is(err, ErrScenarioBusy) {
-			return nil, false, err
+		if !errors.Is(acquireErr, ErrScenarioBusy) {
+			return false, acquireErr
 		}
-		lastErr = err
+		lastErr = acquireErr
+		return false, nil
+	})
+	if awaitErr == nil {
+		if reused {
+			return nil, true, nil
+		}
+		return acquired, false, nil
 	}
+	if errors.Is(awaitErr, ErrAwaitExpired) {
+		return nil, false, fmt.Errorf("dependency %q lifecycle lock remained busy for %s: %w", dependencyName, dependencyLockPolicy.Timeout, lastErr)
+	}
+	return nil, false, awaitErr
 }
 
 // applyDependencyFreshnessPolicy handles a running, healthy, but stale
@@ -337,12 +347,12 @@ func (r *Runner) applyDependencyFreshnessPolicy(startingScenario string, dep sce
 
 	switch policy {
 	case scenario.DependencyFreshnessPolicyReuseRunning:
-		r.progressf("%s: stale but reused per freshness_policy=reuse_running (%s)", dep.Slug, reasonStr)
+		r.publish(ProgressEvent{Kind: EventDependencyStalePolicy, Scenario: startingScenario, Dependency: dep.Slug, Policy: scenario.DependencyFreshnessPolicyReuseRunning, Reason: reasonStr})
 		r.logWarn("Reusing stale dependency per freshness_policy",
 			logx.AttrScenario, dep.Slug, "freshness_policy", scenario.DependencyFreshnessPolicyReuseRunning, "freshness_reason", reasonStr)
 		return true, nil
 	case scenario.DependencyFreshnessPolicyRebuildOnly:
-		r.progressf("%s: rebuilding stale dependency without restart per freshness_policy=rebuild_only (%s)", dep.Slug, reasonStr)
+		r.publish(ProgressEvent{Kind: EventDependencyStalePolicy, Scenario: startingScenario, Dependency: dep.Slug, Policy: scenario.DependencyFreshnessPolicyRebuildOnly, Reason: reasonStr})
 		r.logInfo("Rebuilding stale dependency without restart",
 			logx.AttrScenario, dep.Slug, "freshness_policy", scenario.DependencyFreshnessPolicyRebuildOnly, "freshness_reason", reasonStr)
 		if err := r.rebuildDependencyArtifacts(dep, view); err != nil {
@@ -461,7 +471,7 @@ func (r *Runner) ensureResourceDependencies(item scenario.Scenario, opts StartOp
 			return nil, fmt.Errorf("status resource dependency %s: %w", resourceName, err)
 		}
 		if resourceDependencyReady(status) {
-			r.progressf("%s: resource dependency %s already running; reusing existing service", item.Slug, resourceName)
+			r.publish(ProgressEvent{Kind: EventResourceReused, Scenario: item.Slug, Dependency: resourceName})
 			r.logDebug("Resource dependency already running and healthy", logx.AttrScenario, item.Slug, logx.AttrDependency, resourceName)
 			if err := r.ensureResourceConfig(item.Slug, resourceName, dependency.Config, decision); err != nil {
 				if decision.continueOnFailure {
@@ -474,7 +484,7 @@ func (r *Runner) ensureResourceDependencies(item scenario.Scenario, opts StartOp
 		}
 
 		reason := resourceDependencyStartReason(status)
-		r.progressf("%s: starting resource dependency %s (%s)", item.Slug, resourceName, reason)
+		r.publish(ProgressEvent{Kind: EventResourceStarting, Scenario: item.Slug, Dependency: resourceName, Reason: reason})
 		r.logInfo("Resource dependency start required",
 			logx.AttrScenario, item.Slug,
 			logx.AttrDependency, resourceName,
@@ -565,7 +575,7 @@ func (r *Runner) ensureResourceConfig(scenarioSlug, resourceName string, cfg jso
 
 	encoded := base64.StdEncoding.EncodeToString(cfg)
 	args := []string{"ensure", "--config-base64", encoded}
-	r.progressf("%s: ensuring %s dependency config", scenarioSlug, resourceName)
+	r.publish(ProgressEvent{Kind: EventResourceEnsureConfig, Scenario: scenarioSlug, Dependency: resourceName})
 	r.logInfo("Running resource ensure",
 		logx.AttrScenario, scenarioSlug,
 		logx.AttrDependency, resourceName,
@@ -586,36 +596,33 @@ func (r *Runner) ensureResourceConfig(scenarioSlug, resourceName string, cfg jso
 
 func (r *Runner) waitForResourceDependencyReady(resourceName string) (resourcecontrol.Status, error) {
 	deps := r.runtimeDeps()
-	deadline := deps.now().Add(resourceDependencyReadyTimeout)
 
 	var lastStatus resourcecontrol.Status
 	var lastErr error
-	for {
-		status, err := deps.resourceStatus(resourceName, false)
-		if err == nil {
-			lastStatus = status
-			if resourceDependencyReady(status) {
-				return status, nil
-			}
-		} else {
-			lastErr = err
+	err := Await(r.awaitClock(), resourceReadyPolicy, func() (bool, error) {
+		status, statusErr := deps.resourceStatus(resourceName, false)
+		if statusErr != nil {
+			// Transient probe failures are retried through the policy bound;
+			// only the last one is surfaced at expiry.
+			lastErr = statusErr
+			return false, nil
 		}
-
-		if !deps.now().Before(deadline) {
-			if lastErr != nil {
-				return lastStatus, fmt.Errorf("status started resource dependency %s: %w", resourceName, lastErr)
-			}
-			return lastStatus, fmt.Errorf(
-				"resource dependency %s is not ready after start (running=%t health=%q status_code=%q)",
-				resourceName,
-				lastStatus.Running,
-				lastStatus.Health,
-				lastStatus.StatusCode,
-			)
-		}
-
-		deps.sleep(resourceDependencyReadyInterval)
+		lastStatus = status
+		return resourceDependencyReady(status), nil
+	})
+	if err == nil {
+		return lastStatus, nil
 	}
+	if lastErr != nil {
+		return lastStatus, fmt.Errorf("status started resource dependency %s: %w", resourceName, lastErr)
+	}
+	return lastStatus, fmt.Errorf(
+		"resource dependency %s is not ready after start (running=%t health=%q status_code=%q)",
+		resourceName,
+		lastStatus.Running,
+		lastStatus.Health,
+		lastStatus.StatusCode,
+	)
 }
 
 func resourceDependencyReady(status resourcecontrol.Status) bool {

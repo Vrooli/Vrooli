@@ -3,7 +3,14 @@ import type { Video } from 'rebrowser-playwright';
 import { rename, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import type { Config } from '../config';
-import { logger, metrics, SessionNotFoundError, ResourceLimitError, scopedLog, LogContext } from '../utils';
+import {
+  logger,
+  metrics,
+  SessionNotFoundError,
+  ResourceLimitError,
+  scopedLog,
+  LogContext,
+} from '../utils';
 import { buildContext, type ActualViewport } from './context-builder';
 import { v4 as uuidv4 } from 'uuid';
 import { removeRecordingBuffer, RecordingPipelineManager } from '../recording';
@@ -19,7 +26,7 @@ import {
 } from './session-decisions';
 import { setupDiagnosticLogging } from './diagnostic-logger';
 import { resolveInstrumentation, safeInvoke, type Instrumentation } from '../instrumentation';
-import { PerformanceTracer, injectWebVitalsObserver } from '../tracing';
+import { PerformanceTracer, injectWebVitalsObserver, AccessibilitySnapshotter } from '../tracing';
 
 /**
  * SessionManager - Browser Session Lifecycle Management
@@ -52,7 +59,12 @@ import { PerformanceTracer, injectWebVitalsObserver } from '../tracing';
  * - Browser concurrency handled by BrowserManager
  */
 /** Result type for session creation */
-type SessionCreationResult = { sessionId: string; reused: boolean; createdAt: Date; actualViewport: ActualViewport };
+type SessionCreationResult = {
+  sessionId: string;
+  reused: boolean;
+  createdAt: Date;
+  actualViewport: ActualViewport;
+};
 
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -125,9 +137,8 @@ export class SessionManager {
    */
   async startSession(spec: SessionSpec): Promise<SessionCreationResult> {
     // InFlightGuard handles concurrent request deduplication automatically
-    return this.sessionCreationGuard.execute(
-      spec.execution_id,
-      () => this.startSessionInternal(spec)
+    return this.sessionCreationGuard.execute(spec.execution_id, () =>
+      this.startSessionInternal(spec)
     );
   }
 
@@ -181,14 +192,22 @@ export class SessionManager {
       }
 
       metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
-      const viewportSize = existingByExecutionId.page.viewportSize() ?? { width: 1280, height: 720 };
+      const viewportSize = existingByExecutionId.page.viewportSize() ?? {
+        width: 1280,
+        height: 720,
+      };
       const actualViewport: ActualViewport = {
         width: viewportSize.width,
         height: viewportSize.height,
         source: 'requested', // Reused session - original source unknown
         reason: 'Reused existing session',
       };
-      return { sessionId: existingByExecutionId.id, reused: true, createdAt: existingByExecutionId.createdAt, actualViewport };
+      return {
+        sessionId: existingByExecutionId.id,
+        reused: true,
+        createdAt: existingByExecutionId.createdAt,
+        actualViewport,
+      };
     }
 
     // Handle reuse mode (match by labels)
@@ -242,7 +261,12 @@ export class SessionManager {
           source: 'requested', // Reused session - original source unknown
           reason: 'Reused existing session by label match',
         };
-        return { sessionId: existingSession.id, reused: true, createdAt: existingSession.createdAt, actualViewport };
+        return {
+          sessionId: existingSession.id,
+          reused: true,
+          createdAt: existingSession.createdAt,
+          actualViewport,
+        };
       }
     }
 
@@ -260,11 +284,15 @@ export class SessionManager {
     const browser = await this.browserManager.getBrowser();
 
     // Build context (includes actualViewport with source attribution)
-    const { context, harPath, tracePath, videoDir, serviceWorkerController, recordingInitializer, actualViewport } = await buildContext(
-      browser,
-      spec,
-      this.config
-    );
+    const {
+      context,
+      harPath,
+      tracePath,
+      videoDir,
+      serviceWorkerController,
+      recordingInitializer,
+      actualViewport,
+    } = await buildContext(browser, spec, this.config);
 
     // Create initial page
     const page = await context.newPage();
@@ -344,31 +372,35 @@ export class SessionManager {
     // Initialize recording pipeline (early verification)
     // This runs injection and verification so the pipeline is ready before recording starts
     // The promise is stored in session.pipelineReadyPromise so consumers can await it
-    const pipelineReadyPromise = pipelineManager.initialize().then(() => {
-      return pipelineManager.verifyPipeline({ timeoutMs: 5000, retries: 1 });
-    }).then((verification) => {
-      if (verification.scriptLoaded && verification.scriptReady && verification.inMainContext) {
-        logger.debug(scopedLog(LogContext.SESSION, 'recording pipeline verified'), {
+    const pipelineReadyPromise = pipelineManager
+      .initialize()
+      .then(() => {
+        return pipelineManager.verifyPipeline({ timeoutMs: 5000, retries: 1 });
+      })
+      .then((verification) => {
+        if (verification.scriptLoaded && verification.scriptReady && verification.inMainContext) {
+          logger.debug(scopedLog(LogContext.SESSION, 'recording pipeline verified'), {
+            sessionId,
+            handlersCount: verification.handlersCount,
+          });
+          return true;
+        } else {
+          logger.warn(scopedLog(LogContext.SESSION, 'recording pipeline verification incomplete'), {
+            sessionId,
+            verification,
+            hint: 'Recording may require re-verification on first use',
+          });
+          return false;
+        }
+      })
+      .catch((err: unknown) => {
+        logger.warn(scopedLog(LogContext.SESSION, 'recording pipeline init failed'), {
           sessionId,
-          handlersCount: verification.handlersCount,
-        });
-        return true;
-      } else {
-        logger.warn(scopedLog(LogContext.SESSION, 'recording pipeline verification incomplete'), {
-          sessionId,
-          verification,
-          hint: 'Recording may require re-verification on first use',
+          error: getErrorMessage(err),
+          hint: 'Recording will retry initialization when started',
         });
         return false;
-      }
-    }).catch((err: unknown) => {
-      logger.warn(scopedLog(LogContext.SESSION, 'recording pipeline init failed'), {
-        sessionId,
-        error: getErrorMessage(err),
-        hint: 'Recording will retry initialization when started',
       });
-      return false;
-    });
 
     // Store the promise in session state for consumers to await
     session.pipelineReadyPromise = pipelineReadyPromise;
@@ -405,18 +437,48 @@ export class SessionManager {
     // trace spans the entire session. Best-effort: a failure leaves the
     // session fully functional, just without a perf artifact.
     if (spec.required_capabilities?.performance_trace) {
-      const perfDir = spec.artifact_paths?.perf_dir?.trim()
-        || (spec.artifact_paths?.root?.trim() ? path.join(spec.artifact_paths.root.trim(), 'performance') : '');
+      const perfDir =
+        spec.artifact_paths?.perf_dir?.trim() ||
+        (spec.artifact_paths?.root?.trim()
+          ? path.join(spec.artifact_paths.root.trim(), 'performance')
+          : '');
       if (perfDir) {
         await injectWebVitalsObserver(context);
         const tracer = new PerformanceTracer(perfDir);
         await tracer.start(page);
         session.perfTracer = tracer;
       } else {
-        logger.warn(scopedLog(LogContext.TELEMETRY, 'performance trace requested without artifact path'), {
-          sessionId,
-          hint: 'set artifact_paths.perf_dir or artifact_paths.root to capture a perf trace',
-        });
+        logger.warn(
+          scopedLog(LogContext.TELEMETRY, 'performance trace requested without artifact path'),
+          {
+            sessionId,
+            hint: 'set artifact_paths.perf_dir or artifact_paths.root to capture a perf trace',
+          }
+        );
+      }
+    }
+
+    // Accessibility snapshot. Registered here (no session-spanning state to
+    // start) so the output dir + capability gate are captured at start; the
+    // snapshot itself fires at session close, on the final settled page —
+    // after wait_for and any interaction, the same point the final screenshot
+    // fires. Best-effort: a missing artifact path just skips the capability.
+    if (spec.required_capabilities?.accessibility) {
+      const accessibilityDir =
+        spec.artifact_paths?.accessibility_dir?.trim() ||
+        (spec.artifact_paths?.root?.trim()
+          ? path.join(spec.artifact_paths.root.trim(), 'accessibility')
+          : '');
+      if (accessibilityDir) {
+        session.accessibilitySnapshotter = new AccessibilitySnapshotter(accessibilityDir);
+      } else {
+        logger.warn(
+          scopedLog(LogContext.TELEMETRY, 'accessibility snapshot requested without artifact path'),
+          {
+            sessionId,
+            hint: 'set artifact_paths.accessibility_dir or artifact_paths.root to capture an AX snapshot',
+          }
+        );
       }
     }
 
@@ -652,13 +714,13 @@ export class SessionManager {
     if (session.pages.length > 1) {
       const extraPages = session.pages.slice(1);
       for (const page of extraPages) {
-      await page.close().catch((err: unknown) => {
-        logger.warn(scopedLog(LogContext.CLEANUP, 'page close failed'), {
-          sessionId,
-          error: getErrorMessage(err),
+        await page.close().catch((err: unknown) => {
+          logger.warn(scopedLog(LogContext.CLEANUP, 'page close failed'), {
+            sessionId,
+            error: getErrorMessage(err),
+          });
+          metrics.cleanupFailures.inc({ operation: 'page_close' });
         });
-        metrics.cleanupFailures.inc({ operation: 'page_close' });
-      });
       }
       session.pages = [session.page];
       session.currentPageIndex = 0;
@@ -759,6 +821,18 @@ export class SessionManager {
       if (session.serviceWorkerController) {
         await session.serviceWorkerController.disable().catch((err: unknown) => {
           logger.warn(scopedLog(LogContext.CLEANUP, 'SW controller disable failed'), {
+            sessionId,
+            error: getErrorMessage(err),
+          });
+        });
+      }
+
+      // Capture the accessibility-tree snapshot before context teardown, on
+      // the final settled page (after wait_for + any interaction). Mirrors the
+      // perf tracer's terminal read below. Best-effort: never blocks cleanup.
+      if (session.accessibilitySnapshotter) {
+        await session.accessibilitySnapshotter.capture(session.page).catch((err: unknown) => {
+          logger.warn(scopedLog(LogContext.TELEMETRY, 'accessibility snapshot capture failed'), {
             sessionId,
             error: getErrorMessage(err),
           });
@@ -998,7 +1072,9 @@ export class SessionManager {
     }
 
     // Sort by last used (most recent first)
-    return list.sort((a, b) => new Date(b.last_used_at).getTime() - new Date(a.last_used_at).getTime());
+    return list.sort(
+      (a, b) => new Date(b.last_used_at).getTime() - new Date(a.last_used_at).getTime()
+    );
   }
 
   /**
@@ -1018,7 +1094,11 @@ export class SessionManager {
   }
 }
 
-async function resolveVideoPath(video: Video, session: SessionState, pageIndex: number): Promise<string | null> {
+async function resolveVideoPath(
+  video: Video,
+  session: SessionState,
+  pageIndex: number
+): Promise<string | null> {
   let sourcePath = '';
   try {
     sourcePath = await video.path();

@@ -11,9 +11,12 @@ package findings
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/vrooli/maturity-go/dimensions"
+	"github.com/vrooli/maturity-go/phasecoverage"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
@@ -106,13 +109,14 @@ func ToFindings(a *Audit) []Finding {
 	if a == nil {
 		return nil
 	}
+	coverage := loadPhaseCoverage()
 	out := make([]Finding, 0)
 	for _, ph := range a.Phases {
 		if len(ph.Findings) > 0 {
 			for _, raw := range ph.Findings {
 				dim, ok := dimensions.ForSource(architecturev1.FindingSource(raw.Source))
 				if !ok {
-					dim, ok = dimensions.ForPhase(ph.Name)
+					dim, ok = coverage.FirstDimensionForPhase(ph.Name)
 				}
 				if !ok {
 					// Neither source nor phase maps; skip rather than invent a
@@ -132,7 +136,7 @@ func ToFindings(a *Audit) []Finding {
 			continue
 		}
 		if phaseFailed(ph.Status) {
-			dim, ok := dimensions.ForPhase(ph.Name)
+			dim, ok := coverage.FirstDimensionForPhase(ph.Name)
 			if !ok {
 				continue
 			}
@@ -148,6 +152,27 @@ func ToFindings(a *Audit) []Finding {
 		}
 	}
 	return out
+}
+
+func loadPhaseCoverage() phasecoverage.Coverage {
+	coverage, err := phasecoverage.Load(FindRepoRoot())
+	if err != nil {
+		return phasecoverage.Coverage{}
+	}
+	return coverage
+}
+
+func FindRepoRoot() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "."
+	}
+	for dir := wd; dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
+		if info, err := os.Stat(filepath.Join(dir, "scenarios")); err == nil && info.IsDir() {
+			return dir
+		}
+	}
+	return wd
 }
 
 func firstLocation(locs []string) string {

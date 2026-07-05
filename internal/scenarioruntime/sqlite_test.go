@@ -175,6 +175,123 @@ CREATE TABLE runtime_events (
 	}
 }
 
+// TestSQLiteStoreRejectsStampedOlderVersion proves there is no in-code
+// migration ladder: a database stamped at any older version is a hard error
+// pointing at the one-shot conversion path, never auto-migrated or recreated.
+func TestSQLiteStoreRejectsStampedOlderVersion(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+	stampUserVersion(t, dbPath, SchemaVersion-1)
+
+	_, err := NewSQLiteStore(ctx, Config{DBPath: dbPath})
+	if err == nil {
+		t.Fatalf("NewSQLiteStore should reject an older stamped schema version")
+	}
+	if !strings.Contains(err.Error(), "operator-run temporary conversion script") {
+		t.Fatalf("NewSQLiteStore error = %v, want one-shot conversion guidance", err)
+	}
+}
+
+// TestSQLiteStoreRejectsNewerDatabase covers the other direction: an old
+// binary must refuse a database written by a newer one.
+func TestSQLiteStoreRejectsNewerDatabase(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+	stampUserVersion(t, dbPath, SchemaVersion+1)
+
+	_, err := NewSQLiteStore(ctx, Config{DBPath: dbPath})
+	if err == nil {
+		t.Fatalf("NewSQLiteStore should reject a newer database")
+	}
+	if !strings.Contains(err.Error(), "binary is older than database") {
+		t.Fatalf("NewSQLiteStore error = %v, want older-binary guard", err)
+	}
+}
+
+// TestFreshInstallAppliesFullSchema asserts the declarative schemaSQL is the
+// complete current shape: version stamp, every table, and the columns whose
+// absence historically required migrations (variant, start-operation tables).
+func TestFreshInstallAppliesFullSchema(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+	store, err := NewSQLiteStore(ctx, Config{DBPath: dbPath})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore() error = %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	var version int
+	if err := store.db.QueryRowContext(ctx, `PRAGMA user_version`).Scan(&version); err != nil {
+		t.Fatalf("read user_version: %v", err)
+	}
+	if version != SchemaVersion {
+		t.Fatalf("fresh install user_version = %d, want %d", version, SchemaVersion)
+	}
+
+	wantColumns := map[string][]string{
+		"runtime_instances":   {"variant", "supervision_policy", "schema_version"},
+		"runtime_port_claims": {"variant", "listener_status", "listener_process_label"},
+		"runtime_start_operations": {
+			"operation_id", "scenario", "variant", "status", "verdict",
+			"current_step", "dependency_current", "dependency_index",
+			"dependency_total", "steps_json",
+		},
+		"runtime_phase_durations":     {"scenario", "variant", "phase", "duration_ms", "recorded_at"},
+		"runtime_supervisor_sessions": {"supervisor_id", "heartbeat_deadline_at"},
+		"runtime_health_snapshots":    {"instance_id", "schema_valid"},
+		"runtime_process_refs":        {"ref_id", "host_boot_id"},
+		"runtime_events":              {"event_id", "details_json"},
+	}
+	for table, cols := range wantColumns {
+		got := tableColumns(t, store.db, table)
+		if len(got) == 0 {
+			t.Fatalf("fresh install missing table %s", table)
+		}
+		for _, col := range cols {
+			if !got[col] {
+				t.Fatalf("fresh install table %s missing column %s (schemaSQL drifted from current shape)", table, col)
+			}
+		}
+	}
+}
+
+func stampUserVersion(t *testing.T, dbPath string, version int) {
+	t.Helper()
+	db, err := sql.Open("sqlite", buildDSN(dbPath))
+	if err != nil {
+		t.Fatalf("sql.Open: %v", err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(fmt.Sprintf(`PRAGMA user_version = %d`, version)); err != nil {
+		t.Fatalf("stamp user_version: %v", err)
+	}
+}
+
+func tableColumns(t *testing.T, db *sql.DB, table string) map[string]bool {
+	t.Helper()
+	rows, err := db.Query(fmt.Sprintf(`PRAGMA table_info(%s)`, table))
+	if err != nil {
+		t.Fatalf("table_info(%s): %v", table, err)
+	}
+	defer rows.Close()
+	cols := map[string]bool{}
+	for rows.Next() {
+		var (
+			cid, notNull, pk int
+			name, ctype      string
+			dflt             sql.NullString
+		)
+		if err := rows.Scan(&cid, &name, &ctype, &notNull, &dflt, &pk); err != nil {
+			t.Fatalf("scan table_info(%s): %v", table, err)
+		}
+		cols[name] = true
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate table_info(%s): %v", table, err)
+	}
+	return cols
+}
+
 func TestSQLiteStoreGenerationBlocksStaleWriters(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore(t, newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC)))

@@ -1183,6 +1183,44 @@ interface RetryService {
 
 ---
 
+### 30. Accessibility Snapshot Capture + Contract Seam (Strong)
+
+**Locations:**
+- Driver: `playwright-driver/src/tracing/accessibility-snapshot.ts` (`AccessibilitySnapshotter`, `normalizeAccessibilityTree`, `parseDomSnapshot`)
+- Handler: `api/handlers/capture/producer.go` (accessibility `fileProducer`), `api/handlers/capture/inline_accessibility.go` (inline read + 2 MiB cap)
+- Proto: `CaptureType.CAPTURE_TYPE_ACCESSIBILITY = 7`, `CaptureRequest.inline_accessibility = 9`, `CaptureResponse.accessibility_json = 7`, `ArtifactType.ARTIFACT_TYPE_ACCESSIBILITY_SNAPSHOT = 8`
+
+**What it captures:** `CAPTURE_TYPE_ACCESSIBILITY` requests a normalized JSON snapshot of the Chromium accessibility tree. The driver walks the AX tree via CDP `Accessibility.getFullAXTree` at a settled point (session close, on the final page — after `wait_for` and any `interaction_flow_json`, the same point the final screenshot fires), joins per-node geometry + `data-testid` from one `DOMSnapshot.captureSnapshot`, and writes `accessibility.json`. It rides the same capability plumbing as the perf trace (`RequiresAccessibility` → plan metadata `requiresAccessibility` → preflight `NeedsAccessibility` → driver `required_capabilities.accessibility` + `artifact_paths.accessibility_dir`). `ExportToFolder` lands the file flat in the capture out dir; the accessibility `fileProducer` surfaces it (absent → unavailable artifact, never an error).
+
+**Frozen contract — `bas-accessibility-snapshot/v1`** (field names are stable; another scenario builds against this):
+```json
+{
+  "contract": "bas-accessibility-snapshot/v1",
+  "url": "<final page url>",
+  "viewport": {"width": 1440, "height": 900, "deviceScaleFactor": 1},
+  "captured_at": "<RFC3339>",
+  "node_count": 0,
+  "truncated": false,
+  "root": {
+    "role": "...", "name": "...", "description": "...", "value": "...",
+    "states": ["focusable"],
+    "bounds": {"x": 0, "y": 0, "width": 0, "height": 0},
+    "dom": {"testid": "...", "tag": "div"},
+    "children": []
+  },
+  "meta": {"frames": "main-only", "source": "cdp-accessibility"}
+}
+```
+Rules: ignored AX nodes are pruned (children spliced up); `bounds`/`dom`/empty-string scalar fields are omitted rather than nulled; main frame only in v1; node count capped (`truncated` flips true past the cap). `inline_accessibility` returns the same JSON inline in `CaptureResponse.accessibility_json` (server-capped at 2 MiB, silent truncation) and independently drives the capture (a caller need not also list the capture type), mirroring `inline_dom`.
+
+**Test Doubles:**
+- Driver: `normalizeAccessibilityTree`/`parseDomSnapshot` are pure (golden-file test `tests/unit/accessibility-snapshot.test.ts`); `AccessibilitySnapshotter` takes a `cdpFactory` seam so `capture()` runs against a fake CDP with no real browser.
+- Handler: `InlineAccessibilityConfig.readInlineAccessibility` + accessibility `fileProducer` covered by `handlers/capture/inline_accessibility_test.go` / `producer_test.go` via the existing `fakeExecutor` export seam.
+
+**Status:** Strong — pure normalizer, injectable CDP factory, golden coverage, graceful degradation on every failure path.
+
+---
+
 ## Seam Enforcement Matrix
 
 | Seam | Interface | Test Double | Compile Check | Priority |
@@ -1209,6 +1247,7 @@ interface RetryService {
 | WorkflowSyncRepository | Yes | Yes (Mock) | Yes | - |
 | EventBroadcaster | Yes (via HubInterface) | Yes (MockHub) | Yes | - |
 | RetryService (TS) | Yes | N/A (pure functions) | N/A | - |
+| Accessibility Snapshot (TS + Go) | Yes (`cdpFactory`, pure normalizer, `fileProducer`) | Yes (fake CDP + golden; `fakeExecutor`) | Yes | - |
 | CreditService | Yes | Yes (MockService, MockEntitlementProvider) | Yes | - |
 | EntitlementProvider | Yes | Yes (MockEntitlementProvider) | Yes | - |
 | LPBSReporter | Yes | Yes (mockLPBSReporter in tests) | Yes | - |

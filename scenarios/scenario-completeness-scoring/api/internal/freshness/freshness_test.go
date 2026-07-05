@@ -25,7 +25,7 @@ func TestCheckFreshAndStaleVerdicts(t *testing.T) {
 			TreeDigest:  "td:current",
 			Phases: []runindex.PhaseRecord{
 				{Name: "unit", Status: "passed"},
-				{Name: "standards", Status: "failed"},
+				{Name: "proto", Status: "failed"},
 			},
 		},
 		{
@@ -33,10 +33,10 @@ func TestCheckFreshAndStaleVerdicts(t *testing.T) {
 			CompletedAt: now.Add(-time.Hour),
 			TreeDigest:  "td:old",
 			Phases: []runindex.PhaseRecord{
-				{Name: "standards", Status: "passed"},
 				{Name: "structure", Status: "passed"},
 				{Name: "docs", Status: "passed"},
 				{Name: "business", Status: "passed"},
+				{Name: "proto", Status: "passed"},
 			},
 		},
 	}
@@ -55,10 +55,10 @@ func TestCheckFreshAndStaleVerdicts(t *testing.T) {
 	if unit.Verdict != "fresh" || unit.LastRunID != "run-new" || unit.LastDigest != "td:current" || unit.LastStatus != "passed" {
 		t.Fatalf("unit verdict = %+v", unit)
 	}
-	// standards passed only at the OLD digest -> stale, with last-passed context.
-	standards := byPhase["standards"]
-	if standards.Verdict != "stale" || standards.LastRunID != "run-old" || standards.LastDigest != "td:old" {
-		t.Fatalf("standards verdict = %+v", standards)
+	// proto passed only at the OLD digest -> stale, with last-passed context.
+	proto := byPhase["proto"]
+	if proto.Verdict != "stale" || proto.LastRunID != "run-old" || proto.LastDigest != "td:old" {
+		t.Fatalf("proto verdict = %+v", proto)
 	}
 	if res.SuggestedCommand == "" || !strings.Contains(res.SuggestedCommand, "fixture") {
 		t.Fatalf("suggested command = %q", res.SuggestedCommand)
@@ -97,7 +97,7 @@ func TestCheckDigestFailureDegradesToUnknown(t *testing.T) {
 
 func TestCheckUsesRequiredPhaseSet(t *testing.T) {
 	res := fixedService("td:x", nil, nil).Check("fixture", "/unused")
-	want := []string{"structure", "standards", "docs", "business", "unit", "proto"}
+	want := []string{"structure", "docs", "unit", "business", "proto"}
 	if len(res.Phases) != len(want) {
 		t.Fatalf("phase count = %d, want %d", len(res.Phases), len(want))
 	}

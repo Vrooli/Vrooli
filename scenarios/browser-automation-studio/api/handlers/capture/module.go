@@ -55,16 +55,18 @@ type URLResolver interface {
 
 // Deps wires the capture handler. Executor and Logger are required;
 // Storage is required to produce real screenshot files; Resolver and Now
-// are optional (Now defaults to time.Now). Producers and InlineDom are
-// optional and default to DefaultProducerRegistry / DefaultInlineDomConfig.
+// are optional (Now defaults to time.Now). Producers, InlineDom and
+// InlineAccessibility are optional and default to DefaultProducerRegistry /
+// package inline defaults.
 type Deps struct {
-	Executor  Executor
-	Storage   storage.StorageInterface
-	Resolver  URLResolver
-	Logger    *logrus.Logger
-	Now       func() time.Time
-	Producers *ProducerRegistry
-	InlineDom InlineDomConfig
+	Executor            Executor
+	Storage             storage.StorageInterface
+	Resolver            URLResolver
+	Logger              *logrus.Logger
+	Now                 func() time.Time
+	Producers           *ProducerRegistry
+	InlineDom           InlineDomConfig
+	InlineAccessibility InlineAccessibilityConfig
 }
 
 // Module builds the CaptureService Connect handler and returns it
@@ -86,6 +88,7 @@ func Module(d Deps) connectx.ServiceMount {
 		d.Producers = DefaultProducerRegistry()
 	}
 	d.InlineDom = d.InlineDom.withDefaults()
+	d.InlineAccessibility = d.InlineAccessibility.withDefaults()
 	path, handler := captureconnect.NewCaptureServiceHandler(&service{deps: d})
 	return connectx.ServiceMount{Path: path, Handler: handler}
 }

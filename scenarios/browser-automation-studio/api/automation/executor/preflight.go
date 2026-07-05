@@ -92,6 +92,10 @@ func mergeMetadataCapabilities(req contracts.CapabilityRequirement, metadata map
 		req.NeedsPerfTrace = true
 		add("perf_trace", "metadata.requiresPerformanceTrace")
 	}
+	if flag("requiresAccessibility") {
+		req.NeedsAccessibility = true
+		add("accessibility", "metadata.requiresAccessibility")
+	}
 	if flag("requiresIframes") {
 		req.NeedsIframes = true
 		add("iframes", "metadata.requiresIframes")
@@ -329,6 +333,7 @@ func mergeRequirements(req, addition contracts.CapabilityRequirement) contracts.
 	req.NeedsDownloads = req.NeedsDownloads || addition.NeedsDownloads
 	req.NeedsTracing = req.NeedsTracing || addition.NeedsTracing
 	req.NeedsPerfTrace = req.NeedsPerfTrace || addition.NeedsPerfTrace
+	req.NeedsAccessibility = req.NeedsAccessibility || addition.NeedsAccessibility
 	if addition.MinViewportWidth > req.MinViewportWidth {
 		req.MinViewportWidth = addition.MinViewportWidth
 	}

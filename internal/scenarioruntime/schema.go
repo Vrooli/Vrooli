@@ -138,6 +138,39 @@ CREATE TABLE IF NOT EXISTS runtime_events (
 CREATE INDEX IF NOT EXISTS idx_runtime_events_instance ON runtime_events(instance_id);
 CREATE INDEX IF NOT EXISTS idx_runtime_events_scenario ON runtime_events(scenario);
 CREATE INDEX IF NOT EXISTS idx_runtime_events_type ON runtime_events(event_type);
+
+CREATE TABLE IF NOT EXISTS runtime_start_operations (
+  operation_id TEXT PRIMARY KEY,
+  scenario TEXT NOT NULL,
+  variant TEXT NOT NULL DEFAULT 'live',
+  operation TEXT NOT NULL DEFAULT 'start',
+  status TEXT NOT NULL,
+  verdict TEXT NOT NULL DEFAULT '',
+  error TEXT NOT NULL DEFAULT '',
+  initiator_pid INTEGER,
+  started_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  finished_at TEXT,
+  current_step TEXT NOT NULL DEFAULT '',
+  dependency_current TEXT NOT NULL DEFAULT '',
+  dependency_index INTEGER NOT NULL DEFAULT 0,
+  dependency_total INTEGER NOT NULL DEFAULT 0,
+  steps_json TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_runtime_start_operations_scenario_variant
+  ON runtime_start_operations(scenario, variant);
+CREATE INDEX IF NOT EXISTS idx_runtime_start_operations_status
+  ON runtime_start_operations(status);
+
+CREATE TABLE IF NOT EXISTS runtime_phase_durations (
+  scenario TEXT NOT NULL,
+  variant TEXT NOT NULL DEFAULT 'live',
+  phase TEXT NOT NULL,
+  duration_ms INTEGER NOT NULL,
+  recorded_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_runtime_phase_durations_key
+  ON runtime_phase_durations(scenario, variant, phase);
 `
 
 func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
@@ -149,16 +182,6 @@ func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
 		return fmt.Errorf("runtime registry schema_version %d > expected %d: binary is older than database", current, SchemaVersion)
 	}
 	if current == SchemaVersion {
-		return nil
-	}
-	if current == 4 {
-		// In-place, row-preserving migration. The registry tracks LIVE
-		// processes, so a destructive drop-and-recreate would orphan every
-		// running scenario; migrateV4ToV5 instead copies all rows forward
-		// (variant defaulting to 'live'), leaving live processes addressable.
-		if err := s.migrateV4ToV5(ctx); err != nil {
-			return fmt.Errorf("migrate runtime registry schema 4 -> 5: %w", err)
-		}
 		return nil
 	}
 	if current != 0 {

@@ -527,5 +527,14 @@
       "severity_default": "SEVERITY_ERROR",
       "clean_requirement": "required"
     }
-  }
+  },
+  "profileMembership": [
+    "architecture-audit"
+  ],
+  "freshnessRequirement": "never",
+  "phaseClass": "architecture",
+  "runtimeClass": "static",
+  "dimensions": [
+    "contracts"
+  ]
 }

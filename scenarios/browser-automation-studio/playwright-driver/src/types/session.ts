@@ -3,7 +3,7 @@ import type { RecordingContextInitializer, RecordingPipelineManager } from '../r
 import type { BrowserProfile } from './browser-profile';
 import type { ServiceWorkerControl } from './service-worker';
 import type { ServiceWorkerController } from '../service-worker';
-import type { PerformanceTracer } from '../tracing';
+import type { PerformanceTracer, AccessibilitySnapshotter } from '../tracing';
 
 export type ReuseMode = 'fresh' | 'clean' | 'reuse';
 
@@ -27,6 +27,8 @@ export interface SessionSpec {
     tracing?: boolean;
     /** CDP performance trace + web-vitals capture (Tier 0). */
     performance_trace?: boolean;
+    /** CDP accessibility-tree snapshot capture. */
+    accessibility?: boolean;
     viewport_width?: number;
     viewport_height?: number;
   };
@@ -37,6 +39,8 @@ export interface SessionSpec {
     trace_path?: string;
     /** Directory the perf trace + web-vitals JSON are written to. */
     perf_dir?: string;
+    /** Directory the accessibility.json snapshot is written to. */
+    accessibility_dir?: string;
   };
   // Browser context configuration
   user_agent?: string;
@@ -175,7 +179,13 @@ export interface SessionSpec {
  * - 'resetting': Session state is being reset (clearing cookies, storage, etc.)
  * - 'closing': Session is being torn down, resources being freed
  */
-export type SessionPhase = 'initializing' | 'ready' | 'executing' | 'recording' | 'resetting' | 'closing';
+export type SessionPhase =
+  | 'initializing'
+  | 'ready'
+  | 'executing'
+  | 'recording'
+  | 'resetting'
+  | 'closing';
 
 export interface SessionState {
   id: string;
@@ -276,6 +286,16 @@ export interface SessionState {
    * it writes the CDP trace + web-vitals JSON into the perf artifact dir.
    */
   perfTracer?: PerformanceTracer;
+
+  /**
+   * Accessibility snapshotter for this session, present only when the session
+   * was started with required_capabilities.accessibility. Unlike the perf
+   * tracer it holds no session-spanning state — it is stored at start so its
+   * output dir + the capability gate are available at close, where it captures
+   * the AX tree from the final settled page (the same point the final
+   * screenshot fires) and writes accessibility.json.
+   */
+  accessibilitySnapshotter?: AccessibilitySnapshotter;
 }
 
 export interface SessionCloseResult {
@@ -332,6 +352,7 @@ export interface StartSessionRequest {
     video?: boolean;
     tracing?: boolean;
     performance_trace?: boolean;
+    accessibility?: boolean;
     viewport_width?: number;
     viewport_height?: number;
   };
@@ -341,6 +362,7 @@ export interface StartSessionRequest {
     har_path?: string;
     trace_path?: string;
     perf_dir?: string;
+    accessibility_dir?: string;
   };
   storage_state?: SessionSpec['storage_state'];
   /**
@@ -369,10 +391,10 @@ export interface StartSessionRequest {
  * This attribution helps users understand why dimensions may differ from requested.
  */
 export type ViewportSource =
-  | 'requested'           // Used the UI-requested dimensions
-  | 'fingerprint'         // Browser profile fingerprint override
+  | 'requested' // Used the UI-requested dimensions
+  | 'fingerprint' // Browser profile fingerprint override
   | 'fingerprint_partial' // Fingerprint set one dimension, requested used for other
-  | 'default';            // Fallback defaults used
+  | 'default'; // Fallback defaults used
 
 /**
  * Actual viewport with source attribution.

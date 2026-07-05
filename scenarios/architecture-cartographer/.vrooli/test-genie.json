@@ -455,5 +455,15 @@
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "advisory"
     }
-  }
+  },
+  "profileMembership": [
+    "architecture-audit"
+  ],
+  "freshnessRequirement": "never",
+  "phaseClass": "architecture",
+  "runtimeClass": "static",
+  "dimensions": [
+    "structure",
+    "cycles"
+  ]
 }

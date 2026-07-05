@@ -5,14 +5,14 @@
   "groups": [
     {
       "name": "capture",
-      "description": "Capture screenshot/console/network/video/DOM/performance artifacts from a single page load",
+      "description": "Capture screenshot/console/network/video/DOM/performance/accessibility artifacts from a single page load",
       "commands": [
         {
           "name": "capture",
           "description": "Capture artifacts from a single page load",
           "flags": [
             { "name": "url", "required": true, "description": "Target URL to load" },
-            { "name": "capture", "description": "Comma-separated artifact types: screenshot,console-logs,network,video,dom,performance" },
+            { "name": "capture", "description": "Comma-separated artifact types: screenshot,console-logs,network,video,dom,performance,accessibility" },
             { "name": "dimensions", "description": "Preset viewport: mobile|tablet|desktop" },
             { "name": "width", "description": "Viewport width (overrides dimensions)" },
             { "name": "height", "description": "Viewport height (overrides dimensions)" },
@@ -20,6 +20,7 @@
             { "name": "wait-for", "description": "Wait condition before capture (load|networkidle|selector:...)" },
             { "name": "out", "description": "Server-relative output directory for artifact files" },
             { "name": "label", "description": "Optional label tagged onto every produced artifact" },
+            { "name": "inline-accessibility", "bool": true, "description": "Return the normalized accessibility-tree snapshot JSON inline (drives the AX capture; independent of --capture)" },
             { "name": "dry-run", "bool": true, "description": "Send X-Dry-Run header; server validates without producing artifacts" }
           ],
           "binding": { "kind": "connect-rpc", "service": "CaptureService", "method": "Capture" },

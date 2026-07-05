@@ -60,10 +60,15 @@ type CapabilityRequest struct {
 	// profiler + blink.user_timing) plus an injected web-vitals observer
 	// for the session. The driver streams the trace + web-vitals JSON into
 	// ArtifactPaths.PerfDir on close.
-	PerfTrace  bool `json:"performance_trace,omitempty"`
-	ViewportW  int  `json:"viewport_width,omitempty"`
-	ViewportH  int  `json:"viewport_height,omitempty"`
-	MaxTimeout int  `json:"max_timeout_ms,omitempty"`
+	PerfTrace bool `json:"performance_trace,omitempty"`
+	// Accessibility requests a CDP accessibility-tree snapshot
+	// (Accessibility.getFullAXTree joined with per-node geometry +
+	// data-testid). The driver writes the normalized snapshot JSON into
+	// ArtifactPaths.AccessibilityDir on close.
+	Accessibility bool `json:"accessibility,omitempty"`
+	ViewportW     int  `json:"viewport_width,omitempty"`
+	ViewportH     int  `json:"viewport_height,omitempty"`
+	MaxTimeout    int  `json:"max_timeout_ms,omitempty"`
 }
 
 // ArtifactPaths controls where the driver should store execution-level artifacts.
@@ -75,6 +80,9 @@ type ArtifactPaths struct {
 	// PerfDir is the directory the driver writes performance.json (the CDP
 	// trace) and performance.web-vitals.json into when PerfTrace is set.
 	PerfDir string `json:"perf_dir,omitempty"`
+	// AccessibilityDir is the directory the driver writes accessibility.json
+	// (the normalized AX-tree snapshot) into when Accessibility is set.
+	AccessibilityDir string `json:"accessibility_dir,omitempty"`
 }
 
 // CreateSessionRequest is the unified request to create a browser session.

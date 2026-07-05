@@ -1,10 +1,13 @@
 package scoring
 
 import (
+	"os"
+	"path/filepath"
 	"sort"
 
 	"github.com/vrooli/maturity-go/dimensions"
 	"github.com/vrooli/maturity-go/ladder"
+	"github.com/vrooli/maturity-go/phasecoverage"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 
 	"scenario-completeness-scoring/internal/signals"
@@ -23,11 +26,12 @@ func deriveMaturity(snap signals.Snapshot) Maturity {
 	errorPlus := map[dimensions.Dimension]int{}
 	totals := map[dimensions.Dimension]int{}
 	approx := map[dimensions.Dimension]bool{}
+	coverage := loadPhaseCoverage()
 
 	for phaseName, pr := range snap.Phases.Phases {
 		if pr.HasFindings {
 			for _, f := range pr.Findings {
-				dim := findingDimension(f, phaseName)
+				dim := findingDimension(coverage, f, phaseName)
 				if dim == "" {
 					continue
 				}
@@ -42,7 +46,7 @@ func deriveMaturity(snap signals.Snapshot) Maturity {
 		// at least one error in the phase's dimension; a passed phase proves
 		// nothing about counts (left at zero).
 		if pr.Status == "failed" {
-			if dim, ok := dimensions.ForPhase(phaseName); ok {
+			if dim, ok := coverage.FirstDimensionForPhase(phaseName); ok {
 				totals[dim]++
 				errorPlus[dim]++
 				approx[dim] = true
@@ -95,12 +99,33 @@ func deriveMaturity(snap signals.Snapshot) Maturity {
 
 // findingDimension maps a finding onto the shared dimension vocabulary:
 // by its declared source first, falling back to the phase that produced it.
-func findingDimension(f *architecturev1.ArchitectureFinding, phaseName string) dimensions.Dimension {
+func findingDimension(coverage phasecoverage.Coverage, f *architecturev1.ArchitectureFinding, phaseName string) dimensions.Dimension {
 	if d, ok := dimensions.ForSource(f.GetSource()); ok {
 		return d
 	}
-	if d, ok := dimensions.ForPhase(phaseName); ok {
+	if d, ok := coverage.FirstDimensionForPhase(phaseName); ok {
 		return d
 	}
 	return ""
+}
+
+func loadPhaseCoverage() phasecoverage.Coverage {
+	coverage, err := phasecoverage.Load(findRepoRoot())
+	if err != nil {
+		return phasecoverage.Coverage{}
+	}
+	return coverage
+}
+
+func findRepoRoot() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "."
+	}
+	for dir := wd; dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
+		if info, err := os.Stat(filepath.Join(dir, "scenarios")); err == nil && info.IsDir() {
+			return dir
+		}
+	}
+	return wd
 }

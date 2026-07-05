@@ -8,13 +8,14 @@
     "structure",
     "contracts",
     "ui-health",
-    "standards",
+    "api",
     "architecture",
     "dependencies",
     "quality",
     "docs",
     "unit",
-    "playbooks",
+    "storage",
+    "workflow",
     "business",
     "performance",
     "tidiness",
@@ -76,7 +77,7 @@
       ]
     },
     {
-      "name": "standards",
+      "name": "api",
       "status": "fail",
       "findings": [
         {
@@ -201,7 +202,7 @@
       ]
     },
     {
-      "name": "playbooks",
+      "name": "storage",
       "status": "pass",
       "findings": [
         {
@@ -214,6 +215,23 @@
           ],
           "message": "test-isolation seams unwired; destructive playbooks would hit the real database",
           "stable_id": "afid:000000000000000e"
+        }
+      ]
+    },
+    {
+      "name": "workflow",
+      "status": "fail",
+      "findings": [
+        {
+          "scenario": "fixture-scenario",
+          "source": 16,
+          "code": "WORKFLOW_ASSET_INVALID",
+          "severity": 2,
+          "locations": [
+            "test/playbooks/checkout.json"
+          ],
+          "message": "workflow asset fails BAS validation",
+          "stable_id": "afid:0000000000000010"
         }
       ]
     },

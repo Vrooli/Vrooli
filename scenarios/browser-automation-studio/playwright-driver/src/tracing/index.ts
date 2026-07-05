@@ -20,3 +20,21 @@ export {
   type VitalsPage,
 } from './performance-tracer';
 export { WEB_VITALS_GLOBAL, WEB_VITALS_INIT_SCRIPT } from './web-vitals-script';
+export {
+  AccessibilitySnapshotter,
+  normalizeAccessibilityTree,
+  parseDomSnapshot,
+  deriveStates,
+  ACCESSIBILITY_SNAPSHOT_FILE,
+  ACCESSIBILITY_CONTRACT,
+  ACCESSIBILITY_MAX_NODES,
+  type AccessibilityCDP,
+  type RawAXNode,
+  type AXValue,
+  type AXProperty,
+  type DomNodeInfo,
+  type DOMSnapshotResult,
+  type NormalizedAXNode,
+  type AccessibilitySnapshot,
+  type SnapshotMeta,
+} from './accessibility-snapshot';

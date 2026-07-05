@@ -10,11 +10,14 @@
 package freshness
 
 import (
+	"os"
+	"path/filepath"
 	"time"
 
 	sharedfresh "github.com/vrooli/freshness-go"
 	"github.com/vrooli/freshness-go/runindex"
 	"github.com/vrooli/freshness-go/treedigest"
+	"github.com/vrooli/maturity-go/phasecoverage"
 )
 
 // PhaseStatus is one phase's verdict enriched with run context.
@@ -109,7 +112,7 @@ func (s *Service) Check(scenarioName, root string) Result {
 		}
 	}
 
-	phases := sharedfresh.RequiredPhases()
+	phases := requiredPhases()
 	var verdicts []sharedfresh.PhaseVerdict
 	if out.Digest == "" {
 		// No digest to compare against: every phase is unknown.
@@ -144,4 +147,29 @@ func (s *Service) Check(scenarioName, root string) Result {
 
 	out.SuggestedCommand = sharedfresh.SuggestedCommand(scenarioName, verdicts, true)
 	return out
+}
+
+func requiredPhases() []string {
+	coverage, err := phasecoverage.Load(findRepoRoot())
+	if err != nil {
+		return sharedfresh.RequiredPhases()
+	}
+	phases := coverage.FreshnessRequiredPhases()
+	if len(phases) == 0 {
+		return sharedfresh.RequiredPhases()
+	}
+	return phases
+}
+
+func findRepoRoot() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "."
+	}
+	for dir := wd; dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
+		if info, err := os.Stat(filepath.Join(dir, "scenarios")); err == nil && info.IsDir() {
+			return dir
+		}
+	}
+	return wd
 }

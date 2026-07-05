@@ -54,6 +54,10 @@ type Runner struct {
 	// the lifecycle never imports internal/baselinefloor directly.
 	Engagements EngagementResolver
 	deps        lifecycleDeps
+	// sinks are the progress-event consumers. Nil means "just the built-in
+	// text renderer" (the Runner itself implements ProgressSink); populated
+	// via WithProgressSink.
+	sinks []ProgressSink
 }
 
 type lifecycleLogContext struct {
@@ -130,23 +134,6 @@ func (r *Runner) childStdoutConsole() io.Writer {
 		return r.Out
 	}
 	return io.Discard
-}
-
-// progressf emits a compact transition line to r.Out at VerbosityQuiet
-// and VerbosityNormal. At VerbosityVerbose the raw slog debug stream and
-// tool stdout already give a running picture, so duplicating pings here
-// would add noise. The intent is to give users a visible heartbeat during
-// long setups (vite rebuilds etc.) that would otherwise produce a silent
-// 10+ second gap before the final summary; at Normal on a TTY the
-// structured info-log stream is suppressed (see resolveQuiet in the top
-// vrooli binary) so these pings become the primary in-flight signal.
-// Written without color codes or carriage returns so the output stays
-// CI- and log-capture-safe.
-func (r *Runner) progressf(format string, args ...any) {
-	if r.Verbosity == VerbosityVerbose || r.Out == nil {
-		return
-	}
-	fmt.Fprintf(r.Out, format+"\n", args...)
 }
 
 type lifecycleDeps struct {
@@ -266,6 +253,10 @@ type StartOptions struct {
 	// argument; both are resolved through scenarioruntime.ParseInstanceKey at the
 	// entry point, so passing them disagreeing is a hard error. See §1a.
 	Variant string
+	// stopFirst makes the start begin with an unconditional stop + settle of
+	// the target instance — restart semantics. Set only by Runner.Restart;
+	// unexported so external callers express restart through Restart.
+	stopFirst bool
 }
 
 type StopOptions struct {
@@ -428,20 +419,65 @@ func (r *Runner) Start(name string, opts StartOptions) (Result, error) {
 		return Result{}, err
 	}
 	opts.Variant = key.Variant
-	release, err := r.acquireScenarioLock(key.Slug())
-	if err != nil {
-		r.logError("Scenario start blocked by concurrent invocation", err, logx.AttrScenario, key.Slug())
-		return Result{}, err
+	// Attach-then-take-over loop: a busy lock held by a live in-flight start
+	// is awaited (same verdict, no ErrScenarioBusy); a busy lock whose owner
+	// dies mid-flight is retried so this caller resumes the start. Bounded so
+	// a pathological churn of dying owners cannot spin forever.
+	const maxTakeoverAttempts = 3
+	for attempt := 0; ; attempt++ {
+		release, err := r.acquireScenarioLock(key.Slug())
+		if err == nil {
+			result, startErr := r.startLocked(key.Scenario, opts)
+			release()
+			return result, startErr
+		}
+		if !errors.Is(err, ErrScenarioBusy) {
+			r.logError("Scenario start blocked by concurrent invocation", err, logx.AttrScenario, key.Slug())
+			return Result{}, err
+		}
+		item, loadErr := r.loadScenario(key.Scenario, opts.CustomPath)
+		if loadErr != nil {
+			return Result{}, loadErr
+		}
+		item.Variant = key.Variant
+		attach := r.attachToInFlightStart(item, err)
+		if attach.takeOver {
+			if attempt+1 >= maxTakeoverAttempts {
+				return Result{}, fmt.Errorf("start %q: %d successive in-flight starts were abandoned; giving up takeover", key.Slug(), maxTakeoverAttempts)
+			}
+			continue
+		}
+		if attach.err != nil {
+			r.logError("Scenario start blocked by concurrent invocation", attach.err, logx.AttrScenario, key.Slug())
+			return Result{}, attach.err
+		}
+		return attach.result, nil
 	}
-	defer release()
-	return r.startLocked(key.Scenario, opts)
 }
 
 // startLocked is the lock-free body of Start. Callers must already hold the
 // per-scenario advisory lock for `name` (acquireScenarioLock). Used by Start
 // and Restart to avoid double-acquiring the lock from the same goroutine.
 func (r *Runner) startLocked(name string, opts StartOptions) (Result, error) {
-	r.progressf("starting %s...", name)
+	// Durable start-operation record: every top-level start/restart is
+	// introspectable by other processes for the duration of the run and
+	// after. Nil recorder (registry unavailable) degrades to an unrecorded
+	// start — the record is progress, never authority.
+	if recorder := r.beginStartOperationRecord(name, opts); recorder != nil {
+		detach := r.attachSink(recorder)
+		defer detach()
+		defer recorder.close()
+	}
+	if opts.stopFirst {
+		// Restart semantics: unconditional teardown before the start body,
+		// announced (and rendered) before "starting …" like the historical
+		// stop+start sequence.
+		if err := r.stopLocked(name, StopOptions{Variant: opts.Variant}); err != nil {
+			return Result{}, err
+		}
+		r.runtimeDeps().sleep(stopSettleDelay)
+	}
+	r.publish(ProgressEvent{Kind: EventOperationStarted, Scenario: name, Operation: defaultIfEmpty(opts.Operation, "start")})
 	r.logInfo("Scenario start requested",
 		logx.AttrScenario, name,
 		"best_effort", opts.BestEffort,
@@ -452,8 +488,14 @@ func (r *Runner) startLocked(name string, opts StartOptions) (Result, error) {
 	setupCache := make(setupCheckCache)
 	result, err := r.startWithState(name, opts, ready, setupCache, nil)
 	if err != nil {
+		r.publish(ProgressEvent{Kind: EventOperationFailed, Scenario: name, Operation: defaultIfEmpty(opts.Operation, "start"), Err: err})
 		r.logError("Scenario start failed", err, logx.AttrScenario, name)
 		return Result{}, err
+	}
+	if !result.AlreadyRunning {
+		// The reuse fast-path publishes its own AlreadyRunning completion
+		// (with the "is already running" line) inside startScenario.
+		r.publish(ProgressEvent{Kind: EventOperationCompleted, Scenario: name, Operation: defaultIfEmpty(opts.Operation, "start"), Verdict: result.Health})
 	}
 	r.logInfo("Scenario start completed",
 		logx.AttrScenario, name,
@@ -482,8 +524,64 @@ func (r *Runner) startWithState(name string, opts StartOptions, ready map[string
 	return r.startScenario(item, opts, ready, setupCache, stack)
 }
 
-func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready map[string]struct{}, setupCache setupCheckCache, stack []string) (result Result, err error) {
-	deps := r.runtimeDeps()
+func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready map[string]struct{}, setupCache setupCheckCache, stack []string) (Result, error) {
+	// --clean-stale: reconcile stale runtime registry state (expired claims,
+	// dead-owner instances) before the top-level start so a previous crash
+	// doesn't block port allocation. Dependencies skip this (len(stack) > 0):
+	// one reconcile per user-initiated start is enough.
+	if opts.CleanStale && len(stack) == 0 {
+		r.logDebug("Reconciling stale runtime registry state before scenario start", logx.AttrScenario, item.Slug)
+		if cleanErr := r.runtimeDeps().cleanStaleLocks(); cleanErr != nil {
+			return Result{}, cleanErr
+		}
+	}
+	failedDeps, failedResources, err := r.bootstrapScenarioDependencies(item, opts, ready, setupCache, stack)
+	if err != nil {
+		return Result{}, err
+	}
+
+	forceSetup := forceSetupFor(opts, item.Slug)
+	observed, err := r.observeRuntime(item, forceSetup, setupCache)
+	if err != nil {
+		return Result{}, err
+	}
+	plan := planStart(observed.planInput())
+	switch plan.Decision {
+	case decisionReuseRunning:
+		health := scenario.EvaluateHealth(item.Manifest.HealthConfig(), observed.View.Ports)
+		r.publish(ProgressEvent{Kind: EventOperationCompleted, Scenario: item.Slug, Verdict: health, AlreadyRunning: true})
+		r.logInfo("Scenario already running and healthy",
+			logx.AttrScenario, item.Slug,
+			logx.AttrStatus, health,
+			"registry_instance", observed.View.Instance.InstanceID,
+		)
+		return Result{
+			Scenario:           item,
+			AllocatedPorts:     observed.View.Ports,
+			Health:             health,
+			FailedDependencies: failedDeps,
+			FailedResources:    failedResources,
+			AlreadyRunning:     true,
+		}, nil
+	case decisionStopThenStart:
+		// Running-but-unfit, or a stale registry row whose leftover claims
+		// would collide with a fresh start.
+		r.logDebug("Stopping existing instance before start",
+			logx.AttrScenario, item.Slug, "reason", plan.RestartReason)
+		if err := r.stopLocked(item.Slug, StopOptions{Variant: item.Variant}); err != nil {
+			return Result{}, err
+		}
+		r.runtimeDeps().sleep(stopSettleDelay)
+	}
+	return r.executeStart(item, opts, forceSetup, setupCache, failedDeps, failedResources)
+}
+
+// executeStart runs the start steps for one instance whose teardown/reuse
+// arbitration is already settled: registry lease, host requirements, port
+// environment, setup (when needed), develop, health gate, registry
+// finalization, and supervisor handoff. It owns the failure rollback for
+// side effects it created.
+func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSetup bool, setupCache setupCheckCache, failedDeps, failedResources []string) (result Result, err error) {
 	cleanupOnError := false
 	runtimeSession := disabledRuntimeRegistrySession()
 	defer func() {
@@ -509,63 +607,6 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 			err = errors.Join(err, fmt.Errorf("rollback failed: %w", cleanupErr))
 		}
 	}()
-	// --clean-stale: reconcile stale runtime registry state (expired claims,
-	// dead-owner instances) before the top-level start so a previous crash
-	// doesn't block port allocation. Dependencies skip this (len(stack) > 0):
-	// one reconcile per user-initiated start is enough.
-	if opts.CleanStale && len(stack) == 0 {
-		r.logDebug("Reconciling stale runtime registry state before scenario start", logx.AttrScenario, item.Slug)
-		if cleanErr := r.runtimeDeps().cleanStaleLocks(); cleanErr != nil {
-			return Result{}, cleanErr
-		}
-	}
-	failedDeps, failedResources, err := r.bootstrapScenarioDependencies(item, opts, ready, setupCache, stack)
-	if err != nil {
-		return Result{}, err
-	}
-
-	forceSetup := forceSetupFor(opts, item.Slug)
-	registryView, err := r.lookupRegistryRuntime(context.Background(), item)
-	if err != nil {
-		return Result{}, err
-	}
-	if registryView.Authoritative {
-		// Reuse is gated on FRESHNESS only (not provisioning): a healthy
-		// running instance is kept unless a binaries/ui-bundle check is stale.
-		freshnessStale, _, setupErr := r.freshnessStaleCached(item, forceSetup, setupCache)
-		if setupErr != nil {
-			return Result{}, setupErr
-		}
-		strictHealthy := r.isRegistryRuntimeHealthy(item, registryView)
-		if strictHealthy && !freshnessStale {
-			health := scenario.EvaluateHealth(item.Manifest.HealthConfig(), registryView.Ports)
-			r.progressf("%s is already running", item.Slug)
-			r.logInfo("Scenario already running and healthy",
-				logx.AttrScenario, item.Slug,
-				logx.AttrStatus, health,
-				"registry_instance", registryView.Instance.InstanceID,
-			)
-			return Result{
-				Scenario:           item,
-				AllocatedPorts:     registryView.Ports,
-				Health:             health,
-				FailedDependencies: failedDeps,
-				FailedResources:    failedResources,
-				AlreadyRunning:     true,
-			}, nil
-		}
-		if err := r.stopLocked(item.Slug, StopOptions{Variant: item.Variant}); err != nil {
-			return Result{}, err
-		}
-		deps.sleep(1 * time.Second)
-	} else if registryView.Present {
-		// Stale or non-authoritative registry instance exists; clean it up
-		// before starting fresh so leftover claims do not collide.
-		if err := r.stopLocked(item.Slug, StopOptions{Variant: item.Variant}); err != nil {
-			return Result{}, err
-		}
-		deps.sleep(1 * time.Second)
-	}
 
 	runtimeSession, err = r.beginRuntimeRegistryStart(context.Background(), item)
 	if err != nil {
@@ -592,7 +633,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 	}
 
 	if setupNeeded {
-		r.progressf("running setup phase for %s...", item.Slug)
+		r.publish(ProgressEvent{Kind: EventPhaseStarted, Scenario: item.Slug, Phase: "setup"})
 		r.logInfo("Executing setup phase for scenario", logx.AttrScenario, item.Slug, logx.AttrPhase, "setup")
 		if err := runtimeSession.setPhase(context.Background(), "setup"); err != nil {
 			return Result{}, err
@@ -611,9 +652,10 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		if err := runtimeSession.heartbeat(context.Background()); err != nil {
 			return Result{}, err
 		}
+		r.publish(ProgressEvent{Kind: EventPhaseCompleted, Scenario: item.Slug, Phase: "setup"})
 	}
 
-	r.progressf("running develop phase for %s...", item.Slug)
+	r.publish(ProgressEvent{Kind: EventPhaseStarted, Scenario: item.Slug, Phase: "develop"})
 	r.logInfo("Executing develop phase for scenario", logx.AttrScenario, item.Slug, logx.AttrPhase, "develop")
 	if err := runtimeSession.setPhase(context.Background(), "develop"); err != nil {
 		return Result{}, err
@@ -627,8 +669,9 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 	if err := runtimeSession.heartbeat(context.Background()); err != nil {
 		return Result{}, err
 	}
+	r.publish(ProgressEvent{Kind: EventPhaseCompleted, Scenario: item.Slug, Phase: "develop"})
 
-	r.progressf("waiting for %s to become healthy...", item.Slug)
+	r.publish(ProgressEvent{Kind: EventHealthWaiting, Scenario: item.Slug})
 	healthStatus, err := r.WaitForHealth(item, env.EnvVars)
 	if err != nil {
 		return Result{}, err
@@ -724,7 +767,7 @@ func (r *Runner) Stop(name string, opts StopOptions) error {
 // itself called under the Start/Restart lock) and by Restart.
 func (r *Runner) stopLocked(name string, opts StopOptions) error {
 	slug := scenarioruntime.InstanceKey{Scenario: name, Variant: opts.Variant}.Slug()
-	r.progressf("stopping %s...", slug)
+	r.publish(ProgressEvent{Kind: EventStopStarted, Scenario: slug, Operation: "stop"})
 	r.logInfo("Scenario stop requested", logx.AttrScenario, slug)
 	if err := r.cleanupScenarioRuntime(name, opts.Variant, opts.CustomPath, true); err != nil {
 		r.logError("Failed to remove scenario locks", err, logx.AttrScenario, slug)
@@ -826,6 +869,8 @@ func (r *Runner) cleanupScenarioRuntimeWithRegistry(name, variant, customPath st
 	return nil
 }
 
+// Restart shares the start pipeline: it is a start whose first step is an
+// unconditional stop (stopFirst), with setup forced for the target scenario.
 func (r *Runner) Restart(name string, opts StartOptions) (Result, error) {
 	key, err := scenarioruntime.ParseInstanceKey(name, opts.Variant)
 	if err != nil {
@@ -839,19 +884,14 @@ func (r *Runner) Restart(name string, opts StartOptions) (Result, error) {
 		return Result{}, err
 	}
 	defer release()
-	deps := r.runtimeDeps()
 	r.logInfo("Scenario restart requested", logx.AttrScenario, slug)
-	if err := r.stopLocked(key.Scenario, StopOptions{Variant: key.Variant}); err != nil {
-		r.logError("Scenario restart failed during stop", err, logx.AttrScenario, slug)
-		return Result{}, err
-	}
-	deps.sleep(1 * time.Second)
 	opts.ForceSetup = true
 	opts.ForceSetupScenario = key.Scenario
 	opts.Operation = "restart"
+	opts.stopFirst = true
 	result, err := r.startLocked(key.Scenario, opts)
 	if err != nil {
-		r.logError("Scenario restart failed during start", err, logx.AttrScenario, slug)
+		r.logError("Scenario restart failed", err, logx.AttrScenario, slug)
 		return Result{}, err
 	}
 	r.logInfo("Scenario restart completed", logx.AttrScenario, slug, logx.AttrStatus, result.Health)

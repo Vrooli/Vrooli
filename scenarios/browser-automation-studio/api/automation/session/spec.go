@@ -131,16 +131,17 @@ type FrameStreamingConfig struct {
 
 // CapabilityRequirement specifies execution capabilities needed.
 type CapabilityRequirement struct {
-	NeedsParallelTabs bool
-	NeedsIframes      bool
-	NeedsFileUploads  bool
-	NeedsDownloads    bool
-	NeedsHAR          bool
-	NeedsVideo        bool
-	NeedsTracing      bool
-	NeedsPerfTrace    bool
-	MinViewportWidth  int
-	MinViewportHeight int
+	NeedsParallelTabs  bool
+	NeedsIframes       bool
+	NeedsFileUploads   bool
+	NeedsDownloads     bool
+	NeedsHAR           bool
+	NeedsVideo         bool
+	NeedsTracing       bool
+	NeedsPerfTrace     bool
+	NeedsAccessibility bool
+	MinViewportWidth   int
+	MinViewportHeight  int
 }
 
 // IsEmpty returns true if no capabilities are required.

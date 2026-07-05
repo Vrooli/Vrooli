@@ -69,10 +69,10 @@ func stampRunIndex(t *testing.T, root string) {
 		"tree_digest":  digest,
 		"phases": []phase{
 			{Name: "structure", Status: "passed"},
-			{Name: "standards", Status: "passed"},
 			{Name: "docs", Status: "passed"},
 			{Name: "business", Status: "passed"},
 			{Name: "unit", Status: "passed"},
+			{Name: "proto", Status: "passed"},
 		},
 	}}
 	raw, err := json.Marshal(index)

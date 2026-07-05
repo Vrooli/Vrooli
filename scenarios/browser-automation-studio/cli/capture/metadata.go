@@ -20,12 +20,13 @@ type captureTypeMeta struct {
 // aliases are the additional --capture tokens that resolve to this type.
 // The label is always an implicit alias and need not be repeated.
 var captureTypeMetadata = map[capturev1.CaptureType]captureTypeMeta{
-	capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT:   {label: "screenshot"},
-	capturev1.CaptureType_CAPTURE_TYPE_CONSOLE_LOGS: {label: "console-logs", aliases: []string{"console", "logs"}},
-	capturev1.CaptureType_CAPTURE_TYPE_NETWORK:      {label: "network"},
-	capturev1.CaptureType_CAPTURE_TYPE_VIDEO:        {label: "video"},
-	capturev1.CaptureType_CAPTURE_TYPE_DOM:          {label: "dom"},
-	capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE:  {label: "performance", aliases: []string{"perf"}},
+	capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT:    {label: "screenshot"},
+	capturev1.CaptureType_CAPTURE_TYPE_CONSOLE_LOGS:  {label: "console-logs", aliases: []string{"console", "logs"}},
+	capturev1.CaptureType_CAPTURE_TYPE_NETWORK:       {label: "network"},
+	capturev1.CaptureType_CAPTURE_TYPE_VIDEO:         {label: "video"},
+	capturev1.CaptureType_CAPTURE_TYPE_DOM:           {label: "dom"},
+	capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE:   {label: "performance", aliases: []string{"perf"}},
+	capturev1.CaptureType_CAPTURE_TYPE_ACCESSIBILITY: {label: "accessibility", aliases: []string{"a11y", "ax"}},
 }
 
 // captureTypeByAlias is the reverse index from accepted token → CaptureType,
@@ -59,5 +60,5 @@ func parseCaptureType(tok string) (capturev1.CaptureType, error) {
 		return ct, nil
 	}
 	return capturev1.CaptureType_CAPTURE_TYPE_UNSPECIFIED,
-		fmt.Errorf("unknown capture type %q (want one of: screenshot,console-logs,network,video,dom,performance)", tok)
+		fmt.Errorf("unknown capture type %q (want one of: screenshot,console-logs,network,video,dom,performance,accessibility)", tok)
 }

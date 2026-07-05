@@ -149,7 +149,7 @@ func TestDeriveMaturityStandardsErrorsHoldR1(t *testing.T) {
 func TestDeriveMaturityApproximatesWithoutFindings(t *testing.T) {
 	snap := cleanSnapshot()
 	// Older writer shape: failed phase, no findings key.
-	snap.Phases.Phases["standards"] = signals.PhaseResult{Status: "failed"}
+	snap.Phases.Phases["quality"] = signals.PhaseResult{Status: "failed"}
 
 	mat := deriveMaturity(snap)
 	for _, d := range mat.Dimensions {

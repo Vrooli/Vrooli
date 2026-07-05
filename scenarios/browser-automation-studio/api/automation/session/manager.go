@@ -219,14 +219,15 @@ func (m *Manager) buildRequest(spec Spec) *driver.CreateSessionRequest {
 
 		if !spec.Capabilities.IsEmpty() {
 			req.RequiredCapabilities = &driver.CapabilityRequest{
-				Tabs:      spec.Capabilities.NeedsParallelTabs,
-				Iframes:   spec.Capabilities.NeedsIframes,
-				Uploads:   spec.Capabilities.NeedsFileUploads,
-				Downloads: spec.Capabilities.NeedsDownloads,
-				HAR:       spec.Capabilities.NeedsHAR,
-				Video:     spec.Capabilities.NeedsVideo,
-				Tracing:   spec.Capabilities.NeedsTracing,
-				PerfTrace: spec.Capabilities.NeedsPerfTrace,
+				Tabs:          spec.Capabilities.NeedsParallelTabs,
+				Iframes:       spec.Capabilities.NeedsIframes,
+				Uploads:       spec.Capabilities.NeedsFileUploads,
+				Downloads:     spec.Capabilities.NeedsDownloads,
+				HAR:           spec.Capabilities.NeedsHAR,
+				Video:         spec.Capabilities.NeedsVideo,
+				Tracing:       spec.Capabilities.NeedsTracing,
+				PerfTrace:     spec.Capabilities.NeedsPerfTrace,
+				Accessibility: spec.Capabilities.NeedsAccessibility,
 			}
 		}
 		if paths := m.buildArtifactPaths(spec, req.RequiredCapabilities); paths != nil {
@@ -261,9 +262,13 @@ func (m *Manager) buildArtifactPaths(spec Spec, caps *driver.CapabilityRequest) 
 	if caps.PerfTrace {
 		paths.PerfDir = filepath.Join(artifactRoot, "performance")
 	}
+	if caps.Accessibility {
+		paths.AccessibilityDir = filepath.Join(artifactRoot, "accessibility")
+	}
 
 	if strings.TrimSpace(paths.VideoDir) == "" && strings.TrimSpace(paths.HARPath) == "" &&
-		strings.TrimSpace(paths.TracePath) == "" && strings.TrimSpace(paths.PerfDir) == "" {
+		strings.TrimSpace(paths.TracePath) == "" && strings.TrimSpace(paths.PerfDir) == "" &&
+		strings.TrimSpace(paths.AccessibilityDir) == "" {
 		return nil
 	}
 
