@@ -25,7 +25,7 @@
     { "id": "capture-image", "role": "image", "name": "Page capture", "description": "The BAS screenshot for the selected page/state." },
     { "id": "tree-panel", "role": "region", "name": "Accessibility tree", "description": "The captured a11y tree, focusable per node." },
     { "id": "verdict-list", "role": "list", "name": "Claim verdicts", "description": "Per-claim verdict with tier and timestamp." },
-    { "id": "evidence-link", "role": "link", "description": "Per-verdict link that focuses the tree node / capture region that produced it." },
+    { "id": "evidence-link", "role": "button", "description": "Per-verdict control that focuses the tree node / capture region that produced it." },
     { "id": "recapture-action", "role": "button", "name": "Recapture" }
   ],
   "claims": [
@@ -57,9 +57,10 @@
       "id": "evidence-link-keyboard",
       "type": "keyboard-reachable",
       "statement": "Every evidence link is keyboard reachable from its verdict.",
-      "tier": "machine",
+      "tier": "manual",
       "elements": ["evidence-link"],
-      "states": ["default", "stale"]
+      "states": ["default", "stale"],
+      "rationale": "BAS v1 AX joins do not reliably expose this repeated per-verdict focus control as default-state evidence; keep manual until the evidence-link traversal is mechanically checked."
     },
     {
       "id": "stale-marked",
@@ -73,8 +74,9 @@
       "id": "empty-explains-skips",
       "type": "state-covered",
       "statement": "The no-captures state explains that BAS skips are not failures and how to produce a capture.",
-      "tier": "machine",
-      "states": ["empty"]
+      "tier": "manual",
+      "states": ["empty"],
+      "rationale": "v1 BAS reconciliation captures only the default state; this empty-state promise needs multi-state capture before it can be machine tier."
     },
     {
       "id": "joint-inspection",

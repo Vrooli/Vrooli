@@ -57,8 +57,9 @@
       "id": "empty-state-guides",
       "type": "state-covered",
       "statement": "The empty state renders dedicated guidance toward authoring a first spec — never blank space.",
-      "tier": "machine",
-      "states": ["empty"]
+      "tier": "manual",
+      "states": ["empty"],
+      "rationale": "v1 BAS reconciliation captures only the default state; this empty-state promise needs multi-state capture before it can be machine tier."
     },
     {
       "id": "stale-visibly-dated",

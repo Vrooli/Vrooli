@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"experience-manager/internal/basrefs"
 	"experience-manager/internal/spec"
 )
 
@@ -87,17 +88,7 @@ func loadCaseSpecRefs(root string) map[string][]string {
 }
 
 func basCaseFiles(root string) []string {
-	var out []string
-	for _, pattern := range []string{
-		filepath.Join(root, "bas", "cases", "*.json"),
-		filepath.Join(root, "bas", "cases", "*", "*.json"),
-		filepath.Join(root, "bas", "cases", "*", "*", "*.json"),
-	} {
-		matches, _ := filepath.Glob(pattern)
-		out = append(out, matches...)
-	}
-	sort.Strings(out)
-	return out
+	return basrefs.CaseFiles(root)
 }
 
 func sortFindings(findings []spec.Finding) {

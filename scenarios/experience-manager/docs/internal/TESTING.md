@@ -13,20 +13,24 @@ means inheriting those lessons without repeating them.
 
 These files are the source of truth. When in doubt, copy their shape:
 
-- **API**: `api/handlers/health/handler_test.go` — table-driven, real
-  middleware via `httpx.NewLiveServer`, fake pinger from `mocks/`,
-  typed-proto decode via
-  `assertx.MustUnmarshalProto[healthv1.Response]` (the wire shape lives
-  in `packages/proto/schemas/experience-manager/v1/shared/health.proto`;
-  assert on typed proto fields, not `map[string]any` chains). For
-  endpoints whose wire shape isn't in proto yet, `MustDecodeJSON[T]`
-  is the fallback — but adding the proto first is the right move.
+- **Validation API**: `api/handlers/validation/connect_handler_test.go`
+  and `api/internal/reconcile/reconcile_test.go` — table-driven checks over
+  real parser/reconcile behavior, including advisory-vs-strict gate semantics
+  and the business-health Matrix calibration invariant.
+- **Studio API**: `api/handlers/studio/connect_handler_test.go` — handler
+  tests for repository guards, proto mapping, ListSpec/ListEvidence, render,
+  compare, promote, and binding suggestion flows.
+- **Ratchets**: `api/internal/spec/spec_test.go`,
+  `api/internal/assessment/assessment_test.go`, and
+  `api/internal/autofix/autofix_test.go` — registry/doc/finding-doc/test-genie
+  parity, JSON Schema conformance, fix-rule disjointness, and BAS scaffold
+  idempotency.
 - **UI composition**: `ui/src/App.test.tsx` — smoke-only composition
   test. App composes shell + features; feature behaviour belongs beside
   the feature.
-- **UI feature**: `ui/src/features/health/HealthCard.test.tsx` —
-  `renderWithProviders`, factory data, inline `vi.mock` factory
-  closure, cimode assertions, and real-locale assertions.
+- **UI cockpit**: `ui/src/pages/ExperiencePages.test.tsx` — behavior tests
+  for Fleet, Scenario Explorer, Evidence, Studio, and Findings live-data
+  states. This is the canonical shape for page-level query/mutation tests.
 - **UI a11y**: `ui/src/components/AppShell.a11y.test.tsx` and
   `ui/src/features/health/HealthCard.a11y.test.tsx` — shell and feature
   accessibility are tested at their ownership boundary.

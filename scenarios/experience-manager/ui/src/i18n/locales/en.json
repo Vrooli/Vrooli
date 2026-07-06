@@ -26,11 +26,6 @@
     }
   },
   "pages": {
-    "dashboard": {
-      "title": "Dashboard",
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
-      "statPlaceholderLabel": "Stat"
-    },
     "settings": {
       "title": "Settings",
       "themeHeading": "Appearance",
@@ -45,6 +40,7 @@
       "debt": "Debt",
       "status": "Status",
       "claims": "Claims",
+      "tier": "Tier",
       "viewEvidence": "View evidence"
     },
     "fleet": {
@@ -56,7 +52,10 @@
       "refresh": "Refresh sweep",
       "tableLabel": "Experience debt",
       "pagesTracked": "{{count}} pages tracked",
-      "loadingData": "Loading fleet data"
+      "loadingData": "Loading fleet data",
+      "emptyFleet": "No scenarios with experience specs were found. Add an experience/ folder to start tracking debt.",
+      "loadError": "Fleet sweep could not be loaded.",
+      "staleData": "Fleet sweep data is older than the freshness window."
     },
     "explorer": {
       "title": "Scenario Explorer",
@@ -103,21 +102,37 @@
       "wireframeLabel": "Wireframe preview",
       "variantsLabel": "Variants",
       "save": "Save spec",
+      "saving": "Saving…",
       "promote": "Promote variant",
+      "pageTitle": "Page title",
       "defaultPage": "Fleet",
       "defaultClaim": "The experience-debt table is exposed as a real table with its accessible name.",
-      "previewDepthSummary": "Depth summary",
-      "previewCoverageMeter": "Coverage meter",
-      "previewDebtTable": "Debt table",
-      "variantCompactTable": "Compact table",
-      "variantEvidenceForward": "Evidence-forward"
+      "emptyClaim": "Describe the claim this page must prove.",
+      "loadingSpec": "Loading spec pages…",
+      "emptySpec": "No page specs are available.",
+      "loadError": "The Studio spec could not be loaded.",
+      "loadingPreview": "Rendering preview…",
+      "emptyPreview": "Select a page to render its wireframe preview.",
+      "emptyVariants": "No rendered variants yet.",
+      "variantError": "Variants could not be rendered.",
+      "evidenceForwardVariant": "Evidence-forward",
+      "suggestionsLabel": "Binding suggestions",
+      "loadingSuggestions": "Loading suggestions…",
+      "emptySuggestions": "No binding suggestions are available yet."
     },
     "findings": {
       "title": "Findings & Fixes",
       "description": "Experience divergences with evidence links and preview-before-apply fixes.",
       "listLabel": "Experience findings",
       "preview": "Preview fix",
-      "apply": "Apply fix"
+      "apply": "Apply fix",
+      "loadingFindings": "Loading findings",
+      "emptyFindings": "No experience findings are currently reported.",
+      "loadError": "Findings could not be loaded.",
+      "fixPreviewLabel": "Fix preview",
+      "previewEmpty": "Preview deterministic fixes before applying them.",
+      "previewError": "Fix preview failed.",
+      "applyError": "Fix apply failed."
     }
   },
   "health": {

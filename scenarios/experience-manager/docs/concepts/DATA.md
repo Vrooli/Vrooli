@@ -55,7 +55,7 @@ Each domain's schema file lives beside the code that interprets it. The
 | `authoring_sessions` | `studio` | `api/internal/authoring/schema.sql` | Studio API/CLI session lifecycle |
 | `authoring_pages` | `studio` | `api/internal/authoring/schema.sql` | Studio page-form drafts, preview, and apply |
 | `manual_attestations` | `attest` | `api/internal/attestation/schema.sql` | Manual-tier evidence freshness checks |
-| `reconcile_evidence` | `reconcile` | `api/internal/reconcile/schema.sql` | Reconciliation checks and future evidence surfaces |
+| `reconcile_evidence` | `reconcile` | `api/internal/reconcile/schema.sql` | Reconciliation checks, Evidence UI, and `spec evidence list` |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
 
 ## Migrations And Compatibility

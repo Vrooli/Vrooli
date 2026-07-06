@@ -26,11 +26,6 @@
     }
   },
   "pages": {
-    "dashboard": {
-      "title": "لوحة التحكم",
-      "description": "نظرة عامة على حالة السيناريو والمقاييس الرئيسية. استبدل هذه البطاقات بأسطح حقيقية مع نمو منتجك.",
-      "statPlaceholderLabel": "إحصائية"
-    },
     "settings": {
       "title": "الإعدادات",
       "themeHeading": "المظهر",
@@ -45,6 +40,7 @@
       "debt": "الدين",
       "status": "الحالة",
       "claims": "الادعاءات",
+      "tier": "المستوى",
       "viewEvidence": "عرض الدليل"
     },
     "fleet": {
@@ -56,7 +52,10 @@
       "refresh": "تحديث المسح",
       "tableLabel": "دين التجربة",
       "pagesTracked": "{{count}} صفحات قيد التتبع",
-      "loadingData": "جارٍ تحميل بيانات الأسطول"
+      "loadingData": "جارٍ تحميل بيانات الأسطول",
+      "emptyFleet": "لم يتم العثور على سيناريوهات تحتوي على مواصفات تجربة. أضف مجلد experience/ لبدء تتبع الدين.",
+      "loadError": "تعذر تحميل مسح الأسطول.",
+      "staleData": "بيانات مسح الأسطول أقدم من نافذة الحداثة."
     },
     "explorer": {
       "title": "مستكشف السيناريو",
@@ -103,21 +102,37 @@
       "wireframeLabel": "معاينة الإطار السلكي",
       "variantsLabel": "البدائل",
       "save": "حفظ المواصفة",
+      "saving": "جارٍ الحفظ…",
       "promote": "ترقية البديل",
+      "pageTitle": "عنوان الصفحة",
       "defaultPage": "الأسطول",
       "defaultClaim": "يظهر جدول دين التجربة كجدول حقيقي له اسم قابل للوصول.",
-      "previewDepthSummary": "ملخص العمق",
-      "previewCoverageMeter": "مقياس التغطية",
-      "previewDebtTable": "جدول الدين",
-      "variantCompactTable": "جدول مختصر",
-      "variantEvidenceForward": "الأدلة أولاً"
+      "emptyClaim": "صف الادعاء الذي يجب أن تثبته هذه الصفحة.",
+      "loadingSpec": "جارٍ تحميل صفحات المواصفة…",
+      "emptySpec": "لا توجد مواصفات صفحات متاحة.",
+      "loadError": "تعذر تحميل مواصفة الاستوديو.",
+      "loadingPreview": "جارٍ عرض المعاينة…",
+      "emptyPreview": "اختر صفحة لعرض معاينة الإطار السلكي.",
+      "emptyVariants": "لا توجد بدائل معروضة بعد.",
+      "variantError": "تعذر عرض البدائل.",
+      "evidenceForwardVariant": "الأدلة أولاً",
+      "suggestionsLabel": "اقتراحات الربط",
+      "loadingSuggestions": "جارٍ تحميل الاقتراحات…",
+      "emptySuggestions": "لا توجد اقتراحات ربط متاحة بعد."
     },
     "findings": {
       "title": "الملاحظات والإصلاحات",
       "description": "اختلافات التجربة مع روابط الأدلة وإصلاحات تبدأ بالمعاينة قبل التطبيق.",
       "listLabel": "ملاحظات التجربة",
       "preview": "معاينة الإصلاح",
-      "apply": "تطبيق الإصلاح"
+      "apply": "تطبيق الإصلاح",
+      "loadingFindings": "جارٍ تحميل الملاحظات",
+      "emptyFindings": "لا توجد ملاحظات تجربة حالياً.",
+      "loadError": "تعذر تحميل الملاحظات.",
+      "fixPreviewLabel": "معاينة الإصلاح",
+      "previewEmpty": "عاين الإصلاحات الحتمية قبل تطبيقها.",
+      "previewError": "فشلت معاينة الإصلاح.",
+      "applyError": "فشل تطبيق الإصلاح."
     }
   },
   "health": {

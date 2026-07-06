@@ -376,11 +376,6 @@ func (c Check) persistEvidence(ctx context.Context, scenario, loc string, page s
 }
 
 func defaultStateID(claim spec.Claim) string {
-	for _, state := range claim.States {
-		if state == "" || state == "default" {
-			return "default"
-		}
-	}
 	return "default"
 }
 

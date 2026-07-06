@@ -16,10 +16,10 @@ The spec is **claim-based and open-world**: typed assertions about perceivable o
 
 Around that contract: a form-based **Studio** (author specs with live validation, render deterministic wireframes, compare variants side-by-side), **bas/ scaffolding** (derive test-case stubs from spec entries for workflow-health governance), an **attestation ledger**, and a fleet-wide **spec-debt sweep**. Boundaries: ui-health owns "built correctly", this scenario owns "the intended experience"; workflow-health owns the `bas/` substrate this scenario scaffolds into. The full rationale — every fork resolved during design — lives in [`docs/internal/DECISIONS.md`](docs/internal/DECISIONS.md); open prerequisites (BAS a11y-tree capture, the schema spike gate) live in [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md).
 
-**Status:** contract authored (PRD + 13 requirements, validating green); spec schema shipped ([`scenario-experience-spec/v1`](../../.vrooli/schemas/scenario-experience-spec.schema.json)); self-spec dogfood authored ([`experience/`](experience/) — 5 draft pages, 2 journeys, 39 claims, schema-valid). Zero implementation code yet.
+**Status:** v1 implementation is live in API, CLI, and UI. The self-spec dogfood currently has 4 active pages, 1 draft page, 2 draft journeys, and 37 claims (17 machine / 17 manual / 3 aspirational), with all page specs schema-valid and BAS case stubs registered for every active page. The cockpit surfaces are wired to real backend data: Fleet, Scenario Explorer, Evidence, Studio, and Findings no longer rely on sample rows. Full live `vrooli scenario test experience-manager` closure is still the final verification gate for this follow-up.
 
-This scenario was generated from the `react-vite` template and packages
-the standard full-stack Vrooli scenario shape:
+This scenario was generated from the `react-vite` template and now packages
+the full-stack Vrooli scenario shape:
 
 - Go API (`api/`)
 - React + TypeScript + Vite UI (`ui/`)
@@ -32,14 +32,18 @@ the standard full-stack Vrooli scenario shape:
 > domain map, design language, placeholder replacement, and first real
 > vertical slice. Run `make orient` for a machine-readable gate status.
 
-## What's In This Scenario
+## What You Get
 
 - Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
   coordinated through generated proto contracts.
-- Lifecycle metadata, Makefile entrypoints, health checks, endpoint
-  metadata, testing config, and CLI install wiring.
-- Domain-first API shape with per-domain service, repository, schema,
-  handler module, mocks, and tests.
+- Lifecycle metadata, Makefile entrypoints, health checks, endpoint metadata,
+  testing config, and CLI install wiring.
+- Domain-first API shape for spec parsing, state coverage, reconciliation
+  evidence, studio authoring, rendering, manual attestations, fleet sweep, and
+  deterministic autofix.
+- A live cockpit UI: Fleet reads `ListFleet`; Scenario Explorer reads parsed
+  specs; Evidence reads persisted reconciliation evidence; Studio calls
+  session/render/compare/promote APIs; Findings calls validate/preview/apply.
 - SQLite by default. Add external resources to `.vrooli/service.json`
   only when this scenario actually needs them.
 - UI/CLI guardrails for i18n, accessibility, API base resolution,
@@ -56,24 +60,19 @@ the standard full-stack Vrooli scenario shape:
   runbooks, observability, security, performance, and durable
   decisions.
 
-## Placeholders vs. Durable Scaffolding
+## Customize Safely
 
-The generated scaffold is intentionally not the product. When you build
-the real UX, treat these as **placeholders** to replace:
+The template placeholder app has been replaced. Preserve these durable seams
+when extending the scenario:
 
-- The `AppShell` and the centered single-panel home page in `ui/src/`.
-  (The `notes` example domain has already been removed via
-  `vrooli scenario detemplate`.)
-- The bare-minimum settings surface (currently just locale switching).
-
-Treat these as **durable seams** to preserve, even as you rewrite the
-visual layout:
-
-- i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
-- Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
-- Design tokens (`bg-app-background`, `rounded-panel`, etc.).
+- i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, locale catalogs, generated strings).
+- Accessibility primitives (`role`, `aria-*`, `data-testid` selectors) because
+  BAS reconciliation depends on them.
+- Design tokens (`bg-app-background`, `rounded-panel`, status colors) from `DESIGN.md`.
 - The feature-folder pattern under `ui/src/features/<name>/`.
 - The proto → API → CLI → UI vertical-slice shape.
+- The `experience/` contract as intent. UI selectors may move, but binding
+  updates must keep claims honest.
 
 **Connect-RPC is the default transport.** Every domain endpoint goes
 through a proto service and generated Connect handlers/clients. If

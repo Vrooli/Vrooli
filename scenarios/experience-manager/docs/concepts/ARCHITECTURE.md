@@ -187,15 +187,15 @@ temporal behavior, update [`FLOWS.md`](FLOWS.md).
 
 ## Architecture Maturity
 
-Generated scenarios start with a mature template shape and starter
-reference domains. Replace this table as the scenario becomes real.
+The scenario has moved beyond the generated starter shape. This table is the
+current v1 maturity snapshot.
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Reference-ready | Domain-owned vertical-slice stack, module registry, per-domain schema, documented seams. | Starter domains must be replaced with scenario-specific capabilities. |
-| UI | Reference-ready | Feature folders, typed API clients, selector/i18n registries, modeltest helpers. | Real scenarios may need routing/state patterns once multiple screens exist. |
-| CLI | Reference-ready | Domain command groups wrap API calls and render reports. | New domains must add commands intentionally; CLI should remain thin. |
-| Docs | Contract-ready | Manifest v2 registers docs, maturity, stages, and validation hints. | Scenario-specific stubs must be filled or marked not-applicable. |
+| API | v1 active | Parser, checks, reconciliation, evidence repository, attestation ledger, fleet sweep, studio authoring, rendering, and autofix all have package tests. | Live full-suite closure and evidence pruning remain open. |
+| UI | v1 active | Five cockpit pages call live backend data with loading/empty/error/stale states and behavioral Vitest coverage. | Full live BAS reconciliation still needs to prove every machine claim against the running UI. |
+| CLI | v1 active | Manifest-bound commands wrap validation, spec list/show/evidence, studio, render, compare, promote, attestation, fleet, and autofix flows. | Keep CLI thin; add commands only after proto methods exist. |
+| Docs | catching up | Core lifecycle docs now describe the built engine and cockpit. | Some generated template guides remain broad; docs phase should continue removing false starter-language. |
 
 Use `docs/manifest.json` as the documentation contract. The declared
 `maturity` values are expected to be maintained by agents and later
@@ -208,7 +208,7 @@ when they are deliberate and durable.
 
 | Date | Deviation | Reason | Revisit Trigger |
 |---|---|---|---|
-| 2026-07-04 | None yet. | Generated from `react-vite`. | Update when the scenario intentionally diverges. |
+| 2026-07-06 | `internal/basrefs` shared helper exists for BAS case-file enumeration. | Both checks and autofix must agree on supported case depth; Go's `filepath.Glob` has no `**` semantics. | If workflow-health publishes a canonical case registry API. |
 
 ## Documentation Architecture
 

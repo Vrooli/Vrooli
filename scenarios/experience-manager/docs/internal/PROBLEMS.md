@@ -49,6 +49,48 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-07-06 — v1 BAS reconciliation captures only the default terminal state
+
+**Symptom:** `state-covered`, `state-distinct`, and claim-level `x-` dimensions can be parsed and reported honestly, but non-default state or display-mode proof cannot be fully captured in v1.
+
+**Root cause:** BAS currently returns one terminal accessibility snapshot per capture. Experience-manager does not yet drive per-state transitions or per-dimension mode changes before capture.
+
+**Workaround:** Default-state machine claims reconcile normally. Non-default or extension-scoped claims must stay unverifiable with an explicit limitation reason or be manual/aspirational until the runner grows multi-state capture.
+
+**Real fix:** Add a dimensions/state capture runner that can execute per-state setup steps and persist evidence per state/mode.
+
+**Owner:** unassigned.
+
+**Refs:** `api/internal/reconcile/reconcile.go`, `docs/internal/DECISIONS.md` rows for display-mode scoping and extension-scope reconciliation.
+
+### 2026-07-06 — Experience gate remains advisory by default
+
+**Symptom:** Error-severity experience findings can produce an advisory-pass suite result unless `EXPERIENCE_ALIGNMENT_GATE=strict` is set.
+
+**Root cause:** The test-genie `experience` phase launched shadow-first so existing scenarios without mature specs would not fail fleet-wide.
+
+**Workaround:** Keep strict-mode assertions in unit tests and use provider output plus BAS evidence for acceptance. Do not promote the gate during this follow-up plan.
+
+**Real fix:** Promote strict gating only after fleet adoption and after the cockpit dogfood is green in live suite runs.
+
+**Owner:** unassigned.
+
+**Refs:** `api/handlers/validation/connect_handler.go`, `api/handlers/validation/connect_handler_test.go`.
+
+### 2026-07-06 — Perception tier remains deferred
+
+**Symptom:** Visual saliency and pixel-side promises remain aspirational/manual; v1 checks only deterministic contract and accessibility-tree structure.
+
+**Root cause:** P2 perception needs a separate engine decision and must stay off the CI hot path until deterministic enough to trust.
+
+**Workaround:** Keep v1 claims focused on roles, accessible names, keyboard reachability, state coverage, evidence links, and behavior visible through the live UI.
+
+**Real fix:** Start P2 with a quarantined advisory perception runner and explicit model/license decision.
+
+**Owner:** unassigned.
+
+**Refs:** PRD OT-P2-001, `docs/internal/DECISIONS.md` zero-ML and saliency decisions.
+
 ### 2026-07-04 — BAS lacks accessibility-tree capture (blocks reconciliation)
 
 **Symptom:** OT-P0-003 (structure reconciliation) cannot be implemented: BAS execution timelines carry screenshots but no accessibility-tree snapshot per step.

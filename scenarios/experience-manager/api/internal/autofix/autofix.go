@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"experience-manager/internal/basrefs"
 	"experience-manager/internal/spec"
 
 	"github.com/vrooli/maturity-go/autofix"
@@ -349,10 +350,7 @@ func registryCandidate(root, scenario string, caseCandidates []autofix.Candidate
 
 func caseRefs(root string) map[string]bool {
 	out := map[string]bool{}
-	matches, _ := filepath.Glob(filepath.Join(root, "bas", "cases", "**", "*.json"))
-	matches2, _ := filepath.Glob(filepath.Join(root, "bas", "cases", "*.json"))
-	matches = append(matches, matches2...)
-	for _, path := range matches {
+	for _, path := range basrefs.CaseFiles(root) {
 		var doc struct {
 			Metadata struct {
 				Labels map[string]string `json:"labels"`

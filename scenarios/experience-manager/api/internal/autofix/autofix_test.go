@@ -48,6 +48,27 @@ func TestCaseScaffoldPreviewApplyAndIdempotency(t *testing.T) { // [REQ:EXPERIEN
 	}
 }
 
+func TestCaseScaffoldRecognizesNestedExistingCase(t *testing.T) {
+	root := fixtureScenario(t, true)
+	nested := filepath.Join(root, "bas", "cases", "experience-pages", "generated", "home.json")
+	if err := os.MkdirAll(filepath.Dir(nested), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(nested, []byte(`{
+  "metadata": {"labels": {"spec_entry_id": "home"}}
+}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	preview, err := NewRegistry().Preview(root, []string{RuleCaseScaffold})
+	if err != nil {
+		t.Fatalf("Preview: %v", err)
+	}
+	if len(preview) != 0 {
+		t.Fatalf("nested existing case should make scaffold idempotent, got %+v", preview)
+	}
+}
+
 func TestBindingDriftRepairAddsDeterministicPlaceholders(t *testing.T) { // [REQ:EXPERIEN-P1-003]
 	root := fixtureScenario(t, false)
 	reg := NewRegistry()

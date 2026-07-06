@@ -7,7 +7,7 @@
   },
   "schemaVersion": "1.0.0",
   "scenario": "experience-manager",
-  "description": "Experience spec for experience-manager itself — the self-spec dogfood (OT-P0-005). The five core pages are active and reconcile against the live operator UI.",
+  "description": "Experience spec for experience-manager itself — the self-spec dogfood (OT-P0-005). Core cockpit pages reconcile against the live operator UI; pages remain draft until their machine claims are earned.",
   "pages": [
     {
       "id": "fleet",
@@ -37,7 +37,7 @@
       "id": "findings",
       "path": "pages/findings.json",
       "title": "Findings & Fixes",
-      "status": "active"
+      "status": "draft"
     }
   ],
   "journeys": [

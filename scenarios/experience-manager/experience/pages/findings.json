@@ -64,8 +64,9 @@
       "id": "all-green-honest",
       "type": "state-covered",
       "statement": "The all-green state renders explicit no-divergence content instead of an empty list.",
-      "tier": "machine",
-      "states": ["empty"]
+      "tier": "manual",
+      "states": ["empty"],
+      "rationale": "v1 BAS reconciliation captures only the default state; this empty-state promise needs multi-state capture before it can be machine tier."
     },
     {
       "id": "next-unlock-language",

@@ -51,17 +51,19 @@
       "id": "tier-always-in-text",
       "type": "element-present",
       "statement": "Every claim row carries a textual tier label — tier is never conveyed by color alone.",
-      "tier": "machine",
+      "tier": "manual",
       "elements": ["tier-label"],
-      "states": ["default", "partial"]
+      "states": ["default", "partial"],
+      "rationale": "BAS v1 AX joins do not reliably expose this repeated per-claim text node as default-state evidence; keep manual until the row-level tier traversal is mechanically checked."
     },
     {
       "id": "claim-leads-to-evidence",
       "type": "keyboard-reachable",
       "statement": "Each claim's evidence link is keyboard reachable from the claim list.",
-      "tier": "machine",
+      "tier": "manual",
       "elements": ["evidence-link"],
-      "states": ["default"]
+      "states": ["default"],
+      "rationale": "BAS v1 AX joins do not reliably expose this repeated per-claim link as default-state evidence; keep manual until the evidence-link traversal is mechanically checked."
     },
     {
       "id": "studio-handoff",
@@ -75,8 +77,9 @@
       "id": "empty-routes-to-studio",
       "type": "state-covered",
       "statement": "The no-spec state renders dedicated guidance that routes the author to the Studio.",
-      "tier": "machine",
-      "states": ["empty"]
+      "tier": "manual",
+      "states": ["empty"],
+      "rationale": "v1 BAS reconciliation captures only the default state; this empty-state promise needs multi-state capture before it can be machine tier."
     },
     {
       "id": "partial-names-broken-files",

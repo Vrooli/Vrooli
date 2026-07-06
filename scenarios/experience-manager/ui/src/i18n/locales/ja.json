@@ -26,11 +26,6 @@
     }
   },
   "pages": {
-    "dashboard": {
-      "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
-    },
     "settings": {
       "title": "設定",
       "themeHeading": "外観",
@@ -45,6 +40,7 @@
       "debt": "負債",
       "status": "状態",
       "claims": "クレーム",
+      "tier": "階層",
       "viewEvidence": "エビデンスを見る"
     },
     "fleet": {
@@ -56,7 +52,10 @@
       "refresh": "スイープを更新",
       "tableLabel": "体験負債",
       "pagesTracked": "{{count}} ページを追跡中",
-      "loadingData": "フリートデータを読み込み中"
+      "loadingData": "フリートデータを読み込み中",
+      "emptyFleet": "体験仕様を持つシナリオは見つかりません。experience/ フォルダーを追加すると負債追跡が始まります。",
+      "loadError": "フリートスイープを読み込めませんでした。",
+      "staleData": "フリートスイープデータは鮮度ウィンドウより古くなっています。"
     },
     "explorer": {
       "title": "シナリオエクスプローラー",
@@ -103,21 +102,37 @@
       "wireframeLabel": "ワイヤーフレームプレビュー",
       "variantsLabel": "バリアント",
       "save": "仕様を保存",
+      "saving": "保存中…",
       "promote": "バリアントを昇格",
+      "pageTitle": "ページタイトル",
       "defaultPage": "フリート",
       "defaultClaim": "体験負債テーブルは、アクセシブル名を持つ実テーブルとして公開されます。",
-      "previewDepthSummary": "深度サマリー",
-      "previewCoverageMeter": "カバレッジメーター",
-      "previewDebtTable": "負債テーブル",
-      "variantCompactTable": "コンパクトテーブル",
-      "variantEvidenceForward": "エビデンス優先"
+      "emptyClaim": "このページで証明するクレームを記述してください。",
+      "loadingSpec": "仕様ページを読み込み中…",
+      "emptySpec": "利用できるページ仕様がありません。",
+      "loadError": "Studio の仕様を読み込めませんでした。",
+      "loadingPreview": "プレビューを描画中…",
+      "emptyPreview": "ページを選択してワイヤーフレームプレビューを描画します。",
+      "emptyVariants": "描画済みのバリアントはまだありません。",
+      "variantError": "バリアントを描画できませんでした。",
+      "evidenceForwardVariant": "エビデンス優先",
+      "suggestionsLabel": "バインディング候補",
+      "loadingSuggestions": "候補を読み込み中…",
+      "emptySuggestions": "利用できるバインディング候補はまだありません。"
     },
     "findings": {
       "title": "検出事項と修正",
       "description": "エビデンスリンクとプレビュー優先の修正を含む体験の差分。",
       "listLabel": "体験の検出事項",
       "preview": "修正をプレビュー",
-      "apply": "修正を適用"
+      "apply": "修正を適用",
+      "loadingFindings": "検出事項を読み込み中",
+      "emptyFindings": "現在報告されている体験の検出事項はありません。",
+      "loadError": "検出事項を読み込めませんでした。",
+      "fixPreviewLabel": "修正プレビュー",
+      "previewEmpty": "適用前に決定的な修正をプレビューします。",
+      "previewError": "修正プレビューに失敗しました。",
+      "applyError": "修正の適用に失敗しました。"
     }
   },
   "health": {

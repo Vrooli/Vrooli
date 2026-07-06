@@ -20,13 +20,16 @@ workflow model.
 
 ## Flow Inventory
 
-`health` is a stateless reporting domain and ships no workflows. List
-each real stateful flow your domains add below, with its owner, trigger,
-outcome, statefulness, and validation level.
+The health endpoint is stateless. Experience-manager v1 has several ordered
+flows, but none yet require a formal `*.flow.json` model.
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
-| _(your flow)_ | _(owning domain)_ | What starts it. | What it produces. | States, retries, cancellation, stale completion. | Target maturity level. |
+| Validate scenario | `validation` / `reconcile` | UI, CLI, or test-genie calls `ValidateScenario`. | Findings, shared status, and persisted per-claim evidence. | Advisory vs strict gate; BAS unavailable yields skips, not failures. | Go handler/reconcile tests; full scenario test pending final closure. |
+| Evidence recapture | `reconcile` + UI Evidence page | User presses recapture. | Fresh BAS capture/reconcile evidence rows rendered in Evidence. | Pending/error/stale UI states; no cancellation in v1. | UI behavioral tests; live round-trip pending final closure. |
+| Studio authoring | `authoring` / `render` | User selects a page, edits title/claim, previews, saves, or promotes. | Draft validation, rendered wireframe, variant comparison, applied spec file. | Session/draft state in SQLite; apply refuses parser errors. | Go authoring/render/studio handler tests and UI behavioral tests. |
+| Findings autofix | `autofix` | User previews then applies fixes. | Dry-run diff first; selected deterministic rules applied sequentially. | Dry-run before mutation; refetch after apply. | Go autofix tests and UI behavioral tests. |
+| Fleet sweep | `fleet` | UI/CLI requests fleet. | Worst-first spec debt rows from live parse/depth data. | Compute-on-read; stale UI state only. | Go fleet tests and UI behavioral tests. |
 
 ## Flow Details
 
@@ -41,7 +44,8 @@ enforced. Plain CRUD with no ordering constraints does not appear here.
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
-| _(your flow)_ | The ordered/terminal states. | Transitions the contract forbids. | `*.flow.json` contract, generated Quint model, replay tests. |
+| Studio authoring | draft, previewed, applied, promoted, error | Apply/promote with parser errors. | Authoring service validation and UI disabled/error states. |
+| Findings autofix | idle, previewed, applying, applied, error | Apply before previewing selected rule IDs. | UI disables apply until preview has rule IDs; API applies explicit rules sequentially. |
 
 ## Maturity Ladder
 
@@ -175,7 +179,7 @@ To add or rename a state/event:
 
 | Flow | Risk | Next Step |
 |---|---|---|
-| None yet. | Generated scaffold. | Add real scenario workflows when domains have stateful behavior. |
+| Multi-state BAS capture | State-scoped machine claims remain unverifiable beyond default state. | Add a state/dimensions capture runner and promote to a modeled flow once transitions exist. |
 
 ## Cross-References
 

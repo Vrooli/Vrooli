@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -8,6 +9,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/santhosh-tekuri/jsonschema/v5"
 )
 
 func TestReportCarriesParserContractFields(t *testing.T) {
@@ -50,6 +53,49 @@ func TestParseScenarioFixturesContractGreen(t *testing.T) { // [REQ:EXPERIEN-P0-
 				t.Fatalf("parsed spec identity mismatch: %+v", report.Spec)
 			}
 		})
+	}
+}
+
+func TestScenarioExperienceDocumentsValidateAgainstJSONSchema(t *testing.T) { // [REQ:EXPERIEN-P0-001]
+	root := repoRoot(t)
+	schemaBytes, err := os.ReadFile(filepath.Join(root, ".vrooli", "schemas", "scenario-experience-spec.schema.json"))
+	if err != nil {
+		t.Fatalf("read experience schema: %v", err)
+	}
+	compiler := jsonschema.NewCompiler()
+	if err := compiler.AddResource("scenario-experience-spec/v1", bytes.NewReader(schemaBytes)); err != nil {
+		t.Fatalf("add schema resource: %v", err)
+	}
+	schema, err := compiler.Compile("scenario-experience-spec/v1")
+	if err != nil {
+		t.Fatalf("compile experience schema: %v", err)
+	}
+
+	for _, scenario := range []string{"experience-manager", "business-health", "web-console"} {
+		experienceRoot := filepath.Join(root, "scenarios", scenario, "experience")
+		err := filepath.WalkDir(experienceRoot, func(path string, entry os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if entry.IsDir() || !strings.HasSuffix(path, ".json") {
+				return nil
+			}
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			var doc any
+			if err := json.Unmarshal(raw, &doc); err != nil {
+				t.Fatalf("%s is not JSON: %v", path, err)
+			}
+			if err := schema.Validate(doc); err != nil {
+				t.Fatalf("%s fails scenario-experience-spec.schema.json: %v", path, err)
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("walk %s experience docs: %v", scenario, err)
+		}
 	}
 }
 

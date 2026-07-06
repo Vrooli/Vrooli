@@ -9,7 +9,6 @@ import { strings } from "../consts/strings";
 export interface NavItem {
   /** Selector parameter; stable across locales. */
   key:
-    | "dashboard"
     | "fleet"
     | "explorer"
     | "evidence"

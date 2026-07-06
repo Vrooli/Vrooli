@@ -328,7 +328,6 @@ const literalSelectors = {
     evidence: "page-evidence",
     studio: "page-studio",
     findings: "page-findings",
-    dashboard: "page-dashboard",
     settings: "page-settings",
   },
   experience: {
@@ -400,7 +399,6 @@ const dynamicSelectorDefinitions = {
         key: {
           type: "enum",
           values: [
-            "dashboard",
             "fleet",
             "explorer",
             "evidence",
@@ -418,7 +416,6 @@ const dynamicSelectorDefinitions = {
         key: {
           type: "enum",
           values: [
-            "dashboard",
             "fleet",
             "explorer",
             "evidence",

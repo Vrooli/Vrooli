@@ -67,8 +67,9 @@
       "id": "empty-guides-selection",
       "type": "state-covered",
       "statement": "The nothing-selected state guides the author to pick a scenario and page — never a blank canvas with no path.",
-      "tier": "machine",
-      "states": ["empty"]
+      "tier": "manual",
+      "states": ["empty"],
+      "rationale": "v1 BAS reconciliation captures only the default state; this empty-state promise needs multi-state capture before it can be machine tier."
     },
     {
       "id": "validation-summary-on-failure",

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
 	AlertTriangle,
 	ClipboardCheck,
@@ -13,39 +13,31 @@ import {
 import { Link, useParams } from "react-router-dom";
 
 import {
+  applyFindingsFixes,
+  applyStudioDraft,
+  compareStudioVariants,
   fetchEvidence,
+  fetchFindings,
   fetchFleet,
   fetchScenarioSpec,
+  previewFindingsFixes,
   recaptureScenario,
+  renderStudioSpec,
+  promoteStudioVariant,
+  suggestStudioBindings,
   type ExperienceClaimSpec,
   type ReconciliationEvidenceRow,
   type ScenarioSpecPage,
+  type StudioApplyResult,
+  type StudioPageDraft,
 } from "../api/experience";
+import type { FixResponse } from "@vrooli/proto-types/scenario-validation/v1/validation_pb";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
-
-const scenarios = [
-  { name: "business-health", coverage: "L3", debt: 8, pages: 1, status: "8 advisory" },
-  { name: "web-console", coverage: "L3", debt: 0, pages: 1, status: "green" },
-  { name: "experience-manager", coverage: "L2", debt: 0, pages: 5, status: "dogfood" },
-];
-
-const findings = [
-  {
-    title: "Matrix priority copy diverges from declared intent",
-    severity: "warning",
-    evidence: "/scenarios/business-health/pages/matrix/evidence",
-  },
-  {
-    title: "Binding suggestion available for findings table",
-    severity: "info",
-    evidence: "/scenarios/experience-manager/pages/findings/evidence",
-  },
-];
 
 function PageFrame({
   testId,
@@ -145,23 +137,101 @@ function formatAXNode(json: string) {
   }
 }
 
+function firstMachineClaim(page: ScenarioSpecPage | undefined) {
+  return page?.spec.claims?.find((claim) => claim.tier === "machine") ?? page?.spec.claims?.[0];
+}
+
+function pageDraftFromSpec(page: ScenarioSpecPage | undefined, title: string, claimStatement: string): StudioPageDraft {
+  const spec = page?.spec;
+  const pageID = spec?.page.id || page?.document.id || "new-page";
+  const baseClaim = firstMachineClaim(page);
+  const claimID = baseClaim?.id || `${pageID}-draft-claim`;
+  return {
+    id: pageID,
+    title,
+    purpose: spec?.page.purpose ?? "",
+    routes: spec?.page.routes ?? [],
+    prdRefs: spec?.page.prd_refs ?? [],
+    status: page?.document.status || "draft",
+    priorities: (spec?.priorities ?? []).map((priority) => ({
+      statement: priority.statement,
+      notes: priority.notes ?? "",
+    })),
+    states: (spec?.states ?? [{ id: "default", description: "" }]).map((state) => ({
+      id: state.id,
+      description: state.description ?? "",
+    })),
+    elements: (spec?.elements ?? []).map((element) => ({
+      id: element.id,
+      role: element.role ?? "",
+      name: element.name ?? "",
+      description: element.description ?? "",
+    })),
+    claims: [
+      {
+        id: claimID,
+        type: baseClaim?.type ?? "custom",
+        statement: claimStatement,
+        tier: baseClaim?.tier ?? "machine",
+        elements: baseClaim?.elements ?? [],
+        states: baseClaim?.states ?? ["default"],
+        viewports: [],
+        locales: [],
+        rationale: "",
+      },
+    ],
+    bindings: [],
+    sketchRegions: [],
+  };
+}
+
+function validationText(result: StudioApplyResult | undefined, fallback: string) {
+  const findings = result?.validation?.report?.findings ?? [];
+  if (findings.length === 0) {
+    return fallback;
+  }
+  return findings.map((finding) => `${finding.severity}: ${finding.title}`).join("\n");
+}
+
+function uniqueRuleIDs(response: FixResponse | undefined) {
+  return Array.from(new Set(response?.candidates.map((candidate) => candidate.ruleId).filter(Boolean) ?? []));
+}
+
+function fixPreviewText(response: FixResponse | undefined, emptyCopy: string) {
+  if (!response) {
+    return emptyCopy;
+  }
+  if (response.candidates.length === 0) {
+    return response.messages.join("\n") || emptyCopy;
+  }
+  return response.candidates
+    .map((candidate) => {
+      const beforeLines = candidate.before ? candidate.before.split("\n").length : 0;
+      const afterLines = candidate.after ? candidate.after.split("\n").length : 0;
+      return `${candidate.ruleId} ${candidate.filePath}\n${candidate.description}\n-${beforeLines} +${afterLines}`;
+    })
+    .join("\n\n");
+}
+
 export function FleetPage() {
   const { t } = useTranslation();
-  const { data, refetch } = useQuery({
+  const {
+    data,
+    dataUpdatedAt,
+    isError,
+    isFetching,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ["experience-fleet"],
     queryFn: fetchFleet,
+    staleTime: 60_000,
   });
-  const rows =
-    data?.scenarios.map((scenario) => ({
-      name: scenario.scenario,
-      coverage: scenario.maxDepth,
-      debt: scenario.debtScore,
-      pages: scenario.pageCount,
-      status: scenario.status,
-    })) ?? scenarios;
-  const covered = data ? data.withExperienceCount : scenarios.length;
-  const total = data ? data.scenarioCount : scenarios.length;
+  const rows = data?.scenarios ?? [];
+  const covered = data?.withExperienceCount ?? 0;
+  const total = data?.scenarioCount ?? 0;
   const coveragePercent = total > 0 ? Math.round((covered / total) * 100) : 0;
+  const stale = Boolean(data && dataUpdatedAt && Date.now() - dataUpdatedAt > 60_000);
 
   return (
     <PageFrame
@@ -192,9 +262,11 @@ export function FleetPage() {
             <div className="h-3 rounded-full bg-app-primary" style={{ width: `${coveragePercent}%` }} />
           </div>
           <p className="mt-2 text-sm text-app-muted-foreground">
-            {data
-              ? t(strings.experience.fleet.pagesTracked, { count: data.totalPages })
-              : t(strings.experience.fleet.loadingData)}
+            {isLoading
+              ? t(strings.experience.fleet.loadingData)
+              : stale
+                ? t(strings.experience.fleet.staleData)
+                : t(strings.experience.fleet.pagesTracked, { count: data?.totalPages ?? 0 })}
           </p>
         </div>
         <Button
@@ -203,9 +275,14 @@ export function FleetPage() {
           onClick={() => void refetch()}
         >
           <RefreshCw className="mr-2 size-4" aria-hidden="true" />
-          {t(strings.experience.fleet.refresh)}
+          {isFetching ? t(strings.experience.explorer.refreshing) : t(strings.experience.fleet.refresh)}
         </Button>
       </div>
+      {isError ? (
+        <div role="alert" className="rounded-panel border border-app-border bg-app-surface p-4 text-sm text-app-muted-foreground">
+          {t(strings.experience.fleet.loadError)}
+        </div>
+      ) : null}
       <div className="overflow-x-auto rounded-panel border border-app-border bg-app-surface">
         <table
           data-testid={selectors.experience.fleet.debtTable}
@@ -221,22 +298,36 @@ export function FleetPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((scenario) => (
-              <tr key={scenario.name} className="border-t border-app-border">
+            {isLoading ? (
+              <tr className="border-t border-app-border">
+                <td className="px-4 py-3 text-app-muted-foreground" colSpan={4}>
+                  {t(strings.experience.fleet.loadingData)}
+                </td>
+              </tr>
+            ) : rows.length === 0 ? (
+              <tr className="border-t border-app-border">
+                <td className="px-4 py-3 text-app-muted-foreground" colSpan={4}>
+                  {t(strings.experience.fleet.emptyFleet)}
+                </td>
+              </tr>
+            ) : (
+              rows.map((scenario) => (
+              <tr key={scenario.scenario} className="border-t border-app-border">
                 <td className="px-4 py-3">
                   <Link
                     data-testid={selectors.experience.fleet.scenarioLink}
                     className="font-medium text-app-primary underline-offset-4 hover:underline"
-                    to={`/scenarios/${scenario.name}`}
+                    to={`/scenarios/${scenario.scenario}`}
                   >
-                    {scenario.name}
+                    {scenario.scenario}
                   </Link>
                 </td>
-                <td className="px-4 py-3">{scenario.coverage}</td>
-                <td className="px-4 py-3">{scenario.debt}</td>
+                <td className="px-4 py-3">{scenario.maxDepth}</td>
+                <td className="px-4 py-3">{scenario.debtScore}</td>
                 <td className="px-4 py-3">{scenario.status}</td>
               </tr>
-            ))}
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -368,6 +459,7 @@ export function ScenarioExplorerPage() {
               <span
                 data-testid={selectors.experience.explorer.tierLabel}
                 role="note"
+                aria-label={`${t(strings.experience.common.tier)} ${claim.tier}`}
                 className="text-xs font-semibold uppercase text-app-primary"
               >
                 {claim.tier}
@@ -377,6 +469,7 @@ export function ScenarioExplorerPage() {
               <Link
                 data-testid={selectors.experience.explorer.evidenceLink}
                 to={claimEvidencePath(scenario, page.document.id)}
+                aria-label={`${t(strings.experience.common.viewEvidence)} ${page.document.title} ${claim.id}`}
                 className="mt-3 inline-flex text-sm text-app-primary underline-offset-4 hover:underline"
               >
                 {t(strings.experience.common.viewEvidence)}
@@ -503,6 +596,7 @@ export function EvidencePage() {
                 data-testid={selectors.experience.evidence.evidenceLink}
                 type="button"
                 onClick={() => setSelectedID(row.id)}
+                aria-label={`${t(strings.experience.common.viewEvidence)} ${row.claim}`}
                 className="mt-3 inline-flex text-sm text-app-primary underline-offset-4 hover:underline"
               >
                 {t(strings.experience.common.viewEvidence)}
@@ -517,6 +611,112 @@ export function EvidencePage() {
 
 export function StudioPage() {
   const { t } = useTranslation();
+  const params = useParams();
+  const scenario = params.scenario ?? "experience-manager";
+  const [selectedPageID, setSelectedPageID] = useState(params.page ?? "");
+  const [initializedPageID, setInitializedPageID] = useState("");
+  const [title, setTitle] = useState("");
+  const [claimStatement, setClaimStatement] = useState("");
+  const [result, setResult] = useState<StudioApplyResult>();
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const {
+    data: pages,
+    isError: specError,
+    isLoading: specLoading,
+  } = useQuery({
+    queryKey: ["experience-studio-spec", scenario],
+    queryFn: () => fetchScenarioSpec(scenario),
+    staleTime: 60_000,
+  });
+  const rows = pages ?? [];
+  const selectedPage = rows.find((row) => row.document.id === selectedPageID) ?? rows[0];
+  const selectedID = selectedPage?.document.id ?? selectedPageID;
+
+  useEffect(() => {
+    if (!selectedPage) {
+      return;
+    }
+    if (initializedPageID === selectedPage.document.id) {
+      return;
+    }
+    setSelectedPageID(selectedPage.document.id);
+    setTitle(selectedPage.spec.page.title || selectedPage.document.title);
+    setClaimStatement(firstMachineClaim(selectedPage)?.statement ?? "");
+    setResult(undefined);
+    setSaveError("");
+    setInitializedPageID(selectedPage.document.id);
+  }, [initializedPageID, selectedPage]);
+
+  const draft = useMemo(
+    () => pageDraftFromSpec(selectedPage, title, claimStatement),
+    [claimStatement, selectedPage, title],
+  );
+  const variants = useMemo(
+    () => [
+      { id: "draft", title: title || selectedPage?.document.title || "draft", page: draft },
+      {
+        id: "evidence-forward",
+        title: t(strings.experience.studio.evidenceForwardVariant),
+        page: {
+          ...draft,
+          title: `${title || selectedPage?.document.title || "draft"} evidence`,
+          claims: draft.claims.map((claim) => ({
+            ...claim,
+            statement: claim.statement || t(strings.experience.studio.emptyClaim),
+          })),
+        },
+      },
+    ],
+    [draft, selectedPage?.document.title, t, title],
+  );
+  const renderQuery = useQuery({
+    queryKey: ["experience-studio-render", scenario, selectedID],
+    queryFn: () => renderStudioSpec(scenario, selectedID),
+    enabled: Boolean(selectedID),
+    staleTime: 60_000,
+  });
+  const compareQuery = useQuery({
+    queryKey: ["experience-studio-compare", scenario, selectedID, title, claimStatement],
+    queryFn: () => compareStudioVariants(scenario, selectedID, variants),
+    enabled: Boolean(selectedID && title),
+    staleTime: 5_000,
+  });
+  const suggestionsQuery = useQuery({
+    queryKey: ["experience-studio-bindings", scenario, selectedID],
+    queryFn: () => suggestStudioBindings(scenario, selectedID),
+    enabled: Boolean(selectedID),
+    staleTime: 60_000,
+  });
+  const previewHTML = compareQuery.data?.html || renderQuery.data?.html || "";
+  const renderedVariants = compareQuery.data?.variants ?? [];
+  const validationCopy = saveError || validationText(result, t(strings.experience.studio.validationCopy));
+  const saveDraft = async () => {
+    setIsSaving(true);
+    setSaveError("");
+    try {
+      setResult(await applyStudioDraft(scenario, draft));
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : t(strings.errors.unknown));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  const promoteDraft = async () => {
+    const primaryVariant = variants[0];
+    if (!primaryVariant) {
+      return;
+    }
+    setIsSaving(true);
+    setSaveError("");
+    try {
+      setResult(await promoteStudioVariant(scenario, selectedID, primaryVariant));
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : t(strings.errors.unknown));
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <PageFrame
@@ -530,29 +730,81 @@ export function StudioPage() {
           aria-label={t(strings.experience.studio.formLabel)}
           className="rounded-panel border border-app-border bg-app-surface p-4"
         >
-          <label className="block text-sm font-semibold" htmlFor="studio-page-title">
+          <label className="block text-sm font-semibold" htmlFor="studio-page-select">
             {t(strings.experience.common.page)}
           </label>
-          <Input id="studio-page-title" className="mt-2 bg-app-surface text-app-foreground" defaultValue={t(strings.experience.studio.defaultPage)} />
+          <select
+            id="studio-page-select"
+            className="mt-2 w-full rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm text-app-foreground"
+            value={selectedID}
+            onChange={(event) => {
+              setInitializedPageID("");
+              setSelectedPageID(event.target.value);
+            }}
+            disabled={specLoading || rows.length === 0}
+          >
+            {specLoading ? <option value="">{t(strings.experience.studio.loadingSpec)}</option> : null}
+            {!specLoading && rows.length === 0 ? <option value="">{t(strings.experience.studio.emptySpec)}</option> : null}
+            {rows.map((row) => (
+              <option key={row.document.id} value={row.document.id}>
+                {row.document.title || row.spec.page.title}
+              </option>
+            ))}
+          </select>
+          <label className="mt-4 block text-sm font-semibold" htmlFor="studio-page-title">
+            {t(strings.experience.studio.pageTitle)}
+          </label>
+          <Input
+            id="studio-page-title"
+            className="mt-2 bg-app-surface text-app-foreground"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder={t(strings.experience.studio.defaultPage)}
+          />
           <label className="mt-4 block text-sm font-semibold" htmlFor="studio-claim">
             {t(strings.experience.common.claims)}
           </label>
           <Textarea
             id="studio-claim"
             className="mt-2 min-h-28 bg-app-surface text-app-foreground"
-            defaultValue={t(strings.experience.studio.defaultClaim)}
+            value={claimStatement}
+            onChange={(event) => setClaimStatement(event.target.value)}
+            placeholder={t(strings.experience.studio.emptyClaim)}
           />
           <div
             data-testid={selectors.experience.studio.validationSummary}
-            role="alert"
+            role={saveError ? "alert" : "status"}
             aria-label={t(strings.experience.studio.validationLabel)}
-            className="mt-4 rounded-control border border-app-border bg-app-surface-muted p-3 text-sm"
+            className="mt-4 whitespace-pre-line rounded-control border border-app-border bg-app-surface-muted p-3 text-sm"
           >
-            {t(strings.experience.studio.validationCopy)}
+            {specError ? t(strings.experience.studio.loadError) : validationCopy}
           </div>
-          <Button data-testid={selectors.experience.studio.saveAction} type="button" className="mt-4">
+          <div className="mt-4 rounded-control border border-app-border p-3">
+            <p className="text-xs font-semibold uppercase text-app-muted-foreground">
+              {t(strings.experience.studio.suggestionsLabel)}
+            </p>
+            <ul className="mt-2 grid gap-2 text-sm text-app-muted-foreground">
+              {(suggestionsQuery.data ?? []).length === 0 ? (
+                <li>{suggestionsQuery.isLoading ? t(strings.experience.studio.loadingSuggestions) : t(strings.experience.studio.emptySuggestions)}</li>
+              ) : (
+                suggestionsQuery.data?.map((suggestion) => (
+                  <li key={`${suggestion.elementId}:${suggestion.testid || suggestion.role}`}>
+                    <span className="font-medium text-app-foreground">{suggestion.elementId}</span>{" "}
+                    {suggestion.testid || suggestion.role || suggestion.accessibleName}
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+          <Button
+            data-testid={selectors.experience.studio.saveAction}
+            type="button"
+            className="mt-4"
+            onClick={() => void saveDraft()}
+            disabled={!selectedID || isSaving}
+          >
             <Save className="mr-2 size-4" aria-hidden="true" />
-            {t(strings.experience.studio.save)}
+            {isSaving ? t(strings.experience.studio.saving) : t(strings.experience.studio.save)}
           </Button>
         </form>
         <section
@@ -561,24 +813,40 @@ export function StudioPage() {
           className="rounded-panel border border-app-border bg-app-surface p-4"
         >
           <h3 className="font-semibold">{t(strings.experience.studio.wireframeLabel)}</h3>
-          <div className="mt-4 grid min-h-64 gap-3 rounded-control border border-dashed border-app-border p-4 md:grid-cols-3">
-            <div className="rounded-control bg-app-surface-muted p-3">{t(strings.experience.studio.previewDepthSummary)}</div>
-            <div className="rounded-control bg-app-surface-muted p-3">{t(strings.experience.studio.previewCoverageMeter)}</div>
-            <div className="rounded-control bg-app-surface-muted p-3">{t(strings.experience.studio.previewDebtTable)}</div>
+          <div className="mt-4 min-h-64 overflow-auto rounded-control border border-dashed border-app-border bg-app-surface-muted p-4">
+            {renderQuery.isLoading || compareQuery.isLoading ? (
+              <p className="text-sm text-app-muted-foreground">{t(strings.experience.studio.loadingPreview)}</p>
+            ) : previewHTML ? (
+              <div className="prose prose-sm max-w-none text-app-foreground" dangerouslySetInnerHTML={{ __html: previewHTML }} />
+            ) : (
+              <p className="text-sm text-app-muted-foreground">{t(strings.experience.studio.emptyPreview)}</p>
+            )}
           </div>
           <ul
             data-testid={selectors.experience.studio.variantRail}
             aria-label={t(strings.experience.studio.variantsLabel)}
             className="mt-4 grid gap-3 md:grid-cols-2"
           >
-            {[t(strings.experience.studio.variantCompactTable), t(strings.experience.studio.variantEvidenceForward)].map((variant) => (
-              <li key={variant} className="rounded-control border border-app-border p-3 text-sm">
-                <GitCompare className="mb-2 size-4 text-app-primary" aria-hidden="true" />
-                {variant}
+            {renderedVariants.length === 0 ? (
+              <li className="rounded-control border border-app-border p-3 text-sm text-app-muted-foreground">
+                {compareQuery.isError ? t(strings.experience.studio.variantError) : t(strings.experience.studio.emptyVariants)}
               </li>
-            ))}
+            ) : (
+              renderedVariants.map((variant) => (
+              <li key={variant.id} className="rounded-control border border-app-border p-3 text-sm">
+                <GitCompare className="mb-2 size-4 text-app-primary" aria-hidden="true" />
+                <span className="font-medium">{variant.title}</span>
+              </li>
+              ))
+            )}
           </ul>
-          <Button data-testid={selectors.experience.studio.promoteAction} type="button" className="mt-4">
+          <Button
+            data-testid={selectors.experience.studio.promoteAction}
+            type="button"
+            className="mt-4"
+            onClick={() => void promoteDraft()}
+            disabled={!selectedID || isSaving}
+          >
             <ClipboardCheck className="mr-2 size-4" aria-hidden="true" />
             {t(strings.experience.studio.promote)}
           </Button>
@@ -590,6 +858,47 @@ export function StudioPage() {
 
 export function FindingsPage() {
   const { t } = useTranslation();
+  const params = useParams();
+  const scenario = params.scenario ?? "experience-manager";
+  const [preview, setPreview] = useState<FixResponse>();
+  const [fixError, setFixError] = useState("");
+  const [isFixing, setIsFixing] = useState(false);
+  const {
+    data: findings,
+    isError,
+    isFetching,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["experience-findings", scenario],
+    queryFn: () => fetchFindings(scenario),
+    staleTime: 60_000,
+  });
+  const rows = findings ?? [];
+  const previewFixes = async () => {
+    setIsFixing(true);
+    setFixError("");
+    try {
+      setPreview(await previewFindingsFixes(scenario));
+    } catch (err) {
+      setFixError(err instanceof Error ? err.message : t(strings.experience.findings.previewError));
+    } finally {
+      setIsFixing(false);
+    }
+  };
+  const applyFixes = async () => {
+    setIsFixing(true);
+    setFixError("");
+    try {
+      const result = await applyFindingsFixes(scenario, uniqueRuleIDs(preview));
+      setPreview(result.preview);
+      await refetch();
+    } catch (err) {
+      setFixError(err instanceof Error ? err.message : t(strings.experience.findings.applyError));
+    } finally {
+      setIsFixing(false);
+    }
+  };
 
   return (
     <PageFrame
@@ -602,8 +911,21 @@ export function FindingsPage() {
         aria-label={t(strings.experience.findings.listLabel)}
         className="grid gap-3"
       >
-        {findings.map((finding) => (
-          <li key={finding.title} className="rounded-panel border border-app-border bg-app-surface p-4">
+        {isLoading ? (
+          <li className="rounded-panel border border-app-border bg-app-surface p-4 text-sm text-app-muted-foreground">
+            {t(strings.experience.findings.loadingFindings)}
+          </li>
+        ) : isError ? (
+          <li role="alert" className="rounded-panel border border-app-border bg-app-surface p-4 text-sm text-app-muted-foreground">
+            {t(strings.experience.findings.loadError)}
+          </li>
+        ) : rows.length === 0 ? (
+          <li className="rounded-panel border border-app-border bg-app-surface p-4 text-sm text-app-muted-foreground">
+            {t(strings.experience.findings.emptyFindings)}
+          </li>
+        ) : (
+          rows.map((finding) => (
+          <li key={`${finding.code}:${finding.location}:${finding.message}`} className="rounded-panel border border-app-border bg-app-surface p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <span
@@ -614,29 +936,53 @@ export function FindingsPage() {
                   <AlertTriangle className="size-4" aria-hidden="true" />
                   {finding.severity}
                 </span>
-                <p className="mt-2 font-medium">{finding.title}</p>
+                <p className="mt-2 font-medium">{finding.code}</p>
+                <p className="mt-1 text-sm text-app-muted-foreground">{finding.message || finding.remediation}</p>
                 <Link
                   data-testid={selectors.experience.findings.evidenceLink}
-                  to={finding.evidence}
+                  to={`/scenarios/${scenario}/pages/findings/evidence`}
+                  aria-label={`${t(strings.experience.common.viewEvidence)} ${finding.code}`}
                   className="mt-3 inline-flex text-sm text-app-primary underline-offset-4 hover:underline"
                 >
                   {t(strings.experience.common.viewEvidence)}
                 </Link>
               </div>
               <div className="flex gap-2">
-                <Button data-testid={selectors.experience.findings.previewAction} type="button" variant="outline">
+                <Button
+                  data-testid={selectors.experience.findings.previewAction}
+                  type="button"
+                  variant="outline"
+                  onClick={() => void previewFixes()}
+                  disabled={isFixing || isFetching}
+                >
                   <FileSearch className="mr-2 size-4" aria-hidden="true" />
-                  {t(strings.experience.findings.preview)}
+                  {isFixing ? t(strings.experience.explorer.refreshing) : t(strings.experience.findings.preview)}
                 </Button>
-                <Button data-testid={selectors.experience.findings.applyAction} type="button">
+                <Button
+                  data-testid={selectors.experience.findings.applyAction}
+                  type="button"
+                  onClick={() => void applyFixes()}
+                  disabled={isFixing || uniqueRuleIDs(preview).length === 0}
+                >
                   <Gauge className="mr-2 size-4" aria-hidden="true" />
                   {t(strings.experience.findings.apply)}
                 </Button>
               </div>
             </div>
           </li>
-        ))}
+          ))
+        )}
       </ul>
+      <section
+        role={fixError ? "alert" : "status"}
+        aria-label={t(strings.experience.findings.fixPreviewLabel)}
+        className="rounded-panel border border-app-border bg-app-surface p-4"
+      >
+        <h3 className="font-semibold">{t(strings.experience.findings.fixPreviewLabel)}</h3>
+        <pre className="mt-3 overflow-auto whitespace-pre-wrap rounded-control bg-app-surface-muted p-3 text-xs">
+          {fixError || fixPreviewText(preview, t(strings.experience.findings.previewEmpty))}
+        </pre>
+      </section>
     </PageFrame>
   );
 }
