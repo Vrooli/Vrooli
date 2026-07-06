@@ -2,6 +2,7 @@ import {
   Profiler,
   useState,
   useEffect,
+  useLayoutEffect,
   useRef,
   useMemo,
   useCallback,
@@ -60,6 +61,7 @@ function FileListImpl({
   onStageAll,
   onUnstageAll,
   isStaging,
+  pendingPaths,
   isDiscarding,
   isIgnoring,
   confirmingDiscard,
@@ -78,6 +80,7 @@ function FileListImpl({
   onSelectAnyFile,
   scrollToFile,
   onScrollComplete,
+  scrollTopStore,
   onDeletePath,
   onBlameFile,
   repoId,
@@ -105,6 +108,18 @@ function FileListImpl({
       if (stored) return new Set(JSON.parse(stored) as string[]);
     } catch { /* ignore */ }
     return new Set();
+  });
+  // Persisted subsection (Modified/Untracked/…) expand state, keyed by
+  // group.id + category. Only explicitly-toggled sections are stored; sections
+  // absent from the map fall back to their per-category default (Untracked
+  // starts collapsed). Mirrors the group-collapse mechanism above.
+  const [sectionExpanded, setSectionExpanded] = useState<Record<string, boolean>>(() => {
+    const storageKey = `gct.collapsedSections.${repoId ?? "default"}`;
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) return JSON.parse(stored) as Record<string, boolean>;
+    } catch { /* ignore */ }
+    return {};
   });
   const binarySet = useMemo(
     () => new Set(files?.binary ?? []),
@@ -354,6 +369,29 @@ function FileListImpl({
     });
   }, [repoId]);
 
+  const isSectionExpanded = useCallback(
+    (groupId: string, category: FileCategory, defaultExpanded: boolean) => {
+      const key = `${groupId}::${category}`;
+      return key in sectionExpanded ? sectionExpanded[key] : defaultExpanded;
+    },
+    [sectionExpanded],
+  );
+  const toggleSectionCollapse = useCallback(
+    (groupId: string, category: FileCategory, defaultExpanded: boolean) => {
+      const key = `${groupId}::${category}`;
+      setSectionExpanded((prev) => {
+        const current = key in prev ? prev[key] : defaultExpanded;
+        const next = { ...prev, [key]: !current };
+        const storageKey = `gct.collapsedSections.${repoId ?? "default"}`;
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(next));
+        } catch { /* ignore */ }
+        return next;
+      });
+    },
+    [repoId],
+  );
+
   useEffect(() => {
     if (!scrollAreaRef.current || typeof ResizeObserver === "undefined") return;
 
@@ -410,6 +448,31 @@ function FileListImpl({
 
     return () => clearTimeout(timeoutId);
   }, [scrollToFile, onScrollComplete, fileViewMode]);
+
+  // Persist the Changes list scroll position (mobile only, when a store is
+  // supplied). The store is a ref assignment, so writing on every scroll event
+  // is cheap and always captures the latest position (no debounce needed).
+  const handleScroll = useCallback(
+    (event: React.UIEvent<HTMLDivElement>) => {
+      if (scrollTopStore) {
+        scrollTopStore.current = event.currentTarget.scrollTop;
+      }
+    },
+    [scrollTopStore],
+  );
+
+  // Restore the saved scroll position once on mount, after content lays out.
+  // Skipped when a scrollToFile target is pending so the scroll-into-view path
+  // (above) wins instead of fighting the restore.
+  useLayoutEffect(() => {
+    if (!scrollTopStore || scrollToFile) return;
+    const el = scrollAreaRef.current;
+    if (el && scrollTopStore.current > 0) {
+      el.scrollTop = scrollTopStore.current;
+    }
+    // Mount-only: intentionally not re-running on scrollTopStore/scrollToFile changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const groupedSections = useMemo(() => {
     if (!groupingActive) return [];
@@ -590,7 +653,7 @@ function FileListImpl({
             )}
           </CardTitle>
           <div className="flex flex-wrap gap-2 justify-end min-w-0">
-            {hasUnstaged && (
+            {!mobileSelectionMode && hasUnstaged && (
               <Button
                 variant="outline"
                 size="sm"
@@ -604,7 +667,7 @@ function FileListImpl({
                 {!compactHeader && <span className="ml-1">Stage All</span>}
               </Button>
             )}
-            {hasStaged && (
+            {!mobileSelectionMode && hasStaged && (
               <Button
                 variant="outline"
                 size="sm"
@@ -732,6 +795,7 @@ function FileListImpl({
             <ScrollArea
               className="h-full min-w-0 px-2 pt-2 select-none"
               ref={scrollAreaRef}
+              onScroll={handleScroll}
             >
               <div style={{ paddingBottom: 72 }}>
                 {fileViewMode === "tree" ? (
@@ -829,7 +893,8 @@ function FileListImpl({
                                 {groupCount} files
                               </button>
                             )}
-                            {!isGroupCollapsed &&
+                            {!mobileSelectionMode &&
+                              !isGroupCollapsed &&
                               stageable.length > 0 &&
                               onStagePaths && (
                                 <Button
@@ -843,7 +908,8 @@ function FileListImpl({
                                   {compactHeader ? <Plus className="h-3 w-3" /> : "Stage All"}
                                 </Button>
                               )}
-                            {!isGroupCollapsed &&
+                            {!mobileSelectionMode &&
+                              !isGroupCollapsed &&
                               discardCount > 0 &&
                               onDiscardPaths && (
                                 <Button
@@ -905,6 +971,8 @@ function FileListImpl({
                                 key={`${group.id}-conflicts`}
                                 title="Conflicts"
                                 category="conflicts"
+                                expanded={isSectionExpanded(group.id, "conflicts", true)}
+                                onToggle={() => toggleSectionCollapse(group.id, "conflicts", true)}
                                 files={group.files.conflicts}
                                 fileStatuses={files?.statuses}
                                 binaryFiles={binarySet}
@@ -922,7 +990,7 @@ function FileListImpl({
                                   <Plus className="h-3 w-3 text-slate-400" />
                                 }
                                 actionLabel="Stage file"
-                                isLoading={isStaging}
+                                pendingPaths={pendingPaths}
                                 changeStats={summarizeFileStats(
                                   group.files.conflicts,
                                   fileStats?.unstaged,
@@ -944,6 +1012,8 @@ function FileListImpl({
                                 key={`${group.id}-staged`}
                                 title="Staged"
                                 category="staged"
+                                expanded={isSectionExpanded(group.id, "staged", true)}
+                                onToggle={() => toggleSectionCollapse(group.id, "staged", true)}
                                 files={group.files.staged}
                                 fileStatuses={files?.statuses}
                                 binaryFiles={binarySet}
@@ -961,7 +1031,7 @@ function FileListImpl({
                                   <Minus className="h-3 w-3 text-slate-400" />
                                 }
                                 actionLabel="Unstage file"
-                                isLoading={isStaging}
+                                pendingPaths={pendingPaths}
                                 changeStats={summarizeFileStats(
                                   group.files.staged,
                                   fileStats?.staged,
@@ -983,6 +1053,8 @@ function FileListImpl({
                                 key={`${group.id}-unstaged`}
                                 title="Modified"
                                 category="unstaged"
+                                expanded={isSectionExpanded(group.id, "unstaged", true)}
+                                onToggle={() => toggleSectionCollapse(group.id, "unstaged", true)}
                                 files={group.files.unstaged}
                                 fileStatuses={files?.statuses}
                                 binaryFiles={binarySet}
@@ -1000,7 +1072,7 @@ function FileListImpl({
                                   <Plus className="h-3 w-3 text-slate-400" />
                                 }
                                 actionLabel="Stage file"
-                                isLoading={isStaging}
+                                pendingPaths={pendingPaths}
                                 changeStats={summarizeFileStats(
                                   group.files.unstaged,
                                   fileStats?.unstaged,
@@ -1026,6 +1098,8 @@ function FileListImpl({
                                 key={`${group.id}-untracked`}
                                 title="Untracked"
                                 category="untracked"
+                                expanded={isSectionExpanded(group.id, "untracked", false)}
+                                onToggle={() => toggleSectionCollapse(group.id, "untracked", false)}
                                 files={group.files.untracked}
                                 fileStatuses={files?.statuses}
                                 binaryFiles={binarySet}
@@ -1043,7 +1117,7 @@ function FileListImpl({
                                   <Plus className="h-3 w-3 text-slate-400" />
                                 }
                                 actionLabel="Stage file"
-                                isLoading={isStaging}
+                                pendingPaths={pendingPaths}
                                 changeStats={summarizeFileStats(
                                   group.files.untracked,
                                   fileStats?.untracked,
@@ -1078,6 +1152,8 @@ function FileListImpl({
                     <FileSection
                       title="Conflicts"
                       category="conflicts"
+                      expanded={isSectionExpanded("__flat__", "conflicts", true)}
+                      onToggle={() => toggleSectionCollapse("__flat__", "conflicts", true)}
                       files={files?.conflicts ?? []}
                       fileStatuses={files?.statuses}
                       binaryFiles={binarySet}
@@ -1093,7 +1169,7 @@ function FileListImpl({
                       onAction={onStageFile}
                       actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
                       actionLabel="Stage file"
-                      isLoading={isStaging}
+                      pendingPaths={pendingPaths}
                       changeStats={summarizeFileStats(
                         files?.conflicts ?? [],
                         fileStats?.unstaged,
@@ -1116,6 +1192,8 @@ function FileListImpl({
                     <FileSection
                       title="Staged"
                       category="staged"
+                      expanded={isSectionExpanded("__flat__", "staged", true)}
+                      onToggle={() => toggleSectionCollapse("__flat__", "staged", true)}
                       files={files?.staged ?? []}
                       fileStatuses={files?.statuses}
                       binaryFiles={binarySet}
@@ -1131,7 +1209,7 @@ function FileListImpl({
                       onAction={onUnstageFile}
                       actionIcon={<Minus className="h-3 w-3 text-slate-400" />}
                       actionLabel="Unstage file"
-                      isLoading={isStaging}
+                      pendingPaths={pendingPaths}
                       changeStats={summarizeFileStats(
                         files?.staged ?? [],
                         fileStats?.staged,
@@ -1154,6 +1232,8 @@ function FileListImpl({
                     <FileSection
                       title="Modified"
                       category="unstaged"
+                      expanded={isSectionExpanded("__flat__", "unstaged", true)}
+                      onToggle={() => toggleSectionCollapse("__flat__", "unstaged", true)}
                       files={files?.unstaged ?? []}
                       fileStatuses={files?.statuses}
                       binaryFiles={binarySet}
@@ -1167,7 +1247,7 @@ function FileListImpl({
                       onAction={onStageFile}
                       actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
                       actionLabel="Stage file"
-                      isLoading={isStaging}
+                      pendingPaths={pendingPaths}
                       changeStats={summarizeFileStats(
                         files?.unstaged ?? [],
                         fileStats?.unstaged,
@@ -1194,6 +1274,8 @@ function FileListImpl({
                     <FileSection
                       title="Untracked"
                       category="untracked"
+                      expanded={isSectionExpanded("__flat__", "untracked", false)}
+                      onToggle={() => toggleSectionCollapse("__flat__", "untracked", false)}
                       files={files?.untracked ?? []}
                       fileStatuses={files?.statuses}
                       binaryFiles={binarySet}
@@ -1207,7 +1289,7 @@ function FileListImpl({
                       onAction={onStageFile}
                       actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
                       actionLabel="Stage file"
-                      isLoading={isStaging}
+                      pendingPaths={pendingPaths}
                       changeStats={summarizeFileStats(
                         files?.untracked ?? [],
                         fileStats?.untracked,

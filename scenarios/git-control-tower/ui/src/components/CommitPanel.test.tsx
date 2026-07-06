@@ -224,4 +224,84 @@ describe("CommitPanel", () => {
     expect(screen.getByText("failed")).toBeInTheDocument();
     expect(screen.getByText("nope")).toBeInTheDocument();
   });
+
+  it("passes skipHooks to onCommit when the skip-hooks checkbox is set", () => {
+    const onCommit = vi.fn();
+    render(
+      <CommitPanel
+        stagedCount={1}
+        commitMessage="fix: bypass"
+        onCommitMessageChange={() => {}}
+        onCommit={onCommit}
+        isCommitting={false}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /advanced/i }));
+    fireEvent.click(screen.getByTestId("skip-hooks-checkbox"));
+    fireEvent.click(screen.getByTestId("commit-button"));
+
+    expect(onCommit).toHaveBeenCalledWith(
+      "fix: bypass",
+      expect.objectContaining({ skipHooks: true }),
+    );
+  });
+
+  it("offers Commit Anyway inside the running progress box", () => {
+    const onCommitAnyway = vi.fn();
+    render(
+      <CommitPanel
+        stagedCount={1}
+        commitMessage="fix: x"
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={true}
+        precommitProgress={{
+          running: true,
+          elapsedMs: 3000,
+          tail: [],
+          onCancel: vi.fn(),
+          onCommitAnyway,
+        }}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId("commit-anyway-running"));
+    expect(onCommitAnyway).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces a reuse retry next to a commit error when a passed pre-commit can be reused", () => {
+    const onRetryWithoutPrecommit = vi.fn();
+    render(
+      <CommitPanel
+        stagedCount={1}
+        commitMessage="fix: x"
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={false}
+        commitError="fatal: Unable to create '.git/index.lock': File exists."
+        onRetryWithoutPrecommit={onRetryWithoutPrecommit}
+        canRetryWithoutPrecommit
+      />
+    );
+
+    fireEvent.click(screen.getByTestId("retry-without-precommit"));
+    expect(onRetryWithoutPrecommit).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the reuse retry when no passed pre-commit is available", () => {
+    render(
+      <CommitPanel
+        stagedCount={1}
+        commitMessage="fix: x"
+        onCommitMessageChange={() => {}}
+        onCommit={vi.fn()}
+        isCommitting={false}
+        commitError="some error"
+        onRetryWithoutPrecommit={vi.fn()}
+        canRetryWithoutPrecommit={false}
+      />
+    );
+    expect(screen.queryByTestId("retry-without-precommit")).not.toBeInTheDocument();
+  });
 });

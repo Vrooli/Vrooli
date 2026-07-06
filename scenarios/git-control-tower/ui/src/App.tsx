@@ -233,6 +233,12 @@ export default function App() {
   const [commitError, setCommitError] = useState<string | undefined>();
   const [precommitFailure, setPrecommitFailure] = useState<PrecommitRunResult | null>(null);
   const [pendingPrecommitCommit, setPendingPrecommitCommit] = useState<CommitRequest | null>(null);
+  // Set true right before an intentional pre-commit stream abort (Commit Anyway) so
+  // handleCommit does not surface the resulting AbortError as a commit error.
+  const commitAnywayRef = useRef(false);
+  // Survives the mobile Changes-panel unmount so its scroll position is restored
+  // when the operator switches away and back (desktop keeps panels mounted).
+  const changesScrollTopRef = useRef(0);
   const [commitMessage, setCommitMessage] = useState(
     () => localStorage.getItem("gct.commitMessage") ?? ""
   );
@@ -460,6 +466,22 @@ export default function App() {
   const saveGroupingRulesMutation = useSaveGroupingRules(repoId);
 
   const isStaging = stageMutation.isPending || unstageMutation.isPending;
+  // Per-path in-flight tracking so only touched rows spin (replaces the global
+  // isStaging flag for row-level loading); bulk buttons still use isStaging.
+  const pendingPaths = useMemo(() => {
+    const set = new Set<string>();
+    if (stageMutation.isPending) stageMutation.variables?.paths?.forEach((p) => set.add(p));
+    if (unstageMutation.isPending) unstageMutation.variables?.paths?.forEach((p) => set.add(p));
+    if (discardMutation.isPending) discardMutation.variables?.paths?.forEach((p) => set.add(p));
+    return set;
+  }, [
+    stageMutation.isPending,
+    stageMutation.variables,
+    unstageMutation.isPending,
+    unstageMutation.variables,
+    discardMutation.isPending,
+    discardMutation.variables,
+  ]);
   const isDeleting = deletePathMutation.isPending;
   const isDiscarding = discardMutation.isPending;
   const isIgnoring = ignoreMutation.isPending;
@@ -1083,8 +1105,9 @@ export default function App() {
   const handleCommit = useCallback(
     async (
       message: string,
-      options: { conventional: boolean; amend: boolean; authorName?: string; authorEmail?: string }
+      options: { conventional: boolean; amend: boolean; skipHooks?: boolean; authorName?: string; authorEmail?: string }
     ) => {
+      commitAnywayRef.current = false;
       setCommitError(undefined);
       setLastCommitHash(undefined);
       const request: CommitRequest = {
@@ -1096,11 +1119,18 @@ export default function App() {
       };
 
       const precommitCfg = precommitConfigQuery.data;
-      const shouldStream = Boolean(precommitCfg?.enabled && precommitCfg.run_before_commit);
+      const skipHooks = Boolean(options.skipHooks);
+      // Skip-hooks bypasses the streamed pre-commit entirely and commits with --no-verify.
+      const shouldStream = Boolean(precommitCfg?.enabled && precommitCfg.run_before_commit) && !skipHooks;
       if (shouldStream) {
+        // Remember the request so a mid-stream "Commit Anyway" (or a post-pass
+        // lock-failure retry) can reuse it without re-running pre-commit.
+        setPendingPrecommitCommit(request);
         try {
           const finished = await precommitStream.run({});
           if (finished.type === "error") {
+            // An intentional abort (Commit Anyway) is handled by that path; don't surface it.
+            if (commitAnywayRef.current) return;
             setCommitError(finished.error || "precommit stream failed");
             return;
           }
@@ -1114,13 +1144,17 @@ export default function App() {
             return;
           }
         } catch (err) {
+          if (commitAnywayRef.current) {
+            commitAnywayRef.current = false;
+            return;
+          }
           setCommitError(err instanceof Error ? err.message : String(err));
           return;
         }
       }
 
       commitMutation.mutate(
-        { ...request, skip_precommit_once: shouldStream || undefined },
+        { ...request, skip_precommit_once: shouldStream || skipHooks || undefined },
         {
           onSuccess: (result) => {
             if (result.success && result.hash) {
@@ -1137,6 +1171,9 @@ export default function App() {
               setPendingPrecommitCommit(request);
               setCommitError(undefined);
             } else {
+              // Post-pass failure (e.g. index lock): keep the passed pre-commit reusable
+              // so the retry affordance commits without re-streaming.
+              if (shouldStream) setPendingPrecommitCommit(request);
               setCommitError(
                 result.error ||
                   result.validation_errors?.join("; ") ||
@@ -1145,6 +1182,7 @@ export default function App() {
             }
           },
           onError: (error) => {
+            if (shouldStream) setPendingPrecommitCommit(request);
             setCommitError(error.message);
           }
         }
@@ -1196,6 +1234,14 @@ export default function App() {
     );
   }, [commitMessage, commitMutation, pendingPrecommitCommit, selectedIsStaged]);
 
+  // Commit-anyway trigger reachable both while pre-commit is streaming and from the
+  // failure box: abort any in-flight stream first, then commit with skip_precommit_once.
+  const handleCommitAnyway = useCallback(() => {
+    commitAnywayRef.current = true;
+    precommitStream.cancel();
+    handleCommitSkipPrecommit();
+  }, [precommitStream, handleCommitSkipPrecommit]);
+
   const handleDisablePrecommit = useCallback(() => {
     const config = precommitConfigQuery.data;
     if (!config) return;
@@ -1222,7 +1268,7 @@ export default function App() {
     onCancel: precommitStream.cancel,
     failedResult: precommitFailure,
     onDismissFailure: dismissPrecommitFailure,
-    onCommitAnyway: handleCommitSkipPrecommit,
+    onCommitAnyway: handleCommitAnyway,
     onRunAgain: handleRunPrecommitAgain,
     onDisable: handleDisablePrecommit,
     isCommittingAnyway: commitMutation.isPending,
@@ -1236,7 +1282,7 @@ export default function App() {
     precommitStream.cancel,
     precommitFailure,
     dismissPrecommitFailure,
-    handleCommitSkipPrecommit,
+    handleCommitAnyway,
     handleRunPrecommitAgain,
     handleDisablePrecommit,
     commitMutation.isPending,
@@ -2101,6 +2147,7 @@ export default function App() {
             onStageAll={handleStageAll}
             onUnstageAll={handleUnstageAll}
             isStaging={isStaging}
+            pendingPaths={pendingPaths}
             isDiscarding={isDiscarding}
             isIgnoring={isIgnoring}
             confirmingDiscard={confirmingDiscard}
@@ -2187,6 +2234,8 @@ export default function App() {
             isCommitting={commitMutation.isPending || precommitStream.state.running}
             precommitProgress={precommitProgressProps}
             commitError={commitError}
+            onRetryWithoutPrecommit={handleCommitSkipPrecommit}
+            canRetryWithoutPrecommit={Boolean(commitError && pendingPrecommitCommit)}
             defaultAuthorName={statusQuery.data?.author?.name}
             defaultAuthorEmail={statusQuery.data?.author?.email}
             canAmend={canAmend}
@@ -2376,6 +2425,7 @@ export default function App() {
             onStageAll={handleStageAll}
             onUnstageAll={handleUnstageAll}
             isStaging={isStaging}
+            pendingPaths={pendingPaths}
             isDiscarding={isDiscarding}
             isIgnoring={isIgnoring}
             confirmingDiscard={confirmingDiscard}
@@ -2393,6 +2443,7 @@ export default function App() {
             onDiscardPaths={handleDiscardPaths}
             scrollToFile={scrollToFile}
             onScrollComplete={handleScrollComplete}
+            scrollTopStore={changesScrollTopRef}
             onDeletePath={handleRequestDeletePath}
             onBlameFile={handleBlameFile}
             repoId={repoId}
@@ -2450,6 +2501,8 @@ export default function App() {
             isCommitting={commitMutation.isPending || precommitStream.state.running}
             precommitProgress={precommitProgressProps}
             commitError={commitError}
+            onRetryWithoutPrecommit={handleCommitSkipPrecommit}
+            canRetryWithoutPrecommit={Boolean(commitError && pendingPrecommitCommit)}
             defaultAuthorName={statusQuery.data?.author?.name}
             defaultAuthorEmail={statusQuery.data?.author?.email}
             canAmend={canAmend}

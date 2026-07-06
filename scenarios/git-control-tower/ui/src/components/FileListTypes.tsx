@@ -42,6 +42,8 @@ export interface FileListProps {
   onStageAll: () => void;
   onUnstageAll: () => void;
   isStaging: boolean;
+  /** Paths with an in-flight stage/unstage/discard op, for per-row spinners. */
+  pendingPaths?: ReadonlySet<string>;
   isDiscarding: boolean;
   isIgnoring: boolean;
   confirmingDiscard: string | null;
@@ -60,6 +62,13 @@ export interface FileListProps {
   onSelectAnyFile?: (path: string) => void;
   scrollToFile?: string;
   onScrollComplete?: () => void;
+  /**
+   * Persisted scroll position store (mobile only). When supplied, FileList saves
+   * the Changes list scrollTop on scroll and restores it on mount, surviving the
+   * panel unmount that happens when switching mobile tabs. Desktop keeps all
+   * panels mounted and does not pass this.
+   */
+  scrollTopStore?: React.MutableRefObject<number>;
   onDeletePath?: (path: string, isDir: boolean) => void;
   onBlameFile?: (path: string) => void;
   repoId?: string | null;
@@ -91,9 +100,15 @@ export interface FileSectionProps {
   onAction: (path: string) => void;
   actionIcon: React.ReactNode;
   actionLabel: string;
-  isLoading: boolean;
+  /** Paths with an in-flight op; the matching row shows a spinner. */
+  pendingPaths?: ReadonlySet<string>;
+  /** Section-wide loading fallback when pendingPaths is not supplied. */
+  isLoading?: boolean;
   changeStats?: DiffStats;
   defaultExpanded?: boolean;
+  /** Controlled expand state (with onToggle); falls back to internal state when omitted. */
+  expanded?: boolean;
+  onToggle?: () => void;
   onDiscard?: (path: string) => void;
   isDiscarding?: boolean;
   confirmingDiscard?: string | null;

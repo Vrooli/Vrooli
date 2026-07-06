@@ -50,10 +50,14 @@ interface CommitPanelProps {
   isUsingApprovedMessage?: boolean;
   onCommit: (
     message: string,
-    options: { conventional: boolean; amend: boolean; authorName?: string; authorEmail?: string }
+    options: { conventional: boolean; amend: boolean; skipHooks: boolean; authorName?: string; authorEmail?: string }
   ) => void;
   isCommitting: boolean;
   commitError?: string;
+  // Reuse a passed pre-commit after a post-pass failure (e.g. index lock) — commit
+  // again with --no-verify instead of re-streaming the ~1-minute pre-commit.
+  onRetryWithoutPrecommit?: () => void;
+  canRetryWithoutPrecommit?: boolean;
   defaultAuthorName?: string;
   defaultAuthorEmail?: string;
   canAmend?: boolean;
@@ -205,9 +209,12 @@ export function CommitPanel({
   sourceBranch,
   isHistoryMode = false,
   historyCommit,
-  precommitProgress
+  precommitProgress,
+  onRetryWithoutPrecommit,
+  canRetryWithoutPrecommit = false
 }: CommitPanelProps) {
   const [useConventional, setUseConventional] = useState(false);
+  const [skipHooks, setSkipHooks] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [authorName, setAuthorName] = useState("");
   const [authorEmail, setAuthorEmail] = useState("");
@@ -232,6 +239,7 @@ export function CommitPanel({
       onCommit(trimmedMessage, {
         conventional: useConventional && trimmedMessage.length > 0,
         amend: amendLast,
+        skipHooks,
         authorName: authorName.trim() || defaultAuthorName || undefined,
         authorEmail: authorEmail.trim() || defaultAuthorEmail || undefined
       });
@@ -401,6 +409,18 @@ export function CommitPanel({
               <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
                 <input
                   type="checkbox"
+                  checked={skipHooks}
+                  onChange={(e) => setSkipHooks(e.target.checked)}
+                  disabled={isCommitting}
+                  className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500 focus:ring-offset-0"
+                  data-testid="skip-hooks-checkbox"
+                />
+                Skip pre-commit hooks (commit anyway)
+              </label>
+
+              <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                <input
+                  type="checkbox"
                   checked={amendLast}
                   onChange={(e) => setAmendLast(e.target.checked)}
                   disabled={isCommitting || !canAmend}
@@ -472,16 +492,30 @@ export function CommitPanel({
                   {precommitProgress.tail.join("\n")}
                 </pre>
               )}
-              {precommitProgress.onCancel && (
-                <div className="mt-2 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={precommitProgress.onCancel}
-                    className="inline-flex items-center gap-1 rounded border border-red-700/60 px-2 py-1 text-[11px] text-red-200 hover:bg-red-900/40"
-                  >
-                    <XCircle className="h-3 w-3" />
-                    Cancel
-                  </button>
+              {(precommitProgress.onCancel || precommitProgress.onCommitAnyway) && (
+                <div className="mt-2 flex justify-end gap-2">
+                  {precommitProgress.onCommitAnyway && (
+                    <button
+                      type="button"
+                      onClick={precommitProgress.onCommitAnyway}
+                      disabled={precommitProgress.isCommittingAnyway}
+                      className="inline-flex items-center gap-1 rounded border border-amber-700/70 bg-amber-950/40 px-2 py-1 text-[11px] text-amber-100 hover:bg-amber-900/40 disabled:opacity-60"
+                      data-testid="commit-anyway-running"
+                    >
+                      <GitCommit className="h-3 w-3" />
+                      Commit Anyway
+                    </button>
+                  )}
+                  {precommitProgress.onCancel && (
+                    <button
+                      type="button"
+                      onClick={precommitProgress.onCancel}
+                      className="inline-flex items-center gap-1 rounded border border-red-700/60 px-2 py-1 text-[11px] text-red-200 hover:bg-red-900/40"
+                    >
+                      <XCircle className="h-3 w-3" />
+                      Cancel
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -562,7 +596,24 @@ export function CommitPanel({
 
           {/* Error feedback */}
           {commitError && (
-            <CommitErrorDisplay error={commitError} />
+            <div className="space-y-2">
+              <CommitErrorDisplay error={commitError} />
+              {canRetryWithoutPrecommit && onRetryWithoutPrecommit && (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={onRetryWithoutPrecommit}
+                    disabled={isCommitting}
+                    className="inline-flex items-center gap-1 rounded border border-amber-700/70 bg-amber-950/40 px-2 py-1 text-[11px] text-amber-100 hover:bg-amber-900/40 disabled:opacity-60"
+                    data-testid="retry-without-precommit"
+                    title="Retry the commit without re-running the pre-commit checks that already passed"
+                  >
+                    <GitCommit className="h-3 w-3" />
+                    Retry without pre-commit
+                  </button>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Helper text when nothing staged */}

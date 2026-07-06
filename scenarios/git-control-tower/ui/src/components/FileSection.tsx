@@ -20,9 +20,12 @@ export function FileSection({
   onAction,
   actionIcon,
   actionLabel,
+  pendingPaths,
   isLoading,
   changeStats,
   defaultExpanded = true,
+  expanded: controlledExpanded,
+  onToggle,
   onDiscard,
   isDiscarding,
   confirmingDiscard,
@@ -41,7 +44,18 @@ export function FileSection({
   onViewMetrics,
 }: FileSectionProps) {
   const isMobile = useContext(MobileContext);
-  const [expanded, setExpanded] = useState(defaultExpanded);
+  // Controlled when `expanded`/`onToggle` are supplied (persisted by the parent);
+  // otherwise fall back to local uncontrolled state.
+  const [internalExpanded, setInternalExpanded] = useState(defaultExpanded);
+  const isControlled = controlledExpanded !== undefined;
+  const expanded = isControlled ? controlledExpanded : internalExpanded;
+  const handleToggle = () => {
+    if (isControlled) {
+      onToggle?.();
+    } else {
+      setInternalExpanded((prev) => !prev);
+    }
+  };
 
   const isStaged = category === "staged";
   const canDiscard = category === "unstaged" || category === "untracked";
@@ -81,7 +95,7 @@ export function FileSection({
         <button
           type="button"
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
-          onClick={() => setExpanded(!expanded)}
+          onClick={handleToggle}
           data-testid={`file-section-toggle-${category}`}
         >
           {expanded ? (
@@ -111,7 +125,7 @@ export function FileSection({
               isSelected={selectedKeys?.has(entry.key) ?? false}
               isStaged={isStaged}
               canDiscard={canDiscard}
-              isLoading={isLoading}
+              isLoading={pendingPaths?.has(entry.file) ?? isLoading ?? false}
               isDiscarding={isDiscarding ?? false}
               isIgnoring={isIgnoring ?? false}
               isBinary={entry.isBinary}

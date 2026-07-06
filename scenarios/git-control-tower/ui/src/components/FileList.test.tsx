@@ -98,6 +98,60 @@ describe("FileList", () => {
     expect(props.onConfirmIgnore).toHaveBeenCalledWith("src/changed.ts");
   });
 
+  it("spins only the touched row when its path is pending", () => {
+    const { container } = renderFileList({
+      pendingPaths: new Set(["src/changed.ts"]),
+    });
+
+    const changedRow = screen.getByText("src/changed.ts").closest("li");
+    const stagedRow = screen.getByText("src/committed.ts").closest("li");
+    expect(changedRow?.querySelector(".animate-spin")).not.toBeNull();
+    expect(stagedRow?.querySelector(".animate-spin")).toBeNull();
+    // Exactly one row shows the spinner.
+    expect(container.querySelectorAll(".animate-spin").length).toBe(1);
+  });
+
+  it("hides global bulk stage/unstage buttons while in selection mode", () => {
+    const { rerender, props } = renderFileList({ mobileSelectionMode: true });
+    expect(screen.queryByTestId("stage-all-button")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("unstage-all-button")).not.toBeInTheDocument();
+
+    // Leaving selection mode restores the bulk actions.
+    rerender(<FileList {...props} mobileSelectionMode={false} />);
+    expect(screen.getByTestId("stage-all-button")).toBeInTheDocument();
+    expect(screen.getByTestId("unstage-all-button")).toBeInTheDocument();
+  });
+
+  it("persists subsection collapse across a remount and applies defaults on first load", async () => {
+    const first = renderFileList();
+    // Modified (unstaged) defaults to expanded, so its file is visible.
+    expect(screen.getByText("src/changed.ts")).toBeInTheDocument();
+    // Untracked defaults to collapsed, so its file is hidden until toggled.
+    expect(screen.queryByText("src/new.ts")).not.toBeInTheDocument();
+
+    // Collapse the Modified subsection.
+    await first.user.click(screen.getByTestId("file-section-toggle-unstaged"));
+    expect(screen.queryByText("src/changed.ts")).not.toBeInTheDocument();
+
+    // Remount a fresh FileList: the collapse must persist via localStorage.
+    first.unmount();
+    renderFileList();
+    expect(screen.queryByText("src/changed.ts")).not.toBeInTheDocument();
+    expect(screen.getByTestId("file-section-staged")).toBeInTheDocument();
+  });
+
+  it("saves the Changes scroll position to the store on scroll", () => {
+    const store = { current: 0 } as React.MutableRefObject<number>;
+    const { container } = renderFileList({ scrollTopStore: store });
+    const scrollEl = container.querySelector("div.overflow-auto") as HTMLElement;
+    expect(scrollEl).not.toBeNull();
+
+    // jsdom has no layout, so pin scrollTop before dispatching the scroll event.
+    Object.defineProperty(scrollEl, "scrollTop", { configurable: true, value: 240 });
+    fireEvent.scroll(scrollEl);
+    expect(store.current).toBe(240);
+  });
+
   it("shows clean working tree copy when no files changed", () => {
     renderFileList({
       files: {
