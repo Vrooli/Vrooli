@@ -1,6 +1,6 @@
 # Roles, Profiles, And Policies
 
-AI Gateway separates three concepts that are currently easy to blur:
+AI Gateway separates concepts that are currently easy to blur:
 
 - **Role**: what kind of model capability the caller needs.
 - **Profile**: how AI Gateway should route across providers.
@@ -52,7 +52,7 @@ a planning baseline, not an executable model catalog.
 | `cheap-first` | Lowest cost viable role. | next cheapest viable route. | routes that violate role/capability needs. |
 | `privacy-sensitive` | Local or explicitly approved private route. | none by default. | unapproved hosted providers. |
 
-Profiles should be deterministic and previewable. If two routes tie, the
+Profiles should be deterministic and previewable. If routes tie, the
 route preview must say what tie-breaker was used.
 
 ## Resource Alignment Recommendations
@@ -63,7 +63,7 @@ route preview must say what tie-breaker was used.
    adding `embedding.default`; confirm endpoint support, response shape,
    dimensions, pricing, and policy command behavior.
 3. Keep role names mostly shared across Ollama and OpenRouter. A role
-   can be unsupported by one provider, but callers should not need
+   can be unsupported by a provider, but callers should not need
    provider-specific role names for common AI tasks.
 4. Treat provider-specific roles as exceptions with clear names and
    documentation.

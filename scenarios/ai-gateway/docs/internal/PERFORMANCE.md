@@ -28,8 +28,8 @@ Use this document to answer:
 
 ## Known Constraints
 
-- Vite production builds may process thousands of modules and take
-  several minutes.
+- Vite production builds may process the production module graph and
+  take several minutes.
 - Performance budgets for real product workflows must be defined after
   domains and UX flows are known.
 

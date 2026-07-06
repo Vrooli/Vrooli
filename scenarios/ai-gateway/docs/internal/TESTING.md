@@ -61,7 +61,7 @@ api/
     └── handler_test.go           # Canonical test
 ```
 
-### The five primitives every test uses
+### Test primitives
 
 1. **`mocks.FakeClock`** — substitutes `clock.Clock`. Construct with
    `mocks.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))`,
@@ -491,7 +491,7 @@ is non-negotiable), but the factory closure invokes the builders in
 Adding a new SDK: drop a `mocks/<sdk>.ts` builder beside it, add a
 `mocks/<sdk>.test.ts` self-test, re-export from `test-utils/index.ts`.
 
-### The four primitives every test uses
+### Test primitives
 
 1. **`renderWithProviders(<Component />, opts?)`** — wraps the tree in
    `QueryClientProvider` (retries disabled — tests should fail fast,
@@ -960,7 +960,7 @@ lower the gate.
 | `httpx.NewLiveServer` for handler tests | `httptest.NewRecorder` (hides SSE-flusher bugs) |
 | `getByTestId(selectors.x.y)` for stable selectors | `getByText("Save")` (breaks the moment copy changes) |
 | `vi.mock("./api/health", async (importOriginal) => …)` inline at top of file | Helper-wrapped `vi.mock` (TDZ at hoist time) |
-| `makeHealthResponse({ status: "degraded" })` for variants | Hardcoded literal payload in three different tests |
+| `makeHealthResponse({ status: "degraded" })` for variants | Repeated hardcoded literal payloads |
 | Per-method error knob (`PingErr error`) on fakes | Single global "fail mode" boolean across the fake |
 | `var _ Pinger = (*sql.DB)(nil)` to lock the contract at compile time | Runtime "does this satisfy" check in init |
 | Adding new seams to [`SEAMS.md`](SEAMS.md) at the same commit | "We'll document it later" |

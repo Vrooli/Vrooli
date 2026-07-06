@@ -69,6 +69,10 @@ func (fakeRunner) FreshnessReportByName(name, customPath string) (lifecycle.Fres
 	return lifecycle.FreshnessReport{}, nil
 }
 
+func (fakeRunner) WaitScenario(name string, opts lifecycle.WaitOptions) (lifecycle.WaitOutcome, error) {
+	return lifecycle.WaitOutcome{Scenario: name, Verdict: lifecycle.WaitVerdictHealthy}, nil
+}
+
 func TestStartUsesScenarioOperationsInterface(t *testing.T) {
 	ops := &fakeScenarioOps{}
 	svc := Service{Scenarios: ops, Runner: fakeRunner{}}

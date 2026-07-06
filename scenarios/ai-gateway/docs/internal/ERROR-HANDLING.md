@@ -6,7 +6,7 @@ documented exception path for multipart REST.
 ## Proto-Typed Operations
 
 Proto-typed UI, CLI, and inter-scenario calls use Connect-RPC. Errors
-move through three layers:
+move through the domain, transport, and client layers:
 
 1. Domain/service code returns typed sentinels such as
    `<domain>.ErrInvalid<Entity>` or `<domain>.Err<Entity>NotFound`.

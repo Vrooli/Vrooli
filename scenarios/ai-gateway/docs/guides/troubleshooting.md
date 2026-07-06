@@ -140,11 +140,11 @@ pnpm install --ignore-workspace   # equivalent; used by lifecycle commands
 "Scope: N workspace projects", the boundary file is missing — restore
 it, delete `ui/node_modules`, and re-run.
 
-### UI build is slow (5–10 minutes)
+### UI build is slow
 
-`vite build` processes 4400+ modules in the production bundle. This
-is expected. Use `pnpm dev` (via `make start`) for the fast iteration
-loop and reserve `pnpm build` for verification.
+`vite build` processes the production bundle and can take several
+minutes. This is expected. Use `pnpm dev` (via `make start`) for the
+fast iteration loop and reserve `pnpm build` for verification.
 
 ### `pnpm strings:check` fails in CI
 
@@ -157,7 +157,7 @@ git add src/consts/strings.generated.ts
 ```
 
 Commit `en.json`, the locale files, **and** `strings.generated.ts`
-together — never one without the others.
+together so generated strings and source translations stay aligned.
 
 ## Tests
 
@@ -207,8 +207,8 @@ safe.
 
 ### "database is locked"
 
-SQLite single-writer behaviour. If two processes (e.g., a stale API
-plus a new one) hold the file, find and kill the older one:
+SQLite single-writer behaviour. If multiple processes (e.g., a stale
+API plus a new one) hold the file, find and kill the older one:
 
 ```bash
 fuser "$(echo "${SQLITE_PATH:-${SCENARIO_DATA_DIR}/ai-gateway.db}")"

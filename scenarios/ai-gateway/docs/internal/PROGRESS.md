@@ -21,6 +21,7 @@ work lands, not while work is still speculative.
 | 2026-07-06 | Codex | done | Started Phase 8 hardening: reconciled requirements validation refs to concrete API/CLI/UI/BAS tests, removed false complete PRD claims for future P2 work, added `[REQ:...]` test markers, cleared local product-code security findings for command execution/path handling, and reran focused validation. |
 | 2026-07-06 | Codex | done | Continued Phase 8 readiness: moved shared gateway request/enums/issues into the AI Gateway shared proto package, regenerated Go/TypeScript/Python proto artifacts and endpoint metadata, fixed governed CLI module drift, added UI coverage tests so `test:coverage` passes thresholds, and documented remaining advisory health findings. |
 | 2026-07-06 | Codex | done | Finished the Phase 8 validation pass: security health and docs health are clean, requirements/experience traceability validates with zero findings, tidiness now passes after focused helper/scanner refactors, the remaining route-evidence measures waiver is documented as a follow-up, and swarm record `rec-1c26d70a5324a0ce` captures the slice. |
+| 2026-07-06 | Codex | done | Closed the final Phase 8 honesty gap by marking adaptive routing intelligence and fleet enforcement as planned P2 work instead of complete, removed docs-health derived-count warnings, centralized formal-artifact test reads behind a reviewed test-only helper, reran the comprehensive suite (`20260706-142736-cccd13c0`), and recorded `rec-d851bb608b42bed7`. |
 
 ## Entry Template
 

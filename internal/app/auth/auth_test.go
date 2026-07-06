@@ -80,8 +80,10 @@ func TestRunOrdersProbesByName(t *testing.T) {
 
 type stubProbe struct{ name string }
 
-func (s stubProbe) Name() string                                          { return s.name }
-func (s stubProbe) Probe(context.Context, ProbeOptions) ProbeResult       { return ProbeResult{State: StateUnknown} }
+func (s stubProbe) Name() string { return s.name }
+func (s stubProbe) Probe(context.Context, ProbeOptions) ProbeResult {
+	return ProbeResult{State: StateUnknown}
+}
 
 func TestSignInProbeContractIsImplementedByBufProbe(t *testing.T) {
 	var _ SignInProbe = BufProbe{}

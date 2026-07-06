@@ -165,7 +165,7 @@ template's unit-test policy. It is not a list of surfaces. Code Facts discovers
 the actual `api`, `cli`, `ui`, and any additional code surfaces; Unit Health
 joins those observed surfaces to the profile and reports drift.
 
-The React/Vite template requires three roles:
+The React/Vite template requires the roles listed in the testing profile:
 
 | Role | Policy class | Baseline |
 |---|---|---|

@@ -29,7 +29,7 @@ ui/src/
 
 ## Product Routes
 
-AI Gateway exposes five operator pages:
+AI Gateway exposes the operator pages registered in `ui/src/app/routes.tsx`:
 
 | Route | Page | Purpose |
 |---|---|---|
@@ -77,7 +77,7 @@ new path automatically.
 ## Experience Contract
 
 The generated `experience/` folder is the UX-intent contract for the route
-table in `ui/src/app/routes.tsx`. Keep those two surfaces aligned:
+table in `ui/src/app/routes.tsx`. Keep those surfaces aligned:
 
 - add an L0 page spec when a new user-facing route is added;
 - remove or deprecate a page spec when a route is removed;

@@ -35,7 +35,7 @@ only where the payload is not proto-typed, such as multipart file
 uploads; the response metadata still uses generated proto types.
 
 If a piece of production code reaches for `time.Now()`, `*sql.DB`, or
-the network without going through one of the entries below, that's a
+the network without going through a listed seam, that's a
 new seam that hasn't been declared yet. Declaring it is the work — the
 test ergonomics fall out for free.
 
@@ -88,7 +88,7 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Interface** | `internal/clock/clock.go::Clock` (`Now() time.Time`) |
 | **Production wiring** | `main.go` constructs `clock.System{}` and passes it via `server.Deps`. |
 | **Test fake** | `internal/testutil/mocks::FakeClock` (`Now`, `Advance`, `SetNow`). |
-| **Why it exists** | Middleware computes request-duration log lines from two `Now()` calls. With `time.Now()` direct, duration assertions are flaky on loaded CI and undefined on fast hardware. With `FakeClock.Advance(150 * time.Millisecond)` inside the inner handler, the duration string is bit-for-bit deterministic. See `internal/middleware/logging_test.go::TestLoggingMiddleware_LogsDuration`. |
+| **Why it exists** | Middleware computes request-duration log lines from paired `Now()` calls. With `time.Now()` direct, duration assertions are flaky on loaded CI and undefined on fast hardware. With `FakeClock.Advance(150 * time.Millisecond)` inside the inner handler, the duration string is bit-for-bit deterministic. See `internal/middleware/logging_test.go::TestLoggingMiddleware_LogsDuration`. |
 
 ### Pinger (database reachability)
 
@@ -157,8 +157,8 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Seam** | Domain-to-server composition; the contract every handler package returns from its `Module(...)` constructor. |
 | **Interface** | `internal/module/module.go::Module` (`Name string`, `Mount func(r *mux.Router)`, `Endpoints []EndpointDescriptor`). Data type, not behaviour — modules don't have methods. |
 | **Production wiring** | `main.go` calls `healthH.Module(...)`, then each domain's `<domain>H.Module(...)`, and passes the slice to `server.New(deps, modules...)`. The server iterates `m.Mount(s.router)` after registering the logging middleware. |
-| **Test fake** | A literal `module.Module{Name: "stub", Mount: func(r){...}}` in `internal/server/server_test.go` proves the iteration; per-domain `module_test.go` files (`handlers/health/module_test.go`, and one per domain) exercise the real constructors against in-memory fixtures. |
-| **Why it exists** | Eliminates the central registry that would otherwise grow per-domain fields on `server.Deps` and per-domain wiring lines in `routes.go`. Adding a domain means creating files; deleting one means removing files. The endpoint descriptors travel with the module, so `.vrooli/endpoints.json` codegen has a single source per domain (no manual JSON editing). |
+| **Test fake** | A literal `module.Module{Name: "stub", Mount: func(r){...}}` in `internal/server/server_test.go` proves the iteration; per-domain `module_test.go` files (`handlers/health/module_test.go`, plus domain-specific tests) exercise the real constructors against in-memory fixtures. |
+| **Why it exists** | Eliminates the central registry that would otherwise grow per-domain fields on `server.Deps` and per-domain wiring lines in `routes.go`. Adding a domain means adding its files; deleting a domain means removing its files. The endpoint descriptors travel with the module, so `.vrooli/endpoints.json` codegen has a single source per domain (no manual JSON editing). |
 
 ### Endpoints codegen (manifest source-of-truth)
 
@@ -168,7 +168,7 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Interface** | `api/cmd/gen-endpoints/main.go` is a thin wrapper over the shared `github.com/vrooli/api-core/endpoints/gen.Generate`, which renders `internal/modules.AllEndpoints()` — the registry collecting each handler's static `Endpoints []module.EndpointDescriptor` slice — and cross-checks it against `cli/manifest.json` (the CLI-surface SSOT). Output is the canonical envelope at `.vrooli/endpoints.json`. |
 | **Production wiring** | Run via `make endpoints`. CI runs `make endpoints && git diff --exit-code .vrooli/endpoints.json` so a stale manifest fails the build with an actionable diff. |
 | **Test fake** | The shared `endpoints/gen` package owns the generator's unit tests (transport contract, API↔CLI mapping cross-check, JSON output stability). `internal/modules/registry_test.go` pins the registry shape (non-empty, stable order). The API↔CLI contract — every Connect endpoint is bound to a command or listed in `cli/manifest.json`'s `omitted[]` with a reason — is enforced at `make endpoints` and by the cli-health validation phase. |
-| **Why it exists** | Hand-edited endpoints manifests drift from real handlers. The shared `modules` registry means runtime (`main.go`) and codegen (`gen-endpoints`) read endpoints + schema from one place — adding a domain is two registry lines, not separate edits in `main.go` and `gen-endpoints/main.go`. The CI drift check makes "I forgot to regenerate" a build failure, not a stale-doc bug. |
+| **Why it exists** | Hand-edited endpoints manifests drift from real handlers. The shared `modules` registry means runtime (`main.go`) and codegen (`gen-endpoints`) read endpoints + schema from the same registry rather than separate edits in `main.go` and `gen-endpoints/main.go`. The CI drift check makes "I forgot to regenerate" a build failure, not a stale-doc bug. |
 
 ### Gateway request validator
 
@@ -315,8 +315,8 @@ never domain-specific interfaces.
    `int`, so race-detector tests don't flap. Cross-domain fakes
    (`FakeClock`, `FakePinger`, `FakeDoer`) stay in
    `internal/testutil/mocks/`.
-5. **Update this document.** A row in the table above with the same
-   five columns. If you skip this step, the seam exists but isn't
+5. **Update this document.** Add a row in the table above with the same
+   schema as the existing rows. If you skip this step, the seam exists but isn't
    discoverable — future readers will reinvent it parallel.
 6. **Add `var _` compile-time assertions** wherever the interface is
    defined: `var _ Repository = (*sqliteRepository)(nil)`. The

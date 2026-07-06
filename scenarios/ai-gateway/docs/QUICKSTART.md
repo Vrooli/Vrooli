@@ -109,7 +109,7 @@ common first-time issues are:
 - Read [`START-HERE.md`](START-HERE.md) before implementing product
   behavior. It owns the first-session workflow after generation.
 - Read [`concepts/ARCHITECTURE.md`](concepts/ARCHITECTURE.md) for the
-  mental model: three surfaces, proto bridge, layered API, where to
+  mental model: scenario surfaces, proto bridge, layered API, where to
   add code.
 - Read [`internal/TESTING.md`](internal/TESTING.md) before writing
   your first non-trivial test.

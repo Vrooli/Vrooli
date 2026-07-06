@@ -6,7 +6,7 @@ maturities and become stricter as the gateway contract matures.
 
 ## Purpose
 
-The phase answers four questions:
+The phase answers the core AI conformance questions:
 
 1. Is the scenario using AI inference?
 2. Is it respecting resource boundaries?

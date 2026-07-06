@@ -17,6 +17,8 @@ type StartRequest struct {
 	Options   lifecycle.StartOptions
 	JSON      bool
 	OpenAfter bool
+	// TimeoutSeconds is the ceiling for the whole start; 0 = unbounded.
+	TimeoutSeconds int
 }
 
 type StopRequest struct {
@@ -29,6 +31,8 @@ type RestartRequest struct {
 	Options   lifecycle.StartOptions
 	JSON      bool
 	OpenAfter bool
+	// TimeoutSeconds is the ceiling for the whole restart; 0 = unbounded.
+	TimeoutSeconds int
 }
 
 type ListRequest struct {
@@ -61,11 +65,6 @@ type SetupRequest struct {
 	Name string
 	Opts lifecycle.PhaseOptions
 	JSON bool
-}
-
-type TestRequest struct {
-	Name string
-	Opts lifecycle.PhaseOptions
 }
 
 type (
@@ -106,6 +105,31 @@ type ValidateEnvResponse struct {
 	Report resources.ScenarioEnvValidationReport
 }
 
+// WaitRequest asks for a single blocking wait on a scenario's in-flight
+// start operation (see Service.Wait).
+type WaitRequest struct {
+	Name string
+	// TimeoutSeconds is the wait CEILING (not the expected duration); 0
+	// applies the lifecycle default. On expiry the response carries the
+	// timeout verdict/exit 124 and the awaited start is unaffected.
+	TimeoutSeconds int
+	// OnTransition, when non-nil, receives step/dependency transitions of
+	// the awaited operation (the human heartbeat; JSON mode passes nil).
+	OnTransition func(lifecycle.StartOperationView)
+}
+
+// WaitResponse is the single-return verdict of Service.Wait.
+type WaitResponse struct {
+	Success       bool                          `json:"success"`
+	Scenario      string                        `json:"scenario"`
+	Verdict       string                        `json:"verdict"`
+	ExitCode      int                           `json:"exit_code"`
+	Source        string                        `json:"source"`
+	WaitedSeconds int                           `json:"waited_seconds"`
+	Error         string                        `json:"error,omitempty"`
+	Operation     *lifecycle.StartOperationView `json:"operation,omitempty"`
+}
+
 type ListPortOutput struct {
 	Key            string `json:"key"`
 	Step           string `json:"step,omitempty"`
@@ -135,6 +159,11 @@ type StatusItemOutput struct {
 	Ports        map[string]int   `json:"ports"`
 	PortBindings []ListPortOutput `json:"port_bindings,omitempty"`
 	Health       any              `json:"health_status"`
+	// StartOperation is the latest start/restart operation record (in-flight
+	// progress with ETA + recommended_next_check_seconds, or the last
+	// terminal outcome); nil when never started or the registry is
+	// unavailable. Populated on single-scenario status only.
+	StartOperation *lifecycle.StartOperationView `json:"start_operation,omitempty"`
 }
 
 type InfoOutput struct {
@@ -187,6 +216,10 @@ type LifecycleItemOutput struct {
 	Endpoints          []EndpointOutput `json:"endpoints,omitempty"`
 	FailedDependencies []string         `json:"failed_dependencies,omitempty"`
 	FailedResources    []string         `json:"failed_resources,omitempty"`
+	// Verdict backs the exit-code contract (healthy | degraded | running).
+	Verdict string `json:"verdict,omitempty"`
+	// Operation is the durable start-operation record for this item.
+	Operation *lifecycle.StartOperationView `json:"operation,omitempty"`
 }
 
 type EndpointOutput struct {
@@ -265,17 +298,18 @@ func BuildStatusDetail(detail orchestrator.Detail) StatusItemOutput {
 		health = detail.Details.Health
 	}
 	return StatusItemOutput{
-		Name:         detail.Scenario.Slug,
-		DisplayName:  detail.Scenario.Manifest.Service.DisplayName,
-		Description:  detail.Scenario.Manifest.Service.Description,
-		Tags:         CopyStrings(detail.Scenario.Manifest.Service.Tags),
-		Status:       detail.Details.Status,
-		Processes:    detail.Details.Processes,
-		Runtime:      detail.Details.Runtime,
-		StartedAt:    detail.Details.StartedAt,
-		Ports:        CopyIntMap(detail.Details.Ports),
-		PortBindings: RuntimePortOutputs(detail.Details.PortBindings),
-		Health:       health,
+		Name:           detail.Scenario.Slug,
+		DisplayName:    detail.Scenario.Manifest.Service.DisplayName,
+		Description:    detail.Scenario.Manifest.Service.Description,
+		Tags:           CopyStrings(detail.Scenario.Manifest.Service.Tags),
+		Status:         detail.Details.Status,
+		Processes:      detail.Details.Processes,
+		Runtime:        detail.Details.Runtime,
+		StartedAt:      detail.Details.StartedAt,
+		Ports:          CopyIntMap(detail.Details.Ports),
+		PortBindings:   RuntimePortOutputs(detail.Details.PortBindings),
+		Health:         health,
+		StartOperation: detail.StartOperation,
 	}
 }
 

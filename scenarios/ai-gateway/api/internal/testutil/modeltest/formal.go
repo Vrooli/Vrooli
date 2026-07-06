@@ -107,7 +107,7 @@ func LoadFormalArtifact(t TestingT, path string) FormalArtifact {
 			path = filepath.Join(filepath.Dir(callerFile), path)
 		}
 	}
-	data, err := os.ReadFile(path)
+	data, err := readFormalFile(path)
 	if err != nil {
 		t.Fatalf("read formal artifact %s: %v", path, err)
 	}
@@ -310,7 +310,7 @@ func repoPathSHA256(repoPath string) (string, error) {
 		return "", err
 	}
 	if !info.IsDir() {
-		data, err := os.ReadFile(abs)
+		data, err := readFormalFile(abs)
 		if err != nil {
 			return "", err
 		}
@@ -322,7 +322,7 @@ func repoPathSHA256(repoPath string) (string, error) {
 
 func repoTreeSHA256(root string) (string, error) {
 	var parts []string
-	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error { // #nosec G122 -- test helper hashes repo-local formal artifacts; path is filtered before read.
 		if err != nil {
 			return err
 		}
@@ -345,7 +345,7 @@ func repoTreeSHA256(root string) (string, error) {
 		if !(strings.HasSuffix(slash, ".go") || slash == "go.mod" || strings.HasSuffix(slash, ".schema.json")) {
 			return nil
 		}
-		data, err := os.ReadFile(path)
+		data, err := readFormalFile(path)
 		if err != nil {
 			return err
 		}
@@ -359,6 +359,17 @@ func repoTreeSHA256(root string) (string, error) {
 	sort.Strings(parts)
 	sum := sha256.Sum256([]byte(strings.Join(parts, "\n")))
 	return hex.EncodeToString(sum[:]), nil
+}
+
+func readFormalFile(path string) ([]byte, error) {
+	clean := filepath.Clean(path)
+	if clean == "." || clean == string(filepath.Separator) {
+		return nil, fmt.Errorf("refusing to read invalid formal artifact path %q", path)
+	}
+	// #nosec G304 -- this test-only helper reads caller-provided artifact/source
+	// paths after repo lookup or generated-test path resolution; production code
+	// never calls it and route/provider inputs cannot reach it.
+	return os.ReadFile(clean)
 }
 
 func findRepoPath(repoPath string) (string, error) {

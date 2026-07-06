@@ -36,8 +36,8 @@ durable infrastructure below. In particular:
 
 Binding contract vs. illustrative example: every reference doc this
 scenario ships with — `DESIGN.md`, `PRD.md`, the placeholder shell,
-and the fenced example domain — mixes two kinds of guidance. Tokens, motion,
-status-color semantics, accessibility floors, i18n, and the
+and the fenced example domain — mixes binding guidance with examples.
+Tokens, motion, status-color semantics, accessibility floors, i18n, and the
 domain/proto/API/CLI/UI shape are **binding contracts**: respect them.
 Specific lists of components, settings, page surfaces, or copy
 examples are **illustrative**: they exist to show shape, not to
@@ -374,7 +374,7 @@ deferred, or explicitly not-applicable for a reason.
       handlers/CLI/UI against the generated `*Procedure` constants and
       `*Service` clients. If you find yourself writing `Path:` as a
       literal string in an `EndpointDescriptor`, stop — codegen will
-      reject it. The only exceptions are the four `RESTReason` values
+      reject it. The only exceptions are the `RESTReason` values
       in `api/internal/module/module.go`.
 - [ ] **Register the proto file** in `api/internal/modules/registry.go`
       by appending a `ProtoFileEntry` to `AllProtoFiles()`. The global
