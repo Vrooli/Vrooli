@@ -26,12 +26,14 @@ import (
 	gatewayH "ai-gateway/handlers/gateway"
 	healthH "ai-gateway/handlers/health"
 	inventoryH "ai-gateway/handlers/inventory"
+	measuresH "ai-gateway/handlers/measures"
 	routingH "ai-gateway/handlers/routing"
 	localdb "ai-gateway/internal/database"
 
 	conformancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/conformance"
 	gatewayv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/gateway"
 	inventoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inventory"
+	measuresv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/measures"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
@@ -46,6 +48,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, conformanceH.Endpoints...)
 	out = append(out, gatewayH.Endpoints...)
 	out = append(out, inventoryH.Endpoints...)
+	out = append(out, measuresH.Endpoints...)
 	out = append(out, routingH.Endpoints...)
 	return out
 }
@@ -77,6 +80,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "conformance", File: scenariovalidationv1.File_scenario_validation_v1_validation_proto},
 		{Module: "gateway", File: gatewayv1.File_ai_gateway_v1_gateway_gateway_proto},
 		{Module: "inventory", File: inventoryv1.File_ai_gateway_v1_inventory_inventory_proto},
+		{Module: "measures", File: measuresv1.File_ai_gateway_v1_measures_measures_proto},
 		{Module: "routing", File: routingv1.File_ai_gateway_v1_routing_routing_proto},
 	}
 }

@@ -123,6 +123,7 @@ export const strings = {
         locality: "pages.routePreview.columns.locality",
         status: "pages.routePreview.columns.status",
         reason: "pages.routePreview.columns.reason",
+        health: "pages.routePreview.columns.health",
       },
     },
     conformance: {

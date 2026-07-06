@@ -50,11 +50,20 @@ unless a later decision splits or merges them.
 ### routing
 
 - Owns: profile semantics, candidate ranking, route preview, fallback
-  rules, route evidence persistence.
-- Does not own: the final resource role-to-model mapping.
-- Requirements: `AIGW-ROUTE-*`, `AIGW-POLICY-CONSTRAINTS`.
+  rules, route evidence persistence, persisted provider-health/circuit-breaker
+  state, capacity-broker consultation for local-route eligibility, and
+  descriptor-backed route measures over route evidence.
+- Does not own: the final resource role-to-model mapping, provider model
+  footprint/VRAM truth, or capacity-broker internals (consumed via the
+  `vrooli capacity` contract only, never direct GPU/RAM probing).
+- Requirements: `AIGW-ROUTE-*`, `AIGW-POLICY-CONSTRAINTS`,
+  `AIGW-PROVIDER-BREAKER`, `AIGW-CAPACITY-ROUTING`, `AIGW-ROUTE-MEASURES`.
 - First implementation slice: deterministic route preview for local-only,
   local-first, and remote-only.
+- Scoring posture: hard policy filters first, deterministic profile ordering
+  second; observed measures are future explainable tie-breakers only after
+  route measures are validated, and never opaque weighted scoring that hides
+  policy reasons.
 
 ### conformance
 

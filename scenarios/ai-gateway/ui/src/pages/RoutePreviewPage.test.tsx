@@ -37,6 +37,46 @@ describe("RoutePreviewPage", () => {
     expect(screen.getByTestId(selectors.routePreview.candidates)).toBeInTheDocument();
   });
 
+  it("[REQ:AIGW-PROVIDER-BREAKER] surfaces breaker and capacity verdicts in the health column", async () => {
+    const { create } = await import("@bufbuild/protobuf");
+    const { PreviewRouteResponseSchema } = await import(
+      "@vrooli/proto-types/ai-gateway/v1/routing/routing_pb"
+    );
+    vi.mocked(previewRoute).mockResolvedValueOnce(
+      create(PreviewRouteResponseSchema, {
+        valid: true,
+        candidates: [
+          {
+            provider: "openrouter",
+            role: "chat.default",
+            locality: "remote",
+            selected: true,
+            reasons: ["remote selected because local breaker is open"],
+            fallbackEligible: false,
+          },
+          {
+            provider: "ollama",
+            role: "chat.default",
+            locality: "local",
+            selected: false,
+            reasons: ["provider circuit breaker is open"],
+            breakerState: "open",
+            rejectionReason: "provider_breaker_open",
+          },
+        ],
+        selectedProvider: "openrouter",
+        fallbackAllowed: false,
+        routePlanId: "plan-breaker",
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<RoutePreviewPage />);
+    await user.click(screen.getByTestId(selectors.routePreview.submit));
+
+    expect(await screen.findByTestId(selectors.routePreview.candidates)).toBeInTheDocument();
+    expect(screen.getByText("open")).toBeInTheDocument();
+  });
+
   it("renders preview errors and preserves the form", async () => {
     vi.mocked(previewRoute).mockRejectedValueOnce(new Error("profile blocked"));
     const user = userEvent.setup();

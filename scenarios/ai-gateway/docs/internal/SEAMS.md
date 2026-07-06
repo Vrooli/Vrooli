@@ -200,6 +200,26 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | Routing service tests use a real file-backed SQLite handle via `internal/testutil/db.NewSQLite` and `api-core/database.EnsureSchemas` so schema, repository, and service behavior stay aligned. A fake repository should be added only if handler-only tests need injected persistence failures without SQLite. |
 | **Why it exists** | Execution must fail closed if evidence cannot be persisted, and evidence must not store prompts, responses, provider credentials, or provider URLs. Keeping persistence behind a repository seam makes those retention guarantees testable without mixing SQL into routing policy. |
 
+### Provider health repository
+
+| | |
+|---|---|
+| **Seam** | Persisted provider-health / circuit-breaker state |
+| **Interface** | `api/internal/routing/health_repository.go::HealthRepository` (`Get`, `Upsert`, `List`) |
+| **Production wiring** | `routing.NewSQLService(...)` constructs `routing.NewSQLHealthRepository(db)` and injects it via `routing.WithHealth`; the same lifecycle-managed SQLite handle backs `route_events` and `provider_health`. |
+| **Test fake** | Breaker tests use the real SQLite handle (`newSchemaDB`) and drive transitions with `routing.WithClock`. A nil repository disables breaker tracking, so routing/evidence tests that do not exercise health pass a nil health seam. |
+| **Why it exists** | Breaker state must survive across requests and be readable by preview, execution, and operator surfaces without re-running inference. The clock is injected (not `time.Now()` inside the store) so cooldown/half-open transitions are deterministic in tests. Recording is best-effort so a health write failure never fails a caller's request. |
+
+### Capacity adapter
+
+| | |
+|---|---|
+| **Seam** | Local-route capacity eligibility via the platform capacity broker |
+| **Interface** | `api/internal/routing/capacity.go::CapacityAdapter` (`Claim`, `Release`) |
+| **Production wiring** | `routing.NewSQLService(...)` injects `&CLICapacityAdapter{}` via `routing.WithCapacity`, which speaks the sanctioned `vrooli capacity …` CLI contract. AI Gateway never probes GPU/RAM directly and never couples to the broker's storage internals. |
+| **Test fake** | Capacity tests inject a programmable `fakeCapacity` returning a fixed verdict; a nil adapter disables capacity gating so routing tests that do not exercise capacity pass unchanged. |
+| **Why it exists** | Local-vs-remote routing must consult the platform capacity broker before selecting a local candidate, but the business logic must stay fakeable and must not shell out from route policy. The footprint requirement is read from explicit request metadata (`required_vram_bytes`), never inferred from model names. The broker is consulted only when a request declares a footprint, so ordinary requests incur no CLI call. |
+
 ### database.SystemSchema (cross-cutting infrastructure)
 
 | | |

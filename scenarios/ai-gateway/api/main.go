@@ -25,7 +25,9 @@ import (
 	gatewayH "ai-gateway/handlers/gateway"
 	healthH "ai-gateway/handlers/health"
 	inventoryH "ai-gateway/handlers/inventory"
+	measuresH "ai-gateway/handlers/measures"
 	routingH "ai-gateway/handlers/routing"
+	internalrouting "ai-gateway/internal/routing"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -135,12 +137,18 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	measuresModule, err := measuresH.Module(internalrouting.NewSQLRepository(db.Primary()), nil)
+	if err != nil {
+		log.Fatalf("measures module init failed: %v", err)
+	}
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "ai-gateway-api", "1.0.0"),
 		conformanceH.Module(log.Default(), repoRoot()),
 		gatewayH.Module(),
 		inventoryH.Module(inventoryH.Deps{}),
+		measuresModule,
 		routingH.Module(routingH.Deps{DB: db.Primary()}),
 	)
 

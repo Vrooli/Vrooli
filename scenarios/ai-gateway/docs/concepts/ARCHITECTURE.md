@@ -46,9 +46,10 @@ conformance checks.
 | `gateway` | Public request contract for text and embedding operations. | OT-P0-001 |
 | `providers` | Resource command adapters and normalized provider outcomes. | OT-P0-002 |
 | `inventory` | Provider role/policy/model/smoke-test inventory. | OT-P0-003 |
-| `routing` | Profile resolution, route preview, fallback decisions, and route evidence. | OT-P0-004 |
+| `routing` | Profile resolution, route preview, fallback decisions, route evidence, provider circuit-breaker health, capacity-aware local eligibility, and descriptor-backed route measures. | OT-P0-004, OT-P1-006, OT-P1-007, OT-P1-008 |
+| `measures` | Route-analytics measures over `route_events` (typed Connect `MeasuresService` + `/measures` registry, one shared compute path). | OT-P1-007 |
 | `conformance` | Test-genie validation provider and migration findings. | OT-P0-005 |
-| `operator` | UI/CLI/API surfaces for inspection and operation. | OT-P0-006 |
+| `operator` | UI/CLI/API surfaces for inspection and operation, including breaker/capacity/measure visibility. | OT-P0-006 |
 
 `health` remains a real scaffold domain for lifecycle readiness. The
 generated example domain is not product scope and has been removed with
@@ -147,9 +148,23 @@ Every preview and execution should produce structured evidence:
 - latency, token/size metadata when available, and error classification
 - redaction state and privacy policy outcome
 
-Evidence is for operations and testing. It must not store prompts,
-responses, or sensitive content unless a future retention policy
-explicitly permits that.
+Evidence carries stable machine-readable outcome codes (breaker_state,
+failure_class, rejection_reason, capacity_verdict, capacity claim/footprint
+fields, token counts, cost estimate, selected model) so route history is
+analytics-ready without log parsing, and those facts feed the declared route
+measures. Evidence is for operations and testing. It must not store prompts,
+responses, or sensitive content unless a future retention policy explicitly
+permits that.
+
+## Scoring Posture
+
+Routing stays conservative and explainable: hard policy filters first
+(privacy/locality/role/capability), deterministic profile ordering second, and
+provider circuit-breaker + capacity verdicts as admissibility gates. Observed
+measures are analytics only — a future explainable tie-breaker, never opaque
+weighted scoring that hides policy reasons. Adaptive/cost/quality scoring stays
+planned (`AIGW-ADAPTIVE-ROUTING`) until descriptor-backed route measures are
+validated and an explainability contract is defined. See `internal/DECISIONS.md`.
 
 ## Test-Genie Phase
 

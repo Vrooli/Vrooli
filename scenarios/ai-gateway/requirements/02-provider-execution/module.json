@@ -68,6 +68,36 @@
           "notes": "Validates missing resource commands map to typed unavailable smoke status."
         }
       ]
+    },
+    {
+      "id": "AIGW-PROVIDER-BREAKER",
+      "title": "Repeated provider failures open a persisted circuit breaker",
+      "status": "complete",
+      "prd_ref": "OT-P1-006",
+      "category": "provider.resilience",
+      "criticality": "P0",
+      "description": "Provider execution failures must be classified into stable failure classes (missing_binary, timeout, malformed_json, policy_error, execution_error, cancellation, unavailable) and recorded in persisted provider-health state keyed by provider, role, and request kind. Repeated failures open a circuit breaker with cooldown and half-open recovery; route preview annotates or rejects open-breaker candidates and surfaces half-open probe eligibility without executing inference; route execution skips open-breaker candidates, allows bounded half-open probes, and updates breaker state on success/failure. Provider/role isolation must hold so one provider's breaker does not suppress a healthy fallback.",
+      "tags": [
+        "provider",
+        "resilience",
+        "circuit-breaker"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/routing/health_test.go::TestBreakerOpensAfterConsecutiveFailures",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Pure breaker transitions: threshold opening, cooldown, half-open success close, half-open failure reopen, failure classification, and repository round-trip."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/routing/breaker_service_test.go::TestExecuteOpensBreakerAfterFailureAndFallsBackToHealthyProvider",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Service-level: preview skips open breakers and probes half-open, execution falls back to a healthy provider, and breakers isolate by provider/role/kind."
+        }
+      ]
     }
   ]
 }

@@ -67,3 +67,11 @@ func (h *connectHandler) GetRouteEvidence(ctx context.Context, req *connect.Requ
 	}
 	return connect.NewResponse(&routingv1.GetRouteEvidenceResponse{Event: event}), nil
 }
+
+func (h *connectHandler) ListProviderHealth(ctx context.Context, _ *connect.Request[routingv1.ListProviderHealthRequest]) (*connect.Response[routingv1.ListProviderHealthResponse], error) {
+	items, err := h.service.ListProviderHealth(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&routingv1.ListProviderHealthResponse{Items: items}), nil
+}

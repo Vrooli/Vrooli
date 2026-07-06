@@ -55,6 +55,38 @@ a planning baseline, not an executable model catalog.
 Profiles should be deterministic and previewable. If routes tie, the
 route preview must say what tie-breaker was used.
 
+### Capacity-Aware Local Eligibility
+
+Before a local candidate is admitted, AI Gateway consults the platform capacity
+broker (via the `vrooli capacity` CLI contract — never direct GPU/RAM probing)
+when the request declares a footprint. The footprint is an explicit request
+metadata constraint (`metadata.required_vram_bytes`, also `local_vram_bytes` /
+`required_bytes`); it is never inferred from model names. Requests without a
+declared footprint are not capacity-gated.
+
+The broker returns a stable verdict recorded on the route candidate and route
+evidence:
+
+| Verdict | Meaning | Effect on local candidate |
+|---|---|---|
+| `fit` | Broker admits the footprint. | Eligible. |
+| `unknown_capacity` | Broker unavailable/errored or no footprint declared. | Eligible (advisory — never blocks). |
+| `reclaim_required` | Admitted, but only by reclaiming, with enforcement on. | Eligible. |
+| `insufficient_capacity` | Broker cannot admit the footprint. | Rejected. |
+| `advisory_reclaim_unavailable` | Admission needs reclaim but enforcement is advisory. | Rejected (treated as unavailable to avoid OOM). |
+
+Profile behavior when a local candidate is rejected for capacity:
+
+- `local-only` fails closed (no remote fallback exists).
+- `local-first` / `cheap-first` fall back to a permitted remote provider.
+- `privacy-sensitive` / secret-class requests fail closed — they never route
+  remote merely because local capacity is constrained.
+
+An op-scoped capacity claim is held around the local execution attempt and
+released best-effort afterward; a crash falls back to the claim's bounded TTL.
+Capacity verdicts feed analytics (the `route_events.capacity_rejections`
+measure) but are policy filters only — never hidden route scoring.
+
 ## Resource Alignment Recommendations
 
 1. Add Ollama `extract.structured` as a resource role if it can be

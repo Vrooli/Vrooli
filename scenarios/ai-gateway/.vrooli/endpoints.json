@@ -225,6 +225,146 @@
       }
     },
     {
+      "id": "measures_count_route_events",
+      "path": "/vrooli.ai_gateway.v1.measures.MeasuresService/CountRouteEvents",
+      "method": "POST",
+      "summary": "Count AI routes executed in a window",
+      "description": "Count AI routes executed in a window: a read-only, run-eligible, full-tier measure over route_events, parameterized by the canonical time_window. Backed by the same compute path as the /measures serve registry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "count": "int64 (scalar value_field)"
+        }
+      }
+    },
+    {
+      "id": "measures_route_success_rate",
+      "path": "/vrooli.ai_gateway.v1.measures.MeasuresService/RouteSuccessRate",
+      "method": "POST",
+      "summary": "Fraction of AI routes that succeeded in a window",
+      "description": "Fraction of AI routes that succeeded in a window: a read-only, run-eligible, full-tier measure over route_events, parameterized by the canonical time_window. Backed by the same compute path as the /measures serve registry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "rate": "double in [0,1] (scalar value_field)"
+        }
+      }
+    },
+    {
+      "id": "measures_route_fallback_rate",
+      "path": "/vrooli.ai_gateway.v1.measures.MeasuresService/RouteFallbackRate",
+      "method": "POST",
+      "summary": "Fraction of successful routes that used a fallback in a window",
+      "description": "Fraction of successful routes that used a fallback in a window: a read-only, run-eligible, full-tier measure over route_events, parameterized by the canonical time_window. Backed by the same compute path as the /measures serve registry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "rate": "double in [0,1] (scalar value_field)"
+        }
+      }
+    },
+    {
+      "id": "measures_route_failure_rate",
+      "path": "/vrooli.ai_gateway.v1.measures.MeasuresService/RouteFailureRate",
+      "method": "POST",
+      "summary": "Fraction of AI routes that failed in a window",
+      "description": "Fraction of AI routes that failed in a window: a read-only, run-eligible, full-tier measure over route_events, parameterized by the canonical time_window. Backed by the same compute path as the /measures serve registry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "rate": "double in [0,1] (scalar value_field)"
+        }
+      }
+    },
+    {
+      "id": "measures_count_breaker_open_routes",
+      "path": "/vrooli.ai_gateway.v1.measures.MeasuresService/CountBreakerOpenRoutes",
+      "method": "POST",
+      "summary": "Count routes blocked by an open provider breaker in a window",
+      "description": "Count routes blocked by an open provider breaker in a window: a read-only, run-eligible, full-tier measure over route_events, parameterized by the canonical time_window. Backed by the same compute path as the /measures serve registry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "count": "int64 (scalar value_field)"
+        }
+      }
+    },
+    {
+      "id": "measures_count_capacity_rejections",
+      "path": "/vrooli.ai_gateway.v1.measures.MeasuresService/CountCapacityRejections",
+      "method": "POST",
+      "summary": "Count local routes rejected for insufficient capacity in a window",
+      "description": "Count local routes rejected for insufficient capacity in a window: a read-only, run-eligible, full-tier measure over route_events, parameterized by the canonical time_window. Backed by the same compute path as the /measures serve registry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "count": "int64 (scalar value_field)"
+        }
+      }
+    },
+    {
+      "id": "measures_route_latency_p95",
+      "path": "/vrooli.ai_gateway.v1.measures.MeasuresService/RouteLatencyP95",
+      "method": "POST",
+      "summary": "p95 AI route latency in milliseconds over a window",
+      "description": "p95 AI route latency in milliseconds over a window: a read-only, run-eligible, full-tier measure over route_events, parameterized by the canonical time_window. Backed by the same compute path as the /measures serve registry.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "vrooli.measures.v1.TimeWindow (optional; defaults to this_week)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "latency_ms": "int64 (scalar value_field)"
+        }
+      }
+    },
+    {
       "id": "routing_preview_route",
       "path": "/vrooli.ai_gateway.v1.routing.RoutingService/PreviewRoute",
       "method": "POST",
@@ -312,6 +452,23 @@
         "type": "GetRouteEvidenceResponse",
         "properties": {
           "event": "RouteEvidence"
+        }
+      }
+    },
+    {
+      "id": "routing_list_provider_health",
+      "path": "/vrooli.ai_gateway.v1.routing.RoutingService/ListProviderHealth",
+      "method": "POST",
+      "summary": "List provider circuit-breaker health",
+      "description": "Returns persisted provider circuit-breaker state per (provider, role, kind) with the effective state at read time, so operators can see which providers are suppressed and why without reading logs or database rows.",
+      "category": "routing",
+      "request": {
+        "type": "ListProviderHealthRequest"
+      },
+      "response": {
+        "type": "ListProviderHealthResponse",
+        "properties": {
+          "items": "array<ProviderHealth>"
         }
       }
     }

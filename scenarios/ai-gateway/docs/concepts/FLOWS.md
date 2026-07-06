@@ -11,6 +11,7 @@ states.
 |---|---|---|---|---|---|
 | Route preview | routing | Caller submits operation, role, profile, and constraints with `preview=true`. | Candidate providers and selected route reasons are returned without execution. | Stateless computation over live/cached policy, but must preserve rejection reasoning. | Unit matrix tests in `api/internal/routing/service_test.go`. |
 | Inference execution | routing/providers | Caller submits an executable request. | Provider resource command runs, result and route evidence are returned. | Stateful request with timeout, fallback, cancellation, and evidence persistence. | Phase 4 service tests cover fallback policy, redacted evidence, fail-closed persistence, and stdin command execution. A formal flow artifact remains a future hardening step if cancellation/fallback states grow. |
+| Provider circuit breaker | routing | Provider execution succeeds or fails for a `(provider, role, kind)` route. | Persisted provider-health state transitions across closed → open → half_open, and route preview/execution respect it. | Stateful across requests; keyed per provider/role/kind with a deterministic clock and cooldown. | `api/internal/routing/health_test.go` (pure transitions, classification, repository round-trip) and `breaker_service_test.go` (preview skip/probe, fallback, isolation). |
 | Provider inventory refresh | inventory | Operator/API/CLI requests inventory or scheduled refresh runs. | Resource roles, models, constraints, and smoke status are normalized. | Stateful refresh with partial provider failure and stale cache handling. | Integration tests with fake resource runners. |
 | Role smoke test | inventory/providers | Operator runs smoke test for one role/provider/profile. | Health status and evidence are recorded. | Stateful execution with provider failures and redaction. | Unit and integration tests. |
 | Conformance scan | conformance | test-genie or operator scans a scenario. | Findings, maturity score, exceptions, and fix guidance are reported. | Stateful scan over files/config/docs with severity and maturity thresholds. | Fixture-based scanner tests and provider phase tests. |
@@ -37,6 +38,25 @@ returning a provider result after cancellation without marking it stale.
 The current implementation uses context timeouts, resource command
 timeouts, and metadata-only route evidence. It does not persist raw
 prompts or responses.
+
+## Provider Breaker State Model
+
+Provider health is tracked per `(provider, role, request kind)` so one
+provider/role's failures never suppress a healthy fallback. Transitions are
+deterministic and driven by an injectable clock:
+
+| State | Meaning | Transition |
+|---|---|---|
+| `closed` | Provider is healthy; requests route normally. | Opens when consecutive failures reach the policy threshold. |
+| `open` | Provider is suppressed; preview rejects the candidate and execution skips it. | After the cooldown elapses the effective state becomes `half_open` (computed from the clock, no background writer). |
+| `half_open` | Cooldown elapsed; one bounded recovery probe is eligible. | A successful probe closes the breaker; a failed probe reopens it and extends the cooldown. |
+
+Failures are classified into stable provider-neutral classes
+(`missing_binary`, `timeout`, `malformed_json`, `policy_error`,
+`execution_error`, `cancellation`, `unavailable`) recorded on the health row.
+The breaker never inspects prompt/response content. Recording is best-effort:
+a health-store write failure does not fail the caller's request, which already
+succeeded or failed on its own merits.
 
 ## Conformance Scan State Model
 

@@ -117,6 +117,34 @@ func (h *handlers) evidenceShow(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) health(ctx cliapp.RunContext) error {
+	resp, err := h.client.ListProviderHealth(context.Background(), connect.NewRequest(&routingv1.ListProviderHealthRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("list provider health", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no provider health")
+	}
+	items := resp.Msg.GetItems()
+	results := make([]string, 0, len(items))
+	for _, ph := range items {
+		results = append(results, fmt.Sprintf(
+			"%s role=%s kind=%s state=%s effective=%s consecutive_failures=%d last_failure_class=%s cooldown_until=%s",
+			ph.GetProvider(), ph.GetRole(), ph.GetKind().String(), ph.GetState(), ph.GetEffectiveState(),
+			ph.GetConsecutiveFailures(), ph.GetLastFailureClass(), ph.GetCooldownUntil()))
+	}
+	summary := fmt.Sprintf("Found %d provider-health record(s).", len(items))
+	if len(items) == 0 {
+		summary = "No provider circuit-breaker state recorded (all providers healthy)."
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{summary},
+		ResultsHeading: "Provider health",
+		Results:        results,
+		RetrievalHints: []string{"An `open`/`half_open` effective state explains why a provider is suppressed or probing."},
+	})
+}
+
 func parseLimit(value string) (int32, error) {
 	if value == "" {
 		return 20, nil

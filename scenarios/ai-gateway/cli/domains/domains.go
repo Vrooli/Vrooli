@@ -4,6 +4,7 @@ import (
 	"ai-gateway/cli/domains/conformance"
 	"ai-gateway/cli/domains/gateway"
 	"ai-gateway/cli/domains/inventory"
+	"ai-gateway/cli/domains/measures"
 	"ai-gateway/cli/domains/routing"
 	"ai-gateway/cli/domains/validation"
 
@@ -44,6 +45,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	for _, register := range []func(*cliapp.ScenarioApp, []byte) (cliapp.SubcommandGroup, error){
 		gateway.Register,
 		inventory.Register,
+		measures.Register,
 		routing.Register,
 		conformance.Register,
 		validation.Register,

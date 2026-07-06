@@ -45,8 +45,12 @@ func (r *SQLRepository) Create(ctx context.Context, ev *routingv1.RouteEvidence)
 event_id, request_id, scenario, operation, role, profile, privacy_class,
 selected_provider, selected_locality, status, policy_reasons_json,
 failure_reasons_json, fallback_used, prompt_redacted, response_redacted,
-latency_ms, created_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+latency_ms, created_at,
+breaker_state, failure_class, rejection_reason, capacity_verdict,
+capacity_claim_id, capacity_required_bytes, capacity_granted_bytes,
+capacity_reclaim_required, input_tokens, output_tokens, cost_estimate,
+selected_model
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		ev.GetEventId(),
 		ev.GetRequestId(),
 		ev.GetScenario(),
@@ -64,6 +68,18 @@ latency_ms, created_at
 		boolInt(ev.GetResponseRedacted()),
 		ev.GetLatencyMs(),
 		ev.GetCreatedAt(),
+		ev.GetBreakerState(),
+		ev.GetFailureClass(),
+		ev.GetRejectionReason(),
+		ev.GetCapacityVerdict(),
+		ev.GetCapacityClaimId(),
+		ev.GetCapacityRequiredBytes(),
+		ev.GetCapacityGrantedBytes(),
+		boolInt(ev.GetCapacityReclaimRequired()),
+		ev.GetInputTokens(),
+		ev.GetOutputTokens(),
+		ev.GetCostEstimate(),
+		ev.GetSelectedModel(),
 	)
 	return err
 }
@@ -109,7 +125,10 @@ func (r *SQLRepository) Get(ctx context.Context, eventID string) (*routingv1.Rou
 
 const listEvidenceSQL = `SELECT event_id, request_id, scenario, operation, role, profile, privacy_class,
 selected_provider, selected_locality, status, policy_reasons_json, failure_reasons_json,
-fallback_used, prompt_redacted, response_redacted, latency_ms, created_at
+fallback_used, prompt_redacted, response_redacted, latency_ms, created_at,
+breaker_state, failure_class, rejection_reason, capacity_verdict, capacity_claim_id,
+capacity_required_bytes, capacity_granted_bytes, capacity_reclaim_required,
+input_tokens, output_tokens, cost_estimate, selected_model
 FROM route_events`
 
 type scanner interface {
@@ -120,7 +139,7 @@ func scanEvidence(s scanner) (*routingv1.RouteEvidence, error) {
 	var ev routingv1.RouteEvidence
 	var policyJSON, failureJSON string
 	var profile, privacy int32
-	var fallbackUsed, promptRedacted, responseRedacted int
+	var fallbackUsed, promptRedacted, responseRedacted, capacityReclaimRequired int
 	err := s.Scan(
 		&ev.EventId,
 		&ev.RequestId,
@@ -139,6 +158,18 @@ func scanEvidence(s scanner) (*routingv1.RouteEvidence, error) {
 		&responseRedacted,
 		&ev.LatencyMs,
 		&ev.CreatedAt,
+		&ev.BreakerState,
+		&ev.FailureClass,
+		&ev.RejectionReason,
+		&ev.CapacityVerdict,
+		&ev.CapacityClaimId,
+		&ev.CapacityRequiredBytes,
+		&ev.CapacityGrantedBytes,
+		&capacityReclaimRequired,
+		&ev.InputTokens,
+		&ev.OutputTokens,
+		&ev.CostEstimate,
+		&ev.SelectedModel,
 	)
 	if err != nil {
 		return nil, err
@@ -148,6 +179,7 @@ func scanEvidence(s scanner) (*routingv1.RouteEvidence, error) {
 	ev.FallbackUsed = fallbackUsed != 0
 	ev.PromptRedacted = promptRedacted != 0
 	ev.ResponseRedacted = responseRedacted != 0
+	ev.CapacityReclaimRequired = capacityReclaimRequired != 0
 	_ = json.Unmarshal([]byte(policyJSON), &ev.PolicyReasons)
 	_ = json.Unmarshal([]byte(failureJSON), &ev.FailureReasons)
 	return &ev, nil

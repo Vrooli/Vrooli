@@ -234,6 +234,7 @@ export function RoutePreviewPage() {
                   <th className="px-4 py-3">{t(strings.pages.routePreview.columns.role)}</th>
                   <th className="px-4 py-3">{t(strings.pages.routePreview.columns.locality)}</th>
                   <th className="px-4 py-3">{t(strings.pages.routePreview.columns.status)}</th>
+                  <th className="px-4 py-3">{t(strings.pages.routePreview.columns.health)}</th>
                   <th className="px-4 py-3">{t(strings.pages.routePreview.columns.reason)}</th>
                 </tr>
               </thead>
@@ -247,6 +248,24 @@ export function RoutePreviewPage() {
                       <StatusChip tone={candidate.selected ? "success" : candidate.fallbackEligible ? "info" : "warning"}>
                         {candidate.selected ? t(strings.pages.routePreview.selected) : candidate.fallbackEligible ? t(strings.pages.routePreview.fallbackCandidate) : t(strings.pages.routePreview.rejected)}
                       </StatusChip>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {candidate.breakerState && candidate.breakerState !== "closed" ? (
+                          <StatusChip tone={candidate.breakerState === "open" ? "warning" : "info"}>
+                            {`${candidate.breakerState}${candidate.halfOpenProbe ? " (probe)" : ""}`}
+                          </StatusChip>
+                        ) : null}
+                        {candidate.capacityVerdict && candidate.capacityVerdict !== "fit" ? (
+                          <StatusChip tone={candidate.capacityVerdict === "unknown_capacity" ? "info" : "warning"}>
+                            {candidate.capacityVerdict}
+                          </StatusChip>
+                        ) : null}
+                        {(candidate.breakerState === "closed" || candidate.breakerState === "") &&
+                        (candidate.capacityVerdict === "fit" || candidate.capacityVerdict === "") ? (
+                          <span className="text-app-muted-foreground">{t(strings.states.none)}</span>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-app-muted-foreground">{candidate.reasons.join("; ") || t(strings.states.none)}</td>
                   </tr>

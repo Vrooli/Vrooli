@@ -15,8 +15,36 @@ CREATE TABLE IF NOT EXISTS route_events (
   prompt_redacted INTEGER NOT NULL DEFAULT 1,
   response_redacted INTEGER NOT NULL DEFAULT 1,
   latency_ms INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  breaker_state TEXT NOT NULL DEFAULT '',
+  failure_class TEXT NOT NULL DEFAULT '',
+  rejection_reason TEXT NOT NULL DEFAULT '',
+  capacity_verdict TEXT NOT NULL DEFAULT '',
+  capacity_claim_id TEXT NOT NULL DEFAULT '',
+  capacity_required_bytes INTEGER NOT NULL DEFAULT 0,
+  capacity_granted_bytes INTEGER NOT NULL DEFAULT 0,
+  capacity_reclaim_required INTEGER NOT NULL DEFAULT 0,
+  input_tokens INTEGER NOT NULL DEFAULT 0,
+  output_tokens INTEGER NOT NULL DEFAULT 0,
+  cost_estimate REAL NOT NULL DEFAULT 0,
+  selected_model TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_route_events_created_at ON route_events(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_route_events_scenario ON route_events(scenario, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS provider_health (
+  provider TEXT NOT NULL,
+  role TEXT NOT NULL,
+  kind INTEGER NOT NULL,
+  state TEXT NOT NULL DEFAULT 'closed',
+  consecutive_failures INTEGER NOT NULL DEFAULT 0,
+  last_failure_class TEXT NOT NULL DEFAULT '',
+  last_success_at TEXT NOT NULL DEFAULT '',
+  last_failure_at TEXT NOT NULL DEFAULT '',
+  cooldown_until TEXT NOT NULL DEFAULT '',
+  opened_at TEXT NOT NULL DEFAULT '',
+  generation INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT '',
+  PRIMARY KEY (provider, role, kind)
+);

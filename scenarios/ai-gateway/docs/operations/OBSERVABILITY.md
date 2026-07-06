@@ -31,6 +31,8 @@ Use this document to answer:
 
 | Metric | Status | Details |
 |---|---|---|
+| Route analytics measures | active | Descriptor-backed `MeasuresService` over `route_events`: `route_events.total`, `success_rate`, `fallback_rate`, `failure_rate`, `breaker_open`, `capacity_rejections`, `latency_p95`. Read-only, run-eligible, canonical `time_window`. One shared SQL-aggregate compute path serves both the typed Connect RPCs and the `/measures` registry (GET `/measures/declarations`, POST `/measures/execute`). Validated by `measures-health validate scenario ai-gateway --probe`. Analytics only — never hidden route scoring. |
+| Provider breaker state | active | `provider_health` persists per-(provider, role, kind) circuit-breaker state; surfaced on route preview candidates (`breaker_state`, `half_open_probe`) and route evidence. |
 | Product activation | deferred | Define after PRD users and workflows are real. |
 | Requirement coverage | active | Tracked through requirements and test-genie coverage artifacts. |
 | Performance budgets | deferred | Define in `../internal/PERFORMANCE.md`. |

@@ -27,10 +27,13 @@
 - [x] OT-P1-003 | Migration assistance | Produce scenario-by-scenario adoption reports and fix guidance for moving from direct Ollama/OpenRouter/resource calls to AI Gateway profiles.
 - [x] OT-P1-004 | Budget, privacy, and locality constraints | Enforce operator-controlled routing policies such as local-only, local-first, remote-only, quality-first, cheap-first, privacy-sensitive, and max-cost ceilings.
 - [x] OT-P1-005 | SDK and caller ergonomics | Provide small typed client helpers for common scenario callers while keeping the wire/API contract provider-neutral.
+- [x] OT-P1-006 | Provider failure isolation | Persist provider-health state and open a circuit breaker with cooldown and half-open recovery so repeated provider/role failures stop suppressing healthy fallbacks; preview and execution both respect breaker state.
+- [x] OT-P1-007 | Route analytics and measures | Record structured outcome codes on route evidence and expose descriptor-backed route measures (success/fallback/failure/latency/breaker/capacity) over route_events without hidden scoring.
+- [x] OT-P1-008 | Capacity-aware local routing | Consult the platform capacity broker before selecting local AI routes and record a structured capacity verdict, with policy-respecting remote fallback and fail-closed local-only/privacy-sensitive behavior.
 
 ### 🟢 P2 – Future / expansion
-- [x] OT-P2-001 | Adaptive routing intelligence | Learn from quality, latency, cost, failure, and operator feedback to improve routing decisions without hiding policy reasons.
-- [x] OT-P2-002 | Fleet enforcement | Allow higher-maturity suites to fail scenarios that bypass AI Gateway where a gateway contract exists and no approved exception is recorded.
+- [ ] OT-P2-001 | Adaptive routing intelligence | Learn from quality, latency, cost, failure, and operator feedback to improve routing decisions without hiding policy reasons. Planned: blocked on validated descriptor-backed route measures; conservative deterministic routing ships today.
+- [ ] OT-P2-002 | Fleet enforcement | Allow higher-maturity suites to fail scenarios that bypass AI Gateway where a gateway contract exists and no approved exception is recorded. Planned: conformance remains advisory until the finding taxonomy is proven.
 - [ ] OT-P2-003 | Multi-provider expansion | Add additional text/embedding providers behind the same role/profile contract after Ollama and OpenRouter are stable.
 - [ ] OT-P2-004 | Related-modal coordination | Coordinate with image-tools and audio-tools for cross-modal workflows while leaving image/audio provider execution under those specialized scenarios.
 

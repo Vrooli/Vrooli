@@ -68,6 +68,22 @@ metadata only: request/operation identifiers, role/profile/privacy,
 selected resource path, policy/failure reasons, fallback state,
 redaction flags, latency, and timestamp.
 
+`route_events` additionally carries stable machine-readable outcome codes
+so route history is analytics-ready without log parsing: `breaker_state`,
+`failure_class`, `rejection_reason`, `capacity_verdict`, `capacity_claim_id`,
+`capacity_required_bytes`, `capacity_granted_bytes`, `capacity_reclaim_required`,
+`input_tokens`, `output_tokens`, `cost_estimate`, and `selected_model`. These
+columns are additive with safe defaults; token/cost/model fields stay zero/empty
+unless the resource reports them, and capacity fields are populated by the
+capacity-aware routing phase. None of these fields contain prompt or response
+text. `provider_health` (keyed by provider/role/kind) persists circuit-breaker
+state, consecutive failures, last failure class, cooldown, and generation.
+
+On an existing local database, adding a column to a `CREATE TABLE IF NOT EXISTS`
+block is a silent no-op, so `EnsureSchemas` runs a post-apply drift check that
+fails loudly and instructs a one-shot `ALTER TABLE ... ADD COLUMN` migration
+rather than recreating the table (route history is preserved).
+
 ## Retention And Privacy
 
 Route evidence and scan reports are useful because they are inspectable,

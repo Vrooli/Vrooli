@@ -77,19 +77,15 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Refs:** `bas/flows/perf-example-scroll.json`, `bas/cases/operator-ui/dashboard-readiness.json`, `bas/cases/operator-ui/route-preview-workflow.json`.
 
-### 2026-07-06 — Route Evidence Has A Temporary Measures Waiver
+### 2026-07-06 — Route Evidence Measures Waiver (RESOLVED)
 
-**Symptom:** `measures-health validate scenario ai-gateway --json` passes, but reports an advisory `measures.undeclared-substrate` warning for `route_events`.
+**Status:** Resolved. The temporary `routing` measures waiver has been removed.
 
-**Root cause:** AI Gateway persists redacted route evidence for operator audit and debugging, but does not yet expose a descriptor-backed analytical measure endpoint for that table. A malformed manifest-only measure was avoided because measures-health must assemble measures against the committed proto descriptor.
+**What shipped:** Route evidence is now a descriptor-backed measures surface. `packages/proto/schemas/ai-gateway/v1/measures/measures.proto` declares a `MeasuresService` with seven read-only, run-eligible route measures (`route_events.total`, `success_rate`, `fallback_rate`, `failure_rate`, `breaker_open`, `capacity_rejections`, `latency_p95`). One shared compute path (`api/handlers/measures`) backs both the typed Connect RPCs and the packages/measures-go serve registry mounted at `/measures`, computed as real SQL aggregates over `route_events`. `cli/manifest.json` declares each measure bound to the `route_events` domain; the `measures.omitted[routing]` waiver is gone and `measures.domains[]` marks `route_events` stateful.
 
-**Workaround:** Keep the `routing` domain waiver in `cli/manifest.json` until route evidence is promoted from audit metadata to a real federated measure.
+**Evidence:** `measures-health validate scenario ai-gateway --probe` passes (Domain Coverage L3, Declaration Assembly L3, Behavioral Indexing L2, 0 errors). The remaining `measures.architecture-fallback` info is a standing advisory (no `v1/domain/` folder), not introduced by this work.
 
-**Real fix:** Add a descriptor-backed measure endpoint for route evidence counts or trends after the shared proto layout is stable, then remove the `routing` waiver.
-
-**Owner:** ai-gateway follow-up.
-
-**Refs:** `cli/manifest.json`, `api/internal/routing/schema.sql`, `packages/proto/schemas/ai-gateway/v1/shared/gateway.proto`.
+**Refs:** `cli/manifest.json`, `api/handlers/measures/`, `api/internal/routing/measures_repository.go`, `packages/proto/schemas/ai-gateway/v1/measures/measures.proto`.
 
 ### 2026-07-06 — Tidiness Still Reports Info-level Hardening Debt
 

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Post-viability role alignment, migration, policy, SDK, and expansion work.",
-    "last_validated_at": "2026-07-06T10:29:37-04:00",
+    "last_validated_at": "2026-07-06T14:12:02-04:00",
     "module": "expansion",
     "prd_ref": "OT-P1-001",
     "priority": "P1",
@@ -134,11 +134,11 @@
     {
       "id": "AIGW-ADAPTIVE-ROUTING",
       "title": "Adaptive routing uses operational feedback without hiding policy reasons",
-      "status": "complete",
+      "status": "planned",
       "prd_ref": "OT-P2-001",
       "category": "routing.adaptive",
       "criticality": "P2",
-      "description": "Future routing intelligence should learn from quality, latency, cost, failure, and operator feedback while keeping route previews explainable and overrideable.",
+      "description": "Future routing intelligence should learn from quality, latency, cost, failure, and operator feedback while keeping route previews explainable and overrideable. Adaptive scoring is blocked until descriptor-backed route measures (AIGW-ROUTE-MEASURES) are validated; scoring must never hide the hard policy reasons that already govern deterministic routing.",
       "tags": [
         "routing",
         "feedback",
@@ -147,16 +147,16 @@
       "validation": [
         {
           "type": "manual",
-          "phase": "business",
-          "status": "implemented",
-          "notes": "Define adaptive routing acceptance criteria after P0 route evidence and P1 policy constraints are implemented."
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Define adaptive routing acceptance criteria only after AIGW-ROUTE-MEASURES is green and route evidence carries trustworthy analytics fields; conservative deterministic routing remains the shipped behavior."
         }
       ]
     },
     {
       "id": "AIGW-FLEET-ENFORCEMENT",
       "title": "Fleet enforcement can fail nonconformant AI usage at high maturity",
-      "status": "complete",
+      "status": "planned",
       "prd_ref": "OT-P2-002",
       "category": "conformance.enforcement",
       "criticality": "P2",
@@ -169,9 +169,32 @@
       "validation": [
         {
           "type": "manual",
-          "phase": "business",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Enforcement remains advisory; define rollout after advisory scans and pilot migrations prove the finding taxonomy."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-CAPACITY-ROUTING",
+      "title": "Local route eligibility consults the platform capacity broker",
+      "status": "complete",
+      "prd_ref": "OT-P1-008",
+      "category": "routing.capacity",
+      "criticality": "P1",
+      "description": "Before selecting a local AI route, the gateway must ask the platform capacity broker (via the `vrooli capacity` CLI/broker contract, never direct GPU/RAM probing) whether the operation-scoped local candidate fits, and record a structured verdict (fit, insufficient_capacity, unknown_capacity, reclaim_required, advisory_reclaim_unavailable). local-only fails closed on insufficient local capacity; local-first may fall back to remote when privacy/cost policy allows; privacy-sensitive/secret never routes remote solely because local capacity is constrained. Any acquired claim is released after execution or bounded by broker TTL on crash.",
+      "tags": [
+        "routing",
+        "capacity",
+        "locality"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/routing/capacity_service_test.go::TestCapacityInsufficientLocalOnlyFailsClosed",
+          "phase": "unit",
           "status": "implemented",
-          "notes": "Define enforcement rollout after advisory scans and pilot migrations prove the finding taxonomy."
+          "notes": "Fake capacity adapter proves fit selection + claim release, insufficient local-first remote fallback, local-only and privacy-sensitive fail-closed, advisory-reclaim-unavailable treated as unavailable, broker-error degrade-to-unknown, and no-footprint no-op."
         }
       ]
     },

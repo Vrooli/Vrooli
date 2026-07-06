@@ -11,10 +11,11 @@ const GroupName = "routing"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, map[string]func(cliapp.RunContext) error{
-		"RoutingService.PreviewRoute":      h.preview,
-		"RoutingService.ExecuteRoute":      h.execute,
-		"RoutingService.ListRouteEvidence": h.evidenceList,
-		"RoutingService.GetRouteEvidence":  h.evidenceShow,
+		"RoutingService.PreviewRoute":       h.preview,
+		"RoutingService.ExecuteRoute":       h.execute,
+		"RoutingService.ListRouteEvidence":  h.evidenceList,
+		"RoutingService.GetRouteEvidence":   h.evidenceShow,
+		"RoutingService.ListProviderHealth": h.health,
 	})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("routing: load from manifest: %w", err)

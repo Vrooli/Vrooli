@@ -11,22 +11,62 @@
           "name": "validate",
           "description": "Validate a provider-neutral AI Gateway request without routing it",
           "flags": [
-            { "name": "kind", "description": "Request kind: text, embedding, or extract", "default": "text" },
-            { "name": "role", "required": true, "description": "Provider-neutral role, such as chat.default or embedding.default" },
-            { "name": "profile", "description": "Routing profile: local-only, local-first, remote-only, quality-first, cheap-first, or privacy-sensitive", "default": "local-first" },
-            { "name": "privacy", "description": "Privacy class: public, internal, confidential, or secret", "default": "internal" },
-            { "name": "operation", "description": "Caller operation label for evidence and policy" },
-            { "name": "scenario", "description": "Caller scenario slug" },
-            { "name": "timeout-ms", "description": "Optional request timeout in milliseconds" },
-            { "name": "max-cost-usd", "description": "Optional maximum route cost in USD" },
-            { "name": "max-output-tokens", "description": "Optional maximum output token budget" },
-            { "name": "request-id", "description": "Optional caller request id" }
+            {
+              "name": "kind",
+              "description": "Request kind: text, embedding, or extract",
+              "default": "text"
+            },
+            {
+              "name": "role",
+              "required": true,
+              "description": "Provider-neutral role, such as chat.default or embedding.default"
+            },
+            {
+              "name": "profile",
+              "description": "Routing profile: local-only, local-first, remote-only, quality-first, cheap-first, or privacy-sensitive",
+              "default": "local-first"
+            },
+            {
+              "name": "privacy",
+              "description": "Privacy class: public, internal, confidential, or secret",
+              "default": "internal"
+            },
+            {
+              "name": "operation",
+              "description": "Caller operation label for evidence and policy"
+            },
+            {
+              "name": "scenario",
+              "description": "Caller scenario slug"
+            },
+            {
+              "name": "timeout-ms",
+              "description": "Optional request timeout in milliseconds"
+            },
+            {
+              "name": "max-cost-usd",
+              "description": "Optional maximum route cost in USD"
+            },
+            {
+              "name": "max-output-tokens",
+              "description": "Optional maximum output token budget"
+            },
+            {
+              "name": "request-id",
+              "description": "Optional caller request id"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "GatewayService", "method": "ValidateGatewayRequest" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GatewayService",
+            "method": "ValidateGatewayRequest"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]
@@ -39,26 +79,359 @@
           "name": "roles",
           "description": "List provider roles exposed through resource-owned policy",
           "flags": [
-            { "name": "provider", "description": "Optional provider filter, such as ollama or openrouter" }
+            {
+              "name": "provider",
+              "description": "Optional provider filter, such as ollama or openrouter"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "InventoryService", "method": "ListProviderRoles" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "InventoryService",
+            "method": "ListProviderRoles"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "smoke",
           "description": "Run a bounded provider smoke check through the resource command seam",
           "flags": [
-            { "name": "provider", "required": true, "description": "Provider to smoke, such as ollama or openrouter" }
+            {
+              "name": "provider",
+              "required": true,
+              "description": "Provider to smoke, such as ollama or openrouter"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "InventoryService", "method": "SmokeProvider" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "InventoryService",
+            "method": "SmokeProvider"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "measures",
+      "description": "AI Gateway's declared route-analytics measures over route evidence (route_events).",
+      "commands": [
+        {
+          "name": "total",
+          "description": "Count AI routes executed in a window",
+          "flags": [
+            {
+              "name": "window",
+              "default": "this_week",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "CountRouteEvents"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "route_events",
+            "intent": "How many AI routes were executed in a time window.",
+            "questions": [
+              "how many ai routes ran this week",
+              "gateway route count last 30 days",
+              "how many gateway requests executed this month"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "routes",
+              "summary_template": "{count} routes executed ({window})"
+            }
+          }
+        },
+        {
+          "name": "success-rate",
+          "description": "Fraction of AI routes that succeeded in a window",
+          "flags": [
+            {
+              "name": "window",
+              "default": "this_week",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "RouteSuccessRate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "route_events",
+            "intent": "What fraction of AI routes succeeded in a time window.",
+            "questions": [
+              "gateway route success rate this week",
+              "how often did ai routing succeed last month",
+              "route success ratio in the last 7 days"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "ratio",
+              "summary_template": "{rate} route success rate ({window})"
+            }
+          }
+        },
+        {
+          "name": "fallback-rate",
+          "description": "Fraction of successful routes that used a fallback in a window",
+          "flags": [
+            {
+              "name": "window",
+              "default": "this_week",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "RouteFallbackRate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "route_events",
+            "intent": "What fraction of successful AI routes used a fallback provider in a time window.",
+            "questions": [
+              "gateway fallback rate this week",
+              "how often did routing fall back to another provider last month",
+              "route fallback ratio in the last 30 days"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "ratio",
+              "summary_template": "{rate} of successful routes used a fallback ({window})"
+            }
+          }
+        },
+        {
+          "name": "failure-rate",
+          "description": "Fraction of AI routes that failed in a window",
+          "flags": [
+            {
+              "name": "window",
+              "default": "this_week",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "RouteFailureRate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "route_events",
+            "intent": "What fraction of AI routes failed in a time window.",
+            "questions": [
+              "gateway route failure rate this week",
+              "how often did ai routing fail last month",
+              "provider failure ratio in the last 7 days"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "ratio",
+              "summary_template": "{rate} route failure rate ({window})"
+            }
+          }
+        },
+        {
+          "name": "breaker-open",
+          "description": "Count routes blocked by an open provider breaker in a window",
+          "flags": [
+            {
+              "name": "window",
+              "default": "this_week",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "CountBreakerOpenRoutes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "route_events",
+            "intent": "How many AI routes were blocked by an open provider circuit breaker in a time window.",
+            "questions": [
+              "how many routes hit an open breaker this week",
+              "gateway breaker-open count last 30 days",
+              "how often was a provider suppressed by its breaker this month"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "routes",
+              "summary_template": "{count} routes blocked by an open breaker ({window})"
+            }
+          }
+        },
+        {
+          "name": "capacity-rejections",
+          "description": "Count local routes rejected for insufficient capacity in a window",
+          "flags": [
+            {
+              "name": "window",
+              "default": "this_week",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "CountCapacityRejections"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "route_events",
+            "intent": "How many local AI routes were rejected for insufficient capacity in a time window.",
+            "questions": [
+              "how many local routes lacked capacity this week",
+              "gateway capacity rejection count last 30 days",
+              "how often did local routing fail for capacity this month"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "routes",
+              "summary_template": "{count} local routes rejected for capacity ({window})"
+            }
+          }
+        },
+        {
+          "name": "latency-p95",
+          "description": "p95 AI route latency in milliseconds over a window",
+          "flags": [
+            {
+              "name": "window",
+              "default": "this_week",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "RouteLatencyP95"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "route_events",
+            "intent": "The p95 AI route latency in milliseconds over a time window.",
+            "questions": [
+              "gateway p95 route latency this week",
+              "95th percentile routing latency last month",
+              "route latency p95 in the last 7 days"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "latency_ms",
+              "unit": "ms",
+              "summary_template": "{latency_ms} ms p95 route latency ({window})"
+            }
           }
         }
       ]
@@ -71,45 +444,129 @@
           "name": "preview",
           "description": "Preview deterministic routing decisions without running inference",
           "flags": [
-            { "name": "kind", "description": "Request kind: text, embedding, or extract", "default": "text" },
-            { "name": "role", "required": true, "description": "Provider-neutral role to route" },
-            { "name": "profile", "description": "Routing profile", "default": "local-first" },
-            { "name": "privacy", "description": "Privacy class", "default": "internal" },
-            { "name": "operation", "description": "Caller operation label" },
-            { "name": "scenario", "description": "Caller scenario slug" },
-            { "name": "timeout-ms", "description": "Optional request timeout in milliseconds" },
-            { "name": "max-cost-usd", "description": "Optional maximum route cost in USD" },
-            { "name": "max-output-tokens", "description": "Optional maximum output token budget" },
-            { "name": "request-id", "description": "Optional caller request id" }
+            {
+              "name": "kind",
+              "description": "Request kind: text, embedding, or extract",
+              "default": "text"
+            },
+            {
+              "name": "role",
+              "required": true,
+              "description": "Provider-neutral role to route"
+            },
+            {
+              "name": "profile",
+              "description": "Routing profile",
+              "default": "local-first"
+            },
+            {
+              "name": "privacy",
+              "description": "Privacy class",
+              "default": "internal"
+            },
+            {
+              "name": "operation",
+              "description": "Caller operation label"
+            },
+            {
+              "name": "scenario",
+              "description": "Caller scenario slug"
+            },
+            {
+              "name": "timeout-ms",
+              "description": "Optional request timeout in milliseconds"
+            },
+            {
+              "name": "max-cost-usd",
+              "description": "Optional maximum route cost in USD"
+            },
+            {
+              "name": "max-output-tokens",
+              "description": "Optional maximum output token budget"
+            },
+            {
+              "name": "request-id",
+              "description": "Optional caller request id"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "RoutingService", "method": "PreviewRoute" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RoutingService",
+            "method": "PreviewRoute"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "execute",
           "description": "Execute a routed request through resource command adapters and persist metadata evidence",
           "flags": [
-            { "name": "kind", "description": "Request kind: text, embedding, or extract", "default": "text" },
-            { "name": "role", "required": true, "description": "Provider-neutral role to route" },
-            { "name": "input", "required": true, "description": "Input text sent via request body, not argv to provider resources" },
-            { "name": "profile", "description": "Routing profile", "default": "local-first" },
-            { "name": "privacy", "description": "Privacy class", "default": "internal" },
-            { "name": "operation", "description": "Caller operation label" },
-            { "name": "scenario", "description": "Caller scenario slug" },
-            { "name": "timeout-ms", "description": "Optional request timeout in milliseconds" },
-            { "name": "max-cost-usd", "description": "Optional maximum route cost in USD" },
-            { "name": "max-output-tokens", "description": "Optional maximum output token budget" },
-            { "name": "request-id", "description": "Optional caller request id" }
+            {
+              "name": "kind",
+              "description": "Request kind: text, embedding, or extract",
+              "default": "text"
+            },
+            {
+              "name": "role",
+              "required": true,
+              "description": "Provider-neutral role to route"
+            },
+            {
+              "name": "input",
+              "required": true,
+              "description": "Input text sent via request body, not argv to provider resources"
+            },
+            {
+              "name": "profile",
+              "description": "Routing profile",
+              "default": "local-first"
+            },
+            {
+              "name": "privacy",
+              "description": "Privacy class",
+              "default": "internal"
+            },
+            {
+              "name": "operation",
+              "description": "Caller operation label"
+            },
+            {
+              "name": "scenario",
+              "description": "Caller scenario slug"
+            },
+            {
+              "name": "timeout-ms",
+              "description": "Optional request timeout in milliseconds"
+            },
+            {
+              "name": "max-cost-usd",
+              "description": "Optional maximum route cost in USD"
+            },
+            {
+              "name": "max-output-tokens",
+              "description": "Optional maximum output token budget"
+            },
+            {
+              "name": "request-id",
+              "description": "Optional caller request id"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "RoutingService", "method": "ExecuteRoute" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RoutingService",
+            "method": "ExecuteRoute"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
-            "permissions": ["network:internal"],
+            "permissions": [
+              "network:internal"
+            ],
             "requires_confirmation": true
           }
         },
@@ -117,27 +574,67 @@
           "name": "evidence-list",
           "description": "List route evidence metadata",
           "flags": [
-            { "name": "scenario", "description": "Optional scenario filter" },
-            { "name": "limit", "description": "Maximum events to return", "default": "20" }
+            {
+              "name": "scenario",
+              "description": "Optional scenario filter"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum events to return",
+              "default": "20"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "RoutingService", "method": "ListRouteEvidence" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RoutingService",
+            "method": "ListRouteEvidence"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "evidence-show",
           "description": "Show one route evidence event",
           "positionals": [
-            { "name": "event-id", "required": true, "description": "Route evidence event id" }
+            {
+              "name": "event-id",
+              "required": true,
+              "description": "Route evidence event id"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "RoutingService", "method": "GetRouteEvidence" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RoutingService",
+            "method": "GetRouteEvidence"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "health",
+          "description": "List provider circuit-breaker health (which providers are suppressed and why)",
+          "flags": [],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RoutingService",
+            "method": "ListProviderHealth"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]
@@ -150,14 +647,26 @@
           "name": "scan",
           "description": "Run AI Gateway's native conformance scanner",
           "flags": [
-            { "name": "scenario", "description": "Scenario slug to scan" },
-            { "name": "path", "description": "Optional explicit path to scan" }
+            {
+              "name": "scenario",
+              "description": "Scenario slug to scan"
+            },
+            {
+              "name": "path",
+              "description": "Optional explicit path to scan"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ConformanceService", "method": "ScanScenario" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConformanceService",
+            "method": "ScanScenario"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]
@@ -170,45 +679,95 @@
           "name": "validate",
           "description": "Run the shared ScenarioValidationService AI conformance validation",
           "flags": [
-            { "name": "scenario", "required": true, "description": "Scenario slug to validate" },
-            { "name": "path", "description": "Optional explicit scenario path" },
-            { "name": "include-execution", "bool": true, "description": "Ask the provider to include deterministic execution where supported" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to validate"
+            },
+            {
+              "name": "path",
+              "description": "Optional explicit scenario path"
+            },
+            {
+              "name": "include-execution",
+              "bool": true,
+              "description": "Ask the provider to include deterministic execution where supported"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "ValidateScenario" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ValidateScenario"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "preview-fix",
           "description": "Preview deterministic AI conformance fixes, if any",
           "flags": [
-            { "name": "scenario", "required": true, "description": "Scenario slug to inspect" },
-            { "name": "path", "description": "Optional explicit scenario path" },
-            { "name": "rule-ids", "description": "Comma-separated rule ids to restrict preview" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to inspect"
+            },
+            {
+              "name": "path",
+              "description": "Optional explicit scenario path"
+            },
+            {
+              "name": "rule-ids",
+              "description": "Comma-separated rule ids to restrict preview"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "PreviewFix" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "PreviewFix"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "apply-fix",
           "description": "Apply deterministic AI conformance fixes when the provider supports them",
           "flags": [
-            { "name": "scenario", "required": true, "description": "Scenario slug to fix" },
-            { "name": "path", "description": "Optional explicit scenario path" },
-            { "name": "rule-ids", "description": "Comma-separated rule ids to restrict fixes" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to fix"
+            },
+            {
+              "name": "path",
+              "description": "Optional explicit scenario path"
+            },
+            {
+              "name": "rule-ids",
+              "description": "Comma-separated rule ids to restrict fixes"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "ApplyFix" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ApplyFix"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:write"],
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ],
             "requires_confirmation": true
           }
         }
@@ -216,18 +775,33 @@
     }
   ],
   "measures": {
-    "omitted": [
-      {
-        "domain": "routing",
-        "reason": "Temporary waiver until route evidence is promoted to a descriptor-backed measure endpoint; route_events currently remains operator audit evidence, not a federated analytical measure."
-      }
-    ],
+    "omitted": [],
     "domains": [
-      { "domain": "gateway", "stateful": false, "reason": "Gateway validation is a deterministic contract check." },
-      { "domain": "inventory", "stateful": false, "reason": "Inventory reads resource-owned policy and smoke state." },
-      { "domain": "routing", "stateful": true, "reason": "Route execution persists metadata-only route evidence." },
-      { "domain": "conformance", "stateful": false, "reason": "Conformance scans target scenario files and reports findings." },
-      { "domain": "validation", "stateful": false, "reason": "Shared validation exposes the Test Genie provider contract." }
+      {
+        "domain": "gateway",
+        "stateful": false,
+        "reason": "Gateway validation is a deterministic contract check."
+      },
+      {
+        "domain": "inventory",
+        "stateful": false,
+        "reason": "Inventory reads resource-owned policy and smoke state."
+      },
+      {
+        "domain": "route_events",
+        "stateful": true,
+        "reason": "Route execution persists metadata-only route evidence in the route_events table; covered by the route_events.* measures."
+      },
+      {
+        "domain": "conformance",
+        "stateful": false,
+        "reason": "Conformance scans target scenario files and reports findings."
+      },
+      {
+        "domain": "validation",
+        "stateful": false,
+        "reason": "Shared validation exposes the Test Genie provider contract."
+      }
     ]
   },
   "omitted": []

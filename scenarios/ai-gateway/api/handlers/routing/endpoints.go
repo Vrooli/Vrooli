@@ -47,4 +47,14 @@ var Endpoints = []module.EndpointDescriptor{
 		Request:     &module.Schema{Type: "GetRouteEvidenceRequest", Properties: map[string]string{"event_id": "string"}},
 		Response:    &module.Schema{Type: "GetRouteEvidenceResponse", Properties: map[string]string{"event": "RouteEvidence"}},
 	},
+	{
+		ID:          "routing_list_provider_health",
+		Path:        routingconnect.RoutingServiceListProviderHealthProcedure,
+		Method:      "POST",
+		Summary:     "List provider circuit-breaker health",
+		Description: "Returns persisted provider circuit-breaker state per (provider, role, kind) with the effective state at read time, so operators can see which providers are suppressed and why without reading logs or database rows.",
+		Category:    "routing",
+		Request:     &module.Schema{Type: "ListProviderHealthRequest", Properties: map[string]string{}},
+		Response:    &module.Schema{Type: "ListProviderHealthResponse", Properties: map[string]string{"items": "array<ProviderHealth>"}},
+	},
 }

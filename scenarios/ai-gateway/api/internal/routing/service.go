@@ -23,13 +23,50 @@ type Service struct {
 	adapters  map[string]providers.Adapter
 	order     []string
 	repo      Repository
+	health    HealthRepository
+	breaker   Breaker
+	capacity  CapacityAdapter
+	clock     func() time.Time
 }
 
-func NewService(adapters []providers.Adapter, repo Repository) *Service {
+// Option configures optional Service collaborators without breaking callers
+// that only need routing/evidence.
+type Option func(*Service)
+
+// WithHealth enables provider-health/circuit-breaker tracking. A nil repository
+// leaves breaker tracking disabled.
+func WithHealth(health HealthRepository) Option {
+	return func(s *Service) { s.health = health }
+}
+
+// WithBreakerPolicy overrides the deterministic breaker thresholds.
+func WithBreakerPolicy(policy BreakerPolicy) Option {
+	return func(s *Service) { s.breaker = NewBreaker(policy) }
+}
+
+// WithCapacity enables capacity-aware local route eligibility. A nil adapter
+// leaves capacity gating disabled (local routes proceed unconditionally).
+func WithCapacity(capacity CapacityAdapter) Option {
+	return func(s *Service) { s.capacity = capacity }
+}
+
+// WithClock injects the time source used for breaker transitions and evidence
+// timestamps so tests can drive deterministic cooldown behavior.
+func WithClock(clock func() time.Time) Option {
+	return func(s *Service) {
+		if clock != nil {
+			s.clock = clock
+		}
+	}
+}
+
+func NewService(adapters []providers.Adapter, repo Repository, opts ...Option) *Service {
 	s := &Service{
 		validator: gateway.New(),
 		adapters:  map[string]providers.Adapter{},
 		repo:      repo,
+		breaker:   NewBreaker(DefaultBreakerPolicy()),
+		clock:     time.Now,
 	}
 	for _, adapter := range adapters {
 		name := strings.TrimSpace(strings.ToLower(adapter.Provider))
@@ -40,11 +77,126 @@ func NewService(adapters []providers.Adapter, repo Repository) *Service {
 		s.order = append(s.order, name)
 	}
 	sort.Strings(s.order)
+	for _, opt := range opts {
+		opt(s)
+	}
 	return s
 }
 
 func NewSQLService(db *sql.DB, adapters []providers.Adapter) *Service {
-	return NewService(adapters, NewSQLRepository(db))
+	return NewService(adapters, NewSQLRepository(db),
+		WithHealth(NewSQLHealthRepository(db)),
+		WithCapacity(&CLICapacityAdapter{}))
+}
+
+func (s *Service) now() time.Time {
+	if s.clock == nil {
+		return time.Now()
+	}
+	return s.clock()
+}
+
+// effectiveBreaker returns the breaker state routing should act on for a
+// candidate. It reports an empty state when health tracking is disabled so
+// callers can distinguish "no tracking" from a healthy closed breaker.
+func (s *Service) effectiveBreaker(ctx context.Context, provider, role string, kind sharedv1.RequestKind) BreakerState {
+	if s.health == nil {
+		return BreakerState("")
+	}
+	h, found, err := s.health.Get(ctx, HealthKey{Provider: provider, Role: role, Kind: kind})
+	if err != nil || !found {
+		return BreakerClosed
+	}
+	return s.breaker.Effective(h, s.now())
+}
+
+// recordOutcome updates persisted breaker state after an execution attempt.
+// It is best-effort: a health-store write failure must not fail the caller's
+// request, since routing already succeeded or failed on its own merits.
+func (s *Service) recordOutcome(ctx context.Context, provider, role string, kind sharedv1.RequestKind, class FailureClass, success bool) {
+	if s.health == nil {
+		return
+	}
+	key := HealthKey{Provider: provider, Role: role, Kind: kind}
+	h, _, err := s.health.Get(ctx, key)
+	if err != nil {
+		return
+	}
+	h.Provider, h.Role, h.Kind = provider, role, kind
+	now := s.now()
+	if success {
+		h = s.breaker.OnSuccess(h, now)
+	} else {
+		h = s.breaker.OnFailure(h, class, now)
+	}
+	_ = s.health.Upsert(ctx, h)
+}
+
+// capacityOwner builds an op-scoped owner id for a capacity claim so the broker
+// ledger attributes the reservation to this gateway request.
+func capacityOwner(req *sharedv1.GatewayRequest) string {
+	return "ai-gateway:" + firstNonEmpty(req.GetScenario(), "unknown") + ":" + firstNonEmpty(req.GetOperation(), "route")
+}
+
+func allowReclaim(req *sharedv1.GatewayRequest) bool {
+	return strings.EqualFold(strings.TrimSpace(req.GetMetadata()["capacity_allow_reclaim"]), "true")
+}
+
+// probeCapacity returns a capacity verdict for a local candidate without holding
+// a reservation (claim then immediate release). Used by planning/preview. A nil
+// adapter or an absent footprint yields a non-blocking verdict.
+func (s *Service) probeCapacity(ctx context.Context, req *sharedv1.GatewayRequest) CapacityEvaluation {
+	if s.capacity == nil {
+		return CapacityEvaluation{Verdict: CapacityNotEvaluated}
+	}
+	bytes := capacityRequirementBytes(req.GetMetadata())
+	if bytes <= 0 {
+		return CapacityEvaluation{Verdict: CapacityUnknown}
+	}
+	eval, err := s.capacity.Claim(ctx, CapacityRequest{OwnerID: capacityOwner(req), RequiredBytes: bytes, AllowReclaim: allowReclaim(req)})
+	if eval.ClaimID != "" {
+		s.capacity.Release(ctx, eval.ClaimID)
+		eval.ClaimID = ""
+	}
+	if err != nil {
+		return CapacityEvaluation{Verdict: CapacityUnknown, RequiredBytes: bytes}
+	}
+	return eval
+}
+
+// acquireCapacity holds an op-scoped claim around a local execution attempt. The
+// returned evaluation carries the live ClaimID the caller must release. Non-local
+// candidates, a nil adapter, or an absent footprint return a zero evaluation.
+func (s *Service) acquireCapacity(ctx context.Context, req *sharedv1.GatewayRequest, candidate *routingv1.RouteCandidate) CapacityEvaluation {
+	if s.capacity == nil || !strings.EqualFold(candidate.GetLocality(), "local") {
+		return CapacityEvaluation{}
+	}
+	bytes := capacityRequirementBytes(req.GetMetadata())
+	if bytes <= 0 {
+		return CapacityEvaluation{Verdict: CapacityUnknown}
+	}
+	eval, err := s.capacity.Claim(ctx, CapacityRequest{OwnerID: capacityOwner(req), RequiredBytes: bytes, AllowReclaim: allowReclaim(req)})
+	if err != nil {
+		return CapacityEvaluation{Verdict: CapacityUnknown, RequiredBytes: bytes}
+	}
+	return eval
+}
+
+func (s *Service) releaseCapacity(ctx context.Context, eval CapacityEvaluation) {
+	if s.capacity != nil && eval.ClaimID != "" {
+		s.capacity.Release(ctx, eval.ClaimID)
+	}
+}
+
+func capacityReason(eval CapacityEvaluation) string {
+	switch eval.Verdict {
+	case CapacityInsufficient:
+		return "local capacity broker reports insufficient capacity for this route"
+	case CapacityAdvisoryReclaimUnavailable:
+		return "local route would need capacity reclaim but broker enforcement is advisory; treating local as unavailable"
+	default:
+		return "local capacity broker verdict: " + string(eval.Verdict)
+	}
 }
 
 func (s *Service) Preview(ctx context.Context, req *sharedv1.GatewayRequest) (*routingv1.PreviewRouteResponse, error) {
@@ -76,6 +228,8 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 	plan := s.plan(ctx, req)
 	if plan.selectedProvider == "" {
 		ev := s.evidence(req, plan, "blocked", time.Since(started), false, []string{"no eligible provider route"})
+		ev.RejectionReason = blockedReason(plan)
+		ev.CapacityVerdict = blockedCapacityVerdict(plan)
 		if err := s.repo.Create(ctx, ev); err != nil {
 			return nil, fmt.Errorf("persist blocked route evidence: %w", err)
 		}
@@ -84,9 +238,11 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 
 	attempts := s.executionAttempts(plan)
 	var failures []string
+	var lastFailureClass FailureClass
 	for i, candidate := range attempts {
 		adapter, ok := s.adapters[candidate.GetProvider()]
 		if !ok {
+			lastFailureClass = FailurePolicyError
 			failures = append(failures, fmt.Sprintf("%s: adapter not configured", candidate.GetProvider()))
 			continue
 		}
@@ -95,6 +251,10 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 		if req.GetTimeoutMs() > 0 {
 			ctxExec, cancel = context.WithTimeout(ctx, time.Duration(req.GetTimeoutMs())*time.Millisecond)
 		}
+		// Hold an op-scoped capacity claim around a local execution attempt so the
+		// broker ledger shows the reservation as CLAIMED. Release is best-effort in
+		// all paths; a crash falls back to the claim's bounded TTL.
+		capEval := s.acquireCapacity(ctxExec, req, candidate)
 		result, err := adapter.Execute(ctxExec, providers.ExecutionRequest{
 			Kind:            req.GetKind(),
 			Role:            req.GetRole(),
@@ -102,18 +262,25 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 			MaxOutputTokens: req.GetMaxOutputTokens(),
 			Timeout:         timeoutDuration(req.GetTimeoutMs()),
 		})
+		s.releaseCapacity(ctxExec, capEval)
 		cancel()
 		if err != nil {
+			class := ClassifyProviderError(err)
+			lastFailureClass = class
+			s.recordOutcome(ctx, candidate.GetProvider(), candidate.GetRole(), req.GetKind(), class, false)
 			failures = append(failures, fmt.Sprintf("%s: %v", candidate.GetProvider(), err))
-			if i == 0 && !candidate.GetFallbackEligible() {
+			if i == 0 && !plan.fallbackAllowed {
 				break
 			}
 			continue
 		}
+		s.recordOutcome(ctx, candidate.GetProvider(), candidate.GetRole(), req.GetKind(), FailureNone, true)
 		fallbackUsed := i > 0
 		ev := s.evidence(req, plan, "succeeded", time.Since(started), fallbackUsed, failures)
 		ev.SelectedProvider = candidate.GetProvider()
 		ev.SelectedLocality = candidate.GetLocality()
+		ev.BreakerState = candidate.GetBreakerState()
+		applyCapacityEvidence(ev, candidate, capEval)
 		if err := s.repo.Create(ctx, ev); err != nil {
 			return nil, fmt.Errorf("persist successful route evidence: %w", err)
 		}
@@ -126,6 +293,7 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 	}
 
 	ev := s.evidence(req, plan, "failed", time.Since(started), len(failures) > 1, failures)
+	ev.FailureClass = string(lastFailureClass)
 	if err := s.repo.Create(ctx, ev); err != nil {
 		return nil, fmt.Errorf("persist failed route evidence: %w", err)
 	}
@@ -148,6 +316,38 @@ func (s *Service) GetEvidence(ctx context.Context, eventID string) (*routingv1.R
 	return ev, err
 }
 
+// ListProviderHealth returns persisted breaker records with the effective state
+// computed at read time. Returns an empty slice when health tracking is disabled.
+func (s *Service) ListProviderHealth(ctx context.Context) ([]*routingv1.ProviderHealth, error) {
+	if s.health == nil {
+		return nil, nil
+	}
+	records, err := s.health.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	now := s.now()
+	out := make([]*routingv1.ProviderHealth, 0, len(records))
+	for _, h := range records {
+		out = append(out, &routingv1.ProviderHealth{
+			Provider:            h.Provider,
+			Role:                h.Role,
+			Kind:                h.Kind,
+			State:               string(stateOrClosed(h.State)),
+			EffectiveState:      string(s.breaker.Effective(h, now)),
+			ConsecutiveFailures: int64(h.ConsecutiveFailures),
+			LastFailureClass:    string(h.LastFailureClass),
+			LastSuccessAt:       formatTime(h.LastSuccessAt),
+			LastFailureAt:       formatTime(h.LastFailureAt),
+			CooldownUntil:       formatTime(h.CooldownUntil),
+			OpenedAt:            formatTime(h.OpenedAt),
+			Generation:          h.Generation,
+			UpdatedAt:           formatTime(h.UpdatedAt),
+		})
+	}
+	return out, nil
+}
+
 type routePlan struct {
 	id               string
 	candidates       []*routingv1.RouteCandidate
@@ -157,56 +357,101 @@ type routePlan struct {
 	fallbackAllowed  bool
 }
 
+// classifyCandidate resolves one provider into a route candidate and reports
+// whether it is eligible. Rejected candidates carry a stable rejection_reason.
+// The evaluation order is hard policy first (role/capability/locality), then
+// provider breaker state, then local capacity — never opaque scoring.
+func (s *Service) classifyCandidate(ctx context.Context, req *sharedv1.GatewayRequest, providerName string) (*routingv1.RouteCandidate, bool) {
+	adapter := s.adapters[providerName]
+	role, rejected := policyCandidate(ctx, req, providerName, adapter)
+	if rejected != nil {
+		return rejected, false
+	}
+	candidate := &routingv1.RouteCandidate{
+		Provider: providerName,
+		Role:     role.Role,
+		Locality: role.Locality,
+		Reasons:  []string{"eligible by role capability and profile policy"},
+	}
+	switch state := s.effectiveBreaker(ctx, providerName, role.Role, req.GetKind()); state {
+	case BreakerOpen:
+		candidate.BreakerState = string(state)
+		candidate.RejectionReason = "provider_breaker_open"
+		candidate.Reasons = []string{"provider circuit breaker is open; skipping until cooldown elapses"}
+		return candidate, false
+	case BreakerHalfOpen:
+		candidate.BreakerState = string(state)
+		candidate.HalfOpenProbe = true
+		candidate.Reasons = append(candidate.Reasons, "provider breaker is half-open; eligible as a bounded recovery probe")
+	default:
+		candidate.BreakerState = string(state)
+	}
+	if !s.capacityAdmits(ctx, req, candidate) {
+		return candidate, false
+	}
+	return candidate, true
+}
+
+// policyCandidate applies the hard policy filters (inventory/role/capability/
+// locality) and returns either the resolved role (ok) or a rejected candidate.
+func policyCandidate(ctx context.Context, req *sharedv1.GatewayRequest, providerName string, adapter providers.Adapter) (providers.Role, *routingv1.RouteCandidate) {
+	inventory, err := adapter.ListRoles(ctx)
+	if err != nil {
+		return providers.Role{}, rejectedCandidate(providerName, req.GetRole(), adapter.Locality,
+			fmt.Sprintf("inventory unavailable: %v", err), "inventory_unavailable")
+	}
+	role, ok := findRole(inventory.Roles, req.GetRole())
+	if !ok {
+		return providers.Role{}, rejectedCandidate(providerName, req.GetRole(), adapter.Locality,
+			"role is not exposed by provider policy", "role_not_exposed")
+	}
+	if !roleSupportsKind(role, req.GetKind()) {
+		return providers.Role{}, rejectedCandidate(providerName, role.Role, role.Locality,
+			"role capabilities do not satisfy request kind", "capability_mismatch")
+	}
+	if reason := localityRejection(req, role.Locality); reason != "" {
+		return providers.Role{}, rejectedCandidate(providerName, role.Role, role.Locality, reason, "locality_forbidden")
+	}
+	return role, nil
+}
+
+// capacityAdmits evaluates local capacity for a local candidate, annotates its
+// verdict, and reports whether it stays eligible. Remote candidates, a nil
+// adapter, or an absent footprint always admit.
+func (s *Service) capacityAdmits(ctx context.Context, req *sharedv1.GatewayRequest, candidate *routingv1.RouteCandidate) bool {
+	if !strings.EqualFold(candidate.GetLocality(), "local") || s.capacity == nil {
+		return true
+	}
+	eval := s.probeCapacity(ctx, req)
+	candidate.CapacityVerdict = string(eval.Verdict)
+	if eval.Verdict.blocksLocal() {
+		candidate.RejectionReason = "insufficient_capacity"
+		candidate.Reasons = append(candidate.Reasons, capacityReason(eval))
+		return false
+	}
+	return true
+}
+
+func rejectedCandidate(provider, role, locality, reason, code string) *routingv1.RouteCandidate {
+	return &routingv1.RouteCandidate{
+		Provider:        provider,
+		Role:            role,
+		Locality:        locality,
+		Reasons:         []string{reason},
+		RejectionReason: code,
+	}
+}
+
 func (s *Service) plan(ctx context.Context, req *sharedv1.GatewayRequest) routePlan {
 	plan := routePlan{id: newID("plan"), policyReasons: []string{profileReason(req.GetProfile())}}
 	var eligible []*routingv1.RouteCandidate
 	for _, providerName := range s.order {
-		adapter := s.adapters[providerName]
-		inventory, err := adapter.ListRoles(ctx)
-		if err != nil {
-			plan.candidates = append(plan.candidates, &routingv1.RouteCandidate{
-				Provider: providerName,
-				Role:     req.GetRole(),
-				Locality: adapter.Locality,
-				Reasons:  []string{fmt.Sprintf("inventory unavailable: %v", err)},
-			})
-			continue
+		candidate, ok := s.classifyCandidate(ctx, req, providerName)
+		if ok {
+			eligible = append(eligible, candidate)
+		} else {
+			plan.candidates = append(plan.candidates, candidate)
 		}
-		role, ok := findRole(inventory.Roles, req.GetRole())
-		if !ok {
-			plan.candidates = append(plan.candidates, &routingv1.RouteCandidate{
-				Provider: providerName,
-				Role:     req.GetRole(),
-				Locality: adapter.Locality,
-				Reasons:  []string{"role is not exposed by provider policy"},
-			})
-			continue
-		}
-		if !roleSupportsKind(role, req.GetKind()) {
-			plan.candidates = append(plan.candidates, &routingv1.RouteCandidate{
-				Provider: providerName,
-				Role:     role.Role,
-				Locality: role.Locality,
-				Reasons:  []string{"role capabilities do not satisfy request kind"},
-			})
-			continue
-		}
-		if reason := localityRejection(req, role.Locality); reason != "" {
-			plan.candidates = append(plan.candidates, &routingv1.RouteCandidate{
-				Provider: providerName,
-				Role:     role.Role,
-				Locality: role.Locality,
-				Reasons:  []string{reason},
-			})
-			continue
-		}
-		candidate := &routingv1.RouteCandidate{
-			Provider: providerName,
-			Role:     role.Role,
-			Locality: role.Locality,
-			Reasons:  []string{"eligible by role capability and profile policy"},
-		}
-		eligible = append(eligible, candidate)
 	}
 
 	sort.SliceStable(eligible, func(i, j int) bool {
@@ -239,6 +484,56 @@ func (s *Service) plan(ctx context.Context, req *sharedv1.GatewayRequest) routeP
 		return plan.candidates[i].GetProvider() < plan.candidates[j].GetProvider()
 	})
 	return plan
+}
+
+// applyCapacityEvidence records the capacity verdict and any acquired claim on
+// route evidence. The execution claim (capEval) is preferred; when no claim was
+// acquired (remote route or absent footprint) the planning verdict on the
+// selected candidate is used.
+func applyCapacityEvidence(ev *routingv1.RouteEvidence, candidate *routingv1.RouteCandidate, capEval CapacityEvaluation) {
+	verdict := string(capEval.Verdict)
+	if verdict == "" {
+		verdict = candidate.GetCapacityVerdict()
+	}
+	ev.CapacityVerdict = verdict
+	ev.CapacityClaimId = capEval.ClaimID
+	ev.CapacityRequiredBytes = capEval.RequiredBytes
+	ev.CapacityGrantedBytes = capEval.GrantedBytes
+	ev.CapacityReclaimRequired = capEval.ReclaimRequired
+}
+
+// blockedReason derives a stable rejection code for a route that selected no
+// provider. If every candidate that reached health evaluation was suppressed by
+// an open breaker, it reports that specifically; otherwise the route simply had
+// no eligible provider.
+func blockedReason(plan routePlan) string {
+	reasons := map[string]bool{}
+	for _, c := range plan.candidates {
+		if r := c.GetRejectionReason(); r != "" {
+			reasons[r] = true
+		}
+	}
+	// Report the most actionable cause first. A local route that failed capacity
+	// or an open breaker is more informative than the expected locality rejection
+	// of the remote peer that the profile forbids.
+	for _, r := range []string{"insufficient_capacity", "provider_breaker_open"} {
+		if reasons[r] {
+			return r
+		}
+	}
+	return "no_eligible_route"
+}
+
+// blockedCapacityVerdict returns the capacity verdict of a capacity-rejected
+// candidate so blocked evidence can carry it. Empty when capacity was not the
+// cause.
+func blockedCapacityVerdict(plan routePlan) string {
+	for _, c := range plan.candidates {
+		if c.GetRejectionReason() == "insufficient_capacity" {
+			return c.GetCapacityVerdict()
+		}
+	}
+	return ""
 }
 
 func (s *Service) executionAttempts(plan routePlan) []*routingv1.RouteCandidate {
