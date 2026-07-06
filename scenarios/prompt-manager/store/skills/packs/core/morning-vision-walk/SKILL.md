@@ -20,7 +20,7 @@ Use Morning Vision Walk when:
 
 **Do NOT use** for:
 - A specific brainstorming session about one idea (use idea-workshop instead)
-- Implementation planning for a defined task (use plan-skill-discovery)
+- Implementation planning for a defined task (use the plan-manager authoring wizard via implementation-plan-authoring)
 - Debugging, coding, or other tactical work
 
 ---
@@ -530,7 +530,7 @@ This skill covers the **daily strategic sync ritual** — from triage through br
 
 **Does NOT cover:**
 - **Deep idea refinement** — If an idea needs 30+ minutes of workshopping, transition to the idea-workshop skill
-- **Implementation planning** — Use plan-skill-discovery after an idea is in the backlog
+- **Implementation planning** — Use the plan-manager authoring wizard (implementation-plan-authoring) after an idea is in the backlog
 - **Execution** — Agents handle execution; this walk is for steering
 - **Tech tree design** — When available, the tech tree is consulted here but not designed or restructured during the walk
 

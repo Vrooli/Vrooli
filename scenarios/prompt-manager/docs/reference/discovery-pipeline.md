@@ -22,7 +22,7 @@ Discover serves two opposite needs, selected by `--type`:
 
 | Mode | `--type` | Want | Callers |
 |---|---|---|---|
-| **Curated / plan-authoring** | `skill` (default) | the skill setup bundle for development work — strong direct matches **plus** the curated topic packs for that kind of work | `plan-skill-discovery`, `implementation-plan-authoring`, `ecosystem-fit` |
+| **Curated / plan-authoring** | `skill` (default) | the skill setup bundle for development work — strong direct matches **plus** the curated topic packs for that kind of work | `implementation-plan-authoring`, `ecosystem-fit` |
 | **Operational** | `all`, `action` | the *single best-matching* skill or action to avoid hand-rolling — pure relevance, no packs | the AGENTS.md "Discover → Use → Capture" reflex, `skill-improvement-suggestions`, meta-optimization, etc. |
 
 **INVARIANT I8 — mode-aware ranking.** Curated-pack behavior (I1–I7 below)
@@ -277,5 +277,5 @@ Guardrails:
   ranking levers and budgets as user-facing control surface.
 - CLI reference: [`reference/cli-commands.md`](cli-commands.md) — `discover`,
   `topic`, `discovery-gaps`, `discovery-metrics`.
-- Planning consumer: the `plan-skill-discovery` internal skill.
+- Planning consumer: the plan-manager authoring wizard's server-side context discovery (`plan-manager author context-discover`).
 - Taxonomy rebuild: `store/topics/rebuild-taxonomy.sh`.

@@ -17,7 +17,7 @@ Use Idea Workshop when:
 
 **Do NOT use** for:
 - Refining an already-articulated idea (use swarm-manager's clarify/suggest/enhance directly)
-- Implementation planning for a defined task (use plan-skill-discovery)
+- Implementation planning for a defined task (use the plan-manager authoring wizard via implementation-plan-authoring)
 - Debugging or fixing existing code
 - Quick one-off questions
 
@@ -225,7 +225,7 @@ This methodology covers the **pre-ideation phase**: shaping raw thoughts into a 
 
 **Does NOT cover:**
 - **Formal idea refinement** — That's swarm-manager's clarify/suggest/enhance pipeline (this skill hands off to it)
-- **Implementation planning** — Use plan-skill-discovery after the idea is refined
+- **Implementation planning** — Use the plan-manager authoring wizard (implementation-plan-authoring) after the idea is refined
 - **Technical architecture decisions** — Those come during planning, not brainstorming
 - **Evaluating whether an idea is worth pursuing** — That's a product/business decision, not a methodology question
 

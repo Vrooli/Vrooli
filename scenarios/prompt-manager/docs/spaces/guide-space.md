@@ -35,7 +35,7 @@ deliberately out of the local-coding-readiness scope.
 | G3 | Find seams / testability | `seam-discovery-and-enforcement` | COVERED | — | |
 | G4 | Clarify intent / decisions / invariants | `intent-clarification`, `decision-boundary-extraction`, `invariant-discovery-and-enforcement`, `concept-vocabulary-unification` | COVERED | — | |
 | **Plan** | | | | | |
-| G5 | Author an implementation plan | `implementation-plan-authoring`, `plan-skill-discovery` | COVERED | — | |
+| G5 | Author an implementation plan | `implementation-plan-authoring` | COVERED | — | |
 | G6 | Brainstorm / workshop an idea | `idea-workshop` | COVERED | — | |
 | G7 | Scope a change | `feature-scope`, `bugfix-scope`, `refactor-scope`, `audit-scope`, `platform-scope` | COVERED | — | |
 | **Build / change** | | | | | |

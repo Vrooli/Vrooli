@@ -148,7 +148,7 @@ The ladder applies **per invariant**, not per scenario. A scenario may have one 
 | L2 | Code-anchored | Tag sits on the guard/type/check that actually embodies the rule (not floating). | Same, plus the doc row carries the `path:file:line` anchor. |
 | L3 | Test-enforced | A violation test exists; its name or comment references the invariant name. | Same. |
 | L4 | Mechanism-declared | The enforcement mechanism is named (`type-system` / `protovalidate` / `runtime-guard` / `db-constraint` / `test` / `registry`) and that mechanism actually exists in code. | Same; the doc row's `Mechanism` column matches code reality. |
-| L5 | Drift-gated | Local convention (lint rule, grep target, or convention-check) catches new code that violates the tag's contract. | Registry drift gate: every `INVARIANT:` tag at Tier-2 scope appears in `INVARIANTS.md` and vice versa, validated by a registry test analogous to `validateTransport` (`path:scenarios/reference-react-vite/api/cmd/gen-endpoints/main.go`). |
+| L5 | Drift-gated | Local convention (lint rule, grep target, or convention-check) catches new code that violates the tag's contract. | Registry drift gate: every `INVARIANT:` tag at Tier-2 scope appears in `INVARIANTS.md` and vice versa, validated by a registry test analogous to `validateTransport` (`path:templates/scenarios/react-vite/api/cmd/gen-endpoints/main.go`). |
 
 The level is not a vanity score. It tells the next agent what kind of drift is still possible for this specific invariant.
 
@@ -184,7 +184,7 @@ Otherwise:
   Encode as a named runtime guard + an enforcement test.
 ```
 
-A real example of this pattern, lit up end-to-end, is the `RESTReason` enum at `path:scenarios/reference-react-vite/api/internal/module/module.go` paired with the `validateTransport` check at `path:scenarios/reference-react-vite/api/cmd/gen-endpoints/main.go`. The invariant ("every endpoint is either Connect or a tagged REST exception") is type-encoded (closed enum), registry-enforced (validator iterates all endpoints), and drift-gated (codegen fails on violation). That is what L5 Tier-2 looks like.
+A real example of this pattern, lit up end-to-end, is the `RESTReason` enum at `path:templates/scenarios/react-vite/api/internal/module/module.go` paired with the `validateTransport` check at `path:templates/scenarios/react-vite/api/cmd/gen-endpoints/main.go`. The invariant ("every endpoint is either Connect or a tagged REST exception") is type-encoded (closed enum), registry-enforced (validator iterates all endpoints), and drift-gated (codegen fails on violation). That is what L5 Tier-2 looks like.
 
 ---
 

@@ -1,21 +1,17 @@
 ## Practice focus: Implementation Plan Authoring
 
 Author durable implementation plans through Plan Manager's guided authoring
-runtime. Plan Manager is the plan-logic authority: the skill supplies the
-judgment layer, while `plan-manager author ...` owns the section order, phase
-shape, validation gates, rendered markdown, and persistence.
+runtime. Plan Manager is the plan-logic authority: it owns the section order
+(the nine reader-question clusters), phase shape, validation gates, context
+discovery execution, rendered markdown, and persistence. This skill supplies
+only the judgment layer — when to plan, and how to decide well inside the
+wizard.
 
 Required reading:
-- `prompt-manager skill read plan-skill-discovery` — discover plan-relevant
-  skills and operational context before authoring.
 - `scenarios/plan-manager/docs/concepts/PLAN-MODEL.md` — canonical structured
   plan and phase model.
 - `scenarios/plan-manager/docs/reference/cli-commands.md` — current
   `plan-manager author`, `plans`, `exec`, `validate`, and `log` command surface.
-
-Optional reading:
-- `docs/agent-system/SKILL_AUTHORING.md`
-- `prompt-manager skill read skill-validation`
 
 ---
 
@@ -30,118 +26,66 @@ Optional reading:
 
 ---
 
-### 2. Scope Boundaries
-
-**In scope:**
-- Author a new implementation plan through `plan-manager author ...`
-- Preserve problem, target outcome, constraints, change boundary, execution
-  setup, phases, validation strategy, and Definition of Done in Plan Manager's
-  structured record
-- Curate relevant context and references by accepting/rejecting Plan Manager
-  candidates with judgment
-- Report the saved plan id/slug and rendered review command/path
-
-**Out of scope:**
-- Defining a separate markdown plan format
-- Hand-editing rendered Plan Manager markdown mirrors
-- Using project-level compatibility commands as the default authoring path
-- Implementing the planned code changes during plan authoring unless the user
-  explicitly asks for both in the same turn
-
----
-
-### 3. Convergence Pattern
-
-Use this decision table before authoring:
-
-| Need | Primary path |
-|---|---|
-| New implementation plan | `plan-manager author start --title "<title>"`, then follow `plan-manager author continue <session>` |
-| Review in-progress plan | `plan-manager author preview <session>` |
-| Persist completed authoring session | `plan-manager author validate <session>`, then `plan-manager author finalize <session>` |
-| Inspect persisted plan | `plan-manager plans render <plan-id-or-slug>` |
-| Execute or resume plan work | `plan-manager exec continue <plan-or-execution>` |
-| Adopt existing legacy markdown | `plan-manager plans import --source <path> --workspace <repo-root>` |
-| Repair/adopt plan mirrors and legacy files | `plan-manager plans reconcile --dry-run --workspace <repo-root>` |
-
-If a root compatibility command appears in older docs or plans, prefer the
-matching `plan-manager` command unless the user explicitly asks to test the root
-compatibility layer.
-
----
-
-### 4. Authoring Workflow
-
-#### Phase 0: Recall and discover
-
-Before authoring, recall prior work:
-
-```bash
-search-hub query "<one-sentence plan intent>" --type record,backlog,initiative,skill,doc
-```
-
-Then use plan skill discovery:
-
-```bash
-prompt-manager skill read plan-skill-discovery
-prompt-manager discover "<concept-1>" "<concept-2>" "<concept-3>" --type skill --complexity moderate
-```
-
-Keep the discovery layers separate:
-- `search-hub query ...` is broad recall across records, docs, backlog, and
-  registered providers.
-- `prompt-manager discover --type skill` is the curated, budget-aware
-  Prompt Manager skill bundle for the executor to read.
-- `plan-manager author context-discover` turns setup searches into reviewable
-  Plan Manager candidates; it does not remove the need to accept/reject with
-  judgment.
-
-Accepted discovery output should become Plan Manager relevant context, not a
-legacy markdown `Required Reading` section. Prefer accepting useful candidates
-through `plan-manager author context-discover` / `context-accept`; when the
-curated Prompt Manager output gives a concrete `prompt-manager skill read ...`
-command, submit that exact setup command with `context-submit`.
-
-#### Phase 1: Start the authoring session
+### 2. Entry Point
 
 ```bash
 plan-manager --auto-start author start --title "<plan title>"
 ```
 
-Use the returned session id for every subsequent command. Global flags such as
-`--auto-start` go before the subcommand.
-
-#### Phase 2: Follow the guided loop
-
-Default to the API-owned next action:
+Then follow the API-owned next action until finalize:
 
 ```bash
 plan-manager author continue <session>
 ```
 
-Submit exactly the current requested section or phase field. Do not submit one
-large plan blob unless Plan Manager explicitly asks for a field that contains
-multi-line content.
-
-When relevant:
+The session is a form, not a stage-gated wizard: every response carries a
+full-disclosure **checklist** (all requirements for the touched scope with
+filled/missing/violation status). Read the checklist and submit any or all
+fields **in any order**, batched when you already know the content:
 
 ```bash
-plan-manager author context-discover <session> --concepts "<concepts>" --complexity moderate
-plan-manager author context-accept <session> <candidate-id>
-plan-manager author suggest-references <session>
-plan-manager author reference-accept <session> <candidate-id>
-plan-manager author autofill <session> --sources regression_anchor
+plan-manager author submit <session> --set purpose="..." --set scope="..."   # sections in one call
+plan-manager author phase-add <session> --title "..." --intent "..."   --set steps="..." --set validation="..." --set acceptance="..."            # add+fill a phase in one call
+plan-manager author phase-submit <session> <phase> --set <field>="..." ...   # batch fields on an existing phase
 ```
 
-Accept candidates only when they materially improve execution. Reject noisy
-candidates with a reason. Use explicit fallback markers only when honest:
+Each batch item returns an accepted/rejected line naming exactly what was
+parsed; a rejected item (unknown field, acceptance duplicating validation) is
+NOT applied while the rest of the batch lands. A complete N-phase plan takes
+≤ 3+N mutation calls. The `continue` loop remains available when you prefer
+one recommended action at a time. The artifact renders in the fixed cluster
+order (Purpose / Problem / Outcome / Approach & Decisions / Boundaries /
+Assumptions & Risks / Verification / Execution Setup / Phases) regardless of
+submission order. Global flags such as `--auto-start` go before the
+subcommand. `author status <session>` is an alias of `author preview`.
 
-- `NO_CODE_REFS: <reason>` for plans or phases with no connected code/doc/req
-  references.
-- `NO_CONTEXT: <reason>` for global or phase setup that genuinely needs no
-  additional context.
+Skill discovery is a low-friction bootstrap, not a curation workflow. Ask Plan
+Manager to add the prompt-manager pack:
 
-#### Phase 3: Review, validate, finalize
+```bash
+plan-manager author skill-pack <session> --concepts "<c1>,<c2>" --complexity <level>
+```
+
+That command runs `prompt-manager discover --type skill --json`, auto-adds the
+returned skills as global relevant context, and prints the read command (plus a
+recommended read command when prompt-manager budgets the pack down). Keep most
+returned skills unless they are clearly irrelevant; they are there to improve
+professional execution, not only to match the task title literally.
+
+For docs, records, code references, and other context, run search-hub directly
+so you can inspect confidence and attribution yourself:
+
+```bash
+search-hub query "<intent>" --type record,doc,skill
+```
+
+Submit only durable context or references that will help a resumed agent:
+`plan-manager author context-submit ...` for setup commands/notes, normal
+reference fields for `[CODE:]`, `[DOC:]`, `[REQ:]`, or an honest
+`NO_CODE_REFS: <reason>` when there are no useful code references. There is no
+candidate accept/reject/apply step.
+
+Review, validate, finalize:
 
 ```bash
 plan-manager author preview <session>
@@ -149,66 +93,67 @@ plan-manager author validate <session>
 plan-manager author finalize <session>
 ```
 
-Do not finalize with unresolved structure violations unless Plan Manager returns
-a typed degraded path and the user explicitly accepts the risk.
-
-#### Phase 4: Report the artifact
-
-Return:
-- plan id and slug
-- rendered review command, usually `plan-manager plans render <slug>`
-- any degraded discovery, reference, context, or anchor notes
-- the first execution command, usually `plan-manager exec continue <slug>`
+Report back: plan id/slug, `plan-manager plans render <slug>`, any degraded
+notes, and the first execution command (`plan-manager exec continue <slug>`).
 
 ---
 
-### 5. Judgment Rules
+### 3. Judgment Rules
 
 - A plan should be executable without this chat history.
 - The change boundary must name the paths the work may touch; do not hide scope
   in prose.
 - `validation` is the method of checking; `acceptance` is the outcome gate.
   They must not be identical.
+- Every fact lives in exactly one section: Purpose is an abstract (do not
+  restate Problem or Outcome there); the Definition of Done carries plan-level
+  gates only, never restated phase acceptances.
+- Use `author skill-pack` early, then read the compact skill command it returns.
+  Remove a discovered skill only when it is clearly irrelevant or harmful.
+- Run search-hub directly when docs/records/code context would help, and submit
+  only durable context. Do not recreate a candidate queue by hand.
+- Use explicit fallback markers only when honest: `NO_CODE_REFS: <reason>`,
+  `NO_SKILL_CONTEXT: <reason>`, `NO_CONTEXT: <reason>`.
 - Greenfield/Brownfield posture is derived by Plan Manager. Do not hand-author
   contradictory compatibility language.
-- Do not accept context or reference candidates just to satisfy a gate; they must
-  be relevant.
 - Do not fabricate baseline success. Plan Manager records regression-anchor
   intent during authoring; execution/validation captures and checks the fresh
   baseline.
+- Never hand-edit rendered Plan Manager markdown mirrors; re-render through the
+  tool (`plan-manager plans render` / `plans reconcile`).
 - For out-of-scope defects found while authoring, use Plan Manager log entries
   during execution, or load `prompt-manager skill read report-bug` if the defect
   needs filing before execution begins.
 
 ---
 
-### 6. Troubleshooting & Edge Cases
+### 4. Troubleshooting & Edge Cases
 
 | Symptom | Likely cause | First move |
 |---|---|---|
 | `plan-manager` is unavailable | Scenario is stopped or not installed | Run `plan-manager --auto-start status`, or `vrooli scenario start plan-manager` |
-| `author continue` repeats a gate | A required section, context item, reference, phase field, or validation distinction is missing | Read `remaining_required_inputs` / human output and submit the requested field |
-| Reference discovery returns nothing | `search-hub` unavailable or no routed locator hits | Manually submit `[CODE:]`, `[DOC:]`, `[REQ:]`, or honest `NO_CODE_REFS:` |
-| Context discovery is noisy | Prompt-manager/search-hub returned broad candidates | Accept only relevant candidates; reject the rest |
+| `author continue` repeats a gate | A required section, reference marker, phase field, or validation distinction is missing | Read `remaining_required_inputs` / human output and submit the requested decision |
+| `author skill-pack` degrades | prompt-manager is down or returns no skill pack | Continue authoring with a warning, or record an honest `NO_SKILL_CONTEXT:` only when no useful skill setup exists |
+| Reference discovery is needed | Plan Manager no longer runs search-hub for you | Run `search-hub query "<intent>" --type record,doc,skill`, then manually submit `[CODE:]`, `[DOC:]`, `[REQ:]`, context, or honest `NO_CODE_REFS:` |
 | Anchor autofill is degraded | Boundary missing or validation dependency unavailable | Submit/repair change boundary, rerun autofill, or record degraded intent only when Plan Manager permits it |
 | Need to preserve an existing markdown plan | Legacy import/adoption path | Use `plan-manager plans import --source <path> --workspace <repo-root>` |
 
-Repeated troubleshooting that requires prose here should be promoted into Plan
-Manager CLI guidance rather than expanded in this skill.
-
 ---
 
-### 7. Output Expectations
+### 5. Output Expectations
 
 **Must produce:**
 - A finalized Plan Manager plan id/slug, or a clear explanation of why the
-  authoring session remains unfinished
+  authoring session remains unfinished. Finalize output names the physical
+  SQLite store path, the stamped workspace, and a **computed** mirror status
+  (`fresh`, or a loud `write_failed` warning with the repair command) —
+  treat a `write_failed` mirror or a missing store path as something to
+  report, and re-running finalize prints `Already finalized at <ts>`
 - A rendered review command/path
 - A concise note about degraded dependencies or manual fallbacks
 - The next execution command when implementation should continue
 
 **Must not produce:**
-- A standalone 13-section markdown plan as the default artifact
-- A root compatibility command as the default authoring path
+- A standalone hand-formatted markdown plan as the default artifact
 - Placeholder-only phases or context entries
 - Contradictory constraints or fabricated validation evidence

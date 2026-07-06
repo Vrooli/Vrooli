@@ -43,7 +43,7 @@ What kind of work is this?
 
 **Out of scope:**
 - The actual implementation plan structure — that is `implementation-plan-authoring`.
-- Skill discovery for the plan — that is `plan-skill-discovery`.
+- Skill discovery for the plan — that is the plan-manager authoring wizard's server-side context discovery.
 - Editing the canonical taxonomy itself — that is a change to `path:docs/concepts/ECOSYSTEM.md` (operator-reviewed).
 - Portfolio prioritization — that is `morning-vision-walk`.
 - Monetization *strategy* (whether to monetize, pricing, bundle membership) — operator-curated `path:docs/monetization/` canon; this skill only routes there, it never decides or edits it.

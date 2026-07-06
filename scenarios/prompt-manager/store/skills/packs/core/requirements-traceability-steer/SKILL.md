@@ -7,7 +7,7 @@ The drift signal you are answering comes from the test-genie `business` phase's 
 Required reading:
 - `path:scenarios/test-genie/docs/requirements/STATUS_MODEL.md` — how declared status, live evidence, and the sync snapshot compose (statuses are *earned* from `[REQ:ID]`-tagged test results, not asserted).
 - `path:scenarios/test-genie/docs/requirements/IMPROVING_COVERAGE.md` — the `[REQ:ID]` tagging mechanics per language and the validation-ref formats (`path/file.go::TestName`).
-- `path:scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md` — the PRD shape; operational targets (`OT-P0-001 | Title | …`) are the IDs `prd_ref` must match.
+- `path:scenarios/business-health/docs/reference/canonical-prd-template.md` — the PRD shape; operational targets (`OT-P0-001 | Title | …`) are the IDs `prd_ref` must match.
 
 Read first when present (prior findings — continue, don't restart):
 - `scenarios/{{TARGET}}/docs/internal/PROBLEMS.md` — deferred requirements work or a known-stale module.
@@ -26,7 +26,7 @@ Read first when present (prior findings — continue, don't restart):
 - recording deferred registry work in `docs/internal/PROBLEMS.md`.
 
 **Out of scope** (hand off):
-- authoring a brand-new PRD or renegotiating product scope → prd-control-tower flow (`vrooli scenario requirements lint-prd` tells you *what's unlinked*, not *what to build*).
+- authoring a brand-new PRD or renegotiating product scope → the business-health wizard flow (`business-health wizard`) (`vrooli scenario requirements validate` tells you *what's unlinked*, not *what to build*).
 - test quality / writing new test suites → the `test` skill; here you only **link** evidence that exists (write a test only when a P0 requirement has none at all).
 - the requirements **sync** machinery itself (test-genie internals) → never hand-edit sync snapshots or force sync to make statuses move.
 - CLI/API/manifest contract conformance → `cli-steer` / `api-steer`.
@@ -61,7 +61,7 @@ Walk this table **after any change to `{{TARGET}}`**; it is the per-change refle
 
 | You changed… | Check… |
 |---|---|
-| Added a new capability / endpoint / command | Does an operational target + requirement for it exist? If not, draft the requirement now and link `prd_ref` (add the OT via the prd-control-tower flow if the PRD predates the capability). |
+| Added a new capability / endpoint / command | Does an operational target + requirement for it exist? If not, draft the requirement now and link `prd_ref` (add the OT line to PRD.md, or extend it via the business-health wizard, if the PRD predates the capability). |
 | Changed existing behavior | Which requirement described the old behavior? Its description, validation refs, or status is now wrong — fix whichever side is the lie (§4 ban #2 decides how). |
 | Removed behavior | The requirement that claimed it: mark `not_implemented` or delete it (and its PRD checkbox), don't leave a passing-looking ghost. |
 | Added a test | Tag it `[REQ:ID]` and add/confirm the `validation[]` ref pointing at it — an untagged test is invisible to sync. |
@@ -102,7 +102,7 @@ You **may**: edit `scenarios/{{TARGET}}/requirements/*.json` (descriptions, refs
 
 You **must**: keep every requirement a falsifiable behavioral claim; keep validation refs resolvable; run the §5 gate before claiming done.
 
-You **must NOT**: hand-edit sync snapshots or `coverage/` artifacts; force requirements sync (`TESTING_REQUIREMENTS_SYNC_FORCE`) to move statuses; restructure the PRD outside the operational-targets section (prd-control-tower owns the document shape); create standalone `*_AUDIT.md` reports — findings go in durable docs.
+You **must NOT**: hand-edit sync snapshots or `coverage/` artifacts; force requirements sync (`TESTING_REQUIREMENTS_SYNC_FORCE`) to move statuses; restructure the PRD outside the operational-targets section (business-health owns the document shape — `canonical-prd-template.md`); create standalone `*_AUDIT.md` reports — findings go in durable docs.
 
 ---
 
@@ -112,4 +112,4 @@ You **must NOT**: hand-edit sync snapshots or `coverage/` artifacts; force requi
 - **`business_prd_ref_unmatched` but the target looks right.** The producer matches literal `OT-…` tokens in PRD.md; a reformatted or renamed target breaks the match. Fix the ref or the PRD line — exact ID match, no fuzz.
 - **Statuses won't move after fixing refs.** Sync only runs on full (comprehensive) suite runs with no skipped required phases — `test-genie execute {{TARGET}}` (no phase filter) and check `vrooli scenario requirements snapshot {{TARGET}}` afterward. Quick/smoke runs validate but never write.
 - **A requirement is real but genuinely can't have an automated validation** (e.g. a manual ops procedure). Use a `manual` validation type with `vrooli scenario requirements manual-log` evidence instead of leaving `validation[]` empty.
-- **No PRD.md at all.** The prd_ref check skips silently; the scenario needs the prd-control-tower flow first — record that in `PROBLEMS.md` and stop at L2.
+- **No PRD.md at all.** The prd_ref check skips silently; the scenario needs a PRD first — drive `business-health wizard` — record that in `PROBLEMS.md` and stop at L2.

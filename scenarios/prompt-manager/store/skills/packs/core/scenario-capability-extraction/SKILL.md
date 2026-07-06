@@ -170,7 +170,7 @@ Pick one or more UI archetypes. The selected archetypes become product scope and
 **Entry criteria:** Target scenario exists and extraction context is wired into orientation.
 
 **Actions:**
-1. Use `prd-control-tower` preserve-first workflow from `scenario-generation`.
+1. Use the preserve-first PRD + requirements workflow from `scenario-generation` (validate/fix a preserved baseline, or author with the business-health wizard).
 2. Generate or update PRD context from the extraction dossier:
    - permanent capability,
    - primary users/operators/consumer scenarios,
@@ -222,8 +222,7 @@ Pick one or more UI archetypes. The selected archetypes become product scope and
 1. Run relevant checks:
    - `vrooli scenario orient <scenario-id>` while orientation is active,
    - `make test` from the scenario once implementation begins,
-   - `prd-control-tower prd validate <scenario-id> --json`,
-   - `prd-control-tower requirements validate <scenario-id> --json`.
+   - `vrooli scenario requirements validate <scenario-id> --json` (one command covers PRD linkage + requirements registry).
 2. Check the extraction contract:
    - dossier exists and is registered,
    - START-HERE references it,
