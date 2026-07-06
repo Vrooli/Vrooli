@@ -76,6 +76,33 @@ skill)" beats "modernize the API layer".
 
 ---
 
+## 1.5.0 — 2026-07-05
+
+Seeds generated UI scenarios with a first-class experience contract so the
+experience phase can validate UX intent from birth.
+
+### Added
+- `experience/` with an L0 `scenario-experience-spec/v1` registry and page
+  specs for the generated dashboard, notes example, and settings routes.
+- `experience-contract` orientation step requiring the generated experience
+  registry and dashboard page spec to exist.
+- Generated-scenario guidance in `README.md`, `docs/START-HERE.md`, and
+  `docs/concepts/UI-ARCHITECTURE.md` for growing the L0 scaffold into
+  priorities, claims, bindings, states, and journeys.
+
+### Changed
+- `vrooli scenario detemplate <scenario>` now removes the notes page spec and
+  prunes its registry entry with the rest of the notes example domain.
+
+### Migration (for agents updating older scenarios)
+- [ ] Add an `experience/` folder with `index.json`, `README.md`, and one
+      `pages/<page>.json` L0 spec per real UI route.
+- [ ] Run `experience-manager spec validate <scenario> --json`; fix any
+      route, PRD reference, or registry parity findings before adding claims.
+- [ ] If the scenario still carries the notes example, ensure detemplate removes
+      `experience/pages/notes.json` and the `notes` registry entry.
+- [ ] Update `.vrooli/service.json::generation.template.version` to `1.5.0`.
+
 ## 1.2.0 — 2026-06-17
 
 Makes the `notes` example domain mechanically removable and its removal

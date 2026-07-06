@@ -304,6 +304,45 @@ settings surface covers everything this scenario actually needs, and
 the global styles, Tailwind theme, primitives, selectors, and
 accessibility tests all point back to the design contract.
 
+### Gate 5a — Experience Contract
+
+Generation also installs an L0 `experience/` folder. Treat it as the
+UX-intent contract for the generated route table, parallel to
+`requirements/`:
+
+- `requirements/` says what the scenario does.
+- `experience/` says what the UI communicates and how evidence will
+  prove it.
+
+The generated specs intentionally start at L0: page identity, route,
+purpose, and PRD target references. Raise them only as the product
+becomes real:
+
+- [ ] Keep `experience/index.json` in parity with real routes. Add one
+      `experience/pages/<page>.json` file per route that should be
+      visible to users; remove placeholder/example route specs when
+      the route is removed.
+- [ ] Add communication priorities before implementing a page's final
+      layout. If everything is a priority, nothing is.
+- [ ] Add `elements`, `claims`, and `bindings` when the UI has stable
+      accessible roles/names and `data-testid` selectors.
+- [ ] Add explicit `states` for loading, empty, partial, stale, errors,
+      and scenario-specific modes that users can perceive.
+- [ ] Keep machine-tier claims deterministic. Use manual claims for
+      human-reviewed evidence with expiry and aspirational claims for
+      intent that the validator cannot check yet.
+- [ ] Validate after every meaningful edit:
+      `experience-manager spec validate {{SCENARIO_ID}} --json`.
+
+The notes page spec is part of the removable example domain. When you
+run `vrooli scenario detemplate {{SCENARIO_ID}}`, the notes page spec
+and its registry entry should disappear with the notes UI/API/CLI
+example.
+
+**Exit criteria:** every real route has at least an L0 page spec, the
+registry has no stale route references, and `experience-manager spec
+validate {{SCENARIO_ID}} --json` passes.
+
 ### Gate 5b — Business And Operations Stubs
 
 These documents start as stubs. Review them early so missing business,

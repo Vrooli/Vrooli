@@ -8,20 +8,28 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class RouteCandidate(_message.Message):
-    __slots__ = ("provider", "role", "locality", "selected", "reasons", "fallback_eligible")
+    __slots__ = ("provider", "role", "locality", "selected", "reasons", "fallback_eligible", "breaker_state", "half_open_probe", "rejection_reason", "capacity_verdict")
     PROVIDER_FIELD_NUMBER: _ClassVar[int]
     ROLE_FIELD_NUMBER: _ClassVar[int]
     LOCALITY_FIELD_NUMBER: _ClassVar[int]
     SELECTED_FIELD_NUMBER: _ClassVar[int]
     REASONS_FIELD_NUMBER: _ClassVar[int]
     FALLBACK_ELIGIBLE_FIELD_NUMBER: _ClassVar[int]
+    BREAKER_STATE_FIELD_NUMBER: _ClassVar[int]
+    HALF_OPEN_PROBE_FIELD_NUMBER: _ClassVar[int]
+    REJECTION_REASON_FIELD_NUMBER: _ClassVar[int]
+    CAPACITY_VERDICT_FIELD_NUMBER: _ClassVar[int]
     provider: str
     role: str
     locality: str
     selected: bool
     reasons: _containers.RepeatedScalarFieldContainer[str]
     fallback_eligible: bool
-    def __init__(self, provider: _Optional[str] = ..., role: _Optional[str] = ..., locality: _Optional[str] = ..., selected: _Optional[bool] = ..., reasons: _Optional[_Iterable[str]] = ..., fallback_eligible: _Optional[bool] = ...) -> None: ...
+    breaker_state: str
+    half_open_probe: bool
+    rejection_reason: str
+    capacity_verdict: str
+    def __init__(self, provider: _Optional[str] = ..., role: _Optional[str] = ..., locality: _Optional[str] = ..., selected: _Optional[bool] = ..., reasons: _Optional[_Iterable[str]] = ..., fallback_eligible: _Optional[bool] = ..., breaker_state: _Optional[str] = ..., half_open_probe: _Optional[bool] = ..., rejection_reason: _Optional[str] = ..., capacity_verdict: _Optional[str] = ...) -> None: ...
 
 class PreviewRouteRequest(_message.Message):
     __slots__ = ("request",)
@@ -56,7 +64,7 @@ class ExecuteRouteRequest(_message.Message):
     def __init__(self, request: _Optional[_Union[_gateway_pb2.GatewayRequest, _Mapping]] = ..., input_text: _Optional[str] = ...) -> None: ...
 
 class RouteEvidence(_message.Message):
-    __slots__ = ("event_id", "request_id", "scenario", "operation", "role", "profile", "privacy_class", "selected_provider", "selected_locality", "status", "policy_reasons", "failure_reasons", "fallback_used", "prompt_redacted", "response_redacted", "latency_ms", "created_at")
+    __slots__ = ("event_id", "request_id", "scenario", "operation", "role", "profile", "privacy_class", "selected_provider", "selected_locality", "status", "policy_reasons", "failure_reasons", "fallback_used", "prompt_redacted", "response_redacted", "latency_ms", "created_at", "breaker_state", "failure_class", "rejection_reason", "capacity_verdict", "capacity_claim_id", "capacity_required_bytes", "capacity_granted_bytes", "capacity_reclaim_required", "input_tokens", "output_tokens", "cost_estimate", "selected_model")
     EVENT_ID_FIELD_NUMBER: _ClassVar[int]
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
@@ -74,6 +82,18 @@ class RouteEvidence(_message.Message):
     RESPONSE_REDACTED_FIELD_NUMBER: _ClassVar[int]
     LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    BREAKER_STATE_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_CLASS_FIELD_NUMBER: _ClassVar[int]
+    REJECTION_REASON_FIELD_NUMBER: _ClassVar[int]
+    CAPACITY_VERDICT_FIELD_NUMBER: _ClassVar[int]
+    CAPACITY_CLAIM_ID_FIELD_NUMBER: _ClassVar[int]
+    CAPACITY_REQUIRED_BYTES_FIELD_NUMBER: _ClassVar[int]
+    CAPACITY_GRANTED_BYTES_FIELD_NUMBER: _ClassVar[int]
+    CAPACITY_RECLAIM_REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    INPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    COST_ESTIMATE_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_MODEL_FIELD_NUMBER: _ClassVar[int]
     event_id: str
     request_id: str
     scenario: str
@@ -91,7 +111,19 @@ class RouteEvidence(_message.Message):
     response_redacted: bool
     latency_ms: int
     created_at: str
-    def __init__(self, event_id: _Optional[str] = ..., request_id: _Optional[str] = ..., scenario: _Optional[str] = ..., operation: _Optional[str] = ..., role: _Optional[str] = ..., profile: _Optional[_Union[_gateway_pb2.Profile, str]] = ..., privacy_class: _Optional[_Union[_gateway_pb2.PrivacyClass, str]] = ..., selected_provider: _Optional[str] = ..., selected_locality: _Optional[str] = ..., status: _Optional[str] = ..., policy_reasons: _Optional[_Iterable[str]] = ..., failure_reasons: _Optional[_Iterable[str]] = ..., fallback_used: _Optional[bool] = ..., prompt_redacted: _Optional[bool] = ..., response_redacted: _Optional[bool] = ..., latency_ms: _Optional[int] = ..., created_at: _Optional[str] = ...) -> None: ...
+    breaker_state: str
+    failure_class: str
+    rejection_reason: str
+    capacity_verdict: str
+    capacity_claim_id: str
+    capacity_required_bytes: int
+    capacity_granted_bytes: int
+    capacity_reclaim_required: bool
+    input_tokens: int
+    output_tokens: int
+    cost_estimate: float
+    selected_model: str
+    def __init__(self, event_id: _Optional[str] = ..., request_id: _Optional[str] = ..., scenario: _Optional[str] = ..., operation: _Optional[str] = ..., role: _Optional[str] = ..., profile: _Optional[_Union[_gateway_pb2.Profile, str]] = ..., privacy_class: _Optional[_Union[_gateway_pb2.PrivacyClass, str]] = ..., selected_provider: _Optional[str] = ..., selected_locality: _Optional[str] = ..., status: _Optional[str] = ..., policy_reasons: _Optional[_Iterable[str]] = ..., failure_reasons: _Optional[_Iterable[str]] = ..., fallback_used: _Optional[bool] = ..., prompt_redacted: _Optional[bool] = ..., response_redacted: _Optional[bool] = ..., latency_ms: _Optional[int] = ..., created_at: _Optional[str] = ..., breaker_state: _Optional[str] = ..., failure_class: _Optional[str] = ..., rejection_reason: _Optional[str] = ..., capacity_verdict: _Optional[str] = ..., capacity_claim_id: _Optional[str] = ..., capacity_required_bytes: _Optional[int] = ..., capacity_granted_bytes: _Optional[int] = ..., capacity_reclaim_required: _Optional[bool] = ..., input_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ..., cost_estimate: _Optional[float] = ..., selected_model: _Optional[str] = ...) -> None: ...
 
 class ExecuteRouteResponse(_message.Message):
     __slots__ = ("valid", "issues", "evidence", "output_text", "policy_reasons")

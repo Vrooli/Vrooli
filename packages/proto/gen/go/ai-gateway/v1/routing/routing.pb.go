@@ -30,8 +30,24 @@ type RouteCandidate struct {
 	Selected         bool                   `protobuf:"varint,4,opt,name=selected,proto3" json:"selected,omitempty"`
 	Reasons          []string               `protobuf:"bytes,5,rep,name=reasons,proto3" json:"reasons,omitempty"`
 	FallbackEligible bool                   `protobuf:"varint,6,opt,name=fallback_eligible,json=fallbackEligible,proto3" json:"fallback_eligible,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// breaker_state is the effective provider-health circuit-breaker state for
+	// this candidate at preview/execution time: "closed", "open", "half_open",
+	// or "" when provider health tracking is disabled.
+	BreakerState string `protobuf:"bytes,7,opt,name=breaker_state,json=breakerState,proto3" json:"breaker_state,omitempty"`
+	// half_open_probe is true when the candidate is only eligible as a bounded
+	// half-open recovery probe because its breaker cooldown has elapsed.
+	HalfOpenProbe bool `protobuf:"varint,8,opt,name=half_open_probe,json=halfOpenProbe,proto3" json:"half_open_probe,omitempty"`
+	// rejection_reason is a stable machine-readable code when this candidate was
+	// rejected (e.g. "role_not_exposed", "capability_mismatch",
+	// "locality_forbidden", "provider_breaker_open", "insufficient_capacity"),
+	// or "" when the candidate is eligible.
+	RejectionReason string `protobuf:"bytes,9,opt,name=rejection_reason,json=rejectionReason,proto3" json:"rejection_reason,omitempty"`
+	// capacity_verdict is the local capacity-broker verdict for a local candidate
+	// ("fit", "insufficient_capacity", "unknown_capacity", "reclaim_required",
+	// "advisory_reclaim_unavailable"), or "" when capacity was not evaluated.
+	CapacityVerdict string `protobuf:"bytes,10,opt,name=capacity_verdict,json=capacityVerdict,proto3" json:"capacity_verdict,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *RouteCandidate) Reset() {
@@ -104,6 +120,34 @@ func (x *RouteCandidate) GetFallbackEligible() bool {
 		return x.FallbackEligible
 	}
 	return false
+}
+
+func (x *RouteCandidate) GetBreakerState() string {
+	if x != nil {
+		return x.BreakerState
+	}
+	return ""
+}
+
+func (x *RouteCandidate) GetHalfOpenProbe() bool {
+	if x != nil {
+		return x.HalfOpenProbe
+	}
+	return false
+}
+
+func (x *RouteCandidate) GetRejectionReason() string {
+	if x != nil {
+		return x.RejectionReason
+	}
+	return ""
+}
+
+func (x *RouteCandidate) GetCapacityVerdict() string {
+	if x != nil {
+		return x.CapacityVerdict
+	}
+	return ""
 }
 
 type PreviewRouteRequest struct {
@@ -313,8 +357,41 @@ type RouteEvidence struct {
 	ResponseRedacted bool                   `protobuf:"varint,15,opt,name=response_redacted,json=responseRedacted,proto3" json:"response_redacted,omitempty"`
 	LatencyMs        int64                  `protobuf:"varint,16,opt,name=latency_ms,json=latencyMs,proto3" json:"latency_ms,omitempty"`
 	CreatedAt        string                 `protobuf:"bytes,17,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// breaker_state is the effective provider circuit-breaker state of the
+	// selected/attempted provider at execution time: "closed", "half_open", or ""
+	// when health tracking is disabled.
+	BreakerState string `protobuf:"bytes,18,opt,name=breaker_state,json=breakerState,proto3" json:"breaker_state,omitempty"`
+	// failure_class is the stable class of the dominant provider failure when
+	// status is "failed" (see FLOWS breaker state model), or "" otherwise.
+	FailureClass string `protobuf:"bytes,19,opt,name=failure_class,json=failureClass,proto3" json:"failure_class,omitempty"`
+	// rejection_reason is a stable code explaining a blocked route (e.g.
+	// "no_eligible_route", "provider_breaker_open", "insufficient_capacity"), or
+	// "" when a provider was selected.
+	RejectionReason string `protobuf:"bytes,20,opt,name=rejection_reason,json=rejectionReason,proto3" json:"rejection_reason,omitempty"`
+	// capacity_verdict is the local capacity-broker verdict for the selected
+	// local route (populated from the capacity-aware routing phase), or "".
+	CapacityVerdict string `protobuf:"bytes,21,opt,name=capacity_verdict,json=capacityVerdict,proto3" json:"capacity_verdict,omitempty"`
+	// capacity_claim_id identifies an acquired operation-scoped capacity claim so
+	// release/audit can be correlated; "" when no claim was acquired.
+	CapacityClaimId string `protobuf:"bytes,22,opt,name=capacity_claim_id,json=capacityClaimId,proto3" json:"capacity_claim_id,omitempty"`
+	// capacity_required_bytes / capacity_granted_bytes record the footprint the
+	// route needed and what the broker granted; 0 when capacity was not consulted.
+	CapacityRequiredBytes int64 `protobuf:"varint,23,opt,name=capacity_required_bytes,json=capacityRequiredBytes,proto3" json:"capacity_required_bytes,omitempty"`
+	CapacityGrantedBytes  int64 `protobuf:"varint,24,opt,name=capacity_granted_bytes,json=capacityGrantedBytes,proto3" json:"capacity_granted_bytes,omitempty"`
+	// capacity_reclaim_required is true when admitting the route would have needed
+	// the broker to reclaim capacity from other holders.
+	CapacityReclaimRequired bool `protobuf:"varint,25,opt,name=capacity_reclaim_required,json=capacityReclaimRequired,proto3" json:"capacity_reclaim_required,omitempty"`
+	// input_tokens / output_tokens / cost_estimate carry provider-reported usage
+	// when the resource surfaces it; 0 when unavailable. cost_estimate is in the
+	// resource's reported currency units and stays 0 for local providers.
+	InputTokens  int64   `protobuf:"varint,26,opt,name=input_tokens,json=inputTokens,proto3" json:"input_tokens,omitempty"`
+	OutputTokens int64   `protobuf:"varint,27,opt,name=output_tokens,json=outputTokens,proto3" json:"output_tokens,omitempty"`
+	CostEstimate float64 `protobuf:"fixed64,28,opt,name=cost_estimate,json=costEstimate,proto3" json:"cost_estimate,omitempty"`
+	// selected_model is the concrete model the resource resolved for this route
+	// when it reports one; "" keeps AI Gateway from inventing provider truth.
+	SelectedModel string `protobuf:"bytes,29,opt,name=selected_model,json=selectedModel,proto3" json:"selected_model,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RouteEvidence) Reset() {
@@ -462,6 +539,90 @@ func (x *RouteEvidence) GetLatencyMs() int64 {
 func (x *RouteEvidence) GetCreatedAt() string {
 	if x != nil {
 		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *RouteEvidence) GetBreakerState() string {
+	if x != nil {
+		return x.BreakerState
+	}
+	return ""
+}
+
+func (x *RouteEvidence) GetFailureClass() string {
+	if x != nil {
+		return x.FailureClass
+	}
+	return ""
+}
+
+func (x *RouteEvidence) GetRejectionReason() string {
+	if x != nil {
+		return x.RejectionReason
+	}
+	return ""
+}
+
+func (x *RouteEvidence) GetCapacityVerdict() string {
+	if x != nil {
+		return x.CapacityVerdict
+	}
+	return ""
+}
+
+func (x *RouteEvidence) GetCapacityClaimId() string {
+	if x != nil {
+		return x.CapacityClaimId
+	}
+	return ""
+}
+
+func (x *RouteEvidence) GetCapacityRequiredBytes() int64 {
+	if x != nil {
+		return x.CapacityRequiredBytes
+	}
+	return 0
+}
+
+func (x *RouteEvidence) GetCapacityGrantedBytes() int64 {
+	if x != nil {
+		return x.CapacityGrantedBytes
+	}
+	return 0
+}
+
+func (x *RouteEvidence) GetCapacityReclaimRequired() bool {
+	if x != nil {
+		return x.CapacityReclaimRequired
+	}
+	return false
+}
+
+func (x *RouteEvidence) GetInputTokens() int64 {
+	if x != nil {
+		return x.InputTokens
+	}
+	return 0
+}
+
+func (x *RouteEvidence) GetOutputTokens() int64 {
+	if x != nil {
+		return x.OutputTokens
+	}
+	return 0
+}
+
+func (x *RouteEvidence) GetCostEstimate() float64 {
+	if x != nil {
+		return x.CostEstimate
+	}
+	return 0
+}
+
+func (x *RouteEvidence) GetSelectedModel() string {
+	if x != nil {
+		return x.SelectedModel
 	}
 	return ""
 }
@@ -730,14 +891,19 @@ var File_ai_gateway_v1_routing_routing_proto protoreflect.FileDescriptor
 
 const file_ai_gateway_v1_routing_routing_proto_rawDesc = "" +
 	"\n" +
-	"#ai-gateway/v1/routing/routing.proto\x12\x1cvrooli.ai_gateway.v1.routing\x1a\"ai-gateway/v1/shared/gateway.proto\"\xbf\x01\n" +
+	"#ai-gateway/v1/routing/routing.proto\x12\x1cvrooli.ai_gateway.v1.routing\x1a\"ai-gateway/v1/shared/gateway.proto\"\xe2\x02\n" +
 	"\x0eRouteCandidate\x12\x1a\n" +
 	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x12\n" +
 	"\x04role\x18\x02 \x01(\tR\x04role\x12\x1a\n" +
 	"\blocality\x18\x03 \x01(\tR\blocality\x12\x1a\n" +
 	"\bselected\x18\x04 \x01(\bR\bselected\x12\x18\n" +
 	"\areasons\x18\x05 \x03(\tR\areasons\x12+\n" +
-	"\x11fallback_eligible\x18\x06 \x01(\bR\x10fallbackEligible\"\\\n" +
+	"\x11fallback_eligible\x18\x06 \x01(\bR\x10fallbackEligible\x12#\n" +
+	"\rbreaker_state\x18\a \x01(\tR\fbreakerState\x12&\n" +
+	"\x0fhalf_open_probe\x18\b \x01(\bR\rhalfOpenProbe\x12)\n" +
+	"\x10rejection_reason\x18\t \x01(\tR\x0frejectionReason\x12)\n" +
+	"\x10capacity_verdict\x18\n" +
+	" \x01(\tR\x0fcapacityVerdict\"\\\n" +
 	"\x13PreviewRouteRequest\x12E\n" +
 	"\arequest\x18\x01 \x01(\v2+.vrooli.ai_gateway.v1.shared.GatewayRequestR\arequest\"\xe3\x02\n" +
 	"\x14PreviewRouteResponse\x12\x14\n" +
@@ -753,7 +919,7 @@ const file_ai_gateway_v1_routing_routing_proto_rawDesc = "" +
 	"\x13ExecuteRouteRequest\x12E\n" +
 	"\arequest\x18\x01 \x01(\v2+.vrooli.ai_gateway.v1.shared.GatewayRequestR\arequest\x12\x1d\n" +
 	"\n" +
-	"input_text\x18\x02 \x01(\tR\tinputText\"\xa2\x05\n" +
+	"input_text\x18\x02 \x01(\tR\tinputText\"\xac\t\n" +
 	"\rRouteEvidence\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1d\n" +
 	"\n" +
@@ -775,7 +941,19 @@ const file_ai_gateway_v1_routing_routing_proto_rawDesc = "" +
 	"\n" +
 	"latency_ms\x18\x10 \x01(\x03R\tlatencyMs\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x11 \x01(\tR\tcreatedAt\"\x83\x02\n" +
+	"created_at\x18\x11 \x01(\tR\tcreatedAt\x12#\n" +
+	"\rbreaker_state\x18\x12 \x01(\tR\fbreakerState\x12#\n" +
+	"\rfailure_class\x18\x13 \x01(\tR\ffailureClass\x12)\n" +
+	"\x10rejection_reason\x18\x14 \x01(\tR\x0frejectionReason\x12)\n" +
+	"\x10capacity_verdict\x18\x15 \x01(\tR\x0fcapacityVerdict\x12*\n" +
+	"\x11capacity_claim_id\x18\x16 \x01(\tR\x0fcapacityClaimId\x126\n" +
+	"\x17capacity_required_bytes\x18\x17 \x01(\x03R\x15capacityRequiredBytes\x124\n" +
+	"\x16capacity_granted_bytes\x18\x18 \x01(\x03R\x14capacityGrantedBytes\x12:\n" +
+	"\x19capacity_reclaim_required\x18\x19 \x01(\bR\x17capacityReclaimRequired\x12!\n" +
+	"\finput_tokens\x18\x1a \x01(\x03R\vinputTokens\x12#\n" +
+	"\routput_tokens\x18\x1b \x01(\x03R\foutputTokens\x12#\n" +
+	"\rcost_estimate\x18\x1c \x01(\x01R\fcostEstimate\x12%\n" +
+	"\x0eselected_model\x18\x1d \x01(\tR\rselectedModel\"\x83\x02\n" +
 	"\x14ExecuteRouteResponse\x12\x14\n" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x12D\n" +
 	"\x06issues\x18\x02 \x03(\v2,.vrooli.ai_gateway.v1.shared.ValidationIssueR\x06issues\x12G\n" +

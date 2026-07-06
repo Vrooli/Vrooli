@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ai-gateway/v1/routing/routing.proto.
  */
 export const file_ai_gateway_v1_routing_routing: GenFile = /*@__PURE__*/
-  fileDesc("CiNhaS1nYXRld2F5L3YxL3JvdXRpbmcvcm91dGluZy5wcm90bxIcdnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZyKAAQoOUm91dGVDYW5kaWRhdGUSEAoIcHJvdmlkZXIYASABKAkSDAoEcm9sZRgCIAEoCRIQCghsb2NhbGl0eRgDIAEoCRIQCghzZWxlY3RlZBgEIAEoCBIPCgdyZWFzb25zGAUgAygJEhkKEWZhbGxiYWNrX2VsaWdpYmxlGAYgASgIIlMKE1ByZXZpZXdSb3V0ZVJlcXVlc3QSPAoHcmVxdWVzdBgBIAEoCzIrLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5HYXRld2F5UmVxdWVzdCKJAgoUUHJldmlld1JvdXRlUmVzcG9uc2USDQoFdmFsaWQYASABKAgSPAoGaXNzdWVzGAIgAygLMiwudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlZhbGlkYXRpb25Jc3N1ZRJACgpjYW5kaWRhdGVzGAMgAygLMiwudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5Sb3V0ZUNhbmRpZGF0ZRIZChFzZWxlY3RlZF9wcm92aWRlchgEIAEoCRIWCg5wb2xpY3lfcmVhc29ucxgFIAMoCRIYChBmYWxsYmFja19hbGxvd2VkGAYgASgIEhUKDXJvdXRlX3BsYW5faWQYByABKAkiZwoTRXhlY3V0ZVJvdXRlUmVxdWVzdBI8CgdyZXF1ZXN0GAEgASgLMisudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLkdhdGV3YXlSZXF1ZXN0EhIKCmlucHV0X3RleHQYAiABKAkiywMKDVJvdXRlRXZpZGVuY2USEAoIZXZlbnRfaWQYASABKAkSEgoKcmVxdWVzdF9pZBgCIAEoCRIQCghzY2VuYXJpbxgDIAEoCRIRCglvcGVyYXRpb24YBCABKAkSDAoEcm9sZRgFIAEoCRI1Cgdwcm9maWxlGAYgASgOMiQudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlByb2ZpbGUSQAoNcHJpdmFjeV9jbGFzcxgHIAEoDjIpLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5Qcml2YWN5Q2xhc3MSGQoRc2VsZWN0ZWRfcHJvdmlkZXIYCCABKAkSGQoRc2VsZWN0ZWRfbG9jYWxpdHkYCSABKAkSDgoGc3RhdHVzGAogASgJEhYKDnBvbGljeV9yZWFzb25zGAsgAygJEhcKD2ZhaWx1cmVfcmVhc29ucxgMIAMoCRIVCg1mYWxsYmFja191c2VkGA0gASgIEhcKD3Byb21wdF9yZWRhY3RlZBgOIAEoCBIZChFyZXNwb25zZV9yZWRhY3RlZBgPIAEoCBISCgpsYXRlbmN5X21zGBAgASgDEhIKCmNyZWF0ZWRfYXQYESABKAkizwEKFEV4ZWN1dGVSb3V0ZVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEjwKBmlzc3VlcxgCIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5WYWxpZGF0aW9uSXNzdWUSPQoIZXZpZGVuY2UYAyABKAsyKy52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLlJvdXRlRXZpZGVuY2USEwoLb3V0cHV0X3RleHQYBCABKAkSFgoOcG9saWN5X3JlYXNvbnMYBSADKAkiOwoYTGlzdFJvdXRlRXZpZGVuY2VSZXF1ZXN0Eg0KBWxpbWl0GAEgASgFEhAKCHNjZW5hcmlvGAIgASgJIlgKGUxpc3RSb3V0ZUV2aWRlbmNlUmVzcG9uc2USOwoGZXZlbnRzGAEgAygLMisudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5Sb3V0ZUV2aWRlbmNlIisKF0dldFJvdXRlRXZpZGVuY2VSZXF1ZXN0EhAKCGV2ZW50X2lkGAEgASgJIlYKGEdldFJvdXRlRXZpZGVuY2VSZXNwb25zZRI6CgVldmVudBgBIAEoCzIrLnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuUm91dGVFdmlkZW5jZTKJBAoOUm91dGluZ1NlcnZpY2USdQoMUHJldmlld1JvdXRlEjEudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5QcmV2aWV3Um91dGVSZXF1ZXN0GjIudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5QcmV2aWV3Um91dGVSZXNwb25zZRJ1CgxFeGVjdXRlUm91dGUSMS52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLkV4ZWN1dGVSb3V0ZVJlcXVlc3QaMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLkV4ZWN1dGVSb3V0ZVJlc3BvbnNlEoQBChFMaXN0Um91dGVFdmlkZW5jZRI2LnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuTGlzdFJvdXRlRXZpZGVuY2VSZXF1ZXN0GjcudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5MaXN0Um91dGVFdmlkZW5jZVJlc3BvbnNlEoEBChBHZXRSb3V0ZUV2aWRlbmNlEjUudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5HZXRSb3V0ZUV2aWRlbmNlUmVxdWVzdBo2LnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuR2V0Um91dGVFdmlkZW5jZVJlc3BvbnNlQlFaT2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYWktZ2F0ZXdheS92MS9yb3V0aW5nO3JvdXRpbmdfdjFiBnByb3RvMw", [file_ai_gateway_v1_shared_gateway]);
+  fileDesc("CiNhaS1nYXRld2F5L3YxL3JvdXRpbmcvcm91dGluZy5wcm90bxIcdnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZyLkAQoOUm91dGVDYW5kaWRhdGUSEAoIcHJvdmlkZXIYASABKAkSDAoEcm9sZRgCIAEoCRIQCghsb2NhbGl0eRgDIAEoCRIQCghzZWxlY3RlZBgEIAEoCBIPCgdyZWFzb25zGAUgAygJEhkKEWZhbGxiYWNrX2VsaWdpYmxlGAYgASgIEhUKDWJyZWFrZXJfc3RhdGUYByABKAkSFwoPaGFsZl9vcGVuX3Byb2JlGAggASgIEhgKEHJlamVjdGlvbl9yZWFzb24YCSABKAkSGAoQY2FwYWNpdHlfdmVyZGljdBgKIAEoCSJTChNQcmV2aWV3Um91dGVSZXF1ZXN0EjwKB3JlcXVlc3QYASABKAsyKy52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuR2F0ZXdheVJlcXVlc3QiiQIKFFByZXZpZXdSb3V0ZVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEjwKBmlzc3VlcxgCIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5WYWxpZGF0aW9uSXNzdWUSQAoKY2FuZGlkYXRlcxgDIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuUm91dGVDYW5kaWRhdGUSGQoRc2VsZWN0ZWRfcHJvdmlkZXIYBCABKAkSFgoOcG9saWN5X3JlYXNvbnMYBSADKAkSGAoQZmFsbGJhY2tfYWxsb3dlZBgGIAEoCBIVCg1yb3V0ZV9wbGFuX2lkGAcgASgJImcKE0V4ZWN1dGVSb3V0ZVJlcXVlc3QSPAoHcmVxdWVzdBgBIAEoCzIrLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5HYXRld2F5UmVxdWVzdBISCgppbnB1dF90ZXh0GAIgASgJIogGCg1Sb3V0ZUV2aWRlbmNlEhAKCGV2ZW50X2lkGAEgASgJEhIKCnJlcXVlc3RfaWQYAiABKAkSEAoIc2NlbmFyaW8YAyABKAkSEQoJb3BlcmF0aW9uGAQgASgJEgwKBHJvbGUYBSABKAkSNQoHcHJvZmlsZRgGIAEoDjIkLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5Qcm9maWxlEkAKDXByaXZhY3lfY2xhc3MYByABKA4yKS52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuUHJpdmFjeUNsYXNzEhkKEXNlbGVjdGVkX3Byb3ZpZGVyGAggASgJEhkKEXNlbGVjdGVkX2xvY2FsaXR5GAkgASgJEg4KBnN0YXR1cxgKIAEoCRIWCg5wb2xpY3lfcmVhc29ucxgLIAMoCRIXCg9mYWlsdXJlX3JlYXNvbnMYDCADKAkSFQoNZmFsbGJhY2tfdXNlZBgNIAEoCBIXCg9wcm9tcHRfcmVkYWN0ZWQYDiABKAgSGQoRcmVzcG9uc2VfcmVkYWN0ZWQYDyABKAgSEgoKbGF0ZW5jeV9tcxgQIAEoAxISCgpjcmVhdGVkX2F0GBEgASgJEhUKDWJyZWFrZXJfc3RhdGUYEiABKAkSFQoNZmFpbHVyZV9jbGFzcxgTIAEoCRIYChByZWplY3Rpb25fcmVhc29uGBQgASgJEhgKEGNhcGFjaXR5X3ZlcmRpY3QYFSABKAkSGQoRY2FwYWNpdHlfY2xhaW1faWQYFiABKAkSHwoXY2FwYWNpdHlfcmVxdWlyZWRfYnl0ZXMYFyABKAMSHgoWY2FwYWNpdHlfZ3JhbnRlZF9ieXRlcxgYIAEoAxIhChljYXBhY2l0eV9yZWNsYWltX3JlcXVpcmVkGBkgASgIEhQKDGlucHV0X3Rva2VucxgaIAEoAxIVCg1vdXRwdXRfdG9rZW5zGBsgASgDEhUKDWNvc3RfZXN0aW1hdGUYHCABKAESFgoOc2VsZWN0ZWRfbW9kZWwYHSABKAkizwEKFEV4ZWN1dGVSb3V0ZVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEjwKBmlzc3VlcxgCIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5WYWxpZGF0aW9uSXNzdWUSPQoIZXZpZGVuY2UYAyABKAsyKy52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLlJvdXRlRXZpZGVuY2USEwoLb3V0cHV0X3RleHQYBCABKAkSFgoOcG9saWN5X3JlYXNvbnMYBSADKAkiOwoYTGlzdFJvdXRlRXZpZGVuY2VSZXF1ZXN0Eg0KBWxpbWl0GAEgASgFEhAKCHNjZW5hcmlvGAIgASgJIlgKGUxpc3RSb3V0ZUV2aWRlbmNlUmVzcG9uc2USOwoGZXZlbnRzGAEgAygLMisudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5Sb3V0ZUV2aWRlbmNlIisKF0dldFJvdXRlRXZpZGVuY2VSZXF1ZXN0EhAKCGV2ZW50X2lkGAEgASgJIlYKGEdldFJvdXRlRXZpZGVuY2VSZXNwb25zZRI6CgVldmVudBgBIAEoCzIrLnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuUm91dGVFdmlkZW5jZTKJBAoOUm91dGluZ1NlcnZpY2USdQoMUHJldmlld1JvdXRlEjEudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5QcmV2aWV3Um91dGVSZXF1ZXN0GjIudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5QcmV2aWV3Um91dGVSZXNwb25zZRJ1CgxFeGVjdXRlUm91dGUSMS52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLkV4ZWN1dGVSb3V0ZVJlcXVlc3QaMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLkV4ZWN1dGVSb3V0ZVJlc3BvbnNlEoQBChFMaXN0Um91dGVFdmlkZW5jZRI2LnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuTGlzdFJvdXRlRXZpZGVuY2VSZXF1ZXN0GjcudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5MaXN0Um91dGVFdmlkZW5jZVJlc3BvbnNlEoEBChBHZXRSb3V0ZUV2aWRlbmNlEjUudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5HZXRSb3V0ZUV2aWRlbmNlUmVxdWVzdBo2LnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuR2V0Um91dGVFdmlkZW5jZVJlc3BvbnNlQlFaT2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYWktZ2F0ZXdheS92MS9yb3V0aW5nO3JvdXRpbmdfdjFiBnByb3RvMw", [file_ai_gateway_v1_shared_gateway]);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.routing.RouteCandidate
@@ -47,6 +47,42 @@ export type RouteCandidate = Message<"vrooli.ai_gateway.v1.routing.RouteCandidat
    * @generated from field: bool fallback_eligible = 6;
    */
   fallbackEligible: boolean;
+
+  /**
+   * breaker_state is the effective provider-health circuit-breaker state for
+   * this candidate at preview/execution time: "closed", "open", "half_open",
+   * or "" when provider health tracking is disabled.
+   *
+   * @generated from field: string breaker_state = 7;
+   */
+  breakerState: string;
+
+  /**
+   * half_open_probe is true when the candidate is only eligible as a bounded
+   * half-open recovery probe because its breaker cooldown has elapsed.
+   *
+   * @generated from field: bool half_open_probe = 8;
+   */
+  halfOpenProbe: boolean;
+
+  /**
+   * rejection_reason is a stable machine-readable code when this candidate was
+   * rejected (e.g. "role_not_exposed", "capability_mismatch",
+   * "locality_forbidden", "provider_breaker_open", "insufficient_capacity"),
+   * or "" when the candidate is eligible.
+   *
+   * @generated from field: string rejection_reason = 9;
+   */
+  rejectionReason: string;
+
+  /**
+   * capacity_verdict is the local capacity-broker verdict for a local candidate
+   * ("fit", "insufficient_capacity", "unknown_capacity", "reclaim_required",
+   * "advisory_reclaim_unavailable"), or "" when capacity was not evaluated.
+   *
+   * @generated from field: string capacity_verdict = 10;
+   */
+  capacityVerdict: string;
 };
 
 /**
@@ -230,6 +266,96 @@ export type RouteEvidence = Message<"vrooli.ai_gateway.v1.routing.RouteEvidence"
    * @generated from field: string created_at = 17;
    */
   createdAt: string;
+
+  /**
+   * breaker_state is the effective provider circuit-breaker state of the
+   * selected/attempted provider at execution time: "closed", "half_open", or ""
+   * when health tracking is disabled.
+   *
+   * @generated from field: string breaker_state = 18;
+   */
+  breakerState: string;
+
+  /**
+   * failure_class is the stable class of the dominant provider failure when
+   * status is "failed" (see FLOWS breaker state model), or "" otherwise.
+   *
+   * @generated from field: string failure_class = 19;
+   */
+  failureClass: string;
+
+  /**
+   * rejection_reason is a stable code explaining a blocked route (e.g.
+   * "no_eligible_route", "provider_breaker_open", "insufficient_capacity"), or
+   * "" when a provider was selected.
+   *
+   * @generated from field: string rejection_reason = 20;
+   */
+  rejectionReason: string;
+
+  /**
+   * capacity_verdict is the local capacity-broker verdict for the selected
+   * local route (populated from the capacity-aware routing phase), or "".
+   *
+   * @generated from field: string capacity_verdict = 21;
+   */
+  capacityVerdict: string;
+
+  /**
+   * capacity_claim_id identifies an acquired operation-scoped capacity claim so
+   * release/audit can be correlated; "" when no claim was acquired.
+   *
+   * @generated from field: string capacity_claim_id = 22;
+   */
+  capacityClaimId: string;
+
+  /**
+   * capacity_required_bytes / capacity_granted_bytes record the footprint the
+   * route needed and what the broker granted; 0 when capacity was not consulted.
+   *
+   * @generated from field: int64 capacity_required_bytes = 23;
+   */
+  capacityRequiredBytes: bigint;
+
+  /**
+   * @generated from field: int64 capacity_granted_bytes = 24;
+   */
+  capacityGrantedBytes: bigint;
+
+  /**
+   * capacity_reclaim_required is true when admitting the route would have needed
+   * the broker to reclaim capacity from other holders.
+   *
+   * @generated from field: bool capacity_reclaim_required = 25;
+   */
+  capacityReclaimRequired: boolean;
+
+  /**
+   * input_tokens / output_tokens / cost_estimate carry provider-reported usage
+   * when the resource surfaces it; 0 when unavailable. cost_estimate is in the
+   * resource's reported currency units and stays 0 for local providers.
+   *
+   * @generated from field: int64 input_tokens = 26;
+   */
+  inputTokens: bigint;
+
+  /**
+   * @generated from field: int64 output_tokens = 27;
+   */
+  outputTokens: bigint;
+
+  /**
+   * @generated from field: double cost_estimate = 28;
+   */
+  costEstimate: number;
+
+  /**
+   * selected_model is the concrete model the resource resolved for this route
+   * when it reports one; "" keeps AI Gateway from inventing provider truth.
+   *
+   * @generated from field: string selected_model = 29;
+   */
+  selectedModel: string;
 };
 
 /**

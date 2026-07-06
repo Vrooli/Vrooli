@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "{{SCENARIO_ID}}",
+  "description": "Generated L0 experience contract for {{SCENARIO_DISPLAY_NAME}}. Replace these route identities with product-specific priorities, claims, bindings, states, and journeys as the UI becomes real.",
+  "pages": [
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "Dashboard",
+      "status": "draft"
+    },
+    {
+      "id": "notes",
+      "path": "pages/notes.json",
+      "title": "Notes",
+      "status": "draft"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "draft"
+    }
+  ],
+  "journeys": []
+}

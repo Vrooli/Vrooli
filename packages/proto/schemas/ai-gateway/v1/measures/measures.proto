@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package vrooli.ai_gateway.v1.measures;
+
+import "measures/v1/measures.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/measures;measures_v1";
+
+// =============================================================================
+// MEASURES DOMAIN — AI Gateway's declared analytical measures over route
+// evidence (the route_events table).
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain measures
+// @stability beta
+//
+// Each RPC answers ONE question-family about routing outcomes, parameterized by
+// the shared canonical vrooli.measures.v1.TimeWindow so natural-language date
+// extraction targets a typed, deterministically-resolvable field (no LLM). Every
+// method is read-only and run-eligible so search-hub may auto-execute it.
+//
+// The same compute path backs both these RPCs and the packages/measures-go serve
+// registry mounted at /measures, so a measure and its RPC can never report
+// different numbers. Values are real SQL aggregates over route_events (COUNT/SUM
+// over a [from, to) window), never a list-and-filter, and never read prompt or
+// response text. Measures are analytics only — they must not be turned into
+// hidden route scoring.
+
+// RouteMeasureRequest scopes a route measure to a time window. The shared
+// canonical TimeWindow makes this the `time_window` measure param: the manifest
+// annotates a `this_week` default and packages/measures-go resolves the token to
+// a concrete [from, to) range. An unset window resolves to the manifest default.
+message RouteMeasureRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+// RouteCountResponse carries the scalar value_field `count`.
+message RouteCountResponse {
+  int64 count = 1;
+}
+
+// RouteRateResponse carries the scalar value_field `rate` in [0, 1]. A window
+// with no denominator (e.g. zero routes) yields 0.
+message RouteRateResponse {
+  double rate = 1;
+}
+
+// RouteLatencyResponse carries the scalar value_field `latency_ms`.
+message RouteLatencyResponse {
+  int64 latency_ms = 1;
+}
+
+// MeasuresService exposes AI Gateway's declared route-analytics measures as
+// read-only, run-eligible Connect-RPC methods. Each is bound from a manifest
+// `measure` block (cli/manifest.json) and shares its compute path with the
+// /measures serve registry.
+service MeasuresService {
+  // CountRouteEvents answers "how many routes were executed in <window>".
+  rpc CountRouteEvents(RouteMeasureRequest) returns (RouteCountResponse);
+  // RouteSuccessRate answers "what fraction of routes succeeded in <window>".
+  rpc RouteSuccessRate(RouteMeasureRequest) returns (RouteRateResponse);
+  // RouteFallbackRate answers "what fraction of successful routes used a
+  // fallback provider in <window>".
+  rpc RouteFallbackRate(RouteMeasureRequest) returns (RouteRateResponse);
+  // RouteFailureRate answers "what fraction of routes failed in <window>".
+  rpc RouteFailureRate(RouteMeasureRequest) returns (RouteRateResponse);
+  // CountBreakerOpenRoutes answers "how many routes were blocked by an open
+  // provider circuit breaker in <window>".
+  rpc CountBreakerOpenRoutes(RouteMeasureRequest) returns (RouteCountResponse);
+  // CountCapacityRejections answers "how many local routes were rejected for
+  // insufficient capacity in <window>".
+  rpc CountCapacityRejections(RouteMeasureRequest) returns (RouteCountResponse);
+  // RouteLatencyP95 answers "what is the p95 route latency in <window>".
+  rpc RouteLatencyP95(RouteMeasureRequest) returns (RouteLatencyResponse);
+}

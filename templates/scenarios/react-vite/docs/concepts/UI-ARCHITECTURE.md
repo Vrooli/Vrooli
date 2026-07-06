@@ -53,6 +53,22 @@ new path automatically.
    (`ui/src/components/<ComponentName>.tsx`). Both flag warnings on the
    resulting adoption record.
 
+## Experience Contract
+
+The generated `experience/` folder is the UX-intent contract for the route
+table in `ui/src/app/routes.tsx`. Keep those two surfaces aligned:
+
+- add an L0 page spec when a new user-facing route is added;
+- remove or deprecate a page spec when a route is removed;
+- promote a page from L0 by adding priorities, elements, claims, bindings, and
+  states before calling the route production-ready;
+- keep `data-testid` selectors in code aligned with
+  `experience/pages/*.json::bindings` once bindings exist.
+
+Run `experience-manager spec validate {{SCENARIO_ID}} --json` after route or
+selector changes. The generated notes page spec is example-domain content and
+is removed by `vrooli scenario detemplate {{SCENARIO_ID}}`.
+
 ## Extending The Manifest
 
 - **Add a slot.** Add an entry to `ui/manifest.json`. Keep its `dir` inside

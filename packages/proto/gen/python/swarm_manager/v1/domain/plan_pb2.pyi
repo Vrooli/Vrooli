@@ -112,14 +112,38 @@ class PlanColumn(_message.Message):
     card_count: int
     def __init__(self, groups: _Optional[_Iterable[_Union[PlanCardGroup, _Mapping]]] = ..., card_count: _Optional[int] = ...) -> None: ...
 
+class PlanEtaBand(_message.Message):
+    __slots__ = ("p50_hours", "p80_hours", "p50_label", "p80_label", "basis", "basis_label", "confidence", "remaining_items", "lane_capacity")
+    P50_HOURS_FIELD_NUMBER: _ClassVar[int]
+    P80_HOURS_FIELD_NUMBER: _ClassVar[int]
+    P50_LABEL_FIELD_NUMBER: _ClassVar[int]
+    P80_LABEL_FIELD_NUMBER: _ClassVar[int]
+    BASIS_FIELD_NUMBER: _ClassVar[int]
+    BASIS_LABEL_FIELD_NUMBER: _ClassVar[int]
+    CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    REMAINING_ITEMS_FIELD_NUMBER: _ClassVar[int]
+    LANE_CAPACITY_FIELD_NUMBER: _ClassVar[int]
+    p50_hours: float
+    p80_hours: float
+    p50_label: str
+    p80_label: str
+    basis: str
+    basis_label: str
+    confidence: str
+    remaining_items: int
+    lane_capacity: int
+    def __init__(self, p50_hours: _Optional[float] = ..., p80_hours: _Optional[float] = ..., p50_label: _Optional[str] = ..., p80_label: _Optional[str] = ..., basis: _Optional[str] = ..., basis_label: _Optional[str] = ..., confidence: _Optional[str] = ..., remaining_items: _Optional[int] = ..., lane_capacity: _Optional[int] = ...) -> None: ...
+
 class PlanBoardMeta(_message.Message):
-    __slots__ = ("generated_at", "window_seconds", "max_wave", "cycles")
+    __slots__ = ("generated_at", "window_seconds", "max_wave", "cycles", "eta")
     GENERATED_AT_FIELD_NUMBER: _ClassVar[int]
     WINDOW_SECONDS_FIELD_NUMBER: _ClassVar[int]
     MAX_WAVE_FIELD_NUMBER: _ClassVar[int]
     CYCLES_FIELD_NUMBER: _ClassVar[int]
+    ETA_FIELD_NUMBER: _ClassVar[int]
     generated_at: str
     window_seconds: int
     max_wave: int
     cycles: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, generated_at: _Optional[str] = ..., window_seconds: _Optional[int] = ..., max_wave: _Optional[int] = ..., cycles: _Optional[_Iterable[str]] = ...) -> None: ...
+    eta: PlanEtaBand
+    def __init__(self, generated_at: _Optional[str] = ..., window_seconds: _Optional[int] = ..., max_wave: _Optional[int] = ..., cycles: _Optional[_Iterable[str]] = ..., eta: _Optional[_Union[PlanEtaBand, _Mapping]] = ...) -> None: ...

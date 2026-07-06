@@ -105,6 +105,25 @@ message PlanColumn {
   int32 card_count = 2;
 }
 
+// PlanEtaBand is a p50/p80 completion estimate for the board's remaining work,
+// divided by execute-lane capacity and including gate-wait, with an explicit
+// basis/confidence label that honestly degrades to "priors only" under cold
+// start. Hours are the raw estimate; the *_label fields are humanized.
+message PlanEtaBand {
+  double p50_hours = 1;
+  double p80_hours = 2;
+  string p50_label = 3;
+  string p80_label = 4;
+  // live | backfill | priors | default | mixed
+  string basis = 5;
+  // "27 samples" vs "priors only"
+  string basis_label = 6;
+  // low | medium | high
+  string confidence = 7;
+  int32 remaining_items = 8;
+  int32 lane_capacity = 9;
+}
+
 // PlanBoardMeta carries projection metadata and cycle diagnostics.
 message PlanBoardMeta {
   string generated_at = 1;
@@ -112,4 +131,7 @@ message PlanBoardMeta {
   int32 max_wave = 3;
   // Human-readable dependency-cycle paths ("a -> b -> a"), one per cycle.
   repeated string cycles = 4;
+  // Completion estimate for the board's remaining work; absent when there is
+  // nothing to estimate or the estimator is not wired.
+  PlanEtaBand eta = 5;
 }

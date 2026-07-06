@@ -9,7 +9,7 @@
     "go",
     "cli"
   ],
-  "version": "1.4.0",
+  "version": "1.5.0",
   "startDocument": "docs/START-HERE.md",
   "design": {
     "adapter": "react-vite-tailwind",
@@ -138,6 +138,26 @@
           {
             "kind": "file_exists",
             "path": "DESIGN.md"
+          }
+        ]
+      },
+      {
+        "id": "experience-contract",
+        "title": "Experience contract",
+        "description": "Keep the generated L0 experience spec aligned with real routes before UI work expands.",
+        "docs": [
+          "docs/START-HERE.md",
+          "experience/README.md",
+          "docs/concepts/UI-ARCHITECTURE.md"
+        ],
+        "checks": [
+          {
+            "kind": "file_exists",
+            "path": "experience/index.json"
+          },
+          {
+            "kind": "file_exists",
+            "path": "experience/pages/dashboard.json"
           }
         ]
       },
@@ -304,6 +324,7 @@
       "ui/src/api/notes.test.ts",
       "ui/src/features/notes",
       "ui/src/pages/NotesPage.tsx",
+      "experience/pages/notes.json",
       "proto/v1/notes"
     ],
     "jsonPrune": [
@@ -324,6 +345,12 @@
         "arrayMatch": [
           { "path": "groups", "where": { "name": "notes" } },
           { "path": "measures.domains", "where": { "domain": "notes" } }
+        ]
+      },
+      {
+        "file": "experience/index.json",
+        "arrayMatch": [
+          { "path": "pages", "where": { "id": "notes" } }
         ]
       }
     ]

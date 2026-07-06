@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/plan.proto.
  */
 export const file_swarm_manager_v1_domain_plan: GenFile = /*@__PURE__*/
-  fileDesc("CiJzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9wbGFuLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIkAKDlBsYW5MYW5lU3RhdHVzEgwKBGxhbmUYASABKAkSDgoGYWN0aXZlGAIgASgFEhAKCGNhcGFjaXR5GAMgASgFIoUBCg5QbGFuTm93U3VtbWFyeRIUCgxhY3RpdmVfY291bnQYASABKAUSEwoLcXVldWVfZGVwdGgYAiABKAUSFwoPbWF4X3F1ZXVlX2RlcHRoGAMgASgFEi8KBWxhbmVzGAQgAygLMiAuc3dhcm1fbWFuYWdlci52MS5QbGFuTGFuZVN0YXR1cyLAAQoIUGxhbkdhdGUSCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRISCgpvd25lcl90eXBlGAMgASgJEhIKCm93bmVyX2tpbmQYBCABKAkSEgoKb3duZXJfbmFtZRgFIAEoCRITCgtvd25lcl90aXRsZRgGIAEoCRINCgVjb3VudBgHIAEoBRIOCgZibG9ja3MYCCADKAkSFwoPZGVjaWRhYmxlX3NpbmNlGAkgASgJEhEKCXN1Z2dlc3RlZBgKIAEoCSK6AgoIUGxhbkNhcmQSCgoCaWQYASABKAkSEQoJY2FyZF90eXBlGAIgASgJEg4KBmFjdGlvbhgDIAEoCRIRCglpdGVtX2tpbmQYBCABKAkSEQoJaXRlbV9uYW1lGAUgASgJEg0KBXRpdGxlGAYgASgJEg4KBnN0YXR1cxgHIAEoCRIQCghwcmlvcml0eRgIIAEoBRIMCgR3YXZlGAkgASgFEhIKCmluaXRpYXRpdmUYCiABKAkSDgoGZWZmb3J0GAsgASgJEigKBGdhdGUYDCABKAsyGi5zd2FybV9tYW5hZ2VyLnYxLlBsYW5HYXRlEg8KB291dGNvbWUYDSABKAkSEwoLZmluaXNoZWRfYXQYDiABKAkSFAoMZXhlY3V0aW9uX2lkGA8gASgJEhAKCHVuYmxvY2tzGBAgASgFIpIBCg1QbGFuQ2FyZEdyb3VwEgoKAmlkGAEgASgJEg0KBWxhYmVsGAIgASgJEhQKDGJsb2NrZXJfa2luZBgDIAEoCRIPCgdnYXRlX2lkGAQgASgJEhQKDGJsb2NrZXJfa2V5cxgFIAMoCRIpCgVjYXJkcxgGIAMoCzIaLnN3YXJtX21hbmFnZXIudjEuUGxhbkNhcmQiUQoKUGxhbkNvbHVtbhIvCgZncm91cHMYASADKAsyHy5zd2FybV9tYW5hZ2VyLnYxLlBsYW5DYXJkR3JvdXASEgoKY2FyZF9jb3VudBgCIAEoBSJfCg1QbGFuQm9hcmRNZXRhEhQKDGdlbmVyYXRlZF9hdBgBIAEoCRIWCg53aW5kb3dfc2Vjb25kcxgCIAEoBRIQCghtYXhfd2F2ZRgDIAEoBRIOCgZjeWNsZXMYBCADKAlCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw");
+  fileDesc("CiJzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9wbGFuLnByb3RvEhBzd2FybV9tYW5hZ2VyLnYxIkAKDlBsYW5MYW5lU3RhdHVzEgwKBGxhbmUYASABKAkSDgoGYWN0aXZlGAIgASgFEhAKCGNhcGFjaXR5GAMgASgFIoUBCg5QbGFuTm93U3VtbWFyeRIUCgxhY3RpdmVfY291bnQYASABKAUSEwoLcXVldWVfZGVwdGgYAiABKAUSFwoPbWF4X3F1ZXVlX2RlcHRoGAMgASgFEi8KBWxhbmVzGAQgAygLMiAuc3dhcm1fbWFuYWdlci52MS5QbGFuTGFuZVN0YXR1cyLAAQoIUGxhbkdhdGUSCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRISCgpvd25lcl90eXBlGAMgASgJEhIKCm93bmVyX2tpbmQYBCABKAkSEgoKb3duZXJfbmFtZRgFIAEoCRITCgtvd25lcl90aXRsZRgGIAEoCRINCgVjb3VudBgHIAEoBRIOCgZibG9ja3MYCCADKAkSFwoPZGVjaWRhYmxlX3NpbmNlGAkgASgJEhEKCXN1Z2dlc3RlZBgKIAEoCSK6AgoIUGxhbkNhcmQSCgoCaWQYASABKAkSEQoJY2FyZF90eXBlGAIgASgJEg4KBmFjdGlvbhgDIAEoCRIRCglpdGVtX2tpbmQYBCABKAkSEQoJaXRlbV9uYW1lGAUgASgJEg0KBXRpdGxlGAYgASgJEg4KBnN0YXR1cxgHIAEoCRIQCghwcmlvcml0eRgIIAEoBRIMCgR3YXZlGAkgASgFEhIKCmluaXRpYXRpdmUYCiABKAkSDgoGZWZmb3J0GAsgASgJEigKBGdhdGUYDCABKAsyGi5zd2FybV9tYW5hZ2VyLnYxLlBsYW5HYXRlEg8KB291dGNvbWUYDSABKAkSEwoLZmluaXNoZWRfYXQYDiABKAkSFAoMZXhlY3V0aW9uX2lkGA8gASgJEhAKCHVuYmxvY2tzGBAgASgFIpIBCg1QbGFuQ2FyZEdyb3VwEgoKAmlkGAEgASgJEg0KBWxhYmVsGAIgASgJEhQKDGJsb2NrZXJfa2luZBgDIAEoCRIPCgdnYXRlX2lkGAQgASgJEhQKDGJsb2NrZXJfa2V5cxgFIAMoCRIpCgVjYXJkcxgGIAMoCzIaLnN3YXJtX21hbmFnZXIudjEuUGxhbkNhcmQiUQoKUGxhbkNvbHVtbhIvCgZncm91cHMYASADKAsyHy5zd2FybV9tYW5hZ2VyLnYxLlBsYW5DYXJkR3JvdXASEgoKY2FyZF9jb3VudBgCIAEoBSLBAQoLUGxhbkV0YUJhbmQSEQoJcDUwX2hvdXJzGAEgASgBEhEKCXA4MF9ob3VycxgCIAEoARIRCglwNTBfbGFiZWwYAyABKAkSEQoJcDgwX2xhYmVsGAQgASgJEg0KBWJhc2lzGAUgASgJEhMKC2Jhc2lzX2xhYmVsGAYgASgJEhIKCmNvbmZpZGVuY2UYByABKAkSFwoPcmVtYWluaW5nX2l0ZW1zGAggASgFEhUKDWxhbmVfY2FwYWNpdHkYCSABKAUiiwEKDVBsYW5Cb2FyZE1ldGESFAoMZ2VuZXJhdGVkX2F0GAEgASgJEhYKDndpbmRvd19zZWNvbmRzGAIgASgFEhAKCG1heF93YXZlGAMgASgFEg4KBmN5Y2xlcxgEIAMoCRIqCgNldGEYBSABKAsyHS5zd2FybV9tYW5hZ2VyLnYxLlBsYW5FdGFCYW5kQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM");
 
 /**
  * PlanLaneStatus mirrors the operations lane utilization for the Now header.
@@ -337,6 +337,74 @@ export const PlanColumnSchema: GenMessage<PlanColumn> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_domain_plan, 5);
 
 /**
+ * PlanEtaBand is a p50/p80 completion estimate for the board's remaining work,
+ * divided by execute-lane capacity and including gate-wait, with an explicit
+ * basis/confidence label that honestly degrades to "priors only" under cold
+ * start. Hours are the raw estimate; the *_label fields are humanized.
+ *
+ * @generated from message swarm_manager.v1.PlanEtaBand
+ */
+export type PlanEtaBand = Message<"swarm_manager.v1.PlanEtaBand"> & {
+  /**
+   * @generated from field: double p50_hours = 1;
+   */
+  p50Hours: number;
+
+  /**
+   * @generated from field: double p80_hours = 2;
+   */
+  p80Hours: number;
+
+  /**
+   * @generated from field: string p50_label = 3;
+   */
+  p50Label: string;
+
+  /**
+   * @generated from field: string p80_label = 4;
+   */
+  p80Label: string;
+
+  /**
+   * live | backfill | priors | default | mixed
+   *
+   * @generated from field: string basis = 5;
+   */
+  basis: string;
+
+  /**
+   * "27 samples" vs "priors only"
+   *
+   * @generated from field: string basis_label = 6;
+   */
+  basisLabel: string;
+
+  /**
+   * low | medium | high
+   *
+   * @generated from field: string confidence = 7;
+   */
+  confidence: string;
+
+  /**
+   * @generated from field: int32 remaining_items = 8;
+   */
+  remainingItems: number;
+
+  /**
+   * @generated from field: int32 lane_capacity = 9;
+   */
+  laneCapacity: number;
+};
+
+/**
+ * Describes the message swarm_manager.v1.PlanEtaBand.
+ * Use `create(PlanEtaBandSchema)` to create a new message.
+ */
+export const PlanEtaBandSchema: GenMessage<PlanEtaBand> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_domain_plan, 6);
+
+/**
  * PlanBoardMeta carries projection metadata and cycle diagnostics.
  *
  * @generated from message swarm_manager.v1.PlanBoardMeta
@@ -363,6 +431,14 @@ export type PlanBoardMeta = Message<"swarm_manager.v1.PlanBoardMeta"> & {
    * @generated from field: repeated string cycles = 4;
    */
   cycles: string[];
+
+  /**
+   * Completion estimate for the board's remaining work; absent when there is
+   * nothing to estimate or the estimator is not wired.
+   *
+   * @generated from field: swarm_manager.v1.PlanEtaBand eta = 5;
+   */
+  eta?: PlanEtaBand | undefined;
 };
 
 /**
@@ -370,5 +446,5 @@ export type PlanBoardMeta = Message<"swarm_manager.v1.PlanBoardMeta"> & {
  * Use `create(PlanBoardMetaSchema)` to create a new message.
  */
 export const PlanBoardMetaSchema: GenMessage<PlanBoardMeta> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_plan, 6);
+  messageDesc(file_swarm_manager_v1_domain_plan, 7);
 

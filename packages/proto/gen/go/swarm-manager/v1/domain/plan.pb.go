@@ -591,6 +591,121 @@ func (x *PlanColumn) GetCardCount() int32 {
 	return 0
 }
 
+// PlanEtaBand is a p50/p80 completion estimate for the board's remaining work,
+// divided by execute-lane capacity and including gate-wait, with an explicit
+// basis/confidence label that honestly degrades to "priors only" under cold
+// start. Hours are the raw estimate; the *_label fields are humanized.
+type PlanEtaBand struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	P50Hours float64                `protobuf:"fixed64,1,opt,name=p50_hours,json=p50Hours,proto3" json:"p50_hours,omitempty"`
+	P80Hours float64                `protobuf:"fixed64,2,opt,name=p80_hours,json=p80Hours,proto3" json:"p80_hours,omitempty"`
+	P50Label string                 `protobuf:"bytes,3,opt,name=p50_label,json=p50Label,proto3" json:"p50_label,omitempty"`
+	P80Label string                 `protobuf:"bytes,4,opt,name=p80_label,json=p80Label,proto3" json:"p80_label,omitempty"`
+	// live | backfill | priors | default | mixed
+	Basis string `protobuf:"bytes,5,opt,name=basis,proto3" json:"basis,omitempty"`
+	// "27 samples" vs "priors only"
+	BasisLabel string `protobuf:"bytes,6,opt,name=basis_label,json=basisLabel,proto3" json:"basis_label,omitempty"`
+	// low | medium | high
+	Confidence     string `protobuf:"bytes,7,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	RemainingItems int32  `protobuf:"varint,8,opt,name=remaining_items,json=remainingItems,proto3" json:"remaining_items,omitempty"`
+	LaneCapacity   int32  `protobuf:"varint,9,opt,name=lane_capacity,json=laneCapacity,proto3" json:"lane_capacity,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *PlanEtaBand) Reset() {
+	*x = PlanEtaBand{}
+	mi := &file_swarm_manager_v1_domain_plan_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlanEtaBand) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlanEtaBand) ProtoMessage() {}
+
+func (x *PlanEtaBand) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_plan_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlanEtaBand.ProtoReflect.Descriptor instead.
+func (*PlanEtaBand) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_plan_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *PlanEtaBand) GetP50Hours() float64 {
+	if x != nil {
+		return x.P50Hours
+	}
+	return 0
+}
+
+func (x *PlanEtaBand) GetP80Hours() float64 {
+	if x != nil {
+		return x.P80Hours
+	}
+	return 0
+}
+
+func (x *PlanEtaBand) GetP50Label() string {
+	if x != nil {
+		return x.P50Label
+	}
+	return ""
+}
+
+func (x *PlanEtaBand) GetP80Label() string {
+	if x != nil {
+		return x.P80Label
+	}
+	return ""
+}
+
+func (x *PlanEtaBand) GetBasis() string {
+	if x != nil {
+		return x.Basis
+	}
+	return ""
+}
+
+func (x *PlanEtaBand) GetBasisLabel() string {
+	if x != nil {
+		return x.BasisLabel
+	}
+	return ""
+}
+
+func (x *PlanEtaBand) GetConfidence() string {
+	if x != nil {
+		return x.Confidence
+	}
+	return ""
+}
+
+func (x *PlanEtaBand) GetRemainingItems() int32 {
+	if x != nil {
+		return x.RemainingItems
+	}
+	return 0
+}
+
+func (x *PlanEtaBand) GetLaneCapacity() int32 {
+	if x != nil {
+		return x.LaneCapacity
+	}
+	return 0
+}
+
 // PlanBoardMeta carries projection metadata and cycle diagnostics.
 type PlanBoardMeta struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -598,14 +713,17 @@ type PlanBoardMeta struct {
 	WindowSeconds int32                  `protobuf:"varint,2,opt,name=window_seconds,json=windowSeconds,proto3" json:"window_seconds,omitempty"`
 	MaxWave       int32                  `protobuf:"varint,3,opt,name=max_wave,json=maxWave,proto3" json:"max_wave,omitempty"`
 	// Human-readable dependency-cycle paths ("a -> b -> a"), one per cycle.
-	Cycles        []string `protobuf:"bytes,4,rep,name=cycles,proto3" json:"cycles,omitempty"`
+	Cycles []string `protobuf:"bytes,4,rep,name=cycles,proto3" json:"cycles,omitempty"`
+	// Completion estimate for the board's remaining work; absent when there is
+	// nothing to estimate or the estimator is not wired.
+	Eta           *PlanEtaBand `protobuf:"bytes,5,opt,name=eta,proto3" json:"eta,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PlanBoardMeta) Reset() {
 	*x = PlanBoardMeta{}
-	mi := &file_swarm_manager_v1_domain_plan_proto_msgTypes[6]
+	mi := &file_swarm_manager_v1_domain_plan_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -617,7 +735,7 @@ func (x *PlanBoardMeta) String() string {
 func (*PlanBoardMeta) ProtoMessage() {}
 
 func (x *PlanBoardMeta) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_plan_proto_msgTypes[6]
+	mi := &file_swarm_manager_v1_domain_plan_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -630,7 +748,7 @@ func (x *PlanBoardMeta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanBoardMeta.ProtoReflect.Descriptor instead.
 func (*PlanBoardMeta) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_plan_proto_rawDescGZIP(), []int{6}
+	return file_swarm_manager_v1_domain_plan_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *PlanBoardMeta) GetGeneratedAt() string {
@@ -657,6 +775,13 @@ func (x *PlanBoardMeta) GetMaxWave() int32 {
 func (x *PlanBoardMeta) GetCycles() []string {
 	if x != nil {
 		return x.Cycles
+	}
+	return nil
+}
+
+func (x *PlanBoardMeta) GetEta() *PlanEtaBand {
+	if x != nil {
+		return x.Eta
 	}
 	return nil
 }
@@ -724,12 +849,26 @@ const file_swarm_manager_v1_domain_plan_proto_rawDesc = "" +
 	"PlanColumn\x127\n" +
 	"\x06groups\x18\x01 \x03(\v2\x1f.swarm_manager.v1.PlanCardGroupR\x06groups\x12\x1d\n" +
 	"\n" +
-	"card_count\x18\x02 \x01(\x05R\tcardCount\"\x8c\x01\n" +
+	"card_count\x18\x02 \x01(\x05R\tcardCount\"\xa6\x02\n" +
+	"\vPlanEtaBand\x12\x1b\n" +
+	"\tp50_hours\x18\x01 \x01(\x01R\bp50Hours\x12\x1b\n" +
+	"\tp80_hours\x18\x02 \x01(\x01R\bp80Hours\x12\x1b\n" +
+	"\tp50_label\x18\x03 \x01(\tR\bp50Label\x12\x1b\n" +
+	"\tp80_label\x18\x04 \x01(\tR\bp80Label\x12\x14\n" +
+	"\x05basis\x18\x05 \x01(\tR\x05basis\x12\x1f\n" +
+	"\vbasis_label\x18\x06 \x01(\tR\n" +
+	"basisLabel\x12\x1e\n" +
+	"\n" +
+	"confidence\x18\a \x01(\tR\n" +
+	"confidence\x12'\n" +
+	"\x0fremaining_items\x18\b \x01(\x05R\x0eremainingItems\x12#\n" +
+	"\rlane_capacity\x18\t \x01(\x05R\flaneCapacity\"\xbd\x01\n" +
 	"\rPlanBoardMeta\x12!\n" +
 	"\fgenerated_at\x18\x01 \x01(\tR\vgeneratedAt\x12%\n" +
 	"\x0ewindow_seconds\x18\x02 \x01(\x05R\rwindowSeconds\x12\x19\n" +
 	"\bmax_wave\x18\x03 \x01(\x05R\amaxWave\x12\x16\n" +
-	"\x06cycles\x18\x04 \x03(\tR\x06cyclesBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
+	"\x06cycles\x18\x04 \x03(\tR\x06cycles\x12/\n" +
+	"\x03eta\x18\x05 \x01(\v2\x1d.swarm_manager.v1.PlanEtaBandR\x03etaBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
 var (
 	file_swarm_manager_v1_domain_plan_proto_rawDescOnce sync.Once
@@ -743,7 +882,7 @@ func file_swarm_manager_v1_domain_plan_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_domain_plan_proto_rawDescData
 }
 
-var file_swarm_manager_v1_domain_plan_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_swarm_manager_v1_domain_plan_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_swarm_manager_v1_domain_plan_proto_goTypes = []any{
 	(*PlanLaneStatus)(nil), // 0: swarm_manager.v1.PlanLaneStatus
 	(*PlanNowSummary)(nil), // 1: swarm_manager.v1.PlanNowSummary
@@ -751,18 +890,20 @@ var file_swarm_manager_v1_domain_plan_proto_goTypes = []any{
 	(*PlanCard)(nil),       // 3: swarm_manager.v1.PlanCard
 	(*PlanCardGroup)(nil),  // 4: swarm_manager.v1.PlanCardGroup
 	(*PlanColumn)(nil),     // 5: swarm_manager.v1.PlanColumn
-	(*PlanBoardMeta)(nil),  // 6: swarm_manager.v1.PlanBoardMeta
+	(*PlanEtaBand)(nil),    // 6: swarm_manager.v1.PlanEtaBand
+	(*PlanBoardMeta)(nil),  // 7: swarm_manager.v1.PlanBoardMeta
 }
 var file_swarm_manager_v1_domain_plan_proto_depIdxs = []int32{
 	0, // 0: swarm_manager.v1.PlanNowSummary.lanes:type_name -> swarm_manager.v1.PlanLaneStatus
 	2, // 1: swarm_manager.v1.PlanCard.gate:type_name -> swarm_manager.v1.PlanGate
 	3, // 2: swarm_manager.v1.PlanCardGroup.cards:type_name -> swarm_manager.v1.PlanCard
 	4, // 3: swarm_manager.v1.PlanColumn.groups:type_name -> swarm_manager.v1.PlanCardGroup
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	6, // 4: swarm_manager.v1.PlanBoardMeta.eta:type_name -> swarm_manager.v1.PlanEtaBand
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_domain_plan_proto_init() }
@@ -776,7 +917,7 @@ func file_swarm_manager_v1_domain_plan_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_domain_plan_proto_rawDesc), len(file_swarm_manager_v1_domain_plan_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

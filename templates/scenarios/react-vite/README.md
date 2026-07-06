@@ -9,7 +9,8 @@ the standard full-stack Vrooli scenario shape:
 - React + TypeScript + Vite UI (`ui/`)
 - CLI wrapper (`cli/`)
 - Lifecycle + health wiring (`.vrooli/service.json`)
-- Requirements registry + progress log (`requirements/`, `docs/internal/PROGRESS.md`)
+- Requirements registry, generated L0 experience contract, and progress log
+  (`requirements/`, `experience/`, `docs/internal/PROGRESS.md`)
 
 > **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
 > owns the first-session initialization protocol — charter, requirements,
@@ -35,6 +36,8 @@ the standard full-stack Vrooli scenario shape:
   placeholder icons ready for scenario-specific replacement.
 - Root-level `DESIGN.md` plus generated UI token assets from the
   selected design kit.
+- Generated `experience/` L0 specs for the starter routes. These are UX
+  intent placeholders, not finished claims; grow them as routes become real.
 - A documentation contract in `docs/manifest.json`, with stubs for
   domains, flows, data, integrations, monetization, deployment,
   runbooks, observability, security, performance, and durable
@@ -94,6 +97,7 @@ finer-grained presets.
 |---|---|
 | Initialize after generation | [`docs/START-HERE.md`](docs/START-HERE.md) |
 | Establish UI design language | `DESIGN.md` at this scenario's root |
+| Author UX intent | [`experience/README.md`](experience/README.md) |
 | Run the scenario | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
 | Understand the architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
 | Map product domains | [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
@@ -112,11 +116,12 @@ finer-grained presets.
 2. **Run `make orient`** as a progress check — it reports initialization gates from `.vrooli/orientation.json`.
 3. **Update `PRD.md` and `requirements/`** before feature work. Operational targets drive code + tests.
 4. **Read root `DESIGN.md` before UI work.** Tokens, motion, and status semantics are binding; specific component lists in the design are illustrative — implement everything your scenario actually needs.
-5. **Update `docs/concepts/DOMAINS.md`** before adding product code.
-6. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
-7. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
-8. **Add resources** to `.vrooli/service.json` only when needed; this scenario ships with no resource dependencies (SQLite is in-process).
-9. **Keep boundaries**: only edit within this scenario's directory.
+5. **Keep `experience/` aligned with routes.** Start at L0, then add priorities, claims, bindings, states, and journeys before flipping pages active.
+6. **Update `docs/concepts/DOMAINS.md`** before adding product code.
+7. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
+8. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
+9. **Add resources** to `.vrooli/service.json` only when needed; this scenario ships with no resource dependencies (SQLite is in-process).
+10. **Keep boundaries**: only edit within this scenario's directory.
 
 ## pnpm Everywhere
 
