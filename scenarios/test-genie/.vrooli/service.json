@@ -192,35 +192,11 @@
         "description": "Optional AI-assisted generation and repair producer used by agent workflows and WebSocket status streaming.",
         "degraded_behavior": "Core test execution continues when agent-manager is unavailable; AI-assisted generation/fix workflows return clear unavailable errors."
       },
-      "architecture-cartographer": {
-        "enabled": true,
-        "required": false,
-        "description": "Advisory architecture audit producer used by the non-gating architecture phase and campaign nudge workflows.",
-        "degraded_behavior": "Architecture phase skips or reports advisory unavailability instead of failing comprehensive execution."
-      },
       "browser-automation-studio": {
         "enabled": true,
         "required": false,
         "description": "Optional browser workflow producer used by smoke and playbook phases for UI automation and captured evidence.",
         "degraded_behavior": "UI smoke/playbook automation can skip or report missing BAS, while non-browser phases continue."
-      },
-      "knowledge-observatory": {
-        "enabled": true,
-        "required": false,
-        "description": "Descriptor-backed provider for documentation health. When the docs phase is selected, Test Genie uses provider readiness to check or start knowledge-observatory before delegating validation.",
-        "degraded_behavior": "Docs phase reports provider readiness failure until knowledge-observatory is available; Test Genie startup remains provider-agnostic."
-      },
-      "cli-health": {
-        "enabled": true,
-        "required": false,
-        "description": "Descriptor-backed provider for cli/manifest.json, proto binding, and runtime CLI validation. When the contracts phase is selected, Test Genie uses provider readiness to check or start cli-health before delegating validation.",
-        "degraded_behavior": "Contracts phase reports provider readiness failure until cli-health is available; Test Genie startup remains provider-agnostic."
-      },
-      "scenario-dependency-analyzer": {
-        "enabled": true,
-        "required": false,
-        "description": "Descriptor-backed provider for dependency health. When the dependencies phase is selected, Test Genie uses provider readiness to check or start scenario-dependency-analyzer before delegating validation.",
-        "degraded_behavior": "Dependencies phase reports provider readiness failure until scenario-dependency-analyzer is available; Test Genie startup remains provider-agnostic."
       }
     }
   },

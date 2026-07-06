@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"test-genie/agentmanager"
 	appelig "test-genie/internal/app/eligibility"
 	apprun "test-genie/internal/app/runs"
+	appvalidation "test-genie/internal/app/validation"
 	"test-genie/internal/eligibility"
 	"test-genie/internal/execution"
 	"test-genie/internal/fix"
@@ -24,6 +26,7 @@ import (
 	"test-genie/internal/selfhealthsnapshots"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/maturity-go/assessment"
 	// Register modernc.org/sqlite as the pure-Go "sqlite" driver.
 	_ "modernc.org/sqlite"
 )
@@ -46,6 +49,7 @@ type Bootstrapped struct {
 	PlaybooksClaims            *playbooksclaims.Service
 	EligibilityService         *appelig.Service
 	RunsService                *apprun.Service
+	ValidationService          *appvalidation.Service
 }
 
 // RequirementsSyncerAdapter adapts the requirements.Service to a simple Sync interface.
@@ -131,6 +135,17 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	// execution to the run manager.
 	runsService := apprun.NewService(cfg.ScenariosRoot, runManager, executionPlanner, executionRepo)
 
+	// Provider-conformance ScenarioValidationService: Test Genie's own
+	// descriptor-backed phase. The maturity spec comes from Test Genie's own
+	// .vrooli/test-genie.json; a load failure disables the handler with a log
+	// line rather than blocking startup.
+	repoRoot := repoRootFromScenariosRoot(cfg.ScenariosRoot)
+	conformanceSpec, specErr := assessment.LoadSpecFromScenario(filepath.Join(cfg.ScenariosRoot, "test-genie"))
+	if specErr != nil {
+		log.Printf("[test-genie] provider-conformance maturity spec unavailable: %v", specErr)
+	}
+	validationService := appvalidation.NewService(log.Default(), repoRoot, conformanceSpec)
+
 	// Persisted self-health trend store + background sweeper (Plan 3 Part C).
 	// The read path (GetSelfHealth trend delta/series) composes the repo; the
 	// sweeper is the sole writer, digest-deduped + env-disableable.
@@ -203,5 +218,6 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		PlaybooksClaims:            claimsService,
 		EligibilityService:         eligibilityService,
 		RunsService:                runsService,
+		ValidationService:          validationService,
 	}, nil
 }

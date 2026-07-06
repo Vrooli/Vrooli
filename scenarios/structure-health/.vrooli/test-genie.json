@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "scenario": "structure-health",
   "phase": "structure",
+  "displayName": "Structure",
   "description": "Validates scenario skeleton and lifecycle wiring through structure-health.",
   "source": "validation-provider",
   "orderHint": 0,
@@ -489,5 +490,14 @@
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "required"
     }
-  }
+  },
+  "profileMembership": [
+    "architecture-audit"
+  ],
+  "freshnessRequirement": "when_applicable",
+  "phaseClass": "architecture",
+  "runtimeClass": "static",
+  "dimensions": [
+    "structure"
+  ]
 }

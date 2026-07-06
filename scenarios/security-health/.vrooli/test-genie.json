@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "scenario": "security-health",
   "phase": "security",
+  "displayName": "Security",
   "description": "Validates secrets, Go SAST, Go vulnerability data, and JavaScript dependencies through security-health.",
   "source": "validation-provider",
   "orderHint": 15,
@@ -318,5 +319,12 @@
       "severity_default": "SEVERITY_ERROR",
       "clean_requirement": "required"
     }
-  }
+  },
+  "profileMembership": [],
+  "freshnessRequirement": "never",
+  "phaseClass": "runtime",
+  "runtimeClass": "execution",
+  "dimensions": [
+    "security"
+  ]
 }

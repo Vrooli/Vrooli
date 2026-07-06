@@ -1,0 +1,334 @@
+{
+  "schemaVersion": "1.0.0",
+  "scenario": "test-genie",
+  "phase": "provider-conformance",
+  "displayName": "Provider Conformance",
+  "description": "Validates Test Genie phase-provider descriptors: descriptor structure, embedded maturity, policy safety, stale-file absence, and live provider-contract conformance.",
+  "source": "validation-provider",
+  "orderHint": 20,
+  "timeout": "90s",
+  "findingSource": null,
+  "validation": {
+    "contract": "scenario-validation/v1"
+  },
+  "applicability": {
+    "default": "not_applicable",
+    "any": [
+      {
+        "fileExists": ".vrooli/test-genie.json"
+      }
+    ]
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "required_when_applicable",
+    "providerLifecycle": "check_only",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "fail"
+  },
+  "runnability": {},
+  "docs": {
+    "path": "scenarios/test-genie/docs/phases/provider-conformance/README.md"
+  },
+  "maturity": {
+    "version": "2.0.0",
+    "levels": [
+      {
+        "id": "L0",
+        "name": "Provider conformance unavailable",
+        "description": "The target declares itself as a Test Genie phase provider but its descriptor cannot be inspected.",
+        "entry_criteria": [
+          "Provider-conformance applicability is declared."
+        ],
+        "exit_criteria": [
+          "A readable .vrooli/test-genie.json descriptor exists."
+        ]
+      },
+      {
+        "id": "L1",
+        "name": "Provider descriptor inspectable",
+        "description": "The target's phase descriptor is readable and its structure can be judged.",
+        "entry_criteria": [
+          "Descriptor parses."
+        ],
+        "exit_criteria": [
+          "Descriptor, embedded maturity, and policy satisfy the phase descriptor contract."
+        ]
+      },
+      {
+        "id": "L2",
+        "name": "Provider contract governed",
+        "description": "The descriptor is contract-valid and the live provider honors the shared validation contract.",
+        "entry_criteria": [
+          "Descriptor is contract-valid."
+        ],
+        "exit_criteria": [
+          "Live validation responses are contract-valid with correct identity and metrics."
+        ]
+      },
+      {
+        "id": "L3",
+        "name": "Provider conformance clean",
+        "description": "Descriptor and live contract checks are clean.",
+        "entry_criteria": [
+          "No required provider-conformance findings remain."
+        ],
+        "exit_criteria": [
+          "Maximum local provider-conformance maturity."
+        ]
+      }
+    ],
+    "capabilities": [
+      {
+        "id": "provider_descriptor",
+        "label": "Provider Descriptor",
+        "description": "Presence, parseability, identity, embedded maturity, policy safety, stale-file absence, and operator docs for .vrooli/test-genie.json.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Descriptor missing",
+            "status_label": "Unavailable",
+            "description": "The target declares provider ownership but has no readable phase descriptor.",
+            "capability_summary": "Test Genie cannot inspect the target's phase contract.",
+            "next_unlock": "A readable .vrooli/test-genie.json phase descriptor."
+          },
+          {
+            "id": "L1",
+            "name": "Descriptor readable",
+            "status_label": "Foundation",
+            "description": "The descriptor parses and declares a phase.",
+            "capability_summary": "Provider ownership is inspectable.",
+            "next_unlock": "Descriptor, maturity, and policy satisfy the phase descriptor contract."
+          },
+          {
+            "id": "L2",
+            "name": "Descriptor contract-valid",
+            "status_label": "Ready",
+            "description": "Descriptor structure, embedded maturity, identity, and policy are valid with no stale maturity file.",
+            "capability_summary": "The phase can be registered from this descriptor.",
+            "next_unlock": "Operator docs and autofix declarations are complete."
+          },
+          {
+            "id": "L3",
+            "name": "Descriptor clean",
+            "status_label": "Complete",
+            "description": "Descriptor checks are clean.",
+            "capability_summary": "Provider descriptor maturity is clean."
+          }
+        ]
+      },
+      {
+        "id": "provider_contract",
+        "label": "Provider Contract",
+        "description": "Live ScenarioValidationService conformance: reachability, contract validity, assessment identity, execution metrics, and autofix declaration coverage.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Contract unproven",
+            "status_label": "Unproven",
+            "description": "The provider's live validation contract has not been proven.",
+            "capability_summary": "Provider contract conformance cannot be measured.",
+            "next_unlock": "A reachable provider serving contract-valid validation responses."
+          },
+          {
+            "id": "L1",
+            "name": "Contract inspectable",
+            "status_label": "Foundation",
+            "description": "The provider responds but violates part of the shared validation contract.",
+            "capability_summary": "Test Genie can probe the provider contract.",
+            "next_unlock": "Contract-valid responses with correct identity and metrics."
+          },
+          {
+            "id": "L2",
+            "name": "Contract governed",
+            "status_label": "Ready",
+            "description": "Live responses are contract-valid with correct identity and execution metrics.",
+            "capability_summary": "Provider contract can be governed in normal runs.",
+            "next_unlock": "Maximum provider-contract maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Contract clean",
+            "status_label": "Complete",
+            "description": "Provider contract checks are clean.",
+            "capability_summary": "Provider contract maturity is clean."
+          }
+        ]
+      }
+    ],
+    "findings": {
+      "PROVIDER_DESCRIPTOR_MISSING": {
+        "capability_id": "provider_descriptor",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "Whether a scenario should be a Test Genie phase provider is an ownership decision."
+      },
+      "PROVIDER_DESCRIPTOR_INVALID": {
+        "capability_id": "provider_descriptor",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "scientific-debugging"
+        ],
+        "fix_class": "manual",
+        "reason": "Descriptor repair depends on the provider's intended phase semantics."
+      },
+      "PROVIDER_IDENTITY_MISMATCH": {
+        "capability_id": "provider_descriptor",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "Identity mismatches signal a moved or copied descriptor that the owner must reconcile."
+      },
+      "PROVIDER_MATURITY_INVALID": {
+        "capability_id": "provider_descriptor",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "scientific-debugging"
+        ],
+        "fix_class": "manual",
+        "reason": "Maturity ladders encode provider judgment that cannot be synthesized mechanically."
+      },
+      "PROVIDER_STALE_MATURITY_FILE": {
+        "capability_id": "provider_descriptor",
+        "local_level_impact": "L1",
+        "global_impact": "hardening_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "Deleting the retired maturity.json requires confirming the descriptor block is the migrated source of truth."
+      },
+      "PROVIDER_POLICY_UNSAFE": {
+        "capability_id": "provider_descriptor",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "Policy combinations trade off run safety and coverage; the provider owner must choose."
+      },
+      "PROVIDER_DOCS_MISSING": {
+        "capability_id": "provider_descriptor",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "documentation-health"
+        ],
+        "fix_class": "manual",
+        "reason": "Phase documentation must explain provider-specific semantics only the owner knows."
+      },
+      "PROVIDER_AUTOFIX_DECLARATION_INCOMPLETE": {
+        "capability_id": "provider_contract",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "Fix-class declarations encode per-finding safety judgment."
+      },
+      "PROVIDER_UNREACHABLE": {
+        "capability_id": "provider_contract",
+        "local_level_impact": "L1",
+        "global_impact": "unknown",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "scientific-debugging"
+        ],
+        "fix_class": "external",
+        "reason": "Reachability is an environmental signal fixed by starting the provider, not a descriptor defect."
+      },
+      "PROVIDER_CONTRACT_INVALID": {
+        "capability_id": "provider_contract",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "scientific-debugging"
+        ],
+        "fix_class": "manual",
+        "reason": "Contract violations require provider-side response construction fixes."
+      },
+      "PROVIDER_CONTRACT_IDENTITY_MISMATCH": {
+        "capability_id": "provider_contract",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "scientific-debugging"
+        ],
+        "fix_class": "manual",
+        "reason": "Identity stamping is provider-side response logic."
+      },
+      "PROVIDER_METRICS_MISSING": {
+        "capability_id": "provider_contract",
+        "local_level_impact": "L1",
+        "global_impact": "hardening_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "scientific-debugging"
+        ],
+        "fix_class": "manual",
+        "reason": "Metrics adoption requires wiring the shared collector through the provider's handler."
+      }
+    },
+    "fallback": {
+      "capability_id": "provider_descriptor",
+      "local_level_impact": "L1",
+      "global_impact": "unknown",
+      "dimension": "contracts",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "advisory"
+    }
+  },
+  "profileMembership": [],
+  "freshnessRequirement": "never",
+  "phaseClass": "provider-contract",
+  "runtimeClass": "static",
+  "dimensions": [
+    "operational-targets"
+  ]
+}

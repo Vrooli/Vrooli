@@ -21,13 +21,15 @@ Use `test-genie phases inspect <phase> --json` or `/api/v1/phases/<phase>` to in
 | 11 | [Storage](storage/README.md) | 2m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates storage conventions, migration hygiene, persistence seams, and test isolation through storage-health. |
 | 12 | [Workflow](workflow/README.md) | 15m | `default_when_applicable` | `required_when_applicable` | `gating` | Yes | validation-provider | Validates BAS workflow assets and safe execution through workflow-health. |
 | 13 | [Business](business/README.md) | 2m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates PRD, requirements registry, OT linkage, and evidence traceability through business-health. |
-| 14 | [Tidiness](tidiness/README.md) | 2m | `default_when_applicable` | `best_effort` | `gating` | No | validation-provider | Validates file and function quality checks through tidiness-manager. |
-| 15 | [Security](security/README.md) | 3m | `default_when_applicable` | `best_effort` | `gating` | No | validation-provider | Validates secrets, Go SAST, Go vulnerability data, and JavaScript dependencies through security-health. |
-| 16 | [Measures](measures/README.md) | 3m | `default_when_applicable` | `best_effort` | `gating` | No | validation-provider | Validates measures coverage and per-measure tiering through measures-health. |
-| 17 | [Proto](proto/README.md) | 2m | `default_when_applicable` | `best_effort` | `gating` | No | validation-provider | Validates proto contracts through proto-health. |
-| 18 | [Branding](branding/README.md) | 2m | `default_when_applicable` | `best_effort` | `gating` | No | validation-provider | Validates brand identity, design tokens, typography, logos, favicons, contrast, and applied brand markers through brand-manager. |
-| 19 | [Search](search/README.md) | 90s | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates search-enabled scenarios through Search Hub's search maturity contract. |
-| 20 | [Provider Conformance](provider-conformance/README.md) | 90s | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates Test Genie phase-provider descriptors: descriptor structure, embedded maturity, policy safety, stale-file absence, and live provider-contract conformance. |
+| 14 | [Experience](experience/README.md) | 2m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates scenario-experience-spec/v1 contracts and experience maturity through experience-manager. |
+| 15 | [Tidiness](tidiness/README.md) | 2m | `default_when_applicable` | `best_effort` | `gating` | No | validation-provider | Validates file and function quality checks through tidiness-manager. |
+| 16 | [Security](security/README.md) | 3m | `default_when_applicable` | `best_effort` | `gating` | No | validation-provider | Validates secrets, Go SAST, Go vulnerability data, and JavaScript dependencies through security-health. |
+| 17 | [Measures](measures/README.md) | 3m | `default_when_applicable` | `best_effort` | `gating` | No | validation-provider | Validates measures coverage and per-measure tiering through measures-health. |
+| 18 | [Proto](proto/README.md) | 2m | `default_when_applicable` | `best_effort` | `gating` | No | validation-provider | Validates proto contracts through proto-health. |
+| 19 | [AI Conformance](ai-conformance/README.md) | 90s | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates AI-using scenarios for provider-neutral routing, resource boundary hygiene, embedding metadata safety, and AI Gateway adoption readiness. |
+| 20 | [Branding](branding/README.md) | 2m | `default_when_applicable` | `best_effort` | `gating` | No | validation-provider | Validates brand identity, design tokens, typography, logos, favicons, contrast, and applied brand markers through brand-manager. |
+| 21 | [Search](search/README.md) | 90s | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates search-enabled scenarios through Search Hub's search maturity contract. |
+| 22 | [Provider Conformance](provider-conformance/README.md) | 90s | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates Test Genie phase-provider descriptors: descriptor structure, embedded maturity, policy safety, stale-file absence, and live provider-contract conformance. |
 
 ## Static Phases
 
@@ -41,10 +43,12 @@ Use `test-genie phases inspect <phase> --json` or `/api/v1/phases/<phase>` to in
 - [Unit](unit/README.md) - Validates test execution, coverage, architecture, quality, and runtime diagnostics through unit-health.
 - [Storage](storage/README.md) - Validates storage conventions, migration hygiene, persistence seams, and test isolation through storage-health.
 - [Business](business/README.md) - Validates PRD, requirements registry, OT linkage, and evidence traceability through business-health.
+- [Experience](experience/README.md) - Validates scenario-experience-spec/v1 contracts and experience maturity through experience-manager.
 - [Tidiness](tidiness/README.md) - Validates file and function quality checks through tidiness-manager.
 - [Security](security/README.md) - Validates secrets, Go SAST, Go vulnerability data, and JavaScript dependencies through security-health.
 - [Measures](measures/README.md) - Validates measures coverage and per-measure tiering through measures-health.
 - [Proto](proto/README.md) - Validates proto contracts through proto-health.
+- [AI Conformance](ai-conformance/README.md) - Validates AI-using scenarios for provider-neutral routing, resource boundary hygiene, embedding metadata safety, and AI Gateway adoption readiness.
 - [Branding](branding/README.md) - Validates brand identity, design tokens, typography, logos, favicons, contrast, and applied brand markers through brand-manager.
 - [Search](search/README.md) - Validates search-enabled scenarios through Search Hub's search maturity contract.
 - [Provider Conformance](provider-conformance/README.md) - Validates Test Genie phase-provider descriptors: descriptor structure, embedded maturity, policy safety, stale-file absence, and live provider-contract conformance.

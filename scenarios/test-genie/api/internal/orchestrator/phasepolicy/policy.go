@@ -2,12 +2,14 @@ package phasepolicy
 
 import "strings"
 
-type SelectionPolicy string
-type ProviderReadinessPolicy string
-type ProviderLifecyclePolicy string
-type FreshnessPolicy string
-type ResultGatingPolicy string
-type UnavailablePolicy string
+type (
+	SelectionPolicy         string
+	ProviderReadinessPolicy string
+	ProviderLifecyclePolicy string
+	FreshnessPolicy         string
+	ResultGatingPolicy      string
+	UnavailablePolicy       string
+)
 
 const (
 	SelectionDefaultWhenApplicable       SelectionPolicy = "default_when_applicable"

@@ -87,7 +87,6 @@ var staticEntries = []Entry{
 		ReferenceSkillIDs: []string{
 			"swarm-manager-backlog-tools",
 			"implementation-plan-authoring",
-			"plan-skill-discovery",
 		},
 	},
 	{
@@ -162,7 +161,6 @@ var staticEntries = []Entry{
 		ReferenceSkillIDs: []string{
 			"swarm-manager-backlog-tools",
 			"implementation-plan-authoring",
-			"plan-skill-discovery",
 		},
 	},
 	{
@@ -302,16 +300,6 @@ var staticEntries = []Entry{
 		Trigger:    "Referenced by research backlog prompt skills",
 		SkillID:    "research-conclusion-authoring",
 		Purpose:    "Canonical conclusion structure and quality gates for conclusion.md.",
-	},
-	{
-		ID:         "support-plan-skill-discovery",
-		Title:      "Plan Skill Discovery Reference",
-		Group:      GroupSupport,
-		UsageType:  UsageSupportReference,
-		SourceType: SourceSkill,
-		Trigger:    "Referenced by workshop and finalize prompt skills",
-		SkillID:    "plan-skill-discovery",
-		Purpose:    "Guidance for discovering and embedding relevant skills into a plan.",
 	},
 	{
 		ID:         "initiative-feedback",

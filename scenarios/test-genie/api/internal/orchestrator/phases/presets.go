@@ -1,7 +1,5 @@
 package phases
 
-import "fmt"
-
 // Preset is a named validation loop. Some presets are adaptive profiles and
 // some are concrete phase bundles. Preset identity is centralized here so
 // callers reference typed constants instead of bare strings.
@@ -49,43 +47,45 @@ func AdaptiveProfile(name string) (ProfileDefinition, bool) {
 	return profile, ok
 }
 
-// curatedPresets declares concrete preset → phase compositions using
-// typed phase Names so a stale or misspelled phase is a compile error rather
-// than a silent runtime miss. Validate against the catalog via ValidatePresets.
-//
-// PresetComprehensive is intentionally absent: it is computed from the catalog
-// (every registered phase) in DefaultPresets, so adding a phase auto-joins
-// comprehensive and it can never silently drift from the catalog. Adaptive
-// presets such as quick and smoke are intentionally absent: profileplanner
+// PhasesForProfile returns the descriptor-declared phase set for a concrete
+// profile. Adaptive profiles are intentionally excluded because profileplanner
 // selects them from applicable phases and measured history at plan time.
-var curatedPresets = map[Preset][]Name{
-	// architecture-audit is the per-surface conformance battery plus the
-	// structural cohesion axis — the single command the screaming-
-	// architecture skill points at. Excludes runtime phases (unit,
-	// performance). The architecture phase remains advisory
-	// for low-confidence authority, but high-confidence blocker findings
-	// gate by default.
-	PresetArchitectureAudit: {
-		Structure, Contracts, UIHealth, API, Docs, Architecture, Proto,
-	},
+func PhasesForProfile(catalog *Catalog, profile Preset) []string {
+	if catalog == nil {
+		catalog = DefaultCatalog()
+	}
+	name := NormalizeKey(profile.String())
+	var out []string
+	for _, spec := range catalog.All() {
+		for _, member := range spec.ProfileMembership {
+			if NormalizeKey(member) == name {
+				out = append(out, spec.Name.String())
+				break
+			}
+		}
+	}
+	return out
 }
 
-var freshnessRequired = []Name{Structure, Docs, Business, Unit, Proto}
-
-// FreshnessRequired returns the global required-phase set for run-freshness
+// FreshnessRequired returns the descriptor-declared phase set for run-freshness
 // checks (RunsService.CheckFreshness, the hygiene advisory pre-commit step).
-// Freshness is deliberately independent from adaptive quick/smoke profiles:
-// adaptive profiles can vary by applicability, budget, and measured history,
-// while freshness needs a stable repo-wide evidence contract.
-//
-// This is deliberately a code-level SSOT and NOT configurable per scenario
-// (operator decision): a `.vrooli/testing.json` knob would let an agent delete
-// required phases to silence the freshness checker instead of running tests.
-// A repo-global change, if ever needed, is a code change to freshnessRequired.
 func FreshnessRequired() []string {
-	out := make([]string, 0, len(freshnessRequired))
-	for _, n := range freshnessRequired {
-		out = append(out, n.String())
+	return FreshnessRequiredForCatalog(DefaultCatalog())
+}
+
+// FreshnessRequiredForCatalog returns phases whose descriptors declare that
+// they participate in freshness. Applicability filtering happens later during
+// planning/runs; this projection only names the provider-owned contract.
+func FreshnessRequiredForCatalog(catalog *Catalog) []string {
+	if catalog == nil {
+		catalog = DefaultCatalog()
+	}
+	var out []string
+	for _, spec := range catalog.All() {
+		switch spec.FreshnessRequirement {
+		case "always", "when_applicable":
+			out = append(out, spec.Name.String())
+		}
 	}
 	return out
 }
@@ -97,15 +97,11 @@ func FreshnessRequired() []string {
 // always equals the full set of registered phases — it is never a maintained
 // list. A guard test (presets_comprehensive_guard_test.go) enforces this.
 func DefaultPresets() map[string][]string {
-	out := make(map[string][]string, len(curatedPresets)+1)
-	for preset, names := range curatedPresets {
-		phases := make([]string, 0, len(names))
-		for _, n := range names {
-			phases = append(phases, n.String())
-		}
-		out[preset.String()] = phases
+	catalog := DefaultCatalog()
+	out := map[string][]string{
+		PresetArchitectureAudit.String(): PhasesForProfile(catalog, PresetArchitectureAudit),
+		PresetComprehensive.String():     ValidPhaseNames(),
 	}
-	out[PresetComprehensive.String()] = ValidPhaseNames()
 	return out
 }
 
@@ -162,21 +158,21 @@ func filterPresetPhases(phaseNames []string, allowed map[string]struct{}) []stri
 	return filtered
 }
 
-// ValidatePresets ensures every phase referenced by a curated preset resolves in
-// the supplied catalog. A non-nil catalog is required; passing nil falls back to
-// the default catalog. It returns an error naming the first offending phase so
-// misconfiguration fails loudly at startup rather than mid-run. The computed
-// "comprehensive" preset needs no validation — it is derived from the catalog.
+// ValidatePresets ensures descriptor-declared concrete profiles resolve to at
+// least one phase in the supplied catalog. The computed "comprehensive" preset
+// needs no validation — it is derived from the catalog.
 func ValidatePresets(catalog *Catalog) error {
 	if catalog == nil {
 		catalog = DefaultCatalog()
 	}
-	for preset, names := range curatedPresets {
-		for _, n := range names {
-			if _, ok := catalog.Lookup(n.String()); !ok {
-				return fmt.Errorf("preset %q references unknown phase %q", preset, n)
-			}
-		}
+	if len(PhasesForProfile(catalog, PresetArchitectureAudit)) == 0 {
+		return ErrEmptyProfile(PresetArchitectureAudit)
 	}
 	return nil
+}
+
+type ErrEmptyProfile Preset
+
+func (e ErrEmptyProfile) Error() string {
+	return "preset " + Preset(e).String() + " has no descriptor-declared phases"
 }

@@ -40,7 +40,10 @@ func (o *SuiteOrchestrator) buildPhasePlan(env workspacepkg.Environment, cfg *wo
 	if len(defs) == 0 {
 		return nil, fmt.Errorf("scenario '%s' has no enabled phase definitions", env.ScenarioName)
 	}
-	applicabilityDecisions := o.evaluatePhaseApplicability(defs, env, cfg)
+	applicabilityDecisions, err := o.evaluatePhaseApplicability(defs, env, cfg)
+	if err != nil {
+		return nil, err
+	}
 	applicableDefs, notApplicable := splitApplicableDefinitions(defs, applicabilityDecisions)
 	if len(applicableDefs) == 0 {
 		return nil, shared.NewValidationError("no phases are applicable to this scenario")
@@ -139,21 +142,24 @@ type phaseApplicabilityNotice struct {
 	Descriptor providerdescriptor.Descriptor
 }
 
-func (o *SuiteOrchestrator) evaluatePhaseApplicability(defs []phases.Definition, env workspacepkg.Environment, cfg *workspacepkg.Config) map[string]phaseApplicabilityNotice {
+func (o *SuiteOrchestrator) evaluatePhaseApplicability(defs []phases.Definition, env workspacepkg.Environment, cfg *workspacepkg.Config) (map[string]phaseApplicabilityNotice, error) {
 	ctx := buildApplicabilityContext(env, cfg, o.descriptorPredicates())
 	results := make(map[string]phaseApplicabilityNotice, len(defs))
 	for _, def := range defs {
 		key := def.Name.Key()
 		entry, ok := o.descriptorEntry(key)
 		if !ok {
+			if def.ProviderScenario != "" {
+				return nil, fmt.Errorf("phase_applicability_descriptor_missing: phase %q has a provider-backed catalog definition but no provider descriptor", def.Name.String())
+			}
 			results[key] = phaseApplicabilityNotice{
 				Definition: def,
 				Result: applicability.Result{
 					Phase:  def.Name.String(),
 					Status: applicability.StatusApplies,
 					Reasons: []applicability.Reason{{
-						Code:    "applicability.legacy_catalog_default",
-						Message: "legacy catalog phase applies by default until descriptor migration",
+						Code:    "applicability.test_fixture_default",
+						Message: "non-provider test fixture phase applies by default",
 					}},
 				},
 			}
@@ -165,7 +171,7 @@ func (o *SuiteOrchestrator) evaluatePhaseApplicability(defs []phases.Definition,
 			Descriptor: entry.Descriptor,
 		}
 	}
-	return results
+	return results, nil
 }
 
 func splitApplicableDefinitions(defs []phases.Definition, decisions map[string]phaseApplicabilityNotice) ([]phases.Definition, []phaseApplicabilityNotice) {

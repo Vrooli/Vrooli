@@ -32,6 +32,8 @@ type PlannedPhase struct {
 	Name                     string                 `json:"name"`
 	DisplayName              string                 `json:"displayName,omitempty"`
 	Description              string                 `json:"description,omitempty"`
+	Provider                 string                 `json:"provider,omitempty"`
+	Source                   string                 `json:"source,omitempty"`
 	Optional                 bool                   `json:"optional"`
 	EstimatedDurationSeconds int                    `json:"estimatedDurationSeconds"`
 	TimeoutSeconds           int                    `json:"timeoutSeconds"`
@@ -47,7 +49,14 @@ type PlannedPhase struct {
 	ProviderReadiness        string                 `json:"providerReadiness,omitempty"`
 	Freshness                string                 `json:"freshness,omitempty"`
 	Policy                   phasepolicy.Policy     `json:"policy,omitempty"`
+	DocPath                  string                 `json:"docPath,omitempty"`
 	DescriptorPath           string                 `json:"descriptorPath,omitempty"`
+	FindingSource            string                 `json:"findingSource,omitempty"`
+	ProfileMembership        []string               `json:"profileMembership,omitempty"`
+	FreshnessRequirement     string                 `json:"freshnessRequirement,omitempty"`
+	PhaseClass               string                 `json:"phaseClass,omitempty"`
+	RuntimeClass             string                 `json:"runtimeClass,omitempty"`
+	Dimensions               []string               `json:"dimensions,omitempty"`
 }
 
 // ExecutionPlanSummary captures total timing guidance for a plan.

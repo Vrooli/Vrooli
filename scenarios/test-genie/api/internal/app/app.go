@@ -45,6 +45,7 @@ func NewServer() (*httpserver.Server, error) {
 		PlaybooksClaims:            deps.PlaybooksClaims,
 		EligibilityService:         deps.EligibilityService,
 		RunsService:                deps.RunsService,
+		ValidationService:          deps.ValidationService,
 	}
 
 	return newHTTPServer(httpCfg, httpDeps)

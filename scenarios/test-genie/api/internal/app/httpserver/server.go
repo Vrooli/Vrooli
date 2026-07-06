@@ -19,6 +19,7 @@ import (
 	"test-genie/agentmanager"
 	appelig "test-genie/internal/app/eligibility"
 	apprun "test-genie/internal/app/runs"
+	appvalidation "test-genie/internal/app/validation"
 	"test-genie/internal/execution"
 	"test-genie/internal/fix"
 	"test-genie/internal/orchestrator"
@@ -33,6 +34,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/eligibility/eligibility_v1connect"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
 )
@@ -65,6 +67,7 @@ type Dependencies struct {
 	PlaybooksClaims            *playbooksclaims.Service
 	EligibilityService         *appelig.Service
 	RunsService                *apprun.Service
+	ValidationService          *appvalidation.Service
 	Logger                     Logger
 }
 
@@ -135,6 +138,7 @@ type Server struct {
 	playbooksClaims            *playbooksclaims.Service
 	eligibilityService         *appelig.Service
 	runsService                *apprun.Service
+	validationService          *appvalidation.Service
 	seedSessions               map[string]*seedSession
 	seedSessionsByScenario     map[string]string
 	seedSessionsMu             sync.Mutex
@@ -193,6 +197,7 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		playbooksClaims:            deps.PlaybooksClaims,
 		eligibilityService:         deps.EligibilityService,
 		runsService:                deps.RunsService,
+		validationService:          deps.ValidationService,
 		seedSessions:               make(map[string]*seedSession),
 		seedSessionsByScenario:     make(map[string]string),
 	}
@@ -278,6 +283,15 @@ func (s *Server) setupRoutes() {
 	// under that prefix to the generated handler.
 	if s.eligibilityService != nil {
 		path, handler := eligibility_v1connect.NewEligibilityServiceHandler(s.eligibilityService)
+		s.router.PathPrefix(path).Handler(handler)
+	}
+
+	// Provider-conformance ScenarioValidationService: Test Genie's own
+	// descriptor-backed phase. Validates target scenarios that declare
+	// .vrooli/test-genie.json phase descriptors (descriptor, embedded maturity,
+	// policy, stale-file, and live provider-contract conformance).
+	if s.validationService != nil {
+		path, handler := scenariovalidationconnect.NewScenarioValidationServiceHandler(s.validationService)
 		s.router.PathPrefix(path).Handler(handler)
 	}
 

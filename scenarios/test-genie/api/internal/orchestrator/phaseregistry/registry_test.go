@@ -11,10 +11,20 @@ import (
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
+type testSpec struct {
+	Name           string
+	Source         string
+	Provider       string
+	FindingSource  architecturev1.FindingSource
+	DefaultTimeout bool
+	NeedsUI        bool
+	HasPolicy      bool
+}
+
 func TestBuildDescriptorBackedProviderPhase(t *testing.T) {
 	descriptor := loadDescriptor(t, "knowledge-observatory", validDescriptor("knowledge-observatory", "docs"))
 
-	result := Build([]providerdescriptor.Descriptor{descriptor}, Options{})
+	result := Build([]providerdescriptor.Descriptor{descriptor}, Options{Bindings: testBindings()})
 	if hasDiagnostic(result.Diagnostics, "") {
 		t.Fatalf("Build diagnostics = %#v", result.Diagnostics)
 	}
@@ -22,27 +32,27 @@ func TestBuildDescriptorBackedProviderPhase(t *testing.T) {
 	if !ok {
 		t.Fatal("docs phase was not registered")
 	}
-	spec := entry.Spec
-	if spec.Name.String() != "docs" {
+	spec := entry.Spec.(testSpec)
+	if spec.Name != "docs" {
 		t.Fatalf("spec name = %q, want docs", spec.Name)
 	}
 	if spec.Source != SourceValidationProvider {
 		t.Fatalf("source = %q, want %q", spec.Source, SourceValidationProvider)
 	}
-	if spec.Delegated == nil || spec.Delegated.ProviderScenario != "knowledge-observatory" {
-		t.Fatalf("delegated provider = %#v, want knowledge-observatory", spec.Delegated)
+	if spec.Provider != "knowledge-observatory" {
+		t.Fatalf("delegated provider = %#v, want knowledge-observatory", spec.Provider)
 	}
 	if spec.FindingSource != architecturev1.FindingSource_FINDING_SOURCE_DOCS {
 		t.Fatalf("finding source = %v, want DOCS", spec.FindingSource)
 	}
-	if spec.DefaultTimeout <= 0 {
+	if !spec.DefaultTimeout {
 		t.Fatalf("timeout was not projected: default=%v", spec.DefaultTimeout)
 	}
-	if spec.Capabilities.NeedsUI {
+	if spec.NeedsUI {
 		t.Fatal("docs descriptor should not require UI")
 	}
-	if spec.Policy.IsZero() || spec.Policy.ProviderReadiness == "" {
-		t.Fatalf("policy was not projected: %#v", spec.Policy)
+	if !spec.HasPolicy {
+		t.Fatal("policy was not projected")
 	}
 	if entry.Descriptor.Path == "" {
 		t.Fatal("descriptor source path was not retained")
@@ -55,7 +65,7 @@ func TestBuildOrdersByOrderHint(t *testing.T) {
 	cliBody = strings.Replace(cliBody, `"orderHint":100`, `"orderHint":10`, 1)
 	cli := loadDescriptor(t, "cli-health", cliBody)
 
-	result := Build([]providerdescriptor.Descriptor{docs, cli}, Options{})
+	result := Build([]providerdescriptor.Descriptor{docs, cli}, Options{Bindings: testBindings()})
 	if hasDiagnostic(result.Diagnostics, "") {
 		t.Fatalf("Build diagnostics = %#v", result.Diagnostics)
 	}
@@ -63,7 +73,7 @@ func TestBuildOrdersByOrderHint(t *testing.T) {
 	if len(specs) != 2 {
 		t.Fatalf("spec count = %d, want 2", len(specs))
 	}
-	if got := specs[0].Name.String(); got != "contracts" {
+	if got := specs[0].(testSpec).Name; got != "contracts" {
 		t.Fatalf("first phase = %q, want contracts", got)
 	}
 }
@@ -74,7 +84,7 @@ func TestBuildRejectsDuplicatePhase(t *testing.T) {
 	second.Scenario = "other-docs"
 	second.Path = filepath.Join(filepath.Dir(first.Path), "..", "..", "other-docs", ".vrooli", "test-genie.json")
 
-	result := Build([]providerdescriptor.Descriptor{first, second}, Options{})
+	result := Build([]providerdescriptor.Descriptor{first, second}, Options{Bindings: testBindings()})
 	if !hasDiagnostic(result.Diagnostics, "duplicate_phase") {
 		t.Fatalf("diagnostics = %#v, want duplicate_phase", result.Diagnostics)
 	}
@@ -84,6 +94,7 @@ func TestBuildRejectsMissingRequiredDescriptor(t *testing.T) {
 	descriptor := loadDescriptor(t, "knowledge-observatory", validDescriptor("knowledge-observatory", "docs"))
 
 	result := Build([]providerdescriptor.Descriptor{descriptor}, Options{
+		Bindings:       testBindings(),
 		RequiredPhases: []RequiredPhase{{Phase: "structure", ProviderScenario: "structure-health"}},
 	})
 	if !hasDiagnostic(result.Diagnostics, "missing_required_descriptor") {
@@ -95,7 +106,7 @@ func TestBuildRejectsUnsupportedSource(t *testing.T) {
 	descriptor := loadDescriptor(t, "knowledge-observatory", validDescriptor("knowledge-observatory", "docs"))
 	descriptor.Source = "native-go"
 
-	result := Build([]providerdescriptor.Descriptor{descriptor}, Options{})
+	result := Build([]providerdescriptor.Descriptor{descriptor}, Options{Bindings: testBindings()})
 	if !hasDiagnostic(result.Diagnostics, "unsupported_source") {
 		t.Fatalf("diagnostics = %#v, want unsupported_source", result.Diagnostics)
 	}
@@ -105,9 +116,25 @@ func TestBuildRejectsInvalidFindingSource(t *testing.T) {
 	descriptor := loadDescriptor(t, "knowledge-observatory", validDescriptor("knowledge-observatory", "docs"))
 	descriptor.FindingSource = "search"
 
-	result := Build([]providerdescriptor.Descriptor{descriptor}, Options{})
+	result := Build([]providerdescriptor.Descriptor{descriptor}, Options{Bindings: testBindings()})
 	if !hasDiagnostic(result.Diagnostics, "invalid_finding_source") {
 		t.Fatalf("diagnostics = %#v, want invalid_finding_source", result.Diagnostics)
+	}
+}
+
+func testBindings() map[string]RunnerBinding {
+	return map[string]RunnerBinding{
+		SourceValidationProvider: func(descriptor providerdescriptor.Descriptor, source architecturev1.FindingSource) (any, error) {
+			return testSpec{
+				Name:           descriptor.Phase,
+				Source:         descriptor.Source,
+				Provider:       descriptor.Scenario,
+				FindingSource:  source,
+				DefaultTimeout: descriptor.TimeoutValue > 0,
+				NeedsUI:        descriptor.Runnability.NeedsUI,
+				HasPolicy:      descriptor.Policy.ProviderReadiness != "",
+			}, nil
+		},
 	}
 }
 

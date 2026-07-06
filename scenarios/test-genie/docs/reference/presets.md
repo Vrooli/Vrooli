@@ -75,10 +75,12 @@ test-genie execute my-scenario --preset comprehensive
 | Storage | Validates storage conventions, migration hygiene, persistence seams, and test isolation through storage-health. | 2m |
 | Workflow | Validates BAS workflow assets and safe execution through workflow-health. | 15m |
 | Business | Validates PRD, requirements registry, OT linkage, and evidence traceability through business-health. | 2m |
+| Experience | Validates scenario-experience-spec/v1 contracts and experience maturity through experience-manager. | 2m |
 | Tidiness | Validates file and function quality checks through tidiness-manager. | 2m |
 | Security | Validates secrets, Go SAST, Go vulnerability data, and JavaScript dependencies through security-health. | 3m |
 | Measures | Validates measures coverage and per-measure tiering through measures-health. | 3m |
 | Proto | Validates proto contracts through proto-health. | 2m |
+| AI Conformance | Validates AI-using scenarios for provider-neutral routing, resource boundary hygiene, embedding metadata safety, and AI Gateway adoption readiness. | 90s |
 | Branding | Validates brand identity, design tokens, typography, logos, favicons, contrast, and applied brand markers through brand-manager. | 2m |
 | Search | Validates search-enabled scenarios through Search Hub's search maturity contract. | 90s |
 | Provider Conformance | Validates Test Genie phase-provider descriptors: descriptor structure, embedded maturity, policy safety, stale-file absence, and live provider-contract conformance. | 90s |
@@ -100,10 +102,12 @@ test-genie execute my-scenario --preset comprehensive
 | Storage | Adaptive | Adaptive | No | Yes |
 | Workflow | Adaptive | Adaptive | No | Yes |
 | Business | Adaptive | Adaptive | No | Yes |
+| Experience | Adaptive | Adaptive | No | Yes |
 | Tidiness | Adaptive | Adaptive | No | Yes |
 | Security | Adaptive | Adaptive | No | Yes |
 | Measures | Adaptive | Adaptive | No | Yes |
 | Proto | Adaptive | Adaptive | Yes | Yes |
+| AI Conformance | Adaptive | Adaptive | No | Yes |
 | Branding | Adaptive | Adaptive | No | Yes |
 | Search | Adaptive | Adaptive | No | Yes |
 | Provider Conformance | Adaptive | Adaptive | No | Yes |

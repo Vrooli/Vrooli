@@ -77,6 +77,11 @@ func TestHandleInspectPhase(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), `"policy"`) || !strings.Contains(rec.Body.String(), `"runnability"`) {
 		t.Fatalf("expected policy and runnability metadata in response, got %s", rec.Body.String())
 	}
+	for _, want := range []string{`"descriptorPath"`, `"docPath"`, `"freshnessRequirement"`, `"phaseClass"`, `"runtimeClass"`, `"dimensions"`} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Fatalf("expected %s metadata in response, got %s", want, rec.Body.String())
+		}
+	}
 }
 
 func TestHandlePreviewPhaseApplicabilityFiltersPhase(t *testing.T) {
@@ -85,10 +90,18 @@ func TestHandlePreviewPhaseApplicabilityFiltersPhase(t *testing.T) {
 			ScenarioName: "demo",
 			Phases: []execution.PlannedPhase{{
 				Name:                "unit",
+				Provider:            "unit-health",
+				DocPath:             "scenarios/test-genie/docs/phases/unit/README.md",
+				PhaseClass:          "runtime",
+				RuntimeClass:        "execution",
 				ApplicabilityStatus: applicability.StatusApplies,
 			}},
 			NotApplicablePhases: []execution.PlannedPhase{{
 				Name:                "search",
+				Provider:            "search-hub",
+				DocPath:             "scenarios/test-genie/docs/phases/search/README.md",
+				PhaseClass:          "quality",
+				RuntimeClass:        "static",
 				ApplicabilityStatus: applicability.StatusNotApplicable,
 				ApplicabilityReasons: []applicability.Reason{{
 					Code:    "applicability.default_not_applicable",
@@ -115,5 +128,10 @@ func TestHandlePreviewPhaseApplicabilityFiltersPhase(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), `"status":"not_applicable"`) {
 		t.Fatalf("expected not applicable status, got %s", rec.Body.String())
+	}
+	for _, want := range []string{`"provider":"search-hub"`, `"docPath"`, `"phaseClass":"quality"`, `"runtimeClass":"static"`} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Fatalf("expected %s in applicability preview, got %s", want, rec.Body.String())
+		}
 	}
 }

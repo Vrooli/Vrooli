@@ -24,6 +24,16 @@ Search Hub owns the search maturity judgment. The initial contract validates:
 - status/control endpoint posture where declared or expected
 - bounded tuning and query-budget metadata
 
+Test Genie requests execution-mode validation for this phase. Search Hub checks
+registered eval suites, latest stored run freshness, failed eval outcomes, and
+live corpus labels by probing the provider's current search endpoint. Missing
+run history, failed eval outcomes, stale live labels, or unavailable live corpus
+proof are required `search_eval_performance` findings.
+
+`search-hub maturity scan` runs the same full validation by default. Use
+`search-hub maturity scan --fast` only when an operator needs a quick
+descriptor/state inventory and accepts that live retrieval proof is skipped.
+
 Provider-specific implementation details stay in Search Hub. Test Genie only plans the phase, checks provider readiness, calls the shared validation RPC, maps findings, and records the result.
 
 ## Inspection
@@ -32,4 +42,7 @@ Provider-specific implementation details stay in Search Hub. Test Genie only pla
 test-genie phases applicability <scenario> --phase search --json
 test-genie phases plan <scenario> --preset comprehensive --json
 test-genie provider-contract check search <scenario> --json
+search-hub maturity scan --json
+search-hub maturity scan --fast --json
+search-hub maturity fix <scenario> --json
 ```

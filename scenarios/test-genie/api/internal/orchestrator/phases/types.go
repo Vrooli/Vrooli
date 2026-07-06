@@ -38,6 +38,9 @@ const (
 	Proto        Name = "proto"
 	Branding     Name = "branding"
 	Search       Name = "search"
+	// ProviderConformance validates scenarios that declare themselves as Test
+	// Genie phase providers (.vrooli/test-genie.json); owned by test-genie itself.
+	ProviderConformance Name = "provider-conformance"
 )
 
 const (
@@ -73,6 +76,11 @@ type Descriptor struct {
 	Policy                phasepolicy.Policy            `json:"policy,omitempty"`
 	Runnability           runnability.PhaseCapabilities `json:"runnability,omitempty"`
 	FindingSource         string                        `json:"findingSource,omitempty"`
+	ProfileMembership     []string                      `json:"profileMembership,omitempty"`
+	FreshnessRequirement  string                        `json:"freshnessRequirement,omitempty"`
+	PhaseClass            string                        `json:"phaseClass,omitempty"`
+	RuntimeClass          string                        `json:"runtimeClass,omitempty"`
+	Dimensions            []string                      `json:"dimensions,omitempty"`
 }
 
 // Observation represents a single test observation with optional rich formatting.
@@ -225,7 +233,12 @@ type Definition struct {
 	// (FINDING_SOURCE_UNSPECIFIED for phases that produce no findings, e.g.
 	// performance). Carried from the catalog Spec so the orchestrator
 	// can stamp the per-phase findingSource token onto each ExecutionResult.
-	FindingSource architecturev1.FindingSource
+	FindingSource        architecturev1.FindingSource
+	ProfileMembership    []string
+	FreshnessRequirement string
+	PhaseClass           string
+	RuntimeClass         string
+	Dimensions           []string
 }
 
 // Spec captures metadata for a catalog entry.
@@ -260,7 +273,12 @@ type Spec struct {
 	// The orchestrator
 	// stamps the lower-case token onto each ExecutionResult so a downstream
 	// campaign reaudit can derive which sources a partial run actually covered.
-	FindingSource architecturev1.FindingSource
+	FindingSource        architecturev1.FindingSource
+	ProfileMembership    []string
+	FreshnessRequirement string
+	PhaseClass           string
+	RuntimeClass         string
+	Dimensions           []string
 	// NonComparable opts a phase out of baseline/run comparison. The default is
 	// comparable; catalog entries opt out only when their result cannot produce
 	// a meaningful phase verdict.
@@ -283,15 +301,20 @@ type Spec struct {
 // fields are copied, keeping the layers from drifting.
 func (s Spec) ToDefinition() Definition {
 	def := Definition{
-		Name:          s.Name,
-		Runner:        s.Runner,
-		Timeout:       s.DefaultTimeout,
-		Optional:      s.Optional,
-		DisplayName:   s.DisplayName,
-		Policy:        s.Policy,
-		SkipEnvVar:    s.SkipEnvVar,
-		Capabilities:  s.Capabilities,
-		FindingSource: s.FindingSource,
+		Name:                 s.Name,
+		Runner:               s.Runner,
+		Timeout:              s.DefaultTimeout,
+		Optional:             s.Optional,
+		DisplayName:          s.DisplayName,
+		Policy:               s.Policy,
+		SkipEnvVar:           s.SkipEnvVar,
+		Capabilities:         s.Capabilities,
+		FindingSource:        s.FindingSource,
+		ProfileMembership:    append([]string(nil), s.ProfileMembership...),
+		FreshnessRequirement: s.FreshnessRequirement,
+		PhaseClass:           s.PhaseClass,
+		RuntimeClass:         s.RuntimeClass,
+		Dimensions:           append([]string(nil), s.Dimensions...),
 	}
 	if s.Delegated != nil {
 		def.ProviderScenario = s.Delegated.ProviderScenario

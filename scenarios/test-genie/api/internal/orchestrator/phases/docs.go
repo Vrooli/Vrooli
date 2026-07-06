@@ -39,6 +39,7 @@ func RenderPhasesMarkdown(catalog *Catalog) string {
 	var b strings.Builder
 	b.WriteString("# Test Genie Phases\n\n")
 	b.WriteString("Test Genie phases are generated from the effective descriptor-backed registry. Provider-backed phase metadata lives in each provider's `.vrooli/test-genie.json`; Test Genie code owns runner bindings, preset composition, and registry validation.\n\n")
+	b.WriteString("Use `test-genie phases inspect <phase> --json` or `/api/v1/phases/<phase>` to inspect the effective descriptor projection, including provider, descriptor path, docs path, policy, runnability, applicability vocabulary, freshness requirement, profile membership, phase/runtime class, dimensions, and finding source. Provider descriptors must declare `docs.path`; retired `.vrooli/maturity.json` files are rejected.\n\n")
 	b.WriteString("## Phase Summary\n\n")
 	b.WriteString("| Order | Phase | Timeout | Selection | Provider Readiness | Gating | Runtime | Source | Purpose |\n")
 	b.WriteString("|-------|-------|---------|-----------|--------------------|--------|---------|--------|---------|\n")

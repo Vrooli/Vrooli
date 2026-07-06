@@ -6,15 +6,14 @@ import (
 	"fmt"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strings"
 	"time"
 
 	"test-genie/internal/orchestrator/phasepolicy"
+	"test-genie/internal/orchestrator/phaseregistry"
 	"test-genie/internal/orchestrator/providerdescriptor"
 
 	"github.com/vrooli/vrooli/packages/proto/architecture/findingid"
-	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
 // Catalog exposes the orchestrator's built-in phase registry so the API can
@@ -71,29 +70,11 @@ func loadDefaultCatalogFromDescriptors(defaultTimeout time.Duration) (*Catalog, 
 	if len(load.Descriptors) == 0 {
 		return nil, fmt.Errorf("load provider descriptors: no %s files found under %s", providerdescriptor.RelPath, repoRoot)
 	}
-	sort.SliceStable(load.Descriptors, func(i, j int) bool {
-		if load.Descriptors[i].OrderHint != load.Descriptors[j].OrderHint {
-			return load.Descriptors[i].OrderHint < load.Descriptors[j].OrderHint
-		}
-		return load.Descriptors[i].Phase < load.Descriptors[j].Phase
-	})
-
-	catalog := newCatalog()
-	for _, descriptor := range load.Descriptors {
-		findingSource, ok := parseDescriptorFindingSource(descriptor.FindingSource)
-		if !ok {
-			return nil, fmt.Errorf("%s: invalid findingSource %q", descriptor.Path, descriptor.FindingSource)
-		}
-		spec, err := ValidationProviderSpecFromDescriptor(descriptor, findingSource)
-		if err != nil {
-			return nil, fmt.Errorf("%s: bind descriptor phase: %w", descriptor.Path, err)
-		}
-		if spec.DefaultTimeout <= 0 {
-			spec.DefaultTimeout = defaultTimeout
-		}
-		catalog.Register(spec)
+	registry, err := BuildDescriptorRegistry(load.Descriptors)
+	if err != nil {
+		return nil, err
 	}
-	return catalog, nil
+	return NewCatalogFromSpecs(defaultTimeout, SpecsFromRegistry(registry)...), nil
 }
 
 func defaultRepoRoot() (string, error) {
@@ -104,35 +85,47 @@ func defaultRepoRoot() (string, error) {
 	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", "..", "..", "..")), nil
 }
 
-func parseDescriptorFindingSource(token string) (architecturev1.FindingSource, bool) {
-	token = strings.ToLower(strings.TrimSpace(token))
-	if token == "" {
-		return architecturev1.FindingSource_FINDING_SOURCE_UNSPECIFIED, true
+func BuildDescriptorRegistry(descriptors []providerdescriptor.Descriptor) (*phaseregistry.Registry, error) {
+	result := phaseregistry.Build(descriptors, phaseregistry.Options{Bindings: ValidationProviderRegistryBindings()})
+	if len(result.Diagnostics) > 0 {
+		return nil, fmt.Errorf("build descriptor phase registry: %s", formatRegistryDiagnostics(result.Diagnostics))
 	}
-	for _, source := range []architecturev1.FindingSource{
-		architecturev1.FindingSource_FINDING_SOURCE_UNSPECIFIED,
-		architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE,
-		architecturev1.FindingSource_FINDING_SOURCE_CLI,
-		architecturev1.FindingSource_FINDING_SOURCE_UI,
-		architecturev1.FindingSource_FINDING_SOURCE_DOCS,
-		architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
-		architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
-		architecturev1.FindingSource_FINDING_SOURCE_TIDINESS,
-		architecturev1.FindingSource_FINDING_SOURCE_COVERAGE,
-		architecturev1.FindingSource_FINDING_SOURCE_SECURITY,
-		architecturev1.FindingSource_FINDING_SOURCE_MEASURES,
-		architecturev1.FindingSource_FINDING_SOURCE_BUSINESS,
-		architecturev1.FindingSource_FINDING_SOURCE_PROTO,
-		architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY,
-		architecturev1.FindingSource_FINDING_SOURCE_STORAGE,
-		architecturev1.FindingSource_FINDING_SOURCE_BRANDING,
-		architecturev1.FindingSource_FINDING_SOURCE_WORKFLOW,
-	} {
-		if findingid.SourceToken(source) == token {
-			return source, true
+	return result.Registry, nil
+}
+
+func SpecsFromRegistry(registry *phaseregistry.Registry) []Spec {
+	if registry == nil {
+		return nil
+	}
+	specs := make([]Spec, 0, len(registry.All()))
+	for _, entry := range registry.All() {
+		spec, ok := SpecFromRegistryEntry(entry)
+		if !ok {
+			continue
 		}
+		specs = append(specs, spec)
 	}
-	return architecturev1.FindingSource_FINDING_SOURCE_UNSPECIFIED, false
+	return specs
+}
+
+func SpecFromRegistryEntry(entry phaseregistry.Entry) (Spec, bool) {
+	spec, ok := entry.Spec.(Spec)
+	return spec, ok
+}
+
+func formatRegistryDiagnostics(diagnostics []phaseregistry.Diagnostic) string {
+	parts := make([]string, 0, len(diagnostics))
+	for _, diagnostic := range diagnostics {
+		prefix := diagnostic.Code
+		if diagnostic.Phase != "" {
+			prefix = diagnostic.Phase + ":" + prefix
+		}
+		if diagnostic.Path != "" {
+			prefix = diagnostic.Path + ":" + prefix
+		}
+		parts = append(parts, prefix+": "+diagnostic.Message)
+	}
+	return strings.Join(parts, "; ")
 }
 
 // Register inserts or replaces a phase specification in the catalog.
@@ -216,6 +209,11 @@ func (c *Catalog) Descriptors() []Descriptor {
 			Policy:                spec.Policy,
 			Runnability:           spec.Capabilities,
 			FindingSource:         findingid.SourceToken(spec.FindingSource),
+			ProfileMembership:     append([]string(nil), spec.ProfileMembership...),
+			FreshnessRequirement:  spec.FreshnessRequirement,
+			PhaseClass:            spec.PhaseClass,
+			RuntimeClass:          spec.RuntimeClass,
+			Dimensions:            append([]string(nil), spec.Dimensions...),
 		})
 	}
 	return descriptors

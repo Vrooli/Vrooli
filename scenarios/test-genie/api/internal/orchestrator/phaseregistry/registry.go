@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"test-genie/internal/orchestrator/phases"
+	"test-genie/internal/orchestrator/phasekeys"
 	"test-genie/internal/orchestrator/providerdescriptor"
 
 	"github.com/vrooli/vrooli/packages/proto/architecture/findingid"
@@ -35,16 +35,16 @@ type Options struct {
 	RequiredPhases []RequiredPhase
 }
 
-type RunnerBinding func(providerdescriptor.Descriptor, architecturev1.FindingSource) (phases.Spec, error)
+type RunnerBinding func(providerdescriptor.Descriptor, architecturev1.FindingSource) (any, error)
 
 type Entry struct {
 	Descriptor providerdescriptor.Descriptor
-	Spec       phases.Spec
+	Spec       any
 }
 
 type Registry struct {
-	entries map[phases.Name]Entry
-	order   []phases.Name
+	entries map[string]Entry
+	order   []string
 }
 
 type Result struct {
@@ -54,9 +54,6 @@ type Result struct {
 
 func Build(descriptors []providerdescriptor.Descriptor, opts Options) Result {
 	bindings := opts.Bindings
-	if bindings == nil {
-		bindings = DefaultBindings()
-	}
 
 	ordered := append([]providerdescriptor.Descriptor(nil), descriptors...)
 	sort.SliceStable(ordered, func(i, j int) bool {
@@ -67,22 +64,22 @@ func Build(descriptors []providerdescriptor.Descriptor, opts Options) Result {
 	})
 
 	registry := &Registry{
-		entries: make(map[phases.Name]Entry, len(ordered)),
-		order:   make([]phases.Name, 0, len(ordered)),
+		entries: make(map[string]Entry, len(ordered)),
+		order:   make([]string, 0, len(ordered)),
 	}
 	var diagnostics []Diagnostic
 	seen := map[string]providerdescriptor.Descriptor{}
 	for _, descriptor := range ordered {
-		phaseName, ok := phases.NormalizeName(descriptor.Phase)
-		if !ok {
+		phaseName := phasekeys.NormalizeKey(descriptor.Phase)
+		if phaseName == "" || phaseName != strings.TrimSpace(descriptor.Phase) {
 			diagnostics = append(diagnostics, diagnostic(descriptor, "invalid_phase", "phase is not a normalized Test Genie phase name"))
 			continue
 		}
-		if first, exists := seen[phaseName.String()]; exists {
+		if first, exists := seen[phaseName]; exists {
 			diagnostics = append(diagnostics, diagnostic(descriptor, "duplicate_phase", fmt.Sprintf("phase %q already declared by %s", phaseName, first.Path)))
 			continue
 		}
-		seen[phaseName.String()] = descriptor
+		seen[phaseName] = descriptor
 
 		bind, ok := bindings[descriptor.Source]
 		if !ok {
@@ -110,16 +107,6 @@ func Build(descriptors []providerdescriptor.Descriptor, opts Options) Result {
 	return Result{Registry: registry}
 }
 
-func DefaultBindings() map[string]RunnerBinding {
-	return map[string]RunnerBinding{
-		SourceValidationProvider: validationProviderBinding,
-	}
-}
-
-func validationProviderBinding(descriptor providerdescriptor.Descriptor, findingSource architecturev1.FindingSource) (phases.Spec, error) {
-	return phases.ValidationProviderSpecFromDescriptor(descriptor, findingSource)
-}
-
 func (r *Registry) All() []Entry {
 	if r == nil {
 		return nil
@@ -131,9 +118,9 @@ func (r *Registry) All() []Entry {
 	return out
 }
 
-func (r *Registry) Specs() []phases.Spec {
+func (r *Registry) Specs() []any {
 	entries := r.All()
-	out := make([]phases.Spec, 0, len(entries))
+	out := make([]any, 0, len(entries))
 	for _, entry := range entries {
 		out = append(out, entry.Spec)
 	}
@@ -144,8 +131,8 @@ func (r *Registry) Lookup(raw string) (Entry, bool) {
 	if r == nil {
 		return Entry{}, false
 	}
-	name, ok := phases.NormalizeName(raw)
-	if !ok {
+	name := phasekeys.NormalizeKey(raw)
+	if name == "" {
 		return Entry{}, false
 	}
 	entry, ok := r.entries[name]
@@ -159,7 +146,7 @@ func requiredPhaseDiagnostics(required []RequiredPhase, seen map[string]provider
 		if phase == "" {
 			continue
 		}
-		descriptor, ok := seen[phases.NormalizeKey(phase)]
+		descriptor, ok := seen[phasekeys.NormalizeKey(phase)]
 		if !ok {
 			diagnostics = append(diagnostics, Diagnostic{
 				Phase:   phase,

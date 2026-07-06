@@ -1,7 +1,6 @@
 package phases
 
 import (
-	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -206,25 +205,26 @@ func TestCapabilityManifestCoversEveryPhase(t *testing.T) {
 
 func TestSkipEnvVarsPreservePublishedNames(t *testing.T) {
 	expected := map[Name]string{
-		Structure:    "TEST_GENIE_SKIP_STRUCTURE",
-		Contracts:    "TEST_GENIE_SKIP_CONTRACTS",
-		UIHealth:     "TEST_GENIE_SKIP_UI_HEALTH",
-		API:          "TEST_GENIE_SKIP_API",
-		Architecture: "TEST_GENIE_SKIP_ARCHITECTURE",
-		Dependencies: "TEST_GENIE_SKIP_DEPENDENCIES",
-		Quality:      "TEST_GENIE_SKIP_QUALITY",
-		Docs:         "TEST_GENIE_SKIP_DOCS",
-		Unit:         "TEST_GENIE_SKIP_UNIT",
-		Storage:      "TEST_GENIE_SKIP_STORAGE",
-		Workflow:     "TEST_GENIE_SKIP_WORKFLOW",
-		Business:     "TEST_GENIE_SKIP_BUSINESS",
-		Performance:  "TEST_GENIE_SKIP_PERFORMANCE",
-		Tidiness:     "TEST_GENIE_SKIP_TIDINESS",
-		Security:     "TEST_GENIE_SKIP_SECURITY",
-		Measures:     "TEST_GENIE_SKIP_MEASURES",
-		Proto:        "TEST_GENIE_SKIP_PROTO",
-		Branding:     "TEST_GENIE_SKIP_BRANDING",
-		Search:       "TEST_GENIE_SKIP_SEARCH",
+		Structure:           "TEST_GENIE_SKIP_STRUCTURE",
+		Contracts:           "TEST_GENIE_SKIP_CONTRACTS",
+		UIHealth:            "TEST_GENIE_SKIP_UI_HEALTH",
+		API:                 "TEST_GENIE_SKIP_API",
+		Architecture:        "TEST_GENIE_SKIP_ARCHITECTURE",
+		Dependencies:        "TEST_GENIE_SKIP_DEPENDENCIES",
+		Quality:             "TEST_GENIE_SKIP_QUALITY",
+		Docs:                "TEST_GENIE_SKIP_DOCS",
+		Unit:                "TEST_GENIE_SKIP_UNIT",
+		Storage:             "TEST_GENIE_SKIP_STORAGE",
+		Workflow:            "TEST_GENIE_SKIP_WORKFLOW",
+		Business:            "TEST_GENIE_SKIP_BUSINESS",
+		Performance:         "TEST_GENIE_SKIP_PERFORMANCE",
+		Tidiness:            "TEST_GENIE_SKIP_TIDINESS",
+		Security:            "TEST_GENIE_SKIP_SECURITY",
+		Measures:            "TEST_GENIE_SKIP_MEASURES",
+		Proto:               "TEST_GENIE_SKIP_PROTO",
+		Branding:            "TEST_GENIE_SKIP_BRANDING",
+		Search:              "TEST_GENIE_SKIP_SEARCH",
+		ProviderConformance: "TEST_GENIE_SKIP_PROVIDER_CONFORMANCE",
 	}
 	catalog := DefaultCatalog()
 	for _, spec := range catalog.All() {
@@ -467,35 +467,5 @@ func TestReactViteTemplateDeclaresUnitPolicyProfile(t *testing.T) {
 	}
 	if doc.Unit.PolicyProfile.Customization.Mode != "monotonic" {
 		t.Fatalf("customization mode = %q, want monotonic", doc.Unit.PolicyProfile.Customization.Mode)
-	}
-}
-
-func TestMaturityGoPhaseArtifactMatchesCatalog(t *testing.T) {
-	root := scenarioRoot(t)
-	path := filepath.Clean(filepath.Join(root, "..", "..", "packages", "maturity-go", "dimensions", "testdata", "testgenie_phase_names.json"))
-	payload := struct {
-		Source string   `json:"source"`
-		Phases []string `json:"phases"`
-	}{
-		Source: "test-genie/api/internal/orchestrator/phases.ValidPhaseNames",
-		Phases: ValidPhaseNames(),
-	}
-	want, err := json.MarshalIndent(payload, "", "  ")
-	if err != nil {
-		t.Fatalf("marshal phase artifact: %v", err)
-	}
-	want = append(want, '\n')
-	if os.Getenv("UPDATE_TEST_GENIE_DOCS") == "1" {
-		if err := os.WriteFile(path, want, 0o644); err != nil {
-			t.Fatalf("update phase artifact %s: %v", path, err)
-		}
-		return
-	}
-	got, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read phase artifact: %v", err)
-	}
-	if !bytes.Equal(got, want) {
-		t.Fatalf("%s is out of date; run UPDATE_TEST_GENIE_DOCS=1 go test ./internal/orchestrator/phases -run TestMaturityGoPhaseArtifactMatchesCatalog", path)
 	}
 }

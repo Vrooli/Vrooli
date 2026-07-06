@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "scenario": "scenario-dependency-analyzer",
   "phase": "dependencies",
+  "displayName": "Dependencies",
   "description": "Validates dependency readiness, governance, runtime status, release-age policy, and graph drift.",
   "source": "validation-provider",
   "orderHint": 6,
@@ -635,5 +636,12 @@
       "severity_default": "SEVERITY_ERROR",
       "clean_requirement": "required"
     }
-  }
+  },
+  "profileMembership": [],
+  "freshnessRequirement": "never",
+  "phaseClass": "architecture",
+  "runtimeClass": "static",
+  "dimensions": [
+    "dependency-accuracy"
+  ]
 }

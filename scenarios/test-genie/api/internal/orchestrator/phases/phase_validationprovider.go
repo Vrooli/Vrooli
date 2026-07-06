@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"test-genie/internal/orchestrator/phasepolicy"
+	"test-genie/internal/orchestrator/phaseregistry"
 	"test-genie/internal/orchestrator/phases/validationprovider"
 	"test-genie/internal/orchestrator/providerdescriptor"
 	"test-genie/internal/orchestrator/runnability"
@@ -72,6 +73,14 @@ func ValidationProviderSpec(delegated Delegated) Spec {
 	return delegatedSpec(delegated)
 }
 
+func ValidationProviderRegistryBindings() map[string]phaseregistry.RunnerBinding {
+	return map[string]phaseregistry.RunnerBinding{
+		phaseregistry.SourceValidationProvider: func(descriptor providerdescriptor.Descriptor, findingSource architecturev1.FindingSource) (any, error) {
+			return ValidationProviderSpecFromDescriptor(descriptor, findingSource)
+		},
+	}
+}
+
 // ValidationProviderSpecFromDescriptor binds a provider-owned Test Genie
 // descriptor to the Test Genie-owned validation-provider runner. Descriptor
 // files own phase metadata; this function owns the Spec projection needed by
@@ -99,6 +108,11 @@ func ValidationProviderSpecFromDescriptor(descriptor providerdescriptor.Descript
 	spec.Policy = descriptor.Policy.Policy
 	spec.Optional = legacyOptional(spec.Policy)
 	spec.FindingSource = findingSource
+	spec.ProfileMembership = append([]string(nil), descriptor.ProfileMembership...)
+	spec.FreshnessRequirement = descriptor.FreshnessRequirement
+	spec.PhaseClass = descriptor.PhaseClass
+	spec.RuntimeClass = descriptor.RuntimeClass
+	spec.Dimensions = append([]string(nil), descriptor.Dimensions...)
 	spec.Capabilities = runnability.PhaseCapabilities{
 		Phase:                     name.String(),
 		NeedsUI:                   descriptor.Runnability.NeedsUI,

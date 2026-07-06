@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "scenario": "storage-health",
   "phase": "storage",
+  "displayName": "Storage",
   "description": "Validates storage conventions, migration hygiene, persistence seams, and test isolation through storage-health.",
   "source": "validation-provider",
   "orderHint": 11,
@@ -460,5 +461,12 @@
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "required"
     }
-  }
+  },
+  "profileMembership": [],
+  "freshnessRequirement": "never",
+  "phaseClass": "architecture",
+  "runtimeClass": "lifecycle",
+  "dimensions": [
+    "storage"
+  ]
 }

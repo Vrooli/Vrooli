@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "scenario": "proto-health",
   "phase": "proto",
+  "displayName": "Proto",
   "description": "Validates proto contracts through proto-health.",
   "source": "validation-provider",
   "orderHint": 17,
@@ -533,5 +534,14 @@
         ]
       }
     ]
-  }
+  },
+  "profileMembership": [
+    "architecture-audit"
+  ],
+  "freshnessRequirement": "when_applicable",
+  "phaseClass": "architecture",
+  "runtimeClass": "static",
+  "dimensions": [
+    "proto-health"
+  ]
 }

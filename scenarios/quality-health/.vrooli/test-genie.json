@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "scenario": "quality-health",
   "phase": "quality",
+  "displayName": "Quality",
   "description": "Validates static quality contracts, lint and type policy, and strict config through quality-health.",
   "source": "validation-provider",
   "orderHint": 7,
@@ -388,5 +389,12 @@
       "severity_default": "SEVERITY_ERROR",
       "clean_requirement": "required"
     }
-  }
+  },
+  "profileMembership": [],
+  "freshnessRequirement": "never",
+  "phaseClass": "architecture",
+  "runtimeClass": "static",
+  "dimensions": [
+    "standards"
+  ]
 }

@@ -9,6 +9,8 @@ import (
 	"test-genie/internal/shared"
 
 	workspacepkg "test-genie/internal/orchestrator/workspace"
+
+	"github.com/vrooli/vrooli/packages/proto/architecture/findingid"
 )
 
 // PlannedPhase describes a selected phase before execution starts.
@@ -16,6 +18,8 @@ type PlannedPhase struct {
 	Name                 string                 `json:"name"`
 	DisplayName          string                 `json:"displayName,omitempty"`
 	Description          string                 `json:"description,omitempty"`
+	Provider             string                 `json:"provider,omitempty"`
+	Source               string                 `json:"source,omitempty"`
 	Optional             bool                   `json:"optional"`
 	TimeoutSeconds       int                    `json:"timeoutSeconds"`
 	SelectionStatus      string                 `json:"selectionStatus,omitempty"`
@@ -24,7 +28,14 @@ type PlannedPhase struct {
 	ProviderReadiness    string                 `json:"providerReadiness,omitempty"`
 	Freshness            string                 `json:"freshness,omitempty"`
 	Policy               phasepolicy.Policy     `json:"policy,omitempty"`
+	DocPath              string                 `json:"docPath,omitempty"`
 	DescriptorPath       string                 `json:"descriptorPath,omitempty"`
+	FindingSource        string                 `json:"findingSource,omitempty"`
+	ProfileMembership    []string               `json:"profileMembership,omitempty"`
+	FreshnessRequirement string                 `json:"freshnessRequirement,omitempty"`
+	PhaseClass           string                 `json:"phaseClass,omitempty"`
+	RuntimeClass         string                 `json:"runtimeClass,omitempty"`
+	Dimensions           []string               `json:"dimensions,omitempty"`
 }
 
 // ExecutionPlanPreview captures the actual selected phase plan for a request.
@@ -108,14 +119,20 @@ func (o *SuiteOrchestrator) plannedPhasePreview(def phases.Definition, plan *pha
 		timeout = o.phaseTimeout
 	}
 	phasePreview := PlannedPhase{
-		Name:              def.Name.String(),
-		DisplayName:       def.DisplayName,
-		Optional:          def.Optional,
-		TimeoutSeconds:    int(timeout.Seconds()),
-		SelectionStatus:   selectionStatus,
-		Policy:            def.Policy,
-		ProviderReadiness: string(def.Policy.ProviderReadiness),
-		Freshness:         string(def.Policy.Freshness),
+		Name:                 def.Name.String(),
+		DisplayName:          def.DisplayName,
+		Provider:             def.ProviderScenario,
+		Optional:             def.Optional,
+		TimeoutSeconds:       int(timeout.Seconds()),
+		SelectionStatus:      selectionStatus,
+		Policy:               def.Policy,
+		ProviderReadiness:    string(def.Policy.ProviderReadiness),
+		Freshness:            string(def.Policy.Freshness),
+		ProfileMembership:    append([]string(nil), def.ProfileMembership...),
+		FreshnessRequirement: def.FreshnessRequirement,
+		PhaseClass:           def.PhaseClass,
+		RuntimeClass:         def.RuntimeClass,
+		Dimensions:           append([]string(nil), def.Dimensions...),
 	}
 	if notice, ok := planApplicabilityNotice(plan, def.Name.Key()); ok {
 		phasePreview.ApplicabilityStatus = notice.Result.Status
@@ -128,11 +145,34 @@ func (o *SuiteOrchestrator) plannedPhasePreview(def phases.Definition, plan *pha
 				phasePreview.DisplayName = spec.DisplayName
 			}
 			phasePreview.Description = spec.Description
+			phasePreview.Source = spec.Source
+			phasePreview.DocPath = spec.Doc
+			phasePreview.FindingSource = findingid.SourceToken(spec.FindingSource)
+			if phasePreview.Provider == "" && spec.Delegated != nil {
+				phasePreview.Provider = spec.Delegated.ProviderScenario
+			}
+			if len(phasePreview.ProfileMembership) == 0 {
+				phasePreview.ProfileMembership = append([]string(nil), spec.ProfileMembership...)
+			}
+			if phasePreview.FreshnessRequirement == "" {
+				phasePreview.FreshnessRequirement = spec.FreshnessRequirement
+			}
+			if phasePreview.PhaseClass == "" {
+				phasePreview.PhaseClass = spec.PhaseClass
+			}
+			if phasePreview.RuntimeClass == "" {
+				phasePreview.RuntimeClass = spec.RuntimeClass
+			}
+			if len(phasePreview.Dimensions) == 0 {
+				phasePreview.Dimensions = append([]string(nil), spec.Dimensions...)
+			}
 		}
 	}
 	if phasePreview.Description == "" {
 		if entry, ok := o.descriptorEntry(def.Name.String()); ok {
-			phasePreview.Description = entry.Spec.Description
+			if spec, ok := phases.SpecFromRegistryEntry(entry); ok {
+				phasePreview.Description = spec.Description
+			}
 		}
 	}
 	return phasePreview

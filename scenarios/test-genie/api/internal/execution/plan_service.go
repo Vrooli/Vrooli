@@ -191,6 +191,8 @@ func plannedPhaseWithEstimate(phase orchestrator.PlannedPhase, estimate profilep
 		Name:                     phase.Name,
 		DisplayName:              phase.DisplayName,
 		Description:              phase.Description,
+		Provider:                 phase.Provider,
+		Source:                   phase.Source,
 		Optional:                 phase.Optional,
 		EstimatedDurationSeconds: estimate.DurationSeconds,
 		TimeoutSeconds:           clampNonNegative(phase.TimeoutSeconds),
@@ -204,7 +206,14 @@ func plannedPhaseWithEstimate(phase orchestrator.PlannedPhase, estimate profilep
 		ProviderReadiness:        phase.ProviderReadiness,
 		Freshness:                phase.Freshness,
 		Policy:                   phase.Policy,
+		DocPath:                  phase.DocPath,
 		DescriptorPath:           phase.DescriptorPath,
+		FindingSource:            phase.FindingSource,
+		ProfileMembership:        append([]string(nil), phase.ProfileMembership...),
+		FreshnessRequirement:     phase.FreshnessRequirement,
+		PhaseClass:               phase.PhaseClass,
+		RuntimeClass:             phase.RuntimeClass,
+		Dimensions:               append([]string(nil), phase.Dimensions...),
 	}
 }
 
@@ -214,6 +223,8 @@ func appendNotApplicablePhases(preview *ExecutionPlanPreview, phases []orchestra
 			Name:                 phase.Name,
 			DisplayName:          phase.DisplayName,
 			Description:          phase.Description,
+			Provider:             phase.Provider,
+			Source:               phase.Source,
 			Optional:             phase.Optional,
 			TimeoutSeconds:       clampNonNegative(phase.TimeoutSeconds),
 			SelectionStatus:      phase.SelectionStatus,
@@ -222,7 +233,14 @@ func appendNotApplicablePhases(preview *ExecutionPlanPreview, phases []orchestra
 			ProviderReadiness:    phase.ProviderReadiness,
 			Freshness:            phase.Freshness,
 			Policy:               phase.Policy,
+			DocPath:              phase.DocPath,
 			DescriptorPath:       phase.DescriptorPath,
+			FindingSource:        phase.FindingSource,
+			ProfileMembership:    append([]string(nil), phase.ProfileMembership...),
+			FreshnessRequirement: phase.FreshnessRequirement,
+			PhaseClass:           phase.PhaseClass,
+			RuntimeClass:         phase.RuntimeClass,
+			Dimensions:           append([]string(nil), phase.Dimensions...),
 		})
 	}
 }

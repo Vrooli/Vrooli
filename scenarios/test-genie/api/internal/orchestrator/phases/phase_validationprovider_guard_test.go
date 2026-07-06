@@ -7,82 +7,99 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"test-genie/internal/orchestrator/providerdescriptor"
 )
 
 func TestValidationProviderRegistryCoversDelegatingCatalogPhases(t *testing.T) {
-	expected := map[Name]string{
-		Structure:    "structure-health",
-		Business:     "business-health",
-		Contracts:    "cli-health",
-		API:          "api-health",
-		Proto:        "proto-health",
-		UIHealth:     "ui-health",
-		Security:     "security-health",
-		Quality:      "quality-health",
-		Unit:         "unit-health",
-		Measures:     "measures-health",
-		Dependencies: "scenario-dependency-analyzer",
-		Architecture: "architecture-cartographer",
-		Docs:         "knowledge-observatory",
-		Tidiness:     "tidiness-manager",
-		Performance:  "performance-health",
-		Storage:      "storage-health",
-		Workflow:     "workflow-health",
-		Branding:     "brand-manager",
-		Search:       "search-hub",
-	}
+	expected := descriptorExpectations(t)
 	catalog := NewDefaultCatalog(DefaultTimeout)
+	assertDelegatedCountMatchesDescriptors(t, catalog, expected)
+	for phase, descriptor := range expected {
+		assertProviderMatchesDescriptor(t, catalog, phase, descriptor)
+	}
+}
+
+func descriptorExpectations(t *testing.T) map[Name]providerdescriptor.Descriptor {
+	t.Helper()
+	repoRoot, err := defaultRepoRoot()
+	if err != nil {
+		t.Fatalf("defaultRepoRoot: %v", err)
+	}
+	load := providerdescriptor.Load(providerdescriptor.LoadOptions{RepoRoot: repoRoot})
+	if err := load.Err(); err != nil {
+		t.Fatalf("load provider descriptors: %v", err)
+	}
+	expected := map[Name]providerdescriptor.Descriptor{}
+	for _, descriptor := range load.Descriptors {
+		phase, ok := NormalizeName(descriptor.Phase)
+		if !ok {
+			t.Fatalf("%s invalid phase %q", descriptor.Path, descriptor.Phase)
+		}
+		expected[phase] = descriptor
+	}
+	return expected
+}
+
+func assertDelegatedCountMatchesDescriptors(t *testing.T, catalog *Catalog, expected map[Name]providerdescriptor.Descriptor) {
+	t.Helper()
 	delegatedCount := 0
 	for _, spec := range catalog.All() {
-		if spec.Delegated != nil {
-			delegatedCount++
-			if _, ok := expected[spec.Name]; !ok {
-				t.Fatalf("%s is delegated but missing from provider guard expectations", spec.Name)
-			}
+		if spec.Delegated == nil {
+			continue
+		}
+		delegatedCount++
+		if _, ok := expected[spec.Name]; !ok {
+			t.Fatalf("%s is delegated but missing from provider descriptors", spec.Name)
 		}
 	}
 	if delegatedCount != len(expected) {
-		t.Fatalf("delegated phase count = %d, want %d", delegatedCount, len(expected))
+		t.Fatalf("delegated phase count = %d, descriptor count = %d", delegatedCount, len(expected))
 	}
-	for phase, providerScenario := range expected {
-		spec, ok := catalog.Lookup(phase.String())
-		if !ok {
-			t.Fatalf("%s missing from default catalog", phase)
-		}
-		if spec.Delegated == nil {
-			t.Fatalf("%s missing delegated catalog metadata", phase)
-		}
-		provider := spec.Delegated.provider()
-		if provider.Phase != phase.String() {
-			t.Fatalf("%s provider phase = %q, want %q", phase, provider.Phase, phase.String())
-		}
-		if provider.ProviderScenario != providerScenario {
-			t.Fatalf("%s provider = %q, want %q", phase, provider.ProviderScenario, providerScenario)
-		}
-		if provider.Optional != spec.Optional {
-			t.Fatalf("%s provider optional = %v, want catalog optional %v", phase, provider.Optional, spec.Optional)
-		}
-		if provider.Timeout != spec.DefaultTimeout {
-			t.Fatalf("%s provider timeout = %s, want catalog timeout %s", phase, provider.Timeout, spec.DefaultTimeout)
-		}
-		if provider.FindingSource != spec.FindingSource {
-			t.Fatalf("%s finding source = %v, want %v", phase, spec.FindingSource, provider.FindingSource)
-		}
-		// IncludeExecution pins which delegates request execution-mode validation:
-		// the provider actually runs its measurements (not just inspects) and gates
-		// on the result. Unit executes the suite, Measures runs its checks,
-		// Performance benchmarks the Go + UI build and runs Lighthouse-if-UI,
-		// Contracts asks cli-health to run its runtime CLI probe on top of the
-		// static manifest↔proto cross-check, and UIHealth drives the BAS render +
-		// iframe-bridge handshake runtime group on top of its static UI checks.
-		// Workflow executes BAS validation cases through workflow-health when
-		// requested, preserving the old playbooks runtime semantics through the
-		// shared provider contract.
-		// Every other delegate is inspection-only.
-		executionPhases := map[Name]bool{Unit: true, Measures: true, Performance: true, Contracts: true, UIHealth: true, Workflow: true}
-		if provider.IncludeExecution != executionPhases[phase] {
-			t.Fatalf("%s provider IncludeExecution = %v, want %v", phase, provider.IncludeExecution, executionPhases[phase])
-		}
+}
+
+func assertProviderMatchesDescriptor(t *testing.T, catalog *Catalog, phase Name, descriptor providerdescriptor.Descriptor) {
+	t.Helper()
+	spec, ok := catalog.Lookup(phase.String())
+	if !ok {
+		t.Fatalf("%s missing from default catalog", phase)
+	}
+	if spec.Delegated == nil {
+		t.Fatalf("%s missing delegated catalog metadata", phase)
+	}
+	provider := spec.Delegated.provider()
+	if provider.Phase != phase.String() {
+		t.Fatalf("%s provider phase = %q, want %q", phase, provider.Phase, phase.String())
+	}
+	if provider.ProviderScenario != descriptor.Scenario {
+		t.Fatalf("%s provider = %q, want descriptor scenario %q", phase, provider.ProviderScenario, descriptor.Scenario)
+	}
+	if provider.Optional != spec.Optional {
+		t.Fatalf("%s provider optional = %v, want catalog optional %v", phase, provider.Optional, spec.Optional)
+	}
+	if provider.Timeout != spec.DefaultTimeout {
+		t.Fatalf("%s provider timeout = %s, want catalog timeout %s", phase, provider.Timeout, spec.DefaultTimeout)
+	}
+	if provider.FindingSource != spec.FindingSource {
+		t.Fatalf("%s finding source = %v, want %v", phase, spec.FindingSource, provider.FindingSource)
+	}
+	if provider.IncludeExecution != includeExecutionPhase(phase) {
+		t.Fatalf("%s provider IncludeExecution = %v, want %v", phase, provider.IncludeExecution, includeExecutionPhase(phase))
+	}
+}
+
+// includeExecutionPhase pins which delegates request execution-mode validation:
+// Unit executes the suite, Measures runs its checks, Performance benchmarks the
+// Go + UI build and Lighthouse-if-UI, Contracts runs cli-health's runtime CLI
+// probe, Search runs live corpus validation, UIHealth drives the BAS render
+// handshake, and Workflow executes BAS validation cases. Every other delegate is
+// inspection-only.
+func includeExecutionPhase(phase Name) bool {
+	switch phase {
+	case Unit, Measures, Performance, Contracts, Search, UIHealth, Workflow:
+		return true
+	default:
+		return false
 	}
 }
 
