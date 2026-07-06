@@ -1,8 +1,166 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "portal",
-  "description": "Vrooli Portal CLI surface for chat, integrations, and ecosystem search. Phase 2 pins the Connect contracts; full user-facing CLI coverage lands in Phase 9.",
+  "description": "Vrooli Portal CLI surface for chat, message trees, integration readiness, and ecosystem search. Commands are thin generated-Connect clients over Portal's API.",
   "groups": [
+    {
+      "name": "chats",
+      "description": "Manage Portal chats and chat groups",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List chats with their groups",
+          "flags": [
+            { "name": "group-id", "description": "Optional group id filter" },
+            { "name": "query", "description": "Optional full-text query" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ChatService", "method": "ListChats" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "create",
+          "description": "Create a chat",
+          "flags": [
+            { "name": "title", "required": true, "description": "Chat title" },
+            { "name": "group-id", "description": "Optional chat group id" },
+            { "name": "model", "description": "Model override" },
+            { "name": "mode", "description": "Chat mode: llm or agent", "default": "llm" },
+            { "name": "harness", "description": "Agent harness: claude-code, codex, opencode, or grok", "default": "claude-code" },
+            { "name": "web-search", "bool": true, "description": "Enable web search for this chat" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ChatService", "method": "CreateChat" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "show",
+          "description": "Show one chat",
+          "positionals": [{ "name": "id", "required": true, "description": "Chat id" }],
+          "binding": { "kind": "connect-rpc", "service": "ChatService", "method": "GetChat" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "update",
+          "description": "Update chat metadata",
+          "positionals": [{ "name": "id", "required": true, "description": "Chat id" }],
+          "flags": [
+            { "name": "title", "description": "New title" },
+            { "name": "group-id", "description": "New group id" },
+            { "name": "model", "description": "New model override" },
+            { "name": "active-leaf", "description": "Set active leaf message id" },
+            { "name": "web-search", "bool": true, "description": "Enable web search" },
+            { "name": "no-web-search", "bool": true, "description": "Disable web search" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ChatService", "method": "UpdateChat" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a chat",
+          "positionals": [{ "name": "id", "required": true, "description": "Chat id" }],
+          "binding": { "kind": "connect-rpc", "service": "ChatService", "method": "DeleteChat" },
+          "governance": { "effect": "destructive", "run_eligible": true, "requires_confirmation": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "groups",
+          "description": "List chat groups",
+          "binding": { "kind": "connect-rpc", "service": "ChatService", "method": "ListGroups" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "group-create",
+          "description": "Create a chat group",
+          "flags": [
+            { "name": "name", "required": true, "description": "Group name" },
+            { "name": "color", "required": true, "description": "Group color" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ChatService", "method": "CreateGroup" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "group-update",
+          "description": "Update a chat group",
+          "positionals": [{ "name": "id", "required": true, "description": "Group id" }],
+          "flags": [
+            { "name": "name", "description": "New group name" },
+            { "name": "color", "description": "New group color" },
+            { "name": "collapsed", "bool": true, "description": "Mark collapsed" },
+            { "name": "expanded", "bool": true, "description": "Mark expanded" },
+            { "name": "sort-order", "description": "Sort order integer" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ChatService", "method": "UpdateGroup" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "group-delete",
+          "description": "Delete a chat group",
+          "positionals": [{ "name": "id", "required": true, "description": "Group id" }],
+          "binding": { "kind": "connect-rpc", "service": "ChatService", "method": "DeleteGroup" },
+          "governance": { "effect": "destructive", "run_eligible": true, "requires_confirmation": false, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "messages",
+      "description": "Manage message trees and stream completions",
+      "commands": [
+        {
+          "name": "tree",
+          "description": "Show a chat's message tree",
+          "positionals": [{ "name": "chat-id", "required": true, "description": "Chat id" }],
+          "binding": { "kind": "connect-rpc", "service": "MessageService", "method": "GetTree" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "send",
+          "description": "Append a user message",
+          "positionals": [
+            { "name": "chat-id", "required": true, "description": "Chat id" },
+            { "name": "text", "required": true, "description": "Message text" }
+          ],
+          "flags": [
+            { "name": "parent", "description": "Optional parent message id" },
+            { "name": "model", "description": "Model override for the next completion" },
+            { "name": "skill-ids", "description": "Comma-separated selected skill ids" },
+            { "name": "web-search", "bool": true, "description": "Enable passive web search" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MessageService", "method": "SendMessage" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "edit",
+          "description": "Edit a message and create a branch",
+          "positionals": [
+            { "name": "message-id", "required": true, "description": "Message id" },
+            { "name": "text", "required": true, "description": "Replacement text" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MessageService", "method": "EditMessage" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "regenerate",
+          "description": "Regenerate an assistant branch from a message",
+          "positionals": [{ "name": "message-id", "required": true, "description": "Message id" }],
+          "flags": [{ "name": "model", "description": "Model override" }],
+          "binding": { "kind": "connect-rpc", "service": "MessageService", "method": "Regenerate" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "stream",
+          "description": "Stream a completion for a chat",
+          "positionals": [{ "name": "chat-id", "required": true, "description": "Chat id" }],
+          "flags": [
+            { "name": "from", "description": "Message id to complete from" },
+            { "name": "model", "description": "Model override" },
+            { "name": "mode", "description": "Chat mode: llm or agent", "default": "llm" },
+            { "name": "harness", "description": "Agent harness: claude-code, codex, opencode, or grok", "default": "claude-code" },
+            { "name": "skill-ids", "description": "Comma-separated selected skill ids" },
+            { "name": "web-search", "bool": true, "description": "Enable passive web search" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MessageService", "method": "StreamCompletion" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
     {
       "name": "integrations",
       "description": "Integration readiness status and behavior-mode controls",
@@ -10,105 +168,38 @@
         {
           "name": "status",
           "description": "Show Portal integration readiness status",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "IntegrationsService",
-            "method": "Status"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
+          "binding": { "kind": "connect-rpc", "service": "IntegrationsService", "method": "Status" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "override",
+          "description": "Set behavior override: auto, force-off, or force-passive",
+          "positionals": [{ "name": "override", "required": true, "description": "Override value" }],
+          "binding": { "kind": "connect-rpc", "service": "IntegrationsService", "method": "UpdateOverride" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "search",
+      "description": "Request Portal-mediated ecosystem suggestions",
+      "commands": [
+        {
+          "name": "suggest",
+          "description": "Return bounded search suggestions",
+          "positionals": [{ "name": "query", "required": true, "description": "Search query" }],
+          "flags": [
+            { "name": "types", "description": "Comma-separated hit types" },
+            { "name": "limit", "description": "Maximum hits", "default": "8" },
+            { "name": "group", "description": "Optional search group" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "SearchService", "method": "Suggest" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]
     }
   ],
   "measures": {
     "domains": []
-  },
-  "omitted": [
-    {
-      "service": "ChatService",
-      "method": "ListChats",
-      "reason": "Phase 2 exposes the typed Connect contract only; chat CLI commands are implemented in Phase 9."
-    },
-    {
-      "service": "ChatService",
-      "method": "CreateChat",
-      "reason": "Phase 2 exposes the typed Connect contract only; chat CLI commands are implemented in Phase 9."
-    },
-    {
-      "service": "ChatService",
-      "method": "GetChat",
-      "reason": "Phase 2 exposes the typed Connect contract only; chat CLI commands are implemented in Phase 9."
-    },
-    {
-      "service": "ChatService",
-      "method": "UpdateChat",
-      "reason": "Phase 2 exposes the typed Connect contract only; chat CLI commands are implemented in Phase 9."
-    },
-    {
-      "service": "ChatService",
-      "method": "DeleteChat",
-      "reason": "Phase 2 exposes the typed Connect contract only; chat CLI commands are implemented in Phase 9."
-    },
-    {
-      "service": "ChatService",
-      "method": "ListGroups",
-      "reason": "Phase 2 exposes the typed Connect contract only; chat group CLI commands are implemented in Phase 9."
-    },
-    {
-      "service": "ChatService",
-      "method": "CreateGroup",
-      "reason": "Phase 2 exposes the typed Connect contract only; chat group CLI commands are implemented in Phase 9."
-    },
-    {
-      "service": "ChatService",
-      "method": "UpdateGroup",
-      "reason": "Phase 2 exposes the typed Connect contract only; chat group CLI commands are implemented in Phase 9."
-    },
-    {
-      "service": "ChatService",
-      "method": "DeleteGroup",
-      "reason": "Phase 2 exposes the typed Connect contract only; chat group CLI commands are implemented in Phase 9."
-    },
-    {
-      "service": "MessageService",
-      "method": "GetTree",
-      "reason": "Phase 2 exposes the typed Connect contract only; message CLI commands are implemented in Phase 9."
-    },
-    {
-      "service": "MessageService",
-      "method": "SendMessage",
-      "reason": "Phase 2 exposes the typed Connect contract only; message CLI commands are implemented in Phase 9."
-    },
-    {
-      "service": "MessageService",
-      "method": "EditMessage",
-      "reason": "Phase 2 exposes the typed Connect contract only; branching CLI commands are implemented in Phase 9."
-    },
-    {
-      "service": "MessageService",
-      "method": "Regenerate",
-      "reason": "Phase 2 exposes the typed Connect contract only; branching CLI commands are implemented in Phase 9."
-    },
-    {
-      "service": "MessageService",
-      "method": "StreamCompletion",
-      "reason": "Phase 2 exposes the typed Connect contract only; streaming send behavior and CLI command support land in later phases."
-    },
-    {
-      "service": "IntegrationsService",
-      "method": "UpdateOverride",
-      "reason": "Phase 2 exposes the typed Connect contract only; settings/override CLI commands are implemented in Phase 9."
-    },
-    {
-      "service": "SearchService",
-      "method": "Suggest",
-      "reason": "Phase 2 exposes the typed Connect contract only; search CLI commands are implemented in Phase 9."
-    }
-  ]
+  }
 }

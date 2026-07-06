@@ -279,6 +279,58 @@ class ShowSpecResponse(_message.Message):
     json: str
     def __init__(self, scenario: _Optional[str] = ..., page: _Optional[str] = ..., json: _Optional[str] = ...) -> None: ...
 
+class ListEvidenceRequest(_message.Message):
+    __slots__ = ("scenario", "path", "page", "claim", "limit")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    PAGE_FIELD_NUMBER: _ClassVar[int]
+    CLAIM_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    path: str
+    page: str
+    claim: str
+    limit: int
+    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., page: _Optional[str] = ..., claim: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class ListEvidenceResponse(_message.Message):
+    __slots__ = ("scenario", "page", "evidence")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    PAGE_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    page: str
+    evidence: _containers.RepeatedCompositeFieldContainer[ReconciliationEvidence]
+    def __init__(self, scenario: _Optional[str] = ..., page: _Optional[str] = ..., evidence: _Optional[_Iterable[_Union[ReconciliationEvidence, _Mapping]]] = ...) -> None: ...
+
+class ReconciliationEvidence(_message.Message):
+    __slots__ = ("id", "scenario", "page", "route", "state", "claim", "claim_type", "verdict", "capture_ref", "ax_node_json", "message", "checked_at")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    PAGE_FIELD_NUMBER: _ClassVar[int]
+    ROUTE_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    CLAIM_FIELD_NUMBER: _ClassVar[int]
+    CLAIM_TYPE_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    CAPTURE_REF_FIELD_NUMBER: _ClassVar[int]
+    AX_NODE_JSON_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    CHECKED_AT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    scenario: str
+    page: str
+    route: str
+    state: str
+    claim: str
+    claim_type: str
+    verdict: str
+    capture_ref: str
+    ax_node_json: str
+    message: str
+    checked_at: str
+    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., page: _Optional[str] = ..., route: _Optional[str] = ..., state: _Optional[str] = ..., claim: _Optional[str] = ..., claim_type: _Optional[str] = ..., verdict: _Optional[str] = ..., capture_ref: _Optional[str] = ..., ax_node_json: _Optional[str] = ..., message: _Optional[str] = ..., checked_at: _Optional[str] = ...) -> None: ...
+
 class SuggestBindingsRequest(_message.Message):
     __slots__ = ("scenario", "path", "page", "limit")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]

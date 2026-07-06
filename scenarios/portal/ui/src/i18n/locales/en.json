@@ -22,9 +22,8 @@
   },
   "pages": {
     "dashboard": {
-      "title": "Dashboard",
-      "description": "Portal readiness and chat surfaces will land here as the core contracts come online.",
-      "statPlaceholderLabel": "Stat"
+      "title": "Portal",
+      "description": "Chat with OpenRouter models or coding agents while Portal passively surfaces ecosystem context."
     },
     "settings": {
       "title": "Settings",
@@ -89,6 +88,60 @@
       "loading": "Searching ecosystem context…",
       "empty": "No ecosystem suggestions found.",
       "degraded": "Search suggestions are degraded."
+    }
+  },
+  "chat": {
+    "title": "Chats",
+    "sidebar": {
+      "label": "Conversation list",
+      "description": "Grouped chats share the same LLM and agent workspace.",
+      "newChat": "LLM",
+      "newAgent": "Agent",
+      "newGroup": "New group",
+      "newChatTitle": "New LLM chat",
+      "newAgentTitle": "New agent chat",
+      "newGroupTitle": "New group",
+      "ungrouped": "Ungrouped",
+      "empty": "Create an LLM or agent chat to begin."
+    },
+    "controls": {
+      "mode": "Mode",
+      "modeLlm": "LLM",
+      "modeAgent": "Agent",
+      "model": "Model",
+      "modelFast": "Fast model",
+      "modelReasoning": "Reasoning model",
+      "agentHarness": "Agent",
+      "harnessClaude": "Claude Code",
+      "harnessCodex": "Codex",
+      "harnessOpencode": "OpenCode",
+      "harnessGrok": "Grok",
+      "webSearch": "Passive search"
+    },
+    "empty": {
+      "description": "Start a chat from the sidebar, then send a message. Search results attach in the background when search-hub is available."
+    },
+    "message": {
+      "roleUser": "You",
+      "roleAssistant": "Assistant",
+      "roleAgent": "Agent",
+      "branchCount": "{{current}} of {{total}}",
+      "previousBranch": "Previous branch",
+      "nextBranch": "Next branch",
+      "edit": "Edit message",
+      "editPrompt": "Edit message",
+      "regenerate": "Regenerate",
+      "searchAttachments": "Ecosystem results",
+      "agentActivity": "Agent activity",
+      "streaming": "Streaming"
+    },
+    "composer": {
+      "label": "Message",
+      "placeholder": "Ask Portal to reason, build, explain, or search across Vrooli.",
+      "skills": "Skill IDs",
+      "skillsPlaceholder": "Comma-separated prompt-manager skill IDs",
+      "send": "Send",
+      "stop": "Stop"
     }
   },
   "errors": {

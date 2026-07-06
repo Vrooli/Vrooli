@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package vrooli.ai_gateway.v1.routing;
+
+import "ai-gateway/v1/shared/gateway.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing;routing_v1";
+
+message RouteCandidate {
+  string provider = 1;
+  string role = 2;
+  string locality = 3;
+  bool selected = 4;
+  repeated string reasons = 5;
+  bool fallback_eligible = 6;
+}
+
+message PreviewRouteRequest {
+  vrooli.ai_gateway.v1.shared.GatewayRequest request = 1;
+}
+
+message PreviewRouteResponse {
+  bool valid = 1;
+  repeated vrooli.ai_gateway.v1.shared.ValidationIssue issues = 2;
+  repeated RouteCandidate candidates = 3;
+  string selected_provider = 4;
+  repeated string policy_reasons = 5;
+  bool fallback_allowed = 6;
+  string route_plan_id = 7;
+}
+
+message ExecuteRouteRequest {
+  vrooli.ai_gateway.v1.shared.GatewayRequest request = 1;
+  string input_text = 2;
+}
+
+message RouteEvidence {
+  string event_id = 1;
+  string request_id = 2;
+  string scenario = 3;
+  string operation = 4;
+  string role = 5;
+  vrooli.ai_gateway.v1.shared.Profile profile = 6;
+  vrooli.ai_gateway.v1.shared.PrivacyClass privacy_class = 7;
+  string selected_provider = 8;
+  string selected_locality = 9;
+  string status = 10;
+  repeated string policy_reasons = 11;
+  repeated string failure_reasons = 12;
+  bool fallback_used = 13;
+  bool prompt_redacted = 14;
+  bool response_redacted = 15;
+  int64 latency_ms = 16;
+  string created_at = 17;
+}
+
+message ExecuteRouteResponse {
+  bool valid = 1;
+  repeated vrooli.ai_gateway.v1.shared.ValidationIssue issues = 2;
+  RouteEvidence evidence = 3;
+  string output_text = 4;
+  repeated string policy_reasons = 5;
+}
+
+message ListRouteEvidenceRequest {
+  int32 limit = 1;
+  string scenario = 2;
+}
+
+message ListRouteEvidenceResponse {
+  repeated RouteEvidence events = 1;
+}
+
+message GetRouteEvidenceRequest {
+  string event_id = 1;
+}
+
+message GetRouteEvidenceResponse {
+  RouteEvidence event = 1;
+}
+
+service RoutingService {
+  rpc PreviewRoute(PreviewRouteRequest) returns (PreviewRouteResponse);
+  rpc ExecuteRoute(ExecuteRouteRequest) returns (ExecuteRouteResponse);
+  rpc ListRouteEvidence(ListRouteEvidenceRequest) returns (ListRouteEvidenceResponse);
+  rpc GetRouteEvidence(GetRouteEvidenceRequest) returns (GetRouteEvidenceResponse);
+}

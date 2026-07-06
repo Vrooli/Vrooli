@@ -22,9 +22,8 @@
   },
   "pages": {
     "dashboard": {
-      "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
+      "title": "Portal",
+      "description": "OpenRouter モデルやコーディングエージェントと会話しながら、Portal がエコシステム文脈を受動的に表示します。"
     },
     "settings": {
       "title": "設定",
@@ -86,6 +85,60 @@
       "loading": "エコシステムの文脈を検索しています…",
       "empty": "候補は見つかりませんでした。",
       "degraded": "検索候補は縮退しています。"
+    }
+  },
+  "chat": {
+    "title": "チャット",
+    "sidebar": {
+      "label": "会話リスト",
+      "description": "グループ化されたチャットは同じ LLM / エージェント作業空間を共有します。",
+      "newChat": "LLM",
+      "newAgent": "エージェント",
+      "newGroup": "新規グループ",
+      "newChatTitle": "新規 LLM チャット",
+      "newAgentTitle": "新規エージェントチャット",
+      "newGroupTitle": "新規グループ",
+      "ungrouped": "未分類",
+      "empty": "LLM またはエージェントチャットを作成して開始してください。"
+    },
+    "controls": {
+      "mode": "モード",
+      "modeLlm": "LLM",
+      "modeAgent": "エージェント",
+      "model": "モデル",
+      "modelFast": "高速モデル",
+      "modelReasoning": "推論モデル",
+      "agentHarness": "エージェント",
+      "harnessClaude": "Claude Code",
+      "harnessCodex": "Codex",
+      "harnessOpencode": "OpenCode",
+      "harnessGrok": "Grok",
+      "webSearch": "受動検索"
+    },
+    "empty": {
+      "description": "サイドバーからチャットを開始し、メッセージを送信します。search-hub が利用可能な場合、検索結果は背景で添付されます。"
+    },
+    "message": {
+      "roleUser": "あなた",
+      "roleAssistant": "アシスタント",
+      "roleAgent": "エージェント",
+      "branchCount": "{{current}} / {{total}}",
+      "previousBranch": "前の分岐",
+      "nextBranch": "次の分岐",
+      "edit": "メッセージを編集",
+      "editPrompt": "メッセージを編集",
+      "regenerate": "再生成",
+      "searchAttachments": "エコシステム結果",
+      "agentActivity": "エージェント活動",
+      "streaming": "ストリーミング中"
+    },
+    "composer": {
+      "label": "メッセージ",
+      "placeholder": "Portal に推論、構築、説明、または Vrooli 全体の検索を依頼します。",
+      "skills": "スキル ID",
+      "skillsPlaceholder": "prompt-manager のスキル ID をカンマ区切りで入力",
+      "send": "送信",
+      "stop": "停止"
     }
   },
   "errors": {

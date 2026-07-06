@@ -66,8 +66,8 @@ table in `ui/src/app/routes.tsx`. Keep those two surfaces aligned:
   `experience/pages/*.json::bindings` once bindings exist.
 
 Run `experience-manager spec validate portal --json` after route or
-selector changes. The generated notes page spec is example-domain content and
-is removed by `vrooli scenario detemplate portal`.
+selector changes. Portal currently keeps dashboard and settings page specs
+aligned with the chat workspace and integrations settings surface.
 
 ## Extending The Manifest
 

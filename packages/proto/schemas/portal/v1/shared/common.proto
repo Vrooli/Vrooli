@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package vrooli.portal.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/shared;shared_v1";
+
+// BehaviorMode is Portal's dependency-driven behavior ladder.
+// FULL is carried for forward compatibility with the plan-3 short-circuit
+// gate, but v0 policy must never emit it.
+enum BehaviorMode {
+  BEHAVIOR_MODE_UNSPECIFIED = 0;
+  BEHAVIOR_MODE_OFF = 1;
+  BEHAVIOR_MODE_PASSIVE = 2;
+  BEHAVIOR_MODE_FULL = 3;
+}
+
+// IntegrationState is the portal-side view of an optional dependency.
+enum IntegrationState {
+  INTEGRATION_STATE_UNSPECIFIED = 0;
+  INTEGRATION_STATE_UNKNOWN = 1;
+  INTEGRATION_STATE_AVAILABLE = 2;
+  INTEGRATION_STATE_DEGRADED = 3;
+  INTEGRATION_STATE_UNAVAILABLE = 4;
+}
+
+// AgentHarness identifies a coding-agent runtime exposed by agent-manager.
+enum AgentHarness {
+  AGENT_HARNESS_UNSPECIFIED = 0;
+  AGENT_HARNESS_CLAUDE_CODE = 1;
+  AGENT_HARNESS_CODEX = 2;
+  AGENT_HARNESS_OPENCODE = 3;
+  AGENT_HARNESS_GROK = 4;
+}
+
+enum ChatMode {
+  CHAT_MODE_UNSPECIFIED = 0;
+  CHAT_MODE_LLM = 1;
+  CHAT_MODE_AGENT = 2;
+}
+
+message SearchHit {
+  string provider_id = 1;
+  string type = 2;
+  string title = 3;
+  string snippet = 4;
+  string path = 5;
+  double score = 6;
+  double rerank_score = 7;
+  repeated string locations = 8;
+}

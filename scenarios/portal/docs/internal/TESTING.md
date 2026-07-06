@@ -172,16 +172,12 @@ hand-written struct mirror to drift against. `DiscardUnknown:true` is
 wired in `MustUnmarshalProto` so the test keeps passing when the wire
 grows fields the proto hasn't caught up to.
 
-### CRUD reference — an end-to-end vertical slice
+### Domain vertical slices
 
-The scaffold ships one fenced worked CRUD domain (never product scope)
-as the canonical reference. New scenarios add their first non-trivial
-mutation by copying its layering one file at a time — wire contract,
-domain types, repository, schema, service, handler, mocks, UI client,
-and CLI client — then deleting the fenced example with
-`vrooli scenario detemplate <scenario>`. The fenced example below walks
-the pattern from wire to render and pins the three-layer service-test
-split; copy its shape for `api/internal/<domain>/`.
+Portal domain tests follow the same wire-to-render layering as production:
+proto contract, domain service/repository, handler module, CLI handler, UI API
+client, and UI feature. Add focused tests at the layer where a behavior lives;
+avoid asserting API business rules from the CLI or UI.
 
 #### Compose pattern: schema-applied repository test
 
@@ -292,10 +288,7 @@ Workflow maturity is incremental:
 | 4 | Declarative contract | A domain-local `*.flow.json` declares states, events, transitions, invariants, and named traces. |
 | 5 | Checked formal model | Quint/TLA+ or equivalent is generated from the contract, checked, and replayed by production tests. |
 
-The scaffold ships one fenced worked Level 5 flow (an attachment-upload
-workflow on the example domain) as the reference; copy its file layout
-for a real flow, then remove it with `vrooli scenario detemplate`. The
-generic file layout per flow is:
+Use this generic file layout when Portal adds a formal workflow contract:
 
 - The `flow-verifier` scenario CLI (`flow-verifier verify check|run`, `flows list|validate|explain`)
 - `api/internal/<domain>/flow/flow.json`

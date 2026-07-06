@@ -68,6 +68,9 @@ const (
 	// StudioSessionServiceShowSpecProcedure is the fully-qualified name of the StudioSessionService's
 	// ShowSpec RPC.
 	StudioSessionServiceShowSpecProcedure = "/vrooli.experience_manager.v1.contract.StudioSessionService/ShowSpec"
+	// StudioSessionServiceListEvidenceProcedure is the fully-qualified name of the
+	// StudioSessionService's ListEvidence RPC.
+	StudioSessionServiceListEvidenceProcedure = "/vrooli.experience_manager.v1.contract.StudioSessionService/ListEvidence"
 	// StudioSessionServiceSuggestBindingsProcedure is the fully-qualified name of the
 	// StudioSessionService's SuggestBindings RPC.
 	StudioSessionServiceSuggestBindingsProcedure = "/vrooli.experience_manager.v1.contract.StudioSessionService/SuggestBindings"
@@ -251,6 +254,7 @@ type StudioSessionServiceClient interface {
 	DiscardSession(context.Context, *connect.Request[contract.DiscardSessionRequest]) (*connect.Response[contract.DiscardSessionResponse], error)
 	ListSpec(context.Context, *connect.Request[contract.ListSpecRequest]) (*connect.Response[contract.ListSpecResponse], error)
 	ShowSpec(context.Context, *connect.Request[contract.ShowSpecRequest]) (*connect.Response[contract.ShowSpecResponse], error)
+	ListEvidence(context.Context, *connect.Request[contract.ListEvidenceRequest]) (*connect.Response[contract.ListEvidenceResponse], error)
 	SuggestBindings(context.Context, *connect.Request[contract.SuggestBindingsRequest]) (*connect.Response[contract.SuggestBindingsResponse], error)
 	RenderSpec(context.Context, *connect.Request[contract.RenderSpecRequest]) (*connect.Response[contract.RenderSpecResponse], error)
 	CompareVariants(context.Context, *connect.Request[contract.CompareVariantsRequest]) (*connect.Response[contract.CompareVariantsResponse], error)
@@ -311,6 +315,12 @@ func NewStudioSessionServiceClient(httpClient connect.HTTPClient, baseURL string
 			connect.WithSchema(studioSessionServiceMethods.ByName("ShowSpec")),
 			connect.WithClientOptions(opts...),
 		),
+		listEvidence: connect.NewClient[contract.ListEvidenceRequest, contract.ListEvidenceResponse](
+			httpClient,
+			baseURL+StudioSessionServiceListEvidenceProcedure,
+			connect.WithSchema(studioSessionServiceMethods.ByName("ListEvidence")),
+			connect.WithClientOptions(opts...),
+		),
 		suggestBindings: connect.NewClient[contract.SuggestBindingsRequest, contract.SuggestBindingsResponse](
 			httpClient,
 			baseURL+StudioSessionServiceSuggestBindingsProcedure,
@@ -347,6 +357,7 @@ type studioSessionServiceClient struct {
 	discardSession        *connect.Client[contract.DiscardSessionRequest, contract.DiscardSessionResponse]
 	listSpec              *connect.Client[contract.ListSpecRequest, contract.ListSpecResponse]
 	showSpec              *connect.Client[contract.ShowSpecRequest, contract.ShowSpecResponse]
+	listEvidence          *connect.Client[contract.ListEvidenceRequest, contract.ListEvidenceResponse]
 	suggestBindings       *connect.Client[contract.SuggestBindingsRequest, contract.SuggestBindingsResponse]
 	renderSpec            *connect.Client[contract.RenderSpecRequest, contract.RenderSpecResponse]
 	compareVariants       *connect.Client[contract.CompareVariantsRequest, contract.CompareVariantsResponse]
@@ -389,6 +400,11 @@ func (c *studioSessionServiceClient) ShowSpec(ctx context.Context, req *connect.
 	return c.showSpec.CallUnary(ctx, req)
 }
 
+// ListEvidence calls vrooli.experience_manager.v1.contract.StudioSessionService.ListEvidence.
+func (c *studioSessionServiceClient) ListEvidence(ctx context.Context, req *connect.Request[contract.ListEvidenceRequest]) (*connect.Response[contract.ListEvidenceResponse], error) {
+	return c.listEvidence.CallUnary(ctx, req)
+}
+
 // SuggestBindings calls vrooli.experience_manager.v1.contract.StudioSessionService.SuggestBindings.
 func (c *studioSessionServiceClient) SuggestBindings(ctx context.Context, req *connect.Request[contract.SuggestBindingsRequest]) (*connect.Response[contract.SuggestBindingsResponse], error) {
 	return c.suggestBindings.CallUnary(ctx, req)
@@ -419,6 +435,7 @@ type StudioSessionServiceHandler interface {
 	DiscardSession(context.Context, *connect.Request[contract.DiscardSessionRequest]) (*connect.Response[contract.DiscardSessionResponse], error)
 	ListSpec(context.Context, *connect.Request[contract.ListSpecRequest]) (*connect.Response[contract.ListSpecResponse], error)
 	ShowSpec(context.Context, *connect.Request[contract.ShowSpecRequest]) (*connect.Response[contract.ShowSpecResponse], error)
+	ListEvidence(context.Context, *connect.Request[contract.ListEvidenceRequest]) (*connect.Response[contract.ListEvidenceResponse], error)
 	SuggestBindings(context.Context, *connect.Request[contract.SuggestBindingsRequest]) (*connect.Response[contract.SuggestBindingsResponse], error)
 	RenderSpec(context.Context, *connect.Request[contract.RenderSpecRequest]) (*connect.Response[contract.RenderSpecResponse], error)
 	CompareVariants(context.Context, *connect.Request[contract.CompareVariantsRequest]) (*connect.Response[contract.CompareVariantsResponse], error)
@@ -474,6 +491,12 @@ func NewStudioSessionServiceHandler(svc StudioSessionServiceHandler, opts ...con
 		connect.WithSchema(studioSessionServiceMethods.ByName("ShowSpec")),
 		connect.WithHandlerOptions(opts...),
 	)
+	studioSessionServiceListEvidenceHandler := connect.NewUnaryHandler(
+		StudioSessionServiceListEvidenceProcedure,
+		svc.ListEvidence,
+		connect.WithSchema(studioSessionServiceMethods.ByName("ListEvidence")),
+		connect.WithHandlerOptions(opts...),
+	)
 	studioSessionServiceSuggestBindingsHandler := connect.NewUnaryHandler(
 		StudioSessionServiceSuggestBindingsProcedure,
 		svc.SuggestBindings,
@@ -514,6 +537,8 @@ func NewStudioSessionServiceHandler(svc StudioSessionServiceHandler, opts ...con
 			studioSessionServiceListSpecHandler.ServeHTTP(w, r)
 		case StudioSessionServiceShowSpecProcedure:
 			studioSessionServiceShowSpecHandler.ServeHTTP(w, r)
+		case StudioSessionServiceListEvidenceProcedure:
+			studioSessionServiceListEvidenceHandler.ServeHTTP(w, r)
 		case StudioSessionServiceSuggestBindingsProcedure:
 			studioSessionServiceSuggestBindingsHandler.ServeHTTP(w, r)
 		case StudioSessionServiceRenderSpecProcedure:
@@ -557,6 +582,10 @@ func (UnimplementedStudioSessionServiceHandler) ListSpec(context.Context, *conne
 
 func (UnimplementedStudioSessionServiceHandler) ShowSpec(context.Context, *connect.Request[contract.ShowSpecRequest]) (*connect.Response[contract.ShowSpecResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.experience_manager.v1.contract.StudioSessionService.ShowSpec is not implemented"))
+}
+
+func (UnimplementedStudioSessionServiceHandler) ListEvidence(context.Context, *connect.Request[contract.ListEvidenceRequest]) (*connect.Response[contract.ListEvidenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.experience_manager.v1.contract.StudioSessionService.ListEvidence is not implemented"))
 }
 
 func (UnimplementedStudioSessionServiceHandler) SuggestBindings(context.Context, *connect.Request[contract.SuggestBindingsRequest]) (*connect.Response[contract.SuggestBindingsResponse], error) {

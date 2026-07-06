@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package vrooli.ai_gateway.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared;shared_v1";
+
+// RequestKind identifies the provider-neutral AI operation a caller needs.
+enum RequestKind {
+  REQUEST_KIND_UNSPECIFIED = 0;
+  REQUEST_KIND_TEXT_GENERATION = 1;
+  REQUEST_KIND_TEXT_EMBEDDING = 2;
+  REQUEST_KIND_STRUCTURED_EXTRACTION = 3;
+}
+
+// PrivacyClass tells the gateway how sensitive the request metadata is.
+enum PrivacyClass {
+  PRIVACY_CLASS_UNSPECIFIED = 0;
+  PRIVACY_CLASS_PUBLIC = 1;
+  PRIVACY_CLASS_INTERNAL = 2;
+  PRIVACY_CLASS_CONFIDENTIAL = 3;
+  PRIVACY_CLASS_SECRET = 4;
+}
+
+// Profile is the policy stance used by routing preview and execution.
+enum Profile {
+  PROFILE_UNSPECIFIED = 0;
+  PROFILE_LOCAL_ONLY = 1;
+  PROFILE_LOCAL_FIRST = 2;
+  PROFILE_REMOTE_ONLY = 3;
+  PROFILE_QUALITY_FIRST = 4;
+  PROFILE_CHEAP_FIRST = 5;
+  PROFILE_PRIVACY_SENSITIVE = 6;
+}
+
+// GatewayRequest is the caller-owned provider-neutral request envelope.
+// It intentionally contains no provider name, provider URL, credential,
+// concrete model slug, embedding dimensions, or context-window override.
+message GatewayRequest {
+  RequestKind kind = 1;
+  string role = 2;
+  Profile profile = 3;
+  PrivacyClass privacy_class = 4;
+  string operation = 5;
+  string scenario = 6;
+  int32 timeout_ms = 7;
+  double max_cost_usd = 8;
+  int32 max_output_tokens = 9;
+  string request_id = 10;
+  map<string, string> metadata = 11;
+}
+
+message ValidationIssue {
+  string field = 1;
+  string code = 2;
+  string message = 3;
+}

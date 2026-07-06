@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package vrooli.portal.v1.integrations;
+
+import "portal/v1/shared/common.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/integrations;integrations_v1";
+
+// IntegrationsService reports Portal's self-measured dependency readiness.
+service IntegrationsService {
+  rpc Status(StatusRequest) returns (StatusResponse);
+  rpc UpdateOverride(UpdateOverrideRequest) returns (UpdateOverrideResponse);
+}
+
+enum BehaviorOverride {
+  BEHAVIOR_OVERRIDE_UNSPECIFIED = 0;
+  BEHAVIOR_OVERRIDE_AUTO = 1;
+  BEHAVIOR_OVERRIDE_FORCE_OFF = 2;
+  BEHAVIOR_OVERRIDE_FORCE_PASSIVE = 3;
+}
+
+message RollingStats {
+  double latency_p50_ms = 1;
+  double latency_p95_ms = 2;
+  double error_rate = 3;
+  double degraded_rate = 4;
+  string last_ok_at = 5;
+  int64 sample_count = 6;
+}
+
+message IntegrationStatus {
+  string id = 1;
+  string display_name = 2;
+  vrooli.portal.v1.shared.IntegrationState state = 3;
+  RollingStats stats = 4;
+  string reason = 5;
+  bool required = 6;
+}
+
+message StatusRequest {}
+
+message StatusResponse {
+  repeated IntegrationStatus integrations = 1;
+  vrooli.portal.v1.shared.BehaviorMode active_mode = 2;
+  BehaviorOverride override = 3;
+  string reason = 4;
+  string evaluated_at = 5;
+}
+
+message UpdateOverrideRequest {
+  BehaviorOverride override = 1;
+}
+
+message UpdateOverrideResponse {
+  StatusResponse status = 1;
+}

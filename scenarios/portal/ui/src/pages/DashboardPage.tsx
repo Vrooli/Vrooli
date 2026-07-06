@@ -1,7 +1,7 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
-import { HealthCard } from "../features/health/HealthCard";
-import { EcosystemOmnibox } from "../features/search/EcosystemOmnibox";
+import { ChatWorkspace } from "../features/chat/ChatWorkspace";
+import { ModeIndicator } from "../features/integrations/ModeIndicator";
 import { useTranslation } from "../i18n";
 
 /**
@@ -17,26 +17,16 @@ export function DashboardPage() {
       aria-labelledby="dashboard-heading"
       className="flex flex-col gap-4"
     >
-      <h2 id="dashboard-heading" className="text-2xl font-semibold">
-        {t(strings.pages.dashboard.title)}
-      </h2>
-      <p className="text-app-muted-foreground">{t(strings.pages.dashboard.description)}</p>
-      <EcosystemOmnibox />
-      <div className="grid gap-4 md:grid-cols-3">
-        <HealthCard />
-        <div className="rounded-panel border border-app-border bg-app-surface p-4">
-          <p className="text-xs uppercase text-app-muted-foreground">
-            {t(strings.pages.dashboard.statPlaceholderLabel)}
-          </p>
-          <p className="mt-2 text-2xl font-semibold">—</p>
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <h2 id="dashboard-heading" className="text-2xl font-semibold">
+            {t(strings.pages.dashboard.title)}
+          </h2>
+          <p className="max-w-3xl text-app-muted-foreground">{t(strings.pages.dashboard.description)}</p>
         </div>
-        <div className="rounded-panel border border-app-border bg-app-surface p-4">
-          <p className="text-xs uppercase text-app-muted-foreground">
-            {t(strings.pages.dashboard.statPlaceholderLabel)}
-          </p>
-          <p className="mt-2 text-2xl font-semibold">—</p>
-        </div>
+        <ModeIndicator />
       </div>
+      <ChatWorkspace />
     </section>
   );
 }

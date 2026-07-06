@@ -22,9 +22,8 @@
   },
   "pages": {
     "dashboard": {
-      "title": "لوحة التحكم",
-      "description": "نظرة عامة على حالة السيناريو والمقاييس الرئيسية. استبدل هذه البطاقات بأسطح حقيقية مع نمو منتجك.",
-      "statPlaceholderLabel": "إحصائية"
+      "title": "Portal",
+      "description": "تحدث مع نماذج OpenRouter أو وكلاء البرمجة بينما يعرض Portal سياق النظام بشكل سلبي."
     },
     "settings": {
       "title": "الإعدادات",
@@ -89,6 +88,60 @@
       "loading": "جار البحث في سياق النظام…",
       "empty": "لم يتم العثور على اقتراحات.",
       "degraded": "اقتراحات البحث متدهورة."
+    }
+  },
+  "chat": {
+    "title": "المحادثات",
+    "sidebar": {
+      "label": "قائمة المحادثات",
+      "description": "تشارك المحادثات المجمعة مساحة عمل LLM والوكيل نفسها.",
+      "newChat": "LLM",
+      "newAgent": "وكيل",
+      "newGroup": "مجموعة جديدة",
+      "newChatTitle": "محادثة LLM جديدة",
+      "newAgentTitle": "محادثة وكيل جديدة",
+      "newGroupTitle": "مجموعة جديدة",
+      "ungrouped": "غير مصنف",
+      "empty": "أنشئ محادثة LLM أو وكيل للبدء."
+    },
+    "controls": {
+      "mode": "الوضع",
+      "modeLlm": "LLM",
+      "modeAgent": "وكيل",
+      "model": "النموذج",
+      "modelFast": "نموذج سريع",
+      "modelReasoning": "نموذج استدلال",
+      "agentHarness": "الوكيل",
+      "harnessClaude": "Claude Code",
+      "harnessCodex": "Codex",
+      "harnessOpencode": "OpenCode",
+      "harnessGrok": "Grok",
+      "webSearch": "بحث سلبي"
+    },
+    "empty": {
+      "description": "ابدأ محادثة من الشريط الجانبي ثم أرسل رسالة. تُرفق نتائج البحث في الخلفية عندما يكون search-hub متاحا."
+    },
+    "message": {
+      "roleUser": "أنت",
+      "roleAssistant": "المساعد",
+      "roleAgent": "الوكيل",
+      "branchCount": "{{current}} من {{total}}",
+      "previousBranch": "الفرع السابق",
+      "nextBranch": "الفرع التالي",
+      "edit": "تعديل الرسالة",
+      "editPrompt": "تعديل الرسالة",
+      "regenerate": "إعادة التوليد",
+      "searchAttachments": "نتائج النظام",
+      "agentActivity": "نشاط الوكيل",
+      "streaming": "جار البث"
+    },
+    "composer": {
+      "label": "الرسالة",
+      "placeholder": "اطلب من Portal التفكير أو البناء أو الشرح أو البحث عبر Vrooli.",
+      "skills": "معرفات المهارات",
+      "skillsPlaceholder": "معرفات مهارات prompt-manager مفصولة بفواصل",
+      "send": "إرسال",
+      "stop": "إيقاف"
     }
   },
   "errors": {

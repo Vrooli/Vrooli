@@ -203,44 +203,6 @@ func (x *Response) GetDependencies() map[string]*DependencyStatus {
 	return nil
 }
 
-// StatusRequest is empty because the health payload is scoped to the running
-// scenario instance.
-type StatusRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *StatusRequest) Reset() {
-	*x = StatusRequest{}
-	mi := &file_portal_v1_shared_health_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *StatusRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*StatusRequest) ProtoMessage() {}
-
-func (x *StatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_portal_v1_shared_health_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use StatusRequest.ProtoReflect.Descriptor instead.
-func (*StatusRequest) Descriptor() ([]byte, []int) {
-	return file_portal_v1_shared_health_proto_rawDescGZIP(), []int{2}
-}
-
 var File_portal_v1_shared_health_proto protoreflect.FileDescriptor
 
 const file_portal_v1_shared_health_proto_rawDesc = "" +
@@ -262,10 +224,7 @@ const file_portal_v1_shared_health_proto_rawDesc = "" +
 	"\fdependencies\x18\a \x03(\v23.vrooli.portal.v1.shared.Response.DependenciesEntryR\fdependencies\x1aj\n" +
 	"\x11DependenciesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12?\n" +
-	"\x05value\x18\x02 \x01(\v2).vrooli.portal.v1.shared.DependencyStatusR\x05value:\x028\x01\"\x0f\n" +
-	"\rStatusRequest2d\n" +
-	"\rHealthService\x12S\n" +
-	"\x06Status\x12&.vrooli.portal.v1.shared.StatusRequest\x1a!.vrooli.portal.v1.shared.ResponseBKZIgithub.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/shared;shared_v1b\x06proto3"
+	"\x05value\x18\x02 \x01(\v2).vrooli.portal.v1.shared.DependencyStatusR\x05value:\x028\x01BKZIgithub.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/shared;shared_v1b\x06proto3"
 
 var (
 	file_portal_v1_shared_health_proto_rawDescOnce sync.Once
@@ -279,20 +238,17 @@ func file_portal_v1_shared_health_proto_rawDescGZIP() []byte {
 	return file_portal_v1_shared_health_proto_rawDescData
 }
 
-var file_portal_v1_shared_health_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_portal_v1_shared_health_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_portal_v1_shared_health_proto_goTypes = []any{
 	(*DependencyStatus)(nil), // 0: vrooli.portal.v1.shared.DependencyStatus
 	(*Response)(nil),         // 1: vrooli.portal.v1.shared.Response
-	(*StatusRequest)(nil),    // 2: vrooli.portal.v1.shared.StatusRequest
-	nil,                      // 3: vrooli.portal.v1.shared.Response.DependenciesEntry
+	nil,                      // 2: vrooli.portal.v1.shared.Response.DependenciesEntry
 }
 var file_portal_v1_shared_health_proto_depIdxs = []int32{
-	3, // 0: vrooli.portal.v1.shared.Response.dependencies:type_name -> vrooli.portal.v1.shared.Response.DependenciesEntry
+	2, // 0: vrooli.portal.v1.shared.Response.dependencies:type_name -> vrooli.portal.v1.shared.Response.DependenciesEntry
 	0, // 1: vrooli.portal.v1.shared.Response.DependenciesEntry.value:type_name -> vrooli.portal.v1.shared.DependencyStatus
-	2, // 2: vrooli.portal.v1.shared.HealthService.Status:input_type -> vrooli.portal.v1.shared.StatusRequest
-	1, // 3: vrooli.portal.v1.shared.HealthService.Status:output_type -> vrooli.portal.v1.shared.Response
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
 	2, // [2:2] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name
@@ -309,9 +265,9 @@ func file_portal_v1_shared_health_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_portal_v1_shared_health_proto_rawDesc), len(file_portal_v1_shared_health_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   3,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   0,
 		},
 		GoTypes:           file_portal_v1_shared_health_proto_goTypes,
 		DependencyIndexes: file_portal_v1_shared_health_proto_depIdxs,

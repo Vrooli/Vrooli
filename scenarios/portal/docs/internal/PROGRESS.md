@@ -10,7 +10,7 @@ work lands, not while work is still speculative.
 
 | Date | Author | Status | Summary |
 |---|---|---|---|
-| _No progress entries yet._ |  |  |  |
+| 2026-07-06 | Codex | done | Added Phase 9 CLI coverage for chat, messages, integrations, and search; refreshed Portal README and reference docs. |
 
 ## Entry Template
 

@@ -1,14 +1,12 @@
 package domains
 
 import (
-	"context"
-	"fmt"
+	"portal/cli/domains/chat"
+	"portal/cli/domains/integrations"
+	"portal/cli/domains/message"
+	"portal/cli/domains/search"
 
-	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
-
-	integrationsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/integrations"
-	integrationsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/integrations/integrations_v1connect"
 )
 
 // CommandGroups aggregates flat command groups from domain packages.
@@ -41,26 +39,18 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	integrations, err := cliapp.LoadFromManifest(manifest, "integrations", map[string]func(cliapp.RunContext) error{
-		"IntegrationsService.Status": runIntegrationsStatus,
-	})
-	if err != nil {
-		return nil, err
+	groups := make([]cliapp.SubcommandGroup, 0, 4)
+	for _, register := range []func(*cliapp.ScenarioApp, []byte) (cliapp.SubcommandGroup, error){
+		chat.Register,
+		message.Register,
+		integrations.Register,
+		search.Register,
+	} {
+		group, err := register(core, manifest)
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, group)
 	}
-	return []cliapp.SubcommandGroup{integrations}, nil
-}
-
-func runIntegrationsStatus(ctx cliapp.RunContext) error {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(ctx.Core())
-	client := integrationsconnect.NewIntegrationsServiceClient(httpClient, baseURL)
-	resp, err := client.Status(context.Background(), connect.NewRequest(&integrationsv1.StatusRequest{}))
-	if err != nil {
-		return err
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary: []string{
-			fmt.Sprintf("mode: %s", resp.Msg.GetActiveMode().String()),
-			fmt.Sprintf("reason: %s", resp.Msg.GetReason()),
-		},
-	})
+	return groups, nil
 }

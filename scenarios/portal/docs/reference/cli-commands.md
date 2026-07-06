@@ -1,187 +1,113 @@
 # CLI Commands — Portal
 
-The scenario CLI is a thin Go wrapper over the API. Every command
-calls a single API endpoint and renders the result; there is no
-business logic in the CLI. If a command needs to make a decision the
-API doesn't expose, the correct fix is to add the API endpoint —
-**not** to compute it locally.
+Portal's CLI is a thin Go wrapper over generated Connect clients. The API owns
+behavior; the CLI parses operator input, calls one RPC, and renders either a
+human report or proto JSON with `--json`.
 
-The CLI binary is built from `cli/`, installed by `make setup` to
-`~/.vrooli/bin/portal`, and rebuilt automatically when its
-sources change (cli-core's stale-detection rebuilds before any command
-that touches the API).
-
-## Source of truth: `cli/manifest.json`
-
-The CLI's command surface (groups, commands, positionals, flags,
-RPC bindings, governance metadata) is declared in
-[`cli/manifest.json`](../../cli/manifest.json) and validated against
-[`.vrooli/schemas/cli-manifest.schema.json`](../../../../.vrooli/schemas/cli-manifest.schema.json)
-(schema id `cli-manifest/v1`). The manifest is loaded at startup by
-`cliapp.LoadFromManifest`, which:
-
-- builds each domain's `SubcommandGroup` from its manifest group
-- wires each command's `binding.method` (e.g.
-  `<Domain>Service.List<Entity>`) to a handler registered in the
-  domain's `register.go` bindings map
-- fails loudly on missing handlers, dead handlers, or unknown groups
-
-Per-domain tests use `cliapp.RequireProtoServiceCoverage` to assert
-that every RPC on the bound proto service either has a manifest command
-binding or appears in the manifest's `omitted[]` list with a reason —
-adding a new RPC without exposing it as a CLI command (or explicitly
-omitting it) fails the test.
-
-The manifest's `governance` block (`effect`, `run_eligible`,
-`permissions`, `requires_confirmation`) is consumed by prompt-manager
-to derive action certainty automatically; scenarios that adopt the
-manifest don't need hand-classified action-safety lists.
-
-`binding.kind` is currently `connect-rpc` only. REST-exception
-commands (for example, a multipart file-upload command whose request
-body carries opaque bytes) are appended to the loaded group outside the
-manifest path in the domain's `register.go` and documented in the
-manifest's `omitted[]` array.
-
-For environment-variable precedence and CLI config-file shape, see
-[`configuration.md`](configuration.md).
+The command surface is declared in [`cli/manifest.json`](../../cli/manifest.json)
+and loaded by `cliapp.LoadFromManifest`. `cli-health validate scenario portal`
+checks the manifest schema, proto method coverage, runtime help surface, and
+governance metadata.
 
 ## Global flags (provided by cli-core)
-
-Every command supports the following flags. **Do not reimplement them
-in scenario commands.**
 
 | Flag | Purpose |
 |---|---|
 | `--api-base <url>` | Override the API endpoint for this invocation |
-| `--auto-start` | Run `vrooli scenario start portal` if the API is unreachable |
-| `--json` | Emit machine-readable JSON instead of the human report |
-| `--no-color` | Disable ANSI color (also respects the `NO_COLOR` env var) |
-| `--color` | Force-enable color (overrides terminal detection) |
+| `--auto-start` | Start Portal through Vrooli lifecycle if the API is unreachable |
+| `--json` | Emit machine-readable output |
+| `--no-color` | Disable ANSI color |
+| `--color` | Force-enable color |
 | `--help`, `-h` | Show command help |
-| `--version`, `-v` | Show the CLI version |
+| `--version`, `-v` | Show version metadata |
 
 ## Built-in commands (auto-provided by `cli-core`)
 
 ### `portal status`
 
-Health check. Calls `GET /health` and renders status + dependency
-details. The output uses the **operational contract**:
-`Status → Triage → Next Steps`.
+Calls the health probe and renders operational status.
 
 ```bash
 portal status
 portal status --json
 ```
 
-### `portal configure <key> <value>`
+### `portal configure <key> [value]`
 
-Persist a setting to the per-user CLI config file (location resolved
-per [`configuration.md`](configuration.md#cli-config-file)).
-
-```bash
-portal configure api_base http://localhost:15001/api/v1
-portal configure token <token>
-```
-
-Read values back without an argument:
+Reads or writes CLI configuration such as `api_base` and `token`.
 
 ```bash
+portal configure api_base http://localhost:17476
 portal configure api_base
 ```
 
-## Scenario commands — `<domain>`
+## Scenario commands — Portal
 
-Each product domain exposes its commands as a subcommand group
-(`portal <domain> <verb>`). Every command calls a single API
-endpoint and renders the result through one of the three output
-contracts below. Document your domain's commands here as you build
-them, one row/section per command, mirroring the endpoints they call
-in [`api-endpoints.md`](api-endpoints.md).
+### Chats
 
-The scaffold ships one fully worked CRUD command group as a copyable
-reference (see the fenced example below); `vrooli scenario detemplate
-<scenario>` removes it once your real domains are green.
+| Command | RPC | Purpose |
+|---|---|---|
+| `portal chats list [--group-id <id>] [--query <q>]` | `ChatService.ListChats` | List chats and groups |
+| `portal chats create --title <title> [--group-id <id>] [--model <model>] [--mode llm\|agent] [--harness claude-code\|codex\|opencode\|grok] [--web-search]` | `ChatService.CreateChat` | Create a chat |
+| `portal chats show <id>` | `ChatService.GetChat` | Show one chat |
+| `portal chats update <id> [--title <title>] [--group-id <id>] [--model <model>] [--active-leaf <message-id>] [--web-search\|--no-web-search]` | `ChatService.UpdateChat` | Update chat metadata |
+| `portal chats delete <id>` | `ChatService.DeleteChat` | Delete a chat |
+| `portal chats groups` | `ChatService.ListGroups` | List chat groups |
+| `portal chats group-create --name <name> --color <color>` | `ChatService.CreateGroup` | Create a chat group |
+| `portal chats group-update <id> [--name <name>] [--color <color>] [--collapsed\|--expanded] [--sort-order <n>]` | `ChatService.UpdateGroup` | Update a chat group |
+| `portal chats group-delete <id>` | `ChatService.DeleteGroup` | Delete a chat group |
+
+### Messages
+
+| Command | RPC | Purpose |
+|---|---|---|
+| `portal messages tree <chat-id>` | `MessageService.GetTree` | Show a chat message tree |
+| `portal messages send <chat-id> <text> [--parent <message-id>] [--model <model>] [--skill-ids <ids>] [--web-search]` | `MessageService.SendMessage` | Append a user message |
+| `portal messages edit <message-id> <text>` | `MessageService.EditMessage` | Edit a message branch |
+| `portal messages regenerate <message-id> [--model <model>]` | `MessageService.Regenerate` | Regenerate an assistant branch |
+| `portal messages stream <chat-id> [--from <message-id>] [--model <model>] [--mode llm\|agent] [--harness claude-code\|codex\|opencode\|grok] [--skill-ids <ids>] [--web-search]` | `MessageService.StreamCompletion` | Stream completion events |
+
+`messages stream --json` prints one proto JSON `CompletionEvent` per line.
+Human output prints status lines, tokens, search attachment notices, agent
+activity, errors, and done events.
+
+### Integrations
+
+| Command | RPC | Purpose |
+|---|---|---|
+| `portal integrations status` | `IntegrationsService.Status` | Show readiness registry state |
+| `portal integrations override auto\|force-off\|force-passive` | `IntegrationsService.UpdateOverride` | Set behavior override |
+
+### Search
+
+| Command | RPC | Purpose |
+|---|---|---|
+| `portal search suggest <query> [--types <csv>] [--limit <n>] [--group <name>]` | `SearchService.Suggest` | Request bounded ecosystem suggestions |
 
 ## Output contracts
 
-Every scenario command should render through one of three human
-contracts. Proto-backed commands should use `cliapp.RenderProtoList`
-or `cliapp.RenderProtoMutation`: human consumers see the report, while
-`--json` consumers receive the proto JSON response shape.
+Proto-backed read commands use `cliapp.RenderProtoList`; mutation commands use
+`cliapp.RenderProtoMutation`. Human output follows the fleet contracts:
 
 | Contract | Used by | Structure |
 |---|---|---|
-| **Operational** | `status`, `health`, `audit`, `validate`, `doctor` | Status → Triage → Next Steps |
-| **Data Retrieval** | `list`, `get`, `view`, `search` | Summary → Results → Retrieval Hints |
-| **Mutation** | `create`, `update`, `delete`, `start`, `stop` | Result → What Changed → Next Command |
-
-For commands that aggregate multiple API calls or produce a
-non-proto report, use the `RunContext` render helpers directly
-(`ctx.RenderList`, `ctx.RenderMutation`, or the operational report
-helpers).
+| Operational | `status` and diagnostics | Status → Triage → Next Steps |
+| Data retrieval | `list`, `show`, `tree`, `suggest` | Summary → Results → Retrieval Hints |
+| Mutation | `create`, `update`, `delete`, `send`, `override` | Result → What Changed → Next Command |
 
 ## Adding a new command
 
-For a new domain, copy the worked CRUD command group in the fenced
-example above first, then replace it once your real domain is green.
-
-For a command inside an existing domain:
-
-1. If the command needs a new API endpoint (RPC), add it first per
-   [`api-endpoints.md`](api-endpoints.md#adding-a-new-endpoint). The
-   manifest's coverage test will fail otherwise on the next CLI build.
-2. Add a command entry to the matching group in
-   [`cli/manifest.json`](../../cli/manifest.json): `name`, optional
-   `description`, `positionals` / `flags`, the `binding` (service +
-   method), and the `governance` block (`effect`, `run_eligible`,
-   `permissions`, optional `requires_confirmation`). The schema in
-   `.vrooli/schemas/cli-manifest.schema.json` is authoritative.
-3. Implement the handler in `cli/domains/<domain>/handlers.go` (or a
-   focused sibling file) with signature
-   `func(ctx cliapp.RunContext) error`. Read values with
-   `ctx.Flag(...)`, `ctx.BoolFlag(...)`, `ctx.Positional(...)`, and
-   `ctx.JSON()`.
-4. Add the handler to the bindings map in
-   `cli/domains/<domain>/register.go` keyed by `"<Service>.<Method>"`
-   so `cliapp.LoadFromManifest` can wire it. Missing handler or
-   dead handler both fail at startup.
-5. Handler implementation should:
-   - Construct generated Connect clients with
-     `cliapp.NewConnectHTTPClient(core)` for proto-typed operations.
-   - Use `cliapp.UploadFile` only for documented multipart REST
-     exceptions (append those outside the manifest path in
-     `register.go` and document them in the manifest's `omitted[]`).
-   - Render proto-backed responses with `cliapp.RenderProtoList` or
-     `cliapp.RenderProtoMutation`.
-6. Add endpoint metadata in the API handler module and bind the method
-   (or list it in `omitted[]`) in `cli/manifest.json`. Then run
-   `make endpoints`; do not edit [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json)
-   by hand.
-7. Add a row to this document.
-8. Add a handler test in
-   `cli/domains/<domain>/handlers_test.go` using `clitest.NewTestApp`
-   + `clitest.NewAPIServer` + `clitest.CaptureStdout` (see
-   [`../internal/TESTING.md`](../internal/TESTING.md)). Driving the
-   handler via `cliapp.NewTestRunContextFromArgs` against the manifest's
-   schema gives the closest parity with the dispatched path.
-
-## Command structure principles
-
-- **Subcommand groups** (`<domain> list`, `<domain> create`) over flat
-  verbs (`list-<entity>`, `create-<entity>`). Discoverability via
-  `--help` is the goal.
-- **Positional for required, flags for optional.** `<domain> get <id>`
-  not `<domain> get --id <id>`.
-- **One command per API endpoint.** If you find yourself making two
-  endpoint calls, the API is missing a use-case.
-- **Error messages must be actionable.** "API unreachable" is bad;
-  "API unreachable at http://localhost:15001 — try `--auto-start` or
-  `vrooli scenario start portal`" is good.
+1. Add or update the proto service method first.
+2. Regenerate proto artifacts from `packages/proto/`.
+3. Add the command to `cli/manifest.json` with binding and governance.
+4. Implement the handler in `cli/domains/<domain>/handlers.go`.
+5. Register the handler in `cli/domains/<domain>/register.go`.
+6. Run `go test ./...` in `scenarios/portal/cli`.
+7. Run `cli-health validate scenario portal --json`.
 
 ## Cross-references
 
 - [`api-endpoints.md`](api-endpoints.md) — API endpoints these commands mirror
 - [`configuration.md`](configuration.md) — env vars and config-file precedence
-- [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for "API unreachable", auth, stale binary
-- [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#inside-the-cli-thin-wrapper-domain-organized) — CLI architecture
+- [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — CLI/API role split
+- [`../internal/SEAMS.md`](../internal/SEAMS.md) — manifest-to-handler seam

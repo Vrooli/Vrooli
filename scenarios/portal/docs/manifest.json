@@ -1,7 +1,7 @@
 {
   "version": "2.0.0",
   "title": "Portal Documentation",
-  "description": "Documentation contract for the scenario generated from the react-vite template",
+  "description": "Documentation contract for the Portal scenario",
   "defaultDocument": "START-HERE.md",
   "contract": {
     "kind": "scenario-docs",
@@ -49,7 +49,7 @@
           "completion": "required",
           "ownerSkills": ["scenario-generation"],
           "validation": {
-            "requiredHeadings": ["Initialization Protocol", "Architecture Rules", "Replacing The Example Domain"],
+            "requiredHeadings": ["Initialization Protocol", "Architecture Rules", "Portal Domains"],
             "forbiddenPlaceholders": ["[TODO]"]
           }
         },
@@ -417,7 +417,7 @@
           "requiredBy": ["generated", "implemented"],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["System", "Notes (CRUD reference)", "Adding a new endpoint", "Cross-references"],
+            "requiredHeadings": ["System", "Connect Services", "Adding a new endpoint", "Cross-references"],
             "forbiddenPlaceholders": ["[TODO]"],
             "requiredLinks": ["../../.vrooli/endpoints.json"]
           }
@@ -434,7 +434,7 @@
           "requiredBy": ["generated", "implemented"],
           "completion": "required",
           "validation": {
-            "requiredHeadings": ["Global flags (provided by cli-core)", "Built-in commands (auto-provided by `cli-core`)", "Scenario commands — `notes` (CRUD reference)", "Output contracts", "Adding a new command", "Cross-references"],
+            "requiredHeadings": ["Global flags (provided by cli-core)", "Built-in commands (auto-provided by `cli-core`)", "Scenario commands — Portal", "Output contracts", "Adding a new command", "Cross-references"],
             "forbiddenPlaceholders": ["[TODO]"]
           }
         },

@@ -4,11 +4,8 @@ This document is the canonical map of product capabilities, bounded
 contexts, and ownership for this scenario. Keep it current whenever a
 domain is added, renamed, split, merged, or removed.
 
-`health` is the one real domain the scaffold ships. Add your scenario's
-domains to the inventory below as you build them. The scaffold also ships
-one clearly fenced worked example domain (never product scope) as a
-copyable reference; `vrooli scenario detemplate <scenario>` removes every
-fenced example once your real domains are green.
+Portal's real domains are listed below. Add to this map when a new product
+capability owns data, proto methods, API behavior, UI state, or CLI commands.
 
 ## Purpose Of This Document
 
@@ -27,8 +24,12 @@ belong in [`DATA.md`](DATA.md).
 
 | Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
 |---|---|---|---|---|---|---|---|
-| health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | No product data. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/portal/v1/shared/health.proto` |
-| _(your domain)_ | What product capability it owns. | Why the capability exists for users or operators. | Its tables, if any. | service | — | DomainVocabulary | `api/internal/<domain>/` |
+| health | Report runtime readiness and dependency reachability. | Let lifecycle tools and operators see whether Portal is healthy. | No product data. | reporting | query | health, dependency | `api/handlers/health/`, `packages/proto/schemas/portal/v1/shared/health.proto` |
+| chat | Own grouped conversations and branchable message-tree state. | Persist the operator's conversation workspace. | chats, chat_groups, messages, settings, usage, search attachments. | service | mutation, query | chat, group, message tree | `api/internal/chat/`, `api/handlers/chat/`, `api/handlers/message/`, `packages/proto/schemas/portal/v1/chat/`, `packages/proto/schemas/portal/v1/message/`, `ui/src/features/chat/`, `cli/domains/chat/`, `cli/domains/message/` |
+| completion | Assemble and stream LLM completions. | Turn persisted conversation state into OpenRouter requests with honest degraded errors. | Usage records through chat repository. | orchestration | service | completion, OpenRouter, skill context | `api/internal/completion/`, `api/internal/integrations/openrouter/`, `api/handlers/message/` |
+| agentchat | Bridge chat mode to agent-manager. | Let coding-agent conversations live in the same chat workspace. | Final agent transcript through chat repository. | orchestration | service | agent harness, activity | `api/internal/agentchat/`, `api/internal/integrations/agentmanager/`, `api/handlers/message/` |
+| integrations | Measure optional dependency readiness and behavior mode. | Keep Portal usable and honest when dependencies degrade. | integration overrides and rolling observations. | service | reporting, classification | readiness, behavior mode, override | `api/internal/integrations/registry/`, `api/handlers/integrations/`, `packages/proto/schemas/portal/v1/integrations/`, `ui/src/features/integrations/`, `cli/domains/integrations/` |
+| search | Mediate ecosystem suggestions and passive search attachments. | Surface Vrooli capabilities without gating chat completions. | Search attachments through chat repository. | query | aggregation | suggestion, attachment, passive search | `api/internal/search/`, `api/handlers/search/`, `packages/proto/schemas/portal/v1/search/`, `ui/src/features/search/`, `cli/domains/search/` |
 
 ## Domain Details
 
@@ -43,11 +44,55 @@ belong in [`DATA.md`](DATA.md).
   domain behavior.
 - API: `api/handlers/health/`.
 - CLI: built-in `status` command is provided through cli-core.
-- UI: `ui/src/features/health/HealthCard.tsx`.
+- UI: health status is surfaced through shell readiness indicators and lifecycle status.
 - Storage: none; probes configured database reachability.
-- Requirements: starter scaffold health only.
+- Requirements: `PORTAL-P0-001`.
 - Tests: handler, module, UI feature, and accessibility tests.
 - Related docs: [`../reference/api-endpoints.md`](../reference/api-endpoints.md).
+
+### chat
+
+- Purpose: persist the chat workspace: grouped chats, message branches, active
+  leaf selection, search attachments, settings, and usage records.
+- API: `ChatService` and `MessageService` unary methods.
+- CLI: `portal chats ...` and `portal messages ...`.
+- UI: `ChatWorkspace`.
+- Storage: declarative SQLite schema in `api/internal/chat/schema.sql`.
+- Requirements: `PORTAL-P0-002`, `PORTAL-P1-001`, `PORTAL-P2-001`.
+
+### completion
+
+- Purpose: build OpenRouter requests from the active branch path and stream
+  completion events back through `MessageService.StreamCompletion`.
+- Owns: request assembly, selected-skill system-prompt injection, token events,
+  assistant-message persistence, and usage capture.
+- Does not own: OpenRouter credentials, chat persistence schema, or UI rendering.
+- Requirements: `PORTAL-P1-001`.
+
+### agentchat
+
+- Purpose: map agent chat mode to agent-manager runs and stream normalized
+  activity events.
+- Owns: runner mapping, WebSocket event decoding, terminal transcript
+  persistence.
+- Does not own: terminal surfaces or agent-manager internals.
+- Requirements: `PORTAL-P1-002`.
+
+### integrations
+
+- Purpose: maintain Portal's own measured readiness view for optional
+  dependencies.
+- Owns: rolling latency/error windows, hysteresis policy, override persistence,
+  and status proto conversion.
+- Requirements: `PORTAL-P2-002`.
+
+### search
+
+- Purpose: mediate calls to search-hub for suggestions and passive
+  send-time attachments.
+- Owns: budgets, result projection, degraded responses, readiness observations,
+  and next-turn context material.
+- Requirements: `PORTAL-P2-001`.
 
 ## Shared Concepts
 
@@ -57,6 +102,7 @@ belong in [`DATA.md`](DATA.md).
 | Surface | API, UI, CLI, or contract layer exposing the same product capability. | `ARCHITECTURE.md`. |
 | Seam | Test-substitutable boundary wired once in production. | `../internal/SEAMS.md`. |
 | Requirement | Implementation-facing measurement tied back to the PRD. | `requirements/`. |
+| PASSIVE mode | Search enriches the conversation but never delays the completion path. | `search`, `integrations`. |
 
 ## Deferred Domains
 
@@ -65,7 +111,9 @@ are real enough to affect architecture or requirements.
 
 | Candidate Domain | Why Deferred | Revisit Trigger |
 |---|---|---|
-| None yet. | Generated scaffold. | Add after PRD-specific requirements identify future capability boundaries. |
+| scenario embeds | Embeds are plan-2 scope. | Scenario embed plan begins. |
+| FULL retrieval gate | Pre-LLM short-circuiting is plan-3 scope. | Retrieval eval harness and FULL policy are implemented. |
+| voice input | Voice is out of v0. | Voice plan begins. |
 
 ## Non-Domains
 
