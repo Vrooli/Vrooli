@@ -1,21 +1,23 @@
 package hygiene
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	contractapp "github.com/vrooli/vrooli/internal/app/contract"
-	planapp "github.com/vrooli/vrooli/internal/app/plans"
-	shareddriftapp "github.com/vrooli/vrooli/internal/app/shareddrift"
 )
 
 type Service struct {
-	Root string
-	Home string
+	Root                      string
+	Home                      string
+	PlanReconciler            PlanReconciler
+	DependencyFreshnessRunner DependencyFreshnessRunner
 }
 
 func (s Service) Run(req Request) (Report, error) {
@@ -83,100 +85,16 @@ func (s Service) Run(req Request) (Report, error) {
 	}
 
 	if req.IncludePlans {
-		candidates, err := DetectPlanCandidates(root)
-		if err != nil {
-			report.addCheck("plan_candidates", false, SeverityError, err.Error())
-			report.addFinding(Finding{
-				Severity:   SeverityError,
-				Code:       "plan_candidate_scan",
-				Message:    err.Error(),
-				Fixability: FixabilityManual,
-				NextActions: []Action{{
-					Code:    "inspect_plan_candidate_scan",
-					Message: "Inspect the plan-candidate scan error and rerun hygiene.",
-				}},
-			})
-		} else {
-			report.PlanCandidates = candidates
-			message := "no likely scratch plans found"
-			severity := SeverityInfo
-			if len(candidates) > 0 {
-				message = fmt.Sprintf("%d likely scratch plan candidates found", len(candidates))
-				severity = SeverityWarning
-				action := Action{
-					Code:       "import_plan_candidates",
-					Message:    "Import untracked scratch plan candidates into user-scoped plan storage.",
-					Command:    "vrooli hygiene --fix-safe --plans",
-					Fixability: FixabilityAutomatic,
-				}
-				report.addFinding(Finding{
-					Severity:   SeverityWarning,
-					Code:       "plan_candidates",
-					Message:    message,
-					Why:        "Scratch implementation plans should live in user-scoped plan storage until intentionally promoted into the repository.",
-					Fixability: FixabilityAutomatic,
-					NextActions: []Action{
-						action,
-						{
-							Code:       "review_modified_plan_candidates",
-							Message:    "Review modified plan files manually before deciding whether to promote, revert, or archive them.",
-							Fixability: FixabilityManual,
-						},
-					},
-				})
-				report.Actions = append(report.Actions, action)
-			}
-			report.addCheck("plan_candidates", true, severity, message)
+		registry := NewRegistry(s.planProvider())
+		if err := registry.Run(context.Background(), req, &report, plansProviderID); err != nil {
+			return Report{}, err
 		}
 	}
 
 	if req.IncludeDrift {
-		drift, err := shareddriftapp.Service{Root: root}.Check(shareddriftapp.CheckRequest{
-			OnlyTouched: true,
-			Fix:         false,
-		})
-		if err != nil {
-			report.addCheck("shared_drift", false, SeverityError, err.Error())
-			report.addFinding(Finding{
-				Severity:   SeverityError,
-				Code:       "shared_drift_scan",
-				Message:    err.Error(),
-				Fixability: FixabilityManual,
-				NextActions: []Action{{
-					Code:    "inspect_shared_drift_scan",
-					Message: "Inspect the shared-drift scan error and rerun hygiene after correcting it.",
-					Command: "vrooli check-shared-drift --only-touched --json",
-				}},
-			})
-		} else {
-			report.SharedDrift = &drift
-			if drift.Clean {
-				message := "no dependent scenarios stale"
-				if len(drift.Scenarios) == 0 {
-					message = "no shared-package changes staged"
-				}
-				report.addCheck("shared_drift", true, SeverityInfo, message)
-			} else {
-				stale := driftStaleScenarios(drift)
-				message := fmt.Sprintf("%d dependent scenarios are stale relative to shared packages", len(stale))
-				report.addCheck("shared_drift", false, SeverityError, message)
-				action := Action{
-					Code:       "fix_shared_drift",
-					Message:    "Tidy stale scenario go.mod/go.sum then stage the changes.",
-					Command:    "vrooli check-shared-drift --fix --only-touched",
-					Fixability: FixabilityGuided,
-				}
-				report.addFinding(Finding{
-					Severity:    SeverityError,
-					Code:        "shared_drift",
-					Message:     message,
-					Why:         "Stale scenario go.mod/go.sum entries cause scenarios to fail to start after a shared package changes.",
-					Locations:   driftLocations(stale),
-					Fixability:  FixabilityGuided,
-					NextActions: []Action{action},
-				})
-				report.Actions = append(report.Actions, action)
-			}
+		registry := NewRegistry(s.sdaFreshnessProvider())
+		if err := registry.Run(context.Background(), req, &report, dependencyFreshnessProviderID); err != nil {
+			return Report{}, err
 		}
 	}
 
@@ -189,67 +107,34 @@ func (s Service) Run(req Request) (Report, error) {
 		s.checkTestFreshness(&report)
 	}
 
-	if req.FixSafe && req.Plans && len(report.PlanCandidates) > 0 {
-		fixes, err := s.importPlanCandidates(report.PlanCandidates)
-		if err != nil {
-			report.addFinding(Finding{
-				Severity:   SeverityError,
-				Code:       "plan_candidate_import",
-				Message:    err.Error(),
-				Fixability: FixabilityManual,
-				NextActions: []Action{{
-					Code:    "inspect_plan_candidate_import",
-					Message: "Inspect the plan import error and retry after correcting it.",
-				}},
-			})
-			report.addCheck("plan_candidate_import", false, SeverityError, err.Error())
-		} else {
-			report.FixesApplied = fixes
-			report.addCheck("plan_candidate_import", true, SeverityInfo, fmt.Sprintf("imported %d plan candidates", len(fixes)))
-		}
-	}
-
 	report.finish(req.FailOn)
 	return report, nil
 }
 
-func (s Service) importPlanCandidates(candidates []PlanCandidate) ([]PlanFix, error) {
-	service := planapp.Service{Root: s.Root, Home: s.Home}
-	fixes := make([]PlanFix, 0, len(candidates))
-	for _, candidate := range candidates {
-		if candidate.Status != "untracked" {
-			continue
+func (s Service) planProvider() Provider {
+	reconciler := s.PlanReconciler
+	var reconcileErr error
+	if reconciler == nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		if resolved, err := NewDefaultPlanReconciler(ctx); err == nil {
+			reconciler = resolved
+		} else {
+			reconcileErr = err
 		}
-		out, err := service.Import(planapp.ImportRequest{Path: filepath.Join(s.Root, filepath.FromSlash(candidate.Path)), Repo: s.Root})
-		if err != nil {
-			return fixes, err
-		}
-		fixes = append(fixes, PlanFix{Source: candidate.Path, Plan: out.Plan})
 	}
-	return fixes, nil
+	return plansProvider{root: s.Root, reconciler: reconciler, unavailableReason: errorString(reconcileErr)}
 }
 
-func driftStaleScenarios(drift shareddriftapp.Report) []shareddriftapp.ScenarioReport {
-	var out []shareddriftapp.ScenarioReport
-	for _, sc := range drift.Scenarios {
-		if sc.Status == shareddriftapp.StatusStaleModules || sc.Status == shareddriftapp.StatusStaleBuild {
-			out = append(out, sc)
-		}
-	}
-	return out
+func (s Service) sdaFreshnessProvider() Provider {
+	return sdaFreshnessProvider{root: s.Root, runner: s.DependencyFreshnessRunner}
 }
 
-func driftLocations(stale []shareddriftapp.ScenarioReport) []string {
-	const maxLocations = 5
-	locations := make([]string, 0, maxLocations+1)
-	for i, sc := range stale {
-		if i >= maxLocations {
-			locations = append(locations, fmt.Sprintf("... %d more (see shared_drift summary)", len(stale)-maxLocations))
-			break
-		}
-		locations = append(locations, sc.Path)
+func errorString(err error) string {
+	if err == nil {
+		return ""
 	}
-	return locations
+	return err.Error()
 }
 
 func contractFinding(name, message string) Finding {
@@ -344,7 +229,7 @@ func DetectPlanCandidates(root string) ([]PlanCandidate, error) {
 		if isAllowedPlanPath(rel) {
 			continue
 		}
-		candidates = append(candidates, PlanCandidate{Path: rel, Status: status, Reason: "plan-like file in scratch or legacy plan location"})
+		candidates = append(candidates, PlanCandidate{Path: rel, Status: status, Reason: "plan-like file in scratch or plan source location"})
 	}
 	return candidates, nil
 }

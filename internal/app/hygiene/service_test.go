@@ -1,6 +1,7 @@
 package hygiene
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -46,7 +47,7 @@ func TestServiceRunIncludesDriftCheckWhenNoScenarios(t *testing.T) {
 	root := t.TempDir()
 	runGit(t, root, "init")
 	writeFile(t, filepath.Join(root, ".vrooli", "repo-contract.json"), `{"version":"v0","required_dirs":[],"required_files":[],"checks":[]}`)
-	report, err := Service{Root: root, Home: root}.Run(Request{
+	report, err := Service{Root: root, Home: root, DependencyFreshnessRunner: fakeDependencyFreshnessRunner{}}.Run(Request{
 		FailOn:          SeverityError,
 		IncludeContract: false,
 		IncludePlans:    false,
@@ -63,16 +64,22 @@ func TestServiceRunIncludesDriftCheckWhenNoScenarios(t *testing.T) {
 	}
 	var sawCheck bool
 	for _, c := range report.Checks {
-		if c.Name == "shared_drift" {
+		if c.Name == "dependency_freshness" {
 			sawCheck = true
 			if !c.Passed {
-				t.Fatalf("shared_drift check failed: %s", c.Message)
+				t.Fatalf("dependency_freshness check failed: %s", c.Message)
 			}
 		}
 	}
 	if !sawCheck {
-		t.Fatalf("expected shared_drift check entry, got %+v", report.Checks)
+		t.Fatalf("expected dependency_freshness check entry, got %+v", report.Checks)
 	}
+}
+
+type fakeDependencyFreshnessRunner struct{}
+
+func (fakeDependencyFreshnessRunner) CheckDependencyFreshness(_ context.Context, root string) (sdaFreshnessReport, error) {
+	return sdaFreshnessReport{Clean: true, Root: root, Mode: "touched"}, nil
 }
 
 func runGit(t *testing.T, dir string, args ...string) {

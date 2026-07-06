@@ -44,25 +44,18 @@ type RecordWriter interface {
 	WriteRecord(ctx context.Context, entry Entry) (DownstreamRef, error)
 }
 
-// --- default (stubbed) downstream sinks ---------------------------------------
+// --- explicit degraded downstream sinks --------------------------------------
 //
-// v1 ships pending stubs mirroring the documented VelocitySink/MoM pattern: the
-// local entry is durable and the agent retries with `plan-manager log sync` once
-// an operator wires a live downstream. The concrete production adapters (a
-// scenario-qa bug filer and a `swarm-manager records create` writer) land behind
-// these same seams as a follow-up — exactly like the deferred MoM emit on
-// VelocitySink — so the live wire never changes the call sites or the
-// durable-local + retryable contract.
-//
-// TODO(downstream): wire the real scenario-qa BugReporter and swarm-manager
-// RecordWriter here once their ingest contracts are pinned. Until then the
-// defaults keep bug/record entries PENDING and retryable.
+// Production module wiring installs live scenario-qa and swarm-manager adapters.
+// These explicit pending sinks remain the degraded/test fallback: the local
+// entry is durable and the agent retries with `plan-manager log sync` once the
+// downstream is reachable.
 
 // pendingBugReporter is the default BugReporter: it never reaches a downstream,
 // signalling unavailability so the entry stays PENDING and retryable.
 type pendingBugReporter struct{}
 
-// DefaultBugReporter returns the documented pending stub.
+// DefaultBugReporter returns the explicit pending fallback.
 func DefaultBugReporter() BugReporter { return pendingBugReporter{} }
 
 func (pendingBugReporter) FileBug(context.Context, Entry) (DownstreamRef, error) {
@@ -72,10 +65,10 @@ func (pendingBugReporter) FileBug(context.Context, Entry) (DownstreamRef, error)
 	}
 }
 
-// pendingRecordWriter is the default RecordWriter (pending stub).
+// pendingRecordWriter is the explicit pending RecordWriter fallback.
 type pendingRecordWriter struct{}
 
-// DefaultRecordWriter returns the documented pending stub.
+// DefaultRecordWriter returns the explicit pending fallback.
 func DefaultRecordWriter() RecordWriter { return pendingRecordWriter{} }
 
 func (pendingRecordWriter) WriteRecord(context.Context, Entry) (DownstreamRef, error) {

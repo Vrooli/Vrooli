@@ -104,13 +104,17 @@ type: ## Compile-check project-level Go packages without running tests
 	@go test -run '^$$' ./cmd/... ./internal/...
 	@go test -run '^$$' -tags testing ./cmd/vrooli-api
 
+cross-compile: ## Cross-compile guard for the OS-evidence packages (darwin: full internal tree; windows: scoped — buildinfo/pstore-observability are not yet ported)
+	@GOOS=darwin GOARCH=arm64 go build ./internal/...
+	@GOOS=windows GOARCH=amd64 go build ./internal/network/... ./internal/process/... ./internal/maintenance/... ./internal/scenarioruntime/... ./internal/ports/... ./internal/runtimesupervisor/...
+
 test: ## Run project-level Go tests
 	@go test ./internal/...
 	@go test ./cmd/vrooli-buildmeta
 	@go test ./cmd/vrooli
 	@go test -tags testing ./cmd/vrooli-api
 
-check: lint type test check-packages ## Run lint, type, and test quality gates (core + packages)
+check: lint type cross-compile test check-packages ## Run lint, type, cross-compile, and test quality gates (core + packages)
 
 hygiene: ## Run repository hygiene checks
 	@$(VROOLI) hygiene

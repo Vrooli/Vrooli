@@ -58,6 +58,11 @@
           "description": "Engineering contract for turning a capability into a paid feature (metered vs gated) and wiring it through LPBS"
         },
         {
+          "path": "concepts/PUBLIC_ASSETS.md",
+          "title": "Public-Asset Convention",
+          "description": "The /public/* URL-prefix convention for world-readable assets: its security contract, what belongs there, and the edge Access-bypass enforcement"
+        },
+        {
           "path": "concepts/GLOSSARY.md",
           "title": "Glossary",
           "description": "Shared vocabulary for the platform"

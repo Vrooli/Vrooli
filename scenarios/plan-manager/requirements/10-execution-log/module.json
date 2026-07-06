@@ -25,14 +25,14 @@
           "type": "test",
           "ref": "api/internal/planlog/planlog_test.go::TestAddFindingFilesCandidate",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Findings are filed CANDIDATE; entry types are distinct."
         },
         {
           "type": "test",
           "ref": "api/internal/planlog/planlog_test.go::TestListEntriesAndSummary",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "The ledger lists and summarizes the distinct typed entries."
         }
       ]
@@ -54,8 +54,22 @@
           "type": "test",
           "ref": "api/internal/planlog/planlog_test.go::TestAddRecordSyncsViaSink",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Records forward to the downstream sink via the RecordWriter seam."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/planlog/downstream_test.go::TestScenarioQABugReporterCreatesKnowledgeEntry",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "The live scenario-qa adapter writes the report-bug knowledge payload and stores the returned knw id."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/planlog/downstream_test.go::TestSwarmRecordWriterCreatesRecord",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "The live Swarm Manager adapter writes a records create payload and stores the returned rec id."
         }
       ]
     },
@@ -76,15 +90,22 @@
           "type": "test",
           "ref": "api/internal/planlog/planlog_test.go::TestAddBugFailedSyncStaysDurable",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "A failed downstream write leaves a durable sync_failed entry."
         },
         {
           "type": "test",
           "ref": "api/internal/planlog/planlog_test.go::TestSyncEntryRetrySucceeds",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "log sync retries a failed entry to success once the downstream recovers."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/planlog/downstream_test.go::TestDownstreamAdaptersMapResolutionFailureToUnavailable",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Downstream URL resolution failures map to ErrDownstreamUnavailable so entries stay pending."
         }
       ]
     },
@@ -105,15 +126,36 @@
           "type": "test",
           "ref": "api/internal/planlog/planlog_test.go::TestIdempotencyKeyDedup",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "A retry with the same idempotency key returns the existing entry."
         },
         {
           "type": "test",
           "ref": "api/internal/planlog/planlog_test.go::TestPromoteFindingToBugPreservesOrigin",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Promotion preserves and links the original finding."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/planlog/planlog_test.go::TestPromoteIsIdempotent",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Promoting the same finding twice returns the existing promotion and does not double-forward."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/planlog/downstream_test.go::TestScenarioQABugReporterReturnsExistingKnowledgeEntry",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Bug adapter lookup returns an existing knowledge id instead of creating a duplicate."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/planlog/downstream_test.go::TestSwarmRecordWriterReturnsExistingRecord",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Record adapter lookup returns an existing record id instead of creating a duplicate."
         }
       ]
     }

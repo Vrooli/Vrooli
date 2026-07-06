@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/discovery"
@@ -38,6 +39,7 @@ type PhaseRunner interface {
 	RunPhaseDetailed(name, phase string, opts lifecycle.PhaseOptions) (lifecycle.PhaseResult, error)
 	RunPhase(name, phase string, opts lifecycle.PhaseOptions) error
 	FreshnessReportByName(name, customPath string) (lifecycle.FreshnessReport, error)
+	WaitScenario(name string, opts lifecycle.WaitOptions) (lifecycle.WaitOutcome, error)
 }
 
 type Service struct {
@@ -67,6 +69,8 @@ func (s Service) Start(req StartRequest) ([]LifecycleItemOutput, error) {
 			Endpoints:          endpointOutputs(result.Scenario.Manifest, result.Details.Ports),
 			FailedDependencies: append([]string(nil), result.FailedDependencies...),
 			FailedResources:    append([]string(nil), result.FailedResources...),
+			Verdict:            result.Verdict,
+			Operation:          result.StartOperation,
 		})
 
 		if req.OpenAfter {
@@ -96,6 +100,8 @@ func (s Service) Restart(req RestartRequest) ([]LifecycleItemOutput, error) {
 		Endpoints:          endpointOutputs(result.Scenario.Manifest, result.Details.Ports),
 		FailedDependencies: append([]string(nil), result.FailedDependencies...),
 		FailedResources:    append([]string(nil), result.FailedResources...),
+		Verdict:            result.Verdict,
+		Operation:          result.StartOperation,
 	}
 
 	if req.OpenAfter {
@@ -206,6 +212,51 @@ func (s Service) Status(req StatusRequest) (StatusResponse, error) {
 	return StatusResponse{Single: &output}, nil
 }
 
+// Wait attaches to the scenario's in-flight start operation (or evaluates
+// current runtime health when none is in flight) and returns one verdict with
+// its exit code. Infrastructure failures return an error; every orchestration
+// outcome — including the --timeout ceiling — is a WaitResponse.
+func (s Service) Wait(req WaitRequest) (WaitResponse, error) {
+	opts := lifecycle.WaitOptions{OnTransition: req.OnTransition}
+	if req.TimeoutSeconds > 0 {
+		opts.Timeout = time.Duration(req.TimeoutSeconds) * time.Second
+	}
+	outcome, err := s.Runner.WaitScenario(req.Name, opts)
+	if err != nil {
+		return WaitResponse{}, err
+	}
+	source := "registry"
+	if outcome.Attached {
+		source = "attached"
+	}
+	return WaitResponse{
+		Success:       outcome.Healthy(),
+		Scenario:      outcome.Scenario,
+		Verdict:       outcome.Verdict,
+		ExitCode:      VerdictExitCode(outcome.Verdict),
+		Source:        source,
+		WaitedSeconds: int(outcome.Waited / time.Second),
+		Error:         outcome.Error,
+		Operation:     outcome.Operation,
+	}, nil
+}
+
+// VerdictExitCode maps a wait/start verdict onto the agent exit-code
+// contract: 0 healthy (or running for no-checks scenarios), 1 failed, 2
+// degraded-after-timeout success, 124 wait ceiling elapsed.
+func VerdictExitCode(verdict string) int {
+	switch verdict {
+	case lifecycle.WaitVerdictHealthy, lifecycle.WaitVerdictRunning:
+		return 0
+	case lifecycle.WaitVerdictDegraded:
+		return 2
+	case lifecycle.WaitVerdictTimeout:
+		return 124
+	default:
+		return 1
+	}
+}
+
 func (s Service) ValidateEnv(req ValidateEnvRequest) (ValidateEnvResponse, error) {
 	report, err := s.Validator.ValidateScenarioEnvironment(req.Name)
 	if err != nil {
@@ -220,10 +271,6 @@ func (s Service) Setup(req SetupRequest) (lifecycle.PhaseResult, error) {
 
 // TestDetailed runs the test phase and returns the lifecycle result (run-id,
 // timestamps, exit code, log file) so the CLI can persist a typed run record.
-func (s Service) TestDetailed(req TestRequest) (lifecycle.PhaseResult, error) {
-	return s.Runner.RunPhaseDetailed(req.Name, "test", req.Opts)
-}
-
 func (s Service) StartAll() (BatchResponse, error) {
 	report, err := s.Scenarios.StartAll()
 	if err != nil {

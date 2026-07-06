@@ -207,6 +207,18 @@ func TestRenderCompactsSetupContextCommands(t *testing.T) {
 			Status:       plans.RelevantContextStatusReady,
 		},
 		{
+			Kind:         plans.RelevantContextSkill,
+			Scope:        plans.RelevantContextScopeGlobal,
+			Label:        "test",
+			Reason:       "coverage discipline",
+			Instruction:  "Load this internal skill before implementation.",
+			Target:       "test",
+			Required:     true,
+			RepeatPolicy: plans.RelevantContextOncePerExecution,
+			Source:       plans.RelevantContextSourceDiscovered,
+			Status:       plans.RelevantContextStatusReady,
+		},
+		{
 			Kind:         plans.RelevantContextDoc,
 			Scope:        plans.RelevantContextScopeGlobal,
 			Label:        "scenarios/image-tools/docs/concepts/DOMAINS.md",
@@ -231,7 +243,7 @@ func TestRenderCompactsSetupContextCommands(t *testing.T) {
 	}
 	md := plans.RenderMarkdown(p)
 	for _, want := range []string{
-		"- scientific-debugging — `prompt-manager skill read scientific-debugging` _(required, discovered)_",
+		"- Skill pack — `prompt-manager skill read scientific-debugging test` _(required, discovered)_",
 		"- scenarios/image-tools/docs/concepts/DOMAINS.md — `sed -n '1,220p' scenarios/image-tools/docs/concepts/DOMAINS.md`",
 		"- Prior unit-health cutover record — `swarm-manager records get --id rec-123` _(discovered)_",
 	} {

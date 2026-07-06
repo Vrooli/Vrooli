@@ -1,7 +1,7 @@
 # Channel: Skill Registries
 
 - **Status:** `candidate`
-- **Audience:** agents (LLM agents running in Claude Code, Codex CLI, Gemini CLI, Cursor, Windsurf, Cline, JetBrains Junie, Sourcegraph Amp, etc.)
+- **Audience:** agents (LLM agents running in Claude Code, Codex CLI, Antigravity CLI, Cursor, Windsurf, Cline, JetBrains Junie, Sourcegraph Amp, etc.)
 - **Owner:** monetization (strategy) + the scenario team that owns the wrapped capability (operations); no dedicated marketing surface.
 - **Activation trigger:** *"Activate when at least one Vrooli capability is installable standalone (without the full runtime) AND a published Claude Skill for it is live in at least one curated registry (anthropics/skills, skills.sh, or equivalent) AND 60+ days of install/referrer telemetry is available."*
 - **Feeds:** [`subscription`](../revenue-lines/subscription.md) — drives installs of the underlying scenario; downstream subscription conversions for users who want the convenience layer (managed gateway, hosted infra, etc.).
@@ -10,7 +10,7 @@
 
 ## Hypothesis
 
-A meaningful share of agent-driven workflows in 2026+ will discover external capabilities through **skill registries** rather than through web search or app stores. If Vrooli publishes signed, scanner-clean skills for individual capabilities, agents running in Claude Code, Codex CLI, Gemini CLI, Cursor, Windsurf, and adjacent runtimes will pull them in à la carte — driving installs of the underlying scenarios and, downstream, subscription conversions for users who want the convenience layer.
+A meaningful share of agent-driven workflows in 2026+ will discover external capabilities through **skill registries** rather than through web search or app stores. If Vrooli publishes signed, scanner-clean skills for individual capabilities, agents running in Claude Code, Codex CLI, Antigravity CLI, Cursor, Windsurf, and adjacent runtimes will pull them in à la carte — driving installs of the underlying scenarios and, downstream, subscription conversions for users who want the convenience layer.
 
 This channel is the agentic-era equivalent of SEO + app-store presence: a discovery surface that needs structural investment but that doesn't change the product itself.
 

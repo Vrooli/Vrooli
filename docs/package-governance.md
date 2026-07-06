@@ -6,7 +6,7 @@ Vrooli scenarios stay intentionally independent. They do not join the root pnpm 
 
 - Every package root under `packages/` must declare [`packages/<name>/.vrooli/package.json`](../packages/api-base/.vrooli/package.json).
 - `vrooli package ...` is the canonical operator surface for package discovery, validation, build/generate, refresh, and audit.
-- `scenario-stack-governor` exposes scenario-scoped package governance enforcement through the `PACKAGE_GOVERNANCE_SCENARIO_ADOPTION` external rule consumed by `scenario-auditor`.
+- `scenario-dependency-analyzer` exposes scenario-scoped dependency and Go module enforcement through dependency health and the shared scenario-validation provider path.
 - Real scenarios must not use workspace-star dependencies for shared package adoption.
 - Shared package propagation must not rely on scenario-local `postinstall` copy/symlink hacks.
 - Only packages marked `scenario_adoptable` may be consumed by governed external consumers such as scenarios, templates, or resources.
@@ -123,19 +123,45 @@ adds a local `replace` for a module that resolves unambiguously to one in-repo
 module directory; third-party dependencies stay under approved-dependencies
 governance and are never touched. The same detection runs automatically as the
 Test Genie dependencies phase (an ERROR finding,
-`dependency.gomod.replace.missing`), so the gap fails CI before a human hits a
+`dependency.gomod.replace.missing`), and `dependency.go.build` verifies
+workspace-independent Go builds, so those gaps fail CI before a human hits a
 broken restart.
+
+Shared dependency freshness is also SDA-owned. Root `vrooli hygiene` may
+aggregate the fleet result, but it must not maintain its own shared-package
+trigger list or API-only `go.mod` scan. Per-scenario checks use
+`scenario-dependency-analyzer health <scenario> --json`; fleet/touched hygiene
+uses `scenario-dependency-analyzer freshness --touched --json`, which maps git
+touched files to in-repo Go module roots and impacted scenario surfaces. Safe
+fixes remain preview/apply operations for a specific surface: local replace
+reconciliation and `go mod tidy` are deterministic, while
+ambiguous mappings, optional build failures, unsupported ecosystems, and
+third-party governance edits stay advisory.
 
 Refresh behavior is consumer-type-aware:
 - real scenario consumers can run setup and optional restart flows
 - Go consumers such as scenario CLIs/APIs or resources rebuild where appropriate
 - template consumers are reported explicitly and never treated as runnable scenarios
 
+## Persisted-Data Schema Convention (Greenfield)
+
+Project-level stores (`internal/**`, shared `packages/**`) keep **declarative
+schemas, not migration ladders**: each store owns one schema constant describing
+the full current shape, stamps a version (`PRAGMA user_version` for SQLite, a
+meta sentinel for vector collections), and hard-errors on an unknown or older
+version — naming the remediation, never auto-recreating. While the project is
+greenfield, converting an existing local database is a **one-shot operator-run
+script**, written when needed and discarded after (see
+`docs/plans/project-internal-greenfield-migration-purge-plan.md`); derived
+indexes such as vector stores are instead rebuilt. When real external users
+exist, versioned migrations become legitimate again per the storage-steer
+dividing line — this note is guidance, not a gate, and nothing enforces it.
+
 ## CI And Validation
 
 - `make validate-package-governance` is the canonical repo-level validation target for package manifests, package refresh coverage, and governance drift.
 - `make validate-go-cli-consumers` is the canonical isolated-build check for scenario/resource CLI Go modules and must stay green alongside package governance.
-- CI runs that target directly, which means package governance must stay green at the CLI level and through the `scenario-stack-governor` rule surface.
+- CI runs that target directly, which means package governance must stay green at the CLI level and through the `scenario-dependency-analyzer` dependency-health provider.
 
 ## Why This Exists
 

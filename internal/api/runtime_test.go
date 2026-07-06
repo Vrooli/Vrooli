@@ -100,7 +100,7 @@ func TestPerformHealthCheckPostgresSupported(t *testing.T) {
 		Timeout:  3000,
 	}
 
-	if err := app.PerformHealthCheck(check, "prd-control-tower", map[string]int{}); err != nil {
+	if err := app.PerformHealthCheck(check, "business-health", map[string]int{}); err != nil {
 		t.Fatalf("PerformHealthCheck() error = %v", err)
 	}
 }

@@ -65,6 +65,47 @@ func TestServiceClaimGrantAndList(t *testing.T) {
 	}
 }
 
+func TestServiceListShowsWarmAndColdIdleState(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "capacity.db")
+	now := time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC)
+	svc := Service{
+		OpenStore: func(ctx context.Context) (Store, error) {
+			return engine.NewSQLiteStore(ctx, engine.Config{DBPath: dbPath, Clock: clockFunc(func() time.Time { return now })})
+		},
+		Source: engine.StaticSource{Inventory: gpuSnapshot(16, 4)},
+		Clock:  func() time.Time { return now },
+	}
+
+	claimed, err := svc.Claim(ctx, ClaimRequest{
+		OwnerKind: engine.OwnerKindResource, OwnerID: "kyutai-stt",
+		ResourceKind: engine.ResourceKindVRAM, PreferredBytes: gib(3), FloorBytes: 0,
+		PriorityTier: "service", YieldWhenIdle: true, IdleGrace: 15 * time.Minute,
+		TTL: 30 * time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("Claim() error = %v", err)
+	}
+	if claimed.Claim.IdleReclaimState != "warm_idle" {
+		t.Fatalf("initial idle state = %q, want warm_idle", claimed.Claim.IdleReclaimState)
+	}
+
+	now = now.Add(16 * time.Minute)
+	list, err := svc.List(ctx, ListRequest{ActiveOnly: true})
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+	if len(list.Claims) != 1 {
+		t.Fatalf("claims = %+v, want one", list.Claims)
+	}
+	if list.Claims[0].IdleGrace != "15m0s" {
+		t.Fatalf("idle_grace = %q, want 15m0s", list.Claims[0].IdleGrace)
+	}
+	if list.Claims[0].IdleReclaimState != "cold_idle" {
+		t.Fatalf("idle state = %q, want cold_idle", list.Claims[0].IdleReclaimState)
+	}
+}
+
 func TestServiceClaimDegradeInAdvisoryStillRecords(t *testing.T) {
 	ctx := context.Background()
 	svc := testService(t, gpuSnapshot(16, 14), nil) // only 2 GiB free

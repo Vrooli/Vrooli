@@ -59,10 +59,7 @@ Goldens exist and reproduce current output verbatim.
 
 ### Load Skills
 
-- scientific-debugging — `prompt-manager skill read scientific-debugging` _(required)_
-  - Reason: The defect is a state-machine bug; reproduce before fixing.
-- test — `prompt-manager skill read test` _(required)_
-  - Reason: Golden-file discipline for the renderer work.
+- Skill pack — `prompt-manager skill read scientific-debugging test` _(required)_
 
 ### Read Docs
 

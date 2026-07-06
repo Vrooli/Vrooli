@@ -59,6 +59,34 @@ The marker and qualifier are metadata. They are not part of the literal value. F
 | `literal` | A string that looks machine-readable but should not be semantically validated. |
 | `num` | An intentional, owner-backed number in prose that the derived-count lint should not flag. Carries a category (see below): `num[target]:1000`. |
 
+### CLI references
+
+Use `cli:` for Vrooli-owned command references that are meant to describe current executable truth:
+
+```markdown
+Run `cli:vrooli scenario test cli-health`.
+Check docs with `cli:knowledge-observatory docs health cli-health --checks=refs,commands`.
+```
+
+CLI Health is the source of truth for current command validation. Consumers such
+as Knowledge Observatory docs health, Prompt Manager action validation, and Plan
+Manager validation delegate command existence and argument-shape checks to CLI
+Health instead of maintaining their own command catalogs. Knowledge Observatory
+also validates conservative Vrooli-owned commands in fenced shell snippets through
+its `commands` check.
+
+Qualifiers decide whether a `cli:` reference must exist now:
+
+- Use `cli[future]:...` only for planned commands.
+- Use `cli[old]:...` only for historical or deprecated commands.
+- Use `cli[external]:...` for non-Vrooli commands.
+- Use `cli[literal]:...` when the text is command-shaped but not meant to be validated.
+- Use `cli[example]:...` for illustrative examples that are not current operational instructions.
+
+Unqualified `cli:` references are treated as current Vrooli-owned command references.
+CLI Health validates them without executing the referenced command. A partial result
+means the command path exists, but reliable argument metadata was unavailable.
+
 ### Qualifiers
 
 Qualifiers modify validation, not the value.

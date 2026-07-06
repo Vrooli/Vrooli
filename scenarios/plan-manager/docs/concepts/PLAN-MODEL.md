@@ -547,11 +547,11 @@ A finding is **not** a bug and a bug is **not** a record. Findings file as
 triage `candidate` and are never auto-promoted.
 
 **Sync status** (`LogSyncStatus`) tracks downstream forwarding for the two
-forwarded types: `local` (no downstream target), `pending` (created, not yet
-forwarded — the v1 default until a downstream is wired), `synced` (forwarded with
-a `DownstreamRef`), `sync_failed` (a forward attempt errored). A failed/pending
-sync is **never fatal**: the local entry persists and is retried with
-`plan-manager log sync`.
+forwarded types: `local` (no downstream target), `pending` (created but the
+downstream was unavailable), `synced` (forwarded with a `DownstreamRef`),
+`sync_failed` (a downstream rejection or non-unavailability error). A
+failed/pending sync is **never fatal**: the local entry persists and is retried
+with `plan-manager log sync`.
 
 **Severity** (`LogSeverity`, optional on findings/bug reports): `info`, `low`,
 `medium`, `high`, `critical`.

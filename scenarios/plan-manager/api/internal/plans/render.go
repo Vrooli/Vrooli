@@ -515,8 +515,12 @@ func renderRelevantContext(items []RelevantContextItem, defaultScope RelevantCon
 			continue
 		}
 		fmt.Fprintf(&b, "### %s\n\n", group.heading)
-		for _, item := range filtered {
-			b.WriteString(renderRelevantContextItem(item))
+		if group.heading == "Load Skills" {
+			b.WriteString(renderRelevantSkillContext(filtered))
+		} else {
+			for _, item := range filtered {
+				b.WriteString(renderRelevantContextItem(item))
+			}
 		}
 		b.WriteString("\n")
 	}
@@ -532,6 +536,118 @@ func relevantContextByKind(items []RelevantContextItem, kinds map[RelevantContex
 		if kinds[item.Kind] {
 			out = append(out, item)
 		}
+	}
+	return out
+}
+
+func renderRelevantSkillContext(items []RelevantContextItem) string {
+	if len(items) <= 1 {
+		return renderRelevantContextItem(items[0])
+	}
+	var b strings.Builder
+	var packable, individual []RelevantContextItem
+	for _, item := range items {
+		if packableSkillItem(item) {
+			packable = append(packable, item)
+		} else {
+			individual = append(individual, item)
+		}
+	}
+	if len(packable) > 1 {
+		if command := skillPackReadCommand(packable); command != "" {
+			b.WriteString("- Skill pack")
+			fmt.Fprintf(&b, " — `%s`", command)
+			annotations := skillPackAnnotations(packable)
+			if len(annotations) > 0 {
+				fmt.Fprintf(&b, " _(%s)_", strings.Join(annotations, ", "))
+			}
+			b.WriteString("\n")
+		}
+	} else {
+		individual = append(packable, individual...)
+	}
+	for _, item := range individual {
+		b.WriteString(renderRelevantContextItem(item))
+	}
+	return b.String()
+}
+
+func packableSkillItem(item RelevantContextItem) bool {
+	if item.StatusDetail != "" || strings.Contains(item.Target, "prompt-manager skill read") {
+		return false
+	}
+	fields := strings.Fields(relevantContextCommand(item))
+	return len(fields) >= 4 && fields[0] == "prompt-manager" && fields[1] == "skill" && fields[2] == "read"
+}
+
+func skillPackReadCommand(items []RelevantContextItem) string {
+	seen := make(map[string]bool, len(items))
+	var slugs []string
+	for _, item := range items {
+		for _, slug := range skillSlugsForContextItem(item) {
+			if !seen[slug] {
+				seen[slug] = true
+				slugs = append(slugs, slug)
+			}
+		}
+	}
+	if len(slugs) == 0 {
+		return ""
+	}
+	return "prompt-manager skill read " + strings.Join(slugs, " ")
+}
+
+func skillSlugsForContextItem(item RelevantContextItem) []string {
+	command := relevantContextCommand(item)
+	if command != "" {
+		fields := strings.Fields(command)
+		if len(fields) >= 4 && fields[0] == "prompt-manager" && fields[1] == "skill" && fields[2] == "read" {
+			return fields[3:]
+		}
+	}
+	target := strings.TrimSpace(item.Target)
+	if target == "" {
+		target = strings.TrimSpace(item.Label)
+	}
+	target, _ = planmodel.SplitSetupLineNoteForRender(target)
+	if strings.HasPrefix(target, "prompt-manager skill read ") {
+		return strings.Fields(strings.TrimPrefix(target, "prompt-manager skill read "))
+	}
+	return strings.Fields(target)
+}
+
+func skillPackAnnotations(items []RelevantContextItem) []string {
+	if len(items) == 0 {
+		return nil
+	}
+	allRequired := true
+	source := items[0].Source
+	status := items[0].Status
+	repeatPolicy := items[0].RepeatPolicy
+	for _, item := range items {
+		allRequired = allRequired && item.Required
+		if item.Source != source {
+			source = ""
+		}
+		if item.Status != status {
+			status = ""
+		}
+		if item.RepeatPolicy != repeatPolicy {
+			repeatPolicy = ""
+		}
+	}
+	var out []string
+	if allRequired {
+		out = append(out, "required")
+	}
+	if repeatPolicy != "" && repeatPolicy != RelevantContextOncePerExecution && repeatPolicy != RelevantContextPhaseEntry {
+		out = append(out, repeatPolicyLabel(repeatPolicy))
+	}
+	if source != "" && source != RelevantContextSourceAuthored {
+		out = append(out, string(source))
+	}
+	if status != "" && status != RelevantContextStatusReady {
+		out = append(out, string(status))
 	}
 	return out
 }

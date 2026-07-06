@@ -443,6 +443,7 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 /scenarios/scenario-completeness-scoring/cli/scenario-completeness-scoring
+/scenarios/plan-manager/cli/plan-manager
 api/api
 .claude/settings.json
 .vrooli/deployment/telemetry/git-control-tower.jsonl

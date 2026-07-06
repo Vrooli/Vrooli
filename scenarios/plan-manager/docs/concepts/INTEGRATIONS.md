@@ -125,15 +125,20 @@ be told to run an external scenario CLI** (`scenario-qa`, `swarm-manager`, or a
 bug-filing skill) from the plan workflow — it records the entry through
 `plan-manager log bug-add` / `log record-add`, and Plan Manager forwards it.
 
-The v1 DEFAULT downstream sinks are documented **pending stubs**, mirroring the
-existing `VelocitySink`/MoM stub pattern: an entry is created and left
-`sync_status = pending`, durable and retryable — there is no API-blocking
-auto-forward to an absent downstream. The live bug-filer (scenario-qa) and
-record-writer (`swarm-manager records create`) land behind the same seams as a
-deferred follow-up (a drop-in wire). Downstream
-failure is **never fatal**: the local entry persists with `sync_status`
-`pending`/`sync_failed`, surfaces in list/status summaries, and is retried with
-`plan-manager log sync <id>` once the downstream is reachable.
+Production wires live local HTTP adapters behind those seams. Bug reports are
+translated into Prompt Manager knowledge writes for `team:scenario-qa` under
+`bug-inbox/code-defect/<slug>`, with report-bug attribution and Plan Manager
+provenance in the payload. Records are translated into Swarm Manager
+`/api/v1/records` creates with a deterministic `[planlog-entry:<id>]` marker in
+the trigger and Plan Manager provenance in the narrative fields. Both adapters
+lookup by deterministic provenance before creating, so `plan-manager log sync
+<id>` can retry without duplicating downstream artifacts.
+
+Downstream failure is **never fatal**: discovery/network/5xx unavailability
+leaves the local entry `pending`, downstream rejection leaves it `sync_failed`,
+the state surfaces in list/status summaries, and the entry is retried with
+`plan-manager log sync <id>` once the downstream is reachable. Explicit pending
+stubs remain available as degraded/test fallbacks.
 
 ### The handoff ownership split
 

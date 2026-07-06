@@ -5,6 +5,8 @@ package planlog
 
 import (
 	"log"
+	"net/http"
+	"time"
 
 	"plan-manager/internal/clock"
 	"plan-manager/internal/module"
@@ -20,15 +22,15 @@ import (
 // Module returns the log domain's contribution to the API: the generated
 // LogService Connect-RPC handler, backed by the log home store (the log_entries
 // table), a Resolver over the plans SSOT + execution store (so a plan slug or
-// execution id binds entries to the right scope), and the downstream bug/record
-// sinks (the documented pending stubs in v1 — durable-local + retryable via
-// `log sync`; no API-blocking auto-forward to absent downstreams).
+// execution id binds entries to the right scope), and live downstream bug/record
+// sinks that degrade to pending when their local scenarios are unavailable.
 func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, resolver internalplanlog.Resolver) module.Module {
+	downstreamHTTP := &http.Client{Timeout: 5 * time.Second}
 	svc := internalplanlog.NewService(internalplanlog.Deps{
 		Repo:     internalplanlog.NewSQLiteRepository(db, clk),
 		Resolver: resolver,
-		Bugs:     internalplanlog.DefaultBugReporter(),  // pending stub; retry via `log sync`
-		Records:  internalplanlog.DefaultRecordWriter(), // pending stub; retry via `log sync`
+		Bugs:     internalplanlog.NewScenarioQABugReporter(downstreamHTTP, nil),
+		Records:  internalplanlog.NewSwarmRecordWriter(downstreamHTTP, nil),
 		Clock:    clk,
 	})
 
