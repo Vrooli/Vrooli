@@ -4,6 +4,7 @@ package assessment
 
 import (
 	"fmt"
+	"strings"
 
 	"experience-manager/internal/spec"
 
@@ -152,6 +153,8 @@ func (b *Builder) Build(scenario string, findings []spec.Finding) (*commonv1.Mat
 		if mapping, ok := b.spec.Findings[f.Code]; ok {
 			mf.Maturity = mapping
 			mf.HasMaturity = true
+		} else if strings.HasPrefix(f.Code, "experience.") {
+			return nil, fmt.Errorf("experience finding %q has no maturity mapping", f.Code)
 		}
 		in = append(in, mf)
 	}

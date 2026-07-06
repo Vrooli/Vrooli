@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "scenario": "measures-health",
   "phase": "measures",
+  "displayName": "Measures",
   "description": "Validates measures coverage and per-measure tiering through measures-health.",
   "source": "validation-provider",
   "orderHint": 16,
@@ -318,5 +319,12 @@
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "required"
     }
-  }
+  },
+  "profileMembership": [],
+  "freshnessRequirement": "never",
+  "phaseClass": "quality",
+  "runtimeClass": "static",
+  "dimensions": [
+    "measures"
+  ]
 }

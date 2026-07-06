@@ -76,7 +76,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "React UI",
-      "port": 20001
+      "range": "20000-24999"
     }
   },
   "hostTools": [
@@ -246,7 +246,9 @@
         "type": "openrouter",
         "required": false,
         "notes": "Cloud summarize tier (BYOK); model resolved via OpenRouter policy role",
-        "model_roles": ["summarize.default"]
+        "model_roles": [
+          "summarize.default"
+        ]
       },
       "postgres": {
         "required": false,

@@ -17,14 +17,14 @@ import (
 
 const (
 	// RuleCaseScaffold derives BAS observer smoke stubs from active page specs.
-	RuleCaseScaffold = "experience.case_scaffold"
+	RuleCaseScaffold = "experience-fix.case_scaffold"
 	// RuleIndexNormalization keeps experience/index.json aligned with page files.
-	RuleIndexNormalization = spec.CodeIndexParity
+	RuleIndexNormalization = "experience-fix.index_normalization"
 	// RuleBindingDriftRepair fills missing element bindings with deterministic
 	// data-testid suggestions based on the element id.
-	RuleBindingDriftRepair = spec.CodeBindingOrphan
+	RuleBindingDriftRepair = "experience-fix.binding_drift_repair"
 	// RuleFindingDocStubs creates missing finding docs for the frozen vocabulary.
-	RuleFindingDocStubs = "experience.finding_doc_stub"
+	RuleFindingDocStubs = "experience-fix.finding_doc_stub"
 )
 
 // NewRegistry returns the scenario's fixer registry.

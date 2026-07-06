@@ -48,6 +48,49 @@
     "summary_zero": "لا توجد إشعارات",
     "summary_one": "إشعار واحد"
   },
+  "integrations": {
+    "mode": {
+      "label": "وضع البحث",
+      "loading": "جارٍ التحقق",
+      "off": "متوقف",
+      "passive": "سلبي",
+      "full": "كامل",
+      "unknown": "غير معروف"
+    },
+    "settings": {
+      "title": "التكاملات",
+      "description": "يقيس Portal الاعتماديات الاختيارية من استدعاءاته الخاصة ويستخدم تلك القياسات لاختيار سلوك البحث النشط.",
+      "overrideLabel": "تجاوز السلوك",
+      "overrideAuto": "تلقائي",
+      "overrideForceOff": "فرض الإيقاف",
+      "overrideForcePassive": "فرض الوضع السلبي",
+      "nameHeader": "التكامل",
+      "stateHeader": "الحالة",
+      "latencyHeader": "زمن P95",
+      "samplesHeader": "العينات",
+      "reasonHeader": "السبب",
+      "empty": "لا توجد قياسات تكامل بعد.",
+      "error": "تعذر تحميل حالة التكامل."
+    },
+    "state": {
+      "available": "متاح",
+      "degraded": "متدهور",
+      "unavailable": "غير متاح",
+      "unknown": "غير معروف",
+      "unspecified": "غير محدد"
+    }
+  },
+  "search": {
+    "omnibox": {
+      "title": "صندوق بحث النظام",
+      "description": "اكتب لإظهار السيناريوهات والوثائق والسجلات والمهارات والأوامر من search-hub من دون تعطيل المحادثة.",
+      "inputLabel": "المسودة",
+      "placeholder": "اسأل عن قدرات Vrooli أو الأوامر أو الوثائق أو العمل السابق",
+      "loading": "جار البحث في سياق النظام…",
+      "empty": "لم يتم العثور على اقتراحات.",
+      "degraded": "اقتراحات البحث متدهورة."
+    }
+  },
   "errors": {
     "canceled": "Operation canceled.",
     "unknown": "An unknown error occurred.",

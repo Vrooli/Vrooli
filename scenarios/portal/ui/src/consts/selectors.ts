@@ -308,6 +308,19 @@ const literalSelectors = {
   notifications: {
     summary: "notifications-summary",
   },
+  integrations: {
+    modeIndicator: "integrations-mode-indicator",
+    modeValue: "integrations-mode-value",
+    settingsPanel: "integrations-settings-panel",
+    overrideSelect: "integrations-override-select",
+    statusTable: "integrations-status-table",
+  },
+  search: {
+    omnibox: "search-omnibox",
+    input: "search-omnibox-input",
+    status: "search-omnibox-status",
+    results: "search-omnibox-results",
+  },
   locale: {
     switcher: "locale-switcher",
   },
@@ -386,6 +399,20 @@ const dynamicSelectorDefinitions = {
       description: "Locale choice radio button on the settings page",
       testIdPattern: "page-settings-locale-${code}",
       params: { code: { type: "enum", values: LOCALE_CODES } },
+    }),
+  },
+  integrations: {
+    statusRow: defineDynamicSelector({
+      description: "Integration readiness table row by integration id",
+      testIdPattern: "integrations-status-row-${id}",
+      params: { id: { type: "string" } },
+    }),
+  },
+  search: {
+    result: defineDynamicSelector({
+      description: "Search omnibox result row by visible index",
+      testIdPattern: "search-omnibox-result-${index}",
+      params: { index: { type: "number" } },
     }),
   },
 } satisfies DynamicSelectorTree;

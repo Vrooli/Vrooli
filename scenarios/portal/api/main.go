@@ -11,6 +11,7 @@ import (
 
 	"portal/internal/clock"
 	"portal/internal/modules"
+	internalsearch "portal/internal/search"
 	"portal/internal/server"
 
 	"github.com/vrooli/api-core/apihttp"
@@ -21,7 +22,12 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	chatH "portal/handlers/chat"
 	healthH "portal/handlers/health"
+	integrationsH "portal/handlers/integrations"
+	messageH "portal/handlers/message"
+	searchH "portal/handlers/search"
+	internalchat "portal/internal/chat"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -112,9 +118,22 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	clk := clock.System{}
+	integrationRegistry := integrationsH.NewRegistry(db, clk)
+	chatRepo := internalchat.NewSQLiteRepository(db, clk)
+	chatService := internalchat.NewService(chatRepo)
+	searchService := internalsearch.NewService(internalsearch.Config{
+		Chat:     chatService,
+		Registry: integrationRegistry,
+		Clock:    clk,
+	})
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: clk, Logger: log.Default()},
+		chatH.Module(db, clk),
 		healthH.Module(db, "portal-api", "1.0.0"),
+		integrationsH.Module(integrationRegistry),
+		messageH.Module(db, clk, searchService),
+		searchH.Module(searchService),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

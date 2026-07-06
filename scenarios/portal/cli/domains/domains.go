@@ -1,11 +1,14 @@
 package domains
 
 import (
-	"bytes"
-	"encoding/json"
+	"context"
 	"fmt"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+
+	integrationsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/integrations"
+	integrationsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/integrations/integrations_v1connect"
 )
 
 // CommandGroups aggregates flat command groups from domain packages.
@@ -38,27 +41,26 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	health, err := cliapp.LoadFromManifest(manifest, "health", map[string]func(cliapp.RunContext) error{
-		"HealthService.Status": runHealthStatus,
+	integrations, err := cliapp.LoadFromManifest(manifest, "integrations", map[string]func(cliapp.RunContext) error{
+		"IntegrationsService.Status": runIntegrationsStatus,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{health}, nil
+	return []cliapp.SubcommandGroup{integrations}, nil
 }
 
-func runHealthStatus(ctx cliapp.RunContext) error {
-	body, err := ctx.Core().GetRoot("/health", nil)
+func runIntegrationsStatus(ctx cliapp.RunContext) error {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(ctx.Core())
+	client := integrationsconnect.NewIntegrationsServiceClient(httpClient, baseURL)
+	resp, err := client.Status(context.Background(), connect.NewRequest(&integrationsv1.StatusRequest{}))
 	if err != nil {
 		return err
 	}
-	if ctx.JSON() {
-		var pretty bytes.Buffer
-		if err := json.Indent(&pretty, body, "", "  "); err == nil {
-			_, err = fmt.Fprintln(ctx.Stdout(), pretty.String())
-			return err
-		}
-	}
-	_, err = fmt.Fprintln(ctx.Stdout(), string(body))
-	return err
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("mode: %s", resp.Msg.GetActiveMode().String()),
+			fmt.Sprintf("reason: %s", resp.Msg.GetReason()),
+		},
+	})
 }

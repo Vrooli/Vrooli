@@ -45,6 +45,49 @@
   "notifications": {
     "summary": "{{count}} 件の通知"
   },
+  "integrations": {
+    "mode": {
+      "label": "検索モード",
+      "loading": "確認中",
+      "off": "オフ",
+      "passive": "パッシブ",
+      "full": "フル",
+      "unknown": "不明"
+    },
+    "settings": {
+      "title": "連携",
+      "description": "Portal は任意依存関係を自身の呼び出しで測定し、その測定値から有効な検索動作を選択します。",
+      "overrideLabel": "動作の上書き",
+      "overrideAuto": "自動",
+      "overrideForceOff": "オフを強制",
+      "overrideForcePassive": "パッシブを強制",
+      "nameHeader": "連携",
+      "stateHeader": "状態",
+      "latencyHeader": "P95 レイテンシ",
+      "samplesHeader": "サンプル",
+      "reasonHeader": "理由",
+      "empty": "連携測定はまだありません。",
+      "error": "連携ステータスを読み込めません。"
+    },
+    "state": {
+      "available": "利用可能",
+      "degraded": "低下",
+      "unavailable": "利用不可",
+      "unknown": "不明",
+      "unspecified": "未指定"
+    }
+  },
+  "search": {
+    "omnibox": {
+      "title": "エコシステム検索",
+      "description": "search-hub からシナリオ、ドキュメント、記録、スキル、コマンドを会話を止めずに表示します。",
+      "inputLabel": "下書き",
+      "placeholder": "Vrooli の機能、コマンド、ドキュメント、過去の作業を質問",
+      "loading": "エコシステムの文脈を検索しています…",
+      "empty": "候補は見つかりませんでした。",
+      "degraded": "検索候補は縮退しています。"
+    }
+  },
   "errors": {
     "canceled": "Operation canceled.",
     "unknown": "An unknown error occurred.",

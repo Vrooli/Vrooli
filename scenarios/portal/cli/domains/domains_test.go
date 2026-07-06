@@ -35,7 +35,7 @@ func TestSubcommandGroups(t *testing.T) {
 	require.NoError(t, err, "SubcommandGroups must build cleanly from cli/manifest.json")
 	require.NotNil(t, got, "SubcommandGroups must return a slice, not nil")
 	require.Len(t, got, 1)
-	require.Equal(t, "health", got[0].Name)
+	require.Equal(t, "integrations", got[0].Name)
 	for i, g := range got {
 		require.NotEmpty(t, g.Name, "group[%d].Name must be set", i)
 		require.NotEmpty(t, g.Subcommands, "group[%d] (%s) must register at least one subcommand", i, g.Name)

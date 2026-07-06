@@ -22,8 +22,17 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	chatH "portal/handlers/chat"
 	healthH "portal/handlers/health"
+	integrationsH "portal/handlers/integrations"
+	messageH "portal/handlers/message"
+	searchH "portal/handlers/search"
 	localdb "portal/internal/database"
+
+	chatv1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/chat"
+	integrationsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/integrations"
+	messagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/message"
+	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/search"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -32,7 +41,11 @@ import (
 // .vrooli/endpoints.json meaningful.
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
+	out = append(out, chatH.Endpoints...)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, integrationsH.Endpoints...)
+	out = append(out, messageH.Endpoints...)
+	out = append(out, searchH.Endpoints...)
 	return out
 }
 
@@ -58,7 +71,12 @@ type ProtoFileEntry struct {
 // AllProtoFiles returns the proto FileDescriptor backing each
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
-	return []ProtoFileEntry{}
+	return []ProtoFileEntry{
+		{Module: "chat", File: chatv1.File_portal_v1_chat_chat_proto},
+		{Module: "integrations", File: integrationsv1.File_portal_v1_integrations_integrations_proto},
+		{Module: "message", File: messagev1.File_portal_v1_message_message_proto},
+		{Module: "search", File: searchv1.File_portal_v1_search_search_proto},
+	}
 }
 
 // AllSchemas returns every domain's schema provider plus the system
@@ -71,6 +89,10 @@ func AllProtoFiles() []ProtoFileEntry {
 func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(chatH.Schema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(integrationsH.Schema),
+		apidb.SchemaProviderFunc(messageH.Schema),
+		apidb.SchemaProviderFunc(searchH.Schema),
 	}
 }

@@ -3,6 +3,78 @@
   "version": "1.0.0",
   "endpoints": [
     {
+      "id": "chat_list",
+      "path": "/vrooli.portal.v1.chat.ChatService/ListChats",
+      "method": "POST",
+      "summary": "List chats",
+      "description": "Lists conversations with optional group and text filters.",
+      "category": "chat"
+    },
+    {
+      "id": "chat_create",
+      "path": "/vrooli.portal.v1.chat.ChatService/CreateChat",
+      "method": "POST",
+      "summary": "Create chat",
+      "description": "Creates a new LLM or agent conversation.",
+      "category": "chat"
+    },
+    {
+      "id": "chat_get",
+      "path": "/vrooli.portal.v1.chat.ChatService/GetChat",
+      "method": "POST",
+      "summary": "Get chat",
+      "description": "Returns one conversation by id.",
+      "category": "chat"
+    },
+    {
+      "id": "chat_update",
+      "path": "/vrooli.portal.v1.chat.ChatService/UpdateChat",
+      "method": "POST",
+      "summary": "Update chat",
+      "description": "Updates conversation metadata and active leaf selection.",
+      "category": "chat"
+    },
+    {
+      "id": "chat_delete",
+      "path": "/vrooli.portal.v1.chat.ChatService/DeleteChat",
+      "method": "POST",
+      "summary": "Delete chat",
+      "description": "Deletes one conversation.",
+      "category": "chat"
+    },
+    {
+      "id": "chat_groups_list",
+      "path": "/vrooli.portal.v1.chat.ChatService/ListGroups",
+      "method": "POST",
+      "summary": "List chat groups",
+      "description": "Lists user-defined sidebar groups.",
+      "category": "chat"
+    },
+    {
+      "id": "chat_group_create",
+      "path": "/vrooli.portal.v1.chat.ChatService/CreateGroup",
+      "method": "POST",
+      "summary": "Create chat group",
+      "description": "Creates a colored sidebar group.",
+      "category": "chat"
+    },
+    {
+      "id": "chat_group_update",
+      "path": "/vrooli.portal.v1.chat.ChatService/UpdateGroup",
+      "method": "POST",
+      "summary": "Update chat group",
+      "description": "Updates group name, color, order, or collapsed state.",
+      "category": "chat"
+    },
+    {
+      "id": "chat_group_delete",
+      "path": "/vrooli.portal.v1.chat.ChatService/DeleteGroup",
+      "method": "POST",
+      "summary": "Delete chat group",
+      "description": "Deletes a sidebar group without deleting its chats.",
+      "category": "chat"
+    },
+    {
       "id": "health",
       "path": "/health",
       "method": "GET",
@@ -43,6 +115,70 @@
           }
         }
       }
+    },
+    {
+      "id": "integrations_status",
+      "path": "/vrooli.portal.v1.integrations.IntegrationsService/Status",
+      "method": "POST",
+      "summary": "Get integration status",
+      "description": "Returns portal-side readiness, rolling stats, active behavior mode, override, and reason.",
+      "category": "integrations"
+    },
+    {
+      "id": "integrations_override_update",
+      "path": "/vrooli.portal.v1.integrations.IntegrationsService/UpdateOverride",
+      "method": "POST",
+      "summary": "Update behavior override",
+      "description": "Sets the behavior-mode override to auto, force-off, or force-passive.",
+      "category": "integrations"
+    },
+    {
+      "id": "message_tree_get",
+      "path": "/vrooli.portal.v1.message.MessageService/GetTree",
+      "method": "POST",
+      "summary": "Get message tree",
+      "description": "Returns the persisted message tree and active leaf for a chat.",
+      "category": "message"
+    },
+    {
+      "id": "message_send",
+      "path": "/vrooli.portal.v1.message.MessageService/SendMessage",
+      "method": "POST",
+      "summary": "Send message",
+      "description": "Persists a user message under the selected parent.",
+      "category": "message"
+    },
+    {
+      "id": "message_edit",
+      "path": "/vrooli.portal.v1.message.MessageService/EditMessage",
+      "method": "POST",
+      "summary": "Edit message",
+      "description": "Edits a message by creating the next branch version.",
+      "category": "message"
+    },
+    {
+      "id": "message_regenerate",
+      "path": "/vrooli.portal.v1.message.MessageService/Regenerate",
+      "method": "POST",
+      "summary": "Regenerate completion",
+      "description": "Creates a sibling assistant branch from an existing message.",
+      "category": "message"
+    },
+    {
+      "id": "message_completion_stream",
+      "path": "/vrooli.portal.v1.message.MessageService/StreamCompletion",
+      "method": "POST",
+      "summary": "Stream completion",
+      "description": "Streams completion status, tokens, search attachments, agent activity, usage, and errors.",
+      "category": "message"
+    },
+    {
+      "id": "search_suggest",
+      "path": "/vrooli.portal.v1.search.SearchService/Suggest",
+      "method": "POST",
+      "summary": "Suggest ecosystem results",
+      "description": "Returns bounded, typed search-hub projections for the composer omnibox.",
+      "category": "search"
     }
   ]
 }

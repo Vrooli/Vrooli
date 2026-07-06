@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"experience-manager/internal/spec"
 )
 
 func TestCaseScaffoldPreviewApplyAndIdempotency(t *testing.T) { // [REQ:EXPERIEN-P1-002] [REQ:EXPERIEN-P1-003]
@@ -62,6 +64,21 @@ func TestBindingDriftRepairAddsDeterministicPlaceholders(t *testing.T) { // [REQ
 	}
 	if !strings.Contains(string(page), `"testid": "primary"`) {
 		t.Fatalf("binding placeholder missing:\n%s", page)
+	}
+}
+
+func TestFixRuleIDsDoNotCollideWithFindingCodes(t *testing.T) {
+	findingCodes := map[string]bool{}
+	for _, code := range spec.AllFindingCodes {
+		findingCodes[code] = true
+	}
+	for _, ruleID := range RuleIDs() {
+		if findingCodes[ruleID] {
+			t.Fatalf("fix rule %q collides with finding registry", ruleID)
+		}
+		if strings.HasPrefix(ruleID, "experience.") {
+			t.Fatalf("fix rule %q uses the finding namespace", ruleID)
+		}
 	}
 }
 

@@ -1,5 +1,6 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
+import { ModeIndicator } from "../features/integrations/ModeIndicator";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 
@@ -23,7 +24,7 @@ export function TopBar() {
   return (
     <header
       data-testid={selectors.layout.topBar}
-      className="flex shrink-0 items-center justify-between gap-4 border-b border-app-border bg-app-surface px-4 py-3"
+      className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-app-border bg-app-surface px-4 py-3"
     >
       <h1
         data-testid={selectors.app.title}
@@ -31,7 +32,8 @@ export function TopBar() {
       >
         {t(strings.app.title)}
       </h1>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <ModeIndicator />
         <div
           role="group"
           aria-label={t(strings.locale.switcherLabel)}

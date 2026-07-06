@@ -1,6 +1,7 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { HealthCard } from "../features/health/HealthCard";
+import { EcosystemOmnibox } from "../features/search/EcosystemOmnibox";
 import { useTranslation } from "../i18n";
 
 /**
@@ -20,6 +21,7 @@ export function DashboardPage() {
         {t(strings.pages.dashboard.title)}
       </h2>
       <p className="text-app-muted-foreground">{t(strings.pages.dashboard.description)}</p>
+      <EcosystemOmnibox />
       <div className="grid gap-4 md:grid-cols-3">
         <HealthCard />
         <div className="rounded-panel border border-app-border bg-app-surface p-4">

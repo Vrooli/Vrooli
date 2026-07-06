@@ -205,6 +205,35 @@ func (s Service) ShowPage(ctx context.Context, scenario, path, pageID string) (s
 	return string(data), nil
 }
 
+func (s Service) ListEvidence(ctx context.Context, scenario, path, pageID, claimID string, limit int) (spec.Report, []reconcile.Evidence, error) {
+	if s.Evidence == nil {
+		return spec.Report{}, nil, fmt.Errorf("reconciliation evidence repository is not configured")
+	}
+	report, err := s.ListSpec(ctx, scenario, path)
+	if err != nil {
+		return spec.Report{}, nil, err
+	}
+	if report.Spec == nil {
+		return spec.Report{}, nil, fmt.Errorf("scenario %q has no parsed experience spec", report.Scenario)
+	}
+	if strings.TrimSpace(pageID) == "" {
+		return spec.Report{}, nil, fmt.Errorf("page id is required")
+	}
+	if _, ok := report.Spec.Pages[pageID]; !ok {
+		return spec.Report{}, nil, fmt.Errorf("page %q not found", pageID)
+	}
+	evidence, err := s.Evidence.ListEvidence(ctx, reconcile.EvidenceFilter{
+		Scenario: report.Scenario,
+		PageID:   pageID,
+		ClaimID:  claimID,
+		Limit:    limit,
+	})
+	if err != nil {
+		return spec.Report{}, nil, err
+	}
+	return report, evidence, nil
+}
+
 func (s Service) SuggestBindings(ctx context.Context, scenario, path, pageID string, limit int) ([]Suggestion, error) {
 	report, err := s.ListSpec(ctx, scenario, path)
 	if err != nil {

@@ -48,6 +48,49 @@
     "summary_zero": "No notifications",
     "summary_one": "1 notification"
   },
+  "integrations": {
+    "mode": {
+      "label": "Search mode",
+      "loading": "checking",
+      "off": "off",
+      "passive": "passive",
+      "full": "full",
+      "unknown": "unknown"
+    },
+    "settings": {
+      "title": "Integrations",
+      "description": "Portal measures optional dependencies from its own calls and uses those measurements to choose the active search behavior.",
+      "overrideLabel": "Behavior override",
+      "overrideAuto": "Auto",
+      "overrideForceOff": "Force off",
+      "overrideForcePassive": "Force passive",
+      "nameHeader": "Integration",
+      "stateHeader": "State",
+      "latencyHeader": "P95 latency",
+      "samplesHeader": "Samples",
+      "reasonHeader": "Reason",
+      "empty": "No integration measurements yet.",
+      "error": "Unable to load integration status."
+    },
+    "state": {
+      "available": "available",
+      "degraded": "degraded",
+      "unavailable": "unavailable",
+      "unknown": "unknown",
+      "unspecified": "unspecified"
+    }
+  },
+  "search": {
+    "omnibox": {
+      "title": "Ecosystem omnibox",
+      "description": "Type to surface scenarios, docs, records, skills, and commands from search-hub without blocking chat.",
+      "inputLabel": "Draft",
+      "placeholder": "Ask about Vrooli capabilities, commands, docs, or prior work",
+      "loading": "Searching ecosystem context…",
+      "empty": "No ecosystem suggestions found.",
+      "degraded": "Search suggestions are degraded."
+    }
+  },
   "errors": {
     "canceled": "Operation canceled.",
     "unknown": "An unknown error occurred.",
