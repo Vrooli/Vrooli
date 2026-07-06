@@ -8,7 +8,7 @@
  * that no longer matches what production code receives from the API.
  *
  * Domain-specific factories have their own self-tests next to the
- * feature (e.g. `features/notes/mocks/factories.test.ts`).
+ * feature (e.g. `features/routing/mocks/factories.test.ts`).
  *
  * The shape pinned below mirrors the Go-side `fixtures/health_test.go`:
  *

@@ -4,7 +4,7 @@
 // one domain (postgres extensions, custom types, cross-domain views).
 //
 // Domain-scoped persistence lives in internal/<domain>/ packages
-// (e.g., internal/notes/{repository,sqlite,schema}.{go,sql}) per the
+// (e.g., internal/routing/{repository,sqlite,schema}.{go,sql}) per the
 // canonical Vrooli pattern. New domains do NOT add Repository
 // interfaces or schema fragments here — they own their own package and
 // register through internal/modules.

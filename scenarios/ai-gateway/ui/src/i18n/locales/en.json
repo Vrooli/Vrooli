@@ -7,10 +7,10 @@
   },
   "layout": {
     "sidebarLabel": "Primary navigation",
+    "sidebarNavLabel": "Desktop navigation",
     "bottomNavLabel": "Primary navigation",
     "nav": {
       "dashboard": "Dashboard",
-      "notes": "Notes",
       "settings": "Settings"
     }
   },
@@ -27,9 +27,6 @@
       "title": "Dashboard",
       "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
       "statPlaceholderLabel": "Stat"
-    },
-    "notes": {
-      "title": "Notes"
     },
     "settings": {
       "title": "Settings",
@@ -52,24 +49,6 @@
     "summary": "{{count}} notifications",
     "summary_zero": "No notifications",
     "summary_one": "1 notification"
-  },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading.",
-    "measure": {
-      "title": "Notes this week",
-      "loading": "Counting…",
-      "thisWeek": "{{count}} notes created this week"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

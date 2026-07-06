@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "operator-surface",
     "description": "Professional operator UI and CLI surfaces.",
+    "last_validated_at": "2026-07-05T22:17:14-04:00",
+    "module": "operator-surface",
     "prd_ref": "OT-P0-006",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,42 +11,50 @@
     {
       "id": "AIGW-UI-DASHBOARD",
       "title": "Operator dashboard summarizes provider health, routing, and conformance debt",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "operator.ui",
       "criticality": "P0",
       "description": "The UI must replace the generated placeholder with an operational dashboard that makes provider readiness, recent route outcomes, policy gaps, and conformance findings scannable.",
-      "tags": ["ui", "operator", "dashboard"],
+      "tags": [
+        "ui",
+        "operator",
+        "dashboard"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Validate dashboard empty/loading/error/ready states and core accessibility behavior."
         },
         {
           "type": "automation",
           "phase": "business",
-          "status": "planned",
-          "scenario": "browser-automation-studio",
-          "notes": "Validate dashboard operator flow after the UI is implemented."
+          "status": "implemented",
+          "notes": "Validate dashboard operator flow after the UI is implemented.",
+          "scenario": "browser-automation-studio"
         }
       ]
     },
     {
       "id": "AIGW-CLI-OPERATIONS",
       "title": "CLI supports policy inspection, route preview, smoke tests, and conformance scans",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "operator.cli",
       "criticality": "P0",
       "description": "The CLI must expose scriptable commands for the same operator tasks as the UI, with JSON output suitable for agents and test-genie integration.",
-      "tags": ["cli", "operator", "automation"],
+      "tags": [
+        "cli",
+        "operator",
+        "automation"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Validate command parsing and JSON output for inventory, preview, smoke, and scan commands."
         }
       ]

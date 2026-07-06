@@ -54,9 +54,9 @@ export { expectNoA11yViolations } from "./a11y";
 // schema change is one-import-update; consuming the proto package
 // directly in tests fragments that contract.
 //
-// Domain-specific factories (Note, NotesListResponse, etc.) are NOT
+// Domain-specific factories are NOT
 // re-exported here — they live next to the feature they double for
-// (e.g. `features/notes/mocks/factories.ts`) so deleting a feature
+// (e.g. `features/routing/mocks/factories.ts`) so deleting a feature
 // folder takes them along.
 export { makeHealthResponse } from "./factories";
 export type { HealthResponse } from "./factories";

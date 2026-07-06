@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "conformance-provider",
     "description": "Test Genie provider phase for AI inference conformance.",
+    "last_validated_at": "2026-07-05T22:17:14-04:00",
+    "module": "conformance-provider",
     "prd_ref": "OT-P0-005",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,17 +11,21 @@
     {
       "id": "AIGW-CONFORMANCE-INVENTORY",
       "title": "Conformance phase inventories AI integration patterns in target scenarios",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "conformance.inventory",
       "criticality": "P0",
       "description": "The test-genie phase must detect AI-adjacent env vars, provider URLs, resource command usage, concrete model slugs, embedding dimensions, vector-store metadata, and gateway adoption evidence.",
-      "tags": ["test-genie", "conformance", "inventory"],
+      "tags": [
+        "test-genie",
+        "conformance",
+        "inventory"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Validate detection fixtures for direct Ollama, OpenRouter secrets, concrete model slugs, and embedding metadata patterns."
         }
       ]
@@ -28,23 +33,27 @@
     {
       "id": "AIGW-CONFORMANCE-MATURITY",
       "title": "Conformance findings follow an explicit maturity ladder",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "conformance.maturity",
       "criticality": "P0",
       "description": "The phase must support advisory lower-maturity checks and stricter higher-maturity gateway adoption checks, with approved exceptions and fix guidance for every finding class.",
-      "tags": ["test-genie", "maturity", "policy"],
+      "tags": [
+        "test-genie",
+        "maturity",
+        "policy"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Validate maturity level semantics, severity mapping, and exception handling."
         },
         {
           "type": "manual",
           "phase": "business",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Review the maturity ladder before implementing provider enforcement."
         }
       ]

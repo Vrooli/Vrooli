@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "routed-smoke",
-    "description": "End-to-end proof that test-genie's routed test-database path actually works: navigates to a page served by the live scenario that reads from the database, and asserts that a fixture slug seeded into the per-run test pool ('routed-smoke-001') is rendered. The slug exists only in the test pool; if the API failed to route the request to the test pool (e.g., X-Vrooli-Test-Mode header not attached, TestModeMiddleware missing, RoutedDB.pick(ctx) returning the primary), the assertion fails.\n\nCustomize this for your scenario: replace the scenario_path with your DB-backed list view, the @selector/notes.list selector with your real list selector, and the slug with whatever bas/seeds/seed.go inserts into the test pool.",
+    "description": "End-to-end proof that test-genie's routed test-database path actually works: navigates to a page served by the live scenario that reads from the database, and asserts that a fixture slug seeded into the per-run test pool ('routed-smoke-001') is rendered. The slug exists only in the test pool; if the API failed to route the request to the test pool (e.g., X-Vrooli-Test-Mode header not attached, TestModeMiddleware missing, RoutedDB.pick(ctx) returning the primary), the assertion fails.\n\nCustomize this for your scenario: replace the scenario_path with your DB-backed list view, the selector with your real list selector, and the slug with whatever bas/seeds/seed.go inserts into the test pool.",
     "requirement": "REQ-ROUTED-DB-E2E",
     "version": "1",
     "labels": {
@@ -34,7 +34,7 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/notes.list",
+          "selector": "@selector/pages.dashboard",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
@@ -46,7 +46,7 @@
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "@selector/notes.list",
+          "selector": "@selector/pages.dashboard",
           "mode": "ASSERTION_MODE_TEXT_CONTAINS",
           "expected": { "stringValue": "routed-smoke-001" },
           "case_sensitive": true,

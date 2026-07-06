@@ -18,7 +18,7 @@ export function Sidebar() {
   return (
     <nav
       data-testid={selectors.layout.sidebar}
-      aria-label={t(strings.layout.sidebarLabel)}
+      aria-label={t(strings.layout.sidebarNavLabel)}
       className="hidden h-full w-56 shrink-0 flex-col gap-1 border-r border-app-border bg-app-surface p-4 md:flex"
     >
       <p className="px-2 pb-2 text-xs uppercase tracking-wide text-app-muted-foreground">

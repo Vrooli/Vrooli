@@ -1,5 +1,5 @@
 // Package module defines the domain-module seam: each feature in the API
-// (notes, health, …) returns a Module from its handlers package, and main.go
+// (gateway, health, …) returns a Module from its handlers package, and main.go
 // passes the slice into server.New. The server iterates and calls Mount on
 // each — there is no central routes.go, no per-domain field on server.Deps,
 // and no manual editing of .vrooli/endpoints.json.
@@ -18,7 +18,7 @@ import (
 
 // Module is the contract every API feature exposes to the server.
 //
-//   - Name is for diagnostics ("notes", "health", "tasks"). Free-form;
+//   - Name is for diagnostics ("gateway", "health", "tasks"). Free-form;
 //     server does not interpret it.
 //   - Mount registers the module's routes (and any subrouter middleware)
 //     on the production router. Called once during server.New.

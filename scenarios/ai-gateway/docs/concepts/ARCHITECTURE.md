@@ -51,7 +51,7 @@ conformance checks.
 | `operator` | UI/CLI/API surfaces for inspection and operation. | OT-P0-006 |
 
 `health` remains a real scaffold domain for lifecycle readiness. The
-generated `notes` domain is not product scope and should be removed with
+generated example domain is not product scope and has been removed with
 `vrooli scenario detemplate ai-gateway` before implementing the first
 real product slice.
 

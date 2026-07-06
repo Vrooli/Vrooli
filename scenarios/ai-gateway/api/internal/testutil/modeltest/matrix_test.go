@@ -3,6 +3,7 @@ package modeltest_test
 import (
 	"errors"
 	"testing"
+
 	"ai-gateway/internal/testutil/modeltest"
 
 	"github.com/stretchr/testify/require"

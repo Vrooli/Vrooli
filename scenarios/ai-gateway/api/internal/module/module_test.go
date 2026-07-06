@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
 	"ai-gateway/internal/module"
 
 	"github.com/gorilla/mux"
@@ -33,25 +34,25 @@ func TestModuleMountRegistersRoutes(t *testing.T) {
 
 func TestEndpointDescriptorJSONShape(t *testing.T) {
 	descriptor := module.EndpointDescriptor{
-		ID:          "notes_create",
-		Path:        "/api/v1/notes",
+		ID:          "gateway_validate",
+		Path:        "/vrooli.ai_gateway.v1.gateway.GatewayService/ValidateRequest",
 		Method:      http.MethodPost,
-		Summary:     "Create note",
-		Description: "Creates a note",
-		Category:    "notes",
+		Summary:     "Validate gateway request",
+		Description: "Validates a provider-neutral gateway request",
+		Category:    "gateway",
 		Request: &module.Schema{
 			Type:       "object",
-			Properties: map[string]string{"title": "string"},
+			Properties: map[string]string{"role": "string"},
 		},
 		Response: &module.Schema{Type: "object"},
 		Errors: []module.ErrorDesc{{
 			Status:      http.StatusBadRequest,
 			Code:        "invalid_argument",
-			Description: "Missing title",
+			Description: "Missing role",
 		}},
 		Examples: []module.Example{{
-			Name: "Create",
-			Curl: "curl http://localhost:${API_PORT}/api/v1/notes",
+			Name: "Validate",
+			Curl: "curl http://localhost:${API_PORT}/vrooli.ai_gateway.v1.gateway.GatewayService/ValidateRequest",
 		}},
 	}
 
@@ -60,8 +61,8 @@ func TestEndpointDescriptorJSONShape(t *testing.T) {
 
 	var got map[string]any
 	require.NoError(t, json.Unmarshal(data, &got))
-	require.Equal(t, "notes_create", got["id"])
-	require.Equal(t, "/api/v1/notes", got["path"])
+	require.Equal(t, "gateway_validate", got["id"])
+	require.Equal(t, "/vrooli.ai_gateway.v1.gateway.GatewayService/ValidateRequest", got["path"])
 	require.Equal(t, http.MethodPost, got["method"])
 	require.Contains(t, got, "request")
 	require.Contains(t, got, "response")

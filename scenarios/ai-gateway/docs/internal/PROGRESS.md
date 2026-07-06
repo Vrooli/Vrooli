@@ -11,6 +11,7 @@ work lands, not while work is still speculative.
 | Date | Author | Status | Summary |
 |---|---|---|---|
 | 2026-07-05 | Codex | done | Generated the `ai-gateway` scenario from the React/Vite template and completed the documentation-first charter, requirements modules, experience draft, architecture docs, role/profile reference, and AI conformance maturity ladder. |
+| 2026-07-05 | Codex | done | Removed the generated notes example domain from API, CLI, UI, experience specs, docs blocks, proto sources, and generated proto artifacts; refreshed tests and orientation gates around the remaining health/scaffold baseline. |
 
 ## Entry Template
 
