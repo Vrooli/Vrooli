@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ApiError } from "./client";
 import { fetchHealth } from "./health";
 
 describe("api/health.fetchHealth", () => {
@@ -30,5 +31,22 @@ describe("api/health.fetchHealth", () => {
       method: "GET",
       cache: "no-store",
     });
+  });
+
+  it("throws typed API errors on unhealthy responses", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response('{"code":"unhealthy","message":"database unavailable"}', {
+        status: 503,
+      }),
+    );
+
+    try {
+      await fetchHealth();
+      throw new Error("expected fetchHealth to reject");
+    } catch (err) {
+      expect(err).toBeInstanceOf(ApiError);
+      expect(err).toMatchObject({ code: "unhealthy", status: 503 });
+      expect((err as Error).message).toContain("database unavailable");
+    }
   });
 });

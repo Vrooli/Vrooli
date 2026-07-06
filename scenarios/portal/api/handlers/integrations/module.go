@@ -1,8 +1,6 @@
 package integrations
 
 import (
-	_ "embed"
-
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
@@ -13,9 +11,6 @@ import (
 	"portal/internal/integrations/registry"
 	"portal/internal/module"
 )
-
-//go:embed schema.sql
-var schemaSQL string
 
 func Module(registryService *registry.Service) module.Module {
 	connectPath, connectHandler := integrationsconnect.NewIntegrationsServiceHandler(NewHandler(registryService))
@@ -35,4 +30,4 @@ func NewRegistry(db *database.RoutedDB, clk clock.Clock) *registry.Service {
 	})
 }
 
-func Schema() string { return schemaSQL }
+func Schema() string { return registry.Schema() }

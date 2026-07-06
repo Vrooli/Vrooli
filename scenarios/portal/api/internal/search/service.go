@@ -230,21 +230,23 @@ func (c *SearchHubClient) Query(ctx context.Context, input QueryInput) (QueryRes
 	queryCtx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
 	client := routingconnect.NewRoutingServiceClient(c.httpClient, strings.TrimRight(baseURL, "/"))
-	resp, err := client.Query(queryCtx, connect.NewRequest(&routingv1.QueryRequest{
-		Query: strings.TrimSpace(input.Query),
-		Types: input.Types,
-		Limit: input.Limit,
-		Group: strings.TrimSpace(input.Group),
-	}))
+	searchReply, err := func() (*connect.Response[routingv1.QueryResponse], error) {
+		return client.Query(queryCtx, connect.NewRequest(&routingv1.QueryRequest{
+			Query: strings.TrimSpace(input.Query),
+			Types: input.Types,
+			Limit: input.Limit,
+			Group: strings.TrimSpace(input.Group),
+		}))
+	}()
 	if err != nil {
 		return QueryResult{}, err
 	}
-	hits := projectHits(resp.Msg)
+	hits := projectHits(searchReply.Msg)
 	return QueryResult{
 		Hits:      limitHits(hits, int(input.Limit)),
-		Degraded:  resp.Msg.GetDegraded(),
-		Reason:    degradedReason(resp.Msg),
-		LatencyMS: resp.Msg.GetLatencyMs(),
+		Degraded:  searchReply.Msg.GetDegraded(),
+		Reason:    degradedReason(searchReply.Msg),
+		LatencyMS: searchReply.Msg.GetLatencyMs(),
 	}, nil
 }
 

@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	apidb "github.com/vrooli/api-core/database"
+
 	"portal/internal/testutil/db"
 )
 
@@ -12,13 +14,8 @@ func TestStorePersistsOverride(t *testing.T) {
 	t.Parallel()
 
 	handle := db.NewSQLite(t)
-	if _, err := handle.ExecContext(context.Background(), `
-CREATE TABLE integration_settings (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-)`); err != nil {
-		t.Fatalf("create schema: %v", err)
+	if err := apidb.EnsureSchemas(context.Background(), handle, apidb.SchemaProviderFunc(Schema)); err != nil {
+		t.Fatalf("apply schema: %v", err)
 	}
 
 	store := NewStore(handle)

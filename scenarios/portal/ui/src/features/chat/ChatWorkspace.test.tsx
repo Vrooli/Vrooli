@@ -1,5 +1,5 @@
 import { create } from "@bufbuild/protobuf";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   ChatGroupSchema,
@@ -79,6 +79,28 @@ const userMessage = create(MessageSchema, {
   updatedAt: "2026-07-06T00:00:00Z",
 });
 
+const assistantMessage = create(MessageSchema, {
+  id: "msg-assistant",
+  chatId: "chat-1",
+  parentMessageId: "msg-1",
+  siblingIndex: 0,
+  role: MessageRole.ASSISTANT,
+  content: "Assistant answer",
+  createdAt: "2026-07-06T00:00:02Z",
+  updatedAt: "2026-07-06T00:00:02Z",
+});
+
+const alternateAssistantMessage = create(MessageSchema, {
+  id: "msg-alt",
+  chatId: "chat-1",
+  parentMessageId: "msg-1",
+  siblingIndex: 1,
+  role: MessageRole.ASSISTANT,
+  content: "Alternate answer",
+  createdAt: "2026-07-06T00:00:03Z",
+  updatedAt: "2026-07-06T00:00:03Z",
+});
+
 const sentMessage = create(MessageSchema, {
   id: "msg-2",
   chatId: "chat-1",
@@ -132,7 +154,7 @@ describe("ChatWorkspace", () => {
       expect(screen.getByTestId(selectors.chat.chat({ id: "chat-1" }))).toBeInTheDocument();
     });
     expect(screen.getByTestId(selectors.chat.group({ id: "grp-1" }))).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.chat.message({ id: "msg-1" }))).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.chat.message({ id: "msg-1" }))).toBeInTheDocument();
     expect(screen.getByTestId(selectors.chat.composer)).toBeInTheDocument();
   });
 
@@ -172,5 +194,52 @@ describe("ChatWorkspace", () => {
         fromMessageId: "msg-2",
       }),
     );
+  });
+
+  it("creates chats, agent chats, groups, and toggles group collapse", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<ChatWorkspace />);
+
+    await screen.findByTestId(selectors.chat.chat({ id: "chat-1" }));
+    await user.click(screen.getByTestId(selectors.chat.newChatButton));
+    await user.click(screen.getByTestId(selectors.chat.newAgentChatButton));
+    await user.click(screen.getByTestId(selectors.chat.newGroupButton));
+    const groupButtons = within(screen.getByTestId(selectors.chat.group({ id: "grp-1" }))).getAllByRole("button");
+    const groupHeader = groupButtons[0];
+    if (!groupHeader) {
+      throw new Error("expected group header button");
+    }
+    await user.click(groupHeader);
+
+    expect(chatApiMock.createPortalChat).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ mode: ChatMode.LLM }),
+    );
+    expect(chatApiMock.createPortalChat).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ mode: ChatMode.AGENT }),
+    );
+    expect(chatApiMock.createPortalGroup).toHaveBeenCalledWith(expect.any(String), "var(--color-success)");
+    expect(chatApiMock.updatePortalGroupCollapsed).toHaveBeenCalledWith("grp-1", true);
+  });
+
+  it("edits user messages and regenerates assistant branches", async () => {
+    const user = userEvent.setup();
+    const promptSpy = vi.spyOn(window, "prompt").mockReturnValue("Edited text");
+    chatApiMock.getMessageTree.mockResolvedValue({
+      messages: [userMessage, assistantMessage, alternateAssistantMessage],
+      activeLeafMessageId: assistantMessage.id,
+    });
+    renderWithProviders(<ChatWorkspace />);
+
+    await screen.findByTestId(selectors.chat.message({ id: "msg-assistant" }));
+    await user.click(screen.getByTestId(selectors.chat.editButton));
+    await user.click(screen.getByTestId(selectors.chat.regenerateButton));
+    await user.click(screen.getByTestId(selectors.chat.branchNext));
+
+    expect(promptSpy).toHaveBeenCalledWith(expect.any(String), "Hello Portal");
+    expect(chatApiMock.editPortalMessage).toHaveBeenCalledWith("msg-1", "Edited text");
+    expect(chatApiMock.regeneratePortalMessage).toHaveBeenCalledWith("msg-assistant", "openai/gpt-4.1-mini");
+    expect(await screen.findByTestId(selectors.chat.message({ id: "msg-alt" }))).toBeInTheDocument();
   });
 });
