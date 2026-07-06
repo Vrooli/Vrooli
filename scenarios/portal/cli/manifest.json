@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "portal",
+  "description": "Vrooli Portal CLI surface for chat, integrations, and ecosystem search. Commands are added as the portal Connect contracts land.",
+  "groups": [
+    {
+      "name": "health",
+      "description": "Operational health checks for the Vrooli Portal scenario",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Check Vrooli Portal API health",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HealthService",
+            "method": "Status"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "omitted": []
+}
