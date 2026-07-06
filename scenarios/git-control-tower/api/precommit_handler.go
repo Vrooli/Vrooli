@@ -37,8 +37,16 @@ func (s *Server) handlePrecommitSave(w http.ResponseWriter, r *http.Request) {
 	hctx.Resp.OK(cfg)
 }
 
+// handlePrecommitRunStream runs precommit checks and streams progress as SSE.
+//
+// It uses RepoRead (no per-repo write lock) intentionally: precommit runs
+// external checks and does not modify .git/index, so holding the write lock for
+// the full run would needlessly block a concurrent commit. In particular, the
+// "Commit Anyway" flow aborts this stream and immediately fires a
+// skip-precommit commit; if this handler held the write lock, that commit would
+// stall until the (now-cancelled) checks released it — defeating the point.
 func (s *Server) handlePrecommitRunStream(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoWrite(w, r, s.git, s.repos, s.repoLock, maxPrecommitTimeoutSeconds*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, maxPrecommitTimeoutSeconds*time.Second)
 	if hctx == nil {
 		return
 	}
@@ -59,8 +67,11 @@ func (s *Server) handlePrecommitRunStream(w http.ResponseWriter, r *http.Request
 	}
 }
 
+// handlePrecommitRun runs precommit checks synchronously. Like the streaming
+// variant it uses RepoRead: the checks do not touch .git/index, so they must
+// not hold the write lock that commits contend for.
 func (s *Server) handlePrecommitRun(w http.ResponseWriter, r *http.Request) {
-	hctx := RepoWrite(w, r, s.git, s.repos, s.repoLock, maxPrecommitTimeoutSeconds*time.Second)
+	hctx := RepoRead(w, r, s.git, s.repos, maxPrecommitTimeoutSeconds*time.Second)
 	if hctx == nil {
 		return
 	}

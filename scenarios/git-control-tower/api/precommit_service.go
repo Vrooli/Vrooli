@@ -5,8 +5,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -39,9 +41,44 @@ type CommandRunResult struct {
 
 type ShellCommandRunner struct{}
 
-func (ShellCommandRunner) Run(ctx context.Context, req CommandRunRequest) (CommandRunResult, error) {
+// shellCommandWaitDelay bounds how long Wait blocks on I/O copying after the
+// process group is signaled. It is a backstop: the group kill (below) normally
+// terminates every child, but a check that double-forks or calls setsid() can
+// escape the group and keep an inherited pipe open. WaitDelay forces those
+// pipes closed so Wait returns instead of hanging forever.
+const shellCommandWaitDelay = 2 * time.Second
+
+// newShellCommand builds the `bash -lc <command>` invocation used to run
+// precommit checks, hardened so that cancelling ctx terminates the entire
+// process tree — not just the bash parent.
+//
+// exec.CommandContext's default cancellation only SIGKILLs the direct child
+// (bash). The linters/tests bash spawns are grandchildren; they would orphan
+// and keep the stdout/stderr pipes open, blocking the reader in RunStream from
+// ever seeing EOF. Placing the command in its own process group (Setpgid) and
+// signalling the whole group on cancel kills those grandchildren too.
+func newShellCommand(ctx context.Context, req CommandRunRequest) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, "bash", "-lc", req.Command)
 	cmd.Dir = req.WorkingDirectory
+	// Setpgid makes bash the leader of a new process group whose pgid equals its
+	// pid, so every descendant shares that group unless it deliberately escapes.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	// On ctx cancel, SIGKILL the whole group (negative pid == the group).
+	cmd.Cancel = func() error {
+		if cmd.Process == nil {
+			return nil
+		}
+		if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL); err != nil && err != syscall.ESRCH {
+			return err
+		}
+		return os.ErrProcessDone
+	}
+	cmd.WaitDelay = shellCommandWaitDelay
+	return cmd
+}
+
+func (ShellCommandRunner) Run(ctx context.Context, req CommandRunRequest) (CommandRunResult, error) {
+	cmd := newShellCommand(ctx, req)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

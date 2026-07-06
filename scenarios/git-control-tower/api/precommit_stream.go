@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -47,8 +46,7 @@ type StreamingCommandRunner interface {
 // stdout/stderr to onLine while still buffering the full output for the final
 // result. The buffered output is capped indirectly by the caller via capOutput.
 func (ShellCommandRunner) RunStream(ctx context.Context, req CommandRunRequest, onLine func(stream, line string)) (CommandRunResult, error) {
-	cmd := exec.CommandContext(ctx, "bash", "-lc", req.Command)
-	cmd.Dir = req.WorkingDirectory
+	cmd := newShellCommand(ctx, req)
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return CommandRunResult{}, err
