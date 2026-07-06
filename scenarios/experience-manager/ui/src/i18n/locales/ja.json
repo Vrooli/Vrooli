@@ -54,16 +54,29 @@
       "specCoverage": "仕様カバレッジ",
       "depthDistribution": "深度分布",
       "refresh": "スイープを更新",
-      "tableLabel": "体験負債"
+      "tableLabel": "体験負債",
+      "pagesTracked": "{{count}} ページを追跡中",
+      "loadingData": "フリートデータを読み込み中"
     },
     "explorer": {
       "title": "シナリオエクスプローラー",
       "description": "1 つのシナリオの宣言済みページ、状態、ギャップ、クレーム、引き継ぎを表示します。",
       "gridLabel": "状態別ページ",
       "gapsLabel": "カバレッジギャップ",
-      "gapsCopy": "宣言済みのドッグフードルートはすべて、既定状態の構造カバレッジを持っています。",
       "openStudio": "スタジオで開く",
-      "claimsLabel": "クレーム"
+      "claimsLabel": "クレーム",
+      "defaultState": "既定",
+      "emptyState": "空",
+      "staleState": "古い",
+      "loadingSpec": "シナリオ仕様を読み込み中",
+      "emptySpec": "この体験仕様にはページが宣言されていません",
+      "loadError": "シナリオ仕様を読み込めませんでした。",
+      "emptyGap": "ギャップを順位付けする前にページ仕様を追加してください。",
+      "staleData": "仕様データは鮮度ウィンドウより古くなっています。",
+      "summary": "{{pages}} ページに {{claims}} 件の machine クレームがあります。",
+      "refreshing": "更新中",
+      "loadingClaims": "クレームを読み込み中",
+      "emptyClaims": "machine ティアのクレームは宣言されていません。"
     },
     "evidence": {
       "title": "エビデンス",
@@ -71,7 +84,15 @@
       "captureLabel": "ページキャプチャ",
       "treeLabel": "アクセシビリティツリー",
       "verdictsLabel": "クレーム判定",
-      "recapture": "再キャプチャ"
+      "recapture": "再キャプチャ",
+      "refreshing": "更新中",
+      "loadingEvidence": "エビデンスを読み込み中",
+      "emptyEvidence": "このページには永続化されたキャプチャエビデンスがまだありません。BAS のスキップは失敗ではなくエビデンスとして記録されます。",
+      "emptyVerdicts": "このページには永続化された判定行がまだありません。",
+      "emptyTree": "アクセシビリティノードのペイロードを持つ判定を選択すると、ツリーを確認できます。",
+      "loadError": "エビデンスを読み込めませんでした。",
+      "staleEvidence": "このエビデンスは鮮度ウィンドウより古くなっています。",
+      "captureReference": "キャプチャ参照"
     },
     "studio": {
       "title": "スタジオ",
@@ -82,7 +103,14 @@
       "wireframeLabel": "ワイヤーフレームプレビュー",
       "variantsLabel": "バリアント",
       "save": "仕様を保存",
-      "promote": "バリアントを昇格"
+      "promote": "バリアントを昇格",
+      "defaultPage": "フリート",
+      "defaultClaim": "体験負債テーブルは、アクセシブル名を持つ実テーブルとして公開されます。",
+      "previewDepthSummary": "深度サマリー",
+      "previewCoverageMeter": "カバレッジメーター",
+      "previewDebtTable": "負債テーブル",
+      "variantCompactTable": "コンパクトテーブル",
+      "variantEvidenceForward": "エビデンス優先"
     },
     "findings": {
       "title": "検出事項と修正",

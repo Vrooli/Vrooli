@@ -25,6 +25,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ContractService.ScaffoldCases":        h.scaffoldCases,
 		"StudioSessionService.ListSpec":        h.listSpec,
 		"StudioSessionService.ShowSpec":        h.showSpec,
+		"StudioSessionService.ListEvidence":    h.listEvidence,
 		"StudioSessionService.SuggestBindings": h.suggestBindings,
 		"StudioSessionService.RenderSpec":      h.renderSpec,
 		"StudioSessionService.CompareVariants": h.compareVariants,
@@ -176,6 +177,31 @@ func (h *handlers) showSpec(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 		Summary: []string{fmt.Sprintf("%s/%s", resp.Msg.GetScenario(), resp.Msg.GetPage())},
 		Results: []string{resp.Msg.GetJson()},
+	})
+}
+
+func (h *handlers) listEvidence(ctx cliapp.RunContext) error {
+	resp, err := h.studioClient.ListEvidence(context.Background(), connect.NewRequest(&contractv1.ListEvidenceRequest{
+		Scenario: ctx.Positional("scenario"),
+		Page:     ctx.Positional("page"),
+		Claim:    ctx.Flag("claim"),
+		Path:     ctx.Flag("path"),
+		Limit:    int32(parseLimit(ctx.Flag("limit"))),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("list experience evidence", err, nil)
+	}
+	results := make([]string, 0, len(resp.Msg.GetEvidence()))
+	for _, ev := range resp.Msg.GetEvidence() {
+		results = append(results, fmt.Sprintf("%s %s/%s %s capture=%s checked=%s", ev.GetVerdict(), ev.GetPage(), ev.GetClaim(), ev.GetState(), ev.GetCaptureRef(), ev.GetCheckedAt()))
+	}
+	if len(results) == 0 {
+		results = append(results, "No reconciliation evidence rows found.")
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("%s/%s: %d evidence rows", resp.Msg.GetScenario(), resp.Msg.GetPage(), len(resp.Msg.GetEvidence()))},
+		ResultsHeading: "Evidence",
+		Results:        results,
 	})
 }
 

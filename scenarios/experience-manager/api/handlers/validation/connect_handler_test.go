@@ -108,14 +108,14 @@ func TestFixRPCsPreviewAndApplyLiveRegistry(t *testing.T) { // [REQ:EXPERIEN-P1-
 			return h.PreviewFix(context.Background(), connect.NewRequest(&scenariovalidationv1.FixRequest{
 				Scenario: "demo",
 				Path:     root,
-				RuleIds:  []string{"experience.case_scaffold"},
+				RuleIds:  []string{"experience-fix.case_scaffold"},
 			}))
 		},
 		"apply": func() (*connect.Response[scenariovalidationv1.FixResponse], error) {
 			return h.ApplyFix(context.Background(), connect.NewRequest(&scenariovalidationv1.FixRequest{
 				Scenario: "demo",
 				Path:     root,
-				RuleIds:  []string{"experience.case_scaffold"},
+				RuleIds:  []string{"experience-fix.case_scaffold"},
 			}))
 		},
 	} {

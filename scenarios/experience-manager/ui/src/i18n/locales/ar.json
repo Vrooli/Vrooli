@@ -54,16 +54,29 @@
       "specCoverage": "تغطية المواصفة",
       "depthDistribution": "توزيع العمق",
       "refresh": "تحديث المسح",
-      "tableLabel": "دين التجربة"
+      "tableLabel": "دين التجربة",
+      "pagesTracked": "{{count}} صفحات قيد التتبع",
+      "loadingData": "جارٍ تحميل بيانات الأسطول"
     },
     "explorer": {
       "title": "مستكشف السيناريو",
       "description": "الصفحات والحالات والفجوات والادعاءات ومسارات الانتقال المعلنة لسيناريو واحد.",
       "gridLabel": "الصفحات حسب الحالة",
       "gapsLabel": "فجوات التغطية",
-      "gapsCopy": "كل مسارات الاختبار الذاتي المعلنة لديها تغطية بنيوية لحالة البداية.",
       "openStudio": "فتح في الاستوديو",
-      "claimsLabel": "الادعاءات"
+      "claimsLabel": "الادعاءات",
+      "defaultState": "الافتراضية",
+      "emptyState": "الفارغة",
+      "staleState": "القديمة",
+      "loadingSpec": "جارٍ تحميل مواصفة السيناريو",
+      "emptySpec": "لا توجد صفحات معلنة في مواصفة التجربة هذه",
+      "loadError": "تعذر تحميل مواصفة السيناريو.",
+      "emptyGap": "أضف مواصفة صفحة قبل ترتيب الفجوات.",
+      "staleData": "بيانات المواصفة أقدم من نافذة الحداثة.",
+      "summary": "{{claims}} ادعاءات machine عبر {{pages}} صفحات.",
+      "refreshing": "جارٍ التحديث",
+      "loadingClaims": "جارٍ تحميل الادعاءات",
+      "emptyClaims": "لا توجد ادعاءات من مستوى machine."
     },
     "evidence": {
       "title": "الأدلة",
@@ -71,7 +84,15 @@
       "captureLabel": "لقطة الصفحة",
       "treeLabel": "شجرة إمكانية الوصول",
       "verdictsLabel": "أحكام الادعاءات",
-      "recapture": "إعادة الالتقاط"
+      "recapture": "إعادة الالتقاط",
+      "refreshing": "جارٍ التحديث",
+      "loadingEvidence": "جارٍ تحميل الأدلة",
+      "emptyEvidence": "لا توجد أدلة لقطة محفوظة لهذه الصفحة بعد. تُسجل عمليات تخطي BAS كدليل وليست فشلاً.",
+      "emptyVerdicts": "لم تُحفظ أي أحكام لهذه الصفحة بعد.",
+      "emptyTree": "اختر حكماً يحتوي على حمولة عقدة إمكانية الوصول لفحص الشجرة.",
+      "loadError": "تعذر تحميل الأدلة.",
+      "staleEvidence": "هذا الدليل أقدم من نافذة الحداثة.",
+      "captureReference": "مرجع اللقطة"
     },
     "studio": {
       "title": "الاستوديو",
@@ -82,7 +103,14 @@
       "wireframeLabel": "معاينة الإطار السلكي",
       "variantsLabel": "البدائل",
       "save": "حفظ المواصفة",
-      "promote": "ترقية البديل"
+      "promote": "ترقية البديل",
+      "defaultPage": "الأسطول",
+      "defaultClaim": "يظهر جدول دين التجربة كجدول حقيقي له اسم قابل للوصول.",
+      "previewDepthSummary": "ملخص العمق",
+      "previewCoverageMeter": "مقياس التغطية",
+      "previewDebtTable": "جدول الدين",
+      "variantCompactTable": "جدول مختصر",
+      "variantEvidenceForward": "الأدلة أولاً"
     },
     "findings": {
       "title": "الملاحظات والإصلاحات",

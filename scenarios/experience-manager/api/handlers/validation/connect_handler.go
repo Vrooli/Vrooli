@@ -314,6 +314,9 @@ func sharedStatus(findings []spec.Finding) scenariovalidationv1.ValidationStatus
 	if strings.EqualFold(strings.TrimSpace(os.Getenv("EXPERIENCE_ALIGNMENT_GATE")), "strict") {
 		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED
 	}
+	// The shared provider remains advisory by default: native experience
+	// findings still render in the report, but Test Genie does not fail the
+	// phase unless EXPERIENCE_ALIGNMENT_GATE=strict opts into enforcement.
 	for _, finding := range findings {
 		if finding.Severity == spec.SeverityError {
 			return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED

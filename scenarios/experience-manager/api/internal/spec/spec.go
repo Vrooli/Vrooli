@@ -68,6 +68,17 @@ var AllFindingCodes = []string{
 	CodeGlanceJudgeMismatch,
 }
 
+// IsFindingCode reports whether code is in the frozen experience finding
+// registry.
+func IsFindingCode(code string) bool {
+	for _, known := range AllFindingCodes {
+		if code == known {
+			return true
+		}
+	}
+	return false
+}
+
 // Report is the parser-facing contract result for one scenario.
 type Report struct {
 	Scenario       string
@@ -632,6 +643,9 @@ func bindingFor(bindings map[string]Binding, id string) bool {
 }
 
 func (r *Report) add(code, severity, message, location, suggestion string) {
+	if !IsFindingCode(code) {
+		panic(fmt.Sprintf("unregistered experience finding code %q", code))
+	}
 	r.Findings = append(r.Findings, Finding{
 		Code:       code,
 		Severity:   severity,

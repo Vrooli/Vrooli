@@ -67,3 +67,10 @@ func requireRepository(repo authoring.Repository) error {
 	}
 	return nil
 }
+
+func requireEvidenceRepository(repo reconcile.EvidenceRepository) error {
+	if repo == nil {
+		return fmt.Errorf("reconciliation evidence repository is not configured")
+	}
+	return nil
+}

@@ -194,6 +194,30 @@
       }
     },
     {
+      "id": "studio_list_evidence",
+      "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/ListEvidence",
+      "method": "POST",
+      "summary": "List reconciliation evidence",
+      "description": "Returns persisted per-claim reconciliation evidence rows for a page.",
+      "category": "studio",
+      "request": {
+        "type": "object",
+        "properties": {
+          "claim": "string",
+          "limit": "int",
+          "page": "string",
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "evidence": "array<ReconciliationEvidence>"
+        }
+      }
+    },
+    {
       "id": "studio_suggest_bindings",
       "path": "/vrooli.experience_manager.v1.contract.StudioSessionService/SuggestBindings",
       "method": "POST",

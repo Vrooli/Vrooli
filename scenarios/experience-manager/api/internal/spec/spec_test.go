@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
 	"testing"
 )
 
@@ -138,6 +141,132 @@ func TestParseScenarioFindsContractViolations(t *testing.T) { // [REQ:EXPERIEN-P
 	}
 }
 
+func TestIndexParityFindingHasGoldenAssertion(t *testing.T) {
+	root := t.TempDir()
+	scenario := filepath.Join(root, "demo")
+	mustWrite(t, filepath.Join(scenario, "experience", "index.json"), `{
+  "kind": "experience-index",
+  "contract": {"kind": "scenario-experience", "schema": "scenario-experience-spec/v1"},
+  "schemaVersion": "1.0.0",
+  "scenario": "demo",
+  "pages": [],
+  "journeys": []
+}`)
+	mustWrite(t, filepath.Join(scenario, "experience", "pages", "home.json"), `{
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {"id":"home","title":"Home","routes":["/"],"purpose":"Home page."},
+  "states": [{"id":"default"}],
+  "elements": [],
+  "claims": [],
+  "bindings": {"elements": {}}
+}`)
+
+	report, err := ParseScenario(scenario)
+	if err != nil {
+		t.Fatalf("ParseScenario: %v", err)
+	}
+	if len(report.Findings) != 1 {
+		t.Fatalf("findings = %d, want 1: %+v", len(report.Findings), report.Findings)
+	}
+	finding := report.Findings[0]
+	if finding.Code != CodeIndexParity || finding.Severity != SeverityError {
+		t.Fatalf("finding = %+v, want index_parity error", finding)
+	}
+	if !strings.Contains(finding.Message, "not listed in index") {
+		t.Fatalf("message = %q", finding.Message)
+	}
+}
+
+func TestDoctrineRegistryTableMatchesAllFindingCodes(t *testing.T) {
+	doc, err := os.ReadFile(filepath.Join(repoRoot(t), "docs", "reference", "experience-alignment.md"))
+	if err != nil {
+		t.Fatalf("read doctrine: %v", err)
+	}
+	re := regexp.MustCompile("`(experience\\.[a-z_]+)`")
+	got := map[string]bool{}
+	inRegistry := false
+	for _, line := range strings.Split(string(doc), "\n") {
+		if strings.HasPrefix(line, "## The invariants") {
+			inRegistry = true
+			continue
+		}
+		if inRegistry && strings.HasPrefix(line, "## ") {
+			break
+		}
+		if !inRegistry || !strings.HasPrefix(line, "| `experience.") {
+			continue
+		}
+		match := re.FindStringSubmatch(line)
+		if len(match) == 2 {
+			got[match[1]] = true
+		}
+	}
+	assertCodeSet(t, "doctrine registry", keys(got), AllFindingCodes)
+}
+
+func TestFindingDocsMatchAllFindingCodes(t *testing.T) {
+	dir := filepath.Join(repoRoot(t), "scenarios", "experience-manager", "docs", "findings")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read finding docs: %v", err)
+	}
+	var got []string
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+		code := strings.TrimSuffix(entry.Name(), ".md")
+		if strings.HasPrefix(code, "experience.") {
+			got = append(got, code)
+		}
+	}
+	assertCodeSet(t, "finding docs", got, AllFindingCodes)
+}
+
+func TestAllFindingCodesAreUnique(t *testing.T) {
+	assertCodeSet(t, "all finding codes", AllFindingCodes, AllFindingCodes)
+}
+
+func TestProductionExperienceFindingLiteralsAreRegistered(t *testing.T) {
+	root := filepath.Join(repoRoot(t), "scenarios", "experience-manager", "api", "internal")
+	re := regexp.MustCompile(`"((?:experience)\.[a-z_]+)"`)
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		for _, match := range re.FindAllStringSubmatch(string(data), -1) {
+			if !IsFindingCode(match[1]) {
+				t.Fatalf("%s contains unregistered experience finding literal %q", path, match[1])
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk production sources: %v", err)
+	}
+}
+
+func TestReportAddRejectsUnregisteredFindingCode(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatal("Report.add accepted unregistered finding code")
+		}
+	}()
+	var report Report
+	report.add("experience.not_registered", SeverityWarning, "bad", "experience/index.json", "register the code")
+}
+
 func repoRoot(t *testing.T) string {
 	t.Helper()
 	dir, err := os.Getwd()
@@ -173,4 +302,28 @@ func hasCode(findings []Finding, code string) bool {
 		}
 	}
 	return false
+}
+
+func assertCodeSet(t *testing.T, label string, got, want []string) {
+	t.Helper()
+	got = append([]string(nil), got...)
+	want = append([]string(nil), want...)
+	sort.Strings(got)
+	sort.Strings(want)
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("%s codes mismatch\n got: %v\nwant: %v", label, got, want)
+	}
+	for i := 1; i < len(got); i++ {
+		if got[i] == got[i-1] {
+			t.Fatalf("%s contains duplicate code %q", label, got[i])
+		}
+	}
+}
+
+func keys(in map[string]bool) []string {
+	out := make([]string, 0, len(in))
+	for key := range in {
+		out = append(out, key)
+	}
+	return out
 }

@@ -198,6 +198,15 @@ reconciliation evidence.
 experience-manager spec suggest-bindings web-console home --limit 20
 ```
 
+### `experience-manager spec evidence <scenario> <page>`
+
+List persisted per-claim reconciliation evidence for a page. Use `--claim` to
+focus on one claim and `--limit` to cap the verdict history returned.
+
+```bash
+experience-manager spec evidence experience-manager fleet --claim scenario-row-visible --limit 10
+```
+
 ### `experience-manager spec scaffold <scenario>`
 
 Derive BAS case stubs from active page specs. Use `--dry-run` to preview the
@@ -212,11 +221,11 @@ experience-manager spec scaffold custom --path /path/to/scenario
 
 Preview or apply deterministic remediations through the shared
 `ScenarioValidationService` fix contract. Use `--rules` to target one rule.
-The BAS scaffold rule is `experience.case_scaffold`.
+The BAS scaffold rule is `experience-fix.case_scaffold`.
 
 ```bash
-experience-manager fix preview experience-manager --rules experience.case_scaffold
-experience-manager fix apply custom --path /path/to/scenario --rules experience.binding_orphan
+experience-manager fix preview experience-manager --rules experience-fix.case_scaffold
+experience-manager fix apply custom --path /path/to/scenario --rules experience-fix.binding_drift_repair
 ```
 
 ### `experience-manager author start <scenario>`

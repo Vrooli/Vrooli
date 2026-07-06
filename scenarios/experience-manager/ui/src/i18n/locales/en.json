@@ -54,16 +54,29 @@
       "specCoverage": "Spec coverage",
       "depthDistribution": "Depth distribution",
       "refresh": "Refresh sweep",
-      "tableLabel": "Experience debt"
+      "tableLabel": "Experience debt",
+      "pagesTracked": "{{count}} pages tracked",
+      "loadingData": "Loading fleet data"
     },
     "explorer": {
       "title": "Scenario Explorer",
       "description": "Declared pages, states, gaps, claims, and handoffs for one scenario.",
       "gridLabel": "Pages by state",
       "gapsLabel": "Coverage gaps",
-      "gapsCopy": "All declared dogfood routes have active default-state structure coverage.",
       "openStudio": "Open in Studio",
-      "claimsLabel": "Claims"
+      "claimsLabel": "Claims",
+      "defaultState": "Default",
+      "emptyState": "Empty",
+      "staleState": "Stale",
+      "loadingSpec": "Loading scenario spec",
+      "emptySpec": "No pages declared in this experience spec",
+      "loadError": "Scenario spec could not be loaded.",
+      "emptyGap": "Add a page spec before authoring gaps can be ranked.",
+      "staleData": "Spec data is older than the freshness window.",
+      "summary": "{{claims}} machine claims across {{pages}} pages.",
+      "refreshing": "Refreshing",
+      "loadingClaims": "Loading claims",
+      "emptyClaims": "No machine-tier claims declared."
     },
     "evidence": {
       "title": "Evidence",
@@ -71,7 +84,15 @@
       "captureLabel": "Page capture",
       "treeLabel": "Accessibility tree",
       "verdictsLabel": "Claim verdicts",
-      "recapture": "Recapture"
+      "recapture": "Recapture",
+      "refreshing": "Refreshing",
+      "loadingEvidence": "Loading evidence",
+      "emptyEvidence": "No persisted capture evidence for this page yet. BAS skips are recorded as evidence, not failures.",
+      "emptyVerdicts": "No verdict rows have been persisted for this page yet.",
+      "emptyTree": "Select a verdict with an accessibility node payload to inspect the tree.",
+      "loadError": "Evidence could not be loaded.",
+      "staleEvidence": "This evidence is older than the freshness window.",
+      "captureReference": "Capture reference"
     },
     "studio": {
       "title": "Studio",
@@ -82,7 +103,14 @@
       "wireframeLabel": "Wireframe preview",
       "variantsLabel": "Variants",
       "save": "Save spec",
-      "promote": "Promote variant"
+      "promote": "Promote variant",
+      "defaultPage": "Fleet",
+      "defaultClaim": "The experience-debt table is exposed as a real table with its accessible name.",
+      "previewDepthSummary": "Depth summary",
+      "previewCoverageMeter": "Coverage meter",
+      "previewDebtTable": "Debt table",
+      "variantCompactTable": "Compact table",
+      "variantEvidenceForward": "Evidence-forward"
     },
     "findings": {
       "title": "Findings & Fixes",

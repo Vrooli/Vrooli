@@ -280,6 +280,54 @@
           }
         },
         {
+          "name": "evidence",
+          "description": "List persisted reconciliation evidence for a page and optional claim.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            },
+            {
+              "name": "page",
+              "required": true,
+              "description": "Page id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "claim",
+              "description": "Optional claim id to filter"
+            },
+            {
+              "name": "path",
+              "description": "Filesystem path to inspect instead of a scenario slug"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum evidence rows to render"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StudioSessionService",
+            "method": "ListEvidence"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "compare-variants",
           "description": "Render page-form variants side by side as deterministic workshop HTML.",
           "positionals": [

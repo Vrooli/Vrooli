@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 
 	"experience-manager/internal/authoring"
+	"experience-manager/internal/reconcile"
 	"experience-manager/internal/spec"
 	contractv1 "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract"
 )
@@ -102,6 +103,21 @@ func (h *handler) ShowSpec(ctx context.Context, req *connect.Request[contractv1.
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	return connect.NewResponse(&contractv1.ShowSpecResponse{Scenario: req.Msg.GetScenario(), Page: req.Msg.GetPage(), Json: data}), nil
+}
+
+func (h *handler) ListEvidence(ctx context.Context, req *connect.Request[contractv1.ListEvidenceRequest]) (*connect.Response[contractv1.ListEvidenceResponse], error) {
+	if err := requireEvidenceRepository(h.service.Evidence); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	report, evidence, err := h.service.ListEvidence(ctx, req.Msg.GetScenario(), req.Msg.GetPath(), req.Msg.GetPage(), req.Msg.GetClaim(), int(req.Msg.GetLimit()))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	resp := &contractv1.ListEvidenceResponse{Scenario: report.Scenario, Page: req.Msg.GetPage()}
+	for _, item := range evidence {
+		resp.Evidence = append(resp.Evidence, protoEvidence(item))
+	}
+	return connect.NewResponse(resp), nil
 }
 
 func (h *handler) SuggestBindings(ctx context.Context, req *connect.Request[contractv1.SuggestBindingsRequest]) (*connect.Response[contractv1.SuggestBindingsResponse], error) {
@@ -200,6 +216,23 @@ func protoRenderedVariant(v authoring.VariantResult) *contractv1.RenderedVariant
 
 func protoSpecDocument(ref spec.DocumentRef) *contractv1.SpecDocument {
 	return &contractv1.SpecDocument{Id: ref.ID, Path: ref.Path, Title: ref.Title, Status: ref.Status}
+}
+
+func protoEvidence(e reconcile.Evidence) *contractv1.ReconciliationEvidence {
+	return &contractv1.ReconciliationEvidence{
+		Id:         e.ID,
+		Scenario:   e.Scenario,
+		Page:       e.PageID,
+		Route:      e.Route,
+		State:      e.StateID,
+		Claim:      e.ClaimID,
+		ClaimType:  e.ClaimType,
+		Verdict:    e.Verdict,
+		CaptureRef: e.CaptureRef,
+		AxNodeJson: e.AXNodeJSON,
+		Message:    e.Message,
+		CheckedAt:  e.CheckedAt,
+	}
 }
 
 func protoValidation(report spec.Report) *contractv1.ValidateScenarioResponse {

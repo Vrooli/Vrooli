@@ -188,7 +188,21 @@ func reconcileActivePage(loc string, page spec.PageDocument, snapshot Snapshot) 
 		}
 	}
 	for _, claim := range page.Claims {
-		if claim.Tier != "machine" || !claimTargetsDefault(claim) {
+		if claim.Tier != "machine" {
+			continue
+		}
+		if !claimTargetsDefault(claim) {
+			if claim.Type == "state-covered" || claim.Type == "state-distinct" {
+				claimEvidence := unreachableStateEvidence(page, claim)
+				evidence = append(evidence, claimEvidence)
+				findings = append(findings, spec.Finding{
+					Code:       spec.CodeClaimUnverifiable,
+					Severity:   spec.SeverityWarning,
+					Message:    fmt.Sprintf("machine claim %q is unverifiable: %s", claim.ID, claimEvidence.Message),
+					Locations:  []string{loc},
+					Suggestion: "Use a default-state claim, provide manual attestation, or add multi-state capture support.",
+				})
+			}
 			continue
 		}
 		claimEvidence, ok := evaluateClaim(page, claim, nodes)
@@ -198,21 +212,35 @@ func reconcileActivePage(loc string, page spec.PageDocument, snapshot Snapshot) 
 		}
 		code := spec.CodeClaimFailed
 		severity := spec.SeverityError
+		message := fmt.Sprintf("machine claim %q was not proven by the accessibility snapshot", claim.ID)
 		suggestion := "Update the UI, binding, or claim tier so structure evidence matches intent."
 		if claimEvidence.Verdict == "unverifiable" {
 			code = spec.CodeClaimUnverifiable
 			severity = spec.SeverityWarning
+			message = fmt.Sprintf("machine claim %q is unverifiable: %s", claim.ID, claimEvidence.Message)
 			suggestion = "Use a supported claim type, retier the claim, or add deterministic checker coverage."
 		}
 		findings = append(findings, spec.Finding{
 			Code:       code,
 			Severity:   severity,
-			Message:    fmt.Sprintf("machine claim %q was not proven by the accessibility snapshot", claim.ID),
+			Message:    message,
 			Locations:  []string{loc},
 			Suggestion: suggestion,
 		})
 	}
 	return pageReconciliation{Findings: findings, Evidence: evidence}
+}
+
+func unreachableStateEvidence(page spec.PageDocument, claim spec.Claim) Evidence {
+	return Evidence{
+		PageID:    page.Page.ID,
+		Route:     firstRoute(page.Page.Routes),
+		StateID:   defaultStateID(claim),
+		ClaimID:   claim.ID,
+		ClaimType: claim.Type,
+		Verdict:   "unverifiable",
+		Message:   "v1 BAS reconciliation captures only the default state; non-default states require multi-state capture",
+	}
 }
 
 func skippedEvidence(page spec.PageDocument, message string) []Evidence {
@@ -246,6 +274,20 @@ func evaluateClaim(page spec.PageDocument, claim spec.Claim, nodes []*AXNode) (E
 	}
 	pass := true
 	switch claim.Type {
+	case "state-covered":
+		pass = claimTargetsDefault(claim)
+	case "state-distinct":
+		if len(claim.States) < 2 {
+			pass = false
+			break
+		}
+		for _, state := range claim.States {
+			if state != "" && state != "default" {
+				evidence.Verdict = "unverifiable"
+				evidence.Message = "v1 BAS reconciliation captures only the default state; non-default states require multi-state capture"
+				return evidence, false
+			}
+		}
 	case "element-present", "single-dominant-action", "keyboard-reachable":
 		if len(claim.Elements) == 0 {
 			pass = false

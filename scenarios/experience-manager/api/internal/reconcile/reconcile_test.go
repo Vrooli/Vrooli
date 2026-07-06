@@ -117,6 +117,30 @@ func TestActivePageFailsUnresolvedBinding(t *testing.T) {
 	}
 }
 
+func TestNonDefaultStateClaimReportsSingleCaptureLimitation(t *testing.T) {
+	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
+	page := report.Spec.Pages["home"]
+	page.Claims = []spec.Claim{{
+		ID:       "stale-distinct",
+		Type:     "state-distinct",
+		Tier:     "machine",
+		Elements: []string{"primary"},
+		States:   []string{"default", "stale"},
+	}}
+	report.Spec.Pages["home"] = page
+
+	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}}.Run(context.Background(), report)
+	if len(findings) != 1 {
+		t.Fatalf("findings = %d, want 1: %+v", len(findings), findings)
+	}
+	if findings[0].Code != spec.CodeClaimUnverifiable || findings[0].Severity != spec.SeverityWarning {
+		t.Fatalf("finding = %+v, want claim_unverifiable warning", findings[0])
+	}
+	if !strings.Contains(findings[0].Message, "captures only the default state") {
+		t.Fatalf("message = %q", findings[0].Message)
+	}
+}
+
 func TestActivePageWithNoJoinedBindingsSkipsAsUnavailable(t *testing.T) {
 	report := activeReport("missing", spec.Binding{TestID: "not-rendered"})
 	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}}.Run(context.Background(), report)
