@@ -81,7 +81,7 @@ per [`configuration.md`](configuration.md#cli-config-file)).
 
 ```bash
 ai-gateway configure api_base http://localhost:15001/api/v1
-ai-gateway configure token <token>
+ai-gateway configure token TOKEN_VALUE
 ```
 
 Read values back without an argument:
@@ -99,9 +99,37 @@ contracts below. Document your domain's commands here as you build
 them, one row/section per command, mirroring the endpoints they call
 in [`api-endpoints.md`](api-endpoints.md).
 
-AI Gateway's generated example command group has been removed. Add only
-product-owned gateway, inventory, routing, conformance, and policy
-commands here as their proto-backed API methods are implemented.
+AI Gateway's generated example command group has been removed. The
+current product-owned command surface is:
+
+| Command | RPC | Purpose |
+|---|---|---|
+| `gateway validate --role <role>` | `GatewayService.ValidateGatewayRequest` | Validate provider-neutral request metadata before routing. |
+| `inventory roles [--provider <provider>]` | `InventoryService.ListProviderRoles` | Read resource-owned provider role policy. |
+| `inventory smoke --provider <provider>` | `InventoryService.SmokeProvider` | Run bounded provider smoke diagnostics through the resource seam. |
+| `routing preview --role <role>` | `RoutingService.PreviewRoute` | Explain selected/rejected candidates without inference side effects. |
+| `routing execute --role <role> --input <text>` | `RoutingService.ExecuteRoute` | Execute through the selected resource command and persist redacted evidence. |
+| `routing evidence-list [--scenario <scenario>]` | `RoutingService.ListRouteEvidence` | List recent metadata-only route evidence. |
+| `routing evidence-show <event-id>` | `RoutingService.GetRouteEvidence` | Inspect one route evidence event. |
+| `conformance scan --scenario <scenario>` | `ConformanceService.ScanScenario` | Run AI Gateway's native scanner and migration recommendations. |
+| `validation validate --scenario <scenario>` | `ScenarioValidationService.ValidateScenario` | Exercise the shared Test Genie provider contract. |
+| `validation preview-fix --scenario <scenario>` | `ScenarioValidationService.PreviewFix` | Preview deterministic conformance fixes, currently guidance-only. |
+| `validation apply-fix --scenario <scenario>` | `ScenarioValidationService.ApplyFix` | Call the explicit apply path, currently an API no-op until safe migrations exist. |
+
+Common gateway request flags on `gateway validate`, `routing preview`,
+and `routing execute`:
+
+| Flag | Values / meaning |
+|---|---|
+| `--kind` | `text`, `embedding`, or `extract` (default `text`) |
+| `--role` | Provider-neutral role, for example `chat.default` or `embedding.default` |
+| `--profile` | `local-only`, `local-first`, `remote-only`, `quality-first`, `cheap-first`, or `privacy-sensitive` |
+| `--privacy` | `public`, `internal`, `confidential`, or `secret` |
+| `--operation`, `--scenario`, `--request-id` | Metadata labels stored in route evidence |
+| `--timeout-ms`, `--max-cost-usd`, `--max-output-tokens` | Caller constraints passed to the API |
+
+Every command supports `--json`; proto-backed commands emit the
+proto JSON response shape in that mode.
 
 ## Output contracts
 

@@ -8,13 +8,22 @@
  * because `<App>` mounts `createBrowserRouter`, which doesn't play with the
  * memory-router wrapper inside `renderWithProviders`.
  */
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
 
+import App from "./App";
 import { renderWithProviders } from "./test-utils";
 import { Providers } from "./app/providers";
 import { TestAppRouter } from "./app/routes";
 import { selectors } from "./consts/selectors";
+
+vi.mock("./app/routes", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./app/routes")>();
+  return {
+    ...actual,
+    AppRouter: () => <div data-testid="mock-app-router" />,
+  };
+});
 
 describe("App composition", () => {
   afterEach(() => {
@@ -29,5 +38,10 @@ describe("App composition", () => {
       { withoutRouter: true },
     );
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
+  });
+
+  it("renders the production app composition", () => {
+    renderWithProviders(<App />, { withoutRouter: true });
+    expect(screen.getByTestId("mock-app-router")).toBeInTheDocument();
   });
 });

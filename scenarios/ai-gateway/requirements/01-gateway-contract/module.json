@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Provider-neutral request contracts for AI Gateway callers.",
-    "last_validated_at": "2026-07-05T22:17:14-04:00",
+    "last_validated_at": "2026-07-06T01:21:32-04:00",
     "module": "gateway-contract",
     "prd_ref": "OT-P0-001",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "AIGW-CONTRACT-TEXT",
       "title": "Text inference requests use role, profile, and constraints instead of concrete models",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "gateway.contract",
       "criticality": "P0",
@@ -24,15 +24,17 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/gateway/service_test.go::TestValidateAcceptsProviderNeutralRequest",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Validate request parsing, defaults, role/profile validation, and rejection of concrete provider model fields."
+          "notes": "Validates provider-neutral text request parsing, defaults, and role/profile fields."
         },
         {
           "type": "test",
-          "phase": "integration",
-          "status": "planned",
-          "notes": "Validate API behavior for accepted and rejected text inference requests."
+          "ref": "api/internal/gateway/service_test.go::TestValidateRejectsProviderSpecificMetadata",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates rejection of concrete provider/model/embedding metadata fields."
         }
       ]
     },
@@ -52,9 +54,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/gateway/service_test.go::TestValidateRejectsProviderSpecificMetadata",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Validate embedding metadata is present and dimension assumptions are never implicit."
+          "notes": "Validates that callers cannot smuggle implicit embedding dimensions through provider-specific metadata; full embedding metadata response support remains in progress."
         }
       ]
     }

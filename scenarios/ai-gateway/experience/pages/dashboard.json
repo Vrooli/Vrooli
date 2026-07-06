@@ -19,5 +19,29 @@
     {
       "statement": "Make unresolved conformance findings visible without turning the dashboard into a report page."
     }
-  ]
+  ],
+  "states": [
+    { "id": "default", "description": "Provider, route evidence, conformance, and policy summaries are visible." },
+    { "id": "loading", "description": "One or more dashboard queries are still resolving." },
+    { "id": "request-error", "description": "One or more operator APIs failed and the dashboard surfaces the error without blanking the page." },
+    { "id": "empty", "description": "No route evidence or conformance findings have been returned yet." }
+  ],
+  "elements": [
+    { "id": "dashboard-region", "role": "region", "name": "Gateway dashboard" }
+  ],
+  "claims": [
+    {
+      "id": "dashboard-region-present",
+      "type": "element-present",
+      "statement": "The dashboard exposes a named operator region as the first screen.",
+      "tier": "machine",
+      "elements": ["dashboard-region"],
+      "states": ["default", "loading", "request-error", "empty"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "dashboard-region": { "testid": "page-dashboard" }
+    }
+  }
 }

@@ -37,6 +37,19 @@ Ollama remains responsible for local model installation, capacity
 planning, concrete role-to-model policy, context-window knowledge, and
 embedding dimensions.
 
+Phase 3 inventory uses `resource-ollama policy roles --json` as the
+bounded read/smoke command. The gateway normalizes role metadata from
+that output and never reads `resources/ollama/model-policy.json`
+directly. Ollama already exposes `embedding.default`; adding or
+admitting a future local `extract.structured` role remains resource
+policy work.
+
+Phase 4 routing execution uses `resource-ollama gateway generate --role
+<role> --json --prompt-stdin` for text generation/structured extraction
+and `resource-ollama gateway embed --role <role> --json --input-stdin`
+for embeddings. Transient input is passed on stdin so prompt text does
+not appear in command arguments, route evidence, or command strings.
+
 ### OpenRouter
 
 AI Gateway should use OpenRouter through resource commands such as:
@@ -52,6 +65,18 @@ hosted model policy, endpoint capability checks, and provider-specific
 request shape. Adding `embedding.default` requires investigation in the
 OpenRouter resource first; AI Gateway should display support once the
 resource exposes it.
+
+Phase 3 inventory uses `resource-openrouter policy roles --json` as the
+bounded read/smoke command. OpenRouter already exposes
+`extract.structured`; `embedding.default` is still absent from the
+resource policy and remains a resource-owned investigation before AI
+Gateway can route it.
+
+Phase 4 routing execution uses `resource-openrouter generate --role
+<role> --json` with transient prompt input on stdin for text
+generation/structured extraction. AI Gateway does not pass concrete
+model slugs or provider credentials; OpenRouter keeps that authority in
+its resource policy/configuration.
 
 ## Forbidden Integration Paths
 
@@ -86,10 +111,13 @@ documents the reason:
 | Resource policy command malformed | Mark provider inventory stale/unreadable and block execution through that provider. | provider error |
 | Provider role missing | Show role gap and recommended resource policy action. | configuration error |
 | Evidence persistence unavailable | Execution should fail closed until retention policy defines a no-persist mode. | operational error |
+| Resource CLI binary missing | Inventory and smoke status return `missing_binary`; routes through that provider are unavailable. | provider error |
+| Resource CLI times out | Inventory and smoke status return `timeout`; caller can retry or inspect the resource lifecycle. | degraded/provider error |
 
 ## Cross-References
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md)
 - [`DATA.md`](DATA.md)
+- [`../reference/configuration.md`](../reference/configuration.md)
 - [`../reference/roles-profiles-policies.md`](../reference/roles-profiles-policies.md)
 - [`../reference/validation-provider.md`](../reference/validation-provider.md)

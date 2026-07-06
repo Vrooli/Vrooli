@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Test Genie provider phase for AI inference conformance.",
-    "last_validated_at": "2026-07-05T22:17:14-04:00",
+    "last_validated_at": "2026-07-06T01:21:32-04:00",
     "module": "conformance-provider",
     "prd_ref": "OT-P0-005",
     "priority": "P0",
@@ -24,9 +24,17 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/conformance/scanner_test.go::TestScannerFindsUnsafeProviderCoupling",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Validate detection fixtures for direct Ollama, OpenRouter secrets, concrete model slugs, and embedding metadata patterns."
+          "notes": "Validates detection fixtures for direct Ollama, provider secret env vars, concrete model slugs, and embedding metadata patterns."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/conformance/connect_handler_test.go::TestScanScenarioReturnsScannerFindings",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates the conformance RPC exposes scanner findings."
         }
       ]
     },
@@ -46,15 +54,24 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/conformance/scanner_test.go::TestScannerFindsMaturityTaxonomyRules",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Validate maturity level semantics, severity mapping, and exception handling."
+          "notes": "Validates maturity taxonomy findings, severity mapping inputs, and exception handling."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/conformance/connect_handler_test.go::TestValidateScenarioReturnsSharedAssessment",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates ScenarioValidationService returns a shared maturity assessment."
         },
         {
           "type": "manual",
-          "phase": "business",
+          "ref": ".vrooli/test-genie.json",
+          "phase": "provider-conformance",
           "status": "implemented",
-          "notes": "Review the maturity ladder before implementing provider enforcement."
+          "notes": "Provider descriptor passes test-genie provider-contract validation."
         }
       ]
     }

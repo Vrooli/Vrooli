@@ -13,13 +13,13 @@
       "id": "dashboard",
       "path": "pages/dashboard.json",
       "title": "Dashboard",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "route-preview",
       "path": "pages/route-preview.json",
       "title": "Route Preview",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "providers",

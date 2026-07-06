@@ -39,10 +39,10 @@ can span it. The loop:
 #    Use literal [data-testid=...] selectors — @selector tokens do NOT resolve
 #    on the capture path.
 # 2. Drive it inside a profile-mode perf trace:
-performance-health audit run <scenario> --workflow <slug>
+performance-health audit run ai-gateway --workflow perf-example-scroll
 # 3. Analyze the returned trace, then optionally set a per-flow budget:
-performance-health analysis analyze --trace <key>
-performance-health budget set --flow <slug> --lcp-max-ms 2500 --ratchet
+performance-health analysis analyze ai-gateway --trace TRACE_KEY
+performance-health budget set ai-gateway --flow perf-example-scroll --lcp-max-ms 2500 --ratchet
 ```
 
 Reusable perf interaction helpers live in `actions/`:

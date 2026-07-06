@@ -43,6 +43,277 @@
           }
         }
       }
+    },
+    {
+      "id": "conformance_scan_scenario",
+      "path": "/vrooli.ai_gateway.v1.conformance.ConformanceService/ScanScenario",
+      "method": "POST",
+      "summary": "Scan a scenario for AI gateway conformance",
+      "description": "Scans a scenario tree for unsafe AI/provider coupling, embedding metadata risks, and gateway adoption signals.",
+      "category": "conformance",
+      "request": {
+        "type": "ScanScenarioRequest",
+        "properties": {
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "ScanScenarioResponse",
+        "properties": {
+          "findings": "array<ConformanceFinding>",
+          "maturity_level": "string",
+          "recommendations": "array<string>",
+          "scenario": "string"
+        }
+      }
+    },
+    {
+      "id": "conformance_validate_scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate AI conformance through Test Genie contract",
+      "description": "Scans a target scenario for unsafe AI/provider coupling and returns a shared scenario-validation maturity assessment for Test Genie.",
+      "category": "conformance",
+      "request": {
+        "type": "ValidateScenarioRequest",
+        "properties": {
+          "include_execution": "bool",
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "ValidateScenarioResponse",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "metrics": "common.v1.ExecutionMetrics",
+          "native_detail": "google.protobuf.Any",
+          "scenario": "string",
+          "status": "scenario_validation.v1.ValidationStatus"
+        }
+      }
+    },
+    {
+      "id": "conformance_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview AI conformance migration guidance",
+      "description": "Reports that deterministic source rewrites are not implemented and points callers at scan migration guidance.",
+      "category": "conformance",
+      "request": {
+        "type": "FixRequest",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "FixResponse",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<scenario_validation.v1.FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      }
+    },
+    {
+      "id": "conformance_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply AI conformance migration guidance",
+      "description": "No-op apply endpoint reserved for future deterministic AI Gateway migrations.",
+      "category": "conformance",
+      "request": {
+        "type": "FixRequest",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "FixResponse",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<scenario_validation.v1.FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      }
+    },
+    {
+      "id": "gateway_validate_gateway_request",
+      "path": "/vrooli.ai_gateway.v1.gateway.GatewayService/ValidateGatewayRequest",
+      "method": "POST",
+      "summary": "Validate a provider-neutral gateway request",
+      "description": "Validates role/profile/privacy constraints and rejects provider-specific fields before provider adapters can run.",
+      "category": "gateway",
+      "request": {
+        "type": "ValidateGatewayRequestRequest",
+        "properties": {
+          "request": "GatewayRequest"
+        }
+      },
+      "response": {
+        "type": "ValidateGatewayRequestResponse",
+        "properties": {
+          "accepted_profiles": "array<string>",
+          "issues": "array<ValidationIssue>",
+          "valid": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Unexpected validation failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Validate gateway request",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.ai_gateway.v1.gateway.GatewayService/ValidateGatewayRequest -H 'Content-Type: application/json' -d '{\"request\":{\"kind\":\"REQUEST_KIND_TEXT_GENERATION\",\"role\":\"chat.default\",\"profile\":\"PROFILE_LOCAL_FIRST\",\"privacyClass\":\"PRIVACY_CLASS_INTERNAL\"}}'"
+        }
+      ]
+    },
+    {
+      "id": "inventory_list_provider_roles",
+      "path": "/vrooli.ai_gateway.v1.inventory.InventoryService/ListProviderRoles",
+      "method": "POST",
+      "summary": "List provider role inventory",
+      "description": "List provider role inventory from resource-owned policy command output.",
+      "category": "inventory",
+      "request": {
+        "type": "ListProviderRolesRequest",
+        "properties": {
+          "provider": "string"
+        }
+      },
+      "response": {
+        "type": "ListProviderRolesResponse",
+        "properties": {
+          "roles": "array<ProviderRole>",
+          "warnings": "array<string>"
+        }
+      }
+    },
+    {
+      "id": "inventory_smoke_provider",
+      "path": "/vrooli.ai_gateway.v1.inventory.InventoryService/SmokeProvider",
+      "method": "POST",
+      "summary": "Smoke test provider inventory command",
+      "description": "Runs a bounded provider policy command through the resource CLI seam and maps failures to typed inventory status.",
+      "category": "inventory",
+      "request": {
+        "type": "SmokeProviderRequest",
+        "properties": {
+          "provider": "string"
+        }
+      },
+      "response": {
+        "type": "SmokeProviderResponse",
+        "properties": {
+          "code": "string",
+          "message": "string",
+          "provider": "string",
+          "status": "string",
+          "warnings": "array<string>"
+        }
+      }
+    },
+    {
+      "id": "routing_preview_route",
+      "path": "/vrooli.ai_gateway.v1.routing.RoutingService/PreviewRoute",
+      "method": "POST",
+      "summary": "Preview routing policy for a gateway request",
+      "description": "Validates the gateway request and returns deterministic provider candidates, selected route, fallback eligibility, and policy reasons without running inference.",
+      "category": "routing",
+      "request": {
+        "type": "PreviewRouteRequest",
+        "properties": {
+          "request": "GatewayRequest"
+        }
+      },
+      "response": {
+        "type": "PreviewRouteResponse",
+        "properties": {
+          "candidates": "array<RouteCandidate>",
+          "fallback_allowed": "bool",
+          "issues": "array<ValidationIssue>",
+          "policy_reasons": "array<string>",
+          "route_plan_id": "string",
+          "valid": "bool"
+        }
+      }
+    },
+    {
+      "id": "routing_execute_route",
+      "path": "/vrooli.ai_gateway.v1.routing.RoutingService/ExecuteRoute",
+      "method": "POST",
+      "summary": "Execute a routed gateway request",
+      "description": "Executes a provider-neutral request through the selected resource command and persists redacted route evidence before returning provider output.",
+      "category": "routing",
+      "request": {
+        "type": "ExecuteRouteRequest",
+        "properties": {
+          "input_text": "string",
+          "request": "GatewayRequest"
+        }
+      },
+      "response": {
+        "type": "ExecuteRouteResponse",
+        "properties": {
+          "evidence": "RouteEvidence",
+          "issues": "array<ValidationIssue>",
+          "output_text": "string",
+          "policy_reasons": "array<string>",
+          "valid": "bool"
+        }
+      }
+    },
+    {
+      "id": "routing_list_route_evidence",
+      "path": "/vrooli.ai_gateway.v1.routing.RoutingService/ListRouteEvidence",
+      "method": "POST",
+      "summary": "List route evidence events",
+      "description": "Lists redacted route evidence metadata for recent gateway executions.",
+      "category": "routing",
+      "request": {
+        "type": "ListRouteEvidenceRequest",
+        "properties": {
+          "limit": "int32",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "ListRouteEvidenceResponse",
+        "properties": {
+          "events": "array<RouteEvidence>"
+        }
+      }
+    },
+    {
+      "id": "routing_get_route_evidence",
+      "path": "/vrooli.ai_gateway.v1.routing.RoutingService/GetRouteEvidence",
+      "method": "POST",
+      "summary": "Inspect one route evidence event",
+      "description": "Returns one redacted route evidence metadata event by ID.",
+      "category": "routing",
+      "request": {
+        "type": "GetRouteEvidenceRequest",
+        "properties": {
+          "event_id": "string"
+        }
+      },
+      "response": {
+        "type": "GetRouteEvidenceResponse",
+        "properties": {
+          "event": "RouteEvidence"
+        }
+      }
     }
   ]
 }

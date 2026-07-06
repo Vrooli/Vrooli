@@ -324,7 +324,38 @@ const literalSelectors = {
   },
   pages: {
     dashboard: "page-dashboard",
+    providers: "page-providers",
+    routePreview: "page-route-preview",
+    conformance: "page-conformance",
     settings: "page-settings",
+  },
+  dashboard: {
+    summary: "dashboard-summary",
+    error: "dashboard-error",
+    routeEvents: "dashboard-route-events",
+    conformanceDebt: "dashboard-conformance-debt",
+  },
+  providers: {
+    loading: "providers-loading",
+    error: "providers-error",
+    empty: "providers-empty",
+    table: "providers-table",
+  },
+  routePreview: {
+    form: "route-preview-form",
+    scenarioInput: "route-preview-scenario-input",
+    profileSelect: "route-preview-profile-select",
+    submit: "route-preview-submit",
+    result: "route-preview-result",
+    error: "route-preview-error",
+    candidates: "route-preview-candidates",
+  },
+  conformance: {
+    form: "conformance-form",
+    scenarioInput: "conformance-scenario-input",
+    submit: "conformance-submit",
+    result: "conformance-result",
+    error: "conformance-error",
   },
   errorBoundary: {
     root: "error-boundary-root",
@@ -357,6 +388,9 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
+            "providers",
+            "routePreview",
+            "conformance",
             "settings",
           ] as const,
         },
@@ -370,6 +404,9 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
+            "providers",
+            "routePreview",
+            "conformance",
             "settings",
           ] as const,
         },
@@ -386,6 +423,13 @@ const dynamicSelectorDefinitions = {
       description: "Locale choice radio button on the settings page",
       testIdPattern: "page-settings-locale-${code}",
       params: { code: { type: "enum", values: LOCALE_CODES } },
+    }),
+  },
+  providers: {
+    roleRow: defineDynamicSelector({
+      description: "Provider inventory row by provider and role",
+      testIdPattern: "providers-role-${provider}-${role}",
+      params: { provider: { type: "string" }, role: { type: "string" } },
     }),
   },
 } satisfies DynamicSelectorTree;

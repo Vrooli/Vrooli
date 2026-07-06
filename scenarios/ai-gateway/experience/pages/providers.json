@@ -19,5 +19,42 @@
     {
       "statement": "Expose smoke-test results and timestamps alongside each provider role."
     }
-  ]
+  ],
+  "states": [
+    { "id": "default", "description": "Provider roles are grouped by resource-owned policy data." },
+    { "id": "loading", "description": "Provider role inventory is loading." },
+    { "id": "empty", "description": "No provider roles were returned." },
+    { "id": "request-error", "description": "The provider inventory call failed." }
+  ],
+  "elements": [
+    { "id": "providers-region", "role": "region", "name": "Providers and roles" },
+    { "id": "provider-table", "role": "table", "description": "Provider role inventory table." },
+    { "id": "provider-empty", "role": "note", "description": "No provider roles returned." },
+    { "id": "provider-error", "role": "alert", "description": "Provider inventory error." }
+  ],
+  "claims": [
+    {
+      "id": "providers-region-present",
+      "type": "element-present",
+      "statement": "Provider inventory is presented as an operator region.",
+      "tier": "machine",
+      "elements": ["providers-region"],
+      "states": ["default", "loading", "empty", "request-error"]
+    },
+    {
+      "id": "provider-empty-covered",
+      "type": "state-covered",
+      "statement": "The empty provider inventory state renders dedicated copy instead of a blank table.",
+      "tier": "machine",
+      "states": ["empty"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "providers-region": { "testid": "page-providers" },
+      "provider-table": { "testid": "providers-table" },
+      "provider-empty": { "testid": "providers-empty" },
+      "provider-error": { "testid": "providers-error" }
+    }
+  }
 }

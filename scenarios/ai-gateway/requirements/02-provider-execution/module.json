@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Provider execution boundaries for Ollama and OpenRouter resources.",
-    "last_validated_at": "2026-07-05T22:17:14-04:00",
+    "last_validated_at": "2026-07-06T01:21:32-04:00",
     "module": "provider-execution",
     "prd_ref": "OT-P0-002",
     "priority": "P0",
@@ -24,13 +24,15 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/routing/service_test.go::TestExecutePersistsRedactedEvidenceAndKeepsInputOutOfCommandString",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Validate provider runners shell out through controlled resource command adapters with explicit args."
+          "notes": "Validates provider execution uses controlled resource commands and keeps prompt text out of argv and evidence."
         },
         {
           "type": "automation",
-          "phase": "business",
+          "ref": "bas/cases/operator-ui/route-preview-workflow.json",
+          "phase": "workflow",
           "status": "implemented",
           "notes": "Exercise a route from UI/API and assert evidence identifies a resource gateway path, not a direct endpoint.",
           "scenario": "browser-automation-studio"
@@ -53,9 +55,17 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/providers/adapter_test.go::TestAdapter_ListRoles_MapsMalformedJSON",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Validate failure mapping for resource command exit codes and malformed outputs."
+          "notes": "Validates malformed resource output maps to a typed provider failure."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/providers/adapter_test.go::TestAdapter_Smoke_MapsMissingBinary",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates missing resource commands map to typed unavailable smoke status."
         }
       ]
     }

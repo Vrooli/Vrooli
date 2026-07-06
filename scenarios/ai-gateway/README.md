@@ -2,9 +2,10 @@
 
 Policy-driven AI inference gateway for routing scenario AI requests across local and hosted providers
 
-This scenario has been initialized from the `react-vite` template as the
-future Vrooli AI inference gateway. The documentation-first charter is in
-place; runtime product behavior is intentionally not implemented yet.
+This scenario is Vrooli's policy-driven AI inference gateway. It exposes
+provider-neutral API, CLI, UI, and Test Genie conformance surfaces while
+delegating concrete provider credentials and model catalogs to the
+`resource-ollama` and `resource-openrouter` scenarios.
 
 - Go API (`api/`)
 - React + TypeScript + Vite UI (`ui/`)
@@ -53,18 +54,12 @@ place; runtime product behavior is intentionally not implemented yet.
   runbooks, observability, security, performance, and durable
   decisions.
 
-## Product Surface vs. Durable Scaffolding
+## Customize Safely
 
-The generated scaffold is intentionally not the product. The removable
-example domain has been deleted; what remains is infrastructure for the
-first real gateway slice. When you build the real UX, treat these as
-**placeholders** to replace:
-
-- The `AppShell` and the centered single-panel home page in `ui/src/`.
-- The bare-minimum settings surface (currently just locale switching).
-
-Treat these as **durable seams** to preserve, even as you rewrite the
-visual layout:
+The generated notes example has been removed. The current product surface
+is the gateway contract, provider inventory, route preview/execution,
+route evidence, AI conformance provider, CLI commands, and operator UI.
+When extending it, preserve these durable seams:
 
 - i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
 - Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).

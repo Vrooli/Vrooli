@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Professional operator UI and CLI surfaces.",
-    "last_validated_at": "2026-07-05T22:17:14-04:00",
+    "last_validated_at": "2026-07-06T01:21:32-04:00",
     "module": "operator-surface",
     "prd_ref": "OT-P0-006",
     "priority": "P0",
@@ -24,15 +24,46 @@
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/pages/DashboardPage.test.tsx",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Validate dashboard empty/loading/error/ready states and core accessibility behavior."
+          "notes": "Validates the operator dashboard renders provider, evidence, and conformance panels."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/pages/RoutePreviewPage.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates the route preview operator workflow and result region."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/pages/ProvidersPage.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates provider inventory and smoke controls in the operator UI."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/pages/ConformancePage.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates conformance scan controls and results in the operator UI."
         },
         {
           "type": "automation",
-          "phase": "business",
+          "ref": "bas/cases/operator-ui/dashboard-readiness.json",
+          "phase": "workflow",
           "status": "implemented",
-          "notes": "Validate dashboard operator flow after the UI is implemented.",
+          "notes": "BAS workflow proves the dashboard renders as the first operator screen.",
+          "scenario": "browser-automation-studio"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/operator-ui/route-preview-workflow.json",
+          "phase": "workflow",
+          "status": "implemented",
+          "notes": "BAS workflow proves route preview controls and result region render in the live UI.",
           "scenario": "browser-automation-studio"
         }
       ]
@@ -53,9 +84,31 @@
       "validation": [
         {
           "type": "test",
+          "ref": "cli/domains/gateway/gateway_manifest_test.go::TestManifestCoversGatewayService",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Validate command parsing and JSON output for inventory, preview, smoke, and scan commands."
+          "notes": "Validates generated CLI manifest coverage for gateway operations."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/inventory/inventory_manifest_test.go::TestManifestCoversInventoryService",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates generated CLI manifest coverage for inventory operations."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/routing/routing_manifest_test.go::TestManifestCoversRoutingService",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates generated CLI manifest coverage for routing operations."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/conformance/conformance_manifest_test.go::TestManifestCoversConformanceService",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates generated CLI manifest coverage for conformance operations."
         }
       ]
     }

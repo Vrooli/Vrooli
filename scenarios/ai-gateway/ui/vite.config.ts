@@ -28,7 +28,8 @@ export default defineConfig(({ mode }): UserConfig => {
   const isProfile = mode === "profile";
 
   return {
-    base: './',  // Required for tunnel/proxy contexts
+    // INTEROP-CRITICAL: relative assets must survive localhost, tunnel, and app-monitor proxy mounts.
+    base: './',
     plugins: [react(), stringsCodegen()],
     resolve: isProfile
       ? {

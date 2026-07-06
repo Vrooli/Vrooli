@@ -22,8 +22,18 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	conformanceH "ai-gateway/handlers/conformance"
+	gatewayH "ai-gateway/handlers/gateway"
 	healthH "ai-gateway/handlers/health"
+	inventoryH "ai-gateway/handlers/inventory"
+	routingH "ai-gateway/handlers/routing"
 	localdb "ai-gateway/internal/database"
+
+	conformancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/conformance"
+	gatewayv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/gateway"
+	inventoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inventory"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -33,6 +43,10 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, conformanceH.Endpoints...)
+	out = append(out, gatewayH.Endpoints...)
+	out = append(out, inventoryH.Endpoints...)
+	out = append(out, routingH.Endpoints...)
 	return out
 }
 
@@ -58,7 +72,13 @@ type ProtoFileEntry struct {
 // AllProtoFiles returns the proto FileDescriptor backing each
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
-	return []ProtoFileEntry{}
+	return []ProtoFileEntry{
+		{Module: "conformance", File: conformancev1.File_ai_gateway_v1_conformance_conformance_proto},
+		{Module: "conformance", File: scenariovalidationv1.File_scenario_validation_v1_validation_proto},
+		{Module: "gateway", File: gatewayv1.File_ai_gateway_v1_gateway_gateway_proto},
+		{Module: "inventory", File: inventoryv1.File_ai_gateway_v1_inventory_inventory_proto},
+		{Module: "routing", File: routingv1.File_ai_gateway_v1_routing_routing_proto},
+	}
 }
 
 // AllSchemas returns every domain's schema provider plus the system
@@ -72,5 +92,9 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(conformanceH.Schema),
+		apidb.SchemaProviderFunc(gatewayH.Schema),
+		apidb.SchemaProviderFunc(inventoryH.Schema),
+		apidb.SchemaProviderFunc(routingH.Schema),
 	}
 }

@@ -4,6 +4,11 @@ import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTra
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
+const THEME_LABEL_KEYS = {
+  light: strings.theme.choice.light,
+  dark: strings.theme.choice.dark,
+  system: strings.theme.choice.system,
+} as const satisfies Record<ThemeChoice, string>;
 
 /**
  * Top app bar — title, locale switcher, theme toggle. Visible at every viewport
@@ -20,12 +25,18 @@ export function TopBar() {
       data-testid={selectors.layout.topBar}
       className="flex shrink-0 items-center justify-between gap-4 border-b border-app-border bg-app-surface px-4 py-3"
     >
-      <h1
-        data-testid={selectors.app.title}
-        className="text-lg font-semibold text-app-foreground"
-      >
-        {t(strings.app.title)}
-      </h1>
+      <div>
+        <p className="text-xs font-semibold uppercase text-app-muted-foreground">
+          {t(strings.app.eyebrow)}
+        </p>
+        <h1
+          data-testid={selectors.app.title}
+          className="text-lg font-semibold text-app-foreground"
+        >
+          {t(strings.app.title)}
+        </h1>
+        <p className="sr-only">{t(strings.app.description)}</p>
+      </div>
       <div className="flex items-center gap-3">
         <div
           role="group"
@@ -64,7 +75,7 @@ export function TopBar() {
           >
             {THEME_CHOICES.map((c) => (
               <option key={c} value={c}>
-                {t(strings.theme.choice[c])}
+                {t(THEME_LABEL_KEYS[c])}
               </option>
             ))}
           </select>

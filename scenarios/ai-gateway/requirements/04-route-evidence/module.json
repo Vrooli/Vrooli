@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Route preview, execution reasoning, and audit evidence.",
-    "last_validated_at": "2026-07-05T22:17:14-04:00",
+    "last_validated_at": "2026-07-06T01:21:32-04:00",
     "module": "route-evidence",
     "prd_ref": "OT-P0-004",
     "priority": "P0",
@@ -24,16 +24,24 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/routing/service_test.go::TestPreviewSelectsLocalFirstAndExplainsFallback",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Validate route decisions for local-only, local-first, remote-only, quality-first, cheap-first, and privacy-sensitive profiles."
+          "notes": "Validates route preview candidate ordering, policy reasons, and fallback eligibility."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/routing/connect_handler_test.go::TestPreviewRouteUsesGatewayValidationBeforeRouting",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates preview RPC applies gateway request validation before routing."
         }
       ]
     },
     {
       "id": "AIGW-ROUTE-EVIDENCE",
       "title": "Executed requests produce auditable route evidence",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "routing.evidence",
       "criticality": "P0",
@@ -46,9 +54,17 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
-          "status": "planned",
-          "notes": "Validate persistence and redaction behavior for route evidence."
+          "ref": "api/internal/routing/service_test.go::TestExecutePersistsRedactedEvidenceAndKeepsInputOutOfCommandString",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates persistence and prompt/response redaction behavior for route evidence."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/routing/service_test.go::TestExecuteFailsClosedWhenEvidenceCannotBePersisted",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates execution fails closed when successful route evidence cannot be persisted."
         }
       ]
     }

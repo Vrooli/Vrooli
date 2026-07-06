@@ -70,6 +70,27 @@ route preview must say what tie-breaker was used.
 5. Add policy drift checks that compare resource README role tables to
    JSON/CLI policy output so stale docs are visible.
 
+## Phase 3 Runtime Inventory
+
+AI Gateway now reads resource policy through the resource CLIs rather
+than from policy files:
+
+- `resource-ollama policy roles --json`
+- `resource-openrouter policy roles --json`
+
+The inventory API returns normalized provider, role, capabilities,
+locality, status, and policy schema version. It intentionally omits
+concrete model slugs, provider URLs, and credentials. The smoke API runs
+the same bounded commands and classifies missing binaries, non-zero
+exits, malformed JSON, timeouts, and empty role inventories.
+
+Current resource alignment observed for this phase:
+
+- Ollama has `embedding.default`; `extract.structured` is still a
+  resource-policy follow-up.
+- OpenRouter has `extract.structured`; `embedding.default` is still a
+  resource-policy investigation before gateway routing can use it.
+
 ## Caller Contract Examples
 
 Good:

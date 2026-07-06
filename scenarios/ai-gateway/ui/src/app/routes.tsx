@@ -6,7 +6,10 @@ import {
 } from "react-router-dom";
 
 import { AppShell } from "../layout/AppShell";
+import { ConformancePage } from "../pages/ConformancePage";
 import { DashboardPage } from "../pages/DashboardPage";
+import { ProvidersPage } from "../pages/ProvidersPage";
+import { RoutePreviewPage } from "../pages/RoutePreviewPage";
 import { SettingsPage } from "../pages/SettingsPage";
 
 /**
@@ -21,6 +24,9 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
+      { path: "providers", element: <ProvidersPage /> },
+      { path: "routes/preview", element: <RoutePreviewPage /> },
+      { path: "conformance", element: <ConformancePage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

@@ -3,7 +3,7 @@
  * + main + bottom nav) and the locale switcher seam. Page content is exercised
  * in the per-page tests; this file only verifies the shell composes correctly.
  */
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -14,6 +14,12 @@ import en from "../i18n/locales/en.json";
 import ja from "../i18n/locales/ja.json";
 import ar from "../i18n/locales/ar.json";
 import { TestAppRouter } from "../app/routes";
+
+vi.mock("../api/gateway", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/gateway")>();
+  const { makeGatewayApiMocks } = await import("../test-utils/mocks/gateway");
+  return { ...actual, ...makeGatewayApiMocks() };
+});
 
 const renderShell = () =>
   renderWithProviders(<TestAppRouter initialEntries={["/"]} />, { withoutRouter: true });
@@ -43,7 +49,7 @@ describe("AppShell structure (cimode)", () => {
 
   it("renders the canonical nav links in both sidebar and bottom nav", () => {
     renderShell();
-    for (const key of ["dashboard", "settings"] as const) {
+    for (const key of ["dashboard", "providers", "routePreview", "conformance", "settings"] as const) {
       expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();
       expect(screen.getByTestId(selectors.layout.bottomNavLink({ key }))).toBeInTheDocument();
     }

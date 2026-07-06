@@ -1,51 +1,176 @@
 {
-  "_comment": "このファイルには2種類の補間があります。(1) 生成時: AI Gateway のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "_comment": "Keys that start with an underscore are sentinels skipped by codegen, parity tests, and unused-key audit.",
   "app": {
     "title": "AI Gateway",
-    "eyebrow": "シナリオテンプレート",
-    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+    "eyebrow": "Operator console",
+    "description": "Provider-neutral AI inference control plane for route decisions, evidence, and conformance."
+  },
+  "actions": {
+    "refresh": "Refresh"
+  },
+  "states": {
+    "allowed": "Allowed",
+    "blocked": "Blocked",
+    "loading": "Loading",
+    "none": "None",
+    "unknown": "Unknown"
   },
   "layout": {
-    "sidebarLabel": "メインナビゲーション",
-    "sidebarNavLabel": "デスクトップナビゲーション",
-    "bottomNavLabel": "メインナビゲーション",
+    "sidebarLabel": "AI Gateway",
+    "sidebarNavLabel": "Desktop navigation",
+    "bottomNavLabel": "Primary navigation",
+    "mainLabel": "Main content",
     "nav": {
       "dashboard": "ダッシュボード",
-      "settings": "設定"
+      "providers": "Providers",
+      "routePreview": "Route preview",
+      "conformance": "Conformance",
+      "settings": "Policies"
     }
   },
   "theme": {
-    "switcherLabel": "テーマ",
+    "switcherLabel": "Theme",
     "choice": {
-      "light": "ライト",
-      "dark": "ダーク",
-      "system": "システム"
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
     }
   },
   "pages": {
     "dashboard": {
-      "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
+      "eyebrow": "Operational overview",
+      "title": "Gateway dashboard",
+      "description": "Provider readiness, recent route activity, policy gaps, and conformance debt in one operator view.",
+      "summaryLabel": "Dashboard summary metrics",
+      "metrics": {
+        "providers": "Providers",
+        "roles": "{{count}} roles",
+        "routes": "Recent route events",
+        "failures": "{{count}} failures",
+        "findings": "Conformance findings",
+        "evidence": "Evidence policy",
+        "metadataOnly": "Metadata only",
+        "redaction": "Prompts and responses redacted"
+      },
+      "routeActivity": "Recent route activity",
+      "policyGaps": "Policy and conformance gaps",
+      "noEvidence": "No route evidence has been recorded yet.",
+      "noFindings": "No conformance findings returned for AI Gateway.",
+      "columns": {
+        "scenario": "Scenario",
+        "role": "Role",
+        "provider": "Provider",
+        "status": "Status"
+      }
+    },
+    "providers": {
+      "eyebrow": "Resource-owned inventory",
+      "title": "Providers and roles",
+      "description": "Inspect roles exposed by resource command surfaces without turning AI Gateway into the concrete model catalog.",
+      "empty": "No provider roles were returned by the resource policies.",
+      "smoke": "Smoke",
+      "smokeDescription": "Run the provider-owned smoke command and display only normalized status.",
+      "columns": {
+        "provider": "Provider",
+        "role": "Role",
+        "locality": "Locality",
+        "status": "Status",
+        "capabilities": "Capabilities",
+        "policy": "Policy schema"
+      }
+    },
+    "routePreview": {
+      "eyebrow": "Policy-safe routing",
+      "title": "Route preview",
+      "description": "Test role, profile, privacy, and budget constraints before any inference execution.",
+      "formLabel": "Route preview controls",
+      "preview": "Preview route",
+      "execute": "Execute separately",
+      "empty": "Submit a preview to inspect candidates and policy reasons.",
+      "selectedRoute": "Selected route",
+      "selectedRouteDescription": "Preview results are provider-neutral and keep execution separate.",
+      "selectedProvider": "Selected provider",
+      "routePlan": "Route plan",
+      "fallback": "Fallback",
+      "selected": "Selected",
+      "fallbackCandidate": "Fallback",
+      "rejected": "Rejected",
+      "fields": {
+        "scenario": "Scenario",
+        "operation": "Operation",
+        "role": "Role",
+        "profile": "Profile",
+        "privacy": "Privacy",
+        "timeout": "Timeout ms",
+        "maxCost": "Max cost USD",
+        "maxTokens": "Max output tokens"
+      },
+      "columns": {
+        "provider": "Provider",
+        "role": "Role",
+        "locality": "Locality",
+        "status": "Status",
+        "reason": "Reason"
+      }
+    },
+    "conformance": {
+      "eyebrow": "Fleet validation",
+      "title": "AI conformance",
+      "description": "Run deterministic scans for unsafe provider usage, migration gaps, model assumptions, and exception drift.",
+      "formLabel": "Conformance scan controls",
+      "resultLabel": "Conformance scan result",
+      "scenario": "Scenario",
+      "scan": "Scan scenario",
+      "initial": "Run a scan to inspect findings, maturity level, and migration recommendations.",
+      "maturity": "Maturity",
+      "findingCount": "{{count}} findings",
+      "findingCount_one": "1 finding",
+      "empty": "No findings returned for this scan.",
+      "recommendations": "Recommendations",
+      "columns": {
+        "rule": "Rule",
+        "severity": "Severity",
+        "path": "Path",
+        "message": "Message",
+        "remediation": "Remediation"
+      }
     },
     "settings": {
-      "title": "設定",
-      "themeHeading": "外観",
-      "localeHeading": "言語"
+      "eyebrow": "Policy controls",
+      "title": "Policies and settings",
+      "description": "Review operator defaults for privacy, evidence retention, provider smoke behavior, theme, and locale.",
+      "policyHeading": "Gateway policy defaults",
+      "displayHeading": "Display",
+      "themeHeading": "Appearance",
+      "localeHeading": "Language",
+      "privacyDefault": "Default privacy class",
+      "privacyDefaultDetail": "Used when callers omit an explicit privacy class.",
+      "privacyInternal": "Internal",
+      "privacyConfidential": "Confidential",
+      "privacySecret": "Secret",
+      "evidenceRetention": "Route evidence retention",
+      "evidenceRetentionDetail": "Evidence remains metadata-only; prompts and responses are not stored.",
+      "metadataOnly": "Metadata only",
+      "shortRetention": "Short retention",
+      "smokeBeforeExecute": "Smoke before execute",
+      "smokeBeforeExecuteDetail": "Require provider readiness checks before operator-triggered execution."
     }
   },
   "health": {
-    "title": "API ステータス",
-    "loading": "API のステータスを確認中…",
-    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
-    "refresh": "再読み込み",
-    "refreshCount": "{{count}} 回更新しました",
-    "statusLabel": "ステータス:",
-    "serviceLabel": "サービス:",
-    "timestampLabel": "タイムスタンプ:"
+    "title": "API Health",
+    "loading": "Checking API status...",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "statusLabel": "Status:",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:"
   },
   "notifications": {
-    "summary": "{{count}} 件の通知"
+    "summary": "{{count}} notifications",
+    "summary_zero": "No notifications",
+    "summary_one": "1 notification"
   },
   "errors": {
     "canceled": "Operation canceled.",
@@ -66,11 +191,11 @@
     "unauthenticated": "Please sign in to continue."
   },
   "locale": {
-    "switcherLabel": "言語"
+    "switcherLabel": "Language"
   },
   "errorBoundary": {
-    "title": "問題が発生しました",
-    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
-    "retry": "再試行"
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
   }
 }

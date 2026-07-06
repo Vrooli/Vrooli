@@ -109,5 +109,6 @@ unless a later decision splits or merges them.
 - [`FLOWS.md`](FLOWS.md)
 - [`DATA.md`](DATA.md)
 - [`INTEGRATIONS.md`](INTEGRATIONS.md)
+- [`../internal/SEAMS.md`](../internal/SEAMS.md)
 - [`../reference/roles-profiles-policies.md`](../reference/roles-profiles-policies.md)
 - [`../reference/validation-provider.md`](../reference/validation-provider.md)

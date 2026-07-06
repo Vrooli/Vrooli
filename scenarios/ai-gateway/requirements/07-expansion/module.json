@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Post-viability role alignment, migration, policy, SDK, and expansion work.",
-    "last_validated_at": "2026-07-05T22:17:14-04:00",
+    "last_validated_at": "2026-07-06T01:21:32-04:00",
     "module": "expansion",
     "prd_ref": "OT-P1-001",
     "priority": "P1",
@@ -24,9 +24,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/conformance/scanner_test.go::TestScannerFindsMaturityTaxonomyRules",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Validate embedding metadata and vector-store advisory findings."
+          "notes": "Validates vector-store and embedding metadata advisory findings; full retarget workflow remains in progress."
         }
       ]
     },
@@ -56,7 +57,7 @@
     {
       "id": "AIGW-MIGRATION-REPORTS",
       "title": "Migration reports guide scenarios away from direct provider coupling",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-003",
       "category": "migration",
       "criticality": "P1",
@@ -69,9 +70,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/conformance/scanner_test.go::TestScannerRecognizesGatewayAdoptionSignal",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Validate report generation against fixture scenarios."
+          "status": "implemented",
+          "notes": "Validates scanner output can distinguish adopted scenarios from migration candidates; richer adoption report formatting remains planned."
         }
       ]
     },
@@ -92,9 +94,17 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/routing/service_test.go::TestPreviewSelectsLocalFirstAndExplainsFallback",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Validate profile semantics and fallback behavior."
+          "notes": "Validates local-first profile semantics and fallback behavior."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/routing/service_test.go::TestPreviewBlocksRemoteFallbackForSecretPrivacy",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates privacy-sensitive routing blocks remote fallback for secret requests."
         }
       ]
     },
@@ -114,9 +124,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/handlers/gateway/connect_handler_test.go::TestValidateGatewayRequestAcceptsProviderNeutralShape",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Validate helper-generated requests match the public gateway contract."
+          "notes": "Validates generated Connect callers can send provider-neutral gateway requests; dedicated SDK helpers remain future work."
         }
       ]
     },

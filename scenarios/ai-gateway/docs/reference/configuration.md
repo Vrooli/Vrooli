@@ -128,7 +128,7 @@ Set values via the CLI rather than editing the file directly:
 
 ```bash
 ai-gateway configure api_base http://localhost:15001/api/v1
-ai-gateway configure token <token>
+ai-gateway configure token TOKEN_VALUE
 ```
 
 ## API-base resolution precedence

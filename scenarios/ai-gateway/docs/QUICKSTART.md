@@ -60,7 +60,7 @@ automatically):
 
 ```bash
 ai-gateway status
-ai-gateway <domain> <command>   # e.g. list/create commands for your domain
+ai-gateway inventory roles --json
 ```
 
 Or directly via HTTP:

@@ -2,10 +2,9 @@
 
 ## Purpose Of This Document
 
-Describe the canonical layout of the `ui/` source tree for scenarios generated
-from the `react-vite` template, and the **slot taxonomy** that lets external
-tools (notably `react-component-library`'s adoption resolver) place components
-without asking the user for a path.
+Describe the AI Gateway operator console and the canonical layout of the
+`ui/` source tree. The UI is now a product surface for gateway operation, not
+the generated placeholder shell.
 
 ## Source Layout
 
@@ -27,6 +26,28 @@ ui/src/
 ├── test-utils/     # test-util slot — render helpers, factories, a11y
 └── theme/          # theme-token slot — ThemeProvider + tokens.css
 ```
+
+## Product Routes
+
+AI Gateway exposes five operator pages:
+
+| Route | Page | Purpose |
+|---|---|---|
+| `/` | Dashboard | Provider readiness, recent route evidence, metadata-only evidence policy, and conformance debt. |
+| `/providers` | Providers and roles | Resource-owned role inventory plus provider smoke actions. |
+| `/routes/preview` | Route preview | Provider-neutral role/profile/privacy/budget form with selected route and candidate explanation regions. |
+| `/conformance` | AI conformance | Scenario scan controls, maturity level, findings, and migration recommendations. |
+| `/settings` | Policies and settings | Operator policy defaults, evidence retention posture, provider smoke behavior, theme, and locale controls. |
+
+The UI API seam is `ui/src/api/gateway.ts`. It wraps generated Connect-RPC
+clients from `@vrooli/proto-types` and returns generated proto message types to
+the pages. Pages may compose and format responses, but routing, inventory,
+conformance, and validation business rules stay in the API domains.
+
+Selectors live in `ui/src/consts/selectors.ts` and are consumed by unit tests,
+experience bindings, and BAS workflows. The Phase 7 operator selectors include
+`dashboard.summary`, `dashboard.routeEvents`, `providers.table`,
+`routePreview.form`, `routePreview.result`, and `conformance.result`.
 
 ## Slots Are A Contract
 
@@ -66,8 +87,21 @@ table in `ui/src/app/routes.tsx`. Keep those two surfaces aligned:
   `experience/pages/*.json::bindings` once bindings exist.
 
 Run `experience-manager spec validate ai-gateway --json` after route or
-selector changes. The generated notes page spec is example-domain content and
-is removed by `vrooli scenario detemplate ai-gateway`.
+selector changes. The active page specs now bind the operator routes to stable
+selectors and declare loading, empty, request-error, submitting, and success
+states where those states are perceivable.
+
+## BAS Coverage
+
+Functional UI playbooks live in `bas/cases/operator-ui/`:
+
+- `dashboard-readiness.json` navigates to `/` and asserts the dashboard summary
+  and route activity regions.
+- `route-preview-workflow.json` navigates to `/routes/preview` and asserts the
+  preview form, profile selector, and separate result region.
+
+Both cases run in observer mode so they can validate the operator UI without
+requiring provider resources to be online or mutating route evidence.
 
 ## Extending The Manifest
 

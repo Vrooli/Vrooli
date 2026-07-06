@@ -116,8 +116,8 @@ and use matrix/trace helpers from the relevant testutil package.
 |---|---|
 | **Seam** | Generated Connect services mounted on the scenario's existing mux router |
 | **Interface** | `api-core/connectx::RegisterServices(router, mounts...)`, where each mount is `{Path, Handler}` returned by generated `New<Domain>Handler(...)` |
-| **Production wiring** | `handlers/<domain>/module.go` constructs the domain service, passes it to `NewConnectHandler`, then mounts the generated handler with `connectx.RegisterServices`. The server's existing middleware still wraps the handler because Connect is standard `http.Handler`. |
-| **Test fake** | `api-core/connectxtest::StartTestServer` is the canonical in-process server harness for handler tests. `connectxtest.NewLogger` is the canonical logger capture helper. Module tests can still mount the module on a mux router and issue real HTTP requests. No hand-written request JSON ribbon is needed in tests. |
+| **Production wiring** | `handlers/<domain>/module.go` constructs the domain service, passes it to `NewConnectHandler`, then mounts the generated handler with `connectx.RegisterServices`. Phase 2 mounts `gateway`, `inventory`, `routing`, and `conformance` alongside `health`. The server's existing middleware still wraps the handler because Connect is standard `http.Handler`. |
+| **Test fake** | Handler tests call generated Connect handler methods with generated request types for fast contract checks. `api-core/connectxtest::StartTestServer` remains the canonical in-process server harness when full HTTP routing is needed. Module tests can still mount the module on a mux router and issue real HTTP requests. No hand-written request JSON ribbon is needed in tests. |
 | **Why it exists** | The proto service descriptor becomes the single wire contract for UI, CLI, and API. Handler path, method, request type, response type, and Connect error envelope all come from generated code instead of parallel route tables. |
 
 ### cliapp RunContext (CLI handler test context)
@@ -169,6 +169,36 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Production wiring** | Run via `make endpoints`. CI runs `make endpoints && git diff --exit-code .vrooli/endpoints.json` so a stale manifest fails the build with an actionable diff. |
 | **Test fake** | The shared `endpoints/gen` package owns the generator's unit tests (transport contract, API↔CLI mapping cross-check, JSON output stability). `internal/modules/registry_test.go` pins the registry shape (non-empty, stable order). The API↔CLI contract — every Connect endpoint is bound to a command or listed in `cli/manifest.json`'s `omitted[]` with a reason — is enforced at `make endpoints` and by the cli-health validation phase. |
 | **Why it exists** | Hand-edited endpoints manifests drift from real handlers. The shared `modules` registry means runtime (`main.go`) and codegen (`gen-endpoints`) read endpoints + schema from one place — adding a domain is two registry lines, not separate edits in `main.go` and `gen-endpoints/main.go`. The CI drift check makes "I forgot to regenerate" a build failure, not a stale-doc bug. |
+
+### Gateway request validator
+
+| | |
+|---|---|
+| **Seam** | Provider-neutral request validation before routing/provider execution |
+| **Interface** | `internal/gateway.Service.Validate(*gatewayv1.GatewayRequest) []*gatewayv1.ValidationIssue` |
+| **Production wiring** | `handlers/gateway.NewConnectHandler` and `handlers/routing.NewConnectHandler` construct the validator by default and call it before returning validation/preview responses. |
+| **Test fake** | None yet. The validator is pure domain logic with generated proto inputs/outputs, so tests call it directly. If later routing needs alternate policy sources, that policy reader becomes the seam rather than this pure validator. |
+| **Why it exists** | Keeps provider-specific authority out of handler and routing code. The validator rejects concrete provider/model/base-url/credential metadata and invalid privacy/profile combinations before any provider adapter can run. |
+
+### Provider command runner
+
+| | |
+|---|---|
+| **Seam** | Resource CLI command execution for provider inventory and smoke checks |
+| **Interface** | `api/internal/providers/runner.go::CommandRunner` (`Run(ctx, Command) (Result, error)`) |
+| **Production wiring** | `handlers/inventory.Module` and `handlers/routing.Module` default to `providers.NewDefaultAdapters(providers.ExecRunner{})`. Inventory runs `resource-ollama policy roles --json` and `resource-openrouter policy roles --json`; routing executes selected requests through resource-owned gateway/generate commands with stdin for transient prompt input. |
+| **Test fake** | `api/internal/providers/mocks::FakeRunner` records commands and returns canned stdout/stderr/errors for handler tests; `api/internal/providers/adapter_test.go` uses a local fake to avoid an import cycle while testing the providers package itself. |
+| **Why it exists** | Provider inventory and execution must go through resource-owned command surfaces without direct provider HTTP calls, provider env vars, or policy-file reads. The seam lets tests prove parsing, timeout/missing-binary/malformed-JSON mapping, redaction, and no prompt leakage into command strings without requiring live Ollama/OpenRouter. |
+
+### Route evidence repository
+
+| | |
+|---|---|
+| **Seam** | Redacted route evidence persistence |
+| **Interface** | `api/internal/routing/repository.go::Repository` (`Create`, `List`, `Get`) |
+| **Production wiring** | `handlers/routing.Module` constructs `routing.NewSQLRepository(db.Primary())` through `routing.NewSQLService(...)`; `main.go` passes the lifecycle-managed SQLite handle. |
+| **Test fake** | Routing service tests use a real file-backed SQLite handle via `internal/testutil/db.NewSQLite` and `api-core/database.EnsureSchemas` so schema, repository, and service behavior stay aligned. A fake repository should be added only if handler-only tests need injected persistence failures without SQLite. |
+| **Why it exists** | Execution must fail closed if evidence cannot be persisted, and evidence must not store prompts, responses, provider credentials, or provider URLs. Keeping persistence behind a repository seam makes those retention guarantees testable without mixing SQL into routing policy. |
 
 ### database.SystemSchema (cross-cutting infrastructure)
 

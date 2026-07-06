@@ -31,4 +31,20 @@ describe("api/health.fetchHealth", () => {
       cache: "no-store",
     });
   });
+
+  it("throws the decoded API error on unhealthy responses", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ code: "unavailable", message: "starting" }), {
+        status: 503,
+      }),
+    );
+
+    const request = fetchHealth();
+
+    await expect(request).rejects.toMatchObject({
+      code: "unavailable",
+      status: 503,
+    });
+    await expect(request).rejects.toThrow("starting");
+  });
 });

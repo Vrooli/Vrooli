@@ -54,16 +54,164 @@ and mirrors `api-core/health.Response` field-for-field.
 
 ## Product Domain Endpoints
 
-Each product domain exposes its endpoints under
-`POST /vrooli.ai_gateway.v1.<domain>.<Domain>Service/<Method>`
-for proto-typed Connect-RPC calls, with REST exceptions (such as
-multipart uploads) mounted at explicit REST paths. Document your
-domain's endpoints here as you build them — one section per RPC, with
-its auth, request/response proto shapes, error codes, and CLI mirror.
+Each product domain exposes endpoints under
+`POST /vrooli.ai_gateway.v1.<domain>.<Domain>Service/<Method>` for
+proto-typed Connect-RPC calls. REST exceptions are allowed only for the
+template's documented exception classes.
 
-AI Gateway's generated example domain has been removed. Add only
-product-owned gateway, inventory, routing, conformance, and policy
-endpoints here as those proto contracts are implemented.
+The Phase 2 contract foundation mounted the provider-neutral service
+surfaces below. Gateway request validation is implemented. Inventory
+reads provider role policy through resource-owned CLI commands. Routing
+now previews deterministic profile policy, executes through resource
+commands, and persists redacted route evidence. Conformance exposes the
+first deterministic scanner for provider boundary and gateway adoption
+findings and the shared Test Genie `ScenarioValidationService` provider
+contract for the `ai-conformance` phase.
+
+### Gateway
+
+#### `POST /vrooli.ai_gateway.v1.gateway.GatewayService/ValidateGatewayRequest`
+
+Validates the provider-neutral gateway request envelope before any
+provider adapter can run.
+
+| | |
+|---|---|
+| **Auth** | None yet; policy/auth gates land with operator surfaces. |
+| **Request** | `ValidateGatewayRequestRequest { request: GatewayRequest }` |
+| **Response** | `ValidateGatewayRequestResponse { valid: bool, issues: repeated ValidationIssue, accepted_profiles: repeated string }` |
+| **Errors** | Connect `internal` only for unexpected handler failures. Validation failures are returned as `valid=false` with field-level issues. |
+| **CLI** | `ai-gateway gateway validate --role <role> [--kind text|embedding|extract] [--profile local-first]` |
+
+The validator rejects provider-specific caller authority such as
+provider names, provider URLs, concrete model slugs, credentials,
+embedding dimensions, and context-window metadata. It also rejects
+secret requests paired with profiles that may require remote providers.
+
+### Inventory
+
+#### `POST /vrooli.ai_gateway.v1.inventory.InventoryService/ListProviderRoles`
+
+Lists provider role inventory by executing bounded resource-owned
+policy commands through the provider command seam:
+`resource-ollama policy roles --json` and
+`resource-openrouter policy roles --json`. AI Gateway normalizes role
+name, capabilities, locality, status, and policy schema version, but it
+does not expose provider credentials or become the concrete model
+catalog authority.
+
+| | |
+|---|---|
+| **Request** | `ListProviderRolesRequest { provider: string }` |
+| **Response** | `ListProviderRolesResponse { roles: repeated ProviderRole, warnings: repeated string }` |
+| **CLI** | `ai-gateway inventory roles [--provider ollama|openrouter]` |
+
+#### `POST /vrooli.ai_gateway.v1.inventory.InventoryService/SmokeProvider`
+
+Runs the same bounded resource policy command and maps missing binaries,
+timeouts, malformed JSON, non-zero exits, and empty role inventories to
+typed provider status fields.
+
+| | |
+|---|---|
+| **Request** | `SmokeProviderRequest { provider: string }` |
+| **Response** | `SmokeProviderResponse { provider: string, status: string, code: string, message: string, exit_code: int32, warnings: repeated string }` |
+| **CLI** | `ai-gateway inventory smoke --provider <provider>` |
+
+### Routing
+
+#### `POST /vrooli.ai_gateway.v1.routing.RoutingService/PreviewRoute`
+
+Runs the gateway validator and deterministic routing policy without
+running inference. The response includes eligible and rejected
+candidates, the selected provider, fallback eligibility, and policy
+reasons. Profiles enforce local-only, local-first, remote-only,
+quality-first, cheap-first, and privacy-sensitive locality semantics.
+
+| | |
+|---|---|
+| **Request** | `PreviewRouteRequest { request: GatewayRequest }` |
+| **Response** | `PreviewRouteResponse { valid: bool, issues: repeated ValidationIssue, candidates: repeated RouteCandidate, selected_provider: string, policy_reasons: repeated string, fallback_allowed: bool, route_plan_id: string }` |
+| **CLI** | `ai-gateway routing preview --role <role> [--kind text|embedding|extract] [--profile local-first]` |
+
+#### `POST /vrooli.ai_gateway.v1.routing.RoutingService/ExecuteRoute`
+
+Executes a validated provider-neutral request through the selected
+resource command. AI Gateway passes transient input via stdin to the
+resource command and persists only route metadata/evidence before
+returning provider output to the caller.
+
+| | |
+|---|---|
+| **Request** | `ExecuteRouteRequest { request: GatewayRequest, input_text: string }` |
+| **Response** | `ExecuteRouteResponse { valid: bool, issues: repeated ValidationIssue, evidence: RouteEvidence, output_text: string, policy_reasons: repeated string }` |
+| **Persistence** | Fails closed if route evidence cannot be recorded. Evidence stores redaction flags and metadata, not raw prompt/response content. |
+| **CLI** | `ai-gateway routing execute --role <role> --input <text> [--profile local-first]` |
+
+#### `POST /vrooli.ai_gateway.v1.routing.RoutingService/ListRouteEvidence`
+
+Lists recent redacted route evidence events, optionally scoped by
+scenario.
+
+| | |
+|---|---|
+| **Request** | `ListRouteEvidenceRequest { limit: int32, scenario: string }` |
+| **Response** | `ListRouteEvidenceResponse { events: repeated RouteEvidence }` |
+| **CLI** | `ai-gateway routing evidence-list [--scenario <scenario>] [--limit 20]` |
+
+#### `POST /vrooli.ai_gateway.v1.routing.RoutingService/GetRouteEvidence`
+
+Fetches one redacted route evidence event by event ID.
+
+| | |
+|---|---|
+| **Request** | `GetRouteEvidenceRequest { event_id: string }` |
+| **Response** | `GetRouteEvidenceResponse { event: RouteEvidence }` |
+| **CLI** | `ai-gateway routing evidence-show <event-id>` |
+
+### Conformance
+
+#### `POST /vrooli.ai_gateway.v1.conformance.ConformanceService/ScanScenario`
+
+Scans a scenario tree for unsafe AI/provider coupling and gateway
+adoption signals. Findings report rule ID, severity, path with line
+number when available, message, and remediation. The scanner is
+conservative and does not store source contents in findings.
+
+| | |
+|---|---|
+| **Request** | `ScanScenarioRequest { scenario: string, path: string }` |
+| **Response** | `ScanScenarioResponse { scenario: string, maturity_level: string, findings: repeated ConformanceFinding, recommendations: repeated string }` |
+| **CLI** | `ai-gateway conformance scan --scenario <scenario>` or `--path <path>` |
+
+Initial rule coverage includes direct Ollama/OpenRouter HTTP usage,
+provider secret/url env vars, concrete model slugs, hard-coded context
+windows, hard-coded embedding dimensions near vector code, missing
+embedding metadata, direct resource command usage without visible role
+policy, unreviewed exception markers, and missing gateway adoption
+signals.
+
+#### `POST /vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario`
+
+Runs the same scanner through the shared Test Genie validation-provider
+contract. The response maps native findings into the maturity ladder
+embedded in `scenarios/ai-gateway/.vrooli/test-genie.json` and packs the
+native scan summary in `native_detail`.
+
+| | |
+|---|---|
+| **Request** | `ValidateScenarioRequest { scenario: string, path: string, include_execution: bool }` |
+| **Response** | `ValidateScenarioResponse { scenario: string, status: ValidationStatus, assessment: common.v1.MaturityAssessment, native_detail: google.protobuf.Any, metrics: common.v1.ExecutionMetrics }` |
+| **CLI** | `ai-gateway validation validate --scenario <scenario> [--include-execution]` |
+
+`PreviewFix` and `ApplyFix` are mounted for the shared contract. They
+return guidance/no-op responses until deterministic safe migrations are
+implemented.
+
+CLI mirrors: `ai-gateway validation preview-fix --scenario <scenario>`
+and `ai-gateway validation apply-fix --scenario <scenario>` call the
+shared RPCs directly. Apply is currently a documented no-op response
+from the API.
 
 ---
 

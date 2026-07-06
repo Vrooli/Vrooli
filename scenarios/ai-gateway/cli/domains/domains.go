@@ -1,6 +1,12 @@
 package domains
 
 import (
+	"ai-gateway/cli/domains/conformance"
+	"ai-gateway/cli/domains/gateway"
+	"ai-gateway/cli/domains/inventory"
+	"ai-gateway/cli/domains/routing"
+	"ai-gateway/cli/domains/validation"
+
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -35,5 +41,18 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
+	for _, register := range []func(*cliapp.ScenarioApp, []byte) (cliapp.SubcommandGroup, error){
+		gateway.Register,
+		inventory.Register,
+		routing.Register,
+		conformance.Register,
+		validation.Register,
+	} {
+		group, err := register(core, manifest)
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, group)
+	}
 	return groups, nil
 }

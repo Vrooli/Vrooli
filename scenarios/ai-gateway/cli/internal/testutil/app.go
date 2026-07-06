@@ -2,6 +2,8 @@ package testutil
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -78,4 +80,12 @@ func WithAppVersion(version string) TestAppOption {
 // WithAppDescription overrides the default test app description.
 func WithAppDescription(description string) TestAppOption {
 	return func(c *testAppConfig) { c.description = description }
+}
+
+// ManifestBytes reads the CLI manifest from a domain test package.
+func ManifestBytes(tb testing.TB) []byte {
+	tb.Helper()
+	raw, err := os.ReadFile(filepath.Join("..", "..", "manifest.json"))
+	require.NoError(tb, err, "read manifest")
+	return raw
 }

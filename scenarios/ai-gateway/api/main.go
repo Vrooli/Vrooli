@@ -21,7 +21,11 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	conformanceH "ai-gateway/handlers/conformance"
+	gatewayH "ai-gateway/handlers/gateway"
 	healthH "ai-gateway/handlers/health"
+	inventoryH "ai-gateway/handlers/inventory"
+	routingH "ai-gateway/handlers/routing"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -77,13 +81,32 @@ func sqliteFileDSN(path string) (string, error) {
 	if strings.HasPrefix(path, "file:") {
 		return path, nil
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil { // #nosec G703 -- path is the operator/lifecycle-selected SQLite location; only the parent directory is created.
 		return "", fmt.Errorf("prepare sqlite directory: %w", err)
 	}
 	return fmt.Sprintf(
 		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
 		path,
 	), nil
+}
+
+func repoRoot() string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	for dir := cwd; ; dir = filepath.Dir(dir) {
+		if st, err := os.Stat(filepath.Join(dir, "VISION.md")); err == nil && !st.IsDir() {
+			return dir
+		}
+		if st, err := os.Stat(filepath.Join(dir, ".git")); err == nil && st.IsDir() {
+			return dir
+		}
+		next := filepath.Dir(dir)
+		if next == dir {
+			return ""
+		}
+	}
 }
 
 func main() {
@@ -115,6 +138,10 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "ai-gateway-api", "1.0.0"),
+		conformanceH.Module(log.Default(), repoRoot()),
+		gatewayH.Module(),
+		inventoryH.Module(inventoryH.Deps{}),
+		routingH.Module(routingH.Deps{DB: db.Primary()}),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

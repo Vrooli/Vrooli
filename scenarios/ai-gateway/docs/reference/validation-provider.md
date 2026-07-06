@@ -101,6 +101,26 @@ The phase should output a migration recommendation for each scenario:
 This lets lower-maturity suites gather evidence without forcing every
 scenario to adopt AI Gateway immediately.
 
+## Implementation Status
+
+Phase 5 now exposes AI Gateway as the Test Genie `ai-conformance`
+validation provider. The native `ConformanceService.ScanScenario` RPC
+and the shared
+`scenario-validation/v1.ScenarioValidationService.ValidateScenario`
+contract run the same deterministic scanner, with shared maturity
+mapping loaded from `scenarios/ai-gateway/.vrooli/test-genie.json`.
+
+The scanner currently detects direct Ollama/OpenRouter HTTP coupling,
+provider secret/url env vars, concrete model slugs, hard-coded context
+windows, hard-coded embedding dimensions near vector code, missing
+embedding metadata, direct resource command usage without visible role
+policy, unreviewed exception markers, and missing AI Gateway adoption
+signals. Findings include rule ID, severity, path/line, message, and
+remediation, but not matched source content.
+
+`PreviewFix` and `ApplyFix` are intentionally guidance/no-op surfaces
+until safe deterministic source migrations exist.
+
 ## Implementation Notes
 
 Start with fixture-based scanner tests before wiring test-genie. The

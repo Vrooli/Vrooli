@@ -54,15 +54,19 @@ role/model metadata and validated by a retarget plan.
 
 | Table/Object | Owner | Planned Source | Used By |
 |---|---|---|---|
-| `route_events` | routing | `api/internal/routing/schema.sql` | route history, UI traces, conformance evidence |
+| `route_events` | routing | `api/internal/routing/schema.sql` | route history, UI traces, conformance evidence; implemented in Phase 4 with metadata-only retention and prompt/response redaction flags. |
 | `provider_snapshots` | inventory | `api/internal/inventory/schema.sql` | role inventory, drift checks |
 | `smoke_results` | inventory | `api/internal/inventory/schema.sql` | provider health UI and CLI |
 | `profiles` | routing | `api/internal/routing/schema.sql` or policy artifact | route preview/execution |
 | `conformance_runs` | conformance | `api/internal/conformance/schema.sql` | test-genie reports |
 | `conformance_findings` | conformance | `api/internal/conformance/schema.sql` | operator UI, exports, migration reports |
 
-These are planned data shapes. They should be implemented only when the
-owning domain is built and tested.
+Inventory, smoke, profile, and conformance tables are planned data
+shapes and should be implemented only when the owning domain is built
+and tested. `route_events` is implemented and intentionally stores
+metadata only: request/operation identifiers, role/profile/privacy,
+selected resource path, policy/failure reasons, fallback state,
+redaction flags, latency, and timestamp.
 
 ## Retention And Privacy
 

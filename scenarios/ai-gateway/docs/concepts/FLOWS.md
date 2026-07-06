@@ -9,8 +9,8 @@ states.
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
-| Route preview | routing | Caller submits operation, role, profile, and constraints with `preview=true`. | Candidate providers and selected route reasons are returned without execution. | Stateless computation over live/cached policy, but must preserve rejection reasoning. | Unit matrix tests. |
-| Inference execution | routing/providers | Caller submits an executable request. | Provider resource command runs, result and route evidence are returned. | Stateful request with timeout, fallback, cancellation, and evidence persistence. | Workflow model before implementation. |
+| Route preview | routing | Caller submits operation, role, profile, and constraints with `preview=true`. | Candidate providers and selected route reasons are returned without execution. | Stateless computation over live/cached policy, but must preserve rejection reasoning. | Unit matrix tests in `api/internal/routing/service_test.go`. |
+| Inference execution | routing/providers | Caller submits an executable request. | Provider resource command runs, result and route evidence are returned. | Stateful request with timeout, fallback, cancellation, and evidence persistence. | Phase 4 service tests cover fallback policy, redacted evidence, fail-closed persistence, and stdin command execution. A formal flow artifact remains a future hardening step if cancellation/fallback states grow. |
 | Provider inventory refresh | inventory | Operator/API/CLI requests inventory or scheduled refresh runs. | Resource roles, models, constraints, and smoke status are normalized. | Stateful refresh with partial provider failure and stale cache handling. | Integration tests with fake resource runners. |
 | Role smoke test | inventory/providers | Operator runs smoke test for one role/provider/profile. | Health status and evidence are recorded. | Stateful execution with provider failures and redaction. | Unit and integration tests. |
 | Conformance scan | conformance | test-genie or operator scans a scenario. | Findings, maturity score, exceptions, and fix guidance are reported. | Stateful scan over files/config/docs with severity and maturity thresholds. | Fixture-based scanner tests and provider phase tests. |
@@ -18,7 +18,7 @@ states.
 
 ## Inference Execution State Model
 
-Planned states:
+Implemented Phase 4 states:
 
 | State | Meaning |
 |---|---|
@@ -34,6 +34,9 @@ Planned states:
 Illegal transitions include executing before planning, succeeding before
 evidence persistence, falling back when profile policy forbids it, and
 returning a provider result after cancellation without marking it stale.
+The current implementation uses context timeouts, resource command
+timeouts, and metadata-only route evidence. It does not persist raw
+prompts or responses.
 
 ## Conformance Scan State Model
 

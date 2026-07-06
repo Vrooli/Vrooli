@@ -1,54 +1,176 @@
 {
-  "_comment": "محرران للاستيفاء في هذا الملف. (1) وقت التوليد: العلامات مثل AI Gateway هي عناصر نائبة بأحرف كبيرة وفواصل تحت السطر يستبدلها `vrooli scenario generate` قبل بناء السيناريو، فتظهر في وقت التشغيل كقيم عرض حرفية. (2) وقت التشغيل: العلامات مثل {{count}} هي استيفاء i18next يُستبدل عند التصيير عبر `t(key, { count })`. المفاتيح التي تبدأ بشرطة سفلية (مثل هذا المفتاح) عناصر حارسة — يتجاهلها مولّد الكود واختبار التطابق وتدقيق المفاتيح غير المستخدمة.",
+  "_comment": "Keys that start with an underscore are sentinels skipped by codegen, parity tests, and unused-key audit.",
   "app": {
     "title": "AI Gateway",
-    "eyebrow": "قالب السيناريو",
-    "description": "واجهة المستخدم البدائية هذه بسيطة عن قصد. استبدلها بتجربة خاصة بالسيناريو مع الحفاظ على اتفاقيات التصميم (Tailwind + shadcn) وتوصيل API كما هو."
+    "eyebrow": "Operator console",
+    "description": "Provider-neutral AI inference control plane for route decisions, evidence, and conformance."
+  },
+  "actions": {
+    "refresh": "Refresh"
+  },
+  "states": {
+    "allowed": "Allowed",
+    "blocked": "Blocked",
+    "loading": "Loading",
+    "none": "None",
+    "unknown": "Unknown"
   },
   "layout": {
-    "sidebarLabel": "التنقل الرئيسي",
-    "sidebarNavLabel": "تنقل سطح المكتب",
-    "bottomNavLabel": "التنقل الرئيسي",
+    "sidebarLabel": "AI Gateway",
+    "sidebarNavLabel": "Desktop navigation",
+    "bottomNavLabel": "Primary navigation",
+    "mainLabel": "Main content",
     "nav": {
       "dashboard": "لوحة التحكم",
-      "settings": "الإعدادات"
+      "providers": "Providers",
+      "routePreview": "Route preview",
+      "conformance": "Conformance",
+      "settings": "Policies"
     }
   },
   "theme": {
-    "switcherLabel": "المظهر",
+    "switcherLabel": "Theme",
     "choice": {
-      "light": "فاتح",
-      "dark": "داكن",
-      "system": "النظام"
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
     }
   },
   "pages": {
     "dashboard": {
-      "title": "لوحة التحكم",
-      "description": "نظرة عامة على حالة السيناريو والمقاييس الرئيسية. استبدل هذه البطاقات بأسطح حقيقية مع نمو منتجك.",
-      "statPlaceholderLabel": "إحصائية"
+      "eyebrow": "Operational overview",
+      "title": "Gateway dashboard",
+      "description": "Provider readiness, recent route activity, policy gaps, and conformance debt in one operator view.",
+      "summaryLabel": "Dashboard summary metrics",
+      "metrics": {
+        "providers": "Providers",
+        "roles": "{{count}} roles",
+        "routes": "Recent route events",
+        "failures": "{{count}} failures",
+        "findings": "Conformance findings",
+        "evidence": "Evidence policy",
+        "metadataOnly": "Metadata only",
+        "redaction": "Prompts and responses redacted"
+      },
+      "routeActivity": "Recent route activity",
+      "policyGaps": "Policy and conformance gaps",
+      "noEvidence": "No route evidence has been recorded yet.",
+      "noFindings": "No conformance findings returned for AI Gateway.",
+      "columns": {
+        "scenario": "Scenario",
+        "role": "Role",
+        "provider": "Provider",
+        "status": "Status"
+      }
+    },
+    "providers": {
+      "eyebrow": "Resource-owned inventory",
+      "title": "Providers and roles",
+      "description": "Inspect roles exposed by resource command surfaces without turning AI Gateway into the concrete model catalog.",
+      "empty": "No provider roles were returned by the resource policies.",
+      "smoke": "Smoke",
+      "smokeDescription": "Run the provider-owned smoke command and display only normalized status.",
+      "columns": {
+        "provider": "Provider",
+        "role": "Role",
+        "locality": "Locality",
+        "status": "Status",
+        "capabilities": "Capabilities",
+        "policy": "Policy schema"
+      }
+    },
+    "routePreview": {
+      "eyebrow": "Policy-safe routing",
+      "title": "Route preview",
+      "description": "Test role, profile, privacy, and budget constraints before any inference execution.",
+      "formLabel": "Route preview controls",
+      "preview": "Preview route",
+      "execute": "Execute separately",
+      "empty": "Submit a preview to inspect candidates and policy reasons.",
+      "selectedRoute": "Selected route",
+      "selectedRouteDescription": "Preview results are provider-neutral and keep execution separate.",
+      "selectedProvider": "Selected provider",
+      "routePlan": "Route plan",
+      "fallback": "Fallback",
+      "selected": "Selected",
+      "fallbackCandidate": "Fallback",
+      "rejected": "Rejected",
+      "fields": {
+        "scenario": "Scenario",
+        "operation": "Operation",
+        "role": "Role",
+        "profile": "Profile",
+        "privacy": "Privacy",
+        "timeout": "Timeout ms",
+        "maxCost": "Max cost USD",
+        "maxTokens": "Max output tokens"
+      },
+      "columns": {
+        "provider": "Provider",
+        "role": "Role",
+        "locality": "Locality",
+        "status": "Status",
+        "reason": "Reason"
+      }
+    },
+    "conformance": {
+      "eyebrow": "Fleet validation",
+      "title": "AI conformance",
+      "description": "Run deterministic scans for unsafe provider usage, migration gaps, model assumptions, and exception drift.",
+      "formLabel": "Conformance scan controls",
+      "resultLabel": "Conformance scan result",
+      "scenario": "Scenario",
+      "scan": "Scan scenario",
+      "initial": "Run a scan to inspect findings, maturity level, and migration recommendations.",
+      "maturity": "Maturity",
+      "findingCount": "{{count}} findings",
+      "findingCount_one": "1 finding",
+      "empty": "No findings returned for this scan.",
+      "recommendations": "Recommendations",
+      "columns": {
+        "rule": "Rule",
+        "severity": "Severity",
+        "path": "Path",
+        "message": "Message",
+        "remediation": "Remediation"
+      }
     },
     "settings": {
-      "title": "الإعدادات",
-      "themeHeading": "المظهر",
-      "localeHeading": "اللغة"
+      "eyebrow": "Policy controls",
+      "title": "Policies and settings",
+      "description": "Review operator defaults for privacy, evidence retention, provider smoke behavior, theme, and locale.",
+      "policyHeading": "Gateway policy defaults",
+      "displayHeading": "Display",
+      "themeHeading": "Appearance",
+      "localeHeading": "Language",
+      "privacyDefault": "Default privacy class",
+      "privacyDefaultDetail": "Used when callers omit an explicit privacy class.",
+      "privacyInternal": "Internal",
+      "privacyConfidential": "Confidential",
+      "privacySecret": "Secret",
+      "evidenceRetention": "Route evidence retention",
+      "evidenceRetentionDetail": "Evidence remains metadata-only; prompts and responses are not stored.",
+      "metadataOnly": "Metadata only",
+      "shortRetention": "Short retention",
+      "smokeBeforeExecute": "Smoke before execute",
+      "smokeBeforeExecuteDetail": "Require provider readiness checks before operator-triggered execution."
     }
   },
   "health": {
-    "title": "حالة API",
-    "loading": "جارٍ التحقق من حالة API…",
-    "error": "تعذر الوصول إلى API. تأكد من تشغيل السيناريو عبر `vrooli scenario start`.",
-    "refresh": "تحديث",
-    "refreshCount": "تم التحديث {{count}} مرات",
-    "refreshCount_one": "تم التحديث مرة واحدة",
-    "statusLabel": "الحالة:",
-    "serviceLabel": "الخدمة:",
-    "timestampLabel": "الطابع الزمني:"
+    "title": "API Health",
+    "loading": "Checking API status...",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "statusLabel": "Status:",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:"
   },
   "notifications": {
-    "summary": "{{count}} إشعارات",
-    "summary_zero": "لا توجد إشعارات",
-    "summary_one": "إشعار واحد"
+    "summary": "{{count}} notifications",
+    "summary_zero": "No notifications",
+    "summary_one": "1 notification"
   },
   "errors": {
     "canceled": "Operation canceled.",
@@ -69,11 +191,11 @@
     "unauthenticated": "Please sign in to continue."
   },
   "locale": {
-    "switcherLabel": "اللغة"
+    "switcherLabel": "Language"
   },
   "errorBoundary": {
-    "title": "حدث خطأ ما",
-    "message": "حدث خطأ غير متوقع أثناء عرض الصفحة. حاول مرة أخرى، أو أعد تحميل الصفحة إذا استمرت المشكلة.",
-    "retry": "إعادة المحاولة"
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
   }
 }

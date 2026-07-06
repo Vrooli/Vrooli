@@ -1,9 +1,9 @@
 package testutil_test
 
 import (
-	"bufio"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,16 +33,16 @@ func TestNoProductionImports(t *testing.T) {
 	fset := token.NewFileSet()
 	violations := []string{}
 
-	walk(t, root, func(path string) {
-		if !strings.HasSuffix(path, ".go") {
-			return
-		}
-		if strings.HasSuffix(path, "_test.go") {
-			return
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
 		}
 		rel := strings.TrimPrefix(path, root)
-		if strings.Contains(rel, "/vendor/") {
-			return
+		if skipTreeEntry(rel, entry) {
+			return filepath.SkipDir
+		}
+		if entry.IsDir() || !isProductionGoFile(path) {
+			return nil
 		}
 		// mocks/ holds test-only fakes that lack the _test.go suffix (so sibling
 		// _test.go files in other packages can import them); generated/ holds
@@ -50,13 +50,13 @@ func TestNoProductionImports(t *testing.T) {
 		// production transition functions into the modeltest harness. Both are test
 		// scaffolding by directory-shape, exempt from the testutil-import rule.
 		if pathHasDir(rel, "mocks") || pathHasDir(rel, "generated") {
-			return
+			return nil
 		}
 
 		file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
 		if err != nil {
 			t.Errorf("parse %s: %v", path, err)
-			return
+			return nil
 		}
 		for _, imp := range file.Imports {
 			ip := strings.Trim(imp.Path.Value, `"`)
@@ -64,14 +64,12 @@ func TestNoProductionImports(t *testing.T) {
 				violations = append(violations, rel+" imports "+ip)
 			}
 		}
+		return nil
 	})
-
-	if len(violations) > 0 {
-		t.Errorf("production code must not import %s/...", prefix)
-		for _, v := range violations {
-			t.Errorf("  %s", v)
-		}
+	if err != nil {
+		t.Fatalf("walk %s: %v", root, err)
 	}
+	requireNoViolations(t, prefix, violations)
 }
 
 // readModuleName returns the module path declared in the api root's
@@ -79,45 +77,36 @@ func TestNoProductionImports(t *testing.T) {
 // (api/internal/testutil/ is two levels deep).
 func readModuleName(t *testing.T) string {
 	t.Helper()
-	f, err := os.Open(filepath.Join("..", "..", "go.mod"))
+	raw, err := os.ReadFile(filepath.Join("..", "..", "go.mod"))
 	if err != nil {
-		t.Fatalf("open go.mod: %v", err)
+		t.Fatalf("read go.mod: %v", err)
 	}
-	defer f.Close()
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		line := strings.TrimSpace(sc.Text())
+	for _, line := range strings.Split(string(raw), "\n") {
 		if rest, ok := strings.CutPrefix(line, "module "); ok {
 			return strings.TrimSpace(rest)
 		}
-	}
-	if err := sc.Err(); err != nil {
-		t.Fatalf("scan go.mod: %v", err)
 	}
 	t.Fatal("module directive not found in go.mod")
 	return ""
 }
 
-// walk iterates every .go file under root, calling fn for each. The
-// testutil subtree itself is skipped because it legitimately holds
-// internal references that would otherwise self-flag.
-func walk(t *testing.T, root string, fn func(path string)) {
+func requireNoViolations(t *testing.T, prefix string, violations []string) {
 	t.Helper()
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		t.Fatalf("readdir %s: %v", root, err)
+	if len(violations) == 0 {
+		return
 	}
-	for _, e := range entries {
-		full := filepath.Join(root, e.Name())
-		if e.IsDir() {
-			if filepath.Base(full) == "testutil" {
-				continue
-			}
-			walk(t, full, fn)
-			continue
-		}
-		fn(full)
+	t.Errorf("production code must not import %s/...", prefix)
+	for _, v := range violations {
+		t.Errorf("  %s", v)
 	}
+}
+
+func isProductionGoFile(path string) bool {
+	return strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go")
+}
+
+func skipTreeEntry(rel string, entry fs.DirEntry) bool {
+	return entry.IsDir() && (entry.Name() == "testutil" || entry.Name() == "vendor" || rel == ".git")
 }
 
 // pathHasDir reports whether any directory segment of rel (excluding the file
