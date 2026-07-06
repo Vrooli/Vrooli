@@ -285,8 +285,8 @@ func TestPlanDetemplateFinalizersConditional(t *testing.T) {
 	want := []string{
 		"make generate",
 		"corepack pnpm run strings:gen",
-		"go mod tidy",        // api
-		"gofumpt -w .",       // api
+		"go mod tidy",  // api
+		"gofumpt -w .", // api
 		"go mod tidy",  // cli
 		"gofumpt -w .", // cli
 	}

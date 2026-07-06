@@ -1172,6 +1172,13 @@ func (app *App) buildScenarioHandlerMap() map[scenariocli.CommandID]rootcli.Hand
 			}
 			return ctx.app.locateTestGenieCLI(ctx.Root, home)
 		},
+		LocateBusinessHealthCLI: func(ctx *CommandContext) (string, error) {
+			home, err := ctx.HomeDir()
+			if err != nil {
+				return "", err
+			}
+			return ctx.app.resolveScenarioCLIExecutable(ctx.Root, home, "business-health")
+		},
 		LocateCompleteCLI: func(ctx *CommandContext) (string, error) {
 			home, err := ctx.HomeDir()
 			if err != nil {

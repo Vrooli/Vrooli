@@ -1,7 +1,6 @@
 package scenariohandlers
 
 import (
-	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	. "github.com/vrooli/vrooli/internal/cli/scenariocli" //nolint:revive // thin glue layer; dot-import keeps wiring readable.
 	"github.com/vrooli/vrooli/internal/scenarioexec"
@@ -9,12 +8,10 @@ import (
 
 // TestHandler routes `vrooli scenario test …`.
 //
-// The bare form runs the scenario's lifecycle `test` phase to completion. That
-// phase shells `test-genie execute <scenario> --auto-start --wait`, and the run
-// itself is owned by the test-genie SERVER — so an interrupted command leaves
-// the run alive and re-attachable (the run id + re-attach command are printed
-// up front by `execute`). There is no root-side run store, run-id scheme, or
-// detach dance.
+// The bare form is a thin alias for `test-genie --auto-start execute <scenario>
+// …`. Test Genie owns foreground/background policy, stdout/stderr, JSON/JSONL,
+// exit status, and the durable run id. There is no lifecycle test phase,
+// root-side run store, wrapper JSON shape, or fallback command contract here.
 //
 // The wait/status/follow/abort subcommands proxy to `test-genie runs …`, which
 // owns the durable per-scenario run history. `logs` is a friendly alias for the
@@ -31,36 +28,36 @@ func TestHandler[C any](deps HandlerDeps[C]) func(C, []string) error {
 	}
 }
 
-// testRunHandler runs the lifecycle test phase to completion and returns the
-// phase's exit status. Under --json it emits the typed TestPhaseResult summary.
+// testRunHandler directly delegates to Test Genie so its run banner, JSON modes,
+// and exit code are preserved exactly.
 func testRunHandler[C any](deps HandlerDeps[C], ctx C, args []string) error {
 	req, err := ParseTestRequest(deps.Globals(ctx).JSON, deps.Globals(ctx).Verbose, args)
 	if err != nil {
 		return err
 	}
-	if req.Opts.CustomPath == "" {
-		if err := ensureScenarioCLIs(deps, ctx, req.Name); err != nil {
-			return err
-		}
+	if deps.LocateTestGenieCLI == nil || deps.RunSubprocess == nil {
+		return rootcli.RuntimeErrorf("Run `test-genie execute …` directly", "the test-genie CLI alias is not available in this context")
 	}
-	emitScenarioStaleWarning(deps.Stderr(ctx), deps.Root(ctx), req.Name, deps.Globals(ctx))
-
-	runner, err := deps.LifecycleRunner(ctx)
+	cliPath, err := deps.LocateTestGenieCLI(ctx)
 	if err != nil {
 		return err
 	}
-	service := NewRunnerService(runner)
-	result, runErr := service.TestDetailed(scenarioapp.TestRequest{Name: req.Name, Opts: req.Opts})
-	if result.Scenario == "" {
-		result.Scenario = req.Name
+
+	commandArgs := []string{"--auto-start", "execute", req.Name}
+	commandArgs = append(commandArgs, req.Args...)
+	if deps.Globals(ctx).JSON && !rootcli.ContainsFlag(commandArgs, "--json") && !rootcli.ContainsFlag(commandArgs, "--jsonl") {
+		commandArgs = append(commandArgs, "--json")
 	}
 
-	if req.JSON {
-		if writeErr := WriteTestPhaseResultJSON(deps.Stdout(ctx), result, runErr); writeErr != nil && runErr == nil {
-			return writeErr
-		}
-	}
-	return runErr
+	return deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
+		Name:   cliPath,
+		Args:   commandArgs,
+		Dir:    deps.Root(ctx),
+		Env:    deps.CommandEnv(ctx),
+		Stdin:  nil,
+		Stdout: deps.Stdout(ctx),
+		Stderr: deps.Stderr(ctx),
+	})
 }
 
 // proxyToTestGenieRuns forwards a run-handle subcommand to `test-genie runs

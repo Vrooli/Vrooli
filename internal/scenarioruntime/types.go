@@ -8,12 +8,14 @@ import (
 )
 
 const (
-	// SchemaVersion 5 adds the `variant` dimension: runtime_instances and
-	// runtime_port_claims gain a `variant` column ('live' by default) and the
-	// instance uniqueness constraint becomes (scenario, variant, generation), so
-	// two named instances of one scenario (e.g. live + shadow) coexist with
-	// independent generation counters. See the Baseline Modes plan, P1.
-	SchemaVersion = 5
+	// SchemaVersion stamps PRAGMA user_version so an older or unknown database
+	// fails loudly instead of being misread. schemaSQL is declarative — it
+	// always describes the full current shape; there is no in-code migration
+	// ladder (greenfield posture). A version bump means: edit schemaSQL, bump
+	// this constant, and convert any existing local DB with a one-shot
+	// operator-run script (see docs/plans/
+	// project-internal-greenfield-migration-purge-plan.md).
+	SchemaVersion = 6
 
 	StatusStarting = "starting"
 	StatusRunning  = "running"

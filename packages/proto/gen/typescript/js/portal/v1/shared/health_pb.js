@@ -2,13 +2,13 @@
 // @generated from file portal/v1/shared/health.proto (package vrooli.portal.v1.shared, syntax proto3)
 /* eslint-disable */
 
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 
 /**
  * Describes the file portal/v1/shared/health.proto.
  */
 export const file_portal_v1_shared_health = /*@__PURE__*/
-  fileDesc("Ch1wb3J0YWwvdjEvc2hhcmVkL2hlYWx0aC5wcm90bxIXdnJvb2xpLnBvcnRhbC52MS5zaGFyZWQiWgoQRGVwZW5kZW5jeVN0YXR1cxIRCgljb25uZWN0ZWQYASABKAgSEgoKbGF0ZW5jeV9tcxgCIAEoARINCgVlcnJvchgDIAEoCRIQCghkYXRhYmFzZRgEIAEoCSKlAgoIUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEg8KB3NlcnZpY2UYAiABKAkSEQoJdGltZXN0YW1wGAMgASgJEhEKCXJlYWRpbmVzcxgEIAEoCBIPCgd2ZXJzaW9uGAUgASgJEhYKDnVwdGltZV9zZWNvbmRzGAYgASgBEkkKDGRlcGVuZGVuY2llcxgHIAMoCzIzLnZyb29saS5wb3J0YWwudjEuc2hhcmVkLlJlc3BvbnNlLkRlcGVuZGVuY2llc0VudHJ5Gl4KEURlcGVuZGVuY2llc0VudHJ5EgsKA2tleRgBIAEoCRI4CgV2YWx1ZRgCIAEoCzIpLnZyb29saS5wb3J0YWwudjEuc2hhcmVkLkRlcGVuZGVuY3lTdGF0dXM6AjgBIg8KDVN0YXR1c1JlcXVlc3QyZAoNSGVhbHRoU2VydmljZRJTCgZTdGF0dXMSJi52cm9vbGkucG9ydGFsLnYxLnNoYXJlZC5TdGF0dXNSZXF1ZXN0GiEudnJvb2xpLnBvcnRhbC52MS5zaGFyZWQuUmVzcG9uc2VCS1pJZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9wb3J0YWwvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
+  fileDesc("Ch1wb3J0YWwvdjEvc2hhcmVkL2hlYWx0aC5wcm90bxIXdnJvb2xpLnBvcnRhbC52MS5zaGFyZWQiWgoQRGVwZW5kZW5jeVN0YXR1cxIRCgljb25uZWN0ZWQYASABKAgSEgoKbGF0ZW5jeV9tcxgCIAEoARINCgVlcnJvchgDIAEoCRIQCghkYXRhYmFzZRgEIAEoCSKlAgoIUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEg8KB3NlcnZpY2UYAiABKAkSEQoJdGltZXN0YW1wGAMgASgJEhEKCXJlYWRpbmVzcxgEIAEoCBIPCgd2ZXJzaW9uGAUgASgJEhYKDnVwdGltZV9zZWNvbmRzGAYgASgBEkkKDGRlcGVuZGVuY2llcxgHIAMoCzIzLnZyb29saS5wb3J0YWwudjEuc2hhcmVkLlJlc3BvbnNlLkRlcGVuZGVuY2llc0VudHJ5Gl4KEURlcGVuZGVuY2llc0VudHJ5EgsKA2tleRgBIAEoCRI4CgV2YWx1ZRgCIAEoCzIpLnZyb29saS5wb3J0YWwudjEuc2hhcmVkLkRlcGVuZGVuY3lTdGF0dXM6AjgBQktaSWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcG9ydGFsL3YxL3NoYXJlZDtzaGFyZWRfdjFiBnByb3RvMw");
 
 /**
  * Describes the message vrooli.portal.v1.shared.DependencyStatus.
@@ -23,21 +23,4 @@ export const DependencyStatusSchema = /*@__PURE__*/
  */
 export const ResponseSchema = /*@__PURE__*/
   messageDesc(file_portal_v1_shared_health, 1);
-
-/**
- * Describes the message vrooli.portal.v1.shared.StatusRequest.
- * Use `create(StatusRequestSchema)` to create a new message.
- */
-export const StatusRequestSchema = /*@__PURE__*/
-  messageDesc(file_portal_v1_shared_health, 2);
-
-/**
- * HealthService gives manifest-driven CLI tools a typed binding for the
- * operational health surface. The API still exposes /health as a deliberate
- * REST exception for lifecycle probes.
- *
- * @generated from service vrooli.portal.v1.shared.HealthService
- */
-export const HealthService = /*@__PURE__*/
-  serviceDesc(file_portal_v1_shared_health, 0);
 

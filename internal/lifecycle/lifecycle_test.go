@@ -559,7 +559,7 @@ func TestEnsureResourceDependenciesBlocksRequiredUnavailableResource(t *testing.
 			return nil
 		}
 		deps.now = func() time.Time { return now }
-		deps.sleep = func(d time.Duration) { now = now.Add(resourceDependencyReadyTimeout) }
+		deps.sleep = func(d time.Duration) { now = now.Add(resourceReadyPolicy.Timeout) }
 	})
 	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
 	if err != nil {
@@ -595,7 +595,7 @@ func TestEnsureResourceDependenciesTryStartMarksUnavailableResourceAsFailed(t *t
 			return nil
 		}
 		deps.now = func() time.Time { return now }
-		deps.sleep = func(d time.Duration) { now = now.Add(resourceDependencyReadyTimeout) }
+		deps.sleep = func(d time.Duration) { now = now.Add(resourceReadyPolicy.Timeout) }
 	})
 	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
 	if err != nil {
@@ -907,7 +907,7 @@ func TestRunnerStartContinuesWithTryStartResourceDependency(t *testing.T) {
 			return nil
 		}
 		deps.now = func() time.Time { return now }
-		deps.sleep = func(d time.Duration) { now = now.Add(resourceDependencyReadyTimeout) }
+		deps.sleep = func(d time.Duration) { now = now.Add(resourceReadyPolicy.Timeout) }
 	})
 
 	result, err := runner.Start("alpha", StartOptions{})
@@ -1361,7 +1361,7 @@ func TestEnsureResourceDependenciesTryStartWaitsThenDegradesOnTimeout(t *testing
 			return nil
 		}
 		deps.now = func() time.Time { return now }
-		deps.sleep = func(d time.Duration) { now = now.Add(resourceDependencyReadyTimeout) }
+		deps.sleep = func(d time.Duration) { now = now.Add(resourceReadyPolicy.Timeout) }
 	})
 	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
 	if err != nil {
@@ -2782,7 +2782,7 @@ func TestExecutePhaseOnlyAppendsTestArgsToTestGenieAndWarnsOnStopFailure(t *test
 	if err != nil {
 		t.Fatalf("read test-genie-args.txt: %v", err)
 	}
-	if got := string(argsData); got != "--auto-start\nexecute\nalpha\n--preset\ncomprehensive\nphase-a\ntwo words\n--wait\n" {
+	if got := string(argsData); got != "--auto-start\nexecute\nalpha\n--preset\ncomprehensive\nphase-a\ntwo words\n" {
 		t.Fatalf("test-genie-args.txt = %q", got)
 	}
 	if !strings.Contains(testLog.String(), "Skipping skip-me - step disabled by always=false") {
@@ -2805,32 +2805,27 @@ func TestInjectTestGenieTestFlags(t *testing.T) {
 		want string
 	}{
 		{
-			// --auto-start is a global flag (before the subcommand); --wait is an
-			// execute flag and MUST land AFTER the scenario positional, or execute
-			// reads "--wait" as the scenario and the real scenario becomes a phase.
-			name: "injects both auto-start (pre-execute) and wait (post-positional)",
+			name: "injects auto-start before execute",
 			in:   "test-genie execute alpha --preset comprehensive",
-			want: "test-genie --auto-start execute alpha --preset comprehensive --wait",
+			want: "test-genie --auto-start execute alpha --preset comprehensive",
 		},
 		{
-			// Regression: a hyphenated scenario name must remain the scenario
-			// positional, never get pushed into the phase list by an --wait splice.
-			name: "keeps a hyphenated scenario as the positional (regression)",
+			name: "keeps a hyphenated scenario as the positional",
 			in:   "test-genie execute tech-tree-designer --preset comprehensive",
-			want: "test-genie --auto-start execute tech-tree-designer --preset comprehensive --wait",
+			want: "test-genie --auto-start execute tech-tree-designer --preset comprehensive",
 		},
 		{
 			name: "preserves env assignments",
 			in:   "TEST_MODE=1 test-genie execute alpha",
-			want: "TEST_MODE=1 test-genie --auto-start execute alpha --wait",
+			want: "TEST_MODE=1 test-genie --auto-start execute alpha",
 		},
 		{
-			name: "adds wait when auto-start already present",
+			name: "leaves auto-start command unchanged",
 			in:   "test-genie --auto-start execute alpha",
-			want: "test-genie --auto-start execute alpha --wait",
+			want: "test-genie --auto-start execute alpha",
 		},
 		{
-			name: "leaves a fully-flagged command unchanged",
+			name: "preserves caller-provided wait",
 			in:   "test-genie --auto-start execute --wait alpha",
 			want: "test-genie --auto-start execute --wait alpha",
 		},

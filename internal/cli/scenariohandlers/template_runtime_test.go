@@ -81,6 +81,10 @@ func TestBuildTemplateValuesAndCopyTemplateRenderGeneratedGoModPaths(t *testing.
 	if !strings.Contains(string(apiGoMod), expectedReplace) {
 		t.Fatalf("api/go.mod = %s", string(apiGoMod))
 	}
+	expectedCLIReplace := "replace github.com/vrooli/cli-core => " + filepath.ToSlash(filepath.Join(wantPackagesRel, "cli-core"))
+	if !strings.Contains(string(apiGoMod), expectedCLIReplace) {
+		t.Fatalf("api/go.mod = %s", string(apiGoMod))
+	}
 
 	issues := validateGeneratedScenario(destination, false, nil, info.Name, info.Manifest)
 	if len(issues) != 0 {

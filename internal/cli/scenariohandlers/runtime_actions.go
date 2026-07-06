@@ -1,7 +1,9 @@
 package scenariohandlers
 
 import (
+	"fmt"
 	"io"
+	"time"
 
 	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
@@ -87,6 +89,36 @@ func RenderSetupPhaseResult(w io.Writer, format cliout.Format, result lifecycle.
 	return RenderSetupResponse(w, format, result)
 }
 
+// runWithStartCeiling bounds a blocking start/restart with the --timeout
+// ceiling. On expiry the CLI detaches (exit 124): the in-process orchestration
+// dies with this process, but the operation record stays honest — the
+// initiator pid goes dead, readers report the operation abandoned, and the
+// next `scenario start`/`scenario wait` resumes or attaches. This asymmetry
+// vs a server-owned run is documented in cli-commands.md.
+func runWithStartCeiling(timeoutSeconds int, stderr io.Writer, reattachName string, run func() ([]scenarioapp.LifecycleItemOutput, error)) ([]scenarioapp.LifecycleItemOutput, error) {
+	if timeoutSeconds <= 0 {
+		return run()
+	}
+	type result struct {
+		items []scenarioapp.LifecycleItemOutput
+		err   error
+	}
+	ch := make(chan result, 1)
+	go func() {
+		items, err := run()
+		ch <- result{items, err}
+	}()
+	timer := time.NewTimer(time.Duration(timeoutSeconds) * time.Second)
+	defer timer.Stop()
+	select {
+	case r := <-ch:
+		return r.items, r.err
+	case <-timer.C:
+		fmt.Fprintf(stderr, "scenario start: --timeout ceiling (%ds) elapsed; detaching. The orchestration stops with this process, but the operation record stays honest — resume with `vrooli scenario start %s` or attach with `vrooli scenario wait %s --json`.\n", timeoutSeconds, reattachName, reattachName)
+		return nil, VerdictExitError{Code: 124}
+	}
+}
+
 func toCLILifecycleItems(items []scenarioapp.LifecycleItemOutput) []LifecycleItemOutput {
 	out := make([]LifecycleItemOutput, 0, len(items))
 	for _, item := range items {
@@ -98,6 +130,8 @@ func toCLILifecycleItems(items []scenarioapp.LifecycleItemOutput) []LifecycleIte
 			Endpoints:          toCLIEndpoints(item.Endpoints),
 			FailedDependencies: CopyStrings(item.FailedDependencies),
 			FailedResources:    CopyStrings(item.FailedResources),
+			Verdict:            item.Verdict,
+			Operation:          item.Operation,
 		})
 	}
 	return out
@@ -185,17 +219,18 @@ func toCLIInfoOutput(resp scenarioapp.InfoOutput) InfoOutput {
 
 func toCLIStatusItem(item scenarioapp.StatusItemOutput) StatusItemOutput {
 	return StatusItemOutput{
-		Name:         item.Name,
-		DisplayName:  item.DisplayName,
-		Description:  item.Description,
-		Tags:         CopyStrings(item.Tags),
-		Status:       item.Status,
-		Processes:    item.Processes,
-		Runtime:      item.Runtime,
-		StartedAt:    item.StartedAt,
-		Ports:        CopyIntMap(item.Ports),
-		PortBindings: toCLIListPorts(item.PortBindings),
-		Health:       item.Health,
+		Name:           item.Name,
+		DisplayName:    item.DisplayName,
+		Description:    item.Description,
+		Tags:           CopyStrings(item.Tags),
+		Status:         item.Status,
+		Processes:      item.Processes,
+		Runtime:        item.Runtime,
+		StartedAt:      item.StartedAt,
+		Ports:          CopyIntMap(item.Ports),
+		PortBindings:   toCLIListPorts(item.PortBindings),
+		Health:         item.Health,
+		StartOperation: item.StartOperation,
 	}
 }
 

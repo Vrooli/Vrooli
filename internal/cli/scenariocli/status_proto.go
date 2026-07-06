@@ -4,6 +4,8 @@ import (
 	"io"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/lifecycle"
+
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
@@ -66,18 +68,65 @@ func scenarioStatusItem(item StatusItemOutput) *cliv1.ScenarioStatusItem {
 		health = v
 	}
 	return &cliv1.ScenarioStatusItem{
-		Name:         item.Name,
-		DisplayName:  item.DisplayName,
-		Description:  item.Description,
-		Tags:         item.Tags,
-		Status:       item.Status,
-		Processes:    int32(item.Processes),
-		Runtime:      item.Runtime,
-		StartedAt:    formatTimePtr(item.StartedAt),
-		Ports:        copyInt32Map(item.Ports),
-		PortBindings: scenarioPortMessages(item.PortBindings),
-		HealthStatus: health,
-		HealthError:  item.HealthError,
+		Name:           item.Name,
+		DisplayName:    item.DisplayName,
+		Description:    item.Description,
+		Tags:           item.Tags,
+		Status:         item.Status,
+		Processes:      int32(item.Processes),
+		Runtime:        item.Runtime,
+		StartedAt:      formatTimePtr(item.StartedAt),
+		Ports:          copyInt32Map(item.Ports),
+		PortBindings:   scenarioPortMessages(item.PortBindings),
+		HealthStatus:   health,
+		HealthError:    item.HealthError,
+		StartOperation: ScenarioStartOperationMessage(item.StartOperation),
+	}
+}
+
+// ScenarioStartOperationMessage maps a start-operation view onto its proto
+// message; nil maps to nil (absent). Exported for the wait/lifecycle
+// response builders.
+func ScenarioStartOperationMessage(view *lifecycle.StartOperationView) *cliv1.ScenarioStartOperation {
+	if view == nil {
+		return nil
+	}
+	steps := make([]*cliv1.ScenarioStartOperationStep, 0, len(view.Steps))
+	for _, step := range view.Steps {
+		ended := ""
+		if step.EndedAt != nil {
+			ended = step.EndedAt.Format(time.RFC3339Nano)
+		}
+		steps = append(steps, &cliv1.ScenarioStartOperationStep{
+			Name:      step.Name,
+			Status:    step.Status,
+			StartedAt: step.StartedAt.Format(time.RFC3339Nano),
+			EndedAt:   ended,
+		})
+	}
+	finished := ""
+	if view.FinishedAt != nil {
+		finished = view.FinishedAt.Format(time.RFC3339Nano)
+	}
+	return &cliv1.ScenarioStartOperation{
+		OperationId:                 view.OperationID,
+		Scenario:                    view.Scenario,
+		Variant:                     view.Variant,
+		Operation:                   view.Operation,
+		Status:                      view.Status,
+		Verdict:                     view.Verdict,
+		Error:                       view.Error,
+		CurrentStep:                 view.CurrentStep,
+		DependencyCurrent:           view.DependencyCurrent,
+		DependencyIndex:             int32(view.DependencyIndex),
+		DependencyTotal:             int32(view.DependencyTotal),
+		StartedAt:                   view.StartedAt.Format(time.RFC3339Nano),
+		FinishedAt:                  finished,
+		ElapsedSeconds:              int32(view.ElapsedSeconds),
+		Steps:                       steps,
+		EtaKnown:                    view.ETAKnown,
+		EtaSeconds:                  int32(view.ETASeconds),
+		RecommendedNextCheckSeconds: int32(view.RecommendedNextCheckSeconds),
 	}
 }
 

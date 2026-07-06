@@ -527,29 +527,35 @@ func TestParseOptionalScenarioNameAndJSONValidation(t *testing.T) {
 }
 
 func TestParseScenarioStartArgsAndSingleStartValidation(t *testing.T) {
-	names, opts, jsonFlag, openAfter, err := ParseScenarioStartArgs(false, []string{
-		"alpha", "beta", "--json", "--open", "--best-effort", "--clean-stale", "--path", "/tmp/custom",
+	parsed, err := ParseScenarioStartArgs(false, []string{
+		"alpha", "beta", "--json", "--open", "--best-effort", "--clean-stale", "--path", "/tmp/custom", "--timeout", "90",
 	})
 	if err != nil {
 		t.Fatalf("ParseScenarioStartArgs() error = %v", err)
 	}
-	if got := strings.Join(names, ","); got != "alpha,beta" {
+	if got := strings.Join(parsed.Names, ","); got != "alpha,beta" {
 		t.Fatalf("names = %q", got)
 	}
-	if !jsonFlag || !openAfter || !opts.BestEffort || !opts.CleanStale || opts.CustomPath != "/tmp/custom" {
-		t.Fatalf("opts/json/open = %+v/%v/%v", opts, jsonFlag, openAfter)
+	if !parsed.JSON || !parsed.OpenAfter || !parsed.Options.BestEffort || !parsed.Options.CleanStale || parsed.Options.CustomPath != "/tmp/custom" {
+		t.Fatalf("parsed = %+v", parsed)
+	}
+	if parsed.TimeoutSeconds != 90 {
+		t.Fatalf("timeout = %d, want 90", parsed.TimeoutSeconds)
 	}
 
-	if _, _, _, _, err := ParseScenarioStartArgs(false, []string{"--path"}); err == nil {
+	if _, err := ParseScenarioStartArgs(false, []string{"--path"}); err == nil {
 		t.Fatal("expected missing --path value to fail")
 	}
-	if _, _, _, _, err := ParseScenarioStartArgs(false, []string{"--bogus"}); err == nil {
+	if _, err := ParseScenarioStartArgs(false, []string{"--bogus"}); err == nil {
 		t.Fatal("expected unknown option to fail")
 	}
-	if _, _, _, _, err := ParseScenarioSingleStartArgs("restart", false, nil); err == nil {
+	if _, err := ParseScenarioStartArgs(false, []string{"alpha", "--timeout", "nope"}); err == nil {
+		t.Fatal("expected non-numeric --timeout to fail")
+	}
+	if _, err := ParseScenarioSingleStartArgs("restart", false, nil); err == nil {
 		t.Fatal("expected missing restart target to fail")
 	}
-	if _, _, _, _, err := ParseScenarioSingleStartArgs("restart", false, []string{"alpha", "beta"}); err == nil {
+	if _, err := ParseScenarioSingleStartArgs("restart", false, []string{"alpha", "beta"}); err == nil {
 		t.Fatal("expected duplicate restart targets to fail")
 	}
 }

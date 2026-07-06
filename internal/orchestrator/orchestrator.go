@@ -34,6 +34,21 @@ type Service struct {
 	newRunner       lifecycleRunnerFactory
 	runtimeRegistry runtimeRegistryFactory
 	hostSession     func(context.Context, string) (hostsession.Snapshot, error)
+	// clock is the injectable now/sleep pair for the sandbox start wait
+	// (startResultFromLiveDetail). Zero fields mean real time.
+	clock lifecycle.AwaitClock
+}
+
+// awaitClock returns the service's injectable clock, defaulting to real time.
+func (s *Service) awaitClock() lifecycle.AwaitClock {
+	clock := s.clock
+	if clock.Now == nil {
+		clock.Now = time.Now
+	}
+	if clock.Sleep == nil {
+		clock.Sleep = time.Sleep
+	}
+	return clock
 }
 
 type lifecycleRunner interface {
@@ -51,6 +66,9 @@ type runtimeRegistryQueryStore interface {
 	// instead of three per instance.
 	ListProcessRefsForInstances(ctx context.Context, instanceIDs []string) (map[string][]scenarioruntime.ProcessRef, error)
 	GetHealthSnapshots(ctx context.Context, instanceIDs []string) (map[string]scenarioruntime.HealthSnapshot, error)
+	// Start-operation record reads (single-scenario status/wait surfaces).
+	GetLatestStartOperation(ctx context.Context, scenario, variant string) (scenarioruntime.StartOperation, error)
+	PhaseDurationEstimates(ctx context.Context, scenario, variant string) (map[string]time.Duration, error)
 	Close() error
 }
 

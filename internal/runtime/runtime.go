@@ -2,8 +2,6 @@ package runtime
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostreq"
@@ -56,15 +54,6 @@ func EnsureTool(name string, opts EnsureOptions) (ItemStatus, error) {
 }
 
 func ensureResolution(opts EnsureOptions, resolution hostreq.Resolution) (Report, error) {
-	// Earlier versions of vrooli ran `go install` and `npm install`
-	// directly under sudo (not dropping privileges), which left root-
-	// owned files in the operator's ~/go/pkg/mod and ~/.cache that broke
-	// subsequent non-sudo `go build` invocations with errors like
-	// "missing go.sum entry". Detect and repair before doing anything
-	// else that might depend on the user's caches being writable.
-	// Idempotent: a no-op when ownership is already correct.
-	repairInvokingUserCacheOwnership(opts)
-
 	report, err := inspectResolution(Current(), opts.Environment, resolution)
 	if err != nil {
 		return Report{}, err
@@ -289,52 +278,4 @@ func missingRequiredError(report Report, opts EnsureOptions) error {
 		return nil
 	}
 	return fmt.Errorf("missing required host requirements for %s: %s", hostreq.NormalizeEnvironment(report.Environment), strings.Join(report.MissingRequired, ", "))
-}
-
-// repairInvokingUserCacheOwnership chowns the standard per-user vrooli-
-// touched cache directories back to $SUDO_USER when we're running as
-// root. This is purely a legacy-damage repair: earlier versions of
-// vrooli ran `go install` and `npm install` directly under sudo (without
-// dropping privileges), which deposited root-owned files into ~/go and
-// ~/.cache. Subsequent non-sudo `go build` invocations then failed with
-// "missing go.sum entry" because the operator could not write to those
-// paths. This pass corrects the ownership once and is a no-op for
-// already-correctly-owned files.
-//
-// Best-effort: chown failures are non-fatal — we don't block setup over
-// a stale cache repair. Only runs when sudo'd with $SUDO_USER set; on
-// non-sudo invocations there's nothing to fix.
-//
-// We intentionally limit the targets to dirs vrooli either creates or
-// writes to. ~/.cache as a whole contains a lot of unrelated state we
-// must not touch.
-func repairInvokingUserCacheOwnership(opts EnsureOptions) {
-	if !hostreqkit.RunningAsRootFn() {
-		return
-	}
-	user := strings.TrimSpace(os.Getenv("SUDO_USER"))
-	if user == "" || user == "root" {
-		return
-	}
-	home, err := hostreqkit.InvokingUserHomeDir()
-	if err != nil || home == "" {
-		return
-	}
-	targets := []string{
-		filepath.Join(home, "go"),
-		filepath.Join(home, ".cache", "go-build"),
-		filepath.Join(home, ".cache", "vrooli"),
-		filepath.Join(home, ".local", "bin"),
-	}
-	for _, target := range targets {
-		if _, statErr := os.Stat(target); statErr != nil {
-			continue
-		}
-		spec := user + ":" + user
-		// chown -R runs as the current process (root) — we need root to
-		// change ownership of root-owned files back to $SUDO_USER. This
-		// is the one place in setup where running directly as root is
-		// the correct thing.
-		_ = hostreqkit.RunCommandFn("chown", []string{"-R", spec, target}, opts)
-	}
 }

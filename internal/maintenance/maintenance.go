@@ -203,21 +203,6 @@ func (c *Controller) CleanStaleLocks() (control.StopReport, error) {
 		}
 	}
 
-	// One-time tombstone sweep: nothing writes `.port_<N>.lock` files anymore,
-	// but pre-migration hosts may still carry strays. This is data cleanup
-	// (one glob, no forks), not a compatibility shim.
-	//
-	// `.port_*.guard` files (from the deleted port-mutation guard machinery) are
-	// deliberately left alone: a pre-migration `vrooli` binary still running on
-	// this host could hold one mid-mutation, and removing it out from under that
-	// process would defeat its exclusion. They are tiny, self-expire (30s stale
-	// window in the old code), and harm nothing while they sit.
-	swept, err := sweepLegacyLockFiles(c.Home)
-	if err != nil {
-		return control.StopReport{}, err
-	}
-	stopped = append(stopped, swept...)
-
 	// Always-on resident-claim sweep (capacity §8.6): refresh GPU claims still
 	// observed on the host and expire dead ones, so resident model-server claims
 	// no longer depend on a 6h ttl_seconds stopgap. Best-effort: a ledger that
@@ -421,28 +406,6 @@ func (c *Controller) stillVrooliOrphan(pid int) bool {
 		return false
 	}
 	return looksLikeVrooliProcessFn(c.Root, c.Home, entry)
-}
-
-// sweepLegacyLockFiles removes stray `.port_<N>.lock` files left by
-// pre-registry releases. The directory is resolved through the runtime_home
-// authority (~/.vrooli/state/scenarios), never a hardcoded literal.
-func sweepLegacyLockFiles(home string) ([]control.ResultItem, error) {
-	stateDir, err := process.ScenarioStateDir(home)
-	if err != nil {
-		return nil, err
-	}
-	files, err := filepath.Glob(filepath.Join(stateDir, ".port_*.lock"))
-	if err != nil {
-		return nil, err
-	}
-	removed := make([]control.ResultItem, 0, len(files))
-	for _, file := range files {
-		if err := os.Remove(file); err != nil && !os.IsNotExist(err) {
-			return removed, err
-		}
-		removed = append(removed, control.Stopped(filepath.Base(file), "Removed legacy lock file"))
-	}
-	return removed, nil
 }
 
 func (c *Controller) DiagnosePort(port int, scenarioName string) (PortDiagnostic, error) {

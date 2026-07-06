@@ -2,9 +2,12 @@ package scenariohandlers
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"strings"
+	"time"
 
 	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
@@ -30,8 +33,12 @@ type HandlerDeps[C any] struct {
 	LaunchDetached     func(C, ...string) error
 	RunSubprocess      func(C, scenarioexec.SubprocessSpec) error
 	LocateTestGenieCLI func(C) (string, error)
-	LocateCompleteCLI  func(C) (string, error)
-	CommandEnv         func(C) []string
+	// LocateBusinessHealthCLI resolves the business-health CLI, which owns
+	// the contract-side requirements verbs (validate, report, lint-prd,
+	// drift, phase, init, manual-log); sync/snapshot stay with test-genie.
+	LocateBusinessHealthCLI func(C) (string, error)
+	LocateCompleteCLI       func(C) (string, error)
+	CommandEnv              func(C) []string
 }
 
 func RootHandler[C any](stdout func(C) io.Writer, lookup func(string) (rootcli.Handler[C], bool), suggest func(string) []string) rootcli.Handler[C] {
@@ -111,6 +118,84 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				return format, resp, err
 			},
 			RenderStatusResponse,
+		),
+		CommandWait: bindGlobal(deps.Stdout,
+			func(ctx C, args []string) (WaitRequest, error) {
+				return ParseWaitRequest(deps.Globals(ctx).JSON, args)
+			},
+			func(ctx C, req WaitRequest) (cliout.Format, WaitResponse, error) {
+				format, err := deps.OutputFormat(ctx)
+				if err != nil {
+					return "", WaitResponse{}, err
+				}
+				runner, err := deps.LifecycleRunner(ctx)
+				if err != nil {
+					return "", WaitResponse{}, err
+				}
+				stderr := deps.Stderr(ctx)
+				// Inside an agent-manager run, park instead of blocking:
+				// agent-manager performs the wait via its lifecycle Waiter and
+				// wakes the run with the JSON verdict (zero tokens parked).
+				if message, parked := ParkScenarioWait(stderr, req.Name); parked {
+					return format, WaitResponse{Scenario: req.Name, ParkedMessage: message}, nil
+				}
+				WarnIfEagerScenarioWait(stderr, req.Name, time.Now())
+				service := NewRunnerService(runner)
+				appReq := scenarioapp.WaitRequest{Name: req.Name, TimeoutSeconds: req.TimeoutSeconds}
+				if format != cliout.FormatJSON {
+					// Human heartbeat: step/dependency transitions of the
+					// awaited operation. JSON mode keeps stdout machine-pure.
+					out := deps.Stdout(ctx)
+					appReq.OnTransition = func(view lifecycle.StartOperationView) {
+						if line := view.TransitionLine(); line != "" {
+							fmt.Fprintln(out, line)
+						}
+					}
+				}
+
+				// Ctrl-C detaches: the awaited start (owned by another
+				// process) is unaffected; print re-attach guidance, exit 0.
+				type waitResult struct {
+					resp scenarioapp.WaitResponse
+					err  error
+				}
+				resultCh := make(chan waitResult, 1)
+				go func() {
+					resp, err := service.Wait(appReq)
+					resultCh <- waitResult{resp, err}
+				}()
+				sigCh := make(chan os.Signal, 1)
+				signal.Notify(sigCh, os.Interrupt)
+				defer signal.Stop(sigCh)
+				var resp scenarioapp.WaitResponse
+				select {
+				case r := <-resultCh:
+					if r.err != nil {
+						return "", WaitResponse{}, r.err
+					}
+					resp = r.resp
+				case <-sigCh:
+					fmt.Fprintf(stderr, "detached from scenario wait; the start (if any) continues — re-attach with `vrooli scenario wait %s --json`\n", req.Name)
+					return format, WaitResponse{Scenario: req.Name, Verdict: WaitVerdictDetached, Source: "detached"}, nil
+				}
+				if resp.Verdict == lifecycle.WaitVerdictTimeout {
+					// Ceiling elapsed: this wait detached; the start continues.
+					fmt.Fprintf(stderr, "scenario wait: timeout ceiling elapsed after %ds; the start is still running — re-attach with `vrooli scenario wait %s --json` (size --timeout as ETA + 75%% buffer)\n", resp.WaitedSeconds, req.Name)
+				} else {
+					ClearScenarioWaitAttempt(req.Name)
+				}
+				return format, WaitResponse{
+					Success:       resp.Success,
+					Scenario:      resp.Scenario,
+					Verdict:       resp.Verdict,
+					ExitCode:      resp.ExitCode,
+					Source:        resp.Source,
+					WaitedSeconds: resp.WaitedSeconds,
+					Error:         resp.Error,
+					Operation:     resp.Operation,
+				}, nil
+			},
+			RenderWaitResponse,
 		),
 		CommandValidateEnv: bindGlobal(deps.Stdout,
 			func(ctx C, args []string) (ValidateEnvRequest, error) {
@@ -199,7 +284,9 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 						return "", nil, err
 					}
 					service := NewStartService(ops, func(url string) error { return deps.OpenURL(ctx, url) })
-					items, err := service.Start(scenarioapp.StartRequest(req))
+					items, err := runWithStartCeiling(req.TimeoutSeconds, deps.Stderr(ctx), strings.Join(req.Names, " "), func() ([]scenarioapp.LifecycleItemOutput, error) {
+						return service.Start(scenarioapp.StartRequest(req))
+					})
 					return format, toCLILifecycleItems(items), err
 				},
 			),
@@ -271,7 +358,9 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 						return "", nil, err
 					}
 					service := NewStartService(ops, func(url string) error { return deps.OpenURL(ctx, url) })
-					items, err := service.Restart(scenarioapp.RestartRequest(req))
+					items, err := runWithStartCeiling(req.TimeoutSeconds, deps.Stderr(ctx), req.Name, func() ([]scenarioapp.LifecycleItemOutput, error) {
+						return service.Restart(scenarioapp.RestartRequest(req))
+					})
 					return format, toCLILifecycleItems(items), err
 				},
 			),

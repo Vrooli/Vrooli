@@ -1,7 +1,6 @@
 package assessment
 
 import (
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -98,30 +97,23 @@ func validMultiCapabilitySpec() Spec {
 
 func TestRepositoryProviderSpecsValidateCleanRequirementContract(t *testing.T) {
 	repoRoot := filepath.Clean(filepath.Join("..", "..", ".."))
-	specPaths, err := filepath.Glob(filepath.Join(repoRoot, "scenarios", "*", ".vrooli", "maturity.json"))
+	specPaths, err := filepath.Glob(filepath.Join(repoRoot, "scenarios", "*", ".vrooli", "test-genie.json"))
 	if err != nil {
-		t.Fatalf("glob maturity specs: %v", err)
+		t.Fatalf("glob test-genie descriptors: %v", err)
 	}
 	if len(specPaths) == 0 {
-		t.Fatal("no scenario maturity specs found")
+		t.Fatal("no scenario test-genie descriptors found")
 	}
 
 	for _, specPath := range specPaths {
 		specPath := specPath
 		scenario := filepath.Base(filepath.Dir(filepath.Dir(specPath)))
 		t.Run(scenario, func(t *testing.T) {
-			raw, err := os.ReadFile(specPath)
+			specPtr, err := LoadSpecFromScenario(filepath.Dir(filepath.Dir(specPath)))
 			if err != nil {
-				t.Fatalf("read %s: %v", specPath, err)
-			}
-			specPtr, err := ParseSpec(raw)
-			if err != nil {
-				t.Fatalf("parse %s: %v", specPath, err)
+				t.Fatalf("load %s: %v", specPath, err)
 			}
 			spec := *specPtr
-			if err := ValidateSpec(spec); err != nil {
-				t.Fatalf("validate %s: %v", specPath, err)
-			}
 			if len(spec.Capabilities) > 0 {
 				for code, mapping := range spec.Findings {
 					if strings.TrimSpace(mapping.CapabilityID) == "" {
@@ -288,6 +280,24 @@ func TestLocalMaturityUsesLowestBlockingLevel(t *testing.T) {
 	}
 	if len(got.BlockingFindingCodes) != 1 || got.BlockingFindingCodes[0] != "measures.uncovered-domain" {
 		t.Fatalf("BlockingFindingCodes = %#v", got.BlockingFindingCodes)
+	}
+}
+
+func TestLocalMaturityReportsFloorForL0Blocker(t *testing.T) {
+	spec := validSpec()
+	spec.Findings["manifest.required"] = FindingMapping{
+		LocalLevelImpact: "L0",
+		GlobalImpact:     ImpactFoundationBlocker,
+		Dimension:        "contracts",
+		SeverityDefault:  "SEVERITY_ERROR",
+		CleanRequirement: string(CleanRequirementRequired),
+	}
+	got := LocalMaturity(spec, []Finding{{Code: "manifest.required"}})
+	if got.CurrentLevel != "L0" {
+		t.Fatalf("CurrentLevel = %q, want L0", got.CurrentLevel)
+	}
+	if got.NextLevel != "L1" {
+		t.Fatalf("NextLevel = %q, want L1", got.NextLevel)
 	}
 }
 
@@ -497,6 +507,53 @@ func TestBuildProtoAssessmentWithZeroFindings(t *testing.T) {
 	}
 	if len(got.GetFindings()) != 0 {
 		t.Fatalf("findings = %d, want zero", len(got.GetFindings()))
+	}
+}
+
+func TestBuildProtoAssessmentWithZeroFindingsAndCapabilityOnlySpec(t *testing.T) {
+	got, err := BuildProtoAssessment(BuildInput{
+		Scenario: "demo",
+		Spec:     validMultiCapabilitySpec(),
+	})
+	if err != nil {
+		t.Fatalf("BuildProtoAssessment returned error: %v", err)
+	}
+	if got.GetLocal().GetCurrentLevel() == "" {
+		t.Fatal("local current level must be set for a clean capability-only spec")
+	}
+	if len(got.GetCapabilities()) != 2 {
+		t.Fatalf("capabilities = %d, want 2", len(got.GetCapabilities()))
+	}
+	for _, capability := range got.GetCapabilities() {
+		if capability.GetCurrentLevel() == "" {
+			t.Fatalf("capability %q current level is empty", capability.GetId())
+		}
+	}
+}
+
+func TestBuildProtoAssessmentWithZeroFindingsForRepositoryCapabilitySpecs(t *testing.T) {
+	repoRoot := filepath.Clean(filepath.Join("..", "..", ".."))
+	specPaths, err := filepath.Glob(filepath.Join(repoRoot, "scenarios", "*", ".vrooli", "test-genie.json"))
+	if err != nil {
+		t.Fatalf("glob test-genie descriptors: %v", err)
+	}
+	for _, specPath := range specPaths {
+		spec, err := LoadSpecFromScenario(filepath.Dir(filepath.Dir(specPath)))
+		if err != nil {
+			t.Fatalf("load %s: %v", specPath, err)
+		}
+		if len(spec.Capabilities) == 0 {
+			continue
+		}
+		t.Run(filepath.Base(filepath.Dir(filepath.Dir(specPath))), func(t *testing.T) {
+			got, err := BuildProtoAssessment(BuildInput{Scenario: "demo", Spec: *spec})
+			if err != nil {
+				t.Fatalf("BuildProtoAssessment returned error: %v", err)
+			}
+			if got.GetLocal().GetCurrentLevel() == "" {
+				t.Fatal("local current level must be set")
+			}
+		})
 	}
 }
 

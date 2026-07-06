@@ -58,6 +58,11 @@ func BuildScenarioCompletenessArgs(globals rootcli.GlobalOptions, args []string)
 	return commandArgs
 }
 
+// RequirementsHandler routes the `vrooli scenario requirements` facade.
+// Contract-side verbs (validate, report, lint-prd, drift, phase, init,
+// manual-log) route to business-health, which owns the business contract;
+// the run-coupled verbs stay with test-genie (`sync`, the evidence writer)
+// or read the artifact directly (`snapshot`).
 func RequirementsHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	return bindGlobal(deps.Stdout,
 		func(ctx C, args []string) (RequirementsRequest, error) { return ParseRequirementsRequest(args) },
@@ -65,18 +70,26 @@ func RequirementsHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 			if req.Snapshot {
 				return cliout.FormatHuman, struct{}{}, runScenarioRequirementsSnapshot(deps.Root(ctx), req.Args[1:], deps.Stdout(ctx))
 			}
-			cliPath, err := deps.LocateTestGenieCLI(ctx)
+			route, err := buildScenarioRequirementsRoute(deps.Root(ctx), deps.Globals(ctx), req.Args)
 			if err != nil {
 				return "", struct{}{}, err
 			}
-			commandArgs, workdir, err := buildScenarioRequirementsCommand(deps.Root(ctx), deps.Globals(ctx), req.Args)
+			var cliPath string
+			if route.testGenie {
+				cliPath, err = deps.LocateTestGenieCLI(ctx)
+			} else {
+				if deps.LocateBusinessHealthCLI == nil {
+					return "", struct{}{}, fmt.Errorf("business-health CLI locator is not wired")
+				}
+				cliPath, err = deps.LocateBusinessHealthCLI(ctx)
+			}
 			if err != nil {
 				return "", struct{}{}, err
 			}
 			err = deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
 				Name:   cliPath,
-				Args:   commandArgs,
-				Dir:    workdir,
+				Args:   route.args,
+				Dir:    route.workdir,
 				Env:    deps.CommandEnv(ctx),
 				Stdout: deps.Stdout(ctx),
 				Stderr: deps.Stderr(ctx),
@@ -87,32 +100,149 @@ func RequirementsHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	)
 }
 
-func buildScenarioRequirementsCommand(root string, globals rootcli.GlobalOptions, args []string) ([]string, string, error) {
-	known := map[string]struct{}{"report": {}, "validate": {}, "sync": {}, "manual-log": {}, "lint-prd": {}, "phase": {}, "phase-inspect": {}, "init": {}}
+// requirementsRoute is one resolved facade dispatch.
+type requirementsRoute struct {
+	// testGenie selects the test-genie binary (sync); false = business-health.
+	testGenie bool
+	args      []string
+	workdir   string
+}
+
+// buildScenarioRequirementsRoute maps the legacy verb surface onto the two
+// owners. UX stays `vrooli scenario requirements <verb> <scenario> [flags]`.
+func buildScenarioRequirementsRoute(root string, globals rootcli.GlobalOptions, args []string) (requirementsRoute, error) {
+	known := map[string]struct{}{"report": {}, "validate": {}, "sync": {}, "manual-log": {}, "lint-prd": {}, "phase": {}, "phase-inspect": {}, "drift": {}, "init": {}}
 	subcommand := args[0]
 	rest := args[1:]
 	if _, ok := known[subcommand]; !ok {
 		subcommand = "report"
 		rest = args
 	}
-	switch subcommand {
-	case "report":
-		return buildScenarioRequirementsSubcommand(root, globals, "report", rest, false, true)
-	case "validate":
-		return buildScenarioRequirementsSubcommand(root, globals, "validate", rest, true, true)
-	case "sync":
-		return buildScenarioRequirementsSubcommand(root, globals, "sync", rest, true, false)
-	case "lint-prd":
-		return buildScenarioRequirementsSubcommand(root, globals, "lint-prd", rest, true, false)
-	case "init":
-		return buildScenarioRequirementsSubcommand(root, globals, "init", rest, true, false)
-	case "phase", "phase-inspect":
-		return buildScenarioRequirementsSubcommand(root, globals, "phase", rest, true, false)
-	case "manual-log":
-		return buildScenarioRequirementsSubcommand(root, globals, "manual-log", rest, true, false)
-	default:
-		return nil, "", rootcli.UsageErrorf("scenario requirements", "unsupported requirements subcommand: %s", subcommand)
+	if subcommand == "sync" {
+		commandArgs, workdir, err := buildScenarioRequirementsSubcommand(root, globals, "sync", rest, true, false)
+		return requirementsRoute{testGenie: true, args: commandArgs, workdir: workdir}, err
 	}
+	return buildBusinessHealthRequirementsRoute(root, globals, subcommand, rest)
+}
+
+// buildBusinessHealthRequirementsRoute translates one contract verb into
+// the business-health CLI surface.
+func buildBusinessHealthRequirementsRoute(root string, globals rootcli.GlobalOptions, subcommand string, args []string) (requirementsRoute, error) {
+	scenarioName := ""
+	var positionals, flags []string
+	for index := 0; index < len(args); index++ {
+		arg := args[index]
+		switch {
+		case arg == "--help" || arg == "-h":
+			flags = append(flags, arg)
+		case strings.HasPrefix(arg, "-"):
+			flags = append(flags, arg)
+			if requiresScenarioRequirementsOptionValue(arg) && index+1 < len(args) {
+				index++
+				flags = append(flags, args[index])
+			}
+		case scenarioName == "":
+			scenarioName = arg
+		default:
+			positionals = append(positionals, arg)
+		}
+	}
+	if rootcli.ContainsArg(flags, "--help") || rootcli.ContainsArg(flags, "-h") {
+		return requirementsRoute{args: append(requirementsVerbCommand(subcommand, "", nil, nil), "--help"), workdir: root}, nil
+	}
+	if scenarioName == "" {
+		return requirementsRoute{}, rootcli.UsageErrorf("scenario requirements", "scenario requirements %s requires a scenario name", subcommand)
+	}
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	if info, err := os.Stat(scenarioDir); err != nil || !info.IsDir() {
+		return requirementsRoute{}, rootcli.UsageErrorf("scenario requirements", "scenario directory not found: %s", scenarioDir)
+	}
+	translated, err := translateRequirementsFlags(subcommand, flags)
+	if err != nil {
+		return requirementsRoute{}, err
+	}
+	commandArgs := requirementsVerbCommand(subcommand, scenarioName, positionals, translated)
+	if commandArgs == nil {
+		return requirementsRoute{}, rootcli.UsageErrorf("scenario requirements", "unsupported requirements subcommand: %s", subcommand)
+	}
+	if globals.JSON && !rootcli.ContainsArg(commandArgs, "--json") {
+		commandArgs = append(commandArgs, "--json")
+	}
+	// --auto-start is a cli-core GLOBAL (must precede the command): the
+	// provider answers over Connect-RPC, so bring it up when needed.
+	commandArgs = append([]string{"--auto-start"}, commandArgs...)
+	return requirementsRoute{args: commandArgs, workdir: root}, nil
+}
+
+// requirementsVerbCommand maps a legacy verb to the business-health CLI
+// command shape. nil = unsupported verb.
+func requirementsVerbCommand(subcommand, scenario string, positionals, flags []string) []string {
+	withScenario := func(base ...string) []string {
+		out := append([]string{}, base...)
+		if scenario != "" {
+			out = append(out, scenario)
+		}
+		out = append(out, positionals...)
+		out = append(out, flags...)
+		return out
+	}
+	switch subcommand {
+	case "validate", "lint-prd":
+		// lint-prd's linkage checks are part of the full contract validation.
+		return withScenario("validate", "scenario")
+	case "report":
+		out := withScenario("matrix", "show")
+		if !rootcli.ContainsFlag(out, "--format") {
+			out = append(out, "--format", "summary")
+		}
+		return out
+	case "drift":
+		return withScenario("drift", "show")
+	case "phase", "phase-inspect":
+		out := withScenario("matrix", "show")
+		if !rootcli.ContainsFlag(out, "--phase") {
+			out = append(out, "--phase", "all")
+		}
+		return out
+	case "init":
+		// The registry scaffold is the prd_missing_requirements fixer (the
+		// wizard is the richer authoring path).
+		return withScenario("fix", "apply", "--rules", "prd_missing_requirements")
+	case "manual-log":
+		return withScenario("manual-log", "add")
+	default:
+		return nil
+	}
+}
+
+// translateRequirementsFlags maps legacy flag spellings onto the
+// business-health surface and rejects flags whose semantics moved (expiry
+// is policy-owned now, not caller-supplied).
+func translateRequirementsFlags(subcommand string, flags []string) ([]string, error) {
+	var out []string
+	for index := 0; index < len(flags); index++ {
+		flag := flags[index]
+		value := ""
+		hasValue := false
+		if requiresScenarioRequirementsOptionValue(flag) && index+1 < len(flags) {
+			index++
+			value = flags[index]
+			hasValue = true
+		}
+		switch flag {
+		case "--validated-by":
+			flag = "--by"
+		case "--validated-at", "--expires-in", "--expires-at", "--status", "--artifact", "--manifest", "--owner", "--template":
+			if subcommand == "manual-log" || subcommand == "init" {
+				return nil, rootcli.UsageErrorf("scenario requirements", "%s no longer accepts %s: attestation time and expiry are stamped by business-health's policy (see business-health manual-log add --help)", subcommand, flag)
+			}
+		}
+		out = append(out, flag)
+		if hasValue {
+			out = append(out, value)
+		}
+	}
+	return out, nil
 }
 
 func buildScenarioRequirementsSubcommand(root string, globals rootcli.GlobalOptions, subcommand string, args []string, includeScenario, includeJSON bool) ([]string, string, error) {
@@ -162,7 +292,7 @@ func buildScenarioRequirementsSubcommand(root string, globals rootcli.GlobalOpti
 
 func requiresScenarioRequirementsOptionValue(flag string) bool {
 	switch flag {
-	case "--format", "--output", "--status", "--notes", "--artifact", "--validated-by", "--validated-at", "--expires-in", "--expires-at", "--manifest", "--phase", "--template", "--owner":
+	case "--format", "--output", "--status", "--notes", "--artifact", "--validated-by", "--validated-at", "--expires-in", "--expires-at", "--manifest", "--phase", "--template", "--owner", "--by", "--rules":
 		return true
 	default:
 		return false

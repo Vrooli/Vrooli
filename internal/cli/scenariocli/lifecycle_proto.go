@@ -16,6 +16,8 @@ func scenarioLifecycleItem(item LifecycleItemOutput) *cliv1.ScenarioLifecycleIte
 		Ports:              copyInt32Map(item.Ports),
 		FailedDependencies: item.FailedDependencies,
 		FailedResources:    item.FailedResources,
+		Verdict:            item.Verdict,
+		Operation:          ScenarioStartOperationMessage(item.Operation),
 	}
 	for _, ep := range item.Endpoints {
 		msg.Endpoints = append(msg.Endpoints, &cliv1.ScenarioEndpoint{

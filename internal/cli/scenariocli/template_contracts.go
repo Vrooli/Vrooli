@@ -79,8 +79,8 @@ type TemplateManifest struct {
 // Marker is the example domain's slug (e.g. "notes"); detemplate reads it so
 // the command stays domain-name-agnostic.
 type TemplateExampleDomain struct {
-	Marker    string                  `json:"marker,omitempty"`
-	Paths     []string                `json:"paths,omitempty"`
+	Marker    string                   `json:"marker,omitempty"`
+	Paths     []string                 `json:"paths,omitempty"`
 	JSONPrune []TemplateJSONPruneEntry `json:"jsonPrune,omitempty"`
 }
 
@@ -90,8 +90,8 @@ type TemplateExampleDomain struct {
 // array elements whose object fields all equal the given values. The file is
 // rewritten preserving key order and UTF-8 content.
 type TemplateJSONPruneEntry struct {
-	File       string                  `json:"file"`
-	Keys       []string                `json:"keys,omitempty"`
+	File       string                   `json:"file"`
+	Keys       []string                 `json:"keys,omitempty"`
 	ArrayMatch []TemplateJSONArrayMatch `json:"arrayMatch,omitempty"`
 }
 

@@ -7,14 +7,13 @@ import (
 )
 
 // SchemaVersion is the capacity ledger schema version, stamped into the SQLite
-// database via PRAGMA user_version (mirroring internal/scenarioruntime). Bump it
-// only alongside a row-preserving migration; greenfield rebuilds are rejected
-// loudly rather than silently dropping live claims.
-//
-// v2: adds capacity_claims.yield_when_idle (additive ALTER TABLE; idle-yield).
-// v3: adds observed_bytes, observed_peak_bytes, observed_at (usage sampling /
-// decaying high-water mark) and idle_unload_ttl_seconds (autonomous idle-unload).
-// v4: adds idle_grace_seconds for per-claim demand-reclaim warm/cold idle dwell.
+// database via PRAGMA user_version (mirroring internal/scenarioruntime).
+// schemaSQL is declarative — it always describes the full current shape; there
+// is no in-code migration ladder (greenfield posture). A version bump means:
+// edit schemaSQL, bump this constant, and convert any existing local DB with a
+// one-shot operator-run script (see docs/plans/
+// project-internal-greenfield-migration-purge-plan.md). Older or unknown
+// versions are rejected loudly rather than silently dropping live claims.
 const SchemaVersion = 4
 
 // Owner kinds — who holds a claim.

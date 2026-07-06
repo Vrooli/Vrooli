@@ -299,18 +299,15 @@ func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, 
 }
 
 // injectTestGenieTestFlags rewrites a lifecycle `test-genie execute` test step to
-// carry the two flags the lifecycle path requires, idempotently:
+// carry the one flag the lifecycle path requires, idempotently:
 //
 //   - `--auto-start` (a global test-genie flag, before the subcommand): the
 //     lifecycle owns the target scenario's runtime, so the suite may auto-start
 //     surfaces it needs.
-//   - `--wait` (an execute flag, after the subcommand): the run is owned by the
-//     test-genie server and `execute` auto-backgrounds a known-long run by
-//     default; the lifecycle (and CI) must instead block to the suite's real
-//     verdict, so `--wait` forces an inline follow-to-completion.
 //
-// The server still owns the run, so an interrupted lifecycle leaves the run
-// alive and re-attachable by the run id `execute` prints up front.
+// The server owns the run and `execute` owns foreground/background policy. A
+// caller that wants inline blocking can pass `--wait` through `vrooli scenario
+// test`; the wrapper does not force it.
 func injectTestGenieTestFlags(command string) string {
 	fields := strings.Fields(command)
 
@@ -325,13 +322,7 @@ func injectTestGenieTestFlags(command string) string {
 			hasAutoStart = true
 		}
 	}
-	hasWait := false
-	for i := execIdx + 1; i < len(fields); i++ {
-		if fields[i] == "--wait" || strings.HasPrefix(fields[i], "--wait=") {
-			hasWait = true
-		}
-	}
-	if hasAutoStart && hasWait {
+	if hasAutoStart {
 		return command
 	}
 
@@ -348,18 +339,7 @@ func injectTestGenieTestFlags(command string) string {
 		rebuilt += " --auto-start"
 	}
 	rebuilt += " execute"
-	command = strings.Replace(command, span, rebuilt, 1)
-
-	// --wait is an `execute` flag, so it MUST follow the scenario positional -
-	// `execute` reads its first argument as the scenario name. Splicing --wait
-	// right after `execute` would make `--wait` the scenario and push the real
-	// scenario name into the phase list ("unknown phase '<scenario>'"). `execute`
-	// parses flags interspersed with positionals, so appending --wait at the very
-	// end of the command is correct regardless of any quoted arg tail.
-	if !hasWait {
-		command += " --wait"
-	}
-	return command
+	return strings.Replace(command, span, rebuilt, 1)
 }
 
 func isTestGenieExecuteCommand(command string) bool {

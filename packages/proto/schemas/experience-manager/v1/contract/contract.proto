@@ -45,6 +45,7 @@ service StudioSessionService {
   rpc DiscardSession(DiscardSessionRequest) returns (DiscardSessionResponse);
   rpc ListSpec(ListSpecRequest) returns (ListSpecResponse);
   rpc ShowSpec(ShowSpecRequest) returns (ShowSpecResponse);
+  rpc ListEvidence(ListEvidenceRequest) returns (ListEvidenceResponse);
   rpc SuggestBindings(SuggestBindingsRequest) returns (SuggestBindingsResponse);
   rpc RenderSpec(RenderSpecRequest) returns (RenderSpecResponse);
   rpc CompareVariants(CompareVariantsRequest) returns (CompareVariantsResponse);
@@ -220,6 +221,35 @@ message ShowSpecResponse {
   string scenario = 1;
   string page = 2;
   string json = 3;
+}
+
+message ListEvidenceRequest {
+  string scenario = 1;
+  string path = 2;
+  string page = 3;
+  string claim = 4;
+  int32 limit = 5;
+}
+
+message ListEvidenceResponse {
+  string scenario = 1;
+  string page = 2;
+  repeated ReconciliationEvidence evidence = 3;
+}
+
+message ReconciliationEvidence {
+  string id = 1;
+  string scenario = 2;
+  string page = 3;
+  string route = 4;
+  string state = 5;
+  string claim = 6;
+  string claim_type = 7;
+  string verdict = 8;
+  string capture_ref = 9;
+  string ax_node_json = 10;
+  string message = 11;
+  string checked_at = 12;
 }
 
 message SuggestBindingsRequest {

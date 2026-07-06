@@ -710,7 +710,7 @@ func TestDiagnosePortShowsRegistryClaimHealthAndProcessRefs(t *testing.T) {
 	}
 }
 
-func TestCleanStaleLocksExpiresAbandonedRegistryReservationsAndLegacyLocks(t *testing.T) {
+func TestCleanStaleLocksExpiresAbandonedRegistryReservations(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	ctx := context.Background()
@@ -753,35 +753,13 @@ func TestCleanStaleLocksExpiresAbandonedRegistryReservationsAndLegacyLocks(t *te
 		t.Fatalf("AcquirePortClaim(bound): %v", err)
 	}
 
-	stateDir, err := process.ScenarioStateDir(home)
-	if err != nil {
-		t.Fatalf("ScenarioStateDir: %v", err)
-	}
-	if err := os.MkdirAll(stateDir, 0o755); err != nil {
-		t.Fatalf("mkdir state dir: %v", err)
-	}
-	strayLock := filepath.Join(stateDir, ".port_15080.lock")
-	if err := os.WriteFile(strayLock, []byte("alpha:999999:1700000000\n"), 0o644); err != nil {
-		t.Fatalf("write stray lock: %v", err)
-	}
-	strayGuard := filepath.Join(stateDir, ".port_15080.guard")
-	if err := os.WriteFile(strayGuard, []byte("1:1700000000\n"), 0o644); err != nil {
-		t.Fatalf("write guard: %v", err)
-	}
-
 	stubListenerSnapshot(t, true, nil)
 	report, err := NewController(root, home).CleanStaleLocks()
 	if err != nil {
 		t.Fatalf("CleanStaleLocks: %v", err)
 	}
-	if len(report.Stopped) != 3 {
-		t.Fatalf("stopped = %#v, want stale starting lease, reserved claim, swept legacy lock file", report.Stopped)
-	}
-	if _, err := os.Stat(strayLock); !os.IsNotExist(err) {
-		t.Fatalf("stray lock file should be swept; stat err = %v", err)
-	}
-	if _, err := os.Stat(strayGuard); err != nil {
-		t.Fatalf("guard files must never be swept; stat err = %v", err)
+	if len(report.Stopped) != 2 {
+		t.Fatalf("stopped = %#v, want stale starting lease and reserved claim", report.Stopped)
 	}
 	afterClaim, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{InstanceID: starting.InstanceID})
 	if err != nil {

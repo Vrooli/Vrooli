@@ -7,16 +7,14 @@ func TestHelpText() string {
 	spec.Args = commandtree.ArgSchema{
 		Positionals: []commandtree.PositionalArg{
 			{Name: "scenario name", Required: true},
-			{Name: "phase"},
+			{Name: "test-genie args"},
 		},
 		Options: []commandtree.OptionArg{
-			{Name: "--path", ValueName: "path", Description: "Run tests from a custom scenario path"},
-			{Name: "--allow-skip-missing-runtime", Description: "Allow a missing runtime to skip execution"},
-			{Name: "--manage-runtime", Description: "Start and stop runtime dependencies as part of the test run"},
-			{Name: "--json", Description: "Emit the typed pass/fail summary (vrooli.cli.v1.TestPhaseResult)"},
+			{Name: "<test-genie args>", Description: "Arguments after the scenario name pass through to `test-genie execute`"},
 		},
 	}
-	spec.Help.Description = "Run scenario tests. Supported selectors include Test Genie catalog phases such as structure, contracts, ui-health, standards, dependencies, quality, docs, unit, storage, playbooks, business, tidiness, security, measures, proto, branding, all, and e2e.\n\n" +
+	spec.Help.Description = "Run scenario tests as a direct alias for `test-genie --auto-start execute <scenario> ...`.\n\n" +
+		"Vrooli does not run a lifecycle test phase or provide wrapper-specific fallback behavior here. Test Genie owns phases, presets, JSON/JSONL output, foreground/background policy, and the exit code.\n\n" +
 		"The run is owned by the test-genie SERVER, so this command is cancel-survivable: the run id and a\n" +
 		"re-attach command are printed up front, and the run keeps going if your shell/tool times out. Do NOT\n" +
 		"poll with repeated checks — just re-attach with the printed `wait` command, which blocks once and exits\n" +

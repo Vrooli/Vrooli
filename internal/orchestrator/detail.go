@@ -20,6 +20,11 @@ type Detail struct {
 	Scenario scenario.Scenario       `json:"scenario"`
 	Runtime  process.ScenarioRuntime `json:"runtime"`
 	Details  scenario.RuntimeDetails `json:"details"`
+	// StartOperation is the latest start/restart operation record for the
+	// instance (in-flight progress or last terminal outcome); nil when none
+	// exists or the runtime registry is unavailable. Populated on the
+	// single-scenario paths (Lookup/Detail), not fleet listings.
+	StartOperation *lifecycle.StartOperationView `json:"start_operation,omitempty"`
 }
 
 type StartResult struct {
@@ -30,6 +35,11 @@ type StartResult struct {
 	FailedResources    []string                `json:"failed_resources,omitempty"`
 	AlreadyRunning     bool                    `json:"already_running,omitempty"`
 	Details            scenario.RuntimeDetails `json:"details"`
+	// Verdict is the lifecycle health verdict of the start (healthy |
+	// degraded | running); it backs the exit-code contract.
+	Verdict string `json:"verdict,omitempty"`
+	// StartOperation is the durable operation record of this start.
+	StartOperation *lifecycle.StartOperationView `json:"start_operation,omitempty"`
 }
 
 type ResolvedPort struct {
@@ -103,15 +113,40 @@ func (s *Service) Lookup(name string) (Detail, bool, error) {
 	if err != nil {
 		return Detail{}, true, err
 	}
-	if ok {
-		return detail, true, nil
+	if !ok {
+		runtime := process.ScenarioRuntime{Name: name, Runtime: "N/A"}
+		detail = Detail{
+			Scenario: item,
+			Runtime:  runtime,
+			Details:  scenario.DescribeRuntime(item.Manifest, runtime),
+		}
 	}
-	runtime := process.ScenarioRuntime{Name: name, Runtime: "N/A"}
-	return Detail{
-		Scenario: item,
-		Runtime:  runtime,
-		Details:  scenario.DescribeRuntime(item.Manifest, runtime),
-	}, true, nil
+	// The operation record is read regardless of registry-instance presence:
+	// an in-flight start spends its dependency phase with no instance row yet,
+	// and that is exactly when introspection matters most.
+	detail.StartOperation = s.startOperationView(ctx, item)
+	return detail, true, nil
+}
+
+// startOperationView reads and evaluates the latest start-operation record
+// for an instance. Nil when none exists or the registry is unavailable — the
+// record is progress, never authority, so read failures degrade silently.
+func (s *Service) startOperationView(ctx context.Context, item scenario.Scenario) *lifecycle.StartOperationView {
+	store, err := s.openRuntimeRegistry(ctx)
+	if err != nil {
+		return nil
+	}
+	defer store.Close()
+	op, err := store.GetLatestStartOperation(ctx, item.Slug, item.Variant)
+	if err != nil {
+		return nil
+	}
+	estimates, err := store.PhaseDurationEstimates(ctx, item.Slug, item.Variant)
+	if err != nil {
+		estimates = nil
+	}
+	view := lifecycle.EvaluateStartOperation(op, process.IsPIDRunning, time.Now().UTC(), estimates)
+	return &view
 }
 
 func (s *Service) Detail(name string) (Detail, error) {
@@ -157,6 +192,8 @@ func (s *Service) StartDetailed(name string, opts lifecycle.StartOptions) (Start
 		FailedResources:    append([]string(nil), result.FailedResources...),
 		AlreadyRunning:     result.AlreadyRunning,
 		Details:            detail.Details,
+		Verdict:            result.Health,
+		StartOperation:     detail.StartOperation,
 	}, nil
 }
 
@@ -187,6 +224,8 @@ func (s *Service) RestartDetailed(name string, opts lifecycle.StartOptions) (Sta
 		FailedResources:    append([]string(nil), result.FailedResources...),
 		AlreadyRunning:     result.AlreadyRunning,
 		Details:            detail.Details,
+		Verdict:            result.Health,
+		StartOperation:     detail.StartOperation,
 	}, nil
 }
 
@@ -195,20 +234,21 @@ func (s *Service) startResultFromLiveDetail(name string, alreadyRunning bool) (S
 	if err != nil {
 		return StartResult{}, err
 	}
-	deadline := time.Now().Add(30 * time.Second)
 	var detail Detail
-	for {
-		detail, err = s.detailFor(item, name)
-		if err == nil && detail.Details.Status == "running" {
-			break
+	var lastErr error
+	awaitErr := lifecycle.Await(s.awaitClock(), lifecycle.SandboxStartPolicy, func() (bool, error) {
+		detail, lastErr = s.detailFor(item, name)
+		if lastErr != nil {
+			// Retried through the policy bound; only the final look is surfaced.
+			return false, nil
 		}
-		if time.Now().After(deadline) {
-			if err != nil {
-				return StartResult{}, err
-			}
-			return StartResult{}, fmt.Errorf("scenario %s did not report running after host lifecycle proxy", name)
+		return detail.Details.Status == "running", nil
+	})
+	if awaitErr != nil {
+		if lastErr != nil {
+			return StartResult{}, lastErr
 		}
-		time.Sleep(500 * time.Millisecond)
+		return StartResult{}, fmt.Errorf("scenario %s did not report running after host lifecycle proxy", name)
 	}
 	return StartResult{
 		View:           s.viewForDetail(detail),
@@ -233,15 +273,16 @@ func (s *Service) detailFor(item scenario.Scenario, name string) (Detail, error)
 	if err != nil {
 		return Detail{}, err
 	}
-	if ok {
-		return detail, nil
+	if !ok {
+		runtime := process.ScenarioRuntime{Name: name, Runtime: "N/A"}
+		detail = Detail{
+			Scenario: item,
+			Runtime:  runtime,
+			Details:  scenario.DescribeRuntime(item.Manifest, runtime),
+		}
 	}
-	runtime := process.ScenarioRuntime{Name: name, Runtime: "N/A"}
-	return Detail{
-		Scenario: item,
-		Runtime:  runtime,
-		Details:  scenario.DescribeRuntime(item.Manifest, runtime),
-	}, nil
+	detail.StartOperation = s.startOperationView(ctx, item)
+	return detail, nil
 }
 
 func (s *Service) ResolvePort(name, requested string) (ResolvedPort, error) {

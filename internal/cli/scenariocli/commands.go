@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
@@ -49,6 +50,7 @@ const (
 	CommandSetup           CommandID = "setup"
 	CommandRestart         CommandID = "restart"
 	CommandStop            CommandID = "stop"
+	CommandWait            CommandID = "wait"
 	CommandStopAll         CommandID = "stop-all"
 	CommandTest            CommandID = "test"
 	CommandLogs            CommandID = "logs"
@@ -94,7 +96,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandStart), Group: "Lifecycle and Utility Commands", Summary: "Start a scenario", Handler: CommandStart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true, Repeatable: true}},
-				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--open"}, commandtree.JSONOption(), instanceOption()},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole start (not the expected duration); on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption()},
 			},
 		},
 		{
@@ -109,7 +111,18 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandRestart), Group: "Lifecycle and Utility Commands", Summary: "Restart a scenario", Handler: CommandRestart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}},
-				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--open"}, commandtree.JSONOption(), instanceOption()},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole restart; on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption()},
+			},
+		},
+		{
+			Name: string(CommandWait), Group: "Lifecycle and Utility Commands", Summary: "Block once until a scenario's in-flight start finishes (anti-polling)", Handler: CommandWait, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}},
+				Options: []commandtree.OptionArg{
+					{Name: "--timeout", ValueName: "seconds", Description: "Wait CEILING in seconds (not the expected duration); on expiry exit 124 and the start keeps running. Size it as ETA + 75% buffer."},
+					commandtree.JSONOption(),
+					instanceOption(),
+				},
 			},
 		},
 		{
@@ -191,6 +204,8 @@ type StartRequest struct {
 	Options   lifecycle.StartOptions
 	JSON      bool
 	OpenAfter bool
+	// TimeoutSeconds is the ceiling for the whole start; 0 = unbounded.
+	TimeoutSeconds int
 }
 type (
 	StopRequest struct {
@@ -202,8 +217,16 @@ type (
 		Options   lifecycle.StartOptions
 		JSON      bool
 		OpenAfter bool
+		// TimeoutSeconds is the ceiling for the whole restart; 0 = unbounded.
+		TimeoutSeconds int
 	}
 )
+
+type WaitRequest struct {
+	Name           string
+	TimeoutSeconds int
+	JSON           bool
+}
 
 type (
 	ListRequest struct{ JSON, IncludePorts bool }
@@ -225,11 +248,8 @@ type (
 		JSON bool
 	}
 	TestRequest struct {
-		Name     string
-		Selector string
-		Opts     lifecycle.PhaseOptions
-		// JSON emits the typed vrooli.cli.v1.TestPhaseResult pass/fail summary.
-		JSON bool
+		Name string
+		Args []string
 	}
 	StartAllRequest struct{ JSON bool }
 	StopAllRequest  struct{ JSON bool }
@@ -292,41 +312,60 @@ func parseOptionalScenarioNameAndJSONWithHelp(command string, defaultJSON bool, 
 	return name, defaultJSON || parsed.HasFlag("--json"), nil
 }
 
-func ParseScenarioStartArgs(defaultJSON bool, args []string) ([]string, lifecycle.StartOptions, bool, bool, error) {
+// ScenarioStartArgs is the parsed shape shared by start/restart/run.
+type ScenarioStartArgs struct {
+	Names          []string
+	Options        lifecycle.StartOptions
+	JSON           bool
+	OpenAfter      bool
+	TimeoutSeconds int
+}
+
+func ParseScenarioStartArgs(defaultJSON bool, args []string) (ScenarioStartArgs, error) {
 	spec := commandSpec(CommandStart)
 	parsed, err := commandtree.ParseArgs("scenario start", commandHelpText(CommandStart), spec.Args, args)
 	if err != nil {
-		return nil, lifecycle.StartOptions{}, false, false, err
+		return ScenarioStartArgs{}, err
 	}
-	opts := lifecycle.StartOptions{
-		BestEffort: parsed.HasFlag("--best-effort"),
-		CleanStale: parsed.HasFlag("--clean-stale"),
-		CustomPath: parsed.FlagValue("--path"),
+	out := ScenarioStartArgs{
+		Options: lifecycle.StartOptions{
+			BestEffort: parsed.HasFlag("--best-effort"),
+			CleanStale: parsed.HasFlag("--clean-stale"),
+			CustomPath: parsed.FlagValue("--path"),
+		},
+		JSON:      defaultJSON || parsed.HasFlag("--json"),
+		OpenAfter: parsed.HasFlag("--open"),
+	}
+	if raw := strings.TrimSpace(parsed.FlagValue("--timeout")); raw != "" {
+		out.TimeoutSeconds, err = strconv.Atoi(raw)
+		if err != nil || out.TimeoutSeconds <= 0 {
+			return ScenarioStartArgs{}, clipolicy.UsageErrorf("scenario start", "--timeout must be a positive number of seconds, got %q", raw)
+		}
 	}
 	instanceFlag := parsed.FlagValue("--instance")
-	names := make([]string, 0, len(parsed.Positionals))
+	out.Names = make([]string, 0, len(parsed.Positionals))
 	for _, positional := range parsed.Positionals {
 		slug, err := resolveInstanceArg("start", positional, instanceFlag)
 		if err != nil {
-			return nil, lifecycle.StartOptions{}, false, false, err
+			return ScenarioStartArgs{}, err
 		}
-		names = append(names, slug)
+		out.Names = append(out.Names, slug)
 	}
-	return names, opts, defaultJSON || parsed.HasFlag("--json"), parsed.HasFlag("--open"), nil
+	return out, nil
 }
 
-func ParseScenarioSingleStartArgs(command string, defaultJSON bool, args []string) (string, lifecycle.StartOptions, bool, bool, error) {
-	names, opts, jsonFlag, openAfter, err := ParseScenarioStartArgs(defaultJSON, args)
+func ParseScenarioSingleStartArgs(command string, defaultJSON bool, args []string) (ScenarioStartArgs, error) {
+	parsed, err := ParseScenarioStartArgs(defaultJSON, args)
 	if err != nil {
-		return "", lifecycle.StartOptions{}, false, false, err
+		return ScenarioStartArgs{}, err
 	}
-	if len(names) == 0 {
-		return "", lifecycle.StartOptions{}, false, false, clipolicy.UsageErrorf("scenario "+command, "scenario %s requires a scenario name", command)
+	if len(parsed.Names) == 0 {
+		return ScenarioStartArgs{}, clipolicy.UsageErrorf("scenario "+command, "scenario %s requires a scenario name", command)
 	}
-	if len(names) > 1 {
-		return "", lifecycle.StartOptions{}, false, false, clipolicy.UsageErrorf("scenario "+command, "scenario %s accepts exactly one scenario name", command)
+	if len(parsed.Names) > 1 {
+		return ScenarioStartArgs{}, clipolicy.UsageErrorf("scenario "+command, "scenario %s accepts exactly one scenario name", command)
 	}
-	return names[0], opts, jsonFlag, openAfter, nil
+	return parsed, nil
 }
 
 func ParseStartRequest(globalsJSON bool, args []string) (StartRequest, error) {
@@ -335,17 +374,17 @@ func ParseStartRequest(globalsJSON bool, args []string) (StartRequest, error) {
 			return StartRequest{}, clipolicy.CommandHelpOnly(commandHelpText(CommandStart))
 		}
 	}
-	names, opts, jsonFlag, openAfter, err := ParseScenarioStartArgs(globalsJSON, args)
+	parsed, err := ParseScenarioStartArgs(globalsJSON, args)
 	if err != nil {
 		return StartRequest{}, err
 	}
-	if len(names) == 0 {
+	if len(parsed.Names) == 0 {
 		return StartRequest{}, clipolicy.UsageErrorf("scenario start", "scenario start requires at least one scenario name")
 	}
-	if opts.CustomPath != "" && len(names) != 1 {
+	if parsed.Options.CustomPath != "" && len(parsed.Names) != 1 {
 		return StartRequest{}, clipolicy.UsageErrorf("scenario start", "scenario start with --path accepts exactly one scenario name")
 	}
-	return StartRequest{Names: names, Options: opts, JSON: jsonFlag, OpenAfter: openAfter}, nil
+	return StartRequest(parsed), nil
 }
 
 func ParseStopRequest(globalsJSON bool, args []string) (StopRequest, error) {
@@ -370,11 +409,34 @@ func ParseRestartRequest(globalsJSON bool, args []string) (RestartRequest, error
 			return RestartRequest{}, clipolicy.CommandHelpOnly(commandHelpText(CommandRestart))
 		}
 	}
-	name, opts, jsonFlag, openAfter, err := ParseScenarioSingleStartArgs("restart", globalsJSON, args)
+	parsed, err := ParseScenarioSingleStartArgs("restart", globalsJSON, args)
 	if err != nil {
 		return RestartRequest{}, err
 	}
-	return RestartRequest{Name: name, Options: opts, JSON: jsonFlag, OpenAfter: openAfter}, nil
+	return RestartRequest{Name: parsed.Names[0], Options: parsed.Options, JSON: parsed.JSON, OpenAfter: parsed.OpenAfter, TimeoutSeconds: parsed.TimeoutSeconds}, nil
+}
+
+func ParseWaitRequest(globalsJSON bool, args []string) (WaitRequest, error) {
+	spec := commandSpec(CommandWait)
+	parsed, err := commandtree.ParseArgs("scenario wait", waitHelpText(), spec.Args, args)
+	if err != nil {
+		return WaitRequest{}, err
+	}
+	if len(parsed.Positionals) == 0 {
+		return WaitRequest{}, clipolicy.UsageErrorf("scenario wait", "scenario wait requires a scenario name")
+	}
+	slug, err := resolveInstanceArg("wait", parsed.Positionals[0], parsed.FlagValue("--instance"))
+	if err != nil {
+		return WaitRequest{}, err
+	}
+	timeoutSeconds := 0
+	if raw := strings.TrimSpace(parsed.FlagValue("--timeout")); raw != "" {
+		timeoutSeconds, err = strconv.Atoi(raw)
+		if err != nil || timeoutSeconds <= 0 {
+			return WaitRequest{}, clipolicy.UsageErrorf("scenario wait", "--timeout must be a positive number of seconds, got %q", raw)
+		}
+	}
+	return WaitRequest{Name: slug, TimeoutSeconds: timeoutSeconds, JSON: globalsJSON || parsed.HasFlag("--json")}, nil
 }
 
 func ParseListRequest(globalsJSON bool, args []string) (ListRequest, error) {
@@ -511,91 +573,16 @@ func ParseSetupRequest(globalsJSON bool, args []string) (SetupRequest, error) {
 	return SetupRequest{Name: name, Opts: opts, JSON: jsonFlag}, nil
 }
 
-func ParseTestArgs(globalsJSON, globalsVerbose bool, args []string) (TestRequest, error) {
-	name := ""
-	selection := ""
-	req := TestRequest{JSON: globalsJSON}
-	opts := lifecycle.PhaseOptions{}
-	remaining := []string{}
-	for index := 0; index < len(args); index++ {
-		arg := args[index]
-		switch arg {
-		case "--path":
-			if index+1 >= len(args) {
-				return TestRequest{}, clipolicy.UsageErrorf("scenario test", "scenario test --path requires a value")
-			}
-			index++
-			opts.CustomPath = args[index]
-		case "--allow-skip-missing-runtime":
-			opts.AllowSkipMissingRuntime = true
-		case "--manage-runtime":
-			opts.ManageRuntime = true
-		case "--json":
-			// Wrapper-level JSON (typed TestPhaseResult pass/fail summary) — NOT
-			// forwarded to the test-genie child; that stays terse/human by default.
-			req.JSON = true
-		default:
-			if strings.HasPrefix(arg, "-") {
-				remaining = append(remaining, arg)
-				continue
-			}
-			if name == "" {
-				name = arg
-			} else if selection == "" {
-				selection = arg
-			} else {
-				remaining = append(remaining, arg)
-			}
-		}
-	}
-	if name == "" {
+func ParseTestArgs(_, _ bool, args []string) (TestRequest, error) {
+	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
 		return TestRequest{}, clipolicy.UsageErrorf("scenario test", "scenario test requires a scenario name")
 	}
-	if selection != "" {
-		valid := map[string]string{
-			"all":          "all",
-			"architecture": "architecture",
-			"branding":     "branding",
-			"business":     "business",
-			"contracts":    "contracts",
-			"dependencies": "dependencies",
-			"docs":         "docs",
-			"e2e":          "playbooks",
-			"integration":  "playbooks",
-			"measures":     "measures",
-			"performance":  "performance",
-			"playbooks":    "playbooks",
-			"proto":        "proto",
-			"quality":      "quality",
-			"security":     "security",
-			"standards":    "standards",
-			"storage":      "storage",
-			"structure":    "structure",
-			"tidiness":     "tidiness",
-			"ui-health":    "ui-health",
-			"unit":         "unit",
-		}
-		mapped, ok := valid[selection]
-		if !ok {
-			return TestRequest{}, clipolicy.UsageErrorf("scenario test", "invalid test selector: %s", selection)
-		}
-		req.Selector = mapped
-		remaining = append([]string{mapped}, remaining...)
-	}
-	if globalsVerbose && !containsArg(remaining, "--verbose") {
-		remaining = append(remaining, "--verbose")
-	}
-	opts.Args = remaining
-	req.Name = name
-	req.Opts = opts
-	return req, nil
+	return TestRequest{Name: args[0], Args: append([]string(nil), args[1:]...)}, nil
 }
 
 func ParseTestRequest(globalsJSON, globalsVerbose bool, args []string) (TestRequest, error) {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			return TestRequest{}, clipolicy.CommandHelpOnly(TestHelpText())
-		}
+	if len(args) > 0 && (args[0] == "--help" || args[0] == "-h") {
+		return TestRequest{}, clipolicy.CommandHelpOnly(TestHelpText())
 	}
 	return ParseTestArgs(globalsJSON, globalsVerbose, args)
 }
@@ -807,15 +794,6 @@ func RenderHealFromSandboxResponse(w io.Writer, format cliout.Format, resp HealF
 	}
 	_, _ = fmt.Fprintf(w, "heal-from-sandbox: stopped and relaunched %d scenario(s)\n", len(resp.Affected))
 	return nil
-}
-
-func containsArg(args []string, target string) bool {
-	for _, arg := range args {
-		if arg == target {
-			return true
-		}
-	}
-	return false
 }
 
 func FormatScenarioTemplateRequiredFlags(requiredVars map[string]TemplateVar) string {

@@ -87,14 +87,3 @@ message Response {
   // they're not connected.
   map<string, DependencyStatus> dependencies = 7;
 }
-
-// StatusRequest is empty because the health payload is scoped to the running
-// scenario instance.
-message StatusRequest {}
-
-// HealthService gives manifest-driven CLI tools a typed binding for the
-// operational health surface. The API still exposes /health as a deliberate
-// REST exception for lifecycle probes.
-service HealthService {
-  rpc Status(StatusRequest) returns (Response);
-}

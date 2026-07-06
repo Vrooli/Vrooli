@@ -16,11 +16,12 @@ Its only dependency is the generated `architecture/v1` proto types
 ### `github.com/vrooli/maturity-go/assessment`
 
 The shared health-scenario maturity contract helper. Health providers own their
-phase-local maturity ladder in `.vrooli/maturity.json`, emit a shared
-`common.v1.MaturityAssessment` object, and keep any richer provider-specific
-fields beside it. This package validates the local spec, normalizes finding
-maturity metadata, computes the provider-local current/next level, and preserves
-fallback behavior when older providers have not emitted maturity metadata yet.
+phase-local maturity ladder inside `.vrooli/test-genie.json`'s embedded
+`maturity` block, emit a shared `common.v1.MaturityAssessment` object, and keep
+any richer provider-specific fields beside it. This package validates the local
+spec, normalizes finding maturity metadata, computes the provider-local
+current/next level, and preserves fallback behavior when older providers have
+not emitted maturity metadata yet.
 
 The spec shape is intentionally scenario-local:
 
@@ -109,7 +110,7 @@ then provider declaration order. The emitted capability list remains in
 declaration order; `priority_rank` records the sorted focus order.
 
 Knowledge Observatory is the documentation-health reference adopter for this
-shape. Its `.vrooli/maturity.json` separates the docs provider into
+shape. Its `.vrooli/test-genie.json` embedded maturity block separates the docs provider into
 `doc_contract`, `required_docs`, `append_log_integrity`, `content_quality`,
 `link_health`, `reference_integrity`, and `manifest_coverage`; the native
 `DocHealthResponse` stays provider-owned while the shared `assessment` carries
@@ -135,26 +136,31 @@ JSON automation boundary, see
 ### `github.com/vrooli/maturity-go/dimensions`
 
 The controller's improvement-dimension vocabulary (`standards`, `tests`,
-`structure`, …) and the SSOT mapping tables from test-genie finding sources
-and phase names into that vocabulary. The data lives in the embedded
+`structure`, …) and the SSOT mapping table from test-genie finding sources
+into that vocabulary. The data lives in the embedded
 `dimensions.json`; edit the JSON, never the accessors.
-
-The `architecture` phase maps to the `structure` dimension because a clean
-cartographer run primarily proves domain-authority and placement coverage.
-Provider-local finding metadata can still route specific findings to `cycles`,
-so import-cycle drift remains a separate hard evolvability signal while the
-phase-level posture stays tied to structure.
 
 ```go
 dim, ok := dimensions.ForSource(architecturev1.FindingSource_FINDING_SOURCE_COVERAGE)
-dim, ok = dimensions.ForPhase("unit")
 all := dimensions.All()
-phases := dimensions.PhasesForDimensions("tests", "coverage")
 ```
 
 Anti-drift guards: the package tests fail when test-genie's `FindingSource`
-proto enum or phase catalog adds an entry that `dimensions.json` does not map
+proto enum adds an entry that `dimensions.json` does not map
 (fixture: `dimensions/testdata/testgenie_audit_fixture.json`).
+
+### `github.com/vrooli/maturity-go/phasecoverage`
+
+Descriptor-derived Test Genie phase coverage. This package reads
+`scenarios/*/.vrooli/test-genie.json` and projects `dimensions` plus
+`freshnessRequirement`; it embeds no phase catalog.
+
+```go
+coverage, err := phasecoverage.Load(repoRoot)
+dim, ok := coverage.FirstDimensionForPhase("unit")
+phases := coverage.PhasesForDimensions(dimensions.Dimension("tests"))
+freshness := coverage.FreshnessRequiredPhases()
+```
 
 ### `github.com/vrooli/maturity-go/ladder`
 

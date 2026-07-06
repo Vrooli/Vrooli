@@ -21,6 +21,19 @@ import (
 // the GlobalOptions struct can still collapse their output. Keeping the
 // env var as the single source of truth avoids a scenariocli → rootcli
 // import cycle.
+// lifecycleItemsExitCode returns the worst verdict exit code across the
+// items: degraded → 2, everything else (healthy/running/empty) → 0. Failures
+// never reach the renderer (they surface as command errors → exit 1).
+func lifecycleItemsExitCode(items []LifecycleItemOutput) int {
+	code := 0
+	for _, item := range items {
+		if item.Verdict == "degraded" && code < 2 {
+			code = 2
+		}
+	}
+	return code
+}
+
 func isQuietOutput() bool {
 	return strings.ToLower(strings.TrimSpace(os.Getenv("VROOLI_OUTPUT"))) == "quiet"
 }
@@ -55,6 +68,8 @@ type StatusItemOutput struct {
 	PortBindings []ListPortOutput `json:"port_bindings,omitempty"`
 	Health       any              `json:"health_status"`
 	HealthError  string           `json:"health_error,omitempty"`
+	// StartOperation mirrors scenarioapp.StatusItemOutput.StartOperation.
+	StartOperation *lifecycle.StartOperationView `json:"start_operation,omitempty"`
 }
 
 type InfoOutput struct {
@@ -108,6 +123,12 @@ type LifecycleItemOutput struct {
 	Endpoints          []EndpointOutput `json:"endpoints,omitempty"`
 	FailedDependencies []string         `json:"failed_dependencies,omitempty"`
 	FailedResources    []string         `json:"failed_resources,omitempty"`
+	// Verdict backs the exit-code contract (healthy | degraded | running);
+	// degraded exits 2 in --json mode (text mode keeps exit 0 for
+	// compatibility with existing callers).
+	Verdict string `json:"verdict,omitempty"`
+	// Operation is the durable start-operation record for this item.
+	Operation *lifecycle.StartOperationView `json:"operation,omitempty"`
 }
 
 type EndpointOutput struct {
@@ -186,18 +207,19 @@ func BuildStatusDetail(detail orchestrator.Detail) StatusItemOutput {
 		health = detail.Details.Health
 	}
 	return StatusItemOutput{
-		Name:         detail.Scenario.Slug,
-		DisplayName:  detail.Scenario.Manifest.Service.DisplayName,
-		Description:  detail.Scenario.Manifest.Service.Description,
-		Tags:         CopyStrings(detail.Scenario.Manifest.Service.Tags),
-		Status:       detail.Details.Status,
-		Processes:    detail.Details.Processes,
-		Runtime:      detail.Details.Runtime,
-		StartedAt:    detail.Details.StartedAt,
-		Ports:        CopyIntMap(detail.Details.Ports),
-		PortBindings: RuntimePortOutputs(detail.Details.PortBindings),
-		Health:       health,
-		HealthError:  detail.Details.HealthError,
+		Name:           detail.Scenario.Slug,
+		DisplayName:    detail.Scenario.Manifest.Service.DisplayName,
+		Description:    detail.Scenario.Manifest.Service.Description,
+		Tags:           CopyStrings(detail.Scenario.Manifest.Service.Tags),
+		Status:         detail.Details.Status,
+		Processes:      detail.Details.Processes,
+		Runtime:        detail.Details.Runtime,
+		StartedAt:      detail.Details.StartedAt,
+		Ports:          CopyIntMap(detail.Details.Ports),
+		PortBindings:   RuntimePortOutputs(detail.Details.PortBindings),
+		Health:         health,
+		HealthError:    detail.Details.HealthError,
+		StartOperation: detail.StartOperation,
 	}
 }
 
@@ -274,7 +296,18 @@ func CopyProcessRecords(values []process.Record) []process.Record {
 
 func WriteLifecycleItems(w io.Writer, format cliout.Format, items []LifecycleItemOutput) error {
 	if format == cliout.FormatJSON {
-		return writeScenarioLifecycleJSON(w, items)
+		if err := writeScenarioLifecycleJSON(w, items); err != nil {
+			return err
+		}
+		// Verdict exit-code contract (agents): a degraded-after-timeout start
+		// succeeded but exits 2 so callers can distinguish it from full
+		// health. Scoped to --json — human/programmatic text mode keeps exit
+		// 0 so existing in-repo callers (test-genie target runtime, make
+		// targets) are unchanged.
+		if code := lifecycleItemsExitCode(items); code != 0 {
+			return VerdictExitError{Code: code}
+		}
+		return nil
 	}
 	if isQuietOutput() {
 		return writeLifecycleItemsCompact(w, items)

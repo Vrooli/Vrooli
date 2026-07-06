@@ -32,6 +32,7 @@ type scenarioRuntimeStore interface {
 	scenarioruntime.HealthRepository
 	scenarioruntime.ProcessRefRepository
 	scenarioruntime.EventRepository
+	scenarioruntime.StartOperationRepository
 	Close() error
 }
 
