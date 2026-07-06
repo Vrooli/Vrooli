@@ -4,6 +4,7 @@ import (
 	"search-hub/cli/domains/evals"
 	"search-hub/cli/domains/federation"
 	"search-hub/cli/domains/insights"
+	"search-hub/cli/domains/maturity"
 	"search-hub/cli/domains/providers"
 	"search-hub/cli/domains/query"
 
@@ -66,5 +67,9 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{providersGroup, queryGroup, federationGroup, insightsGroup, evalsGroup}, nil
+	maturityGroup, err := maturity.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{providersGroup, queryGroup, federationGroup, insightsGroup, evalsGroup, maturityGroup}, nil
 }

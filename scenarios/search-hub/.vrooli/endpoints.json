@@ -725,6 +725,109 @@
           "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.routing.RoutingService/Status -H 'Content-Type: application/json' -d '{}'"
         }
       ]
+    },
+    {
+      "id": "validation_validate_scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate scenario search maturity",
+      "description": "Validates a target scenario's .vrooli/search.json provider descriptors, readiness declarations, tuning budget posture, and eval corpus shape, then returns the shared scenario-validation response.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "include_execution": "bool",
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "metrics": "common.v1.ExecutionMetrics",
+          "native_detail": "google.protobuf.Any<google.protobuf.Struct>",
+          "scenario": "string",
+          "status": "scenario_validation.v1.ValidationStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Validate search maturity",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"cli-health\"}'"
+        }
+      ]
+    },
+    {
+      "id": "validation_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview deterministic search maturity fixes",
+      "description": "Reserved for future mechanical .vrooli/search.json repairs.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<scenario_validation.v1.FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Search maturity fixes are not implemented"
+        }
+      ]
+    },
+    {
+      "id": "validation_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply deterministic search maturity fixes",
+      "description": "Reserved for future mechanical .vrooli/search.json repairs.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<scenario_validation.v1.FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Search maturity fixes are not implemented"
+        }
+      ]
     }
   ]
 }

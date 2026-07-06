@@ -330,6 +330,16 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `handlers/eval/provider_client_test.go::TestSearchRendersScopePlaceholders` records the outgoing request body through the fake HTTP doer. |
 | **Why it exists** | Scoped test cases belong in the shared corpus contract, not in scenario-local harnesses. Rendering scope generically lets KO-style document suites preserve scenario/path filters without adding provider-specific code to search-hub. |
 
+### validation.Service (Test Genie search-phase judgment)
+
+| | |
+|---|---|
+| **Seam** | Descriptor-shape judgment for the Test Genie `search` phase: given a target scenario, evaluate its `.vrooli/search.json` against the registry/eval contracts and emit stable finding codes. |
+| **Interface** | `internal/validation/service.go::Service.ValidateScenario(scenario, path)` returns a pure `Report` (findings + summary); `BuildMaturityAssessment` projects it into the shared `common.v1.MaturityAssessment`. |
+| **Production wiring** | `handlers/validation/module.go` mounts the Connect `scenario-validation/v1.ScenarioValidationService`, loads Search Hub's own descriptor-embedded maturity spec, and attaches `ExecutionMetrics` per response. Fix RPCs are honestly `Unimplemented` (all search findings are manual). |
+| **Test fake** | None needed — the rule core is pure file/schema evaluation reusing `internal/registry.Validate`; `internal/validation/service_test.go` drives it with on-disk fixtures, `handlers/validation/connect_handler_test.go` covers the transport mapping. |
+| **Why it exists** | Search maturity judgment must be a normal Test Genie provider phase without breaking the thin-router invariant: the service judges *contract shape* (descriptor, registry invariants, eval corpus declaration, control posture), never corpus content or relevance. Reusing the registry validator keeps one rule source between live registration and phase validation. |
+
 ### corpusgen.Deps (the generator's seam bundle)
 
 | | |

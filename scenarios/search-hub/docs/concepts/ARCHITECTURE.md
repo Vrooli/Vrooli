@@ -30,6 +30,17 @@ See [`DOMAINS.md`](DOMAINS.md) for the five product domains (`registry`,
 `providers`, `routing`, `rerank`, `metrics`) and the pipeline that
 composes them.
 
+The thin-router invariant extends to **search maturity judgment**: Search
+Hub is the Test Genie `search` phase provider (descriptor at
+`.vrooli/test-genie.json`, served via the shared
+`scenario-validation/v1.ScenarioValidationService` in
+`handlers/validation` + `internal/validation`). It judges the *contract
+shape* of a target's `.vrooli/search.json` — provider descriptors,
+registry invariants, eval corpus declaration, status/control posture,
+tuning budgets — and never the corpus content itself. Corpus-specific
+relevance stays provider-owned and is measured through eval suites, not
+centralized checks.
+
 ## Purpose Of This Document
 
 This document owns:

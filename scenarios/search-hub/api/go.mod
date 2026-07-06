@@ -10,6 +10,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/vrooli/ai-go v0.0.0
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/maturity-go v0.0.0
 	github.com/vrooli/measures-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11
@@ -40,6 +41,8 @@ require (
 replace github.com/vrooli/ai-go => ../../../packages/ai-go
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
+
+replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
 
 replace github.com/vrooli/measures-go => ../../../packages/measures-go
 

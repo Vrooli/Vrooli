@@ -46,6 +46,12 @@ func newHTTPProviderClient(resolver URLResolver, doer httpc.Doer) *httpProviderC
 	return &httpProviderClient{resolver: resolver, doer: doer}
 }
 
+// NewDefaultProviderClient returns the production provider client used by both
+// eval execution and validation-time live corpus probing.
+func NewDefaultProviderClient() internaleval.ProviderClient {
+	return newHTTPProviderClient(newScenarioResolver(), httpc.NewDefault())
+}
+
 func (c *httpProviderClient) Search(ctx context.Context, d *registryv1.ProviderDescriptor, query string, limit int32, opts internaleval.SearchCallOptions) ([]*routingv1.SearchHit, error) {
 	hj := d.GetEndpoint().GetHttpJson()
 	if hj == nil {

@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
 	_ "modernc.org/sqlite"
 
 	evalH "search-hub/handlers/eval"
@@ -28,6 +29,7 @@ import (
 	metricsH "search-hub/handlers/metrics"
 	registryH "search-hub/handlers/registry"
 	routingH "search-hub/handlers/routing"
+	validationH "search-hub/handlers/validation"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -101,6 +103,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
 	}
+	repoRoot, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		log.Fatalf("repo root resolution failed: %v", err)
+	}
 
 	if err := metricsH.Migrate(context.Background(), db); err != nil {
 		log.Fatalf("metrics schema migration failed: %v", err)
@@ -133,6 +139,7 @@ func main() {
 		registryH.Module(db, clock.System{}, log.Default()),
 		routingH.Module(db, clock.System{}, log.Default(), telemetryRecorder),
 		evalH.Module(db, clock.System{}, log.Default()),
+		validationH.Module(log.Default(), repoRoot, db, clock.System{}),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

@@ -121,7 +121,7 @@
           "flags": [
             { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)." }
           ],
-          "binding": { "kind": "connect-rpc", "service": "vrooli.search_hub.v1.measures.MeasuresService", "method": "FederatedLatency" },
+          "binding": { "kind": "connect-rpc", "service": "MeasuresService", "method": "FederatedLatency" },
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -145,7 +145,7 @@
           "flags": [
             { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)." }
           ],
-          "binding": { "kind": "connect-rpc", "service": "vrooli.search_hub.v1.measures.MeasuresService", "method": "DegradedQueryRate" },
+          "binding": { "kind": "connect-rpc", "service": "MeasuresService", "method": "DegradedQueryRate" },
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -170,7 +170,7 @@
             { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)." },
             { "name": "provider-id", "description": "Optional provider_id to scope the rate, e.g. measures-health.measures." }
           ],
-          "binding": { "kind": "connect-rpc", "service": "vrooli.search_hub.v1.measures.MeasuresService", "method": "ProviderDegradationRate" },
+          "binding": { "kind": "connect-rpc", "service": "MeasuresService", "method": "ProviderDegradationRate" },
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -368,9 +368,49 @@
           }
         }
       ]
+    },
+    {
+      "name": "maturity",
+      "description": "Scan target scenario search maturity using Search Hub validation",
+      "commands": [
+        {
+          "name": "scan",
+          "description": "Scan every scenario with .vrooli/search.json and report search maturity findings",
+          "flags": [
+            { "name": "root", "default": ".", "description": "Repo root or descendant path; scanner walks up to find scenarios/" },
+            { "name": "timeout", "default": "30s", "description": "Per-scenario validation RPC timeout, e.g. 10s or 1m" },
+            { "name": "fast", "bool": true, "description": "Skip live eval evidence checks for a quick descriptor/state scan" },
+            { "name": "include-evals", "bool": true, "description": "Force full eval evidence checks; this is the default unless --fast is set" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "ValidateScenario" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["filesystem:read", "network:internal"]
+          }
+        },
+        {
+          "name": "fix",
+          "description": "Preview or apply safe mechanical .vrooli/search.json maturity fixes for one scenario",
+          "positionals": [
+            { "name": "scenario", "required": true, "description": "Scenario slug to inspect/fix" }
+          ],
+          "flags": [
+            { "name": "path", "description": "Optional explicit scenario path; useful for disposable fixtures" },
+            { "name": "rule", "description": "Comma-separated finding codes to fix; empty previews every safe mechanical fix" },
+            { "name": "timeout", "default": "30s", "description": "Fix RPC timeout, e.g. 10s or 1m" },
+            { "name": "apply", "bool": true, "description": "Write the previewed mechanical fixes; default is dry-run" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "PreviewFix" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["filesystem:write", "network:internal"]
+          }
+        }
+      ]
     }
   ],
-  "omitted": [],
   "measures": {
     "domains": [
       {

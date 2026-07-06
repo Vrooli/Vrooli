@@ -145,6 +145,24 @@ The CLI mirrors the `EvalService` RPCs (`register` / `list` / `show` / `run` /
 snapshot the config that affects results (active reranker leg, embed model,
 indexed count) so a comparison stays meaningful months later.
 
+Search maturity validation is full by default for the target workflow and the
+Test Genie `search` phase: descriptor governance, eval corpus shape, stored run
+freshness/outcomes, and live corpus labels are checked together. Use the target
+maturity workflow when preparing a repair campaign:
+
+```bash
+search-hub maturity scan --json
+search-hub maturity scan --fast --json           # skip live eval proof
+search-hub maturity fix <scenario> --json              # dry-run
+search-hub maturity fix <scenario> --apply --json      # explicit write
+```
+
+Full validation checks that the declared suite is registered, has a latest run
+inside Search Hub's freshness window, does not contain stored outcomes below
+expectation or unexpected hits, and still resolves reviewed positive labels
+through the provider's live search endpoint. `--fast` is an operator inventory
+mode only; it skips live proof and should not be treated as phase validation.
+
 ## Working Rules
 
 1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first.** It owns the first implementation workflow.

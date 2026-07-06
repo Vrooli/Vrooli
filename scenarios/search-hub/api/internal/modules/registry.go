@@ -27,8 +27,10 @@ import (
 	metricsH "search-hub/handlers/metrics"
 	registryH "search-hub/handlers/registry"
 	routingH "search-hub/handlers/routing"
+	validationH "search-hub/handlers/validation"
 	localdb "search-hub/internal/database"
 
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	metricsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/metrics"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
@@ -46,6 +48,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, metricsH.Endpoints...)
 	out = append(out, registryH.Endpoints...)
 	out = append(out, routingH.Endpoints...)
+	out = append(out, validationH.Endpoints...)
 	return out
 }
 
@@ -76,6 +79,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "metrics", File: metricsv1.File_search_hub_v1_metrics_metrics_proto},
 		{Module: "registry", File: registryv1.File_search_hub_v1_registry_registry_proto},
 		{Module: "routing", File: routingv1.File_search_hub_v1_routing_routing_proto},
+		{Module: "validation", File: scenariovalidationv1.File_scenario_validation_v1_validation_proto},
 	}
 }
 
@@ -93,5 +97,6 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(evalH.Schema),
 		apidb.SchemaProviderFunc(metricsH.Schema),
 		apidb.SchemaProviderFunc(registryH.Schema),
+		apidb.SchemaProviderFunc(validationH.Schema),
 	}
 }
