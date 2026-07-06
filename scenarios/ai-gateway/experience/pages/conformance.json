@@ -1,0 +1,23 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "conformance",
+    "title": "AI Conformance",
+    "routes": ["/conformance"],
+    "purpose": "Let operators run or inspect AI inference conformance scans, understand maturity level results, and identify which scenarios need migration or investigation.",
+    "prd_refs": ["OT-P0-005", "OT-P1-003"]
+  },
+  "priorities": [
+    {
+      "statement": "Show findings by scenario, maturity level, severity, and fix path."
+    },
+    {
+      "statement": "Distinguish advisory lower-maturity findings from failing higher-maturity requirements."
+    },
+    {
+      "statement": "Make approved exceptions visible with owner, reason, expiry, and replacement plan."
+    }
+  ]
+}

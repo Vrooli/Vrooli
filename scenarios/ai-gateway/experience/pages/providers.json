@@ -1,0 +1,23 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "providers",
+    "title": "Providers And Roles",
+    "routes": ["/providers"],
+    "purpose": "Show resource-owned roles, policy resolution, available models, smoke-test state, and cross-provider role gaps without making AI Gateway the model catalog source of truth.",
+    "prd_refs": ["OT-P0-002", "OT-P0-003", "OT-P1-002"]
+  },
+  "priorities": [
+    {
+      "statement": "Separate resource-owned policy data from AI Gateway routing profiles."
+    },
+    {
+      "statement": "Show unsupported or stale roles as actionable provider gaps."
+    },
+    {
+      "statement": "Expose smoke-test results and timestamps alongside each provider role."
+    }
+  ]
+}

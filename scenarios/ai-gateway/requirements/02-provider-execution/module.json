@@ -1,0 +1,54 @@
+{
+  "_metadata": {
+    "module": "provider-execution",
+    "description": "Provider execution boundaries for Ollama and OpenRouter resources.",
+    "prd_ref": "OT-P0-002",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "AIGW-PROVIDER-CLI-ONLY",
+      "title": "Provider calls go through resource gateway commands only",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "provider.execution",
+      "criticality": "P0",
+      "description": "AI Gateway must execute Ollama and OpenRouter work through their resource command surfaces. It must not own provider credentials, construct direct HTTP provider requests, or depend on localhost provider URLs.",
+      "tags": ["provider", "resource-boundary", "security"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Validate provider runners shell out through controlled resource command adapters with explicit args."
+        },
+        {
+          "type": "automation",
+          "phase": "business",
+          "status": "planned",
+          "scenario": "browser-automation-studio",
+          "notes": "Exercise a route from UI/API and assert evidence identifies a resource gateway path, not a direct endpoint."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-PROVIDER-FAILURES",
+      "title": "Provider failures are normalized without hiding resource details",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "provider.execution",
+      "criticality": "P0",
+      "description": "Unavailable providers, missing roles, resource command failures, policy mismatches, and timeout/cancellation outcomes must produce consistent gateway errors with enough resource evidence to debug.",
+      "tags": ["provider", "errors", "observability"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Validate failure mapping for resource command exit codes and malformed outputs."
+        }
+      ]
+    }
+  ]
+}

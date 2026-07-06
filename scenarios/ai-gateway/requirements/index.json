@@ -1,0 +1,16 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking AI Gateway operational targets to implementation-facing requirements.",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-gateway-contract/module.json",
+    "02-provider-execution/module.json",
+    "03-role-inventory/module.json",
+    "04-route-evidence/module.json",
+    "05-conformance-provider/module.json",
+    "06-operator-surface/module.json",
+    "07-expansion/module.json"
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "_metadata": {
+    "module": "gateway-contract",
+    "description": "Provider-neutral request contracts for AI Gateway callers.",
+    "prd_ref": "OT-P0-001",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "AIGW-CONTRACT-TEXT",
+      "title": "Text inference requests use role, profile, and constraints instead of concrete models",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "gateway.contract",
+      "criticality": "P0",
+      "description": "AI Gateway must expose a stable request shape for chat, generation, summarization, classification, and structured extraction. Callers provide task intent, role, optional profile, and constraints; they do not provide Ollama/OpenRouter model slugs.",
+      "tags": ["contract", "text", "routing"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Validate request parsing, defaults, role/profile validation, and rejection of concrete provider model fields."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Validate API behavior for accepted and rejected text inference requests."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-CONTRACT-EMBEDDING",
+      "title": "Embedding requests carry role and schema metadata requirements",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "gateway.contract",
+      "criticality": "P0",
+      "description": "Embedding requests must be role-based and must return enough metadata for callers to persist model identity, dimensions, content hash/version, and retarget compatibility information.",
+      "tags": ["contract", "embedding", "metadata"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Validate embedding metadata is present and dimension assumptions are never implicit."
+        }
+      ]
+    }
+  ]
+}

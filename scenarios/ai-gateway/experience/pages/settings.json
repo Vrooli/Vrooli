@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Policies And Settings",
+    "routes": ["/settings"],
+    "purpose": "Expose the minimum policy controls needed to operate AI Gateway safely, including routing profiles, retention, privacy defaults, and smoke-test behavior.",
+    "prd_refs": ["OT-P0-006", "OT-P1-004"]
+  },
+  "priorities": [
+    {
+      "statement": "Keep policy controls explicit and reviewable instead of hidden behind provider defaults."
+    },
+    {
+      "statement": "Make privacy and evidence-retention choices clear before they affect production routes."
+    }
+  ]
+}

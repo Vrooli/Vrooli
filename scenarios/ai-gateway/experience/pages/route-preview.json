@@ -1,0 +1,23 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "route-preview",
+    "title": "Route Preview",
+    "routes": ["/routes/preview"],
+    "purpose": "Let an operator or agent test a role, profile, and constraint set before execution and inspect the selected route, rejected candidates, and policy reasons.",
+    "prd_refs": ["OT-P0-001", "OT-P0-004"]
+  },
+  "priorities": [
+    {
+      "statement": "Make the selected provider path and resource role obvious."
+    },
+    {
+      "statement": "Explain rejected candidates with policy reasons instead of hiding them."
+    },
+    {
+      "statement": "Keep execution separate from preview so operators can reason safely before running inference."
+    }
+  ]
+}

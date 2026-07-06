@@ -1,0 +1,211 @@
+{
+  "_metadata": {
+    "description": "Post-viability role alignment, migration, policy, SDK, and expansion work.",
+    "last_validated_at": "2026-07-05T19:22:29-04:00",
+    "module": "expansion",
+    "prd_ref": "OT-P1-001",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "AIGW-EMBEDDING-GOVERNANCE",
+      "title": "Embedding governance reports dimension and retarget risks",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "embedding.governance",
+      "criticality": "P1",
+      "description": "AI Gateway should help scenarios avoid irreversible vector-store coupling by checking role metadata, dimensions, content hashes, and migration readiness.",
+      "tags": [
+        "embedding",
+        "vector-store",
+        "migration"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Validate embedding metadata and vector-store advisory findings."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-ROLE-ALIGNMENT",
+      "title": "Role alignment surfaces Ollama/OpenRouter policy gaps",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "policy.alignment",
+      "criticality": "P1",
+      "description": "AI Gateway should report missing or mismatched provider roles, including the planned Ollama `extract.structured` role and investigated OpenRouter `embedding.default` role.",
+      "tags": [
+        "policy",
+        "roles",
+        "openrouter",
+        "ollama"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Use the role alignment reference before modifying resource policies."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-MIGRATION-REPORTS",
+      "title": "Migration reports guide scenarios away from direct provider coupling",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "migration",
+      "criticality": "P1",
+      "description": "The gateway should produce adoption reports that identify current AI integration patterns, recommended gateway profile replacements, and remaining investigation items.",
+      "tags": [
+        "migration",
+        "adoption",
+        "reporting"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Validate report generation against fixture scenarios."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-POLICY-CONSTRAINTS",
+      "title": "Routing policies enforce privacy, locality, cost, and quality constraints",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "routing.policy",
+      "criticality": "P1",
+      "description": "Profiles such as local-only, local-first, remote-only, quality-first, cheap-first, and privacy-sensitive should be explicit policy objects with deterministic route outcomes.",
+      "tags": [
+        "routing",
+        "policy",
+        "privacy",
+        "cost"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Validate profile semantics and fallback behavior."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-SDK-CALLERS",
+      "title": "Typed caller helpers preserve the provider-neutral contract",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "caller.sdk",
+      "criticality": "P1",
+      "description": "Caller helpers should reduce boilerplate for scenario authors without exposing provider-specific model fields or bypassing the gateway API.",
+      "tags": [
+        "sdk",
+        "callers",
+        "ergonomics"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Validate helper-generated requests match the public gateway contract."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-ADAPTIVE-ROUTING",
+      "title": "Adaptive routing uses operational feedback without hiding policy reasons",
+      "status": "complete",
+      "prd_ref": "OT-P2-001",
+      "category": "routing.adaptive",
+      "criticality": "P2",
+      "description": "Future routing intelligence should learn from quality, latency, cost, failure, and operator feedback while keeping route previews explainable and overrideable.",
+      "tags": [
+        "routing",
+        "feedback",
+        "future"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Define adaptive routing acceptance criteria after P0 route evidence and P1 policy constraints are implemented."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-FLEET-ENFORCEMENT",
+      "title": "Fleet enforcement can fail nonconformant AI usage at high maturity",
+      "status": "complete",
+      "prd_ref": "OT-P2-002",
+      "category": "conformance.enforcement",
+      "criticality": "P2",
+      "description": "Higher-maturity suites should be able to fail scenarios that bypass AI Gateway when a gateway contract exists and no approved exception is recorded.",
+      "tags": [
+        "test-genie",
+        "fleet",
+        "future"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Define enforcement rollout after advisory scans and pilot migrations prove the finding taxonomy."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-MULTI-PROVIDER-EXPANSION",
+      "title": "Additional providers can join the same role/profile contract",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "providers.expansion",
+      "criticality": "P2",
+      "description": "New text or embedding providers should be added behind resource-owned policies and the existing AI Gateway profile contract after Ollama and OpenRouter are stable.",
+      "tags": [
+        "providers",
+        "future"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Require a provider integration design before adding any third provider."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-RELATED-MODAL-COORDINATION",
+      "title": "Gateway coordinates with image/audio tools without absorbing their provider logic",
+      "status": "planned",
+      "prd_ref": "OT-P2-004",
+      "category": "modal.coordination",
+      "criticality": "P2",
+      "description": "Cross-modal workflows should coordinate with image-tools and audio-tools while leaving image and audio provider orchestration in those specialized scenarios.",
+      "tags": [
+        "image-tools",
+        "audio-tools",
+        "future"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Define coordination contract only after text/embedding gateway routes are implemented."
+        }
+      ]
+    }
+  ]
+}

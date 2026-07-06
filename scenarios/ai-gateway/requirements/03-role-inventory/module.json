@@ -1,0 +1,47 @@
+{
+  "_metadata": {
+    "module": "role-inventory",
+    "description": "Provider role, profile, and policy discovery.",
+    "prd_ref": "OT-P0-003",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "AIGW-INVENTORY-ROLES",
+      "title": "AI Gateway presents resource-owned role catalogs without becoming catalog authority",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "inventory.roles",
+      "criticality": "P0",
+      "description": "The gateway must read role, policy, model, and constraint data from resource command surfaces and clearly indicate that resources remain the source of truth for concrete model selection.",
+      "tags": ["inventory", "roles", "policies"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Validate parsing and normalization for Ollama and OpenRouter policy command output."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-INVENTORY-SMOKE",
+      "title": "Role health includes smoke-test status and policy drift evidence",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "inventory.health",
+      "criticality": "P0",
+      "description": "Operators must see whether each provider role resolves, whether representative calls work, and whether documentation/policy data appears stale or inconsistent.",
+      "tags": ["inventory", "smoke-test", "drift"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Validate role smoke-test result capture without requiring a live provider in unit suites."
+        }
+      ]
+    }
+  ]
+}

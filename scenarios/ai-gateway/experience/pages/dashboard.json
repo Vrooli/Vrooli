@@ -1,0 +1,23 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Dashboard",
+    "routes": ["/"],
+    "purpose": "Give operators a dense first view of provider health, route activity, policy gaps, and AI conformance debt so they can decide what needs attention.",
+    "prd_refs": ["OT-P0-003", "OT-P0-004", "OT-P0-005", "OT-P0-006"]
+  },
+  "priorities": [
+    {
+      "statement": "Show whether local and hosted provider paths are usable right now."
+    },
+    {
+      "statement": "Surface recent routing failures and policy gaps before routine success details."
+    },
+    {
+      "statement": "Make unresolved conformance findings visible without turning the dashboard into a report page."
+    }
+  ]
+}

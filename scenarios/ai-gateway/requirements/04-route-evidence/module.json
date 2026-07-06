@@ -1,0 +1,47 @@
+{
+  "_metadata": {
+    "module": "route-evidence",
+    "description": "Route preview, execution reasoning, and audit evidence.",
+    "prd_ref": "OT-P0-004",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "AIGW-ROUTE-PREVIEW",
+      "title": "Route preview explains provider selection before execution",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "routing.preview",
+      "criticality": "P0",
+      "description": "Given a request role, profile, and constraints, the gateway must show the selected provider path, fallback candidates, rejected candidates, and policy reasons without executing inference.",
+      "tags": ["routing", "preview", "explainability"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Validate route decisions for local-only, local-first, remote-only, quality-first, cheap-first, and privacy-sensitive profiles."
+        }
+      ]
+    },
+    {
+      "id": "AIGW-ROUTE-EVIDENCE",
+      "title": "Executed requests produce auditable route evidence",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "routing.evidence",
+      "criticality": "P0",
+      "description": "Each execution must emit structured evidence including request intent, role/profile, selected provider role, resource command path, resolved concrete model when available, latency, token/size metadata when available, and failure/fallback details.",
+      "tags": ["routing", "audit", "observability"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Validate persistence and redaction behavior for route evidence."
+        }
+      ]
+    }
+  ]
+}
