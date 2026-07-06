@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { createTestQueryClient } from "../../../test-utils/query";
 import { GraphNode } from "./GraphNode";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { makeBacklogNode, makeScenarioNode } from "../test-helpers";
@@ -35,13 +37,15 @@ function renderGraphNode(
   };
 
   return render(
-    <ReactFlowProvider>
-      <svg>
-        <foreignObject>
-          <GraphNode {...props} />
-        </foreignObject>
-      </svg>
-    </ReactFlowProvider>,
+    <QueryClientProvider client={createTestQueryClient()}>
+      <ReactFlowProvider>
+        <svg>
+          <foreignObject>
+            <GraphNode {...props} />
+          </foreignObject>
+        </svg>
+      </ReactFlowProvider>
+    </QueryClientProvider>,
   );
 }
 

@@ -1,6 +1,8 @@
 package planview
 
 import (
+	"swarm-manager/internal/eta"
+
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 )
@@ -17,7 +19,27 @@ func encodeBoard(board Board) *apipb.PlanBoardResponse {
 			WindowSeconds: int32(board.Meta.WindowSeconds),
 			MaxWave:       int32(board.Meta.MaxWave),
 			Cycles:        board.Meta.Cycles,
+			Eta:           encodeETA(board.Meta.ETA),
 		},
+	}
+}
+
+// encodeETA maps the internal ETA band to its protobuf shape, returning nil
+// when no band was computed.
+func encodeETA(band *eta.Band) *domainpb.PlanEtaBand {
+	if band == nil {
+		return nil
+	}
+	return &domainpb.PlanEtaBand{
+		P50Hours:       band.P50Hours,
+		P80Hours:       band.P80Hours,
+		P50Label:       band.P50Label,
+		P80Label:       band.P80Label,
+		Basis:          band.Basis,
+		BasisLabel:     band.BasisLabel,
+		Confidence:     band.Confidence,
+		RemainingItems: int32(band.RemainingItems),
+		LaneCapacity:   int32(band.LaneCapacity),
 	}
 }
 

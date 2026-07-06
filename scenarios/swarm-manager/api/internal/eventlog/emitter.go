@@ -203,6 +203,52 @@ func (e *Emitter) EmitDequeued(backlogKind, backlogName, reason string) {
 	})
 }
 
+// --- Goal events ---
+
+func (e *Emitter) EmitGoalCreated(name string, payload GoalCreatedPayload) {
+	e.emit(EntityGoal, name, EventGoalCreated, payload)
+}
+
+func (e *Emitter) EmitGoalUpdated(name string) {
+	e.emit(EntityGoal, name, EventGoalUpdated, nil)
+}
+
+func (e *Emitter) EmitGoalTargetAdded(name, target string) {
+	e.emit(EntityGoal, name, EventGoalTargetAdded, GoalTargetPayload{Target: target})
+}
+
+func (e *Emitter) EmitGoalTargetRemoved(name, target string) {
+	e.emit(EntityGoal, name, EventGoalTargetRemoved, GoalTargetPayload{Target: target})
+}
+
+func (e *Emitter) EmitGoalPriorityChanged(name string, from, to int) {
+	e.emit(EntityGoal, name, EventGoalPriorityChanged, PriorityChangePayload{From: from, To: to})
+}
+
+func (e *Emitter) EmitGoalArchived(name, previousStatus, archivedAt string) {
+	e.emit(EntityGoal, name, EventGoalArchived, ArchivePayload{
+		PreviousStatus: previousStatus,
+		ArchivedAt:     archivedAt,
+	})
+}
+
+func (e *Emitter) EmitGoalUnarchived(name, archivedAt string) {
+	e.emit(EntityGoal, name, EventGoalUnarchived, UnarchivePayload{ArchivedAt: archivedAt})
+}
+
+func (e *Emitter) EmitGoalScopeSnapshot(name string, payload GoalScopeSnapshotPayload) {
+	e.emit(EntityGoal, name, EventGoalScopeSnapshot, payload)
+}
+
+// --- Calibration events ---
+
+// EmitBacklogDurationSample records one coarse lead-time observation for a
+// completed backlog item. itemRef is "<kind>/<name>". Consumed by the ETA
+// engine to build per-effort-class duration distributions.
+func (e *Emitter) EmitBacklogDurationSample(itemRef string, payload DurationSamplePayload) {
+	e.emit(EntityBacklogItem, itemRef, EventBacklogDurationSample, payload)
+}
+
 // --- Record events ---
 
 // EmitRecordCreated records that a new records.Record was persisted. Actor is

@@ -134,6 +134,7 @@ func buildNewQueueRecord(ctx context.Context, req CreateRequest, item backlogIte
 		StartedBy:      strings.TrimSpace(req.StartedBy),
 		Operation:      normalizeOperation(req.Operation),
 		Force:          req.Force,
+		QueuedAt:       now,
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}
@@ -240,6 +241,7 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 		StartedBy:      "swarm-manager",
 		Operation:      "spec-sync-archive",
 		ArchiveContext: &ac,
+		QueuedAt:       now,
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}

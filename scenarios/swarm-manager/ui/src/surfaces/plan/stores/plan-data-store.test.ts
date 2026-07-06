@@ -15,7 +15,7 @@ function makeBoard(overrides?: Partial<PlanBoardData>): PlanBoardData {
     next: { groups: [], cardCount: 0 },
     later: { groups: [], cardCount: 0 },
     done: { groups: [], cardCount: 0 },
-    meta: { generatedAt: "2026-07-02T00:00:00Z", windowSeconds: 86400, maxWave: 0, cycles: [] },
+    meta: { generatedAt: "2026-07-02T00:00:00Z", windowSeconds: 86400, maxWave: 0, cycles: [], eta: null },
     ...overrides,
   };
 }

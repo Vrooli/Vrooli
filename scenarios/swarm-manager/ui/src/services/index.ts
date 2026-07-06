@@ -52,6 +52,10 @@ export type { IExecutionService, CreateExecutionRequest, ListExecutionFilters } 
 export { initiativeService, createInitiativeService } from "./initiative-service";
 export type { IInitiativeService } from "./initiative-service";
 
+// Goals
+export { goalsService, createGoalsService } from "./goals-service";
+export type { IGoalsService } from "./goals-service";
+
 // Initiative Operating Modes
 export { initiativeModeService, createInitiativeModeService } from "./initiative-mode-service";
 export type { IInitiativeModeService, StartOperatingModePhaseArgs, SwitchOperatingModeArgs } from "./initiative-mode-service";

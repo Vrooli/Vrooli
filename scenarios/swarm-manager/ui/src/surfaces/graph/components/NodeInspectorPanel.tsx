@@ -9,11 +9,12 @@
  * immediately opening a full-screen detail overlay.
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ExternalLink, Play } from "lucide-react";
+import { AlertCircle, ExternalLink, Play, Target } from "lucide-react";
 import { FocusActionsSection } from "./FocusActionsSection";
+import { SetAsGoalDialog } from "../../../components/goals/SetAsGoalDialog";
 import { cn } from "../../../lib/utils";
 import { StatusBadge } from "../../../components/detail/StatusBadge";
 import { API_ENDPOINTS } from "../../../lib/api-endpoints";
@@ -143,9 +144,27 @@ function EntityMeta({ data }: { data: GraphNodeData }) {
 
 const INSPECTOR_POSITION = { x: window.innerWidth - 380, y: window.innerHeight - 300 };
 
+/**
+ * goalTargetForNode maps a backlog or initiative node to a goal target ref
+ * ("<kind>/<name>" for items, "initiative/<name>" for initiatives). Other node
+ * types cannot be goal targets and return null.
+ */
+function goalTargetForNode(data: GraphNodeData): { ref: string; title: string } | null {
+  if (data.entityType === "backlog") {
+    const d = data as BacklogGraphNodeData;
+    return { ref: `${d.kind}/${d.name}`, title: d.title || d.name };
+  }
+  if (data.entityType === "initiative") {
+    const d = data as InitiativeGraphNodeData;
+    return { ref: `initiative/${d.name}`, title: d.title || d.name };
+  }
+  return null;
+}
+
 export function NodeInspectorPanel() {
   const navigate = useNavigate();
   const [, setSearchParams] = useSearchParams();
+  const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const selectedNodeId = useGraphUIStore((s) => s.selectedNodeId);
   const selectNode = useGraphUIStore((s) => s.selectNode);
   const setHighlightState = useGraphUIStore((s) => s.setHighlightState);
@@ -221,8 +240,10 @@ export function NodeInspectorPanel() {
   const lenses = getLensesForEntity(entityType).filter((l) => l.lens !== currentLens);
   const isReadyBacklog = entityType === "backlog" && nodeData.status === "ready";
   const isFocusLens = currentLens === "focus";
+  const goalTarget = goalTargetForNode(nodeData);
 
   return (
+    <>
     <FloatingPanel
       isOpen
       onClose={handleClose}
@@ -296,8 +317,19 @@ export function NodeInspectorPanel() {
         )}
 
         {/* Action buttons */}
-        {(showDetails || lenses.length > 0) && (
+        {(showDetails || lenses.length > 0 || goalTarget) && (
           <div className="flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-3">
+            {goalTarget && (
+              <button
+                type="button"
+                onClick={() => setGoalDialogOpen(true)}
+                className="flex items-center gap-1.5 rounded-lg bg-slate-700/50 px-3 py-1.5 text-xs font-medium text-slate-100 transition-colors hover:bg-slate-700/70"
+                data-testid="inspector-set-goal"
+              >
+                <Target className="h-3 w-3 text-cyan-400" />
+                Set as goal
+              </button>
+            )}
             {showDetails && (
               <button
                 type="button"
@@ -325,5 +357,14 @@ export function NodeInspectorPanel() {
         )}
       </div>
     </FloatingPanel>
+    {goalTarget && (
+      <SetAsGoalDialog
+        isOpen={goalDialogOpen}
+        onClose={() => setGoalDialogOpen(false)}
+        targetRef={goalTarget.ref}
+        targetTitle={goalTarget.title}
+      />
+    )}
+    </>
   );
 }

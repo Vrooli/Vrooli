@@ -46,6 +46,8 @@ export interface PlanBoardUrlState {
   filters: OperationsFilters;
   viewMode: OperationsViewMode;
   showSnoozed: boolean;
+  /** Goal name the board is scoped to; empty means the full board. */
+  goal: string;
 }
 
 export function readPlanStateFromUrl(searchParams: URLSearchParams): PlanBoardUrlState {
@@ -75,6 +77,7 @@ export function readPlanStateFromUrl(searchParams: URLSearchParams): PlanBoardUr
     },
     viewMode,
     showSnoozed: searchParams.get("show_snoozed") === "1",
+    goal: (searchParams.get("goal") ?? "").trim(),
   };
 }
 
@@ -109,6 +112,7 @@ export function writePlanStateToParams(
   } else {
     next.delete("show_snoozed");
   }
+  setOrDelete("goal", state.goal || undefined);
   return next;
 }
 

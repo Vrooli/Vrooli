@@ -137,6 +137,6 @@ describe("DetailPageHeader", () => {
     const user = userEvent.setup();
     await user.click(screen.getByTestId("detail-nav-button"));
 
-    expect(screen.getByTestId("location-path")).toHaveTextContent("/graph");
+    expect(screen.getByTestId("location-path")).toHaveTextContent("/plan");
   });
 });

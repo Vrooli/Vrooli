@@ -47,10 +47,81 @@ func (s *Service) ProcessActiveExecutions(ctx context.Context) error {
 		logFinalizationError(executionID, s.processFinalization(ctx, executionID))
 	}
 
+	// Continuous goal-directed auto-enqueue (D4, default OFF): when enabled,
+	// enqueue ready goal items via the governed QueueBacklog path before the
+	// drain, so they compete for lane slots under the same caps as manual work.
+	s.autoEnqueueGoalItems(ctx)
+
 	// Drain pending items when capacity is available.
 	s.drainPendingLocked(ctx)
 
 	return nil
+}
+
+// drainRef is the goal-priority map key for a pending record.
+func drainRef(r Record) string { return r.BacklogKind + "/" + r.BacklogName }
+
+// sortPendingForDrain orders pending records for the drain: items in a goal
+// sort before ungoaled items, higher goal priority first; ties and ungoaled
+// items fall back to FIFO by CreatedAt. With a nil/empty priority map this is
+// exactly FIFO — behavior-preserving for ungoaled work.
+func sortPendingForDrain(pending []Record, priorities map[string]int) {
+	sort.SliceStable(pending, func(i, j int) bool {
+		pi, goaledI := priorities[drainRef(pending[i])]
+		pj, goaledJ := priorities[drainRef(pending[j])]
+		if goaledI != goaledJ {
+			return goaledI // goaled items drain before ungoaled
+		}
+		if goaledI && goaledJ && pi != pj {
+			return pi > pj // higher goal priority first
+		}
+		return pending[i].CreatedAt < pending[j].CreatedAt
+	})
+}
+
+// goalItemPriorities returns the per-item goal-priority map from the optional
+// provider, tolerating a nil provider or a read error by returning nil (the
+// drain then falls back to FIFO).
+func (s *Service) goalItemPriorities() map[string]int {
+	if s.goalPriorityProvider == nil {
+		return nil
+	}
+	m, err := s.goalPriorityProvider.ItemGoalPriorities()
+	if err != nil {
+		slog.Warn("drain: goal priorities unavailable; falling back to FIFO", "err", err)
+		return nil
+	}
+	return m
+}
+
+// autoEnqueueGoalItems enqueues ready goal items through QueueBacklog when
+// continuous auto-enqueue is enabled (D4). Every enqueue flows through the same
+// governance (lane caps, preflight, circuit breaker, cost caps, queue depth) as
+// manual queueing; items that cannot be queued (already queued, at depth, etc.)
+// are skipped. Runs outside the service lock — QueueBacklog takes it per call.
+func (s *Service) autoEnqueueGoalItems(ctx context.Context) {
+	if s.autoDrainProvider == nil || s.goalReadyProvider == nil {
+		return
+	}
+	if !s.autoDrainProvider.AutoDrainEnabled() {
+		return
+	}
+	items, err := s.goalReadyProvider.ReadyGoalItems()
+	if err != nil {
+		slog.Warn("auto-drain: ready goal items unavailable", "err", err)
+		return
+	}
+	for _, it := range items {
+		_, qErr := s.QueueBacklog(ctx, CreateRequest{BacklogKind: it.Kind, BacklogName: it.Name})
+		if qErr == nil {
+			continue
+		}
+		// Queue-depth is the natural stop signal; other per-item failures
+		// (already queued, preflight, circuit breaker) are expected and skipped.
+		if strings.Contains(qErr.Error(), "queue depth limit exceeded") {
+			return
+		}
+	}
 }
 
 // drainPendingLocked starts pending executions when concurrency slots are available.
@@ -68,16 +139,15 @@ func (s *Service) drainPendingLocked(ctx context.Context) {
 		return
 	}
 
-	// Collect pending records sorted by creation time (oldest first).
+	// Collect pending records, then order them goal-priority-first with a FIFO
+	// fallback (identical to the old FIFO-by-CreatedAt when nothing is goaled).
 	var pending []Record
 	for _, r := range records {
 		if r.Status == StatusPending {
 			pending = append(pending, r)
 		}
 	}
-	sort.Slice(pending, func(i, j int) bool {
-		return pending[i].CreatedAt < pending[j].CreatedAt
-	})
+	sortPendingForDrain(pending, s.goalItemPriorities())
 
 	for _, p := range pending {
 		active := countActiveExecutions(records)

@@ -206,6 +206,9 @@ type Service struct {
 	eventLogger              EventLogger
 	circuitBreaker           *CircuitBreaker
 	activityLaneReader       ActivityLaneReader
+	goalPriorityProvider     GoalPriorityProvider
+	goalReadyProvider        GoalReadyProvider
+	autoDrainProvider        AutoDrainProvider
 	remediationFiler         RemediationFiler
 	processingFinalizations  map[string]struct{}
 	processingHolds          map[string]struct{}
@@ -357,6 +360,17 @@ func (s *Service) SetEventLogger(l EventLogger) {
 // evidence gathering. Set after construction to avoid import cycles.
 func (s *Service) SetReviewService(rs ReviewServiceIntegration) {
 	s.reviewService = rs
+}
+
+// SetGoalDirectedProviders wires the optional goal-directed drain dependencies:
+// a per-item goal-priority source for the drain comparator, a ready-items
+// source and an enablement flag for continuous auto-enqueue. Any may be nil,
+// leaving pure FIFO / no continuous drain. Set after construction to avoid an
+// import cycle with the goals package.
+func (s *Service) SetGoalDirectedProviders(priorities GoalPriorityProvider, ready GoalReadyProvider, autoDrain AutoDrainProvider) {
+	s.goalPriorityProvider = priorities
+	s.goalReadyProvider = ready
+	s.autoDrainProvider = autoDrain
 }
 
 // RecordView emits a view event for analytics.

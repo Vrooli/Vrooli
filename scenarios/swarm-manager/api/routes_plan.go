@@ -44,6 +44,17 @@ func (s *Server) registerPlanRoutes(scenarioRoot string) {
 	if s.opsAggregator != nil {
 		cfg.Ops = s.opsAggregator
 	}
+	if s.initStore != nil {
+		cfg.Initiatives = s.initStore
+	}
+	// Goal scoping: ?goal=<name> subsets the board to that goal's closure. The
+	// goals service is registered before plan routes (main.go), so it is set here.
+	if s.goalService != nil {
+		cfg.Goals = s.goalService
+	}
+	// Board-wide ETA band: the whole backlog is the implicit closure. Reads the
+	// same event-sourced samples + execute-lane capacity as the goals ETA.
+	cfg.ETA = s.newETAEstimator
 	svc, err := planview.NewService(cfg)
 	if err != nil {
 		log.Fatalf("plan: failed to build projection service: %v", err)

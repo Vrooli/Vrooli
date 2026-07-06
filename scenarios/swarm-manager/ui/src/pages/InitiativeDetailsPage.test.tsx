@@ -390,7 +390,7 @@ describe("InitiativeDetailsPage", () => {
     const user = userEvent.setup();
     await user.click(screen.getByTestId("detail-nav-button"));
 
-    expect(screen.getByTestId("location-path")).toHaveTextContent("/graph");
+    expect(screen.getByTestId("location-path")).toHaveTextContent("/plan");
   });
 
   it("shows dependency cards with rollup context for upstream and downstream initiatives", async () => {

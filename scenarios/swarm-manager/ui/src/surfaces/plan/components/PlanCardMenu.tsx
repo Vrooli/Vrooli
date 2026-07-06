@@ -4,6 +4,7 @@
  * No drag on this board (D7): every transition is an explicit action.
  */
 
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   backlogDetailPath,
@@ -12,6 +13,7 @@ import {
   graphPath,
 } from "../../../app/routes/route-paths";
 import { ActionMenu, type ActionMenuItem } from "../../../components/ui/action-menu";
+import { SetAsGoalDialog } from "../../../components/goals/SetAsGoalDialog";
 import { SNOOZE_PRESETS } from "../../../lib/snooze-utils";
 import type { PlanCardData } from "../types";
 import { usePlanCardActions } from "./plan-card-actions-context";
@@ -23,6 +25,7 @@ export interface PlanCardMenuProps {
 export function PlanCardMenu({ card }: PlanCardMenuProps) {
   const actions = usePlanCardActions();
   const navigate = useNavigate();
+  const [goalDialogOpen, setGoalDialogOpen] = useState(false);
 
   if (!actions) return null;
 
@@ -94,6 +97,15 @@ export function PlanCardMenu({ card }: PlanCardMenuProps) {
     });
   }
 
+  // Promote an item card to a goal (target of a new or existing goal).
+  if (itemKey && card.cardType !== "outcome") {
+    items.push({
+      label: "Set as goal",
+      testId: "plan-card-menu-set-goal",
+      onSelect: () => setGoalDialogOpen(true),
+    });
+  }
+
   // Board → Focus bridge: view this card's neighborhood on the graph.
   items.push({
     label: "Focus on graph",
@@ -111,12 +123,22 @@ export function PlanCardMenu({ card }: PlanCardMenuProps) {
   }
 
   return (
-    <ActionMenu
-      items={items}
-      label="Card actions"
-      triggerTestId={`plan-card-menu-${card.id}`}
-      menuTestId="plan-card-menu"
-      triggerSize="icon"
-    />
+    <>
+      <ActionMenu
+        items={items}
+        label="Card actions"
+        triggerTestId={`plan-card-menu-${card.id}`}
+        menuTestId="plan-card-menu"
+        triggerSize="icon"
+      />
+      {itemKey && (
+        <SetAsGoalDialog
+          isOpen={goalDialogOpen}
+          onClose={() => setGoalDialogOpen(false)}
+          targetRef={itemKey}
+          targetTitle={card.title}
+        />
+      )}
+    </>
   );
 }

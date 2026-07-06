@@ -62,9 +62,12 @@ export interface PlanDataState {
   windowSeconds: number;
   /** Presentation flag: render snoozed cards dimmed instead of hiding them. */
   showSnoozed: boolean;
+  /** When set, the board is scoped to this goal's closure (server-side). */
+  goal: string;
   fetchBoard: (options?: FetchBoardOptions) => Promise<void>;
   setWindowSeconds: (seconds: number) => void;
   setShowSnoozed: (show: boolean) => void;
+  setGoal: (goal: string) => void;
 }
 
 export function createPlanDataInitialState() {
@@ -75,6 +78,7 @@ export function createPlanDataInitialState() {
     fetchedAtMs: null as number | null,
     windowSeconds: DEFAULT_PLAN_WINDOW_SECONDS,
     showSnoozed: false,
+    goal: "",
   };
 }
 
@@ -88,6 +92,12 @@ export const usePlanDataStore = create<PlanDataState>((set, get) => ({
   },
 
   setShowSnoozed: (show) => set({ showSnoozed: show }),
+
+  setGoal: (goal) => {
+    if (goal === get().goal) return;
+    set({ goal });
+    void get().fetchBoard({ force: true });
+  },
 
   fetchBoard: async (options) => {
     const { fetchedAtMs, board } = get();
@@ -118,6 +128,7 @@ export const usePlanDataStore = create<PlanDataState>((set, get) => ({
         const data = await activePlanService.getBoard({
           signal: controller.signal,
           windowSeconds: get().windowSeconds,
+          goal: get().goal || undefined,
         });
         if (sequence !== requestSequence) return;
         set({ board: data, loading: false, error: null, fetchedAtMs: Date.now() });

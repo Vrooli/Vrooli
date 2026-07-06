@@ -1,6 +1,7 @@
 package planview
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -37,9 +38,14 @@ func (h *Handler) GetBoard(w http.ResponseWriter, r *http.Request) {
 		}
 		params.WindowSeconds = seconds
 	}
+	params.Goal = strings.TrimSpace(r.URL.Query().Get("goal"))
 
 	board, err := h.service.Build(r.Context(), params)
 	if err != nil {
+		if errors.Is(err, ErrGoalScope) {
+			apierr.MapError(w, "[plan]", apierr.NotFound("goal %q not found or goal scoping unavailable", params.Goal))
+			return
+		}
 		apierr.MapError(w, "[plan]", apierr.Internal("failed to build plan projection"))
 		return
 	}

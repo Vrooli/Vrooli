@@ -94,10 +94,19 @@ export default function App() {
         >
           <Routes>
             <Route element={<AppShell />}>
-              <Route path="/graph" element={<PageErrorBoundary pageName="Graph"><GraphWorkspace /></PageErrorBoundary>} />
+              {/* Plan is a first-class top-level route; Focus and Topology are
+                  graph lenses under /graph/:lens. GraphWorkspace derives the
+                  plan lens when no :lens param is present. */}
+              <Route path="/plan" element={<PageErrorBoundary pageName="Plan"><GraphWorkspace /></PageErrorBoundary>} />
               <Route path="/graph/:lens" element={<PageErrorBoundary pageName="Graph"><GraphWorkspace /></PageErrorBoundary>} />
 
-              <Route index element={<Navigate to="/graph/plan" replace />} />
+              <Route index element={<Navigate to="/plan" replace />} />
+
+              {/* Legacy graph paths — the plan board moved to /plan and the bare
+                  /graph landing is now the plan board. Preserve query state
+                  (?focus/?select/?drawer) so deep links and bookmarks survive. */}
+              <Route path="/graph" element={<RedirectPreservingSearch to="/plan" />} />
+              <Route path="/graph/plan" element={<RedirectPreservingSearch to="/plan" />} />
 
               <Route path="backlog/:kind/:name" element={<PageErrorBoundary pageName="Backlog Details"><BacklogDetailsPage /></PageErrorBoundary>} />
               <Route path="scenarios/:name" element={<PageErrorBoundary pageName="Scenario Details"><ScenarioDetailsPage /></PageErrorBoundary>} />
@@ -110,9 +119,14 @@ export default function App() {
               <Route path="operating-modes/:mode" element={<PageErrorBoundary pageName="Operating Mode Details"><OperatingModeDetailsPage /></PageErrorBoundary>} />
               {/* Retired surfaces — absorbed by the Plan lens board. Old
                   deep links and bookmarks redirect rather than 404. */}
-              <Route path="command-post" element={<Navigate to="/graph/plan" replace />} />
-              <Route path="command-post/decisions" element={<Navigate to="/graph/plan?drawer=decisions" replace />} />
-              <Route path="operations" element={<RedirectPreservingSearch to="/graph/plan" />} />
+              <Route path="command-post" element={<Navigate to="/plan" replace />} />
+              <Route path="command-post/decisions" element={<Navigate to="/plan?drawer=decisions" replace />} />
+              <Route path="operations" element={<RedirectPreservingSearch to="/plan" />} />
+              {/* Retired list pages (ExecutionPage, ScenariosPage) — their
+                  content is surfaced by the Plan board and graph. Detail routes
+                  (/executions/:id, /scenarios/:name) are unaffected. */}
+              <Route path="executions" element={<RedirectPreservingSearch to="/plan" />} />
+              <Route path="scenarios" element={<RedirectPreservingSearch to="/plan" />} />
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />

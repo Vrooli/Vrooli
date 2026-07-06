@@ -7,7 +7,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { ChevronDown, MessageCircleQuestion, Play, RefreshCw, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, Clock, MessageCircleQuestion, Play, RefreshCw, SlidersHorizontal } from "lucide-react";
 import { OpsBulkActions } from "../../../components/operations/OpsBulkActions";
 import type { RunBacklogTarget } from "../../../components/backlog/run-backlog-modal";
 import { Button } from "../../../components/ui/button";
@@ -22,7 +22,8 @@ import {
   laterWaveSummary,
   splitBeyondHorizon,
 } from "../lib/plan-presentation";
-import type { PlanCardData } from "../types";
+import type { PlanBoardMetaData, PlanCardData } from "../types";
+import { GoalPicker } from "./GoalPicker";
 import { NowColumn } from "./NowColumn";
 import { PlanBoardActions } from "./PlanBoardActions";
 import { usePlanCardActions } from "./plan-card-actions-context";
@@ -52,7 +53,7 @@ function EmptyHint({ text, testId }: { text: string; testId: string }) {
  * confirmed) and "Answer all" (opens the decision drawer). Must render
  * inside PlanBoardActions to reach the context.
  */
-function NextHeaderActions({ groups }: { groups: import("../types").PlanCardGroupData[] }) {
+function NextHeaderActions({ groups, goal }: { groups: import("../types").PlanCardGroupData[]; goal: string }) {
   const actions = usePlanCardActions();
   if (!actions) return null;
 
@@ -62,6 +63,11 @@ function NextHeaderActions({ groups }: { groups: import("../types").PlanCardGrou
   const decideCount = (groups.find((g) => g.id === "gates")?.cards ?? [])
     .filter((c) => c.gate?.kind === "decide")
     .reduce((sum, c) => sum + (c.gate?.count ?? 0), 0);
+  // When the board is goal-scoped, the ready group already holds only the
+  // goal's ready closure, so this bulk run IS "run all ready in goal".
+  const runTitle = goal
+    ? `Run all ${readyTargets.length} ready items in goal`
+    : `Run all ${readyTargets.length} ready items`;
 
   return (
     <>
@@ -70,7 +76,7 @@ function NextHeaderActions({ groups }: { groups: import("../types").PlanCardGrou
           type="button"
           onClick={() => actions.runTargets(readyTargets)}
           className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-emerald-400 transition-colors hover:bg-slate-800"
-          title={`Run all ${readyTargets.length} ready items`}
+          title={runTitle}
           data-testid="plan-next-run-all"
         >
           <Play className="h-3.5 w-3.5" aria-hidden />
@@ -90,6 +96,45 @@ function NextHeaderActions({ groups }: { groups: import("../types").PlanCardGrou
         </button>
       )}
     </>
+  );
+}
+
+const ETA_CONFIDENCE_TONE: Record<string, string> = {
+  high: "text-emerald-300",
+  medium: "text-amber-300",
+  low: "text-slate-400",
+};
+
+/**
+ * EtaStrip — the board's p50/p80 completion band, divided by execute-lane
+ * capacity and honest about its basis (a sample count vs "priors only"). Hidden
+ * when there is nothing left to estimate.
+ */
+function EtaStrip({ eta }: { eta: PlanBoardMetaData["eta"] }) {
+  if (!eta || eta.remainingItems === 0) return null;
+  const tone = ETA_CONFIDENCE_TONE[eta.confidence] ?? "text-slate-400";
+  return (
+    <div
+      className="flex items-center gap-1.5 rounded bg-slate-800/60 px-2 py-0.5 text-xs"
+      title={`${eta.remainingItems} items remaining · ${eta.laneCapacity} execute lanes · ${eta.confidence} confidence`}
+      data-testid="plan-eta-strip"
+    >
+      <Clock className="h-3.5 w-3.5 text-slate-500" aria-hidden />
+      <span className="text-slate-400">ETA</span>
+      <span className="font-medium text-slate-200" data-testid="plan-eta-p50">
+        {eta.p50Label}
+      </span>
+      <span className="text-slate-600">–</span>
+      <span className="font-medium text-slate-200" data-testid="plan-eta-p80">
+        {eta.p80Label}
+      </span>
+      <span
+        className={cn("uppercase tracking-wider", tone)}
+        data-testid="plan-eta-basis"
+      >
+        {eta.basisLabel}
+      </span>
+    </div>
   );
 }
 
@@ -157,6 +202,7 @@ export function PlanBoard() {
     <PlanBoardActions onBoardRefresh={() => void refresh()}>
     <div className="flex h-full flex-col pt-24" data-testid="plan-board">
       <div className="flex items-center gap-2 px-4 pb-2">
+        <GoalPicker goal={urlState.goal} onSelect={urlState.setGoal} />
         {cycles.length > 0 && (
           <span
             className="rounded bg-rose-500/15 px-2 py-0.5 text-xs text-rose-300"
@@ -171,6 +217,7 @@ export function PlanBoard() {
             {hiddenSnoozed} snoozed hidden
           </span>
         )}
+        <EtaStrip eta={board.meta.eta} />
         <button
           type="button"
           onClick={() => setFilterDrawerOpen((prev) => !prev)}
@@ -199,7 +246,7 @@ export function PlanBoard() {
           title="Next"
           count={next.groups.reduce((sum, g) => sum + g.cards.length, 0)}
           subtitle="actionable now"
-          headerAction={<NextHeaderActions groups={next.groups} />}
+          headerAction={<NextHeaderActions groups={next.groups} goal={urlState.goal} />}
           groups={next.groups}
           dimmedIds={next.snoozedIds}
           emptyState={<EmptyHint text="Nothing actionable — everything is running, blocked, or done." testId="plan-next-empty" />}

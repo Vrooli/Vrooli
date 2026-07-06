@@ -2,6 +2,7 @@ package planview
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sort"
@@ -11,10 +12,18 @@ import (
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/backlogrank"
 	"swarm-manager/internal/depgraph"
+	"swarm-manager/internal/eta"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/gates"
+	"swarm-manager/internal/goals"
+	"swarm-manager/internal/initiatives"
 	"swarm-manager/internal/operations"
 )
+
+// ErrGoalScope wraps a failure to resolve a goal-scoped board request (goal
+// scoping unavailable, or the named goal not found) so the handler can return a
+// client error rather than a 500.
+var ErrGoalScope = errors.New("planview: goal scope")
 
 // Service builds the plan-board projection.
 type Service struct {
@@ -69,7 +78,29 @@ func (s *Service) Build(ctx context.Context, params Params) (Board, error) {
 		}
 	}
 
-	proj := newProjection(items, gateList)
+	var inits []initiatives.Initiative
+	if s.cfg.Initiatives != nil {
+		inits, err = s.cfg.Initiatives.LoadAll()
+		if err != nil {
+			slog.Warn("planview: initiatives read failed; omitting initiative gate", "error", err)
+			inits = nil
+		}
+	}
+
+	// Goal scoping (optional): subset items, executions, and gates to the
+	// goal's transitive prerequisite closure. Absent a goal this is a no-op, so
+	// the unscoped projection is byte-identical.
+	if params.Goal != "" {
+		inScope, err := s.goalScope(params.Goal)
+		if err != nil {
+			return Board{}, err
+		}
+		items = filterItemsToScope(items, inScope)
+		execs = filterExecsToScope(execs, inScope)
+		gateList = filterGatesToScope(gateList, inScope)
+	}
+
+	proj := newProjection(items, gateList, inits)
 
 	board := Board{
 		Now:   s.buildNowSummary(ctx),
@@ -81,12 +112,86 @@ func (s *Service) Build(ctx context.Context, params Params) (Board, error) {
 			WindowSeconds: window,
 			MaxWave:       proj.waves.MaxWave,
 			Cycles:        proj.waves.Cycles,
+			ETA:           s.buildETA(proj),
 		},
 	}
 	if board.Meta.Cycles == nil {
 		board.Meta.Cycles = []string{}
 	}
 	return board, nil
+}
+
+// buildETA computes the board-wide completion band over the projection's
+// items, tolerating a nil factory or build error (band omitted).
+func (s *Service) buildETA(proj *projection) *eta.Band {
+	if s.cfg.ETA == nil {
+		return nil
+	}
+	est, err := s.cfg.ETA()
+	if err != nil || est == nil {
+		return nil
+	}
+	if band, ok := est.EstimateGoal(proj.etaClosureInput()); ok {
+		return &band
+	}
+	return nil
+}
+
+// goalScope resolves a goal name to the set of in-scope item keys
+// ("<kind>/<name>"), returning ErrGoalScope when goal scoping is unavailable or
+// the goal cannot be resolved.
+func (s *Service) goalScope(goal string) (map[string]bool, error) {
+	if s.cfg.Goals == nil {
+		return nil, fmt.Errorf("%w: goal scoping unavailable", ErrGoalScope)
+	}
+	refs, err := s.cfg.Goals.ClosureRefs(goal)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrGoalScope, err)
+	}
+	inScope := make(map[string]bool, len(refs))
+	for _, r := range refs {
+		inScope[r] = true
+	}
+	return inScope, nil
+}
+
+// filterItemsToScope keeps only backlog items whose key is in the goal closure.
+func filterItemsToScope(items []backlog.BacklogItem, inScope map[string]bool) []backlog.BacklogItem {
+	out := make([]backlog.BacklogItem, 0, len(inScope))
+	for _, item := range items {
+		if inScope[itemKey(item)] {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+// filterExecsToScope keeps only execution records whose backlog item is in
+// scope, so the Done column reflects the goal, not the whole backlog.
+func filterExecsToScope(execs []execution.Record, inScope map[string]bool) []execution.Record {
+	out := make([]execution.Record, 0, len(execs))
+	for _, rec := range execs {
+		if inScope[rec.BacklogKind+"/"+rec.BacklogName] {
+			out = append(out, rec)
+		}
+	}
+	return out
+}
+
+// filterGatesToScope keeps backlog/execution gates whose owning item is in
+// scope. Classify gates (capture-owned, not item-closure work) are dropped when
+// the board is goal-scoped.
+func filterGatesToScope(gateList []gates.Gate, inScope map[string]bool) []gates.Gate {
+	out := make([]gates.Gate, 0, len(gateList))
+	for _, g := range gateList {
+		switch g.OwnerType {
+		case "backlog", "execution":
+			if inScope[g.OwnerKind+"/"+g.OwnerName] {
+				out = append(out, g)
+			}
+		}
+	}
+	return out
 }
 
 // buildNowSummary reads the operations aggregate for Now-header counts,
@@ -131,7 +236,7 @@ type projection struct {
 	classify      []gates.Gate
 }
 
-func newProjection(items []backlog.BacklogItem, gateList []gates.Gate) *projection {
+func newProjection(items []backlog.BacklogItem, gateList []gates.Gate, inits []initiatives.Initiative) *projection {
 	p := &projection{
 		items:         items,
 		itemsByKey:    make(map[string]backlog.BacklogItem, len(items)),
@@ -160,6 +265,22 @@ func newProjection(items []backlog.BacklogItem, gateList []gates.Gate) *projecti
 			UpdatedAt: parseTime(item.Updated),
 		})
 	}
+	// Fold in the D2 initiative gate: member items inherit their initiative's
+	// dependencies, blocking them until the depended-on initiatives complete.
+	// Additive — with no gated initiatives the wave graph is unchanged.
+	if len(inits) > 0 {
+		initiativeItems := make(map[string][]string, len(inits))
+		initiativeDeps := make(map[string][]string, len(inits))
+		for _, ini := range inits {
+			initiativeItems[ini.Name] = ini.Items
+			initiativeDeps[ini.Name] = ini.DependsOn
+		}
+		initSatisfied := goals.ApplyInitiativeGate(graphMap, func(k string) bool { return p.satisfied[k] }, initiativeItems, initiativeDeps)
+		for node, done := range initSatisfied {
+			p.satisfied[node] = done
+		}
+	}
+
 	p.waves = depgraph.Waves(graphMap, func(k string) bool { return p.satisfied[k] })
 	p.depthMap = backlogrank.ComputeDepthMap(rankItems)
 	p.unblocking = backlogrank.ComputeUnblockingMap(rankItems)
@@ -183,6 +304,34 @@ func newProjection(items []backlog.BacklogItem, gateList []gates.Gate) *projecti
 
 func itemKey(item backlog.BacklogItem) string {
 	return string(item.Kind) + "/" + item.Name
+}
+
+// etaClosureInput maps the projection's items into the ETA rollup input: the
+// whole backlog is treated as the board's implicit closure. Done mirrors the
+// wave-graph satisfied set (completed/archived); Gated marks pending items not
+// yet at wave 0 (blocked on a prerequisite or gate). Dependency edges outside
+// the known item set are dropped.
+func (p *projection) etaClosureInput() eta.GoalClosureInput {
+	in := eta.GoalClosureInput{Deps: make(map[string][]string, len(p.items))}
+	for _, item := range p.items {
+		key := itemKey(item)
+		done := p.satisfied[key]
+		gated := !done && p.waves.Waves[key] != 0
+		in.Items = append(in.Items, eta.ClosureItem{
+			Ref:         key,
+			EffortClass: eta.NormalizeEffort(item.Effort),
+			Done:        done,
+			Gated:       gated,
+		})
+		var deps []string
+		for _, d := range item.DependsOn {
+			if _, ok := p.itemsByKey[d]; ok {
+				deps = append(deps, d)
+			}
+		}
+		in.Deps[key] = deps
+	}
+	return in
 }
 
 func parseTime(raw string) time.Time {

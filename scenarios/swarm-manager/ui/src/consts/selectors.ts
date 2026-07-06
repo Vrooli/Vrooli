@@ -612,7 +612,7 @@ export const literalSelectors = {
     zoomOut: "graph-nav-zoom-out",
     fitView: "graph-nav-fit-view",
   },
-  // Plan lens board (/graph/plan): Now/Next/Later/Done kanban.
+  // Plan lens board (/plan): Now/Next/Later/Done kanban.
   plan: {
     board: "plan-board",
     boardLoading: "plan-board-loading",
@@ -663,7 +663,7 @@ export const literalSelectors = {
   // Live-activity primitives shared with the Plan board's Now column
   // (ActivityRow, LaneBar, OpsBulkActions). The standalone Operations
   // Center page is retired; the agents chip lives under
-  // `layout.opsTriggerButton` and targets /graph/plan.
+  // `layout.opsTriggerButton` and targets /plan.
   operationsCenter: {
     laneBar: "operations-center-lane-bar",
     activityRow: "operations-center-activity-row",

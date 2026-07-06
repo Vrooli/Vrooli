@@ -13,6 +13,17 @@ describe("readPlanStateFromUrl", () => {
     expect(state.filters.statuses).toEqual([]);
     expect(state.viewMode).toBe("by-initiative");
     expect(state.showSnoozed).toBe(false);
+    expect(state.goal).toBe("");
+  });
+
+  it("reads and round-trips the goal scope param", () => {
+    const state = readPlanStateFromUrl(new URLSearchParams("goal=monetization-v1"));
+    expect(state.goal).toBe("monetization-v1");
+    const params = writePlanStateToParams(new URLSearchParams(), state);
+    expect(params.get("goal")).toBe("monetization-v1");
+    // Clearing the goal drops the param.
+    const cleared = writePlanStateToParams(params, { ...state, goal: "" });
+    expect(cleared.has("goal")).toBe(false);
   });
 
   it("reads valid values", () => {

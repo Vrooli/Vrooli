@@ -12,6 +12,7 @@
 export * from "./shared";
 export * from "./backlog";
 export * from "./initiative";
+export * from "./goal";
 export * from "./capture";
 export * from "./workshop";
 export * from "./review";

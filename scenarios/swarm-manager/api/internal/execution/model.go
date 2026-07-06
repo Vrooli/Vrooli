@@ -78,14 +78,19 @@ type ArchiveContext struct {
 
 // Record is a persisted execution run record.
 type Record struct {
-	ExecutionID       string          `json:"execution_id"`
-	BacklogKind       string          `json:"backlog_kind"`
-	BacklogName       string          `json:"backlog_name"`
-	PreviousStatus    string          `json:"previous_status,omitempty"`
-	TaskID            string          `json:"task_id,omitempty"`
-	RunID             string          `json:"run_id,omitempty"`
-	Status            Status          `json:"status"`
-	Mode              Mode            `json:"mode"`
+	ExecutionID    string `json:"execution_id"`
+	BacklogKind    string `json:"backlog_kind"`
+	BacklogName    string `json:"backlog_name"`
+	PreviousStatus string `json:"previous_status,omitempty"`
+	TaskID         string `json:"task_id,omitempty"`
+	RunID          string `json:"run_id,omitempty"`
+	Status         Status `json:"status"`
+	Mode           Mode   `json:"mode"`
+	// QueuedAt records when the item entered the pending queue (record
+	// creation). Kept distinct from StartedAt so wait-in-queue
+	// (StartedAt - QueuedAt) is measurable separately from execution time
+	// (FinishedAt - StartedAt). Preserved verbatim through drain/start.
+	QueuedAt          string          `json:"queued_at,omitempty"`
 	StartedAt         string          `json:"started_at,omitempty"`
 	FinishedAt        string          `json:"finished_at,omitempty"`
 	FailureReason     string          `json:"failure_reason,omitempty"`
@@ -203,6 +208,15 @@ type Policy struct {
 	MaxFixupAttempts   int  `json:"max_fixup_attempts"`
 	AutoFixup          bool `json:"auto_fixup"`
 	ReviewAgentEnabled bool `json:"review_agent_enabled"`
+}
+
+// GoalReadyItem is a backlog item that is ready to run and belongs to an active
+// goal's closure, carried by the continuous auto-enqueue drain. GoalPriority is
+// the highest priority among the goals it belongs to.
+type GoalReadyItem struct {
+	Kind         string
+	Name         string
+	GoalPriority int
 }
 
 // GovernanceSettings controls concurrency, queue depth, circuit breaker, and cost caps.

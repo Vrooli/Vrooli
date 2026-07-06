@@ -902,3 +902,54 @@ func TestBatchCreate_EffortOptional(t *testing.T) {
 		t.Errorf("expected empty effort, got %q", resp.Items[0].Effort)
 	}
 }
+
+func TestBatchCreate_PersistsSpawnedFromAndLinearChain(t *testing.T) {
+	h, _, _ := setupBatchTestHandler(t)
+
+	// Mirrors a plan-import: a linear depends_on chain with provenance stamps.
+	payload := batchCreateRequest{
+		Items: []batchCreateItem{
+			{Name: "my-plan-phase-1", Title: "Design", Kind: "execute", SpawnedFrom: "plan-manager:my-plan/phase-1"},
+			{Name: "my-plan-phase-2", Title: "Build", Kind: "execute", SpawnedFrom: "plan-manager:my-plan/phase-2", DependsOn: []string{"execute/my-plan-phase-1"}},
+		},
+	}
+
+	w := doBatchCreate(t, h, payload)
+	testutil.AssertStatusCreated(t, w)
+
+	var resp batchCreateResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(resp.Items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(resp.Items))
+	}
+	if resp.Items[0].SpawnedFrom != "plan-manager:my-plan/phase-1" {
+		t.Errorf("batch item did not carry spawned_from: %q", resp.Items[0].SpawnedFrom)
+	}
+
+	// Persisted to disk (not just echoed).
+	loaded, err := h.store.LoadItem("execute", "my-plan-phase-2")
+	if err != nil {
+		t.Fatalf("load persisted item: %v", err)
+	}
+	if loaded.SpawnedFrom != "plan-manager:my-plan/phase-2" {
+		t.Errorf("persisted spawned_from = %q, want plan-manager:my-plan/phase-2", loaded.SpawnedFrom)
+	}
+	if len(loaded.DependsOn) != 1 || loaded.DependsOn[0] != "execute/my-plan-phase-1" {
+		t.Errorf("persisted depends_on = %v, want [execute/my-plan-phase-1]", loaded.DependsOn)
+	}
+}
+
+func TestImportBatchItems_LandsAtomicallyWithProvenance(t *testing.T) {
+	h, _, _ := setupBatchTestHandler(t)
+
+	payload := `{"items":[{"name":"p-phase-1","title":"One","kind":"execute","spawned_from":"plan-manager:p/phase-1"}]}`
+	items, err := h.ImportBatchItems(context.Background(), payload, identity.Provenance{})
+	if err != nil {
+		t.Fatalf("ImportBatchItems: %v", err)
+	}
+	if len(items) != 1 || items[0].SpawnedFrom != "plan-manager:p/phase-1" {
+		t.Fatalf("import result = %+v", items)
+	}
+}

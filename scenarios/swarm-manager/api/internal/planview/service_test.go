@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/eta"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/gates"
 	"swarm-manager/internal/operations"
@@ -506,5 +507,161 @@ func TestNewService_RequiresBacklogAndGates(t *testing.T) {
 	}
 	if _, err := NewService(Config{Backlog: stubBacklog{}}); err == nil {
 		t.Error("expected error without gates")
+	}
+}
+
+func TestBuild_AttachesETABand(t *testing.T) {
+	items := []backlog.BacklogItem{
+		bItem("execute", "a", backlog.StatusReady),
+		bItem("execute", "b", backlog.StatusBacklog, "execute/a"),
+		bItem("execute", "c", backlog.StatusCompleted),
+	}
+	items[0].Effort = "M"
+	items[1].Effort = "M"
+
+	cfg := Config{
+		Backlog: stubBacklog{items: items},
+		Gates:   stubGates{},
+		ETA: func() (*eta.Estimator, error) {
+			return eta.NewEstimator(nil, nil, 2, eta.DefaultTrials, eta.DefaultSeed), nil
+		},
+	}
+	svc := newTestService(t, cfg)
+	board, err := svc.Build(context.Background(), Params{})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if board.Meta.ETA == nil {
+		t.Fatal("expected an ETA band in Meta")
+	}
+	// Two pending items (a, b); c is completed and excluded.
+	if board.Meta.ETA.RemainingItems != 2 {
+		t.Errorf("remaining = %d, want 2", board.Meta.ETA.RemainingItems)
+	}
+	if board.Meta.ETA.BasisLabel != "priors only" {
+		t.Errorf("basis label = %q, want %q", board.Meta.ETA.BasisLabel, "priors only")
+	}
+	if board.Meta.ETA.P50Hours > board.Meta.ETA.P80Hours {
+		t.Errorf("p50 %v must be <= p80 %v", board.Meta.ETA.P50Hours, board.Meta.ETA.P80Hours)
+	}
+}
+
+func TestBuild_NoETAFactoryOmitsBand(t *testing.T) {
+	svc := newTestService(t, Config{
+		Backlog: stubBacklog{items: []backlog.BacklogItem{bItem("execute", "a", backlog.StatusReady)}},
+		Gates:   stubGates{},
+	})
+	board, err := svc.Build(context.Background(), Params{})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if board.Meta.ETA != nil {
+		t.Error("expected no ETA band when no factory is configured")
+	}
+}
+
+// stubGoalScoper resolves a fixed closure for a known goal name; any other name
+// returns a not-found error so the ErrGoalScope path can be exercised.
+type stubGoalScoper struct {
+	name    string
+	closure []string
+}
+
+func (s stubGoalScoper) ClosureRefs(name string) ([]string, error) {
+	if name != s.name {
+		return nil, fmt.Errorf("goal %q not found", name)
+	}
+	return append([]string(nil), s.closure...), nil
+}
+
+// allBoardCardIDs collects every card ID across Next, Later, and Done.
+func allBoardCardIDs(b Board) map[string]bool {
+	out := map[string]bool{}
+	for _, col := range []Column{b.Next, b.Later, b.Done} {
+		for _, g := range col.Groups {
+			for _, id := range cardIDs(g.Cards) {
+				out[id] = true
+			}
+		}
+	}
+	return out
+}
+
+func TestBuild_GoalScopeSubsetsToClosure(t *testing.T) {
+	// a <- b <- c chain plus an unrelated item d. Goal closure = {a, b}.
+	items := []backlog.BacklogItem{
+		bItem("execute", "a", backlog.StatusReady),
+		bItem("execute", "b", backlog.StatusReady, "execute/a"),
+		bItem("execute", "c", backlog.StatusReady, "execute/b"),
+		bItem("execute", "d", backlog.StatusReady),
+	}
+	cfg := Config{
+		Backlog: stubBacklog{items: items},
+		Gates:   stubGates{},
+		Goals:   stubGoalScoper{name: "goal-x", closure: []string{"execute/a", "execute/b"}},
+	}
+	svc := newTestService(t, cfg)
+
+	scoped, err := svc.Build(context.Background(), Params{Goal: "goal-x"})
+	if err != nil {
+		t.Fatalf("scoped Build: %v", err)
+	}
+	got := allBoardCardIDs(scoped)
+	if !got["backlog-item/execute/a"] || !got["backlog-item/execute/b"] {
+		t.Errorf("scoped board missing closure items: %v", got)
+	}
+	if got["backlog-item/execute/c"] || got["backlog-item/execute/d"] {
+		t.Errorf("scoped board leaked out-of-closure items: %v", got)
+	}
+}
+
+func TestBuild_NoGoalIdenticalToUnscoped(t *testing.T) {
+	items := []backlog.BacklogItem{
+		bItem("execute", "a", backlog.StatusReady),
+		bItem("execute", "b", backlog.StatusReady, "execute/a"),
+	}
+	cfg := Config{
+		Backlog: stubBacklog{items: items},
+		Gates:   stubGates{},
+		Goals:   stubGoalScoper{name: "goal-x", closure: []string{"execute/a"}},
+	}
+	svc := newTestService(t, cfg)
+
+	// A goal scoper is wired, but no goal is requested: the projection must be
+	// identical to a service with no scoper at all.
+	withScoper, err := svc.Build(context.Background(), Params{})
+	if err != nil {
+		t.Fatalf("Build with idle scoper: %v", err)
+	}
+	plain := newTestService(t, Config{Backlog: stubBacklog{items: items}, Gates: stubGates{}})
+	baseline, err := plain.Build(context.Background(), Params{})
+	if err != nil {
+		t.Fatalf("baseline Build: %v", err)
+	}
+	if a, b := allBoardCardIDs(withScoper), allBoardCardIDs(baseline); len(a) != len(b) {
+		t.Fatalf("idle scoper changed the board: %v vs %v", a, b)
+	}
+}
+
+func TestBuild_UnknownGoalReturnsGoalScopeError(t *testing.T) {
+	svc := newTestService(t, Config{
+		Backlog: stubBacklog{items: []backlog.BacklogItem{bItem("execute", "a", backlog.StatusReady)}},
+		Gates:   stubGates{},
+		Goals:   stubGoalScoper{name: "goal-x", closure: []string{"execute/a"}},
+	})
+	_, err := svc.Build(context.Background(), Params{Goal: "missing"})
+	if !errors.Is(err, ErrGoalScope) {
+		t.Fatalf("want ErrGoalScope, got %v", err)
+	}
+}
+
+func TestBuild_GoalRequestedButNoScoperErrors(t *testing.T) {
+	svc := newTestService(t, Config{
+		Backlog: stubBacklog{items: []backlog.BacklogItem{bItem("execute", "a", backlog.StatusReady)}},
+		Gates:   stubGates{},
+	})
+	_, err := svc.Build(context.Background(), Params{Goal: "goal-x"})
+	if !errors.Is(err, ErrGoalScope) {
+		t.Fatalf("want ErrGoalScope when no scoper, got %v", err)
 	}
 }

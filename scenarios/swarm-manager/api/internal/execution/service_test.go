@@ -115,6 +115,10 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 	if record.Status != StatusPending {
 		t.Fatalf("expected pending status, got %s", record.Status)
 	}
+	if strings.TrimSpace(record.QueuedAt) == "" {
+		t.Fatal("expected QueuedAt to be set on enqueue")
+	}
+	queuedAt := record.QueuedAt
 
 	storedItem := mustLoadBacklogItem(t, filepath.Join(root, "ideas", "test-idea", "spec.json"))
 	if storedItem["status"] != "queued" {
@@ -127,6 +131,9 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 	}
 	if started.Status != StatusStarting {
 		t.Fatalf("expected starting status, got %s", started.Status)
+	}
+	if started.QueuedAt != queuedAt {
+		t.Fatalf("expected QueuedAt preserved through start: got %q want %q", started.QueuedAt, queuedAt)
 	}
 	if started.TaskID != "task-1" || started.RunID != "run-1" {
 		t.Fatalf("expected task/run IDs set, got task=%s run=%s", started.TaskID, started.RunID)

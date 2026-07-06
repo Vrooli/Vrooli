@@ -16,9 +16,15 @@ import {
 describe("route paths", () => {
   it("builds canonical graph lens routes with query state", () => {
     expect(graphPath()).toBe("/graph");
+    // Plan is a first-class top-level route, not a /graph lens.
+    expect(graphPath({ lens: "plan" })).toBe("/plan");
+    expect(graphPath({ lens: "plan", focus: "backlog-item/fix/x" })).toBe(
+      "/plan?focus=backlog-item%2Ffix%2Fx",
+    );
     expect(graphPath({ lens: "focus", focus: "backlog-item/fix/a bug", select: "node/1" })).toBe(
       "/graph/focus?focus=backlog-item%2Ffix%2Fa+bug&select=node%2F1",
     );
+    expect(graphPath({ lens: "topology" })).toBe("/graph/topology");
   });
 
   it("builds canonical detail and command routes", () => {
@@ -49,8 +55,8 @@ describe("route paths", () => {
   it("validates graph lenses", () => {
     expect(isGraphLens("plan")).toBe(true);
     expect(isGraphLens("focus")).toBe(true);
-    // topology survives only as the Focus lens's internal data source.
-    expect(isGraphLens("topology")).toBe(false);
+    // Topology is now a first-class routable lens.
+    expect(isGraphLens("topology")).toBe(true);
     expect(isGraphLens("operations")).toBe(false);
     expect(isGraphLens("bad")).toBe(false);
   });

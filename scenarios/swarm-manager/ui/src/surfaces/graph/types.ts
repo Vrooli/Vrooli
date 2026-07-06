@@ -19,10 +19,10 @@ import {
 } from "../../types";
 
 /**
- * Graph lens identifiers. "plan" and "focus" are the routable lenses
- * (LensNav / /graph/:lens); "topology" survives only as the internal data
- * source the Focus lens filters (GET /api/v1/graph?lens=topology) — it is
- * not routable and has no tab.
+ * Graph lens identifiers, all routable. "plan" is the first-class top-level
+ * board (/plan); "focus" and "topology" are graph lenses (LensNav /
+ * /graph/:lens). The topology projection (GET /api/v1/graph?lens=topology) is
+ * both the Topology lens's own view and the data source the Focus lens filters.
  */
 export type GraphLens = "plan" | "focus" | "topology";
 

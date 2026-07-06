@@ -21,6 +21,11 @@ const (
 	EntityCapture      EntityType = "capture"
 	EntityAgentSession EntityType = "agent_session"
 	EntityRecord       EntityType = "record"
+	// EntityGoal identifies goal-scope entities. A goal is an explicit set of
+	// end-state targets (backlog items and/or initiatives) whose transitive
+	// prerequisite closure defines the work tracked toward it. See the goals
+	// domain (internal/goals).
+	EntityGoal EntityType = "goal"
 )
 
 // EventType identifies what happened to an entity.
@@ -68,6 +73,31 @@ const (
 const (
 	EventQueued   EventType = "queue.queued"
 	EventDequeued EventType = "queue.dequeued"
+)
+
+// Goal events. A goal is a first-class scope entity (see internal/goals). The
+// scope-snapshot event records the closure size / progress over time so
+// per-goal scope-creep is surfaced rather than hidden.
+const (
+	EventGoalCreated         EventType = "goal.created"
+	EventGoalUpdated         EventType = "goal.updated"
+	EventGoalTargetAdded     EventType = "goal.target_added"
+	EventGoalTargetRemoved   EventType = "goal.target_removed"
+	EventGoalPriorityChanged EventType = "goal.priority_changed"
+	EventGoalArchived        EventType = "goal.archived"
+	EventGoalUnarchived      EventType = "goal.unarchived"
+	EventGoalScopeSnapshot   EventType = "goal.scope_snapshot"
+)
+
+// Calibration events. A duration_sample is a coarse per-item lead-time
+// observation (created → completed, in hours) tagged with the item's effort
+// class. The ETA engine folds these into per-effort-class distributions;
+// backfill-origin samples (emitted once from historical spec timestamps) are
+// weighted lower than live-origin samples. Emitting these as first-class
+// events keeps the event log the single source of truth for the ETA engine,
+// mirroring how the stats engine is already event-sourced.
+const (
+	EventBacklogDurationSample EventType = "backlog.duration_sample"
 )
 
 // Decision/workshop events.
@@ -312,6 +342,49 @@ type QueuePayload struct {
 type InitiativeItemPayload struct {
 	Item string `json:"item"`
 }
+
+// GoalCreatedPayload records the initial state of a goal.
+type GoalCreatedPayload struct {
+	Title    string   `json:"title,omitempty"`
+	Priority int      `json:"priority,omitempty"`
+	Targets  []string `json:"targets,omitempty"`
+	Seeded   bool     `json:"seeded,omitempty"`
+}
+
+// GoalTargetPayload records a single target add/remove. A target ref is
+// "<kind>/<name>" for a backlog item or "initiative/<name>" for an initiative.
+type GoalTargetPayload struct {
+	Target string `json:"target"`
+}
+
+// GoalScopeSnapshotPayload records a point-in-time snapshot of a goal's
+// transitive closure so scope growth (creep) is observable over time.
+type GoalScopeSnapshotPayload struct {
+	TargetCount    int `json:"target_count"`
+	ClosureSize    int `json:"closure_size"`
+	CompletedCount int `json:"completed_count"`
+	BlockedCount   int `json:"blocked_count,omitempty"`
+}
+
+// DurationSamplePayload records one coarse lead-time observation for a
+// completed backlog item, tagged with its effort class. Origin is "backfill"
+// (derived once from historical spec timestamps) or "live" (a completion
+// observed after instrumentation landed). The ETA engine weights backfill
+// samples lower. EffortClass is empty for unsized items (the ETA engine folds
+// those into the global distribution).
+type DurationSamplePayload struct {
+	EffortClass   string  `json:"effort_class,omitempty"`
+	DurationHours float64 `json:"duration_hours"`
+	Origin        string  `json:"origin"`
+	Kind          string  `json:"kind,omitempty"`
+	Initiative    string  `json:"initiative,omitempty"`
+}
+
+// DurationSampleOrigin values for DurationSamplePayload.Origin.
+const (
+	DurationOriginBackfill = "backfill"
+	DurationOriginLive     = "live"
+)
 
 // WorkshopRoundPayload records workshop round completion.
 //

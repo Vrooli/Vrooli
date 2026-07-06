@@ -23,6 +23,8 @@ import type {
 export interface PlanRequestOptions {
   signal?: AbortSignal;
   windowSeconds?: number;
+  /** When set, scopes the board to this goal's transitive prerequisite closure. */
+  goal?: string;
 }
 
 export interface IPlanService {
@@ -126,6 +128,9 @@ export function createPlanService(apiClient: IApiClient = defaultApiClient): IPl
       if (options?.windowSeconds && options.windowSeconds > 0) {
         params.set("window_seconds", String(options.windowSeconds));
       }
+      if (options?.goal) {
+        params.set("goal", options.goal);
+      }
       const query = params.toString();
       const endpoint = query ? `${API_ENDPOINTS.plan}?${query}` : API_ENDPOINTS.plan;
       const data = await apiClient.get<unknown>(endpoint, { signal: options?.signal });
@@ -150,6 +155,19 @@ export function createPlanService(apiClient: IApiClient = defaultApiClient): IPl
           windowSeconds: proto.meta?.windowSeconds ?? 0,
           maxWave: proto.meta?.maxWave ?? 0,
           cycles: proto.meta?.cycles ?? [],
+          eta: proto.meta?.eta
+            ? {
+                p50Hours: proto.meta.eta.p50Hours,
+                p80Hours: proto.meta.eta.p80Hours,
+                p50Label: proto.meta.eta.p50Label,
+                p80Label: proto.meta.eta.p80Label,
+                basis: proto.meta.eta.basis,
+                basisLabel: proto.meta.eta.basisLabel,
+                confidence: proto.meta.eta.confidence,
+                remainingItems: proto.meta.eta.remainingItems,
+                laneCapacity: proto.meta.eta.laneCapacity,
+              }
+            : null,
         },
       };
     },

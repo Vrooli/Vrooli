@@ -112,6 +112,15 @@ export function PlanCardView({ card, showWave = false, dimmed = false }: PlanCar
           {outcomeGlyph(card.outcome)}
         </span>
       ) : null}
+      {card.cardType === "item" && card.effort ? (
+        <span
+          className="rounded bg-indigo-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-indigo-300"
+          data-testid="plan-card-effort-badge"
+          title={`effort ${card.effort}`}
+        >
+          {card.effort}
+        </span>
+      ) : null}
       {showWave ? (
         <span
           className={cn(

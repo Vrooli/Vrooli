@@ -169,6 +169,13 @@ export const API_ENDPOINTS = {
   // Embedded service endpoints (served at origin root, not under /api/v1)
   embeddedExternalUrl: (serviceName: string) =>
     `/embedded/${encodeURIComponent(serviceName)}/external-url`,
+  // Continuous goal-directed auto-enqueue toggle (D4, default OFF).
+  executionAutoDrain: "/execution/auto-drain",
+  // Goals — first-class scope entities (targets + transitive closure).
+  goals: "/goals",
+  goalByName: (name: string) => `/goals/${name}`,
+  goalTargets: (name: string) => `/goals/${name}/targets`,
+  goalArchiveItem: (name: string) => `/goals/${name}/archive-item`,
   // AI search
   searchAI: "/search/ai",
   searchAIStatus: "/search/ai/status",

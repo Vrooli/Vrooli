@@ -2,18 +2,15 @@
  * FocusEmptyState - Shown when the Focus lens has no nodes needing attention.
  */
 
-import { useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { CheckCircle } from "lucide-react";
+import { graphPath, type AppGraphLens } from "../../../app/routes/route-paths";
 
 export function FocusEmptyState() {
-  const [, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
-  const goToLens = (lens: string) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set("lens", lens);
-      return next;
-    });
+  const goToLens = (lens: AppGraphLens) => {
+    navigate(graphPath({ lens }));
   };
 
   return (
@@ -40,11 +37,11 @@ export function FocusEmptyState() {
           </button>
           <button
             type="button"
-            onClick={() => goToLens("operations")}
+            onClick={() => goToLens("plan")}
             className="rounded-lg bg-cyan-600/20 px-4 py-2 text-sm font-medium text-cyan-300 transition-colors hover:bg-cyan-600/30"
-            data-testid="focus-empty-go-operations"
+            data-testid="focus-empty-go-plan"
           >
-            Go to Operations
+            Go to Plan
           </button>
         </div>
       </div>

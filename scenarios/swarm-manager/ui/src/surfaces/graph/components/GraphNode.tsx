@@ -13,7 +13,9 @@
 
 import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { Target } from "lucide-react";
 import { cn } from "../../../lib/utils";
+import { useNodeGoalBadges } from "../hooks/useGoalMembership";
 import { BACKLOG_KIND_ICONS } from "../../../types";
 import type { BacklogKind } from "../../../types";
 import { selectors } from "../../../consts/selectors";
@@ -40,6 +42,8 @@ function GraphNodeComponent({ id, data }: NodeProps) {
   const lens = useGraphDataStore((s) => s.lens);
   const isSelected = useGraphUIStore((s) => s.selectedNodeId === id);
   const entityType = nodeData.entityType ?? DEFAULT_ENTITY;
+  const goalBadges = useNodeGoalBadges(id);
+  const inGoal = goalBadges.length > 0;
   const circuitBroken = useGovernanceStore((s) =>
     entityType === "backlog" && "name" in nodeData && "kind" in nodeData
       ? isCircuitBroken(s, nodeData.kind as string, (nodeData as { name: string }).name)
@@ -70,6 +74,7 @@ function GraphNodeComponent({ id, data }: NodeProps) {
         className={cn(
           "relative",
           isSelected && isClipped && "drop-shadow-[0_0_8px_rgba(34,211,238,0.7)]",
+          inGoal && !isSelected && isClipped && "drop-shadow-[0_0_6px_rgba(232,121,249,0.6)]",
           Boolean(nodeData.pulsing) && (nodeData.pulseMode === "persistent"
             ? "graph-node-attention-pulse"
             : "graph-node-pulse"),
@@ -95,6 +100,8 @@ function GraphNodeComponent({ id, data }: NodeProps) {
               : cn("border-2", statusColors.border),
             // Selection ring — only for non-clipped shapes (clip-path hides box-shadow/ring)
             isSelected && !isClipped && "ring-2 ring-cyan-400/50 shadow-lg shadow-cyan-500/30",
+            // Goal-membership tint — a fuchsia ring distinct from cyan selection.
+            inGoal && !isSelected && !isClipped && "ring-2 ring-fuchsia-400/40",
           )}
           style={{ width: dims.width, height: dims.height, ...clipStyle }}
         >
@@ -132,6 +139,17 @@ function GraphNodeComponent({ id, data }: NodeProps) {
         )}
         {lens === "topology" && entityType === "backlog" && circuitBroken && (
           <CircuitBrokenNodeBadge />
+        )}
+        {/* Goal-membership badge: a fuchsia target chip listing the node's goals. */}
+        {inGoal && (
+          <div
+            className="absolute -left-1.5 -top-1.5 flex items-center gap-0.5 rounded-full border border-fuchsia-400/50 bg-fuchsia-500/20 px-1 py-0.5 text-[8px] font-medium text-fuchsia-200 backdrop-blur"
+            title={`In goal${goalBadges.length > 1 ? "s" : ""}: ${goalBadges.map((g) => g.title).join(", ")}`}
+            data-testid="graph-node-goal-badge"
+          >
+            <Target className="h-2.5 w-2.5" aria-hidden />
+            {goalBadges.length > 1 && <span>{goalBadges.length}</span>}
+          </div>
         )}
         {entityType === "initiative" && activeRound ? (
           <div

@@ -1,8 +1,8 @@
 /**
- * Route-retirement contract: the old Operations Center and Command Post
- * URLs redirect to the Plan board instead of 404ing, and the decisions
- * deep link carries the drawer parameter. Old /operations filter links
- * keep their query string (same param names on the board).
+ * Route-retirement contract: /plan is the first-class board route, the legacy
+ * graph paths and the retired Operations Center / Command Post / list-page URLs
+ * redirect to it instead of 404ing, deep-link query state (drawer, filters) is
+ * preserved, and the Topology lens is reachable by URL.
  */
 
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -25,24 +25,46 @@ describe("retired-route redirects", () => {
     window.history.pushState({}, "", "/");
   });
 
-  it("root redirects to the Plan lens", async () => {
+  it("root redirects to the first-class Plan route", async () => {
     renderAt("/");
     await waitFor(() => {
-      expect(window.location.pathname).toBe("/graph/plan");
+      expect(window.location.pathname).toBe("/plan");
     });
   });
 
-  it("/command-post redirects to the Plan lens", async () => {
+  it("legacy /graph/plan redirects to /plan preserving query state", async () => {
+    renderAt("/graph/plan?drawer=decisions");
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/plan");
+      expect(window.location.search).toContain("drawer=decisions");
+    });
+  });
+
+  it("bare /graph redirects to /plan", async () => {
+    renderAt("/graph");
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/plan");
+    });
+  });
+
+  it("/graph/topology resolves directly (Topology lens is routable)", async () => {
+    renderAt("/graph/topology");
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/graph/topology");
+    });
+  });
+
+  it("/command-post redirects to the Plan route", async () => {
     renderAt("/command-post");
     await waitFor(() => {
-      expect(window.location.pathname).toBe("/graph/plan");
+      expect(window.location.pathname).toBe("/plan");
     });
   });
 
   it("/command-post/decisions redirects with the decisions drawer open", async () => {
     renderAt("/command-post/decisions");
     await waitFor(() => {
-      expect(window.location.pathname).toBe("/graph/plan");
+      expect(window.location.pathname).toBe("/plan");
       expect(window.location.search).toContain("drawer=decisions");
     });
   });
@@ -50,9 +72,23 @@ describe("retired-route redirects", () => {
   it("/operations redirects preserving filter params", async () => {
     renderAt("/operations?status=running&lane=execute");
     await waitFor(() => {
-      expect(window.location.pathname).toBe("/graph/plan");
+      expect(window.location.pathname).toBe("/plan");
       expect(window.location.search).toContain("status=running");
       expect(window.location.search).toContain("lane=execute");
+    });
+  });
+
+  it("retired /executions list page redirects to /plan (detail routes unaffected)", async () => {
+    renderAt("/executions");
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/plan");
+    });
+  });
+
+  it("retired /scenarios list page redirects to /plan (detail routes unaffected)", async () => {
+    renderAt("/scenarios");
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/plan");
     });
   });
 });

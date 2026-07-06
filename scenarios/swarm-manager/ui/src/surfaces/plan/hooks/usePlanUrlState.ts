@@ -1,7 +1,7 @@
 /**
  * usePlanUrlState — bidirectional URL ⇄ store sync for the board's
  * filters, group-by mode, show-snoozed flag, and Done window, mirroring
- * the Operations Center's shareable-link behavior on /graph/plan.
+ * the Operations Center's shareable-link behavior on /plan.
  */
 
 import { useEffect, useRef } from "react";
@@ -30,10 +30,12 @@ export interface PlanUrlStateResult {
   filters: OperationsFilters;
   viewMode: OperationsViewMode;
   showSnoozed: boolean;
+  goal: string;
   hasFilters: boolean;
   setFilters: (next: Partial<OperationsFilters>) => void;
   setViewMode: (mode: OperationsViewMode) => void;
   setShowSnoozed: (show: boolean) => void;
+  setGoal: (goal: string) => void;
   resetFilters: () => void;
 }
 
@@ -49,6 +51,8 @@ export function usePlanUrlState(): PlanUrlStateResult {
   const setShowSnoozed = usePlanDataStore((s) => s.setShowSnoozed);
   const windowSeconds = usePlanDataStore((s) => s.windowSeconds);
   const setWindowSeconds = usePlanDataStore((s) => s.setWindowSeconds);
+  const goal = usePlanDataStore((s) => s.goal);
+  const setGoal = usePlanDataStore((s) => s.setGoal);
 
   // URL → stores. Deep-equal guard prevents ping-pong with the write effect.
   useEffect(() => {
@@ -66,6 +70,9 @@ export function usePlanUrlState(): PlanUrlStateResult {
     if (urlState.showSnoozed !== showSnoozed) {
       setShowSnoozed(urlState.showSnoozed);
     }
+    if (urlState.goal !== goal) {
+      setGoal(urlState.goal);
+    }
     // Intentionally only re-runs on URL changes — store-driven changes
     // flow through the write effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,21 +83,24 @@ export function usePlanUrlState(): PlanUrlStateResult {
     filters: { ...filters, windowSeconds },
     viewMode,
     showSnoozed,
+    goal,
   };
   const stateRef = useRef(state);
   stateRef.current = state;
   useEffect(() => {
     setSearchParams((prev) => writePlanStateToParams(prev, stateRef.current), { replace: true });
-  }, [filters, viewMode, showSnoozed, windowSeconds, setSearchParams]);
+  }, [filters, viewMode, showSnoozed, windowSeconds, goal, setSearchParams]);
 
   return {
     filters,
     viewMode,
     showSnoozed,
+    goal,
     hasFilters: hasActiveFilters(state),
     setFilters,
     setViewMode,
     setShowSnoozed,
+    setGoal,
     resetFilters: () => {
       setFilters({ statuses: [], lanes: [], ownerTypes: [], modes: [], q: "" });
       setViewMode("by-initiative");

@@ -2,7 +2,7 @@ import type { BacklogKind } from "../../types";
 import type { GraphLens } from "../../surfaces/graph/stores/graph-data-store";
 import { parseNodeId } from "../../surfaces/graph/lib/node-id-parser";
 
-export const GRAPH_LENSES = ["plan", "focus"] as const satisfies readonly GraphLens[];
+export const GRAPH_LENSES = ["plan", "focus", "topology"] as const satisfies readonly GraphLens[];
 
 export type AppGraphLens = (typeof GRAPH_LENSES)[number];
 export type DetailEntityType = "backlog" | "scenario" | "execution" | "initiative" | "capture" | "session" | "operatingMode";
@@ -35,13 +35,23 @@ export function isGraphLens(value: string | undefined): value is AppGraphLens {
   return GRAPH_LENSES.includes(value as AppGraphLens);
 }
 
+/**
+ * Canonical path for a lens. Plan is a first-class top-level route (`/plan`);
+ * the graph lenses (Focus, Topology) live under `/graph/:lens`. When no lens is
+ * given, `/graph` resolves to the Plan board by default.
+ */
 export function graphPath(options: {
   lens?: AppGraphLens;
   focus?: string | null;
   returnLens?: string | null;
   select?: string | null;
 } = {}): string {
-  const path = options.lens ? `/graph/${options.lens}` : "/graph";
+  const path =
+    options.lens === "plan"
+      ? "/plan"
+      : options.lens
+        ? `/graph/${options.lens}`
+        : "/graph";
   return appendQuery(path, {
     focus: options.focus,
     returnLens: options.returnLens,

@@ -8,6 +8,7 @@ import { selectors } from "../../consts/selectors";
 import { DEFAULT_SETTINGS } from "../../services/settings-service";
 import type { Settings } from "../../types";
 import { ToggleButtons } from "./ToggleButtons";
+import { GoalDrainToggle } from "./GoalDrainToggle";
 
 export interface ExecutionTabProps {
   form: Settings;
@@ -277,6 +278,8 @@ export function ExecutionTab({ form, patch }: ExecutionTabProps) {
           </div>
         </div>
       </Card>
+
+      <GoalDrainToggle />
     </div>
   );
 }

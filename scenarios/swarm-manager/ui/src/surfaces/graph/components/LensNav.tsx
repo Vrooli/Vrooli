@@ -1,6 +1,7 @@
 /**
- * LensNav - Two-tab lens navigation: Plan (the default kanban board) and
- * Focus (the attention-filtered graph neighborhood).
+ * LensNav - Three-tab lens navigation: Plan (the default kanban board), Focus
+ * (the attention-filtered graph neighborhood), and Topology (the full graph
+ * projection).
  */
 
 import { cn } from "../../../lib/utils";
@@ -21,6 +22,7 @@ const LENSES: Array<{
 }> = [
   { id: "plan", label: "Plan", shortLabel: "Plan", shortcut: "1", primary: true },
   { id: "focus", label: "Focus", shortLabel: "Focus", shortcut: "2" },
+  { id: "topology", label: "Topology", shortLabel: "Topo", shortcut: "3" },
 ];
 
 export function LensNav({ activeLens, onLensChange }: LensNavProps) {

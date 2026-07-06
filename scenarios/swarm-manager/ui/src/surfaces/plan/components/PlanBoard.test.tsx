@@ -131,7 +131,7 @@ function makeBoard(overrides?: Partial<PlanBoardData>): PlanBoardData {
       ],
       cardCount: 1,
     },
-    meta: { generatedAt: "2026-07-02T12:00:00Z", windowSeconds: 86400, maxWave: 2, cycles: [] },
+    meta: { generatedAt: "2026-07-02T12:00:00Z", windowSeconds: 86400, maxWave: 2, cycles: [], eta: null },
     ...overrides,
   };
 }
@@ -199,6 +199,46 @@ describe("PlanBoard", () => {
     expect(await screen.findAllByTestId(selectors.operationsCenter.laneBar)).toHaveLength(4);
   });
 
+  it("renders the ETA strip when the board carries a band", async () => {
+    setPlanStoreService(
+      stubService(
+        makeBoard({
+          meta: {
+            generatedAt: "2026-07-02T12:00:00Z",
+            windowSeconds: 86400,
+            maxWave: 2,
+            cycles: [],
+            eta: {
+              p50Hours: 120,
+              p80Hours: 240,
+              p50Label: "~5 days",
+              p80Label: "~10 days",
+              basis: "live",
+              basisLabel: "27 samples",
+              confidence: "high",
+              remainingItems: 6,
+              laneCapacity: 3,
+            },
+          },
+        }),
+      ),
+    );
+    renderWithProviders(<PlanBoard />);
+
+    await screen.findByTestId(selectors.plan.board);
+    const strip = screen.getByTestId("plan-eta-strip");
+    expect(strip).toHaveTextContent("~5 days");
+    expect(strip).toHaveTextContent("~10 days");
+    expect(screen.getByTestId("plan-eta-basis")).toHaveTextContent("27 samples");
+  });
+
+  it("omits the ETA strip when there is nothing to estimate", async () => {
+    setPlanStoreService(stubService(makeBoard())); // meta.eta = null
+    renderWithProviders(<PlanBoard />);
+    await screen.findByTestId(selectors.plan.board);
+    expect(screen.queryByTestId("plan-eta-strip")).not.toBeInTheDocument();
+  });
+
   it("rolls deep cards into the beyond-horizon disclosure", async () => {
     setPlanStoreService(stubService(makeBoard()));
     renderWithProviders(<PlanBoard />);
@@ -249,7 +289,7 @@ describe("PlanBoard", () => {
 
   it("opens the decision drawer from the ?drawer=decisions deep link", async () => {
     setPlanStoreService(stubService(makeBoard()));
-    renderWithProviders(<PlanBoard />, { initialEntries: ["/graph/plan?drawer=decisions"] });
+    renderWithProviders(<PlanBoard />, { initialEntries: ["/plan?drawer=decisions"] });
 
     await screen.findByTestId(selectors.plan.board);
     expect(await screen.findByTestId(selectors.plan.decisionDrawer)).toBeInTheDocument();
@@ -266,7 +306,7 @@ describe("PlanBoard", () => {
 
   it("surfaces dependency-cycle diagnostics", async () => {
     setPlanStoreService(stubService(makeBoard({
-      meta: { generatedAt: "", windowSeconds: 86400, maxWave: 2, cycles: ["fix/a -> fix/b -> fix/a"] },
+      meta: { generatedAt: "", windowSeconds: 86400, maxWave: 2, cycles: ["fix/a -> fix/b -> fix/a"], eta: null },
     })));
     renderWithProviders(<PlanBoard />);
 

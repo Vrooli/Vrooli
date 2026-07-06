@@ -15,8 +15,10 @@ import (
 	"time"
 
 	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/eta"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/gates"
+	"swarm-manager/internal/initiatives"
 	"swarm-manager/internal/operations"
 )
 
@@ -121,6 +123,9 @@ type Meta struct {
 	WindowSeconds int      `json:"window_seconds"`
 	MaxWave       int      `json:"max_wave"`
 	Cycles        []string `json:"cycles"`
+	// ETA is the completion estimate for the board's remaining work, present
+	// only when an estimator is wired and the board has pending items.
+	ETA *eta.Band `json:"eta,omitempty"`
 }
 
 // Board is the full plan-board projection.
@@ -137,6 +142,11 @@ type Params struct {
 	// WindowSeconds bounds the Done column; clamped to [MinWindowSeconds,
 	// MaxWindowSeconds], defaulting to DefaultWindowSeconds when zero.
 	WindowSeconds int
+	// Goal, when non-empty, scopes the board to that goal's transitive
+	// prerequisite closure: only closure items (and the gates/executions that
+	// belong to them) appear, and the ETA band covers the scoped work. When
+	// empty the projection is identical to the unscoped board.
+	Goal string
 }
 
 // BacklogLister loads backlog items.
@@ -160,13 +170,37 @@ type OpsSummarizer interface {
 	Aggregate(ctx context.Context, f operations.Filters) (*operations.OperationsView, error)
 }
 
+// InitiativeLister provides initiative membership + depends_on so the board
+// readiness graph can fold in the D2 initiative gate. Optional: when nil, the
+// wave graph uses item depends_on alone (pre-gate behavior).
+type InitiativeLister interface {
+	LoadAll() ([]initiatives.Initiative, error)
+}
+
+// GoalScoper resolves a goal name to the item refs ("<kind>/<name>") in its
+// transitive prerequisite closure, used to scope the board to a goal. Optional:
+// when the Config field is nil, a goal-scoped request is rejected. *goals.Service
+// satisfies it.
+type GoalScoper interface {
+	ClosureRefs(name string) ([]string, error)
+}
+
+// ETAEstimatorFactory builds a fresh ETA estimator for the board-wide
+// completion band. It may return (nil, nil) when estimation is unavailable, in
+// which case the ETA is omitted. Optional: when the Config field is nil, no ETA
+// is computed.
+type ETAEstimatorFactory func() (*eta.Estimator, error)
+
 // Config wires Service dependencies. Backlog and Gates are required;
-// Executions and Ops degrade gracefully when nil (empty Done executions /
-// zero Now counts). Now defaults to time.Now.
+// Executions, Ops, and Initiatives degrade gracefully when nil (empty Done
+// executions / zero Now counts / no initiative gate). Now defaults to time.Now.
 type Config struct {
-	Backlog    BacklogLister
-	Gates      GateEnumerator
-	Executions ExecutionLister
-	Ops        OpsSummarizer
-	Now        func() time.Time
+	Backlog     BacklogLister
+	Gates       GateEnumerator
+	Executions  ExecutionLister
+	Ops         OpsSummarizer
+	Initiatives InitiativeLister
+	Goals       GoalScoper
+	ETA         ETAEstimatorFactory
+	Now         func() time.Time
 }

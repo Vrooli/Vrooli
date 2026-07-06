@@ -32,10 +32,12 @@ import (
 	"swarm-manager/internal/agentsessions"
 	"swarm-manager/internal/aisearch"
 	"swarm-manager/internal/audioports"
+	"swarm-manager/internal/autodrain"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/captures"
 	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/execution"
+	"swarm-manager/internal/goals"
 	"swarm-manager/internal/graph"
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/initiativereview"
@@ -44,6 +46,7 @@ import (
 	"swarm-manager/internal/operations"
 	"swarm-manager/internal/overview"
 	"swarm-manager/internal/pathutil"
+	"swarm-manager/internal/planimport"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/prompts"
 	"swarm-manager/internal/queue"
@@ -80,6 +83,7 @@ type Server struct {
 	scenariosHandler    *scenarios.Handler
 	initStore           *initiatives.Store
 	initiativeService   *initiatives.Service
+	goalService         *goals.Service
 	overviewSvc         *overview.Service
 	executionSvc        *execution.Service
 	executionHandler    *execution.Handler
@@ -254,6 +258,7 @@ func (s *Server) setupRoutes() {
 	// --- Core domain ---
 	backlogHandler := s.registerBacklogRoutes(s.dataRoot, scenarioRoot)
 	initService := s.registerInitiativeRoutes(s.dataRoot, backlogHandler)
+	s.registerGoalsRoutes(s.dataRoot, backlogHandler)
 	s.registerCapturesRoutes(s.cacheRoot, backlogHandler)
 	s.registerRecordsRoutes(s.dataRoot, scenariosDir)
 
@@ -269,6 +274,15 @@ func (s *Server) setupRoutes() {
 		s.scenariosHandler.SetExecutionLister(executionSnapshotLister{svc: execSvc})
 	}
 
+	// Goal-directed execution (D4): the drain prefers higher-priority goals
+	// (FIFO fallback for ungoaled work), and a default-OFF continuous mode
+	// auto-enqueues ready goal items through the governed QueueBacklog path.
+	if execSvc != nil && s.goalService != nil {
+		autoDrain := autodrain.NewStore(s.dataRoot)
+		autodrain.NewHandler(autoDrain).RegisterRoutes(s.router)
+		execSvc.SetGoalDirectedProviders(s.goalService, goalReadyAdapter{svc: s.goalService}, autoDrain)
+	}
+
 	// --- Read-only surfaces ---
 	overviewSvc := s.registerOverviewRoutes(backlogHandler, initService)
 	if execSvc != nil {
@@ -280,6 +294,7 @@ func (s *Server) setupRoutes() {
 	s.registerOperatingModeRoutes(scenarioRoot, materializer)
 	s.registerOperationsRoutes()
 	s.registerPlanRoutes(scenarioRoot)
+	s.registerPlanImportRoutes(backlogHandler)
 	s.registerPromptRoutes(scenarioRoot)
 	s.registerAgentManagerRoutes()
 
@@ -406,6 +421,67 @@ func (s *Server) registerInitiativeRoutes(dataRoot string, backlogHandler *backl
 	// Wire initiative assigner into backlog handler for batch operations.
 	backlogHandler.SetInitiativeAssigner(initiatives.NewBacklogAssignerAdapter(initService))
 	return initService
+}
+
+// registerGoalsRoutes wires the goals domain (store, service, HTTP routes).
+// Depends on the initiative store (already set by registerInitiativeRoutes) and
+// the backlog store for scope computation and seeding.
+func (s *Server) registerGoalsRoutes(dataRoot string, backlogHandler *backlog.Handler) *goals.Service {
+	goalStore := goals.NewStore(dataRoot)
+	goalService := goals.NewService(goalStore, backlogHandler.Store(), s.initStore)
+	// Wire the ETA estimator factory. It reads s.eventRepo / s.executionSvc at
+	// call time, so it is safe to set here even though executionSvc is created
+	// later in setupRoutes — the closure resolves them lazily per request.
+	goalService.SetEstimatorFactory(s.newETAEstimator)
+	goalHandler := goals.NewHandler(goalService)
+	goalHandler.RegisterRoutes(s.router)
+	s.goalService = goalService
+	return goalService
+}
+
+// registerPlanImportRoutes wires the read-only plan-manager import bridge:
+// POST /api/v1/plan-import fetches an authored plan over Connect and lands its
+// phases as a provenance-stamped linear chain via the atomic batch-create.
+func (s *Server) registerPlanImportRoutes(backlogHandler *backlog.Handler) {
+	if backlogHandler == nil {
+		return
+	}
+	svc := planimport.NewService(planimport.NewConnectFetcher(nil), planImportLander{handler: backlogHandler})
+	planimport.NewHandler(svc).RegisterRoutes(s.router)
+}
+
+// planImportLander adapts *backlog.Handler to planimport.BatchLander, converting
+// the created backlog items to the import-package ref shape so planimport need
+// not import backlog.
+type planImportLander struct{ handler *backlog.Handler }
+
+func (l planImportLander) ImportBatch(ctx context.Context, payloadJSON string, prov identity.Provenance) ([]planimport.ImportedRef, error) {
+	items, err := l.handler.ImportBatchItems(ctx, payloadJSON, prov)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]planimport.ImportedRef, 0, len(items))
+	for _, it := range items {
+		out = append(out, planimport.ImportedRef{Kind: string(it.Kind), Name: it.Name, Title: it.Title})
+	}
+	return out, nil
+}
+
+// goalReadyAdapter adapts *goals.Service to execution.GoalReadyProvider,
+// converting goals.ReadyGoalItem to the execution-package shape so the
+// execution service need not import goals.
+type goalReadyAdapter struct{ svc *goals.Service }
+
+func (a goalReadyAdapter) ReadyGoalItems() ([]execution.GoalReadyItem, error) {
+	items, err := a.svc.ReadyGoalItems()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]execution.GoalReadyItem, 0, len(items))
+	for _, it := range items {
+		out = append(out, execution.GoalReadyItem{Kind: it.Kind, Name: it.Name, GoalPriority: it.GoalPriority})
+	}
+	return out, nil
 }
 
 func (s *Server) registerOverviewRoutes(backlogHandler *backlog.Handler, initService *initiatives.Service) *overview.Service {

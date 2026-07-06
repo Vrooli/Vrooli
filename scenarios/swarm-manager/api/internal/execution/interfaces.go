@@ -55,6 +55,29 @@ type GovernanceProvider interface {
 	LoadGovernance() (GovernanceSettings, error)
 }
 
+// GoalPriorityProvider supplies per-item goal priority so the drain comparator
+// can prefer items in higher-priority goals. Optional: when unset, the drain
+// falls back to pure FIFO by CreatedAt (behavior-preserving for ungoaled work).
+type GoalPriorityProvider interface {
+	// ItemGoalPriorities maps a backlog item ref ("<kind>/<name>") to the
+	// highest priority among active goals whose closure contains it. Items
+	// absent from the map are ungoaled.
+	ItemGoalPriorities() (map[string]int, error)
+}
+
+// GoalReadyProvider lists ready backlog items across active goals for the
+// continuous goal-directed auto-enqueue drain, highest goal priority first.
+// Optional: when unset, continuous drain enqueues nothing.
+type GoalReadyProvider interface {
+	ReadyGoalItems() ([]GoalReadyItem, error)
+}
+
+// AutoDrainProvider reports whether continuous goal-directed auto-enqueue is
+// enabled. Optional: when unset, continuous drain is off (the D4 default).
+type AutoDrainProvider interface {
+	AutoDrainEnabled() bool
+}
+
 // ReviewServiceIntegration is the subset of the review service that finalization
 // needs to trigger evidence gathering. Uses a callback signature to avoid
 // import cycles between the execution and review packages.

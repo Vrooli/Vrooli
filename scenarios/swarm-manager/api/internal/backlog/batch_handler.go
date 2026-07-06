@@ -102,6 +102,9 @@ type batchCreateItem struct {
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
 	Creates         []string `json:"creates,omitempty"`
+	// SpawnedFrom stamps provenance the way single-create already does, so
+	// batch-landed items (e.g. plan imports) carry where they came from.
+	SpawnedFrom string `json:"spawned_from,omitempty"`
 }
 
 // batchCreateInitiative describes initiative metadata supplied with a batch import.
@@ -209,6 +212,25 @@ func (h *Handler) ApplyAgentSessionBacklogBatchImport(ctx context.Context, paylo
 		return nil, err
 	}
 	return result.artifacts, nil
+}
+
+// ImportBatchItems lands a JSON batch payload atomically via the same path as
+// batch-create and returns the created items. Used by the plan-import bridge to
+// reuse the atomic multi-item create (dependency validation, cycle rejection,
+// provenance) without going back out over HTTP.
+func (h *Handler) ImportBatchItems(ctx context.Context, payloadJSON string, prov identity.Provenance) ([]BacklogItem, error) {
+	var req batchCreateRequest
+	decoder := json.NewDecoder(bytes.NewReader([]byte(payloadJSON)))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
+		return nil, apierr.BadRequest("invalid plan-import batch payload: %s", httputil.TruncateErrorMessage(err, 240))
+	}
+	req.Preview = false
+	result, err := h.applyBatchCreateRequest(ctx, req, prov, true, "http.plan_import")
+	if err != nil {
+		return nil, err
+	}
+	return result.items, nil
 }
 
 func (h *Handler) applyBatchCreateRequest(
@@ -467,6 +489,7 @@ func (h *Handler) validateSingleBatchItem(
 		AcceptanceAllow: raw.AcceptanceAllow,
 		AcceptanceDeny:  raw.AcceptanceDeny,
 		Creates:         raw.Creates,
+		SpawnedFrom:     strings.TrimSpace(raw.SpawnedFrom),
 	}
 
 	return validatedItem{item: item, kind: kind}, nil

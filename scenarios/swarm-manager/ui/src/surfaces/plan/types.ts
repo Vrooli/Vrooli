@@ -86,11 +86,33 @@ export interface PlanNowSummaryData {
   lanes: PlanLaneStatusData[];
 }
 
+/**
+ * Completion estimate for the board's remaining work: a p50/p80 band with an
+ * explicit basis/confidence label that honestly degrades to "priors only"
+ * under cold start.
+ */
+export interface PlanEtaBandData {
+  p50Hours: number;
+  p80Hours: number;
+  p50Label: string;
+  p80Label: string;
+  /** live | backfill | priors | default | mixed */
+  basis: string;
+  /** "27 samples" vs "priors only" */
+  basisLabel: string;
+  /** low | medium | high */
+  confidence: string;
+  remainingItems: number;
+  laneCapacity: number;
+}
+
 export interface PlanBoardMetaData {
   generatedAt: string;
   windowSeconds: number;
   maxWave: number;
   cycles: string[];
+  /** Present when the estimator is wired and there is pending work. */
+  eta: PlanEtaBandData | null;
 }
 
 export interface PlanBoardData {

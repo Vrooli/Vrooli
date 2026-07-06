@@ -2,7 +2,7 @@
  * Tests for GraphWorkspaceHUD.
  *
  * Pins the contract that the agents button is the Operations Center
- * trigger pill (HUD variant) and links to /graph/plan.
+ * trigger pill (HUD variant) and links to /plan.
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -36,7 +36,7 @@ describe("GraphWorkspaceHUD", () => {
     const trigger = screen.getByTestId(selectors.layout.opsTriggerButton);
     expect(trigger).toBeInTheDocument();
     expect(trigger.getAttribute("data-variant")).toBe("hud");
-    expect(trigger.getAttribute("href")).toBe("/graph/plan");
+    expect(trigger.getAttribute("href")).toBe("/plan");
   });
 
   it("does not render the legacy agents dropdown", () => {

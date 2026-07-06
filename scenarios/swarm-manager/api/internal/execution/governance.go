@@ -43,6 +43,18 @@ func laneCapacity(gov GovernanceSettings, lane agentactivity.Lane) int {
 	return DefaultGovernanceSettings().LaneLimits[string(lane)]
 }
 
+// ExecuteLaneCapacity returns the configured Execute-lane concurrency cap — the
+// number of backlog executions that can run at once. The ETA engine divides a
+// goal's total remaining work by this to model throughput. Falls back to the
+// built-in default when governance cannot be loaded.
+func (s *Service) ExecuteLaneCapacity() int {
+	gov, err := s.governanceProvider.LoadGovernance()
+	if err != nil {
+		gov = DefaultGovernanceSettings()
+	}
+	return laneCapacity(gov, agentactivity.LaneExecute)
+}
+
 // ResetCircuitBreaker clears the circuit breaker for a specific item.
 func (s *Service) ResetCircuitBreaker(itemKey string) error {
 	return s.circuitBreaker.Reset(itemKey)

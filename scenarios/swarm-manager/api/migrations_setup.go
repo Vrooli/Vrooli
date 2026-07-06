@@ -11,6 +11,7 @@ import (
 
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/eventlog"
+	"swarm-manager/internal/goals"
 	"swarm-manager/internal/workshop"
 )
 
@@ -99,6 +100,37 @@ func (s *Server) runMigrationsOnce() {
 			if err := s.statsEngine.Rebuild(ctx); err != nil {
 				slog.Error("migrations: stats rebuild after recommendation-acceptance backfill failed", "err", err)
 			}
+		}
+	}
+
+	if !migrationApplied(events, migrationNameBackfillETADurationSamplesV1) {
+		alreadySampled := refsWithDurationSamples(events)
+		produced := s.backfillETADurationSamples(alreadySampled)
+		s.emitter.EmitMigrationApplied(
+			migrationNameBackfillETADurationSamplesV1,
+			"Emit coarse backlog.duration_sample events from historical completed items' spec timestamps so the ETA engine has a cold-start distribution.",
+			produced,
+		)
+		slog.Info("migrations: backfill_eta_duration_samples_v1 applied", "produced", produced)
+
+		if s.statsEngine != nil {
+			if err := s.statsEngine.Rebuild(ctx); err != nil {
+				slog.Error("migrations: stats rebuild after eta-duration-samples backfill failed", "err", err)
+			}
+		}
+	}
+
+	if s.goalService != nil && !migrationApplied(events, migrationNameSeedGoalsFromTagsV1) {
+		created, err := s.goalService.SeedFromTags(goals.DefaultSeedSpecs)
+		if err != nil {
+			slog.Error("migrations: seed_goals_from_tags_v1 failed", "err", err)
+		} else {
+			s.emitter.EmitMigrationApplied(
+				migrationNameSeedGoalsFromTagsV1,
+				"Seed the four de-facto v1 goals (desktop-deploy-v1, monetization-v1, audio-reliability-v1, self-host-v1) from existing tags.",
+				created,
+			)
+			slog.Info("migrations: seed_goals_from_tags_v1 applied", "created", created)
 		}
 	}
 }
