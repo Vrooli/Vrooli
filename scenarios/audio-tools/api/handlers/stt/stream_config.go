@@ -21,6 +21,11 @@ import (
 // projects the streaming-pipeline lever subset into the selector's
 // StreamConfig shape, falling back to documented defaults when fields
 // are missing.
+func ResolveStreamPipelineConfig(ctx context.Context, repo STTStreamConfigRepository) sttpkg.StreamConfig {
+	h := &connectHandler{deps: Deps{StreamConfig: repo}}
+	return h.resolveStreamPipelineConfig(ctx)
+}
+
 func (h *connectHandler) resolveStreamPipelineConfig(ctx context.Context) sttpkg.StreamConfig {
 	d, err := h.loadStreamCfg(ctx)
 	if err != nil {

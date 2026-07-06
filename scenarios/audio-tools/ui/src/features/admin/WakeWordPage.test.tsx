@@ -1,10 +1,11 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { selectors } from "../../consts/selectors";
 import { AudioFormat } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
+import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
 
 const getWakeWordConfig = vi.fn();
 const saveWakeWordTemplate = vi.fn();
@@ -27,11 +28,7 @@ import { WakeWordPage } from "./WakeWordPage";
 
 function renderPage() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={qc}>
-      <WakeWordPage />
-    </QueryClientProvider>,
-  );
+  return render(<WakeWordPage />, { queryClient: qc });
 }
 
 // A recorder handle whose `done` resolves immediately with a fixed sample.

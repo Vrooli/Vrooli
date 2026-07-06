@@ -253,12 +253,33 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 		}
 	}
 
+	sttDeps := sttH.Deps{
+		Chain:           chs.STT,
+		Selector:        sttpkg.NewSelectorWithRegistry(chs.STT, audioEngine, engineRegistry),
+		Registry:        engineRegistry,
+		Voice:           voiceSvc,
+		SpeakerResource: speakerClient,
+		Engine:          audioEngine,
+		Logger:          logger,
+		Clock:           clock.System{},
+		Usage:           usageRecorder,
+		StreamConfig:    stores.STTStream,
+		SpeakerConfig:   stores.STTSpeaker,
+		Wakeword:        stores.Wakeword,
+		Speaker:         stores.Speaker,
+		Capacity:        sttcapacity.NewCLIReporter(),
+	}
+
 	diagOrch := diagcore.New(diagcore.Deps{
 		STT:       chs.STT,
 		TTS:       chs.TTS,
 		Summarize: chs.Summarize,
 		Transcode: ffmpegTranscoder{},
 		Usage:     usageRecorder,
+		STTConfig: func(ctx context.Context) sttpkg.StreamConfig {
+			return sttH.ResolveStreamPipelineConfig(ctx, stores.STTStream)
+		},
+		Registry: engineRegistry,
 	})
 
 	srv := server.New(
@@ -280,22 +301,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 			VoiceOverrides: stores.VoiceOverrides,
 			Coordinator:    chs.Coordinator,
 		}),
-		sttH.Module(sttH.Deps{
-			Chain:           chs.STT,
-			Selector:        sttpkg.NewSelectorWithRegistry(chs.STT, audioEngine, engineRegistry),
-			Registry:        engineRegistry,
-			Voice:           voiceSvc,
-			SpeakerResource: speakerClient,
-			Engine:          audioEngine,
-			Logger:          logger,
-			Clock:           clock.System{},
-			Usage:           usageRecorder,
-			StreamConfig:    stores.STTStream,
-			SpeakerConfig:   stores.STTSpeaker,
-			Wakeword:        stores.Wakeword,
-			Speaker:         stores.Speaker,
-			Capacity:        sttcapacity.NewCLIReporter(),
-		}),
+		sttH.Module(sttDeps),
 		summarizeH.Module(
 			chs.Summarize,
 			func() intsumm.SummarizeConfig { return summCfg },

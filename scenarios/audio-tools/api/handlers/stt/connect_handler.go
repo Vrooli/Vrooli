@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -19,6 +20,7 @@ import (
 	"audio-tools/internal/store"
 	sttpkg "audio-tools/internal/stt"
 	sttpipeline "audio-tools/internal/stt/pipeline"
+	"audio-tools/internal/stt/quality"
 	"audio-tools/internal/sttcapacity"
 	"audio-tools/internal/sttengine"
 	"audio-tools/internal/usagereport"
@@ -82,12 +84,14 @@ func (h *connectHandler) Transcribe(ctx context.Context, req *connect.Request[st
 			fmt.Errorf("audio exceeds maximum size of %d bytes", sttpipeline.MaxAudioSize))
 	}
 	env := envelope.FromConnectRequest(req)
+	cfg := h.resolveStreamPipelineConfig(ctx)
 	chainReq := sttchain.Request{
 		Audio:                   req.Msg.Audio,
 		Format:                  protomap.AudioFormatFromProto(req.Msg.GetFormat()),
 		Language:                req.Msg.Language,
 		SkipSpeakerVerification: req.Msg.SkipSpeakerVerification,
 		InitialPrompt:           req.Msg.InitialPrompt,
+		VADFilter:               cfg.VADFilterEnabled,
 		BYOKProvider:            env.Provider,
 		BYOKKey:                 env.Key,
 		LPBSToken:               env.LPBSToken,
@@ -126,16 +130,37 @@ func (h *connectHandler) Transcribe(ctx context.Context, req *connect.Request[st
 	if h.deps.Usage != nil {
 		h.deps.Usage.Enqueue(row)
 	}
-	resp.Msg = &sttv1.TranscribeResponse{
-		Text:             res.Text,
+	resp.Msg = h.responseFromResult(ctx, res, req.Msg.Audio, cfg)
+	return resp, nil
+}
+
+func (h *connectHandler) responseFromResult(ctx context.Context, res *sttchain.Result, audio []byte, cfg sttpkg.StreamConfig) *sttv1.TranscribeResponse {
+	decision := quality.New(cfg, h.deps.Registry, nil).ApplyResult(ctx, res, audio)
+	resp := &sttv1.TranscribeResponse{
+		Text:             decision.Text,
 		DetectedLanguage: res.DetectedLanguage,
 		DurationSeconds:  res.DurationSeconds,
 		ProviderTier:     protomap.ProviderTierToProto(string(res.Tier)),
 		ProviderId:       res.ProviderID,
 		ModelId:          res.ModelID,
 		LatencyMs:        float64(res.Latency.Milliseconds()),
+		Filtered:         decision.Filtered,
+		FilterReason:     decision.FilterReason,
 	}
-	return resp, nil
+	if len(decision.Stages) > 0 || decision.Filtered {
+		resp.PolicyDetails = map[string]string{
+			"stages":                   strings.Join(decision.Stages, ","),
+			"hallucination_filter":     fmt.Sprintf("%t", cfg.HallucinationFilterEnabled),
+			"vad_filter":               fmt.Sprintf("%t", cfg.VADFilterEnabled),
+			"no_speech_threshold":      fmt.Sprintf("%g", cfg.NoSpeechThreshold),
+			"logprob_threshold":        fmt.Sprintf("%g", cfg.LogProbThreshold),
+			"raw_transcript_length":    fmt.Sprintf("%d", len(res.Text)),
+			"final_transcript_length":  fmt.Sprintf("%d", len(decision.Text)),
+			"post_recognition_policy":  "stt_egress",
+			"provider_confidence_used": fmt.Sprintf("%t", res.Confidence != nil),
+		}
+	}
+	return resp
 }
 
 // GetSupportedFormats reports the STT ingress capability matrix from the

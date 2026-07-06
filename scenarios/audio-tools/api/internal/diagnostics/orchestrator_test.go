@@ -13,6 +13,7 @@ import (
 	intaudio "audio-tools/internal/audio"
 	"audio-tools/internal/diagnostics"
 	"audio-tools/internal/diagnostics/mocks"
+	sttpkg "audio-tools/internal/stt"
 	intsumm "audio-tools/internal/summarize"
 )
 
@@ -79,6 +80,61 @@ func TestRunSuite_STTPassDoesNotClaimQualityMeasured(t *testing.T) {
 	}
 	if step.Details["quality_note"] == "" {
 		t.Fatal("quality_note should explain that transcript accuracy is not assessed")
+	}
+}
+
+func TestRunSuite_STTFiltersHallucinationPreviewButReadinessPasses(t *testing.T) {
+	stt := &mocks.STT{Res: &sttchain.Result{
+		Text:       "Thanks for watching!",
+		Tier:       sttchain.TierLocal,
+		ProviderID: "whisper",
+		ModelID:    "base",
+		Latency:    12 * time.Millisecond,
+		Confidence: &sttchain.Confidence{NoSpeechProb: 0.99, AvgLogProb: -2.5},
+	}}
+	o := newOrch(stt, okTTS(), okSumm(), okTranscode())
+	run, err := o.RunSuite(context.Background(), []diagnostics.Capability{diagnostics.CapabilitySTT})
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	step := run.Steps[0]
+	if !step.OK {
+		t.Fatalf("STT readiness should pass: %+v", step)
+	}
+	if step.Details["transcript_filtered"] != "true" {
+		t.Fatalf("transcript_filtered = %q, want true", step.Details["transcript_filtered"])
+	}
+	if step.Details["filter_reason"] == "" {
+		t.Fatal("filter_reason should be populated")
+	}
+	if got := step.Details["transcript_preview"]; got != "" {
+		t.Fatalf("transcript_preview = %q, want empty", got)
+	}
+}
+
+func TestRunSuite_STTReadinessPropagatesVADFilter(t *testing.T) {
+	stt := okSTT()
+	o := diagnostics.New(diagnostics.Deps{
+		STT:       stt,
+		TTS:       okTTS(),
+		Summarize: okSumm(),
+		Transcode: okTranscode(),
+		NewRunID:  func() string { return "run-1" },
+		STTConfig: func(context.Context) sttpkg.StreamConfig {
+			cfg := sttpkg.Defaults()
+			cfg.VADFilterEnabled = true
+			return cfg
+		},
+	})
+	run, err := o.RunSuite(context.Background(), []diagnostics.Capability{diagnostics.CapabilitySTT})
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if !run.Steps[0].OK {
+		t.Fatalf("STT readiness should pass: %+v", run.Steps[0])
+	}
+	if !stt.LastReq.VADFilter {
+		t.Fatal("diagnostics STT request should propagate VADFilter=true")
 	}
 }
 

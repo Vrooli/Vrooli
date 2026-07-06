@@ -17,9 +17,10 @@
  */
 import { useRef } from "react";
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
 import { Input } from "./input";
 
 describe("Input", () => {

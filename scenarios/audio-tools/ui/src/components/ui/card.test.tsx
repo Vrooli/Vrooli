@@ -1,6 +1,8 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
 import * as React from "react";
+
+import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
 import { Card, CardHeader, CardTitle, CardDescription } from "./card";
 
 afterEach(cleanup);

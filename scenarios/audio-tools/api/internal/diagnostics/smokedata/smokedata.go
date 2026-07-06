@@ -1,7 +1,7 @@
-// Package fixtures embeds the canned inputs the diagnostics suite
-// exercises every capability against. Fixtures live server-side so the
+// Package smokedata embeds the canned inputs the diagnostics suite
+// exercises every capability against. Smoke data lives server-side so the
 // UI bundle stays slim and every operator runs the same payload.
-package fixtures
+package smokedata
 
 import _ "embed"
 

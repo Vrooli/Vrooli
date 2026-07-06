@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
 import { AudioFormat } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
+import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
 
 const enrollMock = vi.hoisted(() => vi.fn());
 
@@ -15,11 +16,7 @@ import type { EnrollRecordHandle } from "./speakerEnrollmentRecorder";
 
 function renderPanel(recordClip: () => Promise<EnrollRecordHandle>) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={qc}>
-      <SpeakerEnrollmentPanel recordClip={recordClip} />
-    </QueryClientProvider>,
-  );
+  return render(<SpeakerEnrollmentPanel recordClip={recordClip} />, { queryClient: qc });
 }
 
 describe("SpeakerEnrollmentPanel", () => {

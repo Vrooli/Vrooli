@@ -218,15 +218,15 @@ Lever rules (per [control-surface-tunable-levers-design]):
 
 ### Egress gate (post-recognition quality)
 
-Every transcribed segment passes through a single **post-recognition
-egress gate** (`internal/stt/egress/`) before reaching the wire — the
-symmetric counterpart to the audioformat ingress point. The
-`Segmenter` builds one gate per session from the levers below and runs
-ordered, capability-gated stages over each candidate segment; a stage
-may `Drop` (suppress entirely, excluded from the rebuilt final
-transcript), `Reject` (suppress text, emit a speaker-rejection event —
-the audio-domain speaker stage), or `Emit`. Strategies never call the
-gate directly.
+Every user-facing STT transcript passes through the shared
+**post-recognition egress policy** (`internal/stt/quality/`) before it
+leaves audio-tools. Streaming still runs the underlying `egress.Gate`
+per segment; unary Connect `Transcribe`, multipart
+`/api/v1/voice/transcribe`, buffered fallback output, and diagnostics
+readiness previews apply the same policy to the final chain result. A
+stage may `Drop` (suppress entirely, excluded from final text), `Reject`
+(suppress text, emit a speaker-rejection event on streaming paths), or
+`Emit`.
 
 | Lever | Type | Default | Range | Audience | Trade-off |
 |---|---|---|---|---|---|
@@ -241,6 +241,15 @@ the signal-domain stage only fires for engines whose manifest declares
 that reports none has the stage skipped gracefully). The engine
 manifest is the source of truth for which stages a given engine runs;
 these levers remain the operator tunables those stages read.
+
+Unary `TranscribeResponse` includes `filtered`, `filter_reason`, and
+`policy_details`. When `filtered=true`, `text` is intentionally empty
+because the configured egress policy suppressed a known silence
+hallucination, low-confidence silence/noise, or equivalent non-user-facing
+output. Diagnostics reports the same decision as readiness metadata:
+`diagnostic_scope=asr_readiness` still means the provider accepted and
+processed audio; `transcript_filtered=true` means the smoke transcript
+was not displayed because the quality policy filtered it.
 
 ### Speaker isolation ("only my voice") — audio-domain stage
 

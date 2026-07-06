@@ -1,11 +1,8 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
-import { render } from "@testing-library/react";
-import { I18nextProvider } from "react-i18next";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import { i18n } from "./i18n";
 import { strings } from "./consts/strings";
+import { renderWithProviders } from "./test-utils/renderWithProviders";
 
 // Mock the api-base proxy info so BrowserRouter has a deterministic basename
 vi.mock("@vrooli/api-base", () => ({
@@ -86,18 +83,8 @@ beforeAll(() => {
   });
 });
 
-function buildClient() {
-  return new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-}
-
 function renderApp() {
-  return render(
-    <QueryClientProvider client={buildClient()}>
-      <I18nextProvider i18n={i18n}>
-        <App />
-      </I18nextProvider>
-    </QueryClientProvider>,
-  );
+  return renderWithProviders(<App />);
 }
 
 beforeEach(() => {

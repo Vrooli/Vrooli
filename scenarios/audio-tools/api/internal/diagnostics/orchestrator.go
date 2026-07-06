@@ -19,8 +19,11 @@ import (
 	"audio-tools/internal/ai/ttschain"
 	intaudio "audio-tools/internal/audio"
 	"audio-tools/internal/clock"
-	"audio-tools/internal/diagnostics/fixtures"
+	"audio-tools/internal/diagnostics/smokedata"
 	"audio-tools/internal/store"
+	sttpkg "audio-tools/internal/stt"
+	"audio-tools/internal/stt/quality"
+	"audio-tools/internal/sttengine"
 	intsumm "audio-tools/internal/summarize"
 	"audio-tools/internal/usagereport"
 
@@ -119,6 +122,10 @@ type Deps struct {
 	Usage usagereport.Recorder
 	// NewRunID is overridable for deterministic tests; defaults to uuid.NewString.
 	NewRunID func() string
+	// STTConfig supplies the active stream/STT quality levers for the STT
+	// readiness probe. nil falls back to documented defaults.
+	STTConfig func(context.Context) sttpkg.StreamConfig
+	Registry  *sttengine.Registry
 }
 
 // Orchestrator runs the suite and records the most recent result.
@@ -227,11 +234,13 @@ func (o *Orchestrator) runSTT(ctx context.Context, started time.Time) StepResult
 	if o.deps.STT == nil {
 		return finishUnavailable(res, o.deps.Clock.Now())
 	}
-	out, err := o.deps.STT.Execute(ctx, sttchain.Request{Audio: fixtures.SmokeWAV(), Format: "wav"})
+	cfg := o.sttConfig(ctx)
+	out, err := o.deps.STT.Execute(ctx, sttchain.Request{Audio: smokedata.SmokeWAV(), Format: "wav", VADFilter: cfg.VADFilterEnabled})
 	res.FinishedAt = o.deps.Clock.Now()
 	if err != nil {
 		return applyChainErr(res, err)
 	}
+	decision := quality.New(cfg, o.deps.Registry, nil).ApplyResult(ctx, out, smokedata.SmokeWAV())
 	res.OK = true
 	res.ProviderTier = string(out.Tier)
 	res.ProviderID = out.ProviderID
@@ -240,11 +249,23 @@ func (o *Orchestrator) runSTT(ctx context.Context, started time.Time) StepResult
 	res.Details["diagnostic_scope"] = "asr_readiness"
 	res.Details["quality_assessed"] = "false"
 	res.Details["quality_note"] = "Bundled STT smoke audio verifies the provider path accepts and processes audio; transcript accuracy is measured by the eval harness."
-	res.Details["transcript_len"] = fmt.Sprintf("%d", len(out.Text))
-	if out.Text != "" {
-		res.Details["transcript_preview"] = previewString(out.Text, 80)
+	res.Details["transcript_filtered"] = fmt.Sprintf("%t", decision.Filtered)
+	res.Details["filter_reason"] = decision.FilterReason
+	res.Details["raw_transcript_length"] = fmt.Sprintf("%d", len(out.Text))
+	res.Details["filtered_transcript_length"] = fmt.Sprintf("%d", len(decision.Text))
+	res.Details["transcript_len"] = fmt.Sprintf("%d", len(decision.Text))
+	res.Details["vad_filter"] = fmt.Sprintf("%t", cfg.VADFilterEnabled)
+	if decision.Text != "" {
+		res.Details["transcript_preview"] = previewString(decision.Text, 80)
 	}
 	return res
+}
+
+func (o *Orchestrator) sttConfig(ctx context.Context) sttpkg.StreamConfig {
+	if o.deps.STTConfig == nil {
+		return sttpkg.Defaults()
+	}
+	return o.deps.STTConfig(ctx)
 }
 
 func (o *Orchestrator) runTTS(ctx context.Context, started time.Time) StepResult {
@@ -253,7 +274,7 @@ func (o *Orchestrator) runTTS(ctx context.Context, started time.Time) StepResult
 		return finishUnavailable(res, o.deps.Clock.Now())
 	}
 	out, err := o.deps.TTS.Execute(ctx, ttschain.Request{
-		Text:  previewString(fixtures.SmokeText(), 120),
+		Text:  previewString(smokedata.SmokeText(), 120),
 		Voice: "voice.feminine.warm", Speed: 1.0, ResponseFormat: "wav",
 	})
 	res.FinishedAt = o.deps.Clock.Now()
@@ -276,7 +297,7 @@ func (o *Orchestrator) runSummarize(ctx context.Context, started time.Time) Step
 		return finishUnavailable(res, o.deps.Clock.Now())
 	}
 	out, err := o.deps.Summarize.Execute(ctx, summarizechain.Request{
-		Text: fixtures.SmokeText(), Level: "moderate",
+		Text: smokedata.SmokeText(), Level: "moderate",
 	})
 	res.FinishedAt = o.deps.Clock.Now()
 	if err != nil {
@@ -300,7 +321,7 @@ func (o *Orchestrator) runTranscode(ctx context.Context, started time.Time) Step
 		return finishUnavailable(res, o.deps.Clock.Now())
 	}
 	t0 := o.deps.Clock.Now()
-	out, err := o.deps.Transcode.Transcode(ctx, fixtures.SmokeWAV(), "wav")
+	out, err := o.deps.Transcode.Transcode(ctx, smokedata.SmokeWAV(), "wav")
 	res.FinishedAt = o.deps.Clock.Now()
 	res.LatencyMs = float64(res.FinishedAt.Sub(t0).Milliseconds())
 	if err != nil {

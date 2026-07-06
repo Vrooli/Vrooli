@@ -23,7 +23,7 @@ import (
 	"audio-tools/internal/stt"
 	"audio-tools/internal/stt/egress"
 	"audio-tools/internal/stt/ingress"
-	voice "audio-tools/internal/stt/pipeline"
+	"audio-tools/internal/stt/quality"
 	"audio-tools/internal/sttengine"
 )
 
@@ -167,7 +167,7 @@ func (s *Segmenter) Run(
 	// passes through before the wire. The strategy writes to an internal
 	// channel; the interceptor runs each segment through the gate and
 	// forwards the surviving events. Strategies never see the gate.
-	gate := s.buildGate(cfg)
+	gate := quality.New(cfg, s.deps.Registry, s.deps.SpeakerIsolation).Gate()
 	inner := make(chan sttchain.StreamEvent)
 	forwardDone := make(chan struct{})
 	go runEgress(ctx, gate, inner, events, forwardDone)
@@ -176,43 +176,6 @@ func (s *Segmenter) Run(
 	close(inner)
 	<-forwardDone
 	return err
-}
-
-// buildGate constructs the per-session egress gate. When a manifest registry
-// is wired, the stage SET is derived from the active engine's capabilities
-// (sttengine.EgressStages) — the manifest-driven path. Without a registry it
-// falls back to a direct cfg-driven gate so registry-less tests keep working;
-// the stages and tunables are identical either way.
-func (s *Segmenter) buildGate(cfg stt.StreamConfig) *egress.Gate {
-	params := sttengine.EgressParams{
-		HallucinationFilterEnabled: cfg.HallucinationFilterEnabled,
-		NoSpeechThreshold:          cfg.NoSpeechThreshold,
-		LogProbThreshold:           cfg.LogProbThreshold,
-		IsHallucination:            voice.IsWhisperHallucination,
-		SpeakerIsolation:           s.deps.SpeakerIsolation,
-	}
-	if s.deps.Registry != nil {
-		engineID := cfg.EngineID
-		if engineID == "" {
-			engineID = s.deps.Registry.DefaultEngineID()
-		}
-		return egress.NewGate(s.deps.Registry.EgressStages(engineID, params)...)
-	}
-	// Registry-less fallback: hallucination stage (if enabled) + the
-	// signal-domain stage (no-ops without confidence signals) + the
-	// audio-domain speaker stage when an isolation is wired.
-	var stages []egress.Stage
-	if params.HallucinationFilterEnabled {
-		stages = append(stages, egress.HallucinationStage{IsHallucination: params.IsHallucination})
-	}
-	stages = append(stages, egress.ConfidenceStage{
-		NoSpeechThreshold: params.NoSpeechThreshold,
-		LogProbThreshold:  params.LogProbThreshold,
-	})
-	if params.SpeakerIsolation != nil {
-		stages = append(stages, egress.SpeakerStage{Isolation: params.SpeakerIsolation})
-	}
-	return egress.NewGate(stages...)
 }
 
 // buildIngress constructs the per-session pre-recognition enhancement pipeline,

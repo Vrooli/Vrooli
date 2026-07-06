@@ -1,10 +1,11 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
+import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
 
 const listEngines = vi.fn();
 const getEngineSwitchImpact = vi.fn();
@@ -41,11 +42,7 @@ const ENGINES = [
 
 function renderPage() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={qc}>
-      <StreamConfigPage />
-    </QueryClientProvider>,
-  );
+  return render(<StreamConfigPage />, { queryClient: qc });
 }
 
 beforeEach(() => {

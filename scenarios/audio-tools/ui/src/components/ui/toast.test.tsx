@@ -1,16 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { cleanup, render, screen, act, fireEvent } from "@testing-library/react";
-import { I18nextProvider } from "react-i18next";
-import { i18n } from "../../i18n";
+import { cleanup, screen, act, fireEvent } from "@testing-library/react";
+
+import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
 import { Toaster, pushToast, dismissToast } from "./toast";
 import { strings } from "../../consts/strings";
 
 function renderToaster() {
-  return render(
-    <I18nextProvider i18n={i18n}>
-      <Toaster />
-    </I18nextProvider>,
-  );
+  return render(<Toaster />);
 }
 
 // Test-specific data constants (not UI copy — avoids the no-restricted-syntax rule)

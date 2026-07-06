@@ -35,7 +35,7 @@ func anyEntryContains(entries []string, substr string) bool {
 // chain (the limit was previously defined but never enforced).
 func TestMultipartTranscribe_RejectsOversize(t *testing.T) {
 	chain := sttchain.NewChain(sttchain.Options{})
-	h := MultipartTranscribeHandler(chain)
+	h := MultipartTranscribeHandler(Deps{Chain: chain})
 
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)

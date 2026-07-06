@@ -636,7 +636,7 @@ func buildSTTMultipart(t *testing.T, audio []byte, fields map[string]string) (st
 }
 
 func TestMultipartTranscribe_ChainNotConfigured(t *testing.T) {
-	h := MultipartTranscribeHandler(nil)
+	h := MultipartTranscribeHandler(Deps{})
 	body, ct := buildSTTMultipart(t, []byte("X"), nil)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/voice/transcribe", strings.NewReader(body))
 	req.Header.Set("Content-Type", ct)
@@ -650,7 +650,7 @@ func TestMultipartTranscribe_MissingFile(t *testing.T) {
 		EnableVrooli: true,
 		Vrooli:       sttchain.NewVrooliProvider(&sttmocks.FakeVrooliClient{Available: true, Result: &sttchain.Result{Text: "hello"}}),
 	})
-	h := MultipartTranscribeHandler(chain)
+	h := MultipartTranscribeHandler(Deps{Chain: chain})
 	var sb strings.Builder
 	mw := newMultipart(&sb)
 	require.NoError(t, mw.WriteField("format", "wav"))
@@ -664,7 +664,7 @@ func TestMultipartTranscribe_MissingFile(t *testing.T) {
 
 func TestMultipartTranscribe_BadMultipart(t *testing.T) {
 	chain := sttchain.NewChain(sttchain.Options{})
-	h := MultipartTranscribeHandler(chain)
+	h := MultipartTranscribeHandler(Deps{Chain: chain})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/voice/transcribe", strings.NewReader("not-multipart"))
 	req.Header.Set("Content-Type", "multipart/form-data; boundary=bogus")
 	w := httptest.NewRecorder()
@@ -680,7 +680,7 @@ func TestMultipartTranscribe_HappyPath(t *testing.T) {
 			Result:    &sttchain.Result{Text: "hello", DetectedLanguage: "en"},
 		}),
 	})
-	h := MultipartTranscribeHandler(chain)
+	h := MultipartTranscribeHandler(Deps{Chain: chain})
 	body, ct := buildSTTMultipart(t, []byte("RAW"), map[string]string{"language": "en", "format": "wav"})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/voice/transcribe", strings.NewReader(body))
 	req.Header.Set("Content-Type", ct)
@@ -697,7 +697,7 @@ func TestMultipartTranscribe_ChainErrorMapsHTTP(t *testing.T) {
 		EnableVrooli: true,
 		Vrooli:       sttchain.NewVrooliProvider(&sttmocks.FakeVrooliClient{Available: true, Err: sttchain.ErrInsufficientCredits}),
 	})
-	h := MultipartTranscribeHandler(chain)
+	h := MultipartTranscribeHandler(Deps{Chain: chain})
 	body, ct := buildSTTMultipart(t, []byte("RAW"), nil)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/voice/transcribe", strings.NewReader(body))
 	req.Header.Set("Content-Type", ct)

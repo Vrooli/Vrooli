@@ -20,7 +20,8 @@ You are executing a **scenario generation** task for the Ecosystem Manager.
 3. **Configuration & metadata** – `.vrooli/` directory populated so `vrooli scenario status {{TARGET}}` succeeds (service.json, endpoints.json, testing/lighthouse configs as required by the template).
 4. **Operational Targets PRD** – `{{PROJECT_PATH}}/scenarios/{{TARGET}}/PRD.md` authored via the `business-health` wizard.
 5. **Requirements registry** – `{{PROJECT_PATH}}/scenarios/{{TARGET}}/requirements/index.json` plus numbered operational-target folders (`01-<first-target-name>`, `02-<second-target-name>`, etc.) and a concise `requirements/README.md` explaining the mapping.
-6. **Documentation set** – README.md, docs/PROGRESS.md, docs/PROBLEMS.md, docs/RESEARCH.md initialized with baseline entries and instructions for future agents.
+6. **Experience contract** – `{{PROJECT_PATH}}/scenarios/{{TARGET}}/experience/` kept at least L0 for every generated or newly declared user-facing route.
+7. **Documentation set** – README.md, docs/PROGRESS.md, docs/PROBLEMS.md, docs/RESEARCH.md initialized with baseline entries and instructions for future agents.
 
 ## Research & Template Selection
 1. Explore existing scenarios/resources to ensure the capability is unique.
@@ -74,6 +75,21 @@ vrooli scenario requirements validate {{TARGET}} --json
 business-health fix preview {{TARGET}}
 business-health fix apply {{TARGET}}
 ```
+
+## Experience Contract
+
+The `react-vite` template now generates an L0 `experience/` scaffold. Keep it
+aligned with the scenario you are creating:
+
+- Read `experience/README.md` and preserve the generated L0 shape unless you
+  already know real routes and communication priorities.
+- If you add or remove user-facing routes during initialization, update
+  `experience/index.json` and `experience/pages/*.json` in the same pass.
+- Do not invent machine-tier claims for UI that does not exist yet. L0 identity
+  specs are honest for a fresh scaffold; priorities/claims/bindings/states come
+  when the first real UI surface is designed.
+- Validate before handoff:
+  `experience-manager spec validate {{TARGET}} --json`.
 
 ## `.vrooli/` Setup Checklist
 - `{{PROJECT_PATH}}/scenarios/{{TARGET}}/.vrooli/service.json` – service metadata, tags, port ranges. Keep ports in the scenario allocation bands.

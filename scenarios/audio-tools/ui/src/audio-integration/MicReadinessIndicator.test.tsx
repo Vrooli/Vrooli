@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
 
+import { renderWithProviders as render } from "../test-utils/renderWithProviders";
 import { MicReadinessIndicator } from "./MicReadinessIndicator";
 
 afterEach(() => {

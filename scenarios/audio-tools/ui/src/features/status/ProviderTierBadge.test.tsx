@@ -1,7 +1,8 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
 import { ProviderTier } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
 
+import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
 import { ProviderTierBadge } from "./ProviderTierBadge";
 
 afterEach(() => {

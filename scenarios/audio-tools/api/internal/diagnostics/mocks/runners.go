@@ -16,13 +16,15 @@ import (
 // STT satisfies diagnostics.SttRunner. Set Res/Err to control the
 // response; Calls counts invocations for assertion.
 type STT struct {
-	Res   *sttchain.Result
-	Err   error
-	Calls int
+	Res     *sttchain.Result
+	Err     error
+	Calls   int
+	LastReq sttchain.Request
 }
 
-func (s *STT) Execute(_ context.Context, _ sttchain.Request) (*sttchain.Result, error) {
+func (s *STT) Execute(_ context.Context, req sttchain.Request) (*sttchain.Result, error) {
 	s.Calls++
+	s.LastReq = req
 	return s.Res, s.Err
 }
 

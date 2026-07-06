@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
 import { selectors } from "../../consts/selectors";
+import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
 
 // vi.hoisted so the value is available inside the hoisted vi.mock factory below.
 const savedConfig = vi.hoisted(() => ({
@@ -49,11 +50,7 @@ import { updateSpeakerConfig } from "../../services/speakerAdmin";
 
 function renderWithClient() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={qc}>
-      <SpeakerVerificationPage />
-    </QueryClientProvider>,
-  );
+  return render(<SpeakerVerificationPage />, { queryClient: qc });
 }
 
 describe("SpeakerVerificationPage", () => {

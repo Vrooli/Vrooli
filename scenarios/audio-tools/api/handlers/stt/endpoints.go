@@ -16,12 +16,28 @@ var Endpoints = []modulekit.EndpointDescriptor{
 	{
 		ID: "stt.transcribe_multipart", Path: "/api/v1/voice/transcribe",
 		Method: "POST", Summary: "Multipart upload variant of Transcribe",
-		Category:      "stt",
-		RESTException: &modulekit.RESTException{Reason: modulekit.RESTReasonMultipartUpload, Note: "Audio bytes via multipart form-data; payload would not encode efficiently inline through proto JSON."},
+		Category: "stt",
+		RESTException: &modulekit.RESTException{
+			Reason: modulekit.RESTReasonMultipartUpload,
+			Note:   "Audio bytes via multipart form-data; payload would not encode efficiently inline through proto JSON.",
+			ProtoPayloads: &modulekit.RESTProtoPayloads{
+				Request:  modulekit.RESTPayload{ProtoFullName: "vrooli.audio_tools.v1.stt.TranscribeRequest", Transport: "multipart/form-data", Conformance: "transport_only"},
+				Response: modulekit.RESTPayload{ProtoFullName: "vrooli.audio_tools.v1.stt.TranscribeResponse", Transport: "json", Conformance: "protojson"},
+				Error:    modulekit.RESTPayload{Transport: "none", Conformance: "none"},
+			},
+		},
 	},
 	{
 		ID: "stt.stream_ws", Path: "/api/v1/voice/stream", Method: "GET", Summary: "Browser-voice WebSocket transport", Category: "stt",
-		RESTException: &modulekit.RESTException{Reason: modulekit.RESTReasonOpsProbe, Note: "WebSocket transport — see docs/internal/SEAMS.md. Will move to TransportReason: websocket_transport when template constant lands (R-PROTO)."},
+		RESTException: &modulekit.RESTException{
+			Reason: modulekit.RESTReasonOpsProbe,
+			Note:   "WebSocket transport - see docs/internal/SEAMS.md. Will move to TransportReason: websocket_transport when template constant lands (R-PROTO).",
+			ProtoPayloads: &modulekit.RESTProtoPayloads{
+				Request:  modulekit.RESTPayload{Transport: "none", Conformance: "none"},
+				Response: modulekit.RESTPayload{Transport: "none", Conformance: "none"},
+				Error:    modulekit.RESTPayload{Transport: "none", Conformance: "none"},
+			},
+		},
 	},
 	{ID: "stt.get_supported_formats", Path: "/vrooli.audio_tools.v1.stt.STTService/GetSupportedFormats", Method: "POST", Summary: "Report the STT ingress audio-format capability matrix", Category: "stt"},
 	{ID: "stt.list_engines", Path: "/vrooli.audio_tools.v1.stt.STTService/ListEngines", Method: "POST", Summary: "List selectable STT engines (manifest-derived) with availability", Category: "stt"},

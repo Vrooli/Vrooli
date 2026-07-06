@@ -12,10 +12,7 @@ import (
 
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/byok/envelope"
-	"audio-tools/internal/protomap"
 	sttpipeline "audio-tools/internal/stt/pipeline"
-
-	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 )
 
 // transcribeTimeout bounds a single buffered transcription. It matches the
@@ -35,9 +32,10 @@ func audioExceedsLimit(n int) bool { return n > sttpipeline.MaxAudioSize }
 // shares the Connect Transcribe codepath. Required because the UI's
 // AudioWorklet recordings post `audio/webm` chunks that don't encode
 // well as inline proto-JSON bytes.
-func MultipartTranscribeHandler(chain *sttchain.Chain) http.Handler {
+func MultipartTranscribeHandler(d Deps) http.Handler {
+	h := &connectHandler{deps: d}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if chain == nil {
+		if h.deps.Chain == nil {
 			http.Error(w, "stt chain not configured", http.StatusServiceUnavailable)
 			return
 		}
@@ -66,11 +64,13 @@ func MultipartTranscribeHandler(chain *sttchain.Chain) http.Handler {
 		if format == "" {
 			format = "wav"
 		}
+		cfg := h.resolveStreamPipelineConfig(r.Context())
 		req := sttchain.Request{
 			Audio:         audio,
 			Format:        format,
 			Language:      r.FormValue("language"),
 			InitialPrompt: r.FormValue("initial_prompt"),
+			VADFilter:     cfg.VADFilterEnabled,
 			BYOKProvider:  env.Provider,
 			BYOKKey:       env.Key,
 			LPBSToken:     env.LPBSToken,
@@ -82,18 +82,12 @@ func MultipartTranscribeHandler(chain *sttchain.Chain) http.Handler {
 		// context.Background() had neither cancellation nor a deadline).
 		ctx, cancel := context.WithTimeout(r.Context(), transcribeTimeout)
 		defer cancel()
-		res, err := chain.Execute(ctx, req)
+		res, err := h.deps.Chain.Execute(ctx, req)
 		if err != nil {
 			httpFromChainErr(w, err)
 			return
 		}
-		out := &sttv1.TranscribeResponse{
-			Text: res.Text, DetectedLanguage: res.DetectedLanguage,
-			DurationSeconds: res.DurationSeconds,
-			ProviderTier:    protomap.ProviderTierToProto(string(res.Tier)),
-			ProviderId:      res.ProviderID, ModelId: res.ModelID,
-			LatencyMs: float64(res.Latency.Milliseconds()),
-		}
+		out := h.responseFromResult(ctx, res, audio, cfg)
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(out)
 	})

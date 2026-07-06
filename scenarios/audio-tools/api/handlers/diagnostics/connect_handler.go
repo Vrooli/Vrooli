@@ -8,7 +8,7 @@ import (
 	"connectrpc.com/connect"
 
 	"audio-tools/internal/diagnostics"
-	"audio-tools/internal/diagnostics/fixtures"
+	"audio-tools/internal/diagnostics/smokedata"
 	"audio-tools/internal/protomap"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
@@ -52,8 +52,8 @@ func (h *connectHandler) GetLastRun(_ context.Context, _ *connect.Request[diagv1
 }
 
 func (h *connectHandler) ListFixtures(_ context.Context, _ *connect.Request[diagv1.ListFixturesRequest]) (*connect.Response[diagv1.ListFixturesResponse], error) {
-	wav := fixtures.SmokeWAV()
-	text := fixtures.SmokeText()
+	wav := smokedata.SmokeWAV()
+	text := smokedata.SmokeText()
 	return connect.NewResponse(&diagv1.ListFixturesResponse{
 		Fixtures: []*diagv1.Fixture{
 			{

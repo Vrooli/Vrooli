@@ -174,6 +174,15 @@ only when apply is explicit.
 
 **Resolution (RESOLVED 2026-05-27):** Closed by the post-recognition **egress gate** (`internal/stt/egress/`) — the symmetric counterpart to the audioformat ingress point. The `Segmenter` builds one `egress.Gate` per session (stage set derived from the engine manifest via `sttengine.EgressStages`) and runs every `SegmentEvent` through it before the wire; strategies never call the gate. Three layers of defense: (1) `vad_filter=true` now reaches `/asr` (silence stripped at the source); (2) the signal-domain `ConfidenceStage` drops a segment when mean `no_speech_prob` > threshold AND mean `avg_logprob` < threshold (`TranscribeBytes` now parses `segments[]` into `pipeline.TranscriptionResult`, threaded via `sttchain.Result.Confidence` → `SegmentEvent.Confidence`); (3) the text-domain `HallucinationStage` wires `IsWhisperHallucination`. Dropped segments are excluded from the rebuilt `DoneEvent.FinalText`. Operator levers (`hallucination_filter_enabled`, `vad_filter_enabled`, `no_speech_threshold`, `logprob_threshold`) ship on proto `StreamConfig` + CLI; see `docs/reference/configuration.md#egress-gate`. Tested: `egress/gate_test.go`, `segmenter/egress_gate_test.go`, `pipeline/transcribe_ingress_test.go`.
 
+**Parity update (2026-07-05):** The same stage construction is now wrapped by
+`internal/stt/quality` and applied to unary Connect `Transcribe`, multipart
+`/api/v1/voice/transcribe`, buffered final responses, and diagnostics STT
+readiness previews. Unary responses surface `filtered`, `filter_reason`, and
+`policy_details`; diagnostics keeps `diagnostic_scope=asr_readiness` while
+reporting `transcript_filtered`, raw/filtered lengths, and suppressing filtered
+hallucination previews. Handler tests cover VAD-filter propagation and filtered
+metadata; diagnostics tests cover readiness pass with an empty filtered preview.
+
 **Owner:** resolved.
 
 ### 2026-05-27 — Speaker isolation ("only my voice") (RESOLVED)

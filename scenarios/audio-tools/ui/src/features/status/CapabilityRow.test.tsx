@@ -1,9 +1,10 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
 import { Capability } from "@vrooli/proto-types/audio-tools/v1/diagnostics/diagnostics_pb";
 import { State, type CapabilityHealth } from "@vrooli/proto-types/audio-tools/v1/health_status/health_status_pb";
 import { ProviderTier } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
 
+import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
 import { CapabilityRow } from "./CapabilityRow";
 import { strings } from "../../consts/strings";
 

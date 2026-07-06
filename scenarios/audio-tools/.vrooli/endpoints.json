@@ -117,7 +117,23 @@
       "category": "audio",
       "rest_exception": {
         "reason": "multipart_upload",
-        "note": "Audio bytes via multipart form-data."
+        "note": "Audio bytes via multipart form-data.",
+        "proto_payloads": {
+          "request": {
+            "proto_full_name": "vrooli.audio_tools.v1.audio.TranscodeRequest",
+            "transport": "multipart/form-data",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "proto_full_name": "vrooli.audio_tools.v1.audio.TranscodeResponse",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
       }
     },
     {
@@ -433,7 +449,23 @@
       "category": "stt",
       "rest_exception": {
         "reason": "multipart_upload",
-        "note": "Audio bytes via multipart form-data; payload would not encode efficiently inline through proto JSON."
+        "note": "Audio bytes via multipart form-data; payload would not encode efficiently inline through proto JSON.",
+        "proto_payloads": {
+          "request": {
+            "proto_full_name": "vrooli.audio_tools.v1.stt.TranscribeRequest",
+            "transport": "multipart/form-data",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "proto_full_name": "vrooli.audio_tools.v1.stt.TranscribeResponse",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
       }
     },
     {
@@ -445,7 +477,21 @@
       "category": "stt",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "WebSocket transport — see docs/internal/SEAMS.md. Will move to TransportReason: websocket_transport when template constant lands (R-PROTO)."
+        "note": "WebSocket transport - see docs/internal/SEAMS.md. Will move to TransportReason: websocket_transport when template constant lands (R-PROTO).",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
       }
     },
     {

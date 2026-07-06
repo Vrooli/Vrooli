@@ -22,7 +22,7 @@ func Module(d Deps) modulekit.Module {
 				connectx.ServiceMount{Path: runtimePath, Handler: runtimeHandler},
 				connectx.ServiceMount{Path: adminPath, Handler: adminHandler},
 			)
-			r.Handle("/api/v1/voice/transcribe", MultipartTranscribeHandler(d.Chain)).Methods(http.MethodPost)
+			r.Handle("/api/v1/voice/transcribe", MultipartTranscribeHandler(d)).Methods(http.MethodPost)
 			r.Handle("/api/v1/voice/stream", StreamWSHandler(d)).Methods(http.MethodGet)
 		},
 		Endpoints: Endpoints,
