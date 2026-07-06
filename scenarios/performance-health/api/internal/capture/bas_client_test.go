@@ -2,9 +2,13 @@ package capture
 
 import (
 	"context"
+	"errors"
+	"net/http/httptest"
 	"testing"
 
+	"connectrpc.com/connect"
 	capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
+	captureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture/captureconnect"
 )
 
 func perfArtifact(kind, path string) *capturev1.CaptureArtifact {
@@ -78,4 +82,39 @@ func TestCapturePerfRequiresURL(t *testing.T) {
 	if _, err := c.CapturePerf(context.Background(), "", ""); err == nil {
 		t.Fatal("expected error for empty url")
 	}
+}
+
+// [REQ:PH-CAPTURE-005] A reachable BAS that rejects malformed interaction JSON
+// is a failed capture request, not an unavailable capture mechanism.
+func TestCapturePerfPreservesBASInvalidArgument(t *testing.T) {
+	_, handler := captureconnect.NewCaptureServiceHandler(captureHandlerFunc(func(
+		context.Context,
+		*connect.Request[capturev1.CaptureRequest],
+	) (*connect.Response[capturev1.CaptureResponse], error) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("interaction_flow_json is not a valid WorkflowDefinitionV2"))
+	}))
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+
+	c := &BASConnectClient{
+		Resolve:    func(context.Context) (string, error) { return server.URL, nil },
+		HTTPClient: server.Client(),
+	}
+	_, err := c.CapturePerf(context.Background(), "http://example.test", `{"edges":[{"from":"a","to":"b"}]}`)
+	var reqErr BASRequestError
+	if !errors.As(err, &reqErr) {
+		t.Fatalf("expected BASRequestError, got %T: %v", err, err)
+	}
+	if reqErr.Code != connect.CodeInvalidArgument {
+		t.Fatalf("expected InvalidArgument, got %v", reqErr.Code)
+	}
+	if errors.Is(err, ErrCaptureUnavailable) {
+		t.Fatalf("BAS request errors must not be classified unavailable: %v", err)
+	}
+}
+
+type captureHandlerFunc func(context.Context, *connect.Request[capturev1.CaptureRequest]) (*connect.Response[capturev1.CaptureResponse], error)
+
+func (f captureHandlerFunc) Capture(ctx context.Context, req *connect.Request[capturev1.CaptureRequest]) (*connect.Response[capturev1.CaptureResponse], error) {
+	return f(ctx, req)
 }

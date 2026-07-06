@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -45,6 +46,24 @@ type BASConnectClient struct {
 
 var _ BASClient = (*BASConnectClient)(nil)
 
+// BASRequestError means BAS was reachable and rejected the capture request.
+// It is a caller/workflow problem, not a missing capture mechanism.
+type BASRequestError struct {
+	Code connect.Code
+	Err  error
+}
+
+func (e BASRequestError) Error() string {
+	if e.Err == nil {
+		return fmt.Sprintf("browser-automation-studio rejected capture request: %s", e.Code)
+	}
+	return fmt.Sprintf("browser-automation-studio rejected capture request: %s: %v", e.Code, e.Err)
+}
+
+func (e BASRequestError) Unwrap() error {
+	return e.Err
+}
+
 // CapturePerf drives a BAS perf capture for url. interactionFlowJSON is a raw
 // bas/flows-shape JSON body (a WorkflowDefinitionV2 protojson) that BAS splices
 // after the navigate, inside the perf-trace window; empty uses BAS's default
@@ -69,6 +88,9 @@ func (c *BASConnectClient) CapturePerf(ctx context.Context, url, interactionFlow
 		InteractionFlowJson: interactionFlowJSON,
 	}))
 	if err != nil {
+		if code := connect.CodeOf(err); code == connect.CodeInvalidArgument || code == connect.CodeFailedPrecondition {
+			return Artifacts{}, BASRequestError{Code: code, Err: err}
+		}
 		// A transport/exec failure (e.g. no browser in the env) is an UNAVAILABLE
 		// mechanism, not a clean skip — performance-health degrades visibly
 		// headless instead of reading the degradation as success.

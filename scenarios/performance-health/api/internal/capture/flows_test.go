@@ -59,6 +59,24 @@ func TestValidatePerfFlowRejectsAsserts(t *testing.T) {
 	}
 }
 
+func TestValidatePerfFlowRejectsFromToEdges(t *testing.T) {
+	raw := []byte(`{"nodes":[{"id":"a"},{"id":"b"}],"edges":[{"from":"a","to":"b"}]}`)
+	err := ValidatePerfFlow(raw)
+	if err == nil {
+		t.Fatal("expected from/to edge shape to be rejected")
+	}
+	if !strings.Contains(err.Error(), "source/target") {
+		t.Fatalf("expected source/target guidance, got %v", err)
+	}
+}
+
+func TestValidatePerfFlowAcceptsSourceTargetEdges(t *testing.T) {
+	raw := []byte(`{"nodes":[{"id":"a"},{"id":"b"}],"edges":[{"source":"a","target":"b"}]}`)
+	if err := ValidatePerfFlow(raw); err != nil {
+		t.Fatalf("expected source/target edge shape to validate: %v", err)
+	}
+}
+
 // The template's seeded perf example flow follows the convention (intent marker,
 // assertion-free) so detemplated scenarios inherit a valid starting point.
 func TestTemplatePerfExampleFlowIsConformant(t *testing.T) {

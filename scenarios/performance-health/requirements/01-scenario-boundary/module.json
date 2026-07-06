@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Dual-mount validation service, the agent-readable maturity assessment, and the Test Genie performance-phase provider contract.",
-    "last_validated_at": "2026-06-22T11:24:44-04:00",
+    "last_validated_at": "2026-07-06T16:19:34-04:00",
     "module": "scenario-boundary",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "PH-BOUND-001",
       "title": "Dual-mount validation service",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "api",
       "criticality": "P0",
@@ -26,7 +26,7 @@
           "type": "test",
           "ref": "api/handlers/validation/service_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Asserts both the native services and the shared ScenarioValidationService are served and route to the same engine."
         }
       ]
@@ -34,7 +34,7 @@
     {
       "id": "PH-BOUND-002",
       "title": "Agent-readable maturity assessment",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "api",
       "criticality": "P0",
@@ -49,7 +49,7 @@
           "type": "test",
           "ref": "api/internal/assessment/assessment_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Golden assessment asserts deterministic codes, current/next level transitions, and that every code has a maturity mapping."
         }
       ]
@@ -57,7 +57,7 @@
     {
       "id": "PH-BOUND-003",
       "title": "Test Genie performance provider recognized",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "api",
       "criticality": "P0",
@@ -72,7 +72,7 @@
           "type": "test",
           "ref": "api/handlers/validation/provider_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Asserts the provider responds to the shared contract for the build-time and Lighthouse signals expected by Test Genie's Performance phase."
         }
       ]

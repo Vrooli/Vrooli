@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Declarative budgets with baseline-diff gating, additive SQLite trend storage, and deterministic fleet offender intelligence.",
-    "last_validated_at": "2026-06-22T11:24:44-04:00",
+    "last_validated_at": "2026-07-06T16:19:34-04:00",
     "module": "budgets-trends-fleet",
     "prd_ref": "PRD.md",
     "priority": "P1",
@@ -11,7 +11,7 @@
     {
       "id": "PH-BUDGET-001",
       "title": "Declarative budgets with ratchet",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "category": "api",
       "criticality": "P1",
@@ -26,7 +26,7 @@
           "type": "test",
           "ref": "api/internal/budgets/budgets_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Budget load/edit round-trip; breach detection per dimension; ratchet tightening behavior."
         }
       ]
@@ -34,7 +34,7 @@
     {
       "id": "PH-BUDGET-002",
       "title": "Baseline-diff gating",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "category": "api",
       "criticality": "P1",
@@ -49,7 +49,7 @@
           "type": "test",
           "ref": "api/internal/budgets/baseline_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A regression produces a baseline-diff-failing verdict; a within-budget run is clean."
         }
       ]
@@ -57,7 +57,7 @@
     {
       "id": "PH-TREND-001",
       "title": "Additive SQLite trend storage",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-003",
       "category": "api",
       "criticality": "P1",
@@ -72,7 +72,7 @@
           "type": "test",
           "ref": "api/internal/trend/store_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Store round-trip, newest-first scoping, and non-destructive append across runs."
         }
       ]
@@ -80,7 +80,7 @@
     {
       "id": "PH-FLEET-001",
       "title": "Deterministic fleet offender queries",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "category": "api",
       "criticality": "P1",
@@ -95,7 +95,7 @@
           "type": "test",
           "ref": "api/internal/fleet/fleet_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Scan aggregates offenders and tier distribution; a failing scenario is recorded and the scan continues over the rest."
         }
       ]

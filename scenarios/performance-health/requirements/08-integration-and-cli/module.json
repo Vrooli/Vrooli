@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Thin human-default CLI surface, discoverability, and the operator UI console.",
-    "last_validated_at": "2026-06-22T11:24:44-04:00",
+    "last_validated_at": "2026-07-06T16:19:34-04:00",
     "module": "integration-and-cli",
     "prd_ref": "PRD.md",
     "priority": "P1",
@@ -11,7 +11,7 @@
     {
       "id": "PH-CLI-001",
       "title": "Human-default CLI with JSON opt-in",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-005",
       "category": "cli",
       "criticality": "P1",
@@ -26,7 +26,7 @@
           "type": "test",
           "ref": "cli/domains/readiness/readiness_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "CLI tests assert human output without --json and structural JSON parity with --json across the verb set."
         }
       ]
@@ -34,7 +34,7 @@
     {
       "id": "PH-CLI-002",
       "title": "CLI verbs discoverable through cli-health",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-005",
       "category": "cli",
       "criticality": "P1",
@@ -49,7 +49,7 @@
           "type": "test",
           "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Asserts every domain group is registered and the manifest covers every Connect endpoint (bound or omitted)."
         }
       ]
@@ -57,7 +57,7 @@
     {
       "id": "PH-UI-001",
       "title": "Audit workbench over real data",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "ui",
       "criticality": "P1",
@@ -72,7 +72,7 @@
           "type": "test",
           "ref": "ui/src/features/audit/Audit.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Renders the workbench against mocked Connect responses; asserts tier display, run flow, findings list, and loading/error/empty states."
         }
       ]
@@ -80,7 +80,7 @@
     {
       "id": "PH-UI-002",
       "title": "Trend and fleet dashboards",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "category": "ui",
       "criticality": "P1",
@@ -95,7 +95,7 @@
           "type": "test",
           "ref": "ui/src/features/fleet/Fleet.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Renders trend charts and the fleet offender table from mocked data with empty/loading/error states."
         }
       ]
@@ -103,7 +103,7 @@
     {
       "id": "PH-UI-003",
       "title": "Readiness + one-click autofix surface",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "ui",
       "criticality": "P1",
@@ -118,7 +118,7 @@
           "type": "test",
           "ref": "ui/src/features/readiness/Readiness.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Renders readiness gaps and drives preview/apply against mocked autofix responses."
         }
       ]

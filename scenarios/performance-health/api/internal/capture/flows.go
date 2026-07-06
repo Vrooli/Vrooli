@@ -2,6 +2,7 @@ package capture
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -59,6 +60,31 @@ func (r *FileFlowResolver) Resolve(scenario, slug string) ([]byte, error) {
 func ValidatePerfFlow(raw []byte) error {
 	if bytes.Contains(raw, []byte("ACTION_TYPE_ASSERT")) {
 		return errors.New("contains an ASSERT node — perf-capture flows must be assertion-free (move assertions to bas/cases/**)")
+	}
+	if err := validatePerfFlowEdges(raw); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validatePerfFlowEdges(raw []byte) error {
+	var doc struct {
+		Edges []map[string]json.RawMessage `json:"edges"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return fmt.Errorf("is not valid JSON: %w", err)
+	}
+	for idx, edge := range doc.Edges {
+		_, hasSource := edge["source"]
+		_, hasTarget := edge["target"]
+		_, hasFrom := edge["from"]
+		_, hasTo := edge["to"]
+		if hasFrom || hasTo {
+			return fmt.Errorf("edge %d uses from/to; BAS WorkflowDefinitionV2 requires source/target", idx)
+		}
+		if !hasSource || !hasTarget {
+			return fmt.Errorf("edge %d must define source and target", idx)
+		}
 	}
 	return nil
 }
