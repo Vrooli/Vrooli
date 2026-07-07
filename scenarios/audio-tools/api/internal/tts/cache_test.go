@@ -56,6 +56,38 @@ func TestCache_VersionSeparation(t *testing.T) {
 	}
 }
 
+func TestCache_ChunkIndexSeparation(t *testing.T) {
+	// A spoken message is synthesized as N ordered paragraphs under one
+	// event_id. Each paragraph must occupy a distinct cache slot keyed by its
+	// chunk index — otherwise per-paragraph audio collides (last-write-wins)
+	// and a replay serves only one paragraph.
+	cache := NewCache(1024 * 1024)
+
+	chunk0 := CacheKey{EventID: "evt1", Voice: "af_heart", Speed: 1.0, Version: "active", ChunkIndex: 0}
+	chunk1 := CacheKey{EventID: "evt1", Voice: "af_heart", Speed: 1.0, Version: "active", ChunkIndex: 1}
+
+	cache.Put(chunk0, []byte("paragraph-0-audio"), "audio/mpeg")
+	cache.Put(chunk1, []byte("paragraph-1-audio"), "audio/mpeg")
+
+	e0, ok := cache.Get(chunk0)
+	if !ok || string(e0.Audio) != "paragraph-0-audio" {
+		t.Errorf("chunk 0 collided or missing: ok=%v audio=%q", ok, e0.Audio)
+	}
+	e1, ok := cache.Get(chunk1)
+	if !ok || string(e1.Audio) != "paragraph-1-audio" {
+		t.Errorf("chunk 1 collided or missing: ok=%v audio=%q", ok, e1.Audio)
+	}
+
+	// Both chunks share the event id, so Evict(event) clears the whole message.
+	cache.Evict("evt1")
+	if _, ok := cache.Get(chunk0); ok {
+		t.Error("expected chunk 0 evicted with the event")
+	}
+	if _, ok := cache.Get(chunk1); ok {
+		t.Error("expected chunk 1 evicted with the event")
+	}
+}
+
 func TestCache_LRUEviction(t *testing.T) {
 	// Cache that can hold exactly 20 bytes
 	cache := NewCache(20)

@@ -15,6 +15,7 @@ import (
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/store"
 	"audio-tools/internal/text/normalizer"
+	inttts "audio-tools/internal/tts"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
@@ -186,6 +187,24 @@ func (h *connectHandler) Synthesize(ctx context.Context, req *connect.Request[tt
 		ModelId:      res.ModelID,
 		VoiceUsed:    res.VoiceUsed,
 		LatencyMs:    float64(res.Latency.Milliseconds()),
+	}
+
+	// Populate the event-glue byte cache so a later replay of this paragraph
+	// serves from cache instead of re-synthesizing. Keyed symmetrically with
+	// GetCache (event_id + request voice/speed + version + chunk_index); the
+	// chain path never wrote this cache before, so replays always missed.
+	if h.deps.Cache != nil && req.Msg.GetEventId() != "" && len(res.Audio) > 0 {
+		version := req.Msg.GetVersion()
+		if version == "" {
+			version = "active"
+		}
+		h.deps.Cache.Put(inttts.CacheKey{
+			EventID:    req.Msg.GetEventId(),
+			Voice:      req.Msg.GetVoice(),
+			Speed:      req.Msg.GetSpeed(),
+			Version:    version,
+			ChunkIndex: req.Msg.GetChunkIndex(),
+		}, res.Audio, res.ContentType)
 	}
 	return resp, nil
 }

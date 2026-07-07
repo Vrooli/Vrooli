@@ -3,14 +3,18 @@ package stt
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"net"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/byok/envelope"
+	"audio-tools/internal/store"
 	sttpkg "audio-tools/internal/stt"
 	"audio-tools/internal/stt/segmenter"
 )
@@ -81,7 +85,14 @@ func StreamWSHandler(d Deps) http.Handler {
 		}
 		defer conn.Close()
 
-		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
+		// No absolute wall-clock cap: bound the session by INACTIVITY instead.
+		// The old context.WithTimeout(..., 5*time.Minute) fired on active
+		// dictation and cold-closed the socket, dropping the tail. The reader
+		// below enforces an idle deadline that resets on every audio frame, so
+		// a continuously-speaking user is never cut; the session ends only on
+		// real silence, a client stop, or request cancellation — all of which
+		// drain-then-close via `chunks` closing.
+		ctx, cancel := context.WithCancel(r.Context())
 		defer cancel()
 
 		chunks := make(chan sttchain.AudioChunk, 16)
@@ -98,16 +109,32 @@ func StreamWSHandler(d Deps) http.Handler {
 		cfg := resolveStreamPipelineConfigFromDeps(ctx, d)
 		seg := segmenter.New(segmenter.Deps{Chain: d.Chain, Selector: d.Selector, Engine: d.Engine, Registry: d.Registry, SpeakerIsolation: currentSpeakerIsolation(d), SpeakerExtraction: currentSpeakerExtraction(d)})
 
+		idle := time.Duration(cfg.SessionIdleTimeoutMs) * time.Millisecond
+		if idle <= 0 {
+			idle = time.Duration(sttpkg.DefaultSessionIdleTimeoutMs) * time.Millisecond
+		}
+
 		// Reader: WS frames → chunks channel. Binary frames are raw
 		// audio bytes; text frames (legacy VAD signals from the embed)
 		// are ignored — the strategy does its own VAD or buffering.
+		//
+		// Every read arms an idle deadline: if no frame arrives within `idle`,
+		// ReadMessage returns a timeout, which we treat as a GRACEFUL end (like
+		// an explicit done) rather than an error, so closing `chunks` (defer)
+		// routes it through the same drain-then-close path that flushes the
+		// trailing segment.
 		readerErr := make(chan error, 1)
 		go func() {
 			defer close(chunks)
 			for {
+				_ = conn.SetReadDeadline(time.Now().Add(idle))
 				mt, data, err := conn.ReadMessage()
 				if err != nil {
-					readerErr <- err
+					if ne, ok := err.(net.Error); ok && ne.Timeout() {
+						readerErr <- nil // idle timeout: graceful end, drain the tail
+					} else {
+						readerErr <- err
+					}
 					return
 				}
 				if mt == websocket.BinaryMessage {
@@ -201,11 +228,72 @@ func StreamWSHandler(d Deps) http.Handler {
 		writeJSON(wsMessage{Type: wsMsgDone})
 
 		<-runErr
+		// The reader goroutine always sends exactly once on readerErr before it
+		// returns (and before its deferred close(chunks) lets the segmenter
+		// finish), so by the time the events loop has drained the receive is
+		// already buffered — block for it to classify the close accurately.
+		var readerCloseErr error
 		select {
-		case <-readerErr:
+		case readerCloseErr = <-readerErr:
 		default:
 		}
+		emitStreamDeliveryTelemetry(d, segIdx, finalText != "", readerCloseErr)
 	})
+}
+
+// streamCloseOutcome classifies why a streaming session ended, for the
+// per-session delivery telemetry. A nil reader error is a graceful end
+// (idle-timeout or an explicit client "done") — the drain-then-close path
+// ran and the trailing segment was flushed. A context.Canceled is the
+// request/context cancel path; anything else is an abrupt read error. In the
+// non-graceful paths the final flush may have been lost, so they are the
+// signal Phase 8 exists to surface.
+func streamCloseOutcome(readerCloseErr error) string {
+	switch {
+	case readerCloseErr == nil:
+		return "graceful"
+	case errors.Is(readerCloseErr, context.Canceled):
+		return "cancel"
+	default:
+		return "read_error"
+	}
+}
+
+// emitStreamDeliveryTelemetry records a per-session STT delivery summary so a
+// silent tail-drop stops being invisible (Phase 8). It emits an always-on
+// structured log line and, when a usage recorder is wired, a durable
+// `stream_session` usage row whose FallbackReason carries the close outcome
+// and whose Error is set on a non-graceful close (the drop metric). Both are
+// best-effort and must never affect the live session.
+func emitStreamDeliveryTelemetry(d Deps, segments int, tailFinalDelivered bool, readerCloseErr error) {
+	outcome := streamCloseOutcome(readerCloseErr)
+	graceful := outcome == "graceful"
+	if d.Logger != nil {
+		d.Logger.Printf("voice-ws: session closed outcome=%s segments=%d tailFinalDelivered=%t graceful=%t",
+			outcome, segments, tailFinalDelivered, graceful)
+	}
+	if d.Usage == nil {
+		return
+	}
+	now := time.Now()
+	if d.Clock != nil {
+		now = d.Clock.Now()
+	}
+	row := store.UsageRow{
+		OperationID:    uuid.NewString(),
+		EmittedAt:      now,
+		Capability:     "stt",
+		Operation:      "stream_session",
+		OutputTokens:   int32(segments), // segments committed this session
+		FallbackReason: outcome,
+	}
+	if !graceful {
+		// A non-graceful close is the drop signal: the trailing segment may
+		// not have been flushed. Populating Error makes it count in the usage
+		// summary's ErrorCount aggregate.
+		row.Error = "tail_drain_" + outcome
+	}
+	d.Usage.Enqueue(row)
 }
 
 // buildStreamStart maps the WS request's query params + auth envelope to

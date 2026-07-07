@@ -24,6 +24,10 @@ type CacheKey struct {
 	Voice   string
 	Speed   float64
 	Version string
+	// ChunkIndex disambiguates the N ordered paragraphs of a single event so
+	// per-paragraph audio does not collide on one whole-message key. 0 for
+	// single-chunk / whole-message synthesis.
+	ChunkIndex int32
 }
 
 type Deps struct {
@@ -212,10 +216,11 @@ func (s *Service) Synthesize(ctx context.Context, in SynthesizeInput) (Synthesiz
 			version = "active"
 		}
 		s.deps.PutCache(CacheKey{
-			EventID: normalized.EventID,
-			Voice:   normalized.Voice,
-			Speed:   normalized.Speed,
-			Version: version,
+			EventID:    normalized.EventID,
+			Voice:      normalized.Voice,
+			Speed:      normalized.Speed,
+			Version:    version,
+			ChunkIndex: normalized.ChunkIndex,
 		}, data, contentType)
 	}
 
@@ -243,10 +248,11 @@ func (s *Service) GetCache(_ context.Context, q CacheLookup) (SynthesizeResult, 
 	}
 
 	out, ok := s.deps.GetCache(CacheKey{
-		EventID: q.EventID,
-		Voice:   voice,
-		Speed:   speed,
-		Version: version,
+		EventID:    q.EventID,
+		Voice:      voice,
+		Speed:      speed,
+		Version:    version,
+		ChunkIndex: q.ChunkIndex,
 	})
 	if !ok {
 		return SynthesizeResult{}, fmt.Errorf("%w: no cached audio for this event", ErrNotFound)

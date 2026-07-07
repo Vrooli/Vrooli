@@ -9,8 +9,9 @@ import (
 
 // MaxSessionInputBytes bounds the raw bytes a single streaming session may
 // feed into the decode process, capping ffmpeg resource use and untrusted-
-// input exposure. The WS transport's 5-minute ctx already bounds duration;
-// this bounds a fast flood. At the cap the feeder stops and flushes what it
+// input exposure. The WS transport bounds session duration by inactivity
+// (SessionIdleTimeoutMs); this bounds a fast flood independent of time. At the
+// cap the feeder stops and flushes what it
 // has (CloseInput), so the session ends cleanly rather than erroring.
 const MaxSessionInputBytes = 256 << 20 // 256 MiB
 
@@ -106,6 +107,12 @@ func (s *Segmenter) normalizeChunks(
 					return
 				}
 			case <-nctx.Done():
+				// Flush the decoder's tail on cancel too, not only on a clean
+				// EOF: CloseInput lets ffmpeg emit the trailing PCM it has
+				// buffered so a drain-then-close teardown (idle timeout, client
+				// stop, request cancel) still delivers the final audio instead
+				// of dropping it with the killed process.
+				_ = dec.CloseInput()
 				return
 			}
 		}

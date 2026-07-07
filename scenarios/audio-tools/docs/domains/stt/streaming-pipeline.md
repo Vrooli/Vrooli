@@ -275,6 +275,49 @@ observer fanout, or transport details — those live in the Segmenter.
 | OverlapAgreeStrategy | Sliding-window scheduling; LocalAgreement prefix commit; partial emission | `Provider.Transcribe(audio)` per overlapping window (Whisper-local only) |
 | PassthroughStrategy | Thin wire translation; backpressure between client and vendor | `Provider.TranscribeStreaming(start, chunks)` once per session; forwards events |
 
+## Session lifecycle: idle-based, drain-then-close
+
+A streaming session used to be bounded by a hard 5-minute *absolute*
+WebSocket deadline (`context.WithTimeout(r.Context(), 5*time.Minute)`
+in `handlers/stt/stream_ws.go`). That clock fired on *active* speakers
+mid-utterance and closed the socket without draining the tail, so the
+last words were silently lost. The lifecycle is now **inactivity-based
+with a drain-then-close teardown**:
+
+- **Idle deadline, reset per frame.** Each inbound audio frame arms a
+  read deadline of `SessionIdleTimeoutMs` (see below). A session ends
+  only after that many milliseconds with *no* audio — not on a fixed
+  wall-clock cap. A user can dictate continuously for as long as they
+  like.
+- **Every close path drains, then closes.** Idle-timeout, an explicit
+  client `done`, and request-context cancel all route through the same
+  graceful-end path: the segmenter is signalled to end, the provider
+  sends kyutai its end marker, and the reader awaits the flush/`done`
+  **before** the socket closes. A bounded drain deadline prevents a
+  wedged backend from hanging the close forever. Measured kyutai flush
+  lag is small (RTF ≈ 0.13), so awaiting it is cheap.
+- **Force-commit during continuous speech (kyutai).** Independently of
+  teardown, the kyutai server force-commits a pending segment at the
+  next word boundary once it has spanned `KYUTAI_STT_MAX_SEGMENT_FRAMES`
+  frames, so a long unbroken utterance produces durable segments as the
+  user speaks instead of stalling as one volatile partial until the end
+  flush. This is a sibling knob to `KYUTAI_STT_SILENCE_COMMIT_FRAMES`
+  (the pause-triggered commit) — see
+  [`resources/kyutai-stt`](../../../../resources/kyutai-stt/docker/server.py).
+- **Non-graceful closes are the drop metric.** A `nil` reader error is
+  a graceful end (idle-timeout or client `done`) whose final flush was
+  delivered; a non-graceful close is counted as a potential tail drop
+  in the per-session delivery telemetry, so any teardown regression
+  surfaces immediately rather than silently swallowing words.
+
+**Knobs.** `SessionIdleTimeoutMs` lives on `stt_stream_config`
+(`DefaultSessionIdleTimeoutMs = 30000`, i.e. 30 s; `<= 0` resolves to
+the default at the handler). The kyutai commit cadence is set by
+`KYUTAI_STT_MAX_SEGMENT_FRAMES` (default `48` ≈ 3.8 s at 12.5 Hz; `0`
+disables force-commit → legacy pause-or-flush-only) and
+`KYUTAI_STT_SILENCE_COMMIT_FRAMES` (default `16`). The whisper
+`VADSegment` strategy keeps parity with the same drain-then-close seam.
+
 ## Why decouple? — and what it costs
 
 **Benefits.**

@@ -6,12 +6,20 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 
 	"audio-tools/internal/clock"
 	"audio-tools/internal/httpc"
 )
+
+// kyutaiDrainTimeout bounds how long the reader is given to receive the
+// server's flush/done after an end marker is sent on a cancelled session. The
+// measured kyutai flush lag is ~0.07s (RTF 0.13), so this is generous; it only
+// exists so a wedged backend cannot hang teardown forever.
+const kyutaiDrainTimeout = 5 * time.Second
 
 // KyutaiProvider is the Local-tier adapter for the Kyutai streaming STT
 // engine (resources/kyutai-stt). Unlike the Whisper LocalProvider (batch),
@@ -157,18 +165,43 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 	// selects on it so it never outlives the session.
 	streamDone := make(chan struct{})
 
-	// ctx watcher: cancelling the session closes the conn, which unblocks both
-	// the pump's WriteMessage and the reader's blocking ReadMessage so they exit
-	// promptly (a blocking ReadMessage can't select on ctx itself).
+	// All writes to conn are serialized: the pump writes binary/end frames and
+	// the ctx watcher may write the end marker on cancel, and gorilla forbids
+	// concurrent writers. endOnce guarantees the end marker is sent exactly
+	// once no matter which path (graceful chunks-close or cancel) reaches it.
+	var writeMu sync.Mutex
+	var endOnce sync.Once
+	writeFrame := func(mt int, data []byte) error {
+		writeMu.Lock()
+		defer writeMu.Unlock()
+		return conn.WriteMessage(mt, data)
+	}
+	sendEnd := func() {
+		endOnce.Do(func() {
+			_ = writeFrame(websocket.TextMessage, []byte(`{"type":"end"}`))
+		})
+	}
+
+	// ctx watcher: DRAIN-THEN-CLOSE. Cancelling the session must not cold-close
+	// the socket (that drops kyutai's flush and the trailing segment). Instead
+	// send the end marker so the server flushes, give the reader a bounded
+	// window to receive that flush/done, and only then close the conn.
 	go func() {
 		select {
 		case <-ctx.Done():
+			sendEnd()
+			select {
+			case <-streamDone:
+			case <-time.After(kyutaiDrainTimeout):
+			}
 			_ = conn.Close()
 		case <-streamDone:
 		}
 	}()
 
-	// Pump: inbound PCM chunks -> WS binary frames; on close send {"type":"end"}.
+	// Pump: inbound PCM chunks -> WS binary frames; on clean close send the end
+	// marker so the server flushes its tail. On ctx cancel the pump just stops
+	// writing — the watcher owns the cancel-path end marker + drain.
 	go func(ctx context.Context) {
 		for {
 			select {
@@ -176,26 +209,27 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 				return
 			case ch, ok := <-chunks:
 				if !ok {
-					_ = conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"end"}`))
+					sendEnd()
 					return
 				}
-				if err := conn.WriteMessage(websocket.BinaryMessage, ch.Audio); err != nil {
+				if err := writeFrame(websocket.BinaryMessage, ch.Audio); err != nil {
 					return
 				}
 			}
 		}
 	}(ctx)
 
-	// Reader: WS JSON frames -> StreamEvents.
-	go func(ctx context.Context) {
+	// Reader: WS JSON frames -> StreamEvents. It intentionally does NOT bail on
+	// ctx cancel: after a cancel the watcher has sent the end marker and the
+	// server is flushing, so the reader must keep reading to deliver that
+	// trailing segment + done. The watcher's bounded drain (conn.Close after
+	// kyutaiDrainTimeout) unblocks this read if the backend wedges.
+	go func() {
 		defer close(events)
 		defer close(streamDone)
 		defer conn.Close()
 		var finalText string
 		for {
-			if ctx.Err() != nil {
-				return
-			}
 			_, data, err := conn.ReadMessage()
 			if err != nil {
 				events <- StreamEvent{Kind: StreamEventDone, Done: &DoneEvent{
@@ -243,7 +277,7 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 				return
 			}
 		}
-	}(ctx)
+	}()
 	return events, nil
 }
 

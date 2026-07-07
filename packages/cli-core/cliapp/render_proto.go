@@ -59,3 +59,14 @@ func RenderProtoMutation(ctx RunContext, payload proto.Message, human MutationRe
 	}
 	return ctx.RenderMutation(human)
 }
+
+// RenderProtoOperational is the operational-shaped counterpart to
+// RenderProtoList. Use it for diagnostic/status commands: JSON output is the
+// proto wire shape; the report's Status / Triage / Next Steps lines are
+// human-only.
+func RenderProtoOperational(ctx RunContext, payload proto.Message, human OperationalReport) error {
+	if ctx.JSON() {
+		return PrintProtoJSON(ctx.Stdout(), payload)
+	}
+	return ctx.RenderOperational(human)
+}

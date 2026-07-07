@@ -73,10 +73,15 @@ type StreamConfig struct {
 	// EngineID is the active STT engine selection (sttengine manifest id,
 	// e.g. "whisper-local"). Empty resolves to the registry's default engine.
 	// Only the Local tier honors it; BYOK/Vrooli tiers stream natively.
-	EngineID          string
-	VADSilenceMs      int
-	OverlapWindowMs   int
-	OverlapCommitRuns int
+	EngineID     string
+	VADSilenceMs int
+	// SessionIdleTimeoutMs ends a streaming session after this many ms with no
+	// inbound audio (an inactivity deadline the WS handler resets on every
+	// audio frame), replacing the old absolute 5-minute wall-clock cap. 0 or
+	// negative resolves to DefaultSessionIdleTimeoutMs at the handler.
+	SessionIdleTimeoutMs int
+	OverlapWindowMs      int
+	OverlapCommitRuns    int
 	// OverlapMaxWindowMs caps the uncommitted audio buffer for
 	// OverlapAgree. When no prefix commits before this ceiling, the
 	// strategy force-commits the current hypothesis tail instead of letting
@@ -137,11 +142,21 @@ type StreamConfig struct {
 // desyncing the ring from the cut.
 const DefaultVADSilenceMs = 1200
 
+// DefaultSessionIdleTimeoutMs bounds a streaming session by INACTIVITY rather
+// than wall-clock. The WS handler resets the deadline on every inbound audio
+// frame, so a session that keeps sending audio never expires — this replaces
+// the old absolute 5-minute cap that silently cut active dictation and dropped
+// the tail. The timeout fires only after this many milliseconds with no audio
+// (a client that vanished without sending its end marker); on fire the handler
+// drains-then-closes (sends end, awaits the flush) so the tail is not dropped.
+const DefaultSessionIdleTimeoutMs = 30000
+
 func Defaults() StreamConfig {
 	return StreamConfig{
 		Mode:                       ModeAuto,
 		StrategyPreference:         PreferenceAuto,
 		VADSilenceMs:               DefaultVADSilenceMs,
+		SessionIdleTimeoutMs:       DefaultSessionIdleTimeoutMs,
 		OverlapWindowMs:            2000,
 		OverlapCommitRuns:          2,
 		OverlapMaxWindowMs:         25000,

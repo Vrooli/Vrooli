@@ -76,6 +76,66 @@ func TestTTS_GetCache_Hit(t *testing.T) {
 	require.Equal(t, "audio/mpeg", res.Msg.GetContentType())
 }
 
+func TestTTS_Synthesize_PopulatesCachePerChunk(t *testing.T) {
+	// The chain path used to never write the byte cache, so replays always
+	// missed. Synthesize with an event_id must now populate the cache under the
+	// (event_id, voice, speed, version, chunk_index) key so GetCache hits — and
+	// each chunk index is a distinct slot.
+	chain := ttschain.NewChain(ttschain.Options{
+		EnableVrooli: true,
+		Vrooli: ttschain.NewVrooliProvider(&ttsmocks.FakeVrooliClient{
+			Available: true,
+			Result:    &ttschain.Result{Audio: []byte("PCM"), ContentType: "audio/mpeg"},
+		}),
+	})
+	cache := inttts.NewCache(1024 * 1024)
+	c := newServer(t, ttsH.Deps{Chain: chain, Cache: cache})
+
+	synth := func(chunk int32) {
+		req := connect.NewRequest(&ttsv1.SynthesizeRequest{
+			Text: "hello", Voice: "voice.feminine.warm", EventId: "e1", ChunkIndex: chunk,
+		})
+		req.Header().Set(envelope.HeaderLPBSToken, "tok")
+		_, err := c.Synthesize(context.Background(), req)
+		require.NoError(t, err)
+	}
+	getHit := func(chunk int32) bool {
+		res, err := c.GetCache(context.Background(), connect.NewRequest(&ttsv1.GetCacheRequest{
+			EventId: "e1", Voice: "voice.feminine.warm", ChunkIndex: chunk,
+		}))
+		require.NoError(t, err)
+		return res.Msg.GetHit()
+	}
+
+	// Before any synth: miss.
+	require.False(t, getHit(0))
+	// Synth chunk 0 → chunk 0 hits, chunk 1 still misses (distinct slots).
+	synth(0)
+	require.True(t, getHit(0))
+	require.False(t, getHit(1))
+	// Synth chunk 1 → both hit.
+	synth(1)
+	require.True(t, getHit(1))
+}
+
+func TestTTS_Synthesize_EmptyEventIdDoesNotPopulateCache(t *testing.T) {
+	chain := ttschain.NewChain(ttschain.Options{
+		EnableVrooli: true,
+		Vrooli: ttschain.NewVrooliProvider(&ttsmocks.FakeVrooliClient{
+			Available: true,
+			Result:    &ttschain.Result{Audio: []byte("PCM"), ContentType: "audio/mpeg"},
+		}),
+	})
+	cache := inttts.NewCache(1024 * 1024)
+	c := newServer(t, ttsH.Deps{Chain: chain, Cache: cache})
+
+	req := connect.NewRequest(&ttsv1.SynthesizeRequest{Text: "hello", Voice: "voice.feminine.warm"})
+	req.Header().Set(envelope.HeaderLPBSToken, "tok")
+	_, err := c.Synthesize(context.Background(), req)
+	require.NoError(t, err)
+	require.Equal(t, 0, cache.Stats().EntryCount, "no event_id → nothing cached")
+}
+
 func TestTTS_GetCache_MissOnUnknownEvent(t *testing.T) {
 	cache := inttts.NewCache(1024 * 1024)
 	c := newServer2(t, ttsH.Deps{Cache: cache})

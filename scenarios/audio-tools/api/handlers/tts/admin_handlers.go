@@ -28,10 +28,11 @@ func (h *connectHandler) GetCache(_ context.Context, req *connect.Request[ttsv1.
 		return connect.NewResponse(&ttsv1.GetCacheResponse{Hit: false}), nil
 	}
 	key := inttts.CacheKey{
-		EventID: req.Msg.GetEventId(),
-		Voice:   req.Msg.GetVoice(),
-		Speed:   req.Msg.GetSpeed(),
-		Version: req.Msg.GetVersion(),
+		EventID:    req.Msg.GetEventId(),
+		Voice:      req.Msg.GetVoice(),
+		Speed:      req.Msg.GetSpeed(),
+		Version:    req.Msg.GetVersion(),
+		ChunkIndex: req.Msg.GetChunkIndex(),
 	}
 	if key.Version == "" {
 		key.Version = "active"

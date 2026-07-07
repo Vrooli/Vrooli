@@ -3,6 +3,7 @@ package stt
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -17,6 +18,7 @@ import (
 	"audio-tools/internal/ai/sttchain"
 	sttmocks "audio-tools/internal/ai/sttchain/mocks"
 	"audio-tools/internal/byok/envelope"
+	"audio-tools/internal/store"
 	sttpkg "audio-tools/internal/stt"
 	"audio-tools/internal/testutil/mocks"
 )
@@ -359,6 +361,60 @@ func TestWSMessage_NonVadStateOmitsVadFields(t *testing.T) {
 	require.NotContains(t, got, "silenceElapsedMs")
 	require.NotContains(t, got, "silenceTimeoutMs")
 	require.NotContains(t, got, "tickSeq")
+}
+
+// captureRecorder is a synchronous usagereport.Recorder that records every
+// enqueued row so the Phase 8 delivery telemetry can be asserted.
+type captureRecorder struct{ rows []store.UsageRow }
+
+func (c *captureRecorder) Enqueue(row store.UsageRow)                   { c.rows = append(c.rows, row) }
+func (c *captureRecorder) Record(context.Context, store.UsageRow) error { return nil }
+func (c *captureRecorder) Close()                                       {}
+
+// TestStreamCloseOutcome asserts the close-classifier maps each teardown path
+// to the delivery-telemetry outcome the drop metric keys on.
+func TestStreamCloseOutcome(t *testing.T) {
+	require.Equal(t, "graceful", streamCloseOutcome(nil))
+	require.Equal(t, "cancel", streamCloseOutcome(context.Canceled))
+	require.Equal(t, "read_error", streamCloseOutcome(errors.New("boom")))
+}
+
+// TestEmitStreamDeliveryTelemetry_GracefulCounts asserts a clean close records
+// the full segment count with no drop signal.
+func TestEmitStreamDeliveryTelemetry_GracefulCounts(t *testing.T) {
+	rec := &captureRecorder{}
+	logger := &mocks.FakeLogger{}
+	emitStreamDeliveryTelemetry(Deps{Logger: logger, Usage: rec}, 3, true, nil)
+
+	require.Len(t, rec.rows, 1)
+	row := rec.rows[0]
+	require.Equal(t, "stt", row.Capability)
+	require.Equal(t, "stream_session", row.Operation)
+	require.Equal(t, int32(3), row.OutputTokens)
+	require.Equal(t, "graceful", row.FallbackReason)
+	require.Empty(t, row.Error, "a graceful close must not raise the drop signal")
+	require.NotEmpty(t, row.OperationID)
+}
+
+// TestEmitStreamDeliveryTelemetry_DropRaisesError asserts a non-graceful close
+// (cancel / read error) increments the drop metric via a populated Error.
+func TestEmitStreamDeliveryTelemetry_DropRaisesError(t *testing.T) {
+	rec := &captureRecorder{}
+	emitStreamDeliveryTelemetry(Deps{Logger: &mocks.FakeLogger{}, Usage: rec}, 1, false, context.Canceled)
+
+	require.Len(t, rec.rows, 1)
+	require.Equal(t, "cancel", rec.rows[0].FallbackReason)
+	require.Equal(t, "tail_drain_cancel", rec.rows[0].Error)
+	require.Equal(t, int32(1), rec.rows[0].OutputTokens)
+}
+
+// TestEmitStreamDeliveryTelemetry_NoRecorderIsSafe asserts telemetry never
+// panics when no usage recorder is wired (still logs).
+func TestEmitStreamDeliveryTelemetry_NoRecorderIsSafe(t *testing.T) {
+	logger := &mocks.FakeLogger{}
+	require.NotPanics(t, func() {
+		emitStreamDeliveryTelemetry(Deps{Logger: logger}, 2, true, nil)
+	})
 }
 
 // ensure the package-internal ctx alias compiles into tests too.

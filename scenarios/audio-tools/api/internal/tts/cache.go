@@ -18,7 +18,7 @@ import (
 
 // cacheKeyHash returns a deterministic string hash for map storage.
 func cacheKeyHash(k CacheKey) string {
-	raw := fmt.Sprintf("%s|%s|%.4f|%s", k.EventID, k.Voice, k.Speed, k.Version)
+	raw := fmt.Sprintf("%s|%s|%.4f|%s|%d", k.EventID, k.Voice, k.Speed, k.Version, k.ChunkIndex)
 	sum := sha256.Sum256([]byte(raw))
 	return fmt.Sprintf("%x", sum[:16])
 }

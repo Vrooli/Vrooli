@@ -2,11 +2,14 @@ package sttchain_test
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/require"
 
 	"audio-tools/internal/ai/sttchain"
@@ -16,6 +19,115 @@ import (
 // wsURL rewrites an httptest http:// URL to ws:// so the gorilla dialer accepts it.
 func wsURL(httpURL string) string {
 	return "ws://" + strings.TrimPrefix(httpURL, "http://")
+}
+
+// newKyutaiFlushServer models kyutai's flush-on-end semantics: it emits NOTHING
+// until it receives the {"type":"end"} marker, then emits a single trailing
+// "segment" (the flushed delayed-streams tail) followed by "done" and closes.
+// This lets tests prove the provider sends end + awaits the flush before the
+// socket closes on both the graceful and the cancel teardown paths. The
+// returned func reports how many end markers the server observed.
+func newKyutaiFlushServer(tailText string) (*httptest.Server, func() int) {
+	var mu sync.Mutex
+	ends := 0
+	up := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := up.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		for {
+			mt, data, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			if mt == websocket.TextMessage && strings.Contains(string(data), `"end"`) {
+				mu.Lock()
+				ends++
+				mu.Unlock()
+				_ = conn.WriteMessage(websocket.TextMessage, []byte(vendorws.EncodeJSON(
+					map[string]any{"type": "segment", "text": tailText, "start_ms": 0, "end_ms": 100})))
+				_ = conn.WriteMessage(websocket.TextMessage, []byte(vendorws.EncodeJSON(
+					map[string]any{"type": "done"})))
+				return
+			}
+		}
+	})
+	srv := httptest.NewServer(h)
+	return srv, func() int { mu.Lock(); defer mu.Unlock(); return ends }
+}
+
+// TestKyutaiProvider_GracefulCloseDrainsFlushTail asserts the normal teardown
+// (chunks close) sends the end marker and awaits the server's flushed trailing
+// segment before the stream ends — the tail is never dropped.
+func TestKyutaiProvider_GracefulCloseDrainsFlushTail(t *testing.T) {
+	srv, endCount := newKyutaiFlushServer("flushed tail")
+	defer srv.Close()
+
+	p := sttchain.NewKyutaiProvider("http://example.invalid")
+	p.StreamEndpoint = wsURL(srv.URL)
+
+	chunks := make(chan sttchain.AudioChunk, 1)
+	chunks <- sttchain.AudioChunk{Audio: []byte{0x01, 0x02}}
+	close(chunks)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	events, err := p.TranscribeStreaming(ctx, sttchain.StreamStart{Language: "en"}, chunks)
+	require.NoError(t, err)
+
+	var segments []string
+	var done *sttchain.DoneEvent
+	for ev := range events {
+		switch ev.Kind {
+		case sttchain.StreamEventSegment:
+			segments = append(segments, ev.Segment.Text)
+		case sttchain.StreamEventDone:
+			done = ev.Done
+		}
+	}
+	require.Equal(t, []string{"flushed tail"}, segments, "graceful close must await the flushed tail")
+	require.NotNil(t, done)
+	require.Equal(t, 1, endCount(), "exactly one end marker on graceful close")
+}
+
+// TestKyutaiProvider_CancelDrainsTailBeforeClose is the tail-durability
+// regression: cancelling the session MID-STREAM (idle timeout / request cancel,
+// chunks NOT closed) must still send the end marker and await the flush so the
+// trailing segment is delivered, instead of cold-closing the socket and
+// dropping it (the pre-fix behaviour).
+func TestKyutaiProvider_CancelDrainsTailBeforeClose(t *testing.T) {
+	srv, endCount := newKyutaiFlushServer("trailing words")
+	defer srv.Close()
+
+	p := sttchain.NewKyutaiProvider("http://example.invalid")
+	p.StreamEndpoint = wsURL(srv.URL)
+
+	chunks := make(chan sttchain.AudioChunk) // unbuffered, left OPEN
+	ctx, cancel := context.WithCancel(context.Background())
+	events, err := p.TranscribeStreaming(ctx, sttchain.StreamStart{Language: "en"}, chunks)
+	require.NoError(t, err)
+
+	// Feed one chunk (pump consumes it), then cancel without closing chunks —
+	// the teardown-race path that used to lose the tail.
+	chunks <- sttchain.AudioChunk{Audio: []byte{0x01, 0x02}}
+	cancel()
+
+	var segments []string
+	var done *sttchain.DoneEvent
+	for ev := range events {
+		switch ev.Kind {
+		case sttchain.StreamEventSegment:
+			segments = append(segments, ev.Segment.Text)
+		case sttchain.StreamEventDone:
+			done = ev.Done
+		}
+	}
+	require.Equal(t, []string{"trailing words"}, segments,
+		"cancel must send end + await flush so the trailing segment is delivered")
+	require.NotNil(t, done)
+	require.Equal(t, 1, endCount(), "exactly one end marker sent on cancel (no double-write)")
 }
 
 func TestKyutaiProvider_TranslatesEventStream(t *testing.T) {

@@ -90,6 +90,11 @@ message SynthesizeRequest {
   vrooli.web_console.v1.audio_common.ResponseFormat response_format = 5;
   string event_id = 6;
   string version = 7;
+  // Paragraph index within the event. A spoken message is synthesized as N
+  // ordered paragraphs; chunk_index disambiguates them under one event_id so
+  // per-paragraph audio populates the audio-tools byte cache without collision.
+  // Defaults to 0 (single-chunk). Forwarded verbatim to audio-tools.
+  int32 chunk_index = 8;
 }
 
 message SynthesizeResponse {
@@ -123,6 +128,9 @@ message GetTTSCacheRequest {
   string version = 4;
   string content_hash = 5;
   vrooli.web_console.v1.audio_common.ResponseFormat response_format = 6;
+  // Paragraph index within the event (see SynthesizeRequest.chunk_index).
+  // Part of the event_id-glue cache key; defaults to 0.
+  int32 chunk_index = 7;
 }
 
 message GetTTSCacheResponse {

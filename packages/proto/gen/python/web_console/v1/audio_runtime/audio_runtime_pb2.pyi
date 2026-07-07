@@ -51,7 +51,7 @@ class AdapterMapping(_message.Message):
     def __init__(self, tier: _Optional[_Union[_audio_common_pb2.ProviderTier, str]] = ..., provider_id: _Optional[str] = ..., backend_voice_id: _Optional[str] = ...) -> None: ...
 
 class SynthesizeRequest(_message.Message):
-    __slots__ = ("text", "voice", "voice_overrides", "speed", "response_format", "event_id", "version")
+    __slots__ = ("text", "voice", "voice_overrides", "speed", "response_format", "event_id", "version", "chunk_index")
     TEXT_FIELD_NUMBER: _ClassVar[int]
     VOICE_FIELD_NUMBER: _ClassVar[int]
     VOICE_OVERRIDES_FIELD_NUMBER: _ClassVar[int]
@@ -59,6 +59,7 @@ class SynthesizeRequest(_message.Message):
     RESPONSE_FORMAT_FIELD_NUMBER: _ClassVar[int]
     EVENT_ID_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
+    CHUNK_INDEX_FIELD_NUMBER: _ClassVar[int]
     text: str
     voice: str
     voice_overrides: _containers.RepeatedCompositeFieldContainer[AdapterMapping]
@@ -66,7 +67,8 @@ class SynthesizeRequest(_message.Message):
     response_format: _audio_common_pb2.ResponseFormat
     event_id: str
     version: str
-    def __init__(self, text: _Optional[str] = ..., voice: _Optional[str] = ..., voice_overrides: _Optional[_Iterable[_Union[AdapterMapping, _Mapping]]] = ..., speed: _Optional[float] = ..., response_format: _Optional[_Union[_audio_common_pb2.ResponseFormat, str]] = ..., event_id: _Optional[str] = ..., version: _Optional[str] = ...) -> None: ...
+    chunk_index: int
+    def __init__(self, text: _Optional[str] = ..., voice: _Optional[str] = ..., voice_overrides: _Optional[_Iterable[_Union[AdapterMapping, _Mapping]]] = ..., speed: _Optional[float] = ..., response_format: _Optional[_Union[_audio_common_pb2.ResponseFormat, str]] = ..., event_id: _Optional[str] = ..., version: _Optional[str] = ..., chunk_index: _Optional[int] = ...) -> None: ...
 
 class SynthesizeResponse(_message.Message):
     __slots__ = ("audio", "content_type", "content_hash", "provider_tier", "provider_id", "model_id", "voice_used", "latency_ms")
@@ -111,20 +113,22 @@ class ListVoicesResponse(_message.Message):
     def __init__(self, voices: _Optional[_Iterable[_Union[Voice, _Mapping]]] = ...) -> None: ...
 
 class GetTTSCacheRequest(_message.Message):
-    __slots__ = ("event_id", "voice", "speed", "version", "content_hash", "response_format")
+    __slots__ = ("event_id", "voice", "speed", "version", "content_hash", "response_format", "chunk_index")
     EVENT_ID_FIELD_NUMBER: _ClassVar[int]
     VOICE_FIELD_NUMBER: _ClassVar[int]
     SPEED_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
     CONTENT_HASH_FIELD_NUMBER: _ClassVar[int]
     RESPONSE_FORMAT_FIELD_NUMBER: _ClassVar[int]
+    CHUNK_INDEX_FIELD_NUMBER: _ClassVar[int]
     event_id: str
     voice: str
     speed: float
     version: str
     content_hash: str
     response_format: _audio_common_pb2.ResponseFormat
-    def __init__(self, event_id: _Optional[str] = ..., voice: _Optional[str] = ..., speed: _Optional[float] = ..., version: _Optional[str] = ..., content_hash: _Optional[str] = ..., response_format: _Optional[_Union[_audio_common_pb2.ResponseFormat, str]] = ...) -> None: ...
+    chunk_index: int
+    def __init__(self, event_id: _Optional[str] = ..., voice: _Optional[str] = ..., speed: _Optional[float] = ..., version: _Optional[str] = ..., content_hash: _Optional[str] = ..., response_format: _Optional[_Union[_audio_common_pb2.ResponseFormat, str]] = ..., chunk_index: _Optional[int] = ...) -> None: ...
 
 class GetTTSCacheResponse(_message.Message):
     __slots__ = ("audio", "content_type", "content_hash", "hit")

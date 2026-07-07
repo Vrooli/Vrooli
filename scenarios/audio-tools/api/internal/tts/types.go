@@ -120,6 +120,9 @@ type SynthesizeInput struct {
 	Speed          float64
 	EventID        string
 	Version        string
+	// ChunkIndex is the paragraph index within EventID; part of the cache key
+	// so per-paragraph audio does not collide. 0 for whole-message synthesis.
+	ChunkIndex int32
 }
 
 // SynthesizeResult is what Synthesize and GetCache return.
@@ -130,10 +133,11 @@ type SynthesizeResult struct {
 
 // CacheLookup is the GetCache request shape.
 type CacheLookup struct {
-	EventID string
-	Voice   string
-	Speed   float64
-	Version string
+	EventID    string
+	Voice      string
+	Speed      float64
+	Version    string
+	ChunkIndex int32
 }
 
 // Voice mirrors TTSVoice.

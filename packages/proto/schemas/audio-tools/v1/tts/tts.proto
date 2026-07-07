@@ -102,6 +102,11 @@ message SynthesizeRequest {
   // synthesized audio under a content-addressable + event index.
   string event_id = 6;
   string version = 7;
+  // Paragraph index within the event. A spoken assistant message is
+  // synthesized as N ordered paragraphs (chunks); chunk_index disambiguates
+  // them under the same event_id so per-paragraph audio does not collide on a
+  // single whole-message key. Defaults to 0 (single-chunk / whole-message).
+  int32 chunk_index = 8;
 }
 
 message SynthesizeResponse {
@@ -163,6 +168,9 @@ message GetCacheRequest {
   string version = 4; // defaults to "active"
   string content_hash = 5; // direct content-addressable lookup
   vrooli.audio_tools.v1.common.ResponseFormat response_format = 6;
+  // Paragraph index within the event (see SynthesizeRequest.chunk_index).
+  // Part of the event_id-glue cache key; defaults to 0.
+  int32 chunk_index = 7;
 }
 
 message GetCacheResponse {

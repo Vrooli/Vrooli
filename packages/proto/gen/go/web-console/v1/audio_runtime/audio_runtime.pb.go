@@ -262,8 +262,13 @@ type SynthesizeRequest struct {
 	ResponseFormat audio_common.ResponseFormat `protobuf:"varint,5,opt,name=response_format,json=responseFormat,proto3,enum=vrooli.web_console.v1.audio_common.ResponseFormat" json:"response_format,omitempty"`
 	EventId        string                      `protobuf:"bytes,6,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
 	Version        string                      `protobuf:"bytes,7,opt,name=version,proto3" json:"version,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Paragraph index within the event. A spoken message is synthesized as N
+	// ordered paragraphs; chunk_index disambiguates them under one event_id so
+	// per-paragraph audio populates the audio-tools byte cache without collision.
+	// Defaults to 0 (single-chunk). Forwarded verbatim to audio-tools.
+	ChunkIndex    int32 `protobuf:"varint,8,opt,name=chunk_index,json=chunkIndex,proto3" json:"chunk_index,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SynthesizeRequest) Reset() {
@@ -343,6 +348,13 @@ func (x *SynthesizeRequest) GetVersion() string {
 		return x.Version
 	}
 	return ""
+}
+
+func (x *SynthesizeRequest) GetChunkIndex() int32 {
+	if x != nil {
+		return x.ChunkIndex
+	}
+	return 0
 }
 
 type SynthesizeResponse struct {
@@ -601,8 +613,11 @@ type GetTTSCacheRequest struct {
 	Version        string                      `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
 	ContentHash    string                      `protobuf:"bytes,5,opt,name=content_hash,json=contentHash,proto3" json:"content_hash,omitempty"`
 	ResponseFormat audio_common.ResponseFormat `protobuf:"varint,6,opt,name=response_format,json=responseFormat,proto3,enum=vrooli.web_console.v1.audio_common.ResponseFormat" json:"response_format,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Paragraph index within the event (see SynthesizeRequest.chunk_index).
+	// Part of the event_id-glue cache key; defaults to 0.
+	ChunkIndex    int32 `protobuf:"varint,7,opt,name=chunk_index,json=chunkIndex,proto3" json:"chunk_index,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetTTSCacheRequest) Reset() {
@@ -675,6 +690,13 @@ func (x *GetTTSCacheRequest) GetResponseFormat() audio_common.ResponseFormat {
 		return x.ResponseFormat
 	}
 	return audio_common.ResponseFormat(0)
+}
+
+func (x *GetTTSCacheRequest) GetChunkIndex() int32 {
+	if x != nil {
+		return x.ChunkIndex
+	}
+	return 0
 }
 
 type GetTTSCacheResponse struct {
@@ -1102,7 +1124,7 @@ const file_web_console_v1_audio_runtime_audio_runtime_proto_rawDesc = "" +
 	"\x04tier\x18\x01 \x01(\x0e20.vrooli.web_console.v1.audio_common.ProviderTierR\x04tier\x12\x1f\n" +
 	"\vprovider_id\x18\x02 \x01(\tR\n" +
 	"providerId\x12(\n" +
-	"\x10backend_voice_id\x18\x03 \x01(\tR\x0ebackendVoiceId\"\xd6\x03\n" +
+	"\x10backend_voice_id\x18\x03 \x01(\tR\x0ebackendVoiceId\"\xf7\x03\n" +
 	"\x11SynthesizeRequest\x12\x1b\n" +
 	"\x04text\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04text\x12\x14\n" +
 	"\x05voice\x18\x02 \x01(\tR\x05voice\x12\\\n" +
@@ -1111,7 +1133,9 @@ const file_web_console_v1_audio_runtime_audio_runtime_proto_rawDesc = "" +
 	"$audio_runtime.synthesize.speed.range\x12*speed must be 0 (default) or in [0.5, 4.0]\x1a+this == 0.0 || (this >= 0.5 && this <= 4.0)R\x05speed\x12[\n" +
 	"\x0fresponse_format\x18\x05 \x01(\x0e22.vrooli.web_console.v1.audio_common.ResponseFormatR\x0eresponseFormat\x12\x19\n" +
 	"\bevent_id\x18\x06 \x01(\tR\aeventId\x12\x18\n" +
-	"\aversion\x18\a \x01(\tR\aversion\"\xc1\x02\n" +
+	"\aversion\x18\a \x01(\tR\aversion\x12\x1f\n" +
+	"\vchunk_index\x18\b \x01(\x05R\n" +
+	"chunkIndex\"\xc1\x02\n" +
 	"\x12SynthesizeResponse\x12\x14\n" +
 	"\x05audio\x18\x01 \x01(\fR\x05audio\x12!\n" +
 	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\x12!\n" +
@@ -1131,14 +1155,16 @@ const file_web_console_v1_audio_runtime_audio_runtime_proto_rawDesc = "" +
 	"\x10adapter_mappings\x18\x04 \x03(\v23.vrooli.web_console.v1.audio_runtime.AdapterMappingR\x0fadapterMappings\"\x13\n" +
 	"\x11ListVoicesRequest\"X\n" +
 	"\x12ListVoicesResponse\x12B\n" +
-	"\x06voices\x18\x01 \x03(\v2*.vrooli.web_console.v1.audio_runtime.VoiceR\x06voices\"\xf5\x01\n" +
+	"\x06voices\x18\x01 \x03(\v2*.vrooli.web_console.v1.audio_runtime.VoiceR\x06voices\"\x96\x02\n" +
 	"\x12GetTTSCacheRequest\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x14\n" +
 	"\x05voice\x18\x02 \x01(\tR\x05voice\x12\x14\n" +
 	"\x05speed\x18\x03 \x01(\x01R\x05speed\x12\x18\n" +
 	"\aversion\x18\x04 \x01(\tR\aversion\x12!\n" +
 	"\fcontent_hash\x18\x05 \x01(\tR\vcontentHash\x12[\n" +
-	"\x0fresponse_format\x18\x06 \x01(\x0e22.vrooli.web_console.v1.audio_common.ResponseFormatR\x0eresponseFormat\"\x83\x01\n" +
+	"\x0fresponse_format\x18\x06 \x01(\x0e22.vrooli.web_console.v1.audio_common.ResponseFormatR\x0eresponseFormat\x12\x1f\n" +
+	"\vchunk_index\x18\a \x01(\x05R\n" +
+	"chunkIndex\"\x83\x01\n" +
 	"\x13GetTTSCacheResponse\x12\x14\n" +
 	"\x05audio\x18\x01 \x01(\fR\x05audio\x12!\n" +
 	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\x12!\n" +

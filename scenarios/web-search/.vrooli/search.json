@@ -9,6 +9,7 @@
       "type": "learning",
       "description": "Cited research findings about the external world, distilled from prior web research and verified across sources: software release versions and feature lists (e.g. 'key features of Go 1.26', 'latest stable Rust version'), current events, third-party vendor and product facts, and other 'what is the latest X' answers. Route here for ANY external-world factual question — the store may already hold the verified, citation-backed answer (project-scope knowledge) without touching the live internet. Not for questions about this project's own code, scenarios, configuration, or how past work here was done.",
       "scope": "SCOPE_PROJECT",
+      "class": "external",
       "endpoint": {
         "http_json": {
           "scenario_id": "web-search",
@@ -49,6 +50,7 @@
       "type": "web",
       "description": "Live web search via SearXNG. External, rate-limited corpus: reached only on an explicit --type web / --all selector, never on the default federated (auto) query path. Returns raw web results; no synthesis on the federation path.",
       "scope": "SCOPE_EXTERNAL",
+      "class": "external",
       "endpoint": {
         "http_json": {
           "scenario_id": "web-search",

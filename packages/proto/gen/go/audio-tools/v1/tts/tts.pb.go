@@ -103,8 +103,13 @@ type SynthesizeRequest struct {
 	ResponseFormat common.ResponseFormat `protobuf:"varint,5,opt,name=response_format,json=responseFormat,proto3,enum=vrooli.audio_tools.v1.common.ResponseFormat" json:"response_format,omitempty"`
 	// Optional cache control. When event_id is set, the server stores the
 	// synthesized audio under a content-addressable + event index.
-	EventId       string `protobuf:"bytes,6,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	Version       string `protobuf:"bytes,7,opt,name=version,proto3" json:"version,omitempty"`
+	EventId string `protobuf:"bytes,6,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	Version string `protobuf:"bytes,7,opt,name=version,proto3" json:"version,omitempty"`
+	// Paragraph index within the event. A spoken assistant message is
+	// synthesized as N ordered paragraphs (chunks); chunk_index disambiguates
+	// them under the same event_id so per-paragraph audio does not collide on a
+	// single whole-message key. Defaults to 0 (single-chunk / whole-message).
+	ChunkIndex    int32 `protobuf:"varint,8,opt,name=chunk_index,json=chunkIndex,proto3" json:"chunk_index,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -186,6 +191,13 @@ func (x *SynthesizeRequest) GetVersion() string {
 		return x.Version
 	}
 	return ""
+}
+
+func (x *SynthesizeRequest) GetChunkIndex() int32 {
+	if x != nil {
+		return x.ChunkIndex
+	}
+	return 0
 }
 
 type SynthesizeResponse struct {
@@ -559,8 +571,11 @@ type GetCacheRequest struct {
 	Version        string                `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`                            // defaults to "active"
 	ContentHash    string                `protobuf:"bytes,5,opt,name=content_hash,json=contentHash,proto3" json:"content_hash,omitempty"` // direct content-addressable lookup
 	ResponseFormat common.ResponseFormat `protobuf:"varint,6,opt,name=response_format,json=responseFormat,proto3,enum=vrooli.audio_tools.v1.common.ResponseFormat" json:"response_format,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Paragraph index within the event (see SynthesizeRequest.chunk_index).
+	// Part of the event_id-glue cache key; defaults to 0.
+	ChunkIndex    int32 `protobuf:"varint,7,opt,name=chunk_index,json=chunkIndex,proto3" json:"chunk_index,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetCacheRequest) Reset() {
@@ -633,6 +648,13 @@ func (x *GetCacheRequest) GetResponseFormat() common.ResponseFormat {
 		return x.ResponseFormat
 	}
 	return common.ResponseFormat(0)
+}
+
+func (x *GetCacheRequest) GetChunkIndex() int32 {
+	if x != nil {
+		return x.ChunkIndex
+	}
+	return 0
 }
 
 type GetCacheResponse struct {
@@ -1575,7 +1597,7 @@ const file_audio_tools_v1_tts_tts_proto_rawDesc = "" +
 	"\x04tier\x18\x01 \x01(\x0e2*.vrooli.audio_tools.v1.common.ProviderTierR\x04tier\x12\x1f\n" +
 	"\vprovider_id\x18\x02 \x01(\tR\n" +
 	"providerId\x12(\n" +
-	"\x10backend_voice_id\x18\x03 \x01(\tR\x0ebackendVoiceId\"\xba\x03\n" +
+	"\x10backend_voice_id\x18\x03 \x01(\tR\x0ebackendVoiceId\"\xdb\x03\n" +
 	"\x11SynthesizeRequest\x12\x1b\n" +
 	"\x04text\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04text\x12\x14\n" +
 	"\x05voice\x18\x02 \x01(\tR\x05voice\x12R\n" +
@@ -1584,7 +1606,9 @@ const file_audio_tools_v1_tts_tts_proto_rawDesc = "" +
 	"\x1atts.synthesize.speed.range\x12*speed must be 0 (default) or in [0.5, 4.0]\x1a+this == 0.0 || (this >= 0.5 && this <= 4.0)R\x05speed\x12U\n" +
 	"\x0fresponse_format\x18\x05 \x01(\x0e2,.vrooli.audio_tools.v1.common.ResponseFormatR\x0eresponseFormat\x12\x19\n" +
 	"\bevent_id\x18\x06 \x01(\tR\aeventId\x12\x18\n" +
-	"\aversion\x18\a \x01(\tR\aversion\"\xbb\x02\n" +
+	"\aversion\x18\a \x01(\tR\aversion\x12\x1f\n" +
+	"\vchunk_index\x18\b \x01(\x05R\n" +
+	"chunkIndex\"\xbb\x02\n" +
 	"\x12SynthesizeResponse\x12\x14\n" +
 	"\x05audio\x18\x01 \x01(\fR\x05audio\x12!\n" +
 	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\x12!\n" +
@@ -1618,14 +1642,16 @@ const file_audio_tools_v1_tts_tts_proto_rawDesc = "" +
 	"\x10adapter_mappings\x18\x04 \x03(\v2).vrooli.audio_tools.v1.tts.AdapterMappingR\x0fadapterMappings\"\x13\n" +
 	"\x11ListVoicesRequest\"N\n" +
 	"\x12ListVoicesResponse\x128\n" +
-	"\x06voices\x18\x01 \x03(\v2 .vrooli.audio_tools.v1.tts.VoiceR\x06voices\"\xec\x01\n" +
+	"\x06voices\x18\x01 \x03(\v2 .vrooli.audio_tools.v1.tts.VoiceR\x06voices\"\x8d\x02\n" +
 	"\x0fGetCacheRequest\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x14\n" +
 	"\x05voice\x18\x02 \x01(\tR\x05voice\x12\x14\n" +
 	"\x05speed\x18\x03 \x01(\x01R\x05speed\x12\x18\n" +
 	"\aversion\x18\x04 \x01(\tR\aversion\x12!\n" +
 	"\fcontent_hash\x18\x05 \x01(\tR\vcontentHash\x12U\n" +
-	"\x0fresponse_format\x18\x06 \x01(\x0e2,.vrooli.audio_tools.v1.common.ResponseFormatR\x0eresponseFormat\"\x80\x01\n" +
+	"\x0fresponse_format\x18\x06 \x01(\x0e2,.vrooli.audio_tools.v1.common.ResponseFormatR\x0eresponseFormat\x12\x1f\n" +
+	"\vchunk_index\x18\a \x01(\x05R\n" +
+	"chunkIndex\"\x80\x01\n" +
 	"\x10GetCacheResponse\x12\x14\n" +
 	"\x05audio\x18\x01 \x01(\fR\x05audio\x12!\n" +
 	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\x12!\n" +
