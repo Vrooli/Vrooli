@@ -546,6 +546,19 @@
         ],
         "clean_requirement": "required"
       },
+      "theme-color-design-token": {
+        "capability_id": "install_surface",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "branding",
+        "severity_default": "SEVERITY_WARNING",
+        "fix_class": "manual",
+        "reason": "A scenario may intentionally use a launch chrome color that differs from the canonical surface token, but that divergence must be documented in DESIGN.md.",
+        "recommended_skill_ids": [
+          "branding"
+        ],
+        "clean_requirement": "required"
+      },
       "ios-statusbar-safe-area": {
         "capability_id": "install_surface",
         "local_level_impact": "L2",

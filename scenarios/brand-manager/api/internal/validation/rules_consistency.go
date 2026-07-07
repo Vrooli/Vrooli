@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"regexp"
 	"strings"
 
 	"brand-manager/internal/brandsurface"
@@ -85,6 +86,69 @@ func ruleThemeColorConsistency(c *scanContext) (Finding, bool) {
 		RecommendedRemediation: "Set the manifest theme_color to match the <meta theme-color> (the page is the source of truth).",
 		Evidence:               map[string]any{"meta_theme_color": meta, "manifest_theme_color": mfColor},
 	}, true
+}
+
+// ruleThemeColorDesignToken flags mobile/browser chrome colors that agree with
+// each other but disagree with the scenario's root DESIGN.md surface token.
+// DESIGN.md is the design language contract; if a scenario intentionally wants
+// launch chrome to diverge, it must document that with the override marker below.
+func ruleThemeColorDesignToken(c *scanContext) (Finding, bool) {
+	design, ok := c.designSurfaceColor()
+	if !ok {
+		return Finding{}, false
+	}
+	if c.designThemeColorOverride() {
+		return Finding{}, false
+	}
+	meta, hasMeta := c.head().metaByName("theme-color")
+	_, obj, _, hasManifest := c.manifest()
+	manifestColor, _ := obj["theme_color"].(string)
+	mismatches := map[string]string{}
+	if hasMeta && !sameColor(meta, design) {
+		mismatches["meta_theme_color"] = strings.TrimSpace(meta)
+	}
+	if hasManifest && strings.TrimSpace(manifestColor) != "" && !sameColor(manifestColor, design) {
+		mismatches["manifest_theme_color"] = strings.TrimSpace(manifestColor)
+	}
+	if len(mismatches) == 0 {
+		return Finding{}, false
+	}
+	return Finding{
+		Severity:               SeverityWarning,
+		Title:                  "theme-color disagrees with the design-kit surface token",
+		Description:            "The declared browser/PWA theme color differs from DESIGN.md's surface color token.",
+		FilePath:               "DESIGN.md",
+		WhyItMatters:           "Mobile browser chrome and launch surfaces should match the scenario's canonical surface color unless a deliberate exception is documented.",
+		RecommendedRemediation: "Set <meta theme-color> and manifest theme_color to the DESIGN.md surface token, or add a DESIGN.md note containing brand-manager:theme-color-token-override with the reason.",
+		Evidence: map[string]any{
+			"design_surface": design,
+			"mismatches":     mismatches,
+		},
+	}, true
+}
+
+const themeColorDesignOverrideMarker = "brand-manager:theme-color-token-override"
+
+var designSurfaceRe = regexp.MustCompile(`(?m)^\s*surface:\s*["']?(#[0-9a-fA-F]{3,8})["']?\s*$`)
+
+func (c *scanContext) designSurfaceColor() (string, bool) {
+	content, ok := c.read("DESIGN.md")
+	if !ok {
+		return "", false
+	}
+	if m := designSurfaceRe.FindStringSubmatch(content); len(m) > 1 {
+		return strings.ToLower(strings.TrimSpace(m[1])), true
+	}
+	return "", false
+}
+
+func (c *scanContext) designThemeColorOverride() bool {
+	content, ok := c.read("DESIGN.md")
+	return ok && strings.Contains(content, themeColorDesignOverrideMarker)
+}
+
+func sameColor(a, b string) bool {
+	return strings.EqualFold(strings.TrimSpace(a), strings.TrimSpace(b))
 }
 
 // templateResidueMarkers are case-insensitive substrings that betray unbranded

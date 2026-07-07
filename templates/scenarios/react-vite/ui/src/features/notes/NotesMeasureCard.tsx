@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -25,27 +26,30 @@ export function NotesMeasureCard() {
   });
 
   return (
-    <section
+    <Card
       data-testid={selectors.notes.measure.card}
       aria-label={t(strings.notes.measure.title)}
-      className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4"
     >
-      <h2 className="text-sm font-medium text-slate-400">{t(strings.notes.measure.title)}</h2>
+      <CardHeader>
+        <CardTitle>{t(strings.notes.measure.title)}</CardTitle>
+      </CardHeader>
+      <CardContent>
       {countQuery.isLoading && (
-        <p data-testid={selectors.notes.measure.loading} className="mt-2 text-slate-200">
+        <p data-testid={selectors.notes.measure.loading} className="text-sm text-app-muted-foreground">
           {t(strings.notes.measure.loading)}
         </p>
       )}
       {countQuery.error && (
-        <p data-testid={selectors.notes.measure.error} className="mt-2 text-red-400">
+        <p data-testid={selectors.notes.measure.error} className="text-sm text-app-danger">
           {errorMessage(countQuery.error, t)}
         </p>
       )}
       {countQuery.data !== undefined && (
-        <p data-testid={selectors.notes.measure.value} className="mt-2 text-2xl font-semibold text-slate-100">
+        <p data-testid={selectors.notes.measure.value} className="text-2xl font-semibold text-app-foreground">
           {t(strings.notes.measure.thisWeek, { count: countQuery.data })}
         </p>
       )}
-    </section>
+      </CardContent>
+    </Card>
   );
 }

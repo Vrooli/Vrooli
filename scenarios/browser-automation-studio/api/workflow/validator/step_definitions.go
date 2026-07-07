@@ -335,6 +335,27 @@ var stepDefinitions = []StepDefinition{
 		CLISupported: false,
 	},
 	{
+		Type:        "gesture",
+		Description: "Run a driver-backed sustained gesture such as swipe/pan, wheel zoom, or pinch for interaction and performance workflows",
+		OptionalKVs: []KVDef{
+			{Key: "gestureType", Type: "string", Description: "Gesture kind: swipe, zoom, pinch, longPress, doubleTap"},
+			{Key: "selector", Type: "string", Description: "CSS selector to anchor the gesture; defaults to viewport center"},
+			{Key: "direction", Type: "string", Description: "Swipe direction: up, down, left, right"},
+			{Key: "distance", Type: "int", Description: "Swipe distance in pixels"},
+			{Key: "durationMs", Type: "int", Description: "Target gesture duration in milliseconds"},
+			{Key: "steps", Type: "int", Description: "Number of driver-level input steps to emit"},
+			{Key: "stepDelayMs", Type: "int", Description: "Delay between input steps in milliseconds"},
+			{Key: "traceLabel", Type: "string", Description: "Stable label for bas.gesture.<label>.start/end performance marks"},
+			{Key: "idleAfterMs", Type: "int", Description: "Idle wait after the gesture so rendering fallout lands in the trace"},
+			{Key: "wheelDeltaY", Type: "int", Description: "Per-step wheel delta for zoom/pinch gestures"},
+			{Key: "ctrlKey", Type: "bool", Description: "Hold Control while emitting wheel input"},
+		},
+		Examples: []StepExample{
+			{Description: "Use workflow JSON for sustained gestures", CLI: "(Use workflow JSON file instead of --step)"},
+		},
+		CLISupported: false,
+	},
+	{
 		Type:        "loop",
 		Description: "Loop over elements or iterations",
 		OptionalKVs: []KVDef{

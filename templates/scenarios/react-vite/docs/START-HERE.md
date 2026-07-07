@@ -21,18 +21,21 @@ durable infrastructure below. In particular:
   example throughout the docs). Build one real domain beside it, prove
   that domain is green, then remove the example with one command:
   `vrooli scenario detemplate <scenario>`.
-- The `AppShell` layout, the centered single-panel home page, the title
-  / description / eyebrow text, and the bare-minimum settings surface
-  are placeholders. They exist so the template boots green; they are
-  **not** a reasonable end-state for your scenario. Replace the shell
-  (or rewrite it heavily) when you build the real UX.
+- The generated shell is durable infrastructure: `min-h-dvh` sizing,
+  overflow-contained main content, fixed safe-area bottom navigation on
+  mobile, desktop sidebar navigation, theme controls, and Settings-owned
+  locale switching. Keep those floors unless your scenario has an explicit
+  experience-spec opt-out.
+- The starter page content and the `notes` domain remain illustrative. Replace
+  them with scenario-specific surfaces once the real product shape is known.
 - Durable seams you should keep: i18n wiring (`SUPPORTED_LOCALES`,
   `useTranslation`, the locale switcher behavior), accessibility
   primitives (`role`, `aria-*`, `data-testid` selectors), the
   design-token plumbing (`bg-app-background`, `rounded-panel`, etc.),
-  and the feature-folder pattern under `ui/src/features/<name>/`. Move
-  these into whatever shell/pages you design — do not delete the
-  behaviors just because you delete the visual placeholder.
+  governed component primitives under `ui/src/components/ui/`, and the
+  feature-folder pattern under `ui/src/features/<name>/`. Move these into
+  whatever shell/pages you design — do not delete the behaviors just because
+  you delete illustrative page content.
 
 Binding contract vs. illustrative example: every reference doc this
 scenario ships with — `DESIGN.md`, `PRD.md`, the placeholder shell,
@@ -284,13 +287,22 @@ governs how they should look and behave, not which ones exist.
 - [ ] Keep `ui/src/design-tokens.css`, `ui/tailwind.theme.json`,
       `ui/tailwind.config.ts`, and reusable `ui/src/components/ui/`
       primitives aligned with `DESIGN.md`.
-- [ ] Replace the placeholder `AppShell` and home page. Design the
-      real shell, navigation, and surfaces your scenario needs.
-      Preserve the durable seams listed above (i18n, locale switcher
-      behavior, accessibility selectors, design tokens) inside
-      whatever new layout you build.
+- [ ] Before creating a new shared UI primitive, search the component
+      canon and adopt what already exists:
+
+```bash
+react-component-library components list --json
+react-component-library adoptions resolve-path <component-id> {{SCENARIO_ID}}
+react-component-library adoptions apply <component-id> {{SCENARIO_ID}} <adopted-path>
+```
+
+      If no governed primitive exists, build the scenario-local component
+      token-bound and record the gap so it can be promoted to the canon later.
+- [ ] Replace illustrative page content with the real surfaces your scenario
+      needs. Preserve the shell floors listed above unless the experience spec
+      has an explicit opt-out.
 - [ ] Audit settings. The placeholder shell ships with the bare
-      minimum (currently just locale switching). Inventory every
+      minimum (currently theme + locale switching). Inventory every
       preference your scenario needs (theme, font scale, locale,
       a11y, account, notifications, scenario-specific toggles) and
       build the full settings surface — do not constrain yourself to
@@ -298,11 +310,11 @@ governs how they should look and behave, not which ones exist.
 - [ ] Do not create `docs/DESIGN_LANGUAGE.md`; root `DESIGN.md` is the
       canonical design contract.
 
-**Exit criteria:** UI work has a reviewed root `DESIGN.md`, the
-placeholder shell has been replaced with scenario-specific layout, the
-settings surface covers everything this scenario actually needs, and
-the global styles, Tailwind theme, primitives, selectors, and
-accessibility tests all point back to the design contract.
+**Exit criteria:** UI work has a reviewed root `DESIGN.md`, scenario-specific
+page content, governed shared primitives where available, a settings surface
+covering everything this scenario actually needs, and global styles, Tailwind
+theme, selectors, experience specs, and accessibility tests all pointing back
+to the design contract.
 
 ### Gate 5a — Experience Contract
 

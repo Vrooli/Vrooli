@@ -408,3 +408,67 @@ func TestBuildShortcutParams_WithSelector(t *testing.T) {
 		t.Errorf("expected selector '#editor', got %v", p.Selector)
 	}
 }
+
+func TestBuildGestureParams_SustainedSwipe(t *testing.T) {
+	p := BuildGestureParams(map[string]any{
+		"gesture_type":  "GESTURE_TYPE_SWIPE",
+		"selector":      "[data-testid='graph-canvas']",
+		"direction":     "SWIPE_DIRECTION_RIGHT",
+		"distance":      float64(560),
+		"duration_ms":   float64(1000),
+		"steps":         float64(40),
+		"step_delay_ms": float64(25),
+		"trace_label":   "graph-sustained-pan",
+		"idle_after_ms": float64(220),
+	})
+
+	if got := p.GetGestureType(); got != basactions.GestureType_GESTURE_TYPE_SWIPE {
+		t.Fatalf("gesture_type = %v", got)
+	}
+	if got := p.GetDirection(); got != basactions.SwipeDirection_SWIPE_DIRECTION_RIGHT {
+		t.Fatalf("direction = %v", got)
+	}
+	if got := p.GetSelector(); got != "[data-testid='graph-canvas']" {
+		t.Fatalf("selector = %q", got)
+	}
+	if got := p.GetDistance(); got != 560 {
+		t.Fatalf("distance = %d", got)
+	}
+	if got := p.GetDurationMs(); got != 1000 {
+		t.Fatalf("duration_ms = %d", got)
+	}
+	if got := p.GetSteps(); got != 40 {
+		t.Fatalf("steps = %d", got)
+	}
+	if got := p.GetStepDelayMs(); got != 25 {
+		t.Fatalf("step_delay_ms = %d", got)
+	}
+	if got := p.GetTraceLabel(); got != "graph-sustained-pan" {
+		t.Fatalf("trace_label = %q", got)
+	}
+	if got := p.GetIdleAfterMs(); got != 220 {
+		t.Fatalf("idle_after_ms = %d", got)
+	}
+}
+
+func TestBuildGestureParams_WheelZoom(t *testing.T) {
+	p := BuildGestureParams(map[string]any{
+		"gestureType": "zoom",
+		"wheelDeltaY": float64(-150),
+		"ctrlKey":     true,
+		"scale":       1.2,
+	})
+
+	if got := p.GetGestureType(); got != basactions.GestureType_GESTURE_TYPE_ZOOM {
+		t.Fatalf("gesture_type = %v", got)
+	}
+	if got := p.GetWheelDeltaY(); got != -150 {
+		t.Fatalf("wheel_delta_y = %d", got)
+	}
+	if !p.GetCtrlKey() {
+		t.Fatal("ctrl_key = false")
+	}
+	if got := p.GetScale(); got != 1.2 {
+		t.Fatalf("scale = %v", got)
+	}
+}

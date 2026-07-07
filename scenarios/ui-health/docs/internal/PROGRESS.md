@@ -11,6 +11,7 @@ work lands, not while work is still speculative.
 | Date | Author | Status | Notes |
 |---|---|---|---|
 | 2026-06-16 | Codex | done | Adopted the shared health maturity assessment contract for UI Health. Added `.vrooli/maturity.json`, emitted `common.v1.MaturityAssessment` from `ValidateScenario`, rendered local maturity in CLI human output, and preserved local maturity in Test Genie ui-health phase summaries. |
+| 2026-07-07 | Codex | done | Added component-canon static detectors for unused exported components and raw primitive overuse, wired their maturity mappings, and expanded runtime visual validation to desktop plus mobile viewport profiles. |
 
 ## Entry Template
 

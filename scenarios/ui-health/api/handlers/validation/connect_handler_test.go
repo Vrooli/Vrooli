@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log"
-	"os"
 	"path/filepath"
 	"runtime"
 	"testing"

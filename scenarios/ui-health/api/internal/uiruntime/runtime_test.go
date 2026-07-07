@@ -70,14 +70,22 @@ func TestCheckHandshakePasses(t *testing.T) {
 	bas := &fakeBAS{res: &runResult{loaded: true, handshakeSignaled: true, screenshotRef: "captured"}}
 	r := newRunner("http://localhost:5173", nil, bas)
 	finds := r.Check(context.Background(), Input{Scenario: "demo"})
-	if len(finds) != 1 || finds[0].Code != "runtime_render_ok" {
+	if len(finds) != 2 || finds[0].Code != "runtime_render_ok" || finds[1].Code != "runtime_render_ok" {
 		t.Fatalf("want runtime_render_ok, got %v", codes(finds))
 	}
 	if finds[0].Severity != manifestvalidation.SeverityInfo {
 		t.Fatalf("pass must be informational, got %s", finds[0].Severity)
 	}
-	if len(bas.defs) != 1 {
-		t.Fatalf("expected one workflow run, got %d", len(bas.defs))
+	if len(bas.defs) != 2 {
+		t.Fatalf("expected desktop and mobile workflow runs, got %d", len(bas.defs))
+	}
+	settings, ok := bas.defs[1]["settings"].(map[string]any)
+	if !ok {
+		t.Fatalf("mobile workflow missing settings: %#v", bas.defs[1]["settings"])
+	}
+	viewport, ok := settings["viewport"].(map[string]any)
+	if !ok || viewport["width"] != 390 || viewport["height"] != 844 {
+		t.Fatalf("mobile viewport = %#v, want 390x844", viewport)
 	}
 }
 
@@ -196,7 +204,8 @@ func TestCheckConsoleErrorsSurfaceAsWarningAlongsidePass(t *testing.T) {
 	}}
 	r := newRunner("http://localhost:5173", nil, bas)
 	got := codes(r.Check(context.Background(), Input{Scenario: "demo"}))
-	if len(got) != 2 || got[0] != "runtime_render_ok" || got[1] != "runtime_console_errors" {
+	if len(got) != 4 || got[0] != "runtime_render_ok" || got[1] != "runtime_console_errors" ||
+		got[2] != "runtime_render_ok" || got[3] != "runtime_console_errors" {
 		t.Fatalf("want [runtime_render_ok runtime_console_errors], got %v", got)
 	}
 }

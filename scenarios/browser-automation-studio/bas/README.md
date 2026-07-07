@@ -36,6 +36,28 @@ BAS workflows live under `bas/` and are hierarchical: **actions** are the smalle
 9. Regenerate `registry.json` after edits and confirm ordering with `browser-automation-studio playbooks order`.
 10. If a workflow depends on seeded data, add `metadata.labels.seed_required = "true"`. Optionally set `metadata.labels.seed_keys` (comma-separated) to declare required seed fields (e.g., `projectId,workflowId`).
 
+## Performance Gestures
+For performance workflows, prefer `ACTION_TYPE_GESTURE` over `ACTION_TYPE_EVALUATE` with manually dispatched DOM events. Gesture nodes are driver-backed, can emit sustained input with `steps` plus `step_delay_ms`, and add stable user-timing marks when `trace_label` is set:
+
+```json
+{
+  "type": "ACTION_TYPE_GESTURE",
+  "gesture": {
+    "gesture_type": "GESTURE_TYPE_SWIPE",
+    "selector": "[data-testid='canvas']",
+    "direction": "SWIPE_DIRECTION_RIGHT",
+    "distance": 520,
+    "duration_ms": 900,
+    "steps": 36,
+    "step_delay_ms": 25,
+    "trace_label": "canvas-sustained-pan",
+    "idle_after_ms": 150
+  }
+}
+```
+
+Zoom/pinch gestures use real wheel input. Set `wheel_delta_y` and `ctrl_key` when the target app treats trackpad-style zoom as Control+wheel. Trace markers use `bas.gesture.<trace_label>.start` and `.end`.
+
 ## CLI Helpers
 - `browser-automation-studio playbooks scaffold <folder> <name>` creates a stub workflow under `bas/`.
 - `browser-automation-studio playbooks verify` flags folders missing two-digit prefixes.

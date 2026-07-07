@@ -51,6 +51,7 @@ var specs = []ruleSpec{
 	// Phase 2 — cross-surface consistency + template residue.
 	{id: "name-consistency", surfaces: []surface{surfaceUI}, eval: ruleNameConsistency},
 	{id: "theme-color-consistency", surfaces: []surface{surfaceUI}, eval: ruleThemeColorConsistency},
+	{id: "theme-color-design-token", surfaces: []surface{surfaceUI}, eval: ruleThemeColorDesignToken},
 	{id: "no-template-residue", surfaces: []surface{surfaceUI}, eval: ruleNoTemplateResidue},
 
 	// Phase 3 — brand asset quality (detect-only; image re-encode is non-deterministic here).

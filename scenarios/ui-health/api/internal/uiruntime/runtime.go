@@ -18,6 +18,17 @@ import (
 
 const basScenarioID = "browser-automation-studio"
 
+type viewportProfile struct {
+	id     string
+	width  int
+	height int
+}
+
+var runtimeViewportProfiles = []viewportProfile{
+	{id: "desktop", width: defaultViewportWidth, height: defaultViewportHeight},
+	{id: "mobile", width: 390, height: 844},
+}
+
 // Runner is the production runtime/render Checker. It resolves the target UI,
 // drives the iframe-bridge handshake workflow on BAS, and maps the verdict to
 // findings. Missing infrastructure degrades to skipped findings.
@@ -63,27 +74,36 @@ func (r *Runner) Check(ctx context.Context, in Input) []manifestvalidation.Findi
 		)}
 	}
 
-	def := buildHandshakeWorkflow(url, nil, 0, 0, 0)
-	res, err := r.bas.Run(ctx, def)
-	if err != nil {
-		return []manifestvalidation.Finding{skip(
-			"runtime_skipped_bas_unavailable",
-			url,
-			"runtime render skipped: browser-automation-studio is unavailable; static checks still ran",
-		)}
+	var all []manifestvalidation.Finding
+	for _, profile := range runtimeViewportProfiles {
+		def := buildHandshakeWorkflow(url, nil, 0, profile.width, profile.height)
+		res, err := r.bas.Run(ctx, def)
+		if err != nil {
+			return []manifestvalidation.Finding{skip(
+				"runtime_skipped_bas_unavailable",
+				url,
+				"runtime render skipped: browser-automation-studio is unavailable; static checks still ran",
+			)}
+		}
+		ev := res.evidenceFor(url)
+		visualFinds := applyVisualHealth(&ev, res.visualStep(url, profile.id))
+		finds := findingsFromEvidence(ev, profile.id)
+		all = append(all, finds...)
+		all = append(all, visualFinds...)
 	}
-	ev := res.evidenceFor(url)
-	visualFinds := applyVisualHealth(&ev, res.visualStep(url))
-	finds := findingsFromEvidence(ev)
-	return append(finds, visualFinds...)
+	return all
 }
 
-func (r *runResult) visualStep(url string) *visualpb.VisualStepArtifact {
+func (r *runResult) visualStep(url, profileID string) *visualpb.VisualStepArtifact {
+	stepID := "runtime-render"
+	if profileID != "" {
+		stepID += "-" + profileID
+	}
 	if r == nil {
-		return &visualpb.VisualStepArtifact{StepId: "runtime-render", Url: url}
+		return &visualpb.VisualStepArtifact{StepId: stepID, Url: url}
 	}
 	step := &visualpb.VisualStepArtifact{
-		StepId:        "runtime-render",
+		StepId:        stepID,
 		Url:           url,
 		ScreenshotPng: r.screenshotPNG,
 		DomHtml:       r.domHTML,
@@ -148,22 +168,26 @@ func visualFindingToManifest(finding *visualpb.VisualFinding) manifestvalidation
 }
 
 // findingsFromEvidence runs the shared verdict and maps it to ui-health findings.
-func findingsFromEvidence(ev evidence.Evidence) []manifestvalidation.Finding {
+func findingsFromEvidence(ev evidence.Evidence, profileID string) []manifestvalidation.Finding {
 	v := evidence.Analyze(ev)
+	profileSuffix := ""
+	if profileID != "" {
+		profileSuffix = " [" + profileID + "]"
+	}
 	var finds []manifestvalidation.Finding
 	if v.Passed() {
 		finds = append(finds, manifestvalidation.Finding{
 			Severity: manifestvalidation.SeverityInfo,
 			Code:     "runtime_render_ok",
 			Location: ev.URL,
-			Message:  fmt.Sprintf("UI rendered and the iframe-bridge handshake succeeded (%s)", ev.URL),
+			Message:  fmt.Sprintf("UI rendered and the iframe-bridge handshake succeeded%s (%s)", profileSuffix, ev.URL),
 		})
 	} else {
 		finds = append(finds, manifestvalidation.Finding{
 			Severity:   manifestvalidation.SeverityError,
 			Code:       codeForFailure(ev),
 			Location:   ev.URL,
-			Message:    v.Message,
+			Message:    strings.TrimSpace(v.Message + profileSuffix),
 			Suggestion: remediationFor(ev),
 		})
 	}

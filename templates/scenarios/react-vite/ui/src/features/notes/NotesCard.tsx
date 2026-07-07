@@ -2,8 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { MessageInitShape } from "@bufbuild/protobuf";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { CreateNoteRequestSchema } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/notes/notes_pb";
+import type { Note } from "../../api/notes";
 
 import { Button } from "../../components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { DataTable, type DataTableColumn } from "../../components/ui/data-table";
+import { EmptyState } from "../../components/ui/empty-state";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { formatDate } from "../../i18n/format";
@@ -47,63 +51,95 @@ export function NotesCard() {
     });
   };
 
+  const columns: Array<DataTableColumn<Note>> = [
+    {
+      id: "title",
+      header: t(strings.notes.table.title),
+      accessor: (note) => <span className="font-medium">{note.title}</span>,
+      sortValue: (note) => note.title,
+      searchValue: (note) => note.title,
+    },
+    {
+      id: "created",
+      header: t(strings.notes.table.created),
+      accessor: (note) => note.createdAt && (
+        <span data-testid={selectors.notes.createdAt}>
+          {formatDate(timestampDate(note.createdAt), {
+            dateStyle: "medium",
+            timeStyle: "short",
+          })}
+        </span>
+      ),
+      sortValue: (note) => note.createdAt ? timestampDate(note.createdAt).getTime() : 0,
+      searchValue: (note) => note.createdAt ? timestampDate(note.createdAt).toISOString() : "",
+    },
+    {
+      id: "attachments",
+      header: t(strings.notes.table.attachments),
+      accessor: (note) => (
+        <span data-testid={selectors.notes.attachmentCount}>
+          {t(strings.notes.attachmentsLabel, { count: note.attachmentKeys.length })}
+        </span>
+      ),
+      sortValue: (note) => note.attachmentKeys.length,
+      searchValue: (note) => String(note.attachmentKeys.length),
+    },
+    {
+      id: "upload",
+      header: t(strings.notes.table.actions),
+      accessor: (note) => <AttachmentUpload noteId={note.id} />,
+    },
+  ];
+
   return (
-    <section
+    <Card
       data-testid={selectors.notes.card}
       aria-label={t(strings.notes.title)}
-      className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4"
     >
-      <h2 className="text-sm font-medium text-slate-400">{t(strings.notes.title)}</h2>
+      <CardHeader className="flex-row items-center justify-between gap-3">
+        <CardTitle>{t(strings.notes.title)}</CardTitle>
+        <Button
+          data-testid={selectors.notes.createButton}
+          size="sm"
+          onClick={handleCreateNote}
+          disabled={createNoteMutation.isPending}
+        >
+          {t(strings.notes.create)}
+        </Button>
+      </CardHeader>
+      <CardContent>
       {notesQuery.isLoading && (
-        <p data-testid={selectors.notes.loading} className="mt-2 text-slate-200">
+        <p data-testid={selectors.notes.loading} className="text-sm text-app-muted-foreground">
           {t(strings.notes.loading)}
         </p>
       )}
       {notesQuery.error && (
-        <p data-testid={selectors.notes.error} className="mt-2 text-red-400">
+        <p data-testid={selectors.notes.error} className="text-sm text-app-danger">
           {errorMessage(notesQuery.error, t)}
         </p>
       )}
       {notesQuery.data && notesQuery.data.notes.length === 0 && (
-        <p data-testid={selectors.notes.empty} className="mt-2 text-slate-200">
-          {t(strings.notes.empty)}
-        </p>
+        <div data-testid={selectors.notes.empty}>
+          <EmptyState title={t(strings.notes.empty)} />
+        </div>
       )}
       {notesQuery.data && notesQuery.data.notes.length > 0 && (
-        <ul data-testid={selectors.notes.list} className="mt-2 space-y-1 text-sm text-slate-200">
-          {notesQuery.data.notes.map((note) => (
-            <li key={note.id} className="rounded-lg border border-white/10 p-3">
-              <div className="font-medium">{note.title}</div>
-              {note.createdAt && (
-                <div data-testid={selectors.notes.createdAt} className="mt-1 text-xs text-slate-400">
-                  {t(strings.notes.createdAtLabel)}{" "}
-                  {formatDate(timestampDate(note.createdAt), {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  })}
-                </div>
-              )}
-              <div data-testid={selectors.notes.attachmentCount} className="mt-1 text-xs text-slate-400">
-                {t(strings.notes.attachmentsLabel, { count: note.attachmentKeys.length })}
-              </div>
-              <AttachmentUpload noteId={note.id} />
-            </li>
-          ))}
-        </ul>
+        <DataTable
+          rows={notesQuery.data.notes}
+          columns={columns}
+          getRowKey={(note) => note.id}
+          caption={t(strings.notes.title)}
+          searchPlaceholder={t(strings.notes.table.search)}
+          emptyMessage={t(strings.notes.empty)}
+          tableTestId={selectors.notes.list}
+        />
       )}
-      <Button
-        data-testid={selectors.notes.createButton}
-        className="mt-4"
-        onClick={handleCreateNote}
-        disabled={createNoteMutation.isPending}
-      >
-        {t(strings.notes.create)}
-      </Button>
       {createNoteMutation.error && (
-        <p data-testid={selectors.notes.error} className="mt-2 text-red-400">
+        <p data-testid={selectors.notes.error} className="mt-3 text-sm text-app-danger">
           {errorMessage(createNoteMutation.error, t)}
         </p>
       )}
-    </section>
+      </CardContent>
+    </Card>
   );
 }

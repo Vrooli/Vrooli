@@ -16,8 +16,10 @@ export function NotesPage() {
       <h2 id="notes-heading" className="text-2xl font-semibold">
         {t(strings.pages.notes.title)}
       </h2>
-      <NotesMeasureCard />
-      <NotesCard />
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
+        <NotesMeasureCard />
+        <NotesCard />
+      </div>
     </section>
   );
 }

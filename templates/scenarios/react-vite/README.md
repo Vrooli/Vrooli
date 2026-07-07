@@ -34,6 +34,10 @@ the standard full-stack Vrooli scenario shape:
   standalone-mode mobile tags, proxy-safe relative install asset URLs,
   a minimal app-shell service worker, safe-area CSS tokens, and generic
   placeholder icons ready for scenario-specific replacement.
+- Canonical responsive shell plus adopted-provenance UI primitives from
+  `react-component-library` for common shared surfaces such as buttons,
+  cards, data tables, empty states, inputs, selects, status badges, sidebar
+  shell, and bottom navigation.
 - Root-level `DESIGN.md` plus generated UI token assets from the
   selected design kit.
 - Generated `experience/` L0 specs for the starter routes. These are UX
@@ -50,8 +54,9 @@ the real UX, treat these as **placeholders** to replace:
 
 - The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
   slice meant to be copied once and then deleted.
-- The `AppShell` and the centered single-panel home page in `ui/src/`.
-- The bare-minimum settings surface (currently just locale switching).
+- Starter page content such as the dashboard metric placeholders.
+- The bare-minimum settings surface once your scenario needs more than
+  theme and locale.
 
 Treat these as **durable seams** to preserve, even as you rewrite the
 visual layout:
@@ -59,6 +64,11 @@ visual layout:
 - i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
 - Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
 - Design tokens (`bg-app-background`, `rounded-panel`, etc.).
+- Adopted shared UI primitives under `ui/src/components/ui/`; prefer
+  `react-component-library adoptions apply` over hand-rolling a new primitive.
+- The responsive shell floors: full viewport height, overflow-contained main
+  content, desktop sidebar, fixed safe-area mobile bottom nav, and Settings
+  ownership of locale switching.
 - The feature-folder pattern under `ui/src/features/<name>/`.
 - The proto → API → CLI → UI vertical-slice shape.
 

@@ -41,6 +41,26 @@ should land at `ui/src/layout/SidebarShell.tsx`. Override the slot's `dir` in
 a scenario-level overlay if you've reorganized; the resolver will pick up the
 new path automatically.
 
+## Component Canon
+
+Generated scenarios start with a small adopted-provenance canon under
+`ui/src/components/ui/`: button, card, data table, empty state, input, select,
+status badge, sidebar shell, and bottom navigation. Each file carries a
+`@vrooliComponent*` JSDoc block so ui-health and react-component-library can
+classify the surface as governed rather than unknown local code.
+
+When adding a shared component, search and adopt from the registry first:
+
+```bash
+react-component-library components list --json
+react-component-library adoptions resolve-path <component-id> {{SCENARIO_ID}}
+react-component-library adoptions apply <component-id> {{SCENARIO_ID}} <adopted-path>
+```
+
+Use scenario-local custom components for genuinely scenario-specific surfaces,
+not for generic tables, buttons, navigation shells, form controls, or status
+badges that the canon already provides.
+
 ## Adoption Resolver Flow
 
 1. Library declares the component's slot (e.g. `"slot": "layout-nav"`).

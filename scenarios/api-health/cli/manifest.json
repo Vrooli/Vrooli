@@ -44,7 +44,7 @@
             { "name": "path", "description": "Optional explicit scenario path for generated fixtures or external targets" }
           ],
           "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "ApplyFix" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["filesystem:target-scenario"] }
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["filesystem:write"] }
         }
       ]
     }

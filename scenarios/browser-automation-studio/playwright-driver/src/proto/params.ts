@@ -693,6 +693,12 @@ export function getGestureParams(action: ActionDefinition): {
   distance?: number;
   scale?: number;
   durationMs?: number;
+  steps?: number;
+  stepDelayMs?: number;
+  traceLabel?: string;
+  idleAfterMs?: number;
+  wheelDeltaY?: number;
+  ctrlKey?: boolean;
 } | undefined {
   if (action.params?.case === 'gesture' && action.params.value) {
     const p = action.params.value;
@@ -703,6 +709,12 @@ export function getGestureParams(action: ActionDefinition): {
       distance: p.distance,
       scale: p.scale,
       durationMs: p.durationMs,
+      steps: p.steps,
+      stepDelayMs: p.stepDelayMs,
+      traceLabel: p.traceLabel,
+      idleAfterMs: p.idleAfterMs,
+      wheelDeltaY: p.wheelDeltaY,
+      ctrlKey: p.ctrlKey,
     };
   }
   return undefined;

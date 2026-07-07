@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "health-endpoint",
     "description": "Static and live validation of the standard /health API readiness surface.",
+    "last_validated_at": "2026-07-06T14:17:52-04:00",
+    "module": "health-endpoint",
     "prd_ref": "OT-P0-003",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,17 +11,20 @@
     {
       "id": "APIH-HEALTH-001",
       "title": "Root health endpoint exists and is an ops probe",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "api",
       "criticality": "P0",
       "description": "Static validation confirms the API exposes root /health as the lifecycle probe and treats optional /api/v1/health as additional client convenience, not a replacement.",
-      "tags": ["health", "ops-probe"],
+      "tags": [
+        "health",
+        "ops-probe"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "passing",
+          "status": "failing",
           "notes": "Covered by api/internal/validation/lifecycle_test.go and service health metadata checks: root /health must be declared as the API lifecycle endpoint and HTTP health check target."
         }
       ]
@@ -28,17 +32,21 @@
     {
       "id": "APIH-HEALTH-002",
       "title": "Live health probe validates bounded schema",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "execution",
       "criticality": "P0",
       "description": "When execution is requested, API Health resolves the target through lifecycle, calls the configured API health URL once within a timeout, validates JSON content type and the api-core health response fields, and records probe evidence in native detail.",
-      "tags": ["live-probe", "schema", "execution"],
+      "tags": [
+        "live-probe",
+        "schema",
+        "execution"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "passing",
+          "status": "failing",
           "notes": "Implemented in api/internal/validation/health_probe.go with httptest coverage in api/internal/validation/health_probe_test.go for healthy, degraded, unhealthy, timeout, non-JSON, malformed JSON, and unreachable service."
         }
       ]
@@ -46,17 +54,20 @@
     {
       "id": "APIH-HEALTH-003",
       "title": "Readiness semantics are consistent with status",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "api",
       "criticality": "P0",
       "description": "The validator reports inconsistent health payloads, such as status=unhealthy with readiness=true or missing dependency details for declared critical resources.",
-      "tags": ["readiness", "dependencies"],
+      "tags": [
+        "readiness",
+        "dependencies"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "passing",
+          "status": "failing",
           "notes": "Covered by api/internal/validation/health_probe_test.go schema-invalid cases; the probe validates status/readiness consistency, RFC3339 timestamp, service, expected HTTP status, and disconnected dependency error details."
         }
       ]

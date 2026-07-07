@@ -1,7 +1,7 @@
 /**
  * AppShell tests — focus on the shell's structural contract (header + sidebar
- * + main + bottom nav) and the locale switcher seam. Page content is exercised
- * in the per-page tests; this file only verifies the shell composes correctly.
+ * + main + bottom nav) and compact header. Page content is exercised in the
+ * per-page tests; this file only verifies the shell composes correctly.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
@@ -33,16 +33,14 @@ describe("AppShell structure (cimode)", () => {
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
   });
 
-  it("renders the locale switcher with toggles for every supported locale", () => {
+  it("keeps locale switching out of the header chrome", () => {
     renderShell();
-    expect(screen.getByTestId(selectors.locale.switcher)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.locale.toggle({ code: "en" }))).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.locale.toggle({ code: "ja" }))).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.locale.toggle({ code: "ar" }))).toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.settingsPage.localeOption({ code: "en" }))).not.toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.settingsPage.localeOption({ code: "ja" }))).not.toBeInTheDocument();
   });
 
   it("renders the canonical nav links in both sidebar and bottom nav", () => {
-    renderShell();
+    renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
     for (const key of ["dashboard", "notes", "settings"] as const) {
       expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();
       expect(screen.getByTestId(selectors.layout.bottomNavLink({ key }))).toBeInTheDocument();
@@ -69,8 +67,8 @@ describe("Locale switching through the shell (real locales)", () => {
 
   it("switches to Japanese when the 日本語 toggle is clicked", async () => {
     const user = userEvent.setup();
-    renderShell();
-    await user.click(screen.getByTestId(selectors.locale.toggle({ code: "ja" })));
+    renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
+    await user.click(screen.getByTestId(selectors.settingsPage.localeOption({ code: "ja" })));
 
     await waitFor(() => {
       expect(screen.getAllByText(ja.layout.nav.dashboard).length).toBeGreaterThan(0);
@@ -80,8 +78,8 @@ describe("Locale switching through the shell (real locales)", () => {
 
   it("flips <html dir> to rtl when an RTL locale (ar) is chosen", async () => {
     const user = userEvent.setup();
-    renderShell();
-    await user.click(screen.getByTestId(selectors.locale.toggle({ code: "ar" })));
+    renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
+    await user.click(screen.getByTestId(selectors.settingsPage.localeOption({ code: "ar" })));
 
     await waitFor(() => {
       expect(document.documentElement.dir).toBe("rtl");

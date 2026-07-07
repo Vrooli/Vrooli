@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 import { Button } from "../../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { StatusBadge } from "../../components/ui/status-badge";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { formatDate } from "../../i18n/format";
@@ -33,61 +35,75 @@ export function HealthCard() {
   };
 
   return (
-    <div
+    <Card
       data-testid={selectors.health.card}
-      className="mt-6 rounded-xl border border-white/10 bg-black/20 p-4"
+      className="h-full"
     >
-      <p className="text-sm font-medium text-slate-400">{t(strings.health.title)}</p>
-      {isLoading && (
-        <p data-testid={selectors.health.loading} className="mt-2 text-slate-200">
-          {t(strings.health.loading)}
-        </p>
-      )}
-      {error && (
-        <p data-testid={selectors.health.error} className="mt-2 text-red-400">
-          {t(strings.health.error)}
-        </p>
-      )}
-      {data && (
-        <div className="mt-2 text-sm text-slate-200">
-          <p>
-            {t(strings.health.statusLabel)}{" "}
-            <span data-testid={selectors.health.statusValue}>{data.status}</span>
-          </p>
-          <p>
-            {t(strings.health.serviceLabel)}{" "}
-            <span data-testid={selectors.health.serviceValue}>{data.service}</span>
-          </p>
-          <p>
-            {t(strings.health.timestampLabel)}{" "}
-            <span data-testid={selectors.health.timestampValue}>
-              {formatDate(new Date(data.timestamp), { dateStyle: "medium", timeStyle: "short" })}
-            </span>
-          </p>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle>{t(strings.health.title)}</CardTitle>
+            <CardDescription>{t(strings.pages.dashboard.description)}</CardDescription>
+          </div>
+          {data && (
+            <StatusBadge tone={data.status === "ok" ? "success" : "warning"}>
+              <span data-testid={selectors.health.statusValue}>{data.status}</span>
+            </StatusBadge>
+          )}
         </div>
-      )}
-      <Button
-        data-testid={selectors.health.refreshButton}
-        className="mt-4"
-        onClick={handleRefresh}
-      >
-        {t(strings.health.refresh)}
-        <ArrowRight aria-hidden="true" className="ms-2 h-4 w-4" />
-      </Button>
-      {refreshCount > 0 && (
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {isLoading && (
+          <p data-testid={selectors.health.loading} className="text-sm text-app-muted-foreground">
+            {t(strings.health.loading)}
+          </p>
+        )}
+        {error && (
+          <p data-testid={selectors.health.error} className="text-sm text-app-danger">
+            {t(strings.health.error)}
+          </p>
+        )}
+        {data && (
+          <dl className="grid gap-2 text-sm md:grid-cols-2">
+            <div>
+              <dt className="text-app-muted-foreground">{t(strings.health.serviceLabel)}</dt>
+              <dd data-testid={selectors.health.serviceValue} className="font-medium">
+                {data.service}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-app-muted-foreground">{t(strings.health.timestampLabel)}</dt>
+              <dd data-testid={selectors.health.timestampValue} className="font-medium">
+                {formatDate(new Date(data.timestamp), { dateStyle: "medium", timeStyle: "short" })}
+              </dd>
+            </div>
+          </dl>
+        )}
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            data-testid={selectors.health.refreshButton}
+            variant="secondary"
+            onClick={handleRefresh}
+          >
+            <RefreshCw aria-hidden="true" className="h-4 w-4" />
+            {t(strings.health.refresh)}
+          </Button>
+          {refreshCount > 0 && (
+            <p
+              data-testid={selectors.health.refreshCount}
+              className="text-xs text-app-muted-foreground"
+            >
+              {t(strings.health.refreshCount, { count: refreshCount })}
+            </p>
+          )}
+        </div>
         <p
-          data-testid={selectors.health.refreshCount}
-          className="mt-2 text-xs text-slate-500"
+          data-testid={selectors.notifications.summary}
+          className="text-xs text-app-muted-foreground"
         >
-          {t(strings.health.refreshCount, { count: refreshCount })}
+          {t(strings.notifications.summary, { count: refreshCount })}
         </p>
-      )}
-      <p
-        data-testid={selectors.notifications.summary}
-        className="mt-2 text-xs text-slate-500"
-      >
-        {t(strings.notifications.summary, { count: refreshCount })}
-      </p>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

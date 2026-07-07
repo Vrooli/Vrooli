@@ -57,6 +57,13 @@
     "create": "ノートを作成",
     "createdAtLabel": "作成:",
     "attachmentsLabel": "添付ファイル {{count}} 件",
+    "table": {
+      "title": "タイトル",
+      "created": "作成日",
+      "attachments": "添付",
+      "actions": "操作",
+      "search": "ノートを検索"
+    },
     "uploadAttachment": "添付ファイルをアップロード",
     "attachmentFileLabel": "添付ファイル",
     "uploadSuccess": "{{name}} をアップロードしました。",

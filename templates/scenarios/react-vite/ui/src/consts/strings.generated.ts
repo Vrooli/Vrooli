@@ -73,10 +73,22 @@ export const strings = {
     createdAtLabel: "notes.createdAtLabel",
     attachmentsLabel: "notes.attachmentsLabel",
     attachmentsLabel_one: "notes.attachmentsLabel_one",
+    table: {
+      title: "notes.table.title",
+      created: "notes.table.created",
+      attachments: "notes.table.attachments",
+      actions: "notes.table.actions",
+      search: "notes.table.search",
+    },
     uploadAttachment: "notes.uploadAttachment",
     attachmentFileLabel: "notes.attachmentFileLabel",
     uploadSuccess: "notes.uploadSuccess",
     noFileSelected: "notes.noFileSelected",
+    measure: {
+      title: "notes.measure.title",
+      loading: "notes.measure.loading",
+      thisWeek: "notes.measure.thisWeek",
+    },
   },
   errors: {
     canceled: "errors.canceled",

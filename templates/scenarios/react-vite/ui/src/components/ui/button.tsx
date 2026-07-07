@@ -1,35 +1,61 @@
-import { Slot } from "@radix-ui/react-slot";
-import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "../../lib/utils";
+/**
+ * @vrooliComponentSource react-component-library:Button
+ * @vrooliComponentVersion 1.1.0
+ * @vrooliComponentAdoption template:react-vite:button
+ * @vrooliComponentAppliedAt 2026-07-07T00:00:00Z
+ * @vrooliComponentSourceSha256 b6bbd7fb599bb343de5ea50d9ddbddebba1c6d905f795ebd1531ade11b0dda2c
+ * @vrooliComponentDriftHash b6bbd7fb599bb343de5ea50d9ddbddebba1c6d905f795ebd1531ade11b0dda2c
+ *
+ * This file was copied from React Component Library. Local edits are allowed;
+ * run "react-component-library adoptions refresh" to inspect drift.
+ */
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-control text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50 disabled:pointer-events-none disabled:opacity-60",
-  {
-    variants: {
-      variant: {
-        default: "bg-app-primary text-app-primary-foreground hover:brightness-95",
-        outline: "border border-app-border text-app-foreground hover:bg-app-surface-muted"
-      },
-      size: {
-        default: "h-11 px-5",
-        sm: "h-9 px-4"
-      }
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default"
-    }
-  }
-);
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+type ButtonSize = "sm" | "md" | "icon";
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
-  asChild?: boolean;
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  children: ReactNode;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
 }
 
-export function Button({ className, variant, size, asChild = false, ...props }: ButtonProps) {
-  const Comp = asChild ? Slot : "button";
+const joinClasses = (...classes: Array<string | undefined | false>) =>
+  classes.filter(Boolean).join(" ");
 
-  return <Comp className={cn(buttonVariants({ variant, size, className }))} {...props} />;
+const variantClasses: Record<ButtonVariant, string> = {
+  primary: "bg-app-primary text-app-primary-foreground hover:brightness-95",
+  secondary: "border border-app-border bg-app-surface text-app-foreground hover:bg-app-surface-muted",
+  ghost: "text-app-foreground hover:bg-app-surface-muted",
+  danger: "bg-app-danger text-app-primary-foreground hover:brightness-95",
+};
+
+const sizeClasses: Record<ButtonSize, string> = {
+  sm: "min-h-9 px-3 text-sm",
+  md: "min-h-11 px-4 text-sm",
+  icon: "min-h-11 min-w-11 p-0",
+};
+
+export function Button({
+  children,
+  className,
+  size = "md",
+  type = "button",
+  variant = "primary",
+  ...props
+}: ButtonProps) {
+  return (
+    <button
+      type={type}
+      className={joinClasses(
+        "inline-flex items-center justify-center gap-2 rounded-control font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50 disabled:pointer-events-none disabled:opacity-60",
+        variantClasses[variant],
+        sizeClasses[size],
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  );
 }

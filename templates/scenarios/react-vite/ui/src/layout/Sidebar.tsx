@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 
+import { SidebarShell } from "../components/ui/sidebar-shell";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
@@ -16,12 +17,22 @@ export function Sidebar() {
   const { t } = useTranslation();
 
   return (
-    <nav
-      data-testid={selectors.layout.sidebar}
-      aria-label={t(strings.layout.sidebarLabel)}
-      className="hidden h-full w-56 shrink-0 flex-col gap-1 border-r border-app-border bg-app-surface p-4 md:flex"
+    <SidebarShell
+      mode="persistent"
+      mobileOpen={false}
+      onMobileClose={() => undefined}
+      mobileLabel={t(strings.layout.sidebarLabel)}
+      desktopLabel={t(strings.layout.sidebarLabel)}
+      closeLabel={t(strings.layout.sidebarLabel)}
+      className="hidden w-56 md:flex"
+      contentClassName="p-4"
     >
-      <p className="px-2 pb-2 text-xs uppercase tracking-wide text-app-muted-foreground">
+      <nav
+        data-testid={selectors.layout.sidebar}
+        aria-label={t(strings.layout.sidebarLabel)}
+        className="flex flex-col gap-1"
+      >
+      <p className="px-2 pb-2 text-xs uppercase text-app-muted-foreground">
         {t(strings.layout.sidebarLabel)}
       </p>
       {NAV_ITEMS.map((item) => (
@@ -42,6 +53,7 @@ export function Sidebar() {
           {t(item.labelKey)}
         </NavLink>
       ))}
-    </nav>
+      </nav>
+    </SidebarShell>
   );
 }

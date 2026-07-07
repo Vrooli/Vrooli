@@ -391,6 +391,17 @@ func TestCompileWorkflow_AllSupportedActionTypes(t *testing.T) {
 			},
 			expected: StepExtract,
 		},
+		{
+			name: "gesture",
+			action: &basactions.ActionDefinition{
+				Type: basactions.ActionType_ACTION_TYPE_GESTURE,
+				Params: &basactions.ActionDefinition_Gesture{Gesture: &basactions.GestureParams{
+					GestureType: basactions.GestureType_GESTURE_TYPE_SWIPE,
+					Selector:    ptr("[data-testid='graph-canvas']"),
+				}},
+			},
+			expected: StepGesture,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -413,6 +424,27 @@ func TestCompileWorkflow_AllSupportedActionTypes(t *testing.T) {
 			assert.Equal(t, tc.expected, plan.Steps[0].Type)
 		})
 	}
+}
+
+func TestBuildActionDefinition_Gesture(t *testing.T) {
+	action, err := BuildActionDefinition("gesture", map[string]any{
+		"gesture_type":  "GESTURE_TYPE_SWIPE",
+		"selector":      "[data-testid='graph-canvas']",
+		"direction":     "SWIPE_DIRECTION_RIGHT",
+		"steps":         float64(40),
+		"step_delay_ms": float64(25),
+		"trace_label":   "graph-sustained-pan",
+	})
+	require.NoError(t, err)
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_GESTURE, action.GetType())
+	gesture := action.GetGesture()
+	require.NotNil(t, gesture)
+	assert.Equal(t, basactions.GestureType_GESTURE_TYPE_SWIPE, gesture.GetGestureType())
+	assert.Equal(t, basactions.SwipeDirection_SWIPE_DIRECTION_RIGHT, gesture.GetDirection())
+	assert.Equal(t, "[data-testid='graph-canvas']", gesture.GetSelector())
+	assert.EqualValues(t, 40, gesture.GetSteps())
+	assert.EqualValues(t, 25, gesture.GetStepDelayMs())
+	assert.Equal(t, "graph-sustained-pan", gesture.GetTraceLabel())
 }
 
 func TestCompileWorkflow_EmptyStepTypeError(t *testing.T) {

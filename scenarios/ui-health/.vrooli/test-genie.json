@@ -1124,6 +1124,30 @@
         ],
         "clean_requirement": "advisory"
       },
+      "standard_unused_custom_component": {
+        "capability_id": "project_standards",
+        "local_level_impact": "L4",
+        "global_impact": "advisory",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "ux",
+          "ui-health"
+        ],
+        "clean_requirement": "advisory"
+      },
+      "standard_raw_primitive_overuse": {
+        "capability_id": "project_standards",
+        "local_level_impact": "L4",
+        "global_impact": "advisory",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "ux",
+          "ui-health"
+        ],
+        "clean_requirement": "advisory"
+      },
       "standard_a11y_harness": {
         "capability_id": "project_standards",
         "local_level_impact": "L4",

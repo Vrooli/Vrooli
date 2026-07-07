@@ -97,6 +97,10 @@ func TestCapture_DimensionsPreset_Mobile(t *testing.T) {
 	require.NotNil(t, params.ViewportHeight)
 	require.EqualValues(t, 390, *params.ViewportWidth)
 	require.EqualValues(t, 844, *params.ViewportHeight)
+	settings := exec.LastReq.GetFlowDefinition().GetSettings()
+	require.NotNil(t, settings)
+	require.EqualValues(t, 390, settings.GetViewportWidth())
+	require.EqualValues(t, 844, settings.GetViewportHeight())
 }
 
 func TestCapture_DimensionsExplicit_OverridesPreset(t *testing.T) {
@@ -115,6 +119,9 @@ func TestCapture_DimensionsExplicit_OverridesPreset(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 1200, *exec.LastReq.Parameters.ViewportWidth)
 	require.EqualValues(t, 800, *exec.LastReq.Parameters.ViewportHeight)
+	settings := exec.LastReq.GetFlowDefinition().GetSettings()
+	require.EqualValues(t, 1200, settings.GetViewportWidth())
+	require.EqualValues(t, 800, settings.GetViewportHeight())
 }
 
 func TestCapture_URLShorthand_ResolvesScenarioSlug(t *testing.T) {

@@ -323,6 +323,42 @@ func TestThemeColorConsistencyFires(t *testing.T) {
 	mustFire(t, root, "theme-color-consistency")
 }
 
+func TestThemeColorDesignTokenFires(t *testing.T) {
+	root := fullyBrandedScenario(t)
+	writeFile(t, root, "DESIGN.md", `---
+colors:
+  surface: "#ffffff"
+---
+`)
+	f := mustFire(t, root, "theme-color-design-token")
+	if f.Evidence["design_surface"] != "#ffffff" {
+		t.Fatalf("expected design surface evidence, got %+v", f.Evidence)
+	}
+}
+
+func TestThemeColorDesignTokenAllowsMatch(t *testing.T) {
+	root := fullyBrandedScenario(t)
+	writeFile(t, root, "DESIGN.md", `---
+colors:
+  surface: "#1d4ed8"
+---
+`)
+	mustNotFire(t, root, "theme-color-design-token")
+}
+
+func TestThemeColorDesignTokenOverride(t *testing.T) {
+	root := fullyBrandedScenario(t)
+	writeFile(t, root, "DESIGN.md", `---
+colors:
+  surface: "#ffffff"
+---
+
+<!-- brand-manager:theme-color-token-override
+The launch chrome intentionally uses the primary brand color. -->
+`)
+	mustNotFire(t, root, "theme-color-design-token")
+}
+
 func TestTemplateResidueFires(t *testing.T) {
 	root := fullyBrandedScenario(t)
 	writeFile(t, root, "ui/index.html", replaceFirst(compliantIndexHTML,

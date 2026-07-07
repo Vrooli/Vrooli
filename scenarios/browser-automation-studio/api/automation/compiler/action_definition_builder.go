@@ -90,6 +90,10 @@ func BuildActionDefinition(stepType string, params map[string]any) (*basactions.
 		action.Params = &basactions.ActionDefinition_Shortcut{
 			Shortcut: typeconv.BuildShortcutParams(params),
 		}
+	case basactions.ActionType_ACTION_TYPE_GESTURE:
+		action.Params = &basactions.ActionDefinition_Gesture{
+			Gesture: typeconv.BuildGestureParams(params),
+		}
 	}
 
 	// Build metadata if present in params

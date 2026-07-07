@@ -328,6 +328,10 @@ func buildAdhocRequest(
 			Name:        &flowName,
 			Description: &flowDesc,
 		},
+		Settings: &workflowsv1.WorkflowSettingsV2{
+			ViewportWidth:  &width,
+			ViewportHeight: &height,
+		},
 		Nodes: nodes,
 		Edges: edges,
 	}

@@ -57,6 +57,13 @@ function createGestureInstruction(params: {
   selector?: string;
   distance?: number;
   scale?: number;
+  durationMs?: number;
+  steps?: number;
+  stepDelayMs?: number;
+  traceLabel?: string;
+  idleAfterMs?: number;
+  wheelDeltaY?: number;
+  ctrlKey?: boolean;
 }): { type: string; action: ReturnType<typeof create> } {
   return {
     type: 'gesture',
@@ -70,6 +77,13 @@ function createGestureInstruction(params: {
           selector: params.selector,
           distance: params.distance,
           scale: params.scale,
+          durationMs: params.durationMs,
+          steps: params.steps,
+          stepDelayMs: params.stepDelayMs,
+          traceLabel: params.traceLabel,
+          idleAfterMs: params.idleAfterMs,
+          wheelDeltaY: params.wheelDeltaY,
+          ctrlKey: params.ctrlKey,
         }),
       },
     }),
@@ -91,6 +105,10 @@ describe('GestureHandler', () => {
         click: jest.fn().mockResolvedValue(undefined),
         wheel: jest.fn().mockResolvedValue(undefined),
       } as unknown as ReturnType<typeof createMockPage>['mouse'],
+      keyboard: {
+        down: jest.fn().mockResolvedValue(undefined),
+        up: jest.fn().mockResolvedValue(undefined),
+      } as unknown as ReturnType<typeof createMockPage>['keyboard'],
     });
 
     const mockElement = {
@@ -156,14 +174,67 @@ describe('GestureHandler', () => {
     const instruction = {
       index: 0,
       nodeId: 'node-4',
-      ...createGestureInstruction({ gestureType: GestureType.ZOOM, scale: 1.2 }),
+      ...createGestureInstruction({ gestureType: GestureType.ZOOM, scale: 1.2, steps: 3, wheelDeltaY: -120 }),
       params: {},
     };
 
     const result = await handler.execute(instruction, context);
 
     expect(result.success).toBe(true);
-    expect(mockPage.evaluate).toHaveBeenCalled();
-    expect(result.extracted_data?.zoom?.applied).toBe('page');
+    expect(mockPage.mouse.wheel).toHaveBeenCalledTimes(3);
+    expect(result.extracted_data?.zoom?.applied).toBe('wheel');
+  });
+
+  it('wraps sustained gestures with trace markers and cadence', async () => {
+    const instruction = {
+      index: 0,
+      nodeId: 'node-5',
+      ...createGestureInstruction({
+        gestureType: GestureType.SWIPE,
+        direction: SwipeDirection.RIGHT,
+        selector: '#canvas',
+        distance: 320,
+        steps: 4,
+        stepDelayMs: 16,
+        traceLabel: 'graph-pan',
+      }),
+      params: {},
+    };
+
+    const result = await handler.execute(instruction, context);
+
+    expect(result.success).toBe(true);
+    expect(mockPage.$).toHaveBeenCalledWith('#canvas');
+    expect(mockPage.evaluate).toHaveBeenCalledWith(expect.any(Function), 'bas.gesture.graph-pan.start');
+    expect(mockPage.evaluate).toHaveBeenCalledWith(expect.any(Function), 'bas.gesture.graph-pan.end');
+    expect(mockPage.mouse.move).toHaveBeenCalledWith(expect.any(Number), expect.any(Number));
+    expect(result.extracted_data?.swipe?.steps).toBe(4);
+    expect(result.extracted_data?.swipe?.traceLabel).toBe('graph-pan');
+  });
+
+  it('holds Control while performing wheel zoom when requested', async () => {
+    const instruction = {
+      index: 0,
+      nodeId: 'node-6',
+      ...createGestureInstruction({
+        gestureType: GestureType.ZOOM,
+        selector: '#canvas',
+        steps: 2,
+        wheelDeltaY: -240,
+        ctrlKey: true,
+        traceLabel: 'graph-wheel-zoom',
+      }),
+      params: {},
+    };
+
+    const result = await handler.execute(instruction, context);
+
+    expect(result.success).toBe(true);
+    expect(mockPage.keyboard.down).toHaveBeenCalledWith('Control');
+    expect(mockPage.mouse.wheel).toHaveBeenCalledTimes(2);
+    expect(mockPage.mouse.wheel).toHaveBeenCalledWith(0, -240);
+    expect(mockPage.keyboard.up).toHaveBeenCalledWith('Control');
+    expect(mockPage.evaluate).toHaveBeenCalledWith(expect.any(Function), 'bas.gesture.graph-wheel-zoom.start');
+    expect(mockPage.evaluate).toHaveBeenCalledWith(expect.any(Function), 'bas.gesture.graph-wheel-zoom.end');
   });
 });

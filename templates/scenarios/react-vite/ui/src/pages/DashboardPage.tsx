@@ -1,5 +1,6 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { HealthCard } from "../features/health/HealthCard";
 import { useTranslation } from "../i18n";
 
@@ -20,21 +21,24 @@ export function DashboardPage() {
         {t(strings.pages.dashboard.title)}
       </h2>
       <p className="text-app-muted-foreground">{t(strings.pages.dashboard.description)}</p>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3">
         <HealthCard />
-        <div className="rounded-panel border border-app-border bg-app-surface p-4">
-          <p className="text-xs uppercase text-app-muted-foreground">
-            {t(strings.pages.dashboard.statPlaceholderLabel)}
-          </p>
-          <p className="mt-2 text-2xl font-semibold">—</p>
-        </div>
-        <div className="rounded-panel border border-app-border bg-app-surface p-4">
-          <p className="text-xs uppercase text-app-muted-foreground">
-            {t(strings.pages.dashboard.statPlaceholderLabel)}
-          </p>
-          <p className="mt-2 text-2xl font-semibold">—</p>
-        </div>
+        <MetricPlaceholder label={t(strings.pages.dashboard.statPlaceholderLabel)} />
+        <MetricPlaceholder label={t(strings.pages.dashboard.statPlaceholderLabel)} />
       </div>
     </section>
+  );
+}
+
+function MetricPlaceholder({ label }: { label: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm uppercase text-app-muted-foreground">{label}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-2xl font-semibold">--</p>
+      </CardContent>
+    </Card>
   );
 }

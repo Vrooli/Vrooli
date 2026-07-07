@@ -66,7 +66,7 @@ export function AttachmentUpload({ noteId }: AttachmentUploadProps) {
       <input
         data-testid={selectors.notes.attachmentFile}
         aria-label={t(strings.notes.attachmentFileLabel)}
-        className="block w-full text-xs text-slate-300 file:me-3 file:rounded-md file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-100"
+        className="block w-full text-xs text-app-muted-foreground file:me-3 file:rounded-control file:border-0 file:bg-app-surface-muted file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-app-foreground"
         type="file"
         onChange={handleFileChange}
       />
@@ -74,6 +74,8 @@ export function AttachmentUpload({ noteId }: AttachmentUploadProps) {
         data-testid={selectors.notes.attachmentButton}
         type="button"
         className="w-fit"
+        size="sm"
+        variant="secondary"
         title={canStartAttachmentUpload(uploadState) ? undefined : t(strings.notes.noFileSelected)}
         disabled={!canStartAttachmentUpload(uploadState)}
         onClick={handleUpload}
@@ -82,7 +84,7 @@ export function AttachmentUpload({ noteId }: AttachmentUploadProps) {
         {t(strings.notes.uploadAttachment)}
       </Button>
       {(uploadState.status === "failed" || uploadState.status === "succeeded") && (
-        <p data-testid={selectors.notes.attachmentStatus} className="text-xs text-slate-300">
+        <p data-testid={selectors.notes.attachmentStatus} className="text-xs text-app-muted-foreground">
           {uploadState.status === "failed"
             ? uploadState.message
             : t(strings.notes.uploadSuccess, { name: uploadState.fileName })}

@@ -1,3 +1,4 @@
+import { Button } from "../components/ui/button";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
@@ -29,23 +30,20 @@ export function SettingsPage() {
         <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">
           {t(strings.pages.settings.themeHeading)}
         </h3>
-        <div role="radiogroup" aria-label={t(strings.theme.switcherLabel)} className="flex gap-2">
+        <div role="radiogroup" aria-label={t(strings.theme.switcherLabel)} className="flex flex-wrap gap-2">
           {THEME_CHOICES.map((c) => (
-            <button
+            <Button
               key={c}
               type="button"
+              variant={choice === c ? "primary" : "secondary"}
+              size="sm"
               role="radio"
               aria-checked={choice === c}
               onClick={() => setTheme(c)}
               data-testid={selectors.settingsPage.themeOption({ choice: c })}
-              className={
-                choice === c
-                  ? "rounded-control bg-app-primary px-3 py-1 text-sm font-medium text-app-primary-foreground"
-                  : "rounded-control border border-app-border px-3 py-1 text-sm text-app-foreground hover:bg-app-surface-muted"
-              }
             >
               {t(strings.theme.choice[c])}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -54,23 +52,20 @@ export function SettingsPage() {
         <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">
           {t(strings.pages.settings.localeHeading)}
         </h3>
-        <div role="radiogroup" aria-label={t(strings.locale.switcherLabel)} className="flex gap-2">
+        <div role="radiogroup" aria-label={t(strings.locale.switcherLabel)} className="flex flex-wrap gap-2">
           {SUPPORTED_LOCALES.map((lng) => (
-            <button
+            <Button
               key={lng}
               type="button"
+              variant={currentLocale === lng ? "primary" : "secondary"}
+              size="sm"
               role="radio"
               aria-checked={currentLocale === lng}
               onClick={() => void setLocale(lng)}
               data-testid={selectors.settingsPage.localeOption({ code: lng })}
-              className={
-                currentLocale === lng
-                  ? "rounded-control bg-app-primary px-3 py-1 text-sm font-medium text-app-primary-foreground"
-                  : "rounded-control border border-app-border px-3 py-1 text-sm text-app-foreground hover:bg-app-surface-muted"
-              }
             >
               {getLocaleConfig(lng).nativeLabel}
-            </button>
+            </Button>
           ))}
         </div>
       </div>

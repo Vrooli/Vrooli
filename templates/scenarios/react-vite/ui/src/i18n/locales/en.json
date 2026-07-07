@@ -61,6 +61,13 @@
     "createdAtLabel": "Created:",
     "attachmentsLabel": "{{count}} attachments",
     "attachmentsLabel_one": "1 attachment",
+    "table": {
+      "title": "Title",
+      "created": "Created",
+      "attachments": "Attachments",
+      "actions": "Actions",
+      "search": "Search notes"
+    },
     "uploadAttachment": "Upload attachment",
     "attachmentFileLabel": "Attachment file",
     "uploadSuccess": "Uploaded {{name}}.",

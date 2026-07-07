@@ -61,6 +61,13 @@
     "createdAtLabel": "تاريخ الإنشاء:",
     "attachmentsLabel": "{{count}} مرفقات",
     "attachmentsLabel_one": "مرفق واحد",
+    "table": {
+      "title": "العنوان",
+      "created": "تاريخ الإنشاء",
+      "attachments": "المرفقات",
+      "actions": "الإجراءات",
+      "search": "البحث في الملاحظات"
+    },
     "uploadAttachment": "رفع مرفق",
     "attachmentFileLabel": "ملف المرفق",
     "uploadSuccess": "تم رفع {{name}}.",

@@ -160,6 +160,7 @@ func GetAvailableNodeTypes() []string {
 		"shortcut",
 		"extract",
 		"dragDrop",
+		"gesture",
 		"loop",
 	}
 }

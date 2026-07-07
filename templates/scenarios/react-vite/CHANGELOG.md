@@ -76,6 +76,36 @@ skill)" beats "modernize the API layer".
 
 ---
 
+## 1.6.0 — 2026-07-07
+
+Makes the generated UI baseline inherit the component canon and mobile-safe
+experience floors instead of a placeholder shell.
+
+### Added
+- Adopted-provenance component primitives under `ui/src/components/ui/` for
+  `Button`, `Card`, `DataTable`, `EmptyState`, `Input`, `Select`,
+  `StatusBadge`, `BottomNav`, and `SidebarShell`.
+- Safe-area and touch-target utility classes expected by the component canon.
+
+### Changed
+- `AppShell` now starts from `min-h-dvh`, uses the governed sidebar and fixed
+  safe-area bottom navigation, and keeps locale controls out of the top bar.
+- Starter dashboard, notes, and settings pages consume governed primitives; the
+  notes example list is now a searchable/sortable `DataTable`.
+- Generated docs now steer agents toward adopt-not-hand-roll UI growth through
+  `react-component-library`.
+
+### Migration (for agents updating older scenarios)
+- [ ] Copy the updated shell pattern: `min-h-dvh` root, overflow-safe main,
+      fixed safe-area bottom nav, and Settings-owned locale switching.
+- [ ] Adopt governed primitives from `react-component-library` for shared UI
+      surfaces instead of adding new raw local primitives. Start with
+      `Button`, `Card`, `DataTable`, `EmptyState`, `Input`, `Select`,
+      `StatusBadge`, `BottomNav`, and `SidebarShell` where applicable.
+- [ ] Move any header locale switcher to Settings and verify mobile chrome
+      labels remain single-line at 390px width.
+- [ ] Update `.vrooli/service.json::generation.template.version` to `1.6.0`.
+
 ## 1.5.0 — 2026-07-05
 
 Seeds generated UI scenarios with a first-class experience contract so the
