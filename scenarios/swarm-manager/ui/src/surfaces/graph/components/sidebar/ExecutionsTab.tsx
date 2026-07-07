@@ -3,7 +3,8 @@
  */
 
 import { memo, useEffect, useMemo, useState } from "react";
-import { Loader2, Play, Square } from "lucide-react";
+import { Loader2, Square } from "lucide-react";
+import { SIDEBAR_TAB_ICONS } from "../../../../types/constants";
 import { useExecutionStore } from "../../../../stores";
 import { executionService } from "../../../../services";
 import { buildExecutionNodeId } from "../../lib/node-id-parser";
@@ -92,7 +93,7 @@ function ExecutionsTabImpl({
     const title = filtersActive ? "No executions match your filters." : "No executions yet.";
     return (
       <SidebarEmptyState
-        icon={Play}
+        icon={SIDEBAR_TAB_ICONS.executions}
         title={title}
         hint={filtersActive ? undefined : "Runs and reviews appear here as agents start work."}
         query={searchQuery}

@@ -27,7 +27,6 @@ import { useGraphStateSync } from "../hooks/useGraphStateSync";
 import { useGraphWebSocket } from "../hooks/useGraphWebSocket";
 import { useQueryClient } from "@tanstack/react-query";
 import { GraphCanvas } from "./GraphCanvas";
-import { CapturePanel } from "./CapturePanel";
 import { PlanBoard, PlanHelpPanel } from "../../plan";
 import { ClarificationPanel } from "../../../components/backlog/clarification-panel";
 import { useSpatialNav } from "../../../hooks/useSpatialNav";
@@ -51,11 +50,10 @@ export function GraphWorkspace() {
   const queryClient = useQueryClient();
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
   const [showHelpPanel, setShowHelpPanel] = useState(false);
-  const [showCapturePanel, setShowCapturePanel] = useState(false);
   const [launcherError, setLauncherError] = useState<string | null>(null);
   const [launcherStatus, setLauncherStatus] = useState<string | null>(null);
 
-  const { openSidebar } = useAppShell();
+  const { openSidebar, toggleQuickCapture } = useAppShell();
 
   // --- Graph state sync (URL ↔ store) ---
   const { urlLens, handleLensChange, handleReturnToAtlas, handleDeselectNode } = useGraphStateSync();
@@ -118,7 +116,6 @@ export function GraphWorkspace() {
       if (isCreatingSession) return;
       setLauncherError(null);
       setLauncherStatus("Starting session...");
-      setShowCapturePanel(false);
       try {
         const session = await createSession({
           kind,
@@ -184,14 +181,12 @@ export function GraphWorkspace() {
           onQuickCapture={() => {
             setLauncherError(null);
             setLauncherStatus(null);
-            setShowCapturePanel((prev) => !prev);
+            toggleQuickCapture();
           }}
           onPlanWork={() => void handleCreateAgentSession("meta_orchestration")}
           onManageSwarm={() => void handleCreateAgentSession("swarm_operations")}
           onAuthorOperatingMode={() => void handleCreateAgentSession("operating_mode_authoring")}
         />
-
-        <CapturePanel isOpen={showCapturePanel} onClose={() => setShowCapturePanel(false)} />
 
         {/* Single workspace mount for the clarification thread (workshop
             questions answered from the Plan board's decision drawer). */}

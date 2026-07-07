@@ -11,6 +11,8 @@ export const CONTEXT_TYPE_LABELS: Record<AgentSessionContextType, string> = {
   session: "Sessions",
   operations_briefing: "Briefing",
   startup_brief: "Startup",
+  plan_dependency_cycles: "Dependency cycles",
+  plan_eta: "Plan ETA",
 };
 
 export const CONTEXT_TYPE_CAPS: Record<AgentSessionContextType, number> = {
@@ -24,6 +26,8 @@ export const CONTEXT_TYPE_CAPS: Record<AgentSessionContextType, number> = {
   session: 2,
   operations_briefing: 1,
   startup_brief: 1,
+  plan_dependency_cycles: 1,
+  plan_eta: 1,
 };
 
 export function allowedContextTypesForKind(kind: AgentSessionKind): AgentSessionContextType[] {
@@ -31,10 +35,10 @@ export function allowedContextTypesForKind(kind: AgentSessionKind): AgentSession
     case "operating_mode_authoring":
       return ["startup_brief", "operating_mode", "initiative", "backlog_item", "execution", "agent_activity", "capture"];
     case "swarm_operations":
-      return ["startup_brief", "operations_briefing", "initiative", "backlog_item", "execution", "agent_activity", "capture", "session"];
+      return ["startup_brief", "operations_briefing", "initiative", "backlog_item", "execution", "agent_activity", "capture", "session", "plan_dependency_cycles", "plan_eta"];
     case "meta_orchestration":
     default:
-      return ["startup_brief", "initiative", "backlog_item", "capture", "scenario", "session"];
+      return ["startup_brief", "initiative", "backlog_item", "capture", "scenario", "session", "plan_dependency_cycles", "plan_eta"];
   }
 }
 

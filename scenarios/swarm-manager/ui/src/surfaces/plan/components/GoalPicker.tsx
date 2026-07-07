@@ -6,12 +6,14 @@
  * goal-directed drain comparator).
  */
 
-import { useEffect, useRef, useState } from "react";
-import { ChevronUp, ChevronDown, Plus, Target } from "lucide-react";
+import { useRef, useState } from "react";
+import { ChevronUp, ChevronDown, Plus } from "lucide-react";
+import { ENTITY_TYPE_ICONS } from "../../../types/constants";
 import { cn } from "../../../lib/utils";
 import type { GoalWithScope } from "../../../types/goal";
 import { useGoals, useGoalMutations } from "../hooks/useGoals";
 import { CreateGoalDialog } from "../../../components/goals/CreateGoalDialog";
+import { Popover } from "../../../components/ui/popover";
 
 const MAX_PRIORITY = 10;
 const MIN_PRIORITY = 0;
@@ -40,18 +42,9 @@ export function GoalPicker({
 }) {
   const [open, setOpen] = useState(false);
   const [showCreateGoal, setShowCreateGoal] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const { data: goals = [] } = useGoals();
   const { setPriority } = useGoalMutations();
-
-  useEffect(() => {
-    if (!open) return;
-    const onDocClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
-  }, [open]);
 
   const active = sortGoals(goals);
   const selected = goals.find((g) => g.goal.name === goal);
@@ -63,9 +56,11 @@ export function GoalPicker({
   };
 
   return (
-    <div className="relative" ref={ref}>
+    <div>
       <button
+        ref={triggerRef}
         type="button"
+        onMouseDown={(event) => event.stopPropagation()}
         onClick={() => setOpen((prev) => !prev)}
         className={cn(
           "flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors",
@@ -74,7 +69,7 @@ export function GoalPicker({
         title={goal ? `Board scoped to goal: ${label}` : "Scope the board to a goal"}
         data-testid="plan-goal-picker"
       >
-        <Target className="h-3.5 w-3.5" aria-hidden />
+        <ENTITY_TYPE_ICONS.goal className="h-3.5 w-3.5" aria-hidden />
         <span className="max-w-[10rem] truncate">{label}</span>
         {selected && (
           <span className="text-slate-500" data-testid="plan-goal-picker-progress">
@@ -83,12 +78,14 @@ export function GoalPicker({
         )}
       </button>
 
-      {open && (
-        <div
-          className="absolute left-0 z-20 mt-1 w-72 rounded-lg border border-slate-700/80 bg-slate-900/95 p-1 shadow-xl backdrop-blur"
-          role="listbox"
-          data-testid="plan-goal-picker-menu"
-        >
+      <Popover
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        triggerRef={triggerRef}
+        className="w-72 rounded-lg border-slate-700/80 bg-slate-900/95 p-1 shadow-xl backdrop-blur"
+        testId="plan-goal-picker-menu"
+      >
+        <div role="listbox">
           <button
             type="button"
             onClick={() => {
@@ -178,7 +175,7 @@ export function GoalPicker({
             </div>
           ))}
         </div>
-      )}
+      </Popover>
       <CreateGoalDialog
         isOpen={showCreateGoal}
         onClose={() => setShowCreateGoal(false)}

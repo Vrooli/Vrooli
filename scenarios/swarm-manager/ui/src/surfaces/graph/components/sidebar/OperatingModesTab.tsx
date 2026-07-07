@@ -8,7 +8,7 @@
 
 import { memo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Layers } from "lucide-react";
+import { SIDEBAR_TAB_ICONS } from "../../../../types/constants";
 import { matchesSearch } from "./useSidebarSearch";
 import { initiativeModeService } from "../../../../services";
 import type { OperatingModeCatalogEntry } from "../../../../types/operating-mode";
@@ -57,7 +57,7 @@ function OperatingModesTabImpl({ searchQuery, onItemClick, onClearSearch }: Oper
   if (filtered.length === 0) {
     return (
       <SidebarEmptyState
-        icon={Layers}
+        icon={SIDEBAR_TAB_ICONS.operatingModes}
         title="No operating modes registered."
         hint="Modes appear here as the system learns new methodologies."
         query={searchQuery}

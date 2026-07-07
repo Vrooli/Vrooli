@@ -3,7 +3,8 @@
  */
 
 import { memo, useEffect, useMemo, useState } from "react";
-import { Bot, Loader2, MessageSquareMore, RefreshCw, Trash2 } from "lucide-react";
+import { Bot, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import { SIDEBAR_TAB_ICONS } from "../../../../types/constants";
 import { useNavigate } from "react-router-dom";
 import { isActiveAgentSession, useAgentSessionStore } from "../../../../stores";
 import { SessionSummaryCard } from "../../../../components/session/session-summary-card";
@@ -91,7 +92,7 @@ function SessionsTabImpl({
     const title = hasFilters ? "No sessions match your filters." : "No agent sessions yet.";
     return (
       <SidebarEmptyState
-        icon={MessageSquareMore}
+        icon={SIDEBAR_TAB_ICONS.sessions}
         title={title}
         hint={hasFilters ? undefined : "Plan-work, operations, and authoring conversations show up here once started."}
         query={searchQuery}

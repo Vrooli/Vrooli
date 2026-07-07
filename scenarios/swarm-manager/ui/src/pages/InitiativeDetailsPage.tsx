@@ -55,6 +55,7 @@ import { getStatusColorClasses } from "../surfaces/graph/lib/status-colors";
 import { StatusChip } from "../components/ui/status-chip";
 import { BACKLOG_STATUS_COLORS } from "../types";
 import { backlogDetailPath, initiativeDetailPath, operatingModeDetailPath, routeTargetToNodeId } from "../app/routes/route-paths";
+import { ENTITY_TYPE_ICONS } from "../types";
 import { useAppBack } from "../app/routes/useAppBack";
 import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
 import { initiativeOption } from "../components/session/context/session-context-refs";
@@ -576,7 +577,7 @@ export function InitiativeDetailsPage() {
         header={
           <DetailPageHeader
             entityType="initiative"
-            entityIcon={Target}
+            entityIcon={ENTITY_TYPE_ICONS.initiative}
             title={name ?? "Unknown"}
             nodeId={null}
             lenses={[]}
@@ -629,7 +630,7 @@ export function InitiativeDetailsPage() {
       header={
         <DetailPageHeader
           entityType="initiative"
-          entityIcon={Target}
+          entityIcon={ENTITY_TYPE_ICONS.initiative}
           title={initiative.title || initiative.name}
           status={initiative.status}
           nodeId={nodeId}

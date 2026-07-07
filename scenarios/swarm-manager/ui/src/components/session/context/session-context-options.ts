@@ -80,5 +80,9 @@ export function buildContextOptionsByType(
     session: sessions.filter((session) => session.id !== currentSessionId).map(sessionOption),
     operations_briefing: [operationsBriefingOption()],
     startup_brief: [startupBriefOption(sessionKind)],
+    // Plan cycles/ETA are attached from the plan board, not browsed in the
+    // generic context picker, so they contribute no pickable options here.
+    plan_dependency_cycles: [],
+    plan_eta: [],
   };
 }

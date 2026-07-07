@@ -7,7 +7,8 @@
 
 import { memo, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2, MessageSquare, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
+import { SIDEBAR_TAB_ICONS } from "../../../../types/constants";
 import { useCaptureStore } from "../../../../stores";
 import { CaptureCard } from "../../../../components/capture/capture-card";
 import { BacklogFormDialog } from "../../../../components/backlog/backlog-form-dialog";
@@ -20,6 +21,7 @@ import type { CaptureFilters, SortConfig } from "./types";
 import { captureDetailPath } from "../../../../app/routes/route-paths";
 import { SidebarEmptyState } from "./SidebarEmptyState";
 import { ConfirmDialog } from "../../../../components/ui/confirm-dialog";
+import { Button } from "../../../../components/ui/button";
 import { useDeleteConfirm } from "../../../../hooks/useDeleteConfirm";
 import { runBulkAction, summarizeBulkOutcomes, type BulkOutcome } from "./bulk-actions";
 
@@ -33,6 +35,7 @@ interface CapturesTabProps {
   selectedIds?: Set<string>;
   onToggleSelection?: (id: string) => void;
   onVisibleIdsChange?: (ids: string[]) => void;
+  onCreateCapture?: () => void;
 }
 
 function applyFilters(items: Capture[], filters: CaptureFilters): Capture[] {
@@ -74,6 +77,7 @@ function CapturesTabImpl({
   selectedIds = new Set<string>(),
   onToggleSelection,
   onVisibleIdsChange,
+  onCreateCapture,
 }: CapturesTabProps) {
   const navigate = useNavigate();
   const captures = useCaptureStore((s) => s.captures);
@@ -123,11 +127,25 @@ function CapturesTabImpl({
     const title = filtersActive ? "No captures match your filters." : "No captures yet.";
     return (
       <SidebarEmptyState
-        icon={MessageSquare}
+        icon={SIDEBAR_TAB_ICONS.captures}
         title={title}
         hint={filtersActive ? undefined : "Quick thoughts and observations land here before classification."}
         query={searchQuery}
         onClearSearch={onClearSearch}
+        action={
+          !filtersActive && onCreateCapture ? (
+            <Button
+              type="button"
+              size="sm"
+              className="mt-1"
+              onClick={onCreateCapture}
+              data-testid="captures-tab-create-capture"
+            >
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Quick capture
+            </Button>
+          ) : undefined
+        }
       />
     );
   }

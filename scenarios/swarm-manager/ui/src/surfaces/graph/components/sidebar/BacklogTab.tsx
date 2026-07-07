@@ -9,7 +9,8 @@ import { Profiler, memo, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useNavigate } from "react-router-dom";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { onProfilerRender } from "../../../../lib/profiler";
-import { Download, ListTodo, Loader2 } from "lucide-react";
+import { Download, Loader2, Plus } from "lucide-react";
+import { SIDEBAR_TAB_ICONS } from "../../../../types/constants";
 import { useBacklogStore } from "../../../../stores";
 import { useSnoozedKeys } from "../../../../stores/snooze-store";
 import { getItemActions } from "../../../../lib";
@@ -22,6 +23,7 @@ import { BacklogCard } from "../../../../components/backlog/backlog-card";
 import { RunBacklogModal } from "../../../../components/backlog/run-backlog-modal";
 import type { RunBacklogTarget } from "../../../../components/backlog/run-backlog-modal";
 import { ConfirmDialog } from "../../../../components/ui/confirm-dialog";
+import { Button } from "../../../../components/ui/button";
 import { useCommandPostItemActions } from "../../../../hooks/useCommandPostItemActions";
 import type { StableItemCallbacks } from "../../../../hooks/useCommandPostItemActions";
 import type { BacklogItem, ItemBlockingInfo, PendingQuestion } from "../../../../types";
@@ -65,6 +67,7 @@ interface BacklogTabProps {
   selectedIds?: Set<string>;
   onToggleSelection?: (id: string) => void;
   onVisibleIdsChange?: (ids: string[]) => void;
+  onCreateBacklog?: () => void;
 }
 
 function applyFilters(items: BacklogItem[], filters: BacklogFilters): BacklogItem[] {
@@ -111,6 +114,7 @@ function BacklogTabImpl({
   selectedIds = new Set<string>(),
   onToggleSelection,
   onVisibleIdsChange,
+  onCreateBacklog,
 }: BacklogTabProps) {
   const navigate = useNavigate();
   const items = useBacklogStore((s) => s.items);
@@ -196,11 +200,25 @@ function BacklogTabImpl({
       : "No backlog items yet.";
     return (
       <SidebarEmptyState
-        icon={ListTodo}
+        icon={SIDEBAR_TAB_ICONS.backlog}
         title={title}
         hint={filtersActive ? undefined : "Capture an idea or chore to get started."}
         query={searchQuery}
         onClearSearch={onClearSearch}
+        action={
+          !filtersActive && onCreateBacklog ? (
+            <Button
+              type="button"
+              size="sm"
+              className="mt-1"
+              onClick={onCreateBacklog}
+              data-testid="backlog-tab-create-item"
+            >
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Create item
+            </Button>
+          ) : undefined
+        }
       />
     );
   }

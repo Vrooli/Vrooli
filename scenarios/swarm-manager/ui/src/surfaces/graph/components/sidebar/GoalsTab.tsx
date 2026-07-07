@@ -1,7 +1,7 @@
-import { memo, useState } from "react";
-import { ChevronDown, ChevronUp, Loader2, Plus, Target } from "lucide-react";
+import { memo } from "react";
+import { ChevronDown, ChevronUp, Loader2, Plus } from "lucide-react";
+import { SIDEBAR_TAB_ICONS } from "../../../../types/constants";
 import { Button } from "../../../../components/ui/button";
-import { CreateGoalDialog } from "../../../../components/goals/CreateGoalDialog";
 import { cn } from "../../../../lib/utils";
 import type { GoalWithScope } from "../../../../types/goal";
 import { useGoals, useGoalMutations } from "../../../plan/hooks/useGoals";
@@ -17,6 +17,7 @@ interface GoalsTabProps {
   sort: SortConfig;
   onItemClick: (nodeId: string) => void;
   onClearSearch?: () => void;
+  onCreateGoal?: () => void;
 }
 
 function sortGoals(goals: GoalWithScope[], sort: SortConfig): GoalWithScope[] {
@@ -61,8 +62,8 @@ function GoalsTabImpl({
   sort,
   onItemClick,
   onClearSearch,
+  onCreateGoal,
 }: GoalsTabProps) {
-  const [showCreateGoal, setShowCreateGoal] = useState(false);
   const { data: goals = [], isLoading, error } = useGoals();
   const { setPriority } = useGoalMutations();
 
@@ -96,31 +97,27 @@ function GoalsTabImpl({
 
   if (sorted.length === 0) {
     return (
-      <>
-        <SidebarEmptyState
-          icon={Target}
-          title="No goals yet."
-          hint="Create a goal to track progress, blockers, and ETA across a target set."
-          query={searchQuery}
-          onClearSearch={onClearSearch}
-          action={
+      <SidebarEmptyState
+        icon={SIDEBAR_TAB_ICONS.goals}
+        title="No goals yet."
+        hint="Create a goal to track progress, blockers, and ETA across a target set."
+        query={searchQuery}
+        onClearSearch={onClearSearch}
+        action={
+          onCreateGoal ? (
             <Button
               type="button"
               size="sm"
               className="mt-1"
-              onClick={() => setShowCreateGoal(true)}
+              onClick={onCreateGoal}
               data-testid="goals-tab-create-goal"
             >
               <Plus className="mr-1.5 h-3.5 w-3.5" />
               Create goal
             </Button>
-          }
-        />
-        <CreateGoalDialog
-          isOpen={showCreateGoal}
-          onClose={() => setShowCreateGoal(false)}
-        />
-      </>
+          ) : undefined
+        }
+      />
     );
   }
 

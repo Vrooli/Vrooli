@@ -8,7 +8,7 @@
 import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
-import { Loader2, RefreshCw, Trash2, MessageSquare } from "lucide-react";
+import { Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { CaptureTriage } from "../components/capture/capture-triage";
@@ -22,6 +22,7 @@ import { useCaptureStore } from "../stores/capture-store";
 import { useDeleteConfirm } from "../hooks/useDeleteConfirm";
 import { formatRelativeTime } from "../lib";
 import type { Capture } from "../types";
+import { ENTITY_TYPE_ICONS } from "../types";
 import type { BacklogFormValues } from "../types";
 import { BacklogFormDialog } from "../components/backlog/backlog-form-dialog";
 import { backlogService } from "../services/backlog-service";
@@ -202,7 +203,7 @@ export function CaptureDetailsPage() {
       header={
         <DetailPageHeader
           entityType="Capture"
-          entityIcon={MessageSquare}
+          entityIcon={ENTITY_TYPE_ICONS.capture}
           title={capture.text.length > 80 ? capture.text.slice(0, 80) + "..." : capture.text}
           subtitle={formatRelativeTime(capture.created)}
           status={statusLabel}

@@ -28,6 +28,7 @@ import { defaultQueryOptions, formatRelativeTime } from "../lib";
 import { goalsService } from "../services/goals-service";
 import { GOALS_QUERY_KEY } from "../surfaces/plan/hooks/useGoals";
 import type { GoalScope, GoalWithScope } from "../types/goal";
+import { ENTITY_TYPE_ICONS } from "../types/constants";
 import {
   backlogDetailPath,
   goalDetailPath,
@@ -226,7 +227,7 @@ export function GoalDetailsPage() {
   if (query.isLoading) {
     return (
       <DetailPageLayout
-        header={<DetailPageHeader entityType="goal" entityIcon={Target} title="Loading goal" nodeId={null} lenses={[]} />}
+        header={<DetailPageHeader entityType="goal" entityIcon={ENTITY_TYPE_ICONS.goal} title="Loading goal" nodeId={null} lenses={[]} />}
       >
         <PageLoadingState label="Loading goal..." variant="detail" />
       </DetailPageLayout>
@@ -236,7 +237,7 @@ export function GoalDetailsPage() {
   if (query.error || !query.data) {
     return (
       <DetailPageLayout
-        header={<DetailPageHeader entityType="goal" entityIcon={Target} title="Goal unavailable" nodeId={null} lenses={[]} />}
+        header={<DetailPageHeader entityType="goal" entityIcon={ENTITY_TYPE_ICONS.goal} title="Goal unavailable" nodeId={null} lenses={[]} />}
       >
         <ErrorState
           error={query.error instanceof Error ? query.error : undefined}
@@ -316,7 +317,7 @@ export function GoalDetailsPage() {
       header={
         <DetailPageHeader
           entityType="goal"
-          entityIcon={Target}
+          entityIcon={ENTITY_TYPE_ICONS.goal}
           title={goal.title || goal.name}
           subtitle={goal.description || goal.name}
           status={goal.status}

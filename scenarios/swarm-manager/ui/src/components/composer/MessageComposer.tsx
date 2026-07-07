@@ -33,6 +33,7 @@ interface MessageComposerProps {
   contextItems?: ComposerContextChip[];
   onOpenContextPicker?: () => void;
   onRemoveContext?: (type: AgentSessionContextType, ref: string) => void;
+  onOpenContext?: (path: string) => void;
   onOpenForm?: (draftText: string) => void;
   canSubmit?: boolean;
   imagePickerRequestKey?: number;
@@ -61,6 +62,7 @@ export function MessageComposer({
   contextItems = [],
   onOpenContextPicker,
   onRemoveContext,
+  onOpenContext,
   onOpenForm,
   canSubmit,
   imagePickerRequestKey = 0,
@@ -101,9 +103,14 @@ export function MessageComposer({
   };
 
   return (
-    <>
+    <div className="space-y-2">
       {onRemoveAttachment && <AttachmentPreviewTray attachments={attachments} onRemove={onRemoveAttachment} />}
-      <ContextChipTray items={contextItems} onRemove={onRemoveContext} testId={testId ? `${testId}-context-chips` : undefined} />
+      <ContextChipTray
+        items={contextItems}
+        onRemove={onRemoveContext}
+        onOpen={onOpenContext}
+        testId={testId ? `${testId}-context-chips` : undefined}
+      />
 
       <div className={cn("flex items-end gap-2 rounded-lg border border-slate-700 bg-slate-900/70 p-2.5 transition-colors focus-within:border-cyan-500/50", className)}>
         {onOpenForm && (
@@ -188,6 +195,6 @@ export function MessageComposer({
       </div>
 
       {footer}
-    </>
+    </div>
   );
 }

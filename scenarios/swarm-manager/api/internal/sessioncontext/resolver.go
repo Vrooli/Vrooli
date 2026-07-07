@@ -100,6 +100,10 @@ func (r *Resolver) resolve(ctx context.Context, ref agentsessions.ContextRef, li
 			Summary: "Operating mode selected by the operator: " + ref.Ref,
 			NodeID:  "operatingMode/" + ref.Ref,
 		}, nil
+	case agentsessions.ContextPlanDependencyCycles:
+		return resolvePlanDependencyCycles(ref.Ref, limits)
+	case agentsessions.ContextPlanEta:
+		return resolvePlanEta(ref.Ref, limits)
 	default:
 		return agentsessions.ContextItem{}, fmt.Errorf("%w: unsupported context type", agentsessions.ErrValidation)
 	}
@@ -207,6 +211,64 @@ func (r *Resolver) resolveBacklogItem(ref string, limits agentsessions.ContextLi
 	}
 	path := filepath.Join(r.scenarioRoot, "backlog", parts[0], parts[1], "spec.json")
 	return r.resolveJSONFile(agentsessions.ContextRef{Type: agentsessions.ContextBacklogItem, Ref: ref}, path, "backlog item", "backlog-item/"+ref, limits)
+}
+
+// planEtaBand mirrors the client PlanEtaBandData fields that are meaningful for
+// a text summary. The composer serializes this into the plan_eta context ref.
+type planEtaBand struct {
+	P50Label       string `json:"p50Label"`
+	P80Label       string `json:"p80Label"`
+	BasisLabel     string `json:"basisLabel"`
+	Confidence     string `json:"confidence"`
+	RemainingItems int    `json:"remainingItems"`
+	LaneCapacity   int    `json:"laneCapacity"`
+}
+
+func resolvePlanDependencyCycles(ref string, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
+	var cycles []string
+	if err := json.Unmarshal([]byte(ref), &cycles); err != nil || len(cycles) == 0 {
+		return agentsessions.ContextItem{}, fmt.Errorf("%w: plan dependency cycles ref must be a non-empty JSON array of chains", agentsessions.ErrValidation)
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "The plan has %d dependency %s that block a clean execution order:\n", len(cycles), plural(len(cycles), "cycle", "cycles"))
+	for _, cycle := range cycles {
+		fmt.Fprintf(&b, "- %s\n", strings.TrimSpace(cycle))
+	}
+	return agentsessions.ContextItem{
+		Type:    agentsessions.ContextPlanDependencyCycles,
+		Ref:     ref,
+		Title:   fmt.Sprintf("Dependency cycles (%d)", len(cycles)),
+		Summary: truncate(b.String(), limits.MaxSummaryRunes),
+		NodeID:  "/plan",
+	}, nil
+}
+
+func resolvePlanEta(ref string, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
+	var eta planEtaBand
+	if err := json.Unmarshal([]byte(ref), &eta); err != nil || strings.TrimSpace(eta.P50Label) == "" {
+		return agentsessions.ContextItem{}, fmt.Errorf("%w: plan ETA ref must be a JSON object with a p50 label", agentsessions.ErrValidation)
+	}
+	summary := fmt.Sprintf(
+		"Estimated completion band: p50 %s, p80 %s. Remaining: %d %s across %d execute %s. Confidence: %s (%s).",
+		eta.P50Label, eta.P80Label,
+		eta.RemainingItems, plural(eta.RemainingItems, "item", "items"),
+		eta.LaneCapacity, plural(eta.LaneCapacity, "lane", "lanes"),
+		firstNonEmpty(eta.Confidence, "unknown"), firstNonEmpty(eta.BasisLabel, "priors only"),
+	)
+	return agentsessions.ContextItem{
+		Type:    agentsessions.ContextPlanEta,
+		Ref:     ref,
+		Title:   fmt.Sprintf("Plan ETA %s–%s", eta.P50Label, eta.P80Label),
+		Summary: truncate(summary, limits.MaxSummaryRunes),
+		NodeID:  "/plan",
+	}, nil
+}
+
+func plural(n int, singular, plural string) string {
+	if n == 1 {
+		return singular
+	}
+	return plural
 }
 
 func (r *Resolver) resolveScenario(ref string, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {

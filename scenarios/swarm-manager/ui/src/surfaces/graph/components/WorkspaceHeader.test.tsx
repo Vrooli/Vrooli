@@ -6,11 +6,13 @@
  * only when collapsed, the lens nav, and the lens-aware help affordance.
  */
 
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { beforeEach, describe, it, expect, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { WorkspaceHeader } from "./WorkspaceHeader";
 import { selectors } from "../../../consts/selectors";
+import { useOperationsStore } from "../../../stores/operations-store";
+import { createPlanDataInitialState, usePlanDataStore } from "../../plan/stores/plan-data-store";
 
 function renderHeader(overrides?: Partial<React.ComponentProps<typeof WorkspaceHeader>>) {
   return render(
@@ -30,6 +32,11 @@ function renderHeader(overrides?: Partial<React.ComponentProps<typeof WorkspaceH
 }
 
 describe("WorkspaceHeader", () => {
+  beforeEach(() => {
+    useOperationsStore.getState().reset();
+    usePlanDataStore.setState({ ...createPlanDataInitialState() });
+  });
+
   it("renders the Operations Center trigger pill (compact variant) linking to /plan", () => {
     renderHeader();
 
@@ -77,6 +84,26 @@ describe("WorkspaceHeader", () => {
     expect(screen.queryByTestId("stats-button")).toBeNull();
   });
 
+  it("badges the Plan lens with the active agent count", () => {
+    useOperationsStore.setState({
+      view: {
+        lanes: [],
+        queue: { depth: 0, maxDepth: 50 },
+        activities: [
+          { runId: "run-1" },
+          { runId: "run-2" },
+        ],
+        recentlyFinished: [],
+        generatedAt: "2026-07-07T00:00:00Z",
+        windowSeconds: 10800,
+      } as never,
+    });
+
+    renderHeader({ lens: "stats" });
+
+    expect(screen.getByTestId("lens-plan-badge")).toHaveTextContent("2");
+  });
+
   it("labels the help button for the active surface", () => {
     renderHeader({ lens: "plan" });
     expect(screen.getByRole("button", { name: "Plan guide" })).toBeInTheDocument();
@@ -102,5 +129,30 @@ describe("WorkspaceHeader", () => {
     renderHeader({ lens: "stats", showNavControls: true });
     expect(screen.queryByTestId(selectors.graphNavControls.container)).toBeNull();
     expect(screen.queryByTestId("settings-gear")).toBeNull();
+  });
+
+  it("renders plan filters and refresh only on the Plan lens", () => {
+    const refreshPlan = vi.fn().mockResolvedValue(undefined);
+    usePlanDataStore.setState({ fetchBoard: refreshPlan });
+
+    const { unmount } = renderHeader({ lens: "plan" });
+    expect(screen.getByTestId(selectors.plan.boardFilters)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.plan.boardRefresh)).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId(selectors.plan.boardFilters));
+    expect(usePlanDataStore.getState().filterDrawerOpen).toBe(true);
+    fireEvent.click(screen.getByTestId(selectors.plan.boardRefresh));
+    expect(refreshPlan).toHaveBeenCalledWith({ force: true });
+    unmount();
+
+    renderHeader({ lens: "stats" });
+    expect(screen.queryByTestId(selectors.plan.boardFilters)).toBeNull();
+    expect(screen.queryByTestId(selectors.plan.boardRefresh)).toBeNull();
+  });
+
+  it("marks the plan filter button active when filters are applied", () => {
+    useOperationsStore.getState().setFilters({ q: "blocked" });
+    renderHeader({ lens: "plan" });
+
+    expect(screen.getByTestId(selectors.plan.boardFilters).className).toContain("text-cyan-400");
   });
 });

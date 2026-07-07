@@ -6,6 +6,8 @@ describe("LensNav", () => {
   it("renders Plan, Graph, and Stats as peer surfaces", () => {
     render(<LensNav activeLens="stats" onLensChange={vi.fn()} />);
 
+    expect(screen.getByTestId("lens-nav").className).not.toContain("border");
+    expect(screen.getByTestId("lens-stats").className).toContain("after:bg-cyan-400");
     expect(screen.getByTestId("lens-plan")).toBeInTheDocument();
     expect(screen.getByTestId("lens-graph")).toBeInTheDocument();
     expect(screen.getByTestId("lens-stats")).toBeInTheDocument();
@@ -25,5 +27,12 @@ describe("LensNav", () => {
     fireEvent.click(screen.getByTestId("lens-stats"));
 
     expect(onLensChange).toHaveBeenCalledWith("stats");
+  });
+
+  it("renders a badge on the requested lens", () => {
+    render(<LensNav activeLens="graph" onLensChange={vi.fn()} badges={{ plan: 3 }} />);
+
+    expect(screen.getByTestId("lens-plan-badge")).toHaveTextContent("3");
+    expect(screen.queryByTestId("lens-graph-badge")).toBeNull();
   });
 });

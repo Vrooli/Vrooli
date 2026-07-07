@@ -95,16 +95,18 @@ func normalizeContextRefs(kind Kind, refs []ContextRef) ([]ContextRef, error) {
 
 func contextLimitsForKind(kind Kind) ContextLimits {
 	common := map[ContextType]int{
-		ContextBacklogItem:        8,
-		ContextInitiative:         4,
-		ContextCapture:            4,
-		ContextExecution:          6,
-		ContextAgentActivity:      6,
-		ContextScenario:           3,
-		ContextOperatingMode:      3,
-		ContextSession:            2,
-		ContextOperationsBriefing: 1,
-		ContextStartupBrief:       1,
+		ContextBacklogItem:          8,
+		ContextInitiative:           4,
+		ContextCapture:              4,
+		ContextExecution:            6,
+		ContextAgentActivity:        6,
+		ContextScenario:             3,
+		ContextOperatingMode:        3,
+		ContextSession:              2,
+		ContextOperationsBriefing:   1,
+		ContextStartupBrief:         1,
+		ContextPlanDependencyCycles: 1,
+		ContextPlanEta:              1,
 	}
 	switch kind {
 	case KindOperatingModeAuthoring:

@@ -94,6 +94,11 @@ const (
 	ContextSession            ContextType = "session"
 	ContextOperationsBriefing ContextType = "operations_briefing"
 	ContextStartupBrief       ContextType = "startup_brief"
+	// Virtual, board-level context types. Their ref carries the client-computed
+	// plan projection (dependency cycles / ETA band) serialized as JSON; the
+	// resolver synthesizes a summary from it rather than reading a record file.
+	ContextPlanDependencyCycles ContextType = "plan_dependency_cycles"
+	ContextPlanEta              ContextType = "plan_eta"
 )
 
 const OperationsBriefingLatestRef = "operations_briefing/latest"
@@ -444,7 +449,8 @@ func IsKnownArtifactAction(action ArtifactAction) bool {
 func IsKnownContextType(contextType ContextType) bool {
 	switch contextType {
 	case ContextBacklogItem, ContextInitiative, ContextCapture, ContextExecution,
-		ContextAgentActivity, ContextScenario, ContextOperatingMode, ContextSession, ContextOperationsBriefing, ContextStartupBrief:
+		ContextAgentActivity, ContextScenario, ContextOperatingMode, ContextSession, ContextOperationsBriefing, ContextStartupBrief,
+		ContextPlanDependencyCycles, ContextPlanEta:
 		return true
 	default:
 		return false

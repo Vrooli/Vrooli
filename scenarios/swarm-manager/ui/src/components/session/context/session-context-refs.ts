@@ -128,6 +128,54 @@ export function startupBriefOption(kind: string, title = "Startup brief", genera
   };
 }
 
+/**
+ * PlanEtaBand — the subset of the plan board's ETA band that is serialized into
+ * a plan_eta context ref. Kept structurally compatible with PlanEtaBandData so
+ * the board can pass its `eta` object straight through.
+ */
+export interface PlanEtaBand {
+  p50Label: string;
+  p80Label: string;
+  basisLabel: string;
+  confidence: string;
+  remainingItems: number;
+  laneCapacity: number;
+}
+
+/**
+ * Virtual context option carrying the plan's dependency cycles. The chains are
+ * JSON-serialized into the ref; the server resolver formats them into a summary.
+ */
+export function planDependencyCyclesOption(cycles: string[]): SessionContextOption {
+  const count = cycles.length;
+  return {
+    type: "plan_dependency_cycles",
+    ref: JSON.stringify(cycles),
+    title: `Dependency cycles (${count})`,
+    subtitle: `${count} ${count === 1 ? "cycle" : "cycles"} blocking a clean execution order`,
+    nodeId: "/plan",
+  };
+}
+
+/** Virtual context option carrying the plan board's ETA band. */
+export function planEtaOption(eta: PlanEtaBand): SessionContextOption {
+  const payload: PlanEtaBand = {
+    p50Label: eta.p50Label,
+    p80Label: eta.p80Label,
+    basisLabel: eta.basisLabel,
+    confidence: eta.confidence,
+    remainingItems: eta.remainingItems,
+    laneCapacity: eta.laneCapacity,
+  };
+  return {
+    type: "plan_eta",
+    ref: JSON.stringify(payload),
+    title: `Plan ETA ${eta.p50Label}–${eta.p80Label}`,
+    subtitle: `${eta.remainingItems} items · ${eta.confidence} confidence · ${eta.basisLabel}`,
+    nodeId: "/plan",
+  };
+}
+
 export function contextKey(type: AgentSessionContextType, ref: string): string {
   return `${type}:${ref}`;
 }

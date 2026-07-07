@@ -6,17 +6,23 @@
  * filters live in the shared drawer and persist in the URL.
  */
 
-import { useMemo, useState } from "react";
-import { ChevronDown, Clock, MessageCircleQuestion, Play, RefreshCw, SlidersHorizontal } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { AlertTriangle, ChevronDown, Clock, MessageCircleQuestion, Play } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { OpsBulkActions } from "../../../components/operations/OpsBulkActions";
 import type { RunBacklogTarget } from "../../../components/backlog/run-backlog-modal";
 import { Button } from "../../../components/ui/button";
+import { Popover } from "../../../components/ui/popover";
 import { cn } from "../../../lib/utils";
+import { graphPath } from "../../../app/routes/route-paths";
+import { useAttachToSessionAction } from "../../../components/session/context/useAttachToSessionAction";
+import { planDependencyCyclesOption, planEtaOption } from "../../../components/session/context/session-context-refs";
 import { useOperationsPolling } from "../../../hooks/useOperationsPolling";
 import { useSnoozedKeys } from "../../../stores/snooze-store";
 import type { BacklogKind } from "../../../types";
 import { usePlanData } from "../hooks/usePlanData";
 import { usePlanUrlState } from "../hooks/usePlanUrlState";
+import { usePlanDataStore } from "../stores/plan-data-store";
 import {
   applySnoozeFilter,
   laterWaveSummary,
@@ -110,31 +116,186 @@ const ETA_CONFIDENCE_TONE: Record<string, string> = {
  * capacity and honest about its basis (a sample count vs "priors only"). Hidden
  * when there is nothing left to estimate.
  */
+function CycleWarning({ cycles }: { cycles: string[] }) {
+  const navigate = useNavigate();
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const [open, setOpen] = useState(false);
+  const attach = useAttachToSessionAction(cycles.length > 0 ? planDependencyCyclesOption(cycles) : null);
+  if (cycles.length === 0) return null;
+
+  const inspectEntity = (entity: string) => {
+    const nodeId = cycleEntityToNodeId(entity);
+    navigate(graphPath({ lens: "focus", focus: nodeId, select: nodeId }));
+    setOpen(false);
+  };
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="inline-flex items-center gap-1 rounded bg-rose-500/15 px-2 py-0.5 text-xs text-rose-300 transition-colors hover:bg-rose-500/25 hover:text-rose-200"
+        aria-expanded={open}
+        data-testid="plan-cycle-warning"
+      >
+        <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+        {cycles.length} dependency {cycles.length === 1 ? "cycle" : "cycles"}
+      </button>
+      <Popover
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        triggerRef={triggerRef}
+        placement="bottom-start"
+        className="w-80 p-3 text-xs text-slate-200"
+        testId="plan-cycle-popover"
+      >
+        <div className="space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold text-rose-200">Dependency cycles</h3>
+            <p className="mt-1 text-slate-400">
+              These items depend on each other, so the planner cannot produce a clean execution order.
+            </p>
+          </div>
+          <div className="space-y-2">
+            {cycles.map((cycle, index) => {
+              const entities = cycle.split(/\s*->\s*/).filter(Boolean);
+              const first = entities[0] ?? cycle;
+              const second = entities[1] ?? first;
+              return (
+                <div key={`${cycle}-${index}`} className="rounded border border-slate-800 bg-slate-950/70 p-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {entities.map((entity, entityIndex) => (
+                      <span key={`${entity}-${entityIndex}`} className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => inspectEntity(entity)}
+                          className="rounded px-1 py-0.5 text-cyan-300 hover:bg-slate-800"
+                        >
+                          {entity}
+                        </button>
+                        {entityIndex < entities.length - 1 && <span className="text-slate-600">{"->"}</span>}
+                      </span>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => inspectEntity(first)}
+                    className="mt-2 text-left text-rose-200 underline decoration-rose-400/40 underline-offset-2 hover:text-rose-100"
+                    data-testid="plan-cycle-resolve"
+                  >
+                    Inspect dependency edge {first} {"->"} {second}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <div className="border-t border-slate-800 pt-2">
+            {attach.button}
+          </div>
+        </div>
+      </Popover>
+      {attach.sheet}
+    </>
+  );
+}
+
+function cycleEntityToNodeId(entity: string): string {
+  const trimmed = entity.trim();
+  if (trimmed.startsWith("backlog-item/") || trimmed.startsWith("scenario/") || trimmed.startsWith("initiative/") || trimmed.startsWith("goal/")) {
+    return trimmed;
+  }
+  const parts = trimmed.split("/");
+  return parts.length === 2 ? `backlog-item/${trimmed}` : trimmed;
+}
+
 function EtaStrip({ eta }: { eta: PlanBoardMetaData["eta"] }) {
+  const navigate = useNavigate();
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const [open, setOpen] = useState(false);
+  const attach = useAttachToSessionAction(eta ? planEtaOption(eta) : null);
   if (!eta || eta.remainingItems === 0) return null;
   const tone = ETA_CONFIDENCE_TONE[eta.confidence] ?? "text-slate-400";
   return (
-    <div
-      className="flex items-center gap-1.5 rounded bg-slate-800/60 px-2 py-0.5 text-xs"
-      title={`${eta.remainingItems} items remaining · ${eta.laneCapacity} execute lanes · ${eta.confidence} confidence`}
-      data-testid="plan-eta-strip"
-    >
-      <Clock className="h-3.5 w-3.5 text-slate-500" aria-hidden />
-      <span className="text-slate-400">ETA</span>
-      <span className="font-medium text-slate-200" data-testid="plan-eta-p50">
-        {eta.p50Label}
-      </span>
-      <span className="text-slate-600">–</span>
-      <span className="font-medium text-slate-200" data-testid="plan-eta-p80">
-        {eta.p80Label}
-      </span>
-      <span
-        className={cn("uppercase tracking-wider", tone)}
-        data-testid="plan-eta-basis"
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="flex items-center gap-1.5 rounded bg-slate-800/60 px-2 py-0.5 text-xs transition-colors hover:bg-slate-800"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-expanded={open}
+        data-testid="plan-eta-strip"
       >
-        {eta.basisLabel}
-      </span>
-    </div>
+        <Clock className="h-3.5 w-3.5 text-slate-500" aria-hidden />
+        <span className="text-slate-400">ETA</span>
+        <span className="font-medium text-slate-200" data-testid="plan-eta-p50">
+          {eta.p50Label}
+        </span>
+        <span className="text-slate-600">-</span>
+        <span className="font-medium text-slate-200" data-testid="plan-eta-p80">
+          {eta.p80Label}
+        </span>
+        <span
+          className={cn("uppercase tracking-wider", tone)}
+          data-testid="plan-eta-basis"
+        >
+          {eta.basisLabel}
+        </span>
+      </button>
+      <Popover
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        triggerRef={triggerRef}
+        placement="bottom-start"
+        className="w-72 p-3 text-xs text-slate-200"
+        testId="plan-eta-popover"
+      >
+        <div className="space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-100">ETA basis</h3>
+            <p className="mt-1 text-slate-400">
+              Completion band from current remaining work and execute-lane capacity.
+            </p>
+          </div>
+          <dl className="grid grid-cols-2 gap-2">
+            <div className="rounded bg-slate-950/70 p-2">
+              <dt className="text-slate-500">p50</dt>
+              <dd className="font-medium text-slate-100">{eta.p50Label}</dd>
+            </div>
+            <div className="rounded bg-slate-950/70 p-2">
+              <dt className="text-slate-500">p80</dt>
+              <dd className="font-medium text-slate-100">{eta.p80Label}</dd>
+            </div>
+            <div className="rounded bg-slate-950/70 p-2">
+              <dt className="text-slate-500">Remaining</dt>
+              <dd className="font-medium text-slate-100">{eta.remainingItems} items</dd>
+            </div>
+            <div className="rounded bg-slate-950/70 p-2">
+              <dt className="text-slate-500">Execute lanes</dt>
+              <dd className="font-medium text-slate-100">{eta.laneCapacity}</dd>
+            </div>
+          </dl>
+          <p className={cn("text-xs", tone)}>
+            {eta.confidence} confidence · {eta.basisLabel}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              navigate(graphPath({ lens: "stats" }));
+              setOpen(false);
+            }}
+            className="text-cyan-300 underline decoration-cyan-400/40 underline-offset-2 hover:text-cyan-200"
+            data-testid="plan-eta-stats-link"
+          >
+            Open Stats throughput and timing
+          </button>
+          <div className="border-t border-slate-800 pt-2">
+            {attach.button}
+          </div>
+        </div>
+      </Popover>
+      {attach.sheet}
+    </>
   );
 }
 
@@ -159,7 +320,8 @@ export function PlanBoard() {
   const { board, loading, error, windowSeconds, setWindowSeconds, refresh } = usePlanData();
   const urlState = usePlanUrlState();
   const snoozedKeys = useSnoozedKeys();
-  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const filterDrawerOpen = usePlanDataStore((s) => s.filterDrawerOpen);
+  const setFilterDrawerOpen = usePlanDataStore((s) => s.setFilterDrawerOpen);
 
   // Now-column cards ride the operations polling path (D5).
   useOperationsPolling();
@@ -203,42 +365,13 @@ export function PlanBoard() {
     <div className="flex h-full min-h-0 flex-col" data-testid="plan-board">
       <div className="flex flex-wrap items-center gap-2 px-4 py-2">
         <GoalPicker goal={urlState.goal} onSelect={urlState.setGoal} />
-        {cycles.length > 0 && (
-          <span
-            className="rounded bg-rose-500/15 px-2 py-0.5 text-xs text-rose-300"
-            title={cycles.join("\n")}
-            data-testid="plan-cycle-warning"
-          >
-            {cycles.length} dependency {cycles.length === 1 ? "cycle" : "cycles"}
-          </span>
-        )}
+        <CycleWarning cycles={cycles} />
         {hiddenSnoozed > 0 && (
           <span className="text-xs text-slate-600" data-testid="plan-snoozed-hidden-count">
             {hiddenSnoozed} snoozed hidden
           </span>
         )}
         <EtaStrip eta={board.meta.eta} />
-        <button
-          type="button"
-          onClick={() => setFilterDrawerOpen((prev) => !prev)}
-          className={cn(
-            "ml-auto flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors",
-            urlState.hasFilters ? "text-cyan-400" : "text-slate-500 hover:text-slate-300",
-          )}
-          data-testid="plan-board-filters"
-        >
-          <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden />
-          Filters
-        </button>
-        <button
-          type="button"
-          onClick={() => void refresh()}
-          className="flex items-center gap-1 rounded px-2 py-1 text-xs text-slate-500 transition-colors hover:text-slate-300"
-          data-testid="plan-board-refresh"
-        >
-          <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-          Refresh
-        </button>
       </div>
       <div className="flex min-h-0 flex-1 divide-x divide-slate-800 overflow-x-auto border-t border-slate-800">
         <NowColumn />

@@ -81,6 +81,15 @@ describe("GoalPicker", () => {
     await waitFor(() => expect(spy).toHaveBeenCalledWith("g", 6));
   });
 
+  it("closes the menu on Escape", async () => {
+    renderPicker([goal("g", 5, 40)]);
+    await userEvent.click(screen.getByTestId("plan-goal-picker"));
+    expect(screen.getByTestId("plan-goal-picker-menu")).toBeInTheDocument();
+
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByTestId("plan-goal-picker-menu")).not.toBeInTheDocument();
+  });
+
   it("shows the current goal title and progress when scoped", () => {
     renderPicker([goal("g", 5, 75)], "g");
     const trigger = screen.getByTestId("plan-goal-picker");

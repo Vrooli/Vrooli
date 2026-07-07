@@ -18,7 +18,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 
-import { Circle, Package } from "lucide-react";
+import { Circle } from "lucide-react";
 import { BottomSheet } from "../components/ui/bottom-sheet";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
@@ -32,7 +32,7 @@ import { ScenarioDangerZone } from "../components/scenarios/ScenarioDangerZone";
 import { ScenarioLifecycleActions } from "../components/scenarios/ScenarioLifecycleActions";
 import { ScenarioMobileView } from "../components/scenarios/ScenarioMobileView";
 import { selectors } from "../consts/selectors";
-import { SCENARIO_STATUS_ICONS } from "../types";
+import { ENTITY_TYPE_ICONS, SCENARIO_STATUS_ICONS } from "../types";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { SCENARIO_LENSES } from "../components/detail/lens-options";
@@ -217,7 +217,7 @@ export function ScenarioDetailsPage() {
       header={
         <DetailPageHeader
           entityType="scenario"
-          entityIcon={Package}
+          entityIcon={ENTITY_TYPE_ICONS.scenario}
           title={scenario?.displayName || name || "Unknown"}
           status={scenario?.status}
           nodeId={nodeId}

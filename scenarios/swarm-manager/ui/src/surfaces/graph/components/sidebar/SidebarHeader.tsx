@@ -17,6 +17,7 @@ export interface SidebarHeaderProps {
   onCollapse: () => void;
   onGoHome: () => void;
   onOpenCommandPost?: () => void;
+  hideOpsTriggerOnDesktop?: boolean;
 }
 
 export function SidebarHeader({
@@ -24,6 +25,7 @@ export function SidebarHeader({
   onCollapse,
   onGoHome,
   onOpenCommandPost,
+  hideOpsTriggerOnDesktop = false,
 }: SidebarHeaderProps) {
   const commandPostBadgeCount = useCommandPostBadgeCount();
 
@@ -61,7 +63,10 @@ export function SidebarHeader({
             )}
           </button>
         )}
-        <OpsTriggerButton variant="compact" />
+        <OpsTriggerButton
+          variant="compact"
+          className={hideOpsTriggerOnDesktop ? "md:hidden" : undefined}
+        />
         <button
           type="button"
           onClick={onSettingsOpen}

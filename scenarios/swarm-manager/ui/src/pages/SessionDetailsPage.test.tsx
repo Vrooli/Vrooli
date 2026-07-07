@@ -254,7 +254,7 @@ describe("SessionDetailsPage", () => {
     expect(screen.getByTestId("session-mobile-header-actions")).toBeInTheDocument();
     expect(screen.getByText("Plan it.")).toBeVisible();
     expect(screen.queryByText("Apply this plan.")).toBeNull();
-    expect(screen.getByTestId("agent-session-composer").parentElement?.parentElement).toHaveClass("fixed");
+    expect(screen.getByTestId("agent-session-composer").closest(".fixed")).toBeInTheDocument();
 
     await activateTab(/Proposals 1/);
 

@@ -5,7 +5,7 @@
  * Presentation-layer code should import these rather than defining their own.
  */
 
-import { Activity, Bug, Circle, CheckCircle, AlertCircle, Cpu, Lightbulb, MessageSquare, Package, Rocket, Search, Target, Wrench, Zap, type LucideIcon } from "lucide-react";
+import { Activity, Bot, Bug, Circle, CheckCircle, AlertCircle, Clock, Cpu, Layers, Lightbulb, MessageSquare, Package, Rocket, Search, Target, Trophy, Wrench, Zap, type LucideIcon } from "lucide-react";
 import { formatDisplayText } from "../lib";
 import type { BacklogKind, BacklogStatus } from "./backlog";
 import type { CaptureStatus } from "./capture";
@@ -114,11 +114,15 @@ export function formatBacklogStatus(status: BacklogStatus): string {
 
 /**
  * Canonical entity type identifiers used across the UI.
- * Must stay in sync with GraphEntityType in surfaces/graph/types.ts.
+ * The graph-node subset must stay in sync with GraphEntityType in
+ * surfaces/graph/types.ts. "goal" is UI-only (goals are not graph nodes),
+ * so it lives here for icon/label resolution but is absent from
+ * GraphEntityType and ENTITY_REGISTRY.
  */
 export type EntityType =
   | "backlog"
   | "initiative"
+  | "goal"
   | "scenario"
   | "capture"
   | "execution"
@@ -129,10 +133,15 @@ export type EntityType =
  * Single source of truth for entity type icons.
  * Graph nodes, detail page headers, and any other entity-type-aware UI
  * should import from here rather than defining their own icon mappings.
+ *
+ * Goal uses Trophy so it is visually distinct from initiative (Target);
+ * every goal surface must resolve its icon from here rather than hardcoding
+ * Target, which would make goals and initiatives indistinguishable.
  */
 export const ENTITY_TYPE_ICONS: Record<EntityType, LucideIcon> = {
   backlog: Lightbulb,
   initiative: Target,
+  goal: Trophy,
   scenario: Package,
   capture: MessageSquare,
   execution: Zap,
@@ -146,11 +155,38 @@ export const ENTITY_TYPE_ICONS: Record<EntityType, LucideIcon> = {
 export const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
   backlog: "Backlog",
   initiative: "Initiative",
+  goal: "Goal",
   scenario: "Scenario",
   capture: "Capture",
   execution: "Execution",
   "agent-run": "Run",
   "agent-activity": "Activity",
+};
+
+export type SidebarEntityType =
+  | "activity"
+  | "backlog"
+  | "captures"
+  | "initiatives"
+  | "goals"
+  | "operatingModes"
+  | "executions"
+  | "sessions";
+
+/**
+ * Icons for sidebar tabs. Entity-backed tabs derive from ENTITY_TYPE_ICONS so
+ * a tab and its entity can never drift apart; the remaining tabs (activity feed,
+ * operating modes, sessions) have no entity-type equivalent and carry their own.
+ */
+export const SIDEBAR_TAB_ICONS: Record<SidebarEntityType, LucideIcon> = {
+  activity: Clock,
+  backlog: ENTITY_TYPE_ICONS.backlog,
+  captures: ENTITY_TYPE_ICONS.capture,
+  initiatives: ENTITY_TYPE_ICONS.initiative,
+  goals: ENTITY_TYPE_ICONS.goal,
+  operatingModes: Layers,
+  executions: ENTITY_TYPE_ICONS.execution,
+  sessions: Bot,
 };
 
 // ============================================================================

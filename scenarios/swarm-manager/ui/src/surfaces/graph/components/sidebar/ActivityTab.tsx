@@ -6,7 +6,8 @@
  */
 
 import { memo, useState } from "react";
-import { ChevronDown, ChevronRight, Clock, Inbox } from "lucide-react";
+import { ChevronDown, ChevronRight, Clock } from "lucide-react";
+import { SIDEBAR_TAB_ICONS } from "../../../../types/constants";
 import { cn } from "../../../../lib/utils";
 import { formatRelativeTime } from "../../../../lib/format-utils";
 import { useRecentlyViewedStore, type RecentlyViewedItem } from "../../../../stores/recently-viewed-store";
@@ -181,7 +182,7 @@ function ActivityTabImpl({ feed, searchQuery, onItemClick, onClearSearch }: Acti
   if (filtered.length === 0) {
     return (
       <SidebarEmptyState
-        icon={Inbox}
+        icon={SIDEBAR_TAB_ICONS.activity}
         title="No feed items available."
         hint="Captures, attention items, and recent backlog activity show up here."
         query={searchQuery}

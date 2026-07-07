@@ -5,8 +5,9 @@
  * UI never shows a misleading zero or rate.
  */
 
-import { cn } from "../../lib/utils";
+import type { LucideIcon } from "lucide-react";
 import { InsufficientDataCard } from "./insufficient-data-card";
+import { StatsCard } from "./stats-card";
 
 interface StatsMetricCardProps {
   label: string;
@@ -18,6 +19,7 @@ interface StatsMetricCardProps {
   valueClassName?: string;
   subtext?: string;
   testId?: string;
+  icon?: LucideIcon;
 }
 
 export function StatsMetricCard({
@@ -30,6 +32,7 @@ export function StatsMetricCard({
   valueClassName,
   subtext,
   testId,
+  icon,
 }: StatsMetricCardProps) {
   if (sampleSize < Math.max(1, minSample)) {
     return (
@@ -44,13 +47,11 @@ export function StatsMetricCard({
   }
 
   return (
-    <div className="rounded-lg border border-slate-700/50 bg-slate-900/40 p-3" data-testid={testId}>
-      <p className="text-xs text-slate-400">{label}</p>
-      <p className={cn("text-lg font-semibold text-slate-100", valueClassName)}>{value}</p>
+    <StatsCard label={label} value={value} valueClassName={valueClassName} icon={icon} testId={testId}>
       <p className="text-xs text-slate-500">
         {subtext ? `${subtext} · ` : null}
         n = {sampleSize}
       </p>
-    </div>
+    </StatsCard>
   );
 }

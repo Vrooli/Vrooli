@@ -229,7 +229,121 @@ describe("PlanBoard", () => {
     const strip = screen.getByTestId("plan-eta-strip");
     expect(strip).toHaveTextContent("~5 days");
     expect(strip).toHaveTextContent("~10 days");
+    expect(strip).not.toHaveAttribute("title");
     expect(screen.getByTestId("plan-eta-basis")).toHaveTextContent("27 samples");
+  });
+
+  it("opens the ETA details popover", async () => {
+    setPlanStoreService(
+      stubService(
+        makeBoard({
+          meta: {
+            generatedAt: "2026-07-02T12:00:00Z",
+            windowSeconds: 86400,
+            maxWave: 2,
+            cycles: [],
+            eta: {
+              p50Hours: 120,
+              p80Hours: 240,
+              p50Label: "~5 days",
+              p80Label: "~10 days",
+              basis: "live",
+              basisLabel: "27 samples",
+              confidence: "high",
+              remainingItems: 6,
+              laneCapacity: 3,
+            },
+          },
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<PlanBoard />);
+
+    await screen.findByTestId(selectors.plan.board);
+    await user.click(screen.getByTestId("plan-eta-strip"));
+
+    expect(await screen.findByTestId("plan-eta-popover")).toHaveTextContent("Remaining");
+    expect(screen.getByText("6 items")).toBeInTheDocument();
+    expect(screen.getByTestId("plan-eta-stats-link")).toHaveTextContent("Open Stats throughput and timing");
+  });
+
+  it("offers attach-to-session from the ETA popover", async () => {
+    setPlanStoreService(
+      stubService(
+        makeBoard({
+          meta: {
+            generatedAt: "2026-07-02T12:00:00Z",
+            windowSeconds: 86400,
+            maxWave: 2,
+            cycles: [],
+            eta: {
+              p50Hours: 120,
+              p80Hours: 240,
+              p50Label: "~5 days",
+              p80Label: "~10 days",
+              basis: "live",
+              basisLabel: "27 samples",
+              confidence: "high",
+              remainingItems: 6,
+              laneCapacity: 3,
+            },
+          },
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<PlanBoard />);
+
+    await screen.findByTestId(selectors.plan.board);
+    await user.click(screen.getByTestId("plan-eta-strip"));
+    await screen.findByTestId("plan-eta-popover");
+
+    expect(screen.getByTestId(selectors.agentSessions.entityAttachAction)).toBeInTheDocument();
+  });
+
+  it("offers attach-to-session from the dependency-cycle popover", async () => {
+    setPlanStoreService(
+      stubService(
+        makeBoard({
+          meta: {
+            generatedAt: "2026-07-02T12:00:00Z",
+            windowSeconds: 86400,
+            maxWave: 2,
+            cycles: ["backlog-item/fix/a -> backlog-item/fix/b"],
+            eta: null,
+          },
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<PlanBoard />);
+
+    await screen.findByTestId(selectors.plan.board);
+    await user.click(screen.getByTestId("plan-cycle-warning"));
+    await screen.findByTestId("plan-cycle-popover");
+
+    expect(screen.getByTestId(selectors.agentSessions.entityAttachAction)).toBeInTheDocument();
+  });
+
+  it("keeps filters and refresh out of the plan context row", async () => {
+    setPlanStoreService(stubService(makeBoard()));
+    renderWithProviders(<PlanBoard />);
+
+    await screen.findByTestId(selectors.plan.board);
+
+    expect(screen.queryByTestId(selectors.plan.boardFilters)).toBeNull();
+    expect(screen.queryByTestId(selectors.plan.boardRefresh)).toBeNull();
+  });
+
+  it("opens the shared filter drawer from plan store state", async () => {
+    setPlanStoreService(stubService(makeBoard()));
+    usePlanDataStore.setState({ filterDrawerOpen: true });
+    renderWithProviders(<PlanBoard />);
+
+    await screen.findByTestId(selectors.plan.board);
+
+    expect(screen.getByTestId(selectors.plan.filterDrawer)).toBeInTheDocument();
   });
 
   it("omits the ETA strip when there is nothing to estimate", async () => {
@@ -312,5 +426,19 @@ describe("PlanBoard", () => {
 
     const warning = await screen.findByTestId(selectors.plan.cycleWarning);
     expect(warning).toHaveTextContent("1 dependency cycle");
+    expect(warning).not.toHaveAttribute("title");
+  });
+
+  it("opens dependency-cycle details with graph actions", async () => {
+    setPlanStoreService(stubService(makeBoard({
+      meta: { generatedAt: "", windowSeconds: 86400, maxWave: 2, cycles: ["fix/a -> fix/b -> fix/a"], eta: null },
+    })));
+    const user = userEvent.setup();
+    renderWithProviders(<PlanBoard />);
+
+    await user.click(await screen.findByTestId(selectors.plan.cycleWarning));
+
+    expect(await screen.findByTestId("plan-cycle-popover")).toHaveTextContent("fix/a");
+    expect(screen.getByTestId("plan-cycle-resolve")).toHaveTextContent("Inspect dependency edge fix/a -> fix/b");
   });
 });

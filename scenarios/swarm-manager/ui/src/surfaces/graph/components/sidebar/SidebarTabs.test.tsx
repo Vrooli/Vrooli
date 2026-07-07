@@ -14,6 +14,7 @@ import {
 import { useSnoozeStore } from "../../../../stores/snooze-store";
 import type { AgentSession, BacklogItem, Capture, ExecutionRecord } from "../../../../types";
 import { SidebarTabs } from "./SidebarTabs";
+import { SIDEBAR_TABS } from "./types";
 
 const noop = () => {};
 
@@ -185,5 +186,13 @@ describe("SidebarTabs", () => {
     expect(within(screen.getByTestId("sidebar-tab-activity")).queryByText(/\d+/)).toBeNull();
     expect(within(screen.getByTestId("sidebar-tab-operatingModes")).queryByText(/\d+/)).toBeNull();
     expect(within(screen.getByTestId("sidebar-tab-sessions")).queryByText(/\d+/)).toBeNull();
+  });
+
+  it("renders an entity icon for every tab", () => {
+    renderTabs();
+
+    for (const tab of SIDEBAR_TABS) {
+      expect(screen.getByTestId(`sidebar-tab-${tab}`).querySelector("svg")).toBeInTheDocument();
+    }
   });
 });

@@ -11,6 +11,7 @@ import { backlogService } from "../../../../services";
 import { useAgentSessionStore, useBacklogStore, useCaptureStore, useExecutionStore } from "../../../../stores";
 import { useSnoozedKeys } from "../../../../stores/snooze-store";
 import type { AgentSession } from "../../../../types";
+import { SIDEBAR_TAB_ICONS } from "../../../../types/constants";
 import { SIDEBAR_TABS, TAB_LABELS, type SidebarTab } from "./types";
 
 interface SidebarTabsProps {
@@ -90,6 +91,7 @@ export function SidebarTabs({ activeTab, onTabChange }: SidebarTabsProps) {
   const items: CompactTabItem<SidebarTab>[] = SIDEBAR_TABS.map((tab) => ({
     value: tab,
     label: TAB_LABELS[tab],
+    icon: SIDEBAR_TAB_ICONS[tab],
     badge: tab === "backlog"
       ? makeBadge(badgeCounts.backlog, "bg-amber-500/20 text-amber-300")
       : tab === "captures"

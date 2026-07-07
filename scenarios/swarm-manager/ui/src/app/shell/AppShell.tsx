@@ -3,6 +3,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { onProfilerRender } from "../../lib/profiler";
 import { useQuery } from "@tanstack/react-query";
 import { Sidebar } from "../../surfaces/graph/components/Sidebar";
+import { CapturePanel } from "../../surfaces/graph/components/CapturePanel";
 import { SettingsDrawer } from "../../surfaces/graph/components/SettingsDrawer";
 import { useGraphUIStore } from "../../surfaces/graph/stores/graph-ui-store";
 import { buildFeed } from "../../lib/feed";
@@ -27,6 +28,7 @@ export function AppShell() {
   const sidebarAsideRef = useRef<HTMLElement>(null);
   const isMobile = useIsMobile();
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
+  const [showCapturePanel, setShowCapturePanel] = useState(false);
 
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
   const backlogItems = useBacklogStore((s) => s.items);
@@ -146,6 +148,8 @@ export function AppShell() {
       openSidebar: () => setSidebarCollapsed(false),
       closeSidebar: () => setSidebarCollapsed(true),
       toggleSidebar,
+      openQuickCapture: () => setShowCapturePanel(true),
+      toggleQuickCapture: () => setShowCapturePanel((prev) => !prev),
     }),
     [setSidebarCollapsed, toggleSidebar],
   );
@@ -163,6 +167,7 @@ export function AppShell() {
                 onGoHome={handleGoHome}
                 onOpenCommandPost={handleOpenCommandPost}
                 onOpenAgentSession={closeSidebarOnMobile}
+                onQuickCapture={() => setShowCapturePanel(true)}
                 desktopWidth={isMobile ? undefined : sidebarWidth}
                 resizeHandleProps={isMobile ? undefined : resizeHandleProps}
                 asideRef={sidebarAsideRef}
@@ -176,6 +181,7 @@ export function AppShell() {
             </main>
 
             <SettingsDrawer isOpen={showSettingsDrawer} onClose={handleCloseSettingsDrawer} />
+            <CapturePanel isOpen={showCapturePanel} onClose={() => setShowCapturePanel(false)} />
           </div>
         </BacklogItemsProvider>
       </AppShellContext.Provider>

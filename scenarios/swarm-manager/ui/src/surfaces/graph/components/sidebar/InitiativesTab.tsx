@@ -3,7 +3,8 @@
  */
 
 import { memo, useEffect, useState } from "react";
-import { Archive, FolderKanban, Loader2 } from "lucide-react";
+import { Archive, Loader2 } from "lucide-react";
+import { SIDEBAR_TAB_ICONS } from "../../../../types/constants";
 import { useInitiativeStore } from "../../../../stores/initiative-store";
 import { matchesSearch } from "./useSidebarSearch";
 import type { InitiativeWithRollup } from "../../../../types";
@@ -171,7 +172,7 @@ function InitiativesTabImpl({
     const title = filtersActive ? "No initiatives match your filters." : "No initiatives yet.";
     return (
       <SidebarEmptyState
-        icon={FolderKanban}
+        icon={SIDEBAR_TAB_ICONS.initiatives}
         title={title}
         hint={filtersActive ? undefined : "Group related backlog work into initiatives to track progress together."}
         query={searchQuery}

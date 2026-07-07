@@ -21,12 +21,17 @@
  * stop-run plumbing piped down from `GraphWorkspace`.
  */
 
-import { HelpCircle, Menu, Settings } from "lucide-react";
+import { HelpCircle, Menu, RefreshCw, Settings, SlidersHorizontal } from "lucide-react";
 import { OpsTriggerButton } from "../../../components/operations/OpsTriggerButton";
+import { cn } from "../../../lib/utils";
 import { LensNav } from "./LensNav";
 import { GraphNavControls } from "./GraphNavControls";
 import type { AppGraphLens } from "../../../app/routes/route-paths";
 import type { GraphLens } from "../stores/graph-data-store";
+import { useOperationsStore } from "../../../stores/operations-store";
+import { selectActiveCount } from "../../../stores/operations-store";
+import { usePlanDataStore } from "../../plan/stores/plan-data-store";
+import { hasActiveFilters } from "../../plan/lib/plan-url-state";
 
 export interface WorkspaceHeaderProps {
   /** Current active surface or graph data lens */
@@ -59,10 +64,25 @@ export function WorkspaceHeader({
 }: WorkspaceHeaderProps) {
   const activeSurface: AppGraphLens = lens === "plan" ? "plan" : lens === "stats" ? "stats" : "graph";
   const isGraphSurface = activeSurface === "graph";
+  const isPlanSurface = activeSurface === "plan";
   const helpLabel = activeSurface === "plan" ? "Plan guide" : activeSurface === "stats" ? "Stats guide" : "Graph guide";
   // Nav controls and graph controls are canvas-only affordances; Plan and
   // Stats have nothing to pan or configure, so neither appears there.
   const showNavRow = showNavControls && isGraphSurface;
+  const activeAgentCount = useOperationsStore(selectActiveCount);
+  const planFilters = useOperationsStore((s) => s.filters);
+  const planViewMode = useOperationsStore((s) => s.viewMode);
+  const planWindowSeconds = usePlanDataStore((s) => s.windowSeconds);
+  const planShowSnoozed = usePlanDataStore((s) => s.showSnoozed);
+  const planGoal = usePlanDataStore((s) => s.goal);
+  const togglePlanFilterDrawer = usePlanDataStore((s) => s.toggleFilterDrawer);
+  const refreshPlanBoard = usePlanDataStore((s) => s.fetchBoard);
+  const hasActivePlanFilters = hasActiveFilters({
+    filters: { ...planFilters, windowSeconds: planWindowSeconds },
+    viewMode: planViewMode,
+    showSnoozed: planShowSnoozed,
+    goal: planGoal,
+  });
 
   return (
     <header
@@ -83,11 +103,38 @@ export function WorkspaceHeader({
               <Menu className="h-4 w-4" />
             </button>
           )}
-          <LensNav activeLens={lens} onLensChange={onLensChange} />
+          <LensNav activeLens={lens} onLensChange={onLensChange} badges={{ plan: activeAgentCount }} />
         </div>
 
         {/* Right: graph controls (canvas only) + help + agents trigger */}
         <div className="ml-auto flex items-center gap-1">
+          {isPlanSurface && (
+            <>
+              <button
+                type="button"
+                onClick={togglePlanFilterDrawer}
+                className={cn(
+                  ICON_BUTTON_CLASS,
+                  hasActivePlanFilters && "text-cyan-400 hover:text-cyan-300",
+                )}
+                aria-label="Plan filters"
+                title="Plan filters"
+                data-testid="plan-board-filters"
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => void refreshPlanBoard({ force: true })}
+                className={ICON_BUTTON_CLASS}
+                aria-label="Refresh plan"
+                title="Refresh plan"
+                data-testid="plan-board-refresh"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
+            </>
+          )}
           {isGraphSurface && (
             <button
               type="button"

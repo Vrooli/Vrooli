@@ -4,17 +4,40 @@
  */
 
 import { useState } from "react";
-import { AlertCircle, Loader2 } from "lucide-react";
-import { cn } from "../../../lib/utils";
+import {
+  Activity,
+  AlertCircle,
+  BarChart3,
+  CheckCircle2,
+  Clock3,
+  Gauge,
+  LayoutDashboard,
+  Layers,
+  ListChecks,
+  Loader2,
+  MessageSquare,
+  Target,
+  Timer,
+  TrendingUp,
+  Users,
+  Zap,
+} from "lucide-react";
 import { HistoryBanner } from "../../../components/stats/history-banner";
 import { InsufficientDataCard } from "../../../components/stats/insufficient-data-card";
+import { KeyValueList } from "../../../components/stats/key-value-list";
+import { MiniBarChart } from "../../../components/stats/mini-bar-chart";
+import { ProgressBar } from "../../../components/stats/progress-bar";
+import { SectionLabel } from "../../../components/stats/section-label";
+import { StatsCard as StatCard } from "../../../components/stats/stats-card";
+import { StatsEmptyState } from "../../../components/stats/stats-empty-state";
 import { StatsMetricCard } from "../../../components/stats/stats-metric-card";
+import { CompactTabBar } from "../../../components/ui/compact-tab-bar";
+import { cn } from "../../../lib/utils";
 import {
   formatDelta,
   formatHours,
   formatRate,
   formatWeeksRemaining,
-  toBarPercent,
 } from "../../../lib/stats-format-utils";
 import type {
   AgentStats,
@@ -29,20 +52,21 @@ import type {
   ThroughputStats,
   TimingStats,
 } from "../../../types/stats";
+import type { CompactTabItem } from "../../../components/ui/compact-tab-bar";
 
 // ---------------------------------------------------------------------------
 // Tab config
 // ---------------------------------------------------------------------------
 
-const STATS_TABS: { id: StatsCategory; label: string }[] = [
-  { id: "dashboard", label: "Dashboard" },
-  { id: "throughput", label: "Throughput" },
-  { id: "agent", label: "Agent" },
-  { id: "timing", label: "Timing" },
-  { id: "blocking", label: "Blocking" },
-  { id: "scope", label: "Scope" },
-  { id: "modes", label: "Modes" },
-  { id: "sessions", label: "Sessions" },
+const STATS_TABS: CompactTabItem<StatsCategory>[] = [
+  { value: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { value: "throughput", label: "Throughput", icon: TrendingUp },
+  { value: "agent", label: "Agent", icon: Zap },
+  { value: "timing", label: "Timing", icon: Timer },
+  { value: "blocking", label: "Blocking", icon: AlertCircle },
+  { value: "scope", label: "Scope", icon: Target },
+  { value: "modes", label: "Modes", icon: Layers },
+  { value: "sessions", label: "Sessions", icon: MessageSquare },
 ];
 
 // Default min sample threshold used when the response does not include one.
@@ -81,26 +105,14 @@ export function StatsContent({
 }: StatsContentProps) {
   return (
     <div className="space-y-4" data-testid="stats-content">
-      <div className="flex overflow-x-auto border-b border-slate-700/50" role="tablist">
-        {STATS_TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tab.id}
-            onClick={() => onTabChange(tab.id)}
-            className={cn(
-              "shrink-0 border-b-2 px-4 py-2 text-sm font-medium transition-colors",
-              activeTab === tab.id
-                ? "border-cyan-400 text-cyan-300"
-                : "border-transparent text-slate-400 hover:text-slate-200",
-            )}
-            data-testid={`stats-tab-${tab.id}`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <CompactTabBar
+        items={STATS_TABS}
+        activeValue={activeTab}
+        onValueChange={onTabChange}
+        aria-label="Stats sections"
+        className="border-b border-slate-700/50"
+        tabTestIdPrefix="stats-tab"
+      />
 
       {isLoading && (
         <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-400" data-testid="stats-loading">
@@ -152,41 +164,11 @@ function TabContent({ tab, data }: { tab: StatsCategory; data: StatsResponse }) 
 }
 
 // ---------------------------------------------------------------------------
-// Shared presentational components
-// ---------------------------------------------------------------------------
-
-function StatCard({ label, value, subtext, testId }: { label: string; value: string; subtext?: string; testId?: string }) {
-  return (
-    <div className="rounded-lg border border-slate-700/50 bg-slate-900/40 p-3" data-testid={testId}>
-      <p className="text-xs text-slate-400">{label}</p>
-      <p className="text-lg font-semibold text-slate-100">{value}</p>
-      {subtext && <p className="text-xs text-slate-500">{subtext}</p>}
-    </div>
-  );
-}
-
-function ProgressBar({ value, max, color = "bg-cyan-500" }: { value: number; max: number; color?: string }) {
-  const width = toBarPercent(value, max);
-  return (
-    <div className="h-2 w-full rounded-full bg-slate-800">
-      <div className={cn("h-2 rounded-full transition-all", color)} style={{ width: `${width}%` }} />
-    </div>
-  );
-}
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">{children}</h3>;
-}
-
-// ---------------------------------------------------------------------------
 // Dashboard tab
 // ---------------------------------------------------------------------------
 
 function DashboardTab({ data, eventCount, history }: { data: DashboardStats; eventCount: number; history: HistoryWindow }) {
   const velocityTrend = data.velocity_trend ?? [];
-  const maxCompleted = velocityTrend.length > 0
-    ? Math.max(...velocityTrend.map((p) => p.completed), 1)
-    : 1;
 
   // The estimated-remaining pill is based on the last 4 full weeks of
   // velocity; if we have <4 non-zero weeks of history the estimate is
@@ -195,11 +177,22 @@ function DashboardTab({ data, eventCount, history }: { data: DashboardStats; eve
 
   return (
     <div className="space-y-4" data-testid="stats-content-dashboard">
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Backlog" value={String(data.total_backlog_size)} testId="stat-backlog-size" />
-        <StatCard label="Completed" value={String(data.total_completed_all_time)} subtext="all time" testId="stat-completed-all-time" />
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatCard label="Backlog" value={data.total_backlog_size.toLocaleString()} icon={ListChecks} testId="stat-backlog-size" />
+        <StatCard
+          label="Completed"
+          value={data.total_completed_all_time.toLocaleString()}
+          subtext="all time"
+          icon={CheckCircle2}
+          testId="stat-completed-all-time"
+        />
         {velocityReady ? (
-          <StatCard label="Est. Remaining" value={formatWeeksRemaining(data.estimated_weeks_remaining)} testId="stat-weeks-remaining" />
+          <StatCard
+            label="Est. Remaining"
+            value={formatWeeksRemaining(data.estimated_weeks_remaining)}
+            icon={Clock3}
+            testId="stat-weeks-remaining"
+          />
         ) : (
           <InsufficientDataCard
             label="Est. Remaining"
@@ -212,25 +205,18 @@ function DashboardTab({ data, eventCount, history }: { data: DashboardStats; eve
       </div>
 
       <div>
-        <SectionLabel>Velocity (last {velocityTrend.length} weeks)</SectionLabel>
+        <SectionLabel icon={TrendingUp}>Velocity (last {velocityTrend.length} weeks)</SectionLabel>
         {velocityTrend.length === 0 ? (
-          <p className="text-sm text-slate-500">No velocity data yet</p>
+          <StatsEmptyState>No velocity data yet</StatsEmptyState>
         ) : (
-          <div className="flex items-end gap-1" style={{ height: 80 }}>
-            {velocityTrend.map((point) => (
-              <div
-                key={point.week_start}
-                className="flex flex-1 flex-col items-center gap-1"
-              >
-                <div
-                  className="w-full rounded-t bg-cyan-500/70"
-                  style={{ height: `${toBarPercent(point.completed, maxCompleted)}%` }}
-                  title={`${point.week_start}: ${point.completed} completed`}
-                />
-                <span className="text-[10px] text-slate-500">{point.completed}</span>
-              </div>
-            ))}
-          </div>
+          <MiniBarChart
+            points={velocityTrend.map((point) => ({
+              key: point.week_start,
+              label: point.week_start,
+              value: point.completed,
+            }))}
+            testId="stats-velocity-chart"
+          />
         )}
       </div>
 
@@ -298,11 +284,12 @@ function AgentTab({ data, history }: { data: AgentStats; history: HistoryWindow 
 
   return (
     <div className="space-y-4" data-testid="stats-content-agent">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <StatCard
           label="Total Executions"
           value={String(data.total_executions)}
           subtext={`${data.completed_count} completed · ${data.failed_count} failed`}
+          icon={Zap}
         />
         <StatsMetricCard
           label="Avg Duration"
@@ -311,6 +298,7 @@ function AgentTab({ data, history }: { data: AgentStats; history: HistoryWindow 
           minSample={threshold}
           sampleNoun="completed runs"
           insufficientReason={`Need at least ${threshold} finished runs.`}
+          icon={Timer}
         />
       </div>
 
@@ -401,7 +389,7 @@ function RecommendationAcceptanceSection({
 
   return (
     <div className="space-y-3" data-testid="stats-recommendation-acceptance">
-      <SectionLabel>Decision Recommendations</SectionLabel>
+      <SectionLabel icon={MessageSquare}>Decision Recommendations</SectionLabel>
       {ready ? (
         <div className="space-y-3">
           <div>
@@ -491,8 +479,8 @@ function TimingTab({ data, history }: { data: TimingStats; history: HistoryWindo
   const threshold = minSample(history);
   return (
     <div className="space-y-3" data-testid="stats-content-timing">
-      <SectionLabel>Lead Time (created → complete)</SectionLabel>
-      <div className="grid grid-cols-2 gap-3">
+      <SectionLabel icon={Clock3}>Lead Time (created → complete)</SectionLabel>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <StatsMetricCard
           label="Average"
           value={formatHours(data.avg_lead_time_hours)}
@@ -500,6 +488,7 @@ function TimingTab({ data, history }: { data: TimingStats; history: HistoryWindo
           minSample={threshold}
           sampleNoun="items"
           insufficientReason={`Need at least ${threshold} items tracked from creation to completion.`}
+          icon={Gauge}
         />
         <StatsMetricCard
           label="Median"
@@ -508,11 +497,12 @@ function TimingTab({ data, history }: { data: TimingStats; history: HistoryWindo
           minSample={threshold}
           sampleNoun="items"
           insufficientReason={`Need at least ${threshold} items tracked from creation to completion.`}
+          icon={BarChart3}
         />
       </div>
 
-      <SectionLabel>Execution Duration (running → complete)</SectionLabel>
-      <div className="grid grid-cols-2 gap-3">
+      <SectionLabel icon={Timer}>Execution Duration (running → complete)</SectionLabel>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <StatsMetricCard
           label="Average"
           value={`${data.avg_execution_minutes.toFixed(1)} min`}
@@ -520,6 +510,7 @@ function TimingTab({ data, history }: { data: TimingStats; history: HistoryWindo
           minSample={threshold}
           sampleNoun="finished runs"
           insufficientReason={`Need at least ${threshold} finished executions.`}
+          icon={Timer}
         />
         <StatsMetricCard
           label="Median"
@@ -528,6 +519,7 @@ function TimingTab({ data, history }: { data: TimingStats; history: HistoryWindo
           minSample={threshold}
           sampleNoun="finished runs"
           insufficientReason={`Need at least ${threshold} finished executions.`}
+          icon={BarChart3}
         />
       </div>
     </div>
@@ -543,16 +535,16 @@ function BlockingTab({ data }: { data: BlockingStats }) {
 
   return (
     <div className="space-y-4" data-testid="stats-content-blocking">
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Blocked" value={String(data.currently_blocked)} />
-        <StatCard label="Blocked %" value={formatRate(data.blocked_ratio)} />
-        <StatCard label="Avg Block Time" value={formatHours(data.avg_block_hours)} />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatCard label="Blocked" value={String(data.currently_blocked)} icon={AlertCircle} />
+        <StatCard label="Blocked %" value={formatRate(data.blocked_ratio)} icon={Gauge} />
+        <StatCard label="Avg Block Time" value={formatHours(data.avg_block_hours)} icon={Clock3} />
       </div>
 
       <div>
-        <SectionLabel>Top Blocking Reasons</SectionLabel>
+        <SectionLabel icon={AlertCircle}>Top Blocking Reasons</SectionLabel>
         {topReasons.length === 0 ? (
-          <p className="text-sm text-slate-500">No blocking reasons recorded</p>
+          <StatsEmptyState>No blocking reasons recorded</StatsEmptyState>
         ) : (
           <ul className="space-y-1">
             {topReasons.map((r) => (
@@ -584,7 +576,7 @@ function ScopeTab({ data }: { data: ScopeStats }) {
       )}
 
       {initiatives.length === 0 ? (
-        <p className="text-sm text-slate-500">No initiatives yet</p>
+        <StatsEmptyState>No initiatives yet</StatsEmptyState>
       ) : (
         <ul className="space-y-3">
           {initiatives.map((init) => {
@@ -627,15 +619,15 @@ function ModesTab({ data }: { data: ModeStats }) {
 
   return (
     <div className="space-y-4" data-testid="stats-content-modes">
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Mode Switches" value={String(data?.mode_switch_count ?? 0)} />
-        <StatCard label="Profiles Used" value={String(profileEntries.length)} />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <StatCard label="Mode Switches" value={String(data?.mode_switch_count ?? 0)} icon={Layers} />
+        <StatCard label="Profiles Used" value={String(profileEntries.length)} icon={Users} />
       </div>
 
       <div>
-        <SectionLabel>Current Mode Usage</SectionLabel>
+        <SectionLabel icon={Activity}>Current Mode Usage</SectionLabel>
         {usageEntries.length === 0 ? (
-          <p className="text-sm text-slate-500">No initiatives recorded yet</p>
+          <StatsEmptyState>No initiatives recorded yet</StatsEmptyState>
         ) : (
           <ul className="space-y-2">
             {usageEntries.map(([mode, count]) => (
@@ -649,9 +641,9 @@ function ModesTab({ data }: { data: ModeStats }) {
       </div>
 
       <div>
-        <SectionLabel>Phase Runs</SectionLabel>
+        <SectionLabel icon={BarChart3}>Phase Runs</SectionLabel>
         {phaseEntries.length === 0 ? (
-          <p className="text-sm text-slate-500">No operating-mode phase runs yet</p>
+          <StatsEmptyState>No operating-mode phase runs yet</StatsEmptyState>
         ) : (
           <div className="space-y-3">
             {phaseEntries.map(([mode, phases]) => (
@@ -677,7 +669,7 @@ function ModesTab({ data }: { data: ModeStats }) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {Object.entries(data?.replan_rate_by_mode ?? {}).map(([mode, rate]) => (
           <StatCard
             key={`replan-${mode}`}
@@ -697,9 +689,9 @@ function ModesTab({ data }: { data: ModeStats }) {
       </div>
 
       <div>
-        <SectionLabel>Profile Usage</SectionLabel>
+        <SectionLabel icon={Users}>Profile Usage</SectionLabel>
         {profileEntries.length === 0 ? (
-          <p className="text-sm text-slate-500">No profile usage recorded yet</p>
+          <StatsEmptyState>No profile usage recorded yet</StatsEmptyState>
         ) : (
           <ul className="space-y-1">
             {profileEntries.map(([profile, count]) => (
@@ -714,7 +706,7 @@ function ModesTab({ data }: { data: ModeStats }) {
 
       {syncEntries.length > 0 && (
         <div>
-          <SectionLabel>Backlog Sync</SectionLabel>
+          <SectionLabel icon={ListChecks}>Backlog Sync</SectionLabel>
           <ul className="space-y-2">
             {syncEntries.map(([mode, sync]) => (
               <li key={mode} className="rounded-lg border border-slate-700/50 bg-slate-900/40 p-3 text-xs text-slate-400">
@@ -747,8 +739,8 @@ function SessionsTab({ data, history }: { data: SessionStats; history: HistoryWi
 
   return (
     <div className="space-y-4" data-testid="stats-content-sessions">
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Sessions" value={String(data?.total_sessions ?? 0)} subtext={`${data?.active_sessions ?? 0} active`} />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatCard label="Sessions" value={String(data?.total_sessions ?? 0)} subtext={`${data?.active_sessions ?? 0} active`} icon={MessageSquare} />
         <StatsMetricCard
           label="Messages / Session"
           value={(data?.avg_messages_per_session ?? 0).toFixed(1)}
@@ -756,6 +748,7 @@ function SessionsTab({ data, history }: { data: SessionStats; history: HistoryWi
           minSample={1}
           sampleNoun="sessions"
           insufficientReason="No sessions recorded yet."
+          icon={MessageSquare}
         />
         <StatsMetricCard
           label="Failed Sessions"
@@ -764,12 +757,13 @@ function SessionsTab({ data, history }: { data: SessionStats; history: HistoryWi
           minSample={Math.max(1, threshold)}
           sampleNoun="terminal sessions"
           insufficientReason={`Need at least ${threshold} terminal sessions.`}
+          icon={AlertCircle}
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Backlog Artifacts" value={String(data?.session_created_backlog_items ?? 0)} subtext="created by sessions" />
-        <StatCard label="Initiative Artifacts" value={String(data?.session_created_initiatives ?? 0)} subtext="created by sessions" />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <StatCard label="Backlog Artifacts" value={String(data?.session_created_backlog_items ?? 0)} subtext="created by sessions" icon={ListChecks} />
+        <StatCard label="Initiative Artifacts" value={String(data?.session_created_initiatives ?? 0)} subtext="created by sessions" icon={Target} />
       </div>
 
       <StatsMetricCard
@@ -779,30 +773,31 @@ function SessionsTab({ data, history }: { data: SessionStats; history: HistoryWi
         minSample={Math.max(1, threshold)}
         sampleNoun="sessions with proposals"
         insufficientReason={`Need at least ${threshold} sessions with proposals.`}
+        icon={Timer}
       />
 
       <div>
-        <SectionLabel>Sessions By Kind</SectionLabel>
+        <SectionLabel icon={MessageSquare}>Sessions By Kind</SectionLabel>
         {kindEntries.length === 0 ? (
-          <p className="text-sm text-slate-500">No agent sessions recorded yet</p>
+          <StatsEmptyState>No agent sessions recorded yet</StatsEmptyState>
         ) : (
-          <KeyValueList entries={kindEntries} />
+          <KeyValueList entries={kindEntries} formatKey={formatModeLabel} />
         )}
       </div>
 
       <div>
-        <SectionLabel>Current Status</SectionLabel>
+        <SectionLabel icon={Activity}>Current Status</SectionLabel>
         {statusEntries.length === 0 ? (
-          <p className="text-sm text-slate-500">No status data yet</p>
+          <StatsEmptyState>No status data yet</StatsEmptyState>
         ) : (
-          <KeyValueList entries={statusEntries} />
+          <KeyValueList entries={statusEntries} formatKey={formatModeLabel} />
         )}
       </div>
 
       <div>
-        <SectionLabel>Proposal Apply Rate</SectionLabel>
+        <SectionLabel icon={CheckCircle2}>Proposal Apply Rate</SectionLabel>
         {proposalEntries.length === 0 ? (
-          <p className="text-sm text-slate-500">No proposals recorded yet</p>
+          <StatsEmptyState>No proposals recorded yet</StatsEmptyState>
         ) : (
           <div className="space-y-2">
             {proposalEntries.map(([kind, rate]) => (
@@ -819,27 +814,14 @@ function SessionsTab({ data, history }: { data: SessionStats; history: HistoryWi
       </div>
 
       <div>
-        <SectionLabel>Artifacts By Type</SectionLabel>
+        <SectionLabel icon={ListChecks}>Artifacts By Type</SectionLabel>
         {artifactEntries.length === 0 ? (
-          <p className="text-sm text-slate-500">No session artifacts recorded yet</p>
+          <StatsEmptyState>No session artifacts recorded yet</StatsEmptyState>
         ) : (
-          <KeyValueList entries={artifactEntries} />
+          <KeyValueList entries={artifactEntries} formatKey={formatModeLabel} />
         )}
       </div>
     </div>
-  );
-}
-
-function KeyValueList({ entries }: { entries: [string, number][] }) {
-  return (
-    <ul className="space-y-1">
-      {entries.map(([key, value]) => (
-        <li key={key} className="flex items-center justify-between rounded px-2 py-1 text-sm hover:bg-slate-800/50">
-          <span className="truncate text-slate-300">{formatModeLabel(key)}</span>
-          <span className="ml-2 shrink-0 rounded bg-slate-700/60 px-1.5 py-0.5 text-xs text-slate-400">{value}</span>
-        </li>
-      ))}
-    </ul>
   );
 }
 

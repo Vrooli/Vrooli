@@ -5,7 +5,8 @@
  */
 
 import { useState } from "react";
-import { Check, Plus, Target } from "lucide-react";
+import { Check, Plus } from "lucide-react";
+import { ENTITY_TYPE_ICONS } from "../../types/constants";
 import { Dialog } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { cn } from "../../lib/utils";
@@ -74,7 +75,7 @@ export function SetAsGoalDialog({ isOpen, onClose, targetRef, targetTitle }: Set
                   data-testid={`set-as-goal-add-${g.goal.name}`}
                 >
                   <span className="flex items-center gap-2">
-                    <Target className="h-3.5 w-3.5 text-cyan-400" aria-hidden />
+                    <ENTITY_TYPE_ICONS.goal className="h-3.5 w-3.5 text-cyan-400" aria-hidden />
                     <span className="truncate">{g.goal.title}</span>
                   </span>
                   {already ? (

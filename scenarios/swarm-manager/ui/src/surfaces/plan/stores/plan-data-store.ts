@@ -64,10 +64,13 @@ export interface PlanDataState {
   showSnoozed: boolean;
   /** When set, the board is scoped to this goal's closure (server-side). */
   goal: string;
+  filterDrawerOpen: boolean;
   fetchBoard: (options?: FetchBoardOptions) => Promise<void>;
   setWindowSeconds: (seconds: number) => void;
   setShowSnoozed: (show: boolean) => void;
   setGoal: (goal: string) => void;
+  setFilterDrawerOpen: (open: boolean) => void;
+  toggleFilterDrawer: () => void;
 }
 
 export function createPlanDataInitialState() {
@@ -79,6 +82,7 @@ export function createPlanDataInitialState() {
     windowSeconds: DEFAULT_PLAN_WINDOW_SECONDS,
     showSnoozed: false,
     goal: "",
+    filterDrawerOpen: false,
   };
 }
 
@@ -98,6 +102,10 @@ export const usePlanDataStore = create<PlanDataState>((set, get) => ({
     set({ goal });
     void get().fetchBoard({ force: true });
   },
+
+  setFilterDrawerOpen: (open) => set({ filterDrawerOpen: open }),
+
+  toggleFilterDrawer: () => set((state) => ({ filterDrawerOpen: !state.filterDrawerOpen })),
 
   fetchBoard: async (options) => {
     const { fetchedAtMs, board } = get();

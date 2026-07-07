@@ -77,6 +77,12 @@ describe("SidebarHeader", () => {
     expect(trigger.getAttribute("href")).toBe("/plan");
   });
 
+  it("can hide the Operations trigger on desktop when LensNav carries the count", () => {
+    renderHeader({ hideOpsTriggerOnDesktop: true });
+
+    expect(screen.getByTestId(selectors.layout.opsTriggerButton).className).toContain("md:hidden");
+  });
+
   it("does not render the legacy agents dropdown", () => {
     renderHeader();
 
