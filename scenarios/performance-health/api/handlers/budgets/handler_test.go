@@ -31,6 +31,14 @@ func TestSetThenGetBudgetRoundTrip(t *testing.T) {
 		StartupMaxMs:            5000,
 		ComponentCommitAvgMaxMs: 16,
 		ComponentCommitMaxMs:    50,
+		DrawnFpsMin:             45,
+		DroppedFrameRateMax:     0.2,
+		LongTaskTotalMaxMs:      300,
+		LongTaskMaxMs:           80,
+		RasterTotalMaxMs:        500,
+		LayoutTotalMaxMs:        100,
+		PaintTotalMaxMs:         80,
+		InputEventCountMin:      10,
 		Ratchet:                 true,
 	}
 	setResp, err := h.SetBudget(ctx, connect.NewRequest(&budgetsv1.SetBudgetRequest{Budget: in}))
@@ -69,6 +77,12 @@ func TestSetThenGetBudgetRoundTrip(t *testing.T) {
 		t.Errorf("component_commit_avg_max_ms = %v", got.GetComponentCommitAvgMaxMs())
 	case got.GetComponentCommitMaxMs() != 50:
 		t.Errorf("component_commit_max_ms = %v", got.GetComponentCommitMaxMs())
+	case got.GetDrawnFpsMin() != 45:
+		t.Errorf("drawn_fps_min = %v", got.GetDrawnFpsMin())
+	case got.GetDroppedFrameRateMax() != 0.2:
+		t.Errorf("dropped_frame_rate_max = %v", got.GetDroppedFrameRateMax())
+	case got.GetInputEventCountMin() != 10:
+		t.Errorf("input_event_count_min = %d", got.GetInputEventCountMin())
 	case !got.GetRatchet():
 		t.Error("ratchet should round-trip true")
 	}

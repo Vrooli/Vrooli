@@ -30,8 +30,13 @@ Use this document to answer:
 
 - Vite production builds may process thousands of modules and take
   several minutes.
-- Performance budgets for real product workflows must be defined after
-  domains and UX flows are known.
+- Interaction budgets for real product workflows can be declared per flow under
+  `performance.budgets.flows.<slug>` in `.vrooli/testing.json`. Gesture flows
+  should budget frame health (`drawn_fps_min`, `dropped_frame_rate_max`),
+  browser work (`raster_total_max_ms`, `layout_total_max_ms`,
+  `paint_total_max_ms`), long tasks, and input evidence
+  (`input_event_count_min`) in addition to LCP and component commits. Missing
+  frame/input evidence fails closed unless the flow is explicitly `load_only`.
 
 ## Regression Procedure
 
@@ -42,7 +47,11 @@ Use this document to answer:
    capture it with `performance-health audit run <scenario> --workflow <slug>`
    (see the `performance` steer skill). The old hand-edited
    `ui/perf/capture.template.js` is retired — this is its productized superset.
-4. Record persistent findings in this document or
+4. Set or check a flow budget with `performance-health budget set <scenario>
+   --flow <slug> ...` and `performance-health budget check <scenario> --flow
+   <slug>`. Budget breaches fail the test-genie Performance phase and therefore
+   the suite run, not `git-control-tower baseline diff`.
+5. Record persistent findings in this document or
    [`PROBLEMS.md`](PROBLEMS.md) depending on whether they are accepted
    constraints or unresolved debt.
 

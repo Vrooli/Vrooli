@@ -45,6 +45,22 @@ func (h *handlers) analyze(ctx cliapp.RunContext) error {
 	if len(results) == 0 {
 		results = append(results, "No component timings in this trace.")
 	}
+	frame := msg.GetFrameSummary()
+	if frame != nil {
+		results = append(results, "", fmt.Sprintf("Frame health — duration=%.1fms begin=%d drawn=%d dropped=%d drawn-fps=%.1f dropped-rate=%.1f%%",
+			frame.GetTraceDurationMs(), frame.GetBeginFrameCount(), frame.GetDrawnFrameCount(), frame.GetDroppedFrameCount(), frame.GetApproxDrawnFps(), frame.GetDroppedFrameRate()*100))
+	}
+	appendEventSummaryRows := func(heading string, rows []*analysisv1.EventSummary) {
+		if len(rows) == 0 {
+			return
+		}
+		results = append(results, "", heading+":")
+		for _, row := range rows {
+			results = append(results, fmt.Sprintf("  %s — count=%d total=%.1fms avg=%.1fms max=%.1fms", row.GetName(), row.GetCount(), row.GetTotalMs(), row.GetAvgMs(), row.GetMaxMs()))
+		}
+	}
+	appendEventSummaryRows("Browser work", msg.GetBrowserWork())
+	appendEventSummaryRows("Input events", msg.GetInputEvents())
 	if len(msg.GetFindings()) > 0 {
 		results = append(results, "", "Deterministic findings (component → file:line):")
 		for _, f := range msg.GetFindings() {
@@ -56,7 +72,7 @@ func (h *handlers) analyze(ctx cliapp.RunContext) error {
 		}
 	}
 	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("%s: LCP=%dms FCP=%dms long-task=%dms, %d finding(s).", msg.GetScenario(), msg.GetLcpMs(), msg.GetFcpMs(), msg.GetLongTaskMs(), len(msg.GetFindings()))},
+		Summary:        []string{fmt.Sprintf("%s: LCP=%dms FCP=%dms long-task=%dms drawn-fps=%.1f dropped=%.1f%%, %d finding(s).", msg.GetScenario(), msg.GetLcpMs(), msg.GetFcpMs(), msg.GetLongTaskMs(), frame.GetApproxDrawnFps(), frame.GetDroppedFrameRate()*100, len(msg.GetFindings()))},
 		ResultsHeading: "Component commit profile",
 		Results:        results,
 	})
@@ -90,8 +106,29 @@ func (h *handlers) compare(ctx cliapp.RunContext) error {
 	if len(results) == 0 {
 		results = append(results, "No component deltas.")
 	}
+	if frame := msg.GetFrameDelta(); frame != nil {
+		results = append(results, "", fmt.Sprintf("Frame health Δ — duration=%+.1fms begin=%+d drawn=%+d dropped=%+d drawn-fps=%+.1f dropped-rate=%+.1f%%",
+			frame.GetTraceDurationDeltaMs(), frame.GetBeginFrameCountDelta(), frame.GetDrawnFrameCountDelta(), frame.GetDroppedFrameCountDelta(), frame.GetApproxDrawnFpsDelta(), frame.GetDroppedFrameRateDelta()*100))
+	}
+	appendEventDeltaRows := func(heading string, rows []*analysisv1.EventDelta) {
+		if len(rows) == 0 {
+			return
+		}
+		results = append(results, "", heading+":")
+		for _, row := range rows {
+			results = append(results, fmt.Sprintf("  %s — count %d→%d (Δ%+d), total %.1fms→%.1fms (Δ%+.1fms), avg %.1fms→%.1fms (Δ%+.1fms), max %.1fms→%.1fms (Δ%+.1fms)",
+				row.GetName(),
+				row.GetBaselineCount(), row.GetCandidateCount(), row.GetCountDelta(),
+				row.GetBaselineTotalMs(), row.GetCandidateTotalMs(), row.GetTotalDeltaMs(),
+				row.GetBaselineAvgMs(), row.GetCandidateAvgMs(), row.GetAvgDeltaMs(),
+				row.GetBaselineMaxMs(), row.GetCandidateMaxMs(), row.GetMaxDeltaMs(),
+			))
+		}
+	}
+	appendEventDeltaRows("Browser work deltas", msg.GetBrowserWork())
+	appendEventDeltaRows("Input event deltas", msg.GetInputEvents())
 	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("%s: long-task Δ%+dms, LCP Δ%+dms.", msg.GetScenario(), msg.GetLongTaskDeltaMs(), msg.GetLcpDeltaMs())},
+		Summary:        []string{fmt.Sprintf("%s: long-task Δ%+dms, LCP Δ%+dms, drawn-fps Δ%+.1f.", msg.GetScenario(), msg.GetLongTaskDeltaMs(), msg.GetLcpDeltaMs(), msg.GetFrameDelta().GetApproxDrawnFpsDelta())},
 		ResultsHeading: "Component deltas (largest regression first)",
 		Results:        results,
 	})

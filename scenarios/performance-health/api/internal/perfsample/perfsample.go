@@ -29,5 +29,21 @@ type Sample struct {
 	SlowestComponent      string
 	SlowestComponentAvgMs float64
 	SlowestComponentMaxMs float64
+	DrawnFPS              float64
+	DroppedFrameRate      float64
+	LongTaskTotalMs       int64
+	LongTaskMaxMs         float64
+	RasterTotalMs         float64
+	LayoutTotalMs         float64
+	PaintTotalMs          float64
+	InputEventCount       int64
 	Note                  string
+}
+
+// HasInteractionMetrics reports whether the sample carries any frame, browser
+// work, long-task, or input evidence for an interaction flow.
+func (s Sample) HasInteractionMetrics() bool {
+	return s.DrawnFPS > 0 || s.DroppedFrameRate > 0 || s.LongTaskTotalMs > 0 ||
+		s.LongTaskMaxMs > 0 || s.RasterTotalMs > 0 || s.LayoutTotalMs > 0 ||
+		s.PaintTotalMs > 0 || s.InputEventCount > 0
 }

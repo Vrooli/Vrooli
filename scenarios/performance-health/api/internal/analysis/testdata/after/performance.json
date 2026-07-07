@@ -11,6 +11,24 @@
     { "cat": "blink.user_timing", "name": "⚛ ProjectList (update)", "ph": "b", "ts": 54000, "id2": { "local": "0xa5" } },
     { "cat": "blink.user_timing", "name": "⚛ ProjectList (update)", "ph": "e", "ts": 56000, "id2": { "local": "0xa5" } },
     { "cat": "blink.user_timing", "name": "⚛ ProjectList (update)", "ph": "b", "ts": 57000, "id2": { "local": "0xa6" } },
-    { "cat": "blink.user_timing", "name": "⚛ ProjectList (update)", "ph": "e", "ts": 60000, "id2": { "local": "0xa6" } }
+    { "cat": "blink.user_timing", "name": "⚛ ProjectList (update)", "ph": "e", "ts": 60000, "id2": { "local": "0xa6" } },
+    { "cat": "devtools.timeline", "name": "BeginFrame", "ph": "I", "ts": 61000 },
+    { "cat": "devtools.timeline", "name": "DrawFrame", "ph": "I", "ts": 62000 },
+    { "cat": "devtools.timeline", "name": "BeginFrame", "ph": "I", "ts": 77000 },
+    { "cat": "devtools.timeline", "name": "DrawFrame", "ph": "I", "ts": 78000 },
+    { "cat": "devtools.timeline", "name": "BeginFrame", "ph": "I", "ts": 93000 },
+    { "cat": "devtools.timeline", "name": "DrawFrame", "ph": "I", "ts": 94000 },
+    { "cat": "devtools.timeline", "name": "RasterTask", "ph": "X", "ts": 100000, "dur": 120000 },
+    { "cat": "devtools.timeline", "name": "Layout", "ph": "X", "ts": 230000, "dur": 40000 },
+    { "cat": "devtools.timeline", "name": "EventDispatch", "ph": "X", "ts": 280000, "dur": 1000, "args": { "data": { "type": "pointermove" } } },
+    { "cat": "devtools.timeline", "name": "EventDispatch", "ph": "X", "ts": 296000, "dur": 1000, "args": { "data": { "type": "pointermove" } } },
+    { "cat": "devtools.timeline", "name": "EventDispatch", "ph": "X", "ts": 312000, "dur": 1000, "args": { "data": { "type": "pointermove" } } },
+    { "cat": "devtools.timeline", "name": "EventDispatch", "ph": "X", "ts": 328000, "dur": 1000, "args": { "data": { "type": "pointermove" } } },
+    { "cat": "devtools.timeline", "name": "EventDispatch", "ph": "X", "ts": 344000, "dur": 1000, "args": { "data": { "type": "pointermove" } } },
+    { "cat": "devtools.timeline", "name": "EventDispatch", "ph": "X", "ts": 360000, "dur": 1000, "args": { "data": { "type": "pointermove" } } },
+    { "cat": "devtools.timeline", "name": "EventDispatch", "ph": "X", "ts": 376000, "dur": 1000, "args": { "data": { "type": "wheel" } } },
+    { "cat": "devtools.timeline", "name": "EventDispatch", "ph": "X", "ts": 392000, "dur": 1000, "args": { "data": { "type": "wheel" } } },
+    { "cat": "devtools.timeline", "name": "EventDispatch", "ph": "X", "ts": 408000, "dur": 1000, "args": { "data": { "type": "wheel" } } },
+    { "cat": "devtools.timeline", "name": "EventDispatch", "ph": "X", "ts": 424000, "dur": 1000, "args": { "data": { "type": "wheel" } } }
   ]
 }

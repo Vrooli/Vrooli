@@ -85,6 +85,15 @@ func mergeBudgetWrite(existing, in internalbudgets.Budget, flow string) internal
 			LCPMaxMs:                in.LCPMaxMs,
 			ComponentCommitAvgMaxMs: in.ComponentCommitAvgMaxMs,
 			ComponentCommitMaxMs:    in.ComponentCommitMaxMs,
+			DrawnFPSMin:             in.DrawnFPSMin,
+			DroppedFrameRateMax:     in.DroppedFrameRateMax,
+			LongTaskTotalMaxMs:      in.LongTaskTotalMaxMs,
+			LongTaskMaxMs:           in.LongTaskMaxMs,
+			RasterTotalMaxMs:        in.RasterTotalMaxMs,
+			LayoutTotalMaxMs:        in.LayoutTotalMaxMs,
+			PaintTotalMaxMs:         in.PaintTotalMaxMs,
+			InputEventCountMin:      in.InputEventCountMin,
+			LoadOnly:                in.LoadOnly,
 		}
 		merged.Flows = cp
 		merged.Ratchet = existing.Ratchet || in.Ratchet
@@ -122,7 +131,7 @@ func (h *Handler) CheckBudget(ctx context.Context, req *connect.Request[budgetsv
 	out := &budgetsv1.CheckBudgetResponse{Scenario: scenario, Passed: passed}
 	for _, v := range violations {
 		out.Violations = append(out.Violations, &budgetsv1.BudgetViolation{
-			Axis: v.Axis, Measured: v.Measured, Budget: v.Budget, Unit: v.Unit, Flow: flow,
+			Axis: v.Axis, Measured: v.Measured, Budget: v.Budget, Unit: v.Unit, Flow: flow, Mode: v.Mode, Detail: v.Detail,
 		})
 	}
 	return connect.NewResponse(out), nil
@@ -138,6 +147,15 @@ func budgetToProto(b internalbudgets.Budget) *budgetsv1.Budget {
 		StartupMaxMs:            b.StartupMaxMs,
 		ComponentCommitAvgMaxMs: b.ComponentCommitAvgMaxMs,
 		ComponentCommitMaxMs:    b.ComponentCommitMaxMs,
+		DrawnFpsMin:             b.DrawnFPSMin,
+		DroppedFrameRateMax:     b.DroppedFrameRateMax,
+		LongTaskTotalMaxMs:      b.LongTaskTotalMaxMs,
+		LongTaskMaxMs:           b.LongTaskMaxMs,
+		RasterTotalMaxMs:        b.RasterTotalMaxMs,
+		LayoutTotalMaxMs:        b.LayoutTotalMaxMs,
+		PaintTotalMaxMs:         b.PaintTotalMaxMs,
+		InputEventCountMin:      b.InputEventCountMin,
+		LoadOnly:                b.LoadOnly,
 		Ratchet:                 b.Ratchet,
 	}
 	if len(b.Flows) > 0 {
@@ -147,6 +165,15 @@ func budgetToProto(b internalbudgets.Budget) *budgetsv1.Budget {
 				LcpMaxMs:                fb.LCPMaxMs,
 				ComponentCommitAvgMaxMs: fb.ComponentCommitAvgMaxMs,
 				ComponentCommitMaxMs:    fb.ComponentCommitMaxMs,
+				DrawnFpsMin:             fb.DrawnFPSMin,
+				DroppedFrameRateMax:     fb.DroppedFrameRateMax,
+				LongTaskTotalMaxMs:      fb.LongTaskTotalMaxMs,
+				LongTaskMaxMs:           fb.LongTaskMaxMs,
+				RasterTotalMaxMs:        fb.RasterTotalMaxMs,
+				LayoutTotalMaxMs:        fb.LayoutTotalMaxMs,
+				PaintTotalMaxMs:         fb.PaintTotalMaxMs,
+				InputEventCountMin:      fb.InputEventCountMin,
+				LoadOnly:                fb.LoadOnly,
 			}
 		}
 	}
@@ -166,6 +193,15 @@ func budgetFromProto(b *budgetsv1.Budget) internalbudgets.Budget {
 		StartupMaxMs:            b.GetStartupMaxMs(),
 		ComponentCommitAvgMaxMs: b.GetComponentCommitAvgMaxMs(),
 		ComponentCommitMaxMs:    b.GetComponentCommitMaxMs(),
+		DrawnFPSMin:             b.GetDrawnFpsMin(),
+		DroppedFrameRateMax:     b.GetDroppedFrameRateMax(),
+		LongTaskTotalMaxMs:      b.GetLongTaskTotalMaxMs(),
+		LongTaskMaxMs:           b.GetLongTaskMaxMs(),
+		RasterTotalMaxMs:        b.GetRasterTotalMaxMs(),
+		LayoutTotalMaxMs:        b.GetLayoutTotalMaxMs(),
+		PaintTotalMaxMs:         b.GetPaintTotalMaxMs(),
+		InputEventCountMin:      b.GetInputEventCountMin(),
+		LoadOnly:                b.GetLoadOnly(),
 		Ratchet:                 b.GetRatchet(),
 	}
 	if len(b.GetFlows()) > 0 {
@@ -175,6 +211,15 @@ func budgetFromProto(b *budgetsv1.Budget) internalbudgets.Budget {
 				LCPMaxMs:                fb.GetLcpMaxMs(),
 				ComponentCommitAvgMaxMs: fb.GetComponentCommitAvgMaxMs(),
 				ComponentCommitMaxMs:    fb.GetComponentCommitMaxMs(),
+				DrawnFPSMin:             fb.GetDrawnFpsMin(),
+				DroppedFrameRateMax:     fb.GetDroppedFrameRateMax(),
+				LongTaskTotalMaxMs:      fb.GetLongTaskTotalMaxMs(),
+				LongTaskMaxMs:           fb.GetLongTaskMaxMs(),
+				RasterTotalMaxMs:        fb.GetRasterTotalMaxMs(),
+				LayoutTotalMaxMs:        fb.GetLayoutTotalMaxMs(),
+				PaintTotalMaxMs:         fb.GetPaintTotalMaxMs(),
+				InputEventCountMin:      fb.GetInputEventCountMin(),
+				LoadOnly:                fb.GetLoadOnly(),
 			}
 		}
 	}

@@ -64,6 +64,14 @@ func SampleToMeasurement(s perfsample.Sample) Measurement {
 		StartupMs:            s.StartupMs,
 		ComponentCommitAvgMs: s.SlowestComponentAvgMs,
 		ComponentCommitMaxMs: s.SlowestComponentMaxMs,
+		DrawnFPS:             s.DrawnFPS,
+		DroppedFrameRate:     s.DroppedFrameRate,
+		LongTaskTotalMs:      s.LongTaskTotalMs,
+		LongTaskMaxMs:        s.LongTaskMaxMs,
+		RasterTotalMs:        s.RasterTotalMs,
+		LayoutTotalMs:        s.LayoutTotalMs,
+		PaintTotalMs:         s.PaintTotalMs,
+		InputEventCount:      s.InputEventCount,
 		SlowestComponent:     s.SlowestComponent,
 	}
 }

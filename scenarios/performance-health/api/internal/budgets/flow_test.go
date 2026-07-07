@@ -44,6 +44,76 @@ func TestCheckFlowFlagsViolation(t *testing.T) {
 	}
 }
 
+// [REQ:PH-BUDGET-003] Interaction flow budgets can fail on frame health even
+// when React commit timing is inside budget.
+func TestCheckFlowFlagsFrameHealthViolation(t *testing.T) {
+	store := NewStore()
+	if _, err := store.Set(context.Background(), Budget{
+		Scenario: "demo",
+		Flows: map[string]FlowBudget{"graph-pan": {
+			ComponentCommitAvgMaxMs: 20,
+			DrawnFPSMin:             45,
+			DroppedFrameRateMax:     0.20,
+			InputEventCountMin:      10,
+		}},
+	}, false); err != nil {
+		t.Fatalf("Set: %v", err)
+	}
+	svc := NewService(store, WithMeasurementSource(fakeFlowSource{
+		flowM: map[string]Measurement{"graph-pan": {
+			ComponentCommitAvgMs: 8,
+			DrawnFPS:             22,
+			DroppedFrameRate:     0.58,
+			InputEventCount:      30,
+		}},
+	}))
+	passed, violations, err := svc.CheckFlow(context.Background(), "demo", "graph-pan")
+	if err != nil {
+		t.Fatalf("CheckFlow: %v", err)
+	}
+	if passed {
+		t.Fatal("expected frame-health budget breach")
+	}
+	if !hasAxis(violations, "drawn_fps") || !hasAxis(violations, "dropped_frame_rate") {
+		t.Fatalf("expected drawn_fps and dropped_frame_rate violations, got %#v", violations)
+	}
+}
+
+// [REQ:PH-BUDGET-003] Gesture workflows fail closed when a captured sample lacks
+// frame/input evidence; load-only flows opt out explicitly.
+func TestCheckFlowMissingInteractionEvidenceFailsUnlessLoadOnly(t *testing.T) {
+	store := NewStore()
+	if _, err := store.Set(context.Background(), Budget{
+		Scenario: "demo",
+		Flows: map[string]FlowBudget{
+			"graph-pan":  {DrawnFPSMin: 45, DroppedFrameRateMax: 0.20, InputEventCountMin: 10},
+			"graph-load": {DrawnFPSMin: 45, DroppedFrameRateMax: 0.20, InputEventCountMin: 10, LoadOnly: true},
+		},
+	}, false); err != nil {
+		t.Fatalf("Set: %v", err)
+	}
+	svc := NewService(store, WithMeasurementSource(fakeFlowSource{
+		flowM: map[string]Measurement{
+			"graph-pan":  {},
+			"graph-load": {},
+		},
+	}))
+	passed, violations, err := svc.CheckFlow(context.Background(), "demo", "graph-pan")
+	if err != nil {
+		t.Fatalf("CheckFlow graph-pan: %v", err)
+	}
+	if passed || !hasAxis(violations, "drawn_fps") || !hasAxis(violations, "input_event_count") {
+		t.Fatalf("missing interaction evidence should fail closed, passed=%v violations=%#v", passed, violations)
+	}
+	passed, violations, err = svc.CheckFlow(context.Background(), "demo", "graph-load")
+	if err != nil {
+		t.Fatalf("CheckFlow graph-load: %v", err)
+	}
+	if !passed || len(violations) != 0 {
+		t.Fatalf("load-only flow should not fail on missing interaction evidence, passed=%v violations=%#v", passed, violations)
+	}
+}
+
 // A flow with no declared per-flow budget passes vacuously.
 func TestCheckFlowNoBudgetPasses(t *testing.T) {
 	store := NewStore()
@@ -87,7 +157,7 @@ func TestConfigStoreFlowRoundTrip(t *testing.T) {
 		Scenario:     "demo",
 		GoBuildMaxMs: 90000,
 		Flows: map[string]FlowBudget{
-			"scroll-list": {LCPMaxMs: 2500, ComponentCommitAvgMaxMs: 8},
+			"scroll-list": {LCPMaxMs: 2500, ComponentCommitAvgMaxMs: 8, DrawnFPSMin: 45, DroppedFrameRateMax: 0.2, InputEventCountMin: 10},
 		},
 	}
 	if _, err := store.Set(context.Background(), in, false); err != nil {
@@ -101,13 +171,22 @@ func TestConfigStoreFlowRoundTrip(t *testing.T) {
 		t.Fatalf("scenario-level axis lost: %#v", got)
 	}
 	fb, ok := got.Flows["scroll-list"]
-	if !ok || fb.LCPMaxMs != 2500 || fb.ComponentCommitAvgMaxMs != 8 {
+	if !ok || fb.LCPMaxMs != 2500 || fb.ComponentCommitAvgMaxMs != 8 || fb.DrawnFPSMin != 45 || fb.DroppedFrameRateMax != 0.2 || fb.InputEventCountMin != 10 {
 		t.Fatalf("flow budget not round-tripped: %#v", got.Flows)
 	}
 	// The block lives under performance.budgets.flows in testing.json.
 	if _, err := filepath.Abs(filepath.Join(root, TestingConfigRelPath)); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func hasAxis(violations []Violation, axis string) bool {
+	for _, v := range violations {
+		if v.Axis == axis {
+			return true
+		}
+	}
+	return false
 }
 
 // FindingsForFlow tags the flow slug and keeps the PERF_BUDGET_BREACH_ prefix.

@@ -29,6 +29,14 @@ type budgetRecord struct {
 	StartupMaxMs            int64                       `json:"startup_max_ms,omitempty"`
 	ComponentCommitAvgMaxMs float64                     `json:"component_commit_avg_max_ms,omitempty"`
 	ComponentCommitMaxMs    float64                     `json:"component_commit_max_ms,omitempty"`
+	DrawnFPSMin             float64                     `json:"drawn_fps_min,omitempty"`
+	DroppedFrameRateMax     float64                     `json:"dropped_frame_rate_max,omitempty"`
+	LongTaskTotalMaxMs      int64                       `json:"long_task_total_max_ms,omitempty"`
+	LongTaskMaxMs           float64                     `json:"long_task_max_ms,omitempty"`
+	RasterTotalMaxMs        float64                     `json:"raster_total_max_ms,omitempty"`
+	LayoutTotalMaxMs        float64                     `json:"layout_total_max_ms,omitempty"`
+	PaintTotalMaxMs         float64                     `json:"paint_total_max_ms,omitempty"`
+	InputEventCountMin      int64                       `json:"input_event_count_min,omitempty"`
 	Ratchet                 bool                        `json:"ratchet,omitempty"`
 	Flows                   map[string]flowBudgetRecord `json:"flows,omitempty"`
 }
@@ -41,6 +49,15 @@ type flowBudgetRecord struct {
 	LCPMaxMs                int64   `json:"lcp_max_ms,omitempty"`
 	ComponentCommitAvgMaxMs float64 `json:"component_commit_avg_max_ms,omitempty"`
 	ComponentCommitMaxMs    float64 `json:"component_commit_max_ms,omitempty"`
+	DrawnFPSMin             float64 `json:"drawn_fps_min,omitempty"`
+	DroppedFrameRateMax     float64 `json:"dropped_frame_rate_max,omitempty"`
+	LongTaskTotalMaxMs      int64   `json:"long_task_total_max_ms,omitempty"`
+	LongTaskMaxMs           float64 `json:"long_task_max_ms,omitempty"`
+	RasterTotalMaxMs        float64 `json:"raster_total_max_ms,omitempty"`
+	LayoutTotalMaxMs        float64 `json:"layout_total_max_ms,omitempty"`
+	PaintTotalMaxMs         float64 `json:"paint_total_max_ms,omitempty"`
+	InputEventCountMin      int64   `json:"input_event_count_min,omitempty"`
+	LoadOnly                bool    `json:"load_only,omitempty"`
 }
 
 func (r budgetRecord) toBudget(scenario string) Budget {
@@ -53,6 +70,14 @@ func (r budgetRecord) toBudget(scenario string) Budget {
 		StartupMaxMs:            r.StartupMaxMs,
 		ComponentCommitAvgMaxMs: r.ComponentCommitAvgMaxMs,
 		ComponentCommitMaxMs:    r.ComponentCommitMaxMs,
+		DrawnFPSMin:             r.DrawnFPSMin,
+		DroppedFrameRateMax:     r.DroppedFrameRateMax,
+		LongTaskTotalMaxMs:      r.LongTaskTotalMaxMs,
+		LongTaskMaxMs:           r.LongTaskMaxMs,
+		RasterTotalMaxMs:        r.RasterTotalMaxMs,
+		LayoutTotalMaxMs:        r.LayoutTotalMaxMs,
+		PaintTotalMaxMs:         r.PaintTotalMaxMs,
+		InputEventCountMin:      r.InputEventCountMin,
 		Ratchet:                 r.Ratchet,
 	}
 	if len(r.Flows) > 0 {
@@ -73,6 +98,14 @@ func recordFromBudget(b Budget) budgetRecord {
 		StartupMaxMs:            b.StartupMaxMs,
 		ComponentCommitAvgMaxMs: b.ComponentCommitAvgMaxMs,
 		ComponentCommitMaxMs:    b.ComponentCommitMaxMs,
+		DrawnFPSMin:             b.DrawnFPSMin,
+		DroppedFrameRateMax:     b.DroppedFrameRateMax,
+		LongTaskTotalMaxMs:      b.LongTaskTotalMaxMs,
+		LongTaskMaxMs:           b.LongTaskMaxMs,
+		RasterTotalMaxMs:        b.RasterTotalMaxMs,
+		LayoutTotalMaxMs:        b.LayoutTotalMaxMs,
+		PaintTotalMaxMs:         b.PaintTotalMaxMs,
+		InputEventCountMin:      b.InputEventCountMin,
 		Ratchet:                 b.Ratchet,
 	}
 	if len(b.Flows) > 0 {

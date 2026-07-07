@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "description": "Declarative budgets with baseline-diff gating, additive SQLite trend storage, and deterministic fleet offender intelligence.",
+    "description": "Declarative budgets with suite-run gating, additive SQLite trend storage, and deterministic fleet offender intelligence.",
     "last_validated_at": "2026-07-06T16:19:34-04:00",
     "module": "budgets-trends-fleet",
     "prd_ref": "PRD.md",
@@ -15,7 +15,7 @@
       "prd_ref": "OT-P1-002",
       "category": "api",
       "criticality": "P1",
-      "description": "A per-scenario budget model (build time, bundle size, LCP, component-commit budgets, p95 where available) with a ratchet; budget view/edit is exposed and a breach is computed as a regression.",
+      "description": "A per-scenario and per-flow budget model (build time, bundle size, LCP, component-commit, frame health, browser-work, long-task, and input-event budgets) with a ratchet; budget view/edit is exposed and a breach is computed as a regression.",
       "tags": [
         "budgets",
         "ratchet",
@@ -33,14 +33,14 @@
     },
     {
       "id": "PH-BUDGET-002",
-      "title": "Baseline-diff gating",
+      "title": "Suite-run performance gating",
       "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "category": "api",
       "criticality": "P1",
-      "description": "A perf regression vs. budget/trend fails through git-control-tower baseline diff (exit 1) like any other health regression.",
+      "description": "A perf regression vs. budget/trend fails the test-genie Performance phase and therefore the suite run (`vrooli scenario test` exit 1).",
       "tags": [
-        "baseline-diff",
+        "suite-run",
         "gating",
         "regression"
       ],
@@ -50,7 +50,7 @@
           "ref": "api/internal/budgets/baseline_test.go",
           "phase": "unit",
           "status": "failing",
-          "notes": "A regression produces a baseline-diff-failing verdict; a within-budget run is clean."
+          "notes": "A regression produces Performance-phase ERROR findings and a failing suite-run verdict; a within-budget run is clean."
         }
       ]
     },

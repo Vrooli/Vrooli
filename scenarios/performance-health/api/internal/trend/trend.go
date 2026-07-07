@@ -60,11 +60,14 @@ func (s *Store) Insert(ctx context.Context, sample Sample) error {
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO perf_samples
 			(scenario, flow, captured_at, go_build_ms, ui_build_ms, bundle_bytes, lcp_ms, startup_ms,
-			 slowest_component, slowest_component_avg_ms, slowest_component_max_ms, note)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			 slowest_component, slowest_component_avg_ms, slowest_component_max_ms, drawn_fps, dropped_frame_rate,
+			 long_task_total_ms, long_task_max_ms, raster_total_ms, layout_total_ms, paint_total_ms, input_event_count, note)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		sample.Scenario, sample.Flow, capturedAt.UTC().Format(timeLayout), sample.GoBuildMs, sample.UIBuildMs,
 		sample.BundleBytes, sample.LCPMs, sample.StartupMs,
-		sample.SlowestComponent, sample.SlowestComponentAvgMs, sample.SlowestComponentMaxMs, sample.Note,
+		sample.SlowestComponent, sample.SlowestComponentAvgMs, sample.SlowestComponentMaxMs,
+		sample.DrawnFPS, sample.DroppedFrameRate, sample.LongTaskTotalMs, sample.LongTaskMaxMs,
+		sample.RasterTotalMs, sample.LayoutTotalMs, sample.PaintTotalMs, sample.InputEventCount, sample.Note,
 	)
 	if err != nil {
 		return fmt.Errorf("trend: insert sample: %w", err)
@@ -88,7 +91,8 @@ func (s *Store) Series(ctx context.Context, scenario, flow string, limit int) ([
 	}
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT scenario, flow, captured_at, go_build_ms, ui_build_ms, bundle_bytes, lcp_ms, startup_ms,
-			slowest_component, slowest_component_avg_ms, slowest_component_max_ms, note
+			slowest_component, slowest_component_avg_ms, slowest_component_max_ms, drawn_fps, dropped_frame_rate,
+			long_task_total_ms, long_task_max_ms, raster_total_ms, layout_total_ms, paint_total_ms, input_event_count, note
 		FROM perf_samples
 		WHERE scenario = ? AND flow = ?
 		ORDER BY captured_at DESC, id DESC
@@ -106,7 +110,9 @@ func (s *Store) Series(ctx context.Context, scenario, flow string, limit int) ([
 		)
 		if scanErr := rows.Scan(&sample.Scenario, &sample.Flow, &capturedAt, &sample.GoBuildMs, &sample.UIBuildMs,
 			&sample.BundleBytes, &sample.LCPMs, &sample.StartupMs,
-			&sample.SlowestComponent, &sample.SlowestComponentAvgMs, &sample.SlowestComponentMaxMs, &sample.Note); scanErr != nil {
+			&sample.SlowestComponent, &sample.SlowestComponentAvgMs, &sample.SlowestComponentMaxMs,
+			&sample.DrawnFPS, &sample.DroppedFrameRate, &sample.LongTaskTotalMs, &sample.LongTaskMaxMs,
+			&sample.RasterTotalMs, &sample.LayoutTotalMs, &sample.PaintTotalMs, &sample.InputEventCount, &sample.Note); scanErr != nil {
 			return nil, fmt.Errorf("trend: scan sample: %w", scanErr)
 		}
 		if t, perr := time.Parse(timeLayout, capturedAt); perr == nil {
@@ -176,6 +182,14 @@ func EnsureColumns(ctx context.Context, db Executor) error {
 		{"slowest_component_avg_ms", "ALTER TABLE perf_samples ADD COLUMN slowest_component_avg_ms REAL NOT NULL DEFAULT 0"},
 		{"slowest_component_max_ms", "ALTER TABLE perf_samples ADD COLUMN slowest_component_max_ms REAL NOT NULL DEFAULT 0"},
 		{"flow", "ALTER TABLE perf_samples ADD COLUMN flow TEXT NOT NULL DEFAULT ''"},
+		{"drawn_fps", "ALTER TABLE perf_samples ADD COLUMN drawn_fps REAL NOT NULL DEFAULT 0"},
+		{"dropped_frame_rate", "ALTER TABLE perf_samples ADD COLUMN dropped_frame_rate REAL NOT NULL DEFAULT 0"},
+		{"long_task_total_ms", "ALTER TABLE perf_samples ADD COLUMN long_task_total_ms INTEGER NOT NULL DEFAULT 0"},
+		{"long_task_max_ms", "ALTER TABLE perf_samples ADD COLUMN long_task_max_ms REAL NOT NULL DEFAULT 0"},
+		{"raster_total_ms", "ALTER TABLE perf_samples ADD COLUMN raster_total_ms REAL NOT NULL DEFAULT 0"},
+		{"layout_total_ms", "ALTER TABLE perf_samples ADD COLUMN layout_total_ms REAL NOT NULL DEFAULT 0"},
+		{"paint_total_ms", "ALTER TABLE perf_samples ADD COLUMN paint_total_ms REAL NOT NULL DEFAULT 0"},
+		{"input_event_count", "ALTER TABLE perf_samples ADD COLUMN input_event_count INTEGER NOT NULL DEFAULT 0"},
 	}
 	for _, col := range additive {
 		if _, ok := existing[col.name]; ok {

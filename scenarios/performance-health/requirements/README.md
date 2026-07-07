@@ -14,7 +14,7 @@ will exist once the corresponding code lands (no phantom refs).
 | `03-capture-orchestration` | OT-P0-003 — profile-mode capture pipeline over BAS perf-capture, tier-0-never-fails, graceful headless skip |
 | `04-analysis` | OT-P0-004, OT-P1-003 — per-component aggregation, deterministic located findings, before/after comparison |
 | `05-lighthouse-and-benchmarks` | OT-P1-001 — Lighthouse runner + silent-skip, build-time (axis ①) benchmarks |
-| `06-budgets-trends-fleet` | OT-P1-002, OT-P1-003, OT-P1-004 — budgets + baseline-diff gating, additive trend store, deterministic fleet offenders |
+| `06-budgets-trends-fleet` | OT-P1-002, OT-P1-003, OT-P1-004 — budgets + suite-run gating, additive trend store, deterministic fleet offenders |
 | `07-startup` | OT-P2-001 — resource-aware startup benchmark (axis ②, migrated from structure-health) |
 | `08-integration-and-cli` | OT-P0-002, OT-P0-003, OT-P1-004, OT-P1-005 — thin human-default CLI + discoverability + the operator UI |
 

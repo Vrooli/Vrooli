@@ -47,6 +47,16 @@ func TestAnalyzeTraceMapsResultToProto(t *testing.T) {
 			LongTaskMs: 120,
 			LCPMs:      2400,
 			FCPMs:      800,
+			FrameSummary: internalanalysis.FrameSummary{
+				TraceDurationMs:   1000,
+				BeginFrameCount:   70,
+				DrawnFrameCount:   55,
+				DroppedFrameCount: 15,
+				ApproxDrawnFPS:    55,
+				DroppedFrameRate:  0.2,
+			},
+			BrowserWork: []internalanalysis.EventSummary{{Name: "RasterTask", Count: 2, TotalMs: 80, AvgMs: 40, MaxMs: 50}},
+			InputEvents: []internalanalysis.EventSummary{{Name: "pointermove", Count: 30, TotalMs: 12, AvgMs: 0.4, MaxMs: 1}},
 			Components: []internalanalysis.ComponentTiming{
 				{Component: "Dashboard", CommitCount: 9, AvgMs: 18.5, MaxMs: 42.0, Definition: "src/Dashboard.tsx:12"},
 				{Component: "Sidebar", CommitCount: 3, AvgMs: 4.0, MaxMs: 6.0},
@@ -72,6 +82,15 @@ func TestAnalyzeTraceMapsResultToProto(t *testing.T) {
 	}
 	if len(msg.GetFindings()) != 1 {
 		t.Fatalf("findings len = %d, want 1", len(msg.GetFindings()))
+	}
+	if msg.GetFrameSummary().GetDrawnFrameCount() != 55 || msg.GetFrameSummary().GetApproxDrawnFps() != 55 {
+		t.Fatalf("frame summary mapped wrong: %+v", msg.GetFrameSummary())
+	}
+	if len(msg.GetBrowserWork()) != 1 || msg.GetBrowserWork()[0].GetName() != "RasterTask" {
+		t.Fatalf("browser work mapped wrong: %+v", msg.GetBrowserWork())
+	}
+	if len(msg.GetInputEvents()) != 1 || msg.GetInputEvents()[0].GetCount() != 30 {
+		t.Fatalf("input events mapped wrong: %+v", msg.GetInputEvents())
 	}
 	// The capture's LCP + slowest-component reading is persisted to the trend.
 	if len(writer.samples) != 1 {
@@ -113,11 +132,17 @@ func TestCompareTracesMapsDeltaToProto(t *testing.T) {
 	loader := &fakeLoader{byArtifact: map[string]internalanalysis.Result{
 		"base.json": {
 			LongTaskMs: 100, LCPMs: 2000,
-			Components: []internalanalysis.ComponentTiming{{Component: "Dashboard", CommitCount: 5, AvgMs: 10, MaxMs: 20}},
+			FrameSummary: internalanalysis.FrameSummary{DrawnFrameCount: 10, DroppedFrameCount: 4, ApproxDrawnFPS: 25, DroppedFrameRate: 0.3},
+			BrowserWork:  []internalanalysis.EventSummary{{Name: "RasterTask", Count: 2, TotalMs: 90, AvgMs: 45, MaxMs: 60}},
+			InputEvents:  []internalanalysis.EventSummary{{Name: "wheel", Count: 4, TotalMs: 8, AvgMs: 2, MaxMs: 3}},
+			Components:   []internalanalysis.ComponentTiming{{Component: "Dashboard", CommitCount: 5, AvgMs: 10, MaxMs: 20}},
 		},
 		"cand.json": {
 			LongTaskMs: 160, LCPMs: 2500,
-			Components: []internalanalysis.ComponentTiming{{Component: "Dashboard", CommitCount: 8, AvgMs: 18, MaxMs: 30}},
+			FrameSummary: internalanalysis.FrameSummary{DrawnFrameCount: 20, DroppedFrameCount: 1, ApproxDrawnFPS: 50, DroppedFrameRate: 0.1},
+			BrowserWork:  []internalanalysis.EventSummary{{Name: "RasterTask", Count: 1, TotalMs: 40, AvgMs: 40, MaxMs: 40}},
+			InputEvents:  []internalanalysis.EventSummary{{Name: "wheel", Count: 12, TotalMs: 12, AvgMs: 1, MaxMs: 2}},
+			Components:   []internalanalysis.ComponentTiming{{Component: "Dashboard", CommitCount: 8, AvgMs: 18, MaxMs: 30}},
 		},
 	}}
 	h := NewHandler(internalanalysis.NewService(loader), nil, nil)
@@ -144,6 +169,15 @@ func TestCompareTracesMapsDeltaToProto(t *testing.T) {
 	}
 	if d.GetMaxDeltaMs() != 10 {
 		t.Errorf("max delta = %v, want 10", d.GetMaxDeltaMs())
+	}
+	if msg.GetFrameDelta().GetDrawnFrameCountDelta() != 10 || msg.GetFrameDelta().GetApproxDrawnFpsDelta() != 25 {
+		t.Errorf("frame delta mapped wrong: %+v", msg.GetFrameDelta())
+	}
+	if len(msg.GetBrowserWork()) != 1 || msg.GetBrowserWork()[0].GetTotalDeltaMs() != -50 {
+		t.Errorf("browser work delta mapped wrong: %+v", msg.GetBrowserWork())
+	}
+	if len(msg.GetInputEvents()) != 1 || msg.GetInputEvents()[0].GetCountDelta() != 8 {
+		t.Errorf("input event delta mapped wrong: %+v", msg.GetInputEvents())
 	}
 }
 

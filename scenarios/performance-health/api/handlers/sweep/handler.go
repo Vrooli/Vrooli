@@ -132,12 +132,13 @@ func (h *Handler) sweepFlow(ctx context.Context, scenario, slug string, tier rea
 	}
 
 	sample := perfsample.Sample{Scenario: scenario, Flow: slug, LCPMs: ares.LCPMs, Note: "sweep"}
+	fillInteractionSample(&sample, ares)
 	if slowest, ok := slowestComponent(ares.Components); ok {
 		sample.SlowestComponent = slowest.Component
 		sample.SlowestComponentAvgMs = slowest.AvgMs
 		sample.SlowestComponentMaxMs = slowest.MaxMs
 	}
-	if h.trend != nil && (sample.LCPMs > 0 || sample.SlowestComponent != "") {
+	if h.trend != nil && (sample.LCPMs > 0 || sample.SlowestComponent != "" || sample.HasInteractionMetrics()) {
 		if err := h.trend.Insert(ctx, sample); err != nil {
 			h.logger.Printf("sweep(%s/%s): persist flow sample: %v", scenario, slug, err)
 		}
@@ -154,6 +155,35 @@ func (h *Handler) sweepFlow(ctx context.Context, scenario, slug string, tier rea
 			v.Axis, v.Measured, unitSuffix(v.Unit), v.Budget, unitSuffix(v.Unit)))
 	}
 	return res
+}
+
+func fillInteractionSample(sample *perfsample.Sample, res analysis.Result) {
+	sample.DrawnFPS = res.FrameSummary.ApproxDrawnFPS
+	sample.DroppedFrameRate = res.FrameSummary.DroppedFrameRate
+	sample.LongTaskTotalMs = res.LongTaskMs
+	sample.LongTaskMaxMs = res.LongTaskMaxMs
+	sample.InputEventCount = int64(totalEventCount(res.InputEvents))
+	sample.RasterTotalMs = eventTotal(res.BrowserWork, "RasterTask")
+	sample.LayoutTotalMs = eventTotal(res.BrowserWork, "Layout") + eventTotal(res.BrowserWork, "UpdateLayoutTree")
+	sample.PaintTotalMs = eventTotal(res.BrowserWork, "Paint")
+}
+
+func totalEventCount(events []analysis.EventSummary) int {
+	total := 0
+	for _, e := range events {
+		total += e.Count
+	}
+	return total
+}
+
+func eventTotal(events []analysis.EventSummary, name string) float64 {
+	var total float64
+	for _, e := range events {
+		if e.Name == name {
+			total += e.TotalMs
+		}
+	}
+	return total
 }
 
 func (h *Handler) resolveTier(ctx context.Context, scenario string) readiness.Tier {

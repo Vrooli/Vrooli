@@ -28,3 +28,31 @@ func TestDeriveFindingsNoBudget(t *testing.T) {
 		t.Fatalf("expected no findings with no budget, got %d", len(findings))
 	}
 }
+
+func TestDeriveInteractionFindingsFlagsPoorTrace(t *testing.T) {
+	findings := DeriveInteractionFindings(
+		FrameSummary{TraceDurationMs: 1000, DrawnFrameCount: 20, DroppedFrameCount: 30, ApproxDrawnFPS: 20, DroppedFrameRate: 0.6},
+		[]EventSummary{{Name: "RasterTask", Count: 3, TotalMs: 700, AvgMs: 233.3, MaxMs: 300}, {Name: "Layout", Count: 2, TotalMs: 140, AvgMs: 70, MaxMs: 80}},
+		[]EventSummary{{Name: "wheel", Count: 2, TotalMs: 4, AvgMs: 2, MaxMs: 2}},
+	)
+	for _, code := range []string{
+		"PERF_INTERACTION_INPUT_TOO_SMALL",
+		"PERF_LOW_DRAWN_FPS",
+		"PERF_HIGH_DROPPED_FRAME_RATE",
+		"PERF_HIGH_RASTER_COST",
+		"PERF_HIGH_LAYOUT_COST",
+	} {
+		if !hasFinding(findings, code) {
+			t.Fatalf("expected finding %s in %#v", code, findings)
+		}
+	}
+}
+
+func TestDeriveInteractionFindingsFlagsMissingEvidence(t *testing.T) {
+	findings := DeriveInteractionFindings(FrameSummary{}, nil, nil)
+	for _, code := range []string{"PERF_INTERACTION_INPUT_MISSING", "PERF_FRAME_HEALTH_MISSING"} {
+		if !hasFinding(findings, code) {
+			t.Fatalf("expected finding %s in %#v", code, findings)
+		}
+	}
+}

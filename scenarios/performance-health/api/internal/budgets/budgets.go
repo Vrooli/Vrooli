@@ -1,11 +1,12 @@
-// Package budgets owns per-scenario performance budgets (build time, bundle
-// size, LCP, startup, and component-commit budgets — avg and max) plus a
-// ratchet (tighten-only). Budgets are declarative in scenario config under the
-// `performance.budgets` block of .vrooli/testing.json — the single source of
-// truth for every perf threshold; CheckBudget evaluates the latest measured
-// sample against the budget and reports violations — the signal that, as an
-// ERROR finding, fails the test-genie Performance phase (and therefore the
-// suite run, `vrooli scenario test`) through the maturity finding pipeline.
+// Package budgets owns per-scenario and per-flow performance budgets (build
+// time, bundle size, LCP, startup, component commits, frame health, browser
+// work, long tasks, and input evidence) plus a ratchet (tighten-only). Budgets
+// are declarative in scenario config under the `performance.budgets` block of
+// .vrooli/testing.json — the single source of truth for every perf threshold;
+// CheckBudget evaluates the latest measured sample against the budget and
+// reports violations — the signal that, as an ERROR finding, fails the
+// test-genie Performance phase (and therefore the suite run, `vrooli scenario
+// test`) through the maturity finding pipeline.
 //
 // NB: a breach fails the SUITE RUN, not `git-control-tower baseline diff` — the
 // baseline-diff verdict buckets phase results into surfaces (structure/rules/
@@ -37,6 +38,15 @@ type Budget struct {
 	ComponentCommitAvgMaxMs float64
 	// ComponentCommitMaxMs caps the slowest component's MAX commit time.
 	ComponentCommitMaxMs float64
+	DrawnFPSMin          float64
+	DroppedFrameRateMax  float64
+	LongTaskTotalMaxMs   int64
+	LongTaskMaxMs        float64
+	RasterTotalMaxMs     float64
+	LayoutTotalMaxMs     float64
+	PaintTotalMaxMs      float64
+	InputEventCountMin   int64
+	LoadOnly             bool
 	// Ratchet, when true, makes SetBudget tighten-only: a write that loosens any
 	// declared axis is rejected.
 	Ratchet bool
@@ -49,17 +59,29 @@ type Budget struct {
 }
 
 // FlowBudget is one interaction-flow's declared thresholds (0 = unset). It
-// carries only the axes a targeted capture can measure: LCP and the slowest
-// component's avg/max commit time.
+// carries only the axes a targeted capture can measure: LCP, the slowest
+// component's avg/max commit time, and interaction health.
 type FlowBudget struct {
 	LCPMaxMs                int64
 	ComponentCommitAvgMaxMs float64
 	ComponentCommitMaxMs    float64
+	DrawnFPSMin             float64
+	DroppedFrameRateMax     float64
+	LongTaskTotalMaxMs      int64
+	LongTaskMaxMs           float64
+	RasterTotalMaxMs        float64
+	LayoutTotalMaxMs        float64
+	PaintTotalMaxMs         float64
+	InputEventCountMin      int64
+	LoadOnly                bool
 }
 
 // IsSet reports whether the flow budget declares at least one positive threshold.
 func (f FlowBudget) IsSet() bool {
-	return f.LCPMaxMs > 0 || f.ComponentCommitAvgMaxMs > 0 || f.ComponentCommitMaxMs > 0
+	return f.LCPMaxMs > 0 || f.ComponentCommitAvgMaxMs > 0 || f.ComponentCommitMaxMs > 0 ||
+		f.DrawnFPSMin > 0 || f.DroppedFrameRateMax > 0 || f.LongTaskTotalMaxMs > 0 ||
+		f.LongTaskMaxMs > 0 || f.RasterTotalMaxMs > 0 || f.LayoutTotalMaxMs > 0 ||
+		f.PaintTotalMaxMs > 0 || f.InputEventCountMin > 0
 }
 
 // IsSet reports whether the budget declares at least one positive threshold
@@ -67,7 +89,10 @@ func (f FlowBudget) IsSet() bool {
 func (b Budget) IsSet() bool {
 	if b.GoBuildMaxMs > 0 || b.UIBuildMaxMs > 0 || b.BundleMaxBytes > 0 ||
 		b.LCPMaxMs > 0 || b.StartupMaxMs > 0 ||
-		b.ComponentCommitAvgMaxMs > 0 || b.ComponentCommitMaxMs > 0 {
+		b.ComponentCommitAvgMaxMs > 0 || b.ComponentCommitMaxMs > 0 ||
+		b.DrawnFPSMin > 0 || b.DroppedFrameRateMax > 0 || b.LongTaskTotalMaxMs > 0 ||
+		b.LongTaskMaxMs > 0 || b.RasterTotalMaxMs > 0 || b.LayoutTotalMaxMs > 0 ||
+		b.PaintTotalMaxMs > 0 || b.InputEventCountMin > 0 {
 		return true
 	}
 	for _, fb := range b.Flows {
@@ -89,6 +114,14 @@ type Measurement struct {
 	StartupMs            int64
 	ComponentCommitAvgMs float64
 	ComponentCommitMaxMs float64
+	DrawnFPS             float64
+	DroppedFrameRate     float64
+	LongTaskTotalMs      int64
+	LongTaskMaxMs        float64
+	RasterTotalMs        float64
+	LayoutTotalMs        float64
+	PaintTotalMs         float64
+	InputEventCount      int64
 	// SlowestComponent names the component the avg/max readings came from (for
 	// the violation message); optional.
 	SlowestComponent string
@@ -101,6 +134,7 @@ type Violation struct {
 	Budget   int64
 	Unit     string
 	Detail   string
+	Mode     string
 }
 
 // MeasurementSource supplies the latest measured sample for a scenario. The
@@ -190,6 +224,18 @@ func enforceRatchet(existing, incoming Budget) error {
 		}
 		return nil
 	}
+	tightened := func(axis string, was, now int64) error {
+		if was > 0 && now > 0 && now < was {
+			return fmt.Errorf("budgets: ratchet violation: %s budget may only tighten (was %d, requested %d)", axis, was, now)
+		}
+		return nil
+	}
+	tightenedF := func(axis string, was, now float64) error {
+		if was > 0 && now > 0 && now < was {
+			return fmt.Errorf("budgets: ratchet violation: %s budget may only tighten (was %.1f, requested %.1f)", axis, was, now)
+		}
+		return nil
+	}
 	for _, err := range []error{
 		loosened("go_build", existing.GoBuildMaxMs, incoming.GoBuildMaxMs),
 		loosened("ui_build", existing.UIBuildMaxMs, incoming.UIBuildMaxMs),
@@ -198,6 +244,14 @@ func enforceRatchet(existing, incoming Budget) error {
 		loosened("startup", existing.StartupMaxMs, incoming.StartupMaxMs),
 		loosenedF("component_commit_avg", existing.ComponentCommitAvgMaxMs, incoming.ComponentCommitAvgMaxMs),
 		loosenedF("component_commit_max", existing.ComponentCommitMaxMs, incoming.ComponentCommitMaxMs),
+		tightenedF("drawn_fps", existing.DrawnFPSMin, incoming.DrawnFPSMin),
+		loosenedF("dropped_frame_rate", existing.DroppedFrameRateMax, incoming.DroppedFrameRateMax),
+		loosened("long_task_total", existing.LongTaskTotalMaxMs, incoming.LongTaskTotalMaxMs),
+		loosenedF("long_task_max", existing.LongTaskMaxMs, incoming.LongTaskMaxMs),
+		loosenedF("raster_total", existing.RasterTotalMaxMs, incoming.RasterTotalMaxMs),
+		loosenedF("layout_total", existing.LayoutTotalMaxMs, incoming.LayoutTotalMaxMs),
+		loosenedF("paint_total", existing.PaintTotalMaxMs, incoming.PaintTotalMaxMs),
+		tightened("input_event_count", existing.InputEventCountMin, incoming.InputEventCountMin),
 	} {
 		if err != nil {
 			return err
@@ -214,6 +268,14 @@ func enforceRatchet(existing, incoming Budget) error {
 			loosened("flow:"+slug+".lcp", was.LCPMaxMs, now.LCPMaxMs),
 			loosenedF("flow:"+slug+".component_commit_avg", was.ComponentCommitAvgMaxMs, now.ComponentCommitAvgMaxMs),
 			loosenedF("flow:"+slug+".component_commit_max", was.ComponentCommitMaxMs, now.ComponentCommitMaxMs),
+			tightenedF("flow:"+slug+".drawn_fps", was.DrawnFPSMin, now.DrawnFPSMin),
+			loosenedF("flow:"+slug+".dropped_frame_rate", was.DroppedFrameRateMax, now.DroppedFrameRateMax),
+			loosened("flow:"+slug+".long_task_total", was.LongTaskTotalMaxMs, now.LongTaskTotalMaxMs),
+			loosenedF("flow:"+slug+".long_task_max", was.LongTaskMaxMs, now.LongTaskMaxMs),
+			loosenedF("flow:"+slug+".raster_total", was.RasterTotalMaxMs, now.RasterTotalMaxMs),
+			loosenedF("flow:"+slug+".layout_total", was.LayoutTotalMaxMs, now.LayoutTotalMaxMs),
+			loosenedF("flow:"+slug+".paint_total", was.PaintTotalMaxMs, now.PaintTotalMaxMs),
+			tightened("flow:"+slug+".input_event_count", was.InputEventCountMin, now.InputEventCountMin),
 		} {
 			if err != nil {
 				return err
@@ -395,16 +457,44 @@ func (s *Service) FlowFindings(ctx context.Context, scenario string) ([]mga.Find
 // shares (lcp + component-commit); build/bundle/startup stay zero (unset) so
 // they never trip per-flow.
 func EvaluateFlow(fb FlowBudget, m Measurement) []Violation {
-	return Evaluate(Budget{
+	if fb.LoadOnly {
+		return Evaluate(Budget{
+			LCPMaxMs:                fb.LCPMaxMs,
+			ComponentCommitAvgMaxMs: fb.ComponentCommitAvgMaxMs,
+			ComponentCommitMaxMs:    fb.ComponentCommitMaxMs,
+		}, m)
+	}
+	violations := Evaluate(Budget{
 		LCPMaxMs:                fb.LCPMaxMs,
 		ComponentCommitAvgMaxMs: fb.ComponentCommitAvgMaxMs,
 		ComponentCommitMaxMs:    fb.ComponentCommitMaxMs,
+		DrawnFPSMin:             fb.DrawnFPSMin,
+		DroppedFrameRateMax:     fb.DroppedFrameRateMax,
+		LongTaskTotalMaxMs:      fb.LongTaskTotalMaxMs,
+		LongTaskMaxMs:           fb.LongTaskMaxMs,
+		RasterTotalMaxMs:        fb.RasterTotalMaxMs,
+		LayoutTotalMaxMs:        fb.LayoutTotalMaxMs,
+		PaintTotalMaxMs:         fb.PaintTotalMaxMs,
+		InputEventCountMin:      fb.InputEventCountMin,
 	}, m)
+	if fb.DroppedFrameRateMax > 0 && m.DrawnFPS == 0 && m.DroppedFrameRate == 0 {
+		violations = append(violations, Violation{
+			Axis:     "dropped_frame_rate",
+			Measured: 100,
+			Budget:   int64(math.Round(fb.DroppedFrameRateMax * 100)),
+			Unit:     "%",
+			Detail:   "frame evidence missing",
+			Mode:     "max",
+		})
+		sort.Slice(violations, func(i, j int) bool { return violations[i].Axis < violations[j].Axis })
+	}
+	return violations
 }
 
 // Evaluate compares a measured sample against a budget and returns sorted
-// violations. It is the pure core CheckBudget uses; a zero measured value for an
-// axis is treated as "not measured" and never violates.
+// violations. It is the pure core CheckBudget uses. Max axes ignore zero
+// measurements as "not measured"; min axes intentionally fail closed because a
+// zero FPS/input count means the interaction evidence is missing or too small.
 func Evaluate(b Budget, m Measurement) []Violation {
 	var out []Violation
 	checkInt := func(axis string, measured, budget int64, unit string) {
@@ -429,11 +519,55 @@ func Evaluate(b Budget, m Measurement) []Violation {
 			})
 		}
 	}
+	checkFloatUnit := func(axis string, measured, budget float64, unit, detail string) {
+		if budget > 0 && measured > budget {
+			out = append(out, Violation{
+				Axis:     axis,
+				Measured: int64(math.Round(measured)),
+				Budget:   int64(math.Round(budget)),
+				Unit:     unit,
+				Detail:   detail,
+				Mode:     "max",
+			})
+		}
+	}
+	checkMinFloat := func(axis string, measured, budget float64, unit, detail string) {
+		if budget > 0 && measured < budget {
+			out = append(out, Violation{
+				Axis:     axis,
+				Measured: int64(math.Round(measured)),
+				Budget:   int64(math.Round(budget)),
+				Unit:     unit,
+				Detail:   detail,
+				Mode:     "min",
+			})
+		}
+	}
+	checkMinInt := func(axis string, measured, budget int64, unit, detail string) {
+		if v, ok := checkMinIntViolation(axis, measured, budget, unit, detail); ok {
+			out = append(out, v)
+		}
+	}
 	checkFloat("component_commit_avg", m.ComponentCommitAvgMs, b.ComponentCommitAvgMaxMs, m.SlowestComponent)
 	checkFloat("component_commit_max", m.ComponentCommitMaxMs, b.ComponentCommitMaxMs, m.SlowestComponent)
+	checkMinFloat("drawn_fps", m.DrawnFPS, b.DrawnFPSMin, "fps", "frame evidence missing or below interaction floor")
+	checkFloatUnit("dropped_frame_rate", m.DroppedFrameRate*100, b.DroppedFrameRateMax*100, "%", "dropped frame rate")
+	checkInt("long_task_total", m.LongTaskTotalMs, b.LongTaskTotalMaxMs, "ms")
+	checkFloat("long_task_max", m.LongTaskMaxMs, b.LongTaskMaxMs, "")
+	checkFloat("raster_total", m.RasterTotalMs, b.RasterTotalMaxMs, "")
+	checkFloat("layout_total", m.LayoutTotalMs, b.LayoutTotalMaxMs, "")
+	checkFloat("paint_total", m.PaintTotalMs, b.PaintTotalMaxMs, "")
+	checkMinInt("input_event_count", m.InputEventCount, b.InputEventCountMin, "events", "input EventDispatch evidence missing or too small")
 
 	sort.Slice(out, func(i, j int) bool { return out[i].Axis < out[j].Axis })
 	return out
+}
+
+func checkMinIntViolation(axis string, measured, budget int64, unit, detail string) (Violation, bool) {
+	if budget <= 0 || measured >= budget {
+		return Violation{}, false
+	}
+	return Violation{Axis: axis, Measured: measured, Budget: budget, Unit: unit, Detail: detail, Mode: "min"}, true
 }
 
 // Findings projects budget violations into shared maturity findings at ERROR
@@ -446,8 +580,7 @@ func Findings(scenario string, violations []Violation) []mga.Finding {
 	out := make([]mga.Finding, 0, len(violations))
 	for _, v := range violations {
 		title := v.Axis
-		msg := fmt.Sprintf("performance budget breach: %s measured %d%s exceeds budget %d%s",
-			v.Axis, v.Measured, unitSuffix(v.Unit), v.Budget, unitSuffix(v.Unit))
+		msg := violationMessage("performance budget breach", v)
 		if v.Detail != "" {
 			msg += " (" + v.Detail + ")"
 		}
@@ -469,8 +602,7 @@ func Findings(scenario string, violations []Violation) []mga.Finding {
 func FindingsForFlow(flow string, violations []Violation) []mga.Finding {
 	out := make([]mga.Finding, 0, len(violations))
 	for _, v := range violations {
-		msg := fmt.Sprintf("performance budget breach on flow %q: %s measured %d%s exceeds budget %d%s",
-			flow, v.Axis, v.Measured, unitSuffix(v.Unit), v.Budget, unitSuffix(v.Unit))
+		msg := violationMessage(fmt.Sprintf("performance budget breach on flow %q", flow), v)
 		if v.Detail != "" {
 			msg += " (" + v.Detail + ")"
 		}
@@ -537,9 +669,24 @@ func unitSuffix(unit string) string {
 		return "ms"
 	case "bytes":
 		return "B"
+	case "%":
+		return "%"
+	case "fps":
+		return "fps"
+	case "events":
+		return " events"
 	default:
 		return ""
 	}
+}
+
+func violationMessage(prefix string, v Violation) string {
+	if v.Mode == "min" {
+		return fmt.Sprintf("%s: %s measured %d%s is below budget %d%s",
+			prefix, v.Axis, v.Measured, unitSuffix(v.Unit), v.Budget, unitSuffix(v.Unit))
+	}
+	return fmt.Sprintf("%s: %s measured %d%s exceeds budget %d%s",
+		prefix, v.Axis, v.Measured, unitSuffix(v.Unit), v.Budget, unitSuffix(v.Unit))
 }
 
 func upper(s string) string {

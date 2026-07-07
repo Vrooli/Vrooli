@@ -13,6 +13,17 @@
     { "cat": "blink.user_timing", "name": "⚛ ProjectList (update)", "ph": "e", "ts": 85000, "id2": { "local": "0x5" } },
     { "cat": "blink.user_timing", "name": "⚛ Sidebar (update)", "ph": "b", "ts": 90000, "id2": { "local": "0x6" } },
     { "cat": "blink.user_timing", "name": "⚛ Sidebar (update)", "ph": "e", "ts": 90500, "id2": { "local": "0x6" } },
+    { "cat": "devtools.timeline", "name": "BeginFrame", "ph": "I", "ts": 92000 },
+    { "cat": "devtools.timeline", "name": "DrawFrame", "ph": "I", "ts": 93000 },
+    { "cat": "devtools.timeline", "name": "BeginFrame", "ph": "I", "ts": 94000 },
+    { "cat": "devtools.timeline", "name": "DrawFrame", "ph": "I", "ts": 95000 },
+    { "cat": "devtools.timeline", "name": "BeginFrame", "ph": "I", "ts": 96000 },
+    { "cat": "devtools.timeline", "name": "DroppedFrame", "ph": "I", "ts": 97000 },
+    { "cat": "devtools.timeline", "name": "RasterTask", "ph": "X", "ts": 98000, "dur": 350000 },
+    { "cat": "devtools.timeline", "name": "RasterTask", "ph": "X", "ts": 449000, "dur": 260000 },
+    { "cat": "devtools.timeline", "name": "Layout", "ph": "X", "ts": 710000, "dur": 120000 },
+    { "cat": "devtools.timeline", "name": "EventDispatch", "ph": "X", "ts": 840000, "dur": 4000, "args": { "data": { "type": "pointermove" } } },
+    { "cat": "devtools.timeline", "name": "EventDispatch", "ph": "X", "ts": 850000, "dur": 3000, "args": { "data": { "type": "wheel" } } },
     { "cat": "disabled-by-default-v8.cpu_profiler", "name": "ProfileChunk", "ph": "P", "ts": 91000 }
   ]
 }

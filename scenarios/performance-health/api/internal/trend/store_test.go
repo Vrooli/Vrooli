@@ -106,6 +106,8 @@ func TestSeriesAndLatestFilterByFlow(t *testing.T) {
 	mustInsert := func(flow string, lcp int64, at time.Time) {
 		if err := store.Insert(context.Background(), Sample{
 			Scenario: "demo", Flow: flow, LCPMs: lcp, CapturedAt: at,
+			DrawnFPS: 48, DroppedFrameRate: 0.12, LongTaskTotalMs: 90, LongTaskMaxMs: 55,
+			RasterTotalMs: 120, LayoutTotalMs: 30, PaintTotalMs: 20, InputEventCount: 24,
 		}); err != nil {
 			t.Fatalf("Insert: %v", err)
 		}
@@ -137,6 +139,9 @@ func TestSeriesAndLatestFilterByFlow(t *testing.T) {
 	}
 	if latest.LCPMs != 300 {
 		t.Fatalf("LatestFlow must be newest-first, got %d", latest.LCPMs)
+	}
+	if latest.DrawnFPS != 48 || latest.DroppedFrameRate != 0.12 || latest.InputEventCount != 24 {
+		t.Fatalf("interaction metrics must round-trip, got %#v", latest)
 	}
 
 	// Scenario-level Latest still ignores flow rows.

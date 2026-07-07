@@ -56,6 +56,15 @@ func (h *handlers) set(ctx cliapp.RunContext) error {
 		StartupMaxMs:            parseInt64(firstFlag(ctx.FlagValues("startup-max-ms"))),
 		ComponentCommitAvgMaxMs: parseFloat(firstFlag(ctx.FlagValues("component-commit-avg-max-ms"))),
 		ComponentCommitMaxMs:    parseFloat(firstFlag(ctx.FlagValues("component-commit-max-ms"))),
+		DrawnFpsMin:             parseFloat(firstFlag(ctx.FlagValues("drawn-fps-min"))),
+		DroppedFrameRateMax:     parseFloat(firstFlag(ctx.FlagValues("dropped-frame-rate-max"))),
+		LongTaskTotalMaxMs:      parseInt64(firstFlag(ctx.FlagValues("long-task-total-max-ms"))),
+		LongTaskMaxMs:           parseFloat(firstFlag(ctx.FlagValues("long-task-max-ms"))),
+		RasterTotalMaxMs:        parseFloat(firstFlag(ctx.FlagValues("raster-total-max-ms"))),
+		LayoutTotalMaxMs:        parseFloat(firstFlag(ctx.FlagValues("layout-total-max-ms"))),
+		PaintTotalMaxMs:         parseFloat(firstFlag(ctx.FlagValues("paint-total-max-ms"))),
+		InputEventCountMin:      parseInt64(firstFlag(ctx.FlagValues("input-event-count-min"))),
+		LoadOnly:                ctx.BoolFlag("load-only"),
 		Ratchet:                 ctx.BoolFlag("ratchet"),
 	}
 	resp, err := h.client.SetBudget(context.Background(), connect.NewRequest(&budgetsv1.SetBudgetRequest{Budget: b, Flow: flow}))
@@ -97,7 +106,15 @@ func (h *handlers) check(ctx cliapp.RunContext) error {
 	}
 	results := make([]string, 0, len(resp.Msg.GetViolations()))
 	for _, v := range resp.Msg.GetViolations() {
-		results = append(results, fmt.Sprintf("%s — measured=%d budget=%d %s", v.GetAxis(), v.GetMeasured(), v.GetBudget(), v.GetUnit()))
+		relation := "max"
+		if v.GetMode() == "min" {
+			relation = "min"
+		}
+		detail := ""
+		if v.GetDetail() != "" {
+			detail = " — " + v.GetDetail()
+		}
+		results = append(results, fmt.Sprintf("%s — measured=%d budget_%s=%d %s%s", v.GetAxis(), v.GetMeasured(), relation, v.GetBudget(), v.GetUnit(), detail))
 	}
 	if len(results) == 0 {
 		results = append(results, "No violations.")
@@ -121,6 +138,15 @@ func budgetLines(b *budgetsv1.Budget) []string {
 		fmt.Sprintf("startup_max=%dms", b.GetStartupMaxMs()),
 		fmt.Sprintf("component_commit_avg_max=%.1fms", b.GetComponentCommitAvgMaxMs()),
 		fmt.Sprintf("component_commit_max=%.1fms", b.GetComponentCommitMaxMs()),
+		fmt.Sprintf("drawn_fps_min=%.1ffps", b.GetDrawnFpsMin()),
+		fmt.Sprintf("dropped_frame_rate_max=%.2f", b.GetDroppedFrameRateMax()),
+		fmt.Sprintf("long_task_total_max=%dms", b.GetLongTaskTotalMaxMs()),
+		fmt.Sprintf("long_task_max=%.1fms", b.GetLongTaskMaxMs()),
+		fmt.Sprintf("raster_total_max=%.1fms", b.GetRasterTotalMaxMs()),
+		fmt.Sprintf("layout_total_max=%.1fms", b.GetLayoutTotalMaxMs()),
+		fmt.Sprintf("paint_total_max=%.1fms", b.GetPaintTotalMaxMs()),
+		fmt.Sprintf("input_event_count_min=%d", b.GetInputEventCountMin()),
+		fmt.Sprintf("load_only=%t", b.GetLoadOnly()),
 		fmt.Sprintf("ratchet=%t", b.GetRatchet()),
 	}
 	flows := b.GetFlows()
@@ -132,8 +158,10 @@ func budgetLines(b *budgetsv1.Budget) []string {
 		sort.Strings(slugs)
 		for _, slug := range slugs {
 			fb := flows[slug]
-			lines = append(lines, fmt.Sprintf("flow[%s]: lcp_max=%dms component_commit_avg_max=%.1fms component_commit_max=%.1fms",
-				slug, fb.GetLcpMaxMs(), fb.GetComponentCommitAvgMaxMs(), fb.GetComponentCommitMaxMs()))
+			lines = append(lines, fmt.Sprintf("flow[%s]: lcp_max=%dms component_commit_avg_max=%.1fms component_commit_max=%.1fms drawn_fps_min=%.1ffps dropped_frame_rate_max=%.2f long_task_total_max=%dms long_task_max=%.1fms raster_total_max=%.1fms layout_total_max=%.1fms paint_total_max=%.1fms input_event_count_min=%d load_only=%t",
+				slug, fb.GetLcpMaxMs(), fb.GetComponentCommitAvgMaxMs(), fb.GetComponentCommitMaxMs(),
+				fb.GetDrawnFpsMin(), fb.GetDroppedFrameRateMax(), fb.GetLongTaskTotalMaxMs(), fb.GetLongTaskMaxMs(),
+				fb.GetRasterTotalMaxMs(), fb.GetLayoutTotalMaxMs(), fb.GetPaintTotalMaxMs(), fb.GetInputEventCountMin(), fb.GetLoadOnly()))
 		}
 	}
 	return lines

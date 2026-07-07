@@ -164,7 +164,7 @@
             {"name": "scenario", "required": true, "description": "Scenario slug"}
           ],
           "flags": [
-            {"name": "flow", "description": "Write the per-flow axes (lcp/component-commit) to budget.flows[<slug>] for this interaction flow instead of the scenario aggregate; scenario-level axes and sibling flows are preserved"},
+            {"name": "flow", "description": "Write the per-flow axes (lcp/component-commit/frame/input/browser-work) to budget.flows[<slug>] for this interaction flow instead of the scenario aggregate; scenario-level axes and sibling flows are preserved"},
             {"name": "go-build-max-ms", "description": "Maximum go build time in milliseconds"},
             {"name": "ui-build-max-ms", "description": "Maximum UI build time in milliseconds"},
             {"name": "bundle-max-bytes", "description": "Maximum bundle size in bytes"},
@@ -172,6 +172,15 @@
             {"name": "startup-max-ms", "description": "Maximum time-to-healthy in milliseconds"},
             {"name": "component-commit-avg-max-ms", "description": "Maximum per-component average commit time in milliseconds"},
             {"name": "component-commit-max-ms", "description": "Maximum per-component (slowest) commit time in milliseconds"},
+            {"name": "drawn-fps-min", "description": "Minimum drawn frame rate for interaction flows"},
+            {"name": "dropped-frame-rate-max", "description": "Maximum dropped-frame rate as a fraction, e.g. 0.20"},
+            {"name": "long-task-total-max-ms", "description": "Maximum total long-task duration in milliseconds"},
+            {"name": "long-task-max-ms", "description": "Maximum single long-task duration in milliseconds"},
+            {"name": "raster-total-max-ms", "description": "Maximum total RasterTask duration in milliseconds"},
+            {"name": "layout-total-max-ms", "description": "Maximum total Layout + UpdateLayoutTree duration in milliseconds"},
+            {"name": "paint-total-max-ms", "description": "Maximum total Paint duration in milliseconds"},
+            {"name": "input-event-count-min", "description": "Minimum input EventDispatch count for gesture workflows"},
+            {"name": "load-only", "bool": true, "description": "When used with --flow, mark this flow as load-only so missing frame/input evidence does not fail closed"},
             {"name": "ratchet", "bool": true, "description": "Tighten-only: reject any future write that loosens this budget"},
             {"name": "json", "description": "Emit JSON output"}
           ],

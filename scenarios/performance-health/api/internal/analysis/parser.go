@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -43,7 +44,11 @@ type traceEvent struct {
 	Name string  `json:"name"`
 	Ph   string  `json:"ph"`
 	Ts   float64 `json:"ts"`
-	ID2  struct {
+	Dur  float64 `json:"dur"`
+	Args struct {
+		Data map[string]any `json:"data"`
+	} `json:"args"`
+	ID2 struct {
 		Local string `json:"local"`
 	} `json:"id2"`
 }
@@ -80,6 +85,16 @@ var phaseSuffix = regexp.MustCompile(`\s*\([a-z-]+\)$`)
 // blink.user_timing marks.
 const reactMarkPrefix = "⚛"
 
+var browserWorkEvents = map[string]bool{
+	"EventDispatch":    true,
+	"FunctionCall":     true,
+	"Layout":           true,
+	"Paint":            true,
+	"RasterTask":       true,
+	"RunTask":          true,
+	"UpdateLayoutTree": true,
+}
+
 // Load parses the trace artifact (and its sibling web-vitals file) into a
 // Result. The artifact is a filesystem path to performance.json; scenario, when
 // non-empty, enables component symbol location.
@@ -92,12 +107,18 @@ func (l FileTraceLoader) Load(_ context.Context, scenario, artifact string) (Res
 	if err != nil {
 		return Result{}, fmt.Errorf("analysis: parse trace %q: %w", artifact, err)
 	}
-	res := Result{Components: aggregateComponents(events)}
+	res := Result{
+		Components:   aggregateComponents(events),
+		FrameSummary: summarizeFrames(events),
+		BrowserWork:  summarizeBrowserWork(events),
+		InputEvents:  summarizeInputEvents(events),
+	}
 
 	// Web-vitals: sibling performance.web-vitals.json. Best-effort — a Tier-0
 	// capture or a missing observer file must not fail analysis.
 	if vitals, ok := readWebVitals(artifact); ok {
 		res.LongTaskMs = longTaskTotalMs(vitals)
+		res.LongTaskMaxMs = longTaskMaxMs(vitals)
 		res.FCPMs = paintMs(vitals, "first-contentful-paint")
 		res.LCPMs = lcpMs(vitals)
 	}
@@ -116,8 +137,138 @@ func (l FileTraceLoader) Load(_ context.Context, scenario, artifact string) (Res
 		}
 		res.Findings = DeriveFindings(res.Components, l.BudgetMs)
 	}
+	res.Findings = append(res.Findings, DeriveInteractionFindings(res.FrameSummary, res.BrowserWork, res.InputEvents)...)
 
 	return res, nil
+}
+
+func summarizeFrames(events []traceEvent) FrameSummary {
+	if len(events) == 0 {
+		return FrameSummary{}
+	}
+	var (
+		minTs float64
+		maxTs float64
+		seen  bool
+		out   FrameSummary
+	)
+	for _, e := range events {
+		if !seen || e.Ts < minTs {
+			minTs = e.Ts
+		}
+		endTs := e.Ts + e.Dur
+		if !seen || endTs > maxTs {
+			maxTs = endTs
+		}
+		seen = true
+		switch e.Name {
+		case "BeginFrame":
+			out.BeginFrameCount++
+		case "DrawFrame":
+			out.DrawnFrameCount++
+		case "DroppedFrame":
+			out.DroppedFrameCount++
+		}
+	}
+	if !seen {
+		return out
+	}
+	out.TraceDurationMs = round1((maxTs - minTs) / 1000.0)
+	if out.TraceDurationMs > 0 {
+		out.ApproxDrawnFPS = round1(float64(out.DrawnFrameCount) / (out.TraceDurationMs / 1000.0))
+	}
+	totalTerminalFrames := out.DrawnFrameCount + out.DroppedFrameCount
+	if totalTerminalFrames > 0 {
+		out.DroppedFrameRate = round1(float64(out.DroppedFrameCount) / float64(totalTerminalFrames))
+	}
+	return out
+}
+
+func summarizeBrowserWork(events []traceEvent) []EventSummary {
+	agg := map[string]*eventAcc{}
+	for _, e := range events {
+		if !browserWorkEvents[e.Name] {
+			continue
+		}
+		addEventDuration(agg, e.Name, e.Dur)
+	}
+	return eventSummaries(agg)
+}
+
+func summarizeInputEvents(events []traceEvent) []EventSummary {
+	agg := map[string]*eventAcc{}
+	for _, e := range events {
+		if e.Name != "EventDispatch" {
+			continue
+		}
+		addEventDuration(agg, inputEventType(e), e.Dur)
+	}
+	return eventSummaries(agg)
+}
+
+type eventAcc struct {
+	count int
+	total float64
+	max   float64
+}
+
+func addEventDuration(agg map[string]*eventAcc, name string, durUs float64) {
+	if name == "" {
+		return
+	}
+	if durUs < 0 {
+		durUs = 0
+	}
+	a := agg[name]
+	if a == nil {
+		a = &eventAcc{}
+		agg[name] = a
+	}
+	a.count++
+	a.total += durUs
+	if durUs > a.max {
+		a.max = durUs
+	}
+}
+
+func eventSummaries(agg map[string]*eventAcc) []EventSummary {
+	out := make([]EventSummary, 0, len(agg))
+	for name, a := range agg {
+		totalMs := a.total / 1000.0
+		avgMs := 0.0
+		if a.count > 0 {
+			avgMs = totalMs / float64(a.count)
+		}
+		out = append(out, EventSummary{
+			Name:    name,
+			Count:   a.count,
+			TotalMs: round1(totalMs),
+			MaxMs:   round1(a.max / 1000.0),
+			AvgMs:   round1(avgMs),
+		})
+	}
+	sortEventSummaries(out)
+	return out
+}
+
+func sortEventSummaries(s []EventSummary) {
+	sort.Slice(s, func(i, j int) bool {
+		if s[i].TotalMs != s[j].TotalMs {
+			return s[i].TotalMs > s[j].TotalMs
+		}
+		return s[i].Name < s[j].Name
+	})
+}
+
+func inputEventType(e traceEvent) string {
+	for _, key := range []string{"type", "eventType"} {
+		if v, ok := e.Args.Data[key]; ok {
+			if s, ok := v.(string); ok && strings.TrimSpace(s) != "" {
+				return strings.TrimSpace(s)
+			}
+		}
+	}
+	return "unknown"
 }
 
 // parseTraceEvents decodes either a bare event array or a {traceEvents:[...]}
@@ -248,6 +399,16 @@ func longTaskTotalMs(wv webVitals) int64 {
 		total += lt.Duration
 	}
 	return int64(math.Round(total))
+}
+
+func longTaskMaxMs(wv webVitals) float64 {
+	var max float64
+	for _, lt := range wv.LongTasks {
+		if lt.Duration > max {
+			max = lt.Duration
+		}
+	}
+	return round1(max)
 }
 
 func paintMs(wv webVitals, name string) int64 {

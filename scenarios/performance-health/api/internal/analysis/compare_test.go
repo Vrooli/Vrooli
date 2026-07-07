@@ -71,4 +71,25 @@ func TestCompareRealFixtures(t *testing.T) {
 	if cmp.LCPDeltaMs != -140 {
 		t.Errorf("LCP delta: got %d, want -140", cmp.LCPDeltaMs)
 	}
+	if cmp.FrameDelta.DrawnFrameCountDelta != 1 || cmp.FrameDelta.DroppedFrameCountDelta != -1 {
+		t.Errorf("frame count delta: got %#v, want drawn +1 dropped -1", cmp.FrameDelta)
+	}
+	if cmp.FrameDelta.ApproxDrawnFPSDelta != 5.1 {
+		t.Errorf("drawn FPS delta: got %.1f, want +5.1", cmp.FrameDelta.ApproxDrawnFPSDelta)
+	}
+	if got := eventDeltaByName(cmp.BrowserWork, "RasterTask"); got == nil || got.TotalDeltaMs != -490 {
+		t.Errorf("RasterTask delta: got %#v, want total -490ms", got)
+	}
+	if got := eventDeltaByName(cmp.InputEvents, "pointermove"); got == nil || got.CountDelta != 5 {
+		t.Errorf("pointermove delta: got %#v, want count +5", got)
+	}
+}
+
+func eventDeltaByName(events []EventDelta, name string) *EventDelta {
+	for i := range events {
+		if events[i].Name == name {
+			return &events[i]
+		}
+	}
+	return nil
 }

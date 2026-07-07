@@ -14,6 +14,14 @@ CREATE TABLE IF NOT EXISTS perf_samples (
   slowest_component TEXT NOT NULL DEFAULT '',
   slowest_component_avg_ms REAL NOT NULL DEFAULT 0,
   slowest_component_max_ms REAL NOT NULL DEFAULT 0,
+  drawn_fps REAL NOT NULL DEFAULT 0,
+  dropped_frame_rate REAL NOT NULL DEFAULT 0,
+  long_task_total_ms INTEGER NOT NULL DEFAULT 0,
+  long_task_max_ms REAL NOT NULL DEFAULT 0,
+  raster_total_ms REAL NOT NULL DEFAULT 0,
+  layout_total_ms REAL NOT NULL DEFAULT 0,
+  paint_total_ms REAL NOT NULL DEFAULT 0,
+  input_event_count INTEGER NOT NULL DEFAULT 0,
   note TEXT NOT NULL DEFAULT ''
 );
 

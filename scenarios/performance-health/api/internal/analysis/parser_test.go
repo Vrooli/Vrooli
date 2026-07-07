@@ -51,6 +51,18 @@ func TestFileTraceLoaderParsesFixture(t *testing.T) {
 	if res.LCPMs != 1240 {
 		t.Errorf("LCP: got %d, want 1240", res.LCPMs)
 	}
+	if res.FrameSummary.DrawnFrameCount != 2 || res.FrameSummary.DroppedFrameCount != 1 {
+		t.Errorf("frame summary: got %#v, want 2 drawn / 1 dropped", res.FrameSummary)
+	}
+	if res.FrameSummary.ApproxDrawnFPS != 2.3 || res.FrameSummary.DroppedFrameRate != 0.3 {
+		t.Errorf("frame rates: got fps=%.1f dropped=%.1f, want 2.3/0.3", res.FrameSummary.ApproxDrawnFPS, res.FrameSummary.DroppedFrameRate)
+	}
+	if got := eventByName(res.BrowserWork, "RasterTask"); got == nil || got.Count != 2 || got.TotalMs != 610 {
+		t.Errorf("RasterTask summary: got %#v, want count=2 total=610ms", got)
+	}
+	if got := eventByName(res.InputEvents, "pointermove"); got == nil || got.Count != 1 || got.TotalMs != 4 {
+		t.Errorf("pointermove input summary: got %#v, want count=1 total=4ms", got)
+	}
 }
 
 // [REQ:PH-ANALYSIS-001] A Tier-0 trace (no ⚛ marks) yields an empty component
@@ -70,8 +82,11 @@ func TestFileTraceLoaderTier0NoComponentMarks(t *testing.T) {
 	if res.FCPMs != 210 || res.LCPMs != 980 {
 		t.Errorf("Tier-0 web-vitals: got FCP=%d LCP=%d, want 210/980", res.FCPMs, res.LCPMs)
 	}
-	if len(res.Findings) != 0 {
-		t.Errorf("Tier-0 trace must produce no findings, got %#v", res.Findings)
+	if !hasFinding(res.Findings, "PERF_FRAME_HEALTH_MISSING") {
+		t.Errorf("Tier-0 trace must report missing frame health, got %#v", res.Findings)
+	}
+	if !hasFinding(res.Findings, "PERF_INTERACTION_INPUT_MISSING") {
+		t.Errorf("Tier-0 trace must report missing input evidence, got %#v", res.Findings)
 	}
 }
 
@@ -90,10 +105,10 @@ func TestFileTraceLoaderEmitsLocatedFindings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if len(res.Findings) != 1 {
-		t.Fatalf("expected exactly 1 over-budget finding (ProjectList avg 20ms), got %d: %#v", len(res.Findings), res.Findings)
+	if !hasFinding(res.Findings, "PERF_COMPONENT_COMMIT_OVER_BUDGET") {
+		t.Fatalf("expected over-budget component finding, got %#v", res.Findings)
 	}
-	f := res.Findings[0]
+	f := findingByCode(res.Findings, "PERF_COMPONENT_COMMIT_OVER_BUDGET")
 	if f.Component != "ProjectList" {
 		t.Fatalf("expected ProjectList finding, got %q", f.Component)
 	}
@@ -121,4 +136,26 @@ func TestFindingsUnlocatedNote(t *testing.T) {
 	if got[0].Message == "" || !strings.Contains(got[0].Message, "definition not located") {
 		t.Fatalf("expected unlocated note in message, got %q", got[0].Message)
 	}
+}
+
+func eventByName(events []EventSummary, name string) *EventSummary {
+	for i := range events {
+		if events[i].Name == name {
+			return &events[i]
+		}
+	}
+	return nil
+}
+
+func hasFinding(findings []Finding, code string) bool {
+	return findingByCode(findings, code).Code != ""
+}
+
+func findingByCode(findings []Finding, code string) Finding {
+	for _, f := range findings {
+		if f.Code == code {
+			return f
+		}
+	}
+	return Finding{}
 }
