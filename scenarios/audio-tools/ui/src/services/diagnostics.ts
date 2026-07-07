@@ -86,6 +86,34 @@ export interface TranscribeResult {
 export type SuiteCapability = "stt" | "tts" | "summarize" | "transcode";
 export type SuiteOverallStatus = "never" | "pass" | "partial" | "fail" | "unknown";
 
+export type QualityStatus = "pass" | "warn" | "fail" | "unknown";
+
+/** One quality-smoke fixture's verdict, decoded from the STT step details. */
+export interface QualityFixtureResult {
+  fixtureId: string;
+  expectedKind: "no_speech" | "speech" | string;
+  status: QualityStatus;
+  wer: number;
+  werThreshold: number;
+  filtered: boolean;
+  filterReason: string;
+  hallucinationDetected: boolean;
+  preview: string;
+  note: string;
+}
+
+/**
+ * Layer-2 STT quality-smoke evidence. `assessed` is false when only the
+ * readiness probe ran (no fixtures configured). Kept separate from readiness
+ * (the step's ok/provider trace) so the UI can show "reachable but degraded".
+ */
+export interface QualitySmoke {
+  assessed: boolean;
+  status: QualityStatus;
+  hallucinationDetected: boolean;
+  fixtures: QualityFixtureResult[];
+}
+
 export interface SuiteStep {
   capability: SuiteCapability | "unknown";
   ok: boolean;
@@ -98,6 +126,53 @@ export interface SuiteStep {
   modelId: string;
   latencyMs: number;
   details: Record<string, string>;
+  /** Present on the STT step; parsed from the opaque quality_* details. */
+  quality?: QualitySmoke;
+}
+
+function qualityStatusKey(s: string): QualityStatus {
+  switch (s) {
+    case "pass": return "pass";
+    case "warn": return "warn";
+    case "fail": return "fail";
+    default: return "unknown";
+  }
+}
+
+/**
+ * parseQuality decodes the STT step's opaque quality-smoke details into typed
+ * state. Returns undefined when quality was not assessed so callers can fall
+ * back to the readiness-only presentation.
+ */
+function parseQuality(details: Record<string, string>): QualitySmoke | undefined {
+  if (details.quality_assessed !== "true") return undefined;
+  let fixtures: QualityFixtureResult[] = [];
+  const raw = details.quality_fixtures;
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as Array<Record<string, unknown>>;
+      fixtures = parsed.map((f) => ({
+        fixtureId: String(f.fixture_id ?? ""),
+        expectedKind: String(f.expected_kind ?? ""),
+        status: qualityStatusKey(String(f.status ?? "")),
+        wer: Number(f.wer ?? 0),
+        werThreshold: Number(f.wer_threshold ?? 0),
+        filtered: Boolean(f.transcript_filtered),
+        filterReason: String(f.filter_reason ?? ""),
+        hallucinationDetected: Boolean(f.hallucination_detected),
+        preview: String(f.preview ?? ""),
+        note: String(f.note ?? ""),
+      }));
+    } catch {
+      fixtures = [];
+    }
+  }
+  return {
+    assessed: true,
+    status: qualityStatusKey(details.quality_status ?? ""),
+    hallucinationDetected: details.quality_hallucination_detected === "true",
+    fixtures,
+  };
 }
 
 export interface SuiteRun {
@@ -196,6 +271,7 @@ function shapeRun(run: {
       modelId: s.modelId,
       latencyMs: s.latencyMs,
       details: s.details,
+      quality: parseQuality(s.details),
     })),
   };
 }

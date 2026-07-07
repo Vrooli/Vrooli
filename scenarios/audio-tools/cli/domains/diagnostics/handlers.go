@@ -2,6 +2,7 @@ package diagnostics
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -111,13 +112,73 @@ func formatStep(s *diagv1.SuiteStepResult) string {
 		line := fmt.Sprintf("%-10s OK     tier=%-7s provider=%-20s model=%-20s latency=%dms",
 			cap, providerTierLabel(s.GetProviderTier()), truncate(s.GetProviderId(), 20),
 			truncate(s.GetModelId(), 20), int(s.GetLatencyMs()))
-		if s.GetCapability() == diagv1.Capability_CAPABILITY_STT && s.GetDetails()["quality_assessed"] == "false" {
-			line += " quality=not-assessed"
+		if s.GetCapability() == diagv1.Capability_CAPABILITY_STT {
+			line += " " + sttQualitySummary(s.GetDetails())
 		}
 		return line
 	}
-	return fmt.Sprintf("%-10s FAIL   code=%-22s message=%s",
+	line := fmt.Sprintf("%-10s FAIL   code=%-22s message=%s",
 		cap, s.GetErrorCode(), truncate(s.GetErrorMessage(), 80))
+	if s.GetCapability() == diagv1.Capability_CAPABILITY_STT && s.GetDetails()["quality_assessed"] == "true" {
+		// A quality-smoke failure flips the STT step, but readiness (provider
+		// reachability) stayed its own signal — surface it so operators know
+		// the provider is reachable and the fault is transcript safety.
+		line += "\n           readiness=pass " + sttQualitySummary(s.GetDetails())
+	}
+	return line
+}
+
+// cliFixtureResult is the CLI-side view of one quality-smoke fixture,
+// decoded from the opaque quality_fixtures detail JSON so human output can
+// summarize per-fixture verdicts without the operator parsing prose.
+type cliFixtureResult struct {
+	FixtureID             string  `json:"fixture_id"`
+	ExpectedKind          string  `json:"expected_kind"`
+	Status                string  `json:"status"`
+	WER                   float64 `json:"wer"`
+	WERThreshold          float64 `json:"wer_threshold"`
+	Filtered              bool    `json:"transcript_filtered"`
+	HallucinationDetected bool    `json:"hallucination_detected"`
+}
+
+// sttQualitySummary renders the layer-2 quality-smoke verdict for the STT
+// step: "quality=not-assessed" when readiness ran alone, otherwise the
+// aggregate status plus a compact per-fixture breakdown.
+func sttQualitySummary(details map[string]string) string {
+	if details["quality_assessed"] != "true" {
+		return "quality=not-assessed"
+	}
+	summary := "quality=" + orDash(details["quality_status"])
+	var fixtures []cliFixtureResult
+	if raw := details["quality_fixtures"]; raw != "" {
+		_ = json.Unmarshal([]byte(raw), &fixtures)
+	}
+	parts := make([]string, 0, len(fixtures))
+	for _, f := range fixtures {
+		switch f.ExpectedKind {
+		case "speech":
+			parts = append(parts, fmt.Sprintf("%s:%s wer=%.2f/%.2f", f.FixtureID, f.Status, f.WER, f.WERThreshold))
+		default:
+			tag := f.Status
+			if f.HallucinationDetected {
+				tag += " hallucination"
+			} else if f.Filtered {
+				tag += " filtered"
+			}
+			parts = append(parts, fmt.Sprintf("%s:%s", f.FixtureID, tag))
+		}
+	}
+	if len(parts) > 0 {
+		summary += " [" + strings.Join(parts, ", ") + "]"
+	}
+	return summary
+}
+
+func orDash(s string) string {
+	if s == "" {
+		return "-"
+	}
+	return s
 }
 
 func overallLabel(s diagv1.SuiteOverall_Status) string {

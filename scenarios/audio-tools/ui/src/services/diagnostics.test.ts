@@ -206,6 +206,44 @@ describe("runSuite", () => {
     const r = await runSuite(["stt"]);
     expect(r.ok).toBe(false);
   });
+
+  it("parses the STT quality-smoke details into typed state", async () => {
+    const fixtures = JSON.stringify([
+      { fixture_id: "no_speech_silence", expected_kind: "no_speech", status: "pass", transcript_filtered: true, filter_reason: "hallucination", hallucination_detected: false, preview: "" },
+      { fixture_id: "clean_speech", expected_kind: "speech", status: "pass", wer: 0, wer_threshold: 0.34, transcript_filtered: false, preview: "the quick brown fox jumps" },
+    ]);
+    runSuiteRpc.mockResolvedValue({
+      run: {
+        runId: "rq", startedAtUnixMs: 0n, finishedAtUnixMs: 0n,
+        steps: [{ ...protoStep, details: { quality_assessed: "true", quality_status: "pass", quality_hallucination_detected: "false", quality_fixtures: fixtures } }],
+        overall: { status: SuiteOverall_Status.PASS, passCount: 1, failCount: 0, totalCount: 1 },
+      },
+    });
+    const r = await runSuite(["stt"]);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      const q = r.data.steps[0]!.quality;
+      expect(q).toBeDefined();
+      expect(q!.status).toBe("pass");
+      expect(q!.fixtures).toHaveLength(2);
+      expect(q!.fixtures[0]!.fixtureId).toBe("no_speech_silence");
+      expect(q!.fixtures[0]!.filtered).toBe(true);
+      expect(q!.fixtures[1]!.wer).toBe(0);
+      expect(q!.fixtures[1]!.werThreshold).toBe(0.34);
+    }
+  });
+
+  it("leaves quality undefined when the STT step did not assess quality", async () => {
+    runSuiteRpc.mockResolvedValue({
+      run: {
+        runId: "rn", startedAtUnixMs: 0n, finishedAtUnixMs: 0n,
+        steps: [{ ...protoStep, details: { quality_assessed: "false" } }],
+        overall: { status: SuiteOverall_Status.PASS, passCount: 1, failCount: 0, totalCount: 1 },
+      },
+    });
+    const r = await runSuite(["stt"]);
+    if (r.ok) expect(r.data.steps[0]!.quality).toBeUndefined();
+  });
 });
 
 describe("getLastSuiteRun", () => {

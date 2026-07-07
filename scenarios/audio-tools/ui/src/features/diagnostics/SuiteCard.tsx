@@ -255,15 +255,83 @@ function StepLog({ run }: { run: SuiteRun | null }) {
             <span className="ml-2 text-app-danger">
               {s.errorCode}{s.errorMessage ? `: ${s.errorMessage}` : ""}
             </span>
-          ) : s.capability === "stt" && s.details.quality_assessed === "false" ? (
-            <span className="ml-2 text-app-muted-foreground">
-              {tr(strings.diagnostics.suite.qualityNotAssessed)}
-            </span>
           ) : null}
+          {s.capability === "stt" ? <QualitySmokeRow step={s} tr={tr} /> : null}
         </li>
       ))}
     </ul>
   );
+}
+
+/**
+ * QualitySmokeRow renders the layer-2 STT quality-smoke evidence beneath the
+ * step line: an aggregate status, one compact chip per fixture, and — when the
+ * step failed on a quality leak — an explicit "readiness reachable" note so the
+ * operator sees provider reachability was fine and the fault is transcript
+ * safety. Keeps quality a distinct signal from readiness (decision D1).
+ */
+function QualitySmokeRow({ step, tr }: { step: SuiteStep; tr: Translate }) {
+  const q = step.quality;
+  if (!q) {
+    return (
+      <div className="mt-1 text-app-muted-foreground">
+        {tr(strings.diagnostics.suite.qualityNotAssessed)}
+      </div>
+    );
+  }
+  const readinessDistinct = !step.ok; // quality flipped the step; readiness itself was reachable
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+      {readinessDistinct ? (
+        <span className="text-app-success">{tr(strings.diagnostics.suite.qualityReadinessReachable)}</span>
+      ) : null}
+      <span className={cn("font-medium", qualityToneClass(q.status))}>
+        {tr(strings.diagnostics.suite.qualityStatusLabel, { status: q.status })}
+      </span>
+      {q.fixtures.map((f) => (
+        <span
+          key={f.fixtureId}
+          className={cn("rounded border px-1.5 py-0.5", qualityChipClass(f.status))}
+          title={f.note}
+        >
+          {f.expectedKind === "speech"
+            ? tr(strings.diagnostics.suite.qualityFixtureSpeech, {
+                id: f.fixtureId,
+                status: f.status,
+                wer: f.wer.toFixed(2),
+                threshold: f.werThreshold.toFixed(2),
+              })
+            : tr(strings.diagnostics.suite.qualityFixtureNoSpeech, { id: f.fixtureId, status: f.status })}
+          {f.hallucinationDetected
+            ? ` — ${tr(strings.diagnostics.suite.qualityTagHallucination)}`
+            : f.filtered
+              ? ` — ${tr(strings.diagnostics.suite.qualityTagFiltered)}`
+              : ""}
+        </span>
+      ))}
+      {q.status !== "pass" ? (
+        <span className="text-app-muted-foreground">{tr(strings.diagnostics.suite.qualityDeeperHint)}</span>
+      ) : null}
+    </div>
+  );
+}
+
+function qualityToneClass(s: string): string {
+  switch (s) {
+    case "pass": return "text-app-success";
+    case "warn": return "text-app-warning";
+    case "fail": return "text-app-danger";
+    default: return "text-app-muted-foreground";
+  }
+}
+
+function qualityChipClass(s: string): string {
+  switch (s) {
+    case "pass": return "border-app-border text-app-muted-foreground";
+    case "warn": return "border-app-warning text-app-warning";
+    case "fail": return "border-app-danger text-app-danger";
+    default: return "border-app-border text-app-muted-foreground";
+  }
 }
 
 function findStep(run: SuiteRun | null, cap: SuiteCapability): SuiteStep | undefined {

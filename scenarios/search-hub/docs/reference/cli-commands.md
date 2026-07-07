@@ -141,6 +141,36 @@ than erroring.
 search-hub providers remove cli-health.commands
 ```
 
+## Scenario commands — `maturity` (fleet certification)
+
+### `search-hub maturity scan [--fast] [--json] [--root <dir>]`
+
+Scans every search-applicable scenario (those owning `.vrooli/search.json` **or**
+declaring a `search`/`ai-search` service capability — the same target set as the
+Test Genie `search` phase) and reports certification status.
+
+- **`--fast`** is **inventory only** (`validation_mode: "fast"`): descriptor/corpus
+  shape without live eval or latency proof. Default is **full**
+  (`validation_mode: "full"`) — the certification path.
+- Each result carries `applicability_reason` (`descriptor` / `capability:<token>` /
+  `descriptor+capability:<token>`), a `findings` list where each finding has a
+  `finding_class` of `static` (descriptor/corpus shape) or `execution` (needs live
+  eval/latency), an `eval_evidence` array (`suite_id`, `freshness`, `corpus_status`,
+  `last_run_id`, `recall`/`recall_target`, `met_cases`/`below_cases`,
+  `latency_p95_ms`), and `repair_commands` — the concrete next commands to run.
+
+```bash
+search-hub maturity scan --json                 # full certification scan
+search-hub maturity scan --fast --json          # inventory only
+```
+
+### `search-hub maturity fix <scenario> [--apply] [--rule <code,…>] [--json]`
+
+Previews (default) or applies (`--apply`) conservative **mechanical** descriptor
+repairs (version, default suite ids, `tests.description`, rerank-shortlist clamp).
+It never invents endpoints, ownership, class, or eval cases — those need owner
+judgment and are surfaced as findings instead.
+
 ## Output contracts
 
 Every scenario command should render through one of three human

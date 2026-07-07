@@ -9,6 +9,7 @@
       "type": "domain",
       "description": "Scenario domains across the whole fleet, searchable by what each domain DOES — its responsibility and purpose — not by Vrooli jargon. Route here for: what domains/subsystems a scenario has and what each owns; how a feature works inside a scenario; which part owns a responsibility. e.g. 'how does authoring work in plan-manager', 'what are the domains of search-hub', 'which domain owns plan validation'.",
       "scope": "SCOPE_PROJECT",
+      "class": "local_index",
       "endpoint": {
         "http_json": {
           "scenario_id": "architecture-cartographer",
@@ -85,7 +86,7 @@
       },
       "tests": {
         "name": "architecture-cartographer domain-map — primary golden corpus",
-        "description": "RANK-CENTRIC golden corpus for the cross-fleet domain-map index. Positive cases assert expect_ids (the '\u003cscenario\u003e/\u003cdomain\u003e' leaf, e.g. 'plan-manager/authoring') landing within expect_within_top_k. The corpus is deliberately TERM-AGNOSTIC: queries describe what a domain DOES (its responsibility/purpose prose) without naming the domain, since the headline value of this provider is answering natural-language intent from a caller who does not know Vrooli's vocabulary. NO absolute expect_min_score is set on positives by design (the sweep compares arms across dense-cosine / cross-encoder / RRF-blend regimes). Difficulty: strong (intended leaf at rank 1-3), weak-real (contested by sibling domains or generic inventory intent). Gibberish negatives feed the junk-rejection constraint, never the recall objective.",
+        "description": "RANK-CENTRIC golden corpus for the cross-fleet domain-map index. Positive cases assert expect_ids (the '<scenario>/<domain>' leaf, e.g. 'plan-manager/authoring') landing within expect_within_top_k. The corpus is deliberately TERM-AGNOSTIC: queries describe what a domain DOES (its responsibility/purpose prose) without naming the domain, since the headline value of this provider is answering natural-language intent from a caller who does not know Vrooli's vocabulary. NO absolute expect_min_score is set on positives by design (the sweep compares arms across dense-cosine / cross-encoder / RRF-blend regimes). Difficulty: strong (intended leaf at rank 1-3), weak-real (contested by sibling domains or generic inventory intent). Gibberish negatives feed the junk-rejection constraint, never the recall objective.",
         "cases": [
           {
             "id": "authoring-in-plan-manager",

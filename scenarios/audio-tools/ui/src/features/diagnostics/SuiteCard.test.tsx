@@ -54,6 +54,48 @@ function partialRun(): SuiteRun {
   return r;
 }
 
+function qualityPassRun(): SuiteRun {
+  const r = passRun();
+  r.steps[0] = {
+    ...r.steps[0]!,
+    details: { quality_assessed: "true", quality_status: "pass" },
+    quality: {
+      assessed: true,
+      status: "pass",
+      hallucinationDetected: false,
+      fixtures: [
+        { fixtureId: "no_speech_silence", expectedKind: "no_speech", status: "pass", wer: 0, werThreshold: 0, filtered: true, filterReason: "hallucination", hallucinationDetected: false, preview: "", note: "" },
+        { fixtureId: "clean_speech", expectedKind: "speech", status: "pass", wer: 0, werThreshold: 0.34, filtered: false, filterReason: "", hallucinationDetected: false, preview: "the quick brown fox jumps", note: "" },
+      ],
+    },
+  };
+  return r;
+}
+
+function qualityFailRun(): SuiteRun {
+  const r = passRun();
+  r.overall = "partial";
+  r.passCount = 3;
+  r.failCount = 1;
+  r.steps[0] = {
+    ...r.steps[0]!,
+    ok: false,
+    errorCode: "quality_smoke_failed",
+    errorMessage: "STT quality smoke failed",
+    details: { quality_assessed: "true", quality_status: "fail" },
+    quality: {
+      assessed: true,
+      status: "fail",
+      hallucinationDetected: true,
+      fixtures: [
+        { fixtureId: "no_speech_silence", expectedKind: "no_speech", status: "fail", wer: 0, werThreshold: 0, filtered: false, filterReason: "", hallucinationDetected: true, preview: "", note: "" },
+        { fixtureId: "clean_speech", expectedKind: "speech", status: "pass", wer: 0, werThreshold: 0.34, filtered: false, filterReason: "", hallucinationDetected: false, preview: "the quick brown fox jumps", note: "" },
+      ],
+    },
+  };
+  return r;
+}
+
 beforeEach(() => {
   vi.mocked(getLastSuiteRun).mockResolvedValue({ ok: true, data: emptyRun() });
 });
@@ -115,6 +157,32 @@ describe("SuiteCard", () => {
     await waitFor(() => expect(screen.getByText(strings.diagnostics.suite.overallPartial)).toBeInTheDocument());
     expect(screen.getByText(strings.diagnostics.suite.errorCodeModelNotInstalled)).toBeInTheDocument();
     expect(screen.getByText(strings.diagnostics.suite.errorCodeInvalidInput)).toBeInTheDocument();
+  });
+
+  it("renders the STT quality-smoke breakdown when quality was assessed", async () => {
+    vi.mocked(runSuite).mockResolvedValue({ ok: true, data: qualityPassRun() });
+    const user = userEvent.setup();
+    renderWithProviders(<SuiteCard />);
+    await user.click(screen.getByTestId("suite-run"));
+    await waitFor(() => expect(screen.getByText(strings.diagnostics.suite.overallPass)).toBeInTheDocument());
+    // The test i18n returns raw keys (no interpolation), so assert on keys.
+    expect(screen.getByText(strings.diagnostics.suite.qualityStatusLabel)).toBeInTheDocument();
+    expect(screen.getByText(strings.diagnostics.suite.qualityFixtureNoSpeech, { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(strings.diagnostics.suite.qualityFixtureSpeech, { exact: false })).toBeInTheDocument();
+    // Quality was assessed, so the readiness-only "not assessed" note is gone.
+    expect(screen.queryByText(strings.diagnostics.suite.qualityNotAssessed)).not.toBeInTheDocument();
+  });
+
+  it("keeps readiness distinct and flags the hallucination leak when quality fails", async () => {
+    vi.mocked(runSuite).mockResolvedValue({ ok: true, data: qualityFailRun() });
+    const user = userEvent.setup();
+    renderWithProviders(<SuiteCard />);
+    await user.click(screen.getByTestId("suite-run"));
+    await waitFor(() => expect(screen.getByText(strings.diagnostics.suite.overallPartial)).toBeInTheDocument());
+    expect(screen.getByText(strings.diagnostics.suite.qualityReadinessReachable)).toBeInTheDocument();
+    expect(screen.getByText(strings.diagnostics.suite.qualityStatusLabel)).toBeInTheDocument();
+    // The hallucination tag is concatenated into the failing fixture chip.
+    expect(screen.getByText(strings.diagnostics.suite.qualityTagHallucination, { exact: false })).toBeInTheDocument();
   });
 
   it("renders the last run when getLastSuiteRun returns a populated envelope", async () => {

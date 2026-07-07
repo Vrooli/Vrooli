@@ -15,6 +15,8 @@ import (
 	"github.com/vrooli/cli-core/cliapptest"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func TestScanEmptyFleetDoesNotCallProvider(t *testing.T) {
@@ -317,6 +319,210 @@ func (f *fakeValidationClient) ApplyFix(_ context.Context, req *connect.Request[
 	return connect.NewResponse(&scenariovalidationv1.FixResponse{Scenario: req.Msg.GetScenario(), Applied: true}), nil
 }
 
+func TestScanFullModeSurfacesEvidenceAndRepairCommands(t *testing.T) {
+	root := makeRepo(t)
+	writeSearchDescriptor(t, root, "blocked")
+	native, err := structpb.NewStruct(map[string]any{
+		"eval_evidence": []any{map[string]any{
+			"suite_id": "blocked.docs.primary", "freshness": "stale", "corpus_status": "registered",
+			"last_run_id": "run-9", "recall": 0.5, "recall_target": 0.8, "latency_p95_ms": float64(500),
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	detail, err := anypb.New(native)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &fakeValidationClient{responses: map[string]*scenariovalidationv1.ValidateScenarioResponse{
+		"blocked": {
+			Scenario:     "blocked",
+			Status:       scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED,
+			Assessment:   findingAssessment("blocked", "SEARCH_EVAL_RECALL_BELOW_TARGET", "SEVERITY_ERROR", commonv1.CleanRequirement_CLEAN_REQUIREMENT_REQUIRED),
+			NativeDetail: detail,
+		},
+	}}
+	restore := replaceValidationClient(client)
+	defer restore()
+
+	ctx, out := scanContext(root, true)
+	if err := newHandlers(nil).scan(ctx); err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	var report scanReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("unmarshal scan JSON: %v\n%s", err, out.String())
+	}
+	if report.ValidationMode != "full" {
+		t.Fatalf("validation_mode = %q, want full", report.ValidationMode)
+	}
+	res := findResult(t, report, "blocked")
+	if len(res.EvalEvidence) != 1 || res.EvalEvidence[0].SuiteID != "blocked.docs.primary" || res.EvalEvidence[0].Recall != 0.5 || res.EvalEvidence[0].LatencyP95Ms != 500 {
+		t.Fatalf("eval evidence = %#v", res.EvalEvidence)
+	}
+	if res.Findings[0].FindingClass != "execution" {
+		t.Fatalf("finding_class = %q, want execution", res.Findings[0].FindingClass)
+	}
+	foundRepair := false
+	for _, c := range res.RepairCommands {
+		if strings.Contains(c, "evals run blocked.docs.primary") {
+			foundRepair = true
+		}
+	}
+	if !foundRepair {
+		t.Fatalf("repair_commands = %#v, want an evals run for the suite", res.RepairCommands)
+	}
+}
+
+func TestScanFastModeLabelsInventory(t *testing.T) {
+	root := makeRepo(t)
+	writeSearchDescriptor(t, root, "demo")
+	client := &fakeValidationClient{}
+	restore := replaceValidationClient(client)
+	defer restore()
+
+	ctx, out := scanContextWithOptions(root, true, true, false)
+	if err := newHandlers(nil).scan(ctx); err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	var report scanReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("unmarshal scan JSON: %v\n%s", err, out.String())
+	}
+	if report.ValidationMode != "fast" || !strings.Contains(report.ModeMeaning, "inventory") {
+		t.Fatalf("mode = %q meaning = %q, want fast/inventory", report.ValidationMode, report.ModeMeaning)
+	}
+}
+
+func TestDiscoverTargetsUsesDescriptorAndCapabilityParity(t *testing.T) {
+	root := makeRepo(t)
+	// descriptor-only: owns .vrooli/search.json, declares nothing.
+	writeSearchDescriptor(t, root, "descriptor-only")
+	// capability-only: declares the search capability via service tags, no descriptor.
+	writeServiceManifest(t, root, "capability-only", `{"service":{"tags":["search"]}}`)
+	// both: descriptor plus declared capability.
+	writeSearchDescriptor(t, root, "both")
+	writeServiceManifest(t, root, "both", `{"service":{"capabilities":["ai-search"]}}`)
+	// non-search: a manifest that declares unrelated capabilities and no descriptor.
+	writeServiceManifest(t, root, "non-search", `{"service":{"tags":["audio","ui"]}}`)
+	// malformed manifest with no descriptor: declares nothing, must not abort the scan.
+	writeServiceManifest(t, root, "malformed", `{ this is not json`)
+
+	targets, err := discoverTargets(root)
+	if err != nil {
+		t.Fatalf("discoverTargets: %v", err)
+	}
+	got := map[string]string{}
+	for _, tgt := range targets {
+		got[tgt.Scenario] = tgt.Reason
+	}
+	want := map[string]string{
+		"descriptor-only": "descriptor",
+		"capability-only": "capability:search",
+		"both":            "descriptor+capability:ai-search",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("discovered %#v, want exactly %#v", got, want)
+	}
+	for scenario, reason := range want {
+		if got[scenario] != reason {
+			t.Fatalf("target %q reason = %q, want %q", scenario, got[scenario], reason)
+		}
+	}
+	if _, ok := got["non-search"]; ok {
+		t.Fatal("non-search scenario must not be discovered")
+	}
+	if _, ok := got["malformed"]; ok {
+		t.Fatal("malformed-manifest scenario without a descriptor must not be discovered")
+	}
+}
+
+func TestServiceCapabilitiesMergesAllDeclaredSources(t *testing.T) {
+	root := makeRepo(t)
+	writeServiceManifest(t, root, "demo", `{
+	  "service":{"tags":["Search"],"capabilities":["ai-search"]},
+	  "capabilities":["Extra-Cap"]
+	}`)
+	caps := serviceCapabilities(filepath.Join(root, "scenarios", "demo"))
+	for _, want := range []string{"search", "ai-search", "extra-cap"} {
+		if !caps[want] {
+			t.Fatalf("capabilities missing %q: %#v", want, caps)
+		}
+	}
+	// A missing manifest declares no capabilities without erroring.
+	if got := serviceCapabilities(filepath.Join(root, "scenarios", "absent")); len(got) != 0 {
+		t.Fatalf("absent manifest capabilities = %#v, want empty", got)
+	}
+}
+
+func TestDiscoverTargetsIncludesUnreadableDescriptor(t *testing.T) {
+	root := makeRepo(t)
+	dir := filepath.Join(root, "scenarios", "unreadable", ".vrooli")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	descriptor := filepath.Join(dir, "search.json")
+	if err := os.WriteFile(descriptor, []byte(`{"version":"1.0.0","providers":[]}`), 0o000); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(descriptor); err == nil {
+		// Running as a user that bypasses the permission bit (e.g. root); the
+		// discovery-still-includes-it invariant is unaffected, but the unreadable
+		// premise cannot be exercised, so just assert discovery below.
+		_ = data
+	}
+	targets, err := discoverTargets(root)
+	if err != nil {
+		t.Fatalf("discoverTargets must not fail on an unreadable descriptor: %v", err)
+	}
+	found := false
+	for _, tgt := range targets {
+		if tgt.Scenario == "unreadable" {
+			found = true
+			if tgt.Reason != "descriptor" {
+				t.Fatalf("reason = %q, want descriptor", tgt.Reason)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("a present-but-unreadable descriptor must still be discovered so validation can report the read failure")
+	}
+}
+
+func TestScanDiscoversCapabilityOnlyScenarioAndFlagsConfigMissing(t *testing.T) {
+	root := makeRepo(t)
+	writeServiceManifest(t, root, "capability-only", `{"service":{"tags":["search"]}}`)
+	client := &fakeValidationClient{responses: map[string]*scenariovalidationv1.ValidateScenarioResponse{
+		"capability-only": {
+			Scenario:   "capability-only",
+			Status:     scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED,
+			Assessment: findingAssessment("capability-only", "SEARCH_CONFIG_MISSING", "SEVERITY_ERROR", commonv1.CleanRequirement_CLEAN_REQUIREMENT_REQUIRED),
+		},
+	}}
+	restore := replaceValidationClient(client)
+	defer restore()
+
+	ctx, out := scanContext(root, true)
+	if err := newHandlers(nil).scan(ctx); err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	var report scanReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("unmarshal scan JSON: %v\n%s", err, out.String())
+	}
+	if client.calls != 1 {
+		t.Fatalf("provider calls = %d, want 1 (capability-only target must be validated, not skipped)", client.calls)
+	}
+	result := findResult(t, report, "capability-only")
+	if result.ApplicabilityReason != "capability:search" {
+		t.Fatalf("applicability_reason = %q, want capability:search", result.ApplicabilityReason)
+	}
+	if got := report.Groups.ByFinding["SEARCH_CONFIG_MISSING"]; len(got) != 1 || got[0] != "capability-only" {
+		t.Fatalf("SEARCH_CONFIG_MISSING group = %#v, want [capability-only]", got)
+	}
+}
+
 func replaceValidationClient(client validationClient) func() {
 	original := newValidationClient
 	newValidationClient = func(*cliapp.ScenarioApp, time.Duration) validationClient {
@@ -397,6 +603,17 @@ func writeSearchDescriptor(t *testing.T, root, scenario string) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "search.json"), []byte(`{"version":"1.0.0","providers":[]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeServiceManifest(t *testing.T, root, scenario, content string) {
+	t.Helper()
+	dir := filepath.Join(root, "scenarios", scenario, ".vrooli")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "service.json"), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }

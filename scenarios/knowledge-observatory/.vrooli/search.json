@@ -9,6 +9,7 @@
       "type": "doc",
       "description": "Project documentation across every scenario and the repo root — READMEs, guides, concept docs, runbooks, plans — searchable semantically by what each doc explains (for example \"how does the lifecycle system work\", \"sandbox architecture\"). Route here to find an explanation, guide, or reference that has already been written.",
       "scope": "SCOPE_PROJECT",
+      "class": "local_index",
       "endpoint": {
         "http_json": {
           "scenario_id": "knowledge-observatory",
@@ -270,6 +271,14 @@
             "expect_ids": ["docs/concepts/ARCHITECTURE.md"],
             "expect_within_top_k": 5,
             "note": "Path-prefix scope confines results to docs/concepts/."
+          },
+          {
+            "id": "gibberish-1",
+            "query": "asdfqwer zxcvbnm qwertyuiop florbnax",
+            "tags": ["gibberish"],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.45,
+            "note": "Junk rejection: nonsense must not surface a confident hit."
           }
         ]
       }

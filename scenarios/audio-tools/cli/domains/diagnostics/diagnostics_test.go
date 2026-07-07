@@ -67,6 +67,70 @@ func passRun() *diagv1.RunSuiteResult {
 	}
 }
 
+// sttQualityRun builds a run whose STT step carries layer-2 quality-smoke
+// details. ok controls whether the step passed; when false it models a
+// no-speech hallucination leak (readiness still reachable).
+func sttQualityRun(ok bool) *diagv1.RunSuiteResult {
+	status := "pass"
+	errCode := ""
+	silence := `{"fixture_id":"no_speech_silence","expected_kind":"no_speech","status":"pass","transcript_filtered":true,"hallucination_detected":false}`
+	overall := diagv1.SuiteOverall_STATUS_PASS
+	if !ok {
+		status = "fail"
+		errCode = "quality_smoke_failed"
+		silence = `{"fixture_id":"no_speech_silence","expected_kind":"no_speech","status":"fail","transcript_filtered":false,"hallucination_detected":true}`
+		overall = diagv1.SuiteOverall_STATUS_PARTIAL
+	}
+	speech := `{"fixture_id":"clean_speech","expected_kind":"speech","status":"pass","wer":0.0,"wer_threshold":0.34}`
+	details := map[string]string{
+		"diagnostic_scope": "asr_readiness",
+		"quality_assessed": "true",
+		"quality_status":   status,
+		"quality_fixtures": "[" + silence + "," + speech + "]",
+	}
+	return &diagv1.RunSuiteResult{
+		RunId: "q", StartedAtUnixMs: 1000, FinishedAtUnixMs: 1060,
+		Overall: &diagv1.SuiteOverall{Status: overall, PassCount: 3, FailCount: 1, TotalCount: 4},
+		Steps: []*diagv1.SuiteStepResult{
+			{Capability: diagv1.Capability_CAPABILITY_STT, Ok: ok, ErrorCode: errCode, ErrorMessage: "STT quality smoke failed", ProviderTier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL, ProviderId: "whisper", LatencyMs: 12, Details: details},
+		},
+	}
+}
+
+func TestRun_STTQualityPassRendersFixtureBreakdown(t *testing.T) {
+	app := mount(t, &fakeSvc{
+		runFn: func(*diagv1.RunSuiteRequest) (*diagv1.RunSuiteResponse, error) {
+			return &diagv1.RunSuiteResponse{Run: sttQualityRun(true)}, nil
+		},
+		lastFn: func() (*diagv1.GetLastRunResponse, error) { return &diagv1.GetLastRunResponse{}, nil },
+	})
+	h := newHandlers(app)
+	ctx, buf := cliapptest.NewCapturedRunContext(app, cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "capability"}}}, cliapptest.TestRunContextOptions{})
+	require.NoError(t, h.run(ctx))
+	out := buf.String()
+	require.Contains(t, out, "quality=pass")
+	require.Contains(t, out, "no_speech_silence:pass")
+	require.Contains(t, out, "clean_speech:pass wer=0.00/0.34")
+}
+
+func TestRun_STTReadinessPassQualityFail(t *testing.T) {
+	app := mount(t, &fakeSvc{
+		runFn: func(*diagv1.RunSuiteRequest) (*diagv1.RunSuiteResponse, error) {
+			return &diagv1.RunSuiteResponse{Run: sttQualityRun(false)}, nil
+		},
+		lastFn: func() (*diagv1.GetLastRunResponse, error) { return &diagv1.GetLastRunResponse{}, nil },
+	})
+	h := newHandlers(app)
+	ctx, buf := cliapptest.NewCapturedRunContext(app, cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "capability"}}}, cliapptest.TestRunContextOptions{})
+	require.NoError(t, h.run(ctx))
+	out := buf.String()
+	require.Contains(t, out, "code=quality_smoke_failed")
+	// Readiness stayed reachable and is surfaced distinctly from the fault.
+	require.Contains(t, out, "readiness=pass")
+	require.Contains(t, out, "quality=fail")
+	require.Contains(t, out, "no_speech_silence:fail hallucination")
+}
+
 func TestRun_HumanOutputShowsOverallAndSteps(t *testing.T) {
 	app := mount(t, &fakeSvc{
 		runFn: func(*diagv1.RunSuiteRequest) (*diagv1.RunSuiteResponse, error) {

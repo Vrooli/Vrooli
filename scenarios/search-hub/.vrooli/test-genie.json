@@ -256,6 +256,19 @@
         "fix_class": "manual",
         "reason": "Provider endpoint and mapping choices are scenario-owned contracts."
       },
+      "SEARCH_PROVIDER_CLASS_MISSING": {
+        "capability_id": "search_descriptor",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "The operability class depends on whether the provider owns a tunable index, computes live, or is external — a provider-owner judgment."
+      },
       "SEARCH_PROVIDER_GROUP_MISMATCH": {
         "capability_id": "search_governance",
         "local_level_impact": "L0",
@@ -295,6 +308,32 @@
         "fix_class": "manual",
         "reason": "Corpus semantics require provider-owner review."
       },
+      "SEARCH_EVAL_CORPUS_INADEQUATE": {
+        "capability_id": "search_eval_performance",
+        "local_level_impact": "L0",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "fix_class": "manual",
+        "reason": "Certification requires at least one reviewed positive and one junk negative; adding meaningful cases needs domain judgment."
+      },
+      "SEARCH_EVAL_CORPUS_THIN": {
+        "capability_id": "search_eval_performance",
+        "local_level_impact": "L1",
+        "global_impact": "hardening_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "fix_class": "manual",
+        "reason": "Duplicate queries and single-band difficulty over-report recall but are overfit debt, not a hard gate."
+      },
       "SEARCH_EVAL_RUN_MISSING": {
         "capability_id": "search_eval_performance",
         "local_level_impact": "L1",
@@ -311,15 +350,42 @@
       "SEARCH_EVAL_RUN_STALE": {
         "capability_id": "search_eval_performance",
         "local_level_impact": "L1",
-        "global_impact": "hardening_gap",
+        "global_impact": "capability_gap",
         "dimension": "operational-targets",
-        "severity_default": "SEVERITY_WARNING",
-        "clean_requirement": "advisory",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
         "recommended_skill_ids": [
           "test"
         ],
         "fix_class": "manual",
-        "reason": "Refreshing eval evidence requires running the provider-owned suite against live data."
+        "reason": "Certification requires fresh eval evidence; refreshing it means running the provider-owned suite against live data."
+      },
+      "SEARCH_EVAL_RUN_OUTDATED": {
+        "capability_id": "search_eval_performance",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "fix_class": "manual",
+        "reason": "The latest run was produced under a tuning that no longer matches the descriptor; re-run under current tuning."
+      },
+      "SEARCH_EVAL_RECALL_BELOW_TARGET": {
+        "capability_id": "search_eval_performance",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "scientific-debugging",
+          "test"
+        ],
+        "fix_class": "manual",
+        "reason": "Aggregate recall below the declared target means retrieval quality or corpus expectations need repair."
       },
       "SEARCH_EVAL_ASSERT_FAILED": {
         "capability_id": "search_eval_performance",
@@ -361,6 +427,19 @@
         "fix_class": "external",
         "reason": "Provider or eval-store liveness must be restored before Search Hub can prove live eval maturity."
       },
+      "SEARCH_REINDEX_ENDPOINT_MISSING": {
+        "capability_id": "search_operability",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "failure-topography-and-graceful-degradation"
+        ],
+        "fix_class": "manual",
+        "reason": "An indexed (local_index/async) provider owns a rebuildable corpus; without a reindex endpoint Search Hub cannot reconcile or re-evaluate it. Reclassify as local_live if it computes results live."
+      },
       "SEARCH_STATUS_ENDPOINT_MISSING": {
         "capability_id": "search_operability",
         "local_level_impact": "L0",
@@ -385,7 +464,46 @@
           "failure-topography-and-graceful-degradation"
         ],
         "fix_class": "manual",
-        "reason": "Control endpoint support depends on whether the provider owns a tunable indexed corpus."
+        "reason": "Config write-back support is optional: hybrid-by-construction corpora legitimately pin their tuning and expose no config endpoint."
+      },
+      "SEARCH_PERF_BUDGET_UNPROVEN": {
+        "capability_id": "search_operability",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "performance"
+        ],
+        "fix_class": "manual",
+        "reason": "The provider declared telemetry_required but produced no measurable latency; it opted in and must deliver evidence."
+      },
+      "SEARCH_PERF_BUDGET_BREACH": {
+        "capability_id": "search_operability",
+        "local_level_impact": "L1",
+        "global_impact": "hardening_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "performance"
+        ],
+        "fix_class": "manual",
+        "reason": "Eval-run p95 latency is a small, noisy sample; a budget breach is surfaced as operability debt, not a hard gate."
+      },
+      "SEARCH_PERF_DEGRADED": {
+        "capability_id": "search_operability",
+        "local_level_impact": "L1",
+        "global_impact": "hardening_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "failure-topography-and-graceful-degradation"
+        ],
+        "fix_class": "manual",
+        "reason": "Empty-result rate above the declared budget signals coverage or availability gaps needing investigation."
       },
       "SEARCH_TUNING_BUDGET_INVALID": {
         "capability_id": "search_operability",

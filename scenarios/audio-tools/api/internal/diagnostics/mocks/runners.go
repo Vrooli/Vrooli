@@ -13,11 +13,13 @@ import (
 	"audio-tools/internal/diagnostics"
 )
 
-// STT satisfies diagnostics.SttRunner. Set Res/Err to control the
-// response; Calls counts invocations for assertion.
+// STT satisfies diagnostics.SttRunner. Set Res/Err for a fixed response,
+// or ResFunc to vary the response per request (e.g. a fixture-aware fake
+// keyed on req.Audio for quality-smoke tests). Calls counts invocations.
 type STT struct {
 	Res     *sttchain.Result
 	Err     error
+	ResFunc func(sttchain.Request) (*sttchain.Result, error)
 	Calls   int
 	LastReq sttchain.Request
 }
@@ -25,6 +27,9 @@ type STT struct {
 func (s *STT) Execute(_ context.Context, req sttchain.Request) (*sttchain.Result, error) {
 	s.Calls++
 	s.LastReq = req
+	if s.ResFunc != nil {
+		return s.ResFunc(req)
+	}
 	return s.Res, s.Err
 }
 

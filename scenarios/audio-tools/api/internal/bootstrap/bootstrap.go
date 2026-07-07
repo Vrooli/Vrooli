@@ -280,6 +280,11 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 			return sttH.ResolveStreamPipelineConfig(ctx, stores.STTStream)
 		},
 		Registry: engineRegistry,
+		// Layer-2 quality smoke: grade tiny bundled fixtures (no-speech
+		// safety + clean-speech WER) through the same STT chain + egress
+		// policy user-facing transcription uses, so a green readiness run
+		// cannot hide a hallucination-filter regression.
+		QualityFixtures: diagcore.DefaultQualityFixtures(),
 	})
 
 	srv := server.New(

@@ -157,11 +157,42 @@ search-hub maturity fix <scenario> --json              # dry-run
 search-hub maturity fix <scenario> --apply --json      # explicit write
 ```
 
-Full validation checks that the declared suite is registered, has a latest run
-inside Search Hub's freshness window, does not contain stored outcomes below
-expectation or unexpected hits, and still resolves reviewed positive labels
-through the provider's live search endpoint. `--fast` is an operator inventory
-mode only; it skips live proof and should not be treated as phase validation.
+Full validation checks that the declared suite is registered and has a latest run
+that is **fresh** (inside the freshness window — a stale run fails,
+`SEARCH_EVAL_RUN_STALE`), **current** (produced under the declared tuning — a run
+whose captured config drifted from the tuning fails, `SEARCH_EVAL_RUN_OUTDATED`),
+**correct in aggregate** (recall over reviewed positives meets `scoring.recall_target`,
+default 0.8 — otherwise `SEARCH_EVAL_RECALL_BELOW_TARGET`), free of **junk leaks**
+(a negative case exceeding its ceiling fails, `SEARCH_EVAL_ASSERT_FAILED`), and
+still resolves reviewed positive labels through the provider's live endpoint. A
+single positive miss is tolerated as long as aggregate recall meets target; a junk
+leak never is. `--fast` is an operator inventory mode only; it skips live proof and
+should not be treated as phase validation.
+
+A plain `search-hub evals run` is a **soft** run — it records a trend sample and
+never fails a build. Certification-grade evidence is what **full validation** reads
+from the latest stored run: freshness, tuning-fingerprint match, aggregate recall,
+junk-leak absence, and live labels. Scan output carries the run id, age, recall vs
+target, met/below counts, and p95 latency so operators can repair a failing suite.
+
+Certification also gates **corpus adequacy** statically (no provider execution):
+a provider fails (`SEARCH_EVAL_CORPUS_INADEQUATE`) unless its declared corpus has
+at least one **reviewed** positive case and at least one junk **negative**
+(`expect_no_strong_hit`) case. Candidate/generated cases are preserved as
+expansion inputs but excluded from the reviewed-positive count (and from
+acceptance recall), so a generated-only corpus cannot certify. Duplicate queries
+(same scope) and single-band difficulty are advisory (`SEARCH_EVAL_CORPUS_THIN`).
+
+Fleet scan discovers the **same target set the Test Genie `search` phase
+considers applicable**: a scenario is search-applicable when it owns
+`.vrooli/search.json` **or** declares a `search` / `ai-search` service capability
+(the union of `service.tags`, `service.capabilities`, and top-level
+`capabilities` in `.vrooli/service.json`, matched case-insensitively). A
+capability-only scenario is not silently skipped — it is validated and fails with
+`SEARCH_CONFIG_MISSING` until it adds a descriptor. Each scan result carries an
+`applicability_reason` (`descriptor`, `capability:<token>`, or
+`descriptor+capability:<token>`) so operators can diff fleet scan against
+`test-genie phases applicability <scenario> --phase search`.
 
 ## Working Rules
 

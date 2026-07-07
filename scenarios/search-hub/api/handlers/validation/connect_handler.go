@@ -125,6 +125,18 @@ func evalEvidenceDetail(evidence []internalvalidation.EvalEvidence) []any {
 		if e.FailureReason != "" {
 			item["failure_reason"] = e.FailureReason
 		}
+		if e.GradeablePositives > 0 {
+			item["recall"] = e.Recall
+			item["recall_target"] = e.RecallTarget
+			item["gradeable_positives"] = e.GradeablePositives
+		}
+		if e.MetCases > 0 || e.BelowCases > 0 {
+			item["met_cases"] = e.MetCases
+			item["below_cases"] = e.BelowCases
+		}
+		if e.LatencyP95Ms > 0 {
+			item["latency_p95_ms"] = e.LatencyP95Ms
+		}
 		out = append(out, item)
 	}
 	return out

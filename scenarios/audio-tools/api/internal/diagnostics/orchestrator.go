@@ -9,6 +9,7 @@ package diagnostics
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -126,6 +127,11 @@ type Deps struct {
 	// readiness probe. nil falls back to documented defaults.
 	STTConfig func(context.Context) sttpkg.StreamConfig
 	Registry  *sttengine.Registry
+	// QualityFixtures, when non-empty, enable the STT quality-smoke layer:
+	// each fixture is transcribed through the STT chain and the shared egress
+	// policy, then graded (no-speech safety + clean-speech WER). Empty
+	// (default) runs readiness only, so quality is reported as not assessed.
+	QualityFixtures []QualityFixture
 }
 
 // Orchestrator runs the suite and records the most recent result.
@@ -235,20 +241,23 @@ func (o *Orchestrator) runSTT(ctx context.Context, started time.Time) StepResult
 		return finishUnavailable(res, o.deps.Clock.Now())
 	}
 	cfg := o.sttConfig(ctx)
+	pol := quality.New(cfg, o.deps.Registry, nil)
 	out, err := o.deps.STT.Execute(ctx, sttchain.Request{Audio: smokedata.SmokeWAV(), Format: "wav", VADFilter: cfg.VADFilterEnabled})
 	res.FinishedAt = o.deps.Clock.Now()
 	if err != nil {
 		return applyChainErr(res, err)
 	}
-	decision := quality.New(cfg, o.deps.Registry, nil).ApplyResult(ctx, out, smokedata.SmokeWAV())
+	decision := pol.ApplyResult(ctx, out, smokedata.SmokeWAV())
 	res.OK = true
 	res.ProviderTier = string(out.Tier)
 	res.ProviderID = out.ProviderID
 	res.ModelID = out.ModelID
 	res.LatencyMs = float64(out.Latency.Milliseconds())
+	// Layer 1 — readiness: the bundled tone proves the provider chain accepts
+	// and processes audio. Readiness owns provider reachability only; it makes
+	// no claim about transcript correctness (that is the quality-smoke layer).
 	res.Details["diagnostic_scope"] = "asr_readiness"
-	res.Details["quality_assessed"] = "false"
-	res.Details["quality_note"] = "Bundled STT smoke audio verifies the provider path accepts and processes audio; transcript accuracy is measured by the eval harness."
+	res.Details["quality_note"] = "Bundled STT smoke audio verifies the provider path accepts and processes audio; transcript quality is measured by the quality-smoke layer and, for full corpus grading, the Dictation Studio eval harness."
 	res.Details["transcript_filtered"] = fmt.Sprintf("%t", decision.Filtered)
 	res.Details["filter_reason"] = decision.FilterReason
 	res.Details["raw_transcript_length"] = fmt.Sprintf("%d", len(out.Text))
@@ -258,7 +267,35 @@ func (o *Orchestrator) runSTT(ctx context.Context, started time.Time) StepResult
 	if decision.Text != "" {
 		res.Details["transcript_preview"] = previewString(decision.Text, 80)
 	}
+	o.applyQualitySmoke(ctx, &res, pol, cfg)
 	return res
+}
+
+// applyQualitySmoke runs the layer-2 quality-smoke fixtures (when
+// configured) and folds their structured verdict into the STT step's
+// details. Readiness (res.OK today) and quality stay separate signals
+// (decision D1): the readiness detail keeps its own scope, and quality gets
+// its own status. A hard quality FAIL — a no-speech hallucination leak —
+// flips res.OK so a green suite can never hide the regression; softer drift
+// warns without failing the health check.
+func (o *Orchestrator) applyQualitySmoke(ctx context.Context, res *StepResult, pol quality.Policy, cfg sttpkg.StreamConfig) {
+	if len(o.deps.QualityFixtures) == 0 {
+		res.Details["quality_assessed"] = "false"
+		return
+	}
+	report := runQualitySmoke(ctx, o.deps.STT, pol, cfg, o.deps.QualityFixtures)
+	res.Details["quality_assessed"] = "true"
+	res.Details["quality_status"] = string(report.Status)
+	res.Details["quality_fixture_count"] = fmt.Sprintf("%d", len(report.Fixtures))
+	res.Details["quality_hallucination_detected"] = fmt.Sprintf("%t", report.HallucinationDetected)
+	if blob, err := json.Marshal(report.Fixtures); err == nil {
+		res.Details["quality_fixtures"] = string(blob)
+	}
+	if report.Status == QualityFail {
+		res.OK = false
+		res.ErrorCode = "quality_smoke_failed"
+		res.ErrorMessage = "STT quality smoke failed: a no-speech fixture produced a surviving transcript (hallucination leak)"
+	}
 }
 
 func (o *Orchestrator) sttConfig(ctx context.Context) sttpkg.StreamConfig {

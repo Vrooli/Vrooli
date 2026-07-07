@@ -161,6 +161,32 @@ is proto-typed attachment metadata.
 audio-tools notes attach abc123 --file ./example.png
 ```
 
+## Diagnostics — two-layer STT signal
+
+`audio-tools diagnostics run` exercises STT/TTS/Summarize/Transcode against
+bundled fixtures. The STT step reports **two** layers:
+
+- **Readiness** — provider reachability (`diagnostic_scope=asr_readiness`).
+- **Quality smoke** — no-speech safety + clean-speech WER against the shared
+  egress policy. The human output shows `quality=<pass|warn|fail>` with a
+  per-fixture breakdown; when a quality leak flips the step, the row also
+  shows `readiness=pass` so reachability stays distinct from the fault.
+
+```bash
+# Run all capabilities; STT tile shows the quality breakdown.
+audio-tools diagnostics run
+
+# Machine-readable: quality fields live under steps[stt].details
+#   quality_assessed / quality_status / quality_hallucination_detected /
+#   quality_fixtures (JSON array of per-fixture verdicts).
+audio-tools diagnostics run --capability stt --json
+```
+
+A `quality_smoke_failed` STT step means a no-speech fixture leaked a
+surviving transcript — a hallucination-filter regression. Clean-speech WER
+drift warns but keeps the step green. For corpus-grade quality, use Dictation
+Studio experiments (see `docs/reference/eval-harness.md`).
+
 ## Output contracts
 
 Every scenario command should render through one of three human

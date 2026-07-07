@@ -183,6 +183,20 @@ reporting `transcript_filtered`, raw/filtered lengths, and suppressing filtered
 hallucination previews. Handler tests cover VAD-filter propagation and filtered
 metadata; diagnostics tests cover readiness pass with an empty filtered preview.
 
+**Quality-smoke update (2026-07-06):** diagnostics gained a second STT layer
+(`internal/diagnostics/quality_smoke.go`). Readiness (layer 1) still proves the
+provider chain accepts audio; a new quality-smoke layer (layer 2) drives a
+bundled silence fixture and a clean-speech fixture through the *same*
+`internal/stt/quality` policy and grades them. A no-speech fixture that leaks a
+surviving transcript **fails** the STT step (`error_code=quality_smoke_failed`)
+even though readiness stays reachable — closing the gap where a green
+diagnostics run could hide a hallucination-filter regression. Clean-speech WER
+drift **warns** (never fails). Structured evidence rides the STT step details
+(`quality_assessed`, `quality_status`, `quality_hallucination_detected`,
+`quality_fixtures` JSON) and is rendered distinctly in CLI and UI. Corpus-grade
+grading remains the Dictation Studio eval harness's job — see
+`docs/reference/eval-harness.md#three-quality-surfaces-pick-by-cost-and-authority`.
+
 **Owner:** resolved.
 
 ### 2026-05-27 — Speaker isolation ("only my voice") (RESOLVED)

@@ -46,6 +46,35 @@ The generated scenario has lifecycle health checks for API and UI. Add
 deployment-specific alerts only when deployment target and operator
 expectations are known.
 
+## Provider Performance & Reliability Budgets
+
+Each provider's `.vrooli/search.json` declares a latency/reliability budget the
+search maturity contract enforces. The provider's operability **class** is the
+latency class and supplies a conservative default p95 budget when the descriptor
+declares none — modeled by class, never by scenario name:
+
+| Class | Default p95 budget |
+|---|---|
+| `local_index`, `local_live` | 1500 ms |
+| `external` | 4000 ms |
+| `async` | 15000 ms |
+
+The optional `performance` block tightens the default or opts into telemetry:
+
+| Field | Meaning | Finding when violated |
+|---|---|---|
+| `p95_ms` | p95 query-latency budget (overrides the class default) | `SEARCH_PERF_BUDGET_BREACH` (advisory) — latest run p95 exceeds the budget |
+| `degraded_rate_max` | max fraction of real queries returning no result | `SEARCH_PERF_DEGRADED` (advisory) — latest run's empty-result rate exceeds it |
+| `telemetry_required` | require measurable latency evidence to exist | `SEARCH_PERF_BUDGET_UNPROVEN` (**required**) — no run latency to measure |
+
+Latency and degradation are read from the **latest eval run's** aggregate
+(`latency_p95_ms`, per-case empty results). Because an eval run is a small, noisy
+sample, budget/degradation breaches are **advisory** — they surface operability
+debt without gating certification. A provider that sets `telemetry_required` opts
+into a **hard** gate: if no latency evidence exists it fails certification. This is
+how Search Hub avoids "silently passing" a provider whose performance it cannot
+prove, without claiming a guarantee from descriptor shape alone.
+
 ## Telemetry Gaps
 
 | Gap | Impact | Revisit Trigger |

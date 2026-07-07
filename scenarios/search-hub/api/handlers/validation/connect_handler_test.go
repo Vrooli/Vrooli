@@ -193,12 +193,16 @@ func cleanSearchConfig(scenario string) string {
     "type":"doc",
     "description":"Docs",
     "scope":"SCOPE_PROJECT",
+    "class":"local_index",
     "endpoint":{"http_json":{"scenario_id":"` + scenario + `","path":"/search","method":"HTTP_METHOD_POST"}},
     "status_endpoint":{"http_json":{"scenario_id":"` + scenario + `","path":"/status","method":"HTTP_METHOD_POST"}},
     "reindex_endpoint":{"http_json":{"scenario_id":"` + scenario + `","path":"/reindex","method":"HTTP_METHOD_POST"}},
     "config_endpoint":{"http_json":{"scenario_id":"` + scenario + `","path":"/config","method":"HTTP_METHOD_POST"}},
     "result_mapping":{"results_path":"results","id_field":"id","title_field":"title","score_field":"score","score_scale":"SCORE_SCALE_COSINE_0_1"},
-    "tests":{"description":"Primary corpus","cases":[{"id":"case","query":"docs","expect_ids":["doc-1"]}]}
+    "tests":{"description":"Primary corpus","cases":[
+      {"id":"case","query":"docs","expect_ids":["doc-1"]},
+      {"id":"neg","query":"zzqxwv nonsense","expect_no_strong_hit":true,"expect_max_score":0.2}
+    ]}
   }]
 }`
 }

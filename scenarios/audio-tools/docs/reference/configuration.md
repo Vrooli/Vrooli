@@ -251,6 +251,40 @@ output. Diagnostics reports the same decision as readiness metadata:
 processed audio; `transcript_filtered=true` means the smoke transcript
 was not displayed because the quality policy filtered it.
 
+### Diagnostics STT quality smoke
+
+Diagnostics run two STT layers. **Readiness** (above) proves the provider
+chain accepts audio. **Quality smoke** additionally grades two tiny bundled
+fixtures through the *same* egress policy, so a diagnostics run can validate
+the shared STT quality policy without a full Dictation Studio experiment.
+
+| Fixture | Kind | Intent | Pass rule |
+|---|---|---|---|
+| `no_speech_silence` | `no_speech` | Silence must stay silent | Post-policy transcript is empty. A surviving transcript = hallucination leak → **fail** |
+| `clean_speech` | `speech` | A known clip transcribes roughly right | Normalized WER ≤ `0.34` (lenient) → pass; over → **warn** |
+
+The clean-speech WER threshold (`cleanSpeechWERThreshold`, default `0.34`) is
+deliberately lenient: diagnostics grade a live model on a ~2 s clip, so the
+goal is catching gross breakage (empty/garbage output), not accuracy
+benchmarking. Corpus-grade grading stays in the eval harness.
+
+The STT step emits these quality fields in `details` (visible via
+`audio-tools diagnostics run --json`):
+
+- `quality_assessed` — `true` when the smoke layer ran, else `false`.
+- `quality_status` — aggregate `pass` \| `warn` \| `fail`.
+- `quality_hallucination_detected` — any no-speech leak or filtered known phrase.
+- `quality_fixtures` — JSON array; per fixture: `fixture_id`, `expected_kind`,
+  `status`, `wer`, `wer_threshold`, `transcript_filtered`, `filter_reason`,
+  `hallucination_detected`, raw/filtered lengths, and a **bounded, safe**
+  `preview` (always empty for no-speech, so filtered hallucination text is
+  never shown as successful output).
+
+A quality **fail** flips the STT step (`error_code=quality_smoke_failed`) so a
+green suite cannot hide a regression; readiness stays reported as reachable.
+A quality **warn** keeps the step green. When quality warns or fails, run a
+Dictation Studio experiment for corpus-grade analysis.
+
 ### Speaker isolation ("only my voice") — audio-domain stage
 
 The audio-domain egress stage rejects voices that are not the enrolled

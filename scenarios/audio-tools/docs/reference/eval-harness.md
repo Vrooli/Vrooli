@@ -8,11 +8,44 @@ quality/latency trade-offs (boundary errors, dropped sections,
 slower-than-batch finalization on hard audio) that can only be tuned
 against measured numbers, not reasoned about in the abstract.
 
-The diagnostics suite is intentionally narrower: the STT step proves ASR
-readiness by sending a bundled smoke clip through the provider chain. A
-passing diagnostics run does not assess transcript quality or WER, and
-the CLI/UI mark that step as `quality not assessed`. Use this harness for
-any quality claim.
+## Three quality surfaces — pick by cost and authority
+
+STT quality is observable at three tiers of increasing cost and authority.
+Do not conflate them:
+
+| Surface | Question it answers | Cost | Authority |
+|---|---|---|---|
+| **STT readiness** (diagnostics, layer 1) | Does the provider chain accept and process audio at all? | ~100 ms, one bundled tone | Reachability only — **no** transcript claim |
+| **STT quality smoke** (diagnostics, layer 2) | Does no-speech stay silent, and does a known clean clip transcribe roughly right? | sub-second, two tiny bundled fixtures | Regression tripwire — catches gross breakage, not accuracy grading |
+| **Dictation Studio / eval harness** (this doc) | What is the real WER/latency/safety of each strategy on a real corpus? | seconds–minutes, operator corpus | The promotion-grade quality authority |
+
+The diagnostics **readiness** step proves ASR reachability by sending a
+bundled smoke tone through the provider chain; it makes no transcript
+claim (the CLI/UI mark it `quality not assessed` when the layer-2 smoke is
+not configured).
+
+The diagnostics **quality-smoke** layer (`api/internal/diagnostics/quality_smoke.go`)
+drives two tiny bundled fixtures — a digital-silence clip and a short
+clean-speech clip ("The quick brown fox jumps.") — through the *same* STT
+chain and the *same* shared egress policy (`internal/stt/quality`) that
+user-facing transcription uses. It grades two things:
+
+- **No-speech safety (hard gate):** the silence fixture's user-facing
+  transcript must be empty after the egress policy. A surviving transcript
+  is a hallucination leak (the classic "Thanks for watching!") and **fails**
+  the STT step — readiness stays reported as reachable so operators see the
+  fault is transcript safety, not provider reachability.
+- **Clean-speech WER (soft gate):** the speech fixture is graded by
+  normalized WER (reusing `internal/eval`'s normalizer/WER) against a lenient
+  threshold (`cleanSpeechWERThreshold`, default `0.34`). Over-threshold drift
+  **warns** but never fails — a health check should not go red on model
+  quality jitter. When it warns, run a Dictation Studio experiment for
+  corpus-grade grading.
+
+Quality smoke deliberately does **not** run corpus sweeps, strategy
+promotion, microphone capture, or multi-minute sleeps — those remain this
+harness's job. Use quality smoke to catch obvious regressions fast; use this
+harness for any real quality claim.
 
 It mirrors the AI-search eval harness (`packages/ai-go/search/grading.go`
 `GradeSuite → SuiteReport`): a corpus of cases, a transcriber seam, and a
