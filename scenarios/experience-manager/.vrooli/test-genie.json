@@ -319,6 +319,72 @@
         "fix_class": "manual",
         "reason": "Evidence must be captured or the claim should be retiered deliberately."
       },
+      "experience.floor_no_document_horizontal_overflow": {
+        "capability_id": "structure_reconciliation",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["experience-spec-authoring", "ux"],
+        "fix_class": "manual",
+        "reason": "Horizontal overflow remediation depends on the page's intended layout and content containment."
+      },
+      "experience.floor_viewport_fill": {
+        "capability_id": "structure_reconciliation",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["experience-spec-authoring", "ux"],
+        "fix_class": "manual",
+        "reason": "Viewport-fill remediation requires shell/layout changes."
+      },
+      "experience.floor_chrome_pinned": {
+        "capability_id": "structure_reconciliation",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["experience-spec-authoring", "ux"],
+        "fix_class": "manual",
+        "reason": "Chrome pinning remediation requires layout and navigation decisions."
+      },
+      "experience.floor_safe_area_tap_targets": {
+        "capability_id": "structure_reconciliation",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["experience-spec-authoring", "ux"],
+        "fix_class": "manual",
+        "reason": "Safe-area remediation requires mobile shell/layout changes."
+      },
+      "experience.floor_single_line_chrome": {
+        "capability_id": "structure_reconciliation",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["experience-spec-authoring", "ux"],
+        "fix_class": "manual",
+        "reason": "Single-line chrome remediation requires navigation content or responsive layout changes."
+      },
+      "experience.floor_tap_target_size": {
+        "capability_id": "structure_reconciliation",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["experience-spec-authoring", "ux"],
+        "fix_class": "manual",
+        "reason": "Tap-target remediation requires component sizing or hit-area changes."
+      },
       "experience.importance_mismatch": {
         "capability_id": "perception_advisory",
         "local_level_impact": "L1",

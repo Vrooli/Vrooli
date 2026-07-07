@@ -51,7 +51,7 @@ function PageFrame({
   children: React.ReactNode;
 }) {
   return (
-    <section data-testid={testId} aria-labelledby={`${testId}-heading`} className="flex flex-col gap-5">
+    <section data-testid={testId} aria-labelledby={`${testId}-heading`} className="flex min-w-0 flex-col gap-5">
       <div className="flex flex-col gap-2">
         <h2 id={`${testId}-heading`} className="text-2xl font-semibold text-app-foreground">
           {title}
@@ -122,7 +122,10 @@ function evidenceIsStale(row: ReconciliationEvidenceRow | undefined) {
 }
 
 function formatEvidenceMeta(row: ReconciliationEvidenceRow) {
-  return [row.claimType, row.checkedAt, row.verdict].filter(Boolean).join(" · ");
+  const viewport = row.viewport
+    ? `${row.viewport}${row.viewportWidth && row.viewportHeight ? ` ${row.viewportWidth}x${row.viewportHeight}` : ""}`
+    : "";
+  return [row.claimType, viewport, row.checkedAt, row.verdict].filter(Boolean).join(" · ");
 }
 
 function formatAXNode(json: string) {
@@ -283,7 +286,7 @@ export function FleetPage() {
           {t(strings.experience.fleet.loadError)}
         </div>
       ) : null}
-      <div className="overflow-x-auto rounded-panel border border-app-border bg-app-surface">
+      <div className="min-w-0 max-w-full overflow-x-auto rounded-panel border border-app-border bg-app-surface">
         <table
           data-testid={selectors.experience.fleet.debtTable}
           aria-label={t(strings.experience.fleet.tableLabel)}
@@ -316,7 +319,7 @@ export function FleetPage() {
                 <td className="px-4 py-3">
                   <Link
                     data-testid={selectors.experience.fleet.scenarioLink}
-                    className="font-medium text-app-primary underline-offset-4 hover:underline"
+                    className="inline-flex min-h-11 items-center font-medium text-app-primary underline-offset-4 hover:underline"
                     to={`/scenarios/${scenario.scenario}`}
                   >
                     {scenario.scenario}
@@ -361,8 +364,8 @@ export function ScenarioExplorerPage() {
       title={t(strings.experience.explorer.title)}
       description={t(strings.experience.explorer.description)}
     >
-      <div className="grid gap-4 xl:grid-cols-[1fr_20rem]">
-        <div className="overflow-x-auto rounded-panel border border-app-border bg-app-surface">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="min-w-0 max-w-full overflow-x-auto rounded-panel border border-app-border bg-app-surface">
           <table
             data-testid={selectors.experience.explorer.depthGrid}
             aria-label={t(strings.experience.explorer.gridLabel)}
@@ -408,7 +411,7 @@ export function ScenarioExplorerPage() {
           data-testid={selectors.experience.explorer.gapPanel}
           role={isError ? "alert" : "region"}
           aria-label={t(strings.experience.explorer.gapsLabel)}
-          className="rounded-panel border border-app-border bg-app-surface p-4"
+          className="min-w-0 rounded-panel border border-app-border bg-app-surface p-4"
         >
           <h3 className="font-semibold">{t(strings.experience.explorer.gapsLabel)}</h3>
           {isError ? (
@@ -519,8 +522,8 @@ export function EvidencePage() {
       title={t(strings.experience.evidence.title)}
       description={t(strings.experience.evidence.description)}
     >
-      <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-        <div className="rounded-panel border border-app-border bg-app-surface p-4">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+        <div className="min-w-0 rounded-panel border border-app-border bg-app-surface p-4">
           {isLoading ? (
             <div
               data-testid={selectors.experience.evidence.captureImage}
@@ -545,7 +548,7 @@ export function EvidencePage() {
               className="flex min-h-72 w-full flex-col items-center justify-center rounded-control border border-dashed border-app-border bg-app-surface-muted p-4 text-center text-sm text-app-muted-foreground"
             >
               <span>{rows.length === 0 ? t(strings.experience.evidence.emptyEvidence) : t(strings.experience.evidence.captureReference)}</span>
-              {captureRef ? <code className="mt-2 break-all text-xs">{captureRef}</code> : null}
+              {captureRef ? <code className="mt-2 max-w-full break-all text-xs">{captureRef}</code> : null}
             </div>
           )}
           <Button
@@ -563,10 +566,10 @@ export function EvidencePage() {
           data-testid={selectors.experience.evidence.treePanel}
           role={isError ? "alert" : "region"}
           aria-label={t(strings.experience.evidence.treeLabel)}
-          className="rounded-panel border border-app-border bg-app-surface p-4"
+          className="min-w-0 rounded-panel border border-app-border bg-app-surface p-4"
         >
           <h3 className="font-semibold">{t(strings.experience.evidence.treeLabel)}</h3>
-          <pre className="mt-3 overflow-auto rounded-control bg-app-surface-muted p-3 text-xs">
+          <pre className="mt-3 max-w-full overflow-auto rounded-control bg-app-surface-muted p-3 text-xs">
             {isError
               ? t(strings.experience.evidence.loadError)
               : axNode || t(strings.experience.evidence.emptyTree)}
@@ -724,18 +727,18 @@ export function StudioPage() {
       title={t(strings.experience.studio.title)}
       description={t(strings.experience.studio.description)}
     >
-      <div className="grid gap-4 xl:grid-cols-[minmax(20rem,0.85fr)_1.15fr]">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
         <form
           data-testid={selectors.experience.studio.specForm}
           aria-label={t(strings.experience.studio.formLabel)}
-          className="rounded-panel border border-app-border bg-app-surface p-4"
+          className="min-w-0 rounded-panel border border-app-border bg-app-surface p-4"
         >
           <label className="block text-sm font-semibold" htmlFor="studio-page-select">
             {t(strings.experience.common.page)}
           </label>
           <select
             id="studio-page-select"
-            className="mt-2 w-full rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm text-app-foreground"
+            className="mt-2 min-h-11 w-full rounded-control border border-app-border bg-app-surface px-3 text-sm text-app-foreground"
             value={selectedID}
             onChange={(event) => {
               setInitializedPageID("");
@@ -810,14 +813,14 @@ export function StudioPage() {
         <section
           data-testid={selectors.experience.studio.wireframePreview}
           aria-label={t(strings.experience.studio.wireframeLabel)}
-          className="rounded-panel border border-app-border bg-app-surface p-4"
+          className="min-w-0 rounded-panel border border-app-border bg-app-surface p-4"
         >
           <h3 className="font-semibold">{t(strings.experience.studio.wireframeLabel)}</h3>
           <div className="mt-4 min-h-64 overflow-auto rounded-control border border-dashed border-app-border bg-app-surface-muted p-4">
             {renderQuery.isLoading || compareQuery.isLoading ? (
               <p className="text-sm text-app-muted-foreground">{t(strings.experience.studio.loadingPreview)}</p>
             ) : previewHTML ? (
-              <div className="prose prose-sm max-w-none text-app-foreground" dangerouslySetInnerHTML={{ __html: previewHTML }} />
+              <div className="prose prose-sm max-w-full overflow-x-auto text-app-foreground" dangerouslySetInnerHTML={{ __html: previewHTML }} />
             ) : (
               <p className="text-sm text-app-muted-foreground">{t(strings.experience.studio.emptyPreview)}</p>
             )}

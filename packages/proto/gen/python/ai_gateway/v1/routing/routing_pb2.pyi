@@ -164,3 +164,43 @@ class GetRouteEvidenceResponse(_message.Message):
     EVENT_FIELD_NUMBER: _ClassVar[int]
     event: RouteEvidence
     def __init__(self, event: _Optional[_Union[RouteEvidence, _Mapping]] = ...) -> None: ...
+
+class ProviderHealth(_message.Message):
+    __slots__ = ("provider", "role", "kind", "state", "effective_state", "consecutive_failures", "last_failure_class", "last_success_at", "last_failure_at", "cooldown_until", "opened_at", "generation", "updated_at")
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    EFFECTIVE_STATE_FIELD_NUMBER: _ClassVar[int]
+    CONSECUTIVE_FAILURES_FIELD_NUMBER: _ClassVar[int]
+    LAST_FAILURE_CLASS_FIELD_NUMBER: _ClassVar[int]
+    LAST_SUCCESS_AT_FIELD_NUMBER: _ClassVar[int]
+    LAST_FAILURE_AT_FIELD_NUMBER: _ClassVar[int]
+    COOLDOWN_UNTIL_FIELD_NUMBER: _ClassVar[int]
+    OPENED_AT_FIELD_NUMBER: _ClassVar[int]
+    GENERATION_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    provider: str
+    role: str
+    kind: _gateway_pb2.RequestKind
+    state: str
+    effective_state: str
+    consecutive_failures: int
+    last_failure_class: str
+    last_success_at: str
+    last_failure_at: str
+    cooldown_until: str
+    opened_at: str
+    generation: int
+    updated_at: str
+    def __init__(self, provider: _Optional[str] = ..., role: _Optional[str] = ..., kind: _Optional[_Union[_gateway_pb2.RequestKind, str]] = ..., state: _Optional[str] = ..., effective_state: _Optional[str] = ..., consecutive_failures: _Optional[int] = ..., last_failure_class: _Optional[str] = ..., last_success_at: _Optional[str] = ..., last_failure_at: _Optional[str] = ..., cooldown_until: _Optional[str] = ..., opened_at: _Optional[str] = ..., generation: _Optional[int] = ..., updated_at: _Optional[str] = ...) -> None: ...
+
+class ListProviderHealthRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ListProviderHealthResponse(_message.Message):
+    __slots__ = ("items",)
+    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    items: _containers.RepeatedCompositeFieldContainer[ProviderHealth]
+    def __init__(self, items: _Optional[_Iterable[_Union[ProviderHealth, _Mapping]]] = ...) -> None: ...

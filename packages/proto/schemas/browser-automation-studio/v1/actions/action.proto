@@ -1001,6 +1001,30 @@ message GestureParams {
   // @unit milliseconds
   // @constraint >= 0
   optional int32 duration_ms = 6 [(buf.validate.field).int32.gte = 0];
+  // Number of driver-level input steps to emit during the gesture.
+  // Performance captures should set this high enough to create a sustained
+  // interaction window instead of a synchronous burst.
+  // @constraint >= 1
+  optional int32 steps = 7 [(buf.validate.field).int32.gte = 1];
+  // Delay between input steps in milliseconds. When omitted and duration_ms is
+  // set, implementations may derive a cadence from duration_ms / steps.
+  // @unit milliseconds
+  // @constraint >= 0
+  optional int32 step_delay_ms = 8 [(buf.validate.field).int32.gte = 0];
+  // Stable label for trace markers emitted around the gesture segment.
+  // Implementations SHOULD emit performance marks:
+  // bas.gesture.<trace_label>.start and bas.gesture.<trace_label>.end.
+  optional string trace_label = 9;
+  // Idle wait after the gesture so rendering fallout is captured in the trace.
+  // @unit milliseconds
+  // @constraint >= 0
+  optional int32 idle_after_ms = 10 [(buf.validate.field).int32.gte = 0];
+  // Per-step wheel delta for zoom/pinch gestures. Negative values zoom in for
+  // wheel-driven UIs; positive values zoom out.
+  optional int32 wheel_delta_y = 11;
+  // Hold Control while emitting wheel input. Useful for apps that model
+  // trackpad pinch/zoom as Ctrl+wheel.
+  optional bool ctrl_key = 12;
 }
 
 // NetworkMockParams configures network request interception.

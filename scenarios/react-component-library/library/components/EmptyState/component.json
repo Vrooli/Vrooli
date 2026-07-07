@@ -1,0 +1,10 @@
+{
+  "libraryId": "react-component-library:EmptyState",
+  "displayName": "Empty State",
+  "description": "Compact empty-state panel with icon, copy, and optional action slots.",
+  "tags": ["feedback", "surface"],
+  "slot": "ui-pattern",
+  "latest": "1.0.0",
+  "draft": "",
+  "deprecatedVersions": []
+}

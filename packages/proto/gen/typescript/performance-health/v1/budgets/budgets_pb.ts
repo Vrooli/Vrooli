@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file performance-health/v1/budgets/budgets.proto.
  */
 export const file_performance_health_v1_budgets_budgets: GenFile = /*@__PURE__*/
-  fileDesc("CitwZXJmb3JtYW5jZS1oZWFsdGgvdjEvYnVkZ2V0cy9idWRnZXRzLnByb3RvEiR2cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmJ1ZGdldHMiowMKBkJ1ZGdldBIQCghzY2VuYXJpbxgBIAEoCRIXCg9nb19idWlsZF9tYXhfbXMYAiABKAMSFwoPdWlfYnVpbGRfbWF4X21zGAMgASgDEhgKEGJ1bmRsZV9tYXhfYnl0ZXMYBCABKAMSEgoKbGNwX21heF9tcxgFIAEoAxIWCg5zdGFydHVwX21heF9tcxgGIAEoAxIfChdjb21wb25lbnRfY29tbWl0X21heF9tcxgHIAEoARIjChtjb21wb25lbnRfY29tbWl0X2F2Z19tYXhfbXMYCSABKAESDwoHcmF0Y2hldBgKIAEoCBJGCgVmbG93cxgLIAMoCzI3LnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYnVkZ2V0cy5CdWRnZXQuRmxvd3NFbnRyeRpeCgpGbG93c0VudHJ5EgsKA2tleRgBIAEoCRI/CgV2YWx1ZRgCIAEoCzIwLnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYnVkZ2V0cy5GbG93QnVkZ2V0OgI4AUoECAgQCVIKcDk1X21heF9tcyJmCgpGbG93QnVkZ2V0EhIKCmxjcF9tYXhfbXMYASABKAMSIwobY29tcG9uZW50X2NvbW1pdF9hdmdfbWF4X21zGAIgASgBEh8KF2NvbXBvbmVudF9jb21taXRfbWF4X21zGAMgASgBIiQKEEdldEJ1ZGdldFJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkiYwoRR2V0QnVkZ2V0UmVzcG9uc2USPAoGYnVkZ2V0GAEgASgLMiwudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5idWRnZXRzLkJ1ZGdldBIQCghkZWNsYXJlZBgCIAEoCCJeChBTZXRCdWRnZXRSZXF1ZXN0EjwKBmJ1ZGdldBgBIAEoCzIsLnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYnVkZ2V0cy5CdWRnZXQSDAoEZmxvdxgCIAEoCSJiChFTZXRCdWRnZXRSZXNwb25zZRI8CgZidWRnZXQYASABKAsyLC52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmJ1ZGdldHMuQnVkZ2V0Eg8KB2RyeV9ydW4YAiABKAgiNAoSQ2hlY2tCdWRnZXRSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBGZsb3cYAiABKAkiggEKE0NoZWNrQnVkZ2V0UmVzcG9uc2USEAoIc2NlbmFyaW8YASABKAkSDgoGcGFzc2VkGAIgASgIEkkKCnZpb2xhdGlvbnMYAyADKAsyNS52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmJ1ZGdldHMuQnVkZ2V0VmlvbGF0aW9uIl0KD0J1ZGdldFZpb2xhdGlvbhIMCgRheGlzGAEgASgJEhAKCG1lYXN1cmVkGAIgASgDEg4KBmJ1ZGdldBgDIAEoAxIMCgR1bml0GAQgASgJEgwKBGZsb3cYBSABKAkykAMKDUJ1ZGdldFNlcnZpY2USfAoJR2V0QnVkZ2V0EjYudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5idWRnZXRzLkdldEJ1ZGdldFJlcXVlc3QaNy52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmJ1ZGdldHMuR2V0QnVkZ2V0UmVzcG9uc2USfAoJU2V0QnVkZ2V0EjYudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5idWRnZXRzLlNldEJ1ZGdldFJlcXVlc3QaNy52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmJ1ZGdldHMuU2V0QnVkZ2V0UmVzcG9uc2USggEKC0NoZWNrQnVkZ2V0EjgudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5idWRnZXRzLkNoZWNrQnVkZ2V0UmVxdWVzdBo5LnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYnVkZ2V0cy5DaGVja0J1ZGdldFJlc3BvbnNlQllaV2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcGVyZm9ybWFuY2UtaGVhbHRoL3YxL2J1ZGdldHM7YnVkZ2V0c192MWIGcHJvdG8z");
+  fileDesc("CitwZXJmb3JtYW5jZS1oZWFsdGgvdjEvYnVkZ2V0cy9idWRnZXRzLnByb3RvEiR2cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmJ1ZGdldHMinAUKBkJ1ZGdldBIQCghzY2VuYXJpbxgBIAEoCRIXCg9nb19idWlsZF9tYXhfbXMYAiABKAMSFwoPdWlfYnVpbGRfbWF4X21zGAMgASgDEhgKEGJ1bmRsZV9tYXhfYnl0ZXMYBCABKAMSEgoKbGNwX21heF9tcxgFIAEoAxIWCg5zdGFydHVwX21heF9tcxgGIAEoAxIfChdjb21wb25lbnRfY29tbWl0X21heF9tcxgHIAEoARIjChtjb21wb25lbnRfY29tbWl0X2F2Z19tYXhfbXMYCSABKAESDwoHcmF0Y2hldBgKIAEoCBIVCg1kcmF3bl9mcHNfbWluGAwgASgBEh4KFmRyb3BwZWRfZnJhbWVfcmF0ZV9tYXgYDSABKAESHgoWbG9uZ190YXNrX3RvdGFsX21heF9tcxgOIAEoAxIYChBsb25nX3Rhc2tfbWF4X21zGA8gASgBEhsKE3Jhc3Rlcl90b3RhbF9tYXhfbXMYECABKAESGwoTbGF5b3V0X3RvdGFsX21heF9tcxgRIAEoARIaChJwYWludF90b3RhbF9tYXhfbXMYEiABKAESHQoVaW5wdXRfZXZlbnRfY291bnRfbWluGBMgASgDEkYKBWZsb3dzGBQgAygLMjcudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5idWRnZXRzLkJ1ZGdldC5GbG93c0VudHJ5EhEKCWxvYWRfb25seRgVIAEoCBpeCgpGbG93c0VudHJ5EgsKA2tleRgBIAEoCRI/CgV2YWx1ZRgCIAEoCzIwLnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYnVkZ2V0cy5GbG93QnVkZ2V0OgI4AUoECAgQCVIKcDk1X21heF9tcyLfAgoKRmxvd0J1ZGdldBISCgpsY3BfbWF4X21zGAEgASgDEiMKG2NvbXBvbmVudF9jb21taXRfYXZnX21heF9tcxgCIAEoARIfChdjb21wb25lbnRfY29tbWl0X21heF9tcxgDIAEoARIVCg1kcmF3bl9mcHNfbWluGAQgASgBEh4KFmRyb3BwZWRfZnJhbWVfcmF0ZV9tYXgYBSABKAESHgoWbG9uZ190YXNrX3RvdGFsX21heF9tcxgGIAEoAxIYChBsb25nX3Rhc2tfbWF4X21zGAcgASgBEhsKE3Jhc3Rlcl90b3RhbF9tYXhfbXMYCCABKAESGwoTbGF5b3V0X3RvdGFsX21heF9tcxgJIAEoARIaChJwYWludF90b3RhbF9tYXhfbXMYCiABKAESHQoVaW5wdXRfZXZlbnRfY291bnRfbWluGAsgASgDEhEKCWxvYWRfb25seRgMIAEoCCIkChBHZXRCdWRnZXRSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJImMKEUdldEJ1ZGdldFJlc3BvbnNlEjwKBmJ1ZGdldBgBIAEoCzIsLnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYnVkZ2V0cy5CdWRnZXQSEAoIZGVjbGFyZWQYAiABKAgiXgoQU2V0QnVkZ2V0UmVxdWVzdBI8CgZidWRnZXQYASABKAsyLC52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmJ1ZGdldHMuQnVkZ2V0EgwKBGZsb3cYAiABKAkiYgoRU2V0QnVkZ2V0UmVzcG9uc2USPAoGYnVkZ2V0GAEgASgLMiwudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5idWRnZXRzLkJ1ZGdldBIPCgdkcnlfcnVuGAIgASgIIjQKEkNoZWNrQnVkZ2V0UmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIMCgRmbG93GAIgASgJIoIBChNDaGVja0J1ZGdldFJlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEg4KBnBhc3NlZBgCIAEoCBJJCgp2aW9sYXRpb25zGAMgAygLMjUudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5idWRnZXRzLkJ1ZGdldFZpb2xhdGlvbiJ7Cg9CdWRnZXRWaW9sYXRpb24SDAoEYXhpcxgBIAEoCRIQCghtZWFzdXJlZBgCIAEoAxIOCgZidWRnZXQYAyABKAMSDAoEdW5pdBgEIAEoCRIMCgRmbG93GAUgASgJEgwKBG1vZGUYBiABKAkSDgoGZGV0YWlsGAcgASgJMpADCg1CdWRnZXRTZXJ2aWNlEnwKCUdldEJ1ZGdldBI2LnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYnVkZ2V0cy5HZXRCdWRnZXRSZXF1ZXN0GjcudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5idWRnZXRzLkdldEJ1ZGdldFJlc3BvbnNlEnwKCVNldEJ1ZGdldBI2LnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYnVkZ2V0cy5TZXRCdWRnZXRSZXF1ZXN0GjcudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5idWRnZXRzLlNldEJ1ZGdldFJlc3BvbnNlEoIBCgtDaGVja0J1ZGdldBI4LnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYnVkZ2V0cy5DaGVja0J1ZGdldFJlcXVlc3QaOS52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmJ1ZGdldHMuQ2hlY2tCdWRnZXRSZXNwb25zZUJZWldnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3BlcmZvcm1hbmNlLWhlYWx0aC92MS9idWRnZXRzO2J1ZGdldHNfdjFiBnByb3RvMw");
 
 /**
  * Budget is one scenario's declared performance thresholds.
@@ -72,14 +72,61 @@ export type Budget = Message<"vrooli.performance_health.v1.budgets.Budget"> & {
   ratchet: boolean;
 
   /**
+   * @generated from field: double drawn_fps_min = 12;
+   */
+  drawnFpsMin: number;
+
+  /**
+   * @generated from field: double dropped_frame_rate_max = 13;
+   */
+  droppedFrameRateMax: number;
+
+  /**
+   * @generated from field: int64 long_task_total_max_ms = 14;
+   */
+  longTaskTotalMaxMs: bigint;
+
+  /**
+   * @generated from field: double long_task_max_ms = 15;
+   */
+  longTaskMaxMs: number;
+
+  /**
+   * @generated from field: double raster_total_max_ms = 16;
+   */
+  rasterTotalMaxMs: number;
+
+  /**
+   * @generated from field: double layout_total_max_ms = 17;
+   */
+  layoutTotalMaxMs: number;
+
+  /**
+   * @generated from field: double paint_total_max_ms = 18;
+   */
+  paintTotalMaxMs: number;
+
+  /**
+   * @generated from field: int64 input_event_count_min = 19;
+   */
+  inputEventCountMin: bigint;
+
+  /**
    * Per-interaction-flow budgets keyed by flow slug. Each gates a specific
    * targeted journey (driven by `audit run --workflow <slug>`) on the
    * continuous cadence, independently of the scenario aggregate. build/bundle/
    * startup remain scenario-level (no per-flow build).
    *
-   * @generated from field: map<string, vrooli.performance_health.v1.budgets.FlowBudget> flows = 11;
+   * @generated from field: map<string, vrooli.performance_health.v1.budgets.FlowBudget> flows = 20;
    */
   flows: { [key: string]: FlowBudget };
+
+  /**
+   * Used with SetBudgetRequest.flow to mark a flow budget as load-only.
+   *
+   * @generated from field: bool load_only = 21;
+   */
+  loadOnly: boolean;
 };
 
 /**
@@ -91,7 +138,8 @@ export const BudgetSchema: GenMessage<Budget> = /*@__PURE__*/
 
 /**
  * FlowBudget is one interaction flow's declared thresholds — only the axes a
- * targeted capture can measure (LCP and the slowest component's avg/max commit).
+ * targeted capture can measure (LCP, slowest component avg/max commit, and
+ * frame/input/browser-work health).
  *
  * @generated from message vrooli.performance_health.v1.budgets.FlowBudget
  */
@@ -110,6 +158,53 @@ export type FlowBudget = Message<"vrooli.performance_health.v1.budgets.FlowBudge
    * @generated from field: double component_commit_max_ms = 3;
    */
   componentCommitMaxMs: number;
+
+  /**
+   * @generated from field: double drawn_fps_min = 4;
+   */
+  drawnFpsMin: number;
+
+  /**
+   * @generated from field: double dropped_frame_rate_max = 5;
+   */
+  droppedFrameRateMax: number;
+
+  /**
+   * @generated from field: int64 long_task_total_max_ms = 6;
+   */
+  longTaskTotalMaxMs: bigint;
+
+  /**
+   * @generated from field: double long_task_max_ms = 7;
+   */
+  longTaskMaxMs: number;
+
+  /**
+   * @generated from field: double raster_total_max_ms = 8;
+   */
+  rasterTotalMaxMs: number;
+
+  /**
+   * @generated from field: double layout_total_max_ms = 9;
+   */
+  layoutTotalMaxMs: number;
+
+  /**
+   * @generated from field: double paint_total_max_ms = 10;
+   */
+  paintTotalMaxMs: number;
+
+  /**
+   * @generated from field: int64 input_event_count_min = 11;
+   */
+  inputEventCountMin: bigint;
+
+  /**
+   * load_only exempts the flow from fail-closed interaction evidence checks.
+   *
+   * @generated from field: bool load_only = 12;
+   */
+  loadOnly: boolean;
 };
 
 /**
@@ -269,7 +364,7 @@ export const CheckBudgetResponseSchema: GenMessage<CheckBudgetResponse> = /*@__P
  */
 export type BudgetViolation = Message<"vrooli.performance_health.v1.budgets.BudgetViolation"> & {
   /**
-   * Axis id, e.g. "go_build", "bundle", "lcp", "startup".
+   * Axis id, e.g. "go_build", "bundle", "lcp", "drawn_fps".
    *
    * @generated from field: string axis = 1;
    */
@@ -296,6 +391,18 @@ export type BudgetViolation = Message<"vrooli.performance_health.v1.budgets.Budg
    * @generated from field: string flow = 5;
    */
   flow: string;
+
+  /**
+   * "max" means measured exceeds budget; "min" means measured is below budget.
+   *
+   * @generated from field: string mode = 6;
+   */
+  mode: string;
+
+  /**
+   * @generated from field: string detail = 7;
+   */
+  detail: string;
 };
 
 /**
@@ -332,7 +439,7 @@ export const BudgetService: GenService<{
   },
   /**
    * CheckBudget evaluates a scenario's latest measurements against its budget
-   * and reports violations; this is the baseline-diff gate.
+   * and reports violations; this is the suite-run Performance phase gate.
    *
    * @generated from rpc vrooli.performance_health.v1.budgets.BudgetService.CheckBudget
    */

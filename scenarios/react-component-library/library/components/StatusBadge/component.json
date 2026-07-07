@@ -1,0 +1,10 @@
+{
+  "libraryId": "react-component-library:StatusBadge",
+  "displayName": "Status Badge",
+  "description": "Semantic status badge with accessible labels and token-bound color roles.",
+  "tags": ["feedback", "status"],
+  "slot": "ui-primitive",
+  "latest": "1.0.0",
+  "draft": "",
+  "deprecatedVersions": []
+}

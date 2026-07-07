@@ -193,7 +193,7 @@ func (h *handlers) listEvidence(ctx cliapp.RunContext) error {
 	}
 	results := make([]string, 0, len(resp.Msg.GetEvidence()))
 	for _, ev := range resp.Msg.GetEvidence() {
-		results = append(results, fmt.Sprintf("%s %s/%s %s capture=%s checked=%s", ev.GetVerdict(), ev.GetPage(), ev.GetClaim(), ev.GetState(), ev.GetCaptureRef(), ev.GetCheckedAt()))
+		results = append(results, fmt.Sprintf("%s %s/%s %s viewport=%s capture=%s checked=%s", ev.GetVerdict(), ev.GetPage(), ev.GetClaim(), ev.GetState(), ev.GetViewport(), ev.GetCaptureRef(), ev.GetCheckedAt()))
 	}
 	if len(results) == 0 {
 		results = append(results, "No reconciliation evidence rows found.")

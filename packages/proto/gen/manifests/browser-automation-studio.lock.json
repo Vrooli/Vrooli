@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "browser-automation-studio",
-  "input_digest": "sha256:d02e91035fc7c662d487695124a4c5fe0f264e6c98cfb33209ac0d2cc8b751b0",
+  "input_digest": "sha256:9fd6d09e69b7272d5cfa36dc820a69a937cd4fa0091c1a59cb3462de7df3cdaa",
   "input_files": [
     "schemas/browser-automation-studio/v1/actions/action.proto",
     "schemas/browser-automation-studio/v1/ai/ai.proto",
@@ -44,7 +44,7 @@
     }
   },
   "outputs": {
-    "gen/go/browser-automation-studio/v1/actions/action.pb.go": "sha256:4ce3ac1e63b16623fec443dfc4881a0d47a378f0d0d32966b29d54d71efa5d8f",
+    "gen/go/browser-automation-studio/v1/actions/action.pb.go": "sha256:05ddbbd33caecb978bb3f27b63ffcee72bc9c4b6068e8748052a6a13f601a8a9",
     "gen/go/browser-automation-studio/v1/ai/ai.pb.go": "sha256:2ba9cc6a5457478bf8999bb93a7cb171037e5f38643cb0bfff0d075edcc9caa7",
     "gen/go/browser-automation-studio/v1/ai/aiconnect/ai.connect.go": "sha256:8fb1e69675fafb54801b2b16912829df0a3a626be568cc60edafaa59e61bed11",
     "gen/go/browser-automation-studio/v1/api/apiconnect/service.connect.go": "sha256:8c9f3d81a365d44bb5240d9f93bf376c0979beca692ecfd356d11f629b13449a",
@@ -87,8 +87,8 @@
     "gen/go/browser-automation-studio/v1/uxmetrics/uxmetricsconnect/uxmetrics.connect.go": "sha256:0b3c7b2233f3789410dd7c93c8d05dc2fb6ee6967983da2d8f9132044a86a9a3",
     "gen/go/browser-automation-studio/v1/workflows/definition.pb.go": "sha256:6c383901eb4d014b2fc467af5487a6f2bdec69dad302a67e5926af452a89d890",
     "gen/python/browser_automation_studio/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/browser_automation_studio/v1/actions/action_pb2.py": "sha256:54032f7169571966b167b659536544c5faae626448ff8c3e3363d646b74d39f9",
-    "gen/python/browser_automation_studio/v1/actions/action_pb2.pyi": "sha256:7cf1935edc5ded55fe9e59592475da50e954d185f152d085281b3772eee004f3",
+    "gen/python/browser_automation_studio/v1/actions/action_pb2.py": "sha256:b52028ea3ae4af5318a063a86c28251386e77c3cdf0b5debebee34bef5687e4a",
+    "gen/python/browser_automation_studio/v1/actions/action_pb2.pyi": "sha256:ceb16ad73622b0230486d28e7db6eaf09e4a36ab08b98d1b2583b211361cddb0",
     "gen/python/browser_automation_studio/v1/actions/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/browser_automation_studio/v1/ai/ai_pb2.py": "sha256:73b0c205b75dfc7b065b7043baa5d51abc6fa7a2cfb37bf39c6ca187dd00115f",
     "gen/python/browser_automation_studio/v1/ai/ai_pb2.pyi": "sha256:053c4c0a4be4742812bb41a6f798b8f52389fe7954d69130039c1d61cd4e3db1",
@@ -164,7 +164,7 @@
     "gen/python/browser_automation_studio/v1/workflows/definition_pb2.py": "sha256:a03208d1e3e31c2b813bcd4765d680b470b9e75c582c22de9e5d930f3a3f8c06",
     "gen/python/browser_automation_studio/v1/workflows/definition_pb2.pyi": "sha256:106cb89e6f415d27f48e29c476569886d62b02c331584caf5ac0478e67bde2f1",
     "gen/python/browser_automation_studio/v1/workflows/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/browser-automation-studio/v1/actions/action_pb.ts": "sha256:e316573b7872d6807a8a3f146f94a123f81e277b37e23a7cbad0ac465689bfe6",
+    "gen/typescript/browser-automation-studio/v1/actions/action_pb.ts": "sha256:02f5e95fbb5a7d1715e33e80639c0fe99bdc512b495d424de27682ebd676baa9",
     "gen/typescript/browser-automation-studio/v1/ai/ai_pb.ts": "sha256:3ba359745cbd1863bfb77a8112d54a13e79d8a355068637eb5bd694c9806fd55",
     "gen/typescript/browser-automation-studio/v1/api/service_pb.ts": "sha256:3a0e987acea00eac7fa03d5a6a7f89247856f10503f14706c83ec21da068d1c1",
     "gen/typescript/browser-automation-studio/v1/base/browser_profile_pb.ts": "sha256:a26bea4b35393f2ef2d87ac0e0332302518fc29119309d705e4d691ebdff49bf",
@@ -191,7 +191,7 @@
     "gen/typescript/browser-automation-studio/v1/timeline/entry_pb.ts": "sha256:ddf3883960585642b1632fd9271880048501af861fc2387ab31114484a2a170f",
     "gen/typescript/browser-automation-studio/v1/uxmetrics/uxmetrics_pb.ts": "sha256:d8375eb8843662de577214e3b53c5464b61431c8c0ee10e4ef90ac3de23867a5",
     "gen/typescript/browser-automation-studio/v1/workflows/definition_pb.ts": "sha256:fb4c45d3a7384040bcf31e43eabcbf3d8d99b63d0a180e93aaf677bfc0c1f0ec",
-    "gen/typescript/js/browser-automation-studio/v1/actions/action_pb.js": "sha256:6dca2ab61c5ce9996cc0eabd1644b3ae991014efcbbb30484b3e97c36f038edb",
+    "gen/typescript/js/browser-automation-studio/v1/actions/action_pb.js": "sha256:9a9b74b20319f70359682e213fa3eeb26951e58c6c8e86e1df0f7c89d19e0a09",
     "gen/typescript/js/browser-automation-studio/v1/ai/ai_pb.js": "sha256:811ab61bd7f508b39cfefdfd4ae508345ed7ac4470bf06bb931e0a726c435d37",
     "gen/typescript/js/browser-automation-studio/v1/api/service_pb.js": "sha256:734453c06a2b8c29ee60b1a6349f927ff0c6cbf357ee37f8ae3afee0202b46df",
     "gen/typescript/js/browser-automation-studio/v1/base/browser_profile_pb.js": "sha256:dfc844989b4233e0a125c1d1d6e3cd9fa02596a7404d2791b2e0a87b10dc7760",

@@ -18,18 +18,21 @@ func TestSQLiteRepositorySavesAndListsEvidence(t *testing.T) {
 	ctx := context.Background()
 
 	want := Evidence{
-		ID:         "ev-test",
-		Scenario:   "demo",
-		PageID:     "home",
-		Route:      "/",
-		StateID:    "default",
-		ClaimID:    "primary-present",
-		ClaimType:  "element-present",
-		Verdict:    "passed",
-		CaptureRef: "scenario=demo,path=/",
-		AXNodeJSON: `{"role":"button"}`,
-		Message:    "claim proven",
-		CheckedAt:  "2026-07-05T12:00:00Z",
+		ID:             "ev-test",
+		Scenario:       "demo",
+		PageID:         "home",
+		Route:          "/",
+		StateID:        "default",
+		ViewportID:     "mobile",
+		ViewportWidth:  390,
+		ViewportHeight: 844,
+		ClaimID:        "primary-present",
+		ClaimType:      "element-present",
+		Verdict:        "passed",
+		CaptureRef:     "scenario=demo,path=/",
+		AXNodeJSON:     `{"role":"button"}`,
+		Message:        "claim proven",
+		CheckedAt:      "2026-07-05T12:00:00Z",
 	}
 	if err := repo.SaveEvidence(ctx, want); err != nil {
 		t.Fatalf("SaveEvidence: %v", err)

@@ -133,9 +133,39 @@ message GetRouteEvidenceResponse {
   RouteEvidence event = 1;
 }
 
+// ProviderHealth is the persisted circuit-breaker record for one
+// (provider, role, kind) route, plus the effective state at read time.
+message ProviderHealth {
+  string provider = 1;
+  string role = 2;
+  vrooli.ai_gateway.v1.shared.RequestKind kind = 3;
+  // state is the stored breaker state; effective_state is what routing acts on
+  // at read time (a stored "open" whose cooldown elapsed reads as "half_open").
+  string state = 4;
+  string effective_state = 5;
+  int64 consecutive_failures = 6;
+  string last_failure_class = 7;
+  string last_success_at = 8;
+  string last_failure_at = 9;
+  string cooldown_until = 10;
+  string opened_at = 11;
+  int64 generation = 12;
+  string updated_at = 13;
+}
+
+message ListProviderHealthRequest {}
+
+message ListProviderHealthResponse {
+  repeated ProviderHealth items = 1;
+}
+
 service RoutingService {
   rpc PreviewRoute(PreviewRouteRequest) returns (PreviewRouteResponse);
   rpc ExecuteRoute(ExecuteRouteRequest) returns (ExecuteRouteResponse);
   rpc ListRouteEvidence(ListRouteEvidenceRequest) returns (ListRouteEvidenceResponse);
   rpc GetRouteEvidence(GetRouteEvidenceRequest) returns (GetRouteEvidenceResponse);
+  // ListProviderHealth returns persisted provider circuit-breaker state so
+  // operators can see which providers are suppressed and why, without reading
+  // logs or database rows.
+  rpc ListProviderHealth(ListProviderHealthRequest) returns (ListProviderHealthResponse);
 }

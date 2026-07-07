@@ -718,20 +718,32 @@ class DragDropParams(_message.Message):
     def __init__(self, source_selector: _Optional[str] = ..., target_selector: _Optional[str] = ..., offset_x: _Optional[int] = ..., offset_y: _Optional[int] = ..., steps: _Optional[int] = ..., delay_ms: _Optional[int] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
 
 class GestureParams(_message.Message):
-    __slots__ = ("gesture_type", "selector", "direction", "distance", "scale", "duration_ms")
+    __slots__ = ("gesture_type", "selector", "direction", "distance", "scale", "duration_ms", "steps", "step_delay_ms", "trace_label", "idle_after_ms", "wheel_delta_y", "ctrl_key")
     GESTURE_TYPE_FIELD_NUMBER: _ClassVar[int]
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     DIRECTION_FIELD_NUMBER: _ClassVar[int]
     DISTANCE_FIELD_NUMBER: _ClassVar[int]
     SCALE_FIELD_NUMBER: _ClassVar[int]
     DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    STEPS_FIELD_NUMBER: _ClassVar[int]
+    STEP_DELAY_MS_FIELD_NUMBER: _ClassVar[int]
+    TRACE_LABEL_FIELD_NUMBER: _ClassVar[int]
+    IDLE_AFTER_MS_FIELD_NUMBER: _ClassVar[int]
+    WHEEL_DELTA_Y_FIELD_NUMBER: _ClassVar[int]
+    CTRL_KEY_FIELD_NUMBER: _ClassVar[int]
     gesture_type: GestureType
     selector: str
     direction: SwipeDirection
     distance: int
     scale: float
     duration_ms: int
-    def __init__(self, gesture_type: _Optional[_Union[GestureType, str]] = ..., selector: _Optional[str] = ..., direction: _Optional[_Union[SwipeDirection, str]] = ..., distance: _Optional[int] = ..., scale: _Optional[float] = ..., duration_ms: _Optional[int] = ...) -> None: ...
+    steps: int
+    step_delay_ms: int
+    trace_label: str
+    idle_after_ms: int
+    wheel_delta_y: int
+    ctrl_key: bool
+    def __init__(self, gesture_type: _Optional[_Union[GestureType, str]] = ..., selector: _Optional[str] = ..., direction: _Optional[_Union[SwipeDirection, str]] = ..., distance: _Optional[int] = ..., scale: _Optional[float] = ..., duration_ms: _Optional[int] = ..., steps: _Optional[int] = ..., step_delay_ms: _Optional[int] = ..., trace_label: _Optional[str] = ..., idle_after_ms: _Optional[int] = ..., wheel_delta_y: _Optional[int] = ..., ctrl_key: _Optional[bool] = ...) -> None: ...
 
 class NetworkMockParams(_message.Message):
     __slots__ = ("operation", "url_pattern", "method", "status_code", "headers", "body", "delay_ms")

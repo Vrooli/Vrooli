@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file performance-health/v1/analysis/analysis.proto.
  */
 export const file_performance_health_v1_analysis_analysis: GenFile = /*@__PURE__*/
-  fileDesc("Ci1wZXJmb3JtYW5jZS1oZWFsdGgvdjEvYW5hbHlzaXMvYW5hbHlzaXMucHJvdG8SJXZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYW5hbHlzaXMiPwoTQW5hbHl6ZVRyYWNlUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIWCg50cmFjZV9hcnRpZmFjdBgCIAEoCSLwAQoUQW5hbHl6ZVRyYWNlUmVzcG9uc2USEAoIc2NlbmFyaW8YASABKAkSSgoKY29tcG9uZW50cxgCIAMoCzI2LnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYW5hbHlzaXMuQ29tcG9uZW50VGltaW5nEhQKDGxvbmdfdGFza19tcxgDIAEoAxIOCgZsY3BfbXMYBCABKAMSDgoGZmNwX21zGAUgASgDEkQKCGZpbmRpbmdzGAYgAygLMjIudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5hbmFseXNpcy5QZXJmRmluZGluZyJuCg9Db21wb25lbnRUaW1pbmcSEQoJY29tcG9uZW50GAEgASgJEhQKDGNvbW1pdF9jb3VudBgCIAEoBRIOCgZhdmdfbXMYAyABKAESDgoGbWF4X21zGAQgASgBEhIKCmRlZmluaXRpb24YBSABKAkidwoLUGVyZkZpbmRpbmcSDAoEY29kZRgBIAEoCRIRCgljb21wb25lbnQYAiABKAkSEgoKZGVmaW5pdGlvbhgDIAEoCRIPCgdtZXNzYWdlGAQgASgJEhAKCGV2aWRlbmNlGAUgASgJEhAKCHNldmVyaXR5GAYgASgJIl8KFENvbXBhcmVUcmFjZXNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEhkKEWJhc2VsaW5lX2FydGlmYWN0GAIgASgJEhoKEmNhbmRpZGF0ZV9hcnRpZmFjdBgDIAEoCSKmAQoVQ29tcGFyZVRyYWNlc1Jlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEkkKCmNvbXBvbmVudHMYAiADKAsyNS52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmFuYWx5c2lzLkNvbXBvbmVudERlbHRhEhoKEmxvbmdfdGFza19kZWx0YV9tcxgDIAEoAxIUCgxsY3BfZGVsdGFfbXMYBCABKAMi9wEKDkNvbXBvbmVudERlbHRhEhEKCWNvbXBvbmVudBgBIAEoCRIXCg9iYXNlbGluZV9hdmdfbXMYAiABKAESGAoQY2FuZGlkYXRlX2F2Z19tcxgDIAEoARIQCghkZWx0YV9tcxgEIAEoARIWCg5iYXNlbGluZV9jb3VudBgFIAEoBRIXCg9jYW5kaWRhdGVfY291bnQYBiABKAUSEwoLY291bnRfZGVsdGEYByABKAUSFwoPYmFzZWxpbmVfbWF4X21zGAggASgBEhgKEGNhbmRpZGF0ZV9tYXhfbXMYCSABKAESFAoMbWF4X2RlbHRhX21zGAogASgBMqgCCg9BbmFseXNpc1NlcnZpY2UShwEKDEFuYWx5emVUcmFjZRI6LnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYW5hbHlzaXMuQW5hbHl6ZVRyYWNlUmVxdWVzdBo7LnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYW5hbHlzaXMuQW5hbHl6ZVRyYWNlUmVzcG9uc2USigEKDUNvbXBhcmVUcmFjZXMSOy52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmFuYWx5c2lzLkNvbXBhcmVUcmFjZXNSZXF1ZXN0GjwudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5hbmFseXNpcy5Db21wYXJlVHJhY2VzUmVzcG9uc2VCW1pZZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9wZXJmb3JtYW5jZS1oZWFsdGgvdjEvYW5hbHlzaXM7YW5hbHlzaXNfdjFiBnByb3RvMw");
+  fileDesc("Ci1wZXJmb3JtYW5jZS1oZWFsdGgvdjEvYW5hbHlzaXMvYW5hbHlzaXMucHJvdG8SJXZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYW5hbHlzaXMiPwoTQW5hbHl6ZVRyYWNlUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIWCg50cmFjZV9hcnRpZmFjdBgCIAEoCSLSAwoUQW5hbHl6ZVRyYWNlUmVzcG9uc2USEAoIc2NlbmFyaW8YASABKAkSSgoKY29tcG9uZW50cxgCIAMoCzI2LnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYW5hbHlzaXMuQ29tcG9uZW50VGltaW5nEhQKDGxvbmdfdGFza19tcxgDIAEoAxIOCgZsY3BfbXMYBCABKAMSDgoGZmNwX21zGAUgASgDEkQKCGZpbmRpbmdzGAYgAygLMjIudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5hbmFseXNpcy5QZXJmRmluZGluZxJKCg1mcmFtZV9zdW1tYXJ5GAcgASgLMjMudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5hbmFseXNpcy5GcmFtZVN1bW1hcnkSSQoMYnJvd3Nlcl93b3JrGAggAygLMjMudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5hbmFseXNpcy5FdmVudFN1bW1hcnkSSQoMaW5wdXRfZXZlbnRzGAkgAygLMjMudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5hbmFseXNpcy5FdmVudFN1bW1hcnkibgoPQ29tcG9uZW50VGltaW5nEhEKCWNvbXBvbmVudBgBIAEoCRIUCgxjb21taXRfY291bnQYAiABKAUSDgoGYXZnX21zGAMgASgBEg4KBm1heF9tcxgEIAEoARISCgpkZWZpbml0aW9uGAUgASgJIncKC1BlcmZGaW5kaW5nEgwKBGNvZGUYASABKAkSEQoJY29tcG9uZW50GAIgASgJEhIKCmRlZmluaXRpb24YAyABKAkSDwoHbWVzc2FnZRgEIAEoCRIQCghldmlkZW5jZRgFIAEoCRIQCghzZXZlcml0eRgGIAEoCSKyAQoMRnJhbWVTdW1tYXJ5EhkKEXRyYWNlX2R1cmF0aW9uX21zGAEgASgBEhkKEWJlZ2luX2ZyYW1lX2NvdW50GAIgASgFEhkKEWRyYXduX2ZyYW1lX2NvdW50GAMgASgFEhsKE2Ryb3BwZWRfZnJhbWVfY291bnQYBCABKAUSGAoQYXBwcm94X2RyYXduX2ZwcxgFIAEoARIaChJkcm9wcGVkX2ZyYW1lX3JhdGUYBiABKAEiXQoMRXZlbnRTdW1tYXJ5EgwKBG5hbWUYASABKAkSDQoFY291bnQYAiABKAUSEAoIdG90YWxfbXMYAyABKAESDgoGbWF4X21zGAQgASgBEg4KBmF2Z19tcxgFIAEoASJfChRDb21wYXJlVHJhY2VzUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIZChFiYXNlbGluZV9hcnRpZmFjdBgCIAEoCRIaChJjYW5kaWRhdGVfYXJ0aWZhY3QYAyABKAkigAMKFUNvbXBhcmVUcmFjZXNSZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRJJCgpjb21wb25lbnRzGAIgAygLMjUudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5hbmFseXNpcy5Db21wb25lbnREZWx0YRIaChJsb25nX3Rhc2tfZGVsdGFfbXMYAyABKAMSFAoMbGNwX2RlbHRhX21zGAQgASgDEkYKC2ZyYW1lX2RlbHRhGAUgASgLMjEudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5hbmFseXNpcy5GcmFtZURlbHRhEkcKDGJyb3dzZXJfd29yaxgGIAMoCzIxLnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYW5hbHlzaXMuRXZlbnREZWx0YRJHCgxpbnB1dF9ldmVudHMYByADKAsyMS52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmFuYWx5c2lzLkV2ZW50RGVsdGEi9wEKDkNvbXBvbmVudERlbHRhEhEKCWNvbXBvbmVudBgBIAEoCRIXCg9iYXNlbGluZV9hdmdfbXMYAiABKAESGAoQY2FuZGlkYXRlX2F2Z19tcxgDIAEoARIQCghkZWx0YV9tcxgEIAEoARIWCg5iYXNlbGluZV9jb3VudBgFIAEoBRIXCg9jYW5kaWRhdGVfY291bnQYBiABKAUSEwoLY291bnRfZGVsdGEYByABKAUSFwoPYmFzZWxpbmVfbWF4X21zGAggASgBEhgKEGNhbmRpZGF0ZV9tYXhfbXMYCSABKAESFAoMbWF4X2RlbHRhX21zGAogASgBItQBCgpGcmFtZURlbHRhEh8KF3RyYWNlX2R1cmF0aW9uX2RlbHRhX21zGAEgASgBEh8KF2JlZ2luX2ZyYW1lX2NvdW50X2RlbHRhGAIgASgFEh8KF2RyYXduX2ZyYW1lX2NvdW50X2RlbHRhGAMgASgFEiEKGWRyb3BwZWRfZnJhbWVfY291bnRfZGVsdGEYBCABKAUSHgoWYXBwcm94X2RyYXduX2Zwc19kZWx0YRgFIAEoARIgChhkcm9wcGVkX2ZyYW1lX3JhdGVfZGVsdGEYBiABKAEiwQIKCkV2ZW50RGVsdGESDAoEbmFtZRgBIAEoCRIWCg5iYXNlbGluZV9jb3VudBgCIAEoBRIXCg9jYW5kaWRhdGVfY291bnQYAyABKAUSEwoLY291bnRfZGVsdGEYBCABKAUSGQoRYmFzZWxpbmVfdG90YWxfbXMYBSABKAESGgoSY2FuZGlkYXRlX3RvdGFsX21zGAYgASgBEhYKDnRvdGFsX2RlbHRhX21zGAcgASgBEhcKD2Jhc2VsaW5lX21heF9tcxgIIAEoARIYChBjYW5kaWRhdGVfbWF4X21zGAkgASgBEhQKDG1heF9kZWx0YV9tcxgKIAEoARIXCg9iYXNlbGluZV9hdmdfbXMYCyABKAESGAoQY2FuZGlkYXRlX2F2Z19tcxgMIAEoARIUCgxhdmdfZGVsdGFfbXMYDSABKAEyqAIKD0FuYWx5c2lzU2VydmljZRKHAQoMQW5hbHl6ZVRyYWNlEjoudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5hbmFseXNpcy5BbmFseXplVHJhY2VSZXF1ZXN0GjsudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5hbmFseXNpcy5BbmFseXplVHJhY2VSZXNwb25zZRKKAQoNQ29tcGFyZVRyYWNlcxI7LnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYW5hbHlzaXMuQ29tcGFyZVRyYWNlc1JlcXVlc3QaPC52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmFuYWx5c2lzLkNvbXBhcmVUcmFjZXNSZXNwb25zZUJbWllnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3BlcmZvcm1hbmNlLWhlYWx0aC92MS9hbmFseXNpczthbmFseXNpc192MWIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.performance_health.v1.analysis.AnalyzeTraceRequest
@@ -78,6 +78,21 @@ export type AnalyzeTraceResponse = Message<"vrooli.performance_health.v1.analysi
    * @generated from field: repeated vrooli.performance_health.v1.analysis.PerfFinding findings = 6;
    */
   findings: PerfFinding[];
+
+  /**
+   * @generated from field: vrooli.performance_health.v1.analysis.FrameSummary frame_summary = 7;
+   */
+  frameSummary?: FrameSummary | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.performance_health.v1.analysis.EventSummary browser_work = 8;
+   */
+  browserWork: EventSummary[];
+
+  /**
+   * @generated from field: repeated vrooli.performance_health.v1.analysis.EventSummary input_events = 9;
+   */
+  inputEvents: EventSummary[];
 };
 
 /**
@@ -176,6 +191,85 @@ export const PerfFindingSchema: GenMessage<PerfFinding> = /*@__PURE__*/
   messageDesc(file_performance_health_v1_analysis_analysis, 3);
 
 /**
+ * @generated from message vrooli.performance_health.v1.analysis.FrameSummary
+ */
+export type FrameSummary = Message<"vrooli.performance_health.v1.analysis.FrameSummary"> & {
+  /**
+   * @generated from field: double trace_duration_ms = 1;
+   */
+  traceDurationMs: number;
+
+  /**
+   * @generated from field: int32 begin_frame_count = 2;
+   */
+  beginFrameCount: number;
+
+  /**
+   * @generated from field: int32 drawn_frame_count = 3;
+   */
+  drawnFrameCount: number;
+
+  /**
+   * @generated from field: int32 dropped_frame_count = 4;
+   */
+  droppedFrameCount: number;
+
+  /**
+   * @generated from field: double approx_drawn_fps = 5;
+   */
+  approxDrawnFps: number;
+
+  /**
+   * @generated from field: double dropped_frame_rate = 6;
+   */
+  droppedFrameRate: number;
+};
+
+/**
+ * Describes the message vrooli.performance_health.v1.analysis.FrameSummary.
+ * Use `create(FrameSummarySchema)` to create a new message.
+ */
+export const FrameSummarySchema: GenMessage<FrameSummary> = /*@__PURE__*/
+  messageDesc(file_performance_health_v1_analysis_analysis, 4);
+
+/**
+ * @generated from message vrooli.performance_health.v1.analysis.EventSummary
+ */
+export type EventSummary = Message<"vrooli.performance_health.v1.analysis.EventSummary"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: int32 count = 2;
+   */
+  count: number;
+
+  /**
+   * @generated from field: double total_ms = 3;
+   */
+  totalMs: number;
+
+  /**
+   * @generated from field: double max_ms = 4;
+   */
+  maxMs: number;
+
+  /**
+   * @generated from field: double avg_ms = 5;
+   */
+  avgMs: number;
+};
+
+/**
+ * Describes the message vrooli.performance_health.v1.analysis.EventSummary.
+ * Use `create(EventSummarySchema)` to create a new message.
+ */
+export const EventSummarySchema: GenMessage<EventSummary> = /*@__PURE__*/
+  messageDesc(file_performance_health_v1_analysis_analysis, 5);
+
+/**
  * @generated from message vrooli.performance_health.v1.analysis.CompareTracesRequest
  */
 export type CompareTracesRequest = Message<"vrooli.performance_health.v1.analysis.CompareTracesRequest"> & {
@@ -204,7 +298,7 @@ export type CompareTracesRequest = Message<"vrooli.performance_health.v1.analysi
  * Use `create(CompareTracesRequestSchema)` to create a new message.
  */
 export const CompareTracesRequestSchema: GenMessage<CompareTracesRequest> = /*@__PURE__*/
-  messageDesc(file_performance_health_v1_analysis_analysis, 4);
+  messageDesc(file_performance_health_v1_analysis_analysis, 6);
 
 /**
  * @generated from message vrooli.performance_health.v1.analysis.CompareTracesResponse
@@ -233,6 +327,21 @@ export type CompareTracesResponse = Message<"vrooli.performance_health.v1.analys
    * @generated from field: int64 lcp_delta_ms = 4;
    */
   lcpDeltaMs: bigint;
+
+  /**
+   * @generated from field: vrooli.performance_health.v1.analysis.FrameDelta frame_delta = 5;
+   */
+  frameDelta?: FrameDelta | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.performance_health.v1.analysis.EventDelta browser_work = 6;
+   */
+  browserWork: EventDelta[];
+
+  /**
+   * @generated from field: repeated vrooli.performance_health.v1.analysis.EventDelta input_events = 7;
+   */
+  inputEvents: EventDelta[];
 };
 
 /**
@@ -240,7 +349,7 @@ export type CompareTracesResponse = Message<"vrooli.performance_health.v1.analys
  * Use `create(CompareTracesResponseSchema)` to create a new message.
  */
 export const CompareTracesResponseSchema: GenMessage<CompareTracesResponse> = /*@__PURE__*/
-  messageDesc(file_performance_health_v1_analysis_analysis, 5);
+  messageDesc(file_performance_health_v1_analysis_analysis, 7);
 
 /**
  * ComponentDelta is one component's commit-profile delta between two traces.
@@ -306,7 +415,126 @@ export type ComponentDelta = Message<"vrooli.performance_health.v1.analysis.Comp
  * Use `create(ComponentDeltaSchema)` to create a new message.
  */
 export const ComponentDeltaSchema: GenMessage<ComponentDelta> = /*@__PURE__*/
-  messageDesc(file_performance_health_v1_analysis_analysis, 6);
+  messageDesc(file_performance_health_v1_analysis_analysis, 8);
+
+/**
+ * @generated from message vrooli.performance_health.v1.analysis.FrameDelta
+ */
+export type FrameDelta = Message<"vrooli.performance_health.v1.analysis.FrameDelta"> & {
+  /**
+   * @generated from field: double trace_duration_delta_ms = 1;
+   */
+  traceDurationDeltaMs: number;
+
+  /**
+   * @generated from field: int32 begin_frame_count_delta = 2;
+   */
+  beginFrameCountDelta: number;
+
+  /**
+   * @generated from field: int32 drawn_frame_count_delta = 3;
+   */
+  drawnFrameCountDelta: number;
+
+  /**
+   * @generated from field: int32 dropped_frame_count_delta = 4;
+   */
+  droppedFrameCountDelta: number;
+
+  /**
+   * @generated from field: double approx_drawn_fps_delta = 5;
+   */
+  approxDrawnFpsDelta: number;
+
+  /**
+   * @generated from field: double dropped_frame_rate_delta = 6;
+   */
+  droppedFrameRateDelta: number;
+};
+
+/**
+ * Describes the message vrooli.performance_health.v1.analysis.FrameDelta.
+ * Use `create(FrameDeltaSchema)` to create a new message.
+ */
+export const FrameDeltaSchema: GenMessage<FrameDelta> = /*@__PURE__*/
+  messageDesc(file_performance_health_v1_analysis_analysis, 9);
+
+/**
+ * @generated from message vrooli.performance_health.v1.analysis.EventDelta
+ */
+export type EventDelta = Message<"vrooli.performance_health.v1.analysis.EventDelta"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: int32 baseline_count = 2;
+   */
+  baselineCount: number;
+
+  /**
+   * @generated from field: int32 candidate_count = 3;
+   */
+  candidateCount: number;
+
+  /**
+   * @generated from field: int32 count_delta = 4;
+   */
+  countDelta: number;
+
+  /**
+   * @generated from field: double baseline_total_ms = 5;
+   */
+  baselineTotalMs: number;
+
+  /**
+   * @generated from field: double candidate_total_ms = 6;
+   */
+  candidateTotalMs: number;
+
+  /**
+   * @generated from field: double total_delta_ms = 7;
+   */
+  totalDeltaMs: number;
+
+  /**
+   * @generated from field: double baseline_max_ms = 8;
+   */
+  baselineMaxMs: number;
+
+  /**
+   * @generated from field: double candidate_max_ms = 9;
+   */
+  candidateMaxMs: number;
+
+  /**
+   * @generated from field: double max_delta_ms = 10;
+   */
+  maxDeltaMs: number;
+
+  /**
+   * @generated from field: double baseline_avg_ms = 11;
+   */
+  baselineAvgMs: number;
+
+  /**
+   * @generated from field: double candidate_avg_ms = 12;
+   */
+  candidateAvgMs: number;
+
+  /**
+   * @generated from field: double avg_delta_ms = 13;
+   */
+  avgDeltaMs: number;
+};
+
+/**
+ * Describes the message vrooli.performance_health.v1.analysis.EventDelta.
+ * Use `create(EventDeltaSchema)` to create a new message.
+ */
+export const EventDeltaSchema: GenMessage<EventDelta> = /*@__PURE__*/
+  messageDesc(file_performance_health_v1_analysis_analysis, 10);
 
 /**
  * @generated from service vrooli.performance_health.v1.analysis.AnalysisService

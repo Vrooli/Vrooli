@@ -89,7 +89,8 @@ func sha256OfHandlerTests(s string) string {
 func TestModule_Shape(t *testing.T) {
 	r, _, _ := setupModule(t)
 	require.NotNil(t, r)
-	require.Len(t, adoptions.Endpoints, 5, "adoptions ships list, apply, reapply, delete, refresh")
+	require.Len(t, adoptions.Endpoints, 6, "adoptions ships list, apply, reapply, delete, refresh, resolve-path")
+	require.Equal(t, "adoptions_resolve_path", adoptions.Endpoints[5].ID)
 }
 
 func TestModule_CreateListRefreshDelete(t *testing.T) {

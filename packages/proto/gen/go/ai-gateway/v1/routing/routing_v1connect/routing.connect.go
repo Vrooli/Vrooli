@@ -45,6 +45,9 @@ const (
 	// RoutingServiceGetRouteEvidenceProcedure is the fully-qualified name of the RoutingService's
 	// GetRouteEvidence RPC.
 	RoutingServiceGetRouteEvidenceProcedure = "/vrooli.ai_gateway.v1.routing.RoutingService/GetRouteEvidence"
+	// RoutingServiceListProviderHealthProcedure is the fully-qualified name of the RoutingService's
+	// ListProviderHealth RPC.
+	RoutingServiceListProviderHealthProcedure = "/vrooli.ai_gateway.v1.routing.RoutingService/ListProviderHealth"
 )
 
 // RoutingServiceClient is a client for the vrooli.ai_gateway.v1.routing.RoutingService service.
@@ -53,6 +56,10 @@ type RoutingServiceClient interface {
 	ExecuteRoute(context.Context, *connect.Request[routing.ExecuteRouteRequest]) (*connect.Response[routing.ExecuteRouteResponse], error)
 	ListRouteEvidence(context.Context, *connect.Request[routing.ListRouteEvidenceRequest]) (*connect.Response[routing.ListRouteEvidenceResponse], error)
 	GetRouteEvidence(context.Context, *connect.Request[routing.GetRouteEvidenceRequest]) (*connect.Response[routing.GetRouteEvidenceResponse], error)
+	// ListProviderHealth returns persisted provider circuit-breaker state so
+	// operators can see which providers are suppressed and why, without reading
+	// logs or database rows.
+	ListProviderHealth(context.Context, *connect.Request[routing.ListProviderHealthRequest]) (*connect.Response[routing.ListProviderHealthResponse], error)
 }
 
 // NewRoutingServiceClient constructs a client for the vrooli.ai_gateway.v1.routing.RoutingService
@@ -90,15 +97,22 @@ func NewRoutingServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(routingServiceMethods.ByName("GetRouteEvidence")),
 			connect.WithClientOptions(opts...),
 		),
+		listProviderHealth: connect.NewClient[routing.ListProviderHealthRequest, routing.ListProviderHealthResponse](
+			httpClient,
+			baseURL+RoutingServiceListProviderHealthProcedure,
+			connect.WithSchema(routingServiceMethods.ByName("ListProviderHealth")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // routingServiceClient implements RoutingServiceClient.
 type routingServiceClient struct {
-	previewRoute      *connect.Client[routing.PreviewRouteRequest, routing.PreviewRouteResponse]
-	executeRoute      *connect.Client[routing.ExecuteRouteRequest, routing.ExecuteRouteResponse]
-	listRouteEvidence *connect.Client[routing.ListRouteEvidenceRequest, routing.ListRouteEvidenceResponse]
-	getRouteEvidence  *connect.Client[routing.GetRouteEvidenceRequest, routing.GetRouteEvidenceResponse]
+	previewRoute       *connect.Client[routing.PreviewRouteRequest, routing.PreviewRouteResponse]
+	executeRoute       *connect.Client[routing.ExecuteRouteRequest, routing.ExecuteRouteResponse]
+	listRouteEvidence  *connect.Client[routing.ListRouteEvidenceRequest, routing.ListRouteEvidenceResponse]
+	getRouteEvidence   *connect.Client[routing.GetRouteEvidenceRequest, routing.GetRouteEvidenceResponse]
+	listProviderHealth *connect.Client[routing.ListProviderHealthRequest, routing.ListProviderHealthResponse]
 }
 
 // PreviewRoute calls vrooli.ai_gateway.v1.routing.RoutingService.PreviewRoute.
@@ -121,6 +135,11 @@ func (c *routingServiceClient) GetRouteEvidence(ctx context.Context, req *connec
 	return c.getRouteEvidence.CallUnary(ctx, req)
 }
 
+// ListProviderHealth calls vrooli.ai_gateway.v1.routing.RoutingService.ListProviderHealth.
+func (c *routingServiceClient) ListProviderHealth(ctx context.Context, req *connect.Request[routing.ListProviderHealthRequest]) (*connect.Response[routing.ListProviderHealthResponse], error) {
+	return c.listProviderHealth.CallUnary(ctx, req)
+}
+
 // RoutingServiceHandler is an implementation of the vrooli.ai_gateway.v1.routing.RoutingService
 // service.
 type RoutingServiceHandler interface {
@@ -128,6 +147,10 @@ type RoutingServiceHandler interface {
 	ExecuteRoute(context.Context, *connect.Request[routing.ExecuteRouteRequest]) (*connect.Response[routing.ExecuteRouteResponse], error)
 	ListRouteEvidence(context.Context, *connect.Request[routing.ListRouteEvidenceRequest]) (*connect.Response[routing.ListRouteEvidenceResponse], error)
 	GetRouteEvidence(context.Context, *connect.Request[routing.GetRouteEvidenceRequest]) (*connect.Response[routing.GetRouteEvidenceResponse], error)
+	// ListProviderHealth returns persisted provider circuit-breaker state so
+	// operators can see which providers are suppressed and why, without reading
+	// logs or database rows.
+	ListProviderHealth(context.Context, *connect.Request[routing.ListProviderHealthRequest]) (*connect.Response[routing.ListProviderHealthResponse], error)
 }
 
 // NewRoutingServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -161,6 +184,12 @@ func NewRoutingServiceHandler(svc RoutingServiceHandler, opts ...connect.Handler
 		connect.WithSchema(routingServiceMethods.ByName("GetRouteEvidence")),
 		connect.WithHandlerOptions(opts...),
 	)
+	routingServiceListProviderHealthHandler := connect.NewUnaryHandler(
+		RoutingServiceListProviderHealthProcedure,
+		svc.ListProviderHealth,
+		connect.WithSchema(routingServiceMethods.ByName("ListProviderHealth")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.ai_gateway.v1.routing.RoutingService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case RoutingServicePreviewRouteProcedure:
@@ -171,6 +200,8 @@ func NewRoutingServiceHandler(svc RoutingServiceHandler, opts ...connect.Handler
 			routingServiceListRouteEvidenceHandler.ServeHTTP(w, r)
 		case RoutingServiceGetRouteEvidenceProcedure:
 			routingServiceGetRouteEvidenceHandler.ServeHTTP(w, r)
+		case RoutingServiceListProviderHealthProcedure:
+			routingServiceListProviderHealthHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -194,4 +225,8 @@ func (UnimplementedRoutingServiceHandler) ListRouteEvidence(context.Context, *co
 
 func (UnimplementedRoutingServiceHandler) GetRouteEvidence(context.Context, *connect.Request[routing.GetRouteEvidenceRequest]) (*connect.Response[routing.GetRouteEvidenceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.ai_gateway.v1.routing.RoutingService.GetRouteEvidence is not implemented"))
+}
+
+func (UnimplementedRoutingServiceHandler) ListProviderHealth(context.Context, *connect.Request[routing.ListProviderHealthRequest]) (*connect.Response[routing.ListProviderHealthResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.ai_gateway.v1.routing.RoutingService.ListProviderHealth is not implemented"))
 }

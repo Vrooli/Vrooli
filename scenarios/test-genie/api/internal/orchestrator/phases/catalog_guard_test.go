@@ -205,26 +205,28 @@ func TestCapabilityManifestCoversEveryPhase(t *testing.T) {
 
 func TestSkipEnvVarsPreservePublishedNames(t *testing.T) {
 	expected := map[Name]string{
-		Structure:           "TEST_GENIE_SKIP_STRUCTURE",
-		Contracts:           "TEST_GENIE_SKIP_CONTRACTS",
-		UIHealth:            "TEST_GENIE_SKIP_UI_HEALTH",
-		API:                 "TEST_GENIE_SKIP_API",
-		Architecture:        "TEST_GENIE_SKIP_ARCHITECTURE",
-		Dependencies:        "TEST_GENIE_SKIP_DEPENDENCIES",
-		Quality:             "TEST_GENIE_SKIP_QUALITY",
-		Docs:                "TEST_GENIE_SKIP_DOCS",
-		Unit:                "TEST_GENIE_SKIP_UNIT",
-		Storage:             "TEST_GENIE_SKIP_STORAGE",
-		Workflow:            "TEST_GENIE_SKIP_WORKFLOW",
-		Business:            "TEST_GENIE_SKIP_BUSINESS",
-		Performance:         "TEST_GENIE_SKIP_PERFORMANCE",
-		Tidiness:            "TEST_GENIE_SKIP_TIDINESS",
-		Security:            "TEST_GENIE_SKIP_SECURITY",
-		Measures:            "TEST_GENIE_SKIP_MEASURES",
-		Proto:               "TEST_GENIE_SKIP_PROTO",
-		Branding:            "TEST_GENIE_SKIP_BRANDING",
-		Search:              "TEST_GENIE_SKIP_SEARCH",
-		ProviderConformance: "TEST_GENIE_SKIP_PROVIDER_CONFORMANCE",
+		Structure:              "TEST_GENIE_SKIP_STRUCTURE",
+		Contracts:              "TEST_GENIE_SKIP_CONTRACTS",
+		UIHealth:               "TEST_GENIE_SKIP_UI_HEALTH",
+		API:                    "TEST_GENIE_SKIP_API",
+		Architecture:           "TEST_GENIE_SKIP_ARCHITECTURE",
+		Dependencies:           "TEST_GENIE_SKIP_DEPENDENCIES",
+		Quality:                "TEST_GENIE_SKIP_QUALITY",
+		Docs:                   "TEST_GENIE_SKIP_DOCS",
+		Unit:                   "TEST_GENIE_SKIP_UNIT",
+		Storage:                "TEST_GENIE_SKIP_STORAGE",
+		Workflow:               "TEST_GENIE_SKIP_WORKFLOW",
+		Business:               "TEST_GENIE_SKIP_BUSINESS",
+		Performance:            "TEST_GENIE_SKIP_PERFORMANCE",
+		Tidiness:               "TEST_GENIE_SKIP_TIDINESS",
+		Security:               "TEST_GENIE_SKIP_SECURITY",
+		Measures:               "TEST_GENIE_SKIP_MEASURES",
+		Proto:                  "TEST_GENIE_SKIP_PROTO",
+		Branding:               "TEST_GENIE_SKIP_BRANDING",
+		Search:                 "TEST_GENIE_SKIP_SEARCH",
+		Name("experience"):     "TEST_GENIE_SKIP_EXPERIENCE",
+		Name("ai-conformance"): "TEST_GENIE_SKIP_AI_CONFORMANCE",
+		ProviderConformance:    "TEST_GENIE_SKIP_PROVIDER_CONFORMANCE",
 	}
 	catalog := DefaultCatalog()
 	for _, spec := range catalog.All() {
@@ -263,14 +265,15 @@ func TestFindingSourceCoversEveryProducingPhase(t *testing.T) {
 		// After the hard cutover the unit phase delegates to unit-health and
 		// emits coverage findings into the COVERAGE channel (the separate
 		// `coverage` phase is retired), so it is now a COVERAGE producer.
-		Unit:     architecturev1.FindingSource_FINDING_SOURCE_COVERAGE,
-		Tidiness: architecturev1.FindingSource_FINDING_SOURCE_TIDINESS,
-		Security: architecturev1.FindingSource_FINDING_SOURCE_SECURITY,
-		Measures: architecturev1.FindingSource_FINDING_SOURCE_MEASURES,
-		Proto:    architecturev1.FindingSource_FINDING_SOURCE_PROTO,
-		Storage:  architecturev1.FindingSource_FINDING_SOURCE_STORAGE,
-		Workflow: architecturev1.FindingSource_FINDING_SOURCE_WORKFLOW,
-		Branding: architecturev1.FindingSource_FINDING_SOURCE_BRANDING,
+		Unit:               architecturev1.FindingSource_FINDING_SOURCE_COVERAGE,
+		Tidiness:           architecturev1.FindingSource_FINDING_SOURCE_TIDINESS,
+		Security:           architecturev1.FindingSource_FINDING_SOURCE_SECURITY,
+		Measures:           architecturev1.FindingSource_FINDING_SOURCE_MEASURES,
+		Proto:              architecturev1.FindingSource_FINDING_SOURCE_PROTO,
+		Storage:            architecturev1.FindingSource_FINDING_SOURCE_STORAGE,
+		Workflow:           architecturev1.FindingSource_FINDING_SOURCE_WORKFLOW,
+		Branding:           architecturev1.FindingSource_FINDING_SOURCE_BRANDING,
+		Name("experience"): architecturev1.FindingSource_FINDING_SOURCE_UI,
 	}
 	catalog := DefaultCatalog()
 	for _, spec := range catalog.All() {

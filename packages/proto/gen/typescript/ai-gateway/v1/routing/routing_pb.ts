@@ -4,7 +4,7 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { GatewayRequest, PrivacyClass, Profile, ValidationIssue } from "../shared/gateway_pb";
+import type { GatewayRequest, PrivacyClass, Profile, RequestKind, ValidationIssue } from "../shared/gateway_pb";
 import { file_ai_gateway_v1_shared_gateway } from "../shared/gateway_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ai-gateway/v1/routing/routing.proto.
  */
 export const file_ai_gateway_v1_routing_routing: GenFile = /*@__PURE__*/
-  fileDesc("CiNhaS1nYXRld2F5L3YxL3JvdXRpbmcvcm91dGluZy5wcm90bxIcdnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZyLkAQoOUm91dGVDYW5kaWRhdGUSEAoIcHJvdmlkZXIYASABKAkSDAoEcm9sZRgCIAEoCRIQCghsb2NhbGl0eRgDIAEoCRIQCghzZWxlY3RlZBgEIAEoCBIPCgdyZWFzb25zGAUgAygJEhkKEWZhbGxiYWNrX2VsaWdpYmxlGAYgASgIEhUKDWJyZWFrZXJfc3RhdGUYByABKAkSFwoPaGFsZl9vcGVuX3Byb2JlGAggASgIEhgKEHJlamVjdGlvbl9yZWFzb24YCSABKAkSGAoQY2FwYWNpdHlfdmVyZGljdBgKIAEoCSJTChNQcmV2aWV3Um91dGVSZXF1ZXN0EjwKB3JlcXVlc3QYASABKAsyKy52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuR2F0ZXdheVJlcXVlc3QiiQIKFFByZXZpZXdSb3V0ZVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEjwKBmlzc3VlcxgCIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5WYWxpZGF0aW9uSXNzdWUSQAoKY2FuZGlkYXRlcxgDIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuUm91dGVDYW5kaWRhdGUSGQoRc2VsZWN0ZWRfcHJvdmlkZXIYBCABKAkSFgoOcG9saWN5X3JlYXNvbnMYBSADKAkSGAoQZmFsbGJhY2tfYWxsb3dlZBgGIAEoCBIVCg1yb3V0ZV9wbGFuX2lkGAcgASgJImcKE0V4ZWN1dGVSb3V0ZVJlcXVlc3QSPAoHcmVxdWVzdBgBIAEoCzIrLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5HYXRld2F5UmVxdWVzdBISCgppbnB1dF90ZXh0GAIgASgJIogGCg1Sb3V0ZUV2aWRlbmNlEhAKCGV2ZW50X2lkGAEgASgJEhIKCnJlcXVlc3RfaWQYAiABKAkSEAoIc2NlbmFyaW8YAyABKAkSEQoJb3BlcmF0aW9uGAQgASgJEgwKBHJvbGUYBSABKAkSNQoHcHJvZmlsZRgGIAEoDjIkLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5Qcm9maWxlEkAKDXByaXZhY3lfY2xhc3MYByABKA4yKS52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuUHJpdmFjeUNsYXNzEhkKEXNlbGVjdGVkX3Byb3ZpZGVyGAggASgJEhkKEXNlbGVjdGVkX2xvY2FsaXR5GAkgASgJEg4KBnN0YXR1cxgKIAEoCRIWCg5wb2xpY3lfcmVhc29ucxgLIAMoCRIXCg9mYWlsdXJlX3JlYXNvbnMYDCADKAkSFQoNZmFsbGJhY2tfdXNlZBgNIAEoCBIXCg9wcm9tcHRfcmVkYWN0ZWQYDiABKAgSGQoRcmVzcG9uc2VfcmVkYWN0ZWQYDyABKAgSEgoKbGF0ZW5jeV9tcxgQIAEoAxISCgpjcmVhdGVkX2F0GBEgASgJEhUKDWJyZWFrZXJfc3RhdGUYEiABKAkSFQoNZmFpbHVyZV9jbGFzcxgTIAEoCRIYChByZWplY3Rpb25fcmVhc29uGBQgASgJEhgKEGNhcGFjaXR5X3ZlcmRpY3QYFSABKAkSGQoRY2FwYWNpdHlfY2xhaW1faWQYFiABKAkSHwoXY2FwYWNpdHlfcmVxdWlyZWRfYnl0ZXMYFyABKAMSHgoWY2FwYWNpdHlfZ3JhbnRlZF9ieXRlcxgYIAEoAxIhChljYXBhY2l0eV9yZWNsYWltX3JlcXVpcmVkGBkgASgIEhQKDGlucHV0X3Rva2VucxgaIAEoAxIVCg1vdXRwdXRfdG9rZW5zGBsgASgDEhUKDWNvc3RfZXN0aW1hdGUYHCABKAESFgoOc2VsZWN0ZWRfbW9kZWwYHSABKAkizwEKFEV4ZWN1dGVSb3V0ZVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEjwKBmlzc3VlcxgCIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5WYWxpZGF0aW9uSXNzdWUSPQoIZXZpZGVuY2UYAyABKAsyKy52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLlJvdXRlRXZpZGVuY2USEwoLb3V0cHV0X3RleHQYBCABKAkSFgoOcG9saWN5X3JlYXNvbnMYBSADKAkiOwoYTGlzdFJvdXRlRXZpZGVuY2VSZXF1ZXN0Eg0KBWxpbWl0GAEgASgFEhAKCHNjZW5hcmlvGAIgASgJIlgKGUxpc3RSb3V0ZUV2aWRlbmNlUmVzcG9uc2USOwoGZXZlbnRzGAEgAygLMisudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5Sb3V0ZUV2aWRlbmNlIisKF0dldFJvdXRlRXZpZGVuY2VSZXF1ZXN0EhAKCGV2ZW50X2lkGAEgASgJIlYKGEdldFJvdXRlRXZpZGVuY2VSZXNwb25zZRI6CgVldmVudBgBIAEoCzIrLnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuUm91dGVFdmlkZW5jZTKJBAoOUm91dGluZ1NlcnZpY2USdQoMUHJldmlld1JvdXRlEjEudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5QcmV2aWV3Um91dGVSZXF1ZXN0GjIudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5QcmV2aWV3Um91dGVSZXNwb25zZRJ1CgxFeGVjdXRlUm91dGUSMS52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLkV4ZWN1dGVSb3V0ZVJlcXVlc3QaMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLkV4ZWN1dGVSb3V0ZVJlc3BvbnNlEoQBChFMaXN0Um91dGVFdmlkZW5jZRI2LnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuTGlzdFJvdXRlRXZpZGVuY2VSZXF1ZXN0GjcudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5MaXN0Um91dGVFdmlkZW5jZVJlc3BvbnNlEoEBChBHZXRSb3V0ZUV2aWRlbmNlEjUudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5HZXRSb3V0ZUV2aWRlbmNlUmVxdWVzdBo2LnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuR2V0Um91dGVFdmlkZW5jZVJlc3BvbnNlQlFaT2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYWktZ2F0ZXdheS92MS9yb3V0aW5nO3JvdXRpbmdfdjFiBnByb3RvMw", [file_ai_gateway_v1_shared_gateway]);
+  fileDesc("CiNhaS1nYXRld2F5L3YxL3JvdXRpbmcvcm91dGluZy5wcm90bxIcdnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZyLkAQoOUm91dGVDYW5kaWRhdGUSEAoIcHJvdmlkZXIYASABKAkSDAoEcm9sZRgCIAEoCRIQCghsb2NhbGl0eRgDIAEoCRIQCghzZWxlY3RlZBgEIAEoCBIPCgdyZWFzb25zGAUgAygJEhkKEWZhbGxiYWNrX2VsaWdpYmxlGAYgASgIEhUKDWJyZWFrZXJfc3RhdGUYByABKAkSFwoPaGFsZl9vcGVuX3Byb2JlGAggASgIEhgKEHJlamVjdGlvbl9yZWFzb24YCSABKAkSGAoQY2FwYWNpdHlfdmVyZGljdBgKIAEoCSJTChNQcmV2aWV3Um91dGVSZXF1ZXN0EjwKB3JlcXVlc3QYASABKAsyKy52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuR2F0ZXdheVJlcXVlc3QiiQIKFFByZXZpZXdSb3V0ZVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEjwKBmlzc3VlcxgCIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5WYWxpZGF0aW9uSXNzdWUSQAoKY2FuZGlkYXRlcxgDIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuUm91dGVDYW5kaWRhdGUSGQoRc2VsZWN0ZWRfcHJvdmlkZXIYBCABKAkSFgoOcG9saWN5X3JlYXNvbnMYBSADKAkSGAoQZmFsbGJhY2tfYWxsb3dlZBgGIAEoCBIVCg1yb3V0ZV9wbGFuX2lkGAcgASgJImcKE0V4ZWN1dGVSb3V0ZVJlcXVlc3QSPAoHcmVxdWVzdBgBIAEoCzIrLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5HYXRld2F5UmVxdWVzdBISCgppbnB1dF90ZXh0GAIgASgJIogGCg1Sb3V0ZUV2aWRlbmNlEhAKCGV2ZW50X2lkGAEgASgJEhIKCnJlcXVlc3RfaWQYAiABKAkSEAoIc2NlbmFyaW8YAyABKAkSEQoJb3BlcmF0aW9uGAQgASgJEgwKBHJvbGUYBSABKAkSNQoHcHJvZmlsZRgGIAEoDjIkLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5Qcm9maWxlEkAKDXByaXZhY3lfY2xhc3MYByABKA4yKS52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuUHJpdmFjeUNsYXNzEhkKEXNlbGVjdGVkX3Byb3ZpZGVyGAggASgJEhkKEXNlbGVjdGVkX2xvY2FsaXR5GAkgASgJEg4KBnN0YXR1cxgKIAEoCRIWCg5wb2xpY3lfcmVhc29ucxgLIAMoCRIXCg9mYWlsdXJlX3JlYXNvbnMYDCADKAkSFQoNZmFsbGJhY2tfdXNlZBgNIAEoCBIXCg9wcm9tcHRfcmVkYWN0ZWQYDiABKAgSGQoRcmVzcG9uc2VfcmVkYWN0ZWQYDyABKAgSEgoKbGF0ZW5jeV9tcxgQIAEoAxISCgpjcmVhdGVkX2F0GBEgASgJEhUKDWJyZWFrZXJfc3RhdGUYEiABKAkSFQoNZmFpbHVyZV9jbGFzcxgTIAEoCRIYChByZWplY3Rpb25fcmVhc29uGBQgASgJEhgKEGNhcGFjaXR5X3ZlcmRpY3QYFSABKAkSGQoRY2FwYWNpdHlfY2xhaW1faWQYFiABKAkSHwoXY2FwYWNpdHlfcmVxdWlyZWRfYnl0ZXMYFyABKAMSHgoWY2FwYWNpdHlfZ3JhbnRlZF9ieXRlcxgYIAEoAxIhChljYXBhY2l0eV9yZWNsYWltX3JlcXVpcmVkGBkgASgIEhQKDGlucHV0X3Rva2VucxgaIAEoAxIVCg1vdXRwdXRfdG9rZW5zGBsgASgDEhUKDWNvc3RfZXN0aW1hdGUYHCABKAESFgoOc2VsZWN0ZWRfbW9kZWwYHSABKAkizwEKFEV4ZWN1dGVSb3V0ZVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEjwKBmlzc3VlcxgCIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5WYWxpZGF0aW9uSXNzdWUSPQoIZXZpZGVuY2UYAyABKAsyKy52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLlJvdXRlRXZpZGVuY2USEwoLb3V0cHV0X3RleHQYBCABKAkSFgoOcG9saWN5X3JlYXNvbnMYBSADKAkiOwoYTGlzdFJvdXRlRXZpZGVuY2VSZXF1ZXN0Eg0KBWxpbWl0GAEgASgFEhAKCHNjZW5hcmlvGAIgASgJIlgKGUxpc3RSb3V0ZUV2aWRlbmNlUmVzcG9uc2USOwoGZXZlbnRzGAEgAygLMisudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5Sb3V0ZUV2aWRlbmNlIisKF0dldFJvdXRlRXZpZGVuY2VSZXF1ZXN0EhAKCGV2ZW50X2lkGAEgASgJIlYKGEdldFJvdXRlRXZpZGVuY2VSZXNwb25zZRI6CgVldmVudBgBIAEoCzIrLnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuUm91dGVFdmlkZW5jZSLPAgoOUHJvdmlkZXJIZWFsdGgSEAoIcHJvdmlkZXIYASABKAkSDAoEcm9sZRgCIAEoCRI2CgRraW5kGAMgASgOMigudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlJlcXVlc3RLaW5kEg0KBXN0YXRlGAQgASgJEhcKD2VmZmVjdGl2ZV9zdGF0ZRgFIAEoCRIcChRjb25zZWN1dGl2ZV9mYWlsdXJlcxgGIAEoAxIaChJsYXN0X2ZhaWx1cmVfY2xhc3MYByABKAkSFwoPbGFzdF9zdWNjZXNzX2F0GAggASgJEhcKD2xhc3RfZmFpbHVyZV9hdBgJIAEoCRIWCg5jb29sZG93bl91bnRpbBgKIAEoCRIRCglvcGVuZWRfYXQYCyABKAkSEgoKZ2VuZXJhdGlvbhgMIAEoAxISCgp1cGRhdGVkX2F0GA0gASgJIhsKGUxpc3RQcm92aWRlckhlYWx0aFJlcXVlc3QiWQoaTGlzdFByb3ZpZGVySGVhbHRoUmVzcG9uc2USOwoFaXRlbXMYASADKAsyLC52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLlByb3ZpZGVySGVhbHRoMpMFCg5Sb3V0aW5nU2VydmljZRJ1CgxQcmV2aWV3Um91dGUSMS52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLlByZXZpZXdSb3V0ZVJlcXVlc3QaMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLlByZXZpZXdSb3V0ZVJlc3BvbnNlEnUKDEV4ZWN1dGVSb3V0ZRIxLnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuRXhlY3V0ZVJvdXRlUmVxdWVzdBoyLnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuRXhlY3V0ZVJvdXRlUmVzcG9uc2UShAEKEUxpc3RSb3V0ZUV2aWRlbmNlEjYudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5MaXN0Um91dGVFdmlkZW5jZVJlcXVlc3QaNy52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLkxpc3RSb3V0ZUV2aWRlbmNlUmVzcG9uc2USgQEKEEdldFJvdXRlRXZpZGVuY2USNS52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLkdldFJvdXRlRXZpZGVuY2VSZXF1ZXN0GjYudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5HZXRSb3V0ZUV2aWRlbmNlUmVzcG9uc2UShwEKEkxpc3RQcm92aWRlckhlYWx0aBI3LnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuTGlzdFByb3ZpZGVySGVhbHRoUmVxdWVzdBo4LnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuTGlzdFByb3ZpZGVySGVhbHRoUmVzcG9uc2VCUVpPZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9haS1nYXRld2F5L3YxL3JvdXRpbmc7cm91dGluZ192MWIGcHJvdG8z", [file_ai_gateway_v1_shared_gateway]);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.routing.RouteCandidate
@@ -476,6 +476,119 @@ export const GetRouteEvidenceResponseSchema: GenMessage<GetRouteEvidenceResponse
   messageDesc(file_ai_gateway_v1_routing_routing, 9);
 
 /**
+ * ProviderHealth is the persisted circuit-breaker record for one
+ * (provider, role, kind) route, plus the effective state at read time.
+ *
+ * @generated from message vrooli.ai_gateway.v1.routing.ProviderHealth
+ */
+export type ProviderHealth = Message<"vrooli.ai_gateway.v1.routing.ProviderHealth"> & {
+  /**
+   * @generated from field: string provider = 1;
+   */
+  provider: string;
+
+  /**
+   * @generated from field: string role = 2;
+   */
+  role: string;
+
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.shared.RequestKind kind = 3;
+   */
+  kind: RequestKind;
+
+  /**
+   * state is the stored breaker state; effective_state is what routing acts on
+   * at read time (a stored "open" whose cooldown elapsed reads as "half_open").
+   *
+   * @generated from field: string state = 4;
+   */
+  state: string;
+
+  /**
+   * @generated from field: string effective_state = 5;
+   */
+  effectiveState: string;
+
+  /**
+   * @generated from field: int64 consecutive_failures = 6;
+   */
+  consecutiveFailures: bigint;
+
+  /**
+   * @generated from field: string last_failure_class = 7;
+   */
+  lastFailureClass: string;
+
+  /**
+   * @generated from field: string last_success_at = 8;
+   */
+  lastSuccessAt: string;
+
+  /**
+   * @generated from field: string last_failure_at = 9;
+   */
+  lastFailureAt: string;
+
+  /**
+   * @generated from field: string cooldown_until = 10;
+   */
+  cooldownUntil: string;
+
+  /**
+   * @generated from field: string opened_at = 11;
+   */
+  openedAt: string;
+
+  /**
+   * @generated from field: int64 generation = 12;
+   */
+  generation: bigint;
+
+  /**
+   * @generated from field: string updated_at = 13;
+   */
+  updatedAt: string;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.routing.ProviderHealth.
+ * Use `create(ProviderHealthSchema)` to create a new message.
+ */
+export const ProviderHealthSchema: GenMessage<ProviderHealth> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_routing_routing, 10);
+
+/**
+ * @generated from message vrooli.ai_gateway.v1.routing.ListProviderHealthRequest
+ */
+export type ListProviderHealthRequest = Message<"vrooli.ai_gateway.v1.routing.ListProviderHealthRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.routing.ListProviderHealthRequest.
+ * Use `create(ListProviderHealthRequestSchema)` to create a new message.
+ */
+export const ListProviderHealthRequestSchema: GenMessage<ListProviderHealthRequest> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_routing_routing, 11);
+
+/**
+ * @generated from message vrooli.ai_gateway.v1.routing.ListProviderHealthResponse
+ */
+export type ListProviderHealthResponse = Message<"vrooli.ai_gateway.v1.routing.ListProviderHealthResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.ai_gateway.v1.routing.ProviderHealth items = 1;
+   */
+  items: ProviderHealth[];
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.routing.ListProviderHealthResponse.
+ * Use `create(ListProviderHealthResponseSchema)` to create a new message.
+ */
+export const ListProviderHealthResponseSchema: GenMessage<ListProviderHealthResponse> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_routing_routing, 12);
+
+/**
  * @generated from service vrooli.ai_gateway.v1.routing.RoutingService
  */
 export const RoutingService: GenService<{
@@ -510,6 +623,18 @@ export const RoutingService: GenService<{
     methodKind: "unary";
     input: typeof GetRouteEvidenceRequestSchema;
     output: typeof GetRouteEvidenceResponseSchema;
+  },
+  /**
+   * ListProviderHealth returns persisted provider circuit-breaker state so
+   * operators can see which providers are suppressed and why, without reading
+   * logs or database rows.
+   *
+   * @generated from rpc vrooli.ai_gateway.v1.routing.RoutingService.ListProviderHealth
+   */
+  listProviderHealth: {
+    methodKind: "unary";
+    input: typeof ListProviderHealthRequestSchema;
+    output: typeof ListProviderHealthResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_ai_gateway_v1_routing_routing, 0);

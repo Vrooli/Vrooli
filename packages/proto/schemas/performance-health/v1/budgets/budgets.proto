@@ -13,11 +13,11 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/performance-
 // @stability beta
 //
 // BudgetService owns per-scenario performance budgets (build time, bundle size,
-// LCP, startup, component-commit budgets) plus a ratchet. Budgets are
+// LCP, startup, component-commit, and interaction budgets) plus a ratchet. Budgets are
 // declarative under the `performance.budgets` block of the scenario's
 // .vrooli/testing.json — the single source of truth for every perf threshold
-// (milliseconds/bytes). A regression vs. budget fails via baseline-diff exactly
-// like any other health regression.
+// (milliseconds/bytes/rates/counts). A regression vs. budget fails the suite
+// run through the test-genie Performance phase.
 // =============================================================================
 
 service BudgetService {
@@ -27,7 +27,7 @@ service BudgetService {
   // the X-Dry-Run header honored by cli-core --dry-run).
   rpc SetBudget(SetBudgetRequest) returns (SetBudgetResponse);
   // CheckBudget evaluates a scenario's latest measurements against its budget
-  // and reports violations; this is the baseline-diff gate.
+  // and reports violations; this is the suite-run Performance phase gate.
   rpc CheckBudget(CheckBudgetRequest) returns (CheckBudgetResponse);
 }
 
@@ -47,11 +47,21 @@ message Budget {
   // loosen it (a relaxation is rejected). Tighten-only protects against
   // silently regressing the budget after a measured improvement.
   bool ratchet = 10;
+  double drawn_fps_min = 12;
+  double dropped_frame_rate_max = 13;
+  int64 long_task_total_max_ms = 14;
+  double long_task_max_ms = 15;
+  double raster_total_max_ms = 16;
+  double layout_total_max_ms = 17;
+  double paint_total_max_ms = 18;
+  int64 input_event_count_min = 19;
   // Per-interaction-flow budgets keyed by flow slug. Each gates a specific
   // targeted journey (driven by `audit run --workflow <slug>`) on the
   // continuous cadence, independently of the scenario aggregate. build/bundle/
   // startup remain scenario-level (no per-flow build).
-  map<string, FlowBudget> flows = 11;
+  map<string, FlowBudget> flows = 20;
+  // Used with SetBudgetRequest.flow to mark a flow budget as load-only.
+  bool load_only = 21;
   // Field 8 was p95_max_ms — removed: no honest p95 latency producer exists, so
   // the axis could never trip. Reserved to prevent accidental reuse.
   reserved 8;
@@ -59,11 +69,22 @@ message Budget {
 }
 
 // FlowBudget is one interaction flow's declared thresholds — only the axes a
-// targeted capture can measure (LCP and the slowest component's avg/max commit).
+// targeted capture can measure (LCP, slowest component avg/max commit, and
+// frame/input/browser-work health).
 message FlowBudget {
   int64 lcp_max_ms = 1;
   double component_commit_avg_max_ms = 2;
   double component_commit_max_ms = 3;
+  double drawn_fps_min = 4;
+  double dropped_frame_rate_max = 5;
+  int64 long_task_total_max_ms = 6;
+  double long_task_max_ms = 7;
+  double raster_total_max_ms = 8;
+  double layout_total_max_ms = 9;
+  double paint_total_max_ms = 10;
+  int64 input_event_count_min = 11;
+  // load_only exempts the flow from fail-closed interaction evidence checks.
+  bool load_only = 12;
 }
 
 message GetBudgetRequest {
@@ -105,11 +126,14 @@ message CheckBudgetResponse {
 
 // BudgetViolation is one axis exceeding its budget.
 message BudgetViolation {
-  // Axis id, e.g. "go_build", "bundle", "lcp", "startup".
+  // Axis id, e.g. "go_build", "bundle", "lcp", "drawn_fps".
   string axis = 1;
   int64 measured = 2;
   int64 budget = 3;
   string unit = 4;
   // Flow slug when the violation is a per-flow breach; empty for scenario-level.
   string flow = 5;
+  // "max" means measured exceeds budget; "min" means measured is below budget.
+  string mode = 6;
+  string detail = 7;
 }

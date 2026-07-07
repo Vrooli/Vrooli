@@ -220,18 +220,21 @@ func protoSpecDocument(ref spec.DocumentRef) *contractv1.SpecDocument {
 
 func protoEvidence(e reconcile.Evidence) *contractv1.ReconciliationEvidence {
 	return &contractv1.ReconciliationEvidence{
-		Id:         e.ID,
-		Scenario:   e.Scenario,
-		Page:       e.PageID,
-		Route:      e.Route,
-		State:      e.StateID,
-		Claim:      e.ClaimID,
-		ClaimType:  e.ClaimType,
-		Verdict:    e.Verdict,
-		CaptureRef: e.CaptureRef,
-		AxNodeJson: e.AXNodeJSON,
-		Message:    e.Message,
-		CheckedAt:  e.CheckedAt,
+		Id:             e.ID,
+		Scenario:       e.Scenario,
+		Page:           e.PageID,
+		Route:          e.Route,
+		State:          e.StateID,
+		Viewport:       e.ViewportID,
+		ViewportWidth:  int32(e.ViewportWidth),
+		ViewportHeight: int32(e.ViewportHeight),
+		Claim:          e.ClaimID,
+		ClaimType:      e.ClaimType,
+		Verdict:        e.Verdict,
+		CaptureRef:     e.CaptureRef,
+		AxNodeJson:     e.AXNodeJSON,
+		Message:        e.Message,
+		CheckedAt:      e.CheckedAt,
 	}
 }
 

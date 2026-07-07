@@ -51,7 +51,7 @@ type BudgetServiceClient interface {
 	// the X-Dry-Run header honored by cli-core --dry-run).
 	SetBudget(context.Context, *connect.Request[budgets.SetBudgetRequest]) (*connect.Response[budgets.SetBudgetResponse], error)
 	// CheckBudget evaluates a scenario's latest measurements against its budget
-	// and reports violations; this is the baseline-diff gate.
+	// and reports violations; this is the suite-run Performance phase gate.
 	CheckBudget(context.Context, *connect.Request[budgets.CheckBudgetRequest]) (*connect.Response[budgets.CheckBudgetResponse], error)
 }
 
@@ -119,7 +119,7 @@ type BudgetServiceHandler interface {
 	// the X-Dry-Run header honored by cli-core --dry-run).
 	SetBudget(context.Context, *connect.Request[budgets.SetBudgetRequest]) (*connect.Response[budgets.SetBudgetResponse], error)
 	// CheckBudget evaluates a scenario's latest measurements against its budget
-	// and reports violations; this is the baseline-diff gate.
+	// and reports violations; this is the suite-run Performance phase gate.
 	CheckBudget(context.Context, *connect.Request[budgets.CheckBudgetRequest]) (*connect.Response[budgets.CheckBudgetResponse], error)
 }
 

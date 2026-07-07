@@ -47,6 +47,9 @@ message AnalyzeTraceResponse {
   // Deterministic, located findings (component → file:line + quantified
   // evidence).
   repeated PerfFinding findings = 6;
+  FrameSummary frame_summary = 7;
+  repeated EventSummary browser_work = 8;
+  repeated EventSummary input_events = 9;
 }
 
 // ComponentTiming is one React component's commit profile across the trace.
@@ -71,6 +74,23 @@ message PerfFinding {
   string severity = 6;
 }
 
+message FrameSummary {
+  double trace_duration_ms = 1;
+  int32 begin_frame_count = 2;
+  int32 drawn_frame_count = 3;
+  int32 dropped_frame_count = 4;
+  double approx_drawn_fps = 5;
+  double dropped_frame_rate = 6;
+}
+
+message EventSummary {
+  string name = 1;
+  int32 count = 2;
+  double total_ms = 3;
+  double max_ms = 4;
+  double avg_ms = 5;
+}
+
 message CompareTracesRequest {
   string scenario = 1;
   // Baseline (before) trace artifact.
@@ -86,6 +106,9 @@ message CompareTracesResponse {
   int64 long_task_delta_ms = 3;
   // LCP delta (candidate - baseline), in milliseconds.
   int64 lcp_delta_ms = 4;
+  FrameDelta frame_delta = 5;
+  repeated EventDelta browser_work = 6;
+  repeated EventDelta input_events = 7;
 }
 
 // ComponentDelta is one component's commit-profile delta between two traces.
@@ -102,4 +125,29 @@ message ComponentDelta {
   double baseline_max_ms = 8;
   double candidate_max_ms = 9;
   double max_delta_ms = 10;
+}
+
+message FrameDelta {
+  double trace_duration_delta_ms = 1;
+  int32 begin_frame_count_delta = 2;
+  int32 drawn_frame_count_delta = 3;
+  int32 dropped_frame_count_delta = 4;
+  double approx_drawn_fps_delta = 5;
+  double dropped_frame_rate_delta = 6;
+}
+
+message EventDelta {
+  string name = 1;
+  int32 baseline_count = 2;
+  int32 candidate_count = 3;
+  int32 count_delta = 4;
+  double baseline_total_ms = 5;
+  double candidate_total_ms = 6;
+  double total_delta_ms = 7;
+  double baseline_max_ms = 8;
+  double candidate_max_ms = 9;
+  double max_delta_ms = 10;
+  double baseline_avg_ms = 11;
+  double candidate_avg_ms = 12;
+  double avg_delta_ms = 13;
 }

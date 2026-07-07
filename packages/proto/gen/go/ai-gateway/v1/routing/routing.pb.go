@@ -887,6 +887,230 @@ func (x *GetRouteEvidenceResponse) GetEvent() *RouteEvidence {
 	return nil
 }
 
+// ProviderHealth is the persisted circuit-breaker record for one
+// (provider, role, kind) route, plus the effective state at read time.
+type ProviderHealth struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Provider string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
+	Role     string                 `protobuf:"bytes,2,opt,name=role,proto3" json:"role,omitempty"`
+	Kind     shared.RequestKind     `protobuf:"varint,3,opt,name=kind,proto3,enum=vrooli.ai_gateway.v1.shared.RequestKind" json:"kind,omitempty"`
+	// state is the stored breaker state; effective_state is what routing acts on
+	// at read time (a stored "open" whose cooldown elapsed reads as "half_open").
+	State               string `protobuf:"bytes,4,opt,name=state,proto3" json:"state,omitempty"`
+	EffectiveState      string `protobuf:"bytes,5,opt,name=effective_state,json=effectiveState,proto3" json:"effective_state,omitempty"`
+	ConsecutiveFailures int64  `protobuf:"varint,6,opt,name=consecutive_failures,json=consecutiveFailures,proto3" json:"consecutive_failures,omitempty"`
+	LastFailureClass    string `protobuf:"bytes,7,opt,name=last_failure_class,json=lastFailureClass,proto3" json:"last_failure_class,omitempty"`
+	LastSuccessAt       string `protobuf:"bytes,8,opt,name=last_success_at,json=lastSuccessAt,proto3" json:"last_success_at,omitempty"`
+	LastFailureAt       string `protobuf:"bytes,9,opt,name=last_failure_at,json=lastFailureAt,proto3" json:"last_failure_at,omitempty"`
+	CooldownUntil       string `protobuf:"bytes,10,opt,name=cooldown_until,json=cooldownUntil,proto3" json:"cooldown_until,omitempty"`
+	OpenedAt            string `protobuf:"bytes,11,opt,name=opened_at,json=openedAt,proto3" json:"opened_at,omitempty"`
+	Generation          int64  `protobuf:"varint,12,opt,name=generation,proto3" json:"generation,omitempty"`
+	UpdatedAt           string `protobuf:"bytes,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *ProviderHealth) Reset() {
+	*x = ProviderHealth{}
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProviderHealth) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProviderHealth) ProtoMessage() {}
+
+func (x *ProviderHealth) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProviderHealth.ProtoReflect.Descriptor instead.
+func (*ProviderHealth) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ProviderHealth) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *ProviderHealth) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *ProviderHealth) GetKind() shared.RequestKind {
+	if x != nil {
+		return x.Kind
+	}
+	return shared.RequestKind(0)
+}
+
+func (x *ProviderHealth) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *ProviderHealth) GetEffectiveState() string {
+	if x != nil {
+		return x.EffectiveState
+	}
+	return ""
+}
+
+func (x *ProviderHealth) GetConsecutiveFailures() int64 {
+	if x != nil {
+		return x.ConsecutiveFailures
+	}
+	return 0
+}
+
+func (x *ProviderHealth) GetLastFailureClass() string {
+	if x != nil {
+		return x.LastFailureClass
+	}
+	return ""
+}
+
+func (x *ProviderHealth) GetLastSuccessAt() string {
+	if x != nil {
+		return x.LastSuccessAt
+	}
+	return ""
+}
+
+func (x *ProviderHealth) GetLastFailureAt() string {
+	if x != nil {
+		return x.LastFailureAt
+	}
+	return ""
+}
+
+func (x *ProviderHealth) GetCooldownUntil() string {
+	if x != nil {
+		return x.CooldownUntil
+	}
+	return ""
+}
+
+func (x *ProviderHealth) GetOpenedAt() string {
+	if x != nil {
+		return x.OpenedAt
+	}
+	return ""
+}
+
+func (x *ProviderHealth) GetGeneration() int64 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
+}
+
+func (x *ProviderHealth) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+type ListProviderHealthRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListProviderHealthRequest) Reset() {
+	*x = ListProviderHealthRequest{}
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListProviderHealthRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListProviderHealthRequest) ProtoMessage() {}
+
+func (x *ListProviderHealthRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListProviderHealthRequest.ProtoReflect.Descriptor instead.
+func (*ListProviderHealthRequest) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{11}
+}
+
+type ListProviderHealthResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*ProviderHealth      `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListProviderHealthResponse) Reset() {
+	*x = ListProviderHealthResponse{}
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListProviderHealthResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListProviderHealthResponse) ProtoMessage() {}
+
+func (x *ListProviderHealthResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListProviderHealthResponse.ProtoReflect.Descriptor instead.
+func (*ListProviderHealthResponse) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ListProviderHealthResponse) GetItems() []*ProviderHealth {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
 var File_ai_gateway_v1_routing_routing_proto protoreflect.FileDescriptor
 
 const file_ai_gateway_v1_routing_routing_proto_rawDesc = "" +
@@ -969,12 +1193,34 @@ const file_ai_gateway_v1_routing_routing_proto_rawDesc = "" +
 	"\x17GetRouteEvidenceRequest\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\"]\n" +
 	"\x18GetRouteEvidenceResponse\x12A\n" +
-	"\x05event\x18\x01 \x01(\v2+.vrooli.ai_gateway.v1.routing.RouteEvidenceR\x05event2\x89\x04\n" +
+	"\x05event\x18\x01 \x01(\v2+.vrooli.ai_gateway.v1.routing.RouteEvidenceR\x05event\"\xf1\x03\n" +
+	"\x0eProviderHealth\x12\x1a\n" +
+	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x12\n" +
+	"\x04role\x18\x02 \x01(\tR\x04role\x12<\n" +
+	"\x04kind\x18\x03 \x01(\x0e2(.vrooli.ai_gateway.v1.shared.RequestKindR\x04kind\x12\x14\n" +
+	"\x05state\x18\x04 \x01(\tR\x05state\x12'\n" +
+	"\x0feffective_state\x18\x05 \x01(\tR\x0eeffectiveState\x121\n" +
+	"\x14consecutive_failures\x18\x06 \x01(\x03R\x13consecutiveFailures\x12,\n" +
+	"\x12last_failure_class\x18\a \x01(\tR\x10lastFailureClass\x12&\n" +
+	"\x0flast_success_at\x18\b \x01(\tR\rlastSuccessAt\x12&\n" +
+	"\x0flast_failure_at\x18\t \x01(\tR\rlastFailureAt\x12%\n" +
+	"\x0ecooldown_until\x18\n" +
+	" \x01(\tR\rcooldownUntil\x12\x1b\n" +
+	"\topened_at\x18\v \x01(\tR\bopenedAt\x12\x1e\n" +
+	"\n" +
+	"generation\x18\f \x01(\x03R\n" +
+	"generation\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\r \x01(\tR\tupdatedAt\"\x1b\n" +
+	"\x19ListProviderHealthRequest\"`\n" +
+	"\x1aListProviderHealthResponse\x12B\n" +
+	"\x05items\x18\x01 \x03(\v2,.vrooli.ai_gateway.v1.routing.ProviderHealthR\x05items2\x93\x05\n" +
 	"\x0eRoutingService\x12u\n" +
 	"\fPreviewRoute\x121.vrooli.ai_gateway.v1.routing.PreviewRouteRequest\x1a2.vrooli.ai_gateway.v1.routing.PreviewRouteResponse\x12u\n" +
 	"\fExecuteRoute\x121.vrooli.ai_gateway.v1.routing.ExecuteRouteRequest\x1a2.vrooli.ai_gateway.v1.routing.ExecuteRouteResponse\x12\x84\x01\n" +
 	"\x11ListRouteEvidence\x126.vrooli.ai_gateway.v1.routing.ListRouteEvidenceRequest\x1a7.vrooli.ai_gateway.v1.routing.ListRouteEvidenceResponse\x12\x81\x01\n" +
-	"\x10GetRouteEvidence\x125.vrooli.ai_gateway.v1.routing.GetRouteEvidenceRequest\x1a6.vrooli.ai_gateway.v1.routing.GetRouteEvidenceResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing;routing_v1b\x06proto3"
+	"\x10GetRouteEvidence\x125.vrooli.ai_gateway.v1.routing.GetRouteEvidenceRequest\x1a6.vrooli.ai_gateway.v1.routing.GetRouteEvidenceResponse\x12\x87\x01\n" +
+	"\x12ListProviderHealth\x127.vrooli.ai_gateway.v1.routing.ListProviderHealthRequest\x1a8.vrooli.ai_gateway.v1.routing.ListProviderHealthResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing;routing_v1b\x06proto3"
 
 var (
 	file_ai_gateway_v1_routing_routing_proto_rawDescOnce sync.Once
@@ -988,47 +1234,55 @@ func file_ai_gateway_v1_routing_routing_proto_rawDescGZIP() []byte {
 	return file_ai_gateway_v1_routing_routing_proto_rawDescData
 }
 
-var file_ai_gateway_v1_routing_routing_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_ai_gateway_v1_routing_routing_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_ai_gateway_v1_routing_routing_proto_goTypes = []any{
-	(*RouteCandidate)(nil),            // 0: vrooli.ai_gateway.v1.routing.RouteCandidate
-	(*PreviewRouteRequest)(nil),       // 1: vrooli.ai_gateway.v1.routing.PreviewRouteRequest
-	(*PreviewRouteResponse)(nil),      // 2: vrooli.ai_gateway.v1.routing.PreviewRouteResponse
-	(*ExecuteRouteRequest)(nil),       // 3: vrooli.ai_gateway.v1.routing.ExecuteRouteRequest
-	(*RouteEvidence)(nil),             // 4: vrooli.ai_gateway.v1.routing.RouteEvidence
-	(*ExecuteRouteResponse)(nil),      // 5: vrooli.ai_gateway.v1.routing.ExecuteRouteResponse
-	(*ListRouteEvidenceRequest)(nil),  // 6: vrooli.ai_gateway.v1.routing.ListRouteEvidenceRequest
-	(*ListRouteEvidenceResponse)(nil), // 7: vrooli.ai_gateway.v1.routing.ListRouteEvidenceResponse
-	(*GetRouteEvidenceRequest)(nil),   // 8: vrooli.ai_gateway.v1.routing.GetRouteEvidenceRequest
-	(*GetRouteEvidenceResponse)(nil),  // 9: vrooli.ai_gateway.v1.routing.GetRouteEvidenceResponse
-	(*shared.GatewayRequest)(nil),     // 10: vrooli.ai_gateway.v1.shared.GatewayRequest
-	(*shared.ValidationIssue)(nil),    // 11: vrooli.ai_gateway.v1.shared.ValidationIssue
-	(shared.Profile)(0),               // 12: vrooli.ai_gateway.v1.shared.Profile
-	(shared.PrivacyClass)(0),          // 13: vrooli.ai_gateway.v1.shared.PrivacyClass
+	(*RouteCandidate)(nil),             // 0: vrooli.ai_gateway.v1.routing.RouteCandidate
+	(*PreviewRouteRequest)(nil),        // 1: vrooli.ai_gateway.v1.routing.PreviewRouteRequest
+	(*PreviewRouteResponse)(nil),       // 2: vrooli.ai_gateway.v1.routing.PreviewRouteResponse
+	(*ExecuteRouteRequest)(nil),        // 3: vrooli.ai_gateway.v1.routing.ExecuteRouteRequest
+	(*RouteEvidence)(nil),              // 4: vrooli.ai_gateway.v1.routing.RouteEvidence
+	(*ExecuteRouteResponse)(nil),       // 5: vrooli.ai_gateway.v1.routing.ExecuteRouteResponse
+	(*ListRouteEvidenceRequest)(nil),   // 6: vrooli.ai_gateway.v1.routing.ListRouteEvidenceRequest
+	(*ListRouteEvidenceResponse)(nil),  // 7: vrooli.ai_gateway.v1.routing.ListRouteEvidenceResponse
+	(*GetRouteEvidenceRequest)(nil),    // 8: vrooli.ai_gateway.v1.routing.GetRouteEvidenceRequest
+	(*GetRouteEvidenceResponse)(nil),   // 9: vrooli.ai_gateway.v1.routing.GetRouteEvidenceResponse
+	(*ProviderHealth)(nil),             // 10: vrooli.ai_gateway.v1.routing.ProviderHealth
+	(*ListProviderHealthRequest)(nil),  // 11: vrooli.ai_gateway.v1.routing.ListProviderHealthRequest
+	(*ListProviderHealthResponse)(nil), // 12: vrooli.ai_gateway.v1.routing.ListProviderHealthResponse
+	(*shared.GatewayRequest)(nil),      // 13: vrooli.ai_gateway.v1.shared.GatewayRequest
+	(*shared.ValidationIssue)(nil),     // 14: vrooli.ai_gateway.v1.shared.ValidationIssue
+	(shared.Profile)(0),                // 15: vrooli.ai_gateway.v1.shared.Profile
+	(shared.PrivacyClass)(0),           // 16: vrooli.ai_gateway.v1.shared.PrivacyClass
+	(shared.RequestKind)(0),            // 17: vrooli.ai_gateway.v1.shared.RequestKind
 }
 var file_ai_gateway_v1_routing_routing_proto_depIdxs = []int32{
-	10, // 0: vrooli.ai_gateway.v1.routing.PreviewRouteRequest.request:type_name -> vrooli.ai_gateway.v1.shared.GatewayRequest
-	11, // 1: vrooli.ai_gateway.v1.routing.PreviewRouteResponse.issues:type_name -> vrooli.ai_gateway.v1.shared.ValidationIssue
+	13, // 0: vrooli.ai_gateway.v1.routing.PreviewRouteRequest.request:type_name -> vrooli.ai_gateway.v1.shared.GatewayRequest
+	14, // 1: vrooli.ai_gateway.v1.routing.PreviewRouteResponse.issues:type_name -> vrooli.ai_gateway.v1.shared.ValidationIssue
 	0,  // 2: vrooli.ai_gateway.v1.routing.PreviewRouteResponse.candidates:type_name -> vrooli.ai_gateway.v1.routing.RouteCandidate
-	10, // 3: vrooli.ai_gateway.v1.routing.ExecuteRouteRequest.request:type_name -> vrooli.ai_gateway.v1.shared.GatewayRequest
-	12, // 4: vrooli.ai_gateway.v1.routing.RouteEvidence.profile:type_name -> vrooli.ai_gateway.v1.shared.Profile
-	13, // 5: vrooli.ai_gateway.v1.routing.RouteEvidence.privacy_class:type_name -> vrooli.ai_gateway.v1.shared.PrivacyClass
-	11, // 6: vrooli.ai_gateway.v1.routing.ExecuteRouteResponse.issues:type_name -> vrooli.ai_gateway.v1.shared.ValidationIssue
+	13, // 3: vrooli.ai_gateway.v1.routing.ExecuteRouteRequest.request:type_name -> vrooli.ai_gateway.v1.shared.GatewayRequest
+	15, // 4: vrooli.ai_gateway.v1.routing.RouteEvidence.profile:type_name -> vrooli.ai_gateway.v1.shared.Profile
+	16, // 5: vrooli.ai_gateway.v1.routing.RouteEvidence.privacy_class:type_name -> vrooli.ai_gateway.v1.shared.PrivacyClass
+	14, // 6: vrooli.ai_gateway.v1.routing.ExecuteRouteResponse.issues:type_name -> vrooli.ai_gateway.v1.shared.ValidationIssue
 	4,  // 7: vrooli.ai_gateway.v1.routing.ExecuteRouteResponse.evidence:type_name -> vrooli.ai_gateway.v1.routing.RouteEvidence
 	4,  // 8: vrooli.ai_gateway.v1.routing.ListRouteEvidenceResponse.events:type_name -> vrooli.ai_gateway.v1.routing.RouteEvidence
 	4,  // 9: vrooli.ai_gateway.v1.routing.GetRouteEvidenceResponse.event:type_name -> vrooli.ai_gateway.v1.routing.RouteEvidence
-	1,  // 10: vrooli.ai_gateway.v1.routing.RoutingService.PreviewRoute:input_type -> vrooli.ai_gateway.v1.routing.PreviewRouteRequest
-	3,  // 11: vrooli.ai_gateway.v1.routing.RoutingService.ExecuteRoute:input_type -> vrooli.ai_gateway.v1.routing.ExecuteRouteRequest
-	6,  // 12: vrooli.ai_gateway.v1.routing.RoutingService.ListRouteEvidence:input_type -> vrooli.ai_gateway.v1.routing.ListRouteEvidenceRequest
-	8,  // 13: vrooli.ai_gateway.v1.routing.RoutingService.GetRouteEvidence:input_type -> vrooli.ai_gateway.v1.routing.GetRouteEvidenceRequest
-	2,  // 14: vrooli.ai_gateway.v1.routing.RoutingService.PreviewRoute:output_type -> vrooli.ai_gateway.v1.routing.PreviewRouteResponse
-	5,  // 15: vrooli.ai_gateway.v1.routing.RoutingService.ExecuteRoute:output_type -> vrooli.ai_gateway.v1.routing.ExecuteRouteResponse
-	7,  // 16: vrooli.ai_gateway.v1.routing.RoutingService.ListRouteEvidence:output_type -> vrooli.ai_gateway.v1.routing.ListRouteEvidenceResponse
-	9,  // 17: vrooli.ai_gateway.v1.routing.RoutingService.GetRouteEvidence:output_type -> vrooli.ai_gateway.v1.routing.GetRouteEvidenceResponse
-	14, // [14:18] is the sub-list for method output_type
-	10, // [10:14] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	17, // 10: vrooli.ai_gateway.v1.routing.ProviderHealth.kind:type_name -> vrooli.ai_gateway.v1.shared.RequestKind
+	10, // 11: vrooli.ai_gateway.v1.routing.ListProviderHealthResponse.items:type_name -> vrooli.ai_gateway.v1.routing.ProviderHealth
+	1,  // 12: vrooli.ai_gateway.v1.routing.RoutingService.PreviewRoute:input_type -> vrooli.ai_gateway.v1.routing.PreviewRouteRequest
+	3,  // 13: vrooli.ai_gateway.v1.routing.RoutingService.ExecuteRoute:input_type -> vrooli.ai_gateway.v1.routing.ExecuteRouteRequest
+	6,  // 14: vrooli.ai_gateway.v1.routing.RoutingService.ListRouteEvidence:input_type -> vrooli.ai_gateway.v1.routing.ListRouteEvidenceRequest
+	8,  // 15: vrooli.ai_gateway.v1.routing.RoutingService.GetRouteEvidence:input_type -> vrooli.ai_gateway.v1.routing.GetRouteEvidenceRequest
+	11, // 16: vrooli.ai_gateway.v1.routing.RoutingService.ListProviderHealth:input_type -> vrooli.ai_gateway.v1.routing.ListProviderHealthRequest
+	2,  // 17: vrooli.ai_gateway.v1.routing.RoutingService.PreviewRoute:output_type -> vrooli.ai_gateway.v1.routing.PreviewRouteResponse
+	5,  // 18: vrooli.ai_gateway.v1.routing.RoutingService.ExecuteRoute:output_type -> vrooli.ai_gateway.v1.routing.ExecuteRouteResponse
+	7,  // 19: vrooli.ai_gateway.v1.routing.RoutingService.ListRouteEvidence:output_type -> vrooli.ai_gateway.v1.routing.ListRouteEvidenceResponse
+	9,  // 20: vrooli.ai_gateway.v1.routing.RoutingService.GetRouteEvidence:output_type -> vrooli.ai_gateway.v1.routing.GetRouteEvidenceResponse
+	12, // 21: vrooli.ai_gateway.v1.routing.RoutingService.ListProviderHealth:output_type -> vrooli.ai_gateway.v1.routing.ListProviderHealthResponse
+	17, // [17:22] is the sub-list for method output_type
+	12, // [12:17] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_ai_gateway_v1_routing_routing_proto_init() }
@@ -1042,7 +1296,7 @@ func file_ai_gateway_v1_routing_routing_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ai_gateway_v1_routing_routing_proto_rawDesc), len(file_ai_gateway_v1_routing_routing_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

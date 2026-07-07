@@ -125,6 +125,9 @@ export interface ReconciliationEvidenceRow {
   axNodeJson: string;
   message: string;
   checkedAt: string;
+  viewport: string;
+  viewportWidth: number;
+  viewportHeight: number;
 }
 
 export async function fetchFleet() {

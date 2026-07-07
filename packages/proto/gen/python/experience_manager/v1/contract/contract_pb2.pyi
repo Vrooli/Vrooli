@@ -304,7 +304,7 @@ class ListEvidenceResponse(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., page: _Optional[str] = ..., evidence: _Optional[_Iterable[_Union[ReconciliationEvidence, _Mapping]]] = ...) -> None: ...
 
 class ReconciliationEvidence(_message.Message):
-    __slots__ = ("id", "scenario", "page", "route", "state", "claim", "claim_type", "verdict", "capture_ref", "ax_node_json", "message", "checked_at")
+    __slots__ = ("id", "scenario", "page", "route", "state", "claim", "claim_type", "verdict", "capture_ref", "ax_node_json", "message", "checked_at", "viewport", "viewport_width", "viewport_height")
     ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PAGE_FIELD_NUMBER: _ClassVar[int]
@@ -317,6 +317,9 @@ class ReconciliationEvidence(_message.Message):
     AX_NODE_JSON_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     CHECKED_AT_FIELD_NUMBER: _ClassVar[int]
+    VIEWPORT_FIELD_NUMBER: _ClassVar[int]
+    VIEWPORT_WIDTH_FIELD_NUMBER: _ClassVar[int]
+    VIEWPORT_HEIGHT_FIELD_NUMBER: _ClassVar[int]
     id: str
     scenario: str
     page: str
@@ -329,7 +332,10 @@ class ReconciliationEvidence(_message.Message):
     ax_node_json: str
     message: str
     checked_at: str
-    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., page: _Optional[str] = ..., route: _Optional[str] = ..., state: _Optional[str] = ..., claim: _Optional[str] = ..., claim_type: _Optional[str] = ..., verdict: _Optional[str] = ..., capture_ref: _Optional[str] = ..., ax_node_json: _Optional[str] = ..., message: _Optional[str] = ..., checked_at: _Optional[str] = ...) -> None: ...
+    viewport: str
+    viewport_width: int
+    viewport_height: int
+    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., page: _Optional[str] = ..., route: _Optional[str] = ..., state: _Optional[str] = ..., claim: _Optional[str] = ..., claim_type: _Optional[str] = ..., verdict: _Optional[str] = ..., capture_ref: _Optional[str] = ..., ax_node_json: _Optional[str] = ..., message: _Optional[str] = ..., checked_at: _Optional[str] = ..., viewport: _Optional[str] = ..., viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ...) -> None: ...
 
 class SuggestBindingsRequest(_message.Message):
     __slots__ = ("scenario", "path", "page", "limit")

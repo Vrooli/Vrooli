@@ -1,0 +1,10 @@
+{
+  "libraryId": "react-component-library:Card",
+  "displayName": "Card",
+  "description": "Compact token-bound card primitives for repeated records, focused tools, and modal content.",
+  "tags": ["surface", "layout"],
+  "slot": "ui-primitive",
+  "latest": "1.0.0",
+  "draft": "",
+  "deprecatedVersions": []
+}

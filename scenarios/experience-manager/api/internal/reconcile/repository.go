@@ -10,18 +10,21 @@ type EvidenceRepository interface {
 
 // Evidence records the AX evidence used for one claim verdict.
 type Evidence struct {
-	ID         string
-	Scenario   string
-	PageID     string
-	Route      string
-	StateID    string
-	ClaimID    string
-	ClaimType  string
-	Verdict    string
-	CaptureRef string
-	AXNodeJSON string
-	Message    string
-	CheckedAt  string
+	ID             string
+	Scenario       string
+	PageID         string
+	Route          string
+	StateID        string
+	ViewportID     string
+	ViewportWidth  int
+	ViewportHeight int
+	ClaimID        string
+	ClaimType      string
+	Verdict        string
+	CaptureRef     string
+	AXNodeJSON     string
+	Message        string
+	CheckedAt      string
 }
 
 // EvidenceFilter narrows evidence reads.

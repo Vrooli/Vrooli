@@ -77,6 +77,12 @@ func DefaultSpec() *maturity.Spec {
 			spec.CodeCaptureUnavailable:  requiredManual("structure_reconciliation", "L0", spec.SeverityInfo, "Capture availability is an operational condition, not an in-place source fix."),
 			spec.CodeClaimUnproven:       requiredManual("structure_reconciliation", "L2", spec.SeverityWarning, "Evidence must be captured or the claim should be retiered deliberately."),
 			spec.CodeAttestationExpired:  requiredManual("manual_evidence", "L1", spec.SeverityWarning, "Refreshing manual evidence requires a human attestation."),
+			spec.CodeFloorNoDocOverflow:  requiredManualWithSkills("structure_reconciliation", "L2", spec.SeverityError, []string{"experience-spec-authoring", "ux"}, "Horizontal overflow remediation depends on the page's intended layout and content containment."),
+			spec.CodeFloorViewportFill:   requiredManualWithSkills("structure_reconciliation", "L2", spec.SeverityError, []string{"experience-spec-authoring", "ux"}, "Viewport-fill remediation requires shell/layout changes."),
+			spec.CodeFloorChromePinned:   requiredManualWithSkills("structure_reconciliation", "L2", spec.SeverityError, []string{"experience-spec-authoring", "ux"}, "Chrome pinning remediation requires layout and navigation decisions."),
+			spec.CodeFloorSafeArea:       requiredManualWithSkills("structure_reconciliation", "L2", spec.SeverityError, []string{"experience-spec-authoring", "ux"}, "Safe-area remediation requires mobile shell/layout changes."),
+			spec.CodeFloorSingleLine:     requiredManualWithSkills("structure_reconciliation", "L2", spec.SeverityError, []string{"experience-spec-authoring", "ux"}, "Single-line chrome remediation requires navigation content or responsive layout changes."),
+			spec.CodeFloorTapTargetSize:  requiredManualWithSkills("structure_reconciliation", "L2", spec.SeverityError, []string{"experience-spec-authoring", "ux"}, "Tap-target remediation requires component sizing or hit-area changes."),
 			spec.CodeImportanceMismatch:  advisoryManual("perception_advisory", "L1", "Perception calibration is deferred to the P2 tier."),
 			spec.CodeGlanceJudgeMismatch: advisoryManual("perception_advisory", "L1", "Judge-based perception is deferred and non-gating."),
 		},
@@ -92,6 +98,10 @@ func DefaultSpec() *maturity.Spec {
 }
 
 func requiredManual(capabilityID, level, severity, reason string) maturity.FindingMapping {
+	return requiredManualWithSkills(capabilityID, level, severity, []string{"experience-spec-authoring"}, reason)
+}
+
+func requiredManualWithSkills(capabilityID, level, severity string, skillIDs []string, reason string) maturity.FindingMapping {
 	return maturity.FindingMapping{
 		CapabilityID:        capabilityID,
 		LocalLevelImpact:    level,
@@ -99,7 +109,7 @@ func requiredManual(capabilityID, level, severity, reason string) maturity.Findi
 		Dimension:           "ui",
 		SeverityDefault:     severity,
 		CleanRequirement:    string(maturity.CleanRequirementRequired),
-		RecommendedSkillIDs: []string{"experience-spec-authoring"},
+		RecommendedSkillIDs: skillIDs,
 		FixClass:            maturity.FixClassManual,
 		FixReason:           reason,
 	}

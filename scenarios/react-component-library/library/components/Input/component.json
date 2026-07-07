@@ -1,0 +1,10 @@
+{
+  "libraryId": "react-component-library:Input",
+  "displayName": "Input",
+  "description": "Token-bound text input with mobile-safe font sizing and accessible focus styling.",
+  "tags": ["form", "interactive"],
+  "slot": "ui-primitive",
+  "latest": "1.0.0",
+  "draft": "",
+  "deprecatedVersions": []
+}

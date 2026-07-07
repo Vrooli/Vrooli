@@ -1776,21 +1776,24 @@ func (x *ListEvidenceResponse) GetEvidence() []*ReconciliationEvidence {
 }
 
 type ReconciliationEvidence struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Scenario      string                 `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Page          string                 `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
-	Route         string                 `protobuf:"bytes,4,opt,name=route,proto3" json:"route,omitempty"`
-	State         string                 `protobuf:"bytes,5,opt,name=state,proto3" json:"state,omitempty"`
-	Claim         string                 `protobuf:"bytes,6,opt,name=claim,proto3" json:"claim,omitempty"`
-	ClaimType     string                 `protobuf:"bytes,7,opt,name=claim_type,json=claimType,proto3" json:"claim_type,omitempty"`
-	Verdict       string                 `protobuf:"bytes,8,opt,name=verdict,proto3" json:"verdict,omitempty"`
-	CaptureRef    string                 `protobuf:"bytes,9,opt,name=capture_ref,json=captureRef,proto3" json:"capture_ref,omitempty"`
-	AxNodeJson    string                 `protobuf:"bytes,10,opt,name=ax_node_json,json=axNodeJson,proto3" json:"ax_node_json,omitempty"`
-	Message       string                 `protobuf:"bytes,11,opt,name=message,proto3" json:"message,omitempty"`
-	CheckedAt     string                 `protobuf:"bytes,12,opt,name=checked_at,json=checkedAt,proto3" json:"checked_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Scenario       string                 `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Page           string                 `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
+	Route          string                 `protobuf:"bytes,4,opt,name=route,proto3" json:"route,omitempty"`
+	State          string                 `protobuf:"bytes,5,opt,name=state,proto3" json:"state,omitempty"`
+	Claim          string                 `protobuf:"bytes,6,opt,name=claim,proto3" json:"claim,omitempty"`
+	ClaimType      string                 `protobuf:"bytes,7,opt,name=claim_type,json=claimType,proto3" json:"claim_type,omitempty"`
+	Verdict        string                 `protobuf:"bytes,8,opt,name=verdict,proto3" json:"verdict,omitempty"`
+	CaptureRef     string                 `protobuf:"bytes,9,opt,name=capture_ref,json=captureRef,proto3" json:"capture_ref,omitempty"`
+	AxNodeJson     string                 `protobuf:"bytes,10,opt,name=ax_node_json,json=axNodeJson,proto3" json:"ax_node_json,omitempty"`
+	Message        string                 `protobuf:"bytes,11,opt,name=message,proto3" json:"message,omitempty"`
+	CheckedAt      string                 `protobuf:"bytes,12,opt,name=checked_at,json=checkedAt,proto3" json:"checked_at,omitempty"`
+	Viewport       string                 `protobuf:"bytes,13,opt,name=viewport,proto3" json:"viewport,omitempty"`
+	ViewportWidth  int32                  `protobuf:"varint,14,opt,name=viewport_width,json=viewportWidth,proto3" json:"viewport_width,omitempty"`
+	ViewportHeight int32                  `protobuf:"varint,15,opt,name=viewport_height,json=viewportHeight,proto3" json:"viewport_height,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ReconciliationEvidence) Reset() {
@@ -1905,6 +1908,27 @@ func (x *ReconciliationEvidence) GetCheckedAt() string {
 		return x.CheckedAt
 	}
 	return ""
+}
+
+func (x *ReconciliationEvidence) GetViewport() string {
+	if x != nil {
+		return x.Viewport
+	}
+	return ""
+}
+
+func (x *ReconciliationEvidence) GetViewportWidth() int32 {
+	if x != nil {
+		return x.ViewportWidth
+	}
+	return 0
+}
+
+func (x *ReconciliationEvidence) GetViewportHeight() int32 {
+	if x != nil {
+		return x.ViewportHeight
+	}
+	return 0
 }
 
 type SuggestBindingsRequest struct {
@@ -3670,7 +3694,7 @@ const file_experience_manager_v1_contract_contract_proto_rawDesc = "" +
 	"\x14ListEvidenceResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04page\x18\x02 \x01(\tR\x04page\x12Y\n" +
-	"\bevidence\x18\x03 \x03(\v2=.vrooli.experience_manager.v1.contract.ReconciliationEvidenceR\bevidence\"\xcf\x02\n" +
+	"\bevidence\x18\x03 \x03(\v2=.vrooli.experience_manager.v1.contract.ReconciliationEvidenceR\bevidence\"\xbb\x03\n" +
 	"\x16ReconciliationEvidence\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x12\n" +
@@ -3688,7 +3712,10 @@ const file_experience_manager_v1_contract_contract_proto_rawDesc = "" +
 	"axNodeJson\x12\x18\n" +
 	"\amessage\x18\v \x01(\tR\amessage\x12\x1d\n" +
 	"\n" +
-	"checked_at\x18\f \x01(\tR\tcheckedAt\"r\n" +
+	"checked_at\x18\f \x01(\tR\tcheckedAt\x12\x1a\n" +
+	"\bviewport\x18\r \x01(\tR\bviewport\x12%\n" +
+	"\x0eviewport_width\x18\x0e \x01(\x05R\rviewportWidth\x12'\n" +
+	"\x0fviewport_height\x18\x0f \x01(\x05R\x0eviewportHeight\"r\n" +
 	"\x16SuggestBindingsRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x12\n" +

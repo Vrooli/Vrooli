@@ -49,15 +49,15 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-07-06 — v1 BAS reconciliation captures only the default terminal state
+### 2026-07-06 — BAS reconciliation captures only default state setup
 
-**Symptom:** `state-covered`, `state-distinct`, and claim-level `x-` dimensions can be parsed and reported honestly, but non-default state or display-mode proof cannot be fully captured in v1.
+**Symptom:** `state-covered`, `state-distinct`, and claim-level `x-` dimensions can be parsed and reported honestly, but non-default state or display-mode proof cannot be fully captured yet.
 
-**Root cause:** BAS currently returns one terminal accessibility snapshot per capture. Experience-manager does not yet drive per-state transitions or per-dimension mode changes before capture.
+**Root cause:** Experience-manager now captures a viewport matrix (`desktop` 1280x720 and `mobile` 390x844) and persists evidence per viewport, but it still does not drive per-state transitions or per-dimension mode changes before capture.
 
-**Workaround:** Default-state machine claims reconcile normally. Non-default or extension-scoped claims must stay unverifiable with an explicit limitation reason or be manual/aspirational until the runner grows multi-state capture.
+**Workaround:** Default-state machine claims reconcile normally across captured viewports. Viewport-scoped claims reconcile when their viewport is in the matrix; scopes outside the matrix and non-default/extension-scoped claims stay unverifiable with explicit limitation reasons or must be manual/aspirational.
 
-**Real fix:** Add a dimensions/state capture runner that can execute per-state setup steps and persist evidence per state/mode.
+**Real fix:** Add a state setup runner that can execute per-state setup steps before capture and persist evidence per state/mode, using the existing viewport profile machinery.
 
 **Owner:** unassigned.
 

@@ -48,7 +48,19 @@ ON CONFLICT(id) DO UPDATE SET
   message=excluded.message,
   checked_at=excluded.checked_at`
 
-	evidenceColumns = `id, scenario, page_id, route, state_id, claim_id, claim_type, verdict, capture_ref, ax_node_json, message, checked_at`
+	upsertEvidenceViewportSQL = `
+INSERT INTO reconcile_evidence_viewports (
+  evidence_id, viewport_id, viewport_width, viewport_height)
+VALUES (?, ?, ?, ?)
+ON CONFLICT(evidence_id) DO UPDATE SET
+  viewport_id=excluded.viewport_id,
+  viewport_width=excluded.viewport_width,
+  viewport_height=excluded.viewport_height`
+
+	evidenceColumns = `
+reconcile_evidence.id, scenario, page_id, route, state_id,
+COALESCE(viewport_id, ''), COALESCE(viewport_width, 0), COALESCE(viewport_height, 0),
+claim_id, claim_type, verdict, capture_ref, ax_node_json, message, checked_at`
 )
 
 func (r *sqliteRepository) SaveEvidence(ctx context.Context, evidence Evidence) error {
@@ -71,11 +83,20 @@ func (r *sqliteRepository) SaveEvidence(ctx context.Context, evidence Evidence) 
 	); err != nil {
 		return fmt.Errorf("save reconcile evidence %q: %w", evidence.ID, err)
 	}
+	if _, err := r.db.ExecContext(ctx, upsertEvidenceViewportSQL,
+		evidence.ID,
+		evidence.ViewportID,
+		evidence.ViewportWidth,
+		evidence.ViewportHeight,
+	); err != nil {
+		return fmt.Errorf("save reconcile evidence viewport %q: %w", evidence.ID, err)
+	}
 	return nil
 }
 
 func (r *sqliteRepository) ListEvidence(ctx context.Context, filter EvidenceFilter) ([]Evidence, error) {
-	query := `SELECT ` + evidenceColumns + ` FROM reconcile_evidence`
+	query := `SELECT ` + evidenceColumns + ` FROM reconcile_evidence
+LEFT JOIN reconcile_evidence_viewports ON reconcile_evidence_viewports.evidence_id = reconcile_evidence.id`
 	var clauses []string
 	var args []any
 	if filter.Scenario != "" {
@@ -113,6 +134,9 @@ func (r *sqliteRepository) ListEvidence(ctx context.Context, filter EvidenceFilt
 			&e.PageID,
 			&e.Route,
 			&e.StateID,
+			&e.ViewportID,
+			&e.ViewportWidth,
+			&e.ViewportHeight,
 			&e.ClaimID,
 			&e.ClaimType,
 			&e.Verdict,

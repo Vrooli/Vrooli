@@ -37,12 +37,22 @@ type Budget struct {
 	// Ratchet: when true SetBudget may only tighten an existing budget, never
 	// loosen it (a relaxation is rejected). Tighten-only protects against
 	// silently regressing the budget after a measured improvement.
-	Ratchet bool `protobuf:"varint,10,opt,name=ratchet,proto3" json:"ratchet,omitempty"`
+	Ratchet             bool    `protobuf:"varint,10,opt,name=ratchet,proto3" json:"ratchet,omitempty"`
+	DrawnFpsMin         float64 `protobuf:"fixed64,12,opt,name=drawn_fps_min,json=drawnFpsMin,proto3" json:"drawn_fps_min,omitempty"`
+	DroppedFrameRateMax float64 `protobuf:"fixed64,13,opt,name=dropped_frame_rate_max,json=droppedFrameRateMax,proto3" json:"dropped_frame_rate_max,omitempty"`
+	LongTaskTotalMaxMs  int64   `protobuf:"varint,14,opt,name=long_task_total_max_ms,json=longTaskTotalMaxMs,proto3" json:"long_task_total_max_ms,omitempty"`
+	LongTaskMaxMs       float64 `protobuf:"fixed64,15,opt,name=long_task_max_ms,json=longTaskMaxMs,proto3" json:"long_task_max_ms,omitempty"`
+	RasterTotalMaxMs    float64 `protobuf:"fixed64,16,opt,name=raster_total_max_ms,json=rasterTotalMaxMs,proto3" json:"raster_total_max_ms,omitempty"`
+	LayoutTotalMaxMs    float64 `protobuf:"fixed64,17,opt,name=layout_total_max_ms,json=layoutTotalMaxMs,proto3" json:"layout_total_max_ms,omitempty"`
+	PaintTotalMaxMs     float64 `protobuf:"fixed64,18,opt,name=paint_total_max_ms,json=paintTotalMaxMs,proto3" json:"paint_total_max_ms,omitempty"`
+	InputEventCountMin  int64   `protobuf:"varint,19,opt,name=input_event_count_min,json=inputEventCountMin,proto3" json:"input_event_count_min,omitempty"`
 	// Per-interaction-flow budgets keyed by flow slug. Each gates a specific
 	// targeted journey (driven by `audit run --workflow <slug>`) on the
 	// continuous cadence, independently of the scenario aggregate. build/bundle/
 	// startup remain scenario-level (no per-flow build).
-	Flows         map[string]*FlowBudget `protobuf:"bytes,11,rep,name=flows,proto3" json:"flows,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Flows map[string]*FlowBudget `protobuf:"bytes,20,rep,name=flows,proto3" json:"flows,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Used with SetBudgetRequest.flow to mark a flow budget as load-only.
+	LoadOnly      bool `protobuf:"varint,21,opt,name=load_only,json=loadOnly,proto3" json:"load_only,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -140,6 +150,62 @@ func (x *Budget) GetRatchet() bool {
 	return false
 }
 
+func (x *Budget) GetDrawnFpsMin() float64 {
+	if x != nil {
+		return x.DrawnFpsMin
+	}
+	return 0
+}
+
+func (x *Budget) GetDroppedFrameRateMax() float64 {
+	if x != nil {
+		return x.DroppedFrameRateMax
+	}
+	return 0
+}
+
+func (x *Budget) GetLongTaskTotalMaxMs() int64 {
+	if x != nil {
+		return x.LongTaskTotalMaxMs
+	}
+	return 0
+}
+
+func (x *Budget) GetLongTaskMaxMs() float64 {
+	if x != nil {
+		return x.LongTaskMaxMs
+	}
+	return 0
+}
+
+func (x *Budget) GetRasterTotalMaxMs() float64 {
+	if x != nil {
+		return x.RasterTotalMaxMs
+	}
+	return 0
+}
+
+func (x *Budget) GetLayoutTotalMaxMs() float64 {
+	if x != nil {
+		return x.LayoutTotalMaxMs
+	}
+	return 0
+}
+
+func (x *Budget) GetPaintTotalMaxMs() float64 {
+	if x != nil {
+		return x.PaintTotalMaxMs
+	}
+	return 0
+}
+
+func (x *Budget) GetInputEventCountMin() int64 {
+	if x != nil {
+		return x.InputEventCountMin
+	}
+	return 0
+}
+
 func (x *Budget) GetFlows() map[string]*FlowBudget {
 	if x != nil {
 		return x.Flows
@@ -147,15 +213,33 @@ func (x *Budget) GetFlows() map[string]*FlowBudget {
 	return nil
 }
 
+func (x *Budget) GetLoadOnly() bool {
+	if x != nil {
+		return x.LoadOnly
+	}
+	return false
+}
+
 // FlowBudget is one interaction flow's declared thresholds — only the axes a
-// targeted capture can measure (LCP and the slowest component's avg/max commit).
+// targeted capture can measure (LCP, slowest component avg/max commit, and
+// frame/input/browser-work health).
 type FlowBudget struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
 	LcpMaxMs                int64                  `protobuf:"varint,1,opt,name=lcp_max_ms,json=lcpMaxMs,proto3" json:"lcp_max_ms,omitempty"`
 	ComponentCommitAvgMaxMs float64                `protobuf:"fixed64,2,opt,name=component_commit_avg_max_ms,json=componentCommitAvgMaxMs,proto3" json:"component_commit_avg_max_ms,omitempty"`
 	ComponentCommitMaxMs    float64                `protobuf:"fixed64,3,opt,name=component_commit_max_ms,json=componentCommitMaxMs,proto3" json:"component_commit_max_ms,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	DrawnFpsMin             float64                `protobuf:"fixed64,4,opt,name=drawn_fps_min,json=drawnFpsMin,proto3" json:"drawn_fps_min,omitempty"`
+	DroppedFrameRateMax     float64                `protobuf:"fixed64,5,opt,name=dropped_frame_rate_max,json=droppedFrameRateMax,proto3" json:"dropped_frame_rate_max,omitempty"`
+	LongTaskTotalMaxMs      int64                  `protobuf:"varint,6,opt,name=long_task_total_max_ms,json=longTaskTotalMaxMs,proto3" json:"long_task_total_max_ms,omitempty"`
+	LongTaskMaxMs           float64                `protobuf:"fixed64,7,opt,name=long_task_max_ms,json=longTaskMaxMs,proto3" json:"long_task_max_ms,omitempty"`
+	RasterTotalMaxMs        float64                `protobuf:"fixed64,8,opt,name=raster_total_max_ms,json=rasterTotalMaxMs,proto3" json:"raster_total_max_ms,omitempty"`
+	LayoutTotalMaxMs        float64                `protobuf:"fixed64,9,opt,name=layout_total_max_ms,json=layoutTotalMaxMs,proto3" json:"layout_total_max_ms,omitempty"`
+	PaintTotalMaxMs         float64                `protobuf:"fixed64,10,opt,name=paint_total_max_ms,json=paintTotalMaxMs,proto3" json:"paint_total_max_ms,omitempty"`
+	InputEventCountMin      int64                  `protobuf:"varint,11,opt,name=input_event_count_min,json=inputEventCountMin,proto3" json:"input_event_count_min,omitempty"`
+	// load_only exempts the flow from fail-closed interaction evidence checks.
+	LoadOnly      bool `protobuf:"varint,12,opt,name=load_only,json=loadOnly,proto3" json:"load_only,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *FlowBudget) Reset() {
@@ -207,6 +291,69 @@ func (x *FlowBudget) GetComponentCommitMaxMs() float64 {
 		return x.ComponentCommitMaxMs
 	}
 	return 0
+}
+
+func (x *FlowBudget) GetDrawnFpsMin() float64 {
+	if x != nil {
+		return x.DrawnFpsMin
+	}
+	return 0
+}
+
+func (x *FlowBudget) GetDroppedFrameRateMax() float64 {
+	if x != nil {
+		return x.DroppedFrameRateMax
+	}
+	return 0
+}
+
+func (x *FlowBudget) GetLongTaskTotalMaxMs() int64 {
+	if x != nil {
+		return x.LongTaskTotalMaxMs
+	}
+	return 0
+}
+
+func (x *FlowBudget) GetLongTaskMaxMs() float64 {
+	if x != nil {
+		return x.LongTaskMaxMs
+	}
+	return 0
+}
+
+func (x *FlowBudget) GetRasterTotalMaxMs() float64 {
+	if x != nil {
+		return x.RasterTotalMaxMs
+	}
+	return 0
+}
+
+func (x *FlowBudget) GetLayoutTotalMaxMs() float64 {
+	if x != nil {
+		return x.LayoutTotalMaxMs
+	}
+	return 0
+}
+
+func (x *FlowBudget) GetPaintTotalMaxMs() float64 {
+	if x != nil {
+		return x.PaintTotalMaxMs
+	}
+	return 0
+}
+
+func (x *FlowBudget) GetInputEventCountMin() int64 {
+	if x != nil {
+		return x.InputEventCountMin
+	}
+	return 0
+}
+
+func (x *FlowBudget) GetLoadOnly() bool {
+	if x != nil {
+		return x.LoadOnly
+	}
+	return false
 }
 
 type GetBudgetRequest struct {
@@ -531,13 +678,16 @@ func (x *CheckBudgetResponse) GetViolations() []*BudgetViolation {
 // BudgetViolation is one axis exceeding its budget.
 type BudgetViolation struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Axis id, e.g. "go_build", "bundle", "lcp", "startup".
+	// Axis id, e.g. "go_build", "bundle", "lcp", "drawn_fps".
 	Axis     string `protobuf:"bytes,1,opt,name=axis,proto3" json:"axis,omitempty"`
 	Measured int64  `protobuf:"varint,2,opt,name=measured,proto3" json:"measured,omitempty"`
 	Budget   int64  `protobuf:"varint,3,opt,name=budget,proto3" json:"budget,omitempty"`
 	Unit     string `protobuf:"bytes,4,opt,name=unit,proto3" json:"unit,omitempty"`
 	// Flow slug when the violation is a per-flow breach; empty for scenario-level.
-	Flow          string `protobuf:"bytes,5,opt,name=flow,proto3" json:"flow,omitempty"`
+	Flow string `protobuf:"bytes,5,opt,name=flow,proto3" json:"flow,omitempty"`
+	// "max" means measured exceeds budget; "min" means measured is below budget.
+	Mode          string `protobuf:"bytes,6,opt,name=mode,proto3" json:"mode,omitempty"`
+	Detail        string `protobuf:"bytes,7,opt,name=detail,proto3" json:"detail,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -607,11 +757,25 @@ func (x *BudgetViolation) GetFlow() string {
 	return ""
 }
 
+func (x *BudgetViolation) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *BudgetViolation) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
 var File_performance_health_v1_budgets_budgets_proto protoreflect.FileDescriptor
 
 const file_performance_health_v1_budgets_budgets_proto_rawDesc = "" +
 	"\n" +
-	"+performance-health/v1/budgets/budgets.proto\x12$vrooli.performance_health.v1.budgets\"\xbc\x04\n" +
+	"+performance-health/v1/budgets/budgets.proto\x12$vrooli.performance_health.v1.budgets\"\xcd\a\n" +
 	"\x06Budget\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12%\n" +
 	"\x0fgo_build_max_ms\x18\x02 \x01(\x03R\fgoBuildMaxMs\x12%\n" +
@@ -623,19 +787,38 @@ const file_performance_health_v1_budgets_budgets_proto_rawDesc = "" +
 	"\x17component_commit_max_ms\x18\a \x01(\x01R\x14componentCommitMaxMs\x12<\n" +
 	"\x1bcomponent_commit_avg_max_ms\x18\t \x01(\x01R\x17componentCommitAvgMaxMs\x12\x18\n" +
 	"\aratchet\x18\n" +
-	" \x01(\bR\aratchet\x12M\n" +
-	"\x05flows\x18\v \x03(\v27.vrooli.performance_health.v1.budgets.Budget.FlowsEntryR\x05flows\x1aj\n" +
+	" \x01(\bR\aratchet\x12\"\n" +
+	"\rdrawn_fps_min\x18\f \x01(\x01R\vdrawnFpsMin\x123\n" +
+	"\x16dropped_frame_rate_max\x18\r \x01(\x01R\x13droppedFrameRateMax\x122\n" +
+	"\x16long_task_total_max_ms\x18\x0e \x01(\x03R\x12longTaskTotalMaxMs\x12'\n" +
+	"\x10long_task_max_ms\x18\x0f \x01(\x01R\rlongTaskMaxMs\x12-\n" +
+	"\x13raster_total_max_ms\x18\x10 \x01(\x01R\x10rasterTotalMaxMs\x12-\n" +
+	"\x13layout_total_max_ms\x18\x11 \x01(\x01R\x10layoutTotalMaxMs\x12+\n" +
+	"\x12paint_total_max_ms\x18\x12 \x01(\x01R\x0fpaintTotalMaxMs\x121\n" +
+	"\x15input_event_count_min\x18\x13 \x01(\x03R\x12inputEventCountMin\x12M\n" +
+	"\x05flows\x18\x14 \x03(\v27.vrooli.performance_health.v1.budgets.Budget.FlowsEntryR\x05flows\x12\x1b\n" +
+	"\tload_only\x18\x15 \x01(\bR\bloadOnly\x1aj\n" +
 	"\n" +
 	"FlowsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12F\n" +
 	"\x05value\x18\x02 \x01(\v20.vrooli.performance_health.v1.budgets.FlowBudgetR\x05value:\x028\x01J\x04\b\b\x10\tR\n" +
-	"p95_max_ms\"\x9f\x01\n" +
+	"p95_max_ms\"\xb0\x04\n" +
 	"\n" +
 	"FlowBudget\x12\x1c\n" +
 	"\n" +
 	"lcp_max_ms\x18\x01 \x01(\x03R\blcpMaxMs\x12<\n" +
 	"\x1bcomponent_commit_avg_max_ms\x18\x02 \x01(\x01R\x17componentCommitAvgMaxMs\x125\n" +
-	"\x17component_commit_max_ms\x18\x03 \x01(\x01R\x14componentCommitMaxMs\".\n" +
+	"\x17component_commit_max_ms\x18\x03 \x01(\x01R\x14componentCommitMaxMs\x12\"\n" +
+	"\rdrawn_fps_min\x18\x04 \x01(\x01R\vdrawnFpsMin\x123\n" +
+	"\x16dropped_frame_rate_max\x18\x05 \x01(\x01R\x13droppedFrameRateMax\x122\n" +
+	"\x16long_task_total_max_ms\x18\x06 \x01(\x03R\x12longTaskTotalMaxMs\x12'\n" +
+	"\x10long_task_max_ms\x18\a \x01(\x01R\rlongTaskMaxMs\x12-\n" +
+	"\x13raster_total_max_ms\x18\b \x01(\x01R\x10rasterTotalMaxMs\x12-\n" +
+	"\x13layout_total_max_ms\x18\t \x01(\x01R\x10layoutTotalMaxMs\x12+\n" +
+	"\x12paint_total_max_ms\x18\n" +
+	" \x01(\x01R\x0fpaintTotalMaxMs\x121\n" +
+	"\x15input_event_count_min\x18\v \x01(\x03R\x12inputEventCountMin\x12\x1b\n" +
+	"\tload_only\x18\f \x01(\bR\bloadOnly\".\n" +
 	"\x10GetBudgetRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\"u\n" +
 	"\x11GetBudgetResponse\x12D\n" +
@@ -655,13 +838,15 @@ const file_performance_health_v1_budgets_budgets_proto_rawDesc = "" +
 	"\x06passed\x18\x02 \x01(\bR\x06passed\x12U\n" +
 	"\n" +
 	"violations\x18\x03 \x03(\v25.vrooli.performance_health.v1.budgets.BudgetViolationR\n" +
-	"violations\"\x81\x01\n" +
+	"violations\"\xad\x01\n" +
 	"\x0fBudgetViolation\x12\x12\n" +
 	"\x04axis\x18\x01 \x01(\tR\x04axis\x12\x1a\n" +
 	"\bmeasured\x18\x02 \x01(\x03R\bmeasured\x12\x16\n" +
 	"\x06budget\x18\x03 \x01(\x03R\x06budget\x12\x12\n" +
 	"\x04unit\x18\x04 \x01(\tR\x04unit\x12\x12\n" +
-	"\x04flow\x18\x05 \x01(\tR\x04flow2\x90\x03\n" +
+	"\x04flow\x18\x05 \x01(\tR\x04flow\x12\x12\n" +
+	"\x04mode\x18\x06 \x01(\tR\x04mode\x12\x16\n" +
+	"\x06detail\x18\a \x01(\tR\x06detail2\x90\x03\n" +
 	"\rBudgetService\x12|\n" +
 	"\tGetBudget\x126.vrooli.performance_health.v1.budgets.GetBudgetRequest\x1a7.vrooli.performance_health.v1.budgets.GetBudgetResponse\x12|\n" +
 	"\tSetBudget\x126.vrooli.performance_health.v1.budgets.SetBudgetRequest\x1a7.vrooli.performance_health.v1.budgets.SetBudgetResponse\x12\x82\x01\n" +

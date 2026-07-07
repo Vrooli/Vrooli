@@ -86,7 +86,10 @@ type AnalyzeTraceResponse struct {
 	FcpMs int64 `protobuf:"varint,5,opt,name=fcp_ms,json=fcpMs,proto3" json:"fcp_ms,omitempty"`
 	// Deterministic, located findings (component → file:line + quantified
 	// evidence).
-	Findings      []*PerfFinding `protobuf:"bytes,6,rep,name=findings,proto3" json:"findings,omitempty"`
+	Findings      []*PerfFinding  `protobuf:"bytes,6,rep,name=findings,proto3" json:"findings,omitempty"`
+	FrameSummary  *FrameSummary   `protobuf:"bytes,7,opt,name=frame_summary,json=frameSummary,proto3" json:"frame_summary,omitempty"`
+	BrowserWork   []*EventSummary `protobuf:"bytes,8,rep,name=browser_work,json=browserWork,proto3" json:"browser_work,omitempty"`
+	InputEvents   []*EventSummary `protobuf:"bytes,9,rep,name=input_events,json=inputEvents,proto3" json:"input_events,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -159,6 +162,27 @@ func (x *AnalyzeTraceResponse) GetFcpMs() int64 {
 func (x *AnalyzeTraceResponse) GetFindings() []*PerfFinding {
 	if x != nil {
 		return x.Findings
+	}
+	return nil
+}
+
+func (x *AnalyzeTraceResponse) GetFrameSummary() *FrameSummary {
+	if x != nil {
+		return x.FrameSummary
+	}
+	return nil
+}
+
+func (x *AnalyzeTraceResponse) GetBrowserWork() []*EventSummary {
+	if x != nil {
+		return x.BrowserWork
+	}
+	return nil
+}
+
+func (x *AnalyzeTraceResponse) GetInputEvents() []*EventSummary {
+	if x != nil {
+		return x.InputEvents
 	}
 	return nil
 }
@@ -328,6 +352,166 @@ func (x *PerfFinding) GetSeverity() string {
 	return ""
 }
 
+type FrameSummary struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	TraceDurationMs   float64                `protobuf:"fixed64,1,opt,name=trace_duration_ms,json=traceDurationMs,proto3" json:"trace_duration_ms,omitempty"`
+	BeginFrameCount   int32                  `protobuf:"varint,2,opt,name=begin_frame_count,json=beginFrameCount,proto3" json:"begin_frame_count,omitempty"`
+	DrawnFrameCount   int32                  `protobuf:"varint,3,opt,name=drawn_frame_count,json=drawnFrameCount,proto3" json:"drawn_frame_count,omitempty"`
+	DroppedFrameCount int32                  `protobuf:"varint,4,opt,name=dropped_frame_count,json=droppedFrameCount,proto3" json:"dropped_frame_count,omitempty"`
+	ApproxDrawnFps    float64                `protobuf:"fixed64,5,opt,name=approx_drawn_fps,json=approxDrawnFps,proto3" json:"approx_drawn_fps,omitempty"`
+	DroppedFrameRate  float64                `protobuf:"fixed64,6,opt,name=dropped_frame_rate,json=droppedFrameRate,proto3" json:"dropped_frame_rate,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *FrameSummary) Reset() {
+	*x = FrameSummary{}
+	mi := &file_performance_health_v1_analysis_analysis_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FrameSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FrameSummary) ProtoMessage() {}
+
+func (x *FrameSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_performance_health_v1_analysis_analysis_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FrameSummary.ProtoReflect.Descriptor instead.
+func (*FrameSummary) Descriptor() ([]byte, []int) {
+	return file_performance_health_v1_analysis_analysis_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *FrameSummary) GetTraceDurationMs() float64 {
+	if x != nil {
+		return x.TraceDurationMs
+	}
+	return 0
+}
+
+func (x *FrameSummary) GetBeginFrameCount() int32 {
+	if x != nil {
+		return x.BeginFrameCount
+	}
+	return 0
+}
+
+func (x *FrameSummary) GetDrawnFrameCount() int32 {
+	if x != nil {
+		return x.DrawnFrameCount
+	}
+	return 0
+}
+
+func (x *FrameSummary) GetDroppedFrameCount() int32 {
+	if x != nil {
+		return x.DroppedFrameCount
+	}
+	return 0
+}
+
+func (x *FrameSummary) GetApproxDrawnFps() float64 {
+	if x != nil {
+		return x.ApproxDrawnFps
+	}
+	return 0
+}
+
+func (x *FrameSummary) GetDroppedFrameRate() float64 {
+	if x != nil {
+		return x.DroppedFrameRate
+	}
+	return 0
+}
+
+type EventSummary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Count         int32                  `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	TotalMs       float64                `protobuf:"fixed64,3,opt,name=total_ms,json=totalMs,proto3" json:"total_ms,omitempty"`
+	MaxMs         float64                `protobuf:"fixed64,4,opt,name=max_ms,json=maxMs,proto3" json:"max_ms,omitempty"`
+	AvgMs         float64                `protobuf:"fixed64,5,opt,name=avg_ms,json=avgMs,proto3" json:"avg_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EventSummary) Reset() {
+	*x = EventSummary{}
+	mi := &file_performance_health_v1_analysis_analysis_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EventSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EventSummary) ProtoMessage() {}
+
+func (x *EventSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_performance_health_v1_analysis_analysis_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EventSummary.ProtoReflect.Descriptor instead.
+func (*EventSummary) Descriptor() ([]byte, []int) {
+	return file_performance_health_v1_analysis_analysis_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *EventSummary) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *EventSummary) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *EventSummary) GetTotalMs() float64 {
+	if x != nil {
+		return x.TotalMs
+	}
+	return 0
+}
+
+func (x *EventSummary) GetMaxMs() float64 {
+	if x != nil {
+		return x.MaxMs
+	}
+	return 0
+}
+
+func (x *EventSummary) GetAvgMs() float64 {
+	if x != nil {
+		return x.AvgMs
+	}
+	return 0
+}
+
 type CompareTracesRequest struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
@@ -341,7 +525,7 @@ type CompareTracesRequest struct {
 
 func (x *CompareTracesRequest) Reset() {
 	*x = CompareTracesRequest{}
-	mi := &file_performance_health_v1_analysis_analysis_proto_msgTypes[4]
+	mi := &file_performance_health_v1_analysis_analysis_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -353,7 +537,7 @@ func (x *CompareTracesRequest) String() string {
 func (*CompareTracesRequest) ProtoMessage() {}
 
 func (x *CompareTracesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_performance_health_v1_analysis_analysis_proto_msgTypes[4]
+	mi := &file_performance_health_v1_analysis_analysis_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -366,7 +550,7 @@ func (x *CompareTracesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompareTracesRequest.ProtoReflect.Descriptor instead.
 func (*CompareTracesRequest) Descriptor() ([]byte, []int) {
-	return file_performance_health_v1_analysis_analysis_proto_rawDescGZIP(), []int{4}
+	return file_performance_health_v1_analysis_analysis_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CompareTracesRequest) GetScenario() string {
@@ -397,14 +581,17 @@ type CompareTracesResponse struct {
 	// Long-task delta (candidate - baseline), in milliseconds.
 	LongTaskDeltaMs int64 `protobuf:"varint,3,opt,name=long_task_delta_ms,json=longTaskDeltaMs,proto3" json:"long_task_delta_ms,omitempty"`
 	// LCP delta (candidate - baseline), in milliseconds.
-	LcpDeltaMs    int64 `protobuf:"varint,4,opt,name=lcp_delta_ms,json=lcpDeltaMs,proto3" json:"lcp_delta_ms,omitempty"`
+	LcpDeltaMs    int64         `protobuf:"varint,4,opt,name=lcp_delta_ms,json=lcpDeltaMs,proto3" json:"lcp_delta_ms,omitempty"`
+	FrameDelta    *FrameDelta   `protobuf:"bytes,5,opt,name=frame_delta,json=frameDelta,proto3" json:"frame_delta,omitempty"`
+	BrowserWork   []*EventDelta `protobuf:"bytes,6,rep,name=browser_work,json=browserWork,proto3" json:"browser_work,omitempty"`
+	InputEvents   []*EventDelta `protobuf:"bytes,7,rep,name=input_events,json=inputEvents,proto3" json:"input_events,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CompareTracesResponse) Reset() {
 	*x = CompareTracesResponse{}
-	mi := &file_performance_health_v1_analysis_analysis_proto_msgTypes[5]
+	mi := &file_performance_health_v1_analysis_analysis_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -416,7 +603,7 @@ func (x *CompareTracesResponse) String() string {
 func (*CompareTracesResponse) ProtoMessage() {}
 
 func (x *CompareTracesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_performance_health_v1_analysis_analysis_proto_msgTypes[5]
+	mi := &file_performance_health_v1_analysis_analysis_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -429,7 +616,7 @@ func (x *CompareTracesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompareTracesResponse.ProtoReflect.Descriptor instead.
 func (*CompareTracesResponse) Descriptor() ([]byte, []int) {
-	return file_performance_health_v1_analysis_analysis_proto_rawDescGZIP(), []int{5}
+	return file_performance_health_v1_analysis_analysis_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *CompareTracesResponse) GetScenario() string {
@@ -460,6 +647,27 @@ func (x *CompareTracesResponse) GetLcpDeltaMs() int64 {
 	return 0
 }
 
+func (x *CompareTracesResponse) GetFrameDelta() *FrameDelta {
+	if x != nil {
+		return x.FrameDelta
+	}
+	return nil
+}
+
+func (x *CompareTracesResponse) GetBrowserWork() []*EventDelta {
+	if x != nil {
+		return x.BrowserWork
+	}
+	return nil
+}
+
+func (x *CompareTracesResponse) GetInputEvents() []*EventDelta {
+	if x != nil {
+		return x.InputEvents
+	}
+	return nil
+}
+
 // ComponentDelta is one component's commit-profile delta between two traces.
 // Cardinality (count) and per-commit cost (avg/max) are tracked together so the
 // "fix raised commit count but dropped per-commit cost" case is visible.
@@ -481,7 +689,7 @@ type ComponentDelta struct {
 
 func (x *ComponentDelta) Reset() {
 	*x = ComponentDelta{}
-	mi := &file_performance_health_v1_analysis_analysis_proto_msgTypes[6]
+	mi := &file_performance_health_v1_analysis_analysis_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -493,7 +701,7 @@ func (x *ComponentDelta) String() string {
 func (*ComponentDelta) ProtoMessage() {}
 
 func (x *ComponentDelta) ProtoReflect() protoreflect.Message {
-	mi := &file_performance_health_v1_analysis_analysis_proto_msgTypes[6]
+	mi := &file_performance_health_v1_analysis_analysis_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -506,7 +714,7 @@ func (x *ComponentDelta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ComponentDelta.ProtoReflect.Descriptor instead.
 func (*ComponentDelta) Descriptor() ([]byte, []int) {
-	return file_performance_health_v1_analysis_analysis_proto_rawDescGZIP(), []int{6}
+	return file_performance_health_v1_analysis_analysis_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ComponentDelta) GetComponent() string {
@@ -579,6 +787,230 @@ func (x *ComponentDelta) GetMaxDeltaMs() float64 {
 	return 0
 }
 
+type FrameDelta struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	TraceDurationDeltaMs   float64                `protobuf:"fixed64,1,opt,name=trace_duration_delta_ms,json=traceDurationDeltaMs,proto3" json:"trace_duration_delta_ms,omitempty"`
+	BeginFrameCountDelta   int32                  `protobuf:"varint,2,opt,name=begin_frame_count_delta,json=beginFrameCountDelta,proto3" json:"begin_frame_count_delta,omitempty"`
+	DrawnFrameCountDelta   int32                  `protobuf:"varint,3,opt,name=drawn_frame_count_delta,json=drawnFrameCountDelta,proto3" json:"drawn_frame_count_delta,omitempty"`
+	DroppedFrameCountDelta int32                  `protobuf:"varint,4,opt,name=dropped_frame_count_delta,json=droppedFrameCountDelta,proto3" json:"dropped_frame_count_delta,omitempty"`
+	ApproxDrawnFpsDelta    float64                `protobuf:"fixed64,5,opt,name=approx_drawn_fps_delta,json=approxDrawnFpsDelta,proto3" json:"approx_drawn_fps_delta,omitempty"`
+	DroppedFrameRateDelta  float64                `protobuf:"fixed64,6,opt,name=dropped_frame_rate_delta,json=droppedFrameRateDelta,proto3" json:"dropped_frame_rate_delta,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *FrameDelta) Reset() {
+	*x = FrameDelta{}
+	mi := &file_performance_health_v1_analysis_analysis_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FrameDelta) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FrameDelta) ProtoMessage() {}
+
+func (x *FrameDelta) ProtoReflect() protoreflect.Message {
+	mi := &file_performance_health_v1_analysis_analysis_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FrameDelta.ProtoReflect.Descriptor instead.
+func (*FrameDelta) Descriptor() ([]byte, []int) {
+	return file_performance_health_v1_analysis_analysis_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *FrameDelta) GetTraceDurationDeltaMs() float64 {
+	if x != nil {
+		return x.TraceDurationDeltaMs
+	}
+	return 0
+}
+
+func (x *FrameDelta) GetBeginFrameCountDelta() int32 {
+	if x != nil {
+		return x.BeginFrameCountDelta
+	}
+	return 0
+}
+
+func (x *FrameDelta) GetDrawnFrameCountDelta() int32 {
+	if x != nil {
+		return x.DrawnFrameCountDelta
+	}
+	return 0
+}
+
+func (x *FrameDelta) GetDroppedFrameCountDelta() int32 {
+	if x != nil {
+		return x.DroppedFrameCountDelta
+	}
+	return 0
+}
+
+func (x *FrameDelta) GetApproxDrawnFpsDelta() float64 {
+	if x != nil {
+		return x.ApproxDrawnFpsDelta
+	}
+	return 0
+}
+
+func (x *FrameDelta) GetDroppedFrameRateDelta() float64 {
+	if x != nil {
+		return x.DroppedFrameRateDelta
+	}
+	return 0
+}
+
+type EventDelta struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Name             string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	BaselineCount    int32                  `protobuf:"varint,2,opt,name=baseline_count,json=baselineCount,proto3" json:"baseline_count,omitempty"`
+	CandidateCount   int32                  `protobuf:"varint,3,opt,name=candidate_count,json=candidateCount,proto3" json:"candidate_count,omitempty"`
+	CountDelta       int32                  `protobuf:"varint,4,opt,name=count_delta,json=countDelta,proto3" json:"count_delta,omitempty"`
+	BaselineTotalMs  float64                `protobuf:"fixed64,5,opt,name=baseline_total_ms,json=baselineTotalMs,proto3" json:"baseline_total_ms,omitempty"`
+	CandidateTotalMs float64                `protobuf:"fixed64,6,opt,name=candidate_total_ms,json=candidateTotalMs,proto3" json:"candidate_total_ms,omitempty"`
+	TotalDeltaMs     float64                `protobuf:"fixed64,7,opt,name=total_delta_ms,json=totalDeltaMs,proto3" json:"total_delta_ms,omitempty"`
+	BaselineMaxMs    float64                `protobuf:"fixed64,8,opt,name=baseline_max_ms,json=baselineMaxMs,proto3" json:"baseline_max_ms,omitempty"`
+	CandidateMaxMs   float64                `protobuf:"fixed64,9,opt,name=candidate_max_ms,json=candidateMaxMs,proto3" json:"candidate_max_ms,omitempty"`
+	MaxDeltaMs       float64                `protobuf:"fixed64,10,opt,name=max_delta_ms,json=maxDeltaMs,proto3" json:"max_delta_ms,omitempty"`
+	BaselineAvgMs    float64                `protobuf:"fixed64,11,opt,name=baseline_avg_ms,json=baselineAvgMs,proto3" json:"baseline_avg_ms,omitempty"`
+	CandidateAvgMs   float64                `protobuf:"fixed64,12,opt,name=candidate_avg_ms,json=candidateAvgMs,proto3" json:"candidate_avg_ms,omitempty"`
+	AvgDeltaMs       float64                `protobuf:"fixed64,13,opt,name=avg_delta_ms,json=avgDeltaMs,proto3" json:"avg_delta_ms,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *EventDelta) Reset() {
+	*x = EventDelta{}
+	mi := &file_performance_health_v1_analysis_analysis_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EventDelta) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EventDelta) ProtoMessage() {}
+
+func (x *EventDelta) ProtoReflect() protoreflect.Message {
+	mi := &file_performance_health_v1_analysis_analysis_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EventDelta.ProtoReflect.Descriptor instead.
+func (*EventDelta) Descriptor() ([]byte, []int) {
+	return file_performance_health_v1_analysis_analysis_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *EventDelta) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *EventDelta) GetBaselineCount() int32 {
+	if x != nil {
+		return x.BaselineCount
+	}
+	return 0
+}
+
+func (x *EventDelta) GetCandidateCount() int32 {
+	if x != nil {
+		return x.CandidateCount
+	}
+	return 0
+}
+
+func (x *EventDelta) GetCountDelta() int32 {
+	if x != nil {
+		return x.CountDelta
+	}
+	return 0
+}
+
+func (x *EventDelta) GetBaselineTotalMs() float64 {
+	if x != nil {
+		return x.BaselineTotalMs
+	}
+	return 0
+}
+
+func (x *EventDelta) GetCandidateTotalMs() float64 {
+	if x != nil {
+		return x.CandidateTotalMs
+	}
+	return 0
+}
+
+func (x *EventDelta) GetTotalDeltaMs() float64 {
+	if x != nil {
+		return x.TotalDeltaMs
+	}
+	return 0
+}
+
+func (x *EventDelta) GetBaselineMaxMs() float64 {
+	if x != nil {
+		return x.BaselineMaxMs
+	}
+	return 0
+}
+
+func (x *EventDelta) GetCandidateMaxMs() float64 {
+	if x != nil {
+		return x.CandidateMaxMs
+	}
+	return 0
+}
+
+func (x *EventDelta) GetMaxDeltaMs() float64 {
+	if x != nil {
+		return x.MaxDeltaMs
+	}
+	return 0
+}
+
+func (x *EventDelta) GetBaselineAvgMs() float64 {
+	if x != nil {
+		return x.BaselineAvgMs
+	}
+	return 0
+}
+
+func (x *EventDelta) GetCandidateAvgMs() float64 {
+	if x != nil {
+		return x.CandidateAvgMs
+	}
+	return 0
+}
+
+func (x *EventDelta) GetAvgDeltaMs() float64 {
+	if x != nil {
+		return x.AvgDeltaMs
+	}
+	return 0
+}
+
 var File_performance_health_v1_analysis_analysis_proto protoreflect.FileDescriptor
 
 const file_performance_health_v1_analysis_analysis_proto_rawDesc = "" +
@@ -586,7 +1018,7 @@ const file_performance_health_v1_analysis_analysis_proto_rawDesc = "" +
 	"-performance-health/v1/analysis/analysis.proto\x12%vrooli.performance_health.v1.analysis\"X\n" +
 	"\x13AnalyzeTraceRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12%\n" +
-	"\x0etrace_artifact\x18\x02 \x01(\tR\rtraceArtifact\"\xaa\x02\n" +
+	"\x0etrace_artifact\x18\x02 \x01(\tR\rtraceArtifact\"\xb4\x04\n" +
 	"\x14AnalyzeTraceResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12V\n" +
 	"\n" +
@@ -596,7 +1028,10 @@ const file_performance_health_v1_analysis_analysis_proto_rawDesc = "" +
 	"longTaskMs\x12\x15\n" +
 	"\x06lcp_ms\x18\x04 \x01(\x03R\x05lcpMs\x12\x15\n" +
 	"\x06fcp_ms\x18\x05 \x01(\x03R\x05fcpMs\x12N\n" +
-	"\bfindings\x18\x06 \x03(\v22.vrooli.performance_health.v1.analysis.PerfFindingR\bfindings\"\xa0\x01\n" +
+	"\bfindings\x18\x06 \x03(\v22.vrooli.performance_health.v1.analysis.PerfFindingR\bfindings\x12X\n" +
+	"\rframe_summary\x18\a \x01(\v23.vrooli.performance_health.v1.analysis.FrameSummaryR\fframeSummary\x12V\n" +
+	"\fbrowser_work\x18\b \x03(\v23.vrooli.performance_health.v1.analysis.EventSummaryR\vbrowserWork\x12V\n" +
+	"\finput_events\x18\t \x03(\v23.vrooli.performance_health.v1.analysis.EventSummaryR\vinputEvents\"\xa0\x01\n" +
 	"\x0fComponentTiming\x12\x1c\n" +
 	"\tcomponent\x18\x01 \x01(\tR\tcomponent\x12!\n" +
 	"\fcommit_count\x18\x02 \x01(\x05R\vcommitCount\x12\x15\n" +
@@ -613,11 +1048,24 @@ const file_performance_health_v1_analysis_analysis_proto_rawDesc = "" +
 	"definition\x12\x18\n" +
 	"\amessage\x18\x04 \x01(\tR\amessage\x12\x1a\n" +
 	"\bevidence\x18\x05 \x01(\tR\bevidence\x12\x1a\n" +
-	"\bseverity\x18\x06 \x01(\tR\bseverity\"\x8e\x01\n" +
+	"\bseverity\x18\x06 \x01(\tR\bseverity\"\x9a\x02\n" +
+	"\fFrameSummary\x12*\n" +
+	"\x11trace_duration_ms\x18\x01 \x01(\x01R\x0ftraceDurationMs\x12*\n" +
+	"\x11begin_frame_count\x18\x02 \x01(\x05R\x0fbeginFrameCount\x12*\n" +
+	"\x11drawn_frame_count\x18\x03 \x01(\x05R\x0fdrawnFrameCount\x12.\n" +
+	"\x13dropped_frame_count\x18\x04 \x01(\x05R\x11droppedFrameCount\x12(\n" +
+	"\x10approx_drawn_fps\x18\x05 \x01(\x01R\x0eapproxDrawnFps\x12,\n" +
+	"\x12dropped_frame_rate\x18\x06 \x01(\x01R\x10droppedFrameRate\"\x81\x01\n" +
+	"\fEventSummary\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\x12\x19\n" +
+	"\btotal_ms\x18\x03 \x01(\x01R\atotalMs\x12\x15\n" +
+	"\x06max_ms\x18\x04 \x01(\x01R\x05maxMs\x12\x15\n" +
+	"\x06avg_ms\x18\x05 \x01(\x01R\x05avgMs\"\x8e\x01\n" +
 	"\x14CompareTracesRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12+\n" +
 	"\x11baseline_artifact\x18\x02 \x01(\tR\x10baselineArtifact\x12-\n" +
-	"\x12candidate_artifact\x18\x03 \x01(\tR\x11candidateArtifact\"\xd9\x01\n" +
+	"\x12candidate_artifact\x18\x03 \x01(\tR\x11candidateArtifact\"\xd9\x03\n" +
 	"\x15CompareTracesResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12U\n" +
 	"\n" +
@@ -625,7 +1073,11 @@ const file_performance_health_v1_analysis_analysis_proto_rawDesc = "" +
 	"components\x12+\n" +
 	"\x12long_task_delta_ms\x18\x03 \x01(\x03R\x0flongTaskDeltaMs\x12 \n" +
 	"\flcp_delta_ms\x18\x04 \x01(\x03R\n" +
-	"lcpDeltaMs\"\x80\x03\n" +
+	"lcpDeltaMs\x12R\n" +
+	"\vframe_delta\x18\x05 \x01(\v21.vrooli.performance_health.v1.analysis.FrameDeltaR\n" +
+	"frameDelta\x12T\n" +
+	"\fbrowser_work\x18\x06 \x03(\v21.vrooli.performance_health.v1.analysis.EventDeltaR\vbrowserWork\x12T\n" +
+	"\finput_events\x18\a \x03(\v21.vrooli.performance_health.v1.analysis.EventDeltaR\vinputEvents\"\x80\x03\n" +
 	"\x0eComponentDelta\x12\x1c\n" +
 	"\tcomponent\x18\x01 \x01(\tR\tcomponent\x12&\n" +
 	"\x0fbaseline_avg_ms\x18\x02 \x01(\x01R\rbaselineAvgMs\x12(\n" +
@@ -639,7 +1091,34 @@ const file_performance_health_v1_analysis_analysis_proto_rawDesc = "" +
 	"\x10candidate_max_ms\x18\t \x01(\x01R\x0ecandidateMaxMs\x12 \n" +
 	"\fmax_delta_ms\x18\n" +
 	" \x01(\x01R\n" +
-	"maxDeltaMs2\xa8\x02\n" +
+	"maxDeltaMs\"\xda\x02\n" +
+	"\n" +
+	"FrameDelta\x125\n" +
+	"\x17trace_duration_delta_ms\x18\x01 \x01(\x01R\x14traceDurationDeltaMs\x125\n" +
+	"\x17begin_frame_count_delta\x18\x02 \x01(\x05R\x14beginFrameCountDelta\x125\n" +
+	"\x17drawn_frame_count_delta\x18\x03 \x01(\x05R\x14drawnFrameCountDelta\x129\n" +
+	"\x19dropped_frame_count_delta\x18\x04 \x01(\x05R\x16droppedFrameCountDelta\x123\n" +
+	"\x16approx_drawn_fps_delta\x18\x05 \x01(\x01R\x13approxDrawnFpsDelta\x127\n" +
+	"\x18dropped_frame_rate_delta\x18\x06 \x01(\x01R\x15droppedFrameRateDelta\"\xf9\x03\n" +
+	"\n" +
+	"EventDelta\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12%\n" +
+	"\x0ebaseline_count\x18\x02 \x01(\x05R\rbaselineCount\x12'\n" +
+	"\x0fcandidate_count\x18\x03 \x01(\x05R\x0ecandidateCount\x12\x1f\n" +
+	"\vcount_delta\x18\x04 \x01(\x05R\n" +
+	"countDelta\x12*\n" +
+	"\x11baseline_total_ms\x18\x05 \x01(\x01R\x0fbaselineTotalMs\x12,\n" +
+	"\x12candidate_total_ms\x18\x06 \x01(\x01R\x10candidateTotalMs\x12$\n" +
+	"\x0etotal_delta_ms\x18\a \x01(\x01R\ftotalDeltaMs\x12&\n" +
+	"\x0fbaseline_max_ms\x18\b \x01(\x01R\rbaselineMaxMs\x12(\n" +
+	"\x10candidate_max_ms\x18\t \x01(\x01R\x0ecandidateMaxMs\x12 \n" +
+	"\fmax_delta_ms\x18\n" +
+	" \x01(\x01R\n" +
+	"maxDeltaMs\x12&\n" +
+	"\x0fbaseline_avg_ms\x18\v \x01(\x01R\rbaselineAvgMs\x12(\n" +
+	"\x10candidate_avg_ms\x18\f \x01(\x01R\x0ecandidateAvgMs\x12 \n" +
+	"\favg_delta_ms\x18\r \x01(\x01R\n" +
+	"avgDeltaMs2\xa8\x02\n" +
 	"\x0fAnalysisService\x12\x87\x01\n" +
 	"\fAnalyzeTrace\x12:.vrooli.performance_health.v1.analysis.AnalyzeTraceRequest\x1a;.vrooli.performance_health.v1.analysis.AnalyzeTraceResponse\x12\x8a\x01\n" +
 	"\rCompareTraces\x12;.vrooli.performance_health.v1.analysis.CompareTracesRequest\x1a<.vrooli.performance_health.v1.analysis.CompareTracesResponseB[ZYgithub.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/analysis;analysis_v1b\x06proto3"
@@ -656,29 +1135,39 @@ func file_performance_health_v1_analysis_analysis_proto_rawDescGZIP() []byte {
 	return file_performance_health_v1_analysis_analysis_proto_rawDescData
 }
 
-var file_performance_health_v1_analysis_analysis_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_performance_health_v1_analysis_analysis_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_performance_health_v1_analysis_analysis_proto_goTypes = []any{
 	(*AnalyzeTraceRequest)(nil),   // 0: vrooli.performance_health.v1.analysis.AnalyzeTraceRequest
 	(*AnalyzeTraceResponse)(nil),  // 1: vrooli.performance_health.v1.analysis.AnalyzeTraceResponse
 	(*ComponentTiming)(nil),       // 2: vrooli.performance_health.v1.analysis.ComponentTiming
 	(*PerfFinding)(nil),           // 3: vrooli.performance_health.v1.analysis.PerfFinding
-	(*CompareTracesRequest)(nil),  // 4: vrooli.performance_health.v1.analysis.CompareTracesRequest
-	(*CompareTracesResponse)(nil), // 5: vrooli.performance_health.v1.analysis.CompareTracesResponse
-	(*ComponentDelta)(nil),        // 6: vrooli.performance_health.v1.analysis.ComponentDelta
+	(*FrameSummary)(nil),          // 4: vrooli.performance_health.v1.analysis.FrameSummary
+	(*EventSummary)(nil),          // 5: vrooli.performance_health.v1.analysis.EventSummary
+	(*CompareTracesRequest)(nil),  // 6: vrooli.performance_health.v1.analysis.CompareTracesRequest
+	(*CompareTracesResponse)(nil), // 7: vrooli.performance_health.v1.analysis.CompareTracesResponse
+	(*ComponentDelta)(nil),        // 8: vrooli.performance_health.v1.analysis.ComponentDelta
+	(*FrameDelta)(nil),            // 9: vrooli.performance_health.v1.analysis.FrameDelta
+	(*EventDelta)(nil),            // 10: vrooli.performance_health.v1.analysis.EventDelta
 }
 var file_performance_health_v1_analysis_analysis_proto_depIdxs = []int32{
-	2, // 0: vrooli.performance_health.v1.analysis.AnalyzeTraceResponse.components:type_name -> vrooli.performance_health.v1.analysis.ComponentTiming
-	3, // 1: vrooli.performance_health.v1.analysis.AnalyzeTraceResponse.findings:type_name -> vrooli.performance_health.v1.analysis.PerfFinding
-	6, // 2: vrooli.performance_health.v1.analysis.CompareTracesResponse.components:type_name -> vrooli.performance_health.v1.analysis.ComponentDelta
-	0, // 3: vrooli.performance_health.v1.analysis.AnalysisService.AnalyzeTrace:input_type -> vrooli.performance_health.v1.analysis.AnalyzeTraceRequest
-	4, // 4: vrooli.performance_health.v1.analysis.AnalysisService.CompareTraces:input_type -> vrooli.performance_health.v1.analysis.CompareTracesRequest
-	1, // 5: vrooli.performance_health.v1.analysis.AnalysisService.AnalyzeTrace:output_type -> vrooli.performance_health.v1.analysis.AnalyzeTraceResponse
-	5, // 6: vrooli.performance_health.v1.analysis.AnalysisService.CompareTraces:output_type -> vrooli.performance_health.v1.analysis.CompareTracesResponse
-	5, // [5:7] is the sub-list for method output_type
-	3, // [3:5] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	2,  // 0: vrooli.performance_health.v1.analysis.AnalyzeTraceResponse.components:type_name -> vrooli.performance_health.v1.analysis.ComponentTiming
+	3,  // 1: vrooli.performance_health.v1.analysis.AnalyzeTraceResponse.findings:type_name -> vrooli.performance_health.v1.analysis.PerfFinding
+	4,  // 2: vrooli.performance_health.v1.analysis.AnalyzeTraceResponse.frame_summary:type_name -> vrooli.performance_health.v1.analysis.FrameSummary
+	5,  // 3: vrooli.performance_health.v1.analysis.AnalyzeTraceResponse.browser_work:type_name -> vrooli.performance_health.v1.analysis.EventSummary
+	5,  // 4: vrooli.performance_health.v1.analysis.AnalyzeTraceResponse.input_events:type_name -> vrooli.performance_health.v1.analysis.EventSummary
+	8,  // 5: vrooli.performance_health.v1.analysis.CompareTracesResponse.components:type_name -> vrooli.performance_health.v1.analysis.ComponentDelta
+	9,  // 6: vrooli.performance_health.v1.analysis.CompareTracesResponse.frame_delta:type_name -> vrooli.performance_health.v1.analysis.FrameDelta
+	10, // 7: vrooli.performance_health.v1.analysis.CompareTracesResponse.browser_work:type_name -> vrooli.performance_health.v1.analysis.EventDelta
+	10, // 8: vrooli.performance_health.v1.analysis.CompareTracesResponse.input_events:type_name -> vrooli.performance_health.v1.analysis.EventDelta
+	0,  // 9: vrooli.performance_health.v1.analysis.AnalysisService.AnalyzeTrace:input_type -> vrooli.performance_health.v1.analysis.AnalyzeTraceRequest
+	6,  // 10: vrooli.performance_health.v1.analysis.AnalysisService.CompareTraces:input_type -> vrooli.performance_health.v1.analysis.CompareTracesRequest
+	1,  // 11: vrooli.performance_health.v1.analysis.AnalysisService.AnalyzeTrace:output_type -> vrooli.performance_health.v1.analysis.AnalyzeTraceResponse
+	7,  // 12: vrooli.performance_health.v1.analysis.AnalysisService.CompareTraces:output_type -> vrooli.performance_health.v1.analysis.CompareTracesResponse
+	11, // [11:13] is the sub-list for method output_type
+	9,  // [9:11] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_performance_health_v1_analysis_analysis_proto_init() }
@@ -692,7 +1181,7 @@ func file_performance_health_v1_analysis_analysis_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_performance_health_v1_analysis_analysis_proto_rawDesc), len(file_performance_health_v1_analysis_analysis_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -28,6 +28,12 @@ const (
 	CodeClaimUnproven       = "experience.claim_unproven"
 	CodeImportanceMismatch  = "experience.importance_mismatch"
 	CodeGlanceJudgeMismatch = "experience.glance_judge_mismatch"
+	CodeFloorNoDocOverflow  = "experience.floor_no_document_horizontal_overflow"
+	CodeFloorViewportFill   = "experience.floor_viewport_fill"
+	CodeFloorChromePinned   = "experience.floor_chrome_pinned"
+	CodeFloorSafeArea       = "experience.floor_safe_area_tap_targets"
+	CodeFloorSingleLine     = "experience.floor_single_line_chrome"
+	CodeFloorTapTargetSize  = "experience.floor_tap_target_size"
 	SeverityError           = "SEVERITY_ERROR"
 	SeverityWarning         = "SEVERITY_WARNING"
 	SeverityInfo            = "SEVERITY_INFO"
@@ -66,6 +72,12 @@ var AllFindingCodes = []string{
 	CodeClaimUnproven,
 	CodeImportanceMismatch,
 	CodeGlanceJudgeMismatch,
+	CodeFloorNoDocOverflow,
+	CodeFloorViewportFill,
+	CodeFloorChromePinned,
+	CodeFloorSafeArea,
+	CodeFloorSingleLine,
+	CodeFloorTapTargetSize,
 }
 
 // IsFindingCode reports whether code is in the frozen experience finding
@@ -139,8 +151,14 @@ type PageDocument struct {
 	Elements      []Element                  `json:"elements"`
 	Claims        []Claim                    `json:"claims"`
 	Bindings      Bindings                   `json:"bindings"`
+	FloorOptOuts  []FloorOptOut              `json:"floorOptOuts"`
 	Sketch        Sketch                     `json:"sketch"`
 	Extensions    map[string]json.RawMessage `json:"-"`
+}
+
+type FloorOptOut struct {
+	Floor  string `json:"floor"`
+	Reason string `json:"reason"`
 }
 
 type PageIdentity struct {
@@ -614,7 +632,7 @@ func validTier(tier string) bool {
 
 func knownClaimType(t string) bool {
 	switch t {
-	case "element-present", "element-absent", "single-dominant-action", "visible-without-scroll", "reading-order", "state-covered", "state-distinct", "keyboard-reachable", "custom":
+	case "element-present", "element-absent", "single-dominant-action", "visible-without-scroll", "reading-order", "state-covered", "state-distinct", "keyboard-reachable", "no-document-horizontal-overflow", "viewport-fill", "chrome-pinned", "safe-area-tap-targets", "single-line-chrome", "tap-target-size", "custom":
 		return true
 	default:
 		return false

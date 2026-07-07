@@ -20,10 +20,18 @@ import (
 type fakeCapturer struct {
 	snapshot Snapshot
 	err      error
+	targets  *[]CaptureTarget
 }
 
-func (f fakeCapturer) CaptureAccessibility(context.Context, CaptureTarget) (Snapshot, error) {
-	return f.snapshot, f.err
+func (f fakeCapturer) CaptureAccessibility(_ context.Context, target CaptureTarget) (Snapshot, error) {
+	if f.targets != nil {
+		*f.targets = append(*f.targets, target)
+	}
+	snapshot := f.snapshot
+	if snapshot.Contract == snapshotContract && snapshot.Root.Bounds == nil && target.ViewportWidth > 0 && target.ViewportHeight > 0 {
+		snapshot.Root.Bounds = &Bounds{Width: float64(target.ViewportWidth), Height: float64(target.ViewportHeight)}
+	}
+	return snapshot, f.err
 }
 
 func TestDraftCalibrationEmitsExpectedMatrixFailuresOnly(t *testing.T) { // [REQ:EXPERIEN-P0-003]
@@ -31,7 +39,7 @@ func TestDraftCalibrationEmitsExpectedMatrixFailuresOnly(t *testing.T) { // [REQ
 	if err != nil {
 		t.Fatalf("ParseScenario: %v", err)
 	}
-	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}}.Run(context.Background(), report)
+	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
 	if got := len(findings); got != 8 {
 		t.Fatalf("findings = %d, want 8: %+v", got, findings)
 	}
@@ -78,9 +86,10 @@ func TestActivePagePersistsPerClaimEvidence(t *testing.T) { // [REQ:EXPERIEN-P0-
 	now := time.Date(2026, 7, 5, 16, 30, 0, 0, time.UTC)
 
 	findings := Check{
-		Capturer:   fakeCapturer{snapshot: passingSnapshot()},
-		Repository: repo,
-		Now:        func() time.Time { return now },
+		Capturer:        fakeCapturer{snapshot: passingSnapshot()},
+		Repository:      repo,
+		Now:             func() time.Time { return now },
+		CaptureProfiles: testProfiles(),
 	}.Run(context.Background(), report)
 	if len(findings) != 0 {
 		t.Fatalf("expected active page to reconcile green, got %+v", findings)
@@ -94,6 +103,112 @@ func TestActivePagePersistsPerClaimEvidence(t *testing.T) { // [REQ:EXPERIEN-P0-
 	}
 	if rows[0].Verdict != "passed" || rows[0].CaptureRef != "scenario=demo,path=/" || rows[0].AXNodeJSON == "{}" {
 		t.Fatalf("unexpected evidence row: %+v", rows[0])
+	}
+	if rows[0].ViewportID != "desktop" || rows[0].ViewportWidth != 1280 || rows[0].ViewportHeight != 720 {
+		t.Fatalf("unexpected evidence viewport: %+v", rows[0])
+	}
+}
+
+func TestActivePagePersistsViewportMatrixEvidence(t *testing.T) { // [REQ:EXPERIEN-P0-003]
+	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
+	db := testdb.NewSQLite(t)
+	if err := apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(Schema)); err != nil {
+		t.Fatalf("EnsureSchemas: %v", err)
+	}
+	repo := NewSQLiteRepository(db)
+	now := time.Date(2026, 7, 5, 16, 30, 0, 0, time.UTC)
+
+	findings := Check{
+		Capturer:   fakeCapturer{snapshot: passingSnapshot()},
+		Repository: repo,
+		Now:        func() time.Time { return now },
+	}.Run(context.Background(), report)
+	if len(findings) != 0 {
+		t.Fatalf("expected active page to reconcile green, got %+v", findings)
+	}
+	rows, err := repo.ListEvidence(context.Background(), EvidenceFilter{Scenario: "demo", PageID: "home", ClaimID: "primary-present"})
+	if err != nil {
+		t.Fatalf("ListEvidence: %v", err)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("evidence rows = %d, want 2: %+v", len(rows), rows)
+	}
+	got := map[string]bool{}
+	for _, row := range rows {
+		got[row.ViewportID] = true
+		if row.Verdict != "passed" || row.ViewportWidth == 0 || row.ViewportHeight == 0 {
+			t.Fatalf("unexpected matrix row: %+v", row)
+		}
+	}
+	if !got["desktop"] || !got["mobile"] {
+		t.Fatalf("viewport rows = %+v, want desktop and mobile", got)
+	}
+}
+
+func TestViewportScopedClaimCapturesMatchingProfileOnly(t *testing.T) { // [REQ:EXPERIEN-P0-003]
+	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
+	page := report.Spec.Pages["home"]
+	page.Claims[0].Viewports = []string{"mobile"}
+	page.FloorOptOuts = allFloorOptOuts()
+	report.Spec.Pages["home"] = page
+	db := testdb.NewSQLite(t)
+	if err := apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(Schema)); err != nil {
+		t.Fatalf("EnsureSchemas: %v", err)
+	}
+	repo := NewSQLiteRepository(db)
+	var targets []CaptureTarget
+
+	findings := Check{
+		Capturer:   fakeCapturer{snapshot: passingSnapshot(), targets: &targets},
+		Repository: repo,
+		Now:        func() time.Time { return time.Date(2026, 7, 5, 16, 30, 0, 0, time.UTC) },
+	}.Run(context.Background(), report)
+	if len(findings) != 0 {
+		t.Fatalf("expected viewport-scoped claim to reconcile green, got %+v", findings)
+	}
+	if len(targets) != 1 || targets[0].ViewportID != "mobile" {
+		t.Fatalf("capture targets = %+v, want one mobile target", targets)
+	}
+	rows, err := repo.ListEvidence(context.Background(), EvidenceFilter{Scenario: "demo", PageID: "home", ClaimID: "primary-present"})
+	if err != nil {
+		t.Fatalf("ListEvidence: %v", err)
+	}
+	if len(rows) != 1 || rows[0].ViewportID != "mobile" {
+		t.Fatalf("evidence rows = %+v, want one mobile row", rows)
+	}
+}
+
+func TestViewportScopedClaimUsesProfileAlias(t *testing.T) { // [REQ:EXPERIEN-P0-003]
+	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
+	page := report.Spec.Pages["home"]
+	page.Claims[0].Viewports = []string{"wide"}
+	page.FloorOptOuts = allFloorOptOuts()
+	report.Spec.Pages["home"] = page
+	var targets []CaptureTarget
+
+	findings := Check{
+		Capturer: fakeCapturer{snapshot: passingSnapshot(), targets: &targets},
+	}.Run(context.Background(), report)
+	if len(findings) != 0 {
+		t.Fatalf("expected aliased viewport-scoped claim to reconcile green, got %+v", findings)
+	}
+	if len(targets) != 1 || targets[0].ViewportID != "desktop" {
+		t.Fatalf("capture targets = %+v, want one desktop target for wide alias", targets)
+	}
+}
+
+func TestViewportScopedClaimOutsideMatrixIsUnverifiable(t *testing.T) {
+	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
+	page := report.Spec.Pages["home"]
+	page.Claims[0].Viewports = []string{"tablet"}
+	report.Spec.Pages["home"] = page
+
+	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}}.Run(context.Background(), report)
+	if len(findings) != 1 || findings[0].Code != spec.CodeClaimUnverifiable {
+		t.Fatalf("expected one unverifiable viewport finding, got %+v", findings)
+	}
+	if !strings.Contains(findings[0].Message, "tablet") {
+		t.Fatalf("message = %q, want missing viewport", findings[0].Message)
 	}
 }
 
@@ -111,9 +226,96 @@ func TestActivePageFailsUnresolvedBinding(t *testing.T) {
 	page.Bindings.Elements["missing"] = spec.Binding{TestID: "not-rendered"}
 	report.Spec.Pages["home"] = page
 
-	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}}.Run(context.Background(), report)
+	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
 	if !hasCode(findings, spec.CodeBindingUnresolved) || !hasCode(findings, spec.CodeClaimFailed) {
 		t.Fatalf("expected binding and claim failures, got %+v", findings)
+	}
+}
+
+func TestVisibleWithoutScrollChecksBoundGeometry(t *testing.T) {
+	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
+	page := report.Spec.Pages["home"]
+	page.Claims = []spec.Claim{{
+		ID:        "primary-above-fold",
+		Type:      "visible-without-scroll",
+		Statement: "The primary action is visible without scrolling.",
+		Tier:      "machine",
+		Elements:  []string{"primary"},
+		States:    []string{"default"},
+		Viewports: []string{"desktop"},
+	}}
+	page.FloorOptOuts = allFloorOptOuts()
+	report.Spec.Pages["home"] = page
+	snapshot := passingSnapshot()
+	snapshot.Root.Children[1].Bounds = &Bounds{X: 24, Y: 760, Width: 120, Height: 48}
+
+	findings := Check{Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	if !hasCode(findings, spec.CodeClaimFailed) {
+		t.Fatalf("expected visible-without-scroll failure, got %+v", findings)
+	}
+
+	snapshot.Root.Children[1].Bounds = &Bounds{X: 24, Y: 80, Width: 120, Height: 48}
+	findings = Check{Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	if len(findings) != 0 {
+		t.Fatalf("expected visible-without-scroll pass, got %+v", findings)
+	}
+}
+
+func TestBaselineFloorClaimsFailFromGeometry(t *testing.T) {
+	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
+	snapshot := passingSnapshot()
+	snapshot.Root.Bounds = &Bounds{Width: 430, Height: 700}
+	snapshot.Root.Children = append(snapshot.Root.Children, AXNode{
+		Role:   "navigation",
+		Name:   "Primary navigation",
+		Bounds: &Bounds{X: 0, Y: 812, Width: 390, Height: 64},
+		DOM:    DOMNode{Tag: "nav"},
+		Children: []AXNode{{
+			Role:   "button",
+			Name:   "日本\n語",
+			Bounds: &Bounds{X: 24, Y: 820, Width: 40, Height: 64},
+			DOM:    DOMNode{TestID: "layout-bottom-nav-link-language"},
+		}},
+	})
+
+	findings := Check{
+		Capturer:        fakeCapturer{snapshot: snapshot},
+		CaptureProfiles: []CaptureProfile{{ID: "mobile", Width: 390, Height: 844}},
+	}.Run(context.Background(), report)
+	for _, code := range []string{
+		spec.CodeFloorNoDocOverflow,
+		spec.CodeFloorViewportFill,
+		spec.CodeFloorChromePinned,
+		spec.CodeFloorSafeArea,
+		spec.CodeFloorSingleLine,
+		spec.CodeFloorTapTargetSize,
+	} {
+		if !hasCode(findings, code) {
+			t.Fatalf("missing %s in findings: %+v", code, findings)
+		}
+	}
+}
+
+func TestBaselineFloorOptOutSuppressesOnlyNamedFloor(t *testing.T) {
+	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
+	page := report.Spec.Pages["home"]
+	page.FloorOptOuts = []spec.FloorOptOut{{
+		Floor:  "viewport-fill",
+		Reason: "This fixture intentionally models a short viewport surface.",
+	}}
+	report.Spec.Pages["home"] = page
+	snapshot := passingSnapshot()
+	snapshot.Root.Bounds = &Bounds{Width: 430, Height: 600}
+
+	findings := Check{
+		Capturer:        fakeCapturer{snapshot: snapshot},
+		CaptureProfiles: []CaptureProfile{{ID: "mobile", Width: 390, Height: 844}},
+	}.Run(context.Background(), report)
+	if hasCode(findings, spec.CodeFloorViewportFill) {
+		t.Fatalf("viewport-fill opt-out was ignored: %+v", findings)
+	}
+	if !hasCode(findings, spec.CodeFloorNoDocOverflow) {
+		t.Fatalf("opt-out suppressed unrelated floors: %+v", findings)
 	}
 }
 
@@ -129,21 +331,21 @@ func TestNonDefaultStateClaimReportsSingleCaptureLimitation(t *testing.T) {
 	}}
 	report.Spec.Pages["home"] = page
 
-	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}}.Run(context.Background(), report)
+	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
 	if len(findings) != 1 {
 		t.Fatalf("findings = %d, want 1: %+v", len(findings), findings)
 	}
 	if findings[0].Code != spec.CodeClaimUnverifiable || findings[0].Severity != spec.SeverityWarning {
 		t.Fatalf("finding = %+v, want claim_unverifiable warning", findings[0])
 	}
-	if !strings.Contains(findings[0].Message, "captures only the default state") {
+	if !strings.Contains(findings[0].Message, "state setup capture is not implemented") {
 		t.Fatalf("message = %q", findings[0].Message)
 	}
 }
 
 func TestActivePageWithNoJoinedBindingsSkipsAsUnavailable(t *testing.T) {
 	report := activeReport("missing", spec.Binding{TestID: "not-rendered"})
-	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}}.Run(context.Background(), report)
+	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
 	if len(findings) != 1 || findings[0].Code != spec.CodeCaptureUnavailable || findings[0].Severity != spec.SeverityInfo {
 		t.Fatalf("expected capture unavailable info finding, got %+v", findings)
 	}
@@ -151,7 +353,7 @@ func TestActivePageWithNoJoinedBindingsSkipsAsUnavailable(t *testing.T) {
 
 func TestCaptureUnavailableIsSkippedInfo(t *testing.T) {
 	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
-	findings := Check{Capturer: fakeCapturer{err: ErrCaptureUnavailable}}.Run(context.Background(), report)
+	findings := Check{Capturer: fakeCapturer{err: ErrCaptureUnavailable}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
 	if len(findings) != 1 || findings[0].Code != spec.CodeCaptureUnavailable || findings[0].Severity != spec.SeverityInfo {
 		t.Fatalf("expected capture unavailable info finding, got %+v", findings)
 	}
@@ -162,11 +364,15 @@ func TestBASCapturerSendsResolvedTargetURL(t *testing.T) {
 	mux.HandleFunc("/browser_automation_studio.v1.capture.CaptureService/Capture", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			URL                 string `json:"url"`
-			InlineAccessibility bool   `json:"inlineAccessibility"`
-			InteractionFlowJSON string `json:"interactionFlowJson"`
+			InlineAccessibility bool   `json:"inline_accessibility"`
+			Dimensions          struct {
+				Width  int `json:"width"`
+				Height int `json:"height"`
+			} `json:"dimensions"`
+			InteractionFlowJSON string `json:"interaction_flow_json"`
 			WaitFor             struct {
-				TimeoutMs string `json:"timeoutMs"`
-			} `json:"waitFor"`
+				TimeoutMs int `json:"timeout_ms"`
+			} `json:"wait_for"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			t.Fatalf("Decode request: %v", err)
@@ -177,8 +383,11 @@ func TestBASCapturerSendsResolvedTargetURL(t *testing.T) {
 		if !req.InlineAccessibility {
 			t.Fatal("inlineAccessibility = false, want true")
 		}
-		if got := req.WaitFor.TimeoutMs; got != "3000" {
-			t.Fatalf("waitFor.timeoutMs = %q, want string timeout", got)
+		if req.Dimensions.Width != 390 || req.Dimensions.Height != 844 {
+			t.Fatalf("dimensions = %dx%d, want 390x844", req.Dimensions.Width, req.Dimensions.Height)
+		}
+		if got := req.WaitFor.TimeoutMs; got != 3000 {
+			t.Fatalf("waitFor.timeoutMs = %d, want 3000", got)
 		}
 		if req.InteractionFlowJSON == "" || !strings.Contains(req.InteractionFlowJSON, `"duration_ms":3000`) {
 			t.Fatalf("interactionFlowJson = %q, want settle wait flow", req.InteractionFlowJSON)
@@ -187,7 +396,7 @@ func TestBASCapturerSendsResolvedTargetURL(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Marshal snapshot: %v", err)
 		}
-		_ = json.NewEncoder(w).Encode(map[string]string{"accessibilityJson": string(snapshot)})
+		_ = json.NewEncoder(w).Encode(map[string]string{"accessibility_json": string(snapshot)})
 	})
 	server := httptest.NewServer(mux)
 	defer server.Close()
@@ -202,13 +411,20 @@ func TestBASCapturerSendsResolvedTargetURL(t *testing.T) {
 		HTTPClient: server.Client(),
 	}
 	if _, err := capturer.CaptureAccessibility(context.Background(), CaptureTarget{
-		Scenario: "web-console",
-		Route:    "/",
-		PageID:   "workspace",
-		SettleMs: defaultSettleMs,
+		Scenario:       "web-console",
+		Route:          "/",
+		PageID:         "workspace",
+		ViewportID:     "mobile",
+		ViewportWidth:  390,
+		ViewportHeight: 844,
+		SettleMs:       defaultSettleMs,
 	}); err != nil {
 		t.Fatalf("CaptureAccessibility: %v", err)
 	}
+}
+
+func testProfiles() []CaptureProfile {
+	return []CaptureProfile{{ID: "desktop", Width: 1280, Height: 720}}
 }
 
 func activeReport(elementID string, binding spec.Binding) spec.Report {
@@ -236,8 +452,8 @@ func passingSnapshot() Snapshot {
 	return Snapshot{
 		Contract: snapshotContract,
 		Root: AXNode{Role: "WebArea", Children: []AXNode{
-			{Role: "status", DOM: DOMNode{TestID: "summary"}},
-			{Role: "button", States: []string{"focusable"}, DOM: DOMNode{TestID: "primary-action"}},
+			{Role: "status", Bounds: &Bounds{X: 0, Y: 24, Width: 320, Height: 24}, DOM: DOMNode{TestID: "summary"}},
+			{Role: "button", States: []string{"focusable"}, Bounds: &Bounds{X: 24, Y: 80, Width: 120, Height: 48}, DOM: DOMNode{TestID: "primary-action"}},
 		}},
 	}
 }
@@ -249,6 +465,17 @@ func hasCode(findings []spec.Finding, code string) bool {
 		}
 	}
 	return false
+}
+
+func allFloorOptOuts() []spec.FloorOptOut {
+	return []spec.FloorOptOut{
+		{Floor: "no-document-horizontal-overflow", Reason: "This fixture isolates authored viewport-scoped claim behavior."},
+		{Floor: "viewport-fill", Reason: "This fixture isolates authored viewport-scoped claim behavior."},
+		{Floor: "chrome-pinned", Reason: "This fixture isolates authored viewport-scoped claim behavior."},
+		{Floor: "safe-area-tap-targets", Reason: "This fixture isolates authored viewport-scoped claim behavior."},
+		{Floor: "single-line-chrome", Reason: "This fixture isolates authored viewport-scoped claim behavior."},
+		{Floor: "tap-target-size", Reason: "This fixture isolates authored viewport-scoped claim behavior."},
+	}
 }
 
 func repoRoot(t *testing.T) string {

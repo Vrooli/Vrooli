@@ -250,6 +250,9 @@ message ReconciliationEvidence {
   string ax_node_json = 10;
   string message = 11;
   string checked_at = 12;
+  string viewport = 13;
+  int32 viewport_width = 14;
+  int32 viewport_height = 15;
 }
 
 message SuggestBindingsRequest {

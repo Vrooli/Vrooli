@@ -26,15 +26,30 @@ const (
 	defaultSettleMs  = 3000
 )
 
+// CaptureProfile names one viewport in the reconciliation matrix.
+type CaptureProfile struct {
+	ID      string
+	Width   int
+	Height  int
+	Aliases []string
+}
+
+// DefaultCaptureProfiles is the minimum viewport matrix for machine evidence.
+var DefaultCaptureProfiles = []CaptureProfile{
+	{ID: "desktop", Width: 1280, Height: 720, Aliases: []string{"wide"}},
+	{ID: "mobile", Width: 390, Height: 844},
+}
+
 // ErrCaptureUnavailable means the capture mechanism could not provide an AX
 // snapshot. Reconciliation maps it to skipped evidence, not a failed claim.
 var ErrCaptureUnavailable = errors.New("accessibility capture unavailable")
 
 // Check runs structure reconciliation as a checks.Check.
 type Check struct {
-	Capturer   Capturer
-	Repository EvidenceRepository
-	Now        func() time.Time
+	Capturer        Capturer
+	Repository      EvidenceRepository
+	Now             func() time.Time
+	CaptureProfiles []CaptureProfile
 }
 
 // Capturer returns one single-location accessibility snapshot for a page route.
@@ -44,10 +59,15 @@ type Capturer interface {
 
 // CaptureTarget identifies the scenario UI surface to inspect.
 type CaptureTarget struct {
-	Scenario string
-	Route    string
-	PageID   string
-	SettleMs int
+	Scenario        string
+	Route           string
+	PageID          string
+	StateID         string
+	ViewportID      string
+	ViewportAliases []string
+	ViewportWidth   int
+	ViewportHeight  int
+	SettleMs        int
 }
 
 // Name implements checks.Check.
@@ -67,6 +87,7 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 			findings = append(findings, expectedDraftFindings(loc, page)...)
 			continue
 		}
+		page = pageWithBaselineClaims(page)
 		if status != "active" || !hasDefaultMachineClaim(page) {
 			continue
 		}
@@ -74,30 +95,49 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 		if capturer == nil {
 			capturer = BASCapturer{}
 		}
-		target := CaptureTarget{
-			Scenario: report.Scenario,
-			Route:    firstRoute(page.Page.Routes),
-			PageID:   page.Page.ID,
-			SettleMs: defaultSettleMs,
+		profiles := c.captureProfiles()
+		for _, profile := range profiles {
+			target := CaptureTarget{
+				Scenario:        report.Scenario,
+				Route:           firstRoute(page.Page.Routes),
+				PageID:          page.Page.ID,
+				StateID:         "default",
+				ViewportID:      profile.ID,
+				ViewportAliases: append([]string(nil), profile.Aliases...),
+				ViewportWidth:   profile.Width,
+				ViewportHeight:  profile.Height,
+				SettleMs:        defaultSettleMs,
+			}
+			if !pageHasMachineClaimForTarget(page, target) {
+				continue
+			}
+			snapshot, err := capturer.CaptureAccessibility(ctx, target)
+			if err != nil || snapshot.Contract != snapshotContract || len(snapshot.Flatten()) == 0 {
+				findings = append(findings, spec.Finding{
+					Code:       spec.CodeCaptureUnavailable,
+					Severity:   spec.SeverityInfo,
+					Message:    fmt.Sprintf("accessibility capture unavailable for active page %q at viewport %q", page.Page.ID, target.ViewportID),
+					Locations:  []string{loc},
+					Suggestion: "Start browser-automation-studio and the target UI, then rerun the experience phase.",
+				})
+				findings = append(findings, c.persistEvidence(ctx, report.Scenario, loc, page, target, Snapshot{}, skippedEvidence(page, target, "capture unavailable"))...)
+				continue
+			}
+			result := reconcileActivePage(loc, page, target, snapshot)
+			findings = append(findings, result.Findings...)
+			findings = append(findings, c.persistEvidence(ctx, report.Scenario, loc, page, target, snapshot, result.Evidence)...)
 		}
-		snapshot, err := capturer.CaptureAccessibility(ctx, target)
-		if err != nil || snapshot.Contract != snapshotContract || len(snapshot.Flatten()) == 0 {
-			findings = append(findings, spec.Finding{
-				Code:       spec.CodeCaptureUnavailable,
-				Severity:   spec.SeverityInfo,
-				Message:    fmt.Sprintf("accessibility capture unavailable for active page %q", page.Page.ID),
-				Locations:  []string{loc},
-				Suggestion: "Start browser-automation-studio and the target UI, then rerun the experience phase.",
-			})
-			findings = append(findings, c.persistEvidence(ctx, report.Scenario, loc, page, target, Snapshot{}, skippedEvidence(page, "capture unavailable"))...)
-			continue
-		}
-		result := reconcileActivePage(loc, page, snapshot)
-		findings = append(findings, result.Findings...)
-		findings = append(findings, c.persistEvidence(ctx, report.Scenario, loc, page, target, snapshot, result.Evidence)...)
+		findings = append(findings, unverifiableOutOfMatrixFindings(loc, page, profiles)...)
 	}
 	sortFindings(findings)
 	return findings
+}
+
+func (c Check) captureProfiles() []CaptureProfile {
+	if len(c.CaptureProfiles) > 0 {
+		return c.CaptureProfiles
+	}
+	return DefaultCaptureProfiles
 }
 
 func expectedDraftFindings(loc string, page spec.PageDocument) []spec.Finding {
@@ -107,7 +147,7 @@ func expectedDraftFindings(loc string, page spec.PageDocument) []spec.Finding {
 		if !expected[claim.ID] {
 			continue
 		}
-		code := spec.CodeClaimFailed
+		code := claimFailureCode(claim.Type)
 		severity := spec.SeverityWarning
 		if claim.Tier == "manual" {
 			code = spec.CodeClaimUnproven
@@ -153,12 +193,12 @@ type pageReconciliation struct {
 	Evidence []Evidence
 }
 
-func reconcileActivePage(loc string, page spec.PageDocument, snapshot Snapshot) pageReconciliation {
+func reconcileActivePage(loc string, page spec.PageDocument, target CaptureTarget, snapshot Snapshot) pageReconciliation {
 	nodes := snapshot.Flatten()
 	var findings []spec.Finding
 	var evidence []Evidence
 	resolvedBindings := 0
-	activeElements := activeDefaultMachineElementIDs(page)
+	activeElements := activeMachineElementIDs(page, target)
 	for elementID, binding := range page.Bindings.Elements {
 		if !activeElements[elementID] {
 			continue
@@ -184,33 +224,34 @@ func reconcileActivePage(loc string, page spec.PageDocument, snapshot Snapshot) 
 				Locations:  []string{loc},
 				Suggestion: "Capture the intended page/state before treating structure claims as failed.",
 			}},
-			Evidence: skippedEvidence(page, "no declared bindings joined the accessibility tree"),
+			Evidence: skippedEvidence(page, target, "no declared bindings joined the accessibility tree"),
 		}
 	}
 	for _, claim := range page.Claims {
 		if claim.Tier != "machine" {
 			continue
 		}
-		if !claimTargetsDefault(claim) {
+		applies, reason := claimAppliesToTarget(claim, target)
+		if !applies {
 			if claim.Type == "state-covered" || claim.Type == "state-distinct" {
-				claimEvidence := unreachableStateEvidence(page, claim)
+				claimEvidence := unreachableEvidence(page, claim, target, reason)
 				evidence = append(evidence, claimEvidence)
 				findings = append(findings, spec.Finding{
 					Code:       spec.CodeClaimUnverifiable,
 					Severity:   spec.SeverityWarning,
 					Message:    fmt.Sprintf("machine claim %q is unverifiable: %s", claim.ID, claimEvidence.Message),
 					Locations:  []string{loc},
-					Suggestion: "Use a default-state claim, provide manual attestation, or add multi-state capture support.",
+					Suggestion: "Use a captured default-state/viewport claim, provide manual attestation, or extend the capture matrix.",
 				})
 			}
 			continue
 		}
-		claimEvidence, ok := evaluateClaim(page, claim, nodes)
+		claimEvidence, ok := evaluateClaim(page, claim, target, nodes)
 		evidence = append(evidence, claimEvidence)
 		if ok {
 			continue
 		}
-		code := spec.CodeClaimFailed
+		code := claimFailureCode(claim.Type)
 		severity := spec.SeverityError
 		message := fmt.Sprintf("machine claim %q was not proven by the accessibility snapshot", claim.ID)
 		suggestion := "Update the UI, binding, or claim tier so structure evidence matches intent."
@@ -219,6 +260,8 @@ func reconcileActivePage(loc string, page spec.PageDocument, snapshot Snapshot) 
 			severity = spec.SeverityWarning
 			message = fmt.Sprintf("machine claim %q is unverifiable: %s", claim.ID, claimEvidence.Message)
 			suggestion = "Use a supported claim type, retier the claim, or add deterministic checker coverage."
+		} else if claimEvidence.Message != "" && claimEvidence.Message != "claim was not proven by accessibility snapshot" {
+			message = fmt.Sprintf("machine claim %q failed: %s", claim.ID, claimEvidence.Message)
 		}
 		findings = append(findings, spec.Finding{
 			Code:       code,
@@ -231,105 +274,499 @@ func reconcileActivePage(loc string, page spec.PageDocument, snapshot Snapshot) 
 	return pageReconciliation{Findings: findings, Evidence: evidence}
 }
 
-func unreachableStateEvidence(page spec.PageDocument, claim spec.Claim) Evidence {
+func unreachableEvidence(page spec.PageDocument, claim spec.Claim, target CaptureTarget, reason string) Evidence {
+	if reason == "" {
+		reason = "claim target is outside the active capture matrix"
+	}
 	return Evidence{
-		PageID:    page.Page.ID,
-		Route:     firstRoute(page.Page.Routes),
-		StateID:   defaultStateID(claim),
-		ClaimID:   claim.ID,
-		ClaimType: claim.Type,
-		Verdict:   "unverifiable",
-		Message:   "v1 BAS reconciliation captures only the default state; non-default states require multi-state capture",
+		PageID:         page.Page.ID,
+		Route:          firstRoute(page.Page.Routes),
+		StateID:        target.StateID,
+		ViewportID:     target.ViewportID,
+		ViewportWidth:  target.ViewportWidth,
+		ViewportHeight: target.ViewportHeight,
+		ClaimID:        claim.ID,
+		ClaimType:      claim.Type,
+		Verdict:        "unverifiable",
+		Message:        reason,
 	}
 }
 
-func skippedEvidence(page spec.PageDocument, message string) []Evidence {
+func skippedEvidence(page spec.PageDocument, target CaptureTarget, message string) []Evidence {
 	var out []Evidence
 	for _, claim := range page.Claims {
-		if claim.Tier != "machine" || !claimTargetsDefault(claim) {
+		if applies, _ := claimAppliesToTarget(claim, target); claim.Tier != "machine" || !applies {
 			continue
 		}
 		out = append(out, Evidence{
-			PageID:    page.Page.ID,
-			Route:     firstRoute(page.Page.Routes),
-			StateID:   defaultStateID(claim),
-			ClaimID:   claim.ID,
-			ClaimType: claim.Type,
-			Verdict:   "skipped",
-			Message:   message,
+			PageID:         page.Page.ID,
+			Route:          firstRoute(page.Page.Routes),
+			StateID:        target.StateID,
+			ViewportID:     target.ViewportID,
+			ViewportWidth:  target.ViewportWidth,
+			ViewportHeight: target.ViewportHeight,
+			ClaimID:        claim.ID,
+			ClaimType:      claim.Type,
+			Verdict:        "skipped",
+			Message:        message,
 		})
 	}
 	return out
 }
 
-func evaluateClaim(page spec.PageDocument, claim spec.Claim, nodes []*AXNode) (Evidence, bool) {
+func evaluateClaim(page spec.PageDocument, claim spec.Claim, target CaptureTarget, nodes []*AXNode) (Evidence, bool) {
 	evidence := Evidence{
-		PageID:    page.Page.ID,
-		Route:     firstRoute(page.Page.Routes),
-		StateID:   defaultStateID(claim),
-		ClaimID:   claim.ID,
-		ClaimType: claim.Type,
-		Verdict:   "passed",
-		Message:   "claim proven by accessibility snapshot",
+		PageID:         page.Page.ID,
+		Route:          firstRoute(page.Page.Routes),
+		StateID:        target.StateID,
+		ViewportID:     target.ViewportID,
+		ViewportWidth:  target.ViewportWidth,
+		ViewportHeight: target.ViewportHeight,
+		ClaimID:        claim.ID,
+		ClaimType:      claim.Type,
+		Verdict:        "passed",
+		Message:        "claim proven by accessibility snapshot",
 	}
-	pass := true
-	switch claim.Type {
-	case "state-covered":
-		pass = claimTargetsDefault(claim)
-	case "state-distinct":
-		if len(claim.States) < 2 {
-			pass = false
-			break
-		}
-		for _, state := range claim.States {
-			if state != "" && state != "default" {
-				evidence.Verdict = "unverifiable"
-				evidence.Message = "v1 BAS reconciliation captures only the default state; non-default states require multi-state capture"
-				return evidence, false
-			}
-		}
-	case "element-present", "single-dominant-action", "keyboard-reachable":
-		if len(claim.Elements) == 0 {
-			pass = false
-			break
-		}
-		for _, elementID := range claim.Elements {
-			node := findBoundNode(nodes, page.Bindings.Elements[elementID], elementRole(page, elementID))
-			if node == nil {
-				pass = false
-				continue
-			}
-			evidence.AXNodeJSON = encodeAXNode(node)
-			if claim.Type == "keyboard-reachable" && !node.KeyboardReachable() {
-				pass = false
-			}
-		}
-	case "reading-order":
-		if len(claim.Elements) <= 1 {
-			pass = false
-			break
-		}
-		last := -1
-		for _, elementID := range claim.Elements {
-			idx := findBoundIndex(nodes, page.Bindings.Elements[elementID], elementRole(page, elementID))
-			if idx < 0 || idx < last {
-				pass = false
-			}
-			if idx >= 0 {
-				evidence.AXNodeJSON = encodeAXNode(nodes[idx])
-			}
-			last = idx
-		}
-	default:
+	evaluator := claimEvaluator(claim.Type)
+	if evaluator == nil {
 		evidence.Verdict = "unverifiable"
 		evidence.Message = "claim type has no deterministic structure checker"
 		return evidence, false
 	}
-	if !pass {
+	result := evaluator(page, claim, target, nodes)
+	if result.AXNodeJSON != "" {
+		evidence.AXNodeJSON = result.AXNodeJSON
+	}
+	if result.Unverifiable != "" {
+		evidence.Verdict = "unverifiable"
+		evidence.Message = result.Unverifiable
+		return evidence, false
+	}
+	if !result.Pass {
 		evidence.Verdict = "failed"
 		evidence.Message = "claim was not proven by accessibility snapshot"
+		if result.Failure != "" {
+			evidence.Message = result.Failure
+		}
 	}
-	return evidence, pass
+	return evidence, result.Pass
+}
+
+type claimEvaluation struct {
+	Pass         bool
+	AXNodeJSON   string
+	Failure      string
+	Unverifiable string
+}
+
+type claimEvaluatorFunc func(spec.PageDocument, spec.Claim, CaptureTarget, []*AXNode) claimEvaluation
+
+func claimEvaluator(claimType string) claimEvaluatorFunc {
+	evaluators := map[string]claimEvaluatorFunc{
+		"no-document-horizontal-overflow": evaluateNoDocumentHorizontalOverflowClaim,
+		"viewport-fill":                   evaluateViewportFillClaim,
+		"chrome-pinned":                   evaluateChromePinnedClaim,
+		"safe-area-tap-targets":           evaluateSafeAreaTapTargetsClaim,
+		"single-line-chrome":              evaluateSingleLineChromeClaim,
+		"tap-target-size":                 evaluateTapTargetSizeClaim,
+		"state-covered":                   evaluateStateCoveredClaim,
+		"state-distinct":                  evaluateStateDistinctClaim,
+		"element-present":                 evaluateElementPresenceClaim,
+		"single-dominant-action":          evaluateElementPresenceClaim,
+		"keyboard-reachable":              evaluateElementPresenceClaim,
+		"visible-without-scroll":          evaluateVisibleWithoutScrollClaim,
+		"reading-order":                   evaluateReadingOrderClaim,
+	}
+	return evaluators[claimType]
+}
+
+func evaluateNoDocumentHorizontalOverflowClaim(_ spec.PageDocument, _ spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
+	node := firstHorizontalOverflowNode(nodes, target)
+	if node == nil {
+		return claimEvaluation{Pass: true}
+	}
+	return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Failure: describeBoundsFailure("node extends horizontally outside the viewport", node, target)}
+}
+
+func evaluateViewportFillClaim(_ spec.PageDocument, _ spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
+	root := snapshotRoot(nodes)
+	if viewportFill(root, target) {
+		return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(root)}
+	}
+	return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(root), Failure: describeBoundsFailure("root surface does not fill the viewport", root, target)}
+}
+
+func evaluateChromePinnedClaim(_ spec.PageDocument, _ spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
+	node := firstUnpinnedChromeNode(nodes, target)
+	if node == nil {
+		return claimEvaluation{Pass: true}
+	}
+	return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Failure: describeBoundsFailure("chrome node sits outside the captured viewport", node, target)}
+}
+
+func evaluateSafeAreaTapTargetsClaim(_ spec.PageDocument, _ spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
+	node := firstUnsafeAreaTapTarget(nodes, target)
+	if node == nil {
+		return claimEvaluation{Pass: true}
+	}
+	return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Failure: describeBoundsFailure("interactive target overlaps the mobile unsafe bottom area", node, target)}
+}
+
+func evaluateSingleLineChromeClaim(_ spec.PageDocument, _ spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
+	node := firstMultilineChromeLabel(nodes, target)
+	if node == nil {
+		return claimEvaluation{Pass: true}
+	}
+	return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Failure: describeBoundsFailure("chrome label appears wrapped or too tall for a single-line control", node, target)}
+}
+
+func evaluateTapTargetSizeClaim(_ spec.PageDocument, _ spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
+	node := firstUndersizedTapTarget(nodes, target)
+	if node == nil {
+		return claimEvaluation{Pass: true}
+	}
+	return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Failure: describeBoundsFailure("mobile interactive target is smaller than 44px", node, target)}
+}
+
+func evaluateStateCoveredClaim(_ spec.PageDocument, claim spec.Claim, target CaptureTarget, _ []*AXNode) claimEvaluation {
+	return claimEvaluation{Pass: claimTargetsState(claim, target.StateID)}
+}
+
+func evaluateStateDistinctClaim(_ spec.PageDocument, claim spec.Claim, _ CaptureTarget, _ []*AXNode) claimEvaluation {
+	if len(claim.States) < 2 {
+		return claimEvaluation{}
+	}
+	for _, state := range claim.States {
+		if state != "" && state != "default" {
+			return claimEvaluation{Unverifiable: "state setup capture is not implemented for non-default state " + strconv.Quote(state)}
+		}
+	}
+	return claimEvaluation{Pass: true}
+}
+
+func evaluateElementPresenceClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
+	if len(claim.Elements) == 0 {
+		return claimEvaluation{}
+	}
+	pass := true
+	var axNodeJSON string
+	for _, elementID := range claim.Elements {
+		node := findBoundNode(nodes, page.Bindings.Elements[elementID], elementRole(page, elementID))
+		if node == nil {
+			pass = false
+			continue
+		}
+		axNodeJSON = encodeAXNode(node)
+		if claim.Type == "keyboard-reachable" && !node.KeyboardReachable() {
+			pass = false
+		}
+	}
+	return claimEvaluation{Pass: pass, AXNodeJSON: axNodeJSON}
+}
+
+func evaluateVisibleWithoutScrollClaim(page spec.PageDocument, claim spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
+	if len(claim.Elements) == 0 {
+		return claimEvaluation{}
+	}
+	pass := true
+	var axNodeJSON string
+	for _, elementID := range claim.Elements {
+		node := findBoundNode(nodes, page.Bindings.Elements[elementID], elementRole(page, elementID))
+		if node == nil || node.Bounds == nil || !boundsInsideViewport(node.Bounds, target) {
+			pass = false
+			continue
+		}
+		axNodeJSON = encodeAXNode(node)
+	}
+	return claimEvaluation{Pass: pass, AXNodeJSON: axNodeJSON}
+}
+
+func evaluateReadingOrderClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
+	if len(claim.Elements) <= 1 {
+		return claimEvaluation{}
+	}
+	pass := true
+	last := -1
+	var axNodeJSON string
+	for _, elementID := range claim.Elements {
+		idx := findBoundIndex(nodes, page.Bindings.Elements[elementID], elementRole(page, elementID))
+		if idx < 0 || idx < last {
+			pass = false
+		}
+		if idx >= 0 {
+			axNodeJSON = encodeAXNode(nodes[idx])
+		}
+		last = idx
+	}
+	return claimEvaluation{Pass: pass, AXNodeJSON: axNodeJSON}
+}
+
+func pageWithBaselineClaims(page spec.PageDocument) spec.PageDocument {
+	optedOut := map[string]bool{}
+	for _, optOut := range page.FloorOptOuts {
+		optedOut[optOut.Floor] = true
+	}
+	for _, floor := range baselineFloorClaims() {
+		if optedOut[floor.Type] || hasClaimType(page, floor.Type) {
+			continue
+		}
+		page.Claims = append(page.Claims, floor)
+	}
+	return page
+}
+
+func baselineFloorClaims() []spec.Claim {
+	return []spec.Claim{
+		{ID: "floor-no-document-horizontal-overflow", Type: "no-document-horizontal-overflow", Statement: "The page never creates document-level horizontal scrolling at captured viewports.", Tier: "machine", States: []string{"default"}},
+		{ID: "floor-viewport-fill", Type: "viewport-fill", Statement: "The page surface fills the captured viewport instead of collapsing short content.", Tier: "machine", States: []string{"default"}},
+		{ID: "floor-chrome-pinned", Type: "chrome-pinned", Statement: "Application chrome remains inside the viewport at captured viewports.", Tier: "machine", States: []string{"default"}},
+		{ID: "floor-safe-area-tap-targets", Type: "safe-area-tap-targets", Statement: "Mobile tap targets stay outside unsafe device-edge interaction zones.", Tier: "machine", States: []string{"default"}, Viewports: []string{"mobile"}},
+		{ID: "floor-single-line-chrome", Type: "single-line-chrome", Statement: "Navigation and chrome labels render as single-line controls at captured viewports.", Tier: "machine", States: []string{"default"}},
+		{ID: "floor-tap-target-size", Type: "tap-target-size", Statement: "Mobile interactive controls expose comfortable touch targets.", Tier: "machine", States: []string{"default"}, Viewports: []string{"mobile"}},
+	}
+}
+
+func hasClaimType(page spec.PageDocument, claimType string) bool {
+	for _, claim := range page.Claims {
+		if claim.Type == claimType {
+			return true
+		}
+	}
+	return false
+}
+
+func claimFailureCode(claimType string) string {
+	switch claimType {
+	case "no-document-horizontal-overflow":
+		return spec.CodeFloorNoDocOverflow
+	case "viewport-fill":
+		return spec.CodeFloorViewportFill
+	case "chrome-pinned":
+		return spec.CodeFloorChromePinned
+	case "safe-area-tap-targets":
+		return spec.CodeFloorSafeArea
+	case "single-line-chrome":
+		return spec.CodeFloorSingleLine
+	case "tap-target-size":
+		return spec.CodeFloorTapTargetSize
+	default:
+		return spec.CodeClaimFailed
+	}
+}
+
+func isBaselineFloorType(claimType string) bool {
+	return claimFailureCode(claimType) != spec.CodeClaimFailed
+}
+
+func snapshotRoot(nodes []*AXNode) *AXNode {
+	if len(nodes) == 0 {
+		return nil
+	}
+	return nodes[0]
+}
+
+func firstHorizontalOverflowNode(nodes []*AXNode, target CaptureTarget) *AXNode {
+	if target.ViewportWidth <= 0 {
+		return nil
+	}
+	limit := float64(target.ViewportWidth) + 2
+	for _, node := range nodes {
+		if node == nil || node.Bounds == nil || isTextOnlyNode(node) || !verticallyIntersectsViewport(node.Bounds, target) {
+			continue
+		}
+		if node.Bounds.X < -2 || node.Bounds.X+node.Bounds.Width > limit {
+			return node
+		}
+	}
+	return nil
+}
+
+func viewportFill(root *AXNode, target CaptureTarget) bool {
+	if root == nil || root.Bounds == nil || target.ViewportHeight <= 0 || target.ViewportWidth <= 0 {
+		return false
+	}
+	return root.Bounds.Width >= float64(target.ViewportWidth)*0.98 && root.Bounds.Height >= float64(target.ViewportHeight)*0.98
+}
+
+func firstUnpinnedChromeNode(nodes []*AXNode, target CaptureTarget) *AXNode {
+	if target.ViewportHeight <= 0 || target.ViewportWidth <= 0 {
+		return nil
+	}
+	for _, node := range nodes {
+		if !isChromeNode(node) || node.Bounds == nil {
+			continue
+		}
+		if !intersectsViewport(node.Bounds, target) {
+			continue
+		}
+		if node.Bounds.X < -1 || node.Bounds.Y < -1 || node.Bounds.X+node.Bounds.Width > float64(target.ViewportWidth)+1 || node.Bounds.Y+node.Bounds.Height > float64(target.ViewportHeight)+1 {
+			return node
+		}
+	}
+	return nil
+}
+
+func firstUnsafeAreaTapTarget(nodes []*AXNode, target CaptureTarget) *AXNode {
+	if target.ViewportID != "mobile" || target.ViewportHeight <= 0 {
+		return nil
+	}
+	const bottomUnsafeInset = 24.0
+	limit := float64(target.ViewportHeight) - bottomUnsafeInset
+	for _, node := range nodes {
+		if !isInteractiveNode(node) || node.Bounds == nil || !intersectsViewport(node.Bounds, target) {
+			continue
+		}
+		if !isAppChromeControlTestID(node.DOM.TestID) {
+			continue
+		}
+		if node.Bounds.Y+node.Bounds.Height > limit {
+			return node
+		}
+	}
+	return nil
+}
+
+func firstMultilineChromeLabel(nodes []*AXNode, target CaptureTarget) *AXNode {
+	for _, node := range nodes {
+		if !isChromeLabelNode(node, target) || node.Bounds == nil {
+			continue
+		}
+		if strings.Contains(node.Name, "\n") || node.Bounds.Height > 56 {
+			return node
+		}
+	}
+	return nil
+}
+
+func firstUndersizedTapTarget(nodes []*AXNode, target CaptureTarget) *AXNode {
+	if target.ViewportID != "mobile" {
+		return nil
+	}
+	const minTarget = 44.0
+	for _, node := range nodes {
+		if !isInteractiveNode(node) || node.Bounds == nil || !intersectsViewport(node.Bounds, target) {
+			continue
+		}
+		if node.Bounds.Width < minTarget || node.Bounds.Height < minTarget {
+			return node
+		}
+	}
+	return nil
+}
+
+func isChromeNode(node *AXNode) bool {
+	if node == nil {
+		return false
+	}
+	if isAppChromeContainerTestID(node.DOM.TestID) {
+		return true
+	}
+	switch strings.ToLower(node.Role) {
+	case "banner", "navigation", "menubar", "toolbar", "tablist", "contentinfo":
+		return true
+	default:
+		return strings.EqualFold(node.DOM.Tag, "nav") || strings.EqualFold(node.DOM.Tag, "header") || strings.EqualFold(node.DOM.Tag, "footer")
+	}
+}
+
+func isChromeLabelNode(node *AXNode, target CaptureTarget) bool {
+	if node == nil || strings.TrimSpace(node.Name) == "" || node.Bounds == nil {
+		return false
+	}
+	if isAppChromeControlTestID(node.DOM.TestID) {
+		return true
+	}
+	switch strings.ToLower(node.Role) {
+	case "button", "link", "tab", "menuitem":
+		return node.Bounds.Y <= 120
+	default:
+		return false
+	}
+}
+
+func isAppChromeContainerTestID(testID string) bool {
+	return testID == "layout-top-bar" || testID == "layout-sidebar" || testID == "layout-bottom-nav"
+}
+
+func isAppChromeControlTestID(testID string) bool {
+	return strings.HasPrefix(testID, "layout-sidebar-link-") || strings.HasPrefix(testID, "layout-bottom-nav-link-")
+}
+
+func isTextOnlyNode(node *AXNode) bool {
+	if node == nil {
+		return false
+	}
+	switch strings.ToLower(node.Role) {
+	case "statictext", "inlinetextbox", "text":
+		return true
+	default:
+		return false
+	}
+}
+
+func isInteractiveNode(node *AXNode) bool {
+	if node == nil {
+		return false
+	}
+	switch strings.ToLower(node.Role) {
+	case "button", "link", "tab", "checkbox", "combobox", "menuitem", "switch", "textbox":
+		return true
+	default:
+		return false
+	}
+}
+
+func intersectsViewport(bounds *Bounds, target CaptureTarget) bool {
+	if bounds == nil || target.ViewportHeight <= 0 || target.ViewportWidth <= 0 {
+		return false
+	}
+	return bounds.X+bounds.Width > 0 &&
+		bounds.Y+bounds.Height > 0 &&
+		bounds.X < float64(target.ViewportWidth) &&
+		bounds.Y < float64(target.ViewportHeight)
+}
+
+func verticallyIntersectsViewport(bounds *Bounds, target CaptureTarget) bool {
+	if bounds == nil || target.ViewportHeight <= 0 {
+		return false
+	}
+	return bounds.Y+bounds.Height > 0 && bounds.Y < float64(target.ViewportHeight)
+}
+
+func boundsInsideViewport(bounds *Bounds, target CaptureTarget) bool {
+	if bounds == nil || target.ViewportHeight <= 0 || target.ViewportWidth <= 0 {
+		return false
+	}
+	return bounds.X >= -1 &&
+		bounds.Y >= -1 &&
+		bounds.X+bounds.Width <= float64(target.ViewportWidth)+1 &&
+		bounds.Y+bounds.Height <= float64(target.ViewportHeight)+1
+}
+
+func describeBoundsFailure(prefix string, node *AXNode, target CaptureTarget) string {
+	if node == nil || node.Bounds == nil {
+		return prefix
+	}
+	name := strings.TrimSpace(node.Name)
+	if name == "" {
+		name = strings.TrimSpace(node.DOM.TestID)
+	}
+	if name == "" {
+		name = strings.TrimSpace(node.DOM.Tag)
+	}
+	if name == "" {
+		name = strings.TrimSpace(node.Role)
+	}
+	return fmt.Sprintf("%s: %s bounds x=%.1f y=%.1f w=%.1f h=%.1f viewport=%dx%d",
+		prefix,
+		name,
+		node.Bounds.X,
+		node.Bounds.Y,
+		node.Bounds.Width,
+		node.Bounds.Height,
+		target.ViewportWidth,
+		target.ViewportHeight,
+	)
 }
 
 func (c Check) persistEvidence(ctx context.Context, scenario, loc string, page spec.PageDocument, target CaptureTarget, snapshot Snapshot, evidence []Evidence) []spec.Finding {
@@ -355,6 +792,15 @@ func (c Check) persistEvidence(ctx context.Context, scenario, loc string, page s
 		}
 		if item.StateID == "" {
 			item.StateID = "default"
+		}
+		if item.ViewportID == "" {
+			item.ViewportID = target.ViewportID
+		}
+		if item.ViewportWidth == 0 {
+			item.ViewportWidth = target.ViewportWidth
+		}
+		if item.ViewportHeight == 0 {
+			item.ViewportHeight = target.ViewportHeight
 		}
 		item.CaptureRef = captureRef
 		item.CheckedAt = checkedAt
@@ -391,7 +837,7 @@ func encodeAXNode(node *AXNode) string {
 }
 
 func evidenceID(e Evidence) string {
-	key := strings.Join([]string{e.Scenario, e.PageID, e.StateID, e.ClaimID, e.CaptureRef, e.CheckedAt}, "\x00")
+	key := strings.Join([]string{e.Scenario, e.PageID, e.StateID, e.ViewportID, e.ClaimID, e.CaptureRef, e.CheckedAt}, "\x00")
 	sum := sha256.Sum256([]byte(key))
 	return fmt.Sprintf("ev-%x", sum[:12])
 }
@@ -413,25 +859,35 @@ func (c BASCapturer) CaptureAccessibility(ctx context.Context, target CaptureTar
 	if err != nil || strings.TrimSpace(targetURL) == "" {
 		return Snapshot{}, ErrCaptureUnavailable
 	}
+
 	type waitForPayload struct {
-		TimeoutMs string `json:"timeoutMs"`
+		TimeoutMs int `json:"timeout_ms"`
+	}
+	type dimensionsPayload struct {
+		Width  int `json:"width,omitempty"`
+		Height int `json:"height,omitempty"`
 	}
 	type captureRequestPayload struct {
-		URL                 string          `json:"url"`
-		InlineAccessibility bool            `json:"inlineAccessibility"`
-		Label               string          `json:"label"`
-		WaitFor             *waitForPayload `json:"waitFor,omitempty"`
-		InteractionFlowJSON string          `json:"interactionFlowJson,omitempty"`
+		URL                 string            `json:"url"`
+		InlineAccessibility bool              `json:"inline_accessibility"`
+		Label               string            `json:"label"`
+		Dimensions          dimensionsPayload `json:"dimensions,omitempty"`
+		WaitFor             *waitForPayload   `json:"wait_for,omitempty"`
+		InteractionFlowJSON string            `json:"interaction_flow_json,omitempty"`
 	}
 	payload := captureRequestPayload{
 		URL:                 targetURL,
 		InlineAccessibility: true,
 		Label:               "experience-manager structure reconciliation",
 	}
+	if target.ViewportWidth > 0 && target.ViewportHeight > 0 {
+		payload.Dimensions = dimensionsPayload{Width: target.ViewportWidth, Height: target.ViewportHeight}
+	}
 	if target.SettleMs > 0 {
-		payload.WaitFor = &waitForPayload{TimeoutMs: strconv.Itoa(target.SettleMs)}
+		payload.WaitFor = &waitForPayload{TimeoutMs: target.SettleMs}
 		payload.InteractionFlowJSON = settleInteractionFlow(target.SettleMs)
 	}
+
 	encoded, err := json.Marshal(payload)
 	if err != nil {
 		return Snapshot{}, ErrCaptureUnavailable
@@ -459,10 +915,14 @@ func (c BASCapturer) CaptureAccessibility(ctx context.Context, target CaptureTar
 		return Snapshot{}, ErrCaptureUnavailable
 	}
 	var decoded struct {
-		AccessibilityJSON string `json:"accessibilityJson"`
+		AccessibilityJSON      string `json:"accessibility_json"`
+		AccessibilityJSONCamel string `json:"accessibilityJson"`
 	}
 	if err := json.Unmarshal(body, &decoded); err != nil {
 		return Snapshot{}, ErrCaptureUnavailable
+	}
+	if strings.TrimSpace(decoded.AccessibilityJSON) == "" {
+		decoded.AccessibilityJSON = decoded.AccessibilityJSONCamel
 	}
 	if strings.TrimSpace(decoded.AccessibilityJSON) == "" {
 		return Snapshot{}, ErrCaptureUnavailable
@@ -543,17 +1003,26 @@ func (c BASCapturer) httpClient() *http.Client {
 
 func hasDefaultMachineClaim(page spec.PageDocument) bool {
 	for _, claim := range page.Claims {
-		if claim.Tier == "machine" && claimTargetsDefault(claim) {
+		if claim.Tier == "machine" && claimTargetsDefaultState(claim) {
 			return true
 		}
 	}
 	return false
 }
 
-func activeDefaultMachineElementIDs(page spec.PageDocument) map[string]bool {
+func pageHasMachineClaimForTarget(page spec.PageDocument, target CaptureTarget) bool {
+	for _, claim := range page.Claims {
+		if applies, _ := claimAppliesToTarget(claim, target); claim.Tier == "machine" && applies {
+			return true
+		}
+	}
+	return false
+}
+
+func activeMachineElementIDs(page spec.PageDocument, target CaptureTarget) map[string]bool {
 	out := map[string]bool{}
 	for _, claim := range page.Claims {
-		if claim.Tier != "machine" || !claimTargetsDefault(claim) {
+		if applies, _ := claimAppliesToTarget(claim, target); claim.Tier != "machine" || !applies {
 			continue
 		}
 		for _, elementID := range claim.Elements {
@@ -563,8 +1032,8 @@ func activeDefaultMachineElementIDs(page spec.PageDocument) map[string]bool {
 	return out
 }
 
-func claimTargetsDefault(claim spec.Claim) bool {
-	if len(claim.Viewports) > 0 || len(claim.Locales) > 0 || len(claim.Extensions) > 0 {
+func claimTargetsDefaultState(claim spec.Claim) bool {
+	if len(claim.Locales) > 0 || len(claim.Extensions) > 0 {
 		return false
 	}
 	if len(claim.States) == 0 {
@@ -576,6 +1045,95 @@ func claimTargetsDefault(claim spec.Claim) bool {
 		}
 	}
 	return false
+}
+
+func claimAppliesToTarget(claim spec.Claim, target CaptureTarget) (bool, string) {
+	if len(claim.Locales) > 0 {
+		return false, "locale-scoped claims require locale capture support"
+	}
+	if len(claim.Extensions) > 0 {
+		return false, "extension-scoped claims require a deterministic extension checker"
+	}
+	if !claimTargetsState(claim, target.StateID) {
+		return false, "state setup capture is not implemented for non-default states"
+	}
+	if !claimTargetsViewport(claim, target.ViewportID, target.ViewportAliases) {
+		return false, fmt.Sprintf("claim viewports %v are outside captured viewport %q", claim.Viewports, target.ViewportID)
+	}
+	return true, ""
+}
+
+func claimTargetsState(claim spec.Claim, stateID string) bool {
+	if stateID == "" {
+		stateID = "default"
+	}
+	if stateID != "default" {
+		for _, state := range claim.States {
+			if state == stateID {
+				return true
+			}
+		}
+		return false
+	}
+	if len(claim.States) == 0 {
+		return true
+	}
+	for _, state := range claim.States {
+		if state == "" || state == "default" {
+			return true
+		}
+	}
+	return false
+}
+
+func claimTargetsViewport(claim spec.Claim, viewportID string, aliases []string) bool {
+	if len(claim.Viewports) == 0 {
+		return true
+	}
+	for _, viewport := range claim.Viewports {
+		if viewport == viewportID {
+			return true
+		}
+		for _, alias := range aliases {
+			if viewport == alias {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func unverifiableOutOfMatrixFindings(loc string, page spec.PageDocument, profiles []CaptureProfile) []spec.Finding {
+	var findings []spec.Finding
+	captured := map[string]bool{}
+	for _, profile := range profiles {
+		captured[profile.ID] = true
+		for _, alias := range profile.Aliases {
+			captured[alias] = true
+		}
+	}
+	for _, claim := range page.Claims {
+		if claim.Tier != "machine" || len(claim.Viewports) == 0 || isBaselineFloorType(claim.Type) {
+			continue
+		}
+		var missing []string
+		for _, viewport := range claim.Viewports {
+			if !captured[viewport] {
+				missing = append(missing, viewport)
+			}
+		}
+		if len(missing) == 0 {
+			continue
+		}
+		findings = append(findings, spec.Finding{
+			Code:       spec.CodeClaimUnverifiable,
+			Severity:   spec.SeverityWarning,
+			Message:    fmt.Sprintf("machine claim %q targets uncaptured viewports %v", claim.ID, missing),
+			Locations:  []string{loc},
+			Suggestion: "Add the viewport to the capture matrix, retier the claim, or remove the viewport scope if it should apply everywhere.",
+		})
+	}
+	return findings
 }
 
 func pageStatuses(refs []spec.DocumentRef) map[string]string {

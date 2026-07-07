@@ -3779,7 +3779,31 @@ type GestureParams struct {
 	// Duration of the gesture in milliseconds.
 	// @unit milliseconds
 	// @constraint >= 0
-	DurationMs    *int32 `protobuf:"varint,6,opt,name=duration_ms,json=durationMs,proto3,oneof" json:"duration_ms,omitempty"`
+	DurationMs *int32 `protobuf:"varint,6,opt,name=duration_ms,json=durationMs,proto3,oneof" json:"duration_ms,omitempty"`
+	// Number of driver-level input steps to emit during the gesture.
+	// Performance captures should set this high enough to create a sustained
+	// interaction window instead of a synchronous burst.
+	// @constraint >= 1
+	Steps *int32 `protobuf:"varint,7,opt,name=steps,proto3,oneof" json:"steps,omitempty"`
+	// Delay between input steps in milliseconds. When omitted and duration_ms is
+	// set, implementations may derive a cadence from duration_ms / steps.
+	// @unit milliseconds
+	// @constraint >= 0
+	StepDelayMs *int32 `protobuf:"varint,8,opt,name=step_delay_ms,json=stepDelayMs,proto3,oneof" json:"step_delay_ms,omitempty"`
+	// Stable label for trace markers emitted around the gesture segment.
+	// Implementations SHOULD emit performance marks:
+	// bas.gesture.<trace_label>.start and bas.gesture.<trace_label>.end.
+	TraceLabel *string `protobuf:"bytes,9,opt,name=trace_label,json=traceLabel,proto3,oneof" json:"trace_label,omitempty"`
+	// Idle wait after the gesture so rendering fallout is captured in the trace.
+	// @unit milliseconds
+	// @constraint >= 0
+	IdleAfterMs *int32 `protobuf:"varint,10,opt,name=idle_after_ms,json=idleAfterMs,proto3,oneof" json:"idle_after_ms,omitempty"`
+	// Per-step wheel delta for zoom/pinch gestures. Negative values zoom in for
+	// wheel-driven UIs; positive values zoom out.
+	WheelDeltaY *int32 `protobuf:"varint,11,opt,name=wheel_delta_y,json=wheelDeltaY,proto3,oneof" json:"wheel_delta_y,omitempty"`
+	// Hold Control while emitting wheel input. Useful for apps that model
+	// trackpad pinch/zoom as Ctrl+wheel.
+	CtrlKey       *bool `protobuf:"varint,12,opt,name=ctrl_key,json=ctrlKey,proto3,oneof" json:"ctrl_key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3854,6 +3878,48 @@ func (x *GestureParams) GetDurationMs() int32 {
 		return *x.DurationMs
 	}
 	return 0
+}
+
+func (x *GestureParams) GetSteps() int32 {
+	if x != nil && x.Steps != nil {
+		return *x.Steps
+	}
+	return 0
+}
+
+func (x *GestureParams) GetStepDelayMs() int32 {
+	if x != nil && x.StepDelayMs != nil {
+		return *x.StepDelayMs
+	}
+	return 0
+}
+
+func (x *GestureParams) GetTraceLabel() string {
+	if x != nil && x.TraceLabel != nil {
+		return *x.TraceLabel
+	}
+	return ""
+}
+
+func (x *GestureParams) GetIdleAfterMs() int32 {
+	if x != nil && x.IdleAfterMs != nil {
+		return *x.IdleAfterMs
+	}
+	return 0
+}
+
+func (x *GestureParams) GetWheelDeltaY() int32 {
+	if x != nil && x.WheelDeltaY != nil {
+		return *x.WheelDeltaY
+	}
+	return 0
+}
+
+func (x *GestureParams) GetCtrlKey() bool {
+	if x != nil && x.CtrlKey != nil {
+		return *x.CtrlKey
+	}
+	return false
 }
 
 // NetworkMockParams configures network request interception.
@@ -5368,7 +5434,7 @@ const file_browser_automation_studio_v1_actions_action_proto_rawDesc = "" +
 	"\t_offset_yB\b\n" +
 	"\x06_stepsB\v\n" +
 	"\t_delay_msB\r\n" +
-	"\v_timeout_ms\"\x9f\x03\n" +
+	"\v_timeout_ms\"\xf3\x05\n" +
 	"\rGestureParams\x12V\n" +
 	"\fgesture_type\x18\x01 \x01(\x0e2).browser_automation_studio.v1.GestureTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\vgestureType\x12\x1f\n" +
 	"\bselector\x18\x02 \x01(\tH\x00R\bselector\x88\x01\x01\x12O\n" +
@@ -5376,13 +5442,28 @@ const file_browser_automation_studio_v1_actions_action_proto_rawDesc = "" +
 	"\bdistance\x18\x04 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\x02R\bdistance\x88\x01\x01\x12)\n" +
 	"\x05scale\x18\x05 \x01(\x01B\x0e\xbaH\v\x12\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x03R\x05scale\x88\x01\x01\x12-\n" +
 	"\vduration_ms\x18\x06 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\x04R\n" +
-	"durationMs\x88\x01\x01B\v\n" +
+	"durationMs\x88\x01\x01\x12\"\n" +
+	"\x05steps\x18\a \x01(\x05B\a\xbaH\x04\x1a\x02(\x01H\x05R\x05steps\x88\x01\x01\x120\n" +
+	"\rstep_delay_ms\x18\b \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\x06R\vstepDelayMs\x88\x01\x01\x12$\n" +
+	"\vtrace_label\x18\t \x01(\tH\aR\n" +
+	"traceLabel\x88\x01\x01\x120\n" +
+	"\ridle_after_ms\x18\n" +
+	" \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\bR\vidleAfterMs\x88\x01\x01\x12'\n" +
+	"\rwheel_delta_y\x18\v \x01(\x05H\tR\vwheelDeltaY\x88\x01\x01\x12\x1e\n" +
+	"\bctrl_key\x18\f \x01(\bH\n" +
+	"R\actrlKey\x88\x01\x01B\v\n" +
 	"\t_selectorB\f\n" +
 	"\n" +
 	"_directionB\v\n" +
 	"\t_distanceB\b\n" +
 	"\x06_scaleB\x0e\n" +
-	"\f_duration_ms\"\xf3\x03\n" +
+	"\f_duration_msB\b\n" +
+	"\x06_stepsB\x10\n" +
+	"\x0e_step_delay_msB\x0e\n" +
+	"\f_trace_labelB\x10\n" +
+	"\x0e_idle_after_msB\x10\n" +
+	"\x0e_wheel_delta_yB\v\n" +
+	"\t_ctrl_key\"\xf3\x03\n" +
 	"\x11NetworkMockParams\x12Z\n" +
 	"\toperation\x18\x01 \x01(\x0e22.browser_automation_studio.v1.NetworkMockOperationB\b\xbaH\x05\x82\x01\x02\x10\x01R\toperation\x12(\n" +
 	"\vurl_pattern\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +

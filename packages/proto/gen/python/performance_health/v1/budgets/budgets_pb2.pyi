@@ -7,7 +7,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Budget(_message.Message):
-    __slots__ = ("scenario", "go_build_max_ms", "ui_build_max_ms", "bundle_max_bytes", "lcp_max_ms", "startup_max_ms", "component_commit_max_ms", "component_commit_avg_max_ms", "ratchet", "flows")
+    __slots__ = ("scenario", "go_build_max_ms", "ui_build_max_ms", "bundle_max_bytes", "lcp_max_ms", "startup_max_ms", "component_commit_max_ms", "component_commit_avg_max_ms", "ratchet", "drawn_fps_min", "dropped_frame_rate_max", "long_task_total_max_ms", "long_task_max_ms", "raster_total_max_ms", "layout_total_max_ms", "paint_total_max_ms", "input_event_count_min", "flows", "load_only")
     class FlowsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -24,7 +24,16 @@ class Budget(_message.Message):
     COMPONENT_COMMIT_MAX_MS_FIELD_NUMBER: _ClassVar[int]
     COMPONENT_COMMIT_AVG_MAX_MS_FIELD_NUMBER: _ClassVar[int]
     RATCHET_FIELD_NUMBER: _ClassVar[int]
+    DRAWN_FPS_MIN_FIELD_NUMBER: _ClassVar[int]
+    DROPPED_FRAME_RATE_MAX_FIELD_NUMBER: _ClassVar[int]
+    LONG_TASK_TOTAL_MAX_MS_FIELD_NUMBER: _ClassVar[int]
+    LONG_TASK_MAX_MS_FIELD_NUMBER: _ClassVar[int]
+    RASTER_TOTAL_MAX_MS_FIELD_NUMBER: _ClassVar[int]
+    LAYOUT_TOTAL_MAX_MS_FIELD_NUMBER: _ClassVar[int]
+    PAINT_TOTAL_MAX_MS_FIELD_NUMBER: _ClassVar[int]
+    INPUT_EVENT_COUNT_MIN_FIELD_NUMBER: _ClassVar[int]
     FLOWS_FIELD_NUMBER: _ClassVar[int]
+    LOAD_ONLY_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     go_build_max_ms: int
     ui_build_max_ms: int
@@ -34,18 +43,45 @@ class Budget(_message.Message):
     component_commit_max_ms: float
     component_commit_avg_max_ms: float
     ratchet: bool
+    drawn_fps_min: float
+    dropped_frame_rate_max: float
+    long_task_total_max_ms: int
+    long_task_max_ms: float
+    raster_total_max_ms: float
+    layout_total_max_ms: float
+    paint_total_max_ms: float
+    input_event_count_min: int
     flows: _containers.MessageMap[str, FlowBudget]
-    def __init__(self, scenario: _Optional[str] = ..., go_build_max_ms: _Optional[int] = ..., ui_build_max_ms: _Optional[int] = ..., bundle_max_bytes: _Optional[int] = ..., lcp_max_ms: _Optional[int] = ..., startup_max_ms: _Optional[int] = ..., component_commit_max_ms: _Optional[float] = ..., component_commit_avg_max_ms: _Optional[float] = ..., ratchet: _Optional[bool] = ..., flows: _Optional[_Mapping[str, FlowBudget]] = ...) -> None: ...
+    load_only: bool
+    def __init__(self, scenario: _Optional[str] = ..., go_build_max_ms: _Optional[int] = ..., ui_build_max_ms: _Optional[int] = ..., bundle_max_bytes: _Optional[int] = ..., lcp_max_ms: _Optional[int] = ..., startup_max_ms: _Optional[int] = ..., component_commit_max_ms: _Optional[float] = ..., component_commit_avg_max_ms: _Optional[float] = ..., ratchet: _Optional[bool] = ..., drawn_fps_min: _Optional[float] = ..., dropped_frame_rate_max: _Optional[float] = ..., long_task_total_max_ms: _Optional[int] = ..., long_task_max_ms: _Optional[float] = ..., raster_total_max_ms: _Optional[float] = ..., layout_total_max_ms: _Optional[float] = ..., paint_total_max_ms: _Optional[float] = ..., input_event_count_min: _Optional[int] = ..., flows: _Optional[_Mapping[str, FlowBudget]] = ..., load_only: _Optional[bool] = ...) -> None: ...
 
 class FlowBudget(_message.Message):
-    __slots__ = ("lcp_max_ms", "component_commit_avg_max_ms", "component_commit_max_ms")
+    __slots__ = ("lcp_max_ms", "component_commit_avg_max_ms", "component_commit_max_ms", "drawn_fps_min", "dropped_frame_rate_max", "long_task_total_max_ms", "long_task_max_ms", "raster_total_max_ms", "layout_total_max_ms", "paint_total_max_ms", "input_event_count_min", "load_only")
     LCP_MAX_MS_FIELD_NUMBER: _ClassVar[int]
     COMPONENT_COMMIT_AVG_MAX_MS_FIELD_NUMBER: _ClassVar[int]
     COMPONENT_COMMIT_MAX_MS_FIELD_NUMBER: _ClassVar[int]
+    DRAWN_FPS_MIN_FIELD_NUMBER: _ClassVar[int]
+    DROPPED_FRAME_RATE_MAX_FIELD_NUMBER: _ClassVar[int]
+    LONG_TASK_TOTAL_MAX_MS_FIELD_NUMBER: _ClassVar[int]
+    LONG_TASK_MAX_MS_FIELD_NUMBER: _ClassVar[int]
+    RASTER_TOTAL_MAX_MS_FIELD_NUMBER: _ClassVar[int]
+    LAYOUT_TOTAL_MAX_MS_FIELD_NUMBER: _ClassVar[int]
+    PAINT_TOTAL_MAX_MS_FIELD_NUMBER: _ClassVar[int]
+    INPUT_EVENT_COUNT_MIN_FIELD_NUMBER: _ClassVar[int]
+    LOAD_ONLY_FIELD_NUMBER: _ClassVar[int]
     lcp_max_ms: int
     component_commit_avg_max_ms: float
     component_commit_max_ms: float
-    def __init__(self, lcp_max_ms: _Optional[int] = ..., component_commit_avg_max_ms: _Optional[float] = ..., component_commit_max_ms: _Optional[float] = ...) -> None: ...
+    drawn_fps_min: float
+    dropped_frame_rate_max: float
+    long_task_total_max_ms: int
+    long_task_max_ms: float
+    raster_total_max_ms: float
+    layout_total_max_ms: float
+    paint_total_max_ms: float
+    input_event_count_min: int
+    load_only: bool
+    def __init__(self, lcp_max_ms: _Optional[int] = ..., component_commit_avg_max_ms: _Optional[float] = ..., component_commit_max_ms: _Optional[float] = ..., drawn_fps_min: _Optional[float] = ..., dropped_frame_rate_max: _Optional[float] = ..., long_task_total_max_ms: _Optional[int] = ..., long_task_max_ms: _Optional[float] = ..., raster_total_max_ms: _Optional[float] = ..., layout_total_max_ms: _Optional[float] = ..., paint_total_max_ms: _Optional[float] = ..., input_event_count_min: _Optional[int] = ..., load_only: _Optional[bool] = ...) -> None: ...
 
 class GetBudgetRequest(_message.Message):
     __slots__ = ("scenario",)
@@ -96,15 +132,19 @@ class CheckBudgetResponse(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., passed: _Optional[bool] = ..., violations: _Optional[_Iterable[_Union[BudgetViolation, _Mapping]]] = ...) -> None: ...
 
 class BudgetViolation(_message.Message):
-    __slots__ = ("axis", "measured", "budget", "unit", "flow")
+    __slots__ = ("axis", "measured", "budget", "unit", "flow", "mode", "detail")
     AXIS_FIELD_NUMBER: _ClassVar[int]
     MEASURED_FIELD_NUMBER: _ClassVar[int]
     BUDGET_FIELD_NUMBER: _ClassVar[int]
     UNIT_FIELD_NUMBER: _ClassVar[int]
     FLOW_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
     axis: str
     measured: int
     budget: int
     unit: str
     flow: str
-    def __init__(self, axis: _Optional[str] = ..., measured: _Optional[int] = ..., budget: _Optional[int] = ..., unit: _Optional[str] = ..., flow: _Optional[str] = ...) -> None: ...
+    mode: str
+    detail: str
+    def __init__(self, axis: _Optional[str] = ..., measured: _Optional[int] = ..., budget: _Optional[int] = ..., unit: _Optional[str] = ..., flow: _Optional[str] = ..., mode: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
