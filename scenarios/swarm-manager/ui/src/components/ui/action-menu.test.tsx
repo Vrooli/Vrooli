@@ -28,9 +28,12 @@ describe("ActionMenu", () => {
 
     await user.click(screen.getByTestId("actions-trigger"));
 
+    // The menu renders through the shared Popover primitive: the testId
+    // container carries the canonical popover surface, and the item list is
+    // the role="menu" region.
     const menu = screen.getByTestId("actions-menu");
-    expect(menu).toHaveAttribute("role", "menu");
-    expect(menu.className).toContain("bg-slate-950");
+    expect(menu.className).toContain("bg-slate-900");
+    expect(screen.getByRole("menu")).toBeInTheDocument();
 
     await user.click(screen.getByTestId("delete-action"));
     expect(onSelect).toHaveBeenCalledTimes(1);

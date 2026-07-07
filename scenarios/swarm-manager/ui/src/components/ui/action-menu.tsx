@@ -1,8 +1,8 @@
 import { useRef, useState, type ReactNode } from "react";
 import { Loader2, MoreVertical } from "lucide-react";
 import { Button, type ButtonProps } from "./button";
+import { Popover } from "./popover";
 import { cn } from "../../lib/utils";
-import { useModalBehavior } from "../../hooks/useModalBehavior";
 
 export interface ActionMenuItem {
   label: string;
@@ -39,46 +39,48 @@ export function ActionMenu({
   className,
 }: ActionMenuProps) {
   const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useModalBehavior({
-    isOpen: open,
-    onClose: () => setOpen(false),
-    ref: menuRef,
-  });
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   if (items.length === 0) return null;
 
   return (
-    <div ref={menuRef} className={cn("relative", className)}>
+    <>
       <Button
+        ref={triggerRef}
         variant={triggerVariant}
         size={triggerSize}
+        // Stop the mousedown from reaching the popover's click-outside listener
+        // so clicking the trigger toggles cleanly instead of closing-then-reopening.
+        onMouseDown={(event) => event.stopPropagation()}
         onClick={() => setOpen((current) => !current)}
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
         title={label}
         data-testid={triggerTestId}
+        className={className}
       >
         {triggerIcon}
       </Button>
-      {open && (
-        <ActionMenuPanel
-          className="absolute right-0 top-full z-30 mt-1"
-          testId={menuTestId}
-        >
-          <ActionMenuItems
-            items={items}
-            onItemSelected={() => {
-              setOpen(false);
-              onItemSelected?.();
-            }}
-            itemRole="menuitem"
-          />
-        </ActionMenuPanel>
-      )}
-    </div>
+      <Popover
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        triggerRef={triggerRef}
+        placement="bottom-end"
+        className="min-w-[200px] overflow-hidden py-1"
+        testId={menuTestId}
+      >
+        <ActionMenuItems
+          items={items}
+          onItemSelected={() => {
+            setOpen(false);
+            onItemSelected?.();
+          }}
+          role="menu"
+          itemRole="menuitem"
+        />
+      </Popover>
+    </>
   );
 }
 
@@ -115,7 +117,7 @@ export function ActionMenuPanel({
     <div
       role="menu"
       className={cn(
-        "min-w-[200px] overflow-hidden rounded-md border border-slate-700 bg-slate-950 py-1 shadow-lg",
+        "min-w-[200px] overflow-hidden rounded-md border border-white/10 bg-slate-900 py-1 shadow-lg",
         className,
       )}
       data-testid={testId}

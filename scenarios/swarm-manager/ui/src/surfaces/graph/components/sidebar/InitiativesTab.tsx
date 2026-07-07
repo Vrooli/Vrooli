@@ -2,7 +2,7 @@
  * InitiativesTab - Lists initiatives with rollup counts.
  */
 
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { Archive, Loader2 } from "lucide-react";
 import { SIDEBAR_TAB_ICONS } from "../../../../types/constants";
 import { useInitiativeStore } from "../../../../stores/initiative-store";
@@ -11,6 +11,11 @@ import type { InitiativeWithRollup } from "../../../../types";
 import type { InitiativeFilters, SortConfig } from "./types";
 import { InitiativeSummaryCard } from "../../../../components/initiative/initiative-summary-card";
 import { ConfirmDialog } from "../../../../components/ui/confirm-dialog";
+import { ContextMenu } from "../../../../components/ui/context-menu";
+import { useContextMenu } from "../../../../components/ui/use-context-menu";
+import type { ActionMenuItem } from "../../../../components/ui/action-menu";
+import { initiativeGoalTarget } from "../../../../components/goals/goal-target";
+import { useSetAsGoalMenu } from "../../../../components/goals/useSetAsGoalMenu";
 import { initiativeService } from "../../../../services";
 import {
   computeEffectivePriority,
@@ -185,16 +190,15 @@ function InitiativesTabImpl({
     <div className="space-y-1.5">
       {selectionMode && <InitiativeBulkActions selectedInitiatives={sorted.filter((iwr) => selectedIds.has(initiativeSelectionId(iwr)))} />}
       {sorted.map((iwr) => {
-        const { initiative } = iwr;
         const selectionId = initiativeSelectionId(iwr);
         return (
-          <InitiativeSummaryCard
-            key={initiative.name}
-            item={iwr}
-            onOpen={() => onItemClick(`initiative/${initiative.name}`)}
-            batchMode={selectionMode}
-            batchSelected={selectedIds.has(selectionId)}
-            onBatchToggle={() => onToggleSelection?.(selectionId)}
+          <InitiativeRow
+            key={iwr.initiative.name}
+            iwr={iwr}
+            selectionMode={selectionMode}
+            selected={selectedIds.has(selectionId)}
+            onOpen={() => onItemClick(`initiative/${iwr.initiative.name}`)}
+            onToggle={() => onToggleSelection?.(selectionId)}
           />
         );
       })}
@@ -203,6 +207,55 @@ function InitiativesTabImpl({
 }
 
 export const InitiativesTab = memo(InitiativesTabImpl);
+
+/**
+ * InitiativeRow wraps the summary card with a right-click / long-press context
+ * menu whose "Set as goal" action reuses the same flow as the graph node
+ * inspector and plan card menu.
+ */
+function InitiativeRow({
+  iwr,
+  selectionMode,
+  selected,
+  onOpen,
+  onToggle,
+}: {
+  iwr: InitiativeWithRollup;
+  selectionMode: boolean;
+  selected: boolean;
+  onOpen: () => void;
+  onToggle: () => void;
+}) {
+  const contextMenu = useContextMenu();
+  const goalTarget = useMemo(() => initiativeGoalTarget(iwr.initiative), [iwr.initiative]);
+  const setAsGoal = useSetAsGoalMenu(goalTarget);
+  const contextItems = useMemo<ActionMenuItem[]>(() => {
+    const items: ActionMenuItem[] = [
+      { label: "Open", onSelect: onOpen, testId: "context-menu-open" },
+    ];
+    if (setAsGoal.item) items.push(setAsGoal.item);
+    return items;
+  }, [onOpen, setAsGoal.item]);
+
+  return (
+    <div {...contextMenu.triggerProps}>
+      <InitiativeSummaryCard
+        item={iwr}
+        onOpen={onOpen}
+        batchMode={selectionMode}
+        batchSelected={selected}
+        onBatchToggle={onToggle}
+      />
+      <ContextMenu
+        origin={contextMenu.origin}
+        onClose={contextMenu.close}
+        items={contextItems}
+        testId="sidebar-initiative-context-menu"
+      />
+      {setAsGoal.dialog}
+    </div>
+  );
+}
 
 function InitiativeBulkActions({ selectedInitiatives }: { selectedInitiatives: InitiativeWithRollup[] }) {
   const fetchInitiatives = useInitiativeStore((s) => s.fetchInitiatives);

@@ -24,6 +24,11 @@ import { RunBacklogModal } from "../../../../components/backlog/run-backlog-moda
 import type { RunBacklogTarget } from "../../../../components/backlog/run-backlog-modal";
 import { ConfirmDialog } from "../../../../components/ui/confirm-dialog";
 import { Button } from "../../../../components/ui/button";
+import { ContextMenu } from "../../../../components/ui/context-menu";
+import { useContextMenu } from "../../../../components/ui/use-context-menu";
+import type { ActionMenuItem } from "../../../../components/ui/action-menu";
+import { backlogGoalTarget } from "../../../../components/goals/goal-target";
+import { useSetAsGoalMenu } from "../../../../components/goals/useSetAsGoalMenu";
 import { useCommandPostItemActions } from "../../../../hooks/useCommandPostItemActions";
 import type { StableItemCallbacks } from "../../../../hooks/useCommandPostItemActions";
 import type { BacklogItem, ItemBlockingInfo, PendingQuestion } from "../../../../types";
@@ -496,10 +501,23 @@ const BacklogRow = memo(function BacklogRow({
     [handleStepperCompleted, itemKey, item],
   );
 
+  const contextMenu = useContextMenu();
+  const goalTarget = useMemo(() => backlogGoalTarget(item), [item]);
+  const setAsGoal = useSetAsGoalMenu(goalTarget);
+  const contextItems = useMemo<ActionMenuItem[]>(() => {
+    const items: ActionMenuItem[] = [
+      { label: "Open", onSelect: () => onItemClick(nodeId), testId: "context-menu-open" },
+    ];
+    if (setAsGoal.item) items.push(setAsGoal.item);
+    return items;
+  }, [nodeId, onItemClick, setAsGoal.item]);
+
   return (
+    <>
     <button
       type="button"
       onClick={handleClick}
+      {...contextMenu.triggerProps}
       className="group w-full rounded-lg border border-slate-800/80 bg-slate-900/50 p-2.5 text-left transition-colors hover:border-slate-700/80 hover:bg-slate-800/60"
       data-testid="sidebar-backlog-item"
     >
@@ -529,6 +547,14 @@ const BacklogRow = memo(function BacklogRow({
         runningLabel={runningLabel}
       />
     </button>
+    <ContextMenu
+      origin={contextMenu.origin}
+      onClose={contextMenu.close}
+      items={contextItems}
+      testId="sidebar-backlog-context-menu"
+    />
+    {setAsGoal.dialog}
+    </>
   );
 });
 

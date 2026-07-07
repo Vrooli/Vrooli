@@ -15,6 +15,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ExternalLink, Play, Target } from "lucide-react";
 import { FocusActionsSection } from "./FocusActionsSection";
 import { SetAsGoalDialog } from "../../../components/goals/SetAsGoalDialog";
+import { backlogGoalTarget, initiativeGoalTarget, type GoalTarget } from "../../../components/goals/goal-target";
 import { cn } from "../../../lib/utils";
 import { useNodeGoalBadges } from "../hooks/useGoalMembership";
 import { StatusBadge } from "../../../components/detail/StatusBadge";
@@ -150,14 +151,12 @@ const INSPECTOR_POSITION = { x: window.innerWidth - 380, y: window.innerHeight -
  * ("<kind>/<name>" for items, "initiative/<name>" for initiatives). Other node
  * types cannot be goal targets and return null.
  */
-function goalTargetForNode(data: GraphNodeData): { ref: string; title: string } | null {
+function goalTargetForNode(data: GraphNodeData): GoalTarget | null {
   if (data.entityType === "backlog" && data.rawType === "BacklogItem") {
-    const d = data;
-    return { ref: `${d.kind}/${d.name}`, title: d.title || d.name };
+    return backlogGoalTarget(data);
   }
   if (data.entityType === "initiative" && data.rawType === "Initiative") {
-    const d = data;
-    return { ref: `initiative/${d.name}`, title: d.title || d.name };
+    return initiativeGoalTarget(data);
   }
   return null;
 }

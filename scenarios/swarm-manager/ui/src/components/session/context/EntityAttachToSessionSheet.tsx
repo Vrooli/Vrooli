@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { MessageCirclePlus, Plus, Search } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { ListPlus, MessageCirclePlus, Plus, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { sessionDetailPath } from "../../../app/routes/route-paths";
 import { selectors } from "../../../consts/selectors";
@@ -8,6 +8,7 @@ import type { AgentSession, AgentSessionKind } from "../../../types";
 import { cn } from "../../../lib/utils";
 import { BottomSheet } from "../../ui/bottom-sheet";
 import { Button } from "../../ui/button";
+import { Card } from "../../ui/card";
 import { Input } from "../../ui/input";
 import { ContextChipTray } from "../../composer/ContextChipTray";
 import {
@@ -125,8 +126,10 @@ function EntityAttachToSessionSheetContent({
       contentClassName="px-0 py-0"
       footer={
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="min-w-0 text-xs text-slate-400">
-            {selectedSession ? `Selected ${selectedSession.title || selectedSession.id}` : "Select a session or create a draft."}
+          <p className="min-w-0 truncate text-xs text-slate-400">
+            {selectedSession
+              ? `Selected ${selectedSession.title || selectedSession.id}`
+              : "Pick a session below, or draft a new one above."}
           </p>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
@@ -139,46 +142,72 @@ function EntityAttachToSessionSheetContent({
       data-testid={selectors.agentSessions.entityAttachSheet}
     >
       <div className="flex min-h-0 flex-col">
-        <div className="space-y-2.5 border-b border-white/10 px-3 py-2.5 sm:px-4">
-          <ContextChipTray items={[option]} className="max-h-16" />
+        <div className="space-y-4 border-b border-white/10 px-4 py-4">
+          {/* What is being attached */}
+          <div>
+            <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-slate-500">
+              Attaching
+            </p>
+            <ContextChipTray items={[option]} className="max-h-16" />
+          </div>
+
           {localError && (
             <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200" role="alert">
               {localError}
             </div>
           )}
-          <div className="rounded-md border border-slate-800 bg-slate-950/50 p-2.5">
-            <div className="flex flex-col gap-2.5">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-slate-100">New draft session</p>
-                <p className="mt-0.5 text-xs text-slate-400">
-                  {CONTEXT_TYPE_LABELS[option.type]} context will be staged before the first message.
-                </p>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-                <SessionKindChoices
-                  kinds={compatibleKinds}
-                  selectedKind={selectedKind}
-                  onSelect={setSelectedKind}
-                />
-                <Button size="sm" onClick={() => void quickStart()} disabled={isMutating || compatibleKinds.length === 0} data-testid={selectors.agentSessions.entityAttachQuickStart}>
-                  <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  Draft
-                </Button>
-              </div>
+
+          {/* Option A — start a fresh session */}
+          <Card padding="none" className="p-3.5" data-testid="entity-attach-new-section">
+            <SectionHeading
+              icon={<MessageCirclePlus className="h-4 w-4" />}
+              tone="accent"
+              title="New draft session"
+              subtitle={`${CONTEXT_TYPE_LABELS[option.type]} context will be staged before the first message.`}
+            />
+            <div className="mt-3">
+              <SessionKindChoices
+                kinds={compatibleKinds}
+                selectedKind={selectedKind}
+                onSelect={setSelectedKind}
+              />
+            </div>
+            <div className="mt-3 flex justify-end">
+              <Button size="sm" onClick={() => void quickStart()} disabled={isMutating || compatibleKinds.length === 0} data-testid={selectors.agentSessions.entityAttachQuickStart}>
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Draft session
+              </Button>
+            </div>
+          </Card>
+
+          {/* Either/or boundary */}
+          <div className="flex items-center gap-3 text-[11px] font-medium uppercase tracking-wider text-slate-500" aria-hidden>
+            <span className="h-px flex-1 bg-white/10" />
+            or
+            <span className="h-px flex-1 bg-white/10" />
+          </div>
+
+          {/* Option B — attach to something that already exists */}
+          <div data-testid="entity-attach-existing-section">
+            <SectionHeading
+              icon={<ListPlus className="h-4 w-4" />}
+              tone="muted"
+              title="Add to an existing session"
+              subtitle="Stage this context in a session you already have open."
+            />
+            <div className="relative mt-3">
+              <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search sessions..."
+                className="h-9 border-slate-700 bg-slate-950/70 pl-9 text-slate-100 placeholder:text-slate-500"
+                data-testid={selectors.agentSessions.entityAttachSearch}
+              />
             </div>
           </div>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search sessions..."
-              className="h-9 border-slate-700 bg-slate-950/70 pl-9 text-slate-100 placeholder:text-slate-500"
-              data-testid={selectors.agentSessions.entityAttachSearch}
-            />
-          </div>
         </div>
-        <div className="max-h-[56vh] overflow-y-auto px-2.5 py-2.5 sm:max-h-[50vh] sm:px-3" data-testid={selectors.agentSessions.entityAttachSessionList}>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3" data-testid={selectors.agentSessions.entityAttachSessionList}>
           {visibleSessions.length > 0 ? (
             <div className="space-y-1.5">
               {visibleSessions.map((session) => (
@@ -192,13 +221,42 @@ function EntityAttachToSessionSheetContent({
               ))}
             </div>
           ) : (
-            <div className="rounded-md border border-dashed border-slate-700 bg-slate-950/40 px-3 py-10 text-center text-sm text-slate-500">
+            <div className="rounded-md border border-dashed border-white/10 bg-slate-950/30 px-3 py-10 text-center text-sm text-slate-500">
               No matching sessions.
             </div>
           )}
         </div>
       </div>
     </BottomSheet>
+  );
+}
+
+function SectionHeading({
+  icon,
+  title,
+  subtitle,
+  tone,
+}: {
+  icon: ReactNode;
+  title: string;
+  subtitle: string;
+  tone: "accent" | "muted";
+}) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <span
+        className={cn(
+          "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
+          tone === "accent" ? "bg-cyan-400/10 text-cyan-300" : "bg-slate-700/40 text-slate-300",
+        )}
+      >
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <h3 className="text-sm font-semibold text-slate-100">{title}</h3>
+        <p className="mt-0.5 text-xs leading-snug text-slate-400">{subtitle}</p>
+      </div>
+    </div>
   );
 }
 
