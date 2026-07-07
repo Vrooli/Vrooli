@@ -12,8 +12,10 @@ import (
 	"sync/atomic"
 	"syscall"
 	"testing"
+	"time"
 
 	"audio-tools/internal/audioformat"
+	"audio-tools/internal/capabilities"
 )
 
 // pcmAudio is a tiny valid PCM payload the audioformat substrate wraps as WAV
@@ -121,10 +123,11 @@ func (d *flakeyDoer) Do(req *http.Request) (*http.Response, error) {
 
 // fakeEnsurer records EnsureRunning calls and (optionally) brings the doer "up".
 type fakeEnsurer struct {
-	mu       sync.Mutex
-	calls    int
-	failWith error
-	bringUp  *flakeyDoer
+	mu              sync.Mutex
+	calls           int
+	failWith        error
+	bringUp         *flakeyDoer
+	bringCapability *atomic.Bool
 }
 
 func (e *fakeEnsurer) EnsureRunning(_ context.Context, _ string) error {
@@ -137,7 +140,21 @@ func (e *fakeEnsurer) EnsureRunning(_ context.Context, _ string) error {
 	if e.bringUp != nil {
 		e.bringUp.up.Store(true)
 	}
+	if e.bringCapability != nil {
+		e.bringCapability.Store(true)
+	}
 	return nil
+}
+
+type toggledCapability struct {
+	available *atomic.Bool
+}
+
+func (c toggledCapability) Check(context.Context) (capabilities.Status, string) {
+	if c.available.Load() {
+		return capabilities.StatusAvailable, "available"
+	}
+	return capabilities.StatusUnavailable, "unavailable"
 }
 
 func newRecoveryService(doer HTTPDoer) *Service {
@@ -165,6 +182,46 @@ func TestTranscribeEnsuresAndRetriesOnce(t *testing.T) {
 	}
 	if got := doer.calls.Load(); got != 2 {
 		t.Errorf("HTTP attempts = %d, want 2 (fail then retry)", got)
+	}
+}
+
+func TestEnsureWhisperAvailableEnsuresAndRefreshesCapability(t *testing.T) {
+	available := &atomic.Bool{}
+	caps := capabilities.NewRegistry(
+		[]capabilities.Def{{ID: "whisper-stt", Name: "Whisper STT"}},
+		map[string]capabilities.Checker{"whisper-stt": toggledCapability{available: available}},
+		time.Hour,
+	)
+	ens := &fakeEnsurer{bringCapability: available}
+	s := NewService(Config{}, "", nil, "", SpeakerConfig{}, "", nil, caps, nil, "", nil, nil)
+	s.SetBackendEnsurer(ens, "whisper")
+	s.SetAutoEnsure(true)
+
+	if !s.EnsureWhisperAvailable(context.Background()) {
+		t.Fatal("EnsureWhisperAvailable returned false after ensurer made capability available")
+	}
+	if ens.calls != 1 {
+		t.Fatalf("EnsureRunning calls = %d, want 1", ens.calls)
+	}
+}
+
+func TestEnsureWhisperAvailableRespectsAutoEnsureOff(t *testing.T) {
+	available := &atomic.Bool{}
+	caps := capabilities.NewRegistry(
+		[]capabilities.Def{{ID: "whisper-stt", Name: "Whisper STT"}},
+		map[string]capabilities.Checker{"whisper-stt": toggledCapability{available: available}},
+		time.Hour,
+	)
+	ens := &fakeEnsurer{bringCapability: available}
+	s := NewService(Config{}, "", nil, "", SpeakerConfig{}, "", nil, caps, nil, "", nil, nil)
+	s.SetBackendEnsurer(ens, "whisper")
+	s.SetAutoEnsure(false)
+
+	if s.EnsureWhisperAvailable(context.Background()) {
+		t.Fatal("EnsureWhisperAvailable returned true with auto ensure disabled")
+	}
+	if ens.calls != 0 {
+		t.Fatalf("EnsureRunning calls = %d, want 0", ens.calls)
 	}
 }
 

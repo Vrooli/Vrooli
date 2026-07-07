@@ -45,7 +45,7 @@ func (p *LocalProvider) IsAvailable(ctx context.Context) bool {
 	if p == nil || p.svc == nil {
 		return false
 	}
-	return p.svc.WhisperAvailable(ctx)
+	return p.svc.EnsureWhisperAvailable(ctx)
 }
 
 func (p *LocalProvider) Transcribe(ctx context.Context, req Request) (*Result, error) {

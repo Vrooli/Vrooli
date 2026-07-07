@@ -273,6 +273,33 @@ func (s *Service) WhisperAvailable(ctx context.Context) bool {
 	return s.capabilities.IsAvailable(ctx, "whisper-stt")
 }
 
+// EnsureWhisperAvailable probes Whisper and, when it is unavailable, asks the
+// configured backend ensurer to reconcile the resource before forcing a fresh
+// capability check. This covers stream-start/provider-picker paths that consult
+// availability before any batch transcription request can hit the retry path.
+func (s *Service) EnsureWhisperAvailable(ctx context.Context) bool {
+	if s.WhisperAvailable(ctx) {
+		return true
+	}
+	resource := s.backendResource
+	if s.capabilities == nil || s.ensurer == nil || !s.autoEnsure || resource == "" {
+		return false
+	}
+	s.log().Printf("event=stt_backend_unavailable resource=%q action=ensure_probe", resource)
+	if err := s.ensurer.EnsureRunning(ctx, resource); err != nil {
+		s.log().Printf("event=stt_backend_ensure_probe_failed resource=%q err=%v", resource, err)
+		return false
+	}
+	for _, state := range s.capabilities.ResolveForce(ctx) {
+		if state.ID == "whisper-stt" {
+			recovered := state.Status == capabilities.StatusAvailable
+			s.log().Printf("event=stt_backend_ensure_probe_result resource=%q recovered=%t status=%q", resource, recovered, state.Status)
+			return recovered
+		}
+	}
+	return false
+}
+
 func (s *Service) IncrSkipVerification() {
 	if s.skipVerifyCount != nil {
 		s.skipVerifyCount.Add(1)
