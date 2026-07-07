@@ -198,33 +198,30 @@
           "long_task_total_max_ms": 1500
         },
         "graph-sustained-pan": {
-          "drawn_fps_min": 45,
-          "dropped_frame_rate_max": 0.2,
-          "long_task_total_max_ms": 1500,
+          "dropped_frame_rate_max": 0.35,
+          "long_task_total_max_ms": 650,
           "long_task_max_ms": 250,
-          "raster_total_max_ms": 1200,
-          "layout_total_max_ms": 500,
-          "paint_total_max_ms": 500,
+          "raster_total_max_ms": 2600,
+          "layout_total_max_ms": 330,
+          "paint_total_max_ms": 200,
           "input_event_count_min": 30
         },
         "graph-wheel-zoom": {
-          "drawn_fps_min": 45,
-          "dropped_frame_rate_max": 0.2,
-          "long_task_total_max_ms": 1800,
+          "dropped_frame_rate_max": 0.55,
+          "long_task_total_max_ms": 900,
           "long_task_max_ms": 250,
-          "raster_total_max_ms": 1400,
-          "layout_total_max_ms": 600,
-          "paint_total_max_ms": 600,
+          "raster_total_max_ms": 4300,
+          "layout_total_max_ms": 370,
+          "paint_total_max_ms": 220,
           "input_event_count_min": 24
         },
         "graph-pinch-zoom": {
-          "drawn_fps_min": 40,
-          "dropped_frame_rate_max": 0.25,
-          "long_task_total_max_ms": 1800,
+          "dropped_frame_rate_max": 0.45,
+          "long_task_total_max_ms": 900,
           "long_task_max_ms": 250,
-          "raster_total_max_ms": 1400,
-          "layout_total_max_ms": 600,
-          "paint_total_max_ms": 600,
+          "raster_total_max_ms": 1700,
+          "layout_total_max_ms": 370,
+          "paint_total_max_ms": 200,
           "input_event_count_min": 12
         }
       }

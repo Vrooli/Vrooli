@@ -30,6 +30,15 @@ performance-health analysis analyze swarm-manager --trace <trace-path> --json
 performance-health budget check swarm-manager --flow graph-sustained-pan
 ```
 
+Use the sweep path when changing or validating budgets, because it captures,
+analyzes, persists a flow-tagged `perf_samples` row, and then checks the flow
+budget:
+
+```bash
+performance-health sweep run swarm-manager --json
+performance-health budget check swarm-manager --flow graph-sustained-pan --json
+```
+
 To add a new audit:
 
 ```bash
