@@ -15,12 +15,13 @@
     "closeDrawer": "Close navigation",
     "skipToContent": "Skip to main content",
     "main": "Main content",
-    "nav": {
-      "dashboard": "Dashboard",
-      "validation": "Validation",
-      "search": "Search",
-      "inventory": "Inventory",
-      "reindex": "Reindex",
+      "nav": {
+        "dashboard": "Dashboard",
+        "validation": "Validation",
+        "captures": "Captures",
+        "search": "Search",
+        "inventory": "Inventory",
+        "reindex": "Reindex",
       "settings": "Settings"
     }
   },
@@ -152,6 +153,29 @@
       "error": "Validation failed: {{message}}",
       "revalidate": "Revalidate",
       "back": "Back to validation"
+    },
+    "captures": {
+      "title": "Capture Gallery",
+      "description": "Captured pages with chrome deltas and violation overlays.",
+      "filters": {
+        "scenario": "Scenario",
+        "allScenarios": "All scenarios"
+      },
+      "status": {
+        "clean": "Clean",
+        "findings": "{{count}} finding(s)"
+      },
+      "chrome": {
+        "statusBar": "Status bar",
+        "safeArea": "Safe area",
+        "declared": "Declared",
+        "captured": "Captured"
+      },
+      "violations": {
+        "empty": "No visual violations for this capture.",
+        "edge": "{{edge}} edge"
+      },
+      "empty": "No captures match this filter."
     },
     "search": {
       "title": "Search",

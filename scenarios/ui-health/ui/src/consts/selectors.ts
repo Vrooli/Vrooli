@@ -333,6 +333,7 @@ const literalSelectors = {
     dashboard: "page-dashboard",
     validation: "page-validation",
     validationDetail: "page-validation-detail",
+    captures: "page-captures",
     search: "page-search",
     inventory: "page-inventory",
     surfaceDetail: "page-surface-detail",
@@ -381,6 +382,12 @@ const literalSelectors = {
       error: "validation-detail-error",
       loading: "validation-detail-loading",
     },
+  },
+  captures: {
+    gallery: "captures-gallery",
+    scenarioSelect: "captures-scenario-select",
+    overlayList: "captures-overlay-list",
+    empty: "captures-empty",
   },
   search: {
     input: "search-input",
@@ -463,7 +470,7 @@ const dynamicSelectorDefinitions = {
       params: {
         key: {
           type: "enum",
-          values: ["dashboard", "validation", "search", "inventory", "reindex", "settings"] as const,
+          values: ["dashboard", "validation", "captures", "search", "inventory", "reindex", "settings"] as const,
         },
       },
     }),
@@ -473,7 +480,7 @@ const dynamicSelectorDefinitions = {
       params: {
         key: {
           type: "enum",
-          values: ["dashboard", "validation", "search", "inventory", "reindex", "settings"] as const,
+          values: ["dashboard", "validation", "captures", "search", "inventory", "reindex", "settings"] as const,
         },
       },
     }),
@@ -483,7 +490,7 @@ const dynamicSelectorDefinitions = {
       params: {
         key: {
           type: "enum",
-          values: ["dashboard", "validation", "search", "inventory", "reindex", "settings"] as const,
+          values: ["dashboard", "validation", "captures", "search", "inventory", "reindex", "settings"] as const,
         },
       },
     }),
@@ -504,6 +511,18 @@ const dynamicSelectorDefinitions = {
     findingRow: defineDynamicSelector({
       description: "Validation finding row by zero-based index",
       testIdPattern: "validation-detail-finding-${index}",
+      params: { index: { type: "number" } },
+    }),
+  },
+  captures: {
+    captureCard: defineDynamicSelector({
+      description: "Capture gallery card by capture id",
+      testIdPattern: "captures-card-${captureId}",
+      params: { captureId: { type: "string" } },
+    }),
+    overlay: defineDynamicSelector({
+      description: "Capture gallery violation overlay by zero-based index",
+      testIdPattern: "captures-overlay-${index}",
       params: { index: { type: "number" } },
     }),
   },

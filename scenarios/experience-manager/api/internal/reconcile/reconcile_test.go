@@ -18,9 +18,10 @@ import (
 )
 
 type fakeCapturer struct {
-	snapshot Snapshot
-	err      error
-	targets  *[]CaptureTarget
+	snapshot         Snapshot
+	snapshotsByState map[string]Snapshot
+	err              error
+	targets          *[]CaptureTarget
 }
 
 func (f fakeCapturer) CaptureAccessibility(_ context.Context, target CaptureTarget) (Snapshot, error) {
@@ -28,6 +29,9 @@ func (f fakeCapturer) CaptureAccessibility(_ context.Context, target CaptureTarg
 		*f.targets = append(*f.targets, target)
 	}
 	snapshot := f.snapshot
+	if byState, ok := f.snapshotsByState[target.StateID]; ok {
+		snapshot = byState
+	}
 	if snapshot.Contract == snapshotContract && snapshot.Root.Bounds == nil && target.ViewportWidth > 0 && target.ViewportHeight > 0 {
 		snapshot.Root.Bounds = &Bounds{Width: float64(target.ViewportWidth), Height: float64(target.ViewportHeight)}
 	}
@@ -261,6 +265,47 @@ func TestVisibleWithoutScrollChecksBoundGeometry(t *testing.T) {
 	}
 }
 
+func TestAffordancePresentChecksExpectedControls(t *testing.T) {
+	report := activeReport("debt-table", spec.Binding{TestID: "debt-table"})
+	page := report.Spec.Pages["home"]
+	page.Elements = []spec.Element{{ID: "debt-table", Role: "table"}}
+	page.Claims = []spec.Claim{{
+		ID:        "table-affordances",
+		Type:      "affordance-present",
+		Statement: "The debt table can be searched, sorted, and filtered.",
+		Tier:      "machine",
+		Elements:  []string{"debt-table"},
+		States:    []string{"default"},
+		Params: map[string]any{
+			"targetRole":  "table",
+			"affordances": []string{"search", "sort", "filter"},
+		},
+	}}
+	page.Bindings.Elements = map[string]spec.Binding{"debt-table": {TestID: "debt-table"}}
+	page.FloorOptOuts = allFloorOptOuts()
+	report.Spec.Pages["home"] = page
+
+	snapshot := Snapshot{
+		Contract: snapshotContract,
+		Root: AXNode{Role: "WebArea", Children: []AXNode{
+			{Role: "table", Name: "Debt table", Bounds: &Bounds{X: 0, Y: 100, Width: 500, Height: 300}, DOM: DOMNode{TestID: "debt-table"}},
+			{Role: "textbox", Name: "Search debt", Bounds: &Bounds{X: 0, Y: 40, Width: 180, Height: 40}, DOM: DOMNode{TestID: "debt-search"}},
+			{Role: "button", Name: "Sort by severity", Bounds: &Bounds{X: 190, Y: 40, Width: 120, Height: 40}, DOM: DOMNode{TestID: "debt-sort"}},
+			{Role: "combobox", Name: "Filter status", Bounds: &Bounds{X: 320, Y: 40, Width: 140, Height: 40}, DOM: DOMNode{TestID: "debt-filter"}},
+		}},
+	}
+	findings := Check{Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	if len(findings) != 0 {
+		t.Fatalf("expected affordance-present claim to pass, got %+v", findings)
+	}
+
+	snapshot.Root.Children = snapshot.Root.Children[:1]
+	findings = Check{Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	if !hasCode(findings, spec.CodeAffordanceMissing) {
+		t.Fatalf("expected missing affordance finding, got %+v", findings)
+	}
+}
+
 func TestBaselineFloorClaimsFailFromGeometry(t *testing.T) {
 	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
 	snapshot := passingSnapshot()
@@ -293,6 +338,31 @@ func TestBaselineFloorClaimsFailFromGeometry(t *testing.T) {
 		if !hasCode(findings, code) {
 			t.Fatalf("missing %s in findings: %+v", code, findings)
 		}
+	}
+}
+
+func TestSafeAreaFloorRecognizesScenarioMobileNavControls(t *testing.T) {
+	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
+	snapshot := passingSnapshot()
+	snapshot.Root.Children = append(snapshot.Root.Children, AXNode{
+		Role:   "navigation",
+		Name:   "Mobile navigation",
+		Bounds: &Bounds{X: 0, Y: 780, Width: 390, Height: 64},
+		DOM:    DOMNode{Tag: "nav", TestID: "mobile-nav"},
+		Children: []AXNode{{
+			Role:   "button",
+			Name:   "Changes",
+			Bounds: &Bounds{X: 0, Y: 800, Width: 78, Height: 44},
+			DOM:    DOMNode{TestID: "mobile-nav-changes"},
+		}},
+	})
+
+	findings := Check{
+		Capturer:        fakeCapturer{snapshot: snapshot},
+		CaptureProfiles: []CaptureProfile{{ID: "mobile", Width: 390, Height: 844}},
+	}.Run(context.Background(), report)
+	if !hasCode(findings, spec.CodeFloorSafeArea) {
+		t.Fatalf("expected safe-area floor to catch scenario mobile nav controls, got %+v", findings)
 	}
 }
 
@@ -338,7 +408,117 @@ func TestNonDefaultStateClaimReportsSingleCaptureLimitation(t *testing.T) {
 	if findings[0].Code != spec.CodeClaimUnverifiable || findings[0].Severity != spec.SeverityWarning {
 		t.Fatalf("finding = %+v, want claim_unverifiable warning", findings[0])
 	}
-	if !strings.Contains(findings[0].Message, "state setup capture is not implemented") {
+	if !strings.Contains(findings[0].Message, "was not captured for distinct-state comparison") {
+		t.Fatalf("message = %q", findings[0].Message)
+	}
+}
+
+func TestNonDefaultStateSetupCapturesStateRoute(t *testing.T) { // [REQ:EXPERIEN-P0-003]
+	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
+	page := report.Spec.Pages["home"]
+	page.States = []spec.State{
+		{ID: "default"},
+		{ID: "empty", Setup: spec.Setup{
+			Route:    "/scenario/demo",
+			Query:    map[string]string{"state": "empty"},
+			Hash:     "details",
+			SettleMs: 1200,
+		}},
+	}
+	page.Claims = []spec.Claim{{
+		ID:       "empty-guides",
+		Type:     "state-covered",
+		Tier:     "machine",
+		Elements: []string{"primary"},
+		States:   []string{"empty"},
+	}}
+	report.Spec.Pages["home"] = page
+	var targets []CaptureTarget
+	db := testdb.NewSQLite(t)
+	if err := apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(Schema)); err != nil {
+		t.Fatalf("EnsureSchemas: %v", err)
+	}
+	repo := NewSQLiteRepository(db)
+
+	findings := Check{
+		Capturer:   fakeCapturer{snapshot: passingSnapshot(), targets: &targets},
+		Repository: repo,
+		Now: func() time.Time {
+			return time.Date(2026, 7, 5, 16, 30, 0, 0, time.UTC)
+		},
+		CaptureProfiles: testProfiles(),
+	}.Run(context.Background(), report)
+	if len(findings) != 0 {
+		t.Fatalf("expected non-default state setup to reconcile green, got %+v", findings)
+	}
+	var target CaptureTarget
+	for _, candidate := range targets {
+		if candidate.StateID == "empty" {
+			target = candidate
+			break
+		}
+	}
+	if target.StateID != "empty" || target.Route != "/scenario/demo?state=empty#details" || target.SettleMs != 1200 {
+		t.Fatalf("target = %+v, want empty state setup route", target)
+	}
+	rows, err := repo.ListEvidence(context.Background(), EvidenceFilter{Scenario: "demo", PageID: "home", ClaimID: "empty-guides"})
+	if err != nil {
+		t.Fatalf("ListEvidence: %v", err)
+	}
+	if len(rows) != 1 || rows[0].StateID != "empty" || rows[0].Verdict != "passed" {
+		t.Fatalf("evidence rows = %+v, want passed empty-state evidence", rows)
+	}
+}
+
+func TestStateDistinctComparesCapturedStateFingerprints(t *testing.T) {
+	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
+	page := report.Spec.Pages["home"]
+	page.States = []spec.State{
+		{ID: "default"},
+		{ID: "stale", Setup: spec.Setup{Query: map[string]string{"state": "stale"}}},
+	}
+	page.Claims = []spec.Claim{{
+		ID:       "stale-distinct",
+		Type:     "state-distinct",
+		Tier:     "machine",
+		Elements: []string{"primary"},
+		States:   []string{"default", "stale"},
+	}}
+	report.Spec.Pages["home"] = page
+
+	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	if !hasCode(findings, spec.CodeClaimFailed) {
+		t.Fatalf("expected identical state fingerprints to fail distinct claim, got %+v", findings)
+	}
+
+	stale := passingSnapshot()
+	stale.Root.Children[1].Name = "Stale primary action"
+	findings = Check{Capturer: fakeCapturer{
+		snapshot:         passingSnapshot(),
+		snapshotsByState: map[string]Snapshot{"stale": stale},
+	}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	if len(findings) != 0 {
+		t.Fatalf("expected distinct state fingerprints to pass, got %+v", findings)
+	}
+}
+
+func TestNonDefaultStateWithoutSetupReportsLimitation(t *testing.T) {
+	report := activeReport("primary", spec.Binding{TestID: "primary-action"})
+	page := report.Spec.Pages["home"]
+	page.Claims = []spec.Claim{{
+		ID:       "empty-covered",
+		Type:     "state-covered",
+		Tier:     "machine",
+		Elements: []string{"primary"},
+		States:   []string{"empty"},
+	}}
+	report.Spec.Pages["home"] = page
+
+	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	if len(findings) != 1 || findings[0].Code != spec.CodeClaimUnverifiable {
+		t.Fatalf("expected one missing setup limitation, got %+v", findings)
+	}
+	if !strings.Contains(findings[0].Message, "without deterministic setup") {
 		t.Fatalf("message = %q", findings[0].Message)
 	}
 }
@@ -360,6 +540,10 @@ func TestCaptureUnavailableIsSkippedInfo(t *testing.T) {
 }
 
 func TestBASCapturerSendsResolvedTargetURL(t *testing.T) {
+	screenshotPath := filepath.Join(t.TempDir(), "capture.png")
+	if err := os.WriteFile(screenshotPath, []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
+		t.Fatalf("WriteFile screenshot: %v", err)
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/browser_automation_studio.v1.capture.CaptureService/Capture", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
@@ -396,7 +580,15 @@ func TestBASCapturerSendsResolvedTargetURL(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Marshal snapshot: %v", err)
 		}
-		_ = json.NewEncoder(w).Encode(map[string]string{"accessibility_json": string(snapshot)})
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"accessibility_json": string(snapshot),
+			"artifacts": []map[string]any{{
+				"type":       "CAPTURE_TYPE_SCREENSHOT",
+				"path":       screenshotPath,
+				"size_bytes": 4,
+				"metadata":   map[string]string{"filename": "capture.png"},
+			}},
+		})
 	})
 	server := httptest.NewServer(mux)
 	defer server.Close()
@@ -410,7 +602,7 @@ func TestBASCapturerSendsResolvedTargetURL(t *testing.T) {
 		},
 		HTTPClient: server.Client(),
 	}
-	if _, err := capturer.CaptureAccessibility(context.Background(), CaptureTarget{
+	snapshot, err := capturer.CaptureAccessibility(context.Background(), CaptureTarget{
 		Scenario:       "web-console",
 		Route:          "/",
 		PageID:         "workspace",
@@ -418,8 +610,12 @@ func TestBASCapturerSendsResolvedTargetURL(t *testing.T) {
 		ViewportWidth:  390,
 		ViewportHeight: 844,
 		SettleMs:       defaultSettleMs,
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("CaptureAccessibility: %v", err)
+	}
+	if !strings.HasPrefix(snapshot.ScreenshotRef, "data:image/png;base64,") {
+		t.Fatalf("ScreenshotRef = %q, want png data URL", snapshot.ScreenshotRef)
 	}
 }
 

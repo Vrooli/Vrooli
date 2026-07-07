@@ -275,6 +275,17 @@
         "fix_class": "manual",
         "reason": "A failed experience claim may require product, design, or implementation changes."
       },
+      "experience.affordance_missing": {
+        "capability_id": "structure_reconciliation",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["experience-spec-authoring", "ux"],
+        "fix_class": "manual",
+        "reason": "Missing affordances require adding accessible controls or revising the page intent."
+      },
       "experience.claim_unverifiable": {
         "capability_id": "structure_reconciliation",
         "local_level_impact": "L1",

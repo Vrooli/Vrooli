@@ -43,6 +43,36 @@ func testGradientPNG(t *testing.T) []byte {
 	return testPNG(t, img)
 }
 
+func testChromePNG(t *testing.T, top, bottom, left, right color.RGBA) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 100, 100))
+	for y := 0; y < 100; y++ {
+		for x := 0; x < 100; x++ {
+			v := uint8(60 + (x+y)%120)
+			img.Set(x, y, color.RGBA{R: v, G: v, B: v, A: 255})
+		}
+	}
+	for y := 0; y < 12; y++ {
+		for x := 0; x < 100; x++ {
+			img.Set(x, y, top)
+		}
+	}
+	for y := 90; y < 100; y++ {
+		for x := 0; x < 100; x++ {
+			img.Set(x, y, bottom)
+		}
+	}
+	for y := 0; y < 100; y++ {
+		for x := 0; x < 8; x++ {
+			img.Set(x, y, left)
+		}
+		for x := 94; x < 100; x++ {
+			img.Set(x, y, right)
+		}
+	}
+	return testPNG(t, img)
+}
+
 func TestAnalyzeReportsPixelBlank(t *testing.T) {
 	a := NewAnalyzer(pixel.DefaultThresholds())
 	resp := a.Analyze(&visualpb.AnalyzeArtifactsRequest{Scenario: "demo", Steps: []*visualpb.VisualStepArtifact{{
@@ -192,6 +222,55 @@ func TestAnalyzeReportsBlockingOverlay(t *testing.T) {
 	assertFindingCodes(t, resp, "visual_blocking_overlay")
 }
 
+func TestAnalyzeChromeColorsPassWhenDeclaredMatchesRendered(t *testing.T) {
+	chrome := color.RGBA{R: 2, G: 6, B: 23, A: 255}
+	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+		StepId:        "chrome",
+		ScreenshotPng: testChromePNG(t, chrome, chrome, chrome, chrome),
+		LayoutJson: `{
+			"chrome":{"themeColor":"#020617","statusBarColor":"#020617","safeAreaColor":"#020617"},
+			"safeArea":{"top":12,"right":6,"bottom":10,"left":8},
+			"document":{"scrollWidth":100,"scrollHeight":100},
+			"elements":[]
+		}`,
+	}}})
+	if resp.GetVerdict() != "passed" {
+		t.Fatalf("verdict = %q, want passed; findings=%+v", resp.GetVerdict(), resp.GetFindings())
+	}
+}
+
+func TestAnalyzeReportsChromeColorMismatches(t *testing.T) {
+	declared := color.RGBA{R: 2, G: 6, B: 23, A: 255}
+	wrong := color.RGBA{R: 239, G: 68, B: 68, A: 255}
+	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+		StepId:        "chrome",
+		ScreenshotPng: testChromePNG(t, wrong, declared, declared, declared),
+		LayoutJson: `{
+			"chrome":{"themeColor":"#020617","statusBarColor":"#020617","safeAreaColor":"#020617"},
+			"safeArea":{"top":12,"right":6,"bottom":10,"left":8},
+			"document":{"scrollWidth":100,"scrollHeight":100},
+			"elements":[]
+		}`,
+	}}})
+	assertFindingCodes(t, resp, "visual_status_bar_color_mismatch", "visual_safe_area_color_mismatch")
+}
+
+func TestAnalyzeReportsUnsafeEdgeTapZone(t *testing.T) {
+	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+		StepId: "layout",
+		Viewport: &visualpb.Viewport{
+			Width:  390,
+			Height: 844,
+		},
+		LayoutJson: `{
+			"safeArea":{"top":44,"right":0,"bottom":34,"left":0},
+			"document":{"scrollWidth":390,"scrollHeight":844},
+			"elements":[{"selector":"#menu","tag":"button","rect":{"x":16,"y":8,"width":44,"height":36}}]
+		}`,
+	}}})
+	assertFindingCodes(t, resp, "visual_unsafe_edge_tap_zone")
+}
+
 func TestIntentionalDialogDoesNotReportBlockingOverlay(t *testing.T) {
 	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
 		StepId: "layout",
@@ -221,6 +300,9 @@ func TestRulesIncludesPhaseThreeCodes(t *testing.T) {
 		"visual_text_clipped",
 		"visual_focus_zoom_risk",
 		"visual_blocking_overlay",
+		"visual_status_bar_color_mismatch",
+		"visual_safe_area_color_mismatch",
+		"visual_unsafe_edge_tap_zone",
 	} {
 		if !slices.Contains(ids, want) {
 			t.Fatalf("Rules() ids = %#v, missing %s", ids, want)

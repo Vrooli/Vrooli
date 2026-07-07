@@ -5,13 +5,16 @@ package reconcile
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -59,15 +62,16 @@ type Capturer interface {
 
 // CaptureTarget identifies the scenario UI surface to inspect.
 type CaptureTarget struct {
-	Scenario        string
-	Route           string
-	PageID          string
-	StateID         string
-	ViewportID      string
-	ViewportAliases []string
-	ViewportWidth   int
-	ViewportHeight  int
-	SettleMs        int
+	Scenario          string
+	Route             string
+	PageID            string
+	StateID           string
+	StateFingerprints map[string]string
+	ViewportID        string
+	ViewportAliases   []string
+	ViewportWidth     int
+	ViewportHeight    int
+	SettleMs          int
 }
 
 // Name implements checks.Check.
@@ -88,7 +92,7 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 			continue
 		}
 		page = pageWithBaselineClaims(page)
-		if status != "active" || !hasDefaultMachineClaim(page) {
+		if status != "active" || !hasMachineClaim(page) {
 			continue
 		}
 		capturer := c.Capturer
@@ -97,37 +101,38 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 		}
 		profiles := c.captureProfiles()
 		for _, profile := range profiles {
-			target := CaptureTarget{
-				Scenario:        report.Scenario,
-				Route:           firstRoute(page.Page.Routes),
-				PageID:          page.Page.ID,
-				StateID:         "default",
-				ViewportID:      profile.ID,
-				ViewportAliases: append([]string(nil), profile.Aliases...),
-				ViewportWidth:   profile.Width,
-				ViewportHeight:  profile.Height,
-				SettleMs:        defaultSettleMs,
+			targets := captureTargetsForProfile(report.Scenario, page, profile)
+			snapshots := map[string]Snapshot{}
+			fingerprints := map[string]string{}
+			for _, target := range targets {
+				snapshot, err := capturer.CaptureAccessibility(ctx, target)
+				if err != nil || snapshot.Contract != snapshotContract || len(snapshot.Flatten()) == 0 {
+					findings = append(findings, spec.Finding{
+						Code:       spec.CodeCaptureUnavailable,
+						Severity:   spec.SeverityInfo,
+						Message:    fmt.Sprintf("accessibility capture unavailable for active page %q state %q at viewport %q", page.Page.ID, target.StateID, target.ViewportID),
+						Locations:  []string{loc},
+						Suggestion: "Start browser-automation-studio and the target UI, then rerun the experience phase.",
+					})
+					findings = append(findings, c.persistEvidence(ctx, report.Scenario, loc, page, target, Snapshot{}, skippedEvidence(page, target, "capture unavailable"))...)
+					continue
+				}
+				snapshots[target.StateID] = snapshot
+				fingerprints[target.StateID] = snapshotFingerprint(snapshot)
 			}
-			if !pageHasMachineClaimForTarget(page, target) {
-				continue
+			for _, target := range targets {
+				snapshot, ok := snapshots[target.StateID]
+				if !ok {
+					continue
+				}
+				target.StateFingerprints = fingerprints
+				result := reconcileActivePage(loc, page, target, snapshot)
+				findings = append(findings, result.Findings...)
+				findings = append(findings, c.persistEvidence(ctx, report.Scenario, loc, page, target, snapshot, result.Evidence)...)
 			}
-			snapshot, err := capturer.CaptureAccessibility(ctx, target)
-			if err != nil || snapshot.Contract != snapshotContract || len(snapshot.Flatten()) == 0 {
-				findings = append(findings, spec.Finding{
-					Code:       spec.CodeCaptureUnavailable,
-					Severity:   spec.SeverityInfo,
-					Message:    fmt.Sprintf("accessibility capture unavailable for active page %q at viewport %q", page.Page.ID, target.ViewportID),
-					Locations:  []string{loc},
-					Suggestion: "Start browser-automation-studio and the target UI, then rerun the experience phase.",
-				})
-				findings = append(findings, c.persistEvidence(ctx, report.Scenario, loc, page, target, Snapshot{}, skippedEvidence(page, target, "capture unavailable"))...)
-				continue
-			}
-			result := reconcileActivePage(loc, page, target, snapshot)
-			findings = append(findings, result.Findings...)
-			findings = append(findings, c.persistEvidence(ctx, report.Scenario, loc, page, target, snapshot, result.Evidence)...)
 		}
 		findings = append(findings, unverifiableOutOfMatrixFindings(loc, page, profiles)...)
+		findings = append(findings, unverifiableStateSetupFindings(loc, page)...)
 	}
 	sortFindings(findings)
 	return findings
@@ -138,6 +143,106 @@ func (c Check) captureProfiles() []CaptureProfile {
 		return c.CaptureProfiles
 	}
 	return DefaultCaptureProfiles
+}
+
+func captureTargetsForProfile(scenario string, page spec.PageDocument, profile CaptureProfile) []CaptureTarget {
+	var targets []CaptureTarget
+	for _, stateID := range capturableStateIDs(page) {
+		state := pageState(page, stateID)
+		target := CaptureTarget{
+			Scenario:        scenario,
+			Route:           routeForState(page, state),
+			PageID:          page.Page.ID,
+			StateID:         stateID,
+			ViewportID:      profile.ID,
+			ViewportAliases: append([]string(nil), profile.Aliases...),
+			ViewportWidth:   profile.Width,
+			ViewportHeight:  profile.Height,
+			SettleMs:        settleMsForState(state),
+		}
+		if !pageHasMachineClaimForTarget(page, target) {
+			continue
+		}
+		targets = append(targets, target)
+	}
+	return targets
+}
+
+func capturableStateIDs(page spec.PageDocument) []string {
+	ids := []string{"default"}
+	seen := map[string]bool{"default": true}
+	for _, state := range page.States {
+		id := strings.TrimSpace(state.ID)
+		if id == "" || id == "default" || seen[id] || !hasStateSetup(state) {
+			continue
+		}
+		if !hasMachineClaimForState(page, id) {
+			continue
+		}
+		ids = append(ids, id)
+		seen[id] = true
+	}
+	return ids
+}
+
+func hasMachineClaimForState(page spec.PageDocument, stateID string) bool {
+	for _, claim := range page.Claims {
+		if claim.Tier == "machine" && claimTargetsState(claim, stateID) {
+			return true
+		}
+	}
+	return false
+}
+
+func pageState(page spec.PageDocument, stateID string) spec.State {
+	for _, state := range page.States {
+		if state.ID == stateID {
+			return state
+		}
+	}
+	return spec.State{ID: "default"}
+}
+
+func hasStateSetup(state spec.State) bool {
+	return strings.TrimSpace(state.Setup.Route) != "" ||
+		len(state.Setup.Query) > 0 ||
+		strings.TrimSpace(state.Setup.Hash) != "" ||
+		state.Setup.SettleMs > 0
+}
+
+func routeForState(page spec.PageDocument, state spec.State) string {
+	route := firstRoute(page.Page.Routes)
+	if strings.TrimSpace(state.Setup.Route) != "" {
+		route = state.Setup.Route
+	}
+	if len(state.Setup.Query) == 0 && strings.TrimSpace(state.Setup.Hash) == "" {
+		return route
+	}
+	parsed, err := url.Parse(route)
+	if err != nil {
+		return route
+	}
+	query := parsed.Query()
+	keys := make([]string, 0, len(state.Setup.Query))
+	for key := range state.Setup.Query {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		query.Set(key, state.Setup.Query[key])
+	}
+	parsed.RawQuery = query.Encode()
+	if hash := strings.TrimSpace(state.Setup.Hash); hash != "" {
+		parsed.Fragment = strings.TrimPrefix(hash, "#")
+	}
+	return parsed.String()
+}
+
+func settleMsForState(state spec.State) int {
+	if state.Setup.SettleMs > 0 {
+		return state.Setup.SettleMs
+	}
+	return defaultSettleMs
 }
 
 func expectedDraftFindings(loc string, page spec.PageDocument) []spec.Finding {
@@ -233,7 +338,7 @@ func reconcileActivePage(loc string, page spec.PageDocument, target CaptureTarge
 		}
 		applies, reason := claimAppliesToTarget(claim, target)
 		if !applies {
-			if claim.Type == "state-covered" || claim.Type == "state-distinct" {
+			if (claim.Type == "state-covered" || claim.Type == "state-distinct") && !strings.Contains(reason, "outside captured state") {
 				claimEvidence := unreachableEvidence(page, claim, target, reason)
 				evidence = append(evidence, claimEvidence)
 				findings = append(findings, spec.Finding{
@@ -374,6 +479,7 @@ func claimEvaluator(claimType string) claimEvaluatorFunc {
 		"element-present":                 evaluateElementPresenceClaim,
 		"single-dominant-action":          evaluateElementPresenceClaim,
 		"keyboard-reachable":              evaluateElementPresenceClaim,
+		"affordance-present":              evaluateAffordancePresentClaim,
 		"visible-without-scroll":          evaluateVisibleWithoutScrollClaim,
 		"reading-order":                   evaluateReadingOrderClaim,
 	}
@@ -432,14 +538,24 @@ func evaluateStateCoveredClaim(_ spec.PageDocument, claim spec.Claim, target Cap
 	return claimEvaluation{Pass: claimTargetsState(claim, target.StateID)}
 }
 
-func evaluateStateDistinctClaim(_ spec.PageDocument, claim spec.Claim, _ CaptureTarget, _ []*AXNode) claimEvaluation {
+func evaluateStateDistinctClaim(_ spec.PageDocument, claim spec.Claim, target CaptureTarget, _ []*AXNode) claimEvaluation {
 	if len(claim.States) < 2 {
 		return claimEvaluation{}
 	}
+	seen := map[string]string{}
 	for _, state := range claim.States {
-		if state != "" && state != "default" {
-			return claimEvaluation{Unverifiable: "state setup capture is not implemented for non-default state " + strconv.Quote(state)}
+		stateID := state
+		if stateID == "" {
+			stateID = "default"
 		}
+		fingerprint := target.StateFingerprints[stateID]
+		if fingerprint == "" {
+			return claimEvaluation{Unverifiable: "state " + stateID + " was not captured for distinct-state comparison"}
+		}
+		if other, ok := seen[fingerprint]; ok {
+			return claimEvaluation{Pass: false, Failure: fmt.Sprintf("states %q and %q produced the same accessibility fingerprint", other, stateID)}
+		}
+		seen[fingerprint] = stateID
 	}
 	return claimEvaluation{Pass: true}
 }
@@ -501,6 +617,15 @@ func evaluateReadingOrderClaim(page spec.PageDocument, claim spec.Claim, _ Captu
 	return claimEvaluation{Pass: pass, AXNodeJSON: axNodeJSON}
 }
 
+func containsState(node *AXNode, state string) bool {
+	for _, candidate := range node.States {
+		if strings.EqualFold(candidate, state) {
+			return true
+		}
+	}
+	return false
+}
+
 func pageWithBaselineClaims(page spec.PageDocument) spec.PageDocument {
 	optedOut := map[string]bool{}
 	for _, optOut := range page.FloorOptOuts {
@@ -549,6 +674,8 @@ func claimFailureCode(claimType string) string {
 		return spec.CodeFloorSingleLine
 	case "tap-target-size":
 		return spec.CodeFloorTapTargetSize
+	case "affordance-present":
+		return spec.CodeAffordanceMissing
 	default:
 		return spec.CodeClaimFailed
 	}
@@ -631,7 +758,7 @@ func firstMultilineChromeLabel(nodes []*AXNode, target CaptureTarget) *AXNode {
 		if !isChromeLabelNode(node, target) || node.Bounds == nil {
 			continue
 		}
-		if strings.Contains(node.Name, "\n") || node.Bounds.Height > 56 {
+		if strings.Contains(node.Name, "\n") || node.Bounds.Height > 72 {
 			return node
 		}
 	}
@@ -685,11 +812,18 @@ func isChromeLabelNode(node *AXNode, target CaptureTarget) bool {
 }
 
 func isAppChromeContainerTestID(testID string) bool {
-	return testID == "layout-top-bar" || testID == "layout-sidebar" || testID == "layout-bottom-nav"
+	switch testID {
+	case "layout-top-bar", "layout-sidebar", "layout-bottom-nav", "status-header", "mobile-header", "mobile-nav":
+		return true
+	default:
+		return false
+	}
 }
 
 func isAppChromeControlTestID(testID string) bool {
-	return strings.HasPrefix(testID, "layout-sidebar-link-") || strings.HasPrefix(testID, "layout-bottom-nav-link-")
+	return strings.HasPrefix(testID, "layout-sidebar-link-") ||
+		strings.HasPrefix(testID, "layout-bottom-nav-link-") ||
+		strings.HasPrefix(testID, "mobile-nav-")
 }
 
 func isTextOnlyNode(node *AXNode) bool {
@@ -778,7 +912,7 @@ func (c Check) persistEvidence(ctx context.Context, scenario, loc string, page s
 		now = c.Now().UTC()
 	}
 	checkedAt := now.Format(evidenceTimeFormat)
-	captureRef := snapshot.URL
+	captureRef := firstNonEmpty(snapshot.ScreenshotRef, snapshot.URL)
 	if strings.TrimSpace(captureRef) == "" {
 		captureRef = fmt.Sprintf("scenario=%s,path=%s", target.Scenario, target.Route)
 	}
@@ -834,6 +968,38 @@ func encodeAXNode(node *AXNode) string {
 		return "{}"
 	}
 	return string(data)
+}
+
+func snapshotFingerprint(snapshot Snapshot) string {
+	nodes := snapshot.Flatten()
+	type fingerprintNode struct {
+		Role   string  `json:"role,omitempty"`
+		Name   string  `json:"name,omitempty"`
+		Value  string  `json:"value,omitempty"`
+		TestID string  `json:"testid,omitempty"`
+		Tag    string  `json:"tag,omitempty"`
+		Bounds *Bounds `json:"bounds,omitempty"`
+	}
+	normalized := make([]fingerprintNode, 0, len(nodes))
+	for _, node := range nodes {
+		if node == nil {
+			continue
+		}
+		normalized = append(normalized, fingerprintNode{
+			Role:   node.Role,
+			Name:   node.Name,
+			Value:  node.Value,
+			TestID: node.DOM.TestID,
+			Tag:    node.DOM.Tag,
+			Bounds: node.Bounds,
+		})
+	}
+	data, err := json.Marshal(normalized)
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256(data)
+	return fmt.Sprintf("%x", sum[:])
 }
 
 func evidenceID(e Evidence) string {
@@ -917,6 +1083,12 @@ func (c BASCapturer) CaptureAccessibility(ctx context.Context, target CaptureTar
 	var decoded struct {
 		AccessibilityJSON      string `json:"accessibility_json"`
 		AccessibilityJSONCamel string `json:"accessibilityJson"`
+		Artifacts              []struct {
+			Type      any               `json:"type"`
+			Path      string            `json:"path"`
+			SizeBytes int64             `json:"size_bytes"`
+			Metadata  map[string]string `json:"metadata"`
+		} `json:"artifacts"`
 	}
 	if err := json.Unmarshal(body, &decoded); err != nil {
 		return Snapshot{}, ErrCaptureUnavailable
@@ -931,7 +1103,71 @@ func (c BASCapturer) CaptureAccessibility(ctx context.Context, target CaptureTar
 	if err := json.Unmarshal([]byte(decoded.AccessibilityJSON), &snapshot); err != nil {
 		return Snapshot{}, fmt.Errorf("%w: decode accessibility snapshot: %v", ErrCaptureUnavailable, err)
 	}
+	snapshot.ScreenshotRef = screenshotRefFromArtifacts(decoded.Artifacts)
 	return snapshot, nil
+}
+
+func screenshotRefFromArtifacts(artifacts []struct {
+	Type      any               `json:"type"`
+	Path      string            `json:"path"`
+	SizeBytes int64             `json:"size_bytes"`
+	Metadata  map[string]string `json:"metadata"`
+},
+) string {
+	for _, artifact := range artifacts {
+		if !isScreenshotArtifactType(artifact.Type) {
+			continue
+		}
+		if artifact.SizeBytes == 0 || strings.TrimSpace(artifact.Metadata["unavailable"]) != "" || strings.TrimSpace(artifact.Metadata["reason"]) != "" {
+			continue
+		}
+		if ref := dataURLFromFile(artifact.Path); ref != "" {
+			return ref
+		}
+	}
+	return ""
+}
+
+func isScreenshotArtifactType(raw any) bool {
+	switch value := raw.(type) {
+	case string:
+		normalized := strings.ToLower(strings.TrimSpace(value))
+		return normalized == "capture_type_screenshot" || normalized == "screenshot" || normalized == "1"
+	case float64:
+		return value == 1
+	default:
+		return false
+	}
+}
+
+func dataURLFromFile(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+	data, err := os.ReadFile(path)
+	if err != nil || len(data) == 0 {
+		return ""
+	}
+	contentType := "application/octet-stream"
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".png":
+		contentType = "image/png"
+	case ".jpg", ".jpeg":
+		contentType = "image/jpeg"
+	case ".webp":
+		contentType = "image/webp"
+	}
+	return "data:" + contentType + ";base64," + base64.StdEncoding.EncodeToString(data)
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func settleInteractionFlow(durationMs int) string {
@@ -1001,11 +1237,12 @@ func (c BASCapturer) httpClient() *http.Client {
 	return &http.Client{Timeout: 120 * time.Second}
 }
 
-func hasDefaultMachineClaim(page spec.PageDocument) bool {
+func hasMachineClaim(page spec.PageDocument) bool {
 	for _, claim := range page.Claims {
-		if claim.Tier == "machine" && claimTargetsDefaultState(claim) {
-			return true
+		if claim.Tier != "machine" || len(claim.Locales) > 0 || len(claim.Extensions) > 0 {
+			continue
 		}
+		return true
 	}
 	return false
 }
@@ -1032,21 +1269,6 @@ func activeMachineElementIDs(page spec.PageDocument, target CaptureTarget) map[s
 	return out
 }
 
-func claimTargetsDefaultState(claim spec.Claim) bool {
-	if len(claim.Locales) > 0 || len(claim.Extensions) > 0 {
-		return false
-	}
-	if len(claim.States) == 0 {
-		return true
-	}
-	for _, state := range claim.States {
-		if state == "" || state == "default" {
-			return true
-		}
-	}
-	return false
-}
-
 func claimAppliesToTarget(claim spec.Claim, target CaptureTarget) (bool, string) {
 	if len(claim.Locales) > 0 {
 		return false, "locale-scoped claims require locale capture support"
@@ -1055,7 +1277,7 @@ func claimAppliesToTarget(claim spec.Claim, target CaptureTarget) (bool, string)
 		return false, "extension-scoped claims require a deterministic extension checker"
 	}
 	if !claimTargetsState(claim, target.StateID) {
-		return false, "state setup capture is not implemented for non-default states"
+		return false, fmt.Sprintf("claim states %v are outside captured state %q", claim.States, target.StateID)
 	}
 	if !claimTargetsViewport(claim, target.ViewportID, target.ViewportAliases) {
 		return false, fmt.Sprintf("claim viewports %v are outside captured viewport %q", claim.Viewports, target.ViewportID)
@@ -1067,6 +1289,9 @@ func claimTargetsState(claim spec.Claim, stateID string) bool {
 	if stateID == "" {
 		stateID = "default"
 	}
+	if len(claim.States) == 0 {
+		return true
+	}
 	if stateID != "default" {
 		for _, state := range claim.States {
 			if state == stateID {
@@ -1074,9 +1299,6 @@ func claimTargetsState(claim spec.Claim, stateID string) bool {
 			}
 		}
 		return false
-	}
-	if len(claim.States) == 0 {
-		return true
 	}
 	for _, state := range claim.States {
 		if state == "" || state == "default" {
@@ -1131,6 +1353,45 @@ func unverifiableOutOfMatrixFindings(loc string, page spec.PageDocument, profile
 			Message:    fmt.Sprintf("machine claim %q targets uncaptured viewports %v", claim.ID, missing),
 			Locations:  []string{loc},
 			Suggestion: "Add the viewport to the capture matrix, retier the claim, or remove the viewport scope if it should apply everywhere.",
+		})
+	}
+	return findings
+}
+
+func unverifiableStateSetupFindings(loc string, page spec.PageDocument) []spec.Finding {
+	setups := map[string]bool{"default": true}
+	for _, state := range page.States {
+		if state.ID != "" && hasStateSetup(state) {
+			setups[state.ID] = true
+		}
+	}
+	var findings []spec.Finding
+	for _, claim := range page.Claims {
+		if claim.Tier != "machine" || len(claim.States) == 0 || isBaselineFloorType(claim.Type) {
+			continue
+		}
+		if claimTargetsState(claim, "default") {
+			continue
+		}
+		var missing []string
+		for _, state := range claim.States {
+			stateID := state
+			if stateID == "" {
+				stateID = "default"
+			}
+			if stateID != "default" && !setups[stateID] {
+				missing = append(missing, stateID)
+			}
+		}
+		if len(missing) == 0 {
+			continue
+		}
+		findings = append(findings, spec.Finding{
+			Code:       spec.CodeClaimUnverifiable,
+			Severity:   spec.SeverityWarning,
+			Message:    fmt.Sprintf("machine claim %q targets states without deterministic setup %v", claim.ID, missing),
+			Locations:  []string{loc},
+			Suggestion: "Add states[].setup for those states, retier the claim, or keep the claim on captured states only.",
 		})
 	}
 	return findings

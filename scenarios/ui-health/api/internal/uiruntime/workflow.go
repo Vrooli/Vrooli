@@ -307,6 +307,54 @@ const artifactCaptureTemplate = `(() => {
     return Array.prototype.slice.call(doc.querySelectorAll(selector), 0, 250).map(elementRecord);
   }
 
+  function metaContent(doc, name) {
+    try {
+      var el = doc.querySelector('meta[name="' + name + '"]');
+      return el ? (el.getAttribute('content') || '').trim() : '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function readSafeAreaInsets(doc) {
+    var win = doc.defaultView || window;
+    var probe = doc.createElement('div');
+    probe.style.cssText = [
+      'position:fixed',
+      'left:0',
+      'top:0',
+      'visibility:hidden',
+      'pointer-events:none',
+      'padding-top:env(safe-area-inset-top)',
+      'padding-right:env(safe-area-inset-right)',
+      'padding-bottom:env(safe-area-inset-bottom)',
+      'padding-left:env(safe-area-inset-left)'
+    ].join(';');
+    (doc.body || doc.documentElement).appendChild(probe);
+    var style = win.getComputedStyle(probe);
+    var out = {
+      top: parseFloat(style.paddingTop) || 0,
+      right: parseFloat(style.paddingRight) || 0,
+      bottom: parseFloat(style.paddingBottom) || 0,
+      left: parseFloat(style.paddingLeft) || 0
+    };
+    probe.remove();
+    return out;
+  }
+
+  function declaredChrome(doc) {
+    var themeColor = metaContent(doc, 'theme-color');
+    var statusStyle = metaContent(doc, 'apple-mobile-web-app-status-bar-style');
+    var statusBarColor = themeColor;
+    if (statusStyle === 'black') { statusBarColor = '#000000'; }
+    return {
+      themeColor: themeColor,
+      statusBarColor: statusBarColor,
+      safeAreaColor: themeColor,
+      statusBarStyle: statusStyle
+    };
+  }
+
   function resourceType(entry) {
     if (entry.initiatorType) { return entry.initiatorType; }
     var name = entry.name || '';
@@ -335,6 +383,8 @@ const artifactCaptureTemplate = `(() => {
       clientWidth: root.clientWidth || 0,
       clientHeight: root.clientHeight || 0
     },
+    chrome: declaredChrome(doc),
+    safeArea: readSafeAreaInsets(doc),
     elements: collectElements(doc)
   };
   var network = [];

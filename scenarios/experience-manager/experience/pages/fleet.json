@@ -15,7 +15,7 @@
     { "statement": "Every row visibly leads somewhere — drilling in is the obvious next act." }
   ],
   "states": [
-    { "id": "default", "description": "Scenarios ranked worst-first by experience debt." },
+    { "id": "default", "description": "Scenarios ranked worst-first by experience debt.", "setup": { "route": "/", "settleMs": 5000 } },
     { "id": "loading", "description": "Sweep in progress; skeleton rows, no layout shift on arrival." },
     { "id": "empty", "description": "No scenario has an experience/ folder yet — the day-one state. Guidance, not blank space." },
     { "id": "stale", "description": "Sweep data older than its freshness budget; shown but visibly dated." },
@@ -52,6 +52,18 @@
       "tier": "machine",
       "elements": ["scenario-link"],
       "states": ["default", "stale"]
+    },
+    {
+      "id": "debt-table-affordances",
+      "type": "affordance-present",
+      "statement": "The experience-debt table exposes search, sort, and status-filter controls so operators can find and triage scenarios.",
+      "tier": "machine",
+      "elements": ["debt-table"],
+      "states": ["default", "stale"],
+      "params": {
+        "targetRole": "table",
+        "affordances": ["search", "sort", "filter"]
+      }
     },
     {
       "id": "empty-state-guides",

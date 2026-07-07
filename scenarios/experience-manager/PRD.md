@@ -18,19 +18,19 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [x] OT-P0-001 | Experience spec contract | Validate `experience/` (index, pages, journeys) against `.vrooli/schemas/scenario-experience-spec.schema.json` plus parser checks: unique IDs, resolvable references (routes, PRD OTs, DESIGN.md states, bindings), enforcement-tier rules, and open-world semantics, with a frozen finding-code vocabulary.
-- [x] OT-P0-002 | Scenario validation provider | Implement `ScenarioValidationService` for the canonical `experience` phase with findings, metrics, maturity ladders, and fix preview/apply, discovered by Test Genie through `.vrooli/test-genie.json` with presence-keyed applicability.
-- [x] OT-P0-003 | Structure reconciliation | Drive Browser Automation Studio to capture a screenshot plus accessibility tree per declared page/state and check every machine-tier claim against the captured tree, persisting per-claim evidence; BAS unavailability yields skipped findings, never failures.
-- [x] OT-P0-004 | Authoring studio | Form-based spec authoring with live validation and CLI parity, satisfying the round-trip property: a spec saved through the studio re-validates to zero contract findings.
-- [x] OT-P0-005 | Self-spec dogfood | Experience Manager ships its own `experience/` folder at L3+ depth and validates green, serving as the first real proof of the spec schema on its own surfaces.
+- [ ] OT-P0-001 | Experience spec contract | Validate `experience/` (index, pages, journeys) against `.vrooli/schemas/scenario-experience-spec.schema.json` plus parser checks: unique IDs, resolvable references (routes, PRD OTs, DESIGN.md states, bindings), enforcement-tier rules, and open-world semantics, with a frozen finding-code vocabulary.
+- [ ] OT-P0-002 | Scenario validation provider | Implement `ScenarioValidationService` for the canonical `experience` phase with findings, metrics, maturity ladders, and fix preview/apply, discovered by Test Genie through `.vrooli/test-genie.json` with presence-keyed applicability.
+- [ ] OT-P0-003 | Structure reconciliation | Drive Browser Automation Studio to capture a screenshot plus accessibility tree per declared page/state and check every machine-tier claim against the captured tree, persisting per-claim evidence; BAS unavailability yields skipped findings, never failures.
+- [ ] OT-P0-004 | Authoring studio | Form-based spec authoring with live validation and CLI parity, satisfying the round-trip property: a spec saved through the studio re-validates to zero contract findings.
+- [ ] OT-P0-005 | Self-spec dogfood | Experience Manager ships its own `experience/` folder at L3+ depth and validates green, serving as the first real proof of the spec schema on its own surfaces.
 
 ### 🟠 P1 – Should have post-launch
 
-- [x] OT-P1-001 | Render and workshop | Deterministic wireframe rendering of any spec page with claim annotations, side-by-side variant compare with promote-to-spec, and an optional AI-image render mode composing image-tools.
-- [x] OT-P1-002 | BAS case scaffolding | Derive `bas/cases` stubs from spec entries (routes to navigation, claims to assertions, bindings to selectors) for workflow-health governance, with spec-to-case reference-integrity findings in both directions.
-- [x] OT-P1-003 | Deterministic autofix | Preview and apply mechanical fixes for binding drift, index normalization, missing state stubs, and finding-doc stubs with accounting of fixed versus remaining findings.
-- [x] OT-P1-004 | Manual attestation ledger | Manual-tier claims are attested with an expiry; expired attestations surface as findings so human-verified experience promises decay honestly instead of staying green forever.
-- [x] OT-P1-005 | Fleet sweep | Compute-on-read sweep of spec coverage and depth across all scenarios, scored worst-first so experience debt is visible and prioritized fleet-wide.
+- [ ] OT-P1-001 | Render and workshop | Deterministic wireframe rendering of any spec page with claim annotations, side-by-side variant compare with promote-to-spec, and an optional AI-image render mode composing image-tools.
+- [ ] OT-P1-002 | BAS case scaffolding | Derive `bas/cases` stubs from spec entries (routes to navigation, claims to assertions, bindings to selectors) for workflow-health governance, with spec-to-case reference-integrity findings in both directions.
+- [ ] OT-P1-003 | Deterministic autofix | Preview and apply mechanical fixes for binding drift, index normalization, missing state stubs, and finding-doc stubs with accounting of fixed versus remaining findings.
+- [ ] OT-P1-004 | Manual attestation ledger | Manual-tier claims are attested with an expiry; expired attestations surface as findings so human-verified experience promises decay honestly instead of staying green forever.
+- [ ] OT-P1-005 | Fleet sweep | Compute-on-read sweep of spec coverage and depth across all scenarios, scored worst-first so experience debt is visible and prioritized fleet-wide.
 
 ### 🟢 P2 – Future / expansion
 

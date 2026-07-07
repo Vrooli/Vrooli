@@ -57,6 +57,7 @@ func (s *stubLibrary) GetVersion(_ context.Context, componentID, version string)
 		ComponentID:   componentID,
 		LibraryID:     s.component.LibraryID,
 		Version:       version,
+		Status:        components.VersionStatusReleased,
 		Content:       s.content.Body,
 		ContentSHA256: s.content.SHA256,
 		SourcePath:    "components/Button/versions/" + version + "/Button.tsx",

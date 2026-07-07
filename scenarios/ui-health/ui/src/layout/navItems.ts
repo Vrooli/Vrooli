@@ -1,6 +1,7 @@
 import {
   Boxes,
   GaugeCircle,
+  Images,
   RefreshCw,
   Search,
   Settings as SettingsIcon,
@@ -20,6 +21,7 @@ import { ROUTES } from "../routes.generated";
 export type NavKey =
   | "dashboard"
   | "validation"
+  | "captures"
   | "search"
   | "inventory"
   | "reindex"
@@ -38,6 +40,7 @@ export interface NavItem {
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "dashboard", path: ROUTES.dashboard, end: true, labelKey: strings.layout.nav.dashboard, icon: GaugeCircle },
   { key: "validation", path: ROUTES.validation, labelKey: strings.layout.nav.validation, icon: ShieldCheck },
+  { key: "captures", path: ROUTES.captures, labelKey: strings.layout.nav.captures, icon: Images },
   { key: "search", path: ROUTES.search, labelKey: strings.layout.nav.search, icon: Search },
   { key: "inventory", path: ROUTES.inventory, labelKey: strings.layout.nav.inventory, icon: Boxes },
   { key: "reindex", path: ROUTES.reindex, labelKey: strings.layout.nav.reindex, icon: RefreshCw },

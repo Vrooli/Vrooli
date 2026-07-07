@@ -22,6 +22,28 @@ type layoutSnapshot struct {
 	DocumentWidth  float64
 	DocumentHeight float64
 	Elements       []layoutElement
+	Chrome         chromeIntent
+	SafeAreaInsets safeAreaInsets
+}
+
+type chromeIntent struct {
+	ThemeColor     string
+	StatusBarColor string
+	SafeAreaColor  string
+	StatusBarStyle string
+}
+
+type safeAreaInsets struct {
+	Top    float64
+	Right  float64
+	Bottom float64
+	Left   float64
+}
+
+func (c chromeIntent) empty() bool {
+	return strings.TrimSpace(c.ThemeColor) == "" &&
+		strings.TrimSpace(c.StatusBarColor) == "" &&
+		strings.TrimSpace(c.SafeAreaColor) == ""
 }
 
 type layoutElement struct {
@@ -143,6 +165,18 @@ func analyzeLayout(step *visualpb.VisualStepArtifact) ([]*visualpb.VisualFinding
 				StepId:      step.GetStepId(),
 			})
 		}
+		if edge := el.unsafeSafeAreaEdge(snap); edge != "" {
+			findings = append(findings, &visualpb.VisualFinding{
+				Code:        "visual_unsafe_edge_tap_zone",
+				Severity:    severityError,
+				Category:    categoryLayout,
+				Message:     "interactive element overlaps an unsafe edge or notch zone",
+				Location:    firstNonEmpty(el.Selector, locationFor(step)),
+				Evidence:    fmt.Sprintf("%s overlaps %s safe area", el.describeRect(), edge),
+				Remediation: "Move interactive controls out of unsafe edge and notch zones or pad the layout with env(safe-area-inset-*).",
+				StepId:      step.GetStepId(),
+			})
+		}
 	}
 	return findings, metrics
 }
@@ -181,12 +215,45 @@ func parseLayoutSnapshot(step *visualpb.VisualStepArtifact) (layoutSnapshot, err
 	if snap.DocumentHeight == 0 {
 		snap.DocumentHeight = firstNumber(raw, "scrollHeight", "documentHeight")
 	}
+	snap.Chrome = parseChromeIntent(raw)
+	snap.SafeAreaInsets = parseSafeAreaInsets(raw)
 	for _, item := range arrayValue(raw, "elements") {
 		if m, ok := item.(map[string]any); ok {
 			snap.Elements = append(snap.Elements, parseLayoutElement(m))
 		}
 	}
 	return snap, nil
+}
+
+func parseChromeIntent(raw map[string]any) chromeIntent {
+	chrome := firstMap(raw, "chrome", "declaredChrome", "theme")
+	safe := firstMap(raw, "safeArea", "safe_area", "safeAreaIntent")
+	if chrome == nil {
+		chrome = raw
+	}
+	out := chromeIntent{
+		ThemeColor:     firstString(chrome, "themeColor", "theme_color", "declaredThemeColor"),
+		StatusBarColor: firstString(chrome, "statusBarColor", "status_bar_color", "declaredStatusBarColor"),
+		SafeAreaColor:  firstString(chrome, "safeAreaColor", "safe_area_color", "declaredSafeAreaColor"),
+		StatusBarStyle: firstString(chrome, "statusBarStyle", "status_bar_style", "appleMobileWebAppStatusBarStyle"),
+	}
+	if safe != nil && out.SafeAreaColor == "" {
+		out.SafeAreaColor = firstString(safe, "color", "safeAreaColor", "backgroundColor", "background")
+	}
+	return out
+}
+
+func parseSafeAreaInsets(raw map[string]any) safeAreaInsets {
+	safe := firstMap(raw, "safeArea", "safe_area", "safeAreaInsets", "safe_area_insets")
+	if safe == nil {
+		safe = raw
+	}
+	return safeAreaInsets{
+		Top:    firstNumber(safe, "top", "safeAreaTop", "safe_area_top"),
+		Right:  firstNumber(safe, "right", "safeAreaRight", "safe_area_right"),
+		Bottom: firstNumber(safe, "bottom", "safeAreaBottom", "safe_area_bottom"),
+		Left:   firstNumber(safe, "left", "safeAreaLeft", "safe_area_left"),
+	}
 }
 
 func parseLayoutElement(m map[string]any) layoutElement {
@@ -289,6 +356,28 @@ func (e layoutElement) blocksViewport(s layoutSnapshot) bool {
 		return false
 	}
 	return (e.Width*e.Height)/viewportArea >= overlayAreaFraction
+}
+
+func (e layoutElement) unsafeSafeAreaEdge(s layoutSnapshot) string {
+	if !e.isInteractive() || !s.hasViewport() || !s.SafeAreaInsets.any() {
+		return ""
+	}
+	switch {
+	case s.SafeAreaInsets.Top > 0 && e.Y < s.SafeAreaInsets.Top:
+		return "top"
+	case s.SafeAreaInsets.Bottom > 0 && e.Y+e.Height > s.ViewportHeight-s.SafeAreaInsets.Bottom:
+		return "bottom"
+	case s.SafeAreaInsets.Left > 0 && e.X < s.SafeAreaInsets.Left:
+		return "left"
+	case s.SafeAreaInsets.Right > 0 && e.X+e.Width > s.ViewportWidth-s.SafeAreaInsets.Right:
+		return "right"
+	default:
+		return ""
+	}
+}
+
+func (s safeAreaInsets) any() bool {
+	return s.Top > 0 || s.Right > 0 || s.Bottom > 0 || s.Left > 0
 }
 
 func (e layoutElement) describeRect() string {

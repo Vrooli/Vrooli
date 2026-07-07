@@ -20,6 +20,7 @@ export const strings = {
   layout: {
     sidebarLabel: "layout.sidebarLabel",
     bottomNavLabel: "layout.bottomNavLabel",
+    mainLabel: "layout.mainLabel",
     nav: {
       fleet: "layout.nav.fleet",
       explorer: "layout.nav.explorer",
@@ -68,6 +69,11 @@ export const strings = {
       emptyFleet: "experience.fleet.emptyFleet",
       loadError: "experience.fleet.loadError",
       staleData: "experience.fleet.staleData",
+      filterStatus: "experience.fleet.filterStatus",
+      filterAll: "experience.fleet.filterAll",
+      filterFindings: "experience.fleet.filterFindings",
+      filterClean: "experience.fleet.filterClean",
+      sortBy: "experience.fleet.sortBy",
     },
     explorer: {
       title: "experience.explorer.title",
@@ -146,22 +152,6 @@ export const strings = {
       previewError: "experience.findings.previewError",
       applyError: "experience.findings.applyError",
     },
-  },
-  health: {
-    title: "health.title",
-    loading: "health.loading",
-    error: "health.error",
-    refresh: "health.refresh",
-    refreshCount: "health.refreshCount",
-    refreshCount_one: "health.refreshCount_one",
-    statusLabel: "health.statusLabel",
-    serviceLabel: "health.serviceLabel",
-    timestampLabel: "health.timestampLabel",
-  },
-  notifications: {
-    summary: "notifications.summary",
-    summary_zero: "notifications.summary_zero",
-    summary_one: "notifications.summary_one",
   },
   errors: {
     canceled: "errors.canceled",

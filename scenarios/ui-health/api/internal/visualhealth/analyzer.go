@@ -1,7 +1,14 @@
 package visualhealth
 
 import (
+	"bytes"
+	"fmt"
+	"image"
+	"image/color"
+	"image/png"
+	"math"
 	"sort"
+	"strconv"
 	"strings"
 
 	"ui-health/internal/visualhealth/pixel"
@@ -12,6 +19,8 @@ import (
 type Analyzer struct {
 	thresholds pixel.Thresholds
 }
+
+const chromeColorDistanceThreshold = 18
 
 func NewAnalyzer(thresholds pixel.Thresholds) Analyzer {
 	if thresholds.GridSize <= 0 {
@@ -146,6 +155,27 @@ func Rules() []*visualpb.VisualRule {
 			RequiredArtifacts: []string{"layout_json", "viewport"},
 			Remediation:       "Remove unexpected full-screen overlays or mark intentional modals with dialog semantics.",
 		},
+		{
+			Id:                "visual_status_bar_color_mismatch",
+			Category:          visualpb.VisualCategory_VISUAL_CATEGORY_PIXEL,
+			Severity:          visualpb.VisualSeverity_VISUAL_SEVERITY_ERROR,
+			RequiredArtifacts: []string{"screenshot_png", "layout_json"},
+			Remediation:       "Align the declared theme/status-bar color with the actual rendered top chrome strip.",
+		},
+		{
+			Id:                "visual_safe_area_color_mismatch",
+			Category:          visualpb.VisualCategory_VISUAL_CATEGORY_PIXEL,
+			Severity:          visualpb.VisualSeverity_VISUAL_SEVERITY_ERROR,
+			RequiredArtifacts: []string{"screenshot_png", "layout_json"},
+			Remediation:       "Color every safe-area edge with the declared safe-area/status chrome color.",
+		},
+		{
+			Id:                "visual_unsafe_edge_tap_zone",
+			Category:          visualpb.VisualCategory_VISUAL_CATEGORY_LAYOUT,
+			Severity:          visualpb.VisualSeverity_VISUAL_SEVERITY_ERROR,
+			RequiredArtifacts: []string{"layout_json", "viewport"},
+			Remediation:       "Move interactive controls out of unsafe edge and notch zones or pad the layout with env(safe-area-inset-*).",
+		},
 	}
 }
 
@@ -172,6 +202,7 @@ func (a Analyzer) analyzeStep(step *visualpb.VisualStepArtifact) *visualpb.StepV
 				metric("visual_dominant_fraction", health.DominantFraction),
 				metric("visual_luminance_variance", health.Variance),
 			)
+			out.Findings = append(out.Findings, chromeColorFindings(step, pngBytes)...)
 			if health.Broken {
 				out.Findings = append(out.Findings, &visualpb.VisualFinding{
 					Code:        "visual_pixel_blank",
@@ -221,6 +252,159 @@ func (a Analyzer) comparePNG(base, cur []byte) (string, float64) {
 		return "identical", 0
 	}
 	return "changed", result.ChangedFraction
+}
+
+func chromeColorFindings(step *visualpb.VisualStepArtifact, pngBytes []byte) []*visualpb.VisualFinding {
+	if step == nil || strings.TrimSpace(step.GetLayoutJson()) == "" || len(pngBytes) == 0 {
+		return nil
+	}
+	snap, err := parseLayoutSnapshot(step)
+	if err != nil || snap.Chrome.empty() {
+		return nil
+	}
+	img, err := png.Decode(bytes.NewReader(pngBytes))
+	if err != nil {
+		return nil
+	}
+	statusWant, hasStatus := parseHexColor(firstNonEmpty(snap.Chrome.StatusBarColor, snap.Chrome.ThemeColor))
+	safeWant, hasSafe := parseHexColor(firstNonEmpty(snap.Chrome.SafeAreaColor, snap.Chrome.StatusBarColor, snap.Chrome.ThemeColor))
+	bounds := img.Bounds()
+	var findings []*visualpb.VisualFinding
+	if hasStatus && (snap.SafeAreaInsets.Top > 0 || strings.TrimSpace(snap.Chrome.StatusBarStyle) != "") {
+		topHeight := int(math.Round(snap.SafeAreaInsets.Top))
+		if topHeight <= 0 {
+			topHeight = minInt(24, maxInt(1, bounds.Dy()/12))
+		}
+		got := averageColor(img, image.Rect(bounds.Min.X, bounds.Min.Y, bounds.Max.X, bounds.Min.Y+clampInt(topHeight, 1, bounds.Dy())))
+		if colorDistance(got, statusWant) > chromeColorDistanceThreshold {
+			findings = append(findings, &visualpb.VisualFinding{
+				Code:        "visual_status_bar_color_mismatch",
+				Severity:    severityError,
+				Category:    visualpb.VisualCategory_VISUAL_CATEGORY_PIXEL,
+				Message:     "rendered status-bar strip does not match declared chrome color",
+				Location:    locationFor(step),
+				Evidence:    fmt.Sprintf("declared %s, captured %s", colorHex(statusWant), colorHex(got)),
+				Remediation: "Align the declared theme/status-bar color with the actual rendered top chrome strip.",
+				StepId:      step.GetStepId(),
+				Metrics: []*visualpb.VisualMetric{
+					metric("color_distance", colorDistance(got, statusWant)),
+				},
+			})
+		}
+	}
+	if hasSafe {
+		for _, region := range safeAreaRegions(bounds, snap.SafeAreaInsets) {
+			got := averageColor(img, region.rect)
+			if colorDistance(got, safeWant) <= chromeColorDistanceThreshold {
+				continue
+			}
+			findings = append(findings, &visualpb.VisualFinding{
+				Code:        "visual_safe_area_color_mismatch",
+				Severity:    severityError,
+				Category:    visualpb.VisualCategory_VISUAL_CATEGORY_PIXEL,
+				Message:     "rendered safe-area edge does not match declared chrome color",
+				Location:    locationFor(step),
+				Evidence:    fmt.Sprintf("%s edge declared %s, captured %s", region.edge, colorHex(safeWant), colorHex(got)),
+				Remediation: "Color every safe-area edge with the declared safe-area/status chrome color.",
+				StepId:      step.GetStepId(),
+				Metrics: []*visualpb.VisualMetric{
+					metric("color_distance", colorDistance(got, safeWant)),
+				},
+			})
+		}
+	}
+	return findings
+}
+
+type colorRegion struct {
+	edge string
+	rect image.Rectangle
+}
+
+func safeAreaRegions(bounds image.Rectangle, in safeAreaInsets) []colorRegion {
+	var out []colorRegion
+	if h := clampInt(int(math.Round(in.Top)), 0, bounds.Dy()); h > 0 {
+		out = append(out, colorRegion{"top", image.Rect(bounds.Min.X, bounds.Min.Y, bounds.Max.X, bounds.Min.Y+h)})
+	}
+	if h := clampInt(int(math.Round(in.Bottom)), 0, bounds.Dy()); h > 0 {
+		out = append(out, colorRegion{"bottom", image.Rect(bounds.Min.X, bounds.Max.Y-h, bounds.Max.X, bounds.Max.Y)})
+	}
+	if w := clampInt(int(math.Round(in.Left)), 0, bounds.Dx()); w > 0 {
+		out = append(out, colorRegion{"left", image.Rect(bounds.Min.X, bounds.Min.Y, bounds.Min.X+w, bounds.Max.Y)})
+	}
+	if w := clampInt(int(math.Round(in.Right)), 0, bounds.Dx()); w > 0 {
+		out = append(out, colorRegion{"right", image.Rect(bounds.Max.X-w, bounds.Min.Y, bounds.Max.X, bounds.Max.Y)})
+	}
+	return out
+}
+
+func averageColor(img image.Image, rect image.Rectangle) color.RGBA {
+	rect = rect.Intersect(img.Bounds())
+	if rect.Empty() {
+		return color.RGBA{}
+	}
+	var r, g, b, count uint64
+	for y := rect.Min.Y; y < rect.Max.Y; y++ {
+		for x := rect.Min.X; x < rect.Max.X; x++ {
+			cr, cg, cb, _ := img.At(x, y).RGBA()
+			r += uint64(cr >> 8)
+			g += uint64(cg >> 8)
+			b += uint64(cb >> 8)
+			count++
+		}
+	}
+	return color.RGBA{R: uint8(r / count), G: uint8(g / count), B: uint8(b / count), A: 255}
+}
+
+func parseHexColor(raw string) (color.RGBA, bool) {
+	raw = strings.TrimSpace(raw)
+	raw = strings.TrimPrefix(raw, "#")
+	if len(raw) == 3 {
+		raw = strings.Repeat(raw[0:1], 2) + strings.Repeat(raw[1:2], 2) + strings.Repeat(raw[2:3], 2)
+	}
+	if len(raw) != 6 {
+		return color.RGBA{}, false
+	}
+	v, err := strconv.ParseUint(raw, 16, 32)
+	if err != nil {
+		return color.RGBA{}, false
+	}
+	return color.RGBA{R: uint8(v >> 16), G: uint8(v >> 8), B: uint8(v), A: 255}, true
+}
+
+func colorDistance(a, b color.RGBA) float64 {
+	dr := float64(int(a.R) - int(b.R))
+	dg := float64(int(a.G) - int(b.G))
+	db := float64(int(a.B) - int(b.B))
+	return math.Sqrt(dr*dr + dg*dg + db*db)
+}
+
+func colorHex(c color.RGBA) string {
+	return fmt.Sprintf("#%02x%02x%02x", c.R, c.G, c.B)
+}
+
+func clampInt(v, lo, hi int) int {
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func indexCompareArtifacts(in []*visualpb.CompareArtifact) map[string]*visualpb.CompareArtifact {

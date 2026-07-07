@@ -73,6 +73,7 @@ func DefaultSpec() *maturity.Spec {
 			spec.CodeStateMissing:        requiredManual("spec_contract", "L2", spec.SeverityWarning, "State coverage decisions require design intent."),
 			spec.CodeBindingUnresolved:   requiredManual("structure_reconciliation", "L1", spec.SeverityError, "Resolving live binding drift depends on the intended selector or markup."),
 			spec.CodeClaimFailed:         requiredManual("structure_reconciliation", "L2", spec.SeverityError, "A failed experience claim may require product, design, or implementation changes."),
+			spec.CodeAffordanceMissing:   requiredManualWithSkills("structure_reconciliation", "L2", spec.SeverityError, []string{"experience-spec-authoring", "ux"}, "Missing affordances require adding accessible controls or revising the page intent."),
 			spec.CodeClaimUnverifiable:   requiredManual("structure_reconciliation", "L1", spec.SeverityWarning, "Checker coverage gaps require choosing a supported claim type or adding validator capability."),
 			spec.CodeCaptureUnavailable:  requiredManual("structure_reconciliation", "L0", spec.SeverityInfo, "Capture availability is an operational condition, not an in-place source fix."),
 			spec.CodeClaimUnproven:       requiredManual("structure_reconciliation", "L2", spec.SeverityWarning, "Evidence must be captured or the claim should be retiered deliberately."),

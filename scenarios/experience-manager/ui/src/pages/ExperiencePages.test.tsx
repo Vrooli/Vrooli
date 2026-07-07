@@ -90,6 +90,16 @@ describe("FleetPage", () => {
           debtScore: 10,
           status: "findings",
         },
+        {
+          scenario: "business-health",
+          hasExperience: true,
+          maxDepth: "L2",
+          maxDepthValue: 2,
+          pageCount: 3,
+          findingCount: 0,
+          debtScore: 0,
+          status: "clean",
+        },
       ],
       scenarioCount: 4,
       withExperienceCount: 1,
@@ -102,8 +112,16 @@ describe("FleetPage", () => {
       expect(screen.getByTestId(selectors.experience.fleet.debtTable)).toHaveTextContent("experience-manager"),
     );
     expect(screen.getByTestId(selectors.experience.fleet.debtTable)).toHaveTextContent("L3");
-    expect(screen.getByTestId(selectors.experience.fleet.debtTable)).not.toHaveTextContent("business-health");
+    expect(screen.getByTestId(selectors.experience.fleet.debtTable)).toHaveTextContent("business-health");
     expect(screen.getByTestId(selectors.experience.fleet.coverageMeter)).toHaveAttribute("aria-valuenow", "25");
+
+    await userEvent.click(screen.getByRole("button", { name: strings.experience.fleet.filterFindings }));
+    expect(screen.getByTestId(selectors.experience.fleet.debtTable)).toHaveTextContent("experience-manager");
+    expect(screen.getByTestId(selectors.experience.fleet.debtTable)).not.toHaveTextContent("business-health");
+
+    await userEvent.click(screen.getByRole("button", { name: strings.experience.fleet.filterClean }));
+    expect(screen.getByTestId(selectors.experience.fleet.debtTable)).not.toHaveTextContent("experience-manager");
+    expect(screen.getByTestId(selectors.experience.fleet.debtTable)).toHaveTextContent("business-health");
   });
 
   it("renders loading, empty, and error states from the real query", async () => {

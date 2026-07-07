@@ -19,7 +19,6 @@ type governedComponent struct {
 }
 
 var componentPrimitiveMap = map[string][]string{
-	"BottomNav": {"nav"},
 	"Button":    {"button"},
 	"DataTable": {"table"},
 	"Input":     {"input", "textarea"},
@@ -42,6 +41,19 @@ func governedComponents(ctx uiinterop.CheckContext, files []uiSourceFile) map[st
 			LibraryID: source,
 			Version:   strings.TrimSpace(provenanceField(f.content, "@vrooliComponentVersion")),
 			Source:    "adopted locally",
+		}
+	}
+
+	if declaresComponentLibraryIntent(ctx) {
+		for name := range componentPrimitiveMap {
+			if _, ok := components[name]; ok {
+				continue
+			}
+			components[name] = governedComponent{
+				Name:      name,
+				LibraryID: "react-component-library:" + name,
+				Source:    "declared component-library intent",
+			}
 		}
 	}
 
@@ -69,6 +81,78 @@ func governedComponents(ctx uiinterop.CheckContext, files []uiSourceFile) map[st
 		components[name] = meta
 	}
 	return components
+}
+
+func declaresComponentLibraryIntent(ctx uiinterop.CheckContext) bool {
+	return packageDeclaresComponentLibrary(ctx.ScenarioRoot) ||
+		serviceDeclaresReactViteDesignAdapter(ctx.ScenarioRoot) ||
+		uiManifestDeclaresReactViteTemplate(ctx.ScenarioRoot)
+}
+
+func packageDeclaresComponentLibrary(scenarioRoot string) bool {
+	data, err := os.ReadFile(filepath.Join(scenarioRoot, "ui", "package.json"))
+	if err != nil {
+		return false
+	}
+	var pkg struct {
+		Dependencies    map[string]string `json:"dependencies"`
+		DevDependencies map[string]string `json:"devDependencies"`
+	}
+	if json.Unmarshal(data, &pkg) != nil {
+		return false
+	}
+	for dep := range pkg.Dependencies {
+		if isComponentLibraryDependency(dep) {
+			return true
+		}
+	}
+	for dep := range pkg.DevDependencies {
+		if isComponentLibraryDependency(dep) {
+			return true
+		}
+	}
+	return false
+}
+
+func isComponentLibraryDependency(dep string) bool {
+	dep = strings.TrimSpace(dep)
+	return dep == "react-component-library" ||
+		dep == "@vrooli/react-component-library" ||
+		dep == "@vrooli/component-library"
+}
+
+func serviceDeclaresReactViteDesignAdapter(scenarioRoot string) bool {
+	data, err := os.ReadFile(filepath.Join(scenarioRoot, ".vrooli", "service.json"))
+	if err != nil {
+		return false
+	}
+	var service struct {
+		Generation struct {
+			Design struct {
+				Adapter string `json:"adapter"`
+			} `json:"design"`
+		} `json:"generation"`
+	}
+	if json.Unmarshal(data, &service) != nil {
+		return false
+	}
+	return strings.TrimSpace(service.Generation.Design.Adapter) == "react-vite-tailwind"
+}
+
+func uiManifestDeclaresReactViteTemplate(scenarioRoot string) bool {
+	data, err := os.ReadFile(filepath.Join(scenarioRoot, "ui", "manifest.json"))
+	if err != nil {
+		return false
+	}
+	var manifest struct {
+		Contract struct {
+			Template string `json:"template"`
+		} `json:"contract"`
+	}
+	if json.Unmarshal(data, &manifest) != nil {
+		return false
+	}
+	return strings.TrimSpace(manifest.Contract.Template) == "react-vite"
 }
 
 func readCatalogComponent(path, fallbackName string) governedComponent {

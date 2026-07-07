@@ -23,6 +23,7 @@ const (
 	CodeBindingUnresolved   = "experience.binding_unresolved"
 	CodeClaimFailed         = "experience.claim_failed"
 	CodeClaimUnverifiable   = "experience.claim_unverifiable"
+	CodeAffordanceMissing   = "experience.affordance_missing"
 	CodeCaptureUnavailable  = "experience.capture_unavailable"
 	CodeAttestationExpired  = "experience.attestation_expired"
 	CodeClaimUnproven       = "experience.claim_unproven"
@@ -67,6 +68,7 @@ var AllFindingCodes = []string{
 	CodeBindingUnresolved,
 	CodeClaimFailed,
 	CodeClaimUnverifiable,
+	CodeAffordanceMissing,
 	CodeCaptureUnavailable,
 	CodeAttestationExpired,
 	CodeClaimUnproven,
@@ -177,6 +179,14 @@ type Priority struct {
 type State struct {
 	ID          string `json:"id"`
 	Description string `json:"description"`
+	Setup       Setup  `json:"setup"`
+}
+
+type Setup struct {
+	Route    string            `json:"route"`
+	Query    map[string]string `json:"query"`
+	Hash     string            `json:"hash"`
+	SettleMs int               `json:"settleMs"`
 }
 
 type Element struct {
@@ -632,7 +642,7 @@ func validTier(tier string) bool {
 
 func knownClaimType(t string) bool {
 	switch t {
-	case "element-present", "element-absent", "single-dominant-action", "visible-without-scroll", "reading-order", "state-covered", "state-distinct", "keyboard-reachable", "no-document-horizontal-overflow", "viewport-fill", "chrome-pinned", "safe-area-tap-targets", "single-line-chrome", "tap-target-size", "custom":
+	case "element-present", "element-absent", "single-dominant-action", "visible-without-scroll", "reading-order", "state-covered", "state-distinct", "keyboard-reachable", "affordance-present", "no-document-horizontal-overflow", "viewport-fill", "chrome-pinned", "safe-area-tap-targets", "single-line-chrome", "tap-target-size", "custom":
 		return true
 	default:
 		return false

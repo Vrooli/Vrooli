@@ -30,6 +30,7 @@ export const strings = {
     nav: {
       dashboard: "layout.nav.dashboard",
       validation: "layout.nav.validation",
+      captures: "layout.nav.captures",
       search: "layout.nav.search",
       inventory: "layout.nav.inventory",
       reindex: "layout.nav.reindex",
@@ -164,6 +165,29 @@ export const strings = {
       error: "pages.validation.error",
       revalidate: "pages.validation.revalidate",
       back: "pages.validation.back",
+    },
+    captures: {
+      title: "pages.captures.title",
+      description: "pages.captures.description",
+      filters: {
+        scenario: "pages.captures.filters.scenario",
+        allScenarios: "pages.captures.filters.allScenarios",
+      },
+      status: {
+        clean: "pages.captures.status.clean",
+        findings: "pages.captures.status.findings",
+      },
+      chrome: {
+        statusBar: "pages.captures.chrome.statusBar",
+        safeArea: "pages.captures.chrome.safeArea",
+        declared: "pages.captures.chrome.declared",
+        captured: "pages.captures.chrome.captured",
+      },
+      violations: {
+        empty: "pages.captures.violations.empty",
+        edge: "pages.captures.violations.edge",
+      },
+      empty: "pages.captures.empty",
     },
     search: {
       title: "pages.search.title",

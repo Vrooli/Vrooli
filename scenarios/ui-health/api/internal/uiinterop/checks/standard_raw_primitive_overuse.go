@@ -69,6 +69,62 @@ BadExample:
   <expected-violations>1</expected-violations>
   <expected-message>DataTable</expected-message>
 </test-case>
+
+<test-case id="raw-primitive-declared-library-dependency" should-fail="true">
+  <description>Declared component-library dependency is enough intent to flag a hand-rolled table</description>
+  <input>
+    [ui/package.json]
+    {"dependencies":{"react":"^18.3.1","@vrooli/react-component-library":"file:../../react-component-library"}}
+    [ui/src/pages/Fleet.tsx]
+    export function Fleet() {
+      return <table><tbody><tr><td>x</td></tr></tbody></table>;
+    }
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>DataTable</expected-message>
+</test-case>
+
+<test-case id="raw-primitive-design-adapter-intent" should-fail="true">
+  <description>React Vite design-adapter intent is enough to flag a hand-rolled table</description>
+  <input>
+    [.vrooli/service.json]
+    {"generation":{"design":{"adapter":"react-vite-tailwind"}}}
+    [ui/src/pages/Fleet.tsx]
+    export function Fleet() {
+      return <table><tbody><tr><td>x</td></tr></tbody></table>;
+    }
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>DataTable</expected-message>
+</test-case>
+
+<test-case id="raw-primitive-ui-manifest-template-intent" should-fail="true">
+  <description>React Vite UI manifest template intent is enough to flag a hand-rolled table</description>
+  <input>
+    [ui/manifest.json]
+    {"contract":{"template":"react-vite"}}
+    [ui/src/pages/Fleet.tsx]
+    export function Fleet() {
+      return <table><tbody><tr><td>x</td></tr></tbody></table>;
+    }
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>DataTable</expected-message>
+</test-case>
+
+<test-case id="raw-primitive-comment-clean" should-fail="false">
+  <description>Primitive tags mentioned in comments do not count as rendered raw primitives</description>
+  <input>
+    [ui/src/components/ui/button.tsx]
+    // @vrooliComponentSource react-component-library:Button
+    // @vrooliComponentVersion 1.1.0
+    export function Button() { return <button />; }
+    [ui/src/hooks/SpatialGroup.tsx]
+    // Example: <button>One</button>
+    // Example: <button>Two</button>
+    export function SpatialGroup() { return <div />; }
+  </input>
+</test-case>
 */
 
 package checks
@@ -87,7 +143,16 @@ func init() {
 	uiinterop.Register("standard_raw_primitive_overuse", checkRawPrimitiveOveruse)
 }
 
-var jsxPrimitivePattern = regexp.MustCompile(`<\s*(table|button|input|textarea|select|nav)(?:\s|>|/)`)
+var (
+	jsxPrimitivePattern    = regexp.MustCompile(`<\s*(table|button|input|textarea|select|nav)(?:\s|>|/)`)
+	tsxBlockCommentPattern = regexp.MustCompile(`(?s)/\*.*?\*/`)
+	tsxLineCommentPattern  = regexp.MustCompile(`(?m)//.*$`)
+)
+
+func stripTSXComments(source string) string {
+	withoutBlocks := tsxBlockCommentPattern.ReplaceAllString(source, "")
+	return tsxLineCommentPattern.ReplaceAllString(withoutBlocks, "")
+}
 
 func checkRawPrimitiveOveruse(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	const ruleID = "standard_raw_primitive_overuse"
@@ -161,7 +226,7 @@ func skipRawPrimitiveFile(f uiSourceFile) bool {
 
 func rawPrimitiveCounts(source string, available map[string]governedComponent) map[string]int {
 	counts := map[string]int{}
-	for _, m := range jsxPrimitivePattern.FindAllStringSubmatch(source, -1) {
+	for _, m := range jsxPrimitivePattern.FindAllStringSubmatch(stripTSXComments(source), -1) {
 		if len(m) < 2 {
 			continue
 		}

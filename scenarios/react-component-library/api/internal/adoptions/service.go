@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -386,9 +387,11 @@ func (s *service) computeStatus(ctx context.Context, row Adoption) (LibraryVersi
 	if err != nil {
 		var missing ErrAdoptedFileMissing
 		if errors.As(err, &missing) {
-			return libraryStatusFor(row, cmp), LocalStatusMissing, "adopted file missing"
+			libStatus, libDetail := s.libraryStatusFor(ctx, row, cmp)
+			return libStatus, LocalStatusMissing, firstNonEmpty("adopted file missing", libDetail)
 		}
-		return libraryStatusFor(row, cmp), LocalStatusUnknown, fmt.Sprintf("adopted file read failed: %v", err)
+		libStatus, libDetail := s.libraryStatusFor(ctx, row, cmp)
+		return libStatus, LocalStatusUnknown, firstNonEmpty(fmt.Sprintf("adopted file read failed: %v", err), libDetail)
 	}
 	adoptedSHA := hashBytes(adoptedBytes)
 	localStatus := LocalStatusModified
@@ -397,9 +400,9 @@ func (s *service) computeStatus(ctx context.Context, row Adoption) (LibraryVersi
 		localStatus = LocalStatusClean
 		detail = ""
 	}
-	libStatus := libraryStatusFor(row, cmp)
-	if libStatus == LibraryVersionStatusBehind {
-		detail = fmt.Sprintf("library at %s", emptyOrVersion(firstNonEmpty(cmp.LatestVersion, cmp.Version)))
+	libStatus, libDetail := s.libraryStatusFor(ctx, row, cmp)
+	if libDetail != "" {
+		detail = libDetail
 	}
 	return libStatus, localStatus, detail
 }
@@ -517,15 +520,41 @@ func (r *FSScenarioFileReader) resolve(scenario, adoptedPath string) (string, er
 	return cleaned, nil
 }
 
-func libraryStatusFor(row Adoption, cmp components.Component) LibraryVersionStatus {
+func (s *service) libraryStatusFor(ctx context.Context, row Adoption, cmp components.Component) (LibraryVersionStatus, string) {
+	status, detail, needsVersion := libraryStatusFor(row, cmp, components.ComponentVersionStatus(""))
+	if !needsVersion {
+		return status, detail
+	}
+	version, err := s.library.GetVersion(ctx, row.ComponentID, row.AdoptedVersion)
+	if err != nil {
+		return LibraryVersionStatusUnknown, fmt.Sprintf("adopted version %s not found in library", emptyOrVersion(row.AdoptedVersion))
+	}
+	status, detail, _ = libraryStatusFor(row, cmp, version.Status)
+	return status, detail
+}
+
+func libraryStatusFor(row Adoption, cmp components.Component, adoptedStatus components.ComponentVersionStatus) (LibraryVersionStatus, string, bool) {
 	latest := firstNonEmpty(cmp.LatestVersion, cmp.Version)
 	if row.AdoptedVersion == "" || latest == "" {
-		return LibraryVersionStatusUnknown
+		return LibraryVersionStatusUnknown, "", false
+	}
+	if adoptedStatus == "" {
+		return LibraryVersionStatusUnknown, "", true
+	}
+	if adoptedStatus == components.VersionStatusDeprecated {
+		return LibraryVersionStatusDeprecated, fmt.Sprintf("adopted version %s is deprecated", row.AdoptedVersion), false
+	}
+	if adoptedStatus == components.VersionStatusDraft {
+		return LibraryVersionStatusUnknown, fmt.Sprintf("adopted version %s is a draft", row.AdoptedVersion), false
 	}
 	if row.AdoptedVersion == latest {
-		return LibraryVersionStatusCurrent
+		return LibraryVersionStatusCurrent, "", false
 	}
-	return LibraryVersionStatusBehind
+	cmpResult, ok := compareVersionStrings(row.AdoptedVersion, latest)
+	if ok && cmpResult >= 0 {
+		return LibraryVersionStatusCurrent, "", false
+	}
+	return LibraryVersionStatusBehind, fmt.Sprintf("library at %s", emptyOrVersion(latest)), false
 }
 
 func firstNonEmpty(values ...string) string {
@@ -535,6 +564,67 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+type semver struct {
+	major int
+	minor int
+	patch int
+}
+
+func parseSemver(raw string) (semver, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return semver{}, fmt.Errorf("empty version")
+	}
+	if i := strings.IndexAny(raw, "-+"); i >= 0 {
+		raw = raw[:i]
+	}
+	parts := strings.SplitN(raw, ".", 3)
+	out := semver{}
+	dst := []*int{&out.major, &out.minor, &out.patch}
+	for i, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" || part == "x" || part == "X" || part == "*" {
+			continue
+		}
+		value, err := strconv.Atoi(part)
+		if err != nil {
+			return semver{}, err
+		}
+		*dst[i] = value
+	}
+	return out, nil
+}
+
+func compareVersionStrings(a, b string) (int, bool) {
+	av, err := parseSemver(a)
+	if err != nil {
+		return 0, false
+	}
+	bv, err := parseSemver(b)
+	if err != nil {
+		return 0, false
+	}
+	switch {
+	case av.major != bv.major:
+		if av.major < bv.major {
+			return -1, true
+		}
+		return 1, true
+	case av.minor != bv.minor:
+		if av.minor < bv.minor {
+			return -1, true
+		}
+		return 1, true
+	case av.patch != bv.patch:
+		if av.patch < bv.patch {
+			return -1, true
+		}
+		return 1, true
+	default:
+		return 0, true
+	}
 }
 
 func formatProvenance(v components.ComponentVersion, adoptionID string, appliedAt time.Time) string {

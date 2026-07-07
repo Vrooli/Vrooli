@@ -52,10 +52,11 @@ belong in [`DATA.md`](DATA.md).
   domain behavior.
 - API: `api/handlers/health/`.
 - CLI: built-in `status` command is provided through cli-core.
-- UI: `ui/src/features/health/HealthCard.tsx`.
+- UI: health is exposed through the backend contract and shell-level readiness
+  checks; the unused scaffolded HealthCard surface was removed.
 - Storage: none; probes configured database reachability.
 - Requirements: starter scaffold health only.
-- Tests: handler, module, UI feature, and accessibility tests.
+- Tests: handler, module, and shell accessibility tests.
 - Related docs: [`../reference/api-endpoints.md`](../reference/api-endpoints.md).
 
 ### spec

@@ -2,9 +2,10 @@ package reconcile
 
 // Snapshot is the normalized BAS accessibility snapshot contract.
 type Snapshot struct {
-	Contract string `json:"contract"`
-	URL      string `json:"url"`
-	Root     AXNode `json:"root"`
+	Contract      string `json:"contract"`
+	URL           string `json:"url"`
+	ScreenshotRef string `json:"-"`
+	Root          AXNode `json:"root"`
 }
 
 // AXNode is the subset of bas-accessibility-snapshot/v1 used by structure

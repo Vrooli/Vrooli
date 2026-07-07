@@ -1076,6 +1076,42 @@
         ],
         "clean_requirement": "required"
       },
+      "visual_status_bar_color_mismatch": {
+        "capability_id": "runtime_render",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "ui-health",
+          "ux"
+        ],
+        "clean_requirement": "required"
+      },
+      "visual_safe_area_color_mismatch": {
+        "capability_id": "runtime_render",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "ui-health",
+          "ux"
+        ],
+        "clean_requirement": "required"
+      },
+      "visual_unsafe_edge_tap_zone": {
+        "capability_id": "runtime_render",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "ui-health",
+          "ux"
+        ],
+        "clean_requirement": "required"
+      },
       "runtime_skipped_ui_unavailable": {
         "capability_id": "runtime_render",
         "local_level_impact": "L3",
@@ -1144,6 +1180,29 @@
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
           "ux",
+          "ui-health"
+        ],
+        "clean_requirement": "advisory"
+      },
+      "standard_component_location": {
+        "capability_id": "project_standards",
+        "local_level_impact": "L4",
+        "global_impact": "advisory",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
+          "ux",
+          "ui-health"
+        ],
+        "clean_requirement": "advisory"
+      },
+      "standard_component_version_staleness": {
+        "capability_id": "freshness",
+        "local_level_impact": "L3",
+        "global_impact": "advisory",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": [
           "ui-health"
         ],
         "clean_requirement": "advisory"

@@ -126,9 +126,8 @@ describe("locale catalogs", () => {
   });
 
   it("every logical key uses the same interpolation tokens across locales", () => {
-    // Without this check, a translator dropping `{{count}}` from
-    // `ja.notifications.summary` would render "件の通知" with no number and
-    // never trip CI. The runtime fail is silent, so we surface it here.
+    // Without this check, a translator dropping an interpolation token would
+    // silently render incomplete copy at runtime, so we surface it here.
     const referenceTokens = tokensPerBase(reference);
     for (const [locale, catalog] of Object.entries(catalogs)) {
       if (locale === "en") continue;

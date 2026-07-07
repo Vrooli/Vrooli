@@ -18,8 +18,9 @@ import (
 
 // fakeLibrary is a minimal LibraryReader keyed by component_id.
 type fakeLibrary struct {
-	byID map[string]components.Component
-	body map[string]string // id -> file content
+	byID          map[string]components.Component
+	body          map[string]string // id -> file content
+	versionStatus map[string]components.ComponentVersionStatus
 }
 
 func (f *fakeLibrary) Get(_ context.Context, id string) (components.Component, error) {
@@ -28,6 +29,14 @@ func (f *fakeLibrary) Get(_ context.Context, id string) (components.Component, e
 		return components.Component{}, components.ErrComponentNotFound{IDOrLibraryID: id}
 	}
 	return c, nil
+}
+
+func (f *fakeLibrary) List(_ context.Context, _ components.SearchQuery) ([]components.Component, error) {
+	rows := make([]components.Component, 0, len(f.byID))
+	for _, component := range f.byID {
+		rows = append(rows, component)
+	}
+	return rows, nil
 }
 
 func (f *fakeLibrary) GetContent(_ context.Context, id string) (components.Content, error) {
@@ -44,7 +53,13 @@ func (f *fakeLibrary) GetVersion(_ context.Context, componentID, version string)
 	if !ok {
 		return components.ComponentVersion{}, components.ErrComponentNotFound{IDOrLibraryID: componentID + "@" + version}
 	}
-	return components.ComponentVersion{ComponentID: componentID, Version: version, Content: body, ContentSHA256: sha(body)}, nil
+	status := components.VersionStatusReleased
+	if f.versionStatus != nil {
+		if override := f.versionStatus[componentID+"@"+version]; override != "" {
+			status = override
+		}
+	}
+	return components.ComponentVersion{ComponentID: componentID, Version: version, Status: status, Content: body, ContentSHA256: sha(body)}, nil
 }
 
 // fakeFiles is a minimal ScenarioFileReader keyed by "<scenario>::<path>".
@@ -199,6 +214,83 @@ func TestService_Refresh_FilterByComponent(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	require.Equal(t, "ra", got[0].ID)
+}
+
+func TestService_Refresh_UsesSemverOrdering(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	lib := &fakeLibrary{
+		byID: map[string]components.Component{
+			"cmp": {ID: "cmp", LibraryID: "rcl:Button", LatestVersion: "1.2.0"},
+		},
+		body: map[string]string{"cmp": "BODY"},
+	}
+	files := &fakeFiles{bytes: map[string][]byte{
+		"s::newer.tsx": []byte("BODY"),
+		"s::older.tsx": []byte("BODY"),
+	}}
+	clk := mocks.NewFakeClock(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
+	repo.Seed(adoptions.Adoption{ID: "newer", ComponentID: "cmp", LibraryID: "rcl:Button", Scenario: "s", AdoptedPath: "newer.tsx", AdoptedVersion: "1.10.0", AdoptedSnapshotSHA256: sha("BODY"), CreatedAt: clk.Now()})
+	repo.Seed(adoptions.Adoption{ID: "older", ComponentID: "cmp", LibraryID: "rcl:Button", Scenario: "s", AdoptedPath: "older.tsx", AdoptedVersion: "1.1.9", AdoptedSnapshotSHA256: sha("BODY"), CreatedAt: clk.Now()})
+
+	svc := adoptions.NewService(repo, lib, files, clk)
+	got, summary, err := svc.Refresh(context.Background(), "")
+	require.NoError(t, err)
+	byID := map[string]adoptions.Adoption{}
+	for _, row := range got {
+		byID[row.ID] = row
+	}
+	require.Equal(t, adoptions.LibraryVersionStatusCurrent, byID["newer"].LibraryVersionStatus)
+	require.Equal(t, adoptions.LibraryVersionStatusBehind, byID["older"].LibraryVersionStatus)
+	require.Equal(t, 1, summary.LibraryCurrent)
+	require.Equal(t, 1, summary.LibraryBehind)
+}
+
+func TestService_Refresh_ReportsDeprecatedVersion(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	lib := &fakeLibrary{
+		byID: map[string]components.Component{
+			"cmp": {ID: "cmp", LibraryID: "rcl:DataTable", LatestVersion: "2.0.0"},
+		},
+		body: map[string]string{"cmp": "BODY"},
+		versionStatus: map[string]components.ComponentVersionStatus{
+			"cmp@1.0.0": components.VersionStatusDeprecated,
+		},
+	}
+	files := &fakeFiles{bytes: map[string][]byte{"s::table.tsx": []byte("BODY")}}
+	clk := mocks.NewFakeClock(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
+	repo.Seed(adoptions.Adoption{ID: "deprecated", ComponentID: "cmp", LibraryID: "rcl:DataTable", Scenario: "s", AdoptedPath: "table.tsx", AdoptedVersion: "1.0.0", AdoptedSnapshotSHA256: sha("BODY"), CreatedAt: clk.Now()})
+
+	svc := adoptions.NewService(repo, lib, files, clk)
+	got, summary, err := svc.Refresh(context.Background(), "")
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, adoptions.LibraryVersionStatusDeprecated, got[0].LibraryVersionStatus)
+	require.Contains(t, got[0].StatusDetail, "deprecated")
+	require.Equal(t, 1, summary.LibraryDeprecated)
+}
+
+func TestService_Refresh_DoesNotTreatDraftVersionAsCurrent(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	lib := &fakeLibrary{
+		byID: map[string]components.Component{
+			"cmp": {ID: "cmp", LibraryID: "rcl:Button", LatestVersion: "1.0.0", DraftVersion: "1.1.0-beta.1"},
+		},
+		body: map[string]string{"cmp": "BODY"},
+		versionStatus: map[string]components.ComponentVersionStatus{
+			"cmp@1.1.0-beta.1": components.VersionStatusDraft,
+		},
+	}
+	files := &fakeFiles{bytes: map[string][]byte{"s::button.tsx": []byte("BODY")}}
+	clk := mocks.NewFakeClock(time.Date(2026, 5, 12, 0, 0, 0, 0, time.UTC))
+	repo.Seed(adoptions.Adoption{ID: "draft", ComponentID: "cmp", LibraryID: "rcl:Button", Scenario: "s", AdoptedPath: "button.tsx", AdoptedVersion: "1.1.0-beta.1", AdoptedSnapshotSHA256: sha("BODY"), CreatedAt: clk.Now()})
+
+	svc := adoptions.NewService(repo, lib, files, clk)
+	got, summary, err := svc.Refresh(context.Background(), "")
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, adoptions.LibraryVersionStatusUnknown, got[0].LibraryVersionStatus)
+	require.Contains(t, got[0].StatusDetail, "draft")
+	require.Equal(t, 1, summary.LibraryUnknown)
 }
 
 func TestService_Create_RejectsMissingComponent(t *testing.T) {

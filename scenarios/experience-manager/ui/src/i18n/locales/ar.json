@@ -8,6 +8,7 @@
   "layout": {
     "sidebarLabel": "التنقل الرئيسي",
     "bottomNavLabel": "التنقل الرئيسي",
+    "mainLabel": "المحتوى الرئيسي",
     "nav": {
       "fleet": "الأسطول",
       "explorer": "المستكشف",
@@ -55,7 +56,12 @@
       "loadingData": "جارٍ تحميل بيانات الأسطول",
       "emptyFleet": "لم يتم العثور على سيناريوهات تحتوي على مواصفات تجربة. أضف مجلد experience/ لبدء تتبع الدين.",
       "loadError": "تعذر تحميل مسح الأسطول.",
-      "staleData": "بيانات مسح الأسطول أقدم من نافذة الحداثة."
+      "staleData": "بيانات مسح الأسطول أقدم من نافذة الحداثة.",
+      "filterStatus": "تصفية الحالة",
+      "filterAll": "كل الحالات",
+      "filterFindings": "نتائج",
+      "filterClean": "نظيف",
+      "sortBy": "فرز حسب {{column}}"
     },
     "explorer": {
       "title": "مستكشف السيناريو",
@@ -134,22 +140,6 @@
       "previewError": "فشلت معاينة الإصلاح.",
       "applyError": "فشل تطبيق الإصلاح."
     }
-  },
-  "health": {
-    "title": "حالة API",
-    "loading": "جارٍ التحقق من حالة API…",
-    "error": "تعذر الوصول إلى API. تأكد من تشغيل السيناريو عبر `vrooli scenario start`.",
-    "refresh": "تحديث",
-    "refreshCount": "تم التحديث {{count}} مرات",
-    "refreshCount_one": "تم التحديث مرة واحدة",
-    "statusLabel": "الحالة:",
-    "serviceLabel": "الخدمة:",
-    "timestampLabel": "الطابع الزمني:"
-  },
-  "notifications": {
-    "summary": "{{count}} إشعارات",
-    "summary_zero": "لا توجد إشعارات",
-    "summary_one": "إشعار واحد"
   },
   "errors": {
     "canceled": "Operation canceled.",

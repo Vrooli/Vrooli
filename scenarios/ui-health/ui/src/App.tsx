@@ -17,6 +17,9 @@ const ValidationListPage = lazy(() =>
 const ValidationDetailPage = lazy(() =>
   import("./features/validation/ValidationDetailPage").then((m) => ({ default: m.ValidationDetailPage })),
 );
+const CaptureGalleryPage = lazy(() =>
+  import("./features/captures/CaptureGalleryPage").then((m) => ({ default: m.CaptureGalleryPage })),
+);
 const SearchPage = lazy(() => import("./features/search/SearchPage").then((m) => ({ default: m.SearchPage })));
 const InventoryPage = lazy(() =>
   import("./features/inventory/InventoryPage").then((m) => ({ default: m.InventoryPage })),
@@ -45,6 +48,7 @@ export default function App() {
         <Route path={ROUTE_PATTERNS.dashboard} element={<Page><DashboardPage /></Page>} />
         <Route path={ROUTE_PATTERNS.validation} element={<Page><ValidationListPage /></Page>} />
         <Route path={ROUTE_PATTERNS.validationDetail} element={<Page><ValidationDetailPage /></Page>} />
+        <Route path={ROUTE_PATTERNS.captures} element={<Page><CaptureGalleryPage /></Page>} />
         <Route path={ROUTE_PATTERNS.search} element={<Page><SearchPage /></Page>} />
         <Route path={ROUTE_PATTERNS.inventory} element={<Page><InventoryPage /></Page>} />
         <Route path={ROUTE_PATTERNS.surfaceDetail} element={<Page><SurfaceDetailPage /></Page>} />

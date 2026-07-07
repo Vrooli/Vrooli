@@ -8,6 +8,7 @@
   "layout": {
     "sidebarLabel": "メインナビゲーション",
     "bottomNavLabel": "メインナビゲーション",
+    "mainLabel": "メインコンテンツ",
     "nav": {
       "fleet": "フリート",
       "explorer": "エクスプローラー",
@@ -55,7 +56,12 @@
       "loadingData": "フリートデータを読み込み中",
       "emptyFleet": "体験仕様を持つシナリオは見つかりません。experience/ フォルダーを追加すると負債追跡が始まります。",
       "loadError": "フリートスイープを読み込めませんでした。",
-      "staleData": "フリートスイープデータは鮮度ウィンドウより古くなっています。"
+      "staleData": "フリートスイープデータは鮮度ウィンドウより古くなっています。",
+      "filterStatus": "ステータスで絞り込み",
+      "filterAll": "すべてのステータス",
+      "filterFindings": "検出あり",
+      "filterClean": "クリーン",
+      "sortBy": "{{column}}で並べ替え"
     },
     "explorer": {
       "title": "シナリオエクスプローラー",
@@ -134,19 +140,6 @@
       "previewError": "修正プレビューに失敗しました。",
       "applyError": "修正の適用に失敗しました。"
     }
-  },
-  "health": {
-    "title": "API ステータス",
-    "loading": "API のステータスを確認中…",
-    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
-    "refresh": "再読み込み",
-    "refreshCount": "{{count}} 回更新しました",
-    "statusLabel": "ステータス:",
-    "serviceLabel": "サービス:",
-    "timestampLabel": "タイムスタンプ:"
-  },
-  "notifications": {
-    "summary": "{{count}} 件の通知"
   },
   "errors": {
     "canceled": "Operation canceled.",

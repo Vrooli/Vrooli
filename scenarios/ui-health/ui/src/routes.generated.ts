@@ -3,6 +3,7 @@
 // FlowId: ui-health.app.ui
 
 export const ROUTES = {
+  captures: "/captures",
   dashboard: "/",
   inventory: "/inventory",
   notFound: "*",
@@ -16,6 +17,7 @@ export const ROUTES = {
 } as const;
 
 export const ROUTE_PATTERNS = {
+  captures: "/captures",
   dashboard: "/",
   inventory: "/inventory",
   notFound: "*",
@@ -28,8 +30,8 @@ export const ROUTE_PATTERNS = {
   validationDetail: "/validation/:scenarioId",
 } as const;
 
-export const PUBLIC_ROUTES: readonly (keyof typeof ROUTES)[] = ["dashboard", "inventory", "notFound", "reindex", "reindexJob", "search", "settings", "surfaceDetail", "validation", "validationDetail"];
+export const PUBLIC_ROUTES: readonly (keyof typeof ROUTES)[] = ["captures", "dashboard", "inventory", "notFound", "reindex", "reindexJob", "search", "settings", "surfaceDetail", "validation", "validationDetail"];
 
 export const AUTH_REQUIRED_ROUTES: readonly (keyof typeof ROUTES)[] = [];
 
-export const ROUTE_IDS: readonly (keyof typeof ROUTES)[] = ["dashboard", "inventory", "notFound", "reindex", "reindexJob", "search", "settings", "surfaceDetail", "validation", "validationDetail"];
+export const ROUTE_IDS: readonly (keyof typeof ROUTES)[] = ["captures", "dashboard", "inventory", "notFound", "reindex", "reindexJob", "search", "settings", "surfaceDetail", "validation", "validationDetail"];

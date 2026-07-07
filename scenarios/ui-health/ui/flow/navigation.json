@@ -4,7 +4,7 @@
   "kind": "navigation",
   "flowId": "ui-health.app.ui",
   "domain": "app",
-  "description": "UI Health navigation: dashboard, validation, search, inventory, reindex, settings. Operational console — local only, no auth.",
+  "description": "UI Health navigation: dashboard, validation, capture gallery, search, inventory, reindex, settings. Operational console — local only, no auth.",
 
   "contexts": {
     "viewport": {
@@ -35,6 +35,13 @@
       "page": "ui/src/features/validation/ValidationDetailPage.tsx",
       "deep_link": "recoverable",
       "parents": ["validation"]
+    },
+    {
+      "id": "captures",
+      "path": "/captures",
+      "page": "ui/src/features/captures/CaptureGalleryPage.tsx",
+      "deep_link": "recoverable",
+      "parents": ["dashboard"]
     },
     {
       "id": "search",

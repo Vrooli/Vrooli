@@ -8,6 +8,7 @@
   "layout": {
     "sidebarLabel": "Primary navigation",
     "bottomNavLabel": "Primary navigation",
+    "mainLabel": "Main content",
     "nav": {
       "fleet": "Fleet",
       "explorer": "Explorer",
@@ -55,7 +56,12 @@
       "loadingData": "Loading fleet data",
       "emptyFleet": "No scenarios with experience specs were found. Add an experience/ folder to start tracking debt.",
       "loadError": "Fleet sweep could not be loaded.",
-      "staleData": "Fleet sweep data is older than the freshness window."
+      "staleData": "Fleet sweep data is older than the freshness window.",
+      "filterStatus": "Filter status",
+      "filterAll": "All status",
+      "filterFindings": "Findings",
+      "filterClean": "Clean",
+      "sortBy": "Sort by {{column}}"
     },
     "explorer": {
       "title": "Scenario Explorer",
@@ -134,22 +140,6 @@
       "previewError": "Fix preview failed.",
       "applyError": "Fix apply failed."
     }
-  },
-  "health": {
-    "title": "API Health",
-    "loading": "Checking API status…",
-    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
-    "refresh": "Refresh",
-    "refreshCount": "Refreshed {{count}} times",
-    "refreshCount_one": "Refreshed once",
-    "statusLabel": "Status:",
-    "serviceLabel": "Service:",
-    "timestampLabel": "Timestamp:"
-  },
-  "notifications": {
-    "summary": "{{count}} notifications",
-    "summary_zero": "No notifications",
-    "summary_one": "1 notification"
   },
   "errors": {
     "canceled": "Operation canceled.",

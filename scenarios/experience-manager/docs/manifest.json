@@ -779,6 +779,18 @@
           "aliases": ["experience.claim_failed"]
         },
         {
+          "path": "findings/experience.affordance_missing.md",
+          "docType": "finding-experience-affordance-missing",
+          "title": "experience.affordance_missing",
+          "description": "Remediation doc for the `experience.affordance_missing` finding",
+          "audience": ["agents", "developers"],
+          "maturity": "draft",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"requiredHeadings": ["What it means", "How to fix it", "Provenance"], "forbiddenPlaceholders": ["\u005bTODO\u005d"]},
+          "aliases": ["experience.affordance_missing"]
+        },
+        {
           "path": "findings/experience.claim_unverifiable.md",
           "docType": "finding-experience-claim-unverifiable",
           "title": "experience.claim_unverifiable",

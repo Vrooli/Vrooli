@@ -5,6 +5,17 @@ import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 
+function themeChoiceLabel(choice: ThemeChoice) {
+  switch (choice) {
+    case "light":
+      return strings.theme.choice.light;
+    case "dark":
+      return strings.theme.choice.dark;
+    case "system":
+      return strings.theme.choice.system;
+  }
+}
+
 /**
  * Top app bar — title, locale switcher, theme toggle. Visible at every viewport
  * width. Replace the title with your real product surface; keep the locale and
@@ -25,6 +36,9 @@ export function TopBar() {
       >
         {t(strings.app.title)}
       </h1>
+      <p className="sr-only">
+        {t(strings.app.eyebrow)}. {t(strings.app.description)}
+      </p>
       <div className="flex shrink-0 items-center gap-3">
         <label
           data-testid={selectors.theme.switcher}
@@ -40,7 +54,7 @@ export function TopBar() {
           >
             {THEME_CHOICES.map((c) => (
               <option key={c} value={c}>
-                {t(strings.theme.choice[c])}
+                {t(themeChoiceLabel(c))}
               </option>
             ))}
           </select>

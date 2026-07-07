@@ -1,6 +1,8 @@
 import { Outlet } from "react-router-dom";
 
 import { selectors } from "../consts/selectors";
+import { strings } from "../consts/strings";
+import { useTranslation } from "../i18n";
 import { BottomNav } from "./BottomNav";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
@@ -14,17 +16,23 @@ import { TopBar } from "./TopBar";
  * `app/routes.tsx`.
  */
 export function AppShell() {
+  const { t } = useTranslation();
+
   return (
     <div
       data-testid={selectors.layout.shell}
       className="flex min-h-dvh flex-col bg-app-background text-app-foreground"
     >
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-x-0 top-0 z-50 h-[env(safe-area-inset-top)] bg-app-background"
+      />
       <TopBar />
       <div className="flex min-h-0 flex-1">
         <Sidebar />
         <main
           data-testid={selectors.layout.main}
-          aria-label="Main content"
+          aria-label={t(strings.layout.mainLabel)}
           className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pb-28 pt-5 md:p-6"
         >
           <Outlet />

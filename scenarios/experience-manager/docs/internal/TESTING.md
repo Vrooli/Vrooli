@@ -31,9 +31,8 @@ These files are the source of truth. When in doubt, copy their shape:
 - **UI cockpit**: `ui/src/pages/ExperiencePages.test.tsx` — behavior tests
   for Fleet, Scenario Explorer, Evidence, Studio, and Findings live-data
   states. This is the canonical shape for page-level query/mutation tests.
-- **UI a11y**: `ui/src/components/AppShell.a11y.test.tsx` and
-  `ui/src/features/health/HealthCard.a11y.test.tsx` — shell and feature
-  accessibility are tested at their ownership boundary.
+- **UI a11y**: `ui/src/layout/AppShell.a11y.test.tsx` — shell
+  accessibility is tested at its ownership boundary.
 - **CLI**: `cli/app_test.go` — smoke gate (NewApp, --version, --help).
   When domain commands arrive, extend with `clitest.NewAPIServer` +
   `clitest.CaptureStdout` from `cli/internal/testutil/`.
@@ -529,28 +528,16 @@ Adding a new SDK: drop a `mocks/<sdk>.ts` builder beside it, add a
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
 
-import { makeApiMocks, renderWithProviders } from "../../test-utils";
-
-vi.mock("../../api/health", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../api/health")>();
-  return { ...actual, ...makeApiMocks() };
-});
-
-import { HealthCard } from "./HealthCard";
+import { renderWithProviders } from "../test-utils";
+import { AppShell } from "../layout/AppShell";
 import { selectors } from "../../consts/selectors";
-import { strings } from "../../consts/strings";
 
-describe("HealthCard rendering (cimode — copy-independent)", () => {
+describe("AppShell rendering (cimode — copy-independent)", () => {
   afterEach(() => { cleanup(); });
 
-  it("renders the card via test ID", () => {
-    renderWithProviders(<HealthCard />);
-    expect(screen.getByTestId(selectors.health.card)).toBeInTheDocument();
-  });
-
-  it("renders translation keys in cimode", async () => {
-    renderWithProviders(<HealthCard />);
-    expect(await screen.findByText(strings.health.title)).toBeInTheDocument();
+  it("renders shell navigation via test ID", () => {
+    renderWithProviders(<AppShell />);
+    expect(screen.getByTestId(selectors.layout.nav)).toBeInTheDocument();
   });
 });
 ```
@@ -567,9 +554,8 @@ A second `describe` block opts into real locales with
 canonical English copy via raw `en.json` references. These tests *should*
 update when canonical English copy changes — that's what they verify.
 
-See `features/health/HealthCard.test.tsx` for the full pattern and the
-CLDR plural variants (`refreshCount_one`,
-`notifications.summary_zero` / `_one` / base). Keep `App.test.tsx`
+See `pages/ExperiencePages.test.tsx` for the full page-query pattern and
+`i18n/locales.test.ts` for CLDR plural coverage. Keep `App.test.tsx`
 smoke-only so deleting a feature does not require rewriting the app
 composition test.
 
@@ -628,11 +614,10 @@ Accessibility tests follow the same ownership rule as production UI:
   default a11y gate; a full-`App` a11y test couples shell coverage to
   every async feature query and becomes fragile as features change.
 
-Before running axe, wait for the state the test owns. For example,
-`HealthCard.a11y.test.tsx` waits for `selectors.health.statusValue`
-for the success state and `selectors.health.error` for the error state.
-This keeps React Query updates inside the awaited test boundary and
-prevents `act(...)` warnings.
+Before running axe, wait for the state the test owns. For query-backed pages,
+wait for a stable selector or role after the mocked query settles. This keeps
+React Query updates inside the awaited test boundary and prevents `act(...)`
+warnings.
 
 `test-setup.ts` fails tests that write unexpected `console.error` or
 `console.warn` output. If a test intentionally exercises a noisy React

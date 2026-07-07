@@ -15,9 +15,9 @@
     { "statement": "Validation feedback lands next to the field that caused it, at the moment it is caused." }
   ],
   "states": [
-    { "id": "default", "description": "Editing a spec: form beside live wireframe." },
+    { "id": "default", "description": "Editing a spec: form beside live wireframe.", "setup": { "route": "/studio/experience-manager/fleet", "settleMs": 5000 } },
     { "id": "empty", "description": "Nothing selected; guides picking a scenario/page to spec." },
-    { "id": "comparing", "description": "Two or more variants rendered side by side, promote affordance per variant." },
+    { "id": "comparing", "description": "Two or more variants rendered side by side, promote affordance per variant.", "setup": { "route": "/studio/experience-manager/fleet", "settleMs": 5000 } },
     { "id": "saving", "description": "Save acknowledged immediately; busy state, duplicate submission prevented." },
     { "id": "validation-error", "description": "Contract findings from live validation, placed field-level with a form-level summary." },
     { "id": "request-error", "description": "Save failed; user input preserved, retry available." }
@@ -75,9 +75,10 @@
       "id": "validation-summary-on-failure",
       "type": "element-present",
       "statement": "A failed submit produces a form-level validation summary exposed as an alert.",
-      "tier": "machine",
+      "tier": "manual",
       "elements": ["validation-summary"],
-      "states": ["validation-error"]
+      "states": ["validation-error"],
+      "rationale": "Requires a scripted failed-submit interaction; route-level capture cannot force the alert state yet."
     },
     {
       "id": "live-preview-no-refresh",

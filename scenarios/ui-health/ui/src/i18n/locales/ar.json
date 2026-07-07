@@ -15,12 +15,13 @@
     "closeDrawer": "إغلاق التنقل",
     "skipToContent": "تخطي إلى المحتوى الرئيسي",
     "main": "المحتوى الرئيسي",
-    "nav": {
-      "dashboard": "لوحة التحكم",
-      "validation": "التحقق",
-      "search": "البحث",
-      "inventory": "المخزون",
-      "reindex": "إعادة الفهرسة",
+      "nav": {
+        "dashboard": "لوحة التحكم",
+        "validation": "التحقق",
+        "captures": "اللقطات",
+        "search": "البحث",
+        "inventory": "المخزون",
+        "reindex": "إعادة الفهرسة",
       "settings": "الإعدادات"
     }
   },
@@ -152,6 +153,29 @@
       "error": "Validation failed: {{message}}",
       "revalidate": "Revalidate",
       "back": "Back to validation"
+    },
+    "captures": {
+      "title": "Capture Gallery",
+      "description": "Captured pages with chrome deltas and violation overlays.",
+      "filters": {
+        "scenario": "Scenario",
+        "allScenarios": "All scenarios"
+      },
+      "status": {
+        "clean": "Clean",
+        "findings": "{{count}} finding(s)"
+      },
+      "chrome": {
+        "statusBar": "Status bar",
+        "safeArea": "Safe area",
+        "declared": "Declared",
+        "captured": "Captured"
+      },
+      "violations": {
+        "empty": "No visual violations for this capture.",
+        "edge": "{{edge}} edge"
+      },
+      "empty": "No captures match this filter."
     },
     "search": {
       "title": "Search",

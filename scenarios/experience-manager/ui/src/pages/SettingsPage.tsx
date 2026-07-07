@@ -1,9 +1,21 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
+import { Button } from "../components/ui/button";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
+
+function themeChoiceLabel(choice: ThemeChoice) {
+  switch (choice) {
+    case "light":
+      return strings.theme.choice.light;
+    case "dark":
+      return strings.theme.choice.dark;
+    case "system":
+      return strings.theme.choice.system;
+  }
+}
 
 /**
  * Settings page. Surfaces the locale and theme selectors as a real page (in
@@ -31,21 +43,18 @@ export function SettingsPage() {
         </h3>
         <div role="radiogroup" aria-label={t(strings.theme.switcherLabel)} className="flex gap-2">
           {THEME_CHOICES.map((c) => (
-            <button
+            <Button
               key={c}
               type="button"
               role="radio"
               aria-checked={choice === c}
+              variant={choice === c ? "default" : "outline"}
+              size="sm"
               onClick={() => setTheme(c)}
               data-testid={selectors.settingsPage.themeOption({ choice: c })}
-              className={
-                choice === c
-                  ? "rounded-control bg-app-primary px-3 py-1 text-sm font-medium text-app-primary-foreground"
-                  : "rounded-control border border-app-border px-3 py-1 text-sm text-app-foreground hover:bg-app-surface-muted"
-              }
             >
-              {t(strings.theme.choice[c])}
-            </button>
+              {t(themeChoiceLabel(c))}
+            </Button>
           ))}
         </div>
       </div>
@@ -56,21 +65,18 @@ export function SettingsPage() {
         </h3>
         <div role="radiogroup" aria-label={t(strings.locale.switcherLabel)} className="flex gap-2">
           {SUPPORTED_LOCALES.map((lng) => (
-            <button
+            <Button
               key={lng}
               type="button"
               role="radio"
               aria-checked={currentLocale === lng}
+              variant={currentLocale === lng ? "default" : "outline"}
+              size="sm"
               onClick={() => void setLocale(lng)}
               data-testid={selectors.settingsPage.localeOption({ code: lng })}
-              className={
-                currentLocale === lng
-                  ? "rounded-control bg-app-primary px-3 py-1 text-sm font-medium text-app-primary-foreground"
-                  : "rounded-control border border-app-border px-3 py-1 text-sm text-app-foreground hover:bg-app-surface-muted"
-              }
             >
               {getLocaleConfig(lng).nativeLabel}
-            </button>
+            </Button>
           ))}
         </div>
       </div>

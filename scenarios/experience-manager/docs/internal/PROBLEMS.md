@@ -51,13 +51,13 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ### 2026-07-06 — BAS reconciliation captures only default state setup
 
-**Symptom:** `state-covered`, `state-distinct`, and claim-level `x-` dimensions can be parsed and reported honestly, but non-default state or display-mode proof cannot be fully captured yet.
+**RESOLVED 2026-07-07 for deterministic URL states.** `states[].setup` can now declare route/query/hash/settle setup before capture. Reconciliation captures those non-default states through the existing viewport matrix, persists evidence by `(page,state,viewport)`, and evaluates `state-distinct` by comparing captured accessibility fingerprints across the scoped states.
 
-**Root cause:** Experience-manager now captures a viewport matrix (`desktop` 1280x720 and `mobile` 390x844) and persists evidence per viewport, but it still does not drive per-state transitions or per-dimension mode changes before capture.
+**Remaining limitation:** interaction-only states and claim-level `x-` dimensions still need a richer deterministic action runner or BAS case binding. They remain unverifiable with explicit limitation reasons unless represented through URL setup.
 
-**Workaround:** Default-state machine claims reconcile normally across captured viewports. Viewport-scoped claims reconcile when their viewport is in the matrix; scopes outside the matrix and non-default/extension-scoped claims stay unverifiable with explicit limitation reasons or must be manual/aspirational.
+**Workaround:** Encode reachable state setup with `states[].setup` when a state can be selected through route/query/hash. Keep interaction-only states manual/aspirational until the richer setup runner lands.
 
-**Real fix:** Add a state setup runner that can execute per-state setup steps before capture and persist evidence per state/mode, using the existing viewport profile machinery.
+**Real fix:** Add an action-flow setup runner for interaction-only states and display-mode dimensions, using BAS cases where route/query/hash is insufficient.
 
 **Owner:** unassigned.
 
@@ -71,7 +71,7 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Workaround:** Keep strict-mode assertions in unit tests and use provider output plus BAS evidence for acceptance. Do not promote the gate during this follow-up plan.
 
-**Real fix:** Promote strict gating only after fleet adoption and after the cockpit dogfood is green in live suite runs.
+**Real fix:** Promote strict gating only after fleet adoption and after the cockpit dogfood is green in live suite runs. Promotion criteria are now documented in `docs/reference/experience-alignment.md`: the cockpit reference set must be covered, viewport matrix captures must be stable, inherited floors need red-first/green-after proof on a non-experience-manager scenario, manual claims must be fresh or explicitly non-gating, and the cockpit set must survive a managed suite run with only documented calibration debt.
 
 **Owner:** unassigned.
 
