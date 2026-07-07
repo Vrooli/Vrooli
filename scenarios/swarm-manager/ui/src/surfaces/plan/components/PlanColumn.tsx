@@ -40,7 +40,7 @@ export function PlanColumn({
 
   return (
     <section
-      className="flex h-full w-72 shrink-0 flex-col rounded-xl border border-slate-800 bg-slate-950/60 md:w-80"
+      className="flex h-full w-72 shrink-0 flex-col bg-slate-950/60 md:w-80"
       data-testid={testId}
     >
       <ColumnHeader

@@ -200,8 +200,8 @@ export function PlanBoard() {
 
   return (
     <PlanBoardActions onBoardRefresh={() => void refresh()}>
-    <div className="flex h-full flex-col pt-24" data-testid="plan-board">
-      <div className="flex items-center gap-2 px-4 pb-2">
+    <div className="flex h-full min-h-0 flex-col" data-testid="plan-board">
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2">
         <GoalPicker goal={urlState.goal} onSelect={urlState.setGoal} />
         {cycles.length > 0 && (
           <span
@@ -240,7 +240,7 @@ export function PlanBoard() {
           Refresh
         </button>
       </div>
-      <div className="flex flex-1 gap-3 overflow-x-auto px-4 pb-4">
+      <div className="flex min-h-0 flex-1 divide-x divide-slate-800 overflow-x-auto border-t border-slate-800">
         <NowColumn />
         <PlanColumn
           title="Next"

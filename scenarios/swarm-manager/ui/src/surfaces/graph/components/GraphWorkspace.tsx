@@ -1,11 +1,15 @@
 /**
- * GraphWorkspace - Graph-first shell for swarm-manager.
+ * GraphWorkspace - the shared shell for swarm-manager's Plan board and Graph
+ * canvas.
  *
- * Uses HUD-like floating controls instead of a header toolbar:
- * - Top-center: Plan/Graph navigation
- * - Top-right: Settings gear, Help button, Agents dropdown
+ * Both surfaces sit under one real header (WorkspaceHeader) rather than a
+ * floating overlay, so neither has to reserve dead space to clear it:
+ * - Header: Plan/Graph lens nav (left) + stats / settings / help / agents
+ *   (right). Help is lens-aware — Plan Guide on the board, Graph Guide on the
+ *   canvas.
+ * - Body: the active surface, filling the remaining height.
  * - Bottom-left: Edge legend (rendered inside GraphCanvas)
- * - Bottom-right: MiniMap (rendered inside GraphCanvas)
+ * - Bottom-right: node/edge count summary (rendered inside GraphCanvas)
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -24,7 +28,7 @@ import { useGraphWebSocket } from "../hooks/useGraphWebSocket";
 import { useQueryClient } from "@tanstack/react-query";
 import { GraphCanvas } from "./GraphCanvas";
 import { CapturePanel } from "./CapturePanel";
-import { PlanBoard } from "../../plan";
+import { PlanBoard, PlanHelpPanel } from "../../plan";
 import { ClarificationPanel } from "../../../components/backlog/clarification-panel";
 import { useSpatialNav } from "../../../hooks/useSpatialNav";
 import { SpatialGroup } from "../../../hooks/SpatialGroup";
@@ -35,7 +39,7 @@ import { StatsPanel } from "./StatsPanel";
 import { NodeInspectorPanel } from "./NodeInspectorPanel";
 import { GraphHelpPanel } from "./GraphHelpPanel";
 import { CanvasErrorBoundary } from "./CanvasErrorBoundary";
-import { GraphWorkspaceHUD } from "./GraphWorkspaceHUD";
+import { WorkspaceHeader } from "./WorkspaceHeader";
 import { GraphActionLauncher } from "./GraphActionLauncher";
 import { graphPath, sessionDetailPath } from "../../../app/routes/route-paths";
 import { useAppShell } from "../../../app/shell/AppShellContext";
@@ -133,11 +137,24 @@ export function GraphWorkspace() {
 
   return (
     <SpatialNavProvider controllerRef={spatialNav}>
-    <div className="flex h-screen bg-slate-950 text-slate-50" data-testid="graph-workspace">
-      {/* Main canvas area with HUD overlays */}
-      <div className="relative flex-1">
+    <div className="flex h-full min-h-0 flex-col bg-slate-950 text-slate-50" data-testid="graph-workspace">
+      {/* Unified header shared by both surfaces. */}
+      <WorkspaceHeader
+        lens={lens}
+        sidebarCollapsed={sidebarCollapsed}
+        showNavControls={showNavControls}
+        onToggleSidebar={openSidebar}
+        onToggleStats={() => setShowStatsPanel((prev) => !prev)}
+        onToggleSettings={() => setShowSettingsDrawer((prev) => !prev)}
+        onToggleHelp={() => setShowHelpPanel((prev) => !prev)}
+        onLensChange={handleLensChange}
+      />
+
+      {/* Active surface fills the remaining height; floating panels anchor
+          here so they sit below the header. */}
+      <div className="relative min-h-0 flex-1">
         {/* Plan renders the kanban board; graph modes render the node/edge
-            canvas. Both sit under the same HUD. */}
+            canvas. */}
         {lens === "plan" ? (
           <PlanBoard />
         ) : (
@@ -148,22 +165,14 @@ export function GraphWorkspace() {
           </SpatialGroup>
         )}
 
-        {/* HUD — two rows at top */}
-        <GraphWorkspaceHUD
-          lens={lens}
-          sidebarCollapsed={sidebarCollapsed}
-          showNavControls={showNavControls}
-          onToggleSidebar={openSidebar}
-          onToggleStats={() => setShowStatsPanel((prev) => !prev)}
-          onToggleSettings={() => setShowSettingsDrawer((prev) => !prev)}
-          onToggleHelp={() => setShowHelpPanel((prev) => !prev)}
-          onLensChange={handleLensChange}
-        />
-
         {/* Floating panels */}
 
         <NodeInspectorPanel />
-        <GraphHelpPanel isOpen={showHelpPanel} onClose={() => setShowHelpPanel(false)} />
+        {lens === "plan" ? (
+          <PlanHelpPanel isOpen={showHelpPanel} onClose={() => setShowHelpPanel(false)} />
+        ) : (
+          <GraphHelpPanel isOpen={showHelpPanel} onClose={() => setShowHelpPanel(false)} />
+        )}
 
         <GraphActionLauncher
           isBusy={isCreatingSession}

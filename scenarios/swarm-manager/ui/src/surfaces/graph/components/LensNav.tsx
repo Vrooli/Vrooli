@@ -1,8 +1,12 @@
 /**
  * LensNav - Operator navigation between the Plan board and the single Graph
- * surface. Focus is graph mode state inside Graph, not a separate tab.
+ * surface. Rendered as an icon + short-label segmented control so it reads
+ * as one unit and matches the icon language of the workspace header's
+ * trailing controls. Focus is graph mode state inside Graph, not a separate
+ * tab.
  */
 
+import { Columns3, Network, type LucideIcon } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import type { AppGraphLens } from "../../../app/routes/route-paths";
 import type { GraphLens } from "../stores/graph-data-store";
@@ -15,48 +19,49 @@ interface LensNavProps {
 const LENSES: Array<{
   id: AppGraphLens;
   label: string;
-  shortLabel: string;
+  icon: LucideIcon;
   shortcut: string;
   primary?: boolean;
 }> = [
-  { id: "plan", label: "Plan", shortLabel: "Plan", shortcut: "1", primary: true },
-  { id: "graph", label: "Graph", shortLabel: "Graph", shortcut: "2" },
+  { id: "plan", label: "Plan", icon: Columns3, shortcut: "1", primary: true },
+  { id: "graph", label: "Graph", icon: Network, shortcut: "2" },
 ];
 
 export function LensNav({ activeLens, onLensChange }: LensNavProps) {
   const activeSurface: AppGraphLens = activeLens === "plan" ? "plan" : "graph";
 
   return (
-    <div className="flex w-fit flex-col gap-1" data-testid="lens-nav">
-      <div
-        className="flex items-center rounded-lg border border-slate-700/80 bg-slate-900/60 p-0.5"
-        role="tablist"
-        aria-label="Graph lens"
-      >
-        {LENSES.map((lens) => (
-            <button
-              key={lens.id}
-              type="button"
-              role="tab"
-              aria-selected={activeSurface === lens.id}
-              onClick={() => onLensChange(lens.id)}
-              className={cn(
-                "px-2 md:px-3 py-1 md:py-1.5 text-xs md:text-sm rounded-md transition-colors",
-                lens.primary ? "font-semibold" : "font-medium",
-                activeSurface === lens.id
-                  ? "bg-slate-700/80 text-cyan-400"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50",
-              )}
-              data-testid={`lens-${lens.id}`}
-            >
-              <span className="md:hidden">{lens.shortLabel}</span>
-              <span className="hidden md:inline">{lens.label}</span>
-              <span className="hidden lg:inline text-xs ml-1 text-slate-500">
-                ({lens.shortcut})
-              </span>
-            </button>
-        ))}
-      </div>
+    <div
+      className="flex items-center rounded-lg border border-slate-700/80 bg-slate-900/60 p-0.5"
+      role="tablist"
+      aria-label="Workspace view"
+      data-testid="lens-nav"
+    >
+      {LENSES.map((lens) => {
+        const Icon = lens.icon;
+        const isActive = activeSurface === lens.id;
+        return (
+          <button
+            key={lens.id}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            onClick={() => onLensChange(lens.id)}
+            title={`${lens.label} (${lens.shortcut})`}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors",
+              lens.primary ? "font-semibold" : "font-medium",
+              isActive
+                ? "bg-slate-700/80 text-cyan-400"
+                : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200",
+            )}
+            data-testid={`lens-${lens.id}`}
+          >
+            <Icon className="h-4 w-4 shrink-0" aria-hidden />
+            <span className="hidden sm:inline">{lens.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
