@@ -6,13 +6,13 @@
  * tab.
  */
 
-import { Columns3, Network, type LucideIcon } from "lucide-react";
+import { BarChart3, Columns3, Network, type LucideIcon } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import type { AppGraphLens } from "../../../app/routes/route-paths";
 import type { GraphLens } from "../stores/graph-data-store";
 
 interface LensNavProps {
-  activeLens: GraphLens;
+  activeLens: AppGraphLens | GraphLens;
   onLensChange: (lens: AppGraphLens) => void;
 }
 
@@ -25,10 +25,11 @@ const LENSES: Array<{
 }> = [
   { id: "plan", label: "Plan", icon: Columns3, shortcut: "1", primary: true },
   { id: "graph", label: "Graph", icon: Network, shortcut: "2" },
+  { id: "stats", label: "Stats", icon: BarChart3, shortcut: "3" },
 ];
 
 export function LensNav({ activeLens, onLensChange }: LensNavProps) {
-  const activeSurface: AppGraphLens = activeLens === "plan" ? "plan" : "graph";
+  const activeSurface: AppGraphLens = activeLens === "plan" ? "plan" : activeLens === "stats" ? "stats" : "graph";
 
   return (
     <div

@@ -328,6 +328,7 @@ function hasActiveFiltersForTab(tab: SidebarTab, backlog: BacklogFilters, captur
     case "backlog": return backlog.statuses.length > 0 || backlog.kinds.length > 0 || backlog.priorityMin !== null || backlog.priorityMax !== null || backlog.showArchived || backlog.validationStatus !== "" || sortChanged;
     case "captures": return captures.statuses.length > 0 || sortChanged;
     case "initiatives": return initiatives.statuses.length > 0 || initiatives.showArchived || sortChanged;
+    case "goals": return sortChanged;
     case "executions": return executions.statuses.length > 0 || executions.modes.length > 0 || sortChanged;
     case "sessions": return sessions.statuses.length > 0 || sessions.kinds.length > 0 || sessions.activeOnly || sessions.hasProposals || sessions.hasAppliedArtifacts || sortChanged;
     case "operatingModes": return sortChanged;

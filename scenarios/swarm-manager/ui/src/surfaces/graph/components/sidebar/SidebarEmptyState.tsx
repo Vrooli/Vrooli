@@ -11,6 +11,7 @@
  */
 
 import type { ComponentType } from "react";
+import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import { Button } from "../../../../components/ui/button";
 import { selectors } from "../../../../consts/selectors";
@@ -21,6 +22,7 @@ export interface SidebarEmptyStateProps {
   hint?: string;
   query?: string;
   onClearSearch?: () => void;
+  action?: ReactNode;
 }
 
 export function SidebarEmptyState({
@@ -29,6 +31,7 @@ export function SidebarEmptyState({
   hint,
   query,
   onClearSearch,
+  action,
 }: SidebarEmptyStateProps) {
   const trimmedQuery = query?.trim() ?? "";
   const showClear = trimmedQuery.length > 0 && Boolean(onClearSearch);
@@ -49,6 +52,7 @@ export function SidebarEmptyState({
       {hint && trimmedQuery.length === 0 && (
         <p className="max-w-xs text-xs leading-snug text-slate-500">{hint}</p>
       )}
+      {trimmedQuery.length === 0 && action}
       {showClear && (
         <Button
           type="button"

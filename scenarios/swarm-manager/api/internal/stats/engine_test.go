@@ -65,6 +65,32 @@ func TestEmptyEngine(t *testing.T) {
 	if stats.Dashboard.TotalBacklogSize != 0 {
 		t.Errorf("expected 0 backlog, got %d", stats.Dashboard.TotalBacklogSize)
 	}
+
+	data, err := json.Marshal(stats)
+	if err != nil {
+		t.Fatalf("marshal stats: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(data, &payload); err != nil {
+		t.Fatalf("unmarshal stats: %v", err)
+	}
+	assertJSONArrayField(t, payload, "blocking", "top_reasons")
+	assertJSONArrayField(t, payload, "scope", "initiatives")
+	assertJSONArrayField(t, payload, "dashboard", "velocity_trend")
+}
+
+func assertJSONArrayField(t *testing.T, payload map[string]any, objectKey string, fieldKey string) {
+	t.Helper()
+	object, ok := payload[objectKey].(map[string]any)
+	if !ok {
+		t.Fatalf("%s object missing or invalid: %#v", objectKey, payload[objectKey])
+	}
+	if object[fieldKey] == nil {
+		t.Fatalf("%s.%s marshaled as null, want JSON array", objectKey, fieldKey)
+	}
+	if _, ok := object[fieldKey].([]any); !ok {
+		t.Fatalf("%s.%s = %#v, want JSON array", objectKey, fieldKey, object[fieldKey])
+	}
 }
 
 func TestModeStats(t *testing.T) {

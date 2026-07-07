@@ -15,7 +15,6 @@ import type {
   Goal,
   GoalScope,
   GoalScopeSnapshot,
-  GoalStatus,
   GoalWithScope,
   UpdateGoalInput,
 } from "../types/goal";
@@ -97,7 +96,7 @@ function normalizeSnapshot(raw: RawSnapshot): GoalScopeSnapshot {
 
 function normalizeGoal(raw: RawGoal): Goal {
   const history = raw.scopeHistory ?? raw.scope_history ?? [];
-  const status = (raw.status === "archived" ? "archived" : "active") as GoalStatus;
+  const status = raw.status === "archived" ? "archived" : "active";
   const archivedAt = raw.archivedAt ?? raw.archived_at;
   return {
     name: raw.name ?? "",

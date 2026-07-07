@@ -57,6 +57,9 @@ const ExecutionDetailsPage = lazy(() =>
 const InitiativeDetailsPage = lazy(() =>
   import("./pages/InitiativeDetailsPage").then((m) => ({ default: m.InitiativeDetailsPage })),
 );
+const GoalDetailsPage = lazy(() =>
+  import("./pages/GoalDetailsPage").then((m) => ({ default: m.GoalDetailsPage })),
+);
 const CaptureDetailsPage = lazy(() =>
   import("./pages/CaptureDetailsPage").then((m) => ({ default: m.CaptureDetailsPage })),
 );
@@ -110,6 +113,7 @@ export default function App() {
                   graph surface; focus is query state inside it. */}
               <Route path="/plan" element={<PageErrorBoundary pageName="Plan"><GraphWorkspace /></PageErrorBoundary>} />
               <Route path="/graph" element={<PageErrorBoundary pageName="Graph"><GraphWorkspace /></PageErrorBoundary>} />
+              <Route path="/stats" element={<PageErrorBoundary pageName="Stats"><GraphWorkspace /></PageErrorBoundary>} />
 
               <Route index element={<Navigate to="/plan" replace />} />
 
@@ -124,6 +128,7 @@ export default function App() {
               <Route path="scenarios/:name" element={<PageErrorBoundary pageName="Scenario Details"><ScenarioDetailsPage /></PageErrorBoundary>} />
               <Route path="executions/:executionId" element={<PageErrorBoundary pageName="Execution Details"><ExecutionDetailsPage /></PageErrorBoundary>} />
               <Route path="initiatives/:name" element={<PageErrorBoundary pageName="Initiative Details"><InitiativeDetailsPage /></PageErrorBoundary>} />
+              <Route path="goals/:name" element={<PageErrorBoundary pageName="Goal Details"><GoalDetailsPage /></PageErrorBoundary>} />
               <Route path="captures/:captureId" element={<PageErrorBoundary pageName="Capture Details"><CaptureDetailsPage /></PageErrorBoundary>} />
               <Route path="records" element={<PageErrorBoundary pageName="Records"><RecordsPage /></PageErrorBoundary>} />
               <Route path="records/:recordId" element={<PageErrorBoundary pageName="Record Details"><RecordDetailsPage /></PageErrorBoundary>} />

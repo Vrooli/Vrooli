@@ -332,7 +332,7 @@ func (s *aggregateState) buildTiming() TimingStats {
 }
 
 func (s *aggregateState) buildScope() ScopeStats {
-	var inits []InitiativeHealth
+	inits := []InitiativeHealth{}
 	for name := range s.initiativeCreated {
 		items := s.initiativeItems[name]
 		ih := InitiativeHealth{
@@ -372,7 +372,7 @@ func (s *aggregateState) buildBlocking() BlockingStats {
 	}
 
 	// Top reasons sorted by count descending.
-	var reasons []ReasonCount
+	reasons := []ReasonCount{}
 	for reason, count := range s.blockReasons {
 		reasons = append(reasons, ReasonCount{Reason: reason, Count: count})
 	}
@@ -466,7 +466,7 @@ func (s *aggregateState) buildAgent() AgentStats {
 
 func (s *aggregateState) buildDashboard(now time.Time) DashboardStats {
 	// Velocity trend: weekly completions over trailing 8 weeks.
-	var trend []VelocityPoint
+	trend := []VelocityPoint{}
 	for i := 7; i >= 0; i-- {
 		weekStart := now.Add(-time.Duration(i*7*24) * time.Hour).Truncate(24 * time.Hour)
 		weekEnd := weekStart.Add(7 * 24 * time.Hour)

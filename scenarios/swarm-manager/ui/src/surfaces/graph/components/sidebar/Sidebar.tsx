@@ -23,6 +23,7 @@ import { ActivityTab } from "./ActivityTab";
 import { BacklogTab } from "./BacklogTab";
 import { CapturesTab } from "./CapturesTab";
 import { InitiativesTab } from "./InitiativesTab";
+import { GoalsTab } from "./GoalsTab";
 import { OperatingModesTab } from "./OperatingModesTab";
 import { ExecutionsTab } from "./ExecutionsTab";
 import { SessionsTab } from "./SessionsTab";
@@ -243,6 +244,14 @@ export function Sidebar({
                   selectedIds={selection.selectedIds}
                   onToggleSelection={selection.toggleItem}
                   onVisibleIdsChange={selection.pruneToVisible}
+                />
+              )}
+              {activeTab === "goals" && (
+                <GoalsTab
+                  searchQuery={debouncedSearch}
+                  sort={state.sorts.goals}
+                  onItemClick={onItemClick}
+                  onClearSearch={clearSearch}
                 />
               )}
               {activeTab === "operatingModes" && (

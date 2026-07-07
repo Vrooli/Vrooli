@@ -7,8 +7,8 @@
  * dead space to clear it. It deliberately mirrors the sidebar header's
  * treatment — a 40px (`h-10`) row, the same hairline divider, and ghost icon
  * buttons — so the two headers read as one system. Layout:
- *   Left  — sidebar toggle (when collapsed) + Plan/Graph lens nav
- *   Right — stats, graph controls (canvas only), help (lens-aware), and the
+ *   Left  — sidebar toggle (when collapsed) + Plan/Graph/Stats lens nav
+ *   Right — graph controls (canvas only), help (lens-aware), and the
  *           Operations trigger
  *
  * The help button opens the guide for the active surface — the Plan Guide on
@@ -21,7 +21,7 @@
  * stop-run plumbing piped down from `GraphWorkspace`.
  */
 
-import { BarChart3, HelpCircle, Menu, Settings } from "lucide-react";
+import { HelpCircle, Menu, Settings } from "lucide-react";
 import { OpsTriggerButton } from "../../../components/operations/OpsTriggerButton";
 import { LensNav } from "./LensNav";
 import { GraphNavControls } from "./GraphNavControls";
@@ -29,14 +29,13 @@ import type { AppGraphLens } from "../../../app/routes/route-paths";
 import type { GraphLens } from "../stores/graph-data-store";
 
 export interface WorkspaceHeaderProps {
-  /** Current active lens */
-  lens: GraphLens;
+  /** Current active surface or graph data lens */
+  lens: AppGraphLens | GraphLens;
   /** Whether the sidebar is collapsed */
   sidebarCollapsed: boolean;
   /** Whether on-screen pan/zoom nav controls are enabled (graph only) */
   showNavControls: boolean;
   onToggleSidebar: () => void;
-  onToggleStats: () => void;
   onToggleSettings: () => void;
   onToggleHelp: () => void;
   onLensChange: (lens: AppGraphLens) => void;
@@ -54,16 +53,16 @@ export function WorkspaceHeader({
   sidebarCollapsed,
   showNavControls,
   onToggleSidebar,
-  onToggleStats,
   onToggleSettings,
   onToggleHelp,
   onLensChange,
 }: WorkspaceHeaderProps) {
-  const isPlan = lens === "plan";
-  const helpLabel = isPlan ? "Plan guide" : "Graph guide";
-  // Nav controls and graph controls are canvas-only affordances; the Plan
-  // board has nothing to pan or configure, so neither appears there.
-  const showNavRow = showNavControls && !isPlan;
+  const activeSurface: AppGraphLens = lens === "plan" ? "plan" : lens === "stats" ? "stats" : "graph";
+  const isGraphSurface = activeSurface === "graph";
+  const helpLabel = activeSurface === "plan" ? "Plan guide" : activeSurface === "stats" ? "Stats guide" : "Graph guide";
+  // Nav controls and graph controls are canvas-only affordances; Plan and
+  // Stats have nothing to pan or configure, so neither appears there.
+  const showNavRow = showNavControls && isGraphSurface;
 
   return (
     <header
@@ -87,18 +86,9 @@ export function WorkspaceHeader({
           <LensNav activeLens={lens} onLensChange={onLensChange} />
         </div>
 
-        {/* Right: stats + graph controls (canvas only) + help + agents trigger */}
+        {/* Right: graph controls (canvas only) + help + agents trigger */}
         <div className="ml-auto flex items-center gap-1">
-          <button
-            type="button"
-            onClick={onToggleStats}
-            className={ICON_BUTTON_CLASS}
-            aria-label="Open stats"
-            data-testid="stats-button"
-          >
-            <BarChart3 className="h-4 w-4" />
-          </button>
-          {!isPlan && (
+          {isGraphSurface && (
             <button
               type="button"
               onClick={onToggleSettings}

@@ -1,13 +1,13 @@
 import type { BacklogKind } from "../../types";
 import { parseNodeId } from "../../surfaces/graph/lib/node-id-parser";
 
-export const GRAPH_SURFACES = ["plan", "graph"] as const;
+export const GRAPH_SURFACES = ["plan", "graph", "stats"] as const;
 export const GRAPH_MODES = ["topology", "focus"] as const;
 
 export type AppGraphSurface = (typeof GRAPH_SURFACES)[number];
 export type GraphMode = (typeof GRAPH_MODES)[number];
 export type AppGraphLens = AppGraphSurface | "focus";
-export type DetailEntityType = "backlog" | "scenario" | "execution" | "initiative" | "capture" | "session" | "operatingMode";
+export type DetailEntityType = "backlog" | "scenario" | "execution" | "initiative" | "goal" | "capture" | "session" | "operatingMode";
 
 export interface DetailRouteTarget {
   entityType: DetailEntityType;
@@ -54,7 +54,7 @@ export function graphPath(options: {
   returnLens?: string | null;
   select?: string | null;
 } = {}): string {
-  const path = options.lens === "plan" ? "/plan" : "/graph";
+  const path = options.lens === "plan" ? "/plan" : options.lens === "stats" ? "/stats" : "/graph";
   const mode = options.mode ?? (options.lens === "focus" ? "focus" : null);
   return appendQuery(path, {
     mode: mode === "focus" ? mode : null,
@@ -78,6 +78,10 @@ export function executionDetailPath(executionId: string, query?: QueryParams): s
 
 export function initiativeDetailPath(name: string, query?: QueryParams): string {
   return appendQuery(`/initiatives/${enc(name)}`, query);
+}
+
+export function goalDetailPath(name: string, query?: QueryParams): string {
+  return appendQuery(`/goals/${enc(name)}`, query);
 }
 
 export function captureDetailPath(captureId: string, query?: QueryParams): string {
@@ -104,6 +108,8 @@ export function detailPath(target: DetailRouteTarget): string | null {
       return target.identifier ? executionDetailPath(target.identifier, target.tab ? { tab: target.tab } : undefined) : null;
     case "initiative":
       return target.name ? initiativeDetailPath(target.name, target.tab ? { tab: target.tab } : undefined) : null;
+    case "goal":
+      return target.name ? goalDetailPath(target.name, target.tab ? { tab: target.tab } : undefined) : null;
     case "capture":
       return target.identifier ? captureDetailPath(target.identifier, target.tab ? { tab: target.tab } : undefined) : null;
     case "session":
@@ -119,6 +125,10 @@ export function detailPathFromNodeId(nodeId: string): string | null {
   if (nodeId.startsWith("operatingMode/")) {
     const mode = nodeId.slice("operatingMode/".length);
     return mode ? operatingModeDetailPath(mode) : null;
+  }
+  if (nodeId.startsWith("goal/")) {
+    const name = nodeId.slice("goal/".length);
+    return name ? goalDetailPath(name) : null;
   }
   const parsed = parseNodeId(nodeId);
   if (!parsed) return null;
@@ -148,6 +158,8 @@ export function routeTargetToNodeId(target: DetailRouteTarget): string | null {
       return target.identifier ? `execution-record/${target.identifier}` : null;
     case "initiative":
       return target.name ? `initiative/${target.name}` : null;
+    case "goal":
+      return target.name ? `goal/${target.name}` : null;
     case "capture":
       return target.identifier ? `capture/${target.identifier}` : null;
     case "session":

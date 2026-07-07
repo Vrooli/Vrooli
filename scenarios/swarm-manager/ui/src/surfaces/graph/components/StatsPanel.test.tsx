@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactNode } from "react";
 import type { StatsResponse } from "../../../types/stats";
 
 // ---------------------------------------------------------------------------
@@ -14,23 +13,7 @@ vi.mock("../../../services", () => ({
   statsService: { getStats: (...args: unknown[]) => mockGetStats(...(args as [])) },
 }));
 
-vi.mock("../../../components/ui/floating-panel", () => ({
-  FloatingPanel: ({
-    children,
-    isOpen,
-    testId,
-  }: {
-    children: ReactNode;
-    isOpen: boolean;
-    title: string;
-    onClose: () => void;
-    testId?: string;
-    className?: string;
-    initialPosition?: { x: number; y: number };
-  }) => (isOpen ? <div data-testid={testId}>{children}</div> : null),
-}));
-
-import { StatsPanel } from "./StatsPanel";
+import { StatsView } from "./StatsView";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -162,27 +145,21 @@ function renderWithProviders(ui: React.ReactElement) {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("StatsPanel", () => {
+describe("StatsView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  it("renders nothing when closed", () => {
-    mockGetStats.mockResolvedValue(MOCK_STATS);
-    renderWithProviders(<StatsPanel isOpen={false} onClose={vi.fn()} />);
-    expect(screen.queryByTestId("stats-panel")).not.toBeInTheDocument();
   });
 
   it("shows loading state while fetching", () => {
     // Never resolve — stays loading
     mockGetStats.mockReturnValue(new Promise(() => {}));
-    renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+    renderWithProviders(<StatsView />);
     expect(screen.getByTestId("stats-loading")).toBeInTheDocument();
   });
 
   it("shows error state when fetch fails", async () => {
     mockGetStats.mockRejectedValue(new Error("Server down"));
-    renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+    renderWithProviders(<StatsView />);
 
     await waitFor(() => expect(screen.getByTestId("stats-error")).toBeInTheDocument());
     expect(screen.getByText(/Server down/)).toBeInTheDocument();
@@ -190,7 +167,7 @@ describe("StatsPanel", () => {
 
   it("renders all 8 tab buttons", async () => {
     mockGetStats.mockResolvedValue(MOCK_STATS);
-    renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+    renderWithProviders(<StatsView />);
 
     await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
 
@@ -206,7 +183,7 @@ describe("StatsPanel", () => {
 
   it("defaults to the dashboard tab", async () => {
     mockGetStats.mockResolvedValue(MOCK_STATS);
-    renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+    renderWithProviders(<StatsView />);
 
     await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
     expect(screen.getByTestId("stats-tab-dashboard")).toHaveAttribute("aria-selected", "true");
@@ -214,7 +191,7 @@ describe("StatsPanel", () => {
 
   it("switches tabs when clicked", async () => {
     mockGetStats.mockResolvedValue(MOCK_STATS);
-    renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+    renderWithProviders(<StatsView />);
 
     await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
 
@@ -226,7 +203,7 @@ describe("StatsPanel", () => {
   describe("Dashboard tab", () => {
     it("displays backlog size, completed count, and estimated weeks", async () => {
       mockGetStats.mockResolvedValue(MOCK_STATS);
-      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      renderWithProviders(<StatsView />);
 
       await waitFor(() => expect(screen.getByTestId("stat-backlog-size")).toBeInTheDocument());
       expect(screen.getByTestId("stat-backlog-size")).toHaveTextContent("47");
@@ -236,7 +213,7 @@ describe("StatsPanel", () => {
 
     it("shows event count", async () => {
       mockGetStats.mockResolvedValue(MOCK_STATS);
-      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      renderWithProviders(<StatsView />);
 
       await waitFor(() => expect(screen.getByText(/1,234 events processed/)).toBeInTheDocument());
     });
@@ -247,7 +224,18 @@ describe("StatsPanel", () => {
         dashboard: { ...MOCK_STATS.dashboard, velocity_trend: [] },
       };
       mockGetStats.mockResolvedValue(emptyStats);
-      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      renderWithProviders(<StatsView />);
+
+      await waitFor(() => expect(screen.getByText("No velocity data yet")).toBeInTheDocument());
+    });
+
+    it("renders the empty state when velocity trend is null", async () => {
+      const nullStats = {
+        ...MOCK_STATS,
+        dashboard: { ...MOCK_STATS.dashboard, velocity_trend: null },
+      } as unknown as StatsResponse;
+      mockGetStats.mockResolvedValue(nullStats);
+      renderWithProviders(<StatsView />);
 
       await waitFor(() => expect(screen.getByText("No velocity data yet")).toBeInTheDocument());
     });
@@ -256,7 +244,7 @@ describe("StatsPanel", () => {
   describe("Throughput tab", () => {
     it("displays created and completed counts", async () => {
       mockGetStats.mockResolvedValue(MOCK_STATS);
-      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      renderWithProviders(<StatsView />);
 
       await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
       fireEvent.click(screen.getByTestId("stats-tab-throughput"));
@@ -270,7 +258,7 @@ describe("StatsPanel", () => {
   describe("Blocking tab", () => {
     it("displays blocking reasons", async () => {
       mockGetStats.mockResolvedValue(MOCK_STATS);
-      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      renderWithProviders(<StatsView />);
 
       await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
       fireEvent.click(screen.getByTestId("stats-tab-blocking"));
@@ -285,7 +273,21 @@ describe("StatsPanel", () => {
         blocking: { ...MOCK_STATS.blocking, top_reasons: [] },
       };
       mockGetStats.mockResolvedValue(noBlockStats);
-      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      renderWithProviders(<StatsView />);
+
+      await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId("stats-tab-blocking"));
+
+      expect(screen.getByText("No blocking reasons recorded")).toBeInTheDocument();
+    });
+
+    it("renders the empty state when top reasons is null", async () => {
+      const nullStats = {
+        ...MOCK_STATS,
+        blocking: { ...MOCK_STATS.blocking, top_reasons: null },
+      } as unknown as StatsResponse;
+      mockGetStats.mockResolvedValue(nullStats);
+      renderWithProviders(<StatsView />);
 
       await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
       fireEvent.click(screen.getByTestId("stats-tab-blocking"));
@@ -297,7 +299,7 @@ describe("StatsPanel", () => {
   describe("Sessions tab", () => {
     it("displays session adoption, proposal, and artifact metrics", async () => {
       mockGetStats.mockResolvedValue(MOCK_STATS);
-      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      renderWithProviders(<StatsView />);
 
       await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
       fireEvent.click(screen.getByTestId("stats-tab-sessions"));
@@ -316,13 +318,13 @@ describe("StatsPanel", () => {
         ...MOCK_STATS,
         history: { ...MOCK_STATS.history, history_days: 7 },
       });
-      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      renderWithProviders(<StatsView />);
       await waitFor(() => expect(screen.getByTestId("stats-history-banner")).toBeInTheDocument());
     });
 
     it("hides when history is ≥ 30 days", async () => {
       mockGetStats.mockResolvedValue(MOCK_STATS); // history_days: 45
-      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      renderWithProviders(<StatsView />);
       await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
       expect(screen.queryByTestId("stats-history-banner")).not.toBeInTheDocument();
     });
@@ -331,7 +333,7 @@ describe("StatsPanel", () => {
   describe("Agent tab with manual-accept", () => {
     it("shows a manually-accepted row when count > 0", async () => {
       mockGetStats.mockResolvedValue(MOCK_STATS);
-      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      renderWithProviders(<StatsView />);
       await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
 
       fireEvent.click(screen.getByTestId("stats-tab-agent"));
@@ -347,7 +349,7 @@ describe("StatsPanel", () => {
           success_rate_sample_size: 2, // below min_sample_meaningful=5
         },
       });
-      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      renderWithProviders(<StatsView />);
       await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
 
       fireEvent.click(screen.getByTestId("stats-tab-agent"));
@@ -358,7 +360,7 @@ describe("StatsPanel", () => {
   describe("Agent tab — recommendation acceptance", () => {
     it("renders the acceptance card when sample >= threshold", async () => {
       mockGetStats.mockResolvedValue(MOCK_STATS);
-      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      renderWithProviders(<StatsView />);
       await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
 
       fireEvent.click(screen.getByTestId("stats-tab-agent"));
@@ -378,7 +380,7 @@ describe("StatsPanel", () => {
           recommendation_acceptance_sample_size: 2,
         },
       });
-      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      renderWithProviders(<StatsView />);
       await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
 
       fireEvent.click(screen.getByTestId("stats-tab-agent"));
@@ -388,7 +390,7 @@ describe("StatsPanel", () => {
 
     it("expands the by-kind breakdown when toggled", async () => {
       mockGetStats.mockResolvedValue(MOCK_STATS);
-      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      renderWithProviders(<StatsView />);
       await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
 
       fireEvent.click(screen.getByTestId("stats-tab-agent"));
@@ -403,7 +405,7 @@ describe("StatsPanel", () => {
   describe("Timing tab", () => {
     it("shows execution duration samples (not cycle/queue time)", async () => {
       mockGetStats.mockResolvedValue(MOCK_STATS);
-      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      renderWithProviders(<StatsView />);
       await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
 
       fireEvent.click(screen.getByTestId("stats-tab-timing"));
@@ -416,7 +418,7 @@ describe("StatsPanel", () => {
   describe("Scope tab", () => {
     it("displays initiative progress", async () => {
       mockGetStats.mockResolvedValue(MOCK_STATS);
-      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      renderWithProviders(<StatsView />);
 
       await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
       fireEvent.click(screen.getByTestId("stats-tab-scope"));
@@ -432,7 +434,21 @@ describe("StatsPanel", () => {
         scope: { initiatives: [], max_dependency_depth: 0 },
       };
       mockGetStats.mockResolvedValue(noInitStats);
-      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      renderWithProviders(<StatsView />);
+
+      await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId("stats-tab-scope"));
+
+      expect(screen.getByText("No initiatives yet")).toBeInTheDocument();
+    });
+
+    it("renders the empty state when initiatives is null", async () => {
+      const nullStats = {
+        ...MOCK_STATS,
+        scope: { ...MOCK_STATS.scope, initiatives: null },
+      } as unknown as StatsResponse;
+      mockGetStats.mockResolvedValue(nullStats);
+      renderWithProviders(<StatsView />);
 
       await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
       fireEvent.click(screen.getByTestId("stats-tab-scope"));
@@ -444,7 +460,7 @@ describe("StatsPanel", () => {
   describe("Modes tab", () => {
     it("displays operating mode usage and profile metrics", async () => {
       mockGetStats.mockResolvedValue(MOCK_STATS);
-      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      renderWithProviders(<StatsView />);
 
       await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
       fireEvent.click(screen.getByTestId("stats-tab-modes"));
@@ -457,7 +473,7 @@ describe("StatsPanel", () => {
 
     it("renders replan and acceptance rates with sample sizes", async () => {
       mockGetStats.mockResolvedValue(MOCK_STATS);
-      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      renderWithProviders(<StatsView />);
 
       await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
       fireEvent.click(screen.getByTestId("stats-tab-modes"));

@@ -7,10 +7,11 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronUp, ChevronDown, Target } from "lucide-react";
+import { ChevronUp, ChevronDown, Plus, Target } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import type { GoalWithScope } from "../../../types/goal";
 import { useGoals, useGoalMutations } from "../hooks/useGoals";
+import { CreateGoalDialog } from "../../../components/goals/CreateGoalDialog";
 
 const MAX_PRIORITY = 10;
 const MIN_PRIORITY = 0;
@@ -38,6 +39,7 @@ export function GoalPicker({
   onSelect: (goal: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [showCreateGoal, setShowCreateGoal] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const { data: goals = [] } = useGoals();
   const { setPriority } = useGoalMutations();
@@ -105,9 +107,20 @@ export function GoalPicker({
           </button>
 
           {active.length === 0 && (
-            <p className="px-2 py-2 text-xs text-slate-500" data-testid="plan-goal-picker-empty">
-              No goals yet. Promote an item or initiative to a goal from the graph.
-            </p>
+            <div className="space-y-2 px-2 py-2" data-testid="plan-goal-picker-empty">
+              <p className="text-xs leading-snug text-slate-500">
+                No goals yet. Create one to scope the board around a target set.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowCreateGoal(true)}
+                className="inline-flex items-center gap-1.5 rounded border border-slate-700 px-2 py-1 text-xs font-medium text-slate-200 transition-colors hover:border-slate-500 hover:bg-slate-800"
+                data-testid="plan-goal-picker-create"
+              >
+                <Plus className="h-3.5 w-3.5" aria-hidden />
+                Create goal
+              </button>
+            </div>
           )}
 
           {active.map((g) => (
@@ -143,7 +156,7 @@ export function GoalPicker({
               <span className="flex flex-col">
                 <button
                   type="button"
-                  onClick={() => changePriority(g.goal.name, g.goal.priority, +1)}
+                  onClick={() => changePriority(g.goal.name, g.goal.priority, 1)}
                   disabled={g.goal.priority >= MAX_PRIORITY}
                   className="text-slate-500 transition-colors hover:text-slate-200 disabled:opacity-30"
                   title="Raise priority"
@@ -166,6 +179,14 @@ export function GoalPicker({
           ))}
         </div>
       )}
+      <CreateGoalDialog
+        isOpen={showCreateGoal}
+        onClose={() => setShowCreateGoal(false)}
+        onCreated={(created) => {
+          onSelect(created.goal.name);
+          setOpen(false);
+        }}
+      />
     </div>
   );
 }

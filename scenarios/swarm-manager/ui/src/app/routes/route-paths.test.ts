@@ -5,6 +5,7 @@ import {
   detailPath,
   detailPathFromNodeId,
   executionDetailPath,
+  goalDetailPath,
   graphPath,
   initiativeDetailPath,
   isGraphLens,
@@ -25,6 +26,7 @@ describe("route paths", () => {
       "/graph?mode=focus&focus=backlog-item%2Ffix%2Fa+bug&select=node%2F1",
     );
     expect(graphPath({ lens: "graph" })).toBe("/graph");
+    expect(graphPath({ lens: "stats" })).toBe("/stats");
   });
 
   it("builds canonical detail and command routes", () => {
@@ -32,6 +34,7 @@ describe("route paths", () => {
     expect(scenarioDetailPath("swarm-manager")).toBe("/scenarios/swarm-manager");
     expect(executionDetailPath("exec/1")).toBe("/executions/exec%2F1");
     expect(initiativeDetailPath("route cutover")).toBe("/initiatives/route%20cutover");
+    expect(goalDetailPath("goal one")).toBe("/goals/goal%20one");
     expect(captureDetailPath("cap 1")).toBe("/captures/cap%201");
     expect(sessionDetailPath("sess 1")).toBe("/sessions/sess%201");
     expect(sessionDetailPath("sess-1", { tab: "proposals" })).toBe("/sessions/sess-1?tab=proposals");
@@ -40,8 +43,10 @@ describe("route paths", () => {
   it("converts detail targets and node IDs into canonical routes", () => {
     expect(detailPath({ entityType: "backlog", kind: "execute", name: "ship" })).toBe("/backlog/execute/ship");
     expect(detailPath({ entityType: "execution", identifier: "exec-1" })).toBe("/executions/exec-1");
+    expect(detailPath({ entityType: "goal", name: "goal-1" })).toBe("/goals/goal-1");
     expect(detailPath({ entityType: "session", identifier: "sess-1" })).toBe("/sessions/sess-1");
     expect(routeTargetToNodeId({ entityType: "session", identifier: "sess-1" })).toBeNull();
+    expect(detailPathFromNodeId("goal/goal-1")).toBe("/goals/goal-1");
     expect(detailPathFromNodeId("capture/cap-1")).toBe("/captures/cap-1");
     expect(detailPathFromNodeId("scenario/swarm-manager")).toBe("/scenarios/swarm-manager");
   });
@@ -49,12 +54,14 @@ describe("route paths", () => {
   it("builds graph node IDs from route targets", () => {
     expect(routeTargetToNodeId({ entityType: "backlog", kind: "fix", name: "bug" })).toBe("backlog-item/fix/bug");
     expect(routeTargetToNodeId({ entityType: "initiative", name: "routing" })).toBe("initiative/routing");
+    expect(routeTargetToNodeId({ entityType: "goal", name: "goal-1" })).toBe("goal/goal-1");
     expect(routeTargetToNodeId({ entityType: "capture", identifier: "cap-1" })).toBe("capture/cap-1");
   });
 
   it("validates graph lenses", () => {
     expect(isGraphLens("plan")).toBe(true);
     expect(isGraphLens("graph")).toBe(true);
+    expect(isGraphLens("stats")).toBe(true);
     expect(isGraphLens("focus")).toBe(false);
     expect(isGraphLens("topology")).toBe(false);
     expect(isGraphLens("operations")).toBe(false);

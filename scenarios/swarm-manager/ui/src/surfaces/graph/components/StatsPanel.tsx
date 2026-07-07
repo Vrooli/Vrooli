@@ -1,15 +1,11 @@
 /**
- * StatsPanel - Floating panel displaying operational metrics.
- *
- * Follows the SettingsDrawer pattern: FloatingPanel + custom tab bar + per-tab content.
- * Data is fetched via React Query (useStats hook) with 60s auto-refresh while open.
+ * StatsContent - tabbed operational metrics content shared by the routed
+ * Stats view and focused tests.
  */
 
 import { useState } from "react";
 import { AlertCircle, Loader2 } from "lucide-react";
-import { FloatingPanel } from "../../../components/ui/floating-panel";
 import { cn } from "../../../lib/utils";
-import { useStats } from "../../../hooks/useStats";
 import { HistoryBanner } from "../../../components/stats/history-banner";
 import { InsufficientDataCard } from "../../../components/stats/insufficient-data-card";
 import { StatsMetricCard } from "../../../components/stats/stats-metric-card";
@@ -64,37 +60,35 @@ function minSample(history: HistoryWindow | undefined): number {
 // Props
 // ---------------------------------------------------------------------------
 
-interface StatsPanelProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface StatsContentProps {
+  data: StatsResponse | undefined;
+  isLoading: boolean;
+  error: Error | null;
+  activeTab: StatsCategory;
+  onTabChange: (tab: StatsCategory) => void;
 }
 
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
-export function StatsPanel({ isOpen, onClose }: StatsPanelProps) {
-  const [activeTab, setActiveTab] = useState<StatsCategory>("dashboard");
-  const { data, isLoading, error } = useStats(isOpen);
-
+export function StatsContent({
+  data,
+  isLoading,
+  error,
+  activeTab,
+  onTabChange,
+}: StatsContentProps) {
   return (
-    <FloatingPanel
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Stats"
-      className="max-w-3xl"
-      initialPosition={{ x: 340, y: 76 }}
-      testId="stats-panel"
-    >
-      {/* Tab bar — same pattern as SettingsDrawer */}
-      <div className="-mx-4 mb-4 flex overflow-x-auto border-b border-slate-700/50 px-4" role="tablist">
+    <div className="space-y-4" data-testid="stats-content">
+      <div className="flex overflow-x-auto border-b border-slate-700/50" role="tablist">
         {STATS_TABS.map((tab) => (
           <button
             key={tab.id}
             type="button"
             role="tab"
             aria-selected={activeTab === tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => onTabChange(tab.id)}
             className={cn(
               "shrink-0 border-b-2 px-4 py-2 text-sm font-medium transition-colors",
               activeTab === tab.id
@@ -108,7 +102,6 @@ export function StatsPanel({ isOpen, onClose }: StatsPanelProps) {
         ))}
       </div>
 
-      {/* Content area */}
       {isLoading && (
         <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-400" data-testid="stats-loading">
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -129,7 +122,7 @@ export function StatsPanel({ isOpen, onClose }: StatsPanelProps) {
           <TabContent tab={activeTab} data={data} />
         </>
       )}
-    </FloatingPanel>
+    </div>
   );
 }
 
@@ -190,8 +183,9 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 // ---------------------------------------------------------------------------
 
 function DashboardTab({ data, eventCount, history }: { data: DashboardStats; eventCount: number; history: HistoryWindow }) {
-  const maxCompleted = data.velocity_trend.length > 0
-    ? Math.max(...data.velocity_trend.map((p) => p.completed), 1)
+  const velocityTrend = data.velocity_trend ?? [];
+  const maxCompleted = velocityTrend.length > 0
+    ? Math.max(...velocityTrend.map((p) => p.completed), 1)
     : 1;
 
   // The estimated-remaining pill is based on the last 4 full weeks of
@@ -218,12 +212,12 @@ function DashboardTab({ data, eventCount, history }: { data: DashboardStats; eve
       </div>
 
       <div>
-        <SectionLabel>Velocity (last {data.velocity_trend.length} weeks)</SectionLabel>
-        {data.velocity_trend.length === 0 ? (
+        <SectionLabel>Velocity (last {velocityTrend.length} weeks)</SectionLabel>
+        {velocityTrend.length === 0 ? (
           <p className="text-sm text-slate-500">No velocity data yet</p>
         ) : (
           <div className="flex items-end gap-1" style={{ height: 80 }}>
-            {data.velocity_trend.map((point) => (
+            {velocityTrend.map((point) => (
               <div
                 key={point.week_start}
                 className="flex flex-1 flex-col items-center gap-1"
@@ -545,6 +539,8 @@ function TimingTab({ data, history }: { data: TimingStats; history: HistoryWindo
 // ---------------------------------------------------------------------------
 
 function BlockingTab({ data }: { data: BlockingStats }) {
+  const topReasons = data.top_reasons ?? [];
+
   return (
     <div className="space-y-4" data-testid="stats-content-blocking">
       <div className="grid grid-cols-3 gap-3">
@@ -555,11 +551,11 @@ function BlockingTab({ data }: { data: BlockingStats }) {
 
       <div>
         <SectionLabel>Top Blocking Reasons</SectionLabel>
-        {data.top_reasons.length === 0 ? (
+        {topReasons.length === 0 ? (
           <p className="text-sm text-slate-500">No blocking reasons recorded</p>
         ) : (
           <ul className="space-y-1">
-            {data.top_reasons.map((r) => (
+            {topReasons.map((r) => (
               <li key={r.reason} className="flex items-center justify-between rounded px-2 py-1 text-sm hover:bg-slate-800/50">
                 <span className="truncate text-slate-300">{r.reason}</span>
                 <span className="ml-2 shrink-0 rounded bg-slate-700/60 px-1.5 py-0.5 text-xs text-slate-400">
@@ -579,17 +575,19 @@ function BlockingTab({ data }: { data: BlockingStats }) {
 // ---------------------------------------------------------------------------
 
 function ScopeTab({ data }: { data: ScopeStats }) {
+  const initiatives = data.initiatives ?? [];
+
   return (
     <div className="space-y-4" data-testid="stats-content-scope">
       {data.max_dependency_depth > 0 && (
         <p className="text-xs text-slate-500">Max dependency depth: {data.max_dependency_depth}</p>
       )}
 
-      {data.initiatives.length === 0 ? (
+      {initiatives.length === 0 ? (
         <p className="text-sm text-slate-500">No initiatives yet</p>
       ) : (
         <ul className="space-y-3">
-          {data.initiatives.map((init) => {
+          {initiatives.map((init) => {
             const pct = init.total > 0 ? (init.completed / init.total) * 100 : 0;
             return (
               <li key={init.name} className="rounded-lg border border-slate-700/50 bg-slate-900/40 p-3">

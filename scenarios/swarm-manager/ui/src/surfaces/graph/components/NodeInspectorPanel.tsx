@@ -152,11 +152,11 @@ const INSPECTOR_POSITION = { x: window.innerWidth - 380, y: window.innerHeight -
  */
 function goalTargetForNode(data: GraphNodeData): { ref: string; title: string } | null {
   if (data.entityType === "backlog" && data.rawType === "BacklogItem") {
-    const d = data as BacklogGraphNodeData;
+    const d = data;
     return { ref: `${d.kind}/${d.name}`, title: d.title || d.name };
   }
   if (data.entityType === "initiative" && data.rawType === "Initiative") {
-    const d = data as InitiativeGraphNodeData;
+    const d = data;
     return { ref: `initiative/${d.name}`, title: d.title || d.name };
   }
   return null;

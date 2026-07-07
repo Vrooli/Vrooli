@@ -1,7 +1,7 @@
 /**
  * Graph workspace keyboard shortcuts.
  *
- * 1-2: switch operator surfaces
+ * 1-3: switch operator surfaces
  * L: cycle layout mode
  * Esc: deselect graph node
  * Ctrl+K: preserved for host switcher
@@ -29,6 +29,7 @@ function isInputElement(el: HTMLElement): boolean {
 const LENS_MAP: Record<string, AppGraphLens> = {
   "1": "plan",
   "2": "graph",
+  "3": "stats",
 };
 
 interface GraphShortcutHandlers {
@@ -64,7 +65,7 @@ export function useGraphKeyboardShortcuts(handlers: GraphShortcutHandlers): void
         return;
       }
 
-      // Number keys 1-2 — surface switching
+      // Number keys 1-3 — surface switching
       if (!mod && event.key in LENS_MAP) {
         const nextLens = LENS_MAP[event.key];
         if (nextLens) {

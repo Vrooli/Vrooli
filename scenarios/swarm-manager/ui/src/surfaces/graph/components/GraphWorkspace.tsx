@@ -4,7 +4,7 @@
  *
  * Both surfaces sit under one real header (WorkspaceHeader) rather than a
  * floating overlay, so neither has to reserve dead space to clear it:
- * - Header: Plan/Graph lens nav (left) + stats / settings / help / agents
+ * - Header: Plan/Graph/Stats lens nav (left) + settings / help / agents
  *   (right). Help is lens-aware — Plan Guide on the board, Graph Guide on the
  *   canvas.
  * - Body: the active surface, filling the remaining height.
@@ -35,9 +35,9 @@ import { SpatialGroup } from "../../../hooks/SpatialGroup";
 import { SpatialNavProvider } from "../../../hooks/SpatialNavContext";
 
 import { SettingsDrawer } from "./SettingsDrawer";
-import { StatsPanel } from "./StatsPanel";
 import { NodeInspectorPanel } from "./NodeInspectorPanel";
 import { GraphHelpPanel } from "./GraphHelpPanel";
+import { StatsView } from "./StatsView";
 import { CanvasErrorBoundary } from "./CanvasErrorBoundary";
 import { WorkspaceHeader } from "./WorkspaceHeader";
 import { GraphActionLauncher } from "./GraphActionLauncher";
@@ -50,7 +50,6 @@ export function GraphWorkspace() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
-  const [showStatsPanel, setShowStatsPanel] = useState(false);
   const [showHelpPanel, setShowHelpPanel] = useState(false);
   const [showCapturePanel, setShowCapturePanel] = useState(false);
   const [launcherError, setLauncherError] = useState<string | null>(null);
@@ -59,7 +58,7 @@ export function GraphWorkspace() {
   const { openSidebar } = useAppShell();
 
   // --- Graph state sync (URL ↔ store) ---
-  const { urlLens: _urlLens, handleLensChange, handleReturnToAtlas, handleDeselectNode } = useGraphStateSync();
+  const { urlLens, handleLensChange, handleReturnToAtlas, handleDeselectNode } = useGraphStateSync();
 
   const createSession = useAgentSessionStore((s) => s.createSession);
   const isCreatingSession = useAgentSessionStore((s) => s.isMutating);
@@ -140,11 +139,10 @@ export function GraphWorkspace() {
     <div className="flex h-full min-h-0 flex-col bg-slate-950 text-slate-50" data-testid="graph-workspace">
       {/* Unified header shared by both surfaces. */}
       <WorkspaceHeader
-        lens={lens}
+        lens={urlLens}
         sidebarCollapsed={sidebarCollapsed}
         showNavControls={showNavControls}
         onToggleSidebar={openSidebar}
-        onToggleStats={() => setShowStatsPanel((prev) => !prev)}
         onToggleSettings={() => setShowSettingsDrawer((prev) => !prev)}
         onToggleHelp={() => setShowHelpPanel((prev) => !prev)}
         onLensChange={handleLensChange}
@@ -155,8 +153,10 @@ export function GraphWorkspace() {
       <div className="relative min-h-0 flex-1">
         {/* Plan renders the kanban board; graph modes render the node/edge
             canvas. */}
-        {lens === "plan" ? (
+        {urlLens === "plan" ? (
           <PlanBoard />
+        ) : urlLens === "stats" ? (
+          <StatsView />
         ) : (
           <SpatialGroup controllerRef={spatialNav} mode="passthrough">
             <CanvasErrorBoundary>
@@ -168,8 +168,10 @@ export function GraphWorkspace() {
         {/* Floating panels */}
 
         <NodeInspectorPanel />
-        {lens === "plan" ? (
+        {urlLens === "plan" ? (
           <PlanHelpPanel isOpen={showHelpPanel} onClose={() => setShowHelpPanel(false)} />
+        ) : urlLens === "stats" ? (
+          <GraphHelpPanel isOpen={showHelpPanel} onClose={() => setShowHelpPanel(false)} />
         ) : (
           <GraphHelpPanel isOpen={showHelpPanel} onClose={() => setShowHelpPanel(false)} />
         )}
@@ -206,7 +208,6 @@ export function GraphWorkspace() {
         />
       </div>
 
-      <StatsPanel isOpen={showStatsPanel} onClose={() => setShowStatsPanel(false)} />
       <SettingsDrawer isOpen={showSettingsDrawer} onClose={() => setShowSettingsDrawer(false)} />
     </div>
     </SpatialNavProvider>

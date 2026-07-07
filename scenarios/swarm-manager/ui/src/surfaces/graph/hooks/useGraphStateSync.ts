@@ -37,10 +37,11 @@ export function useGraphStateSync(): UseGraphStateSyncResult {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const isPlanRoute = location.pathname === "/plan";
+  const isStatsRoute = location.pathname === "/stats";
   const urlMode = searchParams.get("mode");
   const graphMode: GraphLens = isGraphMode(urlMode ?? undefined) ? (urlMode as GraphLens) : "topology";
   const urlDataLens: GraphLens = isPlanRoute ? "plan" : graphMode;
-  const urlLens: AppGraphLens = isPlanRoute ? "plan" : urlDataLens === "focus" ? "focus" : "graph";
+  const urlLens: AppGraphLens = isPlanRoute ? "plan" : isStatsRoute ? "stats" : urlDataLens === "focus" ? "focus" : "graph";
   const urlSelect = searchParams.get("select");
   const urlFocus = searchParams.get("focus");
   const urlReturnLens = searchParams.get("returnLens");
@@ -61,10 +62,13 @@ export function useGraphStateSync(): UseGraphStateSyncResult {
 
   // Sync URL lens → store
   useEffect(() => {
+    if (isStatsRoute) {
+      return;
+    }
     setLens(urlDataLens);
     applyLayoutForLens(urlDataLens);
     void fetchGraph(urlDataLens);
-  }, [applyLayoutForLens, fetchGraph, setLens, urlDataLens]);
+  }, [applyLayoutForLens, fetchGraph, isStatsRoute, setLens, urlDataLens]);
 
   // Sync URL focus/returnLens → store
   useEffect(() => {

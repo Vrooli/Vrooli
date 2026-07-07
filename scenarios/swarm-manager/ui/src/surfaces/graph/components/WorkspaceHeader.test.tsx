@@ -20,7 +20,6 @@ function renderHeader(overrides?: Partial<React.ComponentProps<typeof WorkspaceH
         sidebarCollapsed
         showNavControls={false}
         onToggleSidebar={vi.fn()}
-        onToggleStats={vi.fn()}
         onToggleSettings={vi.fn()}
         onToggleHelp={vi.fn()}
         onLensChange={vi.fn()}
@@ -69,11 +68,13 @@ describe("WorkspaceHeader", () => {
     expect(screen.getByTestId("sidebar-toggle-open")).toBeInTheDocument();
   });
 
-  it("renders the Plan/Graph lens nav", () => {
+  it("renders the Plan/Graph/Stats lens nav", () => {
     renderHeader();
     expect(screen.getByTestId("lens-nav")).toBeInTheDocument();
     expect(screen.getByTestId("lens-plan")).toBeInTheDocument();
     expect(screen.getByTestId("lens-graph")).toBeInTheDocument();
+    expect(screen.getByTestId("lens-stats")).toBeInTheDocument();
+    expect(screen.queryByTestId("stats-button")).toBeNull();
   });
 
   it("labels the help button for the active surface", () => {
@@ -82,14 +83,24 @@ describe("WorkspaceHeader", () => {
 
     renderHeader({ lens: "topology" });
     expect(screen.getByRole("button", { name: "Graph guide" })).toBeInTheDocument();
+
+    renderHeader({ lens: "stats" });
+    expect(screen.getByRole("button", { name: "Stats guide" })).toBeInTheDocument();
   });
 
-  it("shows the pan/zoom nav row only on the graph canvas, never on the plan board", () => {
+  it("shows graph-only controls only on the graph canvas", () => {
     const { unmount } = renderHeader({ lens: "plan", showNavControls: true });
     expect(screen.queryByTestId(selectors.graphNavControls.container)).toBeNull();
+    expect(screen.queryByTestId("settings-gear")).toBeNull();
     unmount();
 
-    renderHeader({ lens: "topology", showNavControls: true });
+    const graphRender = renderHeader({ lens: "topology", showNavControls: true });
     expect(screen.getByTestId(selectors.graphNavControls.container)).toBeInTheDocument();
+    expect(screen.getByTestId("settings-gear")).toBeInTheDocument();
+    graphRender.unmount();
+
+    renderHeader({ lens: "stats", showNavControls: true });
+    expect(screen.queryByTestId(selectors.graphNavControls.container)).toBeNull();
+    expect(screen.queryByTestId("settings-gear")).toBeNull();
   });
 });
