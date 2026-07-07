@@ -111,8 +111,9 @@ dispatch-only `plan` lens in invalidation payloads.
 `GET /api/v1/graph?lens=topology`
 
 Returns the topology projection (nodes/edges/meta). Topology is the only
-graph lens; the UI Focus lens filters it client-side. Any other `lens`
-value returns an invalid-lens error.
+HTTP graph projection lens. The UI Graph surface renders this projection
+directly by default and filters it client-side when `mode=focus` is active.
+Any other `lens` value returns an invalid-lens error.
 
 ## Operations
 

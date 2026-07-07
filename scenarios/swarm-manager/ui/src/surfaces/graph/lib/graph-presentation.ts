@@ -57,7 +57,7 @@ export function filterGraphEdges(
   lens?: GraphLens,
 ): GraphEdge[] {
   const visibleIds = new Set(visibleNodes.map((node) => node.id));
-  // Focus lens has already filtered to attention-worthy items plus their
+  // Focus mode has already filtered to attention-worthy items plus their
   // structural context — any remaining edge between two visible nodes is
   // load-bearing, so skip the secondary-edge filter here. Without this,
   // context edges like "targets" (scenario connections) disappear and

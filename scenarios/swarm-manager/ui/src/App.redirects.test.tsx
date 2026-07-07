@@ -2,7 +2,7 @@
  * Route-retirement contract: /plan is the first-class board route, the legacy
  * graph paths and the retired Operations Center / Command Post / list-page URLs
  * redirect to it instead of 404ing, deep-link query state (drawer, filters) is
- * preserved, and the Topology lens is reachable by URL.
+ * preserved, and legacy graph lens URLs redirect into /graph query state.
  */
 
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -40,17 +40,27 @@ describe("retired-route redirects", () => {
     });
   });
 
-  it("bare /graph redirects to /plan", async () => {
+  it("bare /graph resolves as the single Graph surface", async () => {
     renderAt("/graph");
     await waitFor(() => {
-      expect(window.location.pathname).toBe("/plan");
+      expect(window.location.pathname).toBe("/graph");
     });
   });
 
-  it("/graph/topology resolves directly (Topology lens is routable)", async () => {
+  it("legacy /graph/focus redirects to /graph focus mode preserving query state", async () => {
+    renderAt("/graph/focus?select=backlog-item%2Ffix%2Fbug");
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/graph");
+      expect(window.location.search).toContain("mode=focus");
+      expect(window.location.search).toContain("select=backlog-item%2Ffix%2Fbug");
+    });
+  });
+
+  it("legacy /graph/topology redirects to /graph preserving query state", async () => {
     renderAt("/graph/topology");
     await waitFor(() => {
-      expect(window.location.pathname).toBe("/graph/topology");
+      expect(window.location.pathname).toBe("/graph");
+      expect(window.location.search).not.toContain("mode=");
     });
   });
 

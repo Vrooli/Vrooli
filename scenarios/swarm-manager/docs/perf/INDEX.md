@@ -3,14 +3,32 @@
 Index of headless performance audits run against the swarm-manager UI. Each
 audit is a `<YYYY-MM-DD>-<slug>.md` file with required YAML frontmatter
 (validated by `knowledge-observatory docs audit swarm-manager`) and a
-per-component aggregation table copied from the
-`scenario-performance-audit` skill's Phase 5 analyser.
+per-component aggregation table copied from performance-health analysis.
 
 | Date | Slug | Status | Subject |
 |---|---|---|---|
+| 2026-07-06 | [graph-large-topology-baseline](2026-07-06-graph-large-topology-baseline.md) | measured | Graph large-topology baseline and grouped-layout candidate |
 | 2026-05-03 | [sidebar-resize-and-backlog-scroll](2026-05-03-sidebar-resize-and-backlog-scroll.md) | fixed | Sidebar drag lag and BacklogTab scroll cost |
 
 ## Process
+
+Graph audits use separate workload names so load/React commit evidence cannot
+be mistaken for interaction usability:
+
+- `graph-load` is load-only and may use `load_only` budgets.
+- `graph-sustained-pan` must produce a marked `graph-sustained-pan` gesture
+  window and enough `EventDispatch` evidence to gate panning.
+- `graph-wheel-zoom` must produce marked wheel zoom windows for zoom in/out.
+- `graph-pinch-zoom` is the current pinch-style fallback; BAS implements it
+  with driver-level wheel input, so it is not true multi-touch parity evidence.
+
+Run targeted captures through performance-health:
+
+```bash
+performance-health audit run swarm-manager --workflow graph-sustained-pan --json
+performance-health analysis analyze swarm-manager --trace <trace-path> --json
+performance-health budget check swarm-manager --flow graph-sustained-pan
+```
 
 To add a new audit:
 

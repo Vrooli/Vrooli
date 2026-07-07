@@ -2,7 +2,7 @@
  * GraphWorkspace - Graph-first shell for swarm-manager.
  *
  * Uses HUD-like floating controls instead of a header toolbar:
- * - Top-center: LensNav
+ * - Top-center: Plan/Graph navigation
  * - Top-right: Settings gear, Help button, Agents dropdown
  * - Bottom-left: Edge legend (rendered inside GraphCanvas)
  * - Bottom-right: MiniMap (rendered inside GraphCanvas)
@@ -136,8 +136,8 @@ export function GraphWorkspace() {
     <div className="flex h-screen bg-slate-950 text-slate-50" data-testid="graph-workspace">
       {/* Main canvas area with HUD overlays */}
       <div className="relative flex-1">
-        {/* Plan lens renders the kanban board; other lenses render the
-            node/edge canvas. Both sit under the same HUD. */}
+        {/* Plan renders the kanban board; graph modes render the node/edge
+            canvas. Both sit under the same HUD. */}
         {lens === "plan" ? (
           <PlanBoard />
         ) : (

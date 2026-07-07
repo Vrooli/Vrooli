@@ -16,6 +16,7 @@ import { AlertCircle, ExternalLink, Play, Target } from "lucide-react";
 import { FocusActionsSection } from "./FocusActionsSection";
 import { SetAsGoalDialog } from "../../../components/goals/SetAsGoalDialog";
 import { cn } from "../../../lib/utils";
+import { useNodeGoalBadges } from "../hooks/useGoalMembership";
 import { StatusBadge } from "../../../components/detail/StatusBadge";
 import { API_ENDPOINTS } from "../../../lib/api-endpoints";
 import { defaultApiClient } from "../../../lib/api-client";
@@ -150,11 +151,11 @@ const INSPECTOR_POSITION = { x: window.innerWidth - 380, y: window.innerHeight -
  * types cannot be goal targets and return null.
  */
 function goalTargetForNode(data: GraphNodeData): { ref: string; title: string } | null {
-  if (data.entityType === "backlog") {
+  if (data.entityType === "backlog" && data.rawType === "BacklogItem") {
     const d = data as BacklogGraphNodeData;
     return { ref: `${d.kind}/${d.name}`, title: d.title || d.name };
   }
-  if (data.entityType === "initiative") {
+  if (data.entityType === "initiative" && data.rawType === "Initiative") {
     const d = data as InitiativeGraphNodeData;
     return { ref: `initiative/${d.name}`, title: d.title || d.name };
   }
@@ -192,6 +193,7 @@ export function NodeInspectorPanel() {
     if (!selectedNode) return null;
     return getGraphNodeData(selectedNode);
   }, [selectedNode]);
+  const goalBadges = useNodeGoalBadges(selectedNodeId ?? "");
 
   const handleClose = () => {
     selectNode(null);
@@ -279,6 +281,29 @@ export function NodeInspectorPanel() {
         {/* Entity-specific metadata */}
         <EntityMeta data={nodeData} />
 
+        {goalBadges.length > 0 && (
+          <div
+            className="rounded-lg border border-fuchsia-400/30 bg-fuchsia-500/10 px-3 py-2"
+            data-testid="inspector-goal-membership"
+          >
+            <p className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-fuchsia-200">
+              <Target className="h-3 w-3" aria-hidden />
+              In goal{goalBadges.length > 1 ? "s" : ""}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {goalBadges.map((goal) => (
+                <span
+                  key={goal.name}
+                  className="rounded-full border border-fuchsia-400/30 bg-fuchsia-500/15 px-2 py-0.5 text-xs text-fuchsia-100"
+                  title={`Priority ${goal.priority}`}
+                >
+                  {goal.title}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Attention chip + quick actions (suppressed in focus mode — FocusActionsSection handles it) */}
         {!isFocusLens && (attention?.needsAttention || isReadyBacklog) && (
           <div className="flex flex-wrap items-center gap-1.5">
@@ -311,7 +336,7 @@ export function NodeInspectorPanel() {
           </div>
         )}
 
-        {/* Focus lens inline actions */}
+        {/* Focus-mode inline actions */}
         {isFocusLens && selectedNodeId && (
           <FocusActionsSection nodeData={nodeData} nodeId={selectedNodeId} />
         )}
@@ -354,6 +379,11 @@ export function NodeInspectorPanel() {
               </button>
             ))}
           </div>
+        )}
+        {!goalTarget && (
+          <p className="border-t border-white/10 pt-3 text-xs text-slate-500" data-testid="inspector-goal-unsupported">
+            Goal targets are available for backlog items and initiatives.
+          </p>
         )}
       </div>
     </FloatingPanel>

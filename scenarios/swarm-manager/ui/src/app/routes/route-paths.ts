@@ -1,10 +1,12 @@
 import type { BacklogKind } from "../../types";
-import type { GraphLens } from "../../surfaces/graph/stores/graph-data-store";
 import { parseNodeId } from "../../surfaces/graph/lib/node-id-parser";
 
-export const GRAPH_LENSES = ["plan", "focus", "topology"] as const satisfies readonly GraphLens[];
+export const GRAPH_SURFACES = ["plan", "graph"] as const;
+export const GRAPH_MODES = ["topology", "focus"] as const;
 
-export type AppGraphLens = (typeof GRAPH_LENSES)[number];
+export type AppGraphSurface = (typeof GRAPH_SURFACES)[number];
+export type GraphMode = (typeof GRAPH_MODES)[number];
+export type AppGraphLens = AppGraphSurface | "focus";
 export type DetailEntityType = "backlog" | "scenario" | "execution" | "initiative" | "capture" | "session" | "operatingMode";
 
 export interface DetailRouteTarget {
@@ -32,27 +34,30 @@ function appendQuery(path: string, query?: QueryParams): string {
 }
 
 export function isGraphLens(value: string | undefined): value is AppGraphLens {
-  return GRAPH_LENSES.includes(value as AppGraphLens);
+  return GRAPH_SURFACES.includes(value as AppGraphSurface);
+}
+
+export function isGraphMode(value: string | undefined): value is GraphMode {
+  return GRAPH_MODES.includes(value as GraphMode);
 }
 
 /**
- * Canonical path for a lens. Plan is a first-class top-level route (`/plan`);
- * the graph lenses (Focus, Topology) live under `/graph/:lens`. When no lens is
- * given, `/graph` resolves to the Plan board by default.
+ * Canonical path for the operator surfaces. Plan is the first-class board
+ * route (`/plan`); Graph is the single graph route (`/graph`). Focus is graph
+ * query state (`mode=focus`), while topology remains the internal API
+ * projection that backs the default graph view.
  */
 export function graphPath(options: {
   lens?: AppGraphLens;
+  mode?: GraphMode | null;
   focus?: string | null;
   returnLens?: string | null;
   select?: string | null;
 } = {}): string {
-  const path =
-    options.lens === "plan"
-      ? "/plan"
-      : options.lens
-        ? `/graph/${options.lens}`
-        : "/graph";
+  const path = options.lens === "plan" ? "/plan" : "/graph";
+  const mode = options.mode ?? (options.lens === "focus" ? "focus" : null);
   return appendQuery(path, {
+    mode: mode === "focus" ? mode : null,
     focus: options.focus,
     returnLens: options.returnLens,
     select: options.select,

@@ -28,10 +28,11 @@ import { useGraphSettingsStore } from "../stores/graph-settings-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import { applyDagreLayout } from "../lib/layout-utils";
 import { buildGraphPresentation } from "../lib/graph-presentation";
-import { getEdgeMarker, getEdgeStyle } from "../lib/edge-styles";
+import { getEdgeMarker, getEdgeStyle, STRAIGHT_EDGE_THRESHOLD } from "../lib/edge-styles";
 import { GRAPH_ENTITY_TYPES } from "../lib/entity-shapes";
 import { computeVisualFocus, clearVisualFocus } from "../lib/visual-focus";
-import type { GraphEdge, GraphNode } from "../types";
+import { getGraphNodeData, type GraphEdge, type GraphNode } from "../types";
+import { nodeIdToGoalRef, useGoalMembershipIndex } from "../hooks/useGoalMembership";
 import { EdgeLegend } from "./EdgeLegend";
 import { FocusEmptyState } from "./FocusEmptyState";
 import { GraphNode as GraphNodeComponent } from "./GraphNode";
@@ -48,6 +49,8 @@ const baseEdgeOptions: DefaultEdgeOptions = {
   },
   animated: false,
 };
+
+const VIEWPORT_RENDERING_THRESHOLD = STRAIGHT_EDGE_THRESHOLD;
 
 // PERF: Memoized because GraphCanvas takes no props — it reads all state
 // from Zustand stores. Without memo, every GraphWorkspace re-render (e.g.,
@@ -71,6 +74,7 @@ const GraphCanvasImpl = memo(function GraphCanvasImpl() {
 
   const selectedNodeId = useGraphUIStore((s) => s.selectedNodeId);
   const focusNodeId = useGraphDataStore((s) => s.focusNodeId);
+  const goalMembershipIndex = useGoalMembershipIndex();
 
   const flowRef = useRef<ReactFlowInstance<GraphNode> | null>(null);
 
@@ -88,8 +92,10 @@ const GraphCanvasImpl = memo(function GraphCanvasImpl() {
   // 2. Highlight overlay (opacity) — only changes when highlight state changes.
   // This prevents recomputing base styles when only the highlight changes.
   const baseStyledEdges = useMemo<GraphEdge[]>(() => {
+    const useStraightEdges = processedEdges.length >= STRAIGHT_EDGE_THRESHOLD;
     return processedEdges.map((edge) => ({
       ...edge,
+      type: useStraightEdges ? "straight" : edge.type,
       data: {
         ...(edge.data ?? {}),
         relationshipType: edge.type,
@@ -168,17 +174,48 @@ const GraphCanvasImpl = memo(function GraphCanvasImpl() {
     return [...positionedTopLevel, ...positionedChildren];
   }, [layoutDirection, layoutMode, processedEdges, processedNodes]);
 
-  // PERF: In "normal" mode (no highlight active — the common case during
-  // pan/zoom), return layoutedNodes directly without creating new objects.
-  // This preserves referential identity so React Flow's internal diffing
-  // can skip re-rendering nodes that haven't changed.
-  const styledNodes = useMemo(() => {
-    if (highlightState.mode === "normal") {
+  const nodesWithGoalBadges = useMemo<GraphNode[]>(() => {
+    if (goalMembershipIndex.size === 0) {
       return layoutedNodes;
     }
 
+    let changed = false;
+    const next = layoutedNodes.map((node) => {
+      const ref = nodeIdToGoalRef(node.id);
+      const goalBadges = ref ? goalMembershipIndex.get(ref) : undefined;
+      if (!goalBadges || goalBadges.length === 0) {
+        return node;
+      }
+
+      const data = getGraphNodeData(node);
+      if (data.goalBadges === goalBadges) {
+        return node;
+      }
+
+      changed = true;
+      return {
+        ...node,
+        data: {
+          ...data,
+          goalBadges,
+        },
+      };
+    });
+
+    return changed ? next : layoutedNodes;
+  }, [goalMembershipIndex, layoutedNodes]);
+
+  // PERF: In "normal" mode (no highlight active — the common case during
+  // pan/zoom), return the graph-level badge projection directly without
+  // creating highlight wrappers. This preserves referential identity so React
+  // Flow's internal diffing can skip nodes that have not changed.
+  const styledNodes = useMemo(() => {
+    if (highlightState.mode === "normal") {
+      return nodesWithGoalBadges;
+    }
+
     const transition = "opacity 0.2s ease";
-    return layoutedNodes.map((node) => {
+    return nodesWithGoalBadges.map((node) => {
       const isHighlighted = highlightState.highlighted.has(node.id);
       if (highlightState.mode === "hide" && !isHighlighted) {
         return { ...node, hidden: true };
@@ -188,10 +225,13 @@ const GraphCanvasImpl = memo(function GraphCanvasImpl() {
       }
       return { ...node, style: { ...node.style, opacity: 1, transition } };
     });
-  }, [highlightState, layoutedNodes]);
+  }, [highlightState, nodesWithGoalBadges]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(styledNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(styledEdges);
+  const useViewportRendering =
+    styledNodes.length >= VIEWPORT_RENDERING_THRESHOLD ||
+    styledEdges.length >= VIEWPORT_RENDERING_THRESHOLD;
 
   useEffect(() => {
     setNodes(styledNodes);
@@ -324,6 +364,7 @@ const GraphCanvasImpl = memo(function GraphCanvasImpl() {
         proOptions={{ hideAttribution: true }}
         minZoom={0.1}
         maxZoom={2}
+        onlyRenderVisibleElements={useViewportRendering}
         /* Touch: prevent nodes from capturing pinch-to-zoom gestures.
            nodeDragThreshold requires a 5px move before drag starts,
            letting the browser recognize pinch/zoom first. */
@@ -333,10 +374,22 @@ const GraphCanvasImpl = memo(function GraphCanvasImpl() {
         nodesConnectable={false}
         elementsSelectable={false}
       >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="rgb(51 65 85 / 0.4)" />
+        {!useViewportRendering && (
+          <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="rgb(51 65 85 / 0.4)" />
+        )}
       </ReactFlow>
 
       {visibleEdgeTypes.length > 0 && <EdgeLegend edgeTypes={visibleEdgeTypes} />}
+
+      {useViewportRendering && (
+        <div
+          className="pointer-events-none absolute bottom-4 right-4 z-10 rounded-md border border-slate-700/80 bg-slate-950/90 px-2.5 py-1.5 text-[11px] font-medium text-slate-300 shadow-lg"
+          data-testid="graph-topology-summary"
+          aria-label={`${styledNodes.length} graph nodes and ${styledEdges.length} graph edges`}
+        >
+          {styledNodes.length} nodes / {styledEdges.length} edges
+        </div>
+      )}
 
       {loading && (
         <div

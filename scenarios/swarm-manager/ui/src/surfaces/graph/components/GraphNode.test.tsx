@@ -2,8 +2,6 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { createTestQueryClient } from "../../../test-utils/query";
 import { GraphNode } from "./GraphNode";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { makeBacklogNode, makeScenarioNode } from "../test-helpers";
@@ -37,15 +35,13 @@ function renderGraphNode(
   };
 
   return render(
-    <QueryClientProvider client={createTestQueryClient()}>
-      <ReactFlowProvider>
-        <svg>
-          <foreignObject>
-            <GraphNode {...props} />
-          </foreignObject>
-        </svg>
-      </ReactFlowProvider>
-    </QueryClientProvider>,
+    <ReactFlowProvider>
+      <svg>
+        <foreignObject>
+          <GraphNode {...props} />
+        </foreignObject>
+      </svg>
+    </ReactFlowProvider>,
   );
 }
 
@@ -122,5 +118,22 @@ describe("GraphNode — initiative active round chip", () => {
     const chip = screen.getByTestId("graph-node-active-round-chip");
     // Reserved chips use the amber palette; agent_running uses cyan.
     expect(chip.className).toMatch(/amber/);
+  });
+});
+
+describe("GraphNode — goal membership badge", () => {
+  it("renders the goal badge when the node belongs to an active goal", () => {
+    const node = makeBacklogNode("backlog-item/execute/test");
+    renderGraphNode({
+      ...node.data,
+      goalBadges: [{ name: "goal-a", title: "goal-a", priority: 1 }],
+    }, { id: node.id });
+    expect(screen.getByTestId("graph-node-goal-badge")).toHaveAttribute("title", "In goal: goal-a");
+  });
+
+  it("does not render the goal badge for unsupported graph node ids", () => {
+    const node = makeScenarioNode("scenario/test", { status: "running" });
+    renderGraphNode(node.data, { id: node.id });
+    expect(screen.queryByTestId("graph-node-goal-badge")).not.toBeInTheDocument();
   });
 });

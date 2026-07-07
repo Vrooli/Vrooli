@@ -15,7 +15,6 @@ import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Target } from "lucide-react";
 import { cn } from "../../../lib/utils";
-import { useNodeGoalBadges } from "../hooks/useGoalMembership";
 import { BACKLOG_KIND_ICONS } from "../../../types";
 import type { BacklogKind } from "../../../types";
 import { selectors } from "../../../consts/selectors";
@@ -42,7 +41,7 @@ function GraphNodeComponent({ id, data }: NodeProps) {
   const lens = useGraphDataStore((s) => s.lens);
   const isSelected = useGraphUIStore((s) => s.selectedNodeId === id);
   const entityType = nodeData.entityType ?? DEFAULT_ENTITY;
-  const goalBadges = useNodeGoalBadges(id);
+  const goalBadges = nodeData.goalBadges ?? [];
   const inGoal = goalBadges.length > 0;
   const circuitBroken = useGovernanceStore((s) =>
     entityType === "backlog" && "name" in nodeData && "kind" in nodeData

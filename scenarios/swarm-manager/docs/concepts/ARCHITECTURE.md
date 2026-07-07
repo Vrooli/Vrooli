@@ -102,7 +102,7 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 5. **Graph workspace projection**
    ```
    GET /api/v1/plan -> proto PlanBoardResponse -> plan store -> Now/Next/Later/Done board
-   GET /graph?lens=topology -> proto GraphResponse -> typed graph store -> Focus lens (client-side attention filter) on the React Flow canvas
+   GET /api/v1/graph?lens=topology -> proto GraphResponse -> typed graph store -> Graph surface (full topology by default; client-side focus mode)
    WS /ws/graph invalidate (lenses incl. "plan") -> silent refresh + runtime node pulse
    ```
 
@@ -114,15 +114,17 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 
 7. **UI route navigation**
    ```
-   /plan -> Plan lens board (first-class route, default landing; ?drawer=decisions opens the decision drawer)
-   /graph/focus -> Focus lens (attention-filtered graph)
-   /graph/topology -> Topology lens (full graph projection)
+   /plan -> Plan board (first-class route, default landing; ?drawer=decisions opens the decision drawer)
+   /graph -> Graph surface (full topology projection by default)
+   /graph?mode=focus -> Graph surface in attention-filtered focus mode
    /backlog/:kind/:name -> backlog detail
    /scenarios/:name -> scenario detail
    /executions/:executionId -> execution detail
    /initiatives/:name -> initiative detail
    /captures/:captureId -> capture detail
-   /graph, /graph/plan -> redirect to /plan (legacy graph paths; query state preserved)
+   /graph/plan -> redirect to /plan (legacy graph path; query state preserved)
+   /graph/focus -> redirect to /graph?mode=focus (legacy graph path; query state preserved)
+   /graph/topology -> redirect to /graph (legacy graph path; query state preserved)
    /operations, /command-post, /command-post/decisions -> redirect to /plan (Command Post and the Operations Center were absorbed by the Plan board)
    /executions, /scenarios (bare list paths) -> redirect to /plan (the retired ExecutionPage/ScenariosPage list surfaces; detail routes above are unaffected)
    ```
@@ -136,11 +138,11 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 
    Sidebar open/collapsed state, desktop width, active tab, search mode/query, filters, and sort options are stored in localStorage. The sidebar no longer writes ambient UI preferences into the current route query string.
 
-## Graph Lenses
+## Operator Surfaces
 
-The graph workspace has three **lenses**. Plan is the primary control surface (a first-class `/plan` route); Focus is the attention-filtered graph drill-down; Topology is the full graph projection. (The former Operations lens UI, the Operations Center page, and the Command Post were consolidated into the Plan board. The topology *projection endpoint* both backs the Topology lens directly and is the data source the Focus lens filters client-side.)
+Swarm Manager exposes two operator navigation surfaces: **Plan** and **Graph**. Plan is the primary control surface at `/plan`. Graph is the single graph surface at `/graph`; it renders the full topology by default and can enter focus mode through query state (`mode=focus`). Topology remains the server projection name (`GET /api/v1/graph?lens=topology`), not a user-facing tab.
 
-### Plan (default)
+### Plan
 **Purpose:** One forward-looking board answering "what is running, what is actionable, in what order will the rest happen, and where am I needed."
 
 Four columns computed by the server plan projection (`GET /api/v1/plan`, `internal/planview`):
@@ -152,23 +154,16 @@ Four columns computed by the server plan projection (`GET /api/v1/plan`, `intern
 
 Filters (search / status / owner-type / lane / group-by / show-snoozed) live in a shared drawer and persist in URL query params. Snooze remains client-side (localStorage). The decision drawer hosts the full decision stream (`?drawer=decisions` deep link) and per-item scoped answering from decide gate cards. No drag: columns are derived, so cards act through explicit menus mapped to real levers (run / workshop / finalize / archive / status / snooze / focus).
 
-**Navigation:** First-class `/plan` route; the default landing for `/`, `/graph`, `/graph/plan`, and all retired-surface redirects. Keyboard shortcut: `1`.
+**Navigation:** First-class `/plan` route; the default landing for `/`, `/graph/plan`, and all retired-surface redirects. Keyboard shortcut: `1`.
 
-### Focus
-**Purpose:** Attention-filtered graph neighborhood — items needing operator input plus their structural context.
+### Graph
+**Purpose:** Full structural exploration, selection, inspector actions, and attention-filtered focus mode on one graph surface.
 
-A client-side filter over the topology projection (`GET /api/v1/graph?lens=topology`): nodes pass `computeNodeAttention` (pending decisions, review-ready, failures) and their initiative/scenario context is re-attached via `member_of`/`targets` edges. Node click applies BFS visual focus; the inspector panel offers per-entity actions.
+The default graph mode renders the topology projection (`GET /api/v1/graph?lens=topology`) on the node/edge canvas. Focus mode is a client-side filter over the same topology payload: nodes pass `computeNodeAttention` (pending decisions, review-ready, failures) and their initiative/scenario context is re-attached via `member_of`/`targets` edges. Node click applies BFS visual focus; the inspector panel offers per-entity actions.
 
-**Navigation:** Lens tab, the board's per-card "Focus on graph" action (`/graph/focus?select=<node>`), or detail-page lens bars. Keyboard shortcut: `2`.
+**Navigation:** Graph tab at `/graph`; the board's per-card "Focus on graph" action and detail-page focus links navigate to `/graph?mode=focus&select=<node>`. Keyboard shortcut: `2`.
 
 **Edges:** `depends_on`, `member_of`, `classified_as`, `targets`
-
-### Topology
-**Purpose:** The full graph projection — every entity and its relationships, unfiltered, for structural exploration.
-
-Renders the same topology projection (`GET /api/v1/graph?lens=topology`) that backs Focus, but without the attention filter, on the node/edge canvas.
-
-**Navigation:** Routable lens tab at `/graph/topology` (the Focus empty-state also links here). Keyboard shortcut: `3`.
 
 9. **Scenario lifecycle control**
    ```
@@ -202,7 +197,7 @@ Renders the same topology projection (`GET /api/v1/graph?lens=topology`) that ba
 
 | Layer | Status | Notes |
 |-------|--------|-------|
-| Presentation | Functional | Shared app shell owns global navigation; the Plan board is primary (`/plan`), with the Focus and Topology graph lenses and canonical detail routes for backlog, initiatives, scenarios, executions, and captures plus a sidebar Sessions tab |
+| Presentation | Functional | Shared app shell owns global navigation; the Plan board is primary (`/plan`), with one Graph surface (`/graph`) backed by the topology projection plus focus mode, canonical detail routes for backlog, initiatives, scenarios, executions, and captures, and a sidebar Sessions tab |
 | API Gateway | Implemented | Health, graph, backlog (incl. batch), agent sessions, scenarios, settings, queue, execution, prompts, initiatives, overview, captures, agent-manager status |
 | Domain Logic | Implemented | CRUD, archive, queue, research, batch ops, dependency graph, initiatives, agent sessions, overview aggregation, execution scheduling and run control |
 | Integration | Implemented | Discovery-based clients (agent-manager, prompt-manager) and CLI-backed scenario operations |
@@ -284,7 +279,7 @@ api/internal/
 - `/api/v1/execution/auto-drain` - GET/PUT the continuous goal-directed auto-enqueue toggle (default OFF; a scenario-local flag, not a proto setting)
 - `/api/v1/overview` - aggregated view (backlog, initiatives, dependency graph, summary stats)
 - `/api/v1/operations/brief` - bounded current operations briefing for CLI, UI, and Swarm operations session prompts
-- `/api/v1/graph?lens=topology` - the topology projection (the Focus lens filters it client-side)
+- `/api/v1/graph?lens=topology` - the topology projection (Graph focus mode filters it client-side)
 - `/api/v1/plan?window_seconds=...` - the Plan board projection (waves + gates read-model)
 - `/ws/graph` - graph invalidation and node pulse websocket
 - `/api/v1/captures/*` - capture CRUD and AI classification

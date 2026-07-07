@@ -218,7 +218,7 @@ Current session-kind mapping:
 
 - **Ingress/egress contract**: `GET /api/v1/graph?lens=topology` returns proto `swarm-manager.v1.api.GraphResponse`. Topology is the only projection lens (updated 2026-07-02 — the flow/operations projections and `focus_node_id` drill-down were retired with the Plan-lens consolidation); any other lens value is an invalid-lens error.
 - **Projection payloads**: Graph nodes use typed oneof payloads (`backlog`, `initiative`, `capture`, `scenario`). Backlog nodes include `active_execution_status` and `active_execution_count` from topology enrichment.
-- **Focus lens is client-side**: the UI Focus lens filters the topology payload through `computeNodeAttention` (`ui/src/surfaces/graph/lib/attention.ts`) — the server has no focus concept.
+- **Focus mode is client-side**: the UI Graph surface filters the topology payload through `computeNodeAttention` (`ui/src/surfaces/graph/lib/attention.ts`) when `mode=focus` is active — the server has no focus concept.
 - **Dispatch-only plan lens**: `graph.LensPlan` ("plan") is accepted by invalidation dispatch (`normalizeLensStrings`) and rides `/ws/graph` payloads so the Plan board refetches, but `ValidateLens` rejects it at the HTTP boundary — the board has its own endpoint (see Plan Board Projection Boundary).
 - **UI mapper**: `graph-service.ts` parses proto JSON through `proto-contracts.ts` and maps it into the typed graph node union used by the store/canvas/presentation helpers
 - **Library seam**: React Flow still exposes node data as `Record<string, unknown>` in renderer callbacks; the only intentional UI casts are localized in the graph renderers/helpers at that library boundary
@@ -2287,7 +2287,7 @@ tests pin startup brief attachment and the draft-session refresh path.
 
 ### Operations Center UI (added 2026-05-02; RETIRED 2026-07-02)
 
-> **Retired**: the standalone `/operations` page was absorbed by the Plan board's Now column (see Plan Lens Board UI below); `/operations` now redirects to `/graph/plan` preserving filter query params. The seams below survive with new consumers: `operations-store` + `operations-service` + `useOperationsPolling` feed `surfaces/plan/components/NowColumn`, and `ActivityRow` / `LaneBar` / `OpsBulkActions` are reused wholesale by the board. `OpsHeader`, `OpsFilterBar`, `OpsBody`, and the by-initiative/by-phase view components were deleted (the board owns grouping and filtering).
+> **Retired**: the standalone `/operations` page was absorbed by the Plan board's Now column (see Plan Board UI below); `/operations` now redirects to `/plan` preserving filter query params. The seams below survive with new consumers: `operations-store` + `operations-service` + `useOperationsPolling` feed `surfaces/plan/components/NowColumn`, and `ActivityRow` / `LaneBar` / `OpsBulkActions` are reused wholesale by the board. `OpsHeader`, `OpsFilterBar`, `OpsBody`, and the by-initiative/by-phase view components were deleted (the board owns grouping and filtering).
 
 The `/operations` route ([CODE: ui/src/pages/OperationsCenterPage.tsx]) is the only UI consumer of the Operations Aggregate seam in v1; future fan-in surfaces (e.g. a sidebar trigger badge in P8) reach the same data through the same store. The page composes three layout pieces (`OpsHeader`, `OpsFilterBar`, `OpsBody`) over one Zustand store ([CODE: ui/src/stores/operations-store.ts]) that owns the latest `OperationsView`, the active filters, the view-mode toggle, and a selection set reserved for P7b's bulk actions.
 
@@ -2309,7 +2309,7 @@ The `/operations?view=by-phase` board ([CODE: ui/src/components/operations/views
 
 **Testing at the seam**: `views/ByPhaseView.test.tsx` pins canonical-lane order, per-lane row placement, lane-count headers, the empty-column placeholder, the silent-drop rule for missing / non-canonical lanes, and the lane-chip suppression invariant. `OpsBody.test.tsx` pins the toggle's gate (`enableByPhaseView`), aria state, and the disabled-fallback path. `OperationsCenterPage.test.tsx` extends to cover the URL ↔ view-mode round trip (toggle adds `view=by-phase`, URL hydrates the store on mount, toggling back clears the key).
 
-### Operations Center trigger button (added 2026-05-02, P8; retargeted 2026-07-02 — the agents chip now links to `/graph/plan`)
+### Operations Center trigger button (added 2026-05-02, P8; retargeted 2026-07-02 — the agents chip now links to `/plan`)
 
 `OpsTriggerButton` ([CODE: ui/src/components/operations/OpsTriggerButton.tsx]) is the single, always-visible entry point to `/operations`. It replaces the conditional `<AgentsDropdown>` popover at both call sites — the sidebar header ([CODE: ui/src/surfaces/graph/components/sidebar/SidebarHeader.tsx]) and the graph HUD ([CODE: ui/src/surfaces/graph/components/GraphWorkspaceHUD.tsx]). Two visual variants (`compact` for the sidebar pill, `hud` for the bordered HUD button) share the same `data-testid` (`selectors.layout.opsTriggerButton`) so workflow tooling can locate the trigger regardless of layout context.
 
@@ -2404,7 +2404,7 @@ it by owner is what makes inheritance and the atomic accept/reject work.
 
 ### Plan Board Projection Boundary (added 2026-07-02)
 
-`api/internal/planview/`, `api/internal/gates/`, and `depgraph.Waves` form the Plan-lens board projection seam behind `GET /api/v1/plan` (proto `swarm-manager.v1.api.PlanBoardResponse`, schemas in `packages/proto/schemas/swarm-manager/v1/{domain,api}/plan.proto`).
+`api/internal/planview/`, `api/internal/gates/`, and `depgraph.Waves` form the Plan board projection seam behind `GET /api/v1/plan` (proto `swarm-manager.v1.api.PlanBoardResponse`, schemas in `packages/proto/schemas/swarm-manager/v1/{domain,api}/plan.proto`).
 
 - **Waves are honest ordinals.** `depgraph.Waves(graph, isSatisfied)` is pure iterative frontier peeling over `depends_on`: wave 0 = runnable now, wave n = n peeling rounds away, `CycleWave` (-1) = trapped in or downstream of a dependency cycle (diagnosed via `DetectCycleFrom`, deduped by member set). Satisfied = completed or archived, matching `backlogrank.isResolved`. No clock time is ever fabricated (plan decision D3).
 - **Gates are a read-model, not storage** (D4). `gates.Service` concatenates `Source` implementations — `DecideSource` (unanswered workshop decisions via `backlog.CountPendingDecisions`), `WorkshopSource` (queueable items whose effective readiness fails `workshop.IsReady`, or answered rounds pending synthesis; suggests workshop vs finalize), `ReviewSource` (`review_pending` items + `needs_review`/`needs_fixup` executions), `ClassifySource` (classified captures with unconfirmed items). A failing source degrades with a logged warning. The `Source` interface is the seam a future gate pre-approval / autonomy-policy layer plugs into.
@@ -2416,15 +2416,15 @@ it by owner is what makes inheritance and the atomic accept/reject work.
 
 **Testing at the seam**: `depgraph/waves_test.go` (table-driven peeling incl. cycles), `gates/gates_test.go` (per-source fixtures over temp workshop rounds), `planview/service_test.go` (column composition goldens), `planview/handler_test.go` (proto shape + window validation), `graph/dispatch_test.go` (plan lens rides payloads, rejected by ValidateLens).
 
-### Plan Lens Board UI (added 2026-07-02)
+### Plan Board UI (added 2026-07-02)
 
-`ui/src/surfaces/plan/` is the board surface mounted by `GraphWorkspace` when `lens === "plan"` (the default landing for `/`, `/graph`, and all retired-surface redirects).
+`ui/src/surfaces/plan/` is the board surface mounted by `GraphWorkspace` when `lens === "plan"` (the default landing for `/`, `/graph/plan`, and all retired-surface redirects).
 
 - **Data path**: `plan-service.ts` (typed proto client) → `plan-data-store.ts` (single-snapshot Zustand store with staleness gate, force-supersede request semantics, and a `windowSeconds` knob that refetches). WS refresh is delegated: `graph-data-store.fetchGraph("plan")` forwards to `plan-data-store.fetchBoard`, so `/ws/graph` invalidations carrying `"plan"` refresh the board without a second socket. `usePlanData` adds a 60s safety poll.
 - **Now column reuses the operations seam wholesale** (D5/D9): `useOperationsPolling` + `operations-store` + `ActivityRow` + `LaneBar` + `OpsBulkActions` unchanged; the board only adds grouping (initiative/phase) and header actions (select-mode toggle, refresh, spawn via `useSpawnSwarmAgent` which creates a real `swarm_operations` session).
 - **Action layer re-hosts Command Post wiring** (D9): `PlanBoardActions` provides `plan-card-actions-context` over `useCommandPostItemActions` (run/workshop/finalize/archive/status mutations), the `RunBacklogModal`, the bulk-threshold (3) confirm, and the Dependencies-Not-Ready override confirm. `DecisionDrawer` hosts `DecisionStreamView` + `ScenarioNavigatorPopover` whole — deep-linked via `?drawer=decisions`, scoped per item when opened from a decide gate card. `ClarificationPanel` has a single workspace mount in `GraphWorkspace`.
 - **Presentation is pure and tested**: `lib/plan-presentation.ts` (`splitBeyondHorizon` HORIZON_WAVE=5, `applySnoozeFilter`, `cardSnoozeKey`, wave/gate labels) and `lib/plan-url-state.ts` (URL param contract `status`/`lane`/`owner_type`/`q`/`window_seconds`/`view`/`show_snoozed`, defaults omitted — the same shareable-link vocabulary the Operations Center used, so old `/operations?...` bookmarks keep their filters through the redirect).
-- **No drag** (D7): columns are derived; `PlanCardMenu` maps every transition to a real lever, including the board→Focus bridge (`graphPath({lens:"focus", select: card.id})`).
+- **No drag** (D7): columns are derived; `PlanCardMenu` maps every transition to a real lever, including the board-to-Graph focus-mode bridge (`graphPath({lens:"focus", select: card.id})`, which resolves to `/graph?mode=focus&select=...`).
 - **Shared card primitive**: `components/cards/BoardCard.tsx` is the presentation-only base (status dot, title, badge slot, action slot) for all board cards.
 
 **Testing at the seam**: `plan-presentation.test.ts` + `plan-url-state.test.ts` (pure logic), `plan-data-store.test.ts` (fetch semantics), `PlanBoard.test.tsx` (columns/empty/error/deep-link/bulk headers), `NowColumn.test.tsx` (grouping/select-mode/spawn), `PlanCardMenu.test.tsx` (lever contract via injected context), `App.redirects.test.tsx` (retired-route redirects preserve query params).

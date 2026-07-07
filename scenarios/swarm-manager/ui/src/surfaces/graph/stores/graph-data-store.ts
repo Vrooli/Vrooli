@@ -212,7 +212,7 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
       return;
     }
 
-    // Focus lens: client-side filter from topology data.
+    // Focus mode: client-side filter from topology data.
     if (lens === "focus") {
       const topoSnapshot = get().graphsByLens.topology;
       // Ensure topology data is fresh first.

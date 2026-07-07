@@ -19,10 +19,10 @@ import {
 } from "../../types";
 
 /**
- * Graph lens identifiers, all routable. "plan" is the first-class top-level
- * board (/plan); "focus" and "topology" are graph lenses (LensNav /
- * /graph/:lens). The topology projection (GET /api/v1/graph?lens=topology) is
- * both the Topology lens's own view and the data source the Focus lens filters.
+ * Internal graph data modes. Only "plan" and the single Graph surface are
+ * user-facing navigation targets. "topology" is the server projection
+ * (GET /api/v1/graph?lens=topology); "focus" is a client-side graph mode that
+ * filters topology data.
  */
 export type GraphLens = "plan" | "focus" | "topology";
 
@@ -57,6 +57,12 @@ export interface InitiativeRollupData {
   pending: number;
 }
 
+export interface GoalBadge {
+  name: string;
+  title: string;
+  priority: number;
+}
+
 interface GraphBaseNodeData {
   [key: string]: unknown;
   label: string;
@@ -67,6 +73,7 @@ interface GraphBaseNodeData {
   pulsing?: boolean;
   pulseMode?: "oneshot" | "persistent";
   priority?: number;
+  goalBadges?: GoalBadge[];
 }
 
 export interface BacklogGraphNodeData extends GraphBaseNodeData {

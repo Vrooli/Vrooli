@@ -6,15 +6,15 @@
  */
 
 import { useCallback, useEffect, useRef } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { graphPath, isGraphLens as isRouteGraphLens, type AppGraphLens } from "../../../app/routes/route-paths";
-import { useGraphDataStore } from "../stores/graph-data-store";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { graphPath, isGraphMode, type AppGraphLens } from "../../../app/routes/route-paths";
+import { useGraphDataStore, type GraphLens } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import { clearVisualFocus } from "../lib/visual-focus";
 import { getGraphNodeLabel } from "../types";
 
 export function isGraphLens(value: string | null): value is AppGraphLens {
-  return isRouteGraphLens(value ?? undefined);
+  return value === "plan" || value === "graph" || value === "focus";
 }
 
 export interface UseGraphStateSyncResult {
@@ -33,10 +33,14 @@ export interface UseGraphStateSyncResult {
  */
 export function useGraphStateSync(): UseGraphStateSyncResult {
   const navigate = useNavigate();
-  const params = useParams<{ lens?: string }>();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const urlLens: AppGraphLens = isRouteGraphLens(params.lens) ? params.lens : "plan";
+  const isPlanRoute = location.pathname === "/plan";
+  const urlMode = searchParams.get("mode");
+  const graphMode: GraphLens = isGraphMode(urlMode ?? undefined) ? (urlMode as GraphLens) : "topology";
+  const urlDataLens: GraphLens = isPlanRoute ? "plan" : graphMode;
+  const urlLens: AppGraphLens = isPlanRoute ? "plan" : urlDataLens === "focus" ? "focus" : "graph";
   const urlSelect = searchParams.get("select");
   const urlFocus = searchParams.get("focus");
   const urlReturnLens = searchParams.get("returnLens");
@@ -57,15 +61,19 @@ export function useGraphStateSync(): UseGraphStateSyncResult {
 
   // Sync URL lens → store
   useEffect(() => {
-    setLens(urlLens);
-    applyLayoutForLens(urlLens);
-    void fetchGraph(urlLens);
-  }, [applyLayoutForLens, fetchGraph, setLens, urlLens]);
+    setLens(urlDataLens);
+    applyLayoutForLens(urlDataLens);
+    void fetchGraph(urlDataLens);
+  }, [applyLayoutForLens, fetchGraph, setLens, urlDataLens]);
 
   // Sync URL focus/returnLens → store
   useEffect(() => {
     setFocusNode(urlFocus ?? null);
-    setReturnLens(isGraphLens(urlReturnLens) ? urlReturnLens : null);
+    setReturnLens(
+      urlReturnLens === "plan" || urlReturnLens === "focus" || urlReturnLens === "topology"
+        ? urlReturnLens
+        : null,
+    );
   }, [urlFocus, urlReturnLens, setFocusNode, setReturnLens]);
 
   // Sync focus node label
@@ -112,7 +120,8 @@ export function useGraphStateSync(): UseGraphStateSyncResult {
   );
 
   const handleReturnToAtlas = useCallback(() => {
-    const target = returnLens && isRouteGraphLens(returnLens) ? returnLens : "plan";
+    const target: AppGraphLens =
+      returnLens === "plan" ? "plan" : returnLens === "focus" ? "focus" : "graph";
     navigate(graphPath({ lens: target }));
   }, [navigate, returnLens]);
 

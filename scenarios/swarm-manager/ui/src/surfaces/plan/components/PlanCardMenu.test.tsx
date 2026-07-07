@@ -2,7 +2,10 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { selectors } from "../../../consts/selectors";
-import { renderWithProviders } from "../../../test-utils";
+import { goalsService } from "../../../services";
+import { createTestQueryClient, renderWithProviders } from "../../../test-utils";
+import type { GoalWithScope } from "../../../types/goal";
+import { GOALS_QUERY_KEY } from "../hooks/useGoals";
 import type { StableItemCallbacks } from "../../../hooks/useCommandPostItemActions";
 import type { PlanCardData } from "../types";
 import { PlanCardActionsContext, type PlanCardActions } from "./plan-card-actions-context";
@@ -61,11 +64,42 @@ function makeContext(callbacks?: Partial<StableItemCallbacks>): {
   };
 }
 
-function renderMenu(card: PlanCardData, ctx: PlanCardActions) {
+function goal(name: string, targets: string[] = []): GoalWithScope {
+  return {
+    goal: {
+      name,
+      title: name,
+      description: "",
+      status: "active",
+      priority: 1,
+      targets,
+      seeded: false,
+      scopeHistory: [],
+      created: "",
+      updated: "",
+    },
+    scope: {
+      targets,
+      closure: targets,
+      completed: [],
+      ready: [],
+      blocked: [],
+      total: targets.length,
+      completedCount: 0,
+      blockedCount: 0,
+      progressPct: 0,
+    },
+    eta: null,
+  };
+}
+
+function renderMenu(card: PlanCardData, ctx: PlanCardActions, goals: GoalWithScope[] = []) {
+  const queryClient = createTestQueryClient();
+  queryClient.setQueryData(GOALS_QUERY_KEY, goals);
   return renderWithProviders(
     <PlanCardActionsContext.Provider value={ctx}>
       <PlanCardMenu card={card} />
-    </PlanCardActionsContext.Provider>,
+    </PlanCardActionsContext.Provider>, { queryClient },
   );
 }
 
@@ -141,5 +175,18 @@ describe("PlanCardMenu", () => {
   it("renders nothing without the context", () => {
     renderWithProviders(<PlanCardMenu card={itemCard()} />);
     expect(screen.queryByTestId("plan-card-menu-backlog-item/fix/thing")).toBeNull();
+  });
+
+  it("keeps the shared Set as goal action available for item cards", async () => {
+    const { value } = makeContext();
+    const create = vi.spyOn(goalsService, "create").mockResolvedValue(goal("thing-goal", ["fix/thing"]));
+    const user = userEvent.setup();
+    renderMenu(itemCard(), value);
+
+    await user.click(screen.getByTestId("plan-card-menu-backlog-item/fix/thing"));
+    await user.click(screen.getByTestId("plan-card-menu-set-goal"));
+    await user.click(screen.getByTestId("set-as-goal-create"));
+
+    expect(create).toHaveBeenCalledWith({ title: "Thing", targets: ["fix/thing"] });
   });
 });

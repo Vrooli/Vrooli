@@ -37,7 +37,7 @@ function runNavigateTo(action: ReturnType<typeof getAction>, node: GraphNode) {
 }
 
 describe("getActionsForNode", () => {
-  // Topology lens: actions for capture, backlog, initiative, scenario.
+  // Full graph mode: actions for capture, backlog, initiative, scenario.
   it("returns capture actions for topology/capture", () => {
     const actions = getActionsForNode("topology", "capture");
     expect(actions.map((a) => a.id)).toEqual(["classify", "create-item", "delete-capture"]);

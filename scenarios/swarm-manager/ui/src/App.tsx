@@ -28,6 +28,18 @@ function RedirectPreservingSearch({ to }: { to: string }) {
   return <Navigate to={`${to}${location.search}`} replace />;
 }
 
+function LegacyGraphLensRedirect({ mode }: { mode?: "focus" }) {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  if (mode) {
+    params.set("mode", mode);
+  } else {
+    params.delete("mode");
+  }
+  const search = params.toString();
+  return <Navigate to={`/graph${search ? `?${search}` : ""}`} replace />;
+}
+
 const GraphWorkspace = lazy(() =>
   import("./surfaces/graph/components/GraphWorkspace").then((m) => ({
     default: m.GraphWorkspace,
@@ -94,19 +106,19 @@ export default function App() {
         >
           <Routes>
             <Route element={<AppShell />}>
-              {/* Plan is a first-class top-level route; Focus and Topology are
-                  graph lenses under /graph/:lens. GraphWorkspace derives the
-                  plan lens when no :lens param is present. */}
+              {/* Plan is a first-class top-level route. /graph is the single
+                  graph surface; focus is query state inside it. */}
               <Route path="/plan" element={<PageErrorBoundary pageName="Plan"><GraphWorkspace /></PageErrorBoundary>} />
-              <Route path="/graph/:lens" element={<PageErrorBoundary pageName="Graph"><GraphWorkspace /></PageErrorBoundary>} />
+              <Route path="/graph" element={<PageErrorBoundary pageName="Graph"><GraphWorkspace /></PageErrorBoundary>} />
 
               <Route index element={<Navigate to="/plan" replace />} />
 
-              {/* Legacy graph paths — the plan board moved to /plan and the bare
-                  /graph landing is now the plan board. Preserve query state
+              {/* Legacy graph paths — the plan board moved to /plan and graph
+                  modes moved to /graph query state. Preserve query state
                   (?focus/?select/?drawer) so deep links and bookmarks survive. */}
-              <Route path="/graph" element={<RedirectPreservingSearch to="/plan" />} />
               <Route path="/graph/plan" element={<RedirectPreservingSearch to="/plan" />} />
+              <Route path="/graph/focus" element={<LegacyGraphLensRedirect mode="focus" />} />
+              <Route path="/graph/topology" element={<LegacyGraphLensRedirect />} />
 
               <Route path="backlog/:kind/:name" element={<PageErrorBoundary pageName="Backlog Details"><BacklogDetailsPage /></PageErrorBoundary>} />
               <Route path="scenarios/:name" element={<PageErrorBoundary pageName="Scenario Details"><ScenarioDetailsPage /></PageErrorBoundary>} />

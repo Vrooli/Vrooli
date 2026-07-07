@@ -46,6 +46,10 @@ const LAYOUT_CYCLE: LayoutMode[] = ["hierarchical", "compact", "grouped"];
 
 type ViewportIntentByLens = Record<GraphLens, ViewportIntent | null>;
 
+function defaultLayoutForLens(lens: string): LayoutMode {
+  return lens === "topology" ? "grouped" : "hierarchical";
+}
+
 function loadLayoutPreferences(): Record<string, LayoutMode> {
   try {
     const raw = window.localStorage.getItem(LAYOUT_STORAGE_KEY);
@@ -222,7 +226,7 @@ export const useGraphUIStore = create<GraphUIState>((set, get) => ({
 
   cycleLayoutMode: (lens) =>
     set((state) => {
-      const currentMode = state.layoutPreferences[lens] ?? state.layoutMode;
+      const currentMode = state.layoutPreferences[lens] ?? defaultLayoutForLens(lens);
       const idx = LAYOUT_CYCLE.indexOf(currentMode);
       const next = LAYOUT_CYCLE[(idx + 1) % LAYOUT_CYCLE.length] as LayoutMode;
       const layoutPreferences: Record<string, LayoutMode> = {
@@ -251,10 +255,10 @@ export const useGraphUIStore = create<GraphUIState>((set, get) => ({
 
   applyLayoutForLens: (lens) =>
     set((state) => ({
-      layoutMode: state.layoutPreferences[lens] ?? "hierarchical",
+      layoutMode: state.layoutPreferences[lens] ?? defaultLayoutForLens(lens),
     })),
 
-  getLayoutForLens: (lens) => get().layoutPreferences[lens] ?? "hierarchical",
+  getLayoutForLens: (lens) => get().layoutPreferences[lens] ?? defaultLayoutForLens(lens),
 
   setLayoutDirection: (direction) => {
     saveLayoutDirection(direction);

@@ -33,8 +33,14 @@ describe("graphUIStore", () => {
   });
 
   describe("layout preferences", () => {
-    it("defaults to hierarchical", () => {
+    it("defaults to hierarchical before a route lens is applied", () => {
       expect(useGraphUIStore.getState().layoutMode).toBe("hierarchical");
+    });
+
+    it("uses grouped as the default topology layout", () => {
+      useGraphUIStore.getState().applyLayoutForLens("topology");
+      expect(useGraphUIStore.getState().layoutMode).toBe("grouped");
+      expect(useGraphUIStore.getState().getLayoutForLens("topology")).toBe("grouped");
     });
 
     it("persists per-lens layout mode changes", () => {
@@ -47,17 +53,17 @@ describe("graphUIStore", () => {
 
     it("cycles layout mode for the current lens", () => {
       useGraphUIStore.getState().cycleLayoutMode("topology");
-      expect(useGraphUIStore.getState().layoutMode).toBe("compact");
+      expect(useGraphUIStore.getState().layoutMode).toBe("hierarchical");
 
       useGraphUIStore.getState().cycleLayoutMode("topology");
-      expect(useGraphUIStore.getState().layoutMode).toBe("grouped");
+      expect(useGraphUIStore.getState().layoutMode).toBe("compact");
     });
 
     it("loads a stored lens layout into the active layout mode", () => {
-      useGraphUIStore.getState().setLayoutForLens("operations", "grouped");
+      useGraphUIStore.getState().setLayoutForLens("focus", "grouped");
       useGraphUIStore.getState().setLayoutMode("hierarchical");
 
-      useGraphUIStore.getState().applyLayoutForLens("operations");
+      useGraphUIStore.getState().applyLayoutForLens("focus");
       expect(useGraphUIStore.getState().layoutMode).toBe("grouped");
     });
 

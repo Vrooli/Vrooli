@@ -187,6 +187,47 @@
       "bundle_size": {
         "enabled": true
       }
+    },
+    "budgets": {
+      "ratchet": true,
+      "flows": {
+        "graph-load": {
+          "load_only": true,
+          "component_commit_avg_max_ms": 12,
+          "component_commit_max_ms": 100,
+          "long_task_total_max_ms": 1500
+        },
+        "graph-sustained-pan": {
+          "drawn_fps_min": 45,
+          "dropped_frame_rate_max": 0.2,
+          "long_task_total_max_ms": 1500,
+          "long_task_max_ms": 250,
+          "raster_total_max_ms": 1200,
+          "layout_total_max_ms": 500,
+          "paint_total_max_ms": 500,
+          "input_event_count_min": 30
+        },
+        "graph-wheel-zoom": {
+          "drawn_fps_min": 45,
+          "dropped_frame_rate_max": 0.2,
+          "long_task_total_max_ms": 1800,
+          "long_task_max_ms": 250,
+          "raster_total_max_ms": 1400,
+          "layout_total_max_ms": 600,
+          "paint_total_max_ms": 600,
+          "input_event_count_min": 24
+        },
+        "graph-pinch-zoom": {
+          "drawn_fps_min": 40,
+          "dropped_frame_rate_max": 0.25,
+          "long_task_total_max_ms": 1800,
+          "long_task_max_ms": 250,
+          "raster_total_max_ms": 1400,
+          "layout_total_max_ms": 600,
+          "paint_total_max_ms": 600,
+          "input_event_count_min": 12
+        }
+      }
     }
   }
 }

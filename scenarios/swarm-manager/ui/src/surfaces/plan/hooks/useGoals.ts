@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { defaultQueryOptions } from "../../../lib";
 import { goalsService } from "../../../services";
 import type { CreateGoalInput, GoalWithScope } from "../../../types/goal";
+import { usePlanDataStore } from "../stores/plan-data-store";
 
 export const GOALS_QUERY_KEY = ["goals"] as const;
 
@@ -24,6 +25,10 @@ export function useGoalMutations() {
   const queryClient = useQueryClient();
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: GOALS_QUERY_KEY });
+    const plan = usePlanDataStore.getState();
+    if (plan.board) {
+      void plan.fetchBoard({ force: true, silent: true });
+    }
   };
 
   const create = useMutation({

@@ -1,5 +1,5 @@
 /**
- * FocusEmptyState - Shown when the Focus lens has no nodes needing attention.
+ * FocusEmptyState - Shown when graph focus mode has no nodes needing attention.
  */
 
 import { useNavigate } from "react-router-dom";
@@ -29,11 +29,11 @@ export function FocusEmptyState() {
         <div className="mt-4 flex items-center justify-center gap-2">
           <button
             type="button"
-            onClick={() => goToLens("topology")}
+            onClick={() => goToLens("graph")}
             className="rounded-lg bg-cyan-600/20 px-4 py-2 text-sm font-medium text-cyan-300 transition-colors hover:bg-cyan-600/30"
-            data-testid="focus-empty-go-topology"
+            data-testid="focus-empty-go-graph"
           >
-            Go to Topology
+            Go to Graph
           </button>
           <button
             type="button"

@@ -1,7 +1,6 @@
 /**
- * LensNav - Three-tab lens navigation: Plan (the default kanban board), Focus
- * (the attention-filtered graph neighborhood), and Topology (the full graph
- * projection).
+ * LensNav - Operator navigation between the Plan board and the single Graph
+ * surface. Focus is graph mode state inside Graph, not a separate tab.
  */
 
 import { cn } from "../../../lib/utils";
@@ -21,11 +20,12 @@ const LENSES: Array<{
   primary?: boolean;
 }> = [
   { id: "plan", label: "Plan", shortLabel: "Plan", shortcut: "1", primary: true },
-  { id: "focus", label: "Focus", shortLabel: "Focus", shortcut: "2" },
-  { id: "topology", label: "Topology", shortLabel: "Topo", shortcut: "3" },
+  { id: "graph", label: "Graph", shortLabel: "Graph", shortcut: "2" },
 ];
 
 export function LensNav({ activeLens, onLensChange }: LensNavProps) {
+  const activeSurface: AppGraphLens = activeLens === "plan" ? "plan" : "graph";
+
   return (
     <div className="flex w-fit flex-col gap-1" data-testid="lens-nav">
       <div
@@ -38,12 +38,12 @@ export function LensNav({ activeLens, onLensChange }: LensNavProps) {
               key={lens.id}
               type="button"
               role="tab"
-              aria-selected={activeLens === lens.id}
+              aria-selected={activeSurface === lens.id}
               onClick={() => onLensChange(lens.id)}
               className={cn(
                 "px-2 md:px-3 py-1 md:py-1.5 text-xs md:text-sm rounded-md transition-colors",
                 lens.primary ? "font-semibold" : "font-medium",
-                activeLens === lens.id
+                activeSurface === lens.id
                   ? "bg-slate-700/80 text-cyan-400"
                   : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50",
               )}

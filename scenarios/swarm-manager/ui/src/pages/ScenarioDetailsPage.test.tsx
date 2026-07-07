@@ -93,7 +93,7 @@ describe("ScenarioDetailsPage", () => {
     return renderWithProviders(
       <Routes>
         <Route path="/scenarios/:name" element={<ScenarioDetailsPage />} />
-        <Route path="/graph/topology" element={<div data-testid="graph-topology-route" />} />
+        <Route path="/graph" element={<div data-testid="graph-route" />} />
       </Routes>,
       {
         queryClient,

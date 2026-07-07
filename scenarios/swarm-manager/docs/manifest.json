@@ -193,6 +193,16 @@
           "maturity": "active",
           "requiredBy": ["validated"],
           "completion": "optional"
+        },
+        {
+          "path": "perf/2026-07-06-graph-large-topology-baseline.md",
+          "docType": "performance-audit",
+          "title": "2026-07-06 — Graph large-topology baseline",
+          "description": "Graph large-topology baseline, retained grouped-layout result, and Phase 5 interaction workload split",
+          "audience": ["developers"],
+          "maturity": "active",
+          "requiredBy": ["validated"],
+          "completion": "optional"
         }
       ]
     },

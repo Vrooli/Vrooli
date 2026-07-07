@@ -22,9 +22,9 @@ describe("route paths", () => {
       "/plan?focus=backlog-item%2Ffix%2Fx",
     );
     expect(graphPath({ lens: "focus", focus: "backlog-item/fix/a bug", select: "node/1" })).toBe(
-      "/graph/focus?focus=backlog-item%2Ffix%2Fa+bug&select=node%2F1",
+      "/graph?mode=focus&focus=backlog-item%2Ffix%2Fa+bug&select=node%2F1",
     );
-    expect(graphPath({ lens: "topology" })).toBe("/graph/topology");
+    expect(graphPath({ lens: "graph" })).toBe("/graph");
   });
 
   it("builds canonical detail and command routes", () => {
@@ -54,9 +54,9 @@ describe("route paths", () => {
 
   it("validates graph lenses", () => {
     expect(isGraphLens("plan")).toBe(true);
-    expect(isGraphLens("focus")).toBe(true);
-    // Topology is now a first-class routable lens.
-    expect(isGraphLens("topology")).toBe(true);
+    expect(isGraphLens("graph")).toBe(true);
+    expect(isGraphLens("focus")).toBe(false);
+    expect(isGraphLens("topology")).toBe(false);
     expect(isGraphLens("operations")).toBe(false);
     expect(isGraphLens("bad")).toBe(false);
   });
