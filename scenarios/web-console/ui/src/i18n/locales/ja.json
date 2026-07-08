@@ -245,14 +245,31 @@
     "statusFailed": "送信失敗 — 再試行",
     "sendTitle": "コマンドを送信",
     "aiCommandTitle": "AIコマンド",
-    "uploadImageTitle": "画像をアップロード"
+    "uploadImageTitle": "画像をアップロード",
+    "expandComposerTitle": "コンポーザーを展開"
+  },
+  "composer": {
+    "title": "メッセージを作成",
+    "closeAriaLabel": "コンポーザーを最小化",
+    "placeholder": "メッセージを入力…（画像は下に添付されます）",
+    "sendTitle": "送信",
+    "sendingTitle": "送信中…",
+    "attachImageTitle": "画像を添付",
+    "removeAttachmentAriaLabel": "添付を削除",
+    "uploadFailed": "アップロード失敗 — 添付は保持されています。再試行してください。",
+    "sendFailed": "送信失敗 — 再試行",
+    "discardTitle": "準備済みの画像を破棄しますか？",
+    "discardMessage": "未送信の準備済み画像が {{count}} 件あります。最小化すると破棄されます。",
+    "discardConfirm": "破棄",
+    "discardCancel": "編集を続ける"
   },
   "floatingToolbar": {
     "tapToRestore": "タップしてツールバーを復元",
     "settingsTitle": "設定",
     "aiCommandTitle": "AIコマンド",
     "launcherFirstTitle": "ランチャーを開く(長押しで空のターミナル)",
-    "terminalFirstTitle": "新しいターミナル(長押しでランチャー)"
+    "terminalFirstTitle": "新しいターミナル(長押しでランチャー)",
+    "expandComposerTitle": "コンポーザーを開く (Ctrl+Shift+K)"
   },
   "tabBar": {
     "expandGroup": "{{name}}を展開",

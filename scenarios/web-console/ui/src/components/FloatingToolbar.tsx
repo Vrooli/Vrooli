@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { Settings, Sparkles, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Settings, Sparkles, Plus, ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useDraggablePosition } from "../hooks/useDraggablePosition";
 import type { DragEndInfo } from "../hooks/useDraggablePosition";
@@ -49,6 +49,8 @@ interface FloatingToolbarProps {
   onOpenAi: () => void;
   onNewTerminal: () => void;
   onOpenLauncher: () => void;
+  /** Open the full-screen composer for the active session (desktop entry). */
+  onExpandComposer?: () => void;
   isCreating: boolean;
   /** When true the toolbar is not rendered at all (e.g. mobile tab mode). */
   hidden?: boolean;
@@ -87,6 +89,7 @@ export default function FloatingToolbar({
   onOpenAi,
   onNewTerminal,
   onOpenLauncher,
+  onExpandComposer,
   isCreating,
   hidden,
   voiceSupported,
@@ -259,6 +262,19 @@ export default function FloatingToolbar({
       >
         <Sparkles className="h-4 w-4" />
       </Button>
+      {onExpandComposer && (
+        <Button
+          data-testid="toolbar-expand-composer"
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 hidden md:inline-flex"
+          onClick={onExpandComposer}
+          title={t(strings.floatingToolbar.expandComposerTitle)}
+          tabIndex={docked ? -1 : undefined}
+        >
+          <Maximize2 className="h-4 w-4" />
+        </Button>
+      )}
       {voiceSupported && onVoiceStart && onVoiceStop && (
         <VoiceMicButton
           supported={voiceSupported}

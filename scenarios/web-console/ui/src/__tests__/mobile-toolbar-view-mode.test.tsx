@@ -112,6 +112,31 @@ describe("MobileToolbar viewMode", () => {
     expect(baseProps.onSwitchToTerminal).not.toHaveBeenCalled();
   });
 
+  // --- Full-screen composer entry (corner expand icon) ---
+
+  it("shows the corner expand icon in terminal mode and opens the composer", () => {
+    const onExpandComposer = vi.fn();
+    render(<MobileToolbar {...baseProps} onExpandComposer={onExpandComposer} viewMode="terminal" />);
+    const expand = screen.getByTestId("expand-toggle");
+    expect(expand).toBeInTheDocument();
+    fireEvent.click(expand);
+    expect(onExpandComposer).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the corner expand icon in messages mode and opens the composer", () => {
+    const onExpandComposer = vi.fn();
+    render(<MobileToolbar {...baseProps} onExpandComposer={onExpandComposer} viewMode="messages" />);
+    const expand = screen.getByTestId("expand-toggle");
+    expect(expand).toBeInTheDocument();
+    fireEvent.click(expand);
+    expect(onExpandComposer).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not render the expand icon when onExpandComposer is not provided", () => {
+    render(<MobileToolbar {...baseProps} viewMode="terminal" />);
+    expect(screen.queryByTestId("expand-toggle")).toBeNull();
+  });
+
   it("does not error when onSwitchToTerminal is undefined in messages mode", () => {
     const propsWithoutSwitch = { ...baseProps, onSwitchToTerminal: undefined };
     render(<MobileToolbar {...propsWithoutSwitch} viewMode="messages" />);

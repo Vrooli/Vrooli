@@ -1,7 +1,8 @@
-import { type ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 
 import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 interface DrawerShellProps {
   /** Whether the drawer is mounted/visible. Returns null when false. */
@@ -18,6 +19,17 @@ interface DrawerShellProps {
   headerExtra?: ReactNode;
   /** Test id applied to the panel element. */
   panelTestId?: string;
+  /**
+   * When true, the panel bottom is lifted above the on-screen keyboard by
+   * anchoring it to `--wc-kb-height` (set by useAppViewport) instead of the
+   * viewport bottom. Opt-in because only drawers with a focused input (the
+   * composer) need it — file/Mermaid previews have no input and leave it off
+   * (where it would be a `0px` no-op anyway). This reuses the exact keyboard
+   * signal the MobileToolbar layout rides on, so the drawer's own action row
+   * sits above the keyboard on iOS (where `position: fixed` does not shrink
+   * for the keyboard).
+   */
+  avoidKeyboard?: boolean;
   /** Drawer body. */
   children: ReactNode;
 }
@@ -37,9 +49,16 @@ export function DrawerShell({
   headerActions,
   headerExtra,
   panelTestId,
+  avoidKeyboard = false,
   children,
 }: DrawerShellProps) {
   useEscapeKey(open, onClose);
+
+  // Keep keyboard focus inside the drawer while open (accessibility): Tab and
+  // Shift+Tab cycle the panel's focusable controls rather than leaking to the
+  // terminal/background behind the overlay.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(open, panelRef);
 
   if (!open) return null;
 
@@ -47,8 +66,15 @@ export function DrawerShell({
     <div className="fixed inset-0 z-[80]">
       <div className="absolute inset-0 bg-wc-backdrop" onClick={onClose} />
       <div
+        ref={panelRef}
         data-testid={panelTestId}
-        className="wc-stable-theme absolute inset-x-0 bottom-0 top-[max(1rem,var(--wc-safe-top,0px))] flex flex-col overflow-hidden rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised shadow-2xl md:inset-x-8 md:bottom-8 md:top-8 md:rounded-2xl md:border"
+        className={
+          "wc-stable-theme absolute inset-x-0 top-[max(1rem,var(--wc-safe-top,0px))] flex flex-col overflow-hidden rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised shadow-2xl md:inset-x-8 md:bottom-8 md:top-8 md:rounded-2xl md:border " +
+          // Lift the panel above the keyboard when requested; otherwise pin to
+          // the viewport bottom. The md: breakpoint (desktop, no keyboard)
+          // overrides both to a fixed inset.
+          (avoidKeyboard ? "bottom-[var(--wc-kb-height,0px)]" : "bottom-0")
+        }
       >
         <div className="shrink-0 border-b border-wc-default px-4 py-3">
           <div className="flex items-center gap-3">

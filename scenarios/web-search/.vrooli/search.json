@@ -92,7 +92,7 @@
               "go"
             ],
             "expect_ids": [
-              "67d677d8-6f4-4b44-99a6-62b23507adaa"
+              "67d677d8-6f4f-4b44-99a6-62b23507adaa"
             ],
             "expect_within_top_k": 5
           },

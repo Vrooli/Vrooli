@@ -41,6 +41,11 @@ import MobileToolbar from "./MobileToolbar";
 import type { MobileToolbarHandle } from "./MobileToolbar";
 import AiInput from "./AiInput";
 import FloatingToolbar from "./FloatingToolbar";
+import FullScreenComposer from "./FullScreenComposer";
+import VoiceMicButton from "./VoiceMicButton";
+import { useComposerDraft } from "../hooks/useComposerDraft";
+import { useComposerAttachments } from "../hooks/useComposerAttachments";
+import { useComposerHotkey } from "../hooks/useComposerHotkey";
 import VoiceRejectionBanner from "./VoiceRejectionBanner";
 import WorkspaceMinimap from "./WorkspaceMinimap";
 import SettingsModal from "./SettingsModal";
@@ -205,6 +210,16 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
   const setWakeLockStatus = useWakeLockStatus((s) => s.setStatus);
   useEffect(() => { setWakeLockStatus(wakeLockStatus); }, [wakeLockStatus, setWakeLockStatus]);
   const mobileToolbarRef = useRef<MobileToolbarHandle>(null);
+
+  // Single shared per-session draft: the collapsed toolbar input and the
+  // full-screen composer read/write ONE value that cannot diverge.
+  const composerDraft = useComposerDraft(workspace.activePane);
+  const composerAttachments = useComposerAttachments();
+  const [composerOpen, setComposerOpen] = useState(false);
+  const openComposer = useCallback(() => setComposerOpen(true), []);
+  const closeComposer = useCallback(() => setComposerOpen(false), []);
+  // Desktop keyboard shortcut (Ctrl/Cmd+Shift+K) opens the composer.
+  useComposerHotkey(openComposer);
 
   const [launcherOpen, setLauncherOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -572,23 +587,27 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
   // unrelated refactors. On mobile, terminal focus === keyboard popup.
   useEffect(() => {
     if (!workspace.activePane || isMobile) return;
-    // Don't steal focus from open modals
-    if (workspace.settingsModalOpen || workspace.aiModalOpen || workspace.aiSuggestActive || workspace.appearanceModalPane !== null) return;
+    // Don't steal focus from open modals or the full-screen composer (which
+    // owns focus while open and restores it to the opener on close).
+    if (workspace.settingsModalOpen || workspace.aiModalOpen || workspace.aiSuggestActive || workspace.appearanceModalPane !== null || composerOpen) return;
     const paneId = workspace.activePane;
     const rafId = requestAnimationFrame(() => {
       focusActiveTerminal(paneId);
     });
     return () => cancelAnimationFrame(rafId);
-  }, [workspace.activePane, isMobile, workspace.settingsModalOpen, workspace.aiModalOpen, workspace.aiSuggestActive, workspace.appearanceModalPane, focusActiveTerminal]);
+  }, [workspace.activePane, isMobile, workspace.settingsModalOpen, workspace.aiModalOpen, workspace.aiSuggestActive, workspace.appearanceModalPane, composerOpen, focusActiveTerminal]);
 
   const handleVoiceTranscript = useCallback((text: string) => {
-    if (isMobile) {
+    if (composerOpen) {
+      // Dictating into the full-screen composer — insert at its caret.
+      composerDraft.appendAtCaret(text);
+    } else if (isMobile) {
       // On mobile, inject into the toolbar text box for review before sending
       mobileToolbarRef.current?.appendText(text);
     } else {
       handleSendToTerminal(text, "voice");
     }
-  }, [isMobile, handleSendToTerminal]);
+  }, [composerOpen, composerDraft, isMobile, handleSendToTerminal]);
 
   const voiceInput = useVoiceInput(handleVoiceTranscript);
 
@@ -905,23 +924,45 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
   }, [handlePlaybackTransportStopped, isTtsSpeaking]);
 
   // --- Mobile image upload ---
+  // The toolbar image button no longer injects "path\n" immediately. Picking an
+  // image now STAGES it into the composer for review and opens the composer, so
+  // the operator can add text and batch several images into one deliberate send.
   const mobileFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleMobileUploadImage = useCallback(() => {
     mobileFileInputRef.current?.click();
   }, []);
 
-  const handleMobileFileChange = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleMobileFileChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!file || !workspace.activePane) return;
+    if (files.length === 0) return;
+    composerAttachments.addFiles(files);
+    openComposer();
+  }, [composerAttachments, openComposer]);
+
+  // Upload every staged file on send, resolving terminal paths in attachment
+  // order. Rejecting keeps the staged attachments + typed text intact so the
+  // operator loses nothing; the composer surfaces a retryable error.
+  const resolveComposerAttachmentPaths = useCallback(async (): Promise<string[]> => {
+    const pane = workspace.activePane;
+    if (!pane) throw new Error("no active pane");
+    const staged = composerAttachments.attachments;
+    const paths: string[] = [];
     try {
-      const path = await uploadFile(workspace.activePane, file);
-      submitToActiveTerminal(path + "\n", "upload", workspace.activePane);
-    } catch {
-      // Upload errors are transient — user can retry
+      for (const att of staged) {
+        composerAttachments.setStatus(att.id, "uploading");
+        const path = await uploadFile(pane, att.file);
+        paths.push(path);
+        composerAttachments.setStatus(att.id, "staged");
+      }
+    } catch (err) {
+      // Clear the spinners so the user can retry the whole batch.
+      for (const att of staged) composerAttachments.setStatus(att.id, "staged");
+      throw err;
     }
-  }, [workspace.activePane, submitToActiveTerminal]);
+    return paths;
+  }, [workspace.activePane, composerAttachments]);
 
   // --- Resize logic ---
   const startResize = useCallback(
@@ -1284,6 +1325,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
         onOpenAi={() => workspace.setAiModalOpen(true)}
         onNewTerminal={() => handleLaunch()}
         onOpenLauncher={openLauncher}
+        onExpandComposer={openComposer}
         isCreating={isCreating}
         voiceSupported={voiceInput.supported}
         voicePreparing={voiceInput.isPreparing}
@@ -1666,6 +1708,8 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
           getPendingInputSnapshot={handleGetPendingInputSnapshot}
           onFocusTerminal={handleFocusTerminal}
           activeSessionId={workspace.activePane}
+          draft={composerDraft}
+          onExpandComposer={openComposer}
           voiceSupported={voiceInput.supported}
           voicePreparing={voiceInput.isPreparing}
           voiceRecording={voiceInput.isRecording}
@@ -1704,10 +1748,60 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
           ref={mobileFileInputRef}
           type="file"
           accept="image/*"
+          multiple
           hidden
           onChange={handleMobileFileChange}
         />
       </div>
+
+      {/* Full-screen composer — a portaled DrawerShell overlay shared by mobile
+          (corner expand) and desktop (toolbar button + shortcut). It overlays
+          the pane, so the xterm terminal stays mounted and never reflows. */}
+      <FullScreenComposer
+        open={composerOpen}
+        onClose={closeComposer}
+        draft={composerDraft}
+        onInput={handleSendToTerminal}
+        subscribeInputSettled={handleSubscribeInputSettled}
+        onFocusTerminal={handleFocusTerminal}
+        attachments={composerAttachments.attachments}
+        onAttachFiles={composerAttachments.addFiles}
+        onRemoveAttachment={composerAttachments.removeFile}
+        resolveAttachmentPaths={resolveComposerAttachmentPaths}
+        onClearAttachments={composerAttachments.clearAll}
+        mic={voiceInput.supported ? (
+          <VoiceMicButton
+            supported={voiceInput.supported}
+            isPreparing={voiceInput.isPreparing}
+            isRecording={voiceInput.isRecording}
+            isListening={voiceInput.isListening}
+            isPassive={voiceInput.isPassive}
+            isTranscribing={voiceInput.isTranscribing}
+            staleLiveMic={voiceInput.staleLiveMicLease}
+            error={voiceInput.error}
+            audioLevel={voiceInput.audioLevel}
+            voiceActivity={voiceInput.voiceActivity}
+            partialTranscript={voiceInput.partialTranscript}
+            backend={voiceInput.backend}
+            isTtsSpeaking={isTtsSpeaking}
+            onPrepare={voiceInput.prepareRecording}
+            onStart={handleVoiceStart}
+            onStop={handleVoiceStop}
+            onExitPassive={voiceInput.exitPassiveMode}
+            onReleaseMic={voiceInput.releaseMicrophone}
+            onCancel={handleVoiceCancel}
+            onTtsStop={handleTtsStop}
+            // In the composer the mic is a primary, high-frequency action, so
+            // give it a large tap target: the wrapper is a flex box that
+            // stretches to the row height (= send button height), the button
+            // fills it, min-width keeps it as wide as Send, and the icon is
+            // enlarged to suit the bigger button.
+            className="flex min-w-[5.5rem]"
+            buttonClassName="flex w-full items-center justify-center"
+            iconClassName="h-5 w-5"
+          />
+        ) : undefined}
+      />
 
       {/* Terminal Launcher */}
       <TerminalLauncher

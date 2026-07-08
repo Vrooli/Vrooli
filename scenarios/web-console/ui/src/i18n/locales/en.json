@@ -247,14 +247,32 @@
     "statusFailed": "Send failed — retry",
     "sendTitle": "Send command",
     "aiCommandTitle": "AI Command",
-    "uploadImageTitle": "Upload image"
+    "uploadImageTitle": "Upload image",
+    "expandComposerTitle": "Expand composer"
+  },
+  "composer": {
+    "title": "Compose message",
+    "closeAriaLabel": "Minimize composer",
+    "placeholder": "Write a message… (images attach below)",
+    "sendTitle": "Send",
+    "sendingTitle": "Sending…",
+    "attachImageTitle": "Attach image",
+    "removeAttachmentAriaLabel": "Remove attachment",
+    "uploadFailed": "Upload failed — attachments kept. Try again.",
+    "sendFailed": "Send failed — retry",
+    "discardTitle": "Discard staged images?",
+    "discardMessage": "You have {{count}} staged image that hasn't been sent. Minimizing will discard it.",
+    "discardMessage_other": "You have {{count}} staged images that haven't been sent. Minimizing will discard them.",
+    "discardConfirm": "Discard",
+    "discardCancel": "Keep editing"
   },
   "floatingToolbar": {
     "tapToRestore": "Tap to restore toolbar",
     "settingsTitle": "Settings",
     "aiCommandTitle": "AI Command",
     "launcherFirstTitle": "Open launcher (long-press for empty terminal)",
-    "terminalFirstTitle": "New terminal (long-press for launcher)"
+    "terminalFirstTitle": "New terminal (long-press for launcher)",
+    "expandComposerTitle": "Open composer (Ctrl+Shift+K)"
   },
   "tabBar": {
     "expandGroup": "Expand {{name}}",

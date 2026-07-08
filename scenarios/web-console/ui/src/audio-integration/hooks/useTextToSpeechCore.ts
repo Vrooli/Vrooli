@@ -206,21 +206,24 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // Record that a user gesture has occurred — this is a no-audio boolean that
+    // gates BrowserTTSProvider (speechSynthesis). It plays NO audio, so it does
+    // not touch the OS audio session.
+    //
+    // We deliberately do NOT preemptively "unlock" the Kokoro media element here
+    // (a silent HTMLAudioElement.play()). On iOS, playing an audio element —
+    // even a muted silent one — activates the app's AVAudioSession and ducks/
+    // pauses other apps' audio (Spotify/YouTube), even when the user never uses
+    // TTS. And because the provider is rebuilt when the backend re-resolves
+    // (unlocked resets to false), a persistent gesture→unlock listener re-ducks
+    // on essentially every interaction — the "web-console pauses my music on any
+    // tap" report. The media element is instead unlocked lazily: a real speak in
+    // a user gesture unlocks it naturally, and a programmatic speak blocked by
+    // autoplay surfaces `needsUnlock` + the Enable-Audio affordance (a deliberate
+    // tap → provider.unlock(true)). See PROBLEMS.md §8b.
     const onGesture = () => {
-      // Always flip the flag that gates BrowserTTSProvider — that only needs
-      // to know a gesture occurred. The media-element unlock is separate.
       audioUnlockedRef.current = true;
       setState((s) => (s.browserAudioReady ? s : { ...s, browserAudioReady: true }));
-
-      const provider = providerRef.current;
-      if (!provider || provider.isUnlocked()) return;
-      // Fire-and-forget: the play() inside unlock() must be kicked off
-      // synchronously within this gesture call stack, but we don't await it.
-      provider.unlock().then((ok) => {
-        if (ok) {
-          setState((s) => (s.needsUnlock ? { ...s, needsUnlock: false } : s));
-        }
-      });
     };
     window.addEventListener("pointerdown", onGesture, { passive: true });
     window.addEventListener("keydown", onGesture, { passive: true });

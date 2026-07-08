@@ -101,6 +101,24 @@ we did not need to, and never released it.
   background audio is no longer interrupted, and the unnecessary session churn
   that plausibly fed the §8a wedge is gone.
 
+**Second offender (found after the first fix shipped): TTS "unlock on any gesture".**
+`useTextToSpeechCore` installed persistent global `pointerdown`/`keydown`/
+`touchstart` listeners that called `KokoroProvider.unlock()` — a **silent
+`HTMLAudioElement.play()`** — whenever the provider reported not-yet-unlocked. On
+iOS, playing an audio element (even a muted silent one) activates AVAudioSession
+and ducks other apps' audio. Because the provider is rebuilt whenever the TTS
+backend re-resolves (`unlocked` resets to `false`), the persistent listener
+re-ran the silent play on essentially every interaction — the "after a while,
+web-console pauses my music on any tap, and only a force-quit fixes it" report
+(force-quit destroys the primed audio element). **Fix:** removed the preemptive
+unlock from the gesture handler (it still flips the no-audio `browserAudioReady`
+flag). The media element is now unlocked lazily — a real speak in a user gesture
+unlocks it naturally, and a programmatic speak blocked by autoplay surfaces
+`needsUnlock` + the Enable-Audio affordance (a deliberate tap → `unlock(true)`).
+
+Together: the app now activates the iOS audio session **only while actually
+capturing or playing speech**, never on incidental interaction.
+
 This cannot *recover* an already-wedged mic (still a platform limitation, §8a),
 but it removes the app behaviours that put the session into that state. See
 [VOICE-LATENCY.md §3 (AudioContext lifecycle) + §5 (low-latency removed)].

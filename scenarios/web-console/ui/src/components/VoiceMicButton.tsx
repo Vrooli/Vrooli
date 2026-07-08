@@ -70,6 +70,12 @@ interface VoiceMicButtonProps {
   className?: string;
   /** Extra classes for the inner button element. */
   buttonClassName?: string;
+  /**
+   * Size classes for the mic/status icon. Defaults to the compact toolbar size
+   * (`h-3.5 w-3.5`); the full-screen composer passes a larger value to match
+   * its taller, high-priority mic button.
+   */
+  iconClassName?: string;
 }
 
 /** Fixed-position tooltip rendered via portal so it can't be clipped by overflow parents. */
@@ -145,6 +151,7 @@ function VoiceMicButtonInner({
   onPrepare,
   className: wrapperClassName,
   buttonClassName,
+  iconClassName = "h-3.5 w-3.5",
 }: VoiceMicButtonProps) {
   const { t } = useTranslation();
   /** True when the mic is actively capturing (either one-shot or persistent). */
@@ -356,19 +363,19 @@ function VoiceMicButtonInner({
           </svg>
         )}
         {isPreparing ? (
-          <Mic className="h-3.5 w-3.5 animate-pulse relative" />
+          <Mic className={cn(iconClassName, "animate-pulse relative")} />
         ) : isPassive ? (
-          <Mic className="h-3.5 w-3.5 animate-[breathe_3s_ease-in-out_infinite] relative opacity-60" />
+          <Mic className={cn(iconClassName, "animate-[breathe_3s_ease-in-out_infinite] relative opacity-60")} />
         ) : isListening ? (
-          <Mic className="h-3.5 w-3.5 animate-pulse relative" />
+          <Mic className={cn(iconClassName, "animate-pulse relative")} />
         ) : isTranscribing ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin relative" />
+          <Loader2 className={cn(iconClassName, "animate-spin relative")} />
         ) : showRecovery ? (
-          <AlertCircle className="h-3.5 w-3.5 relative" data-testid="voice-mic-recovery-icon" />
+          <AlertCircle className={cn(iconClassName, "relative")} data-testid="voice-mic-recovery-icon" />
         ) : hasError ? (
-          <AlertCircle className="h-3.5 w-3.5 relative" />
+          <AlertCircle className={cn(iconClassName, "relative")} />
         ) : (
-          <Mic className="h-3.5 w-3.5 relative" />
+          <Mic className={cn(iconClassName, "relative")} />
         )}
       </button>
       {showErrorTooltip && buttonEl && (

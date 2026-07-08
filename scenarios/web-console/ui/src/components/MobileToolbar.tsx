@@ -1,7 +1,7 @@
 // DOC: docs/reference/configuration.md#mobile-toolbar-keys
 // DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-p0-007
 import { useCallback, useDeferredValue, useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
-import { Image, Loader2, SendHorizontal, Sparkles } from "lucide-react";
+import { Image, Loader2, Maximize2, SendHorizontal, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { TOOLBAR_KEYS, ESC_KEY, TAB_KEY, ENTER_KEY, ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT, type ToolbarKey, applyModifiers } from "../consts/toolbar-keys";
 import { strings } from "../consts/strings";
@@ -15,7 +15,7 @@ import AiSuggestBar from "./AiSuggestBar";
 import type { StartRecordingOpts, VoiceActivitySnapshot } from "../hooks/useVoiceInput";
 import type { CommandSuggestion } from "../audio-integration";
 import { slugify } from "../lib/slugify";
-import { useDraftPersistence } from "../hooks/useDraftPersistence";
+import { useComposerDraft, type ComposerDraft } from "../hooks/useComposerDraft";
 import { useHoldRepeat } from "../hooks/useHoldRepeat";
 
 /**
@@ -123,6 +123,17 @@ interface MobileToolbarProps {
   onFocusTerminal?: () => void;
   /** Active session ID for per-tab draft persistence. */
   activeSessionId?: string | null;
+  /**
+   * Shared per-session draft. When provided (by Workspace), the collapsed input
+   * and the full-screen composer read/write ONE value and cannot diverge. When
+   * omitted (standalone/tests), the toolbar owns a private draft instead.
+   */
+  draft?: ComposerDraft;
+  /**
+   * Open the full-screen composer for the active session. When provided, a
+   * low-emphasis corner expand icon is shown on the textarea (terminal mode).
+   */
+  onExpandComposer?: () => void;
   /** Whether the toolbar is visible. */
   visible?: boolean;
   // Voice input props (optional - hidden when undefined)
@@ -181,6 +192,8 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   getPendingInputSnapshot,
   onFocusTerminal,
   activeSessionId,
+  draft: draftProp,
+  onExpandComposer,
   visible = true,
   voiceSupported,
   voicePreparing,
@@ -213,39 +226,32 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   onSwitchToTerminal,
 }, ref) {
   const { t } = useTranslation();
-  const { readDraft, persistDraft, clearDraft } = useDraftPersistence(activeSessionId);
+  // Single-source the draft. When Workspace passes a shared draft, the collapsed
+  // input and the full-screen composer read/write the same value; the private
+  // fallback keeps the toolbar usable standalone (and in unit tests). Both hooks
+  // run unconditionally (hooks rule) but only the selected one is wired up.
+  const fallbackDraft = useComposerDraft(activeSessionId);
+  const draft = draftProp ?? fallbackDraft;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // The textarea is UNCONTROLLED: the DOM owns the live value and this ref
-  // mirrors it. Typing therefore never calls setState, so a keystroke doesn't
-  // re-render the toolbar — that controlled round-trip was the main cause of
-  // mobile typing lag. (Backspace is likewise left entirely to the browser,
-  // which natively handles tap-to-delete and hold-to-repeat in any textarea;
-  // the old custom velocity-delete belonged to the terminal, not here.)
-  // React state is used only for things that must re-render: the AI-suggest
-  // draft (below) and send status.
-  const initialDraftRef = useRef<string | null>(null);
-  if (initialDraftRef.current === null) initialDraftRef.current = readDraft();
-  const inputValueRef = useRef(initialDraftRef.current);
-
-  /**
-   * Last-known caret position in the textarea. Tracked on select/blur so that
-   * voice transcripts can be inserted at the user's caret even when focus has
-   * moved to the mic button. `null` means we don't have a reliable position
-   * (e.g. textarea has never been focused) — callers fall back to end-of-text.
-   */
-  const selectionRef = useRef<{ start: number; end: number } | null>(null);
+  // The textarea is UNCONTROLLED: the DOM owns the live value and the shared
+  // draft mirrors it. Typing therefore never calls setState, so a keystroke
+  // doesn't re-render the toolbar — that controlled round-trip was the main
+  // cause of mobile typing lag. (Backspace is likewise left entirely to the
+  // browser, which natively handles tap-to-delete and hold-to-repeat in any
+  // textarea.) React state is used only for things that must re-render: the
+  // AI-suggest draft (below) and send status.
 
   // The AI-suggest bar needs the live draft to render suggestions, which means
   // re-rendering on each keystroke — but ONLY while it's open. We mirror the
   // draft into state guarded by an `aiSuggestActive` ref so normal typing (bar
   // closed, the common case) stays state-free and lag-free.
-  const [aiInputText, setAiInputText] = useState(initialDraftRef.current);
+  const [aiInputText, setAiInputText] = useState(() => draft.getValue());
   const aiSuggestActiveRef = useRef(false);
   useEffect(() => {
     aiSuggestActiveRef.current = !!aiSuggestActive;
-    if (aiSuggestActive) setAiInputText(inputValueRef.current);
-  }, [aiSuggestActive]);
+    if (aiSuggestActive) setAiInputText(draft.getValue());
+  }, [aiSuggestActive, draft]);
 
   // Auto-resize the textarea to fit its content (up to MAX_TEXTAREA_HEIGHT).
   // Reset to "auto" first so scrollHeight reflects the natural content height,
@@ -259,107 +265,53 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     if (el.style.height !== next) el.style.height = next;
   }, []);
 
-  /**
-   * Set the textarea value programmatically (voice insertion, clear, session
-   * reload), keeping the DOM, mirror ref, persistence, height, and AI-suggest
-   * state in sync. `caret` defaults to end-of-text.
-   */
-  const setDraftValue = useCallback((value: string, caret?: number) => {
-    inputValueRef.current = value;
-    const pos = caret ?? value.length;
-    selectionRef.current = { start: pos, end: pos };
-    const el = textareaRef.current;
-    if (el) {
-      el.value = value;
-      try {
-        el.setSelectionRange(pos, pos);
-      } catch {
-        // The textarea may be detached during teardown; ignore.
-      }
-      resizeTextarea();
-    }
-    persistDraft(value);
-    if (aiSuggestActiveRef.current) setAiInputText(value);
-  }, [persistDraft, resizeTextarea]);
-
-  // Reset the input to empty (after a successful send / explicit clear).
-  const resetInput = useCallback(() => {
-    inputValueRef.current = "";
-    selectionRef.current = null;
-    const el = textareaRef.current;
-    if (el) {
-      el.value = "";
-      resizeTextarea();
-    }
-    clearDraft();
-    if (aiSuggestActiveRef.current) setAiInputText("");
-  }, [clearDraft, resizeTextarea]);
-
   // Track the live value + caret as the user types. No setState in the common
-  // path → no re-render per keystroke.
+  // path → no re-render per keystroke. The shared draft notifies peer surfaces.
   const handleTextareaChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const el = e.currentTarget;
-    inputValueRef.current = el.value;
-    selectionRef.current = {
-      start: el.selectionStart ?? el.value.length,
-      end: el.selectionEnd ?? el.value.length,
-    };
-    persistDraft(el.value);
+    draft.handleChange(e.currentTarget);
     resizeTextarea();
-    if (aiSuggestActiveRef.current) setAiInputText(el.value);
-  }, [persistDraft, resizeTextarea]);
+  }, [draft, resizeTextarea]);
 
   // Size the textarea to its initial draft once on mount.
   useEffect(() => {
     resizeTextarea();
   }, [resizeTextarea]);
 
-  // Reload the persisted draft when the active session changes (skipping the
-  // initial mount, which is already seeded via the uncontrolled defaultValue).
-  const prevSessionRef = useRef(activeSessionId);
+  // Reseed the textarea from the shared draft whenever ANOTHER surface changes
+  // it (the composer typing, voice insertion, clear, session reload). We skip
+  // reseeding during our own typing (reason "input" while this textarea is
+  // focused) so we never clobber the live caret. The AI-suggest mirror follows
+  // the draft here so it stays state-free until the bar is open.
   useEffect(() => {
-    if (prevSessionRef.current === activeSessionId) return;
-    prevSessionRef.current = activeSessionId;
-    const draft = readDraft();
-    inputValueRef.current = draft;
-    selectionRef.current = null;
-    const el = textareaRef.current;
-    if (el) {
-      el.value = draft;
-      resizeTextarea();
-    }
-    if (aiSuggestActiveRef.current) setAiInputText(draft);
-  }, [activeSessionId, readDraft, resizeTextarea]);
+    return draft.subscribe((change) => {
+      const el = textareaRef.current;
+      const isOwnTyping = change.reason === "input" && el != null && document.activeElement === el;
+      if (el && !isOwnTyping) {
+        if (el.value !== change.value) el.value = change.value;
+        if (change.caret != null) {
+          try {
+            el.setSelectionRange(change.caret, change.caret);
+          } catch {
+            // The textarea may be detached during teardown; ignore.
+          }
+        }
+        resizeTextarea();
+      }
+      if (aiSuggestActiveRef.current) setAiInputText(change.value);
+    });
+  }, [draft, resizeTextarea]);
 
   useImperativeHandle(ref, () => ({
     appendText: (text: string) => {
-      const el = textareaRef.current;
-      const prev = inputValueRef.current;
-      // Prefer live selection if textarea is focused; otherwise fall back to
-      // the last-known caret position; otherwise append to end.
-      let start = prev.length;
-      let end = prev.length;
-      if (el && document.activeElement === el && el.selectionStart !== null && el.selectionEnd !== null) {
-        start = Math.min(el.selectionStart, prev.length);
-        end = Math.min(el.selectionEnd, prev.length);
-      } else if (selectionRef.current) {
-        start = Math.min(selectionRef.current.start, prev.length);
-        end = Math.min(selectionRef.current.end, prev.length);
-      }
-      const before = prev.slice(0, start);
-      const after = prev.slice(end);
-      const lead = before.length > 0 && !/\s$/.test(before) && !/^\s/.test(text) ? " " : "";
-      const trail = after.length > 0 && !/^\s/.test(after) && !/\s$/.test(text) ? " " : "";
-      const insertEnd = before.length + lead.length + text.length;
-      setDraftValue(before + lead + text + trail + after, insertEnd);
+      draft.appendAtCaret(text);
     },
     focusInput: () => {
       textareaRef.current?.focus();
     },
     clearInput: () => {
-      resetInput();
+      draft.reset();
     },
-  }), [setDraftValue, resetInput]);
+  }), [draft]);
   const [sendStatus, setSendStatus] = useState<SendStatus>("idle");
   /** Draft snapshot taken at submit time; restored on ack failure. */
   const pendingSendRef = useRef<{ draft: string } | null>(null);
@@ -450,8 +402,8 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     // when using interactive CLI tools like Claude Code. Whitespace-only
     // input is intentionally NOT treated as empty so it can still be
     // submitted verbatim (some programs interpret whitespace input).
-    const draft = inputValueRef.current;
-    if (draft.length === 0) {
+    const draftText = draft.getValue();
+    if (draftText.length === 0) {
       onInput(ENTER_KEY.input, "toolbar-key");
       // Auto-switch to terminal so the user sees the result of pressing Enter
       if (viewMode === "messages") onSwitchToTerminal?.();
@@ -466,7 +418,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     if (hasModifier) {
       // With modifiers active, apply them to the input text character by character
       // (useful for combos like Ctrl+C, Ctrl+Alt+2, etc.)
-      const { data } = applyModifiers(draft, mods);
+      const { data } = applyModifiers(draftText, mods);
       dataToSend = data;
       clearModifiers();
     } else {
@@ -474,13 +426,13 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
       // The user can explicitly include a newline via the Enter toolbar key
       // if needed. Appending one automatically caused unwanted extra blank
       // lines in the terminal output.
-      dataToSend = draft;
+      dataToSend = draftText;
     }
 
     // Snapshot the draft so we can restore it on ack failure. The draft
     // is kept visible during "sending" state; the ack resolution path
     // (below) decides whether to clear it.
-    pendingSendRef.current = { draft };
+    pendingSendRef.current = { draft: draftText };
 
     const result = onInput(dataToSend, "toolbar-submit");
 
@@ -512,7 +464,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
 
     const finalizeSuccess = () => {
       pendingSendRef.current = null;
-      resetInput();
+      draft.reset();
       showStatus("sent");
       if (viewMode === "messages") onSwitchToTerminal?.();
     };
@@ -538,7 +490,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     // After submitting a command, focus the terminal so the user can
     // immediately see and interact with the output.
     onFocusTerminal?.();
-  }, [onInput, resetInput, showStatus, onFocusTerminal, clearModifiers, viewMode, onSwitchToTerminal, subscribeInputSettled, awaitNextSettlement]);
+  }, [onInput, draft, showStatus, onFocusTerminal, clearModifiers, viewMode, onSwitchToTerminal, subscribeInputSettled, awaitNextSettlement]);
 
   if (!visible) return null;
 
@@ -613,41 +565,51 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
       {/* Command input row */}
       <div className="flex items-end gap-0.5 px-1 py-1">
         <div className="flex min-w-0 flex-1 flex-col">
-          {/* Uncontrolled: the DOM owns the value (mirrored into inputValueRef),
-              so typing and native backspace never re-render the toolbar. */}
-          <textarea
-            ref={textareaRef}
-            data-testid="mobile-command-input"
-            defaultValue={initialDraftRef.current ?? ""}
-            onChange={handleTextareaChange}
-            onSelect={(e) => {
-              const t = e.currentTarget;
-              selectionRef.current = {
-                start: t.selectionStart ?? t.value.length,
-                end: t.selectionEnd ?? t.value.length,
-              };
-            }}
-            onBlur={(e) => {
-              const t = e.currentTarget;
-              selectionRef.current = {
-                start: t.selectionStart ?? t.value.length,
-                end: t.selectionEnd ?? t.value.length,
-              };
-            }}
-            autoComplete="off"
-            autoCorrect="on"
-            spellCheck={false}
-            rows={1}
-            placeholder={t(strings.mobileToolbar.placeholder)}
-            className={cn(
-              "min-w-0 resize-none rounded border border-wc-default bg-wc-surface-input px-2 py-1 text-base text-wc-text-primary placeholder:text-wc-text-muted outline-none focus:border-wc-accent",
-              "overflow-y-auto overflow-x-hidden",
+          {/* Uncontrolled: the DOM owns the value (mirrored into the shared
+              draft), so typing and native backspace never re-render the toolbar. */}
+          <div className="relative flex min-w-0">
+            <textarea
+              ref={textareaRef}
+              data-testid="mobile-command-input"
+              defaultValue={draft.getValue()}
+              onChange={handleTextareaChange}
+              onSelect={(e) => draft.trackSelection(e.currentTarget)}
+              onBlur={(e) => draft.trackSelection(e.currentTarget)}
+              autoComplete="off"
+              autoCorrect="on"
+              spellCheck={false}
+              rows={1}
+              placeholder={t(strings.mobileToolbar.placeholder)}
+              className={cn(
+                "min-w-0 flex-1 resize-none rounded border border-wc-default bg-wc-surface-input px-2 py-1 text-base text-wc-text-primary placeholder:text-wc-text-muted outline-none focus:border-wc-accent",
+                "overflow-y-auto overflow-x-hidden",
+                // Reserve room for the corner expand icon so long text never
+                // slides under it.
+                onExpandComposer && "pe-7",
+              )}
+              style={{
+                lineHeight: `${LINE_HEIGHT_PX}px`,
+                maxHeight: `${MAX_TEXTAREA_HEIGHT}px`,
+              }}
+            />
+            {/* Always-visible, low-emphasis corner icon that expands the draft
+                into the full-screen composer. Keyboard-reachable and shown in
+                both terminal and messages views — the composer is view-agnostic
+                and the long-message pain applies equally when chatting. */}
+            {onExpandComposer && (
+              <button
+                type="button"
+                data-testid="expand-toggle"
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={onExpandComposer}
+                className="absolute end-1 top-1 rounded p-0.5 text-wc-text-muted/70 transition hover:bg-wc-surface-raised hover:text-wc-text-primary"
+                title={t(strings.mobileToolbar.expandComposerTitle)}
+                aria-label={t(strings.mobileToolbar.expandComposerTitle)}
+              >
+                <Maximize2 className="h-3.5 w-3.5" />
+              </button>
             )}
-            style={{
-              lineHeight: `${LINE_HEIGHT_PX}px`,
-              maxHeight: `${MAX_TEXTAREA_HEIGHT}px`,
-            }}
-          />
+          </div>
           {sendStatus === "queued" && (
             <span data-testid="send-status-queued" className="px-1 text-[10px] text-yellow-400">
               {t(strings.mobileToolbar.statusQueued)}

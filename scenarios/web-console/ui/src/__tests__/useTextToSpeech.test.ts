@@ -736,6 +736,34 @@ describe("useTextToSpeech", () => {
       expect(result.current.needsUnlock).toBe(false);
     });
 
+    it("a user gesture does NOT silently play the audio element (no iOS session activation)", async () => {
+      // Regression: a global pointerdown/keydown listener used to preemptively
+      // "unlock" the Kokoro media element with a silent play() on ANY gesture.
+      // On iOS that activates AVAudioSession and ducks other apps' audio even
+      // when TTS is never used (the "web-console pauses my music on any tap"
+      // bug). A gesture must flip only the no-audio readiness flag.
+      mockFetchCaps.mockResolvedValue({
+        capabilities: [{ id: "kokoro-tts", status: "available" }],
+        timestamp: new Date().toISOString(),
+      });
+      mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
+      fakeAudio.play = vi.fn(async () => { fakeAudio.paused = false; });
+
+      const { result } = renderHook(() => useTextToSpeech({
+        ...defaultSettings,
+        backendPreference: "kokoro",
+      }));
+      await waitFor(() => expect(result.current.backend).toBe("kokoro"));
+
+      act(() => { window.dispatchEvent(new Event("pointerdown")); });
+      act(() => { window.dispatchEvent(new KeyboardEvent("keydown", { key: "a" })); });
+
+      // No media-element playback was triggered by the gesture …
+      expect(fakeAudio.play).not.toHaveBeenCalled();
+      // … but the browser-TTS readiness flag still flips (no audio involved).
+      expect(result.current.browserAudioReady).toBe(true);
+    });
+
     it("pause controls cached Kokoro blob playback from the active provider", async () => {
       mockFetchCaps.mockResolvedValue({
         capabilities: [{ id: "kokoro-tts", status: "available" }],

@@ -246,14 +246,31 @@
     "statusFailed": "فشل الإرسال — أعد المحاولة",
     "sendTitle": "إرسال الأمر",
     "aiCommandTitle": "أمر الذكاء الاصطناعي",
-    "uploadImageTitle": "رفع صورة"
+    "uploadImageTitle": "رفع صورة",
+    "expandComposerTitle": "توسيع المُحرِّر"
+  },
+  "composer": {
+    "title": "إنشاء رسالة",
+    "closeAriaLabel": "تصغير المُحرِّر",
+    "placeholder": "اكتب رسالة… (تُرفق الصور بالأسفل)",
+    "sendTitle": "إرسال",
+    "sendingTitle": "جارٍ الإرسال…",
+    "attachImageTitle": "إرفاق صورة",
+    "removeAttachmentAriaLabel": "إزالة المرفق",
+    "uploadFailed": "فشل الرفع — تم الاحتفاظ بالمرفقات. حاول مرة أخرى.",
+    "sendFailed": "فشل الإرسال — أعد المحاولة",
+    "discardTitle": "تجاهل الصور المُجهَّزة؟",
+    "discardMessage": "لديك {{count}} صورة مُجهَّزة لم تُرسل. سيؤدي التصغير إلى تجاهلها.",
+    "discardConfirm": "تجاهل",
+    "discardCancel": "متابعة التحرير"
   },
   "floatingToolbar": {
     "tapToRestore": "اضغط لاستعادة شريط الأدوات",
     "settingsTitle": "الإعدادات",
     "aiCommandTitle": "أمر الذكاء الاصطناعي",
     "launcherFirstTitle": "فتح المُشغّل (اضغط مطولاً لطرفية فارغة)",
-    "terminalFirstTitle": "طرفية جديدة (اضغط مطولاً للمُشغّل)"
+    "terminalFirstTitle": "طرفية جديدة (اضغط مطولاً للمُشغّل)",
+    "expandComposerTitle": "فتح المُحرِّر (Ctrl+Shift+K)"
   },
   "tabBar": {
     "expandGroup": "توسيع {{name}}",

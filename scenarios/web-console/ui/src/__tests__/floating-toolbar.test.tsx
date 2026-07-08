@@ -43,6 +43,8 @@ describe("FloatingToolbar", () => {
     localStorage.removeItem("wc-toolbar-dock");
   });
 
+  const onExpandComposer = vi.fn();
+
   function renderToolbar(isCreating = false) {
     return render(
       <FloatingToolbar
@@ -50,6 +52,7 @@ describe("FloatingToolbar", () => {
         onOpenAi={onOpenAi}
         onNewTerminal={onNewTerminal}
         onOpenLauncher={onOpenLauncher}
+        onExpandComposer={onExpandComposer}
         isCreating={isCreating}
       />,
     );
@@ -67,6 +70,14 @@ describe("FloatingToolbar", () => {
     renderToolbar();
     fireEvent.click(screen.getByTestId("toolbar-settings"));
     expect(onOpenSettings).toHaveBeenCalledOnce();
+  });
+
+  it("opens the composer when the expand-composer button is clicked", () => {
+    renderToolbar();
+    const btn = screen.getByTestId("toolbar-expand-composer");
+    expect(btn).toBeTruthy();
+    fireEvent.click(btn);
+    expect(onExpandComposer).toHaveBeenCalledOnce();
   });
 
   it("calls onOpenLauncher on short press of the plus button (default launcher behavior)", () => {
