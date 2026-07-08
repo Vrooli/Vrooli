@@ -36,6 +36,37 @@ func TestSearchHubMaturitySpecSplitsSearchCapabilities(t *testing.T) {
 	}
 }
 
+func TestSearchHubMaturitySpecDefinesProductionReadinessRung(t *testing.T) {
+	spec := mustLoadSpec(t)
+	if got := spec.Levels[len(spec.Levels)-1].ID; got != "L4" {
+		t.Fatalf("top-level max level = %q, want L4 production readiness", got)
+	}
+	for _, capability := range spec.Capabilities {
+		if got := capability.Levels[len(capability.Levels)-1].StatusLabel; got != "Production" {
+			t.Fatalf("%s max status label = %q, want Production", capability.ID, got)
+		}
+	}
+	for _, code := range []string{
+		CodeEvalCorpusThin,
+		CodeEvalCorpusCoverage,
+		CodeStatusEndpointMissing,
+		CodeControlEndpointMissing,
+		CodePerfBudgetBreach,
+		CodePerfDegraded,
+	} {
+		mapping, ok := spec.Findings[code]
+		if !ok {
+			t.Fatalf("missing finding mapping %s", code)
+		}
+		if mapping.CleanRequirement != string(assessment.CleanRequirementRequired) {
+			t.Fatalf("%s clean requirement = %q, want required", code, mapping.CleanRequirement)
+		}
+		if mapping.LocalLevelImpact != "L3" {
+			t.Fatalf("%s local level impact = %q, want L3 production blocker", code, mapping.LocalLevelImpact)
+		}
+	}
+}
+
 func TestSearchHubMaturityFindingMappingsAreCapabilityScoped(t *testing.T) {
 	spec := mustLoadSpec(t)
 	levelsByCapability := map[string]map[string]bool{}

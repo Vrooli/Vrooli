@@ -205,6 +205,40 @@ func TestValidateScenarioIndexedProviderRequiresReindexEndpoint(t *testing.T) {
 	}
 }
 
+func TestValidateScenarioIndexedProviderMayPinConfig(t *testing.T) {
+	root := t.TempDir()
+	writeSearchConfig(t, root, "demo", `{
+  "version":"1.0.0",
+  "providers":[{
+    "provider_id":"demo.docs",
+    "provider_group":"demo",
+    "bucket":"BUCKET_KNOW",
+    "type":"doc",
+    "description":"Docs",
+    "scope":"SCOPE_PROJECT",
+    "class":"local_index",
+    "config_writable":false,
+    "config_pinned_reason":"Hybrid-by-construction provider reads fixed tuning and cannot accept sweep write-back.",
+    "endpoint":{"http_json":{"scenario_id":"demo","path":"/search","method":"HTTP_METHOD_POST"}},
+    "status_endpoint":{"http_json":{"scenario_id":"demo","path":"/status","method":"HTTP_METHOD_POST"}},
+    "reindex_endpoint":{"http_json":{"scenario_id":"demo","path":"/reindex","method":"HTTP_METHOD_POST"}},
+    "result_mapping":{"results_path":"results","id_field":"id","title_field":"title","score_field":"score","score_scale":"SCORE_SCALE_RAW"},
+    "tests":{"description":"Primary corpus","cases":[{"id":"case","query":"docs","expect_ids":["doc-1"]},{"id":"neg","query":"zzqxwv nonsense","expect_no_strong_hit":true,"expect_max_score":0.2}]}
+  }]
+}`)
+
+	report, err := New(root).ValidateScenario("demo", "")
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	if hasFinding(report, CodeControlEndpointMissing) {
+		t.Fatalf("pinned config provider should not emit config endpoint finding: %#v", report.Findings)
+	}
+	if report.Summary.Status() != "passed" {
+		t.Fatalf("status = %s, want passed: %#v", report.Summary.Status(), report.Findings)
+	}
+}
+
 func TestValidateScenarioLocalLiveProviderNeedsNoControlPlane(t *testing.T) {
 	// A computed-live provider with no reindex/config must pass: only a status
 	// endpoint is advisory.
@@ -270,6 +304,66 @@ func TestValidateScenarioExternalProviderNeedsNoLocalPosture(t *testing.T) {
 	}
 	if report.Summary.Errors != 0 || report.Summary.Status() != "passed" {
 		t.Fatalf("status = %s errors = %d, want passed/0: %#v", report.Summary.Status(), report.Summary.Errors, report.Findings)
+	}
+}
+
+func TestValidateScenarioExternalScopeAcceptsSmokeCorpus(t *testing.T) {
+	root := t.TempDir()
+	writeSearchConfig(t, root, "demo", `{
+  "version":"1.0.0",
+  "providers":[{
+    "provider_id":"demo.web",
+    "provider_group":"demo",
+    "bucket":"BUCKET_KNOW",
+    "type":"web",
+    "description":"Live web",
+    "scope":"SCOPE_EXTERNAL",
+    "class":"external",
+    "endpoint":{"http_json":{"scenario_id":"demo","path":"/search","method":"HTTP_METHOD_POST"}},
+    "result_mapping":{"results_path":"results","id_field":"url","title_field":"title","score_field":"score","score_scale":"SCORE_SCALE_RAW"},
+    "tests":{"description":"Live smoke only","cases":[{"id":"smoke","query":"official python release notes","tags":["smoke","reachability"]}]}
+  }]
+}`)
+
+	report, err := New(root).ValidateScenario("demo", "")
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	for _, code := range []string{CodeEvalCorpusInvalid, CodeEvalCorpusInadequate} {
+		if hasFinding(report, code) {
+			t.Fatalf("external smoke provider should not emit %s: %#v", code, report.Findings)
+		}
+	}
+	if report.Summary.Status() != "passed" {
+		t.Fatalf("status = %s, want passed: %#v", report.Summary.Status(), report.Findings)
+	}
+}
+
+func TestValidateScenarioExternalScopeRequiresSmokeCase(t *testing.T) {
+	root := t.TempDir()
+	writeSearchConfig(t, root, "demo", `{
+  "version":"1.0.0",
+  "providers":[{
+    "provider_id":"demo.web",
+    "provider_group":"demo",
+    "bucket":"BUCKET_KNOW",
+    "type":"web",
+    "description":"Live web",
+    "scope":"SCOPE_EXTERNAL",
+    "class":"external",
+    "endpoint":{"http_json":{"scenario_id":"demo","path":"/search","method":"HTTP_METHOD_POST"}},
+    "result_mapping":{"results_path":"results","id_field":"url","title_field":"title","score_field":"score","score_scale":"SCORE_SCALE_RAW"},
+    "tests":{"description":"Live smoke only","cases":[{"id":"probe","query":"official python release notes","tags":["reachability"]}]}
+  }]
+}`)
+
+	report, err := New(root).ValidateScenario("demo", "")
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	finding := requireFinding(t, report, CodeEvalCorpusInadequate)
+	if !strings.Contains(finding.Message, "smoke") {
+		t.Fatalf("smoke message = %q", finding.Message)
 	}
 }
 
@@ -949,6 +1043,61 @@ func TestValidateScenarioDistinctScopeIsNotDuplicate(t *testing.T) {
 	}
 	if hasFinding(report, CodeEvalCorpusThin) {
 		t.Fatalf("same query under distinct scopes must not be a duplicate: %#v", report.Findings)
+	}
+	if report.Summary.Status() != "passed" {
+		t.Fatalf("status = %s, want passed", report.Summary.Status())
+	}
+}
+
+func TestValidateScenarioRequiredCoverageGroupUsesReviewedPositives(t *testing.T) {
+	root := t.TempDir()
+	writeSearchConfig(t, root, "demo", liveProviderConfig(`{
+    "description":"c",
+    "coverage":{
+      "required_tags":["workflow"],
+      "required_tag_groups":[{"id":"incident-response","tags":["incident","debug"],"min_reviewed_positive":2}]
+    },
+    "cases":[
+      {"id":"c1","query":"real q","tags":["workflow","incident"],"expect_ids":["a"]},
+      {"id":"c2","query":"candidate q","status":"candidate","tags":["debug"],"expect_ids":["b"]},
+      {"id":"neg","query":"junk","expect_no_strong_hit":true,"expect_max_score":0.2}
+    ]
+  }`))
+
+	report, err := New(root).ValidateScenario("demo", "")
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	finding := requireFinding(t, report, CodeEvalCorpusCoverage)
+	if !strings.Contains(finding.Message, "incident-response") {
+		t.Fatalf("coverage message = %q", finding.Message)
+	}
+	if report.Summary.Errors != 0 || report.Summary.Status() != "passed" {
+		t.Fatalf("status = %s errors = %d, want passed/0: %#v", report.Summary.Status(), report.Summary.Errors, report.Findings)
+	}
+}
+
+func TestValidateScenarioRequiredCoveragePasses(t *testing.T) {
+	root := t.TempDir()
+	writeSearchConfig(t, root, "demo", liveProviderConfig(`{
+    "description":"c",
+    "coverage":{
+      "required_tags":["workflow"],
+      "required_tag_groups":[{"id":"incident-response","tags":["incident","debug"],"min_reviewed_positive":2}]
+    },
+    "cases":[
+      {"id":"c1","query":"real q","tags":["workflow","incident"],"expect_ids":["a"]},
+      {"id":"c2","query":"debug q","tags":["debug"],"expect_ids":["b"]},
+      {"id":"neg","query":"junk","expect_no_strong_hit":true,"expect_max_score":0.2}
+    ]
+  }`))
+
+	report, err := New(root).ValidateScenario("demo", "")
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	if hasFinding(report, CodeEvalCorpusCoverage) {
+		t.Fatalf("adequate coverage should not emit coverage finding: %#v", report.Findings)
 	}
 	if report.Summary.Status() != "passed" {
 		t.Fatalf("status = %s, want passed", report.Summary.Status())

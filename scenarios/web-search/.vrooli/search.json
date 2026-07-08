@@ -16,7 +16,9 @@
           "path": "/vrooli.web_search.v1.findings.FindingsService/SearchFindings",
           "method": "HTTP_METHOD_POST",
           "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
-          "headers": { "Content-Type": "application/json" }
+          "headers": {
+            "Content-Type": "application/json"
+          }
         }
       },
       "result_mapping": {
@@ -35,12 +37,75 @@
         "rerank_enabled": true,
         "rerank_blend": true,
         "rerank_shortlist": 50,
-        "floor": { "max_gap": 0, "hard_floor": 0 }
+        "floor": {
+          "max_gap": 0,
+          "hard_floor": 0
+        }
       },
       "tests": {
         "name": "web-search findings — semantic recall corpus",
-        "description": "Golden corpus for the findings knowledge store. Positive cases assert that a finding's id lands within expect_within_top_k for a natural-language query about its claim. The corpus is seeded at runtime by the scenario; cases here document the intended recall behavior.",
-        "cases": []
+        "description": "Reviewed corpus for stable cited findings already stored in the web-search findings database. Positives assert stored finding ids; the live web provider uses separate smoke coverage.",
+        "coverage": {
+          "required_tag_groups": [
+            {
+              "id": "language-release-findings",
+              "description": "Current external-world software release facts captured as stable cited findings.",
+              "tags": [
+                "python",
+                "rust",
+                "go"
+              ],
+              "min_reviewed_positive": 3
+            }
+          ]
+        },
+        "cases": [
+          {
+            "id": "python-latest-release",
+            "query": "latest stable Python release",
+            "tags": [
+              "strong",
+              "python"
+            ],
+            "expect_ids": [
+              "4abddafe-e394-4497-ad54-9154cfb70e35"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "rust-latest-release",
+            "query": "latest stable Rust programming language release",
+            "tags": [
+              "weak-real",
+              "rust"
+            ],
+            "expect_ids": [
+              "91a82eca-db2c-457a-a5b3-8ed9f4e18d2c"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "go-current-version",
+            "query": "current stable Go version",
+            "tags": [
+              "hard",
+              "go"
+            ],
+            "expect_ids": [
+              "67d677d8-6f4-4b44-99a6-62b23507adaa"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "junk-gibberish",
+            "query": "florbnax qwop zxcv external nonsense",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.3
+          }
+        ]
       }
     },
     {
@@ -57,7 +122,9 @@
           "path": "/vrooli.web_search.v1.livesearch.LiveSearchService/Search",
           "method": "HTTP_METHOD_POST",
           "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"synthesize\":false}",
-          "headers": { "Content-Type": "application/json" }
+          "headers": {
+            "Content-Type": "application/json"
+          }
         }
       },
       "result_mapping": {
@@ -72,6 +139,20 @@
       "tuning": {
         "engine": "dense",
         "embed_model": "nomic-embed-text"
+      },
+      "tests": {
+        "name": "web-search live — reachability smoke corpus",
+        "description": "Smoke-only corpus for the volatile live web provider. It proves controlled reachability for explicit external searches without pretending raw web recall is deterministic.",
+        "cases": [
+          {
+            "id": "official-python-release-notes-smoke",
+            "query": "official Python release notes",
+            "tags": [
+              "smoke",
+              "reachability"
+            ]
+          }
+        ]
       }
     }
   ]

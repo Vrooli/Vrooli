@@ -81,10 +81,26 @@
         "mrr_at": 3,
         "deep_k": 50
       },
-      "tests": {
-        "name": "business-health intent — primary golden corpus",
-        "description": "RANK-CENTRIC golden corpus for the fleet intent index. Positive cases assert expect_ids (corpus record ids: '<scenario>/prd' for purpose docs, '<scenario>/<OT-ID>' for targets, '<scenario>/<REQ-ID>' for requirements) within expect_within_top_k. No absolute score bands on positives (rank-centric across score regimes). Gibberish negatives feed the junk-rejection constraint. Two phrasings families: capability-dedup ('which scenario handles X' — cell #34) and intent ('what is Y supposed to deliver' — cell #22).",
-        "cases": [
+    "tests": {
+      "name": "business-health intent — primary golden corpus",
+      "description": "RANK-CENTRIC golden corpus for the fleet intent index. Positive cases assert expect_ids (corpus record ids: '<scenario>/prd' for purpose docs, '<scenario>/<OT-ID>' for targets, '<scenario>/<REQ-ID>' for requirements) within expect_within_top_k. No absolute score bands on positives (rank-centric across score regimes). Gibberish negatives feed the junk-rejection constraint. Two phrasings families: capability-dedup ('which scenario handles X' — cell #34) and intent ('what is Y supposed to deliver' — cell #22).",
+      "coverage": {
+        "required_tag_groups": [
+          {
+            "id": "capability-routing",
+            "description": "Questions that identify which scenario owns a capability.",
+            "tags": ["capability"],
+            "min_reviewed_positive": 4
+          },
+          {
+            "id": "intent-purpose",
+            "description": "Questions that retrieve scenario purpose, requirements, or operational targets.",
+            "tags": ["intent"],
+            "min_reviewed_positive": 4
+          }
+        ]
+      },
+      "cases": [
           {
             "id": "capability-image-processing",
             "query": "which scenario resizes converts and edits images",
@@ -145,9 +161,10 @@
           {
             "id": "capability-speech-to-text",
             "query": "where should I build speech to text transcription features",
-            "tags": [
-              "capability"
-            ],
+        "tags": [
+          "hard",
+          "capability"
+        ],
             "expect_ids": [
               "audio-tools/prd",
               "audio-tools/OT-P0-001"
@@ -158,9 +175,10 @@
           {
             "id": "capability-suite-runner",
             "query": "which scenario runs the test suites and phases for every scenario",
-            "tags": [
-              "capability"
-            ],
+        "tags": [
+          "weak-real",
+          "capability"
+        ],
             "expect_ids": [
               "test-genie/prd",
               "test-genie/OT-P0-001"
@@ -183,9 +201,10 @@
           {
             "id": "intent-web-console-purpose",
             "query": "why does the web console scenario exist and what does it promise",
-            "tags": [
-              "intent"
-            ],
+        "tags": [
+          "hard",
+          "intent"
+        ],
             "expect_ids": [
               "web-console/prd"
             ],
@@ -218,9 +237,10 @@
           {
             "id": "intent-search-hub-federation",
             "query": "what does search-hub promise about federated provider routing",
-            "tags": [
-              "intent"
-            ],
+        "tags": [
+          "weak-real",
+          "intent"
+        ],
             "expect_ids": [
               "search-hub/prd"
             ],

@@ -76,10 +76,21 @@
       },
       {
         "id": "L3",
-        "name": "Search maturity clean",
-        "description": "Search descriptor and quality checks are clean.",
+        "name": "Search maturity baseline clean",
+        "description": "Search descriptor and baseline quality checks are clean enough for ordinary routing.",
         "entry_criteria": [
           "No required search maturity findings remain."
+        ],
+        "exit_criteria": [
+          "Production-quality AI search evidence is present."
+        ]
+      },
+      {
+        "id": "L4",
+        "name": "Search maturity production-ready",
+        "description": "Search providers have credible reviewed corpora, fresh live evidence, operational endpoint posture, tuning provenance, and enforced performance posture.",
+        "entry_criteria": [
+          "No production-readiness search maturity findings remain."
         ],
         "exit_criteria": [
           "Maximum local search maturity."
@@ -122,6 +133,13 @@
             "status_label": "Complete",
             "description": "Search descriptor checks are clean.",
             "capability_summary": "Search descriptor maturity is clean."
+          },
+          {
+            "id": "L4",
+            "name": "Search descriptor production-ready",
+            "status_label": "Production",
+            "description": "Search descriptor checks are production-ready.",
+            "capability_summary": "Search descriptor maturity is production-ready."
           }
         ]
       },
@@ -152,6 +170,13 @@
             "status_label": "Complete",
             "description": "Search governance checks are clean.",
             "capability_summary": "Search governance maturity is clean."
+          },
+          {
+            "id": "L3",
+            "name": "Search governance production-ready",
+            "status_label": "Production",
+            "description": "Search governance checks are production-ready.",
+            "capability_summary": "Search governance maturity is production-ready."
           }
         ]
       },
@@ -178,10 +203,17 @@
           },
           {
             "id": "L2",
-            "name": "Search eval evidence clean",
+            "name": "Search eval evidence baseline clean",
             "status_label": "Complete",
             "description": "Static eval corpus checks are clean. Live eval execution is reported separately when explicitly requested.",
             "capability_summary": "Search eval-performance maturity is clean."
+          },
+          {
+            "id": "L3",
+            "name": "Search eval evidence production-ready",
+            "status_label": "Production",
+            "description": "Reviewed corpus size, difficulty spread, live labels, fresh runs, and performance evidence prove production-quality retrieval.",
+            "capability_summary": "Search eval-performance maturity is production-ready."
           }
         ]
       },
@@ -208,10 +240,17 @@
           },
           {
             "id": "L2",
-            "name": "Search operability clean",
+            "name": "Search operability baseline clean",
             "status_label": "Complete",
             "description": "Search operability checks are clean.",
             "capability_summary": "Search operability maturity is clean."
+          },
+          {
+            "id": "L3",
+            "name": "Search operability production-ready",
+            "status_label": "Production",
+            "description": "Endpoint posture, tuning provenance, and measured latency/degradation budgets are production-ready.",
+            "capability_summary": "Search operability maturity is production-ready."
           }
         ]
       }
@@ -323,16 +362,29 @@
       },
       "SEARCH_EVAL_CORPUS_THIN": {
         "capability_id": "search_eval_performance",
-        "local_level_impact": "L1",
+        "local_level_impact": "L3",
         "global_impact": "hardening_gap",
         "dimension": "operational-targets",
         "severity_default": "SEVERITY_WARNING",
-        "clean_requirement": "advisory",
+        "clean_requirement": "required",
         "recommended_skill_ids": [
           "test"
         ],
         "fix_class": "manual",
-        "reason": "Duplicate queries and single-band difficulty over-report recall but are overfit debt, not a hard gate."
+        "reason": "Duplicate queries and single-band difficulty over-report recall; production certification requires a reviewed corpus with coverage depth."
+      },
+      "SEARCH_EVAL_CORPUS_COVERAGE": {
+        "capability_id": "search_eval_performance",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "fix_class": "manual",
+        "reason": "Declared provider coverage groups are production-readiness evidence; satisfying them requires provider-owner review."
       },
       "SEARCH_EVAL_RUN_MISSING": {
         "capability_id": "search_eval_performance",
@@ -442,29 +494,29 @@
       },
       "SEARCH_STATUS_ENDPOINT_MISSING": {
         "capability_id": "search_operability",
-        "local_level_impact": "L0",
+        "local_level_impact": "L3",
         "global_impact": "hardening_gap",
         "dimension": "operational-targets",
         "severity_default": "SEVERITY_WARNING",
-        "clean_requirement": "advisory",
+        "clean_requirement": "required",
         "recommended_skill_ids": [
           "failure-topography-and-graceful-degradation"
         ],
         "fix_class": "manual",
-        "reason": "Status endpoint shape depends on the provider's live indexing architecture."
+        "reason": "Production readiness requires a declared readiness posture; endpoint shape depends on the provider's live indexing architecture."
       },
       "SEARCH_CONTROL_ENDPOINT_MISSING": {
         "capability_id": "search_operability",
-        "local_level_impact": "L0",
+        "local_level_impact": "L3",
         "global_impact": "hardening_gap",
         "dimension": "operational-targets",
         "severity_default": "SEVERITY_WARNING",
-        "clean_requirement": "advisory",
+        "clean_requirement": "required",
         "recommended_skill_ids": [
           "failure-topography-and-graceful-degradation"
         ],
         "fix_class": "manual",
-        "reason": "Config write-back support is optional: hybrid-by-construction corpora legitimately pin their tuning and expose no config endpoint."
+        "reason": "Production readiness requires either config write-back or a validated pinned/non-writable reason; the descriptor must make that posture explicit."
       },
       "SEARCH_PERF_BUDGET_UNPROVEN": {
         "capability_id": "search_operability",
@@ -481,29 +533,29 @@
       },
       "SEARCH_PERF_BUDGET_BREACH": {
         "capability_id": "search_operability",
-        "local_level_impact": "L1",
+        "local_level_impact": "L3",
         "global_impact": "hardening_gap",
         "dimension": "operational-targets",
         "severity_default": "SEVERITY_WARNING",
-        "clean_requirement": "advisory",
+        "clean_requirement": "required",
         "recommended_skill_ids": [
           "performance"
         ],
         "fix_class": "manual",
-        "reason": "Eval-run p95 latency is a small, noisy sample; a budget breach is surfaced as operability debt, not a hard gate."
+        "reason": "Production readiness requires measured performance to satisfy the provider's declared p95 budget."
       },
       "SEARCH_PERF_DEGRADED": {
         "capability_id": "search_operability",
-        "local_level_impact": "L1",
+        "local_level_impact": "L3",
         "global_impact": "hardening_gap",
         "dimension": "operational-targets",
         "severity_default": "SEVERITY_WARNING",
-        "clean_requirement": "advisory",
+        "clean_requirement": "required",
         "recommended_skill_ids": [
           "failure-topography-and-graceful-degradation"
         ],
         "fix_class": "manual",
-        "reason": "Empty-result rate above the declared budget signals coverage or availability gaps needing investigation."
+        "reason": "Production readiness requires empty-result degradation to stay within the provider's declared budget."
       },
       "SEARCH_TUNING_BUDGET_INVALID": {
         "capability_id": "search_operability",

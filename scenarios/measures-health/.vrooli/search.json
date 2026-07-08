@@ -9,13 +9,16 @@
       "type": "measure",
       "description": "Analytical measures across every scenario: typed, parameterized questions whose answer is a computed value — \"how many / what is the rate / what is next\" (for example \"how many backlog items did we complete this week\", \"what is on my calendar next week\"). Route analytical/quantitative questions here; the provider matches the measure, resolves its parameters, and returns the computed answer for safe read-only measures.",
       "scope": "SCOPE_PROJECT",
+      "class": "local_live",
       "endpoint": {
         "http_json": {
           "scenario_id": "measures-health",
           "path": "/vrooli.measures_health.v1.search.SearchService/Search",
           "method": "HTTP_METHOD_POST",
           "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
-          "headers": { "Content-Type": "application/json" }
+          "headers": {
+            "Content-Type": "application/json"
+          }
         }
       },
       "status_endpoint": {
@@ -24,7 +27,9 @@
           "path": "/vrooli.measures_health.v1.search.SearchService/Status",
           "method": "HTTP_METHOD_POST",
           "body_template": "{}",
-          "headers": { "Content-Type": "application/json" }
+          "headers": {
+            "Content-Type": "application/json"
+          }
         }
       },
       "result_mapping": {
@@ -41,7 +46,77 @@
         "embed_model": "nomic-embed-text",
         "embed_task_prefix": true,
         "rerank_enabled": false,
-        "floor": { "max_gap": 0, "hard_floor": 0 }
+        "floor": {
+          "max_gap": 0,
+          "hard_floor": 0
+        }
+      },
+      "tests": {
+        "name": "measures-health measures — primary golden corpus",
+        "description": "Reviewed starter corpus for the central measures provider. Positive cases exercise analytical measure matching; the negative proves junk rejection without executing a measure.",
+        "coverage": {
+          "required_tag_groups": [
+            {
+              "id": "analytical-measures",
+              "description": "Quantitative questions that should route to declared scenario measures.",
+              "tags": [
+                "count",
+                "coverage",
+                "rate"
+              ],
+              "min_reviewed_positive": 2
+            }
+          ]
+        },
+        "cases": [
+          {
+            "id": "failed-measures-count",
+            "query": "how many scenarios failed measures validation this week",
+            "tags": [
+              "strong",
+              "count"
+            ],
+            "expect_ids": [
+              "validation_run.failed"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "measures-coverage",
+            "query": "what is the measures coverage across the fleet",
+            "tags": [
+              "weak-real",
+              "coverage"
+            ],
+            "expect_ids": [
+              "validation_run.coverage"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "adoption-rate",
+            "query": "measure adoption rate by scenario",
+            "tags": [
+              "hard",
+              "rate"
+            ],
+            "expect_ids": [
+              "measures.validation.coverage"
+            ],
+            "expect_within_top_k": 5,
+            "status": "candidate",
+            "note": "Candidate until a distinct adoption-rate measure id exists; coverage currently answers this family."
+          },
+          {
+            "id": "junk-gibberish",
+            "query": "florbnax qwop zxcv analytical nonsense",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.3
+          }
+        ]
       }
     }
   ]

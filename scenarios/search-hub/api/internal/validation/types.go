@@ -18,6 +18,7 @@ const (
 	CodeEvalCorpusInvalid       = "SEARCH_EVAL_CORPUS_INVALID"
 	CodeEvalCorpusInadequate    = "SEARCH_EVAL_CORPUS_INADEQUATE"
 	CodeEvalCorpusThin          = "SEARCH_EVAL_CORPUS_THIN"
+	CodeEvalCorpusCoverage      = "SEARCH_EVAL_CORPUS_COVERAGE"
 	CodeEvalRunMissing          = "SEARCH_EVAL_RUN_MISSING"
 	CodeEvalRunStale            = "SEARCH_EVAL_RUN_STALE"
 	CodeEvalRunOutdated         = "SEARCH_EVAL_RUN_OUTDATED"

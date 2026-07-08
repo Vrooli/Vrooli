@@ -9,6 +9,7 @@
       "type": "dependency",
       "description": "Third-party dependency/package selection and governance — which package to use for a purpose (for example \"a React forms library\", \"a Go HTTP router\", \"image resizing\"), the approved version ranges, and which packages are denied or vulnerable. Route here for 'what dependency/package/library should I use for X' and 'is package Y approved'. Do NOT route here for prior-work records, CLI commands, skills, docs, or scenario status.",
       "scope": "SCOPE_PROJECT",
+      "class": "local_index",
       "endpoint": {
         "http_json": {
           "scenario_id": "scenario-dependency-analyzer",
@@ -72,14 +73,50 @@
             "query": "connect rpc client and server",
             "tags": [
               "strong",
-              "go"
+              "go",
+              "package-governance"
             ],
             "expect_ids": [
-              "connect"
+              "@connectrpc/connect-web",
+              "@connectrpc/connect",
+              "connectrpc.com/connect"
             ],
             "expect_within_top_k": 5
+          },
+          {
+            "id": "gibberish-1",
+            "query": "asdfqwer zxcvbnm qwertyuiop florbnax",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.3,
+            "note": "Junk rejection: nonsense must not surface a confident hit."
           }
-        ]
+        ],
+        "coverage": {
+          "required_tag_groups": [
+            {
+              "id": "package-governance",
+              "description": "Approved dependency lookup and package-purpose governance.",
+              "tags": [
+                "go",
+                "package-governance"
+              ],
+              "min_reviewed_positive": 1
+            }
+          ]
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
       }
     },
     {
@@ -89,6 +126,7 @@
       "type": "scenarios",
       "description": "Scenario connection graph — what a scenario depends on and what depends on it (its reverse dependents). Route here for 'what does X depend on', 'what depends on X', 'X's dependencies / dependents', and the cross-scenario dependency/connection graph. Do NOT route here for a scenario's purpose, anatomy, responsibilities, or internal domains — that is architecture-cartographer's domain-map. Connection-only.",
       "scope": "SCOPE_PROJECT",
+      "class": "local_index",
       "endpoint": {
         "http_json": {
           "scenario_id": "scenario-dependency-analyzer",
@@ -181,7 +219,8 @@
             "id": "depends-on-prompt-manager",
             "query": "what depends on prompt-manager",
             "tags": [
-              "strong"
+              "strong",
+              "reverse"
             ],
             "expect_ids": [
               "prompt-manager"
@@ -298,7 +337,31 @@
             "expect_no_strong_hit": true,
             "note": "Junk rejection: no scenario should surface confidently for nonsense."
           }
-        ]
+        ],
+        "coverage": {
+          "required_tag_groups": [
+            {
+              "id": "scenario-connections",
+              "description": "Forward and reverse scenario dependency queries.",
+              "tags": [
+                "headline",
+                "reverse",
+                "weak-real"
+              ],
+              "min_reviewed_positive": 3
+            }
+          ]
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
       }
     },
     {
@@ -308,6 +371,7 @@
       "type": "resources",
       "description": "Local resource usage — which scenarios use a given local resource (postgres, redis, qdrant, ollama, vault, minio, ...). Route here for 'which scenarios use postgres', 'what uses qdrant', 'who uses resource Y'. Do NOT route here for third-party package/dependency selection (that is the dependency leaf) or scenario-to-scenario connections (that is the scenarios leaf).",
       "scope": "SCOPE_PROJECT",
+      "class": "local_index",
       "endpoint": {
         "http_json": {
           "scenario_id": "scenario-dependency-analyzer",
@@ -516,7 +580,30 @@
             "expect_no_strong_hit": true,
             "note": "Junk rejection: no resource should surface confidently for nonsense."
           }
-        ]
+        ],
+        "coverage": {
+          "required_tag_groups": [
+            {
+              "id": "resource-usage",
+              "description": "Local resource usage lookup queries.",
+              "tags": [
+                "headline",
+                "weak-real"
+              ],
+              "min_reviewed_positive": 3
+            }
+          ]
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
       }
     }
   ]

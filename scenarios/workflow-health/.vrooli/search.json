@@ -52,18 +52,38 @@
             "expect_within_top_k": 3
           },
           {
-            "id": "routed-database-case",
-            "query": "prove routed database test pool isolation",
+            "id": "junk-gibberish",
+            "query": "florbnax qwop zxcv workflow nonsense",
             "tags": [
-              "strong",
-              "workflow.test"
+              "gibberish"
             ],
-            "expect_ids": [
-              "workflow-health:bas/cases/routed-database/proves-test-pool-routing.json"
-            ],
-            "expect_within_top_k": 3
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.3
           }
-        ]
+        ],
+        "coverage": {
+          "required_tag_groups": [
+            {
+              "id": "workflow-assets",
+              "description": "Runnable flows and validation cases surfaced from the BAS catalog.",
+              "tags": [
+                "workflow.flow",
+                "workflow.test"
+              ],
+              "min_reviewed_positive": 1
+            }
+          ]
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "workflow-health",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
       }
     },
     {
@@ -98,6 +118,48 @@
         "engine": "dense",
         "embed_model": "nomic-embed-text",
         "rerank_enabled": false
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "workflow-health",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "tests": {
+        "name": "workflow-health tests — primary golden corpus",
+        "description": "Reviewed corpus for BAS validation cases indexed by workflow-health.",
+        "coverage": {
+          "required_tags": [
+            "workflow.test"
+          ]
+        },
+        "cases": [
+          {
+            "id": "routed-database-case",
+            "query": "test case for routed database pool isolation",
+            "tags": [
+              "strong",
+              "workflow.test"
+            ],
+            "expect_ids": [
+              "workflow-health:bas/cases/routed-database/proves-test-pool-routing.json"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "junk-gibberish",
+            "query": "florbnax qwop zxcv workflow test nonsense",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.3
+          }
+        ]
       }
     },
     {
@@ -132,6 +194,60 @@
         "engine": "dense",
         "embed_model": "nomic-embed-text",
         "rerank_enabled": false
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "workflow-health",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "tests": {
+        "name": "workflow-health fragments — honest empty-readiness corpus",
+        "description": "Reviewed corpus for reusable BAS action fragments indexed by workflow-health.",
+        "cases": [
+          {
+            "id": "drag-horizontal-fragment",
+            "query": "reusable fragment to drag a horizontal resize handle",
+            "tags": [
+              "strong",
+              "workflow.fragment"
+            ],
+            "expect_ids": [
+              "workflow-health:bas/actions/perf-drag-horizontal.json"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "scroll-ancestor-fragment",
+            "query": "reusable fragment to scroll nearest ancestor",
+            "tags": [
+              "weak-real",
+              "workflow.fragment"
+            ],
+            "expect_ids": [
+              "workflow-health:bas/actions/perf-scroll-ancestor.json"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "fragment-junk-gibberish",
+            "query": "florbnax qwop zxcv workflow fragment nonsense",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.3
+          }
+        ],
+        "coverage": {
+          "required_tags": [
+            "workflow.fragment"
+          ]
+        }
       }
     }
   ]

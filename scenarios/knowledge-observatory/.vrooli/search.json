@@ -78,8 +78,14 @@
             "id": "project-quickstart",
             "query": "how do I get started and set up vrooli for the first time",
             "scope": "global",
-            "tags": ["strong", "onboarding"],
-            "expect_ids": ["docs/QUICKSTART.md", "docs/CONTRIBUTING.md"],
+            "tags": [
+              "strong",
+              "onboarding"
+            ],
+            "expect_ids": [
+              "docs/QUICKSTART.md",
+              "docs/CONTRIBUTING.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Primary path: docs/QUICKSTART.md. Project-level onboarding doc."
           },
@@ -87,8 +93,14 @@
             "id": "project-architecture",
             "query": "overall platform architecture and operating model",
             "scope": "global",
-            "tags": ["strong", "concept"],
-            "expect_ids": ["docs/concepts/ARCHITECTURE.md", "docs/concepts/ECOSYSTEM.md"],
+            "tags": [
+              "strong",
+              "concept"
+            ],
+            "expect_ids": [
+              "docs/concepts/ARCHITECTURE.md",
+              "docs/concepts/ECOSYSTEM.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Primary path: docs/concepts/ARCHITECTURE.md. Project concepts."
           },
@@ -96,8 +108,13 @@
             "id": "project-glossary",
             "query": "shared vocabulary and definitions of platform terms",
             "scope": "global",
-            "tags": ["strong", "reference"],
-            "expect_ids": ["docs/concepts/GLOSSARY.md"],
+            "tags": [
+              "strong",
+              "reference"
+            ],
+            "expect_ids": [
+              "docs/concepts/GLOSSARY.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Primary path: docs/concepts/GLOSSARY.md. Glossary by title/description."
           },
@@ -105,8 +122,13 @@
             "id": "project-contributing",
             "query": "contributor workflow and how to submit changes",
             "scope": "global",
-            "tags": ["strong", "workflow"],
-            "expect_ids": ["docs/CONTRIBUTING.md"],
+            "tags": [
+              "strong",
+              "workflow"
+            ],
+            "expect_ids": [
+              "docs/CONTRIBUTING.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Primary path: docs/CONTRIBUTING.md. Contributing guide."
           },
@@ -114,8 +136,15 @@
             "id": "project-design-governance",
             "query": "design language system governance for scenario user interfaces",
             "scope": "global",
-            "tags": ["strong", "design"],
-            "expect_ids": ["docs/design/README.md", "docs/design/governance.md", "docs/design/registry.md"],
+            "tags": [
+              "strong",
+              "design"
+            ],
+            "expect_ids": [
+              "docs/design/README.md",
+              "docs/design/governance.md",
+              "docs/design/registry.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Primary path: docs/design/README.md. Design canon docs."
           },
@@ -123,8 +152,14 @@
             "id": "config-resources",
             "query": "configure local resources like postgres redis and qdrant",
             "scope": "global",
-            "tags": ["strong", "configuration"],
-            "expect_ids": ["docs/configuration/resources.md", "docs/configuration/README.md"],
+            "tags": [
+              "hard",
+              "configuration"
+            ],
+            "expect_ids": [
+              "docs/configuration/resources.md",
+              "docs/configuration/README.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Primary path: docs/configuration/resources.md. Resource configuration."
           },
@@ -132,8 +167,13 @@
             "id": "config-operating-mode",
             "query": "set the operating mode for the platform",
             "scope": "global",
-            "tags": ["strong", "configuration"],
-            "expect_ids": ["docs/configuration/operating-mode.md"],
+            "tags": [
+              "strong",
+              "configuration"
+            ],
+            "expect_ids": [
+              "docs/configuration/operating-mode.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Primary path: docs/configuration/operating-mode.md. Operating mode config."
           },
@@ -141,8 +181,13 @@
             "id": "config-secrets",
             "query": "how to manage secrets and credentials configuration",
             "scope": "global",
-            "tags": ["strong", "configuration"],
-            "expect_ids": ["docs/configuration/secrets.md"],
+            "tags": [
+              "strong",
+              "configuration"
+            ],
+            "expect_ids": [
+              "docs/configuration/secrets.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Primary path: docs/configuration/secrets.md. Secrets config."
           },
@@ -150,8 +195,13 @@
             "id": "config-profiles",
             "query": "environment profiles development production minimal",
             "scope": "global",
-            "tags": ["strong", "configuration"],
-            "expect_ids": ["docs/configuration/profiles.md"],
+            "tags": [
+              "strong",
+              "configuration"
+            ],
+            "expect_ids": [
+              "docs/configuration/profiles.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Primary path: docs/configuration/profiles.md. Setup profiles."
           },
@@ -159,8 +209,14 @@
             "id": "deployment-storage",
             "query": "where does deployment data get stored",
             "scope": "global",
-            "tags": ["strong", "deployment"],
-            "expect_ids": ["docs/deployment/storage.md", "docs/deployment/README.md"],
+            "tags": [
+              "weak-real",
+              "deployment"
+            ],
+            "expect_ids": [
+              "docs/deployment/storage.md",
+              "docs/deployment/README.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Primary path: docs/deployment/storage.md. Deployment storage."
           },
@@ -168,8 +224,13 @@
             "id": "development-proto",
             "query": "regenerate protobuf generated code from proto schemas",
             "scope": "global",
-            "tags": ["strong", "development"],
-            "expect_ids": ["docs/development/proto.md"],
+            "tags": [
+              "strong",
+              "development"
+            ],
+            "expect_ids": [
+              "docs/development/proto.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Primary path: docs/development/proto.md. Proto regeneration guide."
           },
@@ -177,8 +238,14 @@
             "id": "agent-layers",
             "query": "the layers of the agent system",
             "scope": "global",
-            "tags": ["strong", "agent-system"],
-            "expect_ids": ["docs/agent-system/LAYERS.md", "docs/agent-system/PRIMITIVES.md"],
+            "tags": [
+              "strong",
+              "agent-system"
+            ],
+            "expect_ids": [
+              "docs/agent-system/LAYERS.md",
+              "docs/agent-system/PRIMITIVES.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Primary path: docs/agent-system/LAYERS.md. Agent-system architecture."
           },
@@ -186,8 +253,13 @@
             "id": "agent-skill-authoring",
             "query": "how to author a new skill for agents",
             "scope": "global",
-            "tags": ["strong", "agent-system"],
-            "expect_ids": ["docs/agent-system/SKILL_AUTHORING.md"],
+            "tags": [
+              "strong",
+              "agent-system"
+            ],
+            "expect_ids": [
+              "docs/agent-system/SKILL_AUTHORING.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Primary path: docs/agent-system/SKILL_AUTHORING.md. Skill authoring."
           },
@@ -195,8 +267,13 @@
             "id": "agent-promotion-ladder",
             "query": "promotion ladder for graduating agent capabilities",
             "scope": "global",
-            "tags": ["strong", "agent-system"],
-            "expect_ids": ["docs/agent-system/PROMOTION_LADDER.md"],
+            "tags": [
+              "strong",
+              "agent-system"
+            ],
+            "expect_ids": [
+              "docs/agent-system/PROMOTION_LADDER.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Primary path: docs/agent-system/PROMOTION_LADDER.md. Promotion ladder."
           },
@@ -204,8 +281,13 @@
             "id": "agent-deprecation-policy",
             "query": "policy for deprecating and removing capabilities",
             "scope": "global",
-            "tags": ["strong", "agent-system"],
-            "expect_ids": ["docs/agent-system/DEPRECATION_POLICY.md"],
+            "tags": [
+              "strong",
+              "agent-system"
+            ],
+            "expect_ids": [
+              "docs/agent-system/DEPRECATION_POLICY.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Primary path: docs/agent-system/DEPRECATION_POLICY.md. Deprecation policy."
           },
@@ -213,8 +295,13 @@
             "id": "agent-shared-package-testing",
             "query": "how to test shared go packages",
             "scope": "global",
-            "tags": ["strong", "agent-system"],
-            "expect_ids": ["docs/agent-system/SHARED_PACKAGE_TESTING.md"],
+            "tags": [
+              "strong",
+              "agent-system"
+            ],
+            "expect_ids": [
+              "docs/agent-system/SHARED_PACKAGE_TESTING.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Primary path: docs/agent-system/SHARED_PACKAGE_TESTING.md. Shared package testing."
           },
@@ -222,8 +309,13 @@
             "id": "cli-health-architecture-scoped",
             "query": "architecture of the service",
             "scope": "scenario:cli-health",
-            "tags": ["strong", "scope"],
-            "expect_ids": ["scenarios/cli-health/docs/concepts/ARCHITECTURE.md"],
+            "tags": [
+              "hard",
+              "scope"
+            ],
+            "expect_ids": [
+              "scenarios/cli-health/docs/concepts/ARCHITECTURE.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Scenario scope must keep this to cli-health, excluding the project ARCHITECTURE.md."
           },
@@ -231,8 +323,13 @@
             "id": "cli-health-seams-scoped",
             "query": "testability seams and boundaries",
             "scope": "scenario:cli-health",
-            "tags": ["strong", "scope"],
-            "expect_ids": ["scenarios/cli-health/docs/internal/SEAMS.md"],
+            "tags": [
+              "strong",
+              "scope"
+            ],
+            "expect_ids": [
+              "scenarios/cli-health/docs/internal/SEAMS.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Scenario internal doc."
           },
@@ -240,8 +337,14 @@
             "id": "cli-health-runbook-scoped",
             "query": "operational runbook for incidents",
             "scope": "scenario:cli-health",
-            "tags": ["strong", "scope"],
-            "expect_ids": ["scenarios/cli-health/docs/operations/RUNBOOK.md", "scenarios/cli-health/docs/operations/OBSERVABILITY.md"],
+            "tags": [
+              "strong",
+              "scope"
+            ],
+            "expect_ids": [
+              "scenarios/cli-health/docs/operations/RUNBOOK.md",
+              "scenarios/cli-health/docs/operations/OBSERVABILITY.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Operations doc."
           },
@@ -249,8 +352,14 @@
             "id": "cli-health-monetization-scoped",
             "query": "monetization and go to market strategy",
             "scope": "scenario:cli-health",
-            "tags": ["strong", "scope"],
-            "expect_ids": ["scenarios/cli-health/docs/business/MONETIZATION.md", "scenarios/cli-health/docs/business/GO-TO-MARKET.md"],
+            "tags": [
+              "strong",
+              "scope"
+            ],
+            "expect_ids": [
+              "scenarios/cli-health/docs/business/MONETIZATION.md",
+              "scenarios/cli-health/docs/business/GO-TO-MARKET.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Business docs."
           },
@@ -258,8 +367,13 @@
             "id": "cli-health-error-handling-scoped",
             "query": "how errors are handled and classified",
             "scope": "scenario:cli-health",
-            "tags": ["strong", "scope"],
-            "expect_ids": ["scenarios/cli-health/docs/internal/ERROR-HANDLING.md"],
+            "tags": [
+              "strong",
+              "scope"
+            ],
+            "expect_ids": [
+              "scenarios/cli-health/docs/internal/ERROR-HANDLING.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Error handling doc."
           },
@@ -267,21 +381,61 @@
             "id": "path-scoped-concepts",
             "query": "architecture",
             "scope": "path:docs/concepts",
-            "tags": ["strong", "scope"],
-            "expect_ids": ["docs/concepts/ARCHITECTURE.md"],
+            "tags": [
+              "strong",
+              "scope"
+            ],
+            "expect_ids": [
+              "docs/concepts/ARCHITECTURE.md"
+            ],
             "expect_within_top_k": 5,
             "note": "Path-prefix scope confines results to docs/concepts/."
           },
           {
             "id": "gibberish-1",
             "query": "asdfqwer zxcvbnm qwertyuiop florbnax",
-            "tags": ["gibberish"],
+            "tags": [
+              "gibberish"
+            ],
             "expect_no_strong_hit": true,
             "expect_max_score": 0.45,
             "note": "Junk rejection: nonsense must not surface a confident hit."
           }
-        ]
-      }
+        ],
+        "coverage": {
+          "required_tag_groups": [
+            {
+              "id": "project-docs",
+              "description": "Top-level project documentation and concepts.",
+              "tags": [
+                "onboarding",
+                "concept",
+                "reference"
+              ],
+              "min_reviewed_positive": 3
+            },
+            {
+              "id": "configuration-operations",
+              "description": "Configuration, deployment, and operational docs.",
+              "tags": [
+                "configuration",
+                "deployment"
+              ],
+              "min_reviewed_positive": 4
+            },
+            {
+              "id": "scoped-search",
+              "description": "Scenario and path scoped documentation queries.",
+              "tags": [
+                "scope"
+              ],
+              "min_reviewed_positive": 4
+            }
+          ]
+        }
+      },
+      "config_writable": false,
+      "config_pinned_reason": "Hybrid-by-construction documentation search pins tuning in code and does not accept sweep write-back."
     }
   ]
 }

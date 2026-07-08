@@ -205,7 +205,7 @@ func validateProviderOperationalPosture(report *Report, providerPath string, pro
 		// Without a class the endpoint posture is undecidable; still validate the
 		// class-independent corpus and tuning below.
 	} else {
-		validateEndpointPosture(report, providerPath, provider, class)
+		validateEndpointPosture(report, providerPath, provider, class, extras)
 	}
 	validateEvalCorpus(report, providerPath, provider, extras)
 	validateTuningBudget(report, providerPath, extras)
@@ -220,7 +220,7 @@ func validateProviderOperationalPosture(report *Report, providerPath string, pro
 //     required (Search Hub must be able to reconcile and re-evaluate the corpus);
 //     a config write-back endpoint is advisory (hybrid-by-construction corpora
 //     legitimately pin their tuning and expose none).
-func validateEndpointPosture(report *Report, providerPath string, provider *registryv1.ProviderDescriptor, class string) {
+func validateEndpointPosture(report *Report, providerPath string, provider *registryv1.ProviderDescriptor, class string, extras providerExtras) {
 	if class == aisearch.ClassExternal {
 		return
 	}
@@ -249,6 +249,9 @@ func validateEndpointPosture(report *Report, providerPath string, provider *regi
 		})
 	}
 	if provider.GetConfigEndpoint() == nil {
+		if extras.ConfigWritable != nil && !*extras.ConfigWritable && strings.TrimSpace(extras.ConfigPinnedReason) != "" {
+			return
+		}
 		report.add(Finding{
 			Code:        CodeControlEndpointMissing,
 			Severity:    SeverityWarning,
@@ -272,6 +275,8 @@ func validateEvalCorpus(report *Report, providerPath string, provider *registryv
 		})
 		return
 	}
+	externalSmokeOnly := isExternalSmokeProvider(provider, extras)
+	smokeCases := 0
 	if strings.TrimSpace(extras.Tests.Description) == "" {
 		report.add(Finding{
 			Code:        CodeEvalCorpusInvalid,
@@ -295,6 +300,9 @@ func validateEvalCorpus(report *Report, providerPath string, provider *registryv
 	}
 	for i, c := range extras.Tests.Cases {
 		casePath := fmt.Sprintf("%s.tests.cases[%d]", providerPath, i)
+		if externalSmokeOnly && c.HasTag("smoke") {
+			smokeCases++
+		}
 		if strings.TrimSpace(c.ID) == "" || strings.TrimSpace(c.Query) == "" {
 			report.add(Finding{
 				Code:        CodeEvalCorpusInvalid,
@@ -305,7 +313,7 @@ func validateEvalCorpus(report *Report, providerPath string, provider *registryv
 				Remediation: "Set id and query on every eval case.",
 			})
 		}
-		if !c.ExpectNoStrongHit && len(c.ExpectIDs) == 0 {
+		if !externalSmokeOnly && !c.ExpectNoStrongHit && len(c.ExpectIDs) == 0 {
 			report.add(Finding{
 				Code:        CodeEvalCorpusInvalid,
 				Severity:    SeverityError,
@@ -326,7 +334,25 @@ func validateEvalCorpus(report *Report, providerPath string, provider *registryv
 			Remediation: "Use the default suite id or prefix custom suite_id with the provider_id.",
 		})
 	}
+	if externalSmokeOnly {
+		if smokeCases == 0 {
+			report.add(Finding{
+				Code:        CodeEvalCorpusInadequate,
+				Severity:    SeverityError,
+				Title:       "External search provider has no smoke case",
+				Message:     "Volatile external providers do not need deterministic golden recall, but they must declare at least one smoke case tagged \"smoke\" to prove controlled reachability.",
+				Location:    providerPath + ".tests.cases",
+				Remediation: "Add a smoke case with a stable, low-risk query and tag it smoke.",
+			})
+		}
+		return
+	}
 	validateCorpusAdequacy(report, providerPath, extras.Tests)
+}
+
+func isExternalSmokeProvider(provider *registryv1.ProviderDescriptor, extras providerExtras) bool {
+	return strings.EqualFold(strings.TrimSpace(extras.Class), aisearch.ClassExternal) &&
+		provider.GetScope() == registryv1.Scope_SCOPE_EXTERNAL
 }
 
 // difficultyBands mirrors the eval package's difficulty labels: a corpus whose
@@ -358,6 +384,7 @@ func validateCorpusAdequacy(report *Report, providerPath string, suite *aisearch
 	candidatePositives := 0
 	negatives := 0
 	difficulty := map[string]bool{}
+	reviewedPositiveTags := map[string]int{}
 	for _, c := range suite.Cases {
 		switch {
 		case c.ExpectNoStrongHit || c.HasTag("gibberish"):
@@ -368,6 +395,12 @@ func validateCorpusAdequacy(report *Report, providerPath string, suite *aisearch
 				continue
 			}
 			reviewedPositives++
+			for _, tag := range c.Tags {
+				tag = strings.TrimSpace(tag)
+				if tag != "" {
+					reviewedPositiveTags[tag]++
+				}
+			}
 			for _, band := range difficultyBands {
 				if c.HasTag(band) {
 					difficulty[band] = true
@@ -425,6 +458,46 @@ func validateCorpusAdequacy(report *Report, providerPath string, suite *aisearch
 			Location:    providerPath + ".tests.cases",
 			Remediation: "Tag reviewed positives across difficulty bands (strong/weak/weak-real/hard).",
 		})
+	}
+	validateCorpusCoverage(report, providerPath, suite.Coverage, reviewedPositiveTags)
+}
+
+func validateCorpusCoverage(report *Report, providerPath string, coverage aisearch.CoverageConfig, reviewedPositiveTags map[string]int) {
+	for _, tag := range coverage.RequiredTags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
+			continue
+		}
+		if reviewedPositiveTags[tag] == 0 {
+			report.add(Finding{
+				Code:        CodeEvalCorpusCoverage,
+				Severity:    SeverityWarning,
+				Title:       "Search eval corpus is missing required coverage",
+				Message:     fmt.Sprintf("required coverage tag %q has no reviewed positive case.", tag),
+				Location:    providerPath + ".tests.coverage.required_tags",
+				Remediation: "Add a reviewed positive case with the required coverage tag, or remove the requirement if this provider cannot truthfully cover it.",
+			})
+		}
+	}
+	for _, group := range coverage.RequiredTagGroups {
+		min := group.MinReviewedPositive
+		if min == 0 {
+			min = 1
+		}
+		got := 0
+		for _, tag := range group.Tags {
+			got += reviewedPositiveTags[strings.TrimSpace(tag)]
+		}
+		if got < min {
+			report.add(Finding{
+				Code:        CodeEvalCorpusCoverage,
+				Severity:    SeverityWarning,
+				Title:       "Search eval corpus is missing required coverage group",
+				Message:     fmt.Sprintf("coverage group %q needs %d reviewed positive case(s) across tags [%s], found %d.", group.ID, min, strings.Join(group.Tags, ", "), got),
+				Location:    providerPath + ".tests.coverage.required_tag_groups",
+				Remediation: "Add reviewed positive cases for this provider-owned question family, or adjust the declared coverage group to match the real provider contract.",
+			})
+		}
 	}
 }
 
@@ -903,11 +976,13 @@ type searchConfig struct {
 }
 
 type providerExtras struct {
-	Class       string                      `json:"class"`
-	Tests       *aisearch.TestSuite         `json:"tests"`
-	Tuning      *aisearch.TuningConfig      `json:"tuning"`
-	Scoring     *aisearch.ScoringConfig     `json:"scoring"`
-	Performance *aisearch.PerformanceConfig `json:"performance"`
+	Class              string                      `json:"class"`
+	ConfigWritable     *bool                       `json:"config_writable"`
+	ConfigPinnedReason string                      `json:"config_pinned_reason"`
+	Tests              *aisearch.TestSuite         `json:"tests"`
+	Tuning             *aisearch.TuningConfig      `json:"tuning"`
+	Scoring            *aisearch.ScoringConfig     `json:"scoring"`
+	Performance        *aisearch.PerformanceConfig `json:"performance"`
 }
 
 func decodeProvider(raw json.RawMessage) (*registryv1.ProviderDescriptor, providerExtras, error) {
