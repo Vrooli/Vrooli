@@ -14,6 +14,8 @@ import (
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
+const dockerCleanupManagerPlanCommand = "cleanup-manager cleanup plan --json"
+
 // DockerCheck verifies Docker daemon is responsive
 type DockerCheck struct {
 	caps     *platform.Capabilities
@@ -127,9 +129,9 @@ func (c *DockerCheck) RecoveryActions(lastResult *checks.Result) []checks.Recove
 		},
 		{
 			ID:          "prune",
-			Name:        "Prune System",
-			Description: "Remove unused Docker data (stopped containers, unused networks, dangling images)",
-			Dangerous:   true, // Removes data
+			Name:        "Plan Docker Cleanup",
+			Description: "Create a cleanup-manager plan for Docker reclaim candidates; cleanup-manager owns apply policy and audit",
+			Dangerous:   true, // Cleanup Manager apply is destructive and confirmation-gated.
 			Available:   isResponsive,
 		},
 		{
@@ -204,20 +206,11 @@ func (c *DockerCheck) ExecuteAction(ctx context.Context, actionID string) checks
 		return c.verifyRecovery(ctx, result, "start", start)
 
 	case "prune":
-		// Use docker system prune with --force to avoid interactive prompt
-		output, err := c.executor.CombinedOutput(ctx, "docker", "system", "prune", "--force")
 		result.Duration = time.Since(start)
-		result.Output = string(output)
-
-		if err != nil {
-			result.Success = false
-			result.Error = err.Error()
-			result.Message = "Failed to prune Docker system"
-			return result
-		}
-
-		result.Success = true
-		result.Message = "Docker system pruned successfully"
+		result.Success = false
+		result.Error = "cleanup requires cleanup-manager approval"
+		result.Message = "Docker cleanup is delegated to cleanup-manager; create and review a cleanup plan before applying"
+		result.Output = dockerCleanupManagerPlanCommand
 		return result
 
 	case "logs":

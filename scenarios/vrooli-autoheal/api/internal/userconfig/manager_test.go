@@ -99,6 +99,96 @@ func TestManagerLoadSave(t *testing.T) {
 	}
 }
 
+func TestManagerLoadAdoptsNewDefaultResources(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+	schemaPath := filepath.Join(tmpDir, "schema.json")
+
+	if err := os.WriteFile(configPath, []byte(`{
+		"version": "1.0",
+		"monitoring": {
+			"resources": ["postgres", "redis", "ollama", "qdrant", "searxng", "browserless"]
+		}
+	}`), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	mgr := NewManager(configPath, schemaPath)
+	if err := mgr.Load(); err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	resources := mgr.GetMonitoring().Resources
+	if !containsString(resources, "whisper") {
+		t.Fatalf("expected saved monitoring config to adopt new default resource whisper, got %v", resources)
+	}
+}
+
+func TestManagerLoadHonorsExplicitDisabledDefaultResource(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+	schemaPath := filepath.Join(tmpDir, "schema.json")
+
+	if err := os.WriteFile(configPath, []byte(`{
+		"version": "1.0",
+		"checks": {
+			"resource-whisper": {"enabled": false}
+		},
+		"monitoring": {
+			"resources": ["postgres", "redis", "ollama", "qdrant", "searxng", "browserless"]
+		}
+	}`), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	mgr := NewManager(configPath, schemaPath)
+	if err := mgr.Load(); err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	resources := mgr.GetMonitoring().Resources
+	if containsString(resources, "whisper") {
+		t.Fatalf("explicitly disabled resource whisper should stay out of monitoring, got %v", resources)
+	}
+}
+
+func TestManagerRemoveResourcePersistsExplicitDisable(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+	schemaPath := filepath.Join(tmpDir, "schema.json")
+
+	mgr := NewManager(configPath, schemaPath)
+	if err := mgr.Load(); err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if err := mgr.RemoveResource("whisper"); err != nil {
+		t.Fatalf("RemoveResource failed: %v", err)
+	}
+
+	mgr2 := NewManager(configPath, schemaPath)
+	if err := mgr2.Load(); err != nil {
+		t.Fatalf("Load after save failed: %v", err)
+	}
+
+	resources := mgr2.GetMonitoring().Resources
+	if containsString(resources, "whisper") {
+		t.Fatalf("removed resource whisper should stay out of monitoring after reload, got %v", resources)
+	}
+	if mgr2.IsCheckEnabled("resource-whisper") {
+		t.Fatal("removed resource whisper should have an explicit disabled check override")
+	}
+
+	if err := mgr2.AddResource("whisper"); err != nil {
+		t.Fatalf("AddResource failed: %v", err)
+	}
+	if !containsString(mgr2.GetMonitoring().Resources, "whisper") {
+		t.Fatalf("added resource whisper should return to monitoring, got %v", mgr2.GetMonitoring().Resources)
+	}
+	if !mgr2.IsCheckEnabled("resource-whisper") {
+		t.Fatal("added resource whisper should clear the explicit disabled state")
+	}
+}
+
 func TestManagerValidation(t *testing.T) {
 	tmpDir := t.TempDir()
 	mgr := NewManager(filepath.Join(tmpDir, "config.json"), filepath.Join(tmpDir, "schema.json"))

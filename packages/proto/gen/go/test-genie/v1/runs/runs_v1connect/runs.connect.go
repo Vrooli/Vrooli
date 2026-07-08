@@ -48,6 +48,9 @@ const (
 	// RunsServiceGetPhaseArtifactProcedure is the fully-qualified name of the RunsService's
 	// GetPhaseArtifact RPC.
 	RunsServiceGetPhaseArtifactProcedure = "/vrooli.test_genie.v1.runs.RunsService/GetPhaseArtifact"
+	// RunsServiceGetRunFindingsProcedure is the fully-qualified name of the RunsService's
+	// GetRunFindings RPC.
+	RunsServiceGetRunFindingsProcedure = "/vrooli.test_genie.v1.runs.RunsService/GetRunFindings"
 	// RunsServiceListRunVideosProcedure is the fully-qualified name of the RunsService's ListRunVideos
 	// RPC.
 	RunsServiceListRunVideosProcedure = "/vrooli.test_genie.v1.runs.RunsService/ListRunVideos"
@@ -97,6 +100,9 @@ type RunsServiceClient interface {
 	CompareRuns(context.Context, *connect.Request[runs.CompareRunsRequest]) (*connect.Response[runs.CompareRunsResponse], error)
 	// GetPhaseArtifact returns the raw phase-results JSON for a run+phase.
 	GetPhaseArtifact(context.Context, *connect.Request[runs.GetPhaseArtifactRequest]) (*connect.Response[runs.GetPhaseArtifactResponse], error)
+	// GetRunFindings returns the per-phase maturity standing (Phase Capability
+	// Contract) persisted in the run's findings.json, on demand.
+	GetRunFindings(context.Context, *connect.Request[runs.GetRunFindingsRequest]) (*connect.Response[runs.GetRunFindingsResponse], error)
 	// ListRunVideos enumerates the recorded workflow videos for a run. The bytes
 	// themselves are served over a binary REST route (videos stream rather than
 	// round-trip through proto); the rel_path here is the handle that route
@@ -222,6 +228,12 @@ func NewRunsServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(runsServiceMethods.ByName("GetPhaseArtifact")),
 			connect.WithClientOptions(opts...),
 		),
+		getRunFindings: connect.NewClient[runs.GetRunFindingsRequest, runs.GetRunFindingsResponse](
+			httpClient,
+			baseURL+RunsServiceGetRunFindingsProcedure,
+			connect.WithSchema(runsServiceMethods.ByName("GetRunFindings")),
+			connect.WithClientOptions(opts...),
+		),
 		listRunVideos: connect.NewClient[runs.ListRunVideosRequest, runs.ListRunVideosResponse](
 			httpClient,
 			baseURL+RunsServiceListRunVideosProcedure,
@@ -306,6 +318,7 @@ type runsServiceClient struct {
 	unpinRun          *connect.Client[runs.UnpinRunRequest, runs.UnpinRunResponse]
 	compareRuns       *connect.Client[runs.CompareRunsRequest, runs.CompareRunsResponse]
 	getPhaseArtifact  *connect.Client[runs.GetPhaseArtifactRequest, runs.GetPhaseArtifactResponse]
+	getRunFindings    *connect.Client[runs.GetRunFindingsRequest, runs.GetRunFindingsResponse]
 	listRunVideos     *connect.Client[runs.ListRunVideosRequest, runs.ListRunVideosResponse]
 	listRunVisuals    *connect.Client[runs.ListRunVisualsRequest, runs.ListRunVisualsResponse]
 	compareRunVisuals *connect.Client[runs.CompareRunVisualsRequest, runs.CompareRunVisualsResponse]
@@ -353,6 +366,11 @@ func (c *runsServiceClient) CompareRuns(ctx context.Context, req *connect.Reques
 // GetPhaseArtifact calls vrooli.test_genie.v1.runs.RunsService.GetPhaseArtifact.
 func (c *runsServiceClient) GetPhaseArtifact(ctx context.Context, req *connect.Request[runs.GetPhaseArtifactRequest]) (*connect.Response[runs.GetPhaseArtifactResponse], error) {
 	return c.getPhaseArtifact.CallUnary(ctx, req)
+}
+
+// GetRunFindings calls vrooli.test_genie.v1.runs.RunsService.GetRunFindings.
+func (c *runsServiceClient) GetRunFindings(ctx context.Context, req *connect.Request[runs.GetRunFindingsRequest]) (*connect.Response[runs.GetRunFindingsResponse], error) {
+	return c.getRunFindings.CallUnary(ctx, req)
 }
 
 // ListRunVideos calls vrooli.test_genie.v1.runs.RunsService.ListRunVideos.
@@ -431,6 +449,9 @@ type RunsServiceHandler interface {
 	CompareRuns(context.Context, *connect.Request[runs.CompareRunsRequest]) (*connect.Response[runs.CompareRunsResponse], error)
 	// GetPhaseArtifact returns the raw phase-results JSON for a run+phase.
 	GetPhaseArtifact(context.Context, *connect.Request[runs.GetPhaseArtifactRequest]) (*connect.Response[runs.GetPhaseArtifactResponse], error)
+	// GetRunFindings returns the per-phase maturity standing (Phase Capability
+	// Contract) persisted in the run's findings.json, on demand.
+	GetRunFindings(context.Context, *connect.Request[runs.GetRunFindingsRequest]) (*connect.Response[runs.GetRunFindingsResponse], error)
 	// ListRunVideos enumerates the recorded workflow videos for a run. The bytes
 	// themselves are served over a binary REST route (videos stream rather than
 	// round-trip through proto); the rel_path here is the handle that route
@@ -552,6 +573,12 @@ func NewRunsServiceHandler(svc RunsServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(runsServiceMethods.ByName("GetPhaseArtifact")),
 		connect.WithHandlerOptions(opts...),
 	)
+	runsServiceGetRunFindingsHandler := connect.NewUnaryHandler(
+		RunsServiceGetRunFindingsProcedure,
+		svc.GetRunFindings,
+		connect.WithSchema(runsServiceMethods.ByName("GetRunFindings")),
+		connect.WithHandlerOptions(opts...),
+	)
 	runsServiceListRunVideosHandler := connect.NewUnaryHandler(
 		RunsServiceListRunVideosProcedure,
 		svc.ListRunVideos,
@@ -640,6 +667,8 @@ func NewRunsServiceHandler(svc RunsServiceHandler, opts ...connect.HandlerOption
 			runsServiceCompareRunsHandler.ServeHTTP(w, r)
 		case RunsServiceGetPhaseArtifactProcedure:
 			runsServiceGetPhaseArtifactHandler.ServeHTTP(w, r)
+		case RunsServiceGetRunFindingsProcedure:
+			runsServiceGetRunFindingsHandler.ServeHTTP(w, r)
 		case RunsServiceListRunVideosProcedure:
 			runsServiceListRunVideosHandler.ServeHTTP(w, r)
 		case RunsServiceListRunVisualsProcedure:
@@ -699,6 +728,10 @@ func (UnimplementedRunsServiceHandler) CompareRuns(context.Context, *connect.Req
 
 func (UnimplementedRunsServiceHandler) GetPhaseArtifact(context.Context, *connect.Request[runs.GetPhaseArtifactRequest]) (*connect.Response[runs.GetPhaseArtifactResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.GetPhaseArtifact is not implemented"))
+}
+
+func (UnimplementedRunsServiceHandler) GetRunFindings(context.Context, *connect.Request[runs.GetRunFindingsRequest]) (*connect.Response[runs.GetRunFindingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.GetRunFindings is not implemented"))
 }
 
 func (UnimplementedRunsServiceHandler) ListRunVideos(context.Context, *connect.Request[runs.ListRunVideosRequest]) (*connect.Response[runs.ListRunVideosResponse], error) {

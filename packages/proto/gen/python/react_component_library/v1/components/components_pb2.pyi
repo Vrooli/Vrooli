@@ -23,6 +23,13 @@ class ComponentVersionStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     COMPONENT_VERSION_STATUS_RELEASED: _ClassVar[ComponentVersionStatus]
     COMPONENT_VERSION_STATUS_DEPRECATED: _ClassVar[ComponentVersionStatus]
     COMPONENT_VERSION_STATUS_ARCHIVED: _ClassVar[ComponentVersionStatus]
+
+class DesignAffinity(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    DESIGN_AFFINITY_UNSPECIFIED: _ClassVar[DesignAffinity]
+    DESIGN_AFFINITY_NATIVE: _ClassVar[DesignAffinity]
+    DESIGN_AFFINITY_COMPATIBLE: _ClassVar[DesignAffinity]
+    DESIGN_AFFINITY_DISCOURAGED: _ClassVar[DesignAffinity]
 COMPONENT_VERSION_INTENT_UNSPECIFIED: ComponentVersionIntent
 COMPONENT_VERSION_INTENT_DRAFT: ComponentVersionIntent
 COMPONENT_VERSION_INTENT_RELEASE: ComponentVersionIntent
@@ -31,9 +38,13 @@ COMPONENT_VERSION_STATUS_DRAFT: ComponentVersionStatus
 COMPONENT_VERSION_STATUS_RELEASED: ComponentVersionStatus
 COMPONENT_VERSION_STATUS_DEPRECATED: ComponentVersionStatus
 COMPONENT_VERSION_STATUS_ARCHIVED: ComponentVersionStatus
+DESIGN_AFFINITY_UNSPECIFIED: DesignAffinity
+DESIGN_AFFINITY_NATIVE: DesignAffinity
+DESIGN_AFFINITY_COMPATIBLE: DesignAffinity
+DESIGN_AFFINITY_DISCOURAGED: DesignAffinity
 
 class Component(_message.Message):
-    __slots__ = ("id", "library_id", "display_name", "description", "source_path", "version", "tags", "indexed_at", "updated_at", "headers", "slug", "manifest_path", "draft_version", "latest_version")
+    __slots__ = ("id", "library_id", "display_name", "description", "source_path", "version", "tags", "indexed_at", "updated_at", "headers", "slug", "manifest_path", "draft_version", "latest_version", "slot", "design_styles")
     class HeadersEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -55,6 +66,8 @@ class Component(_message.Message):
     MANIFEST_PATH_FIELD_NUMBER: _ClassVar[int]
     DRAFT_VERSION_FIELD_NUMBER: _ClassVar[int]
     LATEST_VERSION_FIELD_NUMBER: _ClassVar[int]
+    SLOT_FIELD_NUMBER: _ClassVar[int]
+    DESIGN_STYLES_FIELD_NUMBER: _ClassVar[int]
     id: str
     library_id: str
     display_name: str
@@ -69,21 +82,27 @@ class Component(_message.Message):
     manifest_path: str
     draft_version: str
     latest_version: str
-    def __init__(self, id: _Optional[str] = ..., library_id: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., source_path: _Optional[str] = ..., version: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., headers: _Optional[_Mapping[str, str]] = ..., slug: _Optional[str] = ..., manifest_path: _Optional[str] = ..., draft_version: _Optional[str] = ..., latest_version: _Optional[str] = ...) -> None: ...
+    slot: str
+    design_styles: _containers.RepeatedCompositeFieldContainer[ComponentDesignAffinity]
+    def __init__(self, id: _Optional[str] = ..., library_id: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., source_path: _Optional[str] = ..., version: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., headers: _Optional[_Mapping[str, str]] = ..., slug: _Optional[str] = ..., manifest_path: _Optional[str] = ..., draft_version: _Optional[str] = ..., latest_version: _Optional[str] = ..., slot: _Optional[str] = ..., design_styles: _Optional[_Iterable[_Union[ComponentDesignAffinity, _Mapping]]] = ...) -> None: ...
 
 class ListComponentsRequest(_message.Message):
-    __slots__ = ("match", "tag", "limit", "tags", "category")
+    __slots__ = ("match", "tag", "limit", "tags", "category", "style_id", "affinity")
     MATCH_FIELD_NUMBER: _ClassVar[int]
     TAG_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     TAGS_FIELD_NUMBER: _ClassVar[int]
     CATEGORY_FIELD_NUMBER: _ClassVar[int]
+    STYLE_ID_FIELD_NUMBER: _ClassVar[int]
+    AFFINITY_FIELD_NUMBER: _ClassVar[int]
     match: str
     tag: str
     limit: int
     tags: _containers.RepeatedScalarFieldContainer[str]
     category: str
-    def __init__(self, match: _Optional[str] = ..., tag: _Optional[str] = ..., limit: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., category: _Optional[str] = ...) -> None: ...
+    style_id: str
+    affinity: str
+    def __init__(self, match: _Optional[str] = ..., tag: _Optional[str] = ..., limit: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., category: _Optional[str] = ..., style_id: _Optional[str] = ..., affinity: _Optional[str] = ...) -> None: ...
 
 class ListComponentsResponse(_message.Message):
     __slots__ = ("components",)
@@ -275,6 +294,14 @@ class ComponentVersion(_message.Message):
     released_at: _timestamp_pb2.Timestamp
     def __init__(self, id: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., version: _Optional[str] = ..., status: _Optional[_Union[ComponentVersionStatus, str]] = ..., source_path: _Optional[str] = ..., content_sha256: _Optional[str] = ..., changelog_md: _Optional[str] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., released_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
+class ComponentDesignAffinity(_message.Message):
+    __slots__ = ("style_id", "affinity")
+    STYLE_ID_FIELD_NUMBER: _ClassVar[int]
+    AFFINITY_FIELD_NUMBER: _ClassVar[int]
+    style_id: str
+    affinity: DesignAffinity
+    def __init__(self, style_id: _Optional[str] = ..., affinity: _Optional[_Union[DesignAffinity, str]] = ...) -> None: ...
+
 class ListComponentVersionsRequest(_message.Message):
     __slots__ = ("component_id", "limit")
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
@@ -304,3 +331,25 @@ class GetComponentVersionContentResponse(_message.Message):
     version: ComponentVersion
     content: str
     def __init__(self, version: _Optional[_Union[ComponentVersion, _Mapping]] = ..., content: _Optional[str] = ...) -> None: ...
+
+class DesignStyle(_message.Message):
+    __slots__ = ("id", "name", "tags", "supports")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    TAGS_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTS_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    name: str
+    tags: _containers.RepeatedScalarFieldContainer[str]
+    supports: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., supports: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ListDesignStylesRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ListDesignStylesResponse(_message.Message):
+    __slots__ = ("styles",)
+    STYLES_FIELD_NUMBER: _ClassVar[int]
+    styles: _containers.RepeatedCompositeFieldContainer[DesignStyle]
+    def __init__(self, styles: _Optional[_Iterable[_Union[DesignStyle, _Mapping]]] = ...) -> None: ...

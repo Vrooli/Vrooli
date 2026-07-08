@@ -809,6 +809,55 @@ func TestCapabilityPriorityScoring(t *testing.T) {
 	}
 }
 
+// TestPriorityAmongMaxedPrefersDeepestLadder proves that when every capability is
+// clean at its ceiling (a fully-mature phase), the focus that represents the
+// phase (its rung + North Star) is the DEEPEST ladder, not the shortest one that
+// happens to sit at the lowest numeric rung. This is what lets a maxed phase
+// showcase its most aspirational capability.
+func TestPriorityAmongMaxedPrefersDeepestLadder(t *testing.T) {
+	spec := Spec{
+		Provider: "cli-health",
+		Phase:    "contracts",
+		Version:  "1",
+		Capabilities: []CapabilitySpec{
+			{
+				ID:    "discovery_readiness",
+				Label: "Discovery Readiness",
+				Levels: []Level{
+					{ID: "L0", Name: "Blocked", EntryCriteria: []string{"a"}, ExitCriteria: []string{"b"}, NextUnlock: "up"},
+					{ID: "L1", Name: "Ready", EntryCriteria: []string{"a"}, ExitCriteria: []string{"b"}, NextUnlock: "up"},
+					{ID: "L2", Name: "Clean", EntryCriteria: []string{"a"}, ExitCriteria: []string{"b"}, CapabilitySummary: "Discovery readiness is clean."},
+				},
+			},
+			{
+				ID:    "command_architecture",
+				Label: "Command Architecture",
+				Levels: []Level{
+					{ID: "L0", Name: "Unclassifiable", EntryCriteria: []string{"a"}, ExitCriteria: []string{"b"}, NextUnlock: "up"},
+					{ID: "L1", Name: "Shell", EntryCriteria: []string{"a"}, ExitCriteria: []string{"b"}, NextUnlock: "up"},
+					{ID: "L2", Name: "Declarative", EntryCriteria: []string{"a"}, ExitCriteria: []string{"b"}, NextUnlock: "up"},
+					{ID: "L3", Name: "Declared", EntryCriteria: []string{"a"}, ExitCriteria: []string{"b"}, NextUnlock: "up"},
+					{ID: "L4", Name: "Verified", EntryCriteria: []string{"a"}, ExitCriteria: []string{"b"}, CapabilitySummary: "Verified renderer-separated primitives."},
+				},
+			},
+		},
+		Findings: map[string]FindingMapping{},
+		Fallback: FallbackPolicy{LocalLevelImpact: "L1", GlobalImpact: ImpactUnknown, Dimension: "contracts", SeverityDefault: "WARNING", CleanRequirement: string(CleanRequirementAdvisory)},
+	}
+	got, err := BuildProtoAssessment(BuildInput{Scenario: "cli-health", Spec: spec})
+	if err != nil {
+		t.Fatalf("BuildProtoAssessment: %v", err)
+	}
+	if focus := got.GetHighestPriorityCapability().GetCapabilityId(); focus != "command_architecture" {
+		t.Fatalf("focus among maxed capabilities = %q, want the deepest ladder command_architecture", focus)
+	}
+	// The phase-level standing therefore reflects the deepest ladder's rung and
+	// North Star, not the shortest capability's.
+	if got.GetLocal().GetCurrentLevel() != "L4" {
+		t.Fatalf("local rung = %q, want L4 (the deepest maxed ladder)", got.GetLocal().GetCurrentLevel())
+	}
+}
+
 func TestBuildProtoAssessmentRejectsInvalidSpec(t *testing.T) {
 	spec := validSpec()
 	spec.Provider = ""

@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n*react-component-library/v1/deps/deps.proto\x12&vrooli.react_component_library.v1.deps\"\x92\x01\n\x0e\x44\x65pDeclaration\x12!\n\x0c\x63omponent_id\x18\x01 \x01(\tR\x0b\x63omponentId\x12\x1d\n\nlibrary_id\x18\x02 \x01(\tR\tlibraryId\x12\x19\n\x08\x64\x65p_name\x18\x03 \x01(\tR\x07\x64\x65pName\x12#\n\rversion_range\x18\x04 \x01(\tR\x0cversionRange\"\xd6\x01\n\x08\x44\x65pIssue\x12\x19\n\x08\x64\x65p_name\x18\x01 \x01(\tR\x07\x64\x65pName\x12%\n\x0e\x64\x65\x63lared_range\x18\x02 \x01(\tR\rdeclaredRange\x12)\n\x10scenario_version\x18\x03 \x01(\tR\x0fscenarioVersion\x12\x45\n\x04kind\x18\x04 \x01(\x0e\x32\x31.vrooli.react_component_library.v1.deps.IssueKindR\x04kind\x12\x16\n\x06\x64\x65tail\x18\x05 \x01(\tR\x06\x64\x65tail\"<\n\x17ListDeclarationsRequest\x12!\n\x0c\x63omponent_id\x18\x01 \x01(\tR\x0b\x63omponentId\"v\n\x18ListDeclarationsResponse\x12Z\n\x0c\x64\x65\x63larations\x18\x01 \x03(\x0b\x32\x36.vrooli.react_component_library.v1.deps.DepDeclarationR\x0c\x64\x65\x63larations\"X\n\x17ValidateAdoptionRequest\x12!\n\x0c\x63omponent_id\x18\x01 \x01(\tR\x0b\x63omponentId\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\"\xad\x01\n\x18ValidateAdoptionResponse\x12G\n\x04kind\x18\x01 \x01(\x0e\x32\x33.vrooli.react_component_library.v1.deps.VerdictKindR\x04kind\x12H\n\x06issues\x18\x02 \x03(\x0b\x32\x30.vrooli.react_component_library.v1.deps.DepIssueR\x06issues*o\n\x0bVerdictKind\x12\x1c\n\x18VERDICT_KIND_UNSPECIFIED\x10\x00\x12\x13\n\x0fVERDICT_KIND_OK\x10\x01\x12\x15\n\x11VERDICT_KIND_WARN\x10\x02\x12\x16\n\x12VERDICT_KIND_BLOCK\x10\x03*\xd0\x01\n\tIssueKind\x12\x1a\n\x16ISSUE_KIND_UNSPECIFIED\x10\x00\x12\x1a\n\x16ISSUE_KIND_MISSING_DEP\x10\x01\x12#\n\x1fISSUE_KIND_RANGE_DOES_NOT_MATCH\x10\x02\x12!\n\x1dISSUE_KIND_INCOMPATIBLE_MAJOR\x10\x03\x12 \n\x1cISSUE_KIND_UNPARSEABLE_RANGE\x10\x04\x12!\n\x1dISSUE_KIND_UNPARSEABLE_TARGET\x10\x05\x32\xbd\x02\n\x0b\x44\x65psService\x12\x95\x01\n\x10ListDeclarations\x12?.vrooli.react_component_library.v1.deps.ListDeclarationsRequest\x1a@.vrooli.react_component_library.v1.deps.ListDeclarationsResponse\x12\x95\x01\n\x10ValidateAdoption\x12?.vrooli.react_component_library.v1.deps.ValidateAdoptionRequest\x1a@.vrooli.react_component_library.v1.deps.ValidateAdoptionResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/deps;deps_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n*react-component-library/v1/deps/deps.proto\x12&vrooli.react_component_library.v1.deps\"\xc0\x01\n\x0e\x44\x65pDeclaration\x12!\n\x0c\x63omponent_id\x18\x01 \x01(\tR\x0b\x63omponentId\x12\x1d\n\nlibrary_id\x18\x02 \x01(\tR\tlibraryId\x12\x19\n\x08\x64\x65p_name\x18\x03 \x01(\tR\x07\x64\x65pName\x12#\n\rversion_range\x18\x04 \x01(\tR\x0cversionRange\x12\x18\n\x07version\x18\x05 \x01(\tR\x07version\x12\x12\n\x04kind\x18\x06 \x01(\tR\x04kind\"\x8b\x02\n\x08\x44\x65pIssue\x12\x19\n\x08\x64\x65p_name\x18\x01 \x01(\tR\x07\x64\x65pName\x12%\n\x0e\x64\x65\x63lared_range\x18\x02 \x01(\tR\rdeclaredRange\x12)\n\x10scenario_version\x18\x03 \x01(\tR\x0fscenarioVersion\x12\x45\n\x04kind\x18\x04 \x01(\x0e\x32\x31.vrooli.react_component_library.v1.deps.IssueKindR\x04kind\x12\x16\n\x06\x64\x65tail\x18\x05 \x01(\tR\x06\x64\x65tail\x12\x18\n\x07version\x18\x06 \x01(\tR\x07version\x12\x19\n\x08\x64\x65p_kind\x18\x07 \x01(\tR\x07\x64\x65pKind\"<\n\x17ListDeclarationsRequest\x12!\n\x0c\x63omponent_id\x18\x01 \x01(\tR\x0b\x63omponentId\"v\n\x18ListDeclarationsResponse\x12Z\n\x0c\x64\x65\x63larations\x18\x01 \x03(\x0b\x32\x36.vrooli.react_component_library.v1.deps.DepDeclarationR\x0c\x64\x65\x63larations\"r\n\x17ValidateAdoptionRequest\x12!\n\x0c\x63omponent_id\x18\x01 \x01(\tR\x0b\x63omponentId\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12\x18\n\x07version\x18\x03 \x01(\tR\x07version\"\xad\x01\n\x18ValidateAdoptionResponse\x12G\n\x04kind\x18\x01 \x01(\x0e\x32\x33.vrooli.react_component_library.v1.deps.VerdictKindR\x04kind\x12H\n\x06issues\x18\x02 \x03(\x0b\x32\x30.vrooli.react_component_library.v1.deps.DepIssueR\x06issues*o\n\x0bVerdictKind\x12\x1c\n\x18VERDICT_KIND_UNSPECIFIED\x10\x00\x12\x13\n\x0fVERDICT_KIND_OK\x10\x01\x12\x15\n\x11VERDICT_KIND_WARN\x10\x02\x12\x16\n\x12VERDICT_KIND_BLOCK\x10\x03*\xd0\x01\n\tIssueKind\x12\x1a\n\x16ISSUE_KIND_UNSPECIFIED\x10\x00\x12\x1a\n\x16ISSUE_KIND_MISSING_DEP\x10\x01\x12#\n\x1fISSUE_KIND_RANGE_DOES_NOT_MATCH\x10\x02\x12!\n\x1dISSUE_KIND_INCOMPATIBLE_MAJOR\x10\x03\x12 \n\x1cISSUE_KIND_UNPARSEABLE_RANGE\x10\x04\x12!\n\x1dISSUE_KIND_UNPARSEABLE_TARGET\x10\x05\x32\xbd\x02\n\x0b\x44\x65psService\x12\x95\x01\n\x10ListDeclarations\x12?.vrooli.react_component_library.v1.deps.ListDeclarationsRequest\x1a@.vrooli.react_component_library.v1.deps.ListDeclarationsResponse\x12\x95\x01\n\x10ValidateAdoption\x12?.vrooli.react_component_library.v1.deps.ValidateAdoptionRequest\x1a@.vrooli.react_component_library.v1.deps.ValidateAdoptionResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/deps;deps_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,22 +32,22 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'react_component_library.v1.
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZVgithub.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/deps;deps_v1'
-  _globals['_VERDICTKIND']._serialized_start=900
-  _globals['_VERDICTKIND']._serialized_end=1011
-  _globals['_ISSUEKIND']._serialized_start=1014
-  _globals['_ISSUEKIND']._serialized_end=1222
+  _globals['_VERDICTKIND']._serialized_start=1025
+  _globals['_VERDICTKIND']._serialized_end=1136
+  _globals['_ISSUEKIND']._serialized_start=1139
+  _globals['_ISSUEKIND']._serialized_end=1347
   _globals['_DEPDECLARATION']._serialized_start=87
-  _globals['_DEPDECLARATION']._serialized_end=233
-  _globals['_DEPISSUE']._serialized_start=236
-  _globals['_DEPISSUE']._serialized_end=450
-  _globals['_LISTDECLARATIONSREQUEST']._serialized_start=452
-  _globals['_LISTDECLARATIONSREQUEST']._serialized_end=512
-  _globals['_LISTDECLARATIONSRESPONSE']._serialized_start=514
-  _globals['_LISTDECLARATIONSRESPONSE']._serialized_end=632
-  _globals['_VALIDATEADOPTIONREQUEST']._serialized_start=634
-  _globals['_VALIDATEADOPTIONREQUEST']._serialized_end=722
-  _globals['_VALIDATEADOPTIONRESPONSE']._serialized_start=725
-  _globals['_VALIDATEADOPTIONRESPONSE']._serialized_end=898
-  _globals['_DEPSSERVICE']._serialized_start=1225
-  _globals['_DEPSSERVICE']._serialized_end=1542
+  _globals['_DEPDECLARATION']._serialized_end=279
+  _globals['_DEPISSUE']._serialized_start=282
+  _globals['_DEPISSUE']._serialized_end=549
+  _globals['_LISTDECLARATIONSREQUEST']._serialized_start=551
+  _globals['_LISTDECLARATIONSREQUEST']._serialized_end=611
+  _globals['_LISTDECLARATIONSRESPONSE']._serialized_start=613
+  _globals['_LISTDECLARATIONSRESPONSE']._serialized_end=731
+  _globals['_VALIDATEADOPTIONREQUEST']._serialized_start=733
+  _globals['_VALIDATEADOPTIONREQUEST']._serialized_end=847
+  _globals['_VALIDATEADOPTIONRESPONSE']._serialized_start=850
+  _globals['_VALIDATEADOPTIONRESPONSE']._serialized_end=1023
+  _globals['_DEPSSERVICE']._serialized_start=1350
+  _globals['_DEPSSERVICE']._serialized_end=1667
 # @@protoc_insertion_point(module_scope)

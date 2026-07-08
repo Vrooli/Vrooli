@@ -38,6 +38,7 @@ service ComponentsService {
   rpc UpdateComponentContent(UpdateComponentContentRequest) returns (UpdateComponentContentResponse);
   rpc ListComponentVersions(ListComponentVersionsRequest) returns (ListComponentVersionsResponse);
   rpc GetComponentVersionContent(GetComponentVersionContentRequest) returns (GetComponentVersionContentResponse);
+  rpc ListDesignStyles(ListDesignStylesRequest) returns (ListDesignStylesResponse);
 }
 
 // Component is the canonical wire shape for a single indexed component.
@@ -86,6 +87,14 @@ message Component {
 
   // Explicit latest released version from component.json.latest.
   string latest_version = 14;
+
+  // Canonical target slot from component.json.slot used for adoption path
+  // resolution. Empty means the target template's default slot applies.
+  string slot = 15;
+
+  // Advisory component-to-design-style fit declarations from component.json.
+  // Search and adoption workflows use these as guidance, not hard gates.
+  repeated ComponentDesignAffinity design_styles = 16;
 }
 
 // ListComponentsRequest filters the registry view.
@@ -110,6 +119,14 @@ message ListComponentsRequest {
   // Category AND filter — matches against the parsed @category header.
   // Empty string = no filter.
   string category = 5;
+
+  // Design-style AND filter — matches component.json designStyles[].styleId.
+  // Empty string = no filter.
+  string style_id = 6;
+
+  // Optional affinity filter. When combined with style_id, both must match the
+  // same declaration. Valid values are native, compatible, and discouraged.
+  string affinity = 7;
 }
 
 message ListComponentsResponse {
@@ -280,6 +297,18 @@ message ComponentVersion {
   google.protobuf.Timestamp released_at = 10;
 }
 
+enum DesignAffinity {
+  DESIGN_AFFINITY_UNSPECIFIED = 0;
+  DESIGN_AFFINITY_NATIVE = 1;
+  DESIGN_AFFINITY_COMPATIBLE = 2;
+  DESIGN_AFFINITY_DISCOURAGED = 3;
+}
+
+message ComponentDesignAffinity {
+  string style_id = 1;
+  DesignAffinity affinity = 2;
+}
+
 message ListComponentVersionsRequest {
   string component_id = 1;
   int32 limit = 2;
@@ -297,4 +326,17 @@ message GetComponentVersionContentRequest {
 message GetComponentVersionContentResponse {
   ComponentVersion version = 1;
   string content = 2;
+}
+
+message DesignStyle {
+  string id = 1;
+  string name = 2;
+  repeated string tags = 3;
+  repeated string supports = 4;
+}
+
+message ListDesignStylesRequest {}
+
+message ListDesignStylesResponse {
+  repeated DesignStyle styles = 1;
 }

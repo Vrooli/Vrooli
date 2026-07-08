@@ -7,7 +7,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class RunEvent(_message.Message):
-    __slots__ = ("event", "elapsed_seconds", "run_id", "scenario", "artifact_dir", "preset", "phase", "phase_index", "phase_total", "status", "duration_seconds", "quiet_seconds", "message", "success", "verdict", "error")
+    __slots__ = ("event", "elapsed_seconds", "run_id", "scenario", "artifact_dir", "preset", "phase", "phase_index", "phase_total", "status", "duration_seconds", "quiet_seconds", "message", "success", "verdict", "error", "maturity_standing", "findings_summary")
     EVENT_FIELD_NUMBER: _ClassVar[int]
     ELAPSED_SECONDS_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
@@ -24,6 +24,8 @@ class RunEvent(_message.Message):
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     VERDICT_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
+    MATURITY_STANDING_FIELD_NUMBER: _ClassVar[int]
+    FINDINGS_SUMMARY_FIELD_NUMBER: _ClassVar[int]
     event: str
     elapsed_seconds: float
     run_id: str
@@ -40,7 +42,9 @@ class RunEvent(_message.Message):
     success: bool
     verdict: str
     error: str
-    def __init__(self, event: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., artifact_dir: _Optional[str] = ..., preset: _Optional[str] = ..., phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., status: _Optional[str] = ..., duration_seconds: _Optional[int] = ..., quiet_seconds: _Optional[float] = ..., message: _Optional[str] = ..., success: _Optional[bool] = ..., verdict: _Optional[str] = ..., error: _Optional[str] = ...) -> None: ...
+    maturity_standing: PhaseMaturityStanding
+    findings_summary: PhaseFindingsSummary
+    def __init__(self, event: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., artifact_dir: _Optional[str] = ..., preset: _Optional[str] = ..., phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., status: _Optional[str] = ..., duration_seconds: _Optional[int] = ..., quiet_seconds: _Optional[float] = ..., message: _Optional[str] = ..., success: _Optional[bool] = ..., verdict: _Optional[str] = ..., error: _Optional[str] = ..., maturity_standing: _Optional[_Union[PhaseMaturityStanding, _Mapping]] = ..., findings_summary: _Optional[_Union[PhaseFindingsSummary, _Mapping]] = ...) -> None: ...
 
 class RunLiveStatus(_message.Message):
     __slots__ = ("run_id", "scenario", "status", "active_phase", "phase_index", "phase_total", "started_at", "elapsed_seconds", "estimated_total_seconds", "estimated_remaining_seconds", "eta_known", "recommended_next_check_seconds", "verdict", "success", "error", "active")
@@ -208,8 +212,86 @@ class PinInfo(_message.Message):
     reason: str
     def __init__(self, pinned_by: _Optional[str] = ..., pinned_at: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
 
+class PhaseFindingsSummary(_message.Message):
+    __slots__ = ("blockers", "errors", "warnings", "infos", "total")
+    BLOCKERS_FIELD_NUMBER: _ClassVar[int]
+    ERRORS_FIELD_NUMBER: _ClassVar[int]
+    WARNINGS_FIELD_NUMBER: _ClassVar[int]
+    INFOS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    blockers: int
+    errors: int
+    warnings: int
+    infos: int
+    total: int
+    def __init__(self, blockers: _Optional[int] = ..., errors: _Optional[int] = ..., warnings: _Optional[int] = ..., infos: _Optional[int] = ..., total: _Optional[int] = ...) -> None: ...
+
+class PhaseCapabilityStanding(_message.Message):
+    __slots__ = ("id", "label", "current_level", "current_level_label", "next_level", "current_summary", "next_unlock", "clean", "blocking_finding_count", "blocking_finding_codes", "priority_rank", "priority_reason")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_LEVEL_LABEL_FIELD_NUMBER: _ClassVar[int]
+    NEXT_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    NEXT_UNLOCK_FIELD_NUMBER: _ClassVar[int]
+    CLEAN_FIELD_NUMBER: _ClassVar[int]
+    BLOCKING_FINDING_COUNT_FIELD_NUMBER: _ClassVar[int]
+    BLOCKING_FINDING_CODES_FIELD_NUMBER: _ClassVar[int]
+    PRIORITY_RANK_FIELD_NUMBER: _ClassVar[int]
+    PRIORITY_REASON_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    label: str
+    current_level: str
+    current_level_label: str
+    next_level: str
+    current_summary: str
+    next_unlock: str
+    clean: bool
+    blocking_finding_count: int
+    blocking_finding_codes: _containers.RepeatedScalarFieldContainer[str]
+    priority_rank: int
+    priority_reason: str
+    def __init__(self, id: _Optional[str] = ..., label: _Optional[str] = ..., current_level: _Optional[str] = ..., current_level_label: _Optional[str] = ..., next_level: _Optional[str] = ..., current_summary: _Optional[str] = ..., next_unlock: _Optional[str] = ..., clean: _Optional[bool] = ..., blocking_finding_count: _Optional[int] = ..., blocking_finding_codes: _Optional[_Iterable[str]] = ..., priority_rank: _Optional[int] = ..., priority_reason: _Optional[str] = ...) -> None: ...
+
+class PhaseMaturityStanding(_message.Message):
+    __slots__ = ("provider", "phase", "current_level", "current_level_label", "next_level", "ceiling_level", "clean", "unknown_count", "blocking_finding_codes", "next_move", "next_move_reason", "priority_capability_id", "priority_capability_label", "north_star", "at_maximum", "capabilities")
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    PHASE_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_LEVEL_LABEL_FIELD_NUMBER: _ClassVar[int]
+    NEXT_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    CEILING_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    CLEAN_FIELD_NUMBER: _ClassVar[int]
+    UNKNOWN_COUNT_FIELD_NUMBER: _ClassVar[int]
+    BLOCKING_FINDING_CODES_FIELD_NUMBER: _ClassVar[int]
+    NEXT_MOVE_FIELD_NUMBER: _ClassVar[int]
+    NEXT_MOVE_REASON_FIELD_NUMBER: _ClassVar[int]
+    PRIORITY_CAPABILITY_ID_FIELD_NUMBER: _ClassVar[int]
+    PRIORITY_CAPABILITY_LABEL_FIELD_NUMBER: _ClassVar[int]
+    NORTH_STAR_FIELD_NUMBER: _ClassVar[int]
+    AT_MAXIMUM_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
+    provider: str
+    phase: str
+    current_level: str
+    current_level_label: str
+    next_level: str
+    ceiling_level: str
+    clean: bool
+    unknown_count: int
+    blocking_finding_codes: _containers.RepeatedScalarFieldContainer[str]
+    next_move: str
+    next_move_reason: str
+    priority_capability_id: str
+    priority_capability_label: str
+    north_star: str
+    at_maximum: bool
+    capabilities: _containers.RepeatedCompositeFieldContainer[PhaseCapabilityStanding]
+    def __init__(self, provider: _Optional[str] = ..., phase: _Optional[str] = ..., current_level: _Optional[str] = ..., current_level_label: _Optional[str] = ..., next_level: _Optional[str] = ..., ceiling_level: _Optional[str] = ..., clean: _Optional[bool] = ..., unknown_count: _Optional[int] = ..., blocking_finding_codes: _Optional[_Iterable[str]] = ..., next_move: _Optional[str] = ..., next_move_reason: _Optional[str] = ..., priority_capability_id: _Optional[str] = ..., priority_capability_label: _Optional[str] = ..., north_star: _Optional[str] = ..., at_maximum: _Optional[bool] = ..., capabilities: _Optional[_Iterable[_Union[PhaseCapabilityStanding, _Mapping]]] = ...) -> None: ...
+
 class PhaseInfo(_message.Message):
-    __slots__ = ("name", "status", "duration_seconds", "comparable", "advisory", "artifact_backed", "non_comparable")
+    __slots__ = ("name", "status", "duration_seconds", "comparable", "advisory", "artifact_backed", "non_comparable", "maturity_standing", "findings_summary")
     NAME_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     DURATION_SECONDS_FIELD_NUMBER: _ClassVar[int]
@@ -217,6 +299,8 @@ class PhaseInfo(_message.Message):
     ADVISORY_FIELD_NUMBER: _ClassVar[int]
     ARTIFACT_BACKED_FIELD_NUMBER: _ClassVar[int]
     NON_COMPARABLE_FIELD_NUMBER: _ClassVar[int]
+    MATURITY_STANDING_FIELD_NUMBER: _ClassVar[int]
+    FINDINGS_SUMMARY_FIELD_NUMBER: _ClassVar[int]
     name: str
     status: str
     duration_seconds: float
@@ -224,7 +308,9 @@ class PhaseInfo(_message.Message):
     advisory: bool
     artifact_backed: bool
     non_comparable: bool
-    def __init__(self, name: _Optional[str] = ..., status: _Optional[str] = ..., duration_seconds: _Optional[float] = ..., comparable: _Optional[bool] = ..., advisory: _Optional[bool] = ..., artifact_backed: _Optional[bool] = ..., non_comparable: _Optional[bool] = ...) -> None: ...
+    maturity_standing: PhaseMaturityStanding
+    findings_summary: PhaseFindingsSummary
+    def __init__(self, name: _Optional[str] = ..., status: _Optional[str] = ..., duration_seconds: _Optional[float] = ..., comparable: _Optional[bool] = ..., advisory: _Optional[bool] = ..., artifact_backed: _Optional[bool] = ..., non_comparable: _Optional[bool] = ..., maturity_standing: _Optional[_Union[PhaseMaturityStanding, _Mapping]] = ..., findings_summary: _Optional[_Union[PhaseFindingsSummary, _Mapping]] = ...) -> None: ...
 
 class RunInfo(_message.Message):
     __slots__ = ("run_id", "scenario", "started_at", "completed_at", "status", "phases", "git_sha", "git_branch", "git_dirty", "git_dirty_summary", "diagnostics", "pins", "tree_digest", "preset", "capture_profile", "planned_phases", "phase_set_digest")
@@ -429,6 +515,42 @@ class GetPhaseArtifactResponse(_message.Message):
     content: str
     content_type: str
     def __init__(self, content: _Optional[str] = ..., content_type: _Optional[str] = ...) -> None: ...
+
+class GetRunFindingsRequest(_message.Message):
+    __slots__ = ("scenario", "run_id")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    run_id: str
+    def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ...) -> None: ...
+
+class RunFindingsPhase(_message.Message):
+    __slots__ = ("name", "status", "finding_source", "maturity_standing", "findings_summary")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    FINDING_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    MATURITY_STANDING_FIELD_NUMBER: _ClassVar[int]
+    FINDINGS_SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    status: str
+    finding_source: str
+    maturity_standing: PhaseMaturityStanding
+    findings_summary: PhaseFindingsSummary
+    def __init__(self, name: _Optional[str] = ..., status: _Optional[str] = ..., finding_source: _Optional[str] = ..., maturity_standing: _Optional[_Union[PhaseMaturityStanding, _Mapping]] = ..., findings_summary: _Optional[_Union[PhaseFindingsSummary, _Mapping]] = ...) -> None: ...
+
+class GetRunFindingsResponse(_message.Message):
+    __slots__ = ("scenario", "run_id", "verdict", "completed_at", "phases")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
+    PHASES_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    run_id: str
+    verdict: str
+    completed_at: str
+    phases: _containers.RepeatedCompositeFieldContainer[RunFindingsPhase]
+    def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ..., verdict: _Optional[str] = ..., completed_at: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[RunFindingsPhase, _Mapping]]] = ...) -> None: ...
 
 class RunVideo(_message.Message):
     __slots__ = ("workflow", "rel_path", "size_bytes")

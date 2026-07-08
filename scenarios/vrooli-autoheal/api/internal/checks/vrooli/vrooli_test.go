@@ -372,6 +372,49 @@ func TestResourceCheckExecuteActionWithMock(t *testing.T) {
 	}
 }
 
+func TestResourceCheckWhisperCompanionDownRecovery(t *testing.T) {
+	check := NewResourceCheck("whisper")
+	lastResult := &checks.Result{
+		CheckID: "resource-whisper",
+		Status:  checks.StatusCritical,
+		Message: "whisper resource is unhealthy",
+		Details: map[string]interface{}{
+			"running":    true,
+			"statusText": "running; activity-edge companion down (port 8090) - STT unavailable, capacity reporting blind",
+		},
+	}
+
+	actions := check.RecoveryActions(lastResult)
+	if len(actions) == 0 {
+		t.Fatal("expected recovery actions")
+	}
+	if actions[0].ID != "respawn-companion" {
+		t.Fatalf("first recovery action = %q, want respawn-companion", actions[0].ID)
+	}
+	if actions[0].Dangerous {
+		t.Fatal("respawn-companion should not be marked dangerous")
+	}
+
+	mockExecutor := checks.NewMockExecutor()
+	mockExecutor.Responses["vrooli resource start whisper"] = checks.MockResponse{
+		Output: []byte("Whisper activity-edge companion started"),
+		Error:  nil,
+	}
+	mockExecutor.Responses["vrooli resource status whisper --json"] = checks.MockResponse{
+		Output: []byte(`{"success":true,"name":"whisper","installed":true,"running":true,"healthy":true,"status":"healthy"}`),
+		Error:  nil,
+	}
+
+	check = NewResourceCheck("whisper", WithResourceExecutor(mockExecutor))
+	result := check.ExecuteAction(context.Background(), "respawn-companion")
+	if !result.Success {
+		t.Fatalf("respawn-companion success = false, error=%s output=%s", result.Error, result.Output)
+	}
+	if len(mockExecutor.Calls) == 0 || mockExecutor.Calls[0].Name+" "+strings.Join(mockExecutor.Calls[0].Args, " ") != "vrooli resource start whisper" {
+		t.Fatalf("first command = %v, want vrooli resource start whisper", mockExecutor.Calls)
+	}
+}
+
 // TestScenarioCheckRunWithMock tests ScenarioCheck.Run() using mock executor
 // [REQ:SCENARIO-CHECK-001] [REQ:TEST-SEAM-001]
 func TestScenarioCheckRunWithMock(t *testing.T) {

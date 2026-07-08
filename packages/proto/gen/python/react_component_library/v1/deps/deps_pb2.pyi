@@ -34,30 +34,38 @@ ISSUE_KIND_UNPARSEABLE_RANGE: IssueKind
 ISSUE_KIND_UNPARSEABLE_TARGET: IssueKind
 
 class DepDeclaration(_message.Message):
-    __slots__ = ("component_id", "library_id", "dep_name", "version_range")
+    __slots__ = ("component_id", "library_id", "dep_name", "version_range", "version", "kind")
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
     DEP_NAME_FIELD_NUMBER: _ClassVar[int]
     VERSION_RANGE_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
     component_id: str
     library_id: str
     dep_name: str
     version_range: str
-    def __init__(self, component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., dep_name: _Optional[str] = ..., version_range: _Optional[str] = ...) -> None: ...
+    version: str
+    kind: str
+    def __init__(self, component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., dep_name: _Optional[str] = ..., version_range: _Optional[str] = ..., version: _Optional[str] = ..., kind: _Optional[str] = ...) -> None: ...
 
 class DepIssue(_message.Message):
-    __slots__ = ("dep_name", "declared_range", "scenario_version", "kind", "detail")
+    __slots__ = ("dep_name", "declared_range", "scenario_version", "kind", "detail", "version", "dep_kind")
     DEP_NAME_FIELD_NUMBER: _ClassVar[int]
     DECLARED_RANGE_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_VERSION_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     DETAIL_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    DEP_KIND_FIELD_NUMBER: _ClassVar[int]
     dep_name: str
     declared_range: str
     scenario_version: str
     kind: IssueKind
     detail: str
-    def __init__(self, dep_name: _Optional[str] = ..., declared_range: _Optional[str] = ..., scenario_version: _Optional[str] = ..., kind: _Optional[_Union[IssueKind, str]] = ..., detail: _Optional[str] = ...) -> None: ...
+    version: str
+    dep_kind: str
+    def __init__(self, dep_name: _Optional[str] = ..., declared_range: _Optional[str] = ..., scenario_version: _Optional[str] = ..., kind: _Optional[_Union[IssueKind, str]] = ..., detail: _Optional[str] = ..., version: _Optional[str] = ..., dep_kind: _Optional[str] = ...) -> None: ...
 
 class ListDeclarationsRequest(_message.Message):
     __slots__ = ("component_id",)
@@ -72,12 +80,14 @@ class ListDeclarationsResponse(_message.Message):
     def __init__(self, declarations: _Optional[_Iterable[_Union[DepDeclaration, _Mapping]]] = ...) -> None: ...
 
 class ValidateAdoptionRequest(_message.Message):
-    __slots__ = ("component_id", "scenario")
+    __slots__ = ("component_id", "scenario", "version")
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
     component_id: str
     scenario: str
-    def __init__(self, component_id: _Optional[str] = ..., scenario: _Optional[str] = ...) -> None: ...
+    version: str
+    def __init__(self, component_id: _Optional[str] = ..., scenario: _Optional[str] = ..., version: _Optional[str] = ...) -> None: ...
 
 class ValidateAdoptionResponse(_message.Message):
     __slots__ = ("kind", "issues")

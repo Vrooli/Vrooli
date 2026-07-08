@@ -274,14 +274,24 @@ func (m *Manager) SetScenarioCritical(name string, critical bool) error {
 // AddResource adds a resource to monitoring
 func (m *Manager) AddResource(name string) error {
 	m.mu.Lock()
-	// Check if already exists
+	checkID := "resource-" + name
+	if m.config.Checks == nil {
+		m.config.Checks = make(map[string]Check)
+	}
+	check := m.config.Checks[checkID]
+	check.Enabled = boolPtr(true)
+	m.config.Checks[checkID] = check
+
+	exists := false
 	for _, r := range m.config.Monitoring.Resources {
 		if r == name {
-			m.mu.Unlock()
-			return nil // Already exists
+			exists = true
+			break
 		}
 	}
-	m.config.Monitoring.Resources = append(m.config.Monitoring.Resources, name)
+	if !exists {
+		m.config.Monitoring.Resources = append(m.config.Monitoring.Resources, name)
+	}
 	m.mu.Unlock()
 	return m.Save()
 }
@@ -289,6 +299,14 @@ func (m *Manager) AddResource(name string) error {
 // RemoveResource removes a resource from monitoring
 func (m *Manager) RemoveResource(name string) error {
 	m.mu.Lock()
+	checkID := "resource-" + name
+	if m.config.Checks == nil {
+		m.config.Checks = make(map[string]Check)
+	}
+	check := m.config.Checks[checkID]
+	check.Enabled = boolPtr(false)
+	m.config.Checks[checkID] = check
+
 	var filtered []string
 	for _, r := range m.config.Monitoring.Resources {
 		if r != name {
@@ -585,11 +603,60 @@ func (m *Manager) mergeConfig(file *Config) {
 		m.config.UI.DefaultTab = file.UI.DefaultTab
 	}
 
-	// Monitoring config - if file has monitoring config, use it entirely
-	// (don't merge partially - either use file config or defaults)
+	// Monitoring config starts from defaults so new default checks are adopted
+	// by older saved configs. Explicit disabled check entries still suppress
+	// default resources, which preserves intentional removals.
 	if file.Monitoring.Scenarios != nil || file.Monitoring.Resources != nil {
-		m.config.Monitoring = file.Monitoring
+		m.config.Monitoring = m.mergeMonitoringConfig(file.Monitoring)
 	}
+}
+
+func (m *Manager) mergeMonitoringConfig(file MonitoringConfig) MonitoringConfig {
+	merged := m.config.Monitoring
+
+	if file.Scenarios != nil {
+		if merged.Scenarios == nil {
+			merged.Scenarios = make(map[string]MonitoredScenario)
+		}
+		for name, cfg := range file.Scenarios {
+			merged.Scenarios[name] = cfg
+		}
+	}
+
+	if file.Resources != nil {
+		merged.Resources = append([]string(nil), file.Resources...)
+		for _, resource := range DefaultMonitoring().Resources {
+			checkID := "resource-" + resource
+			if check, ok := m.config.Checks[checkID]; ok && check.Enabled != nil && !*check.Enabled {
+				merged.Resources = removeString(merged.Resources, resource)
+				continue
+			}
+			if !containsString(merged.Resources, resource) {
+				merged.Resources = append(merged.Resources, resource)
+			}
+		}
+	}
+
+	return merged
+}
+
+func containsString(items []string, want string) bool {
+	for _, item := range items {
+		if item == want {
+			return true
+		}
+	}
+	return false
+}
+
+func removeString(items []string, remove string) []string {
+	filtered := items[:0]
+	for _, item := range items {
+		if item != remove {
+			filtered = append(filtered, item)
+		}
+	}
+	return filtered
 }
 
 // mergeThresholds merges user threshold overrides into defaults

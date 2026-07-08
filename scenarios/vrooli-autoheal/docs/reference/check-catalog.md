@@ -361,7 +361,7 @@ Complete reference of all available health checks.
 **Troubleshooting:**
 - Check usage: `df -h`
 - Find large files: `du -sh /* | sort -rh | head`
-- Clean Docker: `docker system prune`
+- Preview reclaim candidates: `cleanup-manager cleanup plan`
 
 [Detailed documentation](checks/system-disk.md)
 

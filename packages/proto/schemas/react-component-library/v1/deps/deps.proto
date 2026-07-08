@@ -58,6 +58,8 @@ message DepDeclaration {
   string library_id = 2;
   string dep_name = 3;
   string version_range = 4;
+  string version = 5;
+  string kind = 6;
 }
 
 message DepIssue {
@@ -66,6 +68,8 @@ message DepIssue {
   string scenario_version = 3;
   IssueKind kind = 4;
   string detail = 5;
+  string version = 6;
+  string dep_kind = 7;
 }
 
 message ListDeclarationsRequest {
@@ -79,6 +83,7 @@ message ListDeclarationsResponse {
 message ValidateAdoptionRequest {
   string component_id = 1;
   string scenario = 2;
+  string version = 3;
 }
 
 message ValidateAdoptionResponse {

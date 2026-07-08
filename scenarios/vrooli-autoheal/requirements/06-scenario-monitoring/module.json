@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-24T10:40:39-04:00"
+    "last_validated_at": "2026-07-06T15:39:49-04:00"
   },
   "requirements": [
     {
       "id": "SCEN-MON-001",
       "title": "Scenario status check via CLI",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "criticality": "P0",
       "description": "Use vrooli scenario status \u003cname\u003e --json to check scenario health",
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/checks/vrooli/vrooli_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covered by Go vrooli scenario-check tests (api/internal/checks/vrooli)"
         }
       ]
@@ -23,7 +23,7 @@
     {
       "id": "SCEN-MON-002",
       "title": "Scenario health interpretation",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "criticality": "P0",
       "description": "Parse status, api.available, ui.available from diagnostics",
@@ -32,7 +32,7 @@
           "type": "test",
           "ref": "api/internal/checks/vrooli/vrooli_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covered by Go vrooli scenario-check tests (api/internal/checks/vrooli)"
         }
       ]
@@ -40,7 +40,7 @@
     {
       "id": "SCEN-MON-003",
       "title": "Auto-restart unhealthy scenarios",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "criticality": "P0",
       "description": "If scenario is not running or endpoints unavailable, attempt restart via vrooli scenario restart",
@@ -49,7 +49,7 @@
           "type": "test",
           "ref": "api/internal/checks/vrooli/vrooli_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covered by Go vrooli scenario-check tests (api/internal/checks/vrooli)"
         }
       ]
@@ -57,7 +57,7 @@
     {
       "id": "SCEN-MON-004",
       "title": "Configurable scenario list",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "criticality": "P0",
       "description": "List of monitored scenarios is configuration-driven",
@@ -66,7 +66,7 @@
           "type": "test",
           "ref": "api/internal/checks/vrooli/vrooli_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covered by Go vrooli scenario-check tests (api/internal/checks/vrooli)"
         }
       ]
@@ -74,7 +74,7 @@
     {
       "id": "SCEN-MON-005",
       "title": "Port cleanup before restart",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "criticality": "P0",
       "description": "Clean up stale port listeners before restarting a scenario",
@@ -83,7 +83,7 @@
           "type": "test",
           "ref": "api/internal/checks/vrooli/vrooli_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covered by Go vrooli scenario-check tests (api/internal/checks/vrooli)"
         }
       ]
@@ -91,7 +91,7 @@
     {
       "id": "SCEN-MON-006",
       "title": "Restart verification",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "criticality": "P0",
       "description": "After restart, verify scenario becomes healthy within timeout",
@@ -100,7 +100,7 @@
           "type": "test",
           "ref": "api/internal/checks/vrooli/vrooli_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Covered by Go vrooli scenario-check tests (api/internal/checks/vrooli)"
         }
       ]

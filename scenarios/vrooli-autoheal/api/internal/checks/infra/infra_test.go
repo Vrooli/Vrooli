@@ -4,6 +4,7 @@ package infra
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -550,7 +551,7 @@ func TestDockerCheckHealable(t *testing.T) {
 		t.Error("DockerCheck should have recovery actions")
 	}
 
-	// Should have restart, start, prune, logs, info actions
+	// Should have restart, start, cleanup-manager prune handoff, logs, info actions.
 	actionIDs := make(map[string]bool)
 	for _, a := range actions {
 		actionIDs[a.ID] = true
@@ -748,19 +749,10 @@ func TestDockerCheckExecuteActionWithMock(t *testing.T) {
 		expectSuccess bool
 	}{
 		{
-			name:          "prune success",
+			name:          "prune delegates to cleanup-manager",
 			actionID:      "prune",
-			cmdKey:        "docker system prune --force",
-			cmdOutput:     "Deleted 5 containers\nTotal reclaimed space: 1.2GB",
-			cmdError:      nil,
-			expectSuccess: true,
-		},
-		{
-			name:          "prune failure",
-			actionID:      "prune",
-			cmdKey:        "docker system prune --force",
+			cmdKey:        "",
 			cmdOutput:     "",
-			cmdError:      checks.ErrConnectionRefused,
 			expectSuccess: false,
 		},
 		{
@@ -810,6 +802,14 @@ func TestDockerCheckExecuteActionWithMock(t *testing.T) {
 			}
 			if result.CheckID != check.ID() {
 				t.Errorf("CheckID = %q, want %q", result.CheckID, check.ID())
+			}
+			if tt.actionID == "prune" {
+				if len(mockExecutor.Calls) != 0 {
+					t.Fatalf("prune must not execute Docker cleanup directly, got calls: %+v", mockExecutor.Calls)
+				}
+				if !strings.Contains(result.Message, "cleanup-manager") {
+					t.Fatalf("prune message = %q, want cleanup-manager handoff", result.Message)
+				}
 			}
 		})
 	}

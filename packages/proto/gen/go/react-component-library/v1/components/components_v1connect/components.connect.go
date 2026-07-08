@@ -66,6 +66,9 @@ const (
 	// ComponentsServiceGetComponentVersionContentProcedure is the fully-qualified name of the
 	// ComponentsService's GetComponentVersionContent RPC.
 	ComponentsServiceGetComponentVersionContentProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentVersionContent"
+	// ComponentsServiceListDesignStylesProcedure is the fully-qualified name of the ComponentsService's
+	// ListDesignStyles RPC.
+	ComponentsServiceListDesignStylesProcedure = "/vrooli.react_component_library.v1.components.ComponentsService/ListDesignStyles"
 )
 
 // ComponentsServiceClient is a client for the
@@ -82,6 +85,7 @@ type ComponentsServiceClient interface {
 	UpdateComponentContent(context.Context, *connect.Request[components.UpdateComponentContentRequest]) (*connect.Response[components.UpdateComponentContentResponse], error)
 	ListComponentVersions(context.Context, *connect.Request[components.ListComponentVersionsRequest]) (*connect.Response[components.ListComponentVersionsResponse], error)
 	GetComponentVersionContent(context.Context, *connect.Request[components.GetComponentVersionContentRequest]) (*connect.Response[components.GetComponentVersionContentResponse], error)
+	ListDesignStyles(context.Context, *connect.Request[components.ListDesignStylesRequest]) (*connect.Response[components.ListDesignStylesResponse], error)
 }
 
 // NewComponentsServiceClient constructs a client for the
@@ -162,6 +166,12 @@ func NewComponentsServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(componentsServiceMethods.ByName("GetComponentVersionContent")),
 			connect.WithClientOptions(opts...),
 		),
+		listDesignStyles: connect.NewClient[components.ListDesignStylesRequest, components.ListDesignStylesResponse](
+			httpClient,
+			baseURL+ComponentsServiceListDesignStylesProcedure,
+			connect.WithSchema(componentsServiceMethods.ByName("ListDesignStyles")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -178,6 +188,7 @@ type componentsServiceClient struct {
 	updateComponentContent     *connect.Client[components.UpdateComponentContentRequest, components.UpdateComponentContentResponse]
 	listComponentVersions      *connect.Client[components.ListComponentVersionsRequest, components.ListComponentVersionsResponse]
 	getComponentVersionContent *connect.Client[components.GetComponentVersionContentRequest, components.GetComponentVersionContentResponse]
+	listDesignStyles           *connect.Client[components.ListDesignStylesRequest, components.ListDesignStylesResponse]
 }
 
 // ListComponents calls
@@ -245,6 +256,12 @@ func (c *componentsServiceClient) GetComponentVersionContent(ctx context.Context
 	return c.getComponentVersionContent.CallUnary(ctx, req)
 }
 
+// ListDesignStyles calls
+// vrooli.react_component_library.v1.components.ComponentsService.ListDesignStyles.
+func (c *componentsServiceClient) ListDesignStyles(ctx context.Context, req *connect.Request[components.ListDesignStylesRequest]) (*connect.Response[components.ListDesignStylesResponse], error) {
+	return c.listDesignStyles.CallUnary(ctx, req)
+}
+
 // ComponentsServiceHandler is an implementation of the
 // vrooli.react_component_library.v1.components.ComponentsService service.
 type ComponentsServiceHandler interface {
@@ -259,6 +276,7 @@ type ComponentsServiceHandler interface {
 	UpdateComponentContent(context.Context, *connect.Request[components.UpdateComponentContentRequest]) (*connect.Response[components.UpdateComponentContentResponse], error)
 	ListComponentVersions(context.Context, *connect.Request[components.ListComponentVersionsRequest]) (*connect.Response[components.ListComponentVersionsResponse], error)
 	GetComponentVersionContent(context.Context, *connect.Request[components.GetComponentVersionContentRequest]) (*connect.Response[components.GetComponentVersionContentResponse], error)
+	ListDesignStyles(context.Context, *connect.Request[components.ListDesignStylesRequest]) (*connect.Response[components.ListDesignStylesResponse], error)
 }
 
 // NewComponentsServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -334,6 +352,12 @@ func NewComponentsServiceHandler(svc ComponentsServiceHandler, opts ...connect.H
 		connect.WithSchema(componentsServiceMethods.ByName("GetComponentVersionContent")),
 		connect.WithHandlerOptions(opts...),
 	)
+	componentsServiceListDesignStylesHandler := connect.NewUnaryHandler(
+		ComponentsServiceListDesignStylesProcedure,
+		svc.ListDesignStyles,
+		connect.WithSchema(componentsServiceMethods.ByName("ListDesignStyles")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.react_component_library.v1.components.ComponentsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ComponentsServiceListComponentsProcedure:
@@ -358,6 +382,8 @@ func NewComponentsServiceHandler(svc ComponentsServiceHandler, opts ...connect.H
 			componentsServiceListComponentVersionsHandler.ServeHTTP(w, r)
 		case ComponentsServiceGetComponentVersionContentProcedure:
 			componentsServiceGetComponentVersionContentHandler.ServeHTTP(w, r)
+		case ComponentsServiceListDesignStylesProcedure:
+			componentsServiceListDesignStylesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -409,4 +435,8 @@ func (UnimplementedComponentsServiceHandler) ListComponentVersions(context.Conte
 
 func (UnimplementedComponentsServiceHandler) GetComponentVersionContent(context.Context, *connect.Request[components.GetComponentVersionContentRequest]) (*connect.Response[components.GetComponentVersionContentResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.components.ComponentsService.GetComponentVersionContent is not implemented"))
+}
+
+func (UnimplementedComponentsServiceHandler) ListDesignStyles(context.Context, *connect.Request[components.ListDesignStylesRequest]) (*connect.Response[components.ListDesignStylesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.components.ComponentsService.ListDesignStyles is not implemented"))
 }

@@ -1,0 +1,142 @@
+syntax = "proto3";
+
+package vrooli.cleanup_manager.v1.cleanup;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cleanup-manager/v1/cleanup;cleanup_v1";
+
+// CleanupService exposes preview-first cleanup orchestration.
+service CleanupService {
+  rpc ListProviders(ListProvidersRequest) returns (ListProvidersResponse);
+  rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse);
+  rpc SetPolicyProfile(SetPolicyProfileRequest) returns (SetPolicyProfileResponse);
+  rpc CreatePlan(CreatePlanRequest) returns (CreatePlanResponse);
+  rpc ApplyPlan(ApplyPlanRequest) returns (ApplyPlanResponse);
+  rpc ListAudit(ListAuditRequest) returns (ListAuditResponse);
+}
+
+message ListProvidersRequest {}
+
+message ListProvidersResponse {
+  repeated Provider providers = 1;
+}
+
+message Provider {
+  string id = 1;
+  string name = 2;
+  string version = 3;
+  string owner_scenario = 4;
+  string safety_tier = 5;
+  string default_mode = 6;
+  string default_approval = 7;
+  repeated string supported_platforms = 8;
+  repeated string required_privileges = 9;
+  repeated string irreversible_effects = 10;
+}
+
+message GetPolicyRequest {}
+
+message GetPolicyResponse {
+  Policy policy = 1;
+}
+
+message SetPolicyProfileRequest {
+  string profile = 1;
+}
+
+message SetPolicyProfileResponse {
+  Policy policy = 1;
+}
+
+message Policy {
+  string version = 1;
+  string profile = 2;
+  google.protobuf.Timestamp created_at = 3;
+  repeated ProviderPolicy providers = 4;
+}
+
+message ProviderPolicy {
+  string provider_id = 1;
+  bool enabled = 2;
+  int64 min_age_seconds = 3;
+  int64 max_bytes = 4;
+  string approval_mode = 5;
+}
+
+message CreatePlanRequest {}
+
+message CreatePlanResponse {
+  Plan plan = 1;
+}
+
+message Plan {
+  string id = 1;
+  string policy_version = 2;
+  google.protobuf.Timestamp created_at = 3;
+  int64 total_bytes = 4;
+  int32 total_items = 5;
+  repeated ProviderPlan providers = 6;
+}
+
+message ProviderPlan {
+  string provider_id = 1;
+  string provider_version = 2;
+  int64 estimated_bytes = 3;
+  int32 item_count = 4;
+  string blocked_reason = 5;
+  repeated PreviewItem items = 6;
+  repeated string warnings = 7;
+  string approval_mode = 8;
+}
+
+message PreviewItem {
+  string id = 1;
+  string path = 2;
+  string description = 3;
+  int64 bytes = 4;
+  string action = 5;
+  string safety_tier = 6;
+}
+
+message ApplyPlanRequest {
+  string plan_id = 1;
+  string policy_version = 2;
+  string approval_mode = 3;
+  string approval_token = 4;
+  string idempotency_key = 5;
+}
+
+message ApplyPlanResponse {
+  string plan_id = 1;
+  string idempotency_key = 2;
+  bool already_applied = 3;
+  int64 reclaimed_bytes = 4;
+  repeated ApplyResult results = 5;
+}
+
+message ApplyResult {
+  string provider_id = 1;
+  bool applied = 2;
+  bool already_done = 3;
+  int64 reclaimed_bytes = 4;
+  repeated string skipped_items = 5;
+  repeated string warnings = 6;
+}
+
+message ListAuditRequest {}
+
+message ListAuditResponse {
+  repeated AuditEvent events = 1;
+}
+
+message AuditEvent {
+  string id = 1;
+  google.protobuf.Timestamp time = 2;
+  string type = 3;
+  string plan_id = 4;
+  string provider_id = 5;
+  string idempotency_key = 6;
+  string message = 7;
+  bool redacted = 8;
+}

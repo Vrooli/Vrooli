@@ -139,6 +139,8 @@ type DepDeclaration struct {
 	LibraryId     string                 `protobuf:"bytes,2,opt,name=library_id,json=libraryId,proto3" json:"library_id,omitempty"`
 	DepName       string                 `protobuf:"bytes,3,opt,name=dep_name,json=depName,proto3" json:"dep_name,omitempty"`
 	VersionRange  string                 `protobuf:"bytes,4,opt,name=version_range,json=versionRange,proto3" json:"version_range,omitempty"`
+	Version       string                 `protobuf:"bytes,5,opt,name=version,proto3" json:"version,omitempty"`
+	Kind          string                 `protobuf:"bytes,6,opt,name=kind,proto3" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -201,6 +203,20 @@ func (x *DepDeclaration) GetVersionRange() string {
 	return ""
 }
 
+func (x *DepDeclaration) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *DepDeclaration) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
 type DepIssue struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	DepName         string                 `protobuf:"bytes,1,opt,name=dep_name,json=depName,proto3" json:"dep_name,omitempty"`
@@ -208,6 +224,8 @@ type DepIssue struct {
 	ScenarioVersion string                 `protobuf:"bytes,3,opt,name=scenario_version,json=scenarioVersion,proto3" json:"scenario_version,omitempty"`
 	Kind            IssueKind              `protobuf:"varint,4,opt,name=kind,proto3,enum=vrooli.react_component_library.v1.deps.IssueKind" json:"kind,omitempty"`
 	Detail          string                 `protobuf:"bytes,5,opt,name=detail,proto3" json:"detail,omitempty"`
+	Version         string                 `protobuf:"bytes,6,opt,name=version,proto3" json:"version,omitempty"`
+	DepKind         string                 `protobuf:"bytes,7,opt,name=dep_kind,json=depKind,proto3" json:"dep_kind,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -273,6 +291,20 @@ func (x *DepIssue) GetKind() IssueKind {
 func (x *DepIssue) GetDetail() string {
 	if x != nil {
 		return x.Detail
+	}
+	return ""
+}
+
+func (x *DepIssue) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *DepIssue) GetDepKind() string {
+	if x != nil {
+		return x.DepKind
 	}
 	return ""
 }
@@ -369,6 +401,7 @@ type ValidateAdoptionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ComponentId   string                 `protobuf:"bytes,1,opt,name=component_id,json=componentId,proto3" json:"component_id,omitempty"`
 	Scenario      string                 `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Version       string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -413,6 +446,13 @@ func (x *ValidateAdoptionRequest) GetComponentId() string {
 func (x *ValidateAdoptionRequest) GetScenario() string {
 	if x != nil {
 		return x.Scenario
+	}
+	return ""
+}
+
+func (x *ValidateAdoptionRequest) GetVersion() string {
+	if x != nil {
+		return x.Version
 	}
 	return ""
 }
@@ -473,26 +513,31 @@ var File_react_component_library_v1_deps_deps_proto protoreflect.FileDescriptor
 
 const file_react_component_library_v1_deps_deps_proto_rawDesc = "" +
 	"\n" +
-	"*react-component-library/v1/deps/deps.proto\x12&vrooli.react_component_library.v1.deps\"\x92\x01\n" +
+	"*react-component-library/v1/deps/deps.proto\x12&vrooli.react_component_library.v1.deps\"\xc0\x01\n" +
 	"\x0eDepDeclaration\x12!\n" +
 	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\x12\x1d\n" +
 	"\n" +
 	"library_id\x18\x02 \x01(\tR\tlibraryId\x12\x19\n" +
 	"\bdep_name\x18\x03 \x01(\tR\adepName\x12#\n" +
-	"\rversion_range\x18\x04 \x01(\tR\fversionRange\"\xd6\x01\n" +
+	"\rversion_range\x18\x04 \x01(\tR\fversionRange\x12\x18\n" +
+	"\aversion\x18\x05 \x01(\tR\aversion\x12\x12\n" +
+	"\x04kind\x18\x06 \x01(\tR\x04kind\"\x8b\x02\n" +
 	"\bDepIssue\x12\x19\n" +
 	"\bdep_name\x18\x01 \x01(\tR\adepName\x12%\n" +
 	"\x0edeclared_range\x18\x02 \x01(\tR\rdeclaredRange\x12)\n" +
 	"\x10scenario_version\x18\x03 \x01(\tR\x0fscenarioVersion\x12E\n" +
 	"\x04kind\x18\x04 \x01(\x0e21.vrooli.react_component_library.v1.deps.IssueKindR\x04kind\x12\x16\n" +
-	"\x06detail\x18\x05 \x01(\tR\x06detail\"<\n" +
+	"\x06detail\x18\x05 \x01(\tR\x06detail\x12\x18\n" +
+	"\aversion\x18\x06 \x01(\tR\aversion\x12\x19\n" +
+	"\bdep_kind\x18\a \x01(\tR\adepKind\"<\n" +
 	"\x17ListDeclarationsRequest\x12!\n" +
 	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\"v\n" +
 	"\x18ListDeclarationsResponse\x12Z\n" +
-	"\fdeclarations\x18\x01 \x03(\v26.vrooli.react_component_library.v1.deps.DepDeclarationR\fdeclarations\"X\n" +
+	"\fdeclarations\x18\x01 \x03(\v26.vrooli.react_component_library.v1.deps.DepDeclarationR\fdeclarations\"r\n" +
 	"\x17ValidateAdoptionRequest\x12!\n" +
 	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\x12\x1a\n" +
-	"\bscenario\x18\x02 \x01(\tR\bscenario\"\xad\x01\n" +
+	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\"\xad\x01\n" +
 	"\x18ValidateAdoptionResponse\x12G\n" +
 	"\x04kind\x18\x01 \x01(\x0e23.vrooli.react_component_library.v1.deps.VerdictKindR\x04kind\x12H\n" +
 	"\x06issues\x18\x02 \x03(\v20.vrooli.react_component_library.v1.deps.DepIssueR\x06issues*o\n" +

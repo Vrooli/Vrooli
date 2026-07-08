@@ -1181,6 +1181,20 @@ func scoreCapabilityPriority(result LocalResult, declaration int) capabilityPrio
 		score.requiredState = 0
 	} else if len(result.Findings) > 0 || result.UnknownCount > 0 {
 		score.requiredState = 1
+	} else if isAtCeiling(result) {
+		// A capability that is clean AND at its ceiling has nothing left to
+		// unlock, so it is the LOWEST priority — never the next-move focus while
+		// any advanceable capability remains. Without this, a short ladder that
+		// tops out early (e.g. an L0–L2 capability) would out-prioritize a longer
+		// ladder with real headroom (e.g. an L0–L4 capability sitting at L3),
+		// because the level-index tiebreak favors the lower rung.
+		score.requiredState = 3
+		// Among fully-done capabilities the "focus" only decides which one
+		// represents the phase (its rung + North Star) when everything is maxed.
+		// Prefer the DEEPEST ladder so a fully-mature phase showcases its most
+		// aspirational capability, not the shortest one — invert the level-index
+		// so higher ceilings sort first within this tier.
+		score.levelIndex = -score.levelIndex
 	}
 	for _, finding := range result.Findings {
 		if isDebtFinding(finding) {
@@ -1194,6 +1208,19 @@ func scoreCapabilityPriority(result LocalResult, declaration int) capabilityPrio
 		}
 	}
 	return score
+}
+
+// isAtCeiling reports whether a capability sits at the top of its ladder with no
+// further rung to unlock. A capability whose level could not be determined
+// (unknown) is not treated as at-ceiling.
+func isAtCeiling(result LocalResult) bool {
+	if len(result.Levels) == 0 {
+		return false
+	}
+	if currentLevelIndex(result) < 0 {
+		return false
+	}
+	return strings.TrimSpace(result.NextLevel) == ""
 }
 
 func compareCapabilityPriority(left, right capabilityPriorityScore) int {
@@ -1233,6 +1260,11 @@ func priorityReason(result LocalResult) string {
 	}
 	severity, severityCount := highestPrioritySeverity(result.Findings)
 	impact, impactCount := highestPriorityImpact(result.Findings)
+	// A clean capability that still has a rung to unlock is prioritized for its
+	// headroom, not for debt; say so rather than the misleading "lowest level".
+	if state == "clean capability" && !isAtCeiling(result) {
+		return "clean; next rung available"
+	}
 	parts := []string{"lowest current level"}
 	if state != "clean capability" {
 		parts = append(parts, "with "+state)
