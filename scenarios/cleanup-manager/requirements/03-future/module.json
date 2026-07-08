@@ -1,0 +1,55 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "Add opt-in scheduled cleanup runs for eligible Safe and SafeWithOwner providers with explicit dry-run and audit retention controls.",
+      "id": "CLN-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Scheduled policy execution",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CLN-P2-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Aggregate cleanup estimates, provider health, and reclaim outcomes across scenarios to guide capacity planning and future storage governance.",
+      "id": "CLN-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "Fleet cleanup intelligence",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CLN-P2-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Support registered scenario-owned providers with declarative metadata, contract validation, and reusable action discovery for future cleanup capabilities.",
+      "id": "CLN-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "Extended provider marketplace",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CLN-P2-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}
