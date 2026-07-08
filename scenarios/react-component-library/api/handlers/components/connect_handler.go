@@ -45,6 +45,8 @@ func (h *connectHandler) ListComponents(ctx context.Context, req *connect.Reques
 		Tag:      req.Msg.Tag,
 		Tags:     append([]string(nil), req.Msg.Tags...),
 		Category: req.Msg.Category,
+		StyleID:  req.Msg.StyleId,
+		Affinity: req.Msg.Affinity,
 		Limit:    int(req.Msg.Limit),
 	})
 	if err != nil {
@@ -181,6 +183,24 @@ func (h *connectHandler) ListComponentVersions(ctx context.Context, req *connect
 	resp := &componentsv1.ListComponentVersionsResponse{Versions: make([]*componentsv1.ComponentVersion, 0, len(rows))}
 	for _, v := range rows {
 		resp.Versions = append(resp.Versions, versionToProto(v))
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) ListDesignStyles(ctx context.Context, req *connect.Request[componentsv1.ListDesignStylesRequest]) (*connect.Response[componentsv1.ListDesignStylesResponse], error) {
+	rows, err := h.deps.Service.ListDesignStyles(ctx)
+	if err != nil {
+		h.deps.Logger.Printf("components.ListDesignStyles: %v", err)
+		return nil, components.ToConnectError(err)
+	}
+	resp := &componentsv1.ListDesignStylesResponse{Styles: make([]*componentsv1.DesignStyle, 0, len(rows))}
+	for _, style := range rows {
+		resp.Styles = append(resp.Styles, &componentsv1.DesignStyle{
+			Id:       style.ID,
+			Name:     style.Name,
+			Tags:     append([]string(nil), style.Tags...),
+			Supports: append([]string(nil), style.Supports...),
+		})
 	}
 	return connect.NewResponse(resp), nil
 }

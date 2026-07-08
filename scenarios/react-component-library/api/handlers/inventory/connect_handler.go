@@ -69,7 +69,7 @@ func (h *connectHandler) ScanScenario(ctx context.Context, req *connect.Request[
 	if err != nil {
 		var notFound uimanifest.ErrScenarioNotFound
 		if errors.As(err, &notFound) {
-			return connect.NewResponse(&inventoryv1.ScanScenarioResponse{Scenario: scenario}), nil
+			return nil, connect.NewError(connect.CodeNotFound, err)
 		}
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -203,12 +203,12 @@ func walkTSX(dir string) ([]string, error) {
 }
 
 var (
-	tagSourceRE   = regexp.MustCompile(`@vrooliComponentSource\s+(\S+)`)
-	tagVersionRE  = regexp.MustCompile(`@vrooliComponentVersion\s+(\S+)`)
-	tagAdoptionRE = regexp.MustCompile(`@vrooliComponentAdoption\s+(\S+)`)
-	tagAppliedRE  = regexp.MustCompile(`@vrooliComponentAppliedAt\s+(\S+)`)
-	tagSourceShaRE = regexp.MustCompile(`@vrooliComponentSourceSha256\s+(\S+)`)
-	tagDriftHashRE = regexp.MustCompile(`@vrooliComponentDriftHash\s+(\S+)`)
+	tagSourceRE        = regexp.MustCompile(`@vrooliComponentSource\s+(\S+)`)
+	tagVersionRE       = regexp.MustCompile(`@vrooliComponentVersion\s+(\S+)`)
+	tagAdoptionRE      = regexp.MustCompile(`@vrooliComponentAdoption\s+(\S+)`)
+	tagAppliedRE       = regexp.MustCompile(`@vrooliComponentAppliedAt\s+(\S+)`)
+	tagSourceShaRE     = regexp.MustCompile(`@vrooliComponentSourceSha256\s+(\S+)`)
+	tagDriftHashRE     = regexp.MustCompile(`@vrooliComponentDriftHash\s+(\S+)`)
 	tagComponentNameRE = regexp.MustCompile(`@vrooliComponentName\s+(\S+)`)
 )
 
@@ -217,13 +217,13 @@ var (
 //
 // Decision logic:
 //   - DB row present:
-//       compute drift_hash from on-disk content.
-//       if drift_hash == source_sha256 from row → ADOPTED_UNMODIFIED.
-//       else → ADOPTED_MODIFIED.
+//     compute drift_hash from on-disk content.
+//     if drift_hash == source_sha256 from row → ADOPTED_UNMODIFIED.
+//     else → ADOPTED_MODIFIED.
 //   - DB row absent but JSDoc block present:
-//       UNKNOWN (DB drift — heal-from signal exists but no record).
+//     UNKNOWN (DB drift — heal-from signal exists but no record).
 //   - Neither:
-//       CUSTOM.
+//     CUSTOM.
 func buildProvenance(filePath string, content []byte, byPath map[string]adoptions.Adoption) *provenancev1.ComponentProvenance {
 	drift := sha256Hex(content)
 	if row, ok := byPath[filePath]; ok {

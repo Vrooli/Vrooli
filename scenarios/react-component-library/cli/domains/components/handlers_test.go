@@ -173,6 +173,14 @@ func (s *componentsService) GetComponentVersionContent(_ context.Context, _ *con
 	return connect.NewResponse(&componentsv1.GetComponentVersionContentResponse{}), nil
 }
 
+func (s *componentsService) ListDesignStyles(_ context.Context, _ *connect.Request[componentsv1.ListDesignStylesRequest]) (*connect.Response[componentsv1.ListDesignStylesResponse], error) {
+	return connect.NewResponse(&componentsv1.ListDesignStylesResponse{
+		Styles: []*componentsv1.DesignStyle{
+			{Id: "vrooli-default", Name: "Vrooli Operational Console", Supports: []string{"templates/scenarios/react-vite"}},
+		},
+	}), nil
+}
+
 func connectAPI(t *testing.T, svc *componentsService) http.Handler {
 	t.Helper()
 	path, handler := componentsconnect.NewComponentsServiceHandler(svc)
@@ -188,11 +196,16 @@ func sampleComponent() *componentsv1.Component {
 		LibraryId:   "lib:Button",
 		DisplayName: "Button",
 		Description: "CTA",
+		Slot:        "ui-primitive",
 		SourcePath:  "components/Button.tsx",
 		Version:     "1.0.0",
 		Tags:        []string{"form"},
-		IndexedAt:   ts,
-		UpdatedAt:   ts,
+		DesignStyles: []*componentsv1.ComponentDesignAffinity{
+			{StyleId: "vrooli-default", Affinity: componentsv1.DesignAffinity_DESIGN_AFFINITY_NATIVE},
+			{StyleId: "vrooli-conversion-landing", Affinity: componentsv1.DesignAffinity_DESIGN_AFFINITY_DISCOURAGED},
+		},
+		IndexedAt: ts,
+		UpdatedAt: ts,
 	}
 }
 
@@ -219,9 +232,9 @@ func TestComponentsList_ForwardsFiltersAndRenders(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
-		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "tags"}, {Name: "category"}, {Name: "limit"}},
+		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "tags"}, {Name: "category"}, {Name: "style"}, {Name: "affinity"}, {Name: "limit"}},
 	}, cliapptest.TestRunContextOptions{
-		Flags: map[string]string{"match": "btn", "tag": "form", "limit": "50"},
+		Flags: map[string]string{"match": "btn", "tag": "form", "style": "vrooli-default", "affinity": "native", "limit": "50"},
 	})
 
 	require.NoError(t, h.list(ctx))
@@ -231,9 +244,25 @@ func TestComponentsList_ForwardsFiltersAndRenders(t *testing.T) {
 	require.Equal(t, int32(50), svc.listReqs[0].Limit)
 	require.Empty(t, svc.listReqs[0].Tags)
 	require.Empty(t, svc.listReqs[0].Category)
+	require.Equal(t, "vrooli-default", svc.listReqs[0].StyleId)
+	require.Equal(t, "native", svc.listReqs[0].Affinity)
 	require.Contains(t, out.String(), "Found 1 component(s).")
 	require.Contains(t, out.String(), "lib:Button")
 	require.Contains(t, out.String(), "v1.0.0")
+	require.Contains(t, out.String(), "vrooli-conversion-landing:discouraged")
+}
+
+func TestComponentsStyles_RendersCanonicalStyles(t *testing.T) {
+	svc := &componentsService{}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{})
+
+	require.NoError(t, h.styles(ctx))
+	body := out.String()
+	require.Contains(t, body, "Found 1 design style(s).")
+	require.Contains(t, body, "vrooli-default")
+	require.Contains(t, body, "templates/scenarios/react-vite")
 }
 
 func TestComponentsList_ForwardsMultiTagAndCategory(t *testing.T) {
@@ -243,7 +272,7 @@ func TestComponentsList_ForwardsMultiTagAndCategory(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
-		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "tags"}, {Name: "category"}, {Name: "limit"}},
+		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "tags"}, {Name: "category"}, {Name: "style"}, {Name: "affinity"}, {Name: "limit"}},
 	}, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"tags": " form , , layout ", "category": "controls"},
 	})
@@ -259,7 +288,7 @@ func TestComponentsList_RejectsBadLimit(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, &componentsService{}))
 	h := newHandlers(core)
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
-		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "tags"}, {Name: "category"}, {Name: "limit"}},
+		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "tags"}, {Name: "category"}, {Name: "style"}, {Name: "affinity"}, {Name: "limit"}},
 	}, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"limit": "abc"},
 	})
@@ -277,7 +306,7 @@ func TestComponentsList_JSONIsProtoWireShape(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
-		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "tags"}, {Name: "category"}, {Name: "limit"}},
+		Flags: []cliapp.Flag{{Name: "match"}, {Name: "tag"}, {Name: "tags"}, {Name: "category"}, {Name: "style"}, {Name: "affinity"}, {Name: "limit"}},
 	}, cliapptest.TestRunContextOptions{JSON: true})
 
 	require.NoError(t, h.list(ctx))

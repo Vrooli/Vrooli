@@ -31,6 +31,7 @@ type Component struct {
 	Slug          string
 	DisplayName   string
 	Description   string
+	Slot          string
 	SourcePath    string
 	Version       string
 	LatestVersion string
@@ -40,6 +41,7 @@ type Component struct {
 	IndexedAt     time.Time
 	UpdatedAt     time.Time
 	Headers       map[string]string
+	DesignStyles  []ComponentDesignAffinity
 }
 
 // ComponentVersionStatus classifies a version folder.
@@ -66,6 +68,7 @@ type ComponentVersion struct {
 	ChangelogMD   string
 	IndexedAt     time.Time
 	ReleasedAt    time.Time
+	Headers       map[string]string
 }
 
 // ComponentManifest is the explicit DTO the manifest indexer hands to
@@ -76,11 +79,13 @@ type ComponentManifest struct {
 	Slug               string
 	DisplayName        string
 	Description        string
+	Slot               string
 	ManifestPath       string
 	LatestVersion      string
 	DraftVersion       string
 	DeprecatedVersions []string
 	Tags               []string
+	DesignStyles       []ComponentDesignAffinity
 }
 
 // UpsertInput is retained as a convenience alias for older tests and
@@ -91,6 +96,7 @@ type UpsertInput struct {
 	Slug          string
 	DisplayName   string
 	Description   string
+	Slot          string
 	ManifestPath  string
 	SourcePath    string
 	Version       string
@@ -98,6 +104,7 @@ type UpsertInput struct {
 	DraftVersion  string
 	Tags          []string
 	Headers       map[string]string
+	DesignStyles  []ComponentDesignAffinity
 }
 
 // IndexManifestInput is the full registry payload for one component
@@ -105,6 +112,20 @@ type UpsertInput struct {
 type IndexManifestInput struct {
 	Manifest ComponentManifest
 	Versions []ComponentVersion
+	Headers  map[string]string
+}
+
+type DesignAffinity string
+
+const (
+	DesignAffinityNative      DesignAffinity = "native"
+	DesignAffinityCompatible  DesignAffinity = "compatible"
+	DesignAffinityDiscouraged DesignAffinity = "discouraged"
+)
+
+type ComponentDesignAffinity struct {
+	StyleID  string
+	Affinity DesignAffinity
 }
 
 // SearchQuery filters a List call. All fields optional.
@@ -124,6 +145,8 @@ type SearchQuery struct {
 	Tag      string
 	Tags     []string
 	Category string
+	StyleID  string
+	Affinity string
 	Limit    int
 }
 

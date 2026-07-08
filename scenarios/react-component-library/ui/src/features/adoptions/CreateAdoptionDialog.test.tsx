@@ -41,10 +41,10 @@ import { setLocale } from "../../i18n";
 async function fillRequired(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByTestId(selectors.adoptions.createComponentId), "cmp-button");
   await user.type(screen.getByTestId(selectors.adoptions.createScenario), "swarm-manager");
-  await user.type(
-    screen.getByTestId(selectors.adoptions.createAdoptedPath),
-    "ui/src/components/Button.tsx",
-  );
+  const adoptedPath = screen.getByTestId(selectors.adoptions.createAdoptedPath);
+  await waitFor(() => expect(adoptedPath).toHaveValue("ui/src/components/Button.tsx"));
+  await user.clear(adoptedPath);
+  await user.type(adoptedPath, "ui/src/components/Button.tsx");
   await user.type(screen.getByTestId(selectors.adoptions.createAdoptedVersion), "1.0.0");
 }
 

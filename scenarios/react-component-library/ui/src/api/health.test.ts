@@ -31,4 +31,14 @@ describe("api/health.fetchHealth", () => {
       cache: "no-store",
     });
   });
+
+  it("throws decoded API errors for non-ok responses", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response('{"code":"unavailable","message":"down"}', {
+        status: 503,
+      }),
+    );
+
+    await expect(fetchHealth()).rejects.toThrow("down");
+  });
 });

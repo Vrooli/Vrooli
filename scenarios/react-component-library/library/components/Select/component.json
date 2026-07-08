@@ -4,6 +4,11 @@
   "description": "Native select wrapper styled with Vrooli tokens and mobile-safe control sizing.",
   "tags": ["form", "interactive"],
   "slot": "ui-primitive",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
   "latest": "1.0.0",
   "draft": "",
   "deprecatedVersions": []

@@ -27,9 +27,11 @@ type adoptionsService struct {
 	reapplyResp *adoptionsv1.ReapplyAdoptionResponse
 	deleteResp  *adoptionsv1.DeleteAdoptionResponse
 	refreshResp *adoptionsv1.RefreshAdoptionsResponse
+	resolveResp *adoptionsv1.ResolveAdoptionPathResponse
 	listReqs    []*adoptionsv1.ListAdoptionsRequest
 	applyReqs   []*adoptionsv1.ApplyAdoptionRequest
 	refreshReqs []*adoptionsv1.RefreshAdoptionsRequest
+	resolveReqs []*adoptionsv1.ResolveAdoptionPathRequest
 }
 
 func (s *adoptionsService) ListAdoptions(_ context.Context, req *connect.Request[adoptionsv1.ListAdoptionsRequest]) (*connect.Response[adoptionsv1.ListAdoptionsResponse], error) {
@@ -74,6 +76,20 @@ func (s *adoptionsService) RefreshAdoptions(_ context.Context, req *connect.Requ
 		s.refreshResp = &adoptionsv1.RefreshAdoptionsResponse{}
 	}
 	return connect.NewResponse(s.refreshResp), nil
+}
+
+func (s *adoptionsService) ResolveAdoptionPath(_ context.Context, req *connect.Request[adoptionsv1.ResolveAdoptionPathRequest]) (*connect.Response[adoptionsv1.ResolveAdoptionPathResponse], error) {
+	s.mu.Lock()
+	s.resolveReqs = append(s.resolveReqs, req.Msg)
+	s.mu.Unlock()
+	if s.resolveResp == nil {
+		s.resolveResp = &adoptionsv1.ResolveAdoptionPathResponse{
+			Path:   "ui/src/components/Button.tsx",
+			Source: adoptionsv1.ResolveSource_RESOLVE_SOURCE_TEMPLATE_MANIFEST,
+			Slot:   "ui-primitive",
+		}
+	}
+	return connect.NewResponse(s.resolveResp), nil
 }
 
 func connectAPI(t *testing.T, svc *adoptionsService) http.Handler {

@@ -35,29 +35,135 @@ func TestSQLiteRepository_UpsertInsertsThenUpdates(t *testing.T) {
 		LibraryID:   "react-component-library:Button",
 		DisplayName: "Button",
 		Description: "Primary CTA",
+		Slot:        "ui-primitive",
 		SourcePath:  "components/Button.tsx",
 		Version:     "1.0.0",
 		Tags:        []string{"form", "interactive"},
-		Headers:     map[string]string{"libraryId": "react-component-library:Button", "version": "1.0.0"},
+		Headers:     map[string]string{"libraryId": "react-component-library:Button", "version": "1.0.0", "warning": "DO NOT REMOVE"},
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, c1.ID)
 	require.False(t, c1.IndexedAt.IsZero())
 	require.Equal(t, c1.IndexedAt, c1.UpdatedAt)
 	require.Equal(t, []string{"form", "interactive"}, c1.Tags)
-	require.Equal(t, "1.0.0", c1.Headers["version"])
+	require.Equal(t, "ui-primitive", c1.Slot)
+	require.Equal(t, "DO NOT REMOVE", c1.Headers["warning"])
+	require.NotContains(t, c1.Headers, "libraryId")
+	require.NotContains(t, c1.Headers, "version")
 
 	c2, err := repo.Upsert(ctx, components.UpsertInput{
 		LibraryID:   "react-component-library:Button",
 		DisplayName: "Button (renamed)",
+		Slot:        "ui-pattern",
 		SourcePath:  "components/Button.tsx",
 		Version:     "1.1.0",
-		Headers:     map[string]string{"libraryId": "react-component-library:Button", "version": "1.1.0"},
+		Headers:     map[string]string{"category": "controls"},
 	})
 	require.NoError(t, err)
 	require.Equal(t, c1.ID, c2.ID, "upsert by libraryId must reuse the existing primary key")
 	require.Equal(t, "Button (renamed)", c2.DisplayName)
+	require.Equal(t, "ui-pattern", c2.Slot)
+	require.Equal(t, "controls", c2.Headers["category"])
+	require.NotContains(t, c2.Headers, "warning")
 	require.Equal(t, c1.IndexedAt, c2.IndexedAt, "IndexedAt is sticky")
+}
+
+func TestSQLiteRepository_UpsertManifestPersistsLatestHeadersForCategoryFacet(t *testing.T) {
+	repo, _ := newComponentsDB(t)
+	ctx := context.Background()
+
+	c, err := repo.UpsertManifest(ctx, components.IndexManifestInput{
+		Manifest: components.ComponentManifest{
+			LibraryID:     "react-component-library:Button",
+			Slug:          "Button",
+			DisplayName:   "Button",
+			Slot:          "ui-primitive",
+			LatestVersion: "1.1.0",
+			Tags:          []string{"form", "interactive"},
+		},
+		Versions: []components.ComponentVersion{
+			{Version: "1.0.0", Status: components.VersionStatusReleased, SourcePath: "components/Button/versions/1.0.0/Button.tsx", ContentSHA256: "old"},
+			{Version: "1.1.0", Status: components.VersionStatusReleased, SourcePath: "components/Button/versions/1.1.0/Button.tsx", ContentSHA256: "new"},
+		},
+		Headers: map[string]string{
+			"libraryId": "react-component-library:Button",
+			"version":   "1.1.0",
+			"deps":      `{"react":"^18"}`,
+			"category":  "controls",
+			"warning":   "DO NOT REMOVE",
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "controls", c.Headers["category"])
+	require.Equal(t, "DO NOT REMOVE", c.Headers["warning"])
+	require.NotContains(t, c.Headers, "libraryId")
+	require.NotContains(t, c.Headers, "version")
+	require.NotContains(t, c.Headers, "deps")
+
+	got, err := repo.List(ctx, components.SearchQuery{Category: "controls", Limit: 10})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, "react-component-library:Button", got[0].LibraryID)
+	require.Nil(t, got[0].Headers, "List omits headers; Get carries them")
+
+	fetched, err := repo.Get(ctx, c.ID)
+	require.NoError(t, err)
+	require.Equal(t, "controls", fetched.Headers["category"])
+}
+
+func TestSQLiteRepository_UpsertManifestPersistsDesignAffinitiesAndFilters(t *testing.T) {
+	repo, _ := newComponentsDB(t)
+	ctx := context.Background()
+
+	button, err := repo.UpsertManifest(ctx, components.IndexManifestInput{
+		Manifest: components.ComponentManifest{
+			LibraryID:     "react-component-library:Button",
+			Slug:          "Button",
+			DisplayName:   "Button",
+			Slot:          "ui-primitive",
+			LatestVersion: "1.0.0",
+			DesignStyles: []components.ComponentDesignAffinity{
+				{StyleID: "vrooli-default", Affinity: components.DesignAffinityNative},
+				{StyleID: "vrooli-conversion-landing", Affinity: components.DesignAffinityCompatible},
+			},
+		},
+		Versions: []components.ComponentVersion{
+			{Version: "1.0.0", Status: components.VersionStatusReleased, SourcePath: "components/Button/versions/1.0.0/Button.tsx", ContentSHA256: "button"},
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []components.ComponentDesignAffinity{
+		{StyleID: "vrooli-conversion-landing", Affinity: components.DesignAffinityCompatible},
+		{StyleID: "vrooli-default", Affinity: components.DesignAffinityNative},
+	}, button.DesignStyles)
+
+	_, err = repo.UpsertManifest(ctx, components.IndexManifestInput{
+		Manifest: components.ComponentManifest{
+			LibraryID:     "react-component-library:DataTable",
+			Slug:          "DataTable",
+			DisplayName:   "Data Table",
+			Slot:          "ui-pattern",
+			LatestVersion: "1.0.0",
+			DesignStyles: []components.ComponentDesignAffinity{
+				{StyleID: "vrooli-default", Affinity: components.DesignAffinityNative},
+				{StyleID: "vrooli-conversion-landing", Affinity: components.DesignAffinityDiscouraged},
+			},
+		},
+		Versions: []components.ComponentVersion{
+			{Version: "1.0.0", Status: components.VersionStatusReleased, SourcePath: "components/DataTable/versions/1.0.0/DataTable.tsx", ContentSHA256: "table"},
+		},
+	})
+	require.NoError(t, err)
+
+	got, err := repo.List(ctx, components.SearchQuery{StyleID: "vrooli-conversion-landing", Limit: 10})
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+
+	got, err = repo.List(ctx, components.SearchQuery{StyleID: "vrooli-conversion-landing", Affinity: "discouraged", Limit: 10})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, "react-component-library:DataTable", got[0].LibraryID)
+	require.Equal(t, components.DesignAffinityDiscouraged, got[0].DesignStyles[0].Affinity)
 }
 
 func TestSQLiteRepository_GetByLibraryID_NotFound(t *testing.T) {
@@ -75,7 +181,7 @@ func TestSQLiteRepository_ListSearchAndTagFilter(t *testing.T) {
 	seed := []components.UpsertInput{
 		{LibraryID: "lib:Button", DisplayName: "Button", Description: "click me", Tags: []string{"form"}},
 		{LibraryID: "lib:Card", DisplayName: "Card", Description: "container", Tags: []string{"layout"}},
-		{LibraryID: "lib:Input", DisplayName: "Input", Description: "text input field", Tags: []string{"form", "input"}},
+		{LibraryID: "lib:Input", DisplayName: "Input", Description: "text input field", Slot: "ui-primitive", Tags: []string{"form", "input"}},
 	}
 	for _, in := range seed {
 		_, err := repo.Upsert(ctx, in)
@@ -84,6 +190,12 @@ func TestSQLiteRepository_ListSearchAndTagFilter(t *testing.T) {
 
 	// Match against description.
 	got, err := repo.List(ctx, components.SearchQuery{Match: "input", Limit: 10})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, "lib:Input", got[0].LibraryID)
+
+	// Match against slot.
+	got, err = repo.List(ctx, components.SearchQuery{Match: "primitive", Limit: 10})
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	require.Equal(t, "lib:Input", got[0].LibraryID)

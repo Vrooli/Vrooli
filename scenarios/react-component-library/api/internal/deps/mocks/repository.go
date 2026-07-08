@@ -12,7 +12,7 @@ import (
 )
 
 // FakeRepository satisfies deps.Repository for service and handler
-// tests. In-memory map keyed by (component_id, dep_name).
+// tests. In-memory map keyed by component_id.
 type FakeRepository struct {
 	mu        sync.Mutex
 	byComp    map[string][]deps.Declaration
@@ -41,11 +41,18 @@ func (f *FakeRepository) SyncForComponent(_ context.Context, in deps.SyncInput) 
 		rows = append(rows, deps.Declaration{
 			ComponentID:  in.ComponentID,
 			LibraryID:    in.LibraryID,
+			Version:      firstNonEmpty(d.Version, in.Version),
 			DepName:      d.DepName,
 			VersionRange: d.VersionRange,
+			Kind:         normalizeKind(d.Kind),
 		})
 	}
-	sort.Slice(rows, func(i, j int) bool { return rows[i].DepName < rows[j].DepName })
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].Version == rows[j].Version {
+			return rows[i].DepName < rows[j].DepName
+		}
+		return rows[i].Version > rows[j].Version
+	})
 	if len(rows) == 0 {
 		delete(f.byComp, in.ComponentID)
 	} else {
@@ -69,6 +76,21 @@ func (f *FakeRepository) ListForComponent(_ context.Context, componentID string)
 	return out, nil
 }
 
+func (f *FakeRepository) ListForComponentVersion(_ context.Context, componentID, version string) ([]deps.Declaration, error) {
+	if f.ListErr != nil {
+		return nil, f.ListErr
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []deps.Declaration
+	for _, d := range f.byComp[componentID] {
+		if version == "" || d.Version == version {
+			out = append(out, d)
+		}
+	}
+	return out, nil
+}
+
 func (f *FakeRepository) DeleteForComponent(_ context.Context, componentID string) error {
 	if f.DeleteErr != nil {
 		return f.DeleteErr
@@ -77,4 +99,24 @@ func (f *FakeRepository) DeleteForComponent(_ context.Context, componentID strin
 	defer f.mu.Unlock()
 	delete(f.byComp, componentID)
 	return nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func normalizeKind(kind deps.DepKind) deps.DepKind {
+	switch kind {
+	case deps.DepKindPeer:
+		return deps.DepKindPeer
+	case deps.DepKindDev:
+		return deps.DepKindDev
+	default:
+		return deps.DepKindRuntime
+	}
 }

@@ -2,6 +2,7 @@ package preview
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
@@ -106,28 +107,29 @@ func renderHarnessHTML(id string, b preview.Bundle) string {
 <style>
   html, body { margin: 0; padding: 0; min-height: 100vh; background: #0b0d12; color: #f5f7fa; font-family: ui-sans-serif, system-ui, sans-serif; }
   #root { padding: 16px; }
+  #preview-importmap-diagnostics,
   #preview-error { padding: 16px; font-family: ui-monospace, SFMono-Regular, monospace; color: #ff8c8c; white-space: pre-wrap; }
 </style>
 <script type="importmap">
-{
-  "imports": {
-    "react": "`)
-	sb.WriteString(reactPinESMSh)
-	sb.WriteString(`",
-    "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime?dev",
-    "react/jsx-dev-runtime": "https://esm.sh/react@18.3.1/jsx-dev-runtime?dev",
-    "react-dom": "`)
-	sb.WriteString(reactDOMPinESMSh)
-	sb.WriteString(`",
-    "react-dom/client": "`)
-	sb.WriteString(clientPinESMSh)
-	sb.WriteString(`"
-  }
-}
+`)
+	importMap, importWarnings := buildImportMapJSON(b)
+	sb.WriteString(strings.ReplaceAll(importMap, "</script", "<\\/script"))
+	sb.WriteString(`
 </script>
 </head>
 <body>
 <div id="root"></div>
+`)
+	if len(importWarnings) > 0 {
+		sb.WriteString(`<div id="preview-importmap-diagnostics">`)
+		for _, warning := range importWarnings {
+			sb.WriteString(html.EscapeString(warning))
+			sb.WriteString("\n")
+		}
+		sb.WriteString(`</div>
+`)
+	}
+	sb.WriteString(`
 <div id="preview-error" hidden></div>
 <script type="module">
 import { createRoot } from "react-dom/client";
@@ -315,11 +317,53 @@ if (!Cmp) {
     errEl.textContent = "preview: render failed — " + (e && e.stack || e);
   }
 }
+
 </script>
 </body>
 </html>
 `)
 	return sb.String()
+}
+
+func buildImportMapJSON(b preview.Bundle) (string, []string) {
+	imports := map[string]string{
+		"react":                 reactPinESMSh,
+		"react/jsx-runtime":     "https://esm.sh/react@18.3.1/jsx-runtime?dev",
+		"react/jsx-dev-runtime": "https://esm.sh/react@18.3.1/jsx-dev-runtime?dev",
+		"react-dom":             reactDOMPinESMSh,
+		"react-dom/client":      clientPinESMSh,
+	}
+	var warnings []string
+	for _, d := range b.Dependencies {
+		name := strings.TrimSpace(d.DepName)
+		if name == "" || strings.HasPrefix(name, "react") {
+			continue
+		}
+		version, ok := esmVersionFromRange(d.VersionRange)
+		if !ok {
+			warnings = append(warnings, fmt.Sprintf("preview: cannot pin dependency %q from range %q", name, d.VersionRange))
+			continue
+		}
+		imports[name] = "https://esm.sh/" + name + "@" + version + "?dev"
+	}
+	raw, err := json.MarshalIndent(map[string]map[string]string{"imports": imports}, "", "  ")
+	if err != nil {
+		return `{"imports":{}}`, append(warnings, "preview: failed to encode importmap: "+err.Error())
+	}
+	return string(raw), warnings
+}
+
+func esmVersionFromRange(raw string) (string, bool) {
+	v := strings.TrimSpace(raw)
+	v = strings.TrimPrefix(v, "^")
+	v = strings.TrimPrefix(v, "~")
+	v = strings.TrimPrefix(v, ">=")
+	v = strings.TrimPrefix(v, "=")
+	v = strings.TrimSpace(v)
+	if v == "" || v == "*" || strings.ContainsAny(v, " <>|") {
+		return "", false
+	}
+	return v, true
 }
 
 func renderBundleErrorHTML(err preview.ErrBundle) string {

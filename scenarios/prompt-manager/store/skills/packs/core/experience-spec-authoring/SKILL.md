@@ -54,6 +54,34 @@ Author claims as perceivable outcomes, not implementation inventory.
 Bindings are the volatile seam. Refactors should usually update
 `bindings.elements.<id>.testid`, not rewrite the claim.
 
+## Affordance Heuristics
+
+Declare the affordances users need to operate a component, not just the
+component's existence. A table, list, form, or chooser that is present but
+missing the expected controls is experience drift.
+
+Use these defaults unless the PRD or page purpose clearly says otherwise:
+
+- Tables with more than 10 expected rows declare sort on the primary decision
+  columns, filter on status/category columns, and search when row names or free
+  text are part of the workflow.
+- Lists, queues, galleries, and catalogs declare search when users may need to
+  locate a known item, and filter when the list has durable states, owners,
+  types, or severities.
+- Forms declare validation states for required fields, invalid values,
+  submission failure, and successful save or create feedback.
+- Destructive or irreversible actions declare confirmation, cancellation, and
+  post-action feedback affordances.
+- Long-running actions declare progress, stale/refresh, retry, and failure
+  affordances.
+- Multi-step flows declare the current step, completed steps, next action, and
+  a safe way to leave without losing context.
+
+For now, encode these as grounded claims using the closest deterministic claim
+type available, or as `custom` manual/aspirational claims when no checker exists
+yet. Keep the referenced controls in `elements` and `bindings` so the future
+affordance checker can promote them without rewriting the page intent.
+
 ## Validation And Fix Loop
 
 Use the deterministic loop before and after edits:

@@ -57,11 +57,20 @@ func TestParseHeaderField(t *testing.T) {
 		}
 	})
 	t.Run("array form", func(t *testing.T) {
-		out, err := ParseHeaderField(`[{"name":"react","range":"^18"}]`)
+		out, err := ParseHeaderField(`[{"name":"react","range":"^18","kind":"peer"}]`)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(out) != 1 || out[0].DepName != "react" || out[0].VersionRange != "^18" {
+		if len(out) != 1 || out[0].DepName != "react" || out[0].VersionRange != "^18" || out[0].Kind != DepKindPeer {
+			t.Fatalf("bad parse: %+v", out)
+		}
+	})
+	t.Run("detailed object form", func(t *testing.T) {
+		out, err := ParseHeaderField(`{"lucide-react":{"range":"^0.424.0","kind":"dev"}}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(out) != 1 || out[0].DepName != "lucide-react" || out[0].VersionRange != "^0.424.0" || out[0].Kind != DepKindDev {
 			t.Fatalf("bad parse: %+v", out)
 		}
 	})

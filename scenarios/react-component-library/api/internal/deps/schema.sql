@@ -3,15 +3,18 @@
 -- Idempotent: CREATE TABLE/INDEX IF NOT EXISTS so re-runs are no-ops.
 --
 -- component_dep_declarations carries the parsed @deps JSON field from a
--- component's header comment. One row per (component_id, dep_name).
+-- component version's header comment. One row per
+-- (component_id, version, dep_name).
 -- component_id is a soft FK to components.id (no REFERENCES per
 -- storage-steer per-domain rule).
 CREATE TABLE IF NOT EXISTS component_dep_declarations (
   component_id  TEXT NOT NULL,
   library_id    TEXT NOT NULL DEFAULT '',
+  version       TEXT NOT NULL DEFAULT '',
   dep_name      TEXT NOT NULL,
   version_range TEXT NOT NULL DEFAULT '',
-  PRIMARY KEY (component_id, dep_name)
+  kind          TEXT NOT NULL DEFAULT 'runtime',
+  PRIMARY KEY (component_id, version, dep_name)
 );
 
 CREATE INDEX IF NOT EXISTS idx_dep_decls_component_id

@@ -25,4 +25,14 @@ describe("errorMessage", () => {
   it("falls back to ordinary error messages", () => {
     expect(errorMessage(new Error("boom"), i18n.t)).toBe("boom");
   });
+
+  it("maps unknown REST ApiError codes to the generic error message", () => {
+    const err = makeApiError("future_code", "surprise", 500);
+
+    expect(errorMessage(err, i18n.t)).toBe("An unknown error occurred.");
+  });
+
+  it("stringifies non-error values", () => {
+    expect(errorMessage("plain failure", i18n.t)).toBe("plain failure");
+  });
 });

@@ -58,7 +58,7 @@ func TestModule_ListAndValidate(t *testing.T) {
 		ComponentID: "cmp-1",
 		LibraryID:   "react-component-library:Button",
 		Declarations: []internaldeps.DeclarationFields{
-			{DepName: "react", VersionRange: "^18.0.0"},
+			{Version: "1.0.0", DepName: "react", VersionRange: "^18.0.0"},
 		},
 	}))
 
@@ -66,8 +66,9 @@ func TestModule_ListAndValidate(t *testing.T) {
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
 	require.Contains(t, rw.Body.String(), `"depName":"react"`)
 	require.Contains(t, rw.Body.String(), `"versionRange":"^18.0.0"`)
+	require.Contains(t, rw.Body.String(), `"version":"1.0.0"`)
 
-	rw = callConnect(r, depsconnect.DepsServiceValidateAdoptionProcedure, `{"component_id":"cmp-1","scenario":"target"}`)
+	rw = callConnect(r, depsconnect.DepsServiceValidateAdoptionProcedure, `{"component_id":"cmp-1","scenario":"target","version":"1.0.0"}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
 	require.Contains(t, rw.Body.String(), `"kind":"VERDICT_KIND_OK"`)
 }

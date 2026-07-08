@@ -71,6 +71,28 @@ business logic. UI and CLI translate user/operator intent into API
 calls. Proto types flow from one source of truth so wire-shape drift
 between surfaces is impossible.
 
+## Registry Projection Flow
+
+Component source remains Git-tracked under `library/components/<slug>/`.
+`component.json` owns stable manifest fields, including `slot` and
+`designStyles`; version folders own immutable/draft `.tsx` source plus
+JSDoc headers such as `@version`, `@deps`, and `@category`. The
+components indexer validates both layers and writes SQLite projection
+tables:
+
+- `components` for the registry row and adoption `slot`,
+- `component_versions` for source snapshots and version status,
+- `component_headers` for non-structural latest-version metadata,
+- `component_design_affinities` for style fit signals,
+- `component_dep_declarations` through the deps observer for
+  version-scoped dependency validation and preview import maps.
+
+Design-style IDs are not free text. The canonical vocabulary is loaded
+from `templates/design/*/metadata.json`; component manifests that
+reference an unknown style fail indexing. The API exposes that registry
+through `ComponentsService.ListDesignStyles`, and component search can
+filter by style ID and affinity.
+
 ## System Boundaries
 
 The scenario owns:

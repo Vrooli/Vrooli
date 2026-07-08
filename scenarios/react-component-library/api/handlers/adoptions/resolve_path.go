@@ -2,11 +2,8 @@ package adoptions
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
-	"path/filepath"
 
 	"connectrpc.com/connect"
 
@@ -24,18 +21,17 @@ type SlotReader interface {
 	Slot(ctx context.Context, componentID string) (string, error)
 }
 
-// FSSlotReader reads `library/components/<slug>/component.json` from disk via
-// the existing components service. Decouples the handler from any future slot
-// persistence in the DB.
-type FSSlotReader struct {
-	Components  components.Service
-	LibraryRoot string
+// IndexedSlotReader reads the component's indexed slot from the components
+// service. The source component.json remains authoritative, but the index is
+// the runtime adoption contract.
+type IndexedSlotReader struct {
+	Components components.Service
 }
 
-// Slot resolves componentID → slug (via components.Service.Get) → reads
-// `<libraryRoot>/components/<slug>/component.json` and returns the `slot`
-// field. Empty string when the field is absent.
-func (r *FSSlotReader) Slot(ctx context.Context, componentID string) (string, error) {
+// Slot resolves componentID through the indexed component row. Empty string
+// means the component did not declare a slot and the resolver will use the
+// target manifest default.
+func (r *IndexedSlotReader) Slot(ctx context.Context, componentID string) (string, error) {
 	if r == nil || r.Components == nil {
 		return "", errors.New("slot reader: components service not configured")
 	}
@@ -43,24 +39,7 @@ func (r *FSSlotReader) Slot(ctx context.Context, componentID string) (string, er
 	if err != nil {
 		return "", err
 	}
-	if r.LibraryRoot == "" || c.Slug == "" {
-		return "", nil
-	}
-	path := filepath.Join(r.LibraryRoot, "components", c.Slug, "component.json")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return "", nil
-		}
-		return "", fmt.Errorf("read component manifest %q: %w", path, err)
-	}
-	var mf struct {
-		Slot string `json:"slot"`
-	}
-	if err := json.Unmarshal(raw, &mf); err != nil {
-		return "", fmt.Errorf("parse component manifest %q: %w", path, err)
-	}
-	return mf.Slot, nil
+	return c.Slot, nil
 }
 
 // ResolveAdoptionPath implements the new RPC. The resolver itself is in

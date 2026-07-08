@@ -98,9 +98,17 @@
             { "name": "tag", "description": "Exact single-tag filter" },
             { "name": "tags", "description": "Comma-separated multi-tag OR filter (any-of)" },
             { "name": "category", "description": "Filter by @category header value" },
+            { "name": "style", "description": "Filter by component.json designStyles styleId" },
+            { "name": "affinity", "description": "Filter by design style affinity (native, compatible, discouraged)" },
             { "name": "limit", "description": "Maximum number of rows (default 200)" }
           ],
           "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "ListComponents" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "styles",
+          "description": "List canonical design styles components may reference",
+          "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "ListDesignStyles" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {

@@ -259,6 +259,21 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "components_styles_list",
+		Path:        componentsconnect.ComponentsServiceListDesignStylesProcedure,
+		Method:      "POST",
+		Summary:     "List design styles",
+		Description: "Loads canonical design-style metadata from templates/design and returns the style IDs components may reference.",
+		Category:    "components",
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"styles": "array<DesignStyle>"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 500, Code: "internal", Description: "Design metadata read failure"},
+		},
+	},
+	{
 		ID:          "components_manifest_update",
 		Path:        componentsconnect.ComponentsServiceUpdateComponentManifestProcedure,
 		Method:      "POST",

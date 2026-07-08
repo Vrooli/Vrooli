@@ -13,8 +13,8 @@ import (
 
 // Deps wires the seams the Connect adoptions handler needs.
 type Deps struct {
-	Service    adoptions.Service
-	Logger     *log.Logger
+	Service adoptions.Service
+	Logger  *log.Logger
 	// Resolver computes adopted paths for ResolveAdoptionPath. Optional: when
 	// nil, ResolveAdoptionPath returns connect.CodeUnimplemented.
 	Resolver *adoptions.Resolver

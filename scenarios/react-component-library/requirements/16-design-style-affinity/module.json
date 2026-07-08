@@ -1,0 +1,67 @@
+{
+  "_metadata": {
+    "module": "design-style-affinity",
+    "description": "Validated component-to-design-style fit signals used by search, adoption workflows, and the console.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "DSA-001",
+      "title": "Design-style ids come from the canonical template registry",
+      "status": "complete",
+      "prd_ref": "OT-P1-004",
+      "category": "registry",
+      "criticality": "P1",
+      "description": "The component service loads design styles from `templates/design/*/metadata.json` and exposes them through `components styles` / `ComponentsService.ListDesignStyles`. Component manifests may only reference those style ids.",
+      "tags": ["design-styles", "registry", "cli"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "api/internal/components/styles_test.go verifies canonical style loading and unknown-id rejection."
+        }
+      ]
+    },
+    {
+      "id": "DSA-002",
+      "title": "Component manifests declare advisory design-style affinities",
+      "status": "complete",
+      "prd_ref": "OT-P1-004",
+      "category": "registry",
+      "criticality": "P1",
+      "description": "`component.json` supports `designStyles[]` entries with `styleId` and `affinity` (`native`, `compatible`, or `discouraged`). Indexing rejects unknown style ids, invalid affinities, and duplicate style ids.",
+      "tags": ["design-styles", "component-json", "indexer"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "api/internal/components/indexer_test.go verifies successful parsing and unknown-style rejection."
+        }
+      ]
+    },
+    {
+      "id": "DSA-003",
+      "title": "Affinities are indexed, searchable, and visible to operators",
+      "status": "complete",
+      "prd_ref": "OT-P1-004",
+      "category": "search",
+      "criticality": "P1",
+      "description": "A fresh index populates `component_design_affinities`; component list/get responses include affinity rows; CLI and UI support style/affinity filtering and render discouraged-style badges.",
+      "tags": ["design-styles", "search", "ui", "cli"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "api/internal/components/sqlite_test.go verifies persistence and style/affinity filtering; cli/domains/components and ComponentsCard tests verify operator surfaces."
+        },
+        {
+          "type": "manual",
+          "status": "complete",
+          "notes": "Live dev DB re-index on 2026-07-08 indexed 10 components and populated 30 affinity rows."
+        }
+      ]
+    }
+  ]
+}

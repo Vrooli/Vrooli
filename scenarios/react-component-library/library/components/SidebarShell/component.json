@@ -4,6 +4,11 @@
   "description": "Responsive sidebar parent with desktop resizing and mobile full-width safe-area drawer behavior.",
   "tags": ["layout", "navigation", "responsive"],
   "slot": "layout-nav",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "native" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "discouraged" }
+  ],
   "latest": "1.1.0",
   "draft": "",
   "deprecatedVersions": []

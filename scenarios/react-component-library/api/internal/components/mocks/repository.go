@@ -72,6 +72,7 @@ func (f *FakeRepository) Upsert(ctx context.Context, in components.UpsertInput) 
 		Slug:          in.Slug,
 		DisplayName:   in.DisplayName,
 		Description:   in.Description,
+		Slot:          in.Slot,
 		SourcePath:    in.SourcePath,
 		Version:       in.Version,
 		LatestVersion: in.LatestVersion,
@@ -81,6 +82,7 @@ func (f *FakeRepository) Upsert(ctx context.Context, in components.UpsertInput) 
 		IndexedAt:     indexedAt,
 		UpdatedAt:     now,
 		Headers:       copyHeaders(in.Headers),
+		DesignStyles:  append([]components.ComponentDesignAffinity(nil), in.DesignStyles...),
 	}
 	f.items[id] = c
 	return c, nil
@@ -89,9 +91,9 @@ func (f *FakeRepository) Upsert(ctx context.Context, in components.UpsertInput) 
 func (f *FakeRepository) UpsertManifest(ctx context.Context, in components.IndexManifestInput) (components.Component, error) {
 	c, err := f.Upsert(ctx, components.UpsertInput{
 		LibraryID: in.Manifest.LibraryID, Slug: in.Manifest.Slug, DisplayName: in.Manifest.DisplayName,
-		Description: in.Manifest.Description, ManifestPath: in.Manifest.ManifestPath,
+		Description: in.Manifest.Description, Slot: in.Manifest.Slot, ManifestPath: in.Manifest.ManifestPath,
 		Version: in.Manifest.LatestVersion, LatestVersion: in.Manifest.LatestVersion, DraftVersion: in.Manifest.DraftVersion,
-		Tags: in.Manifest.Tags,
+		Tags: in.Manifest.Tags, Headers: in.Headers, DesignStyles: in.Manifest.DesignStyles,
 	})
 	if err != nil {
 		return components.Component{}, err
@@ -156,6 +158,8 @@ func (f *FakeRepository) List(ctx context.Context, q components.SearchQuery) ([]
 	matchL := strings.ToLower(strings.TrimSpace(q.Match))
 	tagL := strings.ToLower(strings.TrimSpace(q.Tag))
 	categoryL := strings.ToLower(strings.TrimSpace(q.Category))
+	styleID := strings.ToLower(strings.TrimSpace(q.StyleID))
+	affinity := strings.ToLower(strings.TrimSpace(q.Affinity))
 	multiTags := make([]string, 0, len(q.Tags))
 	for _, t := range q.Tags {
 		trimmed := strings.ToLower(strings.TrimSpace(t))
@@ -167,7 +171,7 @@ func (f *FakeRepository) List(ctx context.Context, q components.SearchQuery) ([]
 	var out []components.Component
 	for _, c := range f.items {
 		if matchL != "" {
-			hay := strings.ToLower(c.LibraryID + " " + c.DisplayName + " " + c.Description + " " + c.SourcePath)
+			hay := strings.ToLower(c.LibraryID + " " + c.DisplayName + " " + c.Description + " " + c.Slot + " " + c.SourcePath)
 			if !strings.Contains(hay, matchL) {
 				continue
 			}
@@ -204,6 +208,22 @@ func (f *FakeRepository) List(ctx context.Context, q components.SearchQuery) ([]
 		if categoryL != "" {
 			v, ok := c.Headers["category"]
 			if !ok || !strings.EqualFold(v, categoryL) {
+				continue
+			}
+		}
+		if styleID != "" || affinity != "" {
+			hit := false
+			for _, got := range c.DesignStyles {
+				if styleID != "" && !strings.EqualFold(got.StyleID, styleID) {
+					continue
+				}
+				if affinity != "" && !strings.EqualFold(string(got.Affinity), affinity) {
+					continue
+				}
+				hit = true
+				break
+			}
+			if !hit {
 				continue
 			}
 		}
@@ -285,7 +305,19 @@ func copyHeaders(in map[string]string) map[string]string {
 	}
 	out := make(map[string]string, len(in))
 	for k, v := range in {
+		if isStructuredHeaderField(k) {
+			continue
+		}
 		out[k] = v
 	}
 	return out
+}
+
+func isStructuredHeaderField(field string) bool {
+	switch strings.ToLower(strings.TrimSpace(field)) {
+	case "libraryid", "version", "deps":
+		return true
+	default:
+		return false
+	}
 }

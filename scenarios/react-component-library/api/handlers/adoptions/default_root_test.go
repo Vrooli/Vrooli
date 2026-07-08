@@ -1,9 +1,13 @@
 package adoptions
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"react-component-library/internal/components"
+	componentsmocks "react-component-library/internal/components/mocks"
 )
 
 // TestDefaultScenariosRoot_ResolvesViaContract creates a minimal repo layout
@@ -43,6 +47,28 @@ func TestDefaultScenariosRoot_ResolvesViaContract(t *testing.T) {
 	want := filepath.Join(tempRepo, "scenarios")
 	if got != want {
 		t.Fatalf("defaultScenariosRoot() = %q; want %q", got, want)
+	}
+}
+
+func TestIndexedSlotReaderReadsSlotFromComponentIndex(t *testing.T) {
+	repo := componentsmocks.NewFakeRepository()
+	svc := components.NewService(repo)
+	c, err := svc.Upsert(context.Background(), components.UpsertInput{
+		LibraryID:   "react-component-library:Button",
+		DisplayName: "Button",
+		Slot:        "ui-primitive",
+		Version:     "1.0.0",
+	})
+	if err != nil {
+		t.Fatalf("seed component: %v", err)
+	}
+
+	got, err := (&IndexedSlotReader{Components: svc}).Slot(context.Background(), c.ID)
+	if err != nil {
+		t.Fatalf("Slot: %v", err)
+	}
+	if got != "ui-primitive" {
+		t.Fatalf("slot = %q; want ui-primitive", got)
 	}
 }
 

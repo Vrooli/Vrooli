@@ -68,6 +68,8 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 		Match:    ctx.Flag("match"),
 		Tag:      ctx.Flag("tag"),
 		Category: ctx.Flag("category"),
+		StyleId:  ctx.Flag("style"),
+		Affinity: ctx.Flag("affinity"),
 	}
 	if rawTags := ctx.Flag("tags"); rawTags != "" {
 		// Comma-separated multi-tag OR. Trim entries silently — the
@@ -136,6 +138,25 @@ func (h *handlers) getByLibraryID(ctx cliapp.RunContext) error {
 		Summary:        []string{fmt.Sprintf("Fetched component %s.", resp.Msg.Component.LibraryId)},
 		ResultsHeading: "Component",
 		Results:        []string{formatComponent(resp.Msg.Component)},
+	})
+}
+
+func (h *handlers) styles(ctx cliapp.RunContext) error {
+	resp, err := h.client.ListDesignStyles(context.Background(), connect.NewRequest(&componentsv1.ListDesignStylesRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("list design styles", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no styles response")
+	}
+	results := make([]string, 0, len(resp.Msg.Styles))
+	for _, style := range resp.Msg.Styles {
+		results = append(results, fmt.Sprintf("%s\t%s\t%s", style.Id, style.Name, strings.Join(style.Supports, ",")))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Found %d design style(s).", len(resp.Msg.Styles))},
+		ResultsHeading: "Design styles",
+		Results:        results,
 	})
 }
 
@@ -385,7 +406,32 @@ func formatComponent(c *componentsv1.Component) string {
 	if c.Version != "" {
 		versionPart = " v" + c.Version
 	}
-	return fmt.Sprintf("%s — %s%s%s @ %s [indexed=%s]", c.LibraryId, c.DisplayName, versionPart, tagsPart, c.SourcePath, indexed)
+	slotPart := ""
+	if c.Slot != "" {
+		slotPart = " slot=" + c.Slot
+	}
+	stylePart := ""
+	if len(c.DesignStyles) > 0 {
+		parts := make([]string, 0, len(c.DesignStyles))
+		for _, style := range c.DesignStyles {
+			parts = append(parts, fmt.Sprintf("%s:%s", style.StyleId, formatDesignAffinity(style.Affinity)))
+		}
+		stylePart = " styles=[" + strings.Join(parts, ",") + "]"
+	}
+	return fmt.Sprintf("%s — %s%s%s%s%s @ %s [indexed=%s]", c.LibraryId, c.DisplayName, versionPart, slotPart, stylePart, tagsPart, c.SourcePath, indexed)
+}
+
+func formatDesignAffinity(affinity componentsv1.DesignAffinity) string {
+	switch affinity {
+	case componentsv1.DesignAffinity_DESIGN_AFFINITY_NATIVE:
+		return "native"
+	case componentsv1.DesignAffinity_DESIGN_AFFINITY_COMPATIBLE:
+		return "compatible"
+	case componentsv1.DesignAffinity_DESIGN_AFFINITY_DISCOURAGED:
+		return "discouraged"
+	default:
+		return "unspecified"
+	}
 }
 
 func formatVersion(v *componentsv1.ComponentVersion) string {

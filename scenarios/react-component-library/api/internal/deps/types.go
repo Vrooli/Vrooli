@@ -18,8 +18,10 @@ import "fmt"
 type Declaration struct {
 	ComponentID  string
 	LibraryID    string
+	Version      string
 	DepName      string
 	VersionRange string
+	Kind         DepKind
 }
 
 // SyncInput is the per-component DTO the indexer hands to the
@@ -28,6 +30,7 @@ type Declaration struct {
 type SyncInput struct {
 	ComponentID  string
 	LibraryID    string
+	Version      string
 	Declarations []DeclarationFields
 }
 
@@ -36,7 +39,17 @@ type SyncInput struct {
 type DeclarationFields struct {
 	DepName      string
 	VersionRange string
+	Version      string
+	Kind         DepKind
 }
+
+type DepKind string
+
+const (
+	DepKindRuntime DepKind = "runtime"
+	DepKindPeer    DepKind = "peer"
+	DepKindDev     DepKind = "dev"
+)
 
 // VerdictKind is the high-level adoption outcome. Stored as a wire
 // string so the proto enum at the edge maps trivially.
@@ -65,6 +78,8 @@ type Issue struct {
 	DepName         string
 	DeclaredRange   string
 	ScenarioVersion string
+	Version         string
+	DepKind         DepKind
 	Kind            IssueKind
 	Detail          string
 }
@@ -72,6 +87,9 @@ type Issue struct {
 // Severity returns the per-issue severity so the service can fold
 // multiple issues into a single VerdictKind (worst-of wins).
 func (i Issue) Severity() VerdictKind {
+	if i.Kind == IssueMissingDep && i.DepKind == DepKindPeer {
+		return VerdictBlock
+	}
 	switch i.Kind {
 	case IssueIncompatibleMajor, IssueUnparseableTarget:
 		return VerdictBlock

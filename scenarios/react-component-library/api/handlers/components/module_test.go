@@ -42,7 +42,7 @@ func setupModule(t *testing.T) (*mux.Router, string) {
 func TestModule_Shape(t *testing.T) {
 	r, _ := setupModule(t)
 	require.NotNil(t, r)
-	require.Len(t, components.Endpoints, 11, "components ships registry, source authoring, content, and version endpoints")
+	require.Len(t, components.Endpoints, 12, "components ships registry, styles, source authoring, content, and version endpoints")
 }
 
 func TestModule_InitializeComponentRoundTrip(t *testing.T) {

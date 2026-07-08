@@ -35,7 +35,7 @@ func (s *sqliteRepository) SyncForComponent(ctx context.Context, in SyncInput) e
 		return fmt.Errorf("clear existing deps: %w", err)
 	}
 	if len(in.Declarations) > 0 {
-		stmt, err := tx.PrepareContext(ctx, `INSERT INTO component_dep_declarations (component_id, library_id, dep_name, version_range) VALUES (?, ?, ?, ?)`)
+		stmt, err := tx.PrepareContext(ctx, `INSERT INTO component_dep_declarations (component_id, library_id, version, dep_name, version_range, kind) VALUES (?, ?, ?, ?, ?, ?)`)
 		if err != nil {
 			return fmt.Errorf("prepare insert: %w", err)
 		}
@@ -45,7 +45,12 @@ func (s *sqliteRepository) SyncForComponent(ctx context.Context, in SyncInput) e
 			if name == "" {
 				continue
 			}
-			if _, err := stmt.ExecContext(ctx, cid, in.LibraryID, name, strings.TrimSpace(d.VersionRange)); err != nil {
+			version := strings.TrimSpace(d.Version)
+			if version == "" {
+				version = strings.TrimSpace(in.Version)
+			}
+			kind := normalizeKind(d.Kind)
+			if _, err := stmt.ExecContext(ctx, cid, in.LibraryID, version, name, strings.TrimSpace(d.VersionRange), string(kind)); err != nil {
 				return fmt.Errorf("insert dep %q: %w", name, err)
 			}
 		}
@@ -61,7 +66,7 @@ func (s *sqliteRepository) ListForComponent(ctx context.Context, componentID str
 	if cid == "" {
 		return nil, fmt.Errorf("list deps: component_id required")
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT component_id, library_id, dep_name, version_range FROM component_dep_declarations WHERE component_id = ? ORDER BY dep_name`, cid)
+	rows, err := s.db.QueryContext(ctx, `SELECT component_id, library_id, version, dep_name, version_range, kind FROM component_dep_declarations WHERE component_id = ? ORDER BY version DESC, dep_name`, cid)
 	if err != nil {
 		return nil, fmt.Errorf("query deps: %w", err)
 	}
@@ -69,7 +74,32 @@ func (s *sqliteRepository) ListForComponent(ctx context.Context, componentID str
 	var out []Declaration
 	for rows.Next() {
 		var d Declaration
-		if err := rows.Scan(&d.ComponentID, &d.LibraryID, &d.DepName, &d.VersionRange); err != nil {
+		if err := rows.Scan(&d.ComponentID, &d.LibraryID, &d.Version, &d.DepName, &d.VersionRange, &d.Kind); err != nil {
+			return nil, fmt.Errorf("scan dep: %w", err)
+		}
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}
+
+func (s *sqliteRepository) ListForComponentVersion(ctx context.Context, componentID, version string) ([]Declaration, error) {
+	cid := strings.TrimSpace(componentID)
+	if cid == "" {
+		return nil, fmt.Errorf("list deps: component_id required")
+	}
+	v := strings.TrimSpace(version)
+	if v == "" {
+		return s.ListForComponent(ctx, cid)
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT component_id, library_id, version, dep_name, version_range, kind FROM component_dep_declarations WHERE component_id = ? AND version = ? ORDER BY dep_name`, cid, v)
+	if err != nil {
+		return nil, fmt.Errorf("query deps: %w", err)
+	}
+	defer rows.Close()
+	var out []Declaration
+	for rows.Next() {
+		var d Declaration
+		if err := rows.Scan(&d.ComponentID, &d.LibraryID, &d.Version, &d.DepName, &d.VersionRange, &d.Kind); err != nil {
 			return nil, fmt.Errorf("scan dep: %w", err)
 		}
 		out = append(out, d)
@@ -86,4 +116,15 @@ func (s *sqliteRepository) DeleteForComponent(ctx context.Context, componentID s
 		return fmt.Errorf("delete deps: %w", err)
 	}
 	return nil
+}
+
+func normalizeKind(kind DepKind) DepKind {
+	switch DepKind(strings.ToLower(strings.TrimSpace(string(kind)))) {
+	case DepKindPeer:
+		return DepKindPeer
+	case DepKindDev:
+		return DepKindDev
+	default:
+		return DepKindRuntime
+	}
 }

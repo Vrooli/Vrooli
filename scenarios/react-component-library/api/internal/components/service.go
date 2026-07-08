@@ -23,6 +23,8 @@ type Service interface {
 	ListVersions(ctx context.Context, componentID string, limit int) ([]ComponentVersion, error)
 	GetVersion(ctx context.Context, componentID, version string) (ComponentVersion, error)
 	GetVersionContent(ctx context.Context, componentID, version string) (Content, error)
+	ListDesignStyles(ctx context.Context) ([]DesignStyle, error)
+	ValidateDesignStyle(ctx context.Context, id string) error
 	UpdateContent(ctx context.Context, id string, in WriteContentInput) (Content, error)
 	InitializeComponent(ctx context.Context, in InitializeComponentInput) (InitializeComponentResult, error)
 	CreateComponentVersion(ctx context.Context, in CreateComponentVersionInput) (CreateComponentVersionResult, error)

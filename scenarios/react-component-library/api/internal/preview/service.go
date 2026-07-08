@@ -15,6 +15,7 @@ import (
 	"fmt"
 
 	"react-component-library/internal/components"
+	"react-component-library/internal/deps"
 )
 
 // Bundle is the wire-shape-equivalent output of GetBundle.
@@ -35,6 +36,8 @@ type Bundle struct {
 	// Warnings carries non-fatal diagnostics from the bundler. Fatal
 	// errors surface as the typed bundler error from BuildBundle.
 	Warnings []string
+
+	Dependencies []deps.Declaration
 }
 
 // Bundler is the seam over esbuild. Production wires Esbuilder; tests
@@ -52,6 +55,7 @@ type Service interface {
 type service struct {
 	components components.Service
 	bundler    Bundler
+	deps       deps.Service
 }
 
 // NewService wires the components service (for resolution + content)
@@ -60,20 +64,36 @@ func NewService(comp components.Service, bundler Bundler) Service {
 	return &service{components: comp, bundler: bundler}
 }
 
+func NewServiceWithDeps(comp components.Service, bundler Bundler, depsSvc deps.Service) Service {
+	return &service{components: comp, bundler: bundler, deps: depsSvc}
+}
+
 func (s *service) GetBundle(ctx context.Context, id string) (Bundle, error) {
 	content, err := s.components.GetContent(ctx, id)
 	if err != nil {
 		return Bundle{}, err
+	}
+	var declarations []deps.Declaration
+	if s.deps != nil {
+		c, err := s.components.Get(ctx, id)
+		if err != nil {
+			return Bundle{}, err
+		}
+		declarations, err = s.deps.ListForComponentVersion(ctx, id, c.LatestVersion)
+		if err != nil {
+			return Bundle{}, err
+		}
 	}
 	js, warnings, err := s.bundler.BuildBundle(ctx, content.Body, content.SourcePath)
 	if err != nil {
 		return Bundle{}, err
 	}
 	return Bundle{
-		JS:         js,
-		SourcePath: content.SourcePath,
-		SHA256:     digest(js),
-		Warnings:   warnings,
+		JS:           js,
+		SourcePath:   content.SourcePath,
+		SHA256:       digest(js),
+		Warnings:     warnings,
+		Dependencies: declarations,
 	}, nil
 }
 

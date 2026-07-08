@@ -18,6 +18,7 @@ import (
 	previewconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/preview/preview_v1connect"
 
 	"react-component-library/internal/components"
+	"react-component-library/internal/deps"
 	"react-component-library/internal/module"
 	"react-component-library/internal/preview"
 )
@@ -26,7 +27,11 @@ import (
 // the bundler's content read goes through the same path-traversal
 // guard the components handler uses.
 func Module(comp components.Service, logger *log.Logger) module.Module {
-	svc := preview.NewService(comp, preview.NewEsbuilder())
+	return ModuleWithDeps(comp, nil, logger)
+}
+
+func ModuleWithDeps(comp components.Service, depsSvc deps.Service, logger *log.Logger) module.Module {
+	svc := preview.NewServiceWithDeps(comp, preview.NewEsbuilder(), depsSvc)
 	connectPath, connectHandler := previewconnect.NewPreviewServiceHandler(NewConnectHandler(Deps{
 		Service: svc,
 		Logger:  logger,

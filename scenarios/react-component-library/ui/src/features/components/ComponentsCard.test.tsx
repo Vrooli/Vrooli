@@ -65,13 +65,19 @@ describe("ComponentsCard", () => {
             libraryId: "react-component-library:Button",
             displayName: "Button",
             version: "1.2.3",
+            slot: "ui-primitive",
             tags: ["form", "primary"],
+            designStyles: [
+              { styleId: "vrooli-default", affinity: 1 },
+              { styleId: "vrooli-conversion-landing", affinity: 3 },
+            ],
           }),
           makeComponent({
             id: "b",
             libraryId: "react-component-library:Card",
             displayName: "Card",
             version: "0.4.0",
+            slot: "ui-pattern",
             tags: [],
           }),
         ],
@@ -93,6 +99,13 @@ describe("ComponentsCard", () => {
     const versions = screen.getAllByTestId(selectors.components.itemVersion).map((n) => n.textContent);
     expect(versions[0]).toContain("1.2.3");
     expect(versions[1]).toContain("0.4.0");
+
+    const slots = screen.getAllByTestId(selectors.components.itemSlot).map((n) => n.textContent);
+    expect(slots).toEqual(["slot=ui-primitive", "slot=ui-pattern"]);
+
+    const styles = screen.getAllByTestId(selectors.components.itemDesignStyles).map((n) => n.textContent);
+    expect(styles[0]).toContain("vrooli-default:native");
+    expect(styles[0]).toContain("vrooli-conversion-landing:discouraged");
 
     const tagLines = screen.getAllByTestId(selectors.components.itemTags).map((n) => n.textContent);
     expect(tagLines[0]).toContain("form");
@@ -139,6 +152,29 @@ describe("ComponentsCard", () => {
       expect(last).toMatchObject({
         tags: ["form", "layout"],
         category: "controls",
+      });
+    });
+  });
+
+  it("forwards style and affinity filters to listComponents", async () => {
+    const { componentsClient } = await import("../../api/components");
+    vi.mocked(componentsClient.listComponents).mockResolvedValue(makeListComponentsResponse());
+
+    const user = userEvent.setup();
+    renderWithProviders(<ComponentsCard />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.components.styleInput)).toBeInTheDocument();
+    });
+
+    await user.type(screen.getByTestId(selectors.components.styleInput), "vrooli-default");
+    await user.type(screen.getByTestId(selectors.components.affinityInput), "native");
+
+    await waitFor(() => {
+      const calls = vi.mocked(componentsClient.listComponents).mock.calls;
+      const last = calls[calls.length - 1]?.[0] ?? {};
+      expect(last).toMatchObject({
+        styleId: "vrooli-default",
+        affinity: "native",
       });
     });
   });

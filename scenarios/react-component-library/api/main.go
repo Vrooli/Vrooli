@@ -47,10 +47,17 @@ type componentsDepsObserver struct {
 	logger *log.Logger
 }
 
-func (o *componentsDepsObserver) Observe(ctx context.Context, c componentsInternal.Component, fields map[string]string) error {
-	declarations, err := depsInternal.ParseHeaderField(fields["deps"])
-	if err != nil {
-		return fmt.Errorf("parse @deps for %s: %w", c.LibraryID, err)
+func (o *componentsDepsObserver) Observe(ctx context.Context, c componentsInternal.Component, in componentsInternal.IndexManifestInput) error {
+	var declarations []depsInternal.DeclarationFields
+	for _, v := range in.Versions {
+		parsed, err := depsInternal.ParseHeaderField(v.Headers["deps"])
+		if err != nil {
+			return fmt.Errorf("parse @deps for %s@%s: %w", c.LibraryID, v.Version, err)
+		}
+		for _, d := range parsed {
+			d.Version = v.Version
+			declarations = append(declarations, d)
+		}
 	}
 	return o.svc.SyncForComponent(ctx, depsInternal.SyncInput{
 		ComponentID:  c.ID,
@@ -193,7 +200,7 @@ func main() {
 			log.Default(),
 			adoptionsH.WithResolver(
 				adoptionsH.BuildResolver(filepath.Dir(scenariosRoot)),
-				&adoptionsH.FSSlotReader{Components: componentsSvc, LibraryRoot: sourceRoot},
+				&adoptionsH.IndexedSlotReader{Components: componentsSvc},
 				adoptionsH.LibraryFromComponents(componentsSvc),
 			),
 		),
@@ -201,7 +208,7 @@ func main() {
 		depsH.ModuleFromService(depsSvc, log.Default()),
 		healthH.Module(db, "react-component-library-api", "1.0.0"),
 		inventoryH.Module(log.Default(), scenariosRoot, inventoryH.AdoptionsServiceAdapter{Service: adoptionsSvc}, uimanifest.NewFSLoader(filepath.Dir(scenariosRoot))),
-		previewH.Module(componentsSvc, log.Default()),
+		previewH.ModuleWithDeps(componentsSvc, depsSvc, log.Default()),
 		themesH.ModuleFromService(themesSvc, log.Default()),
 		versionsH.Module(db, clock.System{}, versionsResolver, log.Default()),
 	)

@@ -34,13 +34,12 @@ import (
 // component.json is the source of truth. Source-file headers are
 // validation hints for version, status, deps, and readability.
 // UpsertObserver is the post-upsert seam other domains hook into. The
-// indexer calls Observe after a successful repo.Upsert with the parsed
-// header fields, so cross-domain consumers (currently req 10's deps
-// recorder) can re-sync without parsing files themselves. nil observer
-// means "no hook"; production wires deps.Service via a small adapter
-// in main.go.
+// indexer calls Observe after a successful repo.UpsertManifest with the
+// parsed manifest input, so cross-domain consumers (currently req 10's deps
+// recorder) can re-sync without parsing files themselves. nil observer means
+// "no hook"; production wires deps.Service via a small adapter in main.go.
 type UpsertObserver interface {
-	Observe(ctx context.Context, c Component, headerFields map[string]string) error
+	Observe(ctx context.Context, c Component, in IndexManifestInput) error
 }
 
 type Indexer struct {
@@ -98,7 +97,7 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 			return nil
 		}
 		result.Scanned++
-		in, fields, perr := idx.buildManifestInput(path)
+		in, _, perr := idx.buildManifestInput(path)
 		if perr != nil {
 			result.Errors = append(result.Errors, perr)
 			return nil
@@ -109,7 +108,7 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 			return nil
 		}
 		if idx.observer != nil {
-			if oerr := idx.observer.Observe(ctx, comp, fields); oerr != nil {
+			if oerr := idx.observer.Observe(ctx, comp, in); oerr != nil {
 				result.Errors = append(result.Errors, fmt.Errorf("observe %s: %w", path, oerr))
 				// continue — observer failure must not hide the upsert.
 			}
@@ -132,13 +131,20 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 }
 
 type manifestFile struct {
-	LibraryID          string   `json:"libraryId"`
-	DisplayName        string   `json:"displayName"`
-	Description        string   `json:"description"`
-	Tags               []string `json:"tags"`
-	Latest             string   `json:"latest"`
-	Draft              string   `json:"draft"`
-	DeprecatedVersions []string `json:"deprecatedVersions"`
+	LibraryID          string                   `json:"libraryId"`
+	DisplayName        string                   `json:"displayName"`
+	Description        string                   `json:"description"`
+	Slot               string                   `json:"slot"`
+	Tags               []string                 `json:"tags"`
+	DesignStyles       []manifestDesignAffinity `json:"designStyles"`
+	Latest             string                   `json:"latest"`
+	Draft              string                   `json:"draft"`
+	DeprecatedVersions []string                 `json:"deprecatedVersions"`
+}
+
+type manifestDesignAffinity struct {
+	StyleID  string `json:"styleId"`
+	Affinity string `json:"affinity"`
 }
 
 func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[string]string, error) {
@@ -156,12 +162,21 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 		Slug:               slug,
 		DisplayName:        strings.TrimSpace(mf.DisplayName),
 		Description:        strings.TrimSpace(mf.Description),
+		Slot:               strings.TrimSpace(mf.Slot),
 		ManifestPath:       filepath.ToSlash(path),
 		LatestVersion:      strings.TrimSpace(mf.Latest),
 		DraftVersion:       strings.TrimSpace(mf.Draft),
 		DeprecatedVersions: append([]string(nil), mf.DeprecatedVersions...),
 		Tags:               append([]string(nil), mf.Tags...),
 	}
+	designStyles, err := parseManifestDesignStyles(path, mf.DesignStyles)
+	if err != nil {
+		return IndexManifestInput{}, nil, err
+	}
+	if err := validateManifestDesignStyles(path, designStyles); err != nil {
+		return IndexManifestInput{}, nil, err
+	}
+	manifest.DesignStyles = designStyles
 	if manifest.LibraryID == "" {
 		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "libraryId", Reason: "required"}
 	}
@@ -183,7 +198,7 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 	var versions []ComponentVersion
 	var latestFound bool
 	var draftFound bool
-	fieldsForDeps := map[string]string{"libraryId": manifest.LibraryID}
+	latestHeaders := map[string]string{"libraryId": manifest.LibraryID}
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
@@ -234,7 +249,7 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 				return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "latest", Reason: "must point to a released non-deprecated version"}
 			}
 			for k, v := range headers {
-				fieldsForDeps[k] = v
+				latestHeaders[k] = v
 			}
 		}
 		if version == manifest.DraftVersion {
@@ -250,6 +265,7 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 			SourcePath:    sourcePath,
 			Content:       string(src),
 			ContentSHA256: digestBytes(src),
+			Headers:       headers,
 		})
 	}
 	if !latestFound {
@@ -258,7 +274,64 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 	if manifest.DraftVersion != "" && !draftFound {
 		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "draft", Reason: "version folder not found"}
 	}
-	return IndexManifestInput{Manifest: manifest, Versions: versions}, fieldsForDeps, nil
+	return IndexManifestInput{Manifest: manifest, Versions: versions, Headers: latestHeaders}, latestHeaders, nil
+}
+
+func parseManifestDesignStyles(path string, raw []manifestDesignAffinity) ([]ComponentDesignAffinity, error) {
+	out := make([]ComponentDesignAffinity, 0, len(raw))
+	seen := map[string]struct{}{}
+	for _, entry := range raw {
+		styleID := strings.TrimSpace(entry.StyleID)
+		affinity := DesignAffinity(strings.TrimSpace(entry.Affinity))
+		if styleID == "" {
+			return nil, ErrInvalidHeader{SourcePath: path, Field: "designStyles", Reason: "styleId required"}
+		}
+		if affinity == "" {
+			affinity = DesignAffinityCompatible
+		}
+		if !isValidDesignAffinity(affinity) {
+			return nil, ErrInvalidHeader{SourcePath: path, Field: "designStyles", Reason: fmt.Sprintf("invalid affinity %q for style %q", affinity, styleID)}
+		}
+		if _, ok := seen[styleID]; ok {
+			return nil, ErrInvalidHeader{SourcePath: path, Field: "designStyles", Reason: fmt.Sprintf("duplicate style id %q", styleID)}
+		}
+		seen[styleID] = struct{}{}
+		out = append(out, ComponentDesignAffinity{StyleID: styleID, Affinity: affinity})
+	}
+	return out, nil
+}
+
+func validateManifestDesignStyles(path string, affinities []ComponentDesignAffinity) error {
+	if len(affinities) == 0 {
+		return nil
+	}
+	root, err := defaultDesignRoot()
+	if err != nil {
+		return err
+	}
+	styles, err := LoadDesignStyles(context.Background(), root)
+	if err != nil {
+		return err
+	}
+	known := make(map[string]struct{}, len(styles))
+	for _, style := range styles {
+		known[style.ID] = struct{}{}
+	}
+	for _, affinity := range affinities {
+		if _, ok := known[affinity.StyleID]; !ok {
+			return ErrInvalidHeader{SourcePath: path, Field: "designStyles", Reason: fmt.Sprintf("unknown style id %q", affinity.StyleID)}
+		}
+	}
+	return nil
+}
+
+func isValidDesignAffinity(affinity DesignAffinity) bool {
+	switch affinity {
+	case DesignAffinityNative, DesignAffinityCompatible, DesignAffinityDiscouraged:
+		return true
+	default:
+		return false
+	}
 }
 
 // headerBlockRe captures the first /** … */ comment block in a file.

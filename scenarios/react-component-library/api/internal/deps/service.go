@@ -27,10 +27,13 @@ type Service interface {
 	// for a component.
 	ListForComponent(ctx context.Context, componentID string) ([]Declaration, error)
 
+	// ListForComponentVersion returns declarations for the requested version.
+	ListForComponentVersion(ctx context.Context, componentID, version string) ([]Declaration, error)
+
 	// ValidateAdoption is the core req 10 verb: read the target
 	// scenario's package.json, intersect each declared range against
 	// the resolved version, fold issues into a Verdict.
-	ValidateAdoption(ctx context.Context, componentID, scenario string) (Verdict, error)
+	ValidateAdoption(ctx context.Context, componentID, version, scenario string) (Verdict, error)
 }
 
 type service struct {
@@ -61,6 +64,8 @@ func (s *service) SyncForComponent(ctx context.Context, in SyncInput) error {
 		cleaned = append(cleaned, DeclarationFields{
 			DepName:      name,
 			VersionRange: strings.TrimSpace(d.VersionRange),
+			Version:      strings.TrimSpace(d.Version),
+			Kind:         normalizeKind(d.Kind),
 		})
 	}
 	in.Declarations = cleaned
@@ -71,7 +76,11 @@ func (s *service) ListForComponent(ctx context.Context, componentID string) ([]D
 	return s.repo.ListForComponent(ctx, componentID)
 }
 
-func (s *service) ValidateAdoption(ctx context.Context, componentID, scenario string) (Verdict, error) {
+func (s *service) ListForComponentVersion(ctx context.Context, componentID, version string) ([]Declaration, error) {
+	return s.repo.ListForComponentVersion(ctx, componentID, version)
+}
+
+func (s *service) ValidateAdoption(ctx context.Context, componentID, version, scenario string) (Verdict, error) {
 	cid := strings.TrimSpace(componentID)
 	if cid == "" {
 		return Verdict{}, fmt.Errorf("component_id required")
@@ -84,7 +93,7 @@ func (s *service) ValidateAdoption(ctx context.Context, componentID, scenario st
 		return Verdict{}, fmt.Errorf("package.json reader not configured")
 	}
 
-	declarations, err := s.repo.ListForComponent(ctx, cid)
+	declarations, err := s.repo.ListForComponentVersion(ctx, cid, strings.TrimSpace(version))
 	if err != nil {
 		return Verdict{}, fmt.Errorf("list declarations: %w", err)
 	}
@@ -115,6 +124,8 @@ func (s *service) ValidateAdoption(ctx context.Context, componentID, scenario st
 			verdict.Issues = append(verdict.Issues, Issue{
 				DepName:       d.DepName,
 				DeclaredRange: d.VersionRange,
+				Version:       d.Version,
+				DepKind:       normalizeKind(d.Kind),
 				Kind:          IssueMissingDep,
 				Detail:        fmt.Sprintf("scenario %q has no dependency %q", scn, d.DepName),
 			})
@@ -128,6 +139,8 @@ func (s *service) ValidateAdoption(ctx context.Context, componentID, scenario st
 			DepName:         d.DepName,
 			DeclaredRange:   d.VersionRange,
 			ScenarioVersion: targetRange,
+			Version:         d.Version,
+			DepKind:         normalizeKind(d.Kind),
 			Kind:            kind,
 			Detail:          detail,
 		})

@@ -57,6 +57,40 @@
           "notes": "Parser test in api/internal/components/parser_test.go covers JSDoc, single-line, mixed-whitespace, and bleed-prevention cases."
         }
       ]
+    },
+    {
+      "id": "CR-004",
+      "title": "Component manifests index slot and design-style affinity metadata",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "registry",
+      "criticality": "P0",
+      "description": "The manifest indexer parses component.json `slot` and optional `designStyles[]` declarations, validates style ids against templates/design metadata, persists slot on `components`, and persists affinity rows in `component_design_affinities`.",
+      "tags": ["registry", "slot", "design-styles", "sqlite"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "api/internal/components/indexer_test.go covers valid style affinity parsing and unknown style-id rejection; sqlite_test.go covers affinity persistence and style/affinity search."
+        }
+      ]
+    },
+    {
+      "id": "CR-005",
+      "title": "Latest-version non-structural headers populate component_headers",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "registry",
+      "criticality": "P1",
+      "description": "Indexing stores latest-version JSDoc header metadata in `component_headers` while excluding structural fields already persisted elsewhere (`libraryId`, `version`, and `deps`). Category search is backed by this table.",
+      "tags": ["registry", "headers", "search"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "api/internal/components/sqlite_test.go::TestSQLiteRepository_UpsertManifestPersistsLatestHeadersForCategoryFacet verifies header sync, structural-field exclusion, and category filtering."
+        }
+      ]
     }
   ]
 }

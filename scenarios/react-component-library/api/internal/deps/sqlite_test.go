@@ -25,8 +25,8 @@ func TestSQLite_SyncAndList(t *testing.T) {
 		ComponentID: "cmp-1",
 		LibraryID:   "rcl:Button",
 		Declarations: []deps.DeclarationFields{
-			{DepName: "react", VersionRange: "^18.0.0"},
-			{DepName: "lodash", VersionRange: "^4.17.0"},
+			{Version: "1.0.0", DepName: "react", VersionRange: "^18.0.0"},
+			{Version: "1.0.0", DepName: "lodash", VersionRange: "^4.17.0", Kind: deps.DepKindPeer},
 		},
 	}))
 	got, err := repo.ListForComponent(ctx, "cmp-1")
@@ -35,6 +35,31 @@ func TestSQLite_SyncAndList(t *testing.T) {
 	// Sorted by name.
 	require.Equal(t, "lodash", got[0].DepName)
 	require.Equal(t, "react", got[1].DepName)
+	require.Equal(t, "1.0.0", got[0].Version)
+	require.Equal(t, deps.DepKindPeer, got[0].Kind)
+}
+
+func TestSQLite_SyncStoresRowsPerVersion(t *testing.T) {
+	repo := newSQLiteRepo(t)
+	ctx := context.Background()
+	require.NoError(t, repo.SyncForComponent(ctx, deps.SyncInput{
+		ComponentID: "cmp-1",
+		LibraryID:   "rcl:Button",
+		Declarations: []deps.DeclarationFields{
+			{Version: "1.0.0", DepName: "react", VersionRange: "^17.0.0"},
+			{Version: "1.1.0", DepName: "react", VersionRange: "^18.0.0"},
+		},
+	}))
+
+	got, err := repo.ListForComponentVersion(ctx, "cmp-1", "1.0.0")
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, "^17.0.0", got[0].VersionRange)
+
+	got, err = repo.ListForComponentVersion(ctx, "cmp-1", "1.1.0")
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, "^18.0.0", got[0].VersionRange)
 }
 
 func TestSQLite_SyncReplaces(t *testing.T) {

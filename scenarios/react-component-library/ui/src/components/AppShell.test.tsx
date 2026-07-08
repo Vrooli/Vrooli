@@ -67,6 +67,42 @@ describe("AppShell", () => {
     expect(shell.className).toContain("w-full");
   });
 
+  it("uses the full-bleed main layout for component detail routes", () => {
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/components/:id" element={<div>detail</div>} />
+        </Route>
+      </Routes>,
+      { routerEntries: ["/components/cmp-1"] },
+    );
+
+    const main = screen.getByTestId("app-main");
+    expect(main.className).toContain("p-0");
+    expect(main.className).toContain("flex-col");
+  });
+
+  it("renders the mobile sidebar branch when the media query matches", () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: true,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<div>mobile</div>} />
+        </Route>
+      </Routes>,
+      { routerEntries: ["/"] },
+    );
+
+    expect(screen.getByTestId("sidebar-shell")).toBeInTheDocument();
+  });
+
   it("opens a full-width safe-area sidebar shell from the mobile header", async () => {
     const user = userEvent.setup();
     renderWithProviders(

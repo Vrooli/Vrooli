@@ -27,6 +27,7 @@ func domainToProto(c components.Component) *componentsv1.Component {
 		LibraryId:     c.LibraryID,
 		DisplayName:   c.DisplayName,
 		Description:   c.Description,
+		Slot:          c.Slot,
 		SourcePath:    c.SourcePath,
 		Version:       c.Version,
 		Tags:          tags,
@@ -37,6 +38,31 @@ func domainToProto(c components.Component) *componentsv1.Component {
 		ManifestPath:  c.ManifestPath,
 		DraftVersion:  c.DraftVersion,
 		LatestVersion: c.LatestVersion,
+		DesignStyles:  designAffinitiesToProto(c.DesignStyles),
+	}
+}
+
+func designAffinitiesToProto(in []components.ComponentDesignAffinity) []*componentsv1.ComponentDesignAffinity {
+	out := make([]*componentsv1.ComponentDesignAffinity, 0, len(in))
+	for _, affinity := range in {
+		out = append(out, &componentsv1.ComponentDesignAffinity{
+			StyleId:  affinity.StyleID,
+			Affinity: designAffinityToProto(affinity.Affinity),
+		})
+	}
+	return out
+}
+
+func designAffinityToProto(affinity components.DesignAffinity) componentsv1.DesignAffinity {
+	switch affinity {
+	case components.DesignAffinityNative:
+		return componentsv1.DesignAffinity_DESIGN_AFFINITY_NATIVE
+	case components.DesignAffinityCompatible:
+		return componentsv1.DesignAffinity_DESIGN_AFFINITY_COMPATIBLE
+	case components.DesignAffinityDiscouraged:
+		return componentsv1.DesignAffinity_DESIGN_AFFINITY_DISCOURAGED
+	default:
+		return componentsv1.DesignAffinity_DESIGN_AFFINITY_UNSPECIFIED
 	}
 }
 

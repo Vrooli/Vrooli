@@ -14,13 +14,13 @@
       "prd_ref": "OT-P1-004",
       "category": "deps",
       "criticality": "P1",
-      "description": "Indexer parses the optional `@deps` field as JSON (object `{\"react\":\"^18.0.0\"}` OR array `[{\"name\":\"react\",\"range\":\"^18.0.0\"}]`). Missing field → empty array. Malformed JSON → observer error surfaced in the IndexComponents response. Parsed rows go into `component_dep_declarations` (soft FK to components.id). Indexer wires the deps recorder via `components.UpsertObserver` so each successful upsert re-syncs the dep set.",
+      "description": "Indexer parses the optional `@deps` field as JSON (object `{\"react\":\"^18.0.0\"}` OR array `[{\"name\":\"react\",\"range\":\"^18.0.0\",\"kind\":\"peer\"}]`). Missing field → empty array. Malformed JSON → observer error surfaced in the IndexComponents response. Parsed rows go into `component_dep_declarations` keyed by component id, component version, and dependency name. Indexer wires the deps recorder via `components.UpsertObserver` so each successful upsert re-syncs all version dep sets.",
       "tags": ["deps", "indexer"],
       "validation": [
         {
           "type": "automated",
           "status": "complete",
-          "notes": "internal/deps/semver_test.go::TestParseHeaderField covers object/array/empty/malformed; sqlite_test.go::TestSQLite_SyncReplaces + TestSQLite_SyncEmptyClears verify the dep-row replacement semantics."
+          "notes": "internal/deps/semver_test.go::TestParseHeaderField covers object/array/empty/malformed and optional kind parsing; sqlite_test.go verifies version-scoped dep-row replacement semantics."
         }
       ]
     },
@@ -31,13 +31,13 @@
       "prd_ref": "OT-P1-004",
       "category": "deps",
       "criticality": "P1",
-      "description": "`DepsService.ValidateAdoption(component_id, scenario)` (Connect-RPC) reads the target's `package.json` via the storage resolver, runs semver intersection against each declared dep, and returns `ok | warn | block`. `block` fires when a major-version range cannot be satisfied (or target is unparseable); `warn` fires when a dep is missing or minor/patch ranges don't intersect.",
+      "description": "`DepsService.ValidateAdoption(component_id, scenario, version)` (Connect-RPC) reads the target's `package.json` via the storage resolver, resolves declarations for the requested adopted component version, runs semver intersection against each declared dep, and returns `ok | warn | block`. `block` fires when a major-version range cannot be satisfied or the target is unparseable; `warn` fires when a runtime/dev dep is missing or minor/patch ranges don't intersect. Peer dependencies are must-be-provided by the target scenario.",
       "tags": ["deps", "adoption"],
       "validation": [
         {
           "type": "automated",
           "status": "complete",
-          "notes": "internal/deps/service_test.go: OK happy path, Warn missing-dep, Block incompatible-major, Block-beats-warn fold, no-declarations OK, scenario-pkg-missing error. semver_test.go::TestClassify covers ^/~/>=/exact range arithmetic across 21 cases."
+          "notes": "internal/deps/service_test.go covers version-scoped adoption validation, peer-vs-runtime semantics, OK/Warn/Block folds, no-declarations OK, and scenario-pkg-missing error. semver_test.go::TestClassify covers ^/~/>=/exact range arithmetic."
         }
       ]
     },

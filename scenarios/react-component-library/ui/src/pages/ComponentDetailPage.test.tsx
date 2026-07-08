@@ -49,6 +49,7 @@ vi.mock("../api/components", async (importOriginal) => {
 });
 
 import { ComponentDetailPage } from "./ComponentDetailPage";
+import { componentsClient } from "../api/components";
 
 describe("ComponentDetailPage", () => {
   beforeEach(() => {
@@ -69,6 +70,45 @@ describe("ComponentDetailPage", () => {
     });
     await waitFor(() => {
       expect(screen.getByTestId<HTMLTextAreaElement>("monaco-stub").value).toBe("// hi");
+    });
+  });
+
+  it("renders a missing-id message when the route has no component id", () => {
+    renderWithProviders(
+      <Routes>
+        <Route path="/components" element={<ComponentDetailPage />} />
+      </Routes>,
+      { routerEntries: ["/components"] },
+    );
+
+    expect(screen.getByTestId("component-detail-missing-id")).toBeInTheDocument();
+  });
+
+  it("renders loading while the component lookup is pending", () => {
+    vi.mocked(componentsClient.getComponent).mockReturnValueOnce(new Promise(() => {}));
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/components/:id" element={<ComponentDetailPage />} />
+      </Routes>,
+      { routerEntries: ["/components/cmp-pending"] },
+    );
+
+    expect(screen.getByTestId("component-detail-loading")).toBeInTheDocument();
+  });
+
+  it("renders an error when the component lookup returns no component", async () => {
+    vi.mocked(componentsClient.getComponent).mockResolvedValueOnce({});
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/components/:id" element={<ComponentDetailPage />} />
+      </Routes>,
+      { routerEntries: ["/components/missing"] },
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("component-detail-error")).toBeInTheDocument();
     });
   });
 });

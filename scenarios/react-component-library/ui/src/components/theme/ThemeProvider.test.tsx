@@ -105,4 +105,5 @@ describe("ThemeProvider", () => {
     await user.click(screen.getByTestId("to-dark"));
     expect(window.localStorage.getItem("react-component-library.theme.v1")).toBe("dark");
   });
+
 });

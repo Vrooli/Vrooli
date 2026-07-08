@@ -54,6 +54,14 @@ func (f *fakeComponentsService) GetVersionContent(context.Context, string, strin
 	panic("not called")
 }
 
+func (f *fakeComponentsService) ListDesignStyles(context.Context) ([]components.DesignStyle, error) {
+	panic("not called")
+}
+
+func (f *fakeComponentsService) ValidateDesignStyle(context.Context, string) error {
+	panic("not called")
+}
+
 func (f *fakeComponentsService) InitializeComponent(context.Context, components.InitializeComponentInput) (components.InitializeComponentResult, error) {
 	panic("not called")
 }

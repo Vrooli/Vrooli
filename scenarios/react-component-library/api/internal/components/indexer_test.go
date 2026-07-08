@@ -16,6 +16,7 @@ const buttonTSX = `/**
  * @libraryId   react-component-library:Button
  * @version     1.0.0
  * @tags        ["form", "interactive"]
+ * @category    controls
  * @warning     DO NOT REMOVE THIS HEADER
  */
 import React from 'react';
@@ -31,7 +32,7 @@ export const Card = () => null;
 
 func TestIndexer_RunWalksAndUpserts(t *testing.T) {
 	fs := fstest.MapFS{
-		"components/Button/component.json":            {Data: []byte(manifest("react-component-library:Button", "Button", `["form","interactive"]`))},
+		"components/Button/component.json":            {Data: []byte(manifestWithStyles("react-component-library:Button", "Button", `["form","interactive"]`, `[{"styleId":"vrooli-default","affinity":"native"},{"styleId":"vrooli-conversion-landing","affinity":"discouraged"}]`))},
 		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(buttonTSX)},
 		"components/Card/component.json":              {Data: []byte(manifest("react-component-library:Card", "Card", `["layout","container"]`))},
 		"components/Card/versions/1.0.0/Card.tsx":     {Data: []byte(cardTSX)},
@@ -50,13 +51,40 @@ func TestIndexer_RunWalksAndUpserts(t *testing.T) {
 	got, err := repo.GetByLibraryID(context.Background(), "react-component-library:Button")
 	require.NoError(t, err)
 	require.Equal(t, "Button", got.DisplayName)
+	require.Equal(t, "ui-primitive", got.Slot)
 	require.Equal(t, "1.0.0", got.Version)
 	require.Equal(t, []string{"form", "interactive"}, got.Tags)
 	require.Equal(t, "components/Button/versions/1.0.0/Button.tsx", got.SourcePath)
+	require.Equal(t, "controls", got.Headers["category"])
+	require.Equal(t, "DO NOT REMOVE THIS HEADER", got.Headers["warning"])
+	require.NotContains(t, got.Headers, "libraryId")
+	require.NotContains(t, got.Headers, "version")
+	require.Equal(t, []components.ComponentDesignAffinity{
+		{StyleID: "vrooli-default", Affinity: components.DesignAffinityNative},
+		{StyleID: "vrooli-conversion-landing", Affinity: components.DesignAffinityDiscouraged},
+	}, got.DesignStyles)
 
 	got2, err := repo.GetByLibraryID(context.Background(), "react-component-library:Card")
 	require.NoError(t, err)
 	require.Equal(t, []string{"layout", "container"}, got2.Tags)
+}
+
+func TestIndexer_RunReportsUnknownDesignStyle(t *testing.T) {
+	fs := fstest.MapFS{
+		"components/Button/component.json":            {Data: []byte(manifestWithStyles("react-component-library:Button", "Button", `[]`, `[{"styleId":"missing-style","affinity":"native"}]`))},
+		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(buttonTSX)},
+	}
+	repo := mocks.NewFakeRepository()
+	idx := components.NewIndexer(repo, ".", fs)
+
+	res, err := idx.Run(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 0, res.Indexed)
+	require.Len(t, res.Errors, 1)
+	var hdr components.ErrInvalidHeader
+	require.True(t, errors.As(res.Errors[0], &hdr), "got %T", res.Errors[0])
+	require.Equal(t, "designStyles", hdr.Field)
+	require.Contains(t, hdr.Reason, "missing-style")
 }
 
 func TestIndexer_RunReportsMalformedHeaderErrors(t *testing.T) {
@@ -102,5 +130,9 @@ func TestIndexer_RunDeletesMissingOnRerun(t *testing.T) {
 }
 
 func manifest(libraryID, displayName, tags string) string {
-	return `{"libraryId":"` + libraryID + `","displayName":"` + displayName + `","description":"","tags":` + tags + `,"latest":"1.0.0","deprecatedVersions":[]}`
+	return manifestWithStyles(libraryID, displayName, tags, `[]`)
+}
+
+func manifestWithStyles(libraryID, displayName, tags, designStyles string) string {
+	return `{"libraryId":"` + libraryID + `","displayName":"` + displayName + `","description":"","slot":"ui-primitive","tags":` + tags + `,"designStyles":` + designStyles + `,"latest":"1.0.0","deprecatedVersions":[]}`
 }

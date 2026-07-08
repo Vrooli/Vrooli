@@ -3,6 +3,7 @@
  * @version 1.1.0
  * @status released
  * @deps {"react":"^18"}
+ * @category controls
  */
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
@@ -54,4 +55,3 @@ export function Button({
     </button>
   );
 }
-

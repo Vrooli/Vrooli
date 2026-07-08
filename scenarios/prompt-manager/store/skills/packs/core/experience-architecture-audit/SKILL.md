@@ -51,6 +51,9 @@ For each persona + job:
   * Navigation depth (how many steps/clicks)
   * Places where the user must **remember** something (which item, which project, which filter, etc.)
   * Places where the user must **hunt** for the next action or is forced to “drill down” repeatedly
+  * Components whose expected affordances are missing or hidden, such as tables
+    without sort/filter/search, long lists without search, forms without
+    validation states, or destructive actions without confirmation and feedback
 
 Capture these current flows in a succinct, structured way (e.g. “Current: Dashboard → … → …”) in your internal reasoning and summary note.
 
@@ -81,10 +84,15 @@ For each persona + job, compare **Current vs. Ideal**:
   * Hidden or non-obvious entry points
   * Forced detours through organizational layers that don’t match user mental models
   * Missing “resume” or “shortcut” affordances
+  * Missing component affordances users reasonably expect for the task: sort,
+    filter, search, validation, confirmation, retry, progress, stale/refresh,
+    and post-action feedback
 * Categorize friction where useful:
   * **Mechanical** (too many clicks/scrolls/inputs)
   * **Cognitive** (user must remember too much or guess)
   * **Discoverability** (important capabilities are buried or invisible)
+  * **Affordance** (the component is present but cannot support the expected
+    operation)
 
 Focus on **concrete, observable gaps** rather than vague “this feels clunky” opinions.
 

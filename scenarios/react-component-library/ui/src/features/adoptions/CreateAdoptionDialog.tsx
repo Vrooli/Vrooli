@@ -115,7 +115,7 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
     setValidating(true);
     setAck(false);
     depsClient
-      .validateAdoption({ componentId: cid, scenario: sc })
+      .validateAdoption({ componentId: cid, scenario: sc, version: adoptedVersion.trim() })
       .then((res) => {
         if (!cancelled) setVerdict(res);
       })
@@ -128,7 +128,7 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [open, componentId, scenario]);
+  }, [open, componentId, scenario, adoptedVersion]);
 
   const createMutation = useMutation({
     mutationFn: () =>

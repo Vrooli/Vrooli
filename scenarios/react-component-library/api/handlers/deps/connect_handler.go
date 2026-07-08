@@ -42,7 +42,7 @@ func (h *connectHandler) ListDeclarations(ctx context.Context, req *connect.Requ
 }
 
 func (h *connectHandler) ValidateAdoption(ctx context.Context, req *connect.Request[depsv1.ValidateAdoptionRequest]) (*connect.Response[depsv1.ValidateAdoptionResponse], error) {
-	v, err := h.deps.Service.ValidateAdoption(ctx, req.Msg.ComponentId, req.Msg.Scenario)
+	v, err := h.deps.Service.ValidateAdoption(ctx, req.Msg.ComponentId, req.Msg.Version, req.Msg.Scenario)
 	if err != nil {
 		connectErr := deps.ToConnectError(err)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {
@@ -64,8 +64,10 @@ func declarationToProto(d deps.Declaration) *depsv1.DepDeclaration {
 	return &depsv1.DepDeclaration{
 		ComponentId:  d.ComponentID,
 		LibraryId:    d.LibraryID,
+		Version:      d.Version,
 		DepName:      d.DepName,
 		VersionRange: d.VersionRange,
+		Kind:         string(d.Kind),
 	}
 }
 
@@ -74,6 +76,8 @@ func issueToProto(i deps.Issue) *depsv1.DepIssue {
 		DepName:         i.DepName,
 		DeclaredRange:   i.DeclaredRange,
 		ScenarioVersion: i.ScenarioVersion,
+		Version:         i.Version,
+		DepKind:         string(i.DepKind),
 		Kind:            issueKindToProto(i.Kind),
 		Detail:          i.Detail,
 	}

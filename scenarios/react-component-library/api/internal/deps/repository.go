@@ -11,8 +11,12 @@ type Repository interface {
 	SyncForComponent(ctx context.Context, in SyncInput) error
 
 	// ListForComponent returns the declarations for one component,
-	// ordered by dep_name. Empty slice + nil error when none exist.
+	// ordered by version then dep_name. Empty slice + nil error when none exist.
 	ListForComponent(ctx context.Context, componentID string) ([]Declaration, error)
+
+	// ListForComponentVersion returns declarations for one component version,
+	// ordered by dep_name. Empty slice + nil error when none exist.
+	ListForComponentVersion(ctx context.Context, componentID, version string) ([]Declaration, error)
 
 	// DeleteForComponent removes every declaration for a component.
 	// Used when the indexer drops a component from the registry.

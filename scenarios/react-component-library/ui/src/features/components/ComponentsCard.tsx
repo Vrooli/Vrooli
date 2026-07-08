@@ -12,6 +12,10 @@ import { errorMessage } from "../../lib/errorMessage";
 import { ComponentEditor } from "./ComponentEditor";
 import { CreateComponentDialog } from "./CreateComponentDialog";
 
+const DESIGN_AFFINITY_NATIVE = 1;
+const DESIGN_AFFINITY_COMPATIBLE = 2;
+const DESIGN_AFFINITY_DISCOURAGED = 3;
+
 /**
  * ComponentsCard renders the indexed component registry. The user can
  * filter by name substring + tag, trigger a re-index from disk, and
@@ -26,6 +30,8 @@ export function ComponentsCard() {
   const [tag, setTag] = useState("");
   const [tagsRaw, setTagsRaw] = useState("");
   const [category, setCategory] = useState("");
+  const [styleId, setStyleId] = useState("");
+  const [affinity, setAffinity] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedLibraryId, setSelectedLibraryId] = useState<string>("");
   const [showCreate, setShowCreate] = useState(false);
@@ -36,9 +42,9 @@ export function ComponentsCard() {
     .filter((t) => t !== "");
 
   const componentsQuery = useQuery({
-    queryKey: ["components", { match, tag, tags, category }],
+    queryKey: ["components", { match, tag, tags, category, styleId, affinity }],
     queryFn: () =>
-      componentsClient.listComponents({ match, tag, tags, category }),
+      componentsClient.listComponents({ match, tag, tags, category, styleId, affinity }),
   });
 
   const indexMutation = useMutation({
@@ -91,7 +97,7 @@ export function ComponentsCard() {
 
       {showCreate && <CreateComponentDialog onClose={() => setShowCreate(false)} />}
 
-      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <label className="block text-xs text-slate-400">
           {t(strings.components.searchLabel)}
           <Input
@@ -129,6 +135,26 @@ export function ComponentsCard() {
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             placeholder={t(strings.components.categoryPlaceholder)}
+            className="mt-1"
+          />
+        </label>
+        <label className="block text-xs text-slate-400">
+          {t(strings.components.styleLabel)}
+          <Input
+            data-testid={selectors.components.styleInput}
+            value={styleId}
+            onChange={(e) => setStyleId(e.target.value)}
+            placeholder={t(strings.components.stylePlaceholder)}
+            className="mt-1"
+          />
+        </label>
+        <label className="block text-xs text-slate-400">
+          {t(strings.components.affinityLabel)}
+          <Input
+            data-testid={selectors.components.affinityInput}
+            value={affinity}
+            onChange={(e) => setAffinity(e.target.value)}
+            placeholder={t(strings.components.affinityPlaceholder)}
             className="mt-1"
           />
         </label>
@@ -174,69 +200,113 @@ export function ComponentsCard() {
             {t(strings.components.summary, { count: components.length })}
           </p>
           <ul data-testid={selectors.components.list} className="mt-2 space-y-2 text-sm text-slate-200">
-            {components.map((c) => (
-              <li
-                key={c.id}
-                data-testid={selectors.components.item}
-                className="rounded-lg border border-white/10 p-3"
-              >
-                <div className="flex items-baseline justify-between gap-3">
-                  <span
-                    data-testid={selectors.components.itemLibraryId}
-                    className="font-mono text-xs text-slate-400"
-                  >
-                    {c.libraryId}
-                  </span>
-                  {c.version && (
-                    <span
-                      data-testid={selectors.components.itemVersion}
-                      className="text-xs text-slate-500"
-                    >
-                      {t(strings.components.versionLabel, { version: c.version })}
-                    </span>
-                  )}
-                </div>
-                <div className="mt-1 flex items-center justify-between gap-2">
-                  <div
-                    data-testid={selectors.components.itemDisplayName}
-                    className="font-medium"
-                  >
-                    {c.displayName}
-                  </div>
-                  <Button
-                    data-testid={selectors.components.itemEditButton}
-                    onClick={() => {
-                      setSelectedId(c.id);
-                      setSelectedLibraryId(c.libraryId);
-                    }}
-                    className="h-7 px-3 text-xs"
-                  >
-                    {t(strings.components.editAction)}
-                  </Button>
-                  <Button
-                    asChild
-                    className="h-7 px-3 text-xs"
-                    variant="outline"
-                  >
-                    <Link to={`/components/${c.id}`}>{t(strings.components.openAction)}</Link>
-                  </Button>
-                </div>
-                {c.description && (
-                  <div className="mt-1 text-xs text-slate-400">{c.description}</div>
-                )}
-                <div
-                  data-testid={selectors.components.itemTags}
-                  className="mt-1 text-xs text-slate-500"
+            {components.map((c) => {
+              const designStyles = c.designStyles ?? [];
+              const componentTags = c.tags ?? [];
+              return (
+                <li
+                  key={c.id}
+                  data-testid={selectors.components.item}
+                  className="rounded-lg border border-white/10 p-3"
                 >
-                  {c.tags.length > 0
-                    ? t(strings.components.tagsLabel, { tags: c.tags.join(", ") })
-                    : t(strings.components.noTags)}
-                </div>
-              </li>
-            ))}
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span
+                      data-testid={selectors.components.itemLibraryId}
+                      className="font-mono text-xs text-slate-400"
+                    >
+                      {c.libraryId}
+                    </span>
+                    {c.version && (
+                      <span
+                        data-testid={selectors.components.itemVersion}
+                        className="text-xs text-slate-500"
+                      >
+                        {t(strings.components.versionLabel, { version: c.version })}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <div
+                      data-testid={selectors.components.itemDisplayName}
+                      className="font-medium"
+                    >
+                      {c.displayName}
+                    </div>
+                    <Button
+                      data-testid={selectors.components.itemEditButton}
+                      onClick={() => {
+                        setSelectedId(c.id);
+                        setSelectedLibraryId(c.libraryId);
+                      }}
+                      className="h-7 px-3 text-xs"
+                    >
+                      {t(strings.components.editAction)}
+                    </Button>
+                    <Button
+                      asChild
+                      className="h-7 px-3 text-xs"
+                      variant="outline"
+                    >
+                      <Link to={`/components/${c.id}`}>{t(strings.components.openAction)}</Link>
+                    </Button>
+                  </div>
+                  {c.description && (
+                    <div className="mt-1 text-xs text-slate-400">{c.description}</div>
+                  )}
+                  {c.slot && (
+                    <div
+                      data-testid={selectors.components.itemSlot}
+                      className="mt-1 font-mono text-xs text-slate-500"
+                    >
+                      slot={c.slot}
+                    </div>
+                  )}
+                  {designStyles.length > 0 && (
+                    <div
+                      data-testid={selectors.components.itemDesignStyles}
+                      className="mt-2 flex flex-wrap gap-1 text-xs"
+                    >
+                      {designStyles.map((style) => (
+                        <span
+                          key={style.styleId}
+                          className={
+                            style.affinity === DESIGN_AFFINITY_DISCOURAGED
+                              ? "rounded border border-amber-400/50 px-2 py-0.5 text-amber-200"
+                              : "rounded border border-white/10 px-2 py-0.5 text-slate-300"
+                          }
+                        >
+                          {style.styleId}:{formatAffinity(style.affinity)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div
+                    data-testid={selectors.components.itemTags}
+                    className="mt-1 text-xs text-slate-500"
+                  >
+                    {componentTags.length > 0
+                      ? t(strings.components.tagsLabel, { tags: componentTags.join(", ") })
+                      : t(strings.components.noTags)}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </>
       )}
     </section>
   );
+}
+
+function formatAffinity(affinity: number) {
+  switch (affinity) {
+    case DESIGN_AFFINITY_NATIVE:
+      return "native";
+    case DESIGN_AFFINITY_COMPATIBLE:
+      return "compatible";
+    case DESIGN_AFFINITY_DISCOURAGED:
+      return "discouraged";
+    default:
+      return "unspecified";
+  }
 }

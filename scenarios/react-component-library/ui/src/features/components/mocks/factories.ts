@@ -23,19 +23,21 @@ export type {
 
 export const makeComponent = (
   overrides: MessageInitShape<typeof ComponentSchema> = {},
-): Component =>
-  create(ComponentSchema, {
+): Component => {
+  const component = create(ComponentSchema, {
     id: "cmp-1",
     libraryId: "react-component-library:Button",
     displayName: "Button",
     description: "Primary CTA.",
+    slot: "ui-primitive",
     sourcePath: "components/Button.tsx",
     version: "1.0.0",
     tags: ["form"],
     indexedAt: timestampFromDate(new Date("2026-05-12T00:00:00.000Z")),
     updatedAt: timestampFromDate(new Date("2026-05-12T00:00:00.000Z")),
-    ...overrides,
   });
+  return Object.assign(component, overrides);
+};
 
 export const makeListComponentsResponse = (
   overrides: MessageInitShape<typeof ListComponentsResponseSchema> = {},

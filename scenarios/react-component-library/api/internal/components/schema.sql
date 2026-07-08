@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS components (
   slug          TEXT NOT NULL UNIQUE,
   display_name  TEXT NOT NULL DEFAULT '',
   description   TEXT NOT NULL DEFAULT '',
+  slot          TEXT NOT NULL DEFAULT '',
   source_path   TEXT NOT NULL,
   version       TEXT NOT NULL DEFAULT '',
   latest_version TEXT NOT NULL DEFAULT '',
@@ -62,3 +63,13 @@ CREATE TABLE IF NOT EXISTS component_headers (
 
 CREATE INDEX IF NOT EXISTS idx_component_headers_field_value
   ON component_headers(field, value);
+
+CREATE TABLE IF NOT EXISTS component_design_affinities (
+  component_id  TEXT NOT NULL,
+  style_id      TEXT NOT NULL,
+  affinity      TEXT NOT NULL,
+  PRIMARY KEY (component_id, style_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_component_design_affinities_style_affinity
+  ON component_design_affinities(style_id, affinity);
