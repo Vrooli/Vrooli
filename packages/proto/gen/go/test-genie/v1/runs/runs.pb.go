@@ -234,9 +234,17 @@ type RunLiveStatus struct {
 	Error                       string `protobuf:"bytes,15,opt,name=error,proto3" json:"error,omitempty"`
 	// active reports whether the snapshot came from the live registry (true) or
 	// the durable index (false).
-	Active        bool `protobuf:"varint,16,opt,name=active,proto3" json:"active,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Active bool `protobuf:"varint,16,opt,name=active,proto3" json:"active,omitempty"`
+	// terminal_standings carries the provider-computed per-phase maturity
+	// standings once a terminal live snapshot has the run result in memory. This
+	// lets the canonical agent path (`runs wait --json`) see the same Phase
+	// Capability Contract standing that follow streams receive on phase terminal
+	// events. Empty while in progress or when the server only has the durable
+	// index record.
+	TerminalStandings         []*PhaseMaturityStanding `protobuf:"bytes,17,rep,name=terminal_standings,json=terminalStandings,proto3" json:"terminal_standings,omitempty"`
+	TerminalFindingsSummaries []*PhaseFindingsSummary  `protobuf:"bytes,18,rep,name=terminal_findings_summaries,json=terminalFindingsSummaries,proto3" json:"terminal_findings_summaries,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *RunLiveStatus) Reset() {
@@ -379,6 +387,20 @@ func (x *RunLiveStatus) GetActive() bool {
 		return x.Active
 	}
 	return false
+}
+
+func (x *RunLiveStatus) GetTerminalStandings() []*PhaseMaturityStanding {
+	if x != nil {
+		return x.TerminalStandings
+	}
+	return nil
+}
+
+func (x *RunLiveStatus) GetTerminalFindingsSummaries() []*PhaseFindingsSummary {
+	if x != nil {
+		return x.TerminalFindingsSummaries
+	}
+	return nil
 }
 
 type StartRunRequest struct {
@@ -5551,7 +5573,7 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\averdict\x18\x0f \x01(\tR\averdict\x12\x14\n" +
 	"\x05error\x18\x10 \x01(\tR\x05error\x12]\n" +
 	"\x11maturity_standing\x18\x11 \x01(\v20.vrooli.test_genie.v1.runs.PhaseMaturityStandingR\x10maturityStanding\x12Z\n" +
-	"\x10findings_summary\x18\x12 \x01(\v2/.vrooli.test_genie.v1.runs.PhaseFindingsSummaryR\x0ffindingsSummary\"\xc3\x04\n" +
+	"\x10findings_summary\x18\x12 \x01(\v2/.vrooli.test_genie.v1.runs.PhaseFindingsSummaryR\x0ffindingsSummary\"\x95\x06\n" +
 	"\rRunLiveStatus\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x16\n" +
@@ -5572,7 +5594,9 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\averdict\x18\r \x01(\tR\averdict\x12\x18\n" +
 	"\asuccess\x18\x0e \x01(\bR\asuccess\x12\x14\n" +
 	"\x05error\x18\x0f \x01(\tR\x05error\x12\x16\n" +
-	"\x06active\x18\x10 \x01(\bR\x06active\"\xe3\x03\n" +
+	"\x06active\x18\x10 \x01(\bR\x06active\x12_\n" +
+	"\x12terminal_standings\x18\x11 \x03(\v20.vrooli.test_genie.v1.runs.PhaseMaturityStandingR\x11terminalStandings\x12o\n" +
+	"\x1bterminal_findings_summaries\x18\x12 \x03(\v2/.vrooli.test_genie.v1.runs.PhaseFindingsSummaryR\x19terminalFindingsSummaries\"\xe3\x03\n" +
 	"\x0fStartRunRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
 	"\x06preset\x18\x02 \x01(\tR\x06preset\x12\x16\n" +
@@ -6105,91 +6129,93 @@ var file_test_genie_v1_runs_runs_proto_goTypes = []any{
 var file_test_genie_v1_runs_runs_proto_depIdxs = []int32{
 	15, // 0: vrooli.test_genie.v1.runs.RunEvent.maturity_standing:type_name -> vrooli.test_genie.v1.runs.PhaseMaturityStanding
 	13, // 1: vrooli.test_genie.v1.runs.RunEvent.findings_summary:type_name -> vrooli.test_genie.v1.runs.PhaseFindingsSummary
-	1,  // 2: vrooli.test_genie.v1.runs.WaitRunResponse.status:type_name -> vrooli.test_genie.v1.runs.RunLiveStatus
-	1,  // 3: vrooli.test_genie.v1.runs.AbortRunResponse.status:type_name -> vrooli.test_genie.v1.runs.RunLiveStatus
-	14, // 4: vrooli.test_genie.v1.runs.PhaseMaturityStanding.capabilities:type_name -> vrooli.test_genie.v1.runs.PhaseCapabilityStanding
-	15, // 5: vrooli.test_genie.v1.runs.PhaseInfo.maturity_standing:type_name -> vrooli.test_genie.v1.runs.PhaseMaturityStanding
-	13, // 6: vrooli.test_genie.v1.runs.PhaseInfo.findings_summary:type_name -> vrooli.test_genie.v1.runs.PhaseFindingsSummary
-	16, // 7: vrooli.test_genie.v1.runs.RunInfo.phases:type_name -> vrooli.test_genie.v1.runs.PhaseInfo
-	11, // 8: vrooli.test_genie.v1.runs.RunInfo.diagnostics:type_name -> vrooli.test_genie.v1.runs.DiagnosticsInfo
-	12, // 9: vrooli.test_genie.v1.runs.RunInfo.pins:type_name -> vrooli.test_genie.v1.runs.PinInfo
-	17, // 10: vrooli.test_genie.v1.runs.ListRunsResponse.runs:type_name -> vrooli.test_genie.v1.runs.RunInfo
-	17, // 11: vrooli.test_genie.v1.runs.GetRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo
-	17, // 12: vrooli.test_genie.v1.runs.PinRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo
-	17, // 13: vrooli.test_genie.v1.runs.UnpinRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo
-	29, // 14: vrooli.test_genie.v1.runs.CompareRunsResponse.phases:type_name -> vrooli.test_genie.v1.runs.PhaseDiff
-	17, // 15: vrooli.test_genie.v1.runs.FindRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo
-	15, // 16: vrooli.test_genie.v1.runs.RunFindingsPhase.maturity_standing:type_name -> vrooli.test_genie.v1.runs.PhaseMaturityStanding
-	13, // 17: vrooli.test_genie.v1.runs.RunFindingsPhase.findings_summary:type_name -> vrooli.test_genie.v1.runs.PhaseFindingsSummary
-	36, // 18: vrooli.test_genie.v1.runs.GetRunFindingsResponse.phases:type_name -> vrooli.test_genie.v1.runs.RunFindingsPhase
-	38, // 19: vrooli.test_genie.v1.runs.ListRunVideosResponse.videos:type_name -> vrooli.test_genie.v1.runs.RunVideo
-	41, // 20: vrooli.test_genie.v1.runs.ListRunVisualsResponse.visuals:type_name -> vrooli.test_genie.v1.runs.RunVisual
-	45, // 21: vrooli.test_genie.v1.runs.CompareRunVisualsResponse.deltas:type_name -> vrooli.test_genie.v1.runs.VisualDelta
-	48, // 22: vrooli.test_genie.v1.runs.CheckFreshnessResponse.phases:type_name -> vrooli.test_genie.v1.runs.PhaseFreshness
-	57, // 23: vrooli.test_genie.v1.runs.GetSelfHealthResponse.self_health:type_name -> vrooli.test_genie.v1.runs.SelfHealth
-	54, // 24: vrooli.test_genie.v1.runs.GetFleetHealthResponse.fleet_health:type_name -> vrooli.test_genie.v1.runs.FleetHealth
-	55, // 25: vrooli.test_genie.v1.runs.FleetHealth.scenarios:type_name -> vrooli.test_genie.v1.runs.FleetScenarioHealth
-	56, // 26: vrooli.test_genie.v1.runs.FleetHealth.top_finding_sources:type_name -> vrooli.test_genie.v1.runs.FleetFindingSource
-	60, // 27: vrooli.test_genie.v1.runs.SelfHealth.catalog:type_name -> vrooli.test_genie.v1.runs.CatalogSummary
-	62, // 28: vrooli.test_genie.v1.runs.SelfHealth.conformance:type_name -> vrooli.test_genie.v1.runs.ProviderConformance
-	64, // 29: vrooli.test_genie.v1.runs.SelfHealth.ledger:type_name -> vrooli.test_genie.v1.runs.ReliabilityLedger
-	58, // 30: vrooli.test_genie.v1.runs.SelfHealth.trend_series:type_name -> vrooli.test_genie.v1.runs.SelfHealthTrendPoint
-	61, // 31: vrooli.test_genie.v1.runs.CatalogSummary.phases:type_name -> vrooli.test_genie.v1.runs.CatalogPhase
-	63, // 32: vrooli.test_genie.v1.runs.ProviderConformance.autofix:type_name -> vrooli.test_genie.v1.runs.AutofixCoverage
-	65, // 33: vrooli.test_genie.v1.runs.ReliabilityLedger.run_outcomes:type_name -> vrooli.test_genie.v1.runs.RunOutcomeCount
-	69, // 34: vrooli.test_genie.v1.runs.ReliabilityLedger.phases:type_name -> vrooli.test_genie.v1.runs.PhaseReliability
-	70, // 35: vrooli.test_genie.v1.runs.ReliabilityLedger.providers:type_name -> vrooli.test_genie.v1.runs.ProviderReliability
-	59, // 36: vrooli.test_genie.v1.runs.ReliabilityLedger.trend:type_name -> vrooli.test_genie.v1.runs.TrendDelta
-	66, // 37: vrooli.test_genie.v1.runs.PhaseReliability.skip_reasons:type_name -> vrooli.test_genie.v1.runs.LabeledCount
-	66, // 38: vrooli.test_genie.v1.runs.PhaseReliability.classifications:type_name -> vrooli.test_genie.v1.runs.LabeledCount
-	67, // 39: vrooli.test_genie.v1.runs.PhaseReliability.duration:type_name -> vrooli.test_genie.v1.runs.DurationStats
-	68, // 40: vrooli.test_genie.v1.runs.PhaseReliability.worst_scenarios:type_name -> vrooli.test_genie.v1.runs.ScenarioFailureRate
-	67, // 41: vrooli.test_genie.v1.runs.ProviderReliability.duration:type_name -> vrooli.test_genie.v1.runs.DurationStats
-	18, // 42: vrooli.test_genie.v1.runs.RunsService.ListRuns:input_type -> vrooli.test_genie.v1.runs.ListRunsRequest
-	20, // 43: vrooli.test_genie.v1.runs.RunsService.GetRun:input_type -> vrooli.test_genie.v1.runs.GetRunRequest
-	22, // 44: vrooli.test_genie.v1.runs.RunsService.DeleteRun:input_type -> vrooli.test_genie.v1.runs.DeleteRunRequest
-	24, // 45: vrooli.test_genie.v1.runs.RunsService.PinRun:input_type -> vrooli.test_genie.v1.runs.PinRunRequest
-	26, // 46: vrooli.test_genie.v1.runs.RunsService.UnpinRun:input_type -> vrooli.test_genie.v1.runs.UnpinRunRequest
-	28, // 47: vrooli.test_genie.v1.runs.RunsService.CompareRuns:input_type -> vrooli.test_genie.v1.runs.CompareRunsRequest
-	33, // 48: vrooli.test_genie.v1.runs.RunsService.GetPhaseArtifact:input_type -> vrooli.test_genie.v1.runs.GetPhaseArtifactRequest
-	35, // 49: vrooli.test_genie.v1.runs.RunsService.GetRunFindings:input_type -> vrooli.test_genie.v1.runs.GetRunFindingsRequest
-	39, // 50: vrooli.test_genie.v1.runs.RunsService.ListRunVideos:input_type -> vrooli.test_genie.v1.runs.ListRunVideosRequest
-	42, // 51: vrooli.test_genie.v1.runs.RunsService.ListRunVisuals:input_type -> vrooli.test_genie.v1.runs.ListRunVisualsRequest
-	44, // 52: vrooli.test_genie.v1.runs.RunsService.CompareRunVisuals:input_type -> vrooli.test_genie.v1.runs.CompareRunVisualsRequest
-	31, // 53: vrooli.test_genie.v1.runs.RunsService.FindRun:input_type -> vrooli.test_genie.v1.runs.FindRunRequest
-	47, // 54: vrooli.test_genie.v1.runs.RunsService.CheckFreshness:input_type -> vrooli.test_genie.v1.runs.CheckFreshnessRequest
-	50, // 55: vrooli.test_genie.v1.runs.RunsService.GetSelfHealth:input_type -> vrooli.test_genie.v1.runs.GetSelfHealthRequest
-	52, // 56: vrooli.test_genie.v1.runs.RunsService.GetFleetHealth:input_type -> vrooli.test_genie.v1.runs.GetFleetHealthRequest
-	2,  // 57: vrooli.test_genie.v1.runs.RunsService.StartRun:input_type -> vrooli.test_genie.v1.runs.StartRunRequest
-	5,  // 58: vrooli.test_genie.v1.runs.RunsService.FollowRun:input_type -> vrooli.test_genie.v1.runs.FollowRunRequest
-	6,  // 59: vrooli.test_genie.v1.runs.RunsService.WaitRun:input_type -> vrooli.test_genie.v1.runs.WaitRunRequest
-	8,  // 60: vrooli.test_genie.v1.runs.RunsService.AbortRun:input_type -> vrooli.test_genie.v1.runs.AbortRunRequest
-	10, // 61: vrooli.test_genie.v1.runs.RunsService.GetRunStatus:input_type -> vrooli.test_genie.v1.runs.GetRunStatusRequest
-	19, // 62: vrooli.test_genie.v1.runs.RunsService.ListRuns:output_type -> vrooli.test_genie.v1.runs.ListRunsResponse
-	21, // 63: vrooli.test_genie.v1.runs.RunsService.GetRun:output_type -> vrooli.test_genie.v1.runs.GetRunResponse
-	23, // 64: vrooli.test_genie.v1.runs.RunsService.DeleteRun:output_type -> vrooli.test_genie.v1.runs.DeleteRunResponse
-	25, // 65: vrooli.test_genie.v1.runs.RunsService.PinRun:output_type -> vrooli.test_genie.v1.runs.PinRunResponse
-	27, // 66: vrooli.test_genie.v1.runs.RunsService.UnpinRun:output_type -> vrooli.test_genie.v1.runs.UnpinRunResponse
-	30, // 67: vrooli.test_genie.v1.runs.RunsService.CompareRuns:output_type -> vrooli.test_genie.v1.runs.CompareRunsResponse
-	34, // 68: vrooli.test_genie.v1.runs.RunsService.GetPhaseArtifact:output_type -> vrooli.test_genie.v1.runs.GetPhaseArtifactResponse
-	37, // 69: vrooli.test_genie.v1.runs.RunsService.GetRunFindings:output_type -> vrooli.test_genie.v1.runs.GetRunFindingsResponse
-	40, // 70: vrooli.test_genie.v1.runs.RunsService.ListRunVideos:output_type -> vrooli.test_genie.v1.runs.ListRunVideosResponse
-	43, // 71: vrooli.test_genie.v1.runs.RunsService.ListRunVisuals:output_type -> vrooli.test_genie.v1.runs.ListRunVisualsResponse
-	46, // 72: vrooli.test_genie.v1.runs.RunsService.CompareRunVisuals:output_type -> vrooli.test_genie.v1.runs.CompareRunVisualsResponse
-	32, // 73: vrooli.test_genie.v1.runs.RunsService.FindRun:output_type -> vrooli.test_genie.v1.runs.FindRunResponse
-	49, // 74: vrooli.test_genie.v1.runs.RunsService.CheckFreshness:output_type -> vrooli.test_genie.v1.runs.CheckFreshnessResponse
-	51, // 75: vrooli.test_genie.v1.runs.RunsService.GetSelfHealth:output_type -> vrooli.test_genie.v1.runs.GetSelfHealthResponse
-	53, // 76: vrooli.test_genie.v1.runs.RunsService.GetFleetHealth:output_type -> vrooli.test_genie.v1.runs.GetFleetHealthResponse
-	3,  // 77: vrooli.test_genie.v1.runs.RunsService.StartRun:output_type -> vrooli.test_genie.v1.runs.StartRunResponse
-	0,  // 78: vrooli.test_genie.v1.runs.RunsService.FollowRun:output_type -> vrooli.test_genie.v1.runs.RunEvent
-	7,  // 79: vrooli.test_genie.v1.runs.RunsService.WaitRun:output_type -> vrooli.test_genie.v1.runs.WaitRunResponse
-	9,  // 80: vrooli.test_genie.v1.runs.RunsService.AbortRun:output_type -> vrooli.test_genie.v1.runs.AbortRunResponse
-	1,  // 81: vrooli.test_genie.v1.runs.RunsService.GetRunStatus:output_type -> vrooli.test_genie.v1.runs.RunLiveStatus
-	62, // [62:82] is the sub-list for method output_type
-	42, // [42:62] is the sub-list for method input_type
-	42, // [42:42] is the sub-list for extension type_name
-	42, // [42:42] is the sub-list for extension extendee
-	0,  // [0:42] is the sub-list for field type_name
+	15, // 2: vrooli.test_genie.v1.runs.RunLiveStatus.terminal_standings:type_name -> vrooli.test_genie.v1.runs.PhaseMaturityStanding
+	13, // 3: vrooli.test_genie.v1.runs.RunLiveStatus.terminal_findings_summaries:type_name -> vrooli.test_genie.v1.runs.PhaseFindingsSummary
+	1,  // 4: vrooli.test_genie.v1.runs.WaitRunResponse.status:type_name -> vrooli.test_genie.v1.runs.RunLiveStatus
+	1,  // 5: vrooli.test_genie.v1.runs.AbortRunResponse.status:type_name -> vrooli.test_genie.v1.runs.RunLiveStatus
+	14, // 6: vrooli.test_genie.v1.runs.PhaseMaturityStanding.capabilities:type_name -> vrooli.test_genie.v1.runs.PhaseCapabilityStanding
+	15, // 7: vrooli.test_genie.v1.runs.PhaseInfo.maturity_standing:type_name -> vrooli.test_genie.v1.runs.PhaseMaturityStanding
+	13, // 8: vrooli.test_genie.v1.runs.PhaseInfo.findings_summary:type_name -> vrooli.test_genie.v1.runs.PhaseFindingsSummary
+	16, // 9: vrooli.test_genie.v1.runs.RunInfo.phases:type_name -> vrooli.test_genie.v1.runs.PhaseInfo
+	11, // 10: vrooli.test_genie.v1.runs.RunInfo.diagnostics:type_name -> vrooli.test_genie.v1.runs.DiagnosticsInfo
+	12, // 11: vrooli.test_genie.v1.runs.RunInfo.pins:type_name -> vrooli.test_genie.v1.runs.PinInfo
+	17, // 12: vrooli.test_genie.v1.runs.ListRunsResponse.runs:type_name -> vrooli.test_genie.v1.runs.RunInfo
+	17, // 13: vrooli.test_genie.v1.runs.GetRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo
+	17, // 14: vrooli.test_genie.v1.runs.PinRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo
+	17, // 15: vrooli.test_genie.v1.runs.UnpinRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo
+	29, // 16: vrooli.test_genie.v1.runs.CompareRunsResponse.phases:type_name -> vrooli.test_genie.v1.runs.PhaseDiff
+	17, // 17: vrooli.test_genie.v1.runs.FindRunResponse.run:type_name -> vrooli.test_genie.v1.runs.RunInfo
+	15, // 18: vrooli.test_genie.v1.runs.RunFindingsPhase.maturity_standing:type_name -> vrooli.test_genie.v1.runs.PhaseMaturityStanding
+	13, // 19: vrooli.test_genie.v1.runs.RunFindingsPhase.findings_summary:type_name -> vrooli.test_genie.v1.runs.PhaseFindingsSummary
+	36, // 20: vrooli.test_genie.v1.runs.GetRunFindingsResponse.phases:type_name -> vrooli.test_genie.v1.runs.RunFindingsPhase
+	38, // 21: vrooli.test_genie.v1.runs.ListRunVideosResponse.videos:type_name -> vrooli.test_genie.v1.runs.RunVideo
+	41, // 22: vrooli.test_genie.v1.runs.ListRunVisualsResponse.visuals:type_name -> vrooli.test_genie.v1.runs.RunVisual
+	45, // 23: vrooli.test_genie.v1.runs.CompareRunVisualsResponse.deltas:type_name -> vrooli.test_genie.v1.runs.VisualDelta
+	48, // 24: vrooli.test_genie.v1.runs.CheckFreshnessResponse.phases:type_name -> vrooli.test_genie.v1.runs.PhaseFreshness
+	57, // 25: vrooli.test_genie.v1.runs.GetSelfHealthResponse.self_health:type_name -> vrooli.test_genie.v1.runs.SelfHealth
+	54, // 26: vrooli.test_genie.v1.runs.GetFleetHealthResponse.fleet_health:type_name -> vrooli.test_genie.v1.runs.FleetHealth
+	55, // 27: vrooli.test_genie.v1.runs.FleetHealth.scenarios:type_name -> vrooli.test_genie.v1.runs.FleetScenarioHealth
+	56, // 28: vrooli.test_genie.v1.runs.FleetHealth.top_finding_sources:type_name -> vrooli.test_genie.v1.runs.FleetFindingSource
+	60, // 29: vrooli.test_genie.v1.runs.SelfHealth.catalog:type_name -> vrooli.test_genie.v1.runs.CatalogSummary
+	62, // 30: vrooli.test_genie.v1.runs.SelfHealth.conformance:type_name -> vrooli.test_genie.v1.runs.ProviderConformance
+	64, // 31: vrooli.test_genie.v1.runs.SelfHealth.ledger:type_name -> vrooli.test_genie.v1.runs.ReliabilityLedger
+	58, // 32: vrooli.test_genie.v1.runs.SelfHealth.trend_series:type_name -> vrooli.test_genie.v1.runs.SelfHealthTrendPoint
+	61, // 33: vrooli.test_genie.v1.runs.CatalogSummary.phases:type_name -> vrooli.test_genie.v1.runs.CatalogPhase
+	63, // 34: vrooli.test_genie.v1.runs.ProviderConformance.autofix:type_name -> vrooli.test_genie.v1.runs.AutofixCoverage
+	65, // 35: vrooli.test_genie.v1.runs.ReliabilityLedger.run_outcomes:type_name -> vrooli.test_genie.v1.runs.RunOutcomeCount
+	69, // 36: vrooli.test_genie.v1.runs.ReliabilityLedger.phases:type_name -> vrooli.test_genie.v1.runs.PhaseReliability
+	70, // 37: vrooli.test_genie.v1.runs.ReliabilityLedger.providers:type_name -> vrooli.test_genie.v1.runs.ProviderReliability
+	59, // 38: vrooli.test_genie.v1.runs.ReliabilityLedger.trend:type_name -> vrooli.test_genie.v1.runs.TrendDelta
+	66, // 39: vrooli.test_genie.v1.runs.PhaseReliability.skip_reasons:type_name -> vrooli.test_genie.v1.runs.LabeledCount
+	66, // 40: vrooli.test_genie.v1.runs.PhaseReliability.classifications:type_name -> vrooli.test_genie.v1.runs.LabeledCount
+	67, // 41: vrooli.test_genie.v1.runs.PhaseReliability.duration:type_name -> vrooli.test_genie.v1.runs.DurationStats
+	68, // 42: vrooli.test_genie.v1.runs.PhaseReliability.worst_scenarios:type_name -> vrooli.test_genie.v1.runs.ScenarioFailureRate
+	67, // 43: vrooli.test_genie.v1.runs.ProviderReliability.duration:type_name -> vrooli.test_genie.v1.runs.DurationStats
+	18, // 44: vrooli.test_genie.v1.runs.RunsService.ListRuns:input_type -> vrooli.test_genie.v1.runs.ListRunsRequest
+	20, // 45: vrooli.test_genie.v1.runs.RunsService.GetRun:input_type -> vrooli.test_genie.v1.runs.GetRunRequest
+	22, // 46: vrooli.test_genie.v1.runs.RunsService.DeleteRun:input_type -> vrooli.test_genie.v1.runs.DeleteRunRequest
+	24, // 47: vrooli.test_genie.v1.runs.RunsService.PinRun:input_type -> vrooli.test_genie.v1.runs.PinRunRequest
+	26, // 48: vrooli.test_genie.v1.runs.RunsService.UnpinRun:input_type -> vrooli.test_genie.v1.runs.UnpinRunRequest
+	28, // 49: vrooli.test_genie.v1.runs.RunsService.CompareRuns:input_type -> vrooli.test_genie.v1.runs.CompareRunsRequest
+	33, // 50: vrooli.test_genie.v1.runs.RunsService.GetPhaseArtifact:input_type -> vrooli.test_genie.v1.runs.GetPhaseArtifactRequest
+	35, // 51: vrooli.test_genie.v1.runs.RunsService.GetRunFindings:input_type -> vrooli.test_genie.v1.runs.GetRunFindingsRequest
+	39, // 52: vrooli.test_genie.v1.runs.RunsService.ListRunVideos:input_type -> vrooli.test_genie.v1.runs.ListRunVideosRequest
+	42, // 53: vrooli.test_genie.v1.runs.RunsService.ListRunVisuals:input_type -> vrooli.test_genie.v1.runs.ListRunVisualsRequest
+	44, // 54: vrooli.test_genie.v1.runs.RunsService.CompareRunVisuals:input_type -> vrooli.test_genie.v1.runs.CompareRunVisualsRequest
+	31, // 55: vrooli.test_genie.v1.runs.RunsService.FindRun:input_type -> vrooli.test_genie.v1.runs.FindRunRequest
+	47, // 56: vrooli.test_genie.v1.runs.RunsService.CheckFreshness:input_type -> vrooli.test_genie.v1.runs.CheckFreshnessRequest
+	50, // 57: vrooli.test_genie.v1.runs.RunsService.GetSelfHealth:input_type -> vrooli.test_genie.v1.runs.GetSelfHealthRequest
+	52, // 58: vrooli.test_genie.v1.runs.RunsService.GetFleetHealth:input_type -> vrooli.test_genie.v1.runs.GetFleetHealthRequest
+	2,  // 59: vrooli.test_genie.v1.runs.RunsService.StartRun:input_type -> vrooli.test_genie.v1.runs.StartRunRequest
+	5,  // 60: vrooli.test_genie.v1.runs.RunsService.FollowRun:input_type -> vrooli.test_genie.v1.runs.FollowRunRequest
+	6,  // 61: vrooli.test_genie.v1.runs.RunsService.WaitRun:input_type -> vrooli.test_genie.v1.runs.WaitRunRequest
+	8,  // 62: vrooli.test_genie.v1.runs.RunsService.AbortRun:input_type -> vrooli.test_genie.v1.runs.AbortRunRequest
+	10, // 63: vrooli.test_genie.v1.runs.RunsService.GetRunStatus:input_type -> vrooli.test_genie.v1.runs.GetRunStatusRequest
+	19, // 64: vrooli.test_genie.v1.runs.RunsService.ListRuns:output_type -> vrooli.test_genie.v1.runs.ListRunsResponse
+	21, // 65: vrooli.test_genie.v1.runs.RunsService.GetRun:output_type -> vrooli.test_genie.v1.runs.GetRunResponse
+	23, // 66: vrooli.test_genie.v1.runs.RunsService.DeleteRun:output_type -> vrooli.test_genie.v1.runs.DeleteRunResponse
+	25, // 67: vrooli.test_genie.v1.runs.RunsService.PinRun:output_type -> vrooli.test_genie.v1.runs.PinRunResponse
+	27, // 68: vrooli.test_genie.v1.runs.RunsService.UnpinRun:output_type -> vrooli.test_genie.v1.runs.UnpinRunResponse
+	30, // 69: vrooli.test_genie.v1.runs.RunsService.CompareRuns:output_type -> vrooli.test_genie.v1.runs.CompareRunsResponse
+	34, // 70: vrooli.test_genie.v1.runs.RunsService.GetPhaseArtifact:output_type -> vrooli.test_genie.v1.runs.GetPhaseArtifactResponse
+	37, // 71: vrooli.test_genie.v1.runs.RunsService.GetRunFindings:output_type -> vrooli.test_genie.v1.runs.GetRunFindingsResponse
+	40, // 72: vrooli.test_genie.v1.runs.RunsService.ListRunVideos:output_type -> vrooli.test_genie.v1.runs.ListRunVideosResponse
+	43, // 73: vrooli.test_genie.v1.runs.RunsService.ListRunVisuals:output_type -> vrooli.test_genie.v1.runs.ListRunVisualsResponse
+	46, // 74: vrooli.test_genie.v1.runs.RunsService.CompareRunVisuals:output_type -> vrooli.test_genie.v1.runs.CompareRunVisualsResponse
+	32, // 75: vrooli.test_genie.v1.runs.RunsService.FindRun:output_type -> vrooli.test_genie.v1.runs.FindRunResponse
+	49, // 76: vrooli.test_genie.v1.runs.RunsService.CheckFreshness:output_type -> vrooli.test_genie.v1.runs.CheckFreshnessResponse
+	51, // 77: vrooli.test_genie.v1.runs.RunsService.GetSelfHealth:output_type -> vrooli.test_genie.v1.runs.GetSelfHealthResponse
+	53, // 78: vrooli.test_genie.v1.runs.RunsService.GetFleetHealth:output_type -> vrooli.test_genie.v1.runs.GetFleetHealthResponse
+	3,  // 79: vrooli.test_genie.v1.runs.RunsService.StartRun:output_type -> vrooli.test_genie.v1.runs.StartRunResponse
+	0,  // 80: vrooli.test_genie.v1.runs.RunsService.FollowRun:output_type -> vrooli.test_genie.v1.runs.RunEvent
+	7,  // 81: vrooli.test_genie.v1.runs.RunsService.WaitRun:output_type -> vrooli.test_genie.v1.runs.WaitRunResponse
+	9,  // 82: vrooli.test_genie.v1.runs.RunsService.AbortRun:output_type -> vrooli.test_genie.v1.runs.AbortRunResponse
+	1,  // 83: vrooli.test_genie.v1.runs.RunsService.GetRunStatus:output_type -> vrooli.test_genie.v1.runs.RunLiveStatus
+	64, // [64:84] is the sub-list for method output_type
+	44, // [44:64] is the sub-list for method input_type
+	44, // [44:44] is the sub-list for extension type_name
+	44, // [44:44] is the sub-list for extension extendee
+	0,  // [0:44] is the sub-list for field type_name
 }
 
 func init() { file_test_genie_v1_runs_runs_proto_init() }

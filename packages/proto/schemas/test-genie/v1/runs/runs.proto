@@ -179,6 +179,14 @@ message RunLiveStatus {
   // active reports whether the snapshot came from the live registry (true) or
   // the durable index (false).
   bool active = 16;
+  // terminal_standings carries the provider-computed per-phase maturity
+  // standings once a terminal live snapshot has the run result in memory. This
+  // lets the canonical agent path (`runs wait --json`) see the same Phase
+  // Capability Contract standing that follow streams receive on phase terminal
+  // events. Empty while in progress or when the server only has the durable
+  // index record.
+  repeated PhaseMaturityStanding terminal_standings = 17;
+  repeated PhaseFindingsSummary terminal_findings_summaries = 18;
 }
 
 message StartRunRequest {

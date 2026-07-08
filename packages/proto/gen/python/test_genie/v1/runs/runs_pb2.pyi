@@ -47,7 +47,7 @@ class RunEvent(_message.Message):
     def __init__(self, event: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., artifact_dir: _Optional[str] = ..., preset: _Optional[str] = ..., phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., status: _Optional[str] = ..., duration_seconds: _Optional[int] = ..., quiet_seconds: _Optional[float] = ..., message: _Optional[str] = ..., success: _Optional[bool] = ..., verdict: _Optional[str] = ..., error: _Optional[str] = ..., maturity_standing: _Optional[_Union[PhaseMaturityStanding, _Mapping]] = ..., findings_summary: _Optional[_Union[PhaseFindingsSummary, _Mapping]] = ...) -> None: ...
 
 class RunLiveStatus(_message.Message):
-    __slots__ = ("run_id", "scenario", "status", "active_phase", "phase_index", "phase_total", "started_at", "elapsed_seconds", "estimated_total_seconds", "estimated_remaining_seconds", "eta_known", "recommended_next_check_seconds", "verdict", "success", "error", "active")
+    __slots__ = ("run_id", "scenario", "status", "active_phase", "phase_index", "phase_total", "started_at", "elapsed_seconds", "estimated_total_seconds", "estimated_remaining_seconds", "eta_known", "recommended_next_check_seconds", "verdict", "success", "error", "active", "terminal_standings", "terminal_findings_summaries")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -64,6 +64,8 @@ class RunLiveStatus(_message.Message):
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
     ACTIVE_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_STANDINGS_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_FINDINGS_SUMMARIES_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     scenario: str
     status: str
@@ -80,7 +82,9 @@ class RunLiveStatus(_message.Message):
     success: bool
     error: str
     active: bool
-    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., status: _Optional[str] = ..., active_phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., started_at: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., estimated_total_seconds: _Optional[int] = ..., estimated_remaining_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., recommended_next_check_seconds: _Optional[int] = ..., verdict: _Optional[str] = ..., success: _Optional[bool] = ..., error: _Optional[str] = ..., active: _Optional[bool] = ...) -> None: ...
+    terminal_standings: _containers.RepeatedCompositeFieldContainer[PhaseMaturityStanding]
+    terminal_findings_summaries: _containers.RepeatedCompositeFieldContainer[PhaseFindingsSummary]
+    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., status: _Optional[str] = ..., active_phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., started_at: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., estimated_total_seconds: _Optional[int] = ..., estimated_remaining_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., recommended_next_check_seconds: _Optional[int] = ..., verdict: _Optional[str] = ..., success: _Optional[bool] = ..., error: _Optional[str] = ..., active: _Optional[bool] = ..., terminal_standings: _Optional[_Iterable[_Union[PhaseMaturityStanding, _Mapping]]] = ..., terminal_findings_summaries: _Optional[_Iterable[_Union[PhaseFindingsSummary, _Mapping]]] = ...) -> None: ...
 
 class StartRunRequest(_message.Message):
     __slots__ = ("scenario", "preset", "phases", "skip", "fail_fast", "diagnostics_preset", "ui_url", "api_url", "scenario_path", "logical_repo_root", "logical_scenario_rel_path", "suite_request_id", "capture_profile")
