@@ -1,7 +1,6 @@
 package testutil_test
 
 import (
-	"bufio"
 	"go/parser"
 	"go/token"
 	"os"
@@ -34,36 +33,11 @@ func TestNoProductionImports(t *testing.T) {
 	violations := []string{}
 
 	walk(t, root, func(path string) {
-		if !strings.HasSuffix(path, ".go") {
-			return
-		}
-		if strings.HasSuffix(path, "_test.go") {
-			return
-		}
 		rel := strings.TrimPrefix(path, root)
-		if strings.Contains(rel, "/vendor/") {
+		if shouldSkipProductionImportScan(rel) {
 			return
 		}
-		// mocks/ holds test-only fakes that lack the _test.go suffix (so sibling
-		// _test.go files in other packages can import them); generated/ holds
-		// temporal-model output (replay.go, runtime.go) that legitimately bridges
-		// production transition functions into the modeltest harness. Both are test
-		// scaffolding by directory-shape, exempt from the testutil-import rule.
-		if pathHasDir(rel, "mocks") || pathHasDir(rel, "generated") {
-			return
-		}
-
-		file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
-		if err != nil {
-			t.Errorf("parse %s: %v", path, err)
-			return
-		}
-		for _, imp := range file.Imports {
-			ip := strings.Trim(imp.Path.Value, `"`)
-			if strings.HasPrefix(ip, prefix) {
-				violations = append(violations, rel+" imports "+ip)
-			}
-		}
+		violations = append(violations, productionTestutilImports(t, fset, path, rel, prefix)...)
 	})
 
 	if len(violations) > 0 {
@@ -74,25 +48,52 @@ func TestNoProductionImports(t *testing.T) {
 	}
 }
 
+func productionTestutilImports(t *testing.T, fset *token.FileSet, path, rel, prefix string) []string {
+	t.Helper()
+	file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
+	if err != nil {
+		t.Errorf("parse %s: %v", path, err)
+		return nil
+	}
+	out := []string{}
+	for _, imp := range file.Imports {
+		importPath := strings.Trim(imp.Path.Value, `"`)
+		if strings.HasPrefix(importPath, prefix) {
+			out = append(out, rel+" imports "+importPath)
+		}
+	}
+	return out
+}
+
+func shouldSkipProductionImportScan(rel string) bool {
+	if !strings.HasSuffix(rel, ".go") || strings.HasSuffix(rel, "_test.go") {
+		return true
+	}
+	if strings.Contains(filepath.ToSlash(rel), "/vendor/") {
+		return true
+	}
+	// mocks/ holds test-only fakes that lack the _test.go suffix (so sibling
+	// _test.go files in other packages can import them); generated/ holds
+	// temporal-model output (replay.go, runtime.go) that legitimately bridges
+	// production transition functions into the modeltest harness. Both are test
+	// scaffolding by directory-shape, exempt from the testutil-import rule.
+	return pathHasDir(rel, "mocks") || pathHasDir(rel, "generated")
+}
+
 // readModuleName returns the module path declared in the api root's
 // go.mod. The walker is at ../../go.mod relative to this test file
 // (api/internal/testutil/ is two levels deep).
 func readModuleName(t *testing.T) string {
 	t.Helper()
-	f, err := os.Open(filepath.Join("..", "..", "go.mod"))
+	data, err := os.ReadFile(filepath.Join("..", "..", "go.mod"))
 	if err != nil {
-		t.Fatalf("open go.mod: %v", err)
+		t.Fatalf("read go.mod: %v", err)
 	}
-	defer f.Close()
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		line := strings.TrimSpace(sc.Text())
+	for _, line := range strings.Split(string(data), "\n") {
+		line := strings.TrimSpace(line)
 		if rest, ok := strings.CutPrefix(line, "module "); ok {
 			return strings.TrimSpace(rest)
 		}
-	}
-	if err := sc.Err(); err != nil {
-		t.Fatalf("scan go.mod: %v", err)
 	}
 	t.Fatal("module directive not found in go.mod")
 	return ""

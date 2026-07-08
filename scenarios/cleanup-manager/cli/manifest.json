@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "cleanup-manager",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Cleanup Manager CLI surface for preview-first cleanup policy, planning, apply, and audit operations.",
   "groups": [
     {
       "name": "cleanup",
@@ -156,142 +156,10 @@
           }
         }
       ]
-    },
-    {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
-      "commands": [
-        {
-          "name": "list",
-          "description": "List all notes",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "ListNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "create",
-          "description": "Create a note",
-          "flags": [
-            {
-              "name": "title",
-              "required": true,
-              "description": "Note title"
-            },
-            {
-              "name": "body",
-              "description": "Note body"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CreateNote"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
-          }
-        },
-        {
-          "name": "get",
-          "description": "Get a note by id",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Note id"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "GetNote"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
-          "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CountNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
-            }
-          }
-        }
-      ]
     }
   ],
   "measures": {
-    "domains": [
-      {
-        "domain": "notes",
-        "stateful": true,
-        "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier."
-      }
-    ]
+    "domains": []
   },
   "omitted": []
 }

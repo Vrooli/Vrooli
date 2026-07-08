@@ -59,6 +59,6 @@
 
 ## 📎 Appendix
 
-- Source plan: `/home/matthalloran8/.vrooli/plans/cleanup-manager-scenario-implementation.md`.
+- Source plan: `~/.vrooli/plans/cleanup-manager-scenario-implementation.md`.
 - Related docs: `scenarios/system-monitor/PRD.md`, `scenarios/vrooli-autoheal/docs/reference/checks/system-disk.md`, `scenarios/workspace-sandbox/docs/reference/configuration.md`, and `docs/TESTING.md`.
 - Ecosystem fit: meta-scenario and interface-enabler serving programmatic CLI/Connect, direct UI, and agentic action discovery; local cleanup primitives are not paid or gated.

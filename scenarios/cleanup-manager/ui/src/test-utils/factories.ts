@@ -6,7 +6,7 @@
  * are picked so the most common test path is `makeX()` with no args.
  *
  * Domain-specific factories live next to the feature they double for
- * (e.g. `features/notes/mocks/factories.ts`); only truly cross-domain
+ * (e.g. `features/cleanup/mocks/factories.ts`); only truly cross-domain
  * shapes (HealthResponse, error envelopes) live here. Deleting a feature
  * folder takes its factories with it — no central residue.
  *

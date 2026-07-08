@@ -101,7 +101,7 @@ per [`configuration.md`](configuration.md#cli-config-file)).
 
 ```bash
 cleanup-manager configure api_base http://localhost:15001/api/v1
-cleanup-manager configure token <token>
+cleanup-manager configure token TOKEN_VALUE
 ```
 
 Read values back without an argument:
@@ -110,7 +110,7 @@ Read values back without an argument:
 cleanup-manager configure api_base
 ```
 
-## Scenario commands — `<domain>`
+## Scenario commands — `cleanup`
 
 Each product domain exposes its commands as a subcommand group
 (`cleanup-manager <domain> <verb>`). Every command calls a single API
@@ -118,8 +118,6 @@ endpoint and renders the result through one of the three output
 contracts below. Document your domain's commands here as you build
 them, one row/section per command, mirroring the endpoints they call
 in [`api-endpoints.md`](api-endpoints.md).
-
-### Cleanup domain — `cleanup`
 
 #### `cleanup-manager cleanup providers`
 
@@ -167,7 +165,7 @@ manifest marks this command `effect=destructive`,
 `requires_confirmation=true`, and `run_eligible=false`; agents must not
 auto-run it.
 
-```bash
+```text
 cleanup-manager cleanup apply \
   --plan-id plan-... \
   --policy-version policy-... \
@@ -184,63 +182,6 @@ messages are path-redacted before they are stored.
 ```bash
 cleanup-manager cleanup audit
 ```
-
-The scaffold ships one fully worked CRUD command group as a copyable
-reference (see the fenced example below); `vrooli scenario detemplate
-<scenario>` removes it once your real domains are green.
-
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `vrooli scenario detemplate`)
-
-The `notes` domain is the canonical worked example. Copy its layout
-when adding the first non-trivial domain to your scenario, then remove
-it.
-
-#### `cleanup-manager notes list`
-
-List notes, newest-first. Calls the generated Connect-RPC
-`Notes/List` method. Uses the
-**data-retrieval contract**: `Summary → Results → Retrieval Hints`.
-
-```bash
-cleanup-manager notes list
-cleanup-manager notes list --json
-```
-
-#### `cleanup-manager notes create --title <title> [--body <body>]`
-
-Create a note. Calls the generated Connect-RPC `Notes/Create` method. Uses the **mutation
-contract**: `Result → What Changed → Next Command`.
-
-```bash
-cleanup-manager notes create --title "First note" --body "Hello world"
-```
-
-`--title` is required. `--body` is optional. Validation lives in the
-API service, so an empty title surfaces as an `invalid_argument`
-Connect error rather than a CLI-side check.
-
-#### `cleanup-manager notes get <id>`
-
-Fetch a note by id. Calls the generated Connect-RPC `Notes/Get` method.
-
-```bash
-cleanup-manager notes get abc123
-```
-
-A non-existent id surfaces as `not_found`; the CLI translates the
-typed Connect code to an actionable error message.
-
-#### `cleanup-manager notes attach <id> --file <path>`
-
-Attach a file to a note. This is the documented REST multipart
-exception because the request body contains opaque bytes. The response
-is proto-typed attachment metadata.
-
-```bash
-cleanup-manager notes attach abc123 --file ./example.png
-```
-<!-- EXAMPLE-DOMAIN:notes END -->
 
 ## Output contracts
 

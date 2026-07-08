@@ -13,21 +13,21 @@ machine-readable progress check for these gates. It delegates to
 all required gates pass, run `vrooli scenario orient cleanup-manager
 --finalize` to remove only that temporary orientation metadata.
 
-The generated scaffold is intentionally not the product. Treat every
-generated UI surface as placeholder unless it is explicitly listed as
-durable infrastructure below. In particular:
+The generated scaffold is intentionally not the product. Cleanup Manager
+has adopted its real cleanup domain; treat any remaining generic scaffold
+surface as placeholder unless it is explicitly listed as durable
+infrastructure below. In particular:
 
-- The scaffold ships one worked example domain (clearly fenced as an
-  example throughout the docs). Build one real domain beside it, prove
-  that domain is green, then remove the example with one command:
-  `vrooli scenario detemplate <scenario>`.
+- The cleanup domain is the product boundary. Extend it through provider,
+  policy, orchestration, API, CLI, and UI contracts rather than reintroducing
+  example domains.
 - The generated shell is durable infrastructure: `min-h-dvh` sizing,
   overflow-contained main content, fixed safe-area bottom navigation on
   mobile, desktop sidebar navigation, theme controls, and Settings-owned
   locale switching. Keep those floors unless your scenario has an explicit
   experience-spec opt-out.
-- The starter page content and the `notes` domain remain illustrative. Replace
-  them with scenario-specific surfaces once the real product shape is known.
+- The dashboard now presents a cleanup operator console. Replace its static
+  Phase 5 data with live CleanupService reads when UI integration lands.
 - Durable seams you should keep: i18n wiring (`SUPPORTED_LOCALES`,
   `useTranslation`, the locale switcher behavior), accessibility
   primitives (`role`, `aria-*`, `data-testid` selectors), the
@@ -292,8 +292,8 @@ governs how they should look and behave, not which ones exist.
 
 ```bash
 react-component-library components list --json
-react-component-library adoptions resolve-path <component-id> cleanup-manager
-react-component-library adoptions apply <component-id> cleanup-manager <adopted-path>
+react-component-library adoptions resolve-path COMPONENT_ID cleanup-manager
+react-component-library adoptions apply COMPONENT_ID cleanup-manager ADOPTED_PATH
 ```
 
       If no governed primitive exists, build the scenario-local component
@@ -346,11 +346,6 @@ becomes real:
 - [ ] Validate after every meaningful edit:
       `experience-manager spec validate cleanup-manager --json`.
 
-The notes page spec is part of the removable example domain. When you
-run `vrooli scenario detemplate cleanup-manager`, the notes page spec
-and its registry entry should disappear with the notes UI/API/CLI
-example.
-
 **Exit criteria:** every real route has at least an L0 page spec, the
 registry has no stale route references, and `experience-manager spec
 validate cleanup-manager --json` passes.
@@ -380,8 +375,9 @@ deferred, or explicitly not-applicable for a reason.
 
 ### Gate 6 — First Real Vertical Slice
 
-- [ ] Add the first real domain beside the example domain.
-- [ ] **Start in proto.** Author `packages/proto/schemas/cleanup-manager/v1/<domain>/<domain>.proto`
+- [x] Add the first real domain: cleanup.
+- [x] **Start in proto.** CleanupService lives in `packages/proto/schemas/cleanup-manager/v1/cleanup/cleanup.proto`.
+- [ ] For additional domains, author `packages/proto/schemas/cleanup-manager/v1/<domain>/<domain>.proto`
       with a `service` block FIRST, run `make generate`, then write
       handlers/CLI/UI against the generated `*Procedure` constants and
       `*Service` clients. If you find yourself writing `Path:` as a
@@ -399,29 +395,19 @@ deferred, or explicitly not-applicable for a reason.
       tests as needed.
 - [ ] Run `make test`.
 
-**Exit criteria:** the first real domain is green across API, CLI, UI,
-and scenario tests.
+**Exit criteria:** the cleanup domain is green across API, CLI, UI, and
+scenario tests.
 
-### Gate 7 — Remove The Example Domain
+### Gate 7 — Keep Example Domain Removed
 
-The example domain is removed by one idempotent command — no manual file
-deletion. It strips every fenced `EXAMPLE-DOMAIN` block (docs and code),
-deletes the example's files/dirs (including the relocated proto schema and
-its generated artifacts), prunes the example keys from the i18n locales
-and CLI manifest, then refreshes generated output (`make generate`,
-`pnpm strings:gen`, `go mod tidy`, `gofumpt`, CLI command surface):
+Cleanup Manager has removed the template example domain. Keep it that way:
 
-- [ ] Preview first: `vrooli scenario detemplate <scenario> --dry-run`.
-- [ ] Remove it: `vrooli scenario detemplate <scenario>`. If it refuses
-      with a dangling-reference error, a non-example file still imports the
-      example package — resolve that reference (or mark the line) and rerun.
+- [x] Notes API, CLI, UI, experience, BAS, and proto artifacts are absent.
 - [ ] Run `make test`.
-- [ ] Confirm the gate: `vrooli scenario orient <scenario>` — the
-      `example-domain-removed` step fails if any `EXAMPLE-DOMAIN` marker
-      survives anywhere in the tree.
+- [ ] Confirm the gate: `vrooli scenario orient cleanup-manager` should not
+      report surviving example-domain markers.
 
-**Exit criteria:** only health plus real scenario domains remain, and the
-`example-domain-removed` orientation step passes.
+**Exit criteria:** only health plus cleanup-manager product domains remain.
 
 ### Gate 8 — Progress Handoff
 

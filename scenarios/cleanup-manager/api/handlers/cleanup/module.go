@@ -1,6 +1,7 @@
 package cleanup
 
 import (
+	"io"
 	"log"
 
 	"cleanup-manager/internal/module"
@@ -16,7 +17,7 @@ func Module(logger *log.Logger) module.Module {
 	registry, err := defaultRegistry()
 	if err != nil {
 		if logger == nil {
-			logger = log.Default()
+			logger = log.New(io.Discard, "", 0)
 		}
 		logger.Fatalf("cleanup registry: %v", err)
 	}

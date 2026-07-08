@@ -39,7 +39,7 @@ policy gates, approval, replay-safe apply, and immutable audit.
 
 ## References
 
-- Source plan: `/home/matthalloran8/.vrooli/plans/cleanup-manager-scenario-implementation.md`
+- Source plan: `~/.vrooli/plans/cleanup-manager-scenario-implementation.md`
 - `scenarios/system-monitor/PRD.md`
 - `scenarios/vrooli-autoheal/docs/reference/checks/system-disk.md`
 - `scenarios/workspace-sandbox/docs/reference/configuration.md`

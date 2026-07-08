@@ -21,7 +21,7 @@ Each workflow JSON must include:
 
 Reference selectors via `@selector/<key>` from `ui/src/consts/selectors.ts`. After adding or moving a workflow, run from the scenario directory:
 
-```bash
+```text
 test-genie registry build
 ```
 
@@ -34,15 +34,15 @@ A `bas/flows/` entry can double as a **performance-capture target** for the
 and keep it **assertion-free** — it only drives an interaction so a perf trace
 can span it. The loop:
 
-```bash
+```text
 # 1. Author bas/flows/<slug>.json (intent:performance, no asserts).
 #    Use literal [data-testid=...] selectors — @selector tokens do NOT resolve
 #    on the capture path.
 # 2. Drive it inside a profile-mode perf trace:
-performance-health audit run <scenario> --workflow <slug>
+performance-health audit run SCENARIO_ID --workflow WORKFLOW_SLUG
 # 3. Analyze the returned trace, then optionally set a per-flow budget:
-performance-health analysis analyze --trace <key>
-performance-health budget set --flow <slug> --lcp-max-ms 2500 --ratchet
+performance-health analysis analyze --trace TRACE_KEY
+performance-health budget set --flow WORKFLOW_SLUG --lcp-max-ms 2500 --ratchet
 ```
 
 Reusable perf interaction helpers live in `actions/`:

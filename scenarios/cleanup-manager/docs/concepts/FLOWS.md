@@ -20,68 +20,42 @@ workflow model.
 
 ## Flow Inventory
 
-`health` is a stateless reporting domain and ships no workflows. List
-each real stateful flow your domains add below, with its owner, trigger,
-outcome, statefulness, and validation level.
+`health` is a stateless reporting domain and ships no workflows. Cleanup
+planning and apply are stateful orchestration flows owned by the cleanup
+domain.
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
-| _(your flow)_ | _(owning domain)_ | What starts it. | What it produces. | States, retries, cancellation, stale completion. | Target maturity level. |
+| Cleanup plan/apply | cleanup | Operator or agent requests a plan, then applies an approved plan with an idempotency key. | Provider previews are converted into a deterministic plan, then approved actions are applied or skipped with audit events. | Preview, approval, exact version checks, idempotency replay, provider skip/failure states. | Level 1 inventory with unit tests for current orchestrator behavior. |
 
 ## Flow Details
 
-Document each real flow here with its owner domain, trigger, inputs,
-ordered steps, outputs, failure modes, retry/cancel behavior, tests, and
-generated subpackages. The worked example below shows the expected shape.
+### Cleanup plan/apply
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `vrooli scenario detemplate`)
-
-The template ships an `Attachment upload` flow on the `notes` domain as a
-worked Level 5 temporal-workflow vertical slice. Copy its shape for your
-own stateful flows, then remove it.
-
-Add this row to the Flow Inventory above:
-
-| Flow | Domain | Trigger | Outcome | Statefulness | Validation |
-|---|---|---|---|---|---|
-| Attachment upload | notes | User/CLI uploads a file for a note. | Blob is stored and metadata is persisted. | Stateful upload request with validation and failure paths. | Level 5 workflow tests: matrix, traces, declarative spec, checked Quint model, generated artifacts, and production replay. |
-
-#### Attachment upload
-
-- Owner domain: notes.
-- Trigger: multipart upload request from UI or CLI.
-- Inputs: note id, file key/name, file bytes, content type, file size.
+- Owner domain: cleanup.
+- Trigger: operator or agent calls `Plan` for a policy profile, then calls
+  `Apply` with exact plan id, policy version, provider version,
+  idempotency key, approval mode, and approval token.
+- Inputs: provider registry snapshot, active policy profile, provider
+  previews, approval request, idempotency key.
 - Steps:
-  1. Parse multipart request.
-  2. Validate note id and file metadata.
-  3. Store opaque bytes through BlobStore.
-  4. Persist attachment metadata through notes repository seam.
-  5. Return proto-typed metadata response.
-- Outputs: uploaded attachment metadata or typed error response.
-- Failure modes: missing note id, missing file, invalid metadata, blob
-  write failure, metadata persistence failure.
-- Retry/cancel behavior: caller may retry after transport/storage
-  failure; duplicate handling belongs to the owning real domain when
-  product requirements demand it.
-- Tests: `api/handlers/notes/attachments_handler_test.go`,
-  `api/internal/notes/attachments_service_test.go`,
-  `api/internal/notes/flow/flow_test.go`,
-  `ui/src/features/notes/AttachmentUpload.test.tsx`, and
-  `ui/src/features/notes/flow/flow.test.ts`.
-- Generated subpackages: `api/internal/notes/flow/generated/`
-  (`model.qnt`, `artifact.json`, `runtime.go`, `replay.go`) and
-  `ui/src/features/notes/flow/generated/` (`model.qnt`, `artifact.json`,
-  `runtime.ts`, `replay.helper.ts`).
-- Requirements: template starter only.
-
-These example state machines belong in the State Machines table below:
-
-| Domain/Flow | States | Illegal Transitions | Enforcement |
-|---|---|---|---|
-| notes / attachment upload API | received, bytes_stored, metadata_recorded, failed | metadata before bytes, terminal-state escape, duplicate terminal events | `*.flow.json` contract, generated Quint model, generated formal artifact replay, side-effect cleanup tests |
-| notes / attachment upload UI | idle, selected, uploading, succeeded, failed | start before select, stale completion after reset/reselect, retry without file context | `*.flow.json` contract, generated Quint model, generated formal artifact replay, attempt-id stale completion tests |
-<!-- EXAMPLE-DOMAIN:notes END -->
+  1. Validate requested profile and active provider policy.
+  2. Ask enabled providers for previews through typed seams only.
+  3. Hash policy/provider/preview inputs into a deterministic plan id.
+  4. On apply, reject stale plan, stale policy, provider version mismatch,
+     missing approval, forbidden providers, or preview-only providers.
+  5. Apply eligible providers and store audit events.
+  6. Replay stored results for duplicate idempotency keys without invoking
+     providers again.
+- Outputs: cleanup plan, apply result, audit event list.
+- Failure modes: stale plan, provider disabled by profile, approval missing,
+  provider preview/apply failure, forbidden provider metadata.
+- Retry/cancel behavior: callers retry with the same idempotency key to get
+  the stored result; a new key is a new apply attempt and must satisfy every
+  policy/version/approval gate again.
+- Tests: `api/internal/orchestrator/service_test.go`,
+  `api/handlers/cleanup/connect_handler_test.go`, provider package tests,
+  policy profile tests, CLI cleanup tests, and UI dashboard tests.
 
 ## State Machines
 
@@ -90,7 +64,7 @@ enforced. Plain CRUD with no ordering constraints does not appear here.
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
-| _(your flow)_ | The ordered/terminal states. | Transitions the contract forbids. | `*.flow.json` contract, generated Quint model, replay tests. |
+| cleanup / plan-apply | requested, previewed, planned, approved, applied, skipped, failed, replayed | apply before preview, apply with stale policy/provider versions, reapply same idempotency key through providers, forbidden provider apply | orchestrator unit tests today; formal flow contract deferred |
 
 ## Maturity Ladder
 
@@ -202,9 +176,9 @@ fails the check.
 
 To scaffold a new flow:
 
-```bash
-flow-verifier flows new ui/src/features/<feature> --flow-id <flow-id> --lang ts --root .
-flow-verifier flows new api/internal/<domain>     --flow-id <flow-id> --lang go --root .
+```text
+flow-verifier flows new ui/src/features/FEATURE --flow-id FLOW_ID --lang ts --root .
+flow-verifier flows new api/internal/DOMAIN --flow-id FLOW_ID --lang go --root .
 ```
 
 The scaffold writes the hand-authored files and immediately runs
@@ -224,7 +198,7 @@ To add or rename a state/event:
 
 | Flow | Risk | Next Step |
 |---|---|---|
-| None yet. | Generated scaffold. | Add real scenario workflows when domains have stateful behavior. |
+| Formal cleanup plan/apply model | Apply is safety-critical and should eventually have generated transition replay. | Add after persistence lands and state names stabilize. |
 
 ## Cross-References
 

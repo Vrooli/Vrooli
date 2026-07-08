@@ -50,8 +50,8 @@ Or check the URL directly:
 vrooli scenario port cleanup-manager UI_PORT
 ```
 
-You should see the example UI rendering live `/health` data and a
-worked example feature pane backed by the local SQLite store.
+You should see the cleanup console rendering policy, provider, plan, and
+audit panels, plus live `/health` data in the application shell.
 
 ## 4 — Talk to the API
 
@@ -60,7 +60,9 @@ automatically):
 
 ```bash
 cleanup-manager status
-cleanup-manager <domain> <command>   # e.g. list/create commands for your domain
+cleanup-manager cleanup providers
+cleanup-manager cleanup policy
+cleanup-manager cleanup plan
 ```
 
 Or directly via HTTP:
@@ -71,22 +73,12 @@ curl -s "http://localhost:${API_PORT}/health"
 # Proto-typed calls hit /vrooli.cleanup_manager.v1.<domain>.<Service>/<Method>
 ```
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-The shipped worked-example `notes` domain illustrates the full shape —
-copy it, then remove it with `vrooli scenario detemplate`:
-
-```bash
-cleanup-manager notes list
-cleanup-manager notes create --title "First note" --body "Hello"
-```
-
 ```bash
 API_PORT=$(vrooli scenario port cleanup-manager API_PORT)
-curl -s -X POST "http://localhost:${API_PORT}/vrooli.cleanup_manager.v1.notes.NotesService/ListNotes" \
+curl -s -X POST "http://localhost:${API_PORT}/vrooli.cleanup_manager.v1.cleanup.CleanupService/ListProviders" \
   -H 'Content-Type: application/json' \
   -d '{}'
 ```
-<!-- EXAMPLE-DOMAIN:notes END -->
 
 ## 5 — Run the tests
 

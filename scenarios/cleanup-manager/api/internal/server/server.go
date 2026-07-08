@@ -10,6 +10,7 @@
 package server
 
 import (
+	"io"
 	"log"
 	"net/http"
 
@@ -23,7 +24,7 @@ import (
 
 // Deps holds the cross-cutting interfaces the Server depends on
 // regardless of which modules are mounted. Production wires concrete
-// implementations (clock.System{}, log.Default()) in main.go; tests
+// implementations (clock.System{}, process logger) in main.go; tests
 // wire fakes from internal/testutil/mocks.
 //
 // Per-domain dependencies (database handle, repository services,
@@ -44,7 +45,7 @@ type Server struct {
 }
 
 // New builds a Server with logging middleware applied and every module's
-// Mount invoked. Logger defaults to log.Default() if nil; Clock has no
+// Mount invoked. Logger defaults to a discard logger if nil; Clock has no
 // default and is required so the logging middleware never hides its time seam.
 //
 // The handler test in handlers/health/handler_test.go reproduces a
@@ -53,7 +54,7 @@ type Server struct {
 // composition into a shared helper.
 func New(d Deps, modules ...module.Module) *Server {
 	if d.Logger == nil {
-		d.Logger = log.Default()
+		d.Logger = log.New(io.Discard, "", 0)
 	}
 	if d.Clock == nil {
 		panic("server.New requires Deps.Clock")

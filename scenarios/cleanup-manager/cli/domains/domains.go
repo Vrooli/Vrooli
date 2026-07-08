@@ -2,7 +2,6 @@ package domains
 
 import (
 	"cleanup-manager/cli/domains/cleanup"
-	"cleanup-manager/cli/domains/notes" // EXAMPLE-DOMAIN:notes
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -43,12 +42,5 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, cleanupGroup)
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
-	if err != nil {
-		return nil, err
-	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
 	return groups, nil
 }

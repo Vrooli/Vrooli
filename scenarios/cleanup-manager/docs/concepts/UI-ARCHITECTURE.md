@@ -53,8 +53,8 @@ When adding a shared component, search and adopt from the registry first:
 
 ```bash
 react-component-library components list --json
-react-component-library adoptions resolve-path <component-id> cleanup-manager
-react-component-library adoptions apply <component-id> cleanup-manager <adopted-path>
+react-component-library adoptions resolve-path COMPONENT_ID cleanup-manager
+react-component-library adoptions apply COMPONENT_ID cleanup-manager ADOPTED_PATH
 ```
 
 Use scenario-local custom components for genuinely scenario-specific surfaces,
@@ -86,8 +86,8 @@ table in `ui/src/app/routes.tsx`. Keep those two surfaces aligned:
   `experience/pages/*.json::bindings` once bindings exist.
 
 Run `experience-manager spec validate cleanup-manager --json` after route or
-selector changes. The generated notes page spec is example-domain content and
-is removed by `vrooli scenario detemplate cleanup-manager`.
+selector changes. The current dashboard and settings specs are the cleanup
+console contract and should evolve with the operator UI.
 
 ## Extending The Manifest
 

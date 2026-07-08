@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
 	"cleanup-manager/internal/module"
 
 	"github.com/gorilla/mux"
@@ -33,25 +34,25 @@ func TestModuleMountRegistersRoutes(t *testing.T) {
 
 func TestEndpointDescriptorJSONShape(t *testing.T) {
 	descriptor := module.EndpointDescriptor{
-		ID:          "notes_create",
-		Path:        "/api/v1/notes",
+		ID:          "cleanup_plan_create",
+		Path:        "/vrooli.cleanup_manager.v1.cleanup.CleanupService/CreatePlan",
 		Method:      http.MethodPost,
-		Summary:     "Create note",
-		Description: "Creates a note",
-		Category:    "notes",
+		Summary:     "Create cleanup plan",
+		Description: "Creates a preview-only cleanup plan",
+		Category:    "cleanup",
 		Request: &module.Schema{
 			Type:       "object",
-			Properties: map[string]string{"title": "string"},
+			Properties: map[string]string{"scope": "ObservationScope"},
 		},
 		Response: &module.Schema{Type: "object"},
 		Errors: []module.ErrorDesc{{
 			Status:      http.StatusBadRequest,
 			Code:        "invalid_argument",
-			Description: "Missing title",
+			Description: "Invalid cleanup scope",
 		}},
 		Examples: []module.Example{{
-			Name: "Create",
-			Curl: "curl http://localhost:${API_PORT}/api/v1/notes",
+			Name: "Create cleanup plan",
+			Curl: "curl http://localhost:${API_PORT}/vrooli.cleanup_manager.v1.cleanup.CleanupService/CreatePlan",
 		}},
 	}
 
@@ -60,8 +61,8 @@ func TestEndpointDescriptorJSONShape(t *testing.T) {
 
 	var got map[string]any
 	require.NoError(t, json.Unmarshal(data, &got))
-	require.Equal(t, "notes_create", got["id"])
-	require.Equal(t, "/api/v1/notes", got["path"])
+	require.Equal(t, "cleanup_plan_create", got["id"])
+	require.Equal(t, "/vrooli.cleanup_manager.v1.cleanup.CleanupService/CreatePlan", got["path"])
 	require.Equal(t, http.MethodPost, got["method"])
 	require.Contains(t, got, "request")
 	require.Contains(t, got, "response")

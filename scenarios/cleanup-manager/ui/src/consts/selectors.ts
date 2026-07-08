@@ -308,28 +308,13 @@ const literalSelectors = {
   notifications: {
     summary: "notifications-summary",
   },
-  // EXAMPLE-DOMAIN:notes START
-  notes: {
-    card: "notes-card",
-    list: "notes-list",
-    loading: "notes-loading",
-    empty: "notes-empty",
-    error: "notes-error",
-    createButton: "notes-create-button",
-    createdAt: "notes-created-at",
-    attachmentCount: "notes-attachment-count",
-    attachmentUpload: "notes-attachment-upload",
-    attachmentFile: "notes-attachment-file",
-    attachmentButton: "notes-attachment-button",
-    attachmentStatus: "notes-attachment-status",
-    measure: {
-      card: "notes-measure-card",
-      value: "notes-measure-value",
-      loading: "notes-measure-loading",
-      error: "notes-measure-error",
-    },
+  cleanup: {
+    overview: "cleanup-overview",
+    providers: "cleanup-providers",
+    policy: "cleanup-policy",
+    plan: "cleanup-plan",
+    audit: "cleanup-audit",
   },
-  // EXAMPLE-DOMAIN:notes END
   layout: {
     shell: "layout-shell",
     topBar: "layout-top-bar",
@@ -343,7 +328,6 @@ const literalSelectors = {
   },
   pages: {
     dashboard: "page-dashboard",
-    notes: "page-notes", // EXAMPLE-DOMAIN:notes
     settings: "page-settings",
   },
   errorBoundary: {
@@ -362,7 +346,6 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
-            "notes", // EXAMPLE-DOMAIN:notes
             "settings",
           ] as const,
         },
@@ -376,7 +359,6 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
-            "notes", // EXAMPLE-DOMAIN:notes
             "settings",
           ] as const,
         },

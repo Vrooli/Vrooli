@@ -27,8 +27,10 @@ import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
 export default defineConfig(({ mode }): UserConfig => {
   const isProfile = mode === "profile";
 
-  return {
-    base: './',  // Required for tunnel/proxy contexts
+	  return {
+	    // INTEROP-CRITICAL: Relative assets keep built bundles working behind
+	    // lifecycle tunnels, reverse proxies, and iframe-hosted preview paths.
+	    base: './',
     plugins: [react(), stringsCodegen()],
     resolve: isProfile
       ? {

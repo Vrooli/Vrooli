@@ -22,14 +22,14 @@ export function Sidebar() {
       mobileOpen={false}
       onMobileClose={() => undefined}
       mobileLabel={t(strings.layout.sidebarLabel)}
-      desktopLabel={t(strings.layout.sidebarLabel)}
+      desktopLabel={t(strings.layout.sidebarNavLabel)}
       closeLabel={t(strings.layout.sidebarLabel)}
       className="hidden w-56 md:flex"
       contentClassName="p-4"
     >
       <nav
         data-testid={selectors.layout.sidebar}
-        aria-label={t(strings.layout.sidebarLabel)}
+        aria-label={t(strings.layout.sidebarNavLabel)}
         className="flex flex-col gap-1"
       >
       <p className="px-2 pb-2 text-xs uppercase text-app-muted-foreground">

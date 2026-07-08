@@ -7,18 +7,12 @@
   },
   "schemaVersion": "1.0.0",
   "scenario": "cleanup-manager",
-  "description": "Generated L0 experience contract for Cleanup Manager. Replace these route identities with product-specific priorities, claims, bindings, states, and journeys as the UI becomes real.",
+  "description": "Experience contract for Cleanup Manager's preview-first operator console.",
   "pages": [
     {
       "id": "dashboard",
       "path": "pages/dashboard.json",
       "title": "Dashboard",
-      "status": "active"
-    },
-    {
-      "id": "notes",
-      "path": "pages/notes.json",
-      "title": "Notes",
       "status": "active"
     },
     {

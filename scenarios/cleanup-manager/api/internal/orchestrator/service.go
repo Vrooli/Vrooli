@@ -193,44 +193,84 @@ func (s *Service) Apply(ctx context.Context, input ApplyInput) (ApplyReport, err
 
 	report := ApplyReport{PlanID: plan.ID, IdempotencyKey: input.IdempotencyKey}
 	for _, pp := range plan.Providers {
-		provider, ok := s.registry.Get(pp.ProviderID)
-		if !ok {
-			return ApplyReport{}, fmt.Errorf("provider %q missing from registry", pp.ProviderID)
-		}
-		if pp.ProviderVersion != provider.Metadata().Version {
-			return ApplyReport{}, fmt.Errorf("provider %s version mismatch: plan has %q current is %q", pp.ProviderID, pp.ProviderVersion, provider.Metadata().Version)
-		}
-		if !pp.Policy.Enabled || pp.Policy.ApprovalMode == cleanup.ApprovalModeDisabled {
-			continue
-		}
-		if pp.Preview.BlockedReason != "" || len(pp.Preview.Items) == 0 {
-			_ = s.audit(ctx, AuditEvent{Type: "provider.skipped", PlanID: plan.ID, ProviderID: pp.ProviderID, IdempotencyKey: input.IdempotencyKey, Message: firstNonEmpty(pp.Preview.BlockedReason, "no preview items")})
-			continue
-		}
-		if pp.Policy.ApprovalMode != cleanup.ApprovalModeNone && input.ApprovalMode != pp.Policy.ApprovalMode {
-			return ApplyReport{}, fmt.Errorf("provider %s requires %s approval", pp.ProviderID, pp.Policy.ApprovalMode)
-		}
-		result, err := provider.Apply(ctx, cleanup.ApplyRequest{
-			PlanID:          plan.ID,
-			PolicyVersion:   plan.PolicyVersion,
-			ProviderVersion: pp.ProviderVersion,
-			ApprovalMode:    input.ApprovalMode,
-			IdempotencyKey:  input.IdempotencyKey,
-			Preview:         pp.Preview,
-		})
+		result, applied, err := s.applyProvider(ctx, plan, pp, input)
 		if err != nil {
-			_ = s.audit(ctx, AuditEvent{Type: "apply.failed", PlanID: plan.ID, ProviderID: pp.ProviderID, IdempotencyKey: input.IdempotencyKey, Message: Redact(err.Error()), Redacted: true})
 			return ApplyReport{}, err
+		}
+		if !applied {
+			continue
 		}
 		report.Results = append(report.Results, result)
 		report.ReclaimedBytes += result.ReclaimedBytes
-		_ = s.audit(ctx, AuditEvent{Type: "provider.applied", PlanID: plan.ID, ProviderID: pp.ProviderID, IdempotencyKey: input.IdempotencyKey, Message: fmt.Sprintf("%d bytes", result.ReclaimedBytes)})
 	}
 	if err := s.store.SaveApply(ctx, report); err != nil {
 		return ApplyReport{}, err
 	}
 	_ = s.audit(ctx, AuditEvent{Type: "apply.completed", PlanID: plan.ID, IdempotencyKey: input.IdempotencyKey, Message: fmt.Sprintf("%d bytes", report.ReclaimedBytes)})
 	return report, nil
+}
+
+func (s *Service) applyProvider(ctx context.Context, plan Plan, pp ProviderPlan, input ApplyInput) (cleanup.ApplyResult, bool, error) {
+	provider, err := s.providerForPlan(pp)
+	if err != nil {
+		return cleanup.ApplyResult{}, false, err
+	}
+	if !providerPolicyRunnable(pp.Policy) {
+		return cleanup.ApplyResult{}, false, nil
+	}
+	if skipReason := previewSkipReason(pp.Preview); skipReason != "" {
+		_ = s.audit(ctx, AuditEvent{Type: "provider.skipped", PlanID: plan.ID, ProviderID: pp.ProviderID, IdempotencyKey: input.IdempotencyKey, Message: skipReason})
+		return cleanup.ApplyResult{}, false, nil
+	}
+	if err := requireProviderApproval(pp, input); err != nil {
+		return cleanup.ApplyResult{}, false, err
+	}
+	result, err := provider.Apply(ctx, cleanup.ApplyRequest{
+		PlanID:          plan.ID,
+		PolicyVersion:   plan.PolicyVersion,
+		ProviderVersion: pp.ProviderVersion,
+		ApprovalMode:    input.ApprovalMode,
+		IdempotencyKey:  input.IdempotencyKey,
+		Preview:         pp.Preview,
+	})
+	if err != nil {
+		_ = s.audit(ctx, AuditEvent{Type: "apply.failed", PlanID: plan.ID, ProviderID: pp.ProviderID, IdempotencyKey: input.IdempotencyKey, Message: Redact(err.Error()), Redacted: true})
+		return cleanup.ApplyResult{}, false, err
+	}
+	_ = s.audit(ctx, AuditEvent{Type: "provider.applied", PlanID: plan.ID, ProviderID: pp.ProviderID, IdempotencyKey: input.IdempotencyKey, Message: fmt.Sprintf("%d bytes", result.ReclaimedBytes)})
+	return result, true, nil
+}
+
+func (s *Service) providerForPlan(pp ProviderPlan) (cleanup.Provider, error) {
+	provider, ok := s.registry.Get(pp.ProviderID)
+	if !ok {
+		return nil, fmt.Errorf("provider %q missing from registry", pp.ProviderID)
+	}
+	if current := provider.Metadata().Version; pp.ProviderVersion != current {
+		return nil, fmt.Errorf("provider %s version mismatch: plan has %q current is %q", pp.ProviderID, pp.ProviderVersion, current)
+	}
+	return provider, nil
+}
+
+func providerPolicyRunnable(policy cleanup.ProviderPolicy) bool {
+	return policy.Enabled && policy.ApprovalMode != cleanup.ApprovalModeDisabled
+}
+
+func previewSkipReason(preview cleanup.Preview) string {
+	if preview.BlockedReason != "" {
+		return preview.BlockedReason
+	}
+	if len(preview.Items) == 0 {
+		return "no preview items"
+	}
+	return ""
+}
+
+func requireProviderApproval(pp ProviderPlan, input ApplyInput) error {
+	if pp.Policy.ApprovalMode == cleanup.ApprovalModeNone || input.ApprovalMode == pp.Policy.ApprovalMode {
+		return nil
+	}
+	return fmt.Errorf("provider %s requires %s approval", pp.ProviderID, pp.Policy.ApprovalMode)
 }
 
 func (s *Service) Audit(ctx context.Context) ([]AuditEvent, error) {

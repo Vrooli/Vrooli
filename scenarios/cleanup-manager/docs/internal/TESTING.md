@@ -177,11 +177,10 @@ grows fields the proto hasn't caught up to.
 The scaffold ships one fenced worked CRUD domain (never product scope)
 as the canonical reference. New scenarios add their first non-trivial
 mutation by copying its layering one file at a time — wire contract,
-domain types, repository, schema, service, handler, mocks, UI client,
-and CLI client — then deleting the fenced example with
-`vrooli scenario detemplate <scenario>`. The fenced example below walks
-the pattern from wire to render and pins the three-layer service-test
-split; copy its shape for `api/internal/<domain>/`.
+domain types, schema, service, handler, mocks, UI client, and CLI
+client. Cleanup Manager's current cleanup domain is provider/orchestrator
+driven rather than repository driven, so tests substitute provider seams
+and the CleanupService interface instead of a database repository.
 
 #### Compose pattern: schema-applied repository test
 
@@ -207,64 +206,39 @@ That helper is the canonical entry point for every new domain's
 by `internal/modules/registry.go::AllSchemas()` in production) are the
 source of truth for both production and tests.
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `vrooli scenario detemplate`)
+### Cleanup domain test shape
 
-The `notes` domain is the scaffold's worked CRUD reference. Copy its
-shape for your own domains, then remove it. The pattern from wire to
-render:
+The cleanup domain tests the same wire-to-render layering without a CRUD
+repository:
 
 | Layer | File | What it owns |
 |---|---|---|
-| Wire contract | `packages/proto/schemas/cleanup-manager/v1/notes/notes.proto` | `Note`, `service NotesService`, `ListNotesResponse`, `CreateNoteRequest`, `CreateNoteResponse`, `GetNoteRequest`, `GetNoteResponse` |
-| REST metadata contract | `packages/proto/schemas/cleanup-manager/v1/notes/attachments.proto` | `Attachment` and `UploadAttachmentResponse` for the multipart upload exception |
-| Connect error mapping | `internal/notes/service_error_mapping.go` | Typed sentinels become Connect codes (`invalid_argument`, `not_found`, `internal`) |
+| Wire contract | `packages/proto/schemas/cleanup-manager/v1/cleanup/cleanup.proto` | CleanupService provider, policy, plan, apply, and audit messages |
+| Connect error mapping | `api/handlers/cleanup/connect_handler.go` | Orchestrator errors become Connect codes (`invalid_argument`, `failed_precondition`, `permission_denied`, `internal`) |
 | REST error envelope | `packages/proto/schemas/cleanup-manager/v1/shared/errors.proto` + `internal/httpx/errors.go::WriteError` | Typed body for REST exceptions, with canonical codes (`invalid_request`, `not_found`, `internal`) |
-| Domain types | `internal/notes/types.go::{Note, Attachment, CreateInput, ErrInvalidNote, ErrNoteNotFound}` | Domain-pure (no proto imports); typed sentinels translate into Connect errors at the handler edge |
-| Repository interface | `internal/notes/repository.go::Repository` | Persistence seam — `Create` / `Get` / `List` |
-| Repository impl | `internal/notes/sqlite.go::NewSQLiteRepository` | sqlite-backed `Repository`; production wires it once in `main.go` |
-| Schema | `internal/notes/schema.{sql,go}::Schema()` | Domain-owned table DDL embedded via `go:embed`; collected by `internal/modules/registry.go::AllSchemas()` and applied at boot via `apidb.EnsureSchemas` |
-| Repository test | `internal/notes/sqlite_test.go` | Real handle via `db.NewSQLite(t)` + `apidb.EnsureSchemas(ctx, d, ...providers...)` over system + notes (the canonical compose pattern) |
-| Service | `internal/notes/service.go::Service` (+ `NewService`) | Application layer: validation (`title` required after whitespace trim), default substitution (`defaultListLimit = 100` when caller passes 0). Handler depends on this, not the repository. |
-| Service test | `internal/notes/service_test.go` | Substitutes `mocks.FakeRepository` (from co-located `internal/notes/mocks/`); pins the validation, default-substitution, and error-propagation contracts |
-| Connect handler test | `handlers/notes/connect_handler_test.go` | Substitutes `mocks.FakeService` and exercises the generated Connect client/handler path |
-| Multipart handler test | `handlers/notes/attachments_handler_test.go` | Uses `blobstore.MemoryBlobStore` plus test metadata repositories to exercise file-upload success and error paths |
-| Mocks | `internal/notes/mocks/{repository,service}.go::{FakeRepository,FakeService}` | Co-located with the domain (Pass-3 pattern) — `FakeRepository` carries state for service tests; `FakeService` records inputs for handler tests. Both use atomic call counters + per-method error knobs. Deleting `internal/notes/` takes them along. |
-| UI client | `ui/src/api/notes.ts` | `notesClient = createClient(NotesService, transport)` plus `uploadAttachment` for multipart metadata |
-| UI tests | `ui/src/api/notes.test.ts` + component tests | Mock generated client methods and `uploadAttachment`; REST helper tests stub `global.fetch` |
-| CLI client | `cli/domains/notes/{register,handlers,attach_handler}.go` | `Register(core)` returns a `cliapp.SubcommandGroup`; handlers use generated Connect clients or `cliapp.UploadFile` and render via cli-core reports |
-| CLI test | `cli/domains/notes/handlers_test.go` | Spins a real `httptest.Server` via `testutil.NewAPIServer`, captures stdout via `testutil.CaptureStdout` |
+| Domain types | `api/internal/cleanup/types.go` | Provider metadata, plans, policy, audit, and validation rules |
+| Provider seams | `api/internal/cleanup/seams.go` | Filesystem, process, Docker, journal, clock, and owner-scenario boundaries |
+| Provider tests | `api/internal/providers/*_test.go` | Preview-first behavior against fake side-effect clients |
+| Orchestrator service | `api/internal/orchestrator/service.go` | Policy/profile validation, deterministic plan ids, approvals, idempotency replay, and audit |
+| Orchestrator tests | `api/internal/orchestrator/service_test.go` | Substitutes fake providers and clocks to prove safety gates |
+| Connect handler test | `api/handlers/cleanup/connect_handler_test.go` | Substitutes fake CleanupService and exercises generated Connect handler paths |
+| CLI client | `cli/domains/cleanup/{register,handlers}.go` | Cleanup command group and generated Connect calls |
+| CLI tests | `cli/domains/cleanup/*_test.go` | Command registration and handler behavior |
+| UI tests | `ui/src/pages/DashboardPage.test.tsx` and shell tests | Cleanup console rendering, accessibility, selectors, and navigation |
 
-The compose pattern's `<domain>.Schema` resolves to `notes.Schema` for
-this example.
+#### Service-layer tests
 
-#### Service-layer tests (`notes`)
-
-The notes domain uses three test layers, each with a different fake:
+The cleanup domain uses layered fakes:
 
 ```
-HTTP → handler → Service (validates, applies defaults) → Repository (persists)
-                     ↑                                       ↑
-                     FakeService (handler tests)              FakeRepository (service tests)
-                                                              Real sqlite (repository tests)
+HTTP → handler → CleanupService interface → Orchestrator → Providers → typed seams
+                     ↑                         ↑              ↑
+                     fake service              fake clock      fake clients
 ```
 
-`internal/notes/service_test.go` is the reference. Service tests:
-
-- Substitute `mocks.FakeRepository` (in-memory state) so the test can
-  assert on what the repository was called with and whether the service
-  filtered the call (e.g., empty title rejected before reaching `Create`).
-- Pin validation contracts (`Create` rejects empty / whitespace-only
-  title with `ErrInvalidNote{Field: "title"}`).
-- Pin default-substitution contracts (`List(0)` substitutes
-  `defaultListLimit`; `List(5)` passes 5 through unchanged).
-- Pin error propagation (`Get` returns `ErrNoteNotFound` verbatim;
-  `Create` returns repository errors verbatim).
-
-Connect handler tests then substitute `mocks.FakeService` — they don't seed
-sqlite-shaped state to assert on routing. Two-mock split keeps each
-layer's tests focused on what that layer owns.
-<!-- EXAMPLE-DOMAIN:notes END -->
+Handler tests substitute the CleanupService interface. Orchestrator and
+provider tests substitute the lower-level seams so no test performs real
+filesystem, Docker, journal, process, or scenario cleanup.
 
 ### Temporal workflow tests
 
@@ -367,22 +341,6 @@ generic file layout per flow is:
 - `ui/src/features/<domain>/flow/flow.test.ts` (thin replay delegation)
 - `ui/src/features/<domain>/flow/generated/{model.qnt,artifact.json,runtime.ts,replay.helper.ts}`
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-The `notes` attachment-upload workflow is the scaffold's worked Level 5
-example (removed by `vrooli scenario detemplate`). It instantiates the
-layout above as:
-
-- `api/internal/notes/flow/flow.json`
-- `api/internal/notes/flow/transition.go` (package `flow`)
-- `api/internal/notes/flow/flow_test.go` (thin replay delegation, package `flow`)
-- `api/internal/notes/flow/generated/{model.qnt,artifact.json,runtime.go,replay.go}` (package `generated`)
-- `ui/src/features/notes/flow/flow.json`
-- `ui/src/features/notes/flow/transition.ts`
-- `ui/src/features/notes/flow/fixtures.ts`
-- `ui/src/features/notes/flow/flow.test.ts` (thin replay delegation)
-- `ui/src/features/notes/flow/generated/{model.qnt,artifact.json,runtime.ts,replay.helper.ts}`
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 `make temporal-models` invokes `flow-verifier verify check --root .`, which
 runs `quint typecheck`, `quint test`, `quint verify`, and deterministic MBT
 trace generation through the flow-verifier pipeline. It fails if the checked-in
@@ -464,11 +422,8 @@ don't need to inspect log output; reach for the buffer when the test
 asserts on what was logged — e.g. a 500-path handler test that checks
 the underlying error reaches operator logs.
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-The example domain's reference for the buffer-logger 500-path assertion
-is `handlers/notes/connect_handler_test.go::TestConnectHandler_GetInternalError`
-(removed by `vrooli scenario detemplate`).
-<!-- EXAMPLE-DOMAIN:notes END -->
+Cleanup handler tests use the same pattern for Connect error paths in
+`api/handlers/cleanup/connect_handler_test.go`.
 
 ### Testing context cancellation
 
@@ -684,41 +639,15 @@ substituted.
 A feature with its own API surface adds a second `vi.mock` for its
 client and a feature-local builder; per-test overrides use vitest's
 standard pattern *after* the mock is wired
-(`vi.mocked(client.method).mockResolvedValueOnce(...)`). The fenced
-example below shows the full two-mock shape.
-
-<!-- EXAMPLE-DOMAIN:notes START -->
-#### Example domain — `notes` mock builders (removed by `vrooli scenario detemplate`)
-
-For notes, import `makeNotesMocks()` from `features/notes/mocks/notes`
-and wire it alongside the shared `makeApiMocks()`:
+(`vi.mocked(client.method).mockResolvedValueOnce(...)`).
 
 ```tsx
 import { makeApiMocks } from "@/test-utils";
-import { makeNotesMocks } from "./mocks/notes";
-
 vi.mock("../../api/health", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/health")>();
   return { ...actual, ...makeApiMocks() };
 });
-
-vi.mock("../../api/notes", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../api/notes")>();
-  return { ...actual, ...makeNotesMocks() };
-});
 ```
-
-Defaults: `makeNotesMocks().notesClient.listNotes` resolves to an empty
-list; `notesClient.createNote({ title })` echoes the title back as a
-Note. Per-test overrides:
-
-```tsx
-const { notesClient } = await import("../../api/notes");
-vi.mocked(notesClient.listNotes).mockResolvedValueOnce(
-  makeListNotesResponse({ notes: [makeNote({ id: "a" })] }),
-);
-```
-<!-- EXAMPLE-DOMAIN:notes END -->
 
 When a third lib/* surface lands (e.g., `lib/users.ts`), follow the
 same pattern: builder in `ui/src/test-utils/mocks/<surface>.ts`, self-

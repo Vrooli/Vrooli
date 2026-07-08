@@ -17,17 +17,9 @@ Use this document to answer:
 
 | Data | Sensitivity | Owner | Details |
 |---|---|---|---|
-| _(your product data)_ | classify per PRD | owning domain | Replace with real scenario data classification. |
-
-<!-- EXAMPLE-DOMAIN:notes START -->
-The shipped worked-example `notes` domain carries placeholder data only
-(removed by `vrooli scenario detemplate`):
-
-| Data | Sensitivity | Owner | Details |
-|---|---|---|---|
-| Template notes data | low | notes reference | Local development data only; replace with real scenario data classification. |
-| Attachment bytes | unknown | notes reference | Treat as potentially sensitive if retained in product scope. |
-<!-- EXAMPLE-DOMAIN:notes END -->
+| Cleanup provider previews | medium | cleanup | May include host paths, resource names, image ids, or command output. |
+| Cleanup audit messages | medium | cleanup | Redacted before storage when providers return paths or command output. |
+| Policy/profile state | low | cleanup | Operator intent, approval mode, and provider enablement. |
 
 ## Auth And Authorization
 
@@ -46,14 +38,14 @@ authorization belongs at the API/service layer.
 
 | Risk | Impact | Mitigation | Status |
 |---|---|---|---|
-| Unsafe file upload handling | Malicious or oversized upload could affect storage. | Multipart handler validates metadata and BlobStore seam isolates bytes. | template-reference |
+| Unsafe cleanup mutation | Provider bypass could delete or mutate host state without policy gates. | Providers use typed seams only; orchestrator requires preview, version checks, approval, and idempotency. | cleanup |
 | Missing auth for product data | User/customer data could be exposed if added without access control. | Add API-layer auth before storing protected data. | deferred |
 
 ## Security Gaps
 
 | Gap | Severity | Revisit Trigger |
 |---|---|---|
-| No product-specific data classification | medium | Fill after PRD/domain map defines real data. |
+| Durable audit redaction coverage | medium | Expand when additional providers return richer host metadata. |
 | No auth model | conditional | Required before protected or multi-user data. |
 
 ## Cross-References

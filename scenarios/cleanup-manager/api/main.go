@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"cleanup-manager/internal/clock"
+	"cleanup-manager/internal/httpx"
 	"cleanup-manager/internal/modules"
 	"cleanup-manager/internal/server"
 
@@ -23,7 +24,6 @@ import (
 
 	cleanupH "cleanup-manager/handlers/cleanup"
 	healthH "cleanup-manager/handlers/health"
-	notesH "cleanup-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -95,9 +95,12 @@ func main() {
 		return
 	}
 
+	logger := log.New(os.Stderr, "", log.LstdFlags)
+	httpx.SetLogger(logger)
+
 	dsn, err := sqliteDSN()
 	if err != nil {
-		log.Fatalf("sqlite configuration failed: %v", err)
+		logger.Fatalf("sqlite configuration failed: %v", err)
 	}
 
 	db, err := database.Open(context.Background(), database.Config{
@@ -107,18 +110,17 @@ func main() {
 		MaxIdleConns: 1,
 	})
 	if err != nil {
-		log.Fatalf("Database connection failed: %v", err)
+		logger.Fatalf("Database connection failed: %v", err)
 	}
 
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
-		log.Fatalf("schema initialization failed: %v", err)
+		logger.Fatalf("schema initialization failed: %v", err)
 	}
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "cleanup-manager-api", "1.0.0"),
-		cleanupH.Module(log.Default()),
-		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
+		cleanupH.Module(logger),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -127,20 +129,8 @@ func main() {
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
 
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, clock.System{})
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
-
-	rootMux.Handle("/", srv.Handler())
+	apiMountPath := "/"
+	rootMux.Handle(apiMountPath, srv.Handler())
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
@@ -151,6 +141,6 @@ func main() {
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
-		log.Fatalf("Server error: %v", err)
+		logger.Fatalf("Server error: %v", err)
 	}
 }

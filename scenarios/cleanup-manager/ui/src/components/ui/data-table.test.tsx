@@ -80,4 +80,30 @@ describe("DataTable", () => {
     expect(screen.getByText("Alpha")).toBeInTheDocument();
     expect(screen.queryByText("Beta")).not.toBeInTheDocument();
   });
+
+  it("renders filters, empty state, and non-sortable columns", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <DataTable
+        rows={rows}
+        columns={[
+          ...columns,
+          { id: "static", header: "Static", accessor: () => "fixed" },
+        ]}
+        getRowKey={(row, index) => `${row.id}-${index}`}
+        caption="Filtered rows"
+        emptyMessage="No matching rows"
+        filters={[
+          { id: "all", label: "All", predicate: () => true },
+          { id: "none", label: "None", predicate: () => false },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("Static")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "None" }));
+
+    expect(screen.getByText("No matching rows")).toBeInTheDocument();
+  });
 });

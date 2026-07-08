@@ -4,11 +4,8 @@ This document is the canonical map of product capabilities, bounded
 contexts, and ownership for this scenario. Keep it current whenever a
 domain is added, renamed, split, merged, or removed.
 
-`health` is the one real domain the scaffold ships. Add your scenario's
-domains to the inventory below as you build them. The scaffold also ships
-one clearly fenced worked example domain (never product scope) as a
-copyable reference; `vrooli scenario detemplate <scenario>` removes every
-fenced example once your real domains are green.
+`cleanup` and `health` are the current domains. Keep this inventory aligned
+with proto, API, CLI, UI, and test ownership as the cleanup surface grows.
 
 ## Purpose Of This Document
 
@@ -27,38 +24,30 @@ belong in [`DATA.md`](DATA.md).
 
 | Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
 |---|---|---|---|---|---|---|---|
+| cleanup | Build preview-first cleanup plans, enforce policy gates, apply approved provider actions, and record audit events. | Give operators and agents one safe orchestration point for reclaimable storage. | Policy snapshots, plans, apply attempts, audit events. | service | mutation | Provider, Plan, PolicyProfile, AuditEvent | `api/internal/cleanup/`, `api/internal/orchestrator/`, `api/internal/providers/`, `api/handlers/cleanup/`, `cli/domains/cleanup/`, `packages/proto/schemas/cleanup-manager/v1/cleanup/` |
 | health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | No product data. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/cleanup-manager/v1/shared/health.proto` |
-| _(your domain)_ | What product capability it owns. | Why the capability exists for users or operators. | Its tables, if any. | service | — | DomainVocabulary | `api/internal/<domain>/` |
-
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `vrooli scenario detemplate`)
-
-The template ships `notes` as a worked CRUD vertical slice with a binary
-upload exception. Copy its shape for your own domains, then remove it.
-
-| Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
-|---|---|---|---|---|---|---|---|
-| notes | Provide the worked CRUD reference with attachment upload exception. | Demonstrate the expected vertical slice for a real domain. | Notes and attachment metadata. | crud | service | Note, Attachment | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/cleanup-manager/v1/notes/` |
-
-- Purpose: demonstrate the expected vertical slice for a real domain.
-- Primary archetype: CRUD / entity.
-- Secondary traits: binary/blob attachment upload, upload workflow.
-- Owns: note records, attachment metadata, note validation, note
-  service/repository seams, UI note interactions, CLI notes commands.
-- Does not own: product scope for a generated scenario.
-- API: `api/internal/notes/`, `api/handlers/notes/`.
-- CLI: `cli/domains/notes/`.
-- UI: `ui/src/features/notes/`, `ui/src/api/notes.ts`.
-- Storage: domain-owned SQLite schema in `api/internal/notes/schema.sql`.
-- Requirements: template starter only; replace with PRD-specific
-  requirements.
-- Tests: repository, service, handler, CLI, UI, accessibility, and
-  workflow tests.
-- Related docs: [`FLOWS.md`](FLOWS.md), [`DATA.md`](DATA.md),
-  [`../internal/SEAMS.md`](../internal/SEAMS.md).
-<!-- EXAMPLE-DOMAIN:notes END -->
 
 ## Domain Details
+
+### cleanup
+
+- Purpose: orchestrate cleanup without letting providers mutate host state
+  outside preview, policy, approval, idempotency, and audit contracts.
+- Primary archetype: service / orchestration.
+- Secondary traits: policy enforcement, safety tiers, idempotent mutation,
+  provider registry, audit trail.
+- Owns: provider metadata contracts, policy profiles, plans, apply attempts,
+  audit events, cleanup CLI commands, and cleanup UI console panels.
+- Does not own: private deletion rules inside owner scenarios or raw host
+  mutation APIs.
+- API: `api/internal/cleanup/`, `api/internal/orchestrator/`,
+  `api/internal/providers/`, `api/handlers/cleanup/`.
+- CLI: `cli/domains/cleanup/`.
+- UI: dashboard cleanup console in `ui/src/pages/DashboardPage.tsx`.
+- Storage: in-memory Phase 4 store; SQLite persistence is deferred.
+- Requirements: CLN-P0-001 through CLN-P0-005.
+- Tests: provider metadata, policy profiles, provider previews, orchestrator,
+  Connect handler, CLI registration, and UI console tests.
 
 ### health
 
@@ -73,7 +62,7 @@ upload exception. Copy its shape for your own domains, then remove it.
 - CLI: built-in `status` command is provided through cli-core.
 - UI: `ui/src/features/health/HealthCard.tsx`.
 - Storage: none; probes configured database reachability.
-- Requirements: starter scaffold health only.
+- Requirements: operational readiness support for cleanup-manager.
 - Tests: handler, module, UI feature, and accessibility tests.
 - Related docs: [`../reference/api-endpoints.md`](../reference/api-endpoints.md).
 
@@ -93,7 +82,7 @@ are real enough to affect architecture or requirements.
 
 | Candidate Domain | Why Deferred | Revisit Trigger |
 |---|---|---|
-| None yet. | Generated scaffold. | Add after PRD-specific requirements identify future capability boundaries. |
+| Persistent cleanup store | Current Phase 4 store is in memory. | Add when retention and replay durability are required beyond process lifetime. |
 
 ## Non-Domains
 

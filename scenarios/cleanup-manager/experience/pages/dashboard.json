@@ -4,9 +4,9 @@
   "schemaVersion": "1.0.0",
   "page": {
     "id": "dashboard",
-    "title": "Dashboard",
+    "title": "Cleanup Console",
     "routes": ["/"],
-    "purpose": "Give the operator the first useful view of Cleanup Manager and make the primary next action clear.",
-    "prd_refs": ["OT-P0-001"]
+    "purpose": "Show provider estimates, conservative policy gates, plan review state, and audit events before any cleanup is applied.",
+    "prd_refs": ["OT-P0-001", "OT-P0-003", "OT-P0-004"]
   }
 }

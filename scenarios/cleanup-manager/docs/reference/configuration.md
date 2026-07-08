@@ -128,7 +128,7 @@ Set values via the CLI rather than editing the file directly:
 
 ```bash
 cleanup-manager configure api_base http://localhost:15001/api/v1
-cleanup-manager configure token <token>
+cleanup-manager configure token TOKEN_VALUE
 ```
 
 ## API-base resolution precedence

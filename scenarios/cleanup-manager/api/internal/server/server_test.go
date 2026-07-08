@@ -21,7 +21,7 @@ import (
 // through the Handler() chain (including recovery + logging
 // middleware).
 //
-// Per-module route coverage (notes list returns 200, notes get
+// Per-module route coverage (cleanup providers returns 200, cleanup plan
 // returns 404, etc.) lives in each handler's module_test.go where
 // it belongs; this file owns the wiring guarantee.
 func TestServer_MountsEachModule(t *testing.T) {

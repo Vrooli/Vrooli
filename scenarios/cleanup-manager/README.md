@@ -43,7 +43,7 @@ the standard full-stack Vrooli scenario shape:
 - CLI/API/UI surfaces for scan, plan, policy, apply, audit, and provider
   catalog workflows.
 
-## What's In This Scenario
+## What You Get
 
 - Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
   coordinated through generated proto contracts.
@@ -66,23 +66,26 @@ the standard full-stack Vrooli scenario shape:
   shell, and bottom navigation.
 - Root-level `DESIGN.md` plus generated UI token assets from the
   selected design kit.
-- Generated `experience/` L0 specs for the starter routes. These are UX
-  intent placeholders, not finished claims; grow them as routes become real.
+- Generated `experience/` L0 specs for the cleanup console and settings
+  routes. These are UX intent placeholders, not finished claims; grow them
+  as routes mature.
 - A documentation contract in `docs/manifest.json`, with stubs for
   domains, flows, data, integrations, monetization, deployment,
   runbooks, observability, security, performance, and durable
   decisions.
 
-## Placeholders vs. Durable Scaffolding
+## Customize Safely
 
-The generated scaffold is intentionally not the product. When you build
-the real UX, treat these as **placeholders** to replace:
+The generated scaffold is intentionally not the product. Cleanup Manager
+now owns the cleanup domain; treat remaining generic surfaces as
+scaffolding to preserve or replace deliberately:
 
-- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
-  slice meant to be copied once and then deleted.
-- Starter page content such as the dashboard metric placeholders.
-- The bare-minimum settings surface once your scenario needs more than
-  theme and locale.
+- Expand the dashboard from static Phase 5 console data to live
+  CleanupService reads when UI integration lands.
+- Keep the settings surface small until product requirements add
+  operator-configurable policy controls.
+- Preserve fake-first cleanup seams; never add host mutation paths that
+  bypass provider contracts.
 
 Treat these as **durable seams** to preserve, even as you rewrite the
 visual layout:
@@ -105,11 +108,7 @@ an `EndpointDescriptor`, stop — use a proto service method instead.
 Codegen rejects literal Paths that lack an explicit `RESTException`
 tag; the four allowed REST reasons (multipart upload, webhook
 receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. The notes attachments endpoint is
-the worked REST example.
-
-[`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
-workflow in full.
+`api/internal/module/module.go`.
 
 ## Running The Scenario
 
@@ -168,5 +167,5 @@ lockfiles yourself before committing. Scripts use `pnpm` directly (no
 
 ## Need Inspiration?
 
-Open `scenarios/browser-automation-studio/` to see the same template
-shape taken to completion.
+Open `scenarios/browser-automation-studio/` for a mature full-stack
+scenario reference.

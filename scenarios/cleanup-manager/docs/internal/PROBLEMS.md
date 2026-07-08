@@ -61,7 +61,7 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Owner:** unassigned.
 
-**Refs:** `/home/matthalloran8/.vrooli/plans/cleanup-manager-scenario-implementation.md`.
+**Refs:** `~/.vrooli/plans/cleanup-manager-scenario-implementation.md`.
 
 ## Architecture Drift
 

@@ -2,15 +2,15 @@
   "_comment": "このファイルには2種類の補間があります。(1) 生成時: Cleanup Manager のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
   "app": {
     "title": "Cleanup Manager",
-    "eyebrow": "シナリオテンプレート",
-    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+    "eyebrow": "クリーンアップ運用",
+    "description": "回収可能なローカルストレージのプレビュー優先ポリシー、計画、適用ゲート、監査履歴。"
   },
   "layout": {
     "sidebarLabel": "メインナビゲーション",
+    "sidebarNavLabel": "サイドバーのメインナビゲーション",
     "bottomNavLabel": "メインナビゲーション",
     "nav": {
       "dashboard": "ダッシュボード",
-      "notes": "ノート",
       "settings": "設定"
     }
   },
@@ -24,12 +24,8 @@
   },
   "pages": {
     "dashboard": {
-      "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
-    },
-    "notes": {
-      "title": "ノート"
+      "title": "クリーンアップコンソール",
+      "description": "適用前に、回収可能な容量、プロバイダーポリシー、計画ゲート、監査履歴を確認します。"
     },
     "settings": {
       "title": "設定",
@@ -50,28 +46,38 @@
   "notifications": {
     "summary": "{{count}} 件の通知"
   },
-  "notes": {
-    "title": "ノート",
-    "loading": "ノートを読み込み中…",
-    "empty": "まだノートはありません。",
-    "create": "ノートを作成",
-    "createdAtLabel": "作成:",
-    "attachmentsLabel": "添付ファイル {{count}} 件",
-    "table": {
-      "title": "タイトル",
-      "created": "作成日",
-      "attachments": "添付",
-      "actions": "操作",
-      "search": "ノートを検索"
+  "cleanup": {
+    "overview": {
+      "title": "ディスク圧迫の概要",
+      "description": "保守的なポリシーゲートで集計した現在のプレビュー合計。",
+      "reclaimable": "推定回収量",
+      "providers": "プロバイダー",
+      "blocked": "ブロック"
     },
-    "uploadAttachment": "添付ファイルをアップロード",
-    "attachmentFileLabel": "添付ファイル",
-    "uploadSuccess": "{{name}} をアップロードしました。",
-    "noFileSelected": "アップロードするファイルを選択してください。",
-    "measure": {
-      "title": "今週のノート",
-      "loading": "集計中…",
-      "thisWeek": "今週作成されたノート: {{count}} 件"
+    "providers": {
+      "title": "プロバイダー",
+      "description": "プロバイダーの推定には安全階層、回収見込み、承認状態を表示します。",
+      "provider": "プロバイダー",
+      "tier": "階層",
+      "estimate": "推定",
+      "status": "状態"
+    },
+    "policy": {
+      "title": "ポリシー",
+      "description": "保守的な既定値では、曖昧なクリーンアップは明示承認まで無効です。",
+      "profile": "プロファイル",
+      "applyGate": "適用ゲート",
+      "replay": "再実行"
+    },
+    "plan": {
+      "title": "計画レビュー",
+      "description": "計画はポリシーとプロバイダーのバージョンに結び付いた決定的なプレビューです。",
+      "preview": "適用には正確な計画 ID、ポリシーバージョン、承認モード、冪等キーが必要です。",
+      "applyDisabled": "ライブ承認の接続が入るまで、UI からの適用は無効です。"
+    },
+    "audit": {
+      "title": "監査",
+      "description": "ポリシー、計画、再実行、適用イベントを、秘匿化されたメッセージで表示します。"
     }
   },
   "errors": {

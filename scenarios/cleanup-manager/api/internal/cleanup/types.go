@@ -50,18 +50,36 @@ type ProviderMetadata struct {
 }
 
 func (m ProviderMetadata) Validate() error {
-	if m.ID == "" {
+	checks := []func() error{
+		m.validateIdentity,
+		m.validateDefaults,
+		m.validateSafetyPolicy,
+		m.validateDeclarations,
+	}
+	for _, check := range checks {
+		if err := check(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m ProviderMetadata) validateIdentity() error {
+	switch {
+	case m.ID == "":
 		return errors.New("provider id is required")
-	}
-	if m.Name == "" {
+	case m.Name == "":
 		return fmt.Errorf("provider %q name is required", m.ID)
-	}
-	if m.Version == "" {
+	case m.Version == "":
 		return fmt.Errorf("provider %q version is required", m.ID)
-	}
-	if m.OwnerScenario == "" {
+	case m.OwnerScenario == "":
 		return fmt.Errorf("provider %q owner scenario is required", m.ID)
+	default:
+		return nil
 	}
+}
+
+func (m ProviderMetadata) validateDefaults() error {
 	if !validSafetyTier(m.SafetyTier) {
 		return fmt.Errorf("provider %q has invalid safety tier %q", m.ID, m.SafetyTier)
 	}
@@ -71,22 +89,30 @@ func (m ProviderMetadata) Validate() error {
 	if !validApprovalMode(m.DefaultApproval) {
 		return fmt.Errorf("provider %q has invalid approval mode %q", m.ID, m.DefaultApproval)
 	}
+	return nil
+}
+
+func (m ProviderMetadata) validateSafetyPolicy() error {
 	if m.SafetyTier == SafetyTierConditional && m.DefaultApproval != ApprovalModeOperator && m.DefaultApproval != ApprovalModeDisabled {
 		return fmt.Errorf("conditional provider %q must require operator approval or be disabled", m.ID)
 	}
 	if m.SafetyTier == SafetyTierForbidden && (m.DefaultMode != ProviderModeDisabled || m.DefaultApproval != ApprovalModeDisabled) {
 		return fmt.Errorf("forbidden provider %q must be disabled", m.ID)
 	}
-	if len(m.SupportedPlatforms) == 0 {
-		return fmt.Errorf("provider %q must declare supported platforms", m.ID)
-	}
-	if len(m.IrreversibleEffects) == 0 {
-		return fmt.Errorf("provider %q must declare irreversible effects", m.ID)
-	}
-	if m.TestSubstitute == "" {
-		return fmt.Errorf("provider %q must declare a test substitute", m.ID)
-	}
 	return nil
+}
+
+func (m ProviderMetadata) validateDeclarations() error {
+	switch {
+	case len(m.SupportedPlatforms) == 0:
+		return fmt.Errorf("provider %q must declare supported platforms", m.ID)
+	case len(m.IrreversibleEffects) == 0:
+		return fmt.Errorf("provider %q must declare irreversible effects", m.ID)
+	case m.TestSubstitute == "":
+		return fmt.Errorf("provider %q must declare a test substitute", m.ID)
+	default:
+		return nil
+	}
 }
 
 func validSafetyTier(t SafetyTier) bool {

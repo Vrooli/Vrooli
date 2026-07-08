@@ -19,10 +19,10 @@ export const strings = {
   },
   layout: {
     sidebarLabel: "layout.sidebarLabel",
+    sidebarNavLabel: "layout.sidebarNavLabel",
     bottomNavLabel: "layout.bottomNavLabel",
     nav: {
       dashboard: "layout.nav.dashboard",
-      notes: "layout.nav.notes",
       settings: "layout.nav.settings",
     },
   },
@@ -38,10 +38,6 @@ export const strings = {
     dashboard: {
       title: "pages.dashboard.title",
       description: "pages.dashboard.description",
-      statPlaceholderLabel: "pages.dashboard.statPlaceholderLabel",
-    },
-    notes: {
-      title: "pages.notes.title",
     },
     settings: {
       title: "pages.settings.title",
@@ -65,29 +61,38 @@ export const strings = {
     summary_zero: "notifications.summary_zero",
     summary_one: "notifications.summary_one",
   },
-  notes: {
-    title: "notes.title",
-    loading: "notes.loading",
-    empty: "notes.empty",
-    create: "notes.create",
-    createdAtLabel: "notes.createdAtLabel",
-    attachmentsLabel: "notes.attachmentsLabel",
-    attachmentsLabel_one: "notes.attachmentsLabel_one",
-    table: {
-      title: "notes.table.title",
-      created: "notes.table.created",
-      attachments: "notes.table.attachments",
-      actions: "notes.table.actions",
-      search: "notes.table.search",
+  cleanup: {
+    overview: {
+      title: "cleanup.overview.title",
+      description: "cleanup.overview.description",
+      reclaimable: "cleanup.overview.reclaimable",
+      providers: "cleanup.overview.providers",
+      blocked: "cleanup.overview.blocked",
     },
-    uploadAttachment: "notes.uploadAttachment",
-    attachmentFileLabel: "notes.attachmentFileLabel",
-    uploadSuccess: "notes.uploadSuccess",
-    noFileSelected: "notes.noFileSelected",
-    measure: {
-      title: "notes.measure.title",
-      loading: "notes.measure.loading",
-      thisWeek: "notes.measure.thisWeek",
+    providers: {
+      title: "cleanup.providers.title",
+      description: "cleanup.providers.description",
+      provider: "cleanup.providers.provider",
+      tier: "cleanup.providers.tier",
+      estimate: "cleanup.providers.estimate",
+      status: "cleanup.providers.status",
+    },
+    policy: {
+      title: "cleanup.policy.title",
+      description: "cleanup.policy.description",
+      profile: "cleanup.policy.profile",
+      applyGate: "cleanup.policy.applyGate",
+      replay: "cleanup.policy.replay",
+    },
+    plan: {
+      title: "cleanup.plan.title",
+      description: "cleanup.plan.description",
+      preview: "cleanup.plan.preview",
+      applyDisabled: "cleanup.plan.applyDisabled",
+    },
+    audit: {
+      title: "cleanup.audit.title",
+      description: "cleanup.audit.description",
     },
   },
   errors: {

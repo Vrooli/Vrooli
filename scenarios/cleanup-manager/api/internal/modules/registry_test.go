@@ -21,7 +21,7 @@ import (
 // Endpoints slice.
 //
 // Deliberately loose on count (not "exactly N"): scenarios remove the
-// notes reference and add their own domains, so pinning the count would
+// example domains and add their own domains, so pinning the count would
 // couple this test to whichever domains happen to be present.
 func TestAllEndpoints_NonEmpty(t *testing.T) {
 	got := modules.AllEndpoints()
@@ -46,7 +46,7 @@ func TestAllEndpoints_StableOrder(t *testing.T) {
 // TestAllSchemas_NonEmpty proves the schema registry is always
 // populated (system home is always present) and that every entry has
 // a non-nil provider. Per-domain schema content is verified by each
-// domain's own *_test.go (see internal/notes/sqlite_test.go for the
+// domain's own *_test.go (or provider/orchestrator tests for service domains) for the
 // canonical apply-and-query coverage).
 func TestAllSchemas_NonEmpty(t *testing.T) {
 	got := modules.AllSchemas()
@@ -90,7 +90,7 @@ func TestAllSchemas_AppliesIdempotently(t *testing.T) {
 // "/" + service.FullName + "/" + method.Name.
 //
 // Lifted from a per-domain test (formerly
-// api/handlers/notes/module_test.go) so the safety net applies
+// api/handlers/<domain>/module_test.go) so the safety net applies
 // automatically to every Connect-mounted domain registered in
 // AllProtoFiles() — agents adding a new domain no longer have to
 // remember to copy the parity test.

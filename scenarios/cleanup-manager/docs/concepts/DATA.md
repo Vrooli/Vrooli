@@ -16,7 +16,7 @@ Use this document to answer:
 
 ## Storage Overview
 
-The template default is embedded SQLite through `modernc.org/sqlite`.
+The scenario default is embedded SQLite through `modernc.org/sqlite`.
 The lifecycle sets `SQLITE_PATH` through `.vrooli/service.json`, and
 the API applies schemas on startup through `api-core/database`.
 
@@ -52,37 +52,9 @@ Each domain's schema file lives beside the code that interprets it. The
 | cleanup orchestration store | cleanup | `api/internal/orchestrator/service.go` | CleanupService handlers and CLI |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `vrooli scenario detemplate`)
-
-The template ships the `notes` domain as a worked CRUD slice with a
-binary attachment-upload exception, showing how a real domain owns its
-tables, metadata, and opaque blob bytes. Copy its shape, then remove it.
-
-Its Data Ownership rows:
-
-| Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
-|---|---|---|---|---|---|
-| Notes | notes | SQLite | `api/internal/notes/schema.sql` | Until deleted by future product behavior | Template reference data; remove with notes domain. |
-| Attachment metadata | notes | SQLite | `api/internal/notes/schema.sql` | Until parent note or attachment is deleted by future product behavior | Metadata only; bytes are stored through BlobStore. |
-| Attachment bytes | notes | Filesystem BlobStore by default | BlobStore implementation in notes handler module | Same lifecycle as metadata | Opaque bytes stay outside proto payloads. |
-
-Its Schema Map row:
-
-| Table/File/Object | Owner | Defined In | Used By |
-|---|---|---|---|
-| notes tables | notes | `api/internal/notes/schema.sql` | notes repository/service/handlers |
-
-Its Retention And Deletion row:
-
-| Data | Delete Trigger | Retention Rule | Current Gap |
-|---|---|---|---|
-| Template notes data | Domain removal or future product delete behavior | Local development data only | Real scenarios must define product-specific deletion semantics. |
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Migrations And Compatibility
 
-The generated template uses idempotent schema bootstrap. Domain schema
+The scenario uses idempotent schema bootstrap. Domain schema
 files should use `CREATE TABLE IF NOT EXISTS` and live beside the code
 that interprets them.
 
@@ -104,10 +76,12 @@ backfills, add a scenario-specific migration plan here and update
 
 ## Privacy Notes
 
-Generated template data is local development data. If a scenario stores
-personal, regulated, customer, financial, or sensitive business data,
-update this document and [`../internal/SECURITY.md`](../internal/SECURITY.md)
-before implementation expands.
+Cleanup previews and audit messages can contain host paths or command
+output, so provider errors are redacted before audit storage. If future
+providers collect personal, regulated, customer, financial, or sensitive
+business data, update this document and
+[`../internal/SECURITY.md`](../internal/SECURITY.md) before implementation
+expands.
 
 ## Cross-References
 
