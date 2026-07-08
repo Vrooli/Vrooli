@@ -114,7 +114,6 @@ describe("VoiceCaptureController", () => {
 
     const released = controller.recoverStaleLeases({
       voiceState: "idle",
-      lowLatencyVoice: false,
       passiveListenerActive: false,
     });
 
@@ -137,7 +136,6 @@ describe("VoiceCaptureController", () => {
 
     const released = controller.recoverStaleLeases({
       voiceState: "recording",
-      lowLatencyVoice: false,
       passiveListenerActive: false,
     });
 

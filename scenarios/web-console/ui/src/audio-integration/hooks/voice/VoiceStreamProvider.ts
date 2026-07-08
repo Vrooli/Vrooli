@@ -10,19 +10,19 @@
 // Chunks are buffered in pendingChunks until the WebSocket is ready.
 
 import { transcribeAudioWithRetry, buildVoiceStreamWsUrl } from "../../api/voice";
-import { isStreamUsable } from "./micReadiness";
+import { isStreamUsable } from "./streamHealth";
 import { acquireMicStream, releaseMicLease, type MicLease, type MicReleaseReason } from "./micOwnership";
 import type { LastTurnAudio, TranscriptionProvider } from "./types";
-import { AUDIO_BITRATE, STREAM_CHUNK_INTERVAL_MS, WHISPER_FAILED_SENTINEL, computeFinalTimeout } from "./types";
+import { AUDIO_BITRATE, STREAM_CHUNK_INTERVAL_MS, WHISPER_FAILED_SENTINEL, classifyMicError, computeFinalTimeout } from "./types";
 
 export class VoiceStreamProvider implements TranscriptionProvider {
   private ws: WebSocket | null = null;
   private mediaRecorder: MediaRecorder | null = null;
   private stream: MediaStream | null = null;
   /**
-   * Lease for a stream this provider acquired itself (registry-owned). Null when
-   * using an injected pre-warmed stream — micReadiness owns that lease, so this
-   * provider must never stop its tracks.
+   * Registry lease for the mic stream this provider acquired. The provider
+   * always owns its own stream, so this is non-null while capturing and its
+   * release stops the tracks.
    * DOC: docs/internal/SEAMS.md#mic-ownership-seam
    */
   private lease: MicLease | null = null;
@@ -81,10 +81,6 @@ export class VoiceStreamProvider implements TranscriptionProvider {
    *  consumed by start() yet. Prevents start() from closing a pre-connected WS. */
   private isPreConnectedWs = false;
   language = "en";
-  /** When true, stop() does not call track.stop() — the stream is retained
-   *  for re-use by the mic readiness module (low-latency voice mode).
-   *  DOC: docs/internal/VOICE-LATENCY.md#audio-ducking-deep-dive */
-  retainStream = false;
   onResult: ((text: string) => void) | null = null;
   onError: ((error: string) => void) | null = null;
   onStatus: ((status: { code: string; message: string }) => void) | null = null;
@@ -113,11 +109,8 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   }
 
   /**
-   * Release a stream this provider acquired itself. No-op on the track when the
-   * stream was injected (lease === null) — micReadiness owns that lease and
-   * keeps it warm for re-use. This (not `retainStream`) is the discriminator,
-   * which also closes the latent leak where a fresh getUserMedia fallback ran
-   * while `retainStream` was still true.
+   * Release the mic stream this provider acquired (stops its tracks via the
+   * registry lease). Idempotent — the lease is nulled after release.
    */
   private releaseOwnStream(reason: MicReleaseReason): void {
     if (this.lease) {
@@ -468,8 +461,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     }, VoiceStreamProvider.PRE_CONNECT_TIMEOUT_MS);
   }
 
-  // DOC: docs/internal/VOICE-LATENCY.md#stream-injection-vs-stream-acquisition
-  async start(preWarmedStream?: MediaStream): Promise<void> {
+  async start(): Promise<void> {
     // Cancel pre-connect timeout since we're starting for real now
     if (this.preConnectTimer) {
       clearTimeout(this.preConnectTimer);
@@ -493,35 +485,18 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     this.releaseOwnStream("owner-replaced");
 
     // ── Stream acquisition ──
-    // DOC: docs/internal/VOICE-LATENCY.md#stream-injection-vs-stream-acquisition
-    //
-    // Accept an optional pre-warmed stream (from micReadiness.ts when low-latency
-    // voice mode is enabled). Only call getUserMedia if no pre-warmed stream is
-    // available or if its tracks have ended (browser revoked access).
-    // Reuse the pre-warmed stream ONLY if every track is live AND unmuted. A
-    // muted-but-live track flows no audio (sleep/wake, device change, another
-    // app holding the mic) and would silently record nothing — the historical
-    // "mic stuck until page reload" bug. isStreamUsable rejects that case so we
-    // fall through to a fresh getUserMedia, which actually recovers the device.
-    if (preWarmedStream && isStreamUsable(preWarmedStream)) {
-      // Injected pre-warmed stream — micReadiness owns its lease.
-      this.stream = preWarmedStream;
-      this.lease = null;
-      console.info("[voice] Low-latency: injecting pre-warmed stream into VoiceStreamProvider");
-    } else {
-      if (preWarmedStream) {
-        console.warn("[voice] Low-latency: pre-warmed stream not usable (ended or muted), provider will acquire fresh");
-      }
-      const micStart = Date.now();
-      try {
-        this.lease = await acquireMicStream("voice-stream", { audio: true });
-        this.stream = this.lease.stream;
-      } catch {
-        this.onError?.("Microphone access denied");
-        return;
-      }
-      console.info("[voice] getUserMedia took %dms", Date.now() - micStart);
+    // The provider always acquires (and owns) a fresh mic stream. We no longer
+    // accept an injected pre-warmed stream — holding a mic idle to save latency
+    // was the low-latency ducking/wedge anti-pattern that was removed.
+    const micStart = Date.now();
+    try {
+      this.lease = await acquireMicStream("voice-stream", { audio: true });
+      this.stream = this.lease.stream;
+    } catch (err) {
+      this.onError?.(classifyMicError(err));
+      return;
     }
+    console.info("[voice] getUserMedia took %dms", Date.now() - micStart);
 
     // A freshly-acquired track can briefly start muted and unmute within a few
     // hundred ms, so we do NOT hard-fail here (that would false-reject valid
@@ -654,9 +629,8 @@ export class VoiceStreamProvider implements TranscriptionProvider {
         // Snapshot retained audio AFTER the final ondataavailable fires so the
         // retained blob includes the last tail of the turn.
         this.snapshotLastTurn();
-        // Release only a stream this provider owns. An injected pre-warmed
-        // stream (lease === null) is kept alive by micReadiness for re-use.
-        // DOC: docs/internal/VOICE-LATENCY.md#audio-ducking-deep-dive
+        // Stop the mic — the turn is over. Releasing the lease stops the tracks
+        // so the OS mic indicator clears and the audio session is freed.
         this.releaseOwnStream("manual-stop");
       };
       this.mediaRecorder.stop();
@@ -707,10 +681,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     }
     this.ws?.close();
     this.ws = null;
-    // Release only a provider-owned stream. An injected pre-warmed stream
-    // (lease === null) belongs to micReadiness, whose own lifecycle / emergency
-    // cleanup releases it — disposing the provider must not stop another owner's
-    // tracks. DOC: docs/internal/SEAMS.md#mic-ownership-seam
+    // Release the provider-owned mic stream. DOC: docs/internal/SEAMS.md#mic-ownership-seam
     this.releaseOwnStream("unmount");
     this.pendingChunks = [];
     // Dispose is a full cleanup; drop retained audio too. The hook calls

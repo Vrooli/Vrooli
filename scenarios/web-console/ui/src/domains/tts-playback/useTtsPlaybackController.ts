@@ -21,7 +21,7 @@ import {
   nextIntentAfterUserPause,
   nextIntentAfterUserPlay,
   nextIntentAfterUserStop,
-  shouldAutoPlayIncomingEvent,
+  shouldQueueIncomingEvent,
   shouldShowPlaybackBar,
 } from "./utils";
 import { updateConversationCursor } from "../../api/conversation";
@@ -30,6 +30,7 @@ import { useTtsPlaybackIntentStore } from "./store";
 import {
   buildPlayNextEvent,
   initialPlaybackTransportState,
+  isPlaybackBusy,
   transitionPlaybackTransport,
   type PlaybackTransportEvent,
   type PlaybackTransportState,
@@ -84,6 +85,19 @@ const generateLoadId = (): string => {
   loadIdCounter += 1;
   return `load-${Date.now()}-${loadIdCounter}`;
 };
+
+// Phase 7: an assistant message arriving while TTS is already speaking is
+// enqueued here (bounded FIFO) and spoken when the current one ends, instead
+// of being silently dropped by the old `!isSpeaking` guard. Bounded so a
+// runaway stream cannot grow it without limit — on overflow the OLDEST pending
+// message is dropped so the freshest replies always survive.
+const MAX_AUTOPLAY_QUEUE = 8;
+
+interface PendingAutoplay {
+  sessionId: string;
+  event: ConversationEvent;
+  sendAck: IncomingPlaybackAck;
+}
 
 function summarizeFailureMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -153,6 +167,7 @@ export function useTtsPlaybackController({
   const playbackIntentRef = useRef(playbackIntent);
   playbackIntentRef.current = playbackIntent;
   const lastStartedEventRef = useRef<{ sessionId: string; eventId: string } | null>(null);
+  const pendingAutoplayRef = useRef<PendingAutoplay[]>([]);
 
   const smDispatch = useCallback((event: PlaybackTransportEvent) => {
     smDispatchRaw(event);
@@ -294,6 +309,76 @@ export function useTtsPlaybackController({
     });
   }, [ensurePlaybackData, getEvent, setPersistedTarget, setPlaybackIntent, smDispatch, speakText, stopPlayback]);
 
+  // Start auto-playing a single incoming assistant event immediately. This is
+  // the play-now body shared by the idle path (fresh arrival, nothing playing)
+  // and the drain path (a queued arrival whose turn has come). Queue authority
+  // for the ACTIVE item still lives in the SM; the pending FIFO only holds
+  // arrivals that have not started yet.
+  const startAutoPlay = useCallback((sessionId: string, event: ConversationEvent, sendAck: IncomingPlaybackAck) => {
+    setPersistedTarget({ sessionId, eventId: event.id });
+    const loadId = generateLoadId();
+    smDispatch({
+      type: "play",
+      sessionId,
+      eventId: event.id,
+      loadId,
+      queue: [event.id],
+      queueIndex: 0,
+    });
+    stopPlayback(sessionId);
+    void ensurePlaybackData(sessionId, event, auxRef.current.preferredVersion)
+      .then(({ text, paragraphs, version }) => {
+        const current = smStateRef.current;
+        if (current.status !== "loading" || current.loadId !== loadId) return;
+        smDispatch({ type: "loadResolved", loadId });
+        lastStartedEventRef.current = { sessionId, eventId: event.id };
+        sendAck("playback_started");
+        return speakText(sessionId, text, paragraphs, { eventId: event.id, version, initiatedBy: "auto" });
+      })
+      .then((usedBackend) => {
+        const current = smStateRef.current;
+        if (!usedBackend || current.status !== "playing" || current.sessionId !== sessionId || current.eventId !== event.id) {
+          if (!usedBackend) {
+            sendAck("playback_failed", "TTS provider not ready");
+          }
+          return;
+        }
+        sendAck("playback_succeeded", undefined, usedBackend);
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : "Speech failed";
+        const current = smStateRef.current;
+        if (current.status === "loading" && current.loadId === loadId) {
+          smDispatch({ type: "loadFailed", loadId, message });
+        } else if (current.status === "playing" && current.sessionId === sessionId && current.eventId === event.id) {
+          smDispatch({ type: "playbackError", message });
+        }
+        sendAck("playback_failed", message);
+      });
+  }, [ensurePlaybackData, setPersistedTarget, smDispatch, speakText, stopPlayback]);
+
+  // Enqueue an assistant event that arrived while playback is busy. Deduped
+  // against the currently-active event and anything already pending; bounded.
+  const enqueuePendingAutoplay = useCallback((sessionId: string, event: ConversationEvent, sendAck: IncomingPlaybackAck) => {
+    const sm = smStateRef.current;
+    const activeEventId = sm.status !== "idle" && sm.status !== "error" ? sm.eventId : null;
+    if (event.id === activeEventId) return;
+    const queue = pendingAutoplayRef.current;
+    if (queue.some((p) => p.sessionId === sessionId && p.event.id === event.id)) return;
+    queue.push({ sessionId, event, sendAck });
+    while (queue.length > MAX_AUTOPLAY_QUEUE) queue.shift();
+  }, []);
+
+  // Start the next pending auto-play, if any. Called when the current track
+  // ends and the SM's own queue has nothing left. Honors the current intent so
+  // a user pause/stop between tracks is respected.
+  const drainPendingAutoplay = useCallback(() => {
+    if (playbackIntentRef.current !== "continuous") return;
+    const next = pendingAutoplayRef.current.shift();
+    if (!next) return;
+    startAutoPlay(next.sessionId, next.event, next.sendAck);
+  }, [startAutoPlay]);
+
   const playEvent = useCallback((sessionId: string, eventId: string) => {
     beginQueue(sessionId, [eventId], 0);
   }, [beginQueue]);
@@ -351,10 +436,14 @@ export function useTtsPlaybackController({
         if (nextEvent && nextEvent.type === "play") {
           // Dispatch + drive side effects via beginQueue's path
           beginQueue(current.sessionId, current.queue, nextEvent.queueIndex);
+        } else {
+          // SM queue exhausted — speak the next message that arrived while this
+          // one was playing (Phase 7), rather than going quiet and dropping it.
+          drainPendingAutoplay();
         }
       }
     }
-  }, [audioState.isSpeaking, audioState.playback?.isPaused, beginQueue, getEvent, persistListened, setPersistedTarget, setPlaybackIntent, smDispatch]);
+  }, [audioState.isSpeaking, audioState.playback?.isPaused, beginQueue, drainPendingAutoplay, getEvent, persistListened, setPersistedTarget, setPlaybackIntent, smDispatch]);
 
   const toggleVersion = useCallback((sessionId: string, eventId: string, useSummarized: boolean) => {
     const event = getEvent(sessionId, eventId);
@@ -455,57 +544,24 @@ export function useTtsPlaybackController({
   // assistant streaming begins speaking before the user hits play).
   const handleIncomingEvent = useCallback((sessionId: string, event: ConversationEvent, sendAck: IncomingPlaybackAck) => {
     if (event.role !== "assistant") return;
-    if (!shouldAutoPlayIncomingEvent({
+    if (!shouldQueueIncomingEvent({
       autoTtsEnabled,
       playbackIntent: playbackIntentRef.current,
       activePaneId,
       sessionId,
       event,
-      isSpeaking: audioState.isSpeaking,
     })) {
       return;
     }
-    setPersistedTarget({ sessionId, eventId: event.id });
-    const loadId = generateLoadId();
-    smDispatch({
-      type: "play",
-      sessionId,
-      eventId: event.id,
-      loadId,
-      queue: [event.id],
-      queueIndex: 0,
-    });
-    stopPlayback(sessionId);
-    void ensurePlaybackData(sessionId, event, auxRef.current.preferredVersion)
-      .then(({ text, paragraphs, version }) => {
-        const current = smStateRef.current;
-        if (current.status !== "loading" || current.loadId !== loadId) return;
-        smDispatch({ type: "loadResolved", loadId });
-        lastStartedEventRef.current = { sessionId, eventId: event.id };
-        sendAck("playback_started");
-        return speakText(sessionId, text, paragraphs, { eventId: event.id, version, initiatedBy: "auto" });
-      })
-      .then((usedBackend) => {
-        const current = smStateRef.current;
-        if (!usedBackend || current.status !== "playing" || current.sessionId !== sessionId || current.eventId !== event.id) {
-          if (!usedBackend) {
-            sendAck("playback_failed", "TTS provider not ready");
-          }
-          return;
-        }
-        sendAck("playback_succeeded", undefined, usedBackend);
-      })
-      .catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : "Speech failed";
-        const current = smStateRef.current;
-        if (current.status === "loading" && current.loadId === loadId) {
-          smDispatch({ type: "loadFailed", loadId, message });
-        } else if (current.status === "playing" && current.sessionId === sessionId && current.eventId === event.id) {
-          smDispatch({ type: "playbackError", message });
-        }
-        sendAck("playback_failed", message);
-      });
-  }, [activePaneId, audioState.isSpeaking, autoTtsEnabled, ensurePlaybackData, setPersistedTarget, smDispatch, speakText, stopPlayback]);
+    // If playback is already busy, queue this message and speak it when the
+    // current one ends (Phase 7) instead of dropping it on the floor. Otherwise
+    // start it immediately.
+    if (audioState.isSpeaking || isPlaybackBusy(smStateRef.current)) {
+      enqueuePendingAutoplay(sessionId, event, sendAck);
+      return;
+    }
+    startAutoPlay(sessionId, event, sendAck);
+  }, [activePaneId, audioState.isSpeaking, autoTtsEnabled, enqueuePendingAutoplay, startAutoPlay]);
 
   const handleTransportEventStart = useCallback((sessionId: string, eventId: string | null) => {
     if (!eventId) return;
@@ -558,6 +614,9 @@ export function useTtsPlaybackController({
 
   const stopPlaybackWithIntent = useCallback((sessionId: string | null) => {
     setPlaybackIntent(nextIntentAfterUserStop());
+    // An explicit user stop cancels the whole auto-play tail, including any
+    // messages queued behind the current one.
+    pendingAutoplayRef.current = [];
     if (sessionId) stopPlayback(sessionId);
     smDispatch({ type: "stop" });
   }, [setPlaybackIntent, smDispatch, stopPlayback]);

@@ -132,6 +132,110 @@ describe("KokoroProvider.speakSequence (pipelined)", () => {
     expect(playSpy).toHaveBeenCalledTimes(2);
   });
 
+  it("continues past a single failed paragraph (retry recovers) and plays all in order", async () => {
+    const calls: Record<string, number> = {};
+    const synthesizeWithMetrics: KokoroSynthesizeWithMetricsFn = vi.fn(async (text: string) => {
+      calls[text] = (calls[text] ?? 0) + 1;
+      // "two" rejects on its FIRST synth; the retry (2nd call) succeeds.
+      if (text === "two" && calls[text] === 1) throw new Error("synth failed");
+      return {
+        blob: new Blob([new Uint8Array([1])], { type: "audio/mpeg" }),
+        metrics: { requestId: text, synthStartMs: 0, totalChars: text.length },
+      };
+    });
+    const outcomes: string[] = [];
+    const playSpy = vi.spyOn(HTMLMediaElement.prototype, "play");
+    const provider = new KokoroProvider({ synthesizeWithMetrics });
+    provider.onParagraphOutcome = ({ outcome }) => outcomes.push(outcome);
+
+    const playPromise = provider.speakSequence(["one", "two", "three"]);
+    for (let i = 0; i < 3; i++) {
+      await new Promise((r) => setTimeout(r, 0));
+      ctl.triggerEnded();
+    }
+    await playPromise;
+
+    expect(playSpy).toHaveBeenCalledTimes(3); // every paragraph played
+    expect(calls["two"]).toBe(2); // failed once, retried once
+    expect(outcomes).toEqual(["retried"]);
+  });
+
+  it("falls back to the browser voice when a paragraph fails synth twice, and keeps going", async () => {
+    class FakeUtterance {
+      text: string;
+      rate = 1;
+      onend: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      constructor(t: string) { this.text = t; }
+    }
+    const spoken: string[] = [];
+    const fakeSynth = {
+      speak: (u: FakeUtterance) => { spoken.push(u.text); setTimeout(() => u.onend?.(), 0); },
+      cancel: () => undefined,
+    };
+    (globalThis as unknown as { SpeechSynthesisUtterance: unknown }).SpeechSynthesisUtterance = FakeUtterance;
+    Object.defineProperty(window, "speechSynthesis", { value: fakeSynth, configurable: true });
+
+    try {
+      const synthesizeWithMetrics: KokoroSynthesizeWithMetricsFn = vi.fn(async (text: string) => {
+        if (text === "two") throw new Error("synth permanently failed");
+        return {
+          blob: new Blob([new Uint8Array([1])], { type: "audio/mpeg" }),
+          metrics: { requestId: text, synthStartMs: 0, totalChars: text.length },
+        };
+      });
+      const outcomes: string[] = [];
+      const playSpy = vi.spyOn(HTMLMediaElement.prototype, "play");
+      const provider = new KokoroProvider({ synthesizeWithMetrics });
+      provider.onParagraphOutcome = ({ outcome }) => outcomes.push(outcome);
+
+      const playPromise = provider.speakSequence(["one", "two", "three"]);
+      // "one" plays (fire ended), "two" falls to browser voice (no HTMLAudio
+      // play), "three" plays (fire ended).
+      await new Promise((r) => setTimeout(r, 0));
+      ctl.triggerEnded(); // one
+      await new Promise((r) => setTimeout(r, 0)); // two via browser voice
+      await new Promise((r) => setTimeout(r, 0));
+      ctl.triggerEnded(); // three
+      await playPromise;
+
+      expect(playSpy).toHaveBeenCalledTimes(2); // only "one" and "three" via Kokoro
+      expect(spoken).toEqual(["two"]); // "two" spoken by the browser voice
+      expect(outcomes).toEqual(["fell-back"]);
+    } finally {
+      delete (globalThis as unknown as { SpeechSynthesisUtterance?: unknown }).SpeechSynthesisUtterance;
+      delete (window as unknown as { speechSynthesis?: unknown }).speechSynthesis;
+    }
+  });
+
+  it("skips a paragraph (with notice) when synth fails and no browser voice exists, still finishing", async () => {
+    // Ensure no browser voice is available so the fallback skips.
+    delete (globalThis as unknown as { SpeechSynthesisUtterance?: unknown }).SpeechSynthesisUtterance;
+    delete (window as unknown as { speechSynthesis?: unknown }).speechSynthesis;
+
+    const synthesizeWithMetrics: KokoroSynthesizeWithMetricsFn = vi.fn(async (text: string) => {
+      if (text === "two") throw new Error("synth permanently failed");
+      return {
+        blob: new Blob([new Uint8Array([1])], { type: "audio/mpeg" }),
+        metrics: { requestId: text, synthStartMs: 0, totalChars: text.length },
+      };
+    });
+    const outcomes: string[] = [];
+    const playSpy = vi.spyOn(HTMLMediaElement.prototype, "play");
+    const provider = new KokoroProvider({ synthesizeWithMetrics });
+    provider.onParagraphOutcome = ({ outcome }) => outcomes.push(outcome);
+
+    const playPromise = provider.speakSequence(["one", "two", "three"]);
+    await new Promise((r) => setTimeout(r, 0));
+    ctl.triggerEnded(); // one
+    await new Promise((r) => setTimeout(r, 0)); // two skipped
+    ctl.triggerEnded(); // three
+    await playPromise;
+
+    expect(playSpy).toHaveBeenCalledTimes(2); // "two" skipped
+    expect(outcomes).toEqual(["skipped"]);
+  });
+
   it("abort cancels all pending synth promises", async () => {
     const aborted: AbortSignal[] = [];
     type Result = { blob: Blob; metrics: { requestId: string; synthStartMs: number; totalChars: number } };
@@ -152,5 +256,66 @@ describe("KokoroProvider.speakSequence (pipelined)", () => {
     // Every pending synth signal must have been aborted.
     expect(aborted.length).toBeGreaterThan(0);
     for (const s of aborted) expect(s.aborted).toBe(true);
+  });
+
+  it("threads eventId + per-paragraph chunkIndex into synth cache control", async () => {
+    // Phase 7 cache: each paragraph of a message is synthesized under its own
+    // chunk index so the server byte cache stores per-paragraph audio without
+    // collision. The provider must pass cache={eventId, chunkIndex:i} for i=0..N.
+    type Result = { blob: Blob; metrics: { requestId: string; synthStartMs: number; totalChars: number } };
+    const seen: Array<{ text: string; cache: unknown }> = [];
+    const synthesizeWithMetrics: KokoroSynthesizeWithMetricsFn = async (text, _voice, _speed, _signal, cache) => {
+      seen.push({ text, cache });
+      const r: Result = { blob: new Blob([new Uint8Array([1])], { type: "audio/mpeg" }), metrics: { requestId: "r", synthStartMs: 0, totalChars: 1 } };
+      return r;
+    };
+    const provider = new KokoroProvider({ synthesizeWithMetrics });
+
+    const playPromise = provider.speakSequence(["alpha", "beta", "gamma"], { eventId: "evt-9", version: "active" });
+    for (let i = 0; i < 3; i++) {
+      await new Promise((r) => setTimeout(r, 0));
+      ctl.triggerEnded();
+    }
+    await playPromise;
+
+    expect(seen.map((s) => s.cache)).toEqual([
+      { eventId: "evt-9", version: "active", chunkIndex: 0 },
+      { eventId: "evt-9", version: "active", chunkIndex: 1 },
+      { eventId: "evt-9", version: "active", chunkIndex: 2 },
+    ]);
+  });
+
+  it("omits cache control when no eventId is supplied (one-off speech is never cached)", async () => {
+    type Result = { blob: Blob; metrics: { requestId: string; synthStartMs: number; totalChars: number } };
+    const caches: unknown[] = [];
+    const synthesizeWithMetrics: KokoroSynthesizeWithMetricsFn = async (_text, _voice, _speed, _signal, cache) => {
+      caches.push(cache);
+      return { blob: new Blob([new Uint8Array([1])], { type: "audio/mpeg" }), metrics: { requestId: "r", synthStartMs: 0, totalChars: 1 } } as Result;
+    };
+    const provider = new KokoroProvider({ synthesizeWithMetrics });
+    const playPromise = provider.speakSequence(["a", "b"]);
+    for (let i = 0; i < 2; i++) {
+      await new Promise((r) => setTimeout(r, 0));
+      ctl.triggerEnded();
+    }
+    await playPromise;
+    expect(caches).toEqual([undefined, undefined]);
+  });
+
+  it("speakFromBlobs replays N cached chunks in order without synthesizing", async () => {
+    const synthesizeWithMetrics = vi.fn();
+    const provider = new KokoroProvider({ synthesizeWithMetrics: synthesizeWithMetrics as unknown as KokoroSynthesizeWithMetricsFn });
+    const blobs = [
+      new Blob([new Uint8Array([1])], { type: "audio/mpeg" }),
+      new Blob([new Uint8Array([2])], { type: "audio/mpeg" }),
+    ];
+    const playPromise = provider.speakFromBlobs(blobs);
+    for (let i = 0; i < 2; i++) {
+      await new Promise((r) => setTimeout(r, 0));
+      ctl.triggerEnded();
+    }
+    await playPromise;
+    expect(synthesizeWithMetrics).not.toHaveBeenCalled();
+    expect(provider.isSpeaking).toBe(false);
   });
 });

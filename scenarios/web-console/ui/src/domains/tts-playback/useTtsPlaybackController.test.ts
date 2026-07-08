@@ -401,6 +401,89 @@ describe("useTtsPlaybackController", () => {
     expect(ack).toHaveBeenCalledWith("playback_started");
   });
 
+  it("queues an assistant message that arrives mid-playback and speaks it after the current one", async () => {
+    const e1 = makeEvent({ id: "e1", sequence: 1, summarized: true });
+    const e2 = makeEvent({ id: "e2", sequence: 2, summarized: true });
+    const sessions = { "sess-1": { events: [e1, e2] } };
+    const speakText = vi.fn().mockResolvedValue("browser");
+
+    const props = {
+      conversationSessions: sessions,
+      activePaneId: "sess-1",
+      autoTtsEnabled: true,
+      audioState: { playback: null, isSpeaking: false },
+      setViewMode: vi.fn(),
+      speakText,
+      stopPlayback: vi.fn(),
+      applySummarizeResult: vi.fn(),
+      onSummarizeFailed: vi.fn(),
+      onSummarizeSucceeded: vi.fn(),
+    };
+
+    const { result, rerender } = renderHook((p) => useTtsPlaybackController(p), { initialProps: props });
+    await waitFor(() => expect(result.current.summarizeLevel).toBe("moderate"));
+
+    // First message starts playing.
+    act(() => { result.current.handleIncomingEvent("sess-1", e1, vi.fn()); });
+    await waitFor(() => expect(speakText).toHaveBeenCalledWith(
+      "sess-1", e1.text, e1.speechParagraphs, { eventId: "e1", version: "active", initiatedBy: "auto" },
+    ));
+
+    // Audio actually starts.
+    rerender({ ...props, audioState: { playback: null, isSpeaking: true } });
+
+    // A second message arrives WHILE the first is speaking. It must be queued,
+    // not dropped — so speakText has not yet been called for it.
+    act(() => { result.current.handleIncomingEvent("sess-1", e2, vi.fn()); });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(speakText).toHaveBeenCalledTimes(1);
+
+    // The first track ends → the queued message is spoken.
+    rerender({ ...props, audioState: { playback: null, isSpeaking: false } });
+    await waitFor(() => expect(speakText).toHaveBeenCalledWith(
+      "sess-1", e2.text, e2.speechParagraphs, { eventId: "e2", version: "active", initiatedBy: "auto" },
+    ));
+  });
+
+  it("clears the pending auto-play queue on an explicit user stop", async () => {
+    const e1 = makeEvent({ id: "e1", sequence: 1, summarized: true });
+    const e2 = makeEvent({ id: "e2", sequence: 2, summarized: true });
+    const sessions = { "sess-1": { events: [e1, e2] } };
+    const speakText = vi.fn().mockResolvedValue("browser");
+
+    const props = {
+      conversationSessions: sessions,
+      activePaneId: "sess-1",
+      autoTtsEnabled: true,
+      audioState: { playback: null, isSpeaking: false },
+      setViewMode: vi.fn(),
+      speakText,
+      stopPlayback: vi.fn(),
+      applySummarizeResult: vi.fn(),
+      onSummarizeFailed: vi.fn(),
+      onSummarizeSucceeded: vi.fn(),
+    };
+
+    const { result, rerender } = renderHook((p) => useTtsPlaybackController(p), { initialProps: props });
+    await waitFor(() => expect(result.current.summarizeLevel).toBe("moderate"));
+
+    act(() => { result.current.handleIncomingEvent("sess-1", e1, vi.fn()); });
+    await waitFor(() => expect(speakText).toHaveBeenCalledTimes(1));
+
+    rerender({ ...props, audioState: { playback: null, isSpeaking: true } });
+    act(() => { result.current.handleIncomingEvent("sess-1", e2, vi.fn()); });
+
+    // User stops: the queued message must be discarded.
+    act(() => { result.current.stopPlayback("sess-1"); });
+    rerender({ ...props, audioState: { playback: null, isSpeaking: false } });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(speakText).toHaveBeenCalledTimes(1);
+    expect(speakText).not.toHaveBeenCalledWith(
+      "sess-1", e2.text, e2.speechParagraphs, expect.objectContaining({ eventId: "e2" }),
+    );
+  });
+
   it("does not replace replay target for inactive-pane incoming events", async () => {
     const priorTarget = { sessionId: "sess-1", eventId: "prior" };
     useTtsPlaybackIntentStore.setState({ selectedTarget: priorTarget });

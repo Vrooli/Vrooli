@@ -145,7 +145,6 @@ export class VoiceCaptureController {
    */
   recoverStaleLeases(input: {
     voiceState: VoiceStateLite;
-    lowLatencyVoice: boolean;
     passiveListenerActive: boolean;
     reason?: MicReleaseReason;
   }): Array<{ id: string; owner: MicOwner }> {
@@ -154,7 +153,6 @@ export class VoiceCaptureController {
     const stale = selectStaleLeases({
       leases: snapshot,
       voiceState: input.voiceState,
-      lowLatencyVoice: input.lowLatencyVoice,
       passiveListenerActive: input.passiveListenerActive,
     });
     if (stale.length === 0) return [];

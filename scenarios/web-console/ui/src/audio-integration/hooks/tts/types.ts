@@ -72,6 +72,15 @@ export interface TTSProvider {
   /** Register a callback that fires during playback (~4 Hz from timeupdate). */
   onProgress?(callback: TTSPlaybackProgressCallback | null): void;
   /**
+   * Optional one-shot-style hook fired whenever this provider transitions to
+   * idle — i.e. a speak/speakSequence/speakFromBlob call finished, was stopped,
+   * or errored out and `isSpeaking` is now false. The playback registry uses it
+   * to dispose a provider that outlived its owning component (see
+   * playbackRegistry.ts): once an orphaned provider settles, it is torn down.
+   * Never affects playback; safe to be null.
+   */
+  onSettled?: (() => void) | null;
+  /**
    * Speak multiple texts as a single unified audio stream.
    * Providers that support this synthesize all segments up front, concatenate
    * the audio, and play it as one track — giving accurate total duration and
@@ -86,6 +95,15 @@ export interface TTSSpeakOptions {
   voice?: string;
   rate?: number;
   pitch?: number;
+  /**
+   * Conversation event id. When set (Kokoro backend), each synthesized
+   * paragraph is threaded through to the server byte cache under
+   * (eventId, voice, speed, version, chunkIndex) so a later replay serves from
+   * cache instead of re-synthesizing. Omit for one-off / test speech.
+   */
+  eventId?: string;
+  /** Cache version selector for eventId caching ("active" | "original"). */
+  version?: string;
 }
 
 export interface TTSVoiceInfo {

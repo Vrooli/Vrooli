@@ -1,12 +1,13 @@
 import type { TTSPlaybackCapabilities, TTSPlaybackProgressCallback, TTSPlaybackState, TTSProvider, TTSSpeakOptions } from "./types";
 import * as ttsApi from "../../api/tts";
-import type { TTSSynthesisMetrics } from "../../api/tts";
+import type { TTSSynthesisMetrics, TTSCacheControl } from "../../api/tts";
 
 export type KokoroSynthesizeFn = (
   input: string,
   voice?: string,
   speed?: number,
   signal?: AbortSignal,
+  cache?: TTSCacheControl,
 ) => Promise<Blob>;
 
 export type KokoroSynthesizeWithMetricsFn = (
@@ -14,6 +15,7 @@ export type KokoroSynthesizeWithMetricsFn = (
   voice?: string,
   speed?: number,
   signal?: AbortSignal,
+  cache?: TTSCacheControl,
 ) => Promise<{ blob: Blob; metrics: TTSSynthesisMetrics }>;
 
 export interface KokoroProviderOptions {
@@ -57,6 +59,25 @@ const SILENT_WAV_DATA_URL =
 // Lives here (not in config) per plan section 8.
 const SPEAK_SEQUENCE_CONCURRENCY = 2;
 
+/**
+ * Non-fatal outcome for a single paragraph inside speakSequence when its
+ * primary synth+play failed but the sequence continued: it was recovered by a
+ * retry, recovered via the browser voice, or skipped after all recovery failed.
+ * Surfaced through KokoroProvider.onParagraphOutcome for observability; it never
+ * affects whether the remaining paragraphs play.
+ */
+export type TTSParagraphOutcome = "retried" | "fell-back" | "skipped";
+
+/** True for an intentional stop/dispose abort (as opposed to a paragraph
+ *  synth-reject or decode error, which must NOT halt the whole sequence). */
+function isAbortError(err: unknown): boolean {
+  return (
+    err instanceof DOMException
+      ? err.name === "AbortError"
+      : typeof err === "object" && err !== null && (err as { name?: string }).name === "AbortError"
+  );
+}
+
 export class KokoroProvider implements TTSProvider {
   private _isSpeaking = false;
   private _isPaused = false;
@@ -67,6 +88,20 @@ export class KokoroProvider implements TTSProvider {
   private playbackReject: ((reason?: unknown) => void) | null = null;
   private progressCallback: TTSPlaybackProgressCallback | null = null;
   private unlocked = false;
+
+  /**
+   * Optional non-fatal per-paragraph outcome hook, fired when a paragraph in
+   * speakSequence was retried, fell back to the browser voice, or was skipped.
+   * Wired by the observability layer; it never blocks or halts playback.
+   */
+  onParagraphOutcome: ((info: { index: number; outcome: TTSParagraphOutcome; text: string }) => void) | null = null;
+
+  /**
+   * Fired whenever the provider settles to idle (a terminal speak call finished,
+   * was stopped, or errored). Used by the playback registry to dispose an
+   * orphaned provider once its tail completes. Non-fatal; never gates playback.
+   */
+  onSettled: (() => void) | null = null;
 
   readonly capabilities: TTSPlaybackCapabilities = {
     canPause: true,
@@ -82,14 +117,14 @@ export class KokoroProvider implements TTSProvider {
       this.synthesizeWithMetrics = options.synthesizeWithMetrics;
     } else if (options.synthesize) {
       const synth = options.synthesize;
-      this.synthesizeWithMetrics = async (input, voice, speed, signal) => ({
-        blob: await synth(input, voice, speed, signal),
+      this.synthesizeWithMetrics = async (input, voice, speed, signal, cache) => ({
+        blob: await synth(input, voice, speed, signal, cache),
         // Test-injected synthesize: no requestId, telemetry sentinel only.
         metrics: { requestId: "test-no-rid", synthStartMs: 0, totalChars: input.length },
       });
     } else {
-      this.synthesizeWithMetrics = (input, voice, speed, signal) =>
-        ttsApi.synthesizeTTSWithMetrics(input, voice, speed, signal);
+      this.synthesizeWithMetrics = (input, voice, speed, signal, cache) =>
+        ttsApi.synthesizeTTSWithMetrics(input, voice, speed, signal, cache);
     }
     this.audio = new Audio();
     this.audio.addEventListener("timeupdate", this.handleTimeUpdate);
@@ -127,6 +162,14 @@ export class KokoroProvider implements TTSProvider {
     return this.unlocked;
   }
 
+  /** Build server cache-control for a paragraph. Only meaningful when the
+   *  caller supplied an eventId (Kokoro auto/replay path); undefined otherwise,
+   *  so one-off / test speech is never cached. */
+  private cacheControl(opts: TTSSpeakOptions | undefined, chunkIndex: number): TTSCacheControl | undefined {
+    if (!opts?.eventId) return undefined;
+    return { eventId: opts.eventId, version: opts.version, chunkIndex };
+  }
+
   async speak(text: string, opts?: TTSSpeakOptions): Promise<void> {
     this.stop();
     this.abortController = new AbortController();
@@ -135,7 +178,7 @@ export class KokoroProvider implements TTSProvider {
     const signal = this.abortController.signal;
 
     try {
-      const { blob, metrics } = await this.synthesizeWithMetrics(text, opts?.voice, opts?.rate, signal);
+      const { blob, metrics } = await this.synthesizeWithMetrics(text, opts?.voice, opts?.rate, signal, this.cacheControl(opts, 0));
       this.throwIfAborted(signal);
 
       // Kokoro returns 0-byte audio for non-speakable input (e.g. "---",
@@ -181,7 +224,7 @@ export class KokoroProvider implements TTSProvider {
         const i = nextToKick++;
         const text = texts[i] ?? "";
         inFlight++;
-        synths[i] = this.synthesizeWithMetrics(text, opts?.voice, opts?.rate, signal)
+        synths[i] = this.synthesizeWithMetrics(text, opts?.voice, opts?.rate, signal, this.cacheControl(opts, i))
           .finally(() => { inFlight--; kick(); });
         // Surface synth rejections via the consumer await below; .catch here
         // would swallow them. The unhandled-rejection window is bounded by
@@ -193,20 +236,124 @@ export class KokoroProvider implements TTSProvider {
 
     try {
       for (let i = 0; i < texts.length; i++) {
+        if (signal.aborted) throw this.createAbortError();
         const promise = synths[i];
         if (!promise) continue;
-        const { blob, metrics } = await promise;
-        this.throwIfAborted(signal);
-        if (blob.size === 0) continue;
-        await this.playBlobAndWait(blob, metrics);
-        if (signal.aborted) throw this.createAbortError();
+        // Per-paragraph resilience: a single paragraph's synth-reject or decode
+        // error is isolated (retry once, else browser-voice fallback, else
+        // skip-with-notice) and the sequence CONTINUES. Only a real abort
+        // (stop/dispose) propagates and halts the tail.
+        await this.playParagraphResilient(i, promise, texts[i] ?? "", opts, signal);
       }
       this.cleanup();
     } catch (err) {
-      // Cancel any not-yet-awaited synths so they abort upstream.
+      // Only a genuine abort reaches here now — paragraph failures are handled
+      // inline. Cancel any not-yet-awaited synths so they abort upstream.
       this.abortController?.abort();
       this.cleanup();
       throw err;
+    }
+  }
+
+  /**
+   * Play one paragraph of a sequence with graceful degradation. Attempts, in
+   * order: (1) the already-pipelined synth + play; (2) one fresh re-synth +
+   * play; (3) the browser speech voice; else skip. Every step short-circuits on
+   * a real abort (rethrown). A non-abort failure never halts the sequence — the
+   * outcome is reported via onParagraphOutcome and playback moves on.
+   */
+  private async playParagraphResilient(
+    index: number,
+    synthPromise: Promise<{ blob: Blob; metrics: TTSSynthesisMetrics }>,
+    text: string,
+    opts: TTSSpeakOptions | undefined,
+    signal: AbortSignal,
+  ): Promise<void> {
+    // Attempt 1: the in-flight pipelined synth.
+    try {
+      await this.synthAndPlay(synthPromise, signal);
+      return;
+    } catch (err) {
+      if (isAbortError(err) || signal.aborted) throw err;
+    }
+
+    // Attempt 2: retry this paragraph once with a fresh synth.
+    try {
+      const retry = this.synthesizeWithMetrics(text, opts?.voice, opts?.rate, signal, this.cacheControl(opts, index));
+      retry.catch(() => undefined); // bound the unhandled-rejection window
+      await this.synthAndPlay(retry, signal);
+      this.reportParagraphOutcome(index, "retried", text);
+      return;
+    } catch (err) {
+      if (isAbortError(err) || signal.aborted) throw err;
+    }
+
+    // Attempt 3: per-paragraph browser-voice fallback.
+    const spoke = await this.speakViaBrowser(text, opts, signal);
+    if (signal.aborted) throw this.createAbortError();
+    if (spoke) {
+      this.reportParagraphOutcome(index, "fell-back", text);
+      return;
+    }
+
+    // All recovery failed: skip THIS paragraph only, keep the sequence going.
+    this.reportParagraphOutcome(index, "skipped", text);
+  }
+
+  /** Await a synth and play its blob, mapping abort to createAbortError. A
+   *  0-byte blob (non-speakable input) counts as a clean, played paragraph. */
+  private async synthAndPlay(
+    synthPromise: Promise<{ blob: Blob; metrics: TTSSynthesisMetrics }>,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const { blob, metrics } = await synthPromise;
+    this.throwIfAborted(signal);
+    if (blob.size === 0) return;
+    await this.playBlobAndWait(blob, metrics);
+    if (signal.aborted) throw this.createAbortError();
+  }
+
+  /**
+   * Speak one paragraph with the browser SpeechSynthesis voice. Resolves true
+   * when the utterance finished, false when the browser voice is unavailable or
+   * errored. Honors the abort signal (cancels in-flight speech).
+   */
+  private speakViaBrowser(text: string, opts: TTSSpeakOptions | undefined, signal: AbortSignal): Promise<boolean> {
+    const synth = typeof window !== "undefined" ? window.speechSynthesis : undefined;
+    if (!synth || typeof SpeechSynthesisUtterance === "undefined" || !text.trim()) {
+      return Promise.resolve(false);
+    }
+    if (signal.aborted) return Promise.resolve(false);
+    return new Promise<boolean>((resolve) => {
+      let settled = false;
+      const finish = (ok: boolean): void => {
+        if (settled) return;
+        settled = true;
+        signal.removeEventListener("abort", onAbort);
+        resolve(ok);
+      };
+      const onAbort = (): void => {
+        try { synth.cancel(); } catch { /* ignore */ }
+        finish(false);
+      };
+      const utter = new SpeechSynthesisUtterance(text);
+      if (opts?.rate) utter.rate = opts.rate;
+      utter.onend = () => finish(true);
+      utter.onerror = () => finish(false);
+      signal.addEventListener("abort", onAbort, { once: true });
+      try {
+        synth.speak(utter);
+      } catch {
+        finish(false);
+      }
+    });
+  }
+
+  private reportParagraphOutcome(index: number, outcome: TTSParagraphOutcome, text: string): void {
+    try {
+      this.onParagraphOutcome?.({ index, outcome, text });
+    } catch {
+      /* observability must never break playback */
     }
   }
 
@@ -227,6 +374,39 @@ export class KokoroProvider implements TTSProvider {
       await this.playBlobAndWait(blob, null);
       this.cleanup();
     } catch (err) {
+      this.cleanup();
+      throw err;
+    }
+  }
+
+  /**
+   * Play a sequence of pre-fetched cache blobs (one per paragraph) in order,
+   * without any synthesis. The replay counterpart to speakSequence: a fully
+   * cached message plays end-to-end from the byte cache. Each blob is its own
+   * track (accurate per-paragraph boundaries); a real stop/dispose abort halts
+   * the tail, mirroring speakSequence. Empty blobs (non-speakable paragraphs)
+   * are skipped.
+   */
+  async speakFromBlobs(blobs: Blob[]): Promise<void> {
+    if (blobs.length === 0) return;
+    if (blobs.length === 1 && blobs[0]) return this.speakFromBlob(blobs[0]);
+
+    this.stop();
+    this.abortController = new AbortController();
+    this._isSpeaking = true;
+    this._isPaused = false;
+    const signal = this.abortController.signal;
+
+    try {
+      for (const blob of blobs) {
+        if (signal.aborted) throw this.createAbortError();
+        if (!blob || blob.size === 0) continue;
+        await this.playBlobAndWait(blob, null);
+        if (signal.aborted) throw this.createAbortError();
+      }
+      this.cleanup();
+    } catch (err) {
+      this.abortController?.abort();
       this.cleanup();
       throw err;
     }
@@ -330,7 +510,10 @@ export class KokoroProvider implements TTSProvider {
       }).catch((err: unknown) => {
         this.playbackResolve = null;
         this.playbackReject = null;
-        this.cleanup();
+        // Do NOT cleanup() here: speakSequence isolates a single paragraph's
+        // play failure and continues, so flipping _isSpeaking=false mid-sequence
+        // would corrupt the run. The terminal caller (speak / speakSequence /
+        // speakFromBlob catch, or stop) owns cleanup.
         reject(err instanceof Error ? err : new Error(String(err)));
       });
     });
@@ -357,7 +540,9 @@ export class KokoroProvider implements TTSProvider {
     const reject = this.playbackReject;
     this.playbackResolve = null;
     this.playbackReject = null;
-    this.cleanup();
+    // Do NOT cleanup() here (see playBlobAndWait catch): a decode error on one
+    // paragraph must not tear down a sequence that will retry / continue. The
+    // terminal caller owns cleanup.
     const mediaError = this.audio.error;
     reject?.(new Error(mediaError?.message ?? "Audio playback error"));
   };
@@ -365,6 +550,9 @@ export class KokoroProvider implements TTSProvider {
   private cleanup(): void {
     this._isSpeaking = false;
     this._isPaused = false;
+    // Notify the playback registry (if any) that this provider is now idle, so
+    // a handed-off/orphaned provider can be disposed once its tail completes.
+    this.onSettled?.();
   }
 
   private revokeBlobUrl(): void {

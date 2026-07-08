@@ -428,24 +428,29 @@ describe("useTextToSpeech", () => {
       playback = result.current.speakParagraphs(["para 1", "para 2"]);
       await Promise.resolve();
     });
-    await waitFor(() => {
-      expect(browserUtterances).toHaveLength(1);
-    });
-    await act(async () => {
-      browserUtterances.shift()?.onend?.();
-      await Promise.resolve();
-    });
+
+    // Resilient speakSequence (Phase 5) degrades PER PARAGRAPH: each paragraph
+    // whose Kokoro synth fails (after a retry) falls back to the browser voice
+    // independently and the sequence continues. So both paragraphs surface as
+    // their own browser utterance; drain them one at a time.
+    for (let i = 0; i < 2; i++) {
+      await waitFor(() => {
+        expect(browserUtterances.length).toBeGreaterThanOrEqual(i + 1);
+      });
+      await act(async () => {
+        browserUtterances[i]?.onend?.();
+        await Promise.resolve();
+      });
+    }
     await act(async () => {
       await playback;
     });
 
-    await waitFor(() => {
-      expect(mockSynthSpeak).toHaveBeenCalled();
-    });
+    // Every paragraph still played — via the browser voice — and playback ended.
+    expect(mockSynthSpeak).toHaveBeenCalledTimes(2);
     await waitFor(() => {
       expect(result.current.isSpeaking).toBe(false);
     });
-    expect(result.current.backendReason).toContain("Browser handled playback");
   });
 
   it("pause and resume control the active fallback browser provider after runtime kokoro failure", async () => {
@@ -762,6 +767,60 @@ describe("useTextToSpeech", () => {
         fakeAudio.dispatchEvent(new Event("ended"));
         await playback;
       });
+    });
+
+    it("replays a fully-cached multi-paragraph message per chunk without synthesizing", async () => {
+      mockFetchCaps.mockResolvedValue({
+        capabilities: [{ id: "kokoro-tts", status: "available" }],
+        timestamp: new Date().toISOString(),
+      });
+      mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
+      // Distinct cached blob per chunk index — a full hit.
+      mockFetchCachedTTS.mockImplementation((_e: string, _v: string, _s: number, _ver: string, _sig: unknown, chunkIndex = 0) =>
+        Promise.resolve(new Blob([`chunk-${chunkIndex}`], { type: "audio/mp3" })));
+
+      const { result } = renderHook(() => useTextToSpeech({ ...defaultSettings, backendPreference: "kokoro" }));
+      await waitFor(() => expect(result.current.backend).toBe("kokoro"));
+
+      let playback!: Promise<unknown>;
+      await act(async () => {
+        playback = result.current.speakParagraphs(["para one", "para two"], { eventId: "evt-multi", version: "active" });
+        await Promise.resolve();
+      });
+      // Two tracks: dispatch 'ended' for each.
+      await act(async () => { fakeAudio.dispatchEvent(new Event("ended")); await Promise.resolve(); });
+      await act(async () => { fakeAudio.dispatchEvent(new Event("ended")); await playback; });
+
+      // Both chunks were fetched by index; nothing was synthesized.
+      const indices = mockFetchCachedTTS.mock.calls.map((c: unknown[]) => c[5]);
+      expect(indices).toEqual([0, 1]);
+      expect(mockSynthesizeTTS).not.toHaveBeenCalled();
+    });
+
+    it("falls through to synthesis when any chunk is a cache miss", async () => {
+      mockFetchCaps.mockResolvedValue({
+        capabilities: [{ id: "kokoro-tts", status: "available" }],
+        timestamp: new Date().toISOString(),
+      });
+      mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
+      // Chunk 0 hits, chunk 1 misses → not fully cached → synthesize path.
+      mockFetchCachedTTS.mockImplementation((_e: string, _v: string, _s: number, _ver: string, _sig: unknown, chunkIndex = 0) =>
+        Promise.resolve(chunkIndex === 0 ? new Blob(["c0"], { type: "audio/mp3" }) : null));
+      mockSynthesizeTTS.mockResolvedValue(new Blob(["synth"], { type: "audio/mp3" }));
+
+      const { result } = renderHook(() => useTextToSpeech({ ...defaultSettings, backendPreference: "kokoro" }));
+      await waitFor(() => expect(result.current.backend).toBe("kokoro"));
+
+      let playback!: Promise<unknown>;
+      await act(async () => {
+        playback = result.current.speakParagraphs(["para one", "para two"], { eventId: "evt-partial", version: "active" });
+        await Promise.resolve();
+      });
+      await act(async () => { fakeAudio.dispatchEvent(new Event("ended")); await Promise.resolve(); });
+      await act(async () => { fakeAudio.dispatchEvent(new Event("ended")); await playback; });
+
+      // Fell through to synthesis (which repopulates the cache per chunk).
+      expect(mockSynthesizeTTS).toHaveBeenCalled();
     });
   });
 });

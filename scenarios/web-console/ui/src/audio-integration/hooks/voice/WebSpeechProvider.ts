@@ -6,6 +6,7 @@
 
 import { acquireMicStream, releaseMicLease, type MicLease } from "./micOwnership";
 import type { LastTurnAudio, TranscriptionProvider } from "./types";
+import { classifyMicError } from "./types";
 
 // Web Speech API type declarations (not included in all TS libs)
 interface SpeechRecognitionResultItem {
@@ -61,7 +62,7 @@ declare global {
 export class WebSpeechProvider implements TranscriptionProvider {
   private recognition: SpeechRecognitionInstance | null = null;
   private micStream: MediaStream | null = null;
-  /** Lease for a provider-acquired stream; null when an injected stream is used. */
+  /** Registry lease for the provider-acquired mic stream (level metering). */
   private lease: MicLease | null = null;
   private stopped = false;
   /** Tracks how many results have already been dispatched via onResult. */
@@ -94,30 +95,21 @@ export class WebSpeechProvider implements TranscriptionProvider {
   // tail-drop. No-op to satisfy the TranscriptionProvider interface.
   dropTail(): void {}
 
-  // DOC: docs/internal/VOICE-LATENCY.md#stream-injection-vs-stream-acquisition
-  async start(preWarmedStream?: MediaStream): Promise<void> {
+  async start(): Promise<void> {
     const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
     if (!Ctor) {
       console.info("[voice] WebSpeech: API not available");
       this.onError?.("Web Speech API not available");
       return;
     }
-    // Accept a pre-warmed stream (low-latency mode) or acquire a fresh one.
-    // The stream is used for audio level monitoring only — WebSpeech handles
-    // its own audio capture internally.
-    if (preWarmedStream && preWarmedStream.getTracks().every((t) => t.readyState === "live")) {
-      this.micStream = preWarmedStream;
-      this.lease = null;
-      console.info("[voice] WebSpeech: using pre-warmed stream for level monitoring");
-    } else {
-      try {
-        this.lease = await acquireMicStream("web-speech", { audio: true });
-        this.micStream = this.lease.stream;
-      } catch {
-        console.info("[voice] WebSpeech: mic access denied");
-        this.onError?.("Microphone access denied");
-        return;
-      }
+    // Acquire a fresh mic stream for audio level monitoring only — WebSpeech
+    // handles its own audio capture internally.
+    try {
+      this.lease = await acquireMicStream("web-speech", { audio: true });
+      this.micStream = this.lease.stream;
+    } catch (err) {
+      this.onError?.(classifyMicError(err));
+      return;
     }
     this.stopped = false;
     this.processedResultCount = 0;
@@ -175,8 +167,7 @@ export class WebSpeechProvider implements TranscriptionProvider {
     this.stopped = true;
     this.recognition?.stop();
     this.recognition = null;
-    // Release mic so the browser indicator turns off. Only a provider-owned
-    // stream is stopped; an injected stream belongs to micReadiness.
+    // Release mic so the browser indicator turns off.
     if (this.lease) {
       releaseMicLease(this.lease, "manual-stop");
       this.lease = null;

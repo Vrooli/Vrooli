@@ -75,6 +75,14 @@ END_OF_PADDING_ID = 0
 # 12.5 Hz, 16 frames ~= 1.3 s. Overridable for tuning.
 SILENCE_COMMIT_FRAMES = int(os.environ.get("KYUTAI_STT_SILENCE_COMMIT_FRAMES", "16"))
 
+# During CONTINUOUS speech (no pause long enough to trip SILENCE_COMMIT_FRAMES),
+# force-commit the pending segment once it has spanned this many frames, at the
+# next word boundary, so a long unbroken utterance still produces durable
+# segments instead of stalling as a volatile partial until the end flush. At
+# 12.5 Hz, 48 frames ~= 3.8 s. Set to 0 to disable force-commit (legacy
+# pause-or-flush-only behaviour). Sibling knob to SILENCE_COMMIT_FRAMES.
+MAX_SEGMENT_FRAMES = int(os.environ.get("KYUTAI_STT_MAX_SEGMENT_FRAMES", "48"))
+
 logging.basicConfig(
     level=os.environ.get("KYUTAI_STT_LOG_LEVEL", "INFO"),
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
@@ -309,6 +317,17 @@ class StreamSession:
             return
         # Non-padding: either a word boundary (0) or a real text token (>pad).
         self.pad_run = 0
+        if token == END_OF_PADDING_ID:
+            # Word boundary. If the pending segment has run past the force-commit
+            # window, commit it HERE so the split lands between words (never
+            # mid-word) — continuous speech commits durable text without a pause.
+            if (
+                MAX_SEGMENT_FRAMES > 0
+                and self.seg_start_frame is not None
+                and self.frames_consumed - self.seg_start_frame >= MAX_SEGMENT_FRAMES
+            ):
+                await self._commit_segment()
+            return
         if token > MODEL.text_padding_id:
             if self.seg_start_frame is None:
                 self.seg_start_frame = self.frames_consumed

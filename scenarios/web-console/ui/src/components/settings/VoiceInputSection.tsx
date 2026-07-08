@@ -75,8 +75,6 @@ export default function VoiceInputSection() {
   const setStorePersistentMode = useWorkspaceStore((state) => state.setPersistentMode);
   const setStoreWakeWordEnabled = useWorkspaceStore((state) => state.setWakeWordEnabled);
   const setStoreSegmentSilenceMs = useWorkspaceStore((state) => state.setSegmentSilenceMs);
-  const lowLatencyVoice = useWorkspaceStore((state) => state.lowLatencyVoice);
-  const setLowLatencyVoice = useWorkspaceStore((state) => state.setLowLatencyVoice);
 
   const [recordingShortcut, setRecordingShortcut] = useState(false);
   const [voiceCaps, setVoiceCaps] = useState<CapabilityState[]>([]);
@@ -1251,27 +1249,6 @@ export default function VoiceInputSection() {
               </>
             )}
           </div>
-        </SettingsCard>
-      )}
-
-      {voiceEnabled && (
-        <SettingsCard className="space-y-4">
-          <SettingsSectionIntro
-            eyebrow={t(strings.settings.voiceInputSection.performanceEyebrow)}
-            title={t(strings.settings.voiceInputSection.performanceTitle)}
-            description={t(strings.settings.voiceInputSection.performanceDescription)}
-          />
-          <SettingsRow
-            label={t(strings.settings.voiceInputSection.lowLatencyLabel)}
-            hint={t(strings.settings.voiceInputSection.lowLatencyHint)}
-            control={(
-              <SettingsToggle
-                testId="low-latency-voice-toggle"
-                checked={lowLatencyVoice}
-                onClick={() => setLowLatencyVoice(!lowLatencyVoice)}
-              />
-            )}
-          />
         </SettingsCard>
       )}
 

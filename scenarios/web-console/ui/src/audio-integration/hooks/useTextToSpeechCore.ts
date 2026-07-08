@@ -21,6 +21,7 @@ import { fetchCachedTTS, getTTSVoices, synthesizeTTS } from "../index";
 import type { TTSBackend, TTSPlaybackCapabilities, TTSPlaybackState, TTSProvider, TTSVoiceInfo } from "../index";
 import { KokoroProvider } from "../index";
 import { BrowserTTSProvider } from "../index";
+import { ttsPlaybackRegistry } from "./tts/playbackRegistry";
 
 /**
  * Playback event emitted by the core. The host wraps this with its own
@@ -90,6 +91,22 @@ export interface UseTextToSpeechCoreOptions {
    * supply a real probe so the backend can downgrade preemptively.
    */
   kokoroAvailable?: () => Promise<boolean>;
+  /**
+   * Stable key identifying the playback owner (e.g. a session id). When set
+   * together with `persistPlaybackAcrossUnmount`, the active provider is held in
+   * a process-wide registry so in-progress speech survives this hook unmounting
+   * — e.g. a pane being evicted from the workspace warm set — and is re-adopted
+   * when the owner remounts. Omit for adopters that do not multiplex playback
+   * across mount/unmount boundaries (default: no persistence).
+   */
+  playbackOwnerKey?: string;
+  /**
+   * Opt into keeping a speaking provider alive across unmount (see
+   * `playbackOwnerKey`). Requires `playbackOwnerKey` to be set. Defaults to
+   * false so the generic per-mount lifecycle is unchanged for adopters that do
+   * not need it.
+   */
+  persistPlaybackAcrossUnmount?: boolean;
 }
 
 /** Settings the core forwards to the active provider on each speak call. */
@@ -168,6 +185,12 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
   onPlaybackEventRef.current = opts.onPlaybackEvent;
   const kokoroAvailableRef = useRef(opts.kokoroAvailable);
   kokoroAvailableRef.current = opts.kokoroAvailable;
+  // Resolved playback-owner key: non-null only when persistence is requested
+  // AND a key is supplied. Read through a ref so the once-only unmount cleanup
+  // sees the latest value.
+  const persistKeyRef = useRef<string | null>(null);
+  persistKeyRef.current =
+    opts.persistPlaybackAcrossUnmount && opts.playbackOwnerKey ? opts.playbackOwnerKey : null;
 
   const applyEffectiveVolume = useCallback(() => {
     const effective = isMutedRef.current ? 0 : volumeRef.current;
@@ -270,14 +293,26 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
     [settings.pitch, settings.rate, settings.voice],
   );
 
-  const executeSpeak = useCallback(async (text: string, paragraphs?: string[]): Promise<TTSBackend> => {
+  const executeSpeak = useCallback(async (
+    text: string,
+    paragraphs?: string[],
+    cacheOpts?: { eventId?: string; version?: string },
+  ): Promise<TTSBackend> => {
     const provider = providerRef.current;
     const segments = paragraphs ?? [text];
     if (!provider || segments.length === 0) {
       throw new Error("No TTS backend is available");
     }
 
-    const kokoroOpts = { voice: settings.kokoroVoice, rate: settings.kokoroSpeed };
+    // eventId/version are threaded only into the Kokoro synth path so each
+    // paragraph populates the server byte cache under its chunk index; the
+    // browser voice ignores them.
+    const kokoroOpts = {
+      voice: settings.kokoroVoice,
+      rate: settings.kokoroSpeed,
+      eventId: cacheOpts?.eventId,
+      version: cacheOpts?.version,
+    };
     const browserOpts = {
       voice: settings.voice,
       rate: settings.rate,
@@ -338,10 +373,28 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
   useEffect(() => {
     let cancelled = false;
 
+    // Adopt a live provider held in the playback registry for this owner key
+    // (e.g. on pane remount, so in-progress speech reconnects to a single
+    // owner), else create a fresh one and register it. Without persistence this
+    // just calls the factory — the generic per-mount lifecycle is unchanged.
+    const obtainProvider = <T extends TTSProvider>(
+      backend: TTSBackend,
+      factory: () => T,
+    ): { provider: T; adopted: boolean } => {
+      const key = persistKeyRef.current;
+      if (key) {
+        const existing = ttsPlaybackRegistry.adopt(key, backend);
+        if (existing) return { provider: existing as T, adopted: true };
+      }
+      const provider = factory();
+      if (key) ttsPlaybackRegistry.install(key, provider, backend);
+      return { provider, adopted: false };
+    };
+
     async function checkBackend() {
       if (opts.backend === "browser") {
         if (isBrowserSupported()) {
-          const provider = new BrowserTTSProvider();
+          const { provider, adopted } = obtainProvider("browser", () => new BrowserTTSProvider());
           backendRef.current = "browser";
           providerRef.current = provider;
           activeProviderRef.current = provider;
@@ -354,6 +407,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
               capabilities: provider.capabilities,
               voices: voices.map((v) => ({ id: v.name, name: v.name })),
               backendReason: "Browser backend selected explicitly",
+              isSpeaking: adopted && provider.isSpeaking ? true : s.isSpeaking,
             }));
           }
         } else if (!cancelled) {
@@ -387,7 +441,20 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
       if (!cancelled && kokoroAvailable) {
         // Inject synthesizeTTS pulled through the audio-integration barrel so
         // tests using vi.mock("../audio-integration", …) intercept the call.
-        const provider = new KokoroProvider({ synthesize: synthesizeTTS });
+        const { provider, adopted } = obtainProvider(
+          "kokoro",
+          () => new KokoroProvider({ synthesize: synthesizeTTS }),
+        );
+        // Phase 8 observability: surface per-paragraph degradation (retry /
+        // browser fallback / skip) so silent partial TTS loss becomes visible.
+        // The outcome hook is non-fatal — it never blocks or halts playback.
+        provider.onParagraphOutcome = ({ index, outcome }) => {
+          onPlaybackEventRef.current?.({
+            stage: `paragraph_${outcome}`,
+            backend: "kokoro",
+            message: `paragraph ${index} ${outcome}`,
+          });
+        };
         backendRef.current = "kokoro";
         providerRef.current = provider;
         activeProviderRef.current = provider;
@@ -403,6 +470,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
               backendReason: opts.backend === "kokoro"
                 ? "Kokoro backend selected explicitly"
                 : "Kokoro is available and preferred over browser speech synthesis",
+              isSpeaking: adopted && provider.isSpeaking ? true : s.isSpeaking,
             }));
           }
         } catch {
@@ -416,6 +484,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
               backendReason: opts.backend === "kokoro"
                 ? "Kokoro backend selected explicitly"
                 : "Kokoro is available and preferred over browser speech synthesis",
+              isSpeaking: adopted && provider.isSpeaking ? true : s.isSpeaking,
             }));
           }
         }
@@ -439,7 +508,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
       }
 
       if (!cancelled && isBrowserSupported()) {
-        const provider = new BrowserTTSProvider();
+        const { provider, adopted } = obtainProvider("browser", () => new BrowserTTSProvider());
         backendRef.current = "browser";
         providerRef.current = provider;
         activeProviderRef.current = provider;
@@ -448,6 +517,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
           ...s,
           supported: true,
           backend: "browser",
+          isSpeaking: adopted && provider.isSpeaking ? true : s.isSpeaking,
           capabilities: provider.capabilities,
           voices: voices.map((v) => ({ id: v.name, name: v.name })),
           backendReason: "Kokoro is unavailable, so browser speech synthesis is active",
@@ -496,10 +566,24 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
     };
   }, [state.backend]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount.
+  //
+  // When playback persistence is enabled and this owner's provider is still
+  // speaking, hand it off to the registry instead of disposing it — the audio
+  // keeps playing through pane unmount / warm-set eviction, and a remount
+  // re-adopts the same provider (single owner, no leak). The registry disposes
+  // it once its tail settles while orphaned. Without persistence, or when idle,
+  // dispose as before. The browser fallback provider is always disposed (it is
+  // never handed off; browser speech is a global singleton).
   useEffect(() => {
     return () => {
-      providerRef.current?.dispose();
+      const key = persistKeyRef.current;
+      const provider = providerRef.current;
+      if (key && provider) {
+        ttsPlaybackRegistry.release(key, provider, { keepAliveIfSpeaking: true });
+      } else {
+        provider?.dispose();
+      }
       fallbackProviderRef.current?.dispose();
       activeProviderRef.current = null;
       speakChainRef.current?.abort();
@@ -512,6 +596,11 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
       providerRef.current?.stop();
 
       if (!providerRef.current) return;
+
+      // Single-owner audio: a new playback tears down any orphaned tail still
+      // playing under a different owner (e.g. a session we just switched away
+      // from) so two sessions never speak at once.
+      if (persistKeyRef.current) ttsPlaybackRegistry.stopOrphansExcept(persistKeyRef.current);
 
       // Track this invocation so async handlers can detect supersession.
       const controller = new AbortController();
@@ -573,26 +662,41 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
 
       if (!providerRef.current || paragraphs.length === 0) return;
 
+      // Single-owner audio (see speak()): drop any orphaned tail from another
+      // owner before this session starts speaking.
+      if (persistKeyRef.current) ttsPlaybackRegistry.stopOrphansExcept(persistKeyRef.current);
+
       setState((s) => ({ ...s, isSpeaking: true, isPaused: false }));
       emitEvent("attempt", backendRef.current);
 
       try {
-        // Cache-first path: if eventId is provided and backend is Kokoro,
-        // try fetching pre-cached audio before falling back to synthesis.
-        if (speakOpts?.eventId && backendRef.current === "kokoro" && providerRef.current) {
+        // Cache-first path: if eventId is provided and backend is Kokoro, try
+        // fetching pre-cached audio (one blob per paragraph, keyed by chunk
+        // index) before synthesizing. A FULL hit replays without any synth; a
+        // partial/any miss falls through to synthesis, which repopulates every
+        // chunk. Empty paragraphs cache as 0-byte hits and are skipped on play.
+        const cacheEventId = speakOpts?.eventId;
+        if (cacheEventId && backendRef.current === "kokoro" && providerRef.current) {
           const provider = providerRef.current as KokoroProvider;
-          const blob = await fetchCachedTTS(
-            speakOpts.eventId,
-            settings.kokoroVoice,
-            settings.kokoroSpeed,
-            speakOpts.version ?? "active",
-            controller.signal,
+          const version = speakOpts?.version ?? "active";
+          const chunks = await Promise.all(
+            paragraphs.map((_, i) =>
+              fetchCachedTTS(
+                cacheEventId,
+                settings.kokoroVoice,
+                settings.kokoroSpeed,
+                version,
+                controller.signal,
+                i,
+              ),
+            ),
           );
-          if (blob && !controller.signal.aborted) {
+          const fullyCached = chunks.length > 0 && chunks.every((b) => b !== null);
+          if (fullyCached && !controller.signal.aborted) {
             activeProviderRef.current = provider;
             applyEffectiveVolume();
             try {
-              await provider.speakFromBlob(blob);
+              await provider.speakFromBlobs(chunks as Blob[]);
             } catch (err) {
               if (controller.signal.aborted || isAbortLikeError(err)) throw err;
               // Cache-first blob playback was rejected. If it was an autoplay
@@ -625,8 +729,13 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
           }
         }
 
-        // Fall through to standard synthesis path.
-        const usedBackend = await executeSpeak(paragraphs.join("\n\n"), paragraphs);
+        // Fall through to standard synthesis path. Thread eventId/version so
+        // each synthesized paragraph populates the server byte cache under its
+        // chunk index — the next replay of this message serves fully from cache.
+        const usedBackend = await executeSpeak(paragraphs.join("\n\n"), paragraphs, {
+          eventId: speakOpts?.eventId,
+          version: speakOpts?.version,
+        });
         if (controller.signal.aborted) {
           if (speakChainRef.current === controller) {
             setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));

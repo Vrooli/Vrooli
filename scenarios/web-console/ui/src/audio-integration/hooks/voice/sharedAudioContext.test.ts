@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { closeSharedAudioContext, ensureRunningSharedAudioContext } from "./sharedAudioContext";
+import {
+  armIdleSuspend,
+  closeSharedAudioContext,
+  ensureRunningSharedAudioContext,
+  keepAudioContextAwake,
+  suspendSharedAudioContext,
+} from "./sharedAudioContext";
 
 // Minimal controllable AudioContext fake. `state` is mutable so a test can
 // simulate a wedged context whose resume() does or does not recover it.
@@ -50,5 +56,49 @@ describe("ensureRunningSharedAudioContext", () => {
     expect(FakeAudioContext.instances[0]?.close).toHaveBeenCalled();
     // Returned context is the freshly-built one, not the wedged original.
     expect(first).toBe(FakeAudioContext.instances[FakeAudioContext.instances.length - 1]);
+  });
+});
+
+describe("idle / background audio-session release", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    FakeAudioContext.instances = [];
+    (globalThis as unknown as { AudioContext: unknown }).AudioContext =
+      vi.fn(() => new FakeAudioContext("suspended"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    closeSharedAudioContext();
+    vi.restoreAllMocks();
+  });
+
+  it("suspendSharedAudioContext suspends a running context (releases the iOS session)", async () => {
+    const ctx = (await ensureRunningSharedAudioContext()) as unknown as FakeAudioContext & {
+      suspend: ReturnType<typeof vi.fn>;
+    };
+    expect(ctx.state).toBe("running");
+    ctx.suspend = vi.fn(async () => { ctx.state = "suspended"; });
+    suspendSharedAudioContext();
+    expect(ctx.suspend).toHaveBeenCalledTimes(1);
+  });
+
+  it("armIdleSuspend suspends after the delay, and keepAudioContextAwake cancels it", async () => {
+    const ctx = (await ensureRunningSharedAudioContext()) as unknown as FakeAudioContext & {
+      suspend: ReturnType<typeof vi.fn>;
+    };
+    ctx.suspend = vi.fn(async () => { ctx.state = "suspended"; });
+
+    // Armed, then cancelled before the timer fires → no suspend.
+    armIdleSuspend(1500);
+    keepAudioContextAwake();
+    vi.advanceTimersByTime(2000);
+    expect(ctx.suspend).not.toHaveBeenCalled();
+
+    // Armed and left alone → suspends after the delay.
+    ctx.state = "running";
+    armIdleSuspend(1500);
+    vi.advanceTimersByTime(1500);
+    expect(ctx.suspend).toHaveBeenCalledTimes(1);
   });
 });

@@ -19,6 +19,77 @@ export function computeFinalTimeout(recordingDurationMs: number): number {
   return Math.min(60_000, Math.max(10_000, recordingDurationMs * 2));
 }
 
+/**
+ * Map a `getUserMedia` rejection to an honest, user-actionable message — and
+ * always log the raw cause.
+ *
+ * The browser rejects `getUserMedia` with a `DOMException` whose `name` is the
+ * real cause. A bare `catch` that unconditionally reports "Microphone access
+ * denied" is wrong for the common NON-permission failures and actively
+ * misleads: it sends the user to browser permission settings that are already
+ * correct. That is exactly the "Settings mic test works, but the main mic
+ * button says access denied" report — the same origin/permission is granted
+ * (the test proves it), so the button's failure is really `NotReadableError`
+ * (device held by another capture — passive wake-word listener, low-latency
+ * pre-warm, or another tab/app) or `NotFoundError` (no input device), NOT a
+ * denial. Classify by `name` so the message matches reality, and log the raw
+ * `name`/`message` so the true cause is never swallowed again.
+ */
+export function classifyMicError(err: unknown): string {
+  // Secure-context gate — the #1 "works on my computer, not my phone" cause.
+  //
+  // getUserMedia (on navigator.mediaDevices) is exposed ONLY in a secure context:
+  // HTTPS, or a loopback origin (localhost / 127.0.0.1) which browsers treat as
+  // secure. A desktop hitting http://localhost works; a phone reaching the same
+  // self-hosted machine over a plain http:// LAN address (e.g. 192.168.x.x) is
+  // NOT a secure context, so on iOS/Safari `navigator.mediaDevices` is undefined
+  // and the call throws a plain TypeError — not a permission DOMException.
+  // Reporting "access denied" there is doubly wrong: it isn't a denial, and it
+  // sends the user to permission settings that can never fix it. Detect the
+  // missing secure context first and point at the actual fix (use HTTPS).
+  // Feature-detect via a local — this is detection, not acquisition, and the
+  // audio-boundary guard reserves the getUserMedia access literal for the mic
+  // ownership registry.
+  const mediaDevices = typeof navigator !== "undefined" ? navigator.mediaDevices : undefined;
+  const insecure =
+    (typeof window !== "undefined" && window.isSecureContext === false) ||
+    !mediaDevices ||
+    typeof mediaDevices.getUserMedia !== "function";
+  if (insecure) {
+    console.warn(
+      "[voice] getUserMedia unavailable: isSecureContext=%s hasMediaDevices=%s",
+      typeof window !== "undefined" ? window.isSecureContext : "(no window)",
+      typeof navigator !== "undefined" && !!navigator.mediaDevices,
+    );
+    return "Microphone needs a secure (HTTPS) connection. Open this site over HTTPS — on a phone, a plain http:// address (like a LAN IP) blocks the mic on iOS/Safari.";
+  }
+
+  const name =
+    err instanceof DOMException
+      ? err.name
+      : typeof err === "object" && err !== null && "name" in err
+        ? String((err as { name: unknown }).name)
+        : "";
+  console.warn(
+    "[voice] getUserMedia failed: name=%s message=%s",
+    name || "(unknown)",
+    err instanceof Error ? err.message : String(err),
+  );
+  switch (name) {
+    case "NotAllowedError":
+    case "SecurityError":
+      return "Microphone access denied";
+    case "NotReadableError":
+    case "AbortError":
+      return "Microphone is busy or held by another app/tab — close the other user and try again";
+    case "NotFoundError":
+    case "OverconstrainedError":
+      return "No usable microphone found — check your input device";
+    default:
+      return "Could not start the microphone — try again";
+  }
+}
+
 export type VoiceBackend = "whisper" | "web-speech" | "none";
 
 /** Explicit state machine replacing the old isRecording/isTranscribing boolean combo.
@@ -183,12 +254,8 @@ export interface StartRecordingOpts {
 }
 
 export interface TranscriptionProvider {
-  /**
-   * Start recording. Accepts an optional pre-warmed MediaStream to skip
-   * getUserMedia when low-latency voice mode is enabled.
-   * DOC: docs/internal/VOICE-LATENCY.md#stream-injection-vs-stream-acquisition
-   */
-  start(preWarmedStream?: MediaStream): void | Promise<void>;
+  /** Start recording. The provider acquires and owns its own mic stream. */
+  start(): void | Promise<void>;
   stop(): void;
   dispose(): void;
   getStream(): MediaStream | null;

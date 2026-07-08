@@ -53,6 +53,9 @@ type TTSRequest struct {
 	Speed          float64
 	EventID        string
 	Version        string
+	// ChunkIndex is the paragraph index within EventID, forwarded to
+	// audio-tools so per-paragraph audio is cached under distinct keys.
+	ChunkIndex int32
 }
 
 // TTSResult is what Synthesize / GetCached return.
@@ -63,10 +66,11 @@ type TTSResult struct {
 
 // CacheLookup is the GetCached request shape.
 type CacheLookup struct {
-	EventID string
-	Voice   string
-	Speed   float64
-	Version string
+	EventID    string
+	Voice      string
+	Speed      float64
+	Version    string
+	ChunkIndex int32
 }
 
 // Voice is the listable voice catalogue entry.

@@ -58,7 +58,7 @@ export interface MicLifecycleDecision {
  * - `pagehide` / `freeze`: the page is going away — release **all** leases
  *   everywhere; best-effort stop of any active recording.
  * - `visible`: release nothing. Visibility alone is not mic intent, so it does
- *   not re-arm passive wake-word or low-latency prewarm.
+ *   not re-arm passive wake-word.
  */
 export function decideMicLifecycle(input: {
   event: MicLifecycleEvent;
@@ -83,8 +83,6 @@ export interface StaleLeaseInput {
   leases: Array<{ id: string; owner: MicOwner }>;
   /** Current workflow state machine value. */
   voiceState: VoiceStateLite;
-  /** Whether low-latency voice (prewarm) is enabled. */
-  lowLatencyVoice: boolean;
   /** Whether a passive wake-word listener is currently installed (ref truth). */
   passiveListenerActive: boolean;
 }
@@ -98,7 +96,6 @@ export interface StaleLeaseInput {
  *     whenever the workflow is `idle` (a recording/listening turn would keep
  *     the owner expected; `transcribing` legitimately holds the lease for the
  *     ~120 ms final-chunk settle window, so it is not flagged).
- *   - `low-latency-prewarm` is expected only while low-latency is enabled.
  *   - `passive-wake-word` is expected only while a passive listener is
  *     installed; a passive lease with no listener is a leak.
  *   - Settings-capture owners (enrollment / test / permission probe) are owned
@@ -110,10 +107,9 @@ export interface StaleLeaseInput {
  * set before the lease is acquired.
  */
 export function selectStaleLeases(input: StaleLeaseInput): Array<{ id: string; owner: MicOwner }> {
-  const { leases, voiceState, lowLatencyVoice, passiveListenerActive } = input;
+  const { leases, voiceState, passiveListenerActive } = input;
   return leases.filter(({ owner }) => {
     if (isActiveRecordingOwner(owner)) return voiceState === "idle";
-    if (owner === "low-latency-prewarm") return !lowLatencyVoice;
     if (owner === "passive-wake-word") return !passiveListenerActive;
     return false;
   });

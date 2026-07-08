@@ -379,6 +379,11 @@
       "reason": "Exposed through the same `capabilities` command via the --liveness flag (the flag selects Liveness vs Get inside the handler); not a separate CLI subcommand."
     },
     {
+      "service": "CapabilitiesService",
+      "method": "RunAction",
+      "reason": "Control-plane capability actions are invoked from the web-console runtime UI/API flow; no stable CLI subcommand is exposed today."
+    },
+    {
       "service": "AudioAdminService",
       "method": "GetWakeWordConfig",
       "reason": "Audio admin config is managed via the web UI / API only; no CLI command today."

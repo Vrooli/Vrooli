@@ -452,12 +452,11 @@ describe("voice capture lifecycle ownership", () => {
     warn.mockRestore();
   });
 
-  it("does not acquire the mic on mount or visibility with persisted low-latency and wake-word flags", async () => {
+  it("does not acquire the mic on mount or visibility with persisted wake-word flag", async () => {
     mockCapabilities(true);
     const media = mockMediaDevices(true);
     useWorkspaceStore.setState({
       voiceEnabled: true,
-      lowLatencyVoice: true,
       wakeWordEnabled: true,
       persistentMode: false,
     });
@@ -481,12 +480,14 @@ describe("voice capture lifecycle ownership", () => {
     expect(getActiveMicLeases()).toHaveLength(0);
   });
 
-  it("prewarms low-latency capture only after explicit mic intent", async () => {
+  it("prepareRecording never acquires the mic (no pre-warm / no idle mic hold)", async () => {
+    // Regression: low-latency pre-warm was removed. Signalling intent must NOT
+    // open the microphone — holding the mic idle ducks other apps' audio and
+    // churns the iOS audio session. The mic is acquired only on actual record.
     mockCapabilities(true);
     const media = mockMediaDevices(true);
     useWorkspaceStore.setState({
       voiceEnabled: true,
-      lowLatencyVoice: true,
       wakeWordEnabled: false,
       persistentMode: false,
     });
@@ -500,11 +501,12 @@ describe("voice capture lifecycle ownership", () => {
 
     await act(async () => {
       result.current.prepareRecording();
-      await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 50));
     });
 
-    await waitFor(() => expect(media.getUserMedia).toHaveBeenCalledTimes(1));
-    expect(getActiveMicLeases().map((l) => l.owner)).toEqual(["low-latency-prewarm"]);
+    // Still no mic — prepare only arms intent / passive reconcile.
+    expect(media.getUserMedia).not.toHaveBeenCalled();
+    expect(getActiveMicLeases()).toHaveLength(0);
   });
 });
 
@@ -597,7 +599,6 @@ describe("voice capture lifecycle server-final wedge", () => {
     _resetMicOwnershipForTesting();
     useWorkspaceStore.setState({
       voiceEnabled: true,
-      lowLatencyVoice: false,
       wakeWordEnabled: false,
       persistentMode: false,
     });

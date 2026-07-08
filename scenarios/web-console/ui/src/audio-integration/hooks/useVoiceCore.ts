@@ -32,8 +32,7 @@ import { createAudioFilterChain } from "../index";
 import { playRecordingStartCue, playRecordingStopCue } from "../index";
 import { buildVoiceActivitySnapshot, IDLE_VOICE_ACTIVITY, voiceActivitySnapshotsEqual } from "../index";
 import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, vadTick, VAD_FLOOR_CACHE_MAX_AGE_MS } from "../index";
-import { getSharedAudioContext, ensureAudioContextOnGesture, ensureRunningSharedAudioContext } from "../index";
-import { acquireStream as acquireMicStream, releaseStream as releaseMicStream, getStream as getMicStream, isStreamAlive as isMicStreamAlive } from "../index";
+import { getSharedAudioContext, ensureRunningSharedAudioContext, suspendSharedAudioContext, armIdleSuspend, keepAudioContextAwake } from "../index";
 import { installMicLifecycleCleanup, subscribeMicLeases, getActiveMicLeases } from "../index";
 import { VoiceCaptureController } from "../index";
 import { decideMicLifecycle, isStandaloneDisplayMode, selectStaleLeases } from "../index";
@@ -42,6 +41,7 @@ import { VoiceStreamProvider } from "../index";
 import { setServerVadState, resetServerVadState, useServerVadStateStore, SERVER_VAD_STALE_MS } from "./useServerVadStateStore";
 import { decideAutoStop } from "./voice/autoStopDecision";
 import { decidePassiveArm } from "./voice/passiveArmDecision";
+import { trailingPartialDelta } from "./voice/trailingPartial";
 import { WhisperProvider } from "../index";
 import { WebSpeechProvider } from "../index";
 import { bytesToFeatures, createWakeWordEngine, PassiveListener } from "../index";
@@ -121,7 +121,6 @@ export interface UseVoiceCoreOptions {
    *  sync effect below. */
   wakeWordThreshold: number;
   segmentSilenceMs: number;
-  lowLatencyVoice: boolean;
   // What today comes from web-console's capabilities API:
   /** Optional. Defaults to `{ whisperHealthy: true, streamingAvailable: true }` when omitted. */
   capabilityCheck?: () => Promise<VoiceCapabilityProbe>;
@@ -147,7 +146,6 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     wakeWordEnabled,
     wakeWordThreshold,
     segmentSilenceMs,
-    lowLatencyVoice,
     onTranscript,
   } = opts;
   // Stable refs for callbacks/options so async paths see the latest without
@@ -212,8 +210,6 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   wakeWordThresholdRef.current = wakeWordThreshold;
   const segmentSilenceMsRef = useRef(segmentSilenceMs);
   segmentSilenceMsRef.current = segmentSilenceMs;
-  const lowLatencyVoiceRef = useRef(lowLatencyVoice);
-  lowLatencyVoiceRef.current = lowLatencyVoice;
 
   // Wake word engine and template refs
   const wakeWordEngineRef = useRef<WakeWordEngine | null>(null);
@@ -234,6 +230,20 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
    * "couldn't transcribe" banner instead of dropping the audio silently.
    */
   const turnDeliveredTextRef = useRef(false);
+  /**
+   * The latest interim partial hypothesis for the CURRENTLY-UNCOMMITTED tail —
+   * speech after the last committed segment that the server has not yet
+   * flushed into a segment-final. Updated on every `onPartial`, cleared when a
+   * segment-final commits (that partial is now durable) and at turn start.
+   *
+   * On turn end (`onResult`) a non-empty value here is a trailing partial the
+   * server never got to commit (a teardown race dropped the flush). Instead of
+   * wiping it — the silent tail-loss this plan fixes — we promote it to durable
+   * transcript text. Kept idempotent with the server flush: if the tail DID
+   * arrive as a segment-final or a non-empty final, this ref is already empty
+   * so no duplicate text is appended.
+   */
+  const trailingPartialRef = useRef("");
   const dismissedFallbackNoticeRef = useRef<string | null>(null);
 
   // Audio level monitoring refs -- AudioContext is reused across recording
@@ -359,31 +369,16 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     });
   }, [persistentMode]);
 
-  // ── Low-latency voice pre-warm ──
-  // DOC: docs/internal/VOICE-LATENCY.md#visibility-based-mic-lifecycle
-  //
-  // Low-latency voice no longer acquires the mic from mount/visibility. The
-  // mic-control's intent callback arms prewarm; this effect only releases any
-  // warm lease when the feature turns off or the hook unmounts.
-  useEffect(() => {
-    if (!voiceEnabled) return;
-
-    if (lowLatencyVoice) {
-      return () => {
-        // Release the pre-warmed stream when low-latency is turned off / unmount.
-        releaseMicStream();
-      };
-    }
-    // Low-latency turned off — drop any leftover pre-warmed stream.
-    releaseMicStream();
-  }, [voiceEnabled, lowLatencyVoice]);
-
   /** Handle a segment-final transcript in persistent mode. */
   const handleSegmentFinal = useCallback((text: string, segmentIndex: number) => {
     if (!text.trim()) return;
     // A recognized segment (dictation OR command) means this turn produced
     // usable output — it is not a silent loss. Record it before either branch.
     turnDeliveredTextRef.current = true;
+    // This segment-final commits the text the trailing partial was tracking, so
+    // the partial is now durable — clear it to keep the turn-end promotion
+    // idempotent (no double-append of the same words).
+    trailingPartialRef.current = "";
 
     // Check for command match (text-based, no prefix needed — wake word detected at audio level)
     const parsed = parseCommandRef.current(text);
@@ -426,10 +421,10 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
 
   const startLevelMonitor = useCallback(async (stream: MediaStream) => {
     try {
-      // Use the shared AudioContext singleton. It was pre-created on the first
-      // user gesture by ensureAudioContextOnGesture(), so it should already be
-      // in "running" state. We still check for "suspended" as a safety net.
-      // DOC: docs/internal/VOICE-LATENCY.md#pre-create-audiocontext-on-first-gesture
+      // Use the shared AudioContext singleton, resumed lazily here (inside the
+      // real capture path) — not eagerly on the first arbitrary tap. ensureRunning
+      // resumes it and cancels any idle-suspend armed by a prior turn.
+      // DOC: docs/internal/VOICE-LATENCY.md#audiocontext-lifecycle
       // Heal a wedged context (suspended/interrupted that won't resume) by
       // rebuilding it, rather than reusing a dead one that yields a flat level
       // meter forever. Non-fatal: capture does not depend on this context.
@@ -632,6 +627,11 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     vadRef.current.state = "idle";
     cueSessionActiveRef.current = false;
     stopLevelMonitor();
+    // The capture session is over — release the iOS audio session shortly after,
+    // instead of holding a running-but-idle AudioContext forever (which keeps
+    // other apps' audio ducked). Deferred so a trailing stop-cue can finish; a
+    // new capture resumes and cancels this. DOC: #audiocontext-lifecycle
+    armIdleSuspend();
   };
 
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -767,7 +767,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   // the background. The user can start speaking before the check resolves.
   //
   // DOC: docs/internal/VOICE-LATENCY.md#background-capability-check
-  // DOC: docs/internal/VOICE-LATENCY.md#pre-create-audiocontext-on-first-gesture
+  // DOC: docs/internal/VOICE-LATENCY.md#audiocontext-lifecycle
   useEffect(() => {
     if (!voiceEnabled) {
       setState((s) => ({ ...s, supported: false, backend: "none" }));
@@ -777,10 +777,11 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     // Show button immediately -- optimistic default assumes Whisper.
     setState((s) => ({ ...s, supported: true, backend: "whisper" }));
 
-    // Pre-create AudioContext on the first user gesture anywhere in the app.
-    // This eliminates ~20-50ms from the recording start path by ensuring the
-    // context is already in "running" state when the mic button is pressed.
-    ensureAudioContextOnGesture();
+    // NOTE: we deliberately do NOT pre-create/resume the AudioContext on an
+    // arbitrary first gesture. Resuming it activates the iOS audio session and
+    // interrupts other apps' audio even when the user never uses voice; the
+    // context is instead resumed lazily inside the real capture/cue gesture.
+    // DOC: docs/internal/VOICE-LATENCY.md#audiocontext-lifecycle
 
     let cancelled = false;
     let bgRefreshInterval: ReturnType<typeof setInterval> | null = null;
@@ -865,13 +866,9 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   const prepareRecording = useCallback(() => {
     micIntentArmedRef.current = true;
     if (!voiceEnabled || documentHiddenRef.current || isActiveRef.current || startingRef.current) return;
-
-    if (lowLatencyVoiceRef.current && !passiveListenerRef.current && !isMicStreamAlive()) {
-      acquireMicStream().catch((err) => {
-        console.warn("[voice] Low-latency: intent mic pre-warm failed:", err);
-      });
-    }
-
+    // Mic-control intent: reconcile passive wake-word arming. We do NOT pre-warm
+    // (hold) the mic here — the recorder acquires it on press. Holding the mic
+    // idle is the audio-session/ducking anti-pattern we removed with low-latency.
     reconcilePassiveRef.current?.();
   }, [voiceEnabled]);
 
@@ -888,6 +885,8 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     sessionCountRef.current++;
     // New turn: no text delivered yet. Drives the silent-loss guard in onResult.
     turnDeliveredTextRef.current = false;
+    // No trailing partial carried across turns.
+    trailingPartialRef.current = "";
     // Tear down background wake-word listening (if armed) so the recorder owns
     // the mic cleanly. Wake-word detection also funnels through here and has
     // already disposed its listener, so this is a no-op in that path. The
@@ -929,6 +928,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     //
     // This is safe to call on desktop too — it's a no-op when ctx.state is "running".
     try {
+      keepAudioContextAwake(); // real capture — cancel any pending idle-suspend
       const ctx = getSharedAudioContext();
       if (ctx.state !== "running") {
         console.info("[voice] S%d Resuming AudioContext (state=%s) in gesture context", sessionCountRef.current, ctx.state);
@@ -1097,6 +1097,28 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         if (text) {
           onTranscriptRef.current(text);
           turnDeliveredTextRef.current = true;
+          // The server's final carries the tail, so any tracked partial is now
+          // redundant — drop it so it can't be promoted below and duplicated.
+          trailingPartialRef.current = "";
+        }
+
+        // Trailing-partial promotion: the turn ended with an uncommitted
+        // partial the server never flushed (empty `text` because kyutai's
+        // final is empty once any segment committed, and a teardown race
+        // dropped the flush of the last words). Promote that partial to durable
+        // transcript instead of wiping it — the silent tail-loss this fixes.
+        // handleSegmentFinal / the non-empty `text` branch above have already
+        // cleared the ref when the tail arrived normally, so trailingPartialDelta
+        // never double-appends.
+        const promoted = trailingPartialDelta({
+          trailingPartial: trailingPartialRef.current,
+          finalDelivered: Boolean(text),
+          hasSegments: segmentsRef.current.length > 0,
+        });
+        trailingPartialRef.current = "";
+        if (promoted !== null) {
+          onTranscriptRef.current(promoted);
+          turnDeliveredTextRef.current = true;
         }
 
         // Silent-loss guard: the turn ended but nothing was ever delivered
@@ -1108,27 +1130,10 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           surfaceEmptyTranscript();
         }
 
+        // controller.shutdown runs capture teardown, which stops the mic tracks
+        // and arms the idle AudioContext suspend — so the audio session is fully
+        // released after the turn (no held mic, no ducking).
         controller.shutdown("manual-stop");
-
-        // ── Low-latency: release-then-reacquire cycle ──
-        // DOC: docs/internal/VOICE-LATENCY.md#audio-ducking-deep-dive
-        //
-        // Release the mic immediately to stop audio ducking on mobile. Then
-        // re-acquire after 500ms so the stream is warm for the next recording.
-        if (lowLatencyVoiceRef.current) {
-          releaseMicStream();
-          setTimeout(() => {
-            // Gate the delayed re-acquire on a visible tab with no passive
-            // listener and no active recording, so a timer that fires after the
-            // tab was hidden does not silently re-open the mic in the background.
-            if (lowLatencyVoiceRef.current
-              && !documentHiddenRef.current
-              && !passiveListenerRef.current
-              && !isActiveRef.current) {
-              acquireMicStream().catch(() => {});
-            }
-          }, 500);
-        }
       };
       provider.onError = (error) => {
         // Clear cue session without playing stop cue — errors are not normal
@@ -1197,6 +1202,10 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       if (provider.onPartial !== undefined) {
         provider.onPartial = (text) => {
           dismissedFallbackNoticeRef.current = null;
+          // Track the trailing (uncommitted) hypothesis so a turn that ends
+          // before the server flushes this text can promote it to durable
+          // transcript instead of dropping it (see trailingPartialRef).
+          trailingPartialRef.current = text;
           setState((s) => ({ ...s, partialTranscript: text, fallbackNotice: null }));
         };
       }
@@ -1212,25 +1221,11 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         };
       }
 
-      // ── Stream injection (low-latency mode) ──
-      // DOC: docs/internal/VOICE-LATENCY.md#stream-injection-vs-stream-acquisition
-      //
-      // If low-latency voice is enabled and a pre-warmed stream exists, inject
-      // it into the provider to skip the getUserMedia call (~50-300ms).
-      // Also tell VoiceStreamProvider to retain the stream after recording
-      // so it can be re-used for subsequent sessions.
-      let preWarmedStream: MediaStream | undefined;
-      if (lowLatencyVoiceRef.current && isMicStreamAlive()) {
-        preWarmedStream = getMicStream() ?? undefined;
-        if (provider instanceof VoiceStreamProvider) {
-          provider.retainStream = true;
-        }
-      } else if (provider instanceof VoiceStreamProvider) {
-        provider.retainStream = false;
-      }
-
+      // The provider acquires its own mic stream on start (single owner, fresh
+      // getUserMedia). We no longer inject a pre-warmed stream — holding the mic
+      // idle to save start latency was the audio-session/ducking anti-pattern.
       const providerStartTime = Date.now();
-      await provider.start(preWarmedStream);
+      await provider.start();
       console.info("[voice] Provider.start() took %dms (includes getUserMedia)", Date.now() - providerStartTime);
 
       // ── Late-resolve cancellation (Phase 6) ──
@@ -1623,20 +1618,17 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       passiveListenerRef.current = null;
     }
 
-    // Phase 5: passive mode owns its own mic stream — never also hold a
-    // low-latency pre-warm stream. Drop the prewarm before arming.
-    releaseMicStream();
-
     // Pick up the latest sensitivity before arming (the user may have moved the
     // slider since the template loaded). The sync effect keeps it current after.
     wakeWordTemplateRef.current.threshold = wakeWordThresholdRef.current;
 
-    // Reuse the app-lifetime shared AudioContext. It is resumed on the first
-    // user gesture (ensureAudioContextOnGesture); a context the listener
-    // created itself would start suspended on a fresh page load and the
-    // analyser would read silence, so passive VAD would never fire.
+    // Reuse the shared AudioContext. Passive listening is a real audio need, so
+    // keep it awake (cancel any idle-suspend) and resume it — the analyser reads
+    // silence on a suspended context, so passive VAD would never fire otherwise.
+    keepAudioContextAwake();
     const sharedCtx = audioCtxRef.current ?? getSharedAudioContext();
     audioCtxRef.current = sharedCtx;
+    if (sharedCtx.state === "suspended") sharedCtx.resume().catch(() => {});
 
     const listener = new PassiveListener({
       engine: wakeWordEngineRef.current,
@@ -1757,17 +1749,18 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   // ── Page-lifecycle mic cleanup + coordinated re-arm ──
   // DOC: docs/internal/VOICE-LATENCY.md#visibility-based-mic-lifecycle
   //
-  // One handler for ALL mic owners (replaces micReadiness's prewarm-only
-  // visibility handler):
+  // One handler for ALL mic owners:
   //   - Install the registry's privacy backstop, which releases every
   //     non-active lease on tab-hidden and ALL leases on pagehide/freeze even
-  //     if React cleanup never runs (mobile PWA close). Passive + prewarm leases
-  //     reset their owners via onRelease.
+  //     if React cleanup never runs (mobile PWA close). Passive leases reset
+  //     their owners via onRelease.
+  //   - Suspend the shared AudioContext on background so the iOS audio session
+  //     is released (a running-but-idle context keeps other apps' audio ducked).
   //   - For iOS-PWA privacy, an ACTIVE recording is stopped on hidden (it is not
   //     a registry lease concern — stopping it keeps UI state honest and
   //     releases the mic). Surfaced via a transient notice.
-  //   - On becoming visible, do not re-arm passive listening or low-latency
-  //     prewarm; visibility alone is not a mic intent.
+  //   - On becoming visible, do not re-arm passive listening or the audio
+  //     session; visibility alone is not a mic intent.
   useEffect(() => {
     if (!voiceEnabled) return;
     // Platform-aware backstop: a standalone/PWA releases ALL leases on hidden
@@ -1797,11 +1790,14 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
             setState((s) => (s.fallbackNotice ? { ...s, fallbackNotice: null } : s));
           }, 5000);
         }
-        // Passive + prewarm leases are released by the backstop; their onRelease
-        // callbacks reset passiveListeningActive / micReadiness state.
+        // Passive leases are released by the backstop; their onRelease callbacks
+        // reset passiveListeningActive. Release the audio session too: suspend
+        // the shared AudioContext so backgrounding stops holding other apps'
+        // audio. It resumes on demand on the next in-gesture voice/cue use.
+        suspendSharedAudioContext();
       } else {
-        // Visibility alone must not acquire the microphone. A new explicit
-        // mic-control intent will re-arm passive/prewarm if needed.
+        // Visibility alone must not acquire the microphone or the audio session.
+        // A new explicit mic-control intent will re-arm passive if needed.
       }
     };
 
@@ -1834,7 +1830,6 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       const staleInput = {
         leases: snapshots.map((s) => ({ id: s.id, owner: s.owner })),
         voiceState: effectiveState,
-        lowLatencyVoice: lowLatencyVoiceRef.current,
         passiveListenerActive: !!passiveListenerRef.current,
       };
       const hasStale = selectStaleLeases(staleInput).length > 0;
@@ -1844,7 +1839,6 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         try {
           controller.recoverStaleLeases({
             voiceState: effectiveState,
-            lowLatencyVoice: lowLatencyVoiceRef.current,
             passiveListenerActive: !!passiveListenerRef.current,
             reason: "invariant-violation",
           });
@@ -1862,7 +1856,6 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   const releaseMicrophone = useCallback(() => {
     controller.recoverStaleLeases({
       voiceState: voiceStateRef.current,
-      lowLatencyVoice: lowLatencyVoiceRef.current,
       passiveListenerActive: !!passiveListenerRef.current,
       reason: "recovery",
     });

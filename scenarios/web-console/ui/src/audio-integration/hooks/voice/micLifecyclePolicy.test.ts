@@ -38,7 +38,7 @@ describe("decideMicLifecycle", () => {
 
 describe("selectStaleLeases", () => {
   const lease = (owner: MicOwner, id = `${owner}-1`) => ({ id, owner });
-  const base = { lowLatencyVoice: false, passiveListenerActive: false };
+  const base = { passiveListenerActive: false };
 
   it("flags an active-recording lease only when the workflow is idle", () => {
     for (const owner of ["voice-stream", "whisper", "web-speech"] as MicOwner[]) {
@@ -52,15 +52,6 @@ describe("selectStaleLeases", () => {
         ).toHaveLength(0);
       }
     }
-  });
-
-  it("flags a prewarm lease only when low-latency voice is disabled", () => {
-    expect(
-      selectStaleLeases({ ...base, lowLatencyVoice: false, leases: [lease("low-latency-prewarm")], voiceState: "idle" }),
-    ).toHaveLength(1);
-    expect(
-      selectStaleLeases({ ...base, lowLatencyVoice: true, leases: [lease("low-latency-prewarm")], voiceState: "idle" }),
-    ).toHaveLength(0);
   });
 
   it("flags a passive lease only when no passive listener is installed", () => {

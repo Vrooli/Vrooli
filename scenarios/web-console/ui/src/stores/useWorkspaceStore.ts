@@ -97,11 +97,6 @@ interface WorkspaceState {
   tabContextMenu: TabContextMenuState | null;
   /** Keep the device screen awake to support hands-free voice interaction. */
   keepScreenAwake: boolean;
-  /** Pre-warm the microphone for near-instant recording start. Shows the OS
-   *  microphone indicator even when not actively recording. The mic is released
-   *  automatically when the tab is hidden (app switch, tab switch).
-   *  DOC: docs/internal/VOICE-LATENCY.md#low-latency-voice-mode */
-  lowLatencyVoice: boolean;
   /** Unsent terminal input keyed by session, snapshotted when a pane unmounts
    *  (offscreen sessions are unmounted to keep cost flat in N) and re-injected
    *  on remount. Ephemeral — not persisted. */
@@ -167,7 +162,6 @@ interface WorkspaceActions {
   applyAppearanceToAll: (sessionId: string) => void;
   setTabContextMenu: (menu: TabContextMenuState | null) => void;
   setKeepScreenAwake: (enabled: boolean) => void;
-  setLowLatencyVoice: (enabled: boolean) => void;
   /** Stash a session's unsent terminal input before its pane unmounts. */
   setPendingInputDraft: (sessionId: string, draft: string) => void;
   /** Read and clear a session's stashed input (returns undefined if none). */
@@ -220,7 +214,6 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       groups: [],
       tabContextMenu: null,
       keepScreenAwake: true,
-      lowLatencyVoice: false,
 
       addRecentCombo: (comboId) =>
         set((state) => {
@@ -422,7 +415,6 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         }),
       setTabContextMenu: (menu) => set({ tabContextMenu: menu }),
       setKeepScreenAwake: (enabled) => set({ keepScreenAwake: enabled }),
-      setLowLatencyVoice: (enabled) => set({ lowLatencyVoice: enabled }),
     }),
     {
       name: "wc-workspace",
@@ -477,9 +469,8 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         if (version < 11) {
           state.keepScreenAwake ??= true;
         }
-        if (version < 12) {
-          state.lowLatencyVoice ??= false;
-        }
+        // v12 introduced lowLatencyVoice, later removed — no migration needed
+        // (any persisted value is simply ignored on hydrate).
         if (version < 13) {
           state.startMutedOnLoad ??= true;
         }
@@ -533,7 +524,6 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         sidebarSortMode: state.sidebarSortMode,
         adaptiveChrome: state.adaptiveChrome,
         keepScreenAwake: state.keepScreenAwake,
-        lowLatencyVoice: state.lowLatencyVoice,
       }),
     },
   ),

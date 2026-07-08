@@ -31,7 +31,7 @@ export { createAudioFilterChain } from "../audio-integration";
 export type { VadState, VadRefs, VadAction, CachedNoiseFloor } from "../audio-integration";
 export { VAD_FALLBACK_SILENCE_TIMEOUT_MS, VAD_FALLBACK_SEGMENT_SILENCE_MS, VAD_FLOOR_CACHE_MAX_AGE_MS, createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, computeSlidingNoiseFloor, vadTick } from "../audio-integration";
 export { buildVoiceActivitySnapshot, VAD_AUTO_STOP_VISUAL_GRACE_MS } from "../audio-integration";
-export { getSharedAudioContext, ensureAudioContextOnGesture, closeSharedAudioContext } from "../audio-integration";
+export { getSharedAudioContext, closeSharedAudioContext } from "../audio-integration";
 
 export interface UseVoiceInputCallbacks {
   /** Called when a completed transcript is available (both one-shot and persistent). */
@@ -109,7 +109,6 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   const wakeWordEnabled = useWorkspaceStore((s) => s.wakeWordEnabled);
   const wakeWordThreshold = useWorkspaceStore((s) => s.wakeWordThreshold);
   const segmentSilenceMs = useWorkspaceStore((s) => s.segmentSilenceMs);
-  const lowLatencyVoice = useWorkspaceStore((s) => s.lowLatencyVoice);
 
   // Hydrate workspace store from backend voice-stream config on mount AND
   // whenever the Settings modal opens (cheap unary RPC, gives near-real-time
@@ -158,7 +157,6 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     wakeWordEnabled,
     wakeWordThreshold,
     segmentSilenceMs,
-    lowLatencyVoice,
     capabilityCheck,
     parseCommand,
     onTranscript,
@@ -170,7 +168,6 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     wakeWordEnabled,
     wakeWordThreshold,
     segmentSilenceMs,
-    lowLatencyVoice,
     capabilityCheck,
     parseCommand,
     onTranscript,

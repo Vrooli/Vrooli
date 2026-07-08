@@ -68,6 +68,43 @@ earliest delivered lifecycle signal and cancel in-flight starts; a native shell
 would only matter for this hard-freeze class, not for the now-fixed web-console
 state-machine wedge.
 
+## 8b. Idle audio-session activation (background-audio interruption + wedge prevention) (2026-07-07)
+
+**Symptom:** on iOS, opening web-console (HTTPS PWA) stopped other apps' audio
+(Spotify/YouTube) — but only after the first touch/scroll, with low-latency/keep-
+alive off. Separately, the mic could get wedged until a device reboot (survives
+PWA force-quit — the platform residual in §8a).
+
+**Root cause (the preventable part):** we activated the iOS `AVAudioSession` when
+we did not need to, and never released it.
+- `ensureAudioContextOnGesture()` installed a document-wide capture-phase
+  `pointerdown`/`keydown` listener on mount and, on the **first interaction of any
+  kind**, created+`resume()`d the shared AudioContext — purely to shave ~20-50ms
+  off a *possible future* mic press. Resuming a WebAudio context activates the iOS
+  audio session and interrupts other apps' non-mixable audio, even when the user
+  never used voice.
+- The context was app-lifetime and **never suspended**, so it held the session
+  indefinitely.
+- Low-latency voice mode (`lowLatencyVoice` + `micReadiness` pre-warm) similarly
+  held a `getUserMedia` stream open while idle.
+
+**Fix (prevention, not recovery):**
+- Removed eager `ensureAudioContextOnGesture`; the AudioContext is resumed lazily
+  inside the real voice/cue gesture and **suspended when idle** — on background
+  (`visibilitychange:hidden`) and ~1.5s after a capture turn ends
+  (`armIdleSuspend`/`keepAudioContextAwake`/`suspendSharedAudioContext` in
+  `sharedAudioContext.ts`).
+- Removed low-latency voice mode entirely (setting, `micReadiness` module,
+  `retainStream`, injected pre-warmed streams). Providers always acquire and own a
+  fresh mic stream per turn and release it fully on stop.
+- Result: the audio session is active only while actually capturing or cueing, so
+  background audio is no longer interrupted, and the unnecessary session churn
+  that plausibly fed the §8a wedge is gone.
+
+This cannot *recover* an already-wedged mic (still a platform limitation, §8a),
+but it removes the app behaviours that put the session into that state. See
+[VOICE-LATENCY.md §3 (AudioContext lifecycle) + §5 (low-latency removed)].
+
 ## 9. E2E Issues
 
 **PARTIALLY RESOLVED** (2026-02-19): Added BAS workflows for terminal command execution, route-level session persistence, reconnect replay, and multi-pane independence:

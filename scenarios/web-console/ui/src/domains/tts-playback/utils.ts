@@ -85,6 +85,26 @@ export function buildPlaybackContext(
   };
 }
 
+/**
+ * Whether an incoming assistant event is eligible for auto-play at all —
+ * independent of whether playback is currently busy. When the transport is
+ * idle this means "play now"; when it is busy this means "enqueue and play
+ * when the current one ends" (Phase 7: mid-playback messages are queued, not
+ * dropped). The `!isSpeaking` decision belongs only to the play-now variant.
+ */
+export function shouldQueueIncomingEvent(args: {
+  autoTtsEnabled: boolean;
+  playbackIntent: PlaybackIntent;
+  activePaneId: string | null;
+  sessionId: string;
+  event: ConversationEvent;
+}): boolean {
+  return args.autoTtsEnabled
+    && args.playbackIntent === "continuous"
+    && args.activePaneId === args.sessionId
+    && args.event.role === "assistant";
+}
+
 export function shouldAutoPlayIncomingEvent(args: {
   autoTtsEnabled: boolean;
   playbackIntent: PlaybackIntent;
@@ -93,11 +113,7 @@ export function shouldAutoPlayIncomingEvent(args: {
   event: ConversationEvent;
   isSpeaking: boolean;
 }): boolean {
-  return args.autoTtsEnabled
-    && args.playbackIntent === "continuous"
-    && args.activePaneId === args.sessionId
-    && args.event.role === "assistant"
-    && !args.isSpeaking;
+  return shouldQueueIncomingEvent(args) && !args.isSpeaking;
 }
 
 export function shouldShowPlaybackBar(args: {

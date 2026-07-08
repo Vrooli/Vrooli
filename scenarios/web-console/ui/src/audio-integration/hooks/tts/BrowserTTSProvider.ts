@@ -13,6 +13,16 @@ export class BrowserTTSProvider implements TTSProvider {
   private _isSpeaking = false;
   private _isPaused = false;
 
+  /** See TTSProvider.onSettled — used by the playback registry to dispose an
+   *  orphaned provider once it goes idle. */
+  onSettled: (() => void) | null = null;
+
+  private settle(): void {
+    this._isSpeaking = false;
+    this._isPaused = false;
+    this.onSettled?.();
+  }
+
   readonly capabilities: TTSPlaybackCapabilities = {
     canPause: true,
     canSeek: false,
@@ -35,13 +45,11 @@ export class BrowserTTSProvider implements TTSProvider {
       this._isSpeaking = true;
       this._isPaused = false;
       utterance.onend = () => {
-        this._isSpeaking = false;
-        this._isPaused = false;
+        this.settle();
         resolve();
       };
       utterance.onerror = (e) => {
-        this._isSpeaking = false;
-        this._isPaused = false;
+        this.settle();
         reject(new Error(e.error));
       };
       window.speechSynthesis.speak(utterance);
@@ -50,8 +58,7 @@ export class BrowserTTSProvider implements TTSProvider {
 
   stop(): void {
     window.speechSynthesis.cancel();
-    this._isSpeaking = false;
-    this._isPaused = false;
+    this.settle();
   }
 
   get isSpeaking(): boolean {

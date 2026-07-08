@@ -145,11 +145,25 @@ function emitTtsTiming(payload: Record<string, unknown>): void {
  * requestId. Returns both the blob and metrics so the caller (KokoroProvider)
  * can emit a matching play-start event once audio.play() resolves.
  */
+/**
+ * Optional cache-control passed through to the server byte cache. When
+ * `eventId` is set, the synthesized audio is stored under
+ * (eventId, voice, speed, version, chunkIndex) so a later replay of the same
+ * paragraph serves from cache. `chunkIndex` disambiguates the N paragraphs of
+ * one message; omit (→ 0) for whole-message / one-off speech.
+ */
+export interface TTSCacheControl {
+  eventId?: string;
+  chunkIndex?: number;
+  version?: string;
+}
+
 export async function synthesizeTTSWithMetrics(
   input: string,
   voice?: string,
   speed?: number,
   signal?: AbortSignal,
+  cache?: TTSCacheControl,
 ): Promise<{ blob: Blob; metrics: TTSSynthesisMetrics }> {
   const requestId = newTtsRequestId();
   const synthStartMs = performance.now();
@@ -163,7 +177,9 @@ export async function synthesizeTTSWithMetrics(
         voice: voice ?? "",
         responseFormat: responseFormatFromString("mp3"),
         speed: speed ?? 0,
-        eventId: "",
+        eventId: cache?.eventId ?? "",
+        version: cache?.version ?? "",
+        chunkIndex: cache?.chunkIndex ?? 0,
         voiceOverrides: [],
       },
       { signal: combined, headers: { "x-tts-request-id": requestId } },
@@ -206,8 +222,9 @@ export async function synthesizeTTS(
   voice?: string,
   speed?: number,
   signal?: AbortSignal,
+  cache?: TTSCacheControl,
 ): Promise<Blob> {
-  return (await synthesizeTTSWithMetrics(input, voice, speed, signal)).blob;
+  return (await synthesizeTTSWithMetrics(input, voice, speed, signal, cache)).blob;
 }
 
 export async function fetchCachedTTS(
@@ -216,10 +233,11 @@ export async function fetchCachedTTS(
   speed: number,
   version: "active" | "original" = "active",
   signal?: AbortSignal,
+  chunkIndex = 0,
 ): Promise<Blob | null> {
   try {
     const resp = await audioRuntimeClient.getTTSCache(
-      { eventId, voice, speed, version },
+      { eventId, voice, speed, version, chunkIndex },
       { signal },
     );
     if (!resp.hit || resp.audio.byteLength === 0) return null;

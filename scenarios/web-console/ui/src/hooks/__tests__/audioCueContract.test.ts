@@ -40,7 +40,7 @@ vi.mock("../../api/capabilities", () => ({
 // Mock the audio cues module so we can track calls without actual audio.
 // useVoiceCore (inside audio-integration) imports cues via "../index" — the
 // barrel mock does not intercept those internal imports, so we also mock the
-// underlying audioCues / sharedAudioContext / micReadiness / vad source
+// underlying audioCues / sharedAudioContext / vad source
 // files directly. Spy instances are hoisted via vi.hoisted so they're safe
 // to reference inside the lifted vi.mock factories.
 const audioHoisted = vi.hoisted(() => ({
@@ -71,19 +71,7 @@ vi.mock("../../audio-integration/hooks/voice/sharedAudioContext", async (importO
   return {
     ...actual,
     getSharedAudioContext: () => audioHoisted.createAudioContextStub(),
-    ensureAudioContextOnGesture: vi.fn(),
     closeSharedAudioContext: vi.fn(),
-  };
-});
-vi.mock("../../audio-integration/hooks/voice/micReadiness", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../audio-integration/hooks/voice/micReadiness")>();
-  return {
-    ...actual,
-    acquireStream: vi.fn().mockResolvedValue({ getTracks: () => [{ stop: vi.fn(), readyState: "live" }], getAudioTracks: () => [{ stop: vi.fn(), readyState: "live" }] }),
-    releaseStream: vi.fn(),
-    getStream: vi.fn().mockReturnValue(null),
-    isStreamAlive: vi.fn().mockReturnValue(false),
-    _resetMicReadiness: vi.fn(),
   };
 });
 vi.mock("../../audio-integration/hooks/voice/vad", async (importOriginal) => {
@@ -142,13 +130,7 @@ vi.mock("../../audio-integration", async (importOriginal) => {
       destination: { connect: vi.fn(), disconnect: vi.fn() },
       resume: vi.fn().mockResolvedValue(undefined),
     }),
-    ensureAudioContextOnGesture: vi.fn(),
     closeSharedAudioContext: vi.fn(),
-    acquireStream: vi.fn().mockResolvedValue(mockStream()),
-    releaseStream: vi.fn(),
-    getStream: vi.fn().mockReturnValue(null),
-    isStreamAlive: vi.fn().mockReturnValue(false),
-    _resetMicReadiness: vi.fn(),
     createVadRefs: () => ({ state: "idle", silenceThreshold: 0, speechThreshold: 0, cachedFloorBaseline: null }),
     createVadRefsFromCache: vi.fn(),
     extractCacheableFloor: vi.fn().mockReturnValue({ silenceThreshold: 0.01, speechThreshold: 0.02, timestamp: Date.now() }),
@@ -270,7 +252,7 @@ describe("Audio Cue Contract", () => {
     stopCueSpy.mockClear();
     delete window.SpeechRecognition;
     delete window.webkitSpeechRecognition;
-    useWorkspaceStore.setState({ voiceEnabled: true, lowLatencyVoice: false });
+    useWorkspaceStore.setState({ voiceEnabled: true });
     mockMediaDevices();
   });
 
@@ -367,8 +349,7 @@ describe("Audio Cue Contract", () => {
     expect(stopCueSpy).not.toHaveBeenCalled();
   });
 
-  it("does NOT play any cue on mount (even with low-latency voice)", async () => {
-    useWorkspaceStore.setState({ lowLatencyVoice: true });
+  it("does NOT play any cue on mount", async () => {
     mockCapabilities(true, true);
 
     const { useVoiceInput } = await import("../useVoiceInput");

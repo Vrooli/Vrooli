@@ -6,6 +6,7 @@ import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { DEFAULT_COLS, DEFAULT_ROWS, ERROR_AUTO_DISMISS_MS } from "../consts/config";
 import type { TerminalPaneHandle } from "../components/TerminalPane";
 import type { GateResult, InputSource } from "../components/terminal/inputGate";
+import { ttsPlaybackRegistry } from "../audio-integration";
 
 // DOC: docs/concepts/ARCHITECTURE.md#session-creation
 // DOC: docs/internal/SEAMS.md#1b-session-orchestration
@@ -282,6 +283,11 @@ export function useSessionManager() {
   const removePane = useCallback(async (sessionId: string) => {
     setPanes((prev) => prev.filter((p) => p.session.id !== sessionId));
     terminalRefs.current.delete(sessionId);
+    // Session-end is a genuine stop intent: tear down any TTS provider held for
+    // this session in the playback registry, even if it was handed off (still
+    // speaking) when its pane last unmounted, so ending a session stops its
+    // audio rather than leaving an orphaned tail playing.
+    ttsPlaybackRegistry.stop(sessionId);
     try {
       await deleteSession(sessionId);
     } catch {

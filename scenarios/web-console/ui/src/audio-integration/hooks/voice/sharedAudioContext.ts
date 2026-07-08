@@ -1,4 +1,4 @@
-// DOC: docs/internal/VOICE-LATENCY.md#pre-create-audiocontext-on-first-gesture
+// DOC: docs/internal/VOICE-LATENCY.md#audiocontext-lifecycle
 //
 // Shared AudioContext Singleton
 // ==============================
@@ -7,9 +7,13 @@
 //
 //   1. **User gesture requirement**: An AudioContext created (or resumed) outside
 //      a user gesture handler starts in "suspended" state. It must be resumed
-//      inside a click/touch/keydown handler. By creating the context on the very
-//      first user gesture (anywhere in the app), we guarantee it is ready before
-//      the mic button is pressed, eliminating ~20-50ms from the recording start.
+//      inside a click/touch/keydown handler. We resume it lazily, inside the
+//      actual voice/cue gesture (the mic-button press, the record cue) — NOT
+//      eagerly on the first arbitrary tap. Eager resume was a ~20-50ms latency
+//      micro-optimization that, on iOS, activated the app's AVAudioSession on the
+//      first interaction of ANY kind and interrupted other apps' audio (Spotify /
+//      YouTube) even when the user never used voice. The latency win is not worth
+//      hijacking the audio session; see PROBLEMS.md.
 //
 //   2. **Context limit**: Browsers allow only 6-8 AudioContexts per page. Before
 //      this module, the codebase created separate contexts for audio cues
@@ -17,13 +21,22 @@
 //      into a single shared context reduces resource usage and avoids hitting
 //      the limit as more audio features are added.
 //
-// Lifecycle: The shared context is app-lifetime. It is created once and never
-// closed during normal operation. Only `closeSharedAudioContext()` (used in
-// tests) closes it. Individual consumers (level monitor, audio cues) connect
-// and disconnect their own nodes without affecting the shared context.
+// Lifecycle — release the audio session when idle. The shared context is created
+// lazily on first real audio need and SUSPENDED whenever it is idle: on page
+// background (hidden / pagehide / freeze) and shortly after a capture turn ends.
+// A running-but-idle AudioContext still holds the iOS audio session active (and
+// keeps other apps' audio ducked), so leaving it running app-lifetime is exactly
+// the "hold the session forever" anti-pattern this module now avoids. Consumers
+// (level monitor, audio cues) resume it on demand inside their own gesture, so
+// suspending when idle is transparent to them. `armIdleSuspend()` schedules a
+// suspend; `keepAudioContextAwake()` cancels a pending one when audio resumes.
 
 let _sharedCtx: AudioContext | null = null;
-let _gestureInstalled = false;
+let _idleSuspendTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Delay before an idle context is suspended, long enough for a stop cue
+ *  (~150ms) to finish playing so we never clip it. */
+const IDLE_SUSPEND_DELAY_MS = 1500;
 
 /**
  * Get the shared AudioContext singleton, creating it if necessary.
@@ -56,6 +69,8 @@ export function getSharedAudioContext(): AudioContext {
  * it (only the level meter does), so callers should not fail the session on it.
  */
 export async function ensureRunningSharedAudioContext(): Promise<AudioContext> {
+  // Real audio need — cancel any idle-suspend armed by a prior turn.
+  keepAudioContextAwake();
   let ctx = getSharedAudioContext();
   // Cast to string: TS narrows ctx.state across the resume() call (property
   // reads aren't re-widened), which would flag the post-resume comparison.
@@ -74,47 +89,58 @@ export async function ensureRunningSharedAudioContext(): Promise<AudioContext> {
 }
 
 /**
- * Install a one-shot event listener that creates the AudioContext on the first
- * user gesture (pointerdown or keydown). This ensures the context is available
- * and in "running" state before the user presses the mic button.
- *
- * Safe to call multiple times — subsequent calls are no-ops.
- *
- * Why pointerdown instead of click: pointerdown fires earlier in the event
- * chain, giving the AudioContext a few extra milliseconds to initialize
- * before any audio-dependent code runs.
+ * Cancel any pending idle-suspend. Call this whenever audio is (re)activated —
+ * the level monitor starting, a cue about to play, or a recording start — so a
+ * timer armed by a just-ended turn cannot suspend the context out from under a
+ * new one.
  */
-export function ensureAudioContextOnGesture(): void {
-  if (_gestureInstalled || typeof document === "undefined") return;
-  _gestureInstalled = true;
+export function keepAudioContextAwake(): void {
+  if (_idleSuspendTimer) {
+    clearTimeout(_idleSuspendTimer);
+    _idleSuspendTimer = null;
+  }
+}
 
-  const handler = () => {
-    // Create and immediately resume the context. If it's already created
-    // (e.g., by an earlier call to getSharedAudioContext), just resume it.
-    const ctx = getSharedAudioContext();
-    if (ctx.state === "suspended") {
-      ctx.resume().catch(() => {});
+/**
+ * Suspend the shared AudioContext immediately if it exists and is running.
+ * Suspending releases the iOS audio session so other apps' audio is no longer
+ * held; the context is resumed on demand (in a gesture) the next time voice or a
+ * cue needs it. No-op if there is no context or it is already suspended/closed.
+ * Used by the page-background backstop (hidden / pagehide / freeze).
+ */
+export function suspendSharedAudioContext(): void {
+  keepAudioContextAwake();
+  if (_sharedCtx && _sharedCtx.state === "running") {
+    _sharedCtx.suspend().catch(() => { /* best-effort; harmless if it races a close */ });
+  }
+}
+
+/**
+ * Arm a deferred suspend for when the context goes idle after a capture turn.
+ * Debounced: a later call replaces the pending timer, and any resume cancels it
+ * via `keepAudioContextAwake()`. The delay lets a trailing stop-cue finish
+ * before the session is released.
+ */
+export function armIdleSuspend(delayMs: number = IDLE_SUSPEND_DELAY_MS): void {
+  keepAudioContextAwake();
+  if (!_sharedCtx || _sharedCtx.state !== "running") return;
+  _idleSuspendTimer = setTimeout(() => {
+    _idleSuspendTimer = null;
+    // Re-check state: a new session may have started (and will keep it awake).
+    if (_sharedCtx && _sharedCtx.state === "running") {
+      _sharedCtx.suspend().catch(() => {});
     }
-    console.info("[voice] AudioContext pre-created on user gesture (state=%s)", ctx.state);
-
-    // Self-remove after first trigger — we only need one gesture.
-    document.removeEventListener("pointerdown", handler, true);
-    document.removeEventListener("keydown", handler, true);
-  };
-
-  // Use capture phase so we fire before any stopPropagation in the app.
-  document.addEventListener("pointerdown", handler, { capture: true, passive: true, once: true });
-  document.addEventListener("keydown", handler, { capture: true, passive: true, once: true });
+  }, delayMs);
 }
 
 /**
  * Close the shared AudioContext and reset state. Primarily for test cleanup.
- * In production, the context is app-lifetime and should never be closed.
+ * In production the context is suspended when idle, not closed.
  */
 export function closeSharedAudioContext(): void {
+  keepAudioContextAwake();
   if (_sharedCtx && _sharedCtx.state !== "closed") {
     _sharedCtx.close().catch(() => {});
   }
   _sharedCtx = null;
-  _gestureInstalled = false;
 }

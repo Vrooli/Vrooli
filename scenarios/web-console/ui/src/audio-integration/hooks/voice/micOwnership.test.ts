@@ -96,7 +96,7 @@ describe("micOwnership", () => {
   it("an OS track 'ended' event releases the lease and fires onRelease", () => {
     const track = fakeTrack();
     const onRelease = vi.fn();
-    registerMicStream("low-latency-prewarm", fakeStream([track]), { onRelease });
+    registerMicStream("voice-stream", fakeStream([track]), { onRelease });
 
     track.fire("ended");
 
@@ -120,14 +120,14 @@ describe("micOwnership", () => {
     it("releases non-active leases on visibility hidden and all leases on pagehide", () => {
       const uninstall = installMicLifecycleCleanup();
       const passive = registerMicStream("passive-wake-word", fakeStream([fakeTrack()]));
-      const prewarm = registerMicStream("low-latency-prewarm", fakeStream([fakeTrack()]));
+      const probe = registerMicStream("mic-permission-probe", fakeStream([fakeTrack()]));
       const recording = registerMicStream("voice-stream", fakeStream([fakeTrack()]));
 
       Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
       document.dispatchEvent(new Event("visibilitychange"));
 
       expect(passive.released).toBe(true);
-      expect(prewarm.released).toBe(true);
+      expect(probe.released).toBe(true);
       // Active recording is owned by its provider, not the backstop, on hidden.
       expect(recording.released).toBe(false);
 

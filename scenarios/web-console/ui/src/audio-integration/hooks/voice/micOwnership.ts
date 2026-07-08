@@ -27,7 +27,6 @@
 
 /** Every code path in web-console UI that can open a browser mic stream. */
 export type MicOwner =
-  | "low-latency-prewarm"
   | "voice-stream"
   | "whisper"
   | "web-speech"

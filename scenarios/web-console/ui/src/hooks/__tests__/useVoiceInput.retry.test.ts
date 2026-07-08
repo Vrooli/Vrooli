@@ -40,7 +40,6 @@ vi.mock("../voice/VoiceStreamProvider", () => {
     onSegmentAccepted: unknown = null;
     onSegmentRejected: ((i: number, s: number, th: number) => void) | null = null;
     onSpeakerStatus: unknown = null;
-    retainStream = false;
     language = "en";
     private lastTurn: { blob: Blob; mimeType: string; durationMs: number; capturedAt: number } | null = null;
     getStream() { return null; }

@@ -44,10 +44,13 @@
 // Uses the shared AudioContext singleton to avoid creating a separate context
 // for cue playback. This keeps the total AudioContext count at 1 instead of 2,
 // leaving more headroom under the browser's 6-8 context limit.
-// DOC: docs/internal/VOICE-LATENCY.md#pre-create-audiocontext-on-first-gesture
-import { getSharedAudioContext } from "./sharedAudioContext";
+// DOC: docs/internal/VOICE-LATENCY.md#audiocontext-lifecycle
+import { getSharedAudioContext, keepAudioContextAwake } from "./sharedAudioContext";
 
 async function getCueContext(): Promise<AudioContext> {
+  // A cue is real audio activity — cancel any idle-suspend so it can't fire
+  // mid-cue and freeze the oscillators.
+  keepAudioContextAwake();
   const ctx = getSharedAudioContext();
   // Resume if suspended (browsers suspend until user gesture).
   // We must await this — scheduling oscillators on a suspended context

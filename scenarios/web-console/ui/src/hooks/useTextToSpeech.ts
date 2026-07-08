@@ -81,12 +81,20 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
     defaultSpeed: settings.rate,
     onPlaybackEvent,
     kokoroAvailable: probeKokoroAvailable,
+    // Keep in-progress speech alive across pane unmount / warm-set eviction:
+    // the workspace only mounts a warm set of panes, so a session evicted
+    // mid-utterance would otherwise have its provider disposed and its audio
+    // truncated. Keying persistence on the session id lets a remounted pane
+    // re-adopt the same, still-playing provider (single owner, no leak).
+    playbackOwnerKey: diagnostics?.sessionId,
+    persistPlaybackAcrossUnmount: Boolean(diagnostics?.sessionId),
   }), [
     onPlaybackEvent,
     settings.backendPreference,
     settings.rate,
     settings.voice,
     startMutedOnLoad,
+    diagnostics?.sessionId,
   ]);
 
   return useTextToSpeechCore(coreOpts, settings);

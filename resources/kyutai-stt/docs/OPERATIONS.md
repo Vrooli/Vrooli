@@ -62,6 +62,21 @@ avoid anonymous download rate limits.
 | `KYUTAI_STT_BASE_URL` | `http://localhost:8094` | alias |
 | `KYUTAI_STT_WS_URL` | `ws://localhost:8094/v1/stream` | streaming endpoint URL pattern for audio-tools |
 
+### Segmentation / commit-cadence tuning
+
+Kyutai is a *delayed-streams* model at 12.5 Hz. A durable `segment` is committed
+on any of three triggers; the two frame-count knobs below are env-configurable
+(set on the container, e.g. via `docker-compose*.yml`).
+
+| Name | Default | Notes |
+|---|---|---|
+| `KYUTAI_STT_SILENCE_COMMIT_FRAMES` | `16` (~1.3 s) | A run of this many padding (no-text) frames after words is treated as a speaking pause and commits the pending segment. |
+| `KYUTAI_STT_MAX_SEGMENT_FRAMES` | `48` (~3.8 s) | During *continuous* speech (no pause), force-commit the pending segment once it has spanned this many frames, at the next word boundary. Prevents a long unbroken utterance from stalling as a volatile partial until the end flush (silent tail-loss). `0` disables force-commit. |
+
+The end flush (on `{"type":"end"}`) always drains the ~0.5 s delayed-streams
+tail and commits the final segment regardless of these knobs; a cold
+disconnect with no `end` does **not** flush, so clients must send `end`.
+
 ## Operator Checklist
 
 - Keep compose topology, ports, and health checks declared in `resource.json`

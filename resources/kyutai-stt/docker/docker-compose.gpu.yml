@@ -15,6 +15,11 @@ services:
       - KYUTAI_STT_HF_REPO=${KYUTAI_STT_HF_REPO:-kyutai/stt-1b-en_fr}
       - KYUTAI_STT_DEVICE=${KYUTAI_STT_DEVICE:-cuda}
       - KYUTAI_STT_LOG_LEVEL=${KYUTAI_STT_LOG_LEVEL:-INFO}
+      # Segment commit cadence (12.5 Hz frames). SILENCE commits on a pause;
+      # MAX_SEGMENT force-commits during continuous speech so a long unbroken
+      # utterance still produces durable segments (0 disables force-commit).
+      - KYUTAI_STT_SILENCE_COMMIT_FRAMES=${KYUTAI_STT_SILENCE_COMMIT_FRAMES:-16}
+      - KYUTAI_STT_MAX_SEGMENT_FRAMES=${KYUTAI_STT_MAX_SEGMENT_FRAMES:-48}
       - HF_HOME=/models
       - HF_TOKEN=${KYUTAI_STT_HF_TOKEN:-}
       - NVIDIA_VISIBLE_DEVICES=all

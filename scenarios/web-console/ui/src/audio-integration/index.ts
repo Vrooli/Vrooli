@@ -30,7 +30,7 @@ export * from "./hooks/voice/sharedAudioContext";
 export * from "./hooks/voice/micOwnership";
 export * from "./hooks/voice/micLifecyclePolicy";
 export * from "./hooks/voice/voiceCaptureController";
-export * from "./hooks/voice/micReadiness";
+export * from "./hooks/voice/streamHealth";
 export { VoiceStreamProvider } from "./hooks/voice/VoiceStreamProvider";
 export { WhisperProvider } from "./hooks/voice/WhisperProvider";
 export { WebSpeechProvider } from "./hooks/voice/WebSpeechProvider";
@@ -43,6 +43,7 @@ export * from "./hooks/voice/wakeword";
 export * from "./hooks/tts/types";
 export { KokoroProvider } from "./hooks/tts/KokoroProvider";
 export { BrowserTTSProvider } from "./hooks/tts/BrowserTTSProvider";
+export { ttsPlaybackRegistry } from "./hooks/tts/playbackRegistry";
 
 // =============================================================================
 // API surfaces (audio operations against web-console's own API).

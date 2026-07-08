@@ -115,6 +115,7 @@ func (h *connectHandler) Synthesize(ctx context.Context, req *connect.Request[au
 		ResponseFormat: responseFormatStr(int32(req.Msg.ResponseFormat)),
 		EventID:        req.Msg.EventId,
 		Version:        req.Msg.Version,
+		ChunkIndex:     req.Msg.ChunkIndex,
 	})
 	if err != nil {
 		return nil, mapErr(err)
@@ -145,10 +146,11 @@ func (h *connectHandler) GetTTSCache(ctx context.Context, req *connect.Request[a
 		return nil, connect.NewError(connect.CodeUnavailable, audiotools.ErrUnavailable)
 	}
 	out, hit := h.deps.TTS.GetCached(ctx, audioports.CacheLookup{
-		EventID: req.Msg.EventId,
-		Voice:   req.Msg.Voice,
-		Speed:   req.Msg.Speed,
-		Version: req.Msg.Version,
+		EventID:    req.Msg.EventId,
+		Voice:      req.Msg.Voice,
+		Speed:      req.Msg.Speed,
+		Version:    req.Msg.Version,
+		ChunkIndex: req.Msg.ChunkIndex,
 	})
 	if !hit {
 		return connect.NewResponse(&audioruntimev1.GetTTSCacheResponse{Hit: false}), nil

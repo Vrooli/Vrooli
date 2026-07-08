@@ -3,6 +3,7 @@ package audioports
 import (
 	"context"
 	"errors"
+
 	"web-console/integrations/audiotools"
 
 	"connectrpc.com/connect"
@@ -52,6 +53,7 @@ func (r *RemoteTextToSpeech) Synthesize(ctx context.Context, in TTSRequest) (TTS
 		ResponseFormat: responseFormatFromString(in.ResponseFormat),
 		EventId:        in.EventID,
 		Version:        in.Version,
+		ChunkIndex:     in.ChunkIndex,
 	})
 	if r.Credentials != nil {
 		req = audiotools.AttachCredentials(req, r.Credentials(ctx))
@@ -101,10 +103,11 @@ func (r *RemoteTextToSpeech) GetCached(ctx context.Context, key CacheLookup) (TT
 		return TTSResult{}, false
 	}
 	resp, err := r.Client.TTS.GetCache(ctx, connect.NewRequest(&ttsv1.GetCacheRequest{
-		EventId: key.EventID,
-		Voice:   key.Voice,
-		Speed:   key.Speed,
-		Version: key.Version,
+		EventId:    key.EventID,
+		Voice:      key.Voice,
+		Speed:      key.Speed,
+		Version:    key.Version,
+		ChunkIndex: key.ChunkIndex,
 	}))
 	if err != nil || resp == nil || resp.Msg == nil || !resp.Msg.Hit {
 		return TTSResult{}, false

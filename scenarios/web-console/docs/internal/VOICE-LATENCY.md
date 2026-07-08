@@ -35,13 +35,14 @@ Additionally, on mobile, `getUserMedia` switches the OS audio session to "play-a
 - **COST**: One `localStorage.getItem()` call on recording start (synchronous, sub-millisecond).
 - **FORMAT**: `{ silenceThreshold: number, speechThreshold: number, timestamp: number }`
 
-### 3. Pre-create AudioContext on first gesture (always-on)
+<a id="audiocontext-lifecycle"></a>
+### 3. AudioContext lifecycle — lazy resume, idle suspend (always-on)
 
-- **WHERE**: [CODE: ui/src/hooks/voice/sharedAudioContext.ts]
-- **WHAT**: A singleton AudioContext is created on the first user gesture (pointerdown/keydown) anywhere in the app, and shared between the level monitor and audio cues.
-- **WHY**: Browsers require a user gesture to create/resume an AudioContext. Creating it on the first interaction (rather than on mic press) saves ~20-50ms. Sharing a single context also reduces the AudioContext count from 2 to 1, leaving more headroom under the browser's 6-8 context limit.
-- **CONSTRAINT**: The context is app-lifetime — never closed during normal operation. Individual consumers connect/disconnect their own audio nodes without affecting the context.
-- **COST**: One AudioContext in memory (minimal).
+- **WHERE**: [CODE: ui/src/audio-integration/hooks/voice/sharedAudioContext.ts]
+- **WHAT**: A single shared AudioContext is used by the level monitor and audio cues. It is created/resumed **lazily, inside the real voice or cue gesture** (mic press, record cue, passive listener) — **never eagerly** on an arbitrary first tap. When it goes idle it is **suspended**: on page background (`visibilitychange:hidden`) and shortly (`armIdleSuspend`, ~1.5s) after a capture turn ends. Any real audio need calls `keepAudioContextAwake()` (cancel pending suspend) and resumes.
+- **WHY**: On iOS, creating/resuming an AudioContext activates the app's `AVAudioSession` and **interrupts other apps' audio** (Spotify/YouTube). Eagerly resuming on the first interaction hijacked the audio session even when the user never used voice, and a running-but-idle context kept holding the session (the "web-console stops my music the moment I touch it" report). Saving ~20-50ms of first-press latency is not worth that; we activate the session only while actually capturing or cueing. See [PROBLEMS.md §8b].
+- **CONSTRAINT**: Consumers resume on demand, so a suspended-when-idle context is transparent to them. Rebuild-on-closed/interrupted (see `ensureRunningSharedAudioContext`) still heals a wedged context.
+- **COST**: A tiny first-press resume cost (previously prepaid); in exchange, background audio is never held hostage.
 
 ### 4. WebSocket pre-connection (always-on)
 
@@ -51,22 +52,25 @@ Additionally, on mobile, `getUserMedia` switches the OS audio session to "play-a
 - **CONSTRAINT**: A 30-second timeout closes the pre-connected WS if `start()` isn't called, preventing idle connections on the server. If the pre-connected WS errors or times out, `start()` creates a fresh one — the existing `pendingChunks` buffering handles any gap.
 - **COST**: One idle WebSocket connection while voice is enabled and streaming is available.
 
-### 5. Low-latency voice mode (opt-in, intent-armed setting: `lowLatencyVoice`)
+### 5. Low-latency voice mode — REMOVED (2026-07)
 
-- **WHERE**: [CODE: ui/src/hooks/voice/micReadiness.ts] + [CODE: ui/src/stores/useWorkspaceStore.ts#lowLatencyVoice]
-- **WHAT**: After explicit mic-control intent (hover/focus/press), pre-warms `getUserMedia` so a `MediaStream` can already be available when the user presses the mic button. The stream is injected into the provider via `start(preWarmedStream)`.
-- **WHY INTENT-ARMED**: `getUserMedia` activates the OS microphone indicator (red dot on iOS, orange dot on Android, tray icon on desktop) and can duck or pause other audio. Persisting the setting is not enough to open the mic; app mount and tab focus stay silent until the user approaches voice input.
-- **CONSTRAINT**: The pre-warmed stream is "provider-independent" — it is acquired by micReadiness and injected into whichever provider starts. See "Stream injection vs stream acquisition" below.
-- **COST**: One active mic stream after a mic-control intent, until capture starts, lifecycle cleanup releases it, or the low-latency setting turns off.
+The opt-in `lowLatencyVoice` setting and its `micReadiness` pre-warm module were
+**removed**. It held a `getUserMedia` stream open (idle) after a mic-control
+intent to shave the getUserMedia call off the first press. Holding the mic idle
+is the exact audio-session/ducking anti-pattern that interrupts other apps' audio
+and churns the iOS media session — a plausible contributor to the "mic wedged
+until reboot" class. The provider now always acquires (and owns) a **fresh** mic
+stream on press; there is no pre-warm, no injected stream, no `retainStream`. If
+first-press latency ever needs shaving again, do it without holding hardware idle.
 
 ### 6. Page-lifecycle mic cleanup (always-on for ALL mic owners)
 
 - **WHERE**: [CODE: ui/src/audio-integration/hooks/voice/micLifecyclePolicy.ts#decideMicLifecycle] (pure policy) + [CODE: ui/src/audio-integration/hooks/voice/micOwnership.ts#installMicLifecycleCleanup] (privacy backstop) + [CODE: ui/src/audio-integration/hooks/voice/voiceCaptureController.ts] (single-authority capture cleanup) + [CODE: ui/src/audio-integration/hooks/useVoiceCore.ts] (coordinated stop + re-arm + registry-driven self-heal).
 - **WHAT**: Visibility/lifecycle cleanup is no longer scoped to the low-latency
   pre-warm stream. Every browser mic stream opened by web-console UI is acquired
-  through the **mic ownership registry** (one lease per owner: low-latency
-  prewarm, active providers, passive wake-word, and the three settings capture
-  flows). The reaction to each page-lifecycle event is decided by the pure
+  through the **mic ownership registry** (one lease per owner: active providers,
+  passive wake-word, and the three settings capture flows). The reaction to each
+  page-lifecycle event is decided by the pure
   `decideMicLifecycle({ event, standalonePwa })` policy and applied by the
   ref-counted backstop installer:
   - `visibilitychange` → hidden, **standalone/PWA** (`navigator.standalone` or
@@ -75,18 +79,18 @@ Additionally, on mobile, `getUserMedia` switches the OS audio session to "play-a
     even after the JS believes it stopped — this is the failure class the policy
     closes.
   - `visibilitychange` → hidden, **desktop tab**: release every **non-active**
-    lease (passive, prewarm, settings); the controller stops the active
-    recording so React state stays honest. Each owner's `onRelease` callback
-    resets its own state (passive listening flips off; micReadiness goes
-    `released`; settings captures cancel without uploading).
+    lease (passive, settings); the controller stops the active recording so
+    React state stays honest. Each owner's `onRelease` callback resets its own
+    state (passive listening flips off; settings captures cancel without
+    uploading). The shared AudioContext is also suspended on hidden (§3).
   - `pagehide` / `freeze`: release **all** leases everywhere. The PWA is closing
     — privacy and hardware release win over preserving a partial recording. MDN
     notes mobile `pagehide` is not fully reliable, so `visibilitychange` is the
     primary session-end signal and `pagehide`/`freeze` are complementary.
   - On becoming visible again, useVoiceCore does **not** re-arm passive
-    listening or low-latency prewarm by itself. Visibility/focus is not a user
-    mic intent; the next mic-control hover/focus/press re-arms prewarm or
-    passive wake-word listening if the relevant setting is enabled.
+    listening or the audio session by itself. Visibility/focus is not a user
+    mic intent; the next mic-control hover/focus/press re-arms passive wake-word
+    listening if that setting is enabled.
 - **PREPARING / START CANCELLATION**: `getUserMedia` may resolve a live lease
   *after* the tab goes hidden (async startup). The controller stamps a
   generation token at `beginStart()`; the hidden handler calls `cancelStarts()`,
@@ -95,7 +99,7 @@ Additionally, on mobile, `getUserMedia` switches the OS audio session to "play-a
   state. So `preparing` is treated as capture-active for lifecycle safety.
 - **REGISTRY-DRIVEN SELF-HEAL**: useVoiceCore subscribes to the registry. If a
   live lease exists that the workflow should not be holding (UI idle/off but a
-  provider/prewarm/passive stream is still live — `selectStaleLeases`), it flips
+  provider/passive stream is still live — `selectStaleLeases`), it flips
   the honest `staleLiveMicLease` flag and self-heals via
   `controller.recoverStaleLeases` (releasing the orphan + logging a structured
   invariant violation). The mic button exposes a user "release microphone"
@@ -118,9 +122,9 @@ Additionally, on mobile, `getUserMedia` switches the OS audio session to "play-a
 
 ### 7. Prompt mic release (always-on)
 
-- **WHERE**: [CODE: ui/src/hooks/voice/VoiceStreamProvider.ts#retainStream]
-- **WHAT**: When `lowLatencyVoice` is disabled (default), mic tracks are stopped immediately after recording finishes. When enabled, the stream is retained for re-use but released promptly (500ms delay) and then re-acquired — minimizing the window where the mic causes audio ducking.
-- **WHY**: On mobile, holding a `getUserMedia` stream keeps the OS audio session in "play-and-record" mode, which ducks other audio. The 120ms delay before `provider.stop()` exists to ensure the final MediaRecorder chunk is captured — it should not be reduced.
+- **WHERE**: [CODE: ui/src/audio-integration/hooks/voice/VoiceStreamProvider.ts]
+- **WHAT**: Mic tracks are stopped immediately after a recording turn finishes (the provider releases its own registry lease), and the shared AudioContext is suspended shortly after (see §3). There is no retained/re-acquired stream — every turn acquires fresh and releases fully.
+- **WHY**: On mobile, holding a `getUserMedia` stream (or a running AudioContext) keeps the OS audio session in "play-and-record" mode, which ducks other audio. Releasing both when idle is what stops the ducking. The 120ms delay before `provider.stop()` exists to ensure the final MediaRecorder chunk is captured — it should not be reduced.
 
 ## Audio Ducking Deep Dive
 
@@ -136,35 +140,25 @@ Effects:
 
 Mitigation strategy:
 1. Release mic tracks ASAP after recording stops (all providers do this in `stop()`)
-2. In low-latency mode, release on `visibilitychange` hidden
-3. In low-latency mode, prewarm only after explicit mic-control intent; after a
-   user-recorded session, the release-then-reacquire cycle may warm the next
-   press because the user has already opted into voice for that session
+2. **Never hold the mic or the audio session idle.** No pre-warm; the AudioContext
+   is resumed lazily and suspended when idle / on background (§3). The audio
+   session is active only while actually capturing or playing a cue.
 
 **Future**: The `navigator.audioSession` API (Chrome 132+, experimental) allows requesting `type: "play-and-record"` with hint `"playback"`, which may prevent ducking. Track at https://chromestatus.com/feature/5765444243898368. Not implemented yet due to insufficient browser support.
 
-## Stream Injection vs Stream Acquisition
+## Stream Acquisition
 
-Two ownership models for the MediaStream:
-
-**Stream acquisition (default)**: Each provider calls `getUserMedia` in its own `start()` method. Provider owns the stream lifecycle — it calls `track.stop()` in `stop()`.
-
-**Stream injection (low-latency)**: A pre-warmed stream from `micReadiness.ts` is passed INTO the provider's `start(preWarmedStream)` method. The micReadiness module owns acquisition; the provider uses the stream but does not stop its tracks (`retainStream = true`).
-
-Key invariants:
-- If the pre-warmed stream's tracks are ended or muted (browser revoked access, another app seized the mic, or the device changed), the provider falls back to its own `getUserMedia` call
-- The provider checks `track.readyState === "live" && !track.muted` before using an injected stream
-- Ownership is tracked by a **lease**, not the `retainStream` flag. A provider
-  holds a lease only for a stream it acquired itself (via the mic ownership
-  registry); an injected pre-warmed stream's lease stays with micReadiness. On
-  `stop()` / `dispose()` the provider releases only its own lease — it never
-  stops another owner's tracks. (This also closes a latent leak where a fresh
-  `getUserMedia` fallback ran while `retainStream` was still true.)
-- The micReadiness module handles the release-then-reacquire cycle after recording finishes
+Each provider calls `getUserMedia` (through the mic ownership registry) in its own
+`start()` method and owns the resulting stream via a **lease** — it calls
+`releaseMicLease` (→ `track.stop()`) in `stop()`/`dispose()`. There is one
+ownership model: acquire-fresh-per-turn. The former "stream injection" model
+(a pre-warmed stream owned by a separate module and injected via
+`start(preWarmedStream)`) was removed with low-latency mode — providers no longer
+accept an injected stream and there is no `retainStream` flag.
 
 ## Audio Cue Contract
 
-Audio cues (rising/falling chimes) signal recording session boundaries to the user. They are scoped to the **logical recording session**, not the **mic hardware lifecycle**. This distinction is critical because low-latency mode pre-warms the mic before recording starts.
+Audio cues (rising/falling chimes) signal recording session boundaries to the user. They are scoped to the **logical recording session**, not the **mic hardware lifecycle** — the two are decoupled so a cue never fires on a non-recording audio event.
 
 ### When cues play
 
@@ -180,7 +174,6 @@ Audio cues (rising/falling chimes) signal recording session boundaries to the us
 
 | Event | Reason |
 |-------|--------|
-| Mic pre-warm (low-latency acquireStream) | Not a recording session |
 | Mic release (visibility handler, cleanup) | Not a user-initiated stop |
 | Component unmount / app close | Lifecycle event, not recording stop |
 | Error recovery / backend fallback | Error, not normal completion |

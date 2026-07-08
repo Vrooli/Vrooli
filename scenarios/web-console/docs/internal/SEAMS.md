@@ -219,6 +219,53 @@ attributes, not a `fetch(` call, so the file-preview REST surface adds no
 - **Selectors**: [CODE: ui/src/consts/selectors.ts] — centralized data-testid registry for automation
 - **Shortcuts**: [CODE: ui/src/consts/shortcuts.ts] — **Volatile edge**: shortcut definitions, decoupled from launcher component
 
+## TTS Playback Lifecycle Seam (UI, added 2026-07-07)
+
+Streaming-tail-durability made spoken output survive the three teardown
+races that used to truncate it. The ownership boundary is:
+`useTtsPlaybackController` (domain policy: which event plays, queueing,
+version) → `useTextToSpeechCore` (provider lifecycle) → `KokoroProvider`
+(single `HTMLAudioElement`). The durable guarantees:
+
+- **Resilient per-paragraph sequence.** `KokoroProvider.speakSequence`
+  synthesizes paragraphs pipelined (concurrency 2) and plays each as its
+  own track. A single paragraph's synth-reject or MP3 decode error is
+  isolated — retry once → per-paragraph browser-voice fallback →
+  skip-with-notice — and the sequence **continues**. Only a real
+  stop/dispose abort halts the tail. Non-fatal degradation surfaces via
+  `onParagraphOutcome` (observability), never gating playback.
+  [CODE: ui/src/audio-integration/hooks/tts/KokoroProvider.ts]
+- **Playback survives pane unmount / warm-set eviction.** The workspace
+  keeps only `WARM_SET_SIZE` panes mounted; an evicted pane used to
+  dispose its provider mid-tail. `useTextToSpeechCore` opts into a
+  process-wide `ttsPlaybackRegistry` keyed by session id
+  (`playbackOwnerKey` + `persistPlaybackAcrossUnmount`): on unmount while
+  speaking it **hands the provider off** instead of disposing; a remount
+  **re-adopts the same instance** (single owner, no leak). The registry
+  disposes an orphaned provider once its tail settles (`onSettled`). A
+  new `speak` calls `stopOrphansExcept` so two sessions never speak at
+  once; genuine session-end (`removePane`) calls `registry.stop`.
+  [CODE: ui/src/audio-integration/hooks/tts/playbackRegistry.ts]
+- **Mid-playback messages queue, not drop.** An assistant message
+  arriving while TTS is busy is enqueued in a bounded FIFO
+  (`MAX_AUTOPLAY_QUEUE = 8`, oldest dropped on overflow) and spoken when
+  the current one ends (`drainPendingAutoplay`), honoring the current
+  playback intent — replacing the old `!isSpeaking` guard that silently
+  dropped it. [CODE: ui/src/domains/tts-playback/useTtsPlaybackController.ts]
+
+- **Replays serve from the byte cache (per paragraph).** The synth path
+  threads a real `event_id` plus a per-paragraph `chunk_index` (proto,
+  additive) so each paragraph populates the audio-tools byte cache under a
+  distinct key — no whole-message collision. `useTextToSpeechCore`'s
+  replay path fetches chunk `0..N-1`; a full hit plays them via
+  `KokoroProvider.speakFromBlobs` with **no synthesis**, and any miss falls
+  through to synth (which repopulates every chunk). The cache is populated
+  as a side-effect of the live per-paragraph synth (zero extra synth); the
+  chain-path `Synthesize` handler in audio-tools now writes the cache it
+  reads (previously a dead seam — replays always missed).
+  [CODE: ui/src/audio-integration/api/tts.ts],
+  [CODE: scenarios/audio-tools/api/handlers/tts/connect_handler.go]
+
 ## Testability Seams
 
 ### Session Observer Seam (API)
