@@ -1,0 +1,28 @@
+{
+  "kind": "operating-mode-example-run",
+  "id": "review-not-accepted",
+  "mode": "holistic-loop",
+  "label": "Review requests changes",
+  "description": "Review returns a non-accepting verdict; reconcile still proposes follow-up backlog work.",
+  "branch": "review → reconcile (verdict recorded, routing unchanged)",
+  "scenario": "The acceptance review finds the result short of one criterion and records a changes_requested verdict. The verdict is informational for routing — reconcile still runs and proposes follow-up items so the gap is tracked.",
+  "initiative": {
+    "title": "Unify the audio-session lifecycle",
+    "description": "A pass where acceptance review is not satisfied on the first cycle.",
+    "items": [
+      { "ref": "execute/audio-session-teardown", "title": "Tear down idle audio session", "status": "in_progress", "priority": 1, "effort": "M" },
+      { "ref": "fix/mic-wedge-regression", "title": "Fix mic wedge after backgrounding", "status": "todo", "priority": 2, "effort": "S" }
+    ],
+    "criteria": [
+      "An idle tab never holds the system audio session.",
+      "The microphone recovers after backgrounding without an app restart."
+    ]
+  },
+  "steps": [
+    { "phase": "investigate", "note": "always → plan" },
+    { "phase": "plan", "note": "always → execute" },
+    { "phase": "execute", "output": { "replan_needed": false }, "note": "replan_needed=false → review" },
+    { "phase": "review", "output": { "verdict": "changes_requested" }, "note": "always → reconcile (verdict informational, routing unchanged)" }
+  ],
+  "expected_path": ["investigate", "plan", "execute", "review", "reconcile"]
+}

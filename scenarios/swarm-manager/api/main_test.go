@@ -37,6 +37,17 @@ func newTestServer(t *testing.T) *Server {
 	if err := os.WriteFile(filepath.Join(configDir, "settings.json"), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// The operating-mode registry loads mode data from `<scenarioRoot>/modes`
+	// (see operatingmode.ValidateRegistry in main.go). Symlink the real
+	// committed mode folder into the isolated test root so the server starts
+	// with the production modes without copying files or reaching outside the
+	// tempdir. The api package's working directory is `scenarios/swarm-manager/api`,
+	// so the committed modes live at `../modes`.
+	if realModes, err := filepath.Abs("../modes"); err == nil {
+		if err := os.Symlink(realModes, filepath.Join(root, "modes")); err != nil {
+			t.Fatalf("link operating-mode data into test root: %v", err)
+		}
+	}
 	t.Setenv("SCENARIO_ROOT", root)
 	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "storage"))
 	t.Setenv("AGENT_MANAGER_ENABLED", "false")

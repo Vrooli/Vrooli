@@ -110,8 +110,9 @@ func TestSimulateModeUsesRealTransitionGuards(t *testing.T) {
 	}
 	if classify.Transition == nil ||
 		classify.Transition.To != "review" ||
-		classify.Transition.ConditionKind != string(TransitionConditionProgressDecision) ||
-		classify.Transition.ProgressDecision != string(ProgressComplete) {
+		classify.Transition.ConditionKind != GuardOpEq ||
+		classify.Transition.Field != "progress.decision" ||
+		classify.Transition.Value != string(ProgressComplete) {
 		t.Fatalf("classify transition = %+v, want complete -> review", classify.Transition)
 	}
 }
@@ -137,8 +138,9 @@ func TestSimulateModeHolisticReplanPresetLoopsBackThenCompletes(t *testing.T) {
 	}
 	if firstExecute.Transition == nil ||
 		firstExecute.Transition.To != "investigate" ||
-		firstExecute.Transition.ConditionKind != string(TransitionConditionPayloadBool) {
-		t.Fatalf("first execute transition = %+v, want payload_bool -> investigate", firstExecute.Transition)
+		firstExecute.Transition.ConditionKind != GuardOpEq ||
+		firstExecute.Transition.Field != "replan_needed" {
+		t.Fatalf("first execute transition = %+v, want replan_needed guard -> investigate", firstExecute.Transition)
 	}
 	// The trace must still terminate at reconcile after the second pass.
 	last := got.Trace[len(got.Trace)-1]
@@ -196,7 +198,8 @@ func TestSimulateModePhasedPlanBranchPresets(t *testing.T) {
 					t.Fatalf("blocked classify terminal = %v, want terminal", classify.Terminal)
 				}
 				if classify.Transition == nil || classify.Transition.To != "" ||
-					classify.Transition.ProgressDecision != string(ProgressBlocked) {
+					classify.Transition.Field != "progress.decision" ||
+					classify.Transition.Value != string(ProgressBlocked) {
 					t.Fatalf("blocked transition = %+v, want blocked guard with empty target", classify.Transition)
 				}
 			} else if classify.Transition == nil || classify.Transition.To != tc.wantTo {
@@ -284,6 +287,75 @@ func TestSimulateModeRejectsItemLevelMode(t *testing.T) {
 	_, err := svc.SimulateMode(context.Background(), ModeItemLevel, "")
 	if err == nil {
 		t.Fatal("SimulateMode item-level error = nil, want rejection")
+	}
+}
+
+// TestSimulationPresetsAreModeOwnedData proves the Phase 6 acceptance: presets
+// are sourced from modes/<id>/example-runs/*.json (not hardcoded Go), carry the
+// data-authored operator narrative, and are ordered happy-path first. This is
+// what makes "add a simulation case" a data edit.
+func TestSimulationPresetsAreModeOwnedData(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestServiceWithOptions(t, root, serviceOptions{})
+
+	def, err := DefinitionFor(ModeHolisticLoop)
+	if err != nil {
+		t.Fatalf("DefinitionFor: %v", err)
+	}
+	if len(def.ExampleRuns) == 0 {
+		t.Fatal("holistic-loop Definition carries no example-runs; presets are not data-sourced")
+	}
+	if def.ExampleRuns[0].ID != "happy-path" {
+		t.Fatalf("first example-run id = %q, want happy-path (happy-path-first ordering)", def.ExampleRuns[0].ID)
+	}
+
+	got, err := svc.SimulateMode(context.Background(), ModeHolisticLoop, "replan-after-execute")
+	if err != nil {
+		t.Fatalf("SimulateMode: %v", err)
+	}
+	var replan *SimulationPreset
+	for i := range got.Presets {
+		if got.Presets[i].ID == "replan-after-execute" {
+			replan = &got.Presets[i]
+		}
+	}
+	if replan == nil {
+		t.Fatalf("replan-after-execute preset missing from %+v", got.Presets)
+	}
+	// The operator narrative comes straight from the example-run JSON.
+	if replan.Branch == "" || replan.Scenario == "" || replan.Label == "" {
+		t.Fatalf("preset metadata not data-sourced: %+v", replan)
+	}
+	if got.Initiative.Title != "Unify the audio-session lifecycle" {
+		t.Fatalf("initiative title = %q, want the example-run's seeded title", got.Initiative.Title)
+	}
+}
+
+// TestSimulateModeDetectsExamplePathDrift proves the runtime path assertion
+// guards a fixture whose declared expected_path no longer matches the guards it
+// walks: SimulateMode fails loudly rather than silently returning a wrong trace.
+func TestSimulateModeDetectsExamplePathDrift(t *testing.T) {
+	// A preset whose declared expected_path no longer matches the phases it walks
+	// must be rejected, so a drifted fixture fails loudly instead of returning a
+	// wrong trace.
+	preset := simPreset{
+		meta:         SimulationPreset{ID: "drifted"},
+		expectedPath: []string{"investigate", "plan", "execute", "review", "WRONG"},
+	}
+	trace := []SimulationStep{
+		{Phase: "investigate"},
+		{Phase: "plan"},
+		{Phase: "execute"},
+		{Phase: "review"},
+		{Phase: "reconcile"},
+	}
+	if err := assertSimulatedPath(preset, trace, 0); err == nil {
+		t.Fatal("assertSimulatedPath accepted a drifted expected_path, want error")
+	}
+	// The matching path is accepted.
+	preset.expectedPath[4] = "reconcile"
+	if err := assertSimulatedPath(preset, trace, 0); err != nil {
+		t.Fatalf("assertSimulatedPath rejected a matching path: %v", err)
 	}
 }
 

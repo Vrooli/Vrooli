@@ -1,0 +1,31 @@
+{
+  "kind": "operating-mode-example-run",
+  "id": "replan-after-execute",
+  "mode": "holistic-loop",
+  "label": "Execute triggers replan",
+  "description": "Execution discovers the plan was wrong and loops back to investigate before finishing.",
+  "branch": "execute → investigate (replan_needed), then a clean second pass",
+  "scenario": "The first execution attempt reveals the audio-session bug spans a subsystem the plan missed, so the run reports replan_needed and the loop returns to investigate. The second pass completes and review accepts.",
+  "initiative": {
+    "title": "Unify the audio-session lifecycle",
+    "description": "Exploratory audio work where the first plan is expected to miss something material.",
+    "items": [
+      { "ref": "execute/audio-session-teardown", "title": "Tear down idle audio session", "status": "in_progress", "priority": 1, "effort": "M" },
+      { "ref": "fix/mic-wedge-regression", "title": "Fix mic wedge after backgrounding", "status": "todo", "priority": 2, "effort": "S" }
+    ],
+    "criteria": [
+      "An idle tab never holds the system audio session.",
+      "The microphone recovers after backgrounding without an app restart."
+    ]
+  },
+  "steps": [
+    { "phase": "investigate", "note": "always → plan" },
+    { "phase": "plan", "note": "always → execute" },
+    { "phase": "execute", "output": { "replan_needed": true }, "note": "replan_needed=true → investigate (loop back)" },
+    { "phase": "investigate", "note": "always → plan (second pass)" },
+    { "phase": "plan", "note": "always → execute (revised plan)" },
+    { "phase": "execute", "output": { "replan_needed": false }, "note": "replan_needed=false → review" },
+    { "phase": "review", "output": { "verdict": "accepted" }, "note": "always → reconcile" }
+  ],
+  "expected_path": ["investigate", "plan", "execute", "investigate", "plan", "execute", "review", "reconcile"]
+}

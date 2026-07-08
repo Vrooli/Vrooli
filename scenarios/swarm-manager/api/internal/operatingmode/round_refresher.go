@@ -52,16 +52,32 @@ func (s *Service) RefreshRound(ctx context.Context, initiativeName string, mode 
 		payload := MutableRoundPayload(&round)
 		payload.SetAgentSummary(state.Summary)
 		payload.SetFinishedAt(finishTime(state, s.clock))
-		if err := s.applyPhaseResult(&round, state.Summary); err != nil {
+		resolved, err := s.applyPhaseResult(ctx, &round, s.resolutionCandidates(ctx, round, state))
+		switch {
+		case err != nil:
+			// Infrastructure or post-apply contract failure (e.g. a required
+			// artifact was not produced) — a real, non-recoverable failure.
 			round.Status = RoundStatusFailed
 			round.Error = err.Error()
 			slog.Warn("operating mode: phase result contract failed", "err", err, "initiative", round.InitiativeName, "round", round.Round)
 			s.emitPhaseFailed(round, err.Error())
-		} else {
+		case resolved.Resolved():
 			round.Status = RoundStatusCompleted
 			s.emitPhaseCompleted(round)
 			s.emitParsedPhaseSignals(round)
 			completedNormally = true
+		default:
+			// Honest abstain: the ladder could not resolve or reconstruct the
+			// phase's required structured output. This is not the old
+			// fail-on-malformed path (recoverable output resolves above) — it is a
+			// safe stop with structured diagnostics so nothing auto-progresses on
+			// absent data and the operator can see exactly what was unresolved.
+			round.Status = RoundStatusFailed
+			round.Error = resolved.AbstainReason()
+			slog.Warn("operating mode: phase output abstained",
+				"initiative", round.InitiativeName, "round", round.Round,
+				"missing", resolved.Missing, "violations", resolved.Violations)
+			s.emitPhaseFailed(round, round.Error)
 		}
 		_ = s.lock.Release(round.InitiativeName, round.RunID)
 	case "failed":
@@ -122,6 +138,31 @@ func (s *Service) CancelRound(ctx context.Context, initiativeName string, mode M
 
 func isRoundActive(round RoundEnvelope) bool {
 	return round.Status == RoundStatusReserved || round.Status == RoundStatusAgentRunning
+}
+
+// resolutionCandidates assembles the ordered candidate messages (oldest→newest)
+// the resolution ladder scans. When the agent exposes the run's assistant
+// messages (RunMessageReader), they feed L0 true-final-message detection so a
+// trailing subagent message doesn't mask the real answer. The run summary — the
+// agent-manager's official final description — is appended as the newest
+// candidate unless it already matches the last message, so a summary that
+// carries the result is tried first while older messages remain a fallback. When
+// no message stream is available, the summary is the sole candidate.
+func (s *Service) resolutionCandidates(ctx context.Context, round RoundEnvelope, state agentmanager.RunState) []string {
+	var messages []string
+	if reader, ok := s.agent.(RunMessageReader); ok && strings.TrimSpace(round.RunID) != "" {
+		if msgs, err := reader.GetRunMessages(ctx, round.RunID); err != nil {
+			slog.Debug("operating mode: run messages unavailable; falling back to summary",
+				"err", err, "initiative", round.InitiativeName, "run_id", round.RunID)
+		} else {
+			messages = msgs
+		}
+	}
+	summary := strings.TrimSpace(state.Summary)
+	if summary != "" && (len(messages) == 0 || strings.TrimSpace(messages[len(messages)-1]) != summary) {
+		messages = append(messages, summary)
+	}
+	return messages
 }
 
 // maybeAutoStartNext implements the AutoStartAfter contract: when the

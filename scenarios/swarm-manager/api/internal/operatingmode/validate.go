@@ -7,8 +7,15 @@ import (
 	"unicode"
 )
 
+// ValidateRegistry ensures the data-backed registry is loaded and valid.
+// Loading is the validation step: LoadModesFromDir runs ValidateLoadedModes
+// (the same mode/phase/metric/profile invariants plus generic guard-graph
+// validation) over every discovered mode, so a successful ensureRegistry means
+// the whole registry passed. The server calls this at startup, turning any
+// malformed mode data into a fatal, actionable startup error.
 func ValidateRegistry() error {
-	return validateDefinitions(registry)
+	_, err := ensureRegistry()
+	return err
 }
 
 func ValidatePromptCatalog(resolve PromptCatalogResolver) error {
@@ -162,9 +169,6 @@ func validateInitiativeModeDefinition(def Definition) error {
 	if err := validateModeTransitions(def); err != nil {
 		return err
 	}
-	if err := validateTransitionRules(def); err != nil {
-		return err
-	}
 	for phase, phaseDef := range def.PhaseGraph.Phases {
 		if err := validateModePhase(def, phase, phaseDef); err != nil {
 			return err
@@ -301,51 +305,6 @@ func isValidPurposeToken(value string) bool {
 		return false
 	}
 	return true
-}
-
-func validateTransitionRules(def Definition) error {
-	for from, rules := range def.PhaseGraph.TransitionRules {
-		if _, ok := def.PhaseGraph.Phases[from]; !ok {
-			return fmt.Errorf("mode %q transition rule source %q is not registered", def.Mode, from)
-		}
-		if len(rules) == 0 {
-			return fmt.Errorf("mode %q transition rule source %q has no rules", def.Mode, from)
-		}
-		declaredNext := map[Phase]struct{}{}
-		for _, next := range def.PhaseGraph.Transitions[from] {
-			declaredNext[next] = struct{}{}
-		}
-		for i, rule := range rules {
-			if err := validateTransitionCondition(rule.When); err != nil {
-				return fmt.Errorf("mode %q transition rule %q[%d]: %w", def.Mode, from, i, err)
-			}
-			for _, to := range rule.Next {
-				if _, ok := def.PhaseGraph.Phases[to]; !ok {
-					return fmt.Errorf("mode %q transition rule %q -> %q references unregistered phase", def.Mode, from, to)
-				}
-				if _, ok := declaredNext[to]; !ok {
-					return fmt.Errorf("mode %q transition rule %q -> %q is not declared in phase graph transitions", def.Mode, from, to)
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func validateTransitionCondition(condition TransitionCondition) error {
-	switch condition.Kind {
-	case TransitionConditionAlways:
-		return nil
-	case TransitionConditionPayloadBool:
-		if strings.TrimSpace(condition.PayloadKey) == "" {
-			return fmt.Errorf("payload bool condition requires a payload key")
-		}
-		return nil
-	case TransitionConditionProgressDecision:
-		return condition.ProgressDecision.Validate()
-	default:
-		return fmt.Errorf("unknown transition condition kind %q", condition.Kind)
-	}
 }
 
 func validatePhaseArtifactPolicy(def Definition, phaseDef PhaseDefinition) error {

@@ -1,0 +1,28 @@
+{
+  "kind": "operating-mode-example-run",
+  "id": "happy-path",
+  "mode": "holistic-loop",
+  "label": "Clean pass",
+  "description": "Investigate → plan → execute → review → reconcile with no replanning.",
+  "branch": "execute → review (replan not needed)",
+  "scenario": "Investigation surfaces the full picture up front, the plan holds, execution needs no rework, and review accepts the result before the backlog is reconciled.",
+  "initiative": {
+    "title": "Unify the audio-session lifecycle",
+    "description": "Coupled audio fixes that can only be validated together across the tab lifecycle.",
+    "items": [
+      { "ref": "execute/audio-session-teardown", "title": "Tear down idle audio session", "status": "in_progress", "priority": 1, "effort": "M" },
+      { "ref": "fix/mic-wedge-regression", "title": "Fix mic wedge after backgrounding", "status": "todo", "priority": 2, "effort": "S" }
+    ],
+    "criteria": [
+      "An idle tab never holds the system audio session.",
+      "The microphone recovers after backgrounding without an app restart."
+    ]
+  },
+  "steps": [
+    { "phase": "investigate", "note": "always → plan" },
+    { "phase": "plan", "note": "always → execute" },
+    { "phase": "execute", "output": { "replan_needed": false }, "note": "replan_needed=false → fall through to review" },
+    { "phase": "review", "output": { "verdict": "accepted" }, "note": "always → reconcile (verdict recorded)" }
+  ],
+  "expected_path": ["investigate", "plan", "execute", "review", "reconcile"]
+}

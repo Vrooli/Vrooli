@@ -81,6 +81,53 @@ func (s *AgentService) GetRunState(ctx context.Context, runID string) (RunState,
 	return state, nil
 }
 
+// GetRunMessages returns the ordered assistant message contents of a run,
+// oldest→newest. It powers the operating-mode resolution ladder's L0
+// true-final-message detection: an agent often emits its "final" answer and then
+// a subagent appends a trailing message, so the chronologically-last message is
+// frequently not the real result. Returning the full ordered assistant-message
+// list lets the ladder scan back to the true final answer.
+//
+// Only assistant-role MESSAGE events are returned; tool calls, logs, status, and
+// user/system messages are excluded. Events are page-fetched by ascending
+// sequence.
+func (s *AgentService) GetRunMessages(ctx context.Context, runID string) ([]string, error) {
+	if !s.enabled {
+		return nil, ErrNotAvailable
+	}
+	var (
+		messages []string
+		after    int64
+	)
+	for {
+		events, hasMore, err := s.GetRunEvents(ctx, runID, RunEventsOptions{AfterSequence: after, Limit: 200})
+		if err != nil {
+			return nil, err
+		}
+		for _, event := range events {
+			if event.Sequence > after {
+				after = event.Sequence
+			}
+			if event.EventType != domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE {
+				continue
+			}
+			msg := event.GetMessage()
+			if msg == nil {
+				continue
+			}
+			if strings.EqualFold(strings.TrimSpace(msg.GetRole()), "assistant") {
+				if content := strings.TrimSpace(msg.GetContent()); content != "" {
+					messages = append(messages, content)
+				}
+			}
+		}
+		if !hasMore || len(events) == 0 {
+			break
+		}
+	}
+	return messages, nil
+}
+
 func (s *AgentService) GetRunEvents(ctx context.Context, runID string, opts RunEventsOptions) ([]*domainpb.RunEvent, bool, error) {
 	if !s.enabled {
 		return nil, false, ErrNotAvailable

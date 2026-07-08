@@ -168,6 +168,9 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 	}
 
 	agentEnabled := strings.ToLower(strings.TrimSpace(os.Getenv("AGENT_MANAGER_ENABLED"))) != "false"
+	// Loading the operating-mode registry from the resolved scenario modes dir
+	// is the validation step (LoadModesFromDir runs ValidateLoadedModes); a
+	// malformed or missing mode folder is a fatal, actionable startup error.
 	if err := operatingmode.ValidateRegistry(); err != nil {
 		log.Fatalf("invalid operating-mode registry: %v", err)
 	}

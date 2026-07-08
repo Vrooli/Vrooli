@@ -1,15 +1,14 @@
 package operatingmode
 
 type (
-	Mode                    string
-	ScopeKind               string
-	Phase                   string
-	PhaseKind               string
-	RunStrategyKind         string
-	BacklogSyncCapability   string
-	BacklogSyncApplyMode    string
-	TransitionConditionKind string
-	ResultBindingKind       string
+	Mode                  string
+	ScopeKind             string
+	Phase                 string
+	PhaseKind             string
+	RunStrategyKind       string
+	BacklogSyncCapability string
+	BacklogSyncApplyMode  string
+	ResultBindingKind     string
 )
 
 const (
@@ -75,12 +74,6 @@ func IsValidBacklogSyncApplyMode(mode BacklogSyncApplyMode) bool {
 }
 
 const (
-	TransitionConditionAlways           TransitionConditionKind = "always"
-	TransitionConditionPayloadBool      TransitionConditionKind = "payload_bool"
-	TransitionConditionProgressDecision TransitionConditionKind = "progress_decision"
-)
-
-const (
 	ResultBindingProgressArtifact ResultBindingKind = "progress_artifact"
 )
 
@@ -119,6 +112,23 @@ type Definition struct {
 	Metrics                MetricsPolicy
 	Lock                   LockPolicy
 	UI                     UIPolicy
+	// ExampleRuns are the mode-owned simulation fixtures loaded from
+	// modes/<id>/example-runs/*.json. Each seeds phase outputs and asserts the
+	// phase path the real generic guard evaluator produces; they are the data
+	// behind the simulator's presets. Populated by LoadModesFromDir; empty for
+	// modes with no example-runs directory (the simulator then synthesizes a
+	// generic happy-path). Ordered happy-path-first.
+	ExampleRuns []ExampleRun
+}
+
+// ExampleRun looks up a loaded example-run by id.
+func (d Definition) ExampleRun(id string) (ExampleRun, bool) {
+	for _, run := range d.ExampleRuns {
+		if run.ID == id {
+			return run, true
+		}
+	}
+	return ExampleRun{}, false
 }
 
 type ScopePolicy struct {
@@ -126,11 +136,27 @@ type ScopePolicy struct {
 }
 
 type PhaseGraph struct {
-	StartPhase      Phase
-	Terminal        []Phase
-	Transitions     map[Phase][]Phase
-	TransitionRules map[Phase][]TransitionRule
-	Phases          map[Phase]PhaseDefinition
+	StartPhase  Phase
+	Terminal    []Phase
+	Transitions map[Phase][]Phase
+	// Guards is the generic, data-driven branching model: an ordered list of
+	// guarded edges per phase, evaluated by the generic guard evaluator
+	// (guard.go). It is the sole branching representation — the runtime routes,
+	// the simulation walks, and the UI renders transitions from it. Populated by
+	// the data loader (LoadModeDefinition). Transitions above is the derived
+	// static adjacency (guard targets flattened) used for ordering and
+	// reachability; Guards carries the conditions.
+	Guards map[Phase][]GuardedTransition
+	Phases map[Phase]PhaseDefinition
+}
+
+// GuardedTransition is one edge out of a phase: when the guard matches the
+// completed round's structured output, the loop routes to To. An empty To is a
+// guarded stop (e.g. a blocked progress decision). The generic guard replaces
+// the closed always/payload_bool/progress_decision TransitionCondition kinds.
+type GuardedTransition struct {
+	When Guard
+	To   []Phase
 }
 
 type PhaseDefinition struct {
@@ -146,18 +172,57 @@ type PhaseDefinition struct {
 	// race-condition design pressure on the round refresher hook. The
 	// auto-start path fires only on RoundStatusCompleted (not Failed /
 	// Cancelled) and only after the initiative lock is released.
-	AutoStartAfter   []Phase
-	ActivityPurpose  string
-	LockPurpose      string
-	CatalogID        string
-	SkillID          string
-	PromptCatalog    PromptCatalogMetadata
-	ProfileKey       string
-	WritesRepo       bool
-	OutputArtifacts  []ArtifactDefinition
-	ResultBindings   []ResultBinding
-	OutputContract   PhaseOutputContract
+	AutoStartAfter  []Phase
+	ActivityPurpose string
+	LockPurpose     string
+	CatalogID       string
+	SkillID         string
+	PromptCatalog   PromptCatalogMetadata
+	ProfileKey      string
+	WritesRepo      bool
+	OutputArtifacts []ArtifactDefinition
+	ResultBindings  []ResultBinding
+	OutputContract  PhaseOutputContract
+	// DeclaredOutput is the phase's declared structured-output schema (field
+	// name/type/required/enum/bounds) plus resolution-ladder tuning. It is the
+	// single artifact that both validates a round's result and steers the
+	// resolution ladder; guards reference its fields by path. Populated by the
+	// data loader; the hardcoded Go definitions leave it nil.
+	DeclaredOutput   *DeclaredOutput
 	RequiresCriteria bool
+}
+
+// DeclaredOutput is the per-phase contract for what a round is supposed to emit.
+type DeclaredOutput struct {
+	EnvelopeKey              string
+	RequiresStructuredResult bool
+	Fields                   []OutputField
+	Resolution               ResolutionPolicy
+}
+
+// OutputField is one declared output field. Object-typed fields may nest
+// further fields; guards and the resolution ladder reference fields by path.
+type OutputField struct {
+	Name        string
+	Type        string
+	Required    bool
+	Enum        []any
+	Minimum     *float64
+	Maximum     *float64
+	MinLength   *int
+	MaxLength   *int
+	Description string
+	Fields      []OutputField
+}
+
+// ResolutionPolicy is the per-phase resolution-ladder tuning. The engine
+// applies these knobs when resolving imperfect model output (Phase 5); the
+// loader fills the schema defaults so consumers never see zero-values that mean
+// "off".
+type ResolutionPolicy struct {
+	DetectTrueFinalMessage bool
+	ScanLastNMessages      int
+	AllowClassifier        bool
 }
 
 // IsValidPhaseKind reports whether the given kind is one of the four
@@ -180,18 +245,6 @@ type PromptCatalogMetadata struct {
 type ResultBinding struct {
 	Kind     ResultBindingKind  `json:"kind"`
 	Artifact ArtifactDefinition `json:"artifact"`
-}
-
-type TransitionRule struct {
-	When TransitionCondition
-	Next []Phase
-}
-
-type TransitionCondition struct {
-	Kind             TransitionConditionKind
-	PayloadKey       string
-	BoolValue        bool
-	ProgressDecision ProgressDecision
 }
 
 type PhaseOutputContract struct {

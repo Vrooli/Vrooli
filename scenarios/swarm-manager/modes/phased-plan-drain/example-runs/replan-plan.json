@@ -1,0 +1,31 @@
+{
+  "kind": "operating-mode-example-run",
+  "id": "replan-plan",
+  "mode": "phased-plan-drain",
+  "label": "Progress forces a replan",
+  "description": "Classify decides the plan is wrong and routes back to prepare a new plan.",
+  "branch": "classify_progress → prepare_plan (replan), then complete",
+  "scenario": "Executing the first slice reveals the phased plan mis-ordered a dependency. Classify reports replan and routing returns to prepare_plan. The revised plan drains cleanly and the cycle completes.",
+  "initiative": {
+    "title": "Migrate CLI commands to durable run handles",
+    "description": "A plan that needs revision partway through the drain.",
+    "items": [
+      { "ref": "execute/durable-run-primitive", "title": "Add durable_run primitive", "status": "in_progress", "priority": 1, "effort": "M" },
+      { "ref": "execute/migrate-test-genie-execute", "title": "Migrate test-genie execute to durable handles", "status": "todo", "priority": 2, "effort": "M" }
+    ],
+    "criteria": [
+      "Every execute command returns a durable run handle.",
+      "The legacy in-process primitive is removed."
+    ]
+  },
+  "steps": [
+    { "phase": "prepare_plan", "note": "always → execute_next" },
+    { "phase": "execute_next", "note": "always → classify_progress" },
+    { "phase": "classify_progress", "output": { "progress": { "decision": "replan" } }, "note": "progress.decision=replan → prepare_plan (revise plan)" },
+    { "phase": "prepare_plan", "note": "always → execute_next (revised plan)" },
+    { "phase": "execute_next", "note": "always → classify_progress" },
+    { "phase": "classify_progress", "output": { "progress": { "decision": "complete" } }, "note": "progress.decision=complete → review" },
+    { "phase": "review", "output": { "verdict": "accepted" }, "note": "always → reconcile" }
+  ],
+  "expected_path": ["prepare_plan", "execute_next", "classify_progress", "prepare_plan", "execute_next", "classify_progress", "review", "reconcile"]
+}

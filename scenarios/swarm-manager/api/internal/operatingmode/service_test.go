@@ -117,10 +117,19 @@ func (f *fakeItemExecutions) CancelActiveExecutionsForInitiative(context.Context
 }
 
 type fakeAgent struct {
-	spawned []agentmanager.InitiativeSpawnRequest
-	states  map[string]agentmanager.RunState
-	stopped []string
-	err     error
+	spawned  []agentmanager.InitiativeSpawnRequest
+	states   map[string]agentmanager.RunState
+	messages map[string][]string
+	stopped  []string
+	err      error
+}
+
+// GetRunMessages satisfies the optional RunMessageReader capability so the
+// resolution ladder's L0 true-final-message detection can be exercised at the
+// refresher level. A run with no configured messages returns nil, and the
+// refresher falls back to the run summary as the sole candidate.
+func (f *fakeAgent) GetRunMessages(_ context.Context, runID string) ([]string, error) {
+	return f.messages[runID], nil
 }
 
 func (f *fakeAgent) SpawnInitiative(_ context.Context, req agentmanager.InitiativeSpawnRequest) (agentmanager.RunResult, error) {
@@ -580,8 +589,79 @@ func TestRefreshRoundFailsWhenStructuredResultMissing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RefreshRound returned error: %v", err)
 	}
-	if refreshed.Status != RoundStatusFailed || !strings.Contains(refreshed.Error, "requires a structured operating_mode_result payload") {
-		t.Fatalf("refreshed = %+v, want failed structured-result contract", refreshed)
+	// A plain human summary with no structured envelope, no message stream, and
+	// no classifier is an honest abstain: the ladder resolved nothing, so the
+	// round stops safely with an abstain diagnostic rather than the old terse
+	// parse error, and carries a durable resolution record marked abstained.
+	if refreshed.Status != RoundStatusFailed || !strings.Contains(refreshed.Error, "resolution abstained") {
+		t.Fatalf("refreshed = %+v, want abstained resolution", refreshed)
+	}
+	record, ok := RoundPayload(refreshed.Payload).Resolution()
+	if !ok || record.Outcome != ResolutionAbstained {
+		t.Fatalf("resolution record = %+v (ok=%v), want abstained", record, ok)
+	}
+}
+
+func TestApplyPhaseResultUsesInjectedClassifier(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestServiceWithOptions(t, root, serviceOptions{
+		classifier: &stubClassifier{answers: map[string]string{"verdict": "accepted"}},
+	})
+	round := RoundEnvelope{
+		Mode:           string(ModeHolisticLoop),
+		Phase:          "review",
+		InitiativeName: "init-a",
+		Payload:        map[string]any{},
+	}
+	def := MustDefinition(ModeHolisticLoop)
+	resolved, err := svc.applyPhaseResultInMemory(context.Background(), def, &round, "After careful review I accept the work; it meets the acceptance criteria.")
+	if err != nil {
+		t.Fatalf("applyPhaseResultInMemory returned error: %v", err)
+	}
+	if resolved.Outcome != ResolutionRecovered || resolved.Layer != ResolutionLayerClassifier {
+		t.Fatalf("resolved = %+v, want recovered via L2 classifier", resolved)
+	}
+	if got := RoundPayload(round.Payload).Verdict(); got != "accepted" {
+		t.Fatalf("applied verdict = %q, want accepted", got)
+	}
+}
+
+func TestRefreshRoundRecoversSubagentTailFromMessageStream(t *testing.T) {
+	root := t.TempDir()
+	final := `{"operating_mode_result":{"handoff":{"summary":"investigated"},"artifacts":[{"path":"modes/holistic-loop/findings.md","content":"# Findings"}]}}`
+	trailing := "[subagent] cleanup complete, 2 files touched"
+	agent := &fakeAgent{
+		states: map[string]agentmanager.RunState{
+			// The run summary echoes the trailing subagent message, not the real
+			// answer — the classic true-final-message problem.
+			"run-1": {RunID: "run-1", Status: "complete", Summary: trailing, FinishedAt: "2026-04-30T12:05:00Z"},
+		},
+		messages: map[string][]string{
+			"run-1": {"Investigating the initiative…", final, trailing},
+		},
+	}
+	svc := newTestService(t, root, agent, &fakePrompts{})
+
+	round, err := svc.StartPhase(context.Background(), StartPhaseRequest{
+		InitiativeName: "init-a",
+		Phase:          "investigate",
+	})
+	if err != nil {
+		t.Fatalf("StartPhase returned error: %v", err)
+	}
+	refreshed, err := svc.RefreshRound(context.Background(), "init-a", ModeHolisticLoop, round.Round)
+	if err != nil {
+		t.Fatalf("RefreshRound returned error: %v", err)
+	}
+	if refreshed.Status != RoundStatusCompleted {
+		t.Fatalf("status = %q (err=%q), want completed via true-final-message recovery", refreshed.Status, refreshed.Error)
+	}
+	record, ok := RoundPayload(refreshed.Payload).Resolution()
+	if !ok || record.Outcome != ResolutionRecovered || record.Layer != ResolutionLayerFinalMsg {
+		t.Fatalf("resolution record = %+v (ok=%v), want recovered via L0", record, ok)
+	}
+	if _, err := svc.store.ReadArtifact("init-a", ModeHolisticLoop, "modes/holistic-loop/findings.md"); err != nil {
+		t.Fatalf("recovered artifact not written: %v", err)
 	}
 }
 
@@ -670,8 +750,16 @@ func TestRefreshRoundRequiresProgressForClassifyProgress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RefreshRound returned error: %v", err)
 	}
-	if refreshed.Status != RoundStatusFailed || !strings.Contains(refreshed.Error, "requires a valid progress decision") {
-		t.Fatalf("refreshed = %+v, want failed progress contract", refreshed)
+	// classify_progress declares progress + progress.decision required. A handoff-
+	// only envelope resolves nothing for that contract, so the ladder abstains
+	// (safe stop) with the unresolved declared fields named, and — with no message
+	// stream or classifier — the round fails on the abstain rather than the old
+	// bespoke "requires a valid progress decision" contract check.
+	if refreshed.Status != RoundStatusFailed || !strings.Contains(refreshed.Error, "resolution abstained") {
+		t.Fatalf("refreshed = %+v, want abstained progress resolution", refreshed)
+	}
+	if record, ok := RoundPayload(refreshed.Payload).Resolution(); !ok || record.Outcome != ResolutionAbstained {
+		t.Fatalf("resolution record = %+v (ok=%v), want abstained", record, ok)
 	}
 }
 
@@ -1078,6 +1166,9 @@ type serviceOptions struct {
 	itemExecutions ItemExecutionController
 	backlogMutator BacklogMutator
 	reconciler     ProposalReconciler
+	// classifier injects an L2 resolution classifier. When nil the test service
+	// disables the live ollama classifier so unit tests never shell out.
+	classifier FieldClassifier
 }
 
 func newTestServiceWithOptions(t *testing.T, root string, opts serviceOptions) *Service {
@@ -1143,8 +1234,10 @@ func newTestServiceWithOptions(t *testing.T, root string, opts serviceOptions) *
 		PromptCatalog: func(mode, phase string) (PromptCatalogEntry, bool) {
 			return ExpectedPromptCatalogEntry(mode, phase)
 		},
-		ScenarioRoot: root,
-		Clock:        store.Clock,
+		ScenarioRoot:      root,
+		Clock:             store.Clock,
+		Classifier:        opts.classifier,
+		DisableClassifier: opts.classifier == nil,
 	})
 	if err != nil {
 		t.Fatalf("NewService: %v", err)

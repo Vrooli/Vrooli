@@ -37,7 +37,7 @@ func transitionsBetween(graph *ModeCatalogPhaseGraph, from, to string) []ModeCat
 }
 
 func TestBuildCatalogEntry_HolisticLoop(t *testing.T) {
-	entry := buildCatalogEntry(holisticLoopDefinition(), 0)
+	entry := buildCatalogEntry(MustDefinition(ModeHolisticLoop), 0)
 	if entry.Mode != string(ModeHolisticLoop) {
 		t.Fatalf("entry.Mode = %q, want %q", entry.Mode, ModeHolisticLoop)
 	}
@@ -129,7 +129,7 @@ func TestBuildCatalogEntry_HolisticLoop(t *testing.T) {
 }
 
 func TestBuildCatalogEntry_HolisticLoop_PhaseGraph(t *testing.T) {
-	entry := buildCatalogEntry(holisticLoopDefinition(), 0)
+	entry := buildCatalogEntry(MustDefinition(ModeHolisticLoop), 0)
 	graph := entry.PhaseGraph
 	if graph == nil {
 		t.Fatalf("PhaseGraph is nil for holistic-loop")
@@ -145,18 +145,21 @@ func TestBuildCatalogEntry_HolisticLoop_PhaseGraph(t *testing.T) {
 	if len(executeReplan) != 1 {
 		t.Fatalf("execute->investigate transitions = %v, want 1", executeReplan)
 	}
-	if executeReplan[0].ConditionKind != string(TransitionConditionPayloadBool) {
-		t.Fatalf("execute->investigate kind = %q, want payload_bool", executeReplan[0].ConditionKind)
+	if executeReplan[0].ConditionKind != GuardOpEq {
+		t.Fatalf("execute->investigate kind = %q, want eq", executeReplan[0].ConditionKind)
 	}
-	if executeReplan[0].Label != "on payload.replan_needed=true" {
-		t.Fatalf("execute->investigate label = %q, want %q", executeReplan[0].Label, "on payload.replan_needed=true")
+	if executeReplan[0].Label != "on replan_needed = true" {
+		t.Fatalf("execute->investigate label = %q, want %q", executeReplan[0].Label, "on replan_needed = true")
+	}
+	if executeReplan[0].Field != "replan_needed" || executeReplan[0].Value != "true" {
+		t.Fatalf("execute->investigate field/value = %q/%q, want replan_needed/true", executeReplan[0].Field, executeReplan[0].Value)
 	}
 
 	executeReview := transitionsBetween(graph, "execute", "review")
 	if len(executeReview) != 1 {
 		t.Fatalf("execute->review transitions = %v, want 1", executeReview)
 	}
-	if executeReview[0].ConditionKind != string(TransitionConditionAlways) {
+	if executeReview[0].ConditionKind != GuardOpAlways {
 		t.Fatalf("execute->review kind = %q, want always", executeReview[0].ConditionKind)
 	}
 	if executeReview[0].Label != "always" {
@@ -176,30 +179,30 @@ func TestBuildCatalogEntry_HolisticLoop_PhaseGraph(t *testing.T) {
 }
 
 func TestBuildCatalogEntry_PhasedPlanDrain_ProgressTransitions(t *testing.T) {
-	entry := buildCatalogEntry(phasedPlanDrainDefinition(), 0)
+	entry := buildCatalogEntry(MustDefinition(ModePhasedPlanDrain), 0)
 	graph := entry.PhaseGraph
 	if graph == nil {
 		t.Fatalf("PhaseGraph is nil for phased-plan-drain")
 	}
 
-	expectations := map[string]string{
-		"execute_next": "on continue",
-		"prepare_plan": "on replan",
-		"review":       "on complete",
+	expectations := map[string]struct{ label, value string }{
+		"execute_next": {"on progress.decision = continue", "continue"},
+		"prepare_plan": {"on progress.decision = replan", "replan"},
+		"review":       {"on progress.decision = complete", "complete"},
 	}
-	for to, label := range expectations {
+	for to, want := range expectations {
 		edges := transitionsBetween(graph, "classify_progress", to)
 		if len(edges) != 1 {
 			t.Fatalf("classify_progress->%s edges = %v, want 1", to, edges)
 		}
-		if edges[0].ConditionKind != string(TransitionConditionProgressDecision) {
-			t.Fatalf("classify_progress->%s kind = %q, want progress_decision", to, edges[0].ConditionKind)
+		if edges[0].ConditionKind != GuardOpEq {
+			t.Fatalf("classify_progress->%s kind = %q, want eq", to, edges[0].ConditionKind)
 		}
-		if edges[0].Label != label {
-			t.Fatalf("classify_progress->%s label = %q, want %q", to, edges[0].Label, label)
+		if edges[0].Label != want.label {
+			t.Fatalf("classify_progress->%s label = %q, want %q", to, edges[0].Label, want.label)
 		}
-		if edges[0].ProgressDecision == "" {
-			t.Fatalf("classify_progress->%s missing progress_decision in wire shape", to)
+		if edges[0].Field != "progress.decision" || edges[0].Value != want.value {
+			t.Fatalf("classify_progress->%s field/value = %q/%q, want progress.decision/%q", to, edges[0].Field, edges[0].Value, want.value)
 		}
 	}
 
@@ -259,9 +262,9 @@ func TestBuildCatalogEntry_PropagatesDecisionMetadata(t *testing.T) {
 		wantWhenInDoubt    string
 		wantBestForNonZero bool
 	}{
-		{ModeItemLevel, itemLevelDefinition(), "", true},
-		{ModeHolisticLoop, holisticLoopDefinition(), string(ModeItemLevel), true},
-		{ModePhasedPlanDrain, phasedPlanDrainDefinition(), string(ModeHolisticLoop), true},
+		{ModeItemLevel, MustDefinition(ModeItemLevel), "", true},
+		{ModeHolisticLoop, MustDefinition(ModeHolisticLoop), string(ModeItemLevel), true},
+		{ModePhasedPlanDrain, MustDefinition(ModePhasedPlanDrain), string(ModeHolisticLoop), true},
 	}
 	for _, tc := range cases {
 		t.Run(string(tc.mode), func(t *testing.T) {

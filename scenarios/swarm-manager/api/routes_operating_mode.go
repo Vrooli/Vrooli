@@ -76,6 +76,11 @@ func (s *Server) registerOperatingModeRoutes(scenarioRoot string, materializer *
 	}
 	s.operatingModeSvc = svc
 	operatingmode.NewHandler(svc).RegisterRoutes(s.router)
+	// Additive Connect surface: the typed OperatingModeService is mounted
+	// alongside the REST routes above. It is the migration target for the UI
+	// and CLI; the REST handler stays until those consumers move, after which
+	// the gorilla/mux routes are deleted (no untagged REST holdout).
+	operatingmode.RegisterConnectService(s.router, svc)
 
 	// Wire the active-rounds reader into the graph projection so initiative
 	// nodes can render an operating-mode chip + pulse without N+1 fetches.

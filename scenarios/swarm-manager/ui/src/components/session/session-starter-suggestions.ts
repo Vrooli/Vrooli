@@ -115,7 +115,7 @@ export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSugges
         {
           id: "mode-draft",
           icon: GitPullRequestArrow,
-          text: "Draft a mode proposal with phases, artifacts, metrics, and tests.",
+          text: "Scaffold a new mode folder, then validate and simulate it — no Go edits.",
         },
         {
           id: "mode-compare",

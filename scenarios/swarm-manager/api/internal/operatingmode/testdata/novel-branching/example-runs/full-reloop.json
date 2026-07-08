@@ -1,0 +1,16 @@
+{
+  "kind": "operating-mode-example-run",
+  "id": "full-reloop",
+  "mode": "novel-triage-switch",
+  "label": "Reproduce → high-severity fix → failing verify reloop → pass",
+  "description": "Exercises the multi-way triage switch (reproduce), the compound `all` guard with a numeric comparison (reproduced=true AND severity>=3 → fix), and the `not`-based verify reloop (fail → fix → verify → pass → close). Proves the generic guards produce the expected phase path with no mode-specific branch logic.",
+  "steps": [
+    { "phase": "triage", "output": { "disposition": "reproduce", "severity": 4 }, "note": "eq disposition reproduce → reproduce" },
+    { "phase": "reproduce", "output": { "reproduced": true, "severity": 4 }, "note": "all[reproduced=true, severity>=3] → fix" },
+    { "phase": "fix", "output": {}, "note": "always → verify" },
+    { "phase": "verify", "output": { "verdict": "fail" }, "note": "not(verdict=pass) → fix (reloop)" },
+    { "phase": "fix", "output": {}, "note": "always → verify" },
+    { "phase": "verify", "output": { "verdict": "pass" }, "note": "always fallthrough → close" }
+  ],
+  "expected_path": ["triage", "reproduce", "fix", "verify", "fix", "verify", "close"]
+}

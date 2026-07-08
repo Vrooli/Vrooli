@@ -156,33 +156,11 @@ func allowedNextPhases(def Definition, rounds []RoundEnvelope) map[Phase]bool {
 
 func nextPhasesForCompletedRound(def Definition, last RoundEnvelope) []Phase {
 	from := Phase(last.Phase)
-	if rules := def.PhaseGraph.TransitionRules[from]; len(rules) > 0 {
-		payload := RoundPayload(last.Payload)
-		for _, rule := range rules {
-			if rule.When.Matches(payload) {
-				return append([]Phase(nil), rule.Next...)
-			}
-		}
-		return nil
+	if len(def.PhaseGraph.Guards[from]) > 0 {
+		next, _ := selectNextPhases(def, from, NewMapFieldLookup(last.Payload))
+		return append([]Phase(nil), next...)
 	}
 	return append([]Phase(nil), def.PhaseGraph.Transitions[from]...)
-}
-
-func (condition TransitionCondition) Matches(payload RoundPayloadView) bool {
-	switch condition.Kind {
-	case TransitionConditionAlways:
-		return true
-	case TransitionConditionPayloadBool:
-		raw, ok := payload.get(condition.PayloadKey)
-		value, isBool := raw.(bool)
-		return ok && isBool && value == condition.BoolValue
-	case TransitionConditionProgressDecision:
-		progress, ok := payload.Progress()
-		decision := ProgressDecision(strings.TrimSpace(string(progress.Decision)))
-		return ok && decision == condition.ProgressDecision
-	default:
-		return false
-	}
 }
 
 func roundProgress(round RoundEnvelope) (ProgressState, bool) {
@@ -229,7 +207,7 @@ func phaseNotAllowedReason(def Definition, rounds []RoundEnvelope, phase Phase) 
 	if _, ok := def.PhaseGraph.Transitions[Phase(last.Phase)]; !ok {
 		return fmt.Sprintf("phase %q has no registered transition to %q", last.Phase, phase)
 	}
-	if len(def.PhaseGraph.TransitionRules[Phase(last.Phase)]) > 0 {
+	if len(def.PhaseGraph.Guards[Phase(last.Phase)]) > 0 {
 		return fmt.Sprintf("last completed phase %q result does not transition to %q", last.Phase, phase)
 	}
 	return fmt.Sprintf("last completed phase %q does not transition to %q", last.Phase, phase)

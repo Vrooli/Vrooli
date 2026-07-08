@@ -1,37 +1,56 @@
 package operatingmode
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 )
 
-func (s *Service) applyPhaseResult(round *RoundEnvelope, output string) error {
-	return s.applyPhaseResultWithPersistence(round, output, true)
-}
-
-func (s *Service) applyPhaseResultInMemory(round *RoundEnvelope, output string) error {
-	return s.applyPhaseResultWithPersistence(round, output, false)
-}
-
-func (s *Service) applyPhaseResultWithPersistence(round *RoundEnvelope, output string, persistArtifacts bool) error {
-	parsed, err := ParsePhaseResultDetailed(output)
-	if err != nil {
-		return err
-	}
+// applyPhaseResult resolves the completed round's agent output through the
+// resolution ladder and, when a contract-satisfying result is recovered, applies
+// it to the round (artifacts, payload, handoffs) and persists artifacts. The
+// returned ResolvedPhaseResult carries the outcome the caller uses to decide the
+// round's lifecycle: a resolved/recovered result completes the round; an abstain
+// does not (the round's structured output could not be resolved). An error is
+// returned only for an infrastructure or post-apply contract failure (e.g. a
+// required artifact was not produced), never for imperfect model output.
+func (s *Service) applyPhaseResult(ctx context.Context, round *RoundEnvelope, messages []string) (ResolvedPhaseResult, error) {
 	def, err := DefinitionFor(Mode(round.Mode))
 	if err != nil {
-		return err
+		return ResolvedPhaseResult{}, err
 	}
+	return s.applyPhaseResultWithPersistence(ctx, def, round, messages, true)
+}
+
+// applyPhaseResultInMemory resolves a round against an explicitly-provided
+// Definition rather than re-fetching it from the process registry. Simulation
+// (including authoring simulation of a draft mode loaded fresh from disk that is
+// not yet registered) drives this path, so the Definition must flow in from the
+// caller's walk.
+func (s *Service) applyPhaseResultInMemory(ctx context.Context, def Definition, round *RoundEnvelope, output string) (ResolvedPhaseResult, error) {
+	return s.applyPhaseResultWithPersistence(ctx, def, round, []string{output}, false)
+}
+
+func (s *Service) applyPhaseResultWithPersistence(ctx context.Context, def Definition, round *RoundEnvelope, messages []string, persistArtifacts bool) (ResolvedPhaseResult, error) {
 	phaseDef, err := def.PhaseDefinition(Phase(round.Phase))
 	if err != nil {
-		return err
+		return ResolvedPhaseResult{}, err
 	}
-	if err := validateParseStatus(phaseDef, parsed.Status); err != nil {
-		return err
+
+	resolved := resolvePhaseOutput(ctx, phaseDef, messages, s.classifier)
+	// The resolution record is durable regardless of outcome so operators and the
+	// UI can see which ladder rung resolved the round (or why it abstained).
+	MutableRoundPayload(round).SetResolution(resolved.Record())
+	if !resolved.Resolved() {
+		// Honest abstain: the required structured output could not be resolved or
+		// reconstructed. Do not apply a partial result — the caller keeps the
+		// round out of clean completion so nothing auto-progresses on absent data.
+		return resolved, nil
 	}
-	result := parsed.Result
+
+	result := resolved.Result
 	now := s.clock().UTC().Format(time.RFC3339)
 
 	staged := cloneRoundForPhaseResult(*round)
@@ -53,7 +72,7 @@ func (s *Service) applyPhaseResultWithPersistence(round *RoundEnvelope, output s
 	}
 	bindingWrites, bindingUpdates, err := resultBindingArtifacts(def, phaseDef, result, now)
 	if err != nil {
-		return err
+		return resolved, err
 	}
 	writes = append(writes, bindingWrites...)
 	staged.ArtifactUpdates = append(staged.ArtifactUpdates, bindingUpdates...)
@@ -64,7 +83,7 @@ func (s *Service) applyPhaseResultWithPersistence(round *RoundEnvelope, output s
 		}
 		clean, err := cleanModeRelativePath(def, path)
 		if err != nil {
-			return err
+			return resolved, err
 		}
 		declaration := artifactDeclaration(def, clean)
 		writes = append(writes, stagedArtifactWrite{Path: clean, Content: []byte(artifact.Content)})
@@ -89,17 +108,17 @@ func (s *Service) applyPhaseResultWithPersistence(round *RoundEnvelope, output s
 		payload.SetBacklogSyncPlan(result.BacklogSync)
 	}
 	if err := validateAppliedPhaseResult(phaseDef, result, staged); err != nil {
-		return err
+		return resolved, err
 	}
 	if persistArtifacts {
 		for _, write := range writes {
 			if _, err := s.store.WriteArtifact(staged.InitiativeName, Mode(staged.Mode), write.Path, write.Content); err != nil {
-				return err
+				return resolved, err
 			}
 		}
 	}
 	*round = staged
-	return nil
+	return resolved, nil
 }
 
 type stagedArtifactWrite struct {
@@ -138,22 +157,6 @@ func resultBindingArtifacts(def Definition, phaseDef PhaseDefinition, result Pha
 		}
 	}
 	return writes, updates, nil
-}
-
-func validateParseStatus(phaseDef PhaseDefinition, status PhaseResultParseStatus) error {
-	if !phaseDef.OutputContract.RequiresStructuredResult {
-		return nil
-	}
-	switch status {
-	case PhaseResultParseValid:
-		return nil
-	case PhaseResultParseEmpty:
-		return fmt.Errorf("phase %q produced an empty %s payload", phaseDef.Phase, resultEnvelopeKey)
-	case PhaseResultParseMalformed:
-		return fmt.Errorf("phase %q produced a malformed %s payload", phaseDef.Phase, resultEnvelopeKey)
-	default:
-		return fmt.Errorf("phase %q requires a structured %s payload", phaseDef.Phase, resultEnvelopeKey)
-	}
 }
 
 func cloneRoundForPhaseResult(round RoundEnvelope) RoundEnvelope {

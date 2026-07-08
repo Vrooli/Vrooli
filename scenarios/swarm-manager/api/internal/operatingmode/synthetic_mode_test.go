@@ -18,11 +18,11 @@ func TestSyntheticModeHarnessExercisesAuthoringPolicies(t *testing.T) {
 		t.Fatalf("%q leaked into the production registry before the test overlay", modeSyntheticHarness)
 	}
 
-	def := syntheticHarnessDefinition()
+	def := syntheticHarnessDefinition(t)
 	withSyntheticModeRegistry(t, def)
 
-	if err := ValidateRegistry(); err != nil {
-		t.Fatalf("ValidateRegistry with synthetic mode returned error: %v", err)
+	if err := ValidateLoadedModes(cloneRegistryForTest()); err != nil {
+		t.Fatalf("ValidateLoadedModes with synthetic mode returned error: %v", err)
 	}
 	if err := ValidatePromptCatalog(ExpectedPromptCatalogEntry); err != nil {
 		t.Fatalf("ValidatePromptCatalog with synthetic mode returned error: %v", err)
@@ -164,84 +164,103 @@ func TestSyntheticModeHarnessDoesNotLeakIntoProductionRegistry(t *testing.T) {
 	}
 }
 
-func syntheticHarnessDefinition() Definition {
-	return buildInitiativeMode(initiativeModeSpec{
-		Mode:                   modeSyntheticHarness,
-		Label:                  "Synthetic Harness",
-		Description:            "Synthetic harness used by registry tests; not a production mode.",
-		BestFor:                []string{"Exercising registry validators"},
-		NotFor:                 []string{"Anything resembling production work"},
-		Tradeoffs:              []string{"Test-only — never registered outside test scope"},
-		WhenInDoubtPickInstead: ModeItemLevel,
-		RunStrategy:            RunStrategyOperatorGatedLoop,
-		ArtifactRoot:           "modes/synthetic-harness",
-		PromptCatalogPrefix:    "swarm-manager-synthetic-harness",
-		DefaultProfileKey:      ProfileDeepWork,
-		StartPhase:             "assess",
-		Terminal:               []Phase{"review"},
-		Transitions: map[Phase][]Phase{
-			"assess": {"decide"},
-			"decide": {"assess", "review"},
-			"review": {"assess"},
-		},
-		TransitionRules: map[Phase][]TransitionRule{
-			"decide": {
-				{
-					When: TransitionCondition{
-						Kind:             TransitionConditionProgressDecision,
-						ProgressDecision: ProgressReplan,
-					},
-					Next: []Phase{"assess"},
-				},
-				{
-					When: TransitionCondition{
-						Kind:             TransitionConditionProgressDecision,
-						ProgressDecision: ProgressComplete,
-					},
-					Next: []Phase{"review"},
-				},
-			},
-		},
-		Phases: []initiativePhaseSpec{
-			{
-				Phase:         "assess",
-				Kind:          PhaseKindInvestigate,
-				Purpose:       "synthetic_harness_assess",
-				PromptPurpose: "Assess the synthetic methodology state.",
-				ProfileKey:    ProfileDeepWork,
-			},
-			{
-				Phase:            "decide",
-				Kind:             PhaseKindReview,
-				Purpose:          "synthetic_harness_decide",
-				PromptPurpose:    "Classify whether the synthetic methodology should replan or review.",
-				ProfileKey:       ProfileAnalysis,
-				ResultBindings:   []ResultBinding{progressResultArtifact("modes/synthetic-harness/progress.json")},
-				Metrics:          PhaseMetricsSpec{CountsReplanSample: true},
-				RequiresProgress: true,
-			},
-			{
-				Phase:            "review",
-				Kind:             PhaseKindReview,
-				Purpose:          "synthetic_harness_review",
-				PromptPurpose:    "Review the synthetic methodology output.",
-				ProfileKey:       ProfileAnalysis,
-				RequiresVerdict:  true,
-				RequiresCriteria: true,
-				Metrics:          PhaseMetricsSpec{CountsAcceptanceSample: true},
-			},
-		},
-	})
+// syntheticHarnessDefinition loads a test-only initiative mode from an inline
+// mode-data document through the real loader, so the synthetic harness that
+// exercises the authoring policies (catalog capabilities, progress-artifact
+// result binding, replan/acceptance metrics, guard-driven replan→assess and
+// complete→review routing) is built the exact same way production modes are.
+func syntheticHarnessDefinition(t *testing.T) Definition {
+	t.Helper()
+	const doc = `{
+	  "kind": "operating-mode",
+	  "id": "synthetic-harness",
+	  "label": "Synthetic Harness",
+	  "description": "Synthetic harness used by registry tests; not a production mode.",
+	  "best_for": ["Exercising registry validators"],
+	  "not_for": ["Anything resembling production work"],
+	  "tradeoffs": ["Test-only — never registered outside test scope"],
+	  "when_in_doubt_pick_instead": "item-level",
+	  "scope": { "kind": "initiative" },
+	  "run_strategy": { "kind": "operator_gated_loop" },
+	  "prompt": { "catalog_prefix": "swarm-manager-synthetic-harness" },
+	  "artifact": { "root": "modes/synthetic-harness" },
+	  "profile": { "default_profile_key": "swarm-manager/deep-work" },
+	  "backlog_sync": {
+	    "capabilities": ["read_only", "propose_mutations", "mark_complete", "create_followups", "update_scope"],
+	    "requires_run_id": true,
+	    "requires_membership": true,
+	    "apply_mode": "operator-gated"
+	  },
+	  "metrics": { "accepted_verdicts": ["accept", "accepted"] },
+	  "lock": { "initiative_exclusive": true },
+	  "ui": { "workspace_tab_id": "operating-mode" },
+	  "phase_graph": {
+	    "start_phase": "assess",
+	    "terminal": ["review"],
+	    "phases": [
+	      {
+	        "id": "assess",
+	        "kind": "investigate",
+	        "activity_purpose": "synthetic_harness_assess",
+	        "profile_key": "swarm-manager/deep-work",
+	        "prompt": { "purpose": "Assess the synthetic methodology state." },
+	        "transitions": [{ "when": { "op": "always" }, "to": ["decide"] }]
+	      },
+	      {
+	        "id": "decide",
+	        "kind": "review",
+	        "activity_purpose": "synthetic_harness_decide",
+	        "profile_key": "swarm-manager/analysis",
+	        "prompt": { "purpose": "Classify whether the synthetic methodology should replan or review." },
+	        "declared_output": {
+	          "fields": [
+	            { "name": "progress", "type": "object", "required": true, "description": "Progress classification state." },
+	            { "name": "progress.decision", "type": "string", "required": true, "enum": ["continue", "blocked", "replan", "complete"], "description": "Classifier decision." }
+	          ]
+	        },
+	        "result_bindings": [
+	          { "kind": "progress_artifact", "artifact": { "path": "modes/synthetic-harness/progress.json", "content_type": "application/json", "required": true } }
+	        ],
+	        "metrics": { "counts_replan_sample": true },
+	        "transitions": [
+	          { "when": { "op": "eq", "field": "progress.decision", "value": "replan" }, "to": ["assess"] },
+	          { "when": { "op": "eq", "field": "progress.decision", "value": "complete" }, "to": ["review"] }
+	        ]
+	      },
+	      {
+	        "id": "review",
+	        "kind": "review",
+	        "activity_purpose": "synthetic_harness_review",
+	        "profile_key": "swarm-manager/analysis",
+	        "requires_criteria": true,
+	        "prompt": { "purpose": "Review the synthetic methodology output." },
+	        "declared_output": {
+	          "fields": [{ "name": "verdict", "type": "string", "required": true, "description": "Acceptance verdict." }]
+	        },
+	        "metrics": { "counts_acceptance_sample": true }
+	      }
+	    ]
+	  }
+	}`
+	def, err := LoadModeDefinition([]byte(doc))
+	if err != nil {
+		t.Fatalf("load synthetic harness mode: %v", err)
+	}
+	return def
 }
 
 func withSyntheticModeRegistry(t *testing.T, def Definition) {
 	t.Helper()
-	previous := registry
 	next := cloneRegistryForTest()
 	next[def.Mode] = def
+	registryMu.Lock()
+	previous := registry
 	registry = next
+	registryMu.Unlock()
 	t.Cleanup(func() {
+		registryMu.Lock()
 		registry = previous
+		registryMu.Unlock()
 	})
 }
 

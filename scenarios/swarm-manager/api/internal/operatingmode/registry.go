@@ -2,21 +2,86 @@
 //
 // Operating modes describe the unit of work, phase graph, run strategy,
 // artifact policy, prompt routing, profile policy, and audit posture for a
-// methodology. The registry is intentionally static: mode behavior is explicit
-// code, while AgentManager cost/capability details live in scenario-owned
-// profile JSON files.
+// methodology. The registry is data-driven: each mode is a data folder
+// (scenarios/swarm-manager/modes/<id>/mode.json) validated by
+// .vrooli/schemas/operating-mode.schema.json and loaded into the typed
+// Definition by the loader. There is no hardcoded Go mode definition and no
+// static registry map; adding or changing a mode is a data edit plus a
+// restart, never a code change. AgentManager cost/capability details live in
+// scenario-owned profile JSON files.
 package operatingmode
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+
+	"swarm-manager/internal/pathutil"
 )
 
-var registry = map[Mode]Definition{
-	ModeItemLevel:       itemLevelDefinition(),
-	ModeHolisticLoop:    holisticLoopDefinition(),
-	ModePhasedPlanDrain: phasedPlanDrainDefinition(),
+// modesDirName is the mode-data subdirectory under the scenario root.
+const modesDirName = "modes"
+
+var (
+	registryMu   sync.RWMutex
+	registry     map[Mode]Definition
+	registryErr  error
+	registryOnce sync.Once
+)
+
+// LoadRegistry loads every mode from modesDir (validating the full set) and
+// installs it as the process registry, replacing any previously loaded modes.
+// The server calls it once at startup with <scenarioRoot>/modes so the exact
+// resolved root is used; a failure is fatal to startup. Loading is also the
+// validation step — LoadModesFromDir runs ValidateLoadedModes internally.
+func LoadRegistry(modesDir string) error {
+	defs, err := LoadModesFromDir(modesDir)
+	if err != nil {
+		return err
+	}
+	registryMu.Lock()
+	registry = defs
+	registryErr = nil
+	registryMu.Unlock()
+	return nil
+}
+
+// ensureRegistry returns the loaded registry, lazily loading it from the
+// resolved scenario modes dir the first time it is needed. This lets consumers
+// (and tests in dependent packages) that never call LoadRegistry explicitly
+// still observe a populated, validated registry. Once LoadRegistry has run
+// successfully the lazy path is skipped.
+func ensureRegistry() (map[Mode]Definition, error) {
+	registryMu.RLock()
+	if registry != nil {
+		defs := registry
+		registryMu.RUnlock()
+		return defs, nil
+	}
+	registryMu.RUnlock()
+
+	registryOnce.Do(func() {
+		dir := filepath.Join(pathutil.ResolveScenarioRoot("swarm-manager"), modesDirName)
+		defs, err := LoadModesFromDir(dir)
+		registryMu.Lock()
+		if registry == nil {
+			registry = defs
+			registryErr = err
+		}
+		registryMu.Unlock()
+	})
+
+	registryMu.RLock()
+	defer registryMu.RUnlock()
+	if registry == nil {
+		if registryErr != nil {
+			return nil, registryErr
+		}
+		return nil, fmt.Errorf("operating-mode registry is not loaded")
+	}
+	return registry, nil
 }
 
 func requiredArtifacts(artifacts []ArtifactDefinition) []ArtifactDefinition {
@@ -42,7 +107,11 @@ func NormalizeMode(raw string) Mode {
 }
 
 func ValidateMode(raw string) bool {
-	_, ok := registry[NormalizeMode(raw)]
+	defs, err := ensureRegistry()
+	if err != nil {
+		return false
+	}
+	_, ok := defs[NormalizeMode(raw)]
 	return ok
 }
 
@@ -55,8 +124,12 @@ func MustDefinition(mode Mode) Definition {
 }
 
 func DefinitionFor(mode Mode) (Definition, error) {
+	defs, err := ensureRegistry()
+	if err != nil {
+		return Definition{}, err
+	}
 	normalized := NormalizeMode(string(mode))
-	def, ok := registry[normalized]
+	def, ok := defs[normalized]
 	if !ok {
 		return Definition{}, fmt.Errorf("unknown operating mode %q", mode)
 	}
@@ -64,12 +137,11 @@ func DefinitionFor(mode Mode) (Definition, error) {
 }
 
 func Modes() []Mode {
-	modes := make([]Mode, 0, len(registry))
-	for mode := range registry {
-		modes = append(modes, mode)
+	defs, err := ensureRegistry()
+	if err != nil {
+		return nil
 	}
-	sort.Slice(modes, func(i, j int) bool { return modes[i] < modes[j] })
-	return modes
+	return SortedModes(defs)
 }
 
 func ModeList() string {
@@ -86,11 +158,12 @@ func ModeList() string {
 // the registry only declares which scenario-owned keys must exist before the
 // API serves traffic.
 func RequiredProfileKeys() ([]string, error) {
-	if err := ValidateRegistry(); err != nil {
+	defs, err := ensureRegistry()
+	if err != nil {
 		return nil, err
 	}
 	keys := map[string]struct{}{}
-	for mode, def := range registry {
+	for mode, def := range defs {
 		if err := collectProfileKey(keys, mode, def.Profile.DefaultProfileKey); err != nil {
 			return nil, err
 		}

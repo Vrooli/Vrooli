@@ -251,17 +251,20 @@ func buildCatalogPhaseGraph(def Definition) *ModeCatalogPhaseGraph {
 	}
 	transitions := make([]ModeCatalogTransition, 0)
 	for _, from := range orderedPhases(def) {
-		if rules, ok := def.PhaseGraph.TransitionRules[from]; ok {
-			for _, rule := range rules {
-				label := transitionLabel(rule.When)
-				for _, to := range rule.Next {
+		if guards := def.PhaseGraph.Guards[from]; len(guards) > 0 {
+			for _, gt := range guards {
+				kind := GuardKind(gt.When)
+				label := GuardLabel(gt.When)
+				field := gt.When.Field
+				value := renderGuardValue(gt.When.Value)
+				for _, to := range gt.To {
 					transitions = append(transitions, ModeCatalogTransition{
-						From:             string(from),
-						To:               string(to),
-						ConditionKind:    string(rule.When.Kind),
-						Label:            label,
-						PayloadKey:       rule.When.PayloadKey,
-						ProgressDecision: string(rule.When.ProgressDecision),
+						From:          string(from),
+						To:            string(to),
+						ConditionKind: kind,
+						Label:         label,
+						Field:         field,
+						Value:         value,
 					})
 				}
 			}
@@ -271,7 +274,7 @@ func buildCatalogPhaseGraph(def Definition) *ModeCatalogPhaseGraph {
 			transitions = append(transitions, ModeCatalogTransition{
 				From:          string(from),
 				To:            string(to),
-				ConditionKind: string(TransitionConditionAlways),
+				ConditionKind: GuardOpAlways,
 				Label:         "always",
 			})
 		}

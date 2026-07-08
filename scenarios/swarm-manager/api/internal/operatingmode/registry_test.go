@@ -207,38 +207,17 @@ func TestValidateRegistryRejectsInvalidDefinitions(t *testing.T) {
 			want: "profile mismatch",
 		},
 		{
-			name: "transition rule undeclared next phase",
-			mutate: func(defs map[Mode]Definition) {
-				def := defs[ModeHolisticLoop]
-				def.PhaseGraph.TransitionRules["execute"] = []TransitionRule{
-					{
-						When: TransitionCondition{Kind: TransitionConditionAlways},
-						Next: []Phase{"plan"},
-					},
-				}
-				defs[ModeHolisticLoop] = def
-			},
-			want: "is not declared in phase graph transitions",
-		},
-		{
-			name: "transition rule missing payload key",
-			mutate: func(defs map[Mode]Definition) {
-				def := defs[ModeHolisticLoop]
-				def.PhaseGraph.TransitionRules["execute"] = []TransitionRule{
-					{When: TransitionCondition{Kind: TransitionConditionPayloadBool}},
-				}
-				defs[ModeHolisticLoop] = def
-			},
-			want: "payload bool condition requires a payload key",
-		},
-		{
 			name: "unknown result binding kind",
 			mutate: func(defs map[Mode]Definition) {
 				def := defs[ModePhasedPlanDrain]
 				phase := def.PhaseGraph.Phases["classify_progress"]
 				phase.ResultBindings = []ResultBinding{{
-					Kind:     "mystery",
-					Artifact: requiredOutputArtifact("modes/phased-plan-drain/progress.json", "application/json"),
+					Kind: "mystery",
+					Artifact: ArtifactDefinition{
+						Path:        "modes/phased-plan-drain/progress.json",
+						ContentType: "application/json",
+						Required:    true,
+					},
 				}}
 				def.PhaseGraph.Phases["classify_progress"] = phase
 				defs[ModePhasedPlanDrain] = def
@@ -401,50 +380,74 @@ func TestInitiativeModePhasesCarryStableActivityPurposes(t *testing.T) {
 	}
 }
 
-func TestBuildInitiativeModeDerivesCommonAuthoringPolicy(t *testing.T) {
-	terminal := []Phase{"review"}
-	transitions := map[Phase][]Phase{
-		"draft":  {"review"},
-		"review": {"draft"},
+// TestLoaderDerivesCommonAuthoringPolicy proves the data loader derives the
+// implicit authoring defaults a mode author does not spell out — round root
+// from artifact root, prompt catalog IDs from prefix + phase (or prompt suffix),
+// lock purpose from activity purpose, and event-source tags from the mode id —
+// so authoring a mode is a minimal data edit (the Phase-7 self-serve path).
+func TestLoaderDerivesCommonAuthoringPolicy(t *testing.T) {
+	const doc = `{
+	  "kind": "operating-mode",
+	  "id": "synthetic",
+	  "label": "Synthetic",
+	  "description": "Synthetic mode exercising loader derivation defaults.",
+	  "best_for": ["Exercising loader derivation"],
+	  "not_for": ["Production work"],
+	  "tradeoffs": ["Test-only"],
+	  "when_in_doubt_pick_instead": "item-level",
+	  "scope": { "kind": "initiative" },
+	  "run_strategy": { "kind": "single_phase_run" },
+	  "prompt": { "catalog_prefix": "swarm-manager-synthetic" },
+	  "artifact": { "root": "modes/synthetic" },
+	  "profile": { "default_profile_key": "swarm-manager/deep-work" },
+	  "backlog_sync": {
+	    "capabilities": ["read_only", "propose_mutations", "mark_complete", "create_followups", "update_scope"],
+	    "requires_run_id": true,
+	    "requires_membership": true,
+	    "apply_mode": "operator-gated"
+	  },
+	  "metrics": { "accepted_verdicts": ["accept", "accepted"] },
+	  "lock": { "initiative_exclusive": true },
+	  "ui": { "workspace_tab_id": "operating-mode" },
+	  "phase_graph": {
+	    "start_phase": "draft",
+	    "terminal": ["review"],
+	    "phases": [
+	      {
+	        "id": "draft",
+	        "kind": "investigate",
+	        "activity_purpose": "synthetic_draft",
+	        "profile_key": "swarm-manager/deep-work",
+	        "declared_output": {
+	          "fields": [{ "name": "progress", "type": "object", "required": true, "description": "Progress state." }]
+	        },
+	        "result_bindings": [
+	          { "kind": "progress_artifact", "artifact": { "path": "modes/synthetic/draft-progress.json", "content_type": "application/json", "required": true } }
+	        ],
+	        "metrics": { "counts_replan_sample": true },
+	        "transitions": [{ "when": { "op": "always" }, "to": ["review"] }]
+	      },
+	      {
+	        "id": "review",
+	        "kind": "review",
+	        "activity_purpose": "synthetic_review",
+	        "profile_key": "swarm-manager/analysis",
+	        "requires_criteria": true,
+	        "prompt": { "suffix": "final-review" },
+	        "declared_output": {
+	          "fields": [{ "name": "verdict", "type": "string", "required": true, "description": "Acceptance verdict." }]
+	        },
+	        "metrics": { "counts_acceptance_sample": true },
+	        "transitions": [{ "when": { "op": "always" }, "to": ["draft"] }]
+	      }
+	    ]
+	  }
+	}`
+
+	def, err := LoadModeDefinition([]byte(doc))
+	if err != nil {
+		t.Fatalf("LoadModeDefinition: %v", err)
 	}
-	transitionRules := map[Phase][]TransitionRule{
-		"draft": {
-			{
-				When: TransitionCondition{Kind: TransitionConditionAlways},
-				Next: []Phase{"review"},
-			},
-		},
-	}
-	def := buildInitiativeMode(initiativeModeSpec{
-		Mode:                "synthetic",
-		Label:               "Synthetic",
-		RunStrategy:         RunStrategySinglePhaseRun,
-		ArtifactRoot:        "modes/synthetic",
-		PromptCatalogPrefix: "swarm-manager-synthetic",
-		DefaultProfileKey:   ProfileDeepWork,
-		StartPhase:          "draft",
-		Terminal:            terminal,
-		Transitions:         transitions,
-		TransitionRules:     transitionRules,
-		Phases: []initiativePhaseSpec{
-			{
-				Phase:          "draft",
-				Purpose:        "synthetic_draft",
-				ProfileKey:     ProfileDeepWork,
-				ResultBindings: []ResultBinding{progressResultArtifact("modes/synthetic/draft-progress.json")},
-				Metrics:        PhaseMetricsSpec{CountsReplanSample: true},
-			},
-			{
-				Phase:            "review",
-				Purpose:          "synthetic_review",
-				PromptSuffix:     "final-review",
-				ProfileKey:       ProfileAnalysis,
-				RequiresVerdict:  true,
-				RequiresCriteria: true,
-				Metrics:          PhaseMetricsSpec{CountsAcceptanceSample: true},
-			},
-		},
-	})
 
 	if def.Scope.Kind != ScopeInitiative {
 		t.Fatalf("scope = %q, want %q", def.Scope.Kind, ScopeInitiative)
@@ -498,13 +501,6 @@ func TestBuildInitiativeModeDerivesCommonAuthoringPolicy(t *testing.T) {
 	if !def.Metrics.IsAcceptedVerdict("ACCEPTED") || def.Metrics.IsAcceptedVerdict("request_changes") {
 		t.Fatalf("accepted verdict policy = %+v", def.Metrics)
 	}
-
-	terminal[0] = "mutated"
-	transitions["draft"][0] = "mutated"
-	transitionRules["draft"][0].Next[0] = "mutated"
-	if def.PhaseGraph.Terminal[0] != "review" || def.PhaseGraph.Transitions["draft"][0] != "review" || def.PhaseGraph.TransitionRules["draft"][0].Next[0] != "review" {
-		t.Fatalf("builder did not isolate graph slices: terminal=%v transitions=%v rules=%v", def.PhaseGraph.Terminal, def.PhaseGraph.Transitions, def.PhaseGraph.TransitionRules)
-	}
 }
 
 func TestUnknownModeFailsClosed(t *testing.T) {
@@ -516,12 +512,17 @@ func TestUnknownModeFailsClosed(t *testing.T) {
 	}
 }
 
+// cloneRegistryForTest deep-copies the loaded registry so a test can mutate a
+// definition in isolation (to drive the validators negatively) without
+// corrupting the process registry shared across tests.
 func cloneRegistryForTest() map[Mode]Definition {
+	registryMu.RLock()
+	defer registryMu.RUnlock()
 	out := make(map[Mode]Definition, len(registry))
 	for mode, def := range registry {
 		def.PhaseGraph.Terminal = append([]Phase(nil), def.PhaseGraph.Terminal...)
 		def.PhaseGraph.Transitions = clonePhaseTransitions(def.PhaseGraph.Transitions)
-		def.PhaseGraph.TransitionRules = clonePhaseTransitionRules(def.PhaseGraph.TransitionRules)
+		def.PhaseGraph.Guards = clonePhaseGuards(def.PhaseGraph.Guards)
 		def.PhaseGraph.Phases = clonePhaseDefinitions(def.PhaseGraph.Phases)
 		def.Profile.PhaseProfiles = clonePhaseProfiles(def.Profile.PhaseProfiles)
 		def.Metrics = cloneMetricsPolicy(def.Metrics)
@@ -538,10 +539,18 @@ func clonePhaseTransitions(in map[Phase][]Phase) map[Phase][]Phase {
 	return out
 }
 
-func clonePhaseTransitionRules(in map[Phase][]TransitionRule) map[Phase][]TransitionRule {
-	out := make(map[Phase][]TransitionRule, len(in))
-	for phase, rules := range in {
-		out[phase] = cloneTransitionRules(rules)
+func clonePhaseGuards(in map[Phase][]GuardedTransition) map[Phase][]GuardedTransition {
+	if in == nil {
+		return nil
+	}
+	out := make(map[Phase][]GuardedTransition, len(in))
+	for phase, guards := range in {
+		cloned := make([]GuardedTransition, len(guards))
+		for i, gt := range guards {
+			gt.To = append([]Phase(nil), gt.To...)
+			cloned[i] = gt
+		}
+		out[phase] = cloned
 	}
 	return out
 }
@@ -550,7 +559,7 @@ func clonePhaseDefinitions(in map[Phase]PhaseDefinition) map[Phase]PhaseDefiniti
 	out := make(map[Phase]PhaseDefinition, len(in))
 	for phase, def := range in {
 		def.OutputArtifacts = append([]ArtifactDefinition(nil), def.OutputArtifacts...)
-		def.ResultBindings = cloneResultBindings(def.ResultBindings)
+		def.ResultBindings = append([]ResultBinding(nil), def.ResultBindings...)
 		def.OutputContract.RequiredArtifacts = append([]ArtifactDefinition(nil), def.OutputContract.RequiredArtifacts...)
 		def.AutoStartAfter = append([]Phase(nil), def.AutoStartAfter...)
 		out[phase] = def

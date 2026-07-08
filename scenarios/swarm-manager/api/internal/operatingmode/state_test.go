@@ -2,20 +2,16 @@ package operatingmode
 
 import "testing"
 
-func TestComputePhaseActionsUsesPayloadBoolTransitionRules(t *testing.T) {
-	def := buildTransitionTestMode(map[Phase][]TransitionRule{
+func TestComputePhaseActionsUsesBooleanGuardTransitions(t *testing.T) {
+	def := buildTransitionTestMode(map[Phase][]GuardedTransition{
 		"execute": {
 			{
-				When: TransitionCondition{
-					Kind:       TransitionConditionPayloadBool,
-					PayloadKey: payloadReplanNeeded,
-					BoolValue:  true,
-				},
-				Next: []Phase{"investigate"},
+				When: Guard{Op: GuardOpEq, Field: payloadReplanNeeded, Value: true},
+				To:   []Phase{"investigate"},
 			},
 			{
-				When: TransitionCondition{Kind: TransitionConditionAlways},
-				Next: []Phase{"review"},
+				When: Guard{Op: GuardOpAlways},
+				To:   []Phase{"review"},
 			},
 		},
 	})
@@ -48,35 +44,24 @@ func TestComputePhaseActionsUsesPayloadBoolTransitionRules(t *testing.T) {
 	}
 }
 
-func TestComputePhaseActionsUsesProgressDecisionTransitionRules(t *testing.T) {
-	def := buildTransitionTestMode(map[Phase][]TransitionRule{
+func TestComputePhaseActionsUsesProgressDecisionGuardTransitions(t *testing.T) {
+	def := buildTransitionTestMode(map[Phase][]GuardedTransition{
 		"classify": {
 			{
-				When: TransitionCondition{
-					Kind:             TransitionConditionProgressDecision,
-					ProgressDecision: ProgressContinue,
-				},
-				Next: []Phase{"execute"},
+				When: Guard{Op: GuardOpEq, Field: "progress.decision", Value: string(ProgressContinue)},
+				To:   []Phase{"execute"},
 			},
 			{
-				When: TransitionCondition{
-					Kind:             TransitionConditionProgressDecision,
-					ProgressDecision: ProgressReplan,
-				},
-				Next: []Phase{"investigate"},
+				When: Guard{Op: GuardOpEq, Field: "progress.decision", Value: string(ProgressReplan)},
+				To:   []Phase{"investigate"},
 			},
 			{
-				When: TransitionCondition{
-					Kind:             TransitionConditionProgressDecision,
-					ProgressDecision: ProgressComplete,
-				},
-				Next: []Phase{"review"},
+				When: Guard{Op: GuardOpEq, Field: "progress.decision", Value: string(ProgressComplete)},
+				To:   []Phase{"review"},
 			},
 			{
-				When: TransitionCondition{
-					Kind:             TransitionConditionProgressDecision,
-					ProgressDecision: ProgressBlocked,
-				},
+				When: Guard{Op: GuardOpEq, Field: "progress.decision", Value: string(ProgressBlocked)},
+				To:   nil,
 			},
 		},
 	})
@@ -121,47 +106,34 @@ func TestComputePhaseActionsUsesProgressDecisionTransitionRules(t *testing.T) {
 	}
 }
 
-func buildTransitionTestMode(rules map[Phase][]TransitionRule) Definition {
-	return buildInitiativeMode(initiativeModeSpec{
-		Mode:                "transition-test",
-		Label:               "Transition Test",
-		RunStrategy:         RunStrategyOperatorGatedLoop,
-		ArtifactRoot:        "modes/transition-test",
-		PromptCatalogPrefix: "swarm-manager-transition-test",
-		DefaultProfileKey:   ProfileDeepWork,
-		StartPhase:          "investigate",
-		Terminal:            []Phase{"review"},
-		Transitions: map[Phase][]Phase{
-			"investigate": {"execute"},
-			"execute":     {"classify", "investigate", "review"},
-			"classify":    {"execute", "investigate", "review"},
-			"review":      {"investigate"},
-		},
-		TransitionRules: rules,
-		Phases: []initiativePhaseSpec{
-			{
-				Phase:      "investigate",
-				Purpose:    "transition_test_investigate",
-				ProfileKey: ProfileDeepWork,
+// buildTransitionTestMode builds a minimal in-memory initiative Definition whose
+// branching is the given generic guard graph, exercising the runtime routing
+// (ComputePhaseActions → nextPhasesForCompletedRound → the guard evaluator)
+// without touching the on-disk mode data.
+func buildTransitionTestMode(guards map[Phase][]GuardedTransition) Definition {
+	return Definition{
+		Mode:        "transition-test",
+		Label:       "Transition Test",
+		Scope:       ScopePolicy{Kind: ScopeInitiative},
+		RunStrategy: RunStrategyPolicy{Kind: RunStrategyOperatorGatedLoop},
+		PhaseGraph: PhaseGraph{
+			StartPhase: "investigate",
+			Terminal:   []Phase{"review"},
+			Transitions: map[Phase][]Phase{
+				"investigate": {"execute"},
+				"execute":     {"classify", "investigate", "review"},
+				"classify":    {"execute", "investigate", "review"},
+				"review":      {"investigate"},
 			},
-			{
-				Phase:      "execute",
-				Purpose:    "transition_test_execute",
-				ProfileKey: ProfileDeepWork,
-			},
-			{
-				Phase:      "classify",
-				Purpose:    "transition_test_classify",
-				ProfileKey: ProfileAnalysis,
-			},
-			{
-				Phase:            "review",
-				Purpose:          "transition_test_review",
-				ProfileKey:       ProfileAnalysis,
-				RequiresCriteria: true,
+			Guards: guards,
+			Phases: map[Phase]PhaseDefinition{
+				"investigate": {Phase: "investigate", Kind: PhaseKindInvestigate, ActivityPurpose: "transition_test_investigate", ProfileKey: ProfileDeepWork},
+				"execute":     {Phase: "execute", Kind: PhaseKindExecute, ActivityPurpose: "transition_test_execute", ProfileKey: ProfileDeepWork},
+				"classify":    {Phase: "classify", Kind: PhaseKindReview, ActivityPurpose: "transition_test_classify", ProfileKey: ProfileAnalysis},
+				"review":      {Phase: "review", Kind: PhaseKindReview, ActivityPurpose: "transition_test_review", ProfileKey: ProfileAnalysis, RequiresCriteria: true},
 			},
 		},
-	})
+	}
 }
 
 func completedRound(phase Phase, payload map[string]any) RoundEnvelope {

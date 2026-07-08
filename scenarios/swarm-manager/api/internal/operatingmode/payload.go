@@ -15,6 +15,7 @@ const (
 	payloadFinishedAt           = "finished_at"
 	payloadProgress             = "progress"
 	payloadReplanNeeded         = "replan_needed"
+	payloadResolution           = "resolution"
 	payloadVerdict              = "verdict"
 )
 
@@ -102,6 +103,36 @@ func (p RoundPayloadView) Progress() (ProgressState, bool) {
 		}
 	}
 	return ProgressState{}, false
+}
+
+// SetResolution records the resolution-ladder outcome for the round so the CLI
+// and UI can surface which rung resolved it (or why it abstained).
+func (p RoundPayloadView) SetResolution(record PhaseResolutionRecord) {
+	p.set(payloadResolution, record)
+}
+
+// Resolution returns the durable resolution-ladder record, if one was written.
+func (p RoundPayloadView) Resolution() (PhaseResolutionRecord, bool) {
+	raw, ok := p.get(payloadResolution)
+	if !ok {
+		return PhaseResolutionRecord{}, false
+	}
+	switch rec := raw.(type) {
+	case PhaseResolutionRecord:
+		return rec, true
+	case map[string]any:
+		data, err := json.Marshal(rec)
+		if err != nil {
+			return PhaseResolutionRecord{}, false
+		}
+		var out PhaseResolutionRecord
+		if err := json.Unmarshal(data, &out); err != nil {
+			return PhaseResolutionRecord{}, false
+		}
+		return out, true
+	default:
+		return PhaseResolutionRecord{}, false
+	}
 }
 
 func (p RoundPayloadView) SetReplanNeeded(value bool) {

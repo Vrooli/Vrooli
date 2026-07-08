@@ -70,30 +70,43 @@ type SimulationInputs struct {
 	AcceptanceCriteria []string           `json:"acceptance_criteria"`
 }
 
+// SimulationTransition describes the guarded edge a simulated round took. The
+// condition is rendered generically from the guard (kind + human label + the
+// leaf field/value when applicable) so no closed branch vocabulary leaks into
+// the wire shape.
 type SimulationTransition struct {
-	From             string `json:"from"`
-	To               string `json:"to,omitempty"`
-	ConditionKind    string `json:"condition_kind"`
-	Label            string `json:"label"`
-	PayloadKey       string `json:"payload_key,omitempty"`
-	ProgressDecision string `json:"progress_decision,omitempty"`
+	From          string `json:"from"`
+	To            string `json:"to,omitempty"`
+	ConditionKind string `json:"condition_kind"`
+	Label         string `json:"label"`
+	Field         string `json:"field,omitempty"`
+	Value         string `json:"value,omitempty"`
 }
 
-func (s *Service) SimulateMode(_ context.Context, mode Mode, presetID string) (SimulationResponse, error) {
+func (s *Service) SimulateMode(ctx context.Context, mode Mode, presetID string) (SimulationResponse, error) {
 	def, err := DefinitionFor(NormalizeMode(string(mode)))
 	if err != nil {
 		return SimulationResponse{}, err
 	}
+	return s.simulateDefinition(ctx, def, presetID)
+}
+
+// simulateDefinition is the transport-agnostic simulation core: it walks the
+// given Definition's real generic guards against the resolved preset, with no
+// dependency on the process registry. SimulateMode feeds it a registered mode;
+// SimulateModeDraft feeds it a mode loaded fresh from disk, so an author can
+// simulate a scaffolded mode before it is registered (no restart).
+func (s *Service) simulateDefinition(ctx context.Context, def Definition, presetID string) (SimulationResponse, error) {
 	if def.Mode == ModeItemLevel || def.PhaseGraph.StartPhase == "" {
 		return SimulationResponse{}, fmt.Errorf("mode %q has no operating-mode phase graph to simulate", def.Mode)
 	}
-	presets := simulationPresetsForMode(def.Mode)
+	presets := simulationPresets(def)
 	preset := resolveSimulationPreset(presets, presetID)
 	init := simulationInitiative(def, preset)
-	items := append([]RoundItem(nil), preset.items...)
+	items := preset.roundItems()
 	rounds := make([]RoundEnvelope, 0, len(def.PhaseGraph.Phases))
 	trace := make([]SimulationStep, 0, len(def.PhaseGraph.Phases))
-	visits := map[Phase]int{}
+	stepIdx := 0
 
 	phase := def.PhaseGraph.StartPhase
 	for i := 0; i < maxSimulationSteps; i++ {
@@ -108,9 +121,21 @@ func (s *Service) SimulateMode(_ context.Context, mode Mode, presetID string) (S
 			PriorRounds:        cloneRounds(rounds),
 			AcceptanceCriteria: append([]string(nil), init.AcceptanceCriteria...),
 		}
-		visit := visits[phase]
-		visits[phase]++
-		result := preset.result(def, phaseDef, cannedSimulationResult(def, phaseDef, preset), visit)
+		// Consume the preset's next seeded step when it names this phase; the
+		// step's output overrides the contract-derived canned scaffolding. An
+		// unconsumed step whose phase does not match the walk is an authoring
+		// error in the example-run, surfaced loudly.
+		var seeded map[string]any
+		if stepIdx < len(preset.steps) && Phase(preset.steps[stepIdx].Phase) == phase {
+			seeded = preset.steps[stepIdx].Output
+			stepIdx++
+		} else if stepIdx < len(preset.steps) {
+			return SimulationResponse{}, fmt.Errorf("simulate %s preset %q: step %d is phase %q but the walk reached %q", def.Mode, preset.meta.ID, stepIdx, preset.steps[stepIdx].Phase, phase)
+		}
+		result, err := mergeSeededResult(cannedSimulationResult(def, phaseDef, items), seeded)
+		if err != nil {
+			return SimulationResponse{}, fmt.Errorf("simulate %s.%s: %w", def.Mode, phaseDef.Phase, err)
+		}
 		output, err := encodePhaseResultEnvelope(result)
 		if err != nil {
 			return SimulationResponse{}, err
@@ -134,8 +159,15 @@ func (s *Service) SimulateMode(_ context.Context, mode Mode, presetID string) (S
 				"catalog_id": phaseDef.CatalogID,
 			},
 		}
-		if err := s.applyPhaseResultInMemory(&round, output); err != nil {
+		resolved, err := s.applyPhaseResultInMemory(ctx, def, &round, output)
+		if err != nil {
 			return SimulationResponse{}, fmt.Errorf("simulate %s.%s: %w", def.Mode, phaseDef.Phase, err)
+		}
+		if !resolved.Resolved() {
+			// Simulation example-runs feed controlled, contract-satisfying
+			// outputs; an abstain means the fixture output is malformed for the
+			// declared schema, which is an authoring error worth surfacing loudly.
+			return SimulationResponse{}, fmt.Errorf("simulate %s.%s: %s", def.Mode, phaseDef.Phase, resolved.AbstainReason())
 		}
 		transition := simulationTransitionForCompletedRound(def, round)
 		stepCtx := simulationStepContext(def, phaseDef, inputs)
@@ -155,6 +187,9 @@ func (s *Service) SimulateMode(_ context.Context, mode Mode, presetID string) (S
 		trace = append(trace, step)
 		rounds = append(rounds, round)
 		if step.Terminal {
+			if err := assertSimulatedPath(preset, trace, stepIdx); err != nil {
+				return SimulationResponse{}, err
+			}
 			return SimulationResponse{
 				Mode:         string(def.Mode),
 				Label:        def.Label,
@@ -248,23 +283,83 @@ func (s *Service) RenderSimulationPrompt(ctx context.Context, mode Mode, presetI
 	return resp, nil
 }
 
-// simulationPreset couples operator-facing metadata with a deterministic
-// output script. The script chooses phase payloads only; the real transition
-// guards in simulationTransitionForCompletedRound still decide routing, so a
-// preset can shape a branch but never fabricate one the registry disallows.
-type simulationPreset struct {
-	meta                  SimulationPreset
-	initiativeTitle       string
-	initiativeDescription string
-	items                 []RoundItem
-	criteria              []string
-	// result maps the canned base output for a phase into the scripted output.
-	// visit is the 0-based count of prior visits to this phase in the trace,
-	// which lets loop-back presets terminate on the second pass.
-	result func(def Definition, phaseDef PhaseDefinition, base PhaseResult, visit int) PhaseResult
+// simPreset is the simulator's internal view of a preset: operator-facing
+// metadata, the seeded sandbox initiative, and the ordered per-visit output
+// overrides that steer the branch. It is assembled from a mode-owned ExampleRun,
+// or synthesized (steps/expectedPath nil) for a phase mode that ships no
+// example-runs. The seeded outputs only shape phase payloads; the real
+// transition guards in simulationTransitionForCompletedRound still decide
+// routing, so a preset can shape a branch but never fabricate one the graph
+// disallows.
+type simPreset struct {
+	meta         SimulationPreset
+	initiative   *ExampleRunInitiative
+	steps        []ExampleRunStep
+	expectedPath []string
 }
 
-func presetMetadata(presets []simulationPreset) []SimulationPreset {
+// roundItems returns the seeded backlog items for the preset's sandbox
+// initiative, falling back to generic defaults when the example-run declares
+// none.
+func (p simPreset) roundItems() []RoundItem {
+	if p.initiative != nil && len(p.initiative.Items) > 0 {
+		return p.initiative.RoundItems()
+	}
+	return defaultSimulationItems()
+}
+
+// criteria returns the seeded acceptance criteria, falling back to a generic
+// default when the example-run declares none.
+func (p simPreset) criteria() []string {
+	if p.initiative != nil && len(p.initiative.Criteria) > 0 {
+		return append([]string(nil), p.initiative.Criteria...)
+	}
+	return defaultSimulationCriteria()
+}
+
+// simulationPresets projects a mode's loaded example-runs into simulator
+// presets. A phase mode with no example-runs gets a single synthesized
+// happy-path that walks the graph on canned outputs, so the simulator remains
+// usable before a mode authors fixtures.
+func simulationPresets(def Definition) []simPreset {
+	if len(def.ExampleRuns) == 0 {
+		return []simPreset{syntheticHappyPath()}
+	}
+	out := make([]simPreset, 0, len(def.ExampleRuns))
+	for _, run := range def.ExampleRuns {
+		out = append(out, simPreset{
+			meta: SimulationPreset{
+				ID:          run.ID,
+				Label:       defaultString(run.Label, humanizeToken(run.ID)),
+				Description: run.Description,
+				Branch:      run.Branch,
+				Scenario:    run.Scenario,
+			},
+			initiative:   run.Initiative,
+			steps:        run.Steps,
+			expectedPath: run.ExpectedPath,
+		})
+	}
+	return out
+}
+
+// syntheticHappyPath is the fallback preset for a phase mode that has not
+// authored example-runs yet: no seeded steps, so every phase completes on canned
+// outputs and the walk reaches the terminal phase. It declares no expected_path,
+// so the walk is not asserted against a fixture.
+func syntheticHappyPath() simPreset {
+	return simPreset{
+		meta: SimulationPreset{
+			ID:          happyPathPresetID,
+			Label:       "Happy path",
+			Description: "Every phase completes cleanly and the mode reaches its terminal phase.",
+			Branch:      "Straight-through completion with no loop-backs.",
+			Scenario:    "A well-scoped initiative where the first pass through every phase succeeds.",
+		},
+	}
+}
+
+func presetMetadata(presets []simPreset) []SimulationPreset {
 	out := make([]SimulationPreset, 0, len(presets))
 	for _, preset := range presets {
 		out = append(out, preset.meta)
@@ -275,7 +370,7 @@ func presetMetadata(presets []simulationPreset) []SimulationPreset {
 // resolveSimulationPreset returns the requested preset by id, or the first
 // (happy-path) preset when the id is empty or unknown. Presets always has at
 // least one entry for phase modes.
-func resolveSimulationPreset(presets []simulationPreset, id string) simulationPreset {
+func resolveSimulationPreset(presets []simPreset, id string) simPreset {
 	id = strings.TrimSpace(id)
 	if id != "" {
 		for _, preset := range presets {
@@ -287,197 +382,70 @@ func resolveSimulationPreset(presets []simulationPreset, id string) simulationPr
 	return presets[0]
 }
 
-// passthroughResult is the default scripting hook: use the canned base output
-// unchanged. Happy-path presets rely on it.
-func passthroughResult(_ Definition, _ PhaseDefinition, base PhaseResult, _ int) PhaseResult {
-	return base
+// mergeSeededResult overlays an example-run step's declared output onto the
+// contract-derived canned base, deep-merging nested objects (so a seeded
+// `progress.decision` overrides just that leaf, not the whole progress object).
+// The merge is generic — whatever fields the example-run declares override the
+// scaffolding — so no branch-specific Go logic is needed.
+func mergeSeededResult(base PhaseResult, seeded map[string]any) (PhaseResult, error) {
+	if len(seeded) == 0 {
+		return base, nil
+	}
+	baseBytes, err := json.Marshal(base)
+	if err != nil {
+		return PhaseResult{}, fmt.Errorf("marshal canned result: %w", err)
+	}
+	baseMap := map[string]any{}
+	if err := json.Unmarshal(baseBytes, &baseMap); err != nil {
+		return PhaseResult{}, fmt.Errorf("decode canned result: %w", err)
+	}
+	deepMergeMap(baseMap, seeded)
+	mergedBytes, err := json.Marshal(baseMap)
+	if err != nil {
+		return PhaseResult{}, fmt.Errorf("marshal merged result: %w", err)
+	}
+	var result PhaseResult
+	if err := json.Unmarshal(mergedBytes, &result); err != nil {
+		return PhaseResult{}, fmt.Errorf("decode merged result: %w", err)
+	}
+	return result, nil
 }
 
-func simulationPresetsForMode(mode Mode) []simulationPreset {
-	switch mode {
-	case ModeHolisticLoop:
-		return holisticLoopPresets()
-	case ModePhasedPlanDrain:
-		return phasedPlanDrainPresets()
-	default:
-		return []simulationPreset{genericHappyPathPreset()}
-	}
-}
-
-// genericHappyPathPreset is a safe default for any future phase mode that has
-// not authored bespoke presets yet: it walks the graph on canned outputs.
-func genericHappyPathPreset() simulationPreset {
-	return simulationPreset{
-		meta: SimulationPreset{
-			ID:          "happy-path",
-			Label:       "Happy path",
-			Description: "Every phase completes cleanly and the mode reaches its terminal phase.",
-			Branch:      "Straight-through completion with no loop-backs.",
-			Scenario:    "A well-scoped initiative where the first pass through every phase succeeds.",
-		},
-		initiativeTitle:       "",
-		initiativeDescription: "",
-		items:                 defaultSimulationItems(),
-		criteria:              defaultSimulationCriteria(),
-		result:                passthroughResult,
-	}
-}
-
-func holisticLoopPresets() []simulationPreset {
-	items := []RoundItem{
-		{Ref: "execute/audio-session-teardown", Title: "Tear down idle audio session", Status: "in_progress", Priority: 1, Effort: "M"},
-		{Ref: "fix/mic-wedge-regression", Title: "Fix mic wedge after backgrounding", Status: "todo", Priority: 2, Effort: "S"},
-	}
-	criteria := []string{
-		"An idle tab never holds the system audio session.",
-		"The microphone recovers after backgrounding without an app restart.",
-	}
-	return []simulationPreset{
-		{
-			meta: SimulationPreset{
-				ID:          "happy-path",
-				Label:       "Clean pass",
-				Description: "Investigate → plan → execute → review → reconcile with no replanning.",
-				Branch:      "execute → review (replan not needed)",
-				Scenario:    "Investigation surfaces the full picture up front, the plan holds, execution needs no rework, and review accepts the result before the backlog is reconciled.",
-			},
-			initiativeTitle:       "Unify the audio-session lifecycle",
-			initiativeDescription: "Coupled audio fixes that can only be validated together across the tab lifecycle.",
-			items:                 items,
-			criteria:              criteria,
-			result:                passthroughResult,
-		},
-		{
-			meta: SimulationPreset{
-				ID:          "replan-after-execute",
-				Label:       "Execute triggers replan",
-				Description: "Execution discovers the plan was wrong and loops back to investigate before finishing.",
-				Branch:      "execute → investigate (replan_needed), then a clean second pass",
-				Scenario:    "The first execution attempt reveals the audio-session bug spans a subsystem the plan missed, so the run reports replan_needed and the loop returns to investigate. The second pass completes and review accepts.",
-			},
-			initiativeTitle:       "Unify the audio-session lifecycle",
-			initiativeDescription: "Exploratory audio work where the first plan is expected to miss something material.",
-			items:                 items,
-			criteria:              criteria,
-			result: func(_ Definition, phaseDef PhaseDefinition, base PhaseResult, visit int) PhaseResult {
-				if phaseDef.Phase == "execute" && visit == 0 {
-					base.ReplanNeeded = true
-					if base.Handoff != nil {
-						base.Handoff.Summary = "Execution surfaced a cross-subsystem gap; requesting a replan before continuing."
-						base.Handoff.NextStep = "investigate"
-					}
-				}
-				return base
-			},
-		},
-		{
-			meta: SimulationPreset{
-				ID:          "review-not-accepted",
-				Label:       "Review requests changes",
-				Description: "Review returns a non-accepting verdict; reconcile still proposes follow-up backlog work.",
-				Branch:      "review → reconcile (verdict recorded, routing unchanged)",
-				Scenario:    "The acceptance review finds the result short of one criterion and records a changes_requested verdict. The verdict is informational for routing — reconcile still runs and proposes follow-up items so the gap is tracked.",
-			},
-			initiativeTitle:       "Unify the audio-session lifecycle",
-			initiativeDescription: "A pass where acceptance review is not satisfied on the first cycle.",
-			items:                 items,
-			criteria:              criteria,
-			result: func(_ Definition, phaseDef PhaseDefinition, base PhaseResult, _ int) PhaseResult {
-				if phaseDef.Phase == "review" {
-					base.Verdict = "changes_requested"
-				}
-				return base
-			},
-		},
+// deepMergeMap recursively overlays src onto dst: matching object keys merge,
+// every other key (scalar/array) overwrites.
+func deepMergeMap(dst, src map[string]any) {
+	for key, value := range src {
+		if srcMap, ok := value.(map[string]any); ok {
+			if dstMap, ok := dst[key].(map[string]any); ok {
+				deepMergeMap(dstMap, srcMap)
+				continue
+			}
+		}
+		dst[key] = value
 	}
 }
 
-func phasedPlanDrainPresets() []simulationPreset {
-	items := []RoundItem{
-		{Ref: "execute/durable-run-primitive", Title: "Add durable_run primitive", Status: "in_progress", Priority: 1, Effort: "M"},
-		{Ref: "execute/migrate-test-genie-execute", Title: "Migrate test-genie execute to durable handles", Status: "todo", Priority: 2, Effort: "M"},
+// assertSimulatedPath verifies the walked trace consumed every seeded step and,
+// when the preset declares an expected_path, matches it exactly. A synthetic
+// preset (no expected_path) is not asserted. This is the runtime twin of the
+// load-time WalkExampleRun assertion, guarding against a fixture drifting from
+// the guards it is meant to exercise.
+func assertSimulatedPath(preset simPreset, trace []SimulationStep, stepIdx int) error {
+	if stepIdx != len(preset.steps) {
+		return fmt.Errorf("simulate preset %q: %d seeded step(s) unconsumed; steps must match the walked path", preset.meta.ID, len(preset.steps)-stepIdx)
 	}
-	criteria := []string{
-		"Every execute command returns a durable run handle.",
-		"The legacy in-process primitive is removed.",
+	if len(preset.expectedPath) == 0 {
+		return nil
 	}
-	title := "Migrate CLI commands to durable run handles"
-	return []simulationPreset{
-		{
-			meta: SimulationPreset{
-				ID:          "happy-path",
-				Label:       "Drains in one slice",
-				Description: "Prepare → execute → classify (complete) → review → reconcile in a single pass.",
-				Branch:      "classify_progress → review (complete)",
-				Scenario:    "The prepared plan is small enough that one execution slice finishes it. Classify reports complete, review accepts, and reconcile aligns the backlog.",
-			},
-			initiativeTitle:       title,
-			initiativeDescription: "A stable, well-decomposed plan that a single slice can drain.",
-			items:                 items,
-			criteria:              criteria,
-			result:                passthroughResult,
-		},
-		{
-			meta: SimulationPreset{
-				ID:          "continue-next-slice",
-				Label:       "Continue to next slice",
-				Description: "Classify reports the current slice is done but more remain, so execution continues.",
-				Branch:      "classify_progress → execute_next (continue), then complete",
-				Scenario:    "The first slice lands the durable_run primitive and classify reports continue — there is more plan to drain. Execution runs the next slice, classify then reports complete, and the cycle finishes at review.",
-			},
-			initiativeTitle:       title,
-			initiativeDescription: "A multi-slice plan drained across sequential handoffs.",
-			items:                 items,
-			criteria:              criteria,
-			result: func(_ Definition, phaseDef PhaseDefinition, base PhaseResult, visit int) PhaseResult {
-				if phaseDef.Phase == "classify_progress" && visit == 0 && base.Progress != nil {
-					base.Progress.Decision = ProgressContinue
-					base.Progress.Rationale = "The first slice is complete and the next contiguous slice is ready to drain."
-				}
-				return base
-			},
-		},
-		{
-			meta: SimulationPreset{
-				ID:          "replan-plan",
-				Label:       "Progress forces a replan",
-				Description: "Classify decides the plan is wrong and routes back to prepare a new plan.",
-				Branch:      "classify_progress → prepare_plan (replan), then complete",
-				Scenario:    "Executing the first slice reveals the phased plan mis-ordered a dependency. Classify reports replan and routing returns to prepare_plan. The revised plan drains cleanly and the cycle completes.",
-			},
-			initiativeTitle:       title,
-			initiativeDescription: "A plan that needs revision partway through the drain.",
-			items:                 items,
-			criteria:              criteria,
-			result: func(_ Definition, phaseDef PhaseDefinition, base PhaseResult, visit int) PhaseResult {
-				if phaseDef.Phase == "classify_progress" && visit == 0 && base.Progress != nil {
-					base.Progress.Decision = ProgressReplan
-					base.Progress.Rationale = "Execution exposed a dependency the plan mis-ordered; the plan must be revised."
-				}
-				return base
-			},
-		},
-		{
-			meta: SimulationPreset{
-				ID:          "blocked",
-				Label:       "Work is blocked",
-				Description: "Classify reports the drain cannot proceed; the cycle ends without review.",
-				Branch:      "classify_progress → (blocked, terminal)",
-				Scenario:    "A slice hits an external blocker — an unavailable dependency — that the agent cannot resolve. Classify reports blocked, which is a terminal decision: the cycle stops before review so an operator can intervene.",
-			},
-			initiativeTitle:       title,
-			initiativeDescription: "A drain that stalls on an external blocker.",
-			items:                 items,
-			criteria:              criteria,
-			result: func(_ Definition, phaseDef PhaseDefinition, base PhaseResult, visit int) PhaseResult {
-				if phaseDef.Phase == "classify_progress" && visit == 0 && base.Progress != nil {
-					base.Progress.Decision = ProgressBlocked
-					base.Progress.Rationale = "An external dependency is unavailable; the drain cannot proceed without operator intervention."
-				}
-				return base
-			},
-		},
+	if len(trace) != len(preset.expectedPath) {
+		return fmt.Errorf("simulate preset %q: walked %d phases, expected_path declares %d", preset.meta.ID, len(trace), len(preset.expectedPath))
 	}
+	for i, step := range trace {
+		if step.Phase != preset.expectedPath[i] {
+			return fmt.Errorf("simulate preset %q: walked phase[%d]=%q, expected_path declares %q", preset.meta.ID, i, step.Phase, preset.expectedPath[i])
+		}
+	}
+	return nil
 }
 
 func defaultSimulationItems() []RoundItem {
@@ -491,17 +459,21 @@ func defaultSimulationCriteria() []string {
 	return []string{"The simulated mode reaches its terminal phase with a deterministic result."}
 }
 
-func simulationInitiative(def Definition, preset simulationPreset) InitiativeSnapshot {
-	title := preset.initiativeTitle
+func simulationInitiative(def Definition, preset simPreset) InitiativeSnapshot {
+	title, description := "", ""
+	if preset.initiative != nil {
+		title = preset.initiative.Title
+		description = preset.initiative.Description
+	}
 	if strings.TrimSpace(title) == "" {
 		title = def.Label + " Simulation"
 	}
-	description := preset.initiativeDescription
 	if strings.TrimSpace(description) == "" {
 		description = "Ephemeral sandbox initiative used to preview operating-mode flow."
 	}
-	itemRefs := make([]string, 0, len(preset.items))
-	for _, item := range preset.items {
+	items := preset.roundItems()
+	itemRefs := make([]string, 0, len(items))
+	for _, item := range items {
 		itemRefs = append(itemRefs, item.Ref)
 	}
 	return InitiativeSnapshot{
@@ -510,11 +482,11 @@ func simulationInitiative(def Definition, preset simulationPreset) InitiativeSna
 		Description:        description,
 		Mode:               string(def.Mode),
 		Items:              itemRefs,
-		AcceptanceCriteria: append([]string(nil), preset.criteria...),
+		AcceptanceCriteria: preset.criteria(),
 	}
 }
 
-func cannedSimulationResult(def Definition, phaseDef PhaseDefinition, preset simulationPreset) PhaseResult {
+func cannedSimulationResult(def Definition, phaseDef PhaseDefinition, items []RoundItem) PhaseResult {
 	result := PhaseResult{
 		Handoff: &Handoff{
 			Summary:         fmt.Sprintf("Simulated %s phase completed.", phaseDef.Phase),
@@ -541,24 +513,24 @@ func cannedSimulationResult(def Definition, phaseDef PhaseDefinition, preset sim
 		result.Verdict = "accepted"
 	}
 	if phaseDef.OutputContract.RequiresBacklogSync {
-		result.BacklogSync = simulationBacklogSync(preset)
+		result.BacklogSync = simulationBacklogSync(items)
 	}
 	return result
 }
 
-// simulationBacklogSync builds a realistic reconcile proposal from the preset's
-// seeded items: the primary item is marked completed and a scoped follow-up is
+// simulationBacklogSync builds a realistic reconcile proposal from the seeded
+// items: the primary item is marked completed and a scoped follow-up is
 // proposed, so the reconcile step reads as a real backlog alignment rather than
 // a no-op.
-func simulationBacklogSync(preset simulationPreset) *BacklogSyncPlan {
+func simulationBacklogSync(items []RoundItem) *BacklogSyncPlan {
 	plan := &BacklogSyncPlan{
 		Rationale: "Align the backlog with the work the drained cycle just completed.",
 	}
-	if len(preset.items) > 0 {
-		plan.CompletedItems = []string{preset.items[0].Ref}
+	if len(items) > 0 {
+		plan.CompletedItems = []string{items[0].Ref}
 	}
-	if len(preset.items) > 1 {
-		plan.UpdatedItems = []string{preset.items[1].Ref}
+	if len(items) > 1 {
+		plan.UpdatedItems = []string{items[1].Ref}
 	}
 	plan.CreatedItems = []string{"fix/simulation-followup"}
 	return plan
@@ -574,16 +546,19 @@ func encodePhaseResultEnvelope(result PhaseResult) (string, error) {
 
 func simulationTransitionForCompletedRound(def Definition, round RoundEnvelope) *SimulationTransition {
 	from := Phase(round.Phase)
-	payload := RoundPayload(round.Payload)
-	for _, rule := range def.PhaseGraph.TransitionRules[from] {
-		if !rule.When.Matches(payload) {
-			continue
+	if guards := def.PhaseGraph.Guards[from]; len(guards) > 0 {
+		lookup := NewMapFieldLookup(round.Payload)
+		for _, gt := range guards {
+			if !gt.When.Eval(lookup) {
+				continue
+			}
+			transition := simulationTransitionFromGuard(from, gt.When)
+			if len(gt.To) > 0 {
+				transition.To = string(gt.To[0])
+			}
+			return &transition
 		}
-		transition := transitionFromCondition(from, rule.When)
-		if len(rule.Next) > 0 {
-			transition.To = string(rule.Next[0])
-		}
-		return &transition
+		return nil
 	}
 	next := def.PhaseGraph.Transitions[from]
 	if len(next) == 0 {
@@ -592,18 +567,18 @@ func simulationTransitionForCompletedRound(def Definition, round RoundEnvelope) 
 	return &SimulationTransition{
 		From:          string(from),
 		To:            string(next[0]),
-		ConditionKind: string(TransitionConditionAlways),
-		Label:         transitionLabel(TransitionCondition{Kind: TransitionConditionAlways}),
+		ConditionKind: GuardOpAlways,
+		Label:         GuardLabel(Guard{Op: GuardOpAlways}),
 	}
 }
 
-func transitionFromCondition(from Phase, condition TransitionCondition) SimulationTransition {
+func simulationTransitionFromGuard(from Phase, guard Guard) SimulationTransition {
 	return SimulationTransition{
-		From:             string(from),
-		ConditionKind:    string(condition.Kind),
-		Label:            transitionLabel(condition),
-		PayloadKey:       condition.PayloadKey,
-		ProgressDecision: string(condition.ProgressDecision),
+		From:          string(from),
+		ConditionKind: GuardKind(guard),
+		Label:         GuardLabel(guard),
+		Field:         guard.Field,
+		Value:         renderGuardValue(guard.Value),
 	}
 }
 

@@ -15,6 +15,9 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("get", "Get a single mode (--mode MODE) including linked initiatives [--json]", deps.OperatingModeGet),
 			support.APICommand("brief", "Get the bounded operating-mode authoring brief [--mode MODE] [--json]", deps.OperatingModeBrief),
 			support.APICommand("set", "Edit a mode's label/description (--mode MODE [--label LABEL] [--description TEXT | --clear-description]) [--json]", deps.OperatingModeSet),
+			support.APICommand("scaffold", "Scaffold a new mode folder from the template (--id MODE [--label LABEL] [--description TEXT] [--force]) [--json]", deps.OperatingModeScaffold),
+			support.APICommand("validate", "Validate a mode from disk (--mode MODE) [--json]", deps.OperatingModeValidate),
+			support.APICommand("simulate", "Simulate a mode's phase walk (--mode MODE [--preset ID] [--registered]) [--json]", deps.OperatingModeSimulate),
 		},
 	}
 }

@@ -297,6 +297,11 @@ func (r *Resolver) operatingModeStartupBrief(limits agentsessions.ContextLimits)
 			fmt.Fprintf(&b, "  When in doubt pick instead: %s\n", def.WhenInDoubtPickInstead)
 		}
 	}
+	b.WriteString("\nAuthoring is a data task (no Go edits, no rebuild). A mode is a data folder ")
+	b.WriteString("scenarios/swarm-manager/modes/<id>/ (mode.json + example-runs/) validated by ")
+	b.WriteString(".vrooli/schemas/operating-mode.schema.json. Flow: scaffold a folder, edit the TODO ")
+	b.WriteString("fields, validate it from disk, simulate its phase walk, then restart swarm-manager ")
+	b.WriteString("so the registry loads it. See docs/internal/OPERATING-MODE-AUTHORING.md.\n")
 	metadata := startupBriefMetadata{
 		Kind:             string(agentsessions.KindOperatingModeAuthoring),
 		GeneratedAt:      now.Format(time.RFC3339),
@@ -306,10 +311,14 @@ func (r *Resolver) operatingModeStartupBrief(limits agentsessions.ContextLimits)
 		RecommendedNextActions: []briefAction{
 			{ID: "classify-first", Label: "Classify before authoring", Reason: "Compare the requested workflow with existing modes before proposing a new mode."},
 			{ID: "reuse-existing", Label: "Prefer reuse", Reason: "Recommend an existing mode unless the workflow needs a distinct phase graph, artifact contract, or governance policy."},
+			{ID: "scaffold-then-simulate", Label: "Scaffold, then validate + simulate", Reason: "When a new mode is warranted, scaffold the data folder and prove it with validate + simulate before proposing it — no Go edits."},
 		},
 		DrillDownCommands: []briefDrillDownCommand{
 			{Label: "Mode catalog", Command: "swarm-manager operating-mode list --json"},
 			{Label: "Mode detail", Command: "swarm-manager operating-mode get --mode <mode> --json"},
+			{Label: "Scaffold a mode", Command: "swarm-manager operating-mode scaffold --id <mode> --label <Label>"},
+			{Label: "Validate from disk", Command: "swarm-manager operating-mode validate --mode <mode>"},
+			{Label: "Simulate the walk", Command: "swarm-manager operating-mode simulate --mode <mode>"},
 		},
 	}
 	return startupContextItem(agentsessions.KindOperatingModeAuthoring, "Operating mode authoring startup brief", b.String(), "/operating-modes", metadata, limits)

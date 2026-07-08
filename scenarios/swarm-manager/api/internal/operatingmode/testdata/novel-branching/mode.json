@@ -1,0 +1,113 @@
+{
+  "kind": "operating-mode",
+  "id": "novel-triage-switch",
+  "label": "Novel Triage Switch (fixture)",
+  "description": "Non-production fixture proving the operating-mode vocabulary is generic, not bespoke to the three shipped modes. It exercises constructs none of them fully use: a multi-way enum switch (in/eq), a numeric-comparison guard (gte/lt), a compound `all` guard combining two fields, and a `not`-based review reloop. Never registered as a real mode — it lives under testdata/ so the disk registry does not discover it.",
+  "best_for": ["Proving the guard vocabulary can express arbitrary DAGs with no mode-specific branch kinds"],
+  "not_for": ["Real work — this is a schema-genericity fixture"],
+  "tradeoffs": ["Exists only to validate the schema's expressiveness"],
+  "scope": { "kind": "initiative" },
+  "run_strategy": { "kind": "operator_gated_loop" },
+  "prompt": { "catalog_prefix": "swarm-manager-novel-triage" },
+  "artifact": { "root": "modes/novel-triage-switch" },
+  "profile": { "default_profile_key": "swarm-manager/analysis" },
+  "backlog_sync": {
+    "capabilities": ["read_only", "propose_mutations"],
+    "requires_run_id": true,
+    "requires_membership": true,
+    "event_source": "novel-triage-switch",
+    "apply_mode": "operator-gated"
+  },
+  "metrics": { "event_source": "novel-triage-switch", "accepted_verdicts": ["pass"] },
+  "lock": { "initiative_exclusive": true },
+  "ui": { "workspace_tab_id": "operating-mode" },
+  "phase_graph": {
+    "start_phase": "triage",
+    "terminal": ["close"],
+    "phases": [
+      {
+        "id": "triage",
+        "kind": "investigate",
+        "activity_purpose": "novel_triage",
+        "prompt": { "title": "Triage", "purpose": "Classify the report into a disposition and severity." },
+        "declared_output": {
+          "fields": [
+            { "name": "disposition", "type": "string", "required": true, "enum": ["reproduce", "escalate", "wont_fix"] },
+            { "name": "severity", "type": "integer", "required": true, "minimum": 0, "maximum": 5 }
+          ]
+        },
+        "transitions": [
+          { "when": { "op": "in", "field": "disposition", "values": ["wont_fix"] }, "to": ["close"] },
+          { "when": { "op": "eq", "field": "disposition", "value": "escalate" }, "to": ["escalate"] },
+          { "when": { "op": "eq", "field": "disposition", "value": "reproduce" }, "to": ["reproduce"] }
+        ]
+      },
+      {
+        "id": "reproduce",
+        "kind": "execute",
+        "activity_purpose": "novel_reproduce",
+        "writes_repo": false,
+        "prompt": { "title": "Reproduce", "purpose": "Attempt to reproduce; high-severity confirmed defects route to fix, low-severity to verify, unreproducible to close." },
+        "declared_output": {
+          "fields": [
+            { "name": "reproduced", "type": "boolean", "required": true },
+            { "name": "severity", "type": "integer", "required": true, "minimum": 0, "maximum": 5 }
+          ]
+        },
+        "transitions": [
+          { "when": { "all": [ { "op": "eq", "field": "reproduced", "value": true }, { "op": "gte", "field": "severity", "value": 3 } ] }, "to": ["fix"] },
+          { "when": { "all": [ { "op": "eq", "field": "reproduced", "value": true }, { "op": "lt", "field": "severity", "value": 3 } ] }, "to": ["verify"] },
+          { "when": { "op": "eq", "field": "reproduced", "value": false }, "to": ["close"] }
+        ]
+      },
+      {
+        "id": "escalate",
+        "kind": "review",
+        "activity_purpose": "novel_escalate",
+        "prompt": { "title": "Escalate", "purpose": "Hand off to a human owner, then close the loop." },
+        "transitions": [
+          { "when": { "op": "always" }, "to": ["close"] }
+        ]
+      },
+      {
+        "id": "fix",
+        "kind": "execute",
+        "activity_purpose": "novel_fix",
+        "writes_repo": true,
+        "prompt": { "title": "Fix", "purpose": "Implement the fix and route to verification." },
+        "transitions": [
+          { "when": { "op": "always" }, "to": ["verify"] }
+        ]
+      },
+      {
+        "id": "verify",
+        "kind": "review",
+        "activity_purpose": "novel_verify",
+        "requires_criteria": true,
+        "prompt": { "title": "Verify", "purpose": "Verify the fix; anything other than pass reloops to fix." },
+        "declared_output": {
+          "fields": [
+            { "name": "verdict", "type": "string", "required": true, "enum": ["pass", "fail"] }
+          ]
+        },
+        "metrics": { "counts_acceptance_sample": true },
+        "transitions": [
+          { "when": { "not": { "op": "eq", "field": "verdict", "value": "pass" } }, "to": ["fix"] },
+          { "when": { "op": "always" }, "to": ["close"] }
+        ]
+      },
+      {
+        "id": "close",
+        "kind": "reconcile",
+        "activity_purpose": "novel_close",
+        "auto_start_after": ["verify"],
+        "prompt": { "title": "Close", "purpose": "Reconcile the backlog and end the loop." },
+        "declared_output": {
+          "fields": [
+            { "name": "backlog_sync", "type": "object", "required": true }
+          ]
+        }
+      }
+    ]
+  }
+}

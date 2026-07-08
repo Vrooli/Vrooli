@@ -1,0 +1,27 @@
+{
+  "kind": "operating-mode-example-run",
+  "id": "blocked",
+  "mode": "phased-plan-drain",
+  "label": "Work is blocked",
+  "description": "Classify reports the drain cannot proceed; the cycle ends without review.",
+  "branch": "classify_progress → (blocked, terminal)",
+  "scenario": "A slice hits an external blocker — an unavailable dependency — that the agent cannot resolve. Classify reports blocked, which is a terminal decision: the cycle stops before review so an operator can intervene.",
+  "initiative": {
+    "title": "Migrate CLI commands to durable run handles",
+    "description": "A drain that stalls on an external blocker.",
+    "items": [
+      { "ref": "execute/durable-run-primitive", "title": "Add durable_run primitive", "status": "in_progress", "priority": 1, "effort": "M" },
+      { "ref": "execute/migrate-test-genie-execute", "title": "Migrate test-genie execute to durable handles", "status": "todo", "priority": 2, "effort": "M" }
+    ],
+    "criteria": [
+      "Every execute command returns a durable run handle.",
+      "The legacy in-process primitive is removed."
+    ]
+  },
+  "steps": [
+    { "phase": "prepare_plan", "note": "always → execute_next" },
+    { "phase": "execute_next", "note": "always → classify_progress" },
+    { "phase": "classify_progress", "output": { "progress": { "decision": "blocked" } }, "note": "progress.decision=blocked → guarded stop (terminal)" }
+  ],
+  "expected_path": ["prepare_plan", "execute_next", "classify_progress"]
+}

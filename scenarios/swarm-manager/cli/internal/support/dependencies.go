@@ -151,6 +151,10 @@ type Dependencies struct {
 	OperatingModeGet   CommandFunc
 	OperatingModeBrief CommandFunc
 	OperatingModeSet   CommandFunc
+	// Self-serve operating-mode authoring CLI (see cmd_operating_mode_authoring.go).
+	OperatingModeScaffold CommandFunc
+	OperatingModeValidate CommandFunc
+	OperatingModeSimulate CommandFunc
 }
 
 func APICommand(name, description string, run CommandFunc) cliapp.Command {

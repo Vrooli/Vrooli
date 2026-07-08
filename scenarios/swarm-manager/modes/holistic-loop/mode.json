@@ -1,0 +1,157 @@
+{
+  "kind": "operating-mode",
+  "id": "holistic-loop",
+  "label": "Holistic Loop",
+  "description": "Investigate → plan → execute → review cycles across the whole initiative. Use when scope is exploratory and the plan must be revised as you learn.",
+  "best_for": [
+    "Coupled work where items can't be validated in isolation",
+    "The right plan can only be authored after cross-item investigation",
+    "Item shape will shift as the work reveals what items actually are",
+    "Replanning is expected — the first plan will be wrong about something material"
+  ],
+  "not_for": [
+    "Items are independent and stable — use item-level for parallelism",
+    "A stable plan already exists and just needs to be drained — use phased-plan-drain",
+    "Work is small enough to fit in a single backlog item"
+  ],
+  "tradeoffs": [
+    "One plan, not N plans — lower replanning cost than item-level for coupled work",
+    "Higher per-run cost than item-level",
+    "Loses parallelism — only one round runs at a time",
+    "Initiative-level acceptance review instead of per-item review"
+  ],
+  "when_in_doubt_pick_instead": "item-level",
+  "scope": { "kind": "initiative" },
+  "run_strategy": { "kind": "operator_gated_loop" },
+  "prompt": { "catalog_prefix": "swarm-manager-holistic-loop" },
+  "artifact": { "root": "modes/holistic-loop" },
+  "profile": { "default_profile_key": "swarm-manager/deep-work" },
+  "backlog_sync": {
+    "capabilities": ["read_only", "propose_mutations", "mark_complete", "create_followups", "update_scope"],
+    "requires_run_id": true,
+    "requires_membership": true,
+    "event_source": "holistic-loop",
+    "apply_mode": "operator-gated"
+  },
+  "metrics": {
+    "event_source": "holistic-loop",
+    "accepted_verdicts": ["accept", "accepted"]
+  },
+  "lock": { "initiative_exclusive": true },
+  "ui": { "workspace_tab_id": "operating-mode" },
+  "phase_graph": {
+    "start_phase": "investigate",
+    "terminal": ["reconcile"],
+    "phases": [
+      {
+        "id": "investigate",
+        "kind": "investigate",
+        "activity_purpose": "holistic_loop_investigate",
+        "profile_key": "swarm-manager/deep-work",
+        "prompt": {
+          "title": "Holistic Loop Investigate",
+          "trigger": "Operator starts holistic-loop investigate phase",
+          "purpose": "Investigate initiative-wide code, backlog, and system state and produce holistic findings."
+        },
+        "output_artifacts": [
+          { "path": "modes/holistic-loop/findings.md", "content_type": "text/markdown", "required": true }
+        ],
+        "transitions": [
+          { "when": { "op": "always" }, "to": ["plan"] }
+        ]
+      },
+      {
+        "id": "plan",
+        "kind": "investigate",
+        "activity_purpose": "holistic_loop_plan",
+        "profile_key": "swarm-manager/deep-work",
+        "prompt": {
+          "title": "Holistic Loop Plan",
+          "trigger": "Operator starts holistic-loop plan phase",
+          "purpose": "Produce or update the initiative-wide implementation plan and readiness assessment."
+        },
+        "output_artifacts": [
+          { "path": "modes/holistic-loop/initiative-plan.md", "content_type": "text/markdown", "required": true }
+        ],
+        "transitions": [
+          { "when": { "op": "always" }, "to": ["execute"] }
+        ]
+      },
+      {
+        "id": "execute",
+        "kind": "execute",
+        "activity_purpose": "holistic_loop_execute",
+        "profile_key": "swarm-manager/deep-work",
+        "writes_repo": true,
+        "prompt": {
+          "title": "Holistic Loop Execute",
+          "trigger": "Operator starts holistic-loop execute phase",
+          "purpose": "Execute against the initiative-wide plan and report whether replanning is needed."
+        },
+        "declared_output": {
+          "fields": [
+            {
+              "name": "replan_needed",
+              "type": "boolean",
+              "description": "True when execution revealed the plan is materially wrong and the loop must return to investigate."
+            }
+          ]
+        },
+        "metrics": { "counts_replan_sample": true },
+        "transitions": [
+          { "when": { "op": "eq", "field": "replan_needed", "value": true }, "to": ["investigate"] },
+          { "when": { "op": "always" }, "to": ["review"] }
+        ]
+      },
+      {
+        "id": "review",
+        "kind": "review",
+        "activity_purpose": "holistic_loop_review",
+        "profile_key": "swarm-manager/analysis",
+        "requires_criteria": true,
+        "prompt": {
+          "title": "Holistic Loop Acceptance Review",
+          "trigger": "Operator starts holistic-loop review phase",
+          "purpose": "Evaluate holistic-loop results against acceptance criteria and produce an acceptance verdict."
+        },
+        "declared_output": {
+          "fields": [
+            {
+              "name": "verdict",
+              "type": "string",
+              "required": true,
+              "description": "Acceptance verdict for the initiative against its acceptance criteria (e.g. accept / accepted, or a non-accepting verdict)."
+            }
+          ]
+        },
+        "metrics": { "counts_acceptance_sample": true },
+        "transitions": [
+          { "when": { "op": "always" }, "to": ["reconcile"] }
+        ]
+      },
+      {
+        "id": "reconcile",
+        "kind": "reconcile",
+        "activity_purpose": "holistic_loop_reconcile",
+        "profile_key": "swarm-manager/analysis",
+        "auto_start_after": ["review"],
+        "prompt": {
+          "suffix": "reconcile",
+          "title": "Holistic Loop Backlog Reconcile",
+          "trigger": "Round refresher auto-starts holistic-loop reconcile after review completes",
+          "purpose": "Read prior round artifacts and propose backlog mutations that align the initiative with the work just completed."
+        },
+        "declared_output": {
+          "fields": [
+            {
+              "name": "backlog_sync",
+              "type": "object",
+              "required": true,
+              "description": "The proposed backlog reconciliation plan (completed/created/updated items, proposal, rationale)."
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

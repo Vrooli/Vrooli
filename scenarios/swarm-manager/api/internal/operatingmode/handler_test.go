@@ -193,7 +193,7 @@ func TestGetModeReturnsLinkedInitiatives(t *testing.T) {
 		if !ok {
 			continue
 		}
-		if edge["from"] == "execute" && edge["to"] == "investigate" && edge["label"] == "on payload.replan_needed=true" {
+		if edge["from"] == "execute" && edge["to"] == "investigate" && edge["label"] == "on replan_needed = true" {
 			foundReplan = true
 			break
 		}

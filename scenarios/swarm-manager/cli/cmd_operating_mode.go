@@ -53,12 +53,12 @@ type operatingModeCatalogPhaseGraph struct {
 }
 
 type operatingModeCatalogEdge struct {
-	From             string `json:"from"`
-	To               string `json:"to"`
-	ConditionKind    string `json:"condition_kind"`
-	Label            string `json:"label"`
-	PayloadKey       string `json:"payload_key,omitempty"`
-	ProgressDecision string `json:"progress_decision,omitempty"`
+	From          string `json:"from"`
+	To            string `json:"to"`
+	ConditionKind string `json:"condition_kind"`
+	Label         string `json:"label"`
+	Field         string `json:"field,omitempty"`
+	Value         string `json:"value,omitempty"`
 }
 
 type operatingModeArtifactDef struct {

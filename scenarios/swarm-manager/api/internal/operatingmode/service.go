@@ -130,6 +130,17 @@ type AgentSpawner interface {
 	StopRun(ctx context.Context, runID string) error
 }
 
+// RunMessageReader is an optional capability an AgentSpawner may also satisfy:
+// returning the ordered assistant messages of a completed run. The resolution
+// ladder's L0 (true-final-message detection) uses these to scan past a trailing
+// subagent message and recover the real final answer. The concrete
+// agent-manager client implements it; test doubles and spawners that don't need
+// L0 simply omit it, and the refresher falls back to the run summary as the sole
+// resolution candidate.
+type RunMessageReader interface {
+	GetRunMessages(ctx context.Context, runID string) ([]string, error)
+}
+
 // InitiativeActivitySpawner is the narrow seam the operating-mode service
 // uses to launch initiative agent runs through the agentactivity tracker
 // (which applies lane gating and emits typed errors like
@@ -169,9 +180,15 @@ type Config struct {
 	PromptClient     promptmanager.Client
 	PromptCatalog    PromptCatalogResolver
 	Events           *eventlog.Emitter
-	ScenarioRoot     string
-	Clock            func() time.Time
-	RequestedByLabel string
+	// Classifier is the L2 rung of the resolution ladder. When left nil, the
+	// service wires the production ollama-backed classifier so real runs get
+	// classifier recovery; tests inject a stub, or leave it nil and disable L2
+	// via the mode's resolution policy. Set DisableClassifier to force L2 off.
+	Classifier        FieldClassifier
+	DisableClassifier bool
+	ScenarioRoot      string
+	Clock             func() time.Time
+	RequestedByLabel  string
 }
 
 type Service struct {
@@ -190,6 +207,7 @@ type Service struct {
 	prompts       promptmanager.Client
 	promptCatalog PromptCatalogResolver
 	events        *eventlog.Emitter
+	classifier    FieldClassifier
 	scenarioRoot  string
 	clock         func() time.Time
 	requestedBy   string
@@ -398,16 +416,17 @@ type ModeCatalogPhaseGraph struct {
 	AcceptedVerdicts []string                `json:"accepted_verdicts,omitempty"`
 }
 
-// ModeCatalogTransition is one edge of the phase graph. The label is rendered
-// server-side so CLI and UI emit identical strings (e.g.
-// "on payload.replan_needed=true", "on continue", "always").
+// ModeCatalogTransition is one edge of the phase graph. The condition is
+// rendered server-side from the generic guard (kind + human label + the leaf
+// field/value when applicable) so CLI and UI emit identical strings (e.g.
+// "on replan_needed = true", "on progress.decision = continue", "always").
 type ModeCatalogTransition struct {
-	From             string `json:"from"`
-	To               string `json:"to"`
-	ConditionKind    string `json:"condition_kind"`
-	Label            string `json:"label"`
-	PayloadKey       string `json:"payload_key,omitempty"`
-	ProgressDecision string `json:"progress_decision,omitempty"`
+	From          string `json:"from"`
+	To            string `json:"to"`
+	ConditionKind string `json:"condition_kind"`
+	Label         string `json:"label"`
+	Field         string `json:"field,omitempty"`
+	Value         string `json:"value,omitempty"`
 }
 
 func summarizeContract(contract PhaseOutputContract) PhaseOutputContractSummary {
@@ -418,23 +437,6 @@ func summarizeContract(contract PhaseOutputContract) PhaseOutputContractSummary 
 		RequiresHandoff:          contract.RequiresHandoff,
 		RequiresBacklogSync:      contract.RequiresBacklogSync,
 		RequiredArtifactCount:    len(contract.RequiredArtifacts),
-	}
-}
-
-func transitionLabel(condition TransitionCondition) string {
-	switch condition.Kind {
-	case TransitionConditionAlways:
-		return "always"
-	case TransitionConditionPayloadBool:
-		suffix := "=true"
-		if !condition.BoolValue {
-			suffix = "=false"
-		}
-		return "on payload." + condition.PayloadKey + suffix
-	case TransitionConditionProgressDecision:
-		return "on " + string(condition.ProgressDecision)
-	default:
-		return string(condition.Kind)
 	}
 }
 
@@ -480,6 +482,10 @@ func NewService(cfg Config) (*Service, error) {
 	if requestedBy == "" {
 		requestedBy = "swarm-manager"
 	}
+	classifier := cfg.Classifier
+	if classifier == nil && !cfg.DisableClassifier {
+		classifier = newOllamaFieldClassifier()
+	}
 	return &Service{
 		store:         cfg.Store,
 		overlay:       cfg.Overlay,
@@ -496,6 +502,7 @@ func NewService(cfg Config) (*Service, error) {
 		prompts:       cfg.PromptClient,
 		promptCatalog: cfg.PromptCatalog,
 		events:        cfg.Events,
+		classifier:    classifier,
 		scenarioRoot:  strings.TrimSpace(cfg.ScenarioRoot),
 		clock:         clk,
 		requestedBy:   requestedBy,

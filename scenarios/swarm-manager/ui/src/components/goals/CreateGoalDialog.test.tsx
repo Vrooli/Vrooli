@@ -114,7 +114,9 @@ describe("CreateGoalDialog", () => {
     );
 
     await userEvent.type(screen.getByTestId("create-goal-title"), "Workspace");
-    await userEvent.click(screen.getByTestId("create-goal-target-execute/workspace-goal"));
+    // Backlog targets live on the "Items" tab; switch to it, then pick the card.
+    await userEvent.click(screen.getByTestId("create-goal-tab-item"));
+    await userEvent.click(screen.getByText("Workspace goal"));
     await userEvent.click(screen.getByTestId("create-goal-submit"));
 
     await waitFor(() => expect(create).toHaveBeenCalledWith({
