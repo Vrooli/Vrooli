@@ -138,8 +138,8 @@ export function simulationPhaseView(
           to: step.transition.to ?? "",
           conditionKind: step.transition.conditionKind,
           label: step.transition.label,
-          payloadKey: step.transition.payloadKey,
-          progressDecision: step.transition.progressDecision,
+          field: step.transition.field,
+          value: step.transition.value,
         }
       : undefined,
     prompt: {
@@ -186,8 +186,8 @@ export function livePhaseView(
           to: firedTransition.to || undefined,
           conditionKind: firedTransition.conditionKind,
           label: firedTransition.label,
-          payloadKey: firedTransition.payloadKey,
-          progressDecision: firedTransition.progressDecision,
+          field: firedTransition.field,
+          value: firedTransition.value,
         }
       : undefined,
     prompt: {
@@ -219,27 +219,95 @@ function selectLiveTransition(
   return outgoing.find((transition) => transitionMatchesPayload(transition, round.payload ?? {}));
 }
 
+/**
+ * Evaluate a leaf field-predicate guard against a completed round's payload,
+ * mirroring the backend `Guard.Eval` (api/internal/operatingmode/guard.go) for
+ * the flattened projection the wire carries (`conditionKind` = op, `field`,
+ * `value`). Composite guards (`all`/`any`/`not`) can't be re-derived from the
+ * flattened projection, so they conservatively don't match here — the backend
+ * remains the source of truth for routing; this only picks which declared
+ * outgoing edge to *highlight* on a completed live round. The three shipped
+ * modes use only leaf `eq`/bool/`exists` guards, all covered below.
+ */
 function transitionMatchesPayload(
   transition: OperatingModePhaseTransition,
   payload: Record<string, unknown>,
 ): boolean {
-  switch (transition.conditionKind) {
-    case "payload_bool":
-      return Boolean(transition.payloadKey && payload[transition.payloadKey] === true);
-    case "progress_decision": {
-      const progress = objectFromRecord(payload, "progress");
-      return progress.decision === transition.progressDecision;
-    }
-    case "always":
-      return true;
+  const op = transition.conditionKind;
+  if (op === "always") return true;
+  if (!transition.field) return false;
+  const { value, present } = lookupFieldPath(payload, transition.field);
+  switch (op) {
+    case "exists":
+      return present;
+    case "not_exists":
+      return !present;
+    case "eq":
+      return present && renderGuardValue(value) === (transition.value ?? "");
+    case "ne":
+      return present && renderGuardValue(value) !== (transition.value ?? "");
+    case "gt":
+    case "gte":
+    case "lt":
+    case "lte":
+      return present && compareNumeric(op, value, transition.value);
+    default:
+      // Membership (in/not_in) and composites aren't representable in the
+      // flattened projection, so we don't guess a match.
+      return false;
   }
 }
 
-function objectFromRecord(record: Record<string, unknown> | undefined, key: string): Record<string, unknown> {
-  const value = record?.[key];
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {};
+// Resolve a dotted field-path (e.g. `progress.decision`) against the payload,
+// descending object segments. `present` is false when any segment is missing.
+function lookupFieldPath(
+  payload: Record<string, unknown>,
+  path: string,
+): { value: unknown; present: boolean } {
+  const segments = path.split(".");
+  let cur: unknown = payload;
+  for (const segment of segments) {
+    if (!cur || typeof cur !== "object" || Array.isArray(cur)) return { value: undefined, present: false };
+    const record = cur as Record<string, unknown>;
+    if (!(segment in record)) return { value: undefined, present: false };
+    cur = record[segment];
+  }
+  return { value: cur, present: true };
+}
+
+// Stringify a payload value the same way the backend renders guard values, so
+// `eq`/`ne` comparisons against the server-rendered `value` string agree
+// (booleans → "true"/"false", numbers → shortest decimal, strings verbatim).
+function renderGuardValue(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "number" || typeof value === "bigint") return String(value);
+  if (typeof value === "string") return value;
+  // Objects/arrays don't match a scalar leaf's rendered value; JSON-encode so
+  // the comparison is defined (and never coerces to "[object Object]").
+  try {
+    return JSON.stringify(value) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function compareNumeric(op: string, value: unknown, target: string | undefined): boolean {
+  const left = typeof value === "number" ? value : Number(value);
+  const right = Number(target);
+  if (Number.isNaN(left) || Number.isNaN(right)) return false;
+  switch (op) {
+    case "gt":
+      return left > right;
+    case "gte":
+      return left >= right;
+    case "lt":
+      return left < right;
+    case "lte":
+      return left <= right;
+    default:
+      return false;
+  }
 }
 
 function stringArrayFromRecord(record: Record<string, unknown> | undefined, key: string): string[] {

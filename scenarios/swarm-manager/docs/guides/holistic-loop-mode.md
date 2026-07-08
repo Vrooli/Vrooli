@@ -44,16 +44,21 @@ Rules:
 ## Preview the flow (simulation presets)
 
 The operating-mode detail page's **Flow** tab can walk this graph deterministically
-without running agents. Holistic-loop ships these presets
-([CODE: api/internal/operatingmode/simulation.go]):
+without running agents. Holistic-loop ships these presets as mode-owned example-run
+data ([CODE: modes/holistic-loop/example-runs/]):
 
-- **Clean pass** — `investigate → plan → execute → review → reconcile` with no
-  replanning; execute reports `replan_needed=false`.
-- **Execute triggers replan** — execute reports `replan_needed=true`, so the real
-  payload-bool guard routes back to `investigate`; the second pass completes.
-- **Review requests changes** — review records a non-accepting verdict
-  (`changes_requested`). Routing is unchanged (review always advances to
-  reconcile), but the verdict is surfaced and reconcile still proposes follow-ups.
+- **Clean pass** (`happy-path`) — `investigate → plan → execute → review → reconcile`
+  with no replanning; execute reports `replan_needed=false`.
+- **Execute triggers replan** (`replan-after-execute`) — execute reports
+  `replan_needed=true`, so the real field-predicate guard routes back to
+  `investigate`; the second pass completes.
+- **Review requests changes** (`review-changes-requested`) — review returns
+  `verdict=changes_requested`, so the guard routes **back to `execute`** to close the
+  specific gaps; a second execute pass finishes and review then accepts before
+  reconcile. This is the review reloop.
+- **Review rejects, records the gap** (`review-not-accepted`) — review returns a
+  plain non-accepting verdict that is *not* `changes_requested`, so it does not
+  reloop; it advances to reconcile, which proposes follow-up items to track the gap.
 
 Presets are deterministic previews, not real initiative rounds. In the Flow tab,
 the data-source control swaps the same phase viewer between the **Contract**

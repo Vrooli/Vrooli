@@ -1,171 +1,327 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
+	"errors"
 	"net/http"
+	"strings"
 	"testing"
+
+	"connectrpc.com/connect"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
 )
 
-func TestCmdInitiativesModeList_ReadsCatalog(t *testing.T) {
-	app, _ := newFeedbackTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/operating-modes" {
-			t.Fatalf("path = %s", r.URL.Path)
-		}
-		_, _ = w.Write([]byte(`{"modes":[{"mode":"item-level","label":"Item Level","scope_kind":"backlog_item","run_strategy":"existing_item_flow","workspace_tab_id":"info","default":true,"switchable":true,"supports_phases":false}]}`))
-	}))
+// stubOperatingModeHandler is a test double for the generated
+// OperatingModeService Connect handler. It embeds the Unimplemented base so a
+// test only wires the RPCs it exercises; each hook receives the decoded request
+// (so tests can assert the CLI built the right proto) and returns the projection
+// to serialize back over the wire.
+type stubOperatingModeHandler struct {
+	apiconnect.UnimplementedOperatingModeServiceHandler
+	catalog       func(*apipb.OperatingModeCatalogRequest) (*apipb.OperatingModeCatalogResponse, error)
+	getMode       func(*apipb.OperatingModeGetRequest) (*apipb.OperatingModeDetailResponse, error)
+	getWorkspace  func(*apipb.OperatingModeWorkspaceRequest) (*apipb.OperatingModeWorkspace, error)
+	switchMode    func(*apipb.OperatingModeSwitchRequest) (*apipb.OperatingModeSwitchResult, error)
+	startPhase    func(*apipb.OperatingModeStartPhaseRequest) (*apipb.OperatingModeRoundEnvelope, error)
+	refreshRound  func(*apipb.OperatingModeRoundActionRequest) (*apipb.OperatingModeRoundEnvelope, error)
+	completeItems func(*apipb.OperatingModeCompleteItemsRequest) (*apipb.OperatingModeBacklogSyncResult, error)
+	applyBacklog  func(*apipb.OperatingModeApplyBacklogSyncRequest) (*apipb.OperatingModeBacklogSyncResult, error)
+}
 
+func (s *stubOperatingModeHandler) Catalog(_ context.Context, req *connect.Request[apipb.OperatingModeCatalogRequest]) (*connect.Response[apipb.OperatingModeCatalogResponse], error) {
+	msg, err := s.catalog(req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(msg), nil
+}
+
+func (s *stubOperatingModeHandler) GetMode(_ context.Context, req *connect.Request[apipb.OperatingModeGetRequest]) (*connect.Response[apipb.OperatingModeDetailResponse], error) {
+	msg, err := s.getMode(req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(msg), nil
+}
+
+func (s *stubOperatingModeHandler) GetWorkspace(_ context.Context, req *connect.Request[apipb.OperatingModeWorkspaceRequest]) (*connect.Response[apipb.OperatingModeWorkspace], error) {
+	msg, err := s.getWorkspace(req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(msg), nil
+}
+
+func (s *stubOperatingModeHandler) SwitchMode(_ context.Context, req *connect.Request[apipb.OperatingModeSwitchRequest]) (*connect.Response[apipb.OperatingModeSwitchResult], error) {
+	msg, err := s.switchMode(req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(msg), nil
+}
+
+func (s *stubOperatingModeHandler) StartPhase(_ context.Context, req *connect.Request[apipb.OperatingModeStartPhaseRequest]) (*connect.Response[apipb.OperatingModeRoundEnvelope], error) {
+	msg, err := s.startPhase(req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(msg), nil
+}
+
+func (s *stubOperatingModeHandler) RefreshRound(_ context.Context, req *connect.Request[apipb.OperatingModeRoundActionRequest]) (*connect.Response[apipb.OperatingModeRoundEnvelope], error) {
+	msg, err := s.refreshRound(req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(msg), nil
+}
+
+func (s *stubOperatingModeHandler) CompleteItems(_ context.Context, req *connect.Request[apipb.OperatingModeCompleteItemsRequest]) (*connect.Response[apipb.OperatingModeBacklogSyncResult], error) {
+	msg, err := s.completeItems(req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(msg), nil
+}
+
+func (s *stubOperatingModeHandler) ApplyBacklogSync(_ context.Context, req *connect.Request[apipb.OperatingModeApplyBacklogSyncRequest]) (*connect.Response[apipb.OperatingModeBacklogSyncResult], error) {
+	msg, err := s.applyBacklog(req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(msg), nil
+}
+
+// newOperatingModeTestApp mounts the real generated OperatingModeService Connect
+// handler over the provided stub on a test server and returns an App whose
+// generated client talks to it — proving the full transport round-trip.
+func newOperatingModeTestApp(t *testing.T, stub apiconnect.OperatingModeServiceHandler) *App {
+	t.Helper()
+	path, handler := apiconnect.NewOperatingModeServiceHandler(stub)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	app, _ := newFeedbackTestApp(t, mux)
+	return app
+}
+
+func TestCmdInitiativesModeList_ReadsCatalog(t *testing.T) {
+	var called bool
+	stub := &stubOperatingModeHandler{
+		catalog: func(*apipb.OperatingModeCatalogRequest) (*apipb.OperatingModeCatalogResponse, error) {
+			called = true
+			return &apipb.OperatingModeCatalogResponse{
+				Modes: []*apipb.OperatingModeCatalogEntry{{
+					Mode:        "item-level",
+					Label:       "Item Level",
+					ScopeKind:   "backlog_item",
+					RunStrategy: "existing_item_flow",
+					Default:     true,
+					Switchable:  true,
+				}},
+			}, nil
+		},
+	}
+	app := newOperatingModeTestApp(t, stub)
 	if err := app.cmdInitiativesModeList([]string{}); err != nil {
 		t.Fatalf("cmdInitiativesModeList returned error: %v", err)
+	}
+	if !called {
+		t.Error("Catalog was not called")
 	}
 }
 
 func TestCmdInitiativesModeWorkspace_ReadsWorkspace(t *testing.T) {
-	var path string
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path = r.URL.Path
-		_, _ = w.Write([]byte(`{
-			"initiative_name":"init",
-			"mode":"holistic-loop",
-			"definition":{
-				"label":"Holistic Loop",
-				"scope_kind":"initiative",
-				"run_strategy":"operator_gated_loop",
-				"phases":[{"phase":"investigate","profile_key":"swarm-manager/deep-work","writes_repo":false}]
-			},
-			"artifacts":[{"path":"modes/holistic-loop/findings.md","required":true}],
-			"rounds":[{"round":1,"mode":"holistic-loop","phase":"investigate","status":"completed","run_id":"run-1","agent_profile_key":"swarm-manager/deep-work"}]
-		}`))
-	})
-	app, _ := newFeedbackTestApp(t, handler)
+	var gotName string
+	stub := &stubOperatingModeHandler{
+		getWorkspace: func(req *apipb.OperatingModeWorkspaceRequest) (*apipb.OperatingModeWorkspace, error) {
+			gotName = req.GetInitiativeName()
+			return &apipb.OperatingModeWorkspace{
+				InitiativeName: "init",
+				Mode:           "holistic-loop",
+				Definition: &apipb.OperatingModeWorkspaceMode{
+					Label:       "Holistic Loop",
+					ScopeKind:   "initiative",
+					RunStrategy: "operator_gated_loop",
+					Phases: []*apipb.OperatingModeWorkspacePhase{
+						{Phase: "investigate", ProfileKey: "swarm-manager/deep-work"},
+					},
+				},
+				Artifacts: []*apipb.OperatingModeArtifactSnapshot{
+					{Path: "modes/holistic-loop/findings.md", Required: true},
+				},
+				Rounds: []*apipb.OperatingModeRoundEnvelope{
+					{Round: 1, Mode: "holistic-loop", Phase: "investigate", Status: "completed", RunId: "run-1", AgentProfileKey: "swarm-manager/deep-work"},
+				},
+			}, nil
+		},
+	}
+	app := newOperatingModeTestApp(t, stub)
 	if err := app.cmdInitiativesModeWorkspace([]string{"--name", "init"}); err != nil {
 		t.Fatalf("run: %v", err)
 	}
-	if path != "/api/v1/initiatives/init/operating-mode/workspace" {
-		t.Errorf("path: %s", path)
+	if gotName != "init" {
+		t.Errorf("initiative name: %s", gotName)
 	}
 }
 
 func TestCmdInitiativesModeSwitch_PostsCancellationConfirmation(t *testing.T) {
-	var path string
-	var payload map[string]any
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path = r.URL.Path
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			t.Fatalf("decode body: %v", err)
-		}
-		_, _ = w.Write([]byte(`{"initiative_name":"init","from_mode":"item-level","to_mode":"holistic-loop","canceled_item_executions":[{"item_ref":"execute/a"}]}`))
-	})
-	app, _ := newFeedbackTestApp(t, handler)
+	var got *apipb.OperatingModeSwitchRequest
+	stub := &stubOperatingModeHandler{
+		switchMode: func(req *apipb.OperatingModeSwitchRequest) (*apipb.OperatingModeSwitchResult, error) {
+			got = req
+			return &apipb.OperatingModeSwitchResult{
+				InitiativeName:         "init",
+				FromMode:               "item-level",
+				ToMode:                 "holistic-loop",
+				CanceledItemExecutions: []*apipb.OperatingModeActiveItemExecution{{ItemRef: "execute/a"}},
+			}, nil
+		},
+	}
+	app := newOperatingModeTestApp(t, stub)
 	if err := app.cmdInitiativesModeSwitch([]string{"--name", "init", "--mode", "holistic-loop", "--cancel-active-item-executions"}); err != nil {
 		t.Fatalf("run: %v", err)
 	}
-	if path != "/api/v1/initiatives/init/operating-mode/switch" {
-		t.Errorf("path: %s", path)
+	if got.GetInitiativeName() != "init" {
+		t.Errorf("initiative name: %s", got.GetInitiativeName())
 	}
-	if payload["mode"] != "holistic-loop" {
-		t.Errorf("mode payload: %v", payload["mode"])
+	if got.GetMode() != "holistic-loop" {
+		t.Errorf("mode: %s", got.GetMode())
 	}
-	if payload["cancel_active_item_executions"] != true {
-		t.Errorf("cancel payload: %v", payload["cancel_active_item_executions"])
+	if !got.GetCancelActiveItemExecutions() {
+		t.Errorf("cancel flag: %v", got.GetCancelActiveItemExecutions())
+	}
+}
+
+// TestCmdInitiativesModeSwitch_SurfacesActiveExecutionsConflict proves the CLI
+// decodes the structured OperatingModeActiveItemExecutionsConflict detail off a
+// FailedPrecondition Connect error and reports the affected executions.
+func TestCmdInitiativesModeSwitch_SurfacesActiveExecutionsConflict(t *testing.T) {
+	stub := &stubOperatingModeHandler{
+		switchMode: func(*apipb.OperatingModeSwitchRequest) (*apipb.OperatingModeSwitchResult, error) {
+			cerr := connect.NewError(connect.CodeFailedPrecondition, errors.New("active item executions must be canceled"))
+			detail, err := connect.NewErrorDetail(&apipb.OperatingModeActiveItemExecutionsConflict{
+				InitiativeName: "init",
+				FromMode:       "holistic-loop",
+				ToMode:         "item-level",
+				Executions: []*apipb.OperatingModeActiveItemExecution{
+					{ItemRef: "execute/a", RunId: "run-9", Status: "running"},
+				},
+			})
+			if err != nil {
+				t.Fatalf("build detail: %v", err)
+			}
+			cerr.AddDetail(detail)
+			return nil, cerr
+		},
+	}
+	app := newOperatingModeTestApp(t, stub)
+	err := app.cmdInitiativesModeSwitch([]string{"--name", "init", "--mode", "item-level"})
+	if err == nil {
+		t.Fatal("expected a conflict error")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "execute/a") {
+		t.Errorf("error should list the blocking execution ref, got: %s", msg)
+	}
+	if !strings.Contains(msg, "--cancel-active-item-executions") {
+		t.Errorf("error should hint at the cancel flag, got: %s", msg)
 	}
 }
 
 func TestCmdInitiativesModeStart_PostsPhaseStart(t *testing.T) {
-	var path string
-	var payload map[string]any
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path = r.URL.Path
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			t.Fatalf("decode body: %v", err)
-		}
-		w.WriteHeader(http.StatusAccepted)
-		_, _ = w.Write([]byte(`{"round":2,"mode":"holistic-loop","phase":"execute","status":"agent_running","run_id":"run-2","agent_profile_key":"swarm-manager/deep-work"}`))
-	})
-	app, _ := newFeedbackTestApp(t, handler)
+	var got *apipb.OperatingModeStartPhaseRequest
+	stub := &stubOperatingModeHandler{
+		startPhase: func(req *apipb.OperatingModeStartPhaseRequest) (*apipb.OperatingModeRoundEnvelope, error) {
+			got = req
+			return &apipb.OperatingModeRoundEnvelope{
+				Round: 2, Mode: "holistic-loop", Phase: "execute", Status: "agent_running",
+				RunId: "run-2", AgentProfileKey: "swarm-manager/deep-work",
+			}, nil
+		},
+	}
+	app := newOperatingModeTestApp(t, stub)
 	if err := app.cmdInitiativesModeStart([]string{"--name", "init", "--phase", "execute", "--note", "go"}); err != nil {
 		t.Fatalf("run: %v", err)
 	}
-	if path != "/api/v1/initiatives/init/operating-mode/phases/execute/start" {
-		t.Errorf("path: %s", path)
+	if got.GetInitiativeName() != "init" || got.GetPhase() != "execute" {
+		t.Errorf("start selectors: name=%s phase=%s", got.GetInitiativeName(), got.GetPhase())
 	}
-	if payload["note"] != "go" {
-		t.Errorf("note payload: %v", payload["note"])
+	if got.GetNote() != "go" {
+		t.Errorf("note: %s", got.GetNote())
 	}
 }
 
 func TestCmdInitiativesModeRefresh_PostsRoundRefresh(t *testing.T) {
-	var rawQuery string
-	var path string
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path = r.URL.Path
-		rawQuery = r.URL.RawQuery
-		_, _ = w.Write([]byte(`{"round":2,"mode":"phased-plan-drain","phase":"execute_next","status":"completed","agent_profile_key":"swarm-manager/deep-work"}`))
-	})
-	app, _ := newFeedbackTestApp(t, handler)
+	var got *apipb.OperatingModeRoundActionRequest
+	stub := &stubOperatingModeHandler{
+		refreshRound: func(req *apipb.OperatingModeRoundActionRequest) (*apipb.OperatingModeRoundEnvelope, error) {
+			got = req
+			return &apipb.OperatingModeRoundEnvelope{
+				Round: 2, Mode: "phased-plan-drain", Phase: "execute_next", Status: "completed",
+				AgentProfileKey: "swarm-manager/deep-work",
+			}, nil
+		},
+	}
+	app := newOperatingModeTestApp(t, stub)
 	if err := app.cmdInitiativesModeRefresh([]string{"--name", "init", "--mode", "phased-plan-drain", "--round", "2"}); err != nil {
 		t.Fatalf("run: %v", err)
 	}
-	if path != "/api/v1/initiatives/init/operating-mode/rounds/2/refresh" {
-		t.Errorf("path: %s", path)
-	}
-	if rawQuery != "mode=phased-plan-drain" {
-		t.Errorf("query: %s", rawQuery)
+	if got.GetInitiativeName() != "init" || got.GetMode() != "phased-plan-drain" || got.GetRound() != 2 {
+		t.Errorf("refresh selectors: %+v", got)
 	}
 }
 
 func TestCmdInitiativesModeCompleteItems_PostsRunValidatedRefs(t *testing.T) {
-	var path string
-	var payload map[string]any
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path = r.URL.Path
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			t.Fatalf("decode body: %v", err)
-		}
-		_, _ = w.Write([]byte(`{"initiative_name":"init","mode":"holistic-loop","phase":"execute","round":3,"run_id":"run-3","completed_items":[{"item_ref":"execute/a","from_status":"ready","to_status":"completed"}]}`))
-	})
-	app, _ := newFeedbackTestApp(t, handler)
+	var got *apipb.OperatingModeCompleteItemsRequest
+	stub := &stubOperatingModeHandler{
+		completeItems: func(req *apipb.OperatingModeCompleteItemsRequest) (*apipb.OperatingModeBacklogSyncResult, error) {
+			got = req
+			return &apipb.OperatingModeBacklogSyncResult{
+				InitiativeName: "init", Mode: "holistic-loop", Phase: "execute", Round: 3, RunId: "run-3",
+				CompletedItems: []*apipb.OperatingModeBacklogCompletionResult{
+					{ItemRef: "execute/a", FromStatus: "ready", ToStatus: "completed"},
+				},
+			}, nil
+		},
+	}
+	app := newOperatingModeTestApp(t, stub)
 	if err := app.cmdInitiativesModeComplete([]string{"--name", "init", "--mode", "holistic-loop", "--round", "3", "--run-id", "run-3", "--items", "execute/a"}); err != nil {
 		t.Fatalf("run: %v", err)
 	}
-	if path != "/api/v1/initiatives/init/operating-mode/rounds/3/complete-items" {
-		t.Errorf("path: %s", path)
+	if got.GetRunId() != "run-3" {
+		t.Errorf("run id: %s", got.GetRunId())
 	}
-	if payload["run_id"] != "run-3" {
-		t.Errorf("run payload: %v", payload["run_id"])
-	}
-	items, ok := payload["item_refs"].([]any)
-	if !ok || len(items) != 1 || items[0] != "execute/a" {
-		t.Errorf("items payload: %#v", payload["item_refs"])
+	if refs := got.GetItemRefs(); len(refs) != 1 || refs[0] != "execute/a" {
+		t.Errorf("item refs: %#v", refs)
 	}
 }
 
 func TestCmdInitiativesModeApplyBacklogSync_PostsSelectedMutationIDs(t *testing.T) {
-	var path string
-	var rawQuery string
-	var payload map[string]any
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path = r.URL.Path
-		rawQuery = r.URL.RawQuery
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			t.Fatalf("decode body: %v", err)
-		}
-		_, _ = w.Write([]byte(`{"initiative_name":"init","mode":"phased-plan-drain","phase":"classify_progress","round":4,"run_id":"run-4","proposal_result":{"applied":1,"failed":0,"skipped":1,"created":1,"outcomes":[{"mutation_id":"m1","op":"add_item","target":"fix/follow-up","applied":true}]}}`))
-	})
-	app, _ := newFeedbackTestApp(t, handler)
+	var got *apipb.OperatingModeApplyBacklogSyncRequest
+	stub := &stubOperatingModeHandler{
+		applyBacklog: func(req *apipb.OperatingModeApplyBacklogSyncRequest) (*apipb.OperatingModeBacklogSyncResult, error) {
+			got = req
+			return &apipb.OperatingModeBacklogSyncResult{
+				InitiativeName: "init", Mode: "phased-plan-drain", Phase: "classify_progress", Round: 4, RunId: "run-4",
+				ProposalResult: &apipb.OperatingModeProposalApplyResult{
+					Applied: 1, Failed: 0, Skipped: 1, Created: 1,
+					Outcomes: []*apipb.OperatingModeProposalOutcome{
+						{MutationId: "m1", Op: "add_item", Target: "fix/follow-up", Applied: true},
+					},
+				},
+			}, nil
+		},
+	}
+	app := newOperatingModeTestApp(t, stub)
 	if err := app.cmdInitiativesModeApplyBacklogSync([]string{"--name", "init", "--mode", "phased-plan-drain", "--round", "4", "--run-id", "run-4", "--mutations", "m1,m3"}); err != nil {
 		t.Fatalf("run: %v", err)
 	}
-	if path != "/api/v1/initiatives/init/operating-mode/rounds/4/apply-backlog-sync" {
-		t.Errorf("path: %s", path)
+	if got.GetRunId() != "run-4" {
+		t.Errorf("run id: %s", got.GetRunId())
 	}
-	if rawQuery != "mode=phased-plan-drain" {
-		t.Errorf("query: %s", rawQuery)
-	}
-	if payload["run_id"] != "run-4" {
-		t.Errorf("run payload: %v", payload["run_id"])
-	}
-	mutations, ok := payload["accepted_mutation_ids"].([]any)
-	if !ok || len(mutations) != 2 || mutations[0] != "m1" || mutations[1] != "m3" {
-		t.Errorf("mutations payload: %#v", payload["accepted_mutation_ids"])
+	if ids := got.GetAcceptedMutationIds(); len(ids) != 2 || ids[0] != "m1" || ids[1] != "m3" {
+		t.Errorf("mutation ids: %#v", ids)
 	}
 }

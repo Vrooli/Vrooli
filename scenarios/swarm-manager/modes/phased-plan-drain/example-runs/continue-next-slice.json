@@ -2,10 +2,10 @@
   "kind": "operating-mode-example-run",
   "id": "continue-next-slice",
   "mode": "phased-plan-drain",
-  "label": "Continue to next slice",
-  "description": "Classify reports the current slice is done but more remain, so execution continues.",
+  "label": "Continue to next slice (slice-remainder handoff)",
+  "description": "The first execute round completes one comprehensively-completable slice and hands off the true frontier; classify reports continue, so the next round advances the declared remainder.",
   "branch": "classify_progress → execute_next (continue), then complete",
-  "scenario": "The first slice lands the durable_run primitive and classify reports continue — there is more plan to drain. Execution runs the next slice, classify then reports complete, and the cycle finishes at review.",
+  "scenario": "The first execute round lands only the durable_run primitive — the largest unit it can finish cleanly — and its handoff states the true frontier: the test-genie migration remains. Classify reports continue because there is more plan to drain. The next round advances exactly that declared frontier, classify then reports complete, and the cycle finishes at review. This is the elastic-slice contract in action: advance the frontier by one comprehensively-completable unit and hand off the remainder.",
   "initiative": {
     "title": "Migrate CLI commands to durable run handles",
     "description": "A multi-slice plan drained across sequential handoffs.",
@@ -20,9 +20,9 @@
   },
   "steps": [
     { "phase": "prepare_plan", "note": "always → execute_next" },
-    { "phase": "execute_next", "note": "always → classify_progress" },
-    { "phase": "classify_progress", "output": { "progress": { "decision": "continue" } }, "note": "progress.decision=continue → execute_next (next slice)" },
-    { "phase": "execute_next", "note": "always → classify_progress" },
+    { "phase": "execute_next", "output": { "handoff": { "summary": "Landed the durable_run primitive; the test-genie migration is untouched.", "frontier": "Migrate test-genie execute onto durable run handles (the exact remainder of the plan)." } }, "note": "one comprehensively-completable slice done; frontier handed off; always → classify_progress" },
+    { "phase": "classify_progress", "output": { "progress": { "decision": "continue" } }, "note": "progress.decision=continue → execute_next (advance the declared frontier)" },
+    { "phase": "execute_next", "output": { "handoff": { "summary": "Migrated test-genie execute to durable handles; plan drained.", "frontier": "None — the plan is fully drained." } }, "note": "declared frontier advanced; always → classify_progress" },
     { "phase": "classify_progress", "output": { "progress": { "decision": "complete" } }, "note": "progress.decision=complete → review" },
     { "phase": "review", "output": { "verdict": "accepted" }, "note": "always → reconcile" }
   ],

@@ -90,15 +90,17 @@ Modes are chosen by **how the work is shaped**, not by how much work there is or
 
 ### holistic-loop
 
-- **Unit:** the initiative, taken holistically. **Phases:** `investigate → plan → execute → review`, with execute either advancing to review or looping back to investigate when its result declares `replan_needed=true`.
+- **Unit:** the initiative, taken holistically. **Phases:** `investigate → plan → execute → review → reconcile`, with execute looping back to investigate when its result declares `replan_needed=true`, and review looping back to execute when its `verdict=changes_requested`.
 
 ```
-investigate ──▶ plan ──▶ execute ──▶ review ──┐
-     ▲                                          │
-     └────── replan (with new findings) ────────┘
+investigate ──▶ plan ──▶ execute ──▶ review ──▶ reconcile
+     ▲                    ▲   │          │
+     │                    │   └─ replan ─┘  (replan_needed=true)
+     └── replan (findings)┘   │
+                          └── changes_requested ──┘  (review loops back to execute)
 ```
 
-- **Refinement:** durable mode rounds over the full member-item graph, producing initiative-level artifacts (`findings.md`, `initiative-plan.md`). **Execution:** an agent works against the initiative-level plan, touching whichever items the work covers; items get marked done through audited reconciliation, not as independent execution events. **Review:** validate the initiative as a whole against its acceptance criteria.
+- **Refinement:** durable mode rounds over the full member-item graph, producing initiative-level artifacts (`findings.md`, `initiative-plan.md`). **Execution:** an agent works against the initiative-level plan, touching whichever items the work covers; items get marked done through audited reconciliation, not as independent execution events. **Review:** validate the initiative as a whole against its acceptance criteria — an `accept`/`accepted` verdict advances to reconcile, a `changes_requested` verdict loops back to execute to close the specific gaps, and any other non-accepting verdict records the gap and reconciles.
 - **Strengths:** correct unit of validation for coupled work; lower replanning cost (one plan, not N); investigation is a first-class step instead of being smuggled into per-item workshop; items can shift scope as the work reveals what they are.
 - **Failure mode:** loses parallelism; higher per-run cost; wrong for genuinely independent, stable items.
 
@@ -107,7 +109,7 @@ The investigation phase has no analog at item scale: at item scale the workshop 
 ### phased-plan-drain
 
 - **Unit:** the initiative, drained by a stable sequential plan and accumulated handoffs. **Phases:** `prepare_plan → execute_next → classify_progress`, then either `execute_next`, `prepare_plan`, or `review` based on the classifier's progress decision.
-- **Refinement:** a durable `phased-plan.md` plus round handoffs; the plan is prepared once and revised only when `classify_progress` decides `replan`. **Execution:** each execute round completes the earliest contiguous **slice** it can safely finish and hands off state for the next round. **Review:** validate the completed initiative against acceptance criteria once progress is classified complete.
+- **Refinement:** a durable `phased-plan.md` plus round handoffs; the plan is prepared once and revised only when `classify_progress` decides `replan`. **Execution:** each execute round completes the earliest contiguous **slice** it can safely finish and hands off state — including the true **frontier** — for the next round. **Review:** validate the completed initiative against acceptance criteria once progress is classified complete; a `changes_requested` verdict loops back to `execute_next` for one more gap-closing slice before acceptance.
 - **Strengths:** continuity across long sequential work, less planning churn than a holistic loop, explicit progress classification between slices.
 - **Failure mode:** unsuitable when the plan is not stable enough to drain, or when parallel independent execution is more valuable.
 
@@ -157,6 +159,7 @@ Authoring is self-serve and writes **data**: scaffold a mode folder from a templ
 
 ## Changelog
 
+- **2026-07-08** — Closed the two behavior gaps the spec had declared but the engine omitted: the **elastic-slice contract** is now encoded in the execute-phase prompt (a shared `ELASTIC_SLICE_SNIPPET`) and the handoff schema (a `frontier` field on `handoff`, carried through Proto + Connect), and the **review reloop** is now real data — a `changes_requested` verdict routes review back to execute/`execute_next` (with the reconcile auto-start gated on the guard actually routing there), covered by mode-owned example-runs.
 - **2026-07-08** — Rewritten as the canonical Northstar concept and the spec for the data-driven rebuild: operating modes are reusable, inspectable, testable methodology loops; a mode is a data folder interpreted by one generic engine; added the single-source vocabulary, the resolution ladder (L0–L3), the elastic-slice contract, and example-runs-as-data. Reframed the architecture from a hardcoded Go registry to the data SSOT target.
 - **2026-05-01** — Documented the registry-owned authoring architecture (superseded by the data-driven model above).
 - **2026-04-30** — Added mode-aware prompt routing, stable phase activity purposes, typed event/stat contracts, and the first Modes stats surface.

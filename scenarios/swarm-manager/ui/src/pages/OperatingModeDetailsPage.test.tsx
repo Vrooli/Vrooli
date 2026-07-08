@@ -181,7 +181,7 @@ const SAMPLE_DETAIL: OperatingModeDetail = {
       startPhase: "investigate",
       terminal: ["review"],
       transitions: [
-        { from: "execute", to: "investigate", conditionKind: "payload_bool", label: "on payload.replan_needed=true", payloadKey: "replan_needed" },
+        { from: "execute", to: "investigate", conditionKind: "eq", label: "on replan_needed = true", field: "replan_needed", value: "true" },
         { from: "execute", to: "review", conditionKind: "always", label: "always" },
         { from: "investigate", to: "execute", conditionKind: "always", label: "always" },
       ],

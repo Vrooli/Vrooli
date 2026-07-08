@@ -48,7 +48,7 @@ modes/<id>/
 | Folder | Scope | Run strategy | Shape |
 |--------|-------|--------------|-------|
 | [`item-level/`](item-level/) | `backlog_item` | `existing_item_flow` | Default. Each item drains through the existing item pipeline; no mode rounds. |
-| [`holistic-loop/`](holistic-loop/) | `initiative` | `operator_gated_loop` | `investigate → plan → execute → review → reconcile`, with `execute` looping back to `investigate` when `replan_needed`. |
+| [`holistic-loop/`](holistic-loop/) | `initiative` | `operator_gated_loop` | `investigate → plan → execute → review → reconcile`, with `execute` looping back to `investigate` when `replan_needed`, and `review` looping back to `execute` when `verdict=changes_requested`. |
 | [`phased-plan-drain/`](phased-plan-drain/) | `initiative` | `sequential_handoff` | `prepare_plan → execute_next → classify_progress → …`, branching on the progress decision (continue / replan / complete / blocked). |
 
 ## Authoring a new mode

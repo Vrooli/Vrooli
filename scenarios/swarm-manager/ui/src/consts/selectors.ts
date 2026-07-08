@@ -484,6 +484,9 @@ export const literalSelectors = {
     modeDetailsTradeoffsSection: "operating-mode-details-tradeoffs",
     modeDetailsLearnMoreSection: "operating-mode-details-learn-more",
     modeDetailsHowToChooseButton: "operating-mode-details-how-to-choose",
+    // Top-level "what is an operating mode" entry point (operating-modes list).
+    modesIntroButton: "operating-modes-intro-button",
+    modesIntroDialog: "operating-modes-intro-dialog",
     // Flow tab (deterministic simulation presets + live/replay traces).
     flowGuideButton: "operating-mode-flow-guide-button",
     flowGuideDialog: "operating-mode-flow-guide-dialog",

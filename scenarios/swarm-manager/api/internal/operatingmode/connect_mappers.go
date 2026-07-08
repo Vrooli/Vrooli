@@ -242,6 +242,7 @@ func handoffToProto(h *Handoff) *apipb.OperatingModeHandoff {
 		Tests:           h.Tests,
 		Blockers:        h.Blockers,
 		NextStep:        h.NextStep,
+		Frontier:        h.Frontier,
 		CreatedAt:       h.CreatedAt,
 	}
 }

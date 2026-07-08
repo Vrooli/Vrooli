@@ -134,6 +134,45 @@ func TestAutoStartAfter_SkipsOnCancellation(t *testing.T) {
 	}
 }
 
+// TestAutoStartAfter_SkipsOnReviewChangesRequested verifies the review-reloop
+// guard wins over the reconcile auto-start: when review completes with a
+// changes_requested verdict, the guard routes back to execute, so reconcile
+// must NOT auto-dispatch over the top of that branch. This is the auto-start
+// gating fix — auto_start_after only fires when a guard actually routes there.
+func TestAutoStartAfter_SkipsOnReviewChangesRequested(t *testing.T) {
+	root := t.TempDir()
+	agent := &fakeAgent{}
+	svc := newTestService(t, root, agent, &fakePrompts{})
+
+	round := driveHolisticLoopToReviewCompletion(t, svc)
+	agent.states[round.RunID] = agentmanager.RunState{
+		RunID: round.RunID, Status: "complete",
+		Summary:    `{"operating_mode_result":{"verdict":"changes_requested","backlog_sync":{"proposal":{"form":"mutation_list","mutations":[]}}}}`,
+		FinishedAt: "2026-05-02T12:05:00Z",
+	}
+
+	refreshed, err := svc.RefreshRound(context.Background(), "init-a", ModeHolisticLoop, round.Round)
+	if err != nil {
+		t.Fatalf("RefreshRound: %v", err)
+	}
+	if refreshed.Status != RoundStatusCompleted {
+		t.Fatalf("refreshed.Status = %q, want %q", refreshed.Status, RoundStatusCompleted)
+	}
+	// reconcile must not have spawned — the changes_requested guard routes to
+	// execute, not reconcile.
+	if got := len(agent.spawned); got != 1 {
+		t.Fatalf("changes_requested auto-dispatch spawned = %d, want 1 (reconcile suppressed, guard routes to execute)", got)
+	}
+	// No pending marker: the skip is intentional routing, not a deferred spawn.
+	pred, err := svc.store.LoadRound("init-a", ModeHolisticLoop, refreshed.Round)
+	if err != nil {
+		t.Fatalf("LoadRound: %v", err)
+	}
+	if RoundPayload(pred.Payload).HasPendingAutoStart() {
+		t.Fatalf("predecessor carries pending_auto_start after intentional reloop skip: %+v", pred.Payload)
+	}
+}
+
 // laneSaturatingActivity is a test double that satisfies the activity
 // surface the operating-mode service uses for spawning. It returns
 // ErrLaneSaturated for the *next* spawn after a configurable threshold;

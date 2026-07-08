@@ -6,6 +6,33 @@ package promptcatalog
 // prompt content reference the same constant the renderer uses.
 const BacklogSyncProposalVariableKey = "BACKLOG_SYNC_PROPOSAL_SNIPPET"
 
+// ElasticSliceVariableKey is the template variable name execute-phase prompts
+// substitute to pull in the shared elastic-slice contract. It is the code-side
+// single source for the slice-and-frontier rule so both execute prompts render
+// identical guidance with zero drift.
+const ElasticSliceVariableKey = "ELASTIC_SLICE_SNIPPET"
+
+// elasticSliceSnippet is the canonical statement of the elastic-slice contract:
+// a slice is not a persisted type, it is an *elastic unit of work* — advance the
+// frontier by one comprehensively-completable unit (a whole phase or the
+// remainder of one) and state the true frontier in the handoff so a fresh agent
+// continues from the right place. Every execute-phase prompt substitutes this
+// under ELASTIC_SLICE_SNIPPET; the matching `frontier` field lives on the
+// operating_mode_result handoff (see the phase's Final Result Envelope).
+//
+// Editing rules (documented here so this doesn't drift from the concept doc and
+// the Handoff struct):
+//
+//   - The rule described here MUST match docs/concepts/EXECUTION-MODES.md's
+//     "Slice" and "Handoff" vocabulary entries.
+//   - The field named here (`handoff.frontier`) MUST match the JSON tag on
+//     operatingmode.Handoff.Frontier and the OperatingModeHandoff proto field.
+const elasticSliceSnippet = "## Slice discipline: advance the frontier by one comprehensively-completable unit\n\n" +
+	"A **slice** is the elastic unit of work this round advances. It is not a fixed size and not a persisted type — it is a contract:\n\n" +
+	"- **Advance the frontier by exactly one comprehensively-completable unit** — a whole phase, or the *remainder* of one that a prior round left partly done. Finish that unit to a professional, verified standard.\n" +
+	"- **Never half-finish a larger unit.** If the phase in front of you is too large to complete well in this round, complete the largest coherent sub-unit you *can* finish cleanly, stop at that green boundary, and hand off the rest.\n" +
+	"- **State the true frontier in your handoff.** Set `handoff.frontier` to the one comprehensively-completable unit the next round should advance — a whole phase or the exact remainder of this one — so a fresh agent continues from the right place instead of re-deriving where the work stands. Be concrete: name the remaining unit, not \"keep going\".\n"
+
 // backlogSyncProposalSnippet is the canonical, single-source contract for
 // the BacklogSyncPlan / proposal envelope an agent emits.
 //
@@ -79,4 +106,12 @@ const backlogSyncProposalSnippet = "## Required output: backlog-sync proposal en
 // contract never diverges across surfaces.
 func BacklogSyncProposalSnippet() string {
 	return backlogSyncProposalSnippet
+}
+
+// ElasticSliceSnippet returns the canonical elastic-slice contract rendered as
+// markdown. Every execute-phase prompt substitutes the result under
+// ELASTIC_SLICE_SNIPPET so the slice-and-frontier rule never diverges across
+// modes.
+func ElasticSliceSnippet() string {
+	return elasticSliceSnippet
 }

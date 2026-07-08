@@ -248,8 +248,7 @@ body {
 
   /* Phase-graph chrome (consumed by phase-graph.tsx). */
   --graph-edge-always: rgba(var(--slate-400), 1);          /* slate-400 */
-  --graph-edge-payload-bool: rgb(251, 191, 36);            /* amber-400 */
-  --graph-edge-progress-decision: rgb(34, 211, 238);       /* cyan-400 */
+  --graph-edge-conditional: rgb(251, 191, 36);             /* amber-400 — any guarded edge */
   --graph-grid: rgba(var(--slate-800), 1);                 /* slate-800 */
   --graph-edge-label-bg: rgba(var(--slate-900), 0.85);
   --graph-edge-label-color: rgba(var(--slate-200), 1);

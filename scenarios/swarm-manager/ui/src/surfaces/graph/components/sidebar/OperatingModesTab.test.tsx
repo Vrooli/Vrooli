@@ -94,6 +94,33 @@ describe("OperatingModesTab", () => {
     expect(onItemClick).toHaveBeenCalledWith("operatingMode/phased-plan-drain");
   });
 
+  it("exposes a top-level concept entry point that explains the resolution ladder", async () => {
+    catalogMock.mockResolvedValue({ modes: [] });
+    renderTab();
+
+    const introButton = await screen.findByTestId(selectors.initiativeDetails.modesIntroButton);
+    expect(introButton).toHaveTextContent("What is an operating mode?");
+    expect(screen.queryByTestId(selectors.initiativeDetails.modesIntroDialog)).not.toBeInTheDocument();
+
+    await userEvent.click(introButton);
+
+    const dialog = screen.getByTestId(selectors.initiativeDetails.modesIntroDialog);
+    expect(dialog).toBeInTheDocument();
+    // The intro teaches the concept without needing a specific mode's detail page,
+    // including the four resolution-ladder rungs.
+    expect(screen.getByText(/L0 · True final message/)).toBeInTheDocument();
+    expect(screen.getByText(/L3 · Contract validation/)).toBeInTheDocument();
+  });
+
+  it("hides the concept intro while a search query is active", async () => {
+    catalogMock.mockResolvedValue({ modes: [] });
+    renderTab(vi.fn(), { searchQuery: "holistic" });
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.sidebar.emptyState)).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId(selectors.initiativeDetails.modesIntroButton)).not.toBeInTheDocument();
+  });
+
   it("shows an empty state when no modes are returned", async () => {
     catalogMock.mockResolvedValue({ modes: [] });
     renderTab();

@@ -71,7 +71,7 @@ const ENTRY: OperatingModeCatalogEntry = {
     startPhase: "investigate",
     terminal: ["review"],
     transitions: [
-      { from: "execute", to: "investigate", conditionKind: "payload_bool", label: "on payload.replan_needed=true", payloadKey: "replan_needed" },
+      { from: "execute", to: "investigate", conditionKind: "eq", label: "on replan_needed = true", field: "replan_needed", value: "true" },
       { from: "execute", to: "review", conditionKind: "always", label: "always" },
       { from: "investigate", to: "execute", conditionKind: "always", label: "always" },
     ],
@@ -84,8 +84,7 @@ describe("PhaseGraph", () => {
     render(<PhaseGraph entry={ENTRY} />);
     expect(screen.getByTestId("phase-graph")).toBeInTheDocument();
     expect(screen.getByText("Legend:")).toBeInTheDocument();
-    expect(screen.getByText("payload bool")).toBeInTheDocument();
-    expect(screen.getByText("progress decision")).toBeInTheDocument();
+    expect(screen.getByText("conditional")).toBeInTheDocument();
   });
 
   it("renders phase node labels (no mode prefix)", () => {
@@ -118,7 +117,7 @@ describe("PhaseGraph", () => {
     // jsdom doesn't compute, so we verify the wire by inspecting nodes +
     // markers (edges + correct stroke colors are emitted as <marker> defs).
     expect(screen.getByText("always")).toBeInTheDocument();
-    expect(screen.getByText("payload bool")).toBeInTheDocument();
+    expect(screen.getByText("conditional")).toBeInTheDocument();
   });
 
   it("calls onSelectPhase when a node is clicked", () => {

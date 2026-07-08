@@ -65,18 +65,39 @@ export interface PhaseResultBinding {
   artifact: OperatingModeArtifactDefinition;
 }
 
+/**
+ * Generic field-predicate guard operator, mirroring the backend `Guard` model
+ * (api/internal/operatingmode/guard.go). A transition's `conditionKind` is the
+ * guard op — a leaf comparison/membership/presence op, the unconditional
+ * `always`, or a composite (`all`/`any`/`not`) — not a closed, mode-specific
+ * branch kind. `string` widens it so a new op never breaks the UI build.
+ */
 export type OperatingModeTransitionConditionKind =
   | "always"
-  | "payload_bool"
-  | "progress_decision";
+  | "eq"
+  | "ne"
+  | "gt"
+  | "gte"
+  | "lt"
+  | "lte"
+  | "in"
+  | "not_in"
+  | "exists"
+  | "not_exists"
+  | "all"
+  | "any"
+  | "not"
+  | (string & {});
 
 export interface OperatingModePhaseTransition {
   from: string;
   to: string;
   conditionKind: OperatingModeTransitionConditionKind;
   label: string;
-  payloadKey?: string;
-  progressDecision?: string;
+  /** Dotted field-path the leaf guard reads from the round's structured output. */
+  field?: string;
+  /** Server-rendered comparison value for the leaf guard (string form). */
+  value?: string;
 }
 
 export interface OperatingModePhaseGraph {
@@ -270,8 +291,8 @@ export interface OperatingModeSimulationTransition {
   to?: string;
   conditionKind: OperatingModeTransitionConditionKind;
   label: string;
-  payloadKey?: string;
-  progressDecision?: string;
+  field?: string;
+  value?: string;
 }
 
 export interface OperatingModeSimulationStep {

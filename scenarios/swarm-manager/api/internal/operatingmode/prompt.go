@@ -92,6 +92,7 @@ func promptVariables(data phaseContext, round RoundEnvelope, note string) map[st
 		"MODE_ARTIFACTS_JSON":    mustJSON(data.artifacts),
 		"PRIOR_ROUNDS_JSON":      mustJSON(data.rounds),
 		promptcatalog.BacklogSyncProposalVariableKey: promptcatalog.BacklogSyncProposalSnippet(),
+		promptcatalog.ElasticSliceVariableKey:        promptcatalog.ElasticSliceSnippet(),
 	}
 }
 

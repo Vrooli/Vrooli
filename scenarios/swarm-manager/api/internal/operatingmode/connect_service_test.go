@@ -2,6 +2,7 @@ package operatingmode
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -179,5 +180,69 @@ func TestConnectUpdateModeNoChangesIsInvalidArgument(t *testing.T) {
 	}
 	if got := connect.CodeOf(err); got != connect.CodeInvalidArgument {
 		t.Fatalf("code = %v, want InvalidArgument; err=%v", got, err)
+	}
+}
+
+// TestConnectSwitchModeActiveItemExecutionsCarriesConflictDetail proves the
+// active-item-executions conflict travels over Connect as a FailedPrecondition
+// carrying the structured OperatingModeActiveItemExecutionsConflict detail — the
+// wire contract the UI's parseActiveItemExecutionsConflict decodes to list the
+// affected executions before re-submitting the switch with cancellation.
+func TestConnectSwitchModeActiveItemExecutionsCarriesConflictDetail(t *testing.T) {
+	active := &fakeItemExecutions{active: []ActiveItemExecution{{
+		ItemRef:     "execute/do-thing",
+		ExecutionID: "exec-1",
+		RunID:       "run-1",
+		Status:      "running",
+	}}}
+	updater := &fakeModeUpdater{items: map[string]InitiativeSnapshot{
+		"init-item": {
+			Name:  "init-item",
+			Title: "Init Item",
+			Mode:  string(ModeItemLevel),
+			Items: []string{"execute/do-thing"},
+		},
+	}}
+	client := newConnectTestClient(t, serviceOptions{
+		initiatives: fakeInitiatives{items: map[string]InitiativeSnapshot{
+			"init-item": updater.items["init-item"],
+		}},
+		modeUpdater:    updater,
+		itemExecutions: active,
+	})
+
+	_, err := client.SwitchMode(context.Background(), connect.NewRequest(&apipb.OperatingModeSwitchRequest{
+		InitiativeName: "init-item",
+		Mode:           string(ModeHolisticLoop),
+	}))
+	if err == nil {
+		t.Fatalf("expected active-item-executions conflict")
+	}
+	if got := connect.CodeOf(err); got != connect.CodeFailedPrecondition {
+		t.Fatalf("code = %v, want FailedPrecondition; err=%v", got, err)
+	}
+	connErr := new(connect.Error)
+	if !errors.As(err, &connErr) {
+		t.Fatalf("error is not a *connect.Error: %v", err)
+	}
+	var conflict *apipb.OperatingModeActiveItemExecutionsConflict
+	for _, d := range connErr.Details() {
+		msg, verr := d.Value()
+		if verr != nil {
+			continue
+		}
+		if c, ok := msg.(*apipb.OperatingModeActiveItemExecutionsConflict); ok {
+			conflict = c
+			break
+		}
+	}
+	if conflict == nil {
+		t.Fatalf("conflict detail not attached to Connect error")
+	}
+	if conflict.GetInitiativeName() != "init-item" || conflict.GetToMode() != string(ModeHolisticLoop) {
+		t.Fatalf("conflict detail = %+v", conflict)
+	}
+	if len(conflict.GetExecutions()) != 1 || conflict.GetExecutions()[0].GetExecutionId() != "exec-1" {
+		t.Fatalf("conflict executions = %+v", conflict.GetExecutions())
 	}
 }

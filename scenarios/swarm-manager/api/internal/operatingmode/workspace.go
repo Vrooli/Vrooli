@@ -88,7 +88,7 @@ func (s *Service) Catalog() (ModeCatalog, error) {
 }
 
 // GetMode returns a single mode's catalog entry plus the initiatives
-// currently using it. Backs GET /api/v1/operating-modes/{mode}.
+// currently using it. Backs the OperatingModeService.GetMode Connect RPC.
 func (s *Service) GetMode(mode Mode) (ModeDetail, error) {
 	if err := ValidateRegistry(); err != nil {
 		return ModeDetail{}, err

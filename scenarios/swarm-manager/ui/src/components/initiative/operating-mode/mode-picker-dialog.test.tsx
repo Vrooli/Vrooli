@@ -1,14 +1,32 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { ConnectError, Code } from "@connectrpc/connect";
+import { OperatingModeActiveItemExecutionsConflictSchema } from "@vrooli/proto-types/swarm-manager/v1/api/operating_mode_pb";
 import { ModePickerDialog } from "./mode-picker-dialog";
-import { ApiError } from "../../../lib/api-client";
 import { selectors } from "../../../consts/selectors";
 import { createQueryWrapper, createTestQueryClient } from "../../../test-utils/query";
 import type {
   OperatingModeCapabilities,
   OperatingModeCatalogEntry,
 } from "../../../types/operating-mode";
+
+// Builds the active-item-executions switch conflict as it arrives over Connect:
+// a FailedPrecondition error carrying the structured detail message the dialog
+// decodes via parseActiveItemExecutionsConflict.
+function activeExecutionsConflict(
+  executions: Array<{ item_ref: string; run_id?: string; status?: string }>,
+): ConnectError {
+  return new ConnectError("active executions", Code.FailedPrecondition, undefined, [{
+    desc: OperatingModeActiveItemExecutionsConflictSchema,
+    value: {
+      initiativeName: "initiative-a",
+      fromMode: "item-level",
+      toMode: "holistic-loop",
+      executions: executions.map((e) => ({ itemRef: e.item_ref, runId: e.run_id, status: e.status })),
+    },
+  }]);
+}
 
 const itemExecutionCapabilities: OperatingModeCapabilities = {
   supportsPhases: false,
@@ -187,19 +205,10 @@ describe("ModePickerDialog", () => {
 
   it("surfaces a 409 active-item-executions conflict as a preview list with ack-then-confirm", async () => {
     const onConfirm = vi.fn();
-    const conflictError = new ApiError("http", "active executions", {
-      status: 409,
-      code: "active_item_executions",
-      details: {
-        initiative_name: "initiative-a",
-        from_mode: "item-level",
-        to_mode: "holistic-loop",
-        active_item_executions: [
-          { item_ref: "fix:auth-cookie", run_id: "run-aaaa-bbbb", status: "running" },
-          { item_ref: "feat:onboarding", run_id: "run-cccc-dddd", status: "running" },
-        ],
-      },
-    });
+    const conflictError = activeExecutionsConflict([
+      { item_ref: "fix:auth-cookie", run_id: "run-aaaa-bbbb", status: "running" },
+      { item_ref: "feat:onboarding", run_id: "run-cccc-dddd", status: "running" },
+    ]);
 
     const wrapper = createQueryWrapper();
     const { rerender } = render(
@@ -254,16 +263,9 @@ describe("ModePickerDialog", () => {
     const queryClient = createTestQueryClient();
     queryClient.setQueryData(["embedded-service-url", "agent-manager"], "https://agent.test");
 
-    const conflictError = new ApiError("http", "active executions", {
-      status: 409,
-      code: "active_item_executions",
-      details: {
-        initiative_name: "initiative-a",
-        from_mode: "item-level",
-        to_mode: "holistic-loop",
-        active_item_executions: [{ item_ref: "fix:auth-cookie", run_id: "run-aaaa-bbbb", status: "running" }],
-      },
-    });
+    const conflictError = activeExecutionsConflict([
+      { item_ref: "fix:auth-cookie", run_id: "run-aaaa-bbbb", status: "running" },
+    ]);
 
     render(
       <ModePickerDialog
@@ -287,16 +289,7 @@ describe("ModePickerDialog", () => {
   });
 
   it("clears the conflict preview when the user picks a different target mode", async () => {
-    const conflictError = new ApiError("http", "active executions", {
-      status: 409,
-      code: "active_item_executions",
-      details: {
-        initiative_name: "initiative-a",
-        from_mode: "item-level",
-        to_mode: "holistic-loop",
-        active_item_executions: [{ item_ref: "fix:auth-cookie", run_id: "r" }],
-      },
-    });
+    const conflictError = activeExecutionsConflict([{ item_ref: "fix:auth-cookie", run_id: "r" }]);
     const wrapper = createQueryWrapper();
     const { rerender } = render(
       <ModePickerDialog

@@ -230,10 +230,43 @@ func TestSimulateModeReviewNotAcceptedPresetRecordsVerdict(t *testing.T) {
 	if review == nil {
 		t.Fatalf("no review step in trace: %+v", phaseList(got.Trace))
 	}
-	if review.Output.Verdict != "changes_requested" {
-		t.Fatalf("review verdict = %q, want changes_requested", review.Output.Verdict)
+	// A plain non-accepting verdict (not changes_requested) does not reloop.
+	if review.Output.Verdict != "rejected" {
+		t.Fatalf("review verdict = %q, want rejected", review.Output.Verdict)
 	}
-	// Routing is unchanged: review still advances to reconcile.
+	// review appears exactly once — no reloop back to execute.
+	if reviewCount := countPhase(got.Trace, "review"); reviewCount != 1 {
+		t.Fatalf("review phase visited %d times, want 1 (no reloop): %v", reviewCount, phaseList(got.Trace))
+	}
+	// Routing terminates at reconcile: the gap is recorded, not re-executed.
+	last := got.Trace[len(got.Trace)-1]
+	if last.Phase != "reconcile" || !last.Terminal {
+		t.Fatalf("final step = %q terminal=%v, want reconcile terminal", last.Phase, last.Terminal)
+	}
+}
+
+// TestSimulateModeReviewChangesRequestedPresetLoopsBackToExecute proves the
+// review-reloop branch: a changes_requested verdict routes back to execute for
+// a second pass rather than terminating, and the preset walks the real guards
+// to prove it.
+func TestSimulateModeReviewChangesRequestedPresetLoopsBackToExecute(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestServiceWithOptions(t, root, serviceOptions{})
+
+	got, err := svc.SimulateMode(context.Background(), ModeHolisticLoop, "review-changes-requested")
+	if err != nil {
+		t.Fatalf("SimulateMode review-changes-requested: %v", err)
+	}
+	// execute and review are each visited twice: the first review returns
+	// changes_requested and loops back to execute before the second accepts.
+	if n := countPhase(got.Trace, "execute"); n != 2 {
+		t.Fatalf("execute visited %d times, want 2 (reloop): %v", n, phaseList(got.Trace))
+	}
+	if n := countPhase(got.Trace, "review"); n != 2 {
+		t.Fatalf("review visited %d times, want 2 (reloop): %v", n, phaseList(got.Trace))
+	}
+	// The first review is the changes_requested one; the walk still terminates
+	// at reconcile once accepted.
 	last := got.Trace[len(got.Trace)-1]
 	if last.Phase != "reconcile" || !last.Terminal {
 		t.Fatalf("final step = %q terminal=%v, want reconcile terminal", last.Phase, last.Terminal)
@@ -365,4 +398,14 @@ func phaseList(trace []SimulationStep) []string {
 		out = append(out, step.Phase)
 	}
 	return out
+}
+
+func countPhase(trace []SimulationStep, phase string) int {
+	n := 0
+	for _, step := range trace {
+		if step.Phase == phase {
+			n++
+		}
+	}
+	return n
 }

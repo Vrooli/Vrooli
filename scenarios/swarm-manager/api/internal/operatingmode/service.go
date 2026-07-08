@@ -351,7 +351,7 @@ type InitiativeRef struct {
 	Updated string `json:"updated,omitempty"`
 }
 
-// ModeDetail is the response body for GET /api/v1/operating-modes/{mode}.
+// ModeDetail is the projection returned by OperatingModeService.GetMode.
 // It pairs the catalog entry (already merged with overlay) with the list of
 // initiatives currently bound to the mode.
 type ModeDetail struct {

@@ -46,15 +46,9 @@ const SECTIONS: ConceptExplainerSection[] = [
   },
   {
     heading: "Edges",
-    label: "payload bool",
+    label: "conditional",
     swatch: <span className="inline-block h-0.5 w-6 rounded-sm bg-amber-400" />,
-    body: "A transition that fires when the source phase's structured result includes a specific boolean key (for example, holistic-loop's execute → investigate edge fires when the phase output sets payload.replan_needed = true).",
-  },
-  {
-    heading: "Edges",
-    label: "progress decision",
-    swatch: <span className="inline-block h-0.5 w-6 rounded-sm bg-cyan-400" />,
-    body: "A transition driven by an explicit progress decision in the phase output (continue / replan / complete). Used by phased-plan-drain's classify_progress phase to fan out into the next iteration.",
+    body: "A guarded transition. It fires when the source phase's structured result satisfies a generic field-predicate guard — a leaf comparison (e.g. verdict = accepted), a boolean/presence check (e.g. replan_needed = true), or a composite (all/any/not). The edge label spells out the exact guard; for example holistic-loop's execute → investigate fires on replan_needed = true, and phased-plan-drain routes on progress.decision.",
   },
   {
     heading: "Concepts",

@@ -52,17 +52,25 @@ Rules:
 ## Preview the flow (simulation presets)
 
 The operating-mode detail page's **Flow** tab can walk this graph deterministically
-without running agents. Phased-plan-drain ships these presets
-([CODE: api/internal/operatingmode/simulation.go]), each driving `classify_progress`
-to a different progress decision through the real transition guard:
+without running agents. Phased-plan-drain ships these presets as mode-owned
+example-run data ([CODE: modes/phased-plan-drain/example-runs/]), each walking the
+real transition guards:
 
-- **Drains in one slice** — classify reports `complete` → `review` → `reconcile`.
-- **Continue to next slice** — classify reports `continue`, routing back to
-  `execute_next`; the next slice then classifies `complete`.
-- **Progress forces a replan** — classify reports `replan`, routing back to
-  `prepare_plan`; the revised plan drains cleanly.
-- **Work is blocked** — classify reports `blocked`, a terminal decision with no
-  downstream target; the cycle ends before review for operator intervention.
+- **Drains in one slice** (`happy-path`) — classify reports `complete` → `review` →
+  `reconcile`.
+- **Continue to next slice** (`continue-next-slice`) — the first execute round
+  finishes one comprehensively-completable slice and hands off the true `frontier`;
+  classify reports `continue`, routing back to `execute_next` to advance the declared
+  remainder, which then classifies `complete`. This is the elastic-slice contract in
+  action.
+- **Progress forces a replan** (`replan-plan`) — classify reports `replan`, routing
+  back to `prepare_plan`; the revised plan drains cleanly.
+- **Work is blocked** (`blocked`) — classify reports `blocked`, a terminal decision
+  with no downstream target; the cycle ends before review for operator intervention.
+- **Review requests changes** (`review-changes-requested`) — after the plan drains
+  and classify reports `complete`, review returns `verdict=changes_requested`, so the
+  guard routes **back to `execute_next`** for one more slice that closes the gaps;
+  classify then reports `complete`, review accepts, and reconcile aligns the backlog.
 
 Presets are deterministic previews, not real initiative rounds. In the Flow tab,
 the data-source control swaps the same phase viewer between the **Contract**

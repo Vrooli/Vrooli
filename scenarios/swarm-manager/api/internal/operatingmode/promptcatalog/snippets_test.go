@@ -38,3 +38,34 @@ func TestBacklogSyncProposalVariableKey_Stable(t *testing.T) {
 		t.Fatalf("BacklogSyncProposalVariableKey = %q, want %q (consumers reference this string in SKILL.md templates)", got, want)
 	}
 }
+
+// TestElasticSliceSnippet_Contract pins the load-bearing content of the
+// elastic-slice contract: it names the comprehensively-completable unit, the
+// frontier field the handoff carries, and the "remainder of one" case that is
+// how a too-large phase is handled without failure.
+func TestElasticSliceSnippet_Contract(t *testing.T) {
+	snippet := ElasticSliceSnippet()
+	if strings.TrimSpace(snippet) == "" {
+		t.Fatal("ElasticSliceSnippet() returned empty")
+	}
+	mustContain := []string{
+		"comprehensively-completable",
+		"frontier",
+		"handoff.frontier",
+		"remainder",
+	}
+	for _, want := range mustContain {
+		if !strings.Contains(snippet, want) {
+			t.Errorf("ElasticSliceSnippet missing required content %q", want)
+		}
+	}
+}
+
+// TestElasticSliceVariableKey_Stable pins the template variable name the two
+// execute SKILL.md templates reference. Renaming it silently drops the slice
+// contract from the rendered prompt, so the rename must be intentional.
+func TestElasticSliceVariableKey_Stable(t *testing.T) {
+	if got, want := ElasticSliceVariableKey, "ELASTIC_SLICE_SNIPPET"; got != want {
+		t.Fatalf("ElasticSliceVariableKey = %q, want %q (execute SKILL.md templates reference this string)", got, want)
+	}
+}

@@ -3,6 +3,8 @@ package main
 import (
 	"reflect"
 	"testing"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
 func TestHumanizeOperatingModeEnum(t *testing.T) {
@@ -25,7 +27,7 @@ func TestHumanizeOperatingModeEnum(t *testing.T) {
 
 func TestContractChips(t *testing.T) {
 	// all set, in declared order: structured, verdict, handoff, progress.
-	all := operatingModePhaseContractSummary{
+	all := &apipb.OperatingModePhaseOutputContractSummary{
 		RequiresStructuredResult: true,
 		RequiresProgress:         true,
 		RequiresVerdict:          true,
@@ -36,13 +38,13 @@ func TestContractChips(t *testing.T) {
 	}
 
 	// none set -> empty (non-nil) slice.
-	none := contractChips(operatingModePhaseContractSummary{})
+	none := contractChips(&apipb.OperatingModePhaseOutputContractSummary{})
 	if len(none) != 0 {
 		t.Errorf("none chips = %v, want empty", none)
 	}
 
 	// subset.
-	sub := contractChips(operatingModePhaseContractSummary{RequiresVerdict: true})
+	sub := contractChips(&apipb.OperatingModePhaseOutputContractSummary{RequiresVerdict: true})
 	if !reflect.DeepEqual(sub, []string{"verdict"}) {
 		t.Errorf("subset chips = %v", sub)
 	}

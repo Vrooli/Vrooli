@@ -103,7 +103,7 @@ export const FLOW_GUIDE_EXPLAINER: ConceptExplainer = {
     {
       heading: "Vocabulary",
       label: "Transition",
-      body: "Why the next phase was selected. Transitions are decided by backend guards — an unconditional 'always', a boolean payload signal (e.g. replan_needed), or a progress decision (continue / replan / complete / blocked). A blocked decision has no downstream target and ends the cycle.",
+      body: "Why the next phase was selected. Transitions are decided by backend guards — a generic field-predicate over the phase's structured output: the unconditional 'always', a leaf comparison/presence/membership check (e.g. verdict = accepted, replan_needed = true, progress.decision in [continue, replan]), or a composite (all/any/not). The edge label spells out the exact guard. A matched guard with no downstream target ends the cycle for operator intervention.",
     },
     {
       heading: "Vocabulary",
@@ -170,6 +170,55 @@ export const CAPABILITY_EXPLAINER: ConceptExplainer = {
     {
       label: "Existing item execution flow",
       body: "The mode bridges to the standard backlog item execution pipeline — used by item-level. The panel surfaces a useful empty state instead of operating-mode controls.",
+    },
+  ],
+};
+
+/**
+ * The top-level "what is an operating mode" explainer. Reachable from the
+ * operating-modes list surface without drilling into any one mode, so an
+ * operator who has never seen operating modes can understand the concept —
+ * including the resolution ladder — before opening a mode's detail page.
+ */
+export const OPERATING_MODE_INTRO_EXPLAINER: ConceptExplainer = {
+  title: "What is an operating mode?",
+  intro:
+    "An operating mode is a reusable, inspectable, testable methodology loop for driving coding agents — the repeatable way a human works with agents to get software built. Each mode is data (a folder under modes/<id>/: identity, a phase graph, per-phase output contracts, prompt templates, and example runs) interpreted by one generic engine, so a new methodology is authored and simulated as data with no code change.",
+  sections: [
+    {
+      heading: "Concept",
+      label: "Phase graph",
+      body: "A mode runs as a graph of named phases (investigate, plan, execute, review, reconcile). Each phase has its own prompt, agent profile, and a declared output contract for what it must emit.",
+    },
+    {
+      heading: "Concept",
+      label: "Guard",
+      body: "Branching is a generic field-predicate over a phase's structured output — 'always', a leaf comparison/presence/membership check (verdict = accepted, replan_needed = true), or a composite (all/any/not). The same vocabulary expresses any DAG, with no mode-specific branch kinds.",
+    },
+    {
+      heading: "Concept",
+      label: "Slice & handoff",
+      body: "A slice is one comprehensively-completable unit of work — a whole phase or the remainder of one. A round advances the frontier by one slice and leaves a handoff (what was completed, changed files, tests, blockers, next step) so a fresh agent continues correctly.",
+    },
+    {
+      heading: "Resolution ladder",
+      label: "L0 · True final message",
+      body: "Agents often emit a 'final' message, then a subagent appends more. L0 scans the last few messages for the phase's declared output shape to find the real answer instead of trusting the chronologically-last message.",
+    },
+    {
+      heading: "Resolution ladder",
+      label: "L1 · Deterministic extraction",
+      body: "The declared output schema (field names, types, required, enum, bounds) is extracted directly from the message — no model call — when the output is well-formed.",
+    },
+    {
+      heading: "Resolution ladder",
+      label: "L2 · Classifier fallback",
+      body: "When deterministic extraction can't cleanly recover the fields, the raw output plus the declared schema are routed through an LLM classifier that reconstructs the declared scalar fields — and abstains rather than guessing.",
+    },
+    {
+      heading: "Resolution ladder",
+      label: "L3 · Contract validation",
+      body: "The resolved result is validated against the declared output contract. Malformed or trailing-subagent output resolves to the correct structured result or an honest abstain — the phase no longer fails outright on imperfect model output.",
     },
   ],
 };

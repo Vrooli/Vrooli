@@ -75,11 +75,9 @@ func (s *Server) registerOperatingModeRoutes(scenarioRoot string, materializer *
 		log.Fatalf("operating-mode: failed to build Service: %v", err)
 	}
 	s.operatingModeSvc = svc
-	operatingmode.NewHandler(svc).RegisterRoutes(s.router)
-	// Additive Connect surface: the typed OperatingModeService is mounted
-	// alongside the REST routes above. It is the migration target for the UI
-	// and CLI; the REST handler stays until those consumers move, after which
-	// the gorilla/mux routes are deleted (no untagged REST holdout).
+	// The operating-mode subsystem serves the UI and CLI exclusively over the
+	// typed OperatingModeService Connect contract — the bespoke gorilla/mux JSON
+	// surface was retired once both consumers migrated (no untagged REST holdout).
 	operatingmode.RegisterConnectService(s.router, svc)
 
 	// Wire the active-rounds reader into the graph projection so initiative

@@ -1,0 +1,31 @@
+{
+  "kind": "operating-mode-example-run",
+  "id": "review-changes-requested",
+  "mode": "phased-plan-drain",
+  "label": "Review requests changes, drains one more slice",
+  "description": "Progress classifies complete and review returns changes_requested, so the drain routes back to execute_next to close the gaps before a second review accepts.",
+  "branch": "review → execute_next (changes_requested reloop)",
+  "scenario": "The plan drains to completion and classify reports complete, but acceptance review finds specific fixable gaps and returns changes_requested. Rather than terminating, the drain routes back to execute_next for one more slice that closes the gaps; classify reports complete again, review accepts, and reconcile aligns the backlog.",
+  "initiative": {
+    "title": "Migrate CLI commands to durable run handles",
+    "description": "A drained plan whose first acceptance review requests concrete fixes before accepting.",
+    "items": [
+      { "ref": "execute/durable-run-primitive", "title": "Add durable_run primitive", "status": "in_progress", "priority": 1, "effort": "M" },
+      { "ref": "execute/migrate-test-genie-execute", "title": "Migrate test-genie execute to durable handles", "status": "todo", "priority": 2, "effort": "M" }
+    ],
+    "criteria": [
+      "Every execute command returns a durable run handle.",
+      "The legacy in-process primitive is removed."
+    ]
+  },
+  "steps": [
+    { "phase": "prepare_plan", "note": "always → execute_next" },
+    { "phase": "execute_next", "note": "always → classify_progress" },
+    { "phase": "classify_progress", "output": { "progress": { "decision": "complete" } }, "note": "progress.decision=complete → review" },
+    { "phase": "review", "output": { "verdict": "changes_requested" }, "note": "verdict=changes_requested → execute_next (drain one more slice to close the gaps)" },
+    { "phase": "execute_next", "note": "gaps closed, always → classify_progress" },
+    { "phase": "classify_progress", "output": { "progress": { "decision": "complete" } }, "note": "progress.decision=complete → review (second pass)" },
+    { "phase": "review", "output": { "verdict": "accepted" }, "note": "always → reconcile" }
+  ],
+  "expected_path": ["prepare_plan", "execute_next", "classify_progress", "review", "execute_next", "classify_progress", "review", "reconcile"]
+}

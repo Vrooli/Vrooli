@@ -4,9 +4,9 @@
  * Interactive DAG of an operating mode's phases. xyflow + dagre top-down
  * layout, rendered inside a fixed-height surface above the PhaseList.
  *
- * Edges are colored by transition kind (slate=always, amber=payload_bool,
- * cyan=progress_decision) and labeled server-side so the CLI and UI emit
- * identical strings (e.g. "on payload.replan_needed=true", "on continue").
+ * Edges are colored by whether they always fire (slate) or fire on a generic
+ * field-predicate guard (amber), and labeled server-side so the CLI and UI emit
+ * identical strings (e.g. "on replan_needed = true", "on progress.decision = continue").
  *
  * Clicking a node calls onSelectPhase(phase) so the page can highlight the
  * matching PhaseCard and scroll it into view.
@@ -45,11 +45,16 @@ const NODE_HEIGHT = 76;
 
 const NODE_TYPES = { phase: PhaseNode } as const;
 
-const EDGE_KIND_COLORS = {
-  always: "var(--graph-edge-always)",
-  payload_bool: "var(--graph-edge-payload-bool)",
-  progress_decision: "var(--graph-edge-progress-decision)",
-} as const;
+const EDGE_ALWAYS_COLOR = "var(--graph-edge-always)";
+const EDGE_CONDITIONAL_COLOR = "var(--graph-edge-conditional)";
+
+// Slate for the unconditional default edge; amber for any guarded edge (a leaf
+// field-predicate or a composite). The human label already spells out the exact
+// guard, so a single "conditional" hue keeps the DAG readable without encoding
+// the full generic op set in color.
+function edgeColor(conditionKind: string): string {
+  return conditionKind === "always" ? EDGE_ALWAYS_COLOR : EDGE_CONDITIONAL_COLOR;
+}
 
 interface PhaseGraphProps {
   entry: OperatingModeCatalogEntry;
@@ -99,7 +104,7 @@ function buildGraph({ phases, transitions, selectedPhaseId, mode, roundsByPhase,
   }));
 
   const edges: Edge[] = transitions.map((edge, idx) => {
-    const color = EDGE_KIND_COLORS[edge.conditionKind] ?? EDGE_KIND_COLORS.always;
+    const color = edgeColor(edge.conditionKind);
     return {
       id: `${edge.from}->${edge.to}-${idx}`,
       source: edge.from,
@@ -147,8 +152,7 @@ const LEGEND_ITEMS: Array<{ dot: string; label: string }> = [
 
 const EDGE_LEGEND: Array<{ color: string; label: string }> = [
   { color: "var(--graph-edge-always)", label: "always" },
-  { color: "var(--graph-edge-payload-bool)", label: "payload bool" },
-  { color: "var(--graph-edge-progress-decision)", label: "progress decision" },
+  { color: "var(--graph-edge-conditional)", label: "conditional" },
 ];
 
 export function PhaseGraph({ entry, selectedPhaseId, onSelectPhase, mode, rounds, phaseStates, compact }: PhaseGraphProps) {

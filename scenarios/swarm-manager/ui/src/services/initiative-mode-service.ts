@@ -1,25 +1,43 @@
-import type { IApiClient } from "../lib/api-client";
-import { defaultApiClient, isApiError } from "../lib/api-client";
-import { API_ENDPOINTS } from "../lib/api-endpoints";
+// Operating-mode service — the UI's typed client for the swarm-manager
+// operating-mode subsystem. Talks Proto + Connect-RPC end-to-end via the
+// generated `OperatingModeService` client (mirroring `../api/discovery.ts`),
+// so the browser consumes the same wire contract the CLI and backend do — no
+// hand-rolled JSON endpoints or snake_case normalization. The mappers below
+// project the generated proto messages onto the hand-authored domain types the
+// pages/components already consume (kept stable so their tests, which mock at
+// the domain level, are untouched).
+
+import { createClient, ConnectError, Code, type Client } from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import {
+  OperatingModeService,
+  OperatingModeActiveItemExecutionsConflictSchema,
+} from "@vrooli/proto-types/swarm-manager/v1/api/operating_mode_pb";
+import type * as ompb from "@vrooli/proto-types/swarm-manager/v1/api/operating_mode_pb";
+import { API_BASE } from "../lib/api-client";
 import type {
   ActiveItemExecution,
   OperatingModeArtifactDefinition,
   OperatingModeArtifactSnapshot,
+  OperatingModeArtifactUpdate,
+  OperatingModeBacklogSyncPlan,
   OperatingModeBacklogSyncResult,
+  OperatingModeCapabilities,
   OperatingModeCatalog,
   OperatingModeCatalogEntry,
   OperatingModeCatalogPhase,
-  OperatingModeCapabilities,
   OperatingModeDetail,
   OperatingModeHandoff,
   OperatingModeLinkedInitiative,
   OperatingModePhaseGraph,
-  OperatingModePhaseResult,
   OperatingModePhaseKind,
+  OperatingModePhaseResult,
   OperatingModePhaseTransition,
+  OperatingModeProgressState,
   OperatingModeRenderedPrompt,
   OperatingModeRound,
   OperatingModeRoundItem,
+  OperatingModeRoundStatus,
   OperatingModeSimulation,
   OperatingModeSimulationInputs,
   OperatingModeSimulationPreset,
@@ -35,38 +53,21 @@ import type {
 } from "../types/operating-mode";
 import type { InitiativeOperatingMode } from "../types";
 
-type RawRecord = Record<string, unknown>;
+export type OperatingModeClient = Client<typeof OperatingModeService>;
 
-function stringValue(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
+// ---------------------------------------------------------------------------
+// Scalar coercion helpers
+// ---------------------------------------------------------------------------
+
+// Proto3 scalar fields are always present (zero value when unset); the domain
+// types treat "" as absent for a number of optional string fields. orUndef
+// re-establishes that distinction where the domain type is optional.
+function orUndef(value: string | undefined): string | undefined {
+  return value ? value : undefined;
 }
 
-function numberValue(value: unknown, fallback?: number): number | undefined {
-  return typeof value === "number" ? value : fallback;
-}
-
-function boolValue(value: unknown, fallback?: boolean): boolean | undefined {
-  return typeof value === "boolean" ? value : fallback;
-}
-
-function stringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
-}
-
-function recordValue(value: unknown): RawRecord {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as RawRecord : {};
-}
-
-function normalizeArtifact(raw: unknown): OperatingModeArtifactSnapshot {
-  const item = recordValue(raw);
-  return {
-    path: stringValue(item.path),
-    contentType: stringValue(item.content_type ?? item.contentType, undefined),
-    required: boolValue(item.required, undefined),
-    content: stringValue(item.content, undefined),
-    updatedAt: stringValue(item.updated_at ?? item.updatedAt, undefined),
-    sizeBytes: numberValue(item.size_bytes ?? item.sizeBytes, undefined),
-  };
+function asMode(value: string | undefined): InitiativeOperatingMode {
+  return value || "item-level";
 }
 
 const PHASE_KINDS: ReadonlySet<OperatingModePhaseKind> = new Set([
@@ -76,469 +77,498 @@ const PHASE_KINDS: ReadonlySet<OperatingModePhaseKind> = new Set([
   "reconcile",
 ]);
 
-function normalizePhaseKind(raw: unknown): OperatingModePhaseKind | "" {
-  const value = stringValue(raw);
-  return PHASE_KINDS.has(value as OperatingModePhaseKind)
-    ? (value as OperatingModePhaseKind)
+function mapPhaseKind(raw: string | undefined): OperatingModePhaseKind | "" {
+  return raw && PHASE_KINDS.has(raw as OperatingModePhaseKind)
+    ? (raw as OperatingModePhaseKind)
     : "";
 }
 
-function normalizePhase(raw: unknown): OperatingModeWorkspacePhase {
-  const phase = recordValue(raw);
-  const artifacts = phase.output_artifacts ?? phase.outputArtifacts;
+function mapConditionKind(raw: string | undefined): OperatingModeTransitionConditionKind {
+  // The wire carries the generic guard op (eq/ne/exists/all/… or `always`);
+  // an empty condition is the unconditional default edge.
+  return (raw || "always") as OperatingModeTransitionConditionKind;
+}
+
+// ---------------------------------------------------------------------------
+// Projection mappers (proto message -> domain type)
+//
+// Every mapper accepts `T | undefined` and defaults so a partially-populated
+// message (or a nested optional the server omitted) never throws — the same
+// defensive posture the previous JSON normalizers took, which also keeps the
+// unit tests able to pass sparse fixtures.
+// ---------------------------------------------------------------------------
+
+function mapArtifactDef(a: ompb.OperatingModeArtifactDefinition | undefined): OperatingModeArtifactDefinition {
   return {
-    phase: stringValue(phase.phase),
-    phaseKind: normalizePhaseKind(phase.phase_kind ?? phase.phaseKind),
-    activityPurpose: stringValue(phase.activity_purpose ?? phase.activityPurpose),
-    profileKey: stringValue(phase.profile_key ?? phase.profileKey),
-    writesRepo: boolValue(phase.writes_repo ?? phase.writesRepo) ?? false,
-    outputArtifacts: Array.isArray(artifacts)
-      ? artifacts.map(normalizeArtifact)
-      : [],
-    requiresCriteria: boolValue(phase.requires_criteria ?? phase.requiresCriteria),
-    startable: boolValue(phase.startable) ?? false,
-    reason: stringValue(phase.reason, undefined),
-    next: boolValue(phase.next),
-    autoStartAfter: stringArray(phase.auto_start_after ?? phase.autoStartAfter),
+    path: a?.path ?? "",
+    contentType: orUndef(a?.contentType),
+    required: a?.required,
   };
 }
 
-function normalizeArtifactDefinition(raw: unknown): OperatingModeArtifactDefinition {
-  const item = recordValue(raw);
+function mapArtifactSnapshot(a: ompb.OperatingModeArtifactSnapshot | undefined): OperatingModeArtifactSnapshot {
   return {
-    path: stringValue(item.path),
-    contentType: stringValue(item.content_type ?? item.contentType, undefined),
-    required: boolValue(item.required, undefined),
+    path: a?.path ?? "",
+    contentType: orUndef(a?.contentType),
+    required: a?.required,
+    content: orUndef(a?.content),
+    updatedAt: orUndef(a?.updatedAt),
+    sizeBytes: a?.sizeBytes ? Number(a.sizeBytes) : undefined,
   };
 }
 
-function normalizeContractSummary(raw: unknown): PhaseOutputContractSummary {
-  const contract = recordValue(raw);
+function mapArtifactUpdate(u: ompb.OperatingModeArtifactUpdate | undefined): OperatingModeArtifactUpdate {
   return {
-    requiresStructuredResult:
-      boolValue(contract.requires_structured_result ?? contract.requiresStructuredResult) ?? false,
-    requiresProgress: boolValue(contract.requires_progress ?? contract.requiresProgress) ?? false,
-    requiresVerdict: boolValue(contract.requires_verdict ?? contract.requiresVerdict) ?? false,
-    requiresHandoff: boolValue(contract.requires_handoff ?? contract.requiresHandoff) ?? false,
-    requiresBacklogSync:
-      boolValue(contract.requires_backlog_sync ?? contract.requiresBacklogSync) ?? false,
-    requiredArtifactCount:
-      numberValue(contract.required_artifact_count ?? contract.requiredArtifactCount, 0) ?? 0,
+    path: u?.path ?? "",
+    contentType: orUndef(u?.contentType),
+    required: u?.required,
+    updatedAt: orUndef(u?.updatedAt),
+    source: orUndef(u?.source),
   };
 }
 
-function normalizeResultBinding(raw: unknown): PhaseResultBinding {
-  const binding = recordValue(raw);
+function mapCapabilities(
+  c: ompb.OperatingModeCapabilities | undefined,
+  fallbackSupportsPhases: boolean,
+): OperatingModeCapabilities {
+  return {
+    supportsPhases: c?.supportsPhases ?? fallbackSupportsPhases,
+    canStartPhases: c?.canStartPhases ?? false,
+    canCompleteItems: c?.canCompleteItems ?? false,
+    canApplyBacklogSyncProposals: c?.canApplyBacklogSyncProposals ?? false,
+    requiresAcceptanceCriteria: c?.requiresAcceptanceCriteria ?? false,
+    supportsArtifacts: c?.supportsArtifacts ?? false,
+    supportsHandoffs: c?.supportsHandoffs ?? false,
+    usesItemExecutionFlow: c?.usesItemExecutionFlow ?? false,
+  };
+}
+
+function mapContractSummary(
+  c: ompb.OperatingModePhaseOutputContractSummary | undefined,
+): PhaseOutputContractSummary {
+  return {
+    requiresStructuredResult: c?.requiresStructuredResult ?? false,
+    requiresProgress: c?.requiresProgress ?? false,
+    requiresVerdict: c?.requiresVerdict ?? false,
+    requiresHandoff: c?.requiresHandoff ?? false,
+    requiresBacklogSync: c?.requiresBacklogSync ?? false,
+    requiredArtifactCount: c?.requiredArtifactCount ?? 0,
+  };
+}
+
+function mapResultBinding(b: ompb.OperatingModeResultBindingSummary | undefined): PhaseResultBinding {
   return {
     kind: "progress_artifact",
-    artifact: normalizeArtifactDefinition(binding.artifact),
+    artifact: mapArtifactDef(b?.artifact),
   };
 }
 
-const TRANSITION_KINDS: ReadonlySet<OperatingModeTransitionConditionKind> = new Set([
-  "always",
-  "payload_bool",
-  "progress_decision",
-]);
-
-function normalizeTransitionKind(raw: unknown): OperatingModeTransitionConditionKind {
-  const value = stringValue(raw);
-  return TRANSITION_KINDS.has(value as OperatingModeTransitionConditionKind)
-    ? (value as OperatingModeTransitionConditionKind)
-    : "always";
-}
-
-function normalizeTransition(raw: unknown): OperatingModePhaseTransition {
-  const edge = recordValue(raw);
+function mapTransition(
+  t: ompb.OperatingModeCatalogTransition | undefined,
+): OperatingModePhaseTransition {
   return {
-    from: stringValue(edge.from),
-    to: stringValue(edge.to),
-    conditionKind: normalizeTransitionKind(edge.condition_kind ?? edge.conditionKind),
-    label: stringValue(edge.label),
-    payloadKey: stringValue(edge.payload_key ?? edge.payloadKey, undefined),
-    progressDecision: stringValue(edge.progress_decision ?? edge.progressDecision, undefined),
+    from: t?.from ?? "",
+    to: t?.to ?? "",
+    conditionKind: mapConditionKind(t?.conditionKind),
+    label: t?.label ?? "",
+    field: orUndef(t?.field),
+    value: orUndef(t?.value),
   };
 }
 
-function normalizePhaseGraph(raw: unknown): OperatingModePhaseGraph | undefined {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
-  const graph = recordValue(raw);
-  const startPhase = stringValue(graph.start_phase ?? graph.startPhase);
-  if (!startPhase) return undefined;
-  const transitions = graph.transitions;
+function mapPhaseGraph(
+  g: ompb.OperatingModeCatalogPhaseGraph | undefined,
+): OperatingModePhaseGraph | undefined {
+  if (!g || !g.startPhase) return undefined;
   return {
-    startPhase,
-    terminal: stringArray(graph.terminal),
-    transitions: Array.isArray(transitions) ? transitions.map(normalizeTransition) : [],
-    acceptedVerdicts: stringArray(graph.accepted_verdicts ?? graph.acceptedVerdicts),
+    startPhase: g.startPhase,
+    terminal: g.terminal ?? [],
+    transitions: (g.transitions ?? []).map(mapTransition),
+    acceptedVerdicts: g.acceptedVerdicts ?? [],
   };
 }
 
-function normalizeCatalogPhase(raw: unknown): OperatingModeCatalogPhase {
-  const phase = recordValue(raw);
-  const artifacts = phase.output_artifacts ?? phase.outputArtifacts;
-  const bindings = phase.result_bindings ?? phase.resultBindings;
+function mapCatalogPhase(p: ompb.OperatingModeCatalogPhase | undefined): OperatingModeCatalogPhase {
   return {
-    phase: stringValue(phase.phase),
-    phaseKind: normalizePhaseKind(phase.phase_kind ?? phase.phaseKind),
-    label: stringValue(phase.label),
-    title: stringValue(phase.title),
-    purpose: stringValue(phase.purpose),
-    trigger: stringValue(phase.trigger),
-    profileKey: stringValue(phase.profile_key ?? phase.profileKey),
-    writesRepo: boolValue(phase.writes_repo ?? phase.writesRepo) ?? false,
-    requiresCriteria: boolValue(phase.requires_criteria ?? phase.requiresCriteria),
-    isStart: boolValue(phase.is_start ?? phase.isStart),
-    isTerminal: boolValue(phase.is_terminal ?? phase.isTerminal),
-    outputArtifacts: Array.isArray(artifacts)
-      ? artifacts.map(normalizeArtifactDefinition)
-      : undefined,
-    outputContract: normalizeContractSummary(phase.output_contract ?? phase.outputContract),
-    catalogId: stringValue(phase.catalog_id ?? phase.catalogId),
-    skillId: stringValue(phase.skill_id ?? phase.skillId),
-    activityPurpose: stringValue(phase.activity_purpose ?? phase.activityPurpose),
-    lockPurpose: stringValue(phase.lock_purpose ?? phase.lockPurpose),
-    resultBindings: Array.isArray(bindings) ? bindings.map(normalizeResultBinding) : undefined,
-    samplesReplanRate: boolValue(phase.samples_replan_rate ?? phase.samplesReplanRate),
-    samplesAcceptanceRate: boolValue(phase.samples_acceptance_rate ?? phase.samplesAcceptanceRate),
-    autoStartAfter: stringArray(phase.auto_start_after ?? phase.autoStartAfter),
+    phase: p?.phase ?? "",
+    phaseKind: mapPhaseKind(p?.phaseKind),
+    label: p?.label ?? "",
+    title: p?.title ?? "",
+    purpose: p?.purpose ?? "",
+    trigger: p?.trigger ?? "",
+    profileKey: p?.profileKey ?? "",
+    writesRepo: p?.writesRepo ?? false,
+    requiresCriteria: p?.requiresCriteria,
+    isStart: p?.isStart,
+    isTerminal: p?.isTerminal,
+    outputArtifacts: (p?.outputArtifacts ?? []).map(mapArtifactDef),
+    outputContract: mapContractSummary(p?.outputContract),
+    catalogId: p?.catalogId ?? "",
+    skillId: p?.skillId ?? "",
+    activityPurpose: p?.activityPurpose ?? "",
+    lockPurpose: p?.lockPurpose ?? "",
+    resultBindings: (p?.resultBindings ?? []).map(mapResultBinding),
+    samplesReplanRate: p?.samplesReplanRate,
+    samplesAcceptanceRate: p?.samplesAcceptanceRate,
+    autoStartAfter: p?.autoStartAfter ?? [],
   };
 }
 
-function normalizeCapabilities(raw: unknown, fallbackSupportsPhases = false): OperatingModeCapabilities {
-  const capabilities = recordValue(raw);
+function mapCatalogEntry(e: ompb.OperatingModeCatalogEntry | undefined): OperatingModeCatalogEntry {
+  const supportsPhases = e?.supportsPhases ?? false;
   return {
-    supportsPhases: boolValue(capabilities.supports_phases ?? capabilities.supportsPhases) ?? fallbackSupportsPhases,
-    canStartPhases: boolValue(capabilities.can_start_phases ?? capabilities.canStartPhases) ?? false,
-    canCompleteItems: boolValue(capabilities.can_complete_items ?? capabilities.canCompleteItems) ?? false,
-    canApplyBacklogSyncProposals: boolValue(capabilities.can_apply_backlog_sync_proposals ?? capabilities.canApplyBacklogSyncProposals) ?? false,
-    requiresAcceptanceCriteria: boolValue(capabilities.requires_acceptance_criteria ?? capabilities.requiresAcceptanceCriteria) ?? false,
-    supportsArtifacts: boolValue(capabilities.supports_artifacts ?? capabilities.supportsArtifacts) ?? false,
-    supportsHandoffs: boolValue(capabilities.supports_handoffs ?? capabilities.supportsHandoffs) ?? false,
-    usesItemExecutionFlow: boolValue(capabilities.uses_item_execution_flow ?? capabilities.usesItemExecutionFlow) ?? false,
-  };
-}
-
-function normalizeCatalogEntry(raw: unknown): OperatingModeCatalogEntry {
-  const mode = recordValue(raw);
-  const phases = mode.phases;
-  const supportsPhases = boolValue(mode.supports_phases ?? mode.supportsPhases) ?? false;
-  const whenInDoubt = stringValue(
-    mode.when_in_doubt_pick_instead ?? mode.whenInDoubtPickInstead,
-    undefined,
-  );
-  return {
-    mode: stringValue(mode.mode, "item-level"),
-    label: stringValue(mode.label),
-    description: stringValue(mode.description, undefined),
-    bestFor: stringArray(mode.best_for ?? mode.bestFor),
-    notFor: stringArray(mode.not_for ?? mode.notFor),
-    tradeoffs: stringArray(mode.tradeoffs),
-    whenInDoubtPickInstead: whenInDoubt ? whenInDoubt : undefined,
-    usageCount: numberValue(mode.usage_count ?? mode.usageCount, 0) ?? 0,
-    scopeKind: stringValue(mode.scope_kind ?? mode.scopeKind),
-    runStrategy: stringValue(mode.run_strategy ?? mode.runStrategy),
-    workspaceTabId: stringValue(mode.workspace_tab_id ?? mode.workspaceTabId),
-    capabilities: normalizeCapabilities(mode.capabilities, supportsPhases),
-    default: boolValue(mode.default) ?? false,
-    switchable: boolValue(mode.switchable) ?? false,
+    mode: asMode(e?.mode),
+    label: e?.label ?? "",
+    description: orUndef(e?.description),
+    bestFor: e?.bestFor ?? [],
+    notFor: e?.notFor ?? [],
+    tradeoffs: e?.tradeoffs ?? [],
+    whenInDoubtPickInstead: e?.whenInDoubtPickInstead ? asMode(e.whenInDoubtPickInstead) : undefined,
+    usageCount: e?.usageCount ?? 0,
+    scopeKind: e?.scopeKind ?? "",
+    runStrategy: e?.runStrategy ?? "",
+    workspaceTabId: e?.workspaceTabId ?? "",
+    capabilities: mapCapabilities(e?.capabilities, supportsPhases),
+    default: e?.default ?? false,
+    switchable: e?.switchable ?? false,
     supportsPhases,
-    phases: Array.isArray(phases) ? phases.map(normalizeCatalogPhase) : [],
-    phaseGraph: normalizePhaseGraph(mode.phase_graph ?? mode.phaseGraph),
+    phases: (e?.phases ?? []).map(mapCatalogPhase),
+    phaseGraph: mapPhaseGraph(e?.phaseGraph),
   };
 }
 
-function normalizeLinkedInitiative(raw: unknown): OperatingModeLinkedInitiative {
-  const item = recordValue(raw);
+function mapCatalog(resp: ompb.OperatingModeCatalogResponse | undefined): OperatingModeCatalog {
+  return { modes: (resp?.modes ?? []).map(mapCatalogEntry) };
+}
+
+function mapLinkedInitiative(i: ompb.OperatingModeInitiativeRef | undefined): OperatingModeLinkedInitiative {
   return {
-    name: stringValue(item.name),
-    title: stringValue(item.title),
-    status: stringValue(item.status, undefined),
-    updated: stringValue(item.updated, undefined),
+    name: i?.name ?? "",
+    title: i?.title ?? "",
+    status: orUndef(i?.status),
+    updated: orUndef(i?.updated),
   };
 }
 
-function normalizeModeDetail(raw: unknown): OperatingModeDetail {
-  const detail = recordValue(raw);
-  const linked = detail.linked_initiatives ?? detail.linkedInitiatives;
+function mapModeDetail(d: ompb.OperatingModeDetailResponse | undefined): OperatingModeDetail {
   return {
-    entry: normalizeCatalogEntry(detail.entry),
-    linkedInitiatives: Array.isArray(linked) ? linked.map(normalizeLinkedInitiative) : [],
+    entry: mapCatalogEntry(d?.entry),
+    linkedInitiatives: (d?.linkedInitiatives ?? []).map(mapLinkedInitiative),
   };
 }
 
-function normalizeCatalog(raw: unknown): OperatingModeCatalog {
-  const catalog = recordValue(raw);
-  const modes = catalog.modes;
+function mapHandoff(h: ompb.OperatingModeHandoff | undefined): OperatingModeHandoff {
   return {
-    modes: Array.isArray(modes) ? modes.map(normalizeCatalogEntry) : [],
+    summary: orUndef(h?.summary),
+    completedPhases: h?.completedPhases ?? [],
+    changedFiles: h?.changedFiles ?? [],
+    tests: h?.tests ?? [],
+    blockers: h?.blockers ?? [],
+    nextStep: orUndef(h?.nextStep),
+    createdAt: orUndef(h?.createdAt),
   };
 }
 
-function normalizeDefinition(raw: unknown): OperatingModeWorkspaceDefinition {
-  const def = recordValue(raw);
+function mapRoundItem(i: ompb.OperatingModeRoundItem | undefined): OperatingModeRoundItem {
   return {
-    mode: stringValue(def.mode, "item-level"),
-    label: stringValue(def.label),
-    description: stringValue(def.description, undefined),
-    scopeKind: stringValue(def.scope_kind ?? def.scopeKind),
-    capabilities: normalizeCapabilities(def.capabilities, Array.isArray(def.phases) && def.phases.length > 0),
-    phases: Array.isArray(def.phases) ? def.phases.map(normalizePhase) : [],
-    terminal: stringArray(def.terminal),
-    transitions: recordValue(def.transitions) as Record<string, string[]>,
-    runStrategy: stringValue(def.run_strategy ?? def.runStrategy),
+    ref: i?.ref ?? "",
+    title: orUndef(i?.title),
+    status: orUndef(i?.status),
+    priority: i?.priority ? i.priority : undefined,
+    effort: orUndef(i?.effort),
   };
 }
 
-function normalizeRound(raw: unknown): OperatingModeRound {
-  const round = recordValue(raw);
-  const artifactUpdates = round.artifact_updates ?? round.artifactUpdates;
+function mapRound(r: ompb.OperatingModeRoundEnvelope | undefined): OperatingModeRound {
   return {
-    round: numberValue(round.round, 0) ?? 0,
-    mode: stringValue(round.mode, "item-level"),
-    scopeKind: stringValue(round.scope_kind ?? round.scopeKind),
-    scopeId: stringValue(round.scope_id ?? round.scopeId),
-    initiativeName: stringValue(round.initiative_name ?? round.initiativeName, undefined),
-    phase: stringValue(round.phase),
-    runStrategy: stringValue(round.run_strategy ?? round.runStrategy),
-    agentProfileKey: stringValue(round.agent_profile_key ?? round.agentProfileKey),
-    generatedAt: stringValue(round.generated_at ?? round.generatedAt),
-    runId: stringValue(round.run_id ?? round.runId, undefined),
-    status: stringValue(round.status, "reserved") as OperatingModeRound["status"],
-    items: Array.isArray(round.items) ? round.items.map((item): OperatingModeRoundItem => {
-      const rawItem = recordValue(item);
-      return {
-        ref: stringValue(rawItem.ref),
-        title: stringValue(rawItem.title, undefined),
-        status: stringValue(rawItem.status, undefined),
-        priority: numberValue(rawItem.priority, undefined),
-        effort: stringValue(rawItem.effort, undefined),
-      };
-    }) : [],
-    artifactUpdates: Array.isArray(artifactUpdates)
-      ? artifactUpdates.map(normalizeArtifact)
-      : [],
-    handoffs: Array.isArray(round.handoffs) ? round.handoffs.map(normalizeHandoff) : [],
-    payload: recordValue(round.payload),
-    error: stringValue(round.error, undefined),
+    round: r?.round ?? 0,
+    mode: asMode(r?.mode),
+    scopeKind: r?.scopeKind ?? "",
+    scopeId: r?.scopeId ?? "",
+    initiativeName: orUndef(r?.initiativeName),
+    phase: r?.phase ?? "",
+    runStrategy: r?.runStrategy ?? "",
+    agentProfileKey: r?.agentProfileKey ?? "",
+    generatedAt: r?.generatedAt ?? "",
+    runId: orUndef(r?.runId),
+    status: (r?.status || "reserved") as OperatingModeRoundStatus,
+    items: (r?.items ?? []).map(mapRoundItem),
+    artifactUpdates: (r?.artifactUpdates ?? []).map(mapArtifactUpdate),
+    handoffs: (r?.handoffs ?? []).map(mapHandoff),
+    payload: (r?.payload ?? {}) as Record<string, unknown>,
+    error: orUndef(r?.error),
   };
 }
 
-function normalizePhaseResult(raw: unknown): OperatingModePhaseResult {
-  const result = recordValue(raw);
-  const artifacts = result.artifacts;
-  const handoff = recordValue(result.handoff);
-  const handoffs = result.handoffs;
-  const progress = recordValue(result.progress);
-  const backlogSync = recordValue(result.backlog_sync ?? result.backlogSync);
+function mapProgress(p: ompb.OperatingModeProgressState | undefined): OperatingModeProgressState | undefined {
+  if (!p) return undefined;
   return {
-    artifacts: Array.isArray(artifacts) ? artifacts.map((item) => {
-      const artifact = recordValue(item);
-      return {
-        path: stringValue(artifact.path),
-        content: stringValue(artifact.content),
-        contentType: stringValue(artifact.content_type ?? artifact.contentType, undefined),
-      };
-    }) : undefined,
-    handoff: Object.keys(handoff).length > 0 ? normalizeHandoff(handoff) : undefined,
-    handoffs: Array.isArray(handoffs)
-      ? handoffs.map(normalizeHandoff)
+    decision: p.decision ?? "",
+    completedPhases: p.completedPhases ?? [],
+    currentPhase: orUndef(p.currentPhase),
+    rationale: orUndef(p.rationale),
+    updatedAt: orUndef(p.updatedAt),
+  };
+}
+
+function mapBacklogSyncPlan(p: ompb.OperatingModeBacklogSyncPlan | undefined): OperatingModeBacklogSyncPlan | undefined {
+  if (!p) return undefined;
+  return {
+    completedItems: p.completedItems ?? [],
+    createdItems: p.createdItems ?? [],
+    updatedItems: p.updatedItems ?? [],
+    proposal: p.proposal ? (p.proposal as never) : undefined,
+    rationale: orUndef(p.rationale),
+  };
+}
+
+function mapReadiness(r: ompb.OperatingModeReadinessReport | undefined): Record<string, unknown> | undefined {
+  if (!r) return undefined;
+  const dimensions = r.dimensions ?? [];
+  if (dimensions.length === 0 && !r.ready && !r.overallScore) return undefined;
+  return {
+    dimensions: dimensions.map((d) => ({
+      key: d.key,
+      label: d.label,
+      score: d.score,
+      rationale: d.rationale,
+    })),
+    overallScore: r.overallScore,
+    ready: r.ready,
+  };
+}
+
+function mapPhaseResult(r: ompb.OperatingModePhaseResult | undefined): OperatingModePhaseResult {
+  const artifacts = r?.artifacts ?? [];
+  return {
+    artifacts: artifacts.length
+      ? artifacts.map((a) => ({
+          path: a.path,
+          content: a.content,
+          contentType: orUndef(a.contentType),
+        }))
       : undefined,
-    readiness: Object.keys(recordValue(result.readiness)).length > 0 ? recordValue(result.readiness) : undefined,
-    progress: Object.keys(progress).length > 0 ? {
-      decision: stringValue(progress.decision),
-      completedPhases: stringArray(progress.completed_phases ?? progress.completedPhases),
-      currentPhase: stringValue(progress.current_phase ?? progress.currentPhase, undefined),
-      rationale: stringValue(progress.rationale, undefined),
-      updatedAt: stringValue(progress.updated_at ?? progress.updatedAt, undefined),
-    } : undefined,
-    verdict: stringValue(result.verdict, undefined),
-    replanNeeded: boolValue(result.replan_needed ?? result.replanNeeded, undefined),
-    backlogSync: Object.keys(backlogSync).length > 0 ? {
-      completedItems: stringArray(backlogSync.completed_items ?? backlogSync.completedItems),
-      createdItems: stringArray(backlogSync.created_items ?? backlogSync.createdItems),
-      updatedItems: stringArray(backlogSync.updated_items ?? backlogSync.updatedItems),
-      proposal: recordValue(backlogSync.proposal) as never,
-      rationale: stringValue(backlogSync.rationale, undefined),
-    } : undefined,
+    handoff: r?.handoff ? mapHandoff(r.handoff) : undefined,
+    handoffs: r?.handoffs?.length ? r.handoffs.map(mapHandoff) : undefined,
+    readiness: mapReadiness(r?.readiness),
+    progress: mapProgress(r?.progress),
+    verdict: orUndef(r?.verdict),
+    replanNeeded: r?.replanNeeded,
+    backlogSync: mapBacklogSyncPlan(r?.backlogSync),
   };
 }
 
-function normalizeSimulationInputs(raw: unknown): OperatingModeSimulationInputs {
-  const inputs = recordValue(raw);
-  const initiative = recordValue(inputs.initiative);
-  const priorRounds = inputs.prior_rounds ?? inputs.priorRounds;
+function mapInitiativeSnapshot(
+  s: ompb.OperatingModeInitiativeSnapshot | undefined,
+): OperatingModeSimulationInputs["initiative"] {
   return {
-    initiative: {
-      name: stringValue(initiative.name),
-      title: stringValue(initiative.title),
-      description: stringValue(initiative.description, undefined),
-      mode: stringValue(initiative.mode, "item-level"),
-      items: stringArray(initiative.items),
-      acceptanceCriteria: stringArray(initiative.acceptance_criteria ?? initiative.acceptanceCriteria),
-    },
-    items: Array.isArray(inputs.items) ? inputs.items.map((item) => {
-      const rawItem = recordValue(item);
-      return {
-        ref: stringValue(rawItem.ref),
-        title: stringValue(rawItem.title, undefined),
-        status: stringValue(rawItem.status, undefined),
-        priority: numberValue(rawItem.priority, undefined),
-        effort: stringValue(rawItem.effort, undefined),
-      };
-    }) : [],
-    artifacts: Array.isArray(inputs.artifacts) ? inputs.artifacts.map(normalizeArtifact) : [],
-    priorRounds: Array.isArray(priorRounds)
-      ? priorRounds.map(normalizeRound)
-      : [],
-    acceptanceCriteria: stringArray(inputs.acceptance_criteria ?? inputs.acceptanceCriteria),
+    name: s?.name ?? "",
+    title: s?.title ?? "",
+    description: orUndef(s?.description),
+    mode: asMode(s?.mode),
+    items: s?.items ?? [],
+    acceptanceCriteria: s?.acceptanceCriteria ?? [],
   };
 }
 
-function normalizeStringMap(raw: unknown): Record<string, string> {
-  const record = recordValue(raw);
-  const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(record)) {
-    if (typeof value === "string") out[key] = value;
+function mapSimulationInputs(in_: ompb.OperatingModeSimulationInputs | undefined): OperatingModeSimulationInputs {
+  return {
+    initiative: mapInitiativeSnapshot(in_?.initiative),
+    items: (in_?.items ?? []).map(mapRoundItem),
+    artifacts: (in_?.artifacts ?? []).map(mapArtifactSnapshot),
+    priorRounds: (in_?.priorRounds ?? []).map(mapRound),
+    acceptanceCriteria: in_?.acceptanceCriteria ?? [],
+  };
+}
+
+function mapSimulationStep(s: ompb.OperatingModeSimulationStep | undefined): OperatingModeSimulationStep {
+  const transition = s?.transition;
+  const promptVariables = s?.promptVariables ?? {};
+  return {
+    index: s?.index ?? 0,
+    phase: s?.phase ?? "",
+    phaseKind: mapPhaseKind(s?.phaseKind),
+    inputs: mapSimulationInputs(s?.inputs),
+    output: mapPhaseResult(s?.output),
+    round: mapRound(s?.round),
+    transition: transition
+      ? {
+          from: transition.from ?? "",
+          to: orUndef(transition.to),
+          conditionKind: mapConditionKind(transition.conditionKind),
+          label: transition.label ?? "",
+          field: orUndef(transition.field),
+          value: orUndef(transition.value),
+        }
+      : undefined,
+    terminal: s?.terminal,
+    skillId: orUndef(s?.skillId),
+    profileKey: orUndef(s?.profileKey),
+    promptVariables: Object.keys(promptVariables).length ? promptVariables : undefined,
+  };
+}
+
+function mapSimulationPreset(p: ompb.OperatingModeSimulationPreset | undefined): OperatingModeSimulationPreset {
+  return {
+    id: p?.id ?? "",
+    label: p?.label ?? "",
+    description: p?.description ?? "",
+    branch: p?.branch ?? "",
+    scenario: p?.scenario ?? "",
+  };
+}
+
+function mapSimulation(s: ompb.OperatingModeSimulationResponse | undefined): OperatingModeSimulation {
+  return {
+    mode: asMode(s?.mode),
+    label: s?.label ?? "",
+    presets: (s?.presets ?? []).map(mapSimulationPreset),
+    activePreset: s?.activePreset ?? "",
+    initiative: mapInitiativeSnapshot(s?.initiative),
+    trace: (s?.trace ?? []).map(mapSimulationStep),
+  };
+}
+
+function mapRenderedPrompt(r: ompb.OperatingModeRenderPromptResponse | undefined): OperatingModeRenderedPrompt {
+  return {
+    mode: r?.mode ?? "",
+    preset: orUndef(r?.preset),
+    stepIndex: r?.stepIndex,
+    phase: r?.phase ?? "",
+    skillId: r?.skillId ?? "",
+    profileKey: r?.profileKey ?? "",
+    variables: r?.variables ?? {},
+    prompt: r?.prompt ?? "",
+    degraded: r?.degraded ?? false,
+    degradedReason: orUndef(r?.degradedReason),
+  };
+}
+
+function mapExecution(e: ompb.OperatingModeActiveItemExecution | undefined): ActiveItemExecution {
+  return {
+    itemRef: e?.itemRef ?? "",
+    executionId: orUndef(e?.executionId),
+    runId: orUndef(e?.runId),
+    status: orUndef(e?.status),
+  };
+}
+
+function mapSwitchResult(r: ompb.OperatingModeSwitchResult | undefined): SwitchOperatingModeResult {
+  return {
+    initiativeName: r?.initiativeName ?? "",
+    fromMode: asMode(r?.fromMode),
+    toMode: asMode(r?.toMode),
+    canceledItemExecutions: (r?.canceledItemExecutions ?? []).map(mapExecution),
+    activeItemExecutions: (r?.activeItemExecutions ?? []).map(mapExecution),
+    requiresCancellation: r?.requiresCancellation,
+    operatingModeWorkspaceId: orUndef(r?.operatingModeWorkspaceId),
+  };
+}
+
+function mapWorkspacePhase(p: ompb.OperatingModeWorkspacePhase | undefined): OperatingModeWorkspacePhase {
+  return {
+    phase: p?.phase ?? "",
+    phaseKind: mapPhaseKind(p?.phaseKind),
+    activityPurpose: p?.activityPurpose ?? "",
+    profileKey: p?.profileKey ?? "",
+    writesRepo: p?.writesRepo ?? false,
+    outputArtifacts: (p?.outputArtifacts ?? []).map(mapArtifactDef),
+    requiresCriteria: p?.requiresCriteria,
+    startable: p?.startable ?? false,
+    reason: orUndef(p?.reason),
+    next: p?.next,
+    autoStartAfter: p?.autoStartAfter ?? [],
+  };
+}
+
+function mapStringListMap(
+  m: Record<string, ompb.OperatingModeStringList> | undefined,
+): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const [key, value] of Object.entries(m ?? {})) {
+    out[key] = value?.values ?? [];
   }
   return out;
 }
 
-function normalizeSimulationStep(raw: unknown): OperatingModeSimulationStep {
-  const step = recordValue(raw);
-  const transition = step.transition ? normalizeTransition(step.transition) : undefined;
-  const promptVariables = normalizeStringMap(step.prompt_variables ?? step.promptVariables);
+function mapWorkspaceDefinition(m: ompb.OperatingModeWorkspaceMode | undefined): OperatingModeWorkspaceDefinition {
   return {
-    index: numberValue(step.index, 0) ?? 0,
-    phase: stringValue(step.phase),
-    phaseKind: normalizePhaseKind(step.phase_kind ?? step.phaseKind),
-    inputs: normalizeSimulationInputs(step.inputs),
-    output: normalizePhaseResult(step.output),
-    round: normalizeRound(step.round),
-    transition: transition ? {
-      from: transition.from,
-      to: transition.to || undefined,
-      conditionKind: transition.conditionKind,
-      label: transition.label,
-      payloadKey: transition.payloadKey,
-      progressDecision: transition.progressDecision,
-    } : undefined,
-    terminal: boolValue(step.terminal, undefined),
-    skillId: stringValue(step.skill_id ?? step.skillId, undefined),
-    profileKey: stringValue(step.profile_key ?? step.profileKey, undefined),
-    promptVariables: Object.keys(promptVariables).length > 0 ? promptVariables : undefined,
+    mode: asMode(m?.mode),
+    label: m?.label ?? "",
+    description: orUndef(m?.description),
+    scopeKind: m?.scopeKind ?? "",
+    capabilities: mapCapabilities(m?.capabilities, (m?.phases?.length ?? 0) > 0),
+    phases: (m?.phases ?? []).map(mapWorkspacePhase),
+    terminal: m?.terminal ?? [],
+    transitions: mapStringListMap(m?.transitions),
+    runStrategy: m?.runStrategy ?? "",
   };
 }
 
-function normalizeHandoff(raw: unknown): OperatingModeHandoff {
-  const handoff = recordValue(raw);
+function mapWorkspace(w: ompb.OperatingModeWorkspace | undefined): OperatingModeWorkspace {
+  const lock = w?.lock;
   return {
-    summary: stringValue(handoff.summary, undefined),
-    completedPhases: stringArray(handoff.completed_phases ?? handoff.completedPhases),
-    changedFiles: stringArray(handoff.changed_files ?? handoff.changedFiles),
-    tests: stringArray(handoff.tests),
-    blockers: stringArray(handoff.blockers),
-    nextStep: stringValue(handoff.next_step ?? handoff.nextStep, undefined),
-    createdAt: stringValue(handoff.created_at ?? handoff.createdAt, undefined),
+    initiativeName: w?.initiativeName ?? "",
+    mode: asMode(w?.mode),
+    definition: mapWorkspaceDefinition(w?.definition),
+    lock: lock
+      ? {
+          runId: orUndef(lock.runId),
+          purpose: orUndef(lock.purpose),
+          roundNumber: lock.roundNumber ? lock.roundNumber : undefined,
+          acquiredBy: orUndef(lock.acquiredBy),
+          acquiredAt: orUndef(lock.acquiredAt),
+        }
+      : undefined,
+    artifacts: (w?.artifacts ?? []).map(mapArtifactSnapshot),
+    rounds: (w?.rounds ?? []).map(mapRound),
   };
 }
 
-function normalizeSimulationPreset(raw: unknown): OperatingModeSimulationPreset {
-  const preset = recordValue(raw);
+function mapBacklogSyncResult(r: ompb.OperatingModeBacklogSyncResult | undefined): OperatingModeBacklogSyncResult {
+  const proposal = r?.proposalResult;
   return {
-    id: stringValue(preset.id),
-    label: stringValue(preset.label),
-    description: stringValue(preset.description),
-    branch: stringValue(preset.branch),
-    scenario: stringValue(preset.scenario),
+    initiativeName: r?.initiativeName ?? "",
+    mode: asMode(r?.mode),
+    phase: r?.phase ?? "",
+    round: r?.round ?? 0,
+    runId: orUndef(r?.runId),
+    completedItems: (r?.completedItems ?? []).map((c) => ({
+      itemRef: c.itemRef,
+      fromStatus: c.fromStatus,
+      toStatus: c.toStatus,
+    })),
+    proposalResult: proposal
+      ? {
+          applied: proposal.applied,
+          failed: proposal.failed,
+          skipped: proposal.skipped,
+          created: proposal.created ? proposal.created : undefined,
+          updated: proposal.updated ? proposal.updated : undefined,
+          outcomes: (proposal.outcomes ?? []).map((o) => ({
+            mutationId: o.mutationId,
+            op: o.op,
+            target: orUndef(o.target),
+            applied: o.applied,
+            skipped: o.skipped,
+            error: orUndef(o.error),
+          })),
+        }
+      : undefined,
+    noop: r?.noop,
   };
 }
 
-function normalizeSimulation(raw: unknown): OperatingModeSimulation {
-  const simulation = recordValue(raw);
-  const initiative = recordValue(simulation.initiative);
-  const trace = simulation.trace;
-  const presets = simulation.presets;
-  return {
-    mode: stringValue(simulation.mode, "item-level"),
-    label: stringValue(simulation.label),
-    presets: Array.isArray(presets) ? presets.map(normalizeSimulationPreset) : [],
-    activePreset: stringValue(simulation.active_preset ?? simulation.activePreset),
-    initiative: {
-      name: stringValue(initiative.name),
-      title: stringValue(initiative.title),
-      description: stringValue(initiative.description, undefined),
-      mode: stringValue(initiative.mode, "item-level"),
-      items: stringArray(initiative.items),
-      acceptanceCriteria: stringArray(initiative.acceptance_criteria ?? initiative.acceptanceCriteria),
-    },
-    trace: Array.isArray(trace) ? trace.map(normalizeSimulationStep) : [],
-  };
-}
-
-function normalizeRenderedPrompt(raw: unknown): OperatingModeRenderedPrompt {
-  const rendered = recordValue(raw);
-  const variables = recordValue(rendered.variables);
-  const normalizedVariables: Record<string, string> = {};
-  for (const [key, value] of Object.entries(variables)) {
-    if (typeof value === "string") normalizedVariables[key] = value;
-  }
-  return {
-    mode: stringValue(rendered.mode, "item-level"),
-    preset: stringValue(rendered.preset, undefined),
-    stepIndex: numberValue(rendered.step_index ?? rendered.stepIndex, undefined),
-    phase: stringValue(rendered.phase),
-    skillId: stringValue(rendered.skill_id ?? rendered.skillId),
-    profileKey: stringValue(rendered.profile_key ?? rendered.profileKey),
-    variables: normalizedVariables,
-    prompt: stringValue(rendered.prompt),
-    degraded: boolValue(rendered.degraded) ?? false,
-    degradedReason: stringValue(rendered.degraded_reason ?? rendered.degradedReason, undefined),
-  };
-}
-
-function normalizeWorkspace(raw: unknown): OperatingModeWorkspace {
-  const workspace = recordValue(raw);
-  return {
-    initiativeName: stringValue(workspace.initiative_name ?? workspace.initiativeName),
-    mode: stringValue(workspace.mode, "item-level"),
-    definition: normalizeDefinition(workspace.definition),
-    lock: workspace.lock ? recordValue(workspace.lock) : undefined,
-    artifacts: Array.isArray(workspace.artifacts) ? workspace.artifacts.map(normalizeArtifact) : [],
-    rounds: Array.isArray(workspace.rounds) ? workspace.rounds.map(normalizeRound) : [],
-  };
-}
-
-function normalizeExecution(item: unknown): ActiveItemExecution {
-  const exec = recordValue(item);
-  return {
-    itemRef: stringValue(exec.item_ref ?? exec.itemRef),
-    executionId: stringValue(exec.execution_id ?? exec.executionId, undefined),
-    runId: stringValue(exec.run_id ?? exec.runId, undefined),
-    status: stringValue(exec.status, undefined),
-  };
-}
-
-function normalizeSwitchResult(raw: unknown): SwitchOperatingModeResult {
-  const result = recordValue(raw);
-  const active = result.active_item_executions ?? result.activeItemExecutions;
-  const canceled = result.canceled_item_executions ?? result.canceledItemExecutions;
-  return {
-    initiativeName: stringValue(result.initiative_name ?? result.initiativeName),
-    fromMode: stringValue(result.from_mode ?? result.fromMode, "item-level"),
-    toMode: stringValue(result.to_mode ?? result.toMode, "item-level"),
-    activeItemExecutions: Array.isArray(active) ? active.map(normalizeExecution) : undefined,
-    canceledItemExecutions: Array.isArray(canceled) ? canceled.map(normalizeExecution) : undefined,
-    requiresCancellation: boolValue(result.requires_cancellation ?? result.requiresCancellation, undefined),
-    operatingModeWorkspaceId: stringValue(result.operating_mode_workspace_id ?? result.operatingModeWorkspaceId, undefined),
-  };
-}
+// ---------------------------------------------------------------------------
+// Switch-conflict error detail
+// ---------------------------------------------------------------------------
 
 /**
- * Server-side 409 conflict shape returned when SwitchMode is called against
- * an initiative with active item executions and `cancel_active_item_executions`
- * is false. Mirrors `ActiveItemExecutionsConflict` in
- * `scenarios/swarm-manager/api/internal/operatingmode/service.go`.
+ * Server-side conflict shape returned when SwitchMode is called against an
+ * initiative with active item executions and `cancelActiveItemExecutions` is
+ * false. Carried as a Connect error detail (FailedPrecondition) — see
+ * `OperatingModeActiveItemExecutionsConflict` in
+ * `scenarios/swarm-manager/api/internal/operatingmode/connect_service.go`.
  */
 export interface ActiveItemExecutionsConflict {
   initiativeName: string;
@@ -548,24 +578,23 @@ export interface ActiveItemExecutionsConflict {
 }
 
 /**
- * Detect whether an error came from the server's 409 active-item-executions
- * conflict response. The mode-picker dialog uses this to render the affected
- * items list before re-submitting with cancel_active_item_executions=true.
+ * Detect whether an error is the server's active-item-executions switch
+ * conflict and decode its structured detail. The mode-picker dialog uses this
+ * to render the affected items list before re-submitting with
+ * `cancelActiveItemExecutions=true`.
  *
- * Returns the parsed conflict payload, or `null` for any other error shape.
+ * Returns the parsed conflict, or `null` for any other error shape.
  */
 export function parseActiveItemExecutionsConflict(error: unknown): ActiveItemExecutionsConflict | null {
-  if (!isApiError(error)) return null;
-  if (error.status !== 409) return null;
-  if (error.code !== "active_item_executions") return null;
-  const details = recordValue(error.details);
-  const executions = details.active_item_executions ?? details.activeItemExecutions;
-  if (!Array.isArray(executions)) return null;
+  if (!(error instanceof ConnectError)) return null;
+  if (error.code !== Code.FailedPrecondition) return null;
+  const [detail] = error.findDetails(OperatingModeActiveItemExecutionsConflictSchema);
+  if (!detail) return null;
   return {
-    initiativeName: stringValue(details.initiative_name ?? details.initiativeName),
-    fromMode: stringValue(details.from_mode ?? details.fromMode, "item-level"),
-    toMode: stringValue(details.to_mode ?? details.toMode, "item-level"),
-    executions: executions.map(normalizeExecution),
+    initiativeName: detail.initiativeName,
+    fromMode: detail.fromMode || "item-level",
+    toMode: detail.toMode || "item-level",
+    executions: (detail.executions ?? []).map(mapExecution),
   };
 }
 
@@ -613,75 +642,32 @@ export interface IInitiativeModeService {
   applyBacklogSync(name: string, args: ApplyOperatingModeBacklogSyncArgs): Promise<OperatingModeBacklogSyncResult>;
 }
 
-function normalizeBacklogSyncResult(raw: unknown): OperatingModeBacklogSyncResult {
-  const result = recordValue(raw);
-  const completed = result.completed_items ?? result.completedItems;
-  const proposalResult = recordValue(result.proposal_result ?? result.proposalResult);
-  const outcomes = proposalResult.outcomes;
-  return {
-    initiativeName: stringValue(result.initiative_name ?? result.initiativeName),
-    mode: stringValue(result.mode, "item-level"),
-    phase: stringValue(result.phase),
-    round: numberValue(result.round, 0) ?? 0,
-    runId: stringValue(result.run_id ?? result.runId, undefined),
-    completedItems: Array.isArray(completed) ? completed.map((item) => {
-      const completedItem = recordValue(item);
-      return {
-        itemRef: stringValue(completedItem.item_ref ?? completedItem.itemRef),
-        fromStatus: stringValue(completedItem.from_status ?? completedItem.fromStatus),
-        toStatus: stringValue(completedItem.to_status ?? completedItem.toStatus),
-      };
-    }) : [],
-    proposalResult: Object.keys(proposalResult).length > 0 ? {
-      applied: numberValue(proposalResult.applied, 0) ?? 0,
-      failed: numberValue(proposalResult.failed, 0) ?? 0,
-      skipped: numberValue(proposalResult.skipped, 0) ?? 0,
-      created: numberValue(proposalResult.created, undefined),
-      updated: numberValue(proposalResult.updated, undefined),
-      outcomes: Array.isArray(outcomes) ? outcomes.map((item) => {
-        const outcome = recordValue(item);
-        return {
-          mutationId: stringValue(outcome.mutation_id ?? outcome.mutationId),
-          op: stringValue(outcome.op),
-          target: stringValue(outcome.target, undefined),
-          applied: boolValue(outcome.applied) ?? false,
-          skipped: boolValue(outcome.skipped, undefined),
-          error: stringValue(outcome.error, undefined),
-        };
-      }) : [],
-    } : undefined,
-    noop: boolValue(result.noop, undefined),
-  };
+const REQUESTED_BY = "swarm-manager-ui";
+
+function defaultOperatingModeClient(): OperatingModeClient {
+  return createClient(OperatingModeService, createConnectTransport({ baseUrl: API_BASE }));
 }
 
 export function createInitiativeModeService(
-  apiClient: IApiClient = defaultApiClient,
+  client: OperatingModeClient = defaultOperatingModeClient(),
 ): IInitiativeModeService {
   return {
     async catalog(): Promise<OperatingModeCatalog> {
-      const raw = await apiClient.get<unknown>(API_ENDPOINTS.operatingModes);
-      return normalizeCatalog(raw);
+      return mapCatalog(await client.catalog({}));
     },
 
     async getMode(mode: string): Promise<OperatingModeDetail> {
-      const raw = await apiClient.get<unknown>(API_ENDPOINTS.operatingMode(mode));
-      return normalizeModeDetail(raw);
+      return mapModeDetail(await client.getMode({ mode }));
     },
 
     async updateMode(mode: string, args: UpdateOperatingModeArgs): Promise<OperatingModeDetail> {
-      const body: Record<string, unknown> = {};
-      if (args.label !== undefined) body.label = args.label;
-      if (args.description !== undefined) body.description = args.description;
-      const raw = await apiClient.patch<unknown>(API_ENDPOINTS.operatingMode(mode), body);
-      return normalizeModeDetail(raw);
+      return mapModeDetail(
+        await client.updateMode({ mode, label: args.label, description: args.description }),
+      );
     },
 
     async simulateMode(mode: string, preset?: string): Promise<OperatingModeSimulation> {
-      const raw = await apiClient.post<unknown>(
-        API_ENDPOINTS.operatingModeSimulate(mode, preset),
-        {},
-      );
-      return normalizeSimulation(raw);
+      return mapSimulation(await client.simulateMode({ mode, preset: preset ?? "" }));
     },
 
     async renderSimulationPrompt(
@@ -689,11 +675,7 @@ export function createInitiativeModeService(
       preset: string,
       stepIndex: number,
     ): Promise<OperatingModeRenderedPrompt> {
-      const raw = await apiClient.post<unknown>(
-        API_ENDPOINTS.operatingModeSimulateRender(mode),
-        { preset, step_index: stepIndex },
-      );
-      return normalizeRenderedPrompt(raw);
+      return mapRenderedPrompt(await client.renderSimulationPrompt({ mode, preset, stepIndex }));
     },
 
     async renderLivePrompt(
@@ -702,85 +684,85 @@ export function createInitiativeModeService(
       round?: number,
       note?: string,
     ): Promise<OperatingModeRenderedPrompt> {
-      const body: Record<string, unknown> = {};
-      if (typeof round === "number" && round > 0) body.round = round;
-      if (note && note.trim()) body.note = note.trim();
-      const raw = await apiClient.post<unknown>(
-        API_ENDPOINTS.initiativeOperatingModeRenderPrompt(name, phase),
-        body,
+      return mapRenderedPrompt(
+        await client.renderLivePrompt({
+          initiativeName: name,
+          phase,
+          round: typeof round === "number" && round > 0 ? round : 0,
+          note: note?.trim() ?? "",
+        }),
       );
-      return normalizeRenderedPrompt(raw);
     },
 
     async workspace(name: string): Promise<OperatingModeWorkspace> {
-      const raw = await apiClient.get<unknown>(API_ENDPOINTS.initiativeOperatingModeWorkspace(name));
-      return normalizeWorkspace(raw);
+      return mapWorkspace(await client.getWorkspace({ initiativeName: name }));
     },
 
     async switchMode(name: string, args: SwitchOperatingModeArgs): Promise<SwitchOperatingModeResult> {
-      const raw = await apiClient.post<unknown>(
-        API_ENDPOINTS.initiativeOperatingModeSwitch(name),
-        {
+      return mapSwitchResult(
+        await client.switchMode({
+          initiativeName: name,
           mode: args.mode,
-          cancel_active_item_executions: args.cancelActiveItemExecutions ?? false,
-          requested_by: args.requestedBy ?? "swarm-manager-ui",
-        },
+          cancelActiveItemExecutions: args.cancelActiveItemExecutions ?? false,
+          requestedBy: args.requestedBy ?? REQUESTED_BY,
+        }),
       );
-      return normalizeSwitchResult(raw);
     },
 
-    async startPhase(name: string, phase: string, args: StartOperatingModePhaseArgs = {}): Promise<OperatingModeRound> {
-      const raw = await apiClient.post<unknown>(
-        API_ENDPOINTS.initiativeOperatingModeStartPhase(name, phase),
-        {
+    async startPhase(
+      name: string,
+      phase: string,
+      args: StartOperatingModePhaseArgs = {},
+    ): Promise<OperatingModeRound> {
+      return mapRound(
+        await client.startPhase({
+          initiativeName: name,
+          phase,
           note: args.note ?? "",
           override: args.override ?? false,
-          requested_by: args.requestedBy ?? "swarm-manager-ui",
-        },
+          requestedBy: args.requestedBy ?? REQUESTED_BY,
+        }),
       );
-      return normalizeRound(raw);
     },
 
     async refreshRound(name: string, mode: string, round: number): Promise<OperatingModeRound> {
-      const raw = await apiClient.post<unknown>(
-        API_ENDPOINTS.initiativeOperatingModeRefreshRound(name, round, mode),
-        {},
-      );
-      return normalizeRound(raw);
+      return mapRound(await client.refreshRound({ initiativeName: name, mode, round }));
     },
 
     async cancelRound(name: string, mode: string, round: number): Promise<OperatingModeRound> {
-      const raw = await apiClient.post<unknown>(
-        API_ENDPOINTS.initiativeOperatingModeCancelRound(name, round, mode),
-        {},
-      );
-      return normalizeRound(raw);
+      return mapRound(await client.cancelRound({ initiativeName: name, mode, round }));
     },
 
-    async completeItems(name: string, args: CompleteOperatingModeItemsArgs): Promise<OperatingModeBacklogSyncResult> {
-      const raw = await apiClient.post<unknown>(
-        API_ENDPOINTS.initiativeOperatingModeCompleteItems(name, args.round, args.mode),
-        {
+    async completeItems(
+      name: string,
+      args: CompleteOperatingModeItemsArgs,
+    ): Promise<OperatingModeBacklogSyncResult> {
+      return mapBacklogSyncResult(
+        await client.completeItems({
+          initiativeName: name,
           mode: args.mode,
-          run_id: args.runId,
-          item_refs: args.itemRefs,
-          requested_by: args.requestedBy ?? "swarm-manager-ui",
-        },
+          round: args.round,
+          runId: args.runId,
+          itemRefs: args.itemRefs,
+          requestedBy: args.requestedBy ?? REQUESTED_BY,
+        }),
       );
-      return normalizeBacklogSyncResult(raw);
     },
 
-    async applyBacklogSync(name: string, args: ApplyOperatingModeBacklogSyncArgs): Promise<OperatingModeBacklogSyncResult> {
-      const raw = await apiClient.post<unknown>(
-        API_ENDPOINTS.initiativeOperatingModeApplyBacklogSync(name, args.round, args.mode),
-        {
+    async applyBacklogSync(
+      name: string,
+      args: ApplyOperatingModeBacklogSyncArgs,
+    ): Promise<OperatingModeBacklogSyncResult> {
+      return mapBacklogSyncResult(
+        await client.applyBacklogSync({
+          initiativeName: name,
           mode: args.mode,
-          run_id: args.runId,
-          accepted_mutation_ids: args.acceptedMutationIds ?? [],
-          requested_by: args.requestedBy ?? "swarm-manager-ui",
-        },
+          round: args.round,
+          runId: args.runId,
+          acceptedMutationIds: args.acceptedMutationIds ?? [],
+          requestedBy: args.requestedBy ?? REQUESTED_BY,
+        }),
       );
-      return normalizeBacklogSyncResult(raw);
     },
   };
 }

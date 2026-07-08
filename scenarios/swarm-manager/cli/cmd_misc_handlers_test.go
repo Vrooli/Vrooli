@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	clitest "swarm-manager/cli/internal/testutil"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
 func TestCmdCapturesList_RendersAndTruncates(t *testing.T) {
@@ -47,13 +49,17 @@ func TestCmdCapturesGet_RequiresID(t *testing.T) {
 }
 
 func TestCmdOperatingModeList_RendersDefaultMark(t *testing.T) {
-	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/operating-modes" {
-			t.Fatalf("unexpected path %s", r.URL.Path)
-		}
-		_, _ = w.Write([]byte(`{"modes":[{"mode":"holistic-loop","label":"Holistic","description":"desc","usage_count":3,"scope_kind":"initiative","run_strategy":"sequential_handoff","default":true}]}`))
-	}))
-	app := newAppT(t)
+	stub := &stubOperatingModeHandler{
+		catalog: func(*apipb.OperatingModeCatalogRequest) (*apipb.OperatingModeCatalogResponse, error) {
+			return &apipb.OperatingModeCatalogResponse{
+				Modes: []*apipb.OperatingModeCatalogEntry{{
+					Mode: "holistic-loop", Label: "Holistic", Description: "desc", UsageCount: 3,
+					ScopeKind: "initiative", RunStrategy: "sequential_handoff", Default: true,
+				}},
+			}, nil
+		},
+	}
+	app := newOperatingModeTestApp(t, stub)
 	out := clitest.CaptureStdout(t, func() error { return app.cmdOperatingModeList([]string{}) })
 	if !strings.Contains(out, "holistic-loop [default] — Holistic") {
 		t.Errorf("default mark missing: %q", out)
@@ -64,10 +70,12 @@ func TestCmdOperatingModeList_RendersDefaultMark(t *testing.T) {
 }
 
 func TestCmdOperatingModeList_Empty(t *testing.T) {
-	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"modes":[]}`))
-	}))
-	app := newAppT(t)
+	stub := &stubOperatingModeHandler{
+		catalog: func(*apipb.OperatingModeCatalogRequest) (*apipb.OperatingModeCatalogResponse, error) {
+			return &apipb.OperatingModeCatalogResponse{}, nil
+		},
+	}
+	app := newOperatingModeTestApp(t, stub)
 	out := clitest.CaptureStdout(t, func() error { return app.cmdOperatingModeList([]string{}) })
 	if !strings.Contains(out, "(none)") {
 		t.Errorf("empty output = %q", out)
@@ -82,14 +90,23 @@ func TestCmdOperatingModeGet_RequiresMode(t *testing.T) {
 }
 
 func TestCmdOperatingModeGet_RendersDetail(t *testing.T) {
-	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/operating-modes/holistic-loop" {
-			t.Fatalf("unexpected path %s", r.URL.Path)
-		}
-		_, _ = w.Write([]byte(`{"entry":{"mode":"holistic-loop","label":"Holistic","scope_kind":"initiative","run_strategy":"sequential_handoff","usage_count":2}}`))
-	}))
-	app := newAppT(t)
+	var gotMode string
+	stub := &stubOperatingModeHandler{
+		getMode: func(req *apipb.OperatingModeGetRequest) (*apipb.OperatingModeDetailResponse, error) {
+			gotMode = req.GetMode()
+			return &apipb.OperatingModeDetailResponse{
+				Entry: &apipb.OperatingModeCatalogEntry{
+					Mode: "holistic-loop", Label: "Holistic", ScopeKind: "initiative",
+					RunStrategy: "sequential_handoff", UsageCount: 2,
+				},
+			}, nil
+		},
+	}
+	app := newOperatingModeTestApp(t, stub)
 	out := clitest.CaptureStdout(t, func() error { return app.cmdOperatingModeGet([]string{"--mode", " holistic-loop "}) })
+	if gotMode != "holistic-loop" {
+		t.Errorf("mode selector not trimmed: %q", gotMode)
+	}
 	if !strings.Contains(out, "holistic-loop") || !strings.Contains(out, "Sequential handoff") {
 		t.Errorf("detail missing humanized strategy: %q", out)
 	}

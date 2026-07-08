@@ -188,6 +188,16 @@ func (s *Service) maybeAutoStartNext(ctx context.Context, round RoundEnvelope) {
 		s.clearPendingAutoStart(round)
 		return
 	}
+	// Honor the guard graph. When the completed phase declares transitions,
+	// only auto-start the successor if a guard actually routes there against
+	// this round's resolved output. That lets a branch route elsewhere — e.g.
+	// a review `changes_requested` verdict looping back to execute — without
+	// the reconcile auto-start firing over the top of it. A phase with no
+	// declared transitions keeps the pure auto-start contract.
+	if guards := def.PhaseGraph.Guards[Phase(round.Phase)]; len(guards) > 0 && !phasesContain(nextPhasesForCompletedRound(def, round), next) {
+		s.clearPendingAutoStart(round)
+		return
+	}
 	_, err = s.StartPhase(ctx, StartPhaseRequest{
 		InitiativeName: round.InitiativeName,
 		Phase:          string(next),
@@ -214,6 +224,16 @@ func (s *Service) maybeAutoStartNext(ctx context.Context, round RoundEnvelope) {
 // nextAutoStartPhase scans the phase graph for the (at most one, per
 // validator) phase whose AutoStartAfter declares the predecessor. Returns
 // false when no auto-start successor exists for this predecessor.
+// phasesContain reports whether target appears in phases.
+func phasesContain(phases []Phase, target Phase) bool {
+	for _, p := range phases {
+		if p == target {
+			return true
+		}
+	}
+	return false
+}
+
 func nextAutoStartPhase(def Definition, predecessor Phase) (Phase, bool) {
 	for _, phase := range orderedPhases(def) {
 		phaseDef := def.PhaseGraph.Phases[phase]

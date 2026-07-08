@@ -42,7 +42,12 @@ type Handoff struct {
 	Tests           []string `json:"tests,omitempty"`
 	Blockers        []string `json:"blockers,omitempty"`
 	NextStep        string   `json:"next_step,omitempty"`
-	CreatedAt       string   `json:"created_at,omitempty"`
+	// Frontier is the elastic-slice contract's declared true frontier: the one
+	// comprehensively-completable unit the next round should advance (a whole
+	// phase or the remainder of a sliced one). It is the continuity signal a
+	// fresh agent reads to continue from the right place.
+	Frontier  string `json:"frontier,omitempty"`
+	CreatedAt string `json:"created_at,omitempty"`
 }
 
 type RoundEnvelope struct {

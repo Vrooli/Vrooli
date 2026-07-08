@@ -152,8 +152,8 @@ export interface PhaseTraceTransitionInput {
   to?: string;
   conditionKind?: string;
   label?: string;
-  payloadKey?: string;
-  progressDecision?: string;
+  field?: string;
+  value?: string;
 }
 
 /**
@@ -196,16 +196,33 @@ export function describeTransition(
 }
 
 function transitionReason(transition: PhaseTraceTransitionInput): string {
-  switch (transition.conditionKind) {
-    case "payload_bool":
-      return `The phase output set ${transition.payloadKey ?? "a boolean signal"} = true, which fires this transition.`;
-    case "progress_decision":
-      return `The phase reported a progress decision of "${transition.progressDecision ?? "?"}", which routes here.`;
-    case "always":
-      return "This is an unconditional transition — a clean completion always advances here.";
-    default:
-      return transition.label ? `Guard: ${transition.label}.` : "The transition guard selected this path.";
+  const op = transition.conditionKind;
+  if (op === "always" || (!op && !transition.field)) {
+    return "This is an unconditional transition — a clean completion always advances here.";
   }
+  const field = transition.field;
+  const value = transition.value;
+  if (field) {
+    switch (op) {
+      case "exists":
+        return `The phase output set ${field}, which fires this transition.`;
+      case "not_exists":
+        return `The phase output left ${field} unset, which fires this transition.`;
+      case "eq":
+        return `The phase reported ${field} = "${value ?? "?"}", which routes here.`;
+      case "ne":
+        return `The phase reported ${field} ≠ "${value ?? "?"}", which routes here.`;
+      case "gt":
+      case "gte":
+      case "lt":
+      case "lte": {
+        const sym = { gt: ">", gte: "≥", lt: "<", lte: "≤" }[op];
+        return `The phase reported ${field} ${sym} ${value ?? "?"}, which routes here.`;
+      }
+    }
+  }
+  // Composite or membership guards — lean on the server-rendered human label.
+  return transition.label ? `Guard: ${transition.label}.` : "The transition guard selected this path.";
 }
 
 export interface PhaseTraceEmitBacklogSync {

@@ -1,0 +1,30 @@
+{
+  "kind": "operating-mode-example-run",
+  "id": "review-changes-requested",
+  "mode": "holistic-loop",
+  "label": "Review requests changes, loops back to execute",
+  "description": "Acceptance review returns changes_requested, so the loop routes back to execute to close the specific gaps before a second review accepts.",
+  "branch": "review → execute (changes_requested reloop)",
+  "scenario": "The first acceptance review finds specific, fixable gaps against the criteria and returns changes_requested. Rather than terminating, the loop routes back to execute so the same initiative closes the gaps; the second execute pass finishes cleanly and review then accepts before reconcile aligns the backlog.",
+  "initiative": {
+    "title": "Unify the audio-session lifecycle",
+    "description": "A pass where the first acceptance review requests concrete fixes before accepting.",
+    "items": [
+      { "ref": "execute/audio-session-teardown", "title": "Tear down idle audio session", "status": "in_progress", "priority": 1, "effort": "M" },
+      { "ref": "fix/mic-wedge-regression", "title": "Fix mic wedge after backgrounding", "status": "todo", "priority": 2, "effort": "S" }
+    ],
+    "criteria": [
+      "An idle tab never holds the system audio session.",
+      "The microphone recovers after backgrounding without an app restart."
+    ]
+  },
+  "steps": [
+    { "phase": "investigate", "note": "always → plan" },
+    { "phase": "plan", "note": "always → execute" },
+    { "phase": "execute", "output": { "replan_needed": false }, "note": "replan_needed=false → review" },
+    { "phase": "review", "output": { "verdict": "changes_requested" }, "note": "verdict=changes_requested → execute (loop back to close the gaps)" },
+    { "phase": "execute", "output": { "replan_needed": false }, "note": "gaps closed, replan_needed=false → review (second pass)" },
+    { "phase": "review", "output": { "verdict": "accepted" }, "note": "always → reconcile" }
+  ],
+  "expected_path": ["investigate", "plan", "execute", "review", "execute", "review", "reconcile"]
+}

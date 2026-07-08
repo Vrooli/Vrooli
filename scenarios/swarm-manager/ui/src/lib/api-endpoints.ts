@@ -128,30 +128,9 @@ export const API_ENDPOINTS = {
   initiativeReviewTrigger: (name: string) => `/initiatives/${name}/review/trigger`,
   initiativeReviewDecide: (name: string) => `/initiatives/${name}/review/decide`,
   initiativeReviewDecisions: (name: string) => `/initiatives/${name}/review/decisions`,
-  initiativeOperatingModeWorkspace: (name: string) =>
-    `/initiatives/${name}/operating-mode/workspace`,
-  initiativeOperatingModeSwitch: (name: string) =>
-    `/initiatives/${name}/operating-mode/switch`,
-  initiativeOperatingModeStartPhase: (name: string, phase: string) =>
-    `/initiatives/${name}/operating-mode/phases/${phase}/start`,
-  initiativeOperatingModeRefreshRound: (name: string, round: number, mode: string) =>
-    `/initiatives/${name}/operating-mode/rounds/${round}/refresh?mode=${encodeURIComponent(mode)}`,
-  initiativeOperatingModeCancelRound: (name: string, round: number, mode: string) =>
-    `/initiatives/${name}/operating-mode/rounds/${round}/cancel?mode=${encodeURIComponent(mode)}`,
-  initiativeOperatingModeCompleteItems: (name: string, round: number, mode: string) =>
-    `/initiatives/${name}/operating-mode/rounds/${round}/complete-items?mode=${encodeURIComponent(mode)}`,
-  initiativeOperatingModeApplyBacklogSync: (name: string, round: number, mode: string) =>
-    `/initiatives/${name}/operating-mode/rounds/${round}/apply-backlog-sync?mode=${encodeURIComponent(mode)}`,
-  operatingModes: "/operating-modes",
-  operatingMode: (mode: string) => `/operating-modes/${encodeURIComponent(mode)}`,
-  operatingModeSimulate: (mode: string, preset?: string) =>
-    `/operating-modes/${encodeURIComponent(mode)}/simulate${
-      preset ? `?preset=${encodeURIComponent(preset)}` : ""
-    }`,
-  operatingModeSimulateRender: (mode: string) =>
-    `/operating-modes/${encodeURIComponent(mode)}/simulate/render`,
-  initiativeOperatingModeRenderPrompt: (name: string, phase: string) =>
-    `/initiatives/${name}/operating-mode/phases/${encodeURIComponent(phase)}/render`,
+  // The operating-mode subsystem is served over Proto + Connect-RPC
+  // (`OperatingModeService`); its client lives in
+  // `services/initiative-mode-service.ts`, not this REST endpoint table.
   graph: "/graph",
   plan: "/plan",
   overview: "/overview",

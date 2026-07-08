@@ -141,12 +141,13 @@
               "name": "verdict",
               "type": "string",
               "required": true,
-              "description": "Acceptance verdict for the drained initiative against its acceptance criteria."
+              "description": "Acceptance verdict for the drained initiative against its acceptance criteria. Use accept / accepted when the criteria are met; changes_requested when specific fixable gaps should be re-executed before acceptance (routes back to execute_next); any other non-accepting verdict records the gap and reconciles."
             }
           ]
         },
         "metrics": { "counts_acceptance_sample": true },
         "transitions": [
+          { "when": { "op": "eq", "field": "verdict", "value": "changes_requested" }, "to": ["execute_next"] },
           { "when": { "op": "always" }, "to": ["reconcile"] }
         ]
       },

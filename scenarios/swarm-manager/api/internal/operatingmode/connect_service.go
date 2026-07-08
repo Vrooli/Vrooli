@@ -17,10 +17,9 @@ import (
 )
 
 // ConnectService implements the typed OperatingModeService Connect contract over
-// the same *Service chokepoint the (transitional) REST surface uses — only the
-// transport differs. The shared generated client is what lets the UI and CLI
-// drop their hand-rolled JSON fetch code and consume one wire contract. The REST
-// handler stays mounted until those consumers migrate; this service is additive.
+// the *Service chokepoint — the sole transport for the operating-mode subsystem.
+// The generated client is what lets the UI and CLI consume one wire contract; the
+// bespoke gorilla/mux JSON surface it replaced has been deleted.
 type ConnectService struct {
 	svc *Service
 }
@@ -30,7 +29,7 @@ type ConnectService struct {
 func NewConnectService(svc *Service) *ConnectService { return &ConnectService{svc: svc} }
 
 // RegisterConnectService mounts the OperatingModeService Connect handler on the
-// router alongside the existing REST routes.
+// router — the operating-mode subsystem's only transport.
 func RegisterConnectService(router *mux.Router, svc *Service) {
 	path, handler := apiconnect.NewOperatingModeServiceHandler(NewConnectService(svc))
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: handler})
@@ -38,8 +37,10 @@ func RegisterConnectService(router *mux.Router, svc *Service) {
 
 var _ apiconnect.OperatingModeServiceHandler = (*ConnectService)(nil)
 
-// connectError maps the operating-mode service's typed errors to Connect codes,
-// mirroring the REST handler's mapOperatingModeError classification.
+// connectError maps the operating-mode service's typed errors to Connect codes:
+// lock/round conflicts to Aborted/FailedPrecondition, unknown selectors to
+// NotFound, validation failures to InvalidArgument, and unavailable dependencies
+// to Unavailable.
 func connectError(err error) *connect.Error {
 	var conflict *initiativelock.Conflict
 	var activeConflict *ActiveItemExecutionsConflict
@@ -47,7 +48,9 @@ func connectError(err error) *connect.Error {
 	switch {
 	case errors.Is(err, ErrApplyModeNotImplemented):
 		return connect.NewError(connect.CodeUnimplemented, err)
-	case errors.As(err, &activeConflict), errors.As(err, &activeRoundConflict):
+	case errors.As(err, &activeConflict):
+		return activeItemExecutionsConflictError(activeConflict)
+	case errors.As(err, &activeRoundConflict):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	case errors.As(err, &conflict):
 		return connect.NewError(connect.CodeAborted, err)
@@ -67,6 +70,24 @@ func connectError(err error) *connect.Error {
 	default:
 		return connect.NewError(connect.CodeInternal, err)
 	}
+}
+
+// activeItemExecutionsConflictError builds a FailedPrecondition error carrying
+// the structured conflict detail the UI reads to list the affected item
+// executions before re-submitting the switch with cancellation — the Connect
+// equivalent of the REST handler's `active_item_executions` conflict body.
+func activeItemExecutionsConflictError(c *ActiveItemExecutionsConflict) *connect.Error {
+	cerr := connect.NewError(connect.CodeFailedPrecondition, c)
+	detail, derr := connect.NewErrorDetail(&apipb.OperatingModeActiveItemExecutionsConflict{
+		InitiativeName: c.InitiativeName,
+		FromMode:       c.FromMode,
+		ToMode:         c.ToMode,
+		Executions:     activeExecutionsToProto(c.Executions),
+	})
+	if derr == nil {
+		cerr.AddDetail(detail)
+	}
+	return cerr
 }
 
 func invalidArg(msg string) *connect.Error {

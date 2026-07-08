@@ -1,190 +1,49 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"fmt"
-	"net/url"
+	"os"
 	"strings"
 
+	"connectrpc.com/connect"
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
-type operatingModeWorkspaceResponse struct {
-	InitiativeName string                  `json:"initiative_name"`
-	Mode           string                  `json:"mode"`
-	Definition     operatingModeDef        `json:"definition"`
-	Rounds         []operatingModeRound    `json:"rounds"`
-	Artifacts      []operatingModeArtifact `json:"artifacts"`
-}
+// Per-initiative `swarm-manager initiatives mode-*` commands operate on a
+// specific initiative's operating-mode workspace. Like the top-level
+// operating-mode commands, they speak the typed OperatingModeService Connect
+// contract via the generated client.
 
-type operatingModeCatalogResponse struct {
-	Modes []operatingModeCatalogEntry `json:"modes"`
-}
-
-type operatingModeCatalogEntry struct {
-	Mode           string                      `json:"mode"`
-	Label          string                      `json:"label"`
-	ScopeKind      string                      `json:"scope_kind"`
-	RunStrategy    string                      `json:"run_strategy"`
-	WorkspaceTabID string                      `json:"workspace_tab_id"`
-	Capabilities   operatingModeCapabilities   `json:"capabilities"`
-	Default        bool                        `json:"default"`
-	Switchable     bool                        `json:"switchable"`
-	SupportsPhases bool                        `json:"supports_phases"`
-	Phases         []operatingModeCatalogPhase `json:"phases,omitempty"`
-}
-
-type operatingModeCapabilities struct {
-	SupportsPhases               bool `json:"supports_phases"`
-	CanStartPhases               bool `json:"can_start_phases"`
-	CanCompleteItems             bool `json:"can_complete_items"`
-	CanApplyBacklogSyncProposals bool `json:"can_apply_backlog_sync_proposals"`
-	RequiresAcceptanceCriteria   bool `json:"requires_acceptance_criteria"`
-	SupportsArtifacts            bool `json:"supports_artifacts"`
-	SupportsHandoffs             bool `json:"supports_handoffs"`
-	UsesItemExecutionFlow        bool `json:"uses_item_execution_flow"`
-}
-
-// operatingModeCatalogPhase mirrors api/internal/operatingmode.ModeCatalogPhase.
-// Used by both cmd_operating_mode.go (top-level operating-mode commands) and
-// cmd_initiatives_operating_mode.go (per-initiative mode commands).
-type operatingModeCatalogPhase struct {
-	Phase                 string                            `json:"phase"`
-	Title                 string                            `json:"title"`
-	Purpose               string                            `json:"purpose"`
-	Trigger               string                            `json:"trigger"`
-	ProfileKey            string                            `json:"profile_key"`
-	WritesRepo            bool                              `json:"writes_repo"`
-	RequiresCriteria      bool                              `json:"requires_criteria,omitempty"`
-	IsStart               bool                              `json:"is_start,omitempty"`
-	IsTerminal            bool                              `json:"is_terminal,omitempty"`
-	OutputArtifacts       []operatingModeArtifactDef        `json:"output_artifacts,omitempty"`
-	OutputContract        operatingModePhaseContractSummary `json:"output_contract"`
-	CatalogID             string                            `json:"catalog_id"`
-	SkillID               string                            `json:"skill_id"`
-	ActivityPurpose       string                            `json:"activity_purpose"`
-	LockPurpose           string                            `json:"lock_purpose"`
-	ResultBindings        []operatingModeResultBinding      `json:"result_bindings,omitempty"`
-	SamplesReplanRate     bool                              `json:"samples_replan_rate,omitempty"`
-	SamplesAcceptanceRate bool                              `json:"samples_acceptance_rate,omitempty"`
-}
-
-type operatingModeDef struct {
-	Label        string                        `json:"label"`
-	ScopeKind    string                        `json:"scope_kind"`
-	RunStrategy  string                        `json:"run_strategy"`
-	Capabilities operatingModeCapabilities     `json:"capabilities"`
-	Phases       []operatingModeWorkspacePhase `json:"phases"`
-	Transitions  map[string][]string           `json:"transitions,omitempty"`
-}
-
-type operatingModeWorkspacePhase struct {
-	Phase      string `json:"phase"`
-	ProfileKey string `json:"profile_key"`
-	WritesRepo bool   `json:"writes_repo"`
-}
-
-type operatingModeArtifact struct {
-	Path      string `json:"path"`
-	Required  bool   `json:"required,omitempty"`
-	SizeBytes int64  `json:"size_bytes,omitempty"`
-	UpdatedAt string `json:"updated_at,omitempty"`
-}
-
-type operatingModeRound struct {
-	Round           int                 `json:"round"`
-	Mode            string              `json:"mode"`
-	Phase           string              `json:"phase"`
-	Status          string              `json:"status"`
-	RunID           string              `json:"run_id,omitempty"`
-	AgentProfileKey string              `json:"agent_profile_key"`
-	GeneratedAt     string              `json:"generated_at"`
-	Items           []operatingModeItem `json:"items,omitempty"`
-	Payload         map[string]any      `json:"payload,omitempty"`
-	Error           string              `json:"error,omitempty"`
-}
-
-type operatingModeItem struct {
-	Ref    string `json:"ref"`
-	Title  string `json:"title,omitempty"`
-	Status string `json:"status,omitempty"`
-}
-
-type operatingModeSwitchResponse struct {
-	InitiativeName         string                   `json:"initiative_name"`
-	FromMode               string                   `json:"from_mode"`
-	ToMode                 string                   `json:"to_mode"`
-	RequiresCancellation   bool                     `json:"requires_cancellation,omitempty"`
-	ActiveItemExecutions   []activeItemExecutionCLI `json:"active_item_executions,omitempty"`
-	CanceledItemExecutions []activeItemExecutionCLI `json:"canceled_item_executions,omitempty"`
-}
-
-type activeItemExecutionCLI struct {
-	ItemRef     string `json:"item_ref"`
-	ExecutionID string `json:"execution_id,omitempty"`
-	RunID       string `json:"run_id,omitempty"`
-	Status      string `json:"status,omitempty"`
-}
-
-type operatingModeBacklogSyncResponse struct {
-	InitiativeName string                       `json:"initiative_name"`
-	Mode           string                       `json:"mode"`
-	Phase          string                       `json:"phase"`
-	Round          int                          `json:"round"`
-	RunID          string                       `json:"run_id,omitempty"`
-	CompletedItems []operatingModeCompletedItem `json:"completed_items,omitempty"`
-	ProposalResult *operatingModeProposalResult `json:"proposal_result,omitempty"`
-	Noop           bool                         `json:"noop,omitempty"`
-}
-
-type operatingModeCompletedItem struct {
-	ItemRef    string `json:"item_ref"`
-	FromStatus string `json:"from_status"`
-	ToStatus   string `json:"to_status"`
-}
-
-type operatingModeProposalResult struct {
-	Applied  int                            `json:"applied"`
-	Failed   int                            `json:"failed"`
-	Skipped  int                            `json:"skipped"`
-	Created  int                            `json:"created,omitempty"`
-	Updated  int                            `json:"updated,omitempty"`
-	Outcomes []operatingModeProposalOutcome `json:"outcomes,omitempty"`
-}
-
-type operatingModeProposalOutcome struct {
-	MutationID string `json:"mutation_id"`
-	Op         string `json:"op"`
-	Target     string `json:"target,omitempty"`
-	Applied    bool   `json:"applied"`
-	Skipped    bool   `json:"skipped,omitempty"`
-	Error      string `json:"error,omitempty"`
-}
-
-func printOperatingModeCapabilities(header, prefix string, capabilities operatingModeCapabilities) {
+func printOperatingModeCapabilities(header, prefix string, capabilities *apipb.OperatingModeCapabilities) {
 	labels := make([]string, 0, 8)
-	if capabilities.SupportsPhases {
+	if capabilities.GetSupportsPhases() {
 		labels = append(labels, "phases")
 	}
-	if capabilities.CanStartPhases {
+	if capabilities.GetCanStartPhases() {
 		labels = append(labels, "start phases")
 	}
-	if capabilities.CanCompleteItems {
+	if capabilities.GetCanCompleteItems() {
 		labels = append(labels, "complete items")
 	}
-	if capabilities.CanApplyBacklogSyncProposals {
+	if capabilities.GetCanApplyBacklogSyncProposals() {
 		labels = append(labels, "apply backlog proposals")
 	}
-	if capabilities.RequiresAcceptanceCriteria {
+	if capabilities.GetRequiresAcceptanceCriteria() {
 		labels = append(labels, "acceptance criteria")
 	}
-	if capabilities.SupportsArtifacts {
+	if capabilities.GetSupportsArtifacts() {
 		labels = append(labels, "artifacts")
 	}
-	if capabilities.SupportsHandoffs {
+	if capabilities.GetSupportsHandoffs() {
 		labels = append(labels, "handoffs")
 	}
-	if capabilities.UsesItemExecutionFlow {
+	if capabilities.GetUsesItemExecutionFlow() {
 		labels = append(labels, "item execution flow")
 	}
 	if len(labels) == 0 {
@@ -202,43 +61,40 @@ func (a *App) cmdInitiativesModeList(args []string) error {
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	body, err := a.core.Get("/operating-modes", nil)
+	resp, err := a.operatingModeClient().Catalog(context.Background(), connect.NewRequest(&apipb.OperatingModeCatalogRequest{}))
 	if err != nil {
 		return err
 	}
-	if printJSONIfRequested(*jsonOut, body) {
-		return nil
-	}
-	resp, err := decodeResponse[operatingModeCatalogResponse](body)
-	if err != nil {
-		return err
+	if *jsonOut {
+		return cliapp.PrintProtoJSON(os.Stdout, resp.Msg)
 	}
 	printSection("Operating Modes")
-	if len(resp.Modes) == 0 {
+	modes := resp.Msg.GetModes()
+	if len(modes) == 0 {
 		fmt.Println("  (none)")
 		return nil
 	}
-	for _, mode := range resp.Modes {
+	for _, mode := range modes {
 		defaultMark := ""
-		if mode.Default {
+		if mode.GetDefault() {
 			defaultMark = " [default]"
 		}
-		fmt.Printf("  - %s%s (%s)\n", mode.Mode, defaultMark, mode.Label)
-		if mode.ScopeKind != "" {
-			fmt.Printf("    scope: %s\n", mode.ScopeKind)
+		fmt.Printf("  - %s%s (%s)\n", mode.GetMode(), defaultMark, mode.GetLabel())
+		if mode.GetScopeKind() != "" {
+			fmt.Printf("    scope: %s\n", mode.GetScopeKind())
 		}
-		if mode.RunStrategy != "" {
-			fmt.Printf("    strategy: %s\n", mode.RunStrategy)
+		if mode.GetRunStrategy() != "" {
+			fmt.Printf("    strategy: %s\n", mode.GetRunStrategy())
 		}
-		printOperatingModeCapabilities("    capabilities:", "      - ", mode.Capabilities)
-		if len(mode.Phases) > 0 {
+		printOperatingModeCapabilities("    capabilities:", "      - ", mode.GetCapabilities())
+		if len(mode.GetPhases()) > 0 {
 			fmt.Println("    phases:")
-			for _, phase := range mode.Phases {
+			for _, phase := range mode.GetPhases() {
 				writeAccess := "read-only"
-				if phase.WritesRepo {
+				if phase.GetWritesRepo() {
 					writeAccess = "writes repo"
 				}
-				fmt.Printf("      - %s (%s, %s)\n", phase.Phase, phase.ProfileKey, writeAccess)
+				fmt.Printf("      - %s (%s, %s)\n", phase.GetPhase(), phase.GetProfileKey(), writeAccess)
 			}
 		}
 	}
@@ -256,64 +112,63 @@ func (a *App) cmdInitiativesModeWorkspace(args []string) error {
 		return fmt.Errorf("usage: initiatives mode-workspace --name NAME [--json]\n\n%s", err)
 	}
 	name := strings.TrimSpace(*nameFlag)
-
-	body, err := a.core.Get("/initiatives/"+name+"/operating-mode/workspace", nil)
+	resp, err := a.operatingModeClient().GetWorkspace(context.Background(), connect.NewRequest(&apipb.OperatingModeWorkspaceRequest{
+		InitiativeName: name,
+	}))
 	if err != nil {
 		return err
 	}
-	if printJSONIfRequested(*jsonOut, body) {
-		return nil
+	if *jsonOut {
+		return cliapp.PrintProtoJSON(os.Stdout, resp.Msg)
 	}
-	resp, err := decodeResponse[operatingModeWorkspaceResponse](body)
-	if err != nil {
-		return err
-	}
+	ws := resp.Msg
+	def := ws.GetDefinition()
 
 	printSection("Operating Mode")
-	fmt.Printf("  Initiative: %s\n", resp.InitiativeName)
-	fmt.Printf("  Mode:       %s\n", resp.Mode)
-	if resp.Definition.Label != "" {
-		fmt.Printf("  Label:      %s\n", resp.Definition.Label)
+	fmt.Printf("  Initiative: %s\n", ws.GetInitiativeName())
+	fmt.Printf("  Mode:       %s\n", ws.GetMode())
+	if def.GetLabel() != "" {
+		fmt.Printf("  Label:      %s\n", def.GetLabel())
 	}
-	if resp.Definition.RunStrategy != "" {
-		fmt.Printf("  Strategy:   %s\n", resp.Definition.RunStrategy)
+	if def.GetRunStrategy() != "" {
+		fmt.Printf("  Strategy:   %s\n", def.GetRunStrategy())
 	}
-	printOperatingModeCapabilities("  Capabilities:", "    - ", resp.Definition.Capabilities)
+	printOperatingModeCapabilities("  Capabilities:", "    - ", def.GetCapabilities())
 	printSection("Phases")
-	if len(resp.Definition.Phases) == 0 {
+	if len(def.GetPhases()) == 0 {
 		fmt.Println("  (none)")
 	} else {
-		for _, phase := range resp.Definition.Phases {
+		for _, phase := range def.GetPhases() {
 			writeAccess := "read-only"
-			if phase.WritesRepo {
+			if phase.GetWritesRepo() {
 				writeAccess = "writes repo"
 			}
-			fmt.Printf("  - %s (%s, %s)\n", phase.Phase, phase.ProfileKey, writeAccess)
+			fmt.Printf("  - %s (%s, %s)\n", phase.GetPhase(), phase.GetProfileKey(), writeAccess)
 		}
 	}
 	printSection("Artifacts")
-	if len(resp.Artifacts) == 0 {
+	if len(ws.GetArtifacts()) == 0 {
 		fmt.Println("  (none)")
 	} else {
-		for _, artifact := range resp.Artifacts {
+		for _, artifact := range ws.GetArtifacts() {
 			status := "optional"
-			if artifact.Required {
+			if artifact.GetRequired() {
 				status = "required"
 			}
-			if artifact.SizeBytes > 0 {
-				status = fmt.Sprintf("%d bytes", artifact.SizeBytes)
+			if artifact.GetSizeBytes() > 0 {
+				status = fmt.Sprintf("%d bytes", artifact.GetSizeBytes())
 			}
-			fmt.Printf("  - %s (%s)\n", artifact.Path, status)
+			fmt.Printf("  - %s (%s)\n", artifact.GetPath(), status)
 		}
 	}
 	printSection("Rounds")
-	if len(resp.Rounds) == 0 {
+	if len(ws.GetRounds()) == 0 {
 		fmt.Println("  (none)")
 	} else {
-		for _, round := range resp.Rounds {
-			fmt.Printf("  - round %d: %s/%s", round.Round, round.Phase, round.Status)
-			if round.RunID != "" {
-				fmt.Printf(" run=%s", round.RunID)
+		for _, round := range ws.GetRounds() {
+			fmt.Printf("  - round %d: %s/%s", round.GetRound(), round.GetPhase(), round.GetStatus())
+			if round.GetRunId() != "" {
+				fmt.Printf(" run=%s", round.GetRunId())
 			}
 			fmt.Println()
 		}
@@ -335,31 +190,72 @@ func (a *App) cmdInitiativesModeSwitch(args []string) error {
 		return fmt.Errorf("usage: initiatives mode-switch --name NAME --mode MODE [--cancel-active-item-executions] [--requested-by WHO] [--json]\n\n%s", err)
 	}
 	name := strings.TrimSpace(*nameFlag)
-	payload := map[string]any{
-		"mode":                          strings.TrimSpace(*modeFlag),
-		"cancel_active_item_executions": *cancelFlag,
-		"requested_by":                  defaultString(strings.TrimSpace(*requestedByFlag), "swarm-manager-cli"),
-	}
-	body, err := a.core.Request("POST", "/initiatives/"+name+"/operating-mode/switch", nil, mustJSON(payload))
+	resp, err := a.operatingModeClient().SwitchMode(context.Background(), connect.NewRequest(&apipb.OperatingModeSwitchRequest{
+		InitiativeName:             name,
+		Mode:                       strings.TrimSpace(*modeFlag),
+		CancelActiveItemExecutions: *cancelFlag,
+		RequestedBy:                defaultString(strings.TrimSpace(*requestedByFlag), "swarm-manager-cli"),
+	}))
 	if err != nil {
-		return err
+		return operatingModeSwitchError(err)
 	}
-	if printJSONIfRequested(*jsonOut, body) {
-		return nil
+	if *jsonOut {
+		return cliapp.PrintProtoJSON(os.Stdout, resp.Msg)
 	}
-	resp, err := decodeResponse[operatingModeSwitchResponse](body)
-	if err != nil {
-		return err
-	}
+	result := resp.Msg
 	printSection("Mode Switch")
-	fmt.Printf("  Initiative: %s\n", resp.InitiativeName)
-	fmt.Printf("  Mode:       %s -> %s\n", resp.FromMode, resp.ToMode)
-	if len(resp.CanceledItemExecutions) > 0 {
-		fmt.Printf("  Canceled item executions: %d\n", len(resp.CanceledItemExecutions))
+	fmt.Printf("  Initiative: %s\n", result.GetInitiativeName())
+	fmt.Printf("  Mode:       %s -> %s\n", result.GetFromMode(), result.GetToMode())
+	if len(result.GetCanceledItemExecutions()) > 0 {
+		fmt.Printf("  Canceled item executions: %d\n", len(result.GetCanceledItemExecutions()))
 	}
 	printCommandListSection("Next Steps", []string{
 		cliCommand("initiatives", "mode-workspace", "--name", name),
 	})
+	return nil
+}
+
+// operatingModeSwitchError enriches a failed SwitchMode with the structured
+// active-item-executions conflict detail (the Connect equivalent of the REST
+// `active_item_executions` conflict body) so the operator sees which executions
+// block the switch and can re-run with --cancel-active-item-executions.
+func operatingModeSwitchError(err error) error {
+	conflict := activeItemExecutionsConflictDetail(err)
+	if conflict == nil {
+		return err
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "cannot switch %q from %s to %s: %d active item execution(s) must be canceled first",
+		conflict.GetInitiativeName(), conflict.GetFromMode(), conflict.GetToMode(), len(conflict.GetExecutions()))
+	for _, exec := range conflict.GetExecutions() {
+		fmt.Fprintf(&b, "\n  - %s", exec.GetItemRef())
+		if exec.GetStatus() != "" {
+			fmt.Fprintf(&b, " (%s)", exec.GetStatus())
+		}
+		if exec.GetRunId() != "" {
+			fmt.Fprintf(&b, " run=%s", exec.GetRunId())
+		}
+	}
+	b.WriteString("\nRe-run with --cancel-active-item-executions to cancel them and switch.")
+	return fmt.Errorf("%s", b.String())
+}
+
+// activeItemExecutionsConflictDetail extracts the structured conflict detail
+// from a Connect error, returning nil when the error is not a switch conflict.
+func activeItemExecutionsConflictDetail(err error) *apipb.OperatingModeActiveItemExecutionsConflict {
+	var connectErr *connect.Error
+	if !errors.As(err, &connectErr) {
+		return nil
+	}
+	for _, detail := range connectErr.Details() {
+		msg, valueErr := detail.Value()
+		if valueErr != nil {
+			continue
+		}
+		if conflict, ok := msg.(*apipb.OperatingModeActiveItemExecutionsConflict); ok {
+			return conflict
+		}
+	}
 	return nil
 }
 
@@ -377,25 +273,20 @@ func (a *App) cmdInitiativesModeStart(args []string) error {
 	if err := requireFlags("name", *nameFlag, "phase", *phaseFlag); err != nil {
 		return fmt.Errorf("usage: initiatives mode-start --name NAME --phase PHASE [--note MSG] [--override] [--requested-by WHO] [--json]\n\n%s", err)
 	}
-	name := strings.TrimSpace(*nameFlag)
-	phase := strings.TrimSpace(*phaseFlag)
-	payload := map[string]any{
-		"note":         strings.TrimSpace(*noteFlag),
-		"override":     *overrideFlag,
-		"requested_by": defaultString(strings.TrimSpace(*requestedByFlag), "swarm-manager-cli"),
-	}
-	body, err := a.core.Request("POST", fmt.Sprintf("/initiatives/%s/operating-mode/phases/%s/start", name, phase), nil, mustJSON(payload))
+	resp, err := a.operatingModeClient().StartPhase(context.Background(), connect.NewRequest(&apipb.OperatingModeStartPhaseRequest{
+		InitiativeName: strings.TrimSpace(*nameFlag),
+		Phase:          strings.TrimSpace(*phaseFlag),
+		Note:           strings.TrimSpace(*noteFlag),
+		Override:       *overrideFlag,
+		RequestedBy:    defaultString(strings.TrimSpace(*requestedByFlag), "swarm-manager-cli"),
+	}))
 	if err != nil {
 		return err
 	}
-	if printJSONIfRequested(*jsonOut, body) {
-		return nil
+	if *jsonOut {
+		return cliapp.PrintProtoJSON(os.Stdout, resp.Msg)
 	}
-	round, err := decodeResponse[operatingModeRound](body)
-	if err != nil {
-		return err
-	}
-	printModeRound("Started Round", round)
+	printModeRound("Started Round", resp.Msg)
 	return nil
 }
 
@@ -422,21 +313,31 @@ func (a *App) runModeRoundCommand(args []string, action string) error {
 	if *roundFlag <= 0 {
 		return fmt.Errorf("--round must be a positive integer")
 	}
-	name := strings.TrimSpace(*nameFlag)
-	mode := strings.TrimSpace(*modeFlag)
-	query := url.Values{"mode": []string{mode}}
-	body, err := a.core.Request("POST", fmt.Sprintf("/initiatives/%s/operating-mode/rounds/%d/%s", name, *roundFlag, action), query, nil)
+	req := connect.NewRequest(&apipb.OperatingModeRoundActionRequest{
+		InitiativeName: strings.TrimSpace(*nameFlag),
+		Mode:           strings.TrimSpace(*modeFlag),
+		Round:          int32(*roundFlag),
+	})
+	client := a.operatingModeClient()
+	var (
+		resp *connect.Response[apipb.OperatingModeRoundEnvelope]
+		err  error
+	)
+	switch action {
+	case "refresh":
+		resp, err = client.RefreshRound(context.Background(), req)
+	case "cancel":
+		resp, err = client.CancelRound(context.Background(), req)
+	default:
+		return fmt.Errorf("unknown round action %q", action)
+	}
 	if err != nil {
 		return err
 	}
-	if printJSONIfRequested(*jsonOut, body) {
-		return nil
+	if *jsonOut {
+		return cliapp.PrintProtoJSON(os.Stdout, resp.Msg)
 	}
-	round, err := decodeResponse[operatingModeRound](body)
-	if err != nil {
-		return err
-	}
-	printModeRound(modeRoundActionTitle(action), round)
+	printModeRound(modeRoundActionTitle(action), resp.Msg)
 	return nil
 }
 
@@ -458,27 +359,21 @@ func (a *App) cmdInitiativesModeComplete(args []string) error {
 	if *roundFlag <= 0 {
 		return fmt.Errorf("--round must be a positive integer")
 	}
-	name := strings.TrimSpace(*nameFlag)
-	mode := strings.TrimSpace(*modeFlag)
-	query := url.Values{"mode": []string{mode}}
-	payload := map[string]any{
-		"mode":         mode,
-		"run_id":       strings.TrimSpace(*runIDFlag),
-		"item_refs":    cliutil.ParseCSV(*itemsFlag),
-		"requested_by": defaultString(strings.TrimSpace(*requestedByFlag), "swarm-manager-cli"),
-	}
-	body, err := a.core.Request("POST", fmt.Sprintf("/initiatives/%s/operating-mode/rounds/%d/complete-items", name, *roundFlag), query, mustJSON(payload))
+	resp, err := a.operatingModeClient().CompleteItems(context.Background(), connect.NewRequest(&apipb.OperatingModeCompleteItemsRequest{
+		InitiativeName: strings.TrimSpace(*nameFlag),
+		Mode:           strings.TrimSpace(*modeFlag),
+		Round:          int32(*roundFlag),
+		RunId:          strings.TrimSpace(*runIDFlag),
+		ItemRefs:       cliutil.ParseCSV(*itemsFlag),
+		RequestedBy:    defaultString(strings.TrimSpace(*requestedByFlag), "swarm-manager-cli"),
+	}))
 	if err != nil {
 		return err
 	}
-	if printJSONIfRequested(*jsonOut, body) {
-		return nil
+	if *jsonOut {
+		return cliapp.PrintProtoJSON(os.Stdout, resp.Msg)
 	}
-	resp, err := decodeResponse[operatingModeBacklogSyncResponse](body)
-	if err != nil {
-		return err
-	}
-	printBacklogSyncResponse(resp)
+	printBacklogSyncResponse(resp.Msg)
 	return nil
 }
 
@@ -500,76 +395,71 @@ func (a *App) cmdInitiativesModeApplyBacklogSync(args []string) error {
 	if *roundFlag <= 0 {
 		return fmt.Errorf("--round must be a positive integer")
 	}
-	name := strings.TrimSpace(*nameFlag)
-	mode := strings.TrimSpace(*modeFlag)
-	query := url.Values{"mode": []string{mode}}
-	payload := map[string]any{
-		"mode":                  mode,
-		"run_id":                strings.TrimSpace(*runIDFlag),
-		"accepted_mutation_ids": cliutil.ParseCSV(*mutationsFlag),
-		"requested_by":          defaultString(strings.TrimSpace(*requestedByFlag), "swarm-manager-cli"),
-	}
-	body, err := a.core.Request("POST", fmt.Sprintf("/initiatives/%s/operating-mode/rounds/%d/apply-backlog-sync", name, *roundFlag), query, mustJSON(payload))
+	resp, err := a.operatingModeClient().ApplyBacklogSync(context.Background(), connect.NewRequest(&apipb.OperatingModeApplyBacklogSyncRequest{
+		InitiativeName:      strings.TrimSpace(*nameFlag),
+		Mode:                strings.TrimSpace(*modeFlag),
+		Round:               int32(*roundFlag),
+		RunId:               strings.TrimSpace(*runIDFlag),
+		AcceptedMutationIds: cliutil.ParseCSV(*mutationsFlag),
+		RequestedBy:         defaultString(strings.TrimSpace(*requestedByFlag), "swarm-manager-cli"),
+	}))
 	if err != nil {
 		return err
 	}
-	if printJSONIfRequested(*jsonOut, body) {
-		return nil
+	if *jsonOut {
+		return cliapp.PrintProtoJSON(os.Stdout, resp.Msg)
 	}
-	resp, err := decodeResponse[operatingModeBacklogSyncResponse](body)
-	if err != nil {
-		return err
-	}
-	printBacklogSyncResponse(resp)
+	printBacklogSyncResponse(resp.Msg)
 	return nil
 }
 
-func printBacklogSyncResponse(resp operatingModeBacklogSyncResponse) {
+func printBacklogSyncResponse(resp *apipb.OperatingModeBacklogSyncResult) {
 	printSection("Backlog Sync")
-	fmt.Printf("  Initiative: %s\n", resp.InitiativeName)
-	fmt.Printf("  Mode:       %s\n", resp.Mode)
-	fmt.Printf("  Round:      %d\n", resp.Round)
-	if len(resp.CompletedItems) > 0 {
-		fmt.Printf("  Completed:  %d item(s)\n", len(resp.CompletedItems))
-		for _, item := range resp.CompletedItems {
-			fmt.Printf("  - %s: %s -> %s\n", item.ItemRef, item.FromStatus, item.ToStatus)
+	fmt.Printf("  Initiative: %s\n", resp.GetInitiativeName())
+	fmt.Printf("  Mode:       %s\n", resp.GetMode())
+	fmt.Printf("  Round:      %d\n", resp.GetRound())
+	proposal := resp.GetProposalResult()
+	if len(resp.GetCompletedItems()) > 0 {
+		fmt.Printf("  Completed:  %d item(s)\n", len(resp.GetCompletedItems()))
+		for _, item := range resp.GetCompletedItems() {
+			fmt.Printf("  - %s: %s -> %s\n", item.GetItemRef(), item.GetFromStatus(), item.GetToStatus())
 		}
-	} else if resp.ProposalResult == nil {
+	} else if proposal == nil {
 		fmt.Println("  Completed:  0 item(s)")
 	}
-	if resp.ProposalResult != nil {
-		fmt.Printf("  Proposal:   %d applied, %d skipped, %d failed\n", resp.ProposalResult.Applied, resp.ProposalResult.Skipped, resp.ProposalResult.Failed)
-		if resp.ProposalResult.Created > 0 || resp.ProposalResult.Updated > 0 {
-			fmt.Printf("  Mutations:  %d created, %d updated\n", resp.ProposalResult.Created, resp.ProposalResult.Updated)
+	if proposal != nil {
+		fmt.Printf("  Proposal:   %d applied, %d skipped, %d failed\n", proposal.GetApplied(), proposal.GetSkipped(), proposal.GetFailed())
+		if proposal.GetCreated() > 0 || proposal.GetUpdated() > 0 {
+			fmt.Printf("  Mutations:  %d created, %d updated\n", proposal.GetCreated(), proposal.GetUpdated())
 		}
-		for _, outcome := range resp.ProposalResult.Outcomes {
+		for _, outcome := range proposal.GetOutcomes() {
 			status := "applied"
-			if outcome.Skipped {
+			if outcome.GetSkipped() {
 				status = "skipped"
 			}
-			if outcome.Error != "" {
-				status = "failed: " + outcome.Error
+			if outcome.GetError() != "" {
+				status = "failed: " + outcome.GetError()
 			}
-			target := outcome.Target
+			target := outcome.GetTarget()
 			if target == "" {
-				target = outcome.Op
+				target = outcome.GetOp()
 			}
-			fmt.Printf("  - %s (%s): %s\n", outcome.MutationID, target, status)
+			fmt.Printf("  - %s (%s): %s\n", outcome.GetMutationId(), target, status)
 		}
 	}
 }
 
-func printModeRound(title string, round operatingModeRound) {
+func printModeRound(title string, round *apipb.OperatingModeRoundEnvelope) {
 	printSection(title)
-	fmt.Printf("  Round:   %d\n", round.Round)
-	fmt.Printf("  Mode:    %s\n", round.Mode)
-	fmt.Printf("  Phase:   %s\n", round.Phase)
-	fmt.Printf("  Status:  %s\n", round.Status)
-	if round.RunID != "" {
-		fmt.Printf("  Run ID:  %s\n", round.RunID)
+	fmt.Printf("  Round:   %d\n", round.GetRound())
+	fmt.Printf("  Mode:    %s\n", round.GetMode())
+	fmt.Printf("  Phase:   %s\n", round.GetPhase())
+	fmt.Printf("  Status:  %s\n", round.GetStatus())
+	if round.GetRunId() != "" {
+		fmt.Printf("  Run ID:  %s\n", round.GetRunId())
 	}
-	if round.AgentProfileKey != "" {
-		fmt.Printf("  Profile: %s\n", round.AgentProfileKey)
+	if round.GetAgentProfileKey() != "" {
+		fmt.Printf("  Profile: %s\n", round.GetAgentProfileKey())
 	}
 }
 
