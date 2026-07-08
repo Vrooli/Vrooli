@@ -36,6 +36,7 @@ export interface ThroughputStats {
   created_last_30_days: number;
   net_delta_7_days: number;
   net_delta_30_days: number;
+  throughput_trend: ThroughputPoint[];
 }
 
 /** How long work takes across lifecycle stages. */
@@ -112,8 +113,21 @@ export interface DashboardStats {
   total_backlog_size: number;
   total_completed_all_time: number;
   velocity_trend: VelocityPoint[];
-  estimated_weeks_remaining: number;
+  estimated_remaining: StatsEtaBand | null;
   velocity_weeks_covered: number;
+}
+
+/** p50/p80 completion estimate produced by the canonical ETA engine. */
+export interface StatsEtaBand {
+  p50_hours: number;
+  p80_hours: number;
+  p50_label: string;
+  p80_label: string;
+  basis: string;
+  basis_label: string;
+  confidence: string;
+  remaining_items: number;
+  lane_capacity: number;
 }
 
 /** Operating-mode adoption and phase-run metrics. */
@@ -164,6 +178,13 @@ export interface SessionStats {
 /** Completions in a calendar week. */
 export interface VelocityPoint {
   week_start: string;
+  completed: number;
+}
+
+/** Created and completed items in a trailing week. */
+export interface ThroughputPoint {
+  week_start: string;
+  created: number;
   completed: number;
 }
 

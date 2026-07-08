@@ -53,6 +53,7 @@ export function graphPath(options: {
   focus?: string | null;
   returnLens?: string | null;
   select?: string | null;
+  goal?: string | null;
 } = {}): string {
   const path = options.lens === "plan" ? "/plan" : options.lens === "stats" ? "/stats" : "/graph";
   const mode = options.mode ?? (options.lens === "focus" ? "focus" : null);
@@ -61,6 +62,7 @@ export function graphPath(options: {
     focus: options.focus,
     returnLens: options.returnLens,
     select: options.select,
+    goal: options.goal,
   });
 }
 

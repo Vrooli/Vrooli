@@ -317,6 +317,7 @@ func (s *aggregateState) buildThroughput(now time.Time) ThroughputStats {
 		CreatedLast30Days:   created30,
 		NetDelta7Days:       created7 - completed7,
 		NetDelta30Days:      created30 - completed30,
+		ThroughputTrend:     s.buildThroughputTrend(now),
 	}
 }
 
@@ -482,25 +483,6 @@ func (s *aggregateState) buildDashboard(now time.Time) DashboardStats {
 		})
 	}
 
-	// Avg velocity from last 4 full weeks (indices 4-7 in the 9 weeks).
-	avgVelocity := 0.0
-	if len(trend) >= 5 {
-		total := 0
-		weeks := 0
-		for i := len(trend) - 5; i < len(trend)-1; i++ {
-			total += trend[i].Completed
-			weeks++
-		}
-		if weeks > 0 {
-			avgVelocity = float64(total) / float64(weeks)
-		}
-	}
-
-	var weeksRemaining float64
-	if avgVelocity > 0 {
-		weeksRemaining = float64(len(s.currentBacklog)) / avgVelocity
-	}
-
 	// weeksCovered counts the number of *non-zero* trend weeks. The Dashboard
 	// uses this to decide whether the "Est. Remaining" pill has enough history
 	// to be trustworthy.
@@ -512,20 +494,43 @@ func (s *aggregateState) buildDashboard(now time.Time) DashboardStats {
 	}
 
 	return DashboardStats{
-		TotalBacklogSize:        len(s.currentBacklog),
-		TotalCompletedAllTime:   s.completedAllTime,
-		VelocityTrend:           trend,
-		EstimatedWeeksRemaining: weeksRemaining,
-		VelocityWeeksCovered:    weeksCovered,
+		TotalBacklogSize:      len(s.currentBacklog),
+		TotalCompletedAllTime: s.completedAllTime,
+		VelocityTrend:         trend,
+		VelocityWeeksCovered:  weeksCovered,
 	}
 }
 
 // --- helpers ---
 
+func (s *aggregateState) buildThroughputTrend(now time.Time) []ThroughputPoint {
+	trend := []ThroughputPoint{}
+	for i := 7; i >= 0; i-- {
+		weekStart := now.Add(-time.Duration(i*7*24) * time.Hour).Truncate(24 * time.Hour)
+		weekEnd := weekStart.Add(7 * 24 * time.Hour)
+		trend = append(trend, ThroughputPoint{
+			WeekStart: weekStart.Format("2006-01-02"),
+			Created:   countInWindow(s.createdEvents, weekStart, weekEnd),
+			Completed: countInWindow(s.completedEvents, weekStart, weekEnd),
+		})
+	}
+	return trend
+}
+
 func countAfter(timestamps []time.Time, after time.Time) int {
 	count := 0
 	for _, t := range timestamps {
 		if t.After(after) {
+			count++
+		}
+	}
+	return count
+}
+
+func countInWindow(timestamps []time.Time, start, end time.Time) int {
+	count := 0
+	for _, t := range timestamps {
+		if !t.Before(start) && t.Before(end) {
 			count++
 		}
 	}

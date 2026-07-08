@@ -8,6 +8,14 @@ import (
 )
 
 func (s *Service) applyPhaseResult(round *RoundEnvelope, output string) error {
+	return s.applyPhaseResultWithPersistence(round, output, true)
+}
+
+func (s *Service) applyPhaseResultInMemory(round *RoundEnvelope, output string) error {
+	return s.applyPhaseResultWithPersistence(round, output, false)
+}
+
+func (s *Service) applyPhaseResultWithPersistence(round *RoundEnvelope, output string, persistArtifacts bool) error {
 	parsed, err := ParsePhaseResultDetailed(output)
 	if err != nil {
 		return err
@@ -83,9 +91,11 @@ func (s *Service) applyPhaseResult(round *RoundEnvelope, output string) error {
 	if err := validateAppliedPhaseResult(phaseDef, result, staged); err != nil {
 		return err
 	}
-	for _, write := range writes {
-		if _, err := s.store.WriteArtifact(staged.InitiativeName, Mode(staged.Mode), write.Path, write.Content); err != nil {
-			return err
+	if persistArtifacts {
+		for _, write := range writes {
+			if _, err := s.store.WriteArtifact(staged.InitiativeName, Mode(staged.Mode), write.Path, write.Content); err != nil {
+				return err
+			}
 		}
 	}
 	*round = staged

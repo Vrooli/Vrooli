@@ -32,6 +32,7 @@ function basePhase(overrides: Partial<OperatingModeCatalogPhase> & { phase: stri
       requiresProgress: false,
       requiresVerdict: false,
       requiresHandoff: false,
+      requiresBacklogSync: false,
       requiredArtifactCount: 0,
     },
     ...overrides,

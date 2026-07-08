@@ -53,6 +53,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/operating-modes", h.Catalog).Methods("GET")
 	r.HandleFunc("/api/v1/operating-modes/{mode}", h.GetMode).Methods("GET")
 	r.HandleFunc("/api/v1/operating-modes/{mode}", h.UpdateMode).Methods("PATCH")
+	r.HandleFunc("/api/v1/operating-modes/{mode}/simulate", h.SimulateMode).Methods("POST")
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/workspace", h.Workspace).Methods("GET")
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/switch", h.SwitchMode).Methods("POST")
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/phases/{phase}/start", h.StartPhase).Methods("POST")
@@ -60,6 +61,28 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/rounds/{round:[0-9]+}/cancel", h.CancelRound).Methods("POST")
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/rounds/{round:[0-9]+}/complete-items", h.CompleteItems).Methods("POST")
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/rounds/{round:[0-9]+}/apply-backlog-sync", h.ApplyBacklogSync).Methods("POST")
+}
+
+// POST /api/v1/operating-modes/{mode}/simulate — deterministically walks a
+// phase-based operating mode against an ephemeral mock initiative. The service
+// returns the same structured-result projection live rounds use, without
+// acquiring locks, spawning agents, or writing artifacts.
+func (h *Handler) SimulateMode(w http.ResponseWriter, r *http.Request) {
+	rawMode := strings.TrimSpace(mux.Vars(r)["mode"])
+	if rawMode == "" {
+		apierr.MapError(w, "[operating-mode] simulate", apierr.BadRequest("mode is required"))
+		return
+	}
+	if !ValidateMode(rawMode) {
+		apierr.MapError(w, "[operating-mode] simulate", apierr.NotFound("unknown operating mode %q", rawMode))
+		return
+	}
+	result, err := h.service.SimulateMode(r.Context(), NormalizeMode(rawMode))
+	if err != nil {
+		mapOperatingModeError(w, "[operating-mode] simulate", err)
+		return
+	}
+	writeOperatingModeJSON(w, "[operating-mode] simulate", result)
 }
 
 // writeOperatingModeJSON encodes payload as the success response, mapping an

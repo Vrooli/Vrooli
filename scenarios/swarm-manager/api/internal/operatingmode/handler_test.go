@@ -218,6 +218,37 @@ func TestGetModeRejectsUnknown(t *testing.T) {
 	}
 }
 
+func TestSimulateModeEndpointReturnsTrace(t *testing.T) {
+	root := t.TempDir()
+	svc := newTestServiceWithOptions(t, root, serviceOptions{})
+	router := mux.NewRouter()
+	NewHandler(svc).RegisterRoutes(router)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/operating-modes/phased-plan-drain/simulate", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var got SimulationResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if got.Mode != string(ModePhasedPlanDrain) {
+		t.Fatalf("mode = %q, want phased-plan-drain", got.Mode)
+	}
+	if len(got.Trace) == 0 {
+		t.Fatalf("trace missing: %+v", got)
+	}
+	if got.Trace[0].Phase != "prepare_plan" || got.Trace[0].Transition == nil || got.Trace[0].Transition.To != "execute_next" {
+		t.Fatalf("first trace step = %+v, want prepare_plan -> execute_next", got.Trace[0])
+	}
+	if !strings.Contains(rec.Body.String(), `"condition_kind"`) {
+		t.Fatalf("response missing transition guard metadata: %s", rec.Body.String())
+	}
+}
+
 func TestPatchModeAppliesOverlay(t *testing.T) {
 	root := t.TempDir()
 	svc := newTestServiceWithOptions(t, root, serviceOptions{})

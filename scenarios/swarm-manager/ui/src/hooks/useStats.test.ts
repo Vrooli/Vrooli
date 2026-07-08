@@ -3,10 +3,10 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { StatsResponse } from "../types/stats";
 import { createQueryWrapper } from "../test-utils";
 
-const mockGetStats = vi.fn<() => Promise<StatsResponse>>();
+const mockGetStats = vi.fn<(options?: { goal?: string }) => Promise<StatsResponse>>();
 
 vi.mock("../services", () => ({
-  statsService: { getStats: (...args: unknown[]) => mockGetStats(...(args as [])) },
+  statsService: { getStats: (options?: { goal?: string }) => mockGetStats(options) },
 }));
 
 import { useStats } from "./useStats";
@@ -27,6 +27,7 @@ const MOCK_STATS: StatsResponse = {
     created_last_30_days: 35,
     net_delta_7_days: 3,
     net_delta_30_days: 17,
+    throughput_trend: [{ week_start: "2026-03-24", created: 8, completed: 5 }],
   },
   timing: {
     avg_lead_time_hours: 12.0,
@@ -63,7 +64,17 @@ const MOCK_STATS: StatsResponse = {
     total_backlog_size: 20,
     total_completed_all_time: 100,
     velocity_trend: [{ week_start: "2026-03-24", completed: 5 }],
-    estimated_weeks_remaining: 4.0,
+    estimated_remaining: {
+      p50_hours: 96,
+      p80_hours: 144,
+      p50_label: "~4 days",
+      p80_label: "~6 days",
+      basis: "default",
+      basis_label: "priors only",
+      confidence: "low",
+      remaining_items: 20,
+      lane_capacity: 1,
+    },
     velocity_weeks_covered: 1,
   },
   mode: {
@@ -112,7 +123,16 @@ describe("useStats", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockGetStats).toHaveBeenCalledTimes(1);
+    expect(mockGetStats).toHaveBeenCalledWith({ goal: "" });
     expect(result.current.data).toEqual(MOCK_STATS);
+  });
+
+  it("passes the selected goal into the stats service", async () => {
+    mockGetStats.mockResolvedValue(MOCK_STATS);
+    const { result } = renderHook(() => useStats(true, "goal-x"), { wrapper: createQueryWrapper() });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockGetStats).toHaveBeenCalledWith({ goal: "goal-x" });
   });
 
   it("does not fetch when disabled", () => {

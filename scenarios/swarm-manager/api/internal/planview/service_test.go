@@ -2,6 +2,7 @@ package planview
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"testing"
@@ -9,9 +10,13 @@ import (
 
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/eta"
+	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/gates"
 	"swarm-manager/internal/operations"
+	"swarm-manager/internal/stats"
+
+	_ "modernc.org/sqlite"
 )
 
 var testNow = time.Date(2026, 7, 2, 12, 0, 0, 0, time.UTC)
@@ -543,6 +548,92 @@ func TestBuild_AttachesETABand(t *testing.T) {
 	}
 	if board.Meta.ETA.P50Hours > board.Meta.ETA.P80Hours {
 		t.Errorf("p50 %v must be <= p80 %v", board.Meta.ETA.P50Hours, board.Meta.ETA.P80Hours)
+	}
+}
+
+func TestStatsRemainingETAEqualsPlanViewETA(t *testing.T) {
+	items := []backlog.BacklogItem{
+		{Kind: backlog.KindExecute, Name: "a", Status: backlog.StatusReady, Effort: "M"},
+		{Kind: backlog.KindExecute, Name: "b", Status: backlog.StatusBacklog, DependsOn: []string{"execute/a"}, Effort: "L"},
+		{Kind: backlog.KindExecute, Name: "done", Status: backlog.StatusCompleted, Effort: "S"},
+	}
+	estFactory := func() (*eta.Estimator, error) {
+		return eta.NewEstimator(nil, nil, 2, eta.DefaultTrials, eta.DefaultSeed), nil
+	}
+	loader := stubBacklog{items: items}
+	planSvc := newTestService(t, Config{
+		Backlog: loader,
+		Gates:   stubGates{},
+		ETA:     estFactory,
+	})
+	board, err := planSvc.Build(context.Background(), Params{})
+	if err != nil {
+		t.Fatalf("plan build: %v", err)
+	}
+
+	statsEngine := stats.NewEngine(nil, stats.Config{Backlog: loader, ETA: estFactory})
+	resp := statsEngine.GetStatsContext(context.Background())
+
+	if board.Meta.ETA == nil {
+		t.Fatal("plan ETA is nil")
+	}
+	if resp.Dashboard.EstimatedRemaining == nil {
+		t.Fatal("stats ETA is nil")
+	}
+	if *resp.Dashboard.EstimatedRemaining != *board.Meta.ETA {
+		t.Fatalf("stats ETA = %+v, plan ETA = %+v", *resp.Dashboard.EstimatedRemaining, *board.Meta.ETA)
+	}
+}
+
+func TestStatsGoalRemainingETAEqualsPlanViewETA(t *testing.T) {
+	items := []backlog.BacklogItem{
+		{Kind: backlog.KindExecute, Name: "a", Status: backlog.StatusReady, Effort: "S"},
+		{Kind: backlog.KindExecute, Name: "b", Status: backlog.StatusBacklog, DependsOn: []string{"execute/a"}, Effort: "XL"},
+		{Kind: backlog.KindExecute, Name: "outside", Status: backlog.StatusReady, Effort: "XL"},
+	}
+	estFactory := func() (*eta.Estimator, error) {
+		return eta.NewEstimator(nil, nil, 1, eta.DefaultTrials, eta.DefaultSeed), nil
+	}
+	loader := stubBacklog{items: items}
+	goals := stubGoalScoper{name: "goal-x", closure: []string{"execute/a", "execute/b"}}
+	planSvc := newTestService(t, Config{
+		Backlog: loader,
+		Gates:   stubGates{},
+		Goals:   goals,
+		ETA:     estFactory,
+	})
+	board, err := planSvc.Build(context.Background(), Params{Goal: "goal-x"})
+	if err != nil {
+		t.Fatalf("plan build: %v", err)
+	}
+
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+	repo := eventlog.NewSQLiteRepository(db)
+	if err := repo.InitSchema(context.Background()); err != nil {
+		t.Fatalf("init eventlog: %v", err)
+	}
+	statsEngine := stats.NewEngine(repo, stats.Config{
+		Backlog: loader,
+		Goals:   goals,
+		ETA:     estFactory,
+	})
+	resp, err := statsEngine.GetStatsForParams(context.Background(), stats.Params{Goal: "goal-x"})
+	if err != nil {
+		t.Fatalf("stats build: %v", err)
+	}
+
+	if board.Meta.ETA == nil {
+		t.Fatal("plan ETA is nil")
+	}
+	if resp.Dashboard.EstimatedRemaining == nil {
+		t.Fatal("stats ETA is nil")
+	}
+	if *resp.Dashboard.EstimatedRemaining != *board.Meta.ETA {
+		t.Fatalf("stats goal ETA = %+v, plan goal ETA = %+v", *resp.Dashboard.EstimatedRemaining, *board.Meta.ETA)
 	}
 }
 

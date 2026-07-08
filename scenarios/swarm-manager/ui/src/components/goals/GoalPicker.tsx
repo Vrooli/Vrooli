@@ -8,12 +8,12 @@
 
 import { useRef, useState } from "react";
 import { ChevronUp, ChevronDown, Plus } from "lucide-react";
-import { ENTITY_TYPE_ICONS } from "../../../types/constants";
-import { cn } from "../../../lib/utils";
-import type { GoalWithScope } from "../../../types/goal";
-import { useGoals, useGoalMutations } from "../hooks/useGoals";
-import { CreateGoalDialog } from "../../../components/goals/CreateGoalDialog";
-import { Popover } from "../../../components/ui/popover";
+import { ENTITY_TYPE_ICONS } from "../../types/constants";
+import { cn } from "../../lib/utils";
+import type { GoalWithScope } from "../../types/goal";
+import { useGoals, useGoalMutations } from "../../surfaces/plan/hooks/useGoals";
+import { CreateGoalDialog } from "./CreateGoalDialog";
+import { Popover } from "../ui/popover";
 
 const MAX_PRIORITY = 10;
 const MIN_PRIORITY = 0;

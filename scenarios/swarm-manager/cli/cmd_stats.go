@@ -91,10 +91,22 @@ type KindRate struct {
 }
 
 type DashboardStats struct {
-	TotalBacklogSize        int             `json:"total_backlog_size"`
-	TotalCompletedAllTime   int             `json:"total_completed_all_time"`
-	VelocityTrend           []VelocityPoint `json:"velocity_trend"`
-	EstimatedWeeksRemaining float64         `json:"estimated_weeks_remaining"`
+	TotalBacklogSize      int             `json:"total_backlog_size"`
+	TotalCompletedAllTime int             `json:"total_completed_all_time"`
+	VelocityTrend         []VelocityPoint `json:"velocity_trend"`
+	EstimatedRemaining    *ETABand        `json:"estimated_remaining,omitempty"`
+}
+
+type ETABand struct {
+	P50Hours       float64 `json:"p50_hours"`
+	P80Hours       float64 `json:"p80_hours"`
+	P50Label       string  `json:"p50_label"`
+	P80Label       string  `json:"p80_label"`
+	Basis          string  `json:"basis"`
+	BasisLabel     string  `json:"basis_label"`
+	Confidence     string  `json:"confidence"`
+	RemainingItems int     `json:"remaining_items"`
+	LaneCapacity   int     `json:"lane_capacity"`
 }
 
 type SessionStats struct {
@@ -239,8 +251,14 @@ func printStatsSummaryMarkdown(resp StatsResponse) {
 func printDashboardMarkdown(d DashboardStats) {
 	fmt.Println("### Dashboard")
 	fmt.Printf("  Backlog size: %d | Completed all time: %d\n", d.TotalBacklogSize, d.TotalCompletedAllTime)
-	if d.EstimatedWeeksRemaining > 0 {
-		fmt.Printf("  Estimated weeks remaining: %.1f\n", d.EstimatedWeeksRemaining)
+	if d.EstimatedRemaining != nil {
+		fmt.Printf(
+			"  Estimated remaining: %s-%s (%d items, %s)\n",
+			d.EstimatedRemaining.P50Label,
+			d.EstimatedRemaining.P80Label,
+			d.EstimatedRemaining.RemainingItems,
+			d.EstimatedRemaining.BasisLabel,
+		)
 	}
 	if len(d.VelocityTrend) > 0 {
 		parts := make([]string, 0, len(d.VelocityTrend))

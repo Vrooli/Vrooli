@@ -37,6 +37,7 @@ describe("Stats Service", () => {
           created_last_30_days: 35,
           net_delta_7_days: 3,
           net_delta_30_days: 17,
+          throughput_trend: [{ week_start: "2026-03-24", created: 8, completed: 5 }],
         },
         timing: {
           avg_lead_time_hours: 12.0,
@@ -78,7 +79,17 @@ describe("Stats Service", () => {
           total_backlog_size: 20,
           total_completed_all_time: 100,
           velocity_trend: [{ week_start: "2026-03-24", completed: 5 }],
-          estimated_weeks_remaining: 4.0,
+          estimated_remaining: {
+            p50_hours: 96,
+            p80_hours: 144,
+            p50_label: "~4 days",
+            p80_label: "~6 days",
+            basis: "default",
+            basis_label: "priors only",
+            confidence: "low",
+            remaining_items: 20,
+            lane_capacity: 1,
+          },
           velocity_weeks_covered: 1,
         },
         mode: {
@@ -121,6 +132,14 @@ describe("Stats Service", () => {
 
       expect(mockApiClient.get).toHaveBeenCalledWith("/stats");
       expect(result).toEqual(mockStats);
+    });
+
+    it("passes goal scope as a query param", async () => {
+      vi.mocked(mockApiClient.get).mockResolvedValue({} as StatsResponse);
+
+      await service.getStats({ goal: "ship goal" });
+
+      expect(mockApiClient.get).toHaveBeenCalledWith("/stats?goal=ship+goal");
     });
 
     it("propagates API errors", async () => {

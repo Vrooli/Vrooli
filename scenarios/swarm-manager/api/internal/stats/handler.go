@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -33,7 +34,18 @@ func (h *Handler) GetStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := h.engine.GetStats()
+	params := Params{
+		Goal: strings.TrimSpace(r.URL.Query().Get("goal")),
+	}
+	resp, err := h.engine.GetStatsForParams(r.Context(), params)
+	if err != nil {
+		if errors.Is(err, ErrGoalScope) {
+			apierr.MapError(w, "[stats]", apierr.NotFound("goal %q not found or goal scoping unavailable", params.Goal))
+			return
+		}
+		apierr.MapError(w, "[stats]", apierr.Internal("failed to build stats"))
+		return
+	}
 
 	// Category filtering: if specified, zero out non-requested sections.
 	if cats := r.URL.Query().Get("category"); cats != "" {

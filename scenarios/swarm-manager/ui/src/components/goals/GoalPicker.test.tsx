@@ -1,11 +1,11 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "../../../test-utils";
-import { createTestQueryClient } from "../../../test-utils/query";
-import { goalsService } from "../../../services";
-import type { GoalWithScope } from "../../../types/goal";
-import { GOALS_QUERY_KEY } from "../hooks/useGoals";
+import { renderWithProviders } from "../../test-utils";
+import { createTestQueryClient } from "../../test-utils/query";
+import { goalsService } from "../../services";
+import type { GoalWithScope } from "../../types/goal";
+import { GOALS_QUERY_KEY } from "../../surfaces/plan/hooks/useGoals";
 import { GoalPicker } from "./GoalPicker";
 
 function goal(name: string, priority: number, progressPct: number): GoalWithScope {

@@ -16,7 +16,9 @@
           "path": "/api/v1/records/search",
           "method": "HTTP_METHOD_POST",
           "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
-          "headers": { "Content-Type": "application/json" }
+          "headers": {
+            "Content-Type": "application/json"
+          }
         }
       },
       "result_mapping": {
@@ -31,6 +33,81 @@
       "tuning": {
         "engine": "dense",
         "embed_model": "nomic-embed-text"
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "swarm-manager",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "tests": {
+        "name": "swarm-manager records — primary golden corpus",
+        "description": "Reviewed corpus for durable swarm-manager work records. Positives target known learning-loop record ids; negatives prove unrelated junk rejection.",
+        "coverage": {
+          "required_tag_groups": [
+            {
+              "id": "work-records",
+              "description": "Prior implementation and hardening records retrievable by topic.",
+              "tags": [
+                "search-maturity",
+                "ui-health",
+                "descriptor"
+              ],
+              "min_reviewed_positive": 3
+            }
+          ]
+        },
+        "cases": [
+          {
+            "id": "search-maturity-l4",
+            "query": "search hub production AI search maturity L4 contract",
+            "tags": [
+              "strong",
+              "search-maturity"
+            ],
+            "expect_ids": [
+              "rec-25d63b967021b0f8"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "ui-health-migration",
+            "query": "ui-health surfaces search shared aisearch migration",
+            "tags": [
+              "weak-real",
+              "ui-health"
+            ],
+            "expect_ids": [
+              "rec-305531881e792451"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "descriptor-phase-registry",
+            "query": "descriptor backed test genie search phase registry",
+            "tags": [
+              "hard",
+              "descriptor"
+            ],
+            "expect_ids": [
+              "rec-0a6caf804e789c9a"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "junk-gibberish",
+            "query": "florbnax qwop zxcv swarm nonsense",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.3
+          }
+        ]
       }
     }
   ]

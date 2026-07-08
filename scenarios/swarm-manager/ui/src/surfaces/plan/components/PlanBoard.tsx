@@ -29,7 +29,7 @@ import {
   splitBeyondHorizon,
 } from "../lib/plan-presentation";
 import type { PlanBoardMetaData, PlanCardData } from "../types";
-import { GoalPicker } from "./GoalPicker";
+import { GoalPicker } from "../../../components/goals/GoalPicker";
 import { NowColumn } from "./NowColumn";
 import { PlanBoardActions } from "./PlanBoardActions";
 import { usePlanCardActions } from "./plan-card-actions-context";
@@ -209,7 +209,7 @@ function cycleEntityToNodeId(entity: string): string {
   return parts.length === 2 ? `backlog-item/${trimmed}` : trimmed;
 }
 
-function EtaStrip({ eta }: { eta: PlanBoardMetaData["eta"] }) {
+function EtaStrip({ eta, goal }: { eta: PlanBoardMetaData["eta"]; goal: string }) {
   const navigate = useNavigate();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const [open, setOpen] = useState(false);
@@ -281,7 +281,7 @@ function EtaStrip({ eta }: { eta: PlanBoardMetaData["eta"] }) {
           <button
             type="button"
             onClick={() => {
-              navigate(graphPath({ lens: "stats" }));
+              navigate(graphPath({ lens: "stats", goal }));
               setOpen(false);
             }}
             className="text-cyan-300 underline decoration-cyan-400/40 underline-offset-2 hover:text-cyan-200"
@@ -371,7 +371,7 @@ export function PlanBoard() {
             {hiddenSnoozed} snoozed hidden
           </span>
         )}
-        <EtaStrip eta={board.meta.eta} />
+        <EtaStrip eta={board.meta.eta} goal={urlState.goal} />
       </div>
       <div className="flex min-h-0 flex-1 divide-x divide-slate-800 overflow-x-auto border-t border-slate-800">
         <NowColumn />

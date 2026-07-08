@@ -1,6 +1,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useLocation } from "react-router-dom";
 import { selectors } from "../../../consts/selectors";
 import { renderWithProviders } from "../../../test-utils";
 import type { IPlanService } from "../../../services/plan-service";
@@ -20,6 +21,11 @@ import {
   usePlanDataStore,
 } from "../stores/plan-data-store";
 import { PlanBoard } from "./PlanBoard";
+
+function LocationProbe() {
+  const location = useLocation();
+  return <span data-testid="location-probe">{location.pathname}{location.search}</span>;
+}
 
 function emptyOpsView(): OperationsView {
   return {
@@ -266,6 +272,46 @@ describe("PlanBoard", () => {
     expect(await screen.findByTestId("plan-eta-popover")).toHaveTextContent("Remaining");
     expect(screen.getByText("6 items")).toBeInTheDocument();
     expect(screen.getByTestId("plan-eta-stats-link")).toHaveTextContent("Open Stats throughput and timing");
+  });
+
+  it("carries the selected goal when opening Stats from ETA", async () => {
+    setPlanStoreService(
+      stubService(
+        makeBoard({
+          meta: {
+            generatedAt: "2026-07-02T12:00:00Z",
+            windowSeconds: 86400,
+            maxWave: 2,
+            cycles: [],
+            eta: {
+              p50Hours: 120,
+              p80Hours: 240,
+              p50Label: "~5 days",
+              p80Label: "~10 days",
+              basis: "live",
+              basisLabel: "27 samples",
+              confidence: "high",
+              remainingItems: 6,
+              laneCapacity: 3,
+            },
+          },
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(
+      <>
+        <PlanBoard />
+        <LocationProbe />
+      </>,
+      { initialEntries: ["/plan?goal=goal-x"] },
+    );
+
+    await screen.findByTestId(selectors.plan.board);
+    await user.click(screen.getByTestId("plan-eta-strip"));
+    await user.click(await screen.findByTestId("plan-eta-stats-link"));
+
+    expect(screen.getByTestId("location-probe")).toHaveTextContent("/stats?goal=goal-x");
   });
 
   it("offers attach-to-session from the ETA popover", async () => {

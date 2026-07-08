@@ -139,6 +139,74 @@ describe("Initiative Mode Service", () => {
     expect(catalog.modes[0]?.phases[0]?.requiresCriteria).toBe(true);
   });
 
+  it("normalizes operating-mode simulation traces", async () => {
+    vi.mocked(api.post).mockResolvedValue({
+      mode: "phased-plan-drain",
+      label: "Phased Plan Drain",
+      initiative: {
+        name: "simulation-sandbox",
+        title: "Phased Plan Drain Simulation",
+        mode: "phased-plan-drain",
+        items: ["execute/item-1"],
+        acceptance_criteria: ["review output"],
+      },
+      trace: [{
+        index: 0,
+        phase: "classify_progress",
+        phase_kind: "review",
+        inputs: {
+          initiative: {
+            name: "simulation-sandbox",
+            title: "Phased Plan Drain Simulation",
+            mode: "phased-plan-drain",
+            items: ["execute/item-1"],
+            acceptance_criteria: ["review output"],
+          },
+          items: [{ ref: "execute/item-1", title: "Item 1" }],
+          artifacts: [{ path: "modes/phased-plan-drain/progress.json", required: true }],
+          prior_rounds: [],
+          acceptance_criteria: ["review output"],
+        },
+        output: {
+          progress: {
+            decision: "complete",
+            current_phase: "classify_progress",
+            rationale: "ready",
+          },
+        },
+        round: {
+          round: 1,
+          mode: "phased-plan-drain",
+          scope_kind: "initiative",
+          scope_id: "simulation-sandbox",
+          initiative_name: "simulation-sandbox",
+          phase: "classify_progress",
+          run_strategy: "sequential_handoff",
+          agent_profile_key: "swarm-manager/analysis",
+          generated_at: "2026-04-30T00:00:00Z",
+          status: "completed",
+        },
+        transition: {
+          from: "classify_progress",
+          to: "review",
+          condition_kind: "progress_decision",
+          label: "on complete",
+          progress_decision: "complete",
+        },
+      }],
+    });
+
+    const simulation = await service.simulateMode("phased-plan-drain");
+
+    expect(api.post).toHaveBeenCalledWith("/operating-modes/phased-plan-drain/simulate", {});
+    expect(simulation.mode).toBe("phased-plan-drain");
+    expect(simulation.initiative.acceptanceCriteria).toEqual(["review output"]);
+    expect(simulation.trace[0]?.phaseKind).toBe("review");
+    expect(simulation.trace[0]?.inputs.items[0]?.ref).toBe("execute/item-1");
+    expect(simulation.trace[0]?.output.progress?.decision).toBe("complete");
+    expect(simulation.trace[0]?.transition?.progressDecision).toBe("complete");
+  });
+
   it("normalizes catalog decision-support metadata", async () => {
     vi.mocked(api.get).mockResolvedValue({
       modes: [

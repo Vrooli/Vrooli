@@ -18,7 +18,10 @@ import {
   List,
   Network,
   Pencil,
+  Play,
+  RotateCcw,
   Scale,
+  StepForward,
   X,
   XCircle,
 } from "lucide-react";
@@ -34,9 +37,17 @@ import { initiativeModeService } from "../services";
 import { useDocsUrl } from "../services/external-links";
 import { initiativeDetailPath } from "../app/routes/route-paths";
 import { selectors } from "../consts/selectors";
-import type { OperatingModeDetail } from "../types/operating-mode";
+import type {
+  OperatingModeDetail,
+  OperatingModePhaseTransition,
+  OperatingModeRound,
+  OperatingModeSimulation,
+  OperatingModeSimulationStep,
+  OperatingModeWorkspace,
+} from "../types/operating-mode";
 import { PhaseGraph } from "../components/initiative/operating-mode/phase-graph";
 import { PhaseList } from "../components/initiative/operating-mode/phase-list";
+import { PhaseTracePanel, type PhaseTraceData } from "../components/initiative/operating-mode/phase-trace-panel";
 import { CapabilityList } from "../components/initiative/operating-mode/capability-list";
 import {
   CAPABILITY_EXPLAINER,
@@ -59,6 +70,8 @@ const EMPTY_LENSES: never[] = [];
 type PhasesView = "list" | "graph";
 
 const HIGHLIGHT_DURATION_MS = 1500;
+const SIMULATION_STEP_MS = 900;
+const LIVE_REFRESH_MS = 5000;
 
 export function OperatingModeDetailsPage() {
   const params = useParams();
@@ -85,6 +98,7 @@ export function OperatingModeDetailsPage() {
   const [isEditing, setEditing] = useState(false);
   const [labelDraft, setLabelDraft] = useState("");
   const [descriptionDraft, setDescriptionDraft] = useState("");
+  const [selectedLiveInitiative, setSelectedLiveInitiative] = useState("");
 
   useEffect(() => {
     if (data) {
@@ -92,6 +106,18 @@ export function OperatingModeDetailsPage() {
       setDescriptionDraft(data.entry.description ?? "");
     }
   }, [data]);
+
+  useEffect(() => {
+    if (!data?.linkedInitiatives.length) {
+      setSelectedLiveInitiative("");
+      return;
+    }
+    setSelectedLiveInitiative((current) =>
+      data.linkedInitiatives.some((initiative) => initiative.name === current)
+        ? current
+        : data.linkedInitiatives[0]?.name ?? "",
+    );
+  }, [data?.linkedInitiatives]);
 
   const updateMutation = useMutation({
     mutationFn: (args: { label?: string; description?: string }) =>
@@ -104,11 +130,23 @@ export function OperatingModeDetailsPage() {
 
   const phases = useMemo(() => data?.entry.phases ?? [], [data]);
   const hasPhaseGraph = Boolean(data?.entry.phaseGraph && phases.length > 0);
+  const simulationQuery = useQuery<OperatingModeSimulation>({
+    queryKey: ["operating-modes", "simulation", mode],
+    queryFn: () => initiativeModeService.simulateMode(mode),
+    enabled: Boolean(mode && hasPhaseGraph),
+  });
+  const liveWorkspaceQuery = useQuery<OperatingModeWorkspace>({
+    queryKey: ["operating-modes", "live-workspace", selectedLiveInitiative],
+    queryFn: () => initiativeModeService.workspace(selectedLiveInitiative),
+    enabled: Boolean(hasPhaseGraph && selectedLiveInitiative),
+  });
 
   const [phasesView, setPhasesView] = useUrlState<PhasesView>("view", "graph", {
     validate: (value): value is PhasesView => value === "list" || value === "graph",
   });
   const [highlightedPhaseId, setHighlightedPhaseId] = useState<string | null>(null);
+  const [simulationIndex, setSimulationIndex] = useState(0);
+  const [simulationPlaying, setSimulationPlaying] = useState(false);
   const highlightTimerRef = useRef<number | null>(null);
   const [activeExplainer, setActiveExplainer] = useState<ConceptExplainer | null>(null);
   const docsExecutionModesUrl = useDocsUrl("/docs/concepts/EXECUTION-MODES.md");
@@ -123,6 +161,46 @@ export function OperatingModeDetailsPage() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!simulationPlaying) return;
+    const traceLength = simulationQuery.data?.trace.length ?? 0;
+    if (traceLength === 0) return;
+    const timer = window.setInterval(() => {
+      setSimulationIndex((current) => {
+        if (current >= traceLength - 1) {
+          window.clearInterval(timer);
+          setSimulationPlaying(false);
+          return current;
+        }
+        return current + 1;
+      });
+    }, SIMULATION_STEP_MS);
+    return () => window.clearInterval(timer);
+  }, [simulationPlaying, simulationQuery.data?.trace.length]);
+
+  useEffect(() => {
+    setSimulationIndex(0);
+    setSimulationPlaying(false);
+  }, [mode, simulationQuery.data]);
+
+  const liveWorkspace = liveWorkspaceQuery.data;
+  const liveActiveRound = useMemo(
+    () => selectLiveRound(liveWorkspace?.rounds ?? []),
+    [liveWorkspace?.rounds],
+  );
+
+  useEffect(() => {
+    if (!selectedLiveInitiative || !liveActiveRound || !isLiveRoundActive(liveActiveRound)) return;
+    const timer = window.setInterval(() => {
+      void initiativeModeService
+        .refreshRound(selectedLiveInitiative, liveActiveRound.mode, liveActiveRound.round)
+        .then(() => queryClient.invalidateQueries({
+          queryKey: ["operating-modes", "live-workspace", selectedLiveInitiative],
+        }));
+    }, LIVE_REFRESH_MS);
+    return () => window.clearInterval(timer);
+  }, [liveActiveRound, queryClient, selectedLiveInitiative]);
 
   const handleSelectPhase = (phase: string) => {
     setHighlightedPhaseId(phase);
@@ -170,6 +248,12 @@ export function OperatingModeDetailsPage() {
   }
 
   const { entry, linkedInitiatives } = data;
+  const simulationTrace = simulationQuery.data?.trace ?? [];
+  const activeSimulationStep = simulationTrace[simulationIndex] ?? null;
+  const liveTrace = liveWorkspace
+    ? buildLiveTrace(liveActiveRound, liveWorkspace, entry.phaseGraph?.transitions ?? [])
+    : null;
+  const selectedPhaseId = highlightedPhaseId ?? liveTrace?.phase ?? activeSimulationStep?.phase ?? null;
 
   const handleSave = () => {
     const trimmedLabel = labelDraft.trim();
@@ -338,11 +422,46 @@ export function OperatingModeDetailsPage() {
             {hasPhaseGraph && phasesView === "graph" && (
               <PhaseGraph
                 entry={entry}
-                selectedPhaseId={highlightedPhaseId}
+                selectedPhaseId={selectedPhaseId}
                 onSelectPhase={handleSelectPhase}
               />
             )}
-            <PhaseList phases={phases} highlightedPhaseId={highlightedPhaseId} />
+            {hasPhaseGraph && (
+              <OperatingModeSimulationPanel
+                simulation={simulationQuery.data}
+                isLoading={simulationQuery.isLoading}
+                error={simulationQuery.error}
+                activeIndex={simulationIndex}
+                isPlaying={simulationPlaying}
+                onPlay={() => setSimulationPlaying(true)}
+                onPause={() => setSimulationPlaying(false)}
+                onStep={() => {
+                  setSimulationPlaying(false);
+                  setSimulationIndex((current) => Math.min(current + 1, Math.max(0, simulationTrace.length - 1)));
+                }}
+                onReset={() => {
+                  setSimulationPlaying(false);
+                  setSimulationIndex(0);
+                }}
+              />
+            )}
+            {hasPhaseGraph && (
+              <OperatingModeLivePanel
+                linkedInitiatives={linkedInitiatives}
+                selectedInitiative={selectedLiveInitiative}
+                onSelectInitiative={setSelectedLiveInitiative}
+                workspace={liveWorkspace}
+                trace={liveTrace}
+                isLoading={liveWorkspaceQuery.isLoading}
+                error={liveWorkspaceQuery.error}
+                onRefresh={() => void liveWorkspaceQuery.refetch()}
+              />
+            )}
+            <PhaseList
+              phases={phases}
+              transitions={entry.phaseGraph?.transitions}
+              highlightedPhaseId={selectedPhaseId}
+            />
           </div>
         </DetailSection>
       )}
@@ -470,6 +589,237 @@ export function OperatingModeDetailsPage() {
         catalog={catalogModes}
       />
     </DetailPageLayout>
+  );
+}
+
+interface OperatingModeSimulationPanelProps {
+  simulation?: OperatingModeSimulation;
+  isLoading: boolean;
+  error: Error | null;
+  activeIndex: number;
+  isPlaying: boolean;
+  onPlay: () => void;
+  onPause: () => void;
+  onStep: () => void;
+  onReset: () => void;
+}
+
+function OperatingModeSimulationPanel({
+  simulation,
+  isLoading,
+  error,
+  activeIndex,
+  isPlaying,
+  onPlay,
+  onPause,
+  onStep,
+  onReset,
+}: OperatingModeSimulationPanelProps) {
+  const trace = simulation?.trace ?? [];
+  const activeStep = trace[activeIndex] ?? null;
+  const atEnd = trace.length === 0 || activeIndex >= trace.length - 1;
+
+  return (
+    <PhaseTracePanel
+      title="Simulation"
+      subtitle={activeStep ? `${activeIndex + 1} / ${trace.length} · ${activeStep.phase}` : "No trace"}
+      trace={activeStep ? simulationStepTrace(activeStep) : null}
+      testId="operating-mode-simulation-panel"
+      controls={
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={isPlaying ? onPause : onPlay}
+            disabled={isLoading || Boolean(error) || trace.length === 0 || (isPlaying ? false : atEnd)}
+          >
+            <Play className="mr-1 h-3.5 w-3.5" />
+            {isPlaying ? "Pause" : "Play"}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onStep}
+            disabled={isLoading || Boolean(error) || atEnd}
+          >
+            <StepForward className="mr-1 h-3.5 w-3.5" />
+            Step
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onReset}
+            disabled={isLoading || Boolean(error) || activeIndex === 0}
+          >
+            <RotateCcw className="mr-1 h-3.5 w-3.5" />
+            Reset
+          </Button>
+        </div>
+      }
+    >
+      {isLoading && <p className="mt-3 text-sm text-slate-400">Loading simulation...</p>}
+      {error && <p className="mt-3 text-sm text-red-400">{error.message}</p>}
+    </PhaseTracePanel>
+  );
+}
+
+function simulationStepTrace(step: OperatingModeSimulationStep): PhaseTraceData {
+  return {
+    phase: step.phase,
+    status: step.round.status,
+    reads: {
+      items: step.inputs.items,
+      artifacts: step.inputs.artifacts,
+      priorRounds: step.inputs.priorRounds,
+      acceptanceCriteria: step.inputs.acceptanceCriteria,
+    },
+    output: step.output,
+    transition: step.transition
+      ? {
+          from: step.transition.from,
+          to: step.transition.to ?? "",
+          conditionKind: step.transition.conditionKind,
+          label: step.transition.label,
+          payloadKey: step.transition.payloadKey,
+          progressDecision: step.transition.progressDecision,
+        }
+      : undefined,
+    terminal: step.terminal,
+  };
+}
+
+function selectLiveRound(rounds: OperatingModeRound[]): OperatingModeRound | undefined {
+  return rounds.find(isLiveRoundActive) ?? [...rounds].reverse().find((round) => round.status === "completed");
+}
+
+function isLiveRoundActive(round: OperatingModeRound): boolean {
+  return round.status === "reserved" || round.status === "agent_running";
+}
+
+function buildLiveTrace(
+  round: OperatingModeRound | undefined,
+  workspace: OperatingModeWorkspace,
+  transitions: OperatingModePhaseTransition[],
+): PhaseTraceData | null {
+  if (!round) return null;
+  const priorRounds = workspace.rounds.filter((candidate) => candidate.round < round.round);
+  return {
+    phase: round.phase,
+    status: round.status,
+    reads: {
+      items: round.items ?? [],
+      artifacts: workspace.artifacts,
+      priorRounds,
+      acceptanceCriteria: stringArrayFromRecord(round.payload, "acceptance_criteria"),
+    },
+    output: round.payload,
+    transition: round.status === "completed"
+      ? selectLiveTransition(round, transitions)
+      : undefined,
+    terminal: round.status === "completed" && !selectLiveTransition(round, transitions),
+  };
+}
+
+function selectLiveTransition(
+  round: OperatingModeRound,
+  transitions: OperatingModePhaseTransition[],
+): OperatingModePhaseTransition | undefined {
+  const outgoing = transitions.filter((transition) => transition.from === round.phase);
+  return outgoing.find((transition) => transitionMatchesPayload(transition, round.payload ?? {}));
+}
+
+function transitionMatchesPayload(
+  transition: OperatingModePhaseTransition,
+  payload: Record<string, unknown>,
+): boolean {
+  switch (transition.conditionKind) {
+    case "payload_bool":
+      return Boolean(transition.payloadKey && payload[transition.payloadKey] === true);
+    case "progress_decision": {
+      const progress = objectFromRecord(payload, "progress");
+      return progress.decision === transition.progressDecision;
+    }
+    case "always":
+      return true;
+  }
+}
+
+function objectFromRecord(record: Record<string, unknown> | undefined, key: string): Record<string, unknown> {
+  const value = record?.[key];
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function stringArrayFromRecord(record: Record<string, unknown> | undefined, key: string): string[] {
+  const value = record?.[key];
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function OperatingModeLivePanel({
+  linkedInitiatives,
+  selectedInitiative,
+  onSelectInitiative,
+  workspace,
+  trace,
+  isLoading,
+  error,
+  onRefresh,
+}: {
+  linkedInitiatives: Array<{ name: string; title: string }>;
+  selectedInitiative: string;
+  onSelectInitiative: (name: string) => void;
+  workspace?: OperatingModeWorkspace;
+  trace: PhaseTraceData | null;
+  isLoading: boolean;
+  error: Error | null;
+  onRefresh: () => void;
+}) {
+  const rounds = workspace?.rounds ?? [];
+  const activeLabel = trace
+    ? `Round ${rounds.find((round) => round.phase === trace.phase)?.round ?? "?"} · ${trace.phase}`
+    : rounds.length > 0
+      ? `${rounds.length} round${rounds.length === 1 ? "" : "s"} recorded`
+      : "No rounds yet";
+
+  return (
+    <PhaseTracePanel
+      title="Live execution"
+      subtitle={selectedInitiative ? `${selectedInitiative} · ${activeLabel}` : "No linked initiative"}
+      trace={trace}
+      testId="operating-mode-live-panel"
+      controls={
+        <div className="flex flex-wrap items-center gap-1.5">
+          {linkedInitiatives.length > 0 && (
+            <select
+              value={selectedInitiative}
+              onChange={(event) => onSelectInitiative(event.target.value)}
+              className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+              aria-label="Live initiative"
+            >
+              {linkedInitiatives.map((initiative) => (
+                <option key={initiative.name} value={initiative.name}>
+                  {initiative.title || initiative.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <Button type="button" variant="ghost" size="sm" onClick={onRefresh} disabled={!selectedInitiative}>
+            <RotateCcw className="mr-1 h-3.5 w-3.5" />
+            Refresh
+          </Button>
+        </div>
+      }
+    >
+      {isLoading && <p className="mt-3 text-sm text-slate-400">Loading live rounds...</p>}
+      {error && <p className="mt-3 text-sm text-red-400">{error.message}</p>}
+      {!isLoading && !error && selectedInitiative && !trace && (
+        <p className="mt-3 text-sm italic text-slate-500">No live or completed rounds to show yet.</p>
+      )}
+    </PhaseTracePanel>
   );
 }
 

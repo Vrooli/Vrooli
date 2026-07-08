@@ -27,6 +27,7 @@ describe("route paths", () => {
     );
     expect(graphPath({ lens: "graph" })).toBe("/graph");
     expect(graphPath({ lens: "stats" })).toBe("/stats");
+    expect(graphPath({ lens: "stats", goal: "ship goal" })).toBe("/stats?goal=ship+goal");
   });
 
   it("builds canonical detail and command routes", () => {

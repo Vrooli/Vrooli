@@ -234,6 +234,7 @@ type projection struct {
 	workshopByKey map[string]gates.Gate
 	execReview    []gates.Gate
 	classify      []gates.Gate
+	etaInput      eta.GoalClosureInput
 }
 
 func newProjection(items []backlog.BacklogItem, gateList []gates.Gate, inits []initiatives.Initiative) *projection {
@@ -284,6 +285,7 @@ func newProjection(items []backlog.BacklogItem, gateList []gates.Gate, inits []i
 	p.waves = depgraph.Waves(graphMap, func(k string) bool { return p.satisfied[k] })
 	p.depthMap = backlogrank.ComputeDepthMap(rankItems)
 	p.unblocking = backlogrank.ComputeUnblockingMap(rankItems)
+	p.etaInput = eta.BuildClosureInput(items, inits)
 
 	for _, g := range gateList {
 		switch {
@@ -312,26 +314,7 @@ func itemKey(item backlog.BacklogItem) string {
 // yet at wave 0 (blocked on a prerequisite or gate). Dependency edges outside
 // the known item set are dropped.
 func (p *projection) etaClosureInput() eta.GoalClosureInput {
-	in := eta.GoalClosureInput{Deps: make(map[string][]string, len(p.items))}
-	for _, item := range p.items {
-		key := itemKey(item)
-		done := p.satisfied[key]
-		gated := !done && p.waves.Waves[key] != 0
-		in.Items = append(in.Items, eta.ClosureItem{
-			Ref:         key,
-			EffortClass: eta.NormalizeEffort(item.Effort),
-			Done:        done,
-			Gated:       gated,
-		})
-		var deps []string
-		for _, d := range item.DependsOn {
-			if _, ok := p.itemsByKey[d]; ok {
-				deps = append(deps, d)
-			}
-		}
-		in.Deps[key] = deps
-	}
-	return in
+	return p.etaInput
 }
 
 func parseTime(raw string) time.Time {

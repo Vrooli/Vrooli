@@ -11,12 +11,17 @@ import type {
   OperatingModeCatalogPhase,
   OperatingModeCapabilities,
   OperatingModeDetail,
+  OperatingModeHandoff,
   OperatingModeLinkedInitiative,
   OperatingModePhaseGraph,
+  OperatingModePhaseResult,
   OperatingModePhaseKind,
   OperatingModePhaseTransition,
   OperatingModeRound,
   OperatingModeRoundItem,
+  OperatingModeSimulation,
+  OperatingModeSimulationInputs,
+  OperatingModeSimulationStep,
   OperatingModeTransitionConditionKind,
   OperatingModeWorkspace,
   OperatingModeWorkspaceDefinition,
@@ -113,6 +118,8 @@ function normalizeContractSummary(raw: unknown): PhaseOutputContractSummary {
     requiresProgress: boolValue(contract.requires_progress ?? contract.requiresProgress) ?? false,
     requiresVerdict: boolValue(contract.requires_verdict ?? contract.requiresVerdict) ?? false,
     requiresHandoff: boolValue(contract.requires_handoff ?? contract.requiresHandoff) ?? false,
+    requiresBacklogSync:
+      boolValue(contract.requires_backlog_sync ?? contract.requiresBacklogSync) ?? false,
     requiredArtifactCount:
       numberValue(contract.required_artifact_count ?? contract.requiredArtifactCount, 0) ?? 0,
   };
@@ -309,20 +316,134 @@ function normalizeRound(raw: unknown): OperatingModeRound {
     artifactUpdates: Array.isArray(artifactUpdates)
       ? artifactUpdates.map(normalizeArtifact)
       : [],
-    handoffs: Array.isArray(round.handoffs) ? round.handoffs.map((item) => {
-      const handoff = recordValue(item);
-      return {
-        summary: stringValue(handoff.summary, undefined),
-        completedPhases: stringArray(handoff.completed_phases ?? handoff.completedPhases),
-        changedFiles: stringArray(handoff.changed_files ?? handoff.changedFiles),
-        tests: stringArray(handoff.tests),
-        blockers: stringArray(handoff.blockers),
-        nextStep: stringValue(handoff.next_step ?? handoff.nextStep, undefined),
-        createdAt: stringValue(handoff.created_at ?? handoff.createdAt, undefined),
-      };
-    }) : [],
+    handoffs: Array.isArray(round.handoffs) ? round.handoffs.map(normalizeHandoff) : [],
     payload: recordValue(round.payload),
     error: stringValue(round.error, undefined),
+  };
+}
+
+function normalizePhaseResult(raw: unknown): OperatingModePhaseResult {
+  const result = recordValue(raw);
+  const artifacts = result.artifacts;
+  const handoff = recordValue(result.handoff);
+  const handoffs = result.handoffs;
+  const progress = recordValue(result.progress);
+  const backlogSync = recordValue(result.backlog_sync ?? result.backlogSync);
+  return {
+    artifacts: Array.isArray(artifacts) ? artifacts.map((item) => {
+      const artifact = recordValue(item);
+      return {
+        path: stringValue(artifact.path),
+        content: stringValue(artifact.content),
+        contentType: stringValue(artifact.content_type ?? artifact.contentType, undefined),
+      };
+    }) : undefined,
+    handoff: Object.keys(handoff).length > 0 ? normalizeHandoff(handoff) : undefined,
+    handoffs: Array.isArray(handoffs)
+      ? handoffs.map(normalizeHandoff)
+      : undefined,
+    readiness: Object.keys(recordValue(result.readiness)).length > 0 ? recordValue(result.readiness) : undefined,
+    progress: Object.keys(progress).length > 0 ? {
+      decision: stringValue(progress.decision),
+      completedPhases: stringArray(progress.completed_phases ?? progress.completedPhases),
+      currentPhase: stringValue(progress.current_phase ?? progress.currentPhase, undefined),
+      rationale: stringValue(progress.rationale, undefined),
+      updatedAt: stringValue(progress.updated_at ?? progress.updatedAt, undefined),
+    } : undefined,
+    verdict: stringValue(result.verdict, undefined),
+    replanNeeded: boolValue(result.replan_needed ?? result.replanNeeded, undefined),
+    backlogSync: Object.keys(backlogSync).length > 0 ? {
+      completedItems: stringArray(backlogSync.completed_items ?? backlogSync.completedItems),
+      createdItems: stringArray(backlogSync.created_items ?? backlogSync.createdItems),
+      updatedItems: stringArray(backlogSync.updated_items ?? backlogSync.updatedItems),
+      proposal: recordValue(backlogSync.proposal) as never,
+      rationale: stringValue(backlogSync.rationale, undefined),
+    } : undefined,
+  };
+}
+
+function normalizeSimulationInputs(raw: unknown): OperatingModeSimulationInputs {
+  const inputs = recordValue(raw);
+  const initiative = recordValue(inputs.initiative);
+  const priorRounds = inputs.prior_rounds ?? inputs.priorRounds;
+  return {
+    initiative: {
+      name: stringValue(initiative.name),
+      title: stringValue(initiative.title),
+      description: stringValue(initiative.description, undefined),
+      mode: stringValue(initiative.mode, "item-level"),
+      items: stringArray(initiative.items),
+      acceptanceCriteria: stringArray(initiative.acceptance_criteria ?? initiative.acceptanceCriteria),
+    },
+    items: Array.isArray(inputs.items) ? inputs.items.map((item) => {
+      const rawItem = recordValue(item);
+      return {
+        ref: stringValue(rawItem.ref),
+        title: stringValue(rawItem.title, undefined),
+        status: stringValue(rawItem.status, undefined),
+        priority: numberValue(rawItem.priority, undefined),
+        effort: stringValue(rawItem.effort, undefined),
+      };
+    }) : [],
+    artifacts: Array.isArray(inputs.artifacts) ? inputs.artifacts.map(normalizeArtifact) : [],
+    priorRounds: Array.isArray(priorRounds)
+      ? priorRounds.map(normalizeRound)
+      : [],
+    acceptanceCriteria: stringArray(inputs.acceptance_criteria ?? inputs.acceptanceCriteria),
+  };
+}
+
+function normalizeSimulationStep(raw: unknown): OperatingModeSimulationStep {
+  const step = recordValue(raw);
+  const transition = step.transition ? normalizeTransition(step.transition) : undefined;
+  return {
+    index: numberValue(step.index, 0) ?? 0,
+    phase: stringValue(step.phase),
+    phaseKind: normalizePhaseKind(step.phase_kind ?? step.phaseKind),
+    inputs: normalizeSimulationInputs(step.inputs),
+    output: normalizePhaseResult(step.output),
+    round: normalizeRound(step.round),
+    transition: transition ? {
+      from: transition.from,
+      to: transition.to || undefined,
+      conditionKind: transition.conditionKind,
+      label: transition.label,
+      payloadKey: transition.payloadKey,
+      progressDecision: transition.progressDecision,
+    } : undefined,
+    terminal: boolValue(step.terminal, undefined),
+  };
+}
+
+function normalizeHandoff(raw: unknown): OperatingModeHandoff {
+  const handoff = recordValue(raw);
+  return {
+    summary: stringValue(handoff.summary, undefined),
+    completedPhases: stringArray(handoff.completed_phases ?? handoff.completedPhases),
+    changedFiles: stringArray(handoff.changed_files ?? handoff.changedFiles),
+    tests: stringArray(handoff.tests),
+    blockers: stringArray(handoff.blockers),
+    nextStep: stringValue(handoff.next_step ?? handoff.nextStep, undefined),
+    createdAt: stringValue(handoff.created_at ?? handoff.createdAt, undefined),
+  };
+}
+
+function normalizeSimulation(raw: unknown): OperatingModeSimulation {
+  const simulation = recordValue(raw);
+  const initiative = recordValue(simulation.initiative);
+  const trace = simulation.trace;
+  return {
+    mode: stringValue(simulation.mode, "item-level"),
+    label: stringValue(simulation.label),
+    initiative: {
+      name: stringValue(initiative.name),
+      title: stringValue(initiative.title),
+      description: stringValue(initiative.description, undefined),
+      mode: stringValue(initiative.mode, "item-level"),
+      items: stringArray(initiative.items),
+      acceptanceCriteria: stringArray(initiative.acceptance_criteria ?? initiative.acceptanceCriteria),
+    },
+    trace: Array.isArray(trace) ? trace.map(normalizeSimulationStep) : [],
   };
 }
 
@@ -430,6 +551,7 @@ export interface IInitiativeModeService {
   catalog(): Promise<OperatingModeCatalog>;
   getMode(mode: string): Promise<OperatingModeDetail>;
   updateMode(mode: string, args: UpdateOperatingModeArgs): Promise<OperatingModeDetail>;
+  simulateMode(mode: string): Promise<OperatingModeSimulation>;
   workspace(name: string): Promise<OperatingModeWorkspace>;
   switchMode(name: string, args: SwitchOperatingModeArgs): Promise<SwitchOperatingModeResult>;
   startPhase(name: string, phase: string, args?: StartOperatingModePhaseArgs): Promise<OperatingModeRound>;
@@ -500,6 +622,11 @@ export function createInitiativeModeService(
       if (args.description !== undefined) body.description = args.description;
       const raw = await apiClient.patch<unknown>(API_ENDPOINTS.operatingMode(mode), body);
       return normalizeModeDetail(raw);
+    },
+
+    async simulateMode(mode: string): Promise<OperatingModeSimulation> {
+      const raw = await apiClient.post<unknown>(API_ENDPOINTS.operatingModeSimulate(mode), {});
+      return normalizeSimulation(raw);
     },
 
     async workspace(name: string): Promise<OperatingModeWorkspace> {

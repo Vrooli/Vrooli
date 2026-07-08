@@ -328,8 +328,8 @@ function ActiveItemExecutionsPreview({ conflict }: { conflict: ActiveItemExecuti
         These will be canceled if you continue with the switch.
       </p>
       <ul className="mt-2 space-y-1">
-        {visible.map((execution) => (
-          <ExecutionRow key={execution.executionId ?? execution.itemRef} execution={execution} />
+        {visible.map((execution, index) => (
+          <ExecutionRow key={executionRowKey(execution, index)} execution={execution} />
         ))}
       </ul>
       {overflow > 0 && (
@@ -339,6 +339,17 @@ function ActiveItemExecutionsPreview({ conflict }: { conflict: ActiveItemExecuti
       )}
     </div>
   );
+}
+
+function executionRowKey(execution: ActiveItemExecution, index: number): string {
+  return [
+    execution.executionId,
+    execution.itemRef,
+    execution.runId,
+    index,
+  ]
+    .filter((part) => part !== undefined && part !== null && String(part).trim() !== "")
+    .join(":");
 }
 
 function ExecutionRow({ execution }: { execution: ActiveItemExecution }) {

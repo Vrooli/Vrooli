@@ -56,6 +56,7 @@ export interface PhaseOutputContractSummary {
   requiresProgress: boolean;
   requiresVerdict: boolean;
   requiresHandoff: boolean;
+  requiresBacklogSync: boolean;
   requiredArtifactCount: number;
 }
 
@@ -224,6 +225,71 @@ export interface OperatingModeBacklogSyncPlan {
   updatedItems?: string[];
   proposal?: Proposal;
   rationale?: string;
+}
+
+export interface OperatingModeProgressState {
+  decision: string;
+  completedPhases?: string[];
+  currentPhase?: string;
+  rationale?: string;
+  updatedAt?: string;
+}
+
+export interface OperatingModePhaseResult {
+  artifacts?: Array<{
+    path: string;
+    content: string;
+    contentType?: string;
+  }>;
+  handoff?: OperatingModeHandoff;
+  handoffs?: OperatingModeHandoff[];
+  readiness?: Record<string, unknown>;
+  progress?: OperatingModeProgressState;
+  verdict?: string;
+  replanNeeded?: boolean;
+  backlogSync?: OperatingModeBacklogSyncPlan;
+}
+
+export interface OperatingModeSimulationInputs {
+  initiative: {
+    name: string;
+    title: string;
+    description?: string;
+    mode: InitiativeOperatingMode;
+    items: string[];
+    acceptanceCriteria: string[];
+  };
+  items: OperatingModeRoundItem[];
+  artifacts: OperatingModeArtifactSnapshot[];
+  priorRounds: OperatingModeRound[];
+  acceptanceCriteria: string[];
+}
+
+export interface OperatingModeSimulationTransition {
+  from: string;
+  to?: string;
+  conditionKind: OperatingModeTransitionConditionKind;
+  label: string;
+  payloadKey?: string;
+  progressDecision?: string;
+}
+
+export interface OperatingModeSimulationStep {
+  index: number;
+  phase: string;
+  phaseKind: OperatingModePhaseKind | "";
+  inputs: OperatingModeSimulationInputs;
+  output: OperatingModePhaseResult;
+  round: OperatingModeRound;
+  transition?: OperatingModeSimulationTransition;
+  terminal?: boolean;
+}
+
+export interface OperatingModeSimulation {
+  mode: InitiativeOperatingMode;
+  label: string;
+  initiative: OperatingModeSimulationInputs["initiative"];
+  trace: OperatingModeSimulationStep[];
 }
 
 export interface OperatingModeLockHolder {

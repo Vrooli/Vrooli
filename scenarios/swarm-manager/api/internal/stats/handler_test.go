@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -15,6 +16,18 @@ import (
 	"github.com/gorilla/mux"
 	_ "modernc.org/sqlite"
 )
+
+type testGoalScoper struct {
+	name    string
+	closure []string
+}
+
+func (s testGoalScoper) ClosureRefs(name string) ([]string, error) {
+	if name != s.name {
+		return nil, fmt.Errorf("goal %q not found", name)
+	}
+	return append([]string(nil), s.closure...), nil
+}
 
 func TestGetStatsEmpty(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
@@ -51,6 +64,37 @@ func TestGetStatsEmpty(t *testing.T) {
 	}
 	if resp.EventCount != 0 {
 		t.Errorf("event count: got %d, want 0", resp.EventCount)
+	}
+}
+
+func TestGetStatsUnknownGoalReturns404(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer db.Close()
+
+	repo := eventlog.NewSQLiteRepository(db)
+	if err := repo.InitSchema(context.Background()); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+
+	engine := stats.NewEngine(repo)
+	engine.Configure(stats.Config{Goals: testGoalScoper{name: "goal-x", closure: []string{"execute/a"}}})
+	if err := engine.Rebuild(context.Background()); err != nil {
+		t.Fatalf("rebuild: %v", err)
+	}
+
+	handler := stats.NewHandler(engine)
+	router := mux.NewRouter()
+	handler.RegisterRoutes(router)
+
+	req := httptest.NewRequest("GET", "/api/v1/stats?goal=missing", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("status: got %d, want 404", w.Code)
 	}
 }
 

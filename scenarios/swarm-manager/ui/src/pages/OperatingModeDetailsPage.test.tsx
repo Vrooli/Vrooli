@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach, beforeAll } from "vitest";
@@ -14,6 +14,10 @@ import type {
 
 const getModeMock = vi.fn();
 const updateModeMock = vi.fn();
+const catalogMock = vi.fn();
+const simulateModeMock = vi.fn();
+const workspaceMock = vi.fn();
+const refreshRoundMock = vi.fn();
 const navigateMock = vi.fn();
 
 vi.mock("react-router-dom", async () => {
@@ -23,8 +27,12 @@ vi.mock("react-router-dom", async () => {
 
 vi.mock("../services", () => ({
   initiativeModeService: {
+    catalog: () => catalogMock(),
     getMode: (mode: string) => getModeMock(mode),
     updateMode: (mode: string, args: unknown) => updateModeMock(mode, args),
+    simulateMode: (mode: string) => simulateModeMock(mode),
+    workspace: (name: string) => workspaceMock(name),
+    refreshRound: (name: string, mode: string, round: number) => refreshRoundMock(name, mode, round),
   },
 }));
 
@@ -71,6 +79,7 @@ function makePhase(overrides: Partial<OperatingModeCatalogPhase> & { phase: stri
       requiresProgress: false,
       requiresVerdict: false,
       requiresHandoff: false,
+      requiresBacklogSync: false,
       requiredArtifactCount: 0,
     },
     ...overrides,
@@ -151,6 +160,7 @@ const SAMPLE_DETAIL: OperatingModeDetail = {
           requiresProgress: false,
           requiresVerdict: true,
           requiresHandoff: false,
+          requiresBacklogSync: false,
           requiredArtifactCount: 0,
         },
       }),
@@ -176,6 +186,125 @@ describe("OperatingModeDetailsPage", () => {
   beforeEach(() => {
     getModeMock.mockReset();
     updateModeMock.mockReset();
+    catalogMock.mockReset();
+    simulateModeMock.mockReset();
+    workspaceMock.mockReset();
+    refreshRoundMock.mockReset();
+    catalogMock.mockResolvedValue({ modes: [SAMPLE_DETAIL.entry] });
+    simulateModeMock.mockResolvedValue({
+      mode: "holistic-loop",
+      label: "Holistic Loop",
+      initiative: {
+        name: "simulation-sandbox",
+        title: "Holistic Loop Simulation",
+        mode: "holistic-loop",
+        items: ["execute/item-a"],
+        acceptanceCriteria: ["works"],
+      },
+      trace: [
+        {
+          index: 0,
+          phase: "investigate",
+          phaseKind: "investigate",
+          inputs: {
+            initiative: {
+              name: "simulation-sandbox",
+              title: "Holistic Loop Simulation",
+              mode: "holistic-loop",
+              items: ["execute/item-a"],
+              acceptanceCriteria: ["works"],
+            },
+            items: [{ ref: "execute/item-a" }],
+            artifacts: [],
+            priorRounds: [],
+            acceptanceCriteria: ["works"],
+          },
+          output: { handoff: { summary: "investigated" } },
+          round: {
+            round: 1,
+            mode: "holistic-loop",
+            scopeKind: "initiative",
+            scopeId: "simulation-sandbox",
+            initiativeName: "simulation-sandbox",
+            phase: "investigate",
+            runStrategy: "operator_gated_loop",
+            agentProfileKey: "swarm-manager/deep-work",
+            generatedAt: "2026-04-30T00:00:00Z",
+            status: "completed",
+          },
+          transition: { from: "investigate", to: "execute", conditionKind: "always", label: "always" },
+        },
+        {
+          index: 1,
+          phase: "execute",
+          phaseKind: "execute",
+          inputs: {
+            initiative: {
+              name: "simulation-sandbox",
+              title: "Holistic Loop Simulation",
+              mode: "holistic-loop",
+              items: ["execute/item-a"],
+              acceptanceCriteria: ["works"],
+            },
+            items: [{ ref: "execute/item-a" }],
+            artifacts: [],
+            priorRounds: [],
+            acceptanceCriteria: ["works"],
+          },
+          output: { handoff: { summary: "executed" } },
+          round: {
+            round: 2,
+            mode: "holistic-loop",
+            scopeKind: "initiative",
+            scopeId: "simulation-sandbox",
+            initiativeName: "simulation-sandbox",
+            phase: "execute",
+            runStrategy: "operator_gated_loop",
+            agentProfileKey: "swarm-manager/deep-work",
+            generatedAt: "2026-04-30T00:00:00Z",
+            status: "completed",
+          },
+          terminal: true,
+        },
+      ],
+    });
+    workspaceMock.mockResolvedValue({
+      initiativeName: "init-a",
+      mode: "holistic-loop",
+      definition: {
+        mode: "holistic-loop",
+        label: "Holistic Loop",
+        scopeKind: "initiative",
+        runStrategy: "operator_gated_loop",
+        capabilities: SAMPLE_DETAIL.entry.capabilities,
+        phases: [],
+        terminal: ["review"],
+        transitions: {},
+      },
+      artifacts: [{ path: "modes/holistic-loop/findings.md", content: "Findings" }],
+      rounds: [
+        {
+          round: 1,
+          mode: "holistic-loop",
+          scopeKind: "initiative",
+          scopeId: "init-a",
+          initiativeName: "init-a",
+          phase: "execute",
+          runStrategy: "operator_gated_loop",
+          agentProfileKey: "swarm-manager/deep-work",
+          generatedAt: "2026-04-30T00:00:00Z",
+          runId: "run-live-1",
+          status: "completed",
+          items: [{ ref: "execute/item-a", title: "Item A" }],
+          payload: {
+            agent_summary: "live completed",
+            verdict: "accepted",
+            progress: { decision: "continue" },
+            backlog_sync: { completed_items: ["execute/item-a"] },
+          },
+        },
+      ],
+    });
     navigateMock.mockReset();
   });
 
@@ -187,8 +316,8 @@ describe("OperatingModeDetailsPage", () => {
     expect(screen.getByText("Investigate→plan→execute cycles")).toBeInTheDocument();
     expect(screen.getByText("Initiative")).toBeInTheDocument();
     expect(screen.getByText("Operator-gated loop")).toBeInTheDocument();
-    expect(screen.getByText("Initiative A")).toBeInTheDocument();
-    expect(screen.getByText("Initiative B")).toBeInTheDocument();
+    expect(screen.getAllByText("Initiative A").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Initiative B").length).toBeGreaterThan(0);
   });
 
   it("renders phase cards with clean label, purpose, and chips", async () => {
@@ -202,8 +331,8 @@ describe("OperatingModeDetailsPage", () => {
     expect(screen.getByText("start")).toBeInTheDocument();
     // terminal chip on review
     expect(screen.getByText("terminal")).toBeInTheDocument();
-    // verdict chip on review
-    expect(screen.getByText("verdict")).toBeInTheDocument();
+    // output schema is shown on phase cards
+    expect(screen.getAllByText("verdict").length).toBeGreaterThan(0);
     // writes-repo chip on execute
     expect(screen.getByText("writes repo")).toBeInTheDocument();
   });
@@ -222,6 +351,51 @@ describe("OperatingModeDetailsPage", () => {
     if (listButton) fireEvent.click(listButton);
     await waitFor(() => {
       expect(screen.queryByTestId("phase-graph")).not.toBeInTheDocument();
+    });
+  });
+
+  it("renders simulation trace controls and advances the highlighted phase", async () => {
+    getModeMock.mockResolvedValue(SAMPLE_DETAIL);
+    renderPage();
+
+    const panel = await screen.findByTestId("operating-mode-simulation-panel");
+    expect(panel).toBeInTheDocument();
+    expect(simulateModeMock).toHaveBeenCalledWith("holistic-loop");
+    expect(screen.getByText("1 / 2 · investigate")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /step/i }));
+
+    expect(screen.getByText("2 / 2 · execute")).toBeInTheDocument();
+    expect(within(panel).getByText("terminal")).toBeInTheDocument();
+    expect(within(panel).getByText(/executed/i)).toBeInTheDocument();
+  });
+
+  it("renders live round payloads on the shared phase trace substrate", async () => {
+    getModeMock.mockResolvedValue(SAMPLE_DETAIL);
+    renderPage();
+
+    const panel = await screen.findByTestId("operating-mode-live-panel");
+    expect(workspaceMock).toHaveBeenCalledWith("init-a");
+    await waitFor(() => {
+      expect(panel).toHaveTextContent("Round 1 · execute");
+    });
+    expect(panel).toHaveTextContent("init-a");
+    expect(panel).toHaveTextContent("Items");
+    expect(panel).toHaveTextContent("Artifacts");
+    expect(panel).toHaveTextContent("verdict");
+    expect(panel).toHaveTextContent("backlog_sync");
+    expect(panel).toHaveTextContent("execute -> review (always)");
+  });
+
+  it("switches the live viewer between linked initiative workspaces", async () => {
+    getModeMock.mockResolvedValue(SAMPLE_DETAIL);
+    renderPage();
+
+    const select = await screen.findByLabelText("Live initiative");
+    fireEvent.change(select, { target: { value: "init-b" } });
+
+    await waitFor(() => {
+      expect(workspaceMock).toHaveBeenCalledWith("init-b");
     });
   });
 

@@ -6,6 +6,7 @@ import (
 	"swarm-manager/internal/gates"
 	"swarm-manager/internal/graph"
 	"swarm-manager/internal/planview"
+	"swarm-manager/internal/stats"
 )
 
 // registerPlanRoutes wires the Plan-lens board projection:
@@ -55,6 +56,14 @@ func (s *Server) registerPlanRoutes(scenarioRoot string) {
 	// Board-wide ETA band: the whole backlog is the implicit closure. Reads the
 	// same event-sourced samples + execute-lane capacity as the goals ETA.
 	cfg.ETA = s.newETAEstimator
+	if s.statsEngine != nil {
+		s.statsEngine.Configure(stats.Config{
+			Backlog:     store,
+			Initiatives: s.initStore,
+			Goals:       s.goalService,
+			ETA:         s.newETAEstimator,
+		})
+	}
 	svc, err := planview.NewService(cfg)
 	if err != nil {
 		log.Fatalf("plan: failed to build projection service: %v", err)

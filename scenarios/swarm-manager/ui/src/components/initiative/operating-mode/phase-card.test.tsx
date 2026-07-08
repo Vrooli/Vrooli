@@ -24,6 +24,7 @@ function basePhase(overrides: Partial<OperatingModeCatalogPhase> & { phase: stri
       requiresProgress: false,
       requiresVerdict: false,
       requiresHandoff: false,
+      requiresBacklogSync: false,
       requiredArtifactCount: 0,
     },
     ...overrides,
@@ -78,9 +79,9 @@ describe("PhaseCard", () => {
     expect(screen.getByText("terminal")).toBeInTheDocument();
   });
 
-  it("renders only the contract chips that are set", () => {
+  it("renders reads, emits schema, transitions, and a worked example", () => {
     render(
-<PhaseCard
+      <PhaseCard
         phase={basePhase({
           phase: "review",
           requiresCriteria: true,
@@ -89,16 +90,51 @@ describe("PhaseCard", () => {
             requiresProgress: false,
             requiresVerdict: true,
             requiresHandoff: false,
+            requiresBacklogSync: false,
             requiredArtifactCount: 0,
           },
         })}
+        transitions={[
+          {
+            from: "review",
+            to: "reconcile",
+            conditionKind: "always",
+            label: "always",
+          },
+        ]}
       />,
     );
+    expect(screen.getByText("Reads")).toBeInTheDocument();
+    expect(screen.getByText("PRIOR_ROUNDS_JSON")).toBeInTheDocument();
+    expect(screen.getByText("MEMBER_ITEMS_JSON")).toBeInTheDocument();
+    expect(screen.getByText("MODE_ARTIFACTS_JSON")).toBeInTheDocument();
+    expect(screen.getByText("ACCEPTANCE_CRITERIA")).toBeInTheDocument();
+    expect(screen.getByText("Emits schema")).toBeInTheDocument();
     expect(screen.getByText("verdict")).toBeInTheDocument();
-    expect(screen.getByText("structured")).toBeInTheDocument();
+    expect(screen.getByText("Review verdict example")).toBeInTheDocument();
+    expect(screen.getByText("if always, go to reconcile")).toBeInTheDocument();
     expect(screen.getByText("requires criteria")).toBeInTheDocument();
-    expect(screen.queryByText("handoff")).not.toBeInTheDocument();
-    expect(screen.queryByText("progress")).not.toBeInTheDocument();
+    expect(screen.queryByText("structured")).not.toBeInTheDocument();
+  });
+
+  it("renders terminal transition copy when no outgoing transition exists", () => {
+    render(<PhaseCard phase={basePhase({ phase: "reconcile", isTerminal: true })} />);
+    expect(screen.getByText("No outgoing transition; this phase is terminal.")).toBeInTheDocument();
+  });
+
+  it("promotes the phase skill body affordance above internals", () => {
+    render(
+      <PhaseCard
+        phase={basePhase({
+          phase: "investigate",
+          skillId: "swarm-manager-holistic-loop-investigate",
+        })}
+      />,
+      { wrapper: createQueryWrapper() },
+    );
+    expect(screen.getByTestId("phase-agent-instructions")).toHaveTextContent(
+      "swarm-manager-holistic-loop-investigate",
+    );
   });
 
   it("flags required artifacts and lists optional ones", () => {

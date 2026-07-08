@@ -81,6 +81,7 @@ function makeCatalogPhase(overrides: Partial<OperatingModeCatalogPhase> & { phas
       requiresProgress: false,
       requiresVerdict: false,
       requiresHandoff: false,
+      requiresBacklogSync: false,
       requiredArtifactCount: 0,
     },
     ...overrides,

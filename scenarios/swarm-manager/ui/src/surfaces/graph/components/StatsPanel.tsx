@@ -37,7 +37,6 @@ import {
   formatDelta,
   formatHours,
   formatRate,
-  formatWeeksRemaining,
 } from "../../../lib/stats-format-utils";
 import type {
   AgentStats,
@@ -147,7 +146,7 @@ function TabContent({ tab, data }: { tab: StatsCategory; data: StatsResponse }) 
     case "dashboard":
       return <DashboardTab data={data.dashboard} eventCount={data.event_count} history={data.history} />;
     case "throughput":
-      return <ThroughputTab data={data.throughput} />;
+      return <ThroughputTab data={data.throughput} dashboard={data.dashboard} />;
     case "agent":
       return <AgentTab data={data.agent} history={data.history} />;
     case "timing":
@@ -170,10 +169,7 @@ function TabContent({ tab, data }: { tab: StatsCategory; data: StatsResponse }) 
 function DashboardTab({ data, eventCount, history }: { data: DashboardStats; eventCount: number; history: HistoryWindow }) {
   const velocityTrend = data.velocity_trend ?? [];
 
-  // The estimated-remaining pill is based on the last 4 full weeks of
-  // velocity; if we have <4 non-zero weeks of history the estimate is
-  // very noisy, so render an insufficient-data card instead.
-  const velocityReady = data.velocity_weeks_covered >= 4;
+  const eta = data.estimated_remaining;
 
   return (
     <div className="space-y-4" data-testid="stats-content-dashboard">
@@ -186,19 +182,18 @@ function DashboardTab({ data, eventCount, history }: { data: DashboardStats; eve
           icon={CheckCircle2}
           testId="stat-completed-all-time"
         />
-        {velocityReady ? (
+        {eta ? (
           <StatCard
             label="Est. Remaining"
-            value={formatWeeksRemaining(data.estimated_weeks_remaining)}
+            value={`${eta.p50_label} - ${eta.p80_label}`}
+            subtext={`${eta.remaining_items.toLocaleString()} items · ${eta.basis_label}`}
             icon={Clock3}
             testId="stat-weeks-remaining"
           />
         ) : (
           <InsufficientDataCard
             label="Est. Remaining"
-            reason="Need at least 4 weeks of completed work."
-            have={data.velocity_weeks_covered}
-            required={4}
+            reason="No estimable backlog closure is available."
             testId="stat-weeks-remaining"
           />
         )}
@@ -234,39 +229,133 @@ function DashboardTab({ data, eventCount, history }: { data: DashboardStats; eve
 // Throughput tab
 // ---------------------------------------------------------------------------
 
-function ThroughputTab({ data }: { data: ThroughputStats }) {
+function formatItemsPerWeek(count: number, days: number): string {
+  return `${((count / days) * 7).toFixed(1)} / wk`;
+}
+
+function deltaClassName(value: number): string {
+  if (value > 0) return "text-amber-400";
+  if (value < 0) return "text-emerald-400";
+  return "text-slate-300";
+}
+
+function ThroughputTab({ data, dashboard }: { data: ThroughputStats; dashboard: DashboardStats }) {
+  const trend = data.throughput_trend ?? [];
+  const hasTrendData = trend.some((point) => point.created > 0 || point.completed > 0);
+  const eta = dashboard.estimated_remaining;
+
   return (
-    <div className="space-y-3" data-testid="stats-content-throughput">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-xs text-slate-500">
-            <th className="pb-2 font-medium" />
-            <th className="pb-2 font-medium">7 days</th>
-            <th className="pb-2 font-medium">30 days</th>
-          </tr>
-        </thead>
-        <tbody className="text-slate-200">
-          <tr>
-            <td className="py-1 text-slate-400">Created</td>
-            <td className="py-1">{data.created_last_7_days}</td>
-            <td className="py-1">{data.created_last_30_days}</td>
-          </tr>
-          <tr>
-            <td className="py-1 text-slate-400">Completed</td>
-            <td className="py-1">{data.completed_last_7_days}</td>
-            <td className="py-1">{data.completed_last_30_days}</td>
-          </tr>
-          <tr className="border-t border-slate-700/50">
-            <td className="py-1 text-slate-400">Net delta</td>
-            <td className={cn("py-1 font-medium", data.net_delta_7_days > 0 ? "text-amber-400" : data.net_delta_7_days < 0 ? "text-emerald-400" : "text-slate-300")}>
-              {formatDelta(data.net_delta_7_days)}
-            </td>
-            <td className={cn("py-1 font-medium", data.net_delta_30_days > 0 ? "text-amber-400" : data.net_delta_30_days < 0 ? "text-emerald-400" : "text-slate-300")}>
-              {formatDelta(data.net_delta_30_days)}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <div className="space-y-4" data-testid="stats-content-throughput">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatCard
+          label="Created"
+          value={data.created_last_7_days.toLocaleString()}
+          subtext="last 7 days"
+          icon={ListChecks}
+          testId="stat-throughput-created-7d"
+        />
+        <StatCard
+          label="Completed"
+          value={data.completed_last_7_days.toLocaleString()}
+          subtext="last 7 days"
+          icon={CheckCircle2}
+          testId="stat-throughput-completed-7d"
+        />
+        <StatCard
+          label="Net Delta"
+          value={formatDelta(data.net_delta_7_days)}
+          subtext={data.net_delta_7_days > 0 ? "backlog grew" : data.net_delta_7_days < 0 ? "backlog shrank" : "balanced"}
+          icon={TrendingUp}
+          valueClassName={deltaClassName(data.net_delta_7_days)}
+          testId="stat-throughput-net-7d"
+        />
+      </div>
+
+      <div>
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <SectionLabel icon={BarChart3}>Created vs completed</SectionLabel>
+          <div className="flex items-center gap-3 text-[11px] text-slate-500">
+            <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-cyan-400/70" /> Created</span>
+            <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-emerald-400/70" /> Completed</span>
+          </div>
+        </div>
+        {!hasTrendData ? (
+          <StatsEmptyState testId="stats-throughput-empty">
+            No created or completed work recorded in the trend window
+          </StatsEmptyState>
+        ) : (
+          <MiniBarChart
+            points={trend.map((point) => ({
+              key: point.week_start,
+              label: point.week_start,
+              value: point.created,
+              secondaryValue: point.completed,
+            }))}
+            valueLabel="created"
+            secondaryValueLabel="completed"
+            testId="stats-throughput-chart"
+          />
+        )}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {eta ? (
+          <StatCard
+            label="Burndown"
+            value={`${eta.p50_label} - ${eta.p80_label}`}
+            subtext={`${eta.remaining_items.toLocaleString()} items · ${eta.basis_label}`}
+            icon={Clock3}
+            testId="stat-throughput-burndown"
+          />
+        ) : (
+          <InsufficientDataCard
+            label="Burndown"
+            reason="No estimable backlog closure is available."
+            testId="stat-throughput-burndown"
+          />
+        )}
+        <StatCard
+          label="30d Flow Rate"
+          value={`${formatItemsPerWeek(data.completed_last_30_days, 30)} done`}
+          subtext={`${formatItemsPerWeek(data.created_last_30_days, 30)} created · ${formatDelta(data.net_delta_30_days)} net`}
+          icon={Gauge}
+          testId="stat-throughput-rate"
+        />
+      </div>
+
+      <div>
+        <SectionLabel icon={Activity}>Window detail</SectionLabel>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs text-slate-500">
+              <th className="pb-2 font-medium" />
+              <th className="pb-2 font-medium">7 days</th>
+              <th className="pb-2 font-medium">30 days</th>
+            </tr>
+          </thead>
+          <tbody className="text-slate-200">
+            <tr>
+              <td className="py-1 text-slate-400">Created</td>
+              <td className="py-1">{data.created_last_7_days}</td>
+              <td className="py-1">{data.created_last_30_days}</td>
+            </tr>
+            <tr>
+              <td className="py-1 text-slate-400">Completed</td>
+              <td className="py-1">{data.completed_last_7_days}</td>
+              <td className="py-1">{data.completed_last_30_days}</td>
+            </tr>
+            <tr className="border-t border-slate-700/50">
+              <td className="py-1 text-slate-400">Net delta</td>
+              <td className={cn("py-1 font-medium", deltaClassName(data.net_delta_7_days))}>
+                {formatDelta(data.net_delta_7_days)}
+              </td>
+              <td className={cn("py-1 font-medium", deltaClassName(data.net_delta_30_days))}>
+                {formatDelta(data.net_delta_30_days)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

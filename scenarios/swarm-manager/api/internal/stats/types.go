@@ -4,7 +4,11 @@
 // appended since the last refresh.
 package stats
 
-import "time"
+import (
+	"time"
+
+	"swarm-manager/internal/eta"
+)
 
 // StatsResponse is the top-level response returned by GET /api/v1/stats.
 type StatsResponse struct {
@@ -57,12 +61,20 @@ type HistoryWindow struct {
 
 // ThroughputStats tracks item creation and completion rates.
 type ThroughputStats struct {
-	CompletedLast7Days  int `json:"completed_last_7_days"`
-	CompletedLast30Days int `json:"completed_last_30_days"`
-	CreatedLast7Days    int `json:"created_last_7_days"`
-	CreatedLast30Days   int `json:"created_last_30_days"`
-	NetDelta7Days       int `json:"net_delta_7_days"`
-	NetDelta30Days      int `json:"net_delta_30_days"`
+	CompletedLast7Days  int               `json:"completed_last_7_days"`
+	CompletedLast30Days int               `json:"completed_last_30_days"`
+	CreatedLast7Days    int               `json:"created_last_7_days"`
+	CreatedLast30Days   int               `json:"created_last_30_days"`
+	NetDelta7Days       int               `json:"net_delta_7_days"`
+	NetDelta30Days      int               `json:"net_delta_30_days"`
+	ThroughputTrend     []ThroughputPoint `json:"throughput_trend"`
+}
+
+// ThroughputPoint represents created and completed items in a trailing week.
+type ThroughputPoint struct {
+	WeekStart string `json:"week_start"`
+	Created   int    `json:"created"`
+	Completed int    `json:"completed"`
 }
 
 // TimingStats tracks how long work takes across lifecycle stages.
@@ -154,11 +166,11 @@ type KindRate struct {
 
 // DashboardStats provides top-level summary numbers.
 type DashboardStats struct {
-	TotalBacklogSize        int             `json:"total_backlog_size"`
-	TotalCompletedAllTime   int             `json:"total_completed_all_time"`
-	VelocityTrend           []VelocityPoint `json:"velocity_trend"`
-	EstimatedWeeksRemaining float64         `json:"estimated_weeks_remaining"`
-	VelocityWeeksCovered    int             `json:"velocity_weeks_covered"`
+	TotalBacklogSize      int             `json:"total_backlog_size"`
+	TotalCompletedAllTime int             `json:"total_completed_all_time"`
+	VelocityTrend         []VelocityPoint `json:"velocity_trend"`
+	EstimatedRemaining    *eta.Band       `json:"estimated_remaining,omitempty"`
+	VelocityWeeksCovered  int             `json:"velocity_weeks_covered"`
 }
 
 // VelocityPoint represents completions in a calendar week.

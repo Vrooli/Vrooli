@@ -13,17 +13,28 @@
  */
 
 import { useState } from "react";
-import { Info } from "lucide-react";
+import { BookOpen, Info } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { selectors } from "../../../consts/selectors";
 import { StatusChip } from "../../ui/status-chip";
-import type { OperatingModeCatalogPhase } from "../../../types/operating-mode";
+import type {
+  OperatingModeCatalogPhase,
+  OperatingModePhaseTransition,
+} from "../../../types/operating-mode";
 import { PhaseInternalsDisclosure } from "./phase-internals-disclosure";
 import { PhaseProfilePopover } from "./phase-profile-popover";
+import { SkillViewerDialog } from "./skill-viewer-dialog";
+import {
+  formatTransition,
+  phaseEmitSchema,
+  PHASE_READS,
+  workedExampleForPhase,
+} from "./phase-interpretability";
 import { phaseCardDomId } from "./utils";
 
 interface PhaseCardProps {
   phase: OperatingModeCatalogPhase;
+  transitions?: OperatingModePhaseTransition[];
   highlighted?: boolean;
   defaultInternalsOpen?: boolean;
 }
@@ -60,36 +71,20 @@ const CRITERIA_COLORS = {
   text: "text-amber-300",
 };
 
-const VERDICT_COLORS = {
-  background: "bg-cyan-500/10",
-  border: "border-cyan-500/30",
-  text: "text-cyan-300",
+const REQUIRED_COLORS = {
+  background: "bg-amber-500/10",
+  border: "border-amber-500/30",
+  text: "text-amber-300",
 };
 
-const HANDOFF_COLORS = {
-  background: "bg-violet-500/10",
-  border: "border-violet-500/30",
-  text: "text-violet-300",
-};
-
-const PROGRESS_COLORS = {
-  background: "bg-cyan-500/10",
-  border: "border-cyan-500/30",
-  text: "text-cyan-300",
-};
-
-const STRUCTURED_COLORS = {
-  background: "bg-indigo-500/10",
-  border: "border-indigo-500/30",
-  text: "text-indigo-300",
-};
-
-export function PhaseCard({ phase, highlighted, defaultInternalsOpen }: PhaseCardProps) {
+export function PhaseCard({ phase, transitions = [], highlighted, defaultInternalsOpen }: PhaseCardProps) {
   const writesRepoLabel = phase.writesRepo ? "writes repo" : "read-only";
   const writesRepoColors = phase.writesRepo ? WRITES_REPO_COLORS : READ_ONLY_COLORS;
   const headline = phase.label || phase.title || phase.phase;
-  const contract = phase.outputContract;
   const [profilePopoverOpen, setProfilePopoverOpen] = useState(false);
+  const [skillDialogOpen, setSkillDialogOpen] = useState(false);
+  const emitSchema = phaseEmitSchema(phase);
+  const workedExample = workedExampleForPhase(phase);
 
   return (
     <article
@@ -134,19 +129,89 @@ export function PhaseCard({ phase, highlighted, defaultInternalsOpen }: PhaseCar
         )}
         <StatusChip label={writesRepoLabel} colors={writesRepoColors} />
         {phase.requiresCriteria && <StatusChip label="requires criteria" colors={CRITERIA_COLORS} />}
-        {contract.requiresStructuredResult && (
-          <StatusChip label="structured" colors={STRUCTURED_COLORS} title="Phase emits a structured result" />
-        )}
-        {contract.requiresVerdict && (
-          <StatusChip label="verdict" colors={VERDICT_COLORS} title="Phase produces an acceptance verdict" />
-        )}
-        {contract.requiresHandoff && (
-          <StatusChip label="handoff" colors={HANDOFF_COLORS} title="Phase emits a handoff packet" />
-        )}
-        {contract.requiresProgress && (
-          <StatusChip label="progress" colors={PROGRESS_COLORS} title="Phase records progress decision" />
-        )}
       </div>
+
+      {phase.skillId && (
+        <button
+          type="button"
+          onClick={() => setSkillDialogOpen(true)}
+          className={cn(
+            "mt-3 flex w-full items-center justify-between gap-3 rounded-md border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-left text-xs text-cyan-100 transition-colors",
+            "hover:border-cyan-400/40 hover:bg-cyan-500/15",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50",
+          )}
+          data-testid="phase-agent-instructions"
+        >
+          <span className="min-w-0">
+            <span className="block font-medium">Agent instructions</span>
+            <code className="mt-0.5 block truncate font-mono text-[11px] text-cyan-200/80">
+              {phase.skillId}
+            </code>
+          </span>
+          <BookOpen className="h-4 w-4 shrink-0 text-cyan-300" aria-hidden />
+        </button>
+      )}
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <section className="rounded-md border border-slate-800 bg-slate-950/40 p-3">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Reads</h4>
+          <ul className="mt-2 space-y-2">
+            {PHASE_READS.map((read) => (
+              <li key={read.key} className="text-xs text-slate-300">
+                <code className="rounded bg-slate-800/80 px-1.5 py-0.5 font-mono text-[11px] text-slate-100">
+                  {read.key}
+                </code>
+                <span className="ml-2 font-medium text-slate-200">{read.label}</span>
+                <p className="mt-1 leading-relaxed text-slate-500">{read.meaning}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="rounded-md border border-slate-800 bg-slate-950/40 p-3">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Emits schema</h4>
+          <ul className="mt-2 space-y-2">
+            {emitSchema.map((emit) => (
+              <li key={emit.field} className="text-xs text-slate-300">
+                <div className="flex flex-wrap items-center gap-2">
+                  <code className="rounded bg-slate-800/80 px-1.5 py-0.5 font-mono text-[11px] text-slate-100">
+                    {emit.label}
+                  </code>
+                  {emit.required && <StatusChip label="required" colors={REQUIRED_COLORS} />}
+                </div>
+                <p className="mt-1 leading-relaxed text-slate-500">{emit.meaning}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+
+      <section className="mt-3 rounded-md border border-slate-800 bg-slate-950/40 p-3">
+        <h4 className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Transitions</h4>
+        {transitions.length > 0 ? (
+          <ul className="mt-2 space-y-1">
+            {transitions.map((transition) => (
+              <li
+                key={`${transition.from}-${transition.to}-${transition.label}`}
+                className="text-xs text-slate-300"
+              >
+                {formatTransition(transition)}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-xs text-slate-500">No outgoing transition; this phase is terminal.</p>
+        )}
+      </section>
+
+      <section className="mt-3 rounded-md border border-slate-800 bg-slate-950/40 p-3">
+        <h4 className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+          {workedExample.title}
+        </h4>
+        <pre className="mt-2 overflow-x-auto rounded bg-slate-950 p-2 text-[11px] leading-relaxed text-slate-300">
+          {JSON.stringify({ operating_mode_result: workedExample.result }, null, 2)}
+        </pre>
+      </section>
 
       {phase.outputArtifacts && phase.outputArtifacts.length > 0 && (
         <div className="mt-3">
@@ -182,6 +247,13 @@ export function PhaseCard({ phase, highlighted, defaultInternalsOpen }: PhaseCar
       <div className="mt-3">
         <PhaseInternalsDisclosure phase={phase} defaultOpen={defaultInternalsOpen} />
       </div>
+      {skillDialogOpen && (
+        <SkillViewerDialog
+          isOpen={skillDialogOpen}
+          onClose={() => setSkillDialogOpen(false)}
+          skillId={phase.skillId}
+        />
+      )}
     </article>
   );
 }

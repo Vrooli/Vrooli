@@ -1,16 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router-dom";
 import type { StatsResponse } from "../../../types/stats";
 
 // ---------------------------------------------------------------------------
 // Mocks
 // ---------------------------------------------------------------------------
 
-const mockGetStats = vi.fn<() => Promise<StatsResponse>>();
+const mockGetStats = vi.fn<(options?: { goal?: string }) => Promise<StatsResponse>>();
+const mockListGoals = vi.fn(() => Promise.resolve([]));
 
 vi.mock("../../../services", () => ({
-  statsService: { getStats: (...args: unknown[]) => mockGetStats(...(args as [])) },
+  statsService: { getStats: (options?: { goal?: string }) => mockGetStats(options) },
+  goalsService: {
+    list: () => mockListGoals(),
+    create: vi.fn(),
+    addTargets: vi.fn(),
+    setPriority: vi.fn(),
+  },
 }));
 
 import { StatsView } from "./StatsView";
@@ -35,6 +43,12 @@ const MOCK_STATS: StatsResponse = {
     created_last_30_days: 35,
     net_delta_7_days: 3,
     net_delta_30_days: 17,
+    throughput_trend: [
+      { week_start: "2026-03-17", created: 4, completed: 2 },
+      { week_start: "2026-03-24", created: 6, completed: 5 },
+      { week_start: "2026-03-31", created: 8, completed: 4 },
+      { week_start: "2026-04-07", created: 7, completed: 6 },
+    ],
   },
   timing: {
     avg_lead_time_hours: 12.0,
@@ -92,7 +106,17 @@ const MOCK_STATS: StatsResponse = {
       { week_start: "2026-03-31", completed: 4 },
       { week_start: "2026-04-07", completed: 6 },
     ],
-    estimated_weeks_remaining: 8.6,
+    estimated_remaining: {
+      p50_hours: 240,
+      p80_hours: 420,
+      p50_label: "~10 days",
+      p80_label: "~18 days",
+      basis: "default",
+      basis_label: "priors only",
+      confidence: "low",
+      remaining_items: 47,
+      lane_capacity: 2,
+    },
     velocity_weeks_covered: 4,
   },
   mode: {
@@ -134,11 +158,15 @@ const MOCK_STATS: StatsResponse = {
   },
 };
 
-function renderWithProviders(ui: React.ReactElement) {
+function renderWithProviders(ui: React.ReactElement, initialEntries = ["/stats"]) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+  return render(
+    <MemoryRouter initialEntries={initialEntries}>
+      <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+    </MemoryRouter>,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -148,6 +176,7 @@ function renderWithProviders(ui: React.ReactElement) {
 describe("StatsView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockListGoals.mockResolvedValue([]);
   });
 
   it("shows loading state while fetching", () => {
@@ -181,6 +210,15 @@ describe("StatsView", () => {
     expect(screen.getByTestId("stats-tab-sessions")).toBeInTheDocument();
   });
 
+  it("passes deep-linked goal scope to the stats query", async () => {
+    mockGetStats.mockResolvedValue(MOCK_STATS);
+    renderWithProviders(<StatsView />, ["/stats?goal=goal-x"]);
+
+    await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
+    expect(mockGetStats).toHaveBeenCalledWith({ goal: "goal-x" });
+    expect(screen.getByTestId("plan-goal-picker")).toHaveTextContent("All work");
+  });
+
   it("defaults to the dashboard tab", async () => {
     mockGetStats.mockResolvedValue(MOCK_STATS);
     renderWithProviders(<StatsView />);
@@ -208,7 +246,8 @@ describe("StatsView", () => {
       await waitFor(() => expect(screen.getByTestId("stat-backlog-size")).toBeInTheDocument());
       expect(screen.getByTestId("stat-backlog-size")).toHaveTextContent("47");
       expect(screen.getByTestId("stat-completed-all-time")).toHaveTextContent("123");
-      expect(screen.getByTestId("stat-weeks-remaining")).toHaveTextContent("~8.6 weeks");
+      expect(screen.getByTestId("stat-weeks-remaining")).toHaveTextContent("~10 days - ~18 days");
+      expect(screen.getByTestId("stat-weeks-remaining")).toHaveTextContent("47 items");
     });
 
     it("shows event count", async () => {
@@ -242,7 +281,7 @@ describe("StatsView", () => {
   });
 
   describe("Throughput tab", () => {
-    it("displays created and completed counts", async () => {
+    it("displays KPI cards, trend, burndown, rates, and window detail", async () => {
       mockGetStats.mockResolvedValue(MOCK_STATS);
       renderWithProviders(<StatsView />);
 
@@ -250,8 +289,46 @@ describe("StatsView", () => {
       fireEvent.click(screen.getByTestId("stats-tab-throughput"));
 
       expect(screen.getByTestId("stats-content-throughput")).toBeInTheDocument();
-      expect(screen.getByText("8")).toBeInTheDocument(); // created 7d
-      expect(screen.getByText("35")).toBeInTheDocument(); // created 30d
+      expect(screen.getByTestId("stat-throughput-created-7d")).toHaveTextContent("8");
+      expect(screen.getByTestId("stat-throughput-completed-7d")).toHaveTextContent("5");
+      expect(screen.getByTestId("stat-throughput-net-7d")).toHaveTextContent("+3");
+      expect(screen.getByTestId("stats-throughput-chart")).toBeInTheDocument();
+      expect(screen.getByTestId("stat-throughput-burndown")).toHaveTextContent("~10 days - ~18 days");
+      expect(screen.getByTestId("stat-throughput-rate")).toHaveTextContent("4.2 / wk done");
+      expect(screen.getByText("Window detail")).toBeInTheDocument();
+      expect(screen.getByText("35")).toBeInTheDocument(); // created 30d detail
+    });
+
+    it("shows empty state when the throughput trend has no flow", async () => {
+      mockGetStats.mockResolvedValue({
+        ...MOCK_STATS,
+        throughput: {
+          ...MOCK_STATS.throughput,
+          throughput_trend: [
+            { week_start: "2026-03-24", created: 0, completed: 0 },
+            { week_start: "2026-03-31", created: 0, completed: 0 },
+          ],
+        },
+      });
+      renderWithProviders(<StatsView />);
+
+      await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId("stats-tab-throughput"));
+
+      expect(screen.getByTestId("stats-throughput-empty")).toHaveTextContent("No created or completed work recorded");
+    });
+
+    it("gates burndown when ETA is unavailable", async () => {
+      mockGetStats.mockResolvedValue({
+        ...MOCK_STATS,
+        dashboard: { ...MOCK_STATS.dashboard, estimated_remaining: null },
+      });
+      renderWithProviders(<StatsView />);
+
+      await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId("stats-tab-throughput"));
+
+      expect(screen.getByTestId("stat-throughput-burndown")).toHaveTextContent("Not enough data yet");
     });
   });
 

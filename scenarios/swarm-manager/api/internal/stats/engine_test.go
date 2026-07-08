@@ -4,9 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
+	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/eta"
 	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/operatingmode"
 
@@ -29,6 +32,26 @@ func setupEngine(t *testing.T) (*Engine, *eventlog.SQLiteRepository) {
 	return engine, repo
 }
 
+type stubGoalScoper struct {
+	name    string
+	closure []string
+}
+
+func (s stubGoalScoper) ClosureRefs(name string) ([]string, error) {
+	if name != s.name {
+		return nil, sql.ErrNoRows
+	}
+	return append([]string(nil), s.closure...), nil
+}
+
+type stubBacklogLister struct {
+	items []backlog.BacklogItem
+}
+
+func (s stubBacklogLister) LoadAll(_ []backlog.BacklogKind) ([]backlog.BacklogItem, error) {
+	return append([]backlog.BacklogItem(nil), s.items...), nil
+}
+
 func appendEvent(t *testing.T, repo *eventlog.SQLiteRepository, ts time.Time, entityType eventlog.EntityType, entityID string, eventType eventlog.EventType, payload any) {
 	t.Helper()
 	var meta json.RawMessage
@@ -48,6 +71,129 @@ func appendEvent(t *testing.T, repo *eventlog.SQLiteRepository, ts time.Time, en
 	})
 	if err != nil {
 		t.Fatalf("append: %v", err)
+	}
+}
+
+func TestGoalScopedStatsAggregateClosureOnly(t *testing.T) {
+	engine, repo := setupEngine(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	appendEvent(t, repo, now.Add(-4*24*time.Hour), eventlog.EntityBacklogItem, "execute/a",
+		eventlog.EventBacklogCreated, eventlog.BacklogCreatedPayload{Kind: "execute", Status: "backlog", Priority: 5})
+	appendEvent(t, repo, now.Add(-3*24*time.Hour), eventlog.EntityBacklogItem, "execute/b",
+		eventlog.EventBacklogCreated, eventlog.BacklogCreatedPayload{Kind: "execute", Status: "backlog", Priority: 5})
+	appendEvent(t, repo, now.Add(-2*24*time.Hour), eventlog.EntityBacklogItem, "execute/c",
+		eventlog.EventBacklogCreated, eventlog.BacklogCreatedPayload{Kind: "execute", Status: "backlog", Priority: 5})
+	appendEvent(t, repo, now.Add(-48*time.Hour), eventlog.EntityBacklogItem, "execute/a",
+		eventlog.EventBacklogStatusChanged, eventlog.StatusChangePayload{From: "backlog", To: "completed"})
+	appendEvent(t, repo, now.Add(-24*time.Hour), eventlog.EntityBacklogItem, "execute/c",
+		eventlog.EventBacklogStatusChanged, eventlog.StatusChangePayload{From: "backlog", To: "completed"})
+	appendEvent(t, repo, now.Add(-6*time.Hour), eventlog.EntityBacklogItem, "execute/b",
+		eventlog.EventBacklogBlocked, eventlog.BlockPayload{Reason: "waiting on review"})
+
+	appendEvent(t, repo, now, eventlog.EntityInitiative, "init-scope", eventlog.EventInitiativeCreated, nil)
+	appendEvent(t, repo, now, eventlog.EntityInitiative, "init-scope",
+		eventlog.EventInitiativeItemAdded, eventlog.InitiativeItemPayload{Item: "execute/b"})
+	appendEvent(t, repo, now, eventlog.EntityInitiative, "init-other", eventlog.EventInitiativeCreated, nil)
+	appendEvent(t, repo, now, eventlog.EntityInitiative, "init-other",
+		eventlog.EventInitiativeItemAdded, eventlog.InitiativeItemPayload{Item: "execute/c"})
+
+	appendEvent(t, repo, now, eventlog.EntityExecution, "exec-scope",
+		eventlog.EventExecutionCreated, eventlog.ExecutionCreatedPayload{BacklogKind: "execute", BacklogName: "b", Mode: "yolo"})
+	appendEvent(t, repo, now.Add(time.Minute), eventlog.EntityExecution, "exec-scope",
+		eventlog.EventExecutionCompleted, eventlog.ExecutionCompletedPayload{DurationSeconds: 120, HadFixups: true})
+	appendEvent(t, repo, now, eventlog.EntityExecution, "exec-other",
+		eventlog.EventExecutionCreated, eventlog.ExecutionCreatedPayload{BacklogKind: "execute", BacklogName: "c", Mode: "yolo"})
+	appendEvent(t, repo, now.Add(time.Minute), eventlog.EntityExecution, "exec-other",
+		eventlog.EventExecutionCompleted, eventlog.ExecutionCompletedPayload{DurationSeconds: 600})
+
+	appendEvent(t, repo, now, eventlog.EntityRecord, "rec-scope",
+		eventlog.EventRecordCreated, eventlog.RecordCreatedPayload{Kind: "execute", Scenario: "swarm-manager", BacklogRef: "execute/b"})
+	appendEvent(t, repo, now, eventlog.EntityRecord, "rec-other",
+		eventlog.EventRecordCreated, eventlog.RecordCreatedPayload{Kind: "execute", Scenario: "swarm-manager", BacklogRef: "execute/c"})
+
+	if err := engine.Rebuild(ctx); err != nil {
+		t.Fatalf("rebuild: %v", err)
+	}
+	engine.Configure(Config{
+		Goals: stubGoalScoper{name: "goal-x", closure: []string{"execute/a", "execute/b"}},
+	})
+
+	scoped, err := engine.GetStatsForParams(ctx, Params{Goal: "goal-x"})
+	if err != nil {
+		t.Fatalf("scoped stats: %v", err)
+	}
+
+	if scoped.Throughput.CreatedLast30Days != 2 || scoped.Throughput.CompletedLast30Days != 1 {
+		t.Fatalf("throughput = created:%d completed:%d, want 2/1", scoped.Throughput.CreatedLast30Days, scoped.Throughput.CompletedLast30Days)
+	}
+	var scopedTrendCreated, scopedTrendCompleted int
+	for _, point := range scoped.Throughput.ThroughputTrend {
+		scopedTrendCreated += point.Created
+		scopedTrendCompleted += point.Completed
+	}
+	if scopedTrendCreated != 2 || scopedTrendCompleted != 1 {
+		t.Fatalf("throughput trend = created:%d completed:%d, want 2/1", scopedTrendCreated, scopedTrendCompleted)
+	}
+	if scoped.Dashboard.TotalBacklogSize != 1 || scoped.Dashboard.TotalCompletedAllTime != 1 {
+		t.Fatalf("dashboard = backlog:%d completed:%d, want 1/1", scoped.Dashboard.TotalBacklogSize, scoped.Dashboard.TotalCompletedAllTime)
+	}
+	if scoped.Blocking.CurrentlyBlocked != 1 || scoped.Blocking.BlockedRatio != 1 {
+		t.Fatalf("blocking = %+v, want one scoped blocked item", scoped.Blocking)
+	}
+	if scoped.Agent.TotalExecutions != 1 || scoped.Agent.CompletedCount != 1 || scoped.Agent.FollowUpRate != 1 {
+		t.Fatalf("agent = %+v, want only scoped execution", scoped.Agent)
+	}
+	if len(scoped.Scope.Initiatives) != 1 || scoped.Scope.Initiatives[0].Name != "init-scope" || scoped.Scope.Initiatives[0].Blocked != 1 {
+		t.Fatalf("scope initiatives = %+v, want only blocked init-scope", scoped.Scope.Initiatives)
+	}
+	if scoped.Records.TotalRecords != 1 || scoped.Records.WithBacklogRef != 1 {
+		t.Fatalf("records = %+v, want only scoped record", scoped.Records)
+	}
+}
+
+func TestGoalScopedStatsETAUsesClosureItems(t *testing.T) {
+	engine, repo := setupEngine(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	appendEvent(t, repo, now, eventlog.EntityBacklogItem, "execute/a",
+		eventlog.EventBacklogCreated, eventlog.BacklogCreatedPayload{Kind: "execute", Status: "backlog"})
+	appendEvent(t, repo, now, eventlog.EntityBacklogItem, "execute/b",
+		eventlog.EventBacklogCreated, eventlog.BacklogCreatedPayload{Kind: "execute", Status: "backlog"})
+	if err := engine.Rebuild(ctx); err != nil {
+		t.Fatalf("rebuild: %v", err)
+	}
+
+	engine.Configure(Config{
+		Backlog: stubBacklogLister{items: []backlog.BacklogItem{
+			{Kind: backlog.KindExecute, Name: "a", Status: backlog.StatusReady, Effort: "S"},
+			{Kind: backlog.KindExecute, Name: "b", Status: backlog.StatusReady, Effort: "XL"},
+		}},
+		Goals: stubGoalScoper{name: "goal-x", closure: []string{"execute/a"}},
+		ETA: func() (*eta.Estimator, error) {
+			return eta.NewEstimator(nil, nil, 1, eta.DefaultTrials, eta.DefaultSeed), nil
+		},
+	})
+
+	scoped, err := engine.GetStatsForParams(ctx, Params{Goal: "goal-x"})
+	if err != nil {
+		t.Fatalf("scoped stats: %v", err)
+	}
+	if scoped.Dashboard.EstimatedRemaining == nil {
+		t.Fatal("expected scoped ETA")
+	}
+	if scoped.Dashboard.EstimatedRemaining.RemainingItems != 1 {
+		t.Fatalf("remaining items = %d, want 1", scoped.Dashboard.EstimatedRemaining.RemainingItems)
+	}
+}
+
+func TestGoalScopedStatsUnknownGoalErrors(t *testing.T) {
+	engine, _ := setupEngine(t)
+	engine.Configure(Config{Goals: stubGoalScoper{name: "goal-x", closure: []string{"execute/a"}}})
+	_, err := engine.GetStatsForParams(context.Background(), Params{Goal: "missing"})
+	if !errors.Is(err, ErrGoalScope) {
+		t.Fatalf("want ErrGoalScope, got %v", err)
 	}
 }
 
@@ -431,6 +577,20 @@ func TestThroughput(t *testing.T) {
 	}
 	if stats.Throughput.NetDelta7Days != 1 {
 		t.Errorf("net delta 7d: got %d, want 1", stats.Throughput.NetDelta7Days)
+	}
+	if len(stats.Throughput.ThroughputTrend) != 8 {
+		t.Fatalf("throughput trend length = %d, want 8", len(stats.Throughput.ThroughputTrend))
+	}
+	var trendCreated, trendCompleted int
+	for _, point := range stats.Throughput.ThroughputTrend {
+		trendCreated += point.Created
+		trendCompleted += point.Completed
+	}
+	if trendCreated != 5 {
+		t.Errorf("trend created total: got %d, want 5", trendCreated)
+	}
+	if trendCompleted != 2 {
+		t.Errorf("trend completed total: got %d, want 2", trendCompleted)
 	}
 }
 

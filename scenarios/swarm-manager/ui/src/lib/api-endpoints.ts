@@ -144,6 +144,7 @@ export const API_ENDPOINTS = {
     `/initiatives/${name}/operating-mode/rounds/${round}/apply-backlog-sync?mode=${encodeURIComponent(mode)}`,
   operatingModes: "/operating-modes",
   operatingMode: (mode: string) => `/operating-modes/${encodeURIComponent(mode)}`,
+  operatingModeSimulate: (mode: string) => `/operating-modes/${encodeURIComponent(mode)}/simulate`,
   graph: "/graph",
   plan: "/plan",
   overview: "/overview",
