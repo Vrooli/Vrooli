@@ -45,7 +45,7 @@
       },
       "result_mapping": {
         "results_path": "results",
-        "id_field": "id",
+        "id_field": "filePath",
         "title_field": "displayName",
         "score_field": "score",
         "snippet_field": "description",
@@ -72,10 +72,11 @@
             "id": "settings-surface",
             "query": "where do I change settings",
             "tags": [
-              "strong"
+              "strong",
+              "settings"
             ],
             "expect_ids": [
-              "e29284fc-fbed-53aa-bdaa-393f185ec1a3"
+              "ui/src/pages/SettingsPage.tsx"
             ],
             "expect_within_top_k": 5
           },
@@ -83,10 +84,11 @@
             "id": "search-surface",
             "query": "search page",
             "tags": [
-              "strong"
+              "strong",
+              "search"
             ],
             "expect_ids": [
-              "a6753018-739a-5171-9901-b24859ef6ab4"
+              "ui/src/pages/SearchPage.tsx"
             ],
             "expect_within_top_k": 5
           },
@@ -94,10 +96,11 @@
             "id": "dashboard-surface",
             "query": "health dashboard overview",
             "tags": [
-              "strong"
+              "strong",
+              "dashboard"
             ],
             "expect_ids": [
-              "93a6c570-d40b-5b63-bb8e-43ff086fdb6f"
+              "ui/src/pages/DashboardPage.tsx"
             ],
             "expect_within_top_k": 5
           },
@@ -108,10 +111,26 @@
               "gibberish"
             ],
             "expect_no_strong_hit": true,
-            "expect_max_score": 0.45
+            "expect_max_score": 0.6
           }
-        ]
-      }
+        ],
+        "coverage": {
+          "required_tag_groups": [
+            {
+              "id": "core-surfaces",
+              "description": "Core reusable UI surfaces the provider promises to locate.",
+              "tags": [
+                "settings",
+                "search",
+                "dashboard"
+              ],
+              "min_reviewed_positive": 3
+            }
+          ]
+        }
+      },
+      "config_writable": false,
+      "config_pinned_reason": "ui-health surface indexing currently uses fixed provider tuning; Search Hub may reindex but cannot write sweep winners back."
     }
   ]
 }

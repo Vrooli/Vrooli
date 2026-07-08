@@ -46,6 +46,23 @@ func TestBuildMaturityAssessmentMapsUIFindings(t *testing.T) {
 	}
 }
 
+func TestReportGroupsPreserveCompositionOrder(t *testing.T) {
+	h := NewConnectHandler(Deps{Logger: log.New(log.Writer(), "", 0)})
+	groups := h.reportGroups(context.Background(), "demo", "/tmp/demo", true)
+	want := []string{"static-interop", "static-freshness", "runtime-render"}
+	if len(groups) != len(want) {
+		t.Fatalf("groups = %d, want %d", len(groups), len(want))
+	}
+	for i, group := range groups {
+		if group.name != want[i] {
+			t.Fatalf("group[%d] = %q, want %q", i, group.name, want[i])
+		}
+		if group.run == nil {
+			t.Fatalf("group[%d] has nil run function", i)
+		}
+	}
+}
+
 func TestMaturitySpecCoversUIHealthFindings(t *testing.T) {
 	spec, err := assessment.LoadSpecFromScenario(filepath.Join("..", "..", ".."))
 	if err != nil {

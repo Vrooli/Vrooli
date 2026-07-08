@@ -120,8 +120,6 @@ BadExample:
 package checks
 
 import (
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -137,8 +135,8 @@ var browserRouterImport = regexp.MustCompile(`import\s+\{[^}]*BrowserRouter(?:\s
 func checkRouterBasename(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	const ruleID = "interop_router_basename"
 
-	srcDir := filepath.Join(ctx.ScenarioRoot, "ui", "src")
-	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
+	files := sourceFiles(ctx, "ui/src")
+	if len(files) == 0 {
 		return uiinterop.RuleResult{
 			RuleID:     ruleID,
 			Skipped:    true,
@@ -157,31 +155,11 @@ func checkRouterBasename(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 
 	var hits []routerHit
 
-	_ = filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-		if info.IsDir() {
-			if _, skip := skipDirectories[info.Name()]; skip {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		ext := filepath.Ext(info.Name())
-		if _, ok := scanExtensions[ext]; !ok {
-			return nil
-		}
-
-		data, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return nil
-		}
-		content := string(data)
-
+	for _, f := range files {
 		// Check for BrowserRouter import.
-		m := browserRouterImport.FindStringSubmatch(content)
+		m := browserRouterImport.FindStringSubmatch(f.Content)
 		if m == nil {
-			return nil
+			continue
 		}
 
 		alias := "BrowserRouter"
@@ -193,7 +171,7 @@ func checkRouterBasename(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 		jsxPattern := regexp.MustCompile(`<` + regexp.QuoteMeta(alias) + `[\s>]`)
 		basenamePattern := regexp.MustCompile(`<` + regexp.QuoteMeta(alias) + `\s[^>]*basename[\s=]`)
 
-		lines := strings.Split(content, "\n")
+		lines := strings.Split(f.Content, "\n")
 		for i, line := range lines {
 			if jsxPattern.MatchString(line) {
 				// Check if basename appears on this line or nearby (multi-line JSX).
@@ -205,10 +183,9 @@ func checkRouterBasename(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 				}
 				window := strings.Join(lines[windowStart:windowEnd], "\n")
 
-				rel, _ := filepath.Rel(ctx.ScenarioRoot, path)
 				hits = append(hits, routerHit{
-					relPath:     rel,
-					content:     content,
+					relPath:     f.RelPath,
+					content:     f.Content,
 					alias:       alias,
 					line:        i + 1,
 					hasBasename: basenamePattern.MatchString(window),
@@ -216,8 +193,7 @@ func checkRouterBasename(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 				break // Only check first JSX usage per file.
 			}
 		}
-		return nil
-	})
+	}
 
 	if len(hits) == 0 {
 		return uiinterop.RuleResult{

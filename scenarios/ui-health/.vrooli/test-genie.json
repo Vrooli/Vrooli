@@ -185,7 +185,8 @@
             "name": "Freshness clean",
             "status_label": "Complete",
             "description": "Freshness validation reports no blocking drift.",
-            "capability_summary": "Freshness validation reports no blocking drift."
+            "capability_summary": "Freshness validation reports no blocking drift.",
+            "next_unlock": "Freshness authority surfaced for downstream runtime validation."
           },
           {
             "id": "L5",

@@ -106,8 +106,6 @@ package checks
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"ui-health/internal/uiinterop"
@@ -120,8 +118,8 @@ func init() {
 func checkResolveApiBaseSingle(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	const ruleID = "interop_resolve_api_base_single"
 
-	srcDir := filepath.Join(ctx.ScenarioRoot, "ui", "src")
-	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
+	files := sourceFiles(ctx, "ui/src")
+	if len(files) == 0 {
 		return uiinterop.RuleResult{
 			RuleID:     ruleID,
 			Skipped:    true,
@@ -132,34 +130,11 @@ func checkResolveApiBaseSingle(ctx uiinterop.CheckContext) uiinterop.RuleResult 
 
 	var filesWithUsage []string
 
-	_ = filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
+	for _, f := range files {
+		if strings.Contains(f.Content, "resolveApiBase") {
+			filesWithUsage = append(filesWithUsage, f.RelPath)
 		}
-		if info.IsDir() {
-			if _, skip := skipDirectories[info.Name()]; skip {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		ext := filepath.Ext(info.Name())
-		if _, ok := scanExtensions[ext]; !ok {
-			return nil
-		}
-		if isTestFile(info.Name()) {
-			return nil
-		}
-
-		data, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return nil
-		}
-		if strings.Contains(string(data), "resolveApiBase") {
-			rel, _ := filepath.Rel(ctx.ScenarioRoot, path)
-			filesWithUsage = append(filesWithUsage, rel)
-		}
-		return nil
-	})
+	}
 
 	count := len(filesWithUsage)
 

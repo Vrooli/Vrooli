@@ -98,7 +98,6 @@ BadExample:
 package checks
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -115,8 +114,8 @@ var keyboardIndicators = []string{"keydown", "keyboard", "shortcut", "hotkey"}
 func checkShortcutRelay(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	const ruleID = "interop_shortcut_relay"
 
-	hooksDir := filepath.Join(ctx.ScenarioRoot, "ui", "src", "hooks")
-	if _, err := os.Stat(hooksDir); os.IsNotExist(err) {
+	hookFiles := sourceFiles(ctx, "ui/src/hooks")
+	if len(hookFiles) == 0 {
 		return uiinterop.RuleResult{
 			RuleID:     ruleID,
 			Skipped:    true,
@@ -127,38 +126,31 @@ func checkShortcutRelay(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 
 	// Find keyboard-related hook files.
 	hasKeyboardHooks := false
-	_ = filepath.Walk(hooksDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		ext := filepath.Ext(info.Name())
-		if _, ok := scanExtensions[ext]; !ok {
-			return nil
-		}
-
+	for _, f := range hookFiles {
 		// Check file name first.
-		lower := strings.ToLower(info.Name())
+		lower := strings.ToLower(filepath.Base(f.RelPath))
 		for _, kw := range keyboardIndicators {
 			if strings.Contains(lower, kw) {
 				hasKeyboardHooks = true
-				return nil
+				break
 			}
+		}
+		if hasKeyboardHooks {
+			break
 		}
 
 		// Check file content.
-		data, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return nil
-		}
-		content := strings.ToLower(string(data))
+		content := strings.ToLower(f.Content)
 		for _, kw := range keyboardIndicators {
 			if strings.Contains(content, kw) {
 				hasKeyboardHooks = true
-				return nil
+				break
 			}
 		}
-		return nil
-	})
+		if hasKeyboardHooks {
+			break
+		}
+	}
 
 	if !hasKeyboardHooks {
 		return uiinterop.RuleResult{
@@ -170,7 +162,7 @@ func checkShortcutRelay(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	}
 
 	// Check for emitShortcutIntent in hooks/ first.
-	if containsInDir(hooksDir, "emitShortcutIntent") {
+	if containsInSources(hookFiles, "emitShortcutIntent") {
 		return uiinterop.RuleResult{
 			RuleID:  ruleID,
 			Passed:  true,
@@ -179,8 +171,7 @@ func checkShortcutRelay(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	}
 
 	// Broaden search to ui/src/.
-	srcDir := filepath.Join(ctx.ScenarioRoot, "ui", "src")
-	if containsInDir(srcDir, "emitShortcutIntent") {
+	if containsInSources(sourceFiles(ctx, "ui/src"), "emitShortcutIntent") {
 		return uiinterop.RuleResult{
 			RuleID:  ruleID,
 			Passed:  true,
@@ -203,32 +194,12 @@ func checkShortcutRelay(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	}
 }
 
-// containsInDir walks a directory and returns true if any scannable file
-// contains the given needle string.
-func containsInDir(dir, needle string) bool {
-	found := false
-	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || found {
-			return nil
+// containsInSources returns true if any source file contains needle.
+func containsInSources(files []uiinterop.SourceFile, needle string) bool {
+	for _, f := range files {
+		if strings.Contains(f.Content, needle) {
+			return true
 		}
-		if info.IsDir() {
-			if _, skip := skipDirectories[info.Name()]; skip {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		ext := filepath.Ext(info.Name())
-		if _, ok := scanExtensions[ext]; !ok {
-			return nil
-		}
-		data, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return nil
-		}
-		if strings.Contains(string(data), needle) {
-			found = true
-		}
-		return nil
-	})
-	return found
+	}
+	return false
 }

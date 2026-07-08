@@ -55,12 +55,12 @@ func init() {
 
 func checkPWAServiceWorkerOffline(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	const ruleID = "pwa_service_worker_offline"
-	if len(walkUISource(ctx.ScenarioRoot, "ui")) == 0 {
+	if len(sourceFiles(ctx, "ui")) == 0 {
 		return skippedPWA(ruleID, "ui source not found")
 	}
 	registered := false
-	for _, f := range walkUISource(ctx.ScenarioRoot, "ui/src") {
-		content := f.content
+	for _, f := range sourceFiles(ctx, "ui/src") {
+		content := f.Content
 		if stringsContainsServiceWorkerRegistration(content) {
 			registered = true
 			break

@@ -75,7 +75,7 @@ var exportedComponentPattern = regexp.MustCompile(`(?m)\bexport\s+(?:function|co
 func checkUnusedCustomComponent(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	const ruleID = "standard_unused_custom_component"
 
-	files := walkUISource(ctx.ScenarioRoot, "ui/src")
+	files := sourceFiles(ctx, "ui/src")
 	if len(files) == 0 {
 		return uiinterop.RuleResult{
 			RuleID:     ruleID,
@@ -87,20 +87,20 @@ func checkUnusedCustomComponent(ctx uiinterop.CheckContext) uiinterop.RuleResult
 
 	var violations []uiinterop.Violation
 	for _, f := range files {
-		if !isComponentSource(f.relPath) || isComponentExempt(f) {
+		if !isComponentSource(f.RelPath) || isComponentExempt(f) {
 			continue
 		}
-		for _, name := range exportedComponents(f.content) {
-			if componentReferenced(files, f.relPath, name) {
+		for _, name := range exportedComponents(f.Content) {
+			if componentReferenced(files, f.RelPath, name) {
 				continue
 			}
 			violations = append(violations, uiinterop.Violation{
 				RuleID:         ruleID,
 				Severity:       "medium",
 				Title:          "Unused exported component",
-				Description:    f.relPath + " exports " + name + " but no production UI file references it",
-				FilePath:       f.relPath,
-				Line:           lineOf(f.content, name),
+				Description:    f.RelPath + " exports " + name + " but no production UI file references it",
+				FilePath:       f.RelPath,
+				Line:           lineOf(f.Content, name),
 				Recommendation: "Use the component, remove it, or mark externally embedded surfaces with @vrooliWidget.",
 			})
 		}
@@ -130,12 +130,12 @@ func isComponentSource(relPath string) bool {
 	return strings.Contains(rel, "/components/") || strings.Contains(rel, "/layout/")
 }
 
-func isComponentExempt(f uiSourceFile) bool {
-	base := strings.ToLower(filepath.Base(f.relPath))
-	if base == "index.tsx" || base == "index.jsx" || strings.Contains(f.content, "@vrooliWidget") {
+func isComponentExempt(f uiinterop.SourceFile) bool {
+	base := strings.ToLower(filepath.Base(f.RelPath))
+	if base == "index.tsx" || base == "index.jsx" || strings.Contains(f.Content, "@vrooliWidget") {
 		return true
 	}
-	return strings.Contains(f.content, "React.lazy(") || strings.Contains(f.content, "lazy(()")
+	return strings.Contains(f.Content, "React.lazy(") || strings.Contains(f.Content, "lazy(()")
 }
 
 func exportedComponents(source string) []string {
@@ -149,17 +149,17 @@ func exportedComponents(source string) []string {
 	return uniqueStrings(out)
 }
 
-func componentReferenced(files []uiSourceFile, ownPath, name string) bool {
+func componentReferenced(files []uiinterop.SourceFile, ownPath, name string) bool {
 	for _, other := range files {
-		if other.relPath == ownPath {
+		if other.RelPath == ownPath {
 			continue
 		}
-		if strings.Contains(other.content, "<"+name) ||
-			strings.Contains(other.content, "{ "+name+" }") ||
-			strings.Contains(other.content, "{"+name+"}") ||
-			strings.Contains(other.content, name+" as ") ||
-			strings.Contains(other.content, " "+name+",") ||
-			strings.Contains(other.content, " "+name+" ") {
+		if strings.Contains(other.Content, "<"+name) ||
+			strings.Contains(other.Content, "{ "+name+" }") ||
+			strings.Contains(other.Content, "{"+name+"}") ||
+			strings.Contains(other.Content, name+" as ") ||
+			strings.Contains(other.Content, " "+name+",") ||
+			strings.Contains(other.Content, " "+name+" ") {
 			return true
 		}
 	}

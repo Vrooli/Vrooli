@@ -66,6 +66,50 @@ func NewConnectHandler(d Deps) *connectHandler {
 	return &connectHandler{deps: d}
 }
 
+type validationReportGroup struct {
+	name string
+	run  func() []manifestvalidation.Finding
+}
+
+func (h *connectHandler) reportGroups(ctx context.Context, scenario, root string, staticOnly bool) []validationReportGroup {
+	return []validationReportGroup{
+		{
+			name: "static-interop",
+			run: func() []manifestvalidation.Finding {
+				return runInteropFindings(root, scenario)
+			},
+		},
+		{
+			name: "static-freshness",
+			run: func() []manifestvalidation.Finding {
+				// Static freshness group: the canonical content-hash engine flags
+				// a stale UI bundle as a gating ERROR (restart remediation). It
+				// runs during static-only validation because it needs no BAS.
+				return h.freshnessFindings(ctx, scenario, root)
+			},
+		},
+		{
+			name: "runtime-render",
+			run: func() []manifestvalidation.Finding {
+				// Runtime/render group runs only when execution was requested and
+				// the scenario has a UI. Infra absence degrades to skipped findings.
+				return h.runtimeFindings(ctx, scenario, root, staticOnly)
+			},
+		},
+	}
+}
+
+func (h *connectHandler) composeReport(ctx context.Context, collector *metrics.Collector, scenario, root string, staticOnly bool) []manifestvalidation.Finding {
+	var findings []manifestvalidation.Finding
+	for _, group := range h.reportGroups(ctx, scenario, root, staticOnly) {
+		stage := collector.Stage(group.name)
+		groupFindings := group.run()
+		stage.Gauge("findings", float64(len(groupFindings))).End()
+		findings = append(findings, groupFindings...)
+	}
+	return findings
+}
+
 func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
 	if h.deps.Validator == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("validation.ValidateScenario: validator not wired"))
@@ -86,18 +130,7 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	// assessment is built, so the maturity finding and the conformance rollup
 	// carry an honest autofix flag.
 	root := h.resolveScenarioRoot(req.Msg.GetScenario(), req.Msg.GetPath())
-	report.Findings = append(report.Findings, runInteropFindings(root, req.Msg.GetScenario())...)
-	// Static freshness group (group 4): the canonical content-hash engine flags a
-	// stale UI bundle as a gating ERROR (restart remediation). Runs on every
-	// validation, including --static-only — it needs no BAS — and degrades
-	// gracefully when freshness can't be resolved.
-	report.Findings = append(report.Findings, h.freshnessFindings(ctx, req.Msg.GetScenario(), root)...)
-	// Runtime/render group: runs only when the caller requested execution
-	// (include_execution=true, i.e. not --static-only) and the scenario has a UI.
-	// Static-only validations make no Code Facts or BAS calls. The group never
-	// hard-fails on infra absence — unreachable BAS yields skipped findings.
-	staticOnly := !req.Msg.GetIncludeExecution()
-	report.Findings = append(report.Findings, h.runtimeFindings(ctx, req.Msg.GetScenario(), root, staticOnly)...)
+	report.Findings = append(report.Findings, h.composeReport(ctx, collector, req.Msg.GetScenario(), root, !req.Msg.GetIncludeExecution())...)
 	enrichAutofix(&report, h.deps.Fixer, root)
 	maturityAssessment, err := buildMaturityAssessment(report, h.deps.MaturitySpec)
 	if err != nil {
@@ -120,7 +153,7 @@ func buildMaturityAssessment(rep manifestvalidation.Report, spec *assessment.Spe
 	for _, f := range rep.Findings {
 		findings = append(findings, assessment.Finding{
 			Code:             f.Code,
-			Severity:         severityToken(f.Severity),
+			Severity:         manifestvalidation.SeverityToken(f.Severity),
 			Message:          f.Message,
 			Location:         f.Location,
 			Remediation:      f.Suggestion,
@@ -134,17 +167,4 @@ func buildMaturityAssessment(rep manifestvalidation.Report, spec *assessment.Spe
 		Spec:     *spec,
 		Findings: findings,
 	})
-}
-
-func severityToken(s manifestvalidation.Severity) string {
-	switch s {
-	case manifestvalidation.SeverityError:
-		return "SEVERITY_ERROR"
-	case manifestvalidation.SeverityWarning:
-		return "SEVERITY_WARNING"
-	case manifestvalidation.SeverityInfo:
-		return "SEVERITY_INFO"
-	default:
-		return "SEVERITY_UNSPECIFIED"
-	}
 }

@@ -111,11 +111,11 @@ func checkHelmetFrameAncestors(ctx uiinterop.CheckContext) uiinterop.RuleResult 
 	var violations []uiinterop.Violation
 	evaluated := false
 
-	for _, f := range walkUISource(ctx.ScenarioRoot, "ui") {
-		if !isHelmetServerFile(f.relPath) {
+	for _, f := range sourceFiles(ctx, "ui") {
+		if !isHelmetServerFile(f.RelPath) {
 			continue
 		}
-		if !strings.Contains(f.content, "helmet") {
+		if !strings.Contains(f.Content, "helmet") {
 			continue
 		}
 		evaluated = true
@@ -147,28 +147,28 @@ func checkHelmetFrameAncestors(ctx uiinterop.CheckContext) uiinterop.RuleResult 
 	}
 }
 
-func evaluateHelmetFile(ruleID string, f uiSourceFile) []uiinterop.Violation {
+func evaluateHelmetFile(ruleID string, f uiinterop.SourceFile) []uiinterop.Violation {
 	var violations []uiinterop.Violation
 
-	if !strings.Contains(f.content, "frameguard: false") {
-		violations = append(violations, helmetViolation(ruleID, f.relPath, lineOf(f.content, "helmet"),
+	if !strings.Contains(f.Content, "frameguard: false") {
+		violations = append(violations, helmetViolation(ruleID, f.RelPath, lineOf(f.Content, "helmet"),
 			"Helmet configuration must disable frameguard (frameguard: false) and rely on CSP frameAncestors for iframe control"))
 	}
 
-	if !strings.Contains(f.content, "frameAncestors") {
-		violations = append(violations, helmetViolation(ruleID, f.relPath, lineOf(f.content, "contentSecurityPolicy"),
+	if !strings.Contains(f.Content, "frameAncestors") {
+		violations = append(violations, helmetViolation(ruleID, f.RelPath, lineOf(f.Content, "contentSecurityPolicy"),
 			"Helmet contentSecurityPolicy directives must define frameAncestors to permit trusted parents"))
 		return violations
 	}
 
 	var missing []string
 	for _, host := range requiredLoopbackAncestors {
-		if !strings.Contains(f.content, host) {
+		if !strings.Contains(f.Content, host) {
 			missing = append(missing, host)
 		}
 	}
 	if len(missing) > 0 {
-		violations = append(violations, helmetViolation(ruleID, f.relPath, lineOf(f.content, "frameAncestors"),
+		violations = append(violations, helmetViolation(ruleID, f.RelPath, lineOf(f.Content, "frameAncestors"),
 			"frameAncestors must include loopback origins for local iframe embedding: "+strings.Join(missing, ", ")))
 	}
 

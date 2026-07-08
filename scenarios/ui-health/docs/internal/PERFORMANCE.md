@@ -27,7 +27,79 @@ Use this document to answer:
 
 | Measurement | Value | Source | Date |
 |---|---|---|---|
-| None captured yet. | n/a | n/a | 2026-05-20 |
+| `ui-health validate scenario ui-health --static-only --json` | 1.16s command wall-clock; metrics: `static-interop` 38ms / 34 findings, `static-freshness` 354ms / 0 findings, `runtime-render` skipped by static-only | Phase 1 baseline command output | 2026-07-07 |
+| `ui-health validate scenario ui-health --json` | 3.63s command wall-clock; metrics: `static-interop` 31ms / 34 findings, `static-freshness` 335ms / 0 findings, `runtime-render` 2535ms / 2 findings | Phase 1 baseline command output | 2026-07-07 |
+| `ui-health validate scenario swarm-manager --static-only --json` | 6.81s command wall-clock; metrics: `static-interop` 743ms / 133 findings, `static-freshness` 475ms / 1 finding, `runtime-render` skipped by static-only; command exits nonzero because the baseline contains one error finding | Phase 1 baseline command output | 2026-07-07 |
+| `ui-health validate scenario swarm-manager --json` | 11.06s command wall-clock; metrics: `static-interop` 704ms / 133 findings, `static-freshness` 464ms / 1 finding, `runtime-render` 3523ms / 2 findings; command exits nonzero because the baseline contains one error finding | Phase 1 baseline command output | 2026-07-07 |
+| `ui-health validate scenario ui-health --static-only --json` | 0.99s command wall-clock; findings unchanged by severity class from the baseline static pass | Phase 8 command output | 2026-07-08 |
+| `ui-health validate scenario swarm-manager --static-only --json` | 5.65s command wall-clock; metrics: `static-interop` 599ms / 137 findings, `static-freshness` 496ms / 0 findings, `runtime-render` skipped by static-only | Phase 8 command output | 2026-07-08 |
+| `ui-health validate scenario swarm-manager --json` | 7.89s command wall-clock; metrics: `static-interop` 561ms / 137 findings, `static-freshness` 477ms / 0 findings, `runtime-render` 2374ms / 2 findings | Phase 8 command output | 2026-07-08 |
+
+### Phase 1 Validation Baseline — 2026-07-07
+
+Reference scenarios:
+
+- Small target: `ui-health`
+- Heavy target: `swarm-manager`
+
+The validation API now emits explicit execution-metrics stages for
+`static-interop`, `static-freshness`, and `runtime-render`, which makes the
+baseline reproducible from the CLI JSON output. The `swarm-manager` baseline
+currently fails because it includes `freshness_ui_bundle_stale` at error
+severity; that is recorded as baseline state, not introduced by this timing
+work.
+
+Small full-run finding code/severity counts:
+
+| Count | Code | Severity |
+|---:|---|---|
+| 13 | `standard_component_location` | `FINDING_SEVERITY_WARNING` |
+| 5 | `standard_unused_custom_component` | `FINDING_SEVERITY_WARNING` |
+| 5 | `standard_raw_primitive_overuse` | `FINDING_SEVERITY_WARNING` |
+| 4 | `interop_h_screen` | `FINDING_SEVERITY_WARNING` |
+| 2 | `runtime_render_ok` | `FINDING_SEVERITY_INFO` |
+| 2 | `pwa_service_worker_offline` | `FINDING_SEVERITY_WARNING` |
+| 2 | `interop_protective_comments` | `FINDING_SEVERITY_INFO` |
+| 2 | `interop_no_scattered_keydown` | `FINDING_SEVERITY_WARNING` |
+| 1 | `pwa_manifest_install_fields` | `FINDING_SEVERITY_WARNING` |
+
+Heavy full-run finding code/severity counts:
+
+| Count | Code | Severity |
+|---:|---|---|
+| 88 | `standard_raw_primitive_overuse` | `FINDING_SEVERITY_WARNING` |
+| 16 | `standard_unused_custom_component` | `FINDING_SEVERITY_WARNING` |
+| 13 | `standard_component_location` | `FINDING_SEVERITY_WARNING` |
+| 7 | `interop_h_screen` | `FINDING_SEVERITY_WARNING` |
+| 3 | `interop_banned_scroll` | `FINDING_SEVERITY_INFO` |
+| 2 | `runtime_render_ok` | `FINDING_SEVERITY_INFO` |
+| 2 | `pwa_service_worker_offline` | `FINDING_SEVERITY_WARNING` |
+| 2 | `interop_no_scattered_keydown` | `FINDING_SEVERITY_WARNING` |
+| 1 | `template_id_missing` | `FINDING_SEVERITY_WARNING` |
+| 1 | `standard_a11y_harness` | `FINDING_SEVERITY_WARNING` |
+| 1 | `pwa_manifest_install_fields` | `FINDING_SEVERITY_WARNING` |
+| 1 | `freshness_ui_bundle_stale` | `FINDING_SEVERITY_ERROR` |
+
+### Phase 8 Validation Measurement — 2026-07-08
+
+The post-hardening measurements show the intended headroom on the heavy target:
+`swarm-manager` full validation completed in 7.89s command wall-clock, with the
+runtime group bounded to 2374ms and static interop at 561ms. Static-only
+validation completed in 5.65s command wall-clock, with static interop at 599ms.
+
+The current `swarm-manager` finding set differs from the Phase 1 baseline
+because the stale-bundle error disappeared after assets were rebuilt and the
+workspace's current UI source state has additional component-canon findings.
+No new error-severity finding appeared in this pass; full validation emitted two
+`runtime_render_ok` info findings.
+
+Server-owned `vrooli scenario test ui-health` run
+`20260708-181138-e430e8d8` completed the wait with verdict `FAIL` after 186.4s,
+but the failure was outside this plan's ui-health API changes: the findings
+report shows broad pre-existing blockers across structure, architecture,
+security, docs, business, and other phases. The wait payload also reported
+`active=true` alongside `status=failed` / `verdict=FAIL`; this data-shape issue
+was filed to scenario-qa as `knw-1783534528042066897`.
 
 ## Known Constraints
 

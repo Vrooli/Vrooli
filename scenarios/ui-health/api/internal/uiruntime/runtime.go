@@ -2,10 +2,12 @@ package uiruntime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
@@ -17,6 +19,8 @@ import (
 )
 
 const basScenarioID = "browser-automation-studio"
+
+const defaultRuntimeGroupTimeout = 120 * time.Second
 
 type viewportProfile struct {
 	id     string
@@ -36,8 +40,9 @@ type Runner struct {
 	bas basRunner
 	// resolveUI returns the target scenario's running UI base URL (or an error /
 	// empty when it is not up).
-	resolveUI func(ctx context.Context, scenario string) (string, error)
-	log       *log.Logger
+	resolveUI      func(ctx context.Context, scenario string) (string, error)
+	log            *log.Logger
+	runtimeTimeout time.Duration
 }
 
 // New constructs the production runtime checker over BAS + discovery.
@@ -58,7 +63,8 @@ func New(logger *log.Logger) *Runner {
 		resolveUI: func(ctx context.Context, scenario string) (string, error) {
 			return resolver.ResolveScenarioURL(ctx, scenario, "UI_PORT")
 		},
-		log: logger,
+		log:            logger,
+		runtimeTimeout: defaultRuntimeGroupTimeout,
 	}
 }
 
@@ -74,24 +80,105 @@ func (r *Runner) Check(ctx context.Context, in Input) []manifestvalidation.Findi
 		)}
 	}
 
-	var all []manifestvalidation.Finding
-	for _, profile := range runtimeViewportProfiles {
-		def := buildHandshakeWorkflow(url, nil, 0, profile.width, profile.height)
-		res, err := r.bas.Run(ctx, def)
-		if err != nil {
-			return []manifestvalidation.Finding{skip(
-				"runtime_skipped_bas_unavailable",
-				url,
-				"runtime render skipped: browser-automation-studio is unavailable; static checks still ran",
-			)}
+	return r.checkProfiles(ctx, url)
+}
+
+type profileResult struct {
+	index    int
+	findings []manifestvalidation.Finding
+	err      error
+}
+
+func (r *Runner) checkProfiles(ctx context.Context, url string) []manifestvalidation.Finding {
+	runCtx, cancel := r.runtimeContext(ctx)
+	defer cancel()
+
+	results := make([]profileResult, len(runtimeViewportProfiles))
+	resultCh := make(chan profileResult, len(runtimeViewportProfiles))
+	sem := make(chan struct{}, 2)
+	var wg sync.WaitGroup
+	for i, profile := range runtimeViewportProfiles {
+		wg.Add(1)
+		go func(index int, p viewportProfile) {
+			defer wg.Done()
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-runCtx.Done():
+				resultCh <- profileResult{index: index, err: runCtx.Err()}
+				return
+			}
+			resultCh <- r.checkProfile(runCtx, url, index, p)
+		}(i, profile)
+	}
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
+
+	completed := 0
+	for completed < len(runtimeViewportProfiles) {
+		select {
+		case res, ok := <-resultCh:
+			if !ok {
+				completed = len(runtimeViewportProfiles)
+				break
+			}
+			results[res.index] = res
+			completed++
+		case <-runCtx.Done():
+			var all []manifestvalidation.Finding
+			for _, res := range results {
+				all = append(all, res.findings...)
+			}
+			return appendRuntimeSkip(all, url, runCtx.Err())
 		}
-		ev := res.evidenceFor(url)
-		visualFinds := applyVisualHealth(&ev, res.visualStep(url, profile.id))
-		finds := findingsFromEvidence(ev, profile.id)
-		all = append(all, finds...)
-		all = append(all, visualFinds...)
+	}
+
+	var all []manifestvalidation.Finding
+	var basErr error
+	for _, res := range results {
+		all = append(all, res.findings...)
+		if res.err != nil {
+			basErr = res.err
+		}
+	}
+	if basErr != nil {
+		return appendRuntimeSkip(all, url, basErr)
 	}
 	return all
+}
+
+func (r *Runner) runtimeContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	timeout := r.runtimeTimeout
+	if timeout <= 0 {
+		timeout = defaultRuntimeGroupTimeout
+	}
+	if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) <= timeout {
+		return context.WithCancel(ctx)
+	}
+	return context.WithTimeout(ctx, timeout)
+}
+
+func (r *Runner) checkProfile(ctx context.Context, url string, index int, profile viewportProfile) profileResult {
+	def := buildHandshakeWorkflow(url, nil, 0, profile.width, profile.height)
+	res, err := r.bas.Run(ctx, def)
+	if err != nil {
+		return profileResult{index: index, err: err}
+	}
+	ev := res.evidenceFor(url)
+	visualFinds := applyVisualHealth(&ev, res.visualStep(url, profile.id))
+	finds := findingsFromEvidence(ev, profile.id)
+	finds = append(finds, visualFinds...)
+	return profileResult{index: index, findings: finds}
+}
+
+func appendRuntimeSkip(findings []manifestvalidation.Finding, location string, err error) []manifestvalidation.Finding {
+	message := "runtime render skipped: browser-automation-studio is unavailable; static checks still ran"
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		message = "runtime render skipped: runtime deadline reached before all viewport profiles completed; static checks still ran"
+	}
+	return append(findings, skip("runtime_skipped_bas_unavailable", location, message))
 }
 
 func (r *runResult) visualStep(url, profileID string) *visualpb.VisualStepArtifact {
@@ -151,19 +238,23 @@ func visualFindingToManifest(finding *visualpb.VisualFinding) manifestvalidation
 	if finding == nil {
 		return manifestvalidation.Finding{}
 	}
-	severity := manifestvalidation.SeverityInfo
-	switch finding.GetSeverity() {
-	case visualpb.VisualSeverity_VISUAL_SEVERITY_ERROR:
-		severity = manifestvalidation.SeverityError
-	case visualpb.VisualSeverity_VISUAL_SEVERITY_WARNING:
-		severity = manifestvalidation.SeverityWarning
-	}
 	return manifestvalidation.Finding{
-		Severity:   severity,
+		Severity:   manifestvalidation.SeverityFromLabel(visualSeverityLabel(finding.GetSeverity())),
 		Code:       finding.GetCode(),
 		Location:   finding.GetLocation(),
 		Message:    finding.GetMessage(),
 		Suggestion: finding.GetRemediation(),
+	}
+}
+
+func visualSeverityLabel(severity visualpb.VisualSeverity) string {
+	switch severity {
+	case visualpb.VisualSeverity_VISUAL_SEVERITY_ERROR:
+		return "error"
+	case visualpb.VisualSeverity_VISUAL_SEVERITY_WARNING:
+		return "warning"
+	default:
+		return "info"
 	}
 }
 

@@ -116,7 +116,7 @@ func checkA11yHarness(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 			break
 		}
 	}
-	hasTest := hasA11yTestFile(filepath.Join(ctx.ScenarioRoot, "ui"))
+	hasTest := hasA11yTestFile(ctx)
 
 	if hasDep && hasTest {
 		return uiinterop.RuleResult{
@@ -148,24 +148,17 @@ func checkA11yHarness(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	}
 }
 
-// hasA11yTestFile reports whether any *.a11y.test.* file exists under uiDir.
-func hasA11yTestFile(uiDir string) bool {
-	found := false
-	_ = filepath.WalkDir(uiDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil || found {
-			return nil
-		}
-		if d.IsDir() {
-			if _, skip := skipDirectories[d.Name()]; skip {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		name := strings.ToLower(d.Name())
+// hasA11yTestFile reports whether any *.a11y.test.* file exists under ui/.
+func hasA11yTestFile(ctx uiinterop.CheckContext) bool {
+	files := ctx.TestSources
+	if files == nil {
+		files = uiinterop.WalkUITestSource(ctx.ScenarioRoot, "ui")
+	}
+	for _, f := range files {
+		name := strings.ToLower(filepath.Base(f.RelPath))
 		if strings.Contains(name, ".a11y.test.") || strings.Contains(name, ".a11y.spec.") {
-			found = true
+			return true
 		}
-		return nil
-	})
-	return found
+	}
+	return false
 }

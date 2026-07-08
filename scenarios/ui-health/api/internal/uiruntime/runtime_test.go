@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
+	"sync"
 	"testing"
+	"time"
 
 	"ui-health/internal/evidence"
 	"ui-health/internal/services/manifestvalidation"
@@ -19,13 +22,32 @@ import (
 
 // fakeBAS is a basRunner double returning a canned result or an unavailability error.
 type fakeBAS struct {
-	res  *runResult
-	err  error
-	defs []map[string]any
+	mu        sync.Mutex
+	res       *runResult
+	err       error
+	defs      []map[string]any
+	run       func(context.Context, map[string]any) (*runResult, error)
+	active    int
+	maxActive int
 }
 
-func (f *fakeBAS) Run(_ context.Context, def map[string]any) (*runResult, error) {
+func (f *fakeBAS) Run(ctx context.Context, def map[string]any) (*runResult, error) {
+	f.mu.Lock()
 	f.defs = append(f.defs, def)
+	f.active++
+	if f.active > f.maxActive {
+		f.maxActive = f.active
+	}
+	f.mu.Unlock()
+
+	defer func() {
+		f.mu.Lock()
+		f.active--
+		f.mu.Unlock()
+	}()
+	if f.run != nil {
+		return f.run(ctx, def)
+	}
 	return f.res, f.err
 }
 
@@ -34,6 +56,12 @@ func newRunner(uiURL string, uiErr error, bas basRunner) *Runner {
 		bas:       bas,
 		resolveUI: func(context.Context, string) (string, error) { return uiURL, uiErr },
 	}
+}
+
+func newRunnerWithTimeout(uiURL string, uiErr error, bas basRunner, timeout time.Duration) *Runner {
+	r := newRunner(uiURL, uiErr, bas)
+	r.runtimeTimeout = timeout
+	return r
 }
 
 func codes(finds []manifestvalidation.Finding) []string {
@@ -79,13 +107,49 @@ func TestCheckHandshakePasses(t *testing.T) {
 	if len(bas.defs) != 2 {
 		t.Fatalf("expected desktop and mobile workflow runs, got %d", len(bas.defs))
 	}
-	settings, ok := bas.defs[1]["settings"].(map[string]any)
-	if !ok {
-		t.Fatalf("mobile workflow missing settings: %#v", bas.defs[1]["settings"])
+	if !hasViewportDef(bas.defs, 390, 844) {
+		t.Fatalf("mobile viewport definition not found in %#v", bas.defs)
 	}
-	viewport, ok := settings["viewport"].(map[string]any)
-	if !ok || viewport["width"] != 390 || viewport["height"] != 844 {
-		t.Fatalf("mobile viewport = %#v, want 390x844", viewport)
+}
+
+func TestCheckRunsViewportProfilesConcurrently(t *testing.T) {
+	bas := &fakeBAS{run: func(ctx context.Context, _ map[string]any) (*runResult, error) {
+		select {
+		case <-time.After(50 * time.Millisecond):
+			return &runResult{loaded: true, handshakeSignaled: true}, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}}
+	r := newRunner("http://localhost:5173", nil, bas)
+	finds := r.Check(context.Background(), Input{Scenario: "demo"})
+	if got := codes(finds); len(got) != 2 || got[0] != "runtime_render_ok" || got[1] != "runtime_render_ok" {
+		t.Fatalf("want stable desktop/mobile ok findings, got %v", got)
+	}
+	if bas.maxActive != 2 {
+		t.Fatalf("viewport profiles did not overlap, max active runs = %d", bas.maxActive)
+	}
+}
+
+func TestCheckRuntimeDeadlineSkipsAndKeepsPartialResults(t *testing.T) {
+	var once sync.Once
+	bas := &fakeBAS{run: func(ctx context.Context, _ map[string]any) (*runResult, error) {
+		var fast bool
+		once.Do(func() { fast = true })
+		if fast {
+			return &runResult{loaded: true, handshakeSignaled: true}, nil
+		}
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}}
+	r := newRunnerWithTimeout("http://localhost:5173", nil, bas, 20*time.Millisecond)
+	finds := r.Check(context.Background(), Input{Scenario: "demo"})
+	got := codes(finds)
+	if len(got) != 2 || got[0] != "runtime_render_ok" || got[1] != "runtime_skipped_bas_unavailable" {
+		t.Fatalf("want partial ok plus runtime skip, got %v", got)
+	}
+	if finds[1].Severity != manifestvalidation.SeverityInfo {
+		t.Fatalf("deadline skip must be informational, got %s", finds[1].Severity)
 	}
 }
 
@@ -181,6 +245,54 @@ func TestReadTimelineExtractsVisualArtifacts(t *testing.T) {
 	}
 }
 
+func TestRuntimeArtifactConfigBoundsTimelineCollection(t *testing.T) {
+	cfg := runtimeArtifactConfig()
+	if !cfg.GetCollectConsoleLogs() || !cfg.GetCollectNetworkEvents() || !cfg.GetCollectExtractedData() {
+		t.Fatalf("runtime diagnostics needed by findings must remain enabled: %+v", cfg)
+	}
+	if cfg.GetCollectTelemetry() {
+		t.Fatal("runtime group must not request BAS telemetry")
+	}
+	if cfg.GetMaxConsoleEntryBytes() != maxRuntimeConsoleEntryBytes {
+		t.Fatalf("console entry byte cap = %d, want %d", cfg.GetMaxConsoleEntryBytes(), maxRuntimeConsoleEntryBytes)
+	}
+	if cfg.GetMaxNetworkPreviewBytes() != maxRuntimeNetworkPreviewBytes {
+		t.Fatalf("network preview byte cap = %d, want %d", cfg.GetMaxNetworkPreviewBytes(), maxRuntimeNetworkPreviewBytes)
+	}
+}
+
+func TestBoundConsoleEntriesKeepsDiagnosticEntries(t *testing.T) {
+	var entries []evidence.ConsoleEntry
+	for i := 0; i < maxRuntimeConsoleEntries+25; i++ {
+		entries = append(entries, evidence.ConsoleEntry{Level: "info", Message: fmt.Sprintf("info-%d", i)})
+	}
+	entries[3] = evidence.ConsoleEntry{Level: "error", Message: "early failure"}
+	got := boundConsoleEntries(entries)
+	if len(got) != maxRuntimeConsoleEntries {
+		t.Fatalf("bounded console length = %d, want %d", len(got), maxRuntimeConsoleEntries)
+	}
+	for _, entry := range got {
+		if entry.Message == "early failure" {
+			return
+		}
+	}
+	t.Fatal("bounded console entries dropped the diagnostic error")
+}
+
+func TestBoundNetworkEntriesKeepsMostRecentEntries(t *testing.T) {
+	var entries []evidence.NetworkEntry
+	for i := 0; i < maxRuntimeNetworkEntries+10; i++ {
+		entries = append(entries, evidence.NetworkEntry{URL: fmt.Sprintf("/asset-%d.png", i)})
+	}
+	got := boundNetworkEntries(entries)
+	if len(got) != maxRuntimeNetworkEntries {
+		t.Fatalf("bounded network length = %d, want %d", len(got), maxRuntimeNetworkEntries)
+	}
+	if got[0].URL != "/asset-10.png" {
+		t.Fatalf("network cap should keep the most recent entries, first = %q", got[0].URL)
+	}
+}
+
 func TestCheckHandshakeFails(t *testing.T) {
 	bas := &fakeBAS{res: &runResult{loaded: true, handshakeSignaled: false, handshakeError: "timeout"}}
 	r := newRunner("http://localhost:5173", nil, bas)
@@ -245,6 +357,20 @@ func solidPNG(t *testing.T, w, h int, c color.Color) []byte {
 		t.Fatalf("encode PNG: %v", err)
 	}
 	return buf.Bytes()
+}
+
+func hasViewportDef(defs []map[string]any, width, height int) bool {
+	for _, def := range defs {
+		settings, ok := def["settings"].(map[string]any)
+		if !ok {
+			continue
+		}
+		viewport, ok := settings["viewport"].(map[string]any)
+		if ok && viewport["width"] == width && viewport["height"] == height {
+			return true
+		}
+	}
+	return false
 }
 
 func stringValue(v string) *commonpb.JsonValue {

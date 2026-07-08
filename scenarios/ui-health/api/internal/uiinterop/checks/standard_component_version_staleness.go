@@ -107,7 +107,7 @@ type componentCatalogEntry struct {
 func checkComponentVersionStaleness(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	const ruleID = "standard_component_version_staleness"
 
-	files := walkUISource(ctx.ScenarioRoot, "ui/src")
+	files := sourceFiles(ctx, "ui/src")
 	if len(files) == 0 {
 		return uiinterop.RuleResult{
 			RuleID:     ruleID,
@@ -128,8 +128,8 @@ func checkComponentVersionStaleness(ctx uiinterop.CheckContext) uiinterop.RuleRe
 
 	var violations []uiinterop.Violation
 	for _, f := range files {
-		libraryID := provenanceField(f.content, "@vrooliComponentSource")
-		version := provenanceField(f.content, "@vrooliComponentVersion")
+		libraryID := provenanceField(f.Content, "@vrooliComponentSource")
+		version := provenanceField(f.Content, "@vrooliComponentVersion")
 		if libraryID == "" && version == "" {
 			continue
 		}
@@ -234,7 +234,7 @@ func componentVersionStatus(component componentCatalogEntry, version string) str
 	return fmt.Sprintf("version %s is behind catalog latest %s", version, component.Latest)
 }
 
-func componentVersionViolation(ruleID string, f uiSourceFile, libraryID, version, detail string) uiinterop.Violation {
+func componentVersionViolation(ruleID string, f uiinterop.SourceFile, libraryID, version, detail string) uiinterop.Violation {
 	componentName := strings.TrimPrefix(libraryID, "react-component-library:")
 	if componentName == "" {
 		componentName = "component"
@@ -243,9 +243,9 @@ func componentVersionViolation(ruleID string, f uiSourceFile, libraryID, version
 		RuleID:         ruleID,
 		Severity:       "medium",
 		Title:          "Vendored component copy is stale",
-		Description:    fmt.Sprintf("%s vendors %s at %s: %s", f.relPath, componentName, emptyComponentVersion(version), detail),
-		FilePath:       f.relPath,
-		Line:           lineOf(f.content, "@vrooliComponentVersion"),
+		Description:    fmt.Sprintf("%s vendors %s at %s: %s", f.RelPath, componentName, emptyComponentVersion(version), detail),
+		FilePath:       f.RelPath,
+		Line:           lineOf(f.Content, "@vrooliComponentVersion"),
 		Recommendation: "Refresh this copied component from react-component-library and keep the @vrooliComponentVersion header synced to catalog latest.",
 	}
 }

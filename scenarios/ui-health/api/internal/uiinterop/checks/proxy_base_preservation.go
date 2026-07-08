@@ -76,8 +76,6 @@ BadExample:
 package checks
 
 import (
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -93,8 +91,8 @@ var windowOriginPattern = regexp.MustCompile(`(?m)(?:const|let|var)\s+([a-zA-Z_$
 func checkProxyBasePreserved(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	const ruleID = "interop_proxy_base_preserved"
 
-	srcDir := filepath.Join(ctx.ScenarioRoot, "ui", "src")
-	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
+	files := sourceFiles(ctx, "ui/src")
+	if len(files) == 0 {
 		return uiinterop.RuleResult{
 			RuleID:     ruleID,
 			Skipped:    true,
@@ -105,36 +103,15 @@ func checkProxyBasePreserved(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 
 	var violations []uiinterop.Violation
 
-	_ = filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-		if info.IsDir() {
-			if _, skip := skipDirectories[info.Name()]; skip {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		ext := filepath.Ext(info.Name())
-		if _, ok := scanExtensions[ext]; !ok {
-			return nil
-		}
-
-		data, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return nil
-		}
-		content := string(data)
-
+	for _, f := range files {
 		// Only flag files that also use resolveApiBase.
-		if !strings.Contains(content, "resolveApiBase(") {
-			return nil
+		if !strings.Contains(f.Content, "resolveApiBase(") {
+			continue
 		}
 
-		if windowOriginPattern.MatchString(content) {
-			rel, _ := filepath.Rel(ctx.ScenarioRoot, path)
+		if windowOriginPattern.MatchString(f.Content) {
 			line := 0
-			lines := strings.Split(content, "\n")
+			lines := strings.Split(f.Content, "\n")
 			for i, l := range lines {
 				if windowOriginPattern.MatchString(l) {
 					line = i + 1
@@ -145,14 +122,13 @@ func checkProxyBasePreserved(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 				RuleID:         ruleID,
 				Severity:       "high",
 				Title:          "Proxy base overridden with window.location.origin",
-				Description:    rel + " calls resolveApiBase but also rebuilds the URL using window.location.origin",
-				FilePath:       rel,
+				Description:    f.RelPath + " calls resolveApiBase but also rebuilds the URL using window.location.origin",
+				FilePath:       f.RelPath,
 				Line:           line,
 				Recommendation: "Remove the window.location.origin override and use resolveApiBase() directly",
 			})
 		}
-		return nil
-	})
+	}
 
 	if len(violations) > 0 {
 		return uiinterop.RuleResult{

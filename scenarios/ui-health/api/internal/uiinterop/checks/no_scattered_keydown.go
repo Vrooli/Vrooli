@@ -85,7 +85,6 @@ BadExample:
 package checks
 
 import (
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -109,8 +108,8 @@ var dismissibleNames = []string{
 func checkNoScatteredKeydown(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	const ruleID = "interop_no_scattered_keydown"
 
-	srcDir := filepath.Join(ctx.ScenarioRoot, "ui", "src")
-	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
+	files := sourceFiles(ctx, "ui/src")
+	if len(files) == 0 {
 		return uiinterop.RuleResult{
 			RuleID:     ruleID,
 			Skipped:    true,
@@ -121,45 +120,21 @@ func checkNoScatteredKeydown(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 
 	var violations []uiinterop.Violation
 
-	_ = filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-		if info.IsDir() {
-			if _, skip := skipDirectories[info.Name()]; skip {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		ext := filepath.Ext(info.Name())
-		if _, ok := scanExtensions[ext]; !ok {
-			return nil
-		}
-
-		rel, _ := filepath.Rel(ctx.ScenarioRoot, path)
-
+	for _, f := range files {
 		// Allow hooks/ directory.
-		relFromSrc, _ := filepath.Rel(srcDir, path)
-		if strings.HasPrefix(relFromSrc, "hooks"+string(filepath.Separator)) || strings.HasPrefix(relFromSrc, "hooks/") {
-			return nil
+		if strings.HasPrefix(strings.TrimPrefix(f.RelPath, "ui/src/"), "hooks/") {
+			continue
 		}
 
 		// Allow dismissible component files.
-		lowerName := strings.ToLower(info.Name())
-		for _, d := range dismissibleNames {
-			if strings.Contains(lowerName, d) {
-				return nil
-			}
+		lowerName := strings.ToLower(filepath.Base(f.RelPath))
+		if isDismissibleFileName(lowerName) {
+			continue
 		}
 
-		data, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return nil
-		}
-
-		if keydownListenerPattern.Match(data) {
+		if keydownListenerPattern.MatchString(f.Content) {
 			line := 0
-			lines := strings.Split(string(data), "\n")
+			lines := strings.Split(f.Content, "\n")
 			for i, l := range lines {
 				if keydownListenerPattern.MatchString(l) {
 					line = i + 1
@@ -170,14 +145,13 @@ func checkNoScatteredKeydown(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 				RuleID:         ruleID,
 				Severity:       "medium",
 				Title:          "Scattered keydown listener",
-				Description:    "addEventListener('keydown') found outside hooks/ or dismissible component in " + rel,
-				FilePath:       rel,
+				Description:    "addEventListener('keydown') found outside hooks/ or dismissible component in " + f.RelPath,
+				FilePath:       f.RelPath,
 				Line:           line,
 				Recommendation: "Move the keydown listener into a dedicated hook in ui/src/hooks/",
 			})
 		}
-		return nil
-	})
+	}
 
 	if len(violations) > 0 {
 		return uiinterop.RuleResult{
@@ -193,4 +167,13 @@ func checkNoScatteredKeydown(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 		Passed:  true,
 		Message: "no scattered keydown listeners found in ui/src/",
 	}
+}
+
+func isDismissibleFileName(lowerName string) bool {
+	for _, d := range dismissibleNames {
+		if strings.Contains(lowerName, d) {
+			return true
+		}
+	}
+	return false
 }

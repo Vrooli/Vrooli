@@ -107,6 +107,58 @@ func TestValidateScenario_FewMissingSlotsAreNotCollapsed(t *testing.T) {
 	}
 }
 
+func TestCollapsePredatesTemplateLayoutThresholdBoundary(t *testing.T) {
+	t.Parallel()
+	findings := []Finding{
+		{Code: "slot_dir_missing"},
+		{Code: "slot_dir_missing"},
+		{Code: "slot_parent_dir_missing"},
+	}
+
+	notEnoughRatio := collapsePredatesTemplateLayout(findings, 13, "/scenario")
+	if got := findingSliceCount(notEnoughRatio, "ui_predates_template_layout"); got != 0 {
+		t.Fatalf("3 of 13 missing slots must stay per-slot, got %d summary finding(s)", got)
+	}
+	if got := findingSliceCount(notEnoughRatio, "slot_dir_missing") + findingSliceCount(notEnoughRatio, "slot_parent_dir_missing"); got != 3 {
+		t.Fatalf("3 of 13 must preserve per-slot findings, got %d", got)
+	}
+
+	atBoundary := collapsePredatesTemplateLayout(findings, 12, "/scenario")
+	if got := findingSliceCount(atBoundary, "ui_predates_template_layout"); got != 1 {
+		t.Fatalf("3 of 12 missing slots must collapse at the 25%% boundary, got %d summary finding(s)", got)
+	}
+	if got := findingSliceCount(atBoundary, "slot_dir_missing") + findingSliceCount(atBoundary, "slot_parent_dir_missing"); got != 0 {
+		t.Fatalf("collapsed findings must remove per-slot missing findings, got %d", got)
+	}
+}
+
+func TestSeverityMappingsAreShared(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		label string
+		want  Severity
+		token string
+	}{
+		{label: "critical", want: SeverityError, token: "SEVERITY_ERROR"},
+		{label: "high", want: SeverityError, token: "SEVERITY_ERROR"},
+		{label: "medium", want: SeverityWarning, token: "SEVERITY_WARNING"},
+		{label: "low", want: SeverityInfo, token: "SEVERITY_INFO"},
+		{label: "unexpected", want: SeverityInfo, token: "SEVERITY_INFO"},
+	}
+	for _, tc := range cases {
+		got := SeverityFromLabel(tc.label)
+		if got != tc.want {
+			t.Fatalf("SeverityFromLabel(%q) = %q, want %q", tc.label, got, tc.want)
+		}
+		if token := SeverityToken(got); token != tc.token {
+			t.Fatalf("SeverityToken(%q) = %q, want %q", got, token, tc.token)
+		}
+	}
+	if token := SeverityToken(Severity("bogus")); token != "SEVERITY_UNSPECIFIED" {
+		t.Fatalf("unknown severity token = %q", token)
+	}
+}
+
 func TestValidateScenario_UnknownOverlaySlot(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
@@ -374,6 +426,16 @@ func mustWriteJSON(t *testing.T, path string, v any) {
 func findingCount(rep Report, code string) int {
 	n := 0
 	for _, f := range rep.Findings {
+		if f.Code == code {
+			n++
+		}
+	}
+	return n
+}
+
+func findingSliceCount(findings []Finding, code string) int {
+	n := 0
+	for _, f := range findings {
 		if f.Code == code {
 			n++
 		}

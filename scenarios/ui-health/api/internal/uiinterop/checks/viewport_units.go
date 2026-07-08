@@ -65,7 +65,7 @@ var viewportTokens = []string{"h-screen", "w-screen", "100vh", "100vw"}
 func checkViewportUnits(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	const ruleID = "interop_h_screen"
 
-	files := walkUISource(ctx.ScenarioRoot, "ui/src")
+	files := sourceFiles(ctx, "ui/src")
 	if len(files) == 0 {
 		return uiinterop.RuleResult{
 			RuleID:     ruleID,
@@ -77,21 +77,21 @@ func checkViewportUnits(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 
 	var violations []uiinterop.Violation
 	for _, f := range files {
-		ext := strings.ToLower(filepath.Ext(f.relPath))
+		ext := strings.ToLower(filepath.Ext(f.RelPath))
 		if ext != ".tsx" && ext != ".jsx" && ext != ".css" {
 			continue
 		}
 		for _, tok := range viewportTokens {
-			if !strings.Contains(f.content, tok) {
+			if !strings.Contains(f.Content, tok) {
 				continue
 			}
 			violations = append(violations, uiinterop.Violation{
 				RuleID:         ruleID,
 				Severity:       "medium",
 				Title:          "Viewport-relative sizing breaks iframe embedding",
-				Description:    f.relPath + " uses " + tok + " viewport units resolve against the outer window inside the host frame; use container-relative sizing",
-				FilePath:       f.relPath,
-				Line:           lineOf(f.content, tok),
+				Description:    f.RelPath + " uses " + tok + " viewport units resolve against the outer window inside the host frame; use container-relative sizing",
+				FilePath:       f.RelPath,
+				Line:           lineOf(f.Content, tok),
 				Recommendation: "Replace " + tok + " with the container-relative equivalent (h-screen→h-full, w-screen→w-full, 100vh/100vw→100%)",
 			})
 		}

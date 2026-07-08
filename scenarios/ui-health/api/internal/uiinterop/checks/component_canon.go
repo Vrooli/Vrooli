@@ -25,10 +25,10 @@ var componentPrimitiveMap = map[string][]string{
 	"Select":    {"select"},
 }
 
-func governedComponents(ctx uiinterop.CheckContext, files []uiSourceFile) map[string]governedComponent {
+func governedComponents(ctx uiinterop.CheckContext, files []uiinterop.SourceFile) map[string]governedComponent {
 	components := map[string]governedComponent{}
 	for _, f := range files {
-		source := strings.TrimSpace(provenanceField(f.content, "@vrooliComponentSource"))
+		source := strings.TrimSpace(provenanceField(f.Content, "@vrooliComponentSource"))
 		if source == "" {
 			continue
 		}
@@ -39,7 +39,7 @@ func governedComponents(ctx uiinterop.CheckContext, files []uiSourceFile) map[st
 		components[name] = governedComponent{
 			Name:      name,
 			LibraryID: source,
-			Version:   strings.TrimSpace(provenanceField(f.content, "@vrooliComponentVersion")),
+			Version:   strings.TrimSpace(provenanceField(f.Content, "@vrooliComponentVersion")),
 			Source:    "adopted locally",
 		}
 	}

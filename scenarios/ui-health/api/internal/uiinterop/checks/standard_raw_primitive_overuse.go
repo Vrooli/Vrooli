@@ -157,7 +157,7 @@ func stripTSXComments(source string) string {
 func checkRawPrimitiveOveruse(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	const ruleID = "standard_raw_primitive_overuse"
 
-	files := walkUISource(ctx.ScenarioRoot, "ui/src")
+	files := sourceFiles(ctx, "ui/src")
 	if len(files) == 0 {
 		return uiinterop.RuleResult{
 			RuleID:     ruleID,
@@ -181,11 +181,11 @@ func checkRawPrimitiveOveruse(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 		if skipRawPrimitiveFile(f) {
 			continue
 		}
-		ext := strings.ToLower(filepath.Ext(f.relPath))
+		ext := strings.ToLower(filepath.Ext(f.RelPath))
 		if ext != ".tsx" && ext != ".jsx" {
 			continue
 		}
-		counts := rawPrimitiveCounts(f.content, primitiveToComponent)
+		counts := rawPrimitiveCounts(f.Content, primitiveToComponent)
 		if !primitiveCountsOverThreshold(counts) {
 			continue
 		}
@@ -194,9 +194,9 @@ func checkRawPrimitiveOveruse(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 			RuleID:         ruleID,
 			Severity:       "medium",
 			Title:          "Raw UI primitives over governed component threshold",
-			Description:    fmt.Sprintf("%s hand-rolls %s while governed counterpart(s) are available: %s", f.relPath, describePrimitiveCounts(counts), strings.Join(components, ", ")),
-			FilePath:       f.relPath,
-			Line:           lineOfFirstPrimitive(f.content),
+			Description:    fmt.Sprintf("%s hand-rolls %s while governed counterpart(s) are available: %s", f.RelPath, describePrimitiveCounts(counts), strings.Join(components, ", ")),
+			FilePath:       f.RelPath,
+			Line:           lineOfFirstPrimitive(f.Content),
 			Recommendation: "Adopt " + strings.Join(components, ", ") + " from react-component-library, or compose a local custom component with provenance if the raw markup is intentionally bespoke.",
 		})
 	}
@@ -216,11 +216,11 @@ func checkRawPrimitiveOveruse(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	}
 }
 
-func skipRawPrimitiveFile(f uiSourceFile) bool {
-	if strings.Contains(f.content, "@vrooliComponentSource") {
+func skipRawPrimitiveFile(f uiinterop.SourceFile) bool {
+	if strings.Contains(f.Content, "@vrooliComponentSource") {
 		return true
 	}
-	rel := filepath.ToSlash(f.relPath)
+	rel := filepath.ToSlash(f.RelPath)
 	return strings.Contains(rel, "/components/ui/")
 }
 

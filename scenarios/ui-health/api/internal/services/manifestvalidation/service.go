@@ -30,6 +30,33 @@ const (
 	SeverityInfo    Severity = "info"
 )
 
+// SeverityFromLabel normalizes every validation subsystem's severity labels
+// into the report severity vocabulary.
+func SeverityFromLabel(label string) Severity {
+	switch strings.ToLower(strings.TrimSpace(label)) {
+	case "critical", "high", "error":
+		return SeverityError
+	case "medium", "warning":
+		return SeverityWarning
+	default:
+		return SeverityInfo
+	}
+}
+
+// SeverityToken maps a report severity into the maturity API enum token.
+func SeverityToken(s Severity) string {
+	switch s {
+	case SeverityError:
+		return "SEVERITY_ERROR"
+	case SeverityWarning:
+		return "SEVERITY_WARNING"
+	case SeverityInfo:
+		return "SEVERITY_INFO"
+	default:
+		return "SEVERITY_UNSPECIFIED"
+	}
+}
+
 // Finding is a single validation result tied to a location inside the
 // scenario (manifest path, slot directory, on-disk file).
 type Finding struct {
@@ -174,7 +201,7 @@ func collapsePredatesTemplateLayout(finds []Finding, totalSlots int, scenarioRoo
 	// a single summary. The 25% ratio + 3-finding floor catches scenarios
 	// that predate the new layout (typically 4+ of 14 slots missing) while
 	// keeping detail for scenarios that just lack one or two dirs.
-	if missing < 3 || missing*4 < totalSlots {
+	if missing < preTemplateLayoutMinMissingSlots || missing*preTemplateLayoutRatioDenominator < totalSlots*preTemplateLayoutRatioNumerator {
 		return finds
 	}
 	kept := make([]Finding, 0, len(finds)-missing+1)
@@ -194,6 +221,19 @@ func collapsePredatesTemplateLayout(finds []Finding, totalSlots int, scenarioRoo
 	return kept
 }
 
+const (
+	preTemplateLayoutMinMissingSlots  = 3
+	preTemplateLayoutRatioNumerator   = 1
+	preTemplateLayoutRatioDenominator = 4
+)
+
+type uiSlot struct {
+	Dir             string `json:"dir"`
+	PathPattern     string `json:"pathPattern"`
+	MultiFile       bool   `json:"multiFile"`
+	RequiresFeature bool   `json:"requiresFeature"`
+}
+
 // uiManifest is the minimal in-memory view of a ui/manifest.json.
 type uiManifest struct {
 	Contract struct {
@@ -201,12 +241,7 @@ type uiManifest struct {
 		Schema   string `json:"schema"`
 		Template string `json:"template"`
 	} `json:"contract"`
-	Slots map[string]struct {
-		Dir             string `json:"dir"`
-		PathPattern     string `json:"pathPattern"`
-		MultiFile       bool   `json:"multiFile"`
-		RequiresFeature bool   `json:"requiresFeature"`
-	} `json:"slots"`
+	Slots    map[string]uiSlot `json:"slots"`
 	Defaults struct {
 		Slot string `json:"slot"`
 	} `json:"defaults"`
@@ -335,12 +370,7 @@ func mergeManifests(tmpl, overlay *uiManifest) uiManifest {
 	merged := uiManifest{}
 	merged.Contract = tmpl.Contract
 	merged.Defaults = tmpl.Defaults
-	merged.Slots = make(map[string]struct {
-		Dir             string `json:"dir"`
-		PathPattern     string `json:"pathPattern"`
-		MultiFile       bool   `json:"multiFile"`
-		RequiresFeature bool   `json:"requiresFeature"`
-	}, len(tmpl.Slots))
+	merged.Slots = make(map[string]uiSlot, len(tmpl.Slots))
 	for k, v := range tmpl.Slots {
 		merged.Slots[k] = v
 	}

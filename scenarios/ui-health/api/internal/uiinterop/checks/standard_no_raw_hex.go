@@ -86,7 +86,7 @@ var tokenDefinitionFiles = map[string]struct{}{
 func checkNoRawHex(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	const ruleID = "standard_no_raw_hex"
 
-	files := walkUISource(ctx.ScenarioRoot, "ui/src")
+	files := sourceFiles(ctx, "ui/src")
 	if len(files) == 0 {
 		return uiinterop.RuleResult{
 			RuleID:     ruleID,
@@ -98,14 +98,14 @@ func checkNoRawHex(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 
 	var violations []uiinterop.Violation
 	for _, f := range files {
-		ext := strings.ToLower(filepath.Ext(f.relPath))
+		ext := strings.ToLower(filepath.Ext(f.RelPath))
 		if ext != ".tsx" && ext != ".jsx" && ext != ".css" && ext != ".scss" && ext != ".less" {
 			continue
 		}
-		if _, exempt := tokenDefinitionFiles[strings.ToLower(filepath.Base(f.relPath))]; exempt {
+		if _, exempt := tokenDefinitionFiles[strings.ToLower(filepath.Base(f.RelPath))]; exempt {
 			continue
 		}
-		matches := uniqueStrings(rawHexPattern.FindAllString(f.content, -1))
+		matches := uniqueStrings(rawHexPattern.FindAllString(f.Content, -1))
 		if len(matches) == 0 {
 			continue
 		}
@@ -113,9 +113,9 @@ func checkNoRawHex(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 			RuleID:         ruleID,
 			Severity:       "low",
 			Title:          "Raw hex color in component source",
-			Description:    f.relPath + " hardcodes raw hex color(s): " + strings.Join(matches, ", "),
-			FilePath:       f.relPath,
-			Line:           lineOf(f.content, matches[0]),
+			Description:    f.RelPath + " hardcodes raw hex color(s): " + strings.Join(matches, ", "),
+			FilePath:       f.RelPath,
+			Line:           lineOf(f.Content, matches[0]),
 			Recommendation: "Replace the hex literal with a semantic token (var(--…)) or a Tailwind token class; define new colors in the token layer",
 		})
 	}

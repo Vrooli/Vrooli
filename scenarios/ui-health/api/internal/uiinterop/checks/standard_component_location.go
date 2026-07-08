@@ -127,7 +127,7 @@ var localComponentPattern = regexp.MustCompile(`(?m)\b(?:function|const)\s+([A-Z
 func checkComponentLocation(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	const ruleID = "standard_component_location"
 
-	files := walkUISource(ctx.ScenarioRoot, "ui/src")
+	files := sourceFiles(ctx, "ui/src")
 	if len(files) == 0 {
 		return uiinterop.RuleResult{
 			RuleID:     ruleID,
@@ -139,41 +139,41 @@ func checkComponentLocation(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 
 	var violations []uiinterop.Violation
 	for _, f := range files {
-		if !isReactComponentFile(f.relPath) {
+		if !isReactComponentFile(f.RelPath) {
 			continue
 		}
-		if strings.Contains(f.content, "@vrooliComponentSource") && !isGovernedComponentLocation(f.relPath) {
+		if strings.Contains(f.Content, "@vrooliComponentSource") && !isGovernedComponentLocation(f.RelPath) {
 			violations = append(violations, uiinterop.Violation{
 				RuleID:         ruleID,
 				Severity:       "medium",
 				Title:          "Governed component adoption is outside components/ui",
-				Description:    f.relPath + " carries component-library provenance but is not under ui/src/components/ui",
-				FilePath:       f.relPath,
-				Line:           lineOf(f.content, "@vrooliComponentSource"),
+				Description:    f.RelPath + " carries component-library provenance but is not under ui/src/components/ui",
+				FilePath:       f.RelPath,
+				Line:           lineOf(f.Content, "@vrooliComponentSource"),
 				Recommendation: "Move governed component-library adoptions under ui/src/components/ui so the canon can audit provenance and upgrades consistently.",
 			})
 			continue
 		}
-		if isComponentSource(f.relPath) {
+		if isComponentSource(f.RelPath) {
 			continue
 		}
-		if isAppInfrastructureSource(f.relPath) {
+		if isAppInfrastructureSource(f.RelPath) {
 			continue
 		}
-		if !isPageSource(f.relPath) {
-			for _, name := range exportedComponents(f.content) {
+		if !isPageSource(f.RelPath) {
+			for _, name := range exportedComponents(f.Content) {
 				violations = append(violations, misplacedComponentViolation(ruleID, f, name))
 			}
 			continue
 		}
-		for _, name := range localPageComponents(f.content) {
+		for _, name := range localPageComponents(f.Content) {
 			violations = append(violations, uiinterop.Violation{
 				RuleID:         ruleID,
 				Severity:       "medium",
 				Title:          "Page-local component should be extracted",
-				Description:    f.relPath + " declares " + name + " beside the route; move reusable UI out of the page file",
-				FilePath:       f.relPath,
-				Line:           lineOf(f.content, name),
+				Description:    f.RelPath + " declares " + name + " beside the route; move reusable UI out of the page file",
+				FilePath:       f.RelPath,
+				Line:           lineOf(f.Content, name),
 				Recommendation: "Move " + name + " to ui/src/components or ui/src/layout and import it from the page.",
 			})
 		}
@@ -219,14 +219,14 @@ func isAppInfrastructureSource(relPath string) bool {
 	return strings.Contains(rel, "/hooks/") || strings.Contains(rel, "/theme/")
 }
 
-func misplacedComponentViolation(ruleID string, f uiSourceFile, name string) uiinterop.Violation {
+func misplacedComponentViolation(ruleID string, f uiinterop.SourceFile, name string) uiinterop.Violation {
 	return uiinterop.Violation{
 		RuleID:         ruleID,
 		Severity:       "medium",
 		Title:          "Reusable component is outside the component inventory",
-		Description:    f.relPath + " exports " + name + " outside ui/src/components or ui/src/layout",
-		FilePath:       f.relPath,
-		Line:           lineOf(f.content, name),
+		Description:    f.RelPath + " exports " + name + " outside ui/src/components or ui/src/layout",
+		FilePath:       f.RelPath,
+		Line:           lineOf(f.Content, name),
 		Recommendation: "Move " + name + " to ui/src/components or ui/src/layout so ui-health can audit the component inventory.",
 	}
 }

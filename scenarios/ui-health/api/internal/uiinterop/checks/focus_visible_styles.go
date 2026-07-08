@@ -84,7 +84,7 @@ func init() {
 func checkFocusVisibleStyles(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	const ruleID = "interop_focus_visible_styles"
 
-	files := walkUISource(ctx.ScenarioRoot, "ui/src")
+	files := sourceFiles(ctx, "ui/src")
 	if len(files) == 0 {
 		return uiinterop.RuleResult{
 			RuleID:     ruleID,
@@ -106,22 +106,22 @@ func checkFocusVisibleStyles(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 
 	var violations []uiinterop.Violation
 	for _, f := range files {
-		ext := strings.ToLower(filepath.Ext(f.relPath))
+		ext := strings.ToLower(filepath.Ext(f.RelPath))
 		if ext != ".tsx" && ext != ".jsx" && ext != ".css" {
 			continue
 		}
-		if hasFocusVisibleMarker(f.content) {
+		if hasFocusVisibleMarker(f.Content) {
 			continue
 		}
-		if !containsInteractiveUI(f.content, ext) {
+		if !containsInteractiveUI(f.Content, ext) {
 			continue
 		}
 		violations = append(violations, uiinterop.Violation{
 			RuleID:         ruleID,
 			Severity:       "low",
 			Title:          "Missing focus-visible styles",
-			Description:    f.relPath + " has interactive UI without focus-visible styling; add focus-visible: classes, a :focus-visible rule, or data-spatial-focus styling",
-			FilePath:       f.relPath,
+			Description:    f.RelPath + " has interactive UI without focus-visible styling; add focus-visible: classes, a :focus-visible rule, or data-spatial-focus styling",
+			FilePath:       f.RelPath,
 			Line:           1,
 			Recommendation: "Add focus-visible:ring-2 focus-visible:outline-none to interactive elements, or use [data-spatial-focus] styling",
 		})
@@ -170,13 +170,13 @@ func containsInteractiveUI(source, ext string) bool {
 // scenarioHasGlobalFocusVisiblePolicy reports whether any global stylesheet in
 // the scanned set declares a :focus-visible rule with a visible-indicator
 // property (outline/box-shadow/ring).
-func scenarioHasGlobalFocusVisiblePolicy(files []uiSourceFile) bool {
+func scenarioHasGlobalFocusVisiblePolicy(files []uiinterop.SourceFile) bool {
 	globalNames := map[string]bool{"styles.css": true, "index.css": true, "globals.css": true, "global.css": true, "main.css": true}
 	for _, f := range files {
-		if !globalNames[strings.ToLower(filepath.Base(f.relPath))] {
+		if !globalNames[strings.ToLower(filepath.Base(f.RelPath))] {
 			continue
 		}
-		if hasGlobalFocusVisiblePolicy(f.content) {
+		if hasGlobalFocusVisiblePolicy(f.Content) {
 			return true
 		}
 	}

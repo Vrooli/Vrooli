@@ -24,6 +24,13 @@ import (
 	commonpb "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
+const (
+	maxRuntimeConsoleEntries      = 200
+	maxRuntimeNetworkEntries      = 200
+	maxRuntimeConsoleEntryBytes   = 4096
+	maxRuntimeNetworkPreviewBytes = 4096
+)
+
 // errBASUnavailable signals the BAS engine could not be reached or driven. The
 // runner maps it to a skipped (resource unavailable) finding — never a failure.
 var errBASUnavailable = errors.New("browser-automation-studio unavailable")
@@ -99,16 +106,12 @@ func (c *connectRunner) Run(ctx context.Context, def map[string]any) (*runResult
 		return nil, fmt.Errorf("build workflow definition: %w", err)
 	}
 
-	collect := true
+	artifactConfig := runtimeArtifactConfig()
 	resp, err := wf.ExecuteAdhocWorkflow(ctx, connect.NewRequest(&basexec.ExecuteAdhocRequest{
 		FlowDefinition: proto,
 		Metadata:       &basexec.ExecutionMetadata{Name: "ui-health-runtime", Description: "ui-health runtime/render"},
 		Parameters: &basexec.ExecutionParameters{
-			ArtifactConfig: &basexec.ArtifactCollectionConfig{
-				CollectConsoleLogs:   &collect,
-				CollectNetworkEvents: &collect,
-				CollectTelemetry:     &collect,
-			},
+			ArtifactConfig: artifactConfig,
 		},
 	}))
 	if err != nil {
@@ -134,6 +137,27 @@ func (c *connectRunner) Run(ctx context.Context, def map[string]any) (*runResult
 		result.screenshotRef = firstNonEmpty(ref, result.screenshotRef)
 	}
 	return result, nil
+}
+
+func runtimeArtifactConfig() *basexec.ArtifactCollectionConfig {
+	profile := "custom"
+	on := true
+	off := false
+	maxConsoleBytes := int32(maxRuntimeConsoleEntryBytes)
+	maxNetworkBytes := int32(maxRuntimeNetworkPreviewBytes)
+	return &basexec.ArtifactCollectionConfig{
+		Profile:                &profile,
+		CollectScreenshots:     &on,
+		CollectDomSnapshots:    &off,
+		CollectConsoleLogs:     &on,
+		CollectNetworkEvents:   &on,
+		CollectExtractedData:   &on,
+		CollectAssertions:      &on,
+		CollectCursorTrails:    &off,
+		CollectTelemetry:       &off,
+		MaxConsoleEntryBytes:   &maxConsoleBytes,
+		MaxNetworkPreviewBytes: &maxNetworkBytes,
+	}
 }
 
 func (c *connectRunner) downloadExecutionScreenshot(ctx context.Context, ex apiconnect.ExecutionsServiceClient, baseURL, execID string) ([]byte, string) {
@@ -298,6 +322,8 @@ func readTimeline(tl *bastimeline.ExecutionTimeline) *runResult {
 			Message: l.GetMessage(),
 		})
 	}
+	r.console = boundConsoleEntries(r.console)
+	r.network = boundNetworkEntries(r.network)
 	return r
 }
 
@@ -380,6 +406,38 @@ func networkEntriesFromAny(values []any) []evidence.NetworkEntry {
 		})
 	}
 	return out
+}
+
+func boundConsoleEntries(entries []evidence.ConsoleEntry) []evidence.ConsoleEntry {
+	if len(entries) <= maxRuntimeConsoleEntries {
+		return entries
+	}
+	out := make([]evidence.ConsoleEntry, 0, maxRuntimeConsoleEntries)
+	for _, entry := range entries {
+		if len(out) >= maxRuntimeConsoleEntries {
+			break
+		}
+		switch entry.Level {
+		case "error", "warn", "warning":
+			out = append(out, entry)
+		}
+	}
+	for i := len(entries) - 1; i >= 0 && len(out) < maxRuntimeConsoleEntries; i-- {
+		switch entries[i].Level {
+		case "error", "warn", "warning":
+			continue
+		default:
+			out = append(out, entries[i])
+		}
+	}
+	return out
+}
+
+func boundNetworkEntries(entries []evidence.NetworkEntry) []evidence.NetworkEntry {
+	if len(entries) <= maxRuntimeNetworkEntries {
+		return entries
+	}
+	return entries[len(entries)-maxRuntimeNetworkEntries:]
 }
 
 func stringFromAny(v any) string {

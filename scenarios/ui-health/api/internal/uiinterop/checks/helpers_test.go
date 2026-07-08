@@ -1,6 +1,10 @@
 package checks
 
-import "testing"
+import (
+	"testing"
+
+	"ui-health/internal/uiinterop"
+)
 
 func TestIsTestFile(t *testing.T) {
 	cases := []struct {
@@ -26,7 +30,7 @@ func TestIsTestFile(t *testing.T) {
 		{"test-utils.ts", true},
 	}
 	for _, tc := range cases {
-		if got := isTestFile(tc.name); got != tc.want {
+		if got := uiinterop.IsTestFile(tc.name); got != tc.want {
 			t.Errorf("isTestFile(%q) = %v, want %v", tc.name, got, tc.want)
 		}
 	}

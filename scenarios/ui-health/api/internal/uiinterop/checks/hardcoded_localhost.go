@@ -46,6 +46,15 @@ BadExample:
   </input>
 </test-case>
 
+<test-case id="localhost-in-trailing-comment-only" should-fail="false">
+  <description>localhost appears only in a trailing inline comment</description>
+  <input>
+    [ui/src/api.ts]
+    import { resolveApiBase } from "@vrooli/api-base";
+    const API = resolveApiBase(); // old endpoint was http://localhost:3000
+  </input>
+</test-case>
+
 <test-case id="localhost-in-source" should-fail="true">
   <description>Source file contains hardcoded localhost:PORT</description>
   <input>
@@ -74,8 +83,6 @@ package checks
 
 import (
 	"bufio"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -91,8 +98,8 @@ var localhostPattern = regexp.MustCompile(`localhost:\d+`)
 func checkHardcodedLocalhost(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	const ruleID = "interop_hardcoded_localhost"
 
-	srcDir := filepath.Join(ctx.ScenarioRoot, "ui", "src")
-	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
+	files := sourceFiles(ctx, "ui/src")
+	if len(files) == 0 {
 		return uiinterop.RuleResult{
 			RuleID:     ruleID,
 			Skipped:    true,
@@ -103,31 +110,8 @@ func checkHardcodedLocalhost(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 
 	var violations []uiinterop.Violation
 
-	_ = filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-		if info.IsDir() {
-			if _, skip := skipDirectories[info.Name()]; skip {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		ext := filepath.Ext(info.Name())
-		if _, ok := scanExtensions[ext]; !ok {
-			return nil
-		}
-		if isTestFile(info.Name()) {
-			return nil
-		}
-
-		f, openErr := os.Open(path)
-		if openErr != nil {
-			return nil
-		}
-		defer f.Close()
-
-		scanner := bufio.NewScanner(f)
+	for _, f := range files {
+		scanner := bufio.NewScanner(strings.NewReader(f.Content))
 		lineNum := 0
 		for scanner.Scan() {
 			lineNum++
@@ -141,22 +125,21 @@ func checkHardcodedLocalhost(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 				continue
 			}
 
-			if localhostPattern.MatchString(line) {
-				rel, _ := filepath.Rel(ctx.ScenarioRoot, path)
+			scannable := stripInlineJSComments(line)
+			if localhostPattern.MatchString(scannable) {
 				violations = append(violations, uiinterop.Violation{
 					RuleID:         ruleID,
 					Severity:       "high",
 					Title:          "Hardcoded localhost:PORT reference",
-					Description:    "Found localhost:PORT in " + rel + " at line " + strings.TrimSpace(line),
-					FilePath:       rel,
+					Description:    "Found localhost:PORT in " + f.RelPath + " at line " + strings.TrimSpace(line),
+					FilePath:       f.RelPath,
 					Line:           lineNum,
 					CodeSnippet:    strings.TrimSpace(line),
 					Recommendation: "Replace with resolveApiBase() from @vrooli/api-base",
 				})
 			}
 		}
-		return nil
-	})
+	}
 
 	if len(violations) > 0 {
 		return uiinterop.RuleResult{
@@ -172,4 +155,38 @@ func checkHardcodedLocalhost(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 		Passed:  true,
 		Message: "no hardcoded localhost:PORT references found in ui/src/",
 	}
+}
+
+func stripInlineJSComments(line string) string {
+	var quote rune
+	escaped := false
+	for i, r := range line {
+		if escaped {
+			escaped = false
+			continue
+		}
+		if quote != 0 {
+			if r == '\\' {
+				escaped = true
+				continue
+			}
+			if r == quote {
+				quote = 0
+			}
+			continue
+		}
+		switch r {
+		case '\'', '"', '`':
+			quote = r
+		case '/':
+			if i+1 >= len(line) {
+				continue
+			}
+			switch line[i+1] {
+			case '/', '*':
+				return line[:i]
+			}
+		}
+	}
+	return line
 }

@@ -2,9 +2,24 @@ package uiinterop
 
 // CheckContext provides everything a rule needs to inspect a scenario.
 type CheckContext struct {
-	ScenarioRoot string   // absolute path to scenario dir
-	TechStack    []string // detected components: ["React", "Vite", "iframe-bridge"]
-	ScenarioName string
+	ScenarioRoot string       // absolute path to scenario dir
+	TechStack    []string     // detected components: ["React", "Vite", "iframe-bridge"]
+	ScenarioName string       // scenario directory name
+	Sources      []SourceFile // scanned production source files under ui/
+	TestSources  []SourceFile // scanned test source files under ui/
+}
+
+// SourceFile is one scanned production source file under a UI tree.
+type SourceFile struct {
+	RelPath string // path relative to scenarioRoot, slash-separated (e.g. "ui/src/App.tsx")
+	AbsPath string // absolute path on disk
+	Content string // file contents
+}
+
+// SourceSet splits a single UI tree scan into production and test files.
+type SourceSet struct {
+	Production []SourceFile
+	Tests      []SourceFile
 }
 
 // Violation represents a single issue found by a rule check.

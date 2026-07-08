@@ -35,7 +35,7 @@ func runInteropFindings(root, scenario string) []manifestvalidation.Finding {
 		}
 		for _, v := range r.Violations {
 			finds = append(finds, manifestvalidation.Finding{
-				Severity:   interopSeverity(v.Severity),
+				Severity:   manifestvalidation.SeverityFromLabel(v.Severity),
 				Code:       r.RuleID,
 				Location:   interopLocation(root, v.FilePath),
 				Message:    interopMessage(v),
@@ -44,20 +44,6 @@ func runInteropFindings(root, scenario string) []manifestvalidation.Finding {
 		}
 	}
 	return finds
-}
-
-// interopSeverity maps a rule engine severity string to the validator's
-// severity. critical/high are errors; medium is a warning; low (and anything
-// unrecognized) is informational.
-func interopSeverity(sev string) manifestvalidation.Severity {
-	switch sev {
-	case "critical", "high", "error":
-		return manifestvalidation.SeverityError
-	case "medium", "warning":
-		return manifestvalidation.SeverityWarning
-	default:
-		return manifestvalidation.SeverityInfo
-	}
 }
 
 // interopLocation prefers the violation's file path (made absolute under the

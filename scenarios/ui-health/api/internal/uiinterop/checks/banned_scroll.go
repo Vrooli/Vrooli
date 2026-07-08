@@ -70,7 +70,7 @@ var bannedScrollMarkers = []string{".scrollIntoView(", "window.scrollTo(", ".scr
 func checkBannedScroll(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 	const ruleID = "interop_banned_scroll"
 
-	files := walkUISource(ctx.ScenarioRoot, "ui/src")
+	files := sourceFiles(ctx, "ui/src")
 	if len(files) == 0 {
 		return uiinterop.RuleResult{
 			RuleID:     ruleID,
@@ -82,12 +82,12 @@ func checkBannedScroll(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 
 	var violations []uiinterop.Violation
 	for _, f := range files {
-		ext := strings.ToLower(filepath.Ext(f.relPath))
+		ext := strings.ToLower(filepath.Ext(f.RelPath))
 		if ext != ".tsx" && ext != ".jsx" && ext != ".ts" && ext != ".js" {
 			continue
 		}
 		for _, marker := range bannedScrollMarkers {
-			if !strings.Contains(f.content, marker) {
+			if !strings.Contains(f.Content, marker) {
 				continue
 			}
 			call := strings.TrimPrefix(strings.TrimPrefix(marker, "."), "window.")
@@ -95,9 +95,9 @@ func checkBannedScroll(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 				RuleID:         ruleID,
 				Severity:       "low",
 				Title:          "Imperative scroll call inside UI",
-				Description:    f.relPath + " calls " + call + " imperative scrolling fights spatial navigation inside the host frame",
-				FilePath:       f.relPath,
-				Line:           lineOf(f.content, marker),
+				Description:    f.RelPath + " calls " + call + " imperative scrolling fights spatial navigation inside the host frame",
+				FilePath:       f.RelPath,
+				Line:           lineOf(f.Content, marker),
 				Recommendation: "Prefer moving focus (spatial navigation scrolls it into view) over calling " + call + " directly",
 			})
 		}
