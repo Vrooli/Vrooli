@@ -13,19 +13,19 @@
       "id": "dashboard",
       "path": "pages/dashboard.json",
       "title": "Dashboard",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "notes",
       "path": "pages/notes.json",
       "title": "Notes",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "settings",
       "path": "pages/settings.json",
       "title": "Settings",
-      "status": "draft"
+      "status": "active"
     }
   ],
   "journeys": []

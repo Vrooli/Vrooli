@@ -471,10 +471,13 @@ For a normal proto-backed CRUD domain:
    `api/internal/modules/registry.go` and mount the module in
    `api/main.go`.
 5. Declare the domain's commands in `cli/manifest.json` (each bound to a
-   `connect-rpc` `service`/`method`, or listed in `omitted[]`), then wire
-   the handlers via `cliapp.LoadFromManifest` in
-   `cli/domains/<domain>/register.go` and register the group in
-   `cli/domains/domains.go`.
+   `connect-rpc` `service`/`method` with an `architecture.primitive`, or
+   listed in `omitted[]`), then wire the handlers as cli-core primitives
+   (`cliapp.ProtoList`/`ProtoMutation`/`ProtoOperational`) via
+   `cliapp.LoadFromManifestPrimitives` in `cli/domains/<domain>/register.go`
+   and register the group in `cli/domains/domains.go`. Building each command
+   with its declared primitive is what earns *verified* L4 command-architecture
+   maturity (cli-health verifies the evidence against the declaration).
 6. Run the scenario's endpoint generation (`make endpoints`) after wiring
    the domain; it regenerates `.vrooli/endpoints.json` and cross-checks
    every Connect endpoint against `cli/manifest.json` (bound or omitted).
