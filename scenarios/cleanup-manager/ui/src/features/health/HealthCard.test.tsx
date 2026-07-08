@@ -17,7 +17,7 @@ vi.mock("../../api/health", async (importOriginal) => {
   return { ...actual, ...makeApiMocks() };
 });
 
-import { HealthCard } from "./HealthCard";
+import { HealthCard } from "../../components/HealthCard";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { setLocale } from "../../i18n";

@@ -34,6 +34,7 @@ func TestConservativeBuiltInsValidateAndSortCatalog(t *testing.T) {
 		ProcessRunner:        &cleanupfakes.ProcessRunner{Result: cleanup.ProcessResult{Stdout: "1024"}},
 		Docker:               &cleanupfakes.DockerClient{},
 		Journal:              &cleanupfakes.JournalClient{},
+		OwnerScenarioClient:  &cleanupfakes.ScenarioProviderClient{},
 		Clock:                cleanupfakes.Clock{Time: time.Unix(10, 0)},
 		TrashRoots:           []string{"/fake/trash"},
 		TmpRoots:             []string{"/fake/tmp"},
@@ -48,8 +49,8 @@ func TestConservativeBuiltInsValidateAndSortCatalog(t *testing.T) {
 		t.Fatalf("NewRegistry() error = %v", err)
 	}
 	got := registry.List()
-	if len(got) != 7 {
-		t.Fatalf("List() len = %d, want 7", len(got))
+	if len(got) != 10 {
+		t.Fatalf("List() len = %d, want 10", len(got))
 	}
 	for i := 1; i < len(got); i++ {
 		if got[i-1].ID > got[i].ID {
@@ -58,6 +59,60 @@ func TestConservativeBuiltInsValidateAndSortCatalog(t *testing.T) {
 	}
 	if _, ok := registry.Get("docker"); !ok {
 		t.Fatal("Get(\"docker\") missing built-in provider")
+	}
+	for _, id := range []string{"workspace-sandbox-retention", "test-genie-run-retention", "web-console-sessions"} {
+		provider, ok := registry.Get(id)
+		if !ok {
+			t.Fatalf("Get(%q) missing owner-scenario provider", id)
+		}
+		meta := provider.Metadata()
+		if meta.SafetyTier != cleanup.SafetyTierSafeWithOwner || meta.DefaultMode != cleanup.ProviderModeDisabled || meta.DefaultApproval != cleanup.ApprovalModeOwner {
+			t.Fatalf("%s metadata = %#v, want disabled safe_with_owner owner approval", id, meta)
+		}
+	}
+}
+
+func TestOwnerScenarioBuiltInsDelegateThroughOwnerClientOnly(t *testing.T) {
+	t.Parallel()
+
+	client := &cleanupfakes.ScenarioProviderClient{
+		EstimateResult: cleanup.Estimate{ProviderID: "workspace-sandbox-retention", ProviderVersion: "v1", EstimatedBytes: 4096, ItemCount: 2},
+		PreviewResult: cleanup.Preview{ProviderID: "workspace-sandbox-retention", ProviderVersion: "v1", Items: []cleanup.PreviewItem{
+			{ID: "sandbox-old", Description: "expired sandbox", Bytes: 4096, SafetyTier: cleanup.SafetyTierSafeWithOwner},
+		}},
+		ApplyResult: cleanup.ApplyResult{ProviderID: "workspace-sandbox-retention", Applied: true, ReclaimedBytes: 4096},
+	}
+	registry, err := NewRegistry(OwnerScenarioBuiltIns(client)...)
+	if err != nil {
+		t.Fatalf("NewRegistry() error = %v", err)
+	}
+	provider, ok := registry.Get("workspace-sandbox-retention")
+	if !ok {
+		t.Fatal("workspace-sandbox-retention provider missing")
+	}
+	policy := cleanup.ProviderPolicy{Enabled: true, ApprovalMode: cleanup.ApprovalModeOwner}
+	estimate, err := provider.Estimate(context.Background(), cleanup.EstimateRequest{Policy: policy})
+	if err != nil {
+		t.Fatalf("Estimate() error = %v", err)
+	}
+	preview, err := provider.Preview(context.Background(), cleanup.PreviewRequest{Policy: policy, Estimate: estimate})
+	if err != nil {
+		t.Fatalf("Preview() error = %v", err)
+	}
+	result, err := provider.Apply(context.Background(), cleanup.ApplyRequest{
+		ProviderVersion: "v1",
+		ApprovalMode:    cleanup.ApprovalModeOwner,
+		IdempotencyKey:  "sandbox-retention-1",
+		Preview:         preview,
+	})
+	if err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	if !result.Applied || len(client.Applies) != 1 {
+		t.Fatalf("Apply() = %#v applies=%#v, want one delegated owner apply", result, client.Applies)
+	}
+	if got := client.Applies[0]; got.ScenarioID != "workspace-sandbox" || got.ProviderID != "workspace-sandbox-retention" {
+		t.Fatalf("delegated request = %#v, want workspace-sandbox owner hook", got)
 	}
 }
 

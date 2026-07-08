@@ -1,4 +1,4 @@
-//go:build e2e
+//go:build e2e && !windows
 
 // Package main e2e gate. Build-tag-isolated so it never runs under
 // `go test ./...` — the canonical entry point is `go test -tags=e2e .`,
@@ -34,7 +34,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -43,13 +42,6 @@ import (
 )
 
 func TestE2E_BinaryBootsAndServesHealth(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		// SIGTERM is not portable to Windows; the e2e test is gated to
-		// Unix-likes. Windows CI (when added) gets a separate variant
-		// that uses os.Process.Kill or sends Ctrl+Break via taskkill.
-		t.Skip("e2e binary boot test relies on SIGTERM; not portable to Windows")
-	}
-
 	binary := buildBinary(t)
 	port := pickFreePort(t)
 	dbPath := filepath.Join(t.TempDir(), "e2e.db")

@@ -43,12 +43,34 @@ The current conservative built-ins are constructed by
 | `docker` | `conditional` | disabled, operator approval | `DockerClient` |
 | `journald` | `conditional` | disabled, operator approval | `JournalClient` |
 | `apt-metadata` | `conditional` | disabled, operator approval | `ProcessRunner` metadata probe, preview-only apply |
+| `workspace-sandbox-retention` | `safe_with_owner` | disabled, owner approval | `ScenarioProviderClient` |
+| `test-genie-run-retention` | `safe_with_owner` | disabled, owner approval | `ScenarioProviderClient` |
+| `web-console-sessions` | `safe_with_owner` | disabled, owner approval | `ScenarioProviderClient` |
 
 Filesystem providers only walk configured roots and skip active-looking
 paths such as lock files, dotfiles, sockets, and `/proc` descendants.
 Docker previews include dangling images and build cache, but intentionally
 exclude volumes. Command-backed metadata providers are preview-only until
-a typed allowlisted executor is wired.
+a typed allowlisted executor is wired. Owner-scenario providers are
+catalog entries only until an owner client is available; when enabled they
+delegate Estimate/Preview/Apply to the owning scenario and never crawl
+private storage directly.
+
+## Adjacent Scenario Handoff
+
+Cleanup Manager owns cleanup policy, planning, approval, replay safety,
+and audit. Adjacent scenarios keep their narrower ownership:
+
+| Scenario | Role | Cleanup-manager boundary |
+|---|---|---|
+| `system-monitor` | Observes disk pressure, attribution, and health signals. | It links operators to cleanup plans but does not mutate disk state. |
+| `vrooli-autoheal` | Detects failures and offers recovery surfaces. | Broad disk/Docker cleanup actions hand off to `cleanup-manager cleanup plan`; autoheal does not run prune/vacuum/cache deletion directly. |
+| `workspace-sandbox` | Owns sandbox-private lifecycle and orphan cleanup semantics. | `workspace-sandbox-retention` is a disabled-by-default owner hook that delegates Estimate/Preview/Apply through `ScenarioProviderClient`. |
+| `test-genie` and `web-console` | Own run/session retention semantics. | `test-genie-run-retention` and `web-console-sessions` are disabled-by-default owner hooks, not filesystem crawlers in cleanup-manager. |
+
+This keeps circular startup risk low: adjacent scenarios can degrade to
+diagnostic links when cleanup-manager is unavailable, while cleanup-manager
+never duplicates owner-private deletion logic.
 
 ## Policy Profiles
 

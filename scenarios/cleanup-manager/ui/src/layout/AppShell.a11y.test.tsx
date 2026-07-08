@@ -4,7 +4,7 @@
  * (header + landmark nav + main + bottom landmark nav). Feature cards keep
  * their own a11y tests.
  */
-import { afterEach, beforeEach, describe, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cleanup } from "@testing-library/react";
 
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
@@ -25,6 +25,7 @@ describe("AppShell accessibility", () => {
       <TestAppRouter initialEntries={["/"]} />,
       { withoutRouter: true },
     );
+    expect(container.querySelector("main")).toBeInTheDocument();
     await expectNoA11yViolations(container);
   });
 });

@@ -1,9 +1,12 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
+import { HealthCard } from "../components/HealthCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { DataTable, type DataTableColumn } from "../components/ui/data-table";
+import { EmptyState } from "../components/ui/empty-state";
+import { Input } from "../components/ui/input";
+import { Select } from "../components/ui/select";
 import { StatusBadge } from "../components/ui/status-badge";
-import { HealthCard } from "../features/health/HealthCard";
 import { useTranslation } from "../i18n";
 
 type ProviderRow = {
@@ -94,15 +97,38 @@ export function DashboardPage() {
             <CardDescription>{t(strings.cleanup.policy.description)}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <div className="flex items-center justify-between gap-3 border-b border-app-border pb-2">
-              <span className="text-app-muted-foreground">{t(strings.cleanup.policy.profile)}</span>
-              <span className="font-medium">conservative</span>
+            <div className="grid gap-2">
+              <label className="text-app-muted-foreground" htmlFor="cleanup-policy-profile">
+                {t(strings.cleanup.policy.profile)}
+              </label>
+              <Select
+                id="cleanup-policy-profile"
+                value="conservative"
+                aria-label={t(strings.cleanup.policy.profile)}
+                options={[
+                  { value: "conservative", label: "conservative" },
+                  { value: "balanced", label: "balanced", disabled: true },
+                  { value: "aggressive", label: "aggressive", disabled: true },
+                ]}
+                disabled
+              />
             </div>
-            <div className="flex items-center justify-between gap-3 border-b border-app-border pb-2">
+            <div className="grid gap-2">
+              <label className="text-app-muted-foreground" htmlFor="cleanup-policy-reclaim">
+                {t(strings.cleanup.overview.reclaimable)}
+              </label>
+              <Input
+                id="cleanup-policy-reclaim"
+                aria-label={t(strings.cleanup.overview.reclaimable)}
+                value="3.0 GB"
+                readOnly
+              />
+            </div>
+            <div className="flex items-center justify-between gap-3 border-t border-app-border pt-2">
               <span className="text-app-muted-foreground">{t(strings.cleanup.policy.applyGate)}</span>
               <span className="font-medium">approval required</span>
             </div>
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-3 border-t border-app-border pt-2">
               <span className="text-app-muted-foreground">{t(strings.cleanup.policy.replay)}</span>
               <span className="font-medium">idempotency key required</span>
             </div>
@@ -118,7 +144,11 @@ export function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <p>{t(strings.cleanup.plan.preview)}</p>
-            <p className="font-medium text-app-danger">{t(strings.cleanup.plan.applyDisabled)}</p>
+            <EmptyState
+              title={t(strings.cleanup.plan.applyDisabled)}
+              description={t(strings.cleanup.plan.description)}
+              className="border-app-danger/50"
+            />
           </CardContent>
         </Card>
 

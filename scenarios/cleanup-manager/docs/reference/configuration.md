@@ -169,6 +169,13 @@ overrides. The profile names are stable operator-facing levers:
 | `balanced` | Enable `safe` and `safe_with_owner` providers with a three-day minimum age. Conditional providers remain disabled. |
 | `aggressive` | Enable every non-forbidden provider with a one-day minimum age. Conditional providers still require operator approval. |
 
+Owner-scenario hooks (`workspace-sandbox-retention`,
+`test-genie-run-retention`, and `web-console-sessions`) are
+`safe_with_owner`. They remain disabled in the conservative profile and
+require owner approval when enabled. If no owner client is wired,
+planning reports the provider as unavailable instead of falling back to
+filesystem cleanup.
+
 Per-provider overrides currently support:
 
 | Lever | Valid values | Purpose |

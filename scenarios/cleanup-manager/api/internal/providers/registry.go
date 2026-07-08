@@ -101,6 +101,7 @@ func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 			PreviewAction:      "apt-metadata-clean",
 		}, deps.ProcessRunner),
 	}
+	providers = append(providers, OwnerScenarioBuiltIns(deps.OwnerScenarioClient)...)
 
 	for _, provider := range providers {
 		if err := cleanup.ValidateProvider(provider); err != nil {
@@ -110,11 +111,47 @@ func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 	return providers, nil
 }
 
+func OwnerScenarioBuiltIns(client cleanup.ScenarioProviderClient) []cleanup.Provider {
+	configs := []OwnerProviderConfig{
+		{
+			ID:              "workspace-sandbox-retention",
+			Name:            "Workspace Sandbox retained sandboxes",
+			OwnerScenario:   "workspace-sandbox",
+			SafetyTier:      cleanup.SafetyTierSafeWithOwner,
+			DefaultMode:     cleanup.ProviderModeDisabled,
+			DefaultApproval: cleanup.ApprovalModeOwner,
+		},
+		{
+			ID:              "test-genie-run-retention",
+			Name:            "Test Genie retained runs",
+			OwnerScenario:   "test-genie",
+			SafetyTier:      cleanup.SafetyTierSafeWithOwner,
+			DefaultMode:     cleanup.ProviderModeDisabled,
+			DefaultApproval: cleanup.ApprovalModeOwner,
+		},
+		{
+			ID:              "web-console-sessions",
+			Name:            "Web Console old sessions",
+			OwnerScenario:   "web-console",
+			SafetyTier:      cleanup.SafetyTierSafeWithOwner,
+			DefaultMode:     cleanup.ProviderModeDisabled,
+			DefaultApproval: cleanup.ApprovalModeOwner,
+		},
+	}
+
+	out := make([]cleanup.Provider, 0, len(configs))
+	for _, cfg := range configs {
+		out = append(out, NewOwnerScenarioProvider(cfg, client))
+	}
+	return out
+}
+
 type BuiltInDeps struct {
 	FileSystem           cleanup.FileSystem
 	ProcessRunner        cleanup.ProcessRunner
 	Docker               cleanup.DockerClient
 	Journal              cleanup.JournalClient
+	OwnerScenarioClient  cleanup.ScenarioProviderClient
 	Clock                cleanup.Clock
 	TrashRoots           []string
 	TmpRoots             []string

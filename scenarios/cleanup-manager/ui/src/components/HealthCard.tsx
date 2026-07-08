@@ -2,23 +2,18 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { StatusBadge } from "../../components/ui/status-badge";
-import { selectors } from "../../consts/selectors";
-import { strings } from "../../consts/strings";
-import { formatDate } from "../../i18n/format";
-import { useTranslation } from "../../i18n";
-import { fetchHealth } from "../../api/health";
+import { fetchHealth } from "../api/health";
+import { selectors } from "../consts/selectors";
+import { strings } from "../consts/strings";
+import { formatDate } from "../i18n/format";
+import { useTranslation } from "../i18n";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { StatusBadge } from "./ui/status-badge";
 
 /**
- * HealthCard is the canonical *system-status* feature: it polls
- * /health, renders status + service + timestamp, and exposes a
- * refresh button + counter to demonstrate the i18n plural pipeline.
- *
- * New scenarios keep this card unchanged (every API ships a /health
- * surface) and add their own domain features alongside it in
- * `features/<name>/`.
+ * HealthCard is the canonical system-status component: it polls /health,
+ * renders status + service + timestamp, and exposes a refresh control.
  */
 export function HealthCard() {
   const { t } = useTranslation();
@@ -35,10 +30,7 @@ export function HealthCard() {
   };
 
   return (
-    <Card
-      data-testid={selectors.health.card}
-      className="h-full"
-    >
+    <Card data-testid={selectors.health.card} className="h-full">
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div>

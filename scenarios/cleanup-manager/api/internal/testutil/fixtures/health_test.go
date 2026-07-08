@@ -120,4 +120,12 @@ func TestNewHealthResponse_OptOrderIndependent(t *testing.T) {
 func TestHealthResponse_TypeAlias(t *testing.T) {
 	var _ HealthResponse = healthv1.Response{}
 	var _ DependencyStatus = healthv1.DependencyStatus{}
+
+	r := NewHealthResponse()
+	if _, ok := any(*r).(HealthResponse); !ok {
+		t.Fatalf("NewHealthResponse() returned %T, want fixtures.HealthResponse alias", r)
+	}
+	if proto.MessageName(r) != proto.MessageName(&healthv1.Response{}) {
+		t.Fatalf("proto message name = %q, want %q", proto.MessageName(r), proto.MessageName(&healthv1.Response{}))
+	}
 }

@@ -140,6 +140,12 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `api/internal/testutil/cleanup::ScenarioProviderClient` records owner-scenario delegated apply requests. |
 | **Why it exists** | Cleanup Manager orchestrates policy and audit but must not duplicate private deletion logic owned by workspace-sandbox, test-genie, web-console, or future scenarios. |
 
+Built-in owner hooks are registered by `api/internal/providers::OwnerScenarioBuiltIns`:
+`workspace-sandbox-retention`, `test-genie-run-retention`, and
+`web-console-sessions`. All are `safe_with_owner`, disabled by default,
+and require owner approval. A missing owner client is a blocked preview,
+not permission to scan owner-private directories from cleanup-manager.
+
 ### Cleanup provider registry
 
 | | |
