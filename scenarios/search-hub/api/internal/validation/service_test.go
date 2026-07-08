@@ -850,6 +850,61 @@ func TestValidateScenarioLatencyBudgetBreachIsAdvisory(t *testing.T) {
 	}
 }
 
+func TestValidateScenarioExternalSmokeEvidenceDoesNotRequirePositiveLabels(t *testing.T) {
+	root := t.TempDir()
+	writeSearchConfig(t, root, "demo", `{
+  "version":"1.0.0",
+  "providers":[{
+    "provider_id":"demo.web",
+    "provider_group":"demo",
+    "bucket":"BUCKET_KNOW",
+    "type":"web",
+    "description":"Live web",
+    "scope":"SCOPE_EXTERNAL",
+    "class":"external",
+    "endpoint":{"http_json":{"scenario_id":"demo","path":"/search","method":"HTTP_METHOD_POST"}},
+    "result_mapping":{"results_path":"results","id_field":"url","title_field":"title","score_field":"score","score_scale":"SCORE_SCALE_RAW"},
+    "tests":{"description":"Live smoke only","cases":[{"id":"smoke","query":"official python release notes","tags":["smoke","reachability"]}]}
+  }]
+}`)
+	now := time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC)
+	service := New(root)
+	service.Now = func() time.Time { return now }
+	suite := &evalv1.EvalSuite{
+		SuiteId: "demo.web.primary", ProviderId: "demo.web", State: "active",
+		Cases: []*evalv1.EvalCase{{CaseId: "smoke", Query: "official python release notes", Tags: []string{"smoke", "reachability"}}},
+	}
+	run := &evalv1.EvalRun{
+		RunId: "run-smoke", SuiteId: "demo.web.primary",
+		CreatedAt: now.Add(-time.Hour).UTC().Format(time.RFC3339Nano),
+		Results: []*evalv1.CaseResult{{
+			CaseId:  "smoke",
+			Outcome: "n/a",
+			Top:     []*evalv1.ScoredHit{{Id: "https://www.python.org/doc/versions/", Score: 2.5}},
+		}},
+		Aggregate: &evalv1.EvalAggregate{Cases: 1, LatencyP95Ms: 250},
+	}
+	service.EvalStore = fakeEvalStore{
+		suites: map[string]*evalv1.EvalSuite{"demo.web.primary": suite},
+		runs:   map[string][]*evalv1.EvalRun{"demo.web.primary": {run}},
+	}
+	service.EvalValidator = fakeEvalValidator{rollup: &evalv1.CorpusValidationRollup{}}
+
+	report, err := service.ValidateScenarioWithOptions(context.Background(), "demo", "", Options{IncludeEvals: true, EvalFreshnessWindow: 24 * time.Hour})
+	if err != nil {
+		t.Fatalf("ValidateScenarioWithOptions: %v", err)
+	}
+	if hasFinding(report, CodeEvalLabelsStale) {
+		t.Fatalf("external smoke provider must not require deterministic positive labels: %#v", report.Findings)
+	}
+	if report.Summary.Status() != "passed" {
+		t.Fatalf("status = %s, want passed: %#v", report.Summary.Status(), report.Findings)
+	}
+	if got := report.EvalEvidence[0].CorpusStatus; got != "smoke" {
+		t.Fatalf("corpus status = %q, want smoke", got)
+	}
+}
+
 func TestValidateScenarioTelemetryRequiredFailsWithoutEvidence(t *testing.T) {
 	root := t.TempDir()
 	writeSearchConfig(t, root, "demo", providerConfigWith(`"performance":{"telemetry_required":true},`,

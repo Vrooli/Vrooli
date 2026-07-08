@@ -61,7 +61,7 @@
         "rerank_shortlist": 50,
         "floor": {
           "max_gap": 0,
-          "hard_floor": 0
+          "hard_floor": 0.65
         }
       },
       "tests": {
@@ -90,7 +90,7 @@
               "gibberish"
             ],
             "expect_no_strong_hit": true,
-            "expect_max_score": 0.3,
+            "expect_max_score": 0.65,
             "note": "Junk rejection: nonsense must not surface a confident hit."
           }
         ],

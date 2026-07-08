@@ -741,6 +741,10 @@ func (s *Service) validateEvalEvidence(ctx context.Context, report *Report, prov
 		return
 	}
 	if rollup := corpus.GetRollup(); rollup == nil || rollup.GetPositives() == 0 {
+		if isExternalSmokeProvider(provider, extras) && runHasSmokeEvidence(suite, lastRun) {
+			evidence.CorpusStatus = "smoke"
+			return
+		}
 		evidence.CorpusStatus = "unproven"
 		report.add(Finding{
 			Code:        CodeEvalLabelsStale,
@@ -764,6 +768,27 @@ func (s *Service) validateEvalEvidence(ctx context.Context, report *Report, prov
 		return
 	}
 	evidence.CorpusStatus = "live"
+}
+
+func runHasSmokeEvidence(suite *evalv1.EvalSuite, run *evalv1.EvalRun) bool {
+	smokeCases := make(map[string]bool)
+	for _, c := range suite.GetCases() {
+		for _, tag := range c.GetTags() {
+			if strings.EqualFold(strings.TrimSpace(tag), "smoke") {
+				smokeCases[c.GetCaseId()] = true
+				break
+			}
+		}
+	}
+	if len(smokeCases) == 0 {
+		return false
+	}
+	for _, r := range run.GetResults() {
+		if smokeCases[r.GetCaseId()] && len(r.GetTop()) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Service) now() time.Time {

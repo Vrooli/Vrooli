@@ -132,7 +132,8 @@
             "name": "Search descriptor clean",
             "status_label": "Complete",
             "description": "Search descriptor checks are clean.",
-            "capability_summary": "Search descriptor maturity is clean."
+            "capability_summary": "Search descriptor maturity is clean.",
+            "next_unlock": "No production-readiness search descriptor findings remain."
           },
           {
             "id": "L4",
@@ -169,7 +170,8 @@
             "name": "Search governance clean",
             "status_label": "Complete",
             "description": "Search governance checks are clean.",
-            "capability_summary": "Search governance maturity is clean."
+            "capability_summary": "Search governance maturity is clean.",
+            "next_unlock": "No production-readiness search governance findings remain."
           },
           {
             "id": "L3",
@@ -206,7 +208,8 @@
             "name": "Search eval evidence baseline clean",
             "status_label": "Complete",
             "description": "Static eval corpus checks are clean. Live eval execution is reported separately when explicitly requested.",
-            "capability_summary": "Search eval-performance maturity is clean."
+            "capability_summary": "Search eval-performance maturity is clean.",
+            "next_unlock": "Reviewed corpus depth, difficulty spread, fresh live-labelled runs, and performance evidence prove production-quality retrieval."
           },
           {
             "id": "L3",
@@ -243,7 +246,8 @@
             "name": "Search operability baseline clean",
             "status_label": "Complete",
             "description": "Search operability checks are clean.",
-            "capability_summary": "Search operability maturity is clean."
+            "capability_summary": "Search operability maturity is clean.",
+            "next_unlock": "Endpoint posture, tuning provenance, and measured latency/degradation budgets are production-ready."
           },
           {
             "id": "L3",
