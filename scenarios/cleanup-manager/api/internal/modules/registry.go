@@ -22,10 +22,12 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	cleanupH "cleanup-manager/handlers/cleanup"
 	healthH "cleanup-manager/handlers/health"
 	notesH "cleanup-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
 	localdb "cleanup-manager/internal/database"
 
+	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cleanup-manager/v1/cleanup"
 	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cleanup-manager/v1/notes" // EXAMPLE-DOMAIN:notes
 )
 
@@ -36,6 +38,7 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, cleanupH.Endpoints...)
 	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
 	return out
 }
@@ -63,6 +66,7 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
+		{Module: "cleanup", File: cleanupv1.File_cleanup_manager_v1_cleanup_cleanup_proto},
 		{Module: "notes", File: notesv1.File_cleanup_manager_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
 	}
 }

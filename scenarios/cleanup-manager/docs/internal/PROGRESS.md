@@ -12,6 +12,8 @@ work lands, not while work is still speculative.
 |---|---|---|---|
 | 2026-07-08 | codex | partial | Phase 1 started: generated cleanup-manager from the supported `react-vite` template, authored the PRD and requirements through `business-health wizard`, removed the starter requirement module, recorded ecosystem fit as a meta-scenario/interface-enabler, and captured fallback regression anchor `7b01bc3140c1baf470021ae2c6cb536eb34be1dc` after the named baselines were missing. |
 | 2026-07-08 | codex | partial | Phase 2 started: added cleanup provider metadata/contracts, safety tiers, side-effect seams, fake filesystem/process/Docker clients, no-real-cleanup drift tests, and seam/idempotency invariants. Validation: `go test ./...` passes in `scenarios/cleanup-manager/api`; requirements validation remains clean. |
+| 2026-07-08 | codex | partial | Phase 3 started: added conservative provider registry, filesystem-backed trash/tmp/cache providers, Docker provider excluding volumes, journal and command metadata providers, owner-scenario delegation provider, policy profiles, fake journal/owner clients, provider tests, and provider reference docs. Validation: `go test ./...` passes in `scenarios/cleanup-manager/api`. |
+| 2026-07-08 | codex | partial | Phase 4 started: added CleanupService proto/API/CLI surface for provider catalog, policy profile, deterministic plan creation, approval/idempotency-gated apply, and redacted audit listing. Added orchestration service tests for stable plan IDs, policy/version gates, apply replay, and audit redaction. Refreshed generated proto artifacts, endpoint metadata, and CLI primitive evidence. Validation: `go test ./...` passes in `scenarios/cleanup-manager/api` and `scenarios/cleanup-manager/cli`. |
 
 ## Entry Template
 

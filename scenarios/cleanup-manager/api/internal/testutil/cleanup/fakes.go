@@ -87,3 +87,37 @@ func (c *DockerClient) Prune(_ context.Context, req cleanup.DockerPruneRequest) 
 	c.Prunes = append(c.Prunes, req)
 	return cleanup.DockerPruneResult{ReclaimedBytes: c.Usage.BuildCacheBytes + c.Usage.ImagesBytes}, nil
 }
+
+type JournalClient struct {
+	Usage   int64
+	Vacuums []cleanup.JournalVacuumRequest
+}
+
+func (c *JournalClient) DiskUsage(context.Context) (int64, error) {
+	return c.Usage, nil
+}
+
+func (c *JournalClient) Vacuum(_ context.Context, req cleanup.JournalVacuumRequest) (cleanup.JournalVacuumResult, error) {
+	c.Vacuums = append(c.Vacuums, req)
+	return cleanup.JournalVacuumResult{ReclaimedBytes: c.Usage}, nil
+}
+
+type ScenarioProviderClient struct {
+	EstimateResult cleanup.Estimate
+	PreviewResult  cleanup.Preview
+	ApplyResult    cleanup.ApplyResult
+	Applies        []cleanup.ScenarioCleanupRequest
+}
+
+func (c *ScenarioProviderClient) Estimate(_ context.Context, _ string, _ cleanup.ProviderPolicy) (cleanup.Estimate, error) {
+	return c.EstimateResult, nil
+}
+
+func (c *ScenarioProviderClient) Preview(_ context.Context, _ string, _ cleanup.Estimate) (cleanup.Preview, error) {
+	return c.PreviewResult, nil
+}
+
+func (c *ScenarioProviderClient) Apply(_ context.Context, req cleanup.ScenarioCleanupRequest) (cleanup.ApplyResult, error) {
+	c.Applies = append(c.Applies, req)
+	return c.ApplyResult, nil
+}

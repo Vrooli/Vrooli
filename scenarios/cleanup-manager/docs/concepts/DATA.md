@@ -37,7 +37,10 @@ such as BlobStore.
 
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
-| _(your data)_ | _(owning domain)_ | SQLite (default) | `api/internal/<domain>/schema.sql` | Product-defined delete trigger. | Per-domain ownership. |
+| Active cleanup policy | cleanup | In-memory Phase 4 store; planned SQLite | `api/internal/orchestrator/service.go` | Until replaced by a newer policy version | Profiles: conservative, balanced, aggressive. |
+| Cleanup plans | cleanup | In-memory Phase 4 store; planned SQLite | `api/internal/orchestrator/service.go` | Product-defined retention, likely bounded audit history | Plan ids are stable hashes of policy/provider/preview inputs. |
+| Apply attempts | cleanup | In-memory Phase 4 store; planned SQLite | `api/internal/orchestrator/service.go` | Must outlive retries for idempotency-key replay | Replays return stored results without reapplying providers. |
+| Audit events | cleanup | In-memory Phase 4 store; planned SQLite | `api/internal/orchestrator/service.go` | Operator-configured retention once SQLite lands | Messages are redacted before storage. |
 
 ## Schema Map
 
@@ -46,7 +49,7 @@ Each domain's schema file lives beside the code that interprets it. The
 
 | Table/File/Object | Owner | Defined In | Used By |
 |---|---|---|---|
-| _(your domain tables)_ | _(owning domain)_ | `api/internal/<domain>/schema.sql` | That domain's repository/service/handlers |
+| cleanup orchestration store | cleanup | `api/internal/orchestrator/service.go` | CleanupService handlers and CLI |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
 
 <!-- EXAMPLE-DOMAIN:notes START -->
@@ -97,7 +100,7 @@ backfills, add a scenario-specific migration plan here and update
 
 | Data | Delete Trigger | Retention Rule | Current Gap |
 |---|---|---|---|
-| _(your data)_ | What removes it. | How long it is kept. | Real scenarios must define product-specific deletion semantics. |
+| Cleanup plans/apply attempts/audit events | Future retention policy | Keep long enough to prove idempotent replay and operator auditability | SQLite schema and retention job are not implemented yet. |
 
 ## Privacy Notes
 

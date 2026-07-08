@@ -1,6 +1,7 @@
 package domains
 
 import (
+	"cleanup-manager/cli/domains/cleanup"
 	"cleanup-manager/cli/domains/notes" // EXAMPLE-DOMAIN:notes
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -37,6 +38,11 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
+	cleanupGroup, err := cleanup.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, cleanupGroup)
 	// EXAMPLE-DOMAIN:notes START
 	notesGroup, err := notes.Register(core, manifest)
 	if err != nil {

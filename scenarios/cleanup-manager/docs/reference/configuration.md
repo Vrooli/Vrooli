@@ -158,6 +158,29 @@ cleanup-manager`").
 These files are read by tooling (`vrooli scenario test`, `test-genie`,
 the doc viewer) — keep them in sync with the code they describe.
 
+## Cleanup policy profiles
+
+Cleanup providers are configured through policy profiles plus per-provider
+overrides. The profile names are stable operator-facing levers:
+
+| Profile | Default behavior |
+|---|---|
+| `conservative` | Keep provider metadata defaults, disable all conditional and forbidden providers, and use a seven-day minimum age for file cleanup. |
+| `balanced` | Enable `safe` and `safe_with_owner` providers with a three-day minimum age. Conditional providers remain disabled. |
+| `aggressive` | Enable every non-forbidden provider with a one-day minimum age. Conditional providers still require operator approval. |
+
+Per-provider overrides currently support:
+
+| Lever | Valid values | Purpose |
+|---|---|---|
+| `enabled` | boolean | Whether the provider participates in estimate/preview/apply flows. Forbidden providers cannot be enabled. |
+| `min_age` | duration >= 0 | Minimum age for filesystem preview candidates. Higher values reclaim less but reduce active-work risk. |
+| `max_bytes` | integer >= 0 | Optional reclaim cap for a provider preview. Zero means no cap. |
+| `approval_mode` | `none`, `owner`, `operator`, `disabled` | Required approval gate. Conditional providers must use `operator` when enabled. |
+
+Provider details, tiers, and test substitutes are documented in
+[`providers.md`](providers.md).
+
 ### Unit testing policy profile
 
 The `unit.policy_profile` block in `.vrooli/testing.json` declares the

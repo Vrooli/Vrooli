@@ -59,6 +59,9 @@ func (m ProviderMetadata) Validate() error {
 	if m.Version == "" {
 		return fmt.Errorf("provider %q version is required", m.ID)
 	}
+	if m.OwnerScenario == "" {
+		return fmt.Errorf("provider %q owner scenario is required", m.ID)
+	}
 	if !validSafetyTier(m.SafetyTier) {
 		return fmt.Errorf("provider %q has invalid safety tier %q", m.ID, m.SafetyTier)
 	}
@@ -73,6 +76,12 @@ func (m ProviderMetadata) Validate() error {
 	}
 	if m.SafetyTier == SafetyTierForbidden && (m.DefaultMode != ProviderModeDisabled || m.DefaultApproval != ApprovalModeDisabled) {
 		return fmt.Errorf("forbidden provider %q must be disabled", m.ID)
+	}
+	if len(m.SupportedPlatforms) == 0 {
+		return fmt.Errorf("provider %q must declare supported platforms", m.ID)
+	}
+	if len(m.IrreversibleEffects) == 0 {
+		return fmt.Errorf("provider %q must declare irreversible effects", m.ID)
 	}
 	if m.TestSubstitute == "" {
 		return fmt.Errorf("provider %q must declare a test substitute", m.ID)

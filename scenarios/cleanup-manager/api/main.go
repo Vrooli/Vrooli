@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	cleanupH "cleanup-manager/handlers/cleanup"
 	healthH "cleanup-manager/handlers/health"
 	notesH "cleanup-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
 )
@@ -116,6 +117,7 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "cleanup-manager-api", "1.0.0"),
+		cleanupH.Module(log.Default()),
 		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
 	)
 
@@ -152,4 +154,3 @@ func main() {
 		log.Fatalf("Server error: %v", err)
 	}
 }
-

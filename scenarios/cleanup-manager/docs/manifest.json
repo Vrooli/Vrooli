@@ -456,6 +456,22 @@
           }
         },
         {
+          "path": "reference/providers.md",
+          "docType": "provider-reference",
+          "title": "Providers",
+          "aliases": ["cleanup-providers", "provider-catalog"],
+          "description": "Cleanup provider contract, safety tiers, built-in providers, policy profiles, and test substitutes",
+          "audience": ["operators", "developers", "agents"],
+          "canonicalFor": ["provider-contract", "cleanup-safety-tiers", "policy-profiles"],
+          "maturity": "draft",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": ["Provider Contract", "Safety Tiers", "Built-In Provider Set", "Policy Profiles", "Test Substitutes", "Cross-References"],
+            "forbiddenPlaceholders": ["[TODO]"]
+          }
+        },
+        {
           "path": "reference/ui-manifest.md",
           "docType": "ui-manifest-reference",
           "title": "UI Manifest",

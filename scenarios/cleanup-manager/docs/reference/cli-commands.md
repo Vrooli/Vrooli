@@ -119,6 +119,72 @@ contracts below. Document your domain's commands here as you build
 them, one row/section per command, mirroring the endpoints they call
 in [`api-endpoints.md`](api-endpoints.md).
 
+### Cleanup domain — `cleanup`
+
+#### `cleanup-manager cleanup providers`
+
+List registered cleanup providers and their safety metadata. Uses the
+data-retrieval contract.
+
+```bash
+cleanup-manager cleanup providers
+cleanup-manager cleanup providers --json
+```
+
+#### `cleanup-manager cleanup policy`
+
+Show the active cleanup policy profile and per-provider gates.
+
+```bash
+cleanup-manager cleanup policy
+```
+
+#### `cleanup-manager cleanup set-profile --profile <profile>`
+
+Switch policy defaults to `conservative`, `balanced`, or `aggressive`.
+The API validates the profile and regenerates a policy version.
+
+```bash
+cleanup-manager cleanup set-profile --profile conservative
+```
+
+#### `cleanup-manager cleanup plan`
+
+Run provider estimates/previews and create a stable plan id without
+mutating host state. Uses the operational contract so blocked providers,
+approval modes, and next apply command are visible.
+
+```bash
+cleanup-manager cleanup plan
+cleanup-manager cleanup plan --json
+```
+
+#### `cleanup-manager cleanup apply --plan-id <id> --policy-version <version> --idempotency-key <key> [--approval-mode <mode>] [--approval-token <token>]`
+
+Apply an existing plan only when the plan id, policy version, provider
+versions, approval mode, and idempotency key pass the API gates. The
+manifest marks this command `effect=destructive`,
+`requires_confirmation=true`, and `run_eligible=false`; agents must not
+auto-run it.
+
+```bash
+cleanup-manager cleanup apply \
+  --plan-id plan-... \
+  --policy-version policy-... \
+  --idempotency-key operator-run-20260708T000000Z \
+  --approval-mode operator \
+  --approval-token confirmed
+```
+
+#### `cleanup-manager cleanup audit`
+
+List immutable policy, plan, apply, and replay audit events. Failure
+messages are path-redacted before they are stored.
+
+```bash
+cleanup-manager cleanup audit
+```
+
 The scaffold ships one fully worked CRUD command group as a copyable
 reference (see the fenced example below); `vrooli scenario detemplate
 <scenario>` removes it once your real domains are green.

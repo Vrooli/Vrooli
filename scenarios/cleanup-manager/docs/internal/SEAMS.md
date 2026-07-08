@@ -127,7 +127,7 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Seam** | systemd journal usage and vacuum operations |
 | **Interface** | `api/internal/cleanup::JournalClient` (`DiskUsage`, `Vacuum`) |
 | **Production wiring** | Future production journal client owns privilege detection and command/API integration. |
-| **Test fake** | To be added with the journald provider; tests must use a fake client rather than `journalctl`. |
+| **Test fake** | `api/internal/testutil/cleanup::JournalClient` records fake vacuum requests and never invokes `journalctl`. |
 | **Why it exists** | Journal vacuum is privileged host mutation. Providers need explicit privilege and skipped-apply behavior under tests and unprivileged hosts. |
 
 ### Owner scenario cleanup client
@@ -136,9 +136,19 @@ and use matrix/trace helpers from the relevant testutil package.
 |---|---|
 | **Seam** | Scenario-private cleanup delegation |
 | **Interface** | `api/internal/cleanup::ScenarioProviderClient` (`Estimate`, `Preview`, `Apply`) |
-| **Production wiring** | Future integration clients call owner scenario CLIs/APIs where available. |
-| **Test fake** | To be added with owner-provider adapters. |
+| **Production wiring** | `api/internal/providers::OwnerScenarioProvider` delegates Estimate/Preview/Apply to owner scenario CLIs/APIs where available. |
+| **Test fake** | `api/internal/testutil/cleanup::ScenarioProviderClient` records owner-scenario delegated apply requests. |
 | **Why it exists** | Cleanup Manager orchestrates policy and audit but must not duplicate private deletion logic owned by workspace-sandbox, test-genie, web-console, or future scenarios. |
+
+### Cleanup provider registry
+
+| | |
+|---|---|
+| **Seam** | Provider catalog and built-in registration |
+| **Interface** | `api/internal/providers::Registry`, `ConservativeBuiltIns` |
+| **Production wiring** | Future scan/plan services will construct the registry from built-ins plus registered owner-scenario providers. |
+| **Test fake** | Registry tests use fake filesystem/process/Docker/journal/owner clients to validate metadata and duplicate detection. |
+| **Why it exists** | Provider discovery needs deterministic catalog ordering, metadata validation, and duplicate-id protection before policy/planning services consume providers. |
 
 ### Clock
 
