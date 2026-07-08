@@ -55,7 +55,7 @@ export const ViewModeCycleButton = memo(function ViewModeCycleButton({
     <button
       type="button"
       onClick={onCycle}
-      className={`${compact ? "h-7 w-7" : "h-9 w-9"} inline-flex items-center justify-center rounded-full border transition-colors ${color}`}
+      className={`${compact ? "h-11 w-11" : "h-9 w-9"} inline-flex items-center justify-center rounded-full border transition-colors ${color}`}
       title={tooltip}
       aria-label={tooltip}
       data-testid="view-mode-cycle-button"

@@ -75,6 +75,21 @@ func TestLadderIncompleteGates(t *testing.T) {
 	}
 }
 
+func TestUngatedRungIsAdvisoryDuringFleetRemediation(t *testing.T) {
+	repoRoot, _ := fixtureRepo(t, "demo-provider", func(d map[string]any) {
+		maturity := d["maturity"].(map[string]any)
+		maturity["findings"] = map[string]any{}
+	})
+	report, err := New(repoRoot).ValidateScenario(context.Background(), "demo-provider", "")
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	requireSeverity(t, requireCode(t, report, CodeRungUngated), SeverityWarning)
+	if report.Summary.Status() != "passed" {
+		t.Fatalf("ungated rung is advisory during fleet remediation; status = %q", report.Summary.Status())
+	}
+}
+
 func TestDocsSkeletonIncompleteGates(t *testing.T) {
 	repoRoot, scenarioDir := fixtureRepo(t, "demo-provider", nil)
 	// Overwrite the doc with one missing the required headings.

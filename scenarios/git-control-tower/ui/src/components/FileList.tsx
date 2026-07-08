@@ -621,7 +621,7 @@ function FileListImpl({
         <CardHeader className="flex-row items-center justify-between space-y-0 py-3 gap-2 min-w-0">
           <CardTitle className="flex items-center gap-2 min-w-0">
             <button
-              className="p-1 rounded hover:bg-slate-800/70 transition-colors"
+              className="inline-flex items-center justify-center rounded hover:bg-slate-800/70 transition-colors touch-target"
               onClick={handleToggleCollapse}
               aria-label={collapsed ? "Expand changes" : "Collapse changes"}
               type="button"
@@ -636,7 +636,7 @@ function FileListImpl({
             {compactHeader ? (
               <button
                 type="button"
-                className="p-1 rounded hover:bg-slate-800/70 transition-colors"
+                className="inline-flex items-center justify-center rounded hover:bg-slate-800/70 transition-colors touch-target"
                 onClick={(e) => {
                   e.stopPropagation();
                   setMetricsModal({ mode: "aggregate" });
@@ -659,7 +659,7 @@ function FileListImpl({
                 size="sm"
                 onClick={onStageAll}
                 disabled={isStaging}
-                className={compactHeader ? "h-7 w-7 p-0" : "min-w-0 whitespace-normal px-3"}
+                className={compactHeader ? "h-11 w-11 p-0" : "min-w-0 whitespace-normal px-3"}
                 data-testid="stage-all-button"
                 title="Stage All"
               >
@@ -673,7 +673,7 @@ function FileListImpl({
                 size="sm"
                 onClick={onUnstageAll}
                 disabled={isStaging}
-                className={compactHeader ? "h-7 w-7 p-0" : "min-w-0 whitespace-normal px-3"}
+                className={compactHeader ? "h-11 w-11 p-0" : "min-w-0 whitespace-normal px-3"}
                 data-testid="unstage-all-button"
                 title="Unstage All"
               >
@@ -902,7 +902,7 @@ function FileListImpl({
                                   size="sm"
                                   onClick={() => onStagePaths(stageable)}
                                   disabled={isStaging}
-                                  className={compactHeader ? "h-7 w-7 p-0" : "h-7 px-2"}
+                                  className={compactHeader ? "h-11 w-11 p-0" : "h-7 px-2"}
                                   title="Stage All"
                                 >
                                   {compactHeader ? <Plus className="h-3 w-3" /> : "Stage All"}
@@ -917,7 +917,7 @@ function FileListImpl({
                                   size="sm"
                                   onClick={() => setConfirmingGroup(group.id)}
                                   disabled={isDiscarding}
-                                  className={`border-red-400/40 text-red-200 hover:bg-red-900/20 ${compactHeader ? "h-7 w-7 p-0" : "h-7 px-2"}`}
+                                  className={`border-red-400/40 text-red-200 hover:bg-red-900/20 ${compactHeader ? "h-11 w-11 p-0" : "h-7 px-2"}`}
                                   title="Discard All"
                                 >
                                   {compactHeader ? <Trash2 className="h-3 w-3" /> : "Discard All"}

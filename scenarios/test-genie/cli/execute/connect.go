@@ -112,6 +112,10 @@ func followCommand(scenario, runID string) string {
 	return "test-genie runs follow " + scenario + " " + runID
 }
 
+func findingsCommand(scenario, runID string) string {
+	return "test-genie runs findings " + scenario + " " + runID
+}
+
 // humanDuration renders a second count as a compact human string (e.g. "2m30s").
 func humanDuration(seconds int) string {
 	if seconds <= 0 {

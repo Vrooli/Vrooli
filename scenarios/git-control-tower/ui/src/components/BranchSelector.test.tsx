@@ -134,6 +134,19 @@ function repoActions(overrides: Partial<RepoActions> = {}): RepoActions {
 }
 
 describe("BranchSelector", () => {
+  it("keeps the mobile trigger touch-target sized", () => {
+    render(
+      <BranchSelector
+        status={status()}
+        syncStatus={syncStatus()}
+        actions={branchActions()}
+        variant="mobile"
+      />,
+    );
+
+    expect(screen.getByTestId("branch-selector-trigger")).toHaveClass("touch-target");
+  });
+
   it("filters desktop branches and routes branch switching through the branch seam", async () => {
     const actions = branchActions();
 

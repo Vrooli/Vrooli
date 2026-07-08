@@ -30,6 +30,7 @@ func TestProviderConformanceSpecCoversEveryCode(t *testing.T) {
 		CodeDocsSkeletonIncomplete,
 		CodeNorthStarMissing,
 		CodeLadderIncomplete,
+		CodeRungUngated,
 		CodeAutofixDeclarationIncomplete,
 		CodeProviderUnreachable,
 		CodeContractInvalid,

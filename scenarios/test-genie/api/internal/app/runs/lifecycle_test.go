@@ -10,6 +10,7 @@ import (
 
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
+	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/runmanager"
 	sharedruns "test-genie/internal/shared/runs"
 
@@ -56,6 +57,18 @@ func (f *rpcFakeExecutor) ExecuteWithEvents(ctx context.Context, input execution
 func TestLifecycleRPC_StartWaitStatus(t *testing.T) {
 	root := t.TempDir()
 	fake := newRPCFake(root + "/demo")
+	fake.result.Phases = []phases.ExecutionResult{{
+		Name: "architecture",
+		MaturityStanding: &runspb.PhaseMaturityStanding{
+			Provider:             "architecture-health",
+			Phase:                "architecture",
+			CurrentLevel:         "L2",
+			NextLevel:            "L3",
+			BlockingFindingCodes: []string{"arch.primitive_unverified"},
+			NextMove:             "Prove each command primitive.",
+		},
+		FindingsSummary: &runspb.PhaseFindingsSummary{Errors: 1, Total: 1},
+	}}
 	svc := NewService(root, runmanager.New(fake, root), nil, nil)
 	ctx := context.Background()
 
@@ -103,6 +116,17 @@ func TestLifecycleRPC_StartWaitStatus(t *testing.T) {
 	}
 	if wr2.Msg.GetStatus().GetStatus() != sharedruns.StatusPassed {
 		t.Fatalf("terminal wait status = %q, want passed", wr2.Msg.GetStatus().GetStatus())
+	}
+	standings := wr2.Msg.GetStatus().GetTerminalStandings()
+	if len(standings) != 1 {
+		t.Fatalf("terminal standings = %d, want 1", len(standings))
+	}
+	if got := standings[0].GetBlockingFindingCodes(); len(got) != 1 || got[0] != "arch.primitive_unverified" {
+		t.Fatalf("terminal standing blocking codes = %v", got)
+	}
+	summaries := wr2.Msg.GetStatus().GetTerminalFindingsSummaries()
+	if len(summaries) != 1 || summaries[0].GetErrors() != 1 {
+		t.Fatalf("terminal findings summaries = %+v", summaries)
 	}
 }
 

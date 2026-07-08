@@ -5,8 +5,8 @@ uniform shape every Test Genie phase declares so that, at the moment a run
 finishes, an agent knows *where each capability stands* and *the single next move
 to advance it*. It generalizes the pattern proven by cli-health's
 [`command_architecture`](../../../cli-health/docs/reference/cli-architecture-maturity.md)
-capability to every phase in the catalog, and it defines the advisory-then-gating,
-lighthouse-first rollout policy that governs adoption.
+capability to every phase in the catalog, and it documents the now-gating
+provider-conformance checks that keep adoption from drifting.
 
 The problem it closes: the maturity infrastructure already *promises* directed
 capability development but does not yet *deliver* it end to end. Providers already
@@ -38,8 +38,12 @@ guard-tested invariant.
    enforced fields the standing surfaces. A provider may add `entry_criteria` /
    `exit_criteria` prose but they are optional. The ladder lives in the
    descriptor's `maturity` block — the single source of truth for the north star
-   + ladder. For a multi-capability phase the per-capability ladders are the
-   North Star SSOT (the standing surfaces the focus capability's ladder).
+   + ladder. A transition into a non-top rung must also have at least one
+   declared finding that can actually gate it (`local_level_impact` on the
+   destination rung plus required/error semantics); otherwise the scorecard may
+   be unable to stop at that rung. For a multi-capability phase the
+   per-capability ladders are the North Star SSOT (the standing surfaces the
+   focus capability's ladder).
 
 3. **A provider-returned standing.** At run time the provider computes, for each
    of its capabilities, a `commonv1.MaturityAssessment`: the current rung, the next
@@ -107,31 +111,45 @@ Rules:
 The skeleton is referenced from the [phase-docs index](../phases/README.md) so
 every phase author sees the required shape.
 
-## Rollout policy (advisory → gating, lighthouse-first)
+## Enforcement policy
 
-Adoption follows the same shape proven by the requirements-traceability and
-cli-architecture-maturity rollouts: **advisory first, one lighthouse phase proven
-end to end, then gating.**
+Provider-conformance now treats the Phase Capability Contract as a gating
+descriptor contract:
 
-1. **Advisory.** Provider-conformance emits the new north-star and doc-skeleton
-   checks as *advisory* findings (WARNING, non-failing) for every phase that has
-   gaps. Nothing is destabilized; the fleet's honest debt becomes visible.
-2. **Lighthouse.** One phase — **cli-health's `contracts` phase** — is brought to
-   full conformance first and proven end to end: a real run renders its scorecard,
-   and a doc-search topic from the output resolves through search-hub /
-   knowledge-observatory to the intended structured remediation section, with no
-   manual glue. The lighthouse proves the docs are executable before the fleet
-   migrates.
-3. **Migrate.** Every provider-delegated phase is brought to advisory-clean
-   (north star + complete ladder + skeleton docs). Test-Genie-*native* phases,
-   which do not fit a provider ladder, carry an **explicit, documented exemption**
-   rather than a forced ill-fitting ladder — they are marked, never silently
-   skipped.
-4. **Gate.** The north-star and doc-skeleton checks graduate from advisory to
-   **gating** for compliant phases, guarded against drift. Test Genie validates
-   its *own* descriptor against the contract (recursion), and anti-drift guard
-   tests assert that every catalog phase resolves a conformant contract and that
-   the scorecard renders for every phase.
+1. **Descriptor and maturity validity gate.** A provider descriptor must parse,
+   match its scenario identity, carry an embedded maturity spec, avoid retired
+   `.vrooli/maturity.json`, and use a safe policy combination.
+2. **North Star and ladder completeness gate.** Every enforced ladder must put
+   the North Star in the top rung's `capability_summary`, and every non-top rung
+   must provide `next_unlock`. Missing values are `ERROR` findings because the
+   run scorecard cannot truthfully render a ceiling or single next move without
+   them.
+3. **Remediation-doc skeleton gate.** `docs.path` itself remains an advisory
+   presence check when the target is absent, but once the file resolves it must
+   contain the five required H2 headings. Missing headings are `ERROR` findings
+   because emitted doc-search topics depend on that skeleton.
+4. **Rung-gate coverage warning.** During fleet remediation,
+   provider-conformance reports `PROVIDER_RUNG_UNGATED` when a ladder transition
+   has no required/error finding mapped to its destination rung. This is
+   advisory until the existing catalog descriptors are patched, then it becomes
+   a gating contract check.
+5. **Catalog coverage guard.** The default catalog is descriptor-backed: every
+   phase is provider-delegated, every descriptor declares a maturity ladder, and
+   any future native exception must be explicit, documented, and tested.
+
+## Auto-fix boundary
+
+Auto-fix for this contract is deliberately limited to scaffold seeding and
+classification warnings. Test Genie may seed `.vrooli/test-genie.json` and the
+five-heading remediation-doc skeleton, and provider-conformance warns when
+finding mappings do not declare `fix_class`. It does not synthesize target
+remediation, invent finding-to-rung mappings, or rewrite provider behavior. Those
+changes require provider-specific judgment because an inaccurate maturity ladder
+is worse than an honest incomplete one.
+
+`contracts` (cli-health) remains the reference lighthouse adopter proven end to
+end: run output renders its scorecard, and doc-search topics resolve through the
+structured remediation doc.
 
 Severity still owns phase pass/fail per the shared health contract: only ERROR
 and BLOCKER findings fail a phase, so advisory findings never fail a run while the

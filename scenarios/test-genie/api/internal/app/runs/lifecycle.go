@@ -261,6 +261,8 @@ func toLiveStatus(st runmanager.LiveStatus) *runspb.RunLiveStatus {
 		Success:                     st.Success,
 		Error:                       st.Error,
 		Active:                      st.Active,
+		TerminalStandings:           st.TerminalStandings,
+		TerminalFindingsSummaries:   st.TerminalFindingsSummaries,
 	}
 }
 

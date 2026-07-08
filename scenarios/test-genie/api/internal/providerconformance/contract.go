@@ -25,9 +25,10 @@ var RequiredDocHeadings = []string{
 }
 
 // validateDocsSkeleton checks that a resolved docs.path target contains all of
-// the required H2 headings. Advisory (WARNING) during rollout; graduates to
-// gating for compliant phases in a later wave. No-op when the file is unreadable
-// (validateDocs already reported it absent).
+// the required H2 headings. Skeleton gaps are gating because doc-search topics
+// from run output depend on these headings resolving to stable remediation
+// sections. No-op when the file is unreadable (validateDocs already reported it
+// absent).
 func validateDocsSkeleton(report *Report, resolvedPath, docsPath string) {
 	file, err := os.Open(resolvedPath)
 	if err != nil {
@@ -82,9 +83,10 @@ func h2Heading(line string) (string, bool) {
 }
 
 // validateMaturityContract enforces the first-class North Star and the gated
-// ladder shape (Phase Capability Contract) on the embedded maturity spec.
-// Advisory (WARNING) during rollout. No-op when no maturity spec is declared
-// (the descriptor loader already reports a truly malformed one).
+// ladder shape (Phase Capability Contract) on the embedded maturity spec. These
+// gaps gate provider conformance because the scorecard cannot provide a
+// trustworthy North Star or single next move without them. No-op when no maturity
+// spec is declared (the descriptor loader already reports a truly malformed one).
 func validateMaturityContract(report *Report, descriptor providerdescriptor.Descriptor) {
 	spec := descriptor.MaturitySpec
 	if spec == nil {
@@ -97,6 +99,7 @@ func validateMaturityContract(report *Report, descriptor providerdescriptor.Desc
 	// phase-level ladder for single-ladder providers.
 	if len(spec.Capabilities) == 0 {
 		validateLadder(report, "phase", loc+".levels", spec.Levels)
+		validateRungGates(report, "phase", loc+".levels", "", spec.Levels, spec.Findings)
 		return
 	}
 	for _, capability := range spec.Capabilities {
@@ -105,6 +108,7 @@ func validateMaturityContract(report *Report, descriptor providerdescriptor.Desc
 			id = strings.TrimSpace(capability.Label)
 		}
 		validateLadder(report, "capability "+id, fmt.Sprintf("%s.capabilities[%s].levels", loc, id), capability.Levels)
+		validateRungGates(report, "capability "+id, fmt.Sprintf("%s.capabilities[%s].levels", loc, id), id, capability.Levels, spec.Findings)
 	}
 }
 
@@ -146,6 +150,68 @@ func validateLadder(report *Report, label, location string, levels []assessment.
 				Remediation: "Set next_unlock on every non-top ladder rung to the single highest-unlock next move.",
 			})
 		}
+	}
+}
+
+// validateRungGates checks that every transition into a non-top rung has at
+// least one declared finding that can hold the capability below that rung. This
+// is advisory while the existing provider fleet is remediated; once descriptors
+// are complete it becomes a gating contract check.
+func validateRungGates(report *Report, label, location, capabilityID string, levels []assessment.Level, findings map[string]assessment.FindingMapping) {
+	if len(levels) < 2 {
+		return
+	}
+	covered := map[string]bool{}
+	for _, mapping := range findings {
+		mappingCapability := strings.TrimSpace(mapping.CapabilityID)
+		if mappingCapability != strings.TrimSpace(capabilityID) {
+			continue
+		}
+		if !mappingCanGate(mapping) {
+			continue
+		}
+		if impact := strings.TrimSpace(mapping.LocalLevelImpact); impact != "" {
+			covered[impact] = true
+		}
+	}
+	var missing []string
+	for i := 0; i < len(levels)-1; i++ {
+		current := strings.TrimSpace(levels[i].ID)
+		next := strings.TrimSpace(levels[i+1].ID)
+		if current == "" || next == "" || covered[next] {
+			continue
+		}
+		missing = append(missing, fmt.Sprintf("%s→%s", current, next))
+	}
+	if len(missing) == 0 {
+		return
+	}
+	report.add(Finding{
+		Code:     CodeRungUngated,
+		Severity: SeverityWarning,
+		Title:    "Ladder rung has no blocking finding",
+		Message: fmt.Sprintf(
+			"The %s ladder declares transition(s) %s but no required/error finding maps to the destination rung, so the scorecard may be unable to stop there.",
+			label, strings.Join(missing, ", ")),
+		Location:    location,
+		Remediation: "Declare at least one real maturity finding for each listed destination rung with local_level_impact set to that rung and a required clean requirement or error severity.",
+	})
+}
+
+func mappingCanGate(mapping assessment.FindingMapping) bool {
+	req := strings.ToLower(strings.TrimSpace(mapping.CleanRequirement))
+	if req == string(assessment.CleanRequirementUncheckable) {
+		return false
+	}
+	if req == string(assessment.CleanRequirementRequired) {
+		return true
+	}
+	switch strings.ToUpper(strings.TrimSpace(mapping.SeverityDefault)) {
+	case "SEVERITY_ERROR", "ERROR", "FINDING_SEVERITY_ERROR",
+		"SEVERITY_BLOCKER", "BLOCKER", "FINDING_SEVERITY_BLOCKER":
+		return true
+	default:
+		return false
 	}
 }
 

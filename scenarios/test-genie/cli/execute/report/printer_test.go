@@ -13,7 +13,7 @@ import (
 	execTypes "test-genie/cli/internal/execute"
 )
 
-func TestPrinterIncludesGuidesAndInsights(t *testing.T) {
+func TestPrinterKeepsFailureReportConcise(t *testing.T) {
 	tmp := t.TempDir()
 
 	unitLog := filepath.Join(tmp, "unit.log")
@@ -45,14 +45,14 @@ func TestPrinterIncludesGuidesAndInsights(t *testing.T) {
 	pr.Print(resp)
 
 	out := buf.String()
-	for _, token := range []string{
-		"QUICK FIX GUIDE:",
-		"PHASE-SPECIFIC DEBUG GUIDES:",
-		"UI bundle",
-		"artifact roots:",
-	} {
+	for _, token := range []string{"ERROR DIGEST:", "UI bundle", "artifact roots:"} {
 		if !strings.Contains(out, token) {
 			t.Fatalf("expected output to contain %q\n----\n%s\n----", token, out)
+		}
+	}
+	for _, token := range []string{"QUICK FIX GUIDE:", "PHASE-SPECIFIC DEBUG GUIDES:", "DOCUMENTATION:"} {
+		if strings.Contains(out, token) {
+			t.Fatalf("failure report should not reintroduce redundant section %q\n----\n%s\n----", token, out)
 		}
 	}
 }

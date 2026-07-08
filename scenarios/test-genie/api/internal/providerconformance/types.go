@@ -22,6 +22,7 @@ const (
 	CodeDocsSkeletonIncomplete       = "PROVIDER_DOCS_SKELETON_INCOMPLETE"
 	CodeNorthStarMissing             = "PROVIDER_NORTH_STAR_MISSING"
 	CodeLadderIncomplete             = "PROVIDER_LADDER_INCOMPLETE"
+	CodeRungUngated                  = "PROVIDER_RUNG_UNGATED"
 	CodeAutofixDeclarationIncomplete = "PROVIDER_AUTOFIX_DECLARATION_INCOMPLETE"
 	CodeProviderUnreachable          = "PROVIDER_UNREACHABLE"
 	CodeContractInvalid              = "PROVIDER_CONTRACT_INVALID"

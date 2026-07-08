@@ -153,6 +153,7 @@ func (sr *startedRun) renderHuman() error {
 			fmt.Fprintf(os.Stderr, "\n⏳ ETA unknown (treating as long) — running in the background so your shell returns now.\n")
 		}
 		fmt.Fprintf(os.Stderr, "   Block on the result (quiet, exits with the verdict) with:\n     %s\n", reattachCommand(sr.req.ScenarioName, sr.runID))
+		fmt.Fprintf(os.Stderr, "   Review maturity findings with:\n     %s\n", findingsCommand(sr.req.ScenarioName, sr.runID))
 		fmt.Fprintf(os.Stderr, "   Or watch live progress with:\n     %s\n", followCommand(sr.req.ScenarioName, sr.runID))
 		return nil
 	}
@@ -453,8 +454,8 @@ func phaseFromEvent(ev *runspb.RunEvent) Phase {
 		Status:           ev.GetStatus(),
 		DurationSeconds:  float64(ev.GetDurationSeconds()),
 		Error:            ev.GetError(),
-		MaturityStanding: standingFromProto(ev.GetMaturityStanding()),
-		FindingsSummary:  findingsSummaryFromProto(ev.GetFindingsSummary()),
+		MaturityStanding: StandingFromProto(ev.GetMaturityStanding()),
+		FindingsSummary:  FindingsSummaryFromProto(ev.GetFindingsSummary()),
 	}
 }
 
@@ -494,7 +495,7 @@ func printRunBanner(w io.Writer, scenario, runID string, eta int, etaKnown bool)
 }
 
 func printDetached(w io.Writer, scenario, runID string) {
-	fmt.Fprintf(w, "\n⏸ Detached from run %s (still running).\n   Re-attach with:\n     %s\n   (or watch live: %s)\n", runID, reattachCommand(scenario, runID), followCommand(scenario, runID))
+	fmt.Fprintf(w, "\n⏸ Detached from run %s (still running).\n   Re-attach with:\n     %s\n   Review maturity findings with:\n     %s\n   (or watch live: %s)\n", runID, reattachCommand(scenario, runID), findingsCommand(scenario, runID), followCommand(scenario, runID))
 }
 
 func printAgentWaitBlock(w io.Writer, scenario, runID string, eta int, etaKnown bool, waitSeconds int) {
@@ -504,6 +505,7 @@ func printAgentWaitBlock(w io.Writer, scenario, runID string, eta int, etaKnown 
 	}
 	fmt.Fprintf(w, "  Agent wait protocol:\n")
 	fmt.Fprintf(w, "    Run exactly once:\n      %s\n", reattachCommandWithTimeout(scenario, runID, waitSeconds))
+	fmt.Fprintf(w, "    Then inspect the maturity scorecard:\n      %s\n", findingsCommand(scenario, runID))
 	fmt.Fprintf(w, "    Expected duration: ~%s; recommended wait timeout: %s.\n", etaStr, humanDuration(waitSeconds))
 	fmt.Fprintf(w, "    In coding-agent tool execution, give the command at least this timeout and do not poll with short output checks.\n")
 	fmt.Fprintf(w, "    If a wait process was already started and then interrupted:\n")

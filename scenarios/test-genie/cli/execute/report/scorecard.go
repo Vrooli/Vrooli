@@ -11,13 +11,13 @@ import (
 // lists; the full set is in --json and `runs findings`.
 const maxScorecardGaps = 2
 
-// printPhaseStanding renders the concise per-phase maturity scorecard (Phase
+// PrintPhaseStanding renders the concise per-phase maturity scorecard (Phase
 // Capability Contract) beneath a phase's result line. It is a tight, bounded
 // block: rung/ceiling, top gaps, the single highest-unlock next move, and a
 // runnable doc-search line. At maximum maturity the next-move and doc lines are
 // suppressed. No-op for phases with no standing (native / degraded), which keep
 // their plain status row.
-func (p *Printer) printPhaseStanding(phase execTypes.Phase) {
+func (p *Printer) PrintPhaseStanding(phase execTypes.Phase) {
 	st := phase.MaturityStanding
 	if st == nil {
 		return

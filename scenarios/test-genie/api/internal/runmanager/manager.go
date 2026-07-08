@@ -15,6 +15,8 @@ import (
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
 	sharedruns "test-genie/internal/shared/runs"
+
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
 // Executor is the suite engine the manager drives. It is satisfied by
@@ -166,6 +168,10 @@ type LiveStatus struct {
 	Active bool
 	// Result is the full terminal result when known (live terminal snapshot).
 	Result *orchestrator.SuiteExecutionResult
+	// TerminalStandings is populated from Result.Phases on terminal live
+	// snapshots, preserving the provider-computed standing for agent wait paths.
+	TerminalStandings         []*runspb.PhaseMaturityStanding
+	TerminalFindingsSummaries []*runspb.PhaseFindingsSummary
 }
 
 // StartOptions configures a run start.
@@ -921,11 +927,31 @@ func (m *Manager) snapshot(ar *activeRun) LiveStatus {
 	if ar.result != nil {
 		ls.Verdict = ar.result.Verdict
 		ls.Success = ar.result.Success && !terminalAborted(ar.status)
+		if terminal {
+			ls.TerminalStandings, ls.TerminalFindingsSummaries = terminalMaturity(ar.result)
+		}
 	}
 	if ar.err != nil {
 		ls.Error = ar.err.Error()
 	}
 	return ls
+}
+
+func terminalMaturity(result *orchestrator.SuiteExecutionResult) ([]*runspb.PhaseMaturityStanding, []*runspb.PhaseFindingsSummary) {
+	if result == nil {
+		return nil, nil
+	}
+	standings := make([]*runspb.PhaseMaturityStanding, 0, len(result.Phases))
+	summaries := make([]*runspb.PhaseFindingsSummary, 0, len(result.Phases))
+	for _, phase := range result.Phases {
+		if phase.MaturityStanding != nil {
+			standings = append(standings, phase.MaturityStanding)
+		}
+		if phase.FindingsSummary != nil {
+			summaries = append(summaries, phase.FindingsSummary)
+		}
+	}
+	return standings, summaries
 }
 
 func (m *Manager) statusFromIndex(scenario, runID string) (LiveStatus, error) {

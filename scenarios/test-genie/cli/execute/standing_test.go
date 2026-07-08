@@ -36,7 +36,7 @@ func sampleEvent() *runspb.RunEvent {
 
 // TestPhaseAndJSONDeriveOneStanding proves the human and --json paths derive an
 // identical standing from a single server payload: phaseFromEvent maps the proto
-// standing once (standingFromProto), the --json Response marshals exactly that
+// standing once (StandingFromProto), the --json Response marshals exactly that
 // object, and the human scorecard reads the same Phase.MaturityStanding field.
 func TestPhaseAndJSONDeriveOneStanding(t *testing.T) {
 	ev := sampleEvent()
@@ -46,7 +46,7 @@ func TestPhaseAndJSONDeriveOneStanding(t *testing.T) {
 		t.Fatal("phaseFromEvent dropped the maturity standing")
 	}
 	// The single mapping used by both output modes.
-	want := standingFromProto(ev.GetMaturityStanding())
+	want := StandingFromProto(ev.GetMaturityStanding())
 	got, err := json.Marshal(phase.MaturityStanding)
 	if err != nil {
 		t.Fatal(err)
@@ -74,7 +74,7 @@ func TestPhaseAndJSONDeriveOneStanding(t *testing.T) {
 }
 
 func TestStandingCarriesDocSearchTopics(t *testing.T) {
-	st := standingFromProto(sampleEvent().GetMaturityStanding())
+	st := StandingFromProto(sampleEvent().GetMaturityStanding())
 	if len(st.DocSearchTopics) == 0 {
 		t.Fatal("expected runnable doc-search topics for a non-max phase")
 	}
@@ -89,7 +89,7 @@ func TestStandingAtMaximumSuppressesTopics(t *testing.T) {
 	ev.MaturityStanding.AtMaximum = true
 	ev.MaturityStanding.NextLevel = ""
 	ev.MaturityStanding.BlockingFindingCodes = nil
-	st := standingFromProto(ev.GetMaturityStanding())
+	st := StandingFromProto(ev.GetMaturityStanding())
 	if len(st.DocSearchTopics) != 0 {
 		t.Fatalf("no doc topics expected at maximum maturity, got %v", st.DocSearchTopics)
 	}

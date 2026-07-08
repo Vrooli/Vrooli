@@ -102,7 +102,18 @@ func TestRunWaitHumanFailureExitCode(t *testing.T) {
 // TestRunWaitJSONSnapshot proves `--json` stays a single quiet snapshot (no
 // streamed phase lines), preserving the scripted contract.
 func TestRunWaitJSONSnapshot(t *testing.T) {
-	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{RunId: "R", Status: "passed"}})
+	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{
+		RunId:  "R",
+		Status: "passed",
+		TerminalStandings: []*runspb.PhaseMaturityStanding{{
+			Provider:             "architecture-health",
+			Phase:                "architecture",
+			CurrentLevel:         "L2",
+			NextLevel:            "L3",
+			BlockingFindingCodes: []string{"arch.primitive_unverified"},
+			NextMove:             "Prove each command primitive.",
+		}},
+	}})
 	var buf bytes.Buffer
 	if err := runWait(nil, []string{"--json", "demo", "R"}, &buf); err != nil {
 		t.Fatalf("runWait --json: %v", err)
@@ -113,6 +124,12 @@ func TestRunWaitJSONSnapshot(t *testing.T) {
 	}
 	if !strings.Contains(out, "\"status\"") {
 		t.Fatalf("--json must emit a structured snapshot, got: %q", out)
+	}
+	if !strings.Contains(out, "\"terminalStandings\"") {
+		t.Fatalf("--json wait must surface terminal maturity standings, got: %q", out)
+	}
+	if !strings.Contains(out, "arch.primitive_unverified") {
+		t.Fatalf("--json wait standing must include blocking finding codes, got: %q", out)
 	}
 }
 
@@ -205,5 +222,49 @@ func TestRunFollowStreams(t *testing.T) {
 	}
 	if !strings.Contains(buf.String(), "unit") {
 		t.Fatalf("follow must stream events, got: %q", buf.String())
+	}
+}
+
+func TestRunFollowRendersStandingAndFindingsBreadcrumb(t *testing.T) {
+	withStreamServer(t, &streamServer{events: []*runspb.RunEvent{
+		{Event: "run_started", RunId: "R", Scenario: "demo"},
+		{
+			Event:           "phase_completed",
+			RunId:           "R",
+			Scenario:        "demo",
+			Phase:           "architecture",
+			Status:          "passed",
+			DurationSeconds: 2,
+			MaturityStanding: &runspb.PhaseMaturityStanding{
+				Provider:                "architecture-health",
+				Phase:                   "architecture",
+				CurrentLevel:            "L2",
+				CurrentLevelLabel:       "Ready",
+				NextLevel:               "L3",
+				CeilingLevel:            "L4",
+				BlockingFindingCodes:    []string{"arch.primitive_unverified"},
+				NextMove:                "Prove each command primitive.",
+				PriorityCapabilityLabel: "Command Architecture",
+				NorthStar:               "Renderer-separated primitives are verified.",
+			},
+		},
+		{Event: "run_completed", RunId: "R", Scenario: "demo", Success: true, Verdict: "PASS"},
+	}})
+	var buf bytes.Buffer
+	if err := runFollow(nil, []string{"demo", "R"}, &buf); err != nil {
+		t.Fatalf("runFollow: %v", err)
+	}
+	out := buf.String()
+	for _, want := range []string{
+		"standing:",
+		"L2 Ready → L3",
+		"gaps: arch.primitive_unverified",
+		"next: Prove each command primitive.",
+		`docs: search-hub query "architecture maturity next move" --type doc`,
+		"findings: test-genie runs findings demo R",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("follow output missing %q\n---\n%s", want, out)
+		}
 	}
 }

@@ -62,6 +62,7 @@ func TestAgentWaitBlockIsProviderAgnosticAndActionable(t *testing.T) {
 		"Agent wait protocol",
 		"Run exactly once",
 		"test-genie runs wait --json --timeout=1050 demo R1",
+		"test-genie runs findings demo R1",
 		"recommended wait timeout: 17m30s",
 		"coding-agent tool execution",
 		"tail --pid=<pid> -f /dev/null",

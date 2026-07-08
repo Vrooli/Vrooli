@@ -8,12 +8,12 @@ import (
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
-// standingFromProto maps the server's per-phase maturity standing into the CLI
+// StandingFromProto maps the server's per-phase maturity standing into the CLI
 // projection. It is the single mapping both the human scorecard and the --json
 // output derive from, so the two output modes can never diverge (parity). Returns
 // nil when the phase carries no standing (native phases / providers with no
 // ladder). Doc-search topics are attached separately (see docSearchTopics).
-func standingFromProto(st *runspb.PhaseMaturityStanding) *execTypes.MaturityStanding {
+func StandingFromProto(st *runspb.PhaseMaturityStanding) *execTypes.MaturityStanding {
 	if st == nil {
 		return nil
 	}
@@ -88,7 +88,7 @@ func docSearchTopics(st *execTypes.MaturityStanding) []string {
 	return topics
 }
 
-func findingsSummaryFromProto(fs *runspb.PhaseFindingsSummary) *execTypes.FindingsSummary {
+func FindingsSummaryFromProto(fs *runspb.PhaseFindingsSummary) *execTypes.FindingsSummary {
 	if fs == nil {
 		return nil
 	}

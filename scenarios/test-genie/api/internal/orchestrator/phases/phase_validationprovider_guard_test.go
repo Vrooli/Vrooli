@@ -20,6 +20,26 @@ func TestValidationProviderRegistryCoversDelegatingCatalogPhases(t *testing.T) {
 	}
 }
 
+func TestEveryCatalogPhaseCanProduceMaturityStanding(t *testing.T) {
+	expected := descriptorExpectations(t)
+	catalog := NewDefaultCatalog(DefaultTimeout)
+	for _, spec := range catalog.All() {
+		descriptor, ok := expected[spec.Name]
+		if !ok {
+			t.Fatalf("%s missing provider descriptor; native catalog phases do not produce maturity standings", spec.Name)
+		}
+		if spec.Delegated == nil {
+			t.Fatalf("%s is native; every catalog phase must delegate to a provider that returns a maturity assessment", spec.Name)
+		}
+		if descriptor.MaturitySpec == nil {
+			t.Fatalf("%s descriptor did not parse embedded maturity spec", spec.Name)
+		}
+		if !declaresMaturityLadder(descriptor) {
+			t.Fatalf("%s descriptor maturity declares no local or capability ladder", spec.Name)
+		}
+	}
+}
+
 func descriptorExpectations(t *testing.T) map[Name]providerdescriptor.Descriptor {
 	t.Helper()
 	repoRoot, err := defaultRepoRoot()
@@ -86,6 +106,22 @@ func assertProviderMatchesDescriptor(t *testing.T, catalog *Catalog, phase Name,
 	if provider.IncludeExecution != includeExecutionPhase(phase) {
 		t.Fatalf("%s provider IncludeExecution = %v, want %v", phase, provider.IncludeExecution, includeExecutionPhase(phase))
 	}
+}
+
+func declaresMaturityLadder(descriptor providerdescriptor.Descriptor) bool {
+	spec := descriptor.MaturitySpec
+	if spec == nil {
+		return false
+	}
+	if len(spec.Levels) > 0 {
+		return true
+	}
+	for _, capability := range spec.Capabilities {
+		if len(capability.Levels) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // includeExecutionPhase pins which delegates request execution-mode validation:

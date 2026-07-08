@@ -103,6 +103,7 @@ describe("MobileNav", () => {
     );
 
     expect(screen.getByTestId("mobile-nav")).toBeInTheDocument();
+    expect(screen.getByTestId("mobile-nav")).toHaveClass("pb-safe");
     expect(screen.getByTestId("mobile-nav-diff")).toHaveAttribute("aria-current", "page");
     expect(screen.getByTestId("mobile-nav-changes")).toHaveTextContent("99+");
     expect(screen.getByTestId("mobile-nav-commit")).toHaveTextContent("99+");

@@ -141,17 +141,9 @@
           },
           {
             "id": "L2",
-            "name": "Contract governed",
-            "status_label": "Ready",
-            "description": "Live responses are contract-valid with correct identity and execution metrics.",
-            "capability_summary": "Provider contract can be governed in normal runs.",
-            "next_unlock": "Maximum provider-contract maturity."
-          },
-          {
-            "id": "L3",
             "name": "Contract clean",
             "status_label": "Complete",
-            "description": "Provider contract checks are clean.",
+            "description": "Live responses are contract-valid with correct identity, execution metrics, and fix-class declarations.",
             "capability_summary": "Provider contract maturity is clean."
           }
         ]
@@ -288,13 +280,26 @@
         "fix_class": "manual",
         "reason": "Every ladder rung needs entry/exit gates and a next_unlock so the standing can direct the next move."
       },
+      "PROVIDER_RUNG_UNGATED": {
+        "capability_id": "provider_descriptor",
+        "local_level_impact": "L3",
+        "global_impact": "hardening_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "documentation-health"
+        ],
+        "fix_class": "manual",
+        "reason": "Every declared ladder transition needs a real provider finding on the destination rung; Test Genie warns until the catalog descriptor fleet is remediated."
+      },
       "PROVIDER_AUTOFIX_DECLARATION_INCOMPLETE": {
         "capability_id": "provider_contract",
         "local_level_impact": "L2",
         "global_impact": "hardening_gap",
         "dimension": "contracts",
         "severity_default": "SEVERITY_WARNING",
-        "clean_requirement": "advisory",
+        "clean_requirement": "required",
         "recommended_skill_ids": [
           "ecosystem-fit"
         ],

@@ -16,6 +16,10 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 
+	cliexec "test-genie/cli/execute"
+	"test-genie/cli/execute/report"
+	execTypes "test-genie/cli/internal/execute"
+
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 	runs_v1connect "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
 )
@@ -408,9 +412,30 @@ func printFollowEvent(w io.Writer, ev *runspb.RunEvent) {
 		fmt.Fprintf(w, "   … %s still running (%.0fs quiet)\n", ev.GetPhase(), ev.GetQuietSeconds())
 	case "phase_completed":
 		fmt.Fprintf(w, "✓  %s (%ds)\n", ev.GetPhase(), ev.GetDurationSeconds())
+		printFollowStanding(w, ev)
 	case "phase_failed":
 		fmt.Fprintf(w, "✗  %s (%ds)\n", ev.GetPhase(), ev.GetDurationSeconds())
+		printFollowStanding(w, ev)
 	case "run_completed":
 		fmt.Fprintf(w, "\n%s\n", ev.GetVerdict())
+		if ev.GetScenario() != "" && ev.GetRunId() != "" {
+			fmt.Fprintf(w, "findings: test-genie runs findings %s %s\n", ev.GetScenario(), ev.GetRunId())
+		}
 	}
+}
+
+func printFollowStanding(w io.Writer, ev *runspb.RunEvent) {
+	standing := cliexec.StandingFromProto(ev.GetMaturityStanding())
+	if standing == nil {
+		return
+	}
+	pr := report.New(w, ev.GetScenario(), "", nil, nil, false, nil, nil)
+	pr.PrintPhaseStanding(execTypes.Phase{
+		Name:             ev.GetPhase(),
+		Status:           ev.GetStatus(),
+		DurationSeconds:  float64(ev.GetDurationSeconds()),
+		Error:            ev.GetError(),
+		MaturityStanding: standing,
+		FindingsSummary:  cliexec.FindingsSummaryFromProto(ev.GetFindingsSummary()),
+	})
 }

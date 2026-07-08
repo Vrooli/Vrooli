@@ -580,7 +580,7 @@ export function BranchSelector({
     return (
       <>
         <button
-          className="flex items-center gap-1 min-w-0"
+          className="flex min-w-0 items-center gap-1 rounded-lg px-3 py-3 transition-colors hover:bg-slate-800 active:bg-slate-700 touch-target"
           onClick={() => setOpen(true)}
           data-testid="branch-selector-trigger"
         >

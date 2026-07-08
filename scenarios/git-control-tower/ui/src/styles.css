@@ -134,7 +134,7 @@ pre {
 
 /* Safe area padding for mobile */
 .pb-safe {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: max(24px, env(safe-area-inset-bottom, 0px));
 }
 
 .pt-safe {

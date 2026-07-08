@@ -93,10 +93,7 @@ func (p *Printer) Print(resp execTypes.Response) {
 	p.printRequirementsSummary(resp)
 	p.printCompletenessSummary()
 	p.printFailureDigest(resp.Phases)
-	p.printQuickFixGuide(resp.Phases)
-	p.printDebugGuides(resp.Phases)
 	p.printArtifacts(resp)
-	p.printDocs(resp.Phases)
 	p.printCampaignNudge(resp)
 }
 
@@ -147,10 +144,7 @@ func (p *Printer) PrintResults(resp execTypes.Response) {
 	p.printRequirementsSummary(resp)
 	p.printCompletenessSummary()
 	p.printFailureDigest(resp.Phases)
-	p.printQuickFixGuide(resp.Phases)
-	p.printDebugGuides(resp.Phases)
 	p.printArtifacts(resp)
-	p.printDocs(resp.Phases)
 	p.printCampaignNudge(resp)
 }
 
@@ -525,7 +519,7 @@ func (p *Printer) printPhaseResults(phasesData []execTypes.Phase) {
 		// Uniform per-phase maturity scorecard (Phase Capability Contract): every
 		// phase with a standing shows more than a status row — its rung, the single
 		// next move, and a runnable doc-search topic.
-		p.printPhaseStanding(phase)
+		p.PrintPhaseStanding(phase)
 	}
 	fmt.Fprintln(p.w)
 }

@@ -31,7 +31,7 @@ func TestTestGenieOwnDescriptorPassesContract(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidateScenario(test-genie): %v", err)
 	}
-	for _, code := range []string{CodeNorthStarMissing, CodeLadderIncomplete, CodeDocsSkeletonIncomplete} {
+	for _, code := range []string{CodeNorthStarMissing, CodeLadderIncomplete, CodeDocsSkeletonIncomplete, CodeRungUngated} {
 		requireNoCode(t, report, code)
 	}
 }

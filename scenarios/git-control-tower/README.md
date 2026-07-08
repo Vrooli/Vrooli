@@ -1,13 +1,17 @@
-# Git Control Tower (Scaffold)
+# Git Control Tower
 
-Git Control Tower is being re-built from scratch using the modern `react-vite` scenario template.
+Agent-friendly git repository control plane: a REST/Connect API, CLI, and web UI for structured git operations and change review.
 
-This directory currently contains **scaffolding only** (PRD + requirements + lifecycle wiring). The operational targets are defined in `PRD.md` and tracked via `requirements/`, but business logic is intentionally not implemented yet.
+## What This Scenario Provides
+- **Git operations API + CLI**: status, diff, stage/unstage, commit, branches/worktrees, history, blame, content search, discard — structured for agent invocation (`git-control-tower --help`).
+- **Web UI**: Changes tab (optimistic staging, commit panel), diff viewer, history/blame, branch selector, file search.
+- **Baselines**: the primary review primitive — see below.
+- **Scenario review panel**: readiness reviews per scenario (`git-control-tower review {run,summary,status}`) running test-genie phases plus standards/tidiness/auditor dimensions.
+- **Managed pre-commit hook**: configurable hook kinds (none/gct/user/framework) running exactly one command (default `vrooli hygiene`), with one-shot skip.
+- **AI provenance**: the AI Changes tab groups pending changes by the agent-manager run that produced them (foundation built; live validation and committed-history attribution are tracked in the `git-control-tower-ai-provenance` initiative).
+- **Credentials**: git credential/SSH resolution for fetch/push operations.
 
-## What This Scenario Will Become
-- REST API for structured git operations (status, diff, stage/unstage, commit, branches, conflicts, previews)
-- CLI wrapper for agent-friendly invocation
-- Web UI dashboard for interactive review (diff viewer, staging, health)
+Not yet implemented (tracked as swarm-manager initiatives): merge/conflict resolution (`gct-merge-and-conflicts`), commit trailers linking to initiatives (`gct-commit-initiative-linking`), GitHub PRs/releases (`gct-github-integration`), agent-generated PR descriptions/release notes (`gct-release-pipeline`).
 
 ## Baselines — the primary review primitive
 
@@ -37,13 +41,9 @@ Useful commands:
 - `vrooli scenario requirements report git-control-tower --format markdown`
 - `vrooli scenario requirements sync git-control-tower`
 
-## Running (Lifecycle Only)
+## Running
 Use the scenario Makefile:
 - `make start`
 - `make stop`
 - `make logs`
 - `make test`
-
-## Notes
-- No packages were installed as part of re-scaffolding; run lifecycle `setup` when you’re ready to install/build.
-- The legacy implementation was moved to `/tmp` on this machine for reference/backups.
