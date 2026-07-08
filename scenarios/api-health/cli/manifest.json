@@ -11,40 +11,112 @@
           "name": "scenario",
           "description": "Validate a single scenario by id",
           "positionals": [
-            { "name": "name", "required": true, "description": "Scenario id (directory name under scenarios/)" }
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario id (directory name under scenarios/)"
+            }
           ],
           "flags": [
-            { "name": "path", "description": "Optional explicit scenario path for generated fixtures or external targets" },
-            { "name": "include-execution", "bool": true, "description": "Run the bounded live /health probe against the target scenario" }
+            {
+              "name": "path",
+              "description": "Optional explicit scenario path for generated fixtures or external targets"
+            },
+            {
+              "name": "include-execution",
+              "bool": true,
+              "description": "Run the bounded live /health probe against the target scenario"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "ValidateScenario" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ValidateScenario"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "fix-preview",
           "description": "Preview deterministic API Health fixes without writing",
           "positionals": [
-            { "name": "name", "required": true, "description": "Scenario id (directory name under scenarios/)" },
-            { "name": "rule_ids", "repeated": true, "description": "Optional finding codes to preview; omit to preview every deterministic fixer" }
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario id (directory name under scenarios/)"
+            },
+            {
+              "name": "rule_ids",
+              "repeated": true,
+              "description": "Optional finding codes to preview; omit to preview every deterministic fixer"
+            }
           ],
           "flags": [
-            { "name": "path", "description": "Optional explicit scenario path for generated fixtures or external targets" }
+            {
+              "name": "path",
+              "description": "Optional explicit scenario path for generated fixtures or external targets"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "PreviewFix" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "PreviewFix"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "fix-apply",
           "description": "Apply deterministic API Health fixes",
           "positionals": [
-            { "name": "name", "required": true, "description": "Scenario id (directory name under scenarios/)" },
-            { "name": "rule_ids", "repeated": true, "description": "Optional finding codes to apply; omit to apply every deterministic fixer" }
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario id (directory name under scenarios/)"
+            },
+            {
+              "name": "rule_ids",
+              "repeated": true,
+              "description": "Optional finding codes to apply; omit to apply every deterministic fixer"
+            }
           ],
           "flags": [
-            { "name": "path", "description": "Optional explicit scenario path for generated fixtures or external targets" }
+            {
+              "name": "path",
+              "description": "Optional explicit scenario path for generated fixtures or external targets"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "ApplyFix" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["filesystem:write"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ApplyFix"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         }
       ]
     }

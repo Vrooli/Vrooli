@@ -175,6 +175,8 @@ To figure anything out, you must **understand** the problem, **verify** a soluti
 
 The more complete these three become, the less intelligence each new act of building demands — until a small model running on hardware you own can do work that once required a frontier one. This is the engine beneath the recursive loop. Vrooli doesn't merely accumulate capabilities; it systematically converts the *judgment* its agents supply into *machinery* the project carries on its own — and each conversion makes the next one cheaper. That is how the loop pays for itself, and why it accelerates.
 
+The same conversion applies to *how the work itself is driven*. The repeatable methodology a human runs when steering a coding agent — what unit of work to take on, in what phases, with what checkpoints, and how to react when a phase doesn't converge — is itself judgment that can be turned into machinery. **Operating modes** make that a first-class, data-defined capability: each methodology loop is *data* interpreted by *one generic engine*, so it can be read at a glance, simulated before use, and run robustly against unreliable model output — rather than living implicitly in an operator's head or smeared across code. As `swarm-manager` becomes the surface through which all agentic work runs, operating modes are how "the way we do software engineering in the agentic world" becomes explicit, inspectable, and improvable. See [`scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md`](scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md).
+
 For the operational machinery — how these projections are measured, prioritized, and run — see [`docs/concepts/RECURSIVE_SELF_IMPROVEMENT.md`](docs/concepts/RECURSIVE_SELF_IMPROVEMENT.md).
 
 ## The Societal Impact

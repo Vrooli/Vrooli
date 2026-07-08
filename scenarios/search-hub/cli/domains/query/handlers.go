@@ -33,10 +33,10 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 // RoutingService.Query and renders the by-provider grouping in operator-friendly
 // form (which corpora were searched, per-corpus counts, provenance per hit, and
 // how to expand the search). `--json` emits the raw QueryResponse for scripting.
-func (h *handlers) query(ctx cliapp.RunContext) error {
+func (h *handlers) queryCall(ctx cliapp.OperationContext) (*routingv1.QueryResponse, error) {
 	text := strings.TrimSpace(ctx.Positional("text"))
 	if text == "" {
-		return fmt.Errorf("a query text positional is required, e.g. `search-hub query \"restart a scenario\" --type command`")
+		return nil, fmt.Errorf("a query text positional is required, e.g. `search-hub query \"restart a scenario\" --type command`")
 	}
 
 	req := &routingv1.QueryRequest{
@@ -50,13 +50,15 @@ func (h *handlers) query(ctx cliapp.RunContext) error {
 
 	resp, err := h.client.Query(context.Background(), connect.NewRequest(req))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("query %q", text), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("query %q", text), err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no query response")
+		return nil, fmt.Errorf("server returned no query response")
 	}
-	msg := resp.Msg
+	return resp.Msg, nil
+}
 
+func (h *handlers) queryReport(_ cliapp.OperationContext, msg *routingv1.QueryResponse) cliapp.ListReport {
 	totalHits := 0
 	for _, g := range msg.GetGroups() {
 		totalHits += len(g.GetHits())
@@ -87,7 +89,7 @@ func (h *handlers) query(ctx cliapp.RunContext) error {
 		results = append(results, renderGroups(msg.GetGroups())...)
 	}
 
-	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
+	return cliapp.ListReport{
 		Summary:        summary,
 		ResultsHeading: resultsHeading,
 		Results:        results,
@@ -99,7 +101,7 @@ func (h *handlers) query(ctx cliapp.RunContext) error {
 			"`--explain` — show why these providers were chosen",
 			"`providers list` — see every registered provider and its type",
 		},
-	})
+	}
 }
 
 // renderGroups flattens the by-provider grouping into operator-friendly lines:

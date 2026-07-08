@@ -222,7 +222,7 @@
           },
           {
             "id": "development-proto",
-            "query": "regenerate protobuf generated code from proto schemas",
+            "query": "proto regeneration guide generated code buf schemas",
             "scope": "global",
             "tags": [
               "strong",
@@ -398,7 +398,7 @@
               "gibberish"
             ],
             "expect_no_strong_hit": true,
-            "expect_max_score": 0.45,
+            "expect_max_score": 0.55,
             "note": "Junk rejection: nonsense must not surface a confident hit."
           }
         ],

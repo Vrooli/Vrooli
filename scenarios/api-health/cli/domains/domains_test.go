@@ -34,9 +34,16 @@ func TestSubcommandGroups(t *testing.T) {
 	got, err := SubcommandGroups(&cliapp.ScenarioApp{}, manifest)
 	require.NoError(t, err, "SubcommandGroups must build cleanly from cli/manifest.json")
 	require.NotNil(t, got, "SubcommandGroups must return a slice (possibly empty), not nil")
+	registered := map[string]bool{}
 	for i, g := range got {
 		require.NotEmpty(t, g.Name, "group[%d].Name must be set", i)
 		require.NotEmpty(t, g.Subcommands, "group[%d] (%s) must register at least one subcommand", i, g.Name)
+		registered[g.Name] = true
+	}
+	parsed, err := cliapp.ParseManifest(manifest)
+	require.NoError(t, err, "parse cli/manifest.json")
+	for _, group := range parsed.Groups {
+		require.True(t, registered[group.Name], "manifest group %q must be registered in SubcommandGroups", group.Name)
 	}
 }
 

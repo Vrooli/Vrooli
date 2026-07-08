@@ -28,16 +28,18 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 // status reports federation health: each ACTIVE provider's reachability plus
 // whether the classifier and reranker models are available (the latter gates
 // automatic routing and unified rerank respectively).
-func (h *handlers) status(ctx cliapp.RunContext) error {
+func (h *handlers) statusCall(_ cliapp.OperationContext) (*routingv1.StatusResponse, error) {
 	resp, err := h.client.Status(context.Background(), connect.NewRequest(&routingv1.StatusRequest{}))
 	if err != nil {
-		return cliapp.WrapAPIError("federation status", err, nil)
+		return nil, cliapp.WrapAPIError("federation status", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no status response")
+		return nil, fmt.Errorf("server returned no status response")
 	}
-	msg := resp.Msg
+	return resp.Msg, nil
+}
 
+func (h *handlers) statusReport(_ cliapp.OperationContext, msg *routingv1.StatusResponse) cliapp.ListReport {
 	reachable := 0
 	for _, p := range msg.GetProviders() {
 		if p.GetReachable() {
@@ -54,7 +56,7 @@ func (h *handlers) status(ctx cliapp.RunContext) error {
 		summary = append(summary, "Reranker unavailable ⇒ queries degrade to honest by-provider grouping.")
 	}
 
-	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
+	return cliapp.ListReport{
 		Summary:        summary,
 		ResultsHeading: "Provider health",
 		Results:        renderProviderHealth(msg.GetProviders()),
@@ -63,7 +65,7 @@ func (h *handlers) status(ctx cliapp.RunContext) error {
 			"`insights` — telemetry: utilization, zero-result rate, latency",
 			"`query \"<text>\" --all` — run a federated search",
 		},
-	})
+	}
 }
 
 // renderProviderHealth renders each leaf's reachability + freshness note.

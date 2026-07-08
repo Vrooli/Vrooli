@@ -156,20 +156,32 @@ type target struct {
 }
 
 func (h *handlers) scan(ctx cliapp.RunContext) error {
-	root, err := resolveRepoRoot(ctx.Flag("root"))
+	report, err := h.scanCall(ctx)
 	if err != nil {
 		return err
+	}
+	if ctx.JSON() {
+		return cliapp.PrintReportJSON(ctx.Stdout(), report)
+	}
+	printScanReport(ctx, report)
+	return nil
+}
+
+func (h *handlers) scanCall(ctx cliapp.OperationContext) (scanReport, error) {
+	root, err := resolveRepoRoot(ctx.Flag("root"))
+	if err != nil {
+		return scanReport{}, err
 	}
 	timeout := defaultScanTimeout
 	if raw := strings.TrimSpace(ctx.Flag("timeout")); raw != "" {
 		timeout, err = time.ParseDuration(raw)
 		if err != nil {
-			return fmt.Errorf("invalid --timeout %q: %w", raw, err)
+			return scanReport{}, fmt.Errorf("invalid --timeout %q: %w", raw, err)
 		}
 	}
 	targets, err := discoverTargets(root)
 	if err != nil {
-		return err
+		return scanReport{}, err
 	}
 	report := scanReport{
 		RepoRoot: root,
@@ -197,20 +209,48 @@ func (h *handlers) scan(ctx cliapp.RunContext) error {
 		report.add(h.validateTarget(client, timeout, target, includeEvals))
 	}
 	report.finish()
-	if ctx.JSON() {
-		return cliapp.PrintReportJSON(ctx.Stdout(), report)
+	return report, nil
+}
+
+func (h *handlers) scanActionReport(_ cliapp.OperationContext, report scanReport) cliapp.MutationReport {
+	result := []string{
+		fmt.Sprintf("Search maturity scan [%s] checked %d scenario(s); provider %s.",
+			report.ValidationMode, report.Summary.Total, report.ProviderLiveness.State),
+		fmt.Sprintf("passed=%d failed=%d degraded=%d unavailable=%d findings=%d blocking=%d advisory=%d",
+			report.Summary.Passed, report.Summary.Failed, report.Summary.Degraded, report.Summary.Unavailable,
+			report.Summary.Findings, report.Summary.Blocking, report.Summary.Advisory),
 	}
-	printScanReport(ctx, report)
-	return nil
+	changes := make([]string, 0, len(report.Results))
+	for _, item := range report.Results {
+		changes = append(changes, fmt.Sprintf("%s: %s findings=%d next=%s",
+			item.Scenario, item.Status, len(item.Findings), item.RecommendedNextAction))
+	}
+	return cliapp.MutationReport{
+		Result:      result,
+		Changes:     changes,
+		NextCommand: []string{"`maturity fix <scenario>` — preview mechanical descriptor fixes for a failing scenario"},
+	}
 }
 
 func (h *handlers) fix(ctx cliapp.RunContext) error {
+	msg, err := h.fixCall(ctx)
+	if err != nil {
+		return err
+	}
+	if ctx.JSON() {
+		return cliapp.PrintProtoJSON(ctx.Stdout(), msg)
+	}
+	printFixReport(ctx, msg)
+	return nil
+}
+
+func (h *handlers) fixCall(ctx cliapp.OperationContext) (*scenariovalidationv1.FixResponse, error) {
 	timeout := defaultScanTimeout
 	var err error
 	if raw := strings.TrimSpace(ctx.Flag("timeout")); raw != "" {
 		timeout, err = time.ParseDuration(raw)
 		if err != nil {
-			return fmt.Errorf("invalid --timeout %q: %w", raw, err)
+			return nil, fmt.Errorf("invalid --timeout %q: %w", raw, err)
 		}
 	}
 	req := connect.NewRequest(&scenariovalidationv1.FixRequest{
@@ -229,13 +269,40 @@ func (h *handlers) fix(ctx cliapp.RunContext) error {
 		resp, err = client.PreviewFix(runCtx, req)
 	}
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if ctx.JSON() {
-		return cliapp.PrintProtoJSON(ctx.Stdout(), resp.Msg)
+	return resp.Msg, nil
+}
+
+func (h *handlers) fixReport(_ cliapp.OperationContext, report *scenariovalidationv1.FixResponse) cliapp.MutationReport {
+	mode := "preview"
+	if report.GetApplied() {
+		mode = "apply"
 	}
-	printFixReport(ctx, resp.Msg)
-	return nil
+	result := []string{fmt.Sprintf("Search maturity fix %s for %s.", mode, report.GetScenario())}
+	changes := make([]string, 0, len(report.GetCandidates()))
+	for _, candidate := range report.GetCandidates() {
+		state := "would update"
+		if candidate.GetApplied() {
+			state = "updated"
+		}
+		line := fmt.Sprintf("%s %s [%s]", state, candidate.GetFilePath(), candidate.GetRuleId())
+		if candidate.GetDescription() != "" {
+			line += ": " + candidate.GetDescription()
+		}
+		changes = append(changes, line)
+	}
+	if len(changes) == 0 {
+		changes = append(changes, report.GetMessages()...)
+	}
+	if len(changes) == 0 {
+		changes = append(changes, "No changes.")
+	}
+	next := []string{}
+	if !report.GetApplied() {
+		next = append(next, "`maturity fix <scenario> --apply` — write these mechanical descriptor fixes")
+	}
+	return cliapp.MutationReport{Result: result, Changes: changes, NextCommand: next}
 }
 
 func (h *handlers) validateTarget(client validationClient, timeout time.Duration, target target, includeEvals bool) scenarioResult {

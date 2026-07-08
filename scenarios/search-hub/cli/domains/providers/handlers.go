@@ -32,72 +32,78 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 
 // register reads a ProviderDescriptor from --descriptor (raw JSON, or @path to
 // read from a file) and upserts it via RegistryService.RegisterProvider.
-func (h *handlers) register(ctx cliapp.RunContext) error {
+func (h *handlers) registerCall(ctx cliapp.OperationContext) (*registryv1.RegisterProviderResponse, error) {
 	blob, err := readDescriptorArg(ctx.Flag("descriptor"))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	desc := &registryv1.ProviderDescriptor{}
 	if err := protojson.Unmarshal(blob, desc); err != nil {
-		return fmt.Errorf("parse --descriptor JSON: %w", err)
+		return nil, fmt.Errorf("parse --descriptor JSON: %w", err)
 	}
 
 	resp, err := h.client.RegisterProvider(context.Background(), connect.NewRequest(&registryv1.RegisterProviderRequest{
 		Descriptor_: desc,
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("register provider", err, nil)
+		return nil, cliapp.WrapAPIError("register provider", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.GetDescriptor_() == nil {
-		return fmt.Errorf("server returned no descriptor")
+		return nil, fmt.Errorf("server returned no descriptor")
 	}
+	return resp.Msg, nil
+}
 
+func (h *handlers) registerReport(_ cliapp.OperationContext, msg *registryv1.RegisterProviderResponse) cliapp.MutationReport {
 	verb := "Updated"
-	if resp.Msg.GetCreated() {
+	if msg.GetCreated() {
 		verb = "Registered"
 	}
-	d := resp.Msg.GetDescriptor_()
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+	d := msg.GetDescriptor_()
+	return cliapp.MutationReport{
 		Result:  []string{fmt.Sprintf("%s provider %s.", verb, d.GetProviderId())},
 		Changes: []string{formatProvider(d)},
 		NextCommand: []string{
 			"`providers list` — show all registered providers",
 			fmt.Sprintf("`providers remove %s` — deregister this leaf", d.GetProviderId()),
 		},
-	})
+	}
 }
 
 // list returns registered providers, optionally filtered by --bucket, --type,
 // and/or --state.
-func (h *handlers) list(ctx cliapp.RunContext) error {
+func (h *handlers) listCall(ctx cliapp.OperationContext) (*registryv1.ListProvidersResponse, error) {
 	req := &registryv1.ListProvidersRequest{Type: strings.TrimSpace(ctx.Flag("type"))}
 
 	bucket, err := parseBucket(ctx.Flag("bucket"))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	req.Bucket = bucket
 
 	state, err := parseState(ctx.Flag("state"))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	req.State = state
 
 	resp, err := h.client.ListProviders(context.Background(), connect.NewRequest(req))
 	if err != nil {
-		return cliapp.WrapAPIError("list providers", err, nil)
+		return nil, cliapp.WrapAPIError("list providers", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no providers response")
+		return nil, fmt.Errorf("server returned no providers response")
 	}
+	return resp.Msg, nil
+}
 
-	results := make([]string, 0, len(resp.Msg.GetProviders()))
-	for _, p := range resp.Msg.GetProviders() {
+func (h *handlers) listReport(_ cliapp.OperationContext, msg *registryv1.ListProvidersResponse) cliapp.ListReport {
+	results := make([]string, 0, len(msg.GetProviders()))
+	for _, p := range msg.GetProviders() {
 		results = append(results, formatProvider(p))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Found %d provider(s).", len(resp.Msg.GetProviders()))},
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Found %d provider(s).", len(msg.GetProviders()))},
 		ResultsHeading: "Providers",
 		Results:        results,
 		RetrievalHints: []string{
@@ -106,30 +112,34 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 			"`providers list --state capability_gap` — show tracked gap stubs",
 			"`providers register --descriptor @path.json` — register/update a provider",
 		},
-	})
+	}
 }
 
 // remove deregisters a provider leaf by provider_id.
-func (h *handlers) remove(ctx cliapp.RunContext) error {
+func (h *handlers) removeCall(ctx cliapp.OperationContext) (*registryv1.DeregisterProviderResponse, error) {
 	id := ctx.Positional("provider_id")
 	resp, err := h.client.DeregisterProvider(context.Background(), connect.NewRequest(&registryv1.DeregisterProviderRequest{
 		ProviderId: id,
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("deregister provider %q", id), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("deregister provider %q", id), err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no response")
+		return nil, fmt.Errorf("server returned no response")
 	}
+	return resp.Msg, nil
+}
 
+func (h *handlers) removeReport(ctx cliapp.OperationContext, msg *registryv1.DeregisterProviderResponse) cliapp.MutationReport {
+	id := ctx.Positional("provider_id")
 	result := fmt.Sprintf("No provider %q was registered (nothing to remove).", id)
-	if resp.Msg.GetRemoved() {
+	if msg.GetRemoved() {
 		result = fmt.Sprintf("Deregistered provider %s.", id)
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+	return cliapp.MutationReport{
 		Result:      []string{result},
 		NextCommand: []string{"`providers list` — show all registered providers"},
-	})
+	}
 }
 
 // readDescriptorArg returns the descriptor JSON bytes from a raw flag value.

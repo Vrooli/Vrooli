@@ -4,7 +4,7 @@
 // percentiles).
 //
 // The command-line shape is declared in cli/manifest.json (the single source of
-// truth) and loaded via cliapp.LoadFromManifest; the handler lives in
+// truth) and loaded via cliapp.LoadFromManifestPrimitives; the handler lives in
 // handlers.go. The insights verb is the group default so `search-hub insights`
 // is shorthand for `search-hub insights insights`.
 package insights
@@ -22,10 +22,10 @@ const GroupName = "insights"
 // wires the MetricsService.Insights binding to the handler in handlers.go.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"MetricsService.Insights": h.insights,
+	bindings := map[string]cliapp.PrimitiveHandler{
+		"MetricsService.Insights": cliapp.ProtoList(h.insightsCall, h.insightsReport),
 	}
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("insights: load from manifest: %w", err)
 	}

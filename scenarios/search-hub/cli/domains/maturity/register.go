@@ -11,9 +11,9 @@ const GroupName = "maturity"
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, map[string]func(cliapp.RunContext) error{
-		"ScenarioValidationService.ValidateScenario": h.scan,
-		"ScenarioValidationService.PreviewFix":       h.fix,
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{
+		"ScenarioValidationService.ValidateScenario": cliapp.Action(h.scanCall, h.scanActionReport),
+		"ScenarioValidationService.PreviewFix":       cliapp.ProtoMutation(h.fixCall, h.fixReport),
 	})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("maturity: load from manifest: %w", err)

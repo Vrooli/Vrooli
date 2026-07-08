@@ -48,55 +48,63 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 }
 
 // register reads an EvalSuite from --suite (raw JSON, or @path) and upserts it.
-func (h *handlers) register(ctx cliapp.RunContext) error {
+func (h *handlers) registerCall(ctx cliapp.OperationContext) (*evalv1.RegisterSuiteResponse, error) {
 	blob, err := readSuiteArg(ctx.Flag("suite"))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	suite := &evalv1.EvalSuite{}
 	if err := protojson.Unmarshal(blob, suite); err != nil {
-		return fmt.Errorf("parse --suite JSON: %w", err)
+		return nil, fmt.Errorf("parse --suite JSON: %w", err)
 	}
 
 	resp, err := h.client.RegisterSuite(context.Background(), connect.NewRequest(&evalv1.RegisterSuiteRequest{Suite: suite}))
 	if err != nil {
-		return cliapp.WrapAPIError("register suite", err, nil)
+		return nil, cliapp.WrapAPIError("register suite", err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.GetSuite() == nil {
-		return fmt.Errorf("server returned no suite")
+		return nil, fmt.Errorf("server returned no suite")
 	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) registerReport(_ cliapp.OperationContext, msg *evalv1.RegisterSuiteResponse) cliapp.MutationReport {
 	verb := "Updated"
-	if resp.Msg.GetCreated() {
+	if msg.GetCreated() {
 		verb = "Registered"
 	}
-	s := resp.Msg.GetSuite()
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+	s := msg.GetSuite()
+	return cliapp.MutationReport{
 		Result:  []string{fmt.Sprintf("%s eval suite %s (%d case(s)).", verb, s.GetSuiteId(), len(s.GetCases()))},
 		Changes: []string{formatSuite(s)},
 		NextCommand: []string{
 			fmt.Sprintf("`evals run %s --tag baseline` — run it and store a tagged baseline", s.GetSuiteId()),
 			fmt.Sprintf("`evals runs %s` — show this suite's run history", s.GetSuiteId()),
 		},
-	})
+	}
 }
 
 // list returns registered suites, optionally filtered by --provider.
-func (h *handlers) list(ctx cliapp.RunContext) error {
+func (h *handlers) listCall(ctx cliapp.OperationContext) (*evalv1.ListSuitesResponse, error) {
 	resp, err := h.client.ListSuites(context.Background(), connect.NewRequest(&evalv1.ListSuitesRequest{
 		ProviderId: strings.TrimSpace(ctx.Flag("provider")),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("list suites", err, nil)
+		return nil, cliapp.WrapAPIError("list suites", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no suites response")
+		return nil, fmt.Errorf("server returned no suites response")
 	}
-	results := make([]string, 0, len(resp.Msg.GetSuites()))
-	for _, s := range resp.Msg.GetSuites() {
+	return resp.Msg, nil
+}
+
+func (h *handlers) listReport(_ cliapp.OperationContext, msg *evalv1.ListSuitesResponse) cliapp.ListReport {
+	results := make([]string, 0, len(msg.GetSuites()))
+	for _, s := range msg.GetSuites() {
 		results = append(results, formatSuite(s))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Found %d eval suite(s).", len(resp.Msg.GetSuites()))},
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Found %d eval suite(s).", len(msg.GetSuites()))},
 		ResultsHeading: "Suites",
 		Results:        results,
 		RetrievalHints: []string{
@@ -104,38 +112,42 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 			"`evals show <suite_id>` — show a suite's cases + expectations",
 			"`evals run <suite_id> --tag <tag>` — run it and store a tagged run",
 		},
-	})
+	}
 }
 
 // show prints one suite's cases + expectations.
-func (h *handlers) show(ctx cliapp.RunContext) error {
+func (h *handlers) showCall(ctx cliapp.OperationContext) (*evalv1.GetSuiteResponse, error) {
 	id := ctx.Positional("suite_id")
 	resp, err := h.client.GetSuite(context.Background(), connect.NewRequest(&evalv1.GetSuiteRequest{SuiteId: id}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("get suite %q", id), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("get suite %q", id), err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.GetSuite() == nil {
-		return fmt.Errorf("server returned no suite")
+		return nil, fmt.Errorf("server returned no suite")
 	}
-	s := resp.Msg.GetSuite()
+	return resp.Msg, nil
+}
+
+func (h *handlers) showReport(_ cliapp.OperationContext, msg *evalv1.GetSuiteResponse) cliapp.ListReport {
+	s := msg.GetSuite()
 	results := make([]string, 0, len(s.GetCases()))
 	for _, c := range s.GetCases() {
 		results = append(results, formatCase(c))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+	return cliapp.ListReport{
 		Summary:        []string{formatSuite(s)},
 		ResultsHeading: "Cases",
 		Results:        results,
 		RetrievalHints: []string{fmt.Sprintf("`evals run %s --tag <tag>` — run this suite", s.GetSuiteId())},
-	})
+	}
 }
 
 // run executes a suite and stores a tagged run.
-func (h *handlers) run(ctx cliapp.RunContext) error {
+func (h *handlers) runCall(ctx cliapp.OperationContext) (*evalv1.RunSuiteResponse, error) {
 	id := ctx.Positional("suite_id")
 	limit, err := parseLimit(ctx.Flag("limit"))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// RunSuite synchronously executes every case against the live provider; with
 	// an LLM reranker leg active this can take minutes, far past the scenario's
@@ -149,27 +161,32 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 		Limit:   limit,
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("run suite %q", id), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("run suite %q", id), err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.GetRun() == nil {
-		return fmt.Errorf("server returned no run")
+		return nil, fmt.Errorf("server returned no run")
 	}
-	r := resp.Msg.GetRun()
-	if err := cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+	return resp.Msg, nil
+}
+
+func (h *handlers) runReport(_ cliapp.OperationContext, msg *evalv1.RunSuiteResponse) cliapp.MutationReport {
+	r := msg.GetRun()
+	return cliapp.MutationReport{
 		Result:  []string{fmt.Sprintf("Ran %s → run %s (tag %q).", r.GetSuiteId(), r.GetRunId(), r.GetTag())},
 		Changes: append([]string{formatAggregate(r), formatConfig(r.GetConfig())}, formatCaseResults(r)...),
 		NextCommand: []string{
 			fmt.Sprintf("`evals runs %s` — see this suite's run history", r.GetSuiteId()),
 			fmt.Sprintf("`evals compare <other_run> %s` — diff against another tagged run", r.GetRunId()),
 		},
-	}); err != nil {
-		return err
 	}
+}
 
+func (h *handlers) runOutcome(ctx cliapp.OperationContext, msg *evalv1.RunSuiteResponse) error {
 	// Opt-in CI gate (the run is always stored first; --assert only affects the
 	// exit code). The hub never imposes this — a consumer adds it to its own
 	// `make test` when it wants enforcement.
 	if ctx.BoolFlag("assert") {
+		r := msg.GetRun()
 		if failing := failingCases(r); len(failing) > 0 {
 			return fmt.Errorf("--assert: %d case(s) did not meet expectations: %s",
 				len(failing), strings.Join(failing, ", "))
@@ -194,29 +211,33 @@ func failingCases(r *evalv1.EvalRun) []string {
 
 // validate re-probes reviewed positive labels and reports whether expect_ids
 // still point at live provider results.
-func (h *handlers) validate(ctx cliapp.RunContext) error {
+func (h *handlers) validateCall(ctx cliapp.OperationContext) (*evalv1.ValidateCorpusResponse, error) {
 	id := ctx.Positional("suite_id")
 	deepK, err := parseLimit(ctx.Flag("deep-k"))
 	if err != nil {
-		return fmt.Errorf("invalid --deep-k: %w", err)
+		return nil, fmt.Errorf("invalid --deep-k: %w", err)
 	}
 	resp, err := h.client.ValidateCorpus(context.Background(), connect.NewRequest(&evalv1.ValidateCorpusRequest{
 		SuiteId: id,
 		DeepK:   deepK,
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("validate corpus %q", id), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("validate corpus %q", id), err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no validation response")
+		return nil, fmt.Errorf("server returned no validation response")
 	}
-	msg := resp.Msg
+	return resp.Msg, nil
+}
+
+func (h *handlers) validateReport(ctx cliapp.OperationContext, msg *evalv1.ValidateCorpusResponse) cliapp.ListReport {
+	id := ctx.Positional("suite_id")
 	results := make([]string, 0, len(msg.GetCases()))
 	for _, c := range msg.GetCases() {
 		results = append(results, formatValidationCase(c))
 	}
 	r := msg.GetRollup()
-	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
+	return cliapp.ListReport{
 		Summary: []string{
 			fmt.Sprintf("Validated %s [provider=%s]", msg.GetSuiteId(), msg.GetProviderId()),
 			fmt.Sprintf("positives=%d live=%d hard=%d stale=%d inconclusive=%d candidate=%d",
@@ -228,16 +249,16 @@ func (h *handlers) validate(ctx cliapp.RunContext) error {
 			fmt.Sprintf("`evals show %s` — inspect the corpus labels", id),
 			fmt.Sprintf("`evals run %s --tag baseline` — run the suite after label fixes", id),
 		},
-	})
+	}
 }
 
 // sweep runs the two-tier overfit-safe tuning sweep and renders the ranked arms
 // + the promotion verdict. --apply gates the write-back; default is preview.
-func (h *handlers) sweep(ctx cliapp.RunContext) error {
+func (h *handlers) sweepCall(ctx cliapp.OperationContext) (*evalv1.SweepResult, error) {
 	id := ctx.Positional("suite_id")
 	limit, err := parseLimit(ctx.Flag("limit"))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// A sweep runs the suite once per arm and (index-time tier) reindexes per arm,
 	// so it needs a much longer client timeout than a single run.
@@ -250,12 +271,16 @@ func (h *handlers) sweep(ctx cliapp.RunContext) error {
 		Limit:         limit,
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("sweep suite %q", id), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("sweep suite %q", id), err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.GetResult() == nil {
-		return fmt.Errorf("server returned no sweep result")
+		return nil, fmt.Errorf("server returned no sweep result")
 	}
-	res := resp.Msg.GetResult()
+	return resp.Msg.GetResult(), nil
+}
+
+func (h *handlers) sweepReport(ctx cliapp.OperationContext, res *evalv1.SweepResult) cliapp.ListReport {
+	id := ctx.Positional("suite_id")
 	results := make([]string, 0, len(res.GetArms()))
 	for _, a := range res.GetArms() {
 		results = append(results, formatSweepArm(a, res.GetWinnerTag()))
@@ -264,22 +289,22 @@ func (h *handlers) sweep(ctx cliapp.RunContext) error {
 	if !ctx.BoolFlag("apply") && res.GetWinnerTag() != "" {
 		next = append([]string{fmt.Sprintf("`evals sweep %s --apply` — write back the recommended winner", id)}, next...)
 	}
-	return cliapp.RenderProtoList(ctx, res, cliapp.ListReport{
+	return cliapp.ListReport{
 		Summary:        formatSweepSummary(res),
 		ResultsHeading: "Arms (best-first)",
 		Results:        results,
 		RetrievalHints: next,
-	})
+	}
 }
 
 // generate proposes machine-generated cases for a suite by sampling + inverting
 // the provider's index. --apply appends them (each marked generated); default is
 // a preview of the proposals + the resulting corpus's adequacy.
-func (h *handlers) generate(ctx cliapp.RunContext) error {
+func (h *handlers) generateCall(ctx cliapp.OperationContext) (*evalv1.GenerateResponse, error) {
 	id := ctx.Positional("suite_id")
 	count, err := parseLimit(ctx.Flag("count"))
 	if err != nil {
-		return fmt.Errorf("invalid --count: %w", err)
+		return nil, fmt.Errorf("invalid --count: %w", err)
 	}
 	// Generation calls the local LLM once per sampled item, so it needs a long
 	// client timeout (like run/sweep) — far past the scenario's default.
@@ -292,12 +317,16 @@ func (h *handlers) generate(ctx cliapp.RunContext) error {
 		Apply:     ctx.BoolFlag("apply"),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("generate cases for %q", id), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("generate cases for %q", id), err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no generate response")
+		return nil, fmt.Errorf("server returned no generate response")
 	}
-	msg := resp.Msg
+	return resp.Msg, nil
+}
+
+func (h *handlers) generateReport(ctx cliapp.OperationContext, msg *evalv1.GenerateResponse) cliapp.ListReport {
+	id := ctx.Positional("suite_id")
 	results := make([]string, 0, len(msg.GetProposed()))
 	for _, gc := range msg.GetProposed() {
 		results = append(results, formatGeneratedCase(gc))
@@ -316,18 +345,18 @@ func (h *handlers) generate(ctx cliapp.RunContext) error {
 		next = append(next, fmt.Sprintf("`evals generate %s --apply` — append the proposed cases", id))
 	}
 	next = append(next, fmt.Sprintf("`evals show %s` — review the suite's cases", id))
-	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
+	return cliapp.ListReport{
 		Summary:        summary,
 		ResultsHeading: "Proposed cases",
 		Results:        results,
 		RetrievalHints: next,
-	})
+	}
 }
 
 // promote flips reviewed candidate cases to reviewed status through the
 // provider's corpus write-back control plane. Re-running the same command is an
 // idempotent no-op reported via already_reviewed_case_ids.
-func (h *handlers) promote(ctx cliapp.RunContext) error {
+func (h *handlers) promoteCall(ctx cliapp.OperationContext) (*evalv1.PromoteCasesResponse, error) {
 	id := ctx.Positional("suite_id")
 	caseIDs := splitCaseIDs(ctx.Flag("case"))
 	resp, err := h.client.PromoteCases(context.Background(), connect.NewRequest(&evalv1.PromoteCasesRequest{
@@ -336,12 +365,16 @@ func (h *handlers) promote(ctx cliapp.RunContext) error {
 		All:     ctx.BoolFlag("all"),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("promote cases for %q", id), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("promote cases for %q", id), err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no promote response")
+		return nil, fmt.Errorf("server returned no promote response")
 	}
-	msg := resp.Msg
+	return resp.Msg, nil
+}
+
+func (h *handlers) promoteReport(ctx cliapp.OperationContext, msg *evalv1.PromoteCasesResponse) cliapp.ListReport {
+	id := ctx.Positional("suite_id")
 	summary := []string{
 		fmt.Sprintf("Promote %s [provider=%s]", msg.GetSuiteId(), msg.GetProviderId()),
 		fmt.Sprintf("promoted=%d already_reviewed=%d applied=%t",
@@ -358,20 +391,20 @@ func (h *handlers) promote(ctx cliapp.RunContext) error {
 		fmt.Sprintf("`evals show %s` — inspect case statuses", id),
 		fmt.Sprintf("`evals run %s --tag baseline` — run the promoted corpus", id),
 	}
-	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
+	return cliapp.ListReport{
 		Summary:        summary,
 		ResultsHeading: "Promotion result",
 		Results:        results,
 		RetrievalHints: next,
-	})
+	}
 }
 
 // runs lists a suite's run history.
-func (h *handlers) runs(ctx cliapp.RunContext) error {
+func (h *handlers) runsCall(ctx cliapp.OperationContext) (*evalv1.ListRunsResponse, error) {
 	id := ctx.Positional("suite_id")
 	limit, err := parseLimit(ctx.Flag("limit"))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	resp, err := h.client.ListRuns(context.Background(), connect.NewRequest(&evalv1.ListRunsRequest{
 		SuiteId: id,
@@ -379,66 +412,81 @@ func (h *handlers) runs(ctx cliapp.RunContext) error {
 		Limit:   limit,
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("list runs for %q", id), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("list runs for %q", id), err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no runs response")
+		return nil, fmt.Errorf("server returned no runs response")
 	}
-	results := make([]string, 0, len(resp.Msg.GetRuns()))
-	for _, r := range resp.Msg.GetRuns() {
+	return resp.Msg, nil
+}
+
+func (h *handlers) runsReport(ctx cliapp.OperationContext, msg *evalv1.ListRunsResponse) cliapp.ListReport {
+	id := ctx.Positional("suite_id")
+	results := make([]string, 0, len(msg.GetRuns()))
+	for _, r := range msg.GetRuns() {
 		results = append(results, formatRunLine(r))
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Found %d run(s) for %s.", len(resp.Msg.GetRuns()), id)},
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Found %d run(s) for %s.", len(msg.GetRuns()), id)},
 		ResultsHeading: "Runs (newest first)",
 		Results:        results,
 		RetrievalHints: []string{
 			"`evals runs <suite_id> --tag <tag>` — filter to one experiment tag",
 			"`evals compare <run_a> <run_b>` — per-case A/B delta",
 		},
-	})
+	}
 }
 
 // showRun prints one immutable run.
-func (h *handlers) showRun(ctx cliapp.RunContext) error {
+func (h *handlers) showRunCall(ctx cliapp.OperationContext) (*evalv1.GetRunResponse, error) {
 	id := ctx.Positional("run_id")
 	resp, err := h.client.GetRun(context.Background(), connect.NewRequest(&evalv1.GetRunRequest{RunId: id}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("get run %q", id), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("get run %q", id), err, nil)
 	}
 	if resp == nil || resp.Msg == nil || resp.Msg.GetRun() == nil {
-		return fmt.Errorf("server returned no run")
+		return nil, fmt.Errorf("server returned no run")
 	}
-	r := resp.Msg.GetRun()
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+	return resp.Msg, nil
+}
+
+func (h *handlers) showRunReport(_ cliapp.OperationContext, msg *evalv1.GetRunResponse) cliapp.ListReport {
+	r := msg.GetRun()
+	return cliapp.ListReport{
 		Summary:        []string{formatRunLine(r), formatAggregate(r), formatConfig(r.GetConfig())},
 		ResultsHeading: "Cases",
 		Results:        formatCaseResults(r),
-	})
+	}
 }
 
 // compare diffs two runs per case.
-func (h *handlers) compare(ctx cliapp.RunContext) error {
+func (h *handlers) compareCall(ctx cliapp.OperationContext) (*evalv1.CompareRunsResponse, error) {
 	a := ctx.Positional("run_a")
 	b := ctx.Positional("run_b")
 	resp, err := h.client.CompareRuns(context.Background(), connect.NewRequest(&evalv1.CompareRunsRequest{RunA: a, RunB: b}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("compare runs %q vs %q", a, b), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("compare runs %q vs %q", a, b), err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no compare response")
+		return nil, fmt.Errorf("server returned no compare response")
 	}
-	results := make([]string, 0, len(resp.Msg.GetDeltas()))
-	for _, d := range resp.Msg.GetDeltas() {
+	return resp.Msg, nil
+}
+
+func (h *handlers) compareReport(ctx cliapp.OperationContext, msg *evalv1.CompareRunsResponse) cliapp.ListReport {
+	a := ctx.Positional("run_a")
+	b := ctx.Positional("run_b")
+	results := make([]string, 0, len(msg.GetDeltas()))
+	for _, d := range msg.GetDeltas() {
 		results = append(results, formatDelta(d))
 	}
-	tagA := resp.Msg.GetRunA().GetTag()
-	tagB := resp.Msg.GetRunB().GetTag()
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+	tagA := msg.GetRunA().GetTag()
+	tagB := msg.GetRunB().GetTag()
+	return cliapp.ListReport{
 		Summary:        []string{fmt.Sprintf("A=%s (%s)  →  B=%s (%s)", a, tagA, b, tagB)},
 		ResultsHeading: "Per-case delta (A → B)",
 		Results:        results,
-	})
+	}
 }
 
 // readSuiteArg returns suite JSON bytes from the flag value: a leading '@' means

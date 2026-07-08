@@ -6,6 +6,11 @@ The `metrics` table dominates `system-monitor.db` size. Left unbounded, it grows
 ~16–17 MB of JSON payload per full collection day. Retention prunes stale rows;
 compaction reclaims the freed file space.
 
+System-monitor cleanup is limited to its own metrics lifecycle. Broad host
+disk-pressure remediation belongs to cleanup-manager: system-monitor observes
+pressure and attribution, then operators preview and apply reclaim candidates
+through cleanup-manager policy and audit.
+
 ### How it runs automatically
 
 - A settings-driven scheduler prunes metrics older than `metrics_retention_days`.
@@ -75,3 +80,18 @@ Treat the metrics history as tiered when deciding what to back up:
 Recommended pre-backup sequence: preview retention → apply retention → compact →
 back up. This keeps Data Backup Manager from treating gigabytes of stale metrics
 as meaningful payload.
+
+## Disk Pressure Handoff
+
+When disk usage crosses investigation or alert thresholds, use system-monitor
+to identify pressure and likely owners, then hand off remediation:
+
+```bash
+system-monitor metrics process-timeline --window 5m --top 20 --json
+cleanup-manager cleanup plan --json
+```
+
+Apply only an approved cleanup-manager plan with an idempotency key. Do not
+add broad deletion, Docker prune, journal vacuum, package-cache cleanup, or
+scenario-private cleanup paths to system-monitor; those are cleanup-manager
+provider responsibilities, with private data delegated to owner scenarios.

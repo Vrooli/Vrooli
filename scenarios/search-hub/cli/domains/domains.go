@@ -5,6 +5,7 @@ import (
 	"search-hub/cli/domains/federation"
 	"search-hub/cli/domains/insights"
 	"search-hub/cli/domains/maturity"
+	"search-hub/cli/domains/metrics"
 	"search-hub/cli/domains/providers"
 	"search-hub/cli/domains/query"
 
@@ -63,6 +64,10 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
+	metricsGroup, err := metrics.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
 	evalsGroup, err := evals.Register(core, manifest)
 	if err != nil {
 		return nil, err
@@ -71,5 +76,5 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{providersGroup, queryGroup, federationGroup, insightsGroup, evalsGroup, maturityGroup}, nil
+	return []cliapp.SubcommandGroup{providersGroup, queryGroup, federationGroup, insightsGroup, metricsGroup, evalsGroup, maturityGroup}, nil
 }

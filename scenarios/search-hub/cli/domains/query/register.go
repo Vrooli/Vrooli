@@ -24,10 +24,10 @@ const GroupName = "query"
 // wires the RoutingService.Query binding to the handler in handlers.go.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"RoutingService.Query": h.query,
+	bindings := map[string]cliapp.PrimitiveHandler{
+		"RoutingService.Query": cliapp.ProtoList(h.queryCall, h.queryReport),
 	}
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("query: load from manifest: %w", err)
 	}

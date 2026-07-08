@@ -20,7 +20,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	return &handlers{client: scenariovalidationconnect.NewScenarioValidationServiceClient(httpClient, baseURL)}
 }
 
-func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
+func (h *handlers) validateScenarioCall(ctx cliapp.OperationContext) (*scenariovalidationv1.ValidateScenarioResponse, error) {
 	name := ctx.Positional("name")
 	resp, err := h.client.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
 		Scenario:         name,
@@ -28,18 +28,21 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 		IncludeExecution: ctx.BoolFlag("include-execution"),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("validate scenario %q", name), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("validate scenario %q", name), err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no validation response")
+		return nil, fmt.Errorf("server returned no validation response")
 	}
-	msg := resp.Msg
+	return resp.Msg, nil
+}
+
+func (h *handlers) validateScenarioReport(_ cliapp.OperationContext, msg *scenariovalidationv1.ValidateScenarioResponse) cliapp.ListReport {
 	assessment := msg.GetAssessment()
 	results := make([]string, 0, len(assessment.GetFindings()))
 	for _, finding := range assessment.GetFindings() {
 		results = append(results, fmt.Sprintf("%s %s %s", finding.GetSeverity(), finding.GetCode(), finding.GetMessage()))
 	}
-	if err := cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
+	return cliapp.ListReport{
 		Summary: []string{
 			fmt.Sprintf("Validated %s - status=%s errors=%d warnings=%d infos=%d",
 				msg.GetScenario(),
@@ -51,10 +54,12 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 		},
 		ResultsHeading: "Findings",
 		Results:        results,
-	}); err != nil {
-		return err
 	}
+}
+
+func (h *handlers) validateScenarioOutcome(msg *scenariovalidationv1.ValidateScenarioResponse) error {
 	if msg.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
+		assessment := msg.GetAssessment()
 		return fmt.Errorf("scenario %s did not pass API Health validation (%d error finding(s), %d warning finding(s))",
 			msg.GetScenario(),
 			severityCount(assessment, "SEVERITY_ERROR"),
@@ -64,15 +69,15 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 	return nil
 }
 
-func (h *handlers) previewFix(ctx cliapp.RunContext) error {
-	return h.fix(ctx, false)
+func (h *handlers) previewFixCall(ctx cliapp.OperationContext) (*scenariovalidationv1.FixResponse, error) {
+	return h.fixCall(ctx, false)
 }
 
-func (h *handlers) applyFix(ctx cliapp.RunContext) error {
-	return h.fix(ctx, true)
+func (h *handlers) applyFixCall(ctx cliapp.OperationContext) (*scenariovalidationv1.FixResponse, error) {
+	return h.fixCall(ctx, true)
 }
 
-func (h *handlers) fix(ctx cliapp.RunContext, apply bool) error {
+func (h *handlers) fixCall(ctx cliapp.OperationContext, apply bool) (*scenariovalidationv1.FixResponse, error) {
 	name := ctx.Positional("name")
 	req := &scenariovalidationv1.FixRequest{
 		Scenario: name,
@@ -93,12 +98,32 @@ func (h *handlers) fix(ctx cliapp.RunContext, apply bool) error {
 		verb = "apply fixes"
 	}
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("%s %q", verb, name), err, nil)
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("%s %q", verb, name), err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no fix response")
+		return nil, fmt.Errorf("server returned no fix response")
 	}
-	msg := resp.Msg
+	return resp.Msg, nil
+}
+
+func (h *handlers) fixReport(apply bool) func(cliapp.OperationContext, *scenariovalidationv1.FixResponse) cliapp.ListReport {
+	return func(_ cliapp.OperationContext, msg *scenariovalidationv1.FixResponse) cliapp.ListReport {
+		verb := "preview fixes"
+		if apply {
+			verb = "apply fixes"
+		}
+		results := fixResults(msg)
+		return cliapp.ListReport{
+			Summary: []string{
+				fmt.Sprintf("%s %s - candidates=%d applied=%t", verb, msg.GetScenario(), len(msg.GetCandidates()), msg.GetApplied()),
+			},
+			ResultsHeading: "Candidates",
+			Results:        results,
+		}
+	}
+}
+
+func fixResults(msg *scenariovalidationv1.FixResponse) []string {
 	results := make([]string, 0, len(msg.GetCandidates())+len(msg.GetMessages()))
 	for _, candidate := range msg.GetCandidates() {
 		state := "preview"
@@ -110,13 +135,7 @@ func (h *handlers) fix(ctx cliapp.RunContext, apply bool) error {
 	for _, message := range msg.GetMessages() {
 		results = append(results, message)
 	}
-	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
-		Summary: []string{
-			fmt.Sprintf("%s %s - candidates=%d applied=%t", verb, msg.GetScenario(), len(msg.GetCandidates()), msg.GetApplied()),
-		},
-		ResultsHeading: "Candidates",
-		Results:        results,
-	})
+	return results
 }
 
 func statusLabel(status scenariovalidationv1.ValidationStatus) string {

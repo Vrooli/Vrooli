@@ -39,6 +39,22 @@ WORKSPACE_SANDBOX_HOME_OVERLAY_BASE=/var/cache/wsbox-home make start
 [CODE: `api/internal/config/config.go::ResolveHomeOverlayBaseDir`] •
 [CODE: `api/internal/driver/helpers.go::mountHomeOverlay`]
 
+## Cleanup-manager owner hook
+
+Workspace-sandbox owns sandbox-private deletion semantics: unmounting,
+orphan cleanup, blob rollback, apply-on-terminal cleanup, and driver-specific
+upper/work/merged directory handling. Cleanup-manager must not crawl these
+private directories directly.
+
+Cleanup-manager registers the disabled-by-default
+`workspace-sandbox-retention` owner-scenario provider. When an owner client is
+wired and the provider is enabled with owner approval, cleanup-manager records
+policy, preview, approval, idempotency, and audit, then delegates
+Estimate/Preview/Apply to workspace-sandbox through a scenario-owned CLI/API.
+If cleanup-manager is unavailable, workspace-sandbox continues its internal
+lifecycle cleanup and reports disk usage through its own metrics; there is no
+circular startup dependency.
+
 ## Portable launcher (REQUIRED)
 
 The default driver is **kernel overlayfs in an unprivileged user

@@ -3,7 +3,7 @@
 // classifier/reranker availability.
 //
 // The command-line shape is declared in cli/manifest.json (the single source of
-// truth) and loaded via cliapp.LoadFromManifest; the handler lives in
+// truth) and loaded via cliapp.LoadFromManifestPrimitives; the handler lives in
 // handlers.go. The status verb is the group default so `search-hub federation`
 // is shorthand for `search-hub federation status`.
 //
@@ -26,10 +26,10 @@ const GroupName = "federation"
 // and wires the RoutingService.Status binding to the handler in handlers.go.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"RoutingService.Status": h.status,
+	bindings := map[string]cliapp.PrimitiveHandler{
+		"RoutingService.Status": cliapp.ProtoList(h.statusCall, h.statusReport),
 	}
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("federation: load from manifest: %w", err)
 	}

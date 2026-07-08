@@ -32,22 +32,24 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 // metrics phase exists to answer: is federation actually used, where is it
 // under-used (registered-but-never-routed leaves), and how often do queries come
 // back empty.
-func (h *handlers) insights(ctx cliapp.RunContext) error {
+func (h *handlers) insightsCall(ctx cliapp.OperationContext) (*metricsv1.InsightsResponse, error) {
 	window := parseWindow(ctx.Flag("window"))
 
 	resp, err := h.client.Insights(context.Background(), connect.NewRequest(&metricsv1.InsightsRequest{
 		WindowDays: window,
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("insights", err, nil)
+		return nil, cliapp.WrapAPIError("insights", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no insights response")
+		return nil, fmt.Errorf("server returned no insights response")
 	}
-	msg := resp.Msg
+	return resp.Msg, nil
+}
 
+func (h *handlers) insightsReport(ctx cliapp.OperationContext, msg *metricsv1.InsightsResponse) cliapp.ListReport {
 	scope := "all-time"
-	if window > 0 {
+	if window := parseWindow(ctx.Flag("window")); window > 0 {
 		scope = fmt.Sprintf("last %d day(s)", window)
 	}
 
@@ -58,7 +60,7 @@ func (h *handlers) insights(ctx cliapp.RunContext) error {
 		fmt.Sprintf("Latency: p50 %dms, p95 %dms.", msg.GetLatencyP50Ms(), msg.GetLatencyP95Ms()),
 	}
 
-	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
+	return cliapp.ListReport{
 		Summary:        summary,
 		ResultsHeading: "Per-provider utilization",
 		Results:        renderUtilization(msg.GetProviders()),
@@ -67,7 +69,7 @@ func (h *handlers) insights(ctx cliapp.RunContext) error {
 			"`federation` — live provider reachability + model availability",
 			"under-utilized leaves are registered but never routed-to — check their description",
 		},
-	})
+	}
 }
 
 // renderUtilization lists each provider's routed/hit totals, flagging the

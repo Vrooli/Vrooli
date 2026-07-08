@@ -41,6 +41,9 @@
         "measure_field": "measure",
         "score_scale": "SCORE_SCALE_COSINE_0_1"
       },
+      "performance": {
+        "p95_ms": 20000
+      },
       "tuning": {
         "engine": "dense",
         "embed_model": "nomic-embed-text",
