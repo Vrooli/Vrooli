@@ -2,6 +2,7 @@ package components
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"connectrpc.com/connect"
@@ -205,6 +206,18 @@ func (h *connectHandler) ListDesignStyles(ctx context.Context, req *connect.Requ
 	return connect.NewResponse(resp), nil
 }
 
+func (h *connectHandler) ValidateStyleFit(ctx context.Context, req *connect.Request[componentsv1.ValidateStyleFitRequest]) (*connect.Response[componentsv1.ValidateStyleFitResponse], error) {
+	verdict, err := h.deps.Service.ValidateStyleFit(ctx, req.Msg.ComponentId, req.Msg.Version, req.Msg.Scenario)
+	if err != nil {
+		connectErr := components.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("components.ValidateStyleFit(%q, %q, %q): %v", req.Msg.ComponentId, req.Msg.Version, req.Msg.Scenario, err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(styleFitVerdictToProto(verdict)), nil
+}
+
 func (h *connectHandler) GetComponentVersionContent(ctx context.Context, req *connect.Request[componentsv1.GetComponentVersionContentRequest]) (*connect.Response[componentsv1.GetComponentVersionContentResponse], error) {
 	v, err := h.deps.Service.GetVersion(ctx, req.Msg.ComponentId, req.Msg.Version)
 	if err != nil {
@@ -252,6 +265,9 @@ func (h *connectHandler) IndexComponents(ctx context.Context, _ *connect.Request
 	for _, e := range res.Errors {
 		errs = append(errs, e.Error())
 	}
+	for _, finding := range res.Findings {
+		errs = append(errs, formatIndexFinding(finding))
+	}
 	return connect.NewResponse(&componentsv1.IndexComponentsResponse{
 		Scanned:    int32(res.Scanned),
 		Indexed:    int32(res.Indexed),
@@ -260,6 +276,13 @@ func (h *connectHandler) IndexComponents(ctx context.Context, _ *connect.Request
 		Errors:     errs,
 		LibraryIds: append([]string(nil), res.LibraryIDs...),
 	}), nil
+}
+
+func formatIndexFinding(finding components.IndexFinding) string {
+	if finding.Detail != "" {
+		return fmt.Sprintf("finding:%s:%s:%s", finding.Kind, finding.SourcePath, finding.Detail)
+	}
+	return fmt.Sprintf("finding:%s:%s:%s expected %q got %q", finding.Kind, finding.SourcePath, finding.Field, finding.Expected, finding.Actual)
 }
 
 func protoIntentToDomain(intent componentsv1.ComponentVersionIntent) components.VersionIntent {

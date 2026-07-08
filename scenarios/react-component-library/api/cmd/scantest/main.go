@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+
 	"react-component-library/internal/uimanifest"
 )
 

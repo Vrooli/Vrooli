@@ -48,6 +48,7 @@ func designAffinitiesToProto(in []components.ComponentDesignAffinity) []*compone
 		out = append(out, &componentsv1.ComponentDesignAffinity{
 			StyleId:  affinity.StyleID,
 			Affinity: designAffinityToProto(affinity.Affinity),
+			Reason:   affinity.Reason,
 		})
 	}
 	return out
@@ -63,6 +64,31 @@ func designAffinityToProto(affinity components.DesignAffinity) componentsv1.Desi
 		return componentsv1.DesignAffinity_DESIGN_AFFINITY_DISCOURAGED
 	default:
 		return componentsv1.DesignAffinity_DESIGN_AFFINITY_UNSPECIFIED
+	}
+}
+
+func styleFitVerdictToProto(v components.StyleFitVerdict) *componentsv1.ValidateStyleFitResponse {
+	return &componentsv1.ValidateStyleFitResponse{
+		Kind:          styleFitVerdictKindToProto(v.Kind),
+		ComponentId:   v.ComponentID,
+		Version:       v.Version,
+		Scenario:      v.Scenario,
+		ScenarioStyle: v.ScenarioStyle,
+		Affinity:      designAffinityToProto(v.Affinity),
+		Detail:        v.Detail,
+	}
+}
+
+func styleFitVerdictKindToProto(kind components.StyleFitVerdictKind) componentsv1.StyleFitVerdictKind {
+	switch kind {
+	case components.StyleFitVerdictOK:
+		return componentsv1.StyleFitVerdictKind_STYLE_FIT_VERDICT_KIND_OK
+	case components.StyleFitVerdictInfo:
+		return componentsv1.StyleFitVerdictKind_STYLE_FIT_VERDICT_KIND_INFO
+	case components.StyleFitVerdictWarn:
+		return componentsv1.StyleFitVerdictKind_STYLE_FIT_VERDICT_KIND_WARN
+	default:
+		return componentsv1.StyleFitVerdictKind_STYLE_FIT_VERDICT_KIND_UNSPECIFIED
 	}
 }
 

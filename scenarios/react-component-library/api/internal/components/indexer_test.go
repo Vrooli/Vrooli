@@ -32,7 +32,7 @@ export const Card = () => null;
 
 func TestIndexer_RunWalksAndUpserts(t *testing.T) {
 	fs := fstest.MapFS{
-		"components/Button/component.json":            {Data: []byte(manifestWithStyles("react-component-library:Button", "Button", `["form","interactive"]`, `[{"styleId":"vrooli-default","affinity":"native"},{"styleId":"vrooli-conversion-landing","affinity":"discouraged"}]`))},
+		"components/Button/component.json":            {Data: []byte(manifestWithStyles("react-component-library:Button", "Button", `["form","interactive"]`, `[{"styleId":"vrooli-default","affinity":"native","reason":"token-native baseline"},{"styleId":"vrooli-conversion-landing","affinity":"discouraged"}]`))},
 		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(buttonTSX)},
 		"components/Card/component.json":              {Data: []byte(manifest("react-component-library:Card", "Card", `["layout","container"]`))},
 		"components/Card/versions/1.0.0/Card.tsx":     {Data: []byte(cardTSX)},
@@ -52,15 +52,16 @@ func TestIndexer_RunWalksAndUpserts(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "Button", got.DisplayName)
 	require.Equal(t, "ui-primitive", got.Slot)
+	require.Equal(t, "controls", got.Category)
 	require.Equal(t, "1.0.0", got.Version)
 	require.Equal(t, []string{"form", "interactive"}, got.Tags)
 	require.Equal(t, "components/Button/versions/1.0.0/Button.tsx", got.SourcePath)
-	require.Equal(t, "controls", got.Headers["category"])
 	require.Equal(t, "DO NOT REMOVE THIS HEADER", got.Headers["warning"])
 	require.NotContains(t, got.Headers, "libraryId")
 	require.NotContains(t, got.Headers, "version")
+	require.NotContains(t, got.Headers, "category")
 	require.Equal(t, []components.ComponentDesignAffinity{
-		{StyleID: "vrooli-default", Affinity: components.DesignAffinityNative},
+		{StyleID: "vrooli-default", Affinity: components.DesignAffinityNative, Reason: "token-native baseline"},
 		{StyleID: "vrooli-conversion-landing", Affinity: components.DesignAffinityDiscouraged},
 	}, got.DesignStyles)
 
@@ -69,9 +70,72 @@ func TestIndexer_RunWalksAndUpserts(t *testing.T) {
 	require.Equal(t, []string{"layout", "container"}, got2.Tags)
 }
 
-func TestIndexer_RunReportsUnknownDesignStyle(t *testing.T) {
+func TestIndexer_RunReportsInvalidSlot(t *testing.T) {
+	fs := fstest.MapFS{
+		"components/Button/component.json":            {Data: []byte(`{"libraryId":"react-component-library:Button","displayName":"Button","description":"","slot":"marketing-hero","tags":[],"latest":"1.0.0","deprecatedVersions":[]}`)},
+		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(buttonTSX)},
+	}
+	repo := mocks.NewFakeRepository()
+	idx := components.NewIndexer(repo, ".", fs)
+
+	res, err := idx.Run(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 0, res.Indexed)
+	require.Len(t, res.Errors, 1)
+	var hdr components.ErrInvalidHeader
+	require.True(t, errors.As(res.Errors[0], &hdr), "got %T", res.Errors[0])
+	require.Equal(t, "slot", hdr.Field)
+	require.Contains(t, hdr.Reason, "marketing-hero")
+}
+
+func TestIndexer_RunFindsHeaderStatusDisagreementWithoutRejecting(t *testing.T) {
+	tsx := `/**
+ * @libraryId react-component-library:Button
+ * @version 1.0.0
+ * @status deprecated
+ */
+export const Button = () => null;
+`
+	fs := fstest.MapFS{
+		"components/Button/component.json":            {Data: []byte(manifest("react-component-library:Button", "Button", `[]`))},
+		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(tsx)},
+	}
+	repo := mocks.NewFakeRepository()
+	idx := components.NewIndexer(repo, ".", fs)
+
+	res, err := idx.Run(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 1, res.Indexed)
+	require.Empty(t, res.Errors)
+	require.Len(t, res.Findings, 1)
+	require.Equal(t, components.IndexFindingHeaderDisagreement, res.Findings[0].Kind)
+	require.Equal(t, "status", res.Findings[0].Field)
+	require.Equal(t, "released", res.Findings[0].Expected)
+	require.Equal(t, "deprecated", res.Findings[0].Actual)
+}
+
+func TestIndexer_RunFlagsUnknownDesignStyleWithoutRejecting(t *testing.T) {
 	fs := fstest.MapFS{
 		"components/Button/component.json":            {Data: []byte(manifestWithStyles("react-component-library:Button", "Button", `[]`, `[{"styleId":"missing-style","affinity":"native"}]`))},
+		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(buttonTSX)},
+	}
+	repo := mocks.NewFakeRepository()
+	idx := components.NewIndexer(repo, ".", fs)
+
+	res, err := idx.Run(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 1, res.Indexed)
+	require.Empty(t, res.Errors)
+	require.Len(t, res.Findings, 1)
+	require.Equal(t, components.IndexFindingStaleDesignStyle, res.Findings[0].Kind)
+	require.Equal(t, "designStyles", res.Findings[0].Field)
+	require.Equal(t, "missing-style", res.Findings[0].Actual)
+	require.Contains(t, res.Findings[0].Detail, "missing-style")
+}
+
+func TestIndexer_RunReportsInvalidDesignAffinity(t *testing.T) {
+	fs := fstest.MapFS{
+		"components/Button/component.json":            {Data: []byte(manifestWithStyles("react-component-library:Button", "Button", `[]`, `[{"styleId":"vrooli-default","affinity":"bespoke"}]`))},
 		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(buttonTSX)},
 	}
 	repo := mocks.NewFakeRepository()
@@ -84,7 +148,8 @@ func TestIndexer_RunReportsUnknownDesignStyle(t *testing.T) {
 	var hdr components.ErrInvalidHeader
 	require.True(t, errors.As(res.Errors[0], &hdr), "got %T", res.Errors[0])
 	require.Equal(t, "designStyles", hdr.Field)
-	require.Contains(t, hdr.Reason, "missing-style")
+	require.Contains(t, hdr.Reason, "invalid affinity")
+	require.Contains(t, hdr.Reason, "bespoke")
 }
 
 func TestIndexer_RunReportsMalformedHeaderErrors(t *testing.T) {

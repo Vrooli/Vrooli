@@ -17,7 +17,9 @@ This document maps the product capability boundaries for the scenario.
 ## Domain Notes
 
 - `components` owns manifest parsing and indexing. Source headers are
-  validation hints; `component.json` is authoritative.
+  validation hints; `component.json` is authoritative for manifest
+  fields and the latest-version `@category` hint is promoted into a
+  typed registry column.
 - `adoptions` owns filesystem writes to peer scenarios. Apply copies
   full source plus provenance; reapply requires confirmation when local
   edits are detected.

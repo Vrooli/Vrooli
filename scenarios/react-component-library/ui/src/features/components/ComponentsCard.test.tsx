@@ -101,7 +101,7 @@ describe("ComponentsCard", () => {
     expect(versions[1]).toContain("0.4.0");
 
     const slots = screen.getAllByTestId(selectors.components.itemSlot).map((n) => n.textContent);
-    expect(slots).toEqual(["slot=ui-primitive", "slot=ui-pattern"]);
+    expect(slots).toEqual(["Slot: ui-primitive", "Slot: ui-pattern"]);
 
     const styles = screen.getAllByTestId(selectors.components.itemDesignStyles).map((n) => n.textContent);
     expect(styles[0]).toContain("vrooli-default:native");

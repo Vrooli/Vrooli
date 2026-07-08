@@ -80,3 +80,26 @@ The stashed `/tmp/react-component-library-pre-rewrite-2026-05-12/`
 tree shipped a placeholder HTML preview, so there's nothing to lift.
 The behavioral lesson is that "iframe with text content" is not a
 preview — execution has to be real or the feature has no value.
+
+## Preview runtime range handling (2026-07-08)
+
+Phase 5 diagnosis confirmed the first preview-runtime inconsistency:
+the harness bundled component TSX as ESM but then discarded every
+declared dependency whose name started with `react`, installing a
+fixed React/ReactDOM 18.3.1 import map instead. A component declaring
+React 17 therefore transformed successfully, but the iframe executed
+against React 18 at runtime.
+
+The fix keeps a supported preview-runtime candidate list and resolves
+declared `react` / `react-dom` ranges to the newest satisfying
+candidate. When a React runtime range is unresolvable, the harness
+keeps the default 18.3.1 mapping and renders an in-iframe import-map
+diagnostic rather than silently previewing with an unexplained pin.
+
+The follow-up offline/degraded-path diagnosis found a second blank-pane
+cause: top-level static imports from `react-dom/client` and the inlined
+component module can fail before harness code reaches its render
+`try/catch`. The harness now dynamically imports `react`,
+`react-dom/client`, and the data-URL component module inside a single
+guarded block. CDN or module-resolution failures therefore write a
+visible `preview: render failed` diagnostic into `#preview-error`.

@@ -57,6 +57,23 @@
           "notes": "Handler test asserts harness route returns 200 with the expected origin; UI test asserts iframe sandbox attribute string."
         }
       ]
+    },
+    {
+      "id": "PR-004",
+      "title": "Preview runtime honors declared React ranges",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
+      "category": "preview",
+      "criticality": "P0",
+      "description": "The preview harness resolves declared `react` and `react-dom` dependency ranges to the newest supported runtime candidate instead of hard-pinning every component to React 18.3.1. Unresolvable runtime ranges keep the default runtime and surface an in-iframe import-map diagnostic. Runtime imports are guarded with dynamic imports so CDN/module failures render in `#preview-error` instead of leaving a blank iframe.",
+      "tags": ["preview", "react", "dependencies"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "api/internal/deps/semver_test.go covers range-to-latest resolution for wildcard, caret, tilde, comparator, compound, exact, missing, and unparseable ranges. api/handlers/preview/static_test.go verifies React 17 declarations produce React/ReactDOM 17 import-map URLs, unresolvable React ranges render diagnostics while falling back to the default runtime, and runtime/component import failures are inside a catchable dynamic-import path."
+        }
+      ]
     }
   ]
 }

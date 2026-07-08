@@ -98,7 +98,9 @@ describe("ComponentDetailPage", () => {
   });
 
   it("renders an error when the component lookup returns no component", async () => {
-    vi.mocked(componentsClient.getComponent).mockResolvedValueOnce({});
+    vi.mocked(componentsClient.getComponent).mockResolvedValueOnce(
+      {} as Awaited<ReturnType<typeof componentsClient.getComponent>>,
+    );
 
     renderWithProviders(
       <Routes>

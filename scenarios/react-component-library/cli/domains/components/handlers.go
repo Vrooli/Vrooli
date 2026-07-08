@@ -160,6 +160,31 @@ func (h *handlers) styles(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) validateStyleFit(ctx cliapp.RunContext) error {
+	componentID := ctx.Positional("component-id")
+	scenario := ctx.Positional("scenario")
+	resp, err := h.client.ValidateStyleFit(context.Background(), connect.NewRequest(&componentsv1.ValidateStyleFitRequest{
+		ComponentId: componentID,
+		Scenario:    scenario,
+		Version:     ctx.Flag("version"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("validate style fit for component %q in scenario %q", componentID, scenario), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no style-fit response")
+	}
+	results := []string{formatStyleFitVerdict(resp.Msg)}
+	if strings.TrimSpace(resp.Msg.Detail) != "" {
+		results = append(results, resp.Msg.Detail)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Style fit is %s for scenario %s.", formatStyleFitKind(resp.Msg.Kind), resp.Msg.Scenario)},
+		ResultsHeading: "Style fit",
+		Results:        results,
+	})
+}
+
 func (h *handlers) init(ctx cliapp.RunContext) error {
 	req := &componentsv1.InitializeComponentRequest{
 		Slug:           ctx.Positional("slug"),
@@ -432,6 +457,35 @@ func formatDesignAffinity(affinity componentsv1.DesignAffinity) string {
 	default:
 		return "unspecified"
 	}
+}
+
+func formatStyleFitKind(kind componentsv1.StyleFitVerdictKind) string {
+	switch kind {
+	case componentsv1.StyleFitVerdictKind_STYLE_FIT_VERDICT_KIND_OK:
+		return "ok"
+	case componentsv1.StyleFitVerdictKind_STYLE_FIT_VERDICT_KIND_INFO:
+		return "info"
+	case componentsv1.StyleFitVerdictKind_STYLE_FIT_VERDICT_KIND_WARN:
+		return "warn"
+	default:
+		return "unspecified"
+	}
+}
+
+func formatStyleFitVerdict(v *componentsv1.ValidateStyleFitResponse) string {
+	if v == nil {
+		return "(nil)"
+	}
+	version := ""
+	if v.Version != "" {
+		version = " version=" + v.Version
+	}
+	affinity := formatDesignAffinity(v.Affinity)
+	if affinity == "unspecified" {
+		affinity = "none"
+	}
+	return fmt.Sprintf("%s scenario=%s style=%s component=%s%s affinity=%s",
+		formatStyleFitKind(v.Kind), v.Scenario, v.ScenarioStyle, v.ComponentId, version, affinity)
 }
 
 func formatVersion(v *componentsv1.ComponentVersion) string {

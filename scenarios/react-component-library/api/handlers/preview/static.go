@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"react-component-library/internal/components"
+	internaldeps "react-component-library/internal/deps"
 	"react-component-library/internal/preview"
 )
 
@@ -21,10 +22,10 @@ func base64Encode(s string) string { return base64.StdEncoding.EncodeToString([]
 // React/ReactDOM pin used in the importmap the harness HTML carries.
 // Decision rationale and revisit triggers live in docs/RESEARCH.md.
 const (
-	reactPinESMSh    = "https://esm.sh/react@18.3.1?dev"
-	reactDOMPinESMSh = "https://esm.sh/react-dom@18.3.1?dev"
-	clientPinESMSh   = "https://esm.sh/react-dom@18.3.1/client?dev"
+	defaultReactRuntimeVersion = "18.3.1"
 )
+
+var reactRuntimeCandidates = []string{"16.14.0", "17.0.2", "18.2.0", "18.3.1", "19.0.0", "19.1.0"}
 
 // HarnessHandler serves the per-component HTML shell that the host UI
 // loads into the live-preview iframe. Inlines the transpiled module so
@@ -132,8 +133,7 @@ func renderHarnessHTML(id string, b preview.Bundle) string {
 	sb.WriteString(`
 <div id="preview-error" hidden></div>
 <script type="module">
-import { createRoot } from "react-dom/client";
-import * as Mod from "data:text/javascript;base64,`)
+const componentModuleURL = "data:text/javascript;base64,`)
 	// Embedded module loaded as a data: URL keeps everything on one
 	// request and dodges any need for a second fetch. Base64 is safe
 	// for the full ESM payload including non-ASCII characters.
@@ -302,20 +302,24 @@ window.addEventListener("message", (ev) => {
   // Announce capability so the host knows the harness supports inspect.
   post({ v: 1, t: "HELLO", caps: ["inspect"] });
 })();
-const Cmp = Mod.default ?? Mod[Object.keys(Mod).find(k => typeof Mod[k] === "function")] ?? null;
 const errEl = document.getElementById("preview-error");
-if (!Cmp) {
-  errEl.hidden = false;
-  errEl.textContent = "preview: component file exports neither a default nor a callable named export";
-} else {
-  try {
-    const React = await import("react");
+try {
+  const [{ createRoot }, Mod, React] = await Promise.all([
+    import("react-dom/client"),
+    import(componentModuleURL),
+    import("react"),
+  ]);
+  const Cmp = Mod.default ?? Mod[Object.keys(Mod).find(k => typeof Mod[k] === "function")] ?? null;
+  if (!Cmp) {
+    errEl.hidden = false;
+    errEl.textContent = "preview: component file exports neither a default nor a callable named export";
+  } else {
     createRoot(document.getElementById("root")).render(React.createElement(Cmp));
     parent.postMessage({ type: "preview-ready", id: ` + jsString(id) + `, sha256: ` + jsString(b.SHA256) + ` }, "*");
-  } catch (e) {
-    errEl.hidden = false;
-    errEl.textContent = "preview: render failed — " + (e && e.stack || e);
   }
+} catch (e) {
+  errEl.hidden = false;
+  errEl.textContent = "preview: render failed - " + (e && e.stack || e);
 }
 
 </script>
@@ -326,17 +330,17 @@ if (!Cmp) {
 }
 
 func buildImportMapJSON(b preview.Bundle) (string, []string) {
+	reactVersion, reactDOMVersion, warnings := resolveReactRuntimeVersions(b.Dependencies)
 	imports := map[string]string{
-		"react":                 reactPinESMSh,
-		"react/jsx-runtime":     "https://esm.sh/react@18.3.1/jsx-runtime?dev",
-		"react/jsx-dev-runtime": "https://esm.sh/react@18.3.1/jsx-dev-runtime?dev",
-		"react-dom":             reactDOMPinESMSh,
-		"react-dom/client":      clientPinESMSh,
+		"react":                 esmURL("react", reactVersion, ""),
+		"react/jsx-runtime":     esmURL("react", reactVersion, "jsx-runtime"),
+		"react/jsx-dev-runtime": esmURL("react", reactVersion, "jsx-dev-runtime"),
+		"react-dom":             esmURL("react-dom", reactDOMVersion, ""),
+		"react-dom/client":      esmURL("react-dom", reactDOMVersion, "client"),
 	}
-	var warnings []string
 	for _, d := range b.Dependencies {
 		name := strings.TrimSpace(d.DepName)
-		if name == "" || strings.HasPrefix(name, "react") {
+		if name == "" || isReactRuntimeDep(name) {
 			continue
 		}
 		version, ok := esmVersionFromRange(d.VersionRange)
@@ -351,6 +355,46 @@ func buildImportMapJSON(b preview.Bundle) (string, []string) {
 		return `{"imports":{}}`, append(warnings, "preview: failed to encode importmap: "+err.Error())
 	}
 	return string(raw), warnings
+}
+
+func resolveReactRuntimeVersions(declarations []internaldeps.Declaration) (string, string, []string) {
+	reactVersion := defaultReactRuntimeVersion
+	reactDOMVersion := ""
+	var warnings []string
+	for _, d := range declarations {
+		name := strings.TrimSpace(d.DepName)
+		switch name {
+		case "react":
+			version, ok := internaldeps.ResolveRangeToLatest(d.VersionRange, reactRuntimeCandidates)
+			if !ok {
+				warnings = append(warnings, fmt.Sprintf("preview: cannot pin dependency %q from range %q", name, d.VersionRange))
+				continue
+			}
+			reactVersion = version
+		case "react-dom":
+			version, ok := internaldeps.ResolveRangeToLatest(d.VersionRange, reactRuntimeCandidates)
+			if !ok {
+				warnings = append(warnings, fmt.Sprintf("preview: cannot pin dependency %q from range %q", name, d.VersionRange))
+				continue
+			}
+			reactDOMVersion = version
+		}
+	}
+	if reactDOMVersion == "" {
+		reactDOMVersion = reactVersion
+	}
+	return reactVersion, reactDOMVersion, warnings
+}
+
+func isReactRuntimeDep(name string) bool {
+	return name == "react" || name == "react-dom" || strings.HasPrefix(name, "react/")
+}
+
+func esmURL(name, version, subpath string) string {
+	if subpath != "" {
+		return "https://esm.sh/" + name + "@" + version + "/" + subpath + "?dev"
+	}
+	return "https://esm.sh/" + name + "@" + version + "?dev"
 }
 
 func esmVersionFromRange(raw string) (string, bool) {

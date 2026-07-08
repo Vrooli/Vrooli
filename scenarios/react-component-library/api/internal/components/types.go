@@ -32,6 +32,7 @@ type Component struct {
 	DisplayName   string
 	Description   string
 	Slot          string
+	Category      string
 	SourcePath    string
 	Version       string
 	LatestVersion string
@@ -80,6 +81,7 @@ type ComponentManifest struct {
 	DisplayName        string
 	Description        string
 	Slot               string
+	Category           string
 	ManifestPath       string
 	LatestVersion      string
 	DraftVersion       string
@@ -97,6 +99,7 @@ type UpsertInput struct {
 	DisplayName   string
 	Description   string
 	Slot          string
+	Category      string
 	ManifestPath  string
 	SourcePath    string
 	Version       string
@@ -113,6 +116,7 @@ type IndexManifestInput struct {
 	Manifest ComponentManifest
 	Versions []ComponentVersion
 	Headers  map[string]string
+	Findings []IndexFinding
 }
 
 type DesignAffinity string
@@ -126,6 +130,49 @@ const (
 type ComponentDesignAffinity struct {
 	StyleID  string
 	Affinity DesignAffinity
+	Reason   string
+}
+
+type StyleFitVerdictKind string
+
+const (
+	StyleFitVerdictOK   StyleFitVerdictKind = "ok"
+	StyleFitVerdictInfo StyleFitVerdictKind = "info"
+	StyleFitVerdictWarn StyleFitVerdictKind = "warn"
+)
+
+type StyleFitVerdict struct {
+	Kind          StyleFitVerdictKind
+	ComponentID   string
+	Version       string
+	Scenario      string
+	ScenarioStyle string
+	Affinity      DesignAffinity
+	Detail        string
+}
+
+type ComponentSlot string
+
+const (
+	ComponentSlotUIPrimitive ComponentSlot = "ui-primitive"
+	ComponentSlotUIPattern   ComponentSlot = "ui-pattern"
+	ComponentSlotLayoutNav   ComponentSlot = "layout-nav"
+)
+
+type IndexFindingKind string
+
+const (
+	IndexFindingHeaderDisagreement IndexFindingKind = "header_disagreement"
+	IndexFindingStaleDesignStyle   IndexFindingKind = "stale_design_style"
+)
+
+type IndexFinding struct {
+	Kind       IndexFindingKind
+	SourcePath string
+	Field      string
+	Expected   string
+	Actual     string
+	Detail     string
 }
 
 // SearchQuery filters a List call. All fields optional.

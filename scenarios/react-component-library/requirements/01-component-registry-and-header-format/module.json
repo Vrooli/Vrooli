@@ -65,30 +65,30 @@
       "prd_ref": "OT-P0-001",
       "category": "registry",
       "criticality": "P0",
-      "description": "The manifest indexer parses component.json `slot` and optional `designStyles[]` declarations, validates style ids against templates/design metadata, persists slot on `components`, and persists affinity rows in `component_design_affinities`.",
+      "description": "The manifest indexer parses component.json `slot` and optional `designStyles[]` declarations, validates slot and affinity enums, validates style ids against templates/design metadata, persists slot on `components`, and persists affinity rows plus optional rationale in `component_design_affinities`.",
       "tags": ["registry", "slot", "design-styles", "sqlite"],
       "validation": [
         {
           "type": "automated",
           "status": "complete",
-          "notes": "api/internal/components/indexer_test.go covers valid style affinity parsing and unknown style-id rejection; sqlite_test.go covers affinity persistence and style/affinity search."
+          "notes": "api/internal/components/indexer_test.go covers valid style affinity parsing, invalid affinity rejection, invalid slot rejection, and unknown style-id rejection; sqlite_test.go covers affinity rationale persistence and style/affinity search."
         }
       ]
     },
     {
       "id": "CR-005",
-      "title": "Latest-version non-structural headers populate component_headers",
+      "title": "Latest-version headers populate typed facets and non-structural component_headers",
       "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "registry",
       "criticality": "P1",
-      "description": "Indexing stores latest-version JSDoc header metadata in `component_headers` while excluding structural fields already persisted elsewhere (`libraryId`, `version`, and `deps`). Category search is backed by this table.",
+      "description": "Indexing stores latest-version JSDoc header metadata in `component_headers` while excluding structural fields already persisted elsewhere (`libraryId`, `version`, `deps`, and `category`). Category search is backed by the typed `components.category` column.",
       "tags": ["registry", "headers", "search"],
       "validation": [
         {
           "type": "automated",
           "status": "complete",
-          "notes": "api/internal/components/sqlite_test.go::TestSQLiteRepository_UpsertManifestPersistsLatestHeadersForCategoryFacet verifies header sync, structural-field exclusion, and category filtering."
+          "notes": "api/internal/components/sqlite_test.go::TestSQLiteRepository_UpsertManifestPersistsLatestHeadersForCategoryFacet verifies header sync, structural-field exclusion, typed category promotion, and category filtering."
         }
       ]
     }

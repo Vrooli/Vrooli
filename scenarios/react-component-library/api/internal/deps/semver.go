@@ -2,6 +2,7 @@ package deps
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -160,4 +161,84 @@ func compareSemver(a, b semver) int {
 		return 1
 	}
 	return 0
+}
+
+// ResolveRangeToLatest returns the newest candidate version satisfying
+// the declared range grammar used by dependency declarations. Candidates
+// are plain semver versions; invalid candidates are ignored.
+func ResolveRangeToLatest(declaredRange string, candidates []string) (string, bool) {
+	parsed := make([]struct {
+		raw string
+		ver semver
+	}, 0, len(candidates))
+	for _, c := range candidates {
+		v, err := parseVersion(c)
+		if err != nil {
+			continue
+		}
+		parsed = append(parsed, struct {
+			raw string
+			ver semver
+		}{raw: c, ver: v})
+	}
+	sort.Slice(parsed, func(i, j int) bool {
+		return compareSemver(parsed[i].ver, parsed[j].ver) > 0
+	})
+	for _, c := range parsed {
+		if rangeAllows(declaredRange, c.ver) {
+			return c.raw, true
+		}
+	}
+	return "", false
+}
+
+func rangeAllows(declaredRange string, candidate semver) bool {
+	declaredRange = strings.TrimSpace(declaredRange)
+	if declaredRange == "" || declaredRange == "*" {
+		return true
+	}
+	if strings.Contains(declaredRange, "||") {
+		return false
+	}
+	parts := strings.Fields(declaredRange)
+	if len(parts) > 1 {
+		for _, p := range parts {
+			if !rangeAllows(p, candidate) {
+				return false
+			}
+		}
+		return true
+	}
+	switch {
+	case strings.HasPrefix(declaredRange, "^"):
+		want, err := parseVersion(strings.TrimPrefix(declaredRange, "^"))
+		if err != nil {
+			return false
+		}
+		return candidate.major == want.major && compareSemver(candidate, want) >= 0
+	case strings.HasPrefix(declaredRange, "~"):
+		want, err := parseVersion(strings.TrimPrefix(declaredRange, "~"))
+		if err != nil {
+			return false
+		}
+		return candidate.major == want.major && candidate.minor == want.minor && compareSemver(candidate, want) >= 0
+	case strings.HasPrefix(declaredRange, ">="):
+		want, err := parseVersion(strings.TrimPrefix(declaredRange, ">="))
+		return err == nil && compareSemver(candidate, want) >= 0
+	case strings.HasPrefix(declaredRange, ">"):
+		want, err := parseVersion(strings.TrimPrefix(declaredRange, ">"))
+		return err == nil && compareSemver(candidate, want) > 0
+	case strings.HasPrefix(declaredRange, "<="):
+		want, err := parseVersion(strings.TrimPrefix(declaredRange, "<="))
+		return err == nil && compareSemver(candidate, want) <= 0
+	case strings.HasPrefix(declaredRange, "<"):
+		want, err := parseVersion(strings.TrimPrefix(declaredRange, "<"))
+		return err == nil && compareSemver(candidate, want) < 0
+	case strings.HasPrefix(declaredRange, "="):
+		want, err := parseVersion(strings.TrimPrefix(declaredRange, "="))
+		return err == nil && compareSemver(candidate, want) == 0
+	default:
+		want, err := parseVersion(declaredRange)
+		return err == nil && compareSemver(candidate, want) == 0
+	}
 }

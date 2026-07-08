@@ -20,16 +20,34 @@ vi.mock("../../api/adoptions", async (importOriginal) => {
 
 vi.mock("../../api/deps", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/deps")>();
+  const proto = await import("@vrooli/proto-types/react-component-library/v1/deps/deps_pb");
   return {
     ...actual,
     depsClient: {
       validateAdoption: vi.fn().mockResolvedValue(
-        create(ValidateAdoptionResponseSchema, {
-          kind: VerdictKind.OK,
+        create(proto.ValidateAdoptionResponseSchema, {
+          kind: proto.VerdictKind.OK,
           issues: [],
         }),
       ),
       listDeclarations: vi.fn().mockResolvedValue({ declarations: [] }),
+    },
+  };
+});
+
+vi.mock("../../api/components", () => {
+  return {
+    DesignAffinity: { UNSPECIFIED: 0, NATIVE: 1, COMPATIBLE: 2, DISCOURAGED: 3 },
+    StyleFitVerdictKind: { UNSPECIFIED: 0, OK: 1, INFO: 2, WARN: 3 },
+    componentsClient: {
+      validateStyleFit: vi.fn().mockResolvedValue({
+        kind: 1,
+        componentId: "cmp-button",
+        scenario: "swarm-manager",
+        scenarioStyle: "vrooli-default",
+        affinity: 1,
+        detail: "native fit",
+      }),
     },
   };
 });
@@ -60,6 +78,7 @@ describe("CreateAdoptionDialog", () => {
 
   it("OK verdict enables confirm and creates the adoption", async () => {
     const { depsClient } = await import("../../api/deps");
+    const { componentsClient } = await import("../../api/components");
     const { adoptionsClient } = await import("../../api/adoptions");
     vi.mocked(depsClient.validateAdoption).mockResolvedValue(
       create(ValidateAdoptionResponseSchema, { kind: VerdictKind.OK, issues: [] }),
@@ -73,6 +92,16 @@ describe("CreateAdoptionDialog", () => {
     await waitFor(() => {
       const verdict = screen.getByTestId(selectors.adoptions.createVerdict);
       expect(verdict.getAttribute("data-verdict-kind")).toBe("ok");
+    });
+    await waitFor(() => {
+      const styleVerdict = screen.getByTestId(selectors.adoptions.createStyleVerdict);
+      expect(styleVerdict.getAttribute("data-verdict-kind")).toBe("ok");
+    });
+    const styleFitCalls = vi.mocked(componentsClient).validateStyleFit.mock.calls;
+    expect(styleFitCalls[styleFitCalls.length - 1]?.[0]).toEqual({
+      componentId: "cmp-button",
+      scenario: "swarm-manager",
+      version: "1.0.0",
     });
 
     const confirm = screen.getByTestId(selectors.adoptions.createConfirm);
@@ -183,6 +212,41 @@ describe("CreateAdoptionDialog", () => {
     });
     const confirm = screen.getByTestId(selectors.adoptions.createConfirm);
     expect(confirm).toBeDisabled();
+
+    await user.click(screen.getByTestId(selectors.adoptions.createVerdictAck));
+    expect(confirm).not.toBeDisabled();
+  });
+
+  it("style WARN verdict also requires ack before enabling confirm", async () => {
+    const { depsClient } = await import("../../api/deps");
+    const { componentsClient, DesignAffinity, StyleFitVerdictKind } = await import("../../api/components");
+    vi.mocked(depsClient.validateAdoption).mockResolvedValue(
+      create(ValidateAdoptionResponseSchema, { kind: VerdictKind.OK, issues: [] }),
+    );
+    vi.mocked(componentsClient).validateStyleFit.mockResolvedValue({
+      kind: StyleFitVerdictKind.WARN,
+      componentId: "cmp-button",
+      version: "1.0.0",
+      scenario: "swarm-manager",
+      scenarioStyle: "vrooli-default",
+      affinity: DesignAffinity.DISCOURAGED,
+      detail: "discouraged for dense operational tools",
+    });
+
+    const user = userEvent.setup();
+    renderWithProviders(<CreateAdoptionDialog open onClose={() => {}} />);
+    await fillRequired(user);
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId(selectors.adoptions.createStyleVerdict).getAttribute("data-verdict-kind"),
+      ).toBe("warn");
+    });
+    const confirm = screen.getByTestId(selectors.adoptions.createConfirm);
+    expect(confirm).toBeDisabled();
+    expect(screen.getByTestId(selectors.adoptions.createStyleVerdictDetail).textContent).toContain(
+      "discouraged",
+    );
 
     await user.click(screen.getByTestId(selectors.adoptions.createVerdictAck));
     expect(confirm).not.toBeDisabled();

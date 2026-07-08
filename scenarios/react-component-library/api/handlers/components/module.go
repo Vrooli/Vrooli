@@ -274,6 +274,32 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "components_style_fit_validate",
+		Path:        componentsconnect.ComponentsServiceValidateStyleFitProcedure,
+		Method:      "POST",
+		Summary:     "Validate component design-style fit",
+		Description: "Reads the target scenario's .vrooli/service.json generation.design.id and returns a style-fit verdict for the selected component version.",
+		Category:    "components",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{
+			"component_id": "string",
+			"scenario":     "string",
+			"version":      "string",
+		}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{
+			"kind":           "StyleFitVerdictKind",
+			"component_id":   "string",
+			"version":        "string",
+			"scenario":       "string",
+			"scenario_style": "string",
+			"affinity":       "DesignAffinity",
+			"detail":         "string",
+		}},
+		Errors: []module.ErrorDesc{
+			{Status: 404, Code: "not_found", Description: "No component or component version with that id/version"},
+			{Status: 500, Code: "internal", Description: "Scenario service.json read or parse failure"},
+		},
+	},
+	{
 		ID:          "components_manifest_update",
 		Path:        componentsconnect.ComponentsServiceUpdateComponentManifestProcedure,
 		Method:      "POST",

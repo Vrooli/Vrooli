@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS components (
   display_name  TEXT NOT NULL DEFAULT '',
   description   TEXT NOT NULL DEFAULT '',
   slot          TEXT NOT NULL DEFAULT '',
+  category      TEXT NOT NULL DEFAULT '',
   source_path   TEXT NOT NULL,
   version       TEXT NOT NULL DEFAULT '',
   latest_version TEXT NOT NULL DEFAULT '',
@@ -29,6 +30,9 @@ CREATE INDEX IF NOT EXISTS idx_components_indexed_at
 
 CREATE INDEX IF NOT EXISTS idx_components_display_name
   ON components(display_name);
+
+CREATE INDEX IF NOT EXISTS idx_components_category
+  ON components(category);
 
 -- Case-insensitive index supporting ORDER BY display_name COLLATE NOCASE,
 -- the path req SF-001 takes when a substring match is present. Required
@@ -68,6 +72,7 @@ CREATE TABLE IF NOT EXISTS component_design_affinities (
   component_id  TEXT NOT NULL,
   style_id      TEXT NOT NULL,
   affinity      TEXT NOT NULL,
+  reason        TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (component_id, style_id)
 );
 

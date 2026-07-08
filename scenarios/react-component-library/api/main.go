@@ -138,6 +138,9 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
+	if err := componentsInternal.EnsureSchemaMigrations(context.Background(), db); err != nil {
+		log.Fatalf("schema migration failed: %v", err)
+	}
 	if err := database.EnsureSchemas(context.Background(), db, modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
@@ -152,6 +155,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("adoptions scenarios root: %v", err)
 	}
+	componentsInternal.SetServiceJSONReader(componentsSvc, componentsInternal.NewFSServiceJSONReader(scenariosRoot))
 	adoptionsSvc, scenariosReader := adoptionsH.BuildService(db, clock.System{}, adoptionsH.LibraryFromComponents(componentsSvc), scenariosRoot)
 
 	// Install the swarm-manager drift reporter so Refresh files a

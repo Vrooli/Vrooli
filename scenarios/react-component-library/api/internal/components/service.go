@@ -3,6 +3,7 @@ package components
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -25,6 +26,7 @@ type Service interface {
 	GetVersionContent(ctx context.Context, componentID, version string) (Content, error)
 	ListDesignStyles(ctx context.Context) ([]DesignStyle, error)
 	ValidateDesignStyle(ctx context.Context, id string) error
+	ValidateStyleFit(ctx context.Context, componentID, version, scenario string) (StyleFitVerdict, error)
 	UpdateContent(ctx context.Context, id string, in WriteContentInput) (Content, error)
 	InitializeComponent(ctx context.Context, in InitializeComponentInput) (InitializeComponentResult, error)
 	CreateComponentVersion(ctx context.Context, in CreateComponentVersionInput) (CreateComponentVersionResult, error)
@@ -40,15 +42,27 @@ type ContentChangeListener interface {
 	OnContentSaved(ctx context.Context, c Component, content Content) error
 }
 
+// ServiceJSONReader is the target-scenario-tree seam ValidateStyleFit
+// uses to read .vrooli/service.json. Production walks the configured
+// scenarios root with a traversal guard; tests inject a fake.
+type ServiceJSONReader interface {
+	Read(ctx context.Context, scenario string) ([]byte, error)
+}
+
 type service struct {
 	repo     Repository
 	content  ContentStore
 	source   SourceStore
+	services ServiceJSONReader
 	listener ContentChangeListener
 }
 
 func NewService(repo Repository) Service {
 	return &service{repo: repo}
+}
+
+func NewServiceWithScenarioReader(repo Repository, services ServiceJSONReader) Service {
+	return &service{repo: repo, services: services}
 }
 
 // NewServiceWithContent wires the optional ContentStore seam. Read
@@ -69,6 +83,12 @@ func NewServiceWithContent(repo Repository, content ContentStore) Service {
 func SetContentChangeListener(svc Service, l ContentChangeListener) {
 	if s, ok := svc.(*service); ok {
 		s.listener = l
+	}
+}
+
+func SetServiceJSONReader(svc Service, reader ServiceJSONReader) {
+	if s, ok := svc.(*service); ok {
+		s.services = reader
 	}
 }
 
@@ -114,6 +134,65 @@ func (s *service) ListVersions(ctx context.Context, componentID string, limit in
 
 func (s *service) GetVersion(ctx context.Context, componentID, version string) (ComponentVersion, error) {
 	return s.repo.GetVersion(ctx, componentID, version)
+}
+
+func (s *service) ValidateStyleFit(ctx context.Context, componentID, version, scenario string) (StyleFitVerdict, error) {
+	cid := strings.TrimSpace(componentID)
+	if cid == "" {
+		return StyleFitVerdict{}, fmt.Errorf("component_id required")
+	}
+	scn := strings.TrimSpace(scenario)
+	if scn == "" {
+		return StyleFitVerdict{}, fmt.Errorf("scenario required")
+	}
+	if s.services == nil {
+		return StyleFitVerdict{}, fmt.Errorf("service.json reader not configured")
+	}
+
+	component, err := s.repo.Get(ctx, cid)
+	if err != nil {
+		return StyleFitVerdict{}, err
+	}
+	if strings.TrimSpace(version) != "" {
+		if _, err := s.repo.GetVersion(ctx, cid, strings.TrimSpace(version)); err != nil {
+			return StyleFitVerdict{}, err
+		}
+	}
+
+	styleID, err := readScenarioDesignStyle(ctx, s.services, scn)
+	if err != nil {
+		return StyleFitVerdict{}, err
+	}
+	out := StyleFitVerdict{
+		Kind:          StyleFitVerdictInfo,
+		ComponentID:   cid,
+		Version:       strings.TrimSpace(version),
+		Scenario:      scn,
+		ScenarioStyle: styleID,
+		Detail:        fmt.Sprintf("component %q declares no affinity for scenario design style %q", component.LibraryID, styleID),
+	}
+	if styleID == "" {
+		out.Kind = StyleFitVerdictWarn
+		out.Detail = fmt.Sprintf("scenario %q does not declare generation.design.id", scn)
+		return out, nil
+	}
+	for _, affinity := range component.DesignStyles {
+		if !strings.EqualFold(affinity.StyleID, styleID) {
+			continue
+		}
+		out.Affinity = affinity.Affinity
+		out.Detail = styleFitDetail(component.LibraryID, styleID, affinity)
+		switch affinity.Affinity {
+		case DesignAffinityNative, DesignAffinityCompatible:
+			out.Kind = StyleFitVerdictOK
+		case DesignAffinityDiscouraged:
+			out.Kind = StyleFitVerdictWarn
+		default:
+			out.Kind = StyleFitVerdictInfo
+		}
+		return out, nil
+	}
+	return out, nil
 }
 
 func (s *service) GetVersionContent(ctx context.Context, componentID, version string) (Content, error) {

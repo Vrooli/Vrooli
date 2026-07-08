@@ -62,6 +62,10 @@ func (f *fakeComponentsService) ValidateDesignStyle(context.Context, string) err
 	panic("not called")
 }
 
+func (f *fakeComponentsService) ValidateStyleFit(context.Context, string, string, string) (components.StyleFitVerdict, error) {
+	panic("not called")
+}
+
 func (f *fakeComponentsService) InitializeComponent(context.Context, components.InitializeComponentInput) (components.InitializeComponentResult, error) {
 	panic("not called")
 }

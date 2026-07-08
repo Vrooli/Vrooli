@@ -44,6 +44,7 @@ func (s *sqliteRepository) Upsert(ctx context.Context, in UpsertInput) (Componen
 		DisplayName:   in.DisplayName,
 		Description:   in.Description,
 		Slot:          in.Slot,
+		Category:      firstNonEmpty(in.Category, in.Headers["category"]),
 		ManifestPath:  in.ManifestPath,
 		LatestVersion: firstNonEmpty(in.LatestVersion, in.Version),
 		DraftVersion:  in.DraftVersion,
@@ -69,6 +70,9 @@ func (s *sqliteRepository) Upsert(ctx context.Context, in UpsertInput) (Componen
 func (s *sqliteRepository) UpsertManifest(ctx context.Context, in IndexManifestInput) (Component, error) {
 	if strings.TrimSpace(in.Manifest.LibraryID) == "" {
 		return Component{}, ErrInvalidHeader{SourcePath: in.Manifest.ManifestPath, Field: "libraryId", Reason: "required"}
+	}
+	if strings.TrimSpace(in.Manifest.Category) == "" {
+		in.Manifest.Category = strings.TrimSpace(in.Headers["category"])
 	}
 	sourcePath := ""
 	for _, v := range in.Versions {
@@ -146,13 +150,14 @@ func (s *sqliteRepository) upsertComponent(ctx context.Context, in ComponentMani
 	}
 
 	if _, err := s.db.ExecContext(ctx, `
-INSERT INTO components (id, library_id, slug, display_name, description, slot, source_path, version, latest_version, draft_version, manifest_path, tags, indexed_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO components (id, library_id, slug, display_name, description, slot, category, source_path, version, latest_version, draft_version, manifest_path, tags, indexed_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(library_id) DO UPDATE SET
   slug         = excluded.slug,
   display_name = excluded.display_name,
   description  = excluded.description,
   slot         = excluded.slot,
+  category     = excluded.category,
   source_path  = excluded.source_path,
   version      = excluded.version,
   latest_version = excluded.latest_version,
@@ -161,7 +166,7 @@ ON CONFLICT(library_id) DO UPDATE SET
   tags         = excluded.tags,
   updated_at   = excluded.updated_at
 `,
-		id, in.LibraryID, slug, in.DisplayName, in.Description, in.Slot, sourcePath, in.LatestVersion, in.LatestVersion, in.DraftVersion, in.ManifestPath,
+		id, in.LibraryID, slug, in.DisplayName, in.Description, in.Slot, in.Category, sourcePath, in.LatestVersion, in.LatestVersion, in.DraftVersion, in.ManifestPath,
 		tagsCol, indexedAt.Format(timeFormat), now.Format(timeFormat),
 	); err != nil {
 		return Component{}, fmt.Errorf("upsert component %q: %w", in.LibraryID, err)
@@ -245,12 +250,7 @@ func (s *sqliteRepository) List(ctx context.Context, q SearchQuery) ([]Component
 		clauses = append(clauses, "("+strings.Join(multiTagPredicates, " OR ")+")")
 	}
 	if cat := strings.TrimSpace(q.Category); cat != "" {
-		clauses = append(clauses, `EXISTS (
-		  SELECT 1 FROM component_headers ch
-		  WHERE ch.component_id = components.id
-		    AND ch.field = 'category'
-		    AND lower(ch.value) = ?
-		)`)
+		clauses = append(clauses, `lower(category) = ?`)
 		args = append(args, strings.ToLower(cat))
 	}
 	styleID := strings.TrimSpace(q.StyleID)
@@ -282,7 +282,7 @@ func (s *sqliteRepository) List(ctx context.Context, q SearchQuery) ([]Component
 		orderBy = "ORDER BY display_name COLLATE NOCASE ASC, library_id ASC"
 	}
 	query := fmt.Sprintf(`
-SELECT id, library_id, slug, display_name, description, slot, source_path, version, latest_version, draft_version, manifest_path, tags, indexed_at, updated_at
+SELECT id, library_id, slug, display_name, description, slot, category, source_path, version, latest_version, draft_version, manifest_path, tags, indexed_at, updated_at
 FROM components
 %s
 %s
@@ -329,9 +329,9 @@ func (s *sqliteRepository) replaceDesignAffinities(ctx context.Context, componen
 			continue
 		}
 		if _, err := s.db.ExecContext(ctx, `
-INSERT INTO component_design_affinities (component_id, style_id, affinity)
-VALUES (?, ?, ?)
-`, componentID, styleID, kind); err != nil {
+INSERT INTO component_design_affinities (component_id, style_id, affinity, reason)
+VALUES (?, ?, ?, ?)
+`, componentID, styleID, kind, strings.TrimSpace(affinity.Reason)); err != nil {
 			return fmt.Errorf("insert design affinity %s=%s for %q: %w", styleID, kind, componentID, err)
 		}
 	}
@@ -340,7 +340,7 @@ VALUES (?, ?, ?)
 
 func (s *sqliteRepository) loadDesignAffinities(ctx context.Context, c *Component) error {
 	rows, err := s.db.QueryContext(ctx, `
-SELECT style_id, affinity
+SELECT style_id, affinity, reason
 FROM component_design_affinities
 WHERE component_id = ?
 ORDER BY style_id ASC
@@ -353,7 +353,7 @@ ORDER BY style_id ASC
 	for rows.Next() {
 		var affinity ComponentDesignAffinity
 		var kind string
-		if err := rows.Scan(&affinity.StyleID, &kind); err != nil {
+		if err := rows.Scan(&affinity.StyleID, &kind, &affinity.Reason); err != nil {
 			return fmt.Errorf("scan design affinity for %q: %w", c.ID, err)
 		}
 		affinity.Affinity = DesignAffinity(kind)
@@ -385,7 +385,7 @@ func (s *sqliteRepository) replaceHeaders(ctx context.Context, componentID strin
 
 func isStructuredHeaderField(field string) bool {
 	switch strings.ToLower(strings.TrimSpace(field)) {
-	case "libraryid", "version", "deps":
+	case "libraryid", "version", "deps", "category":
 		return true
 	default:
 		return false
@@ -481,11 +481,11 @@ WHERE component_id = ? AND version = ?
 
 const (
 	selectComponentByIDSQL = `
-SELECT id, library_id, slug, display_name, description, slot, source_path, version, latest_version, draft_version, manifest_path, tags, indexed_at, updated_at
+SELECT id, library_id, slug, display_name, description, slot, category, source_path, version, latest_version, draft_version, manifest_path, tags, indexed_at, updated_at
 FROM components WHERE id = ?
 `
 	selectComponentByLibraryIDSQL = `
-SELECT id, library_id, slug, display_name, description, slot, source_path, version, latest_version, draft_version, manifest_path, tags, indexed_at, updated_at
+SELECT id, library_id, slug, display_name, description, slot, category, source_path, version, latest_version, draft_version, manifest_path, tags, indexed_at, updated_at
 FROM components WHERE library_id = ?
 `
 )
@@ -501,7 +501,7 @@ func scanComponent(s rowScanner) (Component, error) {
 		indexedRaw string
 		updatedRaw string
 	)
-	if err := s.Scan(&c.ID, &c.LibraryID, &c.Slug, &c.DisplayName, &c.Description, &c.Slot, &c.SourcePath, &c.Version, &c.LatestVersion, &c.DraftVersion, &c.ManifestPath, &tagsRaw, &indexedRaw, &updatedRaw); err != nil {
+	if err := s.Scan(&c.ID, &c.LibraryID, &c.Slug, &c.DisplayName, &c.Description, &c.Slot, &c.Category, &c.SourcePath, &c.Version, &c.LatestVersion, &c.DraftVersion, &c.ManifestPath, &tagsRaw, &indexedRaw, &updatedRaw); err != nil {
 		return Component{}, err
 	}
 	if tagsRaw != "" {

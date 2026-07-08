@@ -73,6 +73,7 @@ func (f *FakeRepository) Upsert(ctx context.Context, in components.UpsertInput) 
 		DisplayName:   in.DisplayName,
 		Description:   in.Description,
 		Slot:          in.Slot,
+		Category:      firstNonEmpty(in.Category, in.Headers["category"]),
 		SourcePath:    in.SourcePath,
 		Version:       in.Version,
 		LatestVersion: in.LatestVersion,
@@ -91,7 +92,7 @@ func (f *FakeRepository) Upsert(ctx context.Context, in components.UpsertInput) 
 func (f *FakeRepository) UpsertManifest(ctx context.Context, in components.IndexManifestInput) (components.Component, error) {
 	c, err := f.Upsert(ctx, components.UpsertInput{
 		LibraryID: in.Manifest.LibraryID, Slug: in.Manifest.Slug, DisplayName: in.Manifest.DisplayName,
-		Description: in.Manifest.Description, Slot: in.Manifest.Slot, ManifestPath: in.Manifest.ManifestPath,
+		Description: in.Manifest.Description, Slot: in.Manifest.Slot, Category: in.Manifest.Category, ManifestPath: in.Manifest.ManifestPath,
 		Version: in.Manifest.LatestVersion, LatestVersion: in.Manifest.LatestVersion, DraftVersion: in.Manifest.DraftVersion,
 		Tags: in.Manifest.Tags, Headers: in.Headers, DesignStyles: in.Manifest.DesignStyles,
 	})
@@ -206,8 +207,7 @@ func (f *FakeRepository) List(ctx context.Context, q components.SearchQuery) ([]
 			}
 		}
 		if categoryL != "" {
-			v, ok := c.Headers["category"]
-			if !ok || !strings.EqualFold(v, categoryL) {
+			if !strings.EqualFold(c.Category, categoryL) {
 				continue
 			}
 		}
@@ -253,6 +253,15 @@ func (f *FakeRepository) List(ctx context.Context, q components.SearchQuery) ([]
 		out = out[:limit]
 	}
 	return out, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func (f *FakeRepository) DeleteMissing(ctx context.Context, keep []string) (int, error) {
@@ -315,7 +324,7 @@ func copyHeaders(in map[string]string) map[string]string {
 
 func isStructuredHeaderField(field string) bool {
 	switch strings.ToLower(strings.TrimSpace(field)) {
-	case "libraryid", "version", "deps":
+	case "libraryid", "version", "deps", "category":
 		return true
 	default:
 		return false

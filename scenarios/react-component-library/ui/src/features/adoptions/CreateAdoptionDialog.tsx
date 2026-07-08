@@ -8,6 +8,12 @@ import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { adoptionsClient, ResolveSource } from "../../api/adoptions";
 import {
+  componentsClient,
+  DesignAffinity,
+  StyleFitVerdictKind,
+  type ValidateStyleFitResponse,
+} from "../../api/components";
+import {
   depsClient,
   IssueKind,
   VerdictKind,
@@ -43,7 +49,9 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
   const [adoptedVersion, setAdoptedVersion] = useState("");
   const [ack, setAck] = useState(false);
   const [verdict, setVerdict] = useState<ValidateAdoptionResponse | null>(null);
+  const [styleVerdict, setStyleVerdict] = useState<ValidateStyleFitResponse | null>(null);
   const [validating, setValidating] = useState(false);
+  const [styleValidating, setStyleValidating] = useState(false);
   const [overwriteRequired, setOverwriteRequired] = useState(false);
 
   useEffect(() => {
@@ -58,7 +66,9 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
       setAdoptedVersion("");
       setAck(false);
       setVerdict(null);
+      setStyleVerdict(null);
       setValidating(false);
+      setStyleValidating(false);
       setOverwriteRequired(false);
     }
   }, [open]);
@@ -84,7 +94,7 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
         if (cancelled) return;
         setAdoptedPath(res.path);
         setPathSource(res.source);
-        setPathWarnings(res.warnings ?? []);
+        setPathWarnings(res.warnings);
       })
       .catch(() => {
         if (cancelled) return;
@@ -130,6 +140,33 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
     };
   }, [open, componentId, scenario, adoptedVersion]);
 
+  useEffect(() => {
+    if (!open) return;
+    const cid = componentId.trim();
+    const sc = scenario.trim();
+    if (!cid || !sc) {
+      setStyleVerdict(null);
+      return;
+    }
+    let cancelled = false;
+    setStyleValidating(true);
+    setAck(false);
+    componentsClient
+      .validateStyleFit({ componentId: cid, scenario: sc, version: adoptedVersion.trim() })
+      .then((res) => {
+        if (!cancelled) setStyleVerdict(res);
+      })
+      .catch(() => {
+        if (!cancelled) setStyleVerdict(null);
+      })
+      .finally(() => {
+        if (!cancelled) setStyleValidating(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, componentId, scenario, adoptedVersion]);
+
   const createMutation = useMutation({
     mutationFn: () =>
       adoptionsClient.applyAdoption({
@@ -151,15 +188,17 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
   });
 
   const kind = verdict?.kind ?? VerdictKind.UNSPECIFIED;
+  const styleKind = styleVerdict?.kind ?? StyleFitVerdictKind.UNSPECIFIED;
   const proceedDisabled =
     !open ||
     validating ||
+    styleValidating ||
     createMutation.isPending ||
     !componentId.trim() ||
     !scenario.trim() ||
     !adoptedPath.trim() ||
     kind === VerdictKind.BLOCK ||
-    (kind === VerdictKind.WARN && !ack);
+    ((kind === VerdictKind.WARN || styleKind === StyleFitVerdictKind.WARN) && !ack);
 
   const verdictKindString = useMemo(() => {
     switch (kind) {
@@ -252,6 +291,10 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
           ack={ack}
           setAck={setAck}
         />
+        <StyleFitBlock validating={styleValidating} verdict={styleVerdict} />
+        {kind !== VerdictKind.WARN && styleKind === StyleFitVerdictKind.WARN && (
+          <WarnAcknowledgement ack={ack} setAck={setAck} />
+        )}
 
         {createMutation.error && (
           <p
@@ -287,6 +330,27 @@ export function CreateAdoptionDialog({ open, onClose }: Props) {
         </div>
       </div>
     </div>
+  );
+}
+
+interface WarnAcknowledgementProps {
+  ack: boolean;
+  setAck: (v: boolean) => void;
+}
+
+function WarnAcknowledgement({ ack, setAck }: WarnAcknowledgementProps) {
+  const { t } = useTranslation();
+
+  return (
+    <label className="mt-2 flex items-center gap-2 text-xs text-amber-200">
+      <input
+        type="checkbox"
+        data-testid={selectors.adoptions.createVerdictAck}
+        checked={ack}
+        onChange={(e) => setAck(e.target.checked)}
+      />
+      {t(strings.adoptions.create.ackLabel)}
+    </label>
   );
 }
 
@@ -359,18 +423,91 @@ function VerdictBlock({
         </ul>
       )}
       {kind === VerdictKind.WARN && (
-        <label className="mt-2 flex items-center gap-2 text-xs">
-          <input
-            type="checkbox"
-            data-testid={selectors.adoptions.createVerdictAck}
-            checked={ack}
-            onChange={(e) => setAck(e.target.checked)}
-          />
-          {t(strings.adoptions.create.ackLabel)}
-        </label>
+        <WarnAcknowledgement ack={ack} setAck={setAck} />
       )}
     </div>
   );
+}
+
+interface StyleFitBlockProps {
+  validating: boolean;
+  verdict: ValidateStyleFitResponse | null;
+}
+
+function StyleFitBlock({ validating, verdict }: StyleFitBlockProps) {
+  const { t } = useTranslation();
+
+  if (validating) {
+    return (
+      <p className="mt-2 text-xs text-slate-400">
+        {t(strings.adoptions.create.styleValidating)}
+      </p>
+    );
+  }
+  if (!verdict || verdict.kind === StyleFitVerdictKind.UNSPECIFIED) {
+    return null;
+  }
+
+  const kindString = styleFitKindString(verdict.kind);
+  const tone =
+    verdict.kind === StyleFitVerdictKind.WARN
+      ? "border-amber-700/40 bg-amber-900/20 text-amber-200"
+      : verdict.kind === StyleFitVerdictKind.INFO
+        ? "border-sky-700/40 bg-sky-900/20 text-sky-200"
+        : "border-emerald-700/40 bg-emerald-900/20 text-emerald-200";
+
+  return (
+    <div
+      data-testid={selectors.adoptions.createStyleVerdict}
+      data-verdict-kind={kindString}
+      className={"mt-2 rounded-lg border p-3 text-xs " + tone}
+    >
+      <div
+        data-testid={selectors.adoptions.createStyleVerdictKind}
+        className="font-medium"
+      >
+        {t(strings.adoptions.create.styleVerdict, {
+          kind: kindString,
+          style: verdict.scenarioStyle || t(strings.adoptions.create.styleUnknown),
+          affinity: designAffinityString(verdict.affinity),
+        })}
+      </div>
+      {verdict.detail && (
+        <p
+          data-testid={selectors.adoptions.createStyleVerdictDetail}
+          className="mt-1"
+        >
+          {verdict.detail}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function styleFitKindString(kind: StyleFitVerdictKind) {
+  switch (kind) {
+    case StyleFitVerdictKind.OK:
+      return "ok";
+    case StyleFitVerdictKind.INFO:
+      return "info";
+    case StyleFitVerdictKind.WARN:
+      return "warn";
+    default:
+      return "unspecified";
+  }
+}
+
+function designAffinityString(affinity: DesignAffinity) {
+  switch (affinity) {
+    case DesignAffinity.NATIVE:
+      return "native";
+    case DesignAffinity.COMPATIBLE:
+      return "compatible";
+    case DesignAffinity.DISCOURAGED:
+      return "discouraged";
+    default:
+      return "none";
+  }
 }
 
 interface PathSourceBadgeProps {

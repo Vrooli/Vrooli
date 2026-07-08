@@ -36,6 +36,7 @@ type componentsService struct {
 	initResp       *componentsv1.InitializeComponentResponse
 	versionResp    *componentsv1.CreateComponentVersionResponse
 	manifestResp   *componentsv1.UpdateComponentManifestResponse
+	styleFitResp   *componentsv1.ValidateStyleFitResponse
 	listErr        error
 	getErr         error
 	byLibIDErr     error
@@ -45,6 +46,7 @@ type componentsService struct {
 	initErr        error
 	versionErr     error
 	manifestErr    error
+	styleFitErr    error
 	listReqs       []*componentsv1.ListComponentsRequest
 	getReqs        []string
 	byLibIDReqs    []string
@@ -52,6 +54,7 @@ type componentsService struct {
 	initReqs       []*componentsv1.InitializeComponentRequest
 	versionReqs    []*componentsv1.CreateComponentVersionRequest
 	manifestReqs   []*componentsv1.UpdateComponentManifestRequest
+	styleFitReqs   []*componentsv1.ValidateStyleFitRequest
 }
 
 func (s *componentsService) ListComponents(_ context.Context, req *connect.Request[componentsv1.ListComponentsRequest]) (*connect.Response[componentsv1.ListComponentsResponse], error) {
@@ -181,6 +184,27 @@ func (s *componentsService) ListDesignStyles(_ context.Context, _ *connect.Reque
 	}), nil
 }
 
+func (s *componentsService) ValidateStyleFit(_ context.Context, req *connect.Request[componentsv1.ValidateStyleFitRequest]) (*connect.Response[componentsv1.ValidateStyleFitResponse], error) {
+	s.mu.Lock()
+	s.styleFitReqs = append(s.styleFitReqs, req.Msg)
+	s.mu.Unlock()
+	if s.styleFitErr != nil {
+		return nil, s.styleFitErr
+	}
+	if s.styleFitResp == nil {
+		s.styleFitResp = &componentsv1.ValidateStyleFitResponse{
+			Kind:          componentsv1.StyleFitVerdictKind_STYLE_FIT_VERDICT_KIND_OK,
+			ComponentId:   req.Msg.ComponentId,
+			Version:       req.Msg.Version,
+			Scenario:      req.Msg.Scenario,
+			ScenarioStyle: "vrooli-default",
+			Affinity:      componentsv1.DesignAffinity_DESIGN_AFFINITY_NATIVE,
+			Detail:        "component is native to the scenario design style",
+		}
+	}
+	return connect.NewResponse(s.styleFitResp), nil
+}
+
 func connectAPI(t *testing.T, svc *componentsService) http.Handler {
 	t.Helper()
 	path, handler := componentsconnect.NewComponentsServiceHandler(svc)
@@ -263,6 +287,29 @@ func TestComponentsStyles_RendersCanonicalStyles(t *testing.T) {
 	require.Contains(t, body, "Found 1 design style(s).")
 	require.Contains(t, body, "vrooli-default")
 	require.Contains(t, body, "templates/scenarios/react-vite")
+}
+
+func TestComponentsStyleFit_ForwardsInputsAndRendersVerdict(t *testing.T) {
+	svc := &componentsService{}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{Name: "component-id", Required: true}, {Name: "scenario", Required: true}},
+		Flags:       []cliapp.Flag{{Name: "version"}},
+	}, cliapptest.TestRunContextOptions{
+		Positionals: map[string]string{"component-id": "cmp-1", "scenario": "target-app"},
+		Flags:       map[string]string{"version": "1.0.0"},
+	})
+
+	require.NoError(t, h.validateStyleFit(ctx))
+	require.Len(t, svc.styleFitReqs, 1)
+	require.Equal(t, "cmp-1", svc.styleFitReqs[0].ComponentId)
+	require.Equal(t, "target-app", svc.styleFitReqs[0].Scenario)
+	require.Equal(t, "1.0.0", svc.styleFitReqs[0].Version)
+	body := out.String()
+	require.Contains(t, body, "Style fit is ok for scenario target-app.")
+	require.Contains(t, body, "style=vrooli-default")
+	require.Contains(t, body, "component is native")
 }
 
 func TestComponentsList_ForwardsMultiTagAndCategory(t *testing.T) {

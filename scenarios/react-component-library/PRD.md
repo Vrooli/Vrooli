@@ -30,6 +30,7 @@
 - [x] OT-P1-004 | Dependency compatibility check on adopt | Component declares `@deps` (JSON in header); on adopt, validate against the target scenario's `package.json`; warn on missing/mismatch, block on incompatible-major.
 - [x] OT-P1-005 | Version tracking with a real diff viewer | Each save records a new version; UI renders a side-by-side unified diff between any two versions and between the library version and an adopted copy.
 - [x] OT-P1-006 | Theme-preview switcher | Pick from built-in themes or load a target scenario's `DESIGN.md`-derived theme; tokens mount as CSS custom properties on the harness `:root` before render. Resolver is a server endpoint, never client-derived.
+- [ ] OT-P1-007 | Design-style fit validation | Components declare advisory `designStyles[]` affinities with rationale; adoption workflows validate the target scenario's `.vrooli/service.json` `generation.design.id` and surface native/compatible/discouraged/stale-style findings.
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | AI-powered editing (single refactor preset) | Chat panel sends current component plus selected-element context to `resource-openrouter`; returns a unified-diff patch suggestion; user must explicitly accept; no auto-apply.

@@ -39,7 +39,11 @@ func ParseHeaderField(raw string) ([]DeclarationFields, error) {
 		}
 		out := make([]DeclarationFields, 0, len(detailed))
 		for k, v := range detailed {
-			out = append(out, DeclarationFields{DepName: k, VersionRange: v.Range, Kind: normalizeKind(DepKind(v.Kind))})
+			kind, err := parseKind(v.Kind)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, DeclarationFields{DepName: k, VersionRange: v.Range, Kind: kind})
 		}
 		return out, nil
 	}
@@ -54,9 +58,26 @@ func ParseHeaderField(raw string) ([]DeclarationFields, error) {
 		}
 		out := make([]DeclarationFields, 0, len(arr))
 		for _, e := range arr {
-			out = append(out, DeclarationFields{DepName: e.Name, VersionRange: e.Range, Kind: normalizeKind(DepKind(e.Kind))})
+			kind, err := parseKind(e.Kind)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, DeclarationFields{DepName: e.Name, VersionRange: e.Range, Kind: kind})
 		}
 		return out, nil
 	}
 	return nil, fmt.Errorf("@deps must be a JSON object or array, got %q", raw[:1])
+}
+
+func parseKind(raw string) (DepKind, error) {
+	kind := DepKind(strings.ToLower(strings.TrimSpace(raw)))
+	if kind == "" {
+		return DepKindRuntime, nil
+	}
+	switch kind {
+	case DepKindRuntime, DepKindPeer, DepKindDev:
+		return kind, nil
+	default:
+		return "", fmt.Errorf("invalid @deps kind %q", raw)
+	}
 }

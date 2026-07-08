@@ -11,16 +11,16 @@
       "id": "DSA-001",
       "title": "Design-style ids come from the canonical template registry",
       "status": "complete",
-      "prd_ref": "OT-P1-004",
+      "prd_ref": "OT-P1-007",
       "category": "registry",
       "criticality": "P1",
-      "description": "The component service loads design styles from `templates/design/*/metadata.json` and exposes them through `components styles` / `ComponentsService.ListDesignStyles`. Component manifests may only reference those style ids.",
+      "description": "The component service loads design styles from `templates/design/*/metadata.json` and exposes them through `components styles` / `ComponentsService.ListDesignStyles`. Component manifests are reconciled against those style ids during indexing so stale references are visible to operators.",
       "tags": ["design-styles", "registry", "cli"],
       "validation": [
         {
           "type": "automated",
           "status": "complete",
-          "notes": "api/internal/components/styles_test.go verifies canonical style loading and unknown-id rejection."
+          "notes": "api/internal/components/styles_test.go verifies canonical style loading and direct unknown-id validation."
         }
       ]
     },
@@ -28,16 +28,16 @@
       "id": "DSA-002",
       "title": "Component manifests declare advisory design-style affinities",
       "status": "complete",
-      "prd_ref": "OT-P1-004",
+      "prd_ref": "OT-P1-007",
       "category": "registry",
       "criticality": "P1",
-      "description": "`component.json` supports `designStyles[]` entries with `styleId` and `affinity` (`native`, `compatible`, or `discouraged`). Indexing rejects unknown style ids, invalid affinities, and duplicate style ids.",
+      "description": "`component.json` supports component-scoped `designStyles[]` entries with `styleId`, `affinity` (`native`, `compatible`, or `discouraged`), and optional `reason`. Indexing rejects invalid affinities and duplicate style ids; unknown style ids are reported as stale findings without rejecting the component.",
       "tags": ["design-styles", "component-json", "indexer"],
       "validation": [
         {
           "type": "automated",
           "status": "complete",
-          "notes": "api/internal/components/indexer_test.go verifies successful parsing and unknown-style rejection."
+          "notes": "api/internal/components/indexer_test.go verifies successful parsing, optional rationale parsing, invalid-affinity rejection, and unknown-style staleness findings."
         }
       ]
     },
@@ -45,7 +45,7 @@
       "id": "DSA-003",
       "title": "Affinities are indexed, searchable, and visible to operators",
       "status": "complete",
-      "prd_ref": "OT-P1-004",
+      "prd_ref": "OT-P1-007",
       "category": "search",
       "criticality": "P1",
       "description": "A fresh index populates `component_design_affinities`; component list/get responses include affinity rows; CLI and UI support style/affinity filtering and render discouraged-style badges.",
@@ -54,12 +54,46 @@
         {
           "type": "automated",
           "status": "complete",
-          "notes": "api/internal/components/sqlite_test.go verifies persistence and style/affinity filtering; cli/domains/components and ComponentsCard tests verify operator surfaces."
+          "notes": "api/internal/components/sqlite_test.go verifies persistence, optional rationale round-trip, and style/affinity filtering; cli/domains/components and ComponentsCard tests verify operator surfaces."
         },
         {
           "type": "manual",
           "status": "complete",
           "notes": "Live dev DB re-index on 2026-07-08 indexed 10 components and populated 30 affinity rows."
+        }
+      ]
+    },
+    {
+      "id": "DSA-004",
+      "title": "Scenario design fit can be validated from service.json",
+      "status": "complete",
+      "prd_ref": "OT-P1-007",
+      "category": "adoption",
+      "criticality": "P1",
+      "description": "`ValidateStyleFit` reads a target scenario's `.vrooli/service.json` `generation.design.id`, compares it to component affinity declarations, and returns a rationale-bearing ok/info/warn verdict.",
+      "tags": ["design-styles", "style-fit", "service-json"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "api/internal/components/service_test.go covers native, compatible, discouraged, undeclared-style, missing-style, missing-reader, and traversal-guard behavior. The components proto now exposes ValidateStyleFit end-to-end through Connect-RPC, the CLI adds `components style-fit`, and the adoption dialog validates style fit alongside dependency fit with warn acknowledgement gating."
+        }
+      ]
+    },
+    {
+      "id": "DSA-005",
+      "title": "Stale design-style references are non-fatal health findings",
+      "status": "partial",
+      "prd_ref": "OT-P1-007",
+      "category": "registry",
+      "criticality": "P1",
+      "description": "A re-index over a component affinity whose `styleId` no longer exists in the canonical design catalogue emits a non-fatal `stale_design_style` finding and keeps indexing otherwise valid component data.",
+      "tags": ["design-styles", "staleness", "health"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "partial",
+          "notes": "api/internal/components/indexer_test.go verifies the non-fatal stale finding; api/handlers/components/module_test.go verifies the existing index response exposes it as a visible `finding:stale_design_style` message. A dedicated structured health table/RPC/UI surface is still pending."
         }
       ]
     }

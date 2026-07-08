@@ -33,7 +33,9 @@ func setupModule(t *testing.T) (*mux.Router, string) {
 	))
 
 	root := t.TempDir()
-	m := components.ModuleWithRoot(d, clock.System{}, root, log.New(io.Discard, "", 0))
+	svc, repo := components.BuildService(d, clock.System{}, root)
+	internalcomponents.SetServiceJSONReader(svc, internalcomponents.NewFSServiceJSONReader(filepath.Dir(root)))
+	m := components.ModuleFromService(svc, repo, root, log.New(io.Discard, "", 0))
 	r := mux.NewRouter()
 	m.Mount(r)
 	return r, root
@@ -42,7 +44,7 @@ func setupModule(t *testing.T) (*mux.Router, string) {
 func TestModule_Shape(t *testing.T) {
 	r, _ := setupModule(t)
 	require.NotNil(t, r)
-	require.Len(t, components.Endpoints, 12, "components ships registry, styles, source authoring, content, and version endpoints")
+	require.Len(t, components.Endpoints, 13, "components ships registry, style fit, styles, source authoring, content, and version endpoints")
 }
 
 func TestModule_InitializeComponentRoundTrip(t *testing.T) {
@@ -130,6 +132,42 @@ export const Button = () => null;
 	require.Contains(t, rw.Body.String(), `"displayName":"Button"`)
 }
 
+func TestModule_IndexSurfacesStaleDesignStyleFinding(t *testing.T) {
+	r, root := setupModule(t)
+	writeButtonManifestWithStyles(t, root, `[{"styleId":"missing-style","affinity":"native"}]`)
+
+	rw := callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	require.Contains(t, rw.Body.String(), `react-component-library:Button`)
+	require.Contains(t, rw.Body.String(), `finding:stale_design_style`)
+	require.Contains(t, rw.Body.String(), `missing-style`)
+}
+
+func TestModule_ValidateStyleFitRoundTrip(t *testing.T) {
+	r, root := setupModule(t)
+	writeButtonManifestWithStyles(t, root, `[{"styleId":"vrooli-default","affinity":"native","reason":"token-native baseline"}]`)
+	writeScenarioServiceJSON(t, root, "target-app", "vrooli-default")
+
+	rw := callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+
+	rw = callConnect(r, componentsconnect.ComponentsServiceGetComponentByLibraryIdProcedure,
+		`{"libraryId":"react-component-library:Button"}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	body := rw.Body.String()
+	idStart := strings.Index(body, `"id":"`) + len(`"id":"`)
+	idEnd := strings.Index(body[idStart:], `"`)
+	id := body[idStart : idStart+idEnd]
+	require.NotEmpty(t, id)
+
+	rw = callConnect(r, componentsconnect.ComponentsServiceValidateStyleFitProcedure,
+		`{"componentId":"`+id+`","scenario":"target-app","version":"1.0.0"}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	require.Contains(t, rw.Body.String(), `"kind":"STYLE_FIT_VERDICT_KIND_OK"`)
+	require.Contains(t, rw.Body.String(), `"scenarioStyle":"vrooli-default"`)
+	require.Contains(t, rw.Body.String(), `token-native baseline`)
+}
+
 func writeButtonManifest(t *testing.T, root, source string) {
 	t.Helper()
 	dir := filepath.Join(root, "components", "Button")
@@ -143,6 +181,40 @@ func writeButtonManifest(t *testing.T, root, source string) {
   "deprecatedVersions": []
 }`), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "versions", "1.0.0", "Button.tsx"), []byte(source), 0o600))
+}
+
+func writeButtonManifestWithStyles(t *testing.T, root, designStyles string) {
+	t.Helper()
+	dir := filepath.Join(root, "components", "Button")
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "versions", "1.0.0"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "component.json"), []byte(`{
+  "libraryId": "react-component-library:Button",
+  "displayName": "Button",
+  "description": "Primary CTA.",
+  "tags": ["form"],
+  "designStyles": `+designStyles+`,
+  "latest": "1.0.0",
+  "deprecatedVersions": []
+}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "versions", "1.0.0", "Button.tsx"), []byte(`/**
+ * @libraryId react-component-library:Button
+ * @version 1.0.0
+ */
+export const Button = () => null;
+`), 0o600))
+}
+
+func writeScenarioServiceJSON(t *testing.T, root, scenario, styleID string) {
+	t.Helper()
+	dir := filepath.Join(root, "..", scenario, ".vrooli")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "service.json"), []byte(`{
+  "generation": {
+    "design": {
+      "id": "`+styleID+`"
+    }
+  }
+}`), 0o600))
 }
 
 func TestModule_GetReturnsNotFound(t *testing.T) {

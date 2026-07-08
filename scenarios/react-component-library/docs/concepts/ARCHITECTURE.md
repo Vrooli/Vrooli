@@ -76,14 +76,17 @@ between surfaces is impossible.
 Component source remains Git-tracked under `library/components/<slug>/`.
 `component.json` owns stable manifest fields, including `slot` and
 `designStyles`; version folders own immutable/draft `.tsx` source plus
-JSDoc headers such as `@version`, `@deps`, and `@category`. The
-components indexer validates both layers and writes SQLite projection
-tables:
+JSDoc headers such as `@version`, `@status`, `@deps`, and `@category`.
+`@category` is a latest-version header hint that is promoted into the
+typed `components.category` facet; it is not retained in
+`component_headers`. The components indexer validates both layers and
+writes SQLite projection tables:
 
-- `components` for the registry row and adoption `slot`,
+- `components` for the registry row, adoption `slot`, and category
+  facet,
 - `component_versions` for source snapshots and version status,
 - `component_headers` for non-structural latest-version metadata,
-- `component_design_affinities` for style fit signals,
+- `component_design_affinities` for style fit signals and rationale,
 - `component_dep_declarations` through the deps observer for
   version-scoped dependency validation and preview import maps.
 

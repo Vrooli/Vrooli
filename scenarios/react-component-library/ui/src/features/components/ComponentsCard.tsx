@@ -16,6 +16,10 @@ const DESIGN_AFFINITY_NATIVE = 1;
 const DESIGN_AFFINITY_COMPATIBLE = 2;
 const DESIGN_AFFINITY_DISCOURAGED = 3;
 
+function isDiscouragedAffinity(affinity: unknown) {
+  return affinity === DESIGN_AFFINITY_DISCOURAGED;
+}
+
 /**
  * ComponentsCard renders the indexed component registry. The user can
  * filter by name substring + tag, trigger a re-index from disk, and
@@ -201,8 +205,11 @@ export function ComponentsCard() {
           </p>
           <ul data-testid={selectors.components.list} className="mt-2 space-y-2 text-sm text-slate-200">
             {components.map((c) => {
-              const designStyles = c.designStyles ?? [];
-              const componentTags = c.tags ?? [];
+              const designStyles = c.designStyles;
+              const componentTags = c.tags;
+              const designStylesSummary = designStyles
+                .map((style) => `${style.styleId}:${formatAffinity(style.affinity)}`)
+                .join(", ");
               return (
                 <li
                   key={c.id}
@@ -253,24 +260,27 @@ export function ComponentsCard() {
                   {c.description && (
                     <div className="mt-1 text-xs text-slate-400">{c.description}</div>
                   )}
-                  {c.slot && (
-                    <div
-                      data-testid={selectors.components.itemSlot}
-                      className="mt-1 font-mono text-xs text-slate-500"
-                    >
-                      slot={c.slot}
-                    </div>
-                  )}
-                  {designStyles.length > 0 && (
-                    <div
-                      data-testid={selectors.components.itemDesignStyles}
-                      className="mt-2 flex flex-wrap gap-1 text-xs"
-                    >
-                      {designStyles.map((style) => (
-                        <span
-                          key={style.styleId}
-                          className={
-                            style.affinity === DESIGN_AFFINITY_DISCOURAGED
+	                  {c.slot && (
+	                    <div
+	                      data-testid={selectors.components.itemSlot}
+	                      className="mt-1 font-mono text-xs text-slate-500"
+	                    >
+	                      {t(strings.components.slotLabel, { slot: c.slot })}
+	                    </div>
+	                  )}
+	                  {designStyles.length > 0 && (
+	                    <div
+	                      data-testid={selectors.components.itemDesignStyles}
+	                      className="mt-2 flex flex-wrap gap-1 text-xs"
+	                      aria-label={t(strings.components.designStylesLabel, {
+	                        styles: designStylesSummary,
+	                      })}
+	                    >
+	                      {designStyles.map((style) => (
+	                        <span
+	                          key={style.styleId}
+	                          className={
+	                            isDiscouragedAffinity(style.affinity)
                               ? "rounded border border-amber-400/50 px-2 py-0.5 text-amber-200"
                               : "rounded border border-white/10 px-2 py-0.5 text-slate-300"
                           }

@@ -26,6 +26,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ComponentsService.ListComponentVersions":      h.versions,
 		"ComponentsService.GetComponentVersionContent": h.showVersion,
 		"ComponentsService.ListDesignStyles":           h.styles,
+		"ComponentsService.ValidateStyleFit":           h.validateStyleFit,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

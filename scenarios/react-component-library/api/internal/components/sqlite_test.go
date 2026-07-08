@@ -2,6 +2,7 @@ package components_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 	"time"
@@ -15,7 +16,7 @@ import (
 	"react-component-library/internal/testutil/mocks"
 )
 
-func newComponentsDB(t *testing.T) (components.Repository, func() time.Time) {
+func newComponentsRawDB(t *testing.T) (*sql.DB, components.Repository, func() time.Time) {
 	t.Helper()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
@@ -24,7 +25,13 @@ func newComponentsDB(t *testing.T) (components.Repository, func() time.Time) {
 	))
 	clk := mocks.NewFakeClock(time.Date(2026, 5, 12, 10, 0, 0, 0, time.UTC))
 	repo := components.NewSQLiteRepository(d, clk)
-	return repo, clk.Now
+	return d, repo, clk.Now
+}
+
+func newComponentsDB(t *testing.T) (components.Repository, func() time.Time) {
+	t.Helper()
+	_, repo, now := newComponentsRawDB(t)
+	return repo, now
 }
 
 func TestSQLiteRepository_UpsertInsertsThenUpdates(t *testing.T) {
@@ -47,6 +54,7 @@ func TestSQLiteRepository_UpsertInsertsThenUpdates(t *testing.T) {
 	require.Equal(t, c1.IndexedAt, c1.UpdatedAt)
 	require.Equal(t, []string{"form", "interactive"}, c1.Tags)
 	require.Equal(t, "ui-primitive", c1.Slot)
+	require.Empty(t, c1.Category)
 	require.Equal(t, "DO NOT REMOVE", c1.Headers["warning"])
 	require.NotContains(t, c1.Headers, "libraryId")
 	require.NotContains(t, c1.Headers, "version")
@@ -63,7 +71,8 @@ func TestSQLiteRepository_UpsertInsertsThenUpdates(t *testing.T) {
 	require.Equal(t, c1.ID, c2.ID, "upsert by libraryId must reuse the existing primary key")
 	require.Equal(t, "Button (renamed)", c2.DisplayName)
 	require.Equal(t, "ui-pattern", c2.Slot)
-	require.Equal(t, "controls", c2.Headers["category"])
+	require.Equal(t, "controls", c2.Category)
+	require.NotContains(t, c2.Headers, "category")
 	require.NotContains(t, c2.Headers, "warning")
 	require.Equal(t, c1.IndexedAt, c2.IndexedAt, "IndexedAt is sticky")
 }
@@ -94,11 +103,12 @@ func TestSQLiteRepository_UpsertManifestPersistsLatestHeadersForCategoryFacet(t 
 		},
 	})
 	require.NoError(t, err)
-	require.Equal(t, "controls", c.Headers["category"])
+	require.Equal(t, "controls", c.Category)
 	require.Equal(t, "DO NOT REMOVE", c.Headers["warning"])
 	require.NotContains(t, c.Headers, "libraryId")
 	require.NotContains(t, c.Headers, "version")
 	require.NotContains(t, c.Headers, "deps")
+	require.NotContains(t, c.Headers, "category")
 
 	got, err := repo.List(ctx, components.SearchQuery{Category: "controls", Limit: 10})
 	require.NoError(t, err)
@@ -108,7 +118,8 @@ func TestSQLiteRepository_UpsertManifestPersistsLatestHeadersForCategoryFacet(t 
 
 	fetched, err := repo.Get(ctx, c.ID)
 	require.NoError(t, err)
-	require.Equal(t, "controls", fetched.Headers["category"])
+	require.Equal(t, "controls", fetched.Category)
+	require.NotContains(t, fetched.Headers, "category")
 }
 
 func TestSQLiteRepository_UpsertManifestPersistsDesignAffinitiesAndFilters(t *testing.T) {
@@ -123,7 +134,7 @@ func TestSQLiteRepository_UpsertManifestPersistsDesignAffinitiesAndFilters(t *te
 			Slot:          "ui-primitive",
 			LatestVersion: "1.0.0",
 			DesignStyles: []components.ComponentDesignAffinity{
-				{StyleID: "vrooli-default", Affinity: components.DesignAffinityNative},
+				{StyleID: "vrooli-default", Affinity: components.DesignAffinityNative, Reason: "token-native baseline"},
 				{StyleID: "vrooli-conversion-landing", Affinity: components.DesignAffinityCompatible},
 			},
 		},
@@ -134,7 +145,7 @@ func TestSQLiteRepository_UpsertManifestPersistsDesignAffinitiesAndFilters(t *te
 	require.NoError(t, err)
 	require.Equal(t, []components.ComponentDesignAffinity{
 		{StyleID: "vrooli-conversion-landing", Affinity: components.DesignAffinityCompatible},
-		{StyleID: "vrooli-default", Affinity: components.DesignAffinityNative},
+		{StyleID: "vrooli-default", Affinity: components.DesignAffinityNative, Reason: "token-native baseline"},
 	}, button.DesignStyles)
 
 	_, err = repo.UpsertManifest(ctx, components.IndexManifestInput{
@@ -164,6 +175,68 @@ func TestSQLiteRepository_UpsertManifestPersistsDesignAffinitiesAndFilters(t *te
 	require.Len(t, got, 1)
 	require.Equal(t, "react-component-library:DataTable", got[0].LibraryID)
 	require.Equal(t, components.DesignAffinityDiscouraged, got[0].DesignStyles[0].Affinity)
+
+	got, err = repo.List(ctx, components.SearchQuery{Affinity: "native", Limit: 10})
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	gotIDs := []string{got[0].LibraryID, got[1].LibraryID}
+	require.Contains(t, gotIDs, "react-component-library:Button")
+	require.Contains(t, gotIDs, "react-component-library:DataTable")
+}
+
+func TestSQLiteRepository_AdditiveCategoryAndReasonMigrationPreservesRows(t *testing.T) {
+	d := db.NewSQLite(t)
+	ctx := context.Background()
+	require.NoError(t, apidb.EnsureSchemas(ctx, d,
+		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(func() string {
+			return `
+CREATE TABLE IF NOT EXISTS components (
+  id TEXT PRIMARY KEY,
+  library_id TEXT NOT NULL UNIQUE,
+  slug TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  slot TEXT NOT NULL DEFAULT '',
+  source_path TEXT NOT NULL,
+  version TEXT NOT NULL DEFAULT '',
+  latest_version TEXT NOT NULL DEFAULT '',
+  draft_version TEXT NOT NULL DEFAULT '',
+  manifest_path TEXT NOT NULL DEFAULT '',
+  tags TEXT NOT NULL DEFAULT '',
+  indexed_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS component_design_affinities (
+  component_id TEXT NOT NULL,
+  style_id TEXT NOT NULL,
+  affinity TEXT NOT NULL,
+  PRIMARY KEY (component_id, style_id)
+);`
+		}),
+	))
+	_, err := d.ExecContext(ctx, `
+INSERT INTO components (id, library_id, slug, display_name, slot, source_path, version, latest_version, manifest_path, tags, indexed_at, updated_at)
+VALUES ('component-1', 'lib:Button', 'Button', 'Button', 'ui-primitive', 'Button.tsx', '1.0.0', '1.0.0', 'component.json', '', '2026-05-12T10:00:00Z', '2026-05-12T10:00:00Z');
+INSERT INTO component_design_affinities (component_id, style_id, affinity)
+VALUES ('component-1', 'vrooli-default', 'native');`)
+	require.NoError(t, err)
+
+	require.NoError(t, components.EnsureSchemaMigrations(ctx, d))
+	require.NoError(t, components.EnsureSchemaMigrations(ctx, d), "migration is boot-idempotent")
+
+	require.NoError(t, apidb.EnsureSchemas(ctx, d,
+		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(components.Schema),
+	))
+	repo := components.NewSQLiteRepository(d, mocks.NewFakeClock(time.Date(2026, 5, 12, 11, 0, 0, 0, time.UTC)))
+	got, err := repo.GetByLibraryID(ctx, "lib:Button")
+	require.NoError(t, err)
+	require.Equal(t, "lib:Button", got.LibraryID)
+	require.Empty(t, got.Category)
+	require.Equal(t, []components.ComponentDesignAffinity{
+		{StyleID: "vrooli-default", Affinity: components.DesignAffinityNative},
+	}, got.DesignStyles)
 }
 
 func TestSQLiteRepository_GetByLibraryID_NotFound(t *testing.T) {

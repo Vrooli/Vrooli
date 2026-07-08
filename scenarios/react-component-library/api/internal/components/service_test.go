@@ -43,3 +43,110 @@ func TestService_GetByLibraryIDPropagatesNotFound(t *testing.T) {
 	var nf components.ErrComponentNotFound
 	require.True(t, errors.As(err, &nf))
 }
+
+func TestService_ValidateStyleFitFoldsAffinityVerdicts(t *testing.T) {
+	tests := []struct {
+		name     string
+		style    string
+		wantKind components.StyleFitVerdictKind
+		wantAff  components.DesignAffinity
+		wantText string
+	}{
+		{
+			name:     "native is ok",
+			style:    "vrooli-default",
+			wantKind: components.StyleFitVerdictOK,
+			wantAff:  components.DesignAffinityNative,
+			wantText: "token-native baseline",
+		},
+		{
+			name:     "compatible is ok with info detail",
+			style:    "vrooli-conversion-landing",
+			wantKind: components.StyleFitVerdictOK,
+			wantAff:  components.DesignAffinityCompatible,
+			wantText: "compatible",
+		},
+		{
+			name:     "discouraged is warn",
+			style:    "vrooli-data-dense",
+			wantKind: components.StyleFitVerdictWarn,
+			wantAff:  components.DesignAffinityDiscouraged,
+			wantText: "too sparse",
+		},
+		{
+			name:     "undeclared style is info",
+			style:    "vrooli-editorial",
+			wantKind: components.StyleFitVerdictInfo,
+			wantText: "declares no affinity",
+		},
+		{
+			name:     "missing scenario style is warn",
+			style:    "",
+			wantKind: components.StyleFitVerdictWarn,
+			wantText: "does not declare generation.design.id",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := mocks.NewFakeRepository()
+			c := seedStyleFitComponent(t, repo)
+			svc := components.NewServiceWithScenarioReader(repo, serviceJSONReaderFunc(func(context.Context, string) ([]byte, error) {
+				if tt.style == "" {
+					return []byte(`{"generation":{"design":{}}}`), nil
+				}
+				return []byte(`{"generation":{"design":{"id":"` + tt.style + `"}}}`), nil
+			}))
+
+			got, err := svc.ValidateStyleFit(context.Background(), c.ID, "1.0.0", "demo")
+			require.NoError(t, err)
+			require.Equal(t, tt.wantKind, got.Kind)
+			require.Equal(t, tt.wantAff, got.Affinity)
+			require.Equal(t, c.ID, got.ComponentID)
+			require.Equal(t, "1.0.0", got.Version)
+			require.Equal(t, "demo", got.Scenario)
+			require.Equal(t, tt.style, got.ScenarioStyle)
+			require.Contains(t, got.Detail, tt.wantText)
+		})
+	}
+}
+
+func TestService_ValidateStyleFitRequiresScenarioReader(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	c := seedStyleFitComponent(t, repo)
+	svc := components.NewService(repo)
+
+	_, err := svc.ValidateStyleFit(context.Background(), c.ID, "1.0.0", "demo")
+	require.ErrorContains(t, err, "service.json reader not configured")
+}
+
+func TestFSServiceJSONReaderGuardsTraversal(t *testing.T) {
+	reader := components.NewFSServiceJSONReader(t.TempDir())
+	_, err := reader.Read(context.Background(), "../demo")
+	require.ErrorContains(t, err, "invalid scenario name")
+}
+
+func seedStyleFitComponent(t *testing.T, repo *mocks.FakeRepository) components.Component {
+	t.Helper()
+	c, err := repo.UpsertManifest(context.Background(), components.IndexManifestInput{
+		Manifest: components.ComponentManifest{
+			LibraryID:     "react-component-library:Button",
+			DisplayName:   "Button",
+			LatestVersion: "1.0.0",
+			DesignStyles: []components.ComponentDesignAffinity{
+				{StyleID: "vrooli-default", Affinity: components.DesignAffinityNative, Reason: "token-native baseline"},
+				{StyleID: "vrooli-conversion-landing", Affinity: components.DesignAffinityCompatible},
+				{StyleID: "vrooli-data-dense", Affinity: components.DesignAffinityDiscouraged, Reason: "too sparse"},
+			},
+		},
+		Versions: []components.ComponentVersion{{Version: "1.0.0"}},
+	})
+	require.NoError(t, err)
+	return c
+}
+
+type serviceJSONReaderFunc func(context.Context, string) ([]byte, error)
+
+func (f serviceJSONReaderFunc) Read(ctx context.Context, scenario string) ([]byte, error) {
+	return f(ctx, scenario)
+}

@@ -112,6 +112,19 @@
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
+          "name": "style-fit",
+          "description": "Validate a component version against a target scenario's design style",
+          "positionals": [
+            { "name": "component-id", "required": true, "description": "Component id" },
+            { "name": "scenario", "required": true, "description": "Target scenario name" }
+          ],
+          "flags": [
+            { "name": "version", "description": "Component version to validate; defaults to latest" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ComponentsService", "method": "ValidateStyleFit" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
+        },
+        {
           "name": "get",
           "description": "Get a component by id",
           "positionals": [
